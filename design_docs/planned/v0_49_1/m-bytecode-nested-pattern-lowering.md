@@ -1,10 +1,11 @@
 # M-BYTECODE-NESTED-PATTERN-LOWERING — pattern lowering is flat-only: nested patterns (`a :: b :: rest`) become evaluator-only, and literal/nested sub-patterns match too permissively on the strict VM (silent wrong results)
 
 **Status**: Planned — quorum attempted 2026-09-30: **both external reviewers unreachable** (gemini-3-1-pro: Vertex 403 on this project; oc-kimi-k3: no Ollama endpoint), so the quorum degraded to controller-only with the absences recorded by name in `.ailang/state/mission-quorum/m-bytecode-nested-pattern-lowering-2026-09-30T21-20-16Z.json` — NOT quorum-cleared. The 24-row first-party Verification Log is the load-bearing evidence; re-run quorum when a reviewer route is available.
-**Target**: v0.49.1 (bug fix; sibling of the clause-2 soundness lane — see Related Documents)
+**Promoted to the active queue 2026-10-02** (coordinator task `task-08c86c94` — the **second independent report of row A1**: `cons2.ail` `_ :: x :: _ => x` → `unbound variable "x"`, binary v0.51.0 `b99dd25`, workaround in stapledons-godot `ai/wire_test.ail` `secondIn`). All eight rows, the flat controls, and the `ailang check` gate were re-confirmed first-party on that binary (V25-V38 below); the duplicate gate routed this report here rather than to a new doc. Quorum not re-run — the same runner fleet's 2026-10-02 attempt on the ifchain sibling recorded **all five** reviewer routes absent by name (`.ailang/state/mission-quorum/m-vm-ifchain-tag-guard-lowering-2026-10-02T15-46-27Z.json`); re-run when a route exists. Two premise corrections from newer siblings are folded in (Design Freeze items 2-3; case 6 and the guards sentence below are marked CORRECTED).
+**Target**: v0.51.2 — re-targeted 2026-10-02 from the stale v0.49.1 (two released versions behind) and promoted into the active bug-fix queue per [m-vm-ifchain-tag-guard-lowering.md](../v0_51_2/m-vm-ifchain-tag-guard-lowering.md) item 5. The file deliberately stays in `planned/v0_49_1/` so the three siblings' relative links and prior coordinator artifacts keep resolving; the sprint-planner may re-folder.
 **Priority**: P0 — two of the six confirmed variants are **silent wrong results** on `--strict-bytecode` (no error, no fallback, wrong value, exit 0); the other four degrade nested-pattern functions to evaluator-only, breaking strict-VM coverage.
 **Estimated**: ~2–3 days (root cause fully localized; the fix mirrors an existing, correct, recursive implementation — see Solution Design)
-**Dependencies**: none. Builds on [m-lower-fix.md](../implemented/v0_11_0/m-lower-fix.md) (landed) and is a sibling of [m-bytecode-pattern-arity-fix.md](../v1_0_0/m-bytecode-pattern-arity-fix.md) (the `len == n` check, already present at `internal/gen/lower/match.go:414-416` at HEAD).
+**Dependencies**: none. Builds on [m-lower-fix.md](../implemented/v0_11_0/m-lower-fix.md) (landed) and is a sibling of [m-bytecode-pattern-arity-fix.md](../v1_0_0/m-bytecode-pattern-arity-fix.md) (the `len == n` check, already present at `internal/gen/lower/match.go:414-416` at HEAD). **Merge-order coordination required** (added 2026-10-02): three newer siblings — [m-vm-ifchain-tag-guard-lowering.md](../v0_51_2/m-vm-ifchain-tag-guard-lowering.md), [m-vm-var-pattern-default-arm.md](../v0_51_2/m-vm-var-pattern-default-arm.md), [m-vm-adt-tag-check-lowering.md](../v0_51_3/m-vm-adt-tag-check-lowering.md) — all touch `internal/gen/lower/match.go`, and two of them correct premises this doc originally relied on (see Design Freeze).
 
 ## Problem Statement
 
@@ -45,7 +46,11 @@ sunholo/relativity 0.3.0 works around it with one-level cons patterns only).
 (`_ :: x :: rest => x`, the exact reported shape), `examples/runnable/pattern_sugar.ail:58,74,93`
 (`a :: b :: c`, `a :: b :: c :: rest`), and `examples/runnable/std_audio_brief.ail:65`
 (`path :: stem :: _`). The repo's own example currently only passes because the non-strict
-bytecode path silently bridges the evaluator-only function.
+bytecode path silently bridges the evaluator-only function. A second independent consumer report
+(2026-10-02, task-08c86c94) works around the identical gap in stapledons-godot `ai/wire_test.ail`
+(`secondIn`) with **two sequential one-level matches** —
+`match xs { [] => "", _ :: r => match r { [] => "", x :: _ => x } }` — the same workaround shape the
+first report documented, confirming the gap is still forcing source rewrites at v0.51.0.
 
 **Impact:**
 
@@ -155,8 +160,10 @@ row in the table above returns the evaluator's answer under `--strict-bytecode`.
 Before implementation begins, these must be resolved:
 
 - [x] Evaluator-as-reference-semantics ruling (resolved above: mirror `matchPattern`, no stricter checks)
-- [x] No new VM opcodes / builtin-table extension (resolved above: existing builtins suffice)
-- [ ] None further — remaining decisions are deferred to the implementer (see Deferred Decisions)
+- [x] No new VM opcodes / builtin-table extension *for cases 1-5 and 7* (resolved above: existing builtins suffice)
+- [ ] **Case 6 tag projection adopts the corrected mechanism** from [m-vm-adt-tag-check-lowering.md](../v0_51_3/m-vm-adt-tag-check-lowering.md) / [m-vm-ifchain-tag-guard-lowering.md](../v0_51_2/m-vm-ifchain-tag-guard-lowering.md): the original case 6 below specified `FieldAccess{scrutinee, "Tag"}`, which is the `_record_get`-on-ADT strict-VM crash (their V-C9/V14). **Do not land case 6 as originally written** — land the corrected form (marked inline below).
+- [ ] **Guard ordering adopts the bind-then-guard nested-if shape** from [m-vm-ifchain-tag-guard-lowering.md](../v0_51_2/m-vm-ifchain-tag-guard-lowering.md): the original guards sentence below ("AND onto the arm cond, as today") is the known guard-before-bindings bug (their V-G1–V-G6: `unbound variable` on the strict VM for every if-chain pattern kind). **Do not land the guards sentence as originally written** — land the corrected form (marked inline below).
+- [ ] Sprint-planner confirms merge order across the four siblings (all touch `internal/gen/lower/match.go`; see Dependencies) and may re-target the version folder (v0.51.2 assumed; a v0.51.3 sibling exists)
 
 ## Solution Design
 
@@ -168,6 +175,13 @@ pattern position the type checker accepts, structurally mirroring
 `internal/eval/eval_patterns.go:matchPattern`. The bytecode compiler (`internal/bytecode/compiler`)
 needs **no changes**: the lowered stmt IR uses only existing constructs (BinOp, BuiltinCall,
 VarDecl, FieldAccess, IfStmt) and existing builtins.
+
+> **Correction (2026-10-02, adopted from [m-vm-adt-tag-check-lowering.md](../v0_51_3/m-vm-adt-tag-check-lowering.md))**:
+> the "bytecode compiler needs no changes" claim holds only for cases 1-5 and 7. The original case 6
+> projected the constructor tag as `FieldAccess{scrutinee, "Tag"}`, which the compiler realizes as
+> the by-name `_record_get` builtin — a trap on VM ADT values (`TagADT`, not records) and unbuildable
+> under `--emit-go-v2`. The corrected design adds **one ~15-line name-based tag builtin** (`_adt_tag`,
+> reading `ADTObj.Ctor`) per that sibling's frozen decision.
 
 ### Architecture
 
@@ -197,8 +211,8 @@ special case):
    for determinism, as today). No exactness check: the evaluator only requires listed fields
    present and ignores extras; parity means the bytecode must too (B3 fix is the literal
    equality guard, not a closed-form check).
-6. **ConstructorPattern (if-chain path)** — cond `FieldAccess{scrutinee, "Tag"} == Name` AND
-   recursive per-arg conds on `FieldAccess{scrutinee, "_j"}`; bindings: recursive per-arg
+6. **ConstructorPattern (if-chain path)** — cond **CORRECTED 2026-10-02**: ~~`FieldAccess{scrutinee, "Tag"} == Name`~~ (the original form is the `_record_get`-on-ADT strict-VM crash — see the Overview correction) → use `_adt_tag(scrutinee) == Name` per [m-vm-adt-tag-check-lowering.md](../v0_51_3/m-vm-adt-tag-check-lowering.md), AND
+   recursive per-arg conds on `FieldAccess{scrutinee, "_j"}` (positional field access already handles `TagADT`); bindings: recursive per-arg
    bindings (replaces the one-level `extractBindings` slice used today).
 7. **Constructor switch path (`lowerConstructorMatch` + `extractBindingsAndGuards`)** — keep
    the SwitchStmt (tag dispatch stays a jump table); for each arg pattern: Var/Wildcard/Lit
@@ -207,7 +221,14 @@ special case):
    body, the recursive cond (as a guard `if`, same shape as the literal-sub-pattern guard)
    and the recursive bindings (fixes A3 and the missing inner tag check).
 
-Guards (`arm.Guard`) continue to AND onto the arm cond, as today.
+Guards (`arm.Guard`): **CORRECTED 2026-10-02** — the original text here said "continue to AND onto
+the arm cond, as today", but that evaluates the guard *before* the arm's pattern bindings exist
+(the G-family bug: `unbound variable` on the strict VM for every if-chain pattern kind —
+[m-vm-ifchain-tag-guard-lowering.md](../v0_51_2/m-vm-ifchain-tag-guard-lowering.md) V-G1–V-G6).
+Adopt that sibling's **bind-then-guard nested-if continuation**:
+`If(structuralCond) { bindings; If(guard) { body } else { REST } } else { REST }`, with its
+free-variable fast path (guards referencing no pattern-bound variable keep today's
+`cond && guard` shape unchanged).
 
 **Components:**
 1. `internal/gen/lower/match.go` — recursive `patternCond`/`patternBindings` + switch-path
@@ -374,6 +395,9 @@ The following are intentionally left open for the implementer:
 
 **Planned (check for overlap):**
 - [m-bytecode-pattern-arity-fix.md](../v1_0_0/m-bytecode-pattern-arity-fix.md) — SIBLING, distinct: fixed-length list `len == n` (its `OpEq` fix is present at HEAD, match.go:414-416); does NOT cover nesting, literal guards, tuple/record/sub-pattern conds. This doc preserves its `Tail == nil ⟺ OpEq` invariant (its V-I: exactly two `core.ListPattern` construction sites, re-verified below).
+- [m-vm-ifchain-tag-guard-lowering.md](../v0_51_2/m-vm-ifchain-tag-guard-lowering.md) — SIBLING (2026-10-02): owns the guard-before-bindings ordering family (G) and ADT tag conds in if-chain positions (C); this doc adopts both corrections (Design Freeze items 2-3). That doc does not duplicate this one (its V-A1/V-B1 re-verified this doc's rows A1/B1 on v0.51.0) and recommended this promotion. Whichever lands second re-verifies the composed shapes (`a :: b :: _ if a > b`, `Some(x) :: rest`).
+- [m-vm-var-pattern-default-arm.md](../v0_51_2/m-vm-var-pattern-default-arm.md) — SIBLING: var/misplaced default arms in constructor matches; its depth-1 if-chain constructor addition is the depth-1 subset of this doc's corrected case 6 — whichever lands second generalizes rather than rewrites (its V26 and merge-collision risk row).
+- [m-vm-adt-tag-check-lowering.md](../v0_51_3/m-vm-adt-tag-check-lowering.md) — SIBLING, **prerequisite correction** (2026-10-02): the constructor tag check both older siblings originally built on is broken (strict-VM crash AND unbuildable `--emit-go-v2`); its `_adt_tag` node is the mechanism this doc's corrected case 6 now uses. Its depth-1 loud-boundary contract (Lit/nested args in if-chain constructor patterns panic → EvalOnly) is the stopgap this doc's recursive rewrite removes.
 - [m-bytecode-vm-parity-bugs.md](../v1_0_0/m-bytecode-vm-parity-bugs.md) — parked parity harness work (A2 classification); this doc does not depend on it and is not blocked by it.
 - [m-list-cons-cells-decomposition.md](m-list-cons-cells-decomposition.md) — cons *construction* performance programme (D-19: B); orthogonal to matching semantics.
 
@@ -410,6 +434,28 @@ Every "does/doesn't support" claim above carries a first-party check (binary `AI
 | V23 | Regression fixtures exist | `ls examples/runnable/recursion_quicksort.ail cons_expression.ail pattern_sugar.ail list_pattern_cons.ail` | all four exist |
 | V24 | Existing lowering regression tests are real (M-LOWER-FIX, Bug A.2) | `sed -n '150,175p' internal/gen/lower/lower_match_test.go` (M5 cons-head test); `m-lower-fix.md`, `m-bytecode-pattern-arity-fix.md` implemented/planned per above | Confirmed |
 
+## Re-verification on the reported binary (2026-10-02, task-08c86c94)
+
+Row A1 was reported a **second time** through the coordinator (this task: `cons2.ail`,
+`_ :: x :: _ => x`, `unbound variable "x"`, binary v0.51.0 `b99dd25` — md5 `ed0478ccc2a4565ac4fbbcdd0419ce74`, repo at that commit, workaround in stapledons-godot `ai/wire_test.ail` `secondIn`). The duplicate gate routed the report here instead of to a new doc. The full eight-row table, the flat controls, and the `ailang check` gate were re-run first-party on that binary; every row reproduces unchanged from the v0.47.1 run above.
+
+| # | Claim | Check | Result |
+|---|---|---|---|
+| V25 | A1 re-confirmed on v0.51.0 with this task's exact repro | `ailang run` ×3 modes on the task's `cons2.ail` (`match xs { _ :: x :: _ => x, _ => "" }`) | eval `b`; `--bytecode` `b` (bridge); `--strict-bytecode` `Error: ... cons2.second is evaluator-only (compiler: unbound variable "x") ... op TAIL_CALL`, exit 1 |
+| V26 | A2 re-confirmed | `[x :: y, _]` vs `[[1,2],[3]]` | eval `1`; strict `unbound variable "x"` |
+| V27 | A3 re-confirmed | `Some(Some(x))` vs `Some(Some(7))`, `import std/option` | eval `7`; strict `unbound variable "x"` |
+| V28 | A4 re-confirmed (silent wrong) | `(x :: _, z)` vs `([], 9)` | eval `0`; strict `9`, exit 0 |
+| V29 | B1 re-confirmed (silent wrong) | `[1, 2]` arm vs `[1, 3]` | eval `no`; strict `matched-lit-yes`, exit 0 |
+| V30 | B2 re-confirmed (silent wrong) | `(1, y)` arm vs `(0, 5)` | eval `0`; strict `5`, exit 0 |
+| V31 | B3 re-confirmed (silent wrong) | `{name: "amy"}` arm vs `{name: "zed"}` | eval `other`; strict `amy`, exit 0 |
+| V32 | B4-family re-confirmed (silent wrong, cond side — this task's new variant row) | `_ :: _ :: x :: _` arm vs `["a"]` (length 1, must NOT match); also `1 :: 2 :: _` vs `[1, 5]` | eval `0` / `0`; strict `1` / `1`, exit 0 — the nested tail's own length and literal conds are still never emitted, so even un-referenced nested bindings mis-match |
+| V33 | Flat controls still strict-clean (regression premise) | one-level `a :: rest`, `[a, b, ...r]`, `{fst: a, snd: b}` | eval == strict == correct (`1`, `3`, `3`) for all three |
+| V34 | `ailang check` still accepts the reported shape | `ailang check cons2.ail` | rc=0 (MOD010 temp-path warning only) |
+| V35 | V19 citation drift: `_len`/`_list_get`/`_list_tail` still registered, table relocated | `internal/bytecode/builtin_names.go:18-21` (`BuiltinNames`), consumed via `BuiltinTable = bytecode.BuiltinNames` (`internal/bytecode/compiler/builtins.go:10-11`) | Confirmed — the original `builtins.go:25-27` citation is stale; mechanism intact, citation corrected here |
+| V36 | Mechanism citations at HEAD `b99dd25` | re-read `internal/gen/lower/match.go` in full | all present within ±2 lines of the original citations: `extractBindingsAndGuards` :228 with `_pat_%d` :258 and "currently unsupported beyond binding" :227; `lowerPatternCond` :390 (ListPattern cond :410-436 with `lenOp = OpEq` :416; Tuple/Record unconditional `LitBool{true}` :408/:442); `lowerPatternBindings` :473 with Tail-bound-only-if-`*core.VarPattern` :525. `core.ListPattern` construction still exactly two sites (`internal/elaborate/patterns.go:150, :203`) |
+| V37 | Demand greps still hold at HEAD | `grep -rnE "[a-zA-Z_)] :: [a-zA-Z_]+ ::" std/ examples/` | same hits: `list_pattern_cons.ail:55,69`, `pattern_sugar.ail:58,74,93`, `std_audio_brief.ail:65`, `cons_expression.ail:51` |
+| V38 | Promotion is non-duplicative (duplicate gate) | neural/simhash coverage check: this doc's A1 row is the reported repro; the three v0.51.x siblings each disclaim it by name (ifchain V-A1, adt-tag Dependencies) | Confirmed — no new doc created; this doc re-targeted to v0.51.2 and refreshed instead |
+
 ## References
 
 - [Design Axioms](/docs/references/axioms) — A1/A11 drive the P0
@@ -428,4 +474,4 @@ Every "does/doesn't support" claim above carries a first-party check (binary `AI
 ---
 
 **Document created**: 2026-09-30
-**Last updated**: 2026-09-30
+**Last updated**: 2026-10-02 — re-verified on the reported binary v0.51.0 `b99dd25` (task-08c86c94, second independent report of row A1; V25-V38); promoted to the active queue (Target re-set to v0.51.2 per the ifchain sibling's recommendation); premise corrections from the v0_51_2/v0_51_3 siblings folded into the Overview, case 6, the guards sentence, and Design Freeze
