@@ -1558,6 +1558,20 @@ export MISSION_EVALUATOR_MODEL="${MISSION_EVALUATOR_MODEL:-sonnet}"
 #   Recorded in design_docs/planned/m-mission-role-elo-and-tier-order.md instead.
 export MISSION_EVALUATOR_FALLBACK="${MISSION_EVALUATOR_FALLBACK:-pi:openrouter/minimax/minimax-m3,claude:claude-sonnet-4-6,opus}"
 
+# MISSION_PRINT_CONFIG=1: print the DECLARED routing (env + this driver's defaults) and exit,
+# before the kill switch, the lock and any probe. mission-lane-check.sh reads it so the readiness
+# check walks exactly the chains a fire would, without a second copy of these defaults; it runs
+# before the kill switch because arming a PAUSED mission is precisely when it is needed.
+if [ "${MISSION_PRINT_CONFIG:-0}" = 1 ]; then
+  printf 'MISSION_NAME=%s\nMISSION_WORKDIR=%s\nMC_DRIVER_ROOT=%s\nPREFS=%s\nCONTROLLER_FALLBACK=%s\n' \
+    "$MISSION_NAME" "$REPO" "$MC_DRIVER_ROOT" "$PREFS" "$CONTROLLER_FALLBACK"
+  for _pc_role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
+    _pc_m="MISSION_${_pc_role}_MODEL"; _pc_f="MISSION_${_pc_role}_FALLBACK"
+    printf '%s_MODEL=%s\n%s_FALLBACK=%s\n' "$_pc_role" "${!_pc_m:-}" "$_pc_role" "${!_pc_f:-}"
+  done
+  exit 0
+fi
+
 # Codex-lane pre-flight, ROLE-GENERIC (m-planner-codex-lane): probe once per DISTINCT
 # codex model, fall back per-role on ANY non-zero rc (#486: probe MUST carry --model;
 # an unusable pin is exactly as fatal as spent quota). Export AFTER fallback so the
