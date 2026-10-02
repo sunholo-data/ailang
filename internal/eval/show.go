@@ -209,6 +209,10 @@ func inspectShow(x any) ShowNode {
 		return ShowNode{Kind: ShowSame, Items: []any{val.Cell.Val}}
 	case *ErrorValue:
 		return ShowNode{Text: "Error: " + val.Message}
+	case *tailCall:
+		// Never escapes applyFunctionValue's loop; rendered only so a
+		// violation of that invariant is visible rather than "<unknown>".
+		return ShowNode{Text: val.String()}
 	}
 	return ShowNode{Text: "<unknown>"}
 }

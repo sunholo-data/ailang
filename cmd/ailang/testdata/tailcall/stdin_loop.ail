@@ -1,0 +1,12 @@
+module cmd/ailang/testdata/tailcall/stdin_loop
+
+import std/io (readLine, println)
+
+-- #1486 verbatim: a tail-recursive stdin loop, the shape of stapledons-godot's sim shell.
+func loop(n: int) -> () ! {IO} {
+  let line = readLine(());
+  if line == "" then println(show(n))
+  else loop(n + 1)
+}
+
+export func main() -> () ! {IO} = loop(0)

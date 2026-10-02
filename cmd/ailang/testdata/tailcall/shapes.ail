@@ -1,0 +1,10 @@
+module cmd/ailang/testdata/tailcall/shapes
+pure func viaIf(i: int, n: int) -> int = if i >= n then i else viaIf(i + 1, n)
+pure func viaMatch(i: int, n: int) -> int = match i >= n { true => i, false => viaMatch(i + 1, n) }
+pure func viaLet(i: int, n: int) -> int { let j = i + 1; if j > n then i else viaLet(j, n) }
+pure func isEven(i: int) -> bool = if i == 0 then true else isOdd(i - 1)
+pure func isOdd(i: int) -> bool = if i == 0 then false else isEven(i - 1)
+export pure func ifShape(n: int) -> int = viaIf(0, n)
+export pure func matchShape(n: int) -> int = viaMatch(0, n)
+export pure func letShape(n: int) -> int = viaLet(0, n)
+export pure func mutualShape(n: int) -> bool = isEven(n)

@@ -3030,14 +3030,36 @@
         "stdout": "[(5, a), (4, b)] true abab aGk= 6\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/tail_recursion_loop.ail",
+      "status": "working",
+      "tags": [
+        "recursion",
+        "tail-call",
+        "evaluator",
+        "std/io"
+      ],
+      "description": "Tail-recursive loops (self and mutual, through if/let/match) run in constant depth in the interpreter as on the VM, far past the default recursion limit (#1486)",
+      "modules": [
+        "std/io"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO"
+      ],
+      "expected": {
+        "stdout": "sum 1..100000 = 5000050000\nisEven(50001) = false\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 209,
-    "working": 201,
+    "total": 210,
+    "working": 202,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9617224880382775,
+    "coverage": 0.9619047619047619,
     "experimental": 0
   },
   "milestones": {

@@ -13,12 +13,14 @@ import (
 // `ailang test --max-recursion-depth` (stapledons_godot, 2026-10-01): a 10^4-step
 // pure sweep hit RT_REC_003 at the default 10,000, and the error told the user to
 // raise --max-recursion-depth, a flag `ailang test` did not accept. The limit
-// now reaches every evaluator the test executor builds.
+// now reaches every evaluator the test executor builds. The fixture recursion is
+// deliberately NOT a tail call: since M-EVAL-TAIL-CALLS (#1486) tail calls do not
+// count toward the limit at all.
 const deepSweepSource = `module deep_sweep
 
-pure func go(i: int, n: int, acc: int) -> int = if i >= n then acc else go(i + 1, n, acc + 1)
+pure func sum(i: int) -> int = if i == 0 then 0 else 1 + sum(i - 1)
 
-test "sweep 12000" { go(0, 12000, 0) == 12000 }
+test "sweep 12000" { sum(12000) == 12000 }
 `
 
 func runWithDepth(t *testing.T, depth int) *SuiteResult {
