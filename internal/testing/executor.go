@@ -24,6 +24,19 @@ type Executor struct {
 	enableDebug    bool
 	modules        map[string]*loader.LoadedModule // Cached modules from last pipeline run
 	lastMeta       map[string]*core.DeclMeta       // Cached Core.Meta from last pipeline run (lowered contracts)
+	// maxRecursionDepth is TestConfig.MaxRecursionDepth; 0 = evaluator default.
+	maxRecursionDepth int
+}
+
+// newEvaluator returns a fresh evaluator honouring the configured recursion
+// limit. Every test-evaluation path builds its evaluator here, so
+// `ailang test --max-recursion-depth` reaches all of them.
+func (e *Executor) newEvaluator() *eval.CoreEvaluator {
+	ev := eval.NewCoreEvaluator()
+	if e.maxRecursionDepth > 0 {
+		ev.SetMaxRecursionDepth(e.maxRecursionDepth)
+	}
+	return ev
 }
 
 // NewExecutor creates a new test executor.
@@ -154,7 +167,7 @@ func (e *Executor) evaluateEnsuresHarnessCore(harnessExpr core.CoreExpr) (eval.V
 		Decls: []core.CoreExpr{harnessExpr},
 	}
 
-	evaluator := eval.NewCoreEvaluator()
+	evaluator := e.newEvaluator()
 	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
 	env := evaluator.Env()
 	e.injectModuleBindings(evaluator, env)
@@ -323,7 +336,7 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 
 	// Evaluate all decls; EvalCoreProgram returns the last value.
 	// This ensures function bindings are in scope when the body expression is evaluated.
-	evaluator := eval.NewCoreEvaluator()
+	evaluator := e.newEvaluator()
 	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
 	env := evaluator.Env()
 	e.injectModuleBindings(evaluator, env)
@@ -397,7 +410,7 @@ func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests
 	}
 
 	// Evaluate the harness
-	evaluator := eval.NewCoreEvaluator()
+	evaluator := e.newEvaluator()
 
 	// Set up builtin registry and combined resolver
 	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
@@ -616,7 +629,7 @@ func (e *Executor) EvaluateInlineTestsWithCluster(
 		Decls: []core.CoreExpr{harnessExpr},
 	}
 
-	evaluator := eval.NewCoreEvaluator()
+	evaluator := e.newEvaluator()
 	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
 	env := evaluator.Env()
 	e.injectModuleBindings(evaluator, env)

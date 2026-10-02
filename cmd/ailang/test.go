@@ -237,6 +237,7 @@ func printTestHelp() {
 	fmt.Println("  --allow-skips      Exit 0 even if all tests were skipped (default: exit 1)")
 	fmt.Println("  --seed N           Master seed for property generation (signed int64; replayable)")
 	fmt.Println("  --random-seed      Read one master seed from crypto/rand and report it for replay")
+	fmt.Println("  --max-recursion-depth N  Evaluator call-depth limit for test bodies (default 10000, as ailang run)")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ailang test                    # Run all tests in current directory")

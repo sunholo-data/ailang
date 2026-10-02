@@ -35,6 +35,10 @@ type TestConfig struct {
 	// (library callers that build a SuiteResult directly rely on that to fall
 	// back to ModulePath).
 	ReplayTarget string
+	// MaxRecursionDepth caps evaluator call depth for test bodies, as
+	// `ailang run --max-recursion-depth` does for programs. 0 keeps the
+	// evaluator default (10,000).
+	MaxRecursionDepth int
 }
 
 // Validate returns an error when the config is not usable for seed derivation.

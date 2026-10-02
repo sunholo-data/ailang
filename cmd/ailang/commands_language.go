@@ -237,6 +237,7 @@ func runTestCommand(args []string) error {
 	allowSkipsFlag := testFlags.Bool("allow-skips", false, "Exit 0 even when all tests are skipped (default: skipped-only suites exit 1)")
 	seedFlag := testFlags.Int64("seed", 0, "Master seed for property generation (signed int64)")
 	randomSeedFlag := testFlags.Bool("random-seed", false, "Read one master seed from crypto/rand and report it")
+	maxRecursionDepthFlag := testFlags.Int("max-recursion-depth", 10000, "Maximum evaluator recursion depth for test bodies (same as ailang run)")
 	helpTestFlag := testFlags.Bool("help", false, "Show help for test command")
 
 	_ = testFlags.Parse(args) // Parse errors handled by flags package
@@ -274,7 +275,7 @@ func runTestCommand(args []string) error {
 		fmt.Fprintf(os.Stderr, "Error: cannot determine working directory: %v\n", err)
 		os.Exit(1)
 	}
-	cfg := ailangTesting.TestConfig{WorkspaceRoot: cwd, SeedMode: ailangTesting.SeedModeDerived, MasterSeed: 0}
+	cfg := ailangTesting.TestConfig{WorkspaceRoot: cwd, SeedMode: ailangTesting.SeedModeDerived, MasterSeed: 0, MaxRecursionDepth: *maxRecursionDepthFlag}
 	switch {
 	case seedSet:
 		cfg.SeedMode, cfg.MasterSeed = ailangTesting.SeedModeMaster, *seedFlag

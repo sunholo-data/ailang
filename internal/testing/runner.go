@@ -57,6 +57,7 @@ func NewRunnerWithConfig(modulePath string, cfg TestConfig, moduleIdentity strin
 		config:         cfg,
 		moduleIdentity: moduleIdentity,
 	}
+	r.executor.maxRecursionDepth = cfg.MaxRecursionDepth
 	// Bind the generator seam to the built-in derivation after the Runner value
 	// exists, so the method value binds to the right receiver. Tests may
 	// override r.genForType afterwards to inject a refusal-producing generator.
