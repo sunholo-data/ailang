@@ -95,6 +95,11 @@ func measurePackageQuality(dir string, opts qualityMeasureOptions) (*pkg.Package
 	}
 	var in pkg.QualityInputs
 
+	// PUB024: leftover `ailang test` body copies from an older binary (#1502).
+	if in.NamedTestBodyFiles, err = pkg.FindNamedTestBodyFiles(absDir); err != nil {
+		return nil, in, fmt.Errorf("scan for stale named-test bodies: %w", err)
+	}
+
 	// compile — the check --package path, same config.
 	os.Setenv("AILANG_QUIET_WARNINGS", "1")
 	sourceFiles, _, err := check.DiscoverPackageSources(absDir)

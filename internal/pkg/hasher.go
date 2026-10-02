@@ -28,7 +28,8 @@ func ContentHash(dir string) (string, error) {
 		if info.IsDir() {
 			return nil
 		}
-		if strings.HasSuffix(path, ".ail") {
+		// Leftover `ailang test` body copies (#1502) are not package content.
+		if strings.HasSuffix(path, ".ail") && !IsNamedTestBodyFile(info.Name()) {
 			rel, err := filepath.Rel(dir, path)
 			if err != nil {
 				return err

@@ -73,7 +73,9 @@ func DiscoverPackageSources(dir string) (*PackageSources, error) {
 			}
 			return nil
 		}
-		if strings.HasSuffix(path, ".ail") {
+		// Leftover `ailang test` body copies (#1502) are neither source nor
+		// tests; quality reports them as PUB024.
+		if strings.HasSuffix(path, ".ail") && !IsNamedTestBodyFile(info.Name()) {
 			allFiles = append(allFiles, path)
 		}
 		return nil

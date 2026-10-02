@@ -19,6 +19,19 @@
 > tarball / hasher / staging / `check` walk exclusions for debris written by pre-fix binaries,
 > the `pkg init` `.gitignore` scaffold, and the package-authoring guide note. New debris can no
 > longer be produced, so these only matter for packages that already carry a leftover file.
+>
+> **Layer B completed (2026-10-02, second commit).** `pkg.FindNamedTestBodyFiles` feeds
+> `QualityInputs.NamedTestBodyFiles`. Any entry is a **PUB024 gate** naming every file and the
+> fix, so `pkg quality` exits 2 and `publish` refuses. The registry validator receives the
+> tarball, which no longer contains such files. The predicate excludes them from
+> `CreateTarball`, `ContentHash`, `shouldStageFile`, `pkg.DiscoverPackageSources`,
+> `check.DiscoverPackageSources` (the `pkg quality` compile count) and the `ailang check <dir>`
+> walk, which names what it skipped. Tarball bytes and the content hash are identical with and
+> without debris. `ailang init package` scaffolds a `.gitignore` entry for
+> `_namedtest_body_*.ail` with `pkg.ScaffoldGitignore`, which is idempotent and keeps existing
+> lines. Notes were added to the package-authoring guide and to `docs/docs/guides/package-publishing.md`.
+> `FindTransientTestArtifacts` from the design is named `FindNamedTestBodyFiles`. It needs no
+> `NamedTestBodyPattern(pid)`, because Layer A was not built.
 **Target**: v0.51.1
 **Priority**: P1 (Medium-High) — blocks a clean `publish` for any maintainer whose CI timed out mid-test; manual workaround exists (delete the file)
 **Estimated**: 2 days (~12h: 4h consumer immunity + 4h producer hardening + 4h tests/docs)

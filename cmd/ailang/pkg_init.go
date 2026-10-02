@@ -74,6 +74,11 @@ func initPackageCommand(args []string) error {
 	if err := pkg.InitManifest(cwd, name, Version); err != nil {
 		return err
 	}
+	// Older `ailang test` binaries could leave _namedtest_body_*.ail copies
+	// in the package (#1502); keep them out of git from the start.
+	if err := pkg.ScaffoldGitignore(cwd); err != nil {
+		return fmt.Errorf("failed to scaffold .gitignore: %w", err)
+	}
 
 	// Add module_prefix if specified (auto-derived for hyphenated names)
 	if *modulePrefixFlag != "" {

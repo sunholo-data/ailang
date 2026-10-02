@@ -51,6 +51,11 @@ run inline test blocks in source modules, and it cannot assess assertion quality
 or establish coverage. `publish` and `publish --dry-run` refuse on the same gates.
 Use `--json` for automation; record proof results separately.
 
+A `_namedtest_body_<digits>.ail` is a test-module copy left by an interrupted
+`ailang test` of v0.51.0 or older. It is never package source: quality refuses it
+(PUB024) and publish excludes it. Delete it, and keep `_namedtest_body_*.ail` in
+.gitignore (`ailang init package` adds it).
+
 ## Dependencies and publication
 
 Registry packages can be published. `ailang install vendor/name@latest` resolves

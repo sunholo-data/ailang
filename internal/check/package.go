@@ -243,6 +243,11 @@ func DiscoverPackageSources(dir string) ([]string, []string, error) {
 		if !strings.HasSuffix(path, ".ail") {
 			return nil
 		}
+		// A leftover `ailang test` body copy (#1502) duplicates a test module;
+		// it is not package source (pkg quality reports it as PUB024).
+		if pkg.IsNamedTestBodyFile(info.Name()) {
+			return nil
+		}
 
 		// Check if file has a module declaration
 		content, err := os.ReadFile(path)

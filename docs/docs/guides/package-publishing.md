@@ -76,6 +76,12 @@ search; `PUB022` warns when `AGENT.md` mentions none of the exported modules; an
 registry lookup could not run. `PUB018` and `PUB022` are warnings (and therefore gates
 under `--strict`); `PUB008` and `PUB023` remain informational.
 
+`PUB024` is a gate at every stability level. It names each `_namedtest_body_<digits>.ail`
+in the package. An interrupted `ailang test` of v0.51.0 or older left these files: each is a
+full copy of a test module. Delete them. The tarball, content hash and smoke staging leave
+them out anyway. `ailang init package` scaffolds a `.gitignore` entry so `git add -A` skips
+them too.
+
 ### Every version describes itself
 
 Two things are required from v0.41.0 (badges in v0.40.0):

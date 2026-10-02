@@ -14,6 +14,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/pkg"
 	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
@@ -535,7 +536,7 @@ func printCompactInterface(jsonBytes []byte) {
 
 // checkDirectoryWithContext recursively checks all .ail files with telemetry
 func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool, jsonFlag bool, quietFlag bool) {
-	var files []string
+	var files, debris []string
 
 	// Walk directory to find all .ail files
 	walkErr := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -543,10 +544,16 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 			return err
 		}
 		if !info.IsDir() && strings.HasSuffix(path, ".ail") {
+			// Leftover `ailang test` body copies (#1502) duplicate a test module.
+			if pkg.IsNamedTestBodyFile(info.Name()) {
+				debris = append(debris, path)
+				return nil
+			}
 			files = append(files, path)
 		}
 		return nil
 	})
+	warnNamedTestDebris(debris)
 
 	if walkErr != nil {
 		fmt.Fprintf(os.Stderr, "%s: cannot walk directory '%s': %v\n", red("Error"), dir, walkErr)
