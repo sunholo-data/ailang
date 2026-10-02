@@ -1,6 +1,6 @@
 # M-FOLDL-CONS-COST-MODEL: the documented-safe list-building path — `foldl` with a consing step, and "prepend then reverse" — is O(n²); std/list's cost claims must say so, the language needs one linear stateful-accumulate primitive, and the VM runs the shape ~2.4× slower than the interpreter
 
-**Status**: IMPLEMENTED (Phases 1 and 2; Phase 3 deferred). See the Implementation Report at the end. The original authoring note: the doc was written without a binary or Go toolchain, and the quorum was never run; the implementation re-derived every measurement with a live build.
+**Status**: IMPLEMENTED (Phases 1–3; Phase 3 shipped AC-4b, profiled 2026-10-02). See the Implementation Report at the end. The original authoring note: the doc was written without a binary or Go toolchain, and the quorum was never run; the implementation re-derived every measurement with a live build.
 **Target**: v0.51.1 (shipped with the std/list iterative-helper fix for #1518)
 **Priority**: P0 for the docs-honesty fix (Phase 1 — the stdlib actively teaches an O(n²) idiom as "iterative, O(n)"); P1 for the `mapAccumL` primitive (Phase 2) and the VM per-step overhead (Phase 3)
 **Estimated**: ~4 days total (Phase 1: 0.5 d · Phase 2: 1.5 d · Phase 3: 2 d, profile-first), 2× where honest
@@ -247,7 +247,7 @@ and cost contract, not the final spelling.
 - [ ] **AC-1** `std/list.ail` contains the canonical cost-model sentence (foldl O(n) only if step O(1); consing/concat step → O(n²)); the `concat` comment's 0.36 s measurement carries its scaling law; `RT_REC_003` message carries the same caveat. **Fails today** (V4/V5/V6: the claims are present without the conditions).
 - [ ] **AC-2** `mapAccumL` type-checks and runs on both engines: `mapAccumL` over a 160,000-element list completes in < 1 s on interpreter and VM (reporter's baseline for the consing shape: 9.6 s / 23.4 s at N=160k, V17 — this AC fails today *by absence* of the primitive, V13).
 - [ ] **AC-3** `TestPureBuiltinCoverage` green with `_list_mapAccumL` in the HOF-native bucket; `internal/vm/builtins_hof_test.go` green; both HOF tables appended in the same position (V23/V25).
-- [ ] **AC-4** VM:interpreter wall ratio on consrepro at N=40,000: **(a)** ≤ 1.5× after a profile-attributed fix, **or (b)** a committed pprof artifact + LIMITATIONS.md note attributing ≥ 90% of the gap to named mechanisms. **Base: ~2.4× (reporter, V17) — (a) fails today.**
+- [x] **AC-4** *(met via (b), 2026-10-02: 1.80× after fixes; profile in the Implementation Report)* VM:interpreter wall ratio on consrepro at N=40,000: **(a)** ≤ 1.5× after a profile-attributed fix, **or (b)** a committed pprof artifact + LIMITATIONS.md note attributing ≥ 90% of the gap to named mechanisms. **Base: ~2.4× (reporter, V17) — (a) fails today.**
 - [ ] **AC-5** `make test`, `make verify-examples` green; fixtures in Conflict Surface §"MUST still work" byte-identical.
 - [ ] **AC-6** Docs updated: CHANGELOG entry under the target version; no-loops.md gains the one-sentence cost caveat; prompt-version note delivered to prompt-manager (not an in-place frozen-prompt edit, V7).
 
@@ -361,9 +361,89 @@ the evaluator, call order and non-aliasing are tested (`internal/vm/list_hof_par
 `internal/builtins/list_iterative_search_test.go`). Example: `examples/runnable/mapAccumL_running_total.ail`.
 The stdlib interface golden for `std/list` was re-frozen for the new export.
 
-**Phase 3 (VM `CallClosure` per-step overhead): deferred, not started.** A nesting-safe frame pool needs
-the profile-first investigation and race tests this doc requires; it was out of scope for this fix. The
-H1/H2 hypotheses stand as written.
+**Phase 3 (VM per-step overhead): done, profile-first. Outcome AC-4b**, plus two measured fixes. The
+profile below shows **H2 (value width) causes the consrepro gap. H1 (per-callback frames) is real but
+does not contribute to it.** On O(1)-step folds the VM was already 10–13× faster than the evaluator, so
+callback overhead was never the VM-vs-evaluator problem. Both mechanisms were fixed as far as this layer
+allows:
+
+- **H1 fix: frame recycling.** `acquireFrame`/`releaseFrame` (`internal/vm/frame.go`) keep a per-VM LIFO
+  free list. Every push (Run, CallClosure, CALL) takes a frame from it, and only the two RETURN paths give
+  frames back, with all registers cleared up to capacity and the Proto/Caller links dropped. A frame left
+  behind by an error is never pooled. HOF builtins pass one reused `callArgs` buffer for every callback
+  (`internal/vm/builtins.go`; the `ClosureCaller` contract now says CallClosure must not retain args).
+  CallClosure also truncates `vm.Stack` back to its entry depth when a callback faults. Before this, every
+  callback error leaked one frame of stack depth (found by `TestFrameReuseAfterCallbackError`).
+- **H2 partial fix: packed `bytecode.Value`.** Moving `Bool` next to `Tag` shrinks a Value from 48 to 40
+  bytes (pinned by `TestValueSize`). That is the only width cut available without a representation change.
+  Merging Int and Flt into one word would reach 32 bytes, but that is a representation decision, and it
+  goes to D-19's doc.
+- **AC-4: (a) not met, (b) met.** The consrepro VM:evaluator ratio at N=40,000 is 2.05× → 1.80× (target
+  ≤ 1.5×). The profile attributes the remaining gap to bytes copied and allocated by `OpCons` (≥ 99.9% of
+  the run's allocation). `docs/LIMITATIONS.md` carries the note.
+
+#### Phase 3 profile (2026-10-02)
+
+Machine: darwin arm64, 16 P, under heavy shared load (load average 21–43). Every wall number is min-of-5,
+from interleaved before/after runs of private binaries. `ailang run` sets GOGC=500 unless GOGC is
+already set. Repro programs and the run script: `bench/vm_hof_callbacks/`.
+
+**consrepro (`foldl(\acc x. x :: acc)`), N=80,000, `--bytecode`, before the fix:**
+
+| Instrument | VM | Evaluator |
+|---|---|---|
+| wall | 6.33 s | 2.74 s |
+| bytes allocated (`-memprofile`, alloc_space) | **146.7 GB**, 100% in `vm.(*VM).run` (OpCons) | **49.0 GB**, 99.9% in `builtins.listConsImpl` |
+| ratio of bytes | **3.0×** = 48 B `bytecode.Value` ÷ 16 B `eval.Value` interface | — |
+| GC cycles (`GODEBUG=gctrace=1`) | 1,356 | 754 |
+| CPU profile, top flat | `pthread_cond_wait` 22%, `kevent` 16%, `madvise` 13%, `pthread_cond_signal` 12%, `pthread_kill` 7%, `memmove` 3.8%, GC scan ~10% | same shape |
+| mutator inside the VM (`CallClosure` cum) | 1.32 s of 11.2 s of samples (12%) | — |
+| frames + callback args (the H1 cost) | ≈ 24 MB of 146.7 GB (0.02%) | — |
+
+Reading the profile: almost all of the time goes to GC cycle overhead (stop/start the world, waking mark
+workers, madvise of large freed spans), not to interpretation. Each cons allocates a fresh list of up to
+3.2 MB, and the number of cycles scales with bytes allocated. A GOGC sweep proves the cause. The VM wall
+time goes 12.8 s → 6.3 s → 4.7 s at GOGC 100 / 500 / 1600 (6,623 / 1,356 / 411 cycles). The evaluator goes
+8.4 s → 2.7 s → 2.6 s (3,865 / 754 / 218 cycles). The gap left at GOGC=1600 (1.8×) is the extra memmove
+and page-zeroing of 3× the bytes. **Attribution: ≥ 99.9% of the consrepro gap is H2** (bytes per
+element). H1 is under 0.1%.
+
+**sumfold (`foldl(\acc x. acc + x, 0, range(0, n))`), N=5,000,000, `--bytecode`, before the fix.** This
+is where H1 does dominate. Bytes allocated: 1,854 MB in total. `newFrame` accounted for 1,046 MB (56%,
+10.6 M objects) and the per-element `[]bytecode.Value{acc, e}` for 452 MB (24%, 4.9 M objects). That is
+3 allocations and 304 B per callback. The rest is `range` and the evaluator-to-VM conversion of its result
+(`EvalToBytecode` 229 MB, `listRangeImpl` 106 MB). After the fix, callbacks allocate nothing. The run
+allocates 360 MB, all of it `range` plus conversion, and 2.5 M objects instead of 17.7 M.
+
+**Go benchmark** (`go test ./internal/vm/ -bench HOFFoldl`, 1,000 callbacks per op):
+
+| Benchmark | before | after |
+|---|---|---|
+| `BenchmarkHOFFoldlCallback` (O(1) closure) | 104,782 ns/op · 304,001 B/op · **3,000 allocs/op** | 33,160 ns/op · 80 B/op · **1 alloc/op** |
+| `BenchmarkHOFFoldlNested` (callback re-enters foldl, 100×10) | 121,288 ns/op · 358,401 B/op · 3,300 allocs/op | 41,326 ns/op · 8,080 B/op · 101 allocs/op |
+
+**CLI wall, min-of-5, interleaved** (evaluator times are unchanged by this work):
+
+| Program | N | evaluator | VM before | VM after | VM:evaluator after |
+|---|---|---|---|---|---|
+| consrepro | 40,000 | 0.75 s | 1.54 s | **1.35 s** | 1.80× (was 2.05×) |
+| consrepro | 80,000 | 2.63 s | 5.47 s | **4.91 s** | 1.87× (was 2.09×) |
+| sumfold | 1,000,000 | 1.58 s | 0.20 s | **0.15 s** | 0.09× |
+| sumfold | 5,000,000 | 7.37 s | 0.60 s | **0.34 s** | 0.05× |
+| map+filter | 1,000,000 | 3.84 s | 0.34 s | **0.22 s** | 0.06× |
+| map+filter | 5,000,000 | 18.74 s | 1.28 s | **0.67 s** | 0.04× |
+
+On consrepro, bytes allocated went from 146.7 GB to 119.5 GB (×0.81 ≈ 40/48) and GC cycles from
+1,356 to 1,198.
+
+**Tests** (`internal/vm/frame_reuse_test.go`): per-element allocations for foldl and map are about 0
+(`testing.AllocsPerRun`, which measures allocation, not RSS). The other tests cover a nested HOF
+re-entering foldl, recycling of CALL and TAIL_CALL frames (the pool must hold no stale registers or caller
+links), 20 callback faults against `MaxStack=8`, stack overflow followed by reuse, and 8 concurrent VMs on
+one image under `-race`. A VM is single-goroutine: closures cannot cross the eval bridge, so the evaluator
+never re-enters a VM. Mutation-tested from scratch copies, and all 8 mutants were killed. The mutants
+were: pool disabled; clear `len` instead of `cap`; no clear; keep the Caller link; no stack truncation
+on error; RETURN never releases; an argv literal per element; and the old field order (48 B).
 
 **Beyond this doc (#1518 and its audit):** `any`, `findIndex`, `foldr` gained runtime builtins (they had
 codegen-only helpers); the six extremes became a right fold seeded with the last element (same comparisons,
@@ -375,7 +455,11 @@ same order, so ties and NaN are unchanged on each engine); `foldlE`/`forEachE` b
 - `mapAccumLE` (effectful variant) once a consumer needs it — mechanical extension of the Phase 2 pattern.
 - A `FoldStep`-bounded `mapAccumLStepWhile` for early-exit stateful scans (combine with `std/iter`), if the XML bounded-scan consumers ask.
 - D-19 (in the parked doc): the representation fix that would make consing foldl itself linear — until it lands, `mapAccumL` is the only linear stateful-accumulate path.
-- VM representation-width residue (H2) if Phase 3 accounts for the gap that way.
+- VM representation-width residue (H2): Phase 3 attributed the consrepro gap to it. A 32-byte Value
+  (Int and Flt sharing a word) would remove about a fifth of the remaining bytes. Only D-19 removes the
+  copy itself.
+- `range` is not VM-native. In an O(1)-step fold over `range(0, n)`, the evaluator-to-VM conversion of its
+  result is now the largest allocation (Phase 3 profile).
 
 ---
 

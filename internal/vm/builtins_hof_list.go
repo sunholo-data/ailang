@@ -13,6 +13,7 @@ import (
 // listPredicateIndexVM returns the index of the first element of args[1] for
 // which the closure args[0] returns true, or -1. Shared by any/findIndex.
 func listPredicateIndexVM(name string, caller ClosureCaller, args []bytecode.Value) (int, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 2 {
 		return 0, fmt.Errorf("%s: expected 2 args, got %d", name, len(args))
 	}
@@ -20,7 +21,7 @@ func listPredicateIndexVM(name string, caller ClosureCaller, args []bytecode.Val
 		return 0, fmt.Errorf("%s: arg 1 must be list, got %s", name, args[1].Tag)
 	}
 	for i, e := range args[1].AsList() {
-		v, err := caller.CallClosure(args[0], []bytecode.Value{e})
+		v, err := caller.CallClosure(args[0], argv.of1(e))
 		if err != nil {
 			return 0, fmt.Errorf("%s: callback error at index %d: %w", name, i, err)
 		}
@@ -58,6 +59,7 @@ func hofBuiltinListFindIndex(caller ClosureCaller, args []bytecode.Value) (bytec
 // hofBuiltinListFoldr implements __list_foldr: ((a, b) -> b, b, [a]) -> b,
 // combining right-to-left.
 func hofBuiltinListFoldr(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 3 {
 		return bytecode.Value{}, fmt.Errorf("__list_foldr: expected 3 args, got %d", len(args))
 	}
@@ -68,7 +70,7 @@ func hofBuiltinListFoldr(caller ClosureCaller, args []bytecode.Value) (bytecode.
 	elems := args[2].AsList()
 	var err error
 	for i := len(elems) - 1; i >= 0; i-- {
-		acc, err = caller.CallClosure(fn, []bytecode.Value{elems[i], acc})
+		acc, err = caller.CallClosure(fn, argv.of2(elems[i], acc))
 		if err != nil {
 			return bytecode.Value{}, fmt.Errorf("__list_foldr: callback error at index %d: %w", i, err)
 		}
@@ -79,6 +81,7 @@ func hofBuiltinListFoldr(caller ClosureCaller, args []bytecode.Value) (bytecode.
 // hofBuiltinListMapAccumL implements
 // __list_mapAccumL: ((s, a) -> (b, s), s, [a]) -> ([b], s).
 func hofBuiltinListMapAccumL(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 3 {
 		return bytecode.Value{}, fmt.Errorf("__list_mapAccumL: expected 3 args, got %d", len(args))
 	}
@@ -89,7 +92,7 @@ func hofBuiltinListMapAccumL(caller ClosureCaller, args []bytecode.Value) (bytec
 	elems := args[2].AsList()
 	out := make([]bytecode.Value, len(elems))
 	for i, e := range elems {
-		v, err := caller.CallClosure(fn, []bytecode.Value{state, e})
+		v, err := caller.CallClosure(fn, argv.of2(state, e))
 		if err != nil {
 			return bytecode.Value{}, fmt.Errorf("__list_mapAccumL: callback error at index %d: %w", i, err)
 		}

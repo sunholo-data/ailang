@@ -65,6 +65,10 @@ type VM struct {
 	// Interop instead of pushing a new frame. If Interop is nil, the VM
 	// returns an explicit error instead of silently mis-running the function.
 	Interop EvalInterop
+
+	// framePool is the free list of frames popped by RETURN, reused by every
+	// frame push (acquireFrame/releaseFrame in frame.go, #1501).
+	framePool []*Frame
 }
 
 // NewVM constructs a VM bound to an image. The image is not validated here;
@@ -88,10 +92,10 @@ func (vm *VM) Run(proto *bytecode.FuncPrototype, args []bytecode.Value) (bytecod
 			Func: proto.Name,
 		}
 	}
-	frame := newFrame(proto, 0, nil)
+	frame := vm.acquireFrame(proto, 0, nil)
 	copy(frame.Regs, args)
 	vm.Stack = append(vm.Stack, frame)
-	defer func() { vm.Stack = vm.Stack[:0] }()
+	defer func() { clear(vm.Stack); vm.Stack = vm.Stack[:0] }()
 	return vm.run(frame)
 }
 
@@ -122,14 +126,25 @@ func (vm *VM) CallClosure(closure bytecode.Value, args []bytecode.Value) (byteco
 		return bytecode.Value{}, ErrStackOverflow
 	}
 	// Push frame with Caller=nil so OpReturn returns the value directly
-	// to vm.run, which returns it to us.
-	frame := newFrame(proto, 0, nil)
+	// to vm.run, which returns it to us. The frame comes from the free list
+	// and goes back to it on RETURN: a HOF builtin calls this once per
+	// element, so it must not allocate (#1501).
+	base := len(vm.Stack)
+	frame := vm.acquireFrame(proto, 0, nil)
 	copy(frame.Regs, args)
 	for i, cap := range c.Captures {
 		frame.Regs[int(proto.NumParams)+i] = cap
 	}
 	vm.Stack = append(vm.Stack, frame)
-	return vm.run(frame)
+	result, err := vm.run(frame)
+	if err != nil {
+		// A fault unwinds with its frames still pushed; drop them so the
+		// caller's stack depth is what it was before this call. They are
+		// not recycled (releaseFrame is only for frames RETURN popped).
+		clear(vm.Stack[base:])
+		vm.Stack = vm.Stack[:base]
+	}
+	return result, err
 }
 
 // run is the dispatch loop. It executes from the given frame until a
@@ -291,7 +306,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			// Advance the caller's IP past the CALL before pushing the new
 			// frame so that on RETURN we resume at the next instruction.
 			frame.IP++
-			newF := newFrame(calleeProto, inst.A(), frame)
+			newF := vm.acquireFrame(calleeProto, inst.A(), frame)
 			for i := 0; i < argCount; i++ {
 				newF.Regs[i] = frame.Regs[int(inst.A())+1+i]
 			}
@@ -335,10 +350,13 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				// return register, mirroring OpReturn's path.
 				vm.Stack = vm.Stack[:len(vm.Stack)-1]
 				caller := frame.Caller
+				if caller != nil {
+					caller.Regs[frame.ReturnReg] = result
+				}
+				vm.releaseFrame(frame)
 				if caller == nil {
 					return result, nil
 				}
-				caller.Regs[frame.ReturnReg] = result
 				frame = caller
 				continue
 			}
@@ -358,13 +376,17 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 
 		case bytecode.OpReturn:
 			retVal := frame.Regs[inst.A()]
-			// Pop the current frame.
+			// Pop the current frame and recycle it: nothing references a
+			// returned frame (closures capture values, not registers).
 			vm.Stack = vm.Stack[:len(vm.Stack)-1]
 			caller := frame.Caller
+			if caller != nil {
+				caller.Regs[frame.ReturnReg] = retVal
+			}
+			vm.releaseFrame(frame)
 			if caller == nil {
 				return retVal, nil
 			}
-			caller.Regs[frame.ReturnReg] = retVal
 			frame = caller
 
 		// --- Closures ----------------------------------------------------
