@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MCP-OAUTH-PACKAGE",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-02T18:30:14Z",
   "design_doc": "design_docs/planned/v0_52_0/m-mcp-oauth-package.md",
   "sprint_plan": "design_docs/planned/v0_52_0/m-mcp-oauth-package-sprint-plan.md",
@@ -75,10 +75,10 @@
         "bash packages/mcp-oauth/tests/lint.sh: no declared record with string< field in flow.ail; minting fns declare Rand[mode=crypto]; no == on code/token/verifier digests",
         "grep Net[scope=public] in cimd.ail (after S0 #1522 lands); test 'cimd fetch refused for private resolution' or documented S0 coverage"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-02T18:41:22+00:00",
-      "completed": null,
-      "notes": "ecc6c8f: flow.ail complete EXCEPT the CIMD fetch module (waits for S0 Net[scope=public], ailang #1522 subagent). flow_check.sh 8/8; ifc_leaks.sh 3/3 injected leaks rejected + clean compiles; lint ok. Mutation: client check caught; replay revoke caught when both paths removed (direct revoke alone is an equivalent mutant: family revocation covers it). Script trap fixed: pipefail + grep -q flips matches to failures -> here-strings."
+      "completed": "2026-10-02T19:06:12+00:00",
+      "notes": "ecc6c8f: flow.ail complete EXCEPT the CIMD fetch module (waits for S0 Net[scope=public], ailang #1522 subagent). flow_check.sh 8/8; ifc_leaks.sh 3/3 injected leaks rejected + clean compiles; lint ok. Mutation: client check caught; replay revoke caught when both paths removed (direct revoke alone is an equivalent mutant: family revocation covers it). Script trap fixed: pipefail + grep -q flips matches to failures -> here-strings. | 7c00da9: CIMD fetch under Net[scope=public] @limit=1 (S0 landed); cimd_check.sh 3/3 incl. localtest.me->127.0.0.1 refused at connect time with permissive flags ON; mutation bare Net -> reaches 127.0.0.1:443, check fails."
     },
     {
       "id": "P3",
