@@ -736,9 +736,9 @@ func compare(op bytecode.OpCode, lhs, rhs bytecode.Value) (bool, error) {
 	case bytecode.TagFloat:
 		switch op {
 		case bytecode.OpLt:
-			return lhs.Flt < rhs.Flt, nil
+			return types.FloatLt(lhs.Flt, rhs.Flt), nil
 		case bytecode.OpLe:
-			return lhs.Flt <= rhs.Flt, nil
+			return types.FloatLte(lhs.Flt, rhs.Flt), nil
 		}
 	case bytecode.TagString:
 		switch op {

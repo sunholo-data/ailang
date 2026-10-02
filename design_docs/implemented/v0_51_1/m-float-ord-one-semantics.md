@@ -1,7 +1,7 @@
 # M-FLOAT-ORD-ONE-SEMANTICS — one answer to ordered float comparisons with NaN, on every path
 
-**Status**: Planned
-**Target**: v0.49.1
+**Status**: Implemented (2026-10-02, #1419)
+**Target**: v0.51.1 (planned for v0.49.1)
 **Priority**: P1 — correctness bug: the same comparison answers differently depending on backend and lowering path, violating A1 parity
 **Estimated**: ~1 day (parity-test first, then a one-site semantics swap)
 **Dependencies**: None. Follows [M-FLOAT-EQ-ONE-SEMANTICS](../../implemented/v0_43_2/m-float-eq-one-semantics.md) (#1274), which fixed the same class of divergence for `==` and explicitly listed "Float `Ord` with NaN" as a Non-Goal
@@ -117,7 +117,7 @@ The evaluator disagrees **with itself**: direct `n > 1.0` is true (total-order d
 
 Before implementation begins, these must be resolved:
 
-- [ ] **D1 — IEEE or total order.** Default in this doc: **IEEE everywhere**, per the #1274 precedent (VM, Go codegen, both builtin registries, the typed evaluator and the op-lowering shim are already IEEE — option A flips exactly one site; option B flips five engines against every reference language and against the working Stapledon workaround pattern). Sprint-executor pauses if the approver does not confirm.
+- [x] **D1 — IEEE or total order.** Default in this doc: **IEEE everywhere**, per the #1274 precedent (VM, Go codegen, both builtin registries, the typed evaluator and the op-lowering shim are already IEEE — option A flips exactly one site; option B flips five engines against every reference language and against the working Stapledon workaround pattern). Sprint-executor pauses if the approver does not confirm.
 
 **D1 options:**
 - **(A) IEEE everywhere (recommended).** All four ordered comparisons are false when either operand is NaN. Matches the VM, Go codegen, both builtin registries, the typed evaluator, the deferred shim, Python/JS/Go/Rust/Haskell, and every benchmark reference program. Cost: `Ord[Float]` stops being a lawful total order around NaN (transitivity fails), exactly as Haskell accepts an unlawful `Ord Double` for this reason; NaN sorts as "equal to everything" under user comparators built from `<` (stable sort keeps that deterministic and engine-identical, V11).
@@ -325,5 +325,13 @@ Optional per the skill. D1 is the same values question #1274's D1 settled for `=
 
 ---
 
+## Implementation Notes (2026-10-02)
+
+- D1 shipped as IEEE everywhere (the #1274 precedent). D2: the dictionary's `min`/`max` are `math.Min`/`math.Max`, which propagate NaN. D3: named functions in `internal/types/float_ord.go`. D4: a new `cmd/ailang/ord_parity_test.go`, which runs one pure program per backend and compares row by row.
+- Routed through the named rule: the `registerOrdFloat` dictionary (the one behavioural change), `internal/eval/builtins_comparison.go` (redundant `IsNaN` guards dropped), `internal/builtins/math_comparison.go`, the float branches of `internal/eval/eval_operations.go`, and `internal/vm/vm.go` `compare`. `eval_simple.go` and `eval_typed.go` already used native operators (IEEE) and are left as they were. `_array_f_argmax`'s NaN-skipping policy is unchanged (V12). `sortBy` takes user comparators, so it has no float comparison of its own.
+- Audit result: before the fix, the only non-IEEE float ordered comparison in `internal/eval`, `internal/builtins` and `internal/vm` was `registerOrdFloat`'s `compareFloat`. Mutation check: putting the HEAD `registerOrdFloat` back fails 14 evaluator rows of the parity test and the `TestOrdFloatDictionaryIsIEEE` unit test.
+
+---
+
 **Document created**: 2026-09-30
-**Last updated**: 2026-09-30
+**Last updated**: 2026-10-02

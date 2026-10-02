@@ -341,13 +341,13 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 				case "!=":
 					return &BoolValue{Value: !types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "<":
-					return &BoolValue{Value: lFloat.Value < rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatLt(lFloat.Value, rFloat.Value)}, nil
 				case ">":
-					return &BoolValue{Value: lFloat.Value > rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatGt(lFloat.Value, rFloat.Value)}, nil
 				case "<=":
-					return &BoolValue{Value: lFloat.Value <= rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatLte(lFloat.Value, rFloat.Value)}, nil
 				case ">=":
-					return &BoolValue{Value: lFloat.Value >= rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatGte(lFloat.Value, rFloat.Value)}, nil
 				}
 			}
 		}
@@ -485,13 +485,13 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 				case "!=":
 					return &BoolValue{Value: !types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "<":
-					return &BoolValue{Value: lFloat.Value < rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatLt(lFloat.Value, rFloat.Value)}, nil
 				case ">":
-					return &BoolValue{Value: lFloat.Value > rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatGt(lFloat.Value, rFloat.Value)}, nil
 				case "<=":
-					return &BoolValue{Value: lFloat.Value <= rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatLte(lFloat.Value, rFloat.Value)}, nil
 				case ">=":
-					return &BoolValue{Value: lFloat.Value >= rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatGte(lFloat.Value, rFloat.Value)}, nil
 				}
 			}
 		}

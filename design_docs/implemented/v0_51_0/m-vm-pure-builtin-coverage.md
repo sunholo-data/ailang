@@ -269,4 +269,4 @@ identical to the interpreter.
 ## Related Documents
 
 - `design_docs/planned/v0_47_2/m-bytecode-getfield-slot-resolution.md` (#1354), `v0_47_2/m-vm-determinism.md` (#1355)
-- `design_docs/planned/v0_49_1/m-bytecode-nested-pattern-lowering.md` (#1420), `v0_49_1/m-float-ord-one-semantics.md` (#1419)
+- `design_docs/planned/v0_49_1/m-bytecode-nested-pattern-lowering.md` (#1420), `design_docs/implemented/v0_51_1/m-float-ord-one-semantics.md` (#1419, implemented)
