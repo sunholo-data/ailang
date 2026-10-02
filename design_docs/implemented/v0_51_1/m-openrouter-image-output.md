@@ -1,6 +1,6 @@
 # M-OPENROUTER-IMAGE-OUTPUT: Route AI Image Generation Through OpenRouter (Chat-API Modalities + Per-Call Model Choice)
 
-**Status**: Planned
+**Status**: Implemented (2026-10-02, #1500 + #1496)
 **Target**: v0.51.1
 **Priority**: P1 (Medium)
 **Estimated**: 2–3 days
@@ -554,6 +554,39 @@ repo at `4460d91b` (dev), version `v0.51.0` (`std/VERSION`).
 | V15 | models.yml has no image model entry today (Gemini-direct image runs via the GuessProvider fallback path) | `grep -i image internal/modelreg/models.yml` → 0 hits; read `internal/ai/config.go:48-100` (GuessProvider: "google/…" vendor prefix → OpenRouter; bare "gemini…" → Google direct) |
 | V16 | No new error code is proposed (namespace check n/a) | This doc introduces no `MOD/PAR/TC/EFF` code; it reuses existing typed errors (`ProviderError`, `ai.CodeModelNotAllowed`, `ai.CodeSchemaValidation`); `grep` of proposed messages shows they carry model names, not codes |
 | V17 | Related-doc duplicate gate: no existing/planned doc covers OpenRouter image output | `ailang docs search --stream implemented/planned --limit 5 "openrouter image output"` → top hits are M-AI-IMAGE (v0.10.0, the original Gemini-only callImage surface — this doc extends it, no overlap in the OpenRouter routing ask) and M-AI-OPENROUTER-PROVIDER (v0.16.0, whose deferral this doc discharges, V14); no hit ≥ 0.65 neural on this topic |
+
+## Implementation Notes (2026-10-02)
+
+Implemented as designed, plus the reference-image half of #1496:
+
+- **OpenRouter image output** in `internal/ai/openrouter/images.go`. It adds
+  `modalities`, a typed `image_config` struct (not a map), decoding of the
+  first image (the count goes on the `ai.image_count` span attribute), and
+  typed errors that name the model. `mime_type` accepts png, jpeg and webp;
+  any other value fails before dispatch. Responses are decoded through
+  `chatResponseDecoded`, which shadows `Choices`, so `chatResponse` and its
+  test servers are unchanged. Step and StreamStep return `CapabilityNotSupported`
+  for image modalities.
+- **Per-call model**: `ImageOptions.Model`, exported `ai.ParseImageOptions` and
+  `ai.SetImageOptionsModel`. `effects.AIContext.resolveImageOptions` runs the
+  model through the step() `ModelResolver` and rewrites the options JSON,
+  keeping every other key.
+- **Reference images (#1496)**: there are two new `std/ai` functions,
+  `callImageWithRefs(prompt, refs: [ImagePart], output_path, options) ! {AI, FS}`
+  and `callImageBase64WithRefs(prompt, refs: [ImagePart], options) ! {AI}`. The
+  refs travel as `ai.Request.InputImages`. Gemini sends them as `inlineData`
+  parts, reusing `userImageParts`, and OpenRouter as `image_url` content parts.
+  Config-driven providers gained an explicit refusal, because a
+  `capabilities.vision` provider would otherwise pass image requests through.
+  Handler capability is the optional `effects.AIHandlerWithImageRefs`
+  interface; a handler without it fails with "not supported".
+- **Bytecode VM**: the AI image builtins, like every effectful std/ai builtin,
+  run through the evaluator fallback. `--strict-bytecode` reports them as
+  "not yet wired (Phase 2E)", the same as before for `callImage`.
+- **Not done**: no live paid smoke test was run; the httptest golden bodies are
+  the contract. The Gemini-direct adapter still ignores `ImageOptions`
+  (`aspect_ratio`/`mime_type`), which is pre-existing behaviour and outside
+  this change.
 
 ## Related Documents
 

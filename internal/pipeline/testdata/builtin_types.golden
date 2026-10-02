@@ -9,6 +9,8 @@
 _ai_call : string -> string ! {AI}
 _ai_call_image : (string, string, string) -> string ! {AI}
 _ai_call_image_base64 : (string, string) -> string ! {AI}
+_ai_call_image_base64_with_refs : (string, list[{mime: string, source: string}], string) -> string ! {AI}
+_ai_call_image_with_refs : (string, list[{mime: string, source: string}], string, string) -> string ! {AI}
 _ai_call_json : (string, string) -> string ! {AI}
 _ai_call_json_result : (string, string) -> Result[string, {code: string, message: string, retryable: bool}] ! {AI}
 _ai_call_json_simple : string -> string ! {AI}

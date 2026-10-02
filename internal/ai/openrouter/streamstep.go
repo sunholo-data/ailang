@@ -47,6 +47,11 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	)
 	defer span.End()
 
+	if imgErr := rejectImageOnStep(req, "StreamStep"); imgErr != nil {
+		ai.RecordSpanError(span, imgErr)
+		return nil, imgErr
+	}
+
 	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
 	// OpenRouter routes reasoning through its own reasoning{} block, so pass
 	// ReasoningNone to the shared builder and splice the reasoning fragment below.

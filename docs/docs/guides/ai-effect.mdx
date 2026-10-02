@@ -3,6 +3,7 @@ import AIEffectExample from '!!raw-loader!@site/../examples/runnable/ai_effect.a
 import NPCDialogueExample from '!!raw-loader!@site/../examples/docs/npc_dialogue.ail';
 import AICallResultExample from '!!raw-loader!@site/../examples/runnable/ai_call_result.ail';
 import AIToolLoopExample from '!!raw-loader!@site/../examples/runnable/ai_tool_loop.ail';
+import AIImageExample from '!!raw-loader!@site/../examples/runnable/ai_image_generation.ail';
 
 # AI Effect: Calling LLMs from AILANG
 
@@ -275,6 +276,49 @@ For the broader integration with `motoko_agent` (the first AILANG-native
 coding agent retiring its hand-rolled tool dispatch), see the
 [Motoko integration sequence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/motoko-integration-sequence.md).
 
+## Image Generation
+
+`std/ai` generates images through the same AI effect:
+
+| Function | Effects | Returns |
+|----------|---------|---------|
+| `callImage(prompt, output_path, options)` | `{AI, FS}` | the output path |
+| `callImageBase64(prompt, options)` | `{AI}` | `{"base64": ..., "mime_type": ...}` JSON |
+| `callImageWithRefs(prompt, refs, output_path, options)` | `{AI, FS}` | the output path |
+| `callImageBase64WithRefs(prompt, refs, options)` | `{AI}` | `{"base64": ..., "mime_type": ...}` JSON |
+
+**Providers.** Gemini image models (`--ai gemini-2.5-flash-image`) and
+OpenRouter image-output models (for example `google/gemini-3-pro-image`,
+`openai/gpt-5-image`) through the OpenRouter key. OpenRouter image calls use
+the chat endpoint with `"modalities": ["image","text"]`, so the image cost
+appears in the same `usage.cost` figure as text calls. Anthropic, OpenAI-direct,
+Ollama and config-driven providers reject image generation with an error.
+
+**Options** is a JSON string; every key is optional:
+
+- `aspect_ratio`: `"1:1"`, `"16:9"`, `"9:16"`, ...
+- `mime_type`: `"image/png"` (default) or `"image/jpeg"`. OpenRouter also
+  accepts `"image/webp"`; any other value fails before the request is sent.
+- `model`: a model for this call only. When it is absent or empty, the `--ai`
+  model is used. A friendly `models.yml` name resolves the same way `step()`
+  resolves one. A model that belongs to a different provider than the `--ai`
+  handler fails with `ModelNotAllowed`. For example, one OpenRouter-bound
+  program can keep a text model bound and name an image model for each
+  portrait.
+
+**Reference images** (`*WithRefs`) let the model see one or more images as
+well as the prompt. Use them to edit an image, or to keep the same character
+across variations. Each ref is an `ImagePart` record `{source, mime}`, the
+same record `step()` uses for vision input. `source` is a base64 payload or a
+data-URI. `std/fs.readFileBytes` returns base64 you can pass straight in, and
+`mime` is required for raw base64. Gemini receives refs as `inlineData` parts
+and OpenRouter as `image_url` content parts. Every other provider fails with
+"not supported" instead of dropping them, and an empty `refs` list behaves
+like the call without refs. Under `--ai-stub`, all four functions return a
+fixed 1x1 PNG without any network call.
+
+<CodeBlock language="ailang">{AIImageExample}</CodeBlock>
+
 ## Builtin Documentation
 
 View full builtin documentation:
@@ -283,6 +327,7 @@ View full builtin documentation:
 ailang builtins show _ai_call
 ailang builtins show _ai_call_result   # v0.17.0+
 ailang builtins show _ai_step          # v0.17.0+
+ailang builtins show _ai_call_image_with_refs
 ```
 
 ## Comparison: AI Effect vs HTTP API

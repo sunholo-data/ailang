@@ -21,6 +21,12 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 
 	// Build request — detect multimodal JSON input and construct proper parts
 	parts := buildParts(req.FullUserPrompt())
+	if len(req.InputImages) > 0 {
+		// Reference-conditioned image generation (#1496): the prompt text
+		// part, then one inlineData part per reference image — the same
+		// encoding the step() vision-input path uses.
+		parts = userImageParts(ai.Message{Content: req.FullUserPrompt(), Images: req.InputImages})
+	}
 	apiReq := generateRequest{
 		Contents: []content{
 			{

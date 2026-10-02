@@ -3,6 +3,7 @@ package openrouter
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -294,31 +295,37 @@ func TestClient_Generate_NoCostNoCachedTokens(t *testing.T) {
 	}
 }
 
-// TestClient_Generate_RejectsImageRequests covers the image-modality guard:
-// OpenRouter does not currently route image generation, so we should fail
-// loudly with a typed ProviderError rather than calling the API.
-func TestClient_Generate_RejectsImageRequests(t *testing.T) {
-	// Server should never be hit
+// TestClient_Generate_DispatchesImageRequests covers the M-OPENROUTER-IMAGE-OUTPUT
+// flip (#1500): image requests are no longer refused client-side — they reach
+// the API as a chat completion with modalities ["image","text"], and the
+// returned data-URL image lands in ImageData. (Wire details: images_test.go.)
+func TestClient_Generate_DispatchesImageRequests(t *testing.T) {
+	called := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatalf("server should not be called for image requests")
+		called = true
+		body, _ := io.ReadAll(r.Body)
+		if !strings.Contains(string(body), `"modalities":["image","text"]`) {
+			t.Errorf("body missing modalities: %s", body)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"model":"openai/gpt-5-image","choices":[{"message":{"role":"assistant","content":"","images":[{"type":"image_url","image_url":{"url":"data:image/png;base64,Y2F0"}}]},"finish_reason":"stop"}],"usage":{}}`))
 	}))
 	defer server.Close()
 
 	client := NewClient("test-key", WithBaseURL(server.URL))
-	_, err := client.Generate(context.Background(), &ai.Request{
-		Model:              "openai/gpt-5",
+	resp, err := client.Generate(context.Background(), &ai.Request{
+		Model:              "openai/gpt-5-image",
 		UserPrompt:         "draw a cat",
 		ResponseModalities: []string{"IMAGE"},
 	})
-	if err == nil {
-		t.Fatal("Generate() expected error for image request, got nil")
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
 	}
-	providerErr, ok := err.(*ai.ProviderError)
-	if !ok {
-		t.Fatalf("err type = %T, want *ai.ProviderError", err)
+	if !called {
+		t.Fatal("server was not called for an image request")
 	}
-	if !strings.Contains(providerErr.Message, "image generation not supported") {
-		t.Errorf("Message = %q, want contains 'image generation not supported'", providerErr.Message)
+	if string(resp.ImageData) != "cat" || resp.ImageMIME != "image/png" {
+		t.Errorf("ImageData = %q (%s), want \"cat\" (image/png)", resp.ImageData, resp.ImageMIME)
 	}
 }
 

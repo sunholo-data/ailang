@@ -8,6 +8,8 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // generateChat uses OpenRouter's Chat Completions API (/v1/chat/completions).
@@ -108,12 +110,17 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 		}
 	}
 
-	jsonBody, err := json.Marshal(apiReq)
+	// Image output (#1500): modalities + image_config. No-op for text requests.
+	if err := applyImageRequest(&apiReq, req); err != nil {
+		return nil, err
+	}
+
+	jsonBody, err := marshalChatRequest(apiReq, req)
 	if err != nil {
 		return nil, ai.NewProviderError("openrouter", 0, "failed to marshal request", err)
 	}
 
-	var result chatResponse
+	var result chatResponseDecoded
 	if _, err := ai.DoJSON(ctx, ai.JSONCall{
 		Provider: "openrouter",
 		Client:   c.httpClient,
@@ -129,6 +136,18 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 	}
 
 	text := result.Choices[0].Message.Content
+
+	// Image output: first image wins; the count goes on the active span.
+	var imageData []byte
+	var imageMIME string
+	if ai.RequestsImage(req) {
+		data, mime, count, imgErr := harvestImage(result.Choices[0].Message, req.Model)
+		trace.SpanFromContext(ctx).SetAttributes(attribute.Int("ai.image_count", count))
+		if imgErr != nil {
+			return nil, imgErr
+		}
+		imageData, imageMIME = data, mime
+	}
 
 	// Calculate output tokens. For reasoning models, completion_tokens
 	// includes reasoning_tokens — split them out the same way openai does.
@@ -159,6 +178,8 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 
 	return &ai.Response{
 		Text:         text,
+		ImageData:    imageData,
+		ImageMIME:    imageMIME,
 		InputTokens:  result.Usage.PromptTokens,
 		OutputTokens: outputTokens,
 		TotalTokens:  result.Usage.TotalTokens,

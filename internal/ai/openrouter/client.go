@@ -91,8 +91,9 @@ func (c *Client) requestHeaders(attr *ai.Attribution) http.Header {
 // Client implements ai.Provider for OpenRouter's unified Chat Completions API.
 //
 // Unlike the OpenAI client there is no API-type detection — OpenRouter is
-// Chat-Completions only. Image generation is not supported; callers should
-// use a Gemini image model instead.
+// Chat-Completions only. Image generation goes through the same endpoint with
+// "modalities": ["image","text"] (Generate path only; Step/StreamStep reject
+// image output loudly).
 type Client struct {
 	apiKey     string
 	baseURL    string
@@ -131,13 +132,10 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 
 // Generate implements ai.Provider. It always routes to Chat Completions.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
-	if ai.RequestsImage(req) {
-		return nil, ai.NewProviderError(
-			"openrouter", 0,
-			"image generation not supported by openrouter (use a Gemini image model)",
-			nil,
-		)
-	}
+	// Image requests (ResponseModalities ["IMAGE"]) take the same chat path:
+	// generateChat adds modalities/image_config and harvests message.images
+	// (M-OPENROUTER-IMAGE-OUTPUT, #1500). A non-image model surfaces the
+	// upstream error as a typed ProviderError — no client-side allowlist.
 
 	// Start OTEL span
 	ctx, span := telemetry.StartSpan(ctx, openrouterTracer, "openrouter.generate",

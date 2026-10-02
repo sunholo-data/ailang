@@ -69,6 +69,23 @@
       "pure": true
     },
     {
+      "name": "callImageBase64WithRefs",
+      "type": "(string,list[ImagePart],string)-\u003estring!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "callImageWithRefs",
+      "type": "(string,list[ImagePart],string,string)-\u003estring!{AI,FS}",
+      "effects": [
+        "AI",
+        "FS"
+      ],
+      "pure": true
+    },
+    {
       "name": "callJson",
       "type": "(string,string)-\u003estring!{AI}",
       "effects": [
