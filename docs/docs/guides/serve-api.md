@@ -892,6 +892,11 @@ To fix: restart with `--caps IO` (or whatever capabilities the function requires
 
 **Security note:** Capabilities are granted server-wide. All API endpoints share the same capabilities. Only grant capabilities that your AILANG modules actually need.
 
+**Net and user-supplied URLs (v0.52.0+):** with `--caps Net`, serve-api allows `http://`, loopback and the cloud metadata server (`169.254.169.254`) for the whole process, because `sunholo/gcp_auth` fetches tokens from the metadata server. Two rules keep that from reaching user-chosen URLs:
+
+- **Redirect hops** never land on loopback, link-local (metadata) or private addresses, whatever the flags. Direct requests are unchanged, so `gcp_auth` keeps working.
+- A function that fetches a URL a client chose should declare **`! {Net[scope=public]}`**. Every Net call in its dynamic extent then refuses loopback and metadata, checked at connect time after DNS, so a hostname resolving to `127.0.0.1` or `169.254.169.254` is refused too. See [Parameterised effects → Net scope](parameterised-effects.md#net-scope-public).
+
 ### Frontend Proxy
 
 When using `--frontend ./ui`, the server:

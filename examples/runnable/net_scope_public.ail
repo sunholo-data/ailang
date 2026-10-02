@@ -1,0 +1,31 @@
+-- net_scope_public.ail - Net[scope=public]: public-only network access for user-chosen URLs
+--
+-- A function declaring ! {Net[scope=public]} can never reach loopback (127.0.0.1, ::1,
+-- localhost) or the cloud metadata server (169.254.169.254), on the first request or on
+-- any redirect hop, even when the process allows them (serve-api turns on
+-- --net-allow-localhost and --net-allow-metadata so sunholo/gcp_auth can fetch tokens).
+-- The check runs at connect time after DNS, so a hostname that RESOLVES to a private
+-- address is refused too. Bare ! {Net} is unchanged.
+--
+-- Scope is a narrowing: a public function may call bare-Net helpers (they run public
+-- too), and a bare-Net function may call a public one.
+--
+-- Run:  ailang run --caps IO,Net --net-allow-http --net-allow-localhost --net-allow-metadata \
+--         examples/runnable/net_scope_public.ail
+-- Design: design_docs/planned/v0_52_0/m-net-scope-public.md (#1522)
+module examples/runnable/net_scope_public
+import std/io (println)
+import std/net (httpRequest)
+
+func fetch(u: string) -> string ! {Net} = match httpRequest("GET", u, [], "") {
+  Ok(resp) => "fetched ${show(resp.status)}",
+  Err(_) => "refused"
+}
+
+-- A user-supplied URL is fetched public-only.
+export func fetchUserUrl(u: string) -> string ! {Net[scope=public]} = fetch(u)
+
+export func main() -> () ! {IO, Net} {
+  println("metadata: ${fetchUserUrl("https://169.254.169.254/computeMetadata/v1/")}")
+  println("loopback: ${fetchUserUrl("https://127.0.0.1:1/")}")
+}

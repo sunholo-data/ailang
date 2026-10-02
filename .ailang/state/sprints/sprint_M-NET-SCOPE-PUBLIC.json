@@ -56,10 +56,10 @@
         "go test ./internal/effects -run TestDirectMetadataCall_BareNetStillAllowed passes",
         "go test ./internal/effects/... passes"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T20:30:00Z",
+      "completed": "2026-10-02T23:00:00Z",
+      "notes": "forRedirectHop() applied in checkRedirect and in RoundTrip when req.Response != nil (dial-time via resolvePinned). Refusal names the rule (lockedBy). Same-host loopback redirect now denied: run_policy_containment_test control updated."
     },
     {
       "id": "M2_NET_SCOPE_TYPES",
@@ -73,10 +73,10 @@
         "go test ./internal/types -run TestNetScope_DoesNotLeakToOtherEffects passes",
         "ailang check (repo build) of examples/net_scope_public.ail prints 'No errors found'"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T20:30:00Z",
+      "completed": "2026-10-02T23:00:00Z",
+      "notes": "effectSchema Net{scope:{public}}, no default; narrowingParams table in effect_subsumption.go (both directions). ailang check on examples/runnable/net_scope_public.ail: No errors found."
     },
     {
       "id": "M3_NET_SCOPE_RUNTIME",
@@ -94,10 +94,10 @@
         "go test ./cmd/ailang -run TestNetScopePublic_EndToEnd passes",
         "go test ./internal/gen/lower -run TestNetScopePublic_LoweredEvalOnly passes"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T20:30:00Z",
+      "completed": "2026-10-02T23:00:00Z",
+      "notes": "net_scope.go depth counter (WithBudget shares, Clone resets); FunctionValue.EffectNetScope + push/pop in applyFunctionValue, not tail-replaceable; lowering marks scoped functions EvalOnly (verified --bytecode manually)."
     },
     {
       "id": "M4_DOCS_GATES_MUTATION",
@@ -113,10 +113,11 @@
         "each guard mutant compiles and fails a named test (recorded in notes)",
         "gh run list -R sunholo-data/ailang --branch dev --workflow ci.yml shows success for the pushed head"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T20:30:00Z",
+      "completed": "2026-10-02T23:00:00Z",
+      "notes": "Fragment + parameterised-effects guide + serve-api guide + devtools prompts (hashes updated). Gates green; golangci-lint 0 issues. 14/14 mutants killed (compile-checked with go vet). CI checked after push."
     }
-  ]
+  ],
+  "status": "completed"
 }

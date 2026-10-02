@@ -94,7 +94,11 @@ export func fetchClient(u: string) -> string ! {Net[scope=public]} = httpGet(u)
    - `internal/types` effect-param tests (`EFF_PARAMS_NOT_SUPPORTED` for Clock/FS still fires).
 5. **Deliberate changes**
    - a redirect to loopback / link-local / private now fails `E_NET_IP_BLOCKED` / `E_NET_DNS_REBINDING`
-     even when `AllowLocalhost`/`AllowMetadata` are set (also for Stream: `E_STREAM_DISALLOWED_HOST`);
+     even when `AllowLocalhost`/`AllowMetadata` are set (also for Stream: `E_STREAM_DISALLOWED_HOST`).
+     This includes a **same-host loopback redirect** (`http://127.0.0.1:P/a` → `/b`): found by
+     `TestRunPolicyE2E_RedirectToNonAllowlistedHostDenied`, whose positive control was exactly that and
+     now expects `DENIED`. A same-literal-host exemption would add no reach an attacker lacks at hop 0,
+     but the ratified rule is "never"; left as an open follow-up if local-dev redirects need it;
    - `Net[scope=x]` for `x ≠ public`, and any other Net key, change from `EFF_PARAMS_NOT_SUPPORTED` to
      `EFF_UNKNOWN_MODE` / `EFF_UNKNOWN_PARAM_KEY`.
 
