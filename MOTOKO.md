@@ -207,5 +207,6 @@ escapes included), `ailang_tools` unit tests, every profile's registry under str
 concurrent cloud motoko trials (`motoko-or-deepseek-v4-flash`, 6/6, $0.06, no port collision).
 
 **Switch the rig** (`mk-main` -> this branch, then the `~/go/bin/motoko` shim comment) only while
-the os rotation is idle. The cloud image pin (`docker/Dockerfile.agent-motoko`) still names
-`4d4917cd`; move it with the rig, not before.
+the os rotation is idle. The cloud image (`docker/Dockerfile.agent-motoko`) pins `de68fddf` on this
+branch since 2026-10-02: the dev plane builds it from `dev`; test/prod get it only via a release +
+promote. Until the rig switches, rig and cloud run different motoko commits.
