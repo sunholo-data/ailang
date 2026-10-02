@@ -3,9 +3,10 @@ package mission
 import (
 	"fmt"
 	"math"
-	"os"
 	"strconv"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // START MARGINS (Mark, attended 2026-10-02): "only start if we have some headroom ... if
@@ -36,7 +37,7 @@ var defaultStartMargins = map[string]float64{
 // StartMargin returns the headroom a bucket must have before a new run is admitted.
 func StartMargin(bucket string) float64 {
 	def := defaultStartMargins[bucket]
-	raw := strings.TrimSpace(os.Getenv("AILANG_QUOTA_MARGIN_" + strings.ToUpper(bucket)))
+	raw := strings.TrimSpace(config.Raw("AILANG_QUOTA_MARGIN_" + strings.ToUpper(bucket)))
 	if raw == "" {
 		return def
 	}
