@@ -59,10 +59,13 @@ export MISSION_NAME="$NAME"
 # --- 4. the clone the item worktrees come from ---------------------------------------------------
 CLONE=$(cd "$(git -C "$WORKDIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/.." 2>/dev/null && pwd -P)
 if [ -n "$CLONE" ]; then
-  _behind=$(git -C "$CLONE" rev-list --count HEAD..origin/dev 2>/dev/null || echo "?")
-  if [ "$_behind" = "?" ]; then row clone warn "$CLONE: cannot compare with origin/dev"
-  elif [ "$_behind" -gt "$STALE_MAX" ]; then row clone warn "$CLONE is $_behind commits behind origin/dev (fix: git -C $CLONE merge --ff-only origin/dev when clean)"
-  else row clone ok "$CLONE $_behind behind origin/dev"; fi
+  # The repo's own base: dev here, main in stapledons-godot (mission-base.sh derives it the same way).
+  _base=origin/dev
+  git -C "$CLONE" rev-parse -q --verify "$_base" >/dev/null 2>&1 || _base=$(git -C "$CLONE" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/main)
+  _behind=$(git -C "$CLONE" rev-list --count "HEAD..$_base" 2>/dev/null || echo "?")
+  if [ "$_behind" = "?" ]; then row clone warn "$CLONE: cannot compare with $_base"
+  elif [ "$_behind" -gt "$STALE_MAX" ]; then row clone warn "$CLONE is $_behind commits behind $_base (fix: git -C $CLONE merge --ff-only $_base when clean)"
+  else row clone ok "$CLONE $_behind behind $_base"; fi
 fi
 
 # --- 5. one rung --------------------------------------------------------------------------------
