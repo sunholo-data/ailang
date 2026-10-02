@@ -54,7 +54,7 @@ var (
 // evaluates the result, a budget frame pops with an @min check, and a rand mode
 // pops; such frames stay nested.
 func (e *CoreEvaluator) replaceable(fn *FunctionValue) bool {
-	if len(fn.EffectBudgets) > 0 || len(fn.EffectMinBudgets) > 0 || fn.EffectRandMode != "" {
+	if len(fn.EffectBudgets) > 0 || len(fn.EffectMinBudgets) > 0 || fn.EffectRandMode != "" || fn.EffectNetScope != "" {
 		return false
 	}
 	if len(fn.Postconditions) > 0 {
@@ -134,6 +134,9 @@ func (e *CoreEvaluator) applyFunctionValue(fn *FunctionValue, args []Value, name
 				}
 				if mode := e.pushRandModeIfDeclared(fn); mode != "" {
 					defer e.deferredPopRandMode(mode)
+				}
+				if scope := e.pushNetScopeIfDeclared(fn); scope != "" {
+					defer e.deferredPopNetScope(scope)
 				}
 			}
 		}

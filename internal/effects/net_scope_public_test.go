@@ -121,7 +121,11 @@ func TestRedirectHop_HostnameToLoopbackRefused(t *testing.T) {
 func TestRedirectHop_HostnameToMetadataRefused(t *testing.T) {
 	f := newScopeFixture(t, metadataTestIP)
 	f.location = f.url("evil.example", "/final")
-	f.assertRefused(t, f.get(f.url("public.example", "/start")))
+	err := f.get(f.url("public.example", "/start"))
+	f.assertRefused(t, err)
+	if !strings.Contains(err.Error(), "redirect hops never reach") {
+		t.Fatalf("refusal must name the redirect-hop rule, not a flag: %v", err)
+	}
 }
 
 func TestRedirectHop_LiteralLinkLocalRefused(t *testing.T) {
@@ -167,7 +171,11 @@ func TestNetScopePublic_HostnameToLoopbackRefused(t *testing.T) {
 	f := newScopeFixture(t, "127.0.0.1")
 	f.ctx.PushNetScope("public")
 	defer f.ctx.PopNetScope("public")
-	f.assertRefused(t, f.get(f.url("evil.example", "/final")))
+	err := f.get(f.url("evil.example", "/final"))
+	f.assertRefused(t, err)
+	if !strings.Contains(err.Error(), "Net[scope=public]") {
+		t.Fatalf("refusal must name Net[scope=public], not a flag: %v", err)
+	}
 }
 
 func TestNetScopePublic_HostnameToMetadataRefused(t *testing.T) {
@@ -229,5 +237,23 @@ func TestNetScopePublic_CloneResets(t *testing.T) {
 	ctx.PopNetScope("public")
 	if !clone.NetScopePublic() {
 		t.Fatal("the original context's pop leaked into the clone")
+	}
+}
+
+// CheckRedirect (the pre-dial gate) applies the hop policy on its own: the
+// RoundTrip gate is a second layer, so each is tested in isolation.
+func TestRedirectHop_CheckRedirectRefusesBeforeDial(t *testing.T) {
+	f := newScopeFixture(t, "127.0.0.1")
+	check := netPolicy(f.ctx).checkRedirect("public.example")
+	prev, _ := http.NewRequest("GET", "http://public.example/start", nil)
+	for _, target := range []string{"http://169.254.169.254/x", "http://127.0.0.1/x", "http://localhost/x", "http://[::1]/x"} {
+		req, _ := http.NewRequest("GET", target, nil)
+		if err := check(req, []*http.Request{prev}); err == nil {
+			t.Errorf("CheckRedirect allowed a hop to %s under AllowLocalhost+AllowMetadata", target)
+		}
+	}
+	ok, _ := http.NewRequest("GET", "http://other.example/x", nil)
+	if err := check(ok, []*http.Request{prev}); err != nil {
+		t.Errorf("CheckRedirect refused a public hop: %v", err)
 	}
 }
