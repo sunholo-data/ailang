@@ -1,0 +1,88 @@
+{
+  "sprint_id": "M-VM-ADT-TAG-CHECK-LOWERING",
+  "status": "not_started",
+  "created": "2026-10-02T16:17:42.701377+00:00",
+  "design_doc": "design_docs/planned/v0_51_3/m-vm-adt-tag-check-lowering.md",
+  "sprint_plan": "design_docs/planned/v0_51_3/m-vm-adt-tag-check-lowering-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search bytecode returned no packages; compiler-private Go IR/backend work cannot be supplied by a registry package."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search bytecode returned no packages; compiler-private Go IR/backend work cannot be supplied by a registry package."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search bytecode returned no packages; compiler-private Go IR/backend work cannot be supplied by a registry package."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 270,
+    "estimated_total_loc": 540,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "ADT tag IR and bytecode compilation",
+      "estimated_loc": 160,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "ADTTagEq validates its Value and compiles to GET_TAG, ordinal LOAD_CONST and EQ without new opcodes or builtins.",
+        "Explicit types, declaration-order inference, shared-tag determinism and unknown type/tag errors have unit coverage.",
+        "Switch resolution retains its existing behavior; rewriting, expression walking and closure free-variable discovery traverse ADTTagEq.Value."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "If-chain lowering and unsupported-pattern boundary",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Both lowering sites emit ADTTagEq; no FieldAccess with Field Tag remains in internal/gen/lower.",
+        "Type information propagates to tag checks and ADT positional bindings; Var and Wildcard arguments work.",
+        "Literal and nested constructor arguments produce precise EvalOnly reasons; strict execution fails loudly and non-strict agrees with evaluator.",
+        "Existing lowering regressions pass with containsTagCheck updated to the new node."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Go emission and engine parity verification",
+      "estimated_loc": 210,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Go v2 emits Kind enum comparisons and ValueN bindings; generated repro Go builds and computes the evaluator result.",
+        "Cons-head goldens cover both constructors, nullary heads, wildcard args, empty lists, mismatches and head-separated equivalence with exact evaluator/strict-VM outputs.",
+        "Genuine record fields named Tag and _0 retain record semantics; unresolved ADT emission errors are loud.",
+        "Focused tests, make test, make fmt, make lint and make check-boundaries pass on a Go-equipped execution host.",
+        "Baseline-relative std/examples/golden sweep has no output changes or new EvalOnly functions on previously supported inputs; changelog and reference note are updated."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
