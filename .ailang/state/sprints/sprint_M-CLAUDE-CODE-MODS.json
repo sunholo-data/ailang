@@ -111,10 +111,10 @@
         "Ack runs messages ack <id> and drops the row",
         "toast once per new id"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T07:32:59+00:00",
+      "completed": "2026-10-02T07:32:59+00:00",
+      "notes": "tools/claude-mods/ailang-inbox: userConfig inboxes/pollSeconds; $.clock.every poll of messages list --unread --json per inbox; band (count + newest title + Open), /inbox pane (Read/Hide shows payload, Ack runs messages ack), toast once per new id, first backlog not toasted; /inbox reply is a count only (C3, asserted in test). Engine rule found: a function receiving $ must be top-level. 5 tests pass on terminal+desktop."
     },
     {
       "id": "M3_SPRINT_STATUS",
