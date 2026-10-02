@@ -1,0 +1,124 @@
+{
+  "sprint_id": "M-VM-IFCHAIN-TAG-GUARD-LOWERING",
+  "status": "not_started",
+  "created": "2026-10-02T16:19:12.006281+00:00",
+  "design_doc": "design_docs/planned/v0_51_2/m-vm-ifchain-tag-guard-lowering.md",
+  "sprint_plan": "design_docs/planned/v0_51_2/m-vm-ifchain-tag-guard-lowering-sprint-plan.md",
+  "github_issues": [
+    1511
+  ],
+  "related_github_issues": [
+    1473,
+    1503
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "ailang pkg search pattern",
+        "ailang pkg search bytecode"
+      ],
+      "inspected_packages": [
+        "sunholo/config@0.1.2"
+      ],
+      "reason": "Pattern search returned only environment configuration package; bytecode search had no results. Info/docs confirm no reusable compiler/VM capability. Reuse repository IR/dispatch/golden infrastructure, not an AILANG package."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "ailang pkg search pattern",
+        "ailang pkg search bytecode"
+      ],
+      "inspected_packages": [
+        "sunholo/config@0.1.2"
+      ],
+      "reason": "Pattern search returned only environment configuration package; bytecode search had no results. Info/docs confirm no reusable compiler/VM capability. Reuse repository IR/dispatch/golden infrastructure, not an AILANG package."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "ailang pkg search pattern",
+        "ailang pkg search bytecode"
+      ],
+      "inspected_packages": [
+        "sunholo/config@0.1.2"
+      ],
+      "reason": "Pattern search returned only environment configuration package; bytecode search had no results. Info/docs confirm no reusable compiler/VM capability. Reuse repository IR/dispatch/golden infrastructure, not an AILANG package."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 600,
+    "estimated_days": 2,
+    "estimated_hours": 16,
+    "contingency_hours": 4,
+    "basis": "Capacity assumption: shallow history has only one design commit; no measured implementation velocity."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Native ADT tag checks",
+      "estimated_loc": 180,
+      "estimated_hours": 4,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "_adt_tag returns constructor names and rejects wrong arity/non-ADT values; table and index checks pass.",
+        "Constructor conditions use _adt_tag without fabricated Tag access; real record fields remain unchanged.",
+        "C1/C2 matching and None/empty-list near-miss cases agree across evaluator, bytecode, and strict bytecode with explicit expected values.",
+        "Switch-path ADT and builtin coverage regression tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Bind pattern variables before guards",
+      "estimated_loc": 280,
+      "estimated_hours": 5,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "G1-G5 true/false/structural-miss cases agree across all three routes with hand-computed expected values.",
+        "Bindings are inside structural condition and precede guard; false guard evaluates next arm in source order.",
+        "Single/final/refutable/irrefutable arm guards work; terminal behavior stays within documented scope.",
+        "Independent guards retain flat IR; lexical shadowing and later-arm name overlap tests pass.",
+        "Three referencing-guard arms compile with valid register allocation and correct fall-through."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Integration, corpus baseline, examples and documentation",
+      "estimated_loc": 140,
+      "estimated_hours": 3,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "All standalone C/G/control goldens pass without xfail; runnable example checks and runs in all three modes.",
+        "Named regression fixtures, JSON wrappers, switch guards and enclosing-parameter controls pass.",
+        "Before/after corpus manifests show zero new EvalOnly and zero changed previously-correct outputs.",
+        "Go emitter probes are recorded; any introduced regression blocks completion.",
+        "make build/fmt/test/lint/check-boundaries and focused package tests pass.",
+        "Reference/changelog updated; guarded nested-cons expected failure names sibling and flip ownership."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
