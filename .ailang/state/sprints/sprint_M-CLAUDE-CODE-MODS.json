@@ -180,9 +180,9 @@
         "AILANG_SKIP_PREPUSH=1 in launch env skips"
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-02T07:38:12+00:00",
       "completed": null,
-      "notes": null
+      "notes": "tools/claude-mods/prepush-gate: core.ts generated from pi (GateStep gateSteps goRoots makeTargetDefined skipRequested isPushCommand); same chain and refusals; hatch via $.env (launch env), typed-in hatch does not open it; status line while gates run. validate + tsc ok; 6 tests written, NOT RUN yet (rollout switch off) \u2014 passes stays null until they run."
     },
     {
       "id": "M7_DISTRIBUTION_AND_DOC",

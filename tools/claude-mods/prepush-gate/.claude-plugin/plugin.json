@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "prepush-gate",
+  "version": "0.1.0",
+  "description": "Runs the repo's CI gates (gofmt on tracked Go roots, make lint, make check-file-sizes when defined) before `git push` / `gh pr create|merge`, and denies the push with the failing output. Skipped where there is no Go; AILANG_SKIP_PREPUSH=1 in Claude Code's launch environment skips it. Port of the pi extension of the same name. A convenience, not a control.",
+  "author": { "name": "AILANG" },
+  "keywords": ["ailang", "mod", "git", "ci"]
+}
