@@ -1,6 +1,6 @@
 # M-MCP-OAUTH-PACKAGE: `sunholo/mcp_oauth`, an OAuth 2.1 authorization server for MCP services, in AILANG
 
-**Status**: Planned. **Awaiting human ratification of the Design Freeze.** Quorum round 0 BLOCKED on T7 (fixed with measured IFC semantics, V13–V16; no round-1 objection to it). Round 1 BLOCKED on T5 (hop-0 DNS to private IPs) and T2/T10 (revocation had no mechanism); both fixed below (S0 public-only Net mode, V17; `revoke` hook + token digests). The re-quorum guardrail is spent: no round 2.
+**Status**: Planned. **Design Freeze D1–D6 ratified by Mark, 2026-10-02** (attended session). Quorum round 0 BLOCKED on T7 (fixed with measured IFC semantics, V13–V16; no round-1 objection to it). Round 1 BLOCKED on T5 (hop-0 DNS to private IPs) and T2/T10 (revocation had no mechanism); both fixed below (S0 public-only Net mode, V17; `revoke` hook + token digests). The re-quorum guardrail is spent: no round 2.
 **Target**: package `sunholo/mcp_oauth` 0.1.0 (monorepo `sunholo-data/ailang-packages`, `packages/mcp-oauth/`), plus one AILANG fix (S0, #1522) in v0.52.0
 **Priority**: P1. It is the last blocker before AILANG Parse can be listed in Anthropic's directory.
 **Estimated**: 5–6 days (S0 0.5d, P1 1.5d, P2 1.5d, P3 1d, P4 1–1.5d)
@@ -112,11 +112,11 @@ All of the following was measured with `ailang check`, v0.51.0-29, 2026-10-02 (V
 | D5: **S0 (#1522) ships in AILANG before the package is deployed**: (i) redirect hops never reach loopback, link-local or private addresses; (ii) a **per-call public-only Net mode** (connect-time check after DNS, both flags forced off) that user-URL fetches declare | Without (ii), a hostname resolving to loopback or metadata passes every URL-string check (quorum round 1). Without (i), redirects do | human | design | med |
 
 ### Design Freeze
-- [ ] D1: opaque, service-minted access tokens; no JWT in 0.1.0.
-- [ ] D2: CIMD-only (+ pre-registered); no DCR.
-- [ ] D4: a single security module; labelled values never in records.
-- [ ] D5: S0 first, with both parts (redirect hops + per-call public-only mode).
-- [ ] D6: the S0 per-call surface. **Recommended: a `Net[scope=public]` effect mode**, the
+- [x] D1: opaque, service-minted access tokens; no JWT in 0.1.0.
+- [x] D2: CIMD-only (+ pre-registered); no DCR.
+- [x] D4: a single security module; labelled values never in records.
+- [x] D5: S0 first, with both parts (redirect hops + per-call public-only mode).
+- [x] D6: the S0 per-call surface. **Recommended: a `Net[scope=public]` effect mode**, the
   `Rand[mode=crypto]` pattern, so the checker forces it into the caller's signature and it is
   auditable by grep. The alternative is a `std/net` request option (lighter, but invisible in
   types).
@@ -137,7 +137,7 @@ All of the following was measured with `ailang check`, v0.51.0-29, 2026-10-02 (V
   - **gemini and glm:** T2/T10 revocation had no hook and no token↔code link.
   Both accepted and fixed: S0 part (ii) with the V17 connect-time check, and the `revoke` hook plus
   token digests on the code and family records.
-- The guardrail (re-quorum once) is spent: **Mark ratifies D1–D6**.
+- The guardrail (re-quorum once) is spent. **Mark ratified D1–D6 on 2026-10-02.** S0 (#1522), #1523 and #1449 were sent to the `ailang-core` inbox (`…500799f0`, `…48309b44`, `…c041a262`) and are fixed by attended-session subagents.
 
 ## Solution Design
 
