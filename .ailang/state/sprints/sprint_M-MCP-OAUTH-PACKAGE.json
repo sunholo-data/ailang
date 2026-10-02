@@ -107,10 +107,10 @@
         "ailang mcp check http://localhost:PORT/mcp/connect/ --target both: all five checks PASS",
         "bash packages/mcp-oauth/tests/e2e_flow.sh: authorize->login->token->gated tool 200; code replay -> invalid_grant and token then 401"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T18:48:28+00:00",
+      "completed": "2026-10-02T18:48:28+00:00",
+      "notes": "bfbd988: tests/example service under serve-api; tests/e2e_flow.sh 8/8 (authorize->login->token->gated tool 200; replay -> invalid_grant + token 401; mcp check --target both 5/5; clean log). Required ailang fix 3b98ef59e (serve-api SharedMem init \u2014 found by this e2e). Form decoding added to core (+6 tests). Hooks.mint crypto via caller mode stack (verified), not via the type."
     }
   ]
 }
