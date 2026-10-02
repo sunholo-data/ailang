@@ -2,10 +2,19 @@
 --
 -- Functional list operations: map, filter, fold, etc.
 -- Lists are immutable and backed by a flat array: indexing is O(1), and BOTH
--- `x :: xs` and `xs ++ ys` copy, so building a list one element at a time in
--- your own recursion is O(n^2). Build with map/filter/foldl (iterative, O(n)).
--- If you must recurse, prepend then reverse: far cheaper than `concat(acc, [x])`
--- but still not linear, because each frame keeps its own copy until it returns.
+-- `x :: xs` and `xs ++ ys` copy the whole list. So ANY shape that grows a list
+-- one element at a time is O(n^2) in time: hand-written recursion,
+-- prepend-then-reverse, and a foldl whose step conses onto a list accumulator.
+-- foldl is O(n) only if the step is O(1); a step that conses onto (or
+-- concatenates to) a list accumulator is O(n) per element, making the fold O(n^2).
+-- Build lists in one pass instead:
+--   map / filter / flatMap / zip / take   one element (or none) per input
+--   mapAccumL                             one output per input, plus running state
+--   foldl with a non-list accumulator     sums, counts, records, maps: always fine
+-- Matching `[x, ...rest]` also copies `rest` on the bytecode VM, so recursion that
+-- walks a list that way is O(n^2) there; index with nth or use a helper below.
+-- Every pure helper below is an iterative builtin or built from one: O(n) time,
+-- no recursion-depth limit.
 --
 -- Pure functions (no effects required)
 
@@ -35,8 +44,10 @@ export pure func tail[a](xs: [a]) -> [a] {
 export pure func reverse[a](xs: [a]) -> [a] = _list_reverse(xs)
 
 -- Appends ys to xs by copying: O(len(xs) + len(ys)) per call. In a loop, `concat(acc, [x])`
--- is O(n^2) in time AND memory (measured: 5,000 records = 78 s / 1.7 GB; the same list
--- built by prepend-then-reverse = 0.36 s / 294 MB). Prefer foldl/map; else `x :: acc` then `reverse`.
+-- is O(n^2) in time AND memory (measured: 5,000 records = 78 s / 1.7 GB). Prepend-then-reverse
+-- (0.36 s / 294 MB on the same 5,000) is cheaper per step but STILL O(n^2): it takes about 4x
+-- as long each time n doubles (160,000 elements: 9.6 s interpreter, 23.4 s VM). Build with
+-- map/filter/flatMap, or mapAccumL when each output depends on running state.
 export pure func concat[a](xs: [a], ys: [a]) -> [a] = xs ++ ys
 
 -- Truncates to the shorter list. Delegates to the iterative _list_zip builtin (#1318).
@@ -48,14 +59,21 @@ export pure func map[a, b](f: a -> b, xs: [a]) -> [b] = _list_map(f, xs)
 
 export pure func filter[a](p: a -> bool, xs: [a]) -> [a] = _list_filter(p, xs)
 
+-- Left fold. O(n) only if the step is O(1): a step that conses onto (or concatenates to)
+-- a list accumulator is O(n) per element, making the fold O(n^2). Use mapAccumL to build a list.
 export pure func foldl[a, b](f: (b, a) -> b, acc: b, xs: [a]) -> b = _list_foldl(f, acc, xs)
 
-export pure func foldr[a, b](f: (a, b) -> b, acc: b, xs: [a]) -> b {
-  match xs {
-    [] => acc,
-    [x, ...rest] => f(x, foldr(f, acc, rest))
-  }
-}
+-- Right fold: foldr(f, acc, [x0, x1]) = f(x0, f(x1, acc)). Iterative builtin (right to
+-- left): O(n) time, no recursion-depth limit.
+export pure func foldr[a, b](f: (a, b) -> b, acc: b, xs: [a]) -> b = _list_foldr(f, acc, xs)
+
+-- mapAccumL: stateful map in one left-to-right pass, O(n) for an O(1) step.
+-- f(state, element) returns (output, newState); the result is (outputs, finalState)
+-- and the outputs list is built in ONE allocation, with no per-step copy. This is the
+-- linear replacement for a foldl that conses onto a list inside its accumulator.
+-- mapAccumL(\st x. (st + x, st + x), 0, [1, 2, 3]) == ([1, 3, 6], 6)
+-- mapAccumL(f, s, []) == ([], s)
+export pure func mapAccumL[a, b, s](f: (s, a) -> (b, s), s0: s, xs: [a]) -> ([b], s) = _list_mapAccumL(f, s0, xs)
 
 -- ============================================================================
 -- Sorting (v0.6.3) - stable sort with custom comparator
@@ -132,27 +150,14 @@ export pure func last_or[a](xs: [a], default: a) -> a {
 -- Predicates (v0.6.5) - Element searching
 -- ============================================================================
 
--- any: Check if any element satisfies predicate (short-circuits on first match)
+-- any: Check if any element satisfies predicate (short-circuits on first match:
+-- p is not called on later elements). Iterative builtin: O(n), no depth limit (#1518).
 -- Note: 'exists' is a reserved keyword in AILANG, so we use 'any' instead
-export pure func any[a](p: a -> bool, xs: [a]) -> bool {
-  match xs {
-    [] => false,
-    [x, ...rest] => if p(x) then true else any(p, rest)
-  }
-}
+export pure func any[a](p: a -> bool, xs: [a]) -> bool = _list_any(p, xs)
 
--- findIndex: Find index of first element matching predicate
-export pure func findIndex[a](p: a -> bool, xs: [a]) -> Option[int] {
-  findIndexHelper(p, xs, 0)
-}
-
--- Helper for findIndex with accumulator
-pure func findIndexHelper[a](p: a -> bool, xs: [a], idx: int) -> Option[int] {
-  match xs {
-    [] => None,
-    [x, ...rest] => if p(x) then Some(idx) else findIndexHelper(p, rest, idx + 1)
-  }
-}
+-- findIndex: Find index of first element matching predicate (short-circuits like any).
+-- Iterative builtin: O(n), no depth limit (#1518).
+export pure func findIndex[a](p: a -> bool, xs: [a]) -> Option[int] = _list_findIndex(p, xs)
 
 -- ============================================================================
 -- Zip Combinators (v0.8.1) - Combine lists element-wise
@@ -190,62 +195,77 @@ export pure func takeMap[a, b](n: int, f: a -> b, xs: [a]) -> [b] = _list_takeMa
 -- ============================================================================
 -- Effectful Combinators (v0.7.3) - map/filter/fold with effects
 -- ============================================================================
--- NOTE: Recursive implementation. Stack-safe for lists up to ~10,000 elements.
--- For larger lists, increase --max-recursion-depth or use explicit recursion.
--- All effectful combinators evaluate elements left-to-right, sequentially.
+-- All effectful combinators evaluate elements left-to-right, sequentially, once each.
+-- No recursion-depth limit on either engine: foldlE/forEachE are index-walking tail
+-- loops (O(n)); mapE/filterE/flatMapE split the index range in halves, so their
+-- recursion is O(log n) deep and they copy O(n log n) elements in total.
+-- (A builtin cannot take an effectful callback yet, so these stay in AILANG.)
 
 -- mapE: Apply an effectful function to each element (left-to-right)
-export func mapE[a, b, e](f: a -> b ! {e}, xs: [a]) -> [b] ! {e} {
-  match xs {
-    [] => [],
-    [x, ...rest] => {
-      let y = f(x);
-      [y] ++ mapE(f, rest)
-    }
+export func mapE[a, b, e](f: a -> b ! {e}, xs: [a]) -> [b] ! {e} = mapERange(f, xs, 0, _list_length(xs))
+
+-- mapE over xs[lo..hi): the left half runs (and its effects happen) before the right half.
+func mapERange[a, b, e](f: a -> b ! {e}, xs: [a], lo: int, hi: int) -> [b] ! {e} {
+  if hi <= lo then []
+  else if hi - lo == 1 then [f(_list_nth(xs, lo))]
+  else {
+    let mid = lo + (hi - lo) / 2;
+    let left = mapERange(f, xs, lo, mid);
+    let right = mapERange(f, xs, mid, hi);
+    left ++ right
   }
 }
 
 -- filterE: Effectful predicate per element (left-to-right)
-export func filterE[a, e](p: a -> bool ! {e}, xs: [a]) -> [a] ! {e} {
-  match xs {
-    [] => [],
-    [x, ...rest] => {
-      let keep = p(x)
-      if keep then [x] ++ filterE(p, rest) else filterE(p, rest)
-    }
+export func filterE[a, e](p: a -> bool ! {e}, xs: [a]) -> [a] ! {e} = filterERange(p, xs, 0, _list_length(xs))
+
+func filterERange[a, e](p: a -> bool ! {e}, xs: [a], lo: int, hi: int) -> [a] ! {e} {
+  if hi <= lo then []
+  else if hi - lo == 1 then {
+    let x = _list_nth(xs, lo);
+    if p(x) then [x] else []
+  }
+  else {
+    let mid = lo + (hi - lo) / 2;
+    let left = filterERange(p, xs, lo, mid);
+    let right = filterERange(p, xs, mid, hi);
+    left ++ right
   }
 }
 
 -- foldlE: Effectful left fold (left-to-right)
-export func foldlE[a, b, e](f: (b, a) -> b ! {e}, acc: b, xs: [a]) -> b ! {e} {
-  match xs {
-    [] => acc,
-    [x, ...rest] => {
-      let newAcc = f(acc, x)
-      foldlE(f, newAcc, rest)
-    }
+export func foldlE[a, b, e](f: (b, a) -> b ! {e}, acc: b, xs: [a]) -> b ! {e} = foldlEFrom(f, acc, xs, 0, _list_length(xs))
+
+func foldlEFrom[a, b, e](f: (b, a) -> b ! {e}, acc: b, xs: [a], i: int, n: int) -> b ! {e} {
+  if i >= n then acc
+  else {
+    let newAcc = f(acc, _list_nth(xs, i));
+    foldlEFrom(f, newAcc, xs, i + 1, n)
   }
 }
 
 -- flatMapE: Effectful flatMap (map then flatten, left-to-right)
-export func flatMapE[a, b, e](f: a -> [b] ! {e}, xs: [a]) -> [b] ! {e} {
-  match xs {
-    [] => [],
-    [x, ...rest] => {
-      let ys = f(x)
-      concat(ys, flatMapE(f, rest))
-    }
+export func flatMapE[a, b, e](f: a -> [b] ! {e}, xs: [a]) -> [b] ! {e} = flatMapERange(f, xs, 0, _list_length(xs))
+
+func flatMapERange[a, b, e](f: a -> [b] ! {e}, xs: [a], lo: int, hi: int) -> [b] ! {e} {
+  if hi <= lo then []
+  else if hi - lo == 1 then f(_list_nth(xs, lo))
+  else {
+    let mid = lo + (hi - lo) / 2;
+    let left = flatMapERange(f, xs, lo, mid);
+    let right = flatMapERange(f, xs, mid, hi);
+    left ++ right
   }
 }
 
 -- forEachE: Execute effect per element, discard results (left-to-right)
-export func forEachE[a, e](f: a -> () ! {e}, xs: [a]) -> () ! {e} {
-  match xs {
-    [] => (),
-    [x, ...rest] => {
-      f(x)
-      forEachE(f, rest)
-    }
+export func forEachE[a, e](f: a -> () ! {e}, xs: [a]) -> () ! {e} = forEachEFrom(f, xs, 0, _list_length(xs))
+
+func forEachEFrom[a, e](f: a -> () ! {e}, xs: [a], i: int, n: int) -> () ! {e} {
+  if i >= n then ()
+  else {
+    f(_list_nth(xs, i));
+    forEachEFrom(f, xs, i + 1, n)
   }
 }
 
@@ -254,77 +274,45 @@ export func forEachE[a, e](f: a -> () ! {e}, xs: [a]) -> () ! {e} {
 -- ============================================================================
 -- Monomorphic versions for int, float, string.
 -- Returns Option to handle empty lists safely (unlike Haskell's partial maximum).
+-- Each is a right fold seeded with the last element, comparing `x > m` (or `<`):
+-- iterative, O(n), no depth limit. It makes the same comparisons in the same order
+-- as the earlier recursive definitions, so ties and float NaN resolve exactly as before
+-- (a tie keeps the later element; NaN follows whatever `>`/`<` return for it).
 
 -- maximumInt: Find largest int in list
 export pure func maximumInt(xs: [int]) -> Option[int] {
-  match xs {
-    [] => None,
-    [x] => Some(x),
-    [x, ...rest] => match maximumInt(rest) {
-      None => Some(x),
-      Some(m) => if x > m then Some(x) else Some(m)
-    }
-  }
+  let n = _list_length(xs)
+  if n == 0 then None else Some(foldr(\x m. if x > m then x else m, _list_nth(xs, n - 1), xs))
 }
 
 -- minimumInt: Find smallest int in list
 export pure func minimumInt(xs: [int]) -> Option[int] {
-  match xs {
-    [] => None,
-    [x] => Some(x),
-    [x, ...rest] => match minimumInt(rest) {
-      None => Some(x),
-      Some(m) => if x < m then Some(x) else Some(m)
-    }
-  }
+  let n = _list_length(xs)
+  if n == 0 then None else Some(foldr(\x m. if x < m then x else m, _list_nth(xs, n - 1), xs))
 }
 
 -- maximumFloat: Find largest float in list
 export pure func maximumFloat(xs: [float]) -> Option[float] {
-  match xs {
-    [] => None,
-    [x] => Some(x),
-    [x, ...rest] => match maximumFloat(rest) {
-      None => Some(x),
-      Some(m) => if x > m then Some(x) else Some(m)
-    }
-  }
+  let n = _list_length(xs)
+  if n == 0 then None else Some(foldr(\x m. if x > m then x else m, _list_nth(xs, n - 1), xs))
 }
 
 -- minimumFloat: Find smallest float in list
 export pure func minimumFloat(xs: [float]) -> Option[float] {
-  match xs {
-    [] => None,
-    [x] => Some(x),
-    [x, ...rest] => match minimumFloat(rest) {
-      None => Some(x),
-      Some(m) => if x < m then Some(x) else Some(m)
-    }
-  }
+  let n = _list_length(xs)
+  if n == 0 then None else Some(foldr(\x m. if x < m then x else m, _list_nth(xs, n - 1), xs))
 }
 
 -- maximumString: Find lexicographically largest string in list
 export pure func maximumString(xs: [string]) -> Option[string] {
-  match xs {
-    [] => None,
-    [x] => Some(x),
-    [x, ...rest] => match maximumString(rest) {
-      None => Some(x),
-      Some(m) => if x > m then Some(x) else Some(m)
-    }
-  }
+  let n = _list_length(xs)
+  if n == 0 then None else Some(foldr(\x m. if x > m then x else m, _list_nth(xs, n - 1), xs))
 }
 
 -- minimumString: Find lexicographically smallest string in list
 export pure func minimumString(xs: [string]) -> Option[string] {
-  match xs {
-    [] => None,
-    [x] => Some(x),
-    [x, ...rest] => match minimumString(rest) {
-      None => Some(x),
-      Some(m) => if x < m then Some(x) else Some(m)
-    }
-  }
+  let n = _list_length(xs)
+  if n == 0 then None else Some(foldr(\x m. if x < m then x else m, _list_nth(xs, n - 1), xs))
 }
 
 -- M-DOCPARSE-DX M2: Set operations

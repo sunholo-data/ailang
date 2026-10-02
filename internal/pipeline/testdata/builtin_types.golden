@@ -144,18 +144,22 @@ _json_decode : string -> Result[Json, string]
 _json_decode_float_array : string -> Result[Array[float], string]
 _json_encode : Json -> string
 _json_repair : string -> Result[string, string]
+_list_any : (a -> bool, list[a]) -> bool
 _list_contains : (list[a], a) -> bool
 _list_dedup : list[a] -> list[a]
 _list_difference : (list[a], list[a]) -> list[a]
 _list_drop : (int, list[a]) -> list[a]
 _list_extract : (list[a], int, int) -> list[a]
 _list_filter : (a -> bool, list[a]) -> list[a]
+_list_findIndex : (a -> bool, list[a]) -> Option[int]
 _list_flatMap : (a -> list[b] ! {...e}, list[a]) -> list[b] ! {...e}
 _list_foldl : ((b, a) -> b, b, list[a]) -> b
+_list_foldr : ((a, b) -> b, b, list[a]) -> b
 _list_head : list[a] -> a
 _list_intersect : (list[a], list[a]) -> list[a]
 _list_length : list[a] -> int
 _list_map : (a -> b, list[a]) -> list[b]
+_list_mapAccumL : ((s, a) -> (b, s), s, list[a]) -> (list[b], s)
 _list_member : (a, list[a]) -> bool
 _list_nth : (list[a], int) -> a
 _list_range : (int, int) -> list[int]

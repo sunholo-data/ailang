@@ -1097,6 +1097,25 @@
       ]
     },
     {
+      "path": "mapAccumL_running_total.ail",
+      "status": "working",
+      "tags": [
+        "higher-order",
+        "functional",
+        "performance"
+      ],
+      "description": "mapAccumL_running_total.ail - Build a list from running state in one O(n) pass",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/string"
+      ],
+      "expected": {
+        "stdout": "3,4,8,9,14,23,25,31\n3,4,5,9,6\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "no_loops_fold.ail",
       "status": "working",
       "tags": [
@@ -3055,11 +3074,11 @@
     }
   ],
   "statistics": {
-    "total": 210,
-    "working": 202,
+    "total": 211,
+    "working": 203,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9619047619047619,
+    "coverage": 0.9620853080568721,
     "experimental": 0
   },
   "milestones": {

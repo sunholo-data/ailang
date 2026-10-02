@@ -15,5 +15,5 @@ type RecursionLimitError struct {
 }
 
 func (e *RecursionLimitError) Error() string {
-	return fmt.Sprintf("RT_REC_003: max recursion depth %d exceeded. Make the recursive call the last thing the function does (a tail call runs in constant depth: carry partial results in an accumulator argument), use an iterative std/list helper such as foldl or map, try a smaller input, or raise the ceiling with --max-recursion-depth", e.Limit)
+	return fmt.Sprintf("RT_REC_003: max recursion depth %d exceeded. Make the recursive call the last thing the function does (a tail call runs in constant depth: carry partial results in an accumulator argument), use an iterative std/list helper such as map, filter or foldl (to build a list, use map/filter/mapAccumL: consing onto a list accumulator copies it every step, so that loop is O(n^2)), try a smaller input, or raise the ceiling with --max-recursion-depth", e.Limit)
 }

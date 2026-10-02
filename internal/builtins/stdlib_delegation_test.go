@@ -19,12 +19,13 @@ const stdlibSourceDir = "../../std"
 // interpreter. Categories are therefore machine-checked against AllNames(), the
 // runtime registry, rather than trusted as prose.
 //
-// In particular, 11 entries previously described as "delegation candidates" are
+// In particular, the entries previously described as "delegation candidates" are
 // blocked on a MISSING INTERPRETER IMPLEMENTATION, not on their std/list forms
 // being recursive. Their codegen helpers run only in generated Go programs.
 //
 // _list_reverse is deliberately ABSENT: std/list.reverse delegates to it, and that
-// absence is the fixture proving this gate is live.
+// absence is the fixture proving this gate is live. _list_any, _list_findIndex and
+// _list_foldr left this table when they gained runtime implementations (#1518).
 type listDelegationCategory uint8
 
 const (
@@ -40,13 +41,10 @@ type listDelegationExemption struct {
 }
 
 var listDelegationExemptions = map[string]listDelegationExemption{
-	"_list_any":       {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.any can delegate"},
 	"_list_extract":   {NotNeeded, true, "std/list exposes no extract operation to delegate"},
 	"_list_filterE":   {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.filterE can delegate"},
-	"_list_findIndex": {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.findIndex can delegate"},
 	"_list_flatMapE":  {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.flatMapE can delegate"},
 	"_list_foldlE":    {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.foldlE can delegate"},
-	"_list_foldr":     {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.foldr can delegate"},
 	"_list_forEachE":  {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.forEachE can delegate"},
 	"_list_head":      {NotNeeded, true, "std/list.head is already O(1) through list pattern matching"},
 	"_list_last":      {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.last composes _list_length and _list_nth"},

@@ -141,4 +141,8 @@ var HOFBuiltinNames = []string{
 	"__xml_parseFold",
 	"__list_sortBy",
 	"__list_flatMap",
+	"__list_any",
+	"__list_findIndex",
+	"__list_foldr",
+	"__list_mapAccumL",
 }

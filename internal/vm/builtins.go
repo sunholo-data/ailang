@@ -37,6 +37,10 @@ var HOFBuiltinTable = []HOFBuiltinFunc{
 	hofBuiltinXmlParseFold,     // __xml_parseFold
 	hofBuiltinListSortBy,       // __list_sortBy
 	hofBuiltinListFlatMap,      // __list_flatMap
+	hofBuiltinListAny,          // __list_any (#1518)
+	hofBuiltinListFindIndex,    // __list_findIndex (#1518)
+	hofBuiltinListFoldr,        // __list_foldr
+	hofBuiltinListMapAccumL,    // __list_mapAccumL (#1501)
 }
 
 // BuiltinTable is the VM-side dispatch table for OpBuiltinCall. The order

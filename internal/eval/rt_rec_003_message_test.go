@@ -150,3 +150,16 @@ func TestRTREC003AdvisesTailCalls(t *testing.T) {
 		t.Fatalf("sumAcc(300) = %v, want %d", res, 300*301/2)
 	}
 }
+
+// TestRTREC003WarnsListAccumulatorsAreQuadratic (#1501): the message once told users
+// to carry partial results in an accumulator and use foldl, which for a LIST
+// accumulator is the O(n^2) consing loop. It must point list builders at the
+// one-pass helpers instead.
+func TestRTREC003WarnsListAccumulatorsAreQuadratic(t *testing.T) {
+	msg := (&RecursionLimitError{Limit: 10}).Error()
+	for _, want := range []string{"mapAccumL", "O(n^2)"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("RT_REC_003 should mention %q: %q", want, msg)
+		}
+	}
+}

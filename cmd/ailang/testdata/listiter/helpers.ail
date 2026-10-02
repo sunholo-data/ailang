@@ -1,0 +1,101 @@
+-- #1518 / #1501: every std/list helper that used to recurse per element, run at
+-- large n by stdlib_list_iterative_test.go on the interpreter, --bytecode and
+-- --bytecode --strict-bytecode. Each entry takes n and returns a string, so the
+-- strict VM (which has no IO) can run it.
+module cmd/ailang/testdata/listiter/helpers
+import std/list (any, findIndex, foldr, foldlE, forEachE, mapE, filterE, flatMapE, maximumInt, minimumInt, maximumFloat, minimumFloat, maximumString, minimumString, range, length, map, last_or)
+import std/option (Option, Some, None)
+import std/string (intToStr)
+import std/math (sqrt)
+import std/io (println)
+
+-- a permutation-like spread of 0..n-1 so the extremes are not at either end
+pure func spread(n: int) -> [int] = map(\i. i * 7919 % n, range(0, n))
+
+pure func showOptInt(o: Option[int]) -> string = match o {
+  Some(v) => intToStr(v),
+  None => "none"
+}
+
+pure func showOptStr(o: Option[string]) -> string = match o {
+  Some(v) => v,
+  None => "none"
+}
+
+pure func showOptFloat(o: Option[float]) -> string = match o {
+  Some(v) => show(v),
+  None => "none"
+}
+
+export func anyAt(n: int) -> string {
+  let xs = range(0, n)
+  let hit = any(\x. x == n - 1, xs)
+  let miss = any(\x. x < 0, xs)
+  "${show(hit)},${show(miss)}"
+}
+
+export func findIndexAt(n: int) -> string {
+  let xs = range(0, n)
+  "${showOptInt(findIndex(\x. x == n - 1, xs))},${showOptInt(findIndex(\x. x < 0, xs))}"
+}
+
+-- order-sensitive: the fold must combine right to left
+export func foldrAt(n: int) -> string = intToStr(foldr(\x acc. (acc * 31 + x) % 1000000007, 0, range(0, n)))
+
+export func extremesAt(n: int) -> string {
+  let xs = spread(n)
+  let fs = map(\i. intToFloat(i), xs)
+  let ss = map(\i. intToStr(i), xs)
+  "${showOptInt(maximumInt(xs))},${showOptInt(minimumInt(xs))},${showOptFloat(maximumFloat(fs))},${showOptFloat(minimumFloat(fs))},${showOptStr(maximumString(ss))},${showOptStr(minimumString(ss))}"
+}
+
+-- the effectful combinators with pure callbacks (effect row instantiated empty)
+export func effectfulAt(n: int) -> string {
+  let xs = range(0, n)
+  let sum = foldlE(\acc x. (acc * 31 + x) % 1000000007, 0, xs)
+  let ys = mapE(\x. x * 2, xs)
+  let evens = filterE(\x. x % 2 == 0, xs)
+  let twice = flatMapE(\x. [x, x], xs)
+  let _ = forEachE(\x. (), xs)
+  "${intToStr(sum)},${intToStr(length(ys))}:${intToStr(last_or(ys, -1))},${intToStr(length(evens))}:${intToStr(last_or(evens, -1))},${intToStr(length(twice))}:${intToStr(last_or(twice, -1))}"
+}
+
+pure func prependDigit(x: int, acc: string) -> string = "${intToStr(x)}${acc}"
+
+-- Edge cases whose answers must not change: empty, single, ties, NaN placement
+-- (the engines disagree on NaN comparisons today; each must keep its own answer), short-circuiting.
+export func semantics(n: int) -> string {
+  let nan = sqrt(-1.0)
+  let empty: [int] = []
+  let ints = "${showOptInt(maximumInt(empty))} ${showOptInt(minimumInt([n]))} ${showOptInt(maximumInt([3, 9, 9, 1]))} ${showOptInt(minimumInt([3, 1, 9, 1]))}"
+  let floats = "${showOptFloat(maximumFloat([1.0, nan, 2.0]))} ${showOptFloat(maximumFloat([1.0, nan]))} ${showOptFloat(minimumFloat([nan, 1.0]))} ${showOptFloat(minimumFloat([2.0, nan]))} ${showOptFloat(maximumFloat([0.0, -0.0]))} ${showOptFloat(maximumFloat([-0.0, 0.0]))}"
+  let strs = "${showOptStr(maximumString(["b", "ab", "b"]))} ${showOptStr(minimumString(["b", "ab", ""]))} ${showOptStr(minimumString([]))}"
+  -- p would divide by zero past the first match: any/findIndex must stop there
+  let lazy = "${show(any(\x. if x > 2 then 1 / (x - x) > 0 else x == 2, [1, 2, 3, 4]))} ${showOptInt(findIndex(\x. if x > 2 then 1 / (x - x) > 0 else x == 2, [1, 2, 3, 4]))}"
+  let firsts = "${showOptInt(findIndex(\x. x == 7, [1, 7, 7]))} ${showOptInt(findIndex(\x. x == 7, empty))} ${show(any(\x. true, empty))}"
+  let folds = "${foldr(prependDigit, ".", [1, 2, 3])} ${foldr(prependDigit, ".", empty)}"
+  "${ints} | ${floats} | ${strs} | ${lazy} | ${firsts} | ${folds}"
+}
+
+-- Effects run left to right, once per element, in every effectful combinator.
+export func effectOrder(n: int) -> () ! {IO} {
+  let xs = range(0, n)
+  let a = mapE(\x. {
+    println("m${intToStr(x)}")
+    x
+  }, xs)
+  let b = filterE(\x. {
+    println("f${intToStr(x)}")
+    x % 2 == 0
+  }, xs)
+  let c = flatMapE(\x. {
+    println("g${intToStr(x)}");
+    [x]
+  }, xs)
+  let d = foldlE(\acc x. {
+    println("l${intToStr(x)}")
+    acc + x
+  }, 0, xs)
+  forEachE(\x. println("e${intToStr(x)}"), xs)
+  println("${intToStr(length(a))} ${intToStr(length(b))} ${intToStr(length(c))} ${intToStr(d)}")
+}

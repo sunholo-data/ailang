@@ -1,10 +1,10 @@
 # M-FOLDL-CONS-COST-MODEL: the documented-safe list-building path — `foldl` with a consing step, and "prepend then reverse" — is O(n²); std/list's cost claims must say so, the language needs one linear stateful-accumulate primitive, and the VM runs the shape ~2.4× slower than the interpreter
 
-**Status**: PLANNED. Quorum not runnable in this authoring container (no `ailang` binary, no Go toolchain — see W-1/V20/V21); the 25-row Verification Log below is the load-bearing evidence, every code claim backed by a source read at cited lines, every timing marked as the reporter's. Re-run `ailang design-quorum` on this doc before sprint-planning when a runner with a live binary is available (convention: [m-vm-var-pattern-default-arm.md](m-vm-var-pattern-default-arm.md) header).
-**Target**: v0.51.2 (docs-honesty + additive stdlib primitive + VM investigation); the same release train as this folder's sibling VM doc
+**Status**: IMPLEMENTED (Phases 1 and 2; Phase 3 deferred). See the Implementation Report at the end. The original authoring note: the doc was written without a binary or Go toolchain, and the quorum was never run; the implementation re-derived every measurement with a live build.
+**Target**: v0.51.1 (shipped with the std/list iterative-helper fix for #1518)
 **Priority**: P0 for the docs-honesty fix (Phase 1 — the stdlib actively teaches an O(n²) idiom as "iterative, O(n)"); P1 for the `mapAccumL` primitive (Phase 2) and the VM per-step overhead (Phase 3)
 **Estimated**: ~4 days total (Phase 1: 0.5 d · Phase 2: 1.5 d · Phase 3: 2 d, profile-first), 2× where honest
-**Dependencies**: None hard. **Coordination required**: [m-interpreter-tail-call-elimination](../v0_51_1/m-interpreter-tail-call-elimination.md) also edits the `RT_REC_003` message text (its High-Impact Decisions table) — see Conflict Surface item 4. **Explicitly blocked on a human elsewhere**: the O(1)-cons substrate fix is D-19 in [m-list-cons-quadratic](../m-list-cons-quadratic.md) and is NOT re-opened by this doc.
+**Dependencies**: None hard. **Coordination required**: [m-interpreter-tail-call-elimination](../../planned/v0_51_1/m-interpreter-tail-call-elimination.md) also edits the `RT_REC_003` message text (its High-Impact Decisions table) — see Conflict Surface item 4. **Explicitly blocked on a human elsewhere**: the O(1)-cons substrate fix is D-19 in [m-list-cons-quadratic](../../planned/m-list-cons-quadratic.md) and is NOT re-opened by this doc.
 **Bug report**: AILANG v0.51.0 (b99dd25, darwin arm64, binary md5 `ed0478cc…`), related to [#676](https://github.com/sunholo-data/ailang/issues/676) but the *documented-safe* path; downstream consumer `stapledons-godot` M1.2b-T3 (331,312-row catalogue transform, `acc.rows = row :: acc.rows`, the idiom std/list's own docs recommend); consumer's own mitigation scheduled as M1.2b-T4 (map/filter + reverse).
 **Author**: design-doc-creator, unattended coordinator session. This container has **no Go toolchain and no `ailang` binary** (V20/V21), so wall-clock numbers are the reporter's (run against the real v0.51.0 binary, md5-attached) and every structural claim is verified by reading the cited source lines at this tree (`4460d91b`, clean, v0.51.0-era). The implementer must re-derive the measurements with a live binary as AC-0.
 
@@ -15,7 +15,7 @@
 | Ask | Routing | Why |
 |---|---|---|
 | (2) "correct the std/list docs: foldl is O(n) only if the step is O(1)" | This doc, Phase 1 | Doc-text honesty bug in `std/` + one error message; no semantics change; unblockable by a single session |
-| (1) "make cons onto a uniquely-owned accumulator O(1) amortised in foldl (or a persistent cons list)" | **Split.** The substrate half stays with the parked [m-list-cons-quadratic](../m-list-cons-quadratic.md) (D-19, a named human decision, quorum-blocked on representation direction). This doc ships the *stdlib* half (Phase 2): one additive Go builtin that makes the stateful-accumulate idiom expressible in O(n) **today**, without touching `eval.ListValue` | The substrate change is parked on a human decision; consumers burn now. The gap is real and measured: no linear stateful list-building primitive exists anywhere in the language (V13–V15) |
+| (1) "make cons onto a uniquely-owned accumulator O(1) amortised in foldl (or a persistent cons list)" | **Split.** The substrate half stays with the parked [m-list-cons-quadratic](../../planned/m-list-cons-quadratic.md) (D-19, a named human decision, quorum-blocked on representation direction). This doc ships the *stdlib* half (Phase 2): one additive Go builtin that makes the stateful-accumulate idiom expressible in O(n) **today**, without touching `eval.ListValue` | The substrate change is parked on a human decision; consumers burn now. The gap is real and measured: no linear stateful list-building primitive exists anywhere in the language (V13–V15) |
 | (3) "the VM being slower than the interpreter on this shape looks like a separate VM perf bug" | This doc, Phase 3, profile-first | The parked doc explicitly deferred VM `OpCons` as a non-goal (V18); the per-step overhead mechanism is VM-local (`CallClosure` frame allocation, V11) and orthogonal to representation |
 
 The docs-honesty half is not an extension (no motoko prompt shaping can fix `std/list.ail`'s own comments), and the consumer is not behind motoko. The prompt teaching-surface update is routed to the prompt-manager lane (Phase 1, item d).
@@ -78,8 +78,8 @@ Provenance: **[R]** = read first-party at this tree (`4460d91b`), command and ob
 | V15 [R] | `std/iter` is only a Stop/Continue signal (35 lines) | `cat std/iter.ail` | `FoldStep[a] = Continue(a) \| Stop(a)` + two helpers; no builder |
 | V16 [R] | `reverse` is instant on both engines (consistent with the report) | `std/list.ail:28-29` (`= _list_reverse(xs)`); `internal/bytecode/builtin_names.go:127` (`"__list_reverse"` native); changelogs/v0.32-current.md v0.51.0 "Added — native VM ports of polymorphic list builtins (#1447)" | O(n) Go builtin, native VM port since v0.51.0 |
 | V17 [P] | Reporter's timings (table above) | `ailang run --quiet --bytecode --caps IO --args-json N consrepro.ail`, real v0.51.0 binary, md5-attached in the report | quadratic on both engines; VM ≈ 2.4× interpreter; ×4 per doubling on the VM |
-| V18 [R] | The O(1)-cons substrate design exists, is parked on a human decision, and explicitly excluded the VM | Read [m-list-cons-quadratic](../m-list-cons-quadratic.md) (whole) | Status "PARKED — needs-human-review", D-19 (A: linear-chain arena vs B: true cons cells) open; Non-Goals: "VM `OpCons` — stays O(n); parity deferred" |
-| V19 [R] | The tail-call doc also edits the `RT_REC_003` message | [m-interpreter-tail-call-elimination](../v0_51_1/m-interpreter-tail-call-elimination.md), High-Impact Decisions | "RT_REC_003 message gains a remedy that now exists…" — text-edit collision, coordinated in Conflict Surface item 4 |
+| V18 [R] | The O(1)-cons substrate design exists, is parked on a human decision, and explicitly excluded the VM | Read [m-list-cons-quadratic](../../planned/m-list-cons-quadratic.md) (whole) | Status "PARKED — needs-human-review", D-19 (A: linear-chain arena vs B: true cons cells) open; Non-Goals: "VM `OpCons` — stays O(n); parity deferred" |
+| V19 [R] | The tail-call doc also edits the `RT_REC_003` message | [m-interpreter-tail-call-elimination](../../planned/v0_51_1/m-interpreter-tail-call-elimination.md), High-Impact Decisions | "RT_REC_003 message gains a remedy that now exists…" — text-edit collision, coordinated in Conflict Surface item 4 |
 | V20 [N] | No Go toolchain / make in this container | `which go` / `go build` → "command not found"; `command -v make` → empty | measurements inherited from the reporter; code claims verified by source reads (this table) |
 | V21 [N] | No `ailang` binary in this container (quorum, `ailang check`, doc-search all unavailable) | `command -v ailang`; `find -maxdepth 3 -name ailang -type f` | absent — see W-1 |
 | V22 [R] | Tuple syntax needed by Phase 2 is attested in shipped, runnable code (types, literals, match patterns) | `grep -n "(a, b)" std/list.ail` (foldr's `(a, b) -> b` param type, zip's `[(a, b)]`); `sed -n '242,258p' internal/parser/parser_literals.go` (`ast.Tuple` literals); `examples/runnable/guards_basic.ail:30` (`(x, y) if x > y => …` tuple match arm) | tuple types, literals and match-arm patterns all parse and are elaborated (`internal/elaborate/expr_data.go:146`, `patterns.go:169-179`) — the archive fixture `examples/archive/nested_match_variants/*` is a *parse-failure* repro and is deliberately NOT cited; final spelling still gated by AC-0 |
@@ -105,7 +105,7 @@ This authoring container has no Go toolchain and no `ailang` binary (V20/V21), s
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
-| **Do NOT re-open the O(1)-cons representation question here.** The substrate fix (ask 1's first half) stays with the parked [m-list-cons-quadratic](../m-list-cons-quadratic.md) doc and its open human decision D-19 (arena vs cons cells) | Re-litigating a quorum-parked, human-blocked design in a second doc forks the decision record; two docs would claim the same fix | human (already decided — D-19, recorded there) | — | high (avoided) |
+| **Do NOT re-open the O(1)-cons representation question here.** The substrate fix (ask 1's first half) stays with the parked [m-list-cons-quadratic](../../planned/m-list-cons-quadratic.md) doc and its open human decision D-19 (arena vs cons cells) | Re-litigating a quorum-parked, human-blocked design in a second doc forks the decision record; two docs would claim the same fix | human (already decided — D-19, recorded there) | — | high (avoided) |
 | Phase 2's answer to ask (1) is an **additive stdlib primitive** (`mapAccumL`, Go-delegated), not a runtime representation change | Gives the consumer-class workload a linear path now, without the 900-site blast radius the parked doc measured; compositional, optional, no semantics change | this doc | design | med |
 | Phase 1 is **docs honesty first and unconditionally** — it does not wait for Phase 2/3 | The stdlib is actively teaching an O(n²) idiom as O(n); every day it ships, another consumer builds the quadratic shape (this report is exactly that) | this doc | design | low |
 | Phase 3 is **profile-first**: no `CallClosure` rewrite is merged before pprof attributes the per-step cost | The 2.4× has two plausible mechanisms (per-call frame alloc, V11; copy width, V12) with different fixes; guessing picks the wrong one | this doc | design | med |
@@ -183,7 +183,7 @@ This touches `internal/eval/` (message text), `internal/vm/`, `internal/bytecode
 1. **Builtin namespace + coverage ratchet.** Every new pure builtin must land in exactly one bucket of `TestPureBuiltinCoverage` (#1447) or the build fails (V23). Other residents of the `$builtin`-module `_list_*` family: `_list_map`, `_list_filter`, `_list_foldl`, `_list_sortBy`… (list_iterative.go). Name `_list_mapAccumL` follows the convention; no collision (grep, V13). Disambiguation: registry name uniqueness + the ratchet test is the mechanical check.
 2. **VM HOF tables are order-coupled.** `HOFBuiltinNames` order MUST match `vm.HOFBuiltinTable` (V25); indices feed `OpBuiltinCallHOF`. Existing entries `__list_map`, `__list_filter`, `__list_foldl`, `__str_*`, `__xml_parseFold`, `__list_sortBy`, `__list_flatMap` must keep their indices — therefore **append-only**. Regression proof: the existing HOF tests (`internal/vm/builtins_hof_test.go`) pin dispatch by name, and `validateBuiltinTables` runs at package init.
 3. **Cost-model prose is load-bearing, not decorative.** The `std/list.ail` header is consumed by AI doc tooling and teaches every model that reads the stdlib (that is how this bug shipped: the consumer *followed* it). Other residents of the "teaching" position: `docs/docs/reference/no-loops.md` (fold laws, "Approach 2: Fold Combinators" — its guarantees list omits step cost; Phase 1 adds one sentence there too), the prompt (frozen, versioned — new version only, V7), `RT_REC_003` (item 4). Disambiguation: one canonical cost-model sentence, reused verbatim across surfaces, so they cannot drift again: *"foldl is O(n) only if the step is O(1); a step that conses onto (or concatenates to) a list accumulator is O(n) per element, making the fold O(n²)."*
-4. **`RT_REC_003` message text is edited by two planned docs.** [m-interpreter-tail-call-elimination](../v0_51_1/m-interpreter-tail-call-elimination.md) changes the same string (adds the tail-call remedy, V19); this doc adds the step-cost caveat. Resolution: the later-landing doc carries the merged text; both docs' ACs must reference the *merged* string so neither can revert the other. Pinned tests: `rt_rec_003_message_test.go` bans the phrase "enable tail recursion" (its lines 118–139, per the tail-call doc) and `recursion_test.go` asserts only the `RT_REC_003` substring — both survive this edit (checked by the tail-call doc's inventory and the parked doc's V30).
+4. **`RT_REC_003` message text is edited by two planned docs.** [m-interpreter-tail-call-elimination](../../planned/v0_51_1/m-interpreter-tail-call-elimination.md) changes the same string (adds the tail-call remedy, V19); this doc adds the step-cost caveat. Resolution: the later-landing doc carries the merged text; both docs' ACs must reference the *merged* string so neither can revert the other. Pinned tests: `rt_rec_003_message_test.go` bans the phrase "enable tail recursion" (its lines 118–139, per the tail-call doc) and `recursion_test.go` asserts only the `RT_REC_003` substring — both survive this edit (checked by the tail-call doc's inventory and the parked doc's V30).
 5. **`CallClosure` is on the concurrency path.** Frames are per-VM; `Fork()`-style sharing of module state means a HOF callback can re-enter the VM. Any frame pool (Phase 3, only if profiled) must be nesting-safe: a callback that itself calls `__list_map` acquires a second frame while the first is live. Disambiguation: pool = free-list (LIFO stack of returned frames), never "the one scratch frame"; the `-race` test must cover nested HOF calls.
 6. **Fold laws / equational reasoning are unaffected.** `mapAccumL` is a new combinators, not a change to `foldl`; the fusion law in no-loops.md keeps its truth conditions (V4's caveat is about *cost*, not the laws).
 
@@ -261,7 +261,7 @@ and cost contract, not the final spelling.
 ## Non-Goals
 
 - **Fixing `::` / the representation** — parked doc + D-19 (V18). A consing foldl remains quadratic after this doc; the docs will finally say so.
-- **Tail-call elimination** — [m-interpreter-tail-call-elimination](../v0_51_1/m-interpreter-tail-call-elimination.md), v0.51.1.
+- **Tail-call elimination** — [m-interpreter-tail-call-elimination](../../planned/v0_51_1/m-interpreter-tail-call-elimination.md), v0.51.1.
 - **`mapAccumLE` / effectful variant** — future work; the pattern is established and trivially extensible, but this sprint ships the pure shape only.
 - **Array builders / mutable arrays** — `std/array`'s cost model is already honest (V14).
 - **General VM↔interpreter perf parity program** — only this shape's per-step overhead; the representation-width residue (H2) belongs to the representation decision.
@@ -316,24 +316,59 @@ and cost contract, not the final spelling.
 
 The auto-search could not run (V21); the manual top match is decisive:
 
-- [m-list-cons-quadratic](../m-list-cons-quadratic.md) (planned, **PARKED — needs-human-review**, similarity: same defect family, high). **Distinct and not duplicative**: that doc is the *substrate* fix (value representation), quorum-blocked on a named human decision (D-19: arena vs cons cells) with VM `OpCons` explicitly a non-goal; this doc is the *cost-model honesty* fix (Phase 1), the *additive stdlib primitive* that unblocks consumers while D-19 is pending (Phase 2), and the *VM per-step overhead* investigation the parked doc explicitly excluded (Phase 3, its V22/Non-Goals). It does not re-adjudicate any parked decision. If D-19 lands, Phase 2 remains useful (stateful emit) and Phase 1 remains true.
-- [m-interpreter-tail-call-elimination](../v0_51_1/m-interpreter-tail-call-elimination.md) (planned, v0.51.1): tail calls, not step cost; one shared artifact (the `RT_REC_003` string), coordinated (Conflict Surface item 4).
-- [m-perf4-bytecode-interpreter](../v1_1_0/m-perf4-bytecode-interpreter.md) (planned, P3 exploratory, targets v0.9.0+): a whole-engine rewrite program, not this shape's per-step overhead; no overlap in scope or horizon.
-- M-ITERATIVE-LIST ([implemented/v0_9_2](../implemented/v0_9_2/m-iterative-list-builtins.md)): the delegation pattern Phase 2 *extends*; its docs (`std/list.ail` header) are the artifact Phase 1 corrects — an implementation's cost claim was generalized beyond what the implementation guarantees.
+- [m-list-cons-quadratic](../../planned/m-list-cons-quadratic.md) (planned, **PARKED — needs-human-review**, similarity: same defect family, high). **Distinct and not duplicative**: that doc is the *substrate* fix (value representation), quorum-blocked on a named human decision (D-19: arena vs cons cells) with VM `OpCons` explicitly a non-goal; this doc is the *cost-model honesty* fix (Phase 1), the *additive stdlib primitive* that unblocks consumers while D-19 is pending (Phase 2), and the *VM per-step overhead* investigation the parked doc explicitly excluded (Phase 3, its V22/Non-Goals). It does not re-adjudicate any parked decision. If D-19 lands, Phase 2 remains useful (stateful emit) and Phase 1 remains true.
+- [m-interpreter-tail-call-elimination](../../planned/v0_51_1/m-interpreter-tail-call-elimination.md) (planned, v0.51.1): tail calls, not step cost; one shared artifact (the `RT_REC_003` string), coordinated (Conflict Surface item 4).
+- [m-perf4-bytecode-interpreter](../../planned/v1_1_0/m-perf4-bytecode-interpreter.md) (planned, P3 exploratory, targets v0.9.0+): a whole-engine rewrite program, not this shape's per-step overhead; no overlap in scope or horizon.
+- M-ITERATIVE-LIST ([implemented/v0_9_2](../v0_9_2/m-iterative-list-builtins.md)): the delegation pattern Phase 2 *extends*; its docs (`std/list.ail` header) are the artifact Phase 1 corrects — an implementation's cost claim was generalized beyond what the implementation guarantees.
 
 ## Related Documents
 
-- [m-list-cons-quadratic](../m-list-cons-quadratic.md) — the parked substrate design (D-19 decision A/B pending: linear-chain arena vs true cons cells). This doc routes ask (1)'s representation half there and ships the stdlib half.
-- [m-interpreter-tail-call-elimination](../v0_51_1/m-interpreter-tail-call-elimination.md) — sibling; shares the `RT_REC_003` string (merged-text contract above).
-- [m-vm-var-pattern-default-arm](m-vm-var-pattern-default-arm.md) — sibling in this folder; same authoring-container constraints, same re-run-quorum convention.
-- [M-ITERATIVE-LIST](../implemented/v0_9_2/m-iterative-list-builtins.md) — the Go-delegation pattern Phase 2 follows; the doc whose "iterative, O(n)" claim Phase 1 makes conditional.
-- [M-VM-PURE-BUILTIN-COVERAGE](../implemented/v0_51_0/m-vm-pure-builtin-coverage.md) — the coverage ratchet Phase 2 must satisfy (V23).
+- [m-list-cons-quadratic](../../planned/m-list-cons-quadratic.md) — the parked substrate design (D-19 decision A/B pending: linear-chain arena vs true cons cells). This doc routes ask (1)'s representation half there and ships the stdlib half.
+- [m-interpreter-tail-call-elimination](../../planned/v0_51_1/m-interpreter-tail-call-elimination.md) — sibling; shares the `RT_REC_003` string (merged-text contract above).
+- [m-vm-var-pattern-default-arm](../../planned/v0_51_2/m-vm-var-pattern-default-arm.md) — sibling in this folder; same authoring-container constraints, same re-run-quorum convention.
+- [M-ITERATIVE-LIST](../v0_9_2/m-iterative-list-builtins.md) — the Go-delegation pattern Phase 2 follows; the doc whose "iterative, O(n)" claim Phase 1 makes conditional.
+- [M-VM-PURE-BUILTIN-COVERAGE](../v0_51_0/m-vm-pure-builtin-coverage.md) — the coverage ratchet Phase 2 must satisfy (V23).
 
 ## References
 
 - **Source report**: coordinator task on the consrepro report (v0.51.0 b99dd25, binary md5 `ed0478cc…`), related to [#676](https://github.com/sunholo-data/ailang/issues/676); consumer `stapledons-godot` M1.2b-T3/T4.
-- [design_docs/PROGRAM.md](../PROGRAM.md) §4 — routing lanes.
+- [design_docs/PROGRAM.md](../../PROGRAM.md) §4 — routing lanes.
 - [Design Axioms](/docs/references/axioms).
+
+## Implementation Report (2026-10-02)
+
+Shipped together with the #1518 fix (std/list `any`/`findIndex` were O(n^2) on the VM) and the
+stapledons_godot report that the six extremes overflowed at 50,001 elements. Changelog:
+`changelogs/unreleased/2026-10-02-list-iterative-helpers.md`.
+
+**Phase 1 (docs honesty): done.**
+- `std/list.ail` header, the `concat` comment and a new `foldl` comment carry the canonical sentence:
+  *foldl is O(n) only if the step is O(1); a step that conses onto (or concatenates to) a list accumulator
+  is O(n) per element, making the fold O(n^2).* The header lists the one-pass builders by shape.
+- `docs/docs/reference/no-loops.md` gains a **Cost** line under the fold guarantees.
+- `RT_REC_003` keeps the tail-call remedy from M-EVAL-TAIL-CALLS and adds: "to build a list, use
+  map/filter/mapAccumL: consing onto a list accumulator copies it every step, so that loop is O(n^2)".
+  Pinned by `TestRTREC003WarnsListAccumulatorsAreQuadratic`; the flag-remedy test still passes.
+- **Deferred:** the teaching-prompt caveat. Prompts are versioned and frozen; this belongs to a new prompt
+  version through the prompt-manager lane. Proposed text: "foldl is O(n) only if the step is O(1). Never
+  build a list with `foldl(\acc x. x :: acc, ...)` or `acc ++ [x]`: each step copies the list. Use
+  map/filter/flatMap, or `mapAccumL(\st x. (out, st2), s0, xs)` when each output needs running state."
+
+**Phase 2 (`mapAccumL`): done**, as designed: `_list_mapAccumL` in `internal/builtins/list_iterative_search.go`,
+native VM port `__list_mapAccumL` in `internal/vm/builtins_hof_list.go` appended to both HOF tables.
+Output list is one pre-sized allocation; empty input returns `([], s0)` without calling `f`. Parity with
+the evaluator, call order and non-aliasing are tested (`internal/vm/list_hof_parity_test.go`,
+`internal/builtins/list_iterative_search_test.go`). Example: `examples/runnable/mapAccumL_running_total.ail`.
+The stdlib interface golden for `std/list` was re-frozen for the new export.
+
+**Phase 3 (VM `CallClosure` per-step overhead): deferred, not started.** A nesting-safe frame pool needs
+the profile-first investigation and race tests this doc requires; it was out of scope for this fix. The
+H1/H2 hypotheses stand as written.
+
+**Beyond this doc (#1518 and its audit):** `any`, `findIndex`, `foldr` gained runtime builtins (they had
+codegen-only helpers); the six extremes became a right fold seeded with the last element (same comparisons,
+same order, so ties and NaN are unchanged on each engine); `foldlE`/`forEachE` became index tail loops and
+`mapE`/`filterE`/`flatMapE` became halving recursion (O(log n) depth). Measurements are in the changelog.
 
 ## Future Work
 
