@@ -1,0 +1,94 @@
+{
+  "sprint_id": "M-OPENROUTER-IMAGE-OUTPUT",
+  "status": "not_started",
+  "created": "2026-10-02T15:43:26.075736+00:00",
+  "design_doc": "design_docs/planned/v0_51_1/m-openrouter-image-output.md",
+  "sprint_plan": "design_docs/planned/v0_51_1/m-openrouter-image-output-sprint-plan.md",
+  "github_issues": [
+    1504,
+    1496
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: image, openrouter. Native Go AI adapter/resolver and builtin documentation cannot be replaced by parsing, upload, social clients or the separate decisions endpoint package."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: image, openrouter. Native Go AI adapter/resolver and builtin documentation cannot be replaced by parsing, upload, social clients or the separate decisions endpoint package."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: image, openrouter. Native Go AI adapter/resolver and builtin documentation cannot be replaced by parsing, upload, social clients or the separate decisions endpoint package."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 233,
+    "estimated_total_loc": 700,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "OpenRouter chat image output",
+      "estimated_loc": 430,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Image Generate sends lowercase modalities image,text and maps aspect_ratio and PNG/JPEG output_format; text-only bodies retain byte identity.",
+        "Inline base64 data URLs decode to ImageData/ImageMIME while caption text, usage.cost, routing and correlation remain intact.",
+        "First image wins and ai.image_count records the returned count; zero images, remote URLs, malformed data URLs, invalid base64 and unsupported MIME options fail with typed errors.",
+        "Step and StreamStep reject IMAGE requests before network dispatch; non-image model upstream errors remain typed ProviderError.",
+        "Positive dispatch replaces the obsolete image-refusal test and focused OpenRouter tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Per-call image model resolution",
+      "estimated_loc": 210,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Both image call methods honor options.model for only that call; absent or empty model uses the bound model.",
+        "AIContext reuses the step ModelResolver for friendly names and rejects cross-provider overrides with CodeModelNotAllowed before invoking the handler.",
+        "Nil resolver passthrough, stub behavior, existing malformed-options behavior and unknown option keys remain compatible; rewriting preserves caller options.",
+        "Handler requests and RequestedModel identify the selected model; a later call without an override still uses the original bound model.",
+        "Focused internal/ai and internal/effects tests pass for both file and base64 methods."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Examples documentation and regression verification",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "std/ai.ail comments document OpenRouter and options.model; runnable image example demonstrates bound text plus per-call image model and retains Gemini usage.",
+        "Run ailang prompt before editing AILANG, then check the example and execute its stub-backed path with documented capability flags.",
+        "v0.51.1 changelog records image routing and model override; TTS issue 1495 remains out of scope.",
+        "go test ./internal/ai/... ./internal/effects/... ./cmd/ailang, make test-core, make fmt, make lint and make check-boundaries pass.",
+        "If credentials are available, explicitly opt into a paid OpenRouter portrait smoke and Gemini regression run; otherwise record live verification as skipped, without claiming success."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
