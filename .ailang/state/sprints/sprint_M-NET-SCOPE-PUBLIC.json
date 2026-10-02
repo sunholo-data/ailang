@@ -1,0 +1,122 @@
+{
+  "sprint_id": "M-NET-SCOPE-PUBLIC",
+  "design_doc": "design_docs/planned/v0_52_0/m-net-scope-public.md",
+  "sprint_plan": "design_docs/planned/v0_52_0/m-net-scope-public-sprint-plan.md",
+  "target_version": "v0.52.0",
+  "created": "2026-10-02",
+  "planner_model": "claude-opus-5-5",
+  "github_issues": [
+    1522,
+    1526
+  ],
+  "risk_level": "medium",
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "core effect-system change"
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "core effect-system change"
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "core effect-system change"
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "core effect-system change"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 470,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_REDIRECT_HOPS_PUBLIC_ONLY",
+      "description": "Redirect hops evaluated under forRedirectHop(): no loopback/link-local/private, at checkRedirect and RoundTrip (req.Response != nil).",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "go test ./internal/effects -run TestRedirectHop_HostnameToLoopbackRefused passes",
+        "go test ./internal/effects -run TestRedirectHop_HostnameToMetadataRefused passes",
+        "go test ./internal/effects -run TestRedirectHop_LiteralLinkLocalRefused passes",
+        "go test ./internal/effects -run TestRedirectHop_LocalhostNameRefused passes",
+        "go test ./internal/effects -run TestRedirectHop_PublicTargetStillFollowed passes",
+        "go test ./internal/effects -run TestDirectMetadataCall_BareNetStillAllowed passes",
+        "go test ./internal/effects/... passes"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_NET_SCOPE_TYPES",
+      "description": "effectSchema Net{scope:{public}}; narrowing-param subsumption in DiffEffectRows (both directions).",
+      "estimated_loc": 110,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "go test ./internal/types -run TestNetScopePublic_SchemaLegal passes",
+        "go test ./internal/types -run TestNetScope_UnknownValueRejected passes",
+        "go test ./internal/types -run TestNetScopePublic_SubsumesBareNet passes",
+        "go test ./internal/types -run TestNetScope_DoesNotLeakToOtherEffects passes",
+        "ailang check (repo build) of examples/net_scope_public.ail prints 'No errors found'"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_NET_SCOPE_RUNTIME",
+      "description": "Per-execution public-scope counter on EffContext (shared by WithBudget, reset by Clone); eval pushes at frame entry; netPolicy forces allowLocalhost/allowMetadata off; VM lowering marks scoped functions EvalOnly.",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M2_NET_SCOPE_TYPES"
+      ],
+      "acceptance_criteria": [
+        "go test ./internal/effects -run TestNetScopePublic_HostnameToLoopbackRefused passes",
+        "go test ./internal/effects -run TestNetScopePublic_HostnameToMetadataRefused passes",
+        "go test ./internal/effects -run TestNetScopePublic_PopRestoresBareBehaviour passes",
+        "go test ./internal/effects -run TestNetScopePublic_CloneResets passes",
+        "go test ./internal/eval -run TestNetScope passes",
+        "go test ./cmd/ailang -run TestNetScopePublic_EndToEnd passes",
+        "go test ./internal/gen/lower -run TestNetScopePublic_LoweredEvalOnly passes"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_GATES_MUTATION",
+      "description": "Changelog fragment, guide + serve-api docs, devtools prompt, gates, mutation tests, CI.",
+      "estimated_loc": 0,
+      "dependencies": [
+        "M1_REDIRECT_HOPS_PUBLIC_ONLY",
+        "M3_NET_SCOPE_RUNTIME"
+      ],
+      "acceptance_criteria": [
+        "make check-file-sizes check-boundaries check-architecture-closure exits 0",
+        "gofmt -l on touched dirs prints nothing; golangci-lint run on touched dirs exits 0",
+        "each guard mutant compiles and fails a named test (recorded in notes)",
+        "gh run list -R sunholo-data/ailang --branch dev --workflow ci.yml shows success for the pushed head"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
