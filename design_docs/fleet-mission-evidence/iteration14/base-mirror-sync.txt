@@ -1,0 +1,5 @@
+  FAIL: mission-*/sprint-* .agents copies equal .claude (STALE: .agents/skills/sprint-evaluator differs from .claude/skills/sprint-evaluator — run tools/launchd/sync-agents-skills.sh)
+  PASS: negative control: a drifted copy is detected
+  PASS: no skill description is an unquoted scalar containing ': '
+
+==== 2 passed, 1 failed ====

@@ -1,0 +1,21 @@
+{
+  "signature": "driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash",
+  "slots_lost": 1,
+  "blocking": "all",
+  "missions": [
+    "attended"
+  ],
+  "first_seen": "2026-10-02T05:52:38.021154Z",
+  "last_seen": "2026-10-02T05:52:38.021154Z",
+  "message_ids": [
+    "inbox_1790920358021_18b9ddb0"
+  ],
+  "latest": {
+    "mission": "attended",
+    "iteration": 0,
+    "signature": "driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash",
+    "blocking": "all",
+    "evidence": "2026-10-02 stapledon 02:16 and fleet 03:15 (local): anthropic, codex and ollama all over ration, so the controller walked to the last fallback rung pi:openrouter/z-ai/glm-5.3. The ration gate had OpenRouter blocked (\"ration gate: blocked buckets ... ollama anthropic openrouter\"; $6.57 vs $2.33/day), but only the ollama rung was checked (\"controller fallback rung pi:ollama/glm-5.3:cloud is OVER RATION\") and the openrouter rung was taken. The OpenRouter key then returned 402 \"requires more credits ... can only afford 580808\" (fleet) / 617193 (stapledon). Each ran 63 min / 117 min before exiting rc=1, and was classified CRASHED_at=gate-3 rather than as a quota yield. Logs: /tmp/ailang-mission-{fleet,stapledon}.log, slot-verdict logs 2026-10-02T02:13:43Z and 02:18:20Z.\nFix: (1) ration-check every controller fallback rung including openrouter; when no rung has quota, yield (rc 75-class) and report \"all lanes over ration\" without spawning. (2) classify a provider 402/credits error as provider_quota, not CRASHED.\n",
+    "workaround": "none"
+  }
+}

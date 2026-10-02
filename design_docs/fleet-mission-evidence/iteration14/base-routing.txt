@@ -1,0 +1,120 @@
+  PASS: planner remains fail-closed to Opus while Anthropic is available
+  PASS: planner falls back to Codex Sol when Anthropic is unavailable
+  PASS: planner Anthropic fallback is configurable
+  PASS: executor primary is Codex Sol 6.1 (since 2026-09-30)
+  PASS: planner primary is Codex Sol 6.1 (since 2026-09-30)
+  PASS: executor fallback head is a probed pi lane
+  PASS: planner fallback head is a probed pi lane
+  PASS: executor chain is ollama -> openrouter twin
+  PASS: planner chain is ollama -> openrouter twin
+  PASS: pi planner pin reaches its lane, not a silent opus
+  PASS: pi planner still fails closed outside the allowlist
+  PASS: codex planner lane keeps its model (luna)
+  PASS: codex planner lane keeps its model (sol)
+  PASS: driver EXPORTS the planner allowlist (bare assignment never reaches the child)
+  PASS: allowlist export comes AFTER the mission env file is sourced (line 1619 > 81)
+  PASS: docs paths fail closed under the DEFAULT allowlist
+  PASS: docs paths reach the cheap lane under a widened allowlist
+  PASS: widened allowlist still denies compiler paths
+  PASS: traversal cannot escape an allowlisted prefix
+  PASS: allowlist globs are patterns, not repo-cwd pathname expansions
+  PASS: docs mission env profile exists
+  PASS: D-FLEET-1 missing field defaults to the codex pin
+  PASS: D-FLEET-1 missing field defaults to the pi pin
+  PASS: D-FLEET-1 explicit opus-required still wins
+  PASS: D-FLEET-1 invalid field still fails closed
+  PASS: D-FLEET-1 bare pin still fails closed at env-pin
+  PASS: D-FLEET-1 resolver maps the default pin to a recipe
+  PASS: docs planner pin is a vetted non-opus lane (not a bare alias)
+  PASS: docs mission widens the planner allowlist
+  PASS: docs executor chain is flat-rate -> metered twin (same weights)
+  PASS: docs planner chain is flat-rate -> metered twin (same weights)
+  PASS: docs evaluator chain is vendor-disjoint from the executor
+  PASS: docs evaluator never shares an executor-chain vendor
+  PASS: executor fallback is never price-pinned (:floor)
+  PASS: controller ladder excludes opus-4.8
+  PASS: controller ladder uses fable-5-1, not bare fable-5
+  PASS: opus-4.8 stays removed
+  PASS: codex is the evaluator's LAST rung
+  PASS: anthropic lanes get a role pre-flight
+  PASS: anthropic pre-flight has no implicit opus tail
+  PASS: all three provider loops cover all four roles
+  PASS: pinned designer has a codex rung
+  PASS: astra is NOT a controller rung
+  PASS: controller ladder is opus-5-5 -> gpt-6.1-sol (retiered 2026-09-30)
+  PASS: controller fallback starts at pi (sol de-duplicated 2026-09-22)
+  PASS: designer keeps its codex rung (gpt-6.1-sol)
+  PASS: driver has the chain walker
+  PASS: evaluator vendor is distinct from planner/executor
+  PASS: controller fallback carries NO codex rung (it lives in prefs)
+  PASS: decision ledger validates
+  PASS: resolved routing decision is not re-asked
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.TT3zJo/select.sh: line 68: _mc_canon_id: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.TT3zJo/select.sh: line 68: _mc_is_demoted: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.TT3zJo/select.sh: line 72: _mc_is_over_ration: command not found
+_: line 68: _mc_canon_id: command not found
+_: line 68: _mc_is_demoted: command not found
+_: line 72: _mc_is_over_ration: command not found
+_: line 106: _mc_canon_id: command not found
+_: line 106: _mc_is_demoted: command not found
+_: line 110: _mc_is_over_ration: command not found
+  PASS: controller selector traverses Anthropic to Codex
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.TT3zJo/select.sh: line 68: _mc_canon_id: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.TT3zJo/select.sh: line 68: _mc_is_demoted: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.TT3zJo/select.sh: line 72: _mc_is_over_ration: command not found
+  PASS: controller pin is exported to child processes (#696)
+  PASS: R1 provider pin resolves to a recipe
+  PASS: R2 bare alias resolves to an agent-tool
+  PASS: R3 evaluator alias with distinct executor stays an agent-tool
+  PASS: R4 evaluator collision reroutes to the fallback head
+  PASS: R4c alias vs full-id of the same family is a collision
+  PASS: R4b evaluator collision with no fallback fails closed
+  PASS: R5 planner provider lane maps to a recipe
+  PASS: R6 planner opus lane maps to agent-tool opus
+  PASS: R7 unknown role fails closed
+  PASS: R8 no ration signal leaves the recipe alone
+  PASS: R9 over-ration recipe reroutes to the driver's resolved lane
+  PASS: R10 over-ration recipe with an over-ration resolved lane is refused
+  PASS: R11 a local model maps to no bucket and is never gated
+  PASS: R12 planner codex lane over ration reroutes to the resolved planner
+  PASS: R13 resolver, spawn-pin hook and driver agree on every rung's ration bucket
+  PASS: R14 driver exports MISSION_OVER_RATION with the resolved plan
+  PASS: spawn-pin hook suite is wired into make/test.mk
+  PASS: D1 resolved-role exports come AFTER lane degradation (line 2398 > 2055)
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-layer3.h52Tg7/layer3.sh: line 18: _mc_load_ration: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-layer3.h52Tg7/layer3.sh: line 19: MC_OVER_RATION: unbound variable
+  PASS: D2 resolved role plan is exported to child processes
+  PASS: arm12 docs allowlist admits top-level scripts
+  PASS: arm12 pre-widening allowlist still denies top-level scripts
+  PASS: S1 mission-control skill invokes resolver and requires role tokens
+  PASS: S2 fable capability paragraph survives the spawn-pattern edit
+  PASS: S3 designer rotation is opus-5-5 -> sol-6.1 -> glm-5.3 -> kimi-k3 (four vendors)
+  PASS: S3b designer fallback chain follows the rotation (sol-6.1 -> glm-5.3 -> kimi-k3)
+  PASS: S4 designer seed is the Anthropic slot (opus-5-5), not astra
+  PASS: S5 skill passes the designer to design-quorum as --author
+
+  PASS: Gate 4 requires per-role token cost in the routing-evidence row
+  PASS: an unreported lane must be stated, not omitted
+  PASS: controller skill is within the context budget (53986 B <= 60000)
+  PASS: every gate stub points at a resource that exists
+  PASS: all seven gate stubs are present (7)
+  PASS: volatile Current State stays in the last 10% (cacheable prefix preserved)
+  PASS: registry entry docs parses
+  PASS: docs schedule mode is renderable (interval)
+  PASS: docs declares no [roles] block
+  PASS: registry entry fleet parses
+  PASS: fleet schedule mode is renderable (interval)
+  PASS: fleet declares no [roles] block
+  PASS: registry entry motoko parses
+  PASS: motoko schedule mode is renderable (interval)
+  PASS: motoko declares no [roles] block
+  PASS: registry entry stapledon parses
+  PASS: stapledon schedule mode is renderable (interval)
+  PASS: stapledon declares no [roles] block
+  PASS: registry entry v1 parses
+  PASS: v1 schedule mode is renderable (keepalive)
+  PASS: v1 declares no [roles] block
+  PASS: registry entry world parses
+  PASS: world schedule mode is renderable (keepalive)
+  PASS: world declares no [roles] block
+==== 104 passed, 0 failed ====
