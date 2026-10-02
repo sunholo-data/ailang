@@ -99,17 +99,20 @@ Neither `isErr` nor `words` was **imported** — the shadowing side of the
 collision is the stdlib module's *whole export surface*, loaded because the
 module imported *anything* (`Ok`, `join`) from it.
 
-**Why the last writer is (almost always) the stdlib — verified live (V4, V5, V6):**
+**Why the last writer is (almost always) the stdlib — verified live (V4, V4b, V5, V6):**
 the named-test harness re-elaborates the module through a temp file
 `_namedtest_body_<rand>.ail` written next to the source
 (`internal/testing/executor.go:282`), and the root unit's canonical ID is
 `CanonicalModuleID` of that temp *path*. With a relative CLI path the temp file
 is created in `.` and the key is just `_namedtest_body_<rand>` — an underscore
-sorts before every stdlib key (`std/...`, `workspace/.../std/...`, even
-`<embedded>/std/...`), so **the stdlib always wins**. With an absolute CLI path
-the key carries the source directory, and whether the user's module or the
-stdlib wins is decided by the directory name versus the stdlib root path. Same
-file, same directory, only the path spelling differs:
+sorts before every stdlib key (`std/result`, `std/option`, …; the compile cache
+directory layout `modules/std__result` shows the module IDs verbatim, V4b) — so
+**the stdlib always wins**. With an absolute CLI path the key carries the
+source directory, and whether the user's module or the stdlib wins is decided
+by the first path component against `std/...` — `tmp/` and `workspace/` sort
+after `s`, so the user's module wins; on a macOS home checkout (`Users/...`)
+`U` < `s` and the stdlib wins again. Same file, same directory, only the path
+spelling differs:
 
 ```
 $ cd /workspace/task-e0fdc621/zztest && ailang test shadow.ail
@@ -481,7 +484,8 @@ Every load-bearing claim above, with its check (per design-doc-creator hard gate
 | V2 | Importing ONE symbol (`Ok`) from std/result suffices to lose a private `isErr`; importing nothing leaves it intact | Live: variant with `import std/result (Ok)` only → `✗ no pattern matched`; variant with no imports at all → `✓` pass. Read `resolveModuleImports` (pipeline_module_imports.go: selective symbols only → GlobalRefs; but the whole dep module is compiled and lands in `Result.Modules`, whose Let-lambda bare names all get `env.Set`) | Confirmed |
 | V3 | The `words` variant fails with the delegation-builtin signature; std/string.words delegates | Live: words-only repro → `✗ _str_words: expected String, got *eval.ListValue`; `run` → ok. Read `std/string.ail:124`: `export pure func words(s: string) -> [string] = _str_words(s)`; `ailang builtins list` shows `_str_words [pure] std/string`; `std/result.ail:41` `isErr` is a Core match (hence "no pattern matched") | Confirmed |
 | V4 | The winner is decided by `sort.Strings` over module keys; with a relative CLI path the root temp module's key is the bare basename `_namedtest_body_<rand>`, which sorts before every stdlib key, so std always overwrites the root's private names | Live: `cd /tmp/repro && ailang test shadow.ail` → FAIL; `cd /workspace/task-e0fdc621/zztest && ailang test shadow.ail` → FAIL. Read: executor.go:282 `os.CreateTemp(sourceDir, "_namedtest_body_*.ail")` with `sourceDir = filepath.Dir("shadow.ail") = "."` → relative basename; `loader.CanonicalModuleID` keeps the shape; `sort.Strings` (executor_helpers.go:559); bare writes :588/:643 unconditional | Confirmed |
-| V5 | The same file in the same directory flips from FAIL to PASS on path spelling alone (absolute path → root key carries the dir and sorts after the std key in that layout) | Live: `cd /workspace/task-e0fdc621/zztest && ailang test shadow.ail` → `✗`; `ailang test /workspace/task-e0fdc621/zztest/shadow.ail` (absolute) → `✓ All tests passed!`; also `ailang test /tmp/repro/shadow.ail` → `✓`, with and without AILANG_STDLIB_PATH (embedded root) | Confirmed |
+| V4b | Stdlib module IDs in `e.modules` are `std/<name>`-shaped (not absolute paths), so `_namedtest_body_*` always sorts before them under relative spelling | Read the compile cache directory the run produced: `zztest/.ailang/cache/compile/modules/std__result/`, `std__option/`, `std__string/` — dir names are the module IDs with `/`→`__`; loader.go:375-391 `CanonicalModuleID` normalizes the stdlib-resolved path | Confirmed |
+| V5 | The same file in the same directory flips from FAIL to PASS on path spelling alone (absolute path → root key carries the dir, and `tmp`/`workspace` sort after `std/...` keys in that layout) | Live: `cd /workspace/task-e0fdc621/zztest && ailang test shadow.ail` → `✗`; `ailang test /workspace/task-e0fdc621/zztest/shadow.ail` (absolute) → `✓ All tests passed!`; also `ailang test /tmp/repro/shadow.ail` → `✓`, with and without AILANG_STDLIB_PATH (embedded root) | Confirmed |
 | V6 | With an absolute path under a directory sorting before the std key the user module still wins (order flip both ways) | Live: `ailang test /tmp/repro/shadow.ail` → `✓` (root `tmp/repro/_namedtest_body_N` sorts after `workspace/.../std/result`); relative in the same dir → `✗` (V4). Together with V5: all four orderings differ pre-fix | Confirmed |
 | V7 | The bug bites non-recursive private functions only; self-recursive ones escape via LetRec Phase 2.5 re-binding | Live: identical module with self-recursive private `isErr` + `import std/result (Ok)` → `✓` pass, while the non-recursive variant (V2) fails. Read: file.go:316 singleton non-self-recursive SCC → `core.Let`; eval_expressions.go:354-370 `evalCoreLet` binds in a child env (no parent write); :417-424 Phase 2.5 propagates LetRec bindings to the parent — after injection, overwriting the stdlib bare name | Confirmed |
 | V8 | All four harness paths use the shared-env injection | `grep -n "injectModuleBindings(evaluator" internal/testing/executor.go` → :173, :342, :422, :635 | Confirmed |
