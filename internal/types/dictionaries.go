@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 )
 
 // DerivedADTEquality is a marker type indicating that equality should be
@@ -123,12 +125,13 @@ func (r *DictionaryRegistry) registerNumInt() {
 		return x * y
 	})
 
-	// div: Int -> Int -> Int (integer division)
-	r.Register(ns, "Num", "int", "div", func(x, y int) int {
-		if y == 0 {
-			panic("division by zero")
+	// div: Int -> Int -> Int (integer division). A zero divisor is RT001, an
+	// error the evaluator positions, never a Go panic (#1449).
+	r.Register(ns, "Num", "int", "div", func(x, y int) (int, error) {
+		if err := ailerrors.CheckIntDivisor(ailerrors.OpDivision, int64(y)); err != nil {
+			return 0, err
 		}
-		return x / y
+		return x / y, nil
 	})
 
 	// neg: Int -> Int (unary minus)

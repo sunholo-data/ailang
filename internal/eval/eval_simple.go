@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 )
 
 // SimpleEvaluator for basic testing
@@ -436,8 +437,8 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 		switch l := left.(type) {
 		case *IntValue:
 			if r, ok := right.(*IntValue); ok {
-				if r.Value == 0 {
-					return nil, fmt.Errorf("division by zero")
+				if err := checkIntDivisorAt(ailerrors.OpDivision, r.Value, ""); err != nil {
+					return nil, err
 				}
 				return &IntValue{Value: l.Value / r.Value}, nil
 			}
@@ -542,8 +543,8 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 		switch l := left.(type) {
 		case *IntValue:
 			if r, ok := right.(*IntValue); ok {
-				if r.Value == 0 {
-					return nil, fmt.Errorf("modulo by zero")
+				if err := checkIntDivisorAt(ailerrors.OpModulo, r.Value, ""); err != nil {
+					return nil, err
 				}
 				return &IntValue{Value: l.Value % r.Value}, nil
 			}

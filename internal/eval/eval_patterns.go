@@ -515,6 +515,21 @@ func wrapDictionaryMethod(impl interface{}) func([]Value) (Value, error) {
 			result := fn(x.Value, y.Value)
 			return &IntValue{Value: result}, nil
 
+		case func(int, int) (int, error):
+			if len(args) != 2 {
+				return nil, fmt.Errorf("expected 2 arguments")
+			}
+			x, ok1 := args[0].(*IntValue)
+			y, ok2 := args[1].(*IntValue)
+			if !ok1 || !ok2 {
+				return nil, fmt.Errorf("expected int arguments")
+			}
+			result, err := fn(x.Value, y.Value)
+			if err != nil {
+				return nil, err
+			}
+			return &IntValue{Value: result}, nil
+
 		case func(float64, float64) float64:
 			if len(args) != 2 {
 				return nil, fmt.Errorf("expected 2 arguments")

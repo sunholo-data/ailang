@@ -50,6 +50,9 @@ func (e *CoreEvaluator) evalCoreT(expr core.CoreExpr, tail bool) (Value, error) 
 		v, err = e.evalCoreDispatch(expr, tail)
 	}
 	e.evalDepth--
+	if err != nil {
+		attachDivZeroPos(err, expr)
+	}
 	return v, err
 }
 

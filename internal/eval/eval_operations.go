@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/sunholo-data/ailang/internal/core"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -404,13 +405,13 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 				case "*":
 					return &IntValue{Value: lInt.Value * rInt.Value}, nil
 				case "/":
-					if rInt.Value == 0 {
-						return nil, fmt.Errorf("division by zero")
+					if err := checkIntDivisorAt(ailerrors.OpDivision, rInt.Value, ""); err != nil {
+						return nil, err
 					}
 					return &IntValue{Value: lInt.Value / rInt.Value}, nil
 				case "%":
-					if rInt.Value == 0 {
-						return nil, fmt.Errorf("modulo by zero")
+					if err := checkIntDivisorAt(ailerrors.OpModulo, rInt.Value, ""); err != nil {
+						return nil, err
 					}
 					return &IntValue{Value: lInt.Value % rInt.Value}, nil
 				case "==":
