@@ -17,13 +17,23 @@ import (
 // at 200,000 elements on all three engines, under a 30 s wall-clock ceiling: the
 // iterative forms need about a second, the quadratic VM walks took ~45 s.
 
+// scaleN is the list length each engine is held to in the at-scale test.
+//
+// The interpreter runs a smaller list. Its effectful helpers are linear but
+// cost about 50us per element (measured 3.8s / 5.5s / 10.9s at 50k / 100k /
+// 200k on an M-series Mac), and CI runners are about 3x slower: at 200k the
+// test took 33-42s against its 30s ceiling on every OS, and on Windows it
+// pushed the cmd/ailang package past its -timeout budget. 50k keeps the
+// regression it guards against visible: a per-element copy is quadratic, about
+// 1.25e9 steps at 50k, far beyond the ceiling on any runner.
 var listIterEngines = []struct {
-	name string
-	args []string
+	name   string
+	args   []string
+	scaleN int
 }{
-	{"interpreter", nil},
-	{"vm", []string{"--bytecode"}},
-	{"strict-vm", []string{"--bytecode", "--strict-bytecode"}},
+	{"interpreter", nil, 50000},
+	{"vm", []string{"--bytecode"}, 200000},
+	{"strict-vm", []string{"--bytecode", "--strict-bytecode"}, 200000},
 }
 
 const listIterSrc = "cmd/ailang/testdata/listiter/helpers.ail"
@@ -91,11 +101,11 @@ func listIterWant(entry string, n int) string {
 
 func TestStdListHelpersIterativeAtScale(t *testing.T) {
 	bin := buildAilang(t)
-	const n = 200000
 	const ceiling = 30 * time.Second
 	for _, entry := range []string{"anyAt", "findIndexAt", "foldrAt", "extremesAt", "effectfulAt"} {
-		want := listIterWant(entry, n)
 		for _, eng := range listIterEngines {
+			n := eng.scaleN
+			want := listIterWant(entry, n)
 			t.Run(entry+"/"+eng.name, func(t *testing.T) {
 				got, took := runListIter(t, bin, eng.args, entry, n)
 				if got != want {
