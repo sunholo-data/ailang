@@ -32,5 +32,10 @@ obey these. They are the exact mistakes that break AILANG solutions:
 6. **Module + entry are mandatory.** Start with `module benchmark/solution`, and the
    entry point is `export func main() -> () ! {IO} { ... }` — `export` is REQUIRED.
 
+7. **The stdlib is built into the `ailang` binary — never search the disk for it.**
+   Read a module's API with `ailang docs std/<module>` (e.g. `ailang docs std/xml`);
+   find working code with `ailang examples search "<concept>"`. No `find /` or `find ~`:
+   it scans the whole machine and is refused.
+
 When the compiler rejects your code, it tells you the fix (e.g. "`++` is list-only,
 use `${}`"). Read that message and apply it — do not retry the same dialect.

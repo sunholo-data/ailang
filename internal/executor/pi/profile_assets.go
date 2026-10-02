@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 // The extensions an `ailang_only` profile depends on, embedded so the
@@ -58,7 +60,11 @@ func materializeProfileAssets() (string, error) {
 		// builtins_search are both ailang-lsp-lite.ts); write each file once —
 		// the second write would hit the 0444 bits of the first.
 		unique := map[string]bool{}
+		names := []string{evalShellGuardFile}
 		for _, name := range profileExtensionFiles {
+			names = append(names, name)
+		}
+		for _, name := range names {
 			if unique[name] {
 				continue
 			}
@@ -76,6 +82,24 @@ func materializeProfileAssets() (string, error) {
 		materializeDir = dir
 	})
 	return materializeDir, materializeErr
+}
+
+// evalShellGuardFile is the eval-only bash guard (Task.EvalShellGuard). Source of truth is
+// tools/pi-extensions/eval-shell-guard.ts; `make pi-assets` syncs, `make verify-pi-assets`
+// gates drift.
+const evalShellGuardFile = "eval-shell-guard.ts"
+
+// evalShellGuardArgs returns `-e <guard>` for an eval run. The guard registers no tools, so it
+// is safe alongside discovery or a profile's --no-extensions list.
+func evalShellGuardArgs(task *executor.Task) ([]string, error) {
+	if task == nil || !task.EvalShellGuard {
+		return nil, nil
+	}
+	dir, err := materializeProfileAssets()
+	if err != nil {
+		return nil, fmt.Errorf("pi: cannot materialize eval shell guard: %w", err)
+	}
+	return []string{"-e", filepath.Join(dir, evalShellGuardFile)}, nil
 }
 
 // extensionArgs returns `--no-extensions -e <file>…` for the extensions the

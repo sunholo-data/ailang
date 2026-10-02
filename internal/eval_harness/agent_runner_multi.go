@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/proctree"
 
 	// Register executors via init()
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
@@ -133,6 +134,17 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Workspace preserved: %s\n", workspace)
 		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Executor: %s, Model: %s\n", executorName, modelName)
 	}
+	// Kill anything the agent left running in its workspace, on EVERY exit path. Registered
+	// after the RemoveAll above so it runs first. A group kill of the agent misses commands
+	// its tools started detached: two `find /` shells from a pi gauntlet run outlived it by
+	// 7h and 33h in disk-wait and stalled git on the rig (2026-10-02).
+	defer func() {
+		if pids, err := proctree.ReapWorkspace(workspace); err != nil {
+			fmt.Fprintf(os.Stderr, "[eval] workspace reap failed for %s: %v\n", workspace, err)
+		} else if len(pids) > 0 {
+			fmt.Fprintf(os.Stderr, "[eval] reaped %d process(es) the agent left in %s: %v\n", len(pids), workspace, pids)
+		}
+	}()
 
 	// Seed benchmark input files so the agent can actually run/test its solution
 	// (e.g. cli_args reads numbers.txt). Mirrors the standard-runner layout.
@@ -231,6 +243,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Metadata:               buildChainMetadata(config.ChainID, config.StageID),
 		MaxTokensPerBench:      config.MaxTokensPerBench,        // M-EVAL-OS-LONGITUDINAL Phase 1
 		MaxOutputTokens:        modelMaxOutputTokens(modelName), // M-OLLAMA-PER-MODEL-MAX-TOKENS
+		EvalShellGuard:         true,                            // per-command limit + no whole-disk find (2026-10-02)
 	}
 	// A lane run executes under its OWN policy: fs_sandbox = this run's
 	// workspace (executor.MaterializeRunPolicy). Passing the operator's file

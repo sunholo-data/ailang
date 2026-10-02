@@ -60,6 +60,12 @@ func buildPiArgs(model string, task *executor.Task, directive string) ([]string,
 	}
 	args = append(args, toolArgs...)
 
+	guardArgs, err := evalShellGuardArgs(task)
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, guardArgs...)
+
 	args = append(args, directive)
 	return args, nil
 }
