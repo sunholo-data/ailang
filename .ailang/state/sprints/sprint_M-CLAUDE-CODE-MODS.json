@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-CLAUDE-CODE-MODS",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-02T07:28:35Z",
   "design_doc": "design_docs/planned/m-claude-code-mods.md",
   "sprint_plan": "design_docs/planned/m-claude-code-mods-sprint-plan.md",
@@ -78,10 +78,10 @@
         "V10 row Confirmed or Refuted with transcript excerpt",
         "If Refuted, Phases 3-4 marked dropped in design doc"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T07:29:36+00:00",
+      "completed": "2026-10-02T07:29:36+00:00",
+      "notes": "claude -p --plugin-dir probe: session.start ran ailang --version, tool.call fired for Bash, context line quoted back by the model, stderr empty. Container run not done (Phase 3 entry check). V10 updated."
     },
     {
       "id": "M1_LENS_IN_TREE",
