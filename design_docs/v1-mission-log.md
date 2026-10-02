@@ -2654,3 +2654,11 @@ first live reading of the instrument this iteration shipped.
 - `gemini-3-1-pro` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
 - `oc-glm-5-3` (SAME VENDOR AS THE AUTHOR — recalled because every independent seat was absent) → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
 - controller (in-session, not an API call) → **pass** — Authoring session verified every premise live against b99dd25: repro reproduced (bytecode 20000 vs interpreter RT_REC_003), all three tail shapes (if/let+if/match) probed in both engines, VM TCO mechanism read from code (compileReturnExpr + OpTailCall frame reuse), both behavior-pinning tests read in full, negative-existence greps recorded (V6), fixtures ls'd (V10). Trampoline-at-application-site with an unexported sentinel cannot leak values by construction; obligated functions excluded in M1. Net axiom score +4, no hard violations.
+
+#### Design-quorum review — `design_docs/planned/v0_51_2/m-ai-cross-provider-per-call-routing.md` (2026-10-02T19:24:31Z)
+
+- **Synthesis: PROCEED** (total $0.0000, 0 in / 0 out tok)
+- `gpt6-1-sol` → **ABSENT** (auth) — degraded to N-1, not a silent pass
+- `gemini-3-1-pro` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- `oc-glm-5-3` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- controller (in-session, not an API call) → **pass** — In-session controller check: every load-bearing premise was verified against v0.51.1 source (18-row Verification Log: resolver refusal/passthrough at ai_handlers.go:182-199 + models.go:249-255, no image Result variant, direct path has no resolver, LastRoutingMetadata reads bound handler only, budget is per-op). Language claims verified with ailang check (no optional params; Result shape compiles). Known gap recorded as V18: no Go toolchain in this workspace, test baseline deferred to the sprint executor. Routing design places the handler choice in AIContext because the resolver runs before the handler sees the model (V11) — mechanism read from code, not inferred.
