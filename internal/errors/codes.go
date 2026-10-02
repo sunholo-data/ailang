@@ -104,6 +104,13 @@ const (
 	// ambiguous import resolution when one of them is the root project
 	MOD013 = "MOD013"
 
+	// MOD015 indicates an ambiguous module-scope name: a selectively imported name
+	// (import M (x) or import M (y as x)) that a module-level func, let or
+	// constructor also defines, or that two imports bind to different exports.
+	// The import used to win silently; now a compile error naming both sites
+	// (#1467). MOD014 is the module-less-file error raised inline by the pipeline.
+	MOD015 = "MOD015"
+
 	// ============================================================================
 	// Loader Errors (LDR###)
 	// ============================================================================
@@ -278,6 +285,7 @@ var ErrorRegistry = map[string]ErrorInfo{
 	MOD013: {MOD013, "module", "package", "Shared module_prefix between root and dependency"},
 	MOD006: {MOD006, "module", "validation", "Export of private (underscore) name"},
 	MOD007: {MOD007, "module", "namespace", "Duplicate module-scope binding (let/func same name)"},
+	MOD015: {MOD015, "module", "namespace", "Imported name collides with a module-level definition or another import"},
 
 	// Loader errors
 	LDR001: {LDR001, "loader", "resolution", "Module not found"},

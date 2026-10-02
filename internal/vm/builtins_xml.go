@@ -562,6 +562,7 @@ func builtinXmlFindAllAttrs(args []bytecode.Value) (bytecode.Value, error) {
 // ---------------------------------------------------------------------------
 
 func hofBuiltinXmlParseFold(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 4 {
 		return bytecode.Value{}, fmt.Errorf("__xml_parseFold: expected 4 args, got %d", len(args))
 	}
@@ -599,7 +600,7 @@ func hofBuiltinXmlParseFold(caller ClosureCaller, args []bytecode.Value) (byteco
 		if err != nil {
 			return bytecode.Value{}, err
 		}
-		acc, err = caller.CallClosure(fn, []bytecode.Value{acc, bcNode})
+		acc, err = caller.CallClosure(fn, argv.of2(acc, bcNode))
 		if err != nil {
 			return bytecode.Value{}, err
 		}
