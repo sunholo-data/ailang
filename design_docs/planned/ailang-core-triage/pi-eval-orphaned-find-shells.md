@@ -1,0 +1,18 @@
+# pi agent-eval runs leave orphaned `find /` shells that outlive the run (rig-breaking)
+
+- **Date**: 2026-10-02
+- **Class**: bug
+- **Recommend**: design-doc
+- **Searched**: `orphan`, `process group`/`process-group`/`detached`, `AILANG_STDLIB_PATH` (design_docs/, prompts/, internal/); reviewed `m-fleet-slot-kill-reaps-descendants-sprint-plan.md`, `archive/m-process-pgid-cleanup.md`, `archive/v0_5_1_m-eval-process-timeout.md`, `implemented/v0_41_0/m-executor-policy-hardening-sprint-plan.md`, `planned/v0_49_1/m-executor-env-hardening.md`
+- **Estimate**: ~100–200 LOC across ≥4 files (`internal/executor/pi/pi.go` or a new reaper, a `.pi/extensions/` tool-policy extension, `prompts/agent/*.md`, tests)
+
+**Verified in this tree:** `internal/executor/pi/pi.go:150` calls `proctree.Configure(cmd)` and budget/timeout kills go through `proctree.Kill` (`internal/proctree/proctree.go` — group kill only, pgid == leader pid). pi's bash tool spawns each command detached, so the group kill cannot reach grandchildren and they reparent to launchd — the report's model is correct. `internal/executor/environment.go:146` exports `AILANG_STDLIB_PATH`; `grep -r AILANG_STDLIB_PATH prompts/` returns nothing, and `prompts/agent/v0.9.0.md` points only at `ailang docs std/<mod>`. Both citations hold.
+
+**Why design-doc, not direct-fix:** row 5 decides — this spans executor Go code, a pi extension/tool policy, agent prompts, and a regression test that must spawn a detached child and prove reaping; no single-file estimate is honest. Row 3 also applies: fix #1 has real design choice (reap by scanning cwd at teardown vs. PID-snapshot + re-walk of the whole tree at run start — the fleet sprint plan deliberately chose the snapshot approach for the launchd driver and it should be reconciled, not contradicted). Fix #3 alone would be a trivial direct fix, but shipping it without #1/#2 leaves the rig-breaking mechanism in place.
+
+**Not a duplicate, but must cross-reference:**
+- `design_docs/planned/m-fleet-slot-kill-reaps-descendants-sprint-plan.md` — same *failure shape* (killed root, reparented descendants), different layer (launchd driver watchdog in `tools/launchd/mission-control.sh`). It explicitly scopes out "normal controller exit with lingering children", which is exactly this report's case, so it does not cover this bug. A design doc here should reuse its PID-snapshot/re-walk reasoning and its `UNINFORMATIVE UNDER SANDBOX` test rule.
+- `design_docs/archive/m-process-pgid-cleanup.md` — the group-kill recipe being evaded; background, not coverage.
+- `implemented/v0_41_0/m-executor-policy-hardening-sprint-plan.md` — existing `.pi/extensions/ailang-exec.ts` policy pattern is the natural home for fix #2's bash denial + per-call timeout, but that doc gates AILANG program execution, not the agent's bash tool.
+
+**Mechanism, one paragraph:** eval-harness timeout/cancel kills pi's process group; pi's own bash tool runs each command in a fresh detached group, so `find /` grandchildren survive, reparent to launchd, and spin in disk-wait with cwd inside a deleted `ailang_eval` workspace — measured 33h/7h orphans stalling `git status` on the Mac Studio (gauntlet_10_pi-qwen3-8-27b_20260930_234541_40322). Three fixes, all wanted: (1) reap-by-workspace at every run exit path (clean, timeout, cancel, crash) — process-group kill is provably insufficient on macOS; (2) eval-run tool policy refusing `find /` / unbounded `find` on `/` or `$HOME` plus a default per-bash-call timeout (~120s); (3) prompt names `AILANG_STDLIB_PATH` / `ailang docs std/<mod>` as the only stdlib lookup so the model never searches the disk. Priority high: degrades every eval loop and attended session on the rig.
