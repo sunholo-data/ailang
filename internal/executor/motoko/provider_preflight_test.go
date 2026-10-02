@@ -340,3 +340,32 @@ exit 0
 		t.Fatal("CONTROL DID NOT FIRE: the mock never ran even for an admitted lane, so the marker proves nothing about the treatment arm")
 	}
 }
+
+// The ChatGPT subscription lane needs the codex login, not an env key: a run
+// without one is refused before motoko starts, and its cost is labelled
+// subscription, not metered.
+func TestRequireProviderCredential_ChatGPTNeedsCodexLogin(t *testing.T) {
+	t.Setenv("CODEX_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "sk-metered")
+	err := requireProviderCredential("chatgpt/gpt-6.1-sol")
+	if err == nil || !strings.Contains(err.Error(), "ChatGPT subscription lane") {
+		t.Fatalf("no codex login must refuse (an OPENAI_API_KEY is not this lane's credential), got %v", err)
+	}
+
+	home := t.TempDir()
+	t.Setenv("CODEX_HOME", home)
+	auth := `{"auth_mode":"chatgpt","tokens":{"access_token":"not-a-jwt","account_id":"acct"}}`
+	if err := os.WriteFile(filepath.Join(home, "auth.json"), []byte(auth), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := requireProviderCredential("chatgpt/gpt-6.1-sol"); err != nil {
+		t.Fatalf("a codex ChatGPT login must admit the run: %v", err)
+	}
+
+	if got := motokoAuthLane("chatgpt/gpt-6.1-sol"); got != executor.AuthLaneSubscription {
+		t.Fatalf("ChatGPT motoko row must be labelled subscription, got %v", got)
+	}
+	if got := motokoAuthLane("openrouter/z-ai/glm-5.3-flash"); got != executor.AuthLaneBilled {
+		t.Fatalf("an OpenRouter motoko row must stay billed, got %v", got)
+	}
+}

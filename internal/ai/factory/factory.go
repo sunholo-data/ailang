@@ -19,6 +19,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/anthropic"
+	"github.com/sunholo-data/ailang/internal/ai/chatgpt"
 	"github.com/sunholo-data/ailang/internal/ai/gemini"
 	"github.com/sunholo-data/ailang/internal/ai/ollama"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
@@ -130,6 +131,18 @@ func New(name string, opts ...Option) (*Client, error) {
 			lane = LaneUnauthenticated
 		}
 		return &Client{Provider: openai.NewClient(key, copts...), Type: typ, Lane: lane}, nil
+
+	case ai.ProviderChatGPT:
+		// Subscription OAuth only: the codex CLI's ChatGPT login. Checked here
+		// so a missing or expired login fails at setup, not on the first call.
+		if _, err := chatgpt.LoadCredential(); err != nil {
+			return nil, err
+		}
+		var copts []chatgpt.Option
+		if o.baseURL != "" {
+			copts = append(copts, chatgpt.WithBaseURL(o.baseURL))
+		}
+		return &Client{Provider: chatgpt.NewClient(copts...), Type: typ, Lane: LaneOAuth}, nil
 
 	case ai.ProviderLyceum, ai.ProviderZAI:
 		// Same openai transport, a different endpoint (ai.LyceumBaseURL /
