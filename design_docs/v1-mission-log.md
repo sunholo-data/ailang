@@ -2634,3 +2634,13 @@ first live reading of the instrument this iteration shipped.
 - `gpt5-6-sol` → **ABSENT** (auth) — degraded to N-1, not a silent pass
 - `gemini-3-1-pro` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
 - controller (in-session, not an API call) → **pass** — Controller in-session verdict: premises verified against the live v0.50.1 binary (18-row Verification Log: repro, isolation matrix across 5 body forms x 5 follower kinds, single-caller grep, v0.8.1 prior-art cross-check). Fix is a 6-line peek-guarded advance mirroring the guarded with-fields branch; no grammar/disambiguation change; conflict surface enumerates all token shapes at the position and every claim carries a command transcript.
+
+#### Design-quorum review — `design_docs/planned/v0_51_2/m-fullwidth-int-literals-and-logical-shift.md` (2026-10-01T23:33:34Z)
+
+- **Synthesis: PROCEED** (total $0.0000, 0 in / 0 out tok)
+- `gpt6-1-sol` → **ABSENT** (auth) — degraded to N-1, not a silent pass
+- `gemini-3-1-pro` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- `oc-kimi-k3` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- `claude-sonnet-5@claude-p` → **ABSENT** (quota) — degraded to N-1, not a silent pass
+- `oc-glm-5-3` (SAME VENDOR AS THE AUTHOR — recalled because every independent seat was absent) → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- controller (in-session, not an API call) → **pass** — Controller in-session verdict: every language claim live-probed at v0.51.0 b99dd25 (the report's commit) — repro, pattern-position silent MaxInt64 clamp (f(9223372036854775807) matches arm 0x9e3779b97f4a7c15), float 1e999 pattern silent +Inf match, backend agreement on wrap/shift, PAR021 grep-unallocated, ParseUint-wrap identity for in-range literals. Systemic audit found 3 instances of one root gap (expression/pattern-int/pattern-float) plus the latent SMT MinInt64 negation bug the fix would expose — all folded into one fix. Logical shift kept in the builtin lane per default-bias; >>> operator deferred with an explicit demand-evidence gate and a pre-audited file list. Net axiom score +6, no hard violations.
