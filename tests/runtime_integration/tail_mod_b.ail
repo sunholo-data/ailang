@@ -1,0 +1,4 @@
+module tests/runtime_integration/tail_mod_b
+import tests/runtime_integration/tail_mod_c (loop)
+pure func start() -> int = 0
+export pure func step(n: int) -> int = loop(start(), n)

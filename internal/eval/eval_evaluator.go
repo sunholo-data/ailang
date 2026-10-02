@@ -90,16 +90,16 @@ type budgetChargeScoper interface {
 }
 
 // enterBudgetChargeBoundary resets the effect context's budget charge-scope depth
-// on entry to an AILANG function body and returns a restore closure. In the
-// common case (depth already 0, e.g. a normal top-level call) this is a no-op.
+// on entry to an AILANG function body and returns a restore closure, or nil when
+// the depth was already 0 (a normal top-level call, and any tail call).
 func (e *CoreEvaluator) enterBudgetChargeBoundary() func() {
 	scoper, ok := e.effContext.(budgetChargeScoper)
 	if !ok {
-		return func() {}
+		return nil
 	}
 	prev := scoper.SaveAndResetBudgetChargeScope()
 	if prev == 0 {
-		return func() {}
+		return nil // nothing to restore; applyFunctionValue keeps only non-nil restores
 	}
 	return func() { scoper.RestoreBudgetChargeScope(prev) }
 }
@@ -320,63 +320,11 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (retVal Va
 		return nil, fmt.Errorf("function expects %d arguments, got %d", len(fn.Params), len(args))
 	}
 
-	// Create new environment with parameters bound.
-	// M-PERF6 Phase 4a: Use NewChildEnvironment (O(1)) instead of Clone (O(n)).
-	// Params go into an empty child scope; lookups for captured names traverse
-	// the parent chain. Semantically equivalent to Clone+Set because AILANG
-	// never mutates existing bindings in the defining environment.
-	newEnv := fn.Env.NewChildEnvironment()
-	for i, param := range fn.Params {
-		newEnv.Set(param, args[i])
-	}
-
-	// M-BUDGET-SCOPING-BUG: push a per-invocation budget frame if the signature
-	// is annotated. The deferred pop is unwind-safe: it fires on every exit path
-	// (normal, error, precondition early-return) so a callee error can never leak
-	// a stale frame. On normal exit it runs the frame's @min check; on error exit
-	// the @min check is suppressed and the body error propagates unchanged.
-	if e.effContext != nil {
-		defer e.enterBudgetChargeBoundary()()
-		if e.pushBudgetFrameIfAnnotated(fn, "") {
-			defer e.deferredPopBudgetFrame("", &err)
-		}
-		// M-EFFECT-REPLAY-CONTRACTS: push the declared non-os Rand mode for the
-		// dynamic extent of this call; unwind-safe pop on every exit path.
-		if mode := e.pushRandModeIfDeclared(fn); mode != "" {
-			defer e.deferredPopRandMode(mode)
-		}
-	}
-
-	// Evaluate body in new environment
-	oldEnv := e.env
-	e.env = newEnv
-
-	// M-VERIFY-CONTRACTS: Check preconditions before executing body
-	if preErr := e.checkPreconditions(fn); preErr != nil {
-		e.env = oldEnv
-		err = preErr
-		return nil, err
-	}
-
-	var result Value
-	if coreBody, ok := fn.Body.(core.CoreExpr); ok {
-		result, err = e.evalCore(coreBody)
-	} else {
-		err = fmt.Errorf("function body is not Core AST")
-	}
-
-	// M-VERIFY-CONTRACTS: Check postconditions before returning (if no error)
-	if err == nil {
-		if postErr := e.checkPostconditions(fn, result); postErr != nil {
-			e.env = oldEnv
-			err = postErr
-			return nil, err
-		}
-	}
-
-	e.env = oldEnv
-
-	return result, err
+	// M-EVAL-TAIL-CALLS: the shared loop runs the body and follows tail calls.
+	// This frame keeps CallFunction's contract (no depth guard, no trace, no
+	// resolver wrap, budget frame name ""); frames it tail-calls follow
+	// evalCoreApp's, exactly as when they were reached by nested evaluation.
+	return e.applyFunctionValue(fn, args, "", callFunctionFrame)
 }
 
 // pushBudgetFrameIfAnnotated pushes a per-invocation budget frame when the

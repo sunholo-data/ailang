@@ -1,0 +1,11 @@
+module cmd/ailang/testdata/tailcall/mutual_io
+import std/io (println)
+func ping(i: int, n: int) -> int ! {IO} {
+  println("ping ${show(i)}");
+  if i >= n then i else pong(i + 1, n)
+}
+func pong(i: int, n: int) -> int ! {IO} = match i >= n {
+  true => i,
+  false => ping(i + 1, n)
+}
+export func main(n: int) -> int ! {IO} = ping(0, n)

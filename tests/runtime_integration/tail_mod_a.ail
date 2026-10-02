@@ -1,0 +1,3 @@
+module tests/runtime_integration/tail_mod_a
+import tests/runtime_integration/tail_mod_b (step)
+export pure func main(n: int) -> int = step(n)

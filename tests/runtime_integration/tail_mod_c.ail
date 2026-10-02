@@ -1,0 +1,3 @@
+module tests/runtime_integration/tail_mod_c
+pure func bump(i: int) -> int = i + 1
+export pure func loop(i: int, n: int) -> int = if i >= n then i else loop(bump(i), n)

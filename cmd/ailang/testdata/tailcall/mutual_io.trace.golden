@@ -1,0 +1,19 @@
+out: 3
+event="module_start" module={"caps":["IO"],"name":"cmd/ailang/testdata/tailcall/mutual_io"} span_id="s1" version="1.0"
+depth=1 event="function_enter" function={"args":["0","3"],"name":"ping"} parent_span_id="s1" span_id="s2" version="1.0"
+depth=2 event="function_enter" function={"args":["ping 0"],"name":"std/io.println"} parent_span_id="s2" span_id="s3" version="1.0"
+depth=2 effect={"args":["ping 0"],"effect_name":"IO","op_name":"println","result":"()"} event="effect" span_id="s3" version="1.0"
+depth=2 event="function_exit" function={"name":"std/io.println","result":"()"} span_id="s3" version="1.0"
+depth=2 event="function_enter" function={"args":["1","3"],"name":"pong"} parent_span_id="s2" span_id="s4" version="1.0"
+depth=3 event="function_enter" function={"args":["2","3"],"name":"ping"} parent_span_id="s4" span_id="s5" version="1.0"
+depth=4 event="function_enter" function={"args":["ping 2"],"name":"std/io.println"} parent_span_id="s5" span_id="s6" version="1.0"
+depth=4 effect={"args":["ping 2"],"effect_name":"IO","op_name":"println","result":"()"} event="effect" span_id="s6" version="1.0"
+depth=4 event="function_exit" function={"name":"std/io.println","result":"()"} span_id="s6" version="1.0"
+depth=4 event="function_enter" function={"args":["3","3"],"name":"pong"} parent_span_id="s5" span_id="s7" version="1.0"
+depth=4 event="function_exit" function={"name":"pong","result":"3"} span_id="s7" version="1.0"
+depth=3 event="function_exit" function={"name":"ping","result":"3"} span_id="s5" version="1.0"
+depth=2 event="function_exit" function={"name":"pong","result":"3"} span_id="s4" version="1.0"
+depth=1 event="function_exit" function={"name":"ping","result":"3"} span_id="s2" version="1.0"
+event="module_end" module={"name":"cmd/ailang/testdata/tailcall/mutual_io"} span_id="s1" version="1.0"
+exit=0
+error=

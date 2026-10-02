@@ -1,0 +1,13 @@
+out: 3
+event="module_start" module={"name":"cmd/ailang/testdata/tailcall/loop"} span_id="s1" version="1.0"
+depth=1 event="function_enter" function={"args":["0","3"],"name":"count"} parent_span_id="s1" span_id="s2" version="1.0"
+depth=2 event="function_enter" function={"args":["1","3"],"name":"count"} parent_span_id="s2" span_id="s3" version="1.0"
+depth=3 event="function_enter" function={"args":["2","3"],"name":"count"} parent_span_id="s3" span_id="s4" version="1.0"
+depth=4 event="function_enter" function={"args":["3","3"],"name":"count"} parent_span_id="s4" span_id="s5" version="1.0"
+depth=4 event="function_exit" function={"name":"count","result":"3"} span_id="s5" version="1.0"
+depth=3 event="function_exit" function={"name":"count","result":"3"} span_id="s4" version="1.0"
+depth=2 event="function_exit" function={"name":"count","result":"3"} span_id="s3" version="1.0"
+depth=1 event="function_exit" function={"name":"count","result":"3"} span_id="s2" version="1.0"
+event="module_end" module={"name":"cmd/ailang/testdata/tailcall/loop"} span_id="s1" version="1.0"
+exit=0
+error=
