@@ -42,17 +42,48 @@ if [ -n "$BRANCH" ]; then
     fi
 fi
 
+# Each gate runs ONCE: output is captured to a file and the failure tail is
+# read from it. (This script used to re-run `make test`/`make lint` on failure
+# just to capture the tail, and then ran `go test ./...` a third time for
+# coverage: up to three whole-repo test runs per evaluation, 2026-10-02.)
+EVAL_TMP=$(mktemp -d "${TMPDIR:-/tmp}/sprint-eval.XXXXXX")
+KEEP_LOGS=false
+trap '$KEEP_LOGS || rm -rf "$EVAL_TMP"' EXIT
+
+# run_gate NAME CMD... : runs CMD once, echoes PASS/FAIL, leaves output in $EVAL_TMP/NAME.log
+run_gate() {
+    local name="$1"; shift
+    if "$@" >"$EVAL_TMP/$name.log" 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
 # --- Test Suite ---
+# EVAL_PACKAGES="./internal/foo/... ./cmd/bar" scopes the run to the sprint's
+# packages (a fast pre-check). Unset = `make test`, the CI-equivalent run.
 echo ""
 echo "── Running Tests ──────────────────────────────────────────────"
 TESTS_PASS=false
 TESTS_OUTPUT=""
-if make test 2>&1; then
+if [ -n "${EVAL_PACKAGES:-}" ]; then
+    echo "Scope: EVAL_PACKAGES=$EVAL_PACKAGES"
+    read -r -a EVAL_PKGS <<<"$EVAL_PACKAGES"   # bash 3.2-safe (no mapfile)
+    TEST_CMD=(go test "${EVAL_PKGS[@]}" -count=1)
+else
+    TEST_CMD=(make test)
+fi
+if run_gate tests "${TEST_CMD[@]}"; then
     TESTS_PASS=true
     echo "✅ Tests PASS"
 else
-    TESTS_OUTPUT=$(make test 2>&1 | tail -20)
+    # The failing packages and tests, not the last 20 lines: `make test` is
+    # verbose and alphabetical, so its tail is usually passing packages.
+    TESTS_OUTPUT=$(grep -E '^(--- FAIL|FAIL[[:space:]]|panic:)' "$EVAL_TMP/tests.log" | head -40)
+    KEEP_LOGS=true
     echo "❌ Tests FAIL"
+    echo "$TESTS_OUTPUT"
+    echo "Full log kept: $EVAL_TMP/tests.log"
 fi
 
 # --- Linting ---
@@ -60,12 +91,13 @@ echo ""
 echo "── Running Lint ───────────────────────────────────────────────"
 LINT_CLEAN=false
 LINT_OUTPUT=""
-if make lint 2>&1; then
+if run_gate lint make lint; then
     LINT_CLEAN=true
     echo "✅ Lint CLEAN"
 else
-    LINT_OUTPUT=$(make lint 2>&1 | tail -20)
+    LINT_OUTPUT=$(tail -20 "$EVAL_TMP/lint.log")
     echo "❌ Lint FAIL"
+    echo "$LINT_OUTPUT"
 fi
 
 # --- File Sizes ---
@@ -73,23 +105,25 @@ echo ""
 echo "── Checking File Sizes ──────────────────────────────────────"
 FILE_SIZES_OK=false
 FILE_SIZES_OUTPUT=""
-if make check-file-sizes 2>&1; then
+if run_gate sizes make check-file-sizes; then
     FILE_SIZES_OK=true
     echo "✅ File sizes OK"
 else
-    FILE_SIZES_OUTPUT=$(make check-file-sizes 2>&1 | tail -20)
+    FILE_SIZES_OUTPUT=$(tail -20 "$EVAL_TMP/sizes.log")
     echo "⚠️  File size warnings"
+    echo "$FILE_SIZES_OUTPUT"
 fi
 
-# --- Coverage ---
+# --- Coverage (opt-in) ---
+# A whole-repo coverage run is a second full `go test ./...`; opt in with
+# EVAL_COVERAGE=1 (it honours EVAL_PACKAGES when set).
 echo ""
 echo "── Collecting Coverage ──────────────────────────────────────"
-COVERAGE_PCT="unknown"
-if command -v go >/dev/null 2>&1; then
-    COVERAGE_LINE=$(go test ./... -coverprofile=/tmp/coverage_eval.out 2>&1 | grep "^ok" | awk '{print $NF}' | grep -o '[0-9.]*%' | head -1 || echo "")
-    if [ -n "$COVERAGE_LINE" ]; then
-        COVERAGE_PCT="$COVERAGE_LINE"
-    fi
+COVERAGE_PCT="skipped (set EVAL_COVERAGE=1)"
+if [ "${EVAL_COVERAGE:-0}" = "1" ] && command -v go >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
+    COVERAGE_LINE=$(go test ${EVAL_PACKAGES:-./...} -coverprofile="$EVAL_TMP/coverage.out" 2>&1 | grep "^ok" | awk '{print $NF}' | grep -o '[0-9.]*%' | head -1 || echo "")
+    COVERAGE_PCT="${COVERAGE_LINE:-unknown}"
 fi
 echo "Coverage: $COVERAGE_PCT"
 

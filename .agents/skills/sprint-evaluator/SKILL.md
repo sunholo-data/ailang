@@ -12,8 +12,10 @@ Independently evaluate a completed sprint implementation against its design doc,
 - **Branch**: !'git branch --show-current'
 - **Active sprints**: !'ls .ailang/state/sprints/ 2>/dev/null | head -5 || echo "none"'
 - **Existing evaluations**: !'ls .ailang/state/evaluations/ 2>/dev/null | head -5 || echo "none"'
-- **Test status**: !'make test 2>&1 | tail -1'
-- **Lint status**: !'make lint 2>&1 | tail -1'
+- **Last commit**: !'git log -1 --format="%h %s" 2>/dev/null'
+
+> Tests and lint are NOT run at skill load: each would be a whole-repo run before the
+> evaluation even starts, repeated by `evaluate_sprint.sh` (2026-10-02). Phase 2 runs them once.
 
 > **Use the data above first.** Only re-run these commands manually if the injected context is empty or you need to refresh after making changes.
 
@@ -91,11 +93,19 @@ Run automated quality checks using the evaluation script:
 .claude/skills/sprint-evaluator/scripts/evaluate_sprint.sh <sprint-id> [branch]
 ```
 
-This runs:
-- `make test` — All tests must pass (HARD FAIL if not)
+This runs each gate **once** (output captured, never re-run to read the tail):
+- `make test` — All tests must pass (HARD FAIL if not). `EVAL_PACKAGES="./a/... ./b"` scopes it
+  to the sprint's packages for a fast pre-check; the verdict still needs the full run
+  (CI-equivalent), on a clean tree — another session's uncommitted work in a shared checkout
+  makes a whole-repo run fail for reasons outside the sprint
+  - **A clean worktree must not live under `$TMPDIR`.** `internal/loader` `TestIsTempPath`
+    resolves relative paths against the cwd, so under `$TMPDIR` every path is "temp" and the
+    test fails for reasons unrelated to the sprint (2026-10-02). Put it under `.claude/worktrees/`.
+  - GitHub CI at a commit that contains the sprint is an independent, free signal. Check
+    `gh run list --branch dev --workflow ci.yml` before re-running a whole-repo suite locally.
 - `make lint` — Linting must be clean
 - `make check-file-sizes` — No files exceeding 800 lines
-- `make test-coverage-badge` — Coverage metrics
+- Coverage — opt-in (`EVAL_COVERAGE=1`): it is a second whole-repo test run
 
 **When the sprint touches `examples/` or `examples/manifest.json`, ALSO run `make verify-examples` (HARD FAIL if red).** `make test` and `make check-file-sizes` do NOT cover the manifest-drift gate — a sprint that adds an example but omits/leaves-stale its manifest `modules` field passes local `go test` yet fails the CI `test` job's `verify-examples` step (`validate_manifest --ci`). Recurrent class ([[project_verify_examples_red_is_usually_manifest_drift]]); 2nd instance of a manifest defect reaching CI *through* a green evaluator verdict (iter-101, PR #479). If drift is found, fix it surgically (populate the `modules` field for the new entry — do NOT run `backfill_manifest_modules.go`, which reserializes the whole file and churns unrelated unicode-escaped entries) or fail the sprint back to the executor.
 
