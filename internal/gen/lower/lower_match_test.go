@@ -89,13 +89,10 @@ func TestLowerMatchStmt_ConstructorWithBindings(t *testing.T) {
 
 // TestLowerMatchStmt_ConstructorWithLiteralArg is the regression test for
 // Bug A.2 (M-LOWER-FIX follow-up): a constructor pattern with a literal
-// sub-argument (e.g., `Num(0) => true, _ => false`) must compile so that
-// the literal value is actually checked, not silently ignored. The lowered
-// SwitchStmt should have:
-//
-//   - A binding for the literal field (named `_lit_0`).
-//   - A wrapping IfStmt whose condition compares the bound value to the
-//     literal, with the default body in the else branch.
+// sub-argument (`Num(0) => true, _ => false`) must check the literal, not
+// match any `Num(_)`. Since m-vm-match-lowering a refutable constructor
+// argument routes the match to the if-chain, whose condition is the tag
+// check AND the literal comparison on the positional field.
 func TestLowerMatchStmt_ConstructorWithLiteralArg(t *testing.T) {
 	cti := makeCTI(nil)
 
@@ -118,43 +115,30 @@ func TestLowerMatchStmt_ConstructorWithLiteralArg(t *testing.T) {
 	}
 
 	result := LowerMatchStmt(m, cti)
-	sw, ok := result.(stmt.SwitchStmt)
+	ifStmt, ok := result.(stmt.IfStmt)
 	if !ok {
-		t.Fatalf("expected SwitchStmt, got %T", result)
+		t.Fatalf("expected if-chain IfStmt, got %T", result)
 	}
-	if len(sw.Cases) != 1 {
-		t.Fatalf("expected 1 case, got %d", len(sw.Cases))
+	and, ok := ifStmt.Cond.(stmt.BinOp)
+	if !ok || and.Op != stmt.OpAnd {
+		t.Fatalf("expected tag-check && literal-check, got %s", stmtCondString(ifStmt.Cond))
 	}
-	c := sw.Cases[0]
-	if c.Tag != "Num" {
-		t.Errorf("expected tag Num, got %s", c.Tag)
+	if tag, ok := and.Left.(stmt.ADTTagEq); !ok || tag.Tag != "Num" {
+		t.Errorf("expected ADTTagEq{Num} first, got %#v", and.Left)
 	}
-	// Bug A.2 fix: literal sub-pattern must be bound to a temp.
-	if len(c.Bindings) != 1 || c.Bindings[0].Name != "_lit_0" {
-		t.Fatalf("expected binding _lit_0, got %+v", c.Bindings)
+	eq, ok := and.Right.(stmt.BinOp)
+	if !ok || eq.Op != stmt.OpEq {
+		t.Fatalf("expected literal Eq second, got %#v", and.Right)
 	}
-	// Body must be wrapped in an IfStmt that compares _lit_0 to 0.
-	if len(c.Body) != 1 {
-		t.Fatalf("expected case body length 1 (the wrapping if), got %d", len(c.Body))
+	if fa, ok := eq.Left.(stmt.FieldAccess); !ok || fa.Field != "_0" {
+		t.Errorf("expected literal compared against field _0, got %#v", eq.Left)
 	}
-	ifStmt, ok := c.Body[0].(stmt.IfStmt)
-	if !ok {
-		t.Fatalf("expected case body to be IfStmt (literal-guard wrapper), got %T", c.Body[0])
+	if v, ok := eq.Right.(stmt.LitInt); !ok || v.Value != 0 {
+		t.Errorf("expected literal 0, got %#v", eq.Right)
 	}
-	binOp, ok := ifStmt.Cond.(stmt.BinOp)
-	if !ok || binOp.Op != stmt.OpEq {
-		t.Fatalf("expected guard cond to be Eq BinOp, got %+v", ifStmt.Cond)
-	}
-	if v, ok := binOp.Left.(stmt.VarRef); !ok || v.Name != "_lit_0" {
-		t.Errorf("expected guard left to reference _lit_0, got %+v", binOp.Left)
-	}
-	if v, ok := binOp.Right.(stmt.LitInt); !ok || v.Value != 0 {
-		t.Errorf("expected guard right to be LitInt 0, got %+v", binOp.Right)
-	}
-	// Else branch must be the default body (so the case falls through
-	// to "false" when the guard fails, instead of silently exiting).
+	// The wildcard arm is the else branch.
 	if len(ifStmt.Else) == 0 {
-		t.Error("expected guard else branch to contain default body, got empty")
+		t.Error("expected the wildcard arm in the else branch, got empty")
 	}
 }
 
@@ -251,18 +235,13 @@ func TestLowerMatchStmt_ConsConstructorHead(t *testing.T) {
 	}
 }
 
-// containsTagCheck recursively checks whether an expression contains
-// a BinOp{OpEq, FieldAccess{Field:"Tag"}, LitString{Value:tag}}.
+// containsTagCheck recursively checks whether an expression contains an
+// ADTTagEq for tag.
 func containsTagCheck(e stmt.Expr, tag string) bool {
 	switch e := e.(type) {
+	case stmt.ADTTagEq:
+		return e.Tag == tag
 	case stmt.BinOp:
-		if e.Op == stmt.OpEq {
-			fa, faOk := e.Left.(stmt.FieldAccess)
-			ls, lsOk := e.Right.(stmt.LitString)
-			if faOk && lsOk && fa.Field == "Tag" && ls.Value == tag {
-				return true
-			}
-		}
 		return containsTagCheck(e.Left, tag) || containsTagCheck(e.Right, tag)
 	default:
 		return false

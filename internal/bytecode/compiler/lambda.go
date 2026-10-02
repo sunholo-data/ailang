@@ -259,6 +259,8 @@ func (v *freeVarVisitor) visitExpr(e stmt.Expr) {
 		for _, a := range e.Args {
 			v.visitExpr(a)
 		}
+	case stmt.ADTTagEq:
+		v.visitExpr(e.Value)
 	}
 }
 

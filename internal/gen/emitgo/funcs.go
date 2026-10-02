@@ -254,6 +254,15 @@ func (e *emitter) emitExpr(expr stmt.Expr) {
 		e.emitIfExpr(ex)
 	case stmt.BuiltinCall:
 		e.emitBuiltinCall(ex)
+	case stmt.ADTTagEq:
+		// Same comparison emitSwitchCase writes for a case label.
+		e.writef("(")
+		e.emitExpr(ex.Value)
+		if ex.TypeName != "" {
+			e.writef(".Kind == %sKind%s)", capitalize(ex.TypeName), capitalize(ex.Tag))
+		} else {
+			e.writef(".Kind == %q /* tag match */)", ex.Tag)
+		}
 	default:
 		e.writef("nil /* unknown expr %T */", expr)
 	}

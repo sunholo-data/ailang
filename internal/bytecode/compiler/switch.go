@@ -139,14 +139,25 @@ func (fc *funcCompiler) compileSwitch(s stmt.SwitchStmt) error {
 // ADTs share all the case tags the first declared wins — deterministic, but
 // not a soundness guarantee; tag identity at runtime is future work.
 func (fc *funcCompiler) inferADTFromCases(cases []stmt.SwitchCase) (string, adtTypeInfo, bool) {
-	if len(cases) == 0 {
+	tags := make([]string, len(cases))
+	for i, c := range cases {
+		tags[i] = c.Tag
+	}
+	return fc.inferADTFromTags(tags)
+}
+
+// inferADTFromTags is the tag-list core of inferADTFromCases, shared with
+// the ADTTagEq tag check (adt_tag.go) so the switch path and the if-chain
+// path resolve a tag to an ADT by one rule.
+func (fc *funcCompiler) inferADTFromTags(tags []string) (string, adtTypeInfo, bool) {
+	if len(tags) == 0 {
 		return "", adtTypeInfo{}, false
 	}
 	for _, name := range fc.adtOrder {
 		info := fc.adtTypes[name]
 		allMatch := true
-		for _, c := range cases {
-			if _, ok := info.tagOrdinal[c.Tag]; !ok {
+		for _, tag := range tags {
+			if _, ok := info.tagOrdinal[tag]; !ok {
 				allMatch = false
 				break
 			}

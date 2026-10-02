@@ -1,6 +1,6 @@
 # M-VM-ADT-TAG-CHECK-LOWERING — mixed-match ADT tag checks lower as record field access (`_record_get` on an ADT): strict VM crash on constructor sub-patterns (e.g. `TText(t) :: r`), broken Go from `--emit-go-v2`
 
-**Status**: Planned
+**Status**: Superseded by / implemented in [m-vm-match-lowering.md](m-vm-match-lowering.md) (2026-10-02, v0.51.1) — one recursive lowering fixes this doc together with its three siblings. Original status: Planned
 **Target**: v0.51.3 (bug fix; strict-VM soundness, clause-2 parity family)
 **Priority**: P0 — the reported shape (constructor pattern at the head of a cons pattern in a mixed-arm match) crashes `--strict-bytecode` with a loud VM error; plain `--bytecode` masks it by silently falling back to the evaluator; `ailang compile --emit-go-v2` emits Go that cannot build for the same shape.
 **Estimated**: ~2 days (root cause fully localized; the correct opcode machinery — `OpGetTag`, tag ordinals, `inferADTFromCases` — already exists in the switch path and is reused)

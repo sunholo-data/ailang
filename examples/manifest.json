@@ -1084,6 +1084,21 @@
       ]
     },
     {
+      "path": "nested_patterns.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching",
+        "nesting",
+        "guards",
+        "adt",
+        "bytecode"
+      ],
+      "description": "Nested cons, constructor sub-patterns and guards over pattern bindings (evaluator = strict VM)",
+      "modules": [
+        "std/io"
+      ]
+    },
+    {
       "path": "no_loops_filter_map.ail",
       "status": "working",
       "tags": [

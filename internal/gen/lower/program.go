@@ -596,6 +596,9 @@ func rewriteExpr(e stmt.Expr, funcModule map[string]string, locals map[string]bo
 			ex.Args[i] = rewriteExpr(ex.Args[i], funcModule, locals)
 		}
 		return ex
+	case stmt.ADTTagEq:
+		ex.Value = rewriteExpr(ex.Value, funcModule, locals)
+		return ex
 	}
 	return e
 }
@@ -707,5 +710,7 @@ func walkExpr(e stmt.Expr, visit func(stmt.Expr)) {
 		for _, a := range e.Args {
 			walkExpr(a, visit)
 		}
+	case stmt.ADTTagEq:
+		walkExpr(e.Value, visit)
 	}
 }
