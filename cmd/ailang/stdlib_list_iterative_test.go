@@ -90,9 +90,6 @@ func listIterWant(entry string, n int) string {
 }
 
 func TestStdListHelpersIterativeAtScale(t *testing.T) {
-	if testing.Short() {
-		t.Skip("runs 15 programs over 200,000-element lists")
-	}
 	bin := buildAilang(t)
 	const n = 200000
 	const ceiling = 30 * time.Second
