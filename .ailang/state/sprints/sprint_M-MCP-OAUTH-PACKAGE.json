@@ -76,9 +76,9 @@
         "grep Net[scope=public] in cimd.ail (after S0 #1522 lands); test 'cimd fetch refused for private resolution' or documented S0 coverage"
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-02T18:41:22+00:00",
       "completed": null,
-      "notes": null
+      "notes": "ecc6c8f: flow.ail complete EXCEPT the CIMD fetch module (waits for S0 Net[scope=public], ailang #1522 subagent). flow_check.sh 8/8; ifc_leaks.sh 3/3 injected leaks rejected + clean compiles; lint ok. Mutation: client check caught; replay revoke caught when both paths removed (direct revoke alone is an equivalent mutant: family revocation covers it). Script trap fixed: pipefail + grep -q flips matches to failures -> here-strings."
     },
     {
       "id": "P3",
@@ -91,10 +91,10 @@
         "ailang pkg quality packages/mcp-oauth exits 0 with no PUB gate; numbers reported (contracts verified/total, tests n/n, smoke)",
         "ailang publish --dry-run in packages/mcp-oauth: no refusal"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T18:41:22+00:00",
+      "completed": "2026-10-02T18:41:22+00:00",
+      "notes": "f125635: pkg quality no gates (6/6 verified, 0 refuted, 17 uncontracted PUB011 warn, tests 32/32, smoke 5/5, ceiling declared); publish --dry-run no gates."
     },
     {
       "id": "P4",
