@@ -1,0 +1,116 @@
+{
+  "sprint_id": "M-MCP-OAUTH-PACKAGE",
+  "status": "not_started",
+  "created": "2026-10-02T18:30:14Z",
+  "design_doc": "design_docs/planned/v0_52_0/m-mcp-oauth-package.md",
+  "sprint_plan": "design_docs/planned/v0_52_0/m-mcp-oauth-package-sprint-plan.md",
+  "github_issues": [
+    1522,
+    1523
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "P1",
+      "package": null,
+      "action": "none",
+      "reason": "pure predicates; std/crypto + std/bytes"
+    },
+    {
+      "milestone": "P2",
+      "package": "sunholo/auth",
+      "action": "none",
+      "reason": "authenticate is a hook (D3); adopters (Parse) depend on sunholo/auth firebase_jwt"
+    },
+    {
+      "milestone": "P2",
+      "package": "sunholo/firestore",
+      "action": "none",
+      "reason": "store is a hook; adopters depend on firestore; package ships in-memory test store"
+    },
+    {
+      "milestone": "P3",
+      "package": null,
+      "action": "none",
+      "reason": "packaging"
+    },
+    {
+      "milestone": "P4",
+      "package": null,
+      "action": "none",
+      "reason": "integration fixture"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 320,
+    "estimated_total_loc": 1600,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "P1",
+      "description": "Pure core mcp_oauth/core: PKCE S256, verifier, exact + loopback redirect, CIMD URL predicate, TTL, AS metadata; Z3-verified",
+      "estimated_loc": 400,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "ailang test packages/mcp-oauth/core_test.ail passes incl. test 'pkce rfc7636 vector' and 'pkce rejects wrong verifier'",
+        "ailang verify packages/mcp-oauth/core.ail: redirectAllowed, verifierOk, cimdUrlOk, codeExpiresAt VERIFIED, 0 VIOLATION",
+        "ailang verify packages/mcp-oauth/tests/broken_redirect.ail reports VIOLATION",
+        "tests 'cimd rejects <case>' for http, ipv4, ipv6, localhost, .internal, metadata.google.internal, userinfo, fragment"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "P2",
+      "description": "Flow + CIMD: authorize/login-complete/token/refresh with hooks {authenticate,mint,store,revoke}, labels, digests, single use, replay revocation, refresh rotation, crypto minting, Net[scope=public] @limit=1 CIMD fetch",
+      "estimated_loc": 650,
+      "dependencies": [
+        "P1"
+      ],
+      "acceptance_criteria": [
+        "flow_test.ail tests pass: 'authorize rejects plain pkce','authorize rejects unregistered redirect','code is single use','code replay revokes','expired code rejected','code bound to client and redirect','refresh rotates','refresh reuse revokes family'",
+        "bash packages/mcp-oauth/tests/ifc_leaks.sh: 3 injected leaks into a copy of flow.ail rejected by ailang check; clean copy passes",
+        "bash packages/mcp-oauth/tests/lint.sh: no declared record with string< field in flow.ail; minting fns declare Rand[mode=crypto]; no == on code/token/verifier digests",
+        "grep Net[scope=public] in cimd.ail (after S0 #1522 lands); test 'cimd fetch refused for private resolution' or documented S0 coverage"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "P3",
+      "description": "Packaging: ailang.toml effects ceiling + release + repository, CHANGELOG, AGENT.md adopter checklist, _smoke.ail, routes template",
+      "estimated_loc": 250,
+      "dependencies": [
+        "P2"
+      ],
+      "acceptance_criteria": [
+        "ailang pkg quality packages/mcp-oauth exits 0 with no PUB gate; numbers reported (contracts verified/total, tests n/n, smoke)",
+        "ailang publish --dry-run in packages/mcp-oauth: no refusal"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "P4",
+      "description": "Integration: example service with Phase A @mcp_auth tool + the four endpoints, in-memory store; ailang mcp check 5/5; scripted PKCE e2e incl. replay revocation",
+      "estimated_loc": 300,
+      "dependencies": [
+        "P3"
+      ],
+      "acceptance_criteria": [
+        "ailang mcp check http://localhost:PORT/mcp/connect/ --target both: all five checks PASS",
+        "bash packages/mcp-oauth/tests/e2e_flow.sh: authorize->login->token->gated tool 200; code replay -> invalid_grant and token then 401"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
