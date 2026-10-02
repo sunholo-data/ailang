@@ -28,7 +28,7 @@ import std/net (httpGet)
 import std/string (length)
 
 -- "good" passes; "slow" hangs on a Net call (the gate's deadline must abort
--- it); "boom" divides by zero (a runtime panic inside the verifier).
+-- it); "boom" divides by zero (an RT001 runtime error inside the verifier).
 @mcp_token_verifier
 export func verifyToken(token: string) -> bool ! {Net} =
   if token == "slow" then length(httpGet(%q)) >= 0
@@ -142,9 +142,11 @@ func TestMCPGate_Outcomes(t *testing.T) {
 	if st, _, body := rpc(t, listed, "good", "tools/call", call("gated", map[string]any{"doc": "d"})); st != 200 || !strings.Contains(body, "parsed:d") {
 		t.Fatalf("good token: %d %s", st, body)
 	}
-	// A panic inside the AILANG verifier fails closed.
+	// A runtime error inside the AILANG verifier fails closed. (Integer
+	// division by zero was a Go panic until #1449; the gate's panic arm is
+	// pinned by serveapi/protocol TestBearerGate_Outcomes "verifier panic".)
 	if st, h, body := rpc(t, listed, "boom", "tools/call", call("gated", map[string]any{"doc": "d"})); st != 503 || h.Get("Retry-After") == "" || strings.Contains(body, "parsed:") {
-		t.Fatalf("panicking verifier: %d %s", st, body)
+		t.Fatalf("failing verifier: %d %s", st, body)
 	}
 }
 

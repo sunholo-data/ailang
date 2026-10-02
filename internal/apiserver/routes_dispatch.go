@@ -159,10 +159,11 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 		log.Printf("[API] %s/%s failed: %v", modulePath, funcName, callErr)
 		httpjson.Write(w, http.StatusInternalServerError, FunctionCallResponse{
-			Module:    modulePath,
-			Func:      funcName,
-			Error:     callErr.Error(),
-			ElapsedMs: elapsed,
+			Module:      modulePath,
+			Func:        funcName,
+			Error:       callErr.Error(),
+			ErrorDetail: runtimeErrorDetail(callErr),
+			ElapsedMs:   elapsed,
 		})
 		return
 	}

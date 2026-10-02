@@ -304,15 +304,7 @@ func (r *REPL) initBuiltins() {
 					return result
 				}),
 			},
-			"div": &eval.BuiltinFunction{
-				Name: "div",
-				Fn: wrapInt2(func(a, b int64) int64 {
-					if b == 0 {
-						panic("division by zero")
-					}
-					return a / b
-				}),
-			},
+			"div": &eval.BuiltinFunction{Name: "div", Fn: intDivFn},
 		},
 	}
 
