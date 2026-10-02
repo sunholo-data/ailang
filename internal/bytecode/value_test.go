@@ -3,6 +3,7 @@ package bytecode
 import (
 	"math"
 	"testing"
+	"unsafe"
 )
 
 // stubProto is a test-only FuncPrototypeRef so value tests don't depend on
@@ -16,6 +17,18 @@ type stubProto struct {
 func (s *stubProto) ProtoName() string    { return s.name }
 func (s *stubProto) NumRegisters() uint8  { return s.regs }
 func (s *stubProto) NumParameters() uint8 { return s.params }
+
+// TestValueSize pins the packed layout (#1501 Phase 3): list cons and list
+// builds copy whole Values, so the VM's bytes-per-element on copy-heavy
+// shapes is this size. Declaring Bool after Int/Flt pads it back to 48.
+func TestValueSize(t *testing.T) {
+	if unsafe.Sizeof(uintptr(0)) != 8 {
+		t.Skip("size pinned for 64-bit platforms")
+	}
+	if got := unsafe.Sizeof(Value{}); got != 40 {
+		t.Errorf("unsafe.Sizeof(bytecode.Value{}) = %d, want 40", got)
+	}
+}
 
 func TestConstructors_Tags(t *testing.T) {
 	cases := []struct {

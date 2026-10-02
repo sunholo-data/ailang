@@ -1,0 +1,11 @@
+module consrepro
+import std/list (foldl, length)
+import std/io (println)
+import std/string (split, repeat, intToStr)
+
+pure func rev[a](xs: [a]) -> [a] = foldl(\acc x. x :: acc, [], xs)
+
+export func main(n: int) -> () ! {IO} {
+  let xs = split(repeat("ab,", n), ",")
+  println(intToStr(length(rev(xs))))
+}

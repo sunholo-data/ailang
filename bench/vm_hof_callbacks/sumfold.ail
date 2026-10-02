@@ -1,0 +1,8 @@
+module sumfold
+import std/list (foldl, range)
+import std/io (println)
+import std/string (intToStr)
+
+export func main(n: int) -> () ! {IO} {
+  println(intToStr(foldl(\acc x. acc + x, 0, range(0, n))))
+}

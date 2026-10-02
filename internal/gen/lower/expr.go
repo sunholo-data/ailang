@@ -163,6 +163,12 @@ func lowerLit(e *core.Lit) stmt.Expr {
 }
 
 func lowerLambda(e *core.Lambda, cti types.CoreTypeInfo) stmt.Expr {
+	// A nested lambda with a frame mode (Rand[mode=crypto], Net[scope=public],
+	// a budget) would run as a VM closure with the mode dropped; send the
+	// enclosing top-level function to the evaluator instead (#1545).
+	if reason := lambdaFrameModeReason(e, cti); reason != "" {
+		panic(frameModePanic{reason: reason})
+	}
 	params := make([]stmt.Param, len(e.Params))
 	for i, name := range e.Params {
 		// Try to resolve parameter types from the lambda's type info.
