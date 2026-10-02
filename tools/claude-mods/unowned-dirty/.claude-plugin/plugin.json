@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "unowned-dirty",
+  "version": "0.1.0",
+  "description": "Warns when a git add/stash/checkout/restore/reset may sweep dirty files this session did not write (shared checkouts have several agents). A toast for the person, a note in the model's context; never blocks. Port of the pi extension of the same name.",
+  "author": { "name": "AILANG" },
+  "keywords": ["ailang", "mod", "git", "shared-checkout"],
+  "types": "./types/index.d.ts"
+}

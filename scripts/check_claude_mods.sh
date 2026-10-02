@@ -5,10 +5,12 @@
 #   scripts/check_claude_mods.sh            # all mods
 #   scripts/check_claude_mods.sh ailang-lens
 #
-# Needs the `claude` CLI. Type-checking needs the engine's declarations: set
-# CLAUDE_CODE_TYPES to a claude-code.d.ts, or the script uses the one the
-# engine wrote beside a loaded mod (.claude-plugin/types/claude-code/index.d.ts)
-# or the newest one the plugin-authoring skill laid under the temp dir.
+# Needs the `claude` CLI. Type-checking needs the engine's declarations, which
+# it writes beside every mod it loads (.claude-plugin/types/: the API,
+# claude-code-tools for the built-in tools' arguments, claude-code-mcp). Set
+# CLAUDE_CODE_TYPES_DIR to such a folder, or the script uses one laid beside a
+# mod here or under ~/.claude/dev-mods, falling back to the API file alone that
+# the plugin-authoring skill writes (tool arguments then type as unknown).
 #
 # `claude plugin test` is server-gated per process: when it reports the
 # rollout switch off, the tests are reported as NOT RUN, never as passed.
@@ -23,14 +25,14 @@ if ! command -v claude >/dev/null 2>&1; then
 fi
 
 find_types() {
-  if [ -n "${CLAUDE_CODE_TYPES:-}" ] && [ -f "$CLAUDE_CODE_TYPES" ]; then
-    echo "$CLAUDE_CODE_TYPES"; return
+  if [ -n "${CLAUDE_CODE_TYPES_DIR:-}" ] && [ -d "$CLAUDE_CODE_TYPES_DIR/claude-code-tools" ]; then
+    echo "$CLAUDE_CODE_TYPES_DIR"; return
   fi
   local laid
-  laid=$(ls "$MODS_DIR"/*/.claude-plugin/types/claude-code/index.d.ts 2>/dev/null | head -1)
+  laid=$(ls -dt "$MODS_DIR"/*/.claude-plugin/types "$HOME"/.claude/dev-mods/*/*/.claude-plugin/types 2>/dev/null \
+    | while read -r d; do [ -d "$d/claude-code-tools" ] && echo "$d"; done | head -1)
   if [ -n "$laid" ]; then echo "$laid"; return; fi
-  ls -t "${TMPDIR:-/tmp}"/../claude-*/bundled-skills/*/*/plugin-authoring/types/claude-code.d.ts \
-    /private/tmp/claude-*/bundled-skills/*/*/plugin-authoring/types/claude-code.d.ts 2>/dev/null | head -1
+  ls -t /private/tmp/claude-*/bundled-skills/*/*/plugin-authoring/types/claude-code.d.ts 2>/dev/null | head -1
 }
 
 TYPES="$(find_types)"

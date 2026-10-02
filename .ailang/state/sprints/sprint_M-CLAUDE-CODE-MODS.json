@@ -161,10 +161,10 @@
         "silent when all dirty files are own",
         "core.ts matches pi source"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T07:36:54+00:00",
+      "completed": "2026-10-02T07:36:54+00:00",
+      "notes": "tools/claude-mods/unowned-dirty: hooks/core.ts = verbatim pi pure functions; own files in $.state (survives reloads, unlike pi's branch scan); before a sweeping git op reads git status, warns via toast and appends to the result context; never blocks. Own paths made repo-relative (git rev-parse --show-toplevel) before comparing: pi's extension compares absolute own paths to relative porcelain paths, so it flags every dirty file including its own (pi bug, reported separately, not fixed here). 3 tests passed before a contract-only fix; validate + tsc ok after. check script now uses laid type folders (claude-code-tools) so tool args type."
     },
     {
       "id": "M6_PREPUSH_GATE",
