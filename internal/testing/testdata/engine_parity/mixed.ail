@@ -80,14 +80,13 @@ test "non-bool body" {
   add_one(41)
 }
 
--- A nested cons pattern does not lower to bytecode yet, so `second` is an
--- evaluator-only function: the VM body calls it through the harness bridge.
-export pure func second(xs: [int]) -> int =
-  match xs {
-    _ :: x :: _ => x,
-    _ => 0
-  }
+-- An expression-form letrec does not lower to bytecode yet, so `countDown` is
+-- an evaluator-only function: the VM body calls it through the harness bridge.
+-- (Pick another construct if this one starts compiling; nested cons patterns
+-- were used here until the v0.51.1 match lowering made them compile.)
+export pure func countDown(n: int) -> int =
+  letrec go = \k. if k <= 0 then 0 else go(k - 1) in go(n)
 
 test "bridged helper" {
-  second([1, 2, 3]) == 2
+  countDown(3) == 0
 }
