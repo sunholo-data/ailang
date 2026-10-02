@@ -126,10 +126,10 @@
       "acceptance_criteria": [
         "fixture sprint JSON renders 'sprint M-X n/m \u00b7 next'"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T07:34:05+00:00",
+      "completed": "2026-10-02T07:34:05+00:00",
+      "notes": "tools/claude-mods/sprint-status: newest (by FsEntry.mtimeMs) of the 10 most recent .ailang/state/sprints/*.json with status in_progress -> 'sprint M-X n/m \u00b7 NEXT'; refresh at session.start and turn.complete, throttled 30s; cleared outside an AILANG checkout. 173 sprint files with 15 distinct status spellings, so only exact 'in_progress' counts. 1 test passes."
     },
     {
       "id": "M4_CHECK_ON_EDIT",
