@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/sunholo-data/ailang/internal/effects"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
@@ -19,14 +20,14 @@ func registerArithmetic() {
 	registerBuiltinWithMeta("mul_Int", 2, true, intIntToInt(func(a, b int) int { return a * b }),
 		"Multiply two integers", []string{"math", "arithmetic", "multiply", "times"})
 	registerBuiltinWithMeta("div_Int", 2, true, intIntToIntErr(func(a, b int) (int, error) {
-		if b == 0 {
-			return 0, eval.NewRuntimeError("RT_DIV0", "Division by zero", nil)
+		if err := ailerrors.CheckIntDivisor(ailerrors.OpDivision, int64(b)); err != nil {
+			return 0, err
 		}
 		return a / b, nil
 	}), "Divide two integers (errors on division by zero)", []string{"math", "arithmetic", "divide"})
 	registerBuiltinWithMeta("mod_Int", 2, true, intIntToIntErr(func(a, b int) (int, error) {
-		if b == 0 {
-			return 0, eval.NewRuntimeError("RT_DIV0", "Modulo by zero", nil)
+		if err := ailerrors.CheckIntDivisor(ailerrors.OpModulo, int64(b)); err != nil {
+			return 0, err
 		}
 		return a % b, nil
 	}), "Integer modulo operation (errors on modulo by zero)", []string{"math", "arithmetic", "modulo", "remainder"})

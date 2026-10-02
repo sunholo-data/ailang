@@ -126,3 +126,26 @@ func isErrorCodeName(s string) bool {
 	}
 	return j == len(s) && (j-i) >= 2
 }
+
+// RT001 (the integer division-by-zero code, #1449) is declared in
+// json_encoder.go, not codes.go. Reading codes.go alone left it — and TC*,
+// ELB*, LNK*, RT002–RT006 — out of the published registry.
+func TestGenErrorCodes_SiblingFileCodesPresent(t *testing.T) {
+	records, err := parseErrorCodes(filepath.Join("..", "..", "internal", "errors", "codes.go"))
+	if err != nil {
+		t.Fatalf("parseErrorCodes: %v", err)
+	}
+	byCode := make(map[string]ErrorRecord, len(records))
+	for _, r := range records {
+		byCode[r.Code] = r
+	}
+	rt001, ok := byCode["RT001"]
+	if !ok || rt001.Category != "arithmetic" || rt001.Summary != "Division by zero" {
+		t.Fatalf("RT001 record = %+v (present %v), want arithmetic / Division by zero", rt001, ok)
+	}
+	for _, code := range []string{"TC001", "ELB001", "LNK001", "RT006"} {
+		if _, ok := byCode[code]; !ok {
+			t.Errorf("%s (declared in json_encoder.go) missing from output", code)
+		}
+	}
+}

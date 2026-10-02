@@ -1,6 +1,10 @@
 package eval
 
-import "math"
+import (
+	"math"
+
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
+)
 
 // registerArithmeticBuiltins registers integer and float arithmetic operations
 func registerArithmeticBuiltins() {
@@ -37,8 +41,8 @@ func registerArithmeticBuiltins() {
 		NumArgs: 2,
 		IsPure:  true,
 		Impl: func(a, b *IntValue) (*IntValue, error) {
-			if b.Value == 0 {
-				return nil, NewRuntimeError("RT_DIV0", "Division by zero", nil)
+			if err := checkIntDivisorAt(ailerrors.OpDivision, b.Value, ""); err != nil {
+				return nil, err
 			}
 			return &IntValue{Value: a.Value / b.Value}, nil
 		},
@@ -49,8 +53,8 @@ func registerArithmeticBuiltins() {
 		NumArgs: 2,
 		IsPure:  true,
 		Impl: func(a, b *IntValue) (*IntValue, error) {
-			if b.Value == 0 {
-				return nil, NewRuntimeError("RT_DIV0", "Modulo by zero", nil)
+			if err := checkIntDivisorAt(ailerrors.OpModulo, b.Value, ""); err != nil {
+				return nil, err
 			}
 			return &IntValue{Value: a.Value % b.Value}, nil
 		},

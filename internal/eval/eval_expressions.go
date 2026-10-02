@@ -50,6 +50,9 @@ func (e *CoreEvaluator) evalCoreT(expr core.CoreExpr, tail bool) (Value, error) 
 		v, err = e.evalCoreDispatch(expr, tail)
 	}
 	e.evalDepth--
+	if err != nil {
+		attachDivZeroPos(err, expr)
+	}
 	return v, err
 }
 
@@ -270,6 +273,7 @@ func (e *CoreEvaluator) buildClosure(lam *core.Lambda, env *Environment) (*Funct
 			fn.EffectBudgets = extractEffectBudgets(t)
 			fn.EffectMinBudgets = extractEffectMinBudgets(t) // M-DX25 M4
 			fn.EffectRandMode = extractRandMode(t)           // M-EFFECT-REPLAY-CONTRACTS
+			fn.EffectNetScope = extractNetScope(t)           // M-NET-SCOPE-PUBLIC
 		}
 	}
 
@@ -293,6 +297,21 @@ func extractRandMode(t types.Type) string {
 		return ""
 	}
 	return mode
+}
+
+// extractNetScope reads the declared Net scope from a function type's effect
+// row (M-NET-SCOPE-PUBLIC, #1522). "" for bare Net or no Net; "public" for
+// !{Net[scope=public]}, which the evaluator pushes at lambda entry so every
+// Net call in the frame's dynamic extent runs under the public-only policy.
+func extractNetScope(t types.Type) string {
+	fn, ok := t.(*types.TFunc2)
+	if !ok || fn.EffectRow == nil {
+		return ""
+	}
+	if _, has := fn.EffectRow.Labels["Net"]; !has {
+		return ""
+	}
+	return fn.EffectRow.Params["Net"]["scope"]
 }
 
 // extractEffectBudgets extracts budget max limits from a function type's effect row

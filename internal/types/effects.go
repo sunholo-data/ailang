@@ -26,8 +26,9 @@ func isEffectRowVar(name string) bool {
 // and examples/modal_rand.ail):
 //   - Rand: { mode ∈ {os, seeded, crypto} }
 //   - AI:   { mode ∈ {fixed, routeable, replay-only}, scope ∈ {byok} }
+//   - Net:  { scope ∈ {public} }  (M-NET-SCOPE-PUBLIC, v0.52.0)
 //
-// Other effects (Clock, Net, FS, IO, Env, DB, …) intentionally have NO entry —
+// Other effects (Clock, FS, IO, Env, DB, …) intentionally have NO entry —
 // their bare forms type-check unchanged (back-compat), and any explicit param
 // is rejected with EFF_PARAMS_NOT_SUPPORTED naming the tracking doc
 // m-effect-clock-net-fs-modes. Their port sprints (Phase 5 of M-EFFECT-REFINEMENT
@@ -42,9 +43,14 @@ var effectSchema = map[string]map[string]map[string]struct{}{
 		"mode":  {"fixed": {}, "routeable": {}, "replay-only": {}},
 		"scope": {"byok": {}},
 	},
+	// M-NET-SCOPE-PUBLIC (#1522): Net[scope=public] forces loopback and the
+	// metadata server off for every Net call in the frame's dynamic extent.
+	// A narrowing param (see narrowingParams), with no default: bare Net stays bare.
+	"Net": {
+		"scope": {"public": {}},
+	},
 	// Future (Phase 5 ports edit HERE; adding a row unlocks that effect's params):
 	// "Clock": {"mode": {"wall": {}, "sim": {}}},
-	// "Net":   {"mode": {"live": {}, "record": {}, "replay": {}}},
 	// "FS":    {"mode": {"real": {}, "virtual": {}}},
 }
 
@@ -102,7 +108,7 @@ func validateEffectParams(effectName string, params map[string]string) error {
 		keys := strutil.SortedKeys(params)
 		return fmt.Errorf(
 			"EFF_PARAMS_NOT_SUPPORTED: effect '%s' does not support parameters (found: %s). "+
-				"Only Rand and AI accept parameters in v1.0.0; Clock/Net/FS modes are tracked in m-effect-clock-net-fs-modes.\n"+
+				"Only Rand, AI and Net[scope] accept parameters; Clock/FS modes are tracked in m-effect-clock-net-fs-modes.\n"+
 				"  Fix: drop the parameter and use the bare effect '%s'.",
 			effectName, strings.Join(keys, ", "), effectName)
 	}

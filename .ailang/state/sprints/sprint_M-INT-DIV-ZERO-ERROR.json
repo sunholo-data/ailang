@@ -1,0 +1,90 @@
+{
+  "sprint_id": "M-INT-DIV-ZERO-ERROR",
+  "status": "completed",
+  "created": "2026-10-02T12:00:00Z",
+  "design_doc": "design_docs/implemented/v0_51_1/m-int-div-zero-error.md",
+  "sprint_plan": "design_docs/implemented/v0_51_1/m-int-div-zero-error-sprint-plan.md",
+  "github_issues": [
+    1449,
+    1528
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Evaluator/error-registry internals; no registry package applies"
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "VM internals; no registry package applies"
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "REPL/serve-api internals and docs; no registry package applies"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 450,
+    "estimated_total_loc": 450,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Shared RT001 DivByZeroError in internal/errors; Num[int].div returns an error; evaluator attaches position in evalCoreT; div_Int/mod_Int builtins and alternate evaluators use CheckIntDivisor",
+      "estimated_loc": 220,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "go test ./internal/errors -run TestDivByZeroError",
+        "go test ./internal/embed -run TestIntDivZero (end-to-end evaluator; direct, nested, literal, map callback, float IEEE, MinInt/-1)",
+        "go test ./internal/types/... ./internal/builtins/... green"
+      ],
+      "passes": true,
+      "started": "2026-10-02T14:00:00Z",
+      "completed": "2026-10-02T14:00:00Z",
+      "notes": "c9bf147f2 DivByZeroError + evaluator position attach; gen-error-codes reads whole package (58->79 records); embed/builtins/errors tests"
+    },
+    {
+      "id": "M2",
+      "description": "VM: VMError.Cause + Unwrap; arith OpDiv/OpMod and builtinModInt raise the typed error; CLI parity with the evaluator",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "go test ./internal/vm -run TestVMIntDivZero",
+        "go test ./cmd/ailang -run TestIntDivZeroParity (exit 1, same RT001 text and file:line, no panic/goroutine)",
+        "go test ./cmd/ailang -run TestIntDivZeroContract"
+      ],
+      "passes": true,
+      "started": "2026-10-02T14:00:00Z",
+      "completed": "2026-10-02T14:00:00Z",
+      "notes": "c04338004 VM arith/_mod_Int + VMError.Cause/Unwrap; CLI parity test both engines + ensures contract"
+    },
+    {
+      "id": "M3",
+      "description": "REPL and serve-api contain the error; errors reference page + changelog; gates and mutation tests",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "go test ./internal/repl -run TestREPLIntDivZero",
+        "go test ./internal/apiserver -run 'TestDivZero_StructuredError|TestMCPGate'",
+        "Regression fixtures print unchanged output",
+        "make test-core check-file-sizes check-boundaries check-architecture-closure; gofmt; golangci-lint on touched dirs",
+        "Mutation: dictionary guard, VM OpDiv guard, evalCoreT position attach each caught by a named test"
+      ],
+      "passes": true,
+      "started": "2026-10-02T14:00:00Z",
+      "completed": "2026-10-02T14:00:00Z",
+      "notes": "aee6a049a REPL intDivFn, serve-api error_detail RT001, rt001.md, changelog; fixtures unchanged; gates green; 7/7 mutants killed"
+    }
+  ]
+}

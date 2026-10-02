@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/mathx"
 )
 
@@ -89,8 +90,8 @@ func builtinModInt(args []bytecode.Value) (bytecode.Value, error) {
 	if args[0].Tag != bytecode.TagInt || args[1].Tag != bytecode.TagInt {
 		return bytecode.Value{}, fmt.Errorf("_mod_Int: expected ints")
 	}
-	if args[1].Int == 0 {
-		return bytecode.Value{}, fmt.Errorf("_mod_Int: division by zero")
+	if err := ailerrors.CheckIntDivisor(ailerrors.OpModulo, args[1].Int); err != nil {
+		return bytecode.Value{}, err
 	}
 	return bytecode.NewInt(args[0].Int % args[1].Int), nil
 }

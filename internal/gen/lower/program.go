@@ -302,6 +302,14 @@ func bindingToFuncDecl(
 		}
 	}
 
+	// M-NET-SCOPE-PUBLIC (D-C): the VM has no moded-frame hook, so a
+	// Net[scope=public] function runs on the evaluator, which enforces it.
+	if declaresNetScope(lam, cti) {
+		stub := makeStub(name, lam, "Net[scope=public] frame needs the evaluator (the bytecode VM cannot push the scope)")
+		stub.Exported = exported
+		return &stub
+	}
+
 	params := lowerParams(lam, cti)
 	retType := resolveReturnType(lam, cti)
 	body, retExpr := FlattenBlock(lam.Body, cti)
@@ -317,6 +325,15 @@ func bindingToFuncDecl(
 		File:       file,
 		Line:       line,
 	}
+}
+
+// declaresNetScope reports whether lam's type declares a Net scope param.
+func declaresNetScope(lam *core.Lambda, cti types.CoreTypeInfo) bool {
+	fn, ok := cti[lam.NodeID].(*types.TFunc2)
+	if !ok || fn.EffectRow == nil {
+		return false
+	}
+	return fn.EffectRow.Params["Net"]["scope"] != ""
 }
 
 // spanOf returns the source file and line of a Core expression. Prefers the

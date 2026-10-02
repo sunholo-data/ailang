@@ -80,6 +80,14 @@ type RandModeEnforcer interface {
 	PopRandMode(mode string)
 }
 
+// NetScopeEnforcer is implemented by effect contexts that support the
+// Net[scope=public] frame mode (M-NET-SCOPE-PUBLIC, #1522). Same push/pop
+// discipline as RandModeEnforcer.
+type NetScopeEnforcer interface {
+	PushNetScope(scope string)
+	PopNetScope(scope string)
+}
+
 // budgetChargeScoper is implemented by effect contexts that maintain a budget
 // charge-scope depth (M-BUDGET-SCOPING-BUG). The evaluator resets this depth
 // across AILANG function-call boundaries so a builtin's charge scope does not
@@ -363,6 +371,31 @@ func (e *CoreEvaluator) pushRandModeIfDeclared(fn *FunctionValue) string {
 	}
 	enforcer.PushRandMode(fn.EffectRandMode)
 	return fn.EffectRandMode
+}
+
+// pushNetScopeIfDeclared pushes the function's declared Net scope and returns
+// it ("" when none, or when the context cannot enforce it). Pair a non-empty
+// return with a deferred PopNetScope.
+func (e *CoreEvaluator) pushNetScopeIfDeclared(fn *FunctionValue) string {
+	if fn.EffectNetScope == "" {
+		return ""
+	}
+	enforcer, ok := e.effContext.(NetScopeEnforcer)
+	if !ok {
+		return ""
+	}
+	enforcer.PushNetScope(fn.EffectNetScope)
+	return fn.EffectNetScope
+}
+
+// deferredPopNetScope pops a scope pushed by pushNetScopeIfDeclared.
+func (e *CoreEvaluator) deferredPopNetScope(scope string) {
+	if scope == "" {
+		return
+	}
+	if enforcer, ok := e.effContext.(NetScopeEnforcer); ok {
+		enforcer.PopNetScope(scope)
+	}
 }
 
 // deferredPopRandMode pops a Rand mode pushed by pushRandModeIfDeclared. A no-op

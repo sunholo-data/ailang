@@ -777,6 +777,25 @@
       ]
     },
     {
+      "path": "net_scope_public.ail",
+      "status": "working",
+      "tags": [
+        "http",
+        "effects",
+        "net",
+        "security"
+      ],
+      "description": "net_scope_public.ail - Net[scope=public]: user-URL fetches never reach loopback or cloud metadata (#1522)",
+      "modules": [
+        "std/io",
+        "std/net"
+      ],
+      "expected": {
+        "stdout": "metadata: refused\nloopback: refused\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "if_else_chain.ail",
       "status": "working",
       "tags": [
