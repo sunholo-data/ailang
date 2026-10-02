@@ -93,10 +93,10 @@
         "/ail-lens on a missing path replies 'not found'",
         "relative path resolved against session cwd"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T07:30:52+00:00",
+      "completed": "2026-10-02T07:30:52+00:00",
+      "notes": "tools/claude-mods/ailang-lens (from bootstrap#11 + mtime refresh) and README; /ail-lens resolves relative paths via $.session.cwd() and replies '<path> not found'; scripts/check_claude_mods.sh (validate + tsc + plugin test, NOT RUN when switch off). validate ok, tsc ok, 4 tests pass."
     },
     {
       "id": "M2_AILANG_INBOX",
