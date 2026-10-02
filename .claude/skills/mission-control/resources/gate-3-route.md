@@ -243,9 +243,12 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      Mark, attended 2026-10-01: "its a nice to have, not to wet our pants if we dont have different
      operators available").** Before spawning the evaluator, PREFER a provider ≠ the executor's: if the
      executor ran on codex and `$MISSION_EVALUATOR_MODEL` collides, re-route to a distinct pinnable
-     alias (`sonnet`). When no cross-vendor lane has quota, step down — same vendor, different model;
-     then the same model in a fresh context with the full rubric — and **FLAG** the step on the record
-     (`judge-independence: cross-vendor | same-vendor | same-model-fresh-context`). **No step blocks a
+     alias (`sonnet`). When no cross-vendor lane has quota, step down to **`gpt-6.1-sol` in a fresh
+     context** with the full rubric and **FLAG** it on the record (`judge-independence: cross-vendor |
+     same-model-fresh-context`). **Never spawn `gpt-6-astra`** in any role or quorum seat, natively or
+     via `codex exec` (Mark, attended 2026-10-02: "remove astra - sol 6.1"). It is retired since
+     2026-09-30 and kept in the registry, dormant, for a later release. No GPT-6.x Terra exists yet
+     (Codex catalog 2026-10-02), so Sol 6.1 is the only OpenAI rung. **No step blocks a
      landing.** The same holds for every role and quorum seat: an unavailable preferred or rotation
      lane hands off to the next lane WITH QUOTA, flagged; a missing quorum seat is flagged, not a
      block. Park for lack of a lane only when NO lane has quota at all.
