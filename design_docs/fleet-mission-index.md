@@ -12,9 +12,11 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
-| 11 | 2026-10-01 | heartbeat ticket PARKED-ON-LANE; declared native evaluator models unavailable, no implementation or judge verdict [HARNESS] |
+| 13 | 2026-10-02 | interrupted iteration 12 record recovered; heartbeat remains parked for D-FLEET-10 [ADMIN] |
+| 12 | 2026-10-02 | heartbeat design Revision 4 after three quorum rounds; PARKED needs-human-review on reviewer-vs-measurement deadlock (D-FLEET-10) [HARNESS] |
+| 11 | 2026-10-01 | heartbeat ticket parked on unavailable independent Agent evaluator lanes [HARNESS] |
 | 10 | 2026-10-01 | pi runner types a provider quota refusal as `provider_quota` rc 19; stale-pin re-file of mission-base resolved [HARNESS] |
-| 9 | 2026-09-30 | mission-base derives its base ref from origin/HEAD (stapledon `main`); #1418 PASS 100, ticket resolved; iteration 8 record landed [HARNESS] |
+| 9 | 2026-09-30 | mission-base derives its base ref from origin/HEAD (stapledon's `main`); ticket resolved; iteration 8's record landed [HARNESS] |
 | 8 | 2026-09-30 | paired rotate-log design parked after two quorum blocks; independent Sonnet review completed, compatibility decision D-FLEET-9 [HARNESS] |
 | 7 | 2026-09-29 | approved stall-watchdog CPU arm merged; heartbeat design parked after two quorum blocks [HARNESS] |
 | 6 | 2026-09-28 | iteration 5's kicker and sandbox fixes re-judged (PASS 92 / PASS 96) and combined in #1377; merge blocked on the inherited dev `lint` red [HARNESS] |
