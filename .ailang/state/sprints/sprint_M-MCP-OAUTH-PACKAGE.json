@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MCP-OAUTH-PACKAGE",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-02T18:30:14Z",
   "design_doc": "design_docs/planned/v0_52_0/m-mcp-oauth-package.md",
   "sprint_plan": "design_docs/planned/v0_52_0/m-mcp-oauth-package-sprint-plan.md",
@@ -57,10 +57,10 @@
         "ailang verify packages/mcp-oauth/tests/broken_redirect.ail reports VIOLATION",
         "tests 'cimd rejects <case>' for http, ipv4, ipv6, localhost, .internal, metadata.google.internal, userinfo, fragment"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-02T18:33:32+00:00",
+      "completed": "2026-10-02T18:33:32+00:00",
+      "notes": "ailang-packages sprint/mcp-oauth 4c4c211. 32/32 tests (all named criteria tests). Z3: 6 verified, 0 skipped, 0 violations. Deviation: verifierOk and cimdUrlOk use higher-order helpers Z3 cannot encode, so the PROVED parts are verifierLengthOk and cimdHttpsGate (https invariant); charset + URL shape are covered by named tests. broken_redirect.ail switched to a first-order variant (the HOF one was SKIPPED, not refuted) -> VIOLATION w/ counterexample. Mutation: IP-literal guard removal fails 2 tests (mutant compiled). Repeated slip: string ++ (3x) \u2014 AILANG strings use interpolation."
     },
     {
       "id": "P2",
