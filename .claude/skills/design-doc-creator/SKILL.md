@@ -96,6 +96,12 @@ I've created the design document...
 
 ## Available Scripts
 
+Run these scripts with the current directory inside the **target Git worktree**
+(the repository receiving the design). They resolve the project root from Git,
+including when invoked from a nested directory. For a shared plugin installation,
+use the script path relative to this SKILL.md; do not change directory into the
+plugin. A directory outside a Git worktree is rejected.
+
 ### `scripts/create_planned_doc.sh <doc-name> [version]`
 Create a new design document in `design_docs/planned/`.
 
