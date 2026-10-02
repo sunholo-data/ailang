@@ -40,6 +40,15 @@ test-pi-extensions: ## Run the pi extension (TypeScript) test suite
 	@echo "Running pi extension tests..."
 	@if ! command -v node >/dev/null 2>&1; then 		echo "  node not found — skipping"; exit 0; 	fi; 	if ! node --experimental-strip-types -e '' >/dev/null 2>&1; then 		echo "  node $$(node -v) lacks --experimental-strip-types — skipping"; exit 0; 	fi; 	rc=0; 	for f in .pi/extensions/.*.test.ts tools/pi-extensions/sandbox/mission.test.ts tools/pi-extensions/sandbox/index.test.ts tools/pi-extensions/controller-bash-cap.test.ts tools/pi-extensions/worktree-fence.test.ts; do 		[ -e "$$f" ] || continue; 		echo "  $$f"; 		node --experimental-strip-types --test "$$f" || rc=1; 	done; 	exit $$rc
 
+# Claude Code mods (M-CLAUDE-CODE-MODS): validate, type-check and test each
+# mod, and fail when a pi port's generated core.ts drifts from its pi source.
+# Needs the claude CLI for validate/test (skipped without it); the drift check
+# needs only python3.
+.PHONY: claude-mods-check
+claude-mods-check: ## Validate, type-check, test and drift-check tools/claude-mods
+	@scripts/check_claude_mods_drift.sh
+	@scripts/check_claude_mods.sh
+
 test-nightly-classifier: ## Run nightly variance-guard contract and replay tests
 	@python3 tools/test_nightly_classify.py -v
 

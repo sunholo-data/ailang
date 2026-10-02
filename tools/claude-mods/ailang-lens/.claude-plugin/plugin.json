@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "ailang-lens",
+  "version": "0.1.0",
+  "description": "Live view of AILANG as it is written: after each edit of a .ail file, a pane shows the module's functions, their types and effect rows (pure or !{IO,FS,...}) and any type errors, keeping the last good signatures beside a broken edit. A Claude Code mod (function hooks); requires the `ailang` binary on PATH.",
+  "author": {
+    "name": "AILANG"
+  },
+  "keywords": ["ailang", "mod", "effects", "types"],
+  "types": "./types/index.d.ts"
+}
