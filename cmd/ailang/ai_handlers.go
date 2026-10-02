@@ -46,10 +46,17 @@ func setupAIHandler(effCtx *effects.EffContext, cfg aiSetup, routingPolicy *ai.A
 		}
 	}
 
+	if cfg.StubFixtures != "" && !aiStub {
+		return fmt.Errorf("--ai-stub-fixtures requires --ai-stub")
+	}
 	if aiStub {
 		// Stub handler ignores routing policy — that's fine, this is for
 		// flag-shape testing without any real provider call.
-		effCtx.AI = effects.NewAIContext(effects.NewStubAIHandler())
+		h, err := cfg.stubHandler()
+		if err != nil {
+			return err
+		}
+		effCtx.AI = effects.NewAIContext(h)
 		return nil
 	}
 

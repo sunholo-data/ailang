@@ -99,3 +99,32 @@ func TestSetupAIHandler_KeyFileRefusedForKeylessLane(t *testing.T) {
 		t.Fatalf("want a --ai-key-file refusal for the local lane, got %v", err)
 	}
 }
+
+// #1497: --ai-stub-fixtures swaps the stub for the fixture replayer, needs
+// --ai-stub, and a broken file fails setup.
+func TestSetupAIHandler_StubFixtures(t *testing.T) {
+	good := filepath.Join(t.TempDir(), "fx.json")
+	if err := os.WriteFile(good, []byte(`{"version":1,"fixtures":[{"kind":"text","prompt":"hi","response":"yo"}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	effCtx := effects.NewEffContext(nil)
+	if err := setupAIHandler(effCtx, aiSetup{Stub: true, StubFixtures: good}, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := effCtx.AI.Call("hi"); err != nil || got != "yo" {
+		t.Fatalf("fixture replay: %q %v", got, err)
+	}
+	if _, err := effCtx.AI.Call("unrecorded"); err == nil {
+		t.Fatal("a fixture miss must not fall back to the default stub")
+	}
+	if err := setupAIHandler(effects.NewEffContext(nil), aiSetup{StubFixtures: good}, nil, nil); err == nil {
+		t.Fatal("--ai-stub-fixtures without --ai-stub must be refused")
+	}
+	bad := filepath.Join(t.TempDir(), "bad.json")
+	if err := os.WriteFile(bad, []byte(`{"version":9}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := setupAIHandler(effects.NewEffContext(nil), aiSetup{Stub: true, StubFixtures: bad}, nil, nil); err == nil {
+		t.Fatal("an invalid fixture file must fail setup")
+	}
+}

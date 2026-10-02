@@ -264,6 +264,7 @@ func printHelp() {
 	fmt.Println("  --fs-max-bytes <size>        Cap every FS read; oversize is E_FS_FILE_TOO_LARGE (default unbounded; serve-api uses its upload cap)")
 	fmt.Println("  --ai <model>         Enable AI effect with model (e.g., gemini-2-5-flash, anthropic/claude-sonnet-4.5 (OpenRouter))")
 	fmt.Println("  --ai-stub            Enable AI effect with stub handler (for testing)")
+	fmt.Println("  --ai-stub-fixtures <file> With --ai-stub: replay JSON fixtures keyed by sha256 of the request; a miss is an error")
 	fmt.Println("  --ai-no-adc          Google: never fall back to ADC; a missing GOOGLE_API_KEY is AuthFailed (or AILANG_AI_NO_ADC=1)")
 	fmt.Println("  --ai-key-file <path> Read the --ai provider's API key from a file at startup, never echoed (or AILANG_AI_KEY_FILE)")
 	fmt.Println("  --routing-fallback <list>     OpenRouter provider order (e.g., \"anthropic,openai,google\")")
