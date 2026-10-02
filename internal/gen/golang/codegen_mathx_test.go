@@ -17,9 +17,6 @@ import (
 // internal/mathx (the interpreter/VM implementation). This compiles the
 // emitted source with the Go toolchain and compares outputs.
 func TestMathxHelperSourceMatchesMathx(t *testing.T) {
-	if testing.Short() {
-		t.Skip("compiles a Go program")
-	}
 	goBin, err := exec.LookPath("go")
 	if err != nil {
 		t.Skip("go toolchain not on PATH")
