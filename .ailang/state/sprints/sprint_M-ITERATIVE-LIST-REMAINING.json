@@ -1,0 +1,140 @@
+{
+  "sprint_id": "M-ITERATIVE-LIST-REMAINING",
+  "status": "not_started",
+  "created": "2026-10-02T18:39:52Z",
+  "design_doc": "design_docs/planned/v0_51_3/m-iterative-list-remaining.md",
+  "sprint_plan": "design_docs/planned/v0_51_3/m-iterative-list-remaining-sprint-plan.md",
+  "github_issues": [
+    1518,
+    1501,
+    676
+  ],
+  "issue_link_notes": "#1518 is referenced by existing implementation; #1501 and #676 are related context, not auto-close targets. No issue automatically closed by planning.",
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "list"
+      ],
+      "reason": "ailang pkg search list returned a2ui, duckdb and decisions; none supplies runtime builtin/VM/runner internals. Reuse existing repository tooling and primitives; no external package candidate."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "list"
+      ],
+      "reason": "ailang pkg search list returned a2ui, duckdb and decisions; none supplies runtime builtin/VM/runner internals. Reuse existing repository tooling and primitives; no external package candidate."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "list"
+      ],
+      "reason": "ailang pkg search list returned a2ui, duckdb and decisions; none supplies runtime builtin/VM/runner internals. Reuse existing repository tooling and primitives; no external package candidate."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "list"
+      ],
+      "reason": "ailang pkg search list returned a2ui, duckdb and decisions; none supplies runtime builtin/VM/runner internals. Reuse existing repository tooling and primitives; no external package candidate."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 750,
+    "estimated_days": 5,
+    "basis": "Planning assumption, not observed velocity: shallow one-commit clone; analyze_velocity.sh cannot recover historical diffs. Includes 6 contingency hours."
+  },
+  "estimated_hours": 30,
+  "approval": {
+    "design": "approved by coordinator handoff",
+    "sprint": "pending coordinator review/merge"
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Fresh-build baseline and inherited implementation verification",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "estimated_hours": 6,
+      "acceptance_criteria": [
+        "Fresh binary identity and baseline evidence recorded",
+        "20k any/findIndex interpreter and strict VM parity with short-circuit counts",
+        "200k foldr completes with right-to-left callback order",
+        "Missing meaningful error cases covered without duplicating existing implementations"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Direct extrema builtins with exact semantic parity",
+      "estimated_loc": 330,
+      "dependencies": [
+        "M1"
+      ],
+      "estimated_hours": 12,
+      "acceptance_criteria": [
+        "Six pure monomorphic raw-value extrema builtins with unchanged Option exports",
+        "Empty wrappers avoid raw builtin and invalid raw inputs return errors",
+        "NaN infinity signed-zero and tie parity on evaluator VM and Go codegen",
+        "200k extrema complete; adapter routing/index bounds and coverage ratchet pass",
+        "Generated Go extrema fixtures pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Engine visibility and truthful list documentation",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2"
+      ],
+      "estimated_hours": 4,
+      "acceptance_criteria": [
+        "Quiet fallback emits stderr warning; strict errors do not retry; native success is quiet",
+        "DefaultMaxStack remains 1000 with accurate comment and matching CLI help",
+        "Rendered std/list cost notes cover traversal short-circuit fold order and callback costs"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Performance evidence traces and completion gates",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "estimated_hours": 8,
+      "acceptance_criteria": [
+        "All-engine correctness and large-input matrix passes without unintended fallback",
+        "Hardware-qualified scaling and absolute timings recorded",
+        "Trace refreshed preserving callback counts/order; required make checks pass",
+        "Changelog design status and progress reflect verified outcomes"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
