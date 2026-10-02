@@ -1,6 +1,7 @@
 # Sprint Plan: M-INT-DIV-ZERO-ERROR
 
 **Design doc**: [m-int-div-zero-error.md](m-int-div-zero-error.md)
+**Status**: ✅ Completed 2026-10-02 (all acceptance criteria met; see the design doc's Implementation Report)
 **Issues**: #1449, #1528 (duplicate)
 **Duration**: 1 day, 3 milestones, ~450 LOC (≈ 200 implementation + 250 tests)
 **Risk**: low — error path only; the success path of `/` and `%` is unchanged
@@ -9,7 +10,7 @@
 Velocity reference: M-EVAL-TAIL-CALLS (same evaluator files, 2026-10-02) landed
 ~600 LOC across 3 milestones in a day.
 
-## M1 — shared RT001 error + evaluator (~220 LOC)
+## M1 — shared RT001 error + evaluator ✅ (~220 LOC)
 
 - `internal/errors/arith.go`: `DivByZeroError{Op, Pos}`, `CheckIntDivisor`.
 - `internal/types/dictionaries.go`: `Num[int].div` returns `(int, error)`.
@@ -24,14 +25,16 @@ Acceptance:
 - `go test ./internal/errors -run TestDivByZeroError` — message with and
   without position; `CheckIntDivisor` nil for non-zero; RT001 registry row
   is runtime/arithmetic.
-- `go test ./internal/eval -run TestIntDivZero` — `/` and `%` by zero
+- `go test ./internal/embed -run TestIntDivZero` (the evaluator cannot import the
+  pipeline from its own package, so the end-to-end evaluator test lives in
+  `internal/embed`) — `/` and `%` by zero
   return a `*DivByZeroError` (via `errors.As`) whose `Pos` names the
   dividing line, for: direct, nested call (inner line), literal `10 / 0`,
   inside a `map` callback; float `/ 0.0` = `+Inf` and `% 0.0` = `NaN`;
   `MinInt / -1` and `MinInt % -1` do not panic.
 - `go test ./internal/types/... ./internal/builtins/...` green.
 
-## M2 — VM parity + CLI (~120 LOC)
+## M2 — VM parity + CLI ✅ (~120 LOC)
 
 - `internal/vm/vm.go`: `VMError.Cause` + `Unwrap`; `arith` and the
   BUILTIN_CALL wrap carry the typed cause.
@@ -47,7 +50,7 @@ Acceptance:
 - `go test ./cmd/ailang -run TestIntDivZeroContract` — a function whose
   `ensures` expression divides by zero fails with RT001 (evaluator).
 
-## M3 — hosts, docs, gates (~110 LOC)
+## M3 — hosts, docs, gates ✅ (~110 LOC)
 
 - `internal/repl/repl_eval.go`, `internal/repl/module_registry_prelude.go`: guarded `Num[Int].div`.
 - `internal/apiserver/routes_dispatch.go`: `ErrorDetail{Code: "RT001"}` on a `*DivByZeroError`.

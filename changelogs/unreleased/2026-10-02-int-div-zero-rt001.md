@@ -26,5 +26,5 @@ Error: execution failed: RT001: integer division by zero at dz.ail:3:39
   `RT001`–`RT006`, `TC*`, `ELB*` and `LNK*` reach the published
   `error_codes.json` (58 → 79 records).
 
-Design: `design_docs/planned/v0_52_0/m-int-div-zero-error.md`. Reference:
+Design: `design_docs/implemented/v0_51_1/m-int-div-zero-error.md`. Reference:
 `docs/docs/reference/errors/rt001.md`.

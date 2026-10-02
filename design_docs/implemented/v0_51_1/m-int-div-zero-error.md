@@ -1,12 +1,12 @@
 # M-INT-DIV-ZERO-ERROR: integer division and modulo by zero raise RT001, not a Go panic
 
-**Status**: Planned
-**Target**: v0.52.0
+**Status**: Implemented (2026-10-02)
+**Target**: v0.51.1
 **Priority**: P1 (robustness: a total-looking `int -> bool` function crashes the host)
 **Estimated**: 1 day
 **Dependencies**: None
 **Issues**: #1449 (dup #1528); message `inbox_1790965642843_c041a262`
-**Triage**: [design_docs/planned/ailang-core-triage/int-div-zero-go-panic.md](../ailang-core-triage/int-div-zero-go-panic.md)
+**Triage**: [design_docs/planned/ailang-core-triage/int-div-zero-go-panic.md](../../planned/ailang-core-triage/int-div-zero-go-panic.md)
 
 ## Problem Statement
 
@@ -186,13 +186,13 @@ Sites:
 
 ## Success Criteria
 
-- [ ] Repro prints `RT001: integer division by zero at dz.ail:4:…`, exit 1, no Go stack
-- [ ] VM and evaluator agree on code, message and line for `/` and `%`
-- [ ] REPL survives `10 / 0`
-- [ ] serve-api returns 500 with `error_detail.code = RT001`
-- [ ] Float division by zero still `Inf`/`NaN`
-- [ ] Fixtures in "Programs that MUST still work" unchanged
-- [ ] Changelog fragment; errors reference page `rt001.md`
+- [x] Repro prints `RT001: integer division by zero at dz.ail:4:…`, exit 1, no Go stack
+- [x] VM and evaluator agree on code, message and line for `/` and `%`
+- [x] REPL survives `10 / 0`
+- [x] serve-api returns 500 with `error_detail.code = RT001`
+- [x] Float division by zero still `Inf`/`NaN`
+- [x] Fixtures in "Programs that MUST still work" unchanged
+- [x] Changelog fragment; errors reference page `rt001.md`
 
 ## Non-Goals / Follow-ups
 
@@ -224,3 +224,49 @@ Sites:
 | A12 System Boundary | +1 | Hosts (serve-api, REPL) contain the failure |
 
 Net +5; no hard violations.
+
+## Implementation Report (2026-10-02)
+
+Shipped as three commits on `dev` (M1 evaluator, M2 VM, M3 hosts/docs); sprint
+JSON `.ailang/state/sprints/sprint_M-INT-DIV-ZERO-ERROR.json`.
+
+**What was built** — as designed, plus one deviation:
+- `internal/errors/arith.go`: `DivByZeroError{Op, Pos}`, `Code()`, `CheckIntDivisor`.
+- Evaluator: `Num[int].div` returns `(int, error)`; `wrapDictionaryMethod`
+  handles it; `attachDivZeroPos` in `internal/eval/div_zero_pos.go` is called
+  from `evalCoreT` on the error path. `div_Int`/`mod_Int` (both copies), the
+  binop shim, `TypedEvaluator` and `SimpleEvaluator` use the shared check.
+- VM: `arith` and `builtinModInt` use the shared check; `VMError.Cause` +
+  `Unwrap` via `errWrap` at every site that wrapped an `err`.
+- REPL: one `intDivFn` for all three `Num[Int].div` methods.
+- serve-api: `runtimeErrorDetail` sets `error_detail.code = RT001`.
+- **Deviation**: `tools/gen-error-codes` read only `codes.go`, so the
+  published `error_codes.json` lacked RT001 (and RT002–RT006, TC*, ELB*,
+  LNK*, all declared in `json_encoder.go`). It now reads every non-test file
+  in the package: 58 → 79 records. Without this the chosen code would not
+  have been in the registry clients download.
+
+**Evaluator positions** are the operator's column (`dz.ail:3:39` for
+`10 / n` starting at column 36): the DictApp/App node's span.
+
+**Tests**: `internal/errors/arith_test.go`, `internal/embed/divzero_test.go`
+(+ `testdata/divzero.ail`), `internal/builtins/math_divzero_test.go`,
+`internal/vm/vm_divzero_test.go` (replaces `TestVM_DivByZero`),
+`cmd/ailang/div_zero_parity_test.go`, `internal/repl/int_div_test.go`,
+`internal/apiserver/divzero_test.go`,
+`tools/gen-error-codes/main_test.go` (`TestGenErrorCodes_SiblingFileCodesPresent`).
+
+**Mutation results** (scratch-copy mutate, build, run, restore): 7/7 mutants
+compiled and were killed — dictionary guard, VM `OpDiv` guard, `evalCoreT`
+position attach, `VMError.Cause`, `mod_Int` builtin guard, REPL `intDivFn`
+guard, serve-api detail.
+
+**Known limitations / follow-ups**
+- A lambda compiled by the VM carries no line info, so a zero divisor inside a
+  `map` callback on the VM names the function but not the line (the evaluator
+  gives `file:line:col`).
+- The REPL prompt path divides through the `types` dictionary, so the REPL's
+  own `r.instances["Num[Int]"]` is not exercised by `TestREPLIntDivZero`; the
+  module-registry test covers the shared `intDivFn`.
+- Go codegen, VM float `%`, non-strict `--bytecode` re-run, and the shim
+  evaluators' float `/ 0.0` remain as listed under Non-Goals.
