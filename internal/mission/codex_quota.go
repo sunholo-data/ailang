@@ -21,6 +21,8 @@ type CodexQuotaObservation struct {
 	// ResetCredits is what the account holds in reserve (app-server reads only; nil when
 	// the observation came from the session scan, which does not carry it).
 	ResetCredits *CodexResetCredits `json:"reset_credits,omitempty"`
+	// HeadroomShort marks an "over" that is under the allowance but inside the start margin.
+	HeadroomShort bool `json:"headroom_short,omitempty"`
 }
 
 // CodexResetCredits are one-shot "full reset" grants on the Codex account. Spending one
@@ -123,9 +125,16 @@ func (o *CodexQuotaObservation) evaluate(now time.Time) {
 	o.evaluateAt(now)
 }
 
-// evaluateAt applies the weekday pace (WeekdayPacePercent) to every long window. Codex and
-// Anthropic share it: both report provider percentages over a 7-day window with a reset.
+// evaluateAt paces a Codex observation with the Codex start margin.
 func (o *CodexQuotaObservation) evaluateAt(now time.Time) {
+	o.evaluateWithMargin(now, StartMargin("codex"))
+}
+
+// evaluateWithMargin applies the weekday pace (WeekdayPacePercent) to every long window. Codex,
+// Anthropic and Ollama's capacity path share it: each reports provider percentages over a
+// window with a reset. A window is short of headroom when usage is within MARGIN points of its
+// allowance (quota_margin.go); that blocks like "over", with its own reason.
+func (o *CodexQuotaObservation) evaluateWithMargin(now time.Time, margin float64) {
 	// The allowance is arithmetic on the window itself, so it is computed for EVERY window
 	// before any early return. It used to be computed after the staleness and expiry checks,
 	// which left AllowancePercent at its zero value on those paths — and the report prints
@@ -140,6 +149,8 @@ func (o *CodexQuotaObservation) evaluateAt(now time.Time) {
 	// still outranks every other state.
 	hasLong := false
 	over := false
+	short := false
+	shortHeadroom := 0.0
 	expired := false
 	for i := range o.Windows {
 		w := &o.Windows[i]
@@ -154,6 +165,11 @@ func (o *CodexQuotaObservation) evaluateAt(now time.Time) {
 		}
 		if w.UsedPercent >= 100 || w.UsedPercent > w.AllowancePercent {
 			over = true
+		} else if headroom := w.AllowancePercent - w.UsedPercent; headroom < margin {
+			if !short || headroom < shortHeadroom {
+				shortHeadroom = headroom
+			}
+			short = true
 		}
 	}
 	// Precedence is unchanged from when these were early returns: stale > expired >
@@ -182,6 +198,12 @@ func (o *CodexQuotaObservation) evaluateAt(now time.Time) {
 	if over {
 		o.State = "over"
 		o.Reason = "provider-reported Codex account usage exceeds ration or exhausts a window"
+		return
+	}
+	if short {
+		o.State = "over"
+		o.HeadroomShort = true
+		o.Reason = headroomShortReason("Codex", "pp", shortHeadroom, margin)
 	}
 }
 

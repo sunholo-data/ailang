@@ -162,6 +162,14 @@ func applyOllamaRateRation(o OllamaQuotaObservation, history []ollamaObservation
 		return o
 	}
 	allowance := 100 * DailyRationFraction
+	if margin := StartMargin("ollama"); pp <= allowance && allowance-pp < margin {
+		o.State = "over"
+		o.GaugeStatus = "RATION"
+		o.Reason = headroomShortReason("Ollama Cloud daily ration", "pp", allowance-pp, margin) +
+			" (" + trimFloat(pp) + "pp of " + trimFloat(allowance) + "pp used in the last " +
+			span.Round(time.Minute).String() + ")"
+		return o
+	}
 	if pp > allowance {
 		o.State = "over"
 		o.GaugeStatus = "RATION"

@@ -196,7 +196,7 @@ func evaluateOllamaQuota(o OllamaQuotaObservation, limits OllamaQuotaLimits, now
 	}
 	// Reuse identical percentage pacing; keep Ollama identity in the public reason.
 	verdict := CodexQuotaObservation{ObservedAt: now, Windows: o.Windows}
-	verdict.evaluate(now)
+	verdict.evaluateWithMargin(now, StartMargin("ollama"))
 	o.State = verdict.State
 	o.Windows = verdict.Windows
 	o.Reason = "Ollama Cloud usage is within the verified account ration; gauge " + o.GaugeStatus
