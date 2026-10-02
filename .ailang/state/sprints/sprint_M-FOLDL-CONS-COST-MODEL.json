@@ -1,0 +1,117 @@
+{
+  "sprint_id": "M-FOLDL-CONS-COST-MODEL",
+  "status": "not_started",
+  "created": "2026-10-02T16:03:09.803076+00:00",
+  "design_doc": "design_docs/planned/v0_51_2/m-foldl-cons-cost-model.md",
+  "sprint_plan": "design_docs/planned/v0_51_2/m-foldl-cons-cost-model-sprint-plan.md",
+  "github_issues": [
+    676
+  ],
+  "issue_relationships": {
+    "676": "related; refs only, do not close"
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches: mapAccumL returned no packages; list returned a2ui, duckdb and decisions, unrelated to compiler-native list accumulation. a2ui info identifies UI trees; pkg docs reports no AGENT.md. This milestone modifies core stdlib/runtime or its documentation/validation; no external dependency supplies the required engine primitive."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches: mapAccumL returned no packages; list returned a2ui, duckdb and decisions, unrelated to compiler-native list accumulation. a2ui info identifies UI trees; pkg docs reports no AGENT.md. This milestone modifies core stdlib/runtime or its documentation/validation; no external dependency supplies the required engine primitive."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches: mapAccumL returned no packages; list returned a2ui, duckdb and decisions, unrelated to compiler-native list accumulation. a2ui info identifies UI trees; pkg docs reports no AGENT.md. This milestone modifies core stdlib/runtime or its documentation/validation; no external dependency supplies the required engine primitive."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches: mapAccumL returned no packages; list returned a2ui, duckdb and decisions, unrelated to compiler-native list accumulation. a2ui info identifies UI trees; pkg docs reports no AGENT.md. This milestone modifies core stdlib/runtime or its documentation/validation; no external dependency supplies the required engine primitive."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 160,
+    "estimated_total_loc": 800,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Baseline and cost-model honesty",
+      "estimated_loc": 120,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Fresh make build binary and N=40000 consrepro baseline recorded for both engines (AC-0); new fixtures type-check before use.",
+        "std/list header and concat comment, RT_REC_003 and no-loops guide state foldl is O(n) only with an O(1) step; consing a growing accumulator makes the fold O(n\u00b2) (AC-1).",
+        "Prompt-manager note proposes a new prompt version; frozen prompt unchanged; tail-call message advice retained (AC-6)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Pure mapAccumL on interpreter and VM",
+      "estimated_loc": 360,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "mapAccumL(f,s0,xs) invokes f left-to-right once per element with (state,element), consumes (output,newState), and returns (outputs,finalState); empty input returns ([],s0).",
+        "Both engines build outputs with one pre-sized output allocation, preserve input and output order, and pass state-threading, polymorphism, error propagation and non-aliasing tests.",
+        "HOF names and dispatch tables append at matching positions; existing indices preserved; TestPureBuiltinCoverage and HOF tests pass (AC-3).",
+        "Stdlib and running-total example type-check and produce identical results on interpreter and VM."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Measure scaling and resolve VM overhead",
+      "estimated_loc": 240,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Consrepro and mapAccumL benchmarks run on both engines at 40000,80000,160000 with min-of-three results, machine/build provenance and expected outputs.",
+        "mapAccumL O(1)-step benchmark at 160000 completes in under one second on both engines; scaling recorded; any failed threshold remains an explicit failed AC-2.",
+        "CPU and allocation profiles at 80000 distinguish frame allocation, wider copied values, dispatch and residual costs.",
+        "AC-4 satisfied either by profile-attributed fix with VM/interpreter ratio <=1.5 at 40000 or committed pprof artifact and LIMITATIONS note accounting for >=90% of gap.",
+        "Any frame reuse passes nested HOF, callback error recovery and race tests, clears stale references and preserves live frames; no representation change."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Integration and evaluator handoff",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "make test, make verify-examples, make lint and make check-boundaries pass on a toolchain-equipped runner (AC-5).",
+        "Existing no_loops_fold and effectful_list_t3_foldlE_acc files unchanged with identical outputs; reverse and all HOF dispatch regressions pass.",
+        "Target-version changelog, prompt-manager note and implementation report map AC-0 through AC-6 to measured evidence; sprint-evaluator receives the completed artifacts."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
