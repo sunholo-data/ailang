@@ -113,15 +113,15 @@ func TestStdListHelpersIterativeAtScale(t *testing.T) {
 }
 
 // Answers on small inputs must be exactly what the recursive definitions gave
-// (captured from them before the rewrite). The float NaN cases differ by engine
-// because the interpreter's `>`/`<` on NaN disagree with the VM's (a separate,
-// pre-existing divergence); the rewrite must preserve each engine's answer.
+// (captured from them before the rewrite). The float NaN cases follow IEEE
+// ordering, identical on every engine since #1419 made the interpreter's `>`/`<`
+// on NaN agree with the VM's.
 func TestStdListHelpersSemanticsUnchanged(t *testing.T) {
 	bin := buildAilang(t)
 	const common1 = "none 5 9 1 | "
 	const common2 = " -0.0 0.0 | b  none | true 1 | 1 none false | 123. ."
 	want := map[string]string{
-		"interpreter": common1 + "NaN NaN 1.0 2.0" + common2,
+		"interpreter": common1 + "2.0 NaN 1.0 NaN" + common2,
 		"vm":          common1 + "2.0 NaN 1.0 NaN" + common2,
 		"strict-vm":   common1 + "2.0 NaN 1.0 NaN" + common2,
 	}
