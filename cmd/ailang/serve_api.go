@@ -122,6 +122,8 @@ func serveAPICommand(args []string) error {
 			log.Println("Contract verification enabled (panic mode)")
 		}
 
+		initServeAPIStores(effCtx)
+
 		// Initialize Stream context if Stream capability is granted
 		if effCtx.HasCap("Stream") {
 			effCtx.Stream = effects.NewStreamContext()
@@ -307,4 +309,14 @@ func printServeAPIHelp() {
 	fmt.Println("  GET  /.well-known/agent.json      A2A Agent Card (with --a2a)")
 	fmt.Println("  POST /a2a/                        A2A JSON-RPC task endpoint (with --a2a)")
 	fmt.Println("  POST /mcp/                        MCP streamable HTTP (with --mcp-http)")
+}
+
+// initServeAPIStores initialises the SharedMem and SharedIndex effect contexts
+// when granted, through the SAME setup `ailang run` uses
+// (internal/runner/run.go). serve-api used to accept --caps SharedMem and then
+// fail every call with "SharedMem effect not enabled", because only the run
+// path called these (found 2026-10-02 by the sunholo/mcp_oauth e2e).
+func initServeAPIStores(effCtx *effects.EffContext) {
+	runner.SetupSharedMemHandler(effCtx)
+	runner.SetupSharedIndexHandler(effCtx)
 }
