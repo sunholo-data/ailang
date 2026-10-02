@@ -1,0 +1,101 @@
+{
+  "sprint_id": "M-BYTECODE-NESTED-PATTERN-LOWERING",
+  "status": "not_started",
+  "created": "2026-10-02T18:24:23.943186+00:00",
+  "design_doc": "design_docs/planned/v0_49_1/m-bytecode-nested-pattern-lowering.md",
+  "sprint_plan": "design_docs/planned/v0_49_1/m-bytecode-nested-pattern-lowering-sprint-plan.md",
+  "github_issues": [],
+  "related_github_issues": [
+    1503
+  ],
+  "source_task": "task-08c86c94",
+  "planning_task": "task-51b86f34",
+  "target_version": "v0.51.3",
+  "approval_status": "pending_sprint_review",
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "search_terms": [],
+      "reason": "Not package-like: compiler-internal pattern lowering and first-party tests/docs; reuse evaluator semantics, statement IR and existing test harness. Registry packages cannot supply their own compiler lowering."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "search_terms": [],
+      "reason": "Not package-like: compiler-internal pattern lowering and first-party tests/docs; reuse evaluator semantics, statement IR and existing test harness. Registry packages cannot supply their own compiler lowering."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "search_terms": [],
+      "reason": "Not package-like: compiler-internal pattern lowering and first-party tests/docs; reuse evaluator semantics, statement IR and existing test harness. Registry packages cannot supply their own compiler lowering."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 217,
+    "estimated_total_loc": 650,
+    "estimated_days": 3,
+    "basis": "Design estimate and scoped implementation; aggregate snapshot history does not provide measured LOC/day."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Recursive conditions and bindings in if-chain lowering",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Exact handoff probe returns `b` on evaluator and strict VM; empty and singleton lists return the empty string.",
+        "Recursive helper tests cover all seven pattern cases with matching and failing structural/literal checks; unsupported Core pattern kinds fail loudly through existing lowering error handling.",
+        "Nested lists and tuples do not index short/empty inputs; ADT conditions never call record access for tags.",
+        "Guards can reference nested bindings and false guards continue to the next arm; record extras and field ordering preserve evaluator behavior.",
+        "Existing lower_match_test.go assertions remain unchanged and pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Recursive constructor-switch integration",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Some(Some(7)) returns 7 and Some(None) chooses the correct later/default arm under strict VM.",
+        "Constructor arguments containing lists, tuples, records and literals recurse with complete bindings and conditions.",
+        "Repeated same-tag arms and false guards preserve evaluator source order; referenced var defaults bind correctly.",
+        "Flat constructor, literal-argument, cons-head constructor and switch regressions pass without weakening existing assertions."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Strict parity matrix, corpus audit and documentation",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "All eight design rows equal both engines' hand-computed expected result; all seven recursive pattern branches have positive and negative parity coverage.",
+        "Fresh-binary strict probes pass without an evaluator bridge, including the exact string handoff and deep-cons result 6.",
+        "Existing fixture outputs/type checking remain unchanged; corpus audit records no unresolved pattern-lowering binding failures.",
+        "Targeted and full checks, lint and boundaries pass, or external failures are recorded with reproducible evidence before evaluation.",
+        "Documentation accurately describes completed coverage and remaining independent limitations; sprint-evaluator can trace each design criterion to evidence."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
