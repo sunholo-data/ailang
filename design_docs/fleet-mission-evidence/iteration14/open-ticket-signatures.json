@@ -1,0 +1,178 @@
+{
+  "command": "ailang mission ticket open --json",
+  "captured_utc": "2026-10-02T15:18:12Z (Gate1 observation; command followed base stamp)",
+  "source_sha256": "3691be5c9535dc462233bf6994bea8202a05802b6d8221b2089d0d508587b85f",
+  "open_signatures_count": 34,
+  "rows": [
+    {
+      "signature": "skill:heartbeat-relative-path-absent-in-world",
+      "slots_lost": 8,
+      "blocking": "none"
+    },
+    {
+      "signature": "mission:rotate-log-registry-cwd",
+      "slots_lost": 4,
+      "blocking": "none"
+    },
+    {
+      "signature": "agent-tool:sonnet-unavailable",
+      "slots_lost": 3,
+      "blocking": "item"
+    },
+    {
+      "signature": "weekly-report:unknown-mission",
+      "slots_lost": 2,
+      "blocking": "none"
+    },
+    {
+      "signature": "agent-tool-glm-designer-unavailable",
+      "slots_lost": 2,
+      "blocking": "none"
+    },
+    {
+      "signature": "agent-tool-sonnet-unavailable",
+      "slots_lost": 2,
+      "blocking": "none"
+    },
+    {
+      "signature": "agent-tool-opus-planner-unavailable",
+      "slots_lost": 2,
+      "blocking": "none"
+    },
+    {
+      "signature": "pi-runner:verdict-blind-to-commits-and-predirty",
+      "slots_lost": 1,
+      "blocking": "item"
+    },
+    {
+      "signature": "gate0:driver-crash-notices-invisible",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "driver:exit-path-notices-unbounded",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "quorum:artifact-dir-cwd-relative",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "quorum:invalid-absent-on-quoted-literals",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "driver:unclassified-state-unreachable",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "quorum:zero-signal-guard-vacuous-with-controller-verdict",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "rotate-log:status-flag-mutates-and-world-resolves-to-status-archive",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "skill:gate0-ledger-provenance-S",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "skill-surface:main-checkout-not-synced-to-dev",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "ci:launchd-suite-flakes-openrouter-peer-and-gh-hang",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "quorum:gpt6-1-sol-openai-api-credits-exhausted",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "skill:gate3b-ci-poll-exceeds-foreground-bash",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "skill:gate4-status-stamp-shape-unprescribed",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "mission:index-regenerate-needs-rotatable-archive",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "eval:motoko-connection-probe-orphaned",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "rotate-log:status-archive-structural-header",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "skill:design-scaffold-hardcodes-owning-repo",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "policy:fleet-rulings-not-propagated-to-charters-and-skill",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "quota:opencode-reported-as-a-pool",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "agent-tool:glm-designer-unavailable",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash",
+      "slots_lost": 1,
+      "blocking": "all"
+    },
+    {
+      "signature": "codex:server-capacity-error-crashes-finished-iteration",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "routing:retired-codex-models-still-spawnable-natively",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "quota:admission-has-no-headroom-margin-and-flaps",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "pi:unowned-dirty-absolute-vs-relative-paths",
+      "slots_lost": 1,
+      "blocking": "none"
+    },
+    {
+      "signature": "agent-tool:workspace-routing-discovery-timeout",
+      "slots_lost": 1,
+      "blocking": "none"
+    }
+  ]
+}

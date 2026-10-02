@@ -1,0 +1,13 @@
+LOG all Anthropic controller candidates unavailable — walking fallback chain (pi:openrouter/z-ai/glm-5.3,pi:ollama/local)
+LOG controller fallback rung pi:openrouter/z-ai/glm-5.3 is OVER RATION (bucket openrouter) — skipping to a cheaper rung
+PROBE ollama/local
+RATION_BLOCK rc=0 selected=pi:ollama/local
+LOG all Anthropic controller candidates unavailable — walking fallback chain (pi:openrouter/z-ai/glm-5.3,pi:ollama/local)
+PROBE openrouter/z-ai/glm-5.3
+RATION_HEALTHY rc=0 selected=pi:openrouter/z-ai/glm-5.3
+CLASSIFY msg=402: Insufficient credits runtime_match_rc=1 transient_match_rc=1
+CLASSIFY msg=429: quota exhausted runtime_match_rc=0 transient_match_rc=1
+CLASSIFY msg=API Error: Overloaded runtime_match_rc=1 transient_match_rc=0
+CLASSIFY msg=healthy response runtime_match_rc=1 transient_match_rc=1
+402_WITH_HEARTBEAT verdict=CRASHED at=gate-2
+HEALTHY_WITH_HEARTBEAT verdict=COMPLETED
