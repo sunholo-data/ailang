@@ -59,7 +59,7 @@
 module std/ai/streaming
 
 import std/stream (StreamConn, StreamEvent, StreamErrorKind)
-import std/stream as Stream (onEvent, runEventLoop, disconnect)
+import std/stream as Stream
 import std/result (Result)
 
 -- A unified token-delta record. Reserved for v1.1 when parseDelta lands.

@@ -102,5 +102,6 @@ TC_MATCH_001: constructor pattern 'Bogus' does not name any constructor in scope
 
 - [MOD007 — Duplicate module-scope binding (let/func same name)](mod007.md)
 - [MOD013 — Shared module_prefix](mod013.md)
+- [MOD015 — Imported name collides with a module-level definition](mod015.md)
 - [RT001 — Integer division or modulo by zero](rt001.md)
 - [Effect row mismatch](typ_effect_row_mismatch.md)

@@ -1,0 +1,3 @@
+module cmd/ailang/testdata/importcollide/a
+
+export pure func tick(n: int) -> int = n + 1
