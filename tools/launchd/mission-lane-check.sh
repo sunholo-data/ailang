@@ -23,6 +23,8 @@ NAME="${1:-}"; [ -n "$NAME" ] || { echo "usage: mission-lane-check.sh NAME [--no
 PI_TASK=1; [ "${2:-}" = "--no-pi-task" ] && PI_TASK=0
 STALE_MAX="${MISSION_LANE_STALE_MAX:-50}"
 PI_TASK_SECONDS="${MISSION_LANE_PI_SECONDS:-240}"
+# Attended only: exercise rungs the ration gate would skip (spends their quota/metered cents).
+IGNORE_RATION="${MISSION_LANE_IGNORE_RATION:-0}"
 
 DEAD=0
 row() { printf '%s\t%s\t%s\t%s\n' "$NAME" "$1" "$2" "$3"; [ "$2" = dead ] && DEAD=$((DEAD+1)); return 0; }
@@ -52,6 +54,7 @@ else row config dead "$(printf '%s' "$_doc" | grep -v '^⚠\|make quick-install'
 unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN OPENAI_API_KEY   # as the driver does: subscription lanes
 export MISSION_NAME="$NAME"
 . "$ROOT/tools/launchd/lib/lane-probe.sh"
+[ "$IGNORE_RATION" = 1 ] && _mc_is_over_ration() { return 1; }   # after sourcing: overrides the lib's
 
 # --- 4. the clone the item worktrees come from ---------------------------------------------------
 CLONE=$(cd "$(git -C "$WORKDIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/.." 2>/dev/null && pwd -P)
@@ -69,10 +72,12 @@ fi
 CACHE="|"
 pi_task() { # MODEL → ok | dead:<verdict>
   local m="$1" t wt rc v
+  # The cone carries CLAUDE.md + AGENTS.md: the session-protocol gate makes a pi role read
+  # CLAUDE.md before it may write, and a .pi-only cone left MiniMax unable to (2026-10-02).
   t=$(mktemp -d "/tmp/lanecheck.XXXXXX") || { echo "dead:mktemp"; return; }
   wt="$t/wt"
   if ! git -C "$CLONE" worktree add -q --detach --no-checkout "$wt" "$(git -C "$ROOT" rev-parse HEAD)" 2>/dev/null \
-     || ! git -C "$wt" sparse-checkout set --no-cone '/.pi/' 2>/dev/null || ! git -C "$wt" checkout -q 2>/dev/null; then
+     || ! git -C "$wt" sparse-checkout set --no-cone '/.pi/' '/CLAUDE.md' '/AGENTS.md' 2>/dev/null || ! git -C "$wt" checkout -q 2>/dev/null; then
     git -C "$CLONE" worktree remove --force "$wt" >/dev/null 2>&1; rm -rf "$t"; echo "dead:worktree"; return
   fi
   printf 'Create a file named LANE_OK in the current directory containing the single word ok. Do nothing else.\n' > "$t/directive"
@@ -90,7 +95,11 @@ check_rung() { # RUNG → RUNG_V = ok | skip:<why> | dead:<why>
     codex:*) m="${r#codex:}"; _mc_probe_codex "$m" >/dev/null 2>&1; rc=$? ;;
     pi:*)    m="${r#pi:}"
              if _mc_is_over_ration "$r"; then out="skip:over ration"
-             elif [ "$PI_TASK" = 1 ] && [ -n "$CLONE" ]; then out=$(pi_task "$m")
+             elif [ "$PI_TASK" = 1 ] && [ -n "$CLONE" ]; then
+               out=$(pi_task "$m")
+               # One retry on a no-op finish: openrouter/minimax-m3 passed and failed this same
+               # task minutes apart (2026-10-02). Two misses is a lane problem; one is noise.
+               case "$out" in dead:empty_worktree*) out=$(pi_task "$m") ;; esac
              else _mc_probe_pi "$m" >/dev/null 2>&1; rc=$?; fi ;;
     *)       m="${r#claude:}"; _mc_probe "$m" >/dev/null 2>&1; rc=$? ;;
   esac
@@ -113,7 +122,8 @@ for r in "${_ctl[@]}"; do
   fi
 done
 if [ -n "$CTL_PROVIDER" ]; then row controller ok "first usable: $CTL_PROVIDER ·$_ctl_rows"
-else row controller dead "no usable rung ·$_ctl_rows"; fi
+else case "$_ctl_rows" in *=dead:*) row controller dead "no usable rung ·$_ctl_rows" ;;
+     *) row controller warn "untested — every rung over ration ·$_ctl_rows" ;; esac; fi
 
 for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
   _rows=""; _usable=""
@@ -128,10 +138,15 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
     fi
     _rows="$_rows $r=$v"
     [ "$v" = ok ] && [ -z "$_usable" ] && _usable="$r"
+    case "$v" in dead:*) _broken=1 ;; esac
   done
   role_l=$(printf '%s' "$role" | tr 'A-Z' 'a-z')
+  # A rung the ration gate skipped is UNTESTED, not broken: quota rolls over and the fire already
+  # waits for it. Only a rung that was tried and failed makes a role dead.
   if [ -n "$_usable" ]; then row "$role_l" ok "first usable: $_usable ·$_rows"
-  else row "$role_l" dead "no usable rung ·$_rows"; fi
+  elif [ "${_broken:-0}" = 1 ]; then row "$role_l" dead "no usable rung ·$_rows"
+  else row "$role_l" warn "untested — every rung skipped (over ration or unreachable) ·$_rows"; fi
+  _broken=0
 done
 
 if [ "$DEAD" -eq 0 ]; then echo "READY"; exit 0; fi
