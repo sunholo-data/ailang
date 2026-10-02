@@ -4,7 +4,7 @@
 **Target**: v0.51.3 (same release train as this folder's sibling [m-vm-adt-tag-check-lowering](m-vm-adt-tag-check-lowering.md))
 **Priority**: P1 (High) — real cost bug (12.5 s for `any` over 80k ints on the VM; 81 s over 320k records) + a VM/interpreter divergence + docs that teach an O(n²) call as a short-circuit helper; not a hard blocker (the reporter worked around it)
 **Estimated**: ~3 days raw, 2× where honest → ~1 week (Phase 1: 1 d · Phase 2: 0.5 d · Phase 3: 1 d · Phase 4: 0.5 d)
-**Dependencies**: None hard. **Coordination required**: [m-interpreter-tail-call-elimination](../v0_51_1/m-interpreter-tail-call-elimination.md) (its code is already in this tree — see V10 — and it changes the divergence half of this bug report); [m-foldl-cons-cost-model](../v0_51_2/m-foldl-cons-cost-model.md) edits the same `std/list.ail` header comments (merge coordination, see Conflict Surface item 6).
+**Dependencies**: None hard. **Coordination required**: [m-interpreter-tail-call-elimination](../v0_52_0/m-interpreter-tail-call-elimination.md) (its code is already in this tree — see V10 — and it changes the divergence half of this bug report); [m-foldl-cons-cost-model](../v0_51_2/m-foldl-cons-cost-model.md) edits the same `std/list.ail` header comments (merge coordination, see Conflict Surface item 6).
 **Bug report**: AILANG v0.51.0 (b99dd25, darwin arm64, binary md5 `ed0478cc…`), related to [#1501](https://github.com/sunholo-data/ailang/issues/1501) (consing foldl) and [#676](https://github.com/sunholo-data/ailang/issues/676) (O(1) cons substrate, parked). Downstream consumer: `stapledons-godot` M1.2b-T4 (catalogue tool; **avoided** the bug via `head(filter(...))` / `head(flatMap(...))` — 0.25 s VM / 0.71 s interpreter over 320k records, vs 81–83 s for `any`/`findIndex`, reporter's numbers, V27).
 **Author**: design-doc-creator, unattended coordinator session (`AILANG_TASK_TITLE` set; inbox skipped per CLAUDE.md).
 
@@ -326,7 +326,7 @@ export pure func any[a](p: a -> bool, xs: [a]) -> bool = _list_any(p, xs)
 - [m-gap6-stdlib-maximum](../../implemented/v0_7_0/m-gap6-stdlib-maximum.md) (v0.7.0) — where the recursive `maximum`/`minimum` family came from
 
 **Planned (check for overlap):**
-- [m-interpreter-tail-call-elimination](../v0_51_1/m-interpreter-tail-call-elimination.md) — fixes the RT_REC_003 *runnability* half of this bug report for tail shapes (in-tree); this doc removes the cost half and the non-tail helpers. Distinct, coordinated.
+- [m-interpreter-tail-call-elimination](../v0_52_0/m-interpreter-tail-call-elimination.md) — fixes the RT_REC_003 *runnability* half of this bug report for tail shapes (in-tree); this doc removes the cost half and the non-tail helpers. Distinct, coordinated.
 - [m-foldl-cons-cost-model](../v0_51_2/m-foldl-cons-cost-model.md) — the *step* cost of fold-consing + docs honesty for foldl/mapAccumL; distinct (traversal vs step), same file edited.
 - [m-list-cons-quadratic](../m-list-cons-quadratic.md) (PARKED) — the substrate representation decision; explicitly not reopened.
 
@@ -351,7 +351,7 @@ Every load-bearing claim above, with how it was checked in this session. "Report
 | V7 | VM `_list_tail` copies the suffix | Read: internal/vm/builtins.go:354-375 (`tail := make(...)`/`copy(tail, elems[n:])` at :373-374) |
 | V8 | Interpreter pattern bind shares the backing array (no copy) | Read: internal/eval/eval_patterns.go:245-246 |
 | V9 | VM-path list-pattern rest binding lowers to `_list_tail` | Read: internal/gen/lower/match.go:521-527 (bindings), :405-443 (length/tag conds via `_len`/`_list_get`) |
-| V10 | Interpreter TCE (#1486) is implemented at this tree | Read: internal/eval/eval_apply.go:1-16 (header comment cites the v0_51_1 doc) + trampoline :81-187 (`evalCoreT`, `tailCall`, frame replacement); cannot execute HEAD (no Go toolchain, V28) — implementer re-verifies as AC-0 |
+| V10 | Interpreter TCE (#1486) is implemented at this tree | Read: internal/eval/eval_apply.go:1-16 (header comment cites the v0_52_0 doc) + trampoline :81-187 (`evalCoreT`, `tailCall`, frame replacement); cannot execute HEAD (no Go toolchain, V28) — implementer re-verifies as AC-0 |
 | V11 | No `_list_any`/`_list_findIndex`/`_list_foldr`/`_list_maximum*`/`_list_minimum*` runtime builtin exists; today's `_list_*` set enumerated (22 entries) | First-party: `ailang builtins list \| grep _list` (transcript in session); all pure, `$builtin` module |
 | V12 | GoCodegenSpecs already exist and are iterative for `_list_foldr` and `_list_findIndex` (Option-returning) | Read: internal/builtins/registry_codegen_list.go:66-77, :268-280 (also `_list_last` :258-266; `mapE`/`forEachE` :282-300) |
 | V13 | No `GoCodegenSpec` for `_list_any` or the six extremes | Grep: `"__list_any"\|"_list_any"\|_list_maximum"` over internal/builtins/registry_codegen*.go → no hits (negative existence) |

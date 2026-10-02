@@ -9,7 +9,7 @@ import (
 // selective import — `import M (tick)` or `import M (f as tick)` — and also
 // defines at module level is an ambiguous occurrence, as in Haskell/Elm and
 // Rust E0255. It used to compile with the import silently winning (row 7 of
-// design_docs/implemented/v0_51_1/m-elaborator-lexical-scope.md).
+// design_docs/implemented/v0_52_0/m-elaborator-lexical-scope.md).
 
 const collideDep = `module dep
 

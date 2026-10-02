@@ -7,7 +7,7 @@ import (
 )
 
 // Tail-call elimination (M-EVAL-TAIL-CALLS, #1486,
-// design_docs/planned/v0_51_1/m-eval-tail-calls.md).
+// design_docs/planned/v0_52_0/m-eval-tail-calls.md).
 //
 // Every AILANG call used to be Go recursion (evalCoreApp → evalCore(body)), so
 // a loop written as a tail call hit RT_REC_003 at 10,000 iterations while the
