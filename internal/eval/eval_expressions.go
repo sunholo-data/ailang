@@ -30,13 +30,24 @@ var evalSegmentLevels = 1 << 17 // var only so tests can force hops at small dep
 // evaluator passes through here, so evalDepth tracks Go stack use in a way the
 // AILANG call counter (recursionDepth) cannot.
 func (e *CoreEvaluator) evalCore(expr core.CoreExpr) (Value, error) {
+	return e.evalCoreT(expr, false)
+}
+
+// evalCoreT is evalCore with tail position made explicit (M-EVAL-TAIL-CALLS,
+// #1486). tail is true only for the tail expression of a function body, and
+// is passed down solely through the forms whose result IS the enclosing
+// expression's result: If branches, Let/LetRec bodies, Match arm bodies and
+// DictAbs bodies. Every other sub-expression is evaluated with tail=false. It
+// is an argument rather than evaluator state so it can never leak into a
+// builtin callback that re-enters the evaluator mid-expression.
+func (e *CoreEvaluator) evalCoreT(expr core.CoreExpr, tail bool) (Value, error) {
 	e.evalDepth++
 	var v Value
 	var err error
 	if e.evalDepth-e.segmentBase >= evalSegmentLevels {
-		v, err = e.evalCoreOnFreshStack(expr)
+		v, err = e.evalCoreOnFreshStack(expr, tail)
 	} else {
-		v, err = e.evalCoreDispatch(expr)
+		v, err = e.evalCoreDispatch(expr, tail)
 	}
 	e.evalDepth--
 	return v, err
@@ -47,7 +58,7 @@ func (e *CoreEvaluator) evalCore(expr core.CoreExpr) (Value, error) {
 // channel handoff orders every write on either side, so the evaluator stays
 // single-threaded. A panic in the continuation is re-raised here, so recover()
 // sites above this frame behave as before.
-func (e *CoreEvaluator) evalCoreOnFreshStack(expr core.CoreExpr) (Value, error) {
+func (e *CoreEvaluator) evalCoreOnFreshStack(expr core.CoreExpr, tail bool) (Value, error) {
 	type outcome struct {
 		v         Value
 		err       error
@@ -68,7 +79,7 @@ func (e *CoreEvaluator) evalCoreOnFreshStack(expr core.CoreExpr) (Value, error) 
 		if e.stackHopHook != nil {
 			defer e.stackHopHook()()
 		}
-		out.v, out.err = e.evalCoreDispatch(expr)
+		out.v, out.err = e.evalCoreDispatch(expr, tail)
 	}()
 	out := <-done
 	e.segmentBase = savedBase
@@ -78,7 +89,7 @@ func (e *CoreEvaluator) evalCoreOnFreshStack(expr core.CoreExpr) (Value, error) 
 	return out.v, out.err
 }
 
-func (e *CoreEvaluator) evalCoreDispatch(expr core.CoreExpr) (Value, error) {
+func (e *CoreEvaluator) evalCoreDispatch(expr core.CoreExpr, tail bool) (Value, error) {
 	if expr == nil {
 		return &UnitValue{}, nil
 	}
@@ -97,16 +108,16 @@ func (e *CoreEvaluator) evalCoreDispatch(expr core.CoreExpr) (Value, error) {
 		return e.evalCoreLambda(n)
 
 	case *core.Let:
-		return e.evalCoreLet(n)
+		return e.evalCoreLet(n, tail)
 
 	case *core.LetRec:
-		return e.evalCoreLetRec(n)
+		return e.evalCoreLetRec(n, tail)
 
 	case *core.App:
-		return e.evalCoreApp(n)
+		return e.evalCoreApp(n, tail)
 
 	case *core.If:
-		return e.evalCoreIf(n)
+		return e.evalCoreIf(n, tail)
 
 	case *core.BinOp:
 		return e.evalCoreBinOp(n)
@@ -133,13 +144,13 @@ func (e *CoreEvaluator) evalCoreDispatch(expr core.CoreExpr) (Value, error) {
 		return e.evalCoreTuple(n)
 
 	case *core.Match:
-		return e.evalCoreMatch(n)
+		return e.evalCoreMatch(n, tail)
 
 	case *core.DictRef:
 		return e.evalDictRef(n)
 
 	case *core.DictAbs:
-		return e.evalDictAbs(n)
+		return e.evalDictAbs(n, tail)
 
 	case *core.DictApp:
 		return e.evalDictApp(n)
@@ -340,7 +351,7 @@ func extractEffectMinBudgets(t types.Type) map[string]int {
 }
 
 // evalCoreLet evaluates a let binding
-func (e *CoreEvaluator) evalCoreLet(let *core.Let) (Value, error) {
+func (e *CoreEvaluator) evalCoreLet(let *core.Let, tail bool) (Value, error) {
 	// Evaluate the value
 	val, err := e.evalCore(let.Value)
 	if err != nil {
@@ -354,7 +365,7 @@ func (e *CoreEvaluator) evalCoreLet(let *core.Let) (Value, error) {
 	// Evaluate body in new environment
 	oldEnv := e.env
 	e.env = newEnv
-	result, err := e.evalCore(let.Body)
+	result, err := e.evalCoreT(let.Body, tail)
 	e.env = oldEnv
 
 	return result, err
@@ -362,7 +373,7 @@ func (e *CoreEvaluator) evalCoreLet(let *core.Let) (Value, error) {
 
 // evalCoreLetRec evaluates recursive let bindings using indirection cells
 // Implements function-first semantics (OCaml/Haskell style) for safe recursion
-func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec) (Value, error) {
+func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec, tail bool) (Value, error) {
 	// Phase 1: Pre-allocate indirection cells and extend environment
 	recEnv := e.env.NewChildEnvironment()
 	cells := make(map[string]*RefCell, len(letrec.Bindings))
@@ -417,7 +428,7 @@ func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec) (Value, error) {
 	}
 
 	// Phase 3: Evaluate body under recursive environment
-	return e.evalCore(letrec.Body)
+	return e.evalCoreT(letrec.Body, tail)
 }
 
 // evalCoreRecord evaluates record construction
@@ -543,7 +554,7 @@ func (e *CoreEvaluator) evalCoreTuple(tuple *core.Tuple) (Value, error) {
 }
 
 // evalCoreIf evaluates conditional
-func (e *CoreEvaluator) evalCoreIf(ifExpr *core.If) (Value, error) {
+func (e *CoreEvaluator) evalCoreIf(ifExpr *core.If, tail bool) (Value, error) {
 	// Evaluate condition
 	condVal, err := e.evalCore(ifExpr.Cond)
 	if err != nil {
@@ -558,8 +569,7 @@ func (e *CoreEvaluator) evalCoreIf(ifExpr *core.If) (Value, error) {
 
 	// Evaluate appropriate branch
 	if boolVal.Value {
-		return e.evalCore(ifExpr.Then)
-	} else {
-		return e.evalCore(ifExpr.Else)
+		return e.evalCoreT(ifExpr.Then, tail)
 	}
+	return e.evalCoreT(ifExpr.Else, tail)
 }

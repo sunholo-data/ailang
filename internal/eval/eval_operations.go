@@ -13,7 +13,7 @@ import (
 var debugEvalApp = os.Getenv("DEBUG_EVAL_APP") == "1"
 
 // evalCoreApp evaluates function application
-func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
+func (e *CoreEvaluator) evalCoreApp(app *core.App, tail bool) (retVal Value, err error) {
 	// Evaluate function
 	fnVal, err := e.evalCore(app.Func)
 	if err != nil {

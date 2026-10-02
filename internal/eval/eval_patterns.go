@@ -14,7 +14,7 @@ import (
 var debugMatch = os.Getenv("DEBUG_MATCH") == "1"
 
 // evalCoreMatch evaluates pattern matching
-func (e *CoreEvaluator) evalCoreMatch(match *core.Match) (Value, error) {
+func (e *CoreEvaluator) evalCoreMatch(match *core.Match, tail bool) (Value, error) {
 	if debugMatch {
 		fmt.Printf("[MATCH] Evaluating match with %d arms\n", len(match.Arms))
 	}
@@ -38,7 +38,7 @@ func (e *CoreEvaluator) evalCoreMatch(match *core.Match) (Value, error) {
 	if useDecisionTree {
 		compiler := dtree.NewDecisionTreeCompiler(match.Arms)
 		tree := compiler.Compile()
-		return e.evalDecisionTree(scrutineeVal, tree, match.Arms)
+		return e.evalDecisionTree(scrutineeVal, tree, match.Arms, tail)
 	}
 
 	// Linear evaluation (current default implementation)
@@ -92,7 +92,7 @@ func (e *CoreEvaluator) evalCoreMatch(match *core.Match) (Value, error) {
 
 		oldEnv := e.env
 		e.env = newEnv
-		result, err := e.evalCore(arm.Body)
+		result, err := e.evalCoreT(arm.Body, tail)
 		e.env = oldEnv
 
 		return result, err
@@ -395,13 +395,13 @@ func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
 }
 
 // evalDictAbs evaluates dictionary abstraction
-func (e *CoreEvaluator) evalDictAbs(abs *core.DictAbs) (Value, error) {
+func (e *CoreEvaluator) evalDictAbs(abs *core.DictAbs, tail bool) (Value, error) {
 	// Dictionary abstraction introduces dictionary parameters
 	// We need to evaluate the body with dictionaries in scope
 
 	// For now, we'll just evaluate the body
 	// In a full implementation, this would handle polymorphic dictionary passing
-	return e.evalCore(abs.Body)
+	return e.evalCoreT(abs.Body, tail)
 }
 
 // evalDictApp evaluates dictionary application
