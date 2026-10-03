@@ -91,9 +91,9 @@ func actionableInstanceHint(class string, typ Type) string {
 			// The type IS numeric — the instance is simply not in scope.
 			return "Import std/prelude or define instance"
 		case "string":
-			return "Arithmetic operators (+, -, *, /) need numbers, but this is a string. Use ++ to concatenate strings, or stringToInt to convert a string to a number."
+			return "Arithmetic operators (+, -, *, /) need numbers, but this is a string. To join strings use \"${a}${b}\" interpolation (or concat([a, b]) from std/string); to convert a string to a number use stringToInt; to print a number use show(n)."
 		default:
-			return fmt.Sprintf("Arithmetic operators (+, -, *, /) need a Num type; %s is not numeric. Convert it (e.g. stringToInt, intToFloat) or use ++ to concatenate strings.", ts)
+			return fmt.Sprintf("Arithmetic operators (+, -, *, /) need a Num type; %s is not numeric. Convert it (e.g. stringToInt, intToFloat); to join strings use \"${a}${b}\" interpolation.", ts)
 		}
 	case "Fractional":
 		return fmt.Sprintf("Float division (/) needs floats; %s is not Fractional. Convert ints with intToFloat, e.g. intToFloat(x) / intToFloat(y).", ts)

@@ -235,6 +235,8 @@ func TestTakeAfterFlatMapWarningFixtures(t *testing.T) {
 		name     string
 		src      string
 		wantWarn bool
+		// wantHits, when non-zero, pins the exact number of warnings.
+		wantHits int
 	}{
 		{
 			name: "direct_trap",
@@ -244,6 +246,19 @@ func expand(x: int) -> [int] { [x, x] }
 export func main() -> [int] { take(2, flatMap(expand, [1, 2, 3])) }
 `,
 			wantWarn: true,
+		},
+		{
+			// #680: a trap nested inside another must fire too, not just
+			// the outermost one.
+			name: "nested_traps",
+			src: `module fixture/nested_traps
+import std/list (take, flatMap)
+func g(x: int) -> [int] { [x, x] }
+func expand(x: int) -> [int] { [x, x, x] }
+export func main() -> [int] { take(2, flatMap(expand, take(3, flatMap(g, [1, 2, 3, 4, 5])))) }
+`,
+			wantWarn: true,
+			wantHits: 2,
 		},
 		{
 			name: "fused",
@@ -299,6 +314,9 @@ export func main() -> [int] { sortBy(compare, [3, 1, 2]) }
 				}
 				if !strings.Contains(matching[0], "takeFlatMap") {
 					t.Fatalf("%s warning must carry takeFlatMap fix, got: %s", warningCode, matching[0])
+				}
+				if tt.wantHits != 0 && len(matching) != tt.wantHits {
+					t.Fatalf("expected %d %s warnings, got %d: %v", tt.wantHits, warningCode, len(matching), matching)
 				}
 			} else if len(matching) != 0 {
 				t.Fatalf("expected no %s warning, got: %v", warningCode, matching)

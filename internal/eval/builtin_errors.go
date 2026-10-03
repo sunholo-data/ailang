@@ -29,7 +29,7 @@ func (e *BuiltinError) Error() string {
 //
 //	ArgTypeMismatch("_list_concat", "list", "string")
 //	→ "Runtime error in _list_concat: expected list, got string
-//	   Hint: Use ++ for list concatenation, not string concatenation"
+//	   Hint: ++ is for lists only. For strings use \"${expr}\" interpolation, concat([parts]), or join(sep, parts)."
 func ArgTypeMismatch(builtin string, expected string, got string) error {
 	hint := getSmartHint(builtin, expected, got)
 	return &BuiltinError{
@@ -44,10 +44,10 @@ func ArgTypeMismatch(builtin string, expected string, got string) error {
 func getSmartHint(builtin string, expected string, got string) string {
 	// Concatenation operator confusion
 	if builtin == "_list_concat" && got == "string" {
-		return "Use ++ for list concatenation. For strings, ensure both operands are lists."
+		return "++ is for lists only. For strings use \"${expr}\" interpolation, concat([parts]), or join(sep, parts)."
 	}
 	if builtin == "_str_concat" && got == "list" {
-		return "Use ++ for string concatenation. For lists, ensure both operands are strings."
+		return "String concatenation expects strings. Use ++ only for lists; for strings use \"${expr}\" interpolation."
 	}
 
 	// String operations on non-strings
@@ -71,7 +71,7 @@ func getSmartHint(builtin string, expected string, got string) string {
 
 	// Math operations on non-numbers
 	if (builtin == "_add" || builtin == "_sub" || builtin == "_mul" || builtin == "_div") && got == "string" {
-		return "Cannot perform arithmetic on strings. Use ++ for string concatenation."
+		return "Cannot perform arithmetic on strings. To join strings use \"${expr}\" interpolation."
 	}
 	if (builtin == "_add" || builtin == "_sub" || builtin == "_mul" || builtin == "_div") && got == "list" {
 		return "Cannot perform arithmetic on lists."

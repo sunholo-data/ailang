@@ -218,11 +218,18 @@ func TestActionableInstanceHint(t *testing.T) {
 		{"Num", TInt, "Import std/prelude or define instance"},
 		{"Num", TFloat, "Import std/prelude or define instance"},
 		// Non-numeric type → actionable conversion advice (the residual failure class)
-		{"Num", TString, "Arithmetic operators (+, -, *, /) need numbers, but this is a string. Use ++ to concatenate strings, or stringToInt to convert a string to a number."},
+		{"Num", TString, "Arithmetic operators (+, -, *, /) need numbers, but this is a string. To join strings use \"${a}${b}\" interpolation (or concat([a, b]) from std/string); to convert a string to a number use stringToInt; to print a number use show(n)."},
 	}
 	for _, c := range cases {
 		if got := actionableInstanceHint(c.class, c.typ); got != c.want {
 			t.Errorf("actionableInstanceHint(%s, %s):\n got:  %q\n want: %q", c.class, c.typ, got, c.want)
+		}
+	}
+	// #1543: `++` is list-only; a Num hint recommending it for strings sends
+	// the agent from one type error straight into another.
+	for _, typ := range []Type{TString, TBool} {
+		if h := actionableInstanceHint("Num", typ); strings.Contains(h, "++") {
+			t.Errorf("Num[%s] hint must not recommend ++ (list-only), got %q", typ, h)
 		}
 	}
 	// Fractional on int should mention intToFloat (don't pin the whole string).
