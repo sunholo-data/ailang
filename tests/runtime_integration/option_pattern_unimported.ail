@@ -1,0 +1,16 @@
+module tests/runtime_integration/option_pattern_unimported
+
+-- #323 regression fixture: Option's constructors are NOT imported (only nth),
+-- and the None arm is listed FIRST. Before the fix, elaboration silently
+-- turned the unresolved `None` into a catch-all variable pattern, so every
+-- value — including Some(7) — took the None arm and count returned 0.
+import std/list (nth)
+
+export func count(xs: [int], pc: int, steps: int) -> int {
+  match nth(xs, pc) {
+    None => steps,
+    Some(v) => count(xs, pc + 1, steps + 1)
+  }
+}
+
+export func run() -> int = count([7, 8, 9], 0, 0)

@@ -170,6 +170,7 @@ func (rt *ModuleRuntime) LoadAndEvaluate(modulePath string) (*ModuleInstance, er
 		elaborator := elaborate.NewElaboratorWithPath(loaded.Path)
 		elaborator.SetModuleLoader(rt.loader) // Share the runtime's loader for consistent module resolution
 		elaborator.AddBuiltinsToGlobalEnv()
+		elaborator.MergeGlobalEnv(rt.fallbackCtorRefs(loaded))
 		coreProgram, err := elaborator.ElaborateFile(loaded.File)
 		if err != nil {
 			return nil, fmt.Errorf("failed to elaborate module %s: %w", modulePath, err)
@@ -203,6 +204,43 @@ func (rt *ModuleRuntime) LoadAndEvaluate(modulePath string) (*ModuleInstance, er
 	})
 
 	return inst, inst.initErr
+}
+
+// fallbackCtorModule prefixes the GlobalRef module of an imported constructor
+// that the fallback elaborator in LoadAndEvaluate cannot resolve (#324).
+const fallbackCtorModule = "$fallback-ctor/"
+
+// fallbackCtorRefs maps each constructor that loaded imports to a GlobalRef
+// the resolver refuses with an error naming the fix.
+//
+// The fallback elaborator runs for modules that were not preloaded from a
+// pipeline result. It does not register imported constructors (nor run
+// OpLowering or type checking), so `Some(x)` in a module that imports `Some`
+// used to elaborate to a plain variable and fail at call time with a bare
+// "undefined variable: Some". Routing the name through this ref keeps every
+// module that never uses the constructor working, and makes one that does
+// fail with an explanation instead. Production callers
+// (internal/runner/entrypoint.go, internal/embed) preload pipeline-compiled
+// modules first, so their modules skip the fallback.
+func (rt *ModuleRuntime) fallbackCtorRefs(loaded *loader.LoadedModule) map[string]core.GlobalRef {
+	refs := make(map[string]core.GlobalRef)
+	for _, imp := range loaded.File.Imports {
+		dep, err := rt.loader.Load(imp.Path)
+		if err != nil || dep == nil {
+			continue // the elaborator reports the load failure itself
+		}
+		for _, sym := range imp.Symbols {
+			if _, isCtor := dep.Constructors[sym]; !isCtor {
+				continue
+			}
+			bindName := sym
+			if alias, ok := imp.SymbolAliases[sym]; ok {
+				bindName = alias
+			}
+			refs[bindName] = core.GlobalRef{Module: fallbackCtorModule + loaded.Path, Name: sym}
+		}
+	}
+	return refs
 }
 
 // evaluateModule evaluates a module's Core AST to populate bindings
