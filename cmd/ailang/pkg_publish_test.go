@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,5 +85,33 @@ func TestRewritePathDeps_Whitespace(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// #636: publish --dry-run is the last reversible moment before an immutable
+// publish, so every digest it shows must be the full 256-bit value, not a
+// 68-bit prefix that only looks like something an operator can verify.
+func TestPrintPublishDigests_Full(t *testing.T) {
+	tarball := pkg.TarballHash([]byte("tarball bytes"))
+	content := "sha256:" + strings.Repeat("c", 64)
+	iface := "sha256:" + strings.Repeat("1", 64)
+	v2 := "sha256:ifacev2:" + strings.Repeat("2", 64)
+
+	var buf bytes.Buffer
+	printPublishDigests(&buf, 1234, tarball, content, iface, v2)
+	out := buf.String()
+	for _, want := range []string{"1234 bytes", tarball, content, iface, v2} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing full value %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "...") {
+		t.Errorf("digests must not be truncated:\n%s", out)
+	}
+
+	buf.Reset()
+	printPublishDigests(&buf, 1, tarball, content, iface, "") // v2 shadow-mode failure
+	if strings.Contains(buf.String(), "(v2)") {
+		t.Errorf("an absent v2 hash must not print an empty line:\n%s", buf.String())
 	}
 }

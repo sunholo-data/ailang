@@ -163,7 +163,7 @@ func discoverAttestedChecks(absDir string) *pkg.AttestedBlock {
 	tests := &pkg.TestsSection{Files: len(testFiles), Notes: "not run (--no-run)"}
 	smoke := &pkg.SmokeSection{}
 	if st, err := os.Stat(filepath.Join(absDir, pkg.SmokeFile)); err == nil && !st.IsDir() {
-		smoke.Present = true
+		smoke.Present, smoke.NotRun, smoke.Notes = true, true, "not run (--no-run)"
 	}
 	return &pkg.AttestedBlock{Tests: tests, Smoke: smoke}
 }
@@ -247,7 +247,11 @@ func printQualityHuman(r *pkg.QualityReport) {
 		fmt.Printf("  tests:     [attested] %d files, %d passed, %d failed%s\n", r.Tests.Files, r.Tests.Passed, r.Tests.Failed, noteSuffix(r.Tests.Notes))
 	}
 	if r.Smoke != nil {
-		fmt.Printf("  smoke:     [attested] present %v passed %v\n", r.Smoke.Present, r.Smoke.Passed)
+		if r.Smoke.NotRun {
+			fmt.Printf("  smoke:     [attested] present %v, %s\n", r.Smoke.Present, r.Smoke.Notes)
+		} else {
+			fmt.Printf("  smoke:     [attested] present %v passed %v\n", r.Smoke.Present, r.Smoke.Passed)
+		}
 	}
 	fmt.Println()
 	for _, g := range r.Gates {

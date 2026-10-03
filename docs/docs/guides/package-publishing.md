@@ -30,7 +30,7 @@ cat ailang.toml
 # 2. Set the API key (one-time per shell)
 export AILANG_REGISTRY_API_KEY=<key-issued-by-sunholo>
 
-# 3. Dry-run first to see exactly what would upload
+# 3. Dry-run first to see exactly what would upload (prints the full sha256 digests)
 ailang publish --dry-run
 
 # 4. Publish for real
@@ -55,7 +55,7 @@ it on its own:
 ailang pkg quality .            # human summary
 ailang pkg quality --json .     # schema ailang.package-quality/v1
 ailang pkg quality --strict .   # warn-level badges become gates (exit 2)
-ailang pkg quality --no-run .   # skip executing tests and _smoke.ail
+ailang pkg quality --no-run .   # skip executing tests and _smoke.ail (reported "not run", never a gate)
 ```
 
 Every section carries a **provenance**:
