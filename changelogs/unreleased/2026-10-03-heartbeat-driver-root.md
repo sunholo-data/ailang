@@ -8,9 +8,3 @@
   `MISSION_DRIVER_ROOT` now fails loudly instead of silently resolving nothing. Each gate file states the setup.
 - `gate-3-route.md` names rc 19 (`provider_quota`) in the `mission_pi_run.sh` return-code list; like every
   non-18 non-zero code it is a lane failure that falls back along the declared chain.
-
-### Changed — push guard admits the `.agents` skill mirror
-
-- `_scope_is_harness` in `tools/launchd/githooks/pre-push` and the Authority "May change" list in
-  `design_docs/fleet-mission.md` now include `.agents/skills/mission-*` and `.agents/skills/sprint-*`.
-  Side effect: product missions (v1, docs, motoko) can no longer push those mirror paths, matching `.claude`.
