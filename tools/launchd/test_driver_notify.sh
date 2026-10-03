@@ -82,7 +82,7 @@ awk '/^if \[ -n "\$_lane_degraded" \]; then/,/^fi$/' "$DRV"    > "$LAB/lane_bloc
 awk '/^# --- DRIVER PIN STATE PATHS START ---/,/^# --- DRIVER PIN STATE PATHS END ---/' "$DRV" > "$LAB/state_paths.sh"
 # M2 fixture: bound the three D-60 paths with the REAL helpers the production wraps
 # use, so the hang-cutoff and drain arms exercise the production code, not a retype.
-awk '/^_mc_bounded\(\) \{/,/^\}/' "$DRV"                    > "$LAB/bounded.sh"
+awk '/^_mc_bounded\(\) \{/,/^\}/' "$DRV" "$REPO_ROOT/tools/launchd/lib/lane-probe.sh"                    > "$LAB/bounded.sh"
 awk '/^_mc_drain_notices\(\) \{/,/^\}/' "$DRV"              > "$LAB/drain.sh"
 # The drain and the notifier both classify a send through these, so the arms must load
 # the PRODUCTION copies — a retyped duplicate-matcher would pass while the driver's rots.
@@ -977,7 +977,7 @@ fi
 # ration and descended to a hung pi — the gate was right to block an unmeasurable
 # bucket, but the sentence a human reads was false, and "over" clears when the
 # window rolls while "unreadable" never clears without an operator.
-_rr=$(awk '/^_mc_ration_reason\(\)/,/^}/' "$DRV")
+_rr=$(awk '/^_mc_ration_reason\(\)/,/^}/' "$DRV" "$REPO_ROOT/tools/launchd/lib/lane-probe.sh")
 if printf '%s' "$_rr" | grep -q 'UNREADABLE' && printf '%s' "$_rr" | grep -q 'STALE' \
    && printf '%s' "$_rr" | grep -q 'over daily ration'; then
   ok "ration gate: unreadable / stale / over are reported as DIFFERENT states"

@@ -7,8 +7,11 @@ set -euo pipefail
 #   doc-name: Name of the doc in planned/ (without .md extension)
 #   version:  Target version folder (e.g., v0_3_14)
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+# The skill may be installed outside the project (for example /plugins).
+if ! PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null); then
+    echo "Run this skill from the target Git worktree." >&2
+    exit 1
+fi
 DESIGN_DOCS_DIR="$PROJECT_ROOT/design_docs"
 
 # Colors for output

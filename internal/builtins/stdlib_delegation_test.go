@@ -41,15 +41,15 @@ type listDelegationExemption struct {
 }
 
 var listDelegationExemptions = map[string]listDelegationExemption{
-	"_list_extract":   {NotNeeded, true, "std/list exposes no extract operation to delegate"},
-	"_list_filterE":   {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.filterE can delegate"},
-	"_list_flatMapE":  {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.flatMapE can delegate"},
-	"_list_foldlE":    {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.foldlE can delegate"},
-	"_list_forEachE":  {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.forEachE can delegate"},
-	"_list_head":      {NotNeeded, true, "std/list.head is already O(1) through list pattern matching"},
-	"_list_last":      {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.last composes _list_length and _list_nth"},
-	"_list_mapE":      {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.mapE can delegate"},
-	"_list_tail":      {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.tail is O(1) pattern matching"},
+	"_list_extract":  {NotNeeded, true, "std/list exposes no extract operation to delegate"},
+	"_list_filterE":  {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.filterE can delegate"},
+	"_list_flatMapE": {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.flatMapE can delegate"},
+	"_list_foldlE":   {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.foldlE can delegate"},
+	"_list_forEachE": {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.forEachE can delegate"},
+	"_list_head":     {NotNeeded, true, "std/list.head is already O(1) through list pattern matching"},
+	"_list_last":     {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.last composes _list_length and _list_nth"},
+	"_list_mapE":     {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.mapE can delegate"},
+	"_list_tail":     {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.tail is O(1) pattern matching"},
 }
 
 // registeredListBuiltins reads the LIVE registries rather than parsing source.

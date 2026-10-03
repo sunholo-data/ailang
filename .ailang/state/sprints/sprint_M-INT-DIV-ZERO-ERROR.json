@@ -2,8 +2,8 @@
   "sprint_id": "M-INT-DIV-ZERO-ERROR",
   "status": "completed",
   "created": "2026-10-02T12:00:00Z",
-  "design_doc": "design_docs/implemented/v0_51_1/m-int-div-zero-error.md",
-  "sprint_plan": "design_docs/implemented/v0_51_1/m-int-div-zero-error-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_52_0/m-int-div-zero-error.md",
+  "sprint_plan": "design_docs/implemented/v0_52_0/m-int-div-zero-error-sprint-plan.md",
   "github_issues": [
     1449,
     1528

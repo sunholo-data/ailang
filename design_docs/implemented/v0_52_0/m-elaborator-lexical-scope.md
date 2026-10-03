@@ -1,6 +1,6 @@
 # M-ELABORATOR-LEXICAL-SCOPE: The elaborator resolves identifiers with no lexical scope — imports, builtins, and ADT constructors pre-empt every local binder
 
-**Status**: Implemented (2026-10-02, #1467) — lexical binders only; rows 7 and MOD015 deferred (see Implementation notes)
+**Status**: Implemented (2026-10-02, #1467) — lexical binders; row 7 is now compile error MOD015 (ruling 2026-10-02, see Implementation notes)
 **Target**: v0.51.0 (landed for v0.51.1)
 **Priority**: P1 (borders P0: the module-level form is a *silent miscompile* — wrong value, no diagnostic)
 **Estimated**: 4–5 days
@@ -21,10 +21,46 @@ via per-index sets (a use textually before `let x = ...;` keeps the outer bindin
 (evaluator + strict VM, values asserted). Corpus sweep (`ailang check` over `std/`, `examples/`,
 `cmd/ailang/testdata/`, 493 files) before/after: only the new fixtures change.
 
-**Not shipped — needs the Design Freeze decision:** row 7 (a module-level function shadowing a
-same-named import; today the import still wins) and the MOD015 warning. Both change the meaning
-of existing module-level code and were listed under "Human confirms"; they are left for a
-follow-up once ruled on.
+**Row 7 — ruled 2026-10-02: a compile error, not "local wins + warning".** The human chose
+the Haskell/Elm ("ambiguous occurrence") / Rust E0255 rule over the warning this doc proposed:
+a name bound by an explicit selective import — `import M (tick)`, `import M (f as tick)`, or
+the selective list of `import M as L (tick)` — that the module also defines as a module-level
+`func`, `let`/`letrec`, or ADT constructor is **error MOD015**. The base-frame mechanism
+(component 4) and the warning text (component 7) are superseded; nothing resolves to either
+binding because the program does not compile. Implementation: `checkImportCollisions`
+(`internal/elaborate/import_collision.go`), called once from `ElaborateFile` after the selective
+imports are resolved and before any import enters the symbol table — the one place every front
+door shares (`check`, `run`, `test`, the REPL module loader, the LSP via `pipeline.Run`). The
+error names both sites and both fixes, and unwraps to a structured report (`check --json`,
+LSP range at the local definition):
+
+```
+Error MOD015: 'tick' is both imported (import ./a (tick) at q.ail:2:1) and defined in this
+module as a func (at q.ail:6:6) — an imported name and a module-level definition may not share a name.
+  Fix: rename the local definition, or alias the import: import ./a (tick as aTick)
+```
+
+Scope decisions: (1) **No wildcard imports exist** — `import M` with no list is a parse error
+(IMP012) and `import M as L` is qualified-only, binding no bare names — so the Rust rule "a local
+silently shadows a glob import" has nothing to apply to; only explicit selective imports
+conflict. (2) **Constructors:** an imported constructor vs a local constructor of the same name
+is MOD015 (located at the local type declaration). (3) **Types are unchanged:** a local `type T`
+still wins over an imported `T` (M-TYPE-NAME-SHADOW); importing type `T` next to a local
+constructor `T` is not a collision (separate namespaces). (4) **Lexical binders** shadowing an
+import stay legal (the rest of this doc). (5) **Import vs import is NOT covered:** two selective
+imports binding the same bare name to different exports (`import std/list (length)` +
+`import std/string (length)`) still compile, the later import winning for bare uses. It was
+assumed to be an error already; it is not. The common idiom `import std/list as List (length)`
++ `import std/string as Str (length)` (used qualified) makes an import-time error too blunt —
+motoko's `src/core/phase_vocab.ail` and `src/eval/journal/digests.ail` would stop compiling — so
+it needs its own ruling (error only on a bare *use*, Haskell-style, is the natural candidate).
+
+Corpus sweep (2026-10-02, `ailang check` per file over all 729 `.ail` files in this repo plus a
+static selective-import × module-binding scan of the sibling repos): in-repo, one collision —
+`std/ai/streaming.ail` imported `std/stream as Stream (onEvent, runEventLoop, disconnect)` and
+re-exported same-named wrappers that call `Stream.onEvent` etc.; fixed by dropping the
+selective list (`import std/stream as Stream`). External collisions are listed in the #1467
+report, not edited here.
 
 **Strict-VM gaps found (pre-existing, independent of naming):** a bare variable-pattern arm
 (`match 9 { x => x }`: "unknown ADT \"\" in switch", see m-vm-var-pattern-default-arm) and an
@@ -124,8 +160,8 @@ The lambda parameter `tick` should shadow the imported `tick` inside the lambda 
 |----------|-----------------|-----------|----------|-------------|
 | Lexical binder shadows **everything user-visible** (imports, builtins, ADT constructors) in expression position — not just imports | Partial fix (imports only) leaves the builtin/constructor faces (rows 6, 9) silently wrong and splits one rule into three | human (semantics) | design | med |
 | Constructor-first resolution is **kept in pattern position** (patterns keep `None` = constructor; binders are lowercase per the uppercase convention) | Reversing pattern classification would break #323's fix and the whole ADT corpus | compiler (established convention) | design | low |
-| Module-level names are a **base scope frame** seeded from local funcs + module lets (`symbols ∖ imports ∪ moduleLet names`), making local module bindings win over imports — per file.go's documented intent (row 7) | This is a deliberate behavior change: programs that (accidentally) relied on the import winning at module level will change meaning; the corpus sweep must prove none exist | human (semantics) | design | high |
-| Import-vs-local module-level collision gets a new **warning MOD015** (import shadowed by local binding) | A silent precedence flip is a footgun for AI-generated packages; one line of output prevents a debugging session | agent (diagnostic) | design | low |
+| ~~Module-level names are a **base scope frame** seeded from local funcs + module lets, making local module bindings win over imports (row 7)~~ **Superseded 2026-10-02:** the collision is a compile error (MOD015), so neither binding wins | Programs that relied on the import winning at module level now fail to compile (deliberate breaking change) instead of silently changing meaning | human (semantics) | design | high |
+| ~~Import-vs-local module-level collision gets a new **warning MOD015**~~ **Ruled 2026-10-02: MOD015 is an error** (Haskell/Elm ambiguous occurrence, Rust E0255) | An error cannot be ignored by an agent that never reads warnings; the fix (rename or alias) is one line | human (semantics) | design | low |
 | Block statement-let scoping via **per-index precomputed scope sets** (normalizeBlock threads backwards, so a naive push/pop would give lets the wrong region) | The backwards threading is invisible until it bites; the alternative (rewrite block threading forward) touches record-update desugar consumers | agent (mechanism) | compile | med |
 | REPL cross-statement rebinding of builtin/imported names stays **out of scope** | REPL prior bindings reach new statements via the module-registry `globalEnv`, a persistence mechanism, not lexical scope; changing it is a separate semantics decision | human (scope cut) | design | low |
 
@@ -162,7 +198,7 @@ Touches `internal/elaborate/` (mandatory section):
    - e.ail from this doc (same-module shadowing, returns 4 today) — the proof that downstream is already lexical; must stay green.
 
 5. **Deliberate changes (intentional incompatibilities):**
-   - Row 7: module-level local binding now wins over a same-named import (previously: import silently won, contradicting file.go's comment). MOD015 warns.
+   - Row 7: a module-level binding with the same name as an explicitly imported one is compile error MOD015 (previously: the import silently won, contradicting file.go's comment). Ruled 2026-10-02; supersedes the "local wins + MOD015 warning" proposal.
    - Rows 1–6: previously-false type errors become green programs.
    - Row 8: a program that previously produced a silently wrong value now fails the type check.
    - Row 9: `\None. None` with the param intended changes meaning from constructor to param; programs *relying* on the old capture fail or change — corpus sweep must show none do.
@@ -200,7 +236,7 @@ Give the Elaborator a **lexical scope stack** — a `[]map[string]bool` (frame p
 
 6. **Constructor calls** (`expr_calls.go:27`): if the callee identifier is `inScope`, skip the factory branch and fall through to `normalize(app.Func)` (the local binder wins at call position).
 
-7. **MOD015 warning** (`internal/errors/codes.go` + file.go collision check): when a directly-imported bind name equals a module-level local binding name, emit `Warning MOD015 (import-shadow): import '<name>' is shadowed by a local binding at <pos>; references resolve to the local`. Emitted once per collision, warning-only (import stays reachable via qualified alias `import M (x as y)`).
+7. **MOD015** — *shipped as an error, not this warning (ruling 2026-10-02; see Implementation notes).* Original proposal (`internal/errors/codes.go` + file.go collision check): when a directly-imported bind name equals a module-level local binding name, emit `Warning MOD015 (import-shadow): import '<name>' is shadowed by a local binding at <pos>; references resolve to the local`. Emitted once per collision, warning-only (import stays reachable via qualified alias `import M (x as y)`).
 
 ### Implementation Plan
 

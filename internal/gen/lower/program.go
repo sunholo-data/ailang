@@ -157,7 +157,11 @@ func lowerTopLevelDeclSafe(
 			// declaration so the EvalOnly stubs can still be resolved by
 			// the bridge at call time. For LetRec we may emit multiple
 			// stubs; for a plain Let we emit one.
-			stubs := makeEvalOnlyStubs(e, fmt.Sprintf("lower panic: %v", r))
+			reason := fmt.Sprintf("lower panic: %v", r)
+			if fm, ok := r.(frameModePanic); ok {
+				reason = fm.String()
+			}
+			stubs := makeEvalOnlyStubs(e, reason)
 			if len(stubs) == 0 {
 				err = fmt.Errorf("lower: %v", r)
 				return
@@ -302,10 +306,12 @@ func bindingToFuncDecl(
 		}
 	}
 
-	// M-NET-SCOPE-PUBLIC (D-C): the VM has no moded-frame hook, so a
-	// Net[scope=public] function runs on the evaluator, which enforces it.
-	if declaresNetScope(lam, cti) {
-		stub := makeStub(name, lam, "Net[scope=public] frame needs the evaluator (the bytecode VM cannot push the scope)")
+	// M-NET-SCOPE-PUBLIC (D-C), #1545: the VM has no moded-frame hook, so a
+	// function declaring Net[scope=public], Rand[mode=seeded|crypto] or an
+	// @limit/@min budget runs on the evaluator, which enforces it (see
+	// frame_modes.go).
+	if reason := lambdaFrameModeReason(lam, cti); reason != "" {
+		stub := makeStub(name, lam, reason)
 		stub.Exported = exported
 		return &stub
 	}
@@ -325,15 +331,6 @@ func bindingToFuncDecl(
 		File:       file,
 		Line:       line,
 	}
-}
-
-// declaresNetScope reports whether lam's type declares a Net scope param.
-func declaresNetScope(lam *core.Lambda, cti types.CoreTypeInfo) bool {
-	fn, ok := cti[lam.NodeID].(*types.TFunc2)
-	if !ok || fn.EffectRow == nil {
-		return false
-	}
-	return fn.EffectRow.Params["Net"]["scope"] != ""
 }
 
 // spanOf returns the source file and line of a Core expression. Prefers the

@@ -66,9 +66,7 @@ Planned docs matching "semantic caching":
 ## When to Use This Skill
 
 Invoke this skill when:
-- User asks to "create a design doc" or "write a design doc"
-- User says "plan a feature" or "design a feature"
-- User mentions "document the design" or "create a spec"
+- User asks to "create/write a design doc", "plan/design a feature", "document the design" or "create a spec"
 - Before starting implementation of a new feature
 - After completing a feature (to move to implemented/)
 
@@ -95,6 +93,8 @@ I've created the design document...
 ```
 
 ## Available Scripts
+
+Run them from inside the **target Git worktree** (root resolved from Git, nested dirs fine; outside a worktree they refuse); from a shared plugin install, call them by path, don't `cd` into the plugin.
 
 ### `scripts/create_planned_doc.sh <doc-name> [version]`
 Create a new design document in `design_docs/planned/`.

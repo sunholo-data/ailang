@@ -432,7 +432,7 @@ Every "does/doesn't work" claim above was verified against the v0.50.1 binary
 | V15 | `parseDeriving` leaves cursor AT `)` (why the workaround works) | read `internal/parser/parser_type.go:404-467` | ends `expectPeek(lexer.RPAREN)` → cursor AT `)` |
 | V16 | Main loop advances one token between decls (cursor convention) | read `internal/parser/parser_file.go:70-81` | `for !EOF { parseTopLevelDecl(); if !EOF { nextToken() } }`; convention stated in `parser_file.go:399` and `parser_type_decl.go:152-156` comments |
 | V17 | Follower dispatched on second token explains IMP010 (not a loader bug) | read `internal/parser/parser_decl.go` `parseTopLevelDecl` switch | `case lexer.TYPE: parseTypeDeclaration(false)` — exported=false |
-| V18 | Current version / target folder | `cat std/VERSION` = v0.51.0; changelogs latest `## [v0.51.0] - 2026-10-01` | target folder `v0_51_1` per create-script suggestion |
+| V18 | Current version / target folder | `cat std/VERSION` = v0.51.0; changelogs latest `## [v0.51.0] - 2026-10-01` | target folder `v0_52_0` per create-script suggestion |
 
 ## Related Documents
 
