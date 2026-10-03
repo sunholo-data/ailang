@@ -43,6 +43,10 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-03 — ITERATION 16: heartbeat fix BUILT + judged PASS 96, push-blocked by the pinned scope guard; guard arm LANDED #1575 `adab9b7d9`; ticket stays open, pushes next fire
+
+D-FLEET-10 = A executed. Opus designer wrote Revision 5 (`case` absoluteness guard on `MISSION_DRIVER_ROOT`, all Kimi r5 residuals); quorum r6 BLOCKED on premise rows → one designer revision (R5.1); r7 BLOCKED on evidence only → controller applied the reviewers' fixes under the narrow-refinement carve-out (R5.2, incl. an end-to-end `MISSION_DRIVER_ROOT` measurement in this live driver-spawned controller shell). gpt6-1-sol absent both rounds (OpenAI API 429, no credits). Opus planner → `claude:claude-sonnet-5-5` executor (claude-sub; Agent alias denied by provider pin) → independent Opus Agent judge PASS 96/100 (evaluator chain walked: minimax skipped over-ration, sonnet-4-6 skipped same-family). Push of the 18-site fix was REFUSED by the pinned pre-push guard, which lacks the `.agents` arm the fix itself adds (core.hooksPath = pin worktree). Not bypassed: the guard arm + Authority line shipped alone as #1575 (23/23 green). Judged branch `fleet/i16-heartbeat-rev5` (rebased, judged bytes unchanged) pushes on the next fire once the pin carries `adab9b7d9`. Clause map: **1 product share** UNMEASURED; **2 turnaround** UNMET (0 tickets resolved this fire; heartbeat ticket filed 2026-09-26); **3 one queue** MET (41 open signatures, `ailang mission ticket open --count` at Gate 5); **4 idle is free** prior evidence only; **5 no regressions** preserved (nothing unjudged shipped; #1575 is a one-arm guard change, judged within the PASS-96 diff).
+
 ## STATUS 2026-10-03 — ITERATION 15: controller HTTP 402 classified as capacity — LANDED #1549 `27dab5bb4`, evaluator PASS 95; ticket resolved
 
 D-FLEET-11 = A (attended) executed. Attempt 1 (21:39Z fire) revised the design (Rev 2), ran quorum r1/r2 (both BLOCKED on concrete, direction-preserving fixes), applied r2 verbatim as Rev 3 under the narrow-refinement carve-out, then died at gate-3 on an Anthropic "hit your session limit" (a capacity stop the driver also mis-records as CRASHED — new finding, not ticketable by the fleet; see log). Attempt 2 recovered the unpushed branch: opus planner → `claude:claude-sonnet-5-5` executor (claude-sub; Agent alias denied by provider pin) → independent `pi:openrouter/minimax/minimax-m3` judge PASS 95/100. Driver +7/−2: anchored `^402:` joins `RUNTIME_QUOTA_SIG`; pause-aware final branch suppresses the generic crash notice. Hermetic 14-case suite + chain-suite seams; 6/6 mutants red. Done-gate: `make test-launchd-drivers` rc0; healthy+degraded dry-runs `DRY RUN ok` on `eb39db9a2` (world profile — fleet's overlap guard yields during its own iteration). PR head 23/23 green. D-FLEET-10/11/12 status cells normalized to RESOLVED (answers unchanged). Clause map: **1 product share** UNMEASURED; **2 turnaround** UNMET (this ticket filed 10-02 05:52Z → resolved 10-03, ≈24h, first resolution since iteration 10); **3 one queue** MET (35 open signatures before this resolve); **4 idle is free** prior evidence only; **5 no regressions** preserved (done-gate passed, judged).
@@ -50,10 +54,6 @@ D-FLEET-11 = A (attended) executed. Attempt 1 (21:39Z fire) revised the design (
 ## STATUS 2026-10-02 — ITERATION 14: controller capacity ticket verified; narrow 402 proposal PARKED on D-FLEET-11, no implementation
 
 Blocking-all ticket outranks the attended groom. Current fallback admission correctly skips blocked OpenRouter; historical start snapshots exclude OpenRouter and do not prove the reported bypass. Direct controller 402 refusal still misses runtime/transient signatures and becomes CRASHED. Proposed classifier and pause-notification diff is reviewable in `planned/m-controller-capacity-admission.md`; HD-2a ruling D-FLEET-11 required. Four native Agent roles ran; independent proposal review PASS91/100, implementation acceptance UNMEASURED. D-FLEET-10 remains OPEN; D-FLEET-8/9 remain RESOLVED. Clause map: 1 product share UNMEASURED; 2 turnaround UNMET/at risk (0 tickets resolved); 3 one queue MET (34 open signatures); 4 idle-is-free prior evidence only; 5 preserved by shipping no fix. Record-only PR pending exact-SHA CI; no runtime change, no ticket resolution.
-
-## STATUS 2026-10-02 — ITERATION 13: iteration12 record recovered with separate Agent judge; heartbeat remains parked on D-FLEET-10
-
-Record-only recovery; no implementation, plan approval or ticket resolution. Four native Agent role checkpoints ran; judge is a separate fresh-context Sol6.1 fallback, flagged. D-FLEET-10 remains OPEN; D-FLEET-8/9 preserved as RESOLVED. Quorum artifacts are banked with the rejected design; inherited stale plan/JSON and source worktrees remain untouched. See iteration13 log for verdict and exact-SHA CI disposition.
 
 ## CURRENT GOAL
 
@@ -109,6 +109,11 @@ Record-only recovery; no implementation, plan approval or ticket resolution. Fou
   and pidfile first). Record which profile ran.
 - **Every mission runs `origin/dev` until Phase 3b** (`harness-stable`). A fleet push reaches all
   loops on their next fire, so the done-gate is not optional.
+- **A fix that widens the scope guard ships ALONE, first** (iteration 16). The guard that judges a
+  push is the PINNED `origin/dev` copy (`core.hooksPath` = the pin worktree), so a PR cannot push
+  paths that only its own guard change admits. Land the guard arm + Authority line as their own PR;
+  the dependent change pushes on the next fire. Never `--no-verify`, never point `core.hooksPath` at
+  the branch's own hook.
 
 ## Routing policy
 
@@ -161,7 +166,7 @@ evidence in each line). Still re-check at HEAD in Gate 2 before working a ticket
 **LANDED · D-FLEET-11 = A (iteration 15):** `driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash` — #1549 `27dab5bb4`; anchored `^402:` capacity classification + pause-aware final notice; ration-admission half not reproduced at HEAD (no guard added). Ticket resolved.
 
 **P0 — whole slots lost** (the two unbuilt rulings, D-FLEET-1 and D-FLEET-2, landed in #1398)
-1. [NEXT · D-FLEET-10 = A ruled 2026-10-02: Revision 5 (absoluteness guard + Kimi residuals) then fresh quorum; D-FLEET-8 = YES, both copies] `skill:heartbeat-relative-path-absent-in-world`: 9 relative `bash
+1. [NEXT · BUILT + judged PASS 96 (iteration 16), push-blocked by the pinned guard → resume: once `_scope_is_harness .agents/skills/mission-control/x` returns 0 in the PINNED hook (`adab9b7d9`, #1575), push local branch `fleet/i16-heartbeat-rev5`, PR, Gate 3b, done-gate dry-runs, resolve] `skill:heartbeat-relative-path-absent-in-world`: 9 relative `bash
    tools/launchd/mission-heartbeat.sh stamp` calls remain across gate-0..gate-5 resources. They do not
    exist from World's (or Stapledon's) CWD. `$AILANG_DRIVER_SRC` is used 0 times in `resources/`.
    **4 slots lost.**
