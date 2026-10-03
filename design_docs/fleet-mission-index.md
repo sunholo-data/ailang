@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 17 | 2026-10-03 | heartbeat fix pushed as #1578 and re-judged PASS 95; merge blocked by a weekend-only red in TestOllamaQuota* → PARKED-ON-CLOCK [HARNESS] |
 | 16 | 2026-10-03 | heartbeat driver-root fix built + judged PASS 96; push blocked by the pinned scope guard, guard arm LANDED #1575 [HARNESS] |
 | 15 | 2026-10-03 | controller HTTP 402 classified as capacity; pause no longer reads as a crash — LANDED #1549 [HARNESS] |
 | 14 | 2026-10-02 | controller HTTP 402 proposal parked for D-FLEET-11; admission-bypass premise refuted [HARNESS] |
