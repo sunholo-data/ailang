@@ -37,6 +37,11 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
+> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
+> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
+> the thing to grep before picking work, so the loop never repeats itself — is in
+> `fleet-mission-index.md`.
+
 ## 0 — 2026-09-26 — charter ratified as written (attended, Mark)
 
 - **Outcome:** Mark ratified the charter as written: bar clauses 1–5, the Authority allowlist and the Guardrails. Kill switch lifted.
@@ -315,3 +320,34 @@ The tree sum equals the parent sum within 0.04 in every window. Separately, 21 l
 
   No shared skill edit and no reload.
 **Next**: push `fleet/i16-heartbeat-rev5` (resume predicate in the charter queue row) → PR → Gate 3b → done-gate dry-runs (idle sibling profile) → resolve the ticket. Then the D-FLEET-9 rotate-log pair, then pi-runner pre-dirty. The D-FLEET-12 pair is planner-ready.
+
+## 17 — 2026-10-03 — heartbeat fix pushed as #1578 and re-judged PASS 95; merge blocked by a weekend-only red in TestOllamaQuota* → PARKED-ON-CLOCK [HARNESS]
+
+**Pick**: P0 #1 `skill:heartbeat-relative-path-absent-in-world` (8 slots lost, World), resuming iteration 16. Gate 0: kill switch armed. gh `sunholo-voight-kampff`. Billing CLEAN. 0 directives on #1380 since `2026-10-02T08:51:41Z`. Gate 1: pin = origin/dev `2a1f3f295`. SKILL.md and all 12 resources match origin, and the resolved symlink equals the pin copy. Dev CI `success`; the only non-green check of 17 is SonarCloud, inherited. Resume predicate run as a command: the pinned hook's `_scope_is_harness` has the `.agents/skills/mission-*` arm, so it is met. No new design, plan or code was needed, so the designer, planner and executor were not spawned. This is a resume of a judged build.
+**Did**:
+- Rebased `fleet/i16-heartbeat-rev5` onto `2a1f3f295` with no conflicts. Per-file blob check against the judged head `14b87879b`: 17 of 18 SAME. The DIFF is the design doc's one-line status header. The `pre-push` arm and the charter Authority line had already landed via #1575.
+- Pushed. The pinned guard accepted the push. Opened PR #1578.
+- Independent evaluator: **PASS 95/100**. Applied its two non-blocking doc nits in `ab0c539a1`: the stale M1 SHA `41e0005e9` became `bb573f466`, and the changelog section about the guard, which now ships in #1575's fragment, was removed.
+- Gate 3b: the required `test` check and Build ubuntu/macos/windows are RED, every leg on the same two tests. `TestOllamaQuotaVerifiedLimits` (`ollama_quota_test.go:42`) and `TestOllamaQuotaHTTPAndCredentialBinding` (`:82`) build `limits` from `time.Now()`, with `WeeklyResetsAt = now+6d`. So the window starts yesterday, and `WeekdayPacePercent` counts only Mon–Fri hours (`quota_ledger.go:69`). On a weekend the allowance collapses to about 2.5% in the Fri→Sat window and 0% for Sat→Sun. #1524's 3pp ollama start margin (`quota_margin.go:33`) then marks even 0 usage `over`. It reproduces locally at `origin/dev` with no PR code, also under `env -i` with a temp HOME. Dev's own CI at 14:43Z was green because that window still held Friday hours. By arithmetic it goes green again around Mon 2026-10-05 08:00Z: test 1 needs about 6.6% allowance. `gh pr view 1578` reports `mergeStateStatus=BLOCKED`, and the required contexts are `test, lint, build, docs-gate`.
+**Progress**: goal unmoved (0 tickets resolved). Clause 1 UNMEASURED. Clause 2 UNMET (the ticket has been open since 2026-09-26). Clause 3 MET (41 open signatures). Clause 4 prior evidence only. Clause 5 preserved (nothing merged).
+**Routing evidence**: base-gate1=2a1f3f2952574356da196147b359acd2c11e4f65@2026-10-03T20:44:33Z; base=2a1f3f2952574356da196147b359acd2c11e4f65@2026-10-03T20:59:01Z. `MISSION_ROUTING_NOTE`: codex over daily ration → planner opus, executor sonnet-5-5 (not exercised).
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer / planner / executor**: NOT SPAWNED. The item was a resume whose build was judged in iteration 16. There was nothing to design, plan or author beyond a rebase, a push and two doc-nit edits by the controller.
+- **Evaluator**: resolver `reroute pi:openrouter/minimax/minimax-m3 generator-equals-judge`. OpenRouter is in `MISSION_OVER_RATION` (backlog (a) from iteration 16, still open). `claude:claude-sonnet-4-6` was skipped as the same family as the iteration-16 executor `claude:claude-sonnet-5-5`. Ran `opus` through the Agent tool, foreground, 76,510 tok, 25 tool calls, 9 min. Judge ≠ generator (opus vs sonnet-5-5). FLAG: same model as the controller, in a fresh context.
+- **Metered**: $0.00. Chain `eefe0a7e` posted.
+- **Ration**: codex, ollama and openrouter over; Anthropic subscription OK.
+**Verification** (judge, isolated worktree `fleet-i17-evaluator`, since removed):
+- 18 guarded sites (9 per copy), 0 bare matches (rc=1), `sync-agents-skills.sh --check` rc0.
+- Drill from `/tmp` with a temporary `AILANG_STATE_DIR`, bash 3.2.57 and zsh: rc0 with an absolute root; rc1 with "must be absolute" for unset, relative and empty roots; 0 rc127. Control: the old bare form gives rc127.
+- `make test-launchd-drivers` MAKE_RC=0 (6m25s, 167 ok). One mutant (bare form restored): grep 1 match, guarded count 17, sync check rc1.
+- Controller: `go test ./internal/mission/...`. Only the two `TestOllamaQuota*` tests fail. Every other mission package is ok.
+**Done-gate**: not claimed. The dry-runs are owed after the merge, and both armed siblings (world, stapledon) were mid-iteration this fire, so the overlap guard would yield before the dry-run exit.
+**Ruled out**:
+- Fixing the quota tests from the loop. D-FLEET-12 reserves the quota-margin work (`quota:admission-has-no-headroom-margin-and-flaps`, still an open ticket) for attended sessions. Also no ticket, no self-sourcing.
+- Admin-merging past a required check (standing rule 2).
+- Treating the red as caused by the PR. The PR has no Go code, and the red reproduces on `origin/dev`.
+- Re-asking D-FLEET-13.
+- Reading or acking `mission-fleet`.
+- Touching the 3 pending coordinator approvals.
+**Retro lane**: none new for the skill. The "scope-guard widening ships alone" guardrail worked as written: the push went through first try. New observation for Mark, not ticketable by the fleet: weekday pacing plus start margins make any `time.Now()`-anchored quota test calendar-dependent. Every PR to dev is blocked until about Monday 08:00Z, for every mission and every attended session. Suggested fix: pin `now` to a fixed weekday in both tests, e.g. `time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)`, since `pace_test.go` already pins `paceLocation = time.UTC`.
+**Next**: once `gh pr checks 1578` is all-green on the required checks, merge → Gate 3b SHA-pinned on the merge → done-gate dry-runs under an idle armed sibling → `ailang mission ticket resolve skill:heartbeat-relative-path-absent-in-world --sha <merge>`. Then the D-FLEET-9 rotate-log pair, then pi-runner pre-dirty. The record PR for this entry is blocked by the same red.
