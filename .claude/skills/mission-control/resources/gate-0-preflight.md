@@ -1,7 +1,8 @@
 ## Gate 0 — PREFLIGHT (deterministic; abort = exit silently with a controlplane message)
 
-First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-0`. Before every silent Gate-0
-abort, run `bash tools/launchd/mission-heartbeat.sh stamp abort <reason>` with a short reason token.
+First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp gate-0 ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac`. Before every silent Gate-0
+abort, run `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp abort <reason> ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac` with a short reason token.
+Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
 1. Kill switch set → STOP (no message needed; this is the intended off state).
 2. `gh auth status` must show `sunholo-voight-kampff` before any push. Wrong account → fix with

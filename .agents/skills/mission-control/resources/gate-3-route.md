@@ -1,6 +1,7 @@
 ## Gate 3 — ROUTE + EXECUTE (the inner loop, with the routing policy)
 
-First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-3`.
+First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp gate-3 ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac`.
+Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
 **Routing is ENFORCED per-role model pinning — NOT session-model inheritance.** Running every role
 on the controller's single session model is the routing-never-enforced bug: with the driver on
@@ -387,7 +388,7 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
          --workdir "$WT" \
          --out /tmp/pi_run_iter<N>.ndjson
        # rc 0=ok · 10=empty_worktree · 11=reasoning_stall · 12=stream_dead
-       #    13=wall_timeout · 14=launch_failed · 18=tool_hang.  Anything non-zero except 18
+       #    13=wall_timeout · 14=launch_failed · 18=tool_hang · 19=provider_quota.  Anything non-zero except 18
        #    is a LANE FAILURE, not a result: fall back and FLAG, never re-prompt in place.
        ```
        **⚠ SIZE THE WALL CLOCK TO THE MILESTONE — THE 1800 s DEFAULT IS SMALLER THAN A PLAN-SIZED
