@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/policy"
 	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
@@ -66,10 +68,10 @@ var cliSchemas = map[string]cliSchema{
 	"test":            {cmd: "test", field: "Path", kind: kindPath, flags: map[string]bool{"json": false, "allow-skips": false, "no-color": false, "package": true}, needsRoot: true},
 	"docs_search":     {cmd: "docs", sub: "search", field: "Query", kind: kindQuery, required: true, flags: map[string]bool{"json": false, "limit": true}},
 	"examples_search": {cmd: "examples", sub: "search", field: "Query", kind: kindQuery, required: true, flags: map[string]bool{}},
-	"examples_list":   {cmd: "examples", sub: "list", flags: map[string]bool{"tag": true, "status": true}},
+	"examples_list":   {cmd: "examples", sub: "list", flags: map[string]bool{"tags": true, "status": true}},
 	"examples_show":   {cmd: "examples", sub: "show", field: "Module", kind: kindWord, required: true, flags: map[string]bool{}},
 	"examples_tags":   {cmd: "examples", sub: "tags", flags: map[string]bool{}},
-	"builtins_list":   {cmd: "builtins", sub: "list", flags: map[string]bool{"json": false}},
+	"builtins_list":   {cmd: "builtins", sub: "list", flags: map[string]bool{"json": false, "module": true, "query": true, "by-module": false, "by-effect": false, "verbose": false}},
 	"builtins_show":   {cmd: "builtins", sub: "show", field: "Module", kind: kindWord, required: true, flags: map[string]bool{}},
 	"pkg_docs":        {cmd: "pkg-docs", field: "Module", kind: kindModule, required: true, flags: map[string]bool{}, needsRoot: true},
 	"tree":            {cmd: "tree", field: "Path", kind: kindPath, flags: map[string]bool{}, needsRoot: true},
@@ -82,6 +84,11 @@ var cliSchemas = map[string]cliSchema{
 	"lock":            {cmd: "lock", flags: map[string]bool{}, needsRoot: true},
 	"design_quorum":   {cmd: "design-quorum", field: "Path", kind: kindPath, required: true, flags: map[string]bool{"max-cost-usd": true, "controller-verdict": true, "controller-note": true}, needsRoot: true},
 }
+
+// flagValueKinds names the valued flags whose value is not a plain word:
+// --package is a sandbox path, --module a module path (std/fs), --query free
+// text. Every other valued flag takes a kindWord.
+var flagValueKinds = map[string]argKind{"package": kindPath, "module": kindModule, "query": kindQuery}
 
 // cliAllowed applies the policy's cli_allow (or the default set) to an op:
 // an entry `cmd` or `cmd:sub` admits it. Gate-only commands never are.
@@ -195,9 +202,9 @@ func (h *Host) buildArgv(req Request) ([]string, cliSchema, error) {
 			continue
 		}
 		val := req.Flags[name]
-		kind := kindWord
-		if name == "package" {
-			kind = kindPath
+		kind, ok := flagValueKinds[name]
+		if !ok {
+			kind = kindWord
 		}
 		tok, err := h.validate(kind, val)
 		if err != nil {
@@ -269,22 +276,82 @@ func (h *Host) cli(req Request) Response {
 		dir = h.root.Dir()
 	}
 	stdout, stderr, code := h.run(dir, argv)
-	const capBytes = 64 * 1024
-	trim := func(s string) string {
-		if len(s) > capBytes {
-			return s[:capBytes] + "\n…[truncated]"
-		}
-		return s
+	return h.capOutput(req, argv, stdout, stderr, code)
+}
+
+// outputLimit is the byte budget for one CLI op's stdout+stderr: the policy's
+// max_output_bytes (restricted mode always sets one), else the restricted
+// default — the response lands in a model's context, so the tool keeps a
+// ceiling even under a trusted_host policy that leaves runs unbounded.
+func (h *Host) outputLimit() int64 {
+	if h.res.MaxOutputBytes > 0 {
+		return h.res.MaxOutputBytes
 	}
-	return Response{OK: code == 0, Argv: argv, ExitCode: code, Stdout: trim(stdout), Stderr: trim(stderr)}
+	return policy.DefaultRestrictedMaxOutputBytes
+}
+
+// capOutput applies the output limit to a finished op. A --json op is all or
+// nothing: a cut document is unparseable, so over the limit it is a named
+// refusal (#1551). Text output is cut — stdout first, then stderr from what
+// is left — with a marker naming the limit and the size it came from.
+func (h *Host) capOutput(req Request, argv []string, stdout, stderr string, code int) Response {
+	limit := h.outputLimit()
+	total := int64(len(stdout) + len(stderr))
+	if _, isJSON := req.Flags["json"]; isJSON && total > limit {
+		r := refuse("op %s produced %d bytes of --json output, over the policy's max_output_bytes (%d); a truncated document would not parse, so nothing is returned — narrow the request%s or raise max_output_bytes in the policy",
+			req.Op, total, limit, narrowHint(req.Op))
+		r.Argv, r.ExitCode = argv, code
+		return r
+	}
+	budget := limit
+	cut := func(s string) string {
+		n := int64(len(s))
+		if n <= budget {
+			budget -= n
+			return s
+		}
+		kept := s[:budget]
+		budget = 0
+		return kept + fmt.Sprintf("\n…[truncated: %d bytes total, over the policy's max_output_bytes (%d)]", total, limit)
+	}
+	out := cut(stdout)
+	errOut := cut(stderr)
+	return Response{OK: code == 0, Argv: argv, ExitCode: code, Stdout: out, Stderr: errOut}
+}
+
+// narrowHint names the flags that shrink an op's output, where it has any.
+func narrowHint(op string) string {
+	switch op {
+	case "builtins_list":
+		return " (--module std/fs, --query <text>)"
+	case "docs_search":
+		return " (--limit N)"
+	}
+	return ""
+}
+
+// childEnv is the environment every CLI child runs with: the caller's, with
+// AILANG_AGENT_POLICY pinned to this host's policy. A child that sees it
+// knows it is confined — `ailang examples` then never resolves a
+// cwd-relative corpus an agent could have planted (#1552).
+func (h *Host) childEnv() []string {
+	prefix := config.EnvAgentPolicy + "="
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, prefix) {
+			env = append(env, kv)
+		}
+	}
+	return append(env, prefix+h.policyPath)
 }
 
 // runAilang executes the named ailang binary in its own process group under
 // a bounded timeout.
-func runAilang(exe, dir string, argv []string) (string, string, int) {
+func runAilang(exe, dir string, argv, env []string) (string, string, int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, exe, argv...)
+	cmd.Env = env
 	if dir != "" {
 		cmd.Dir = filepath.Clean(dir)
 	}

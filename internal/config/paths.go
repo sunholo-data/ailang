@@ -22,7 +22,7 @@ var pathVars = []Var{
 	{EnvStdlibPath, "", AreaPaths, "Path-list (OS separator) of stdlib directories; the first holding io.ail is the stdlib root for the whole process. Beats ./std and the installed copies; loses only to --stdlib-path. Set but holding no stdlib is an error. Unset falls through to ./std, <binary>/../std, the user data dir, system dirs, then the stdlib built into the binary."},
 	{EnvGOPATH, "", AreaPaths, "Go workspace; the eval harness looks for $GOPATH/bin/ailang after PATH and ./bin."},
 	{EnvProjectRoot, "", AreaPaths, "Root the embed engine resolves module paths against; must contain the requested module or Load fails."},
-	{EnvExamples, "", AreaPaths, "Directory `ailang examples` reads instead of searching upward from the binary."},
+	{EnvExamples, "", AreaPaths, "Directory `ailang examples` reads instead of searching upward from the binary. Unset tries next to the binary, ~/.ailang/examples, the working directory (not when AILANG_AGENT_POLICY is set), then the corpus built into the binary."},
 	{EnvZ3Path, "", AreaPaths, "Path of the z3 binary, tried before PATH and the usual install locations."},
 	{EnvBrowserProfileDir, "", AreaPaths, "Root for browser profiles used by the browser commands; unset derives one under the state dir."},
 	{EnvHome, "", AreaPaths, "The user's home directory as the shell set it; used where a plist or a data-dir convention needs the literal value rather than os.UserHomeDir."},
