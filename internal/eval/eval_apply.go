@@ -7,7 +7,7 @@ import (
 )
 
 // Tail-call elimination (M-EVAL-TAIL-CALLS, #1486,
-// design_docs/planned/v0_51_1/m-eval-tail-calls.md).
+// design_docs/planned/v0_52_0/m-eval-tail-calls.md).
 //
 // Every AILANG call used to be Go recursion (evalCoreApp → evalCore(body)), so
 // a loop written as a tail call hit RT_REC_003 at 10,000 iterations while the
@@ -53,6 +53,10 @@ var (
 // a tail call: only if nothing runs after the body (D4). An active `ensures`
 // evaluates the result, a budget frame pops with an @min check, and a rand mode
 // pops; such frames stay nested.
+//
+// These dynamic frames are pushed ONLY here: the bytecode VM cannot push them,
+// so internal/gen/lower/frame_modes.go keeps every function declaring one off
+// the VM (#1545). A new frame kind must be added there too.
 func (e *CoreEvaluator) replaceable(fn *FunctionValue) bool {
 	if len(fn.EffectBudgets) > 0 || len(fn.EffectMinBudgets) > 0 || fn.EffectRandMode != "" || fn.EffectNetScope != "" {
 		return false

@@ -2,8 +2,8 @@
   "sprint_id": "M-EVAL-TAIL-CALLS",
   "status": "completed",
   "created": "2026-10-02T07:31:15Z",
-  "design_doc": "design_docs/implemented/v0_51_1/m-eval-tail-calls.md",
-  "sprint_plan": "design_docs/implemented/v0_51_1/m-eval-tail-calls-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_52_0/m-eval-tail-calls.md",
+  "sprint_plan": "design_docs/implemented/v0_52_0/m-eval-tail-calls-sprint-plan.md",
   "github_issues": [
     1486
   ],

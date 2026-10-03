@@ -144,7 +144,7 @@ func ExecuteModuleEntrypoint(rt *runtime.ModuleRuntime, params ModuleExecParams)
 	if params.BytecodeMode {
 		ranOnVM, vmErr := tryRunEntryViaVM(rt, inst, params, entry, args)
 		if ranOnVM {
-			return nil
+			return vmErr // nil on success; an evaluator-only entry's own error otherwise
 		}
 		if params.StrictBytecode {
 			return fmt.Errorf("bytecode execution failed: %w", vmErr)

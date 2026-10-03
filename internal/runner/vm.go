@@ -138,6 +138,8 @@ func CompileBytecodeFromResult(res pipeline.Result, pkgName string) (*bytecode.B
 // helper runs *after* rt.LoadAndEvaluate.
 //
 // Returns (true, nil) on a successful VM run (result already printed).
+// Returns (true, err) when an evaluator-only entry ran on the evaluator and
+// failed — that is the final outcome; the caller must not re-run it.
 // Returns (false, err) when the bytecode path could not be used at all
 // (compile failure for the entry, missing prototype, unsupported arity).
 // Runtime VM errors that occur after dispatch starts are returned as
@@ -218,7 +220,11 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 		}
 		result, err := runtime.CallEntrypoint(rt, inst, entry, args)
 		if err != nil {
-			return false, fmt.Errorf("eval-only entry %q: %w", entry, err)
+			// The entry already ran on the evaluator: this IS the evaluator's
+			// outcome. Report it as ran (true) so the caller does not fall
+			// back and run the same entry — and its side effects — a second
+			// time (#1545). Same wording as the evaluator path.
+			return true, fmt.Errorf("execution failed: %w", err)
 		}
 		if !params.NoPrint && params.Print && result != nil && result.Type() != "unit" {
 			fmt.Println(result.String())

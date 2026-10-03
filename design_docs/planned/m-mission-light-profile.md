@@ -189,16 +189,40 @@ Gate 1 checks out ~1,459 files instead of 25,798; the controller briefs the Luna
 (two files); the Sonnet-or-fallback judge reviews; the product commit waits only for the Pages
 deploy; the log commit waits for nothing.
 
+## Phase 1 — implementation record (2026-10-02, attended)
+
+Landed: `f75b8e158` (probes + ration gate → `lib/lane-probe.sh`), `429658b29` (lane check +
+driver `MISSION_PRINT_CONFIG`), `9c9b7a655` (`mission-arm.sh`, `mission-worktree.sh`, Gate 3).
+Suites: `test_mission_lane_check.sh` 42/0 (three mutants caught), `test_mission_worktree.sh` 9/0,
+`make test-launchd-drivers` green. All six missions report READY under the ration gate.
+
+What the build changed in the design, measured:
+- **Quota-gated is not dead.** A rung the ration gate skips is reported *untested*; a role is dead
+  only when a rung was tried and failed. Otherwise a Friday-night quota state blocks arming for
+  the wrong reason (2026-10-02 22:40: codex, ollama and openrouter all over ration).
+- **A sparse cone must carry `CLAUDE.md` and `AGENTS.md`.** The session-protocol gate makes a pi
+  role read `CLAUDE.md` before it may write; a `.pi/`-only tree made minimax fail the task.
+  Phase 2's light cone inherits this.
+- **One retry for a no-op pi finish.** `openrouter/minimax-m3` passed and failed the same task
+  minutes apart.
+- **The worktree guard is two short calls, not one bounded wait.** Every controller's shell tool
+  kills long foreground commands, so `mission-worktree.sh add` backgrounds the checkout and `wait`
+  returns within 45 s per call. The skill had prose rules for this since 2026-08-20; docs iteration
+  17 broke them anyway, so the rule is now the tool.
+- **Clone staleness is a warning.** Controllers read the pin, not the clone; a stale clone only
+  slows `worktree add` and holds the sandbox `node_modules`. The check uses the repo's own base
+  (`origin/main` for stapledon).
+
 ## Success Criteria
 
-- [ ] `mission-arm.sh <name> --check` reports every check above, exits non-zero on any dead row,
+- [x] `mission-arm.sh <name> --check` reports every check above, exits non-zero on any dead row,
       and its launcher checks call the fire's own launchers (asserted by test)
 - [ ] Run against a fixture reproducing iteration 17 (missing deps, double-loaded extensions,
       stale clone), it reports all three dead — mutation-tested
-- [ ] Arming path refuses on a failed doctor; `--force` records the reason
-- [ ] The driver sources `lib/lane-probe.sh` and defines no probe itself (test)
-- [ ] Gate 1 never reads a worktree whose add timed out or whose status is non-empty; it parks
-      `worktree_incomplete` and removes the partial tree (all profiles)
+- [x] Arming path refuses on a failed doctor; `--force` records the reason
+- [x] The driver sources `lib/lane-probe.sh` and defines no probe itself (test)
+- [x] No gate reads a worktree whose add timed out or whose status is non-empty; it parks
+      `worktree_incomplete` and the partial tree is removed (all profiles; Gate 3 via `mission-worktree.sh`)
 - [ ] `light` worktree is sparse
 - [ ] Record-only commits skip the CI wait; docs product commits wait for the deploy workflow only
 - [ ] Weekly doctor files one ticket per dead lane, de-duplicated by signature

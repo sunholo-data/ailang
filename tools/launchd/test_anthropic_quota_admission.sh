@@ -19,7 +19,7 @@ _mc_bounded(){ PROBES=$((PROBES+1));MC_BOUNDED_OUT=ok;return 0; }
 # Anthropic CLI-usage fallback landed, so both must be extracted or _mc_probe runs with an
 # undefined function and this suite reports a degradation-ledger defect that does not exist.
 for fn in _mc_rung_bucket _mc_is_over_ration _mc_ration_reason _mc_ration_unreadable _mc_probe; do
- body=$(awk -v f="$fn" '$0 == f "() {" {on=1} on {print} on && /^}$/ {exit}' "$DRIVER")
+ body=$(awk -v f="$fn" '$0 == f "() {" {on=1} on {print} on && /^}$/ {exit}' "$DRIVER" "$HERE/lib/lane-probe.sh")
  [ -n "$body" ] || { echo "FAIL extraction $fn";exit 1; }
  eval "$body"
 done

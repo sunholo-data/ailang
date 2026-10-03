@@ -1,0 +1,13 @@
+module cmd/ailang/testdata/importcollide/q
+import cmd/ailang/testdata/importcollide/a (tick)
+
+-- #1467 row 7 (MOD015): the local tick and the imported tick share a bare
+-- name. This used to run the import and print 2; it is now a compile error.
+pure func tick(n: int) -> int
+  tests [
+    (1, 101)
+  ] {
+  n + 100
+}
+
+export func main() -> () ! {IO} = println(show(tick(1)))

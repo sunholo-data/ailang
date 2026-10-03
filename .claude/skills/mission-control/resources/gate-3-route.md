@@ -612,8 +612,18 @@ deliverable parses something, and every fixture in its test file was typed by wh
     fi
   done
   echo "Worktree provenance: base=$base"
-  git worktree add -b "$BRANCH" "$WT" "$newsha"   # submit in background as required below
+  # NEVER a bare `git worktree add` (rules (a)-(d) below). The helper backgrounds the checkout,
+  # bounds it (900 s), refuses /tmp, and removes a partial or dirty tree instead of handing it back.
+  WT="$(cd .. && pwd)/.wt-${MISSION_NAME}-iter<N>-<item>"      # a sibling of the repo, never /tmp
+  MW="${MISSION_DRIVER_ROOT:-.}/tools/launchd/mission-worktree.sh"   # world/stapledon have no tools/
+  bash "$MW" add "$BRANCH" "$newsha" "$WT"
+  until out=$(bash "$MW" wait "$WT" 45); [ "$out" != pending ]; do :; done
+  [ "$out" = ready ] || { echo "PARK worktree_incomplete: $out"; exit 1; }   # park, never repair
   ```
+  Each `wait` call returns within 45 s, so no shell tool kills it mid-checkout; loop it in
+  separate tool calls if your tool's limit is shorter. Measured need: docs iteration 17
+  (2026-10-01) ran the bare add in the foreground under `/tmp`, its tool returned after a timeout,
+  and the controller read 25,786 staged deletions from a tree git was still checking out.
 
   The comparison re-reads once through `drift gate1` and classifies disagreement as DRIFT, not an
   operator error. Re-run the affected Gate-3 checks against `$newsha`; a benign advance does not

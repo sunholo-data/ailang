@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/ai/factory"
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/effects"
 )
 
 // aiSetup is everything the AI flags of `ailang run` / `serve-api` say about

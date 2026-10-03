@@ -1,0 +1,10 @@
+module mapfilt
+import std/list (map, filter, length, range)
+import std/io (println)
+import std/string (intToStr)
+
+export func main(n: int) -> () ! {IO} {
+  let k = 3
+  let ys = filter(\x. x % 2 == 0, map(\x. x * k + 1, range(0, n)))
+  println(intToStr(length(ys)))
+}

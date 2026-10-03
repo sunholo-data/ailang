@@ -2,6 +2,7 @@ package pi
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -17,7 +18,7 @@ func TestBuildPiArgs_EvalShellGuardOnlyForEvalRuns(t *testing.T) {
 	}
 	path := ""
 	for i, a := range guarded {
-		if a == "-e" && i+1 < len(guarded) && strings.HasSuffix(guarded[i+1], "/"+evalShellGuardFile) {
+		if a == "-e" && i+1 < len(guarded) && filepath.Base(guarded[i+1]) == evalShellGuardFile {
 			path = guarded[i+1]
 		}
 	}

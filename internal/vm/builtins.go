@@ -16,8 +16,28 @@ type BuiltinFunc func(args []bytecode.Value) (bytecode.Value, error)
 // ClosureCaller is the minimal interface a HOF builtin needs to invoke
 // closure arguments. Implemented by *VM. Keeps HOF builtins decoupled
 // from VM internals.
+//
+// CallClosure must not retain args past the call: HOF builtins pass the same
+// callArgs buffer for every element (#1501). *VM copies args into the callee's
+// registers; the eval bridge converts them into a fresh slice.
 type ClosureCaller interface {
 	CallClosure(closure bytecode.Value, args []bytecode.Value) (bytecode.Value, error)
+}
+
+// callArgs is a HOF builtin's argument buffer for its per-element callback.
+// Building a []bytecode.Value literal per element was one heap allocation per
+// callback (the slice escapes through the ClosureCaller interface); a callArgs
+// declared once per builtin call costs one allocation for the whole loop.
+type callArgs struct{ buf [2]bytecode.Value }
+
+func (a *callArgs) of1(x bytecode.Value) []bytecode.Value {
+	a.buf[0] = x
+	return a.buf[:1]
+}
+
+func (a *callArgs) of2(x, y bytecode.Value) []bytecode.Value {
+	a.buf[0], a.buf[1] = x, y
+	return a.buf[:2]
 }
 
 // HOFBuiltinFunc is a higher-order builtin that can call VM closures.

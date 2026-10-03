@@ -9,9 +9,9 @@ PROBES=0
 BLOCKED=1
 _mc_is_over_ration() { [ "$BLOCKED" = 1 ]; }
 _mc_bounded() { PROBES=$((PROBES+1)); MC_BOUNDED_OUT=ok; return 0; }
-eval "$(awk '/^_mc_probe_codex\(\) \{/,/^\}$/' "$DRIVER")"
+eval "$(awk '/^_mc_probe_codex\(\) \{/,/^\}$/' "$DRIVER" "$HERE/lib/lane-probe.sh")"
 # The codex notice line names the ration reason when the probe was ration-blocked (rc=75).
-eval "$(awk '/^_mc_ration_reason\(\) \{/,/^\}$/' "$DRIVER")"
+eval "$(awk '/^_mc_ration_reason\(\) \{/,/^\}$/' "$DRIVER" "$HERE/lib/lane-probe.sh")"
 type _mc_ration_reason >/dev/null 2>&1 || { echo 'FAIL extraction _mc_ration_reason'; exit 1; }
 _mc_probe_codex test-model; rc=$?
 [ "$rc" = 75 ] && [ "$PROBES" = 0 ] || { echo 'FAIL blocked probe spent inference'; exit 1; }
@@ -42,7 +42,7 @@ echo 'PASS Codex admission: blocked probe spends zero; planner and executor fall
 
 # Reset credits in reserve (2026-09-24): `--over` appends the clause to a blocked bucket's
 # reason; _mc_reset_hint must lift exactly that clause, and nothing when none is held.
-body=$(awk '$0 == "_mc_reset_hint() {" {on=1} on {print} on && /^}$/ {exit}' "$DRIVER")
+body=$(awk '$0 == "_mc_reset_hint() {" {on=1} on {print} on && /^}$/ {exit}' "$DRIVER" "$HERE/lib/lane-probe.sh")
 [ -n "$body" ] || { echo "FAIL extraction _mc_reset_hint"; exit 1; }
 eval "$body"
 MC_RATION_REASONS='codex over: provider-reported Codex account usage exceeds ration or exhausts a window; 1 Codex reset credit(s) in reserve (next expires 2026-10-22) — attended only: `ailang mission quota --codex-reset --yes`

@@ -324,7 +324,7 @@ case "$open" in *$'D-ROUTE-1\t'*) bad "resolved routing decision is not re-asked
 # Exercise the real controller selector with probes stubbed: all Anthropic
 # candidates fail, then the configured Codex subscription fallback succeeds.
 lab=$(mktemp -d "${TMPDIR:-/tmp}/mission-routing.XXXXXX") || exit 1
-awk '/^_mc_probe_codex\(\) \{/,/^\}/' "$driver" > "$lab/select.sh"
+awk '/^_mc_probe_codex\(\) \{/,/^\}/' "$driver" "$ROOT/tools/launchd/lib/lane-probe.sh" > "$lab/select.sh"
 awk '/^_mc_set_controller\(\) \{/,/^\}/' "$driver" >> "$lab/select.sh"
 awk '/^select_model\(\) \{/,/^\}/' "$driver" >> "$lab/select.sh"
 out=$(/bin/bash -c '
@@ -444,7 +444,7 @@ want "R12 planner codex lane over ration reroutes to the resolved planner" "$out
 # R13 SEAM: the resolver's bucket map must agree with the driver's _mc_rung_bucket, or
 # the gate refuses what the driver allows (or the reverse) with both suites green.
 _seam_bad=""
-_drv_fn=$(awk '/^_mc_rung_bucket\(\)/,/^}/' "$ROOT/tools/launchd/mission-control.sh")
+_drv_fn=$(awk '/^_mc_rung_bucket\(\)/,/^}/' "$ROOT/tools/launchd/mission-control.sh" "$ROOT/tools/launchd/lib/lane-probe.sh")
 _res_fn=$(awk '/^_rs_bucket\(\)/,/^}/' "$RESOLVE")
 _hook_fn=$(awk '/^_lane_bucket\(\)/,/^}/' "$ROOT/tools/launchd/spawn-pin-hook.sh")
 for _r in codex:gpt-6-sol pi:openrouter/z-ai/glm-5.3 pi:ollama/glm-5.3:cloud pi:ollama/x-cloud \
