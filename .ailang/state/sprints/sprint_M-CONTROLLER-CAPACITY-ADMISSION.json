@@ -1,0 +1,112 @@
+{
+  "sprint_id": "M-CONTROLLER-CAPACITY-ADMISSION",
+  "status": "planned",
+  "design_doc": "design_docs/planned/m-controller-capacity-admission.md",
+  "sprint_plan": "design_docs/planned/sprint-plan-controller-capacity-admission.md",
+  "ticket": "driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash",
+  "mission": "fleet iteration 15 (P0, blocking=all; D-FLEET-11 = A, attended 2026-10-02)",
+  "created": "2026-10-03",
+  "planner_model": "claude-opus-5-5",
+  "worktree": "/Users/voightkampff/.ailang-driver-pin/fleet-i15",
+  "branch": "fleet/i15-controller-402",
+  "base": "76a5aef65",
+  "github_issues": [],
+  "risk_level": "low",
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Extends the driver's existing anchored RUNTIME_QUOTA_SIG and final rc block; reuses the awk-extraction + fake-binary harness style of test_mission_kill_tree.sh / test_driver_notify.sh. No package capability introduced."
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 260,
+    "estimated_days": 1,
+    "target_loc_per_day": 260
+  },
+  "run_parameters": {
+    "pi_max_seconds": 3600,
+    "reason": "~260 LOC including a 6-mutant drill exceeds the 150-LOC threshold of gate-3 wall-clock rule (a)"
+  },
+  "scope_note": "Ruling A only: anchored ^402: arm in RUNTIME_QUOTA_SIG through existing demote/re-walk/PAUSED-NO-CAPACITY; pause-aware final-block elif [ \"${MC_PAUSED:-0}\" -eq 1 ] that LOGS ONLY (the single pause notice is the existing _mc_notify at mission-control.sh:2389-2391; adding a second _mc_notify would double-announce, per doc quorum r1 objection 2); controller regression tests. Thresholds, lane order, _mc_load_ration, RUNTIME_QUOTA_REWALKS, rc, rcfail policy, lib/lane-probe.sh logic, .pi/extensions/** UNCHANGED.",
+  "evidence": {
+    "doc_diff_applies_at_head": "awk-extracted fenced diff, git apply --check rc 0 at a44ae150c (driver identical to 76a5aef65)",
+    "chain_suite_vacuity_at_head": "/bin/bash tools/launchd/test_controller_chain.sh: rc 0 with 63 'command not found' on stderr (21 each _mc_canon_id/_mc_is_demoted/_mc_is_over_ration)",
+    "override_unset": "MISSION_RUNTIME_QUOTA_SIG: single repo hit (definition :1077); 0 hits in ~/.config/ailang/*.env and ~/Library/LaunchAgents/*.plist",
+    "signature_probes": "patched default under /usr/bin/grep -qE: '402: {...}'->match; prose 'the provider returned 402: credits', '  402: indented', 'HTTP 402 credits quota', 'insufficient credits', '4020: x'->no match; 429/usage-limit still match"
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Apply the design doc's Proposed diff exactly to tools/launchd/mission-control.sh (+7/-2): add |^402: to the default RUNTIME_QUOTA_SIG (comment four->five emitters) and insert the log-only elif [ \"${MC_PAUSED:-0}\" -eq 1 ] branch between the landed-record if and the generic else of the final rc block",
+      "dependencies": [],
+      "estimated_loc": 9,
+      "files": [
+        "tools/launchd/mission-control.sh"
+      ],
+      "acceptance_criteria": [
+        "git diff --numstat tools/launchd/mission-control.sh => 7 2; no other file changed in M1",
+        "/bin/bash -n tools/launchd/mission-control.sh => rc 0",
+        "/usr/bin/grep -cF '|^429:|^402:}\"' => 1; elif line present once after the landed-record if",
+        "elif block (comments excluded) contains 0 _mc_notify / messages send / rcfail references; exactly 1 '_mc_notify \"Mission ${MISSION_NAME}: PAUSED' in the driver",
+        "Signature probes: '402: {...}' matches; NEGATIVE prose ('the provider returned 402: credits', '  402: indented', 'HTTP 402 credits quota', 'insufficient credits', '4020: x') does not; 429 and the three usage-limit emitters still match",
+        "RUNTIME_QUOTA_REWALKS default 4 and exit \"$RC\" unchanged"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": "not started"
+    },
+    {
+      "id": "M2",
+      "description": "Hermetic regression suites: new tools/launchd/test_controller_capacity.sh runs the awk-extracted real _mc_run_once + retry loop + slot verdict/notify + final rc block against fake pi/ailang/gh (zero inference, bash 3.2); extend tools/launchd/test_controller_chain.sh to extract _mc_canon_id/_mc_demote/_mc_is_demoted and lib/lane-probe.sh _mc_rung_bucket/_mc_is_over_ration with blocked-OpenRouter and all-blocked cases plus anti-vacuity; wire the new suite into make/test.mk test-launchd-drivers after test_controller_chain.sh",
+      "dependencies": [
+        "M1"
+      ],
+      "estimated_loc": 230,
+      "files": [
+        "tools/launchd/test_controller_capacity.sh (new)",
+        "tools/launchd/test_controller_chain.sh",
+        "make/test.mk"
+      ],
+      "acceptance_criteria": [
+        "test_controller_capacity.sh under lib/suite-env.sh: all cases PASS, rc 0, < 60s: 402-rewalk-then-complete, 402-all-rungs-pause, 402-rewalk-bound, prior-402-no-poison, prose-402-not-capacity, generic-crash-once, generic-crash-mcpaused-unset, 429-unchanged, usage-limit-unchanged, transient-unchanged, rc0-old-402-normal, landed-record-precedence, watchdog-kill-stays-killed, hermetic-path",
+        "402-all-rungs-pause: one demotion per rung, no same-rung retry, verdict PAUSED-NO-CAPACITY, exactly 1 'PAUSED — no capacity' send, 0 'Mission iteration FAILED' sends, rcfail marker byte-identical (absent->absent, 1->1), process rc stays nonzero",
+        "NEGATIVE: prior attempt's 402 does not demote the next rung; prose 402/credits does not classify; non-capacity rc1 is CRASHED with exactly 1 generic FAILED send, second identical crash suppressed; MC_PAUSED unset under set -u -> 1 generic send, 0 stderr bytes",
+        "test_controller_chain.sh: rc 0 and 0 'command not found' on stderr (63 at HEAD); all-blocked returns 1 with 0 probe calls; blocked OpenRouter reaches the next admitted rung with 0 openrouter probes",
+        "make/test.mk has test_controller_capacity.sh exactly once, after test_controller_chain.sh",
+        "No declare -A / ${v,,} / mapfile in either suite",
+        "Mutation drill on scratch copies (MC_CAPACITY_DRIVER): MUT-402 (revert ^402: arm) turns the 402 cases RED; MUT-ELIF, MUT-UNSET, MUT-SLICE, MUT-LOOSE, MUT-CHAIN each turn their named case RED"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": "not started"
+    },
+    {
+      "id": "M3",
+      "description": "Done gate: make test-launchd-drivers (unpiped, bash 3.2.57), heartbeat suite, healthy + degraded dry-runs with AILANG_DRIVER_PINNED=$(git rev-parse HEAD), changelog fragment, scope diff check, mutation evidence recorded",
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "estimated_loc": 20,
+      "files": [
+        "changelogs/unreleased/2026-10-03-controller-402-capacity.md (new)"
+      ],
+      "acceptance_criteria": [
+        "make test-launchd-drivers => rc 0 (unpiped), new suite's PASS lines present",
+        "bash tools/launchd/test_mission_heartbeat.sh => rc 0, 'PASS: 25 heartbeat arms ran'",
+        "AILANG_DRIVER_PINNED=<sha> MISSION_PROFILE=fleet MISSION_DRY_RUN=1 => 'DRY RUN ok: ... lanes=ok' rc 0; + MISSION_EXECUTOR_MODEL=codex:bogus MISSION_PROBE_TIMEOUT=10 => 'lanes=DEGRADED(...)' rc 0; each bounded by a date +%s deadline <= 30 min",
+        "changelog fragment exists with a ### Fixed section stating ^402: capacity classification, pause no longer posts a crash notice / writes rcfail, ration half not reproduced; make check-changelog rc 0",
+        "git diff --name-only 76a5aef65 (excluding design_docs, .ailang) = the 5 planned files exactly; 0 diff under tools/launchd/lib, .pi, scripts/mission_pi_run.sh, internal",
+        "Mutation table with each mutant's rc recorded in the evaluator evidence"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": "not started"
+    }
+  ]
+}
