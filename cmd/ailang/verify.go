@@ -134,8 +134,10 @@ func verifyCommand() {
 	}
 
 	// Exit code logic
-	if report.Counterexample > 0 {
-		os.Exit(1) // Contract violations found
+	// An error is the verifier failing to produce an answer (solver crash,
+	// bad encoding) — never a pass. Same contract as --package and ai-check.
+	if report.Counterexample > 0 || report.Errors > 0 {
+		os.Exit(1)
 	}
 	// Strict mode is deliberately unchanged: an uncontracted function is not a
 	// verification failure, it is a function nobody has written a contract for.
