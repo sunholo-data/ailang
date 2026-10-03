@@ -21,9 +21,18 @@ trap 'rm -rf "$TMP"' EXIT
 
 awk '/^_mc_set_controller\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_set.sh"
 awk '/^select_model\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_sel.sh"
+# select_model also calls these (demote list + ration gate). Without them every call was a
+# "command not found" that happened to return nonzero — the suite went green on a half-loaded
+# seam. The billing reader _mc_load_ration stays out of scope and is stubbed below.
+awk '/^_mc_canon_id\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_help.sh"
+awk '/^_mc_demote\(\) /' "$DRIVER" >> "$TMP/fn_help.sh"
+awk '/^_mc_is_demoted\(\) \{/,/^\}$/' "$DRIVER" >> "$TMP/fn_help.sh"
+awk '/^_mc_rung_bucket\(\) \{/,/^\}$/' "$HERE/lib/lane-probe.sh" >> "$TMP/fn_help.sh"
+awk '/^_mc_is_over_ration\(\) \{/,/^\}$/' "$HERE/lib/lane-probe.sh" >> "$TMP/fn_help.sh"
 # Guard the extraction itself: an empty extract would make every test vacuously fail
 # in confusing ways — fail loudly at the seam instead.
 [ -s "$TMP/fn_set.sh" ] && [ -s "$TMP/fn_sel.sh" ] \
+  && [ "$(/usr/bin/grep -c '^_mc_[a-z_]*()' "$TMP/fn_help.sh")" -eq 5 ] \
   || { echo "FAIL extraction: function boundaries not found in $DRIVER"; exit 1; }
 
 log(){ :; }
@@ -46,8 +55,13 @@ _mc_bounded(){                                  # succeed iff --model's value is
   return 7
 }
 
-_mc_probe_pi(){ _mc_bounded "$PROBE_TIMEOUT" pi --model "$1"; }
+PI_PROBES=""
+_mc_probe_pi(){ PI_PROBES="$PI_PROBES $1"; _mc_bounded "$PROBE_TIMEOUT" pi --model "$1"; }
+# Stub of the billing reader: only sets MC_OVER_RATION from a test variable.
+MC_OVER_RATION=""; MC_DEMOTED=""   # the driver initialises MC_DEMOTED at :893
+_mc_load_ration(){ MC_OVER_RATION="${RATION:-}"; }
 
+. "$TMP/fn_help.sh"
 . "$TMP/fn_set.sh"
 . "$TMP/fn_sel.sh"
 
@@ -78,5 +92,41 @@ CODEX_OK=0 PI_OK="ollama/glm-5.3:cloud" CONTROLLER_FALLBACK="pi:ollama/glm-5.3:c
 [ "${CONTROLLER_PROVIDER:-}" = "pi" ] \
   && echo "PASS pi-rung-sets-provider-pi" \
   || { echo "FAIL pi-rung-sets-provider-pi (got '${CONTROLLER_PROVIDER:-}')"; fail=1; }
+
+# --- ration gate + demotion seams (previously unexercised: the helpers were undefined) ---
+PROBE_CNT=0
+_mc_probe_codex(){ PROBE_CNT=$((PROBE_CNT + 1)); [ "${CODEX_OK:-0}" = "1" ]; }
+# Plain assignments, not `VAR=x check ...`: a prefix on a function call is TEMPORARY in bash, so
+# PI_PROBES/PROBE_CNT would read back as their pre-call values and the zero-probe asserts
+# would be vacuous.
+RATION="codex ollama anthropic openrouter"; CODEX_OK=1; PI_OK="ollama/glm-5.3:cloud|openrouter/z-ai/glm-5.3"
+PI_PROBES=""; PROBE_CNT=0
+check "all-blocked-no-controller" 1 "none"
+[ -z "$PI_PROBES" ] && [ "$PROBE_CNT" -eq 0 ] \
+  && echo "PASS all-blocked-no-controller-zero-probes" \
+  || { echo "FAIL all-blocked-no-controller-zero-probes (pi:'$PI_PROBES' codex:$PROBE_CNT)"; fail=1; }
+
+CONTROLLER_FALLBACK="pi:openrouter/z-ai/glm-5.3,pi:ollama/glm-5.3:cloud"; RATION="openrouter"; CODEX_OK=0
+PI_PROBES=""
+check "openrouter-blocked-reaches-next" 0 "pi:ollama/glm-5.3:cloud"
+case "$PI_PROBES" in *openrouter*) echo "FAIL openrouter-blocked-reaches-next-no-probe (probed:$PI_PROBES)"; fail=1 ;;
+  *ollama*) echo "PASS openrouter-blocked-reaches-next-no-probe (probed:$PI_PROBES)" ;;
+  *) echo "FAIL openrouter-blocked-reaches-next-no-probe (ollama never probed)"; fail=1 ;; esac
+
+RATION=""; MC_DEMOTED=" pi:openrouter/z-ai/glm-5.3"; PI_PROBES=""
+check "demoted-rung-skipped" 0 "pi:ollama/glm-5.3:cloud"
+case "$PI_PROBES" in *openrouter*) echo "FAIL demoted-rung-skipped-no-probe (probed:$PI_PROBES)"; fail=1 ;;
+  *) echo "PASS demoted-rung-skipped-no-probe" ;; esac
+MC_DEMOTED=""
+
+# Anti-vacuity: re-run this suite and count undefined-helper errors on stderr. At the base
+# commit this was 63 (21 selections x 3 missing helpers), so the suite was green on nothing.
+if [ -z "${CC_NESTED:-}" ]; then
+  _e="$TMP/nested.err"
+  CC_NESTED=1 /bin/bash "$0" >/dev/null 2>"$_e"
+  _n=$(/usr/bin/grep -c 'command not found' "$_e")
+  [ "$_n" -eq 0 ] && echo "PASS no-command-not-found-on-stderr" \
+    || { echo "FAIL no-command-not-found-on-stderr ($_n)"; fail=1; }
+fi
 
 exit $fail
