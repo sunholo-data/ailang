@@ -126,7 +126,7 @@
         "latest",
         "vision-aligned"
       ],
-      "notes": "MAJOR upgrade addressing vision benchmark failures: 1) Effect system docs (~200 lines), 2) State threading patterns (~80 lines), 3) Canonical list operations (~120 lines). Targets: Effect 6%\u219270%, State 0%\u219260%, Canonical 0%\u219270%. Expected: 36.5%\u219270% AILANG success.",
+      "notes": "MAJOR upgrade addressing vision benchmark failures: 1) Effect system docs (~200 lines), 2) State threading patterns (~80 lines), 3) Canonical list operations (~120 lines). Targets: Effect 6%→70%, State 0%→60%, Canonical 0%→70%. Expected: 36.5%→70% AILANG success.",
       "frozen": {
         "at": "2026-08-27",
         "reason": "legacy",
@@ -245,7 +245,7 @@
         "latest",
         "optimized"
       ],
-      "notes": "SUCCESS: Phase 1 optimization (-2.5% tokens, 5189\u21925058 words). Added quick reference, condensed verbose sections, kept all 64 examples. Validated: 41.9% AILANG success rate. Conservative incremental approach proven effective.",
+      "notes": "SUCCESS: Phase 1 optimization (-2.5% tokens, 5189→5058 words). Added quick reference, condensed verbose sections, kept all 64 examples. Validated: 41.9% AILANG success rate. Conservative incremental approach proven effective.",
       "frozen": {
         "at": "2026-08-27",
         "reason": "legacy",
@@ -263,7 +263,7 @@
         "testing",
         "broken"
       ],
-      "notes": "BROKEN: Incorrect pattern matching syntax in Quick Reference (pipes before patterns). Caused -4.8% regression (40.0% \u2192 35.2%). Fixed in v0.3.21. Added testing features from v0.3.20: unit tests (test \"name\" = expr) and property-based tests (property \"name\" (x: type) = expr). Includes 100-case generation with automatic shrinking. Size: 5262 words (+4% from v0.3.19). Run with: ailang test file.ail",
+      "notes": "BROKEN: Incorrect pattern matching syntax in Quick Reference (pipes before patterns). Caused -4.8% regression (40.0% → 35.2%). Fixed in v0.3.21. Added testing features from v0.3.20: unit tests (test \"name\" = expr) and property-based tests (property \"name\" (x: type) = expr). Includes 100-case generation with automatic shrinking. Size: 5262 words (+4% from v0.3.19). Run with: ailang test file.ail",
       "frozen": {
         "at": "2026-08-27",
         "reason": "legacy",
@@ -281,7 +281,7 @@
         "testing",
         "hotfix"
       ],
-      "notes": "CRITICAL HOTFIX: Fixed 3 syntax errors in v0.3.20: (1) Pattern matching (no pipes before patterns, commas between arms), (2) Import syntax (no quotes on module paths), (3) Tuple destructuring (use `match tuple { (x, y) => ... }` NOT `let (x, y) = tuple`). State threading examples corrected. All v0.3.20 testing features included. Expected: AILANG success 35.2% \u2192 40.0%+",
+      "notes": "CRITICAL HOTFIX: Fixed 3 syntax errors in v0.3.20: (1) Pattern matching (no pipes before patterns, commas between arms), (2) Import syntax (no quotes on module paths), (3) Tuple destructuring (use `match tuple { (x, y) => ... }` NOT `let (x, y) = tuple`). State threading examples corrected. All v0.3.20 testing features included. Expected: AILANG success 35.2% → 40.0%+",
       "frozen": {
         "at": "2026-08-27",
         "reason": "banked",
@@ -299,7 +299,7 @@
         "latest",
         "m-eval-http-fix"
       ],
-      "notes": "M-EVAL-HTTP-FIX Milestone 2: (1) Enhanced parser error messages for JavaScript/Python patterns (PAR014: const keyword, PAR015: bare assignment), (2) HTTP POST example moved from line 218 \u2192 line 107 (-51% position). Target: Reduce api_call_json failures from 75% by guiding AIs toward correct AILANG syntax earlier in prompt. All v0.3.21 testing features included.",
+      "notes": "M-EVAL-HTTP-FIX Milestone 2: (1) Enhanced parser error messages for JavaScript/Python patterns (PAR014: const keyword, PAR015: bare assignment), (2) HTTP POST example moved from line 218 → line 107 (-51% position). Target: Reduce api_call_json failures from 75% by guiding AIs toward correct AILANG syntax earlier in prompt. All v0.3.21 testing features included.",
       "frozen": {
         "at": "2026-08-27",
         "reason": "legacy",
@@ -536,7 +536,7 @@
         "production",
         "optimized"
       ],
-      "notes": "REWRITE v2: Added back critical sections lost in streamlining. Includes negative examples (\u274c WRONG / \u2705 RIGHT) for let/in scoping and curried function calls. Key sections: Block vs expression let bindings, curried function chaining, Option patterns, ADT state machine. 2,204 words (71% smaller than v0.4.4).",
+      "notes": "REWRITE v2: Added back critical sections lost in streamlining. Includes negative examples (❌ WRONG / ✅ RIGHT) for let/in scoping and curried function calls. Key sections: Block vs expression let bindings, curried function chaining, Option patterns, ADT state machine. 2,204 words (71% smaller than v0.4.4).",
       "frozen": {
         "at": "2026-08-27",
         "reason": "legacy",
@@ -655,14 +655,14 @@
     "v0.7.0": {
       "file": "prompts/v0.7.0.md",
       "hash": "8c31bbd4ebf260d6f7609ebe507b840193b30622ace13ed35d1ba4881207af01",
-      "description": "Integrated gap analysis fixes: block braces, imports, JSON patterns from v0.6.2\u2192v0.7.0 eval",
+      "description": "Integrated gap analysis fixes: block braces, imports, JSON patterns from v0.6.2→v0.7.0 eval",
       "created": "2026-01-22",
       "tags": [
         "production",
         "latest",
         "gap-analysis"
       ],
-      "notes": "Gap analysis integration from v0.6.2\u2192v0.7.0 eval comparison: (1) Strengthened block brace requirements with explicit examples, (2) Added import checklist reminder, (3) Enhanced JSON patterns with getString/getNumber examples. Target: Reduce AILANG eval failures from import errors and missing braces.",
+      "notes": "Gap analysis integration from v0.6.2→v0.7.0 eval comparison: (1) Strengthened block brace requirements with explicit examples, (2) Added import checklist reminder, (3) Enhanced JSON patterns with getString/getNumber examples. Target: Reduce AILANG eval failures from import errors and missing braces.",
       "frozen": {
         "at": "2026-08-27",
         "reason": "legacy",
@@ -1014,10 +1014,27 @@
         "latest",
         "stdlib-discoverability"
       ],
-      "notes": "Teaches that take(n, flatMap(f, xs)) materialises all outputs under strict evaluation and should be rewritten as takeFlatMap(n, f, xs), while stating the remaining source-list and single-f(x) bounds. Also teaches takeMap for take-after-map when f allocates. v0.16.5 remains served byte-identical for pinned eval baselines. M-STD-BASE64URL-ENCODE (2026-09-08) amends this UNFROZEN head in place rather than cutting v0.16.7: v0.16.6 carries no banked corpus evidence, so no eval baseline is pinned to it and `ailang prompt freeze v0.16.6` correctly refuses; the registry admits exactly one mutable head (TestRealRegistry_PostMigrationSplitCounts) and this is it. Adds std/bytes.toBase64URL: the canonical `import std/bytes (...)` line gains toBase64URL/fromBase64URL (it listed neither), the bytes function list gains both URL entries and now records that fromBase64 REQUIRES padding while fromBase64URL REJECTS it, and the JWT section names the pair as an exact round-trip. It states the concrete divergence rather than only naming the function -- toBase64(fromString(\"a+b/c?\")) is \"YStiL2M/\", toBase64URL of the same bytes is \"YStiL2M_\" -- because the hand-rolled toBase64+replaceMany derivation type-checks, runs, exits 0 and fails only at the far end. M-STD-FS-WALK (2026-09-16) amends the same unfrozen head in place (still no banked corpus evidence; freeze still refuses): the FS capability row and the canonical `import std/fs (...)` line gain walk and glob, with their signatures and the rule that a recursive listDir/isDir walker is never hand-rolled \u2014 every ailang_only-lane transcript before the change wrote one. M-PKG-BIN-ENTRYPOINTS (2026-09-18) amends the same unfrozen head in place: the Publishing section gains `[bin]` -- a package declares commands in ailang.toml and `ailang install` shims them onto PATH -- with the string and table forms, `install --path` as the developer loop, and the rule that a scripts/ launcher which cd's into a checkout is what `[bin]` replaces (email-parse had 14 such entrypoints; docparse a bin/ wrapper). M-EQ-DERIVE-CONTAINERS (2026-09-22) amends the same unfrozen head in place: the syntax table gains a record-with-Eq row and a row stating which types support == (lists, Option, Result and tuples whose parts do, plus deriving (Eq) types; not anonymous records, not functions). Before it the prompt was silent, and 4 of 6 mlfq_scheduler_hidden compile failures on 2026-09-22 were == on a list. M-FLOAT-EQ-ONE-SEMANTICS (2026-09-25) amends the same row in place: float == is IEEE on every path (NaN is never equal to itself; Mark ruled IEEE to match model priors), and NaN is tested with std/math.isNaN, added in the same change. M-IFC-LABEL-GRAMMAR-DOCS (#751, 2026-09-26) amends the same unfrozen head in place: the Label Naming Convention taught kebab-case compounds (`<user-input>`), which the parser rejects at the hyphen; it now teaches snake_case, and states that a parameter takes one `not` refinement (`string{not email, not web}` does not parse) with the shared-label pattern for forbidding several sources. M-NUMERICS-QUICK (2026-09-27) amends the same unfrozen head in place: the canonical std/list import line gains `range` (new), and a std/embedding import line is added (dot, cosine, magnitude, normalize, scale, add_vectors, axpy, euclidean_distance) with the rule that a dot product is never foldl(zipWith(...)). An email-parse dogfood hand-built a 768-dim softmax regression with foldl/zipWith because nothing it read named std/embedding; the prompt listed 20 modules and not that one. M-NUMERICS-VEC-ARRAY (2026-09-27) amends the same unfrozen head in place: the canonical import block gains a std/array line (the Array[float] kernels, updateMany/scatterAdd, the F64 codec) with the rule to import std/array qualified when std/embedding is also imported, and std/json gains decodeFloatArray. The Arrays section records that get/set/unsafeGet out of bounds are errors (set used to return the array unchanged), that Array[float] is unboxed, that per-element set in a loop is O(n^2) and bulk ops replace it, and that the F32 codec is lossy. M-FLOAT-ORD-ONE-SEMANTICS (#1419, 2026-10-02) amends the == row in place: float < <= > >= are IEEE on every path and both backends. Every ordered comparison with a NaN operand is false; the interpreter used to answer nan > 1.0 true. M-FULLWIDTH-INT-LITERALS-AND-LOGICAL-SHIFT (#1481, 2026-10-02) amends the same unfrozen head in place: the signed-hash paragraph gains two lines -- full-width hex/binary/octal literals are 64-bit patterns (0x9e3779b97f4a7c15 parses; it used to be a parse error, so models hand-converted SplitMix64 constants to signed decimals), and `>>` is arithmetic while the reference `>>>` is std/math.shiftRightLogical (new), never a mask emulation (an off-by-one mask was the measured hazard in the m-pure-prng quorum)."
+      "notes": "Teaches that take(n, flatMap(f, xs)) materialises all outputs under strict evaluation and should be rewritten as takeFlatMap(n, f, xs), while stating the remaining source-list and single-f(x) bounds. Also teaches takeMap for take-after-map when f allocates. v0.16.5 remains served byte-identical for pinned eval baselines. M-STD-BASE64URL-ENCODE (2026-09-08) amends this UNFROZEN head in place rather than cutting v0.16.7: v0.16.6 carries no banked corpus evidence, so no eval baseline is pinned to it and `ailang prompt freeze v0.16.6` correctly refuses; the registry admits exactly one mutable head (TestRealRegistry_PostMigrationSplitCounts) and this is it. Adds std/bytes.toBase64URL: the canonical `import std/bytes (...)` line gains toBase64URL/fromBase64URL (it listed neither), the bytes function list gains both URL entries and now records that fromBase64 REQUIRES padding while fromBase64URL REJECTS it, and the JWT section names the pair as an exact round-trip. It states the concrete divergence rather than only naming the function -- toBase64(fromString(\"a+b/c?\")) is \"YStiL2M/\", toBase64URL of the same bytes is \"YStiL2M_\" -- because the hand-rolled toBase64+replaceMany derivation type-checks, runs, exits 0 and fails only at the far end. M-STD-FS-WALK (2026-09-16) amends the same unfrozen head in place (still no banked corpus evidence; freeze still refuses): the FS capability row and the canonical `import std/fs (...)` line gain walk and glob, with their signatures and the rule that a recursive listDir/isDir walker is never hand-rolled — every ailang_only-lane transcript before the change wrote one. M-PKG-BIN-ENTRYPOINTS (2026-09-18) amends the same unfrozen head in place: the Publishing section gains `[bin]` -- a package declares commands in ailang.toml and `ailang install` shims them onto PATH -- with the string and table forms, `install --path` as the developer loop, and the rule that a scripts/ launcher which cd's into a checkout is what `[bin]` replaces (email-parse had 14 such entrypoints; docparse a bin/ wrapper). M-EQ-DERIVE-CONTAINERS (2026-09-22) amends the same unfrozen head in place: the syntax table gains a record-with-Eq row and a row stating which types support == (lists, Option, Result and tuples whose parts do, plus deriving (Eq) types; not anonymous records, not functions). Before it the prompt was silent, and 4 of 6 mlfq_scheduler_hidden compile failures on 2026-09-22 were == on a list. M-FLOAT-EQ-ONE-SEMANTICS (2026-09-25) amends the same row in place: float == is IEEE on every path (NaN is never equal to itself; Mark ruled IEEE to match model priors), and NaN is tested with std/math.isNaN, added in the same change. M-IFC-LABEL-GRAMMAR-DOCS (#751, 2026-09-26) amends the same unfrozen head in place: the Label Naming Convention taught kebab-case compounds (`<user-input>`), which the parser rejects at the hyphen; it now teaches snake_case, and states that a parameter takes one `not` refinement (`string{not email, not web}` does not parse) with the shared-label pattern for forbidding several sources. M-NUMERICS-QUICK (2026-09-27) amends the same unfrozen head in place: the canonical std/list import line gains `range` (new), and a std/embedding import line is added (dot, cosine, magnitude, normalize, scale, add_vectors, axpy, euclidean_distance) with the rule that a dot product is never foldl(zipWith(...)). An email-parse dogfood hand-built a 768-dim softmax regression with foldl/zipWith because nothing it read named std/embedding; the prompt listed 20 modules and not that one. M-NUMERICS-VEC-ARRAY (2026-09-27) amends the same unfrozen head in place: the canonical import block gains a std/array line (the Array[float] kernels, updateMany/scatterAdd, the F64 codec) with the rule to import std/array qualified when std/embedding is also imported, and std/json gains decodeFloatArray. The Arrays section records that get/set/unsafeGet out of bounds are errors (set used to return the array unchanged), that Array[float] is unboxed, that per-element set in a loop is O(n^2) and bulk ops replace it, and that the F32 codec is lossy. M-FLOAT-ORD-ONE-SEMANTICS (#1419, 2026-10-02) amends the == row in place: float < <= > >= are IEEE on every path and both backends. Every ordered comparison with a NaN operand is false; the interpreter used to answer nan > 1.0 true. M-FULLWIDTH-INT-LITERALS-AND-LOGICAL-SHIFT (#1481, 2026-10-02) amends the same unfrozen head in place: the signed-hash paragraph gains two lines -- full-width hex/binary/octal literals are 64-bit patterns (0x9e3779b97f4a7c15 parses; it used to be a parse error, so models hand-converted SplitMix64 constants to signed decimals), and `>>` is arithmetic while the reference `>>>` is std/math.shiftRightLogical (new), never a mask emulation (an off-by-one mask was the measured hazard in the m-pure-prng quorum).",
+      "frozen": {
+        "at": "2026-10-03",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
+    },
+    "v0.16.7": {
+      "file": "prompts/v0.16.7.md",
+      "hash": "84fe5b806c0b52204119ee0beb27fc4c22f74386a552e0709cf80c84cc61e68f",
+      "description": "Teach EOF-aware stdin loops with std/io.readLineOpt",
+      "created": "2026-10-03",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Teach EOF-aware stdin loops with std/io.readLineOpt"
     }
   },
-  "active": "v0.16.6",
+  "active": "v0.16.7",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

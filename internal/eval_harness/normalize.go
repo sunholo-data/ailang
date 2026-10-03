@@ -115,7 +115,7 @@ func wrapAsModule(src string, caps []string, hasModule bool) string {
 
 // needsIO checks if code uses IO functions
 func needsIO(src string) bool {
-	ioFuncs := []string{"print(", "println(", "readLine(", "print ", "println ", "readLine "}
+	ioFuncs := []string{"print(", "println(", "readLine(", "readLineOpt(", "print ", "println ", "readLine ", "readLineOpt "}
 	for _, fn := range ioFuncs {
 		if strings.Contains(src, fn) {
 			return true

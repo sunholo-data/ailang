@@ -1,6 +1,6 @@
 # M-IO-READLINE-EOF-OPTION — `readLineOpt() -> Option[string]`: EOF is `None`, not `""`
 
-**Status**: Planned
+**Status**: Implemented; full-suite validation pending coordinator evaluation
 **Target**: v0.52.0
 **Priority**: P1 (correctness: a documented consumer pattern — NDJSON-over-stdin — is unimplementable without a heuristic)
 **Estimated**: 2 days (1 day implementation + tests, 0.5 day cross-cutting registrations, 0.5 day docs/prompt/example)

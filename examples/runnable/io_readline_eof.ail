@@ -1,0 +1,15 @@
+-- Echo every stdin line, including blank lines, and stop exactly at EOF.
+-- Run: printf 'a\n\nb\n' | ailang run --caps IO --entry main examples/runnable/io_readline_eof.ail
+module examples/runnable/io_readline_eof
+
+import std/io (readLineOpt, println)
+import std/option (Some, None)
+
+func loop() -> () ! {IO} {
+  match readLineOpt(()) {
+    Some(line) => { println(line); loop() },
+    None => ()
+  }
+}
+
+export func main() -> () ! {IO} { loop() }

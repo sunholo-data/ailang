@@ -12,7 +12,39 @@ import (
 // These provide console I/O operations
 
 func init() {
+	registerIOReadLineOpt()
 	registerIO()
+}
+
+func registerIOReadLineOpt() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/io", Name: "_io_readLineOpt", NumArgs: 1, IsPure: false, Effect: "IO",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.Unit()).Returns(T.App("Option", T.String())).Effects("IO")
+		},
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			if len(args) != 1 {
+				panic("internal invariant violation: _io_readLineOpt expects exactly 1 argument (unit)")
+			}
+			if _, ok := args[0].(*eval.UnitValue); !ok {
+				panic("internal invariant violation: _io_readLineOpt expected unit argument")
+			}
+			return effects.Call(ctx, "IO", "readLineOpt", nil)
+		},
+		Metadata: &BuiltinMetadata{
+			Description: "Read a line from stdin, returning None at EOF",
+			LongDesc:    "Returns Some(line) including blank lines and final unterminated content. Removes trailing LF/CRLF like readLine. Returns None only when EOF yields no bytes; other reader errors propagate.",
+			Params:      []ParamDoc{{Name: "u", Description: "Unit argument"}},
+			Returns:     "Option[string]: Some(line) or None at EOF",
+			Examples:    []Example{{Code: `_io_readLineOpt()`, Description: "Read the next line or EOF"}},
+			SeeAlso:     []string{"_io_readLine"}, Since: "v0.53.0", Stability: StabilityStable,
+			Tags: []string{"io", "read", "input", "stdin", "eof", "option"}, Category: "io",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _io_readLineOpt: %v", err))
+	}
 }
 
 // ============================================================================
