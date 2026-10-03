@@ -1,0 +1,79 @@
+{
+  "doc": "design_docs/planned/m-controller-capacity-admission.md",
+  "iso_ts": "2026-10-02T21:49:44Z",
+  "reviewers": [
+    {
+      "model": "oc-kimi-k3",
+      "cost_usd": 0.085659,
+      "tokens_in": 5423,
+      "tokens_out": 4626,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The patch adds `elif [ \"$MC_PAUSED\" -eq 1 ]` to the final rc block, but no verification row establishes that `MC_PAUSED` is bound on every path that reaches that block. The doc only documents `MC_PAUSED=1` being set at :2387 inside the retry loop's pause path; no `grep -n MC_PAUSED` full-assignment audit, no check of the driver's `set -euo` options, appears anywhere in V1–V14. If the variable is unset on non-pause crash paths (e.g., a nonzero rc produced before/outside the loop's pause branch), then under `set -u` the new elif aborts the script with an unbound-variable error — silently killing the crash-notification block this change is supposed to fix — and under set +u it emits `[: : integer expression expected` noise on every crash. V13 cannot catch this: it awk-extracted the block into a stubbed harness whose shell options and variable scope do not replicate the real driver, and its pass criteria count sends, not stderr emptiness. This is an unverified premise about the patched code's own runtime behavior — exactly gate 1 — with a worst-case failure mode that violates the deterministic/legible-failure axioms the doc claims to uphold.",
+        "catch": "Audit MC_PAUSED's lifecycle before quorum round 2: run `grep -n 'MC_PAUSED' tools/launchd/mission-control.sh` (every assignment, initialization, and scope boundary: is it declared at loop/function entry or only at :2387?) and `grep -n 'set -'` for the driver's shell options. Also confirm whether any rc≠0 path (watchdog kill, launch failure, stall path) reaches the final rc block without passing through the retry loop where :2387 lives. Separately, re-run the V13 harness with `set -u` active and add an empty-stderr assertion to the not-paused arm — the current harness can pass while spewing integer-expression errors.",
+        "proposed_fix": "Two-part fix. (1) Make the diff defensive regardless of audit outcome: change the new branch to `elif [ \"${MC_PAUSED:-0}\" -eq 1 ]; then` (or add an explicit `MC_PAUSED=0` initialization beside the retry-loop entry and reference that in the doc). (2) Add verification-log rows: V15 `grep -n 'MC_PAUSED' tools/launchd/mission-control.sh; grep -n 'set -[a-z]*' tools/launchd/mission-control.sh` with observed output listing all assignment sites and the driver's shell options; V16 = V13 re-run under `set -u` with an added assertion `stderr must be empty on all arms`. Add an acceptance item: 'a nonzero rc produced without entering the pause branch posts the generic crash notice exactly once with zero stderr output.' Update the diff-in-doc (churn becomes +7/−2 with a one-character change on the elif line), re-extract, and re-run `git apply --check` per the V12 procedure."
+      },
+      "landed": null
+    },
+    {
+      "model": "gpt6-1-sol",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "unreachable",
+      "error": "openai error (429): You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.",
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.014518000000000001,
+      "tokens_in": 6083,
+      "tokens_out": 196,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The `elif [ \"$MC_PAUSED\" -eq 1 ]; then` condition uses integer comparison. If `MC_PAUSED` is unset (which is expected during a generic non-quota crash where the pause branch is never reached), Bash evaluates `[ \"\" -eq 1 ]`. This throws a `[: : integer expression expected` syntax error to stderr, polluting the mission logs with shell errors on every normal crash.",
+        "catch": "Unsafe integer comparison on the potentially uninitialized `MC_PAUSED` flag.",
+        "proposed_fix": "Modify the diff to use string comparison: `elif [ \"$MC_PAUSED\" = \"1\" ]; then`, or provide a default fallback: `elif [ \"${MC_PAUSED:-0}\" -eq 1 ]; then`."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-3",
+      "cost_usd": 0.10168500000000001,
+      "tokens_in": 5441,
+      "tokens_out": 21379,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The entire production effect of this change rides on the default value of RUNTIME_QUOTA_SIG actually being live on the rig — i.e., on MISSION_RUNTIME_QUOTA_SIG being unset in the deployment — and the doc never verifies this. The 14-row verification log greps for 402 emitters, ClassifyFailure callers, rcfail readers, even byte-identity of the extracted diff, but contains no `grep -rn MISSION_RUNTIME_QUOTA_SIG` over the repo, the launchd plist, or the rig env. The doc itself states the override 'replaces the default wholesale', so any setter silently disables the new `^402:` arm: 402s keep exiting CRASHED with no error anywhere, which is exactly the silent-failure class the change exists to remove, and it undercuts the scored A9 '+1'. An unverified, load-bearing deployment premise is grounds to reject until one logged search closes it.",
+        "catch": "Two verifications the doc cites as evidence but never logs: (1) no search for MISSION_RUNTIME_QUOTA_SIG setters anywhere (repo, plist, rig env); (2) the claim that `f75b8e158` was a behavior-neutral move ('driver side is removals plus one `. lib/lane-probe.sh` line at :873, +282/−269 over 8 files') is the sole justification for carrying V4's all-blocked drill from `4460d91b9` across a file-moving refactor, yet no V row records any inspection of that commit — the carry's justification is asserted, not verified.",
+        "proposed_fix": "Before round 2, add two verification rows and one sentence. V15: `grep -rn 'MISSION_RUNTIME_QUOTA_SIG' .` plus the rig's plist/env dump → require a single hit at the :1073 definition; any other hit is a blocker the sprint must resolve (re-base the override on the five-emitter default, or the 402 arm silently no-ops). V16: `git show --stat f75b8e158` and `git show f75b8e158 -- tools/launchd/mission-control.sh` → log the +282/−269-over-8-files stat and the single `. lib/lane-probe.sh` source line at :873, converting the current parenthetical assertion into a logged observation that legitimately supports carrying V4. Suggested replacement sentence in the 'Proposed diff' section: 'The env override MISSION_RUNTIME_QUOTA_SIG keeps its meaning (an override replaces the default wholesale, as today); V15 confirms no plist, env, or script in the deployment sets it, so the five-emitter default is what the rig executes. Any future override must be re-based on this default or 402 admission silently no-ops.' This is minutes of work, closes the only premise that can turn the whole patch into a silent no-op, and makes the V4 carry honest."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Rev2 verified first-party: existing PAUSE branch already _mc_notify's at mission-control.sh:2389-2391; doc diff git apply --check rc0 at 76a5aef65; ClassifyFailure at internal/coordinator/retry_chain.go:70 is cloud-plane only. Revision author claude:claude-opus-5-5 (Rev1 codex:gpt-6.1-sol)."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "oc-kimi-k3: The patch adds `elif [ \"$MC_PAUSED\" -eq 1 ]` to the final rc block, but no verification row establishes that `MC_PAUSED` is bound on every path that reaches that block. The doc only documents `MC_PAUSED=1` being set at :2387 inside the retry loop's pause path; no `grep -n MC_PAUSED` full-assignment audit, no check of the driver's `set -euo` options, appears anywhere in V1–V14. If the variable is unset on non-pause crash paths (e.g., a nonzero rc produced before/outside the loop's pause branch), then under `set -u` the new elif aborts the script with an unbound-variable error — silently killing the crash-notification block this change is supposed to fix — and under set +u it emits `[: : integer expression expected` noise on every crash. V13 cannot catch this: it awk-extracted the block into a stubbed harness whose shell options and variable scope do not replicate the real driver, and its pass criteria count sends, not stderr emptiness. This is an unverified premise about the patched code's own runtime behavior — exactly gate 1 — with a worst-case failure mode that violates the deterministic/legible-failure axioms the doc claims to uphold.",
+      "gemini-3-1-pro: The `elif [ \"$MC_PAUSED\" -eq 1 ]; then` condition uses integer comparison. If `MC_PAUSED` is unset (which is expected during a generic non-quota crash where the pause branch is never reached), Bash evaluates `[ \"\" -eq 1 ]`. This throws a `[: : integer expression expected` syntax error to stderr, polluting the mission logs with shell errors on every normal crash.",
+      "oc-glm-5-3: The entire production effect of this change rides on the default value of RUNTIME_QUOTA_SIG actually being live on the rig — i.e., on MISSION_RUNTIME_QUOTA_SIG being unset in the deployment — and the doc never verifies this. The 14-row verification log greps for 402 emitters, ClassifyFailure callers, rcfail readers, even byte-identity of the extracted diff, but contains no `grep -rn MISSION_RUNTIME_QUOTA_SIG` over the repo, the launchd plist, or the rig env. The doc itself states the override 'replaces the default wholesale', so any setter silently disables the new `^402:` arm: 402s keep exiting CRASHED with no error anywhere, which is exactly the silent-failure class the change exists to remove, and it undercuts the scored A9 '+1'. An unverified, load-bearing deployment premise is grounds to reject until one logged search closes it."
+    ],
+    "absent_reviewers": [
+      {
+        "model": "gpt6-1-sol",
+        "reason": "unreachable"
+      }
+    ],
+    "total_cost_usd": 0.201862,
+    "total_tokens_in": 16947,
+    "total_tokens_out": 26201
+  }
+}

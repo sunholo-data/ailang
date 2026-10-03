@@ -1,0 +1,64 @@
+{
+  "doc": "design_docs/planned/m-controller-capacity-admission.md",
+  "iso_ts": "2026-10-02T21:41:23Z",
+  "reviewers": [
+    {
+      "model": "claude-sonnet-5@claude-p",
+      "cost_usd": 0,
+      "tokens_in": 18026,
+      "tokens_out": 3651,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "Mission memory explicitly records an unresolved, directly-relevant conflict surface — 'Cloud plane has NO working fallbacks; ClassifyFailure unwired' (project_cloud_plane_has_no_working_fallbacks) — describing the exact chain-of-one fallback/classification problem this doc is patching via an ad hoc RUNTIME_QUOTA_SIG regex. The doc never names, audits, or reconciles with ClassifyFailure, so it cannot show whether its anchored-402 regex is a parallel, conflicting classification mechanism to one that already exists (even if unwired) for the same failure-walking surface.",
+        "catch": "The doc's conflict-surface section only addresses mission_pi_run.sh's NDJSON role-runner classifier and the quota-rationing doc; it is silent on ClassifyFailure, which per standing project memory governs cloud-plane fallback classification and is known to be unwired. Before ruling A/B/NO, the author must state whether ClassifyFailure exists in this codepath, why RUNTIME_QUOTA_SIG is not duplicating or should not instead wire into it, and add that comparison as a verification-log row with file:line evidence.",
+        "proposed_fix": "Add a verification entry (e.g. V13): grep/rg for 'ClassifyFailure' across tools/launchd and scripts/, cite file:line if found or 'not found in this tree' if not, and add one sentence to 'Real controller path and systemic audit' stating why the anchored RUNTIME_QUOTA_SIG regex is the correct minimal extension point rather than wiring into (or being superseded by) ClassifyFailure, consistent with the route-to-extension axiom."
+      },
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.013930000000000001,
+      "tokens_in": 5231,
+      "tokens_out": 289,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The proposed minimal diff violates the 'no silent fallbacks' axiom. The `elif [ \"$MC_PAUSED\" -eq 1 ];` block skips the generic crash notification (`else` block) but fails to actually send the pause notification. Despite the document claiming to 'Reuse the existing _mc_notify pause message', the `_mc_notify` call is entirely missing from the diff, causing the controller to pause silently.",
+        "catch": "The `elif` block in the patch logs locally and removes the `rcfail.episode` file, but never actually calls `_mc_notify`. The capacity pause will result in a silent fallback without any alert to the operator.",
+        "proposed_fix": "Update the diff to explicitly include the `_mc_notify` call in the `elif` branch:\n\n```diff\n+  elif [ \"$MC_PAUSED\" -eq 1 ]; then\n+    log \"iteration paused for provider capacity (rc=$RC) — not a crash\"\n+    _mc_notify \"iteration paused for provider capacity (PAUSED-NO-CAPACITY)\"\n+    rm -f \"$STATE_DIR/mission-${MISSION_NAME:-control}-rcfail.episode\"\n```"
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-3",
+      "cost_usd": 0.0623148,
+      "tokens_in": 4656,
+      "tokens_out": 12681,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The centerpiece 'reviewable' diff contradicts the doc's own verification log, so the premise-verification gate fails on the artifact itself. Hunk 2's header (@@ -2723,3 +2724,6 @@) promises 3 old and 6 new lines, but its body supplies only 2 old and 5 new; extracting the fenced diff exactly as the doc instructs yields a corrupt patch and a nonzero rc from git apply --check, so V12's claimed rc0 is unreproducible against the diff as printed, and the stated churn (~+6/-2) also disagrees with the printed hunks (-3/+7). That same hunk rm -f's the rcfail.episode state file — a path no verification row ever establishes, whose interaction with the Mark 2026-08-31 episode-gated crash notice is unanalyzed and which contradicts the doc's own claim to preserve record-first handling — and the printed branch never calls _mc_notify even though the prose requires reusing the existing _mc_notify pause message. A proposal whose diff, prose, and verification log mutually disagree cannot proceed as written.",
+        "catch": "Verify the rcfail.episode premise before any ruling: which code writes mission-...-rcfail.episode, whether a capacity pause should reset the consecutive-identical-crash episode gate, and whether the deletion is needed at all (rm -f on a wrong path silently no-ops). Separately, confirm whether any deployment pins MISSION_RUNTIME_QUOTA_SIG: preserving override semantics means pinned environments silently retain the 402 misclassification, a no-silent-fallback risk that is absent from the Risks section. The _mc_load_ration (:1064–1097) citation also has no corresponding verification row.",
+        "proposed_fix": "Regenerate the fenced diff from a real worktree via git diff rather than hand-assembled hunks: correct hunk 2's counts to match its body (e.g. @@ -2723,2 +2724,5 @@ with the actual leading/trailing context lines), then re-run V12 on the exact fenced text and record the observed rc. Either drop the rm -f rcfail.episode line or add a V13 row: a sed read of the episode-file writer near :2724 plus one sentence on the intended pause-vs-episode-gate interaction. Add the _mc_notify pause-message call the prose requires or delete the reuse claim; reconcile the churn estimate with the printed hunks; and add a Risks entry for MISSION_RUNTIME_QUOTA_SIG-pinned environments (or move the ^402: emitter outside the overridable default) so the fix cannot be silently dropped by an existing override."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Narrow scope matches D-FLEET-11=A. Defect re-verified at 76a5aef65: RUNTIME_QUOTA_SIG (mission-control.sh:1077) still lacks ^402:. Driver refactored since audit (probes moved to lib/lane-probe.sh), so diff line anchors must be re-derived by the planner; behaviour unchanged."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "claude-sonnet-5@claude-p: Mission memory explicitly records an unresolved, directly-relevant conflict surface — 'Cloud plane has NO working fallbacks; ClassifyFailure unwired' (project_cloud_plane_has_no_working_fallbacks) — describing the exact chain-of-one fallback/classification problem this doc is patching via an ad hoc RUNTIME_QUOTA_SIG regex. The doc never names, audits, or reconciles with ClassifyFailure, so it cannot show whether its anchored-402 regex is a parallel, conflicting classification mechanism to one that already exists (even if unwired) for the same failure-walking surface.",
+      "gemini-3-1-pro: The proposed minimal diff violates the 'no silent fallbacks' axiom. The `elif [ \"$MC_PAUSED\" -eq 1 ];` block skips the generic crash notification (`else` block) but fails to actually send the pause notification. Despite the document claiming to 'Reuse the existing _mc_notify pause message', the `_mc_notify` call is entirely missing from the diff, causing the controller to pause silently.",
+      "oc-glm-5-3: The centerpiece 'reviewable' diff contradicts the doc's own verification log, so the premise-verification gate fails on the artifact itself. Hunk 2's header (@@ -2723,3 +2724,6 @@) promises 3 old and 6 new lines, but its body supplies only 2 old and 5 new; extracting the fenced diff exactly as the doc instructs yields a corrupt patch and a nonzero rc from git apply --check, so V12's claimed rc0 is unreproducible against the diff as printed, and the stated churn (~+6/-2) also disagrees with the printed hunks (-3/+7). That same hunk rm -f's the rcfail.episode state file — a path no verification row ever establishes, whose interaction with the Mark 2026-08-31 episode-gated crash notice is unanalyzed and which contradicts the doc's own claim to preserve record-first handling — and the printed branch never calls _mc_notify even though the prose requires reusing the existing _mc_notify pause message. A proposal whose diff, prose, and verification log mutually disagree cannot proceed as written."
+    ],
+    "absent_reviewers": [],
+    "total_cost_usd": 0.0762448,
+    "total_tokens_in": 27913,
+    "total_tokens_out": 16621
+  }
+}

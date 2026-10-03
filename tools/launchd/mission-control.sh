@@ -1070,11 +1070,12 @@ export STALL_CHILD_AGE
 # not congested. A same-model retry is guaranteed to fail, so the response is to
 # demote the rung and re-walk the chain (see MC_DEMOTED).
 #
-# Anchored to the four emitters we have actually observed, NOT to loose words like
+# Anchored to the five emitters we have actually observed, NOT to loose words like
 # "quota" or "rate limit". This log carries mission prose about quota routinely —
 # the codex probe's own output is written to it — so a loose pattern would demote
 # a healthy controller because the iteration happened to be writing about limits.
-RUNTIME_QUOTA_SIG="${MISSION_RUNTIME_QUOTA_SIG:-reached your session usage limit|hit your usage limit|Claude usage limit reached|^429:}"
+# `^402:` is pi text-mode's OpenRouter credit refusal (`402: {"message":...`), fleet+stapledon 2026-10-02.
+RUNTIME_QUOTA_SIG="${MISSION_RUNTIME_QUOTA_SIG:-reached your session usage limit|hit your usage limit|Claude usage limit reached|^429:|^402:}"
 # Bound the re-walks. The demote list already guarantees progress (each re-walk
 # removes one rung, so the chain is finite), but a bound keeps a pathological
 # chain from eating the slot.
@@ -2479,6 +2480,10 @@ if [ "$RC" -ne 0 ]; then
       --title "Mission iteration killed post-record (rc=$RC) — work landed" --from "$MSG_FROM" 2>/dev/null
     [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
       --body "ℹ️ Mission iteration exited **rc=$RC after landing its record** at $(date '+%F %H:%M %Z') — the mission log gained an entry during this run, so this was a late watchdog kill of a lingering child, not a lost iteration. The queue advanced normally. Log on the rig: \`$LOG\`." 2>/dev/null
+  elif [ "${MC_PAUSED:-0}" -eq 1 ]; then
+    # Already announced by the PAUSE branch's _mc_notify. Not a crash: no generic notice,
+    # and the rcfail episode is left as-is (only rc change or completion ends it).
+    log "iteration paused for provider capacity (rc=$RC) — not a crash"
   else
     log "iteration exited rc=$RC"
     # EPISODE-GATED on the rc value (Mark 2026-08-31): consecutive identical crashes post ONCE,
