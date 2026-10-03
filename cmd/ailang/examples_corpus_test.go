@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // isolateExamplesResolution points every on-disk corpus location the
@@ -15,8 +16,7 @@ import (
 func isolateExamplesResolution(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home) // os.UserHomeDir on Windows
+	testutil.SetHomeDir(t, home)
 	t.Setenv(config.EnvExamples, "")
 	t.Setenv(config.EnvAgentPolicy, "")
 	cwd := filepath.Join(t.TempDir(), "a", "b", "c")
