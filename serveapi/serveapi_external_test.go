@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -83,14 +82,10 @@ func TestNewValidationAndEffectiveDefaultDeadline(t *testing.T) {
 }
 
 func TestExternalModuleCanImportFacadeButNotInternal(t *testing.T) {
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("instrument failure: runtime.Caller failed")
-	}
-	root := filepath.Dir(filepath.Dir(currentFile))
+	root, goVersion := repoModuleRoot(t)
 	dir := t.TempDir()
 	t.Logf("external fixture directory: %s", dir)
-	goMod := fmt.Sprintf("module externalfixture\n\ngo 1.26.6\n\nrequire github.com/sunholo-data/ailang v0.0.0\nreplace github.com/sunholo-data/ailang => %s\n", root)
+	goMod := fmt.Sprintf("module externalfixture\n\ngo %s\n\nrequire github.com/sunholo-data/ailang v0.0.0\nreplace github.com/sunholo-data/ailang => %s\n", goVersion, root)
 	writeFixtureFile(t, filepath.Join(dir, "go.mod"), []byte(goMod))
 	sum, err := os.ReadFile(filepath.Join(root, "go.sum"))
 	if err != nil {
@@ -120,6 +115,35 @@ func TestExternalModuleCanImportFacadeButNotInternal(t *testing.T) {
 		t.Fatalf("denied build error did not contain %q:\n%s", want, output)
 	}
 	t.Logf("denied internal import: nonzero rc, matched %q", want)
+}
+
+// repoModuleRoot walks up from the working directory (the package directory
+// under go test) to the enclosing go.mod and returns that directory together
+// with its go directive. It deliberately avoids runtime.Caller, whose path is
+// module-relative under -trimpath, and reads the go version rather than
+// hardcoding it so a toolchain bump cannot desynchronise the fixture (#586).
+func repoModuleRoot(t *testing.T) (string, string) {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+		if err == nil {
+			for _, line := range strings.Split(string(data), "\n") {
+				if fields := strings.Fields(line); len(fields) == 2 && fields[0] == "go" {
+					return dir, fields[1]
+				}
+			}
+			t.Fatalf("instrument failure: no go directive in %s", filepath.Join(dir, "go.mod"))
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("instrument failure: no go.mod above the working directory")
+		}
+		dir = parent
+	}
 }
 
 // TestMountRecorderRoutes proves Mount's routing through httptest.ResponseRecorder
