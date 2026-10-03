@@ -1,6 +1,6 @@
 # M-MISSION-HEARTBEAT-DRIVER-ROOT
 
-**Status:** Planned mechanical correction; fleet iteration 16, 2026-10-03. **Revision 5.2** (R5: D-FLEET-10 = A absoluteness guard, round-5 Kimi residuals closed; R5.1: quorum round-6 premise rows; R5.2: round-7 reviewer fixes, controller-applied under the narrow-refinement carve-out). Every "measured" claim here maps to a Verification Log row run on 2026-10-03 (R5 rows @ c68ded4b2, R5.1 rows @ 21f045a38, R5.2 rows @ 5ad08e044; the commits differ only in this doc, see the coherence row); rulings and history are not re-measured.
+**Status:** IMPLEMENTED (fleet iteration 16, M1 commit 41e0005e9; evaluator PASS 96/100; relocated to implemented/ at release). Planned mechanical correction; fleet iteration 16, 2026-10-03. **Revision 5.2** (R5: D-FLEET-10 = A absoluteness guard, round-5 Kimi residuals closed; R5.1: quorum round-6 premise rows; R5.2: round-7 reviewer fixes, controller-applied under the narrow-refinement carve-out). Every "measured" claim here maps to a Verification Log row run on 2026-10-03 (R5 rows @ c68ded4b2, R5.1 rows @ 21f045a38, R5.2 rows @ 5ad08e044; the commits differ only in this doc, see the coherence row); rulings and history are not re-measured.
 **Priority:** P0 queue ticket `skill:heartbeat-relative-path-absent-in-world`.
 **Target:** next fleet deployment. **Effort:** one short milestone.
 **Planner-Lane:** codex-ok
