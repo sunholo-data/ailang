@@ -161,7 +161,7 @@ func TestRealRegistry_PostMigrationSplitCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, l, m, id := split(source)
-	if b != 19 || l != 39 || m != 1 || id != "v0.16.6" {
+	if b != 19 || l != 40 || m != 1 || id != "v0.16.7" {
 		t.Fatalf("split %d/%d/%d %s", b, l, m, id)
 	}
 	a, _ := json.Marshal(source.Versions)

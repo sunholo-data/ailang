@@ -8,7 +8,7 @@ Implement the approved additive `std/io.readLineOpt` API so line consumers disti
 **Duration:** 2 days, 12 hours (9 hours work + 3 hours contingency).  
 **Estimated total:** 400 LOC (220 implementation/docs/example + 180 tests); new prompt copies are excluded from net LOC.  
 **Risk:** Medium, primarily buffered-reader sharing and prompt publication.  
-**State:** Planned; implementation awaits sprint approval through the coordinator pipeline.
+**State:** Implementation complete on `coordinator/task-7de2c711`; full-suite validation remains open for coordinator evaluation.
 
 ## Current status and velocity
 The working tree was clean before planning. Source inspection confirms the new name is absent and `ioReadLine` still swallows EOF. The approved design includes a systemic audit: async stdin closes its channel at EOF, and FS/Net/Process do not expose another ambiguous line reader. No wider reader refactor is needed.
@@ -40,10 +40,10 @@ Load builtin-developer before implementation and run ailang prompt before editin
 **Example coverage:** M3 creates the consumer fixture; M1 checks a temporary probe using Option matching.
 
 **Acceptance criteria:**
-- [ ] IO.readLineOpt and _io_readLineOpt return std/option Option[string] through effects.Call with the existing IO gate and unit argument convention.
-- [ ] Normal and blank lines return Some; zero-byte EOF returns None; final unterminated content returns Some once, then repeated None.
-- [ ] CRLF trimming matches readLine; non-EOF reader errors propagate; mixed reads share ctx.GetIOReader without losing buffered data.
-- [ ] Existing TestIOReadLine_* pass unchanged; builtin type, metadata and doctor validation pass.
+- [x] IO.readLineOpt and _io_readLineOpt return std/option Option[string] through effects.Call with the existing IO gate and unit argument convention.
+- [x] Normal and blank lines return Some; zero-byte EOF returns None; final unterminated content returns Some once, then repeated None.
+- [x] CRLF trimming matches readLine; non-EOF reader errors propagate; mixed reads share ctx.GetIOReader without losing buffered data.
+- [x] Existing TestIOReadLine_* pass unchanged; builtin type, metadata and doctor validation pass.
 
 **Risk and mitigation:** Separate buffered readers would lose data; require ctx.GetIOReader and a dedicated mixed-read test. Mirror existing trimming without refactoring legacy behavior.
 
@@ -59,10 +59,10 @@ Add trace and normalization registrations with focused tests. Reuse the existing
 **Example coverage:** Run the M3 fixture through the stdin integration harness once available.
 
 **Acceptance criteria:**
-- [ ] IO.readLineOpt is classified non-deterministic with focused trace coverage.
-- [ ] Eval normalization recognizes readLineOpt with parenthesized and spaced call forms and imports std/io correctly.
-- [ ] Pipe-driven CLI tests deliver a, blank, b for a newline-separated input and terminate; empty input exits immediately; unterminated final input is retained.
-- [ ] Integration tests use a timeout to detect EOF spinning and assert output and exit status.
+- [x] IO.readLineOpt is classified non-deterministic with focused trace coverage.
+- [x] Eval normalization recognizes readLineOpt with parenthesized and spaced call forms and imports std/io correctly.
+- [x] Pipe-driven CLI tests deliver a, blank, b for a newline-separated input and terminate; empty input exits immediately; unterminated final input is retained.
+- [x] Integration tests use a timeout to detect EOF spinning and assert output and exit status.
 
 **Risk and mitigation:** A missing op registration or harness import silently undermines parity; test both explicitly and exercise the real CLI.
 
@@ -78,12 +78,13 @@ Load prompt-manager for new prompt publication and obtain the current teaching p
 **Example coverage:** Create and verify examples/runnable/io_readline_eof.ail, including empty-stdin execution.
 
 **Acceptance criteria:**
-- [ ] examples/runnable/io_readline_eof.ail and examples/manifest.json are present, type-check, preserve blank lines, and exit on empty stdin.
-- [ ] docs/docs/reference/effects.md documents readLineOpt and cross-references it from readLine; Unreleased changelog records the additive API.
-- [ ] A new teaching prompt version is created through prompt-manager; historical prompt hashes remain unchanged and prompt freeze checks pass.
-- [ ] make build, make test, make lint, make check-boundaries, make verify-examples and make check-prompt-freeze pass; regex_capture example remains working.
+- [x] examples/runnable/io_readline_eof.ail and examples/manifest.json are present, type-check, preserve blank lines, and exit on empty stdin.
+- [x] docs/docs/reference/effects.md documents readLineOpt and cross-references it from readLine; Unreleased changelog records the additive API.
+- [x] A new teaching prompt version is created through prompt-manager; historical prompt hashes remain unchanged and prompt freeze checks pass.
+- [ ] make build, make test, make lint, make check-boundaries, make verify-examples and make check-prompt-freeze pass; regex_capture example remains working. **Validation limit:** `make test` reports unrelated resource/process-supervision failures on the cloud host; see execution verification below.
 
 **Risk and mitigation:** Prompt freeze prohibits editing historical versions; use prompt-manager and run the freeze gate. Release numbering is reviewed before metadata publication.
+
 
 ## Day-by-day execution
 - Day 1 (6 hours): M1 (4h), M2 (2h); focused tests after each change.
@@ -98,3 +99,36 @@ Existing std/option, effects.Call and ctx.GetIOReader are sufficient; no new ext
 The feature is interpreter-path parity with readLine; VM and compiled-mode support are outside this approved scope. Choose Option-only import unless verified house style favors constructor imports. Prompt version selection and shipping version are executor/release-review decisions; neither blocks planning.
 
 The coordinator consumes the plan and progress JSON markers, presents sprint approval, and routes approved work to sprint-executor. No implementation or direct executor dispatch occurs during this planning stage. On completion of execution, use sprint-evaluator against the design and these criteria.
+
+## Execution notes (2026-10-03)
+- Used the clean coordinator checkout `coordinator/task-7de2c711`; handoff branch name was from the planner task.
+- Current `std/VERSION` is v0.52.1. Builtin Since metadata targets the next minor, v0.53.0; no release version was bumped. Approved artifact paths remain unchanged.
+- Release note is `changelogs/unreleased/2026-10-03-readline-eof-option.md`, following the current changelog fragment workflow rather than editing the active release file.
+- Prompt-manager created v0.16.7 from v0.16.6. `ailang prompt freeze --migrate` marked the previous head legacy; historical text and hashes remain unchanged. Updated the registry split-count fixture for the new head.
+- User-local make/jq and the installed Go toolchain support validation in this cloud checkout. The startup script initially reported a false green when make was unavailable; explicit make runs provide the actual gate evidence.
+
+## Execution verification
+
+| Check | Result |
+|---|---|
+| Focused effects/builtins/trace/normalization tests | PASS, including unchanged legacy readLine tests |
+| CLI EOF and legacy regressions + registry head fixture | PASS; newline/blank, empty stdin and unterminated final input |
+| Build, doctor builtins, example type check | PASS |
+| verify-examples and manifest validation | PASS; zero module drift |
+| Architecture boundary check | PASS |
+| Prompt freeze + historical hash comparison | PASS; 60 entries checked; all 59 pre-existing hashes unchanged |
+| regex_capture Option regression | PASS |
+| Changelog fragment gate, diff whitespace | PASS |
+| Lint | PASS, zero issues (CGO enabled; serial build, bounded Go memory) |
+| Full make test | NOT GREEN on this cloud host: linker/compiler processes killed; deep-recursion subprocesses exit -1; TestRunPolicy_TimeoutKillsDescendants reports a surviving child; apiserver build fails under resource pressure. The run was stopped after these failures. |
+
+The host originally lacked make, jq and a C compiler. User-local tools and Zig cc
+restored CGO/SQLite (sqliteopen tests pass). A single-worker, memory-limited full
+test run still encountered the above failures. They are outside this additive IO
+change; no unrelated compiler, supervision or storage semantics were modified.
+Full-suite validation remains open for the coordinator/evaluator on a suitable host.
+
+Lint completed successfully after warming its package cache. The sprint remains
+`in_progress` with M3 `passes: false` solely because the full-suite acceptance
+criterion could not be satisfied on this cloud host. All implementation and
+documentation work is present; no all-green sprint claim is made.

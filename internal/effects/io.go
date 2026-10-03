@@ -14,6 +14,7 @@ func init() {
 	RegisterOp("IO", "print", ioPrint)
 	RegisterOp("IO", "println", ioPrintln)
 	RegisterOp("IO", "readLine", ioReadLine)
+	RegisterOp("IO", "readLineOpt", ioReadLineOpt)
 	RegisterOp("IO", "writeBytes", ioWriteBytes)
 	RegisterOp("IO", "exit", ioExit)
 	RegisterOp("IO", "flush", ioFlush)
@@ -118,6 +119,28 @@ func ioReadLine(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	line = strings.TrimSuffix(line, "\r")
 
 	return &eval.StringValue{Value: line}, nil
+}
+
+// ioReadLineOpt distinguishes blank lines from EOF. Both line operations share
+// the context's persistent reader so alternating calls preserve buffered input.
+func ioReadLineOpt(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 0 {
+		return nil, fmt.Errorf("readLineOpt: expected 0 arguments, got %d", len(args))
+	}
+	line, err := ctx.GetIOReader().ReadString('\n')
+	if err != nil && err != io.EOF {
+		return nil, fmt.Errorf("readLineOpt: %w", err)
+	}
+	// Check before trimming: even a final lone carriage return is content.
+	if err == io.EOF && len(line) == 0 {
+		return &eval.TaggedValue{ModulePath: "std/option", TypeName: "Option", CtorName: "None"}, nil
+	}
+	line = strings.TrimSuffix(line, "\n")
+	line = strings.TrimSuffix(line, "\r")
+	return &eval.TaggedValue{
+		ModulePath: "std/option", TypeName: "Option", CtorName: "Some",
+		Fields: []eval.Value{&eval.StringValue{Value: line}},
+	}, nil
 }
 
 // ioExit implements IO.exit(code: Int) -> ()
