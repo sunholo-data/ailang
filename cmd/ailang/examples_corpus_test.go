@@ -121,6 +121,31 @@ func TestExamplesCorpus_ConfinedIgnoresCwdExamples(t *testing.T) {
 	}
 }
 
+// #1552: a host can give each task its own writable HOME, so a confined tool
+// must not read ~/.ailang/examples either.
+func TestExamplesCorpus_ConfinedIgnoresHomeExamples(t *testing.T) {
+	isolateExamplesResolution(t)
+	dl, err := defaultExamplesDownloadDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(dl, "manifest.json"), plantedManifest)
+	writeTestFile(t, filepath.Join(dl, "runnable", "planted.ail"), "-- planted\n")
+
+	c, err := openExamplesCorpus()
+	if err != nil || c.dir == "" {
+		t.Fatalf("unconfined should resolve ~/.ailang/examples: dir=%q err=%v", c.dir, err)
+	}
+	t.Setenv(config.EnvAgentPolicy, filepath.Join(t.TempDir(), "policy.toml"))
+	c, err = openExamplesCorpus()
+	if err != nil {
+		t.Fatalf("open (confined): %v", err)
+	}
+	if c.dir != "" {
+		t.Fatalf("confined resolution picked the HOME corpus %s", c.dir)
+	}
+}
+
 // AILANG_EXAMPLES still wins over the embedded corpus, confined or not: it is
 // set by the host, not the agent.
 func TestExamplesCorpus_EnvBeatsEmbedded(t *testing.T) {

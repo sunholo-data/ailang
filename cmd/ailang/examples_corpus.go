@@ -50,8 +50,9 @@ func openExamplesCorpus() (*examplesCorpus, error) {
 // executable, ~/.ailang/examples, then examples/, ../examples, ../../examples
 // relative to the working directory. A confined process (AILANG_AGENT_POLICY
 // set: the ailang_only lane, and every child `ailang policy-tool` spawns)
-// skips the cwd-relative candidates — an agent can plant an examples/ dir
-// near its working directory, and a confined tool must not read it (#1552).
+// skips ~/.ailang/examples and the cwd-relative candidates — hosts give a
+// task its own writable HOME and working directory, so an agent can plant a
+// corpus in either, and a confined tool must not read it (#1552).
 func findExamplesDir() (string, bool) {
 	isDir := func(p string) (string, bool) {
 		if info, err := os.Stat(p); err == nil && info.IsDir() {
@@ -83,7 +84,12 @@ func findExamplesDir() (string, bool) {
 		}
 	}
 
-	// 3. ~/.ailang/examples (populated by `ailang examples download`).
+	if config.AgentPolicy() != "" {
+		return "", false
+	}
+
+	// 3. ~/.ailang/examples (populated by `ailang examples download`) —
+	// never when confined.
 	if dl, err := defaultExamplesDownloadDir(); err == nil {
 		if d, ok := isDir(dl); ok {
 			return d, true
@@ -91,7 +97,7 @@ func findExamplesDir() (string, bool) {
 	}
 
 	// 4. CWD-relative (inside the ailang repo) — never when confined.
-	if config.AgentPolicy() == "" {
+	{
 		for _, p := range []string{"examples", "../examples", "../../examples"} {
 			if d, ok := isDir(p); ok {
 				return d, true
