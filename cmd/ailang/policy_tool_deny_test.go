@@ -40,6 +40,8 @@ func policyToolDenyFixture(t *testing.T) (bin, dir, sandbox, pol string) {
 	if err := os.WriteFile(filepath.Join(sandbox, "lib", "ailang.toml"), []byte("[package]\nname = \"x/leak\"\nversion = \"0.1.0\"\nedition = \"1\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// Not deny-listed: the boolean-flag refusal must come from the flag rule.
+	writeAil(t, sandbox, "free.ail", "module x\nexport func   f() -> int = 1\n")
 	writeAil(t, filepath.Join(sandbox, "lib"), "util.ail", "module x/leak/util\n\nexport pure func inc(x: int) -> int = x + 1\n")
 	writeAil(t, filepath.Join(sandbox, "lib"), "t_test.ail", "module x/leak/t_test\n\nimport x/leak/util (inc)\n\ntest \"sibling import\" { inc(1) == 2 }\n")
 	return bin, dir, sandbox, pol
@@ -94,7 +96,7 @@ func TestPolicyTool_DenyWriteEndToEnd(t *testing.T) {
 		`{"op":"write","path":".AILANG/cache/z","content":"z"}`:                            "fs_deny_write",
 		`{"op":"fmt","path":".claude/x.ail","flags":{"write":""}}`:                         "fs_deny_write",
 		`{"op":"fmt","path":".CLAUDE/x.ail","flags":{"write":"true"}}`:                     "fs_deny_write",
-		`{"op":"fmt","path":"lib/util.ail","flags":{"write":"false"}}`:                     "boolean",
+		`{"op":"fmt","path":"free.ail","flags":{"write":"false"}}`:                         "boolean",
 		`{"op":"fmt","path":".claude/x.ail","FLAGS":{"write":""}}`:                         "malformed request",
 		`{"op":"fmt","path":".claude/x.ail","flags":{"check":""},"flags":{"write":""}}`:    "malformed request",
 		`{"op":"fmt","path":".claude/x.ail","flags":{"write":""},"Op":"fmt"}`:              "malformed request",
