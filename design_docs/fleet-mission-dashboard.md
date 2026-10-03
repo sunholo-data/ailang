@@ -5,7 +5,7 @@
 - **BLOCKED (clock)**: the required `test` check is red on `TestOllamaQuota*`. Those tests depend on the weekend (`time.Now()` + weekday pacing + #1524's 3pp margin), and the red is on dev too, not from the PR. It clears around Mon 2026-10-05 08:00Z or with an attended test fix (D-FLEET-12 territory). Every PR to dev is blocked until then, the fleet record PR included.
 - Ticket `skill:heartbeat-relative-path-absent-in-world` still OPEN. Resolve it after the merge, Gate 3b and the done-gate dry-runs.
 - Next READY: merge #1578 → rotate-log pair (D-FLEET-9 = A) → pi-runner pre-dirty. D-FLEET-12 pair pre-authorized.
-- Ledger: 1 OPEN (D-FLEET-13, Anthropic "session limit" read as CRASHED). Unchanged.
+- Ledger: 2 OPEN — D-FLEET-13 (unchanged) and NEW D-FLEET-14 (may the fleet pin `now` in the weekend-failing quota tests? rec A).
 - Quota: codex, ollama and openrouter over ration; Anthropic subscription OK.
 - Metered this iteration: $0.00.
 - Routing: evaluator Agent opus (minimax over ration, sonnet-4-6 same family). Designer, planner and executor not spawned (resume of a judged build).
