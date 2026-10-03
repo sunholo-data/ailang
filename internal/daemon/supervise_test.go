@@ -24,12 +24,13 @@ import (
 // restores the originals, so it cannot leak into another test.
 func fastBackoff(t *testing.T) {
 	t.Helper()
-	minB, maxB, stable := superviseMinBackoffVar, superviseMaxBackoffVar, superviseStableAfterVar
+	minB, maxB, stable, grace := superviseMinBackoffVar, superviseMaxBackoffVar, superviseStableAfterVar, superviseAnnounceAfterVar
 	superviseMinBackoffVar = time.Millisecond
 	superviseMaxBackoffVar = 2 * time.Millisecond
 	superviseStableAfterVar = time.Hour // never "stable" in a fast test
+	superviseAnnounceAfterVar = 0       // announce on the first failure unless a test sets a grace
 	t.Cleanup(func() {
-		superviseMinBackoffVar, superviseMaxBackoffVar, superviseStableAfterVar = minB, maxB, stable
+		superviseMinBackoffVar, superviseMaxBackoffVar, superviseStableAfterVar, superviseAnnounceAfterVar = minB, maxB, stable, grace
 	})
 }
 
@@ -87,7 +88,7 @@ func TestSupervise_RestartsASubscriptionThatReturns(t *testing.T) {
 	}
 }
 
-func TestSupervise_AnnouncesTheOutageImmediately(t *testing.T) {
+func TestSupervise_AnnouncesTheOutageOncePerOutage(t *testing.T) {
 	fastBackoff(t)
 	var mu sync.Mutex
 	var fired []notify.Notification
@@ -234,5 +235,92 @@ func TestRunSupervised_OneDeadSubscriptionDoesNotStopTheOthers(t *testing.T) {
 	// The old code exited its goroutine once and blocked forever in wg.Wait().
 	if got := atomic.LoadInt32(&deadStarts); got < 2 {
 		t.Errorf("the dead subscription was started %d time(s); it must keep restarting alongside the healthy one", got)
+	}
+}
+
+// A connection that drops and comes straight back must not page anyone. A
+// laptop's pulls break on every sleep and wake, and announcing each first drop
+// sent "Notifier subscription DOWN" to Discord for outages that had healed.
+func TestSupervise_QuickReconnectIsNotAnnounced(t *testing.T) {
+	fastBackoff(t)
+	superviseAnnounceAfterVar = 200 * time.Millisecond
+	var mu sync.Mutex
+	var fired []notify.Notification
+	d := testDaemon(t, &fired, &mu)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var starts int32
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		d.superviseSubscription(ctx, subscriptionRunner{
+			Label: "messages", SubName: "messages-laptop",
+			Start: func(ctx context.Context) error {
+				if atomic.AddInt32(&starts, 1) == 1 {
+					return errors.New("stream reset: network changed")
+				}
+				<-ctx.Done() // reconnected: the pull runs until shutdown
+				return ctx.Err()
+			},
+		})
+	}()
+	time.Sleep(400 * time.Millisecond) // well past the grace period
+	cancel()
+	<-done
+
+	if got := atomic.LoadInt32(&starts); got < 2 {
+		t.Fatalf("subscription started %d time(s), want a reconnect", got)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(fired) != 0 {
+		t.Errorf("a drop that reconnected on the next attempt was announced %d time(s): %+v", len(fired), fired)
+	}
+}
+
+// An outage that outlasts the grace period is announced, once, and says how
+// long it has been down.
+func TestSupervise_PersistentOutageIsAnnouncedAfterTheGrace(t *testing.T) {
+	fastBackoff(t)
+	superviseAnnounceAfterVar = 50 * time.Millisecond
+	var mu sync.Mutex
+	var fired []notify.Notification
+	d := testDaemon(t, &fired, &mu)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var starts int32
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		d.superviseSubscription(ctx, subscriptionRunner{
+			Label: "messages", SubName: "messages-rig",
+			Start: func(context.Context) error {
+				atomic.AddInt32(&starts, 1)
+				return errors.New("rpc error: code = NotFound")
+			},
+		})
+	}()
+
+	time.Sleep(20 * time.Millisecond) // inside the grace period
+	mu.Lock()
+	early := len(fired)
+	mu.Unlock()
+	if early != 0 {
+		t.Errorf("announced %d time(s) inside the grace period", early)
+	}
+
+	time.Sleep(200 * time.Millisecond)
+	cancel()
+	<-done
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(fired) != 1 {
+		t.Fatalf("a persistent outage announced %d times across %d restarts, want exactly 1", len(fired), atomic.LoadInt32(&starts))
+	}
+	if !strings.Contains(fired[0].Body, "has been down") || !strings.Contains(fired[0].Body, "NotFound") {
+		t.Errorf("announcement should say how long it has been down and why:\n%s", fired[0].Body)
 	}
 }
