@@ -1,0 +1,6 @@
+# Single source of truth for whether a PR needs the dashboard UI build.
+# Consumed by the `ui-changes` job in .github/workflows/dashboard-ui-build.yml.
+ui/
+docker/Dockerfile.dashboard
+.github/workflows/dashboard-ui-build.yml
+.github/ui-build-paths.txt
