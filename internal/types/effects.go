@@ -468,31 +468,45 @@ func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error)
 	}, nil
 }
 
+// knownEffects is the canonical effect set: the labels a program's effect row
+// may carry. Some have no runtime ops (Declassify gates information flow at
+// compile time), so the op registry in internal/effects is not this list.
+var knownEffects = map[string]bool{
+	"IO":          true,
+	"FS":          true,
+	"Net":         true,
+	"Clock":       true,
+	"Rand":        true,
+	"DB":          true,
+	"Trace":       true,
+	"Async":       true,
+	"Env":         true, // v0.4.0: Environment variable access
+	"Debug":       true, // v0.4.10: Structured tracing/assertions (ghost effect)
+	"AI":          true, // v0.5.1: General-purpose AI oracle
+	"SharedMem":   true, // v0.5.11: Shared memory cache effect (M-DX15)
+	"SharedIndex": true, // v0.5.11: Similarity index for semantic retrieval (M-DX16)
+	"Stream":      true, // v0.8.1: Bidirectional WebSocket streaming (M-STREAM-BIDI)
+	"Process":     true, // v0.8.0: External command execution (M-PROCESS)
+	"Declassify":  true, // v0.16.0: IFC declassification capability (M-TAINT-TYPES)
+	"DOM":         true, // v0.21.x: Cognitive OS — structured DOM patches (M-COG-RUNTIME)
+	"Msg":         true, // v0.21.x: Cognitive OS — runtime messaging fabric (M-COG-RUNTIME)
+	"Cog":         true, // v0.21.x: Cognitive OS — drain pump for Subscribe callbacks (M-COG-RUNTIME-BROWSER)
+	"Secret":      true, // v0.26.0: Gated secret resolution (op:// refs) with remote approval (M-SECRET-EFFECT)
+}
+
 // IsKnownEffect checks if an effect name is one of the canonical effects
 func IsKnownEffect(name string) bool {
-	knownEffects := map[string]bool{
-		"IO":          true,
-		"FS":          true,
-		"Net":         true,
-		"Clock":       true,
-		"Rand":        true,
-		"DB":          true,
-		"Trace":       true,
-		"Async":       true,
-		"Env":         true, // v0.4.0: Environment variable access
-		"Debug":       true, // v0.4.10: Structured tracing/assertions (ghost effect)
-		"AI":          true, // v0.5.1: General-purpose AI oracle
-		"SharedMem":   true, // v0.5.11: Shared memory cache effect (M-DX15)
-		"SharedIndex": true, // v0.5.11: Similarity index for semantic retrieval (M-DX16)
-		"Stream":      true, // v0.8.1: Bidirectional WebSocket streaming (M-STREAM-BIDI)
-		"Process":     true, // v0.8.0: External command execution (M-PROCESS)
-		"Declassify":  true, // v0.16.0: IFC declassification capability (M-TAINT-TYPES)
-		"DOM":         true, // v0.21.x: Cognitive OS — structured DOM patches (M-COG-RUNTIME)
-		"Msg":         true, // v0.21.x: Cognitive OS — runtime messaging fabric (M-COG-RUNTIME)
-		"Cog":         true, // v0.21.x: Cognitive OS — drain pump for Subscribe callbacks (M-COG-RUNTIME-BROWSER)
-		"Secret":      true, // v0.26.0: Gated secret resolution (op:// refs) with remote approval (M-SECRET-EFFECT)
-	}
 	return knownEffects[name]
+}
+
+// KnownEffectNames returns the canonical effect names, sorted.
+func KnownEffectNames() []string {
+	names := make([]string, 0, len(knownEffects))
+	for k := range knownEffects {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // Unit returns the Unit type

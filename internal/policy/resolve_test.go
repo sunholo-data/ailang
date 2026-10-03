@@ -72,7 +72,7 @@ func TestResolve_RestrictedRefusesUnadaptedEffects(t *testing.T) {
 	// hand list, is what a future addition would extend.
 	// AI (M7) and confined Process (M6) are admitted with their conditions;
 	// the labels below have no adapter at all.
-	for _, cap := range []string{"Process", "Env", "Secret", "Cog", "DOM", "Msg", "Debug", "Trace"} {
+	for _, cap := range []string{"Process", "Env", "Secret", "Cog", "DOM", "Msg", "Debug", "Trace", "DB", "Async", "SharedMem", "SharedIndex"} {
 		p := restricted("IO", cap)
 		if cap == "Process" {
 			// Process IS admitted for confined entries (M6); an entry with no
@@ -86,6 +86,35 @@ func TestResolve_RestrictedRefusesUnadaptedEffects(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), cap) || !strings.Contains(err.Error(), ModeTrustedHost) {
 			t.Errorf("%s: refusal must name the effect and the trusted_host migration, got %v", cap, err)
+		}
+	}
+}
+
+// #1557: the policy keyed "known capability" on the effect op registry, so
+// labels with no runtime ops there (Declassify, Rand) were refused as unknown
+// in every mode, and a program declaring them could never run under --policy.
+// Every canonical effect must at least be KNOWN; restricted mode then decides
+// whether it has an adapter.
+func TestResolve_EveryCanonicalEffectIsKnown(t *testing.T) {
+	for _, cap := range types.KnownEffectNames() {
+		p := restricted("IO", cap)
+		p.SecurityMode = ModeTrustedHost
+		_, err := Resolve(p, "d")
+		if err != nil && strings.Contains(err.Error(), "unknown capability") {
+			t.Errorf("%s is a canonical effect but the policy calls it unknown: %v", cap, err)
+		}
+	}
+}
+
+func TestResolve_RestrictedAdmitsDeclassifyAndRand(t *testing.T) {
+	for _, cap := range []string{"Declassify", "Rand"} {
+		r, err := Resolve(restricted("IO", cap), "d")
+		if err != nil {
+			t.Errorf("restricted mode must admit %s: %v", cap, err)
+			continue
+		}
+		if !r.Admits(cap) {
+			t.Errorf("resolved policy does not admit %s: %v", cap, r.Effects)
 		}
 	}
 }
