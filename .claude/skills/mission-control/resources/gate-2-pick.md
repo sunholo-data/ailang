@@ -86,7 +86,8 @@ only complete record was a file too big to read. Rotation without an index would
 that worse, not better: it would have moved the history out of reach entirely. Grep the
 index first; open the archive only when the index says something relevant happened.
 
-First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-2`.
+First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp gate-2 ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac`.
+Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
 ### CRITICAL-PATH CHECK — does the pick move an UNMET clause of the bar? (Mark, attended 2026-09-26)
 

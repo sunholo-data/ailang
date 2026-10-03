@@ -1,8 +1,9 @@
 ## Gate 5 — RETRO + REPORT
 
-First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-5`.
+First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp gate-5 ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac`.
 After every Gate-5 report has been sent and this iteration is fully complete, run
-`bash tools/launchd/mission-heartbeat.sh stamp complete` as the final gate action.
+`case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp complete ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac` as the final gate action.
+Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
 1. Scan this iteration's friction (evaluator feedback, executor corrections, your own dead ends)
    plus unread `docs/sprint-retros/` material. Route each item to exactly ONE lane:
