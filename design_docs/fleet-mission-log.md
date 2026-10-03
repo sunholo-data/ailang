@@ -264,7 +264,7 @@ The tree sum equals the parent sum within 0.04 in every window. Separately, 21 l
   - design Revision 5.2 and its sprint plan/JSON
 
   The push was REFUSED: `mission scope guard: MISSION_NAME=fleet may not push .agents/skills/mission-control/resources/gate-5-retro.md`. The guard that ran is the pin's (`core.hooksPath` = `~/.ailang-driver-pin/fleet/tools/launchd/githooks`), which predates the arm the fix adds. No `--no-verify` and no self-selected hook; the arm shipped alone as #1575 instead.
-**Progress**: goal unmoved (0 tickets resolved). Clause 1 UNMEASURED. Clause 2 turnaround UNMET: the heartbeat ticket has been open since 2026-09-26. Clause 3 MET (34 open signatures). Clause 4 prior evidence only. Clause 5 preserved: nothing unjudged shipped, and #1575's single arm is inside the PASS-96 diff.
+**Progress**: goal unmoved (0 tickets resolved). Clause 1 UNMEASURED. Clause 2 turnaround UNMET: the heartbeat ticket has been open since 2026-09-26. Clause 3 MET (41 open signatures, `ailang mission ticket open --count` at Gate 5). Clause 4 prior evidence only. Clause 5 preserved: nothing unjudged shipped, and #1575's single arm is inside the PASS-96 diff.
 **Routing evidence**: base-gate1=c68ded4b2d5e397d3719b32d6be591ad6fcd1bf8@2026-10-03T12:02:19Z. `MISSION_ROUTING_NOTE`: codex over daily ration → planner opus, executor sonnet-5-5.
 - **Controller**: `claude:claude-opus-5-5` (tok: not reported).
 - **Designer**: rotation last=`codex:gpt-6.1-sol` → glm/kimi (ollama over ration) → `claude:claude-opus-5-5`, resolver `recipe … declared:provider-pin`.
