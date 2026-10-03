@@ -74,7 +74,7 @@ Record-only recovery; no implementation, plan approval or ticket resolution. Fou
 
 - **May change**, as an allowlist enforced by the guard: the loop harness (`tools/launchd/**`,
   `internal/mission/**`, `cmd/ailang/mission*`, `missions/**`, `.claude/skills/mission-*/**`,
-  `.claude/skills/sprint-*/**`, `.pi/extensions/**`, `scripts/hooks/**`, `scripts/mission_*`,
+  `.claude/skills/sprint-*/**`, `.agents/skills/mission-*/**`, `.agents/skills/sprint-*/**`, `.pi/extensions/**`, `scripts/hooks/**`, `scripts/mission_*`,
   `scripts/test_mission_*` (D-FLEET-5), its own
   `design_docs/fleet-mission*`), plus support paths (`design_docs/**`, `changelogs/**`,
   `CHANGELOG.md`, `docs/**`, `.ailang/state/sprints/**`, `internal/config/mission.go`, `make/test.mk`,
