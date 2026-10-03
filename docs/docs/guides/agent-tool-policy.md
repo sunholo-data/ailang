@@ -118,8 +118,19 @@ authorizer (the host is not program-controlled).
 write — the artifact's own supply chain, which would otherwise run with CI's or the next
 session's authority once committed: `".github/**"`, `".pi/**"`, `"Makefile"`, `"*.yml"`. A
 pattern is a glob for one path (matched against the whole relative path and its base name) or
-`<dir>/**` for a subtree. `.git/**` is always implied in restricted mode. Refusals are
-`E_FS_PROTECTED` from every mutating FS op and a named refusal from `ailang_write`/`ailang_edit`.
+`<dir>/**` for a subtree. `.git/**` is always implied in restricted mode. Matching is
+**case- and Unicode-normalization-insensitive on every platform**: on a case-insensitive volume
+(macOS APFS by default, Windows NTFS) `.CLAUDE/settings.json` is the same file as
+`.claude/settings.json`, so `".claude/**"` refuses both — on a case-sensitive Linux volume this
+over-denies the odd spelling, which is the fail-closed direction. The running program and the
+policy-tool share one matcher (`internal/fileguard/protect.go`), so the two cannot drift.
+Refusals are `E_FS_PROTECTED` from every mutating FS op and a named refusal from every write the
+tool endpoint performs: `ailang_write`/`ailang_edit`, `fmt` with the `write` flag, `lock`
+(`ailang.lock`) and `design_quorum` (`.ailang/state/mission-quorum/`). The CLI child's compile
+cache goes to a private temp dir outside the sandbox, and `test` builds its scaffolding there too,
+so read-only ops write nothing into the sandbox. A boolean flag takes `""` or `"true"` — any
+other value (including `"false"`) is refused, not ignored — and request keys are exact and
+unique: `FLAGS` is not `flags`, and a duplicated key is a refusal, not a merge.
 
 **The program file must be inside `fs_sandbox`.** `ailang run --policy` refuses an entry file
 outside the sandbox (the module root the imports resolve from would otherwise be anywhere on the

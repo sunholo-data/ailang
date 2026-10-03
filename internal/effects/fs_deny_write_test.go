@@ -72,3 +72,58 @@ func TestFSDenyWrite_PatternsProtectInsideRoot(t *testing.T) {
 		}
 	}
 }
+
+// #1559: a case variant of a deny-listed path is the SAME file on a
+// case-insensitive volume (macOS APFS by default, Windows NTFS), so it must
+// be refused on every platform — the running program cannot reach
+// `.claude/settings.json` (editor hooks run outside the sandbox) as
+// `.CLAUDE/settings.json`.
+func TestFSDenyWrite_CaseVariantsRefused(t *testing.T) {
+	sandbox := t.TempDir()
+	if real, err := filepath.EvalSymlinks(sandbox); err == nil {
+		sandbox = real
+	}
+	if err := os.MkdirAll(filepath.Join(sandbox, ".claude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ctx := NewEffContext(nil)
+	ctx.Env.Sandbox = sandbox
+	ctx.Env.DenyWrite = []string{".claude/**", ".ailang/**", "Makefile"}
+	ctx.Grant(NewCapability("FS"))
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() })
+
+	for _, p := range []string{".CLAUDE/settings.json", ".Claude/hooks.json", ".AILANG/cache/z", "MAKEFILE", "sub/../.cLaUdE/x", filepath.Join(sandbox, ".CLAUDE", "settings.json")} {
+		if _, err := Call(ctx, "FS", "writeFile", []eval.Value{&eval.StringValue{Value: p}, &eval.StringValue{Value: "{\"hooks\":{}}"}}); err == nil || !strings.Contains(err.Error(), "E_FS_PROTECTED") {
+			t.Errorf("writeFile(%s) must be E_FS_PROTECTED, got %v", filepath.ToSlash(p), err)
+		}
+		if _, err := Call(ctx, "FS", "mkdirAll", []eval.Value{&eval.StringValue{Value: p}}); err == nil {
+			t.Errorf("mkdirAll(%s) must be refused", filepath.ToSlash(p))
+		}
+	}
+	entries, err := os.ReadDir(filepath.Join(sandbox, ".claude"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Errorf(".claude/ gained entries through a case variant: %v", entries)
+	}
+}
+
+// The `.git` guard and fs_deny_write go through the one shared matcher
+// (fileguard.Protection): a case variant of `.git` is refused when the
+// sandbox protects it, exactly as a case variant of a deny pattern is.
+func TestFSCheckMutation_SharedMatcher(t *testing.T) {
+	ctx := NewEffContext(nil)
+	sandbox := t.TempDir()
+	ctx.Env.Sandbox = sandbox
+	ctx.Env.ProtectGitDir = true
+	ctx.Env.DenyWrite = []string{".github/**"}
+	for _, p := range []string{".GIT/config", ".GitHub/workflows/ci.yml", filepath.Join(sandbox, ".GITHUB", "x")} {
+		if err := ctx.fsCheckMutation(p); err == nil || !strings.Contains(err.Error(), "E_FS_PROTECTED") {
+			t.Errorf("%s must be protected, got %v", p, err)
+		}
+	}
+	if err := ctx.fsCheckMutation("src/a.ail"); err != nil {
+		t.Errorf("src/a.ail: %v", err)
+	}
+}

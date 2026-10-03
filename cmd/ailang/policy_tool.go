@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -22,7 +21,8 @@ import (
 // response was produced (a refusal is a response, not an exit code). The
 // policy path comes from --policy or AILANG_AGENT_POLICY — the launcher's
 // handle — and never from the request. Exit 1 only when no response could
-// be formed (no policy, unreadable request).
+// be formed (no policy, unreadable request); a request that is read but
+// does not decode strictly (policytool.DecodeRequest) is a refusal.
 func policyToolCommand() {
 	fs := flag.NewFlagSet("policy-tool", flag.ExitOnError)
 	policyPath := fs.String("policy", "", "Path to the operator policy (default: $AILANG_AGENT_POLICY)")
@@ -53,10 +53,13 @@ func policyToolCommand() {
 		fmt.Fprintf(os.Stderr, "policy-tool: reading the request: %v\n", err)
 		os.Exit(1)
 	}
-	var req policytool.Request
-	if err := json.Unmarshal(raw, &req); err != nil {
-		fmt.Fprintf(os.Stderr, "policy-tool: request is not JSON: %v\n", err)
-		os.Exit(1)
+	// Strict decode (#1554): exact, unique keys — `FLAGS` is not `flags`,
+	// and a second `flags` object is an error, not a merge. A request that
+	// does not decode is a refusal the model can read.
+	req, err := policytool.DecodeRequest(raw)
+	if err != nil {
+		emitJSON(policytool.Response{OK: false, Refused: "malformed request: " + err.Error()})
+		return
 	}
 	host, err := policytool.Open(*policyPath)
 	if err != nil {

@@ -116,7 +116,7 @@ func Open(policyPath string) (*Host, error) {
 // path; the library default refuses so that no caller (a test binary, an
 // embedder) ends up executing ITSELF.
 func (h *Host) SetBinary(path string) {
-	h.run = func(dir string, argv []string) (string, string, int) { return runAilang(path, dir, argv) }
+	h.run = func(dir string, argv []string) (string, string, int) { return runAilang(path, dir, argv, h.childEnv()) }
 }
 
 // noBinary is the default runner: a named refusal.

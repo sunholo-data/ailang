@@ -1,12 +1,12 @@
 package policytool
 
 import (
+	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/fileguard"
 )
 
 // The file operations. Each goes through the sandbox root handle; the
@@ -52,31 +52,29 @@ func (h *Host) read(req Request) Response {
 	return Response{OK: true, Content: string(data)}
 }
 
-// underGitDir reports whether a path has a `.git` component: the repository
-// metadata is read-only to the agent (M6) — the confined git adapter trusts
-// the clone's config, so the tools must not be a way to plant one.
-func underGitDir(path string) bool {
-	for _, seg := range strings.Split(filepath.ToSlash(filepath.Clean(path)), "/") {
-		// Case-folded: on a case-insensitive filesystem (macOS APFS, the
-		// default) `.GIT/config` IS `.git/config`.
-		if strings.EqualFold(seg, ".git") {
-			return true
-		}
-	}
-	return false
-}
-
-// denyWrite applies the policy's fs_deny_write to a tool path (relative to
-// the sandbox root; an absolute in-root path loses the prefix).
-func (h *Host) denyWrite(p string) string {
-	if len(h.res.DenyWrite) == 0 || h.root == nil {
-		return ""
-	}
+// protected is the ONE write gate every write the tool endpoint performs
+// passes — the write and edit ops, `fmt --write`, and the files other CLI
+// ops are known to write (cliSchema.writes). It applies the shared
+// fileguard.Protection the FS effect uses: `.git` is always read-only to the
+// agent (M6 — the confined git adapter trusts the clone's config, so the
+// tools must not be a way to plant one), and fs_deny_write (M7) protects the
+// operator's paths. Both are case- and normalization-folded (#1559).
+// It returns a refusal reason, or "" when the write may proceed.
+func (h *Host) protected(op, p string) string {
 	rel, err := h.root.Rel(p)
 	if err != nil {
-		return "" // an escaping path is refused by the root handle anyway
+		// An escaping path is refused by the root handle anyway; check the
+		// lexical spelling so the refusal still names a protected component.
+		rel = p
 	}
-	return effects.MatchDenyWrite(h.res.DenyWrite, rel)
+	v := fileguard.Protection{GitDir: true, DenyWrite: h.res.DenyWrite}.Check(rel)
+	switch {
+	case v.GitDir:
+		return fmt.Sprintf("%s %s: .git/ is read-only to the lane's tools", op, p)
+	case v.Pattern != "":
+		return fmt.Sprintf("%s %s: matches fs_deny_write %q — read-only under this policy", op, p, v.Pattern)
+	}
+	return ""
 }
 
 func (h *Host) write(req Request) Response {
@@ -86,11 +84,8 @@ func (h *Host) write(req Request) Response {
 	if req.Path == "" {
 		return refuse("write: path is required")
 	}
-	if underGitDir(req.Path) {
-		return refuse("write %s: .git/ is read-only to the lane's tools", req.Path)
-	}
-	if pat := h.denyWrite(req.Path); pat != "" {
-		return refuse("write %s: matches fs_deny_write %q — read-only under this policy", req.Path, pat)
+	if why := h.protected("write", req.Path); why != "" {
+		return refuse("%s", why)
 	}
 	if int64(len(req.Content)) > h.maxTransfer() {
 		return refuse("write %s: content exceeds the %d-byte transfer cap", req.Path, h.maxTransfer())
@@ -122,11 +117,8 @@ func (h *Host) edit(req Request) Response {
 	if req.OldText == "" {
 		return refuse("edit %s: old_text is required (use write to create a file)", req.Path)
 	}
-	if underGitDir(req.Path) {
-		return refuse("edit %s: .git/ is read-only to the lane's tools", req.Path)
-	}
-	if pat := h.denyWrite(req.Path); pat != "" {
-		return refuse("edit %s: matches fs_deny_write %q — read-only under this policy", req.Path, pat)
+	if why := h.protected("edit", req.Path); why != "" {
+		return refuse("%s", why)
 	}
 	cur := h.read(Request{Path: req.Path})
 	if !cur.OK {

@@ -73,7 +73,7 @@ comes from the fallback the description names. The `DEBUG_*` compiler knobs are 
 |---|---|---|
 | `AILANG_BROWSER_PROFILE_DIR` | — | Root for browser profiles used by the browser commands; unset derives one under the state dir. |
 | `AILANG_CACHE_DIR` | — | Root of the compile cache (&lt;dir&gt;/compile) and the prompt cache; unset means &lt;project&gt;/.ailang/cache and $XDG_CACHE_HOME/ailang (else ~/.cache/ailang) respectively. |
-| `AILANG_EXAMPLES` | — | Directory `ailang examples` reads instead of searching upward from the binary. |
+| `AILANG_EXAMPLES` | — | Directory `ailang examples` reads instead of searching upward from the binary. Unset tries next to the binary, ~/.ailang/examples, the working directory (not when AILANG_AGENT_POLICY is set), then the corpus built into the binary. |
 | `AILANG_PROJECT_ROOT` | — | Root the embed engine resolves module paths against; must contain the requested module or Load fails. |
 | `AILANG_STATE_DIR` | `~/.ailang` | Directory for every local store (SQLite databases, ledgers, locks). Read by internal/statedir itself — a stdlib-only leaf that cannot import this package — and registered here so the reference lists it. |
 | `AILANG_STDLIB_PATH` | — | Path-list (OS separator) of stdlib directories; the first holding io.ail is the stdlib root for the whole process. Beats ./std and the installed copies; loses only to --stdlib-path. Set but holding no stdlib is an error. Unset falls through to ./std, &lt;binary&gt;/../std, the user data dir, system dirs, then the stdlib built into the binary. |
@@ -158,7 +158,7 @@ comes from the fallback the description names. The `DEBUG_*` compiler knobs are 
 |---|---|---|
 | `AILANG_ACKNOWLEDGE_ONLY` | `false` | Exactly true declares the task acknowledge-only (no file changes expected); anything else means changes were expected, so an older dispatcher fails loud rather than lenient. |
 | `AILANG_AGENT_ID` | — | Agent the job runs as; recorded on spans and completions. |
-| `AILANG_AGENT_POLICY` | — | Materialised program-policy PATH the ailang_only lane's tools (ailang_run, ailang_cli, ailang_read/write/edit via `ailang policy-tool`) are gated by; exported by the launcher, never set by the model. Unset = the tools refuse (default-deny). |
+| `AILANG_AGENT_POLICY` | — | Materialised program-policy PATH the ailang_only lane's tools (ailang_run, ailang_cli, ailang_read/write/edit via `ailang policy-tool`) are gated by; exported by the launcher, never set by the model. Unset = the tools refuse (default-deny). policy-tool pins it on every CLI child; set, `ailang examples` ignores working-directory examples/ dirs. |
 | `AILANG_AGENT_POLICY_TOML` | — | Program policy (agent-policy.toml CONTENT) an ailang_only job's ailang_run is gated by; materialised read-only by execute-job. Unset = ailang_run refuses (default-deny). |
 | `AILANG_ARTIFACT_PATTERNS` | — | Newline-separated path patterns the dispatcher declared as the task's artifacts; the auto-merge scope guard. |
 | `AILANG_AUTO_MERGE` | `0` | 1 lets the job enable GitHub auto-merge on a docs-only PR that matches the artifact patterns. |
