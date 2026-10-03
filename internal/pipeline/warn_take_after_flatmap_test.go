@@ -59,6 +59,31 @@ func TestDetectTakeAfterFlatMap_NestedAppArm(t *testing.T) {
 	}
 }
 
+// TestDetectTakeAfterFlatMap_NestedANF pins #680: when one trap is an argument
+// to another, elaboration binds the inner take to the next ANF let instead of
+// leaving it as the let body. Both traps must fire, not just the outermost.
+func TestDetectTakeAfterFlatMap_NestedANF(t *testing.T) {
+	app := func(fn string, args ...core.CoreExpr) *core.App {
+		return &core.App{Func: listGlobal(fn), Args: args}
+	}
+	v := func(name string) *core.Var { return &core.Var{Name: name} }
+	// let t1 = flatMap(g, xs) in let t2 = take(3, t1) in
+	// let t3 = flatMap(expand, t2) in take(2, t3)
+	nested := &core.Let{
+		Name: "t1", Value: app("flatMap", v("g"), v("xs")),
+		Body: &core.Let{
+			Name: "t2", Value: app("take", v("three"), v("t1")),
+			Body: &core.Let{
+				Name: "t3", Value: app("flatMap", v("expand"), v("t2")),
+				Body: app("take", v("two"), v("t3")),
+			},
+		},
+	}
+	if got := DetectTakeAfterFlatMap(progOf(nested)); len(got) != 2 {
+		t.Fatalf("nested ANF traps: expected 2 warnings, got %d: %v", len(got), got)
+	}
+}
+
 // TestDetectTakeAfterFlatMap_NegativeShapes pins the scope rule at the Core
 // level: only a DIRECT take-of-flatMap matches. Each of these would be a
 // false positive if the match were widened.
@@ -108,6 +133,18 @@ func TestDetectTakeAfterFlatMap_NegativeShapes(t *testing.T) {
 				Body: &core.App{
 					Func: listGlobal("take"),
 					Args: []core.CoreExpr{&core.Var{Name: "n"}, &core.Var{Name: "tmp"}},
+				},
+			},
+		},
+		{
+			name: "anf_next_let_is_not_take",
+			expr: &core.Let{
+				Name:  "tmp",
+				Value: &core.App{Func: listGlobal("flatMap"), Args: []core.CoreExpr{&core.Var{Name: "f"}, &core.Var{Name: "xs"}}},
+				Body: &core.Let{
+					Name:  "tmp2",
+					Value: &core.App{Func: listGlobal("map"), Args: []core.CoreExpr{&core.Var{Name: "g"}, &core.Var{Name: "tmp"}}},
+					Body:  &core.Var{Name: "tmp2"},
 				},
 			},
 		},

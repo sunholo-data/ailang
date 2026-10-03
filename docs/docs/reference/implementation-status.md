@@ -56,7 +56,6 @@ See [Limitations](/docs/reference/limitations) for the full list.
 - Pattern guards parsed but not evaluated
 
 **Not yet implemented:**
-- String interpolation (use `++` concatenation)
 - `?` error propagation operator
 - Typed quasiquotes
 - CSP concurrency (deferred)

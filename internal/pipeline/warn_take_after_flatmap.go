@@ -52,7 +52,8 @@ func DetectTakeAfterFlatMap(prog *core.Program) []elaborate.Warning {
 
 // directTakeFlatMap recognizes both the source-shaped nested application and
 // its ANF representation: let tmp = flatMap(f, xs) in take(n, tmp). Requiring
-// the take application to be the immediate let body preserves the direct-call
+// the take application to be the immediate let body — or, for a nested trap,
+// the value of the immediately following let — preserves the direct-call
 // scope rule.
 //
 // MEASURED (V1 iteration 186): elaboration always produces the ANF form.
@@ -77,7 +78,14 @@ func directTakeFlatMap(expr core.CoreExpr) (*core.App, bool) {
 	if !ok || len(inner.Args) != 2 || !isListGlobal(inner.Func, "flatMap") {
 		return nil, false
 	}
-	outer, ok := binding.Body.(*core.App)
+	// The take is either the let body (outermost trap) or, when the trap is
+	// itself an argument to another call, the value of the very next ANF let:
+	// let tmp = flatMap(f, xs) in let tmp2 = take(n, tmp) in ... (#680).
+	takeExpr := binding.Body
+	if next, isLet := takeExpr.(*core.Let); isLet {
+		takeExpr = next.Value
+	}
+	outer, ok := takeExpr.(*core.App)
 	if !ok || len(outer.Args) != 2 || !isListGlobal(outer.Func, "take") {
 		return nil, false
 	}
