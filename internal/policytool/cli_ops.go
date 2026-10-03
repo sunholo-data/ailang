@@ -293,6 +293,17 @@ func (h *Host) cli(req Request) Response {
 	if !h.cliAllowed(req.Op) {
 		return refuse("op %s is not in the policy's cli_allow (%s)", req.Op, joinStrings(h.summary().CLI))
 	}
+	// Deny-listed write targets are refused before the path is resolved, so a
+	// protected path gets the same refusal whether or not it exists — on a
+	// case-sensitive volume `.CLAUDE/x.ail` is usually absent, and an
+	// existence error first would make the answer platform-dependent.
+	if schema, ok := cliSchemas[req.Op]; ok && schema.writes != nil {
+		for _, p := range schema.writes(req) {
+			if why := h.protected(req.Op, p); why != "" {
+				return refuse("%s", why)
+			}
+		}
+	}
 	argv, sc, err := h.buildArgv(req)
 	if err != nil {
 		return refuse("%v", err)
@@ -303,13 +314,6 @@ func (h *Host) cli(req Request) Response {
 			return refuse("op %s needs the sandbox root, and the policy admits no FS", req.Op)
 		}
 		dir = h.root.Dir()
-	}
-	if sc.writes != nil {
-		for _, p := range sc.writes(req) {
-			if why := h.protected(req.Op, p); why != "" {
-				return refuse("%s", why)
-			}
-		}
 	}
 	stdout, stderr, code := h.run(dir, argv)
 	return h.capOutput(req, argv, stdout, stderr, code)
