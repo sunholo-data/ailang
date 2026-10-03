@@ -295,7 +295,7 @@ The tree sum equals the parent sum within 0.04 in every window. Separately, 21 l
   - 4 own mutants
   - −2 because no suite pins the guarded form; −2 for doc bookkeeping
 - **Controller**: re-checked 18 guarded, 0 old-form, sync `--check` rc0, conflict-surface sites untouched. Guard arm `_scope_is_harness`: `.agents` mission/sprint → 0, model-manager → 1. `test_mission_scope_guard.sh` rc0.
-- **#1575 head `82e03ae96`**: 23/23 green (the test job ran ≈36 min against a measured 24–30 min dev norm). Merge `adab9b7d9`: dev CI disposition is recorded at Gate 3b below.
+- **#1575 head `82e03ae96`**: 23/23 green (the test job ran ≈36 min against a measured 24–30 min dev norm). Gate 3b (SHA-pinned): merge `adab9b7d9` dev CI run 37126587729 **success**; full check set 17, sole non-green `SonarCloud Code Analysis` (new-code coverage 54.9% < 80%) is INHERITED — also `failure` on parents `74d5a3b55`, `74a922d6b`, `e361f0cd2`; #1575 has no Go code. Dev reds on this repo are V1's (Gate 1 owner rule); recorded, not chased. #1575 LANDED.
 - **Done-gate**: not claimed. No ticket was resolved, and the dry-runs are owed with the heartbeat push.
 **Ruled out**:
 - `git push --no-verify` and pointing `core.hooksPath` at the branch's own hook (an unattended loop widening its own guard in-flight)
