@@ -32,6 +32,11 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
+> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
+> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
+> the thing to grep before picking work, so the loop never repeats itself — is in
+> `fleet-mission-index.md`.
+
 ## 0 — 2026-09-26 — charter ratified as written (attended, Mark)
 
 - **Outcome:** Mark ratified the charter as written: bar clauses 1–5, the Authority allowlist and the Guardrails. Kill switch lifted.
@@ -243,3 +248,70 @@ The tree sum equals the parent sum within 0.04 in every window. Separately, 21 l
 **Ruled out**: widening the classifier to "hit your session limit" (outside D-FLEET-11 scope; a lane-selection change is HD-2a policy); a second pause `_mc_notify`; bypassing the overlap guard for dry-runs; banking the executor's greens; an Agent `sonnet` evaluator (same model as the executor); re-asking the resolved D-FLEET-10/11/12; reading or acking `mission-fleet` tickets; touching the 10 pending coordinator approvals.
 **Retro lane**: process fix (charter). The fleet's done-gate dry-run is unsatisfiable from inside a fleet iteration. This is instance 2: iteration 9 also skipped it, and here the executor hit the same guard. The charter's done-gate now names the idle-sibling-profile recipe. Backlog only, no edit: the pi evaluator sandbox blocks `mktemp -t`/`-d` under `/var/folders`, so `make test-launchd-drivers` cannot run inside the pi judge (the judge shimmed `BASH_ENV` for the two suites). No shared skill edit and no reload.
 **Next**: heartbeat ticket `skill:heartbeat-relative-path-absent-in-world` (D-FLEET-10 = A: Revision 5 with the absoluteness guard and Kimi's residuals, then a fresh quorum). Then the D-FLEET-9 rotate-log pair, then pi-runner pre-dirty. The D-FLEET-12 pre-authorized pair (`routing:retired-codex-models-still-spawnable-natively`, `quota:opencode-reported-as-a-pool`) is planner-ready without a further ruling.
+
+## 16 — 2026-10-03 — heartbeat driver-root fix built + judged PASS 96; push blocked by the pinned scope guard, guard arm LANDED #1575 [HARNESS]
+
+**Picked**: `skill:heartbeat-relative-path-absent-in-world` (charter P0 #1, `[NEXT]`; D-FLEET-10 = A and D-FLEET-8 = YES, both attended rulings). #1380: 0 new allowlisted directives since 2026-10-02T08:51:41Z (20 comments). D-FLEET-13 still OPEN, so the session-limit classifier was not taken. The ticket is still real at HEAD `c68ded4b2`: 18 relative `bash tools/launchd/mission-heartbeat.sh stamp` call sites in 14 files (9 per copy). No open fleet PR and no stale worktree for this item. The untracked 2026-09-29 plan/JSON in the pin is Revision-1 vintage and was ignored, not reused.
+**Reality check**: running skill = resolved symlink = origin/dev, all 13 files, compared per file. Dev CI was green at the Gate-1 base `c68ded4b2` (42 checks, 0 not-green). The controller reproduced the designer's guard drill independently (bash + zsh: unset/empty/`.` → rc1, 0 rows; absolute → rc0, 1 row; absolute-nonexistent → rc127, 0 rows). It also measured the R5.2 premise rows first-party: in this live driver-spawned controller shell `printenv MISSION_DRIVER_ROOT` = the pin, with nothing exported by hand. The plists invoke `/bin/bash <absolute path>`, and `tools/launchd/lib/pin-root.sh:362` re-execs with an absolute `$wt`.
+**Shipped**:
+- **#1575 → `adab9b7d9`, MERGED.** `_scope_is_harness` gains `.agents/skills/mission-*|.agents/skills/sprint-*`, the Authority allowlist names both, and a changelog fragment is added.
+- **Built and judged but NOT pushed: local branch `fleet/i16-heartbeat-rev5`** (head `9c513b8fe`, rebased on `adab9b7d9`; `git diff 14b87879b HEAD` over the judged paths is empty). It contains:
+  - all 18 heartbeat calls → `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp … ;; *) echo … >&2; false ;; esac`
+  - an `Attended setup:` sentence in each of the 14 files
+  - rc-19 `provider_quota` added to the gate-3-route rc comment, in both copies
+  - `.agents` produced by `sync-agents-skills.sh`
+  - changelog `2026-10-03-heartbeat-driver-root.md`
+  - design Revision 5.2 and its sprint plan/JSON
+
+  The push was REFUSED: `mission scope guard: MISSION_NAME=fleet may not push .agents/skills/mission-control/resources/gate-5-retro.md`. The guard that ran is the pin's (`core.hooksPath` = `~/.ailang-driver-pin/fleet/tools/launchd/githooks`), which predates the arm the fix adds. No `--no-verify` and no self-selected hook; the arm shipped alone as #1575 instead.
+**Progress**: goal unmoved (0 tickets resolved). Clause 1 UNMEASURED. Clause 2 turnaround UNMET: the heartbeat ticket has been open since 2026-09-26. Clause 3 MET (34 open signatures). Clause 4 prior evidence only. Clause 5 preserved: nothing unjudged shipped, and #1575's single arm is inside the PASS-96 diff.
+**Routing evidence**: base-gate1=c68ded4b2d5e397d3719b32d6be591ad6fcd1bf8@2026-10-03T12:02:19Z. `MISSION_ROUTING_NOTE`: codex over daily ration → planner opus, executor sonnet-5-5.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: rotation last=`codex:gpt-6.1-sol` → glm/kimi (ollama over ration) → `claude:claude-opus-5-5`, resolver `recipe … declared:provider-pin`.
+  - The operator-requested Agent `opus` spawn was DENIED (`deny:provider-pin`), as expected. Ran via `claude-sub`: probe rc0. Authoring run rc0 → R5 `21f045a38`; ONE revision run rc0 → R5.1 `5ad08e044`; within the Fable/Opus one-doc diet. (tok: not reported, text mode.) Rotation state written to `claude:claude-opus-5-5`.
+  - Quorum, author benched:
+    - r6 `12-07-53Z` BLOCKED $0.1953: kimi and gemini reject on premise rows; gpt6-1-sol ABSENT (OpenAI 429 no credits); glm ABSENT (invalid JSON, raw verdict pass).
+    - r7 `12-14-33Z` BLOCKED $0.2312: gemini (swapped table cells), kimi and glm (runtime propagation, invocation shape, coherence, SKILL.md:338); sol absent.
+    - All r7 objections were evidence-only and each carried a concrete fix. The controller applied them under the narrow-refinement carve-out → R5.2 `11a517b33`. Planner D1 path fix → `bd2df0b60`.
+- **Planner**: resolver `agent-tool opus fail-closed:env-pin`; Agent `opus` (107,544 tok).
+- **Executor**: resolver `recipe claude:claude-sonnet-5-5 declared:provider-pin`.
+  - The operator-requested Agent `sonnet` spawn was DENIED (`deny:provider-pin`).
+  - Ran via `claude-sub` (billing tripwire CLEAN): probe rc0, run rc0 (tok: not reported).
+- **Evaluator**: resolver `reroute pi:openrouter/minimax/minimax-m3 generator-equals-judge`, but OpenRouter is in `MISSION_OVER_RATION`, and the resolver's reroute arm does NOT apply the ration gate (`resolve-role-spawn.sh` evaluator branch emits the chain head unchecked).
+  - Declared chain walked with the ration applied: minimax skipped (over ration); `claude:claude-sonnet-4-6` skipped (same sonnet family as the executor per `family()`); `opus` via the Agent tool, allowed (`allow:alias-pin`), 112,695 tok.
+  - Judge ≠ generator (opus vs sonnet). FLAG: same model as the designer and controller, in a fresh context.
+- **Metered**: $0.4265 (quorum only).
+- **Ration**: codex, ollama and openrouter over; Anthropic subscription OK.
+**Verification**:
+- **Executor**:
+  - all acceptance items 1–8 + 6a
+  - `make test-launchd-drivers` rc0 on the rerun; the first run hit a `test_hook_stdout.sh` 8 s timeout under load ≈97, and that test passed alone twice
+  - 2 mutants red
+- **Judge** (isolated detached worktree `fleet-i16-evaluator` at `14b87879b`):
+  - **PASS 96/100**, 0 blocking
+  - 40-case drill (bash/zsh × `-c`/script) TOTAL_FAILS=0
+  - 6a: its own driver-descended shell = the pin
+  - `make test-launchd-drivers` rc0 on the first run
+  - 4 own mutants
+  - −2 because no suite pins the guarded form; −2 for doc bookkeeping
+- **Controller**: re-checked 18 guarded, 0 old-form, sync `--check` rc0, conflict-surface sites untouched. Guard arm `_scope_is_harness`: `.agents` mission/sprint → 0, model-manager → 1. `test_mission_scope_guard.sh` rc0.
+- **#1575 head `82e03ae96`**: 23/23 green (the test job ran ≈36 min against a measured 24–30 min dev norm). Merge `adab9b7d9`: dev CI disposition is recorded at Gate 3b below.
+- **Done-gate**: not claimed. No ticket was resolved, and the dry-runs are owed with the heartbeat push.
+**Ruled out**:
+- `git push --no-verify` and pointing `core.hooksPath` at the branch's own hook (an unattended loop widening its own guard in-flight)
+- fast-forwarding the pin mid-fire (the driver runs from it)
+- splitting the `.claude` half out alone (mirror drift reddens `test_agents_skills_sync`)
+- Kimi's `|| { …; exit 1; }` snippet (kills a persistent shell; misattributes helper failures)
+- aligning the three conflict-surface sites (out of D-FLEET-8/10 scope)
+- re-asking D-FLEET-8/10
+- reading or acking `mission-fleet` tickets
+- touching the 3 pending coordinator approvals
+**Retro lane**: process fix (charter Guardrails), "a fix that widens the scope guard ships ALONE, first". Instance 1 is iteration 12's design, which named the guard seam but not its bootstrap; instance 2 is this push refusal. Backlog, for an attended ticket filing because the fleet cannot file its own:
+  - (a) `resolve-role-spawn.sh` evaluator reroute ignores `MISSION_OVER_RATION`
+  - (b) judge finding: `bash tools/launchd/mission-base.sh …` (gate-1, gate-3 ×3, gate-3b ×2, gate-4, ref-drift) and `tools/launchd/resolve-role-spawn.sh` are also CWD-relative and rc127 from World. Same class as this ticket, outside its ruled scope.
+  - (c) `skill:driver-root-guard-unify`: the `:-.` silent fallback at gate-3-route.md:618, plus the bare lane-dead calls
+  - (d) no suite pins the guarded form or the `.agents` scope rows
+  - (e) the spawn-pin hook compares the evaluator alias by string, not `family()`, so an Agent `sonnet` judge of a `claude:claude-sonnet-5-5` executor would be ALLOWED
+
+  No shared skill edit and no reload.
+**Next**: push `fleet/i16-heartbeat-rev5` (resume predicate in the charter queue row) → PR → Gate 3b → done-gate dry-runs (idle sibling profile) → resolve the ticket. Then the D-FLEET-9 rotate-log pair, then pi-runner pre-dirty. The D-FLEET-12 pair is planner-ready.
