@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/loader"
 )
 
 // mod010WarnedOnce dedups relaxed-MOD010 warnings at process level: each named-test
@@ -17,6 +19,20 @@ var mod010WarnedOnce = struct {
 	sync.Mutex
 	seen map[string]bool
 }{seen: make(map[string]bool)}
+
+// isTempModuleFile reports whether the module's source file lives in a temp
+// directory (MOD010 auto-relax). It asks about the file path the module was
+// read from, not modID: an absolute entry path's canonical ID has its leading
+// "/" stripped, and loader.IsTempPath resolves that relative form against the
+// cwd — so the same file auto-relaxed when run from /tmp and failed from a
+// project directory (#574 part 3). A relative file path was opened relative
+// to the cwd, so resolving it there is correct.
+func isTempModuleFile(mod *loader.LoadedModule, modID string) bool {
+	if mod.File != nil && mod.File.Path != "" {
+		return loader.IsTempPath(mod.File.Path)
+	}
+	return loader.IsTempPath(modID)
+}
 
 func mod010Reason(isTempPath bool) string {
 	if isTempPath {

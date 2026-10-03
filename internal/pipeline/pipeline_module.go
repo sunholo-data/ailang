@@ -268,7 +268,7 @@ func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) err
 	}
 
 	// Check if relaxation applies
-	isTempPath := loader.IsTempPath(modID)
+	isTempPath := isTempModuleFile(mod, modID)
 	shouldRelax := cfg.RelaxModules || isTempPath
 
 	if shouldRelax {

@@ -4,19 +4,19 @@
   "funcs": [
     {
       "name": "empty",
-      "type": "(())-\u003e\u003c*types.TMap\u003e",
+      "type": "(())-\u003eMap[a,b]",
       "effects": [],
       "pure": true
     },
     {
       "name": "fromList",
-      "type": "(list[\u003c*types.TTuple\u003e])-\u003e\u003c*types.TMap\u003e",
+      "type": "(list[(a,b)])-\u003eMap[a,b]",
       "effects": [],
       "pure": true
     },
     {
       "name": "insert",
-      "type": "(Map[a,b],a,b)-\u003e\u003c*types.TMap\u003e",
+      "type": "(Map[a,b],a,b)-\u003eMap[a,b]",
       "effects": [],
       "pure": true
     },
@@ -40,7 +40,7 @@
     },
     {
       "name": "remove",
-      "type": "(Map[a,b],a)-\u003e\u003c*types.TMap\u003e",
+      "type": "(Map[a,b],a)-\u003eMap[a,b]",
       "effects": [],
       "pure": true
     },
@@ -52,7 +52,7 @@
     },
     {
       "name": "toList",
-      "type": "(Map[a,b])-\u003elist[\u003c*types.TTuple\u003e]",
+      "type": "(Map[a,b])-\u003elist[(a,b)]",
       "effects": [],
       "pure": true
     },

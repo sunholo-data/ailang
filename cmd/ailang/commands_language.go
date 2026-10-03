@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	ailangTesting "github.com/sunholo-data/ailang/internal/testing"
 )
@@ -452,13 +453,16 @@ func runCheckCommand(args []string) error {
 func runIfaceCommand(args []string) error {
 	ifaceFS := flag.NewFlagSet("iface", flag.ExitOnError)
 	ifaceCompact := ifaceFS.Bool("compact", false, "Compact one-line-per-export signatures (dense typed-interface view for agent context)")
+	relaxModulesIface := ifaceFS.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
 	_ = ifaceFS.Parse(args)
 	if ifaceFS.NArg() < 1 {
 		fmt.Fprintf(os.Stderr, "%s: missing module argument\n", red("Error"))
-		fmt.Println("Usage: ailang iface [--compact] <module>")
+		fmt.Println("Usage: ailang iface [--compact] [--relax-modules] <module>")
 		os.Exit(1)
 	}
-	outputInterface(ifaceFS.Arg(0), *ifaceCompact)
+	// The flag and AILANG_RELAX_MODULES are OR-ed, as in check (#575): the
+	// MOD010 error iface prints advertises both.
+	outputInterface(ifaceFS.Arg(0), *ifaceCompact, *relaxModulesIface || config.RelaxModules())
 	return nil
 }
 
