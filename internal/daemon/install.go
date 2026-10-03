@@ -29,6 +29,11 @@ var launchctlRun = func(args ...string) ([]byte, error) {
 // names none. It matches the --messages-sub default in `ailang daemon run`.
 const DefaultMessagesSub = "messages-laptop"
 
+// RemoteMessagesSub is the messages subscription every daemon shares for
+// remote channels (Discord). Unlike the per-device one, it is shared on
+// purpose: Pub/Sub hands each message to one puller, so it is posted once.
+const RemoteMessagesSub = "messages-discord"
+
 // InstallOpts controls plist generation.
 type InstallOpts struct {
 	Env        string // dev|test|prod

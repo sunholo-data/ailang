@@ -390,7 +390,7 @@ func twice(f: int -> int, x: int) -> int = f(f(x))
 | ADT | `type Tree = Leaf(int) \| Node(Tree, int, Tree)` |
 | ADT with Eq | `type Color = Red \| Green \| Blue deriving (Eq)` |
 | Record with Eq | `type Point = {x: int, y: int} deriving (Eq)` (anonymous records have no `==`) |
-| `==` / `!=` support | int, float, string, bool, and any list, `Option`, `Result` or tuple whose parts support it (`xs == []`, `o == Some(3)`, `(a, b) == (1, "x")`), plus types declared `deriving (Eq)`. Functions have no `==`. Float `==` is IEEE: NaN is never equal to anything, itself included; test with `isNaN(x)` from `std/math` |
+| `==` / `!=` support | int, float, string, bool, and any list, `Option`, `Result` or tuple whose parts support it (`xs == []`, `o == Some(3)`, `(a, b) == (1, "x")`), plus types declared `deriving (Eq)`. Functions have no `==`. Float `==` is IEEE: NaN is never equal to anything, itself included; test with `isNaN(x)` from `std/math`. Float `<` `<=` `>` `>=` are IEEE too: false whenever either side is NaN, so `if x > hi` does not catch a NaN |
 | Record | `{name: "A", age: 30}` |
 | Record update | `{base \| field: val}` |
 | Open record type | `{name: string \| r}` or `{name: string, ...}` |
@@ -1164,6 +1164,8 @@ let decrypted = encrypted ^ 137  -- 42
 - `~` is prefix (same level as unary `-`)
 
 **Signed hash semantics**: AILANG integers are signed 64-bit values. Bitwise and shift operations act on the 64-bit bit pattern. Hash functions may print negative int results even when the underlying bit pattern matches unsigned reference implementations.
+- Hex/binary/octal literals are 64-bit patterns: write reference constants verbatim (`0x9e3779b97f4a7c15`, `0xcbf29ce484222325`). One with the top bit set reads as its two's-complement value (`0xffffffffffffffff == -1`). Decimal literals above `9223372036854775807` are an error.
+- `>>` is ARITHMETIC (sign-extending: `-1 >> 1 == -1`). The logical/unsigned `>>>` of reference hash code is `shiftRightLogical(x, n)` from std/math (`shiftRightLogical(-1, 1) == 9223372036854775807`). Never emulate it with a mask.
 
 ## Boolean Operations
 

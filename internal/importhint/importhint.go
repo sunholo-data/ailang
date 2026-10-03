@@ -120,6 +120,13 @@ func IMP010(symbol, modID string) string {
 	return ""
 }
 
+// Closest returns the candidate most likely intended for `want` (prefix match,
+// then edit distance <= 2), or "" when none is close. Shared by the
+// typechecker's unknown-constructor diagnostic (TC_MATCH_001).
+func Closest(want string, candidates []string) string {
+	return closestExport(want, candidates)
+}
+
 // closestExport returns the export most likely intended for `want`, or "" when no
 // export is close enough (a genuinely unknown symbol gets no misleading hint).
 // Signals, strongest first: a prefix relationship (flushStdout↔flush, shorter side

@@ -12,7 +12,10 @@ import (
 
 // funcToLambda converts function to lambda
 func (e *Elaborator) funcToLambda(f *FuncSig) (core.CoreExpr, error) {
+	// Parameters are in scope for the body (#1467).
+	e.pushScope(f.Params...)
 	body, err := e.elaborateExpr(f.Body)
+	e.popScope()
 	if err != nil {
 		return nil, err
 	}

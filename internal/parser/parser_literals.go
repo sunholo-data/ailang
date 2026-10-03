@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -20,20 +21,79 @@ func (p *Parser) parseIdentifier() ast.Expr {
 // parseIntLiteralValue converts an integer-literal token to int64. Hex (0x),
 // binary (0b), and octal (0o) prefixes use Go's base-0 auto-detection; everything
 // else stays base 10 so leading-zero decimals are NOT reinterpreted as octal.
+//
+// Base-prefixed literals are 64-bit PATTERNS (#1481): a value in
+// [2^63, 2^64-1] wraps to its two's-complement int64, exactly Go's
+// int64(uint64(x)), so reference hash constants such as 0x9e3779b97f4a7c15
+// are writable verbatim. Decimal literals stay signed and still fail above
+// MaxInt64 — reading 18446744073709551615 as -1 would be a trap.
 func parseIntLiteralValue(s string) (int64, error) {
-	if len(s) >= 2 && s[0] == '0' {
-		switch s[1] {
-		case 'x', 'X', 'b', 'B', 'o', 'O':
-			return strconv.ParseInt(s, 0, 64)
+	if isBasePrefixedInt(s) {
+		u, err := strconv.ParseUint(s, 0, 64)
+		if err != nil {
+			return 0, err
 		}
+		return int64(u), nil
 	}
 	return strconv.ParseInt(s, 10, 64)
+}
+
+func isBasePrefixedInt(s string) bool {
+	if len(s) < 2 || s[0] != '0' {
+		return false
+	}
+	switch s[1] {
+	case 'x', 'X', 'b', 'B', 'o', 'O':
+		return true
+	}
+	return false
+}
+
+// intLiteralError builds the PAR021 diagnostic for an integer literal that
+// does not fit in 64 bits (#1481). For a decimal that overflows int64 but
+// fits in 64 bits, it names both writable forms of the same bit pattern.
+func intLiteralError(tok lexer.Token, pos ast.Pos) *ParserError {
+	lit := tok.Literal
+	var msg string
+	var suggestions []string
+	if isBasePrefixedInt(lit) {
+		msg = fmt.Sprintf("could not parse %q as integer: it does not fit in 64 bits", lit)
+		suggestions = []string{
+			"`int` is a 64-bit two's-complement integer; a hex/binary/octal literal is read as a 64-bit pattern.",
+			"The largest writable pattern is 0xFFFFFFFFFFFFFFFF (which is -1).",
+		}
+	} else {
+		msg = fmt.Sprintf("could not parse %q as integer: decimal literals must be between -9223372036854775808 and 9223372036854775807", lit)
+		suggestions = []string{"`int` is a 64-bit two's-complement integer; decimal literals are signed."}
+		if u, err := strconv.ParseUint(lit, 10, 64); err == nil {
+			if v := int64(u); v == math.MinInt64 {
+				// `-9223372036854775808` is unary minus on an out-of-range
+				// literal, so it does not parse either; don't suggest it.
+				suggestions = append(suggestions, fmt.Sprintf(
+					"For the 64-bit pattern, write the hex form 0x%X (the minimum int).", u))
+			} else {
+				suggestions = append(suggestions, fmt.Sprintf(
+					"For the 64-bit pattern, write the hex form 0x%X or the signed decimal %d.", u, v))
+			}
+		}
+	}
+	return NewSuggestionError("PAR021", pos, tok, msg, suggestions,
+		"https://ailang.sunholo.com/docs/reference/language-syntax")
+}
+
+// floatLiteralError is PAR021's float sibling (used in pattern position,
+// where an overflowing float used to become a silent +Inf pattern).
+func floatLiteralError(tok lexer.Token, pos ast.Pos) *ParserError {
+	return NewSuggestionError("PAR021", pos, tok,
+		fmt.Sprintf("could not parse %q as float: it is outside the float64 range", tok.Literal),
+		[]string{"`float` is IEEE 754 binary64; the largest finite value is about 1.7976931348623157e308."},
+		"https://ailang.sunholo.com/docs/reference/language-syntax")
 }
 
 func (p *Parser) parseIntegerLiteral() ast.Expr {
 	value, err := parseIntLiteralValue(p.curToken.Literal)
 	if err != nil {
-		p.errors = append(p.errors, fmt.Errorf("could not parse %q as integer", p.curToken.Literal))
+		p.errors = append(p.errors, intLiteralError(p.curToken, p.curPos()))
 		return nil
 	}
 

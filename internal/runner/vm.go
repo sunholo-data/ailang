@@ -18,10 +18,10 @@ import (
 	"github.com/sunholo-data/ailang/internal/vm"
 )
 
-// findEntryProto resolves an entry name (e.g. "main") to a prototype in the
+// FindEntryProto resolves an entry name (e.g. "main") to a prototype in the
 // image. The lower pass prefixes function names with the module package, so
 // we accept several spellings.
-func findEntryProto(img *bytecode.BytecodeImage, name string) *bytecode.FuncPrototype {
+func FindEntryProto(img *bytecode.BytecodeImage, name string) *bytecode.FuncPrototype {
 	for _, p := range img.Prototypes {
 		if p.Name == name {
 			return p
@@ -138,6 +138,8 @@ func CompileBytecodeFromResult(res pipeline.Result, pkgName string) (*bytecode.B
 // helper runs *after* rt.LoadAndEvaluate.
 //
 // Returns (true, nil) on a successful VM run (result already printed).
+// Returns (true, err) when an evaluator-only entry ran on the evaluator and
+// failed — that is the final outcome; the caller must not re-run it.
 // Returns (false, err) when the bytecode path could not be used at all
 // (compile failure for the entry, missing prototype, unsupported arity).
 // Runtime VM errors that occur after dispatch starts are returned as
@@ -169,7 +171,7 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 		return false, fmt.Errorf("validate: %w", err)
 	}
 
-	proto := findEntryProto(img, entry)
+	proto := FindEntryProto(img, entry)
 	if proto == nil {
 		return false, fmt.Errorf("entry function %q not found in bytecode image", entry)
 	}
@@ -177,7 +179,7 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 	// Convert decoded args from eval.Value to bytecode.Value via the bridge.
 	bcArgs := make([]bytecode.Value, 0, len(args))
 	for i, a := range args {
-		bv, err := evalValueToBytecode(a)
+		bv, err := vm.EvalToBytecode(a)
 		if err != nil {
 			return false, fmt.Errorf("entry arg %d: %w", i, err)
 		}
@@ -218,7 +220,11 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 		}
 		result, err := runtime.CallEntrypoint(rt, inst, entry, args)
 		if err != nil {
-			return false, fmt.Errorf("eval-only entry %q: %w", entry, err)
+			// The entry already ran on the evaluator: this IS the evaluator's
+			// outcome. Report it as ran (true) so the caller does not fall
+			// back and run the same entry — and its side effects — a second
+			// time (#1545). Same wording as the evaluator path.
+			return true, fmt.Errorf("execution failed: %w", err)
 		}
 		if !params.NoPrint && params.Print && result != nil && result.Type() != "unit" {
 			fmt.Println(result.String())
@@ -250,7 +256,7 @@ func printVMResult(v bytecode.Value, params ModuleExecParams) {
 	if !params.Print {
 		return
 	}
-	ev, err := bytecodeValueToEval(v)
+	ev, err := vm.BytecodeToEvalForDisplay(v)
 	if err != nil || ev == nil {
 		// Fall back to the bytecode value's own formatting for shapes
 		// the bridge doesn't know how to convert (currently none on

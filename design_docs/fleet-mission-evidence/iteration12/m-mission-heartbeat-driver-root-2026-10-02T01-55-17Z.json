@@ -1,0 +1,78 @@
+{
+  "doc": "design_docs/planned/m-mission-heartbeat-driver-root.md",
+  "iso_ts": "2026-10-02T01:55:17Z",
+  "reviewers": [
+    {
+      "model": "claude-sonnet-5@claude-p",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "quota",
+      "error": "Anthropic bucket blocked by the mission ration: provider-reported Anthropic utilisation exceeds ration or exhausts a window",
+      "landed": null
+    },
+    {
+      "model": "gpt6-1-sol",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "auth",
+      "error": "reviewer \"gpt6-1-sol\" (openai provider) — OPENAI_API_KEY environment variable required (or set OPENAI_BASE_URL for a custom unauthenticated endpoint)",
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.017012,
+      "tokens_in": 7588,
+      "tokens_out": 153,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The claim that bash exits with rc=127 on parameter expansion failure in the -c shape is a fabricated measurement. Bash non-interactive shells exit with rc=1 on parameter expansion errors regardless of whether the command is passed via a script file or -c. The doubled-down defense of 127 explicitly violates the Premise Verification gate.",
+        "catch": "Fabricated verification log measurement for the bash expansion error exit status.",
+        "proposed_fix": "Correct the verification log and text to acknowledge that bash parameter expansion errors exit with rc=1 in both -c and script-file shapes. Remove the fabricated rc=127 claim and accept that the exit status is 1."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-kimi-k3",
+      "cost_usd": 0.16636199999999998,
+      "tokens_in": 6794,
+      "tokens_out": 9732,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The fix does not actually close the failure class it exists to eliminate: the `:?` guard enforces only nonemptiness (the doc itself concedes 'the parameter guard enforces nonempty, not absoluteness'), so any nonempty RELATIVE root silently resolves against CWD — the exact CWD-dependence bug, now reachable behind an exported variable. Concretely: an attended operator in the source clone runs `export MISSION_DRIVER_ROOT=.` (a natural reading of 'set it to the intended checkout') from AILANG_DRIVER_SRC and silently stamps heartbeats through the stale helper — the precise hazard the driver's own quoted comment warns about ('NOT AILANG_DRIVER_SRC: that is the source clone, which can be far behind what actually runs'). No error, no flag: the no-silent-fallback requirement is violated, and the Axiom block's claims of A1 +1 ('same helper selected regardless of CWD') and A11 +1 ('explicit root failure') are unconditional in prose but conditional in fact. The doc's dismissal ('these snippets do not validate arbitrary caller configuration') is assertion, not analysis — it never weighs the one-token absoluteness test against the residual silent-wrong-helper risk.",
+        "catch": "Verify or fix four things: (1) add absoluteness enforcement to the snippet and a relative-root negative drill (MISSION_DRIVER_ROOT=. from a clone containing tools/launchd/mission-heartbeat.sh must fail nonzero and write no row). (2) The two most load-bearing premises are stale: the log header claims 2026-10-02 'this tree' freshness, but 'Relative helper absent in both checked repositories' (World/Stapledon Path.is_file checks — the entire P0 ticket premise) and 'Proposed command works from each actual CWD' are revision-1 (2026-09-29) measurements 're-listed for context'; re-run them. (3) Acceptance/Decision line-number drift: Decision appends `19=provider_quota` to the 18=tool_hang line (line 387 per the greps), but Acceptance asserts 'at line 386', and adding the attended-setup sentence to gate-3-route.md shifts those lines anyway — pin content, not line numbers. Related: the mandated 'short attended setup sentence to each of the fourteen modified resources' has no acceptance check at all (inventory counts don't see it), so the mitigation for the admittedly breaking attended-flow change could be silently dropped by the executor and every acceptance bullet would still pass. (4) Conflict surface missed its nearest neighbors: gate-3-route.md:72 and role-spawn-routing.md:85 already invoke mission-lane-dead.sh via MISSION_DRIVER_ROOT — the doc cites them as contract evidence but never states whether they use the guarded form; if bare, the fix leaves the same file with two conventions unexamined.",
+        "proposed_fix": "Replace the snippet with an absoluteness-enforcing form, e.g.: `test -z \"${MISSION_DRIVER_ROOT%%/*}\" \u0026\u0026 bash \"${MISSION_DRIVER_ROOT:?MISSION_DRIVER_ROOT must be an absolute path to the pinned driver tree}/tools/launchd/mission-heartbeat.sh\" stamp ... || { echo 'MISSION_DRIVER_ROOT must be an absolute path to the pinned driver checkout (got a relative value)' \u003e\u00262; exit 1; }` — unset/empty still fails via `:?`, absolute passes (since `${VAR%%/*}` is empty for `/...`), relative fails loudly. Then: (a) add an acceptance drill pinning relative-root failure nonzero with no heartbeat row, drilled from a directory that contains tools/launchd/mission-heartbeat.sh to prove no silent wrong-helper run; (b) re-run and date-stamp the World/Stapledon `Path.is_file()` rows and the per-CWD guarded-command drill on 2026-10-02+; (c) rewrite the rc-19 acceptance as 'the three-line rc comment in both copies ends the 18=tool_hang line with ` · 19=provider_quota`' and drop absolute line numbers; (d) add acceptance `rg -l '\u003csetup-sentence key phrase\u003e'` over the fourteen files = 14; (e) add a conflict-surface row stating the guarded-vs-bare form used at gate-3-route.md:72 and role-spawn-routing.md:85, aligning them or justifying the divergence; (f) reword the Axiom block so A1/A11 +1 claims are scoped to enforced behavior rather than caller discipline."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Revision 4 closes round-4's objection with a measured two-shape characterization, controller-reproduced in six shapes: on rig /bin/bash 3.2.57 the ${...:?} failure exits 127 in bash -c command strings and 1 in script files — the earlier 'not reproducible here' sentence was an over-generalization and is retired; the reviewer's 'always rc=1' is true of script shape, false of -c shape. Operative contract unchanged: acceptance asserts NONZERO, pins no code. Direction ruled by D-FLEET-8."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gemini-3-1-pro: The claim that bash exits with rc=127 on parameter expansion failure in the -c shape is a fabricated measurement. Bash non-interactive shells exit with rc=1 on parameter expansion errors regardless of whether the command is passed via a script file or -c. The doubled-down defense of 127 explicitly violates the Premise Verification gate.",
+      "oc-kimi-k3: The fix does not actually close the failure class it exists to eliminate: the `:?` guard enforces only nonemptiness (the doc itself concedes 'the parameter guard enforces nonempty, not absoluteness'), so any nonempty RELATIVE root silently resolves against CWD — the exact CWD-dependence bug, now reachable behind an exported variable. Concretely: an attended operator in the source clone runs `export MISSION_DRIVER_ROOT=.` (a natural reading of 'set it to the intended checkout') from AILANG_DRIVER_SRC and silently stamps heartbeats through the stale helper — the precise hazard the driver's own quoted comment warns about ('NOT AILANG_DRIVER_SRC: that is the source clone, which can be far behind what actually runs'). No error, no flag: the no-silent-fallback requirement is violated, and the Axiom block's claims of A1 +1 ('same helper selected regardless of CWD') and A11 +1 ('explicit root failure') are unconditional in prose but conditional in fact. The doc's dismissal ('these snippets do not validate arbitrary caller configuration') is assertion, not analysis — it never weighs the one-token absoluteness test against the residual silent-wrong-helper risk."
+    ],
+    "absent_reviewers": [
+      {
+        "model": "claude-sonnet-5@claude-p",
+        "reason": "quota"
+      },
+      {
+        "model": "gpt6-1-sol",
+        "reason": "auth"
+      }
+    ],
+    "total_cost_usd": 0.18337399999999998,
+    "total_tokens_in": 14382,
+    "total_tokens_out": 9885
+  }
+}

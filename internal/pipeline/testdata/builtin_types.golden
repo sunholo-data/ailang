@@ -9,11 +9,14 @@
 _ai_call : string -> string ! {AI}
 _ai_call_image : (string, string, string) -> string ! {AI}
 _ai_call_image_base64 : (string, string) -> string ! {AI}
+_ai_call_image_base64_with_refs : (string, list[{mime: string, source: string}], string) -> string ! {AI}
+_ai_call_image_with_refs : (string, list[{mime: string, source: string}], string, string) -> string ! {AI}
 _ai_call_json : (string, string) -> string ! {AI}
 _ai_call_json_result : (string, string) -> Result[string, {code: string, message: string, retryable: bool}] ! {AI}
 _ai_call_json_simple : string -> string ! {AI}
 _ai_call_json_simple_result : string -> Result[string, {code: string, message: string, retryable: bool}] ! {AI}
 _ai_call_result : string -> Result[string, {code: string, message: string, retryable: bool}] ! {AI}
+_ai_call_speech : (string, string, string, string) -> Result[bytes, {code: string, message: string, retryable: bool}] ! {AI}
 _ai_call_stream : (string, string, string) -> Result[string, {code: string, message: string, retryable: bool}] ! {AI, Net, Stream}
 _ai_step : (string, list[{content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}], list[{description: string, name: string, parameters: string}]) -> Result[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]}, {code: string, message: string, retryable: bool}] ! {AI}
 _ai_step_with_cache : (string, list[{content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}], list[{description: string, name: string, parameters: string}], list[{position: string, ttl: string}]) -> Result[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]}, {code: string, message: string, retryable: bool}] ! {AI}
@@ -109,6 +112,7 @@ _fs_mkdirAllResult : string -> Result[(), string] ! {FS}
 _fs_mkdirResult : string -> Result[(), string] ! {FS}
 _fs_readFile : string -> string ! {FS}
 _fs_readFileBytes : string -> Result[string, string] ! {FS}
+_fs_readFileRaw : string -> Result[bytes, string] ! {FS}
 _fs_readFileResult : string -> Result[string, string] ! {FS}
 _fs_removeDirResult : string -> Result[(), string] ! {FS}
 _fs_removeFile : string -> () ! {FS}
@@ -117,6 +121,7 @@ _fs_rename : (string, string) -> () ! {FS}
 _fs_renameResult : (string, string) -> Result[(), string] ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}
 _fs_writeFileBytes : (string, bytes) -> () ! {FS}
+_fs_writeFileBytesResult : (string, bytes) -> Result[(), string] ! {FS}
 _fs_writeFileResult : (string, string) -> Result[(), string] ! {FS}
 _game_delta_time : () -> float ! {Clock}
 _game_frame_count : () -> int ! {Clock}
@@ -142,18 +147,22 @@ _json_decode : string -> Result[Json, string]
 _json_decode_float_array : string -> Result[Array[float], string]
 _json_encode : Json -> string
 _json_repair : string -> Result[string, string]
+_list_any : (a -> bool, list[a]) -> bool
 _list_contains : (list[a], a) -> bool
 _list_dedup : list[a] -> list[a]
 _list_difference : (list[a], list[a]) -> list[a]
 _list_drop : (int, list[a]) -> list[a]
 _list_extract : (list[a], int, int) -> list[a]
 _list_filter : (a -> bool, list[a]) -> list[a]
+_list_findIndex : (a -> bool, list[a]) -> Option[int]
 _list_flatMap : (a -> list[b] ! {...e}, list[a]) -> list[b] ! {...e}
 _list_foldl : ((b, a) -> b, b, list[a]) -> b
+_list_foldr : ((a, b) -> b, b, list[a]) -> b
 _list_head : list[a] -> a
 _list_intersect : (list[a], list[a]) -> list[a]
 _list_length : list[a] -> int
 _list_map : (a -> b, list[a]) -> list[b]
+_list_mapAccumL : ((s, a) -> (b, s), s, list[a]) -> (list[b], s)
 _list_member : (a, list[a]) -> bool
 _list_nth : (list[a], int) -> a
 _list_range : (int, int) -> list[int]
@@ -379,6 +388,7 @@ neg_Int : int -> int
 not_Bool : bool -> bool
 or_Bool : (bool, bool) -> bool
 shiftLeft_Int : (int, int) -> int
+shiftRightLogical_Int : (int, int) -> int
 shiftRight_Int : (int, int) -> int
 show : α -> string
 sub_Float : (float, float) -> float

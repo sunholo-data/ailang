@@ -3,7 +3,7 @@
 module std/json
 import std/option (Option, Some, None)
 import std/result (Result)
-import std/list (foldl, foldr, map, flatMap, length)
+import std/list (foldl, foldr, map, flatMap, length, findIndex)
 import std/math (floatToInt, intToFloat)
 
 -- JSON ADT with all JSON types
@@ -70,11 +70,15 @@ export func get(obj: Json, key: string) -> Option[Json] {
   }
 }
 
--- Helper: find key in list of key-value pairs
+-- Helper: find the first pair with this key. findIndex is an iterative builtin;
+-- the `[kv, ...rest]` walk it replaced copied the tail per step on the VM (#1518).
 func findInList(kvs: [{ key: string, value: Json }], key: string) -> Option[Json] {
-  match kvs {
-    [] => None,
-    [kv, ...rest] => if _str_eq(kv.key, key) then Some(kv.value) else findInList(rest, key)
+  match findIndex(\kv. _str_eq(kv.key, key), kvs) {
+    Some(i) => {
+      let kv = _list_nth(kvs, i);
+      Some(kv.value)
+    },
+    None => None
   }
 }
 

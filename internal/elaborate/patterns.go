@@ -26,18 +26,12 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 			return nil, err
 		}
 
-		body, err := e.normalize(caseClause.Body)
+		// The pattern's binders are in scope for the guard and body (#1467).
+		e.pushScope(corePatternBinders(pattern)...)
+		body, guard, err := e.normalizeArm(caseClause)
+		e.popScope()
 		if err != nil {
 			return nil, err
-		}
-
-		// Elaborate guard if present
-		var guard core.CoreExpr
-		if caseClause.Guard != nil {
-			guard, err = e.normalize(caseClause.Guard)
-			if err != nil {
-				return nil, fmt.Errorf("failed to elaborate guard: %w", err)
-			}
 		}
 
 		arms = append(arms, core.MatchArm{
@@ -75,6 +69,21 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 	return e.wrapWithBindings(result, binds), nil
 }
 
+// normalizeArm normalizes a match arm's body and optional guard.
+func (e *Elaborator) normalizeArm(caseClause *ast.Case) (body, guard core.CoreExpr, err error) {
+	body, err = e.normalize(caseClause.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+	if caseClause.Guard != nil {
+		guard, err = e.normalize(caseClause.Guard)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to elaborate guard: %w", err)
+		}
+	}
+	return body, guard, nil
+}
+
 // isUpperIdent reports whether an identifier starts with an uppercase letter,
 // i.e. is a constructor reference by language convention (the parser rejects
 // lowercase variant names with PAR_VARIANT_NEEDS_UIDENT).
@@ -96,10 +105,13 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 		// Nullary constructors appear as bare identifiers (e.g., "None", "Red")
 		if ctorInfo, ok := e.constructors[p.Name]; ok {
 			if ctorInfo.Arity == 0 {
-				// It's a nullary constructor - create ConstructorPattern with no args
+				// It's a nullary constructor - create ConstructorPattern with no args.
+				// Emit the CANONICAL name: for an aliased import (`None as Nada`)
+				// p.Name is the alias, and runtime matching compares tags (#1478).
 				return &core.ConstructorPattern{
-					Name: p.Name,
-					Args: nil, // Empty args for nullary constructor
+					Name:     ctorInfo.CtorName,
+					TypeName: ctorInfo.TypeName,
+					Args:     nil, // Empty args for nullary constructor
 				}, nil
 			}
 			// Bare non-nullary constructor (e.g. `Some` without arguments):
@@ -162,9 +174,17 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 			}
 			args = append(args, coreArg)
 		}
+		// Canonicalize an aliased constructor (`Some as S` → pattern S(v)
+		// matches tag Some). Unknown names keep the written name; the
+		// typechecker rejects names no loaded module defines (#1478).
+		name, typeName := p.Name, ""
+		if ctorInfo, ok := e.constructors[p.Name]; ok && ctorInfo.CtorName != "" {
+			name, typeName = ctorInfo.CtorName, ctorInfo.TypeName
+		}
 		return &core.ConstructorPattern{
-			Name: p.Name,
-			Args: args,
+			Name:     name,
+			Args:     args,
+			TypeName: typeName,
 		}, nil
 	case *ast.TuplePattern:
 		// Elaborate tuple element patterns

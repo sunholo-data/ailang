@@ -1,0 +1,59 @@
+// Nested patterns, constructor sub-patterns and guards over pattern bindings.
+//
+// Every match below runs identically on the tree-walking evaluator and on the
+// bytecode VM, including under `ailang run --bytecode --strict-bytecode`
+// (m-vm-match-lowering, v0.51.1). Patterns nest to any depth: cons inside
+// cons, constructors inside list/cons/tuple positions, literals anywhere.
+// A guard may read the variables its own pattern binds; when it is false the
+// next arm is tried.
+
+module examples/runnable/nested_patterns
+import std/io (println)
+
+type Tok = Word(string) | Num(int) | Comma
+
+// Two-element look-ahead with a nested cons pattern.
+pure func secondOr(xs: [int], d: int) -> int
+  tests [
+    (([1, 2, 3], 0), 2),
+    (([7], 0), 0),
+    (([], 9), 9)
+  ] {
+  match xs {
+    _ :: b :: _ => b,
+    _ => d
+  }
+}
+
+// Constructors at the head of a cons pattern, a literal inside a constructor,
+// and a guard that reads the arm's own bindings.
+pure func describe(toks: [Tok]) -> string {
+  match toks {
+    [] => "end",
+    Word("let") :: Word(name) :: _ => "binding ${name}",
+    Num(a) :: Comma :: Num(b) :: _ if a > b => "descending ${show(a)},${show(b)}",
+    Num(a) :: Comma :: Num(b) :: _ => "pair ${show(a)},${show(b)}",
+    Word(w) :: _ => "word ${w}",
+    other => "other"
+  }
+}
+
+// Nested Option, tuple and list patterns in one match.
+pure func firstSome(p: (Option[int], [Option[int]])) -> int {
+  match p {
+    (Some(x), _) => x,
+    (None, [Some(y)]) => y,
+    _ => 0
+  }
+}
+
+export func main() -> () ! {IO} {
+  println("secondOr [1,2,3] = ${show(secondOr([1, 2, 3], 0))}");
+  println(describe([Word("let"), Word("x"), Comma]));
+  println(describe([Num(5), Comma, Num(2)]));
+  println(describe([Num(1), Comma, Num(2)]));
+  println(describe([Word("hello")]));
+  println(describe([Comma]));
+  println(describe([]));
+  println("firstSome = ${show(firstSome((None, [Some(4)])))}")
+}

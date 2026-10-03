@@ -131,12 +131,15 @@ func (pl *PackageLoader) ResolveImport(importPath string) (string, error) {
 func (pl *PackageLoader) packageDir(locked *LockedPackage) (string, error) {
 	switch locked.Source {
 	case "path":
-		dir := locked.Path
+		// Relative (forward-slash) paths resolve against the lock's directory
+		// (ailang#1498); an absolute path is an old lock, still honoured
+		// while it exists.
+		dir := filepath.FromSlash(locked.Path)
 		if !filepath.IsAbs(dir) {
 			dir = filepath.Join(pl.rootDir, dir)
 		}
 		if _, err := os.Stat(dir); err != nil {
-			return "", fmt.Errorf("package directory not found: %s", dir)
+			return "", fmt.Errorf("package directory not found: %s%s", dir, staleAbsolutePathHint(locked))
 		}
 		return dir, nil
 	case "git":

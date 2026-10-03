@@ -21,21 +21,21 @@ func TestMathBuiltinRegistryMapping(t *testing.T) {
 		{"E builtin", "_math_E", "math.E"},
 
 		// Trig functions
-		{"sin builtin", "_math_sin", "math.Sin"},
-		{"cos builtin", "_math_cos", "math.Cos"},
-		{"tan builtin", "_math_tan", "math.Tan"},
+		{"sin builtin", "_math_sin", "ailmathx_Sin"},
+		{"cos builtin", "_math_cos", "ailmathx_Cos"},
+		{"tan builtin", "_math_tan", "ailmathx_Tan"},
 
 		// Inverse trig
-		{"asin", "_math_asin", "math.Asin"},
-		{"acos", "_math_acos", "math.Acos"},
-		{"atan", "_math_atan", "math.Atan"},
-		{"atan2", "_math_atan2", "math.Atan2"},
+		{"asin", "_math_asin", "ailmathx_Asin"},
+		{"acos", "_math_acos", "ailmathx_Acos"},
+		{"atan", "_math_atan", "ailmathx_Atan"},
+		{"atan2", "_math_atan2", "ailmathx_Atan2"},
 
 		// Exponential/log
-		{"exp", "_math_exp", "math.Exp"},
-		{"log", "_math_log", "math.Log"},
-		{"log10", "_math_log10", "math.Log10"},
-		{"pow", "_math_pow", "math.Pow"},
+		{"exp", "_math_exp", "ailmathx_Exp"},
+		{"log", "_math_log", "ailmathx_Log"},
+		{"log10", "_math_log10", "ailmathx_Log10"},
+		{"pow", "_math_pow", "ailmathx_Pow"},
 		{"sqrt", "_math_sqrt", "math.Sqrt"},
 
 		// Rounding
@@ -183,9 +183,15 @@ func TestMathFunctionCall(t *testing.T) {
 
 	codeStr := string(code)
 
-	// Check that math.Sin is used
-	if !strings.Contains(codeStr, "math.Sin") {
-		t.Error("Generated code should contain math.Sin for sin() call")
+	// #1465: sin() calls the portable helper, and the helper body is emitted.
+	if !strings.Contains(codeStr, "ailmathx_Sin(") {
+		t.Error("Generated code should call ailmathx_Sin for sin() call")
+	}
+	if !strings.Contains(codeStr, "func ailmathx_Sin(") {
+		t.Error("Generated code should define the portable ailmathx_Sin helper")
+	}
+	if strings.Contains(codeStr, "math.Sin(") {
+		t.Error("Generated code must not call host math.Sin (not arch-stable)")
 	}
 
 	// Check that math import is present
@@ -286,9 +292,9 @@ func TestMathFunctionWithTypeAssertion(t *testing.T) {
 		t.Logf("Generated code:\n%s", codeStr)
 	}
 
-	// Should contain math.Sin
-	if !strings.Contains(codeStr, "math.Sin") {
-		t.Error("Generated code should contain math.Sin")
+	// Should call the portable helper (#1465)
+	if !strings.Contains(codeStr, "ailmathx_Sin(") {
+		t.Error("Generated code should contain ailmathx_Sin")
 	}
 }
 

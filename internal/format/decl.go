@@ -198,6 +198,11 @@ func (p *printer) funcBody(body ast.Expr) error {
 func (p *printer) annotation(a *ast.Annotation) error {
 	p.w.write("@" + a.Name)
 	if len(a.Args) == 0 {
+		// @mcp_hints() is a complete, empty hint list, not a bare flag: the
+		// parser requires the parens, so they must survive formatting.
+		if a.Name == "mcp_hints" {
+			p.w.write("()")
+		}
 		return nil
 	}
 	// @verify parses the surface form `@verify(depth: N)` but stores only the int

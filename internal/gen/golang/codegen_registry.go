@@ -64,6 +64,11 @@ func (g *Generator) trackImport(pkg string) {
 	switch pkg {
 	case "math":
 		g.needsMathImport = true
+	case "mathx":
+		// Portable std/math helpers (#1465). The calling file references only
+		// ailmathx_* names; the helpers (and their math/math/bits imports) live
+		// in the runtime section.
+		g.usesMathx = true
 	case "strconv":
 		g.needsStrconvImport = true
 	case "strings":

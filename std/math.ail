@@ -129,3 +129,17 @@ export pure func isNaN(x: float) -> bool = x != x
 --   bitwiseOr(255, 256) == 511   bitwiseOr(-1, 5) == -1
 --   bitwiseOr(7, 7) == 7
 export pure func bitwiseOr(a: int, b: int) -> int = ~(~a & ~b)
+
+-- shiftRightLogical: logical (zero-filling) right shift — the `>>>` of
+-- reference hash/PRNG code (SplitMix64, xorshift, FNV, murmur3).
+--
+-- AILANG's `>>` is ARITHMETIC: it copies the sign bit, so `-1 >> 1 == -1`.
+-- shiftRightLogical shifts the 64-bit two's-complement pattern and fills with
+-- zeros. Emulating it with a mask such as `(x >> k) & ((1 << (64 - k)) - 1)`
+-- is a classic off-by-one hazard; call this instead (#1481).
+--   shiftRightLogical(-1, 1)  == 9223372036854775807
+--   shiftRightLogical(-1, 63) == 1
+--   shiftRightLogical(16, 2)  == 4      -- same as >> for non-negative x
+--   shiftRightLogical(x, 64)  == 0      -- every bit shifted out
+-- A negative shift amount is a runtime error (RT_SHIFT), as for << and >>.
+export pure func shiftRightLogical(x: int, n: int) -> int = shiftRightLogical_Int(x, n)

@@ -239,11 +239,19 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        the planner worktree; (5) run
        `ailang messages import-github --labels bug,feature,ailang-message` outside the sandbox;
        (6) commit with `Co-Authored-By: codex <model>`.
-  3. **generator≠judge guard (HARD, constraint #3):** before spawning the evaluator, assert the
-     evaluator's PROVIDER ≠ the executor's PROVIDER. If the executor ran on codex, the evaluator MUST
-     NOT be a codex `provider:model` — if `$MISSION_EVALUATOR_MODEL` collides, re-route the evaluator
-     to a DISTINCT, PINNABLE Anthropic alias (`sonnet` — fable is unpinnable, gemini is not wired) and
-     **FLAG** the collision in the Gate-5 report.
+  3. **generator≠judge — a PREFERENCE, never a blocker (V1 `D-62`/`D-63` 2026-09-08; restated by
+     Mark, attended 2026-10-01: "its a nice to have, not to wet our pants if we dont have different
+     operators available").** Before spawning the evaluator, PREFER a provider ≠ the executor's: if the
+     executor ran on codex and `$MISSION_EVALUATOR_MODEL` collides, re-route to a distinct pinnable
+     alias (`sonnet`). When no cross-vendor lane has quota, step down to **`gpt-6.1-sol` in a fresh
+     context** with the full rubric and **FLAG** it on the record (`judge-independence: cross-vendor |
+     same-model-fresh-context`). **Never spawn `gpt-6-astra`** in any role or quorum seat, natively or
+     via `codex exec` (Mark, attended 2026-10-02: "remove astra - sol 6.1"). It is retired since
+     2026-09-30 and kept in the registry, dormant, for a later release. No GPT-6.x Terra exists yet
+     (Codex catalog 2026-10-02), so Sol 6.1 is the only OpenAI rung. **No step blocks a
+     landing.** The same holds for every role and quorum seat: an unavailable preferred or rotation
+     lane hands off to the next lane WITH QUOTA, flagged; a missing quorum seat is flagged, not a
+     block. Park for lack of a lane only when NO lane has quota at all.
   4. **Fallback (never wedge the loop) — follow the RATIFIED CHAIN, never a straight drop to
      `$MODEL`** (ailang#611, Mark-ratified 2026-08-06; the DRIVER half landed `d14f106bb`, and this
      clause is the in-iteration half the issue explicitly required — a codex 1-token probe can
@@ -604,8 +612,18 @@ deliverable parses something, and every fixture in its test file was typed by wh
     fi
   done
   echo "Worktree provenance: base=$base"
-  git worktree add -b "$BRANCH" "$WT" "$newsha"   # submit in background as required below
+  # NEVER a bare `git worktree add` (rules (a)-(d) below). The helper backgrounds the checkout,
+  # bounds it (900 s), refuses /tmp, and removes a partial or dirty tree instead of handing it back.
+  WT="$(cd .. && pwd)/.wt-${MISSION_NAME}-iter<N>-<item>"      # a sibling of the repo, never /tmp
+  MW="${MISSION_DRIVER_ROOT:-.}/tools/launchd/mission-worktree.sh"   # world/stapledon have no tools/
+  bash "$MW" add "$BRANCH" "$newsha" "$WT"
+  until out=$(bash "$MW" wait "$WT" 45); [ "$out" != pending ]; do :; done
+  [ "$out" = ready ] || { echo "PARK worktree_incomplete: $out"; exit 1; }   # park, never repair
   ```
+  Each `wait` call returns within 45 s, so no shell tool kills it mid-checkout; loop it in
+  separate tool calls if your tool's limit is shorter. Measured need: docs iteration 17
+  (2026-10-01) ran the bare add in the foreground under `/tmp`, its tool returned after a timeout,
+  and the controller read 25,786 staged deletions from a tree git was still checking out.
 
   The comparison re-reads once through `drift gate1` and classifies disagreement as DRIFT, not an
   operator error. Re-run the affected Gate-3 checks against `$newsha`; a benign advance does not

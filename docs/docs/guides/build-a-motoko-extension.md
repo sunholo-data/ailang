@@ -101,7 +101,7 @@ These four mistakes wreck most first attempts when scaffolding by hand. The `ail
 | Putting the extension inside `motoko_agent/src/core/ext/openkb/` | Can't version it; conflicts with `generate-extension-registry`; can't be reused by other motoko hosts | ✅ Output dir is always `packages/motoko-ext-<name>/` |
 | Naming it `motoko_openkb` instead of `motoko-ext-openkb` | Short-name derivation produces ugly key (`motoko_openkb` instead of `openkb`) | ✅ `--name` validation rejects names without the `motoko_ext_` infix |
 | Hand-editing `src/core/ext/registry.ail` (or `registry_generated.ail`) | Changes vanish next time someone runs `ailang generate-extension-registry` | ✅ Scaffolder never writes a registry file in the package |
-| Leaving `path = "../..."` in the host `ailang.toml` for production | Lockfile bakes in your absolute path; PR/CI clones break | ✅ Generated `ailang.toml` uses the registry version of `motoko_ext_abi`, never `path = "../..."` |
+| Leaving `path = "../..."` in the host `ailang.toml` for production | `ailang.lock` records the path relative to `ailang.toml` (since #1498), so it survives clones *of the same tree* — but a sibling repo such as `../ailang-packages` is not in a PR/CI clone, so the build breaks there | ✅ Generated `ailang.toml` uses the registry version of `motoko_ext_abi`, never `path = "../..."` |
 
 ---
 

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 )
 
 // DerivedADTEquality is a marker type indicating that equality should be
@@ -123,12 +125,13 @@ func (r *DictionaryRegistry) registerNumInt() {
 		return x * y
 	})
 
-	// div: Int -> Int -> Int (integer division)
-	r.Register(ns, "Num", "int", "div", func(x, y int) int {
-		if y == 0 {
-			panic("division by zero")
+	// div: Int -> Int -> Int (integer division). A zero divisor is RT001, an
+	// error the evaluator positions, never a Go panic (#1449).
+	r.Register(ns, "Num", "int", "div", func(x, y int) (int, error) {
+		if err := ailerrors.CheckIntDivisor(ailerrors.OpDivision, int64(y)); err != nil {
+			return 0, err
 		}
-		return x / y
+		return x / y, nil
 	})
 
 	// neg: Int -> Int (unary minus)
@@ -287,73 +290,18 @@ func (r *DictionaryRegistry) registerOrdInt() {
 	})
 }
 
-// Ord instance for Float (law-compliant: total ordering with NaN)
+// Ord instance for Float: IEEE 754 (types.FloatLt/Lte/Gt/Gte). Every ordered
+// comparison with a NaN operand is false, matching the VM and every other
+// float comparison path (M-FLOAT-ORD-ONE-SEMANTICS, #1419). min/max
+// propagate NaN.
 func (r *DictionaryRegistry) registerOrdFloat() {
 	ns := "prelude"
-
-	// For total ordering, we define: -Inf < finite < +Inf < NaN
-	// This ensures all values are comparable and laws hold
-
-	// compareFloat provides total ordering for floats
-	compareFloat := func(x, y float64) int {
-		// NaN is greatest
-		xNaN := math.IsNaN(x)
-		yNaN := math.IsNaN(y)
-		if xNaN && yNaN {
-			return 0 // NaN == NaN for total ordering
-		}
-		if xNaN {
-			return 1 // x > y (NaN is greatest)
-		}
-		if yNaN {
-			return -1 // x < y (NaN is greatest)
-		}
-
-		// Standard comparison for non-NaN
-		if x < y {
-			return -1
-		}
-		if x > y {
-			return 1
-		}
-		return 0
-	}
-
-	// lt: Float -> Float -> Bool
-	r.Register(ns, "Ord", "float", "lt", func(x, y float64) bool {
-		return compareFloat(x, y) < 0
-	})
-
-	// lte: Float -> Float -> Bool
-	r.Register(ns, "Ord", "float", "lte", func(x, y float64) bool {
-		return compareFloat(x, y) <= 0
-	})
-
-	// gt: Float -> Float -> Bool
-	r.Register(ns, "Ord", "float", "gt", func(x, y float64) bool {
-		return compareFloat(x, y) > 0
-	})
-
-	// gte: Float -> Float -> Bool
-	r.Register(ns, "Ord", "float", "gte", func(x, y float64) bool {
-		return compareFloat(x, y) >= 0
-	})
-
-	// min: Float -> Float -> Float
-	r.Register(ns, "Ord", "float", "min", func(x, y float64) float64 {
-		if compareFloat(x, y) < 0 {
-			return x
-		}
-		return y
-	})
-
-	// max: Float -> Float -> Float
-	r.Register(ns, "Ord", "float", "max", func(x, y float64) float64 {
-		if compareFloat(x, y) > 0 {
-			return x
-		}
-		return y
-	})
+	r.Register(ns, "Ord", "float", "lt", FloatLt)
+	r.Register(ns, "Ord", "float", "lte", FloatLte)
+	r.Register(ns, "Ord", "float", "gt", FloatGt)
+	r.Register(ns, "Ord", "float", "gte", FloatGte)
+	r.Register(ns, "Ord", "float", "min", FloatMin)
+	r.Register(ns, "Ord", "float", "max", FloatMax)
 }
 
 // Ord instance for String

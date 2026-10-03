@@ -59,6 +59,10 @@ func CreateTarball(packageDir string) ([]byte, error) {
 		// Use forward slashes so the tarball entry name is stable cross-platform.
 		relForward := filepath.ToSlash(rel)
 		switch {
+		case IsNamedTestBodyFile(filepath.Base(rel)):
+			// A leftover `ailang test` body copy (#1502) is never package
+			// content; quality refuses it (PUB024) and this keeps the tarball
+			// identical to the clean tree's if that gate is ever bypassed.
 		case rel == ManifestFile,
 			strings.HasSuffix(rel, ".ail"),
 			rel == "AGENT.md",

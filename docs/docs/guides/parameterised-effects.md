@@ -163,9 +163,16 @@ edges:
 
 This relation is asymmetric. An os declaration does not cover a seeded or
 crypto requirement, and seeded and crypto do not cover each other. AI, Clock,
-Net, and FS have no subsumption edges. Registering a default mode only
+Net, and FS have no mode subsumption edges. Registering a default mode only
 normalises a bare spelling (for example, bare `Rand` to `mode=os`); a
 registered default grants no subsumption.
+
+`Net[scope=public]` is a **narrowing** parameter: it restricts the declaring
+function's own dynamic extent rather than naming a capability its caller must
+hold. Its presence on one side and absence on the other are compatible in both
+directions: a `Net[scope=public]` function may call `httpGet ! {Net}`, and a
+bare `! {Net}` function may call a `Net[scope=public]` one. See
+[Net scope](#net-scope-public) below.
 
 ## Mode set is closed
 
@@ -182,11 +189,11 @@ structured, fix-carrying diagnostic:
 | `!{Rand[flavor=hot]}` (unknown key) | `EFF_UNKNOWN_PARAM_KEY` — lists the allowed keys (`mode`) |
 | `!{Clock[mode=pinned]}` (schema-less effect) | `EFF_PARAMS_NOT_SUPPORTED` — names the tracking doc for the effect's future modes |
 
-Only `Rand` (`mode ∈ {os, seeded, crypto}`) and `AI`
-(`mode ∈ {fixed, routeable, replay-only}`, `scope ∈ {byok}`) carry a
-parameter schema today; every other effect accepts its bare form only,
-and any explicit parameter is a hard error. Adding modes to `Clock`,
-`Net`, and `FS` is tracked in
+Only `Rand` (`mode ∈ {os, seeded, crypto}`), `AI`
+(`mode ∈ {fixed, routeable, replay-only}`, `scope ∈ {byok}`) and `Net`
+(`scope ∈ {public}`, v0.52.0) carry a parameter schema today; every other
+effect accepts its bare form only, and any explicit parameter is a hard
+error. Adding modes to `Clock`, `FS` and Net record/replay is tracked in
 [m-effect-clock-net-fs-modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-clock-net-fs-modes.md).
 
 The closed set is deliberate:
@@ -233,6 +240,36 @@ dedicated explicit path (`AILANG_SEED`), never by `rand_seed`.
 tests are byte-identical to before). A `seeded`-mode draw with no
 `AILANG_SEED` provided is a loud typed error (`RAND_SEEDED_NO_SEED`),
 never a silent random fallback. `crypto` entropy failure panics loudly.
+
+## Net scope (public) {#net-scope-public}
+
+`!{Net[scope=public]}` (v0.52.0, #1522) makes every Net call in the function's
+dynamic extent **public-only**: loopback (`127.0.0.0/8`, `::1`, `localhost`) and
+the cloud metadata server (`169.254.169.254`) are refused even when the process
+allows them with `--net-allow-localhost` / `--net-allow-metadata` (which
+`ailang serve-api` turns on so `sunholo/gcp_auth` can fetch tokens). Private
+ranges are refused for every Net call already. The check runs at connect time
+after DNS, against every resolved address, and the dial is pinned to the
+validated address, so a hostname that *resolves* to a private address is
+refused too. Declare it on any function that fetches a user-chosen URL:
+
+```ailang
+import std/net (httpGet)
+export func fetchClient(u: string) -> string ! {Net[scope=public]} = httpGet(u)
+```
+
+- Bare `! {Net}` is unchanged; it pushes nothing, so a callee can never widen a
+  public caller. A public function that calls a helper doing a metadata fetch
+  will have that fetch refused — by design.
+- The refusal is `E_NET_IP_BLOCKED` / `E_NET_DNS_REBINDING` naming
+  `Net[scope=public]`.
+- Independently of scope, **redirect hops never land on loopback, link-local
+  or private addresses** for any Net or Stream request, whatever the flags.
+  Direct requests keep their flags, so a direct metadata call still works.
+- Under `--bytecode`, a `Net[scope=public]` function runs on the evaluator
+  (the VM cannot push the scope), so the rule holds on both paths.
+
+Runnable example: `examples/runnable/net_scope_public.ail`.
 
 ## Future work
 

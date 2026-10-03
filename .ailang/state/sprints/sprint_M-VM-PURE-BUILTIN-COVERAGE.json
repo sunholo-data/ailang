@@ -1,0 +1,109 @@
+{
+  "sprint_id": "M-VM-PURE-BUILTIN-COVERAGE",
+  "status": "completed",
+  "created": "2026-10-01T15:07:14Z",
+  "design_doc": "design_docs/implemented/v0_51_0/m-vm-pure-builtin-coverage.md",
+  "sprint_plan": "design_docs/implemented/v0_51_0/m-vm-pure-builtin-coverage-sprint-plan.md",
+  "github_issues": [
+    1447,
+    1448
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler/VM/test-harness internals; no package-shaped capability in the registry applies"
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler/VM/test-harness internals; no package-shaped capability in the registry applies"
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler/VM/test-harness internals; no package-shaped capability in the registry applies"
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler/VM/test-harness internals; no package-shaped capability in the registry applies"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 0,
+    "estimated_total_loc": 930,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M4",
+      "description": "#1448: canonical float spelling in ast.Literal.String() (ast.FormatFloat, format delegates); PrintAILANGSource errors on non-finite floats",
+      "estimated_loc": 80,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Round-trip test 4.0/0.0/-4.0/100.0/1e20/2.25 through PrintAILANGSource+parse keeps FloatLit",
+        "ailang test on #1448 repro passes 3/3",
+        "Goldens inspected before regenerating; make test green"
+      ],
+      "passes": true,
+      "started": "2026-10-01T15:44:11Z",
+      "completed": "2026-10-01T15:44:11Z",
+      "notes": "50147a135: ast.FormatFloat canonical spelling; Literal.String + format delegate; #1448 repro 3/3; red-before-green"
+    },
+    {
+      "id": "M1",
+      "description": "Coverage ratchet test (registry IsPure x native/adapted/unported allowlist), honest pure-unported compile error, real validateBuiltinTables at vm.New",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Ratchet test fails on an unbucketed pure builtin and on a stale allowlist entry",
+        "Pure-unwired error reads: pure builtin %q has no VM implementation (<reason>)",
+        "Lockstep test fails when one VM table entry is removed (mutation-checked)"
+      ],
+      "passes": true,
+      "started": "2026-10-01T15:44:11Z",
+      "completed": "2026-10-01T15:44:11Z",
+      "notes": "df5130741: TestPureBuiltinCoverage ratchet (unbucketed / stale / unknown entries all mutation-checked); validateBuiltinTables at vm init (mutation-checked); honest pure-unported error + effectful control test"
+    },
+    {
+      "id": "M2",
+      "description": "Generic registry adapter: converters moved to internal/vm, static adaptable(type) rule, OpBuiltinCallAdapted + disasm + dispatch, panic recovery",
+      "estimated_loc": 350,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Eligibility tests: accept monomorphic; reject typevar/Map/function/ADT",
+        "CLI strict run of an adapted builtin matches interpreter",
+        "Bridge tests green after converter move; allowlist shrink reported"
+      ],
+      "passes": true,
+      "started": "2026-10-01T15:44:11Z",
+      "completed": "2026-10-01T15:44:11Z",
+      "notes": "df5130741: adapter covers 81 builtins via OpBuiltinCall index extension (no new opcode); tables moved to internal/bytecode (vm->compiler import cycle); converters moved runner->vm; panic-smoke over all adapted builtins"
+    },
+    {
+      "id": "M3",
+      "description": "Native ports: __list_reverse/take/drop/zip/range/contains/head/extract, __str_repeat, __string_reverse with eval-parity tables + examples/vm_strict_pure_builtins.ail",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "#1447 rev.ail under --strict-bytecode prints [3, 2, 1]",
+        "Parity table per port incl. ADT elements and edge n values",
+        "Example identical across interpreter, --bytecode, --strict-bytecode; make verify-examples green"
+      ],
+      "passes": true,
+      "started": "2026-10-01T15:44:11Z",
+      "completed": "2026-10-01T15:44:11Z",
+      "notes": "7 native polymorphic list ports with eval-parity table (-count=20), ADT-element test, extract mutation caught; example identical across 3 engines; range/repeat/string.reverse adapted instead (monomorphic). Filed #1453 (show ADT divergence, pre-existing)"
+    }
+  ],
+  "completed": "2026-10-01T16:13:52Z"
+}

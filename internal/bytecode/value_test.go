@@ -3,6 +3,7 @@ package bytecode
 import (
 	"math"
 	"testing"
+	"unsafe"
 )
 
 // stubProto is a test-only FuncPrototypeRef so value tests don't depend on
@@ -16,6 +17,18 @@ type stubProto struct {
 func (s *stubProto) ProtoName() string    { return s.name }
 func (s *stubProto) NumRegisters() uint8  { return s.regs }
 func (s *stubProto) NumParameters() uint8 { return s.params }
+
+// TestValueSize pins the packed layout (#1501 Phase 3): list cons and list
+// builds copy whole Values, so the VM's bytes-per-element on copy-heavy
+// shapes is this size. Declaring Bool after Int/Flt pads it back to 48.
+func TestValueSize(t *testing.T) {
+	if unsafe.Sizeof(uintptr(0)) != 8 {
+		t.Skip("size pinned for 64-bit platforms")
+	}
+	if got := unsafe.Sizeof(Value{}); got != 40 {
+		t.Errorf("unsafe.Sizeof(bytecode.Value{}) = %d, want 40", got)
+	}
+}
 
 func TestConstructors_Tags(t *testing.T) {
 	cases := []struct {
@@ -31,7 +44,7 @@ func TestConstructors_Tags(t *testing.T) {
 		{NewTuple([]Value{NewInt(1), NewBool(false)}), TagTuple},
 		{NewRecord([]RecordField{{"x", NewInt(1)}}), TagRecord},
 		{NewClosure(&stubProto{name: "f"}, nil), TagClosure},
-		{NewADT(0, []Value{NewInt(1)}), TagADT},
+		{NewADT(0, "A", []Value{NewInt(1)}), TagADT},
 	}
 	for _, tc := range cases {
 		if tc.v.Tag != tc.tag {
@@ -77,7 +90,7 @@ func TestEqual_Reflexive(t *testing.T) {
 		NewList(nil), NewList([]Value{NewInt(1), NewInt(2)}),
 		NewTuple([]Value{NewInt(1), NewBool(false)}),
 		NewRecord([]RecordField{{"a", NewInt(1)}, {"b", NewInt(2)}}),
-		NewADT(3, []Value{NewInt(1), NewString("x")}),
+		NewADT(3, "D", []Value{NewInt(1), NewString("x")}),
 	}
 	for _, v := range cases {
 		if !v.Equal(v) {
@@ -131,8 +144,8 @@ func TestEqual_Float_NaN(t *testing.T) {
 }
 
 func TestEqual_ADT_TagDifferentiates(t *testing.T) {
-	a := NewADT(0, []Value{NewInt(1)})
-	b := NewADT(1, []Value{NewInt(1)})
+	a := NewADT(0, "A", []Value{NewInt(1)})
+	b := NewADT(1, "B", []Value{NewInt(1)})
 	if a.Equal(b) {
 		t.Error("ADTs with different tags should not be equal")
 	}
@@ -183,7 +196,7 @@ func TestString_Format(t *testing.T) {
 		NewTuple([]Value{NewInt(1), NewBool(false)}),
 		NewRecord([]RecordField{{"k", NewInt(1)}}),
 		NewClosure(&stubProto{name: "f"}, []Value{NewInt(1)}),
-		NewADT(2, []Value{NewInt(1)}),
+		NewADT(2, "C", []Value{NewInt(1)}),
 	}
 	for _, v := range cases {
 		if v.String() == "" {

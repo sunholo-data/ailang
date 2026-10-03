@@ -55,7 +55,7 @@ func ValidateToolHints(words []string) error {
 func ResolveToolHints(words []string, declared, noEffects bool) (*ToolAnnotations, error) {
 	if !declared {
 		if noEffects {
-			return &ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: boolPtr(false)}, nil
+			return &ToolAnnotations{ReadOnlyHint: true, DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)}, nil
 		}
 		return nil, nil
 	}
@@ -70,16 +70,16 @@ func ResolveToolHints(words []string, declared, noEffects bool) (*ToolAnnotation
 		}
 		return false
 	}
-	a := &ToolAnnotations{
-		ReadOnlyHint:   has("readOnly"),
-		IdempotentHint: has("idempotent"),
-		OpenWorldHint:  boolPtr(has("openWorld")),
-	}
-	// destructiveHint is only meaningful when the tool writes.
-	if !a.ReadOnlyHint {
-		a.DestructiveHint = boolPtr(has("destructive"))
-	}
-	return a, nil
+	// Every hint is an explicit boolean, destructiveHint included on read-only
+	// tools: OpenAI's directory requires readOnlyHint, destructiveHint and
+	// openWorldHint "explicit boolean values" on each tool, and an absent
+	// destructiveHint would default to true under the MCP spec.
+	return &ToolAnnotations{
+		ReadOnlyHint:    has("readOnly"),
+		DestructiveHint: boolPtr(has("destructive")),
+		IdempotentHint:  has("idempotent"),
+		OpenWorldHint:   boolPtr(has("openWorld")),
+	}, nil
 }
 
 func isToolHintWord(w string) bool {

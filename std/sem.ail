@@ -11,6 +11,7 @@
 module std/sem
 
 import std/option (Option, Some, None)
+import std/list (findIndex)
 import std/json (Json, JNull, JString, JNumber, JArray, JObject, encode, decode, kv, jo, js, jnum, jn)
 import std/result (Result, Ok, Err, isOk)
 import std/sharedmem as cache (get, put, cas)
@@ -277,9 +278,12 @@ pure func json_get_int(j: Json) -> Option[int] {
 
 -- Helper: Find value by key in JSON object key-value list
 pure func find_key(kvs: List[{key: string, value: Json}], target: string) -> Option[Json] {
-  match kvs {
-    [] => None,
-    [pair, ...rest] => if _str_eq(pair.key, target) then Some(pair.value) else find_key(rest, target)
+  match findIndex(\pair. _str_eq(pair.key, target), kvs) {
+    Some(i) => {
+      let pair = _list_nth(kvs, i);
+      Some(pair.value)
+    },
+    None => None
   }
 }
 

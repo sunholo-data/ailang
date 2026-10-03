@@ -1,0 +1,28 @@
+-- divzero.ail: fixture for #1449. Integer / and % by zero must fail with
+-- RT001 and the position of the dividing expression, never a Go panic.
+-- Line numbers are asserted by internal/embed/divzero_test.go.
+module internal/embed/testdata/divzero
+import std/list (map)
+
+export func divBy(n: int) -> int = 10 / n
+
+export func modBy(n: int) -> int = 10 % n
+
+export func outer(n: int) -> int = divBy(n - 1) + 1
+
+export func literal() -> int = 10 / 0
+
+export func inCallback(n: int) -> [int] = map(\x. x / n, [1, 2, 3])
+
+export func ensuresDivides(n: int) -> int
+ensures { result / n >= 0 } {
+  n + 1
+}
+
+export func fdiv(x: float) -> float = 1.0 / x
+
+export func fmod(x: float) -> float = 5.5 % x
+
+export func minDiv(d: int) -> int = (-9223372036854775807 - 1) / d
+
+export func minMod(d: int) -> int = (-9223372036854775807 - 1) % d

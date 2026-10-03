@@ -1,0 +1,14 @@
+[2026-10-03 06:20:29] anthropic credential: keychain (Claude Code-credentials); if its stored token is stale the quota reader falls back to `claude -p /usage` — no action needed
+[2026-10-03 06:20:29] driver pin: running committed origin/dev @ eb39db9a2a2b0557d96271ca4a99a4773c63dff2 with mission work repository /Users/voightkampff/dev/sunholo-data/ailang-world (source clone ? was ? behind); pinned target ? behind origin/dev (baseline ?)
+[2026-10-03 06:20:29] driver pin drift: unknown (?); notice suppressed
+[2026-10-03 06:20:29] driver pin age: unknown (?); notice suppressed
+[2026-10-03 06:20:31] ration gate: blocked buckets (over ration or unknown quota):codex ollama 
+[2026-10-03 06:20:46] codex:gpt-6.1-sol quota admission blocked; skipping inference probe
+[2026-10-03 06:20:46] codex model 'gpt-6.1-sol' unusable: quota-limited
+[2026-10-03 06:20:46] codex probe output: Codex quota admission blocked (over ration or observation unavailable)
+[2026-10-03 06:20:52] codex planner lane -> falling back to 'opus' for this fire (model 'gpt-6.1-sol')
+[2026-10-03 06:20:52] codex:bogus MISSION_PROBE_TIMEOUT=10 quota admission blocked; skipping inference probe
+[2026-10-03 06:20:52] codex model 'bogus MISSION_PROBE_TIMEOUT=10' unusable: quota-limited
+[2026-10-03 06:20:52] codex probe output: Codex quota admission blocked (over ration or observation unavailable)
+[2026-10-03 06:21:01] codex executor lane -> falling back to 'claude:claude-sonnet-5-5' for this fire (model 'bogus MISSION_PROBE_TIMEOUT=10')
+[2026-10-03 06:21:01] DRY RUN ok: mission=world repo-slug=sunholo-data/ailang-world doc=design_docs/world-mission.md workdir=/Users/voightkampff/.ailang-driver-pin/fleet-i15 pidfile=/Users/voightkampff/.ailang/state/mission-world.pid prefs=claude-opus-5-5,codex:gpt-6.1-sol timeout=21600s | roles: designer=claude:claude-opus-5-5 planner=opus executor=claude:claude-sonnet-5-5 evaluator=sonnet | lanes=DEGRADED(2) - `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — over daily ration) → handed to `opus` - `executor`: **codex** lane `bogus MISSION_PROBE_TIMEOUT=10` unusable (probe rc=`10`) → handed to `claude:claude-sonnet-5-5` | pin=pinned(? behind)

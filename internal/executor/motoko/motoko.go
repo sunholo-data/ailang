@@ -268,6 +268,9 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	if p := task.Metadata["motoko_profile"]; p != "" {
 		effectiveProfile = p
 	}
+	if err := requireProfileInRepo(e.motokoRepo, effectiveProfile); err != nil {
+		return nil, fmt.Errorf("motoko profile preflight refused: %w", err)
+	}
 	ctx, span := telemetry.StartSpan(ctx, motokoTracer, "motoko.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "motoko"),
@@ -676,7 +679,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	// motoko's run_summary cost comes from whatever provider it routed to.
 	// OpenRouter-routed models bill real credits; local ollama models carry
 	// zero rates in models.yml and resolve to free-local regardless of lane.
-	result.CostProvenance = executor.ResolveCostProvenance(task, executor.AuthLaneForModel(task.Model))
+	result.CostProvenance = executor.ResolveCostProvenance(task, motokoAuthLane(task.Model))
 
 	// Surface metrics for any MetricsHandler observers.
 	if mh, ok := handler.(executor.MetricsHandler); ok {
@@ -685,7 +688,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 			InputTokens:    result.InputTokens,
 			OutputTokens:   result.OutputTokens,
 			CostUSD:        result.CostUSD,
-			CostProvenance: executor.ResolveCostProvenance(task, executor.AuthLaneForModel(task.Model)),
+			CostProvenance: executor.ResolveCostProvenance(task, motokoAuthLane(task.Model)),
 			DurationMS:     result.DurationMS,
 			SessionID:      result.SessionID,
 			Success:        result.Success,

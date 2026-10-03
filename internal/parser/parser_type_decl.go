@@ -172,8 +172,16 @@ func (p *Parser) parseTypeDeclBody() ast.TypeDef {
 					Fields: nil,
 					Pos:    p.curPos(),
 				}
-				// Advance past the name (lexer already skipped whitespace)
-				p.nextToken()
+				// Leave the cursor AT the name unless another variant follows.
+				// The name may be the declaration's last token; advancing
+				// unconditionally swallowed the NEXT declaration's first token
+				// (ParseFile advances one token between declarations), so
+				// `type J = | Idle` + `export type W` parsed W as non-exported
+				// (#1466). A trailing `deriving` is picked up by the caller's
+				// peekTokenIs(DERIVING) check. Mirrors the with-fields branch.
+				if p.peekTokenIs(lexer.PIPE) {
+					p.nextToken() // advance to PIPE for multi-variant parsing
+				}
 			} else {
 				// Check if peek is PIPE to determine if it's a sum type
 				if !p.peekTokenIs(lexer.PIPE) {

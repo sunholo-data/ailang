@@ -200,12 +200,27 @@ func daemonRun(args []string) error {
 		})
 	}
 
+	// Remote channels post once per message, from whichever daemon pulls the
+	// shared subscription; the per-device subscriptions above stay local-only.
+	// Called after the extras so they are local-only too: the shared
+	// subscription exists only in the primary project.
+	remoteSub := "-"
+	if local, remote := reg.Split(); len(remote.Names()) > 0 {
+		remoteSub = daemon.RemoteMessagesSub
+		d.SplitRemote(daemon.MessageSource{
+			Sub:     pubsubAdapter{sub: pubsub.NewSubscriber(psClient)},
+			Fetcher: storeFetcher{store: backends.Messaging},
+			SubName: remoteSub,
+			Label:   "remote",
+		}, local.FanOut(log.Default()), remote.FanOut(log.Default()))
+	}
+
 	extraLabels := make([]string, 0, len(extras))
 	for _, ex := range extras {
 		extraLabels = append(extraLabels, ex.Env+"("+ex.Project+")")
 	}
-	fmt.Printf("ailang daemon: env=%s project=%s events=%s messages=%s extra_message_sources=%v dry_run=%t channels=%v\n",
-		primaryEnv, project, cfg.EventsSub, cfg.MessagesSub, extraLabels, cfg.DryRun,
+	fmt.Printf("ailang daemon: env=%s project=%s events=%s messages=%s remote_messages=%s extra_message_sources=%v dry_run=%t channels=%v\n",
+		primaryEnv, project, cfg.EventsSub, cfg.MessagesSub, remoteSub, extraLabels, cfg.DryRun,
 		reg.Names())
 
 	return d.Run(ctx)

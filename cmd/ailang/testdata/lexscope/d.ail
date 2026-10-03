@@ -1,0 +1,77 @@
+module cmd/ailang/testdata/lexscope/d
+import cmd/ailang/testdata/lexscope/a (tick)
+import std/list as L
+import std/option (Option, Some, None)
+
+-- #1467: a local binder must shadow an imported function, a builtin, or a
+-- constructor of the same name inside its scope. Each entry's expected value
+-- is in cmd/ailang/lexical_scope_test.go.
+
+type R = { tick: int }
+
+pure func mk(f: int -> R) -> R = f(4)
+
+-- the report: lambda param shadows the import
+export pure func lambdaRecord() -> int = mk(\tick. {tick: tick}).tick
+
+export pure func lambdaArith() -> int = (\tick. tick + 1)(7)
+
+export pure func letBinding() -> int = let tick = 5 in tick
+
+pure func double(tick: int) -> int = tick * 2
+
+export pure func funcParam() -> int = double(21)
+
+export pure func matchBinder() -> int = match 9 {
+  tick => tick
+}
+
+export pure func matchGuard() -> int = match 4 {
+  tick if tick > 3 => tick,
+  _ => 0
+}
+
+export pure func tupleBinder() -> int = match (1, 2) {
+  (tick, b) => tick + b
+}
+
+export pure func listBinder() -> int = match [5, 6] {
+  [tick, _] => tick,
+  _ => 0
+}
+
+export pure func builtinLet() -> int = let show = 3 in show
+
+pure func showParam(show: int) -> int = show + 1
+
+export pure func builtinParam() -> int = showParam(1)
+
+export pure func letrecBinding() -> int = letrec tick = \n. if n == 0 then 0 else n + tick(n - 1) in tick(3)
+
+export pure func blockLet() -> int = {
+  let tick = 5;
+  tick + 1
+}
+
+-- a use textually BEFORE the statement-let still sees the import
+export pure func blockBeforeLet() -> int = {
+  let a = tick(1);
+  let tick = 10;
+  a + tick
+}
+
+export pure func ctorParam() -> int = (\None. None + 1)(3)
+
+export pure func ctorCallParam() -> int = (\Some. Some(3))(\x. x + 1)
+
+export pure func moduleAliasLocal() -> int = let L = {map: 42} in L.map
+
+-- outside every binder the import / constructor / qualified access still win
+export pure func importStillVisible() -> int = (\x. tick(x))(1)
+
+export pure func ctorStillVisible() -> int = match Some(2) {
+  Some(v) => v,
+  None => 0
+}
+
+export pure func qualifiedStillVisible() -> int = L.length([1, 2, 3])

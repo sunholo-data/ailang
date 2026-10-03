@@ -2,11 +2,10 @@ package vm
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // BuiltinFunc is a pure-builtin handler. It receives the argument slice
@@ -17,8 +16,28 @@ type BuiltinFunc func(args []bytecode.Value) (bytecode.Value, error)
 // ClosureCaller is the minimal interface a HOF builtin needs to invoke
 // closure arguments. Implemented by *VM. Keeps HOF builtins decoupled
 // from VM internals.
+//
+// CallClosure must not retain args past the call: HOF builtins pass the same
+// callArgs buffer for every element (#1501). *VM copies args into the callee's
+// registers; the eval bridge converts them into a fresh slice.
 type ClosureCaller interface {
 	CallClosure(closure bytecode.Value, args []bytecode.Value) (bytecode.Value, error)
+}
+
+// callArgs is a HOF builtin's argument buffer for its per-element callback.
+// Building a []bytecode.Value literal per element was one heap allocation per
+// callback (the slice escapes through the ClosureCaller interface); a callArgs
+// declared once per builtin call costs one allocation for the whole loop.
+type callArgs struct{ buf [2]bytecode.Value }
+
+func (a *callArgs) of1(x bytecode.Value) []bytecode.Value {
+	a.buf[0] = x
+	return a.buf[:1]
+}
+
+func (a *callArgs) of2(x, y bytecode.Value) []bytecode.Value {
+	a.buf[0], a.buf[1] = x, y
+	return a.buf[:2]
 }
 
 // HOFBuiltinFunc is a higher-order builtin that can call VM closures.
@@ -26,8 +45,8 @@ type ClosureCaller interface {
 type HOFBuiltinFunc func(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error)
 
 // HOFBuiltinTable is the VM-side dispatch table for OpBuiltinCallHOF.
-// The order MUST match compiler.HOFBuiltinTable — both lists are
-// validated at startup by validateBuiltinTables.
+// The order MUST match bytecode.HOFBuiltinNames — both lists are
+// validated at package init by validateBuiltinTables (builtins_adapted.go).
 var HOFBuiltinTable = []HOFBuiltinFunc{
 	hofBuiltinListMap,          // __list_map
 	hofBuiltinListFilter,       // __list_filter
@@ -38,11 +57,15 @@ var HOFBuiltinTable = []HOFBuiltinFunc{
 	hofBuiltinXmlParseFold,     // __xml_parseFold
 	hofBuiltinListSortBy,       // __list_sortBy
 	hofBuiltinListFlatMap,      // __list_flatMap
+	hofBuiltinListAny,          // __list_any (#1518)
+	hofBuiltinListFindIndex,    // __list_findIndex (#1518)
+	hofBuiltinListFoldr,        // __list_foldr
+	hofBuiltinListMapAccumL,    // __list_mapAccumL (#1501)
 }
 
 // BuiltinTable is the VM-side dispatch table for OpBuiltinCall. The order
-// MUST match compiler.BuiltinTable — both lists are validated at startup
-// by validateBuiltinTables (called from the VM constructor in tests).
+// MUST match bytecode.BuiltinNames — both lists are validated at startup
+// by validateBuiltinTables at package init (builtins_adapted.go).
 //
 // Phase 2C scope: only the pure builtins reachable from the golden corpus
 // (`tests/golden/codegen/`). All other builtins lower to OpBuiltinTrap and
@@ -139,6 +162,25 @@ var BuiltinTable = []BuiltinFunc{
 	builtinXmlFindAllAttrs,      // __xml_findAllAttrs
 	// ailang#1354/#1355: by-name record update for bases of unknown type
 	builtinRecordSet, // _record_set
+	// M-VM-PURE-BUILTIN-COVERAGE M3 (#1447): polymorphic list ops
+	builtinListReverse,  // __list_reverse
+	builtinListTake,     // __list_take
+	builtinListDrop,     // __list_drop
+	builtinListZip,      // __list_zip
+	builtinListContains, // __list_contains
+	builtinListHead,     // __list_head
+	builtinListExtract,  // __list_extract
+	// polymorphic std/array ops (stapledons_godot 2026-10-01)
+	builtinArrayEmpty,      // __array_empty
+	builtinArrayMake,       // __array_make
+	builtinArrayGet,        // __array_get
+	builtinArrayUnsafeGet,  // __array_unsafe_get
+	builtinArrayLength,     // __array_length
+	builtinArraySet,        // __array_set
+	builtinArrayFromList,   // __array_from_list
+	builtinArrayToList,     // __array_to_list
+	builtinArrayAppend,     // __array_append
+	builtinArrayUpdateMany, // __array_update_many
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as
@@ -215,103 +257,68 @@ func builtinShow(args []bytecode.Value) (bytecode.Value, error) {
 	return bytecode.NewString(showValue(args[0])), nil
 }
 
-// showValue is the recursive counterpart of internal/builtins/show.go:showValue
-// for bytecode.Value. Strings are rendered without quotes to match the
-// evaluator's user-facing `show` semantics (identity on strings).
+// showValue renders a VM value through the evaluator's show renderer
+// (eval.RenderShow), so `show` is byte-identical on both engines (#1453).
 func showValue(v bytecode.Value) string {
+	return eval.RenderShow(v, inspectVMShow)
+}
+
+func vmItems(vs []bytecode.Value) []any {
+	out := make([]any, len(vs))
+	for i, x := range vs {
+		out[i] = x
+	}
+	return out
+}
+
+// inspectVMShow describes a VM value for eval.RenderShow.
+func inspectVMShow(x any) eval.ShowNode {
+	v := x.(bytecode.Value)
 	switch v.Tag {
 	case bytecode.TagInt:
-		return strconv.FormatInt(v.Int, 10)
+		return eval.ShowNode{Text: strconv.FormatInt(v.Int, 10)}
 	case bytecode.TagFloat:
-		// Match evaluator's show: use 'f' so the decimal point is visible,
-		// and pad whole-number floats to `N.0` (e.g. 5 → "5.0"). See
-		// internal/builtins/show.go:showValue float case.
-		f := v.Flt
-		if f != f { // NaN
-			return "NaN"
-		}
-		if f > 0 && f*2 == f { // +Inf
-			return "Inf"
-		}
-		if f < 0 && f*2 == f { // -Inf
-			return "-Inf"
-		}
-		s := strconv.FormatFloat(f, 'f', -1, 64)
-		if !strings.Contains(s, ".") {
-			s += ".0"
-		}
-		return s
+		return eval.ShowNode{Kind: eval.ShowFloat, Float: v.Flt}
 	case bytecode.TagBool:
-		if v.Bool {
-			return "true"
-		}
-		return "false"
+		return eval.ShowNode{Text: strconv.FormatBool(v.Bool)}
 	case bytecode.TagString:
-		return v.AsString()
+		return eval.ShowNode{Text: v.AsString()}
 	case bytecode.TagUnit:
-		return "()"
+		return eval.ShowNode{Text: "()"}
 	case bytecode.TagList:
-		elems := v.AsList()
-		if len(elems) == 0 {
-			return "[]"
-		}
-		parts := make([]string, len(elems))
-		for i, e := range elems {
-			parts[i] = showValue(e)
-		}
-		return "[" + strings.Join(parts, ", ") + "]"
-	case bytecode.TagBytes:
-		// Same rendering as eval.BytesValue.String.
-		b := v.AsBytes()
-		if b.Filename != "" {
-			return fmt.Sprintf("<bytes:%d:%s:%s>", len(b.B), b.MimeType, b.Filename)
-		}
-		if len(b.B) <= 32 {
-			return fmt.Sprintf("<bytes:%x>", b.B)
-		}
-		return fmt.Sprintf("<bytes:%x...>", b.B[:32])
+		return eval.ShowNode{Kind: eval.ShowList, Items: vmItems(v.AsList())}
 	case bytecode.TagArray:
 		a := v.AsArray()
-		parts := make([]string, a.Len())
-		for i := range parts {
-			parts[i] = showValue(a.At(i))
+		items := make([]any, a.Len())
+		for i := range items {
+			items[i] = a.At(i)
 		}
-		return "#[" + strings.Join(parts, ", ") + "]"
+		return eval.ShowNode{Kind: eval.ShowArray, Items: items}
 	case bytecode.TagTuple:
-		elems := v.AsTuple()
-		parts := make([]string, len(elems))
-		for i, e := range elems {
-			parts[i] = showValue(e)
-		}
-		return "(" + strings.Join(parts, ", ") + ")"
+		return eval.ShowNode{Kind: eval.ShowTuple, Items: vmItems(v.AsTuple())}
 	case bytecode.TagRecord:
 		fields := v.AsRecord()
-		if len(fields) == 0 {
-			return "{}"
-		}
-		// Sort field names for deterministic output, matching eval.
 		names := make([]string, len(fields))
-		vals := make(map[string]bytecode.Value, len(fields))
+		items := make([]any, len(fields))
 		for i, f := range fields {
-			names[i] = f.Name
-			vals[f.Name] = f.Value
+			names[i], items[i] = f.Name, f.Value
 		}
-		sort.Strings(names)
-		parts := make([]string, len(names))
-		for i, n := range names {
-			parts[i] = n + ": " + showValue(vals[n])
-		}
-		return "{" + strings.Join(parts, ", ") + "}"
+		return eval.ShowNode{Kind: eval.ShowRecord, Names: names, Items: items}
+	case bytecode.TagBytes:
+		b := v.AsBytes()
+		return eval.ShowNode{Text: (&eval.BytesValue{Value: b.B, Filename: b.Filename, MimeType: b.MimeType}).String()}
 	case bytecode.TagADT:
-		// ADT tag is a per-type ordinal, not a constructor name — mapping
-		// back to a name requires the compiler's type table (§4.3), which
-		// the VM does not currently carry. Defer to Value.String() for the
-		// low-fidelity `<adt#N …>` rendering. Fixing this cleanly is M3
-		// scope (cross-module ADT/record merging).
-		return v.String()
-	default:
-		return fmt.Sprintf("<%s>", v.Tag)
+		a := v.AsADT()
+		if a.Ctor == "" {
+			// Every ADT the VM builds carries its name; an unnamed one is a
+			// construction-site bug, so show it as such rather than guess.
+			return eval.ShowNode{Text: v.String()}
+		}
+		return eval.ShowNode{Kind: eval.ShowCtor, Text: a.Ctor, Items: vmItems(a.Fields)}
+	case bytecode.TagClosure:
+		return eval.ShowNode{Text: "<function>"}
 	}
+	return eval.ShowNode{Text: fmt.Sprintf("<%s>", v.Tag)}
 }
 
 // builtinLen returns the length of a list, tuple, string, or record.

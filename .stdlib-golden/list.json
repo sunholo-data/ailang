@@ -135,6 +135,12 @@
       "pure": true
     },
     {
+      "name": "mapAccumL",
+      "type": "((a,b)-\u003e\u003c*types.TTuple\u003e,a,list[b])-\u003e\u003c*types.TTuple\u003e",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "mapE",
       "type": "((a)-\u003eb,list[a])-\u003e[b]",
       "effects": [],

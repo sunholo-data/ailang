@@ -114,22 +114,52 @@ func TestRTREC003AdvertisesOnlyRemediesThatExist(t *testing.T) {
 	}
 }
 
-// TestRTREC003DoesNotAdvertiseTailRecursion pins the specific defect: the evaluator has
-// no tail-call elimination, so naming it sends the reader hunting for a flag that was
-// never built. Kept separate from the flag check above because "enable tail recursion"
-// is prose, not a flag, and so is invisible to a flag-shaped matcher.
-func TestRTREC003DoesNotAdvertiseTailRecursion(t *testing.T) {
+// TestRTREC003AdvisesTailCalls: since M-EVAL-TAIL-CALLS (#1486) a tail call runs
+// in constant depth, so the message recommends one, and following the advice
+// must actually work under the same limit that just failed. (Before #1486 this
+// test banned the phrase, because the evaluator had no tail-call elimination.)
+func TestRTREC003AdvisesTailCalls(t *testing.T) {
 	_, err := newSumEvaluator(100).evalCore(sumProgram(300))
 	if err == nil {
 		t.Fatal("instrument failure: expected the recursion guard to fire")
 	}
-	lower := strings.ToLower(err.Error())
-	if !strings.Contains(lower, "rt_rec_003") {
-		t.Fatalf("instrument failure: expected an RT_REC_003 error, got: %v", err)
+	if !strings.Contains(strings.ToLower(err.Error()), "tail call") {
+		t.Fatalf("RT_REC_003 should recommend a tail call: %q", err.Error())
 	}
-	for _, banned := range []string{"tail recursion", "tail call", "tail-call"} {
-		if strings.Contains(lower, banned) {
-			t.Errorf("RT_REC_003 advertises %q, but this evaluator has no tail-call elimination: %q", banned, err.Error())
+
+	// The advised rewrite: sumAcc(i, acc) = if i == 0 then acc else sumAcc(i - 1, acc + i)
+	body := &core.If{
+		Cond: &core.BinOp{Op: "==", Left: &core.Var{Name: "i"}, Right: &core.Lit{Kind: core.IntLit, Value: 0}},
+		Then: &core.Var{Name: "acc"},
+		Else: &core.App{Func: &core.Var{Name: "sumAcc"}, Args: []core.CoreExpr{
+			&core.BinOp{Op: "-", Left: &core.Var{Name: "i"}, Right: &core.Lit{Kind: core.IntLit, Value: 1}},
+			&core.BinOp{Op: "+", Left: &core.Var{Name: "acc"}, Right: &core.Var{Name: "i"}},
+		}},
+	}
+	prog := &core.LetRec{
+		Bindings: []core.RecBinding{{Name: "sumAcc", Value: &core.Lambda{Params: []string{"i", "acc"}, Body: body}}},
+		Body: &core.App{Func: &core.Var{Name: "sumAcc"}, Args: []core.CoreExpr{
+			&core.Lit{Kind: core.IntLit, Value: 300}, &core.Lit{Kind: core.IntLit, Value: 0},
+		}},
+	}
+	res, err := newSumEvaluator(100).evalCore(prog)
+	if err != nil {
+		t.Fatalf("the advised tail-call rewrite still failed under the same limit: %v", err)
+	}
+	if iv, ok := res.(*IntValue); !ok || iv.Value != 300*301/2 {
+		t.Fatalf("sumAcc(300) = %v, want %d", res, 300*301/2)
+	}
+}
+
+// TestRTREC003WarnsListAccumulatorsAreQuadratic (#1501): the message once told users
+// to carry partial results in an accumulator and use foldl, which for a LIST
+// accumulator is the O(n^2) consing loop. It must point list builders at the
+// one-pass helpers instead.
+func TestRTREC003WarnsListAccumulatorsAreQuadratic(t *testing.T) {
+	msg := (&RecursionLimitError{Limit: 10}).Error()
+	for _, want := range []string{"mapAccumL", "O(n^2)"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("RT_REC_003 should mention %q: %q", want, msg)
 		}
 	}
 }

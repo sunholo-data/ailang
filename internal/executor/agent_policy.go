@@ -29,7 +29,7 @@ func MaterializeAgentPolicy(toml, workspace string) (string, error) {
 	if workspace != "" {
 		abs, err := filepath.Abs(workspace)
 		if err == nil {
-			toml = strings.ReplaceAll(toml, "${WORKSPACE}", abs)
+			toml = substituteWorkspace(toml, abs)
 		}
 	}
 	home, err := os.UserHomeDir()
@@ -85,4 +85,12 @@ func CheckLanePolicy(toolPolicy string, policyTOML []byte) error {
 		return fmt.Errorf("tool_policy %q requires a restricted policy, but the policy sets security_mode = %q — the lane's execution boundary would be claimed over a host-integration grant; declare tool_policy: full for this agent, or drop security_mode/host effects from the policy", toolPolicy, res.Mode)
 	}
 	return nil
+}
+
+// substituteWorkspace replaces ${WORKSPACE} with ws, escaped for the TOML
+// basic string it sits in (fs_sandbox = "${WORKSPACE}"). A raw Windows path
+// broke the TOML: "C:\Users" reads as an invalid \U escape, so every
+// materialised policy failed to load on Windows.
+func substituteWorkspace(toml, ws string) string {
+	return strings.ReplaceAll(toml, "${WORKSPACE}", strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(ws))
 }

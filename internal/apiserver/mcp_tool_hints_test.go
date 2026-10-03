@@ -32,6 +32,9 @@ export pure func pureThing(x: int) -> int = x
 
 export func unhintedThing(x: string) -> string ! {IO} { x }
 
+@mcp_hints()
+export func appendOnly(x: string) -> string ! {IO} { x }
+
 export pure func pureKeywordWithEffects(x: string) -> string ! {IO} { x }
 
 @mcp_hints("readonly")
@@ -70,7 +73,7 @@ export func typoThing(x: string) -> string ! {IO} { x }
 	}
 
 	if tl := tools["readThing"]; tl == nil || tl.Title != "Read a thing" || tl.Annotations == nil ||
-		!tl.Annotations.ReadOnlyHint || tl.Annotations.DestructiveHint != nil ||
+		!tl.Annotations.ReadOnlyHint || tl.Annotations.DestructiveHint == nil || *tl.Annotations.DestructiveHint ||
 		tl.Annotations.OpenWorldHint == nil || !*tl.Annotations.OpenWorldHint {
 		t.Errorf("readThing: %+v", annOf(tl))
 	}
@@ -99,6 +102,12 @@ export func typoThing(x: string) -> string ! {IO} { x }
 	if tl := tools["submit_feedback"]; tl == nil || tl.Title == "" || tl.Annotations == nil ||
 		tl.Annotations.ReadOnlyHint || tl.Annotations.DestructiveHint == nil || *tl.Annotations.DestructiveHint {
 		t.Errorf("submit_feedback: %+v", annOf(tl))
+	}
+	// @mcp_hints() is complete and empty: writes, additive, closed-world.
+	if tl := tools["appendOnly"]; tl == nil || tl.Annotations == nil || tl.Annotations.ReadOnlyHint ||
+		tl.Annotations.DestructiveHint == nil || *tl.Annotations.DestructiveHint ||
+		tl.Annotations.OpenWorldHint == nil || *tl.Annotations.OpenWorldHint || tl.Annotations.IdempotentHint {
+		t.Errorf("appendOnly (@mcp_hints()): %+v", annOf(tl))
 	}
 	// Unknown hint word: an author bug, so the tool is not registered.
 	if _, ok := tools["typoThing"]; ok {

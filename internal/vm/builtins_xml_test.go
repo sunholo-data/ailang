@@ -93,7 +93,7 @@ func TestXmlNodeToBytecode_Element(t *testing.T) {
 func TestBytecodeToXmlNode_Roundtrip(t *testing.T) {
 	for range 20 {
 		// Build a bytecode Element, convert to eval, convert back.
-		original := bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+		original := bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 			bytecode.NewString("p"),
 			bytecode.NewList([]bytecode.Value{
 				bytecode.NewRecord([]bytecode.RecordField{
@@ -102,7 +102,7 @@ func TestBytecodeToXmlNode_Roundtrip(t *testing.T) {
 				}),
 			}),
 			bytecode.NewList([]bytecode.Value{
-				bytecode.NewADT(xmlNodeTagText, []bytecode.Value{bytecode.NewString("text")}),
+				bytecode.NewADT(xmlNodeTagText, "Text", []bytecode.Value{bytecode.NewString("text")}),
 			}),
 		})
 		ev, err := bytecodeToXmlNode(original)
@@ -169,7 +169,7 @@ func TestBuiltinXmlElement(t *testing.T) {
 			}),
 		})
 		children := bytecode.NewList([]bytecode.Value{
-			bytecode.NewADT(xmlNodeTagText, []bytecode.Value{bytecode.NewString("hi")}),
+			bytecode.NewADT(xmlNodeTagText, "Text", []bytecode.Value{bytecode.NewString("hi")}),
 		})
 		result, err := builtinXmlElement([]bytecode.Value{
 			bytecode.NewString("div"), attrs, children,
@@ -194,16 +194,16 @@ func TestBuiltinXmlElement(t *testing.T) {
 func TestBuiltinXmlGetText(t *testing.T) {
 	for range 20 {
 		// Element("p", [], [Text("hello "), Element("b", [], [Text("world")])])
-		node := bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+		node := bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 			bytecode.NewString("p"),
 			bytecode.NewList(nil),
 			bytecode.NewList([]bytecode.Value{
-				bytecode.NewADT(xmlNodeTagText, []bytecode.Value{bytecode.NewString("hello ")}),
-				bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+				bytecode.NewADT(xmlNodeTagText, "Text", []bytecode.Value{bytecode.NewString("hello ")}),
+				bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 					bytecode.NewString("b"),
 					bytecode.NewList(nil),
 					bytecode.NewList([]bytecode.Value{
-						bytecode.NewADT(xmlNodeTagText, []bytecode.Value{bytecode.NewString("world")}),
+						bytecode.NewADT(xmlNodeTagText, "Text", []bytecode.Value{bytecode.NewString("world")}),
 					}),
 				}),
 			}),
@@ -220,7 +220,7 @@ func TestBuiltinXmlGetText(t *testing.T) {
 
 func TestBuiltinXmlGetTag(t *testing.T) {
 	for range 20 {
-		node := bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+		node := bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 			bytecode.NewString("div"),
 			bytecode.NewList(nil),
 			bytecode.NewList(nil),
@@ -237,11 +237,11 @@ func TestBuiltinXmlGetTag(t *testing.T) {
 
 func TestBuiltinXmlSerialize(t *testing.T) {
 	for range 20 {
-		node := bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+		node := bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 			bytecode.NewString("p"),
 			bytecode.NewList(nil),
 			bytecode.NewList([]bytecode.Value{
-				bytecode.NewADT(xmlNodeTagText, []bytecode.Value{bytecode.NewString("hi")}),
+				bytecode.NewADT(xmlNodeTagText, "Text", []bytecode.Value{bytecode.NewString("hi")}),
 			}),
 		})
 		result, err := builtinXmlSerialize([]bytecode.Value{node})
@@ -256,7 +256,7 @@ func TestBuiltinXmlSerialize(t *testing.T) {
 
 func TestBuiltinXmlSerializeWithDecl(t *testing.T) {
 	for range 20 {
-		node := bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+		node := bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 			bytecode.NewString("root"),
 			bytecode.NewList(nil),
 			bytecode.NewList(nil),
@@ -359,11 +359,11 @@ func TestBuiltinXmlParseWithLimit(t *testing.T) {
 
 func makeTestTree() bytecode.Value {
 	// <root><item id="1">a</item><item id="2">b</item><other>c</other></root>
-	return bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+	return bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 		bytecode.NewString("root"),
 		bytecode.NewList(nil),
 		bytecode.NewList([]bytecode.Value{
-			bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+			bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 				bytecode.NewString("item"),
 				bytecode.NewList([]bytecode.Value{
 					bytecode.NewRecord([]bytecode.RecordField{
@@ -372,10 +372,10 @@ func makeTestTree() bytecode.Value {
 					}),
 				}),
 				bytecode.NewList([]bytecode.Value{
-					bytecode.NewADT(xmlNodeTagText, []bytecode.Value{bytecode.NewString("a")}),
+					bytecode.NewADT(xmlNodeTagText, "Text", []bytecode.Value{bytecode.NewString("a")}),
 				}),
 			}),
-			bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+			bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 				bytecode.NewString("item"),
 				bytecode.NewList([]bytecode.Value{
 					bytecode.NewRecord([]bytecode.RecordField{
@@ -384,14 +384,14 @@ func makeTestTree() bytecode.Value {
 					}),
 				}),
 				bytecode.NewList([]bytecode.Value{
-					bytecode.NewADT(xmlNodeTagText, []bytecode.Value{bytecode.NewString("b")}),
+					bytecode.NewADT(xmlNodeTagText, "Text", []bytecode.Value{bytecode.NewString("b")}),
 				}),
 			}),
-			bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+			bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 				bytecode.NewString("other"),
 				bytecode.NewList(nil),
 				bytecode.NewList([]bytecode.Value{
-					bytecode.NewADT(xmlNodeTagText, []bytecode.Value{bytecode.NewString("c")}),
+					bytecode.NewADT(xmlNodeTagText, "Text", []bytecode.Value{bytecode.NewString("c")}),
 				}),
 			}),
 		}),

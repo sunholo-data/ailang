@@ -86,6 +86,8 @@ AILANG replaces loops with **total, structurally recursive functions** and **hig
 - ✅ Algebraic: obeys fold laws (associativity, identity)
 - ✅ Optimizable: compiler can fuse adjacent folds
 
+**Cost:** `foldl` is O(n) only if the step is O(1); a step that conses onto (or concatenates to) a list accumulator is O(n) per element, making the fold O(n²). Lists are flat arrays, so `x :: acc` copies `acc`. To build a list, use `map`/`filter`/`flatMap`, or `mapAccumL` when each output depends on running state.
+
 ---
 
 ## Algebraic Laws (Equational Reasoning)

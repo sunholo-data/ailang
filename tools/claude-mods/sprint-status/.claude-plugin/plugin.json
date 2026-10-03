@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "sprint-status",
+  "version": "0.1.0",
+  "description": "Status line for AILANG sprint work: the most recently touched in-progress sprint under .ailang/state/sprints, its milestones passed and the next one.",
+  "author": { "name": "AILANG" },
+  "keywords": ["ailang", "mod", "sprint", "status"]
+}

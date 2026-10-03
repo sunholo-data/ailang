@@ -30,13 +30,13 @@ func registerComparisons() {
 		"Test if two floats are equal (IEEE 754 equality)", []string{"comparison", "equality", "float"})
 	registerCmpFloatWithMeta("ne_Float", func(a, b float64) bool { return !types.FloatEq(a, b) },
 		"Test if two floats are not equal (IEEE 754 equality)", []string{"comparison", "inequality", "float"})
-	registerCmpFloatWithMeta("lt_Float", func(a, b float64) bool { return a < b },
+	registerCmpFloatWithMeta("lt_Float", types.FloatLt,
 		"Test if first float is less than second", []string{"comparison", "ordering", "float"})
-	registerCmpFloatWithMeta("le_Float", func(a, b float64) bool { return a <= b },
+	registerCmpFloatWithMeta("le_Float", types.FloatLte,
 		"Test if first float is less than or equal to second", []string{"comparison", "ordering", "float"})
-	registerCmpFloatWithMeta("gt_Float", func(a, b float64) bool { return a > b },
+	registerCmpFloatWithMeta("gt_Float", types.FloatGt,
 		"Test if first float is greater than second", []string{"comparison", "ordering", "float"})
-	registerCmpFloatWithMeta("ge_Float", func(a, b float64) bool { return a >= b },
+	registerCmpFloatWithMeta("ge_Float", types.FloatGte,
 		"Test if first float is greater than or equal to second", []string{"comparison", "ordering", "float"})
 
 	// String comparisons

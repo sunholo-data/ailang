@@ -31,7 +31,7 @@ const (
 	LNK004 = "LNK004" // Circular dependency
 
 	// Runtime errors (RT###)
-	RT001 = "RT001" // Division by zero
+	RT001 = "RT001" // Integer / or % by zero: guard the divisor (if d == 0 then ... else n / d)
 	RT002 = "RT002" // Pattern match failure
 	RT003 = "RT003" // Index out of bounds
 	RT004 = "RT004" // Null pointer

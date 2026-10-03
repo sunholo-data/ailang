@@ -103,6 +103,14 @@ type Task struct {
 	// COMMITS would silently drop `Co-Authored-By` until that is split out.
 	IsolateFromProjectExtensions bool
 
+	// EvalShellGuard bounds the agent's shell for an eval run: a per-command time limit and a
+	// refusal of whole-disk `find` (pi: tools/pi-extensions/eval-shell-guard.ts). Set by the
+	// eval harness only — a mission stage legitimately runs multi-minute commands.
+	// Measured 2026-10-02: an unbounded `find /` from a pi gauntlet run outlived the run by
+	// 33h. Harnesses that cannot express it may ignore it; the eval harness also reaps the
+	// workspace on exit.
+	EvalShellGuard bool
+
 	Model    string            // Model to use (provider-specific)
 	Metadata map[string]string // Provider-specific options
 

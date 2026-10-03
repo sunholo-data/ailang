@@ -6,7 +6,7 @@
 -- Requires: FS capability (--caps FS)
 
 module std/fs
-import std/list (sortBy, filter)
+import std/list (sortBy, filter, flatMapE)
 import std/string (compare, endsWith)
 
 -- Effect marker
@@ -18,9 +18,9 @@ import std/string (compare, endsWith)
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func readFile(path: string) -> string ! {FS} = _fs_readFile(path)
 
--- Binary file reading
--- Reads entire file contents as a base64-encoded string
--- Use for PDF, images, or other binary files
+-- Binary file reading as BASE64 TEXT, not bytes: Ok holds a base64 string (use readFileRaw for bytes)
+-- "hi" on disk comes back as Ok("aGk="), not the bytes. Decode with std/bytes.fromBase64,
+-- or call readFileRaw to get Result[bytes, string] directly.
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func readFileBytes(path: string) -> Result[string, string] ! {FS} = _fs_readFileBytes(path)
@@ -33,7 +33,7 @@ export func readFileBytes(path: string) -> Result[string, string] ! {FS} = _fs_r
 -- @permissions 0644 (owner: rw, group: r, others: r)
 export func writeFile(path: string, content: string) -> () ! {FS} = _fs_writeFile(path, content)
 
--- Binary file writing
+-- Binary file writing (panics on failure; writeFileBytesResult returns Err instead)
 -- Writes raw bytes to file (truncates if exists)
 -- Use for PCM audio, images, WAV files, or other binary data
 -- @requires FS capability
@@ -157,6 +157,22 @@ export func mkdirResult(path: string) -> Result[(), string] ! {FS} = _fs_mkdirRe
 -- Err if the directory is missing, non-empty, or not a directory.
 export func removeDirResult(path: string) -> Result[(), string] ! {FS} = _fs_removeDirResult(path)
 
+-- Read a file's raw bytes, returning Result instead of panicking (since v0.51.1)
+-- The bytes come back unchanged: no base64 (unlike readFileBytes) and no UTF-8 decoding.
+-- @example match readFileRaw("image.png") { Ok(b) => length(b), Err(_) => 0 }
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func readFileRaw(path: string) -> Result[bytes, string] ! {FS} = _fs_readFileRaw(path)
+
+-- Write raw bytes to a file (truncates if exists), returning Result instead of panicking (since v0.51.1)
+-- writeFileBytes panics on failure; this reports a missing parent dir, permission or sandbox error as Err.
+-- @example match writeFileBytesResult("out.bin", data) { Ok(_) => true, Err(_) => false }
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+-- @permissions 0644 (owner: rw, group: r, others: r)
+export func writeFileBytesResult(path: string, data: bytes) -> Result[(), string] ! {FS} =
+  _fs_writeFileBytesResult(path, data)
+
 -- Atomically rename (move) a file or directory, returning Result instead of panicking (M-FS-RENAME, since v0.35.0)
 -- @example match renameFileResult("run.json.tmp", "run.json") { Ok(_) => (), Err(msg) => () }
 -- @requires FS capability
@@ -191,13 +207,11 @@ export func glob(root: string, suffix: string) -> [string] ! {FS} = filter(\p. e
 -- walkDir: unsorted file paths under one directory (listDir order, depth-first)
 func walkDir(dir: string) -> [string] ! {FS} = walkEntries(dir, listDir(dir))
 
--- walkEntries: fold the entries of dir into walkEntry results
-func walkEntries(dir: string, names: [string]) -> [string] ! {FS} {
-  match names {
-    [] => [],
-    [name, ...rest] => walkEntry("${dir}/${name}") ++ walkEntries(dir, rest)
-  }
-}
+-- walkEntries: the walkEntry results of each entry of dir, in listDir order.
+-- flatMapE has no per-entry recursion, so a directory with 10,000+ entries no
+-- longer hits RT_REC_003 (#1518 audit).
+func walkEntries(dir: string, names: [string]) -> [string] ! {FS} =
+  flatMapE(\name. walkEntry("${dir}/${name}"), names)
 
 -- walkEntry: a directory recurses, a regular file is one result, anything else is dropped
 func walkEntry(path: string) -> [string] ! {FS} =

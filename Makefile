@@ -373,6 +373,7 @@ pi-assets:
 	done
 	@mkdir -p internal/executor/pi/profile_assets
 	@cp .pi/extensions/ailang-exec.ts .pi/extensions/ailang-lsp-lite.ts .pi/extensions/examples-search.ts internal/executor/pi/profile_assets/
+	@cp tools/pi-extensions/eval-shell-guard.ts internal/executor/pi/profile_assets/
 	@echo "pi_assets synced from .pi/extensions (+ the ailang_only extensions into internal/executor/pi/profile_assets)"
 
 ## verify-pi-assets: drift-check embedded pi assets against .pi/extensions (M-DX-PI-HARNESS Distribution v2)
@@ -381,3 +382,5 @@ verify-pi-assets:
 		{ echo "DRIFT: cmd/ailang/pi_assets is stale vs .pi/extensions — run 'make pi-assets'"; exit 1; }
 	@for f in ailang-exec.ts ailang-lsp-lite.ts examples-search.ts; do cmp -s .pi/extensions/$$f internal/executor/pi/profile_assets/$$f || \
 		{ echo "DRIFT: internal/executor/pi/profile_assets/$$f is stale vs .pi/extensions — run 'make pi-assets'"; exit 1; }; done
+	@cmp -s tools/pi-extensions/eval-shell-guard.ts internal/executor/pi/profile_assets/eval-shell-guard.ts || \
+		{ echo "DRIFT: internal/executor/pi/profile_assets/eval-shell-guard.ts is stale vs tools/pi-extensions — run 'make pi-assets'"; exit 1; }

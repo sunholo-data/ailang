@@ -1,8 +1,12 @@
 -- AILANG AI Image Generation Example
 -- Demonstrates generating images via AI models
 --
--- Usage with real API:
+-- Usage with real API (Gemini direct):
 --   ailang run --ai gemini-2.5-flash-image --caps AI,FS,IO --entry main examples/runnable/ai_image_generation.ail
+--
+-- Usage through one OpenRouter key (bind an image-output model; step 3 also
+-- names one per call via the options "model" key):
+--   ailang run --ai openrouter/google/gemini-3.1-flash-image --caps AI,FS,IO --entry main examples/runnable/ai_image_generation.ail
 --
 -- Usage with stub (for testing):
 --   ailang run --ai-stub --caps AI,FS,IO --entry main examples/runnable/ai_image_generation.ail
@@ -10,10 +14,13 @@
 -- What this demonstrates:
 --   - AI.callImage: generate an image and save to file
 --   - AI.callImageBase64: generate an image and get base64 data
+--   - AI.callImageWithRefs: condition a new image on a reference image
+--   - "model" in options: per-call image model override
 --   - Effect composition: {AI, FS} for file-writing, {AI} for base64
 
 module examples/runnable/ai_image_generation
 import std/ai as AI
+import std/fs (readFileBytes)
 import std/io (println)
 
 export func main() -> string ! {AI, FS, IO} =
@@ -29,6 +36,14 @@ export func main() -> string ! {AI, FS, IO} =
   let _ = println("2. Generating image as base64...") in
   let b64json = AI.callImageBase64("A small red square on white background", "{\"aspect_ratio\": \"1:1\"}") in
   let _ = println("   Got base64 JSON response") in
+  -- Reference-conditioned generation with a per-call image model
+  let _ = println("") in
+  let _ = println("3. Generating a variation of image 1 (reference image + per-call model)...") in
+  let variation = match readFileBytes(path) {
+    Ok(ref) => AI.callImageWithRefs("The same pattern, recoloured in green", [{ source: ref, mime: "image/png" }], "/tmp/ailang_demo_variation.png", "{\"model\": \"google/gemini-3-pro-image\"}"),
+    Err(e) => "reference unreadable: ${e}"
+  } in
+  let _ = println("   Saved to: ${variation}") in
   let _ = println("") in
   let _ = println("Done!") in
   path

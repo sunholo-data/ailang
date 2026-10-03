@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -22,7 +23,15 @@ type VMError struct {
 	Line     int
 	IP       int
 	OpString string
+	// Cause is the error the instruction failed with, when there was one
+	// (an arithmetic fault, a builtin or eval-interop error). Unwrap exposes
+	// it, so a typed error such as RT001's *errors.DivByZeroError stays
+	// reachable with errors.As through the VM frame (#1449).
+	Cause error
 }
+
+// Unwrap returns the underlying cause, or nil.
+func (e *VMError) Unwrap() error { return e.Cause }
 
 func (e *VMError) Error() string {
 	loc := ""
@@ -56,6 +65,10 @@ type VM struct {
 	// Interop instead of pushing a new frame. If Interop is nil, the VM
 	// returns an explicit error instead of silently mis-running the function.
 	Interop EvalInterop
+
+	// framePool is the free list of frames popped by RETURN, reused by every
+	// frame push (acquireFrame/releaseFrame in frame.go, #1501).
+	framePool []*Frame
 }
 
 // NewVM constructs a VM bound to an image. The image is not validated here;
@@ -79,10 +92,10 @@ func (vm *VM) Run(proto *bytecode.FuncPrototype, args []bytecode.Value) (bytecod
 			Func: proto.Name,
 		}
 	}
-	frame := newFrame(proto, 0, nil)
+	frame := vm.acquireFrame(proto, 0, nil)
 	copy(frame.Regs, args)
 	vm.Stack = append(vm.Stack, frame)
-	defer func() { vm.Stack = vm.Stack[:0] }()
+	defer func() { clear(vm.Stack); vm.Stack = vm.Stack[:0] }()
 	return vm.run(frame)
 }
 
@@ -113,14 +126,25 @@ func (vm *VM) CallClosure(closure bytecode.Value, args []bytecode.Value) (byteco
 		return bytecode.Value{}, ErrStackOverflow
 	}
 	// Push frame with Caller=nil so OpReturn returns the value directly
-	// to vm.run, which returns it to us.
-	frame := newFrame(proto, 0, nil)
+	// to vm.run, which returns it to us. The frame comes from the free list
+	// and goes back to it on RETURN: a HOF builtin calls this once per
+	// element, so it must not allocate (#1501).
+	base := len(vm.Stack)
+	frame := vm.acquireFrame(proto, 0, nil)
 	copy(frame.Regs, args)
 	for i, cap := range c.Captures {
 		frame.Regs[int(proto.NumParams)+i] = cap
 	}
 	vm.Stack = append(vm.Stack, frame)
-	return vm.run(frame)
+	result, err := vm.run(frame)
+	if err != nil {
+		// A fault unwinds with its frames still pushed; drop them so the
+		// caller's stack depth is what it was before this call. They are
+		// not recycled (releaseFrame is only for frames RETURN popped).
+		clear(vm.Stack[base:])
+		vm.Stack = vm.Stack[:base]
+	}
+	return result, err
 }
 
 // run is the dispatch loop. It executes from the given frame until a
@@ -168,7 +192,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			rhs := frame.Regs[inst.C()]
 			res, err := arith(op, lhs, rhs)
 			if err != nil {
-				return bytecode.Value{}, vm.errAt(frame, err.Error(), inst)
+				return bytecode.Value{}, vm.errWrap(frame, "", err, inst)
 			}
 			frame.Regs[inst.A()] = res
 			frame.IP++
@@ -200,7 +224,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			rhs := frame.Regs[inst.C()]
 			res, err := compare(op, lhs, rhs)
 			if err != nil {
-				return bytecode.Value{}, vm.errAt(frame, err.Error(), inst)
+				return bytecode.Value{}, vm.errWrap(frame, "", err, inst)
 			}
 			frame.Regs[inst.A()] = bytecode.NewBool(res)
 			frame.IP++
@@ -270,7 +294,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				}
 				result, err := vm.Interop.CallEvalFunc(calleeProto.Name, args)
 				if err != nil {
-					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("CALL via eval interop: %v", err), inst)
+					return bytecode.Value{}, vm.errWrap(frame, "CALL via eval interop: ", err, inst)
 				}
 				frame.Regs[inst.A()] = result
 				frame.IP++
@@ -282,7 +306,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			// Advance the caller's IP past the CALL before pushing the new
 			// frame so that on RETURN we resume at the next instruction.
 			frame.IP++
-			newF := newFrame(calleeProto, inst.A(), frame)
+			newF := vm.acquireFrame(calleeProto, inst.A(), frame)
 			for i := 0; i < argCount; i++ {
 				newF.Regs[i] = frame.Regs[int(inst.A())+1+i]
 			}
@@ -320,16 +344,19 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				}
 				result, err := vm.Interop.CallEvalFunc(calleeProto.Name, args)
 				if err != nil {
-					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("TAIL_CALL via eval interop: %v", err), inst)
+					return bytecode.Value{}, vm.errWrap(frame, "TAIL_CALL via eval interop: ", err, inst)
 				}
 				// Pop the current frame and write the result to the caller's
 				// return register, mirroring OpReturn's path.
 				vm.Stack = vm.Stack[:len(vm.Stack)-1]
 				caller := frame.Caller
+				if caller != nil {
+					caller.Regs[frame.ReturnReg] = result
+				}
+				vm.releaseFrame(frame)
 				if caller == nil {
 					return result, nil
 				}
-				caller.Regs[frame.ReturnReg] = result
 				frame = caller
 				continue
 			}
@@ -349,13 +376,17 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 
 		case bytecode.OpReturn:
 			retVal := frame.Regs[inst.A()]
-			// Pop the current frame.
+			// Pop the current frame and recycle it: nothing references a
+			// returned frame (closures capture values, not registers).
 			vm.Stack = vm.Stack[:len(vm.Stack)-1]
 			caller := frame.Caller
+			if caller != nil {
+				caller.Regs[frame.ReturnReg] = retVal
+			}
+			vm.releaseFrame(frame)
 			if caller == nil {
 				return retVal, nil
 			}
-			caller.Regs[frame.ReturnReg] = retVal
 			frame = caller
 
 		// --- Closures ----------------------------------------------------
@@ -526,8 +557,13 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			for i := 0; i < count; i++ {
 				fields[i] = frame.Regs[int(inst.A())+1+i]
 			}
-			frame.Regs[inst.A()] = bytecode.NewADT(tag, fields)
-			frame.IP++
+			nameInst := frame.Proto.Instructions[frame.IP+1]
+			ctor, ok := frame.Proto.LookupConstant(int(nameInst.Bx()), vm.Image)
+			if nameInst.Op() != bytecode.OpLoadConst || !ok || ctor.Tag != bytecode.TagString {
+				return bytecode.Value{}, vm.errAt(frame, "MAKE_ADT: expected pseudo-LOAD_CONST for constructor name", nameInst)
+			}
+			frame.Regs[inst.A()] = bytecode.NewADT(tag, ctor.AsString(), fields)
+			frame.IP += 2
 
 		case bytecode.OpGetTag:
 			v := frame.Regs[inst.B()]
@@ -549,7 +585,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			args := frame.Regs[argBase : argBase+argc]
 			result, err := BuiltinTable[builtinIdx](args)
 			if err != nil {
-				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("BUILTIN_CALL: %v", err), inst)
+				return bytecode.Value{}, vm.errWrap(frame, "BUILTIN_CALL: ", err, inst)
 			}
 			frame.Regs[inst.A()] = result
 			frame.IP++
@@ -563,7 +599,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			args := frame.Regs[argBase : argBase+argc]
 			result, err := HOFBuiltinTable[hofIdx](vm, args)
 			if err != nil {
-				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("BUILTIN_CALL_HOF: %v", err), inst)
+				return bytecode.Value{}, vm.errWrap(frame, "BUILTIN_CALL_HOF: ", err, inst)
 			}
 			frame.Regs[inst.A()] = result
 			frame.IP++
@@ -581,6 +617,14 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("unknown opcode %d", op), inst)
 		}
 	}
+}
+
+// errWrap is errAt for an instruction that failed with err: the message is
+// prefix + err's text and err is kept as the VMError's Cause.
+func (vm *VM) errWrap(frame *Frame, prefix string, err error, inst bytecode.Instruction) *VMError {
+	e := vm.errAt(frame, prefix+err.Error(), inst)
+	e.Cause = err
+	return e
 }
 
 // errAt builds a VMError with source-location info from the current frame.
@@ -618,13 +662,13 @@ func arith(op bytecode.OpCode, lhs, rhs bytecode.Value) (bytecode.Value, error) 
 		case bytecode.OpMul:
 			return bytecode.NewInt(l * r), nil
 		case bytecode.OpDiv:
-			if r == 0 {
-				return bytecode.Value{}, fmt.Errorf("division by zero")
+			if err := ailerrors.CheckIntDivisor(ailerrors.OpDivision, r); err != nil {
+				return bytecode.Value{}, err
 			}
 			return bytecode.NewInt(l / r), nil
 		case bytecode.OpMod:
-			if r == 0 {
-				return bytecode.Value{}, fmt.Errorf("modulo by zero")
+			if err := ailerrors.CheckIntDivisor(ailerrors.OpModulo, r); err != nil {
+				return bytecode.Value{}, err
 			}
 			return bytecode.NewInt(l % r), nil
 		}
@@ -731,9 +775,9 @@ func compare(op bytecode.OpCode, lhs, rhs bytecode.Value) (bool, error) {
 	case bytecode.TagFloat:
 		switch op {
 		case bytecode.OpLt:
-			return lhs.Flt < rhs.Flt, nil
+			return types.FloatLt(lhs.Flt, rhs.Flt), nil
 		case bytecode.OpLe:
-			return lhs.Flt <= rhs.Flt, nil
+			return types.FloatLte(lhs.Flt, rhs.Flt), nil
 		}
 	case bytecode.TagString:
 		switch op {

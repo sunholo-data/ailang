@@ -127,7 +127,11 @@ func (e *MotokoExecutor) runCanaryOnce(ctx context.Context, subject executor.Can
 			return fmt.Errorf("canary: %w", perr)
 		}
 		task.AllowedTools = tools
-		task.PolicyPath = subject.Options["policy_path"]
+		runPolicy, perr := executor.MaterializeRunPolicy(subject.Options["policy_path"], workspace)
+		if perr != nil {
+			return fmt.Errorf("canary: %w", perr)
+		}
+		task.PolicyPath = runPolicy
 		// Lane tools resolve paths from the policy's sandbox root, not the
 		// task workspace, so name the file absolutely — as benchmark prompts
 		// do. "canary.txt" resolved under the sandbox root, was not found, and

@@ -17,6 +17,33 @@ var subsumptionEdges = []subsumptionEdge{
 	{Effect: "Rand", Declared: "crypto", Required: "os"},
 }
 
+// narrowingParam is an effect parameter that restricts the DECLARING frame's
+// own dynamic extent rather than naming a capability the caller must hold
+// (M-NET-SCOPE-PUBLIC, design D-A). Its presence on one side and absence on
+// the other are compatible in BOTH directions: a Net[scope=public] function
+// may call a bare-Net function (the runtime keeps the scope for the callee),
+// and a bare-Net function may call a Net[scope=public] one (the callee pushes
+// its own scope at entry). Two different values still mismatch.
+type narrowingParam struct {
+	Effect string
+	Key    string
+	Value  string
+}
+
+// narrowingParams is deliberately opt-in, like subsumptionEdges.
+var narrowingParams = []narrowingParam{
+	{Effect: "Net", Key: "scope", Value: "public"},
+}
+
+func isNarrowingParam(effect, key, value string) bool {
+	for _, p := range narrowingParams {
+		if p.Effect == effect && p.Key == key && p.Value == value {
+			return true
+		}
+	}
+	return false
+}
+
 // ModeSubsumes reports whether declared covers every required mode. The
 // pipe-separated required spelling is the validation collector's stable
 // representation of multiple requirements for the same effect.
@@ -83,6 +110,13 @@ func DiffEffectRows(required, declared *Row) EffectRowDiff {
 			compatible := requiredOK == declaredOK && requiredValue == declaredValue
 			if key == "mode" && requiredOK && declaredOK {
 				compatible = ModeSubsumes(effect, declaredValue, requiredValue)
+			}
+			if requiredOK != declaredOK {
+				present := requiredValue
+				if declaredOK {
+					present = declaredValue
+				}
+				compatible = isNarrowingParam(effect, key, present)
 			}
 			if !compatible {
 				diff.ParamMismatches = append(diff.ParamMismatches, EffectParamMismatch{

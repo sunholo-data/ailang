@@ -49,6 +49,48 @@ type chatRequest struct {
 	User      string         `json:"user,omitempty"`
 	SessionID string         `json:"session_id,omitempty"`
 	Trace     map[string]any `json:"trace,omitempty"`
+
+	// Modalities and ImageConfig are OpenRouter's image-output extensions
+	// (M-OPENROUTER-IMAGE-OUTPUT, #1500): modalities ["image","text"] asks an
+	// image-output model for an image; image_config carries the caller's
+	// aspect_ratio / output_format. Both are set only on image requests and
+	// are omitempty, so text bodies stay byte-identical.
+	Modalities  []string     `json:"modalities,omitempty"`
+	ImageConfig *imageConfig `json:"image_config,omitempty"`
+}
+
+// imageConfig is the subset of OpenRouter's provider-specific image_config
+// this adapter forwards — only keys the caller set.
+type imageConfig struct {
+	AspectRatio  string `json:"aspect_ratio,omitempty"`
+	OutputFormat string `json:"output_format,omitempty"`
+}
+
+// chatRequestWithParts is chatRequest with the messages array replaced by
+// multimodal messages, used only when an image request carries reference
+// images (#1496). The shallower Messages field shadows the embedded string-
+// content one; key order moves, which no golden test pins for this shape.
+type chatRequestWithParts struct {
+	chatRequest
+	Messages []partsMessage `json:"messages"`
+}
+
+// partsMessage is a chat message whose content is either a plain string
+// (system) or an OpenAI-style content-parts array (user with images).
+type partsMessage struct {
+	Role    string `json:"role"`
+	Content any    `json:"content"`
+}
+
+// contentPart is one OpenAI-style multimodal content part.
+type contentPart struct {
+	Type     string    `json:"type"`
+	Text     string    `json:"text,omitempty"`
+	ImageURL *imageURL `json:"image_url,omitempty"`
+}
+
+type imageURL struct {
+	URL string `json:"url"`
 }
 
 // reasoningField configures OpenRouter's normalized reasoning controls.
@@ -81,6 +123,34 @@ type chatResponse struct {
 
 // chatChoice is a completion choice — OpenAI's shape verbatim.
 type chatChoice = openai.ChatChoice
+
+// chatResponseDecoded is the decode target for Generate responses: the
+// extended chatResponse with Choices shadowed by a shape whose message also
+// carries OpenRouter's generated images (choices[].message.images[], #1500).
+// chatResponse itself stays OpenAI-shaped so test servers marshal it as before.
+type chatResponseDecoded struct {
+	chatResponse
+	Choices []decodedChoice `json:"choices"`
+}
+
+type decodedChoice struct {
+	Index        int              `json:"index"`
+	Message      assistantMessage `json:"message"`
+	FinishReason string           `json:"finish_reason"`
+}
+
+// assistantMessage is openai.ChatMessage plus generated images. Each image is
+// {"type":"image_url","image_url":{"url":"data:<mime>;base64,..."}}.
+type assistantMessage struct {
+	Role    string           `json:"role"`
+	Content string           `json:"content"`
+	Images  []assistantImage `json:"images,omitempty"`
+}
+
+type assistantImage struct {
+	Type     string   `json:"type,omitempty"`
+	ImageURL imageURL `json:"image_url"`
+}
 
 // chatUsage is openai.ChatUsage plus OpenRouter's cost reporting:
 //   - cost — total inference cost in USD as a float (sum of upstream + markup)

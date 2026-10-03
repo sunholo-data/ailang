@@ -154,6 +154,32 @@ export func callJsonResult(input: string, schema: string) -> Result[string, AIEr
 export func callJsonSimpleResult(input: string) -> Result[string, AIError] ! {AI} = _ai_call_json_simple_result(input)
 
 -- ============================================================================
+-- Text-to-speech (#1495)
+-- ============================================================================
+
+-- callSpeech: synthesise speech. Ok(pcm) is RAW PCM in one fixed format:
+-- signed 16-bit little-endian, mono, 24000 Hz (speechSampleRate()). Hand it to
+-- std/audio: wavFromPcm(pcm, speechSampleRate(), 1, 16) or
+-- encode(pcm, speechSampleRate(), 1, OggOpus(24000)).
+--   text    : what to say (empty -> Err SchemaValidation)
+--   voice   : provider voice name (Gemini prebuilt voices, e.g. "Kore",
+--             "Puck"); "" = the provider default
+--   style   : delivery instruction, e.g. "Say cheerfully"; "" = none
+--   options : JSON, "" for none. Keys: model (a TTS model; default the bound
+--             --ai model if its name contains "tts", else
+--             gemini-2.5-flash-preview-tts), language_code (BCP-47).
+--             Any other key is Err(SchemaValidation).
+-- Supported providers: Gemini (AI Studio and Vertex). Others return
+-- Err({code: "CapabilityNotSupported", ...}).
+-- --ai-stub returns a fixed 250 ms 400 Hz tone; --ai-stub-fixtures replays
+-- "speech" fixtures keyed by {style, text, voice}.
+export func callSpeech(text: string, voice: string, style: string, options: string) -> Result[bytes, AIError] ! {AI} =
+  _ai_call_speech(text, voice, style, options)
+
+-- speechSampleRate: the sample rate of every callSpeech result, in Hz.
+export pure func speechSampleRate() -> int = 24000
+
+-- ============================================================================
 -- Multi-turn / tool-aware step
 -- ============================================================================
 --
@@ -360,9 +386,14 @@ export func callJson(input: string, schema: string) -> string ! {AI} = _ai_call_
 export func callJsonSimple(input: string) -> string ! {AI} = _ai_call_json_simple(input)
 
 -- callImage: Generate an image via AI and save to file
--- Calls an image generation model (e.g., Gemini gemini-2.5-flash-image)
--- and writes the resulting PNG/JPEG to output_path.
--- Options is a JSON string: {"aspect_ratio": "16:9", "mime_type": "image/png"}
+-- Calls an image generation model — Gemini (e.g. gemini-2.5-flash-image) or an
+-- OpenRouter image-output model (e.g. google/gemini-3-pro-image under
+-- --ai openrouter/...) — and writes the resulting image to output_path.
+-- Options is a JSON string, every key optional:
+--   {"aspect_ratio": "16:9", "mime_type": "image/png", "model": "google/gemini-3-pro-image"}
+--   model : per-call model override; absent/empty = the --ai bound model.
+--           Friendly models.yml names resolve like step(); a model on a
+--           different provider than the bound handler fails (ModelNotAllowed).
 -- Returns the output path on success.
 -- Requires both AI and FS capabilities.
 export func callImage(prompt: string, output_path: string, options: string) -> string ! {AI, FS} =
@@ -370,6 +401,25 @@ export func callImage(prompt: string, output_path: string, options: string) -> s
 
 -- callImageBase64: Generate an image via AI and return as base64 JSON
 -- Returns a JSON string: {"base64": "...", "mime_type": "image/png"}
+-- Options as for callImage (aspect_ratio, mime_type, model).
 -- Use std/bytes.fromBase64 to decode the base64 data to bytes.
 -- Only requires AI capability (no file system access).
 export func callImageBase64(prompt: string, options: string) -> string ! {AI} = _ai_call_image_base64(prompt, options)
+
+-- callImageWithRefs: Generate an image conditioned on reference images
+-- (image+text input: editing, or keeping one character consistent across
+-- variations) and save it to output_path.
+--   refs : ImagePart records {source, mime}; source is base64 or a data-URI,
+--          mime is required for raw base64. std/fs.readFileBytes yields
+--          base64 suitable for source. [] behaves like callImage.
+-- Supported by Gemini and OpenRouter image models; other providers fail
+-- loudly rather than ignoring refs. Options as for callImage.
+-- Requires both AI and FS capabilities.
+export func callImageWithRefs(prompt: string, refs: [ImagePart], output_path: string, options: string) -> string ! {AI, FS} =
+  _ai_call_image_with_refs(prompt, refs, output_path, options)
+
+-- callImageBase64WithRefs: callImageWithRefs returning base64 JSON
+-- ({"base64": "...", "mime_type": "..."}) instead of writing a file.
+-- Only requires AI capability (no file system access).
+export func callImageBase64WithRefs(prompt: string, refs: [ImagePart], options: string) -> string ! {AI} =
+  _ai_call_image_base64_with_refs(prompt, refs, options)

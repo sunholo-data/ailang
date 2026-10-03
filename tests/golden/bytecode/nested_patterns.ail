@@ -1,0 +1,402 @@
+module tests/golden/bytecode/nested_patterns
+
+import std/option (Option, Some, None)
+
+-- Evaluator ↔ strict-VM parity fixture for match lowering
+-- (m-vm-match-lowering: #1420 #1505 #1517 #1473 #1503).
+--
+-- Every exported p_* entry takes no arguments and returns a string that
+-- joins the results of several calls with "|", so one entry covers both the
+-- matching and the near-miss input of a shape. cmd/ailang/run_bytecode_
+-- match_test.go runs each entry on the evaluator and under
+-- --bytecode --strict-bytecode and requires both to print the same,
+-- hand-computed value.
+
+type Tok = TText(string) | TMark(string)
+
+type Job = Idle | Planned(int) | Committed(int)
+
+type Expr = Num(int) | Neg(Expr) | Add(Expr, Expr)
+
+func lenI(xs: [int]) -> int = match xs {
+  [] => 0,
+  _ :: r => 1 + lenI(r)
+}
+
+func lenS(xs: [string]) -> int = match xs {
+  [] => 0,
+  _ :: r => 1 + lenS(r)
+}
+
+func lenO(xs: [Option[int]]) -> int = match xs {
+  [] => 0,
+  _ :: r => 1 + lenO(r)
+}
+
+-- ── A: nested cons / nested sub-patterns (were evaluator-only) ──────────
+
+func second(xs: [int]) -> int = match xs {
+  a :: b :: _ => b,
+  _ => 0
+}
+
+export func p_cons2() -> string = "${show(second([1, 2, 3]))}|${show(second([1]))}|${show(second([]))}"
+
+func secondWild(xs: [int]) -> int = match xs {
+  _ :: x :: _ => x,
+  _ => 0
+}
+
+export func p_cons2_wild() -> string = "${show(secondWild([4, 5]))}|${show(secondWild([4]))}"
+
+func sum3(xs: [int]) -> int = match xs {
+  a :: b :: c :: rest => a + b + c + lenI(rest),
+  _ => 0
+}
+
+export func p_cons3() -> string = "${show(sum3([1, 2, 3, 4]))}|${show(sum3([1, 2]))}|${show(sum3([1, 2, 3]))}"
+
+func exactPair(xs: [int]) -> string = match xs {
+  x :: y :: [] => "pair",
+  _ => "other"
+}
+
+export func p_cons_closed_tail() -> string = "${exactPair([1, 2])}|${exactPair([1, 2, 3])}|${exactPair([1])}"
+
+func innerList(xss: [[int]]) -> int = match xss {
+  [x :: y, _] => x,
+  _ => 0
+}
+
+export func p_cons_in_list() -> string =
+  "${show(innerList([[1, 2], [3]]))}|${show(innerList([[], [3]]))}|${show(innerList([[1]]))}"
+
+func someSome(o: Option[Option[int]]) -> int = match o {
+  Some(Some(x)) => x,
+  Some(None) => 1,
+  None => 0
+}
+
+export func p_ctor_nested() -> string =
+  "${show(someSome(Some(Some(7))))}|${show(someSome(Some(None)))}|${show(someSome(None))}"
+
+func tupleCons(p: ([int], int)) -> int = match p {
+  (x :: _, z) => x + z,
+  _ => 0
+}
+
+export func p_cons_in_tuple() -> string = "${show(tupleCons(([], 9)))}|${show(tupleCons(([5], 9)))}"
+
+-- ── B: literals inside list/tuple/record/cons (were silently wrong) ─────
+
+func litList(xs: [float]) -> float = match xs {
+  [1.0, 2.0] => 1.0,
+  _ => 0.0
+}
+
+export func p_lit_list() -> string = "${show(litList([3.0, 4.0]))}|${show(litList([1.0, 2.0]))}"
+
+func litTuple(p: (int, int)) -> int = match p {
+  (1, y) => y,
+  _ => 0
+}
+
+export func p_lit_tuple() -> string = "${show(litTuple((0, 5)))}|${show(litTuple((1, 5)))}"
+
+func litRecord(r: { name: string }) -> string = match r {
+  { name: "alice" } => "alice",
+  _ => "other"
+}
+
+export func p_lit_record() -> string = "${litRecord({ name: "bob" })}|${litRecord({ name: "alice" })}"
+
+func litPrefix(xs: [int]) -> string = match xs {
+  [1, 2, ...r] => "ok${show(lenI(r))}",
+  _ => "no"
+}
+
+export func p_lit_prefix() -> string = "${litPrefix([9, 9, 9])}|${litPrefix([1, 2, 3])}"
+
+func litConsHead(xs: [string]) -> string = match xs {
+  "a" :: rest => "A${show(lenS(rest))}",
+  _ :: rest => "x",
+  [] => "e"
+}
+
+export func p_lit_cons_head() -> string = "${litConsHead(["a", "b"])}|${litConsHead(["b"])}|${litConsHead([])}"
+
+func nestedRecord(r: { user: { email: string, age: int } }) -> string = match r {
+  { user: { email: e, age: 0 } } => "baby ${e}",
+  { user: { email: e } } => e
+}
+
+export func p_record_nested() -> string =
+  "${nestedRecord({ user: { email: "a@x", age: 0 } })}|${nestedRecord({ user: { email: "b@x", age: 3 } })}"
+
+-- ── C: constructor sub-patterns in if-chain positions (were VM crashes) ─
+
+func tokFirst(toks: [Tok]) -> string = match toks {
+  [] => "empty",
+  TText(t) :: r => t,
+  TMark(m) :: r => "m${m}"
+}
+
+export func p_ctor_cons_head() -> string =
+  "${tokFirst([TText("hi")])}|${tokFirst([TMark("x"), TText("y")])}|${tokFirst([])}"
+
+func optHead(xs: [Option[int]]) -> string = match xs {
+  Some(x) :: rest => "ok${show(x)}:${show(lenO(rest))}",
+  None :: _ => "none",
+  [] => "empty"
+}
+
+export func p_opt_cons_head() -> string = "${optHead([Some(5), None, None])}|${optHead([None])}|${optHead([])}"
+
+func optSingle(xs: [Option[int]]) -> string = match xs {
+  [Some(x)] => "one${show(x)}",
+  _ => "other"
+}
+
+export func p_opt_list_elem() -> string =
+  "${optSingle([Some(4)])}|${optSingle([None])}|${optSingle([Some(1), Some(2)])}"
+
+func ctorTuple(p: (Option[int], int)) -> int = match p {
+  (Some(n), _) => n,
+  (None, m) => m
+}
+
+export func p_ctor_in_tuple() -> string = "${show(ctorTuple((Some(7), 1)))}|${show(ctorTuple((None, 3)))}"
+
+func litInCtorHead(toks: [Tok]) -> string = match toks {
+  TText("hi") :: _ => "greeting",
+  TText(t) :: _ => "text ${t}",
+  _ => "other"
+}
+
+export func p_lit_ctor_cons_head() -> string =
+  "${litInCtorHead([TText("hi")])}|${litInCtorHead([TText("bye")])}|${litInCtorHead([TMark("m")])}"
+
+func listInCtor(o: Option[[int]]) -> int = match o {
+  Some(x :: _) => x,
+  Some([]) => 0,
+  None => 0 - 1
+}
+
+export func p_list_in_ctor() -> string =
+  "${show(listInCtor(Some([3, 4])))}|${show(listInCtor(Some([])))}|${show(listInCtor(None))}"
+
+func deepMix(o: Option[(int, [int])]) -> int = match o {
+  Some((a, [b, c])) => a + b + c,
+  Some((a, _)) => a,
+  None => 0
+}
+
+export func p_deep_mix() -> string =
+  "${show(deepMix(Some((1, [2, 3]))))}|${show(deepMix(Some((1, [2]))))}|${show(deepMix(None))}"
+
+-- ── G: guards that reference the arm's own bindings ─────────────────────
+
+func gList(xs: [int]) -> string = match xs {
+  [a, b] if a > b => "desc",
+  _ => "other"
+}
+
+export func p_guard_list() -> string = "${gList([2, 1])}|${gList([1, 2])}|${gList([1])}"
+
+func gCons(xs: [int]) -> string = match xs {
+  x :: rest if x > 5 => "big",
+  x :: rest => "small",
+  [] => "empty"
+}
+
+export func p_guard_cons() -> string = "${gCons([7])}|${gCons([1])}|${gCons([])}"
+
+func gVar(s: string) -> string = match s {
+  "a" => "A",
+  other if other == "b" => "B",
+  _ => "Z"
+}
+
+export func p_guard_var() -> string = "${gVar("a")}|${gVar("b")}|${gVar("c")}"
+
+func gRecord(r: { x: int }) -> string = match r {
+  { x: v } if v > 3 => "big",
+  _ => "small"
+}
+
+export func p_guard_record() -> string = "${gRecord({ x: 5 })}|${gRecord({ x: 1 })}"
+
+func gTuple(p: (int, int)) -> string = match p {
+  (a, b) if a < b => "lt",
+  _ => "ge"
+}
+
+export func p_guard_tuple() -> string = "${gTuple((1, 2))}|${gTuple((2, 1))}"
+
+func gNestedCons(xs: [int]) -> string = match xs {
+  a :: b :: _ if a > b => "desc",
+  a :: b :: _ => "asc",
+  _ => "short"
+}
+
+export func p_guard_nested_cons() -> string =
+  "${gNestedCons([3, 1])}|${gNestedCons([1, 3])}|${gNestedCons([1])}"
+
+func gCtorDup(o: Option[int]) -> string = match o {
+  Some(x) if x > 3 => "big",
+  Some(x) => "small${show(x)}",
+  None => "none"
+}
+
+export func p_guard_ctor_dup() -> string = "${gCtorDup(Some(5))}|${gCtorDup(Some(2))}|${gCtorDup(None)}"
+
+func gCtorDefault(o: Option[int]) -> string = match o {
+  Some(x) if x > 3 => "big",
+  _ => "other"
+}
+
+export func p_guard_ctor_default() -> string =
+  "${gCtorDefault(Some(5))}|${gCtorDefault(Some(2))}|${gCtorDefault(None)}"
+
+func gChain(xs: [int]) -> string = match xs {
+  [a] if a == 1 => "one",
+  [a] if a == 2 => "two",
+  [a, b] if a == b => "same",
+  x :: _ if x > 100 => "huge",
+  _ => "rest"
+}
+
+export func p_guard_chain() -> string =
+  "${gChain([1])}|${gChain([2])}|${gChain([3])}|${gChain([4, 4])}|${gChain([200, 1])}|${gChain([])}"
+
+-- Guards inside a let-bound match (value position, not tail position).
+func gValuePos(xs: [int]) -> int = {
+  let r = match xs {
+    a :: b :: _ if a > b => a,
+    a :: _ => 0 - a,
+    [] => 0
+  }
+  r * 10
+}
+
+export func p_guard_value_pos() -> string =
+  "${show(gValuePos([5, 1]))}|${show(gValuePos([1, 5]))}|${show(gValuePos([]))}"
+
+-- ── V: variable-pattern arms ────────────────────────────────────────────
+
+func describeJob(j: Job) -> string = match j {
+  Idle => "idle",
+  Planned(n) => "planned",
+  Committed(n) => "committed"
+}
+
+func varDefault(j: Job) -> string = match j {
+  Planned(_) => "p",
+  other => describeJob(other)
+}
+
+export func p_var_default() -> string =
+  "${varDefault(Planned(1))}|${varDefault(Committed(2))}|${varDefault(Idle)}"
+
+func varFirst(j: Job) -> string = match j {
+  Committed(n) => "c",
+  other => "o",
+  Idle => "idle"
+}
+
+export func p_var_before_ctor() -> string =
+  "${varFirst(Idle)}|${varFirst(Committed(1))}|${varFirst(Planned(2))}"
+
+func varGuarded(j: Job) -> string = match j {
+  other if describeJob(other) == "idle" => "a",
+  Committed(n) => "c",
+  _ => "z"
+}
+
+export func p_var_guarded() -> string =
+  "${varGuarded(Idle)}|${varGuarded(Committed(1))}|${varGuarded(Planned(2))}"
+
+func allVar(n: int) -> int = match n {
+  x => x + 1
+}
+
+export func p_all_var() -> string = show(allVar(41))
+
+func strVar(s: string) -> string = match s {
+  "a" => "one",
+  other => "${other}!"
+}
+
+export func p_str_var() -> string = "${strVar("a")}|${strVar("hello")}"
+
+-- ── N: constructor matches with refutable args (switch path) ────────────
+
+func isZero(e: Expr) -> bool = match e {
+  Num(0) => true,
+  _ => false
+}
+
+export func p_ctor_lit() -> string =
+  "${show(isZero(Num(0)))}|${show(isZero(Num(5)))}|${show(isZero(Neg(Num(0))))}"
+
+func optLit(o: Option[int]) -> string = match o {
+  Some(0) => "zero",
+  Some(n) => "n${show(n)}",
+  None => "none"
+}
+
+export func p_ctor_lit_dup() -> string = "${optLit(Some(0))}|${optLit(Some(3))}|${optLit(None)}"
+
+func simplify(e: Expr) -> string = match e {
+  Neg(Neg(Num(n))) => "dbl${show(n)}",
+  Neg(Num(n)) => "neg${show(n)}",
+  Add(Num(0), Num(m)) => "zl${show(m)}",
+  Add(a, b) => "add",
+  _ => "other"
+}
+
+export func p_ctor_deep() -> string =
+  "${simplify(Neg(Neg(Num(4))))}|${simplify(Neg(Num(2)))}|${simplify(Add(Num(0), Num(9)))}|${simplify(Add(Num(1), Num(9)))}|${simplify(Neg(Add(Num(1), Num(2))))}|${simplify(Num(1))}"
+
+-- ── X: guard / scrutinee / lambda edge shapes ───────────────────────────
+
+-- Switch-path guard whose ANF form needs statements (a call result).
+func gLetSwitch(o: Option[int]) -> string = match o {
+  Some(x) if describeJob(Planned(x)) == "planned" && x > 1 => "yes",
+  _ => "no"
+}
+
+export func p_guard_let_switch() -> string = "${gLetSwitch(Some(2))}|${gLetSwitch(Some(1))}|${gLetSwitch(None)}"
+
+-- Guards that see no binding (outer parameter only) next to binding guards.
+func gParam(xs: [int], lim: int) -> string = match xs {
+  [] if lim > 0 => "empty+",
+  [] => "empty",
+  x :: _ if x > lim => "over",
+  _ => "under"
+}
+
+export func p_guard_param() -> string = "${gParam([], 1)}|${gParam([], 0)}|${gParam([5], 1)}|${gParam([0], 1)}"
+
+-- Non-variable scrutinee.
+func mkPair(n: int) -> (int, int) = (n, n * 2)
+
+func scrutCall(n: int) -> int = match mkPair(n) {
+  (0, _) => 100,
+  (a, b) if b > 5 => a + b,
+  (a, _) => a
+}
+
+export func p_scrut_call() -> string = "${show(scrutCall(0))}|${show(scrutCall(3))}|${show(scrutCall(2))}"
+
+-- Nested pattern + guard inside a lambda body.
+func lambdaMatch(xs: [int]) -> int = {
+  let f = \ys. match ys {
+    a :: b :: _ if a < b => a + b,
+    a :: _ => a,
+    [] => 0
+  };
+  f(xs) * 10
+}
+
+export func p_lambda_match() -> string = "${show(lambdaMatch([1, 2]))}|${show(lambdaMatch([2, 1]))}|${show(lambdaMatch([]))}"

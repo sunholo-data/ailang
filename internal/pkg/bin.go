@@ -123,23 +123,15 @@ func EnsureLock(pkgDir, generator, ailangVersion string) (locked int, wrote bool
 	if err != nil {
 		return 0, false, err
 	}
-	var packages []LockedPackage
-	if len(manifest.Dependencies) > 0 {
-		resolved, err := ResolveDependencies(manifest, pkgDir)
-		if err != nil {
-			return 0, false, fmt.Errorf("resolving dependencies of %s: %w", manifest.Package.Name, err)
-		}
-		packages = make([]LockedPackage, len(resolved))
-		for i, r := range resolved {
-			packages[i] = LockedPackage(r)
-		}
+	lf, err := ResolveLock(manifest, pkgDir, generator)
+	if err != nil {
+		return 0, false, fmt.Errorf("resolving dependencies of %s: %w", manifest.Package.Name, err)
 	}
-	lf := NewLockFile(packages, generator)
 	lf.AILANGVersion = ailangVersion
 	if err := lf.Save(pkgDir); err != nil {
 		return 0, false, err
 	}
-	return len(packages), true, nil
+	return len(lf.Packages), true, nil
 }
 
 // DefaultBinDir is where shims go: ~/.ailang/bin, beside the package cache.

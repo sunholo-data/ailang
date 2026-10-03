@@ -36,6 +36,10 @@ type destinationPolicy struct {
 	allowHTTP      bool
 	allowLocalhost bool
 	allowMetadata  bool
+	// lockedBy names why loopback/metadata are off regardless of the process
+	// flags (a redirect hop, or Net[scope=public]); the refusal then states
+	// that instead of pointing at a flag that would not help.
+	lockedBy string
 	// blockPrivate: RFC1918/ULA/link-local/multicast/unspecified are refused.
 	// Net has no override; Stream exposes BlockPrivateIPs (default true).
 	blockPrivate   bool
@@ -65,13 +69,18 @@ func netPolicy(ctx *EffContext) destinationPolicy {
 	if n == nil {
 		n = NewNetContext()
 	}
+	// M-NET-SCOPE-PUBLIC part (ii): inside a Net[scope=public] frame,
+	// loopback and the metadata server are off for every hop of every call,
+	// whatever the process setting (serve-api turns both on).
+	public := ctx.NetScopePublic()
 	return destinationPolicy{
 		kind:             "NET",
 		secureSchemes:    []string{"https"},
 		insecureSchemes:  []string{"http"},
 		allowHTTP:        n.AllowHTTP,
-		allowLocalhost:   n.AllowLocalhost,
-		allowMetadata:    n.AllowMetadata,
+		allowLocalhost:   n.AllowLocalhost && !public,
+		allowMetadata:    n.AllowMetadata && !public,
+		lockedBy:         publicLock(public),
 		blockPrivate:     true,
 		allowedDomains:   n.AllowedDomains,
 		refuseProxy:      n.RefuseProxy,
@@ -157,7 +166,7 @@ func (p destinationPolicy) authorizeURLLexical(u *url.URL) error {
 		if p.kind == "STREAM" {
 			return p.errf("DISALLOWED_HOST", "localhost connections not allowed")
 		}
-		return p.errf("IP_BLOCKED", "localhost IP blocked: %s (use --net-allow-localhost to enable)", host)
+		return p.errf("IP_BLOCKED", "localhost IP blocked: %s (%s)", host, p.overrideHint("use --net-allow-localhost to enable"))
 	}
 	return nil
 }
@@ -202,7 +211,7 @@ func (p destinationPolicy) validateIP(ip net.IP) error {
 	}
 	if ip.IsLoopback() {
 		if !p.allowLocalhost {
-			return p.errf(code, "localhost IP blocked: %s (use --net-allow-localhost to enable)", ip)
+			return p.errf(code, "localhost IP blocked: %s (%s)", ip, p.overrideHint("use --net-allow-localhost to enable"))
 		}
 		return nil
 	}
@@ -216,7 +225,7 @@ func (p destinationPolicy) validateIP(ip net.IP) error {
 		if p.allowMetadata && ip.Equal(net.IPv4(169, 254, 169, 254)) {
 			return nil
 		}
-		return p.errf(code, "link-local IP blocked: %s (use --net-allow-metadata for cloud metadata server)", ip)
+		return p.errf(code, "link-local IP blocked: %s (%s)", ip, p.overrideHint("use --net-allow-metadata for cloud metadata server"))
 	}
 	if ip.IsUnspecified() {
 		return p.errf(code, "unspecified IP blocked: %s", ip)
@@ -293,7 +302,7 @@ func (p destinationPolicy) checkRedirect(originalHost string) func(req *http.Req
 		if len(via) >= p.maxRedirects {
 			return p.errf("TOO_MANY_REDIRECTS", "exceeded max redirects (%d)", p.maxRedirects)
 		}
-		if err := p.authorizeURL(req.URL); err != nil {
+		if err := p.forRedirectHop().authorizeURL(req.URL); err != nil {
 			// Typed so callers unwrap the E_* category out of the url.Error
 			// http.Client wraps around a CheckRedirect refusal.
 			return &targetValidationError{cause: err}
@@ -305,6 +314,39 @@ func (p destinationPolicy) checkRedirect(originalHost string) func(req *http.Req
 		}
 		return nil
 	}
+}
+
+// forRedirectHop is the policy for a redirect hop (M-NET-SCOPE-PUBLIC, #1522
+// part (i)): loopback, link-local (the metadata server included) and private
+// addresses are refused whatever AllowLocalhost/AllowMetadata (or Stream's
+// BlockPrivateIPs) permit for the initial request. Direct requests keep their
+// policy, so sunholo/gcp_auth's hop-0 metadata call still works; nothing
+// legitimate reaches the metadata server through a redirect.
+func (p destinationPolicy) forRedirectHop() destinationPolicy {
+	p.allowLocalhost = false
+	p.allowMetadata = false
+	p.blockPrivate = true
+	if p.lockedBy == "" {
+		p.lockedBy = "redirect hops never reach loopback, link-local or private addresses"
+	}
+	return p
+}
+
+// publicLock is the lockedBy reason for a Net[scope=public] frame.
+func publicLock(public bool) string {
+	if public {
+		return "Net[scope=public]: no override available"
+	}
+	return ""
+}
+
+// overrideHint is the parenthetical of a loopback/link-local refusal: the flag
+// that would allow it, or, when the policy is locked, why no flag can.
+func (p destinationPolicy) overrideHint(flagHint string) string {
+	if p.lockedBy != "" {
+		return p.lockedBy
+	}
+	return flagHint
 }
 
 // requestContext is the Go context a request runs under: the effect's GoCtx

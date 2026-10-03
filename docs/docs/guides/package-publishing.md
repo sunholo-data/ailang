@@ -9,7 +9,7 @@ Two tiers exist for sharing AILANG packages. Pick the one matching where you are
 
 | Tier | When | Mechanism | Visible to others? |
 |---|---|---|---|
-| **1. Local development** | While editing the package | `path = "../path/to/pkg"` in host's `ailang.toml` | No — your machine only |
+| **1. Local development** | While editing the package | `path = "../path/to/pkg"` in host's `ailang.toml` | Only to checkouts that contain the path (the lock records it relative to `ailang.toml`) |
 | **2. Published** | When the package is stable + reusable | `ailang publish` → AILANG registry | Yes — anyone can `"<your-namespace>/<pkg>" = "0.1.0"` |
 
 The motoko-extension tutorial shows Tier 1 in detail. This guide covers Tier 2.
@@ -75,6 +75,12 @@ search; `PUB022` warns when `AGENT.md` mentions none of the exported modules; an
 `PUB023` lists packages with exact export overlap, or explicitly reports that the
 registry lookup could not run. `PUB018` and `PUB022` are warnings (and therefore gates
 under `--strict`); `PUB008` and `PUB023` remain informational.
+
+`PUB024` is a gate at every stability level. It names each `_namedtest_body_<digits>.ail`
+in the package. An interrupted `ailang test` of v0.51.0 or older left these files: each is a
+full copy of a test module. Delete them. The tarball, content hash and smoke staging leave
+them out anyway. `ailang init package` scaffolds a `.gitignore` entry so `git add -A` skips
+them too.
 
 ### Every version describes itself
 

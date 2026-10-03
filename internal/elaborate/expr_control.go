@@ -119,7 +119,10 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 			return nil, err
 		}
 
+		// The bound name is in scope for the body only (#1467).
+		e.pushScope(let.Name)
 		body, err := e.normalize(let.Body)
+		e.popScope()
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +139,10 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 			return nil, err
 		}
 
+		// The bound name is in scope for the body only (#1467).
+		e.pushScope(let.Name)
 		body, err := e.normalize(let.Body)
+		e.popScope()
 		if err != nil {
 			return nil, err
 		}
@@ -201,6 +207,10 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 // normalizeLetRec handles recursive let bindings
 // Syntax: letrec name = value in body
 func (e *Elaborator) normalizeLetRec(letrec *ast.LetRec) (core.CoreExpr, error) {
+	// The bound name is in scope for its own value and the body (#1467).
+	e.pushScope(letrec.Name)
+	defer e.popScope()
+
 	// Normalize value (which can reference the name being bound)
 	value, err := e.normalize(letrec.Value)
 	if err != nil {
@@ -252,9 +262,25 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 		return e.normalize(block.Exprs[0])
 	}
 
-	// Multiple expressions: convert to nested Lets
+	// Multiple expressions: convert to nested Lets.
+	//
+	// Scope (#1467): the loop below runs BACKWARDS, so a frame pushed at a
+	// statement-let would cover the wrong region. Instead one block frame is
+	// swapped, before each expression, to the set of statement-let names
+	// bound by the expressions before it (a statement-letrec also sees its own
+	// name). A use textually before `let x = ...;` keeps the outer binding.
+	boundBefore := blockScopeSets(block.Exprs)
+	e.pushScope()
+	defer e.popScope()
+	frame := len(e.scope) - 1
+	normalizeAt := func(i int, expr ast.Expr) (core.CoreExpr, error) {
+		e.scope[frame] = boundBefore[i]
+		return e.normalize(expr)
+	}
+
 	// Start with the last expression (the return value)
-	result, err := e.normalize(block.Exprs[len(block.Exprs)-1])
+	last := len(block.Exprs) - 1
+	result, err := normalizeAt(last, block.Exprs[last])
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +292,7 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 		// Special case: if this is a Let with nil body (statement form),
 		// normalize its value and use the let's name directly
 		if letExpr, ok := expr.(*ast.Let); ok && letExpr.Body == nil {
-			value, err := e.normalize(letExpr.Value)
+			value, err := normalizeAt(i, letExpr.Value)
 			if err != nil {
 				return nil, err
 			}
@@ -295,6 +321,7 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 			// "undefined variable". That broke block-form letrec entirely,
 			// including the teaching prompt's own canonical example. inferLetRec
 			// already scopes the binding correctly; the gap was purely here.
+			e.scope[frame] = withName(boundBefore[i], letrecExpr.Name)
 			value, err := e.normalize(letrecExpr.Value)
 			if err != nil {
 				return nil, err
@@ -306,7 +333,7 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 			}
 		} else {
 			// Regular expression: normalize and bind to a wildcard
-			value, err := e.normalize(expr)
+			value, err := normalizeAt(i, expr)
 			if err != nil {
 				return nil, err
 			}
@@ -340,7 +367,9 @@ func (e *Elaborator) normalizeForall(fa *ast.ForallExpr) (core.CoreExpr, error) 
 		return nil, fmt.Errorf("forall upper bound: %w", err)
 	}
 
+	e.pushScope(fa.Var)
 	body, err := e.normalize(fa.Body)
+	e.popScope()
 	if err != nil {
 		return nil, fmt.Errorf("forall body: %w", err)
 	}
@@ -352,4 +381,39 @@ func (e *Elaborator) normalizeForall(fa *ast.ForallExpr) (core.CoreExpr, error) 
 		Hi:       hi,
 		Body:     body,
 	}, nil
+}
+
+// blockScopeSets returns, for each block expression i, the statement-let and
+// statement-letrec names bound by expressions 0..i-1 (#1467).
+func blockScopeSets(exprs []ast.Expr) []map[string]bool {
+	sets := make([]map[string]bool, len(exprs))
+	cur := map[string]bool{}
+	for i, expr := range exprs {
+		sets[i] = cur
+		var name string
+		switch st := expr.(type) {
+		case *ast.Let:
+			if st.Body == nil {
+				name = st.Name
+			}
+		case *ast.LetRec:
+			if st.Body == nil {
+				name = st.Name
+			}
+		}
+		if name != "" && name != "_" {
+			cur = withName(cur, name)
+		}
+	}
+	return sets
+}
+
+// withName returns a copy of set plus name.
+func withName(set map[string]bool, name string) map[string]bool {
+	out := make(map[string]bool, len(set)+1)
+	for k := range set {
+		out[k] = true
+	}
+	out[name] = true
+	return out
 }

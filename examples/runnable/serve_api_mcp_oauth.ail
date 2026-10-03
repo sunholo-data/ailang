@@ -1,0 +1,47 @@
+-- serve_api_mcp_oauth.ail - an MCP service ready for the Anthropic directory
+-- One module, two MCP surfaces:
+--   /mcp/          agents: every tool, the key may come as an argument or header
+--   /mcp/connect/  directory: no @mcp_agent_only tools, no @mcp_secret params, and
+--                  @mcp_auth("oauth2") tools answer HTTP 401 until the client
+--                  signs in. The challenge points at --oauth-issuer.
+-- serve-api calls the one @mcp_token_verifier with the Bearer token (5 s limit,
+-- fail-closed); the verifier is never a tool or an HTTP endpoint.
+-- Run with:
+--   ailang serve-api --mcp-http --caps IO --oauth-issuer https://auth.example.com \
+--     examples/runnable/serve_api_mcp_oauth.ail
+-- Check it:  ailang mcp check http://localhost:8080/mcp/connect/
+module examples/runnable/serve_api_mcp_oauth
+import std/io (println)
+import std/string (length, startsWith)
+
+-- Accept tokens the authorization server minted. A real service looks the
+-- token up (e.g. a hashed dp_ key in its store); this example accepts any
+-- "demo_" token.
+@mcp_token_verifier
+export func verifyToken(token: string) -> bool ! {IO} = startsWith(token, "demo_") && length(token) > 5
+
+-- Summarise a document for the signed-in account.
+@mcp_title("Summarise document")
+@mcp_hints("readOnly", "openWorld")
+@mcp_auth("oauth2")
+@mcp_secret("apiKey")
+@optional("apiKey")
+export func summarise(text: string, apiKey: string) -> string ! {IO} = "summary of ${show(length(text))} characters"
+
+-- Supported formats. Open: no sign-in needed.
+@mcp_title("List formats")
+export func formats() -> string = "docx, pptx, xlsx, pdf"
+
+-- Device-code sign-in for headless agents. Kept off the directory surface:
+-- directory clients run OAuth themselves.
+@mcp_title("Sign in with a device code")
+@mcp_hints("openWorld")
+@mcp_agent_only
+export func deviceLogin(label: string) -> string ! {IO} = "visit https://example.com/device for ${label}"
+
+-- Entry point for `ailang run`; not a tool on either MCP surface.
+@nomcp
+export func main() -> unit ! {IO} {
+  println(formats())
+  println(show(verifyToken("demo_abc")))
+}

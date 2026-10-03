@@ -1,0 +1,12 @@
+module cmd/ailang/testdata/importcollide/fixed
+import cmd/ailang/testdata/importcollide/a (tick as aTick)
+
+-- The MOD015 fix: alias the import. The local tick and aTick are distinct.
+pure func tick(n: int) -> int
+  tests [
+    (1, 101)
+  ] {
+  n + 100
+}
+
+export func main() -> () ! {IO} = println(show(tick(1) + aTick(1)))

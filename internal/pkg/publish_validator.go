@@ -178,6 +178,8 @@ func copyPackageContents(srcDir, destDir string) error {
 func shouldStageFile(rel string) bool {
 	relForward := filepath.ToSlash(rel)
 	switch {
+	case IsNamedTestBodyFile(filepath.Base(rel)): // leftover test body copy (#1502)
+		return false
 	case rel == ManifestFile:
 		return true
 	case rel == LockFileName:

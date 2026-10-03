@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/sunholo-data/ailang/internal/core"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -13,7 +14,7 @@ import (
 var debugEvalApp = os.Getenv("DEBUG_EVAL_APP") == "1"
 
 // evalCoreApp evaluates function application
-func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
+func (e *CoreEvaluator) evalCoreApp(app *core.App, tail bool) (retVal Value, err error) {
 	// Evaluate function
 	fnVal, err := e.evalCore(app.Func)
 	if err != nil {
@@ -52,18 +53,17 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
 	}
 	switch fn := fnVal.(type) {
 	case *FunctionValue:
-		// Recursion depth guard
-		e.recursionDepth++
-		if e.recursionDepth > e.maxRecursionDepth {
-			e.recursionDepth--
-			return nil, &RecursionLimitError{Limit: e.maxRecursionDepth}
-		}
-		defer func() { e.recursionDepth-- }()
-
 		// M-DOCPARSE-DX M1: Auto-curry support.
 		// When more args than params (e.g., f(a, b) where f = \x. \y. ...),
 		// apply first batch to get intermediate function, then apply rest.
 		if len(args) > len(fn.Params) {
+			// Over-application stays an ordinary nested call (never a tail call).
+			e.recursionDepth++
+			if e.recursionDepth > e.maxRecursionDepth {
+				e.recursionDepth--
+				return nil, &RecursionLimitError{Limit: e.maxRecursionDepth}
+			}
+			defer func() { e.recursionDepth-- }()
 			// Apply first len(fn.Params) args
 			firstArgs := args[:len(fn.Params)]
 			restArgs := args[len(fn.Params):]
@@ -113,124 +113,13 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (retVal Value, err error) {
 		if len(args) < len(fn.Params) {
 			return nil, fmt.Errorf("function expects %d arguments, got %d", len(fn.Params), len(args))
 		}
-
-		// M-TRACE-EXPORT: Record function entry
 		funcName := extractFuncName(app.Func)
-		// M-TRACE-TIER-NOT-ENFORCED: check the TIER before rendering. Each
-		// a.String() materialises the whole value, so for a function carrying an
-		// accumulator this loop is O(n) per call and O(n^2) over a recursion —
-		// the measured cause of 2059 MB peak RSS on a 400-iteration loop that
-		// costs 106 MB with tracing off. Rendering and then discarding would fix
-		// the retention and leave the memory cost exactly where it was.
-		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() && recorder.RecordsFunctionCalls() {
-			argStrs := make([]string, len(args))
-			for i, a := range args {
-				argStrs[i] = recorder.RenderTraceValue(a)
-			}
-			recorder.RecordFunctionEnter(funcName, argStrs)
+		// M-EVAL-TAIL-CALLS (#1486): in tail position, hand the call back to
+		// the enclosing applyFunctionValue loop instead of nesting a frame.
+		if tail {
+			return &tailCall{fn: fn, args: args, name: funcName}, nil
 		}
-
-		// Create new environment with parameters bound
-		newEnv := fn.Env.NewChildEnvironment()
-		for i, param := range fn.Params {
-			newEnv.Set(param, args[i])
-		}
-
-		// M-BUDGET-SCOPING-BUG: push a per-invocation budget frame if the signature
-		// is annotated. The deferred pop is unwind-safe: it fires on every exit
-		// path (normal, error, precondition early-return) so a callee error can
-		// never leak a stale frame. On normal exit it runs the frame's @min check;
-		// on error exit the @min check is suppressed and the body error propagates.
-		if e.effContext != nil {
-			defer e.enterBudgetChargeBoundary()()
-			if e.pushBudgetFrameIfAnnotated(fn, funcName) {
-				defer e.deferredPopBudgetFrame(funcName, &err)
-			}
-			// M-EFFECT-REPLAY-CONTRACTS: push the declared non-os Rand mode for the
-			// dynamic extent of this call; unwind-safe pop on every exit path.
-			if mode := e.pushRandModeIfDeclared(fn); mode != "" {
-				defer e.deferredPopRandMode(mode)
-			}
-		}
-
-		// Evaluate body
-		oldEnv := e.env
-		e.env = newEnv
-
-		// M-DX-XPKG-RESOLVE: Create a fallback resolver that tries the caller's
-		// resolver first (for builtins/effect context), then falls back to the
-		// function's defining module resolver (for constructors like Some/None
-		// that the caller might not have in scope).
-		// M-PERF6-PHASE4 M2a: skip re-wrap if chain already covers fn.Resolver
-		var oldResolver GlobalResolver
-		if fn.Resolver != nil && !resolverCovers(e.resolver, fn.Resolver) {
-			oldResolver = e.resolver
-			e.resolver = &FallbackResolver{
-				Primary:   e.resolver,
-				Secondary: fn.Resolver,
-			}
-		}
-
-		// M-VERIFY-CONTRACTS: Check preconditions before executing body.
-		// Assign the named return `err` (not a shadowed local) so the deferred
-		// budget-frame pop treats a precondition failure as an error exit and
-		// suppresses the frame's @min check.
-		if preErr := e.checkPreconditions(fn); preErr != nil {
-			e.env = oldEnv
-			if oldResolver != nil {
-				e.resolver = oldResolver
-			}
-			err = preErr
-			return nil, err
-		}
-
-		// Body could be Core or TypedAST depending on origin
-		var result Value
-		if coreBody, ok := fn.Body.(core.CoreExpr); ok {
-			result, err = e.evalCore(coreBody)
-		} else {
-			if oldResolver != nil {
-				e.resolver = oldResolver
-			}
-			err = fmt.Errorf("function body is not Core AST")
-			return nil, err
-		}
-
-		// M-VERIFY-CONTRACTS: Check postconditions before returning (if no error)
-		if err == nil {
-			if postErr := e.checkPostconditions(fn, result); postErr != nil {
-				e.env = oldEnv
-				if oldResolver != nil {
-					e.resolver = oldResolver
-				}
-				err = postErr
-				return nil, err
-			}
-		}
-
-		e.env = oldEnv
-		if oldResolver != nil {
-			e.resolver = oldResolver
-		}
-
-		// M-TRACE-EXPORT: Record function exit.
-		// Tier-gated before rendering, for the same reason as the enter site above:
-		// result.String() on a returned accumulator is the other half of the O(n^2).
-		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() && recorder.RecordsFunctionCalls() {
-			recorder.RecordFunctionExit(funcName, recorder.RenderTraceValue(result))
-		}
-
-		// M-BUDGET-SCOPING-BUG: budget scope exit (frame pop + @min check) is
-		// handled by the deferred deferredPopBudgetFrame registered on entry.
-
-		if debugEvalApp {
-			if result != nil {
-				log.Printf("[DEBUG_EVAL_APP] FunctionValue returned %T(%s)", result, result.String())
-			} else {
-				log.Printf("[DEBUG_EVAL_APP] FunctionValue returned nil, err=%v", err)
-			}
-		}
-		return result, err
+		return e.applyFunctionValue(fn, args, funcName, appFrame)
 
 	case *BuiltinFunction:
 		result, err := fn.Fn(args)
@@ -453,13 +342,13 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 				case "!=":
 					return &BoolValue{Value: !types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "<":
-					return &BoolValue{Value: lFloat.Value < rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatLt(lFloat.Value, rFloat.Value)}, nil
 				case ">":
-					return &BoolValue{Value: lFloat.Value > rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatGt(lFloat.Value, rFloat.Value)}, nil
 				case "<=":
-					return &BoolValue{Value: lFloat.Value <= rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatLte(lFloat.Value, rFloat.Value)}, nil
 				case ">=":
-					return &BoolValue{Value: lFloat.Value >= rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatGte(lFloat.Value, rFloat.Value)}, nil
 				}
 			}
 		}
@@ -516,13 +405,13 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 				case "*":
 					return &IntValue{Value: lInt.Value * rInt.Value}, nil
 				case "/":
-					if rInt.Value == 0 {
-						return nil, fmt.Errorf("division by zero")
+					if err := checkIntDivisorAt(ailerrors.OpDivision, rInt.Value, ""); err != nil {
+						return nil, err
 					}
 					return &IntValue{Value: lInt.Value / rInt.Value}, nil
 				case "%":
-					if rInt.Value == 0 {
-						return nil, fmt.Errorf("modulo by zero")
+					if err := checkIntDivisorAt(ailerrors.OpModulo, rInt.Value, ""); err != nil {
+						return nil, err
 					}
 					return &IntValue{Value: lInt.Value % rInt.Value}, nil
 				case "==":
@@ -597,13 +486,13 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 				case "!=":
 					return &BoolValue{Value: !types.FloatEq(lFloat.Value, rFloat.Value)}, nil
 				case "<":
-					return &BoolValue{Value: lFloat.Value < rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatLt(lFloat.Value, rFloat.Value)}, nil
 				case ">":
-					return &BoolValue{Value: lFloat.Value > rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatGt(lFloat.Value, rFloat.Value)}, nil
 				case "<=":
-					return &BoolValue{Value: lFloat.Value <= rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatLte(lFloat.Value, rFloat.Value)}, nil
 				case ">=":
-					return &BoolValue{Value: lFloat.Value >= rFloat.Value}, nil
+					return &BoolValue{Value: types.FloatGte(lFloat.Value, rFloat.Value)}, nil
 				}
 			}
 		}

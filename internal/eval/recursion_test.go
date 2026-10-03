@@ -261,17 +261,24 @@ func TestMutualRecursion_IsEvenOdd(t *testing.T) {
 
 // TestStackOverflow tests that infinite recursion triggers depth guard
 func TestStackOverflow(t *testing.T) {
-	// Build: letrec loop = λn. loop(n+1) in loop(0)
+	// Build: letrec loop = λn. 1 + loop(n+1) in loop(0)
 	// Expected: RT_REC_003 error (max recursion depth exceeded)
-
-	// loop body: loop(n+1)
-	loopBody := &core.App{
-		Func: &core.Var{Name: "loop"},
-		Args: []core.CoreExpr{
-			&core.BinOp{
-				Op:    "+",
-				Left:  &core.Var{Name: "n"},
-				Right: &core.Lit{Kind: core.IntLit, Value: 1},
+	//
+	// The recursive call is deliberately NOT in tail position: since
+	// M-EVAL-TAIL-CALLS (#1486) a tail call reuses its frame, so an infinite
+	// tail loop `loop(n) = loop(n+1)` runs forever (as it already did under
+	// --bytecode). RT_REC_003 bounds pending, non-tail work.
+	loopBody := &core.BinOp{
+		Op:   "+",
+		Left: &core.Lit{Kind: core.IntLit, Value: 1},
+		Right: &core.App{
+			Func: &core.Var{Name: "loop"},
+			Args: []core.CoreExpr{
+				&core.BinOp{
+					Op:    "+",
+					Left:  &core.Var{Name: "n"},
+					Right: &core.Lit{Kind: core.IntLit, Value: 1},
+				},
 			},
 		},
 	}

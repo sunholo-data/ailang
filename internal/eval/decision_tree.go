@@ -8,12 +8,12 @@ import (
 )
 
 // evalDecisionTree evaluates a match using a pre-compiled decision tree
-func (e *CoreEvaluator) evalDecisionTree(scrutineeVal Value, tree dtree.DecisionTree, arms []core.MatchArm) (Value, error) {
-	return e.walkTree(scrutineeVal, tree, arms, make(map[string]Value))
+func (e *CoreEvaluator) evalDecisionTree(scrutineeVal Value, tree dtree.DecisionTree, arms []core.MatchArm, tail bool) (Value, error) {
+	return e.walkTree(scrutineeVal, tree, arms, make(map[string]Value), tail)
 }
 
 // walkTree walks the decision tree with the scrutinee value
-func (e *CoreEvaluator) walkTree(scrutinee Value, tree dtree.DecisionTree, arms []core.MatchArm, bindings map[string]Value) (Value, error) {
+func (e *CoreEvaluator) walkTree(scrutinee Value, tree dtree.DecisionTree, arms []core.MatchArm, bindings map[string]Value, tail bool) (Value, error) {
 	switch node := tree.(type) {
 	case *dtree.LeafNode:
 		// Reached a leaf - check guard and execute body
@@ -64,7 +64,7 @@ func (e *CoreEvaluator) walkTree(scrutinee Value, tree dtree.DecisionTree, arms 
 
 		oldEnv := e.env
 		e.env = newEnv
-		result, err := e.evalCore(node.Body)
+		result, err := e.evalCoreT(node.Body, tail)
 		e.env = oldEnv
 
 		return result, err
@@ -92,19 +92,19 @@ func (e *CoreEvaluator) walkTree(scrutinee Value, tree dtree.DecisionTree, arms 
 		default:
 			// For other types, use default
 			if node.Default != nil {
-				return e.walkTree(scrutinee, node.Default, arms, bindings)
+				return e.walkTree(scrutinee, node.Default, arms, bindings, tail)
 			}
 			return nil, fmt.Errorf("no matching case in switch node")
 		}
 
 		// Look up the case
 		if subtree, ok := node.Cases[key]; ok {
-			return e.walkTree(scrutinee, subtree, arms, bindings)
+			return e.walkTree(scrutinee, subtree, arms, bindings, tail)
 		}
 
 		// Fall back to default
 		if node.Default != nil {
-			return e.walkTree(scrutinee, node.Default, arms, bindings)
+			return e.walkTree(scrutinee, node.Default, arms, bindings, tail)
 		}
 
 		return nil, fmt.Errorf("no matching case in switch node for key: %v", key)

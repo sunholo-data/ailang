@@ -206,43 +206,47 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 
 	// Load imported modules and add their exports to symbols
 	if e.moduleLoader != nil {
+		var binds []importBinding
 		for _, imp := range file.Imports {
-			if len(imp.Symbols) > 0 {
-				// Selective import
-				for _, sym := range imp.Symbols {
-					decl, err := e.moduleLoader.GetExport(imp.Path, sym)
-					if err != nil {
-						// Preserve structured error reports without wrapping
-						return nil, err
-					}
-					// If decl is nil, it's a type or constructor - skip for now
-					// (they'll be handled by the type checker and linker)
-					if decl == nil {
+			// Selective imports only: `import M as L` binds no bare names.
+			for _, sym := range imp.Symbols {
+				decl, err := e.moduleLoader.GetExport(imp.Path, sym)
+				if err != nil {
+					// Preserve structured error reports without wrapping
+					return nil, err
+				}
+				// Use the alias name if present, otherwise the original name
+				// ("import foo (bar as baz)" binds "baz", not "bar").
+				bindName := sym
+				if alias, ok := imp.SymbolAliases[sym]; ok {
+					bindName = alias
+				}
+				b := importBinding{name: bindName, orig: sym, path: imp.Path, mod: imp.ModuleAlias, pos: imp.Pos, kind: importValue}
+				if decl == nil {
+					// A type or a constructor. Types and constructors are handled by
+					// the type checker and linker; constructors still take part in
+					// the MOD015 collision check.
+					if !e.importIsConstructor(imp.Path, sym) {
 						continue
 					}
-					// Use the alias name if present, otherwise the original name.
-					// This prevents imported functions from overwriting local
-					// definitions with the same name (e.g., "import foo (bar as baz)"
-					// stores as "baz", not "bar").
-					bindName := sym
-					if imp.SymbolAliases != nil {
-						if alias, ok := imp.SymbolAliases[sym]; ok {
-							bindName = alias
-						}
-					}
-					// Convert imported func to FuncSig
-					// The GetExport already returns *ast.FuncDecl
-					sig := astFuncToSig(decl)
-					// Don't overwrite local function definitions with imports.
-					// Local functions take precedence; the import is still
-					// accessible via globalEnv (VarGlobal) at elaboration time.
-					if _, isLocal := symbols[bindName]; !isLocal {
-						symbols[bindName] = sig
-					}
-					// Mark as imported using the bind name
-					imports[bindName] = imp.Path + "/" + sym
+					b.kind = importCtor
+					binds = append(binds, b)
+					continue
 				}
+				binds = append(binds, b)
+				// Convert imported func to FuncSig
+				// The GetExport already returns *ast.FuncDecl
+				symbols[bindName] = astFuncToSig(decl)
+				// Mark as imported using the bind name
+				imports[bindName] = imp.Path + "/" + sym
 			}
+		}
+		// MOD015 (#1467): an imported bare name that a module-level func, let or
+		// constructor also binds is ambiguous — a compile error. Raised before
+		// anything reads symbols/imports, so the import entries written above for
+		// a colliding name are never used.
+		if err := checkImportCollisions(file, binds, moduleLets, funcs); err != nil {
+			return nil, err
 		}
 	}
 
@@ -274,7 +278,10 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 		if astFunc == nil {
 			return nil
 		}
+		// Contracts reference the function's parameters by name (#1467).
+		e.pushScope(f.Params...)
 		contracts, err := e.elaborateContracts(astFunc.Properties)
+		e.popScope()
 		if err != nil {
 			return fmt.Errorf("elaborating contracts for %s: %w", f.Name, err)
 		}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "ailang-check-on-edit",
+  "version": "0.1.0",
+  "description": "After Claude edits or writes a .ail file, runs `ailang check` from the project root and adds any errors to what the model reads after the tool result, so it sees its own type errors without spending a turn. Works in interactive and headless (claude -p) sessions. Requires the `ailang` binary on PATH.",
+  "author": { "name": "AILANG" },
+  "keywords": ["ailang", "mod", "diagnostics", "headless"],
+  "userConfig": {
+    "formatOnEdit": {
+      "type": "boolean",
+      "title": "Format on edit",
+      "description": "Run `ailang fmt --write` on the file before checking it (rewrites the file Claude just wrote)",
+      "default": false
+    }
+  }
+}

@@ -181,6 +181,9 @@ check-file-sizes: ## Check for files >800 lines (CI gate)
 check-boundaries: ## Check architecture layer boundaries (CI gate)
 	@bash scripts/check_boundaries.sh
 
+check-no-fma: ## Refuse fused multiply-add in runtime float code — cross-arch determinism (CI gate, #1465)
+	@bash scripts/check_no_fma.sh
+
 check-git-exec: ## Refuse bare-name git exec sites outside internal/gitexec (CI gate)
 	@bash scripts/check_git_exec.sh
 

@@ -1,5 +1,5 @@
 -- Test IO effect with capability grant
--- Run with: ailang run examples/test_effect_io.ail --caps IO
+-- Run with: ailang run --caps IO examples/tests/test_effect_io.ail
 
 module examples/tests/test_effect_io
 

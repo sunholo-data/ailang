@@ -61,6 +61,7 @@ func CheckModuleIFC(file *ast.File) []*TypeCheckError {
 		return nil
 	}
 	c := &ifcChecker{
+		types:     newIFCTypes(file),
 		sigs:      make(map[string]*ifcSig, len(file.Funcs)),
 		effLabel:  make(map[string]Label),
 		computing: make(map[string]bool),
@@ -90,12 +91,25 @@ type ifcSig struct {
 
 type ifcParam struct {
 	name     string
-	label    Label  // source label from `x: T<label>` (⊥ if none)
-	notLabel string // sink refinement label from `x: T{not ℓ}` ("" if none)
+	label    Label    // source label from `x: T<label>` (⊥ if none)
+	notLabel string   // sink refinement label from `x: T{not ℓ}` ("" if none)
+	typ      ast.Type // the declared parameter type (nil if unannotated)
 	hasNot   bool
 }
 
+// ifcVar is what the IFC environment knows about a bound name: its flow label
+// (labels carried in by the value) and, when the surface AST names it, its
+// static type (whose declared labels labelOf adds on every use).
+type ifcVar struct {
+	label Label
+	typ   ast.Type
+}
+
+// ifcEnv maps a bound name to its flow label and static type.
+type ifcEnv map[string]ifcVar
+
 type ifcChecker struct {
+	types     *ifcTypes // module-local type declarations (ifc_static_type.go)
 	sigs      map[string]*ifcSig
 	errs      []*TypeCheckError
 	effLabel  map[string]Label // memoised effective body label per local func
@@ -106,7 +120,7 @@ type ifcChecker struct {
 func buildIFCSig(fn *ast.FuncDecl) *ifcSig {
 	sig := &ifcSig{decl: fn, returnLabel: LabelBottom()}
 	for _, p := range fn.Params {
-		ip := ifcParam{name: p.Name, label: LabelBottom()}
+		ip := ifcParam{name: p.Name, label: LabelBottom(), typ: p.Type}
 		if lt, ok := p.Type.(*ast.LabelledType); ok {
 			if lt.Label != nil {
 				ip.label = LabelConst(lt.Label.Name)
@@ -132,9 +146,9 @@ func buildIFCSig(fn *ast.FuncDecl) *ifcSig {
 
 // checkFunc runs Check A (via the body walk) and Check B over one function.
 func (c *ifcChecker) checkFunc(sig *ifcSig) {
-	env := make(map[string]Label, len(sig.params))
+	env := make(ifcEnv, len(sig.params))
 	for _, p := range sig.params {
-		env[p.name] = p.label
+		env[p.name] = ifcVar{label: p.label, typ: p.typ}
 	}
 	bodyLabel := c.labelOf(sig.decl.Body, env)
 
@@ -147,15 +161,24 @@ func (c *ifcChecker) checkFunc(sig *ifcSig) {
 	}
 }
 
-// labelOf computes the IFC label of expr under env (var name -> label). As a
-// side effect it performs Check A on every call it encounters (unless silent).
-func (c *ifcChecker) labelOf(expr ast.Expr, env map[string]Label) Label {
+// labelOf computes the full IFC label of expr under env: the labels that flowed
+// in with the value (flowOf) joined with the labels its static type declares
+// (M-IFC-DECLARED-RECORD-LABELS, #1523). As a side effect it performs Check A on
+// every call it encounters (unless silent). Each sub-expression is walked once.
+func (c *ifcChecker) labelOf(expr ast.Expr, env ifcEnv) Label {
+	return LabelJoin(c.flowOf(expr, env), c.types.deepLabel(c.staticType(expr, env)))
+}
+
+// flowOf computes the label carried in by the VALUE of expr — the pre-#1523
+// walk. labelOf adds the declared part; keeping the two apart is what makes
+// field projection precise: s.user does not inherit s.code's declared label.
+func (c *ifcChecker) flowOf(expr ast.Expr, env ifcEnv) Label {
 	switch e := expr.(type) {
 	case nil:
 		return LabelBottom()
 	case *ast.Identifier:
-		if l, ok := env[e.Name]; ok {
-			return l
+		if v, ok := env[e.Name]; ok {
+			return v.label
 		}
 		return LabelBottom()
 	case *ast.Literal:
@@ -167,44 +190,23 @@ func (c *ifcChecker) labelOf(expr ast.Expr, env map[string]Label) Label {
 	case *ast.FuncCall:
 		return c.labelOfCall(e, env)
 	case *ast.Let:
-		return c.labelOf(e.Body, extendEnv(env, e.Name, c.labelOf(e.Value, env)))
+		return c.labelOf(e.Body, extendEnv(env, e.Name, c.bindValue(e.Value, e.Type, env)))
 	case *ast.LetRec:
-		return c.labelOf(e.Body, extendEnv(env, e.Name, c.labelOf(e.Value, env)))
+		return c.labelOf(e.Body, extendEnv(env, e.Name, c.bindValue(e.Value, e.Type, env)))
 	case *ast.Block:
-		// A block { s1; s2; ...; result } scopes a block-statement let (a Let or
-		// LetRec parsed without `in`, so its Body is nil) over the remainder of
-		// the block. Elaboration turns this into nested Core lets, so the surface
-		// walk must thread the binding into the environment for later statements.
-		last := LabelBottom()
-		cur := env
-		for _, sub := range e.Exprs {
-			switch s := sub.(type) {
-			case *ast.Let:
-				if s.Body == nil {
-					cur = extendEnv(cur, s.Name, c.labelOf(s.Value, cur))
-					last = LabelBottom()
-					continue
-				}
-			case *ast.LetRec:
-				if s.Body == nil {
-					cur = extendEnv(cur, s.Name, c.labelOf(s.Value, cur))
-					last = LabelBottom()
-					continue
-				}
-			}
-			last = c.labelOf(sub, cur)
-		}
-		return last
+		return c.walkBlock(e, env, c.labelOf)
 	case *ast.If:
 		c.labelOf(e.Condition, env)
 		return LabelJoin(c.labelOf(e.Then, env), c.labelOf(e.Else, env))
 	case *ast.Match:
+		// Every pattern variable gets the scrutinee's FULL label (flow and
+		// declared): destructuring is conservative, not field-precise.
 		scrut := c.labelOf(e.Expr, env)
 		result := LabelBottom()
 		for _, cs := range e.Cases {
 			armEnv := env
 			for _, name := range patternVars(cs.Pattern) {
-				armEnv = extendEnv(armEnv, name, scrut)
+				armEnv = extendEnv(armEnv, name, ifcVar{label: scrut})
 			}
 			if cs.Guard != nil {
 				c.labelOf(cs.Guard, armEnv)
@@ -225,7 +227,13 @@ func (c *ifcChecker) labelOf(expr ast.Expr, env map[string]Label) Label {
 		}
 		return result
 	case *ast.RecordAccess:
-		// Conservative: a field inherits the record's join label.
+		// Field-precise when the field's declared type is known: the field gets
+		// the record's FLOW label here, and labelOf adds deepLabel(field type)
+		// — not the declared labels of the record's other fields. Otherwise a
+		// field inherits the record's full join label (conservative).
+		if c.staticType(e, env) != nil {
+			return c.flowOf(e.Record, env)
+		}
 		return c.labelOf(e.Record, env)
 	case *ast.List:
 		return c.joinElems(e.Elements, env)
@@ -248,15 +256,108 @@ func (c *ifcChecker) labelOf(expr ast.Expr, env map[string]Label) Label {
 		// than strictly necessary. For a security control that is the correct
 		// direction to err — over-approximating rejects safe programs, while
 		// under-approximating admits leaks silently.
-		return c.labelOf(e.Body, env)
+		return c.labelOf(e.Body, typedParams(env, e.Params))
 	case *ast.FuncLit:
-		return c.labelOf(e.Body, env)
+		return c.labelOf(e.Body, typedParams(env, e.Params))
 	default:
 		return LabelBottom()
 	}
 }
 
-func (c *ifcChecker) joinElems(elems []ast.Expr, env map[string]Label) Label {
+// walkBlock threads block-statement lets through a block { s1; s2; ...; result }
+// and returns `last` applied to the result expression. A Let or LetRec parsed
+// without `in` (Body == nil) scopes over the remainder of the block, because
+// elaboration turns it into nested Core lets.
+func (c *ifcChecker) walkBlock(b *ast.Block, env ifcEnv, last func(ast.Expr, ifcEnv) Label) Label {
+	result := LabelBottom()
+	cur := env
+	for _, sub := range b.Exprs {
+		switch s := sub.(type) {
+		case *ast.Let:
+			if s.Body == nil {
+				cur = extendEnv(cur, s.Name, c.bindValue(s.Value, s.Type, cur))
+				result = LabelBottom()
+				continue
+			}
+		case *ast.LetRec:
+			if s.Body == nil {
+				cur = extendEnv(cur, s.Name, c.bindValue(s.Value, s.Type, cur))
+				result = LabelBottom()
+				continue
+			}
+		}
+		result = last(sub, cur)
+	}
+	return result
+}
+
+// typedParams binds the ANNOTATED parameters of a lambda / function literal to
+// their declared type, keeping whatever flow label an outer binding of the same
+// name had (unannotated parameters are not rebound — today's over-approximation).
+func typedParams(env ifcEnv, params []*ast.Param) ifcEnv {
+	out := env
+	for _, p := range params {
+		if p == nil || p.Type == nil {
+			continue
+		}
+		prev := LabelBottom()
+		if v, ok := env[p.Name]; ok {
+			prev = v.label
+		}
+		out = extendEnv(out, p.Name, ifcVar{label: prev, typ: p.Type})
+	}
+	return out
+}
+
+// bindValue computes what a let binding records: the annotation (or, when
+// unannotated, the value's own static type) and the hand-off label of the value
+// into that type.
+func (c *ifcChecker) bindValue(value ast.Expr, annot ast.Type, env ifcEnv) ifcVar {
+	t := annot
+	if t == nil {
+		t = c.staticType(value, env)
+	}
+	return ifcVar{label: c.handOff(value, t, env), typ: t}
+}
+
+// handOff is the label a value keeps when it moves into a position declared as
+// type t (a let, a function body against its return type). When the value's
+// static type is written exactly as t, only its FLOW label is kept: the
+// receiving position re-derives the declared part from t itself. A record
+// literal is handed off field by field. In every other case — including t
+// unknown, or an annotation whose labels sit elsewhere than the value's (HM
+// strips labels, so that type-checks) — the value keeps its FULL label, so an
+// annotation can never lower a label.
+func (c *ifcChecker) handOff(e ast.Expr, t ast.Type, env ifcEnv) Label {
+	if t == nil {
+		return c.labelOf(e, env)
+	}
+	switch x := e.(type) {
+	case *ast.Record:
+		if c.types.recordTypeOf(t) != nil {
+			result := LabelBottom()
+			for _, f := range x.Fields {
+				result = LabelJoin(result, c.handOff(f.Value, c.types.fieldType(t, f.Name), env))
+			}
+			return result
+		}
+	case *ast.Block:
+		return c.walkBlock(x, env, func(sub ast.Expr, cur ifcEnv) Label { return c.handOff(sub, t, cur) })
+	case *ast.Let:
+		if x.Body != nil {
+			return c.handOff(x.Body, t, extendEnv(env, x.Name, c.bindValue(x.Value, x.Type, env)))
+		}
+	case *ast.If:
+		c.labelOf(x.Condition, env)
+		return LabelJoin(c.handOff(x.Then, t, env), c.handOff(x.Else, t, env))
+	}
+	if sameType(c.staticType(e, env), t) {
+		return c.flowOf(e, env)
+	}
+	return c.labelOf(e, env)
+}
+
+func (c *ifcChecker) joinElems(elems []ast.Expr, env ifcEnv) Label {
 	result := LabelBottom()
 	for _, el := range elems {
 		result = LabelJoin(result, c.labelOf(el, env))
@@ -266,14 +367,28 @@ func (c *ifcChecker) joinElems(elems []ast.Expr, env map[string]Label) Label {
 
 // labelOfCall computes a call's result label and runs Check A on the callee's
 // sink parameters.
-func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env map[string]Label) Label {
-	argLabels := make([]Label, len(call.Args))
-	for i, a := range call.Args {
-		argLabels[i] = c.labelOf(a, env)
-	}
+func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env ifcEnv) Label {
 	name := calleeName(call.Func)
+	sig, isLocal := c.sigs[name]
 
-	if sig, ok := c.sigs[name]; ok {
+	// Each argument is walked ONCE. argLabels are full labels (used by Check A
+	// and by unknown callees); passed are the hand-off labels into a local
+	// callee's declared parameter types (the summary re-derives the declared
+	// part from the parameter type, so a type-matched argument passes only its
+	// flow label — see handOff).
+	argLabels := make([]Label, len(call.Args))
+	passed := make([]Label, len(call.Args))
+	for i, a := range call.Args {
+		flow := c.flowOf(a, env)
+		st := c.staticType(a, env)
+		argLabels[i] = LabelJoin(flow, c.types.deepLabel(st))
+		passed[i] = argLabels[i]
+		if isLocal && i < len(sig.params) && sameType(st, sig.params[i].typ) {
+			passed[i] = flow
+		}
+	}
+
+	if isLocal {
 		// Check A: sink refinements on the callee's parameters.
 		if !c.silent {
 			for i, p := range sig.params {
@@ -284,7 +399,7 @@ func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env map[string]Label) Label
 				}
 			}
 		}
-		return c.calleeResultLabel(sig, argLabels)
+		return c.calleeResultLabel(sig, passed)
 	}
 	if src, ok := ifcBuiltinSourceLabels[name]; ok {
 		return LabelConst(src)
@@ -317,9 +432,14 @@ func (c *ifcChecker) calleeResultLabel(sig *ifcSig, argLabels []Label) Label {
 }
 
 // effectiveBodyLabel computes (and memoises) the intrinsic label a transparent
-// local function's body produces with parameters seeded at ⊥ — capturing taint
-// introduced inside the body (e.g. a secret() call) independent of arguments.
-// A cycle guard makes mutual recursion converge conservatively.
+// local function's body produces with parameters' flow labels seeded at ⊥ —
+// capturing taint introduced inside the body (e.g. a secret() call) independent
+// of arguments. Parameters keep their declared TYPE, so a getter that projects
+// a declared-labelled field (`getRaw(c: RawCode) -> string = c.raw`) yields that
+// field's label, while one projecting an unlabelled sibling stays clean. The
+// body is handed off against the declared return type; the caller's labelOf
+// adds that type's declared labels. A cycle guard makes mutual recursion
+// converge conservatively.
 func (c *ifcChecker) effectiveBodyLabel(name string) Label {
 	if l, ok := c.effLabel[name]; ok {
 		return l
@@ -334,11 +454,11 @@ func (c *ifcChecker) effectiveBodyLabel(name string) Label {
 	c.computing[name] = true
 	prevSilent := c.silent
 	c.silent = true // label-only walk; sinks are checked when this func is checkFunc'd
-	env := make(map[string]Label, len(sig.params))
+	env := make(ifcEnv, len(sig.params))
 	for _, p := range sig.params {
-		env[p.name] = LabelBottom()
+		env[p.name] = ifcVar{label: LabelBottom(), typ: p.typ}
 	}
-	l := c.labelOf(sig.decl.Body, env)
+	l := c.handOff(sig.decl.Body, sig.decl.ReturnType, env)
 	c.silent = prevSilent
 	c.computing[name] = false
 	c.effLabel[name] = l
@@ -354,12 +474,12 @@ func calleeName(fn ast.Expr) string {
 	return ""
 }
 
-func extendEnv(env map[string]Label, name string, l Label) map[string]Label {
-	next := make(map[string]Label, len(env)+1)
-	for k, v := range env {
-		next[k] = v
+func extendEnv(env ifcEnv, name string, v ifcVar) ifcEnv {
+	next := make(ifcEnv, len(env)+1)
+	for k, val := range env {
+		next[k] = val
 	}
-	next[name] = l
+	next[name] = v
 	return next
 }
 

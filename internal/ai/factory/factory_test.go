@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/sunholo-data/ailang/internal/testutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -182,5 +183,79 @@ func TestNew_ConfigDrivenAndUnknown(t *testing.T) {
 	c, err = New("openai", WithConfigDriven(func(string) ai.Provider { return stub }))
 	if err != nil || c.Lane == LaneConfigDriven {
 		t.Fatalf("collision: %+v %v", c, err)
+	}
+}
+
+// #1499: with ADC disabled (WithNoADC or AILANG_AI_NO_ADC=1) a missing Google
+// key is a hard AuthFailed error even when a Vertex project IS resolvable —
+// the case where the old fallback silently billed the developer's project.
+func TestNew_GoogleNoADC(t *testing.T) {
+	isolate(t)
+	t.Setenv("AILANG_AI_NO_ADC", "")
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "dev-project") // ADC would resolve
+	t.Setenv("GOOGLE_CLOUD_LOCATION", "global")
+
+	// Control: without the switch the resolvable project wins (ADC lane).
+	if c, err := New("google"); err != nil || c.Lane != LaneADC {
+		t.Fatalf("control (ADC available): %+v %v", c, err)
+	}
+
+	for name, opts := range map[string][]Option{
+		"option": {WithNoADC(true)},
+		"env":    nil,
+	} {
+		if name == "env" {
+			t.Setenv("AILANG_AI_NO_ADC", "1")
+		}
+		_, err := New("google", opts...)
+		var aiErr *ai.AIError
+		if !errors.As(err, &aiErr) || aiErr.Code != ai.CodeAuthFailed {
+			t.Fatalf("%s: want AuthFailed AIError, got %v", name, err)
+		}
+		if !strings.Contains(err.Error(), "GOOGLE_API_KEY") || !strings.Contains(err.Error(), "ADC") {
+			t.Errorf("%s: error should name the key variable and the disabled ADC lane: %v", name, err)
+		}
+		// A key still works with ADC disabled.
+		t.Setenv("GOOGLE_API_KEY", "k")
+		if c, err := New("google", opts...); err != nil || c.Lane != LaneAPIKey {
+			t.Fatalf("%s with key: %+v %v", name, c, err)
+		}
+		t.Setenv("GOOGLE_API_KEY", "")
+	}
+
+	// A pinned project chooses Vertex; with ADC disabled that is a contradiction.
+	if _, err := New("google", WithGCPProject("p"), WithNoADC(true)); err == nil {
+		t.Fatal("pinned project + no-ADC must be refused")
+	}
+}
+
+// #1499: --ai-key-file is read once, trimmed, and its contents never appear
+// in an error.
+func TestReadKeyFile(t *testing.T) {
+	dir := t.TempDir()
+	good := dir + "/key"
+	if err := os.WriteFile(good, []byte("  secret-key-123\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if k, err := ReadKeyFile(good); err != nil || k != "secret-key-123" {
+		t.Fatalf("good: %q %v", k, err)
+	}
+	empty := dir + "/empty"
+	if err := os.WriteFile(empty, []byte(" \n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadKeyFile(empty); err == nil || !strings.Contains(err.Error(), "empty") {
+		t.Fatalf("empty: %v", err)
+	}
+	multi := dir + "/multi"
+	if err := os.WriteFile(multi, []byte("secret-a\nsecret-b\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := ReadKeyFile(multi)
+	if err == nil || strings.Contains(err.Error(), "secret-a") || strings.Contains(err.Error(), "secret-b") {
+		t.Fatalf("multi-line: want an error that does not echo contents, got %v", err)
+	}
+	if _, err := ReadKeyFile(dir + "/missing"); err == nil {
+		t.Fatal("missing file must fail")
 	}
 }

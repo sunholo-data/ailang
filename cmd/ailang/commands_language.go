@@ -237,9 +237,14 @@ func runTestCommand(args []string) error {
 	allowSkipsFlag := testFlags.Bool("allow-skips", false, "Exit 0 even when all tests are skipped (default: skipped-only suites exit 1)")
 	seedFlag := testFlags.Int64("seed", 0, "Master seed for property generation (signed int64)")
 	randomSeedFlag := testFlags.Bool("random-seed", false, "Read one master seed from crypto/rand and report it")
+	maxRecursionDepthFlag := testFlags.Int("max-recursion-depth", 10000, "Maximum evaluator recursion depth for test bodies (same as ailang run)")
+	bytecodeFlag := testFlags.Bool("bytecode", false, "Run named-test bodies on the bytecode VM where they compile (evaluator fallback otherwise)")
+	strictBytecodeFlag := testFlags.Bool("strict-bytecode", false, "Like --bytecode, but fail a test body instead of falling back to the evaluator")
 	helpTestFlag := testFlags.Bool("help", false, "Show help for test command")
 
-	_ = testFlags.Parse(args) // Parse errors handled by flags package
+	// Flags may appear before, between or after the paths (ExitOnError handles
+	// parse errors). Every path given is tested — see parseTestArgs.
+	paths, _ := parseTestArgs(testFlags, args)
 
 	if *helpTestFlag {
 		printTestHelp()
@@ -274,7 +279,8 @@ func runTestCommand(args []string) error {
 		fmt.Fprintf(os.Stderr, "Error: cannot determine working directory: %v\n", err)
 		os.Exit(1)
 	}
-	cfg := ailangTesting.TestConfig{WorkspaceRoot: cwd, SeedMode: ailangTesting.SeedModeDerived, MasterSeed: 0}
+	cfg := ailangTesting.TestConfig{WorkspaceRoot: cwd, SeedMode: ailangTesting.SeedModeDerived, MasterSeed: 0, MaxRecursionDepth: *maxRecursionDepthFlag,
+		Bytecode: *bytecodeFlag || *strictBytecodeFlag, StrictBytecode: *strictBytecodeFlag}
 	switch {
 	case seedSet:
 		cfg.SeedMode, cfg.MasterSeed = ailangTesting.SeedModeMaster, *seedFlag
@@ -287,25 +293,33 @@ func runTestCommand(args []string) error {
 		cfg.SeedMode, cfg.MasterSeed = ailangTesting.SeedModeMaster, m
 	}
 
-	path := "."
-	if testFlags.NArg() >= 1 {
-		path = testFlags.Arg(0)
+	if len(paths) == 0 {
+		paths = []string{"."}
+	}
+	if *packageFlag && len(paths) > 1 {
+		fmt.Fprintf(os.Stderr, "Error: --package takes one package directory, got %d paths: %s\n",
+			len(paths), strings.Join(paths, " "))
+		os.Exit(2)
 	}
 
 	// Record the CLI argument tail that reproduces this run, shell-safe, so
 	// the emitted replay command is runnable (defect §3(A)); see
 	// replayTargetArg for the quoting rules.
+	quoted := make([]string, len(paths))
+	for i, p := range paths {
+		quoted[i] = replayTargetArg(p)
+	}
 	if *packageFlag {
-		cfg.ReplayTarget = "--package " + replayTargetArg(path)
+		cfg.ReplayTarget = "--package " + quoted[0]
 	} else {
-		cfg.ReplayTarget = replayTargetArg(path)
+		cfg.ReplayTarget = strings.Join(quoted, " ")
 	}
 
 	format := resolveTestFormat(*jsonFlag, *formatFlag)
 	if *packageFlag {
-		runPackageTests(path, format, !*noColorFlag, *allowSkipsFlag, cfg)
+		runPackageTests(paths[0], format, !*noColorFlag, *allowSkipsFlag, cfg)
 	} else {
-		runTestsV2(path, format, !*noColorFlag, *allowSkipsFlag, cfg)
+		runTestsV2(paths, format, !*noColorFlag, *allowSkipsFlag, cfg)
 	}
 	return nil
 }

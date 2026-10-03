@@ -51,11 +51,17 @@ run inline test blocks in source modules, and it cannot assess assertion quality
 or establish coverage. `publish` and `publish --dry-run` refuse on the same gates.
 Use `--json` for automation; record proof results separately.
 
+A `_namedtest_body_<digits>.ail` is a test-module copy left by an interrupted
+`ailang test` of v0.51.0 or older. It is never package source: quality refuses it
+(PUB024) and publish excludes it. Delete it, and keep `_namedtest_body_*.ail` in
+.gitignore (`ailang init package` adds it).
+
 ## Dependencies and publication
 
 Registry packages can be published. `ailang install vendor/name@latest` resolves
-once to an exact version. Use path dependencies for local co-development and
-regenerate their lock after moving/cloning; do not call local path locks portable.
+once to an exact version. Use path dependencies for local co-development; the
+lock records them relative to ailang.toml, so it survives a clone or move of the
+tree that contains them. `ailang lock --check` verifies the lock in CI.
 Publish dependencies first, then dependents. `ailang publish` rewrites path deps
 to registry versions in the tarball and restores the local manifest.
 

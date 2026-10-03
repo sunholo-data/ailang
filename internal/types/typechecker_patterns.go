@@ -144,10 +144,15 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		return nil, typedast.TypedWildcardPattern{}, nil
 
 	case *core.ConstructorPattern:
+		// #1478: a name outside direct scope is accepted only if a loaded
+		// module defines it (and it isn't provably a foreign ADT's).
+		if err := tc.checkCtorPatternScope(p, scrutType); err != nil {
+			return nil, nil, err
+		}
 		// M-DX25.4: Look up constructor's ADT type and add constraint
 		// This ensures pattern matching on ADTs infers the correct ADT type for the scrutinee
 		if tc.constructorTypes != nil {
-			if adtTypeName, ok := tc.constructorTypes[p.Name]; ok {
+			if adtTypeName, ok := tc.patternADT(p); ok {
 				// M-MATCH-ADT-XCHECK (v0.18.10): if the scrutinee's type
 				// is already concretely resolved to a different ADT,
 				// fail FAST with a structured error naming both ADTs
@@ -213,7 +218,7 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		// over-tightening); if no factory scheme is registered we fall through to
 		// the old fresh-var behaviour (no worse than before).
 		var ctorFieldTypes []Type
-		if adtTypeName, ok := tc.constructorTypes[p.Name]; ok {
+		if adtTypeName, ok := tc.patternADT(p); ok {
 			factoryKey := fmt.Sprintf("$adt.make_%s_%s", adtTypeName, p.Name)
 			if scheme, ok := tc.globalTypes[factoryKey]; ok {
 				if fn, ok := scheme.Instantiate(ctx.freshType).(*TFunc2); ok {

@@ -171,7 +171,7 @@ func registerPreludeInstances(linker *link.Linker) {
 			"add": wrapInt2("add", func(a, b int64) int64 { return a + b }),
 			"sub": wrapInt2("sub", func(a, b int64) int64 { return a - b }),
 			"mul": wrapInt2("mul", func(a, b int64) int64 { return a * b }),
-			"div": wrapInt2("div", func(a, b int64) int64 { return a / b }),
+			"div": &eval.BuiltinFunction{Name: "div", Fn: intDivFn},
 		},
 	}
 
@@ -324,7 +324,7 @@ func registerPreludeInstancesForEvaluator(evaluator *eval.CoreEvaluator) {
 				"add": wrapInt2("add", func(a, b int64) int64 { return a + b }),
 				"sub": wrapInt2("sub", func(a, b int64) int64 { return a - b }),
 				"mul": wrapInt2("mul", func(a, b int64) int64 { return a * b }),
-				"div": wrapInt2("div", func(a, b int64) int64 { return a / b }),
+				"div": &eval.BuiltinFunction{Name: "div", Fn: intDivFn},
 			},
 		},
 		"Num[Float]": {

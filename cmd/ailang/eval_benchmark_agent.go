@@ -153,9 +153,13 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		// M-EVAL-SWEET-SPOT: classify the failure into a typed category
 		// when the error string carries a recognizable signal (OpenRouter
 		// quota kill, 429, context deadline). Otherwise stays as
-		// api_error. result is nil on err-return so we can't read a
-		// FinishReason here.
-		errCategory := eval_harness.CategorizeAgentError(err, "")
+		// api_error. A diagnostics-only result carries the executor's
+		// FinishReason (e.g. thrash_aborted), which outranks the string.
+		finishReason := ""
+		if result != nil {
+			finishReason = result.FinishReason
+		}
+		errCategory := eval_harness.CategorizeAgentError(err, finishReason)
 
 		// Bank the executor's session transcript even though the run produced
 		// no usable measurement. A crashed or thrashing run is EXACTLY the one

@@ -7,8 +7,11 @@ set -euo pipefail
 #   doc-name: Lowercase with hyphens (e.g., m-dx2-feature-name)
 #   version:  Optional version folder (e.g., v0_4_0)
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+# The skill may be installed outside the project (for example /plugins).
+if ! PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null); then
+    echo "Run this skill from the target Git worktree." >&2
+    exit 1
+fi
 DESIGN_DOCS_DIR="$PROJECT_ROOT/design_docs"
 
 # Colors for output
@@ -113,8 +116,8 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
         local neural="$2"
         # Combine, dedupe by path. Neural listed first so its scores take priority.
         # Format: "1. path/to/file.md (0.85)" - $2 is the path
-        { echo "$neural"; echo "$simhash"; } | grep -E "^[0-9]+\." | \
-            awk '{ path = $2; if (path && !seen[path]++) print }' | head -5
+        { echo "$neural"; echo "$simhash"; } | \
+            awk '/^[0-9]+\./ { path = $2; if (path && !seen[path]++) print }' | head -5
     }
 
     # --- IMPLEMENTED DOCS ---
@@ -183,11 +186,11 @@ fi
 # Determine target directory
 if [ -n "$VERSION" ]; then
     TARGET_DIR="$DESIGN_DOCS_DIR/planned/$VERSION"
-    mkdir -p "$TARGET_DIR"
 else
     TARGET_DIR="$DESIGN_DOCS_DIR/planned"
 fi
 
+mkdir -p "$TARGET_DIR"
 DOC_PATH="$TARGET_DIR/${DOC_NAME}.md"
 
 # Check if document already exists

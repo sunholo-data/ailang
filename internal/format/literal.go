@@ -79,6 +79,14 @@ func literalString(l *ast.Literal) (string, error) {
 	case ast.IntLit:
 		switch v := l.Value.(type) {
 		case int64:
+			if v < 0 {
+				// A negative literal can only come from a full-width
+				// base-prefixed one (0x9e3779b97f4a7c15, #1481); `-` is an
+				// operator, not part of a literal. Print the 64-bit pattern:
+				// decimal "-7046029254386353131" re-parses as unary minus (a
+				// different AST), and "-9223372036854775808" not at all.
+				return fmt.Sprintf("0x%x", uint64(v)), nil
+			}
 			return strconv.FormatInt(v, 10), nil
 		case int:
 			return strconv.Itoa(v), nil
@@ -88,7 +96,7 @@ func literalString(l *ast.Literal) (string, error) {
 	case ast.FloatLit:
 		switch v := l.Value.(type) {
 		case float64:
-			return formatFloat(v), nil
+			return ast.FormatFloat(v), nil
 		default:
 			return "", fmt.Errorf("float literal has unexpected value type %T", l.Value)
 		}
@@ -113,15 +121,4 @@ func literalString(l *ast.Literal) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported literal kind %d", int(l.Kind))
 	}
-}
-
-// formatFloat renders a float64 so that re-parsing yields the same value and so
-// that whole-number floats retain a decimal point (canonical AILANG float form).
-func formatFloat(v float64) string {
-	s := strconv.FormatFloat(v, 'g', -1, 64)
-	// Ensure a float always reads back as a float, never as an int literal.
-	if !strings.ContainsAny(s, ".eEnN") { // n/N guards Inf/NaN spellings defensively
-		s += ".0"
-	}
-	return s
 }

@@ -132,7 +132,8 @@ func registerArrayFloatReduce(name, desc string, nargs int) {
 				return nil, err
 			}
 			for i := range a {
-				acc += a[i] * b[i]
+				// float64(...) forbids FMA fusion so arm64 and amd64 agree bit-for-bit (#1465).
+				acc += float64(a[i] * b[i])
 			}
 			return &eval.FloatValue{Value: acc}, nil
 		})
@@ -240,7 +241,8 @@ func registerArrayFloatAxpy() {
 			}
 			out := make([]float64, len(y))
 			for i := range y {
-				out[i] = y[i] + a.Value*x[i]
+				// float64(...) forbids FMA fusion so arm64 and amd64 agree bit-for-bit (#1465).
+				out[i] = y[i] + float64(a.Value*x[i])
 			}
 			return eval.NewFloatArray(out), nil
 		})

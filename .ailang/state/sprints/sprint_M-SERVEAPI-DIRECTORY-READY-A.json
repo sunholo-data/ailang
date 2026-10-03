@@ -1,0 +1,135 @@
+{
+  "sprint_id": "M-SERVEAPI-DIRECTORY-READY-A",
+  "status": "completed",
+  "created": "2026-10-01T14:19:51Z",
+  "design_doc": "design_docs/planned/v0_51_0/m-serveapi-directory-ready.md",
+  "sprint_plan": "design_docs/planned/v0_51_0/m-serveapi-directory-ready-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Parser annotation cases + serve-api extraction are core Go; searched oauth, mcp auth, bearer, token verify, mcp check"
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Listed-surface projection is serve-api MCP registration (Go)"
+    },
+    {
+      "milestone": "M3",
+      "package": "sunholo/auth",
+      "action": "none",
+      "reason": "sunholo/auth@0.4.1 bearer extraction belongs inside a service's AILANG verifier; the gate is Go middleware before AILANG runs. sunholo/oauth@0.1.0 is an OAuth client, not an AS (revisit at L4)"
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "CLI subcommand under existing `ailang mcp` group"
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Docs and example"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 360,
+    "estimated_total_loc": 1850,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Annotations @mcp_auth/@mcp_token_verifier/@mcp_secret/@mcp_agent_only: parse, fmt round-trip, ExportInfo extraction, registration-time ERROR rules",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Parser tests for each new annotation, valid and invalid",
+        "Formatter round-trip test fails when the formatter case is reverted",
+        "Each registration rule (secret not param/not @optional, oauth2 without issuer/verifier, >1 verifier, bad verifier signature) asserts tool absent + ERROR logged",
+        ".claude/rules/api-server.md documents @mcp_agent_only as the second sanctioned narrowing"
+      ],
+      "passes": true,
+      "started": "2026-10-01T14:28:55+00:00",
+      "completed": "2026-10-01T14:28:55+00:00",
+      "notes": "Parser (4 annotations), extraction, registration rules in internal/apiserver/mcp_auth.go (resolveTokenVerifier, validateMCPAuth, validateSecretParams), Config.OAuthIssuer (flag wiring in M3). Verifier implicitly @nomcp + @noexpose (token-oracle guard). Tests: parser, fmt round-trip, 8 e2e registration cases; mutation-tested (rules off -> 7 fail; verifier REST-exposed -> fail). Formatter needed no change (generic printing round-trips), so 'fails when formatter case reverted' is N/A. api-server rule updated. Parser MCP tests moved to mcp_attr_test.go (800-line gate)."
+    },
+    {
+      "id": "M2",
+      "description": "Listed surface /mcp/connect/: second MCP projection without @mcp_secret params or @mcp_agent_only tools; /mcp/ unchanged",
+      "estimated_loc": 350,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "/mcp/connect/ tools/list has no @mcp_secret params and no @mcp_agent_only tools",
+        "/mcp/ tools/list byte-identical for a module without the new annotations",
+        "serve_api_mcp_header_auth.ail example unchanged on /mcp/"
+      ],
+      "passes": true,
+      "started": "2026-10-01T14:39:20+00:00",
+      "completed": "2026-10-01T14:39:20+00:00",
+      "notes": "NewListedMCPServer (listed flag on MCPServer): skips @mcp_agent_only, inputSchemaFor strips @mcp_secret, handler forces secrets to zero (named+positional). Auto-mounted at /mcp/connect/ via hasListedSurface (no new CLI flag; deferred decision resolved). Tests through real buildRoutes over streamable HTTP; 3 mutants each caught. /mcp/ regression = full apiserver suite green (nomcp, header-auth, hints, schema tests). ExportInfo -> export_info.go (800-line gate)."
+    },
+    {
+      "id": "M3",
+      "description": "Lazy-auth gate on /mcp/connect/ only: --oauth-issuer, protected-resource metadata, 401 challenge, D7 fail-closed verifier via CallPrepared with 5s GoCtx deadline + semaphore; mcphttp parity via ToolDescriptor.Auth",
+      "estimated_loc": 550,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "httptest: gated tool no token -> 401 with resolvable resource_metadata; valid token -> 200; open tools -> 200",
+        "D7: verifier error/panic/6s sleep -> 503 within 5.5s, tool side-effect counter 0; mutation-tested",
+        "Semaphore saturation -> immediate 503, open tools still answer, goroutines bounded",
+        "/mcp/ gated tool with argument-carried key and no Bearer succeeds (agent regression)",
+        "mcphttp parity table test passes the same cases"
+      ],
+      "passes": true,
+      "started": "2026-10-01T15:14:19+00:00",
+      "completed": "2026-10-01T15:14:19+00:00",
+      "notes": "protocol.BearerGate (stdlib) shared by serve-api gatedHandler and mcphttp Config.Gate; --oauth-issuer; RFC 9728 metadata at root + path-inserted; verifier via CallPrepared with GoCtx deadline (proved: hung Net request cancelled). Semaphore cap 32 + 5s are constants (flag deferred). Tests: gate unit (-race x3), serve-api e2e incl. AILANG panic->503 and Net cancellation, /mcp/ ungated regression, mcphttp parity. 6 mutants caught (one earlier 'uncaught' was a non-compiling mutant hidden by grep \u2014 re-run confirmed caught). Full apiserver suite green normal + shuffled. Filed #1449 (div-by-zero Go panic)."
+    },
+    {
+      "id": "M4",
+      "description": "ailang mcp check <url> --target anthropic: checks 1-5 citing sources A1-A6, --json, exit 1 on failure",
+      "estimated_loc": 500,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "httptest fixture pass+fail per check",
+        "Against prod Parse /mcp/: reports apiKey credential params and missing 401 gate",
+        "Against M5 example on /mcp/connect/: checks 1-4 pass, check 5 WARN-skips (never passes) without an issuer",
+        "make check-cli-docs passes; CLI reference updated"
+      ],
+      "passes": true,
+      "started": "2026-10-01T15:30:21+00:00",
+      "completed": "2026-10-01T15:30:21+00:00",
+      "notes": "internal/mcpcheck (raw JSON-RPC over streamable HTTP, SSE-aware, session-id aware) + cmd/ailang/mcp_check.go under `ailang mcp`. Five checks citing sources A1-A7/O1/O6/O8 (A7 + O8 quotes added to sources file). Safe probing rule. Check 5 FAILs (not WARN) when an issuer is named but its metadata is unreachable \u2014 honest; SKIP only when no gated tools. Unit tests + 3 e2e against real serve-api surfaces. Live run vs prod Parse /mcp/: credentials + lazy-auth FAIL, O8 destructiveHint FAIL on 6 read-only tools -> fixed ResolveToolHints to always emit destructiveHint. ARCHITECTURE closure regenerated (129->130 pkgs)."
+    },
+    {
+      "id": "M5",
+      "description": "Example serve_api_mcp_oauth.ail, serve-api.md 'Listing in the directories', devtools prompts + embedded copies, changelog, design doc Phase A marked done",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M3",
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Example passes ailang check and ailang mcp check 1-4",
+        "make ci-quick gates pass; apiserver, serveapi, parser, format, cmd/ailang tests green"
+      ],
+      "passes": true,
+      "started": "2026-10-01T15:37:18+00:00",
+      "completed": "2026-10-01T15:37:18+00:00",
+      "notes": "examples/runnable/serve_api_mcp_oauth.ail (check + fmt canonical + runs; served: 401 challenge, token path, mcp check 1-4 PASS, 5 FAIL w/o AS). Dogfooding caught exported main -> unannotated tool; fixed with @nomcp. serve-api.md section + tables, devtools prompts synced, changelog fragments. Gates green on clean worktree."
+    }
+  ]
+}

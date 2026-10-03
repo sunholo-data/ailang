@@ -99,7 +99,7 @@ func xmlNodeToBytecode(v eval.Value) (bytecode.Value, error) {
 			}
 			bcChildren[i] = bc
 		}
-		return bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+		return bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 			bytecode.NewString(tag.Value),
 			bytecode.NewList(bcAttrs),
 			bytecode.NewList(bcChildren),
@@ -113,7 +113,7 @@ func xmlNodeToBytecode(v eval.Value) (bytecode.Value, error) {
 		if !ok {
 			return bytecode.Value{}, fmt.Errorf("xmlNodeToBytecode: Text content must be string")
 		}
-		return bytecode.NewADT(xmlNodeTagText, []bytecode.Value{
+		return bytecode.NewADT(xmlNodeTagText, "Text", []bytecode.Value{
 			bytecode.NewString(text.Value),
 		}), nil
 
@@ -125,7 +125,7 @@ func xmlNodeToBytecode(v eval.Value) (bytecode.Value, error) {
 		if !ok {
 			return bytecode.Value{}, fmt.Errorf("xmlNodeToBytecode: Comment content must be string")
 		}
-		return bytecode.NewADT(xmlNodeTagComment, []bytecode.Value{
+		return bytecode.NewADT(xmlNodeTagComment, "Comment", []bytecode.Value{
 			bytecode.NewString(text.Value),
 		}), nil
 
@@ -276,7 +276,7 @@ func builtinXmlElement(args []bytecode.Value) (bytecode.Value, error) {
 	if args[2].Tag != bytecode.TagList {
 		return bytecode.Value{}, fmt.Errorf("__xmlElement: arg 2 must be list")
 	}
-	return bytecode.NewADT(xmlNodeTagElement, []bytecode.Value{
+	return bytecode.NewADT(xmlNodeTagElement, "Element", []bytecode.Value{
 		args[0], args[1], args[2],
 	}), nil
 }
@@ -288,7 +288,7 @@ func builtinXmlText(args []bytecode.Value) (bytecode.Value, error) {
 	if args[0].Tag != bytecode.TagString {
 		return bytecode.Value{}, fmt.Errorf("__xmlText: arg must be string")
 	}
-	return bytecode.NewADT(xmlNodeTagText, []bytecode.Value{args[0]}), nil
+	return bytecode.NewADT(xmlNodeTagText, "Text", []bytecode.Value{args[0]}), nil
 }
 
 func builtinXmlComment(args []bytecode.Value) (bytecode.Value, error) {
@@ -298,7 +298,7 @@ func builtinXmlComment(args []bytecode.Value) (bytecode.Value, error) {
 	if args[0].Tag != bytecode.TagString {
 		return bytecode.Value{}, fmt.Errorf("__xmlComment: arg must be string")
 	}
-	return bytecode.NewADT(xmlNodeTagComment, []bytecode.Value{args[0]}), nil
+	return bytecode.NewADT(xmlNodeTagComment, "Comment", []bytecode.Value{args[0]}), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -562,6 +562,7 @@ func builtinXmlFindAllAttrs(args []bytecode.Value) (bytecode.Value, error) {
 // ---------------------------------------------------------------------------
 
 func hofBuiltinXmlParseFold(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 4 {
 		return bytecode.Value{}, fmt.Errorf("__xml_parseFold: expected 4 args, got %d", len(args))
 	}
@@ -599,7 +600,7 @@ func hofBuiltinXmlParseFold(caller ClosureCaller, args []bytecode.Value) (byteco
 		if err != nil {
 			return bytecode.Value{}, err
 		}
-		acc, err = caller.CallClosure(fn, []bytecode.Value{acc, bcNode})
+		acc, err = caller.CallClosure(fn, argv.of2(acc, bcNode))
 		if err != nil {
 			return bytecode.Value{}, err
 		}
@@ -638,9 +639,9 @@ func evalOptionXmlNodeToBytecode(v eval.Value) (bytecode.Value, error) {
 		if err != nil {
 			return bytecode.Value{}, err
 		}
-		return bytecode.NewADT(optionTagSome, []bytecode.Value{inner}), nil
+		return bytecode.NewADT(optionTagSome, "Some", []bytecode.Value{inner}), nil
 	case "None":
-		return bytecode.NewADT(optionTagNone, nil), nil
+		return bytecode.NewADT(optionTagNone, "None", nil), nil
 	default:
 		return bytecode.Value{}, fmt.Errorf("evalOptionXmlNodeToBytecode: unknown ctor %q", tv.CtorName)
 	}
@@ -654,9 +655,9 @@ func evalOptionStringToBytecode(v eval.Value) (bytecode.Value, error) {
 	switch tv.CtorName {
 	case "Some":
 		s := tv.Fields[0].(*eval.StringValue).Value
-		return bytecode.NewADT(optionTagSome, []bytecode.Value{bytecode.NewString(s)}), nil
+		return bytecode.NewADT(optionTagSome, "Some", []bytecode.Value{bytecode.NewString(s)}), nil
 	case "None":
-		return bytecode.NewADT(optionTagNone, nil), nil
+		return bytecode.NewADT(optionTagNone, "None", nil), nil
 	default:
 		return bytecode.Value{}, fmt.Errorf("evalOptionStringToBytecode: unknown ctor %q", tv.CtorName)
 	}

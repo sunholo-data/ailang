@@ -2288,6 +2288,28 @@ models:
       compatible request layer). Pricing dropped too: $0.14/$0.28 -> $0.09/$0.18
       per 1M (input/output), confirmed live against OpenRouter 2026-08-03.
 
+  motoko-chatgpt-gpt-6-1-sol:
+    api_name: "gpt-6.1-sol"
+    provider: "chatgpt"
+    default_thinking: "on"  # effort defaults to medium (vendor docs, as gpt6-1-sol)
+    description: "GPT-6.1 Sol via motoko_agent on the ChatGPT subscription lane (codex login) — motoko vs codex on the same model"
+    agent_cli: "motoko"
+    motoko_profile: "cloud"
+    agent_model_name: "chatgpt/gpt-6.1-sol"  # the "chatgpt/" prefix selects internal/ai/chatgpt
+    model_family: "gpt-6-1-sol"              # pairs with the codex row gpt6-1-sol
+    max_output_tokens: 65536
+    pricing:  # list-price-EQUIVALENT on this lane (subscription), same rates as gpt6-1-sol
+      input_per_1k: 0.002
+      output_per_1k: 0.010
+    budgets:
+      max_tokens_per_bench: 3000000  # the shared WORK gate, as gpt6-1-sol
+      max_cost_usd: 7.20             # list-price dollars; nobody is billed
+      hard_timeout_secs: 3600
+    notes: |
+      Added 2026-10-02 (Mark). No env key: the credential is the codex CLI's
+      ChatGPT login (~/.codex/auth.json), read-only; codex refreshes it. The
+      motoko preflight refuses the run without it. Never an OpenRouter twin.
+
   motoko-or-kimi-k2-6:
     api_name: "moonshotai/kimi-k2.6"
     provider: "openrouter"
