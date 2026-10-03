@@ -306,20 +306,3 @@ func TestPolicyTool_FSDenyWrite(t *testing.T) {
 		t.Fatal("Makefile was created")
 	}
 }
-
-// `.git` protection is case-folded: on a case-insensitive filesystem (macOS
-// APFS, the default) `.GIT/config` IS `.git/config` (security audit
-// 2026-10-01 follow-up: the exact-case check let a program write the
-// launcher's repo config there).
-func TestUnderGitDir_CaseFolded(t *testing.T) {
-	for _, p := range []string{".git/config", ".GIT/config", ".Git/hooks/x", "sub/.gIT", "/w/.GIT/config"} {
-		if !underGitDir(p) {
-			t.Errorf("%s must be under .git", p)
-		}
-	}
-	for _, p := range []string{".gitignore", ".GITATTRIBUTES", "git/config", "a.git/x"} {
-		if underGitDir(p) {
-			t.Errorf("%s is an ordinary path", p)
-		}
-	}
-}

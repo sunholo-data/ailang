@@ -46,7 +46,30 @@ type cliSchema struct {
 	// cwd is where the command runs: the sandbox root when the op touches
 	// files, else nowhere in particular ("" = inherit).
 	needsRoot bool
+	// writes lists the sandbox-relative paths the op will write for this
+	// request (nil = writes nothing in the sandbox). Each passes the same
+	// protection as the write/edit ops BEFORE the child runs (#1554): the
+	// child is an unconfined process, so the gate is here or nowhere. The
+	// compile cache is not listed — runAilang points it outside the sandbox.
+	writes func(req Request) []string
 }
+
+// quorumArtifactDir is where `ailang design-quorum` writes its verdict
+// artifacts, relative to its cwd (internal/mission/quorum.ArtifactDir; a
+// test pins the two together).
+const quorumArtifactDir = ".ailang/state/mission-quorum"
+
+// fmtWrites: `fmt --write` rewrites its path in place (atomically, via a
+// temp file in the same directory). Without --write it only prints.
+func fmtWrites(req Request) []string {
+	if _, ok := req.Flags["write"]; ok {
+		return []string{req.Path}
+	}
+	return nil
+}
+
+func lockWrites(Request) []string         { return []string{"ailang.lock"} }
+func designQuorumWrites(Request) []string { return []string{quorumArtifactDir} }
 
 // gateOnlyCommands execute programs: the only execution route is ailang_run.
 var gateOnlyCommands = map[string]bool{"run": true, "exec": true, "repl": true, "replay": true, "watch": true, "select-best": true}
@@ -63,7 +86,7 @@ var defaultCLIAllow = []string{
 var cliSchemas = map[string]cliSchema{
 	"check":           {cmd: "check", field: "Path", kind: kindPath, required: true, flags: map[string]bool{"json": false, "quiet": false, "strict-syntax": false}, needsRoot: true},
 	"ai_check":        {cmd: "ai-check", field: "Path", kind: kindPath, required: true, flags: map[string]bool{"timeout": true}, needsRoot: true},
-	"fmt":             {cmd: "fmt", field: "Path", kind: kindPath, required: true, flags: map[string]bool{"write": false, "check": false}, needsRoot: true},
+	"fmt":             {cmd: "fmt", field: "Path", kind: kindPath, required: true, flags: map[string]bool{"write": false, "check": false}, needsRoot: true, writes: fmtWrites},
 	"iface":           {cmd: "iface", field: "Module", kind: kindModule, required: true, flags: map[string]bool{"compact": false}, needsRoot: true},
 	"test":            {cmd: "test", field: "Path", kind: kindPath, flags: map[string]bool{"json": false, "allow-skips": false, "no-color": false, "package": true}, needsRoot: true},
 	"docs_search":     {cmd: "docs", sub: "search", field: "Query", kind: kindQuery, required: true, flags: map[string]bool{"json": false, "limit": true}},
@@ -81,8 +104,8 @@ var cliSchemas = map[string]cliSchema{
 	"policy_check":    {cmd: "policy-check", field: "Path", kind: kindPath, required: true, flags: map[string]bool{}, needsRoot: true},
 	"axioms":          {cmd: "axioms", flags: map[string]bool{}},
 	"version":         {cmd: "version", flags: map[string]bool{}},
-	"lock":            {cmd: "lock", flags: map[string]bool{}, needsRoot: true},
-	"design_quorum":   {cmd: "design-quorum", field: "Path", kind: kindPath, required: true, flags: map[string]bool{"max-cost-usd": true, "controller-verdict": true, "controller-note": true}, needsRoot: true},
+	"lock":            {cmd: "lock", flags: map[string]bool{}, needsRoot: true, writes: lockWrites},
+	"design_quorum":   {cmd: "design-quorum", field: "Path", kind: kindPath, required: true, flags: map[string]bool{"max-cost-usd": true, "controller-verdict": true, "controller-note": true}, needsRoot: true, writes: designQuorumWrites},
 }
 
 // flagValueKinds names the valued flags whose value is not a plain word:
@@ -198,6 +221,12 @@ func (h *Host) buildArgv(req Request) ([]string, cliSchema, error) {
 			return nil, sc, fmt.Errorf("op %s does not admit flag --%s (admitted: %s)", req.Op, name, flagNames(sc))
 		}
 		if !takesValue {
+			// A boolean flag is on when present with "" or "true". Any other
+			// value is refused rather than ignored: "false" used to mean
+			// --write (#1554).
+			if v := req.Flags[name]; v != "" && v != "true" {
+				return nil, sc, fmt.Errorf("flag --%s is boolean: pass \"\" or \"true\" to set it, omit it to leave it off (got %q)", name, v)
+			}
 			argv = append(argv, "--"+name)
 			continue
 		}
@@ -275,6 +304,13 @@ func (h *Host) cli(req Request) Response {
 		}
 		dir = h.root.Dir()
 	}
+	if sc.writes != nil {
+		for _, p := range sc.writes(req) {
+			if why := h.protected(req.Op, p); why != "" {
+				return refuse("%s", why)
+			}
+		}
+	}
 	stdout, stderr, code := h.run(dir, argv)
 	return h.capOutput(req, argv, stdout, stderr, code)
 }
@@ -347,11 +383,22 @@ func (h *Host) childEnv() []string {
 
 // runAilang executes the named ailang binary in its own process group under
 // a bounded timeout.
+//
+// The child's compile and prompt caches go to a private temp dir OUTSIDE the
+// sandbox (AILANG_CACHE_DIR), removed when the child exits: by default the
+// compiler writes <module dir>/.ailang/cache/compile, so a plain `check`
+// or `test` was a write into the sandbox that no fs_deny_write entry
+// (`.ailang/**`) could stop — the child is unconfined (#1554).
 func runAilang(exe, dir string, argv, env []string) (string, string, int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
+	cacheDir, err := os.MkdirTemp("", "ailang-policy-tool-cache-*")
+	if err != nil {
+		return "", "policy-tool: creating the child's private cache dir: " + err.Error(), 1
+	}
+	defer os.RemoveAll(cacheDir)
 	cmd := exec.CommandContext(ctx, exe, argv...)
-	cmd.Env = env
+	cmd.Env = append(append([]string{}, env...), config.EnvCacheDir+"="+cacheDir)
 	if dir != "" {
 		cmd.Dir = filepath.Clean(dir)
 	}
