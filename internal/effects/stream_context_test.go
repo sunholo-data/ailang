@@ -304,8 +304,8 @@ func TestIsStreamAllowedDomain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.host, func(t *testing.T) {
-			if got := isAllowedDomain(tt.host, allowed); got != tt.want {
-				t.Errorf("isAllowedDomain(%q) = %v, want %v", tt.host, got, tt.want)
+			if got := isAllowedTarget(tt.host, "443", allowed); got != tt.want {
+				t.Errorf("isAllowedTarget(%q, 443) = %v, want %v", tt.host, got, tt.want)
 			}
 		})
 	}

@@ -40,6 +40,9 @@ type destinationPolicy struct {
 	// flags (a redirect hop, or Net[scope=public]); the refusal then states
 	// that instead of pointing at a flag that would not help.
 	lockedBy string
+	// noLoopbackGrant: a port-qualified loopback allowlist entry does NOT
+	// turn loopback on (redirect hops, Net[scope=public]) — see forTarget.
+	noLoopbackGrant bool
 	// blockPrivate: RFC1918/ULA/link-local/multicast/unspecified are refused.
 	// Net has no override; Stream exposes BlockPrivateIPs (default true).
 	blockPrivate   bool
@@ -81,6 +84,7 @@ func netPolicy(ctx *EffContext) destinationPolicy {
 		allowLocalhost:   n.AllowLocalhost && !public,
 		allowMetadata:    n.AllowMetadata && !public,
 		lockedBy:         publicLock(public),
+		noLoopbackGrant:  public,
 		blockPrivate:     true,
 		allowedDomains:   n.AllowedDomains,
 		refuseProxy:      n.RefuseProxy,
@@ -130,6 +134,7 @@ func (p destinationPolicy) authorizeURL(u *url.URL) error {
 	if err := p.authorizeURLLexical(u); err != nil {
 		return err
 	}
+	p = p.forTarget(u)
 	if ip := net.ParseIP(literalHost(u.Hostname())); ip != nil {
 		if err := p.validateIP(ip); err != nil {
 			return err
@@ -156,12 +161,17 @@ func (p destinationPolicy) authorizeURLLexical(u *url.URL) error {
 	if host == "" {
 		return p.errf("INVALID_URL", "missing hostname")
 	}
-	if !isAllowedDomain(host, p.allowedDomains) {
-		if p.kind == "STREAM" {
-			return p.errf("DISALLOWED_HOST", "domain not in allowlist: %s", host)
+	if !isAllowedTarget(host, targetPort(u), p.allowedDomains) {
+		shown := host
+		if u.Port() != "" {
+			shown = u.Host
 		}
-		return p.errf("DOMAIN_BLOCKED", "domain not in allowlist: %s", host)
+		if p.kind == "STREAM" {
+			return p.errf("DISALLOWED_HOST", "domain not in allowlist: %s", shown)
+		}
+		return p.errf("DOMAIN_BLOCKED", "domain not in allowlist: %s", shown)
 	}
+	p = p.forTarget(u)
 	if !p.allowLocalhost && isLocalhost(host) {
 		if p.kind == "STREAM" {
 			return p.errf("DISALLOWED_HOST", "localhost connections not allowed")
@@ -326,6 +336,7 @@ func (p destinationPolicy) forRedirectHop() destinationPolicy {
 	p.allowLocalhost = false
 	p.allowMetadata = false
 	p.blockPrivate = true
+	p.noLoopbackGrant = true
 	if p.lockedBy == "" {
 		p.lockedBy = "redirect hops never reach loopback, link-local or private addresses"
 	}
@@ -356,22 +367,6 @@ func requestContext(ctx *EffContext) context.Context {
 		return ctx.GoCtx
 	}
 	return context.Background()
-}
-
-// isAllowedDomain: empty allowlist = every domain; otherwise exact or
-// label-boundary wildcard match after lowercase + trailing-dot normalisation
-// of BOTH sides.
-func isAllowedDomain(hostname string, allowed []string) bool {
-	if len(allowed) == 0 {
-		return true
-	}
-	hostname = normalizeHost(hostname)
-	for _, pattern := range allowed {
-		if matchDomain(hostname, normalizeHost(pattern)) {
-			return true
-		}
-	}
-	return false
 }
 
 func normalizeHost(h string) string {

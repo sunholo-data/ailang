@@ -208,6 +208,11 @@ func Resolve(p *Policy, digest string) (*Resolved, error) {
 	if has("Stream") && len(p.NetAllow) == 0 {
 		return nil, fmt.Errorf("policy admits Stream but sets no net_allow — Stream destinations are the net_allow hosts")
 	}
+	for _, entry := range p.NetAllow {
+		if err := checkNetAllowEntry(entry, mode); err != nil {
+			return nil, err
+		}
+	}
 	if has("Process") && len(p.ProcessAllow) == 0 {
 		return nil, fmt.Errorf("policy admits Process but sets no process_allow — name the commands (e.g. [\"git:pull\", \"git:status\"]) or drop Process")
 	}

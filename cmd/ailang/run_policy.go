@@ -64,11 +64,11 @@ var refusedWithPolicy = []struct{ name, why string }{
 	{"entry", "the entrypoint is the policy's entry"},
 	{"net-allow-http", "comes from the policy's net_allow_http"},
 	{"net-allow-domains", "comes from the policy's net_allow"},
-	{"net-allow-localhost", "restricted mode has no localhost grant; trusted_host may list it in net_allow"},
+	{"net-allow-localhost", "list the loopback port in net_allow (127.0.0.1:PORT opens that one port); trusted_host may also list bare 127.0.0.1 for all of loopback"},
 	{"net-allow-metadata", "restricted mode has no metadata grant"},
 	{"stream-allow-http", "comes from the policy's net_allow_http"},
 	{"stream-allow-domains", "comes from the policy's net_allow"},
-	{"stream-allow-localhost", "restricted mode has no localhost grant"},
+	{"stream-allow-localhost", "list the loopback port in net_allow (127.0.0.1:PORT opens that one port)"},
 	{"stream-max-message", "restricted mode keeps the default Stream message cap"},
 	{"process-allowlist", "comes from the policy's process_allow"},
 	{"stdlib-path", "module roots are not the caller's to choose"},
@@ -83,9 +83,11 @@ type runPolicyResolved struct {
 	caps         string
 	netDomains   string
 	netAllowHTTP bool
-	// netAllowLocalhost: trusted_host only — an operator who lists a loopback
-	// name/literal in net_allow has granted it explicitly. Restricted mode
-	// has no such grant (design §3).
+	// netAllowLocalhost: trusted_host only — an operator who lists a BARE
+	// loopback name/literal in net_allow has granted all of loopback
+	// explicitly. Restricted mode has no such grant (design §3); a
+	// port-qualified entry (127.0.0.1:PORT) is a grant for that one port,
+	// enforced in the effects authorizer in both modes (#1558).
 	netAllowLocalhost bool
 	processAllow      string
 	sandbox           string

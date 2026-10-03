@@ -367,3 +367,54 @@ func TestResolve_RestrictedProcessRequiresSandbox(t *testing.T) {
 		t.Fatalf("trusted_host Process without fs_sandbox stays the operator's choice: %v", err)
 	}
 }
+
+// #1558 — net_allow entries are validated at load time; restricted mode
+// admits loopback only as a port-qualified literal (that port, nothing else)
+// and refuses bare loopback, loopback names and private/link-local literals.
+func TestResolve_NetAllowEntries(t *testing.T) {
+	withAllow := func(mode string, entries ...string) *Policy {
+		p := restricted("IO", "Net")
+		p.SecurityMode = mode
+		p.NetAllow = entries
+		p.NetAllowHTTP = true
+		return p
+	}
+	admitted := []struct {
+		mode    string
+		entries []string
+	}{
+		{ModeRestricted, []string{"127.0.0.1:7655"}},
+		{ModeRestricted, []string{"[::1]:7655"}},
+		{ModeRestricted, []string{"api.example:8443", "*.svc.example:443", "other.example"}},
+		{ModeTrustedHost, []string{"127.0.0.1:7655", "localhost:7655", "[::1]:7655"}},
+		{ModeTrustedHost, []string{"127.0.0.1"}}, // trusted_host's explicit all-port grant stays
+	}
+	for _, c := range admitted {
+		if _, err := Resolve(withAllow(c.mode, c.entries...), "d"); err != nil {
+			t.Errorf("%s %v must be admitted, got %v", c.mode, c.entries, err)
+		}
+	}
+	refused := []struct {
+		mode    string
+		entry   string
+		wantSub string
+	}{
+		{ModeRestricted, "127.0.0.1", "127.0.0.1:PORT"},
+		{ModeRestricted, "::1", "PORT"},
+		{ModeRestricted, "localhost", "PORT"},
+		{ModeRestricted, "localhost:7655", "127.0.0.1:PORT"},
+		{ModeRestricted, "10.0.0.5:80", "private"},
+		{ModeRestricted, "169.254.169.254:80", "link-local"},
+		{ModeRestricted, "192.168.1.1", "private"},
+		{ModeRestricted, "127.0.0.1:0", "port"},
+		{ModeTrustedHost, "127.0.0.1:99999", "port"},
+		{ModeTrustedHost, "http://api.example", "net_allow"},
+		{ModeTrustedHost, "", "net_allow"},
+	}
+	for _, c := range refused {
+		_, err := Resolve(withAllow(c.mode, c.entry), "d")
+		if err == nil || !strings.Contains(err.Error(), c.wantSub) {
+			t.Errorf("%s net_allow %q: want an error containing %q, got %v", c.mode, c.entry, c.wantSub, err)
+		}
+	}
+}
