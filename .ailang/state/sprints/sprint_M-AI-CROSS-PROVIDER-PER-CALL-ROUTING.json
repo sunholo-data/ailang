@@ -1,0 +1,161 @@
+{
+  "sprint_id": "M-AI-CROSS-PROVIDER-PER-CALL-ROUTING",
+  "status": "not_started",
+  "created": "2026-10-03T07:51:36.939613+00:00",
+  "design_doc": "design_docs/planned/v0_51_2/m-ai-cross-provider-per-call-routing.md",
+  "sprint_plan": "design_docs/planned/v0_51_2/m-ai-cross-provider-per-call-routing-sprint-plan.md",
+  "github_issues": [],
+  "related_github_issues": [
+    1495,
+    1496,
+    1497,
+    1500
+  ],
+  "approval_status": "awaiting_sprint_plan_review",
+  "source_commit": "4ac769384e61a77e40126c77158a1069d7b1a4dd",
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Runtime handler selection and metadata require internal/effects changes; registry packages cannot implement them.",
+      "search_terms": [
+        "ai",
+        "image"
+      ],
+      "inspected_packages": [
+        "sunholo/gemini_files@0.2.1",
+        "sunholo/gemini_live@0.5.0"
+      ]
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "CLI provider factory and credential isolation require cmd/ailang integration.",
+      "search_terms": [
+        "ai",
+        "image"
+      ],
+      "inspected_packages": [
+        "sunholo/gemini_files@0.2.1",
+        "sunholo/gemini_live@0.5.0"
+      ]
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Result effect operations and builtin registrations belong to the language host and std/ai.",
+      "search_terms": [
+        "ai",
+        "image"
+      ],
+      "inspected_packages": [
+        "sunholo/gemini_files@0.2.1",
+        "sunholo/gemini_live@0.5.0"
+      ]
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Examples demonstrate the in-tree API; upload/voice packages do not implement or validate it.",
+      "search_terms": [
+        "ai",
+        "image"
+      ],
+      "inspected_packages": [
+        "sunholo/gemini_files@0.2.1",
+        "sunholo/gemini_live@0.5.0"
+      ]
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 260,
+    "estimated_total_loc": 1300,
+    "estimated_days": 5,
+    "estimated_hours": 30,
+    "basis": "Planning estimate; shallow history has no measurable recent feature velocity."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Effect-context routing and metadata",
+      "estimated_loc": 450,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Same-provider, empty-default, unknown-name, nil-handler and legacy-resolver behavior have recording-handler tests.",
+        "Cross-provider dispatch is proven for step/cache/stream and all four image operations in both provider directions.",
+        "Image options preserve references and unrelated keys while replacing only the resolved model.",
+        "Routed calls followed by bound calls or resolution failures expose the correct metadata, with no stale attribution.",
+        "AI capability denial and the shared budget remain enforced across alternating providers."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "CLI resolver and isolated lazy provider construction",
+      "estimated_loc": 420,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Classification tables cover all conflict-surface rows from the design, including prefix stripping and friendly api_name resolution.",
+        "Config and direct bindings both route; stub and fixture-stub routing requires no real keys or network.",
+        "A missing target key returns non-retryable ProviderNotFound naming the required environment variable; no foreign request is sent.",
+        "Key-file secrets and foreign model env_var values never enter target factory options or logs; test using dummy credentials and local recording factories.",
+        "Cache hits construct once; differing token budgets or credential sources remain isolated and propagate the declared model budget.",
+        "Routing policy/attribution and Google ADC/API-key/local/config-driven lane behavior retain existing semantics; unsupported policy errors remain explicit."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Result image operations and stdlib exports",
+      "estimated_loc": 330,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Both APIs type-check as Result[string, AIError] with only the AI effect, using a freshly built compiler.",
+        "Both return Ok for successful image output and typed Err for provider/routing/schema/reference failures, preserving code/message/retryable.",
+        "A consumer handles Err, performs another operation and exits successfully rather than host-aborting.",
+        "Ref-conditioned requests retain reference data and empty references match the no-ref path.",
+        "Existing image API signatures, effects and failure behavior stay compatible."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Runnable examples, docs and acceptance gates",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Both new examples type-check and execute offline with exit 0; the error fixture demonstrably prints the fallback and continues.",
+        "Documentation explains options.model, both Result functions, missing-key error changes, direct-path resolution and credential isolation.",
+        "make test, make fmt, make lint, make check-boundaries and make simplicity-audit pass; new failure regressions are resolved and baseline failures reported separately.",
+        "Focused coverage report records exercised routing, credential, budget and Result branches; no arbitrary global percentage is claimed.",
+        "Optional authorized live smoke records both provider directions and provider/model trace identity, or is explicitly recorded as not run when keys are unavailable."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

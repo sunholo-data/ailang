@@ -27,6 +27,7 @@ allowed_caps  = ["IO", "FS"]              # the WHOLE authority a submitted prog
 fs_sandbox    = "/workspace"              # must NOT contain the policy file's own directory (D4)
 # net_allow      = ["api.example.com"]    # required when "Net"/"Stream" is allowed; https only unless
 # net_allow_http = true                   #   net_allow_http = true; every redirect hop is re-checked
+#                                         # host:PORT scopes an entry to one port: "127.0.0.1:7655"
 # cli_allow      = ["iface", "docs:search"] # ailang_cli ops; absent = the read-only default set
 timeout_ms    = 5000                      # the WHOLE invocation, enforced by the supervisor (positive, ≤ 24h)
 # max_source_bytes / max_module_graph_bytes / max_output_bytes / max_fs_transfer_bytes
@@ -48,13 +49,38 @@ admits only effects with a confined adapter — `IO`, `FS`, `Net`, `Clock`, `Ran
 ceiling**, and `Declassify` (a compile-time information-flow gate with no host reach) — and refuses
 every other effect with a named migration. It also refuses a configured
 HTTP proxy (`E_NET_PROXY_REFUSED`: the destination address cannot be pinned behind one) and has
-no localhost/private/metadata grant. `trusted_host` keeps operator-approved host integrations —
+no private/metadata grant; loopback is admitted only as a **port-qualified literal** in `net_allow`
+(see *Port-scoped entries* below). `trusted_host` keeps operator-approved host integrations —
 `Process` with `process_allow`, `AI` with `ai_provider`, `Env`, `Secret` — with conspicuous
 provenance (`security_mode` is banked on the admission line) and **no confinement claim**: the
-worker gets the operator's full environment, current proxy semantics, and a loopback entry in
-`net_allow` is honoured as an explicit grant. An `ailang_only` agent with a `trusted_host` policy
+worker gets the operator's full environment, current proxy semantics, and a bare loopback entry in
+`net_allow` (`127.0.0.1`, `localhost`, `::1`) is honoured as an explicit grant for **every**
+loopback port; a port-qualified one opens only that port. An `ailang_only` agent with a `trusted_host` policy
 is refused at dispatch (`executor.CheckLanePolicy`) — the lane's "no shell" claim cannot sit on a
 host-integration grant; such an agent declares `tool_policy: full` instead.
+
+**Port-scoped entries (`host:PORT`, #1558).** A `net_allow` entry is `host` (any port) or
+`host:PORT` (that port only, compared with the port the request dials — the explicit one, else 443
+for `https`/`wss` and 80 for `http`/`ws`). IPv6 literals take brackets with a port (`[::1]:7655`);
+wildcards combine with a port (`*.svc.example:9000`). A port-qualified **loopback** entry is itself
+the loopback grant for that host and port — the way to let a confined program reach one local mock
+without opening the host's other local services:
+
+```toml
+allowed_caps   = ["IO", "Net"]
+net_allow      = ["127.0.0.1:7655"]   # the mock's port, and no other loopback port
+net_allow_http = true
+```
+
+The grant is checked at every round trip and at the pinned dial (the dialer connects only to the
+authorized port), for Net and for Stream (SSE, NDJSON, WebSocket) alike. It is never extended to a
+**redirect hop** — a redirect to any loopback port, the granted one included, is refused — nor
+inside a `Net[scope=public]` frame. Names match exactly: `127.0.0.1:7655` does not admit
+`localhost:7655`. Restricted mode refuses, at policy load, a bare loopback entry (it would open every
+port), a loopback **name** (`localhost:7655` — list the literal), and private, link-local (the
+metadata server included), unspecified and multicast literals; every mode refuses a malformed entry
+(`127.0.0.1:0`, `http://host`, an unbracketed IPv6 with a port). `--net-allow-localhost` stays
+refused under `--policy`.
 
 **Confined git (restricted mode).** `process_allow = ["git:status", "git:diff", "git:log"]`
 keeps working under restricted mode, and it is now a boundary rather than a prefix match. A
@@ -92,8 +118,19 @@ authorizer (the host is not program-controlled).
 write — the artifact's own supply chain, which would otherwise run with CI's or the next
 session's authority once committed: `".github/**"`, `".pi/**"`, `"Makefile"`, `"*.yml"`. A
 pattern is a glob for one path (matched against the whole relative path and its base name) or
-`<dir>/**` for a subtree. `.git/**` is always implied in restricted mode. Refusals are
-`E_FS_PROTECTED` from every mutating FS op and a named refusal from `ailang_write`/`ailang_edit`.
+`<dir>/**` for a subtree. `.git/**` is always implied in restricted mode. Matching is
+**case- and Unicode-normalization-insensitive on every platform**: on a case-insensitive volume
+(macOS APFS by default, Windows NTFS) `.CLAUDE/settings.json` is the same file as
+`.claude/settings.json`, so `".claude/**"` refuses both — on a case-sensitive Linux volume this
+over-denies the odd spelling, which is the fail-closed direction. The running program and the
+policy-tool share one matcher (`internal/fileguard/protect.go`), so the two cannot drift.
+Refusals are `E_FS_PROTECTED` from every mutating FS op and a named refusal from every write the
+tool endpoint performs: `ailang_write`/`ailang_edit`, `fmt` with the `write` flag, `lock`
+(`ailang.lock`) and `design_quorum` (`.ailang/state/mission-quorum/`). The CLI child's compile
+cache goes to a private temp dir outside the sandbox, and `test` builds its scaffolding there too,
+so read-only ops write nothing into the sandbox. A boolean flag takes `""` or `"true"` — any
+other value (including `"false"`) is refused, not ignored — and request keys are exact and
+unique: `FLAGS` is not `flags`, and a duplicated key is a refusal, not a merge.
 
 **The program file must be inside `fs_sandbox`.** `ailang run --policy` refuses an entry file
 outside the sandbox (the module root the imports resolve from would otherwise be anywhere on the
@@ -127,7 +164,7 @@ symlink), or a subcommand with no schema is refused even when listed. `run`, `ex
 `replay`, `watch`, `select-best` are never reachable: execution only goes through `ailang_run`'s gate.
 
 Rules the gate enforces on the file itself: every cap must be a real effect; `FS` needs an
-`fs_sandbox`; `Net`/`Stream` need a `net_allow`; `Process` needs a `process_allow` (trusted_host);
+`fs_sandbox`; `Net`/`Stream` need a `net_allow` whose entries are well-formed `host`/`host:PORT`; `Process` needs a `process_allow` (trusted_host);
 `AI` needs an `ai_provider` (trusted_host); `timeout_ms` must be positive; byte caps non-negative;
 a budget for an unadmitted effect is a contradiction. Keep the lists short: they are the boundary.
 
@@ -144,8 +181,9 @@ a budget for an unadmitted effect is a contradiction. Keep the lists short: they
 - **Network**: one destination authorizer runs on **every** hop and connection — HTTP, SSE,
   NDJSON and WebSocket — so a redirect to a host outside `net_allow` is refused before any dial,
   the resolved address is validated and pinned, and `Authorization`/`Cookie`/`Proxy-Authorization`
-  are stripped across origins. Loopback, private, link-local and metadata addresses are refused in
-  restricted mode with no override.
+  are stripped across origins. Private, link-local and metadata addresses are refused in
+  restricted mode with no override; loopback is reachable only on a port named by a port-qualified
+  `net_allow` entry, and never through a redirect.
 - **Authority**: the policy is decoded once into an immutable value and its digest is banked; the
   worker freezes source reads, so the module graph the gate typechecked is the one that runs
   (`module_graph.digest` on the admission line); the decision travels on a control pipe, never

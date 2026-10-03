@@ -1,0 +1,89 @@
+{
+  "sprint_id": "M-IO-READLINE-EOF-OPTION",
+  "status": "not_started",
+  "created": "2026-10-03T07:50:16.293188+00:00",
+  "design_doc": "design_docs/planned/v0_52_0/m-io-readline-eof-option.md",
+  "sprint_plan": "design_docs/planned/v0_52_0/m-io-readline-eof-option-sprint-plan.md",
+  "github_issues": [],
+  "source_task": "task-98827762",
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 400,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "EOF-aware IO surface",
+      "estimated_loc": 210,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "IO.readLineOpt and _io_readLineOpt return std/option Option[string] through effects.Call with the existing IO gate and unit argument convention.",
+        "Normal and blank lines return Some; zero-byte EOF returns None; final unterminated content returns Some once, then repeated None.",
+        "CRLF trimming matches readLine; non-EOF reader errors propagate; mixed reads share ctx.GetIOReader without losing buffered data.",
+        "Existing TestIOReadLine_* pass unchanged; builtin type, metadata and doctor validation pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Trace, harness and CLI regression coverage",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "IO.readLineOpt is classified non-deterministic with focused trace coverage.",
+        "Eval normalization recognizes readLineOpt with parenthesized and spaced call forms and imports std/io correctly.",
+        "Pipe-driven CLI tests deliver a, blank, b for a newline-separated input and terminate; empty input exits immediately; unterminated final input is retained.",
+        "Integration tests use a timeout to detect EOF spinning and assert output and exit status."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Runnable example, teaching and release validation",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "examples/runnable/io_readline_eof.ail and examples/manifest.json are present, type-check, preserve blank lines, and exit on empty stdin.",
+        "docs/docs/reference/effects.md documents readLineOpt and cross-references it from readLine; Unreleased changelog records the additive API.",
+        "A new teaching prompt version is created through prompt-manager; historical prompt hashes remain unchanged and prompt freeze checks pass.",
+        "make build, make test, make lint, make check-boundaries, make verify-examples and make check-prompt-freeze pass; regex_capture example remains working."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search stdin returned no packages; io returned application packages. Core EOF signaling requires the runtime; reuse std/option and GetIOReader."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search stdin returned no packages; io returned application packages. Host trace and eval harness registration/tests are repository concerns."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Search stdin returned no packages; io returned application packages. Host API documentation, prompts and examples require repository updates."
+    }
+  ]
+}

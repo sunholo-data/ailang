@@ -12,8 +12,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // ExampleManifest represents the examples/manifest.json structure
@@ -155,128 +153,15 @@ func examplesSearchCommand(args []string) {
 		os.Exit(1)
 	}
 
-	query := strings.ToLower(searchFlags.Arg(0))
-
-	// Find examples directory
-	examplesPath, err := findExamplesDir()
+	corpus, err := openExamplesCorpus()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Load manifest for metadata
-	manifest, _ := loadExamplesManifest()
-	manifestMap := make(map[string]ExampleEntry)
-	for _, ex := range manifest.Examples {
-		manifestMap[ex.Path] = ex
-	}
-
-	// Search both manifest (descriptions/tags) and file content
-	type searchResult struct {
-		path        string
-		score       float64
-		matchSource string // "description", "tags", "content"
-	}
-
-	var results []searchResult
-	queryWords := strings.Fields(query)
-
-	// Walk examples/runnable/ for .ail files
-	runnablePath := filepath.Join(examplesPath, "runnable")
-	filepath.Walk(runnablePath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(path, ".ail") {
-			return nil
-		}
-
-		filename := filepath.Base(path)
-		meta, hasMeta := manifestMap[filename]
-
-		var score float64
-		var matchSource string
-
-		// Check tags (highest priority)
-		if hasMeta {
-			for _, tag := range meta.Tags {
-				if strings.Contains(strings.ToLower(tag), query) {
-					score = 1.0
-					matchSource = "tag"
-					break
-				}
-				for _, qw := range queryWords {
-					if strings.Contains(strings.ToLower(tag), qw) {
-						score = maxFloat(score, 0.9)
-						matchSource = "tag"
-					}
-				}
-			}
-		}
-
-		// Check description
-		if hasMeta && meta.Description != "" {
-			descLower := strings.ToLower(meta.Description)
-			if strings.Contains(descLower, query) {
-				score = maxFloat(score, 0.95)
-				matchSource = "description"
-			} else {
-				for _, qw := range queryWords {
-					if strings.Contains(descLower, qw) {
-						score = maxFloat(score, 0.7)
-						if matchSource == "" {
-							matchSource = "description"
-						}
-					}
-				}
-			}
-		}
-
-		// Check file content
-		content, err := os.ReadFile(path)
-		if err == nil {
-			contentLower := strings.ToLower(string(content))
-			if strings.Contains(contentLower, query) {
-				score = maxFloat(score, 0.8)
-				if matchSource == "" {
-					matchSource = "content"
-				}
-			} else {
-				matchCount := 0
-				for _, qw := range queryWords {
-					if strings.Contains(contentLower, qw) {
-						matchCount++
-					}
-				}
-				if matchCount > 0 {
-					s := float64(matchCount) / float64(len(queryWords)) * 0.6
-					score = maxFloat(score, s)
-					if matchSource == "" {
-						matchSource = "content"
-					}
-				}
-			}
-		}
-
-		if score > 0 {
-			results = append(results, searchResult{
-				path:        filename,
-				score:       score,
-				matchSource: matchSource,
-			})
-		}
-
-		return nil
-	})
-
-	// Sort by score descending
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].score > results[j].score
-	})
-
-	// Limit results
-	if len(results) > *limitFlag {
-		results = results[:*limitFlag]
+	results, manifestMap, err := searchExamples(corpus, searchFlags.Arg(0), *limitFlag)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 
 	if *jsonFlag {
@@ -349,52 +234,34 @@ func examplesShowCommand(args []string) {
 		os.Exit(1)
 	}
 
-	name := showFlags.Arg(0)
-
-	// Find the example file
-	examplesPath, err := findExamplesDir()
+	corpus, err := openExamplesCorpus()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Add .ail extension if missing
-	if !strings.HasSuffix(name, ".ail") {
-		name = name + ".ail"
-	}
-
-	// Check runnable/ first, then examples/
-	examplePath := filepath.Join(examplesPath, "runnable", name)
-	if _, err := os.Stat(examplePath); os.IsNotExist(err) {
-		examplePath = filepath.Join(examplesPath, name)
-	}
-
-	if _, err := os.Stat(examplePath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "Error: example not found: %s\n", name)
+	ex, err := fsReadExample(corpus, showFlags.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		fmt.Fprintln(os.Stderr, "Use 'ailang examples list' to see available examples.")
 		os.Exit(1)
 	}
+	name, content := ex.name, ex.content
 
-	// Load manifest for metadata
-	manifest, _ := loadExamplesManifest()
+	// Manifest metadata is optional for show: a corpus without a manifest
+	// still shows the file (search and list need it and say so).
 	var meta *ExampleEntry
-	for _, ex := range manifest.Examples {
-		if ex.Path == name {
-			meta = &ex
-			break
+	if manifest, err := corpus.manifest(); err == nil {
+		for i := range manifest.Examples {
+			if manifest.Examples[i].Path == name {
+				meta = &manifest.Examples[i]
+				break
+			}
 		}
 	}
 
 	if *expectedFlag && meta != nil && meta.Expected != nil {
 		fmt.Print(meta.Expected.Stdout)
 		return
-	}
-
-	// Read and display the file
-	content, err := os.ReadFile(examplePath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading example: %v\n", err)
-		os.Exit(1)
 	}
 
 	fmt.Printf("📄 %s\n", name)
@@ -417,6 +284,14 @@ func examplesShowCommand(args []string) {
 
 	// Run if requested
 	if *runFlag {
+		if corpus.dir == "" {
+			// Example module paths are repo-relative (module examples/runnable/…),
+			// so they only run from an on-disk corpus.
+			fmt.Fprintf(os.Stderr, "Error: --run needs an on-disk examples corpus; %s is embedded.\n", corpus.where())
+			fmt.Fprintln(os.Stderr, "  Run 'ailang examples download' or set AILANG_EXAMPLES=/path/to/ailang/examples")
+			os.Exit(1)
+		}
+		examplePath := filepath.Join(corpus.dir, filepath.FromSlash(ex.rel))
 		fmt.Println("\n🚀 Running example...")
 		fmt.Println(strings.Repeat("─", 60))
 
@@ -430,7 +305,6 @@ func examplesShowCommand(args []string) {
 	}
 }
 
-// examplesTagsCommand lists all available tags
 func examplesTagsCommand(args []string) {
 	manifest, err := loadExamplesManifest()
 	if err != nil {
@@ -647,71 +521,6 @@ func detectZipPrefix(files []*zip.File) string {
 		}
 	}
 	return prefix
-}
-
-// Helper functions
-
-func loadExamplesManifest() (*ExampleManifest, error) {
-	examplesPath, err := findExamplesDir()
-	if err != nil {
-		return nil, err
-	}
-
-	manifestPath := filepath.Join(examplesPath, "manifest.json")
-	data, err := os.ReadFile(manifestPath)
-	if err != nil {
-		return nil, fmt.Errorf("reading manifest: %w", err)
-	}
-
-	var manifest ExampleManifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, fmt.Errorf("parsing manifest: %w", err)
-	}
-
-	return &manifest, nil
-}
-
-func findExamplesDir() (string, error) {
-	// 1. Check AILANG_EXAMPLES environment variable
-	if envExamples := config.ExamplesDir(); envExamples != "" {
-		if info, err := os.Stat(envExamples); err == nil && info.IsDir() {
-			absPath, _ := filepath.Abs(envExamples)
-			return absPath, nil
-		}
-	}
-
-	// 2. Check relative to executable (works for local builds)
-	if exe, err := os.Executable(); err == nil {
-		resolved, _ := filepath.EvalSymlinks(exe)
-		if resolved != "" {
-			exe = resolved
-		}
-		exeDir := filepath.Dir(exe)
-		for _, rel := range []string{"../examples", "examples"} {
-			candidate := filepath.Join(exeDir, rel)
-			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-				absPath, _ := filepath.Abs(candidate)
-				return absPath, nil
-			}
-		}
-	}
-
-	// 3. Check ~/.ailang/examples/ (populated by `ailang examples download`)
-	if dlDir, err := defaultExamplesDownloadDir(); err == nil {
-		if info, err := os.Stat(dlDir); err == nil && info.IsDir() {
-			return dlDir, nil
-		}
-	}
-
-	// 4. CWD-relative paths (works when inside the ailang repo)
-	for _, path := range []string{"examples", "../examples", "../../examples"} {
-		if info, err := os.Stat(path); err == nil && info.IsDir() {
-			absPath, _ := filepath.Abs(path)
-			return absPath, nil
-		}
-	}
-
-	return "", fmt.Errorf("examples not found\n\n  To fix, either:\n    1. ailang examples download\n    2. Run from the ailang source directory\n    3. Set AILANG_EXAMPLES=/path/to/ailang/examples")
 }
 
 func hasAnyTag(exampleTags, filterTags []string) bool {

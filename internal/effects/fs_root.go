@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/sunholo-data/ailang/internal/fileguard"
@@ -137,26 +135,24 @@ func fsRejectProbe(ctx *EffContext, op, path string, err error) {
 	}
 }
 
-// fsCheckMutation refuses a mutating operation on a path with a `.git`
-// component when the sandbox protects the repository metadata
-// (M-EXECUTOR-POLICY-HARDENING M6). Reads are unaffected; `.gitignore` and
-// `.gitattributes` are ordinary files.
+// fsCheckMutation refuses a mutating operation on a protected path: one
+// with a `.git` component when the sandbox protects the repository metadata
+// (M-EXECUTOR-POLICY-HARDENING M6), or one matching the policy's
+// fs_deny_write (M7). Both go through fileguard.Protection — the one matcher
+// the policy-tool shares — which folds case and Unicode normalization
+// (#1559: on APFS/NTFS `.CLAUDE/x` IS `.claude/x`). Reads are unaffected;
+// `.gitignore` and `.gitattributes` are ordinary files.
 func (ctx *EffContext) fsCheckMutation(path string) error {
 	if ctx == nil || (!ctx.Env.ProtectGitDir && len(ctx.Env.DenyWrite) == 0) {
 		return nil
 	}
-	rel := fsRelToRoot(ctx.Env.Sandbox, path)
-	if ctx.Env.ProtectGitDir {
-		for _, seg := range strings.Split(rel, "/") {
-			// Case-folded: on a case-insensitive filesystem (macOS APFS,
-			// the default) `.GIT/config` IS `.git/config`.
-			if strings.EqualFold(seg, ".git") {
-				return fmt.Errorf("E_FS_PROTECTED: %s is under .git, which is read-only in restricted mode", path)
-			}
-		}
+	prot := fileguard.Protection{GitDir: ctx.Env.ProtectGitDir, DenyWrite: ctx.Env.DenyWrite}
+	v := prot.Check(fsRelToRoot(ctx.Env.Sandbox, path))
+	if v.GitDir {
+		return fmt.Errorf("E_FS_PROTECTED: %s is under .git, which is read-only in restricted mode", path)
 	}
-	if pat := MatchDenyWrite(ctx.Env.DenyWrite, rel); pat != "" {
-		return fmt.Errorf("E_FS_PROTECTED: %s matches fs_deny_write %q — read-only under this policy", path, pat)
+	if v.Pattern != "" {
+		return fmt.Errorf("E_FS_PROTECTED: %s matches fs_deny_write %q — read-only under this policy", path, v.Pattern)
 	}
 	return nil
 }
@@ -173,35 +169,6 @@ func fsRelToRoot(root, path string) string {
 		}
 	}
 	return filepath.ToSlash(clean)
-}
-
-// MatchDenyWrite returns the first pattern rel matches, or "". A pattern
-// ending in "/**" covers the directory and everything beneath it; any other
-// pattern is a path.Match glob against the whole relative path AND against
-// its base name (so "*.yml" protects YAML files at any depth). Shared by the
-// FS effect and policy-tool.
-func MatchDenyWrite(patterns []string, rel string) string {
-	rel = strings.TrimPrefix(filepath.ToSlash(rel), "./")
-	base := rel
-	if i := strings.LastIndexByte(rel, '/'); i >= 0 {
-		base = rel[i+1:]
-	}
-	for _, pat := range patterns {
-		pat = strings.TrimPrefix(filepath.ToSlash(pat), "./")
-		if dir, ok := strings.CutSuffix(pat, "/**"); ok {
-			if rel == dir || strings.HasPrefix(rel, dir+"/") {
-				return pat
-			}
-			continue
-		}
-		if m, _ := path.Match(pat, rel); m {
-			return pat
-		}
-		if m, _ := path.Match(pat, base); m {
-			return pat
-		}
-	}
-	return ""
 }
 
 // fsCheckTransfer applies the per-transfer cap (Env.FSMaxBytes, from

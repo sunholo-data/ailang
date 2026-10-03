@@ -63,13 +63,13 @@ var ollamaWebBaseURL = "https://ollama.com"
 // restricted worker's environment is an allowlist, so the supervisor asks
 // here rather than knowing the backend: one credential, for one granted
 // host (M-EXECUTOR-POLICY-HARDENING M7 posture). An empty net_allow admits
-// nothing here, unlike isAllowedDomain's "no list = any host".
+// nothing here, unlike isAllowedTarget's "no list = any host".
 func WebCredentialVars(netAllow []string) []string {
 	if len(netAllow) == 0 {
 		return nil
 	}
 	u, err := url.Parse(ollamaWebBaseURL)
-	if err != nil || !isAllowedDomain(u.Hostname(), netAllow) {
+	if err != nil || !isAllowedTarget(u.Hostname(), targetPort(u), netAllow) {
 		return nil
 	}
 	return []string{config.EnvOllamaAPIKey}

@@ -81,7 +81,7 @@ var jobVars = []Var{
 	{EnvSSHHostAlias, "agent-repo", AreaJob, "SSH host alias the deploy key is installed under."},
 	{EnvToolPolicy, "", AreaJob, "Tool-policy profile for the executor (full | ailang_only | canonical list); unset = the CLI's own defaults. Banked as tool_policy on the row."},
 	{EnvAgentPolicyTOML, "", AreaJob, "Program policy (agent-policy.toml CONTENT) an ailang_only job's ailang_run is gated by; materialised read-only by execute-job. Unset = ailang_run refuses (default-deny)."},
-	{EnvAgentPolicy, "", AreaJob, "Materialised program-policy PATH the ailang_only lane's tools (ailang_run, ailang_cli, ailang_read/write/edit via `ailang policy-tool`) are gated by; exported by the launcher, never set by the model. Unset = the tools refuse (default-deny)."},
+	{EnvAgentPolicy, "", AreaJob, "Materialised program-policy PATH the ailang_only lane's tools (ailang_run, ailang_cli, ailang_read/write/edit via `ailang policy-tool`) are gated by; exported by the launcher, never set by the model. Unset = the tools refuse (default-deny). policy-tool pins it on every CLI child; set, `ailang examples` ignores working-directory examples/ dirs."},
 }
 
 // ToolPolicy returns AILANG_TOOL_POLICY, "" when unset.

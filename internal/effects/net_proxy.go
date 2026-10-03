@@ -91,7 +91,7 @@ func (rt *netProxyRoundTripper) roundTrip(req *http.Request) (*http.Response, er
 // directRoundTrip resolves+validates the target exactly once and dials the
 // validated IP with no hostname re-resolution.
 func (rt *netProxyRoundTripper) directRoundTrip(req *http.Request) (*http.Response, error) {
-	validatedIP, err := rt.pol.resolvePinned(req.URL.Hostname())
+	validatedIP, err := rt.pol.forTarget(req.URL).resolvePinned(req.URL.Hostname())
 	if err != nil {
 		return nil, &targetValidationError{cause: err}
 	}
@@ -138,12 +138,14 @@ func (rt *netProxyRoundTripper) directTransport(validatedIP string, u *url.URL) 
 	return &http.Transport{
 		// nil Proxy: this route was already selected as the direct path.
 		DialContext: func(ctxDial context.Context, network, addr string) (net.Conn, error) {
-			_, port, _ := net.SplitHostPort(addr)
-			if port == "" {
-				port = defaultPort(u.Scheme)
+			// The port was authorized with the URL (a port-qualified entry
+			// admits that port only, #1558): the dial must use it, never a
+			// port the HTTP machinery derived some other way.
+			authorized := targetPort(u)
+			if _, port, _ := net.SplitHostPort(addr); port != "" && port != authorized {
+				return nil, rt.pol.errf("DOMAIN_BLOCKED", "dial port %s is not the authorized port %s for %s", port, authorized, u.Hostname())
 			}
-			dialAddr := net.JoinHostPort(validatedIP, port)
-			return rt.pol.dial(ctxDial, network, dialAddr)
+			return rt.pol.dial(ctxDial, network, net.JoinHostPort(validatedIP, authorized))
 		},
 		TLSHandshakeTimeout:   rt.pol.connectTimeout,
 		ResponseHeaderTimeout: rt.pol.connectTimeout,
@@ -186,15 +188,11 @@ func (p destinationPolicy) pinnedDialer(u *url.URL) (func(ctx context.Context, n
 	if err := p.authorizeURL(u); err != nil {
 		return nil, err
 	}
-	validatedIP, err := p.resolvePinned(u.Hostname())
+	validatedIP, err := p.forTarget(u).resolvePinned(u.Hostname())
 	if err != nil {
 		return nil, err
 	}
-	port := u.Port()
-	if port == "" {
-		port = defaultPort(u.Scheme)
-	}
-	dialAddr := net.JoinHostPort(validatedIP, port)
+	dialAddr := net.JoinHostPort(validatedIP, targetPort(u))
 	return func(ctx context.Context, network, _ string) (net.Conn, error) {
 		return p.dial(ctx, network, dialAddr)
 	}, nil

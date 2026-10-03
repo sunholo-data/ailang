@@ -182,27 +182,76 @@ export func main() -> () ! {IO, Net} = {
 	}
 }
 
-// Restricted mode refuses the loopback grant outright: the listener is never
-// reached, with the refusal naming the reason (no permissive fallback, AC11).
-func TestRunPolicyE2E_RestrictedHasNoLoopbackGrant(t *testing.T) {
+// Restricted mode has no all-of-loopback grant: a bare loopback net_allow
+// entry is refused at policy load, naming the port-qualified form, and the
+// listener is never reached (no permissive fallback, AC11). A port-qualified
+// loopback literal opens exactly that port (#1558): the allowed listener is
+// reached, a second loopback listener is not, and a redirect from the
+// allowed port to the other one is refused before any dial.
+func TestRunPolicyE2E_RestrictedLoopbackIsPortScoped(t *testing.T) {
 	bin := buildAilang(t)
 	c := newContainmentE2E(t)
-	var hits atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits.Add(1) }))
-	defer srv.Close()
-	_, port, _ := net.SplitHostPort(srv.Listener.Addr().String())
-	pol := c.policy(t, "allowed_caps = [\"IO\", \"Net\"]\nnet_allow = [\"127.0.0.1\"]\nnet_allow_http = true\nentry = \"main\"\ntimeout_ms = 30000\n")
+	var otherHits, mockHits atomic.Int32
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		otherHits.Add(1)
+		_, _ = w.Write([]byte("other"))
+	}))
+	defer other.Close()
+	_, otherPort, _ := net.SplitHostPort(other.Listener.Addr().String())
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockHits.Add(1)
+		if r.URL.Path == "/redirect" {
+			http.Redirect(w, r, "http://127.0.0.1:"+otherPort+"/x", http.StatusFound)
+			return
+		}
+		_, _ = w.Write([]byte("mock"))
+	}))
+	defer mock.Close()
+	_, mockPort, _ := net.SplitHostPort(mock.Listener.Addr().String())
+
 	prog := `module prog
 import std/net (httpRequest)
-export func main() -> () ! {IO, Net} = match httpRequest("GET", "http://127.0.0.1:` + port + `/x", [], "") {
-  Ok(resp) => println("BODY:${resp.body}"),
-  Err(_) => println("DENIED")
+export func fetch(u: string) -> string ! {Net} = match httpRequest("GET", u, [], "") {
+  Ok(resp) => "BODY:${resp.body}",
+  Err(_) => "DENIED"
+}
+export func main() -> () ! {IO, Net} = {
+  println(fetch("http://127.0.0.1:` + mockPort + `/x"));
+  println(fetch("http://127.0.0.1:` + otherPort + `/x"));
+  println(fetch("http://127.0.0.1:` + mockPort + `/redirect"))
 }
 `
 	writeAil(t, c.sandbox, "prog.ail", prog)
-	stdout, stderr, code := testutil.RunBounded(t, c.sandbox, 60*time.Second, bin, "run", "--policy", pol, "prog.ail")
-	if !strings.Contains(stdout, "DENIED") || hits.Load() != 0 {
-		t.Fatalf("restricted mode must not reach loopback: exit %d, hits=%d\nstdout: %q\nstderr: %q", code, hits.Load(), stdout, stderr)
+
+	// Bare loopback: refused at load, nothing reached.
+	bare := c.policy(t, "allowed_caps = [\"IO\", \"Net\"]\nnet_allow = [\"127.0.0.1\"]\nnet_allow_http = true\nentry = \"main\"\ntimeout_ms = 30000\n")
+	stdout, stderr, code := testutil.RunBounded(t, c.sandbox, 60*time.Second, bin, "run", "--policy", bare, "prog.ail")
+	if code == 0 || !strings.Contains(stderr, "127.0.0.1:PORT") || mockHits.Load() != 0 || otherHits.Load() != 0 {
+		t.Fatalf("bare loopback in restricted mode must be refused at load naming 127.0.0.1:PORT: exit %d, hits=%d/%d\nstdout: %q\nstderr: %q",
+			code, mockHits.Load(), otherHits.Load(), stdout, stderr)
+	}
+
+	// Port-qualified loopback: that port only.
+	scoped := c.policy(t, "allowed_caps = [\"IO\", \"Net\"]\nnet_allow = [\"127.0.0.1:"+mockPort+"\"]\nnet_allow_http = true\nentry = \"main\"\ntimeout_ms = 30000\n")
+	stdout, stderr, code = testutil.RunBounded(t, c.sandbox, 60*time.Second, bin, "run", "--policy", scoped, "prog.ail")
+	if code != 0 {
+		t.Fatalf("exit %d\n%s%s", code, stdout, stderr)
+	}
+	lines := programLines(stdout)
+	if len(lines) < 3 {
+		t.Fatalf("want 3 program lines, got %q\n%s", stdout, stderr)
+	}
+	if lines[0] != "BODY:mock" {
+		t.Errorf("the port-qualified loopback entry must reach its port, got %q\n%s", lines[0], stderr)
+	}
+	if lines[1] != "DENIED" {
+		t.Errorf("another loopback port must be denied, got %q", lines[1])
+	}
+	if lines[2] != "DENIED" {
+		t.Errorf("a redirect to another loopback port must be denied, got %q", lines[2])
+	}
+	if otherHits.Load() != 0 {
+		t.Fatalf("CONTAINMENT FAILURE: the other loopback listener was reached %d times", otherHits.Load())
 	}
 }
 

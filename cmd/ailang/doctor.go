@@ -128,14 +128,20 @@ func runBuiltinsList() {
 	byModule := listFlags.Bool("by-module", false, "Group by module")
 	verbose := listFlags.Bool("verbose", false, "Show full documentation including signatures")
 	jsonOut := listFlags.Bool("json", false, "Emit machine-readable JSON list")
+	module := listFlags.String("module", "", "Only builtins of this module (e.g. std/fs)")
+	query := listFlags.String("query", "", "Only builtins whose name, module or description contains this text (case-insensitive)")
 	_ = listFlags.Parse(flag.Args()[2:]) // ExitOnError means this never returns an error we can handle
 
 	// Get all specs from new registry (M-DX1 complete in v0.3.10)
-	specs := builtins.AllSpecs()
+	specs := filterBuiltinSpecs(builtins.AllSpecs(), *module, *query)
 
 	if len(specs) == 0 {
 		if *jsonOut {
 			fmt.Println(`{"count":0,"builtins":[]}`)
+			return
+		}
+		if *module != "" || *query != "" {
+			fmt.Printf("No builtins match --module %q --query %q\n", *module, *query)
 			return
 		}
 		fmt.Println("No builtins registered")
@@ -186,7 +192,7 @@ func listAllBuiltins(specs map[string]*builtins.BuiltinSpec) {
 }
 
 func listBuiltinsByEffect(specs map[string]*builtins.BuiltinSpec) {
-	grouped := builtins.GroupByEffect()
+	grouped := restrictGroups(builtins.GroupByEffect(), specs)
 
 	// Sort effect names
 	effects := make([]string, 0, len(grouped))
@@ -207,7 +213,7 @@ func listBuiltinsByEffect(specs map[string]*builtins.BuiltinSpec) {
 }
 
 func listBuiltinsByModule(specs map[string]*builtins.BuiltinSpec) {
-	grouped := builtins.GroupByModule()
+	grouped := restrictGroups(builtins.GroupByModule(), specs)
 
 	// Sort module names
 	modules := make([]string, 0, len(grouped))
@@ -303,7 +309,7 @@ func listBuiltinsVerbose(specs map[string]*builtins.BuiltinSpec) {
 
 // listBuiltinsVerboseByModule lists builtins grouped by module with full documentation
 func listBuiltinsVerboseByModule(specs map[string]*builtins.BuiltinSpec) {
-	grouped := builtins.GroupByModule()
+	grouped := restrictGroups(builtins.GroupByModule(), specs)
 
 	modules := make([]string, 0, len(grouped))
 	for module := range grouped {
@@ -322,7 +328,7 @@ func listBuiltinsVerboseByModule(specs map[string]*builtins.BuiltinSpec) {
 
 // listBuiltinsVerboseByEffect lists builtins grouped by effect with full documentation
 func listBuiltinsVerboseByEffect(specs map[string]*builtins.BuiltinSpec) {
-	grouped := builtins.GroupByEffect()
+	grouped := restrictGroups(builtins.GroupByEffect(), specs)
 
 	effects := make([]string, 0, len(grouped))
 	for effect := range grouped {
