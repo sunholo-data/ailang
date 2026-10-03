@@ -1,6 +1,6 @@
 # M-MISSION-HEARTBEAT-DRIVER-ROOT
 
-**Status:** Planned mechanical correction; fleet iteration 16, 2026-10-03. **Revision 5.1** (R5: D-FLEET-10 = A absoluteness guard, round-5 Kimi residuals closed; R5.1: quorum round-6 premise rows). Every "measured" claim here maps to a Verification Log row run on 2026-10-03 (R5 rows @ c68ded4b2, R5.1 rows @ 21f045a38); rulings and history are not re-measured.
+**Status:** Planned mechanical correction; fleet iteration 16, 2026-10-03. **Revision 5.2** (R5: D-FLEET-10 = A absoluteness guard, round-5 Kimi residuals closed; R5.1: quorum round-6 premise rows; R5.2: round-7 reviewer fixes, controller-applied under the narrow-refinement carve-out). Every "measured" claim here maps to a Verification Log row run on 2026-10-03 (R5 rows @ c68ded4b2, R5.1 rows @ 21f045a38, R5.2 rows @ 5ad08e044; the commits differ only in this doc, see the coherence row); rulings and history are not re-measured.
 **Priority:** P0 queue ticket `skill:heartbeat-relative-path-absent-in-world`.
 **Target:** next fleet deployment. **Effort:** one short milestone.
 **Planner-Lane:** codex-ok
@@ -14,7 +14,7 @@ for `bash -c` strings, rc=1 for script files, bash 3.2.57) is ruled correct; add
 guard on `MISSION_DRIVER_ROOT` and satisfy Kimi's concrete residuals in Revision 5; fresh quorum
 next fire. A reviewer that cannot run rig commands does not overrule a recorded rig measurement."*
 R5 replaces the `:?` form with a `case` guard (which no longer depends on that two-shape fact at
-all), and closes Kimi's six residuals (mapping at the end). R5.1 adds only the round-6 premise rows (Verification Log, rows tagged R5.1).
+all), and closes Kimi's six residuals (mapping at the end). R5.1 adds only the round-6 premise rows (Verification Log, rows tagged R5.1). R5.2 adds the round-7 rows (end-to-end propagation, invocation shape, commit coherence, `SKILL.md:338`), corrects two swapped conflict-table cells, widens Acceptance 1 to the whole skill trees and adds Acceptance 6a.
 
 ## Problem and scope
 
@@ -23,7 +23,7 @@ the byte-mirrored `.agents` copies — call `bash tools/launchd/mission-heartbea
 path relative to CWD. World (`ailang-world`) and Stapledon (`stapledons-godot`) are not the
 ailang repo, so from their CWD the helper is absent and every gate stamp fails (`bash:
 tools/launchd/mission-heartbeat.sh: No such file or directory`, rc=127, re-measured 2026-10-03).
-The driver already exports an absolute `MISSION_DRIVER_ROOT` for exactly this purpose.
+`mission-control.sh:2167` exports `MISSION_DRIVER_ROOT` at top level (measured); propagation to driver-spawned mission shells is verified by the R5.2 end-to-end row; attended shells are covered by the setup sentence.
 
 Two further gaps inside the D-FLEET-8 scope:
 
@@ -93,8 +93,8 @@ output in the Verification Log) finds exactly three non-heartbeat uses, identica
 
 | Site | Form | Unset/relative behaviour | This revision |
 |---|---|---|---|
-| gate-3-route.md:72 | `"$MISSION_DRIVER_ROOT/tools/launchd/mission-lane-dead.sh" <role> <lane> "<evidence>"` (bare) | unset → `/tools/launchd/mission-lane-dead.sh: No such file or directory`, rc=127 (Verification Log, 2026-10-03); relative → CWD-resolved | **not aligned** |
-| role-spawn-routing.md:85 | same bare form | same | **not aligned** |
+| gate-3-route.md:72 | `"$MISSION_DRIVER_ROOT/tools/launchd/mission-lane-dead.sh" <role> <lane> "<evidence: verdict path, rc, error>"` (bare) | unset → `/tools/launchd/mission-lane-dead.sh: No such file or directory`, rc=127 (Verification Log, 2026-10-03); relative → CWD-resolved | **not aligned** |
+| role-spawn-routing.md:85 | `"$MISSION_DRIVER_ROOT/tools/launchd/mission-lane-dead.sh" <role> <lane> "<evidence>"` (bare) | same | **not aligned** |
 | gate-3-route.md:618 | `MW="${MISSION_DRIVER_ROOT:-.}/tools/launchd/mission-worktree.sh"` | unset → **silent CWD fallback** to `./tools/launchd/mission-worktree.sh` (Verification Log, 2026-10-03) | **not aligned** |
 
 Justification: D-FLEET-8/10 scope this fix to heartbeat sites plus rc-19; changing Gate-3 lane
@@ -106,7 +106,7 @@ reject an implementation that touches them in this milestone.
 ## Files to modify
 
 Heartbeat call sites (`rg -n 'mission-heartbeat\.sh' .claude/skills .agents/skills` at HEAD
-c68ded4b2, 2026-10-03; `SKILL.md:338` is prose, not a command — unchanged). Each path exists in
+c68ded4b2, 2026-10-03; `SKILL.md:338` is prose naming the helper, not an invocation; quoted in the R5.2 row, unchanged). Each path exists in
 both `.claude/skills/mission-control/resources/` (edited) and
 `.agents/skills/mission-control/resources/` (produced by sync):
 
@@ -127,8 +127,8 @@ Scope guard: `tools/launchd/githooks/pre-push` (`_scope_is_harness`) and
 
 ## Acceptance (content-pinned; one milestone)
 
-1. **Inventory.** `rg -F 'bash tools/launchd/mission-heartbeat.sh stamp' <both resource dirs>` →
-   0 matches (18 before). `rg -c -F 'case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp'`
+1. **Inventory.** `rg -F 'bash tools/launchd/mission-heartbeat.sh' .claude/skills .agents/skills` (whole skill trees, not only the resource dirs) →
+   0 matches (18 before, all in resource dirs). `rg -c -F 'case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp'`
    summed over both dirs → 18, distributed 2/1/1/1/1/1/2 per file per copy.
 2. **Setup sentence.** `rg -l -F 'Attended setup: export MISSION_DRIVER_ROOT' .claude/skills/mission-control/resources .agents/skills/mission-control/resources | wc -l` → **14** (0 today), and exactly the fourteen files above.
 3. **rc-19.** In both gate-3-route.md copies, `rg -c -F '14=launch_failed · 18=tool_hang · 19=provider_quota' <file>` → 1, and `rg -c -F 'Anything non-zero except 18' <file>` → 1 (catch-all intact). Positive control: `rg -n 'RC=19' scripts/mission_pi_run.sh` still matches.
@@ -140,7 +140,8 @@ Scope guard: `tools/launchd/githooks/pre-push` (`_scope_is_harness`) and
    - absolute correct root from World CWD, Stapledon CWD and the driver CWD → rc=0, exactly 1 row with the drilled label and attempt 1;
    - `stamp abort <reason>` → row carries the reason note; a root containing a space → rc=0, 1 row.
    Assert **nonzero** for failures, not a specific code.
-7. **Production root.** Extract `MC_DRIVER_ROOT=$(cd "$(dirname "$0")/../.." … && pwd)` from `tools/launchd/mission-control.sh:47`, run with relative `$0=tools/launchd/mission-control.sh` from the driver tree → absolute path; `:2167` exports it unconditionally (`MISSION_DRIVER_ROOT="${MC_DRIVER_ROOT:-}"; export MISSION_DRIVER_ROOT`).
+6a. **Driver-spawned shell, no manual export.** Inside a controller tool shell spawned by a live pinned driver fire, with only `AILANG_STATE_DIR=<temp>` and `MISSION_NAME=<drill>` set by hand: `printenv MISSION_DRIVER_ROOT` → absolute and equal to the pin worktree; the guarded `stamp gate-0` extracted from the edited gate-0 file → rc=0, exactly 1 row, from the driver, World and Stapledon CWDs.
+7. **Production root.** Extract `MC_DRIVER_ROOT=$(cd "$(dirname "$0")/../.." … && pwd)` from `tools/launchd/mission-control.sh:47` and run it with the production argv (`$0` = the absolute pin path that `pin-root.sh:362` execs) from a World CWD → equal to the pin tree, not merely absolute; `:2167` exports it unconditionally (`MISSION_DRIVER_ROOT="${MC_DRIVER_ROOT:-}"; export MISSION_DRIVER_ROOT`).
 8. **Suites + review.** `tools/launchd/test_mission_heartbeat.sh` passes. Evaluator inspects the diff (14 gate files, guard, fleet-mission.md) and rejects any other path, including the three conflict-surface sites.
 
 ## Verification log (2026-10-03, worktree fleet-i16 @ c68ded4b2; R5.1 rows @ 21f045a38)
@@ -181,6 +182,10 @@ Rows written were `<epoch>\t2026-10-03T12:04:…Z\tgate-0\t1\t` (label, attempt 
 | Lane-dead bare form, unset (R5.1) | From the driver tree (which contains `tools/launchd/mission-lane-dead.sh`), `env -u MISSION_DRIVER_ROOT AILANG_STATE_DIR=$T/ld /bin/bash -c '"$MISSION_DRIVER_ROOT/tools/launchd/mission-lane-dead.sh" impl lane-x ev'` → rc=127, stderr `/bin/bash: /tools/launchd/mission-lane-dead.sh: No such file or directory`; under `/bin/zsh` → rc=127, `zsh:1: no such file or directory: /tools/launchd/mission-lane-dead.sh`. `$T/ld` never created (no write). |
 | Worktree `:-.` form, unset (R5.1; resolution only, nothing executed) | `env -u MISSION_DRIVER_ROOT /bin/bash -c 'MW="${MISSION_DRIVER_ROOT:-.}/tools/launchd/mission-worktree.sh"; echo "$MW"'` → `./tools/launchd/mission-worktree.sh`, rc=0; `/bin/zsh` identical. That path exists from the driver tree → the silent CWD fallback is real. |
 | Driver export is top level (R5.1) | `sed -n 2160,2170p tools/launchd/mission-control.sh` → `# so a new fire always starts with every declared lane presumed alive.` / `MISSION_FIRE_ID="${MISSION_NAME:-mission}-$(date +%s)-$$"; export MISSION_FIRE_ID` / `# Routing changes on this fire (controller switch, degraded lanes) for the digest's Routing line.` / `export MISSION_ROUTING_NOTE` / `# The pinned driver's own tree, for skill steps that call driver tools from a mission` / `# repo that has none (world, stapledon). NOT AILANG_DRIVER_SRC: that is the source clone,` / `# which can be far behind what actually runs.` / `MISSION_DRIVER_ROOT="${MC_DRIVER_ROOT:-}"; export MISSION_DRIVER_ROOT` / `# The over-ration buckets travel with the resolved plan, so resolve-role-spawn.sh can` / `# refuse a role recipe the driver itself would have refused (see that script's gate).` / `_mc_load_ration`. All column 0; the last block before it, `if [ -n "$_pin_age_degraded" ]` (2141), closes with `fi` at 2151; nothing opens in 2152–2167. |
+| End-to-end propagation (R5.2) | In THIS fleet controller's Bash tool shell, spawned by live driver fire `fleet-1791028902-72480` (driver pid 72480 = `/bin/bash /Users/voightkampff/.ailang-driver-pin/fleet/tools/launchd/mission-control.sh`; the controller's parent is `claude -p Run one mission-control iteration…`), NO manual export: `printenv MISSION_DRIVER_ROOT` → `/Users/voightkampff/.ailang-driver-pin/fleet` (the pin). Guarded `stamp gate-0` with only `AILANG_STATE_DIR=$T MISSION_NAME=i16e2e-drill` set, `/bin/bash -c`, from the pin, `ailang-world` and `stapledons-godot` CWDs → rc=0 each, cumulative rows 1/2/3 (one per call). Controller switch / persistent shell: the Bash tool keeps no shell state between calls and each controller is a new `claude` process inheriting the driver env, so no stale-export path exists inside a fire; an attended persistent shell is the setup sentence's case. |
+| Invocation shape (R5.2) | `PlistBuddy -c 'Print :ProgramArguments'` on `dev.ailang.mission-fleet.plist` and `dev.ailang.mission-world.plist` → `/bin/bash`, `/Users/voightkampff/dev/sunholo-data/ailang/tools/launchd/mission-control.sh` (absolute); World `WorkingDirectory` = `…/ailang-world`. `pin-root.sh:362`: `exec /bin/bash "$wt/tools/launchd/$script" "$@"` with absolute `$wt`. The `:47` derivation run from the World CWD with argv0 = the pin path → `/Users/voightkampff/.ailang-driver-pin/fleet` (equal to the pin); with the pre-exec argv0 → `…/dev/sunholo-data/ailang` (superseded by the re-exec before any gate runs); with a nonexistent absolute argv0 → empty, which the guard refuses. Every supported argv is absolute, so the `2>/dev/null` path yields empty, never absolute-but-wrong. |
+| Commit coherence (R5.2) | `git diff --stat c68ded4b2 21f045a38 -- tools/launchd .claude/skills .agents/skills scripts/mission_pi_run.sh design_docs/fleet-mission.md` → empty; whole-commit stat → only this doc. R5 and R5.1 rows measured identical inputs. |
+| SKILL.md:338 (R5.2) | `sed -n 338p` in both trees → "The per-gate `mission-heartbeat.sh` stamps above are the durable attribution contract for this" (prose, no invocation). `rg -n -F 'bash tools/launchd/mission-heartbeat.sh' .claude/skills .agents/skills \| grep -v /resources/` → no output. |
 | Pre-push comment (R5.1) | `rg -n 'Keep in step' tools/launchd/githooks/pre-push` → `12:# Harness paths: the fleet mission's write scope. Keep in step with` (line 13: `# design_docs/fleet-mission.md "Authority".`). |
 
 ### Quorum verification log
@@ -199,6 +204,11 @@ Rows written were `<epoch>\t2026-10-03T12:04:…Z\tgate-0\t1\t` (label, attempt 
   Status re-run claim — closed by the five R5.1 Verification Log rows and the scoped Status.
   gpt6-1-sol absent (OpenAI API 429 "no credits remaining" — capacity, not a verdict);
   oc-glm-5-3 absent (invalid JSON; raw text began `"verdict": "pass"`).
+- **Round 7** (2026-10-03T12:14:33Z) — BLOCKED, direction not disputed. gemini: two conflict-table
+  cells swapped vs the log → corrected verbatim. kimi + glm: runtime propagation, invocation shape,
+  commit coherence, `SKILL.md:338` → R5.2 rows + Acceptance 6a/7 + whole-tree Acceptance 1, applied
+  by the controller under the narrow-refinement carve-out (reviewers' fixes, no designer run).
+  gpt6-1-sol absent again (OpenAI API 429, no credits).
 
 ## Related documents
 
