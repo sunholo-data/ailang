@@ -29,6 +29,25 @@ cd "$ROOT" || exit 1
 SCOPE_RE='^(design_docs/[^/]*mission[^/]*\.md|scripts/.*|\.claude/skills/.*)$'
 PAT='[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
 
+# Allowlist, applied to each EXTRACTED address (one per line from `grep -o`), never to the
+# whole source line — so every clause is anchored to the whole address and an allowed token
+# merely CONTAINED in a personal address does not launder it (#1164: before this,
+# `<x>-noreply@<personal>`, `<x>@users.noreply.github.com.<personal>`,
+# `<x>@gserviceaccount.com.<personal>`, `<x>@sentry.io.<personal>` and
+# `<x>@example.com.<personal>` all read clean; addresses in these comments are written with
+# a `<x>` local part so this file does not trip its own gate). Each clause is either a domain
+# suffix anchored with `@`/`\.` and `$`, or an exact address anchored with `^` and `$`:
+#   @users.noreply.github.com      GitHub noreply identities (suffix)
+#   noreply@anthropic.com / noreply@github.com   exact machine senders — NOT any noreply@<domain>,
+#                                  because the local part is attacker-chosen
+#   @example.{com,org,net}         RFC 2606 reserved second-level domains (exact domain;
+#                                  a subdomain of example.com over-flags — the safe direction)
+#   .invalid / .test / .localhost  RFC 2606/6761 reserved TLDs (suffix)
+#   .gserviceaccount.com           GCP service accounts (suffix; Google-owned)
+#   @sentry.io                     Sentry machine identities (exact domain)
+# Matching is case-sensitive: an upper-cased machine domain over-flags (safe direction).
+ALLOW_RE='@users\.noreply\.github\.com$|^noreply@(anthropic|github)\.com$|@example\.(com|org|net)$|\.(invalid|test|localhost)$|@[^@]*\.gserviceaccount\.com$|@sentry\.io$'
+
 hits=0
 while IFS= read -r f; do
     case "$f" in
@@ -36,7 +55,7 @@ while IFS= read -r f; do
     esac
     [ -f "$f" ] || continue
     found=$(LC_ALL=C grep -oE "$PAT" "$f" 2>/dev/null \
-        | grep -vE 'users\.noreply\.github\.com|noreply@|@example\.(com|org|net)|\.(invalid|test|localhost)$|gserviceaccount\.com|@sentry\.io' \
+        | LC_ALL=C grep -vE "$ALLOW_RE" \
         | sort -u)
     if [ -n "$found" ]; then
         while IFS= read -r addr; do

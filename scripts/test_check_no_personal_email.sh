@@ -43,6 +43,52 @@ rm -f design_docs/v1-mission.md
 git add -A >/dev/null 2>&1
 ck "E governance/code out of scope" "$(run)" "0"
 
+# F. #1164 bypasses: an allowed token merely CONTAINED in a personal address must not launder
+# it. One address per run, so each clause is proven anchored on its own. Assembled at runtime
+# for the same reason as B (these are now hits, so a literal here would fail arm A).
+EVIL="evil-personal"; EVIL="$EVIL.net"
+# Lookalike domains (allowed name with a prefix glued on), split so no literal address appears.
+AT_USERS="users.noreply.github"; AT_USERS="$AT_USERS.com"
+AT_GSA="gserviceaccount"; AT_GSA="$AT_GSA.com"
+AT_SENTRY="sentry"; AT_SENTRY="$AT_SENTRY.io"
+AT_EXAMPLE="example"; AT_EXAMPLE="$AT_EXAMPLE.com"
+for addr in \
+    "attacker-noreply@$EVIL" \
+    "noreply@$EVIL" \
+    "x@$AT_USERS.$EVIL" \
+    "x@fake$AT_USERS" \
+    "y@$AT_GSA.$EVIL" \
+    "y@evil$AT_GSA" \
+    "z@$AT_SENTRY.$EVIL" \
+    "z@not$AT_SENTRY" \
+    "a@$AT_EXAMPLE.$EVIL" \
+    "a@evil$AT_EXAMPLE"; do
+    echo "contact $addr" > design_docs/v1-mission.md
+    git add -A >/dev/null 2>&1
+    ck "F bypass caught: $addr" "$(run)" "1"
+done
+
+# G. the allowlist is applied per extracted ADDRESS, not per line: an allowed identity on the
+# same line must not launder a personal one next to it.
+echo "co-author noreply@anthropic.com, reviewer $FIX" > design_docs/v1-mission.md
+git add -A >/dev/null 2>&1
+ck "G allowed + personal on one line -> fail" "$(run)" "1"
+
+# H. every legitimate machine identity still passes under the anchored list (non-vacuity of
+# each clause: deleting any one of them turns this arm red).
+cat > design_docs/v1-mission.md <<'EOT'
+Co-Authored-By: Claude <noreply@anthropic.com>
+merged by noreply@github.com
+author 151556158+sunholo-voight-kampff@users.noreply.github.com
+sa-cloudbuild@ailang-multivac-deploy.iam.gserviceaccount.com
+ci-bot@ailang-multivac.iam.gserviceaccount.com
+alerts@sentry.io
+you@example.com ops@example.org them@example.net
+test@example.invalid dev@host.test me@box.localhost
+EOT
+git add -A >/dev/null 2>&1
+ck "H legitimate identities allowed" "$(run)" "0"
+
 echo "  ---- $pass passed, $fail failed"
 cd /; rm -rf "$W"
 [ "$fail" -eq 0 ]
