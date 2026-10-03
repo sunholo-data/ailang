@@ -58,6 +58,13 @@ var (
 	// backoff resets. Without it, a subscription that dies immediately on every
 	// attempt would retry at the minimum delay forever.
 	superviseStableAfterVar = 5 * time.Minute
+	// superviseAnnounceAfterVar is how long an outage must last before it is
+	// announced. A connection that drops and comes straight back is logged, not
+	// paged: a laptop's streaming pulls break on every sleep and network change,
+	// and announcing each first drop put "Notifier subscription DOWN" in Discord
+	// for outages that had already healed (2026-10-03). Anything still down after
+	// this long is the five-day silence this file exists for, and is announced.
+	superviseAnnounceAfterVar = 2 * time.Minute
 )
 
 // subscriptionRunner is the subset of a source needed to (re)start a pull.
@@ -77,6 +84,9 @@ func (d *Daemon) superviseSubscription(ctx context.Context, r subscriptionRunner
 	// Announced once per OUTAGE, not once per retry: a flapping subscription
 	// must not turn into a notification storm, which is its own kind of silence.
 	announced := false
+	// outageStart is when the current outage began; zero while healthy.
+	var outageStart time.Time
+	var outageUptime time.Duration
 
 	for {
 		started := time.Now()
@@ -106,8 +116,16 @@ func (d *Daemon) superviseSubscription(ctx context.Context, r subscriptionRunner
 				r.Label, r.SubName, uptime.Round(time.Second), backoff)
 		}
 
-		if !announced {
-			d.announceSubscriptionDown(r, uptime, err)
+		// A run that lasted the grace period was a recovery, so the outage clock
+		// restarts here. Whether it may be announced again is still decided by
+		// the stable-run reset above, so a flapping subscription pages once.
+		if outageStart.IsZero() || uptime >= superviseAnnounceAfterVar {
+			outageStart, outageUptime = time.Now(), uptime
+		}
+		// Announce only an outage that has outlasted the grace period. One that
+		// reconnects on the next attempt blocks in Start and never gets here.
+		if downFor := time.Since(outageStart); !announced && downFor >= superviseAnnounceAfterVar {
+			d.announceSubscriptionDown(r, outageUptime, downFor, err)
 			announced = true
 		}
 
@@ -129,7 +147,7 @@ func (d *Daemon) superviseSubscription(ctx context.Context, r subscriptionRunner
 // where the previous five days of this went unread. The fan-out is a different
 // mechanism from the subscription — the pull is broken, the outbound path is
 // not — so the daemon can still report its own deafness.
-func (d *Daemon) announceSubscriptionDown(r subscriptionRunner, uptime time.Duration, cause error) {
+func (d *Daemon) announceSubscriptionDown(r subscriptionRunner, uptime, downFor time.Duration, cause error) {
 	reason := "the pull returned with no error"
 	if cause != nil {
 		reason = cause.Error()
@@ -140,8 +158,8 @@ func (d *Daemon) announceSubscriptionDown(r subscriptionRunner, uptime time.Dura
 		// watches is not reporting it at all.
 		EventType: "public-feedback",
 		Title:     "🚨 Notifier subscription DOWN",
-		Body: fmt.Sprintf("%s (%s) stopped receiving after %s: %s\nRestarting with backoff; messages are queued, not lost.",
-			r.Label, r.SubName, uptime.Round(time.Second), reason),
+		Body: fmt.Sprintf("%s (%s) stopped receiving after %s and has been down %s: %s\nRestarting with backoff; messages are queued, not lost.",
+			r.Label, r.SubName, uptime.Round(time.Second), downFor.Round(time.Second), reason),
 	}
 	if err := d.fire(n); err != nil {
 		// Nothing left to escalate to; the log is the last resort and says so.

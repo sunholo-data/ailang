@@ -11,6 +11,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // M-EXECUTOR-POLICY-HARDENING M3 (D3, D5) — the typed, immutable policy.
@@ -44,6 +45,10 @@ var RestrictedEffects = map[string]bool{
 	// AI ceiling — the effect's endpoint is the operator's, its cost is the
 	// program's; see Resolve.
 	"AI": true,
+	// Declassify (#1557) reaches nothing on the host: it is a compile-time
+	// information-flow gate with no runtime ops, so there is nothing to
+	// confine. Admitting it only lets a program that declassifies run.
+	"Declassify": true,
 }
 
 // Proposed restricted-mode defaults (D5). Overridable per policy field.
@@ -173,7 +178,10 @@ func Resolve(p *Policy, digest string) (*Resolved, error) {
 		return false
 	}
 	for i, c := range caps {
-		if _, known := effects.Registry[c]; !known {
+		// The canonical effect set, not the op registry: Rand and Declassify
+		// are real effect labels with no entry there, and keying on the
+		// registry made both unadmittable (#1557).
+		if !types.IsKnownEffect(c) {
 			return nil, fmt.Errorf("allowed_caps names unknown capability %q (known: %s)", c, knownEffectNames())
 		}
 		if i > 0 && caps[i-1] == c {
@@ -328,12 +336,7 @@ func Resolve(p *Policy, digest string) (*Resolved, error) {
 }
 
 func knownEffectNames() string {
-	names := make([]string, 0, len(effects.Registry))
-	for k := range effects.Registry {
-		names = append(names, k)
-	}
-	sort.Strings(names)
-	return strings.Join(names, ",")
+	return strings.Join(types.KnownEffectNames(), ",")
 }
 
 func sortedKeys(m map[string]bool) string {
