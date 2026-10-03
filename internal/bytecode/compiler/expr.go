@@ -55,6 +55,8 @@ func (fc *funcCompiler) compileExpr(e stmt.Expr) (uint8, error) {
 		return fc.compileADTConstructor(e)
 	case stmt.BuiltinCall:
 		return fc.compileBuiltinCall(e)
+	case stmt.ADTTagEq:
+		return fc.compileADTTagEq(e)
 	case stmt.GlobalRef:
 		// A bare GlobalRef is a first-class function reference. Materialize
 		// it as a closure value in a fresh register.

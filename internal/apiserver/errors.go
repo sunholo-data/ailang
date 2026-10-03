@@ -1,8 +1,10 @@
 package apiserver
 
 import (
+	"errors"
 	"net/http"
 
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/httpjson"
 )
 
@@ -112,4 +114,20 @@ func writeRouterErrorWithDispatch(w http.ResponseWriter, status int, code, msg, 
 			SuggestedFix: suggestedFix,
 		},
 	})
+}
+
+// runtimeErrorDetail returns the structured envelope for a user-code runtime
+// error that carries a registered code, or nil. Today that is RT001 (integer
+// division or modulo by zero, #1449); other runtime errors keep the flat
+// `error` string only, as before.
+func runtimeErrorDetail(err error) *RouterErrorDetail {
+	var dz *ailerrors.DivByZeroError
+	if !errors.As(err, &dz) {
+		return nil
+	}
+	return &RouterErrorDetail{
+		Code:         dz.Code(),
+		Message:      err.Error(),
+		SuggestedFix: "guard the divisor before dividing (if d == 0 then ... else n / d)",
+	}
 }

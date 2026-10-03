@@ -1,8 +1,6 @@
 package eval
 
 import (
-	"math"
-
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -90,11 +88,8 @@ func registerComparisonBuiltins() {
 		NumArgs: 2,
 		IsPure:  true,
 		Impl: func(a, b *FloatValue) (*BoolValue, error) {
-			// Any comparison with NaN returns false
-			if math.IsNaN(a.Value) || math.IsNaN(b.Value) {
-				return &BoolValue{Value: false}, nil
-			}
-			return &BoolValue{Value: a.Value < b.Value}, nil
+			// IEEE: false when either side is NaN (types.FloatLt, #1419)
+			return &BoolValue{Value: types.FloatLt(a.Value, b.Value)}, nil
 		},
 	}
 
@@ -103,10 +98,8 @@ func registerComparisonBuiltins() {
 		NumArgs: 2,
 		IsPure:  true,
 		Impl: func(a, b *FloatValue) (*BoolValue, error) {
-			if math.IsNaN(a.Value) || math.IsNaN(b.Value) {
-				return &BoolValue{Value: false}, nil
-			}
-			return &BoolValue{Value: a.Value <= b.Value}, nil
+			// IEEE: false when either side is NaN (types.FloatLte, #1419)
+			return &BoolValue{Value: types.FloatLte(a.Value, b.Value)}, nil
 		},
 	}
 
@@ -115,10 +108,8 @@ func registerComparisonBuiltins() {
 		NumArgs: 2,
 		IsPure:  true,
 		Impl: func(a, b *FloatValue) (*BoolValue, error) {
-			if math.IsNaN(a.Value) || math.IsNaN(b.Value) {
-				return &BoolValue{Value: false}, nil
-			}
-			return &BoolValue{Value: a.Value > b.Value}, nil
+			// IEEE: false when either side is NaN (types.FloatGt, #1419)
+			return &BoolValue{Value: types.FloatGt(a.Value, b.Value)}, nil
 		},
 	}
 
@@ -127,10 +118,8 @@ func registerComparisonBuiltins() {
 		NumArgs: 2,
 		IsPure:  true,
 		Impl: func(a, b *FloatValue) (*BoolValue, error) {
-			if math.IsNaN(a.Value) || math.IsNaN(b.Value) {
-				return &BoolValue{Value: false}, nil
-			}
-			return &BoolValue{Value: a.Value >= b.Value}, nil
+			// IEEE: false when either side is NaN (types.FloatGte, #1419)
+			return &BoolValue{Value: types.FloatGte(a.Value, b.Value)}, nil
 		},
 	}
 }

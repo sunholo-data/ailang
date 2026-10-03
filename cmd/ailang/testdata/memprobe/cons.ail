@@ -4,8 +4,16 @@ module cons
 -- holds its own copy of the accumulator, so the LIVE data is O(n^2) and any
 -- per-call render of the accumulator multiplies the peak. Depth 6000 keeps
 -- the untraced run around 350 MB on the rig.
+--
+-- The recursive result is let-bound so the call is NOT in tail position. Since
+-- M-EVAL-TAIL-CALLS (#1486) a tail call reuses its frame and frees the old
+-- accumulator (the tail form of this program peaks at ~54 MB, down from
+-- ~364 MB), which would remove the O(n^2) live data this fixture exists to make.
 pure func build(n: int, acc: [int]) -> [int] {
-  if n == 0 then acc else build(n - 1, n :: acc)
+  if n == 0 then acc else {
+    let r = build(n - 1, n :: acc);
+    r
+  }
 }
 
 export func main() -> int ! {IO} {

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "ailang-brand",
+  "version": "0.1.0",
+  "description": "AILANG look for Claude Code: the AILANG version beside the prompt hint, compiler-flavoured spinner words (Unifying…, Inferring effects…), and /ailang for a pane with the logo.",
+  "author": { "name": "AILANG" },
+  "keywords": ["ailang", "mod", "theme"]
+}

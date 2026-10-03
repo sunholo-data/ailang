@@ -337,6 +337,10 @@ The resolved exact version is always written to `ailang.toml`. Semver ranges (`^
 
 `ailang.lock` is portable across machines and containers — it does not contain absolute paths. Cache paths for registry and git packages are resolved at runtime. This means you can `COPY ailang.lock` into Docker and run `ailang install` to populate the cache.
 
+Path dependencies (`{ path = "../sim" }`) are recorded relative to the depending package's `ailang.toml`, with forward slashes on every OS, and their content hash covers only the files' relative names and contents. A repo holding several packages (say `sim/` and `ai/`, with `ai` depending on `../sim`) can commit `ai/ailang.lock` and it stays valid in a CI clone or a copy unpacked anywhere else.
+
+Run `ailang lock --check` in CI to verify the committed lock is current without rewriting it; it exits non-zero and lists each drifted entry. A lock written by an older ailang that names a path dependency by absolute path still loads while that directory exists, is reported as drift by `--check`, and is rewritten relative by the next `ailang lock`. If the absolute directory is gone (another checkout), the error says so and tells you to run `ailang lock`.
+
 ### Version Conflict Detection
 
 AILANG uses flat dependencies — one version per package name. If a transitive dependency requires a different version than your root manifest pins, `ailang lock` fails with a structured error:

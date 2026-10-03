@@ -64,11 +64,19 @@ read-only subcommands carry flags that reach outside the clone (`--no-index`, `-
 confined adapter (`internal/effects/process_confined.go`): the argv is **built** from a
 per-subcommand schema (only the admitted flags; revs must look like revs; pathspecs stay inside the
 clone), the invocation is hardened (git by absolute path, cwd = sandbox root, the caller's `GIT_*`
-stripped, global/system config disabled, `-c core.fsmonitor=false -c core.hooksPath=/dev/null -c
-core.pager=cat -c diff.external=`, `--no-optional-locks`), and **`.git/` is read-only** to the
+stripped, global/system config disabled, `-c core.fsmonitor=false -c
+core.hooksPath=/dev/null/ailang-hooks-disabled -c core.pager=cat -c diff.external= -c
+safe.bareRepository=explicit`, `--no-ext-diff --no-textconv` on diff/log, `--no-optional-locks`),
+and **`.git/` is read-only** (case-folded: `.GIT/` too, for case-insensitive filesystems) to the
 program's FS effect and to the lane's tools — the repo config is the launcher's clone config and
-nothing else. Confined mode is `exec`-only (`spawnProcess`/`asyncExecProcess` are refused). Any
-other `process_allow` entry (`git:push`, `git:*`, `sh`, `gh:…`) is refused at startup by name.
+nothing else. Repository discovery is **bounded at the sandbox**: `GIT_CEILING_DIRECTORIES` is
+the sandbox's parent, so a `.git` at the sandbox root (the clone-root case) is found but git never
+walks up into an enclosing repository — a sandbox that is a repo subdirectory gets `not a git
+repository`, and `git diff` there is refused outright (outside a repository it would compare
+arbitrary paths). Restricted `Process` therefore requires `FS` with `fs_sandbox` (the clone root);
+a policy without one is refused at resolution. Confined mode is `exec`-only
+(`spawnProcess`/`asyncExecProcess` are refused). Any other `process_allow` entry (`git:push`,
+`git:*`, `sh`, `gh:…`) is refused at startup by name.
 
 **AI in restricted mode.** The AI effect's destination is the operator's (`ai_provider` pins the
 registry entry; `--ai`/`--routing-*` are refused) and the program cannot read the credential (no
@@ -203,3 +211,42 @@ The confined-execution claim covers the mediated effects and the lane's tools on
 It does not make an operator-approved `trusted_host` integration safe, does not bound CPU or
 memory (host isolation is the container's job), and does not sever hard links, device nodes or
 bind mounts the launcher seeds into the sandbox. Windows and `GOOS=js` refuse restricted mode.
+
+## The agent child's environment
+
+Every executor (claude, codex, pi, opencode, motoko) launches its CLI with an environment built by
+one function, `executor.BuildEnvironment` (M-EXECUTOR-ENV-HARDENING), and that environment is
+**default-deny**, on every lane — not only `ailang_only`:
+
+| Layer (later wins) | What it holds |
+|---|---|
+| inherited | host variables on the allowlist (PATH, HOME, locale, toolchain dirs, `AILANG_*`/`OTEL_*`/`CLAUDE_*`/`PI_*`/`MOTOKO_*` configuration, …) — **minus every credential-shaped name** (`*_KEY`, `*_TOKEN`, `*SECRET*`, `SSH_AUTH_SOCK`, `AWS_*`, …) unless granted |
+| harness-injected | rig lease, stdlib pin, `PWD`, trace context, correlation IDs, `AILANG_AGENT_POLICY` (from the task's policy path), OTEL wiring, GCP project/location, the per-task git credential config |
+| `Task.ExtraEnv` | e.g. a benchmark's `agent_env` — validated: loader, shell start-up, proxy, `GIT_*`, `OTEL_*`, `AILANG_AGENT_POLICY*` and harness-owned names are refused by name |
+| executor-required | the executor's own variables (motoko's `MODEL`, `MOTOKO_CONFIG`, …) |
+
+**Grants.** Each executor gets its inference credential and nothing else: claude none (OAuth
+from its credentials file; `ANTHROPIC_API_KEY` only under `AILANG_AUTH_MODE=apikey`); codex
+`OPENAI_API_KEY`/`CODEX_API_KEY`; pi and opencode the key of the model's `provider/` prefix;
+motoko `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`. A task with a program policy
+also grants the credentials that policy's worker may select (its pinned `ai_provider`, std/web's
+key when `net_allow` admits its host) — the worker takes its keys from the child's env, so a key
+the child does not hold cannot reach it. `GITHUB_TOKEN` and `AILANG_REGISTRY_API_KEY` are granted
+to no executor. A `trusted_host` program launched by an agent therefore also sees only these.
+
+**Git.** In a cloud job the parent clones, pushes and opens the PR. Its global credential helper
+reads `$GITHUB_TOKEN` at call time and answers nothing in the child, whose env has no token. With
+`AILANG_CHILD_GIT_CREDENTIALS=repo` (default) the child gets a 0600 credential file outside the
+workspace that git consults only for the task's own repository; `=none` gives it nothing.
+
+**Operator lever.** `AILANG_EXECUTOR_ENV_INHERIT=NAME1,NAME2` (host env, never a task) forwards
+extra names, credentials included. Every build prints the credential names it withheld
+(`executor-env: withheld from the pi child: GITHUB_TOKEN, …`) — names, never values.
+
+**In the data.** `Result.EnvNamesDigest` (eval rows: `env_names_digest`) is the sha256 of the
+child env's sorted names. It changes when a lane starts inheriting a new name.
+
+**Limit.** The child runs as the same UID as the parent, so this is defence in depth: secrets
+leave `printenv`, tool and MCP subprocess inheritance and `~/.gitconfig`, but a same-user process
+can still read the parent's `/proc/<pid>/environ` or a file the parent can read. The boundary for
+that is a UID split (audit H-6) and the egress lock.

@@ -1,0 +1,32 @@
+module examples/runnable/splitmix64
+
+-- SplitMix64 (Steele, Lea & Flood 2014), written exactly like the reference:
+--   * full-width hex constants: a 16-hex-digit literal is the 64-bit pattern,
+--     read as its two's-complement int (0x9e3779b97f4a7c15 == -7046029254386353131)
+--   * shiftRightLogical from std/math is the reference code's `>>>`.
+--     AILANG's `>>` is arithmetic (sign-extending), so it is NOT a substitute.
+-- `+` and `*` on int wrap mod 2^64, so the arithmetic matches uint64 bit-for-bit.
+
+import std/math (shiftRightLogical)
+
+pure func mix(z0: int) -> int {
+  let z1 = (z0 ^ shiftRightLogical(z0, 30)) * 0xbf58476d1ce4e5b9;
+  let z2 = (z1 ^ shiftRightLogical(z1, 27)) * 0x94d049bb133111eb;
+  z2 ^ shiftRightLogical(z2, 31)
+}
+
+-- The n-th output (1-based) of the generator seeded with `seed`.
+pure func nth(seed: int, n: int) -> int = mix(seed + n * 0x9e3779b97f4a7c15)
+
+export func main() -> () ! {IO} {
+  -- Known answers (same bits as the C/Python reference implementations)
+  println("seed 0, 1st:  ${show(nth(0, 1))}")
+  println("seed 0, 2nd:  ${show(nth(0, 2))}")
+  println("seed 42, 1st: ${show(nth(42, 1))}")
+  -- Logical vs arithmetic shift on a negative number
+  println("-1 >> 1                    = ${show(-1 >> 1)}")
+  println("shiftRightLogical(-1, 1)   = ${show(shiftRightLogical(-1, 1))}")
+  println("0x8000000000000000         = ${show(0x8000000000000000)}")
+  println("0xffffffffffffffff         = ${show(0xffffffffffffffff)}")
+  println("ALL TESTS PASSED")
+}

@@ -9,6 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -62,27 +63,98 @@ func main() {
 	fmt.Printf("gen-error-codes: wrote %d records to %s\n", len(records), outPath)
 }
 
-// parseErrorCodes parses the given codes.go file and returns all ErrorRecords.
+// parseErrorCodes parses the given codes.go file — and every other non-test Go
+// file in its package directory — and returns all ErrorRecords. Constants are
+// declared in more than one file: RT001–RT006, TC*, ELB* and LNK* live in
+// json_encoder.go, and reading codes.go alone left them out of the published
+// error_codes.json even though ErrorRegistry describes them (#1449).
 // It uses go/parser to extract string constant names + the leading comment that
-// describes each constant, then queries the ErrorRegistry (via the same file's
-// comments) for category and summary.
+// describes each constant, then the ErrorRegistry map for category and summary.
 func parseErrorCodes(codesPath string) ([]ErrorRecord, error) {
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, codesPath, nil, parser.ParseComments)
+	paths, err := packageGoFiles(codesPath)
 	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", codesPath, err)
-	}
-
-	// Build comment map so each GenDecl's doc comments are accessible
-	cmap := ast.NewCommentMap(fset, f, f.Comments)
-
-	// Walk top-level const declarations
-	type rawCode struct {
-		code    string
-		comment string // leading comment on the const
+		return nil, err
 	}
 	var raws []rawCode
+	registry := make(map[string]registryInfo)
+	seen := make(map[string]bool)
+	for _, path := range paths {
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s: %w", path, err)
+		}
+		for _, r := range constCodes(f, ast.NewCommentMap(fset, f, f.Comments)) {
+			if !seen[r.code] {
+				seen[r.code] = true
+				raws = append(raws, r)
+			}
+		}
+		for k, v := range extractRegistry(f) {
+			registry[k] = v
+		}
+	}
 
+	// Build final records
+	records := make([]ErrorRecord, 0, len(raws))
+	for _, r := range raws {
+		rec := ErrorRecord{Code: r.code}
+		if info, ok := registry[r.code]; ok {
+			rec.Category = info.category
+			rec.Summary = info.description
+		}
+		// Populate summary and fix_hint from comment when registry doesn't cover them
+		if rec.Summary == "" {
+			rec.Summary = r.comment
+		}
+		if rec.FixHint == "" && r.comment != "" && r.comment != rec.Summary {
+			rec.FixHint = r.comment
+		}
+		// Ensure non-empty category/summary even when registry entry is missing
+		if rec.Category == "" {
+			rec.Category = categoryFromCode(r.code)
+		}
+		// Guarantee fix_hint is always present — fall back to summary text
+		if rec.FixHint == "" {
+			rec.FixHint = rec.Summary
+		}
+		records = append(records, rec)
+	}
+
+	sort.Slice(records, func(i, j int) bool {
+		return records[i].Code < records[j].Code
+	})
+	return records, nil
+}
+
+// packageGoFiles returns codesPath followed by the other non-test .go files in
+// its directory, in name order.
+func packageGoFiles(codesPath string) ([]string, error) {
+	paths := []string{codesPath}
+	entries, err := os.ReadDir(filepath.Dir(codesPath))
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", filepath.Dir(codesPath), err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		path := filepath.Join(filepath.Dir(codesPath), name)
+		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || filepath.Clean(path) == filepath.Clean(codesPath) {
+			continue
+		}
+		paths = append(paths, path)
+	}
+	return paths, nil
+}
+
+// rawCode is one error-code constant and the comment beside it.
+type rawCode struct {
+	code    string
+	comment string
+}
+
+// constCodes returns the error-code constants declared in f.
+func constCodes(f *ast.File, cmap ast.CommentMap) []rawCode {
+	var raws []rawCode
 	for _, decl := range f.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
 		if !ok || genDecl.Tok != token.CONST {
@@ -129,39 +201,7 @@ func parseErrorCodes(codesPath string) ([]ErrorRecord, error) {
 		}
 	}
 
-	// Also parse the ErrorRegistry map to get category + description
-	registry := extractRegistry(f)
-
-	// Build final records
-	records := make([]ErrorRecord, 0, len(raws))
-	for _, r := range raws {
-		rec := ErrorRecord{Code: r.code}
-		if info, ok := registry[r.code]; ok {
-			rec.Category = info.category
-			rec.Summary = info.description
-		}
-		// Populate summary and fix_hint from comment when registry doesn't cover them
-		if rec.Summary == "" {
-			rec.Summary = r.comment
-		}
-		if rec.FixHint == "" && r.comment != "" && r.comment != rec.Summary {
-			rec.FixHint = r.comment
-		}
-		// Ensure non-empty category/summary even when registry entry is missing
-		if rec.Category == "" {
-			rec.Category = categoryFromCode(r.code)
-		}
-		// Guarantee fix_hint is always present — fall back to summary text
-		if rec.FixHint == "" {
-			rec.FixHint = rec.Summary
-		}
-		records = append(records, rec)
-	}
-
-	sort.Slice(records, func(i, j int) bool {
-		return records[i].Code < records[j].Code
-	})
-	return records, nil
+	return raws
 }
 
 // registryInfo holds the category + description extracted from ErrorRegistry.

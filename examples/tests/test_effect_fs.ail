@@ -1,5 +1,5 @@
 -- Test FS effect with capability grant
--- Run with: ailang run examples/test_effect_fs.ail --caps FS,IO
+-- Run with: ailang run --caps FS,IO examples/tests/test_effect_fs.ail
 -- NOTE: Uses raw builtins (stdlib wrappers don't parse yet)
 
 module examples/tests/test_effect_fs

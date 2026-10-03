@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -283,7 +284,12 @@ func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, erro
 		FROM tasks WHERE id = ?
 	`
 	row := s.db.QueryRowContext(ctx, query, id)
-	return s.scanTask(row)
+	task, err := s.scanTask(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Keep sql.ErrNoRows in the chain for any caller still testing for it.
+		return nil, fmt.Errorf("%w: %s: %w", ErrTaskNotFound, id, err)
+	}
+	return task, err
 }
 
 // UpdateTask updates an existing task

@@ -189,3 +189,28 @@ func propKinds(props []*ast.Property) []ast.ContractKind {
 	}
 	return ks
 }
+
+// TestMCPAnnotationsRoundTrip: @mcp_hints() is a complete, empty hint list. The
+// parser stores no args, and a bare `@mcp_hints` does not re-parse, so the
+// printer must keep the parens. The other MCP annotations round-trip as usual.
+func TestMCPAnnotationsRoundTrip(t *testing.T) {
+	src := "module m\n@mcp_title(\"Log it\")\n@mcp_hints()\nexport func f(x: int) -> int ! {IO} {\n  x\n}\n\n@mcp_hints(\"readOnly\", \"openWorld\")\nexport func g(x: int) -> int ! {IO} {\n  x\n}\n"
+	out := assertIdempotentAndRoundTrips(t, src, "test://mcp_annotations")
+	for _, want := range []string{"@mcp_title(\"Log it\")", "@mcp_hints()\n", "@mcp_hints(\"readOnly\", \"openWorld\")"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// M-SERVEAPI-DIRECTORY-READY M1: the listed-surface annotations round-trip
+// (string args as written; the two parameterless ones stay bare).
+func TestMCPDirectoryAnnotationsRoundTrip(t *testing.T) {
+	src := "module m\n@mcp_auth(\"oauth2\")\n@mcp_secret(\"apiKey\")\n@mcp_agent_only\n@optional(\"apiKey\")\nexport func f(apiKey: string) -> string ! {IO} {\n  apiKey\n}\n\n@mcp_token_verifier\nexport func v(token: string) -> bool ! {IO} {\n  true\n}\n"
+	out := assertIdempotentAndRoundTrips(t, src, "test://mcp_directory_annotations")
+	for _, want := range []string{"@mcp_auth(\"oauth2\")", "@mcp_secret(\"apiKey\")", "@mcp_agent_only\n", "@mcp_token_verifier\n"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
+}

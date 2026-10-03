@@ -57,6 +57,9 @@ func NewRunnerWithConfig(modulePath string, cfg TestConfig, moduleIdentity strin
 		config:         cfg,
 		moduleIdentity: moduleIdentity,
 	}
+	r.executor.maxRecursionDepth = cfg.MaxRecursionDepth
+	r.executor.bytecode = cfg.Bytecode || cfg.StrictBytecode
+	r.executor.strictBytecode = cfg.StrictBytecode
 	// Bind the generator seam to the built-in derivation after the Runner value
 	// exists, so the method value binds to the right receiver. Tests may
 	// override r.genForType afterwards to inject a refusal-producing generator.
@@ -597,6 +600,7 @@ func RunTestsFromFileWithConfig(filePath string, file *ast.File, cfg TestConfig)
 	runner.executor.SetSourceFile(file)
 	result := runner.RunSuite(suite)
 	result.SetSeedMetadata(cfg)
+	result.Engine = runner.executor.engine
 
 	return result, nil
 }

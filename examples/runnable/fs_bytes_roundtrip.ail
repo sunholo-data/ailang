@@ -1,0 +1,37 @@
+-- fs_bytes_roundtrip.ail - Raw bytes through std/fs with Result-returning I/O
+-- readFileRaw returns the file's bytes; readFileBytes returns them as BASE64 TEXT.
+-- writeFileBytesResult reports failure as Err where writeFileBytes would panic.
+module examples/runnable/fs_bytes_roundtrip
+import std/fs (mkdirAll, readFileRaw, readFileBytes, writeFileBytesResult)
+import std/bytes (fromInts, toInts, length)
+import std/io (println)
+
+func describeWrite(r: Result[(), string]) -> string = match r {
+  Ok(_) => "Ok",
+  Err(_) => "Err"
+}
+
+func describeRead(r: Result[bytes, string]) -> string = match r {
+  Ok(b) => "${show(length(b))} bytes ${show(toInts(b))}",
+  Err(_) => "Err"
+}
+
+func describeB64(r: Result[string, string]) -> string = match r {
+  Ok(s) => "base64 text \"${s}\"",
+  Err(_) => "Err"
+}
+
+export func main() -> () ! {IO, FS} {
+  let base = "/tmp/ailang_fs_bytes_roundtrip"
+  let _ = mkdirAll(base)
+  -- Not valid UTF-8 (255, 254) and contains NUL: only a bytes API keeps it intact
+  let data = fromInts([0, 255, 254, 128, 97, 10])
+  let path = "${base}/blob.bin"
+  let _ = println("write: ${describeWrite(writeFileBytesResult(path, data))}")
+  let _ = println("readFileRaw: ${describeRead(readFileRaw(path))}")
+  let _ = println("readFileBytes: ${describeB64(readFileBytes(path))}")
+  let badWrite = writeFileBytesResult("${base}/no/such/dir/x.bin", data)
+  let _ = println("missing parent: ${describeWrite(badWrite)}")
+  let badRead = readFileRaw("${base}/absent.bin")
+  println("missing file: ${describeRead(badRead)}")
+}

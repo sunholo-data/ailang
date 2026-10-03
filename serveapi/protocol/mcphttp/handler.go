@@ -41,6 +41,11 @@ type Config struct {
 	Invoker  protocol.Invoker
 	// Runner bounds every host call. There is no unbounded default.
 	Runner *hostcall.Runner
+	// Gate, when set, refuses a tools/call naming a descriptor with
+	// Auth == protocol.ToolAuthOAuth2 unless it carries an admitted Bearer
+	// token (HTTP 401 / 503 before dispatch). A gated descriptor with no Gate
+	// fails closed (503). M-SERVEAPI-DIRECTORY-READY.
+	Gate *protocol.BearerGate
 }
 
 type handler struct{ config Config }
@@ -103,7 +108,28 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"unsupported MCP-Protocol-Version %q (supported: %s)", version, strings.Join(SupportedVersions, ", ")))
 		return
 	}
+	if !h.admitGatedCalls(w, r, req.surface, body) {
+		return
+	}
 	h.serveBody(w, req, id, version, bytes.TrimSpace(body))
+}
+
+// admitGatedCalls runs the Bearer gate once when the body calls any gated
+// tool. It returns false when the refusal has been written.
+func (h *handler) admitGatedCalls(w http.ResponseWriter, r *http.Request, surface *protocol.AuthorizedSurface, body []byte) bool {
+	for _, name := range protocol.ToolCallNames(body) {
+		d, ok := surface.Lookup(name)
+		if !ok || d.Auth != protocol.ToolAuthOAuth2 {
+			continue
+		}
+		if h.config.Gate == nil {
+			w.Header().Set("Retry-After", "5")
+			http.Error(w, "token_verification_unavailable: gated tool with no gate configured", http.StatusServiceUnavailable)
+			return false
+		}
+		return h.config.Gate.Admit(w, r)
+	}
+	return true
 }
 
 func (h *handler) authorize(w http.ResponseWriter, r *http.Request, id json.RawMessage) (request, bool) {

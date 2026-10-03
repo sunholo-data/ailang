@@ -1,0 +1,35 @@
+-- mapAccumL_running_total.ail - Build a list from running state in one O(n) pass
+-- Demonstrates: std/list.mapAccumL, the linear replacement for a foldl that
+-- conses onto a list accumulator (`foldl(\acc x. x :: acc, ...)` copies the
+-- accumulator every step, so it is O(n^2)).
+module examples/runnable/mapAccumL_running_total
+import std/list (mapAccumL, filter, map)
+import std/io (println)
+import std/string (join, intToStr)
+
+-- runningTotals([3, 1, 4]) == [3, 4, 8]: each output needs the state so far
+pure func runningTotals(xs: [int]) -> [int] {
+  match mapAccumL(\total x. (total + x, total + x), 0, xs) {
+    (outs, _) => outs
+  }
+}
+
+-- Keep the readings above the running mean of everything before them: a
+-- stateful filter. mapAccumL tags each reading, then filter drops the rest.
+pure func aboveRunningMean(xs: [int]) -> [int] {
+  match mapAccumL(\st x. match st {
+    (sum, count) => ((x, count == 0 || x * count > sum), (sum + x, count + 1))
+  }, (0, 0), xs) {
+    (tagged, _) => map(\p. match p {
+      (x, _) => x
+    }, filter(\p. match p {
+      (_, keep) => keep
+    }, tagged))
+  }
+}
+
+export func main() -> () ! {IO} {
+  let readings = [3, 1, 4, 1, 5, 9, 2, 6]
+  println(join(",", map(intToStr, runningTotals(readings))))
+  println(join(",", map(intToStr, aboveRunningMean(readings))))
+}

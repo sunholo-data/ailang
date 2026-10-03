@@ -123,6 +123,12 @@
       "pure": true
     },
     {
+      "name": "shiftRightLogical",
+      "type": "(int,int)-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "sin",
       "type": "(float)-\u003efloat",
       "effects": [],

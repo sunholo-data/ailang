@@ -3,6 +3,11 @@ package runner
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+
+	"golang.org/x/oauth2"
+	"google.golang.org/api/idtoken"
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/effects"
@@ -24,8 +29,11 @@ const EnvApprovalURL = config.EnvApprovalURL
 // M-V1-SIMPLIFY-S3 M3) AND an approval-API URL set. The approver POSTs to
 // the service that serves /api/approvals (the dashboard):
 // AILANG_APPROVAL_URL names it, falling back to AILANG_COORDINATOR_URL.
-// Optional env: AILANG_APPROVAL_TOKEN (authenticates the request),
-// AILANG_AGENT_ID / AILANG_TASK_ID (label the approval request).
+// Authentication: the dashboard refuses anonymous create/poll. The approver
+// sends AILANG_APPROVAL_TOKEN (a shared secret the dashboard also holds) when
+// set; otherwise it mints a Google ID token whose audience is the approval
+// URL — from the metadata server on Cloud Run, or a service-account key via
+// ADC. Optional env: AILANG_AGENT_ID / AILANG_TASK_ID (label the request).
 //
 // Absent BOTH URLs on the shared plane, the run used to be silently un-gated
 // — the M-SECRET-REMOTE-APPROVAL-WIRING M2 note. That is now the deprecated
@@ -71,8 +79,41 @@ func attachCloudSecretApprover(effCtx *effects.EffContext) error {
 		approvalURL,
 		secrets.WithApproverIdentity(config.AgentID(), config.TaskID()),
 		secrets.WithApproverAuthToken(config.ApprovalToken()),
+		secrets.WithApproverIDTokenSource(idTokenMinter(approvalURL, idtoken.NewTokenSource)),
 	)
 	return nil
+}
+
+// newIDTokenSource is idtoken.NewTokenSource's shape, injectable for tests.
+type newIDTokenSource func(ctx context.Context, audience string, opts ...idtoken.ClientOption) (oauth2.TokenSource, error)
+
+// idTokenMinter returns a function minting a Google ID token for audience
+// (the approval URL, normalized the way the dashboard normalizes it). The
+// credential lookup is deferred to the first secret(): this approver is
+// attached for every program on the shared plane, and one that never calls
+// secret() must not probe for credentials. The token source caches and
+// refreshes the token itself.
+func idTokenMinter(audience string, newSource newIDTokenSource) func(context.Context) (string, error) {
+	audience = strings.TrimRight(strings.TrimSpace(audience), "/")
+	var (
+		once    sync.Once
+		ts      oauth2.TokenSource
+		initErr error
+	)
+	return func(ctx context.Context) (string, error) {
+		once.Do(func() {
+			// Background, not ctx: the source outlives this request.
+			ts, initErr = newSource(context.Background(), audience)
+		})
+		if initErr != nil {
+			return "", initErr
+		}
+		tok, err := ts.Token()
+		if err != nil {
+			return "", err
+		}
+		return tok.AccessToken, nil
+	}
 }
 
 // deferredPlaneError is the approver installed when the storage plane could

@@ -115,6 +115,14 @@
       "pure": true
     },
     {
+      "name": "readFileRaw",
+      "type": "(string)-\u003eResult[bytes,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
       "name": "readFileResult",
       "type": "(string)-\u003eResult[string,string]!{FS}",
       "effects": [
@@ -181,6 +189,14 @@
     {
       "name": "writeFileBytes",
       "type": "(string,bytes)-\u003e()!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": true
+    },
+    {
+      "name": "writeFileBytesResult",
+      "type": "(string,bytes)-\u003eResult[(),string]!{FS}",
       "effects": [
         "FS"
       ],

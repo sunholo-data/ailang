@@ -52,6 +52,9 @@ type Elaborator struct {
 	// M-EQ-DERIVE-CONTAINERS: field types of each derived-Eq type, so the
 	// pipeline can require Eq of every field (lazily initialized)
 	derivedEqFields map[string][]DerivedEqField
+	// scope is the stack of local-binder frames open at the current
+	// normalization point (scope.go, #1467).
+	scope []map[string]bool
 }
 
 // DerivedEqField is one field a `deriving (Eq)` declaration needs Eq for.
@@ -168,6 +171,27 @@ func (e *Elaborator) RegisterConstructorWithFields(typeName, ctorName string, ar
 		TypeParamCount: typeParamCount,
 		TypeParamNames: typeParamNames,
 		FieldTypes:     fieldTypes,
+	}
+}
+
+// RegisterImportedConstructorAs registers an imported constructor under the
+// name it is bound to in this module. For `import M (None as Nada)` the key is
+// "Nada" while CtorName stays "None", so patterns and expressions written with
+// the alias elaborate to the canonical constructor (#1478). Unaliased imports
+// pass key == canonical.
+func (e *Elaborator) RegisterImportedConstructorAs(key, canonical, typeName string, arity, typeParamCount int) {
+	if canonical == "" {
+		canonical = key
+	}
+	// Only the bound key is written: the canonical name may belong to a
+	// different, same-named constructor imported from another module (the
+	// clash an alias exists to avoid), and must not be overwritten.
+	e.constructors[key] = &ConstructorInfo{
+		TypeName:       typeName,
+		CtorName:       canonical,
+		Arity:          arity,
+		IsImported:     true,
+		TypeParamCount: typeParamCount,
 	}
 }
 

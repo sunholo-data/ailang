@@ -162,6 +162,19 @@ func evaluateOpenRouterQuota(o OpenRouterQuotaObservation, _ time.Time) OpenRout
 		o.Reason = "OpenRouter monthly limit is exhausted; new OpenRouter routing blocked"
 		return o
 	}
+	margin := StartMargin("openrouter")
+	if o.RemainingUSD != nil && *o.RemainingUSD < margin {
+		o.State = "over"
+		o.Reason = fmt.Sprintf("OpenRouter has $%.2f left this month, below the $%.2f start margin; new OpenRouter routing waits for headroom",
+			*o.RemainingUSD, margin)
+		return o
+	}
+	if *o.UsedDayUSD <= allowance && allowance-*o.UsedDayUSD < margin {
+		o.State = "over"
+		o.Reason = fmt.Sprintf("OpenRouter headroom $%.2f today ($%.2f of $%.2f) is below the $%.2f start margin; new OpenRouter routing waits for headroom",
+			allowance-*o.UsedDayUSD, *o.UsedDayUSD, allowance, margin)
+		return o
+	}
 	if *o.UsedDayUSD > allowance {
 		o.State = "over"
 		o.Reason = fmt.Sprintf("OpenRouter spent $%.2f today, over the $%.2f/day ration (%.0f%% of a $%.2f monthly cap); new OpenRouter routing blocked",

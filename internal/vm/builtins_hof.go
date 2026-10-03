@@ -14,6 +14,7 @@ import (
 
 // hofBuiltinListMap implements __list_map: (a -> b, [a]) -> [b]
 func hofBuiltinListMap(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 2 {
 		return bytecode.Value{}, fmt.Errorf("__list_map: expected 2 args, got %d", len(args))
 	}
@@ -24,7 +25,7 @@ func hofBuiltinListMap(caller ClosureCaller, args []bytecode.Value) (bytecode.Va
 	elems := args[1].AsList()
 	result := make([]bytecode.Value, len(elems))
 	for i, e := range elems {
-		val, err := caller.CallClosure(fn, []bytecode.Value{e})
+		val, err := caller.CallClosure(fn, argv.of1(e))
 		if err != nil {
 			return bytecode.Value{}, fmt.Errorf("__list_map: callback error at index %d: %w", i, err)
 		}
@@ -35,6 +36,7 @@ func hofBuiltinListMap(caller ClosureCaller, args []bytecode.Value) (bytecode.Va
 
 // hofBuiltinListFilter implements __list_filter: (a -> bool, [a]) -> [a]
 func hofBuiltinListFilter(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 2 {
 		return bytecode.Value{}, fmt.Errorf("__list_filter: expected 2 args, got %d", len(args))
 	}
@@ -45,7 +47,7 @@ func hofBuiltinListFilter(caller ClosureCaller, args []bytecode.Value) (bytecode
 	elems := args[1].AsList()
 	result := make([]bytecode.Value, 0, len(elems))
 	for i, e := range elems {
-		val, err := caller.CallClosure(fn, []bytecode.Value{e})
+		val, err := caller.CallClosure(fn, argv.of1(e))
 		if err != nil {
 			return bytecode.Value{}, fmt.Errorf("__list_filter: callback error at index %d: %w", i, err)
 		}
@@ -61,6 +63,7 @@ func hofBuiltinListFilter(caller ClosureCaller, args []bytecode.Value) (bytecode
 
 // hofBuiltinListFoldl implements __list_foldl: ((b, a) -> b, b, [a]) -> b
 func hofBuiltinListFoldl(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 3 {
 		return bytecode.Value{}, fmt.Errorf("__list_foldl: expected 3 args, got %d", len(args))
 	}
@@ -71,7 +74,7 @@ func hofBuiltinListFoldl(caller ClosureCaller, args []bytecode.Value) (bytecode.
 	}
 	var err error
 	for i, e := range args[2].AsList() {
-		acc, err = caller.CallClosure(fn, []bytecode.Value{acc, e})
+		acc, err = caller.CallClosure(fn, argv.of2(acc, e))
 		if err != nil {
 			return bytecode.Value{}, fmt.Errorf("__list_foldl: callback error at index %d: %w", i, err)
 		}
@@ -81,6 +84,7 @@ func hofBuiltinListFoldl(caller ClosureCaller, args []bytecode.Value) (bytecode.
 
 // hofBuiltinStrFoldChars implements __str_foldChars: ((a, string) -> a, a, string) -> a
 func hofBuiltinStrFoldChars(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 3 {
 		return bytecode.Value{}, fmt.Errorf("__str_foldChars: expected 3 args, got %d", len(args))
 	}
@@ -93,7 +97,7 @@ func hofBuiltinStrFoldChars(caller ClosureCaller, args []bytecode.Value) (byteco
 	var err error
 	for _, r := range s {
 		charVal := bytecode.NewString(string(r))
-		acc, err = caller.CallClosure(fn, []bytecode.Value{acc, charVal})
+		acc, err = caller.CallClosure(fn, argv.of2(acc, charVal))
 		if err != nil {
 			return bytecode.Value{}, fmt.Errorf("__str_foldChars: %w", err)
 		}
@@ -103,6 +107,7 @@ func hofBuiltinStrFoldChars(caller ClosureCaller, args []bytecode.Value) (byteco
 
 // hofBuiltinStrFoldSlices implements __str_foldSlices: (string, string, a, (a, string) -> a) -> a
 func hofBuiltinStrFoldSlices(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 4 {
 		return bytecode.Value{}, fmt.Errorf("__str_foldSlices: expected 4 args, got %d", len(args))
 	}
@@ -122,7 +127,7 @@ func hofBuiltinStrFoldSlices(caller ClosureCaller, args []bytecode.Value) (bytec
 		// Empty delimiter: fold over each character
 		for _, r := range s {
 			segVal := bytecode.NewString(string(r))
-			acc, err = caller.CallClosure(fn, []bytecode.Value{acc, segVal})
+			acc, err = caller.CallClosure(fn, argv.of2(acc, segVal))
 			if err != nil {
 				return bytecode.Value{}, fmt.Errorf("__str_foldSlices: %w", err)
 			}
@@ -139,7 +144,7 @@ func hofBuiltinStrFoldSlices(caller ClosureCaller, args []bytecode.Value) (bytec
 			segment = s[:idx]
 		}
 		segVal := bytecode.NewString(segment)
-		acc, err = caller.CallClosure(fn, []bytecode.Value{acc, segVal})
+		acc, err = caller.CallClosure(fn, argv.of2(acc, segVal))
 		if err != nil {
 			return bytecode.Value{}, fmt.Errorf("__str_foldSlices: %w", err)
 		}
@@ -153,6 +158,7 @@ func hofBuiltinStrFoldSlices(caller ClosureCaller, args []bytecode.Value) (bytec
 
 // hofBuiltinStrMapSlicesJoin implements __str_mapSlicesJoin: (string, string, (string) -> string) -> string
 func hofBuiltinStrMapSlicesJoin(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 3 {
 		return bytecode.Value{}, fmt.Errorf("__str_mapSlicesJoin: expected 3 args, got %d", len(args))
 	}
@@ -173,7 +179,7 @@ func hofBuiltinStrMapSlicesJoin(caller ClosureCaller, args []bytecode.Value) (by
 		// Empty delimiter: transform each character
 		for _, r := range s {
 			segVal := bytecode.NewString(string(r))
-			result, err := caller.CallClosure(fn, []bytecode.Value{segVal})
+			result, err := caller.CallClosure(fn, argv.of1(segVal))
 			if err != nil {
 				return bytecode.Value{}, fmt.Errorf("__str_mapSlicesJoin: %w", err)
 			}
@@ -194,7 +200,7 @@ func hofBuiltinStrMapSlicesJoin(caller ClosureCaller, args []bytecode.Value) (by
 			segment = s[:idx]
 		}
 		segVal := bytecode.NewString(segment)
-		result, err := caller.CallClosure(fn, []bytecode.Value{segVal})
+		result, err := caller.CallClosure(fn, argv.of1(segVal))
 		if err != nil {
 			return bytecode.Value{}, fmt.Errorf("__str_mapSlicesJoin: %w", err)
 		}
@@ -213,6 +219,7 @@ func hofBuiltinStrMapSlicesJoin(caller ClosureCaller, args []bytecode.Value) (by
 // hofBuiltinListSortBy implements __list_sortBy: ((a, a) -> int, [a]) -> [a].
 // Stable, matching the evaluator's _list_sortBy (#1318).
 func hofBuiltinListSortBy(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 2 {
 		return bytecode.Value{}, fmt.Errorf("__list_sortBy: expected 2 args, got %d", len(args))
 	}
@@ -230,7 +237,7 @@ func hofBuiltinListSortBy(caller ClosureCaller, args []bytecode.Value) (bytecode
 		if cmpErr != nil {
 			return false
 		}
-		v, err := caller.CallClosure(cmp, []bytecode.Value{result[i], result[j]})
+		v, err := caller.CallClosure(cmp, argv.of2(result[i], result[j]))
 		if err != nil {
 			cmpErr = fmt.Errorf("__list_sortBy: comparator error: %w", err)
 			return false
@@ -249,6 +256,7 @@ func hofBuiltinListSortBy(caller ClosureCaller, args []bytecode.Value) (bytecode
 
 // hofBuiltinListFlatMap implements __list_flatMap: (a -> [b], [a]) -> [b] (#1318).
 func hofBuiltinListFlatMap(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
 	if len(args) != 2 {
 		return bytecode.Value{}, fmt.Errorf("__list_flatMap: expected 2 args, got %d", len(args))
 	}
@@ -259,7 +267,7 @@ func hofBuiltinListFlatMap(caller ClosureCaller, args []bytecode.Value) (bytecod
 	elems := args[1].AsList()
 	result := make([]bytecode.Value, 0, len(elems))
 	for i, e := range elems {
-		v, err := caller.CallClosure(fn, []bytecode.Value{e})
+		v, err := caller.CallClosure(fn, argv.of1(e))
 		if err != nil {
 			return bytecode.Value{}, fmt.Errorf("__list_flatMap: callback error at index %d: %w", i, err)
 		}

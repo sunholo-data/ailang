@@ -98,12 +98,20 @@ func tokenUsageFromResult(result *executor.Result) TokenUsage {
 // diagnostic rows too: a failure that cannot be attributed to a harness
 // version or a tool lane is the un-annotated boundary this repo keeps paying
 // for. Safe on a nil result.
+//
+// FinishReason rides along for the same reason: it says how the run ENDED, not
+// what it measured, and the caller's categoriser reads it ahead of the error
+// string. Without it an executor's typed kill (pi's thrash_aborted on the token
+// WORK gate) reached the caller as a bare string and banked as api_error — 7
+// rotation rows by 2026-10-02.
 func withProvenance(row *AgentBenchmarkResult, res *executor.Result) *AgentBenchmarkResult {
 	if res == nil {
 		return row
 	}
+	row.FinishReason = res.FinishReason
 	row.ExecutorVersion = res.ExecutorVersion
 	row.ToolPolicy = res.ToolPolicy
 	row.PolicyDigest = res.PolicyDigest
+	row.EnvNamesDigest = res.EnvNamesDigest
 	return row
 }

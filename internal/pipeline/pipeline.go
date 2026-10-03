@@ -94,8 +94,18 @@ type Config struct {
 	// PackageDir overrides the directory searched for ailang.toml/ailang.lock
 	// when setting up the package resolver. Empty string means use "." (CWD).
 	// Set this when the source file lives in a package directory other than CWD,
-	// e.g. when the test harness writes a temp file into the source package dir.
+	// e.g. when the test harness compiles a temp copy of a package source file.
 	PackageDir string
+
+	// TransientRoot marks the root source file as a harness-synthesised copy
+	// (the `ailang test` named-test body, written to a private temp dir so an
+	// interrupted run can never leave it inside the package — #1502). Its path
+	// carries no module identity, so for the ROOT module only: MOD010/MOD014
+	// path validation is skipped (it would warn about the ephemeral file name)
+	// and the compile cache is bypassed (the path is unique per run, so an entry
+	// could never be hit). With PackageDir set, the compile cache for the other
+	// modules lives in PackageDir rather than next to the temp file.
+	TransientRoot bool
 }
 
 // Source represents input source

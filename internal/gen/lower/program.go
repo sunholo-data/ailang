@@ -157,7 +157,11 @@ func lowerTopLevelDeclSafe(
 			// declaration so the EvalOnly stubs can still be resolved by
 			// the bridge at call time. For LetRec we may emit multiple
 			// stubs; for a plain Let we emit one.
-			stubs := makeEvalOnlyStubs(e, fmt.Sprintf("lower panic: %v", r))
+			reason := fmt.Sprintf("lower panic: %v", r)
+			if fm, ok := r.(frameModePanic); ok {
+				reason = fm.String()
+			}
+			stubs := makeEvalOnlyStubs(e, reason)
 			if len(stubs) == 0 {
 				err = fmt.Errorf("lower: %v", r)
 				return
@@ -300,6 +304,16 @@ func bindingToFuncDecl(
 			File:       file,
 			Line:       line,
 		}
+	}
+
+	// M-NET-SCOPE-PUBLIC (D-C), #1545: the VM has no moded-frame hook, so a
+	// function declaring Net[scope=public], Rand[mode=seeded|crypto] or an
+	// @limit/@min budget runs on the evaluator, which enforces it (see
+	// frame_modes.go).
+	if reason := lambdaFrameModeReason(lam, cti); reason != "" {
+		stub := makeStub(name, lam, reason)
+		stub.Exported = exported
+		return &stub
 	}
 
 	params := lowerParams(lam, cti)
@@ -596,6 +610,9 @@ func rewriteExpr(e stmt.Expr, funcModule map[string]string, locals map[string]bo
 			ex.Args[i] = rewriteExpr(ex.Args[i], funcModule, locals)
 		}
 		return ex
+	case stmt.ADTTagEq:
+		ex.Value = rewriteExpr(ex.Value, funcModule, locals)
+		return ex
 	}
 	return e
 }
@@ -707,5 +724,7 @@ func walkExpr(e stmt.Expr, visit func(stmt.Expr)) {
 		for _, a := range e.Args {
 			walkExpr(a, visit)
 		}
+	case stmt.ADTTagEq:
+		walkExpr(e.Value, visit)
 	}
 }

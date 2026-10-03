@@ -15,7 +15,12 @@ import (
 // This is needed so the elaborator can recognize nullary constructors
 // (like None) in pattern matching and not treat them as variable patterns.
 type importedCtorInfo struct {
-	TypeName       string
+	TypeName string
+	// CanonicalName is the constructor's declared name. It differs from the
+	// ImportedCtorInfos map key only for an aliased import
+	// (`import M (None as Nada)` → key "Nada", CanonicalName "None"); the
+	// elaborator emits the canonical name so runtime tag matching works (#1478).
+	CanonicalName  string
 	Arity          int
 	TypeParamCount int
 }
@@ -76,7 +81,15 @@ func resolveModuleImports(
 			continue
 		}
 		for ctorName, ctorScheme := range loadedIface.Constructors {
-			if ctorScheme != nil {
+			if ctorScheme == nil {
+				continue
+			}
+			// A name two different ADTs define is recorded as "" (ambiguous):
+			// last-wins would let the typechecker's transitive foreign-ADT
+			// check (#1478) reject a correct arm depending on map order.
+			if prev, seen := imports.AllCtorTypes[ctorName]; seen && prev != ctorScheme.TypeName {
+				imports.AllCtorTypes[ctorName] = ""
+			} else if !seen {
 				imports.AllCtorTypes[ctorName] = ctorScheme.TypeName
 			}
 		}
@@ -223,12 +236,16 @@ func resolveSelectiveImports(
 			}
 			// M-FIX-RECORD-UPDATE: Also import type alias if present
 			// This enables cross-module record update syntax
+			// Keyed by bindName, the name in scope: `import M (Row as R)` must
+			// expand R, or R stays an opaque constructor that unifies with
+			// nothing and --args-json cannot decode it (stapledons_godot,
+			// 2026-10-01).
 			if alias, hasAlias := depIface.GetTypeAlias(sym); hasAlias {
-				imports.ImportedTypeAliases[sym] = alias
-				imports.ImportedAliasOrigin[sym] = depIface.Module
+				imports.ImportedTypeAliases[bindName] = alias
+				imports.ImportedAliasOrigin[bindName] = depIface.Module
 				// M-XMOD-ALIAS-POLY: carry params for parameterized aliases.
 				if params, ok := depIface.GetTypeAliasParams(sym); ok {
-					imports.ImportedAliasParams[sym] = params
+					imports.ImportedAliasParams[bindName] = params
 				}
 				if cfg.TraceDefaulting {
 					fmt.Printf("  Import type alias %s -> %s\n", sym, alias)
@@ -238,12 +255,11 @@ func resolveSelectiveImports(
 		}
 
 		// Try to import as a constructor
-		// DEBUG: fmt.Printf("DEBUG: Checking if %s is a constructor in %s (has %d constructors)...\n", sym, imp.Path, len(depIface.Constructors))
-		for range depIface.Constructors {
-			// DEBUG: fmt.Printf("DEBUG:   Constructor %s in interface\n", k)
-		}
 		if ctor, ok := depIface.GetConstructor(sym); ok {
-			resolveConstructorImport(sym, ctor, imports, cfg)
+			// Bind under the alias when one is given (#1478): the alias used to
+			// be dropped here, so `None as Nada` registered nothing and `Nada`
+			// silently never matched in a pattern.
+			resolveConstructorImport(bindName, ctor, imports, cfg)
 			found = true
 		}
 		// No else needed - if constructor not found, we continue searching
@@ -331,8 +347,13 @@ func resolveConstructorImport(
 		fmt.Printf("  Import constructor %s -> %s\n", sym, key)
 	}
 
-	// M-TAPP-FIX: Track imported constructor for pattern matching type inference
-	imports.ImportedCtorTypes[sym] = ctor.TypeName
+	// M-TAPP-FIX: Track imported constructor for pattern matching type inference.
+	// Only under the canonical name: an alias never reaches the typechecker
+	// (patterns are canonicalized and carry their ADT), and listing it would
+	// put "Nada" among Option's constructors in diagnostics (#1478).
+	if sym == ctor.CtorName {
+		imports.ImportedCtorTypes[sym] = ctor.TypeName
+	}
 
 	// M-TAPP-FIX: Derive type param count from ResultType
 	// If ResultType is TApp, count the args; otherwise 0
@@ -349,6 +370,7 @@ func resolveConstructorImport(
 	// (like None) in pattern matching and not treat them as variable patterns
 	imports.ImportedCtorInfos[sym] = &importedCtorInfo{
 		TypeName:       ctor.TypeName,
+		CanonicalName:  ctor.CtorName,
 		Arity:          ctor.Arity,
 		TypeParamCount: paramCount,
 	}

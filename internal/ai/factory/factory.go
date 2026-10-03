@@ -19,6 +19,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/anthropic"
+	"github.com/sunholo-data/ailang/internal/ai/chatgpt"
 	"github.com/sunholo-data/ailang/internal/ai/gemini"
 	"github.com/sunholo-data/ailang/internal/ai/ollama"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
@@ -53,6 +54,7 @@ type options struct {
 	apiKeyEnv    string
 	baseURL      string
 	gcpProject   string
+	noADC        bool
 	configDriven func(name string) ai.Provider
 }
 
@@ -75,6 +77,13 @@ func WithEndpoint(u string) Option { return func(o *options) { o.baseURL = u } }
 // is billed (mission/quorum reviewers). Empty means ADC with the gcloud
 // default project, then the key from the environment.
 func WithGCPProject(p string) Option { return func(o *options) { o.gcpProject = p } }
+
+// WithNoADC disables Google's Application Default Credentials lane (#1499):
+// the key from WithAPIKey or the environment is the only credential, and its
+// absence is a hard AuthFailed error. AILANG_AI_NO_ADC=1 sets the same switch
+// for every caller in the process, so a host that runs on its USER's key can
+// never silently bill the developer's gcloud project.
+func WithNoADC(disable bool) Option { return func(o *options) { o.noADC = o.noADC || disable } }
 
 // WithConfigDriven supplies the registry lookup for names that are not
 // built-in (M-AI-PROVIDER-CONFIG [[ai_provider]] blocks). Built-ins win on a
@@ -123,6 +132,18 @@ func New(name string, opts ...Option) (*Client, error) {
 		}
 		return &Client{Provider: openai.NewClient(key, copts...), Type: typ, Lane: lane}, nil
 
+	case ai.ProviderChatGPT:
+		// Subscription OAuth only: the codex CLI's ChatGPT login. Checked here
+		// so a missing or expired login fails at setup, not on the first call.
+		if _, err := chatgpt.LoadCredential(); err != nil {
+			return nil, err
+		}
+		var copts []chatgpt.Option
+		if o.baseURL != "" {
+			copts = append(copts, chatgpt.WithBaseURL(o.baseURL))
+		}
+		return &Client{Provider: chatgpt.NewClient(copts...), Type: typ, Lane: LaneOAuth}, nil
+
 	case ai.ProviderLyceum, ai.ProviderZAI:
 		// Same openai transport, a different endpoint (ai.LyceumBaseURL /
 		// ai.ZAIBaseURL honour their *_BASE_URL overrides).
@@ -169,16 +190,26 @@ func New(name string, opts ...Option) (*Client, error) {
 		// the key from the environment: the models.yml env_var if given, else
 		// GOOGLE_API_KEY, else GEMINI_API_KEY (Google's SDKs accept either
 		// name; `ailang exec --provider gemini` read only the latter before).
-		// A pinned project is Vertex-only, see WithGCPProject.
+		// A pinned project is Vertex-only, see WithGCPProject. WithNoADC /
+		// AILANG_AI_NO_ADC=1 skips the ADC lane entirely, so a missing key is
+		// a hard AuthFailed error, not a silent bill to the gcloud project.
 		if o.apiKey != "" {
 			return &Client{Provider: gemini.NewClient(o.apiKey, o.geminiOpts()...), Type: typ, Lane: LaneAPIKey}, nil
 		}
-		client, adcErr := gemini.NewVertexAIClient(o.gcpProject, o.geminiOpts()...)
-		if adcErr == nil {
-			return &Client{Provider: client, Type: typ, Lane: LaneADC}, nil
+		noADC := o.noADC || config.AINoADC()
+		if noADC && o.gcpProject != "" {
+			return nil, fmt.Errorf("Gemini: gcp_project=%q pins Vertex ADC, but ADC is disabled (--ai-no-adc / %s=1)", o.gcpProject, config.EnvAINoADC)
 		}
-		if o.gcpProject != "" {
-			return nil, fmt.Errorf("Vertex ADC (gcp_project=%q) unavailable: %w", o.gcpProject, adcErr)
+		var adcErr error
+		if !noADC {
+			var client *gemini.Client
+			client, adcErr = gemini.NewVertexAIClient(o.gcpProject, o.geminiOpts()...)
+			if adcErr == nil {
+				return &Client{Provider: client, Type: typ, Lane: LaneADC}, nil
+			}
+			if o.gcpProject != "" {
+				return nil, fmt.Errorf("Vertex ADC (gcp_project=%q) unavailable: %w", o.gcpProject, adcErr)
+			}
 		}
 		key := o.key(typ)
 		if key == "" && o.apiKeyEnv == "" {
@@ -186,6 +217,12 @@ func New(name string, opts ...Option) (*Client, error) {
 		}
 		if key != "" {
 			return &Client{Provider: gemini.NewClient(key, o.geminiOpts()...), Type: typ, Lane: LaneAPIKey}, nil
+		}
+		if noADC {
+			return nil, ai.NewAIError(ai.CodeAuthFailed, fmt.Sprintf(
+				"Gemini auth failed: %s is not set and Application Default Credentials (ADC) are disabled "+
+					"(--ai-no-adc / %s=1); set %s or pass --ai-key-file",
+				o.keyEnv(typ), config.EnvAINoADC, o.keyEnv(typ)), false)
 		}
 		return nil, fmt.Errorf("Gemini auth failed: Application Default Credentials (ADC) not configured, and %s is not set.\n"+
 			"  Option 1: gcloud auth application-default login  (recommended, for Vertex AI)\n"+

@@ -121,7 +121,9 @@ func encodeLit(lit *core.Lit) (string, error) {
 			return "", fmt.Errorf("IntLit with non-int64 value: %T", lit.Value)
 		}
 		if v < 0 {
-			return fmt.Sprintf("(- %d)", -v), nil
+			// Magnitude via uint64: -v wraps for math.MinInt64, which is a
+			// writable literal (0x8000000000000000) since #1481.
+			return fmt.Sprintf("(- %d)", -uint64(v)), nil
 		}
 		return fmt.Sprintf("%d", v), nil
 	case core.FloatLit:

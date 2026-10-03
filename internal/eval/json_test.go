@@ -61,7 +61,7 @@ func TestJSONEncodeNumber(t *testing.T) {
 		{42.0, "42"},
 		{3.14, "3.14"},
 		{-1.5, "-1.5"},
-		{1e10, "1e+10"},
+		{1e10, "10000000000"}, // canonical window rule (M-JSON-NUMBER-ROUNDTRIP)
 	}
 
 	for _, tc := range testCases {

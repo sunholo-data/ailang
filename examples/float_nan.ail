@@ -1,4 +1,4 @@
--- Example: float == is IEEE 754, and NaN is tested with isNaN (M-FLOAT-EQ-ONE-SEMANTICS)
+-- Example: float == and < <= > >= are IEEE 754, and NaN is tested with isNaN
 -- NaN is never equal to anything, itself included, whether bare or inside a
 -- list, Option or record, and on every code path. Use std/math.isNaN to test for it.
 module examples/float_nan
@@ -12,6 +12,10 @@ func nan() -> float {
 -- Generic code gets the same answer as a direct comparison.
 func same[a](x: a, y: a) -> bool {
   x == y
+}
+
+func above[a](x: a, hi: a) -> bool {
+  x > hi
 }
 
 func check(label: string, got: bool, want: bool) -> () ! {IO} {
@@ -32,5 +36,13 @@ export func main() -> () ! {IO} {
   let _ = check("member_nan", member(n, [n]), false) in
   let _ = check("dedup_keeps_nans", length(dedup([n, n])) == 2, true) in
   let _ = check("ordinary_float", [1.5] == [1.5], true) in
+  -- Ordered comparisons are IEEE too (M-FLOAT-ORD-ONE-SEMANTICS, #1419):
+  -- every < <= > >= with a NaN operand is false, so `x > hi` never clamps a NaN.
+  let _ = check("nan_gt", n > 1.0, false) in
+  let _ = check("nan_gte", n >= 1.0, false) in
+  let _ = check("nan_lt", n < 1.0, false) in
+  let _ = check("lt_nan", 1.0 < n, false) in
+  let _ = check("generic_gt_nan", above(n, 1.0), false) in
+  let _ = check("guard_passes_nan", isNaN(if n > 1.0 then 1.0 else n), true) in
   ()
 }

@@ -9,7 +9,7 @@ import std/json (Json, JString, JArray, JNumber, decode, get, getString, asStrin
 import std/bytes (fromBase64URL, toString, fromString)
 import std/crypto (rsaVerifyPKCS1v15)
 import std/string (split)
-import std/list (length)
+import std/list (length, any)
 import std/math (floatToInt)
 
 -- ============================================================================
@@ -169,13 +169,11 @@ export pure func checkAudience(claims: Json, expectedAud: string) -> bool = {
 -- Internal Helpers
 -- ============================================================================
 
-pure func containsString(xs: [Json], target: string) -> bool = {
-  match xs {
-    [] => false,
-    [JString(s), ...rest] => if s == target then true else containsString(rest, target),
-    [_, ...rest] => containsString(rest, target)
-  }
-}
+pure func containsString(xs: [Json], target: string) -> bool =
+  any(\j. match j {
+    JString(s) => s == target,
+    _ => false
+  }, xs)
 
 pure func getClaimInt(obj: Json, key: string) -> Option[int] = {
   match get(obj, key) {

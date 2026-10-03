@@ -1,0 +1,60 @@
+-- #1518 / #1501: std/list helpers rebuilt on iterative builtins. Semantics on
+-- small inputs; cmd/ailang/stdlib_list_iterative_test.go covers 200,000 elements
+-- on all three engines.
+module tests/stdlib/list_iterative_test
+import std/list (any, findIndex, foldr, mapAccumL, maximumInt, minimumString, length)
+import std/option (Option, Some, None)
+
+pure func optIs(o: Option[int], want: int) -> bool = match o {
+  Some(v) => v == want,
+  None => false
+}
+
+pure func isNone(o: Option[int]) -> bool = match o {
+  Some(_) => false,
+  None => true
+}
+
+-- the predicate would divide by zero past the match
+test "any short-circuits on the first match" {
+  assert any(\x. if x > 2 then 1 / (x - x) > 0 else x == 2, [1, 2, 3, 4])
+}
+
+test "any on empty is false" {
+  assert !any(\x. x > 0, [])
+}
+
+test "findIndex returns the first match" {
+  assert optIs(findIndex(\x. x == 7, [1, 7, 7]), 1)
+}
+
+test "findIndex none" {
+  assert isNone(findIndex(\x. x == 9, [1, 7, 7]))
+}
+
+test "foldr combines right to left" {
+  assert foldr(\x acc. acc * 10 + x, 0, [1, 2, 3]) == 321
+}
+
+test "mapAccumL running totals" {
+  assert match mapAccumL(\st x. (st + x, st + x), 0, [1, 2, 3]) {
+    (outs, final) => show(outs) == "[1, 3, 6]" && final == 6
+  }
+}
+
+test "mapAccumL on empty returns the initial state" {
+  assert match mapAccumL(\st x. (x, st + 1), 41, []) {
+    (outs, final) => length(outs) == 0 && final == 41
+  }
+}
+
+test "maximumInt tie and empty" {
+  assert optIs(maximumInt([3, 9, 9, 1]), 9) && isNone(maximumInt([]))
+}
+
+test "minimumString picks the empty string" {
+  assert match minimumString(["b", "ab", ""]) {
+    Some(s) => s == "",
+    None => false
+  }
+}

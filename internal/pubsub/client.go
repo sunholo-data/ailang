@@ -6,7 +6,9 @@ package pubsub
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"testing"
 
 	"cloud.google.com/go/pubsub"
 )
@@ -18,10 +20,23 @@ type Client struct {
 	prefix    string // topic name prefix (default: "ailang")
 }
 
+// ErrRealProjectFromTest refuses a Pub/Sub client inside a test binary.
+//
+// A test that reaches a real publisher sends notifications for messages that
+// exist only in its temporary store. Every subscriber then nacks them until
+// the dead-letter policy gives up: on 2026-09-30/10-01, coordinator tests read
+// the developer's ~/.ailang/config.yaml (Pub/Sub enabled, project
+// ailang-multivac) and put 209 HTTP 500s on the prod coordinator and ~3,000
+// nacks on the rig's subscription, under fixture ids like task-aaaa1111.
+var ErrRealProjectFromTest = errors.New("pubsub: refusing to connect to a real project from a test binary")
+
 // NewClient creates a new Pub/Sub client using Application Default Credentials.
 func NewClient(ctx context.Context, projectID, prefix string) (*Client, error) {
 	if projectID == "" {
 		return nil, fmt.Errorf("pubsub: project ID is required")
+	}
+	if testing.Testing() {
+		return nil, fmt.Errorf("%w (project=%s)", ErrRealProjectFromTest, projectID)
 	}
 	if prefix == "" {
 		prefix = DefaultTopicPrefix

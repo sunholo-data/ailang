@@ -306,3 +306,35 @@ func TestResolve_FSDenyWrite(t *testing.T) {
 		t.Fatalf("fs_deny_write without FS is a contradiction: %v", err)
 	}
 }
+
+// Security audit 2026-10-01 F-A1 (Q3): confined git runs at the sandbox root
+// with discovery bounded there, so restricted Process without a sandbox —
+// no fs_sandbox, or fs_sandbox without FS (Resolved.Root is then empty) — is
+// a named policy-resolution error. trusted_host keeps its operator choice.
+func TestResolve_RestrictedProcessRequiresSandbox(t *testing.T) {
+	noSandbox := restricted("IO", "Process") // (FS without fs_sandbox is refused earlier, by FS)
+	noSandbox.FSSandbox = ""
+	noFS := restricted("IO", "Process") // fs_sandbox set, FS not admitted
+	for name, p := range map[string]*Policy{"no fs_sandbox": noSandbox, "no FS": noFS} {
+		p.ProcessAllow = []string{"git:log"}
+		_, err := Resolve(p, "d")
+		if err == nil || !strings.Contains(err.Error(), "Process") || !strings.Contains(err.Error(), "fs_sandbox") {
+			t.Errorf("%s: restricted Process without a sandbox must be refused naming Process and fs_sandbox, got %v", name, err)
+		}
+	}
+
+	ok := restricted("IO", "FS", "Process")
+	ok.ProcessAllow = []string{"git:status", "git:diff", "git:log"}
+	r, err := Resolve(ok, "d")
+	if err != nil || r.Root != "/tmp/sb" {
+		t.Fatalf("restricted Process with FS + fs_sandbox must resolve with the root: %v %+v", err, r)
+	}
+
+	trusted := restricted("IO", "Process")
+	trusted.FSSandbox = ""
+	trusted.SecurityMode = ModeTrustedHost
+	trusted.ProcessAllow = []string{"git:status"}
+	if _, err := Resolve(trusted, "d"); err != nil {
+		t.Fatalf("trusted_host Process without fs_sandbox stays the operator's choice: %v", err)
+	}
+}

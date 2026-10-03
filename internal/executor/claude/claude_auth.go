@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -62,6 +63,37 @@ func (e *ClaudeExecutor) installPlugins(ctx context.Context, plugins *executor.P
 	}
 }
 
+// ErrCredentialsUnderArtifactRoot is returned when the OAuth credential would be
+// written under the shared artifacts mount (F-H6-1). Every executor lane, the
+// external apikey lanes included, mounts that bucket read-write, and gcsfuse
+// ignores file modes — a 0600 file there is readable by all of them.
+var ErrCredentialsUnderArtifactRoot = errors.New("refusing to write the Claude OAuth credential under the shared artifacts mount")
+
+// credentialArtifactRoot is the cloud artifacts mount; a var so tests can point it at a temp dir.
+var credentialArtifactRoot = "/artifacts"
+
+// underArtifactRoot reports whether dir is, or resolves (through symlinks) to,
+// a path inside credentialArtifactRoot.
+func underArtifactRoot(dir string) bool {
+	roots := []string{credentialArtifactRoot}
+	if r, err := filepath.EvalSymlinks(credentialArtifactRoot); err == nil {
+		roots = append(roots, r)
+	}
+	dirs := []string{dir}
+	if d, err := filepath.EvalSymlinks(dir); err == nil {
+		dirs = append(dirs, d)
+	}
+	for _, root := range roots {
+		for _, d := range dirs {
+			rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(d))
+			if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // writeCredentialsFile writes ~/.claude/.credentials.json from the
 // CLAUDE_CODE_OAUTH_TOKEN environment variable (M-CLOUD-OAUTH).
 //
@@ -101,6 +133,16 @@ func writeCredentialsFile() error {
 	}
 
 	claudeDir := filepath.Join(homeDir, ".claude")
+
+	// F-H6-1: check every destination BEFORE writing any of them. The cloud job
+	// points CLAUDE_CONFIG_DIR at local disk and symlinks only projects/ into the
+	// bucket; a config dir on the mount means that setup was bypassed.
+	configDir := config.ClaudeConfigDir()
+	for _, dir := range []string{claudeDir, configDir} {
+		if dir != "" && underArtifactRoot(dir) {
+			return fmt.Errorf("%w: %s", ErrCredentialsUnderArtifactRoot, dir)
+		}
+	}
 	if err := os.MkdirAll(claudeDir, 0700); err != nil {
 		return fmt.Errorf("failed to create .claude dir: %w", err)
 	}
@@ -113,7 +155,7 @@ func writeCredentialsFile() error {
 
 	// When CLAUDE_CONFIG_DIR is set it overrides ~/.claude/ entirely, so credentials
 	// must also exist there — otherwise Claude prompts for login.
-	if configDir := config.ClaudeConfigDir(); configDir != "" && configDir != claudeDir {
+	if configDir != "" && configDir != claudeDir {
 		if err := os.MkdirAll(configDir, 0700); err == nil {
 			altPath := filepath.Join(configDir, ".credentials.json")
 			if err := os.WriteFile(altPath, data, 0600); err == nil {

@@ -80,6 +80,15 @@ type Request struct {
 	// ImageOptions configures image generation parameters (used with ResponseModalities containing "IMAGE").
 	ImageOptions *ImageOptions
 
+	// InputImages are reference images that condition an image-generation
+	// request (image+text input: editing, identity-preserving variations).
+	// Set only by the callImage*WithRefs path, alongside ResponseModalities
+	// ["IMAGE"]. Providers that support it (gemini: inlineData parts;
+	// openrouter: image_url content parts) attach them to the user turn; every
+	// other provider already rejects image requests outright, so references are
+	// never silently dropped. Nil = text-only prompt, wire-identical to before.
+	InputImages []ImagePart
+
 	// Options contains provider-specific options
 	Options map[string]any
 
@@ -315,6 +324,11 @@ type ImageOptions struct {
 
 	// MIMEType controls the output format (e.g., "image/png", "image/jpeg").
 	MIMEType string
+
+	// Model is a per-call model override parsed from the options JSON "model"
+	// key (#1496). Empty = the handler's bound model. The Handler copies it onto
+	// Request.Model; providers never read it from here.
+	Model string
 }
 
 // Response represents a generic AI response.

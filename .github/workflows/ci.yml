@@ -246,6 +246,12 @@ jobs:
     - name: Check architecture boundaries
       run: make check-boundaries
 
+    # #1465: a fused x*y+z rounds once, so arm64 (FMA) and amd64 printed different
+    # numbers for the same pure program. Cross-compiles and disassembles; no arm64
+    # hardware needed.
+    - name: Check no fused multiply-add in runtime float code
+      run: make check-no-fma
+
     - name: Check ARCHITECTURE.md language-closure section is current
       run: make check-architecture-closure
 
@@ -763,6 +769,27 @@ jobs:
           /bin/bash -n "$f" || { echo "::error file=$f::does not parse under bash 3.2"; fail=1; }
         done
         exit $fail
+
+  # #1465: cross-arch float determinism. The golden-bit tests assert the SAME
+  # bits on every architecture; the `test` job runs them on x86_64, this job on
+  # arm64 (the developer machines). Before this, no Go test ran on arm64 at all.
+  float-determinism-arm64:
+    name: float determinism (arm64)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Go
+      uses: actions/setup-go@v7
+      with:
+        go-version: '1.26.6'
+        cache: true
+    - name: Golden-bit and portable-math tests
+      run: |
+        go test -count=1 -v ./internal/mathx/
+        go test -count=1 -run 'TestStdMath|TestFloatKernelsDoNotFuse|TestVMStdMath' ./internal/builtins/ ./internal/vm/
 
   govulncheck:
     name: govulncheck (vuln gate)

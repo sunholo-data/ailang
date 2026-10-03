@@ -394,3 +394,22 @@ type BuiltinCall struct {
 }
 
 func (BuiltinCall) expr() {}
+
+// ADTTagEq reports whether Value — an ADT value — carries the variant Tag.
+// It is the expression form of one SwitchStmt case test, emitted by the
+// match lowering wherever a constructor pattern sits in a position the
+// switch cannot reach (a list element, a cons head, a tuple slot, a nested
+// constructor argument, an if-chain arm).
+//
+// TypeName names the ADT when the lowering knows it; empty defers to the
+// backend's deterministic tag→type inference (the same contract as
+// SwitchStmt.ADTName). ADT values are not records: a tag check must never
+// be spelled as FieldAccess{Field: "Tag"}, which the bytecode compiler can
+// only realize as a by-name record lookup that rejects ADT values (#1503).
+type ADTTagEq struct {
+	Value    Expr
+	TypeName string
+	Tag      string
+}
+
+func (ADTTagEq) expr() {}

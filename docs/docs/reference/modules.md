@@ -104,6 +104,22 @@ func main() -> () ! {IO} {
 }
 ```
 
+Constructors can be aliased too (v0.51.1+), which resolves a clash between two
+modules' same-named constructors. The alias works in patterns and expressions
+and matches the original constructor; the original name stays available unless
+something else in scope already uses it:
+
+```typescript
+import std/option (Option, Some as S, None as Nada)
+
+func describe(x: Option[int]) -> int = match x { S(v) => v, Nada => 0 }
+```
+
+A constructor pattern must name a constructor that is declared in the module,
+imported, or defined by a loaded module. Anything else (a typo, or an alias that
+was never written in an import) is rejected with `TC_MATCH_001` instead of
+compiling to an arm that can never match.
+
 ### Combined Aliasing
 
 Use both module and symbol aliasing together:
@@ -141,6 +157,33 @@ func parseInput(format: string, data: string) -> Result[Data] {
   }
 }
 ```
+
+### Imports, Local Definitions and Shadowing
+
+A module may not import a name explicitly **and** define it at module level. Explicit
+means a selective import (`import M (tick)`), an aliased symbol (`import M (f as tick)`),
+or the selective list of a module alias (`import M as L (tick)`); the module-level
+definition can be a `func`, a `let`, or an ADT constructor. A bare `tick` would be
+ambiguous, so this is error [MOD015](errors/mod015.md) (the rule Haskell and Elm call
+"ambiguous occurrence", Rust's E0255). Up to v0.51.1 the import silently won.
+
+```typescript
+import std/list (map)
+func map(f: int -> int, xs: [int]) -> [int] = ...   -- Error MOD015
+
+-- Fix: alias the import (or rename yours)
+import std/list (map as listMap)
+func map(f: int -> int, xs: [int]) -> [int] = ...   -- OK: map is yours, listMap is std's
+```
+
+What is allowed:
+
+- **Lexical binders shadow imports.** A function parameter, `let`, or match binder with an
+  imported name refers to the binder inside its scope (`\map. map + 1` is fine).
+- **A module alias binds no bare names.** `import std/list as List` next to your own `map`
+  is fine — the library's is `List.map`. AILANG has no wildcard import that would bring
+  unlisted names into bare scope.
+- **Local types win over imported types** of the same name (types are a separate namespace).
 
 ## Import Transitivity
 

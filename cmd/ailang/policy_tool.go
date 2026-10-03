@@ -15,8 +15,10 @@ import (
 // (M-EXECUTOR-POLICY-HARDENING M4, D4):
 //
 //	ailang policy-tool [--policy <agent-policy.toml>] < request.json > response.json
+//	ailang policy-tool [--policy <agent-policy.toml>] --request-file request.json > response.json
 //
-// One JSON request on stdin, one JSON response on stdout, exit 0 whenever a
+// One JSON request on stdin (or in --request-file, for a caller that cannot
+// pipe stdin: an AILANG program's std/process.exec takes no input), one JSON response on stdout, exit 0 whenever a
 // response was produced (a refusal is a response, not an exit code). The
 // policy path comes from --policy or AILANG_AGENT_POLICY — the launcher's
 // handle — and never from the request. Exit 1 only when no response could
@@ -24,6 +26,7 @@ import (
 func policyToolCommand() {
 	fs := flag.NewFlagSet("policy-tool", flag.ExitOnError)
 	policyPath := fs.String("policy", "", "Path to the operator policy (default: $AILANG_AGENT_POLICY)")
+	requestFile := fs.String("request-file", "", "Read the JSON request from this file instead of stdin (for callers that cannot pipe stdin)")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
@@ -35,7 +38,17 @@ func policyToolCommand() {
 		fmt.Fprintln(os.Stderr, "policy-tool: no policy — pass --policy or export AILANG_AGENT_POLICY (the launcher's handle); the tool refuses by default")
 		os.Exit(1)
 	}
-	raw, err := io.ReadAll(io.LimitReader(os.Stdin, 64<<20))
+	var in io.Reader = os.Stdin
+	if *requestFile != "" {
+		f, ferr := os.Open(*requestFile)
+		if ferr != nil {
+			fmt.Fprintf(os.Stderr, "policy-tool: opening --request-file: %v\n", ferr)
+			os.Exit(1)
+		}
+		defer f.Close()
+		in = f
+	}
+	raw, err := io.ReadAll(io.LimitReader(in, 64<<20))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "policy-tool: reading the request: %v\n", err)
 		os.Exit(1)

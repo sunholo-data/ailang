@@ -16,7 +16,7 @@ import (
 // is not in the date position at all.
 //
 // The count may FALL, never rise. Fixing them is welcome; adding a sixth variant is not.
-const knownNonCanonical = 12
+const knownNonCanonical = 11
 
 // missionDocs are the record streams. Charters are excluded deliberately: they are curated
 // prose, and a lint that demanded canonical headings there would be linting an essay.

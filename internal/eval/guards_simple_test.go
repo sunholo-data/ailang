@@ -25,7 +25,7 @@ func TestGuards_BasicTrue(t *testing.T) {
 	}
 
 	eval := NewCoreEvaluator()
-	result, err := eval.evalCoreMatch(match)
+	result, err := eval.evalCoreMatch(match, false)
 	if err != nil {
 		t.Fatalf("Evaluation failed: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestGuards_BasicFalse(t *testing.T) {
 	}
 
 	eval := NewCoreEvaluator()
-	result, err := eval.evalCoreMatch(match)
+	result, err := eval.evalCoreMatch(match, false)
 	if err != nil {
 		t.Fatalf("Evaluation failed: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestGuards_MultipleSequential(t *testing.T) {
 	}
 
 	eval := NewCoreEvaluator()
-	result, err := eval.evalCoreMatch(match)
+	result, err := eval.evalCoreMatch(match, false)
 	if err != nil {
 		t.Fatalf("Evaluation failed: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestGuards_AccessBinding(t *testing.T) {
 	}
 
 	eval := NewCoreEvaluator()
-	result, err := eval.evalCoreMatch(match)
+	result, err := eval.evalCoreMatch(match, false)
 	if err != nil {
 		t.Fatalf("Evaluation failed: %v", err)
 	}
@@ -177,7 +177,7 @@ func TestGuards_NonBoolError(t *testing.T) {
 	}
 
 	eval := NewCoreEvaluator()
-	_, err := eval.evalCoreMatch(match)
+	_, err := eval.evalCoreMatch(match, false)
 	if err == nil {
 		t.Fatal("Expected error for non-Bool guard")
 	}
@@ -208,7 +208,7 @@ func TestGuards_AllFail(t *testing.T) {
 	}
 
 	eval := NewCoreEvaluator()
-	_, err := eval.evalCoreMatch(match)
+	_, err := eval.evalCoreMatch(match, false)
 	if err == nil {
 		t.Fatal("Expected error for non-exhaustive match")
 	}

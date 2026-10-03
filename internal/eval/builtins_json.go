@@ -103,7 +103,7 @@ func encodeJSON(v *TaggedValue) (string, error) {
 
 		// Try float first
 		if f, ok := v.Fields[0].(*FloatValue); ok {
-			return fmt.Sprintf("%g", f.Value), nil
+			return FormatJSONNumber(f.Value), nil
 		}
 
 		// Also accept int (will be converted)
@@ -382,26 +382,16 @@ func interfaceToJSON(v interface{}) (Value, error) {
 		}, nil
 
 	case json.Number:
-		// JNumber(float) constructor
-		// Check if it's a float or integer
-		str := string(val)
-		if strings.ContainsAny(str, ".eE") {
-			// Float
-			f, _ := val.Float64()
-			return &TaggedValue{
-				ModulePath: "std/json",
-				TypeName:   "Json",
-				CtorName:   "JNumber",
-				Fields:     []Value{&FloatValue{Value: f}},
-			}, nil
+		// JNumber(float) constructor — canonical decode (M-JSON-NUMBER-ROUNDTRIP)
+		f, err := ParseJSONNumber(val)
+		if err != nil {
+			return nil, err
 		}
-		// Integer - convert to float for consistency
-		i, _ := val.Int64()
 		return &TaggedValue{
 			ModulePath: "std/json",
 			TypeName:   "Json",
 			CtorName:   "JNumber",
-			Fields:     []Value{&FloatValue{Value: float64(i)}},
+			Fields:     []Value{&FloatValue{Value: f}},
 		}, nil
 
 	case string:

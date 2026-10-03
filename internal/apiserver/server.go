@@ -84,6 +84,7 @@ type Server struct {
 	apiKeyEnv      string              // env var containing expected API key
 	effCtx         *effects.EffContext // for Debug output collection
 	logLevel       int                 // minimum severity for Debug output
+	oauthIssuer    string              // --oauth-issuer: required by @mcp_auth("oauth2") tools
 	routesOnly     bool                // only expose @route-annotated functions
 	noFeedbackTool bool                // suppress the built-in submit_feedback MCP tool
 	ws             *wsState            // WebSocket route sessions (routes_ws.go)
@@ -137,29 +138,6 @@ type ModuleInfo struct {
 	Iface *iface.Iface `json:"-"`
 }
 
-// ExportInfo describes a single exported function from an AILANG module.
-type ExportInfo struct {
-	Name        string   `json:"name"`
-	Type        string   `json:"type"`                   // human-readable type signature
-	Pure        bool     `json:"pure"`                   // whether the function is pure
-	Arity       int      `json:"arity"`                  // number of parameters (-1 if not a function)
-	ParamNames  []string `json:"param_names,omitempty"`  // parameter names in order (for named JSON binding)
-	ParamTypes  []string `json:"param_types,omitempty"`  // parameter type strings in order (for zero-value padding)
-	RouteMethod string   `json:"route_method,omitempty"` // custom HTTP method from @route annotation
-	RoutePath   string   `json:"route_path,omitempty"`   // custom URL path from @route annotation
-	IsRaw       bool     `json:"is_raw,omitempty"`       // @raw annotation: pass full HttpRequest record
-	IsNowrap    bool     `json:"is_nowrap,omitempty"`    // @nowrap annotation: skip FunctionCallResponse envelope
-	IsNoExpose  bool     `json:"is_no_expose,omitempty"` // @noexpose annotation: hide from HTTP endpoints
-	IsNoMCP     bool     `json:"is_no_mcp,omitempty"`    // @nomcp annotation: hide from the MCP tool surface only (HTTP/OpenAPI/A2A unaffected)
-	MCPName     string   `json:"mcp_name,omitempty"`     // @mcp_name annotation: explicit MCP tool name override
-	Optional    []string `json:"optional,omitempty"`     // @optional annotation: params not required on MCP (absent/null → zero value)
-	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
-	IsWS        bool     `json:"is_ws,omitempty"`        // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
-	Effects     []string `json:"-"`                      // declared effect row (WS registration check)
-	WSReq       []string `json:"-"`                      // WS routes: the declared req record fields, sorted
-	WSReqIssue  string   `json:"-"`                      // WS routes: why the declared req record is refused ("" = accepted)
-}
-
 // Config holds configuration for the API server.
 type Config struct {
 	Port           string
@@ -186,6 +164,10 @@ type Config struct {
 	// StaticCache is the Cache-Control value set on --static 2xx/304
 	// responses; build it with ParseStaticCache. "" sets none.
 	StaticCache string
+	// OAuthIssuer is the authorization server named in the listed MCP
+	// surface's protected-resource metadata (--oauth-issuer). Required for
+	// any @mcp_auth("oauth2") tool. M-SERVEAPI-DIRECTORY-READY.
+	OAuthIssuer string
 }
 
 // New creates a new API server.
@@ -260,6 +242,7 @@ func New(basePath string, cfg Config) *Server {
 		effCtx:             storedEffCtx,
 		logLevel:           cfg.LogLevel,
 		routesOnly:         cfg.RoutesOnly,
+		oauthIssuer:        cfg.OAuthIssuer,
 		noFeedbackTool:     cfg.NoFeedbackTool,
 		ws:                 newWSState(cfg.WS),
 		noIntrospection:    cfg.NoIntrospection,
@@ -610,6 +593,18 @@ func (s *Server) buildRoutes() *http.ServeMux {
 	if s.mcpEnabled {
 		mcpSrv := NewMCPServer(s)
 		mux.Handle("/mcp/", http.StripPrefix("/mcp", mcpSrv.HTTPHandler()))
+		// The directory projection (M-SERVEAPI-DIRECTORY-READY D3). ServeMux
+		// picks the longer pattern, so /mcp/connect/ never reaches /mcp/.
+		if hasListedSurface(s.GetModules()) {
+			listed := NewListedMCPServer(s)
+			var h http.Handler = http.StripPrefix(strings.TrimSuffix(listedMCPPath, "/"), listed.HTTPHandler())
+			if len(listed.gated) > 0 {
+				h = listed.gatedHandler(h, s.maxUploadSize)
+				mux.HandleFunc(protectedResourceRoot, s.handleProtectedResource)
+				mux.HandleFunc(protectedResourcePath, s.handleProtectedResource)
+			}
+			mux.Handle(listedMCPPath, h)
+		}
 	}
 
 	// Build set of built-in paths to prevent @route collisions (Go 1.22+ panics on duplicates)
@@ -628,6 +623,9 @@ func (s *Server) buildRoutes() *http.ServeMux {
 	}
 	if s.mcpEnabled {
 		builtinPaths["/mcp/"] = true
+		builtinPaths[listedMCPPath] = true
+		builtinPaths[protectedResourceRoot] = true
+		builtinPaths[protectedResourcePath] = true
 	}
 
 	// Custom routes from @route annotations (registered before catch-all)

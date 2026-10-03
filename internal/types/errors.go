@@ -32,6 +32,13 @@ const (
 	// of both ADTs so the fix is obvious from the error message alone.
 	MatchForeignConstructorError TypeErrorKind = "match_foreign_constructor"
 
+	// MatchUnknownConstructorError (M-CTOR-PATTERN-ALIAS-AND-SCOPE, #1478,
+	// code TC_MATCH_001) fires when a constructor pattern names a constructor
+	// that no local declaration, import, or loaded module defines — a typo or
+	// an alias that was never imported. Such an arm used to compile and
+	// silently never match.
+	MatchUnknownConstructorError TypeErrorKind = "match_unknown_constructor"
+
 	// RecordAccessOnTaggedUnionError (M-TYPECHECK-NO-AUTO-UNWRAP-RESULT,
 	// v0.20.0) fires when `expr.field` is applied to a value typed as a
 	// multi-constructor ADT (Result, Option, user-defined multi-variant).

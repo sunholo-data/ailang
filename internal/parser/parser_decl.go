@@ -22,7 +22,7 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 	if !p.curTokenIs(lexer.IDENT) {
 		p.report("PAR_INVALID_ATTRIBUTE",
 			fmt.Sprintf("expected annotation name after '@', got '%s'", p.curToken.Literal),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @optional(\"param\"), @raw, @nowrap, @noexpose, or @nomcp")
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @mcp_title(\"Title\"), @mcp_hints(\"readOnly\", ...), @mcp_auth(\"oauth2\"), @mcp_secret(\"param\"), @mcp_token_verifier, @mcp_agent_only, @optional(\"param\"), @raw, @nowrap, @noexpose, or @nomcp")
 		return nil
 	}
 
@@ -35,6 +35,15 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 		return p.parseRouteAnnotation(pos)
 	case "mcp_name":
 		return p.parseMCPNameAnnotation(pos)
+	case "mcp_title":
+		return p.parseStringListAnnotation(pos, "mcp_title", 1, 1,
+			"PAR_MCP_TITLE_ARG", "@mcp_title expects one string literal", "Use @mcp_title(\"Parse document\")")
+	case "mcp_hints":
+		// Zero hints is a real declaration: the list is complete, so
+		// @mcp_hints() means "writes, additively, closed-world, not idempotent".
+		return p.parseStringListAnnotation(pos, "mcp_hints", 0, -1,
+			"PAR_MCP_HINTS_ARG", "@mcp_hints expects zero or more string-literal hints",
+			"Use @mcp_hints(), @mcp_hints(\"readOnly\") or @mcp_hints(\"destructive\", \"openWorld\"); hints: readOnly, destructive, idempotent, openWorld")
 	case "optional":
 		return p.parseOptionalAnnotation(pos)
 	case "allow_empty_ok":
@@ -52,10 +61,25 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 		// @nomcp is a parameterless annotation — hide from the MCP tool surface
 		// only (HTTP, OpenAPI, and A2A remain unaffected).
 		return &ast.Annotation{Name: "nomcp", Pos: pos}
+	case "mcp_auth":
+		return p.parseStringListAnnotation(pos, "mcp_auth", 1, 1,
+			"PAR_MCP_AUTH_ARG", "@mcp_auth expects one string literal: \"oauth2\" or \"noauth\"",
+			"Use @mcp_auth(\"oauth2\") to gate a tool behind OAuth on the listed MCP surface")
+	case "mcp_secret":
+		return p.parseStringListAnnotation(pos, "mcp_secret", 1, -1,
+			"PAR_MCP_SECRET_ARG", "@mcp_secret expects one or more string-literal parameter names",
+			"Use @mcp_secret(\"apiKey\") (the param must also be @optional)")
+	case "mcp_token_verifier":
+		// Parameterless: marks the one (string) -> bool function serve-api calls
+		// to verify a Bearer token before an @mcp_auth("oauth2") tool runs.
+		return &ast.Annotation{Name: "mcp_token_verifier", Pos: pos}
+	case "mcp_agent_only":
+		// Parameterless: served on /mcp/ but absent from the listed surface.
+		return &ast.Annotation{Name: "mcp_agent_only", Pos: pos}
 	default:
 		p.report("PAR_UNKNOWN_ATTRIBUTE",
-			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @optional, @allow_empty_ok, @raw, @nowrap, @noexpose, @nomcp", name),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @optional(\"param\", ...), @allow_empty_ok(\"rationale\"), @raw, @nowrap, @noexpose, or @nomcp")
+			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @mcp_title, @mcp_hints, @mcp_auth, @mcp_secret, @mcp_token_verifier, @mcp_agent_only, @optional, @allow_empty_ok, @raw, @nowrap, @noexpose, @nomcp", name),
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @mcp_title(\"Title\"), @mcp_hints(\"readOnly\", ...), @mcp_auth(\"oauth2\"), @mcp_secret(\"param\"), @mcp_token_verifier, @mcp_agent_only, @optional(\"param\", ...), @allow_empty_ok(\"rationale\"), @raw, @nowrap, @noexpose, or @nomcp")
 		return nil
 	}
 }
@@ -258,6 +282,43 @@ func (p *Parser) parseMCPNameAnnotation(pos ast.Pos) *ast.Annotation {
 		},
 		Pos: pos,
 	}
+}
+
+// parseStringListAnnotation parses @name("a", "b", ...) with between min and
+// max string-literal args (max < 0 = unbounded) into an Annotation. The parser
+// stays syntactic: what the strings mean (MCP hint vocabulary, title rules) is
+// checked at MCP registration, the same posture as @optional.
+// Expects the parser to be AT the annotation identifier.
+func (p *Parser) parseStringListAnnotation(pos ast.Pos, name string, min, max int, code, msg, hint string) *ast.Annotation {
+	// The lexer reads "()" as one UNIT token, so an empty argument list never
+	// arrives as LPAREN RPAREN.
+	if min == 0 && p.peekTokenIs(lexer.UNIT) {
+		p.nextToken() // at "()": an explicitly empty list
+		return &ast.Annotation{Name: name, Pos: pos}
+	}
+	if !p.expectPeek(lexer.LPAREN) {
+		return nil
+	}
+	var args []ast.Expr
+	for {
+		if !p.expectPeek(lexer.STRING) {
+			p.report(code, msg, hint)
+			return nil
+		}
+		args = append(args, &ast.Literal{Kind: ast.StringLit, Value: p.curToken.Literal, Pos: p.curPos()})
+		if !p.peekTokenIs(lexer.COMMA) {
+			break
+		}
+		p.nextToken() // at ','
+	}
+	if !p.expectPeek(lexer.RPAREN) {
+		return nil
+	}
+	if len(args) < min || (max >= 0 && len(args) > max) {
+		p.report(code, msg, hint)
+		return nil
+	}
+	return &ast.Annotation{Name: name, Args: args, Pos: pos}
 }
 
 // parseOptionalAnnotation parses @optional("param", ...) into an Annotation

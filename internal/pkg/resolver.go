@@ -405,7 +405,7 @@ func printSubTree(sb *strings.Builder, m *PackageManifest, dir string, indent st
 func portablePathDep(rootDir, depDir string) string {
 	rel, err := filepath.Rel(rootDir, depDir)
 	if err != nil {
-		return depDir
+		return filepath.ToSlash(depDir)
 	}
 	return filepath.ToSlash(rel)
 }

@@ -54,7 +54,7 @@ type StreamDialConfig struct {
 	Headers          map[string][]string
 	Subprotocols     []string
 	HandshakeTimeout time.Duration
-	MaxFrameSize     int64 // inbound read limit per frame
+	MaxMessageSize   int64 // inbound read limit per (reassembled) message
 
 	// DialContext is the ONLY way the transport may open a socket
 	// (M-EXECUTOR-POLICY-HARDENING M2, D2). The core has already authorized

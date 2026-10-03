@@ -69,6 +69,7 @@ var refusedWithPolicy = []struct{ name, why string }{
 	{"stream-allow-http", "comes from the policy's net_allow_http"},
 	{"stream-allow-domains", "comes from the policy's net_allow"},
 	{"stream-allow-localhost", "restricted mode has no localhost grant"},
+	{"stream-max-message", "restricted mode keeps the default Stream message cap"},
 	{"process-allowlist", "comes from the policy's process_allow"},
 	{"stdlib-path", "module roots are not the caller's to choose"},
 	{"package-dir", "module roots are not the caller's to choose"},
@@ -124,6 +125,14 @@ func resolveRunPolicyFor(policyPath, filename string, w runPolicyWidening) (*pol
 	}
 	if res.Restricted() && !restrictedModeSupported() {
 		refusePolicy("restricted mode is not supported on %s/%s (confined filesystem roots and descendant termination are unverified here); this policy needs a Linux or macOS worker, or security_mode = %q with its weaker guarantees", runtime.GOOS, runtime.GOARCH, policy.ModeTrustedHost)
+	}
+	if w.set["chdir"] && res.Root != "" {
+		// --chdir sets the module root; under a policy that root, like the
+		// entry file, must be inside the sandbox.
+		cwd, err := os.Getwd()
+		if err != nil || !entryInsideSandbox(res.Root, cwd) {
+			refusePolicy("--chdir %s is outside fs_sandbox %s — under a policy the module root must be inside the sandbox", cwd, res.Root)
+		}
 	}
 	if filename != "" && res.Root != "" {
 		if !entryInsideSandbox(res.Root, filename) {

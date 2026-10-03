@@ -28,7 +28,8 @@ import (
 // the first call. If aiModel is empty (no AI configured) and the caller
 // passed a non-nil routingPolicy, we treat that as a configuration mistake
 // and warn — there is no handler to attach the policy to.
-func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
+func setupAIHandler(effCtx *effects.EffContext, cfg aiSetup, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
+	aiStub, aiModel := cfg.Stub, cfg.Model
 	// M-AI-PROVIDER-CONFIG: harvest [[ai_provider]] blocks from the project's
 	// ailang.toml + dependency manifests before consulting the registry in
 	// setupAIHandlerFromConfig / setupAIHandlerDirect. Idempotent — safe to
@@ -45,10 +46,17 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, rou
 		}
 	}
 
+	if cfg.StubFixtures != "" && !aiStub {
+		return fmt.Errorf("--ai-stub-fixtures requires --ai-stub")
+	}
 	if aiStub {
 		// Stub handler ignores routing policy — that's fine, this is for
 		// flag-shape testing without any real provider call.
-		effCtx.AI = effects.NewAIContext(effects.NewStubAIHandler())
+		h, err := cfg.stubHandler()
+		if err != nil {
+			return err
+		}
+		effCtx.AI = effects.NewAIContext(h)
 		return nil
 	}
 
@@ -66,27 +74,38 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string, rou
 		return nil
 	}
 
+	// #1499: --ai-no-adc / --ai-key-file, read here — once, before the
+	// program runs — and handed to the factory; the key never leaves memory.
+	auth, err := cfg.resolveAuth()
+	if err != nil {
+		return err
+	}
+
 	// Load models config to look up model details
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		// Config not found - try to use model name directly with guessed provider
-		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr, 0)
+		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr, 0, auth)
 	}
 
 	// Look up model in config
 	model, err := modelreg.GlobalModelsConfig.GetModel(aiModel)
 	if err != nil {
 		// Model not in config - try direct usage with guessed provider
-		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr, declaredMaxOutputTokens(aiModel))
+		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr, declaredMaxOutputTokens(aiModel), auth)
 	}
 
-	return setupAIHandlerFromConfig(effCtx, model, aiModel, routingPolicy, attr)
+	return setupAIHandlerFromConfig(effCtx, model, aiModel, routingPolicy, attr, auth)
 }
 
 // setupAIHandlerFromConfig configures the AI effect handler from a resolved
 // models.yml entry. Extracted from setupAIHandler so tests can drive the
 // dispatch path (built-in switch + config-driven registry default) without
 // going through modelreg.GlobalModelsConfig.
-func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.ModelConfig, aiModel string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
+//
+// auth (at most one; tests omit it) carries the #1499 options from
+// aiSetup.resolveAuth; a key from --ai-key-file wins over the model's env_var.
+func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.ModelConfig, aiModel string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution, auth ...aiAuth) error {
+	a := firstAuth(auth)
 	// Build handler options from model config
 	var opts []ai.HandlerOption
 	if model.MaxOutputTokens > 0 {
@@ -102,16 +121,18 @@ func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.Mo
 	// One factory resolves the credential (from the model's env_var), the
 	// endpoint and the lane; built-ins win over a same-named [[ai_provider]]
 	// block (M-AI-PROVIDER-CONFIG D4).
-	client, err := factory.New(model.Provider,
+	fopts := append([]factory.Option{
 		factory.WithAPIKeyEnv(model.EnvVar),
-		factory.WithConfigDriven(LookupConfigDrivenProvider))
+		factory.WithConfigDriven(LookupConfigDrivenProvider),
+	}, a.options...)
+	client, err := factory.New(model.Provider, fopts...)
 	if err != nil {
 		if names := ai.GlobalProviderRegistry.Names(); len(names) > 0 {
 			return fmt.Errorf("%w (model %s; config-driven providers: %v)", err, aiModel, names)
 		}
 		return fmt.Errorf("%w (model %s)", err, aiModel)
 	}
-	if err := readyForCalls(client); err != nil {
+	if err := readyForCalls(client, a.fromKeyFile); err != nil {
 		return err
 	}
 
@@ -124,13 +145,25 @@ func setupAIHandlerFromConfig(effCtx *effects.EffContext, model *eval_harness.Mo
 // a key knows which one is billing) and probes a local ollama daemon before
 // the first call, so a stopped daemon reads as "Ollama not running", not as a
 // mid-program AI error.
-func readyForCalls(client *factory.Client) error {
+//
+// fromKeyFile is true when the credential came from --ai-key-file; a lane that
+// takes no key (local ollama, a config-driven provider) then refuses to start
+// rather than silently ignoring the file.
+func readyForCalls(client *factory.Client, fromKeyFile bool) error {
 	switch client.Lane {
 	case factory.LaneADC:
 		fmt.Fprintf(os.Stderr, "AI: Using Vertex AI (ADC)\n")
 	case factory.LaneAPIKey:
 		if client.Type == ai.ProviderGoogle {
-			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (GOOGLE_API_KEY)\n")
+			source := "GOOGLE_API_KEY"
+			if fromKeyFile {
+				source = "--ai-key-file"
+			}
+			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (%s)\n", source)
+		}
+	case factory.LaneLocal, factory.LaneConfigDriven, factory.LaneUnauthenticated:
+		if fromKeyFile {
+			return fmt.Errorf("--ai-key-file: provider %q (%s lane) takes no API key from a file", client.Type, client.Lane)
 		}
 	}
 	if probe, ok := client.Provider.(interface{ CheckConnection(context.Context) error }); ok {
@@ -196,7 +229,8 @@ func declaredMaxOutputTokens(name string) int {
 //
 // maxTokens is the model's declared output budget when the registry knows the
 // name under another form (0 = the handler default, 4096).
-func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution, maxTokens int) error {
+func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution, maxTokens int, auth ...aiAuth) error {
+	a := firstAuth(auth)
 	// Guess provider from model name
 	provider := ai.GuessProvider(modelName)
 
@@ -225,11 +259,11 @@ func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string, routingP
 		return fmt.Errorf("cannot determine provider for model %s (use models.yml or prefix with claude-/gpt-/gemini-/ollama: or vendor/model for OpenRouter, or install a package declaring an [[ai_provider]] block)", modelName)
 	}
 
-	client, err := factory.New(string(provider))
+	client, err := factory.New(string(provider), a.options...)
 	if err != nil {
 		return err
 	}
-	if err := readyForCalls(client); err != nil {
+	if err := readyForCalls(client, a.fromKeyFile); err != nil {
 		return err
 	}
 	// Strip the routing prefix the guess consumed: "ollama:" for the local

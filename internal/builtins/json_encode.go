@@ -2,8 +2,6 @@ package builtins
 
 import (
 	"fmt"
-	"math"
-	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/effects"
@@ -31,7 +29,10 @@ func registerJSONEncode() {
 			Description: "Convert a Json ADT value to a JSON string",
 			LongDesc: `Converts AILANG's Json algebraic data type to a JSON string using RFC 8259 compliant encoding.
 Supports all JSON types: objects, arrays, strings, numbers, booleans, and null.
-String escaping follows RFC 8259 specification with proper handling of control characters and unicode.`,
+String escaping follows RFC 8259 specification with proper handling of control characters and unicode.
+Numbers use shortest round-trip digits (Go encoding/json / JSON.stringify window): fixed notation for
+1e-6 <= |x| < 1e21, exponent notation outside it; -0.0 encodes as "-0.0"; NaN/Infinity encode as null.
+Every finite float survives decode(encode(x)) bit-for-bit.`,
 			Params: []ParamDoc{
 				{Name: "value", Description: "Json ADT value to encode"},
 			},
@@ -40,6 +41,8 @@ String escaping follows RFC 8259 specification with proper handling of control c
 				{Code: `_json_encode(JNull)`, Description: `Returns "null"`},
 				{Code: `_json_encode(JBool(true))`, Description: `Returns "true"`},
 				{Code: `_json_encode(JNumber(42.0))`, Description: `Returns "42"`},
+				{Code: `_json_encode(JNumber(-0.0))`, Description: `Returns "-0.0"`},
+				{Code: `_json_encode(JNumber(1.0e21))`, Description: `Returns "1e+21"`},
 				{Code: `_json_encode(JString("hello"))`, Description: `Returns "\"hello\""`},
 				{Code: `_json_encode(JArray([JNumber(1.0), JNumber(2.0)]))`, Description: `Returns "[1,2]"`},
 				{Code: `_json_encode(JObject([{key: "name", value: JString("Alice")}]))`, Description: `Returns "{\"name\":\"Alice\"}"`},
@@ -222,21 +225,10 @@ func encodeValue(val eval.Value, buf *strings.Builder) error {
 	}
 }
 
-// formatNumber formats a float for JSON, removing unnecessary decimal points
+// formatNumber formats a float for JSON via the canonical
+// eval.FormatJSONNumber (shared with the legacy encoder and the VM).
 func formatNumber(f float64) string {
-	// Handle special cases
-	if math.IsNaN(f) || math.IsInf(f, 0) {
-		// JSON doesn't support NaN or Infinity - this shouldn't happen with well-formed Json ADT
-		return "null"
-	}
-
-	// Check if the number is effectively an integer
-	if f == float64(int64(f)) {
-		return strconv.FormatInt(int64(f), 10)
-	}
-
-	// Format as float with minimal precision
-	return strconv.FormatFloat(f, 'f', -1, 64)
+	return eval.FormatJSONNumber(f)
 }
 
 // escapeString escapes a string for JSON according to RFC 8259

@@ -96,7 +96,9 @@ func HammingDistance(a, b int64) int {
 // search threshold in the codebase (messaging 0.70, coordinator dedup 0.80,
 // brain 3-tier) is expressed against this scale.
 func Similarity(a, b int64) float64 {
-	return 1.0 - float64(HammingDistance(a, b))/float64(Bits)
+	// float64(...) keeps the compiler from fusing the (power-of-two) scale into
+	// the subtraction on FMA architectures (#1465).
+	return 1.0 - float64(float64(HammingDistance(a, b))/float64(Bits))
 }
 
 // Cosine is the cosine similarity of two embedding vectors in [-1, 1].
@@ -124,9 +126,11 @@ func cosine[T ~float32 | ~float64](a, b []T) (float64, bool) {
 	var dot, normA, normB float64
 	for i := range a {
 		ai, bi := float64(a[i]), float64(b[i])
-		dot += ai * bi
-		normA += ai * ai
-		normB += bi * bi
+		// float64(...) forbids FMA fusion: SharedIndex scores reach AILANG
+		// programs and must not depend on the CPU architecture (#1465).
+		dot += float64(ai * bi)
+		normA += float64(ai * ai)
+		normB += float64(bi * bi)
 	}
 	if normA == 0 || normB == 0 {
 		return 0, false

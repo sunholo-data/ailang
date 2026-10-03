@@ -7,6 +7,11 @@
 --   0o / 0O  octal         (0o755  = 493)
 -- A leading zero on a plain decimal (e.g. 0123) stays decimal, never octal.
 --
+-- A radix literal is a 64-bit PATTERN: one with the top bit set reads as its
+-- two's-complement value, so reference hash constants are written verbatim
+-- (0x9e3779b97f4a7c15 == -7046029254386353131, 0xffffffffffffffff == -1).
+-- Decimal literals stay signed; above 9223372036854775807 they are an error.
+--
 -- Run:
 --   ailang run --caps IO --entry main examples/integer_literals.ail
 
@@ -18,9 +23,14 @@ export func main() -> () ! {IO} =
   let flags = 10 in  -- 10
   let perms = 493 in  -- 493
   let pua = 57344 in  -- 57344: start of the Unicode private-use area
+  let golden = 0x9e3779b97f4a7c15 in  -- SplitMix64 golden gamma
+  let allOnes = 0xffffffffffffffff in  -- -1
   {
     println("hex 0xFF   = ${show(red)}")
     println("bin 0b1010 = ${show(flags)}")
     println("oct 0o755  = ${show(perms)}")
     println("pua 0xE000 = ${show(pua)}")
+    println("0x9e3779b97f4a7c15 = ${show(golden)}")
+    println("0xffffffffffffffff = ${show(allOnes)}")
+    println("0x8000000000000000 = ${show(0x8000000000000000)}")
   }

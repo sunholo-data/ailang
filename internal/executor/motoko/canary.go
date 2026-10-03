@@ -85,7 +85,14 @@ func (e *MotokoExecutor) CanaryCheck(ctx context.Context, subject executor.Canar
 
 // runCanaryOnce performs a single canary attempt in a throwaway workspace.
 func (e *MotokoExecutor) runCanaryOnce(ctx context.Context, subject executor.CanarySubject) error {
-	workspace, err := os.MkdirTemp("", "motoko-canary-*")
+	// A lane canary's workspace must sit inside the policy's sandbox, which
+	// covers the run workspaces' root.
+	if root := subject.Options["workspace_root"]; root != "" {
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			return fmt.Errorf("canary: cannot create workspace root %s: %w", root, err)
+		}
+	}
+	workspace, err := os.MkdirTemp(subject.Options["workspace_root"], "motoko-canary-*")
 	if err != nil {
 		return fmt.Errorf("canary: cannot create workspace: %w", err)
 	}
@@ -113,6 +120,23 @@ func (e *MotokoExecutor) runCanaryOnce(ctx context.Context, subject executor.Can
 		for k, v := range subject.Options {
 			task.Metadata[k] = v
 		}
+	}
+	if tp := subject.Options["tool_policy"]; tp != "" {
+		tools, perr := executor.ProfileTools(tp)
+		if perr != nil {
+			return fmt.Errorf("canary: %w", perr)
+		}
+		task.AllowedTools = tools
+		runPolicy, perr := executor.MaterializeRunPolicy(subject.Options["policy_path"], workspace)
+		if perr != nil {
+			return fmt.Errorf("canary: %w", perr)
+		}
+		task.PolicyPath = runPolicy
+		// Lane tools resolve paths from the policy's sandbox root, not the
+		// task workspace, so name the file absolutely — as benchmark prompts
+		// do. "canary.txt" resolved under the sandbox root, was not found, and
+		// the subject spent the canary's budget looking for it (2026-10-01).
+		task.Directive = "Read the file " + filepath.Join(workspace, "canary.txt") + " and report its contents. Do not modify anything."
 	}
 	result, execErr := e.Execute(runCtx, task)
 

@@ -2,10 +2,6 @@ package builtins
 
 import (
 	"fmt"
-	"math"
-	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -69,158 +65,11 @@ func showImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	return &eval.StringValue{Value: showValue(val, 0)}, nil
 }
 
-// Constants for show function
-const (
-	maxDepth      = 3
-	maxWidth      = 80
-	elisionPrefix = 20
-	elisionSuffix = 20
-)
-
-// showValue converts a value to its canonical string representation
-// with proper quoting, escaping, and deterministic output.
-// This implementation is based on v0.3.9's showValue function.
+// showValue renders v with the one shared show renderer (eval.Show), also
+// used by the bytecode VM and the REPL. depth > 0 renders v as if nested.
 func showValue(v eval.Value, depth int) string {
-	if depth > maxDepth {
-		return "..."
-	}
-
-	switch val := v.(type) {
-	case *eval.IntValue:
-		return strconv.Itoa(val.Value)
-
-	case *eval.FloatValue:
-		// Handle special cases
-		if math.IsNaN(val.Value) {
-			return "NaN"
-		}
-		if math.IsInf(val.Value, 1) {
-			return "Inf"
-		}
-		if math.IsInf(val.Value, -1) {
-			return "-Inf"
-		}
-		// Use 'f' format to ensure decimal point is always shown
-		// e.g., "5.0" not "5", "3.14" not "3.14"
-		s := strconv.FormatFloat(val.Value, 'f', -1, 64)
-		// Ensure at least one decimal place (e.g., "5" -> "5.0")
-		if !strings.Contains(s, ".") {
-			s += ".0"
-		}
-		return s
-
-	case *eval.BoolValue:
-		if val.Value {
-			return "true"
-		}
-		return "false"
-
-	case *eval.StringValue:
-		// Return string without quotes (identity for strings)
-		return val.Value
-
-	case *eval.ListValue:
-		return showSequence(val.Elements, depth, "[", "]")
-
-	case *eval.ArrayValue:
-		return showSequence(val.Elements(), depth, "#[", "]")
-
-	case *eval.TupleValue:
-		return showSequence(val.Elements, depth, "(", ")")
-
-	case *eval.MapValue:
-		// Map{...} is deliberate debug notation: AILANG has no map literal, so
-		// this rendering is not round-trippable surface syntax.
-		keys := make([]string, 0, len(val.Entries))
-		for key := range val.Entries {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		parts := make([]string, 0, len(keys))
-		for _, key := range keys {
-			entry := val.Entries[key]
-			parts = append(parts, showValue(entry.Key, depth+1)+": "+showValue(entry.Value, depth+1))
-		}
-		return truncateIfNeeded("Map{" + strings.Join(parts, ", ") + "}")
-
-	case *eval.RecordValue:
-		if len(val.Fields) == 0 {
-			return "{}"
-		}
-		// Sort keys for deterministic output
-		keys := make([]string, 0, len(val.Fields))
-		for k := range val.Fields {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		var parts []string
-		for _, k := range keys {
-			parts = append(parts, fmt.Sprintf("%s: %s", k, showValue(val.Fields[k], depth+1)))
-		}
-		result := "{" + strings.Join(parts, ", ") + "}"
-		return truncateIfNeeded(result)
-
-	case *eval.TaggedValue:
-		// ADT constructors: Some(42) → "Some(42)"
-		if len(val.Fields) == 0 {
-			return val.CtorName
-		}
-		var argStrs []string
-		for _, arg := range val.Fields {
-			argStrs = append(argStrs, showValue(arg, depth+1))
-		}
-		return val.CtorName + "(" + strings.Join(argStrs, ", ") + ")"
-
-	case *eval.UnitValue:
-		return "()"
-
-	case *eval.FunctionValue:
-		return "<function>"
-
-	case *eval.BuiltinFunction:
-		return "<function>"
-
-	case *eval.ConstructorClosure:
-		return "<function>"
-
-	case *eval.BytesValue:
-		return val.String()
-
-	case *eval.IndirectValue:
-		if val.Cell == nil || !val.Cell.Init || val.Cell.Val == nil {
-			return "<uninitialized>"
-		}
-		return showValue(val.Cell.Val, depth)
-
-	case *eval.ErrorValue:
-		return fmt.Sprintf("Error: %s", val.Message)
-
-	default:
-		return "<unknown>"
-	}
+	return eval.ShowAt(v, depth)
 }
 
-func showSequence(elements []eval.Value, depth int, open, close string) string {
-	parts := make([]string, 0, len(elements))
-	for _, elem := range elements {
-		parts = append(parts, showValue(elem, depth+1))
-	}
-	return truncateIfNeeded(open + strings.Join(parts, ", ") + close)
-}
-
-// truncateIfNeeded elides the middle of long strings to keep under maxWidth
-func truncateIfNeeded(s string) string {
-	if len(s) <= maxWidth {
-		return s
-	}
-
-	// Calculate elision: keep prefix and suffix, replace middle with "..."
-	if elisionPrefix+elisionSuffix+3 >= len(s) {
-		return s // Too short to bother eliding
-	}
-
-	prefix := s[:elisionPrefix]
-	suffix := s[len(s)-elisionSuffix:]
-	return prefix + "..." + suffix
-}
+// maxWidth is the elision column, kept for this package's tests.
+const maxWidth = eval.ShowMaxWidth

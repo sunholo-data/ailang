@@ -356,6 +356,47 @@ labels (explicit `<ℓ>` annotations and the `secret()` builtin) through
 into codegen, so there is no runtime cost and no impact on inference. See the
 worked pair `examples/runnable/secrets/{gated_secret,leak_attempt}.ail`.
 
+## Labels inside types (v0.52.0)
+
+A label written **anywhere inside a type** is a source for every value of that
+type — not only a top-level `<ℓ>` on a parameter or return type. Before
+v0.52.0 (#1523) the checker read only the top-level position, so a secret held
+in a declared record lost its label the moment you read the field:
+
+```ailang
+type RawCode = { raw: string<authcode> }
+pure func mk(s: string) -> RawCode = { raw: s }
+pure func logLine(s: string{not authcode}) -> string = "log: ${s}"
+
+export pure func leak(x: string) -> string {
+  let c = mk(x);
+  logLine(c.raw)   -- rejected since v0.52.0: <authcode> reaches {not authcode}
+}
+```
+
+The same rule covers every position a label can be written in a type, in the
+same module:
+
+| Where the label is written | Example that is now rejected |
+|---|---|
+| a declared record's field (also nested records, getters) | `logLine(s.code.raw)`, `logLine(getRaw(c))` |
+| record destructuring | `match c { {raw} => logLine(raw) }` |
+| an inline record annotation | `func f(c: {raw: string<authcode>})` |
+| an ADT constructor field | `match t { Tok(s) => logLine(s), NoTok => "" }` |
+| a tuple or list element | `match xs { h :: _ => logLine(h), [] => "" }` with `xs: [string<authcode>]` |
+| an alias | `type Code = string<authcode>`, `func f(c: Code) = logLine(c)` |
+| a `let` or lambda annotation | `let t: string<authcode> = plain(x); logLine(t)` |
+
+Field access is **field-precise**: an unlabelled field next to a labelled one
+stays clean (`logLine(s.user)` is accepted when only `s.code` is labelled),
+including through a getter. Destructuring with `match` is conservative: every
+variable a pattern binds gets the whole value's labels.
+
+An annotation can only **add** labels. `let s: {user: string, code: string<x>} = v`,
+where `v`'s type puts `<x>` on `user`, type-checks (labels do not take part in
+unification) but `s.user` keeps `<x>`. Only a `! {Declassify}` function lowers
+a label.
+
 ## Limitations (v0.26.0)
 
 - **Sink enforcement is intraprocedural.** A labelled value reaching a
@@ -364,10 +405,12 @@ worked pair `examples/runnable/secrets/{gated_secret,leak_attempt}.ail`.
   on Z3 contracts and are deferred to M-TAINT-TYPES Phase 2. Annotate a
   forwarding function's parameter (`x: T<ℓ>` / `x: T{not ℓ}`) to propagate the
   constraint across the boundary.
-- **Label aliases are not yet expanded.** `export type EmailBody = string<email>`
-  parses, but the type checker treats `EmailBody` as a nominal type
-  rather than an alias for `string<email>`. Use record types with
-  labelled fields for cross-module flow today.
+- **Labels inside types are enforced within the declaring module only.** Since
+  v0.52.0 the static check reads labels in declared records, aliases
+  (`type EmailBody = string<email>`), ADTs, lists and tuples — but only for types
+  declared in the same module. A type imported from another module carries its
+  labels to Z3 contracts through the iface, not to the static sink check; that
+  hole is tracked in `design_docs/planned/m-ifc-cross-module-labels.md`.
 - **Refinements are sink-side only.** `T{not LABEL}` lives on parameter
   positions; you cannot annotate a return type with a refinement.
 - **Cross-module function calls in Z3.** Imported function calls cannot

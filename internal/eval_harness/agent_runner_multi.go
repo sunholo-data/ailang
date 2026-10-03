@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/proctree"
 
 	// Register executors via init()
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
@@ -133,6 +134,17 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Workspace preserved: %s\n", workspace)
 		fmt.Fprintf(os.Stderr, "[DEBUG_AGENT] Executor: %s, Model: %s\n", executorName, modelName)
 	}
+	// Kill anything the agent left running in its workspace, on EVERY exit path. Registered
+	// after the RemoveAll above so it runs first. A group kill of the agent misses commands
+	// its tools started detached: two `find /` shells from a pi gauntlet run outlived it by
+	// 7h and 33h in disk-wait and stalled git on the rig (2026-10-02).
+	defer func() {
+		if pids, err := proctree.ReapWorkspace(workspace); err != nil {
+			fmt.Fprintf(os.Stderr, "[eval] workspace reap failed for %s: %v\n", workspace, err)
+		} else if len(pids) > 0 {
+			fmt.Fprintf(os.Stderr, "[eval] reaped %d process(es) the agent left in %s: %v\n", len(pids), workspace, pids)
+		}
+	}()
 
 	// Seed benchmark input files so the agent can actually run/test its solution
 	// (e.g. cli_args reads numbers.txt). Mirrors the standard-runner layout.
@@ -231,7 +243,17 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Metadata:               buildChainMetadata(config.ChainID, config.StageID),
 		MaxTokensPerBench:      config.MaxTokensPerBench,        // M-EVAL-OS-LONGITUDINAL Phase 1
 		MaxOutputTokens:        modelMaxOutputTokens(modelName), // M-OLLAMA-PER-MODEL-MAX-TOKENS
-		PolicyPath:             config.PolicyPath,
+		EvalShellGuard:         true,                            // per-command limit + no whole-disk find (2026-10-02)
+	}
+	// A lane run executes under its OWN policy: fs_sandbox = this run's
+	// workspace (executor.MaterializeRunPolicy). Passing the operator's file
+	// through unchanged pointed every run at one shared sandbox root.
+	if config.PolicyPath != "" {
+		runPolicy, perr := executor.MaterializeRunPolicy(config.PolicyPath, workspace)
+		if perr != nil {
+			return nil, perr
+		}
+		task.PolicyPath = runPolicy
 	}
 
 	// The ailang_only lane (M-AGENT-AILANG-ONLY-EXECUTION D5): a tool policy
@@ -244,12 +266,10 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		}
 		task.AllowedTools = tools
 	}
-	if config.PolicyPath != "" {
-		if task.ExtraEnv == nil {
-			task.ExtraEnv = make(map[string]string)
-		}
-		task.ExtraEnv["AILANG_AGENT_POLICY"] = config.PolicyPath
-	}
+	// config.PolicyPath reaches the agent as AILANG_AGENT_POLICY through
+	// task.PolicyPath (set above): BuildEnvironment derives it, and ExtraEnv
+	// may not carry it. It used to ride ExtraEnv, where the agent_env block
+	// below replaced the whole map and silently dropped it.
 
 	// Export benchmark agent_env to the executor subprocess (M-EVAL-REIMPLEMENT-BENCH).
 	// This is the ACTIVE executor path (RunAgentBenchmarkWithExecutor → exec.ExecuteStreaming);
@@ -257,7 +277,9 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// (motoko/opencode/pi), so MOTOKO_AST_AUTOREAD silently never reached them. ${WORKSPACE} →
 	// the per-run workspace. BuildEnvironment merges task.ExtraEnv into the agent's env.
 	if len(spec.AgentEnv) > 0 {
-		task.ExtraEnv = make(map[string]string, len(spec.AgentEnv))
+		if task.ExtraEnv == nil {
+			task.ExtraEnv = make(map[string]string, len(spec.AgentEnv))
+		}
 		for k, v := range spec.AgentEnv {
 			task.ExtraEnv[k] = strings.ReplaceAll(v, "${WORKSPACE}", workspace)
 		}
@@ -456,9 +478,20 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// the error is in Result.Error, NOT the Go error return value.
 	// We check this BEFORE agentic validation to provide clear "executor crashed"
 	// errors instead of misleading "non-agentic result" messages.
+	//
+	// EXCEPT a run that used up its step budget: it did real work for its whole
+	// budget, its tokens were spent, and the file it wrote may even be right.
+	// Returning diagnosticsOnly() banked those rows with zero tokens, $0 and no
+	// grading — the 2026-10-01 lane A/B under-counted motoko by $2.56 across
+	// three such rows, one of which had written a 10 KB solution at step 108.
+	// It is graded like any other run and keeps finish_reason=step_exhausted,
+	// which the categoriser reads when the output does not match.
 	if !result.Success && result.Error != "" {
-		return diagnosticsOnly(), fmt.Errorf("executor %q failed for model %q: %s",
-			executorName, modelName, result.Error)
+		if !stepBudgetExhausted(result) {
+			return diagnosticsOnly(), fmt.Errorf("executor %q failed for model %q: %s",
+				executorName, modelName, result.Error)
+		}
+		result.FinishReason = executor.FinishStepExhausted
 	}
 
 	// Validate agent behavior - NO SILENT FALLBACKS
@@ -713,3 +746,17 @@ func (h *ttftEventHandler) OnError(error)               {}
 // convention agent_prompt.txt uses. A package var (not const) so tests can
 // redirect it at a temp file.
 var trapsCardDefaultPath = "prompts/agent/dialect-traps.md"
+
+// stepBudgetExhausted reports whether a failed run stopped because it used up
+// its step budget (as opposed to crashing): graded and costed, not discarded.
+func stepBudgetExhausted(result *executor.Result) bool {
+	if result == nil || result.Success {
+		return false
+	}
+	if result.FinishReason == executor.FinishStepExhausted {
+		return true
+	}
+	// motoko main ends a step-exhausted run with an error event, not a
+	// run_summary: "step budget exhausted" (step_machine.ail StepBudgetExhausted).
+	return strings.Contains(result.Error, "step budget exhausted")
+}

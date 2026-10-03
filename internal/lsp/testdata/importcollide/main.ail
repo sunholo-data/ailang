@@ -1,0 +1,7 @@
+module testdata/importcollide/main
+
+import testdata/importcollide/dep (tick)
+
+pure func tick(n: int) -> int = n + 100
+
+export pure func run() -> int = tick(1)

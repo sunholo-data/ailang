@@ -114,7 +114,7 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 	return res, err
 }
 
-func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
 	ctx, span := telemetry.StartSpan(ctx, piTracer, "pi.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "pi"),
@@ -157,13 +157,25 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 		fmt.Fprintf(os.Stderr, "[DEBUG_PI] Workspace: %s\n", task.Workspace)
 	}
 
-	env := executor.BuildEnvironment(executor.EnvironmentOptions{
+	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
 		SessionID:   ourTaskID,
+		Executor:    "pi",
+		Model:       e.getModel(task),
 		Context:     ctx,
 		GCPProject:  task.GCPProject,
 		GCPLocation: task.GCPLocation,
 	})
+	if err != nil {
+		return nil, err
+	}
+	// D6: bank the child env's NAME set on every result shape.
+	envNames := executor.EnvNamesDigest(env)
+	defer func() {
+		if out != nil {
+			out.EnvNamesDigest = envNames
+		}
+	}()
 	cmd.Env = env
 
 	stdout, err := cmd.StdoutPipe()

@@ -20,14 +20,18 @@ import (
 //   - Domain allowlist (optional)
 //   - Private IP blocking (RFC1918 + link-local, default: on)
 //   - Connection count limits (default: 4 concurrent)
-//   - Message size limits (default: 1MB per message, 64KB per frame)
+//   - Message size limit (default: 1MB per message, enforced on read and write)
 //   - Idle timeout (default: 60s)
 //   - Hard duration ceiling (default: 5min)
 type StreamContext struct {
 	// Connection limits
-	MaxConnections int   // Default: 4 (prevent resource exhaustion)
-	MaxMessageSize int64 // Default: 1MB per message (reassembled from frames)
-	MaxFrameSize   int64 // Default: 64KB per frame (gorilla ReadLimit)
+	MaxConnections int // Default: 4 (prevent resource exhaustion)
+	// MaxMessageSize caps one message in BOTH directions: send rejects it and
+	// the transport's read limit (gorilla ReadLimit, per reassembled message)
+	// aborts it. One field, not two: a separate 64KB read limit drifted from
+	// this 1MB one and killed every Vertex Live video session (2026-10-01).
+	// Hosts set it with --stream-max-message.
+	MaxMessageSize int64 // Default: 1MB
 
 	// Timeouts
 	ConnectTimeout time.Duration // Default: 30s
@@ -78,7 +82,6 @@ func NewStreamContext() *StreamContext {
 	return &StreamContext{
 		MaxConnections:  4,
 		MaxMessageSize:  1 * 1024 * 1024, // 1MB
-		MaxFrameSize:    64 * 1024,       // 64KB
 		ConnectTimeout:  30 * time.Second,
 		IdleTimeout:     60 * time.Second,
 		MaxDuration:     5 * time.Minute,
@@ -102,7 +105,6 @@ func (sc *StreamContext) Child() *StreamContext {
 	c := &StreamContext{
 		MaxConnections:  sc.MaxConnections,
 		MaxMessageSize:  sc.MaxMessageSize,
-		MaxFrameSize:    sc.MaxFrameSize,
 		ConnectTimeout:  sc.ConnectTimeout,
 		IdleTimeout:     sc.IdleTimeout,
 		MaxDuration:     sc.MaxDuration,

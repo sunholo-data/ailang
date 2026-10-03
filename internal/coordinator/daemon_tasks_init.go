@@ -139,7 +139,7 @@ func (d *Daemon) initTaskProcessing() error {
 	// sat undispatchable and nothing said so until a task retried against one
 	// every five minutes for half an hour.
 	if declErrs := ValidateAgentProviders(d.agentRegistry.ListAgents()); len(declErrs) > 0 {
-		d.logger.Printf("CONFIG ERROR: %d agent(s) declare a provider their image cannot run:", len(declErrs))
+		d.logger.Printf("CONFIG ERROR: %d agent(s) have an executor_variant/provider pair that cannot run:", len(declErrs))
 		for _, err := range declErrs {
 			d.logger.Printf("  %v", err)
 		}

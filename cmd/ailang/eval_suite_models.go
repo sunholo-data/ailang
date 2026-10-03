@@ -178,25 +178,17 @@ func clampConcurrencyForSerializedLanes(agent bool, maxConcurrent *int, modelLis
 	// set scored 8/8. The clamp had been protecting against (2) by accident, and
 	// removing it traded a false block for a real collision.
 	//
-	// Until motoko takes a per-run port, ANY motoko row serializes.
+	// (2) is FIXED: since 2026-09-28 the motoko executor hands every run its own
+	// free ENV_PORT (internal/executor/motoko/motoko.go, freeLocalPort) and motoko
+	// binds server.port from it. Re-measured 2026-10-02 before this clamp was
+	// narrowed (changelog fragment 2026-10-02-motoko-parallel-and-fork-sync).
+	// Only (1) serializes now.
 	if agent && *maxConcurrent > 1 && modelreg.GlobalModelsConfig != nil {
 		for _, m := range modelList {
-			gpuBound := modelreg.GlobalModelsConfig.UsesLocalGPU(m)
-			cli, _ := modelreg.GlobalModelsConfig.GetAgentCLI(m)
-			motokoBound := cli == "motoko"
-			if !gpuBound && !motokoBound {
+			if !modelreg.GlobalModelsConfig.UsesLocalGPU(m) {
 				continue
 			}
-			// Name WHICH cause fired: they have different fixes and different
-			// resume conditions, and a single vague message is how they got
-			// conflated in the first place.
-			reason := "motoko's fixed backend port 8080 (collides regardless of route)"
-			if gpuBound {
-				reason = "single-GPU rig contention"
-				if motokoBound {
-					reason = "single-GPU rig contention + motoko's fixed port 8080"
-				}
-			}
+			reason := "single-GPU rig contention"
 			if modelreg.GlobalModelsConfig.SupportsAgentEval(m) && !modelreg.GlobalModelsConfig.SupportsStandardEval(m) {
 				fmt.Fprintf(os.Stderr, "\u26a0 Serializing agent run \u2014 forcing --parallel 1 (was %d): %s.\n", *maxConcurrent, reason)
 				*maxConcurrent = 1

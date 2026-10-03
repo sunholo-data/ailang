@@ -105,7 +105,7 @@ func startTurn(
 
 // ExecuteStreaming runs a task with real-time event callbacks, parsing the
 // Codex NDJSON stream into normalized executor events.
-func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
@@ -162,13 +162,25 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 		fmt.Fprintf(os.Stderr, "[DEBUG_CODEX] Workspace: %s\n", task.Workspace)
 	}
 
-	env := executor.BuildEnvironment(executor.EnvironmentOptions{
+	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
 		SessionID:   sessionID,
+		Executor:    "codex",
+		Model:       e.getModel(task),
 		Context:     ctx,
 		GCPProject:  task.GCPProject,
 		GCPLocation: task.GCPLocation,
 	})
+	if err != nil {
+		return nil, err
+	}
+	// D6: bank the child env's NAME set on every result shape.
+	envNames := executor.EnvNamesDigest(env)
+	defer func() {
+		if out != nil {
+			out.EnvNamesDigest = envNames
+		}
+	}()
 	cmd.Env = env
 
 	stdout, err := cmd.StdoutPipe()

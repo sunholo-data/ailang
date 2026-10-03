@@ -166,7 +166,7 @@ func (lf *LockFile) ValidateContentHashesFrom(rootDir string) error {
 		}
 		currentHash, err := ContentHash(dir)
 		if err != nil {
-			return fmt.Errorf("failed to hash dependency %s at %s: %w", p.Name, dir, err)
+			return fmt.Errorf("failed to hash dependency %s at %s: %w%s", p.Name, dir, err, staleAbsolutePathHint(&p))
 		}
 		if currentHash != p.ContentHash {
 			return fmt.Errorf("dependency %s content changed (locked: %s, current: %s)\nRun 'ailang lock' to update", p.Name, p.ContentHash[:24]+"...", currentHash[:24]+"...")

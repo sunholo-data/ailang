@@ -209,7 +209,7 @@ output        = "src/core/ext/registry_generated.ail"
 
 > **Use registry versions, not local paths.** Declaring `"sunholo/motoko_ext_foo" = "0.1.1"` resolves the package from the AILANG package registry — the lock file gets `"source": "registry"` and the build is portable across machines.
 >
-> The `{ path = "../ailang-packages/packages/motoko-ext-foo" }` form exists for **package-author dev loops** (editing the package and the host together): `ailang lock` reads the package directly from the local checkout, baking your absolute path into `ailang.lock`. That breaks for any other contributor or CI runner.
+> The `{ path = "../ailang-packages/packages/motoko-ext-foo" }` form exists for **package-author dev loops** (editing the package and the host together): `ailang lock` reads the package directly from the local checkout and records the path relative to your `ailang.toml`. That is portable only when the dependency lives in the same repo (e.g. `sim/` and `ai/` side by side); a sibling checkout like `../ailang-packages` is absent for other contributors and CI runners, so the build breaks there.
 >
 > Before opening a PR or shipping a release, swap path-based deps to registry versions and re-lock. See the [path vs registry checklist](#path-vs-registry-checklist) below.
 

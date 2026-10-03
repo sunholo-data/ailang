@@ -121,6 +121,22 @@ type StreamOptions struct {
 	AllowHTTP      bool
 	AllowDomains   string
 	AllowLocalhost bool
+	MaxMessage     string // --stream-max-message; "" = the 1MB default
+}
+
+// ParseStreamMaxMessage parses --stream-max-message: a positive byte size
+// (config.ParseByteSize spellings, e.g. 256KB, 4MB). It caps one Stream
+// message in both directions. Zero, negative or malformed is an error — a
+// safety cap never falls back.
+func ParseStreamMaxMessage(text string) (int64, error) {
+	n, err := config.ParseByteSize(text)
+	if err != nil {
+		return 0, fmt.Errorf("--stream-max-message: %w", err)
+	}
+	if n < 1 {
+		return 0, fmt.Errorf("--stream-max-message must be positive, got %q", text)
+	}
+	return n, nil
 }
 
 // SetupFSLimit resolves the FS read cap: the --fs-max-bytes flag text, else
@@ -190,20 +206,30 @@ func SetupNetHandler(effCtx *effects.EffContext, allowHTTP bool, allowDomains st
 
 // SetupStreamHandler initializes the Stream effect context if the capability is granted.
 // Stream provides bidirectional WebSocket connections (M-STREAM-BIDI).
-func SetupStreamHandler(effCtx *effects.EffContext, allowHTTP bool, allowDomains string, allowLocalhost bool) {
-	if effCtx.HasCap("Stream") {
-		effCtx.Stream = effects.NewStreamContext()
-		effCtx.Stream.AllowHTTP = allowHTTP
-		effCtx.Stream.AllowLocalhost = allowLocalhost
-		if allowDomains != "" {
-			for _, d := range strings.Split(allowDomains, ",") {
-				d = strings.TrimSpace(d)
-				if d != "" {
-					effCtx.Stream.AllowedDomains = append(effCtx.Stream.AllowedDomains, d)
-				}
-			}
+// --stream-max-message without --caps Stream is an error, not an ignored flag.
+func SetupStreamHandler(effCtx *effects.EffContext, opts StreamOptions) error {
+	if !effCtx.HasCap("Stream") {
+		if opts.MaxMessage != "" {
+			return fmt.Errorf("--stream-max-message needs --caps Stream")
+		}
+		return nil
+	}
+	effCtx.Stream = effects.NewStreamContext()
+	effCtx.Stream.AllowHTTP = opts.AllowHTTP
+	effCtx.Stream.AllowLocalhost = opts.AllowLocalhost
+	if opts.MaxMessage != "" {
+		n, err := ParseStreamMaxMessage(opts.MaxMessage)
+		if err != nil {
+			return err
+		}
+		effCtx.Stream.MaxMessageSize = n
+	}
+	for _, d := range strings.Split(opts.AllowDomains, ",") {
+		if d = strings.TrimSpace(d); d != "" {
+			effCtx.Stream.AllowedDomains = append(effCtx.Stream.AllowedDomains, d)
 		}
 	}
+	return nil
 }
 
 // SetupProcessHandler initializes the Process effect context if the capability is granted.

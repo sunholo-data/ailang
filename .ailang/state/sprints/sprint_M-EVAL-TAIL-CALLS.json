@@ -1,0 +1,88 @@
+{
+  "sprint_id": "M-EVAL-TAIL-CALLS",
+  "status": "completed",
+  "created": "2026-10-02T07:31:15Z",
+  "design_doc": "design_docs/implemented/v0_52_0/m-eval-tail-calls.md",
+  "sprint_plan": "design_docs/implemented/v0_52_0/m-eval-tail-calls-sprint-plan.md",
+  "github_issues": [
+    1486
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Evaluator internals; no registry package applies"
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Evaluator internals; no registry package applies"
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Evaluator internals; no registry package applies"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 333,
+    "estimated_total_loc": 600,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "tail bool plumbing through If/Let/LetRec/Match/DTree/DictAbs + evalTail + tailCall type; no behaviour change",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "eval/runtime/testing suites unchanged and green",
+        "make test-core green",
+        "No tailCall produced (all callers tail=false)"
+      ],
+      "passes": true,
+      "started": "2026-10-02T08:05:46Z",
+      "completed": "2026-10-02T08:05:46Z",
+      "notes": "37ba2153a evalCoreT tail plumbing, no behaviour change"
+    },
+    {
+      "id": "M2",
+      "description": "applyFunctionValue trampoline, per-frame contracts, replaceable(), depth unchanged, env/resolver/budget/trace handling; evalCoreApp + CallFunction delegate",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Four shapes at 10^6 default depth; non-tail still RT_REC_003",
+        "ensures/budget/rand frames unchanged; requires-failure and body-error trace replay match today",
+        "Trace sequence identical; CallFunction contract unchanged; tailCall never escapes; 3-module resolver lookups identical and chain bounded",
+        "Mutation: disabling replaceable fails contract/budget tests"
+      ],
+      "passes": true,
+      "started": "2026-10-02T08:05:46Z",
+      "completed": "2026-10-02T08:05:46Z",
+      "notes": "52b9c7297 trampoline + per-frame contracts; mutation-checked; pre-change trace goldens match"
+    },
+    {
+      "id": "M3",
+      "description": "CLI parity vs --strict-bytecode, #1486 stdin repro, example + manifest, changelog, RT_REC_003 hint",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Parity test green incl. 20000-line stdin loop without flag",
+        "verify-examples, lint, check-file-sizes green",
+        "Full make test green (load flakes re-run in isolation)"
+      ],
+      "passes": true,
+      "started": "2026-10-02T08:05:46Z",
+      "completed": "2026-10-02T08:05:46Z",
+      "notes": "3c77de8e4 VM parity, #1486 repro, example; memprobe fixture kept non-tail; cons.ail 364->54 MB"
+    }
+  ],
+  "completed": "2026-10-02T08:05:46Z"
+}

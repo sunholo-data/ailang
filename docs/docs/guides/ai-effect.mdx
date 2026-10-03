@@ -3,6 +3,7 @@ import AIEffectExample from '!!raw-loader!@site/../examples/runnable/ai_effect.a
 import NPCDialogueExample from '!!raw-loader!@site/../examples/docs/npc_dialogue.ail';
 import AICallResultExample from '!!raw-loader!@site/../examples/runnable/ai_call_result.ail';
 import AIToolLoopExample from '!!raw-loader!@site/../examples/runnable/ai_tool_loop.ail';
+import AIImageExample from '!!raw-loader!@site/../examples/runnable/ai_image_generation.ail';
 
 # AI Effect: Calling LLMs from AILANG
 
@@ -78,6 +79,27 @@ unset GOOGLE_API_KEY
 ailang run --caps IO,AI --ai gemini-2-5-flash --entry main my_app.ail
 ```
 
+### Disabling the ADC fallback, and reading the key from a file
+
+The automatic ADC fallback is convenient on a developer machine, but it is a
+billing hazard for an application that should run on its *user's* key: when
+the key is missing, the call silently bills whatever project `gcloud` points
+at. Two switches close that gap:
+
+| Switch | Effect |
+|--------|--------|
+| `--ai-no-adc` or `AILANG_AI_NO_ADC=1` | The ADC lane is never tried. A missing `GOOGLE_API_KEY` / `GEMINI_API_KEY` is a hard `AuthFailed` error at startup. Combining it with a pinned Vertex project is refused. |
+| `--ai-key-file PATH` or `AILANG_AI_KEY_FILE=PATH` | The API key for the `--ai` model's provider is read from `PATH` once, at startup (the flag wins over the variable). The file must hold the key on a single line (surrounding whitespace is trimmed). The key never enters argv or the environment, and AILANG does not echo it in logs, errors or traces; errors name the path only. A key-less lane (local Ollama, a config-driven provider) refuses the flag instead of ignoring it. |
+
+```bash
+# Run on the player's key only; never fall back to the developer's gcloud project
+ailang run --caps IO,AI --ai gemini-2-5-flash --ai-no-adc \
+  --ai-key-file "$HOME/.config/mygame/gemini.key" --entry main my_app.ail
+```
+
+The Google client sends the key in the `x-goog-api-key` header, not in the
+request URL, so a transport error (which quotes the URL) cannot leak it.
+
 ## Game Development Example
 
 Here's a complete example of using AI for NPC dialogue generation:
@@ -113,6 +135,99 @@ ailang run --caps IO,AI --ai-stub --entry main my_app.ail
 ```
 
 The stub handler returns `{"kind":"Wait"}` for all inputs, making tests predictable and fast.
+
+### Replaying recorded responses with `--ai-stub-fixtures`
+
+`{"kind":"Wait"}` proves the AI capability is wired, but it cannot exercise an
+adapter that parses provider-shaped output. Point the stub at a fixture file
+and it replays recorded responses instead, with no key, no network and no spend:
+
+```bash
+ailang run --caps IO,AI --ai-stub --ai-stub-fixtures fixtures.json --entry main my_app.ail
+```
+
+Each request is looked up by the **sha256 of its canonical request bytes**. A
+request with no fixture is an error, never a quiet fall back to the default
+stub: `callResult`/`step` return `Err(AIError{code: "Internal"})` whose message
+starts `E_AI_STUB_FIXTURE_MISS` and names the missing sha256, so you can paste
+it straight into the file; the legacy `call`/`callJson` fail the run.
+`--ai-stub-fixtures` without `--ai-stub` is refused, and the whole file is
+validated at startup (unknown fields, bad base64 or duplicate keys are errors).
+
+```json
+{
+  "version": 1,
+  "fixtures": [
+    {"kind": "text",  "prompt": "hello", "response": "GRIMNAR: Well met."},
+    {"kind": "text",  "sha256": "62aef194e227811665a1c0e28b470d18d7d3b6d05145e7cb2767d02455e277c1",
+     "response": "{\"kind\":\"Move\"}"},
+    {"kind": "text",  "prompt": "look it up", "response": "",
+     "tool_calls": [{"id": "c1", "name": "lookup", "arguments": "{\"q\":\"forge\"}"}]},
+    {"kind": "text",  "prompt": "flaky", "error": {"code": "RateLimit", "message": "slow down", "retryable": true}},
+    {"kind": "image", "prompt": "a red cube", "base64": "iVBORw0KGgo...", "mime_type": "image/png"},
+    {"kind": "speech", "request": {"text": "Well met.", "voice": "Kore", "style": "Say gruffly"},
+     "pcm_base64": "AAD/fwCA..."}
+  ]
+}
+```
+
+(The `sha256` above is `printf 'what next?' | shasum -a 256`.)
+
+| Field | Meaning |
+|-------|---------|
+| `version` | Must be `1`. |
+| `kind` | `text`, `image` or `speech`. Kinds are separate key spaces. |
+| `prompt` / `request` / `sha256` | Exactly one. `prompt` is the literal request for `text`/`image`; `request` (`{text, voice, style}`) is the literal request for `speech`; `sha256` is the lowercase hex sha256 of the canonical bytes. |
+| `response` | `text`: the reply string. |
+| `tool_calls` | `text`, optional: replayed by `step`; `finish_reason` becomes `"tool_calls"`. |
+| `base64`, `mime_type` | `image`: the image bytes (standard base64) and media type, both required. |
+| `pcm_base64` | `speech`: s16le mono 24 kHz PCM (standard base64, a whole number of samples). |
+| `error` | Any kind, instead of a payload: `{code, message, retryable}` replayed as a typed `AIError`. |
+
+Canonical request bytes:
+
+| Kind | Operations | Canonical bytes |
+|------|------------|-----------------|
+| `text` | `call`, `callJson`, `callJsonSimple` and their `*Result` variants | the prompt (a `callJson` schema is not part of the key) |
+| `text` | `step`, `stepWithCache`, `stepWithStream` | the `content` of the **last** message in the conversation |
+| `image` | `callImage`, `callImageBase64` | the prompt (options are not part of the key) |
+| `speech` | `callSpeech` | the compact JSON `{"style":S,"text":T,"voice":V}`: keys sorted, no spaces, UTF-8 not escaped. In Python: `json.dumps(d, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`. Options are not part of the key. |
+
+Replay is deterministic: the same file and the same requests always produce
+the same responses.
+
+## Text-to-Speech with `callSpeech`
+
+```ailang
+import std/ai (callSpeech, speechSampleRate)
+import std/audio (wavFromPcm)
+
+-- Result[bytes, AIError] ! {AI}
+match callSpeech("Well met, traveller.", "Kore", "Say it gruffly", "") {
+  Ok(pcm) => writeFileBytes("line.wav", wavFromPcm(pcm, speechSampleRate(), 1, 16)),
+  Err(e)  => println("speech failed (${e.code}): ${e.message}")
+}
+```
+
+- **Output format is fixed:** raw PCM, signed 16-bit little-endian, mono,
+  24000 Hz (`speechSampleRate()`), which is what `std/audio`'s `wavFromPcm`
+  and `encode` take. A provider reply in any other format is
+  `Err(ProtocolError)` rather than bytes that would play as noise.
+- **`voice`**: a provider voice name (Gemini prebuilt voices such as `Kore`,
+  `Puck`); `""` uses the provider default.
+- **`style`**: a natural-language delivery instruction. Gemini receives it as
+  `"<style>: <text>"`; `""` sends the text alone.
+- **`options`**: JSON, `""` for none. `model` picks the TTS model; the default
+  is the bound `--ai` model when its name contains `tts`, else
+  `gemini-2.5-flash-preview-tts`. `language_code` is an optional BCP-47 code.
+  Any other key is `Err(SchemaValidation)`.
+- **Providers:** Gemini (AI Studio and Vertex, through the same `--ai` handler,
+  so `--ai-no-adc` and `--ai-key-file` apply). Every other provider returns
+  `Err(CapabilityNotSupported)`.
+- **Testing:** `--ai-stub` returns a fixed 250 ms 400 Hz tone (12000 bytes,
+  identical on every platform); `--ai-stub-fixtures` replays `speech` fixtures.
+
+Runnable: `examples/runnable/ai_call_speech.ail`.
 
 ## JSON Input/Output Pattern
 
@@ -165,6 +280,9 @@ Effects are tracked at the type level, ensuring:
 |------|-------------|
 | `--ai <model>` | Set the AI model to use |
 | `--ai-stub` | Use deterministic stub handler |
+| `--ai-stub-fixtures <file>` | With `--ai-stub`: replay JSON fixtures keyed by the request's sha256; a miss is an error |
+| `--ai-no-adc` | Google: never fall back to Application Default Credentials; a missing key is `AuthFailed` (also `AILANG_AI_NO_ADC=1`) |
+| `--ai-key-file PATH` | Read the provider API key from a file at startup; never echoed (also `AILANG_AI_KEY_FILE`) |
 | `--caps AI` | Enable AI capability |
 
 ### Model Lookup
@@ -275,6 +393,49 @@ For the broader integration with `motoko_agent` (the first AILANG-native
 coding agent retiring its hand-rolled tool dispatch), see the
 [Motoko integration sequence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/motoko-integration-sequence.md).
 
+## Image Generation
+
+`std/ai` generates images through the same AI effect:
+
+| Function | Effects | Returns |
+|----------|---------|---------|
+| `callImage(prompt, output_path, options)` | `{AI, FS}` | the output path |
+| `callImageBase64(prompt, options)` | `{AI}` | `{"base64": ..., "mime_type": ...}` JSON |
+| `callImageWithRefs(prompt, refs, output_path, options)` | `{AI, FS}` | the output path |
+| `callImageBase64WithRefs(prompt, refs, options)` | `{AI}` | `{"base64": ..., "mime_type": ...}` JSON |
+
+**Providers.** Gemini image models (`--ai gemini-2.5-flash-image`) and
+OpenRouter image-output models (for example `google/gemini-3-pro-image`,
+`openai/gpt-5-image`) through the OpenRouter key. OpenRouter image calls use
+the chat endpoint with `"modalities": ["image","text"]`, so the image cost
+appears in the same `usage.cost` figure as text calls. Anthropic, OpenAI-direct,
+Ollama and config-driven providers reject image generation with an error.
+
+**Options** is a JSON string; every key is optional:
+
+- `aspect_ratio`: `"1:1"`, `"16:9"`, `"9:16"`, ...
+- `mime_type`: `"image/png"` (default) or `"image/jpeg"`. OpenRouter also
+  accepts `"image/webp"`; any other value fails before the request is sent.
+- `model`: a model for this call only. When it is absent or empty, the `--ai`
+  model is used. A friendly `models.yml` name resolves the same way `step()`
+  resolves one. A model that belongs to a different provider than the `--ai`
+  handler fails with `ModelNotAllowed`. For example, one OpenRouter-bound
+  program can keep a text model bound and name an image model for each
+  portrait.
+
+**Reference images** (`*WithRefs`) let the model see one or more images as
+well as the prompt. Use them to edit an image, or to keep the same character
+across variations. Each ref is an `ImagePart` record `{source, mime}`, the
+same record `step()` uses for vision input. `source` is a base64 payload or a
+data-URI. `std/fs.readFileBytes` returns base64 you can pass straight in, and
+`mime` is required for raw base64. Gemini receives refs as `inlineData` parts
+and OpenRouter as `image_url` content parts. Every other provider fails with
+"not supported" instead of dropping them, and an empty `refs` list behaves
+like the call without refs. Under `--ai-stub`, all four functions return a
+fixed 1x1 PNG without any network call.
+
+<CodeBlock language="ailang">{AIImageExample}</CodeBlock>
+
 ## Builtin Documentation
 
 View full builtin documentation:
@@ -283,6 +444,7 @@ View full builtin documentation:
 ailang builtins show _ai_call
 ailang builtins show _ai_call_result   # v0.17.0+
 ailang builtins show _ai_step          # v0.17.0+
+ailang builtins show _ai_call_image_with_refs
 ```
 
 ## Comparison: AI Effect vs HTTP API

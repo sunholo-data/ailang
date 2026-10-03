@@ -422,6 +422,79 @@ Each exported AILANG function becomes an MCP tool. Module metadata is available 
   ```
 
   Full example: `examples/runnable/serve_api_mcp_header_auth.ail`.
+- **Tool titles and behaviour hints (`@mcp_title`, `@mcp_hints`)** — MCP directories (Anthropic's connector/plugin directory, OpenAI's Plugin Directory) refuse a tool that has no `title` or that declares neither `readOnlyHint` nor `destructiveHint`. `@mcp_title("Parse document")` sets `title`. `@mcp_hints(...)` takes any of `readOnly`, `destructive`, `idempotent`, `openWorld`, and the list is **complete**: a hint you leave out is `false` — including `destructive` and `openWorld`, whose MCP defaults are `true`. So `@mcp_hints("openWorld")` means "writes, additively, to the outside world", and the empty `@mcp_hints()` means "writes, additively, closed-world, not idempotent".
+
+  | Declaration | Emitted `annotations` |
+  |---|---|
+  | `@mcp_hints("readOnly", "openWorld")` | `readOnlyHint: true, destructiveHint: false, openWorldHint: true` (every hint is an explicit boolean, which OpenAI's directory requires) |
+  | `@mcp_hints("destructive", "idempotent")` | `readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false` |
+  | none, empty effect row (`-> T` with no `!`, or `! {}`) | `readOnlyHint: true, destructiveHint: false, openWorldHint: false` — the checker proves the function touches nothing |
+  | none, effectful | **none** — serve-api will not guess; one startup `WARN` names every such tool |
+
+  An unknown hint word, a duplicate, or `readOnly` with `destructive` is logged as an `ERROR` and the tool is not registered. Purity is read from the **declared effect row**, not the `pure` keyword. The built-in `submit_feedback` tool is annotated (`Send feedback`, additive, open-world). Both MCP implementations — the go-sdk one behind `serve-api` and the stdlib `serveapi/protocol/mcphttp` dispatcher for embedders (`ToolDescriptor.Title` / `.Annotations`, resolved with `protocol.ResolveToolHints`) — emit the same JSON.
+
+  ```ailang
+  @mcp_title("Current time")
+  @mcp_hints("readOnly", "openWorld")
+  export func currentTime() -> int ! {Clock} = now()
+  ```
+
+  Full example: `examples/runnable/serve_api_mcp_hints.ail`.
+
+### Listing in the MCP directories (Anthropic, OpenAI)
+
+The Anthropic and OpenAI directories require four things of a listed MCP server:
+- every tool has a title and behaviour hints;
+- the model never handles a credential;
+- account-backed tools use OAuth;
+- discovery works before the user signs in.
+
+`serve-api` covers the server side with annotations, and `ailang mcp check` verifies the result.
+
+**Two surfaces from one module.** When any export uses the annotations below, `serve-api`
+mounts a second MCP endpoint:
+
+| Endpoint | For | Differences |
+|---|---|---|
+| `/mcp/` | agents, CLIs, SDK bridges, the MCP Registry | none: every tool, keys accepted as arguments or headers |
+| `/mcp/connect/` | directory listings | no `@mcp_agent_only` tools; `@mcp_secret` params are neither advertised nor accepted; `@mcp_auth("oauth2")` tools need a Bearer token |
+
+| Annotation | Effect |
+|---|---|
+| `@mcp_auth("oauth2")` | On `/mcp/connect/`, a call without an accepted Bearer token gets **HTTP 401 + `WWW-Authenticate: Bearer resource_metadata="…"`**, which starts the client's sign-in. Needs `--oauth-issuer` and a verifier, or the tool is not registered (ERROR). |
+| `@mcp_token_verifier` | The one `(token: string) -> bool` function `serve-api` calls with the Bearer token. It is never a tool, and without `@route` never an HTTP endpoint. |
+| `@mcp_secret("apiKey")` | The param is dropped from `/mcp/connect/` and binds its zero value even if a client sends it. It must also be `@optional`. |
+| `@mcp_agent_only` | The tool is on `/mcp/` only (for example, device-code sign-in tools). |
+
+**Fail-closed verification.** A verifier error, a panic, more than **5 s**, or more than 32
+verifications in flight gives **HTTP 503 + `Retry-After`**, and the tool never runs. The 5 s
+deadline is set on the verifier's own effect context, so a hung `Net` call inside it is
+cancelled. Pure computation cannot be interrupted, so the in-flight cap bounds that case.
+
+**Resource metadata.** With `--oauth-issuer <url>`, `serve-api` serves
+`/.well-known/oauth-protected-resource` and `/.well-known/oauth-protected-resource/mcp/connect/`.
+`resource` is the listed URL as the client reached it (honouring `X-Forwarded-Proto`), and
+`authorization_servers` lists the issuer. The authorization server itself is separate. A shared
+AILANG package is planned (`sunholo/mcp_oauth`); until then, point the flag at your own.
+
+**Check before you submit:**
+
+```bash
+ailang mcp check https://your-service.example.com/mcp/connect/ --target anthropic
+```
+
+The checks:
+1. titles and hints;
+2. no credential-shaped parameters;
+3. zero-argument tools callable with `{}`;
+4. a 401 with resource metadata that names this URL;
+5. the authorization server advertises S256 and CIMD or DCR, and answers within 10 s.
+
+It exits 1 on any FAIL. Each finding cites the vendor requirement it comes from.
+
+Full example: `examples/runnable/serve_api_mcp_oauth.ail`. Embedders using
+`serveapi/protocol/mcphttp` get the same gate through `Config.Gate` (a `protocol.BearerGate`)
+and `ToolDescriptor.Auth`.
 
 ### A2A (Agent-to-Agent Protocol)
 
@@ -550,6 +623,7 @@ Flags:
   --no-introspection   Serve no /api/_meta/* and no /api/_health (the paths stay reserved)
   --ws-pass-header H   Give @route("WS") handlers this request header in req.headers (repeatable)
   --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)
+  --oauth-issuer URL   OAuth authorization server for @mcp_auth("oauth2") tools on /mcp/connect/
 
 Arguments:
   <path...>            One or more .ail files or directories
@@ -818,6 +892,11 @@ To fix: restart with `--caps IO` (or whatever capabilities the function requires
 
 **Security note:** Capabilities are granted server-wide. All API endpoints share the same capabilities. Only grant capabilities that your AILANG modules actually need.
 
+**Net and user-supplied URLs (v0.52.0+):** with `--caps Net`, serve-api allows `http://`, loopback and the cloud metadata server (`169.254.169.254`) for the whole process, because `sunholo/gcp_auth` fetches tokens from the metadata server. Two rules keep that from reaching user-chosen URLs:
+
+- **Redirect hops** never land on loopback, link-local (metadata) or private addresses, whatever the flags. Direct requests are unchanged, so `gcp_auth` keeps working.
+- A function that fetches a URL a client chose should declare **`! {Net[scope=public]}`**. Every Net call in its dynamic extent then refuses loopback and metadata, checked at connect time after DNS, so a hostname resolving to `127.0.0.1` or `169.254.169.254` is refused too. See [Parameterised effects → Net scope](parameterised-effects.md#net-scope-public).
+
 ### Frontend Proxy
 
 When using `--frontend ./ui`, the server:
@@ -881,6 +960,12 @@ Custom routes are registered before the auto-generated catch-all routes, so they
 | `@noexpose` | Hide exported function from HTTP endpoints (still importable by other modules) |
 | `@nomcp` | Hide from the MCP tool surface ONLY — still served over HTTP, OpenAPI, and A2A (not reset by `@route`) |
 | `@mcp_name("name")` | Override the auto-generated MCP tool name for this function |
+| `@mcp_title("Title")` | MCP display title (directory listings require one) |
+| `@mcp_hints("readOnly", ...)` | MCP behaviour hints: `readOnly`, `destructive`, `idempotent`, `openWorld` — the complete list (absent = false) |
+| `@mcp_auth("oauth2")` | Gate the tool behind OAuth on the listed surface `/mcp/connect/` (needs `--oauth-issuer` + `@mcp_token_verifier`) |
+| `@mcp_token_verifier` | The `(token: string) -> bool` Bearer-token verifier; never a tool or HTTP endpoint |
+| `@mcp_secret("p")` | Drop param `p` from `/mcp/connect/` (must also be `@optional`) |
+| `@mcp_agent_only` | Serve the tool on `/mcp/` only |
 | `@verify(depth: N)` | Runtime contract validation |
 
 Multiple annotations can be combined:
@@ -1337,6 +1422,12 @@ its own `MaxConnections` (4 legs by default), and its own `--stream-max-duration
 a longer ceiling, such as `--stream-max-duration 30m`. Each direction queues at most
 `--ws-queue-frames` frames (default 64). When the queue is full the reader blocks, and TCP pushes
 back on the sender. The runtime never drops a frame on its own.
+
+One message on either leg may be at most `--stream-max-message` bytes (default 1MB). Inbound
+memory is therefore bounded by about `--ws-max-sessions × --ws-queue-frames × --stream-max-message`,
+which is 256MB at the defaults. On a public endpoint whose clients send only small messages, lower
+the cap (for example `64KB`). For a trusted upstream that sends large single messages (images,
+files, video keyframes), raise it. See [Message size](/docs/guides/streaming#message-size---stream-max-message).
 
 ### `bridge`: one AILANG verdict per frame
 

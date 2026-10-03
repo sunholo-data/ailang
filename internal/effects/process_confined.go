@@ -3,6 +3,7 @@ package effects
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -28,8 +29,14 @@ import (
 //   - the invocation is hardened: git resolved by absolute path (gitexec),
 //     cwd = the sandbox root, the caller's GIT_* stripped from the
 //     environment, global/system config disabled, fsmonitor/hooks/pager/
-//     external diff forced off with -c, --no-optional-locks so status never
+//     external diff/textconv forced off, --no-optional-locks so status never
 //     writes the index;
+//   - repository discovery is pinned to the sandbox (security audit
+//     2026-10-01 F-A1): GIT_CEILING_DIRECTORIES is the sandbox's PARENT, so
+//     a `.git` at the sandbox root (the clone-root case) is found but git
+//     never walks above the sandbox into an ancestor repository, and
+//     safe.bareRepository=explicit stops the sandbox itself (agent-writable
+//     when it is not a clone root) from being taken as a planted bare repo;
 //   - `.git/` is read-only to the agent (EffEnv.ProtectGitDir, applied to
 //     the FS effect and to the policy-tool), so the repo config is the
 //     launcher's clone config and nothing else.
@@ -69,11 +76,20 @@ type gitFlag struct {
 }
 
 // gitSchema is one subcommand: admitted flags, whether positionals (revs
-// then `--` then pathspecs) are accepted.
+// then `--` then pathspecs) are accepted, and the flags always emitted
+// right after the subcommand.
 type gitSchema struct {
 	flags       map[string]gitFlag
 	positionals bool
+	forced      []string
 }
+
+// noDiffDrivers is forced on every subcommand that can render a diff: no
+// external diff program and no textconv filter, whatever the config or
+// .gitattributes say. (`-c diff.external=` alone is not enough: git treats
+// the empty value as a program named "" and every patch diff dies with
+// "external diff died".)
+var noDiffDrivers = []string{"--no-ext-diff", "--no-textconv"}
 
 var (
 	reDigits   = regexp.MustCompile(`^[0-9]{1,6}$`)
@@ -107,7 +123,7 @@ var confinedGitSchemas = map[string]gitSchema{
 		gitFlag{name: "--cached"}, gitFlag{name: "--staged"}, gitFlag{name: "--no-color"},
 		gitFlag{name: "--unified=", value: true, validate: reDigits},
 		gitFlag{name: "-U", value: true, validate: reDigits},
-	), positionals: true},
+	), positionals: true, forced: noDiffDrivers},
 	"log": {flags: flagsOf(
 		gitFlag{name: "--oneline"}, gitFlag{name: "--stat"}, gitFlag{name: "--name-only"},
 		gitFlag{name: "--name-status"}, gitFlag{name: "--no-color"}, gitFlag{name: "--no-merges"},
@@ -118,18 +134,29 @@ var confinedGitSchemas = map[string]gitSchema{
 		gitFlag{name: "--since=", value: true, validate: reWord},
 		gitFlag{name: "--until=", value: true, validate: reWord},
 		gitFlag{name: "--author=", value: true, validate: reWord},
-	), positionals: true},
+	), positionals: true, forced: noDiffDrivers},
 }
+
+// gitHooksDisabledPath is the core.hooksPath of every confined git: a path
+// UNDER a character device. Git looks hooks up as <hooksPath>/<name>, and
+// any lookup below /dev/null fails with ENOTDIR on every POSIX system —
+// nobody, root included, can create a directory there, so no hook can ever
+// be planted at this path (unlike a merely-nonexistent path such as
+// /nonexistent, which a root-running container could mkdir). An empty value
+// is not used: what `core.hooksPath=` means has varied across git versions.
+// Restricted mode, the only user of this adapter, is refused on Windows.
+const gitHooksDisabledPath = "/dev/null/ailang-hooks-disabled"
 
 // gitHardening is prepended to every confined argv.
 var gitHardening = []string{
 	"--no-optional-locks",
 	"-c", "core.fsmonitor=false",
-	"-c", "core.hooksPath=/dev/null",
+	"-c", "core.hooksPath=" + gitHooksDisabledPath,
 	"-c", "core.pager=cat",
 	"-c", "diff.external=",
 	"-c", "diff.noprefix=false",
 	"-c", "protocol.allow=never",
+	"-c", "safe.bareRepository=explicit",
 }
 
 // confineGit validates args for one git subcommand and returns the argv to
@@ -144,6 +171,7 @@ func confineGit(args []string) ([]string, error) {
 		return nil, fmt.Errorf("git %s has no confined schema (restricted mode admits %s)", sub, strings.Join(ConfinedProcessEntries(), ", "))
 	}
 	out := append(append([]string{}, gitHardening...), sub)
+	out = append(out, sc.forced...)
 	rest := args[1:]
 	afterDashDash := false
 	for i := 0; i < len(rest); i++ {
@@ -167,13 +195,27 @@ func confineGit(args []string) ([]string, error) {
 			}
 			out = append(out, val...)
 		default:
-			if !sc.positionals || !reRev.MatchString(tok) {
+			if !sc.positionals || !reRev.MatchString(tok) || hasDotDotSegment(tok) {
 				return nil, fmt.Errorf("%q is not a revision git %s accepts", tok, sub)
 			}
 			out = append(out, tok)
 		}
 	}
 	return out, nil
+}
+
+// hasDotDotSegment reports whether a revision token has a `..` path
+// segment (`d/../../etc/hosts`). A rev range (`A..B`) has none; a path that
+// climbs does. Outside a repository `git diff <a> <b>` is an implicit
+// --no-index diff of two PATHS, so a rev-shaped token must never be able to
+// name a file above the sandbox.
+func hasDotDotSegment(tok string) bool {
+	for _, seg := range strings.Split(tok, "/") {
+		if seg == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 // matchFlag validates rest[*i] (advancing *i for a separate value) against
@@ -231,10 +273,49 @@ func admittedFlags(sc gitSchema) string {
 	return strings.Join(names, " ")
 }
 
+// gitCeiling returns the GIT_CEILING_DIRECTORIES value that pins repository
+// discovery to sandbox (security audit 2026-10-01 F-A1).
+//
+// Git never chdirs up INTO a ceiling directory, and a ceiling equal to the
+// cwd is ignored (verified against git 2.54: ceiling == cwd still walks up
+// and leaks the parent repository). So the ceiling is the sandbox's PARENT:
+// git checks the sandbox itself (finding `.git` in the clone-root case) and
+// stops there; from a sandbox that is a repo SUBDIRECTORY discovery fails
+// with "not a git repository".
+//
+// The parent is computed from the symlink-resolved sandbox — the path git
+// sees as its cwd (macOS: /tmp → /private/tmp) — rather than relying on
+// git's own resolution of the ceiling. GIT_CEILING_DIRECTORIES is a
+// colon-separated list, so a path containing ':' cannot be expressed and is
+// refused rather than split into ceilings that do not bind.
+func gitCeiling(sandbox string) (string, error) {
+	if sandbox == "" {
+		return "", fmt.Errorf("confined git needs an fs_sandbox: without one repository discovery starts at the executor's cwd")
+	}
+	abs, err := filepath.Abs(sandbox)
+	if err != nil {
+		return "", fmt.Errorf("fs_sandbox %q: %w", sandbox, err)
+	}
+	real, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return "", fmt.Errorf("fs_sandbox %q: %w", sandbox, err)
+	}
+	parent := filepath.Dir(real)
+	if strings.ContainsRune(parent, filepath.ListSeparator) {
+		return "", fmt.Errorf("fs_sandbox %q: its parent %q contains %q, which GIT_CEILING_DIRECTORIES cannot express", sandbox, parent, filepath.ListSeparator)
+	}
+	return parent, nil
+}
+
 // confinedEnv is the child's environment: the current process environment
 // (already an allowlist in a restricted worker) minus every GIT_* variable,
-// plus the hardening: no global/system config, no prompts, no pager.
-func confinedEnv() []string {
+// plus the hardening: no global/system config, no prompts, no pager, and
+// discovery bounded at the sandbox (gitCeiling).
+func confinedEnv(sandbox string) ([]string, error) {
+	ceiling, err := gitCeiling(sandbox)
+	if err != nil {
+		return nil, err
+	}
 	var out []string
 	for _, kv := range os.Environ() {
 		if strings.HasPrefix(kv, "GIT_") {
@@ -249,5 +330,6 @@ func confinedEnv() []string {
 		"GIT_TERMINAL_PROMPT=0",
 		"GIT_PAGER=cat",
 		"GIT_OPTIONAL_LOCKS=0",
-	)
+		"GIT_CEILING_DIRECTORIES="+ceiling,
+	), nil
 }

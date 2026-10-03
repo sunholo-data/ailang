@@ -358,8 +358,13 @@ func (l *LitPattern) patternNode()   {}
 func (l *LitPattern) String() string { return fmt.Sprintf("%v", l.Value) }
 
 type ConstructorPattern struct {
-	Name string
+	Name string // canonical constructor name (an import alias is resolved away)
 	Args []CorePattern
+	// TypeName is the ADT the elaborator resolved Name to in this module's
+	// scope ("" = not in scope; matched by name, #323). It lets the
+	// typechecker tell apart same-named constructors of different ADTs, e.g.
+	// `import M (Arrived as TripArrived)` next to a local Arrived (#1478).
+	TypeName string
 }
 
 func (c *ConstructorPattern) patternNode() {}

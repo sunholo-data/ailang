@@ -299,7 +299,11 @@ func newPipelineModuleCache(cfg Config, deps cacheDependencies, src Source) *cac
 	if cfg.NoCache || config.NoCache() {
 		return nil
 	}
-	return newCacheRuntime(filepath.Dir(src.Filename), deps)
+	projectDir := filepath.Dir(src.Filename)
+	if cfg.TransientRoot && cfg.PackageDir != "" {
+		projectDir = cfg.PackageDir
+	}
+	return newCacheRuntime(projectDir, deps)
 }
 
 // compileOneModule compiles a single sorted module: it attempts a verified
@@ -314,12 +318,20 @@ func (st *modulePipelineState) compileOneModule(modID link.ModuleID, unit *Compi
 	return st.compileFreshModule(mod, string(modID), unit, key)
 }
 
+// isTransientRoot reports whether modID is the root of a TransientRoot run,
+// whose file path is a harness temp copy rather than a module location.
+func (st *modulePipelineState) isTransientRoot(modID string) bool {
+	return st.cfg.TransientRoot && modID == st.rootCanonical
+}
+
 // compileFreshModule performs the fresh single-module compile path: MOD010
 // validation, import resolution, elaboration, typechecking/lowering, interface
 // construction, fresh artifact publication and unit registration.
 func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modID string, unit *CompileUnit, cacheKey string) error {
-	if err := validateModulePath(mod, modID, &st.cfg); err != nil {
-		return err
+	if !st.isTransientRoot(modID) {
+		if err := validateModulePath(mod, modID, &st.cfg); err != nil {
+			return err
+		}
 	}
 
 	imports := resolveModuleImports(mod.File.Imports, modID, st.modLinker, st.cfg, st.depClosure(modID))
@@ -332,7 +344,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	elaborator.SetModuleLoader(st.modLoader)
 	elaborator.AddBuiltinsToGlobalEnv()
 	for ctorName, info := range imports.ImportedCtorInfos {
-		elaborator.RegisterConstructor(info.TypeName, ctorName, info.Arity, true, info.TypeParamCount)
+		elaborator.RegisterImportedConstructorAs(ctorName, info.CanonicalName, info.TypeName, info.Arity, info.TypeParamCount)
 	}
 
 	var err error

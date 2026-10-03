@@ -14,7 +14,7 @@ import (
 // M-BYTECODE-STDLIB-BUILTINS M1: Pure string builtins wired to VM OpBuiltinCall.
 //
 // Each function below matches the semantics of its evaluator counterpart in
-// internal/builtins/string*.go. The names in compiler.BuiltinTable use the
+// internal/builtins/string*.go. The names in bytecode.BuiltinNames use the
 // lower-pass convention: "_" + registry name. For example, the evaluator's
 // "_str_upper" becomes "__str_upper" in the compiler table.
 
@@ -471,9 +471,9 @@ func builtinStringToInt(args []bytecode.Value) (bytecode.Value, error) {
 	}
 	n, err := strconv.ParseInt(args[0].AsString(), 10, 64)
 	if err != nil {
-		return bytecode.NewADT(optionTagNone, nil), nil
+		return bytecode.NewADT(optionTagNone, "None", nil), nil
 	}
-	return bytecode.NewADT(optionTagSome, []bytecode.Value{bytecode.NewInt(n)}), nil
+	return bytecode.NewADT(optionTagSome, "Some", []bytecode.Value{bytecode.NewInt(n)}), nil
 }
 
 func builtinStringToFloat(args []bytecode.Value) (bytecode.Value, error) {
@@ -486,13 +486,13 @@ func builtinStringToFloat(args []bytecode.Value) (bytecode.Value, error) {
 	s := args[0].AsString()
 	// Reject underscores — Go's ParseFloat accepts them silently
 	if strings.ContainsRune(s, '_') {
-		return bytecode.NewADT(optionTagNone, nil), nil
+		return bytecode.NewADT(optionTagNone, "None", nil), nil
 	}
 	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return bytecode.NewADT(optionTagNone, nil), nil
+		return bytecode.NewADT(optionTagNone, "None", nil), nil
 	}
-	return bytecode.NewADT(optionTagSome, []bytecode.Value{bytecode.NewFloat(f)}), nil
+	return bytecode.NewADT(optionTagSome, "Some", []bytecode.Value{bytecode.NewFloat(f)}), nil
 }
 
 // --- helpers -----------------------------------------------------------------

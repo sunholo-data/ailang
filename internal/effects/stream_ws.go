@@ -98,7 +98,7 @@ func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		Headers:          headers,
 		Subprotocols:     subprotocols,
 		HandshakeTimeout: ctx.Stream.ConnectTimeout,
-		MaxFrameSize:     ctx.Stream.MaxFrameSize,
+		MaxMessageSize:   ctx.Stream.MaxMessageSize,
 		DialContext:      dial,
 		TLSClientConfig:  ctx.Stream.tlsClientConfig,
 	})

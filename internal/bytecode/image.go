@@ -342,6 +342,22 @@ func (img *BytecodeImage) validateInstruction(p *FuncPrototype, protoIdx, ip int
 				return fmt.Errorf("bytecode: %s: element regs overflow (high=%d, NumRegs=%d)", loc(), highReg, p.NumRegs)
 			}
 		}
+		if op == OpMakeADT {
+			nameIP := ip + 1
+			if nameIP >= len(p.Instructions) {
+				return fmt.Errorf("bytecode: %s: truncated constructor-name encoding", loc())
+			}
+			nameInst := p.Instructions[nameIP]
+			if nameInst.Op() != OpLoadConst {
+				return fmt.Errorf("bytecode: %s: expected pseudo-LOAD_CONST for constructor name", loc())
+			}
+			if err := checkLocalConst(nameInst.Bx()); err != nil {
+				return err
+			}
+			if name, _ := p.LookupConstant(int(nameInst.Bx()), img); name.Tag != TagString {
+				return fmt.Errorf("bytecode: %s: constructor-name constant is %s, not String", loc(), name.Tag)
+			}
+		}
 		if op == OpUpdateRecord {
 			if err := checkReg(inst.B(), "base record"); err != nil {
 				return err

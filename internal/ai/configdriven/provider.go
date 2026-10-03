@@ -92,6 +92,13 @@ func (p *Provider) Generate(ctx context.Context, req *ai.Request) (*ai.Response,
 			fmt.Sprintf("image generation not supported by config-driven provider %q (capabilities.vision = false)", p.spec.Name),
 			nil)
 	}
+	// Reference images (#1496) have no mapping in the config-driven request
+	// shapes; refuse rather than silently dropping them.
+	if len(req.InputImages) > 0 {
+		return nil, ai.NewProviderError(p.spec.Name, 0,
+			fmt.Sprintf("reference images (callImage*WithRefs) not supported by config-driven provider %q", p.spec.Name),
+			nil)
+	}
 
 	// Structured output gate: refuse JSON-mode requests if the provider
 	// flags it as unsupported.

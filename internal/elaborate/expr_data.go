@@ -37,8 +37,9 @@ func (e *Elaborator) normalizeRecord(rec *ast.Record) (core.CoreExpr, error) {
 // normalizeRecordAccess handles field access
 // Also handles qualified module access (e.g., List.map for import std/list as List)
 func (e *Elaborator) normalizeRecordAccess(acc *ast.RecordAccess) (core.CoreExpr, error) {
-	// Check for module alias qualified access (e.g., List.map)
-	if ident, ok := acc.Record.(*ast.Identifier); ok {
+	// Check for module alias qualified access (e.g., List.map). A local
+	// binder named like the alias is a record, not the module (#1467).
+	if ident, ok := acc.Record.(*ast.Identifier); ok && !e.inScope(ident.Name) {
 		qualifiedName := fmt.Sprintf("%s.%s", ident.Name, acc.Field)
 		if ref, ok := e.globalEnv[qualifiedName]; ok {
 			// This is a qualified module access, resolve to global reference

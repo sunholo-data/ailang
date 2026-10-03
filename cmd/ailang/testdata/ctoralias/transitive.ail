@@ -1,0 +1,14 @@
+module cmd/ailang/testdata/ctoralias/transitive
+import std/list (nth)
+
+-- #323 family: Option's constructors are known only transitively (std/list
+-- imports std/option). Patterns naming them must keep matching by name.
+export func transitiveNth() -> int = match nth([10, 20], 1) {
+  None => 0,
+  Some(v) => v
+}
+
+export func transitiveNone() -> int = match nth([10, 20], 5) {
+  None => 1,
+  Some(v) => v
+}

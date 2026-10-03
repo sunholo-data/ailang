@@ -777,6 +777,25 @@
       ]
     },
     {
+      "path": "net_scope_public.ail",
+      "status": "working",
+      "tags": [
+        "http",
+        "effects",
+        "net",
+        "security"
+      ],
+      "description": "net_scope_public.ail - Net[scope=public]: user-URL fetches never reach loopback or cloud metadata (#1522)",
+      "modules": [
+        "std/io",
+        "std/net"
+      ],
+      "expected": {
+        "stdout": "metadata: refused\nloopback: refused\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "if_else_chain.ail",
       "status": "working",
       "tags": [
@@ -1084,6 +1103,21 @@
       ]
     },
     {
+      "path": "nested_patterns.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching",
+        "nesting",
+        "guards",
+        "adt",
+        "bytecode"
+      ],
+      "description": "Nested cons, constructor sub-patterns and guards over pattern bindings (evaluator = strict VM)",
+      "modules": [
+        "std/io"
+      ]
+    },
+    {
       "path": "no_loops_filter_map.ail",
       "status": "working",
       "tags": [
@@ -1095,6 +1129,25 @@
       "modules": [
         "std/list"
       ]
+    },
+    {
+      "path": "mapAccumL_running_total.ail",
+      "status": "working",
+      "tags": [
+        "higher-order",
+        "functional",
+        "performance"
+      ],
+      "description": "mapAccumL_running_total.ail - Build a list from running state in one O(n) pass",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/string"
+      ],
+      "expected": {
+        "stdout": "3,4,8,9,14,23,25,31\n3,4,5,9,6\n",
+        "exit_code": 0
+      }
     },
     {
       "path": "no_loops_fold.ail",
@@ -1413,6 +1466,30 @@
       ]
     },
     {
+      "path": "runnable/ai_call_speech.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "result",
+        "typed-errors",
+        "speech",
+        "audio"
+      ],
+      "description": "Demonstrates std/ai.callSpeech \u2014 text-to-speech returning s16le 24 kHz PCM as Result[bytes, AIError], turned into a WAV with std/audio (--ai-stub returns a fixed 250 ms tone) (#1495)",
+      "modules": [
+        "std/ai",
+        "std/audio",
+        "std/bytes",
+        "std/io",
+        "std/result"
+      ],
+      "expected": {
+        "stdout": "speech: 12000 bytes of PCM, 250 ms at 24000 Hz, 12044-byte WAV\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/ai_call_stream.ail",
       "status": "working",
       "tags": [
@@ -1479,6 +1556,26 @@
         "shift"
       ],
       "description": "Bitwise operators: AND (&), XOR (^), NOT (~), shift left (<<), shift right (>>), XOR encryption pattern, nibble extraction"
+    },
+    {
+      "path": "runnable/splitmix64.ail",
+      "status": "working",
+      "tags": [
+        "bitwise",
+        "hash",
+        "prng",
+        "int",
+        "hex-literals",
+        "shift"
+      ],
+      "description": "SplitMix64 with full-width hex constants (0x9e3779b97f4a7c15 reads as the 64-bit two's-complement pattern) and std/math shiftRightLogical (the reference >>>); known-answer vectors (#1481)",
+      "modules": [
+        "std/math"
+      ],
+      "expected": {
+        "stdout": "seed 0, 1st:  -2152535657050944081\nseed 0, 2nd:  7960286522194355700\nseed 42, 1st: -4767286540954276203\n-1 >> 1                    = -1\nshiftRightLogical(-1, 1)   = 9223372036854775807\n0x8000000000000000         = -9223372036854775808\n0xffffffffffffffff         = -1\nALL TESTS PASSED\n",
+        "exit_code": 0
+      }
     },
     {
       "path": "runnable/contracts/access_control.ail",
@@ -2985,6 +3082,29 @@
       }
     },
     {
+      "path": "runnable/fs_bytes_roundtrip.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "std/fs",
+        "std/bytes",
+        "filesystem",
+        "binary",
+        "result",
+        "effects"
+      ],
+      "description": "std/fs readFileRaw (raw bytes) and writeFileBytesResult (Err instead of panic) round-trip non-UTF-8 bytes; readFileBytes returns base64 text",
+      "modules": [
+        "std/bytes",
+        "std/fs",
+        "std/io"
+      ],
+      "expected": {
+        "stdout": "write: Ok\nreadFileRaw: 6 bytes [0, 255, 254, 128, 97, 10]\nreadFileBytes: base64 text \"AP/+gGEK\"\nmissing parent: Err\nmissing file: Err\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/web_search.ail",
       "status": "working",
       "tags": [
@@ -3002,14 +3122,64 @@
         "std/list",
         "std/string"
       ]
+    },
+    {
+      "path": "runnable/vm_strict_pure_builtins.ail",
+      "status": "working",
+      "tags": [
+        "bytecode",
+        "vm",
+        "strict-bytecode",
+        "std/list",
+        "std/string",
+        "std/bytes"
+      ],
+      "description": "Pure std/list, std/string and std/bytes calls run on the bytecode VM with no evaluator fallback: native polymorphic list ops plus the registry adapter (#1447)",
+      "modules": [
+        "std/bytes",
+        "std/io",
+        "std/list",
+        "std/option",
+        "std/string"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO"
+      ],
+      "expected": {
+        "stdout": "[(5, a), (4, b)] true abab aGk= 6\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/tail_recursion_loop.ail",
+      "status": "working",
+      "tags": [
+        "recursion",
+        "tail-call",
+        "evaluator",
+        "std/io"
+      ],
+      "description": "Tail-recursive loops (self and mutual, through if/let/match) run in constant depth in the interpreter as on the VM, far past the default recursion limit (#1486)",
+      "modules": [
+        "std/io"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO"
+      ],
+      "expected": {
+        "stdout": "sum 1..100000 = 5000050000\nisEven(50001) = false\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 208,
-    "working": 200,
+    "total": 216,
+    "working": 208,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9615384615384616,
+    "coverage": 0.9629629629629629,
     "experimental": 0
   },
   "milestones": {

@@ -42,6 +42,11 @@ func runCommand() {
 	policyFlag := fs.String("policy", "", "Gate the run by an operator program policy (agent-policy.toml): caps, net allowlist, FS sandbox, entry and limits come from the file; every widening flag is refused by name; denial prints the decision JSON and exits 2 without running; the run is supervised (timeout_ms, output cap)")
 	policyWorkerFlag := fs.Int("policy-worker", 0, "internal: the control-pipe fd handed to the worker by a supervising `run --policy`; never pass by hand")
 	maxRecursionDepthFlag := fs.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
+	// --chdir runs as if started in DIR: the entry path and module names
+	// resolve from it. For a caller that cannot set a child's working
+	// directory (an AILANG program's std/process.exec has no cwd). Under
+	// --policy, DIR must lie inside fs_sandbox (checked in resolveRunPolicyFor).
+	chdirFlag := fs.String("chdir", "", "Run as if started in this directory (entry path and module names resolve from it); under --policy it must be inside fs_sandbox")
 
 	// Stdlib resolution flags
 	stdlibPathFlag := fs.String("stdlib-path", "", "Stdlib directory for this run; beats AILANG_STDLIB_PATH and ./std, and a path without io.ail is an error")
@@ -57,6 +62,9 @@ func runCommand() {
 
 	// Effect handler flags
 	aiStubFlag := fs.Bool("ai-stub", false, "Enable AI effect with stub handler (returns default responses)")
+	aiStubFixturesFlag := fs.String("ai-stub-fixtures", "", "With --ai-stub: replay responses from this JSON fixture file keyed by sha256 of the request; a miss is an error")
+	aiNoADCFlag := fs.Bool("ai-no-adc", false, "Disable Google Application Default Credentials: a missing GOOGLE_API_KEY is a hard AuthFailed error (also AILANG_AI_NO_ADC=1)")
+	aiKeyFileFlag := fs.String("ai-key-file", "", "Read the --ai provider's API key from this file at startup; never echoed (also AILANG_AI_KEY_FILE)")
 	aiModelFlag := fs.String("ai", "", "Enable AI effect with model (e.g., claude-haiku-4-5, gpt5-mini, gemini-2-5-flash, anthropic/claude-sonnet-4.5 (OpenRouter))")
 	debugFlag := fs.Bool("debug", false, "Enable Debug effect with context (collects logs/assertions)")
 
@@ -87,6 +95,7 @@ func runCommand() {
 	streamAllowHTTPFlag := fs.Bool("stream-allow-http", false, "Allow insecure ws:// connections (default: wss:// only)")
 	streamAllowDomainsFlag := fs.String("stream-allow-domains", "", "Domain allowlist for Stream connections (comma-separated)")
 	streamAllowLocalhostFlag := fs.Bool("stream-allow-localhost", false, "Allow localhost WebSocket connections")
+	streamMaxMessageFlag := fs.String("stream-max-message", "", "Cap on one Stream (WebSocket) message, both directions (e.g. 256KB, 4MB; default 1MB)")
 
 	// Process capability flags (M-PROCESS)
 	processTimeoutFlag := fs.String("process-timeout", "30s", "Process execution timeout (e.g., 10s, 1m)")
@@ -139,6 +148,12 @@ func runCommand() {
 	}
 	if *verboseFlag {
 		*quietFlag = false
+	}
+	if *chdirFlag != "" {
+		if err := os.Chdir(*chdirFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: --chdir %s: %v\n", *chdirFlag, err)
+			os.Exit(1)
+		}
 	}
 
 	// M-AI-EFFECT-MODES M2: snapshot the routing flag values now and defer
@@ -221,6 +236,10 @@ func runCommand() {
 	}
 
 	filename := fs.Arg(0)
+	if tok := misplacedRunFlag(fs, fs.Args()[1:]); tok != "" {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), misplacedRunFlagError(tok))
+		os.Exit(1)
+	}
 
 	// M-AGENT-AILANG-ONLY-EXECUTION M2: with --policy the authority is the
 	// file. Resolved here into the existing flag values rather than threaded
@@ -272,5 +291,5 @@ func runCommand() {
 		}
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, routingValues, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *traceTierFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *netTimeoutFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag, *orRefererFlag, *orTitleFlag, *orCategoriesFlag, *fsMaxBytesFlag, *packageDirFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, aiSetup{Stub: *aiStubFlag, StubFixtures: *aiStubFixturesFlag, Model: *aiModelFlag, NoADC: *aiNoADCFlag, KeyFile: *aiKeyFileFlag}, routingValues, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *traceTierFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *netTimeoutFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *streamMaxMessageFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag, *orRefererFlag, *orTitleFlag, *orCategoriesFlag, *fsMaxBytesFlag, *packageDirFlag)
 }

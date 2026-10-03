@@ -10,6 +10,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/apiserver"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/platform/streamcred"
+	"github.com/sunholo-data/ailang/internal/runner"
 )
 
 // serve-api WebSocket and Stream session flags (M-SERVEAPI-WS-BRIDGE).
@@ -19,6 +20,7 @@ type serveAPIWSFlags struct {
 	decisionLog   *bool
 	maxDuration   *time.Duration
 	idleTimeout   *time.Duration
+	maxMessage    *string
 	credentialRaw multiFlag
 	passHeaders   multiFlag
 }
@@ -30,6 +32,7 @@ func registerServeAPIWSFlags(fs *flag.FlagSet) *serveAPIWSFlags {
 		decisionLog: fs.Bool("ws-decision-log", false, "Log one payload-free JSON line per bridged frame (call_id, seq, dir, kind, bytes, verdict, step_us)"),
 		maxDuration: fs.Duration("stream-max-duration", 0, "Hard ceiling per Stream connection / bridge (default 5m)"),
 		idleTimeout: fs.Duration("stream-idle-timeout", 0, "Idle timeout per Stream connection / bridge (default 60s)"),
+		maxMessage:  fs.String("stream-max-message", "", "Cap on one Stream message, both directions and both legs of a bridge (e.g. 256KB, 4MB; default 1MB)"),
 	}
 	fs.Var(&f.passHeaders, "ws-pass-header", "Pass this request header to @route(\"WS\") handlers as req.headers (repeatable; lower-cased; credential headers are refused)")
 	fs.Var(&f.credentialRaw, "stream-credential", "Bind a credential to one wss upstream host: HOST[:PORT]=gcp-key-file:PATH | gcp-metadata | bearer-file:PATH (repeatable)")
@@ -53,10 +56,10 @@ func (f *serveAPIWSFlags) apply(effCtx *effects.EffContext) error {
 	if *f.maxSessions < 1 || *f.queueFrames < 1 {
 		return fmt.Errorf("--ws-max-sessions and --ws-queue-frames must be at least 1")
 	}
-	streamFlagSet := *f.maxDuration != 0 || *f.idleTimeout != 0 || len(f.credentialRaw) > 0
+	streamFlagSet := *f.maxDuration != 0 || *f.idleTimeout != 0 || *f.maxMessage != "" || len(f.credentialRaw) > 0
 	if effCtx.Stream == nil {
 		if streamFlagSet {
-			return fmt.Errorf("--stream-max-duration, --stream-idle-timeout and --stream-credential need --caps Stream")
+			return fmt.Errorf("--stream-max-duration, --stream-idle-timeout, --stream-max-message and --stream-credential need --caps Stream")
 		}
 		return nil
 	}
@@ -68,6 +71,13 @@ func (f *serveAPIWSFlags) apply(effCtx *effects.EffContext) error {
 	}
 	if *f.idleTimeout > 0 {
 		effCtx.Stream.IdleTimeout = *f.idleTimeout
+	}
+	if *f.maxMessage != "" {
+		n, err := runner.ParseStreamMaxMessage(*f.maxMessage)
+		if err != nil {
+			return err
+		}
+		effCtx.Stream.MaxMessageSize = n
 	}
 	if len(f.credentialRaw) == 0 {
 		return nil
@@ -104,6 +114,9 @@ func printServeAPIWSHelp() {
 	fmt.Println("                       Authorization, Cookie and the API-key header are refused")
 	fmt.Println("  --stream-max-duration D  Ceiling per Stream connection / bridge (default 5m)")
 	fmt.Println("  --stream-idle-timeout D  Idle timeout per Stream connection / bridge (default 60s)")
+	fmt.Println("  --stream-max-message N   Cap on one Stream message, both directions (default 1MB).")
+	fmt.Println("                       Lower it for public endpoints: worst-case memory is about")
+	fmt.Println("                       ws-max-sessions x ws-queue-frames x N")
 	fmt.Println("  --stream-credential HOST=SOURCE  Bind a credential to one wss upstream host;")
 	fmt.Println("                       SOURCE: gcp-key-file:PATH | gcp-metadata | bearer-file:PATH (repeatable).")
 	fmt.Println("                       The program never sees it; a program Authorization header to that host is refused")

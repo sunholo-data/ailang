@@ -69,6 +69,23 @@
       "pure": true
     },
     {
+      "name": "callImageBase64WithRefs",
+      "type": "(string,list[ImagePart],string)-\u003estring!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "callImageWithRefs",
+      "type": "(string,list[ImagePart],string,string)-\u003estring!{AI,FS}",
+      "effects": [
+        "AI",
+        "FS"
+      ],
+      "pure": true
+    },
+    {
       "name": "callJson",
       "type": "(string,string)-\u003estring!{AI}",
       "effects": [
@@ -109,11 +126,25 @@
       "pure": true
     },
     {
+      "name": "callSpeech",
+      "type": "(string,string,string,string)-\u003eResult[bytes,\u003c*types.TRecord2\u003e]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
       "name": "runTools",
       "type": "(string,list[Message],list[ToolSchema],(ToolCall)-\u003estring,int)-\u003eResult[[Message],AIError]!{AI}",
       "effects": [
         "AI"
       ],
+      "pure": true
+    },
+    {
+      "name": "speechSampleRate",
+      "type": "(())-\u003eint",
+      "effects": [],
       "pure": true
     },
     {

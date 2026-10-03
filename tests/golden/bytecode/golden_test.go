@@ -174,13 +174,13 @@ func goldenSpecs() []goldenSpec {
 				// follow-up, the lower pass dropped the literal `0` and
 				// matched any `Num(_)`, so isZero(Num(5)) returned true.
 				{fn: "isZero",
-					args: []bytecode.Value{bytecode.NewADT(0, []bytecode.Value{bytecode.NewInt(0)})},
+					args: []bytecode.Value{bytecode.NewADT(0, "", []bytecode.Value{bytecode.NewInt(0)})},
 					want: bytecode.NewBool(true)},
 				{fn: "isZero",
-					args: []bytecode.Value{bytecode.NewADT(0, []bytecode.Value{bytecode.NewInt(5)})},
+					args: []bytecode.Value{bytecode.NewADT(0, "", []bytecode.Value{bytecode.NewInt(5)})},
 					want: bytecode.NewBool(false)},
 				{fn: "isZero",
-					args: []bytecode.Value{bytecode.NewADT(2, []bytecode.Value{bytecode.NewADT(0, []bytecode.Value{bytecode.NewInt(0)})})},
+					args: []bytecode.Value{bytecode.NewADT(2, "", []bytecode.Value{bytecode.NewADT(0, "", []bytecode.Value{bytecode.NewInt(0)})})},
 					want: bytecode.NewBool(false)},
 			},
 		},

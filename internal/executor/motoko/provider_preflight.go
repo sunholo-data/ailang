@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/chatgpt"
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 // D1 (M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT, design doc §12.2/§12.4): the
@@ -44,6 +46,16 @@ func requireProviderCredential(model string) error {
 			model)
 	}
 
+	// The ChatGPT subscription lane carries no env key: its credential is the
+	// codex CLI's login, which the child reads from $HOME. Refuse here rather
+	// than 401 inside motoko.
+	if provider == ai.ProviderChatGPT {
+		if _, err := chatgpt.LoadCredential(); err != nil {
+			return fmt.Errorf("motoko model %q runs on the ChatGPT subscription lane: %w — refusing run", model, err)
+		}
+		return nil
+	}
+
 	envVar := ai.EnvVarForProvider(provider)
 	if envVar == "" {
 		// Provider needs no credential (example: ollama local). Admit.
@@ -54,4 +66,14 @@ func requireProviderCredential(model string) error {
 			model, provider.String(), envVar)
 	}
 	return nil
+}
+
+// motokoAuthLane is the billing lane the run's model actually used. The
+// ChatGPT lane is a subscription, so its priced cost is list-price-equivalent,
+// never metered spend.
+func motokoAuthLane(model string) executor.AuthLane {
+	if ai.GuessProvider(model) == ai.ProviderChatGPT {
+		return executor.AuthLaneSubscription
+	}
+	return executor.AuthLaneForModel(model)
 }

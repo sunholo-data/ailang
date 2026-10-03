@@ -1,0 +1,23 @@
+-- Tail-recursive loops run in constant depth on every engine (M-EVAL-TAIL-CALLS, #1486).
+-- A call that is the last thing a function does reuses its frame, so these run
+-- far past the default --max-recursion-depth (10,000) in the interpreter, as they
+-- already did on the bytecode VM. Carry partial results in an accumulator.
+--   ailang run --caps IO --entry main examples/runnable/tail_recursion_loop.ail
+module examples/runnable/tail_recursion_loop
+
+import std/io (println)
+
+-- Self tail call through if / let.
+pure func sumTo(i: int, n: int, acc: int) -> int {
+  let next = acc + i;
+  if i >= n then next else sumTo(i + 1, n, next)
+}
+
+-- Mutual tail recursion through match.
+pure func isEven(i: int) -> bool = match i == 0 { true => true, false => isOdd(i - 1) }
+pure func isOdd(i: int) -> bool = match i == 0 { true => false, false => isEven(i - 1) }
+
+export func main() -> () ! {IO} {
+  println("sum 1..100000 = ${show(sumTo(1, 100000, 0))}");
+  println("isEven(50001) = ${show(isEven(50001))}")
+}

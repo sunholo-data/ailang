@@ -169,11 +169,16 @@ export func main() -> () ! {IO, Net} = {
 	if len(lines) < 2 || lines[0] != "DENIED" {
 		t.Fatalf("ALLOWLIST FAILURE: redirect to localhost must be denied, got %q\n%s", stdout, stderr)
 	}
-	if lines[1] != "BODY:"+c.sentinel {
-		t.Fatalf("same-host redirect is the positive control, got %q", lines[1])
+	// M-NET-SCOPE-PUBLIC (#1522): a redirect hop never lands on loopback, even
+	// a same-host one under trusted_host + net_allow 127.0.0.1, so the former
+	// positive control is now denied too. The allowlisted-hop positive control
+	// lives in internal/effects (TestRedirectHop_PublicTargetStillFollowed,
+	// routed dialer, non-loopback address).
+	if lines[1] != "DENIED" {
+		t.Fatalf("a redirect hop to loopback must be denied, got %q", lines[1])
 	}
-	if finalHits.Load() != 1 {
-		t.Fatalf("/final hit %d times, want exactly 1 (the allowlisted hop)", finalHits.Load())
+	if finalHits.Load() != 0 {
+		t.Fatalf("/final hit %d times, want 0 (no redirect hop may reach loopback)", finalHits.Load())
 	}
 }
 

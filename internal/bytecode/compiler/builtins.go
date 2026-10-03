@@ -9,134 +9,33 @@ import (
 	"github.com/sunholo-data/ailang/internal/gen/stmt"
 )
 
-// BuiltinTable is the canonical, source-ordered table of pure builtins
-// reachable from the Phase 2C golden corpus. Indices in this table become
-// the B field of OpBuiltinCall and are interpreted by the VM's builtin
-// dispatch table (internal/vm/builtins.go).
-//
-// Adding a builtin is a two-step process:
-//  1. Append its name here.
-//  2. Add a matching entry in vm.BuiltinTable.
-//
-// The two tables MUST stay in lockstep — there is a runtime sanity check
-// at VM startup that the lengths agree.
-var BuiltinTable = []string{
-	"_show",
-	"_len",
-	"_list_get",
-	"_list_tail",
-	"_concat_String",
-	"_record_get",
-	"_not_Bool",
-	"_intToFloat",
-	"__list_length",
-	"_concat_List",
-	// M-BYTECODE-STDLIB-BUILTINS M1: string builtins
-	"__str_len",
-	"__str_compare",
-	"__str_eq",
-	"__str_find",
-	"__str_slice",
-	"__str_trim",
-	"__str_upper",
-	"__str_lower",
-	"__str_split",
-	"__str_chars",
-	"__str_startsWith",
-	"__str_endsWith",
-	"__str_join",
-	"__str_words",
-	"__str_splitAny",
-	"__str_replace",
-	"__str_replaceMany",
-	"__str_startsWithIC",
-	"__str_charAt",
-	"__str_charCode",
-	"__str_decodeQP",
-	"__escapeXml",
-	"__string_intToStr",
-	"__string_floatToStr",
-	"__stringToInt",
-	"__stringToFloat",
-	// M-BYTECODE-STDLIB-BUILTINS M2: math + conversion builtins
-	"__math_sin",
-	"__math_cos",
-	"__math_tan",
-	"__math_asin",
-	"__math_acos",
-	"__math_atan",
-	"__math_atan2",
-	"__math_sqrt",
-	"__math_pow",
-	"__math_exp",
-	"__math_log",
-	"__math_log10",
-	"__math_floor",
-	"__math_ceil",
-	"__math_round",
-	"__math_abs_Float",
-	"__math_abs_Int",
-	"__math_PI",
-	"__math_E",
-	"_floatToInt",
-	"_mod_Int",
-	"__float_to_int",
-	"__int_to_float",
-	// M-BYTECODE-STDLIB-BUILTINS M3: list builtins
-	"__list_nth",
-	"__list_member",
-	"__list_dedup",
-	"__list_difference",
-	"__list_intersect",
-	"__list_union",
-	// M-BYTECODE-PURE-EFFECTS M1: JSON builtins
-	"__json_encode",
-	"__json_decode",
-	"__json_repair",
-	// M-BYTECODE-XML-BUILTINS: XML builtins
-	"__xmlElement",
-	"__xmlText",
-	"__xmlComment",
-	"__xml_getText",
-	"__xml_getTag",
-	"__xml_serialize",
-	"__xml_serializeWithDecl",
-	"__xml_parse",
-	"__xml_parseElements",
-	"__xml_parseWithLimit",
-	"__xml_findAll",
-	"__xml_findFirst",
-	"__xml_getAttr",
-	"__xml_getChildren",
-	"__xml_findAllTexts",
-	"__xml_findAllAttrs",
-	// ailang#1354/#1355: by-name record update for bases of unknown type
-	"_record_set",
-}
+// BuiltinTable is the native OpBuiltinCall name table, shared with the VM
+// through internal/bytecode (see bytecode.BuiltinNames).
+var BuiltinTable = bytecode.BuiltinNames
 
+// AdaptedBuiltinTable is the adapted extension of the index space (#1447).
+var AdaptedBuiltinTable = bytecode.AdaptedBuiltinNames
+
+// builtinIndex maps a builtin's IR name to its OpBuiltinCall index: native
+// BuiltinTable entries first, then AdaptedBuiltinTable (#1447). B is a uint8,
+// so the combined table may not exceed 256 entries.
 var builtinIndex = func() map[string]uint8 {
-	m := make(map[string]uint8, len(BuiltinTable))
+	total := len(BuiltinTable) + len(AdaptedBuiltinTable)
+	if total > 256 {
+		panic(fmt.Sprintf("bytecode compiler: %d native+adapted builtins exceed the 256-entry OpBuiltinCall index space", total))
+	}
+	m := make(map[string]uint8, total)
 	for i, name := range BuiltinTable {
 		m[name] = uint8(i)
+	}
+	for i, name := range AdaptedBuiltinTable {
+		m[name] = uint8(len(BuiltinTable) + i)
 	}
 	return m
 }()
 
-// HOFBuiltinTable lists builtins that take closure arguments. These are
-// dispatched via OpBuiltinCallHOF, which passes the VM as a ClosureCaller
-// so the builtin can invoke its closure arguments.
-// Order MUST match vm.HOFBuiltinTable.
-var HOFBuiltinTable = []string{
-	"__list_map",
-	"__list_filter",
-	"__list_foldl",
-	"__str_foldChars",
-	"__str_foldSlices",
-	"__str_mapSlicesJoin",
-	"__xml_parseFold",
-	"__list_sortBy",
-	"__list_flatMap",
-}
+// HOFBuiltinTable is the OpBuiltinCallHOF name table (bytecode.HOFBuiltinNames).
+var HOFBuiltinTable = bytecode.HOFBuiltinNames
 
 var hofBuiltinIndex = func() map[string]uint8 {
 	m := make(map[string]uint8, len(HOFBuiltinTable))
@@ -215,6 +114,11 @@ func (fc *funcCompiler) compileBuiltinCall(e stmt.BuiltinCall) (uint8, error) {
 	if hofIdx, isHOF := hofBuiltinIndex[e.Name]; isHOF {
 		fc.emit(bytecode.EncodeABC(bytecode.OpBuiltinCallHOF, dst, hofIdx, uint8(n)))
 		return dst, nil
+	}
+	// A pure registry builtin that is neither native nor adapted: say so, with
+	// the reason, instead of calling it effectful (#1447).
+	if spec, ok := bytecode.PureBuiltinSpec(e.Name); ok {
+		return 0, fmt.Errorf("compiler: pure builtin %q has no VM implementation (%s)", e.Name, bytecode.AdaptReason(spec.Type()))
 	}
 	// Effectful / not-yet-wired builtins cannot be executed by the VM. Returning
 	// a compile error here causes the enclosing proto to be tagged EvalOnly by

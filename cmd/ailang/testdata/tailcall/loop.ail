@@ -1,0 +1,3 @@
+module cmd/ailang/testdata/tailcall/loop
+pure func count(i: int, n: int) -> int = if i >= n then i else count(i + 1, n)
+export pure func main(n: int) -> int = count(0, n)

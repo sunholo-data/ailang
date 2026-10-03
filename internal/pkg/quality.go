@@ -74,6 +74,11 @@ type QualityInputs struct {
 	// Attested is nil when the publisher did not run tests/smoke (or the
 	// upload carried none).
 	Attested *AttestedBlock
+
+	// NamedTestBodyFiles are leftover `_namedtest_body_<n>.ail` copies that an
+	// interrupted `ailang test` of an older binary left in the package
+	// (#1502), relative to the package dir (FindNamedTestBodyFiles). Any → PUB024.
+	NamedTestBodyFiles []string
 }
 
 // AttestedBlock is what the publisher executed and vouches for.
@@ -240,6 +245,13 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 	r.Compile = CompileSection{Source: SourceServer, OK: in.CompileOK, Files: in.CompileFiles, Error: in.CompileError}
 	if !in.CompileOK {
 		r.gate("PUB000", "compile failed: "+firstLine(in.CompileError))
+	}
+	// A leftover `ailang test` body copy (#1502) is a full copy of a test
+	// module. Tarball, hash and staging already skip it; refusing it here
+	// keeps it out of `git add -A` too, because the author has to delete it.
+	if len(in.NamedTestBodyFiles) > 0 {
+		r.gate("PUB024", fmt.Sprintf("%d stale named-test body file(s) left by an interrupted `ailang test` of an older binary: %s — delete them (they are not package source) and add `%s` to .gitignore",
+			len(in.NamedTestBodyFiles), strings.Join(in.NamedTestBodyFiles, ", "), NamedTestBodyGitignore))
 	}
 
 	// contracts (server)

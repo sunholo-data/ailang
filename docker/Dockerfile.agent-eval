@@ -1,22 +1,23 @@
-# AILANG Agent Executor — eval variant (all five executor CLIs, no Go toolchain)
+# AILANG Agent Executor — eval variant (all four executor CLIs, no Go toolchain)
 # M-EXECUTOR-VARIANTS + M-EXEC-PI: Use for eval-harness agents that run benchmarks
-# across all AI providers in a single container (claude, gemini, codex, opencode, pi).
+# across all AI providers in a single container (claude, codex, opencode, pi; Gemini
+# models run via the binaryless managed_agents executor, which needs no CLI — the
+# @google/gemini-cli install was dropped 2026-10-01, retired since v0.22.0).
 ARG PROJECT
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # pi is pinned and asserted for the reasons given in Dockerfile.agent-pi — same
 # package, same version, same seam test against internal/executor/pi. The other
-# four are left as they are — pinning them is the same good idea and a separate
+# three are left as they are — pinning them is the same good idea and a separate
 # change, not one to fold in silently here.
 ARG PI_PACKAGE=@earendil-works/pi-coding-agent
 ARG PI_VERSION=0.85.1
 # Codex pinned 2026-09-30 — see Dockerfile.agent-codex (gpt-6.1-sol needs >= 0.159.2).
 ARG CODEX_VERSION=0.159.2
 
-# All five executor CLIs — order matters for npm install speed (largest first)
+# All four executor CLIs — order matters for npm install speed (largest first)
 USER root
 RUN npm install -g @anthropic-ai/claude-code \
-    && npm install -g @google/gemini-cli \
     && npm install -g "@openai/codex@${CODEX_VERSION}" \
     && codex --version </dev/null | grep -qx "codex-cli ${CODEX_VERSION}" \
        || { echo "codex --version = $(codex --version </dev/null), pinned ${CODEX_VERSION}" >&2; exit 1; } \

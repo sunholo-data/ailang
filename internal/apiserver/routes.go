@@ -223,6 +223,73 @@ func extractMCPNameAnnotations(modInfo *ModuleInfo, file *ast.File) {
 	}
 }
 
+// extractMCPToolMetaAnnotations populates ExportInfo.MCPTitle and MCPHints
+// from @mcp_title("...") and @mcp_hints("...", ...). Values are recorded as
+// written; registerTools validates the hint vocabulary via
+// protocol.ResolveToolHints, where an invalid list is an author error.
+//
+// It also overwrites ExportInfo.Pure for every function export. The value
+// extractModuleInfo copied from the interface is a stub that is true for
+// everything (iface.determinePurity), and MCP read-only hints, A2A tags and
+// OpenAPI x-ailang-pure all read this field. The `pure` keyword is no proof
+// either: the checker accepts it beside a declared row. What the checker does
+// enforce is that a body stays within its DECLARED row, so an empty row with no
+// row variable is a real proof.
+func extractMCPToolMetaAnnotations(modInfo *ModuleInfo, file *ast.File) {
+	for _, fn := range file.Funcs {
+		title := fn.GetAnnotation("mcp_title")
+		hints := fn.GetAnnotation("mcp_hints")
+		auth := fn.GetAnnotation("mcp_auth")
+		secret := fn.GetAnnotation("mcp_secret")
+		for i := range modInfo.Exports {
+			if modInfo.Exports[i].Name != fn.Name {
+				continue
+			}
+			modInfo.Exports[i].Pure = len(fn.Effects) == 0
+			if title != nil {
+				if names := stringLitArgs(title); len(names) == 1 {
+					modInfo.Exports[i].MCPTitle = names[0]
+				}
+			}
+			if hints != nil {
+				modInfo.Exports[i].MCPHints = stringLitArgs(hints)
+				modInfo.Exports[i].HasMCPHints = true
+			}
+			if auth != nil {
+				if v := stringLitArgs(auth); len(v) == 1 {
+					modInfo.Exports[i].MCPAuth = v[0]
+				}
+			}
+			if secret != nil {
+				modInfo.Exports[i].MCPSecret = stringLitArgs(secret)
+			}
+			modInfo.Exports[i].IsAgentOnly = fn.GetAnnotation("mcp_agent_only") != nil
+			if fn.GetAnnotation("mcp_token_verifier") != nil {
+				e := &modInfo.Exports[i]
+				e.IsTokenVerifier = true
+				e.IsNoMCP = true
+				if e.RoutePath == "" {
+					e.IsNoExpose = true
+				}
+				e.VerifierSigOK = len(fn.Params) == 1 && paramTypeToString(fn.Params[0].Type) == "string" &&
+					fn.ReturnType != nil && paramTypeToString(fn.ReturnType) == "bool"
+			}
+			break
+		}
+	}
+}
+
+// stringLitArgs returns an annotation's string-literal args in order.
+func stringLitArgs(ann *ast.Annotation) []string {
+	var out []string
+	for _, a := range ann.Args {
+		if lit, ok := a.(*ast.Literal); ok && lit.Kind == ast.StringLit {
+			out = append(out, lit.Value.(string))
+		}
+	}
+	return out
+}
+
 // extractOptionalAnnotations populates ExportInfo.Optional from
 // @optional("param", ...) annotations. Names are recorded as written;
 // validateOptionalParams checks them against the signature at MCP registration.

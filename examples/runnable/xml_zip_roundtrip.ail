@@ -1,6 +1,6 @@
 -- XML serialization and ZIP roundtrip example
 -- Demonstrates: XML serialize/serializeWithDecl, ZIP createArchive/listEntries/readEntry
--- Run: ailang run examples/runnable/xml_zip_roundtrip.ail -caps FS,IO
+-- Run: ailang run --caps FS,IO examples/runnable/xml_zip_roundtrip.ail
 module examples/runnable/xml_zip_roundtrip
 import std/xml (parse, serialize, serializeWithDecl)
 import std/zip (createArchive, listEntries, readEntry)

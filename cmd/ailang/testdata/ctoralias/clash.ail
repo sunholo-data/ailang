@@ -1,0 +1,28 @@
+module cmd/ailang/testdata/ctoralias/clash
+import cmd/ailang/testdata/ctoralias/journey (TripPhase, Departed, Arrived as TripArrived, phaseAt)
+
+-- The reported #1478 scenario: a local ADT declares its own Arrived, so the
+-- package's Arrived is imported under an alias.
+type Journey = Underway | Arrived
+
+pure func local(t: int) -> Journey = if t > 10 then Arrived else Underway
+
+export func tripArrived() -> int = match phaseAt(20) {
+  TripArrived => 1,
+  Departed => 0
+}
+
+export func tripDeparted() -> int = match phaseAt(1) {
+  TripArrived => 1,
+  Departed => 0
+}
+
+export func localArrived() -> int = match local(20) {
+  Arrived => 2,
+  Underway => 0
+}
+
+export func aliasExpr() -> int = match TripArrived {
+  TripArrived => 3,
+  Departed => 0
+}

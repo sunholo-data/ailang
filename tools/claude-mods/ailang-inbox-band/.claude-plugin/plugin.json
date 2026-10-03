@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "ailang-inbox-band",
+  "version": "0.1.0",
+  "description": "Unread AILANG fleet messages above the prompt: a band with the count and newest title, an /ail-inbox pane with Ack, a toast when one arrives. For the person only; message text never reaches the model. Requires the `ailang` binary on PATH.",
+  "author": { "name": "AILANG" },
+  "keywords": ["ailang", "mod", "messages", "inbox"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "inboxes": {
+      "type": "string",
+      "title": "Inboxes",
+      "description": "Comma-separated inboxes to watch",
+      "default": "user"
+    },
+    "pollSeconds": {
+      "type": "number",
+      "title": "Poll interval (seconds)",
+      "description": "How often to check for unread messages",
+      "default": 60
+    }
+  }
+}

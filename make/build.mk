@@ -153,6 +153,13 @@ bootstrap-content: build ## Generate content bundle for bootstrap plugin sync
 	@# 7. Version
 	@echo "$(VERSION)" > $(BUILD_DIR)/bootstrap-content/version.txt
 	@echo "  $(ARROW) Version: $(VERSION)"
+	@# 7b. Claude Code mods (M-CLAUDE-CODE-MODS D1): synced to plugins/<mod>/ in ailang_bootstrap
+	@mkdir -p $(BUILD_DIR)/bootstrap-content/claude-mods
+	@for d in tools/claude-mods/*/; do \
+		[ -f "$$d.claude-plugin/plugin.json" ] || continue; \
+		rsync -a --exclude '.claude-plugin/types' --exclude 'tsconfig.json' "$$d" "$(BUILD_DIR)/bootstrap-content/claude-mods/$$(basename $$d)/"; \
+	done
+	@echo "  $(ARROW) Claude Code mods: $$(ls $(BUILD_DIR)/bootstrap-content/claude-mods | tr '\n' ' ')"
 	@# 8. Create tarball
 	@cd $(BUILD_DIR) && tar czf bootstrap-content.tar.gz bootstrap-content/
 	@echo "$(GREEN)$(CHECKMARK) Bootstrap content bundle: $(BUILD_DIR)/bootstrap-content.tar.gz$(RESET)"

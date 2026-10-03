@@ -30,7 +30,9 @@ func registerJSONDecode() {
 			Description: "Parse a JSON string into a Json ADT value",
 			LongDesc: `Parses a JSON string using Go's encoding/json package and converts it to AILANG's Json algebraic data type.
 Supports all JSON types: objects, arrays, strings, numbers, booleans, and null.
-Returns Result[Json, string] - Ok(json) on success, Err(message) on parse error.`,
+Returns Result[Json, string] - Ok(json) on success, Err(message) on parse error.
+Every number literal decodes to its nearest float64 (integers beyond 2^63 are exact, not saturated; "-0" keeps its sign);
+a literal outside float64 range (e.g. 1e400) is an Err, never a silent Infinity.`,
 			Params: []ParamDoc{
 				{Name: "input", Description: "JSON string to parse"},
 			},
@@ -40,6 +42,8 @@ Returns Result[Json, string] - Ok(json) on success, Err(message) on parse error.
 				{Code: `_json_decode("[1,2,3]")`, Description: "Returns Ok(JArray([JNumber(1.0), JNumber(2.0), JNumber(3.0)]))"},
 				{Code: `_json_decode("\"hello\"")`, Description: "Returns Ok(JString(\"hello\"))"},
 				{Code: `_json_decode("42")`, Description: "Returns Ok(JNumber(42.0))"},
+				{Code: `_json_decode("10000000000000000000")`, Description: "Returns Ok(JNumber(1.0e19)) exactly"},
+				{Code: `_json_decode("1e400")`, Description: "Returns Err(\"json: number 1e400 out of float64 range\")"},
 				{Code: `_json_decode("true")`, Description: "Returns Ok(JBool(true))"},
 				{Code: `_json_decode("null")`, Description: "Returns Ok(JNull)"},
 				{Code: `_json_decode("{invalid}")`, Description: "Returns Err(\"invalid json: ...\")"},
@@ -317,7 +321,11 @@ func (b *JSONBuilder) build() (eval.Value, error) {
 					b.addValue(makeJString(v))
 				}
 			case json.Number:
-				b.addValue(makeJNumber(v))
+				num, err := makeJNumber(v)
+				if err != nil {
+					return nil, err
+				}
+				b.addValue(num)
 			case bool:
 				b.addValue(makeJBool(v))
 			case nil:
@@ -474,28 +482,20 @@ func makeJString(s string) eval.Value {
 	}
 }
 
-func makeJNumber(n json.Number) eval.Value {
-	str := string(n)
-
-	// Check if float (contains . or e/E)
-	if strings.ContainsAny(str, ".eE") {
-		f, _ := n.Float64()
-		return &eval.TaggedValue{
-			ModulePath: "std/json",
-			TypeName:   "Json",
-			CtorName:   "JNumber",
-			Fields:     []eval.Value{&eval.FloatValue{Value: f}},
-		}
+// makeJNumber decodes a JSON number token via the canonical
+// eval.ParseJSONNumber (M-JSON-NUMBER-ROUNDTRIP): exact for every in-range
+// literal, error (not ±Inf / int64 saturation) for out-of-range literals.
+func makeJNumber(n json.Number) (eval.Value, error) {
+	f, err := eval.ParseJSONNumber(n)
+	if err != nil {
+		return nil, err
 	}
-
-	// Integer → convert to float for MVP simplicity
-	i, _ := n.Int64()
 	return &eval.TaggedValue{
 		ModulePath: "std/json",
 		TypeName:   "Json",
 		CtorName:   "JNumber",
-		Fields:     []eval.Value{&eval.FloatValue{Value: float64(i)}},
-	}
+		Fields:     []eval.Value{&eval.FloatValue{Value: f}},
+	}, nil
 }
 
 func makeJBool(b bool) eval.Value {

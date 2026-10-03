@@ -60,6 +60,18 @@ func newStreamRoundTripper(ctx *EffContext) *netProxyRoundTripper {
 
 // RoundTrip implements http.RoundTripper.
 func (rt *netProxyRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	// http.Client sets req.Response only on a redirect request, so a non-nil
+	// Response means this round trip is a redirect hop: it runs under the
+	// public-only hop policy (M-NET-SCOPE-PUBLIC part (i)), here and in
+	// resolvePinned at dial time.
+	if req.Response != nil {
+		hop := &netProxyRoundTripper{pol: rt.pol.forRedirectHop()}
+		return hop.roundTrip(req)
+	}
+	return rt.roundTrip(req)
+}
+
+func (rt *netProxyRoundTripper) roundTrip(req *http.Request) (*http.Response, error) {
 	// Route selection is a pure decision (no dial); it comes first so the
 	// proxy-route tests can see the route was chosen, and so a proxy that is
 	// refused is named before the destination is judged.

@@ -85,6 +85,57 @@ func attachStderrTail(msg, stderrLogPath, stderr string) string {
 	return fmt.Sprintf("%s — stderr tail (full log: %s):\n%s", msg, stderrLogPath, tail)
 }
 
+// stderrLeadLines is how many trailing stderr lines lead the error when the
+// motoko process itself failed.
+const stderrLeadLines = 5
+
+// noUsableSessionError builds Result.Error for a run that left no usable
+// session JSONL (missing or unparseable). When the process exited non-zero, the
+// exit status and the last stderr lines LEAD the message and the JSONL symptom
+// follows: a dead launcher never writes a session file, so leading with
+// "no session JSONL found ... stat ..." buried the cause (dev cloud executor,
+// 2026-10-01: run-agent.sh, reached through a symlink, died with "Error:
+// src/tui/src/index.ts not found." and the error opened with a stat failure).
+// A clean exit with no JSONL keeps the symptom-first wording.
+func noUsableSessionError(symptom string, runErr error, stderrLogPath, stderr string) string {
+	if runErr == nil {
+		return attachStderrTail(symptom, stderrLogPath, stderr)
+	}
+	lead := "motoko " + describeProcessFailure(runErr)
+	if last := lastLines(stderr, stderrLeadLines); last != "" {
+		lead += ":\n" + tailString(last, stderrTailBytes)
+	} else {
+		lead += " (stderr was empty)"
+	}
+	return fmt.Sprintf("%s\n[%s; full log: %s]", lead, symptom, stderrLogPath)
+}
+
+// describeProcessFailure renders how the motoko process ended.
+func describeProcessFailure(runErr error) string {
+	var exitErr *exec.ExitError
+	if errors.As(runErr, &exitErr) {
+		if code := exitErr.ExitCode(); code >= 0 {
+			return fmt.Sprintf("exited with code %d", code)
+		}
+		return fmt.Sprintf("was terminated (%v)", runErr)
+	}
+	return fmt.Sprintf("failed to run: %v", runErr)
+}
+
+// lastLines returns the last n non-blank lines of s, newline-joined.
+func lastLines(s string, n int) string {
+	var lines []string
+	for _, l := range strings.Split(s, "\n") {
+		if strings.TrimSpace(l) != "" {
+			lines = append(lines, strings.TrimRight(l, "\r"))
+		}
+	}
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "\n")
+}
+
 // systemPromptViaSystemRole reports whether the AILANG system prompt should be
 // delivered as a persistent system-role message (written to SYSTEM_MD) rather
 // than folded into the user directive (where context compaction strips it on
@@ -188,6 +239,9 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
+	if isLaneTask(task) {
+		return e.executeLane(ctx, task, handler)
+	}
 	if err := checkToolPolicy(task); err != nil {
 		return nil, err
 	}
@@ -198,7 +252,7 @@ func (e *MotokoExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	return res, err
 }
 
-func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
 	// D1 (M-MOTOKO-FMT-REMEASUREMENT-INSTRUMENT §12.2): per-task resolved-
 	// provider credential refusal, at the choke point through which ALL motoko
 	// work passes. Runs STRICTLY DOWNSTREAM of repo discovery: the eval harness
@@ -213,6 +267,9 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	effectiveProfile := e.profile
 	if p := task.Metadata["motoko_profile"]; p != "" {
 		effectiveProfile = p
+	}
+	if err := requireProfileInRepo(e.motokoRepo, effectiveProfile); err != nil {
+		return nil, fmt.Errorf("motoko profile preflight refused: %w", err)
 	}
 	ctx, span := telemetry.StartSpan(ctx, motokoTracer, "motoko.execute",
 		trace.WithAttributes(
@@ -370,18 +427,13 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	}
 	defer taskCacheCleanup()
 
-	env := executor.BuildEnvironment(executor.EnvironmentOptions{
-		Task:        task,
-		SessionID:   sessionID,
-		Context:     ctx,
-		GCPProject:  task.GCPProject,
-		GCPLocation: task.GCPLocation,
-	})
-	// motoko-specific env vars — see motoko_agent docs for semantics.
-	env = append(env,
-		"MODEL="+e.getModel(task),
+	// motoko-specific env vars — see motoko_agent docs for semantics. They are
+	// the executor's required set: BuildEnvironment applies them last, so they
+	// win over an inherited MOTOKO_CONFIG (the cloud job sets "dogfood").
+	motokoEnv := []string{
+		"MODEL=" + e.getModel(task),
 		"MOTOKO_HEADLESS=1", // batch mode (no interactive TUI) — see --headless above
-		"MOTOKO_CONFIG="+effectiveProfile,
+		"MOTOKO_CONFIG=" + effectiveProfile,
 		// MOTOKO_REPO is REQUIRED for profile resolution and has never been set.
 		//
 		// motoko resolves its profile dir from WORKDIR first. The eval harness
@@ -401,20 +453,20 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 		//
 		// e.motokoRepo is discovered by HealthCheck from `motoko --version`, which
 		// the eval path and the canary both run before Execute.
-		"MOTOKO_REPO="+e.motokoRepo,
-		"MOTOKO_SESSION_ID="+sessionID,
-		"AILANG_CACHE_DIR="+taskCacheDir,
+		"MOTOKO_REPO=" + e.motokoRepo,
+		"MOTOKO_SESSION_ID=" + sessionID,
+		"AILANG_CACHE_DIR=" + taskCacheDir,
 		// M-MOTOKO-SYSTEM-ROLE: when set, motoko reads its system-role message
 		// from this file (must be inside the workspace). Empty string is a no-op.
-		"SYSTEM_MD="+systemPromptPath,
+		"SYSTEM_MD=" + systemPromptPath,
 		// Each run binds its own env-server port. motoko main hands the port it
 		// actually bound to its AILANG core (buildSupervisorArgs), which is the
 		// cross-repo fix the old fixed-8080 pin was waiting for; concurrent runs
 		// (--parallel N, a mission loop, this package's tests) no longer collide.
 		fmt.Sprintf("ENV_PORT=%d", envPort),
-	)
+	}
 	if task.Workspace != "" {
-		env = append(env, "WORKDIR="+task.Workspace)
+		motokoEnv = append(motokoEnv, "WORKDIR="+task.Workspace)
 	}
 	// M-OLLAMA-PER-MODEL-MAX-TOKENS: forward the model's declared output budget
 	// (models.yml max_output_tokens) so motoko's ollama /v1 request uses the model's
@@ -423,7 +475,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	// reads this env (override > floor). Needs the var in motoko's RuntimeProcess
 	// env allowlist (motoko_agent PR); the 16384 floor covers it until then.
 	if task.MaxOutputTokens > 0 {
-		env = append(env, fmt.Sprintf("AILANG_OLLAMA_MAX_TOKENS=%d", task.MaxOutputTokens))
+		motokoEnv = append(motokoEnv, fmt.Sprintf("AILANG_OLLAMA_MAX_TOKENS=%d", task.MaxOutputTokens))
 	}
 	// M-MOTOKO-EVAL-HARNESS-HARDENING M5a (gaps #3, #9): forward cost rates
 	// from Task.Budget (sourced from models.yml by the eval harness) so
@@ -437,11 +489,11 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 			// per-1K USD × 1e8 = per-1M millicents
 			//   (×1000 for K→M, ×100 for $→¢, ×1000 for ¢→m¢)
 			inputMillicents := int64(task.Budget.InputPer1K * 1e8)
-			env = append(env, fmt.Sprintf("MOTOKO_COST_INPUT_PER_1M_MILLICENTS=%d", inputMillicents))
+			motokoEnv = append(motokoEnv, fmt.Sprintf("MOTOKO_COST_INPUT_PER_1M_MILLICENTS=%d", inputMillicents))
 		}
 		if task.Budget.OutputPer1K > 0 {
 			outputMillicents := int64(task.Budget.OutputPer1K * 1e8)
-			env = append(env, fmt.Sprintf("MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=%d", outputMillicents))
+			motokoEnv = append(motokoEnv, fmt.Sprintf("MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=%d", outputMillicents))
 		}
 		// M-EVAL-SWEET-SPOT-FOLLOWUP (v0.19.0): forward the hard cost cap so
 		// motoko's internal budget gate actually fires `finish_reason=
@@ -455,10 +507,30 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 		if task.Budget.MaxUSD > 0 {
 			maxUSDCents := int64(task.Budget.MaxUSD * 100)
 			if maxUSDCents > 0 {
-				env = append(env, fmt.Sprintf("AI_MAX_COST_USD_CENTS=%d", maxUSDCents))
+				motokoEnv = append(motokoEnv, fmt.Sprintf("AI_MAX_COST_USD_CENTS=%d", maxUSDCents))
 			}
 		}
 	}
+	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
+		Task:        task,
+		SessionID:   sessionID,
+		Executor:    "motoko",
+		Model:       e.getModel(task),
+		Context:     ctx,
+		GCPProject:  task.GCPProject,
+		GCPLocation: task.GCPLocation,
+		ExecutorEnv: motokoEnv,
+	})
+	if err != nil {
+		return nil, err
+	}
+	// D6: bank the child env's NAME set on every result shape.
+	envNames := executor.EnvNamesDigest(env)
+	defer func() {
+		if out != nil {
+			out.EnvNamesDigest = envNames
+		}
+	}()
 	cmd.Env = env
 
 	// Capture subprocess stderr to a per-task file. When the subprocess
@@ -508,15 +580,15 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	// Locate the session JSONL motoko wrote during the run. No JSONL at all is
 	// the startup-crash shape (motoko died before its logger initialized — e.g.
 	// an AILANG compile error on stdlib schema drift), so the cause is on
-	// stderr: attach its tail rather than reporting only the missing file.
+	// stderr: lead with the process failure, not the missing file.
 	jsonlPath, findErr := findSessionJSONL(task.Workspace, sessionID, e.motokoRepo)
 	if findErr != nil {
 		span.SetStatus(codes.Error, "session jsonl not found")
 		return &executor.Result{
 			Success: false,
-			Error: attachStderrTail(
+			Error: noUsableSessionError(
 				fmt.Sprintf("motoko ran but no session JSONL found: %v", findErr),
-				stderrLogPath, stderrBuf.String()),
+				runErr, stderrLogPath, stderrBuf.String()),
 			DurationMS: wallDurationMS,
 			SessionID:  sessionID,
 		}, nil
@@ -527,9 +599,9 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 		span.SetStatus(codes.Error, "session jsonl parse failed")
 		return &executor.Result{
 			Success: false,
-			Error: attachStderrTail(
+			Error: noUsableSessionError(
 				fmt.Sprintf("motoko session JSONL parse failed: %v", parseErr),
-				stderrLogPath, stderrBuf.String()),
+				runErr, stderrLogPath, stderrBuf.String()),
 			DurationMS: wallDurationMS,
 			SessionID:  sessionID,
 		}, nil
@@ -607,7 +679,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	// motoko's run_summary cost comes from whatever provider it routed to.
 	// OpenRouter-routed models bill real credits; local ollama models carry
 	// zero rates in models.yml and resolve to free-local regardless of lane.
-	result.CostProvenance = executor.ResolveCostProvenance(task, executor.AuthLaneForModel(task.Model))
+	result.CostProvenance = executor.ResolveCostProvenance(task, motokoAuthLane(task.Model))
 
 	// Surface metrics for any MetricsHandler observers.
 	if mh, ok := handler.(executor.MetricsHandler); ok {
@@ -616,7 +688,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 			InputTokens:    result.InputTokens,
 			OutputTokens:   result.OutputTokens,
 			CostUSD:        result.CostUSD,
-			CostProvenance: executor.ResolveCostProvenance(task, executor.AuthLaneForModel(task.Model)),
+			CostProvenance: executor.ResolveCostProvenance(task, motokoAuthLane(task.Model)),
 			DurationMS:     result.DurationMS,
 			SessionID:      result.SessionID,
 			Success:        result.Success,

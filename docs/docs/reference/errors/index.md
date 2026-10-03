@@ -91,8 +91,17 @@ TC_ARITY_001: function expects 2 argument(s), but 1 provided
   Suggestion: AILANG has no partial application — call with all 2 arguments, or wrap in a lambda `\a b. f(a, b)`.
 ```
 
+**`TC_MATCH_001` — unknown constructor in a pattern.** Emitted when a match arm names a constructor that no local declaration, import, or loaded module defines: a typo, or an alias that was never written in an import (`import std/option (None as Nada)`). The runtime matches constructors by name, so such an arm used to compile and never match. The `Suggestion:` line lists the scrutinee's constructors when its type is known.
+
+```
+TC_MATCH_001: constructor pattern 'Bogus' does not name any constructor in scope (no local declaration, import, or loaded module defines it), so this arm could never match
+  Suggestion: Option's constructors are: None, Some
+```
+
 ## Individual error code pages
 
 - [MOD007 — Duplicate module-scope binding (let/func same name)](mod007.md)
 - [MOD013 — Shared module_prefix](mod013.md)
+- [MOD015 — Imported name collides with a module-level definition](mod015.md)
+- [RT001 — Integer division or modulo by zero](rt001.md)
 - [Effect row mismatch](typ_effect_row_mismatch.md)

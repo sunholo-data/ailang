@@ -15,11 +15,16 @@ var mcpToolNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
 
 type ToolDescriptor struct {
 	Name         string
+	Title        string // MCP `title`: human-readable display name ("" = omitted)
 	Description  string
 	InputSchema  json.RawMessage
 	OutputSchema json.RawMessage
 	Tags         []string
 	Examples     []string
+	Annotations  *ToolAnnotations // MCP behaviour hints (nil = omitted); see ResolveToolHints
+	// Auth is the tool's auth scheme: "" / ToolAuthNoAuth (open) or
+	// ToolAuthOAuth2 (a tools/call needs a Bearer token the BearerGate admits).
+	Auth string
 }
 
 type AuthorizedSurface struct {
@@ -50,6 +55,11 @@ func CallerSurface(descriptors []ToolDescriptor) (*AuthorizedSurface, error) {
 func validateToolDescriptor(tool ToolDescriptor) error {
 	if err := ValidateMCPName(tool.Name); err != nil {
 		return err
+	}
+	switch tool.Auth {
+	case ToolAuthNone, ToolAuthNoAuth, ToolAuthOAuth2:
+	default:
+		return fmt.Errorf("tool %q: unknown auth scheme %q", tool.Name, tool.Auth)
 	}
 	if tool.InputSchema == nil {
 		return fmt.Errorf("tool %q: input schema is required", tool.Name)
@@ -122,6 +132,16 @@ func cloneToolDescriptor(tool ToolDescriptor) ToolDescriptor {
 	tool.OutputSchema = append(json.RawMessage(nil), tool.OutputSchema...)
 	tool.Tags = append([]string(nil), tool.Tags...)
 	tool.Examples = append([]string(nil), tool.Examples...)
+	if tool.Annotations != nil {
+		a := *tool.Annotations
+		if a.DestructiveHint != nil {
+			a.DestructiveHint = boolPtr(*a.DestructiveHint)
+		}
+		if a.OpenWorldHint != nil {
+			a.OpenWorldHint = boolPtr(*a.OpenWorldHint)
+		}
+		tool.Annotations = &a
+	}
 	return tool
 }
 

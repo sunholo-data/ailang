@@ -49,127 +49,174 @@ type EnvironmentOptions struct {
 	// GCPLocation overrides GOOGLE_CLOUD_LOCATION for this subprocess.
 	// When empty, falls back to the shell environment value.
 	GCPLocation string
+
+	// Executor names the executor building this env ("claude", "codex", "pi",
+	// "opencode", "motoko"); with Model it selects the child's EnvPolicy —
+	// which credential the CLI is granted (M-EXECUTOR-ENV-HARDENING D1/D2).
+	// Empty means no executor grant at all.
+	Executor string
+
+	// Model is the model the executor will run (its default when the task
+	// names none); pi and opencode derive their provider credential from it.
+	Model string
+
+	// ExecutorEnv is the executor's own required set ("NAME=value"), applied
+	// last (e.g. motoko's MODEL, MOTOKO_CONFIG, ENV_PORT). It is code-owned,
+	// never task-supplied, so it is not validated like Task.ExtraEnv.
+	ExecutorEnv []string
 }
 
-// BuildEnvironment creates the common environment variables for AI executor processes.
-// This consolidates the duplicated setup code from claude.go and gemini.go.
+// BuildEnvironment builds the environment for an AI executor's model-facing
+// child process (M-EXECUTOR-ENV-HARDENING D4). It constructs the env from
+// layers through one de-duplicating builder (envSet), so every key appears
+// once and precedence is fixed:
 //
-// The environment includes:
-//   - AILANG_STDLIB_PATH: Path to AILANG standard library
-//   - PWD: Working directory (if workspace specified)
-//   - TRACEPARENT: W3C trace context for distributed tracing
-//   - AILANG_TASK_ID, AILANG_SESSION_ID: Correlation IDs
-//   - AILANG_PARENT_TASK_ID: Parent task for hierarchy tracking
-//   - AILANG_CHAIN_ID, AILANG_STAGE_ID: Execution chain context (M-CHAINS-SIMPLIFY)
-//   - AILANG_MESSAGE_ID: Source message that triggered this chain
-//   - OTEL_RESOURCE_ATTRIBUTES: Resource attributes for trace linking
-//   - OTEL_EXPORTER_OTLP_ENDPOINT: OTLP endpoint for trace collection
-//   - GOOGLE_CLOUD_PROJECT: GCP project for cloud tracing
-func BuildEnvironment(opts EnvironmentOptions) []string {
-	env := os.Environ()
+//  1. inherited — the host environment filtered by the child's EnvPolicy
+//     (default-deny allowlist; credential-shaped names only when granted),
+//     minus CLAUDECODE
+//  2. harness-injected — values the harness owns:
+//     AILANG_RIG_LEASE, AILANG_STDLIB_PATH, PWD, TRACEPARENT/TRACESTATE,
+//     AILANG_TASK_ID/SESSION_ID/PARENT_TASK_ID, AILANG_CHAIN_ID/STAGE_ID/
+//     MESSAGE_ID, AILANG_AGENT_POLICY (from Task.PolicyPath),
+//     OTEL_RESOURCE_ATTRIBUTES, OTEL_EXPORTER_OTLP_ENDPOINT/PROTOCOL,
+//     GOOGLE_CLOUD_PROJECT/LOCATION, and the Claude/Gemini telemetry switches
+//  3. Task.ExtraEnv — validated first (ValidateExtraEnv); a refused name is an
+//     error, never a silent drop
+//  4. EnvironmentOptions.ExecutorEnv — the executor's own required set
+//
+// Later layers win. The error is non-nil when Task.ExtraEnv is refused or the
+// child's credential grants cannot be derived.
+func BuildEnvironment(opts EnvironmentOptions) ([]string, error) {
+	if opts.Task != nil {
+		if err := ValidateExtraEnv(opts.Task.ExtraEnv); err != nil {
+			return nil, err
+		}
+	}
+	envPolicy, err := ResolveEnvPolicy(opts.Executor, opts.Model, opts.Task)
+	if err != nil {
+		return nil, err
+	}
 
-	// Strip CLAUDECODE env var to prevent "Cannot be launched inside another
-	// Claude Code session" errors. This applies to ALL executors — even Gemini
-	// may shell out to Claude Code, and future executors shouldn't need to know
-	// about this workaround.
-	env = RemoveEnvVar(env, "CLAUDECODE")
+	env := newEnvSet()
 
+	// Layer 1: inherited, through the default-deny policy.
+	inherited, withheld := envPolicy.filterInherited(os.Environ())
+	if len(withheld) > 0 {
+		// Names only, never values: the operator's one-line record of what
+		// the boundary held back, so a lane that needed one is diagnosable.
+		fmt.Fprintf(os.Stderr, "executor-env: withheld from the %s child: %s (grant with %s)\n",
+			executorLabel(opts.Executor), strings.Join(withheld, ", "), config.EnvExecutorEnvInherit)
+	}
+	env.setEntries(inherited)
+	// Strip CLAUDECODE to prevent "Cannot be launched inside another Claude
+	// Code session" errors. Applies to ALL executors — any of them may shell
+	// out to Claude Code.
+	env.unset("CLAUDECODE")
+
+	// Layer 2: harness-injected.
+	injectHarnessEnv(env, opts)
+
+	// Layer 3: per-task extra env (benchmark agent_env such as
+	// MOTOKO_AST_AUTOREAD, mission-stage pins, browser-lane endpoints).
+	// Validated above; applied in sorted order so the result is deterministic.
+	if opts.Task != nil {
+		env.setMapSorted(opts.Task.ExtraEnv)
+	}
+
+	// Layer 4: the executor's own required set.
+	env.setEntries(opts.ExecutorEnv)
+
+	return env.environ(), nil
+}
+
+// injectHarnessEnv writes the values the harness owns (layer 2).
+func injectHarnessEnv(env *envSet, opts EnvironmentOptions) {
 	// Always define the rig lease (M-RIG-GPU-ADMISSION-GATEWAY): the held lock's
 	// token, or "none". A pi provider that templates it into a header refuses to
 	// start when the variable is unset (measured 2026-09-27), so an agent must
 	// never inherit an environment without it.
-	env = append(RemoveEnvVar(env, config.EnvRigLease), config.EnvRigLease+"="+config.RigLease())
+	env.set(config.EnvRigLease, config.RigLease())
 
-	// Set up AILANG stdlib path.
+	// AILANG stdlib path.
 	// Priority: workspace/std (cloud: cloned repo has stdlib) > cwd/std (local: running from repo root).
-	// This ensures cloud agents (where cwd=/workspace but repo is at /workspace/{taskID})
-	// find the stdlib correctly when the cloned repo is an AILANG workspace.
 	// Only a directory that IS a stdlib is exported: an explicit AILANG_STDLIB_PATH
 	// that holds none is an error in the child (M-STDLIB-ROOT-RESOLUTION), and with
 	// nothing exported the child uses the stdlib built into its binary.
 	if stdlibPath := childStdlibPath(opts); stdlibPath != "" {
-		env = append(env, fmt.Sprintf("AILANG_STDLIB_PATH=%s", stdlibPath))
+		env.set("AILANG_STDLIB_PATH", stdlibPath)
 	}
 
-	// Set working directory if specified
 	if opts.Task != nil && opts.Task.Workspace != "" {
-		env = append(env, fmt.Sprintf("PWD=%s", opts.Task.Workspace))
+		env.set("PWD", opts.Task.Workspace)
 	}
 
-	// Merge per-task extra env (eval harness benchmark agent_env, e.g.
-	// MOTOKO_AST_AUTOREAD / MOTOKO_AST_READ_FULL). Appended last so a benchmark
-	// can intentionally override an inherited value. Applies to every executor.
-	if opts.Task != nil {
-		for k, v := range opts.Task.ExtraEnv {
-			env = append(env, fmt.Sprintf("%s=%s", k, v))
-		}
+	// The per-task git credential (D2): a URL-scoped credential-store file the
+	// parent wrote outside the workspace. Delivered as command-scope git config
+	// so it applies only to the task's own repository.
+	if opts.Task != nil && opts.Task.GitCredentialFile != "" {
+		env.setEntries(GitCredentialEnv(opts.Task.GitCredentialFile, opts.Task.GitCredentialScopes))
 	}
 
-	// Inject W3C trace context for distributed tracing
-	// This enables ailang run commands spawned by the executor to link back to this trace
+	// The program policy the ailang_only lane's tools are gated by. Derived
+	// from Task.PolicyPath — never from ExtraEnv, which may not name it.
+	if opts.Task != nil && opts.Task.PolicyPath != "" {
+		env.set(config.EnvAgentPolicy, opts.Task.PolicyPath)
+	}
+
+	// W3C trace context, so `ailang run` commands spawned by the agent link back
+	// to this trace.
 	if opts.Context != nil {
-		env = telemetry.InjectTraceContext(opts.Context, env)
+		env.setEntries(telemetry.InjectTraceContext(opts.Context, nil))
 	}
 
-	// Inject correlation IDs for fallback linking
-	taskID := ""
-	parentTaskID := ""
+	// Correlation IDs for fallback linking.
+	taskID, parentTaskID := "", ""
 	if opts.Task != nil {
 		taskID = opts.Task.ID
 		parentTaskID = opts.Task.ParentTaskID
 	}
-	env = telemetry.InjectCorrelationIDs(env, taskID, opts.SessionID)
+	env.setEntries(telemetry.InjectCorrelationIDs(nil, taskID, opts.SessionID))
 
-	// Inject parent task ID for hierarchy tracking (M-TASK-HIERARCHY)
-	// When the executor spawns AI CLI (Claude/Gemini), any child ailang commands
-	// (ailang run, ailang check) should link back to this executor's task ID.
-	// - If ParentTaskID is set: propagate the explicit parent (nested exec calls)
-	// - Otherwise: use this task's ID as the parent for child commands
+	// Parent task ID for hierarchy tracking (M-TASK-HIERARCHY): an explicit
+	// parent (nested exec calls), else this task, so the agent's own child
+	// ailang commands link back to it.
 	effectiveParentID := parentTaskID
 	if effectiveParentID == "" && taskID != "" {
 		effectiveParentID = taskID
 	}
 	if effectiveParentID != "" {
-		env = append(env, fmt.Sprintf("AILANG_PARENT_TASK_ID=%s", effectiveParentID))
+		env.set("AILANG_PARENT_TASK_ID", effectiveParentID)
 	}
 
-	// Inject chain context for unified hierarchy tracking (M-CHAINS-SIMPLIFY)
-	// Chain IDs are passed via Task.Metadata from the coordinator
+	// Chain context (M-CHAINS-SIMPLIFY), passed via Task.Metadata.
 	if opts.Task != nil && opts.Task.Metadata != nil {
 		if chainID := opts.Task.Metadata["chain_id"]; chainID != "" {
-			env = append(env, fmt.Sprintf("AILANG_CHAIN_ID=%s", chainID))
+			env.set("AILANG_CHAIN_ID", chainID)
 		}
 		if stageID := opts.Task.Metadata["stage_id"]; stageID != "" {
-			env = append(env, fmt.Sprintf("AILANG_STAGE_ID=%s", stageID))
+			env.set("AILANG_STAGE_ID", stageID)
 		}
 		if messageID := opts.Task.Metadata["message_id"]; messageID != "" {
-			env = append(env, fmt.Sprintf("AILANG_MESSAGE_ID=%s", messageID))
+			env.set("AILANG_MESSAGE_ID", messageID)
 		}
 	}
 
-	// Build resource attributes for trace linking (M-TASK-HIERARCHY)
-	// Merges existing attributes from environment with task-specific attributes
-	resourceAttrs := BuildResourceAttributes(opts.Task, opts.SessionID)
-	env = append(env, fmt.Sprintf("OTEL_RESOURCE_ATTRIBUTES=%s", resourceAttrs))
+	// Resource attributes for trace linking (M-TASK-HIERARCHY).
+	env.set("OTEL_RESOURCE_ATTRIBUTES", BuildResourceAttributes(opts.Task, opts.SessionID))
 
-	// Configure OTEL exporter for trace collection
-	// Priority: parent env > default to local observatory server
+	// OTEL exporter. Priority: parent env > the local observatory server.
 	endpoint := config.OTLPEndpoint()
 	if endpoint == "" {
-		// Default to local observatory for unified trace collection
 		endpoint = "http://localhost:1957"
 	}
-	env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", endpoint))
-
-	// Pass through OTEL protocol if set
+	env.set("OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
 	if protocol := config.OTLPProtocol(); protocol != "" {
-		env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_PROTOCOL=%s", protocol))
+		env.set("OTEL_EXPORTER_OTLP_PROTOCOL", protocol)
 	}
 
-	// For GCP export, set the project.
-	// Priority: EnvironmentOptions override > OTLP_GOOGLE_CLOUD_PROJECT >
-	// config.CloudProject (the one resolver; no project is fine here, the
-	// exporter then stays unconfigured).
+	// GCP project for export. Priority: EnvironmentOptions override >
+	// OTLP_GOOGLE_CLOUD_PROJECT > config.CloudProject (no project is fine here,
+	// the exporter then stays unconfigured).
 	project := opts.GCPProject
 	if project == "" {
 		project = config.TraceProjectOverride()
@@ -178,39 +225,32 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 		project, _ = config.CloudProject(context.Background())
 	}
 	if project != "" {
-		env = UpdateEnvVar(env, "GOOGLE_CLOUD_PROJECT", project)
-		env = UpdateEnvVar(env, "OTLP_GOOGLE_CLOUD_PROJECT", project)
+		env.set("GOOGLE_CLOUD_PROJECT", project)
+		env.set("OTLP_GOOGLE_CLOUD_PROJECT", project)
 	}
 
-	// GCP location override (e.g. us-central1, europe-west1)
 	location := opts.GCPLocation
 	if location == "" {
 		location = config.GoogleCloudLocation()
 	}
 	if location != "" {
-		env = UpdateEnvVar(env, "GOOGLE_CLOUD_LOCATION", location)
+		env.set("GOOGLE_CLOUD_LOCATION", location)
 	}
 
-	// Claude-specific telemetry configuration
 	if opts.EnableClaudeTelemetry {
-		env = append(env, "CLAUDE_CODE_ENABLE_TELEMETRY=1")
-		env = append(env, "OTEL_METRICS_EXPORTER=otlp")
-		env = append(env, "OTEL_LOGS_EXPORTER=otlp")
+		env.set("CLAUDE_CODE_ENABLE_TELEMETRY", "1")
+		env.set("OTEL_METRICS_EXPORTER", "otlp")
+		env.set("OTEL_LOGS_EXPORTER", "otlp")
 	}
 
-	// Gemini-specific telemetry configuration
 	if opts.EnableGeminiTelemetry {
-		env = append(env, "GEMINI_TELEMETRY_ENABLED=true")
-
-		// Set telemetry target based on available configuration
+		env.set("GEMINI_TELEMETRY_ENABLED", "true")
 		if target := config.GeminiTelemetryTarget(); target != "" {
-			env = append(env, fmt.Sprintf("GEMINI_TELEMETRY_TARGET=%s", target))
+			env.set("GEMINI_TELEMETRY_TARGET", target)
 		} else if project != "" {
-			env = append(env, "GEMINI_TELEMETRY_TARGET=gcp")
+			env.set("GEMINI_TELEMETRY_TARGET", "gcp")
 		}
 	}
-
-	return env
 }
 
 // BuildResourceAttributes creates OTEL_RESOURCE_ATTRIBUTES value.
@@ -262,11 +302,14 @@ func BuildResourceAttributes(task *Task, sessionID string) string {
 	// Critical for proper cost attribution: GitHub → Coordinator → Claude Code
 	attrs["ailang.source"] = "coordinator"
 
-	// Build final attribute string
-	var parts []string
+	// Build final attribute string, sorted by key: map iteration order is
+	// randomized, and the child env must be a deterministic function of the
+	// task (M-EXECUTOR-ENV-HARDENING A1).
+	parts := make([]string, 0, len(attrs))
 	for k, v := range attrs {
 		parts = append(parts, fmt.Sprintf("%s=%s", k, v))
 	}
+	sort.Strings(parts)
 	return strings.Join(parts, ",")
 }
 
@@ -475,4 +518,11 @@ func childStdlibPath(opts EnvironmentOptions) string {
 		warnStdlibMismatchOnce(c, why)
 	}
 	return ""
+}
+
+func executorLabel(name string) string {
+	if name == "" {
+		return "agent"
+	}
+	return name
 }

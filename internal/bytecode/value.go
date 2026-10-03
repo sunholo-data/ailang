@@ -70,11 +70,17 @@ func (t ValueTag) String() string {
 // This is intentionally larger than a NaN-boxed uint64 (~32 bytes vs 8). The
 // design doc gates NaN-boxing on Phase 2D benchmark evidence — do not switch
 // representation until we have data showing value dispatch is the bottleneck.
+//
+// Field order is load-bearing for size: Tag and Bool share one word, so a
+// Value is 40 bytes, not the 48 that Tag, Int, Flt, Bool, Obj in declaration
+// order pads to. Every list cons / list build copies whole Values, so this
+// width is what the VM pays per element on copy-heavy shapes (#1501 Phase 3:
+// consrepro allocated 3.0x the evaluator's bytes at 48 B).
 type Value struct {
 	Tag  ValueTag
+	Bool bool
 	Int  int64
 	Flt  float64
-	Bool bool
 	Obj  any // *StringObj, *ListObj, *TupleObj, *RecordObj, *ClosureObj, *ADTObj, *ArrayObj, *BytesObj
 }
 
@@ -169,7 +175,11 @@ type ClosureObj struct {
 // ordinal assigned during type elaboration; it is NOT globally unique. Type
 // disambiguation is the compiler's responsibility (§4.3).
 type ADTObj struct {
-	Tag    int
+	Tag int
+	// Ctor is the constructor name ("Some", "Circle"). It does not take part
+	// in equality or dispatch — Tag does — but `show` needs it to render the
+	// value the way the evaluator does (#1453).
+	Ctor   string
 	Fields []Value
 }
 
@@ -282,8 +292,8 @@ func NewClosure(proto FuncPrototypeRef, captures []Value) Value {
 }
 
 // NewADT constructs an ADT value with the given tag and fields.
-func NewADT(tag int, fields []Value) Value {
-	return Value{Tag: TagADT, Obj: &ADTObj{Tag: tag, Fields: fields}}
+func NewADT(tag int, ctor string, fields []Value) Value {
+	return Value{Tag: TagADT, Obj: &ADTObj{Tag: tag, Ctor: ctor, Fields: fields}}
 }
 
 // --- Accessors (panic on tag mismatch — VM dispatch must check first) -------

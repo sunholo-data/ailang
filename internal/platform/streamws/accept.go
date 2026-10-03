@@ -12,8 +12,8 @@ type AcceptOptions struct {
 	// Subprotocol, when non-empty, is the one subprotocol the server selects
 	// (echoed in Sec-WebSocket-Protocol). Empty selects none.
 	Subprotocol string
-	// MaxFrameSize is the inbound read limit per message.
-	MaxFrameSize int64
+	// MaxMessageSize is the inbound read limit per (reassembled) message.
+	MaxMessageSize int64
 }
 
 // IsUpgrade reports whether r asks for a WebSocket upgrade.
@@ -40,8 +40,8 @@ func Accept(w http.ResponseWriter, r *http.Request, opts AcceptOptions) (effects
 	if err != nil {
 		return nil, err
 	}
-	if opts.MaxFrameSize > 0 {
-		conn.SetReadLimit(opts.MaxFrameSize)
+	if opts.MaxMessageSize > 0 {
+		conn.SetReadLimit(opts.MaxMessageSize)
 	}
-	return &transport{conn: conn}, nil
+	return &transport{conn: conn, readLimit: opts.MaxMessageSize}, nil
 }

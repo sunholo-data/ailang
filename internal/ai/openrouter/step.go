@@ -43,6 +43,11 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	)
 	defer span.End()
 
+	if imgErr := rejectImageOnStep(req, "Step"); imgErr != nil {
+		ai.RecordSpanError(span, imgErr)
+		return nil, imgErr
+	}
+
 	// M-AI-REASONING-EFFORT: resolve reasoning controls for OpenRouter BEFORE
 	// building/marshaling. OpenRouter routes reasoning through its own
 	// reasoning{} block (see reasoningExtra), NOT OpenAI's native

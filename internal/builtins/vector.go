@@ -99,7 +99,8 @@ func registerVecDot() {
 			n := min(len(a), len(b))
 			acc := 0.0
 			for i := 0; i < n; i++ {
-				acc += a[i] * b[i]
+				// float64(...) forbids FMA fusion so arm64 and amd64 agree bit-for-bit (#1465).
+				acc += float64(a[i] * b[i])
 			}
 			return &eval.FloatValue{Value: acc}, nil
 		})
@@ -205,7 +206,8 @@ func registerVecAxpy() {
 				return nil, fmt.Errorf("axpy: vector lengths differ (x has %d, y has %d)", len(x), len(y))
 			}
 			for i := range y {
-				y[i] += a.Value * x[i]
+				// float64(...) forbids FMA fusion so arm64 and amd64 agree bit-for-bit (#1465).
+				y[i] += float64(a.Value * x[i])
 			}
 			return floatsValue(y), nil
 		})

@@ -2288,6 +2288,28 @@ models:
       compatible request layer). Pricing dropped too: $0.14/$0.28 -> $0.09/$0.18
       per 1M (input/output), confirmed live against OpenRouter 2026-08-03.
 
+  motoko-chatgpt-gpt-6-1-sol:
+    api_name: "gpt-6.1-sol"
+    provider: "chatgpt"
+    default_thinking: "on"  # effort defaults to medium (vendor docs, as gpt6-1-sol)
+    description: "GPT-6.1 Sol via motoko_agent on the ChatGPT subscription lane (codex login) — motoko vs codex on the same model"
+    agent_cli: "motoko"
+    motoko_profile: "cloud"
+    agent_model_name: "chatgpt/gpt-6.1-sol"  # the "chatgpt/" prefix selects internal/ai/chatgpt
+    model_family: "gpt-6-1-sol"              # pairs with the codex row gpt6-1-sol
+    max_output_tokens: 65536
+    pricing:  # list-price-EQUIVALENT on this lane (subscription), same rates as gpt6-1-sol
+      input_per_1k: 0.002
+      output_per_1k: 0.010
+    budgets:
+      max_tokens_per_bench: 3000000  # the shared WORK gate, as gpt6-1-sol
+      max_cost_usd: 7.20             # list-price dollars; nobody is billed
+      hard_timeout_secs: 3600
+    notes: |
+      Added 2026-10-02 (Mark). No env key: the credential is the codex CLI's
+      ChatGPT login (~/.codex/auth.json), read-only; codex refreshes it. The
+      motoko preflight refuses the run without it. Never an OpenRouter twin.
+
   motoko-or-kimi-k2-6:
     api_name: "moonshotai/kimi-k2.6"
     provider: "openrouter"
@@ -2342,6 +2364,53 @@ models:
       harness. Standard-mode results do not transfer to agent mode, so this row is
       registered but its pin is gated on an agent-mode smoke tier (~$0.06 at this
       pricing). Do not read the standard-mode record as evidence for this row.
+  motoko-lane-or-glm-5-3-flash:
+    api_name: "z-ai/glm-5.3-flash"
+    provider: "openrouter"
+    default_thinking: "always_on"  # as motoko-or-glm-5-3-flash: reasoning is mandatory on this endpoint
+    description: "GLM-5.3-Flash under motoko on the ailang_only lane profile — the motoko arm of the pi-vs-motoko lane A/B (M-MOTOKO-AILANG-ONLY-LANE D6). Same model as the 34 production lane agents."
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "motoko"
+    motoko_profile: "ailang_only"                      # .motoko/config/ailang_only — ailang_policy first, strict, hybrid off
+    agent_model_name: "openrouter/z-ai/glm-5.3-flash"
+    model_family: "glm-5"
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-27)
+      output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-27)
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      Added 2026-10-01 for the lane A/B. Run it ONLY with
+      `--tool-policy ailang_only --policy-file <restricted policy>`: the motoko
+      executor refuses a lane task unless the profile resolves (through motoko's
+      own resolver) to ailang_policy first + strict + hybrid off, the build
+      enforces extensions.strict (arniwesth/motoko_agent#205), and the policy is
+      restricted. Without --tool-policy it would run the profile with no lane
+      task, which the extension refuses to register for (no policy).
+  pi-or-glm-5-3-flash:
+    api_name: "z-ai/glm-5.3-flash"
+    provider: "openrouter"
+    default_thinking: "always_on"  # as or-glm-5-3-flash: reasoning is mandatory on this endpoint
+    description: "GLM-5.3-Flash via pi — the pi arm of the pi-vs-motoko ailang_only lane A/B (M-MOTOKO-AILANG-ONLY-LANE D6). Same model and route as the 34 production lane agents (provider: pi, openrouter/z-ai/glm-5.3-flash)."
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/z-ai/glm-5.3-flash"
+    model_family: "glm-5"
+    max_output_tokens: 32000  # pi's wire budget (tools/pi-extensions/models.mission.json maxTokens); the motoko arm declares 65536 — a known A/B asymmetry, check finish_reason=length on pi rows
+    pricing:
+      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-27)
+      output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-27)
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      Added 2026-10-01 as the pi arm of the lane A/B. Pair with
+      motoko-lane-or-glm-5-3-flash, both run with
+      `--tool-policy ailang_only --policy-file <restricted policy>`, same
+      benchmarks, same window. Budgets match the motoko arm so the cap decides
+      nothing.
   motoko-minimax-m3:
     api_name: "minimax/minimax-m3"
     provider: "openrouter"

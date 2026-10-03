@@ -23,7 +23,26 @@ type Executor struct {
 	globalResolver eval.GlobalResolver
 	enableDebug    bool
 	modules        map[string]*loader.LoadedModule // Cached modules from last pipeline run
+	rootModule     string                          // Key in modules of the module under test (see cacheModules)
 	lastMeta       map[string]*core.DeclMeta       // Cached Core.Meta from last pipeline run (lowered contracts)
+	// maxRecursionDepth is TestConfig.MaxRecursionDepth; 0 = evaluator default.
+	maxRecursionDepth int
+	// bytecode / strictBytecode are TestConfig.Bytecode / StrictBytecode
+	// (#1487); engine counts where named-test bodies actually ran.
+	bytecode       bool
+	strictBytecode bool
+	engine         EngineStats
+}
+
+// newEvaluator returns a fresh evaluator honouring the configured recursion
+// limit. Every test-evaluation path builds its evaluator here, so
+// `ailang test --max-recursion-depth` reaches all of them.
+func (e *Executor) newEvaluator() *eval.CoreEvaluator {
+	ev := eval.NewCoreEvaluator()
+	if e.maxRecursionDepth > 0 {
+		ev.SetMaxRecursionDepth(e.maxRecursionDepth)
+	}
+	return ev
 }
 
 // NewExecutor creates a new test executor.
@@ -154,17 +173,7 @@ func (e *Executor) evaluateEnsuresHarnessCore(harnessExpr core.CoreExpr) (eval.V
 		Decls: []core.CoreExpr{harnessExpr},
 	}
 
-	evaluator := eval.NewCoreEvaluator()
-	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
-	env := evaluator.Env()
-	e.injectModuleBindings(evaluator, env)
-	resolver := &CombinedResolver{
-		Builtins: builtinRegistry,
-		Env:      env,
-		Modules:  e.modules,
-	}
-	evaluator.SetGlobalResolver(resolver)
-	e.injectADTConstructors(evaluator)
+	evaluator := e.newHarnessEvaluator()
 
 	result, err := evaluator.EvalCoreProgram(coreProg)
 	if err != nil {
@@ -221,6 +230,25 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 		return nil, fmt.Errorf("named test block: FoldTestBody returned nil")
 	}
 
+	// --bytecode (#1487): run the body on the VM when it compiles; otherwise
+	// fall back to the evaluator below, unless --strict-bytecode.
+	if e.bytecode {
+		val, vmErr := e.evalNamedTestBodyOnVM(baseSource, hasModule, folded, len(checks) > 0)
+		switch {
+		case vmErr == nil:
+			e.engine.VMBodies++
+			if len(checks) > 0 {
+				return decodeCheckSentinel(val, checks)
+			}
+			return val, nil
+		case e.strictBytecode:
+			e.engine.StrictFailures++
+			return nil, fmt.Errorf("--strict-bytecode: %w", vmErr)
+		default:
+			e.engine.noteFallback(vmErr)
+		}
+	}
+
 	// Append the folded body expression.
 	// Use PrintAILANGSource (not expr.String()) because String() uses prefix
 	// notation for FuncCall which is not valid AILANG syntax.
@@ -237,51 +265,62 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	sb.WriteString(PrintAILANGSource(folded))
 	sb.WriteString(" }")
 	sb.WriteString("\n")
-	combinedSource := sb.String()
 
-	// Determine the pipeline filename.  The temp file MUST live in the same
-	// directory as the original source so that relative imports ("./types",
-	// "./engine") and the package manifest (ailang.toml / ailang.lock) can be
-	// found by the module loader.  A random temp dir would break any package
-	// that uses intra-package sibling imports.
-	var pipelineFilename string
-	{
-		var baseName string
-		var sourceDir string
-		if e.modulePath != "" {
-			baseName = strings.TrimSuffix(filepath.Base(e.modulePath), ".ail")
-			sourceDir = filepath.Dir(e.modulePath)
-		} else {
-			baseName = "body"
-			// No source path available — fall back to OS temp dir (will fail for
-			// packages with relative imports, but that is the correct behaviour
-			// for standalone test snippets that have no module path).
-			var err error
-			sourceDir, err = os.MkdirTemp("", "ailang-namedtest-*")
-			if err != nil {
-				return nil, fmt.Errorf("failed to create temp dir: %w", err)
-			}
-			defer os.RemoveAll(sourceDir)
-		}
+	pipelineResult, err := e.runNamedTestPipeline(sb.String(), hasModule)
+	if err != nil {
+		return nil, err
+	}
+	coreProg := pipelineResult.Artifacts.Core
 
-		// Create a uniquely-named temp file in the same directory.
-		// Use os.CreateTemp so the name does not collide with existing files.
-		tmpFile, err := os.CreateTemp(sourceDir, "_namedtest_body_*.ail")
-		if err != nil {
-			return nil, fmt.Errorf("failed to create temp file in %s: %w", sourceDir, err)
-		}
-		pipelineFilename = tmpFile.Name()
-		tmpFile.Close() // Close before os.WriteFile reopens it
-		defer os.Remove(pipelineFilename)
+	// Cache modules for future use.
+	e.cacheModules(&pipelineResult)
 
-		if !hasModule {
-			// No module declaration — prepend a synthetic one.
-			combinedSource = fmt.Sprintf("module _test/%s\n\n%s", baseName, combinedSource)
-		}
+	// Evaluate all decls; EvalCoreProgram returns the last value.
+	// This ensures function bindings are in scope when the body expression is evaluated.
+	evaluator := e.newHarnessEvaluator()
 
-		if err := os.WriteFile(pipelineFilename, []byte(combinedSource), 0644); err != nil {
-			return nil, fmt.Errorf("failed to write temp file: %w", err)
-		}
+	val, err := evaluator.EvalCoreProgram(coreProg)
+	if err != nil {
+		return nil, fmt.Errorf("evaluation error: %w", err)
+	}
+
+	// Assert-bearing bodies evaluate to an int sentinel rather than a bool;
+	// translate it back into the runner's bool pass/fail contract.
+	if len(checks) > 0 {
+		return decodeCheckSentinel(val, checks)
+	}
+	return val, nil
+}
+
+// runNamedTestPipeline compiles a named-test body source (the stripped test
+// module plus the body) through the full pipeline.
+//
+// The source is materialised as the pipeline's root file in a PRIVATE temp
+// dir, never in the package dir (#1502): a copy next to the source was
+// removed only by a defer, so any interrupted run (CI timeout SIGTERM,
+// Ctrl-C, SIGKILL) left it behind for `pkg quality`, `publish` and the next
+// `ailang test` to pick up as a real module. Sibling imports and the
+// manifest still resolve against the package: the pipeline's loader base and
+// package search both use PackageDir (below), not the root file's directory.
+// TransientRoot tells the pipeline the root's path is not a module location
+// (no MOD010 warning naming the temp file, no cache entry).
+func (e *Executor) runNamedTestPipeline(combinedSource string, hasModule bool) (pipeline.Result, error) {
+	baseName := "body"
+	if e.modulePath != "" {
+		baseName = strings.TrimSuffix(filepath.Base(e.modulePath), ".ail")
+	}
+	tmpDir, err := os.MkdirTemp("", "ailang-namedtest-*")
+	if err != nil {
+		return pipeline.Result{}, fmt.Errorf("failed to create temp dir for named test body: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+	pipelineFilename := filepath.Join(tmpDir, baseName+".ail")
+	if !hasModule {
+		// No module declaration — prepend a synthetic one.
+		combinedSource = fmt.Sprintf("module _test/%s\n\n%s", baseName, combinedSource)
+	}
+	if err := os.WriteFile(pipelineFilename, []byte(combinedSource), 0o600); err != nil {
+		return pipeline.Result{}, fmt.Errorf("failed to write named test body: %w", err)
 	}
 
 	// Derive the package directory from the source file path so the pipeline's
@@ -296,6 +335,7 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 		Mode:           pipeline.ModeEval,
 		RelaxModules:   true,
 		PackageDir:     pkgDir,
+		TransientRoot:  true,
 		GlobalResolver: e.globalResolver,
 	}
 	pipelineSrc := pipeline.Source{
@@ -304,48 +344,17 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 		IsREPL:   false,
 	}
 
-	pipelineResult, err := pipeline.Run(cfg, pipelineSrc)
+	res, err := pipeline.Run(cfg, pipelineSrc)
 	if err != nil {
-		return nil, fmt.Errorf("pipeline error: %w", err)
+		return pipeline.Result{}, fmt.Errorf("pipeline error: %w", err)
 	}
-
-	if pipelineResult.Artifacts.Core == nil {
-		return nil, fmt.Errorf("pipeline produced no Core program")
+	if res.Artifacts.Core == nil {
+		return pipeline.Result{}, fmt.Errorf("pipeline produced no Core program")
 	}
-
-	coreProg := pipelineResult.Artifacts.Core
-	if len(coreProg.Decls) == 0 {
-		return nil, fmt.Errorf("Core program has no declarations")
+	if len(res.Artifacts.Core.Decls) == 0 {
+		return pipeline.Result{}, fmt.Errorf("Core program has no declarations")
 	}
-
-	// Cache modules for future use.
-	e.modules = pipelineResult.Modules
-
-	// Evaluate all decls; EvalCoreProgram returns the last value.
-	// This ensures function bindings are in scope when the body expression is evaluated.
-	evaluator := eval.NewCoreEvaluator()
-	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
-	env := evaluator.Env()
-	e.injectModuleBindings(evaluator, env)
-	resolver := &CombinedResolver{
-		Builtins: builtinRegistry,
-		Env:      env,
-		Modules:  e.modules,
-	}
-	evaluator.SetGlobalResolver(resolver)
-	e.injectADTConstructors(evaluator)
-
-	val, err := evaluator.EvalCoreProgram(coreProg)
-	if err != nil {
-		return nil, fmt.Errorf("evaluation error: %w", err)
-	}
-
-	// Assert-bearing bodies evaluate to an int sentinel rather than a bool;
-	// translate it back into the runner's bool pass/fail contract.
-	if len(checks) > 0 {
-		return decodeCheckSentinel(val, checks)
-	}
-	return val, nil
+	return res, nil
 }
 
 // decodeCheckSentinel converts the int sentinel produced by FoldTestBody's
@@ -397,27 +406,7 @@ func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests
 	}
 
 	// Evaluate the harness
-	evaluator := eval.NewCoreEvaluator()
-
-	// Set up builtin registry and combined resolver
-	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
-
-	// Get the evaluator's environment for the combined resolver
-	env := evaluator.Env()
-
-	// Inject elaborated module functions into the environment
-	e.injectModuleBindings(evaluator, env)
-
-	// Create combined resolver that can handle both builtins and module functions
-	resolver := &CombinedResolver{
-		Builtins: builtinRegistry,
-		Env:      env,
-		Modules:  e.modules,
-	}
-	evaluator.SetGlobalResolver(resolver)
-
-	// Inject ADT constructor bindings from source file so test inputs like (North, 0) work
-	e.injectADTConstructors(evaluator)
+	evaluator := e.newHarnessEvaluator()
 
 	result, err := evaluator.EvalCoreProgram(coreProg)
 	if err != nil {
@@ -490,7 +479,7 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	}
 
 	// Cache the modules from the pipeline result for use in test harness evaluation
-	e.modules = result.Modules
+	e.cacheModules(&result)
 
 	// Extract the LetRec binding from the Core program
 	if result.Artifacts.Core == nil {
@@ -616,17 +605,7 @@ func (e *Executor) EvaluateInlineTestsWithCluster(
 		Decls: []core.CoreExpr{harnessExpr},
 	}
 
-	evaluator := eval.NewCoreEvaluator()
-	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
-	env := evaluator.Env()
-	e.injectModuleBindings(evaluator, env)
-	resolver := &CombinedResolver{
-		Builtins: builtinRegistry,
-		Env:      env,
-		Modules:  e.modules,
-	}
-	evaluator.SetGlobalResolver(resolver)
-	e.injectADTConstructors(evaluator)
+	evaluator := e.newHarnessEvaluator()
 
 	result, err := evaluator.EvalCoreProgram(harnessProgram)
 	if err != nil {
@@ -673,7 +652,7 @@ func (e *Executor) ExtractPureClusterForFunction(
 		return nil, nil, fmt.Errorf("pipeline did not produce Core program")
 	}
 
-	e.modules = result.Modules
+	e.cacheModules(&result)
 
 	coreProg := result.Artifacts.Core
 	g := BuildCallGraph(coreProg)

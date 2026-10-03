@@ -6,14 +6,19 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/mathx"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // Trigonometry and advanced math builtins (v0.5.9)
+//
+// The 11 transcendental functions go through internal/mathx, not the host
+// math package: host results differ between arm64 and amd64 (#1465). sqrt,
+// floor, ceil, round and abs are exact operations and stay on host math.
 
 func registerTrigonometry() {
 	// sin: float -> float
-	registerTrigFunc("_math_sin", math.Sin,
+	registerTrigFunc("_math_sin", mathx.Sin,
 		"Compute sine of angle in radians",
 		[]ParamDoc{{Name: "radians", Description: "Angle in radians"}},
 		"Sine of the angle",
@@ -24,7 +29,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "sin", "sine"})
 
 	// cos: float -> float
-	registerTrigFunc("_math_cos", math.Cos,
+	registerTrigFunc("_math_cos", mathx.Cos,
 		"Compute cosine of angle in radians",
 		[]ParamDoc{{Name: "radians", Description: "Angle in radians"}},
 		"Cosine of the angle",
@@ -35,7 +40,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "cos", "cosine"})
 
 	// tan: float -> float
-	registerTrigFunc("_math_tan", math.Tan,
+	registerTrigFunc("_math_tan", mathx.Tan,
 		"Compute tangent of angle in radians",
 		[]ParamDoc{{Name: "radians", Description: "Angle in radians"}},
 		"Tangent of the angle",
@@ -46,7 +51,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "tan", "tangent"})
 
 	// asin: float -> float
-	registerTrigFunc("_math_asin", math.Asin,
+	registerTrigFunc("_math_asin", mathx.Asin,
 		"Compute arcsine (inverse sine) returning radians",
 		[]ParamDoc{{Name: "x", Description: "Value in range [-1, 1]"}},
 		"Angle in radians in range [-PI/2, PI/2]",
@@ -57,7 +62,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "asin", "arcsine", "inverse"})
 
 	// acos: float -> float
-	registerTrigFunc("_math_acos", math.Acos,
+	registerTrigFunc("_math_acos", mathx.Acos,
 		"Compute arccosine (inverse cosine) returning radians",
 		[]ParamDoc{{Name: "x", Description: "Value in range [-1, 1]"}},
 		"Angle in radians in range [0, PI]",
@@ -68,7 +73,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "acos", "arccosine", "inverse"})
 
 	// atan: float -> float
-	registerTrigFunc("_math_atan", math.Atan,
+	registerTrigFunc("_math_atan", mathx.Atan,
 		"Compute arctangent (inverse tangent) returning radians",
 		[]ParamDoc{{Name: "x", Description: "Any float value"}},
 		"Angle in radians in range [-PI/2, PI/2]",
@@ -79,7 +84,7 @@ func registerTrigonometry() {
 		[]string{"math", "trigonometry", "atan", "arctangent", "inverse"})
 
 	// atan2: (float, float) -> float
-	registerTrigFunc2("_math_atan2", math.Atan2,
+	registerTrigFunc2("_math_atan2", mathx.Atan2,
 		"Compute two-argument arctangent for angle calculation",
 		[]ParamDoc{
 			{Name: "y", Description: "Y coordinate"},
@@ -104,7 +109,7 @@ func registerTrigonometry() {
 		[]string{"math", "sqrt", "square", "root"})
 
 	// pow: (float, float) -> float
-	registerTrigFunc2("_math_pow", math.Pow,
+	registerTrigFunc2("_math_pow", mathx.Pow,
 		"Compute x raised to the power y",
 		[]ParamDoc{
 			{Name: "x", Description: "Base value"},
@@ -118,7 +123,7 @@ func registerTrigonometry() {
 		[]string{"math", "pow", "power", "exponent"})
 
 	// exp: float -> float
-	registerTrigFunc("_math_exp", math.Exp,
+	registerTrigFunc("_math_exp", mathx.Exp,
 		"Compute e^x (exponential function)",
 		[]ParamDoc{{Name: "x", Description: "Exponent value"}},
 		"e raised to the power x",
@@ -129,7 +134,7 @@ func registerTrigonometry() {
 		[]string{"math", "exp", "exponential", "e"})
 
 	// log: float -> float
-	registerTrigFunc("_math_log", math.Log,
+	registerTrigFunc("_math_log", mathx.Log,
 		"Compute natural logarithm (base e)",
 		[]ParamDoc{{Name: "x", Description: "Positive float value"}},
 		"Natural logarithm of x",
@@ -140,7 +145,7 @@ func registerTrigonometry() {
 		[]string{"math", "log", "logarithm", "ln", "natural"})
 
 	// log10: float -> float
-	registerTrigFunc("_math_log10", math.Log10,
+	registerTrigFunc("_math_log10", mathx.Log10,
 		"Compute base-10 logarithm",
 		[]ParamDoc{{Name: "x", Description: "Positive float value"}},
 		"Base-10 logarithm of x",

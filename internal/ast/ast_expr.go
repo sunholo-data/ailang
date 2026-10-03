@@ -2,6 +2,8 @@ package ast
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 )
 
@@ -106,8 +108,35 @@ func (l *Literal) String() string {
 			return `"` + escaped + `"`
 		}
 	}
+	if l.Kind == FloatLit {
+		if f, ok := l.Value.(float64); ok {
+			return FormatFloat(f)
+		}
+	}
 	return fmt.Sprintf("%v", l.Value)
 }
+
+// FormatFloat is the one canonical AILANG spelling of a float64: it re-parses
+// to the same value AND as a float, never an int literal. Whole numbers keep a
+// decimal point ("4.0", not "4" — #1448). Non-finite values have no literal
+// form, so they print as the float expression that produces them. The source
+// formatter (internal/format) delegates here.
+func FormatFloat(v float64) string {
+	switch {
+	case math.IsNaN(v):
+		return "(0.0 / 0.0)"
+	case math.IsInf(v, 1):
+		return "(1.0 / 0.0)"
+	case math.IsInf(v, -1):
+		return "(-1.0 / 0.0)"
+	}
+	s := strconv.FormatFloat(v, 'g', -1, 64)
+	if !strings.ContainsAny(s, ".eE") {
+		s += ".0"
+	}
+	return s
+}
+
 func (l *Literal) Position() Pos { return l.Pos }
 func (l *Literal) exprNode()     {}
 func (l *Literal) patternNode()  {}

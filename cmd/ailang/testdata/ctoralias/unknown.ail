@@ -1,0 +1,9 @@
+module cmd/ailang/testdata/ctoralias/unknown
+import std/option (Option, Some, None)
+
+func nothing() -> Option[int] = None
+
+export func unknown() -> int = match nothing() {
+  Bogus => 1,
+  _ => 0
+}

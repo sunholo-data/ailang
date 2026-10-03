@@ -31,6 +31,7 @@ type CloudSecretApprover struct {
 	agentID   string
 	taskID    string
 	authToken string
+	idToken   func(ctx context.Context) (string, error) // mints a bearer when authToken is empty
 	http      *http.Client
 	deadline  time.Duration // total wait for a decision before failing closed
 	poll      time.Duration // interval between status polls
@@ -79,9 +80,20 @@ func WithApproverPollInterval(d time.Duration) CloudApproverOption {
 	}
 }
 
-// WithApproverAuthToken attaches a bearer token to requests to the coordinator.
+// WithApproverAuthToken attaches a static bearer token (AILANG_APPROVAL_TOKEN,
+// the shared secret the dashboard also holds) to every request. When set it
+// wins over WithApproverIDTokenSource.
 func WithApproverAuthToken(tok string) CloudApproverOption {
 	return func(a *CloudSecretApprover) { a.authToken = tok }
+}
+
+// WithApproverIDTokenSource sets the function that mints a bearer (a Google
+// ID token whose audience is the dashboard URL) per request when no static
+// token is configured. This package only takes the function: the minting
+// lives in internal/runner, so the js/wasm build that includes this package
+// does not pull in the Google credential stack.
+func WithApproverIDTokenSource(mint func(ctx context.Context) (string, error)) CloudApproverOption {
+	return func(a *CloudSecretApprover) { a.idToken = mint }
 }
 
 // WithApproverHTTPClient overrides the HTTP client (used by tests).
@@ -164,7 +176,7 @@ func (a *CloudSecretApprover) createRequest(ctx context.Context, ref, purpose st
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	a.authorize(req)
+	mintErr := a.authorize(ctx, req)
 
 	resp, err := a.http.Do(req)
 	if err != nil {
@@ -172,7 +184,7 @@ func (a *CloudSecretApprover) createRequest(ctx context.Context, ref, purpose st
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("coordinator returned %s", resp.Status)
+		return "", fmt.Errorf("approval service returned %s%s", resp.Status, authHint(resp.StatusCode, mintErr))
 	}
 	var created approvalCreateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
@@ -189,7 +201,7 @@ func (a *CloudSecretApprover) pollStatus(ctx context.Context, id string) (status
 	if err != nil {
 		return "", "", err
 	}
-	a.authorize(req)
+	mintErr := a.authorize(ctx, req)
 
 	resp, err := a.http.Do(req)
 	if err != nil {
@@ -197,7 +209,7 @@ func (a *CloudSecretApprover) pollStatus(ctx context.Context, id string) (status
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("coordinator returned %s", resp.Status)
+		return "", "", fmt.Errorf("approval service returned %s%s", resp.Status, authHint(resp.StatusCode, mintErr))
 	}
 	var s approvalStatusResponse
 	if err := json.NewDecoder(resp.Body).Decode(&s); err != nil {
@@ -206,8 +218,39 @@ func (a *CloudSecretApprover) pollStatus(ctx context.Context, id string) (status
 	return s.Status, s.Reason, nil
 }
 
-func (a *CloudSecretApprover) authorize(req *http.Request) {
+// authorize sets the bearer: the static token if configured, else a minted ID
+// token. A mint failure is not fatal here — the request goes out without a
+// credential (a dashboard with intake auth off still answers) — but it is
+// returned so a 401 can say why there was no credential.
+func (a *CloudSecretApprover) authorize(ctx context.Context, req *http.Request) error {
 	if a.authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+a.authToken)
+		return nil
 	}
+	if a.idToken == nil {
+		return nil
+	}
+	tok, err := a.idToken(ctx)
+	if err != nil {
+		return err
+	}
+	if tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
+	}
+	return nil
+}
+
+// authHint explains a 401/403 from the approval service, which otherwise
+// reads as an unexplained denial of the secret.
+func authHint(code int, mintErr error) string {
+	switch code {
+	case http.StatusUnauthorized:
+		if mintErr != nil {
+			return fmt.Sprintf(" (no credential: could not mint an ID token: %v; set AILANG_APPROVAL_TOKEN to the dashboard's shared token)", mintErr)
+		}
+		return " (credential refused: the dashboard needs this caller's ID token audience in AILANG_APPROVAL_AUDIENCE, or AILANG_APPROVAL_TOKEN to match)"
+	case http.StatusForbidden:
+		return " (this identity is not on the dashboard's AILANG_APPROVAL_ALLOWED_CALLERS)"
+	}
+	return ""
 }

@@ -202,7 +202,7 @@ level = "experimental"          # experimental | stable | frozen
 
 ### Lock File Portability
 
-Registry and git lock entries resolve from the local cache (`~/.ailang/cache/`). Local path dependency locks may contain absolute paths: regenerate with `ailang lock` after moving or cloning. Do not describe path dependency locks as portable.
+Registry and git lock entries resolve from the local cache (`~/.ailang/cache/`). Path dependencies are recorded relative to the depending `ailang.toml` (forward slashes), so a lock stays valid when the whole tree is cloned or moved — but only if the dependency is inside that tree (a sibling repo is not in a CI clone). `ailang lock --check` verifies the committed lock without writing; it flags a lock from an older ailang that still names an absolute path, and `ailang lock` rewrites it relative.
 
 **Docker workflow:**
 ```dockerfile

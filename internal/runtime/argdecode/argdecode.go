@@ -24,18 +24,52 @@ func (e *DecodeError) Error() string {
 // Supports: null→(), number→int, string, bool, array→list, object→record
 // Constraint: Only handles simple, non-polymorphic types for v0.1.0
 func DecodeJSON(jsonStr string, expectedType types.Type) (eval.Value, error) {
-	// Parse JSON
+	return DecodeJSONWithAliases(jsonStr, expectedType, nil)
+}
+
+// AliasLookup expands a named type (`type Args = {…}`) to its definition.
+// The entry module's interface provides it (iface.GetTypeAlias).
+type AliasLookup func(name string) (types.Type, bool)
+
+// DecodeJSONWithAliases is DecodeJSON for a parameter type that may name type
+// aliases, at the top level or nested in records and lists. Without the
+// lookup, `func main(a: Args)` failed with "unsupported type constructor: Args"
+// while the same record written inline decoded (stapledons_godot, 2026-10-01).
+func DecodeJSONWithAliases(jsonStr string, expectedType types.Type, aliases AliasLookup) (eval.Value, error) {
 	var raw interface{}
 	if err := json.Unmarshal([]byte(jsonStr), &raw); err != nil {
 		return nil, fmt.Errorf("invalid JSON: %w", err)
 	}
-
-	return decodeValue(raw, expectedType)
+	return decoder{aliases: aliases}.value(raw, expectedType)
 }
 
-// decodeValue recursively converts JSON values to eval.Value
-func decodeValue(raw interface{}, expectedType types.Type) (eval.Value, error) {
-	switch typ := expectedType.(type) {
+type decoder struct {
+	aliases AliasLookup
+}
+
+// maxAliasHops bounds alias chains (`type A = B; type B = …`) so a cyclic
+// declaration fails instead of looping.
+const maxAliasHops = 32
+
+// expand follows alias names to a non-alias type.
+func (d decoder) expand(t types.Type) types.Type {
+	for hops := 0; hops < maxAliasHops; hops++ {
+		con, ok := t.(*types.TCon)
+		if !ok || d.aliases == nil {
+			return t
+		}
+		target, ok := d.aliases(con.Name)
+		if !ok {
+			return t
+		}
+		t = target
+	}
+	return t
+}
+
+// value recursively converts JSON values to eval.Value
+func (d decoder) value(raw interface{}, expectedType types.Type) (eval.Value, error) {
+	switch typ := d.expand(expectedType).(type) {
 	case *types.TCon:
 		// Check for unit type
 		if typ.Name == "Unit" || typ.Name == "unit" || typ.Name == "()" {
@@ -59,23 +93,32 @@ func decodeValue(raw interface{}, expectedType types.Type) (eval.Value, error) {
 		case "Bool", "bool":
 			return decodeBool(raw)
 		default:
-			return nil, fmt.Errorf("unsupported type constructor: %s", typ.Name)
+			return nil, fmt.Errorf("unsupported type constructor: %s (only scalars, list[T], records and record type aliases decode from JSON)", typ.Name)
 		}
 
 	case *types.TList:
-		return decodeList(raw, typ.Element)
+		return d.list(raw, typ.Element)
 
 	case *types.TApp:
 		// The checker writes `list[T]` as TApp{list, [T]} (DX-17), so this is
 		// the case every real list parameter takes; TList above is the legacy
 		// spelling. Any other constructor stays unsupported — no guessing.
 		if elem, ok := types.AsList(typ); ok {
-			return decodeList(raw, elem)
+			return d.list(raw, elem)
 		}
 		return nil, fmt.Errorf("unsupported type for argument decoding: %s (only list[T], records and scalars decode from JSON)", typ)
 
 	case *types.TRecord:
-		return decodeRecord(raw, typ)
+		return d.record(raw, typ.Fields)
+
+	case *types.TRecord2:
+		if typ.Row == nil {
+			return d.record(raw, nil)
+		}
+		if typ.Row.Tail != nil {
+			return nil, fmt.Errorf("unsupported type for argument decoding: open record %s", typ)
+		}
+		return d.record(raw, typ.Row.Labels)
 
 	case *types.TVar2:
 		// Type variable - try to infer from JSON structure
@@ -91,7 +134,7 @@ func decodeValue(raw interface{}, expectedType types.Type) (eval.Value, error) {
 			return &eval.BoolValue{Value: v}, nil
 		case []interface{}:
 			// Default to [int] for now
-			return decodeList(raw, &types.TCon{Name: "int"})
+			return d.list(raw, &types.TCon{Name: "int"})
 		case map[string]interface{}:
 			// Can't infer record type from type variable alone
 			return nil, fmt.Errorf("cannot infer record type from JSON object with polymorphic type")
@@ -156,7 +199,7 @@ func decodeBool(raw interface{}) (eval.Value, error) {
 	}
 }
 
-func decodeList(raw interface{}, elemType types.Type) (eval.Value, error) {
+func (d decoder) list(raw interface{}, elemType types.Type) (eval.Value, error) {
 	arr, ok := raw.([]interface{})
 	if !ok {
 		return nil, &DecodeError{
@@ -168,7 +211,7 @@ func decodeList(raw interface{}, elemType types.Type) (eval.Value, error) {
 
 	elements := make([]eval.Value, len(arr))
 	for i, elem := range arr {
-		val, err := decodeValue(elem, elemType)
+		val, err := d.value(elem, elemType)
 		if err != nil {
 			return nil, fmt.Errorf("list element %d: %w", i, err)
 		}
@@ -178,7 +221,7 @@ func decodeList(raw interface{}, elemType types.Type) (eval.Value, error) {
 	return &eval.ListValue{Elements: elements}, nil
 }
 
-func decodeRecord(raw interface{}, recordType *types.TRecord) (eval.Value, error) {
+func (d decoder) record(raw interface{}, fieldTypes map[string]types.Type) (eval.Value, error) {
 	obj, ok := raw.(map[string]interface{})
 	if !ok {
 		return nil, &DecodeError{
@@ -191,7 +234,7 @@ func decodeRecord(raw interface{}, recordType *types.TRecord) (eval.Value, error
 	fields := make(map[string]eval.Value)
 
 	// Check all expected fields are present
-	for fieldName, fieldType := range recordType.Fields {
+	for fieldName, fieldType := range fieldTypes {
 		jsonVal, exists := obj[fieldName]
 		if !exists {
 			return nil, &DecodeError{
@@ -201,7 +244,7 @@ func decodeRecord(raw interface{}, recordType *types.TRecord) (eval.Value, error
 			}
 		}
 
-		val, err := decodeValue(jsonVal, fieldType)
+		val, err := d.value(jsonVal, fieldType)
 		if err != nil {
 			return nil, fmt.Errorf("field '%s': %w", fieldName, err)
 		}

@@ -1,0 +1,77 @@
+{
+  "doc": "design_docs/planned/m-mission-heartbeat-driver-root.md",
+  "iso_ts": "2026-10-02T01:49:38Z",
+  "reviewers": [
+    {
+      "model": "claude-sonnet-5@claude-p",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "quota",
+      "error": "Anthropic bucket blocked by the mission ration: provider-reported Anthropic utilisation exceeds ration or exhausts a window",
+      "landed": null
+    },
+    {
+      "model": "gpt6-1-sol",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "auth",
+      "error": "reviewer \"gpt6-1-sol\" (openai provider) — OPENAI_API_KEY environment variable required (or set OPENAI_BASE_URL for a custom unauthenticated endpoint)",
+      "landed": null
+    },
+    {
+      "model": "gemini-3-1-pro",
+      "cost_usd": 0.017392,
+      "tokens_in": 7280,
+      "tokens_out": 236,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The claim that bash parameter expansion error `${...:?msg}` exits with rc=127 is factually false. Bash consistently exits with rc=1 for parameter expansion errors across all versions (including 3.2); 127 is reserved for 'command not found'. The document relies on a fabricated or flawed rig measurement to explicitly dismiss a correct quorum objection, violating PREMISE VERIFICATION.",
+        "catch": "Verify the actual exit code of a parameter expansion failure: `bash -c ': \"${UNSET_VAR:?msg}\"'`. It exits 1. The 127 you measured only occurs if the variable expands to empty (without `:?`) and bash attempts to execute an empty string as a command name.",
+        "proposed_fix": "Update the text and Verification Log to state the measured exit code for expansion failure is 1, not 127. Retract the false claim, remove the assertion that the quorum was wrong, and accept the round-2 quorum's correction."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-kimi-k3",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "invalid",
+      "error": "reviewer returned non-JSON or malformed response: unexpected end of JSON input (raw: \"\")",
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Revision 3 closes round-3's single objection with a measured verification row: the catch-all sentence exists at gate-3-route.md:387-388 in BOTH copies (controller reproduced the grep, rc=0, and the designer re-ran it in the worktree). All other revision-2 claims previously verified first-party by the controller (9+9 sites, cmp-identical copies, rc-19 at mission_pi_run.sh:407, guard line-17 gap, sync coverage, :? rc=127, spaces-root drill). Direction ruled by D-FLEET-8 2026-10-01."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gemini-3-1-pro: The claim that bash parameter expansion error `${...:?msg}` exits with rc=127 is factually false. Bash consistently exits with rc=1 for parameter expansion errors across all versions (including 3.2); 127 is reserved for 'command not found'. The document relies on a fabricated or flawed rig measurement to explicitly dismiss a correct quorum objection, violating PREMISE VERIFICATION."
+    ],
+    "absent_reviewers": [
+      {
+        "model": "claude-sonnet-5@claude-p",
+        "reason": "quota"
+      },
+      {
+        "model": "gpt6-1-sol",
+        "reason": "auth"
+      },
+      {
+        "model": "oc-kimi-k3",
+        "reason": "invalid"
+      }
+    ],
+    "total_cost_usd": 0.017392,
+    "total_tokens_in": 7280,
+    "total_tokens_out": 236
+  }
+}

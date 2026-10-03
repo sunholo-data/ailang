@@ -4,13 +4,13 @@
 # vanilla-X) and open-weight model evaluation (Gemma 4, GLM-5, Qwen, etc.).
 #
 # Cost-control rule (EXECUTOR_SHAPE.md §8): when this image is deployed as
-# a Cloud Run Job, secret bindings MUST exclude ANTHROPIC_API_KEY. motoko
-# routes Anthropic models via OpenRouter; binding both would re-expose the
-# pay-per-token billing surface that the Pi precedent deliberately avoided.
-# Bind only OPENROUTER_API_KEY + OPENAI_API_KEY + GEMINI_API_KEY.
+# a Cloud Run Job, secret bindings MUST exclude ANTHROPIC_API_KEY. Bind only
+# OPENROUTER_API_KEY + OPENAI_API_KEY + GEMINI_API_KEY. Claude does NOT run in
+# motoko: never via OpenRouter (Mark, 2026-09-29), and Anthropic refuses
+# subscription OAuth from anything but Claude Code (429, measured 2026-10-02).
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=4d4917cda8d95102c9dbe02a64947803a5512606
+ARG MOTOKO_COMMIT=de68fddfa6dba955c395bad6352d24df95a22426
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -34,13 +34,15 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
     && mv /root/.bun/bin/bun /usr/local/bin/bun \
     && chmod +x /usr/local/bin/bun
 
-# Check out motoko_agent at the pinned commit: branch sunholo/main-dst of
-# sunholo-voight-kampff/motoko_agent, which is Arni's upstream main (the DST
-# core, extension ABI 8.0) plus our commits — the cloud and ollama_microrag
-# profiles, motoko_ext_ailang_tools (upstream PR arniwesth/motoko_agent#200)
-# and rig-lease forwarding. It is the same commit ~/dev/mk-main runs on the rig
-# (MOTOKO.md). Until 2026-09-30 this image ran the ABI 2.2 fork at 84fa449 from
-# sunholo-data/motoko_agent. Fetch-by-SHA pins the exact commit whatever the
+# Check out motoko_agent at the pinned commit: branch sunholo/main-dst-20261002
+# of sunholo-voight-kampff/motoko_agent = Arni's upstream main 4023bf08 (strict
+# extension loading #205/#206, motoko_ext_ailang_tools #208) plus our commits:
+# the cloud / ollama_microrag / ailang_only profiles with extensions.strict on,
+# motoko_ext_ailang_policy (the ailang_only lane), #209 (EditFile mode copy),
+# one schema per tool name (duplicate ReadFile/WriteFile/EditFile schemas made
+# strict OpenRouter providers answer 400), a path guard that needs no GNU
+# `realpath -m`, and rig-lease forwarding. MOTOKO.md §10. Previous pin:
+# 4d4917cd (sunholo/main-dst). Fetch-by-SHA pins the exact commit whatever the
 # branch does next.
 #
 # The fetch authenticates when the build passes a `github_token` secret
@@ -76,11 +78,34 @@ RUN cd /opt/motoko_agent/src/tui && bun install --frozen-lockfile || bun install
 # it never installed anything.
 RUN cd /opt/motoko_agent && ailang lock
 
-# Symlink the run-agent wrapper to /usr/local/bin/motoko so the executor
-# adapter's `exec.LookPath("motoko")` resolves cleanly. The wrapper script
-# accepts the directive as a positional arg and reads MODEL / MOTOKO_CONFIG /
-# WORKDIR / MOTOKO_SESSION_ID from env.
-RUN ln -s /opt/motoko_agent/scripts/run-agent.sh /usr/local/bin/motoko
+# Put `motoko` on PATH so the executor adapter's `exec.LookPath("motoko")`
+# resolves cleanly. run-agent.sh accepts the directive as a positional arg and
+# reads MODEL / MOTOKO_CONFIG / WORKDIR / MOTOKO_SESSION_ID from env.
+#
+# An exec wrapper, NOT a symlink. run-agent.sh finds its project root from
+# `dirname "${BASH_SOURCE[0]}"`, which bash does not resolve through symlinks:
+# through /usr/local/bin/motoko -> run-agent.sh the root came out as /usr/local
+# and every task died with "Error: src/tui/src/index.ts not found." (dev cloud
+# executor, 2026-10-01 — the symlink had never worked). Exec'ing the script by
+# its real path gives it the right BASH_SOURCE whatever motoko does next.
+RUN printf '#!/bin/sh\nexec /opt/motoko_agent/scripts/run-agent.sh "$@"\n' > /usr/local/bin/motoko \
+    && chmod 755 /usr/local/bin/motoko
+
+# Build-time guard: a motoko commit that moves the entry point or the launcher,
+# or a launcher that stops resolving its project root, fails this build instead
+# of every task. The smoke runs `motoko` from / with a stub `bun` first on PATH
+# that prints where run-agent.sh exec'd it from and with what entry point, so
+# it walks the real path check and cd without starting the agent, a model or
+# any credentials.
+RUN test -f /opt/motoko_agent/src/tui/src/index.ts \
+    && test -x /opt/motoko_agent/scripts/run-agent.sh \
+    && mkdir -p /tmp/motoko-smoke \
+    && printf '#!/bin/sh\necho "$(pwd) $1"\n' > /tmp/motoko-smoke/bun \
+    && chmod 755 /tmp/motoko-smoke/bun \
+    && out="$(cd / && PATH=/tmp/motoko-smoke:$PATH motoko)" \
+    && echo "motoko launcher smoke: $out" \
+    && [ "$out" = "/opt/motoko_agent /opt/motoko_agent/src/tui/src/index.ts" ] \
+    && rm -rf /tmp/motoko-smoke
 
 # Bake the commit SHA so motoko's run_summary.motoko_commit is non-"dev"
 # in cloud-deployed runs (mitigates self-referential masking — see motoko's

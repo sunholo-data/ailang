@@ -15,7 +15,7 @@ import (
 // SourceContent warns and bypasses both lookup and publication. Pointer-to-empty
 // source stays cacheable (it produces a real non-empty key).
 func (st *modulePipelineState) prepareCacheLookup(mod *loader.LoadedModule, modID string) (string, bool) {
-	if st.moduleCache == nil || st.moduleCache.store == nil {
+	if st.moduleCache == nil || st.moduleCache.store == nil || st.isTransientRoot(modID) {
 		return "", false
 	}
 	if mod.SourceContent == nil {
