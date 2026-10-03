@@ -44,8 +44,9 @@ entry         = "main"
 **`security_mode`.** `restricted` (the default, and the only mode the `ailang_only` lane accepts)
 admits only effects with a confined adapter — `IO`, `FS`, `Net`, `Clock`, `Rand`, `Stream`,
 `Process` **only for `process_allow` entries with a confined schema** (`git:status`, `git:diff`,
-`git:log` — see below), and `AI` **only with a pinned `ai_provider` and an explicit `[budgets] AI`
-ceiling** — and refuses everything else in the registry with a named migration. It also refuses a configured
+`git:log` — see below), `AI` **only with a pinned `ai_provider` and an explicit `[budgets] AI`
+ceiling**, and `Declassify` (a compile-time information-flow gate with no host reach) — and refuses
+every other effect with a named migration. It also refuses a configured
 HTTP proxy (`E_NET_PROXY_REFUSED`: the destination address cannot be pinned behind one) and has
 no localhost/private/metadata grant. `trusted_host` keeps operator-approved host integrations —
 `Process` with `process_allow`, `AI` with `ai_provider`, `Env`, `Secret` — with conspicuous
