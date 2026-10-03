@@ -75,7 +75,7 @@
     },
     {
       "name": "getAttrMap",
-      "type": "(XmlNode)-\u003e\u003c*types.TMap\u003e",
+      "type": "(XmlNode)-\u003eMap[string,string]",
       "effects": [],
       "pure": true
     },

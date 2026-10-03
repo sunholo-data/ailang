@@ -38,7 +38,7 @@
     },
     {
       "name": "httpRequest",
-      "type": "(string,string,list[{name: string, value: string}],string)-\u003eResult[\u003c*types.TRecord2\u003e,NetError]!{Net}",
+      "type": "(string,string,list[{name: string, value: string}],string)-\u003eResult[{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int},NetError]!{Net}",
       "effects": [
         "Net"
       ],
@@ -46,7 +46,7 @@
     },
     {
       "name": "httpRequestBytes",
-      "type": "(string,string,list[{name: string, value: string}],bytes)-\u003eResult[\u003c*types.TRecord2\u003e,NetError]!{Net}",
+      "type": "(string,string,list[{name: string, value: string}],bytes)-\u003eResult[{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int},NetError]!{Net}",
       "effects": [
         "Net"
       ],
@@ -54,13 +54,13 @@
     },
     {
       "name": "parseQuery",
-      "type": "(string)-\u003elist[\u003c*types.TRecord2\u003e]",
+      "type": "(string)-\u003elist[{name: string, value: string}]",
       "effects": [],
       "pure": true
     },
     {
       "name": "parseUrl",
-      "type": "(string)-\u003eResult[\u003c*types.TRecord2\u003e,string]",
+      "type": "(string)-\u003eResult[{fragment: string, host: string, path: string, port: string, query: string, scheme: string},string]",
       "effects": [],
       "pure": true
     },

@@ -16,6 +16,13 @@ import (
 // normalized interface JSON. It is library-shaped: all failures are returned
 // to the caller rather than terminating the process.
 func BuildCanonicalJSON(ctx context.Context, packageDir, modulePath string) ([]byte, error) {
+	return BuildCanonicalJSONRelaxed(ctx, packageDir, modulePath, false)
+}
+
+// BuildCanonicalJSONRelaxed is BuildCanonicalJSON with MOD010 relaxed when
+// relaxModules is set — what `ailang iface --relax-modules` /
+// AILANG_RELAX_MODULES=1 ask for, matching `check` (#575).
+func BuildCanonicalJSONRelaxed(ctx context.Context, packageDir, modulePath string, relaxModules bool) ([]byte, error) {
 	filename := strings.ReplaceAll(modulePath, "/", string(filepath.Separator))
 	if !strings.HasSuffix(filename, ".ail") {
 		filename += ".ail"
@@ -60,7 +67,7 @@ func BuildCanonicalJSON(ctx context.Context, packageDir, modulePath string) ([]b
 	// Package mode relaxes MOD010 exactly as `check --package` does: a flat
 	// tarball's settle.ail legitimately declares `module vendor/name/settle`,
 	// and the manifest — not the path — is what validates module names.
-	cfg := Config{DryLink: true, RelaxModules: inPackage}
+	cfg := Config{DryLink: true, RelaxModules: inPackage || relaxModules}
 	if packageDir != "" {
 		cfg.PackageDir = packageDir
 	}

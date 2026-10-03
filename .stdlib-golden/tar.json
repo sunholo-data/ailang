@@ -17,7 +17,7 @@
     },
     {
       "name": "listEntries",
-      "type": "(string)-\u003eResult[list[\u003c*types.TRecord2\u003e],string]!{FS}",
+      "type": "(string)-\u003eResult[list[{isDir: bool, name: string, size: int}],string]!{FS}",
       "effects": [
         "FS"
       ],

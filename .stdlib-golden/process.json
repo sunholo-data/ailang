@@ -35,7 +35,7 @@
     },
     {
       "name": "exec",
-      "type": "(string,list[string])-\u003eResult[\u003c*types.TRecord2\u003e,ProcessError]!{Process}",
+      "type": "(string,list[string])-\u003eResult[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool},ProcessError]!{Process}",
       "effects": [
         "Process"
       ],
