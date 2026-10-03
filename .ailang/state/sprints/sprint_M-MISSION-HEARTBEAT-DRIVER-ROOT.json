@@ -1,0 +1,103 @@
+{
+  "sprint_id": "M-MISSION-HEARTBEAT-DRIVER-ROOT",
+  "status": "not_started",
+  "created": "2026-10-03T00:00:00Z",
+  "design_doc": "design_docs/planned/m-mission-heartbeat-driver-root.md",
+  "design_doc_revision": "5.2 (11a517b33)",
+  "sprint_plan": "design_docs/planned/m-mission-heartbeat-driver-root-sprint-plan.md",
+  "github_issues": [],
+  "ticket": "skill:heartbeat-relative-path-absent-in-world",
+  "registry_reuse": [
+    {
+      "milestone": "M1_GUARDED_DRIVER_ROOT_STAMPS",
+      "package": null,
+      "action": "none",
+      "reason": "Markdown skill text + one shell case-arm in the loop harness; no package-like capability exists or is created."
+    }
+  ],
+  "metadata": {
+    "planner-model": "claude-opus-5-5",
+    "rulings": [
+      "D-FLEET-8 = YES",
+      "D-FLEET-10 = A",
+      "D-FLEET-2"
+    ],
+    "premises_verified_live": true,
+    "verification_date": "2026-10-03",
+    "verification_head": "11a517b33",
+    "baseline_done_gate": "make test-launchd-drivers rc=0 unpiped, 382s",
+    "supersedes": "untracked 2026-09-29 Rev-1 plan in the pin checkout (do not reuse)",
+    "constraints": [
+      "Hand-edit ONLY the seven .claude/skills/mission-control/resources/gate-*.md files; .agents copies ONLY via tools/launchd/sync-agents-skills.sh",
+      "Also change tools/launchd/githooks/pre-push _scope_is_harness (.agents/skills/mission-* and .agents/skills/sprint-* arms) and design_docs/fleet-mission.md Authority allowlist",
+      "Add changelogs/unreleased/2026-10-03-heartbeat-driver-root.md",
+      "Do NOT touch gate-3-route.md:72, gate-3-route.md:618, role-spawn-routing.md:85 (either tree)",
+      "Done-gate: make test-launchd-drivers green, run UNPIPED",
+      "Drills use a temporary AILANG_STATE_DIR, never ~/.ailang/state"
+    ],
+    "allowed_diff": [
+      ".claude/skills/mission-control/resources/gate-{0-preflight,1-observe,2-pick,3-route,3b-ci-green,4-record,5-retro}.md",
+      ".agents/skills/mission-control/resources/gate-{same 7}.md (sync output)",
+      "tools/launchd/githooks/pre-push",
+      "design_docs/fleet-mission.md",
+      "changelogs/unreleased/2026-10-03-heartbeat-driver-root.md",
+      ".ailang/state/sprints/sprint_M-MISSION-HEARTBEAT-DRIVER-ROOT.json"
+    ],
+    "single_milestone_note": "One milestone by design (doc: 'one short milestone'; mission brief: ONE milestone M1) — overrides the skill's >=2-milestone checklist item."
+  },
+  "discrepancies_found": [
+    {
+      "id": "D1",
+      "doc_claim": "Acceptance 7 / Verification Log cite pin-root.sh:362",
+      "finding": "No tools/launchd/pin-root.sh exists; the file is tools/launchd/lib/pin-root.sh, whose line 362 is exactly the quoted exec.",
+      "action": "Plan uses tools/launchd/lib/pin-root.sh:362; fix citation when the doc moves to implemented/."
+    },
+    {
+      "id": "D2",
+      "doc_claim": "Acceptance 8: evaluator rejects any path beyond 14 gate files, guard, fleet-mission.md",
+      "finding": "The mandated changelog fragment and the sprint JSON bookkeeping are outside that literal list.",
+      "action": "Allowed diff widened by exactly those two paths; nothing else."
+    },
+    {
+      "id": "D3",
+      "doc_claim": "Guard change 'adds mirror paths only'",
+      "finding": "Unstated side effect: _scope_verdict refuses harness paths to product missions, so v1/docs/motoko lose push rights to .agents/skills/mission-*|sprint-* (they have them today).",
+      "action": "Accepted (matches .claude treatment); name it in the changelog."
+    },
+    {
+      "id": "D4",
+      "doc_claim": "Acceptance 5 is an ad-hoc check",
+      "finding": "tools/launchd/test_mission_scope_guard.sh has no .agents rows; no permanent regression test for the new arm.",
+      "action": "Not edited this sprint (outside doc's diff); follow-up."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 90,
+    "estimated_total_loc": 45,
+    "estimated_days": 0.5,
+    "loc_note": "Text edits only: 9 command lines + 7 setup sentences + 1 rc line in 7 hand-edited files, 1 guard arm, 2 Authority entries, ~12-line changelog fragment. .agents copies generated."
+  },
+  "features": [
+    {
+      "id": "M1_GUARDED_DRIVER_ROOT_STAMPS",
+      "description": "Replace the 9 CWD-relative heartbeat stamps in the 7 .claude gate resources with the absolute-root case guard + attended setup sentence, add 19=provider_quota to the gate-3 rc comment, sync to .agents, add .agents mission-*/sprint-* arms to the pre-push guard and fleet-mission.md Authority, add changelog fragment.",
+      "estimated_loc": 45,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "A1 Inventory: rg -F 'bash tools/launchd/mission-heartbeat.sh' .claude/skills .agents/skills -> 0 matches; rg -c -F of the guarded prefix summed over both resource dirs -> 18, per copy 2/1/1/1/1/1/2 (gate-0..gate-5 incl 3b)",
+        "A2 Setup sentence: rg -l -F 'Attended setup: export MISSION_DRIVER_ROOT' over both resource dirs -> exactly the 14 gate files",
+        "A3 rc-19: both gate-3-route.md copies: rg -c -F '14=launch_failed · 18=tool_hang · 19=provider_quota' -> 1 and rg -c -F 'Anything non-zero except 18' -> 1; rg -n 'RC=19' scripts/mission_pi_run.sh still matches",
+        "A4 Mirror: tools/launchd/sync-agents-skills.sh --check rc=0; cmp of each .claude/.agents gate pair silent; test_agents_skills_sync.sh 3 passed 0 failed (incl. drift negative control)",
+        "A5 Guard: with MISSION_SCOPE_LIB=1 sourced pre-push, _scope_is_harness .agents/skills/mission-control/resources/gate-0-preflight.md -> 0, .agents/skills/model-manager/SKILL.md -> nonzero; fleet-mission.md Authority names .agents/skills/mission-*/** and .agents/skills/sprint-*/**",
+        "A6 Drills (temp AILANG_STATE_DIR, MISSION_NAME=i16-drill, command extracted from edited gate-0, /bin/bash and /bin/zsh): unset/empty/relative '.' from driver tree -> nonzero, 0 rows, stderr 'MISSION_DRIVER_ROOT must be absolute'; absolute nonexistent -> nonzero, 0 rows; absolute correct from World, Stapledon, driver CWDs -> rc=0, 1 row, label gate-0, attempt 1; stamp abort quota_dead -> row carries note; root with a space -> rc=0, 1 row; ~/.ailang/state has 0 i16-drill files",
+        "A6a Driver-spawned shell (live pinned fire, MISSION_FIRE_ID set, no manual export): printenv MISSION_DRIVER_ROOT absolute and equal to pin worktree; guarded stamp gate-0 from driver, World, Stapledon CWDs -> rc=0 each, cumulative rows 1/2/3. If no live fire: record NOT RUN with reason (open item, not a pass)",
+        "A7 Production root: :47 derivation run from World CWD with argv0 = absolute pin path of mission-control.sh -> equals the pin tree; :2167 exports MISSION_DRIVER_ROOT unconditionally; tools/launchd/lib/pin-root.sh:362 execs the absolute path",
+        "A8 Suites + review: test_mission_heartbeat.sh 0 failed; DONE-GATE make test-launchd-drivers rc=0 run unpiped; git diff --name-only matches the allowed_diff list exactly; three conflict-surface sites untouched"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
