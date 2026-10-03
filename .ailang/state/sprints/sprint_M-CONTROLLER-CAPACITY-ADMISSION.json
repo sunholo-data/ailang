@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-CONTROLLER-CAPACITY-ADMISSION",
-  "status": "planned",
+  "status": "executed",
   "design_doc": "design_docs/planned/m-controller-capacity-admission.md",
   "sprint_plan": "design_docs/planned/sprint-plan-controller-capacity-admission.md",
   "ticket": "driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash",
@@ -53,10 +53,10 @@
         "Signature probes: '402: {...}' matches; NEGATIVE prose ('the provider returned 402: credits', '  402: indented', 'HTTP 402 credits quota', 'insufficient credits', '4020: x') does not; 429 and the three usage-limit emitters still match",
         "RUNTIME_QUOTA_REWALKS default 4 and exit \"$RC\" unchanged"
       ],
-      "passes": false,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": "not started"
+      "completed": "2026-10-03T04:17:17Z",
+      "notes": "driver +7/-2 applied from the design diff; all 1.x probes as expected (commit 619f06256)"
     },
     {
       "id": "M2",
@@ -72,17 +72,17 @@
       ],
       "acceptance_criteria": [
         "test_controller_capacity.sh under lib/suite-env.sh: all cases PASS, rc 0, < 60s: 402-rewalk-then-complete, 402-all-rungs-pause, 402-rewalk-bound, prior-402-no-poison, prose-402-not-capacity, generic-crash-once, generic-crash-mcpaused-unset, 429-unchanged, usage-limit-unchanged, transient-unchanged, rc0-old-402-normal, landed-record-precedence, watchdog-kill-stays-killed, hermetic-path",
-        "402-all-rungs-pause: one demotion per rung, no same-rung retry, verdict PAUSED-NO-CAPACITY, exactly 1 'PAUSED — no capacity' send, 0 'Mission iteration FAILED' sends, rcfail marker byte-identical (absent->absent, 1->1), process rc stays nonzero",
+        "402-all-rungs-pause: one demotion per rung, no same-rung retry, verdict PAUSED-NO-CAPACITY, exactly 1 'PAUSED \u2014 no capacity' send, 0 'Mission iteration FAILED' sends, rcfail marker byte-identical (absent->absent, 1->1), process rc stays nonzero",
         "NEGATIVE: prior attempt's 402 does not demote the next rung; prose 402/credits does not classify; non-capacity rc1 is CRASHED with exactly 1 generic FAILED send, second identical crash suppressed; MC_PAUSED unset under set -u -> 1 generic send, 0 stderr bytes",
         "test_controller_chain.sh: rc 0 and 0 'command not found' on stderr (63 at HEAD); all-blocked returns 1 with 0 probe calls; blocked OpenRouter reaches the next admitted rung with 0 openrouter probes",
         "make/test.mk has test_controller_capacity.sh exactly once, after test_controller_chain.sh",
         "No declare -A / ${v,,} / mapfile in either suite",
         "Mutation drill on scratch copies (MC_CAPACITY_DRIVER): MUT-402 (revert ^402: arm) turns the 402 cases RED; MUT-ELIF, MUT-UNSET, MUT-SLICE, MUT-LOOSE, MUT-CHAIN each turn their named case RED"
       ],
-      "passes": false,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": "not started"
+      "completed": "2026-10-03T04:17:17Z",
+      "notes": "capacity suite 14/14, chain suite 13 PASS 0 command-not-found; 6/6 mutants RED on scratch copies"
     },
     {
       "id": "M3",
@@ -103,10 +103,10 @@
         "git diff --name-only 76a5aef65 (excluding design_docs, .ailang) = the 5 planned files exactly; 0 diff under tools/launchd/lib, .pi, scripts/mission_pi_run.sh, internal",
         "Mutation table with each mutant's rc recorded in the evaluator evidence"
       ],
-      "passes": false,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": "not started"
+      "completed": "2026-10-03T04:17:17Z",
+      "notes": "make test-launchd-drivers rc 0; changelog fragment valid; dry-runs recorded in /tmp/fleet_iter15_exec_report.md"
     }
   ]
 }

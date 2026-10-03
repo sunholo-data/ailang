@@ -12,7 +12,7 @@
 # Extraction, not duplication: every block under test is awk'd out of the driver
 # (MC_CAPACITY_DRIVER, default the real one) so this suite cannot drift green against an edited
 # driver, and the mutation drill can point it at a scratch copy. The model is a FAKE `pi` on
-# PATH; there are no probes and zero inference. bash 3.2: no declare -A, ${v,,}, mapfile.
+# PATH; there are no probes and zero inference. bash 3.2 only: no associative arrays, case-folding expansions or array-reading builtins.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
