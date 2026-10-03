@@ -306,11 +306,20 @@ func newPipelineModuleCache(cfg Config, deps cacheDependencies, src Source) *cac
 	return newCacheRuntime(projectDir, deps)
 }
 
-// compileOneModule compiles a single sorted module: it attempts a verified
-// cache hit and, only if that does not serve the unit, falls through to a
-// fresh single-module compile.
+// compileOneModule compiles a single sorted module: it validates the module
+// path, attempts a verified cache hit and, only if that does not serve the
+// unit, falls through to a fresh single-module compile.
+//
+// MOD010 runs before the cache lookup: the cache key does not carry the relax
+// decision, so a unit cached under --relax-modules would otherwise let a later
+// strict run pass without the check (#1572).
 func (st *modulePipelineState) compileOneModule(modID link.ModuleID, unit *CompileUnit) error {
 	mod := st.modules[string(modID)]
+	if !st.isTransientRoot(string(modID)) {
+		if err := validateModulePath(mod, string(modID), &st.cfg); err != nil {
+			return err
+		}
+	}
 	key, cacheable := st.prepareCacheLookup(mod, string(modID))
 	if cacheable && st.serveFromCache(mod, unit, key) {
 		return nil
@@ -324,16 +333,11 @@ func (st *modulePipelineState) isTransientRoot(modID string) bool {
 	return st.cfg.TransientRoot && modID == st.rootCanonical
 }
 
-// compileFreshModule performs the fresh single-module compile path: MOD010
-// validation, import resolution, elaboration, typechecking/lowering, interface
-// construction, fresh artifact publication and unit registration.
+// compileFreshModule performs the fresh single-module compile path (MOD010
+// already ran in compileOneModule): import resolution, elaboration,
+// typechecking/lowering, interface construction, fresh artifact publication
+// and unit registration.
 func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modID string, unit *CompileUnit, cacheKey string) error {
-	if !st.isTransientRoot(modID) {
-		if err := validateModulePath(mod, modID, &st.cfg); err != nil {
-			return err
-		}
-	}
-
 	imports := resolveModuleImports(mod.File.Imports, modID, st.modLinker, st.cfg, st.depClosure(modID))
 	// M-TYPE-NAME-SHADOW: the module's own type declarations win over any
 	// same-named type from its imports (direct or transitive).
