@@ -88,6 +88,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_kill_tree.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_memgate.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_iteration.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_registry_env.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_cron_kicker.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_base.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_codex_quota_admission.sh
