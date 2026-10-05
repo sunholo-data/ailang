@@ -50,14 +50,17 @@
 #      `stream_dead` is real and transient: a bare-id deepseek call was measured
 #      hanging 90s with HTTP 200 and an empty body on 2026-08-26, while 14/14 retries
 #      immediately afterwards succeeded across 6 different provider hosts.
-#   5. Asserts the worktree diff or commit history is NON-EMPTY. Of the three assertions the old recipe
-#      mandated, this is the only load-bearing one: `stopReason` is now known evadable
+#   5. Asserts the worktree CHANGED relative to a pre-launch content fingerprint, or that
+#      commits were made since launch. A tree that is already dirty at launch does not count as work.
+#      Of the three assertions the old recipe mandated, this is the only load-bearing one: `stopReason` is now known evadable
 #      in BOTH directions — `length` pre-2026-08-13, and a clean `stop` at 625 tokens
 #      post-fix — so it can neither confirm nor deny that work happened.
 #
 # EXIT CODES (the verdict is also written as JSON to --verdict)
-#   0  ok               — pi finished and the worktree changed or commits were made since launch
-#   10 empty_worktree   — pi finished, changed nothing and made no commits. The false-green in its pure form.
+#   0  ok               — pi finished, and either the worktree content differs from its pre-launch
+#                         fingerprint or commits were made since launch
+#   10 empty_worktree   — pi finished, the worktree is byte-identical to its pre-launch state (dirty or
+#                         clean), and no commits were made. This is the false green in its pure form.
 #   11 reasoning_stall  — killed: reasoning with no content/tool-call past the stall bound
 #   12 stream_dead      — killed: no bytes at all past the stall bound
 #   13 wall_timeout     — killed: exceeded --max-seconds
@@ -229,6 +232,24 @@ mtime_of() {
 }
 now() { date +%s; }
 
+# Content fingerprint of the worktree relative to its CURRENT HEAD: what porcelain lists,
+# the bytes of every tracked change, and the bytes of every untracked file. rc!=0 = no git.
+worktree_fingerprint() {
+  ( cd "$1" || exit 1
+    git rev-parse --git-dir >/dev/null 2>&1 || exit 1
+    { git status --porcelain=v1 -z --untracked-files=all
+      printf '\0--diff--\0'
+      if git rev-parse -q --verify HEAD >/dev/null; then
+        git diff --binary --no-ext-diff --no-textconv HEAD
+      else   # unborn branch (commits case E): no HEAD to diff against
+        git diff --binary --no-ext-diff --no-textconv --cached
+        git diff --binary --no-ext-diff --no-textconv
+      fi
+      printf '\0--untracked--\0'
+      git ls-files -o --exclude-standard -z | xargs -0 git hash-object --
+    } | git hash-object --stdin )
+}
+
 # Deliver the directive on stdin and CLOSE it — pi waits forever on an open stdin,
 # which is a wedge the mission loop has hit before.
 #
@@ -245,6 +266,8 @@ now() { date +%s; }
 # collided with our own pgid — kill this script. With it, the job leads its own group and
 # the negative-pid kill reaches pi's children, which is the whole point of killing at all.
 BASE_HEAD=$(git -C "$WORKDIR" rev-parse --verify -q HEAD 2>/dev/null) || BASE_HEAD=""
+PRE_FP=$(worktree_fingerprint "$WORKDIR") || preflight_fail 14 launch_failed "cannot fingerprint worktree before launch"
+PREDIRTY_FILES=$(git -C "$WORKDIR" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 # Each extension once: a worktree carrying .pi/extensions would otherwise load the global
 # and repo copies of the same tools, and pi exits rc=1 on the conflict (lib/pi-ext-args.sh).
 . "$RUNNER_ROOT/tools/launchd/lib/pi-ext-args.sh"
@@ -344,7 +367,10 @@ if [ -f "$READY_FILE" ]; then FENCED=true; else FENCED=false; fi
 
 ELAPSED=$(( $(now) - START ))
 DIFF_LINES=$(git -C "$WORKDIR" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-# #1096: porcelain alone is blind to a committing executor; a pre-dirty tree still reads ok vacuously.
+# #1096: porcelain alone is blind to a committing executor. Pre-dirty: judged against PRE_FP, see worktree_fingerprint.
+# A failed post-run fingerprint (lost .git) stays "unchanged", matching the old porcelain-0 reading.
+WORKTREE_CHANGED=false
+POST_FP=$(worktree_fingerprint "$WORKDIR") && [ "$POST_FP" != "$PRE_FP" ] && WORKTREE_CHANGED=true
 # A moved HEAD alone is not work: a backward reset or lost .git must still read empty_worktree.
 HEAD_AFTER=$(git -C "$WORKDIR" rev-parse --verify -q HEAD 2>/dev/null) || HEAD_AFTER=""
 if [ -n "$BASE_HEAD" ]; then
@@ -406,7 +432,7 @@ case "$OUTCOME" in
     if [ "$FENCED" = false ]; then VERDICT_NAME="sandbox_not_ready"; RC=17
     elif [ "$PROVIDER_QUOTA" = true ]; then VERDICT_NAME="provider_quota"; RC=19
     elif [ "$PI_RC" -ne 0 ]; then VERDICT_NAME="launch_failed"; RC=14
-    elif [ "${DIFF_LINES:-0}" -gt 0 ] || [ "$COMMITS" -gt 0 ]; then VERDICT_NAME="ok"; RC=0
+    elif [ "$WORKTREE_CHANGED" = true ] || [ "$COMMITS" -gt 0 ]; then VERDICT_NAME="ok"; RC=0
     else VERDICT_NAME="empty_worktree"; RC=10; fi ;;
   reasoning_stall) VERDICT_NAME="reasoning_stall"; RC=11 ;;
   stream_dead)     VERDICT_NAME="stream_dead";     RC=12 ;;
@@ -424,6 +450,8 @@ cat > "$VERDICT" <<EOF
   "pi_rc": $PI_RC,
   "elapsed_seconds": $ELAPSED,
   "worktree_changed_files": ${DIFF_LINES:-0},
+  "predirty_files": ${PREDIRTY_FILES:-0},
+  "worktree_changed_since_start": $WORKTREE_CHANGED,
   "base_head": "$BASE_HEAD",
   "head_after": "$HEAD_AFTER",
   "commits_since_start": $COMMITS,
@@ -440,7 +468,7 @@ cat > "$VERDICT" <<EOF
 EOF
 rm -rf "$STAGE"
 
-echo "pi lane verdict: $VERDICT_NAME (rc=$RC) after ${ELAPSED}s — ${DIFF_LINES:-0} changed files, ${TOOL_CALLS:-0} tool executions, $COMMITS commits" >&2
+echo "pi lane verdict: $VERDICT_NAME (rc=$RC) after ${ELAPSED}s — ${DIFF_LINES:-0} changed files, ${PREDIRTY_FILES:-0} pre-dirty, changed since start: $WORKTREE_CHANGED, ${TOOL_CALLS:-0} tool executions, $COMMITS commits" >&2
 [ -n "$HUNG_TOOL" ] && echo "pi lane verdict: the MODEL did not stall — pi was waiting on a tool call that never returned: $HUNG_TOOL" >&2
 [ "$RC" -eq 19 ] && echo "pi lane verdict: the PROVIDER refused on capacity — park the lane, not the model: $PROVIDER_ERROR" >&2
 [ "$RC" -ne 19 ] && [ "$PROVIDER_ERRORS" -gt 0 ] && echo "pi lane verdict: $PROVIDER_ERRORS provider error(s) during the run; last: $PROVIDER_ERROR" >&2
