@@ -1,6 +1,7 @@
 ## Gate 1 — OBSERVE (cheap, read-only)
 
-First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-1`.
+First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp gate-1 ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac`.
+Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
 **Sync to origin FIRST — the local checkout LIES when a prior run merged via GitHub** (added
 2026-07-12 iteration 12; second instance of the same gap — iteration 9's watch-list already flagged

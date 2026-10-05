@@ -1,6 +1,7 @@
 ## Gate 3b — CI GREEN (an item is not LANDED until remote CI passes on its merge)
 
-First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-3b`.
+First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp gate-3b ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac`.
+Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
 After any push to dev, wait for CI **with a hard deadline** (Standing rule 6). A headless run has
 no human to notice a hang, and a bare `gh run watch … --exit-status` blocks FOREVER if the run
