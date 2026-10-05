@@ -246,7 +246,21 @@ worktree_fingerprint() {
         git diff --binary --no-ext-diff --no-textconv
       fi
       printf '\0--untracked--\0'
-      git ls-files -o --exclude-standard -z | xargs -0 git hash-object --
+      # One entry at a time: a batched `xargs git hash-object` aborts at the first entry git cannot
+      # hash (dangling symlink, nested repo shown as `dir/`, unreadable file) and hides every later
+      # one. An unhashable entry gets a stand-in that moves when it does: name, symlink target,
+      # a nested repo's HEAD + porcelain.
+      git ls-files -o --exclude-standard -z | while IFS= read -r -d '' _f; do
+        git hash-object -- "$_f" 2>/dev/null || {
+          printf 'unhashable %s ' "$_f"
+          if [ -L "$_f" ]; then readlink "$_f"
+          elif [ -d "$_f" ]; then
+            git -C "$_f" rev-parse -q HEAD 2>/dev/null
+            git -C "$_f" status --porcelain=v1 --untracked-files=all 2>/dev/null
+          fi
+          echo
+        }
+      done
     } | git hash-object --stdin )
 }
 

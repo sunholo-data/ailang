@@ -44,6 +44,8 @@ mkrepo() { # mkrepo <dir> <dirty|clean|dirty-untracked>
   git -C "$1" -c user.email=t@t -c user.name=t commit -qm base
   [ "$2" = "dirty" ] && echo changed > "$1/f.txt"
   [ "$2" = "dirty-untracked" ] && echo u0 > "$1/u.txt"
+  [ "$2" = "dirty-symlink" ] && { ln -s /nonexistent/x "$1/aaa"; echo u0 > "$1/zz.txt"; }
+  [ "$2" = "dirty-nested" ] && { mkdir "$1/aaa"; git -C "$1/aaa" init -q; echo u0 > "$1/zz.txt"; }
   return 0
 }
 
@@ -197,6 +199,27 @@ run_pd 7 dirty 'git checkout -- f.txt'
 check "revert of pre-dirty edit" 0 $PDRC ok "$PDV"
 expect_field "revert worktree_changed_files" "$PDV" worktree_changed_files 0
 expect_field "revert predirty_files" "$PDV" predirty_files 1
+
+# The fingerprint must hash entries git cannot (dangling symlink, nested repo) without losing the
+# files that sort after them. Killing mutation for 8.8: restore the batched
+# `git ls-files -o -z | xargs -0 git hash-object --` line (aborts at `aaa`, zz.txt never hashed).
+echo "TEST 8.8: unhashable untracked entry + in-place edit of a later untracked file -> ok"
+run_pd 8 dirty-symlink 'echo u1 > zz.txt'
+check "unhashable symlink + edit" 0 $PDRC ok "$PDV"
+expect_field "unhashable symlink changed_since_start" "$PDV" worktree_changed_since_start true
+
+echo "TEST 8.9: unhashable untracked entry + no-op pi (control) -> empty_worktree"
+run_pd 9 dirty-symlink ':'
+check "unhashable symlink no-op" 10 $PDRC empty_worktree "$PDV"
+expect_field "unhashable symlink no-op changed_since_start" "$PDV" worktree_changed_since_start false
+
+echo "TEST 8.10: nested repo entry + in-place edit of a later untracked file -> ok"
+run_pd 10 dirty-nested 'echo u1 > zz.txt'
+check "nested repo + edit" 0 $PDRC ok "$PDV"
+
+echo "TEST 8.11: nested repo entry + no-op pi (control) -> empty_worktree"
+run_pd 11 dirty-nested ':'
+check "nested repo no-op" 10 $PDRC empty_worktree "$PDV"
 
 echo
 echo "passed=$PASS failed=$FAIL"
