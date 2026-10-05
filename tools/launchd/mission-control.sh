@@ -1963,6 +1963,16 @@ while :; do
   sleep "$MEM_POLL"
 done
 
+# Pin the shared registry for child processes. The registry lives beside the driver in
+# the driver's own tree; a missing root is a misconfiguration.
+_mc_export_mission_registry() {
+  if [ ! -d "$MC_DRIVER_ROOT/missions" ]; then
+    log "AILANG_MISSION_REGISTRY root $MC_DRIVER_ROOT/missions is missing — refusing to spawn children without the pinned registry"
+    exit 2
+  fi
+  export AILANG_MISSION_REGISTRY="$MC_DRIVER_ROOT/missions"
+}
+
 # Binary iteration is admitted after the existing host guards, before any controller.
 # Keep cwd as the work project; the registry location belongs to the driver source.
 # exec preserves the overlap PID and signal delivery. No legacy retry on this path.
@@ -1973,7 +1983,7 @@ if [ -n "${AILANG_MISSION_WORK_ITEM:-}" ]; then
   esac
   mkdir -p "$STATE_DIR"
   printf '%s\n' "$$" > "$PIDFILE"
-  export AILANG_MISSION_REGISTRY="$MC_DRIVER_ROOT/missions"
+  _mc_export_mission_registry
   exec ailang mission iterate --work-item "$AILANG_MISSION_WORK_ITEM"
 fi
 
@@ -2165,6 +2175,7 @@ export MISSION_ROUTING_NOTE
 # repo that has none (world, stapledon). NOT AILANG_DRIVER_SRC: that is the source clone,
 # which can be far behind what actually runs.
 MISSION_DRIVER_ROOT="${MC_DRIVER_ROOT:-}"; export MISSION_DRIVER_ROOT
+_mc_export_mission_registry
 # The over-ration buckets travel with the resolved plan, so resolve-role-spawn.sh can
 # refuse a role recipe the driver itself would have refused (see that script's gate).
 _mc_load_ration

@@ -131,10 +131,10 @@ func printMissionHelp() {
                                    fleet-wide subscription spend per (bucket, window):
                                    Codex/Anthropic against the weekday pace (20% per
                                    weekday, weekends spend the slack), others 10%/day
-  ailang mission rotate-log <name> [--keep N]
+  ailang mission rotate-log <name> [--keep N] [--stream log|status]
                                    trim the live log, archive the rest, and regenerate
                                    the COMPLETE one-line index (default keep 20)
-                                   --status rotates the STATUS-stamp archive instead
+                                   --stream status rotates the STATUS-stamp archive instead
   ailang mission normalize [<name>] [--apply]
                                    rewrite mission-doc headings to the ONE canonical shape
                                    (dry run by default; reports what it will not convert)
@@ -172,11 +172,12 @@ func loadMissionRegistry() (*mission.Registry, error) {
 		return reg, nil
 	}
 	dir := missionRegistryDir
+	var tried []string
 	if _, err := os.Stat(dir); err != nil {
 		// Allow running from anywhere inside the repo.
 		if wd, e := os.Getwd(); e == nil {
-			for d := wd; d != "/" && d != "."; d = filepath.Dir(d) {
-				cand := filepath.Join(d, missionRegistryDir)
+			for _, cand := range registryWalkCandidates(wd) {
+				tried = append(tried, cand)
 				if _, e := os.Stat(cand); e == nil {
 					dir = cand
 					break
@@ -184,7 +185,27 @@ func loadMissionRegistry() (*mission.Registry, error) {
 			}
 		}
 	}
-	return mission.Load(dir)
+	reg, err := mission.Load(dir)
+	if err != nil {
+		if len(tried) > 0 {
+			return nil, fmt.Errorf("%w (tried: %s)", err, strings.Join(tried, ", "))
+		}
+		return nil, err
+	}
+	return reg, nil
+}
+
+// registryWalkCandidates lists <ancestor>/<registry dir> for wd and each ancestor,
+// nearest first. The walk stops when filepath.Dir stops changing the path — the
+// filesystem root on every OS ("/" on Unix, `C:\` on Windows, where Dir(`C:\`) == `C:\`
+// and a `d != "/"` guard never fires). The root itself is NOT a candidate, matching
+// the previous Unix behaviour.
+func registryWalkCandidates(wd string) []string {
+	var out []string
+	for d := wd; d != "." && filepath.Dir(d) != d; d = filepath.Dir(d) {
+		out = append(out, filepath.Join(d, missionRegistryDir))
+	}
+	return out
 }
 
 func missionList() error {
@@ -314,7 +335,16 @@ func missionRotateLog(args []string) error {
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--status":
-			stream = "status"
+			return fmt.Errorf("--status was retired (D-FLEET-9, ruled 2026-10-01): it rotated the STATUS archive and was never a report. Use: ailang mission rotate-log <name> --stream status")
+		case "--stream":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--stream needs a value (log|status)")
+			}
+			stream = args[i+1]
+			if stream != "log" && stream != "status" {
+				return fmt.Errorf("--stream %q unknown (want: log|status)", stream)
+			}
+			i++
 		case "--keep":
 			if i+1 >= len(args) {
 				return fmt.Errorf("--keep needs a number")
@@ -327,13 +357,13 @@ func missionRotateLog(args []string) error {
 			i++
 		default:
 			if strings.HasPrefix(args[i], "-") {
-				return fmt.Errorf("unknown flag %q (want: --keep N, --status)", args[i])
+				return fmt.Errorf("unknown flag %q (want: --keep N, --stream log|status)", args[i])
 			}
 			name = args[i]
 		}
 	}
 	if name == "" {
-		return fmt.Errorf("usage: ailang mission rotate-log <name> [--keep N] [--status]")
+		return fmt.Errorf("usage: ailang mission rotate-log <name> [--keep N] [--stream log|status]")
 	}
 	reg, err := loadMissionRegistry()
 	if err != nil {
@@ -354,9 +384,11 @@ func missionRotateLog(args []string) error {
 	// on the shared repo is the checkout this registry lives in.
 	logDir := m.Workdir
 	if m.Repo == sharedRepoSlug {
-		if root, rerr := repoRootFor(missionRegistryDir); rerr == nil {
-			logDir = root
+		root := m.Root()
+		if root == "" {
+			return fmt.Errorf("mission %q: shared-repo mission loaded without registry origin (Path %q) — refusing to guess a target root", m.Name, m.Path)
 		}
+		logDir = root
 	}
 	logPath := filepath.Join(logDir, "design_docs", m.Name+"-mission-log.md")
 	if stream == "status" {
@@ -379,23 +411,6 @@ func missionRotateLog(args []string) error {
 // sharedRepoSlug is the repo whose checkout holds the registry and the canonical
 // design_docs for every mission that lives in it.
 const sharedRepoSlug = "sunholo-data/ailang"
-
-// repoRootFor returns the directory containing the registry dir, i.e. the checkout root.
-func repoRootFor(regDir string) (string, error) {
-	if _, err := os.Stat(regDir); err == nil {
-		return filepath.Abs(filepath.Join(regDir, ".."))
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	for d := wd; d != "/" && d != "."; d = filepath.Dir(d) {
-		if _, err := os.Stat(filepath.Join(d, missionRegistryDir)); err == nil {
-			return d, nil
-		}
-	}
-	return "", fmt.Errorf("no %s directory found from %s upward", missionRegistryDir, wd)
-}
 
 // canonicalDocs are the mission documents whose headings are records and therefore
 // normalisable. Charters are excluded: they are curated prose, not a record stream.
@@ -426,18 +441,18 @@ func missionNormalize(args []string) error {
 	if err != nil {
 		return err
 	}
-	root, rerr := repoRootFor(missionRegistryDir)
-	if rerr != nil {
-		return rerr
-	}
 	totalRe, totalUn := 0, 0
 	for _, m := range reg.Missions {
 		if only != "" && m.Name != only {
 			continue
 		}
-		dir := root
-		if m.Repo != sharedRepoSlug {
-			dir = m.Workdir
+		dir := m.Workdir
+		if m.Repo == sharedRepoSlug {
+			root := m.Root()
+			if root == "" {
+				return fmt.Errorf("mission %q: shared-repo mission loaded without registry origin (Path %q) — refusing to guess a target root", m.Name, m.Path)
+			}
+			dir = root
 		}
 		for _, doc := range canonicalDocs(dir, m.Name) {
 			if _, serr := os.Stat(doc); serr != nil {
