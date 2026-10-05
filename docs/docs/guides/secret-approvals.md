@@ -1,6 +1,7 @@
 ---
 title: Secret Approvals (push-to-phone)
 description: Set up remote human approval of secret() resolution — an agent requests a 1Password secret, you approve on your phone.
+reviewBy: 2027-02-22
 ---
 
 # Secret Approvals — push-to-phone

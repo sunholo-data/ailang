@@ -2,6 +2,7 @@
 title: OS / Local-model leaderboard
 sidebar_position: 5
 description: Open-source / locally-hosted model evals — cross-language (incl. JS & Go), cross-harness, and longitudinal trends, run continuously on a local rig at zero server cost.
+reviewBy: 2027-01-04
 ---
 
 import OSLocalLeaderboard from '@site/src/components/OSLocalLeaderboard';

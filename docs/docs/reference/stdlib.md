@@ -2,6 +2,7 @@
 title: Stdlib Index
 description: Every AILANG stdlib module at a glance — purpose, capability required, import path
 sidebar_label: Stdlib Index
+reviewBy: 2027-02-15
 ---
 
 # Stdlib Index

@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-11-23
+---
+
 # AILANG Vision — The First AI-Native Language
 
 **AILANG isn't designed for humans who code.**

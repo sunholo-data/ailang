@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-11-16
+---
+
 # Go Interop Guide
 
 This guide explains how to integrate AILANG code with Go applications.

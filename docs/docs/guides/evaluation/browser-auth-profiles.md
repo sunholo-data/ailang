@@ -2,6 +2,7 @@
 sidebar_position: 11
 title: Browser Auth Profiles
 description: Persistent authenticated browser identity for AILANG agent runs, without giving a model a password
+reviewBy: 2027-01-18
 ---
 
 # Browser Auth Profiles

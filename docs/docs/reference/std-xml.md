@@ -2,6 +2,7 @@
 title: std/xml — Tree-walk performance builtins
 description: foldChildren, foldChildrenStep, getAttrMap, and nodeKind — collapse the FFI/allocation cost of XmlNode walks
 sidebar_label: std/xml (perf)
+reviewBy: 2026-12-07
 ---
 
 # std/xml — Tree-walk performance builtins

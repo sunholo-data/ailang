@@ -2,6 +2,7 @@
 id: wasm-integration
 title: WebAssembly Integration Guide
 sidebar_label: WASM Integration
+reviewBy: 2027-02-08
 ---
 
 # WebAssembly Integration Guide

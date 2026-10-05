@@ -2,6 +2,7 @@
 sidebar_position: 40
 title: One-Shot Stdlib Discovery
 description: Discover the whole AILANG stdlib in one command — --all-functions, unknown-module recovery, and docs prelude — without writing throwaway probe files.
+reviewBy: 2027-02-15
 ---
 
 # One-Shot Stdlib Discovery (for AI Agents)

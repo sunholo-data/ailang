@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-01-18
+---
+
 # Editor Setup
 
 Get syntax highlighting + language-server intelligence (diagnostics, hover types, go-to-definition, find-references, document outline) for AILANG in your favorite editor.

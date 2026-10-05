@@ -2,6 +2,7 @@
 sidebar_position: 4
 title: Why No Loops?
 description: Formal rationale for AILANG's exclusion of loops in favor of total recursion
+reviewBy: 2027-03-08
 ---
 
 import CodeBlock from '@theme/CodeBlock';

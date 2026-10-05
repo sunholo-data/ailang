@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-03-08
+---
+
 # AILANG Error Codes Reference
 
 All AILANG diagnostic errors follow the format `<PREFIX><NUMBER>` (e.g. `MOD013`, `PAR001`).

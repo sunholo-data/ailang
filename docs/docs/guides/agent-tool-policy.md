@@ -1,6 +1,7 @@
 ---
 title: Agent tool policy — the ailang_only lane
 description: How an agent is restricted to executing programs only through AILANG, how the policy is written and delivered, what the runtime enforces beneath it, and how to read it back on a banked row.
+reviewBy: 2027-03-08
 ---
 
 # Agent tool policy — the `ailang_only` lane

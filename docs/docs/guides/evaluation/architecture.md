@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-12-14
+---
+
 # M-EVAL-LOOP Architecture (v2.0)
 
 ## Quick Reference

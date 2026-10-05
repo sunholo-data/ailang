@@ -2,6 +2,7 @@
 sidebar_position: 6
 title: Streaming & Real-Time I/O
 description: WebSocket, SSE, and multi-source event multiplexing in AILANG
+reviewBy: 2027-02-22
 ---
 
 # Streaming & Real-Time I/O

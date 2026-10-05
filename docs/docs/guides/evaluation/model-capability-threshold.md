@@ -2,6 +2,7 @@
 sidebar_position: 9
 title: Model Capability Threshold
 description: How model capability correlates with AILANG performance — and why frontier models score higher on AILANG than Python
+reviewBy: 2027-01-25
 ---
 
 # Model Capability Threshold

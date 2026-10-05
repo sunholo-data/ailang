@@ -2,6 +2,7 @@
 sidebar_position: 11
 title: Debugging Guide
 description: Complete guide to debugging AILANG with environment variables and tools
+reviewBy: 2027-02-15
 ---
 
 # AILANG Debugging Guide

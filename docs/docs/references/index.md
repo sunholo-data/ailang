@@ -2,6 +2,7 @@
 sidebar_position: 3
 title: Citations & Bibliography
 description: Complete academic citations with DOIs, arXiv links, and PDF sources
+reviewBy: 2027-01-11
 ---
 
 # Citations & Bibliography

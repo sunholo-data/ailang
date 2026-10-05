@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-02-15
+---
+
 # std/audio — PCM to WAV and Ogg Opus
 
 The `std/audio` module (v0.44.0+) turns raw PCM, the format text-to-speech APIs
