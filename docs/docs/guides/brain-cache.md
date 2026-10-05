@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-01-04
+---
+
 # Brain Cache: Persistent Semantic Knowledge
 
 The AILANG brain is a two-tier persistent semantic cache that accumulates coding knowledge across sessions. It stores resolutions, patterns, and learnings as searchable frames — automatically captured by Claude Code hooks and queryable via CLI.

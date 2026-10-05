@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-12-21
+---
+
 # μRAG: Just-in-Time Knowledge Injection
 
 **μRAG (micro-rag)** is a harness-agnostic engine that injects relevant AILANG

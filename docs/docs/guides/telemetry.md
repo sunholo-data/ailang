@@ -2,6 +2,7 @@
 sidebar_position: 20
 title: Telemetry & Tracing
 description: OpenTelemetry integration for distributed tracing and observability
+reviewBy: 2027-02-01
 ---
 
 # Telemetry & Tracing

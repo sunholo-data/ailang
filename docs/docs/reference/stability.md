@@ -2,6 +2,7 @@
 sidebar_position: 4
 title: Stability Promise (1.x)
 description: What syntax, stdlib, and CLI surface AILANG guarantees across the 1.x release line.
+reviewBy: 2026-12-21
 ---
 
 # AILANG 1.x Stability Promise

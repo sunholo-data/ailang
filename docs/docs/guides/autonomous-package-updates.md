@@ -1,6 +1,7 @@
 ---
 title: Autonomous Package Updates
 description: How AILANG packages auto-bump downstream dependents in cloud — what fires the cascade, who's authorized to trigger it, and how to observe one in flight.
+reviewBy: 2026-11-23
 ---
 
 # Autonomous Package Updates

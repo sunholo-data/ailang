@@ -2,6 +2,7 @@
 sidebar_position: 7
 title: Semantic Search
 description: Two-tier semantic search with SimHash and neural embeddings for AI agents
+reviewBy: 2026-11-16
 ---
 
 # Semantic Search in AILANG

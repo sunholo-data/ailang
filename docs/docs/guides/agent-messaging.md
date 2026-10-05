@@ -2,6 +2,7 @@
 sidebar_position: 12
 title: Agent Messaging
 description: How to send and receive messages between AILANG core and external projects
+reviewBy: 2027-02-08
 ---
 
 # Agent Messaging Guide

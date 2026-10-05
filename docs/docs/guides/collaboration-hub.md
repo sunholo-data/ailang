@@ -2,6 +2,7 @@
 sidebar_position: 13
 title: Collaboration Hub
 description: Human-AI collaboration via the web UI and coordinator daemon
+reviewBy: 2027-02-15
 ---
 
 # Collaboration Hub Guide

@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-01-18
+---
+
 # std/package — bundled asset resolution
 
 The `std/package` module (v0.19.0+) lets AILANG packages ship arbitrary helper files — shell scripts, JSON schemas, templates, prompts — and resolve them at runtime to absolute filesystem paths. Removes the "consumer must vendor `scripts/mcp-call.mjs`" failure mode that motoko_ext_mcp 0.2.0 demonstrated in production.

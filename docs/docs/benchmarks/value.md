@@ -3,6 +3,7 @@ sidebar_position: 4
 title: Value Score
 description: Cost vs quality vs speed analysis — Pareto frontier, weighted value scores, industry-standard "score vs cost" scatter plots
 last_updated: 2026-05-05
+reviewBy: 2026-11-30
 ---
 
 import ValueDashboard from '@site/src/components/ValueDashboard';

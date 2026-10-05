@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-11-09
+---
+
 # Workspace Access Control
 
 Workspaces provide multi-tenant isolation for the AILANG Dashboard. Users only see data from workspaces they have access to.

@@ -2,6 +2,7 @@
 title: Three Camps of AI-Native Languages
 sidebar_label: Three Camps Comparison
 description: A survey of 16 programming languages designed for LLM-generated code, grouped into three camps — and where AILANG fits.
+reviewBy: 2027-01-11
 ---
 
 # Three Camps of AI-Native Languages

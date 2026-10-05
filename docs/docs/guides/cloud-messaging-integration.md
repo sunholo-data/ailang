@@ -2,6 +2,7 @@
 sidebar_position: 22
 title: Cloud Messaging Integration
 description: How to send messages to AILANG agents and receive results — REST API, Firestore, and Pub/Sub integration options
+reviewBy: 2027-02-08
 ---
 
 # Cloud Messaging Integration Guide

@@ -1,6 +1,7 @@
 ---
 title: Bootstrapping a Mission Loop
 description: Point AILANG's autonomous mission loop at another repo — driver, skill, charter, and a token-free dry-run acceptance
+reviewBy: 2027-02-22
 ---
 
 # Bootstrapping an autonomous mission loop

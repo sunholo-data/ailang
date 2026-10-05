@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-03-01
+---
+
 # Serve API Guide
 
 This guide explains how to expose AILANG functions as REST API endpoints and optionally pair them with a React frontend.

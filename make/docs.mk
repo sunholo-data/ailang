@@ -5,6 +5,7 @@
 .PHONY: docs docs-install docs-serve docs-build docs-preview docs-clean docs-restart
 .PHONY: sync-prompts sync-versions generate-llms-txt docs-env
 .PHONY: doctor doc
+.PHONY: check-doc-review test-check-doc-review docs-review-overdue
 
 # Documentation generation
 docs: sync-prompts sync-versions generate-llms-txt docs-env ## Generate all documentation
@@ -81,3 +82,18 @@ doc: ## Show Go package documentation
 		exit 1; \
 	fi
 	@go doc -all github.com/sunholo-data/ailang/$(PKG)
+
+# Review dates: every published page carries `reviewBy:` frontmatter (see
+# .claude/rules/docs-review.md). An overdue or undated page only WARNS -- it arrives
+# by the calendar, not by the PR under test, so it must not redden an unrelated PR.
+# A malformed date fails: that is a typo the PR itself made.
+DOC_REVIEW_ARGS ?=
+check-doc-review: ## Warn on overdue/undated docs pages; fail on malformed reviewBy dates (CI gate)
+	@bash scripts/check_doc_review.sh $(DOC_REVIEW_ARGS)
+
+test-check-doc-review: ## Run the doc-review gate's own self-test (bash 3.2)
+	@/bin/bash scripts/test_check_doc_review.sh
+	@/bin/bash -n scripts/check_doc_review.sh
+
+docs-review-overdue: ## List overdue docs pages, oldest due first (docs mission backlog)
+	@bash scripts/check_doc_review.sh --list-overdue

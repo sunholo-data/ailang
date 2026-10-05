@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-12-28
+---
+
 # std/yaml — YAML ingestion via a JSON bridge
 
 The `std/yaml` module (v0.30.0+) reads YAML into AILANG's existing `Json` ADT. It is a thin, **pure** bridge: a Go-backed builtin parses YAML with `gopkg.in/yaml.v3` and re-emits it as a JSON string, which `std/json.decode` turns into the same `Json` value you'd get from decoding JSON directly. Because the parser is pure Go with no syscalls, `std/yaml` is **WASM-portable** — the same code runs in the browser.
