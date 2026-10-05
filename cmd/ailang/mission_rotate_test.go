@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // writeSyntheticRepo pins the TOML to mission_registry_env_test.go:14 and the log to rotate_test.go:13-19.
@@ -155,5 +156,29 @@ func TestMissionRegistryRootAccessor(t *testing.T) {
 	m, ok := loaded.Get("rootcanary")
 	if !ok || m.Root() != filepath.Dir(reg) || m.Root() == reg {
 		t.Fatalf("Root() = %q, want parent %q", m.Root(), filepath.Dir(reg))
+	}
+}
+
+func TestRegistryWalkCandidatesTerminatesAtVolumeRoot(t *testing.T) {
+	wd := t.TempDir()
+	done := make(chan []string, 1)
+	go func() { done <- registryWalkCandidates(wd) }()
+	var got []string
+	select {
+	case got = <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("registryWalkCandidates did not terminate")
+	}
+	depth := strings.Count(filepath.ToSlash(wd), "/") + 1
+	if len(got) == 0 || len(got) > depth {
+		t.Fatalf("got %d candidates for depth %d: %v", len(got), depth, got)
+	}
+	if got[0] != filepath.Join(wd, missionRegistryDir) {
+		t.Errorf("first candidate = %q, want one under wd", got[0])
+	}
+	last := filepath.Dir(filepath.Dir(got[len(got)-1]))
+	root := filepath.VolumeName(wd) + string(filepath.Separator)
+	if last != root {
+		t.Errorf("last candidate's grandparent = %q, want volume root %q", last, root)
 	}
 }

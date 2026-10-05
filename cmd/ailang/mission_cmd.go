@@ -176,8 +176,7 @@ func loadMissionRegistry() (*mission.Registry, error) {
 	if _, err := os.Stat(dir); err != nil {
 		// Allow running from anywhere inside the repo.
 		if wd, e := os.Getwd(); e == nil {
-			for d := wd; d != "/" && d != "."; d = filepath.Dir(d) {
-				cand := filepath.Join(d, missionRegistryDir)
+			for _, cand := range registryWalkCandidates(wd) {
 				tried = append(tried, cand)
 				if _, e := os.Stat(cand); e == nil {
 					dir = cand
@@ -194,6 +193,19 @@ func loadMissionRegistry() (*mission.Registry, error) {
 		return nil, err
 	}
 	return reg, nil
+}
+
+// registryWalkCandidates lists <ancestor>/<registry dir> for wd and each ancestor,
+// nearest first. The walk stops when filepath.Dir stops changing the path — the
+// filesystem root on every OS ("/" on Unix, `C:\` on Windows, where Dir(`C:\`) == `C:\`
+// and a `d != "/"` guard never fires). The root itself is NOT a candidate, matching
+// the previous Unix behaviour.
+func registryWalkCandidates(wd string) []string {
+	var out []string
+	for d := wd; d != "." && filepath.Dir(d) != d; d = filepath.Dir(d) {
+		out = append(out, filepath.Join(d, missionRegistryDir))
+	}
+	return out
 }
 
 func missionList() error {
