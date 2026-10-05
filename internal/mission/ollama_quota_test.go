@@ -28,8 +28,17 @@ func TestOllamaQuotaRawUnitsRequireMetadata(t *testing.T) {
 		t.Fatal(o)
 	}
 }
+
+// ollamaPaceFixtureNow pins the tests that expect an ADMITTED verdict. The weekly allowance
+// is the weekday pace line (WeekdayPacePercent), and both fixtures open their weekly window
+// one day before now, so on the wall clock the allowance swung from 20% midweek to 0% on a
+// Sunday. With the 3-point ollama start margin (quota_margin.go) the 3.56% and 0% fixtures
+// fell short of headroom from Saturday ~08:00 to Monday ~08:00 UTC, and CI went red
+// every weekend after the margin landed (#1524; PRs #1578-#1582). Wednesday noon: 20% allowance.
+var ollamaPaceFixtureNow = time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)
+
 func TestOllamaQuotaVerifiedLimits(t *testing.T) {
-	now := time.Now()
+	now := ollamaPaceFixtureNow
 	o := parseOllamaUsage([]byte(`{"limits":{"session":{"usage":0},"weekly":{"usage":0.356}}}`), now)
 	limits := OllamaQuotaLimits{SessionCapacity: 1, WeeklyCapacity: 1, SessionResetsAt: now.Add(time.Hour), WeeklyResetsAt: now.Add(6 * 24 * time.Hour)}
 	v := evaluateOllamaQuota(o, limits, now)
@@ -49,7 +58,7 @@ func TestOllamaQuotaVerifiedLimits(t *testing.T) {
 }
 func TestOllamaQuotaHTTPAndCredentialBinding(t *testing.T) {
 	paths := Paths{Home: t.TempDir()}
-	now := time.Now()
+	now := ollamaPaceFixtureNow
 	key := "fixture-only-key"
 	calls := 0
 	client := &http.Client{Transport: quotaRoundTrip(func(r *http.Request) (*http.Response, error) {
