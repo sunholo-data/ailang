@@ -1,13 +1,18 @@
-# Fleet mission — iteration 18, 2026-10-04
+# Fleet mission — iteration 19, 2026-10-05
 
-- Release v0.52.1 (CLI on PATH). Pin = origin/dev `2a1f3f295`. The skill and all resources match origin; main checkout drift 11 (pin authoritative, reconcile is a human decision).
-- **BUILT: rotate-log pair (D-FLEET-9 = A) — PR #1580.** Registry-origin target mapping for rotate-log AND normalize, `--status` retired before any write (`--stream status` migration), `repoRootFor` deleted, driver exports the pinned registry in both branches. Independent judge **PASS 97/100**, mutation matrix 3/3 red.
-- **PARKED-ON-CLOCK (both P0 heads)**: the weekend-only `TestOllamaQuota*` red blocks every PR to dev, #1580, #1578 (heartbeat, re-probed still red 03:05Z) and the record PRs included. Clears ~Mon 2026-10-05 08:00Z or with D-FLEET-14 = A. No auto-merge armed (it never clears a base-inherited red).
-- Done-gate for #1580 already discharged up to the merge: tests 9/9 + Mission surface ok, `make test-launchd-drivers` rc0 (59 arms + new registry-env suite), healthy + degraded dry-runs `DRY RUN ok` (world profile, pinned `2bf95391f`). Resolve both signatures when the merge lands.
-- Next READY after the merges: pi-runner pre-dirty (P1 #5) → Phase 3a skill-resolution directive (after P1). D-FLEET-12 pair pre-authorized.
-- Ledger: 2 OPEN — D-FLEET-13 (session-limit classifier) and D-FLEET-14 (pin `now` in the weekend-failing quota tests; rec A).
-- Quota: codex, ollama, anthropic over daily ration (Sunday); openrouter metered.
-- Metered this iteration: $2.84 of $5 (designer $1.26 + quorum $0.24 + planner $1.15 + executor $0.05 + evaluator $0.14).
-- Routing: all four roles ran as pinned pi sub-agents via `mission_pi_run.sh` (typed verdicts): designer glm-5.3 ×2, planner kimi-k3, executor deepseek-v4.1-flash, judge minimax-m3 (≠ every generator). Quorum: gemini+kimi seated; sonnet (quota) and gpt6-1-sol (auth) absent both rounds, degraded to N−1, named.
+- Release v0.52.1 (CLI on PATH). Pin = origin/dev `9eac33b7b` at Gate 1; dev is now `e7628b05e` plus this record. The skill and all 12 resources match origin.
+- **LANDED: heartbeat fix, #1578 `c55ca4398`.** All 18 stamp calls (`.claude` + `.agents`) use an absolute `MISSION_DRIVER_ROOT` guard. World's rc127 is gone. Judged PASS 96/95/96.
+- **LANDED: rotate-log pair, #1580 `e7628b05e`.** The registry comes from the driver's absolute path, shared targets come from the loaded registry, and `--status` is retired. A real Windows hang was found and fixed on the way: the registry walk-up never stopped at `C:\` (`cffc0447a`, judged PASS 92).
+- Tickets: 3 resolved this fire, 41 → 38 open. Clause 2 turnaround is still UNMET (≈8–9 days each).
+- **Next READY:** P1 #5 pi-runner pre-dirty half, then the Phase 3a skill-resolution directive (after P1). The D-FLEET-12 pair is pre-authorized.
+- **Ledger, 2 OPEN:**
+  - D-FLEET-13: Anthropic "session limit" counted as capacity (rec A).
+  - D-FLEET-14: pin `now` in the `TestOllamaQuota*` tests (rec A). It recurs **every weekend** and blocks all PRs to dev.
+- Quota: codex, ollama and openrouter over daily ration; Anthropic subscription OK. Metered this fire: $0.00.
+- Routing:
+  - Executor `claude:claude-sonnet-5-5` via `claude-sub`.
+  - Judges: `opus` via the Agent tool (×2). The minimax lane is over ration and sonnet-4-6 is the same family as the executor.
+  - No designer or planner (judged builds plus a one-function guard).
+- Weekly external-issue sweep done: 59 enumerated, 0 new queue items. #1306 got a verdict comment (half fixed).
 - 3 coordinator approvals pending, untouched (operator-owned).
-- Bookkeeping #1380; log fleet-mission-log.md; PRs #1578 #1580.
+- Bookkeeping thread rotated: **#1584** (from #1380). Log: fleet-mission-log.md.

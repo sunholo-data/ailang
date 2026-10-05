@@ -18,7 +18,7 @@ mission.
 **Scheduling**: launchd `dev.ailang.mission-fleet`, registry entry [`missions/fleet.toml`](../missions/fleet.toml)
 (interval 6h, boot offset 1680s). Billing guard as for every mission.
 **Log**: [fleet-mission-log.md](fleet-mission-log.md), append-only, one entry per iteration.
-**Human-facing reporting**: GitHub issue #1380 (rotated 2026-09-28 from #1321; live number in
+**Human-facing reporting**: GitHub issue #1584 (rotated 2026-10-05 from #1380; live number in
 `~/.ailang/state/mission-fleet-gh-issue`).
 
 ## Repo Profile (M-MISSION-PORTABILITY M2 — the per-mission values mission-control reads)
@@ -31,7 +31,7 @@ mission.
   this way (v1, docs, motoko; `pin-root.sh` `_set_pin_workdir`). The clone
   `~/dev/sunholo-data/ailang-fleet` is only launchd's working directory, as `ailang-docs` is for docs.
   Land changes through a branch or PR, never by editing the pin worktree in place.
-- **Bookkeeping issue**: `#1380` (from `#1321`), rotates weekly; live number in `~/.ailang/state/mission-fleet-gh-issue`
+- **Bookkeeping issue**: `#1584` (from `#1380`), rotates weekly; live number in `~/.ailang/state/mission-fleet-gh-issue`
 - **CI workflows Gate 3b / Gate 1 poll**: `CI` (runs on every push; no push paths filter).
 - **Verify profile**: `go-compiler`, plus the mission-loop-change pre-flight as the done-gate
   (below). Harness changes live in `tools/launchd/` (bash 3.2), `internal/mission/` and
@@ -43,6 +43,10 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-05 — ITERATION 19: both P0 heads LANDED — heartbeat #1578 `c55ca4398` and rotate-log pair #1580 `e7628b05e` (after a Windows-hang fix); 3 tickets resolved (41 → 38)
+
+The clock predicate was met: Monday after 08:00Z, and `TestOllamaQuota*` passes locally at HEAD. Re-ran the failed CI on #1578, #1580, #1579 and #1581. **#1578**: all required checks green. The one red, `Build macos-latest` (`TestMemprobeDebugLogDoesNotAccumulate`), is non-required and passed on rerun (attempt 3), so it was a flake; the PR has no Go code. Squash-merged with `--match-head-commit` → `c55ca4398`. Dev CI success; the full check set (17) is green except the inherited SonarCloud red. **#1580** surfaced a REAL red once the weekend signature cleared: `TestMissionNormalizeNoRegistryStillFailsLoudly` hung to the 10-min timeout on `test-windows` and `Build windows-latest`. Cause: the CWD walk-up in `loadMissionRegistry` (`d != "/" && d != "."`) never ends on Windows, because `filepath.Dir(C:\) == C:\`. The bug pre-dates the PR (it is on dev); #1580's new test was the first to run it from a directory with no registry. Fix `cffc0447a`: the helper `registryWalkCandidates` stops when `filepath.Dir(d) == d` and keeps the Unix candidate list identical. It ships with a termination test and a changelog fragment; the executor's mutation (root guard dropped) turned it red. Both Windows legs then went green, and so did the required checks; squash-merged → `e7628b05e`. Dev CI success; 21 checks, only the inherited Sonar red. Judges, both an independent Opus Agent in a fresh context: #1578 **PASS 96** and #1580 **PASS 96** at their current heads, then `cffc0447a` **PASS 92**, all with 0 blocking findings. Done-gate: surface edited ✓; reach ✓ (both on origin/dev); `make test-launchd-drivers` MAKE_RC=0 at `e7628b05e` (504 s); nothing reloaded ✓. Dry-runs were NOT re-run, because no armed sibling was idle (world and stapledon were mid-iteration all fire, the rest disabled). Instead: #1578 changes 0 driver bytes, the guarded stamp ran rc0 from `/tmp` in this live driver shell, and the driver at `e7628b05e` is byte-identical (0 diff lines) to `2bf95391f`, which iteration 18 dry-ran healthy and degraded. Resolved `skill:heartbeat-relative-path-absent-in-world`, `mission:rotate-log-registry-cwd` and `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`; replies went to world, stapledon and v1. Record PR #1579 merged (`845bbbbdf`). #1581 was superseded by this record, which carries iteration 18's entry cherry-picked onto dev. #1306 got a verdict comment (half 1 fixed, half 2 = the open ticket `rotate-log:index-regen-drops-orphan-rows`) and stays open. Clause map: **1** UNMEASURED; **2** UNMET (3 resolved, each ≈8–9 days from filing; median still > 48h); **3** MET (38 open signatures); **4** prior evidence only; **5** preserved (every merge judged, required CI green on the merge SHA).
+
 ## STATUS 2026-10-04 — ITERATION 18: rotate-log pair BUILT + judged PASS 97, PR #1580 PARKED-ON-CLOCK on the same weekend red as #1578; heartbeat #1578 re-probed still red
 
 Both P0 heads are now blocked on one clock: the weekend-only `TestOllamaQuota*` red (D-FLEET-14, iteration 17's finding). Picked the rotate-log pair (D-FLEET-9 = A, top unblocked item). Design Rev 3 (designer `pi:openrouter/z-ai/glm-5.3`, 40 tool calls) carried the complete shared-loader caller audit (C1–C11); fresh quorum r3 BLOCKED (gemini: C7 normalize second-CWD-walk scope; kimi: path-formula ambiguity — the controller re-measured BOTH, correcting each reviewer's mechanism while confirming the substance); Rev 4 (designer) widened C7 to the resolved-root accessor and pinned `m.root` = parent of the registry dir (registry.go:245–246); quorum r4 BLOCKED on two NEW narrow objections (orphaned `repoRootFor`; `--status` audit directory-scoped) — both controller-verified first-party, both reviewer-verbatim and direction-preserving → **narrow-refinement carve-out round 5** applied by the controller (deletion specified; whole-repo `--status` caller enumeration with positive controls, V26/V27). Planner `pi:openrouter/moonshotai/kimi-k3` produced a baselined 4-milestone plan (345 LOC). Executor `pi:openrouter/deepseek/deepseek-v4.1-flash` landed all 4 milestones green; its one finding (grep count 2 vs plan's 1 — the rejection arm's own text contains `--status`) adjudicated PASS. Independent judge `pi:openrouter/minimax/minimax-m3` (handshake acked, isolated worktree): **PASS 97/100, 0 blocking**, mutation matrix 3/3 red-on-mutate/green-on-restore. Controller re-ran out-of-sandbox: 9/9 tests, `ok` Mission surface, `make test-launchd-drivers` rc0 (59 arms + new registry-env suite), healthy + degraded dry-runs `DRY RUN ok` (world profile, pinned `2bf95391f`; `lanes=DEGRADED(14)` is the genuine Sunday all-buckets-over-ration state, not a code defect). PR #1580: `launchd drivers` + `lint` + `govulncheck` + `CodeQL` green; required `test` red on exactly `TestOllamaQuotaVerifiedLimits`/`TestOllamaQuotaHTTPAndCredentialBinding` (04:09Z, outside the diff) → PARKED-ON-CLOCK. Clause map: **1** UNMEASURED; **2** UNMET (0 resolved; rotate-log ticket open since 09-26); **3** MET (41 open signatures); **4** prior evidence only; **5** preserved (nothing merged unjudged; the diff passed every check it can reach).
@@ -50,10 +54,6 @@ Both P0 heads are now blocked on one clock: the weekend-only `TestOllamaQuota*` 
 ## STATUS 2026-10-03 — ITERATION 17: heartbeat fix PUSHED as #1578, re-judged PASS 95; merge BLOCKED by a weekend-only red in `TestOllamaQuota*` (outside the diff) → PARKED-ON-CLOCK; ticket stays open
 
 Resume predicate met at Gate 2 (pinned hook `_scope_is_harness .agents/skills/mission-control/x` → 0). Branch rebased onto `2a1f3f295`: 17/18 files blob-identical to the iteration-16 judged head `14b87879b` (the 18th is the design doc's status line). Pushed through the pinned guard, PR #1578. Independent Opus Agent judge re-scored the rebased head: **PASS 95/100**. It checked 18 guarded sites and 0 bare ones, ran a bash 3.2 + zsh drill from `/tmp` (rc0 with the absolute root; rc1 and a loud message for unset, relative and empty roots; never rc127; control: the old form gives rc127), got `make test-launchd-drivers` rc0, and confirmed one mutant red. Its two doc nits were applied (`ab0c539a1`). The required `test` check is RED on `TestOllamaQuotaVerifiedLimits` and `TestOllamaQuotaHTTPAndCredentialBinding` (`internal/mission/ollama_quota_test.go`). Both use `time.Now()` against weekday-only pacing plus #1524's 3pp ollama start margin, so they fail from Saturday until about Monday 08:00Z. It reproduces locally at `origin/dev` with no PR code, and dev's last CI at 14:43Z was green. Not fixed: D-FLEET-12 reserves the quota-margin work for attended sessions; handed to Mark. Clause map: **1** UNMEASURED; **2** UNMET (0 resolved; ticket open since 09-26); **3** MET (41 open signatures); **4** prior evidence only; **5** preserved (nothing merged).
-
-## STATUS 2026-10-03 — ITERATION 16: heartbeat fix BUILT + judged PASS 96, push-blocked by the pinned scope guard; guard arm LANDED #1575 `adab9b7d9`; ticket stays open, pushes next fire
-
-D-FLEET-10 = A executed. Opus designer wrote Revision 5 (`case` absoluteness guard on `MISSION_DRIVER_ROOT`, all Kimi r5 residuals); quorum r6 BLOCKED on premise rows → one designer revision (R5.1); r7 BLOCKED on evidence only → controller applied the reviewers' fixes under the narrow-refinement carve-out (R5.2, incl. an end-to-end `MISSION_DRIVER_ROOT` measurement in this live driver-spawned controller shell). gpt6-1-sol absent both rounds (OpenAI API 429, no credits). Opus planner → `claude:claude-sonnet-5-5` executor (claude-sub; Agent alias denied by provider pin) → independent Opus Agent judge PASS 96/100 (evaluator chain walked: minimax skipped over-ration, sonnet-4-6 skipped same-family). Push of the 18-site fix was REFUSED by the pinned pre-push guard, which lacks the `.agents` arm the fix itself adds (core.hooksPath = pin worktree). Not bypassed: the guard arm + Authority line shipped alone as #1575 (23/23 green). Judged branch `fleet/i16-heartbeat-rev5` (rebased, judged bytes unchanged) pushes on the next fire once the pin carries `adab9b7d9`. Clause map: **1 product share** UNMEASURED; **2 turnaround** UNMET (0 tickets resolved this fire; heartbeat ticket filed 2026-09-26); **3 one queue** MET (41 open signatures, `ailang mission ticket open --count` at Gate 5); **4 idle is free** prior evidence only; **5 no regressions** preserved (nothing unjudged shipped; #1575 is a one-arm guard change, judged within the PASS-96 diff).
 
 ## CURRENT GOAL
 
@@ -167,16 +167,12 @@ evidence in each line). Still re-check at HEAD in Gate 2 before working a ticket
 **LANDED · D-FLEET-11 = A (iteration 15):** `driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash` — #1549 `27dab5bb4`; anchored `^402:` capacity classification + pause-aware final notice; ration-admission half not reproduced at HEAD (no guard added). Ticket resolved.
 
 **P0 — whole slots lost** (the two unbuilt rulings, D-FLEET-1 and D-FLEET-2, landed in #1398)
-1. [PARKED-ON-CLOCK · PR #1578 pushed, re-judged PASS 95 (iteration 17); predicate RE-PROBED 2026-10-04 iteration 18 (03:05Z, still red on `test`/`Build*`, same `TestOllamaQuota*` signature) → resume: `gh pr checks 1578` all required green (re-run `test` after Mon 2026-10-05 ~08:00Z, or once an attended fix to those tests lands) → merge → Gate 3b on the merge SHA → done-gate dry-runs (idle sibling profile) → resolve] `skill:heartbeat-relative-path-absent-in-world`: 9 relative `bash
-   tools/launchd/mission-heartbeat.sh stamp` calls remain across gate-0..gate-5 resources. They do not
-   exist from World's (or Stapledon's) CWD. `$AILANG_DRIVER_SRC` is used 0 times in `resources/`.
-   **4 slots lost.**
-2. [BUILT + judged PASS 97 (iteration 18) · PR #1580 pushed, PARKED-ON-CLOCK on the same weekend `TestOllamaQuota*` red as #1578/#1579 (re-probed red 2026-10-04 04:09Z, outside the diff; `launchd drivers` + `lint` green on the same SHA) → resume: `gh pr checks 1580` all required green (Mon 2026-10-05 ~08:00Z or D-FLEET-14 = A) → merge → Gate 3b on the merge SHA → resolve BOTH signatures with `ailang mission ticket resolve` (done-gate dry-runs already run on the world profile, pinned `2bf95391f`)] `mission:rotate-log-registry-cwd` + `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive` (one command, one sprint; design Rev 3–5 quorum-satisfied via the narrow-refinement carve-out):
-   - The registry still defaults to CWD-relative `missions` (`mission_cmd.go:25,155-186`).
-     `AILANG_MISSION_REGISTRY` (absolute path, ad1bf98d3) is an escape hatch that nothing sets.
-   - `--status` means "rotate the status archive" and always writes. It needs a rename or a real
-     report-only mode.
-   - **3 + 1 slots lost** (stapledon, v1, world).
+1. [LANDED · iteration 19] `skill:heartbeat-relative-path-absent-in-world`: #1578 `c55ca4398`. All 18
+   stamp calls (`.claude` + `.agents`) go through an absolute `MISSION_DRIVER_ROOT` guard. Ticket resolved.
+2. [LANDED · iteration 19] `mission:rotate-log-registry-cwd` + `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`:
+   #1580 `e7628b05e` (D-FLEET-9 = A), plus the Windows registry-walk termination fix `cffc0447a`.
+   Both tickets resolved. Its sibling half `rotate-log:index-regen-drops-orphan-rows` (also reported at #1306)
+   stays open and ranks by `slots_lost`.
 3. [LANDED] `mission-base:hardcoded-origin-dev`: #1418 `cb7c51c8e` (iteration 9), ticket resolved.
 **P1 — a lane misreported as dead, or a failure nobody sees** (the class that cost 2026-09-28/29's
 overnight: harness faults read as model faults)
@@ -210,7 +206,20 @@ overnight: harness faults read as model faults)
 15. `driver:unclassified-state-unreachable`: `UNCLASSIFIED` appears 0 times in the driver.
     Low severity.
 
+**Weekly external-issue sweep 2026-10-05 (iteration 19; 0 new queue items).** 59 open issues enumerated (count checked against the listing); 57 had zero mentions in the charter, log, archive and dashboard. Controls: the positive one hit `#1380` 2 times, and the negative one fired. Most of the 57 are language, stdlib or product reports, which are V1's lane and outside this charter's Authority. The harness-shaped ones already have open fleet tickets, matched by title:
+- `#981` → `gate0:watermark-advanced-by-dying-fire`
+- `#1160` → `gate0:driver-crash-notices-invisible`
+- `#941` → `quorum:invalid-absent-on-quoted-literals`
+- `#581` → `planner-lane:files-section-parses-fenced-bullets`
+- `#563` → `sprint-skill:estimated-loc-zero-is-placeholder-sentinel`
+- `#476` → `skills:showcase-feature-discoverability`
+- `#651` → P1 #8
+
+`#1306` was half fixed by #1580 and got a verdict comment; it stays open for the orphan-row half.
+
 **Landed (history)**
+- `skill:heartbeat-relative-path-absent-in-world`: #1578 `c55ca4398` (iteration 19, D-FLEET-8/10).
+- `mission:rotate-log-registry-cwd` + `rotate-log:status-flag-mutates-and-world-resolves-to-status-archive`: #1580 `e7628b05e` (built iteration 18, landed iteration 19, D-FLEET-9 = A).
 - `driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash`: #1549 `27dab5bb4` (iteration 15, D-FLEET-11 = A).
 - `pi-runner:quota-429-reported-as-empty-worktree`: #1424 `94524a6fc` (iteration 10).
 - `mission-base:hardcoded-origin-dev`: #1418 `cb7c51c8e` (iteration 9).
