@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 22 | 2026-10-06 | Gate-0 self-notice read built + judged PASS 87→91→93 as PR #1604; blocked by inherited dev red 07e1a89bc; P1 #6 → D-FLEET-15 [HARNESS] |
 | 21 | 2026-10-06 | pi-runner pre-dirty fix LANDED: #1593 `c2bf04af3`, re-judged PASS 100 after the Actions incident cleared; ticket resolved [HARNESS] |
 | 20 | 2026-10-05 | pi-runner pre-dirty fix built + judged PASS 86→85 as PR #1593; landing blocked by a GitHub Actions major outage → PARKED-ON-CLOCK [HARNESS] |
 | 19 | 2026-10-05 | both P0 heads LANDED: heartbeat #1578 and rotate-log pair #1580 (after a Windows walk-up hang fix); 3 tickets resolved [HARNESS] |

@@ -1,22 +1,24 @@
-# Fleet mission — iteration 21, 2026-10-06
+# Fleet mission — iteration 22, 2026-10-06
 
-- Release v0.52.1 (CLI on PATH). Pin = origin/dev `a12a319b5`. The running skill's 7 gate resources still lag origin: the main checkout is 22 commits behind (the #1578 stamp form). That is open ticket P1 #6.
-- **LANDED: pi-runner pre-dirty fix, #1593 → `c2bf04af3`.**
-  - A worktree fingerprint is taken before and after each pi run. A pre-dirty tree no longer reads `ok`, and an unhashable untracked entry no longer hides later edits.
-  - Re-judged at the merged head by `pi:openrouter/minimax/minimax-m3` (fresh, independent): **PASS 100**, 0 blocking. Evidence: 36/36 tests, 3/3 mutations red, and a hand repro of the bug (old code → `ok`, fixed code → rc 10).
-  - Ticket `pi-runner:verdict-blind-to-commits-and-predirty` resolved; world notified.
-- Iteration 20's record #1594 merged → `eb2850427`.
-- The GitHub Actions incident (19:11Z–22:49Z on 10-05) is resolved. Dev `CI` **success** on `c2bf04af3` (after the incident).
-- **Reds handed to V1 (not fleet's):**
-  - The `ailang-core-dev` Cloud Build fails every commit: node `v22.23.3` against a `v22.23.2` pin in `docker/Dockerfile.agent-base`.
-  - The `test-windows` `cmd/ailang` hang guard fired again on docs-only `eb2850427`.
-- Tickets: 38 open after this resolve. Clause 2 turnaround is still UNMET; this ticket was ~9.6 days from filing to resolve.
-- **Next:** P1 #6 `skill-surface:main-checkout-not-synced-to-dev`. This fire measured it live: the main checkout is 22 behind and 7 gate resources differ. It feeds the Phase 3a skill-resolution directive. The D-FLEET-12 pair is pre-authorized.
-- **Ledger, 2 OPEN:**
+- Release v0.52.1 (CLI on PATH). Pin = origin/dev `e68a264fb`, drift 0. The running skill (`SKILL.md` + 12 resources) is byte-identical to origin, both in the resolved symlink and in the pin.
+- **BUILT, not merged: Gate-0 self-notice read, PR #1604 (head `2e0f92672`).**
+  - `scripts/mission_gate0_self_notices.sh` is World's judged instrument, ported. Gate 0 step 6a (both skill copies) now sees the driver's own `FAILED to complete (rc=…)` notices. It has no authority: rc 1 = a fire died → run the Gate 2 traces; rc 2 = instrument failure.
+  - Judge opus (own worktree): **PASS 87 → 91 → 93**, 0 blocking. Suite 108/0; `make test-launchd-drivers` rc 0.
+  - Its first live reading found the real rc=143 kill of iteration 18.
+- **Blocked by an inherited dev red, owned by V1:** `07e1a89bc` (attended `internal/pipeline` MOD010 fix) fails `TestValidateModulePath_SingleFileInsidePackage` on `test` and `test-windows`. Handed to V1. **Resume:** dev CI green → rerun #1604 → merge → resolve `gate0:driver-crash-notices-invisible`.
+- **New ask D-FLEET-15** (P1 #6 `skill-surface:main-checkout-not-synced-to-dev`): may the driver `merge --ff-only origin/dev` the shared main checkout when it is clean-safe? Rec A; default B (wait for Phase 3b).
+- **Next:** land #1604, then P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict` (premise verified at `quorum.go:164`), then P1 #9 and the Phase 3a spike.
+- **Ledger, 3 OPEN:**
   - D-FLEET-13: Anthropic "session limit" as capacity (rec A).
-  - D-FLEET-14: pin `now` in the `TestOllamaQuota*` tests (rec A). Attended PR #1583 appears to address it.
-- Quota: codex and ollama over daily ration; openrouter and Anthropic OK. Metered: $0.55 (evaluator).
-- Routing:
-  - Judge: `pi:openrouter/minimax/minimax-m3`, per the resolver's `reroute … generator-equals-judge`.
-  - No designer, planner or executor: this was a resume of judged work.
+  - D-FLEET-14: pin the `TestOllamaQuota*` clock (rec A). Attended #1583 appears to address it.
+  - D-FLEET-15: main-checkout auto-sync (rec A).
+- Tickets: 38 open. Clause 2 (turnaround ≤48h) UNMET.
+- Quota: codex, ollama and openrouter over daily ration; Anthropic OK. Metered: $0.
+- Routing this fire:
+  - Planner: opus (Agent).
+  - Executor: `claude:claude-sonnet-5-5` (claude-sub; one API-5xx death, then a retry).
+  - Judge: opus (Agent). The resolver's minimax reroute was over ration, and sonnet collides with the executor.
+- Watch:
+  - `resolve-role-spawn.sh`'s `reroute` arm skips the ration gate.
+  - `rotate-log --stream status` writes to the pin, not the CWD.
 - Bookkeeping thread: **#1584**. Log: fleet-mission-log.md.

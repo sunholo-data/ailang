@@ -610,3 +610,84 @@ The tree sum equals the parent sum within 0.04 in every window. Separately, 21 l
 - (2) The minimax judge ran `git stash` / `git stash pop` around a baseline run. The shared stash stack was empty (verified before the pop), so nothing was lost. A non-empty stack would have popped another session's entry.
 
 **Next**: P1 #6 `skill-surface:main-checkout-not-synced-to-dev`. Measured live this fire: 22 behind, 7 gate resources differ. It feeds the Phase 3a skill-resolution directive. The D-FLEET-12 pair is pre-authorized; D-FLEET-13/14 await Mark.
+
+## 22 — 2026-10-06 — Gate-0 self-notice read built + judged PASS 87→91→93 as PR #1604; merge blocked by an inherited dev red (07e1a89bc) → PARKED-ON-CLOCK; P1 #6 parked as D-FLEET-15 [HARNESS]
+
+**Pick**: P1 #7 `gate0:driver-crash-notices-invisible` (ailang#1160). Mark's queue head, P1 #6 `skill-surface:main-checkout-not-synced-to-dev`, was skipped for a measured reason. Its fix is either (i) the driver auto-fast-forwarding the shared main checkout, whose standing authorisation `gate-1-observe.md` reserves to Mark, or (ii) Phase 3b per-fire skill pinning, which the 2026-09-26 directive gates on the 3a spike and parks for Mark. Neither is a mechanical fix the fleet can land alone, so it is filed as **D-FLEET-15** (rec A, default B). Measured this fire: the main checkout is `1 0` (ahead/behind origin/dev), so the symptom was not live.
+- Gate 0: kill switch armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; 0 directives on #1584 since `2026-10-05T21:22:17Z` (3 comments, all public). Not a sweep week (iteration 19 swept).
+- Gate 1:
+  - Pin = origin/dev `e68a264fb`, drift 0.
+  - Running skill: `SKILL.md` + all 12 resources byte-identical to origin, for both the resolved symlink and the pin copy.
+  - Dev `CI`, `Build and Release` and `Docs-Deploy` all success on `e68a264fb`. Full check set: 21 checks; Sonar red (inherited), `ailang-core-dev` Cloud Build red (node pin, handed to V1 at iteration 21).
+- Gate 2: premise re-verified at HEAD. `gate-0-preflight.md` had no self-notice read (`grep -n 'slot-verdict\|rc=143\|crash'` hit only unrelated prose). The driver literal is at `mission-control.sh:2514`. World's implementation is `ailang-world` `50103fd` (#137).
+
+**Did**:
+- Planner opus (Agent, foreground): plan `6934d2a0b`. Premises it corrected:
+  - The shared namespace has no non-rotating watermark, so the rule passes both issue-scoped files.
+  - World's script holds the prefix twice (bash and a `\u`-escaped python copy), and its `--driver-src` check covered only the bash copy. The port keeps a single literal.
+  - `--control 107:4` is World-only. Measured controls: `ailang#852` = 10, `world#107` = 4, `stapledons-godot#4` = 5.
+  - World has no `scripts/` copy, so the root comes from the driver.
+  - A second death notice, `Mission slot verdict`, is out of scope (follow-up).
+- Executor `claude:claude-sonnet-5-5` (`claude-sub`, probe rc 0):
+  - Run 1 died after 227 s with `API Error: Server error mid-response`, M1 committed (`a3cbffe1e`). The remaining chain was ollama/openrouter, both over ration, so the same lane was retried with a resume note.
+  - Run 2 re-verified M1 and finished M2–M4: `0336d0e30`, `7b7b39afc`, `40fb95a7f`.
+  - Round 2 `949d5952b` and round 3 `2e0f92672` fixed the judge's findings.
+- Deliverables:
+  - `scripts/mission_gate0_self_notices.sh`: exit codes 0/1/2, floors F0–F10, bounded `gh`, never prints a body.
+  - `scripts/test_mission_gate0_self_notices.sh`: 108 arms, wired into `make test-launchd-drivers`. World's four fixtures are `cmp`-identical, plus a real #1380 capture under `scripts/mission_gate0_self_notices_testdata/`. The `driver-literal` arm turns red if the driver's prefix drifts.
+  - Gate 0 step 6a in both skill copies (`cmp`-identical): a second read with no authority. rc 1 sends Gate 2 to its died-mid-flight traces and gives a log credit once per `url=`. rc 2 is an instrument or precondition failure, not a verdict.
+  - Changelog fragment.
+- Judge opus (Agent, own worktree `.wt-fleet-iter22-judge`), 3 rounds:
+  - **R1 PASS 87**, 0 blocking. Mutants m1, m2, m5–m9 and `drv` were killed. m3 (prev-issue read dropped) SURVIVED, because the prev issue always doubled as the control. F3: the 6a block failed as written in a fresh shell (`$ISSUE` unset; `${…:?}` inside `$(…)` gave rc 127).
+  - **R2 PASS 91**: a new arm kills m3, and the block is self-contained. New finding R2-1: a precondition failure printed `rc=1`, the "fire died" token.
+  - **R3 PASS 93**: preconditions now print `rc=2 (… not a verdict)`. Cases B–E verified rc=2, and A printed rc=1 for real data.
+- PR #1604 opened with no closing keyword (`Refs #1160`).
+- Handed dev's new red to V1: `inbox_1791290588115_58891a9a`.
+
+**Gate 3b / blocked**: #1604's `test` and `test-windows` fail `TestValidateModulePath_SingleFileInsidePackage` (`package_layout_test.go:107`). The negative control is dev `07e1a89bc` (attended `fix(pipeline)…MOD010…`, 12:07Z), which fails the SAME test on `test` and `test-windows` (`CI=failure`, `Build and Release=failure`). `8cddc7e2a` sits on top of it. The diff has no Go, `internal/pipeline` is outside fleet Authority, and V1 owns the repo's reds. Not merged; ticket stays open.
+
+**Resume predicate**: dev `CI` success on a SHA containing a fix for that test → `gh run rerun --failed` on #1604 (head `2e0f92672`) → required `test`/`lint`/`build`/`docs-gate` + `launchd drivers` + `test-windows` green → merge `--match-head-commit 2e0f92672` → Gate 3b on the merge SHA → `ailang mission ticket resolve gate0:driver-crash-notices-invisible --sha <merge>` → comment the verdict on #1160 (`--body-file`), then close it.
+
+**Done-gate (pre-merge)**:
+- Surface ✓: `scripts/mission_gate0_self_notices.sh` + both `gate-0-preflight.md` copies, the files every mission's Gate 0 reads.
+- Reach: pending merge.
+- `make test-launchd-drivers` rc 0 (executor and judge, unpiped).
+- 0 driver bytes, so no dry-run.
+- Nothing reloaded.
+
+**Live finding**: the instrument's first fleet reading (rc 1) is the real `rc=143` KILLED-at-gate-5 slot of iteration 18 (2026-10-04T04:28:01Z; `/tmp/ailang-mission-fleet.log`: `STALL … killing early`, `slot-verdict: KILLED at=gate-5 rc=143`). Iteration 18's Gate-4 record had already landed, so nothing was orphaned. Credited here once (url on #1380).
+
+**Progress**: goal unmoved (0 tickets resolved; 38 open).
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET.
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved: nothing merged.
+
+**Routing evidence**: base-gate1=e68a264fbea787896a963f0fd7ae35cb321bf64b@2026-10-06T11:41:04Z; worktree base=e68a264fb (MATCH at snap); base-gate4=8cddc7e2ac8120429dc8904ad8cbeda12a8f6c91@2026-10-06T12:45:24Z (dev advanced by 4 attended commits, record branched from there). `MISSION_ROUTING_NOTE`: codex over daily ration → planner opus, executor `claude:claude-sonnet-5-5`.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: NOT SPAWNED. This is a port of World's implemented, judged design (`w-gate0-blind-to-its-own-crash-notices.md`); the plan cites it.
+- **Planner**: opus via Agent (resolver `agent-tool opus fail-closed:env-pin`), 119,537 tok.
+- **Executor**: `claude:claude-sonnet-5-5` via `claude-sub` recipe (`declared:provider-pin`), 4 runs (227 s died / ~13 min / round 2 / round 3), tok not reported (`claude -p` text output).
+- **Evaluator**:
+  - The resolver said `reroute pi:openrouter/minimax/minimax-m3 generator-equals-judge`, but openrouter was **over ration** (`ailang mission quota`: $3.09 against $2.33/day).
+  - The `reroute` arm of `resolve-role-spawn.sh` never calls `_rs_over`, unlike `emit_recipe`.
+  - Recorded dead via `mission-lane-dead.sh`: minimax (over ration), `claude:claude-sonnet-4-6` and `sonnet` (family sonnet = executor).
+  - Spawned the declared bare fallback **opus** via Agent: 114,415 + 128,471 + 135,141 tok over 3 rounds.
+  - Judge ≠ generator: opus vs sonnet-5-5.
+- **Metered**: $0. **Ration**: codex, ollama and openrouter over; Anthropic OK (5h 33%, week 24%/25.7%).
+
+**Ruled out**:
+- Working P1 #6 autonomously (needs Mark: D-FLEET-15).
+- Fixing `TestValidateModulePath_SingleFileInsidePackage` (language core, outside Authority; V1).
+- Merging over the inherited red.
+- Re-asking D-FLEET-13/14.
+- Reading or acking `mission-fleet`.
+- Resolving `weekly-report:unknown-mission`: attended `08ce76f30` appears to fix it, but it is unverified this fire. Next fire: verify, then resolve with that sha.
+
+**Retro lane**: no skill edit (no gap has reached ≥2 frictions this fire). Observations, one occurrence each:
+- (1) `resolve-role-spawn.sh`'s `reroute` arm skips the ration gate, so it pointed the judge at an over-ration bucket.
+- (2) `ailang mission rotate-log fleet --stream status` resolves to the registry root (the PIN), not the CWD. It rotated the pin's `fleet-mission-status-archive.md` (18 → 3 entries plus `-old`/`-index` files) instead of moving the charter's stamps, so a record written in a separate worktree cannot use it. The controller backed up and restored the pin byte-for-byte from HEAD (status clean), then moved the stamp by hand with line-count and archive assertions.
+- (3) A claude-sub executor can die on a transient API 5xx with an rc-0-looking partial transcript. The rc file (rc=1) and the commit log were the real signal.
+
+**Next**: when dev `CI` is green again: rerun #1604, merge, resolve P1 #7. Then P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict` (premise re-read this fire: `internal/mission/quorum/quorum.go:164` increments `presentCount` for the controller before the zero-signal guard at :176; inside Authority). Then P1 #9 and the Phase 3a spike. D-FLEET-13/14/15 await Mark.
