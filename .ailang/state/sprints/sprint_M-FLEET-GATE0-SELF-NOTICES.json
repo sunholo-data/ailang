@@ -1,0 +1,92 @@
+{
+  "sprint_id": "M-FLEET-GATE0-SELF-NOTICES",
+  "status": "planned",
+  "design_doc": "design_docs/planned/sprint-plan-gate0-self-notices.md",
+  "sprint_plan": "design_docs/planned/sprint-plan-gate0-self-notices.md",
+  "source_design": "ailang-world origin/dev:design_docs/implemented/w-gate0-blind-to-its-own-crash-notices.md",
+  "ticket": "gate0:driver-crash-notices-invisible",
+  "github_issues": [1160],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "port",
+      "reason": "Port of ailang-world scripts/gate0_self_notices.sh (judged + landed there, squash 50103fd); no package capability."
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 520,
+    "estimated_days": 0.5,
+    "target_loc_per_day": 1000
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Port the instrument to scripts/mission_gate0_self_notices.sh (single SIG literal, --control auto table, passed-but-empty --prev-issue = F0) and copy World fixtures verbatim + capture sunholo-data/ailang#1380 into scripts/mission_gate0_self_notices_testdata/",
+      "dependencies": [],
+      "estimated_loc": 380,
+      "acceptance_criteria": [
+        "test -x scripts/mission_gate0_self_notices.sh && /bin/bash -n scripts/mission_gate0_self_notices.sh",
+        "Exactly one non-comment line contains 'FAILED to complete'; no u26a0 escape in the script",
+        "No declare -A / ${x,,} / mapfile / readarray in the script",
+        "World fixtures cmp-identical to ailang-world origin/dev:scripts/testdata/gate0_self_notices_*",
+        "1380.json comment count equals 1380.meta.json count",
+        "Live author-filtered anchored counts equal the control table (ailang 852:10, world 107:4, stapledon 4:<measured>)",
+        "--help lists exit codes 0, 1, 2"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": ""
+    },
+    {
+      "id": "M2",
+      "description": "Port the 24-arm suite to scripts/test_mission_gate0_self_notices.sh, add driver-literal, single-literal, control-auto and snapshot-1380 arms, wire into make test-launchd-drivers",
+      "dependencies": ["M1"],
+      "estimated_loc": 120,
+      "acceptance_criteria": [
+        "/bin/bash scripts/test_mission_gate0_self_notices.sh exits 0 with 'N passed, 0 failed'",
+        "make/test.mk has exactly one test_mission_gate0_self_notices.sh line inside test-launchd-drivers",
+        "env -i HOME=$HOME PATH=$PATH make test-launchd-drivers exits 0 (unpiped)",
+        "No g0_scratch residue in git status",
+        "Suite passes with a failing gh shim first on PATH",
+        "All mutation drills D1-D11 red their named arm; script digest and exec bit restored afterwards"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": ""
+    },
+    {
+      "id": "M3",
+      "description": "Gate-0 step 6a (second, no-authority read) in both .claude and .agents gate-0-preflight.md copies; changelog fragment",
+      "dependencies": ["M2"],
+      "estimated_loc": 25,
+      "acceptance_criteria": [
+        "cmp of the two gate-0-preflight.md copies is silent",
+        "/bin/bash tools/launchd/test_agents_skills_sync.sh exits 0",
+        "Step 6a block is <= 15 lines, has no literal issue number, epoch, or stderr redirect",
+        "Every flag in the rule appears in the script's --help",
+        "changelogs/unreleased/2026-10-06-gate0-self-notices.md exists with ### Added; make check-changelog exits 0"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": ""
+    },
+    {
+      "id": "M4",
+      "description": "Live reading on the fleet thread and World's control issue (recorded, not predicted)",
+      "dependencies": ["M3"],
+      "estimated_loc": 0,
+      "acceptance_criteria": [
+        "Fleet run: rc in {0,1}; control issue=852 expect=10 got=10 ok; signature-source ok; issue lines for current issue and 1380; verdict + rc pasted verbatim into PR body",
+        "World control via --control auto: control issue=107 expect=4 got=4 ok"
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": ""
+    }
+  ]
+}
