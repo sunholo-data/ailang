@@ -16,6 +16,15 @@ import (
 // named-test pipeline compiles the run took (M-TEST-RUNNER-COMPILE-ONCE).
 func runCounted(t *testing.T, path string, bytecode, strict bool) (*SuiteResult, int) {
 	t.Helper()
+	res, exec := runWithExecutor(t, path, bytecode, strict)
+	return res, exec.pipelineRuns
+}
+
+// runWithExecutor runs every test in the file at path, as
+// RunTestsFromFileWithConfig does, and also returns the executor so a test
+// can read its compile counters.
+func runWithExecutor(t *testing.T, path string, bytecode, strict bool) (*SuiteResult, *Executor) {
+	t.Helper()
 	src, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -27,7 +36,11 @@ func runCounted(t *testing.T, path string, bytecode, strict bool) (*SuiteResult,
 	}
 	cfg := TestConfig{WorkspaceRoot: filepath.Dir(path), SeedMode: SeedModeMaster, MasterSeed: 1,
 		Bytecode: bytecode, StrictBytecode: strict}
-	identity, err := ResolveModuleIdentity(cfg.WorkspaceRoot, path, file.Module.Path)
+	declared := ""
+	if file.Module != nil {
+		declared = file.Module.Path
+	}
+	identity, err := ResolveModuleIdentity(cfg.WorkspaceRoot, path, declared)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +48,7 @@ func runCounted(t *testing.T, path string, bytecode, strict bool) (*SuiteResult,
 	r.executor.SetSourceFile(file)
 	res := r.RunSuite(NewCollector(path).Collect(file))
 	res.Engine = r.executor.engine // as RunTestsFromFileWithConfig does
-	return res, r.executor.pipelineRuns
+	return res, r.executor
 }
 
 func byName(res *SuiteResult) map[string]TestResult {

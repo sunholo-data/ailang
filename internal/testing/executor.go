@@ -39,6 +39,34 @@ type Executor struct {
 	batchFailure           *BatchFailure
 	perBodyCompileFailures int // per-body compiles that failed after a batch failure
 	pipelineRuns           int // runNamedTestPipeline calls, for tests
+
+	// Inline-test compiles, memoized per file (#1328): every inline test used
+	// to compile the module twice (binding + cluster), so a 41-test file paid
+	// 82 compiles. The input is the same file each time, so the result is too.
+	inlineCompiles map[string]inlineCompile
+	inlineRuns     int // pipeline.Run calls made by inline tests, for tests
+}
+
+type inlineCompile struct {
+	res pipeline.Result
+	err error
+}
+
+// runInlineCompile runs the pipeline once per key and replays the result
+// (or the error: the same input fails the same way) for every later inline
+// test of the file. Callers cache modules from the result as before, so the
+// evaluator setup that follows each call is unchanged.
+func (e *Executor) runInlineCompile(key string, cfg pipeline.Config, src pipeline.Source) (pipeline.Result, error) {
+	if c, ok := e.inlineCompiles[key]; ok {
+		return c.res, c.err
+	}
+	e.inlineRuns++
+	res, err := pipeline.Run(cfg, src)
+	if e.inlineCompiles == nil {
+		e.inlineCompiles = make(map[string]inlineCompile)
+	}
+	e.inlineCompiles[key] = inlineCompile{res: res, err: err}
+	return res, err
 }
 
 // newEvaluator returns a fresh evaluator honouring the configured recursion
@@ -460,11 +488,15 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 		return nil, fmt.Errorf("failed to read source file: %w", err)
 	}
 
-	// Strip out non-pure functions
+	// Strip out non-pure functions. Only the module-less branch below compiles
+	// this text: with a module file the pipeline reloads source from disk, so
+	// every function of a module file shares one compile (memo key "binding").
 	strippedSource := e.stripNonPureFunctions(string(sourceCode), sourceFile, functionName)
 
 	pipelineFilename := e.modulePath
+	memoKey := "binding"
 	if sourceFile.Module == nil {
+		memoKey = "binding:" + functionName
 		// Write temp file with synthetic module so the module pipeline can load it
 		tmpDir, tmpErr := os.MkdirTemp("", "ailang-test-*")
 		if tmpErr != nil {
@@ -490,7 +522,7 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 		IsREPL:   false,
 	}
 
-	result, err := pipeline.Run(cfg, src)
+	result, err := e.runInlineCompile(memoKey, cfg, src)
 	if err != nil {
 		return nil, fmt.Errorf("failed to elaborate source: %w", err)
 	}
@@ -660,7 +692,11 @@ func (e *Executor) ExtractPureClusterForFunction(
 		IsREPL:   false,
 	}
 
-	result, err := pipeline.Run(cfg, src)
+	// One compile per file: the input is the file on disk whatever the
+	// function (memo key "cluster"; it stays separate from "binding" because
+	// it runs without RelaxModules, and its failure routes to the binding
+	// harness).
+	result, err := e.runInlineCompile("cluster", cfg, src)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to elaborate source: %w", err)
 	}
