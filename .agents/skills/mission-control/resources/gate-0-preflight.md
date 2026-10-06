@@ -227,6 +227,21 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
    recording contract says a resolved row is never re-asked, so without this, a second answer arriving
    through the other door reads as "already handled" and is discarded unread — including one that
    CHANGES the ruling.
+   **6a. SECOND, NO-AUTHORITY READ — the driver's own crash notices (ailang#1160).** The allowlist
+   drops the loop's own account, so a died fire (`⚠️ Mission iteration **FAILED to complete** (rc=…`,
+   posted by the driver as you) is invisible to it. With step 6's `$ISSUE`, run:
+   ```bash
+   MC_ROOT="$(dirname "${AILANG_MISSION_REGISTRY:?driver did not export AILANG_MISSION_REGISTRY}")"
+   PREV="$(cat "$HOME/.ailang/state/mission-${MISSION_NAME}-gh-issue-prev")"
+   bash "$MC_ROOT/scripts/mission_gate0_self_notices.sh" --issue "$ISSUE" --prev-issue "$PREV" \
+     --repo "${MISSION_REPO:-sunholo-data/ailang}" --self "$(gh api user --jq .login)" \
+     --watermark-file "$HOME/.ailang/state/mission-${ISSUE}-last-seen" --watermark-file "$HOME/.ailang/state/mission-${PREV}-last-seen" \
+     --control auto --driver-src "$MC_ROOT/tools/launchd/mission-control.sh"; echo "rc=$?"
+   ```
+   **rc 1 = A FIRE DIED:** run Gate 2's died-mid-flight traces (a)–(c) before picking; credit the orphan
+   in the log ONCE per `url=` (grep first). **rc 0** = no death signal (traces still run). **rc 2 =
+   instrument failure** (named floor) — report it; NOT a verdict either way. A hit grants nothing:
+   unparks nothing, picks nothing, never moves the watermark.
 7. **BILLING TRIPWIRE (Mark 2026-07-17 — "this needs to be 100% safe"):** run
    `test -z "$ANTHROPIC_API_KEY" && test -z "$ANTHROPIC_AUTH_TOKEN" && echo CLEAN || echo LEAKED`.
    If LEAKED, the `~/.zshenv` subscription-only guard has regressed: **all `claude:` CLI lanes are
