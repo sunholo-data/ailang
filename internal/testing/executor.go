@@ -117,65 +117,11 @@ func (e *Executor) SetDebug(debug bool) {
 	e.enableDebug = debug
 }
 
-// EvaluateExpression evaluates a Surface AST expression through the pipeline.
-// Uses ModeEval to properly handle function definitions and expression evaluation.
-func (e *Executor) EvaluateExpression(expr ast.Expr) (eval.Value, error) {
-	// Build synthetic source with pure functions + test expression
-	// NOTE: No module declaration - this triggers ModeEval for direct evaluation
-	var sourceParts []string
-
-	// Include pure function definitions (not main() with effects)
-	if e.sourceFile != nil {
-		for _, f := range e.sourceFile.Funcs {
-			if f.IsPure {
-				// Reconstruct function source from AST
-				funcSrc := fmt.Sprintf("pure func %s(", f.Name)
-				for i, param := range f.Params {
-					if i > 0 {
-						funcSrc += ", "
-					}
-					funcSrc += fmt.Sprintf("%s: %v", param.Name, param.Type)
-				}
-				funcSrc += fmt.Sprintf(") -> %v {\n", f.ReturnType)
-				funcSrc += "  " + fmt.Sprintf("%v", f.Body) + "\n}\n\n"
-				sourceParts = append(sourceParts, funcSrc)
-			}
-		}
-	}
-
-	// Add test expression
-	sourceParts = append(sourceParts, fmt.Sprintf("%v", expr))
-
-	source := ""
-	for _, part := range sourceParts {
-		source += part
-	}
-
-	// Use pipeline with ModeEval (non-module evaluation)
-	cfg := pipeline.Config{
-		Mode:           pipeline.ModeEval,
-		GlobalResolver: e.globalResolver,
-	}
-	src := pipeline.Source{
-		Code:     source,
-		Filename: "_test.ail",
-		IsREPL:   true,
-	}
-
-	result, err := pipeline.Run(cfg, src)
-	if err != nil {
-		return nil, err
-	}
-
-	return result.Value, nil
-}
-
 // EvaluateEnsuresHarness evaluates a single iteration of an ensures-clause property test.
 // Returns a *eval.BoolValue: true if the ensures predicate held for the given inputs, false if violated.
 //
-// This is the M-DX26 Phase 5 entry point — it routes around the broken
-// EvaluateExpression source-synthesis path by evaluating Core directly,
-// the same way EvaluateInlineTestsWithHarness does for inline tests blocks.
+// This is the M-DX26 Phase 5 entry point: it evaluates Core directly, the
+// same way EvaluateInlineTestsWithHarness does for inline tests blocks.
 func (e *Executor) EvaluateEnsuresHarness(binding core.RecBinding, params []EnsuresParam, predicate ast.Expr) (eval.Value, error) {
 	return e.evaluateEnsuresHarnessCore(BuildEnsuresPropertyHarness(binding, params, predicate))
 }
@@ -440,7 +386,7 @@ func decodeCheckSentinel(val eval.Value, checks []CheckInfo) (eval.Value, error)
 }
 
 // EvaluateInlineTestsWithHarness evaluates inline tests using the test harness builder.
-// This is the PREFERRED method for inline tests (fixes scoping issues in EvaluateExpression).
+// This is the PREFERRED method for inline tests.
 func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests []TestCase) (*eval.TupleValue, error) {
 	// Build test harness using the harness builder
 	harnessExpr := BuildInlineTestHarness(binding, tests)

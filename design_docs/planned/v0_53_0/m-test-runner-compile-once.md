@@ -1,6 +1,6 @@
 # M-TEST-RUNNER-COMPILE-ONCE: `ailang test` compiles a test file once, not once per named test
 
-**Status**: Phase 1 IMPLEMENTED (2026-10-06; see Implementation record). Phase 2 (properties) remains planned. D1 and D3 were ratified by Mark on 2026-10-06.
+**Status**: Phases 1 and 2 IMPLEMENTED (2026-10-06; see Implementation records). D1 and D3 were ratified by Mark on 2026-10-06.
 **Target**: v0.53.0
 **Priority**: P1. Named tests are the documented test form, and on real modules the per-test compile dominates every test run.
 **Estimated**: 2–3 days (Phase 1); Phase 2 is a separate estimate
@@ -283,6 +283,30 @@ The opt-in premise test is deleted, replaced by these.
 - `make test` passes.
 - The V8 corpus (28 files, std, examples and stapledons sim/tools) was compared old binary against new on both engines, per test, by name, status and error with the temp dir masked: **0 differences**.
 - Positive control for that instrument: the mixed fixture differs only in the deliberate D5 positions (`T/mixed.ail:8:7` becomes `…/mixed.ail:13 (test body)`).
+
+## Implementation record (Phase 2, 2026-10-06)
+
+**Premise correction.** Phase 2 was framed as performance: "properties compile once per generated case". It was worse than that. #624 was still open at HEAD: every forall property failed on its **first** case (`empty program`, or `PAR_UNEXPECTED_TOKEN` in the synthesized `_test.ail` once the predicate called a module function). So Phase 2 is the fix that makes forall work at all.
+
+**Code:**
+- `internal/testing/property_batch.go`: `forallCaller`, `binderParams`, `isForall`.
+- Forall properties are entries in the same per-file batch, as `pure func __namedtest_prop_<k>(<binder>: <type>, …)`.
+  - Binder types are annotated, so a float binder resolves float operators.
+  - Generated `eval.Value`s are passed as call arguments, so nothing is spliced and nothing is compiled per case. One harness evaluator serves every case of a property.
+- Batch fallback (D1): a property is compiled alone, so an ill-typed property fails by itself as `property does not compile`. Its compile-error positions map to `<file>:<line> (property)` (D5, labelled per entry).
+- Shrinking now iterates to a fixpoint with a 1,000-call budget. The old single pass stopped at the first improvement; on the fixture `n < 5` it gave `[100]`-style answers, and now gives `[5]`.
+- `RunSuite` finishes the batch record **after** the properties. Otherwise a property's own compile failure was not yet counted, and the batch failure was misreported as a harness bug; a test caught this.
+- Removed the dead splice-path code: `Runner.bindPropertyValues`, `Executor.EvaluateExpression`, `TestRefusal_N4_Forall` and `TestShrinkNilExprContract`.
+  - `TestRefusal_N5_Shrink` was rewritten to pin the new contract: a candidate the predicate cannot evaluate is skipped.
+  - `valueToLiteral` stays, because the requires and ensures harnesses use it.
+
+**Tests** (`property_batch_test.go`, each mutation-checked):
+- all binder kinds run 100 cases, sharing one compile with the named test;
+- shrinking reaches `[5]`;
+- the seed drives the stream: equal across runs, and the failing case moves across seeds;
+- an ill-typed property fails alone, at the right position, and is not reported as a harness bug.
+
+**Found on the way:** the testing guide documents syntax that does not parse (`property "x" (x: int) = …`, `test "x" = …`), implication `==>`, `where` and `list(T)`, plus five environment variables that do not exist (`AILANG_TEST_RUNS` and others). The quick-start and property sections are fixed in this commit; the rest of the guide is a follow-up docs pass.
 
 ## Related Documents
 

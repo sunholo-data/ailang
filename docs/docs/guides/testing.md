@@ -36,12 +36,15 @@ ailang test --help
 ### Your First Test
 Create `hello_test.ail`:
 ```ailang
-// Unit test (simple assertion)
-test "addition works" = 1 + 1 == 2
+module hello_test
 
-// Property test (QuickCheck-style)
-property "addition is commutative" (x: int, y: int) =
-  x + y == y + x
+-- Unit test: the body must evaluate to true
+test "addition works" { 1 + 1 == 2 }
+
+-- Property test (QuickCheck-style): 100 generated cases
+property "addition is commutative" {
+  forall(x: int, y: int) => x + y == y + x
+}
 ```
 
 Run it:
@@ -100,40 +103,49 @@ test "Some wraps value" =
 
 ### Property Tests
 
-Property tests verify invariants hold for many random inputs:
+Property tests verify that an invariant holds for many generated inputs:
 
 ```ailang
-property "name" (param: type, ...) = expression
+property "name" {
+  forall(param: type, ...) => predicate
+}
 ```
+
+The predicate can call the module's pure functions. Each property is compiled once, as a function of its binders, and called with each of 100 generated cases. A failing case is shrunk to a minimal counterexample: `forall(n: int) => n < 5` reports `property failed on input: [5]`.
 
 **Examples:**
 ```ailang
-// Commutativity
-property "addition commutes" (x: int, y: int) =
-  x + y == y + x
+import std/list (length, reverse)
 
-// Associativity
-property "addition associates" (x: int, y: int, z: int) =
-  (x + y) + z == x + (y + z)
+export pure func double(x: int) -> int = x * 2
 
-// Identity
-property "zero is additive identity" (x: int) =
-  x + 0 == x && 0 + x == x
+-- Commutativity
+property "addition commutes" {
+  forall(x: int, y: int) => x + y == y + x
+}
 
-// Conditional properties (implications)
-property "division by non-zero" (x: int, y: int) =
-  y != 0 ==> (x / y) * y + (x % y) == x
+-- Calling module functions
+property "double is additive" {
+  forall(n: int) => double(n) == n + n
+}
+
+-- A precondition: there is no `where`/`==>`, so write it as an if
+property "division by non-zero" {
+  forall(x: int, y: int) => if y == 0 then true else (x / y) * y + (x % y) == x
+}
+
+-- Lists
+property "reverse keeps length" {
+  forall(xs: [int]) => length(reverse(xs)) == length(xs)
+}
 ```
 
-**Supported Types:**
-- `int` - Integers (configurable range)
-- `float` - Floating-point numbers
-- `bool` - Booleans
-- `string` - Strings (configurable length/charset)
-- `list(T)` - Lists of type T
-- `Option(T)` - Optional values (Some/None)
-- `Result(T, E)` - Results (Ok/Err)
-- Custom ADTs and records
+**Binder types with a generator:**
+- `int`, `float`, `bool`, `string`, `()`
+- lists (`[T]`), tuples (`(A, B)`) and records (`{name: string, age: int}`) of these
+- ADTs declared in the same module (`type Shape = Circle(float) | Square(float)`)
+
+A binder whose type has no generator (for example an imported `Option[int]`) skips that property with `no generator for type …`.
 
 ---
 
