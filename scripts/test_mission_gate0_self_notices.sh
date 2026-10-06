@@ -164,7 +164,7 @@ EOF
 
 # ── arm 5: prev-issue (AC-M1-6) ───────────────────────────────────────────────
 arm_prev_issue() {
-  local d outA errA outB errB arun brun n
+  local d outA errA outB errB arun brun crun drun n
   d="$SCRATCH/a5"; mkdir -p "$d"
   make_json "$d/129.json" <<EOF
 {"comments": [
@@ -193,6 +193,17 @@ EOF
   if [ "$brun" -eq 1 ]; then ok "prev-issue run B hit rc=1"; else notok "prev-issue run B rc=$brun"; fi
   n="$(/usr/bin/grep -c '^crash: issue=107 at=2026-09-07T02:47:28Z rc=1 in-window=yes' "$d/outB")"
   if [ "$n" -eq 1 ]; then ok "prev-issue run B exactly one line"; else notok "prev-issue run B line count=$n"; fi
+  # Run C: prev is NOT the control issue, so only the prev read can surface 107's notice
+  # (dropping $PREV_ISSUE from the read loop turns rc 1 into rc 0 — judge mutant m3).
+  run_instr "$d/outC" "$d/errC" --issue 129 --prev-issue 107 --repo test/test --self sunholo-voight-kampff \
+    --since 2026-09-07T00:00:00Z --control 129:0 --gh-bin "$d/stub"; crun=$?
+  if [ "$crun" -eq 1 ]; then ok "prev-issue run C (prev != control) hit rc=1"; else notok "prev-issue run C rc=$crun"; fi
+  n="$(/usr/bin/grep -c '^crash: issue=107 at=2026-09-07T02:47:28Z rc=1 in-window=yes' "$d/outC")"
+  if [ "$n" -eq 1 ]; then ok "prev-issue run C exactly one 107 line"; else notok "prev-issue run C line count=$n"; fi
+  # Run D: an unreadable prev issue is an instrument failure (rc 2), never a silent skip
+  run_instr "$d/outD" "$d/errD" --issue 129 --prev-issue 999 --repo test/test --self sunholo-voight-kampff \
+    --since 2026-09-07T00:00:00Z --control 129:0 --gh-bin "$d/stub"; drun=$?
+  if [ "$drun" -eq 2 ] && [ -s "$d/errD" ]; then ok "prev-issue run D unreadable prev rc=2 named floor"; else notok "prev-issue run D rc=$drun"; fi
 }
 
 # ── arm 6: no-bodies (AC-M1-7) ───────────────────────────────────────────────

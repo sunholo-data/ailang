@@ -36,10 +36,10 @@
         "Live author-filtered anchored counts equal the control table (ailang 852:10, world 107:4, stapledon 4:<measured>)",
         "--help lists exit codes 0, 1, 2"
       ],
-      "passes": false,
-      "started": null,
-      "completed": null,
-      "notes": ""
+      "passes": true,
+      "started": "2026-10-06T13:47:46+02:00",
+      "completed": "2026-10-06T13:49:08+02:00",
+      "notes": "a3cbffe1e: script + fixtures ported; verified by the suite and live control table (852:10)."
     },
     {
       "id": "M2",
@@ -56,10 +56,10 @@
         "Suite passes with a failing gh shim first on PATH",
         "All mutation drills D1-D11 red their named arm; script digest and exec bit restored afterwards"
       ],
-      "passes": false,
-      "started": null,
-      "completed": null,
-      "notes": ""
+      "passes": true,
+      "started": "2026-10-06T13:49:08+02:00",
+      "completed": "2026-10-06T13:53:46+02:00",
+      "notes": "0336d0e30: suite + make wiring; mutation drills D1-D11 recorded in execution_notes; make test-launchd-drivers rc=0."
     },
     {
       "id": "M3",
@@ -75,10 +75,10 @@
         "Every flag in the rule appears in the script's --help",
         "changelogs/unreleased/2026-10-06-gate0-self-notices.md exists with ### Added; make check-changelog exits 0"
       ],
-      "passes": false,
-      "started": null,
-      "completed": null,
-      "notes": ""
+      "passes": true,
+      "started": "2026-10-06T13:53:46+02:00",
+      "completed": "2026-10-06T13:56:26+02:00",
+      "notes": "7b7b39afc: step 6a in both skill copies + changelog fragment. Round 2 made the block self-contained (inline ISSUE, MISSION_DRIVER_ROOT guard)."
     },
     {
       "id": "M4",
@@ -91,10 +91,10 @@
         "Fleet run: rc in {0,1}; control issue=852 expect=10 got=10 ok; signature-source ok; issue lines for current issue and 1380; verdict + rc pasted verbatim into PR body",
         "World control via --control auto: control issue=107 expect=4 got=4 ok"
       ],
-      "passes": false,
-      "started": null,
-      "completed": null,
-      "notes": ""
+      "passes": true,
+      "started": "2026-10-06T13:56:26+02:00",
+      "completed": "2026-10-06T14:04:53+02:00",
+      "notes": "40fb95a7f: live reading fleet 1584/1380 rc=1, control 852:10 ok; World control 107:4 ok."
     }
   ],
   "execution_notes": {
@@ -109,6 +109,7 @@
     "m4_live": "fleet issue 1584 prev 1380: rc=1; control 852:10 ok; signature-source ok; 3 notices on #1380, 1 in-window (rc=143 2026-10-04T04:28:01Z). World 107: control 107:4 ok rc=1 (--since 2000).",
     "stapledon_control": "measured 5 (not 4) author-filtered; table has 4:5",
     "shellcheck": "-S warning: 3 SC2034 unused-local warnings in the suite only; script clean",
-    "premise_notes": "gate-0 6a block trimmed to 15 lines (AC-M3-3)."
+    "premise_notes": "gate-0 6a block trimmed to 15 lines (AC-M3-3).",
+    "round2": "Judge PASS 87; F1 prev!=control arm (runs C/D) + prev-emit floor; F3 6a block runnable from fresh shell; F5 this fill-in. Suite 108/0."
   }
 }

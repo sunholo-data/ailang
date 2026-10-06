@@ -355,7 +355,9 @@ emit_for() {  # $1=issue ; skips if already emitted
 }
 EMITTED=""
 emit_for "$ISSUE"
-if [ -n "$PREV_ISSUE" ]; then emit_for "$PREV_ISSUE"; fi
+if [ -n "$PREV_ISSUE" ]; then
+  emit_for "$PREV_ISSUE" || { echo "✗ internal: --prev-issue $PREV_ISSUE was not read" >&2; exit 2; }
+fi
 
 # ── control all-time crash count on the control issue ────────────────────────
 CTRL_GOT=0

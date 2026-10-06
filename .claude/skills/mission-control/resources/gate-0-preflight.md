@@ -229,10 +229,10 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
    CHANGES the ruling.
    **6a. SECOND, NO-AUTHORITY READ — the driver's own crash notices (ailang#1160).** The allowlist
    drops the loop's own account, so a died fire (`⚠️ Mission iteration **FAILED to complete** (rc=…`,
-   posted by the driver as you) is invisible to it. With step 6's `$ISSUE`, run:
+   posted by the driver as you) is invisible to it. Run (self-contained — sets its own `ISSUE`):
    ```bash
-   MC_ROOT="$(dirname "${AILANG_MISSION_REGISTRY:?driver did not export AILANG_MISSION_REGISTRY}")"
-   PREV="$(cat "$HOME/.ailang/state/mission-${MISSION_NAME}-gh-issue-prev")"
+   case "${MISSION_DRIVER_ROOT:-}" in /*) MC_ROOT="$MISSION_DRIVER_ROOT" ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac &&
+   ISSUE="${MISSION_GH_ISSUE:?}" && PREV="$(cat "$HOME/.ailang/state/mission-${MISSION_NAME:?}-gh-issue-prev")" &&
    bash "$MC_ROOT/scripts/mission_gate0_self_notices.sh" --issue "$ISSUE" --prev-issue "$PREV" \
      --repo "${MISSION_REPO:-sunholo-data/ailang}" --self "$(gh api user --jq .login)" \
      --watermark-file "$HOME/.ailang/state/mission-${ISSUE}-last-seen" --watermark-file "$HOME/.ailang/state/mission-${PREV}-last-seen" \
