@@ -24,9 +24,15 @@ const (
 	artifactIfaceName        = "iface.json"
 	artifactConstructorsName = "constructors.json"
 
-	maxArtifactBlobBytes   int64 = 16 << 20
+	// The 16/32 MiB ceilings were sized from std modules (largest blob 20 KB).
+	// Real modules outgrew them: stapledons-godot's 638-line protocol_test
+	// has a 21.8 MiB coretypeinfo.gob and motoko's session.ail is over 16 MiB,
+	// so those modules were never cached and recompiled on every run (#1328).
+	// CoreTypeInfo stores each node's type with no sharing between nodes,
+	// which is why it is the blob that grows; the ceilings stay a bounded read.
+	maxArtifactBlobBytes   int64 = 64 << 20
 	maxArtifactStampBytes  int64 = 64 << 10
-	maxModuleArtifactBytes int64 = 32 << 20
+	maxModuleArtifactBytes int64 = 128 << 20
 
 	artifactInvalidReason  = "ARTIFACT_INVALID"
 	artifactTooLargeReason = "ARTIFACT_TOO_LARGE"

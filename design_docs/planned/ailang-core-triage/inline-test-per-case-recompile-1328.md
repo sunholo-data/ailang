@@ -25,6 +25,21 @@ Each inline test therefore costs two full module compilations. Normally the on-d
 
 Compile the module under test **once per `ailang test` file run**, inside the process, and reuse the `pipeline.Result` for every test case and property. The input is the same file each time, so memoizing on `(modulePath, cfg)` inside `Executor` is behaviour-preserving. The evaluators that consume the result are built fresh per test (`newHarnessEvaluator`), so sharing the Core program does not share mutable state. Delete the dead strip on the module path, or keep it only on the module-less branch where it is live, so readers do not assume per-function isolation that does not exist. Add a regression test that counts `pipeline.Run` calls for an N-test module (expect 1, not 2N).
 
-Independently, consider a separate change: raise or remove the 16 MiB cap for `coretypeinfo.gob`, or warn once at INFO level when a module under test cannot be cached. After the memoization fix that cap costs one compile per run instead of 2N, so it no longer blocks #1328.
+Independently, consider a separate change: raise or remove the 16 MiB cap for `coretypeinfo.gob`, or warn once at INFO level when a module under test cannot be cached. After the memoization fix that cap costs one compile per run instead of 2N, so it no longer blocks #1328. **Done 2026-10-06:** the caps are now 64 MiB per blob and 128 MiB per module (see the addendum).
 
 Not to be confused with `test-executor-module-env-miswiring.md` (#1261, now fixed by e69077211): that doc covered how the env is built. This one is about how many times the module is compiled.
+
+## Addendum 2026-10-06: named tests have the same cost on a separate path, and memoizing does not cover it
+
+Reported by stapledons-godot (inbox_1791287299418_f86a7ce4). `cd sim && ailang test --package .` takes about 10 minutes for 289 tests. Measured at dev 40744990f on their `sim/protocol_test.ail` (638 lines, 29 `test "name" { ... }` blocks): `ailang test protocol_test.ail` takes 3m36s, and **each test takes 7.2–7.9 s**. A warm-cache `check` of the same file without the cap takes 7.3 s, so every named test costs one full compile of the test module. For comparison, `rng_test.ail` tests take about 52 ms each.
+
+The path is `Executor.EvaluateNamedTestBodyExprs` → `runNamedTestPipeline` (internal/testing/executor.go). For every named test it writes the stripped module source **plus that test's body** to a private temp file and compiles it with `TransientRoot: true`. The compile cache never stores a transient root, and the source is different for each body. So the fix above (memoize one `pipeline.Result` per file) does not apply here, and raising the cap does not help either. Dependencies come from the cache; the test module itself is recompiled N times.
+
+The fix needs a design decision, because it changes how failures are isolated:
+- Compile the test module **once**, with every body lowered to a synthetic entry (`__named_test_<k>() -> bool`, or the int-sentinel form for asserts per #590), and evaluate each entry on its own evaluator.
+- Open question: today, a body that fails to type-check fails only its own test. With one batched compile, one bad body fails them all. Options:
+  - fall back to the per-body compile only when the batched compile fails (cheap and preserves behaviour), or
+  - report the type error against the body whose span it carries.
+- The `--bytecode` path (`evalNamedTestBodyOnVM`) builds the same per-body source and needs the same treatment.
+
+Cache-size data from the same report: the cap fix (64/128 MiB) takes a warm `check protocol_test.ail` from 7.3 s to 0.53 s. The blob is large because CoreTypeInfo (`map[uint64]Type`) gob-encodes each node's type independently. In `stapledons/sim/protocol` there are 11,639 entries, but only 996 distinct types by `String()`, and 3.0 MB of type text against 1.0 MB unique. Deduplicating types at encode time (keyed by each type's own gob bytes, so it is lossless) would cut the blob several-fold. Decoding would then share `Type` pointers across nodes, so check first that no consumer mutates a CoreTypeInfo type in place.
