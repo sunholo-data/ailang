@@ -47,11 +47,10 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
-## 0 — 2026-09-26 — charter ratified as written (attended, Mark)
-
-- **Outcome:** Mark ratified the charter as written: bar clauses 1–5, the Authority allowlist and the Guardrails. Kill switch lifted.
-- **State at ratification:** `mission-fleet` declared triage on the prod plane (ailang-multivac d2f277d). Fleet job loaded (`dev.ailang.mission-fleet`, 6h, boot offset 1680s). Open tickets: 0. Bookkeeping issue #1321.
-- **Verified live before lift:** a prod round trip (4 tickets → 1 signature → resolve → 4 replies); idempotent refile; dry runs (1 open → DRY RUN ok, 0 open → idle exit before any probe); first launchd fire stopped at the kill switch with rc 0.
+> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
+> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
+> the thing to grep before picking work, so the loop never repeats itself — is in
+> `fleet-mission-index.md`.
 
 ## 1 — 2026-09-26 — slot kill now reaps the controller's whole process tree (P0 #1) [HARNESS]
 
@@ -451,3 +450,87 @@ The tree sum equals the parent sum within 0.04 in every window. Separately, 21 l
   - (a) A clock park can hide a real red. While every PR is red on the weekend signature, other reds on the same PR are never read. #1580's Windows hang sat behind the quota red for two fires. Resume predicates should re-read the whole failing set once the clock clears, as this fire did.
   - (b) D-FLEET-14 recurs every weekend. Next Saturday it blocks every PR to dev again, fleet and attended alike.
 **Next**: P1 #5 `pi-runner:verdict-blind-to-commits-and-predirty` (pre-dirty half), then the Phase 3a skill-resolution directive (after P1). The D-FLEET-12 pair is planner-ready. D-FLEET-13/14 await Mark.
+
+## 20 — 2026-10-05 — pi-runner pre-dirty fix built + judged PASS 86→85 as PR #1593; landing blocked by a GitHub Actions major outage → PARKED-ON-CLOCK [HARNESS]
+
+**Pick**: P1 #5 `pi-runner:verdict-blind-to-commits-and-predirty`, the pre-dirty half (charter `[NEXT]`; Mark's 2026-09-29 triage order).
+- Gate 0: kill switch armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; 0 directives on #1584 since `2026-10-05T12:33:09Z` (1 comment, public). 38 open tickets.
+- Gate 1:
+  - Pin = origin/dev `a12a319b5`. Running skill: `SKILL.md` + 5 resources match origin. 7 gate resources DIFFER: the resolved main checkout is 22 commits behind origin. The delta is the absolute `MISSION_DRIVER_ROOT` heartbeat-stamp form + the pi rc-19 line (#1578). This fire followed the resolved copy but used the absolute stamp form.
+  - Dev CI: last push run `d273ea1cd` failure = `test-windows`, `cmd/ailang` at 401 s / 96% of its timeout budget, with hang-guard FAILs (not logic). The 2 prior runs were green; V1 owns this lane, recorded only.
+  - HEAD `a12a319b5` (6 dependabot merges) had **no** push CI. Dispatched `CI` → `test` success, `lint` success; `changes` cancelled (unassigned 15 min), so Windows is unverified at HEAD.
+- Gate 2: the pick still reproduces at HEAD. `mission_pi_run.sh:346` gates `ok` on porcelain non-empty, and `:347` says a pre-dirty tree reads `ok` vacuously. No orphan iteration-20 PR or worktree. #1583 (`fix/ollama-quota-test-clock`, attended) addresses D-FLEET-14's subject; not fleet's PR, untouched.
+
+**Did**:
+- **Plan** (opus Agent) `6f60e0d53`, `design_docs/planned/sprint-plan-pi-runner-predirty.md`. Two load-bearing findings, both verified by the controller:
+  - TEST 1/5 started dirty with no-op stubs, so they passed only because of the bug.
+  - `scripts/test_mission_pi_run.sh` ran in no gate (`make/test.mk` listed only the three `tools/launchd/test_mission_pi_run_*` suites).
+- **Executor r1** `d3974c34f`:
+  - A worktree fingerprint is taken right after `BASE_HEAD` and again after the run: porcelain v1 -z + `git diff --binary HEAD` + untracked hashes → `git hash-object --stdin`.
+  - `ok` = fingerprint changed OR commits made.
+  - New JSON fields `predirty_files` and `worktree_changed_since_start`.
+  - Header comment fixed; the suite wired into `make test-launchd-drivers`; changelog fragment added.
+- **Judge r1 PASS 86**, 0 blocking. Finding 1 was reproduced first-party: the batched `xargs git hash-object` aborts at a dangling symlink (`fatal: could not open 'aaa'`, rc=1), so a later untracked edit reads `empty_worktree` (a live lane reported dead).
+- **Executor r2** `2e49cc9ac`: untracked entries are hashed one at a time, with stand-ins (symlink target; nested repo HEAD + porcelain). Arms 8.8–8.11 added.
+- **Judge r2 PASS 85**, 0 blocking.
+- Pushed through the pinned guard (`core.hooksPath` = pin); PR **#1593**.
+- **Gate 3b**:
+  - `lint` and `docs-gate` green (docs-gate after one re-run). `test` still running at record time.
+  - `changes` sat unassigned 15 min and was cancelled, so `launchd drivers` and `test-windows` were skipped.
+  - githubstatus: **Actions: major_outage**, "Incident with Actions" investigating since 21:09Z. The same symptom hit the 19:17Z dev dispatch.
+  - Not merged; ticket NOT resolved.
+
+**Progress**: 0 tickets resolved (38 open).
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET.
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved: nothing merged, and the judged head waits for a real `pull_request` CI suite.
+
+**Routing evidence**: base-gate1=a12a319b5eb9b208f4d8f5df21b6a892033b08e7@2026-10-05T19:14:56Z. `MISSION_ROUTING_NOTE`: codex over daily ration → planner opus, executor claude:claude-sonnet-5-5.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: NOT SPAWNED. The resolver said `recipe claude:claude-opus-5-5`. The defect, cause and fix shape were measured at HEAD in one script, so the charter's "design only when the fix warrants one" applies, as in iteration 19.
+- **Planner**: resolver `agent-tool opus fail-closed:env-pin` → opus via the Agent tool, foreground (87,227 tok, 17 tools, 13 min).
+- **Executor**: resolver `recipe claude:claude-sonnet-5-5` → `claude-sub` in `~/.ailang-worktrees/fleet-i20-pi-predirty`. Billing CLEAN; probe rc0; r1 rc0, r2 rc0 (tok: not reported, text mode).
+- **Evaluator**: resolver `reroute pi:openrouter/minimax/minimax-m3 generator-equals-judge`.
+  - OpenRouter is in `MISSION_OVER_RATION`, so minimax was skipped. `claude:claude-sonnet-4-6` was skipped as the executor's family.
+  - Ran `opus` via the Agent tool, foreground for r1 (92,747 tok, 20 tools, 22 min), resumed by SendMessage for r2 (105,477 tok cumulative, 16 min).
+  - Judge ≠ generator (opus vs sonnet-5-5). FLAG: same model as the controller and the planner, in a fresh context.
+- **Metered**: $0.00. **Ration**: codex, ollama and openrouter over; Anthropic subscription OK.
+
+**Verification** (judge, first-party re-runs):
+- `scripts/test_mission_pi_run.sh` 36/36.
+- commits 9, sandbox 13, provider_quota 29, all rc0.
+- `make test-launchd-drivers` rc0, now running this suite.
+- `bash -n` rc0.
+- shellcheck identical to base.
+- `check-changelog` rc0.
+- Mutations red-on-mutate, each restored byte-identical (cmp + `git diff --quiet`):
+  - `ok` reverted to porcelain;
+  - diff-only fingerprint;
+  - porcelain-only fingerprint;
+  - untracked hashes dropped;
+  - batched `xargs` restored;
+  - time-varying fingerprint;
+  - fingerprint diffed against `BASE_HEAD`;
+  - post-run fingerprint failure counted as changed.
+- One judge mutation SURVIVED: the stand-in block replaced with `|| true` → 36/36, so no arm pins the stand-in (non-blocking follow-up).
+- 2,000-untracked-file timing: 18.06 s per-entry vs 0.098 s batched, same hash. It runs outside the wall clock.
+
+**Done-gate** (pending landing):
+- Surface ✓ (`scripts/mission_pi_run.sh` is what every pi lane runs).
+- Reach ✗ (not on origin/dev).
+- `make test-launchd-drivers` ✓ on the branch.
+- Nothing reloaded ✓.
+- No dry-run needed: 0 driver bytes changed.
+
+**Ruled out**:
+- Merging past the skipped `launchd drivers`/`test-windows` legs, or treating an outage green as a verdict (Gate 3b).
+- A third executor round for the judge-r2 non-blocking findings (one revision, bounded; queued as follow-ups instead).
+- Spawning a designer for a one-script fix.
+- Touching `TestOllamaQuota*` (D-FLEET-12/14) or #1583.
+- Reading or acking `mission-fleet`.
+- Re-asking D-FLEET-13/14.
+
+**Retro lane**: none for the skill. One observation: the GitHub `changes` path-filter job is a single point of failure. When it cannot get a runner, every path-gated leg is SKIPPED, which renders as neutral rather than red. A rollup that counts only failures reads that as clean.
+**Next**: land #1593 when Actions recovers (resume predicate in the queue row), resolve the ticket and reply to world. Then the Phase 3a skill-resolution directive. The D-FLEET-12 pair is planner-ready; D-FLEET-13/14 await Mark.
