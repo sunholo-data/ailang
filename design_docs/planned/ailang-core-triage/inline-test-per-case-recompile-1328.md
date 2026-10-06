@@ -35,7 +35,7 @@ Reported by stapledons-godot (inbox_1791287299418_f86a7ce4). `cd sim && ailang t
 
 The path is `Executor.EvaluateNamedTestBodyExprs` → `runNamedTestPipeline` (internal/testing/executor.go). For every named test it writes the stripped module source **plus that test's body** to a private temp file and compiles it with `TransientRoot: true`. The compile cache never stores a transient root, and the source is different for each body. So the fix above (memoize one `pipeline.Result` per file) does not apply here, and raising the cap does not help either. Dependencies come from the cache; the test module itself is recompiled N times.
 
-The fix needs a design decision, because it changes how failures are isolated:
+**Design doc:** `design_docs/planned/v0_53_0/m-test-runner-compile-once.md`. It measured protocol_test going from 3m27s to about 11 s, with 0 differences in outcome. The fix needs a design decision, because it changes how failures are isolated:
 - Compile the test module **once**, with every body lowered to a synthetic entry (`__named_test_<k>() -> bool`, or the int-sentinel form for asserts per #590), and evaluate each entry on its own evaluator.
 - Open question: today, a body that fails to type-check fails only its own test. With one batched compile, one bad body fails them all. Options:
   - fall back to the per-body compile only when the batched compile fails (cheap and preserves behaviour), or
