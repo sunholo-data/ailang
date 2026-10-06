@@ -253,6 +253,14 @@ if ! curl -s --max-time 3 http://127.0.0.1:11434/api/version >/dev/null 2>&1; th
   log "ollama unreachable — skip"; exit 0
 fi
 
+# 2b. Someone is using the desktop — the GPU draws it, so leave it alone
+#     (rig-operator-presence.sh). Mid-chunk, eval-suite lends the GPU between
+#     benchmarks instead (AILANG_RIG_YIELD_TO_OPERATOR, exported below).
+if rig_operator_present; then
+  log "operator at the desktop — skip"; exit 0
+fi
+export AILANG_RIG_YIELD_TO_OPERATOR=1
+
 # 3. Yield if any rig job (nightly / lang-eval) holds the lock.
 if ! rig_lock_acquire nowait; then
   log "rig busy — yielding"; exit 0

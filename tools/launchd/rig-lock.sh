@@ -103,6 +103,28 @@ rig_lock_clear_yield() {
   return 0
 }
 
+# --- operator presence --------------------------------------------------------
+# The shell half of internal/riglock/operator.go. rig-operator-presence.sh keeps
+# this marker in force while someone is using the desktop: the GPU also draws the
+# screen, so a local model generating makes window focus lag by seconds. Batch
+# jobs check it before starting and export AILANG_RIG_YIELD_TO_OPERATOR=1 so
+# their eval-suite lends the GPU between benchmarks. NOT a handoff — see operator.go.
+RIG_OPERATOR_FILE="$(dirname "$RIG_LOCK_DIR")/rig.operator"
+
+# rig_operator_present — true while the marker is unexpired and its watcher alive.
+rig_operator_present() {
+  local line pid until_s until_epoch
+  line=$(head -1 "$RIG_OPERATOR_FILE" 2>/dev/null) || return 1
+  pid=$(printf '%s' "$line" | tr ' ' '\n' | sed -n 's/^pid=//p' | head -1) || true
+  until_s=$(printf '%s' "$line" | tr ' ' '\n' | sed -n 's/^until=//p' | head -1) || true
+  [ -n "$until_s" ] || return 1
+  until_epoch=$(TZ=UTC date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$until_s" +%s 2>/dev/null) \
+    || until_epoch=$(date -u -d "$until_s" +%s 2>/dev/null) || return 1
+  [ "$(date -u +%s)" -lt "$until_epoch" ] || return 1
+  if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then return 1; fi
+  return 0
+}
+
 # rig_lock_acquire MODE [REQUESTER]
 rig_lock_acquire() {
   local mode="${1:-wait}" requester="${2:-}"

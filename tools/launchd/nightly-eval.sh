@@ -52,6 +52,9 @@ log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
 # shellcheck source=tools/launchd/rig-lock.sh
 # shellcheck disable=SC1091
 source "$(dirname "$0")/rig-lock.sh"
+# Lend the GPU between benchmarks while someone is at the desktop (rig-operator-presence.sh):
+# the nightly runs into the working morning, and the GPU also draws the screen.
+export AILANG_RIG_YIELD_TO_OPERATOR=1
 
 # COMMIT GATE (2026-09-27, Mark). The nightly's one job the os-rotation-filler does
 # not already do is to build origin/dev HEAD (the filler runs RELEASES), so it
