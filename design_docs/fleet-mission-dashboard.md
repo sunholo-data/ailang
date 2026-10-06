@@ -1,24 +1,10 @@
-# Fleet mission — iteration 22, 2026-10-06
+# Fleet mission — iteration 23, 2026-10-06
 
-- Release v0.52.1 (CLI on PATH). Pin = origin/dev `e68a264fb`, drift 0. The running skill (`SKILL.md` + 12 resources) is byte-identical to origin, both in the resolved symlink and in the pin.
-- **BUILT, not merged: Gate-0 self-notice read, PR #1604 (head `2e0f92672`).**
-  - `scripts/mission_gate0_self_notices.sh` is World's judged instrument, ported. Gate 0 step 6a (both skill copies) now sees the driver's own `FAILED to complete (rc=…)` notices. It has no authority: rc 1 = a fire died → run the Gate 2 traces; rc 2 = instrument failure.
-  - Judge opus (own worktree): **PASS 87 → 91 → 93**, 0 blocking. Suite 108/0; `make test-launchd-drivers` rc 0.
-  - Its first live reading found the real rc=143 kill of iteration 18.
-- **Blocked by an inherited dev red, owned by V1:** `07e1a89bc` (attended `internal/pipeline` MOD010 fix) fails `TestValidateModulePath_SingleFileInsidePackage` on `test` and `test-windows`. Handed to V1. **Resume:** dev CI green → rerun #1604 → merge → resolve `gate0:driver-crash-notices-invisible`.
-- **New ask D-FLEET-15** (P1 #6 `skill-surface:main-checkout-not-synced-to-dev`): may the driver `merge --ff-only origin/dev` the shared main checkout when it is clean-safe? Rec A; default B (wait for Phase 3b).
-- **Next:** land #1604, then P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict` (premise verified at `quorum.go:164`), then P1 #9 and the Phase 3a spike.
-- **Ledger, 3 OPEN:**
-  - D-FLEET-13: Anthropic "session limit" as capacity (rec A).
-  - D-FLEET-14: pin the `TestOllamaQuota*` clock (rec A). Attended #1583 appears to address it.
-  - D-FLEET-15: main-checkout auto-sync (rec A).
-- Tickets: 38 open. Clause 2 (turnaround ≤48h) UNMET.
-- Quota: codex, ollama and openrouter over daily ration; Anthropic OK. Metered: $0.
-- Routing this fire:
-  - Planner: opus (Agent).
-  - Executor: `claude:claude-sonnet-5-5` (claude-sub; one API-5xx death, then a retry).
-  - Judge: opus (Agent). The resolver's minimax reroute was over ration, and sonnet collides with the executor.
-- Watch:
-  - `resolve-role-spawn.sh`'s `reroute` arm skips the ration gate.
-  - `rotate-log --stream status` writes to the pin, not the CWD.
-- Bookkeeping thread: **#1584**. Log: fleet-mission-log.md.
+- Pin = origin/dev `04dc2b7c8`, drift 0. Running skill (`SKILL.md` + 12 resources) byte-identical to origin on every readable copy this fire.
+- **PARKED-ON-LANE: all four provider buckets over ration** (anthropic ENFORCED 0.6pp headroom · codex 0.4pp · openrouter $3.59/$2.33 · ollama 10.1pp of 10pp/day, hard-capped mid-fire). Zero roles spawned, nothing landed, nothing judged — the required independent evaluator had no lane, so nothing landed on the controller's own verdict.
+- **Verified and ready to route next fire:** P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict` (ailang#651) — the controller verdict increments `presentCount` ahead of the zero-signal guard (`quorum.go:170`/`:176`), re-measured at `04dc2b7c8`. Resume: `mission-lane-check.sh fleet` rungs ok + a judge lane ≠ executor.
+- **Still blocked on V1's dev red:** `TestValidateModulePath_SingleFileInsidePackage` fails dev's required `test` at HEAD → #1604 (gate0 self-notice read, judged PASS 93) and the record PRs wait. V1 owns it; handed over at iteration 22.
+- **Ledger, 3 OPEN:** D-FLEET-13 (session-limit as capacity, rec A) · D-FLEET-14 (pin `TestOllamaQuota*` clock, rec A) · D-FLEET-15 (main-checkout auto-sync, rec A; default B = wait for Phase 3b skill pinning). All pending, unchanged.
+- **Next:** capacity → route P1 #8; dev green → land #1604 + records; then the Phase 3a skill-resolution spike (after P1, before P2).
+- Tickets: 39 open. Clause 2 (turnaround ≤48h) UNMET. Metered this fire: $0.00.
+- Watch: the controller's pi fallback rung shares the ollama ration with the role lanes — this fire the controller's own reading capped the bucket (1 instance; routing-policy signal if it recurs).

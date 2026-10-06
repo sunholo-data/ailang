@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 23 | 2026-10-06 | P1 #8 quorum guard verified live but ALL lanes over ration (ollama hard-capped by the controller's own session) → PARKED-ON-LANE, zero roles spawned; #1604/#1605 still blocked on V1's dev red; iteration-22 record carried, #1605 superseded [HARNESS] |
 | 22 | 2026-10-06 | Gate-0 self-notice read built + judged PASS 87→91→93 as PR #1604; blocked by inherited dev red 07e1a89bc; P1 #6 → D-FLEET-15 [HARNESS] |
 | 21 | 2026-10-06 | pi-runner pre-dirty fix LANDED: #1593 `c2bf04af3`, re-judged PASS 100 after the Actions incident cleared; ticket resolved [HARNESS] |
 | 20 | 2026-10-05 | pi-runner pre-dirty fix built + judged PASS 86→85 as PR #1593; landing blocked by a GitHub Actions major outage → PARKED-ON-CLOCK [HARNESS] |

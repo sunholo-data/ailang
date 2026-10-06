@@ -691,3 +691,53 @@ The tree sum equals the parent sum within 0.04 in every window. Separately, 21 l
 - (3) A claude-sub executor can die on a transient API 5xx with an rc-0-looking partial transcript. The rc file (rc=1) and the commit log were the real signal.
 
 **Next**: when dev `CI` is green again: rerun #1604, merge, resolve P1 #7. Then P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict` (premise re-read this fire: `internal/mission/quorum/quorum.go:164` increments `presentCount` for the controller before the zero-signal guard at :176; inside Authority). Then P1 #9 and the Phase 3a spike. D-FLEET-13/14/15 await Mark.
+
+## 23 — 2026-10-06 — P1 #8 verified live at HEAD, but every role lane is over ration (ollama hard-capped mid-fire by this controller's own session) → PARKED-ON-LANE; zero roles spawned, nothing landed; both iteration-22 PRs still blocked [HARNESS]
+
+**Pick**: P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict` (ailang#651). P1 #6 is parked on D-FLEET-15 (iteration 22); P1 #7 is built but its landing is blocked on V1's inherited dev red; P1 #8 was the top routable row of Mark's triage order.
+- Gate 0: kill switch armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing tripwire CLEAN; 0 directives on #1584 since `2026-10-06T05:38:39Z` (4 comments, all public or this loop's own); 39 open tickets. Weekly rotation not due: #1584 was created `2026-10-05T12:32:44Z`, after the Monday-07:00-local boundary, and holds 4 comments (<80).
+- Gate 1: pin = origin/dev `04dc2b7c8`; local `dev`, the pin and the resolved main checkout are byte-identical to origin on `SKILL.md` + all 12 resources (full drift sweep over both readable copies, per-file verdicts printed). P1 #6's symptom is therefore measured ABSENT this fire — the main checkout authored HEAD itself (attended session committed `8cddc7e2a`→`3557cd22c`→`04dc2b7c8` today); the defect (nothing fast-forwards it) stands, parked on D-FLEET-15. Dev HEAD `04dc2b7c8`: `test` FAILURE on `TestValidateModulePath_SingleFileInsidePackage` (V1's attended lane; handed to V1 at iteration 22), `test-windows` FAILURE, `ailang-core-dev` Cloud Build node-pin failure (known since iteration 21), `docs-build` in flight; full check set `checks=18` (control fired).
+- Gate 2: the pick's premise re-verified first-party at `04dc2b7c8` (`quorum.go:146-183`: the controller verdict increments `presentCount` at `:170`, ahead of the zero-signal guard at `:176`). Died-mid-flight sweep: iteration 22's PR #1604 (judged PASS 93, head `2e0f92672`) and record PR #1605 are open and unmerged, blocked by the same dev red — CREDITED here and carried by this record, not redone. No iteration-23 PR/worktree existed before this fire. Grep-the-index: no prior iteration worked P1 #8.
+
+**Did**:
+- Gate 3 routing attempt, all four roles measured before any spawn:
+  - Resolver: designer `recipe pi:ollama/glm-5.3:cloud declared:provider-pin`; planner `recipe pi:ollama/kimi-k3:cloud over-ration-reroute:codex`; executor `recipe pi:ollama/deepseek-v4.1-flash:cloud declared:provider-pin`; evaluator `refuse over-ration:anthropic` (reason token recorded verbatim).
+  - `mission-lane-check.sh fleet`: every rung of every role `skip:over ration` — anthropic ENFORCED (headroom 0.6pp < 1pp start margin; long window 31.0/31.5%), codex (0.4pp < 2pp), openrouter ($3.59 of $2.33/day), ollama (0.8pp < 3pp at check time).
+  - This session exposes no Agent/Task tool, so the `agent-tool` spawn path was unavailable as well; the pi lanes require `scripts/mission_pi_run.sh`, which the same ration blocks.
+  - Mid-fire the ollama bucket crossed its hard cap: 6.1pp → 10.1pp of the 10pp/day ration, consumed by the controller's own pi-rung session (fractional session gauge 23.7%) reading its rulebook — the only ollama consumer after stapledon's fire ended 18:47:54Z. A pi-rung controller structurally starves the role lanes sharing its bucket.
+  - Generator ≠ judge: the REQUIRED evaluator cannot run on any lane, so nothing may land. P1 #8 parked **PARKED-ON-LANE** (standing rule 8b): role = evaluator (and designer/planner/executor), refusals above, resume predicate = "`mission-lane-check.sh fleet` rungs ok + a judge lane ≠ the executor model". It never entered DECISIONS (rule 8c): its resume is a clock, not an ask.
+- Landing predicates re-run as commands: dev `test` still red at `04dc2b7c8` → #1604 and #1605 stay parked; no re-run attempted (the red is outside fleet Authority and nothing in either diff changed).
+- Bookkeeping only, otherwise: this record carries iteration 22's log entry and STATUS stamp (its PR #1605 is superseded by this PR and closed with a comment), the dashboard overwritten, the index extended, the iteration chain posted (controller stage only, `quota_tokens` not reported — same treatment as iteration 21's controller row; the ollama ration reads the provider's own gauge, so it is not undercounted by that omission).
+
+**Gate 3b**: nothing pushed for landing. The record PR inherits dev's required-`test` red, so it waits with #1604/#1605. Resume predicate for all three: dev's required `test` green at HEAD (V1's `TestValidateModulePath_SingleFileInsidePackage`).
+
+**Progress**: 0 tickets resolved (39 open).
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET (0 resolved this fire; oldest open tickets date to 09-26).
+- Clause 3 MET (39 open signatures, all in `mission-fleet`).
+- Clause 4 prior evidence only (39 open tickets, so the fire proceeded under the driver's exit-at-0 rule).
+- Clause 5 preserved trivially: nothing merged, nothing judged, nothing landed unjudged.
+**Progress** (digest line): goal unmoved — a capacity park; P1 #8 is verified-routable the moment a lane reopens.
+
+**Routing evidence**: base-gate1=04dc2b7c875f5d165fca2af352d0b0d93c4f09ed@2026-10-06T18:49:20Z. `MISSION_ROUTING_NOTE`: codex over daily ration → planner opus, executor `claude:claude-sonnet-5-5` (both lanes were over ration this fire; the note is the driver's plan, not what ran).
+- **Controller**: `pi:ollama/glm-5.3:cloud` (pi fallback rung; tok: not reported; this session took the ollama bucket 6.1pp → 10.1pp/day, session gauge 23.7%).
+- **Designer**: NOT SPAWNED — resolver `recipe pi:ollama/glm-5.3:cloud declared:provider-pin`; the ollama bucket is over its hard cap and this session exposes no Agent tool. No fallback link was runnable (declared chain all over ration).
+- **Planner**: NOT SPAWNED — resolver `recipe pi:ollama/kimi-k3:cloud over-ration-reroute:codex`; same capacity block.
+- **Executor**: NOT SPAWNED — resolver `recipe pi:ollama/deepseek-v4.1-flash:cloud declared:provider-pin`; same capacity block.
+- **Evaluator**: NOT SPAWNED — resolver `refuse over-ration:anthropic`, recorded verbatim per the spawn-pattern rule; the declared chain (`pi:openrouter/minimax/minimax-m3` → `claude:claude-sonnet-4-6` → `opus`) is fully over ration. The operator's standing request for this run makes the independent judge REQUIRED, so rather than land anything on the controller's own verdict the iteration parked. No judge verdict exists this fire, by design — that absence is the recorded outcome, not an omission.
+- **Metered**: $0.00. **Ration**: ALL FOUR buckets over — anthropic ENFORCED (0.6pp headroom), codex (0.4pp; 2 reset credits in reserve, attended only, next expires 2026-10-22), openrouter ($3.59/$2.33), ollama (10.1pp of 10pp/day, hard-capped).
+
+**Ruled out**:
+- Spawning any role on an over-ration lane, or re-prompting in place (the recipe rule: a non-zero verdict is a lane failure → fall back; every fallback link is over ration too).
+- Landing #1604/#1605 across the inherited red, or re-running their checks while dev's `test` fails for a reason outside fleet Authority (V1's lane).
+- Working P1 #6 without D-FLEET-15's ruling (default B holds: wait for Phase 3b skill pinning).
+- Controller-authored implementation of P1 #8 (generator ≠ judge).
+- Reading or acking `mission-fleet` (unread = open).
+- Re-asking D-FLEET-13/14 (pending, unchanged).
+
+**Retro lane**: none for the skill (nothing reached the ≥2 bar). Observations, one instance each:
+- (1) A pi-rung controller consumes the same ollama daily ration its designer/planner/executor lanes need; this fire the controller's own gate-reading took the bucket to its hard cap. If it recurs it is a routing-policy question for Mark (controller rung vs role lanes), with the evidence bar at ≥3 rows.
+- (2) This session's read tool elided large outputs to ~2KB (a "quality-monitor" truncation), so the prescribed "read the resource file NOW" had to go through `sed`/`cut` extraction for gate-3's long lines. A harness-instrument friction, recorded here; the fleet cannot file a ticket for its own slot.
+- (3) Iteration 22's two unfiled harness notes (resolver reroute ignores the daily quota check; `rotate-log` writes to the pin worktree regardless of CWD) are now in the log via the carried entry; neither bit this fire — the STATUS rotation was done by hand with the line-count assertions, and the archive was verified to hold the moved stamp.
+
+**Next**: when capacity returns — (a) re-probe with `mission-lane-check.sh fleet`; (b) rungs ok → route P1 #8 through designer → planner → executor → evaluator (#651 rules the fix direction; a small design doc plus a one-milestone plan suits it); (c) when dev's `test` is green → land #1604, resolve `gate0:driver-crash-notices-invisible`, and merge the record PRs. Then the Phase 3a skill-resolution spike (after P1, before P2). D-FLEET-13/14/15 await Mark.
