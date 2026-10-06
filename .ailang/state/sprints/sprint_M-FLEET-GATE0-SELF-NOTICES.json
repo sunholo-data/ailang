@@ -1,11 +1,13 @@
 {
   "sprint_id": "M-FLEET-GATE0-SELF-NOTICES",
-  "status": "planned",
+  "status": "completed",
   "design_doc": "design_docs/planned/sprint-plan-gate0-self-notices.md",
   "sprint_plan": "design_docs/planned/sprint-plan-gate0-self-notices.md",
   "source_design": "ailang-world origin/dev:design_docs/implemented/w-gate0-blind-to-its-own-crash-notices.md",
   "ticket": "gate0:driver-crash-notices-invisible",
-  "github_issues": [1160],
+  "github_issues": [
+    1160
+  ],
   "registry_reuse": [
     {
       "milestone": "M1",
@@ -42,7 +44,9 @@
     {
       "id": "M2",
       "description": "Port the 24-arm suite to scripts/test_mission_gate0_self_notices.sh, add driver-literal, single-literal, control-auto and snapshot-1380 arms, wire into make test-launchd-drivers",
-      "dependencies": ["M1"],
+      "dependencies": [
+        "M1"
+      ],
       "estimated_loc": 120,
       "acceptance_criteria": [
         "/bin/bash scripts/test_mission_gate0_self_notices.sh exits 0 with 'N passed, 0 failed'",
@@ -60,7 +64,9 @@
     {
       "id": "M3",
       "description": "Gate-0 step 6a (second, no-authority read) in both .claude and .agents gate-0-preflight.md copies; changelog fragment",
-      "dependencies": ["M2"],
+      "dependencies": [
+        "M2"
+      ],
       "estimated_loc": 25,
       "acceptance_criteria": [
         "cmp of the two gate-0-preflight.md copies is silent",
@@ -77,7 +83,9 @@
     {
       "id": "M4",
       "description": "Live reading on the fleet thread and World's control issue (recorded, not predicted)",
-      "dependencies": ["M3"],
+      "dependencies": [
+        "M3"
+      ],
       "estimated_loc": 0,
       "acceptance_criteria": [
         "Fleet run: rc in {0,1}; control issue=852 expect=10 got=10 ok; signature-source ok; issue lines for current issue and 1380; verdict + rc pasted verbatim into PR body",
@@ -88,5 +96,19 @@
       "completed": null,
       "notes": ""
     }
-  ]
+  ],
+  "execution_notes": {
+    "commits": {
+      "M1": "a3cbffe1e",
+      "M2": "0336d0e30",
+      "M3": "7b7b39afc"
+    },
+    "suite": "105 passed, 0 failed (/bin/bash scripts/test_mission_gate0_self_notices.sh); also 105/0 with failing gh shim on PATH",
+    "make_test_launchd_drivers": "unpiped (redirected to file), MAKE_RC=0; ends 'launchd drivers: tests + bash 3.2 syntax OK'",
+    "mutation_drills": "D1 self-filter(4); D2 anchored-signature(4); D3 self-filter(4); D4 driver-literal(2); D5 driver-literal+anchored-signature+snapshot-1380 +more; D6 single-literal(1; D6b also signature-source/driver-literal); D7 control-auto(2); D8 prev-issue(3); D9 truncated(1); D10 watermark-strict(6)+others; D11 grep count make/test.mk=1 vs 0 without line. All on scratch copies; script sha256 a05df8f4... unchanged, exec bit kept.",
+    "m4_live": "fleet issue 1584 prev 1380: rc=1; control 852:10 ok; signature-source ok; 3 notices on #1380, 1 in-window (rc=143 2026-10-04T04:28:01Z). World 107: control 107:4 ok rc=1 (--since 2000).",
+    "stapledon_control": "measured 5 (not 4) author-filtered; table has 4:5",
+    "shellcheck": "-S warning: 3 SC2034 unused-local warnings in the suite only; script clean",
+    "premise_notes": "gate-0 6a block trimmed to 15 lines (AC-M3-3)."
+  }
 }
