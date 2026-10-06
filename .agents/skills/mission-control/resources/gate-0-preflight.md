@@ -231,12 +231,13 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
    drops the loop's own account, so a died fire (`⚠️ Mission iteration **FAILED to complete** (rc=…`,
    posted by the driver as you) is invisible to it. Run (self-contained — sets its own `ISSUE`):
    ```bash
-   case "${MISSION_DRIVER_ROOT:-}" in /*) MC_ROOT="$MISSION_DRIVER_ROOT" ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac &&
-   ISSUE="${MISSION_GH_ISSUE:?}" && PREV="$(cat "$HOME/.ailang/state/mission-${MISSION_NAME:?}-gh-issue-prev")" &&
-   bash "$MC_ROOT/scripts/mission_gate0_self_notices.sh" --issue "$ISSUE" --prev-issue "$PREV" \
-     --repo "${MISSION_REPO:-sunholo-data/ailang}" --self "$(gh api user --jq .login)" \
-     --watermark-file "$HOME/.ailang/state/mission-${ISSUE}-last-seen" --watermark-file "$HOME/.ailang/state/mission-${PREV}-last-seen" \
-     --control auto --driver-src "$MC_ROOT/tools/launchd/mission-control.sh"; echo "rc=$?"
+   if case "${MISSION_DRIVER_ROOT:-}" in /*) MC_ROOT="$MISSION_DRIVER_ROOT" ;; *) false ;; esac &&
+      ISSUE="${MISSION_GH_ISSUE:-}" && test -n "$ISSUE" && PREV="$(cat "$HOME/.ailang/state/mission-${MISSION_NAME:-}-gh-issue-prev")" && test -n "$PREV"; then
+     bash "$MC_ROOT/scripts/mission_gate0_self_notices.sh" --issue "$ISSUE" --prev-issue "$PREV" \
+       --repo "${MISSION_REPO:-sunholo-data/ailang}" --self "$(gh api user --jq .login)" \
+       --watermark-file "$HOME/.ailang/state/mission-${ISSUE}-last-seen" --watermark-file "$HOME/.ailang/state/mission-${PREV}-last-seen" \
+       --control auto --driver-src "$MC_ROOT/tools/launchd/mission-control.sh"; echo "rc=$?"
+   else echo "rc=2 (precondition failed: need absolute MISSION_DRIVER_ROOT, MISSION_GH_ISSUE, MISSION_NAME with a -prev file — not a verdict)"; fi
    ```
    **rc 1 = A FIRE DIED:** run Gate 2's died-mid-flight traces (a)–(c) before picking; credit the orphan
    in the log ONCE per `url=` (grep first). **rc 0** = no death signal (traces still run). **rc 2 =
