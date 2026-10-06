@@ -1,6 +1,6 @@
 # M-TEST-RUNNER-COMPILE-ONCE: `ailang test` compiles a test file once, not once per named test
 
-**Status**: Planned. Awaiting human ratification of D1 and D3; the quorum blocked twice, and both rounds were closed by measurement (see Quorum history).
+**Status**: Phase 1 IMPLEMENTED (2026-10-06; see Implementation record). Phase 2 (properties) remains planned. D1 and D3 were ratified by Mark on 2026-10-06.
 **Target**: v0.53.0
 **Priority**: P1. Named tests are the documented test form, and on real modules the per-test compile dominates every test run.
 **Estimated**: 2–3 days (Phase 1); Phase 2 is a separate estimate
@@ -78,14 +78,14 @@ The one deliberate difference is D5.
 
 ### Design Freeze
 
-- [ ] **D1.** Recommended: **compile all bodies as one batch; if that compile fails, say so, then run today's per-body path for every test in the file.**
+- [x] **D1. Ratified by Mark, 2026-10-06 ("go with your recommendations").** Recommended: **compile all bodies as one batch; if that compile fails, say so, then run today's per-body path for every test in the file.**
   - The fallback is **never silent**. The run prints one notice in the same position and style as today's bytecode summary line:
     `→ named tests: batched compile failed (<first error, one line>); compiling each test separately`
   - The JSON report carries `named_test_batch: "failed"` along with the reason, and an M0 test asserts both.
   - Per-test failure messages stay as they are now. The run costs N+1 compiles only for a file that has a compile error, which is red anyway, and the notice explains why it was slow.
   - A batch failure on a file where **every** body then compiles alone is a harness bug, not a user error. The notice says so ("all bodies compile individually — please report"), so a batch-builder defect cannot hide behind the fallback.
   - Alternative (rejected for now): map the error span back to the failing body, drop that body, and retry. That is cheaper on red files, but it needs span attribution through the printer round-trip, which is already a known source of bugs (`ai-deadline-and-named-test-roundtrip.md`).
-- [ ] **D3.** Recommended: **a separate Phase 2 with its own sprint.** Phase 1 is a contained change to `EvaluateNamedTestBodyExprs`. Phase 2 changes how generated values reach the property: as arguments to a compiled function instead of spliced into source.
+- [x] **D3. Ratified by Mark, 2026-10-06.** Recommended: **a separate Phase 2 with its own sprint.** Phase 1 is a contained change to `EvaluateNamedTestBodyExprs`. Phase 2 changes how generated values reach the property: as arguments to a compiled function instead of spliced into source.
 
 ## Solution Design
 
@@ -116,15 +116,15 @@ pure func __namedtest_1() -> int  { <assert-sentinel body 1> }      -- #590 form
 ### Implementation Plan
 
 **Phase 1 — named tests (this sprint)**
-- [ ] M0: regression tests first.
+- [x] M0: regression tests first.
   - Count `pipeline.Run` calls through a seam on the executor: three named tests → 1 call, rather than the 3 today.
   - Isolation test: one ill-typed body plus two good ones gives 1 failure with today's message text.
   - The D1 notice and the JSON `named_test_batch` field are present when the batch fails, and absent when it succeeds.
   - Assert-sentinel bodies (#590) inside a batch decode correctly; already shown by V15, and M0 turns it into a gate.
   - Promote `named_batch_premise_test.go` into the real tests and delete it; it is a measurement, not a regression gate.
-- [ ] M1: batch builder, evaluator path, and D1 fallback
-- [ ] M2: `--bytecode` path on the shared image. Fallback per body to the evaluator entry from the same compile; there is no third compile.
-- [ ] M3: parity. `internal/testing`, `make test`, the V8 corpus on both engines, and protocol_test timing recorded in the doc
+- [x] M1: batch builder, evaluator path, and D1 fallback
+- [x] M2: `--bytecode` path on the shared image. Fallback per body to the evaluator entry from the same compile; there is no third compile.
+- [x] M3: parity. `internal/testing`, `make test`, the V8 corpus on both engines, and protocol_test timing recorded in the doc
 
 **Phase 2 — properties (separate sprint, gated on D3)**
 - Compile `pure func __prop_k(<binders>) -> bool { <property body> }` once per file. Call it with the generated `eval.Value`s as arguments, which also covers shrinking. That retires the per-case `EvaluateExpression` source synthesis (V10) and its value-splice round-trip.
@@ -245,6 +245,44 @@ The change touches `internal/testing` (the test harness) and the source handed t
 | V14 | End to end, one compile serves every body on both engines, within the time budget | Spike, an in-package temporary Go test since removed, built the protocol_test batch with the real `stripNonPureFunctions`, `FoldTestBody` and `PrintAILANGSource`, then ran `runNamedTestPipeline` once: **8.55 s**. `runner.CompileBytecodeFromResult` ran once: **33 ms**. For each of the 29 entries it took a fresh `newHarnessEvaluator()`, looked up `<root>.__namedtest_k` and called `CallValueN`: **2.11 s total**, max 0.84 s. `runner.FindEntryProto(img, "__namedtest_k")` found every entry in the one shared image, and a fresh `vm.NewVM` run took **0.11 s total**. All 29 returned `true` on both engines, with equal values. Lowering keeps every top-level function (no entry-rooted pruning), so all 29 protos are present. No body in this file uses `assert`, so the sentinel path is left to M0. |
 | V15 | Outcomes match today's path, failing bodies included, and the measurement is reproducible | Committed opt-in test `internal/testing/named_batch_premise_test.go` (`TestNamedBatchPremise`). It runs every named test through today's `EvaluateNamedTestBodyExprs`, then through one batched compile on both engines, and logs any difference with the temp dir masked.<br>**Fixture `testdata/named_batch/mixed.ail`** (plain pass, plain false, two-assert pass, second-assert fail, runtime error in a module function, polymorphic `let`, runtime error in the body):<br>• evaluator: identical for all except the body-located runtime error, whose temp-file line moves `8:7`→`34:7` (D5);<br>• raw VM differs on the two runtime errors (`vm: RT001 … op DIV`), which today's `--bytecode` path already turns into an evaluator fallback with the evaluator message, and the design keeps that rule.<br>**protocol_test** (`AILANG_NAMED_BATCH_PREMISE=<path>`): today 3m27s; batched compile plus image 9.08 s, run on both engines 2.35 s; **0 differences in 29**.<br>The assert-sentinel path is now exercised: `assert second fails` decodes to the same `assertion 2 failed: \`assert (double(3) == 7)\` (at …:10:53)` from a batch, because `checks` and source positions come from the original AST per body, not from the synthesized file. |
 | V13 | No existing test pins named-test type-error isolation | `grep -rn "type error\|ill-typed\|TC_" internal/testing/named_test*_test.go` → empty. M0 adds one. |
+
+## Implementation record (Phase 1, 2026-10-06)
+
+**Code:**
+- `internal/testing/named_batch.go`: the batch build, a fallback that reports itself (D1), a shared bytecode image, and position mapping (D5).
+- `source_strip.go`: `stripWithLineMap`.
+- `bytecode_engine.go`: `compileTestImage` and `runVMEntry` extracted and shared with the per-body path.
+- `runner.go`: prepare and finish around the named-test loop.
+- `SuiteResult.NamedBatchFailures`: printed on stderr by `cmd/ailang/test.go`, and in `--json` as `named_test_batch_failures`.
+
+**Measured (stapledons ee30ed2, M-series Mac):**
+- protocol_test: 216 s before, now **10.3 s** on the evaluator and **8.1 s** with `--bytecode` (29/29 pass; 29/29 bodies on the VM).
+- Whole `ailang test --package .`, 287 tests: **9 min 52 s** before (pre-batch binary, same tree, same machine), now **99 s**, with no file falling back.
+
+**Deviations from the plan, all found by the existing suites:**
+1. **The entries carry no return annotation** (`pure func __namedtest_k() { … }`).
+   - With `-> bool`, a non-bool body (`{ sq(1.0) }`) failed the whole batch at compile time. The per-body path instead fails only that test, at runtime, with "expected bool result".
+   - `TestTestCommandBytecodeFlags` caught it, and the D1 notice correctly called it a harness bug. Without the annotation, the outcome is identical on both engines.
+   - Under `--bytecode` such a body now **runs on the VM** instead of falling back, so `TestEngineParity_MixedFixtureRoutes` (now 9 VM bodies / 1 fallback) and the strict test (2 strict failures) were updated. The CLI test gained a runtime-error body as its genuine non-VM case.
+2. **D5 is implemented as the recommended mapping, not the minimum.**
+   - Batched runtime-error positions map back to the user's file. Module lines go through the strip line map (`stripWithLineMap`), and a line inside the body becomes `<file>:<test line> (test body)`.
+   - Messages are therefore deterministic, where they used to name a random temp dir. The CLI JSON parity test needs no masking.
+3. **A failed shared bytecode image hands the file back to the per-body path**, with a notice. So under `--strict-bytecode`, one body the VM cannot lower still fails alone, as before.
+
+**Tests** (`internal/testing/named_batch_test.go`, each mutation-checked: disabling the batch fails all of them, and disabling the mapping fails the position test):
+- one compile per file on both engines;
+- outcomes match the per-body path on the V15 fixture;
+- an ill-typed body falls back with a notice and the JSON field, and is not reported as a harness bug;
+- a reserved `__namedtest_` name falls back;
+- a non-bool body stays in the batch;
+- runtime-error positions map back to the source.
+
+The opt-in premise test is deleted, replaced by these.
+
+**Parity:**
+- `make test` passes.
+- The V8 corpus (28 files, std, examples and stapledons sim/tools) was compared old binary against new on both engines, per test, by name, status and error with the temp dir masked: **0 differences**.
+- Positive control for that instrument: the mixed fixture differs only in the deliberate D5 positions (`T/mixed.ail:8:7` becomes `…/mixed.ail:13 (test body)`).
 
 ## Related Documents
 

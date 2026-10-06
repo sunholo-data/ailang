@@ -291,6 +291,18 @@ Properties:
 }
 ```
 
+### How named tests are compiled
+
+All the `test "…" { … }` blocks in a file are compiled together, once, and each test then runs on its own fresh evaluator, or on a fresh VM under `--bytecode`. A file's test run therefore costs about one compile however many tests it has. A runtime error inside a test reports a position in your file; an error inside the test body itself is reported as `<file>:<line> (test body)`.
+
+Sometimes the shared compile fails, usually because one test body does not type-check. In that case `ailang test` prints, on stderr:
+
+```
+→ named tests in sim/x_test.ail: could not share one compile (<reason>); compiled each test separately
+```
+
+It then compiles each test on its own, so only the broken test fails, with its own error. `--json` reports the same thing under `named_test_batch_failures`. If the notice adds that every body compiles on its own, the fault is in the test harness, not your code; please report it.
+
 ---
 
 ## CI/CD Integration

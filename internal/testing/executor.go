@@ -32,6 +32,13 @@ type Executor struct {
 	bytecode       bool
 	strictBytecode bool
 	engine         EngineStats
+
+	// Named tests share one compile per file (named_batch.go).
+	batch                  *namedBatch
+	batchResult            pipeline.Result
+	batchFailure           *BatchFailure
+	perBodyCompileFailures int // per-body compiles that failed after a batch failure
+	pipelineRuns           int // runNamedTestPipeline calls, for tests
 }
 
 // newEvaluator returns a fresh evaluator honouring the configured recursion
@@ -225,6 +232,12 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	// prefix parselet in the general grammar, so it cannot survive the round-trip
 	// verbatim. `checks` is empty for assert-free bodies, which keep the legacy
 	// bool path unchanged.
+	if ent, ok := e.batchedEntry(bodyExprs); ok {
+		if val, handled, err := e.evaluateBatched(ent); handled {
+			return val, err
+		}
+	}
+
 	folded, checks := FoldTestBody(bodyExprs)
 	if folded == nil {
 		return nil, fmt.Errorf("named test block: FoldTestBody returned nil")
@@ -268,6 +281,9 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 
 	pipelineResult, err := e.runNamedTestPipeline(sb.String(), hasModule)
 	if err != nil {
+		if e.batchFailure != nil {
+			e.perBodyCompileFailures++
+		}
 		return nil, err
 	}
 	coreProg := pipelineResult.Artifacts.Core
@@ -309,6 +325,7 @@ func (e *Executor) runNamedTestPipeline(combinedSource string, hasModule bool) (
 	if e.modulePath != "" {
 		baseName = strings.TrimSuffix(filepath.Base(e.modulePath), ".ail")
 	}
+	e.pipelineRuns++
 	tmpDir, err := os.MkdirTemp("", "ailang-namedtest-*")
 	if err != nil {
 		return pipeline.Result{}, fmt.Errorf("failed to create temp dir for named test body: %w", err)

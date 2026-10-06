@@ -123,6 +123,7 @@ func runTestsV2(paths []string, formatStr string, colorEnabled bool, allowSkips 
 			aggregateResults.VacuousSkips += fileResult.VacuousSkips
 			aggregateResults.TotalDuration += fileResult.TotalDuration
 			aggregateResults.Engine.Merge(fileResult.Engine)
+			aggregateResults.NamedBatchFailures = append(aggregateResults.NamedBatchFailures, fileResult.NamedBatchFailures...)
 		}
 	}
 	reportTestEngine(aggregateResults, cfg)
@@ -267,6 +268,7 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 			aggregateResults.VacuousSkips += fileResult.VacuousSkips
 			aggregateResults.TotalDuration += fileResult.TotalDuration
 			aggregateResults.Engine.Merge(fileResult.Engine)
+			aggregateResults.NamedBatchFailures = append(aggregateResults.NamedBatchFailures, fileResult.NamedBatchFailures...)
 		}
 	}
 	reportTestEngine(aggregateResults, cfg)
@@ -297,7 +299,14 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 // reportTestEngine names, on stderr, where named-test bodies ran under
 // --bytecode, so an evaluator fallback is never silent. Stdout (including
 // --json) is identical across engines.
+//
+// It also names every file whose named tests could not share one compile
+// (M-TEST-RUNNER-COMPILE-ONCE D1): those files fall back to one compile per
+// test, which is correct but slow, and the slowdown must not be silent.
 func reportTestEngine(res *ailangTesting.SuiteResult, cfg ailangTesting.TestConfig) {
+	for _, f := range res.NamedBatchFailures {
+		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("→"), f.Notice())
+	}
 	if !cfg.Bytecode {
 		return
 	}

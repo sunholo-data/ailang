@@ -77,10 +77,14 @@ func (r *Runner) propertySeed(name string) int64 {
 func (r *Runner) RunSuite(suite *TestSuite) *SuiteResult {
 	result := NewSuiteResult(suite.ModulePath)
 
-	// Run all tests
+	// Run all tests. Named tests share one compile (named_batch.go).
+	r.executor.prepareNamedTests(suite.Tests)
 	for _, testCase := range suite.Tests {
 		testResult := r.runTest(testCase)
 		result.AddTestResult(testResult)
+	}
+	if f := r.executor.finishNamedTests(); f != nil {
+		result.NamedBatchFailures = append(result.NamedBatchFailures, *f)
 	}
 
 	// Run all properties (basic implementation - full property testing in Days 6-8)
