@@ -58,14 +58,25 @@ Test Results
 Module: All Tests
 
 Tests:
-  ✓ addition works
+  ✓ addition works (89.5µs)
+      at hello_test.ail:4:1
 
 Properties:
-  ✓ addition is commutative (100 cases)
+  ✓ addition is commutative (100 cases, 413.625µs)
+      at hello_test.ail:7:1
 
-✓ All tests passed
+──────────────────────────────────────────────────
+✓ All tests passed!
 
-2 tests: 2 passed, 0 failed, 0 skipped (0.2s)
+2 tests: 2 passed, 0 failed, 0 skipped (503.125µs)
+  ✓ Passed: 2
+  ✗ Failed: 0
+
+Seed:
+  mode: derived
+  master seed: 0
+  derivation: ailang-property-seed-v1
+  replay: ailang test --seed 0 hello_test.ail
 ```
 
 ---

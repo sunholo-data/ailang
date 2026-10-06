@@ -342,6 +342,7 @@ func printTestHelp() {
 	fmt.Println("  ailang test --package ../lib   # Run tests in another package")
 	fmt.Println()
 	fmt.Println("Test Syntax:")
-	fmt.Println("  test \"name\" = expression       # Unit test (must return true)")
-	fmt.Println("  property \"name\" (x: int) = ... # Property test (QuickCheck-style)")
+	fmt.Println("  test \"name\" { expression }                # Unit test (must evaluate to true)")
+	fmt.Println("  property \"name\" { forall(x: int) => expr } # Property test, 100 generated cases")
+	fmt.Println("  func f(x: int) -> int tests [(1, 2)] { ... } # Inline (input, expected) table")
 }
