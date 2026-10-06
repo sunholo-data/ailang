@@ -49,7 +49,7 @@ AILANG repository growth and AI-assisted development metrics over time.
 ## How to read the numbers
 
 - **Standard and agent never mix.** *Standard* = 0-shot generation + self-repair via the API; *agent* = a multi-turn agentic CLI. Every chart is one or the other, labeled — a model only appears on a view for the modes it actually ran.
-- **Tiers.** Benchmarks are grouped smoke · core · stretch · frontier · vision. On harder tiers fewer models have full coverage, so partial-coverage models are marked **provisional** (dimmed, with a coverage badge) and don't earn a rank until coverage fills in — a 6-benchmark score can't be misread as beating a 55-benchmark one.
+- **Tiers.** Benchmarks are grouped smoke · core · stretch · frontier · vision, plus long-frontier (long-running, attended evals only). On harder tiers fewer models have full coverage, so partial-coverage models are marked **provisional** (dimmed, with a coverage badge) and don't earn a rank until coverage fills in — a 6-benchmark score can't be misread as beating a 55-benchmark one.
 - **Regraded for formatting parity.** A correct answer isn't marked wrong over `True` vs `true` or `7.50` vs `7.5`.
 - **Refusals are counted, but flagged.** A safety refusal (the model declines the prompt) still counts as a non-pass, but carries a "⚠ N% refused" note so a decline-driven number isn't misread as "can't code."
 - **On-device is a first-class option.** The local GPU agents (a local Qwen run through motoko / opencode / Pi) are slow and cost ~$0/run; they're highlighted in cyan wherever they appear so the "free local" story is easy to spot.

@@ -14,7 +14,7 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "very_hard"
 expected_gain: "medium"
-tier: frontier
+tier: long-frontier # 2026-10-06: re-tiered frontier->long-frontier — agent runs on local models hit the 1h timeout too often (attended evals only)
 tags: [string_algo, recursion]
 grading: quine
 source_constraints:

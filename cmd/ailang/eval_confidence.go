@@ -61,6 +61,9 @@ func selectBenchmarksByConfidence(dbPath, mode string, max int) ([]string, error
 		if eval_harness.Band(b.Rating) == "Trivial" {
 			continue // saturated-easy: no discrimination
 		}
+		if benchmarkTier(b.BenchmarkID) == eval_harness.TierLongFrontier {
+			continue // attended-only: never picked by automatic selection
+		}
 		d := b.Rating - median
 		if d < 0 {
 			d = -d

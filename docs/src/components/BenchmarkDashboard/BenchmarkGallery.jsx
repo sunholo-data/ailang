@@ -12,7 +12,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 const LANGS = ['ailang', 'python', 'javascript', 'go'];
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
 const LANG_COLOR = { ailang: '#1D9E75', python: '#6b7280', javascript: '#d99a1c', go: '#2f80ce' };
-const TIER_ORDER = ['smoke', 'core', 'stretch', 'frontier', 'vision'];
+const TIER_ORDER = ['smoke', 'core', 'stretch', 'frontier', 'long-frontier', 'vision'];
 const BAND_COLOR = { Trivial: '#6b7280', Easy: '#639922', Moderate: '#BA7517', Hard: '#D85A30', 'Very hard': '#A32D2D' };
 const bandColor = (b) => BAND_COLOR[b] || 'var(--ifm-color-emphasis-500)';
 
