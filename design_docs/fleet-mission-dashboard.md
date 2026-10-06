@@ -1,22 +1,22 @@
-# Fleet mission — iteration 20, 2026-10-05
+# Fleet mission — iteration 21, 2026-10-06
 
-- Release v0.52.1 (CLI on PATH). Pin = origin/dev `a12a319b5`. The running skill's 7 gate resources lag origin (the main checkout is 22 commits behind; the delta is the #1578 stamp form).
-- **BUILT, NOT LANDED: pi-runner pre-dirty fix, PR #1593 head `2e49cc9ac`.**
-  - What it does: a worktree fingerprint before and after the run, so a pre-dirty tree no longer reads `ok`, and an unhashable untracked entry no longer hides later edits.
-  - Judged PASS 86 → 85 (opus Agent), 0 blocking; 36/36 tests.
-- **Blocked by a GitHub Actions major outage** (incident from 21:09Z). The `changes` job gets no runner, so `launchd drivers`/`test-windows` are skipped. PARKED-ON-CLOCK: re-run, require green on `2e49cc9ac`, merge, resolve.
-- Dev CI:
-  - `d273ea1cd` push red = `test-windows` `cmd/ailang` at 96% of its timeout budget (V1's lane).
-  - HEAD `a12a319b5` had no push CI; the dispatch gave `test`/`lint` green and Windows unverified.
-- Tickets: 38 open, 0 resolved this fire. Clause 2 turnaround is still UNMET.
-- **Next:** land #1593 → resolve. Then the Phase 3a skill-resolution directive. The D-FLEET-12 pair is pre-authorized.
+- Release v0.52.1 (CLI on PATH). Pin = origin/dev `a12a319b5`. The running skill's 7 gate resources still lag origin: the main checkout is 22 commits behind (the #1578 stamp form). That is open ticket P1 #6.
+- **LANDED: pi-runner pre-dirty fix, #1593 → `c2bf04af3`.**
+  - A worktree fingerprint is taken before and after each pi run. A pre-dirty tree no longer reads `ok`, and an unhashable untracked entry no longer hides later edits.
+  - Re-judged at the merged head by `pi:openrouter/minimax/minimax-m3` (fresh, independent): **PASS 100**, 0 blocking. Evidence: 36/36 tests, 3/3 mutations red, and a hand repro of the bug (old code → `ok`, fixed code → rc 10).
+  - Ticket `pi-runner:verdict-blind-to-commits-and-predirty` resolved; world notified.
+- Iteration 20's record #1594 merged → `eb2850427`.
+- The GitHub Actions incident (19:11Z–22:49Z on 10-05) is resolved. Dev `CI` **success** on `c2bf04af3` (after the incident).
+- **Reds handed to V1 (not fleet's):**
+  - The `ailang-core-dev` Cloud Build fails every commit: node `v22.23.3` against a `v22.23.2` pin in `docker/Dockerfile.agent-base`.
+  - The `test-windows` `cmd/ailang` hang guard fired again on docs-only `eb2850427`.
+- Tickets: 38 open after this resolve. Clause 2 turnaround is still UNMET; this ticket was ~9.6 days from filing to resolve.
+- **Next:** P1 #6 `skill-surface:main-checkout-not-synced-to-dev`. This fire measured it live: the main checkout is 22 behind and 7 gate resources differ. It feeds the Phase 3a skill-resolution directive. The D-FLEET-12 pair is pre-authorized.
 - **Ledger, 2 OPEN:**
   - D-FLEET-13: Anthropic "session limit" as capacity (rec A).
   - D-FLEET-14: pin `now` in the `TestOllamaQuota*` tests (rec A). Attended PR #1583 appears to address it.
-- Quota: codex, ollama and openrouter over daily ration; Anthropic subscription OK. Metered: $0.00.
+- Quota: codex and ollama over daily ration; openrouter and Anthropic OK. Metered: $0.55 (evaluator).
 - Routing:
-  - Planner: opus Agent.
-  - Executor: `claude:claude-sonnet-5-5` via `claude-sub` (×2).
-  - Judge: opus Agent (×2; minimax is over ration).
-  - No designer.
+  - Judge: `pi:openrouter/minimax/minimax-m3`, per the resolver's `reroute … generator-equals-judge`.
+  - No designer, planner or executor: this was a resume of judged work.
 - Bookkeeping thread: **#1584**. Log: fleet-mission-log.md.
