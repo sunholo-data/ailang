@@ -117,6 +117,26 @@ FULL_MAX_LAPS="${OS_FILLER_FULL_MAX_LAPS:-3}"
 # AILANG-first pass) for cross-language signal before AILANG fully fills. Set
 # OS_FILLER_AILANG_FULL=0 for a legacy pure cross-language rig.
 FORCE_4LANG="${OS_FILLER_4LANG:-0}"
+# CROSS-LANGUAGE is OFF by default (2026-10-06). It was never switched off — it only
+# looked off because AILANG coverage never completed, so the hand-off never fired.
+# Once the heavy tier below took the chronic timeouts out of the coverage set, the
+# set became completable and the hand-off would have started python/js/go on its own.
+# With it off, a version whose AILANG coverage is complete leaves the rig IDLE, which
+# is the point: the GPU is shared with the desktop, and idle rig is not wasted rig.
+# OS_FILLER_CROSS_LANG=1 restores the automatic hand-off.
+CROSS_LANG="${OS_FILLER_CROSS_LANG:-0}"
+# HEAVY TIER (2026-10-06): benchmarks that time out so often they mostly buy wall
+# clock, not signal. Measured over 28 days on the qwen3.8-27b trio (timeout% / pass%):
+# quine 83/3, gauntlet_10 43/33, commonmark_emphasis 41/34, legal_obligation_engine
+# 38/44 — about 48 one-hour timeouts in the week of 09-29, each recorded as
+# duration_ms=0, so the cost never showed in any rollup. They leave the regular
+# rotation (and the coverage set) and run as their own lap: one benchmark per cycle,
+# 1 trial, at most once every HEAVY_DAYS. OS_FILLER_HEAVY="" folds them back in.
+HEAVY="${OS_FILLER_HEAVY-quine,gauntlet_10,commonmark_emphasis,legal_obligation_engine}"
+HEAVY_DAYS="${OS_FILLER_HEAVY_DAYS:-7}"
+HEAVY_CURSOR="$HOME/.ailang/state/os-filler-heavy-cursor"
+HEAVY_LAST="$HOME/.ailang/state/os-filler-heavy-last"   # epoch the last heavy lap COMPLETED
+in_heavy() { case ",$HEAVY," in *",$1,"*) return 0;; esac; return 1; }
 # PRE-NIGHTLY GUARD (replaced a fixed 04:00-07:00 blackout, 2026-09-11).
 #
 # The old window was sized for a ~3-hour nightly and had stopped being true: the
@@ -291,21 +311,46 @@ VERSION="$(tr -d '[:space:]' < std/VERSION 2>/dev/null || true)"
 VDIR="$ROLL/${VERSION}/agent"
 OFFSET=0; WRAPPED=0        # surfaced in the step-7 commit/log; set by whichever pass runs
 
+# ── HEAVY tier: chronic-timeout benchmarks, own weekly lap ──────────────────
+# When a lap is due it takes the whole cycle (one benchmark × every model, 1 trial,
+# up to ~3h worst case); the AILANG-full pass resumes next cycle. The due clock
+# starts when a lap COMPLETES, so a lap interrupted by the rig lock just carries on.
+HEAVY_RAN=0
+if [ -n "$HEAVY" ]; then
+  H_LAST=$(cat "$HEAVY_LAST" 2>/dev/null || echo 0)
+  case "$H_LAST" in (''|*[!0-9]*) H_LAST=0;; esac
+  if [ $(( $(date +%s) - H_LAST )) -ge $(( HEAVY_DAYS * 86400 )) ]; then
+    IFS=',' read -r -a HEAVY_LIST <<< "$HEAVY"
+    H_N=${#HEAVY_LIST[@]}
+    H_OFF=$(cat "$HEAVY_CURSOR" 2>/dev/null || echo 0)
+    case "$H_OFF" in (''|*[!0-9]*) H_OFF=0;; esac
+    H_OFF=$((H_OFF % H_N)); H_NEXT=$(((H_OFF + 1) % H_N))
+    mkdir -p "$(dirname "$HEAVY_CURSOR")"; echo "$H_NEXT" > "$HEAVY_CURSOR"
+    [ "$H_NEXT" -eq 0 ] && date +%s > "$HEAVY_LAST"
+    log "heavy tier: ${HEAVY_LIST[$H_OFF]} ($((H_OFF + 1))/$H_N, 1 trial) — AILANG-full pass resumes next cycle"
+    run_chunk "heavy" "${HEAVY_LIST[$H_OFF]}" ailang 1
+    HEAVY_RAN=1
+  fi
+fi
+
 # ── PRIMARY: AILANG-first full-tier pass ────────────────────────────────────
 # Rotate the local models through the FULL core+stretch+frontier tiers in AILANG
 # ONLY (independent, per-version cursor). This is what pulls EVERY stretch/frontier
 # benchmark into the local rotation — the 4-language set can't, since those
 # benchmarks aren't implemented in all 4 langs, which is what caps AILANG at ~45%.
 AILANG_DONE=0
-if [ "$AILANG_FULL" != "1" ]; then
+if [ "$HEAVY_RAN" = "1" ]; then
+  :   # this cycle belonged to the heavy tier
+elif [ "$AILANG_FULL" != "1" ]; then
   AILANG_DONE=1   # AILANG-first disabled -> legacy pure cross-language rig
 else
   # Full tier set: every benchmark whose `tier:` is one of $FULL_TIERS. Language
   # filtering is left to eval-suite (--langs ailang skips any that don't support it).
   # shellcheck disable=SC2207
   BENCHES_FULL=( $(for f in benchmarks/*.yml; do
+    B=$(basename "$f" .yml); in_heavy "$B" && continue
     T=$(grep -E '^tier:' "$f" 2>/dev/null | head -1 | sed -E 's/^tier:[[:space:]]*//; s/[[:space:]]*#.*//; s/"//g' | tr -d '[:space:]')
-    case ",$FULL_TIERS," in (*",$T,"*) basename "$f" .yml;; esac
+    case ",$FULL_TIERS," in (*",$T,"*) echo "$B";; esac
   done) )
   # ELO priority: signal benchmarks to the head, saturated to the tail. The
   # per-language fit (byLang.ailang) is preferred for this AILANG-only pass.
@@ -418,9 +463,12 @@ fi
 # immediately when forced early via OS_FILLER_4LANG=1. Same rule as nightly-lang-eval:
 # the 4-language-capable benchmark pool. ailang cells are already banked from the
 # AILANG-first pass, so --skip-existing effectively adds only python/javascript/go here.
-if [ "$AILANG_DONE" = "1" ] || [ "$FORCE_4LANG" = "1" ]; then
+if [ "$AILANG_DONE" = "1" ] && [ "$CROSS_LANG" != "1" ] && [ "$FORCE_4LANG" != "1" ]; then
+  log "AILANG coverage complete for $VERSION; cross-language pass is off (OS_FILLER_CROSS_LANG=0) — rig left idle"
+elif [ "$AILANG_DONE" = "1" ] || [ "$FORCE_4LANG" = "1" ]; then
   # shellcheck disable=SC2207
   BENCHES=( $(for f in benchmarks/*.yml; do
+    in_heavy "$(basename "$f" .yml)" && continue
     # M-EVAL-RELIABLE-GRADING: ailang-only reimplement benchmarks (grade_entrypoint marker) join
     # the rotation alongside the 4-language set. Checked FIRST because their block-list languages
     # ('languages:\n- ailang') wouldn't pass the single-line 4-language grep below.
