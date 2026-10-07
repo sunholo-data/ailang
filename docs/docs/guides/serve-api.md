@@ -547,6 +547,41 @@ not exist, one that is not the four-string record, or one that is also `@mcp_sec
 Your function gets a URL, not bytes. Fetch it yourself under `Net`. Claude has no equivalent;
 the `sunholo/mcp_files` upload handoff covers it.
 
+#### Widgets (MCP Apps): `@mcp_ui_resource`, `@mcp_ui`, `@mcp_app_only`
+
+An MCP App is an HTML widget the host renders next to a tool result; claude.ai and ChatGPT both
+render them. `serve-api` implements the [ext-apps 2026-01-26](https://github.com/modelcontextprotocol/ext-apps)
+server side with three annotations:
+
+| Annotation | On | Effect |
+|---|---|---|
+| `@mcp_ui_resource("ui://svc/name", "<origin>", ...)` | an exported `() -> string` function that returns HTML | Listed by `resources/list`, served by `resources/read` with `mimeType: "text/html;profile=mcp-app"` and `_meta.ui.csp.connectDomains` = the origins given. `"self"` means this server's own origin, taken from the request, so the service never hard-codes its host. The function is not a tool, and without `@route` it is not an HTTP endpoint. |
+| `@mcp_ui("ui://svc/name")` | a tool | Adds `_meta.ui.resourceUri`, plus the pre-GA `_meta["ui/resourceUri"]` that current hosts still read. |
+| `@mcp_app_only` | a tool | Adds `_meta.ui.visibility: ["app"]`. The host keeps the tool out of the model's tool list, and the widget can still call it. The tool stays in `tools/list`, because the widget needs it there. |
+
+```ailang
+@mcp_title("File picker")
+@mcp_ui_resource("ui://example/picker", "self")
+export func pickerHtml() -> string =
+  "<!doctype html><meta charset='utf-8'><input type='file' id='f'><pre id='out'></pre>"
+
+@mcp_title("Choose a file")
+@mcp_hints("readOnly")
+@mcp_ui("ui://example/picker")
+export func chooseFile() -> string = "Picker shown. Ask the user to choose a file in it."
+```
+
+Load errors, so `serve-api` refuses to start:
+- an `@mcp_ui` URI that no `@mcp_ui_resource` declares;
+- a URI that is not `ui://`;
+- a connect domain that is not `"self"` or a bare origin (`https://host[:port]`, no path);
+- a resource function that takes arguments or does not return `string`;
+- the same URI declared twice.
+
+`"self"` needs an HTTP request. Over stdio, reading such a widget fails with that reason, and its
+`resources/list` entry carries no `_meta`. `resourceDomains` is always `[]`, so inline your
+scripts and styles. Full example: `examples/runnable/serve_api_mcp_app.ail`.
+
 Full example: `examples/runnable/serve_api_mcp_oauth.ail`. Embedders using
 `serveapi/protocol/mcphttp` get the same gate through `Config.Gate` (a `protocol.BearerGate`)
 and `ToolDescriptor.Auth`.
