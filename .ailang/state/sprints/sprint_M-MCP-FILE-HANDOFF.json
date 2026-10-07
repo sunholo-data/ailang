@@ -1,0 +1,102 @@
+{
+  "sprint_id": "M-MCP-FILE-HANDOFF",
+  "status": "in_progress",
+  "design_doc": "design_docs/planned/v0_53_0/m-mcp-file-handoff.md",
+  "plan": "design_docs/planned/v0_53_0/m-mcp-file-handoff-sprint-plan.md",
+  "features": [
+    {
+      "id": "F0",
+      "description": "docparse: stop silent fallbacks (descriptions + content cap)",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "see sprint plan row F0"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "F1",
+      "description": "spike: MCP App file-input widget in claude.ai",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "see sprint plan row F1"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "F1b",
+      "description": "serve-api @mcp_file + securitySchemes + mcp/www_authenticate",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "see sprint plan row F1b"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "F2",
+      "description": "package sunholo/mcp_files 0.1.0",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "see sprint plan row F2"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "F3",
+      "description": "docparse createUpload + POST /uploads + fileRef",
+      "dependencies": [
+        "F2"
+      ],
+      "acceptance_criteria": [
+        "see sprint plan row F3"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "F4",
+      "description": "docparse @mcp_file (ChatGPT fileParams)",
+      "dependencies": [
+        "F1b"
+      ],
+      "acceptance_criteria": [
+        "see sprint plan row F4"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "F5",
+      "description": "cross-client matrix + docs + listing",
+      "dependencies": [
+        "F3",
+        "F4"
+      ],
+      "acceptance_criteria": [
+        "see sprint plan row F5"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "velocity": {
+    "estimated_days": 5
+  }
+}
