@@ -23,6 +23,20 @@
       "acceptance_criteria": [
         "see sprint plan row F1"
       ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-07T15:46:17Z",
+      "notes": "claude.ai web (Firefox): widget at *.claudemcpcontent.com uploaded 14502 B docx via direct fetch POST (preflight+200) AND via host tools/call; same sha256 9081b7b0... both. connectDomains enforced. ui/message shows caution banner -> use ui/update-model-context. Desktop untested."
+    },
+    {
+      "id": "F1c",
+      "description": "serve-api MCP Apps serving: @mcp_ui_resource, @mcp_ui, @mcp_app_only",
+      "dependencies": [
+        "F1b"
+      ],
+      "acceptance_criteria": [
+        "see sprint plan row F1c"
+      ],
       "passes": null,
       "started": null,
       "completed": null,
@@ -56,7 +70,8 @@
       "id": "F3",
       "description": "docparse createUpload + POST /uploads + fileRef",
       "dependencies": [
-        "F2"
+        "F2",
+        "F1c"
       ],
       "acceptance_criteria": [
         "see sprint plan row F3"

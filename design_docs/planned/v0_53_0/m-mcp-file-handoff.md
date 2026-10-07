@@ -39,7 +39,23 @@ This mirrors the split already shipped for sign-in: serve-api's `@mcp_auth` / `-
 | SEP-2631 (draft, authored at OpenAI): `files/authorizeUpload` returns `{transport:"https", method:"POST", url, headers, multipart:{fileField, fields:{token}}, expiresAt}`, and the client passes a file URI to `tools/call` | **Shape our descriptor exactly like this** so that adopting the spec later is a rename |
 | Claude limits: tool result about 150k characters, 240 s per call, 30 MB per uploaded file | Size caps and timeouts |
 
+## F1 spike result (2026-10-07, claude.ai web, Firefox): an upload widget WORKS
+
+A throwaway MCP App (`mcp-upload-spike`, dev project) rendered in claude.ai, and the user picked the 14 502-byte `AGM announcement … .docx`. Both routes delivered it byte for byte, with sha256 `9081b7b0…3510ac34` in the server log:
+- **Direct:** the widget at origin `https://<hash>.claudemcpcontent.com` sent an OPTIONS preflight, then `POST /upload` → 200. claude.ai enforced the declared `connectDomains` (it echoed `sandbox.csp.connectDomains` in the host handshake).
+- **Via host:** the widget's `tools/call` to a widget-only tool carried the bytes (base64) **without passing through the model**. This route does not depend on the CSP or on sandbox egress.
+- **Host capabilities offered:** `updateModelContext`, `message`, `downloadFile`, `openLinks`, `serverTools`.
+- **UX lesson:** `ui/message` drafts a user message under a red "Use caution before running this prompt" banner. Report results with `ui/update-model-context` or the tool result instead, never `ui/message`.
+- **Not yet tested:** Claude Desktop; files over 1 MB on the via-host route.
+
+**Consequence:** the claude.ai primary path is the **upload widget**. The sandbox `curl` path remains for Claude Code and Codex, and `openai/fileParams` covers ChatGPT.
+
 ## Design
+
+### The upload widget (claude.ai web/Desktop, primary)
+1. The model calls `mcpParse` (or `uploadDocument`) without a document. The tool returns a short text result plus the widget (`_meta.ui.resourceUri` → `ui://<service>/upload`).
+2. The widget shows "Choose file". On pick it POSTs the file to `connectDomains`-declared `https://<service>/uploads` with a one-time token that the tool result put in its structured content. If the fetch fails, it falls back to a widget-only tool call that carries the bytes through the host (≤ the host's limit).
+3. The server stores the bytes against a `fileRef` and parses them. The widget hands the result to the model with `ui/update-model-context`, and the model continues: no copy-paste, no caution banner.
 
 ### The upload handoff (all clients that can run code with network access)
 1. `createUpload(filename, mimeType, sizeBytes?)` (signed in, `@mcp_auth("oauth2")`) returns a **SEP-2631-shaped descriptor**:
@@ -64,7 +80,8 @@ This mirrors the split already shipped for sign-in: serve-api's `@mcp_auth` / `-
 |---|---|---|
 | **AILANG serve-api** | `@mcp_file("param")` on a listed tool: emits `_meta["openai/fileParams"]` and OpenAI's required 4-property file-object schema (`download_url`, `file_id`, `mime_type?`, `file_name?`) for that parameter, and binds the incoming file object to the function. Later the same annotation emits SEP-2631's shape once the spec lands | serve-api generates `tools/list`, and today **no annotation can attach `_meta` to a tool** (verified: `routes.go` reads only `mcp_title/hints/auth/secret/agent_only/token_verifier`). Every service needs it |
 | **AILANG serve-api** (same milestone, from the audit's G10) | `securitySchemes` on gated tools; `_meta["mcp/www_authenticate"]` on 401 results | ChatGPT's mixed-auth rule (O5), likewise generic |
-| **Package `sunholo/mcp_files`** | Pure core: upload token mint/verify (single use, expiry, account- and size-bound; Z3 contracts), the SEP-2631 descriptor builder, the `fileRef` codec, a `fetchFileParam` that fetches `download_url` once under `Net[scope=public]` with a size cap. Hooks: `putBytes/getBytes/delBytes`, `accountOf` | The policy is the same for every service; the storage is not (hooks) |
+| **AILANG serve-api (F1c)** | MCP Apps serving: `@mcp_ui_resource("ui://…", connect...)` on an exported function returning HTML → `resources/list` and `resources/read` with mime `text/html;profile=mcp-app` and `_meta.ui.csp.connectDomains`; `@mcp_ui("ui://…")` on a tool → `_meta.ui.resourceUri` (plus the legacy `_meta["ui/resourceUri"]`); `@mcp_app_only` → `_meta.ui.visibility:["app"]` (hidden from the model, callable by the widget) | Like `_meta`, serve-api generates tools/list and resources; any AILANG service can then ship a widget |
+| **Package `sunholo/mcp_files`** | Pure core: upload token mint/verify (single use, expiry, account- and size-bound; Z3 contracts), the SEP-2631 descriptor builder, the `fileRef` codec, a `fetchFileParam` that fetches `download_url` once under `Net[scope=public]` with a size cap. Hooks: `putBytes/getBytes/delBytes`, `accountOf`. **Plus the standard upload widget:** `uploadWidgetHtml(cfg)` (a self-contained HTML string with the ext-apps client inlined, a picker, a direct POST with a via-host fallback, and `ui/update-model-context`) and the via-host receiver logic | The policy is the same for every service; the storage is not (hooks) |
 | **docparse** | `createUpload` tool, `POST /uploads` route, `fileRef` / `@mcp_file` on `mcpParse`/`mcpConvert`/`editDocument`, temp-bucket hooks, tool descriptions with no silent fallbacks | Parse-specific wiring only |
 
 ## Decisions for Mark
@@ -93,10 +110,12 @@ This mirrors the split already shipped for sign-in: serve-api's `@mcp_auth` / `-
 |---|---|---|
 | F0 | **Stop silent fallbacks** (docparse): new tool descriptions; `content` cap + error | Re-run the AGM upload in claude.ai: Claude uses the tools or tells the user what to do, never a local parse (transcript) |
 | F1 | **Spike D3**: a minimal MCP App with a file input on dev | Recorded: does a file picker + fetch work in claude.ai web and Desktop (yes/no, with screenshots) |
+| F1 | **Spike: DONE, yes** (see "F1 spike result") | — |
+| F1c | **serve-api MCP Apps serving** (`@mcp_ui_resource`, `@mcp_ui`, `@mcp_app_only`) (AILANG) | resources/list and resources/read golden test matching ext-apps 2026-01-26 (mime, csp); an e2e that a widget-only tool is absent from the model's tools/list but callable; readyModule unchanged; AILANG patch release |
 | F1b | **serve-api `@mcp_file` + `securitySchemes` + `mcp/www_authenticate`** (AILANG) | Golden tools/list JSON matches OpenAI's documented shape; e2e binds a file object; readyModule unchanged; ships in an AILANG patch release |
 | F2 | **`sunholo/mcp_files` 0.1.0**: core + hooks; Z3 on token expiry and single-use; tests | `pkg quality` shows no gates; descriptor JSON matches SEP-2631 field for field (golden test) |
 | F3 | **docparse adoption**: `createUpload`, `POST /uploads`, `fileRef` on the three tools | e2e: create → curl upload → parse a 1.5 MB DOCX; sha256 round trip; replay refused; expired token refused; another account's `fileRef` refused |
 | F4 | **ChatGPT `openai/fileParams`** on the three tools | ChatGPT web (dev mode) parses an uploaded DOCX, or an explicit "dev mode doesn't fill fileParams" finding, which then needs a listed-app test |
 | F5 | **Cross-client matrix + docs**: AGM, a 1.5 MB DOCX, a PDF and an XLSX in claude.ai (egress on and off), Desktop, Claude Code, ChatGPT and Codex; update connect.html and the listing text | Every cell is "Parse output" or "clear instruction", with no silent fallbacks |
 
-**Order:** F0, F1 and F1b can run in parallel now; then F2 → F3 → F4 (needs F1b released) → F5. Estimate: 4–5 days.
+**Order:** F0 is shipped (v0.34.3) and F1 is done. F1b and then F1c run in the AILANG lane, sequentially because they touch the same files; F2 runs in parallel. Then F3 (needs F2 + F1c released) → F4 (needs F1b released) → F5. Estimate: 5–6 days.
