@@ -49,10 +49,10 @@
       "acceptance_criteria": [
         "see sprint plan row F1b"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-07",
+      "completed": "2026-10-07",
+      "notes": "@mcp_file -> _meta openai/fileParams + OpenAI file schema (inline, additionalProperties:false) on /mcp/ and /mcp/connect/; binds closed 4-string record (optional fields \"\", extras dropped; required unless @optional, which binds the all-empty record); bad name/type/secret = LoadModules error. Listed surface: securitySchemes top-level + _meta mirror (oauth2 | noauth). Refused gated call: HTTP 401 + WWW-Authenticate unchanged, body = JSON-RPC isError result with _meta mcp/www_authenticate [header]. mcp check --target openai: file-params + security-schemes. Tests: golden tools/list (testdata/mcp_file_tools_list.golden.json), bind e2e, refusal _meta, load errors, mcpcheck units; 15/15 mutants killed. Pending: patch release; V11 (does ChatGPT read the 401 body?) still needs a live ChatGPT test."
     },
     {
       "id": "F2",
