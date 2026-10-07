@@ -214,6 +214,7 @@ _net_url_encode_form : list[{name: string, value: string}] -> string
 _net_url_parse : string -> Result[{fragment: string, host: string, path: string, port: string, query: string, scheme: string}, string]
 _net_url_parse_query : string -> list[{name: string, value: string}]
 _ollama_embed : (string, string) -> list[float] ! {IO}
+_ollama_embed_media : (string, string, bytes, bytes) -> list[float] ! {IO}
 _pkg_asset_path : (string, string) -> Result[string, string] ! {FS}
 _process_close_stdin : ProcessHandle -> () ! {Process}
 _process_exec : (string, list[string]) -> Result[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}, ProcessError] ! {Process}
