@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
@@ -125,8 +126,15 @@ func ResolveAnthropicCredential() (AnthropicCredential, error) {
 	if t := config.AnthropicAuthToken(); t != "" {
 		return AnthropicCredential{Value: t, OAuth: true}, nil
 	}
-	// The fleet's existing cloud convention: a JSON blob in the env.
+	// The fleet's existing cloud convention: a JSON blob in the env. A RAW token is the
+	// other shape this variable takes: `claude setup-token` prints one, and the local mission
+	// loops carry it so no other session's refresh can expire their login (2026-10-07). It is
+	// an OAuth access token as-is; rejecting it as "not valid JSON" would fail every
+	// in-process Anthropic call made from a loop's environment.
 	if blob, _ := config.ClaudeCodeOAuthToken(); blob != "" {
+		if raw := strings.TrimSpace(blob); !strings.HasPrefix(raw, "{") {
+			return AnthropicCredential{Value: raw, OAuth: true}, nil
+		}
 		var c claudeOAuth
 		if err := json.Unmarshal([]byte(blob), &c); err != nil {
 			return AnthropicCredential{}, fmt.Errorf("%s is not valid JSON: %w", EnvClaudeCodeOAuthToken, err)

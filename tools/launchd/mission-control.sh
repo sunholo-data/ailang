@@ -136,15 +136,19 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 # Nothing in the log said which credential was in use, so the diagnosis started
 # from the wrong end.
 #
-# CORRECTED 2026-09-26: this line used to tell the operator to SET the env token. That
-# advice is the footgun internal/mission/anthropic_quota.go documents — a setup-token
-# token is FORBIDDEN (HTTP 403) from the usage endpoint and, being preferred, overrides a
-# working keychain read. A stale keychain token is survivable: the quota reader falls
-# back to `claude -p /usage`, which carries its own live credential.
+# CORRECTED AGAIN 2026-10-07: the keychain path is NOT survivable for inference. Its
+# refresh token is shared with every other Claude session on the account, and a REMOTE
+# session (no keychain access, so it refreshes ~/.claude/.credentials.json instead)
+# rotates it away. The keychain copy then dies for good — "OAuth session expired and
+# could not be refreshed" on every fire, 16 hours on 2026-10-07, while `claude` worked
+# fine in the operator's shell. The loops need a credential no other session refreshes:
+# a setup-token in CLAUDE_CODE_OAUTH_TOKEN. The 2026-09-26 objection (a setup-token is
+# 403 at the usage endpoint and, preferred, broke the quota read) is gone: the quota
+# reader now reads usage with the login credential first and the env token last.
 if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
-  log "anthropic credential: CLAUDE_CODE_OAUTH_TOKEN from env — it OVERRIDES the keychain for the quota read; a setup-token token gets HTTP 403 there, and the reader then falls back to \`claude -p /usage\`"
+  log "anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (the loops' own token) for inference; the quota reader reads usage with the login credential first"
 else
-  log "anthropic credential: keychain (Claude Code-credentials); if its stored token is stale the quota reader falls back to \`claude -p /usage\` — no action needed"
+  log "anthropic credential: keychain login SHARED with every other session — a remote session's refresh can expire it; run tools/attended/set_claude_oauth_token.sh once to give the loops their own"
 fi
 
 # BILLING GUARD (2026-07-10): the mission MUST bill the Claude subscription,
