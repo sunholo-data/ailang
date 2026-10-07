@@ -455,6 +455,10 @@ The Anthropic and OpenAI directories require four things of a listed MCP server:
 
 `serve-api` covers the server side with annotations, and `ailang mcp check` verifies the result.
 
+> **End to end:** [Publish an AILANG service as a Claude / ChatGPT connector](./mcp-connectors.md)
+> walks through the annotations, sign-in with `sunholo/mcp_oauth`, file input, `ailang mcp check`
+> and the directory submission checklist, using AILANG Parse as the worked example.
+
 **Two surfaces from one module.** When any export uses the annotations below, `serve-api`
 mounts a second MCP endpoint:
 
@@ -478,8 +482,9 @@ cancelled. Pure computation cannot be interrupted, so the in-flight cap bounds t
 **Resource metadata.** With `--oauth-issuer <url>`, `serve-api` serves
 `/.well-known/oauth-protected-resource` and `/.well-known/oauth-protected-resource/mcp/connect/`.
 `resource` is the listed URL as the client reached it (honouring `X-Forwarded-Proto`), and
-`authorization_servers` lists the issuer. The authorization server itself is separate. A shared
-AILANG package is planned (`sunholo/mcp_oauth`); until then, point the flag at your own.
+`authorization_servers` lists the issuer. The authorization server itself is separate: the
+registry package `sunholo/mcp_oauth` provides one in AILANG, served by the same process
+(see [the connector guide](./mcp-connectors.md#3-oauth-with-no-extra-infrastructure-sunholomcp_oauth)).
 
 **Check before you submit:**
 
