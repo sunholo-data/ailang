@@ -341,7 +341,7 @@ func validateOptionalParams(export ExportInfo) error {
 			return fmt.Errorf("@optional(%q): no such parameter (params: %s)", name, strings.Join(export.ParamNames, ", "))
 		case name == headersParam:
 			return fmt.Errorf("@optional(%q): _headers is bound from the request, not the client", name)
-		case idx >= len(export.ParamTypes) || zeroValueForType(export.ParamTypes[idx]) == nil:
+		case paramZero(export.ParamTypes, export.ParamZeros, idx) == nil:
 			typ := "unknown"
 			if idx < len(export.ParamTypes) {
 				typ = export.ParamTypes[idx]
@@ -402,10 +402,9 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 				v, present := argMap[name]
 				if !present || v == nil {
 					if optional[name] {
-						args[i] = zeroValueForType(export.ParamTypes[i])
-						if isFileParam(export, name) {
-							args[i] = emptyFileRecord()
-						}
+						// A record param binds its declared shape at
+						// field zeros (an @mcp_file param: all four "").
+						args[i] = paramZero(export.ParamTypes, export.ParamZeros, i)
 						continue
 					}
 					missing = append(missing, name)
@@ -426,7 +425,7 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 		if ms.listed {
 			for i, name := range paramNames {
 				if i < len(args) && isSecretParam(export, name) {
-					args[i] = zeroValueForType(export.ParamTypes[i])
+					args[i] = paramZero(export.ParamTypes, export.ParamZeros, i)
 				}
 			}
 		}
