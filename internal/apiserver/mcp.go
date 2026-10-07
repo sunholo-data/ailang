@@ -32,6 +32,8 @@ type MCPServer struct {
 	// schemes holds each listed tool's securitySchemes (ChatGPT mixed auth),
 	// emitted top-level by securitySchemesMiddleware; nil on /mcp/.
 	schemes map[string][]map[string]any
+	// uiResources holds the @mcp_ui_resource widgets by ui:// URI.
+	uiResources map[string]uiResource
 }
 
 func mcpError(msg string) *mcp.CallToolResult {
@@ -88,6 +90,8 @@ func newMCPServer(srv *Server, listed bool) *MCPServer {
 
 	ms.registerTools()
 	ms.registerResources()
+	ms.registerUIResources()
+	mcpSrv.AddReceivingMiddleware(ms.uiResourcesListMiddleware)
 	if !srv.noFeedbackTool {
 		if srv.routesOnly {
 			log.Printf("MCP tool submit_feedback remains enabled with --routes-only; use --no-feedback-tool to suppress it")
@@ -437,8 +441,9 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 		for i, name := range paramNames {
 			if name == headersParam && i < len(args) {
 				var h http.Header
-				if extra := req.GetExtra(); extra != nil {
-					h = extra.Header
+				if extra := req.GetExtra(); extra != nil && extra.Header != nil {
+					h = extra.Header.Clone()
+					h.Del(publicBaseHeader) // serve-api's own, not the client's
 				}
 				args[i] = stringMapToJObject(h)
 			}
@@ -512,10 +517,10 @@ func (ms *MCPServer) RunStdio(ctx context.Context) error {
 // don't need server→client requests, which is the only feature stateless
 // mode disables.
 func (ms *MCPServer) HTTPHandler() http.Handler {
-	return mcp.NewStreamableHTTPHandler(
+	return withPublicBase(mcp.NewStreamableHTTPHandler(
 		func(r *http.Request) *mcp.Server { return ms.mcpServer },
 		&mcp.StreamableHTTPOptions{Stateless: true},
-	)
+	))
 }
 
 // buildNamedInputSchema creates a JSON Schema with named parameters from ExportInfo.

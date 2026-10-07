@@ -25,6 +25,13 @@ type ExportInfo struct {
 	// Validated at load (extractMCPFileAnnotations): a declared, non-secret
 	// param typed as the four-string file record.
 	MCPFile []string `json:"-"`
+	// MCP Apps (M-MCP-FILE-HANDOFF F1c, extractMCPUIAnnotations):
+	// @mcp_ui_resource: this function's HTML is the widget resource UIResource,
+	// with CSP connectDomains UIConnect ("self" = the server's public URL).
+	UIResource string   `json:"-"`
+	UIConnect  []string `json:"-"`
+	MCPUI      string   `json:"-"` // @mcp_ui: the tool renders this ui:// resource
+	IsAppOnly  bool     `json:"-"` // @mcp_app_only: visibility ["app"], hidden from the model
 	// @mcp_token_verifier: the server's one Bearer-token verifier. Never a
 	// tool (IsNoMCP) and, without @route, never an HTTP endpoint (IsNoExpose):
 	// exposed, it would be a token-guessing oracle.

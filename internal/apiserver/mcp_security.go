@@ -46,6 +46,9 @@ func (ms *MCPServer) toolMeta(toolName string, e ExportInfo) mcp.Meta {
 	if files := fileParamsMeta(e); files != nil {
 		meta = mcp.Meta{fileParamsMetaKey: files}
 	}
+	if m := uiToolMeta(meta, e); m != nil {
+		meta = m
+	}
 	if ms.listed {
 		schemes := securitySchemesFor(e)
 		if ms.schemes == nil {
