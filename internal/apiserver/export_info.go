@@ -21,6 +21,10 @@ type ExportInfo struct {
 	MCPAuth     string   `json:"mcp_auth,omitempty"`     // @mcp_auth: "oauth2" gates the tool on the listed surface; "" / "noauth" = open
 	MCPSecret   []string `json:"-"`                      // @mcp_secret: params dropped (zero-bound) on the listed surface
 	IsAgentOnly bool     `json:"-"`                      // @mcp_agent_only: absent from the listed surface
+	// @mcp_file: params that take an OpenAI file object (openai/fileParams).
+	// Validated at load (extractMCPFileAnnotations): a declared, non-secret
+	// param typed as the four-string file record.
+	MCPFile []string `json:"-"`
 	// @mcp_token_verifier: the server's one Bearer-token verifier. Never a
 	// tool (IsNoMCP) and, without @route, never an HTTP endpoint (IsNoExpose):
 	// exposed, it would be a token-guessing oracle.

@@ -104,3 +104,35 @@ export func verify(token: string) -> bool ! {Net} { true }`
 		}
 	}
 }
+
+// M-MCP-FILE-HANDOFF F1b: @mcp_file takes one or more param names and may be
+// repeated; the names are checked against the signature at serve-api load.
+func TestMCPFileAnnotation(t *testing.T) {
+	input := `
+@mcp_file("file", "other")
+@mcp_file("third")
+export func f(file: string, other: string, third: string) -> string { file }`
+	p := New(lexer.New(input, "test.ail"))
+	file := p.ParseFile()
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+	var got []string
+	for _, a := range file.Funcs[0].Annotations {
+		if a.Name == "mcp_file" {
+			for _, arg := range a.Args {
+				got = append(got, arg.(*ast.Literal).Value.(string))
+			}
+		}
+	}
+	if len(got) != 3 || got[0] != "file" || got[1] != "other" || got[2] != "third" {
+		t.Errorf("@mcp_file args = %v", got)
+	}
+	for _, bad := range []string{`@mcp_file()`, `@mcp_file(file)`} {
+		p := New(lexer.New(bad+"\nexport func f(x: int) -> int { x }", "test.ail"))
+		p.ParseFile()
+		if len(p.Errors()) == 0 {
+			t.Errorf("%s: expected a parse error", bad)
+		}
+	}
+}

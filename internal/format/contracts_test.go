@@ -214,3 +214,14 @@ func TestMCPDirectoryAnnotationsRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// M-MCP-FILE-HANDOFF F1b: @mcp_file round-trips, repeated and multi-arg.
+func TestMCPFileAnnotationRoundTrip(t *testing.T) {
+	src := "module m\n@mcp_file(\"a\", \"b\")\n@mcp_file(\"c\")\nexport func f(a: string, b: string, c: string) -> string {\n  a\n}\n"
+	out := assertIdempotentAndRoundTrips(t, src, "test://mcp_file_annotation")
+	for _, want := range []string{"@mcp_file(\"a\", \"b\")\n", "@mcp_file(\"c\")\n"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
+}

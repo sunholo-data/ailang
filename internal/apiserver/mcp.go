@@ -29,6 +29,9 @@ type MCPServer struct {
 	// gated holds the listed-surface tool names declared @mcp_auth("oauth2").
 	// The Bearer gate guards exactly these; /mcp/ never populates it.
 	gated map[string]bool
+	// schemes holds each listed tool's securitySchemes (ChatGPT mixed auth),
+	// emitted top-level by securitySchemesMiddleware; nil on /mcp/.
+	schemes map[string][]map[string]any
 }
 
 func mcpError(msg string) *mcp.CallToolResult {
@@ -90,6 +93,9 @@ func newMCPServer(srv *Server, listed bool) *MCPServer {
 			log.Printf("MCP tool submit_feedback remains enabled with --routes-only; use --no-feedback-tool to suppress it")
 		}
 		ms.registerFeedbackTool()
+	}
+	if listed {
+		mcpSrv.AddReceivingMiddleware(ms.securitySchemesMiddleware)
 	}
 
 	return ms
@@ -259,6 +265,7 @@ func (ms *MCPServer) registerTools() {
 			Description: desc,
 			InputSchema: ms.inputSchemaFor(export),
 			Annotations: sdkToolAnnotations(hints, export.MCPTitle),
+			Meta:        ms.toolMeta(toolName, export),
 		}
 
 		ms.mcpServer.AddTool(tool, ms.makeToolHandler(c.modPath, export))
@@ -392,6 +399,9 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 				if !present || v == nil {
 					if optional[name] {
 						args[i] = zeroValueForType(export.ParamTypes[i])
+						if isFileParam(export, name) {
+							args[i] = emptyFileRecord()
+						}
 						continue
 					}
 					missing = append(missing, name)
@@ -415,6 +425,13 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 					args[i] = zeroValueForType(export.ParamTypes[i])
 				}
 			}
+		}
+
+		// @mcp_file params: the host's file object becomes the closed
+		// four-string record, named or positional. An omitted @optional file
+		// param already holds the empty file record and passes through.
+		if err := bindFileArgs(export, args); err != nil {
+			return mcpError(err.Error()), nil
 		}
 
 		for i, name := range paramNames {
