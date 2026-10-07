@@ -161,21 +161,54 @@ func checkAnnotations(tools []tool, target string) []Finding {
 
 var credentialName = regexp.MustCompile(`(?i)(api[_-]?key|token|secret|password|passwd|credential|^auth$|authorization)`)
 
+// A widget-only tool (MCP Apps _meta.ui.visibility without "model", e.g.
+// serve-api's @mcp_app_only) is called by the host's widget and never listed
+// to the model, so a credential-shaped param there is not the model handling
+// a secret: it is reported as SKIP, not FAIL.
 func checkCredentials(tools []tool) []Finding {
 	var fs []Finding
+	skipped := false
 	for _, t := range tools {
 		props, _ := t.InputSchema["properties"].(map[string]any)
+		widgetOnly := hiddenFromModel(t)
 		for name := range props {
-			if credentialName.MatchString(name) {
-				fs = append(fs, Finding{"credentials", Fail, t.Name,
-					fmt.Sprintf("parameter %q looks like a credential: the model would handle a secret (use OAuth; on serve-api mark it @mcp_secret)", name), "A2,O1"})
+			if !credentialName.MatchString(name) {
+				continue
 			}
+			if widgetOnly {
+				skipped = true
+				fs = append(fs, Finding{"credentials", Skip, t.Name,
+					fmt.Sprintf("parameter %q looks like a credential — skipped: widget-only tool (_meta.ui.visibility excludes \"model\", so the model never sees it)", name), "A2,O1"})
+				continue
+			}
+			fs = append(fs, Finding{"credentials", Fail, t.Name,
+				fmt.Sprintf("parameter %q looks like a credential: the model would handle a secret (use OAuth; on serve-api mark it @mcp_secret)", name), "A2,O1"})
 		}
 	}
-	if len(fs) == 0 {
+	switch {
+	case Failed(fs):
+	case skipped:
+		fs = append(fs, Finding{"credentials", Pass, "", "no credential-shaped parameters on model-visible tools", "A2,O1"})
+	default:
 		fs = append(fs, Finding{"credentials", Pass, "", "no credential-shaped parameters", "A2,O1"})
 	}
 	return fs
+}
+
+// hiddenFromModel: the tool declares an MCP Apps visibility that excludes
+// "model" (absent = the default ["model", "app"]).
+func hiddenFromModel(t tool) bool {
+	ui, _ := t.Meta["ui"].(map[string]any)
+	vis, declared := ui["visibility"].([]any)
+	if !declared {
+		return false
+	}
+	for _, v := range vis {
+		if v == "model" {
+			return false
+		}
+	}
+	return true
 }
 
 // ---- check 3: zero-argument tools are callable with {} ----
