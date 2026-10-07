@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { relativeImports } from '../hooks/register'
+
 const IFACE = JSON.stringify({
   module: 'demo/shop',
   types: [{ name: 'Order' }],
@@ -61,4 +63,35 @@ test('/ail-lens on a missing relative path says so', async ($, on) => {
   on('session.cwd', async () => ({ value: '/work/repo' }))
   const { text } = await $.command.run({ command: 'ail-lens', args: 'nope/missing.ail', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } })
   expect(text).toContain('/work/repo/nope/missing.ail not found')
+})
+
+test('relative imports resolve against the module folder', () => {
+  expect(relativeImports('/r/sim/destination_stars.ail', 'module m\nimport ./data/stars (Star)\nimport ../shared/util\nimport pkg/x/y (z)\n'))
+    .toEqual(['/r/sim/data/stars.ail', '/r/shared/util.ail'])
+})
+
+test('a package manifest edit re-checks the modules shown from that package', async ($, on) => {
+  let isExported = false
+  const IFACE_OK = JSON.stringify({ module: 'stapledons/sim/destination_stars', types: [], funcs: [], schema: 'ailang.iface/v1' })
+  const NOT_EXPORTED = JSON.stringify({ passed: false, errors: [{ message: 'module loading error: module "stapledons/sim/data/stars" is not exported by package "stapledons/sim"' }] })
+  on('fs.stat', async (_, e) => (e.path === '/r/sim/ailang.toml'
+    ? { value: { kind: 'file' as const, size: 1, mtimeMs: isExported ? 2 : 1, isLink: false } }
+    : e.path === '/r/sim/destination_stars.ail' ? { value: { kind: 'file' as const, size: 1, mtimeMs: 1, isLink: false } } : { deny: 'ENOENT' }))
+  on('fs.read', async () => ({ value: 'module stapledons/sim/destination_stars\nimport ./data/stars (Star)\n' }))
+  on('process.run', async (_, e) => (e.argv[1] === 'iface'
+    ? out(0, IFACE_OK)
+    : isExported ? out(0, '{"passed":true,"errors":[]}') : out(1, NOT_EXPORTED)))
+  on('tool.call', async () => ({ result: 'written' }))
+  on('ui.status', async () => ({ value: undefined }))
+  on('ui.open', async () => ({ value: { isPlaced: true as const } }))
+
+  await $.tool.call({ tool: 'Write', file_path: '/r/sim/destination_stars.ail', content: 'x' })
+  const before = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await before.find({ text: /✗ fails/ })).toBeTruthy()
+  await before.unmount()
+
+  isExported = true
+  await $.tool.call({ tool: 'Edit', file_path: '/r/sim/ailang.toml', old_string: 'a', new_string: 'b' })
+  const after = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await after.find({ text: /✓ checks/ })).toBeTruthy()
 })
