@@ -123,5 +123,12 @@
     "emitter_statement_coverage": "100% for yamlEncodeImpl, emitYAML, yamlBlock, writeYAMLString",
     "full_suite": "FAILURES OBSERVED; stopped before all packages finished. Missing CGO compiler (SQLite stub), missing ps/python and process supervision/timing failures; unrelated daemon handler failure. Earlier Unicode failures were from the pre-fix snapshot and are resolved by final focused and complete affected-package runs."
   },
-  "evaluation_status": "pending"
+  "evaluation_status": "pending",
+  "evaluator_handoff": {
+    "message_id": "inbox_1791400595908_e15692c9",
+    "store": "Firestore ailang-multivac",
+    "inbox": "sprint-evaluator",
+    "dispatched": false,
+    "reason": "Cloud registry GCS access denied; machine config has no Pub/Sub notification. Coordinator completion markers provide the pipeline handoff."
+  }
 }
