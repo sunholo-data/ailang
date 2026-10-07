@@ -883,6 +883,7 @@ NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"   # per-notify wall-clock cap, se
 
 # Model probes + ration gate live in lib/lane-probe.sh (shared with mission-lane-check.sh).
 . "$MC_DRIVER_ROOT/tools/launchd/lib/lane-probe.sh"
+. "$MC_DRIVER_ROOT/tools/launchd/lib/codex-env-args.sh"
 
 # ---- runtime bucket exhaustion (M-QUOTA-RATIONING-ROUTING M4) -------------
 #
@@ -2271,10 +2272,17 @@ _mc_run_once() {
   rmdir "$_mc_hard_trigger" "$_mc_stall_trigger" 2>/dev/null || true
   printf '%s\t%s\tfired\t%s\t\n' "$(date +%s)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$MISSION_ATTEMPT" > "$_mc_heartbeat"
   # --- ATTEMPT HEARTBEAT END ---
+  # --- CODEX CONTROLLER EXEC START ---
   if [ "$CONTROLLER_PROVIDER" = "codex" ]; then
-    codex exec --skip-git-repo-check \
+    # codex's shell_environment_policy (inherit=core on the rig) strips the driver's exports from
+    # the controller's shells; forward the role env + scope guard per-variable (lib/codex-env-args.sh).
+    # ${arr[@]+…} because an empty array under `set -u` aborts in bash 3.2.
+    MC_CODEX_ENV_ARGS=()
+    mc_codex_env_args 2>>"$LOG"
+    codex exec ${MC_CODEX_ENV_ARGS[@]+"${MC_CODEX_ENV_ARGS[@]}"} --skip-git-repo-check \
       --dangerously-bypass-approvals-and-sandbox \
       --model "$MODEL" -C "$REPO" "$PROMPT" >>"$LOG" 2>&1 &
+  # --- CODEX CONTROLLER EXEC END ---
   elif [ "$CONTROLLER_PROVIDER" = "pi" ]; then
     # Last-resort rungs (Mark 2026-08-31): a pi-driven GLM controller is weaker than
     # opus/codex but keeps the loop breathing through a joint Anthropic+codex dry-out —
