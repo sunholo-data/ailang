@@ -1,6 +1,6 @@
 # std/yaml decode loses mapping key order; reserved words with/recv; no yaml encode
 
-- **Date**: 2026-07-22
+- **Date**: 2026-10-07
 - **Class**: bug (primary) + feature ×2 (secondary items in the same report)
 - **Recommend**: design-doc
 - **Searched**: `yamlToJson`, `std/yaml`, `yaml encode`, `reserved keyword`, `reserved word`, `with`, `recv` across design_docs/ and docs/
