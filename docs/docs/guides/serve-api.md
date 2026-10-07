@@ -495,6 +495,57 @@ The checks:
 5. the authorization server advertises S256 and CIMD or DCR, and answers within 10 s.
 
 It exits 1 on any FAIL. Each finding cites the vendor requirement it comes from.
+With `--target openai` (or `both`) it also checks:
+
+6. every `openai/fileParams` field has OpenAI's four-property file schema;
+7. every tool that answers 401 declares `securitySchemes: [{"type":"oauth2"}]`.
+
+**ChatGPT mixed auth.** On `/mcp/connect/`, every tool declares `securitySchemes`, both
+top level and mirrored in `_meta` (OpenAI's back-compat mirror):
+- `[{"type":"oauth2"}]` for `@mcp_auth("oauth2")` tools;
+- `[{"type":"noauth"}]` for everything else.
+
+A refused gated call still answers **HTTP 401 + `WWW-Authenticate`**, which is what Claude acts on.
+Its body is now a JSON-RPC tool error for the same request id, `isError: true`, with
+`_meta["mcp/www_authenticate"]: ["<the same header value>"]`, which is what ChatGPT reads.
+`/mcp/` declares no schemes.
+
+#### Files from the host: `@mcp_file`
+
+`@mcp_file("file")` marks a param as a file the host hands over. ChatGPT fills it with a
+download URL for a file the user uploaded (`_meta["openai/fileParams"]`). The param must be
+typed as this closed record, inline or as a type alias in the same module:
+
+```ailang
+type OpenAIFile = { download_url: string, file_id: string, mime_type: string, file_name: string }
+
+-- Parse a file the user uploaded.
+@mcp_title("Parse file")
+@mcp_hints("readOnly", "openWorld")
+@mcp_file("file")
+export func parseFile(file: OpenAIFile) -> string ! {IO} = "got ${file.file_name} at ${file.download_url}"
+```
+
+On both MCP surfaces the tool's `tools/list` entry gains two things:
+- `_meta: {"openai/fileParams": ["file"]}`;
+- for that param, OpenAI's file object schema: `{"type":"object","properties":{download_url,
+  file_id, mime_type, file_name: string},"required":["download_url","file_id"],
+  "additionalProperties":false}`. OpenAI's Scan Tools rejects any other shape.
+
+Binding:
+- `download_url` and `file_id` must be strings. Without them the call is refused before your
+  function runs.
+- `mime_type` and `file_name` bind `""` when the host leaves them out.
+- Any other fields the host sends are dropped.
+- The param is required unless it is also `@optional`. An omitted `@optional` file param binds
+  the all-empty record, so check `file.file_id == ""`.
+
+The annotation is repeatable (`@mcp_file("a", "b")` or one per param). Naming a param that does
+not exist, one that is not the four-string record, or one that is also `@mcp_secret` is a
+**load error**: `serve-api` refuses to start.
+
+Your function gets a URL, not bytes. Fetch it yourself under `Net`. Claude has no equivalent;
+the `sunholo/mcp_files` upload handoff covers it.
 
 Full example: `examples/runnable/serve_api_mcp_oauth.ail`. Embedders using
 `serveapi/protocol/mcphttp` get the same gate through `Config.Gate` (a `protocol.BearerGate`)
