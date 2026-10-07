@@ -11,10 +11,10 @@
       "acceptance_criteria": [
         "see sprint plan row F0"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-07T16:30:00Z",
+      "notes": "docparse PR #225 (dc4cd6e) -> v0.34.3 promoted to prod. Guidance on mcpParse/mcpConvert/editDocument verified on live tools/list in dev, test and prod (3/3 each); prod smoke OK; mcp check 5/5. e2e 81/81. claude.ai AGM re-test transcript still to capture (F5)."
     },
     {
       "id": "F1",
