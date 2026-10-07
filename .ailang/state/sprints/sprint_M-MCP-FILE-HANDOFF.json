@@ -61,10 +61,10 @@
       "acceptance_criteria": [
         "see sprint plan row F2"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-07T18:30:00Z",
+      "notes": "sunholo/mcp_files 0.1.0 published (ailang-packages PR #98, 06fd34a). pkg quality no gates; Z3 10/10 (3 negative fixtures refuted); 72 tests; flow 19, serve-api e2e 12 (1.5MB sha256 round trip, replay 409, cross-account 404, 413 caps, CORS exact origin), fetch 7, IFC leaks 6/6, mutants 16/16 (re-verified by controller). fileRef = SEP-2631 mcp-file:// URI. Open: per-route/suffix CORS in serve-api (#1618), live widget run in F3."
     },
     {
       "id": "F3",
