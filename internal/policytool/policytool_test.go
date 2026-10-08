@@ -306,3 +306,38 @@ func TestPolicyTool_FSDenyWrite(t *testing.T) {
 		t.Fatal("Makefile was created")
 	}
 }
+
+// A read of a DIRECTORY lists it (sorted, "/" on subdirectories, no .git):
+// the lane has no other listing tool, and `ailang tree` needs a root
+// ailang.toml. Listing must not become an escape: a directory outside the
+// sandbox, or a symlink to one, is refused like any other outside read.
+func TestPolicyTool_ReadDirectoryLists(t *testing.T) {
+	f := newFixture(t, "")
+	if err := os.MkdirAll(filepath.Join(f.sandbox, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r := f.host.Dispatch(Request{Op: "read", Path: "."})
+	if !r.OK {
+		t.Fatalf("listing the sandbox root refused: %q", r.Refused)
+	}
+	for _, want := range []string{"in.ail\n", "sub/\n"} {
+		if !strings.Contains(r.Content, want) {
+			t.Errorf("root listing lacks %q:\n%s", want, r.Content)
+		}
+	}
+	if strings.Contains(r.Content, ".git") {
+		t.Errorf("root listing shows .git:\n%s", r.Content)
+	}
+	if strings.Index(r.Content, "in.ail") > strings.Index(r.Content, "sub/") {
+		t.Errorf("listing not sorted:\n%s", r.Content)
+	}
+	if r := f.host.Dispatch(Request{Op: "read", Path: "sub"}); !r.OK || !strings.Contains(r.Content, "deep.txt\n") {
+		t.Errorf("listing sub: ok=%v %q %q", r.OK, r.Content, r.Refused)
+	}
+	for _, p := range []string{"..", "linkdir", "sub/../..", f.tmp, filepath.Join(f.tmp, "ext")} {
+		if r := f.host.Dispatch(Request{Op: "read", Path: p}); r.OK {
+			t.Errorf("listing %q outside the sandbox was allowed:\n%s", p, r.Content)
+		}
+	}
+	f.outsideIntact(t)
+}

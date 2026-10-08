@@ -74,6 +74,7 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		"claude-fable-5-1":  64000,
 		"claude-sonnet-5-5": 64000,
 		"claude-sonnet-5":   64000, "claude-sonnet-4-6": 64000, "claude-sonnet-4-5": 64000,
+		"claude-haiku-5-5": 64000,
 		"claude-haiku-4-5": 64000, "opencode-sonnet-4-6": 64000, "opencode-haiku": 64000,
 		"pi-claude-sonnet-4-6": 64000, "pi-claude-haiku-4-5": 64000,
 		// Hard provider ceilings verified via the OpenRouter endpoints API

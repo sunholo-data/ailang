@@ -207,6 +207,8 @@ Verified on it (macOS): `make check_core` passes in full (10/10 path-guard check
 escapes included), `ailang_tools` unit tests, every profile's registry under strict, and 6
 concurrent cloud motoko trials (`motoko-or-deepseek-v4-flash`, 6/6, $0.06, no port collision).
 
+- `agent.context_limit: 262144` on our profiles (e3fa68ec, 2026-10-08): the catalogue lacks every fleet model, so compaction never fired (context limit Unknown); the profile override makes it compact at ~196k.
+
 **Rig switched 2026-10-08:** the `~/go/bin/motoko` shim now execs `~/dev/mk-20261002` (this branch is
 checked out in that worktree, so `mk-main` cannot take it; `mk-main` stays on `sunholo/main-dst` as
 the rollback — repoint the shim's exec line to go back). The cloud image (`docker/Dockerfile.agent-motoko`) pins `de68fddf` on this

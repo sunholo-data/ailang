@@ -1,7 +1,11 @@
 package eval_analysis
 
 import (
+	"path/filepath"
 	"sort"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
@@ -89,7 +93,18 @@ func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interf
 	trials := make([]eval_harness.Trial, 0, len(results))
 	pass := map[string][2]int{}                  // benchmark -> [passed, total]
 	modelBenches := map[string]map[string]bool{} // model -> distinct benchmark ids
+	lastRun := map[string]time.Time{}            // model -> newest result timestamp
+	lastVersion := map[string]string{}           // model -> ailang release of that newest result
+	wins, runs := map[string]int{}, map[string]int{}
 	for _, r := range results {
+		runs[r.Model]++
+		if r.Passed() {
+			wins[r.Model]++
+		}
+		if r.Timestamp.After(lastRun[r.Model]) {
+			lastRun[r.Model] = r.Timestamp
+			lastVersion[r.Model] = r.AilangVersion
+		}
 		ok := r.Passed()
 		trials = append(trials, eval_harness.Trial{Model: r.Model, Bench: r.ID, Pass: ok})
 		v := pass[r.ID]
@@ -115,6 +130,12 @@ func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interf
 	// per-model coverage + the max so consumers can gate/annotate under-covered
 	// models (a 6-benchmark ELO must not read as a headline next to a 55-benchmark
 	// one). See M-EVAL-VALIDITY-DISCIPLINE.
+	// Ranking gate (Mark, 2026-10-08): a model is RANKED once it has run every
+	// core-tier benchmark in this block's mode and language; until then it is
+	// listed as provisional. Core is curated (CURATION.md §5) so that "ran core"
+	// keeps meaning the same thing. The rating itself still uses every result —
+	// a core-only fit would leave the top models undefeated and unratable.
+	core := coreBenchmarkSet()
 	maxCoverage := 0
 	for _, bs := range modelBenches {
 		if len(bs) > maxCoverage {
@@ -123,10 +144,36 @@ func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interf
 	}
 	models := make([]map[string]interface{}, 0, len(modelRatings))
 	for id, elo := range modelRatings {
-		models = append(models, map[string]interface{}{
+		// Same rule as attachRatingsToHistoryEntry: in an ANCHORED placement fit
+		// the benchmark side is fixed, so a winless or undefeated model has no
+		// finite rating (Bradley-Terry degeneracy) and its number is an artifact
+		// of the epoch count. A rolling bank makes this common — a model with a
+		// handful of rows can easily pass all of them.
+		if anchored && (wins[id] == 0 || wins[id] == runs[id]) {
+			continue
+		}
+		row := map[string]interface{}{
 			"id": id, "elo": round1(elo), "band": eval_harness.Band(elo),
 			"benchmarks": len(modelBenches[id]),
-		})
+		}
+		if len(core) > 0 {
+			n := 0
+			for b := range modelBenches[id] {
+				if core[b] {
+					n++
+				}
+			}
+			row["core"] = n
+		}
+		// Rolling publication: models are measured at different times, so each
+		// row says when its newest result was recorded (additive field).
+		if t := lastRun[id]; !t.IsZero() {
+			row["lastRun"] = t.UTC().Format("2006-01-02")
+		}
+		if v := lastVersion[id]; v != "" {
+			row["lastVersion"] = v
+		}
+		models = append(models, row)
 	}
 	sort.Slice(models, func(i, j int) bool { return models[i]["elo"].(float64) > models[j]["elo"].(float64) })
 
@@ -149,7 +196,7 @@ func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interf
 	}
 	sort.Slice(benches, func(i, j int) bool { return benches[i]["elo"].(float64) > benches[j]["elo"].(float64) })
 
-	return map[string]interface{}{
+	block := map[string]interface{}{
 		"models":      models,
 		"benchmarks":  benches,
 		"maxCoverage": maxCoverage, // most benchmarks any model ran — gate/annotate the rest against this
@@ -159,6 +206,10 @@ func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interf
 			"total":          len(benchRatings),
 		},
 	}
+	if len(core) > 0 {
+		block["coreTotal"] = len(core) // rows with core < coreTotal are provisional
+	}
+	return block
 }
 
 func passRate(v [2]int) float64 {
@@ -171,3 +222,32 @@ func passRate(v [2]int) float64 {
 func round1(x float64) float64 {
 	return float64(int(x*10+0.5)) / 10
 }
+
+// coreBenchmarkSet returns the ids of the core-tier benchmarks under
+// ./benchmarks (eval-report runs from the repo root), using the same rule as
+// `eval-suite --tier core`: a spec with no tier field is core. Nil when the
+// directory is unavailable, in which case no ranking gate is published.
+func coreBenchmarkSet() map[string]bool {
+	coreOnce.Do(func() {
+		paths, _ := filepath.Glob(filepath.Join("benchmarks", "*.yml"))
+		for _, p := range paths {
+			spec, err := eval_harness.LoadSpec(p)
+			if err != nil {
+				continue
+			}
+			if spec.Tier == "" || spec.Tier == "core" {
+				if coreSet == nil {
+					coreSet = map[string]bool{}
+				}
+				// Keyed by file name, as eval-suite resolves ids (<id>.yml).
+				coreSet[strings.TrimSuffix(filepath.Base(p), ".yml")] = true
+			}
+		}
+	})
+	return coreSet
+}
+
+var (
+	coreOnce sync.Once
+	coreSet  map[string]bool
+)

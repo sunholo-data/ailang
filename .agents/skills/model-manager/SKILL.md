@@ -545,7 +545,15 @@ series so the next question can be answered from banked data instead of a re-run
 
 ```bash
 go run ./tools/eval-elo /tmp/cf_<candidate> --mode standard --persist ~/.ailang/state/observatory.db
+
+# Publish: copy the result files into the cloud-rolling bank in the MAIN checkout
+# (the rotation filler republishes the dashboard from it every cycle; each model's
+# row carries its own lastRun date). COPY — never point eval-suite --output at the
+# bank: eval-suite overwrites its output directory.
+cp /tmp/cf_<candidate>/*/*.json ~/dev/sunholo-data/ailang/eval_results/rotation/cloud-rolling/
 ```
+
+Agent-mode runs bank the same way (`cp <run-dir>/agent/*.json` into the same dir).
 
 `--persist` takes the DB path, not the results dir. `database is locked` means another
 `ailang` process (coordinator, a running eval) holds observatory.db — retry once it is idle.
