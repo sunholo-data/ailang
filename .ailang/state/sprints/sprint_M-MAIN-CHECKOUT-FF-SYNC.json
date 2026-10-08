@@ -98,10 +98,10 @@
         "Trusted controller done gate runs AILANG_DRIVER_PINNED=worktree-test MISSION_WORKDIR=$PWD MISSION_PROFILE=fleet MISSION_DRY_RUN=1 /bin/bash tools/launchd/mission-control.sh; observes DRY RUN ok with skill-sync field and unchanged target HEAD. Not executed by planner.",
         "git diff --check and jq -e . .ailang/state/sprints/sprint_M-MAIN-CHECKOUT-FF-SYNC.json pass; scope review finds only planned files, no forbidden operations or out-of-scope env registration."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T09:23:19.352916+00:00",
+      "completed": "2026-10-08T09:26:59.571964+00:00",
+      "notes": "M2 complete: all nine required executor gates rc=0 on bash 3.2.57; 47 pristine arms passed; all 47 isolated mutants killed (mutant rc=1/control rc=0), mutation harness rc=0. Production driver seam guards, report/field, apply-before-stagger and missing-helper diagnostics exercised in synthetic labs. Unknown-selector rc=2 and zero-substitution harness rc=1 were expected rejections. Only allowed files changed; cumulative six-file snapshot in .snap/M2. No worktree Git writes, live driver, real main checkout/HOME/state or network probes. Optional full launchd suite not run; live dry-run remains the controller gate. Optional process inventory was sandbox-denied and UNINFORMATIVE UNDER SANDBOX."
     }
   ],
   "risk_level": "medium",

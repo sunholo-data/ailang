@@ -4,10 +4,8 @@ set -Eeuo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 ARMS='happy current not-dev ahead rebase merge am cherry revert sequencer bisect-log bisect-start modified staged outside untracked dirty-source dirty-destination incoming-source incoming-destination whitespace duplicate directory locked late-lock report disabled absent symlink non-git self missing-ref timeout missing-bounded changed invalid survival broken standalone linked-lock late-ref'
-# M2 arms are enabled only after the production seam ships.
-if grep -q 'skill-sync=\$SKILL_SYNC_STATUS' "$HERE/mission-control.sh"; then
-  ARMS="$ARMS driver-disabled driver-overlap driver-dry driver-field driver-real driver-missing"
-fi
+# M2 coverage is unconditional: removing the production seam must turn the suite red.
+ARMS="$ARMS driver-disabled driver-overlap driver-dry driver-field driver-real driver-missing"
 run_arm() {
   # An independent watchdog also bounds direct-Git timeout mutants.
   python3 - "$0" "$1" "$2" <<'PY'
@@ -135,13 +133,13 @@ if arm == 'survival':
     old = s[pos:]
     new = old.replace('  return 0\n}', '  return 1\n}')
 count = s.count(old)
-if count == 0 or (count != 1 and arm not in ('locked', 'linked-lock')):
+if old == new or count == 0 or (count != 1 and arm not in ('locked', 'linked-lock')):
     print('ZERO/AMBIGUOUS SUBSTITUTION', arm, count, file=sys.stderr); sys.exit(98)
 s = s.replace(old, new, 1 if arm in ('locked', 'linked-lock') else count)
 if arm == 'driver-real':
-    needle = 'BOOT_WINDOW="${MISSION_BOOT_WINDOW:-900}"'
+    needle = '# 3c. MEMORY GATE'
     if s.count(needle) != 1: sys.exit(98)
-    s = s.replace(needle, needle + '\n' + apply)
+    s = s.replace(needle, apply + '\n' + needle)
 open(p, 'w').write(s)
 PY
 fi
@@ -301,7 +299,14 @@ SPY
   cat > "$LAB/runner.sh" <<'RUNNER'
 set -eu
 log() { printf '%s\n' "$*" >> "$LAB/driver.log"; }
-_mc_uptime_secs() { echo boot >> "$LAB/order"; echo 99999; }
+_mc_uptime_secs() {
+  if [ -f "$LAB/sync.calls" ] && grep -qx apply "$LAB/sync.calls" && grep -q '^skill-sync=' "$LAB/driver.log"; then
+    echo boot:ready >> "$LAB/order"
+  else
+    echo boot:before-sync >> "$LAB/order"
+  fi
+  echo 99999
+}
 _mc_boot_offset() { echo 0; }
 MC_DRIVER_ROOT="$LAB/driver"; KILL_SWITCH="$LAB/disabled"; PIDFILE="$LAB/pid"
 MISSION_NAME=lab; MISSION_REPO=lab; MISSION_DOC=lab; REPO="$LAB/target"; PREFS=lab; HARD_TIMEOUT=1
@@ -321,7 +326,8 @@ RUNNER
     driver-disabled|driver-overlap) [ ! -e "$LAB/sync.calls" ] || fail 'sync invoked before guard'; [ ! -e "$LAB/order" ] || fail 'boot reached';;
     driver-dry|driver-field) eq "$(cat "$LAB/sync.calls")" "$(printf 'source\nreport')"; grep -q 'DRY RUN ok:.* | skill-sync=synced:2$' "$LAB/driver.log" || fail 'dry field absent'; [ ! -e "$LAB/order" ] || fail 'boot reached';;
     driver-real) eq "$(cat "$LAB/sync.calls")" "$(printf 'source\napply')"; grep -qx 'skill-sync=synced:2 spy note' "$LAB/driver.log" || fail 'note absent';
-      # Boot spy observes the call artifact as it runs; assert ordering dynamically.
+      eq "$(cat "$LAB/order")" boot:ready
+      # Also assert the seam remains ahead of the production stagger declaration.
       python3 - "$LAB/seam.sh" <<'PY'
 import sys
 s=open(sys.argv[1]).read(); assert s.index('mc_skill_sync apply') < s.index('BOOT_WINDOW=')
