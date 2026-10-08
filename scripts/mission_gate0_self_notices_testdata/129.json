@@ -1,0 +1,116 @@
+{
+  "comments": [
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-07T07:51:17Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5567240235",
+      "body": "# Mission `world` — weekly report\n\n**Window** last 168h (since 2026-08-31) · **generated** 2026-09-07 09:51\n\n| mission | iters (wk/all) | commits | lines+ | metered $ | opus | opus/it | refuted | ref/it |\n|---|---:|---:|---:|---:|---:|---:|---:|---:|\n| **world** | 20 / 20 | 66 | 38649 | $2.07 | 20 | 1.00 | 31 | 1.6 |\n| **fleet** | **42** | | | **$6.46** | **58** | | **72** | |\n\n`$` is a **lower bound** (fail-soft posting) · `~` shared repo, subject-attributed · fleet tokens **161567284** (all chains incl. evals; per-mission not exposed)\n\n## Goal distance — each mission's own claim\n\n_Source: the last `**Progress**` line in the mission log (self-reported at Gate 4,\nmandated 2026-08-31). \"not y"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-07T07:52:52Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5567260020",
+      "body": "**Iteration 166 — the driver pin ran this mission inside the WRONG REPOSITORY, and every health check read green**\n- **Pick**: row 68 `w-driver-pin-named-world-points-at-the-wrong-repo` — not the queue head; the controller could not reach the queue.\n- **Outcome**: LANDED (mitigation) + handed off · HARNESS · evaluator **94/100 PASS**, 0 blocking · [PR #128](https://github.com/sunholo-data/ailang-world/pull/128) `a529dc9` open · fleet [ailang#1075](https://github.com/sunholo-data/ailang/issues/1075)\n- **Progress**: seven-clause 1.0 bar — **goal unmoved**. No product code landed: the durable fix is frozen core.\n- **Up next (banked)**: AC-C5/AC-C6 on the NEXT fire — the only evidence that close"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-07T12:40:19Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5570774506",
+      "body": "**Iteration 167 — the DE-FORK red was a *suspended gate*, not a failing check: the whole Go suite had been unrun in CI**\n- **Pick**: the RED `dev` (not the queue head — a red outranks the queue and World owns this repo). Attribution walked back per commit: `e92594c` introduced it, `b7e4a8e` was 3/3 green.\n- **Outcome**: LANDED · HARNESS · evaluator **PASS 95/100, zero blocking** · [`37a78ab`](https://github.com/sunholo-data/ailang-world/commit/37a78ab) (PR #130) + record [`9d72cfe`](https://github.com/sunholo-data/ailang-world/commit/9d72cfe) (PR #131). `dev` is green for the first time since 2026-09-06.\n- **Progress**: seven-clause 1.0 bar — **goal unmoved**, no additional clause certified."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-07T14:26:29Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5572062901",
+      "body": "**Executor/planner lane degraded on this fire** — recorded before the iteration ran.\n\n- `planner`: **codex** lane `gpt-5.6-sol` unusable (probe rc=`75`) → handed to `pi:ollama/kimi-k3:cloud`\n- `executor`: **codex** lane `gpt-5.6-sol` unusable (probe rc=`75`) → handed to `pi:ollama/deepseek-v4-flash:0731-cloud`\n\nController: `claude-opus-5` (probe ok). Effective roles now: designer=`claude:claude-fable-5-1` planner=`pi:ollama/kimi-k3:cloud` executor=`pi:ollama/deepseek-v4-flash:0731-cloud` evaluator=`sonnet`.\nDriver log: `/tmp/ailang-mission-world.log`. If this repeats across fires, the lane is down — check the bucket, and check that this mission's plist carries a PATH that reaches the CLI (th"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-07T16:06:50Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5573205137",
+      "body": "**Iteration 168 — the five stranded records are landed, and the lane runner that judged the work called it empty**\n\n- **Pick**: reconcile + land record PRs #127/#128 (iterations 162–166). Not the queue head — iteration 167 banked it as next, and `D-WORLD-35` = A already authorised it.\n- **Outcome**: LANDED · [HARNESS] · evaluator **PASS 97/100, zero blocking** · [#132](https://github.com/sunholo-data/ailang-world/pull/132) → [`3305e2e`](https://github.com/sunholo-data/ailang-world/commit/3305e2e), record [`9befb67`](https://github.com/sunholo-data/ailang-world/commit/9befb67). #127/#128 closed unmerged.\n- **Progress**: seven-clause 1.0 bar — **goal unmoved**, no product code landed, by desig"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-07T19:58:05Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5575124867",
+      "body": "**Iteration 169 — row 66 landed; the row named one trim site of two, and called a false GREEN a false RED**\n- **Pick**: row 66 `w-flow-key-quote-trim-is-uncovered` (queue head)\n- **Outcome**: LANDED · [PRODUCT] · evaluator **96/100, zero blocking** · PR [#133](https://github.com/sunholo-data/ailang-world/pull/133) → [`f69873e`](https://github.com/sunholo-data/ailang-world/commit/f69873e), record [`cc2b5b3`](https://github.com/sunholo-data/ailang-world/commit/cc2b5b3), process fix [`ab5af8c`](https://github.com/sunholo-data/ailang-world/commit/ab5af8c). CI 2/2 green on the merge.\n- **Progress**: seven-clause 1.0 bar; goal unmoved. Two mutations that survived at base now die. No parser change,"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-08T00:14:33Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5577097583",
+      "body": "**Iteration 170 — a fleet blocker flipped, so row 68 closed on the fleet's own guard; row 70 landed reduced into new row 88**\n- **Pick**: row 68 (queue head — its *gated on the fleet* predicate was re-run as a command and had flipped, making it verification+bookkeeping), then row 70 as the second item under standing rule 1.\n- **Outcome**: LANDED · HARNESS · evaluator PASS 88/100 · PR [#134](https://github.com/sunholo-data/ailang-world/pull/134) → squash [`08af461`](https://github.com/sunholo-data/ailang-world/commit/08af461) · Gate 3b GREEN on the merge, present=2 == expected=2, not_green=0.\n- **Progress**: seven-clause 1.0 bar; **goal unmoved**. Gate 1 gains an instrument for a blind spot i"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-08T02:43:12Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5578306894",
+      "body": "🔁 Controller model: **claude:claude-opus-5 → pi:ollama/glm-5.3:cloud** (Anthropic+codex unavailable; pi fallback rung) at 2026-09-08 04:43 CEST. Automatic — Anthropic preference order `claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1`, then `codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3`; reverts when a higher-preference probe succeeds again."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-08T02:45:06Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5578321682",
+      "body": "**Executor/planner lane degraded on this fire** — recorded before the iteration ran.\n\n- `designer`: **anthropic** lane `claude-fable-5-1` unusable (probe rc=`2` — unusable (rc=2)) → handed to `codex:gpt-6-astra`\n- `evaluator`: **anthropic** lane `sonnet` unusable (probe rc=`2` — unusable (rc=2)) → handed to `pi:ollama/minimax-m3:cloud`\n- `designer`: **codex** lane `gpt-6-astra` unusable (probe rc=`75`) → handed to `pi:ollama/deepseek-v4-flash:0731-cloud`\n- `planner`: **codex** lane `gpt-5.6-sol` unusable (probe rc=`75`) → handed to `pi:ollama/kimi-k3:cloud`\n- `executor`: **codex** lane `gpt-5.6-sol` unusable (probe rc=`75`) → handed to `pi:ollama/deepseek-v4-flash:0731-cloud`\n\nController: `o"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-08T02:47:00Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5578337712",
+      "body": "**Driver ran UNPINNED on this fire** — recorded before the iteration ran.\n\n- driver pin: **FAILED** — `git fetch origin failed (rc=128) in /Users/voightkampff/dev/sunholo-data/ailang: fatal: unable to access 'https://github.com/sunholo-data/ailang.git/': Could not resolve host: github.com`. This fire ran `/Users/voightkampff/dev/sunholo-data/ailang-world` at `791bd63` (0 behind `origin/dev`), so any landed driver/skill/charter fix newer than that commit was NOT in effect.\n\nMission `world`. Driver log: `/tmp/ailang-mission-world.log`. The fire still ran; only its code provenance is\nunknown. Fix: reconcile that clone with `origin/dev`, or find why the fetch failed. Until then\nevery fire silent"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-08T03:50:34Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5578867570",
+      "body": "**Mission iteration 171 (2026-09-08) — row 71 LANDED: critical state never lives where the OS wipes [HARNESS]**\n\nQueue row 71 (`w-mission-critical-state-lives-in-a-directory-the-os-wipes-on-boot`, clause-2) landed in full: the pin \"a claim about the last boot\" lesson is now a **generalized charter Repo Profile rule** (role/evaluator worktrees never under `/tmp`; evidence-bearing state under `$HOME`-anchored paths), the live `/private/tmp/world-attended-rulings` worktree was **disposed** under a pinned context + inline merge-base license, and the **cross-mission fleet ask is sent** (`msg_20260908_054727_f98ec691`): the per-mission crash LOG (`tools/launchd/mission-control.sh:103`) and the pli"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-08T06:19:24Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5580244360",
+      "body": "**Iteration 172 — row 72 LANDED: the loop's own progress count is now a reading with controls, not an increment chain**\n- **Pick**: queue row 72 (`w-queue-closed-count-is-an-increment-chain-no-instrument-reproduces`) — queue head; row 69 re-probed and still fleet-gated.\n- **Outcome**: LANDED · HARNESS · evaluator **PASS 87/100, zero blocking** · [#136](https://github.com/sunholo-data/ailang-world/pull/136) → [`82d7ef7`](https://github.com/sunholo-data/ailang-world/commit/82d7ef7), record [`0d31638`](https://github.com/sunholo-data/ailang-world/commit/0d31638)\n- **Progress**: **goal unmoved** — no product surface changed. What moved: the mission's own progress metric is measurable for the fir"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-08T06:28:34Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5580341343",
+      "body": "🔁 Controller model: **pi:ollama/glm-5.3:cloud → claude:claude-opus-5** (probe ok) at 2026-09-08 08:28 CEST. Automatic — Anthropic preference order `claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1`, then `codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3`; reverts when a higher-preference probe succeeds again."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-08T06:28:52Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/129#issuecomment-5580344655",
+      "body": "**Executor/planner lane degraded on this fire** — recorded before the iteration ran.\n\n- `planner`: **codex** lane `gpt-5.6-sol` unusable (probe rc=`75`) → handed to `pi:ollama/kimi-k3:cloud`\n- `executor`: **codex** lane `gpt-5.6-sol` unusable (probe rc=`75`) → handed to `pi:ollama/deepseek-v4-flash:0731-cloud`\n\nController: `claude-opus-5` (probe ok). Effective roles now: designer=`claude:claude-fable-5-1` planner=`pi:ollama/kimi-k3:cloud` executor=`pi:ollama/deepseek-v4-flash:0731-cloud` evaluator=`sonnet`.\nDriver log: `/tmp/ailang-mission-world.log`. If this repeats across fires, the lane is down — check the bucket, and check that this mission's plist carries a PATH that reaches the CLI (th"
+    }
+  ]
+}

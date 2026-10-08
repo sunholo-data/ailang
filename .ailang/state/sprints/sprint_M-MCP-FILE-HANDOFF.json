@@ -76,10 +76,10 @@
       "acceptance_criteria": [
         "see sprint plan row F3"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-07T18:40:00Z",
+      "notes": "docparse v0.35.0 in prod (PRs #226, #227): createUpload, POST /uploads, fileRef, upload widget ui://docparse/upload (branded AILANG Parse via mcp_files 0.1.2), uploadViaHost (app-only, 'ticket'), @mcp_file on parse/convert/edit. AILANG v0.52.5. dev/test/prod each: widget served with brand, mcp check --target both 7/7. Terraform upload_records TTL + temp-bucket objectUser applied dev/test/prod (2 added each, reviewed plans). test_mcp_files 62/62, mutations 8/8. Live claude.ai/ChatGPT user test = F5."
     },
     {
       "id": "F4",
@@ -90,10 +90,10 @@
       "acceptance_criteria": [
         "see sprint plan row F4"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-07T18:40:00Z",
+      "notes": "docparse v0.35.0 in prod (PRs #226, #227): createUpload, POST /uploads, fileRef, upload widget ui://docparse/upload (branded AILANG Parse via mcp_files 0.1.2), uploadViaHost (app-only, 'ticket'), @mcp_file on parse/convert/edit. AILANG v0.52.5. dev/test/prod each: widget served with brand, mcp check --target both 7/7. Terraform upload_records TTL + temp-bucket objectUser applied dev/test/prod (2 added each, reviewed plans). test_mcp_files 62/62, mutations 8/8. Live claude.ai/ChatGPT user test = F5."
     },
     {
       "id": "F5",

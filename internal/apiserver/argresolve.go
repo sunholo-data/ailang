@@ -45,8 +45,8 @@ const (
 //
 // Raw and multipart handlers do NOT route through this function; their
 // argument sources are unambiguous and unaffected by the shadowing class.
-func resolveArgs(r *http.Request, body []byte, paramNames, paramTypes []string) ([]interface{}, ArgSource, error) {
-	args, source, err := parseArgsWithNamesEx(body, paramNames, paramTypes)
+func resolveArgs(r *http.Request, body []byte, paramNames, paramTypes []string, paramZeros []any) ([]interface{}, ArgSource, error) {
+	args, source, err := parseArgsWithNamesEx(body, paramNames, paramTypes, paramZeros)
 	if err != nil {
 		return nil, source, err
 	}
@@ -82,7 +82,7 @@ func resolveArgs(r *http.Request, body []byte, paramNames, paramTypes []string) 
 //   - JSON object with NO matched keys + declared params → ZeroPadded
 //   - JSON non-object body          → Real (single-arg passthrough)
 //   - Empty body + no declared params → None (no args, no synthesis)
-func parseArgsWithNamesEx(body []byte, paramNames, paramTypes []string) ([]interface{}, ArgSource, error) {
+func parseArgsWithNamesEx(body []byte, paramNames, paramTypes []string, paramZeros []any) ([]interface{}, ArgSource, error) {
 	if len(paramNames) == 0 {
 		args, err := parseArgs(body)
 		if err != nil {
@@ -102,7 +102,7 @@ func parseArgsWithNamesEx(body []byte, paramNames, paramTypes []string) ([]inter
 		args := make([]interface{}, len(paramNames))
 		for i := range paramNames {
 			if i < len(paramTypes) {
-				args[i] = zeroValueForType(paramTypes[i])
+				args[i] = paramZero(paramTypes, paramZeros, i)
 			}
 		}
 		return args, ArgSourceZeroPadded, nil
@@ -117,7 +117,7 @@ func parseArgsWithNamesEx(body []byte, paramNames, paramTypes []string) ([]inter
 			copy(padded, req.Args)
 			for i := len(req.Args); i < len(paramNames); i++ {
 				if i < len(paramTypes) {
-					padded[i] = zeroValueForType(paramTypes[i])
+					padded[i] = paramZero(paramTypes, paramZeros, i)
 				}
 			}
 			return padded, ArgSourceReal, nil
@@ -129,7 +129,7 @@ func parseArgsWithNamesEx(body []byte, paramNames, paramTypes []string) ([]inter
 	var obj map[string]interface{}
 	bodyIsObject := json.Unmarshal(body, &obj) == nil
 	if bodyIsObject && len(obj) > 0 {
-		if named := parseNamedArgs(obj, paramNames, paramTypes); named != nil {
+		if named := parseNamedArgs(obj, paramNames, paramTypes, paramZeros); named != nil {
 			return named, ArgSourceReal, nil
 		}
 	}
@@ -142,7 +142,7 @@ func parseArgsWithNamesEx(body []byte, paramNames, paramTypes []string) ([]inter
 		args := make([]interface{}, len(paramNames))
 		for i := range paramNames {
 			if i < len(paramTypes) {
-				args[i] = zeroValueForType(paramTypes[i])
+				args[i] = paramZero(paramTypes, paramZeros, i)
 			}
 		}
 		return args, ArgSourceZeroPadded, nil

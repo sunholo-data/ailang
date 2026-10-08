@@ -93,6 +93,16 @@ if [ -d "$REPO_ROOT/docs/reference" ]; then
     done
 fi
 
+# Canonical reserved-keywords route (other legacy references stay above).
+if [ -f "$REPO_ROOT/docs/docs/reference/reserved-keywords.md" ]; then
+    echo "# Reference: reserved-keywords.md" >> "$OUTPUT"
+    echo "" >> "$OUTPUT"
+    cat "$REPO_ROOT/docs/docs/reference/reserved-keywords.md" >> "$OUTPUT"
+    echo "" >> "$OUTPUT"
+    echo "---" >> "$OUTPUT"
+    echo "" >> "$OUTPUT"
+fi
+
 # Add prompts/ (latest version only)
 echo "## Adding prompts/ directory..."
 

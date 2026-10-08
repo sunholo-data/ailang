@@ -138,6 +138,56 @@ func TestMCPCheck_AgentSurfaceFailsLikeProdParse(t *testing.T) {
 	}
 }
 
+// M-MCP-FILE-HANDOFF: an @mcp_app_only tool (visibility ["app"]) is never
+// shown to the model, so its credential-shaped `token` param is SKIPPED by
+// the credentials check (with the reason), not failed.
+const widgetTokenModule = `module test/api/widgettoken
+
+-- The upload widget.
+@mcp_title("Upload a file")
+@mcp_ui_resource("ui://test/upload", "self")
+export func uploadWidget() -> string = "<!doctype html><p>pick a file</p>"
+
+-- Bytes from the widget, relayed by the host with a one-time upload token.
+@mcp_title("Upload via host")
+@mcp_hints("idempotent")
+@mcp_ui("ui://test/upload")
+@mcp_app_only
+export func uploadViaHost(name: string, token: string) -> string = "got ${name}"
+
+-- Choose a file.
+@mcp_title("Choose a file")
+@mcp_hints("readOnly")
+@mcp_ui("ui://test/upload")
+export func chooseFile() -> string = "widget shown"
+`
+
+func TestMCPCheck_WidgetOnlyTokenParamSkipped(t *testing.T) {
+	tmpDir, modPath := writeModule(t, "widgettoken", widgetTokenModule)
+	srv := New(tmpDir, Config{Port: "0", MCP: true, NoFeedbackTool: true})
+	t.Cleanup(func() { srv.Close() })
+	if err := srv.LoadModules([]string{modPath}); err != nil {
+		t.Fatalf("LoadModules: %v", err)
+	}
+	hs := httptest.NewServer(srv.buildRoutes())
+	t.Cleanup(hs.Close)
+
+	fs := runCheck(t, hs.URL+"/mcp/", "both")
+	if mcpcheck.Failed(fs) {
+		t.Fatalf("widget-only token param must not fail the check: %+v", fs)
+	}
+	skipped := false
+	for _, f := range fs {
+		if f.Check == "credentials" && f.Status == mcpcheck.Skip && f.Tool == "uploadViaHost" &&
+			strings.Contains(f.Message, `"token"`) && strings.Contains(f.Message, "skipped: widget-only tool") {
+			skipped = true
+		}
+	}
+	if !skipped {
+		t.Fatalf("want a SKIP for uploadViaHost's token naming the exemption: %+v", fs)
+	}
+}
+
 func TestMCPCheck_AuthServerWithoutS256Fails(t *testing.T) {
 	as := authServer(t, false)
 	hs := readyServer(t, as.URL)

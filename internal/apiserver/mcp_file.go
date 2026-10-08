@@ -37,7 +37,8 @@ import (
 //
 // @optional interplay: a file param is required unless it is also @optional;
 // an omitted @optional file param binds the empty file record (all four
-// fields ""), never the empty record {} the generic "record" zero gives.
+// fields ""), on MCP and REST alike — the zero of its declared record type
+// (param_zero.go), never the empty record {} the type name "record" gives.
 //
 // Both MCP surfaces (/mcp/ and /mcp/connect/) carry the _meta and the file
 // schema: the shape is the only one a host can fill, and hosts that do not
@@ -67,7 +68,7 @@ func fileObjectSchema() map[string]any {
 	}
 }
 
-// emptyFileRecord is the value an omitted @optional file param binds.
+// emptyFileRecord is the base a supplied file object is normalised onto.
 func emptyFileRecord() map[string]any {
 	m := make(map[string]any, len(fileFields))
 	for _, f := range fileFields {

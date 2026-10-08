@@ -265,13 +265,32 @@ func laneSessionViolation(path string) string {
 	return ""
 }
 
+// laneProfile is motoko's profile for the ailang_only lane (motoko_ext_ailang_policy
+// first, strict on). It is the only kind of profile checkLaneProfile accepts.
+const laneProfile = "ailang_only"
+
+// laneProfileFor is the profile a lane task runs on: the task's explicit
+// motoko_profile (the eval harness sets one from models.yml), else laneProfile.
+// NOT the executor's default: the cloud job pins MOTOKO_CONFIG=dogfood, which
+// fails the lane gate, so a coordinator agent on the lane (it sets no
+// motoko_profile) would have refused every task.
+func laneProfileFor(task *executor.Task) string {
+	if p := task.Metadata["motoko_profile"]; p != "" {
+		return p
+	}
+	return laneProfile
+}
+
 // executeLane runs an ailang_only task: the pre-spawn gate, the run (the policy
 // reaches motoko as AILANG_AGENT_POLICY), then the post-run session check.
 func (e *MotokoExecutor) executeLane(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
-	profile := e.profile
-	if p := task.Metadata["motoko_profile"]; p != "" {
-		profile = p
+	profile := laneProfileFor(task)
+	// executeStreaming re-derives the profile from the same metadata, so the
+	// gate and the run cannot disagree about which profile they judged.
+	if task.Metadata == nil {
+		task.Metadata = map[string]string{}
 	}
+	task.Metadata["motoko_profile"] = profile
 	if err := e.checkLaneTask(ctx, defaultLaneRunner, task, profile); err != nil {
 		return nil, err
 	}

@@ -1,12 +1,14 @@
 -- YAML ingestion for AILANG
 -- Bridges YAML to the std/json Json ADT via a Go-backed, WASM-portable converter.
 -- The conversion is a thin wrapper over the _yaml_to_json builtin (yaml.v3 -> JSON);
--- decode reuses std/json.decode so YAML and JSON share one Json ADT.
+-- decode reuses std/json.decode; encode emits ordered block YAML from that Json ADT.
 module std/yaml
 import std/result (Result, Ok, Err)
 import std/json (Json, decode as jsonDecode)
 
 -- Convert a YAML string to an equivalent JSON string (Go-backed).
+-- Mapping keys retain document order. Merges insert keys at the merge position;
+-- explicit keys override merged keys, and earlier merge sources win conflicts.
 -- Reads only the first document of a multi-document stream. Any YAML that cannot be
 -- represented as JSON (non-string map keys, NaN/Inf floats) returns Err — no coercion.
 export func yamlToJson(s: string) -> Result[string, string] {
@@ -20,4 +22,11 @@ export func decode(s: string) -> Result[Json, string] {
     Ok(j) => jsonDecode(j),
     Err(e) => Err(e)
   }
+}
+
+-- Encode Json as one block YAML document with two-space indentation.
+-- Keys and strings are quoted; object pair order and duplicate keys are preserved.
+-- Non-finite numbers return Err. Decode rejects duplicate keys and currently sorts keys.
+export func encode(j: Json) -> Result[string, string] {
+  _yaml_encode(j)
 }

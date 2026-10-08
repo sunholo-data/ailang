@@ -14,7 +14,7 @@
 
 | Axiom | Score | Justification |
 |-------|-------|---------------|
-| A1: Determinism | +1 | Pure function of the input string; yaml.v3 decode + json.Marshal are deterministic (map keys sorted by encoding/json). |
+| A1: Determinism | +1 | Pure function of the input string; yaml.v3 decode + json.Marshal are deterministic (originally map keys were sorted by encoding/json; v0.53.0 preserves document order). |
 | A2: Replayability | 0 | Pure builtin, no trace impact. |
 | A3: Effect Legibility | +1 | Zero effects — `yamlToJson`/`decode` are pure, matching `std/json`. No hidden IO. |
 | A4: Explicit Authority | +1 | No ambient authority; reads no files, no env. Caller supplies the string. |
@@ -94,12 +94,12 @@ A thin bridge. The hard part of YAML (significant whitespace, block scalars, the
    - `decode(s: string) -> Result[Json, string]` — `match yamlToJson(s) { Ok(j) => json.decode(j), Err(e) => Err(e) }`. Zero extra Go.
 3. **Docs + examples**: reference page, stdlib index entry, `examples/yaml_*.ail`.
 
-**Why the bridge is correct here (verified):**
+**Original v0.30.0 bridge behavior (superseded in v0.53.0):**
 ```
 in:  "name: STX\nitems:\n  - a\n  - b\ncount: 3\nnested:\n  x: 1.5\n  ok: true\n"
 out: {"count":3,"items":["a","b"],"name":"STX","nested":{"ok":true,"x":1.5}}
 ```
-yaml.v3 decodes string-keyed mappings into `map[string]interface{}`, which `json.Marshal` serializes directly (unlike yaml.v2's `map[interface{}]interface{}`).
+The original bridge decoded string-keyed mappings into `map[string]interface{}`, which `json.Marshal` serialized directly (unlike yaml.v2's `map[interface{}]interface{}`).
 
 **Edge cases (must be tested):**
 - Empty input → `Unmarshal` yields `nil` → `json.Marshal(nil)` = `"null"` → `Ok("null")` (decodes to `JNull`).
@@ -254,3 +254,7 @@ Single focused day:
 
 **Document created**: 2026-07-14
 **Last updated**: 2026-07-14
+
+## v0.53.0 order amendment
+
+The original generic-map bridge sorted mapping keys incidentally. M-STD-YAML-MAPPING-KEY-ORDER supersedes that behavior with document-order Node emission, including nested mappings and merge expansion. Explicit keys override merged keys; earlier merge sources win. Signatures and scalar conversion remain unchanged.

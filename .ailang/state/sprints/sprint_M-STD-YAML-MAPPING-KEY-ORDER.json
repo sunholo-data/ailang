@@ -1,0 +1,115 @@
+{
+  "sprint_id": "M-STD-YAML-MAPPING-KEY-ORDER",
+  "status": "completed",
+  "created": "2026-10-07T18:37:38.718495+00:00",
+  "design_doc": "design_docs/planned/v0_53_0/m-std-yaml-mapping-key-order.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-std-yaml-mapping-key-order-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "yaml"
+      ],
+      "search_result": "ailang pkg search yaml returned no packages; stale-build warning noted",
+      "reason": "Repair existing Go bridge using pinned yaml.v3 and encoding/json; no external package can replace this internal builtin."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "yaml"
+      ],
+      "search_result": "ailang pkg search yaml returned no packages; stale-build warning noted",
+      "reason": "Regression tests for the existing bridge and stdlib; no new package capability."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "yaml"
+      ],
+      "search_result": "ailang pkg search yaml returned no packages; stale-build warning noted",
+      "reason": "Existing contract, examples and changelog updates; no package implementation."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 200,
+    "estimated_days": 1,
+    "actual_total_loc": 440,
+    "actual_days": 1,
+    "actual_loc_per_day": 440
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Node walker and order regression",
+      "estimated_loc": 130,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "b,a,c order is pinned in block and flow mappings, nested objects, and mappings within sequences.",
+        "Compiled tests pin Node first-document behavior, alias pointers, merge tags, explicit tags and timestamps.",
+        "Explicit keys override merged keys irrespective of position; earlier merge sources win; nested merges preserve source order.",
+        "Empty input emits null; empty mappings/sequences emit {} and []; public signature and purity remain unchanged.",
+        "Focused Go YAML tests pass; recursive alias failures cannot panic or recurse without bound."
+      ],
+      "passes": true,
+      "started": "2026-10-08T07:03:51.671435+00:00",
+      "completed": "2026-10-08T07:03:51.671435+00:00",
+      "notes": "Node-order emission and merge precedence pass YAML tests at count=20. yaml.v3 Decode plus JSON marshal validate and discard the old representation to preserve duplicate/cycle/excessive-alias and unsupported-value errors; only Node pairs determine emitted order. Baseline document-order regression fails as expected."
+    },
+    {
+      "id": "M2",
+      "description": "Guarantee matrix and AILANG integration",
+      "estimated_loc": 50,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Every design guarantee row has a test; preserved scalar JSON bytes and yaml-prefixed Err results remain covered.",
+        "Bridge Test 1 expects name,count,items; other existing assertions remain passing.",
+        "std/yaml.decode keys match equivalent std/json.decode keys in b,a,c order.",
+        "Alias mapping order, merge precedence, invalid merges and duplicate rejection are explicitly tested.",
+        "Focused Go tests and the rebuilt-binary AILANG bridge integration pass."
+      ],
+      "passes": true,
+      "started": "2026-10-08T07:07:11.495346+00:00",
+      "completed": "2026-10-08T07:07:11.495346+00:00",
+      "notes": "Guarantee matrix, aliases, merge precedence, scalar compatibility, resolved alias duplicate keys and excessive alias expansion covered. Complete internal/builtins tests pass; YAML -count=20 and go vet pass. Bridge main reports all eight checks passing; named YAML/JSON order test passes. Independent reviewer found alias-key duplicate gap, now fixed; emission now uses a shared buffer."
+    },
+    {
+      "id": "M3",
+      "description": "Contract, examples and final validation",
+      "estimated_loc": 20,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Reference, stdlib comments and builtin metadata state order and merge semantics without implying sorted output.",
+        "Historical design and pinned doc examples accurately distinguish the old behavior from the new contract.",
+        "Changelog explicitly flags byte changes for mappings whose source order differs from sorted order.",
+        "make build, make test, make fmt and make lint pass; focused Go tests use `go test ./internal/builtins -run YAML -count=1`.",
+        "Rebuilt CLI passes `ailang check std/yaml.ail`, `ailang run --caps IO --entry main tests/yaml_bridge_test.ail`, and `ailang run --caps IO --entry main examples/runnable/yaml_config.ail`.",
+        "`GOOS=js GOARCH=wasm go build ./...` succeeds, confirming the pure bridge remains WASM-buildable."
+      ],
+      "passes": true,
+      "started": "2026-10-08T07:08:08.369657+00:00",
+      "completed": "2026-10-08T07:08:08.369657+00:00",
+      "notes": "Reference, stdlib comments, builtin metadata, historical design and changelog now explain source order and merge rules. CGO-disabled CLI build, targeted WASM builtin build, full touched-package tests, YAML count=20, go vet, gofmt and rebuilt CLI check/test/run passed. Full make test/lint and whole-repository WASM build replaced by targeted checks per redispatch constraint; CI owns full-suite verification."
+    }
+  ],
+  "last_session": "2026-10-08T07:03:51.671435+00:00",
+  "last_checkpoint": "All three milestones complete; coordinator evaluation handoff ready",
+  "completed": "2026-10-08T07:08:08.369657+00:00",
+  "validation_override": "User redispatch constraint: no full make test, no compiler/sysroot installation; targeted CGO_ENABLED=0 tests, vet, gofmt and AILANG checks only. No push or PR.",
+  "independent_review": {
+    "result": "pass",
+    "score": "98/100",
+    "report_path": ".ailang/state/sprints/M-STD-YAML-MAPPING-KEY-ORDER-implementation.json"
+  }
+}
