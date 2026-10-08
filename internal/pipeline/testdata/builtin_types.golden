@@ -142,6 +142,7 @@ _io_print : string -> () ! {IO}
 _io_printErr : string -> () ! {IO}
 _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
+_io_readLineOpt : () -> Option[string] ! {IO}
 _io_writeBytes : bytes -> () ! {IO}
 _json_decode : string -> Result[Json, string]
 _json_decode_float_array : string -> Result[Array[float], string]
