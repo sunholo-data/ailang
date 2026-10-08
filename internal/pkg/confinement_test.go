@@ -23,6 +23,7 @@ func TestRegistryConfinement(t *testing.T) {
 	for _, fetch := range []func() error{
 		func() error { _, err := client.FetchIndex(); return err },
 		func() error { _, err := client.FetchPackage("test/lib", "0.1.0"); return err },
+		func() error { _, err := client.FetchMetadata("test/lib", "0.1.0"); return err },
 	} {
 		if err := fetch(); err == nil || !strings.Contains(err.Error(), "confined by AILANG_AGENT_POLICY") {
 			t.Fatalf("expected confinement refusal, got %v", err)

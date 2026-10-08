@@ -75,3 +75,12 @@ func TestPackageRootRegistryLockOffline(t *testing.T) {
 		t.Fatalf("expected index refusal: %v", err)
 	}
 }
+
+func TestPackageRootRejectsTraversal(t *testing.T) {
+	t.Setenv("AILANG_PACKAGE_ROOT", t.TempDir())
+	for _, identity := range [][2]string{{"../lib", "0.1.0"}, {"test/../lib", "0.1.0"}, {"test/lib", "../outside"}, {"test/lib", `..\outside`}, {"test/lib", ""}} {
+		if _, err := PackageDir(identity[0], identity[1]); err == nil {
+			t.Fatalf("accepted %v", identity)
+		}
+	}
+}
