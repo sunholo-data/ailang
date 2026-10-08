@@ -38,19 +38,19 @@
   ],
   "velocity": {
     "target_loc_per_day": 180,
-    "estimated_total_loc": 720,
+    "estimated_total_loc": 660,
     "estimated_days": 4
   },
   "features": [
     {
       "id": "M1",
-      "description": "Scoped effect representation and validation",
-      "estimated_loc": 240,
+      "description": "Scoped effect representation and validation (single-label Declassify[label=x], per 2026-10-08 ruling)",
+      "estimated_loc": 180,
       "dependencies": [],
       "acceptance_criteria": [
-        "Scoped single-label atoms validate; unknown keys and malformed/empty values fail loudly.",
-        "Approved multi-label representation normalizes without last-write-wins loss; mixed bare/scoped atoms yield all authority in either order.",
-        "Declared superset covers required subset; scoped declaration cannot cover bare or an unrelated scope; a missing effect still fails.",
+        "Scoped single-label atoms validate; unknown keys, malformed/empty values and a reserved wildcard label fail loudly.",
+        "Duplicate Declassify atoms (scoped or mixed bare/scoped) still fail with PAR_EFF001_DUP; no parser grammar change.",
+        "Bare covers any scope and a scope covers itself; a scoped declaration cannot cover bare or a different label; a missing effect still fails.",
         "Rand/AI defaults and exact parameter invariance, budgets, row variables and function-value effect invariance retain existing behavior."
       ],
       "passes": null,
@@ -103,8 +103,9 @@
       ],
       "acceptance_criteria": [
         "Both new examples check and run as documented; gated_secret and secret_demo retain clean verdicts and leak_attempt retains its expected single SinkRefinementError.",
-        "Design V1\u2013V8 mechanisms have regression coverage, including intentional Check C rejection, scoped propagation and bare compatibility.",
-        "Focused Go tests for internal/types and internal/parser pass; make test, make lint and make check-boundaries pass using the rebased implementation tree.",
+        "Design V1–V8 mechanisms have regression coverage, including intentional Check C rejection, scoped propagation and bare compatibility.",
+        "Compatibility audit verdicts match the plan's table (inbox_injection_v2.ail, inbox_v2_app.ail, expected_ailang_safe/injected.ail, std/secret.ail all unchanged); any deviation is explained in notes.",
+        "go test ./internal/types/... ./internal/parser/... and make test-core pass, plus make lint and make check-boundaries; do not run full make test locally (SIGBUS risk in RAM-backed /tmp) - CI runs it.",
         "Documentation explains opt-in scopes, bottom acceptance, blanket-authority hazard and deliberate rejection of cross-label calls; no runtime IFC or cross-module completion is claimed."
       ],
       "passes": null,
@@ -114,16 +115,22 @@
     }
   ],
   "execution_preconditions": [
-    "Approve plan and authorize execution",
-    "Approve multi-label syntax/normalization clarification before code changes"
+    "Plan PR merged (merge dispatches the executor)"
   ],
   "sequencing": {
-    "precedes": "M-IFC-CROSS-MODULE-LABELS",
+    "precedes": "M-IFC-CROSS-MODULE",
     "related_issue": 1134,
     "shared_files": [
       "internal/types/ifc_check.go",
       "internal/types/effects.go"
     ],
-    "handoff_contract": "None=[], bare=[*], scoped=sorted unique labels; imported signatures reuse local Check A/C and scoped result policy."
-  }
+    "handoff_contract": "None=[], bare=[\"*\"], scoped=sorted unique labels (one element in v1); imported signatures reuse local Check A/C and scoped result policy."
+  },
+  "maintainer_rulings": [
+    {
+      "date": "2026-10-08",
+      "by": "Mark",
+      "ruling": "Declassify takes a SINGLE label in v1 (Declassify[label=email]). No parser change, no repeated atoms; PAR_EFF001_DUP stays. Multi-label is future work."
+    }
+  ]
 }

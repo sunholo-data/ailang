@@ -75,8 +75,18 @@ flow at the call site.
 ### 1. Label-scoped Declassify: `! {Declassify[label=…]}`
 
 Ride the **existing** parameterised-effect syntax (`Rand[mode=crypto]`); no new
-parser surface. `! {Declassify[label=email]]` — one `label` key, comma-separated
-label list; bare `! {Declassify}` means **all labels** (⊤, today's semantics).
+parser surface. `! {Declassify[label=email]}` — one `label` key naming a
+**single** label; bare `! {Declassify}` means **all labels** (⊤, today's semantics).
+
+> **Maintainer ruling (Mark, 2026-10-08):** `Declassify` takes a **single label
+> in v1**: `Declassify[label=email]`. No parser change and no repeated
+> `Declassify[...]` atoms — the parser keeps rejecting duplicate effect names
+> (`internal/parser/parser_effect.go`, `PAR_EFF001_DUP`). A function that must
+> relabel more than one label uses bare `! {Declassify}` in v1. Multi-label
+> scoped authority (a list syntax or repeated atoms) is future work and needs its
+> own design. The authorized-label *set* below is therefore ⊤ or a one-element
+> set in v1; the covering rule and the companion's label-list summary keep the
+> set shape so multi-label can be added without a schema change.
 
 **Why label-scoped, not argument-scoped:** taint composes via `LabelJoin`, so
 argument positions do not stay separable — in `f(s, other)` with body `s ++ other`

@@ -1,34 +1,34 @@
 # Sprint Plan: M-IFC-AUTHORITY-SCOPING
 
-**Status:** Planned; scheduling approved by Mark on 2026-10-08; execution awaits plan approval.
+**Status:** Planned; scheduling approved by Mark on 2026-10-08; Declassify syntax ruled by Mark on 2026-10-08 (single label, see below). Merging this plan dispatches the executor; there is no further human gate before coding.
 **Target:** v0.53.x (v0.54.0 if the security review misses the v0.53.x window).
 **Design:** [m-ifc-authority-scoping.md](../m-ifc-authority-scoping.md), merged 05a6457d1.
 **Issue links:** Refs #752; Refs #1134 (sequencing dependency only).
-**Duration:** 4 engineering days, approximately 24 focused hours including review buffer.
+**Duration:** 4 engineering days, approximately 23 focused hours including review buffer.
 **Risk:** High — security-sensitive effect validation and IFC semantics.
-**Estimate:** 720 LOC: 300 implementation, 360 tests, 60 examples/documentation.
+**Estimate:** 660 LOC: 270 implementation, 330 tests, 60 examples/documentation.
 
 ## Goal and scope
 
-Narrow opt-in Declassify authority to declared label sets and enforce positive parameter labels on local calls. Preserve bare Declassify's existing whole-body authority and conservative closure propagation. Reject previously accepted cross-label argument flows intentionally. No compiler implementation belongs in this planning change; no new GitHub issue is needed.
+Narrow opt-in Declassify authority to a single declared label (`Declassify[label=email]`) and enforce positive parameter labels on local calls. Preserve bare Declassify's existing whole-body authority and conservative closure propagation. Reject previously accepted cross-label argument flows intentionally. No compiler implementation belongs in this planning change; no new GitHub issue is needed.
 
 Mark's P0 triage reproduced the defect on origin/dev 658ff76a3 on 2026-10-08: a value labelled arg reaches a sqlsafe-labelled parameter without rejection, and bare Declassify still grants whole-body authority. This is supplied maintainer evidence, not a new reproduction by this planning session. The local snapshot is v0.52.5 and still has ifcSig.declassify as a bool, Check B bypass for that bool, no Check C, and invariant effectParamsCompatible. Declared record-label tracking has already landed: preserve ifc_static_type.go's deepLabel contributions and projection precision.
 
-The design's systemic analysis covers both validation and IFC authority paths, joins, closures, parameter flows, duplicate effect atoms and legacy sink_check.go. It remains applicable. Cross-module metadata, pipeline/REPL wiring, runtime tracing (#1132), label polymorphism and blanket-authority lint are outside this sprint.
+The design's systemic analysis covers both validation and IFC authority paths, joins, closures, parameter flows and legacy sink_check.go. It remains applicable. Cross-module metadata, pipeline/REPL wiring, runtime tracing (#1132), label polymorphism, multi-label Declassify and blanket-authority lint are outside this sprint.
 
 ## Release and sequencing contract
 
-Land and evaluate this sprint before implementing m-ifc-cross-module-labels (#1134). The separately dispatched companion plan can be prepared concurrently, but compiler edits in the shared IFC checker must be serialized. Rebase its implementation onto the authority-scoping implementation commit; run this sprint's complete regression suite again after imported-call wiring.
+Land and evaluate this sprint before implementing m-ifc-cross-module-labels (#1134). The companion plan (sprint id M-IFC-CROSS-MODULE) can be prepared concurrently, but compiler edits in the shared IFC checker must be serialized. Rebase its implementation onto the authority-scoping implementation commit; run this sprint's complete regression suite again after imported-call wiring.
 
-The companion must replace its stale declassify: bool example with a deterministic label list: [] means no authority, ["*"] means bare/all authority, and a sorted unique list means scoped authority. Its imported signatures must retain positive parameter labels and feed the same Check A/Check C logic and result-label policy as local signatures. Reserve wildcard for summary encoding; do not interpret a user label as wildcard accidentally. Do not build a second checker or ship a bool-based IFC cache schema as an interim representation. This sprint owns local semantics and reusable authority/check helpers; the companion owns serialization, digest/cache invalidation, import resolution and CLI/REPL integration.
+The companion must replace its stale declassify: bool example with a deterministic label list: [] means no authority, ["*"] means bare/all authority, and a sorted unique list means scoped authority (with the v1 single-label ruling, a scoped Declassify serializes as a one-element list). Its imported signatures must retain positive parameter labels and feed the same Check A/Check C logic and result-label policy as local signatures. Reserve wildcard for summary encoding; do not interpret a user label as wildcard accidentally. Do not build a second checker or ship a bool-based IFC cache schema as an interim representation. This sprint owns local semantics and reusable authority/check helpers; the companion owns serialization, digest/cache invalidation, import resolution and CLI/REPL integration.
 
 Planning PR title/body and milestone commits use Refs #752 and Refs #1134. Only the implementation PR uses the closing keyword for #752; #1134 remains open until its own companion implementation PR. Do not close the runtime tracing issue as a side effect.
 
-## Design clarification required before execution
+## Maintainer ruling: single-label Declassify in v1 (Mark, 2026-10-08)
 
-The source design has an extra closing bracket in one syntax example and says a label key accepts a comma-separated label list. Actual parseEffectParams accepts only identifier key=value pairs and rejects duplicate keys; a comma introduces a new key. No parser grammar extension was approved.
+Declassify takes a **single** label in v1: `Declassify[label=email]`. There is no parser change and no repeated atoms. The parser keeps rejecting duplicate effect names (`internal/parser/parser_effect.go:91-95`, `PAR_EFF001_DUP`), so `! {Declassify[label=a], Declassify[label=b]}` remains a parse error, and that is intended. A function that must relabel more than one label declares bare `! {Declassify}` in v1. Multi-label scoped authority is future work and needs its own design. The ruling is recorded as a dated note in the design doc, which also fixes its `Declassify[label=email]]` typo and its "comma-separated label list" wording.
 
-Recommended resolution: use repeated existing scoped effect atoms to express multiple labels, normalize their label values into a sorted unique set, and make a bare atom dominate regardless of order. Both IFC signature construction and effect-row elaboration must use the same normalization, avoiding today's last-write-wins parameter map. Single-label syntax remains the existing Declassify[label=email] form. Before coding, record maintainer approval of this interpretation in the design/plan; if comma-list syntax is required instead, revise the parser design and estimate through the design gate. Do not silently invent syntax or restrict the approved set semantics to one label. Empty values, unknown keys, malformed atoms and reserved wildcard inputs must fail loudly.
+parseEffectParams already accepts `label=email` as an identifier key=value pair and rejects duplicate keys, so the existing grammar suffices. Internally the authorized labels stay a set (⊤ or exactly one label in v1) so the covering rule and the companion's label-list summary need no reshaping when multi-label lands. Empty values, unknown keys (for example `Declassify[mode=x]`), malformed atoms and a user-supplied reserved wildcard (`label=*` or equivalent) must fail loudly.
 
 Effect validation subsumption is directional: SubsumeEffectRows(requiredBody, declaredAuthority) requires the declaration to cover the body's required set. Function-value effect rows remain invariant in Unifier.unifyRows; do not weaken them by globally replacing symmetric compatibility with a covering test. Audit DiffEffectRows, all effectParamsCompatible callers, row merging and diagnostic paths before choosing the helper boundary.
 
@@ -36,7 +36,7 @@ Effect validation subsumption is directional: SubsumeEffectRows(requiredBody, de
 
 Ran sprint-planner/scripts/analyze_velocity.sh 7 and read CHANGELOG.md plus changelogs/v0.32-current.md. The latter records v0.52.5 fixes and v0.52.4 additions on 2026-10-07, but supplies no reliable comparable IFC LOC/day measurements. This checkout is shallow with one visible documentation commit, no HEAD~1 and no usable seven-day implementation delta. The script's historical LOC grep and N/A diff are not a measured daily velocity.
 
-Use the design's three-day baseline plus one day (33%) for normalization, effect-direction audit and security review. Planning capacity is 180 LOC/day, an assumption rather than observed throughput. Re-estimate after M1 if the approved representation needs broader row changes. No coverage build was run for a docs-only plan; record baseline package coverage during execution rather than claiming an unmeasured percentage.
+Use the design's three-day baseline plus one day (33%) for the effect-direction audit, compatibility audit and security review. Planning capacity is 180 LOC/day, an assumption rather than observed throughput. M1 was re-estimated down from 240 to 180 LOC after the single-label ruling removed repeated-atom normalization; re-estimate after M1 if the directional-coverage audit needs broader row changes. No coverage build was run for a docs-only plan; record baseline package coverage during execution rather than claiming an unmeasured percentage.
 
 ## Registry reuse audit
 
@@ -44,18 +44,18 @@ Ran ailang pkg search ifc on 2026-10-08; the sole candidate was sunholo/linkedin
 
 ## Milestones and daily tasks
 
-### M1: Scoped effect representation and validation (~240 LOC)
+### M1: Scoped effect representation and validation (~180 LOC)
 
-**Day 1; 6 hours.** 110 implementation + 130 tests. Dependencies: approved syntax/normalization clarification above.
+**Day 1; 5 hours.** 80 implementation + 100 tests. Dependencies: none (syntax settled by the 2026-10-08 ruling above).
 
-Audit effects.go's schema, validation, defaults, elaboration, row merge/formatting and compatibility call sites. Add only the Declassify.label open-vocabulary exception. Normalize repeated atoms consistently; separate directional authority coverage from invariant function-value equality. Table-test bare/scoped/none, subset/superset/incomparable scopes, malformed values, duplicates and order independence. Check inference does not erase scoped requirements when joining callee effects.
+Audit effects.go's schema, validation, defaults, elaboration, row merge/formatting and compatibility call sites. Add only the Declassify.label open-vocabulary exception (single label per atom). Separate directional authority coverage from invariant function-value equality. Table-test bare/scoped/none, same/different single-label scopes, bare covering scoped, malformed and empty values, reserved wildcard input, and that a duplicated Declassify atom is still rejected by the parser with PAR_EFF001_DUP. Check inference does not erase scoped requirements when joining callee effects.
 
-**Files:** internal/types/effects.go, effects_test.go and existing effect schema/row tests; internal/types/row_unification.go only if the audit identifies a required invariant-preserving normalization adjustment. Inspect internal/parser/parser_effect.go and parser_effect_params_test.go; no new grammar planned.
+**Files:** internal/types/effects.go, effects_test.go and existing effect schema/row tests; internal/types/row_unification.go only if the audit identifies a required invariant-preserving normalization adjustment. Inspect internal/parser/parser_effect.go and parser_effect_params_test.go; no parser change (add at most a regression test pinning PAR_EFF001_DUP for duplicate Declassify atoms).
 **Examples:** no new example in M1; M4 supplies scoped examples after validation and checking agree.
 
 - [ ] Scoped single-label atoms validate; unknown keys and malformed/empty values fail loudly.
-- [ ] Approved multi-label representation normalizes without last-write-wins loss; mixed bare/scoped atoms yield all authority in either order.
-- [ ] Declared superset covers required subset; scoped declaration cannot cover bare or an unrelated scope; a missing effect still fails.
+- [ ] Duplicate Declassify atoms (scoped or mixed bare/scoped) still fail with PAR_EFF001_DUP; no parser grammar change; a reserved wildcard label is rejected.
+- [ ] Bare covers any scope and a scope covers itself; a scoped declaration cannot cover bare or a different label; a missing effect still fails.
 - [ ] Rand/AI defaults and exact parameter invariance, budgets, row variables and function-value effect invariance retain existing behavior.
 
 **Risk:** weakening shared effect comparisons. Mitigate with a separate directional helper and regression tests for every affected caller.
@@ -96,19 +96,34 @@ Add Check C to the local resolved-callee path, using each already-computed argum
 
 **Day 4; 7 hours including review buffer.** 20 implementation cleanup + 20 integration tests + 60 examples/docs. Dependencies: M3.
 
-Obtain the current ailang prompt before writing any .ail files. Add examples/runnable/secrets/scoped_declassify.ail and positive_label_call.ail; type-check using a freshly built binary and run positive examples with their declared capabilities. Keep negative cases in test fixtures. Update examples/runnable/secrets/README.md, docs/docs/guides/ifc-labels.mdx and the current changelog. Inspect teaching-prompt claims; if edits are needed, route through prompt-manager rather than expanding this sprint silently. Record the scoped-authority handoff contract for #1134 and the landed commit after approval/merge.
+Obtain the current ailang prompt before writing any .ail files. Add examples/runnable/secrets/scoped_declassify.ail and positive_label_call.ail; type-check using a freshly built binary and run positive examples with their declared capabilities. Keep negative cases in test fixtures. Update examples/runnable/secrets/README.md, docs/docs/guides/ifc-labels.mdx and the current changelog. Inspect teaching-prompt claims; if edits are needed, note them in the sprint JSON notes as follow-up rather than expanding this sprint silently. Record the scoped-authority handoff contract for #1134 in the sprint JSON notes. Run the compatibility audit below and record each actual verdict next to the expected one.
 
 **Files:** the two named new examples, README.md, ifc-labels.mdx, changelogs/v0.32-current.md, existing IFC integration test harnesses.
 
 - [ ] Both new examples check and run as documented; gated_secret and secret_demo retain clean verdicts and leak_attempt retains its expected single SinkRefinementError.
 - [ ] Design V1–V8 mechanisms have regression coverage, including intentional Check C rejection, scoped propagation and bare compatibility.
-- [ ] Focused Go tests for internal/types and internal/parser pass; make test, make lint and make check-boundaries pass using the rebased implementation tree.
+- [ ] Compatibility audit verdicts below match expectations (any deviation is explained in notes, not silently accepted).
+- [ ] `go test ./internal/types/... ./internal/parser/...` and `make test-core` pass, plus make lint and make check-boundaries. Do not run the full `make test` locally (it has crashed executors with SIGBUS in RAM-backed /tmp); CI runs the full suite on the PR.
 - [ ] Documentation explains opt-in scopes, bottom acceptance, blanket-authority hazard and deliberate rejection of cross-label calls; no runtime IFC or cross-module completion is claimed.
 
 **Risk:** stale binary masks results. Build before CLI verification and record exact tested revision and command results.
+
+### Compatibility audit (M4, expected verdicts)
+
+Run with a freshly built binary. "Before" is origin/dev; "after" is this sprint. None of these files uses scoped Declassify, and every positive-labelled parameter they call receives either a matching label or an unlabelled literal (⊥), so Check C should not fire on any of them.
+
+| File | Command | Expected before | Expected after | Why |
+|------|---------|-----------------|----------------|-----|
+| examples/runnable/contracts/inbox_injection_v2.ail | `ailang verify` | 5 functions: 3 verified, 2 violations (injectedForward, attemptLaunder) | unchanged | sanitizeBody keeps bare Declassify (whole-body, legacy semantics); its `<email>` param receives `<email>` args; main passes a literal (⊥) |
+| examples/runnable/contracts/inbox_v2_app.ail | `ailang verify` | 5 functions: 3 verified, 2 violations | unchanged | sanitizeBody is local; `m.body` is `<email>` from the imported Mail type and covers the `<email>` param; imported-callee Check C is the companion's scope |
+| benchmarks/prompt_injection/expected_ailang_safe.ail | `ailang verify` | 3 verified, 0 violations | unchanged | bare Declassify; `<email>` arg into `<email>` param |
+| benchmarks/prompt_injection/expected_ailang_injected.ail | `ailang verify` | 2 verified, 1 violation (injectedForward) | unchanged | the violation is the Z3 ensures failure; main's literal arg is ⊥ |
+| std/secret.ail | `ailang check` | clean | unchanged | `secret` has unlabelled params and no Declassify; its `<secret>` result is unaffected. Importers (examples/runnable/secrets: gated_secret, secret_demo clean; leak_attempt one SinkRefinementError) keep their verdicts per the first M4 criterion |
+
+If any verdict changes, stop and record it: either the change is the intended #752 rejection (then update the file's header comment and the guide in the same milestone) or it is a regression to fix.
 
 ## Success and handoff
 
 All acceptance criteria above are required. Track internal/types coverage before/after; do not reduce IFC branch coverage, and exercise new authorization and coverage branches explicitly rather than relying only on a global percentage. M4 integration review checks no TLabelled changes reach CoreTI/codegen and no module layer boundary changes are introduced.
 
-JSON progress is .ailang/state/sprints/sprint_M-IFC-AUTHORITY-SCOPING.json; all milestone passes remain null. Scheduling approval does not itself authorize execution. Submit plan and populated JSON for review; after plan approval and explicit execution authorization, hand off to sprint-executor then sprint-evaluator. The coordinator's plan-PR merge workflow may supply that authorization; do not dispatch code work before it. No separate outbound message is necessary while the coordinator consumes the artifact markers.
+JSON progress is .ailang/state/sprints/sprint_M-IFC-AUTHORITY-SCOPING.json; all milestone passes remain null. Merging this plan PR is the execution authorization: the coordinator dispatches sprint-executor on merge, followed by sprint-evaluator. There is no separate pre-coding approval step. The executor works on its own branch and opens a PR; it does not push to dev or merge, and the landed commit is recorded by the coordinator, not by the executor.
