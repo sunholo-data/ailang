@@ -5897,12 +5897,12 @@ benchmark_suite:
     # ⚠️ Costs 2x sol ($10/$50 vs $5/$30) — it is the expensive seat in this suite, so trim it
     # first if a run needs to shrink. sol is KEPT below as the cost-effective longitudinal
     # anchor rather than being retired (the claude-sonnet-5 / sonnet-4-6 precedent).
-  - "gpt6-sol"         # OpenAI cheaper reference — REPLACED gpt5-6-sol 2026-10-08 (Mark: refresh the
-    # suite to the current generation). The seat's job is "the cheaper OpenAI reference" next to
-    # astra; gpt6-sol now is: $2/$10 vs gpt5-6-sol's $5/$30, anchored standard placement 2288.7
-    # (core+frontier 28/29, 2026-09-22) and AILANG core 23/23. On the rolling board (2026-10-08)
-    # gpt6-sol 2349 vs gpt5-6-sol 1949 (gpt5-6-sol has only 3 core rows since 2026-08-27, so that
-    # gap is indicative, not a gate). gpt5-6-sol stays registered for longitudinal reads.
+  - "gpt6-1-sol"       # OpenAI cheaper reference — gpt6-1-sol SUPERSEDES gpt6-sol (Mark, 2026-10-08: "we
+    # should supersede to sol 6.1"), same $2/$10. gpt6-sol had briefly replaced gpt5-6-sol the
+    # same day (the seat's job: the cheaper OpenAI reference next to astra). gpt6-1-sol is
+    # already executor rung 1 and agent core 23/23 (v0.51.0); its standard placement is still
+    # to run (~$0.6 for core). gpt6-sol's 2026-10-08 agent core fill is its last eval run;
+    # gpt5-6-sol and gpt6-sol stay registered for longitudinal reads.
   - "claude-opus-5-5"  # Anthropic flagship — REPLACED claude-opus-5 2026-10-08 (Mark: refresh the suite
     # to the current generation). Cheaper ($4/$20 vs $5/$25), anchored standard placement 2871.9
     # (core+frontier 29/29 — a floor, not a ceiling; 2026-09-22), AILANG core 23/23.
