@@ -1,0 +1,80 @@
+{
+  "sprint_id": "M-VM-STACK-LIMIT-PARITY",
+  "status": "not_started",
+  "created": "2026-10-08T20:13:42Z",
+  "design_doc": "design_docs/planned/v1_0_0/m-vm-stack-limit-parity.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-vm-stack-limit-parity-sprint-plan.md",
+  "github_issues": [
+    1576
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "search_terms": [],
+      "reason": "Registry search not applicable: core VM/runner depth enforcement and its CLI regression tests/documentation are not package-like capabilities; no registry dependency can replace these internal contracts."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "search_terms": [],
+      "reason": "Registry search not applicable: core VM/runner depth enforcement and its CLI regression tests/documentation are not package-like capabilities; no registry dependency can replace these internal contracts."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 220,
+    "estimated_total_loc": 220,
+    "estimated_days": 1,
+    "basis": "Design estimate plus validation buffer; shallow history supplies no measured LOC/day."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Enforce the production depth contract",
+      "estimated_loc": 60,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "New VM construction has MaxStack 10000; explicit smaller caps still overflow and tail calls stay constant-depth.",
+        "Pure non-tail depth 200 with `--bytecode --strict-bytecode --max-recursion-depth 50` exits nonzero with `stack overflow`; demonstrate red before wiring and green after (design AC3).",
+        "Default and positive override paths are covered; zero/negative values retain the default rather than disabling the cap.",
+        "`go test ./internal/vm/...` and the focused new CLI contract tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Lock service parity and reconcile the corpus",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Service handler with non-tail rep(1170), stdin `hello\\nvoice\\n`, and `--bytecode --verbose --caps IO --entry main` exits 0 with exactly four stdout lines: HELLO, ASK, HANDLED len=1170, HANDLED-AFTER; stderr has no `falling back to evaluator` (AC1). Compare the interpreter output too.",
+        "Standalone rep(5000) prints exactly START once and DONE len=5000, exits 0, and has no fallback warning under `--bytecode --verbose` (AC2).",
+        "Pure depth 9000 succeeds with identical interpreter/strict-VM output; depth 11001 fails loudly on both, with RT_REC_003 for the interpreter and stack overflow for the strict VM (AC4). IO-free strict fixtures return a computed value.",
+        "`go test ./internal/vm/... ./internal/testing/... ./cmd/ailang/...` passes, including named-test engine depth wiring, frame reuse, existing fallback messages, and tail-call parity (AC5).",
+        "Limitations reference documents default 10,000 and the shared flag, while distinguishing VM frame counting from evaluator depth accounting (AC6).",
+        "Run the full parity harness after rebuilding; reconcile every changed row by filename and status against the baseline (AC7). Record counts, commands, binary provenance, and timings. Never accept totals alone or a fallback as proof of VM success.",
+        "`make fmt`, `make lint`, and `git diff --check` pass; fixture type-checking and elapsed integration-test timings are recorded."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "related_design_docs": [
+    "design_docs/planned/v1_0_0/m-bytecode-vm-parity-bugs.md"
+  ],
+  "handoff": {
+    "target": "sprint-executor",
+    "dispatch": "coordinator approval/merge",
+    "pr_body_required": "Refs #1576",
+    "scope": "F1-F3 and AC1-AC7; B4 unsafe replay and optional quiet-warning follow-up remain separate."
+  }
+}
