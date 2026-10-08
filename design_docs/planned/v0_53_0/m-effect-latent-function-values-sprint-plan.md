@@ -1,6 +1,6 @@
 # M-EFFECT-LATENT-FUNCTION-VALUES sprint plan
 
-**Status**: Planned — scheduling authorized; execution awaits sprint-plan approval.
+**Status**: Planned — scheduling authorized; release-scope freezes ruled by Mark 2026-10-08 (see Scope decisions); execution awaits sprint-plan approval.
 **Date**: 2026-10-08
 **Target**: v0.53.0; move to v0.54.0 if the v0.53.x train is closed. Do not ship this acceptance-changing fix as a v0.52.x patch.
 **Design**: [approved design](../v0_48_0/m-effect-latent-function-values.md), merged in #1378.
@@ -19,7 +19,7 @@ The velocity script found one documentation commit in this shallow seven-day his
 
 ## Merge order and ownership
 
-1. **This latent-function-values implementation lands first.** L0 canonicalizes effect-label payloads; L1 preserves concrete annotation labels; L2 charges known latent labels. It does not depend on solving row-variable tails and must leave UnionEffectRows, DiffEffectRows and extractEffectFromType tail semantics unchanged.
+1. **This latent-function-values implementation lands first** — before M-EFFECT-ROW-VAR-UNIFICATION (#616; its sprint-plan PR #1678 is on hold), which will extend this plan's per-App publication (`LatentParamMask` plus the resolved call row) rather than add a second one. L0 canonicalizes effect-label payloads; L1 preserves concrete annotation labels; L2 charges known latent labels. It does not depend on solving row-variable tails and must leave UnionEffectRows, DiffEffectRows and extractEffectFromType tail semantics unchanged.
 2. **#616 lands second**, after rebasing onto this fix. Its design at [M-EFFECT-ROW-VAR-UNIFICATION](../v1_0_0/m-effect-row-var-unification.md) proposes CallEffects[appID] and affects application constraints and tail algebra. Extend a single per-App publication to carry both the latent-parameter mask and resolved call row; retain the mask's pre-instantiation provenance and fail-loud invariant. Do not reconstruct it from instantiated CoreTypeInfo or create two independent authorities.
 3. Serialize edits to internal/types, internal/pipeline/validate_effects.go and pipeline compiler plumbing. Before #616 merge, run this sprint's full arm matrix plus #616 AC1–AC12 against the combined tree, especially concrete-row recursive contamination, stored callbacks, and cross-module accept/reject pairs. A green suite alone is insufficient.
 
@@ -62,24 +62,34 @@ Update internal/types/typechecker_functions.go, typechecker_literals.go and the 
 - [ ] Missing publication for a successfully typed function App raises an internal invariant error; a false mask and absent entry are distinct. Tests cover pre-instantiation openness surviving concrete instantiation.
 - [ ] Same-module concrete-row recursive calls retain contamination-safe declared rows; no tail union/diff changes.
 
+**File-size gate:** on origin/dev `internal/types/typechecker_core.go` is 799 lines and `typechecker_functions.go` is 778; CI `make check-file-sizes` fails any file over 800. Put new code (mask publication, callee-path handling, metadata accessors) in companion files (e.g. `typechecker_latent_mask.go`), keeping edits to those two files to call sites of a few lines.
+
 Example: HOF accept arm to be added in M4. Risk: scheme provenance can be lost before inferApp; record it at lookup rather than infer openness from the instantiated type.
 
 ### M4: End-to-end evidence, runnable example and migration docs (~100 LOC)
 
 **Day 5**, 6 hours. Dependencies: M1, M2, M3. Approximately 50 tests + 50 example/documentation LOC.
 
-Create examples/runnable/effect_latent_function_values.ail and its examples/manifest.json entry. Show accepted declared-effect HOF and field invocation and pure storage-only hook construction; negative programs stay in Go tests. Read ailang prompt before writing AILANG. Update CHANGELOG.md with Breaking — soundness and signature migration, docs/LIMITATIONS.md where applicable, and the active teaching prompt through the repository prompt workflow. Correct the misleading mechanism comment in internal/pipeline/effect_pure_row_overgeneralization_test.go.
+Create examples/runnable/effect_latent_function_values.ail and its examples/manifest.json entry. Show accepted declared-effect HOF and field invocation and pure storage-only hook construction; negative programs stay in Go tests. Read ailang prompt before writing AILANG. Update CHANGELOG.md with Breaking — soundness and signature migration (naming the known external consumers that may start failing `check`: motoko_agent `ExtCtx.ports` hooks, docparse, ailang-parse), docs/LIMITATIONS.md where applicable, and the active teaching prompt through the repository prompt workflow. Correct the misleading mechanism comment in internal/pipeline/effect_pure_row_overgeneralization_test.go.
 
 - [ ] AC11: tree-walk and bytecode run reject R1/R3 before execution; no side-effect marker appears.
-- [ ] AC12: compare fresh base/fixed example pass/fail sets and std import-probe sets; no unintended status changes. Recount current corpus, rather than asserting historical 425/49 counts.
+- [ ] AC12: compare fresh base/fixed example pass/fail sets and std import-probe sets; no unintended status changes. Recount current corpus, rather than asserting historical 425/49 counts. Any example or std file that flips status is recorded by name in the CHANGELOG with its migration (the `! {…}` row to add or the call to move).
 - [ ] New example checks and runs with required IO capability and expected output; pure storage-only construction checks without IO.
 - [ ] Mutation evidence and package/full repository checks below pass; report coverage and changed outcomes, then run sprint-evaluator after execution.
 
 ## Validation and success metrics
 
-Use AILANG_NO_CACHE=1 and fresh temporary module paths for every arm. Rebuild the binary from the implementation checkout and record its exact SHA; do not trust installed version stamps. First bank current expected exit codes/output and the current corpus baseline. Run focused go test ./internal/types ./internal/elaborate ./internal/pipeline ./internal/iface, then make test, make lint, make check-boundaries, and make verify-examples using available repository targets. Compare any pre-existing example failures rather than attributing them to this fix. No benchmark run is required for this compile-time correction.
+Use AILANG_NO_CACHE=1 and fresh temporary module paths for every arm. Rebuild the binary from the implementation checkout and record its exact SHA; do not trust installed version stamps. First bank current expected exit codes/output and the current corpus baseline. Run focused `go test ./internal/types/... ./internal/elaborate/... ./internal/pipeline/... ./internal/iface/...`, then `make test-core`, `make check-file-sizes`, `make lint`, `make check-boundaries` and `make verify-examples`. Do **not** run a full `make test` in the executor: the full suite runs in CI, and a full `make test` in RAM-backed /tmp has crashed executors with SIGBUS. Executors cannot push or merge; the PR's CI run is the full-suite gate. Compare any pre-existing example failures rather than attributing them to this fix. No benchmark run is required for this compile-time correction.
 
 All design AC1–AC12 are mandatory. AC13 applies only to the deferred closed-row phase. Each modified rule needs a direct positive and negative control; collect changed-package coverage without inventing a repository baseline or claiming historical prototype coverage. Revert each component temporarily and restore it after recording results: L2 removal makes AC1–AC4 red while annotation cases stay green; L1 removal makes AC5–AC6 red; removing the open-parameter gate makes storage controls red; removing D4 makes shadowing red. For L0, revert canonicalization and unifier protection together for the DOM integration mutation, and test each half independently because either can mask the other's removal.
+
+## Review notes 2026-10-08
+
+- Maintainer rulings recorded above (L1-open now; minor bump, no opt-out).
+- File-size gate added to M3 and to Validation: `typechecker_core.go` (799) and `typechecker_functions.go` (778) are at the 800-line CI limit; new code goes to companion files.
+- Executor gates replaced: focused package tests + `make test-core`, `make check-file-sizes`, `make verify-examples` (no full `make test` — SIGBUS in RAM-backed /tmp; full suite runs in CI). Executors cannot push or merge.
+- AC12 status flips must be named in the CHANGELOG with their migration; the CHANGELOG names external consumers (motoko_agent `ExtCtx.ports` hooks, docparse, ailang-parse).
+- Ordering: lands before M-EFFECT-ROW-VAR-UNIFICATION (#616, plan PR #1678 on hold), which extends this plan's per-App publication.
 
 ## Registry reuse
 
@@ -87,6 +97,6 @@ Ran ailang pkg search effects on 2026-10-08: returned sunholo/billing_entitlemen
 
 ## Scope decisions and handoff
 
-Plan recommendation is to ship L1-open in the next minor release with no opt-out. The approved design still has unchecked human freezes for L1-open versus holding for closed rows, and the breaking-change posture. Sprint-plan approval must explicitly ratify this release scope before implementation; scheduling approval alone is not recorded as that ruling. Closed rows/open-on-use and V13 width enforcement are excluded from this 750-LOC estimate. Record V13 as a limitation linked to the existing issues; do not create another GitHub issue in this task.
+**Maintainer rulings (Mark, 2026-10-08):** (1) ship L1-open now — do not hold the release for closed rows (V13 width hole stays Phase 3, behind a spike); (2) accept the breaking-change posture — minor bump, CHANGELOG "Breaking — soundness", no opt-out flag. Both are recorded as ticked Design Freeze items in the [design](../v0_48_0/m-effect-latent-function-values.md). Sprint-plan approval remains the execution gate. Closed rows/open-on-use and V13 width enforcement are excluded from this 750-LOC estimate. Record V13 as a limitation linked to the existing issues; do not create another GitHub issue in this task.
 
 The planning PR body must contain Refs #1326, Refs #573 and Refs #616, with no closing keywords. Only the implementation PR, after AC1–AC12 pass, should contain Closes #1326 and Closes #573; retain Refs #616. Do not close #616 here. No GitHub issue is created. Plan/JSON remain not_started for the coordinator's approval path; merging the approved planning PR is the coordinator handoff, or an attended user says execute sprint. Do not dispatch execution before that gate.

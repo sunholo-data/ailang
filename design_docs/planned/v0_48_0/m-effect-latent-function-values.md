@@ -592,8 +592,8 @@ The prototype already demonstrated rows 1, 2 and 3 in both directions (V16, V18)
 - [x] Charge at application / at polymorphic hand-off, not at reference (V18 settles it).
 - [x] Unannotated callbacks are caller-charged; no std signature change in this milestone.
 - [x] `LatentParamMask` is an explicit, fail-loud type-checker output.
-- [ ] **Human:** ship L1-open in Phase 1 and treat the width hole (V13) as Phase 3 behind a spike — or hold the release for L1-closed. (Recommendation: ship Phases 0–2; both reported issues close without Phase 3.)
-- [ ] **Human:** confirm the breaking-change posture (minor bump, CHANGELOG "Breaking — soundness", no opt-out flag).
+- [x] **Human:** ship L1-open in Phase 1 and treat the width hole (V13) as Phase 3 behind a spike — or hold the release for L1-closed. (Recommendation: ship Phases 0–2; both reported issues close without Phase 3.) — **Ruled 2026-10-08 by Mark: ship L1-open now; do not hold for closed rows.**
+- [x] **Human:** confirm the breaking-change posture (minor bump, CHANGELOG "Breaking — soundness", no opt-out flag). — **Ruled 2026-10-08 by Mark: accepted (minor bump, no opt-out).**
 
 ## Deferred Decisions
 

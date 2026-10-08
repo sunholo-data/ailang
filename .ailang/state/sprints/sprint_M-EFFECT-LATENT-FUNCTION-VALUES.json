@@ -64,7 +64,7 @@
         "M1"
       ],
       "acceptance_criteria": [
-        "AC5\u2013AC6: R3 and all field/parameter/alias/ADT/update variants reject at the offending caller, naming IO; FS-only caller blames rowless rather than main.",
+        "AC5–AC6: R3 and all field/parameter/alias/ADT/update variants reject at the offending caller, naming IO; FS-only caller blames rowless rather than main.",
         "AC7: stored-never-called hooks, closed-annotated storage-only callback and all package-ceiling controls stay accepted.",
         "Missing-effect rejection requires effect-check diagnostic and correct function, not an unrelated parse/type error."
       ],
@@ -82,10 +82,11 @@
         "M2"
       ],
       "acceptance_criteria": [
-        "AC1\u2013AC4: local HOF, sortBy and all six leaky std HOFs, cross-module recursive/forwarding/std-forwarding shapes and wrong FS row reject naming IO at the pure caller.",
-        "AC7\u2013AC8: storage-only callback controls, inferred-polymorphic combinator, pure-importer genuine-effect rejection and mapE example preserve their expected outcomes.",
+        "AC1–AC4: local HOF, sortBy and all six leaky std HOFs, cross-module recursive/forwarding/std-forwarding shapes and wrong FS row reject naming IO at the pure caller.",
+        "AC7–AC8: storage-only callback controls, inferred-polymorphic combinator, pure-importer genuine-effect rejection and mapE example preserve their expected outcomes.",
         "Missing publication for a successfully typed function App raises an internal invariant error; a false mask and absent entry are distinct. Tests cover pre-instantiation openness surviving concrete instantiation.",
-        "Same-module concrete-row recursive calls retain contamination-safe declared rows; no tail union/diff changes."
+        "Same-module concrete-row recursive calls retain contamination-safe declared rows; no tail union/diff changes.",
+        "make check-file-sizes passes: new type-checker code lives in companion files, not typechecker_core.go (799) or typechecker_functions.go (778)."
       ],
       "passes": null,
       "started": null,
@@ -103,9 +104,10 @@
       ],
       "acceptance_criteria": [
         "AC11: tree-walk and bytecode run reject R1/R3 before execution; no side-effect marker appears.",
-        "AC12: compare fresh base/fixed example pass/fail sets and std import-probe sets; no unintended status changes. Recount current corpus, rather than asserting historical 425/49 counts.",
+        "AC12: compare fresh base/fixed example pass/fail sets and std import-probe sets; no unintended status changes. Recount current corpus, rather than asserting historical 425/49 counts. Any example/std file that flips status is named in the CHANGELOG with its migration.",
         "New example checks and runs with required IO capability and expected output; pure storage-only construction checks without IO.",
-        "Mutation evidence and package/full repository checks below pass; report coverage and changed outcomes, then run sprint-evaluator after execution."
+        "Mutation evidence and package/full repository checks below pass; report coverage and changed outcomes, then run sprint-evaluator after execution.",
+        "CHANGELOG Breaking — soundness entry names external consumers: motoko_agent ExtCtx.ports hooks, docparse, ailang-parse."
       ],
       "passes": null,
       "started": null,
@@ -121,7 +123,32 @@
   "approval_status": "awaiting_sprint_plan_approval",
   "merge_order": [
     "M-EFFECT-LATENT-FUNCTION-VALUES",
-    "#616 rebased onto the latent-effects implementation"
+    "M-EFFECT-ROW-VAR-UNIFICATION (#616, plan PR #1678 on hold) rebased onto this implementation, extending its per-App publication (LatentParamMask + call row)"
   ],
-  "execution_gate": "Sprint-plan approval ratifies L1-open and minor-release breaking posture; then coordinator approval handoff or explicit execute sprint."
+  "execution_gate": "Release-scope freezes ruled by Mark 2026-10-08; execution awaits sprint-plan approval (coordinator approval handoff or explicit execute sprint).",
+  "maintainer_rulings": [
+    {
+      "date": "2026-10-08",
+      "ruled_by": "Mark",
+      "decision": "Ship L1-open now; do not hold for closed rows (V13 stays Phase 3 behind a spike)."
+    },
+    {
+      "date": "2026-10-08",
+      "ruled_by": "Mark",
+      "decision": "Breaking-change posture accepted: minor bump, CHANGELOG 'Breaking — soundness', no opt-out flag."
+    }
+  ],
+  "validation_gates": [
+    "go test ./internal/types/... ./internal/elaborate/... ./internal/pipeline/... ./internal/iface/...",
+    "make test-core",
+    "make check-file-sizes",
+    "make lint",
+    "make check-boundaries",
+    "make verify-examples"
+  ],
+  "executor_notes": [
+    "Do not run full `make test` (SIGBUS in RAM-backed /tmp); full suite runs in CI.",
+    "Executors cannot push or merge.",
+    "internal/types/typechecker_core.go is 799 lines and typechecker_functions.go 778 on origin/dev; CI fails >800 — put new code in companion files."
+  ]
 }
