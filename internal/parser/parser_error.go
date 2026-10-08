@@ -92,43 +92,8 @@ func (p *Parser) peekError(t lexer.TokenType) {
 	pos := ast.Pos{Line: p.peekToken.Line, Column: p.peekToken.Column, File: p.peekToken.File}
 
 	// Check if peekToken is a reserved keyword when we expected IDENT
-	if t == lexer.IDENT && p.peekToken.IsKeyword() {
-		msg := fmt.Sprintf("expected identifier, got reserved keyword '%s'", p.peekToken.Literal)
-		suggestions := []string{
-			fmt.Sprintf("Use a different name instead of '%s'", p.peekToken.Literal),
-			fmt.Sprintf("'%s' is a reserved keyword in AILANG", p.peekToken.Literal),
-		}
-
-		// Add context-specific suggestions
-		switch p.peekToken.Type {
-		case lexer.EXISTS:
-			suggestions = append(suggestions,
-				"'exists' is reserved for existential types (future feature)",
-				"Try: let found = ... or let doesExist = ...",
-			)
-		case lexer.FORALL:
-			suggestions = append(suggestions,
-				"'forall' is reserved for universal type quantification",
-			)
-		case lexer.IF, lexer.THEN, lexer.ELSE:
-			suggestions = append(suggestions,
-				"Control flow keywords cannot be used as names",
-			)
-		case lexer.MATCH, lexer.WITH:
-			suggestions = append(suggestions,
-				"Pattern matching keywords cannot be used as names",
-			)
-		}
-
-		err := NewSuggestionError(
-			"PAR_RESERVED_KEYWORD",
-			pos,
-			p.peekToken,
-			msg,
-			suggestions,
-			"https://ailang.sunholo.com/docs/reference/reserved-keywords",
-		)
-		p.errors = append(p.errors, err)
+	if t == lexer.IDENT && lexer.IsReservedKeyword(p.peekToken.Literal) {
+		p.errors = append(p.errors, reservedKeywordError(p.peekToken, "PAR_RESERVED_KEYWORD"))
 		return
 	}
 
@@ -279,4 +244,34 @@ func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 // Errors returns parser errors
 func (p *Parser) Errors() []error {
 	return p.errors
+}
+
+// reservedKeywordError shares cause, alternatives and position across name sites.
+func reservedKeywordError(token lexer.Token, code string) *ParserError {
+	suggestions := []string{
+		fmt.Sprintf("Use a different name instead of '%s'", token.Literal),
+		fmt.Sprintf("'%s' is a reserved keyword in AILANG", token.Literal),
+	}
+	switch token.Type {
+	case lexer.EXISTS:
+		suggestions = append(suggestions, "'exists' is reserved for existential types (future feature)", "Try: let found = ... or let doesExist = ...")
+	case lexer.FORALL:
+		suggestions = append(suggestions, "'forall' is reserved for universal type quantification")
+	case lexer.IF, lexer.THEN, lexer.ELSE:
+		suggestions = append(suggestions, "Control flow keywords cannot be used as names")
+	case lexer.MATCH:
+		suggestions = append(suggestions, "Pattern matching keywords cannot be used as names")
+	case lexer.WITH:
+		suggestions = append(suggestions, "'with' supports PAR019 dialect detection and is reserved for planned effect-handler syntax (design_docs/planned/v1_1_0/m-effect-handlers.md)", "Try: using, given, or w")
+	case lexer.SEND, lexer.RECV, lexer.TIMEOUT:
+		suggestions = append(suggestions, "Reserved for the planned CSP/session-types lane (design_docs/planned/v1_1_0/m-csp-session-types.md)", "Try: tx, rx, deadline, or expires")
+	case lexer.CHANNEL, lexer.SPAWN, lexer.PARALLEL, lexer.SELECT:
+		suggestions = append(suggestions, "Reserved for the planned concurrency lane", "Try: chan, fork, concurrent, or pick")
+	case lexer.ASSERT:
+		suggestions = append(suggestions, "Reserved for the planned assertion builtin", "Try: check or verify")
+	}
+	pos := ast.Pos{Line: token.Line, Column: token.Column, File: token.File}
+	return NewSuggestionError(code, pos, token,
+		fmt.Sprintf("expected identifier, got reserved keyword '%s'", token.Literal),
+		suggestions, "https://ailang.sunholo.com/docs/reference/reserved-keywords")
 }
