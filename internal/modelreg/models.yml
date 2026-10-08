@@ -1033,7 +1033,13 @@ models:
       2026-09-22/29 placements ran 29). Between gpt6-sol (2288.7) / claude-sonnet-5-5
       (2295.8) and gpt6-luna (2008.2). Only miss: contract_rle_roundtrip (logic_error,
       finish=stop, 1718 reasoning tokens) — capability, not truncation.
-      Agent mode: not yet measured. Suite promotion: PENDING a decision.
+      AGENT 2026-10-08, claude CLI subscription lane, `tier: frontier` (5 benchmarks) N=1:
+      5/5 — contract_rle_roundtrip (its one standard-mode miss), contract_sorted_merge,
+      ssa_constant_fold, markdown_reimplement (13 turns, 747K input) and docx_reimplement
+      (20 turns, 1.73M input, 98s). $0.18 list-price-equivalent (not billed; priced on the
+      <= 100K card, so long turns are understated). Ties gpt6-sol / gpt6-1-sol / gpt6-astra
+      (5/5, 2026-09-30); no agent anchor, so this is a pass profile, not a rating.
+      Suite promotion: PENDING a decision.
 
   # Anthropic Claude Haiku 4.5 (released October 2025)
   claude-haiku-4-5:
