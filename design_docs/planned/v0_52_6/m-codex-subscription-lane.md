@@ -84,10 +84,10 @@ Phase 1's error message points at `chatgpt/` because that is the only subscripti
 
 Before implementation begins, these must be resolved (ratified when this doc is approved):
 
-- [ ] D3 ratified: single-turn `Generate`, `Step(tools)` refused — including the accepted consequence that harness tool loops cannot ride this lane
-- [ ] D6 ratified: `CostListPriceEquivalent` + quota observation, never metered dollars
-- [ ] D7 ratified: same-release replacement, no dual-lane window
-- [ ] D8 ratified: the `motoko-chatgpt-gpt-6-1-sol` row's fate (delegate-to-codex restructure vs. metered-lane move) — needs one measurement of what that row's runs actually do with tools
+- [x] D3 ratified: single-turn `Generate`, `Step(tools)` refused — including the accepted consequence that harness tool loops cannot ride this lane — **Ruled 2026-10-08 by Mark: yes.**
+- [x] D6 ratified: `CostListPriceEquivalent` + quota observation, never metered dollars — **Ruled 2026-10-08 by Mark: yes.**
+- [x] D7 ratified: same-release replacement, no dual-lane window — **Ruled 2026-10-08 by Mark: yes.**
+- [x] D8 ratified: the `motoko-chatgpt-gpt-6-1-sol` row's fate (delegate-to-codex restructure vs. metered-lane move) — needs one measurement of what that row's runs actually do with tools — **Ruled 2026-10-08 by Mark: deferred. Take the measurement first (P2.5) and bring the result back for a ruling; the executor must stop there, not choose.**
 
 ## Solution Design
 
