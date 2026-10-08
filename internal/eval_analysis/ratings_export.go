@@ -91,6 +91,7 @@ func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interf
 	pass := map[string][2]int{}                  // benchmark -> [passed, total]
 	modelBenches := map[string]map[string]bool{} // model -> distinct benchmark ids
 	lastRun := map[string]time.Time{}            // model -> newest result timestamp
+	lastVersion := map[string]string{}           // model -> ailang release of that newest result
 	wins, runs := map[string]int{}, map[string]int{}
 	for _, r := range results {
 		runs[r.Model]++
@@ -99,6 +100,7 @@ func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interf
 		}
 		if r.Timestamp.After(lastRun[r.Model]) {
 			lastRun[r.Model] = r.Timestamp
+			lastVersion[r.Model] = r.AilangVersion
 		}
 		ok := r.Passed()
 		trials = append(trials, eval_harness.Trial{Model: r.Model, Bench: r.ID, Pass: ok})
@@ -149,6 +151,9 @@ func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interf
 		// row says when its newest result was recorded (additive field).
 		if t := lastRun[id]; !t.IsZero() {
 			row["lastRun"] = t.UTC().Format("2006-01-02")
+		}
+		if v := lastVersion[id]; v != "" {
+			row["lastVersion"] = v
 		}
 		models = append(models, row)
 	}

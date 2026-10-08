@@ -18,8 +18,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -93,6 +96,15 @@ func main() {
 		}
 	}
 
+	// Chain stages do not record the ailang version. Stamp each row with the
+	// release that was current when it ran (the newest v* tag created at or
+	// before its timestamp) — the binary that ran it was that release or a dev
+	// build on top of it, which ReleaseTag buckets the same way.
+	releases, err := releaseDates()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: no release tags (%v) — rows exported without ailang_version\n", err)
+	}
+
 	written := 0
 	for i, r := range results {
 		m := r.RunMetrics
@@ -101,6 +113,9 @@ func main() {
 		}
 		if *dryRun {
 			continue
+		}
+		if m.AilangVersion == "" {
+			m.AilangVersion = releaseAt(releases, m.Timestamp)
 		}
 		data, err := json.MarshalIndent(m, "", "  ")
 		if err != nil {
@@ -141,4 +156,45 @@ func skipped(model string, skip []string) bool {
 		}
 	}
 	return false
+}
+
+type release struct {
+	tag string
+	at  time.Time
+}
+
+var releaseTagRE = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
+
+// releaseDates lists the repo's release tags (vX.Y.Z only) oldest first.
+func releaseDates() ([]release, error) {
+	out, err := exec.Command("git", "for-each-ref", "--sort=creatordate",
+		"--format=%(creatordate:unix) %(refname:short)", "refs/tags/v*").Output()
+	if err != nil {
+		return nil, err
+	}
+	var rs []release
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		f := strings.Fields(line)
+		if len(f) != 2 || !releaseTagRE.MatchString(f[1]) {
+			continue
+		}
+		sec, err := strconv.ParseInt(f[0], 10, 64)
+		if err != nil {
+			continue
+		}
+		rs = append(rs, release{f[1], time.Unix(sec, 0)})
+	}
+	return rs, nil
+}
+
+// releaseAt returns the newest release created at or before t ("" if none).
+func releaseAt(rs []release, t time.Time) string {
+	tag := ""
+	for _, r := range rs {
+		if r.at.After(t) {
+			break
+		}
+		tag = r.tag
+	}
+	return tag
 }

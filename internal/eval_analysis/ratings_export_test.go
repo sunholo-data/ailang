@@ -125,7 +125,8 @@ func TestRatingsForMode_AnchoredDropsDegenerateAndStampsLastRun(t *testing.T) {
 	day := func(d int) time.Time { return time.Date(2026, 9, d, 12, 0, 0, 0, time.UTC) }
 	mk := func(id, model string, ok bool, ts time.Time) *BenchmarkResult {
 		return &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: id, Lang: "ailang", Model: model,
-			CompileOk: ok, RuntimeOk: ok, StdoutOk: ok, Timestamp: ts}}
+			CompileOk: ok, RuntimeOk: ok, StdoutOk: ok, Timestamp: ts,
+			AilangVersion: "v0.52." + string(rune('0'+ts.Day()))}}
 	}
 	var results []*BenchmarkResult
 	for i, b := range []string{"fizzbuzz", "gcd_lcm", "csv_to_json_converter"} {
@@ -148,5 +149,8 @@ func TestRatingsForMode_AnchoredDropsDegenerateAndStampsLastRun(t *testing.T) {
 	}
 	if m["lastRun"] != "2026-09-03" {
 		t.Errorf("lastRun = %v, want 2026-09-03 (newest result)", m["lastRun"])
+	}
+	if m["lastVersion"] != "v0.52.3" {
+		t.Errorf("lastVersion = %v, want v0.52.3 (version of the newest result)", m["lastVersion"])
 	}
 }
