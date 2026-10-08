@@ -42,6 +42,16 @@ All four milestones use action **none**: M1 is Go registry/dispatch infrastructu
 
 The original issue suggests approving after checks pass; the approved design delegates waiting to native auto-merge and posts approval after the final push. Follow the approved design, with required checks enforced by the target ruleset. No new polling is planned.
 
+## File-size gate (overrides the design's "New files: none")
+
+CI fails any file above 800 lines (`make check-file-sizes`). `cmd/ailang/coordinator_cloud_github.go` is already 778 lines and this plan adds ~330 LOC of wrapper logic, so the design's "New files: none" is overridden **for the file-size gate only**:
+
+- New file `cmd/ailang/coordinator_cloud_automerge_code.go` holds `requiredChecksPresentOnBase`, `approvePRAsNonAuthor` and the audit helpers (body/label/intent recording, disable-on-failure cleanup). Its tests go in a matching `_test.go` file.
+- `coordinator_cloud_github.go` receives only the mode parameter change on `branchIsAutoMergeable` (plus the minimal call sites into the new file).
+- `internal/coordinator/agent_registry.go` is 750 lines and gains the four AgentConfig fields; keep their comments to one short line each so the file stays well under 800.
+
+No other part of the design changes.
+
 ## Proposed milestones
 
 ### M1: Trusted configuration and dispatch plumbing (~240 LOC)
@@ -53,7 +63,7 @@ The original issue suggests approving after checks pass; the approved design del
 
 **Tasks and acceptance criteria:**
 
-- [ ] Four optional AgentConfig fields round-trip through YAML/JSON; absent values retain docs-only behavior.
+- [ ] Four optional AgentConfig fields round-trip through YAML/JSON; absent values retain docs-only behavior. Field comments in `agent_registry.go` (750 lines) stay to one short line each.
 - [ ] Only trusted registry fields supply dispatch parameters and env; newline-separated checks preserve names containing commas.
 - [ ] Code mode requires auto_merge, non-empty check names, approver secret name, expected identity, and declared patterns; invalid configuration refuses loudly.
 - [ ] Secret material is fetched only inside the job and never appears in dispatch specs, PR bodies, or logs.
@@ -65,7 +75,7 @@ The original issue suggests approving after checks pass; the approved design del
 **Estimated:** 130 implementation + 120 tests + 0 docs/example LOC.
 **Duration:** 1.25 days / 10 hours
 **Dependencies:** M1
-**Files and examples:** `cmd/ailang/coordinator_cloud_github.go`, `coordinator_cloud_automerge_test.go`, `coordinator_cloud_github_test.go` (extend or create helper-focused tests as needed).
+**Files and examples:** `cmd/ailang/coordinator_cloud_github.go` (mode parameter on `branchIsAutoMergeable` only), new `cmd/ailang/coordinator_cloud_automerge_code.go` (`requiredChecksPresentOnBase`), `coordinator_cloud_automerge_test.go`, `coordinator_cloud_automerge_code_test.go` (extend or create helper-focused tests as needed).
 
 **Tasks and acceptance criteria:**
 
@@ -81,7 +91,7 @@ The original issue suggests approving after checks pass; the approved design del
 **Estimated:** 200 implementation + 110 tests + 0 docs/example LOC.
 **Duration:** 1.5 days / 12 hours
 **Dependencies:** M1, M2
-**Files and examples:** `cmd/ailang/coordinator_cloud_github.go`, `coordinator_cloud_github_test.go`; reuse `coordinator_cloud_sshkey.go` secret fetch without broad auth refactoring.
+**Files and examples:** new `cmd/ailang/coordinator_cloud_automerge_code.go` (`approvePRAsNonAuthor`, audit helpers) and `coordinator_cloud_automerge_code_test.go`; only call sites change in `coordinator_cloud_github.go`; reuse `coordinator_cloud_sshkey.go` secret fetch without broad auth refactoring.
 
 **Tasks and acceptance criteria:**
 
@@ -104,7 +114,7 @@ The original issue suggests approving after checks pass; the approved design del
 
 - [ ] Coordinator guide includes opt-in and docs-only YAML examples, required-check semantics, secret permissions, refusal troubleshooting and audit enumeration.
 - [ ] Runbook distinguishes check existence from required-by-ruleset enforcement and requires Mark confirmation before production opt-in.
-- [ ] Relevant package tests, make test, make lint and make check-boundaries pass; record command results and address regressions.
+- [ ] Focused tests (`go test -run 'AutoMerge|Approv|RequiredCheck|AgentConfig'` on the touched packages) and `make test-core` pass, then `make lint check-boundaries check-file-sizes` passes; record command results and address regressions. CGO-unavailable failures are recorded separately, not as regressions.
 - [ ] Staging checklist proves failing required checks block merge and successful checks plus non-author review permit merge; deployment evidence is recorded or explicitly pending.
 - [ ] Daneel rollout requires one staging merge and ten clean production merges; no live registry/ruleset/secret changes are made as part of this repo sprint.
 
@@ -124,7 +134,16 @@ The original issue suggests approving after checks pass; the approved design del
 
 Use table tests and httptest/fake transport for decision and side-effect paths; keep dependency injection narrow. Cover every listed refusal and the successful enable/approve sequence. Target at least 90% statement coverage on new pure parsing/decision helpers, plus branch-oriented API tests; do not claim a repository coverage baseline because it was not measured during planning.
 
-Run focused `go test ./internal/config ./internal/coordinator ./internal/dispatch/cloudrun ./cmd/ailang` while implementing. At completion run `make test`, `make lint`, and `make check-boundaries`; use gofmt for touched Go files. Existing docs-only fixtures must retain their behavior. Verify both guide YAML examples against the real config loader in tests.
+Do not run the full `make test` locally; the full suite runs in CI. `cmd/ailang` and `internal/coordinator` import `mattn/go-sqlite3`, and the executor image may lack a C toolchain, so use `-run` filters:
+
+```
+go test ./internal/config ./internal/dispatch/cloudrun
+go test -run 'AutoMerge|Approv|RequiredCheck|AgentConfig' ./internal/coordinator ./cmd/ailang
+make test-core
+make lint check-boundaries check-file-sizes
+```
+
+If a package fails to build because CGO/a C compiler is unavailable, record that separately as an environment limitation (with the error), not as a regression; CI covers it. Use gofmt for touched Go files. Existing docs-only fixtures must retain their behavior. Verify both guide YAML examples against the real config loader in tests.
 
 Staging evidence must include an in-scope HTML/image PR, an out-of-scope refusal, a failing required check that leaves the PR unmerged, and a successful merge after required checks and non-author review. If credentials are unavailable, record this as pending rather than passed. Production activation remains pending until Mark confirms protection and the rollout gate.
 
@@ -134,6 +153,10 @@ Staging evidence must include an in-scope HTML/image PR, an out-of-scope refusal
 - Provision a repo-limited second-user PAT secret and job service-account access; ensure expected login differs from fleet PR author. PAT is v1; GitHub App token support is deferred.
 - Ensure native auto-merge is enabled for the target repo, the check workflow already runs on base and PRs, and audit labels can be applied.
 - Daneel-side workflow/registry activation and ten-clean-merges observation are deployment work outside this repository implementation. Do not weaken protections or grant bypass.
+
+## Deployment note for Mark (not an executor task)
+
+The approver token is fetched by the job's own service account (`fetchSecret`, `cmd/ailang/coordinator_cloud_sshkey.go:135`), and the agent runs in the same container under the same SA. "Non-author" therefore means a second GitHub login, not a second principal: anything the agent can do, it can do with the approver token too. The real boundary is the target repo's ruleset (required status checks plus `require_last_push_approval`) and a PAT scoped to that one repo. Before flipping a live flag, consider moving the approver secret to a dedicated per-lane executor SA so the code-writing lane cannot read it. This sprint flips no live flag: no registry, ruleset, secret or IAM change is part of it.
 
 ## Coordinator handoff and PR body
 

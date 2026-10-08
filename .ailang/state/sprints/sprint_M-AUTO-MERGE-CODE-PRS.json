@@ -45,7 +45,7 @@
       "estimated_loc": 240,
       "dependencies": [],
       "acceptance_criteria": [
-        "Four optional AgentConfig fields round-trip through YAML/JSON; absent values retain docs-only behavior.",
+        "Four optional AgentConfig fields round-trip through YAML/JSON; absent values retain docs-only behavior. Field comments in agent_registry.go (750 lines) stay to one short line each.",
         "Only trusted registry fields supply dispatch parameters and env; newline-separated checks preserve names containing commas.",
         "Code mode requires auto_merge, non-empty check names, approver secret name, expected identity, and declared patterns; invalid configuration refuses loudly.",
         "Secret material is fetched only inside the job and never appears in dispatch specs, PR bodies, or logs."
@@ -66,7 +66,8 @@
         "Existing docs-mode acceptance and refusal semantics remain intact; HTML/images are eligible only in opted-in code mode and declared scope.",
         "Production guard tests cover empty diff, empty patterns, out-of-scope changes, git errors, and code-mode opt-in; tests do not merely duplicate the matcher.",
         "Named checks are resolved on base HEAD with pagination; missing names, empty sets, malformed responses and API failures refuse before enable.",
-        "No direct merge API or polling loop is introduced; existing native SQUASH auto-merge remains the merge actor."
+        "No direct merge API or polling loop is introduced; existing native SQUASH auto-merge remains the merge actor.",
+        "requiredChecksPresentOnBase lives in new cmd/ailang/coordinator_cloud_automerge_code.go; coordinator_cloud_github.go gets only the branchIsAutoMergeable mode parameter change."
       ],
       "passes": null,
       "started": null,
@@ -86,7 +87,8 @@
         "Approval is posted after final push and native enable; wrong identity, author collision and secret/API errors produce actionable refusal without tokens.",
         "Approval failure after enable cannot be reported as success; disable native auto-merge on failure where possible and surface cleanup failure explicitly.",
         "PR body records configured intent separately from successful enable/approval; code PRs carry auto-merge-code label, check names, scope, identity and Refs #1599.",
-        "API tests assert request ordering, successful approval, failure paths and retried existing-PR audit updates; label failure is loud and body/log audit persists."
+        "API tests assert request ordering, successful approval, failure paths and retried existing-PR audit updates; label failure is loud and body/log audit persists.",
+        "approvePRAsNonAuthor and the audit helpers live in cmd/ailang/coordinator_cloud_automerge_code.go, not coordinator_cloud_github.go."
       ],
       "passes": null,
       "started": null,
@@ -104,7 +106,7 @@
       "acceptance_criteria": [
         "Coordinator guide includes opt-in and docs-only YAML examples, required-check semantics, secret permissions, refusal troubleshooting and audit enumeration.",
         "Runbook distinguishes check existence from required-by-ruleset enforcement and requires Mark confirmation before production opt-in.",
-        "Relevant package tests, make test, make lint and make check-boundaries pass; record command results and address regressions.",
+        "Focused tests (go test -run 'AutoMerge|Approv|RequiredCheck|AgentConfig' on touched packages) and make test-core pass, then make lint check-boundaries check-file-sizes passes; CGO-unavailable failures are recorded separately, not as regressions.",
         "Staging checklist proves failing required checks block merge and successful checks plus non-author review permit merge; deployment evidence is recorded or explicitly pending.",
         "Daneel rollout requires one staging merge and ten clean production merges; no live registry/ruleset/secret changes are made as part of this repo sprint."
       ],
