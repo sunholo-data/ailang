@@ -1,0 +1,117 @@
+{
+  "sprint_id": "M-AUTO-MERGE-CODE-PRS",
+  "status": "not_started",
+  "created": "2026-10-08T19:11:17.716262+00:00",
+  "design_doc": "design_docs/planned/v0_52_6/m-auto-merge-code-prs.md",
+  "sprint_plan": "design_docs/planned/v0_52_6/m-auto-merge-code-prs-sprint-plan.md",
+  "github_issues": [
+    1599
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search github: no results; coordinator: sunholo/test_pkg@0.1.3 inspected with info/docs, only pure greeting/version test exports. Trusted configuration and dispatch plumbing belongs to existing Go control-plane infrastructure or its tests/docs, not an AILANG package."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search github: no results; coordinator: sunholo/test_pkg@0.1.3 inspected with info/docs, only pure greeting/version test exports. Unified scope and required-check gates belongs to existing Go control-plane infrastructure or its tests/docs, not an AILANG package."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Search github: no results; coordinator: sunholo/test_pkg@0.1.3 inspected with info/docs, only pure greeting/version test exports. Non-author approval and durable audit belongs to existing Go control-plane infrastructure or its tests/docs, not an AILANG package."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Search github: no results; coordinator: sunholo/test_pkg@0.1.3 inspected with info/docs, only pure greeting/version test exports. Regression validation and Daneel deployment runbook belongs to existing Go control-plane infrastructure or its tests/docs, not an AILANG package."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 190,
+    "estimated_total_loc": 950,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Trusted configuration and dispatch plumbing",
+      "estimated_loc": 240,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Four optional AgentConfig fields round-trip through YAML/JSON; absent values retain docs-only behavior.",
+        "Only trusted registry fields supply dispatch parameters and env; newline-separated checks preserve names containing commas.",
+        "Code mode requires auto_merge, non-empty check names, approver secret name, expected identity, and declared patterns; invalid configuration refuses loudly.",
+        "Secret material is fetched only inside the job and never appears in dispatch specs, PR bodies, or logs."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Unified scope and required-check gates",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Existing docs-mode acceptance and refusal semantics remain intact; HTML/images are eligible only in opted-in code mode and declared scope.",
+        "Production guard tests cover empty diff, empty patterns, out-of-scope changes, git errors, and code-mode opt-in; tests do not merely duplicate the matcher.",
+        "Named checks are resolved on base HEAD with pagination; missing names, empty sets, malformed responses and API failures refuse before enable.",
+        "No direct merge API or polling loop is introduced; existing native SQUASH auto-merge remains the merge actor."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Non-author approval and durable audit",
+      "estimated_loc": 310,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Approver secret fetch and actual-login/expected-login/PR-author checks finish before enable; identity comparison is case-insensitive.",
+        "Approval is posted after final push and native enable; wrong identity, author collision and secret/API errors produce actionable refusal without tokens.",
+        "Approval failure after enable cannot be reported as success; disable native auto-merge on failure where possible and surface cleanup failure explicitly.",
+        "PR body records configured intent separately from successful enable/approval; code PRs carry auto-merge-code label, check names, scope, identity and Refs #1599.",
+        "API tests assert request ordering, successful approval, failure paths and retried existing-PR audit updates; label failure is loud and body/log audit persists."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Regression validation and Daneel deployment runbook",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Coordinator guide includes opt-in and docs-only YAML examples, required-check semantics, secret permissions, refusal troubleshooting and audit enumeration.",
+        "Runbook distinguishes check existence from required-by-ruleset enforcement and requires Mark confirmation before production opt-in.",
+        "Relevant package tests, make test, make lint and make check-boundaries pass; record command results and address regressions.",
+        "Staging checklist proves failing required checks block merge and successful checks plus non-author review permit merge; deployment evidence is recorded or explicitly pending.",
+        "Daneel rollout requires one staging merge and ten clean production merges; no live registry/ruleset/secret changes are made as part of this repo sprint."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
