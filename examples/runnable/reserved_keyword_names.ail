@@ -1,5 +1,7 @@
 module examples/runnable/reserved_keyword_names
 
-pure func combine(a: int, rx: int, b: int) -> int = a + rx + b
-pure func usingValue(using: int) -> int = using
+pure func combine(a: int, rx: int, b: int) -> int
+  tests [((1, 2, 3), 6), ((0, 0, 0), 0)] { a + rx + b }
+pure func usingValue(using: int) -> int
+  tests [(4, 4)] { using }
 export pure func main() -> int = combine(1, 2, 3) + usingValue(4)

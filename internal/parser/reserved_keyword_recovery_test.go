@@ -177,3 +177,46 @@ func f() -> Person = {name: "A", age: 1}`,
 		}
 	}
 }
+
+func TestReservedBindingBaselines(t *testing.T) {
+	// Same-source HEAD baseline: local has six errors, function name has seven.
+	for _, fixture := range []struct {
+		source  string
+		maximum int
+	}{
+		{"func f() -> int = { let recv = 5; 42 }", 6},
+		{"func recv() -> int = 42", 7},
+	} {
+		p := New(lexer.New("module probe\n"+fixture.source, "probe.ail"))
+		p.ParseFile()
+		if len(p.Errors()) == 0 || len(p.Errors()) > fixture.maximum {
+			t.Fatalf("baseline exceeded: %v", p.Errors())
+		}
+		e := p.Errors()[0].(*ParserError)
+		if e.Code != "PAR_RESERVED_KEYWORD" || !strings.Contains(strings.Join(e.Suggestions, " "), "rx") {
+			t.Fatal(e)
+		}
+	}
+}
+
+func TestReservedDialectAndImportGuards(t *testing.T) {
+	p := New(lexer.New("module probe\nfunc f(x: int) -> int = match x with { _ => 42 }", "probe.ail"))
+	p.ParseFile()
+	count := 0
+	for _, e := range p.Errors() {
+		if pe, ok := e.(*ParserError); ok && pe.Code == "PAR019" {
+			count++
+			if pe.Message != "'match ... with' is not valid AILANG syntax (ML/Haskell pattern detected)" || strings.Join(pe.Suggestions, "\n") != "Use: match expr { pattern => body, ... }\nAILANG uses braces for match arms, not 'with'" {
+				t.Fatal(pe)
+			}
+		}
+	}
+	if count != 1 {
+		t.Fatalf("PAR019 count: %d", count)
+	}
+	p = New(lexer.New("module probe\nimport std/list as recv", "probe.ail"))
+	p.ParseFile()
+	if len(p.Errors()) != 1 || p.Errors()[0].(*ParserError).Code != "IMP001" {
+		t.Fatal(p.Errors())
+	}
+}
