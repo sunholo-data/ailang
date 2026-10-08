@@ -643,7 +643,7 @@ if [ -d "$ROLL/$VERSION" ]; then
 fi
 
 AILANG_VER="$(tr -d '[:space:]' < std/VERSION 2>/dev/null || true)"
-if [ -n "$AILANG_VER" ] && [ -d "eval_results/baselines/${AILANG_VER}" ]; then
+if [ -n "$AILANG_VER" ] && { [ -d "eval_results/baselines/${AILANG_VER}" ] || [ -d eval_results/rotation/cloud-rolling ]; }; then
   if bash tools/publish-unified-dashboard.sh "$AILANG_VER" >>"$LOG" 2>&1; then
     if [ "$BENCH_GIT_COMMIT" != "1" ]; then
       log "unified dashboard refreshed (${AILANG_VER}) — bucket sync publishes it; git commit retired (W5)"

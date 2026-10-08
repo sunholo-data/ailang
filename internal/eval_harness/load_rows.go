@@ -148,6 +148,9 @@ func LoadRowFiles(files []string, opts LoadOptions) ([]RunMetrics, LoadStats, er
 			stats.ParseErrors = append(stats.ParseErrors, fmt.Sprintf("%s: %v", filepath.Base(path), err))
 			continue
 		}
+		if m.AilangVersion == "" {
+			m.AilangVersion = versionFromPath(path)
+		}
 		rows = append(rows, m)
 	}
 
