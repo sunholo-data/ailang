@@ -2344,7 +2344,7 @@ models:
     motoko_profile: "cloud"                            # .motoko/config/cloud — matches the other cloud-routed motoko rows
     agent_model_name: "openrouter/z-ai/glm-5.3-flash"
     model_family: "glm-5"
-    max_output_tokens: 65536  # always-thinking model — headroom, per the GLM-5.2 truncation lesson
+    max_output_tokens: 32000 # = pi's wire budget (2026-10-08). At 65536 GLM-Flash reasoned to the cap on hard benchmarks (gauntlet_10: 3 of 4 steps, 197k output tokens) and each runaway step cost twice pi's; the 10-02 lane A/B tied 55/69 but motoko cost $6.86 vs pi $4.20
                               # (at 32768 its thinking phase hit OUR cap: 6 finish=length, 3 with
                               # ZERO content). Within every provider's declared ceiling (131072+).
     pricing:
@@ -2374,7 +2374,7 @@ models:
     motoko_profile: "ailang_only"                      # .motoko/config/ailang_only — ailang_policy first, strict, hybrid off
     agent_model_name: "openrouter/z-ai/glm-5.3-flash"
     model_family: "glm-5"
-    max_output_tokens: 65536
+    max_output_tokens: 32000 # = pi's wire budget (2026-10-08). At 65536 GLM-Flash reasoned to the cap on hard benchmarks (gauntlet_10: 3 of 4 steps, 197k output tokens) and each runaway step cost twice pi's; the 10-02 lane A/B tied 55/69 but motoko cost $6.86 vs pi $4.20
     pricing:
       input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-27)
       output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-27)

@@ -137,3 +137,15 @@ func TestLaneSessionViolation(t *testing.T) {
 		t.Fatalf("a session without session_start was not flagged: %q", v)
 	}
 }
+
+// A coordinator lane task carries no motoko_profile; it must run on the lane
+// profile, not the executor's default (the cloud job's MOTOKO_CONFIG=dogfood,
+// which the lane gate refuses). An explicit profile still wins.
+func TestLaneProfileFor(t *testing.T) {
+	if got := laneProfileFor(&executor.Task{}); got != "ailang_only" {
+		t.Fatalf("no metadata: profile = %q, want ailang_only", got)
+	}
+	if got := laneProfileFor(&executor.Task{Metadata: map[string]string{"motoko_profile": "custom_lane"}}); got != "custom_lane" {
+		t.Fatalf("explicit motoko_profile must win, got %q", got)
+	}
+}
