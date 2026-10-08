@@ -1,4 +1,4 @@
-# M-TASK-INPUTS: Typed Task Inputs — Fetch a Named {repo, ref, path} Into the Workspace Before the Agent Runs
+# M-TASK-INPUTS: Typed Task Inputs — Fetch a Named `{repo, ref, path}` Into the Workspace Before the Agent Runs
 
 Refs #1600
 
