@@ -78,19 +78,21 @@ func (r *Runner) RunSuite(suite *TestSuite) *SuiteResult {
 	result := NewSuiteResult(suite.ModulePath)
 
 	// Run all tests. Named tests share one compile (named_batch.go).
-	r.executor.prepareNamedTests(suite.Tests)
+	r.executor.prepareNamedTests(suite.Tests, suite.Properties)
 	for _, testCase := range suite.Tests {
 		testResult := r.runTest(testCase)
 		result.AddTestResult(testResult)
-	}
-	if f := r.executor.finishNamedTests(); f != nil {
-		result.NamedBatchFailures = append(result.NamedBatchFailures, *f)
 	}
 
 	// Run all properties (basic implementation - full property testing in Days 6-8)
 	for _, propCase := range suite.Properties {
 		propResult := r.runProperty(propCase)
 		result.AddPropertyResult(propResult)
+	}
+	// After the properties: a forall property compiled alone also counts
+	// toward deciding whether a batch failure was the harness's fault.
+	if f := r.executor.finishNamedTests(); f != nil {
+		result.NamedBatchFailures = append(result.NamedBatchFailures, *f)
 	}
 
 	return result
@@ -203,8 +205,8 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 
 // runNamedTest executes a named test block: test "name" { <expr> }
 //
-// Reuses the module-scope evaluation path (EvaluateExpression) from the
-// inline-test core-evaluation machinery (v0.4.7). The body is treated as a
+// The body runs as an entry of the file's one batched compile
+// (named_batch.go), or alone when the batch is unavailable. The body is a
 // sequence of expressions; the LAST expression must evaluate to bool true for
 // the test to pass. Earlier expressions are evaluated for side-effects only
 // (they are discarded — named test bodies are pure by contract).
@@ -271,8 +273,8 @@ func (r *Runner) runNamedTest(testCase TestCase, start time.Time) TestResult {
 func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 	// M-DX26 Phase 5: ensures/requires clauses route through dedicated harnesses
 	// that pull the already-lowered Core predicate from Meta.Contracts.
-	// forall-style properties remain on the broken EvaluateExpression
-	// source-synthesis path until the broader Option A refactor.
+	// forall properties run as a compiled function of their binders
+	// (property_batch.go, #624).
 	switch propCase.Property.Kind {
 	case ast.EnsuresKind:
 		return r.runEnsuresProperty(propCase)
@@ -309,17 +311,15 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 		shrinkers[i] = shrink
 	}
 
-	// Run property tests
-	// M-M3-RESIDUAL (T6): this forall path has NO test observable downstream of
-	// it. It still runs on the broken EvaluateExpression source-synthesis path
-	// (see runProperty's dispatch comment above), so every generated input
-	// fails with "test 0: evaluation failed: empty program" on the FIRST
-	// sample — no sample stream exists to observe at any level. Its seed is
-	// derived and reported (so the seed machinery is covered) but the sample
-	// stream is not, until the legacy EvaluateExpression path is replaced.
-	// Tracked in #624, which also records a SECOND failure on this path: a
-	// forall body that calls a module function dies with a PAR_UNEXPECTED_TOKEN
-	// in the synthesized _test.ail rather than with "empty program".
+	// The predicate is one compiled function of the binders, called once per
+	// generated case with the values as arguments (property_batch.go, #624).
+	call, err := r.executor.forallCaller(propCase.Property)
+	if err != nil {
+		result.Status = StatusFail
+		result.Error = fmt.Sprintf("property does not compile: %v", err)
+		result.Duration = time.Since(start)
+		return result
+	}
 	rng := newRNG(r.propertySeed(propCase.Name))
 
 	for testNum := 0; testNum < numTests; testNum++ {
@@ -330,18 +330,8 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 			generatedValues[i] = gen.Generate(rng)
 		}
 
-		// Bind generated values to property expression
-		boundExpr, err := r.bindPropertyValues(propCase.Property, generatedValues)
-		if err != nil {
-			result.Status = StatusFail
-			result.Error = fmt.Sprintf("test %d: %v", testNum, err)
-			result.TestsRun = testNum + 1
-			result.Duration = time.Since(start)
-			return result
-		}
-
-		// Evaluate the property expression (should return bool)
-		resultValue, err := r.executor.EvaluateExpression(boundExpr)
+		// Evaluate the predicate on this case (should return bool)
+		resultValue, err := call(generatedValues)
 		if err != nil {
 			result.Status = StatusFail
 			result.Error = fmt.Sprintf("test %d: evaluation failed: %v", testNum, err)
@@ -362,7 +352,7 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 
 		// If property fails, try to shrink to minimal counterexample
 		if !boolVal.Value {
-			counterexample := r.shrinkCounterexample(propCase.Property, generatedValues, shrinkers)
+			counterexample := shrinkCounterexample(call, generatedValues, shrinkers)
 			result.Status = StatusFail
 			result.Error = fmt.Sprintf("property failed on input: %v", counterexample)
 			result.TestsRun = testNum + 1
@@ -638,83 +628,43 @@ func (r *Runner) genForTypeSeam(typ ast.Type) (Generator, Shrinker) {
 	return r.createGeneratorForType(typ)
 }
 
-// bindPropertyValues binds generated values to forall parameters in a property expression.
-// For: forall(x: int, y: int) => x + y == y + x
-// With values: [5, 10]
-// Returns: let x = 5 in let y = 10 in (x + y == y + x)
-func (r *Runner) bindPropertyValues(property *ast.Property, values []eval.Value) (ast.Expr, error) {
-	expr := property.Expr
+// maxShrinkCalls bounds shrinking so a pathological shrinker cannot hang a run.
+const maxShrinkCalls = 1000
 
-	// Bind in reverse order (innermost first)
-	for i := len(property.Binders) - 1; i >= 0; i-- {
-		binder := property.Binders[i]
-		value := values[i]
-
-		// Convert eval.Value to ast.Expr (literal); refuse unspliceable values.
-		valueLit, err := r.valueToLiteral(value)
-		if err != nil {
-			return nil, err
-		}
-
-		// Wrap in let binding
-		expr = &ast.Let{
-			Name:  binder.Name,
-			Value: valueLit,
-			Body:  expr,
-			Pos:   property.Pos,
-		}
-	}
-
-	return expr, nil
-}
-
-// shrinkCounterexample finds the minimal counterexample using shrinking.
-func (r *Runner) shrinkCounterexample(property *ast.Property, failingValues []eval.Value, shrinkers []Shrinker) []eval.Value {
-	// Try shrinking each parameter independently
+// shrinkCounterexample finds a minimal counterexample: it repeatedly replaces
+// a binder with the first shrunk value on which the predicate still returns
+// false, until no binder shrinks further (or the call budget is spent). A
+// candidate the predicate cannot evaluate (a runtime error, a non-bool) is
+// skipped. Deterministic: shrinkers are, and the order is fixed.
+func shrinkCounterexample(call propertyCall, failingValues []eval.Value, shrinkers []Shrinker) []eval.Value {
 	minimal := make([]eval.Value, len(failingValues))
 	copy(minimal, failingValues)
 
-	for i, shrinker := range shrinkers {
-		if shrinker == nil {
-			continue
-		}
-
-		// Try all shrunk values for this parameter
-		shrunkValues := shrinker.Shrink(failingValues[i])
-		for _, shrunk := range shrunkValues {
-			// Replace this parameter with shrunk value
-			testValues := make([]eval.Value, len(minimal))
-			copy(testValues, minimal)
-			testValues[i] = shrunk
-
-			// Test if property still fails with shrunk value
-			boundExpr, err := r.bindPropertyValues(property, testValues)
-			if err != nil {
-				// Skip unusable shrink candidate (best-effort, must not panic).
-				//
-				// DECLARED REDUNDANT (measured, iteration 169): neutering this
-				// branch to `if false && err != nil` leaves the whole package
-				// green. On a splice refusal bindPropertyValues returns
-				// (nil, err), and EvaluateExpression string-formats the AST, so
-				// a nil expr yields unparseable source and errors — the
-				// adjacent branch below then continues for the same effect.
-				// The branch is kept because relying on that is an implicit
-				// contract; TestShrinkNilExprContract pins it, so if
-				// EvaluateExpression ever panics on nil instead of erroring,
-				// that test reds and this guard becomes load-bearing.
+	calls := 0
+	for progress := true; progress && calls < maxShrinkCalls; {
+		progress = false
+		for i, shrinker := range shrinkers {
+			if shrinker == nil {
 				continue
 			}
-			result, err := r.executor.EvaluateExpression(boundExpr)
-			if err != nil {
-				continue // Skip if evaluation fails
-			}
+			for _, shrunk := range shrinker.Shrink(minimal[i]) {
+				if calls >= maxShrinkCalls {
+					break
+				}
+				calls++
+				testValues := make([]eval.Value, len(minimal))
+				copy(testValues, minimal)
+				testValues[i] = shrunk
 
-			boolVal, ok := result.(*eval.BoolValue)
-			if ok && !boolVal.Value {
-				// Property still fails with shrunk value - use this
-				minimal[i] = shrunk
-				// Continue shrinking this parameter
-				break
+				result, err := call(testValues)
+				if err != nil {
+					continue
+				}
+				if boolVal, ok := result.(*eval.BoolValue); ok && !boolVal.Value {
+					minimal[i] = shrunk
+					progress = true
+					break
+				}
 			}
 		}
 	}

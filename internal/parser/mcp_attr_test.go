@@ -104,3 +104,61 @@ export func verify(token: string) -> bool ! {Net} { true }`
 		}
 	}
 }
+
+// M-MCP-FILE-HANDOFF F1c: MCP Apps annotations. @mcp_ui_resource takes a URI
+// and connect domains, @mcp_ui one URI, @mcp_app_only none.
+func TestMCPAppsAnnotations(t *testing.T) {
+	input := `
+@mcp_ui_resource("ui://svc/upload", "self", "https://api.example.com")
+export func widget() -> string { "<p>" }
+
+@mcp_ui("ui://svc/upload")
+@mcp_app_only
+export func relay(x: string) -> string { x }`
+	p := New(lexer.New(input, "test.ail"))
+	file := p.ParseFile()
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+	if a := file.Funcs[0].GetAnnotation("mcp_ui_resource"); a == nil || len(a.Args) != 3 {
+		t.Errorf("@mcp_ui_resource: %+v", a)
+	}
+	if a := file.Funcs[1].GetAnnotation("mcp_ui"); a == nil || len(a.Args) != 1 {
+		t.Errorf("@mcp_ui: %+v", a)
+	}
+	if a := file.Funcs[1].GetAnnotation("mcp_app_only"); a == nil || len(a.Args) != 0 {
+		t.Errorf("@mcp_app_only: %+v", a)
+	}
+}
+
+// M-MCP-FILE-HANDOFF F1b: @mcp_file takes one or more param names and may be
+// repeated; the names are checked against the signature at serve-api load.
+func TestMCPFileAnnotation(t *testing.T) {
+	input := `
+@mcp_file("file", "other")
+@mcp_file("third")
+export func f(file: string, other: string, third: string) -> string { file }`
+	p := New(lexer.New(input, "test.ail"))
+	file := p.ParseFile()
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+	var got []string
+	for _, a := range file.Funcs[0].Annotations {
+		if a.Name == "mcp_file" {
+			for _, arg := range a.Args {
+				got = append(got, arg.(*ast.Literal).Value.(string))
+			}
+		}
+	}
+	if len(got) != 3 || got[0] != "file" || got[1] != "other" || got[2] != "third" {
+		t.Errorf("@mcp_file args = %v", got)
+	}
+	for _, bad := range []string{`@mcp_file()`, `@mcp_file(file)`, `@mcp_ui_resource()`, `@mcp_ui()`, `@mcp_ui("a", "b")`} {
+		p := New(lexer.New(bad+"\nexport func f(x: int) -> int { x }", "test.ail"))
+		p.ParseFile()
+		if len(p.Errors()) == 0 {
+			t.Errorf("%s: expected a parse error", bad)
+		}
+	}
+}

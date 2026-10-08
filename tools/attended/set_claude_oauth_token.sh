@@ -34,19 +34,24 @@ read -rs tok
 printf '\n\n'
 [ -n "${tok:-}" ] || die "nothing pasted; $SECRETS is unchanged"
 
-# VERIFY BEFORE WRITING. anthropic_quota.go prefers this variable over the
-# keychain, so a bad value does not sit inert — it OVERRIDES a keychain path that
-# may currently be working and turns a healthy read into a 401.
-printf '  verifying against the usage endpoint…\n'
-probe="$(CLAUDE_CODE_OAUTH_TOKEN="$tok" ailang mission quota 2>&1 | grep -m1 'anthropic provider usage:' || true)"
-[ -n "$probe" ] || die "could not probe the usage endpoint; $SECRETS is unchanged"
-case "$probe" in
-  *"usage: unknown"*)
-    printf '      %s\n' "${probe#*usage: }"
-    die "that token does not read the usage endpoint — $SECRETS is UNCHANGED,
-    so whatever is working today is not made worse by this run" ;;
+# VERIFY BEFORE WRITING — by running a model, which is all this token is for.
+#
+# It used to be verified against the usage endpoint and refused when that read failed. A
+# setup-token ALWAYS fails that read (HTTP 403, measured 2026-09-22), so the check refused
+# every token this script exists to store, and the loops stayed on the shared keychain
+# login — the one a remote session's refresh rotates away (2026-10-07: 16 hours of "OAuth
+# session expired" on every fire). The quota reader now reads usage with the login
+# credential FIRST and tries this token only after it (anthropic_quota.go), so the token no
+# longer has to read usage at all. What it must do is run inference without the keychain.
+printf '  verifying it runs a model (one tiny haiku call, keychain not consulted)…\n'
+probe="$(cd / && CLAUDE_CODE_OAUTH_TOKEN="$tok" claude -p --model claude-haiku-4-5-20251001 'Reply with the single word ok' </dev/null 2>&1 | head -c 400 || true)"
+# The WHOLE reply must be "ok": a substring match passes on error text ("…token…").
+case "$(printf '%s' "$probe" | tr -d '[:space:][:punct:]' | tr '[:upper:]' '[:lower:]')" in
+  ok) ;;
+  *) printf '      %s\n' "$probe"
+     die "that token did not run a model — $SECRETS is UNCHANGED" ;;
 esac
-ok "reads the usage endpoint: ${probe#*anthropic provider usage: }"
+ok "runs a model on its own"
 
 mkdir -p "$(dirname "$SECRETS")"
 [ -f "$SECRETS" ] || ( umask 077; : > "$SECRETS" )
@@ -59,4 +64,4 @@ fi
 ( umask 077; printf 'export %s=%s\n' "$VAR" "$tok" >> "$SECRETS" )
 chmod 600 "$SECRETS"
 ok "written to $SECRETS (mode 0600, value not shown)"
-printf '\nThe driver sources that file at mission-control.sh:119. Done — no 8-hour expiry.\n\n'
+printf '\nThe driver sources that file on every fire. The loops now run on this token (valid for a\nyear) and no other session can rotate it; quota is still read with your login.\n\n'

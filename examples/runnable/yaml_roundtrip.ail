@@ -1,0 +1,28 @@
+module examples/runnable/yaml_roundtrip
+
+import std/yaml (decode, encode)
+import std/json (Json, JObject, JNumber)
+import std/list (map)
+import std/result (Ok, Err)
+import std/io (print)
+
+-- Edit an existing config without manually assembling YAML text.
+pure func updateYear(j: Json) -> Json {
+  match j {
+    JObject(fields) => JObject(map(\field.
+      if field.key == "year"
+      then {key: field.key, value: JNumber(2027.0)}
+      else field, fields)),
+    _ => j
+  }
+}
+
+export func main() -> () ! {IO} {
+  match decode("title: Fysik A\nyear: 2026\n") {
+    Ok(config) => match encode(updateYear(config)) {
+      Ok(yaml) => print(yaml),
+      Err(e) => println("encode error: ${e}")
+    },
+    Err(e) => println("decode error: ${e}")
+  }
+}

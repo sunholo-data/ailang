@@ -8,7 +8,10 @@ export type LensModule = {
   passed: boolean
   errors: string[]
   ms: number
-  mtimeMs: number
+  /** Package root the checks ran from (nearest ailang.toml, else .git). */
+  root: string
+  /** Newest mtime of the module, its package manifest/lock and its ./ imports. */
+  stamp: number
 }
 
 declare module 'claude-code' {

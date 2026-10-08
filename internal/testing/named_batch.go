@@ -41,7 +41,8 @@ const namedBatchPrefix = "__namedtest_"
 
 // namedBatch is the one compile every named test of a file runs against.
 type namedBatch struct {
-	entries map[ast.Expr]namedEntry // keyed by the body's first expression
+	entries map[ast.Expr]namedEntry      // keyed by the body's first expression
+	props   map[*ast.Property]namedEntry // forall properties (property_batch.go)
 	modules map[string]*loader.LoadedModule
 	root    string
 	lineMap []int // batched source line i+1 → user's line, for the stripped module
@@ -59,6 +60,8 @@ type namedEntry struct {
 	// Lines [first, last] of this entry in the batched source, and the test's
 	// own line in the user's file, for mapping runtime-error positions (D5).
 	first, last, testLine int
+	// what reports a position inside the entry: "test body" or "property"
+	label string
 }
 
 // BatchFailure records a file whose named tests could not share one compile.
@@ -86,7 +89,7 @@ func (f BatchFailure) Notice() string {
 // prepareNamedTests compiles every named test of the file in one pipeline
 // run. It is a no-op when there is nothing to batch; on failure it records a
 // BatchFailure and leaves the per-body path in charge.
-func (e *Executor) prepareNamedTests(cases []TestCase) {
+func (e *Executor) prepareNamedTests(cases []TestCase, properties []PropertyCase) {
 	e.batch, e.batchFailure, e.perBodyCompileFailures = nil, nil, 0
 	if e.sourceFile == nil {
 		return
@@ -104,9 +107,7 @@ func (e *Executor) prepareNamedTests(cases []TestCase) {
 	}
 
 	base, lineMap := e.stripWithLineMap(string(src), e.sourceFile, nil)
-	var sb strings.Builder
-	sb.WriteString(base)
-	sb.WriteString("\n")
+	es := newEntrySource(base)
 	entries := make(map[ast.Expr]namedEntry)
 	for _, tc := range cases {
 		if tc.IsInline || len(tc.Body) == 0 {
@@ -116,27 +117,32 @@ func (e *Executor) prepareNamedTests(cases []TestCase) {
 		if folded == nil {
 			continue // the per-body path reports it
 		}
-		// No return annotation: a body is not required to TYPE as bool. The
-		// per-body evaluator path accepts `{ 1.5 }` and the runner then fails
-		// it "expected bool result"; `-> bool` here would instead fail the
-		// whole batch (caught by TestTestCommandBytecodeFlags).
 		name := fmt.Sprintf("%s%d", namedBatchPrefix, len(entries))
-		first := strings.Count(sb.String(), "\n") + 1
-		fmt.Fprintf(&sb, "\npure func %s() {\n  %s\n}\n", name, PrintAILANGSource(folded))
-		entries[tc.Body[0]] = namedEntry{name: name, checks: checks,
-			first: first, last: strings.Count(sb.String(), "\n"), testLine: tc.Location.Line}
+		ent := es.add(name, "", PrintAILANGSource(folded), tc.Location.Line)
+		ent.checks = checks
+		entries[tc.Body[0]] = ent
 	}
-	if len(entries) == 0 {
+	props := make(map[*ast.Property]namedEntry)
+	for _, pc := range properties {
+		if !isForall(pc.Property) {
+			continue
+		}
+		name := fmt.Sprintf("%sprop_%d", namedBatchPrefix, len(props))
+		ent := es.add(name, binderParams(pc.Property), PrintAILANGSource(pc.Property.Expr), pc.Property.Pos.Line)
+		ent.label = "property"
+		props[pc.Property] = ent
+	}
+	if len(entries)+len(props) == 0 {
 		return
 	}
 
-	res, err := e.runNamedTestPipeline(sb.String(), e.sourceFile.Module != nil)
+	res, err := e.runNamedTestPipeline(es.String(), e.sourceFile.Module != nil)
 	if err != nil {
 		e.batchFailure = &BatchFailure{Module: e.modulePath, Reason: err.Error()}
 		return
 	}
 	e.cacheModules(&res)
-	e.batch = &namedBatch{entries: entries, modules: e.modules, root: e.rootModule, lineMap: lineMap}
+	e.batch = &namedBatch{entries: entries, props: props, modules: e.modules, root: e.rootModule, lineMap: lineMap}
 	e.batchResult = res
 }
 
@@ -200,15 +206,18 @@ var (
 // line. The message then names a file the user can open, and is the same on
 // every run.
 func (e *Executor) mapBatchPositions(msg string, ent namedEntry) string {
-	b := e.batch
+	return e.mapPositions(msg, ent, e.batch.lineMap)
+}
+
+func (e *Executor) mapPositions(msg string, ent namedEntry, lineMap []int) string {
 	msg = batchTempPos.ReplaceAllStringFunc(msg, func(m string) string {
 		sub := batchTempPos.FindStringSubmatch(m)
 		line, _ := strconv.Atoi(sub[1])
 		switch {
-		case line >= 1 && line <= len(b.lineMap):
-			return fmt.Sprintf("%s:%d%s", e.modulePath, b.lineMap[line-1], sub[2])
+		case line >= 1 && line <= len(lineMap):
+			return fmt.Sprintf("%s:%d%s", e.modulePath, lineMap[line-1], sub[2])
 		case line >= ent.first && line <= ent.last:
-			return fmt.Sprintf("%s:%d (test body)", e.modulePath, ent.testLine)
+			return fmt.Sprintf("%s:%d (%s)", e.modulePath, ent.testLine, ent.label)
 		}
 		return m
 	})
@@ -276,3 +285,28 @@ func findBatchedProto(img *bytecode.BytecodeImage, name string) *bytecode.FuncPr
 	}
 	return nil
 }
+
+// entrySource builds a batched source: the stripped module, then one entry
+// function per test, recording each entry's line span for position mapping.
+type entrySource struct{ sb strings.Builder }
+
+func newEntrySource(base string) *entrySource {
+	es := &entrySource{}
+	es.sb.WriteString(base)
+	es.sb.WriteString("\n")
+	return es
+}
+
+// add appends `pure func <name>(<params>) { <body> }`. There is no return
+// annotation: a named-test body is not required to TYPE as bool (the runner
+// fails `{ 1.5 }` "expected bool result"; `-> bool` would instead fail the
+// whole batch, caught by TestTestCommandBytecodeFlags), and a property's
+// result is checked the same way.
+func (es *entrySource) add(name, params, body string, testLine int) namedEntry {
+	first := strings.Count(es.sb.String(), "\n") + 1
+	fmt.Fprintf(&es.sb, "\npure func %s(%s) {\n  %s\n}\n", name, params, body)
+	return namedEntry{name: name, first: first, last: strings.Count(es.sb.String(), "\n"),
+		testLine: testLine, label: "test body"}
+}
+
+func (es *entrySource) String() string { return es.sb.String() }
