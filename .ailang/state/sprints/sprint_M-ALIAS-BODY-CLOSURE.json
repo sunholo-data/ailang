@@ -4,7 +4,9 @@
   "created": "2026-10-08T19:11:12.533728+00:00",
   "design_doc": "design_docs/planned/v0_52_4/m-alias-body-closure.md",
   "sprint_plan": "design_docs/planned/v0_52_4/m-alias-body-closure-sprint-plan.md",
-  "github_issues": [],
+  "github_issues": [
+    1614
+  ],
   "registry_reuse": [
     {
       "milestone": "M1",
@@ -80,7 +82,8 @@
         "T3 annotation-only scheme regression passes; quantified variables, constraints and effects are preserved.",
         "Constructor field/result aliases close while nominal ADT results remain nominal; constructor pattern regressions pass.",
         "CapturedImportedAliasIsLoud becomes a positive regression; a residual nominal-shadow control still emits TC_TYPE_SHADOW_001.",
-        "Final interface digest reflects closed schemes and constructors, is deterministic and survives serialization; alias digest coverage remains intact."
+        "Final interface digest reflects closed schemes and constructors, is deterministic and survives serialization; alias digest coverage remains intact.",
+        "Any digest-finalize helper lives in a new internal/iface/ file; internal/iface/builder.go stays at or below 800 lines."
       ],
       "passes": null,
       "started": null,
@@ -114,7 +117,7 @@
       "acceptance_criteria": [
         "New examples/alias_body_closure package (ailang.toml, a.ail, b.ail, main.ail) checks and run with --args-json 1 returns 1 with both colliding imports.",
         "T1/T2/T3 runtime checks and examples/intra_package_imports pass; record-update and args-json alias decoding controls pass.",
-        "make test-core, go test ./internal/pipeline/... ./internal/types/... ./internal/iface/..., make test, make lint and make check-boundaries pass.",
+        "make test-core and go test ./internal/pipeline/... ./internal/types/... ./internal/iface/... pass, then make lint check-boundaries check-file-sizes passes (full suite is left to CI).",
         "Stapledons workaround-removal verification is recorded if accessible; otherwise record unavailable and rely on the mandatory four-module automated reproduction.",
         "Sprint-evaluator receives plan, progress, test evidence and explicit remaining limitations after execution."
       ],
