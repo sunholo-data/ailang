@@ -35,12 +35,22 @@ func init() {
 }
 
 func yamlEncodeImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	out, err := EncodeYAML(args[0])
+	if err != nil {
+		return wrapErr(err.Error()), nil
+	}
+	return wrapOk(&eval.StringValue{Value: out}), nil
+}
+
+// EncodeYAML renders a Json ADT value as block YAML. It is shared by the
+// evaluator builtin and the VM's native __yaml_encode so both emit identical bytes.
+func EncodeYAML(v eval.Value) (string, error) {
 	var buf strings.Builder
-	if err := emitYAML(args[0], &buf, 0); err != nil {
-		return wrapErr("yaml encode: " + err.Error()), nil
+	if err := emitYAML(v, &buf, 0); err != nil {
+		return "", fmt.Errorf("yaml encode: %w", err)
 	}
 	buf.WriteByte('\n')
-	return wrapOk(&eval.StringValue{Value: buf.String()}), nil
+	return buf.String(), nil
 }
 
 // emitYAML starts at the caller's current column. indent is the column for
