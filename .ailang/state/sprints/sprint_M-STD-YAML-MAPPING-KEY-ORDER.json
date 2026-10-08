@@ -74,10 +74,10 @@
         "Alias mapping order, merge precedence, invalid merges and duplicate rejection are explicitly tested.",
         "Focused Go tests and the rebuilt-binary AILANG bridge integration pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T07:07:11.495346+00:00",
+      "completed": "2026-10-08T07:07:11.495346+00:00",
+      "notes": "Guarantee matrix, aliases, merge precedence, scalar compatibility, resolved alias duplicate keys and excessive alias expansion covered. Complete internal/builtins tests pass; YAML -count=20 and go vet pass. Bridge main reports all eight checks passing; named YAML/JSON order test passes. Independent reviewer found alias-key duplicate gap, now fixed; emission now uses a shared buffer."
     },
     {
       "id": "M3",
@@ -101,5 +101,5 @@
     }
   ],
   "last_session": "2026-10-08T07:03:51.671435+00:00",
-  "last_checkpoint": "M1 complete"
+  "last_checkpoint": "M2 complete"
 }

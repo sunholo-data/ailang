@@ -2,7 +2,9 @@ package builtins
 
 import (
 	"encoding/json"
+	"fmt"
 	"gopkg.in/yaml.v3"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -218,4 +220,17 @@ func TestYAMLNodeMechanics(t *testing.T) {
 	require.Equal(t, "!!merge", merge.Content[0].Tag)
 	require.Equal(t, yaml.AliasNode, merge.Content[1].Kind)
 	require.Same(t, root.Content[1], merge.Content[1].Alias)
+}
+
+func TestYAMLToJSON_DuplicateResolvedAliasKey(t *testing.T) {
+	require.Contains(t, expectYAMLErr(t, callYAMLToJSON(t, "? &key a\n: 1\n? *key\n: 2\n")), "already defined")
+}
+
+func TestYAMLToJSON_ExcessiveAliases(t *testing.T) {
+	var input strings.Builder
+	input.WriteString("a0: &a0 [x, x, x, x, x, x, x, x, x, x]\n")
+	for i := 1; i <= 6; i++ {
+		fmt.Fprintf(&input, "a%d: &a%d [%s]\n", i, i, strings.TrimSuffix(strings.Repeat(fmt.Sprintf("*a%d, ", i-1), 10), ", "))
+	}
+	require.Contains(t, expectYAMLErr(t, callYAMLToJSON(t, input.String())), "excessive aliasing")
 }

@@ -102,19 +102,26 @@ func yamlToJSONImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error
 // orderedYAMLJSON uses maps only for membership; output follows Node.Content.
 // yaml.v3 validation above bounds alias expansion before this traversal.
 func orderedYAMLJSON(n *yaml.Node) ([]byte, error) {
+	var out bytes.Buffer
+	if err := writeOrderedYAMLJSON(&out, n); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+func writeOrderedYAMLJSON(out *bytes.Buffer, n *yaml.Node) error {
 	switch n.Kind {
 	case 0:
-		return []byte("null"), nil
+		out.WriteString("null")
 	case yaml.DocumentNode:
-		return orderedYAMLJSON(n.Content[0])
+		return writeOrderedYAMLJSON(out, n.Content[0])
 	case yaml.AliasNode:
-		return orderedYAMLJSON(n.Alias)
+		return writeOrderedYAMLJSON(out, n.Alias)
 	case yaml.MappingNode:
 		pairs, err := orderedYAMLPairs(n)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		var out bytes.Buffer
 		out.WriteByte('{')
 		for i, pair := range pairs {
 			if i > 0 {
@@ -123,36 +130,34 @@ func orderedYAMLJSON(n *yaml.Node) ([]byte, error) {
 			key, _ := json.Marshal(pair.key)
 			out.Write(key)
 			out.WriteByte(':')
-			value, err := orderedYAMLJSON(pair.value)
-			if err != nil {
-				return nil, err
+			if err := writeOrderedYAMLJSON(out, pair.value); err != nil {
+				return err
 			}
-			out.Write(value)
 		}
 		out.WriteByte('}')
-		return out.Bytes(), nil
 	case yaml.SequenceNode:
-		var out bytes.Buffer
 		out.WriteByte('[')
 		for i, child := range n.Content {
 			if i > 0 {
 				out.WriteByte(',')
 			}
-			value, err := orderedYAMLJSON(child)
-			if err != nil {
-				return nil, err
+			if err := writeOrderedYAMLJSON(out, child); err != nil {
+				return err
 			}
-			out.Write(value)
 		}
 		out.WriteByte(']')
-		return out.Bytes(), nil
 	default:
 		var value interface{}
 		if err := n.Decode(&value); err != nil {
-			return nil, err
+			return err
 		}
-		return json.Marshal(value)
+		scalar, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+		out.Write(scalar)
 	}
+	return nil
 }
 
 type yamlJSONPair struct {
@@ -180,6 +185,9 @@ func orderedYAMLPairs(n *yaml.Node) ([]yamlJSONPair, error) {
 		text, ok := key.(string)
 		if !ok {
 			return nil, fmt.Errorf("cannot represent as JSON: non-string mapping key")
+		}
+		if explicit[text] {
+			return nil, fmt.Errorf("mapping key %q already defined", text)
 		}
 		explicit[text] = true
 	}
