@@ -42,24 +42,47 @@ fi
 
 BASELINE_DIR="eval_results/baselines/${VERSION}"
 ROTATION_DIR="eval_results/rotation/os-rolling/${VERSION}"
+# Cloud models are measured over time, one placement at a time (model-manager
+# §5.5), not in a per-release baseline. Between releases the cloud side of the
+# dashboard is the rolling bank; each model's row carries its own lastRun date.
+CLOUD_ROLLING_DIR="eval_results/rotation/cloud-rolling"
 
+ROLLING=0
 if [ ! -d "$BASELINE_DIR" ]; then
-  echo "error: cloud baseline dir not found: $BASELINE_DIR" >&2
-  echo "       (run the post-release eval baselines first)" >&2
-  exit 1
+  if [ -d "$CLOUD_ROLLING_DIR" ]; then
+    BASELINE_DIR="$CLOUD_ROLLING_DIR"
+    ROLLING=1
+  else
+    echo "error: no cloud results: neither $BASELINE_DIR nor $CLOUD_ROLLING_DIR exists" >&2
+    exit 1
+  fi
 fi
 
 echo "== publishing unified dashboard for ${VERSION} =="
 echo "   cloud baseline : $BASELINE_DIR"
 
-if [ -d "$ROTATION_DIR" ]; then
+# Release mode merges this version's rotation only. Rolling mode merges EVERY
+# version's rotation: the filler resets the accumulator at each release, and
+# releases come every few days, so the current version's dir is usually near
+# empty (v0.52.5 had 0 files on the day this landed) and the local GPU models
+# vanished from the main leaderboard. The loader keeps the newest result per
+# (model, benchmark, lang, mode, trial) slot; each row's lastRun shows its age.
+MERGE_ARGS=()
+if [ "$ROLLING" = "1" ]; then
+  for d in eval_results/rotation/os-rolling/*/; do
+    [ -d "$d" ] && MERGE_ARGS+=(--merge "${d%/}")
+  done
+  echo "   local rotation : all versions ($(( ${#MERGE_ARGS[@]} / 2 )) dirs, newest result wins)"
+elif [ -d "$ROTATION_DIR" ]; then
+  MERGE_ARGS=(--merge "$ROTATION_DIR")
   echo "   local rotation : $ROTATION_DIR (merging)"
-  "$AILANG" eval-report "$BASELINE_DIR" "$VERSION" \
-    --merge "$ROTATION_DIR" --format=json
 else
   echo "   local rotation : (none for ${VERSION} — publishing cloud-only)"
-  "$AILANG" eval-report "$BASELINE_DIR" "$VERSION" --format=json
 fi
+
+# ${arr[@]+...}: bash 3.2 under set -u treats an empty array expansion as unbound.
+"$AILANG" eval-report "$BASELINE_DIR" "$VERSION" \
+  ${MERGE_ARGS[@]+"${MERGE_ARGS[@]}"} --format=json
 
 status=$?
 if [ "$status" -ne 0 ]; then

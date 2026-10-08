@@ -975,6 +975,72 @@ models:
       Superseded by Claude Sonnet 4.6 (Feb 2026).
       Agent eval support: ✅ Fully supported via Claude Code CLI.
 
+  # Anthropic Claude Haiku 5.5 (onboarded 2026-10-08)
+  claude-haiku-5-5:
+    api_name: "claude-haiku-5-5"
+    provider: "anthropic"
+    default_thinking: "on"  # adaptive, on by default (omitting `thinking` runs adaptive);
+      # budget_tokens is a 400. {type:"disabled"} is accepted at effort <= high (probed
+      # 2026-10-08) — registered CanDisable:true in internal/ai/reasoning_anthropic.go.
+    description: "Claude Haiku 5.5 - current Haiku, successor to Haiku 4.5 at a tenth of the price (Oct 2026)"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"
+    aliases: ["haiku"]  # moved from claude-haiku-4-5: CLI 2.1.294 `--model haiku` → modelUsage
+      # ["claude-haiku-5-5"] (2026-10-08), so a banked or --model "haiku" row is this model now.
+    agent_model_name: "claude-haiku-5-5"  # explicit id, never the "haiku" alias. Verified
+      # 2026-10-08 (CLI 2.1.294, ANTHROPIC_API_KEY stripped = subscription lane): `claude -p
+      # --model claude-haiku-5-5` → modelUsage keys ["claude-haiku-5-5"]; negative control
+      # claude-haiku-9-zzz → rc=1.
+    model_family: "claude-haiku-5-5"
+    max_output_tokens: 64000   # Models API declares max_tokens 128000 (streaming ceiling);
+      # standard mode calls the NON-streaming Messages API, same 64K as every Claude 5.x row.
+      # Thinking and text share this cap — finish=length is truncation until proven otherwise.
+    pricing:
+      # TWO rate cards by prompt length: $0.10/$0.50 per 1M at <= 100K prompt tokens,
+      # $0.50/$2.50 above. Rows carry one card; eval prompts are ~23K, so the <= 100K card.
+      # A long-context agent turn past 100K is UNDERSTATED 5x by this row.
+      input_per_1k: 0.0001    # $0.10 per million
+      output_per_1k: 0.0005   # $0.50 per million
+      cache_read_per_1k: 0.00001     # $0.01/M = 0.1x input
+      cache_write_per_1k: 0.000125   # $0.125/M = 1.25x input — 5-minute cache write rate
+    budgets:
+      # Same 3.0M blended-token WORK GATE as every agent_suite row (see claude-haiku-4-5).
+      # $0.30 is that gate at $0.10/$0.50 list — on this rig claude runs on OAuth, so not spend.
+      max_tokens_per_bench: 3000000
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Successor to Claude Haiku 4.5: 1M context (was 200K), 128K max output (was 64K),
+      $0.10/$0.50 per 1M at <= 100K prompt (was $1/$5 flat) — see pricing comment.
+
+      Harness-relevant API deltas vs Haiku 4.5 (read before debugging a failure):
+        • Thinking is adaptive and ON by default; budget_tokens → 400. Effort default is
+          "medium" (not "high"). This row sends no effort (vendor default, model-manager §2a).
+        • Non-default temperature / top_p / top_k → 400. The eval harness sends none.
+        • Assistant prefill → 400.
+        • Newer tokenizer: ~30% more tokens for the same text than Haiku 4.5 — token
+          counts are not comparable across the two rows.
+        • Refusals (stop_reason "refusal") are possible and have NO server-side fallback.
+        • Minimum cacheable prefix: 512 per the vendor skill table (flagged "check the
+          docs") — cache.go carries 512; diagnostics only.
+
+      Access verified 2026-10-08 on BOTH lanes: Messages API (ANTHROPIC_API_KEY from
+      ~/.config/ailang/secrets.env) and the Claude Code CLI subscription lane.
+
+      SMOKE 2026-10-08, standard: 23/23 (gate PASSED), $0.009.
+      PLACEMENT 2026-10-08, standard, `--tier core,frontier` N=1, candidate alone (§5.5):
+      25/26, anchored standard ELO 2142.1, $0.034 metered. Panel is 26 benchmarks (the
+      2026-09-22/29 placements ran 29). Between gpt6-sol (2288.7) / claude-sonnet-5-5
+      (2295.8) and gpt6-luna (2008.2). Only miss: contract_rle_roundtrip (logic_error,
+      finish=stop, 1718 reasoning tokens) — capability, not truncation.
+      AGENT 2026-10-08, claude CLI subscription lane, `tier: frontier` (5 benchmarks) N=1:
+      5/5 — contract_rle_roundtrip (its one standard-mode miss), contract_sorted_merge,
+      ssa_constant_fold, markdown_reimplement (13 turns, 747K input) and docx_reimplement
+      (20 turns, 1.73M input, 98s). $0.18 list-price-equivalent (not billed; priced on the
+      <= 100K card, so long turns are understated). Ties gpt6-sol / gpt6-1-sol / gpt6-astra
+      (5/5, 2026-09-30); no agent anchor, so this is a pass profile, not a rating.
+      Suite promotion: PENDING a decision.
+
   # Anthropic Claude Haiku 4.5 (released October 2025)
   claude-haiku-4-5:
     api_name: "claude-haiku-4-5-20251001"
@@ -983,9 +1049,8 @@ models:
     description: "Claude Haiku 4.5 - fastest and most cost-effective"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
-    aliases: ["haiku"]  # the CLI short name still means THIS row (2.1.259 and 2.1.284 both run
-      # claude-haiku-4-5-20251001), so a banked or --model "haiku" keeps pricing here. Move it the
-      # day a new Haiku ships — the alias will re-point, as sonnet/opus/fable already have.
+    # aliases: ["haiku"] moved to claude-haiku-5-5 on 2026-10-08 — CLI 2.1.294 runs
+    # claude-haiku-5-5 for `--model haiku`, so the short name now means that row.
     agent_model_name: "claude-haiku-4-5-20251001"  # explicit id, not the "haiku" alias. The alias still
       # resolves here (2026-09-29, CLI 2.1.284) — pinned pre-emptively because sonnet, opus and fable
       # all re-pointed at their newest model and haiku will too on the next Haiku release.
@@ -2348,8 +2413,9 @@ models:
                               # (at 32768 its thinking phase hit OUR cap: 6 finish=length, 3 with
                               # ZERO content). Within every provider's declared ceiling (131072+).
     pricing:
-      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-27)
-      output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-27)
+      input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
+      output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
+      cache_read_per_1k: 0.00003  # $0.03 per 1M (same source)
     budgets:
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
@@ -2376,8 +2442,9 @@ models:
     model_family: "glm-5"
     max_output_tokens: 32000 # = pi's wire budget (2026-10-08). At 65536 GLM-Flash reasoned to the cap on hard benchmarks (gauntlet_10: 3 of 4 steps, 197k output tokens) and each runaway step cost twice pi's; the 10-02 lane A/B tied 55/69 but motoko cost $6.86 vs pi $4.20
     pricing:
-      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-27)
-      output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-27)
+      input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
+      output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
+      cache_read_per_1k: 0.00003  # $0.03 per 1M (same source)
     budgets:
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
@@ -2400,8 +2467,9 @@ models:
     model_family: "glm-5"
     max_output_tokens: 32000  # pi's wire budget (tools/pi-extensions/models.mission.json maxTokens); the motoko arm declares 65536 — a known A/B asymmetry, check finish_reason=length on pi rows
     pricing:
-      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-27)
-      output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-27)
+      input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
+      output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
+      cache_read_per_1k: 0.00003  # $0.03 per 1M (same source)
     budgets:
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
@@ -2693,8 +2761,9 @@ models:
     model_family: "glm-5"
     max_output_tokens: 65536  # always-thinking model — headroom, per the GLM-5.2 truncation lesson
     pricing:
-      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-31)
-      output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-31)
+      input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
+      output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
+      cache_read_per_1k: 0.00003  # $0.03 per 1M (same source)
     budgets:
       # WORK GATE (2026-07-31, Mark): 3.0M blended-token ceiling shared with agent_suite.
       # Price-scaled dollar cap (qwen3-8-27b precedent): 5.2's seat carried $0.30 at
@@ -5187,8 +5256,9 @@ models:
                               # 65536 is the fleet target, within every provider's ceiling.
     model_family: "glm-5"
     pricing:
-      input_per_1k: 0.000075  # $0.075 per 1M (OpenRouter API, verified 2026-08-27)
-      output_per_1k: 0.00025  # $0.25 per 1M (OpenRouter API, verified 2026-08-27)
+      input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
+      output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
+      cache_read_per_1k: 0.00003  # $0.03 per 1M (same source)
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
@@ -5827,10 +5897,17 @@ benchmark_suite:
     # ⚠️ Costs 2x sol ($10/$50 vs $5/$30) — it is the expensive seat in this suite, so trim it
     # first if a run needs to shrink. sol is KEPT below as the cost-effective longitudinal
     # anchor rather than being retired (the claude-sonnet-5 / sonnet-4-6 precedent).
-  - "gpt5-6-sol"       # OpenAI flagship (Jul 2026) — replaced gpt5-5 (core tie 25/26 at identical $5/$30, newer gen)
-    # KEPT alongside gpt6-astra from 2026-09-05: astra beats it outright (see above) but at 2x
-    # the price, so this row stays as the cheaper OpenAI reference and longitudinal anchor.
-  - "claude-opus-5"    # Anthropic flagship (Jul 2026) — REPLACED claude-opus-4-8 2026-07-27.
+  - "gpt6-1-sol"       # OpenAI cheaper reference — gpt6-1-sol SUPERSEDES gpt6-sol (Mark, 2026-10-08: "we
+    # should supersede to sol 6.1"), same $2/$10. gpt6-sol had briefly replaced gpt5-6-sol the
+    # same day (the seat's job: the cheaper OpenAI reference next to astra). gpt6-1-sol is
+    # already executor rung 1 and agent core 23/23 (v0.51.0); its standard placement is still
+    # to run (~$0.6 for core). gpt6-sol's 2026-10-08 agent core fill is its last eval run;
+    # gpt5-6-sol and gpt6-sol stay registered for longitudinal reads.
+  - "claude-opus-5-5"  # Anthropic flagship — REPLACED claude-opus-5 2026-10-08 (Mark: refresh the suite
+    # to the current generation). Cheaper ($4/$20 vs $5/$25), anchored standard placement 2871.9
+    # (core+frontier 29/29 — a floor, not a ceiling; 2026-09-22), AILANG core 23/23.
+    # Previous seat record (claude-opus-5), kept for provenance:
+    # Anthropic flagship (Jul 2026) — REPLACED claude-opus-4-8 2026-07-27.
     # Gate: core N=1 19/19 vs 4.8's 18/19, then N=3 57/57 (100%) vs 53/57 (93.0%). Opus 5 did
     # not fail once in 76 core runs; 4.8 failed 5 times across 5 DIFFERENT benchmarks
     # (config_file_parser, cli_args, csv_to_json_converter, json_transform, pipeline) — a
