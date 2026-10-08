@@ -31,7 +31,7 @@ Refs #1547
 
 1. **Honour `AILANG_CACHE_DIR`.** Add it to `workerEnvAllow`. This is parity with `policy-tool`, `check`, and the motoko adapter (per-task cache dirs), and it is what the issue asks for. No downside: the operator's chosen path was denied only by omission.
 2. **Default when the var is unset — this is the real decision.** Today's default is in-sandbox. Options:
-   - **(a) Per-run private temp dir outside the sandbox** (recommended). The supervisor creates `os.MkdirTemp("", "ailang-policy-cache-*")` before spawning, injects `AILANG_CACHE_DIR=<dir>` into the worker env, and removes the dir when the worker exits — exactly `ed1df2d3f`'s pattern, hoisted into the supervisor. The invariant "the compile cache is never inside the sandbox in restricted mode" holds with **no host action**. Cost: every restricted run cold-compiles (no cross-run reuse).
+   - **(a) Per-run private temp dir outside the sandbox** (recommended). The supervisor creates `os.MkdirTemp("", "ailang-policy-cache-*")` before spawning, injects `AILANG_CACHE_DIR=<dir>` into the worker env, and removes the dir when the worker exits — exactly `ed1df2d3f`'s pattern, hoisted into the supervisor. `MkdirTemp("")` resolves under the supervisor's `TMPDIR`, which is itself in `workerEnvAllow` and operator-controlled, so the injected dir gets the same inside-root check as decision 3 (via `entryInsideSandbox`, which resolves symlinks) — see Review notes 2026-10-08. The invariant "the compile cache is never inside the sandbox in restricted mode" holds with **no host action**. Cost: every restricted run cold-compiles (no cross-run reuse).
    - **(b) Persistent dir outside the sandbox**, e.g. `~/.cache/ailang/policy-compile/<hash-of-sandbox-root>`. Warm compiles, but two concurrent runs against the same sandbox race on `manifest.json` — a whole-file rewrite via `os.WriteFile` (`cache_store.go:82`) with no lock — which is precisely the race the `AILANG_CACHE_DIR` override exists to let orchestrators avoid (`cache_store.go:56-60`; the motoko adapter sets per-task dirs for that reason, `internal/executor/motoko/motoko.go:461`). It also adds a new un-GC'd growth location.
    - **(c) Keep the in-sandbox default** and rely on hosts setting the var (now honoured). Leaves the trust hole for every host that has not read this issue.
    **Recommend (a).** A security default must hold the invariant by itself; cold-compile cost is bounded (the supervisor's deadline already covers a cold run) and measurable in the sprint; an operator who wants reuse sets `AILANG_CACHE_DIR` knowingly (decision 3 governs where they may point it). If cold-compile latency proves material, (b) is the follow-up with per-sandbox keying — not in this fix.
@@ -42,9 +42,10 @@ Refs #1547
 
 - `cmd/ailang/run_policy_supervise.go` (~20 LOC):
   - add `AILANG_CACHE_DIR` to `workerEnvAllow` (the list already carries a cache-path var, `GOCACHE`, so the precedent is in place);
-  - in `supervisePolicyRun`: for a restricted `res` with an empty `config.CacheDir()`, `MkdirTemp` before `cmd.Start`, `defer os.RemoveAll` after `cmd.Wait` (the supervisor owns the worker's lifecycle, so the dir cannot outlive the run);
+  - in `supervisePolicyRun`: for a restricted `res` with an empty `config.CacheDir()`, `MkdirTemp` **immediately before** `cmd.Start` (after the pipe setup, whose failures call `refusePolicy` → `os.Exit` at `run_policy_supervise.go:84,88` and would skip a deferred `RemoveAll`), and remove it explicitly if `cmd.Start` fails (`:92-93` also refuses via `os.Exit`); `defer os.RemoveAll` covers the normal path after `cmd.Wait` (the supervisor owns the worker's lifecycle, so the dir cannot outlive the run);
+  - apply decision 3's inside-root check to the injected temp dir as well (`entryInsideSandbox(res.Root, dir)`, `cmd/ailang/run_policy.go:149`, resolves symlinks): a `TMPDIR` inside `fs_sandbox` would otherwise land the "outside" cache in-sandbox;
   - thread the injected dir into `workerEnv` (signature change) so a non-empty operator value always wins over the temp default (`config.RawSet` is true even for an empty value — `internal/config/registry.go:153-155` — so the precedence check must be on the value, not on presence);
-  - the decision-3 warning (one stderr line) when the operator value resolves inside `res.Root`.
+  - the decision-3 warning (one stderr line) when the operator value resolves inside `res.Root`. The line must not begin with `policy` (sibling #1548 / PR #1679 treats supervisor lines with that prefix as the authoritative result channel).
 - Tests (`cmd/ailang/`):
   - unit, following the `TestWorkerEnv_*` pattern (`run_policy_hardening_test.go:454`): a restricted `workerEnv` carries the injected `AILANG_CACHE_DIR`; a set operator value wins over the temp default; `trusted_host` is untouched;
   - end-to-end, following `TestRunPolicy_SupervisorKeepsAllProgramOutput` (`run_policy_supervise_test.go:58`, `runAilangBin`/`buildAilang`/`writePolicy`/`writeAil`): after a restricted run, no `.ailang/` exists in the sandbox; with `AILANG_CACHE_DIR` set outside the sandbox, `<dir>/compile` is written there and nothing in-sandbox; the in-sandbox-value warning appears on supervisor stderr and the run still succeeds.
@@ -56,7 +57,9 @@ Refs #1547
 
 - [ ] Restricted run with `AILANG_CACHE_DIR` unset leaves no `.ailang/` in the sandbox; cache lands in a supervisor-created temp dir removed at exit.
 - [ ] Restricted run with `AILANG_CACHE_DIR` set writes `<dir>/compile` and nothing in-sandbox.
-- [ ] An operator value resolving inside `fs_sandbox` produces the one-line supervisor warning.
+- [ ] An operator value resolving inside `fs_sandbox` produces the one-line supervisor warning (not prefixed `policy`).
+- [ ] A `TMPDIR` inside `fs_sandbox` does not put the default temp cache in-sandbox (inside-root check on the injected dir).
+- [ ] No temp cache dir is left behind when the supervisor refuses before or at `cmd.Start`.
 - [ ] `trusted_host` behaviour unchanged (full env passthrough).
 - [ ] Existing policy tests pass (`go test ./cmd/ailang/` policy suites); docs rows updated.
 
@@ -100,6 +103,15 @@ Refs #1547
 | 15 | The issue's live repro (`.ailang/` created in-sandbox, `AILANG_CACHE_DIR` ignored by `run --policy`, honoured by `policy-tool`) | Triage 2026-10-08 on origin/dev `658ff76a3`; mechanism chain (rows 1-5) re-read at `1dfd5615` |
 
 Scope note: this change touches `cmd/ailang/run_policy_supervise.go` only (plus tests/docs) — not `internal/parser|lexer|ast|types|elaborate|iface|codegen|eval|vm|effects` or `cmd/ailang/exec.go`, so the Conflict Surface section is not triggered. The systemic audit (skill rule: "is this part of a larger pattern?") found the sibling instance of the same hole — policy-tool's CLI children — already fixed in `ed1df2d3f`; this fix adopts that pattern rather than inventing a second mechanism. `AILANG_STATE_DIR` is also absent from `workerEnvAllow`, but the `run` worker never touches the state dir (row 7), so it needs no change.
+
+## Review notes 2026-10-08
+
+Folded from review; the first two are amended above, recorded here for traceability.
+
+1. **`TMPDIR` can put the "outside" cache inside the sandbox.** `os.MkdirTemp("", …)` uses the supervisor's `TMPDIR`, and `TMPDIR` is in `workerEnvAllow` (`cmd/ailang/run_policy_supervise.go:45`). If an operator's `TMPDIR` resolves inside `fs_sandbox`, decision 2(a)'s invariant breaks silently. Apply decision 3's inside-root check to the injected dir too, via `entryInsideSandbox` (`cmd/ailang/run_policy.go:149`, resolves symlinks on both sides). Sprint to choose the response for the injected dir (fall back to a non-`TMPDIR` location or refuse); a warn-and-proceed is not enough here because no operator chose that path.
+2. **Temp dir leak on refusal.** `refusePolicy` exits the process (`run_policy_supervise.go:84,88,93` — the stdout/stderr pipe and `cmd.Start` failures), so a `defer os.RemoveAll` registered earlier never runs. Create the dir immediately before `cmd.Start` and remove it explicitly on the `cmd.Start` refusal path.
+3. **Residual, out of scope:** a pre-existing (possibly poisoned) `.ailang/cache` already inside the sandbox is still read by `trusted_host` runs and by unsupervised `run`/`check`; this fix stops new restricted runs from writing or reading there, nothing more.
+4. **Sibling #1548 (PR #1679):** any new supervisor stderr line added here (the decision-3 warning, a temp-dir failure) must not start with `policy`, so it cannot be confused with the authoritative `policy-result:` / `policy:` channel.
 
 ## Cross-links
 
