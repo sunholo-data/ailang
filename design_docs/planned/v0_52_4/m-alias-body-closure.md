@@ -330,3 +330,7 @@ The following are intentionally left open for the implementer:
 
 **Document created**: 2026-10-07
 **Last updated**: 2026-10-07
+
+## Maintainer rulings (Ruled 2026-10-08 by Mark)
+
+The decision marked `human` is ratified as written: M4 (module-qualified nominal identity) remains a separate future doc.
