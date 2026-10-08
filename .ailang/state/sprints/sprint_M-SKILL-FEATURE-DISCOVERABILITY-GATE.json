@@ -1,0 +1,81 @@
+{
+  "sprint_id": "M-SKILL-FEATURE-DISCOVERABILITY-GATE",
+  "status": "completed",
+  "created": "2026-10-08T18:52:43.712673+00:00",
+  "design_doc": "design_docs/planned/v0_52_6/m-skill-feature-discoverability-gate.md",
+  "sprint_plan": "design_docs/planned/v0_52_6/m-skill-feature-discoverability-gate-sprint-plan.md",
+  "github_issues": [
+    476
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Registry search 'feature discoverability' returned no packages (binary warned stale); instruction-only milestone has no package-like capability."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Registry search 'feature discoverability' returned no packages (binary warned stale); instruction-only milestone has no package-like capability."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 104,
+    "estimated_total_loc": 52,
+    "estimated_days": 0.5,
+    "actual_total_loc": 48
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Planner syntax gate and mirror",
+      "estimated_loc": 24,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Gate is visible in the planning workflow and explicitly conditional on `.ail` output.",
+        "Prompt loading and version recording are distinct requirements; MCP is optional.",
+        "Every planned showcase module has the three include-or-justify rows.",
+        "Planner mirror compares byte-identically and skill format checks pass."
+      ],
+      "passes": true,
+      "started": "2026-10-08T19:10:38.921118+00:00",
+      "completed": "2026-10-08T19:10:38.921118+00:00",
+      "notes": "Implemented approved syntax gate; bash scripts/check_skills.sh and byte-identical mirror comparison passed. All acceptance criteria reviewed.",
+      "actual_loc": 26
+    },
+    {
+      "id": "M2",
+      "description": "Executor syntax gate, mirror, and validation",
+      "estimated_loc": 28,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Core Principles requires actual syntax loading before the first `.ail` write per session.",
+        "Reports record the prompt version and each showcase checklist disposition.",
+        "Skips without reasons fail; justified skips remain permitted.",
+        "Both mirror pairs pass `cmp`; `make check-skills` or its underlying script passes.",
+        "Review confirms no `.ail` output bypasses the gate and offline CLI loading is supported.",
+        "Diff contains only the four planned skill edits; no compact-prompt promise or runtime changes."
+      ],
+      "passes": true,
+      "started": "2026-10-08T19:10:38.921118+00:00",
+      "completed": "2026-10-08T19:10:38.921118+00:00",
+      "notes": "Implemented approved syntax gate; bash scripts/check_skills.sh and byte-identical mirror comparison passed. All acceptance criteria reviewed.",
+      "actual_loc": 22
+    }
+  ],
+  "completed": "2026-10-08T19:10:38.921118+00:00",
+  "last_session": "2026-10-08T19:10:38.921118+00:00",
+  "last_checkpoint": "M2 complete: skill checker, mirror comparisons, whitespace check and instruction review passed",
+  "validation": {
+    "skill_checker": "passed: all 42 skills",
+    "mirror_comparisons": "both passed",
+    "diff_check": "passed",
+    "sprint_json": "Python JSON parse and structural milestone validation passed; jq unavailable",
+    "runtime_tests": "not applicable: approved instruction-only scope",
+    "measurement": "Pending next world showcase generations; owned by world mission operator/coordinator"
+  }
+}
