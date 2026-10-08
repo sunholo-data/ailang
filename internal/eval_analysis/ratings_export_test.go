@@ -2,6 +2,7 @@ package eval_analysis
 
 import (
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
@@ -114,5 +115,70 @@ func TestRatingsForMode_Coverage(t *testing.T) {
 	}
 	if cov["sparse"] != 1 {
 		t.Errorf("sparse coverage = %d, want 1", cov["sparse"])
+	}
+}
+
+// TestRatingsForMode_AnchoredDropsDegenerateAndStampsLastRun: in the anchored
+// fit an undefeated model has no finite rating and must not be published; every
+// published row carries the date of its newest result (rolling publication).
+func TestRatingsForMode_AnchoredDropsDegenerateAndStampsLastRun(t *testing.T) {
+	day := func(d int) time.Time { return time.Date(2026, 9, d, 12, 0, 0, 0, time.UTC) }
+	mk := func(id, model string, ok bool, ts time.Time) *BenchmarkResult {
+		return &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: id, Lang: "ailang", Model: model,
+			CompileOk: ok, RuntimeOk: ok, StdoutOk: ok, Timestamp: ts,
+			AilangVersion: "v0.52." + string(rune('0'+ts.Day()))}}
+	}
+	var results []*BenchmarkResult
+	for i, b := range []string{"fizzbuzz", "gcd_lcm", "csv_to_json_converter"} {
+		results = append(results,
+			mk(b, "mixed", i != 2, day(1+i)),
+			mk(b, "undefeated", true, day(1)))
+	}
+
+	block := ratingsForMode(results, true)
+	rows := map[string]map[string]interface{}{}
+	for _, m := range block["models"].([]map[string]interface{}) {
+		rows[m["id"].(string)] = m
+	}
+	if _, ok := rows["undefeated"]; ok {
+		t.Errorf("undefeated model published in the anchored fit: %v", rows["undefeated"])
+	}
+	m, ok := rows["mixed"]
+	if !ok {
+		t.Fatal("mixed model missing")
+	}
+	if m["lastRun"] != "2026-09-03" {
+		t.Errorf("lastRun = %v, want 2026-09-03 (newest result)", m["lastRun"])
+	}
+	if m["lastVersion"] != "v0.52.3" {
+		t.Errorf("lastVersion = %v, want v0.52.3 (version of the newest result)", m["lastVersion"])
+	}
+}
+
+// TestRatingsForMode_CoreGate: each row reports how many core-tier benchmarks it
+// ran and the block reports the core total, so the site ranks only full-core models.
+func TestRatingsForMode_CoreGate(t *testing.T) {
+	coreOnce.Do(func() {}) // pin the set below instead of reading ./benchmarks
+	saved := coreSet
+	coreSet = map[string]bool{"c1": true, "c2": true}
+	defer func() { coreSet = saved }()
+
+	mk := func(id, model string, ok bool) *BenchmarkResult {
+		return &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: id, Lang: "ailang", Model: model, CompileOk: ok, RuntimeOk: ok, StdoutOk: ok}}
+	}
+	results := []*BenchmarkResult{
+		mk("c1", "full", true), mk("c2", "full", false), mk("x", "full", true),
+		mk("c1", "partial", true), mk("x", "partial", false),
+	}
+	block := ratingsForMode(results, false)
+	if block["coreTotal"] != 2 {
+		t.Fatalf("coreTotal = %v, want 2", block["coreTotal"])
+	}
+	core := map[string]interface{}{}
+	for _, m := range block["models"].([]map[string]interface{}) {
+		core[m["id"].(string)] = m["core"]
+	}
+	if core["full"] != 2 || core["partial"] != 1 {
+		t.Errorf("core coverage = %v, want full=2 partial=1", core)
 	}
 }

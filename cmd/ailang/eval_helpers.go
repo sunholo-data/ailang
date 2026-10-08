@@ -132,6 +132,16 @@ func parseTierList(raw string) ([]string, error) {
 // filterBenchmarksByTier narrows a benchmark ID list to those whose YAML tier
 // is in `tiers`. Missing tier fields default to "core" (per M1 back-compat
 // rule). Benchmarks that fail to load are dropped with a stderr warning.
+// benchmarkTier returns the tier declared by benchmark id's spec, or "" when the
+// spec cannot be loaded (e.g. a ratings row for a retired benchmark).
+func benchmarkTier(id string) string {
+	spec, err := eval_harness.LoadSpec(filepath.Join(evalBenchmarkDir, id+".yml"))
+	if err != nil {
+		return ""
+	}
+	return spec.Tier
+}
+
 func filterBenchmarksByTier(benchmarks []string, tiers []string) []string {
 	if len(tiers) == 0 {
 		return benchmarks

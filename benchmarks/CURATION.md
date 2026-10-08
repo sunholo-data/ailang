@@ -22,6 +22,7 @@ frontier model trivially passes is not a useful `stretch` benchmark.
 | `core`     | **The headline number.** Representative corpus.| 70–95%. This is what releases are judged on. | ~minutes |
 | `stretch`  | Headroom / differentiation benchmarks.         | 30–70%. Non-trivial for every model.    | ~minutes  |
 | `frontier` | Frontier-defeating. A frontier model fails ≥ 1.| 0–40%; frontier fails some. If *every* frontier model passes, it belongs in `stretch`. | ~minutes |
+| `long-frontier` | Hard **and** long-running: agent runs routinely exceed the 1h wall clock. **Attended evals only.** | Any. | ~hour per run |
 | `vision`   | Aspirational. May not compile on AILANG today. | 0–50%. Measures *potential*, not parity.| variable  |
 
 The **frontier** tier (added v0.29.0, `M-EVAL-FRONTIER-TIER`) exists because the
@@ -30,6 +31,15 @@ AILANG benchmarks, additional runs of the saturated set buy zero information. A
 frontier benchmark's defining property is that **at least one frontier model
 fails it in standard mode**; if a re-tiered benchmark later proves to be passed
 by *every* frontier model, it demotes back to `stretch` (see §5).
+
+The **long-frontier** tier (2026-10-06) holds benchmarks that cost too much wall
+clock to run unattended: on the local qwen3.8-27b trio, `quine`, `gauntlet_10`,
+`commonmark_emphasis` and `legal_obligation_engine` hit the 1h timeout on 38–83% of
+agent runs, and the shared GPU stalls the rig's desktop while they grind. No
+scheduled job lists the tier — the OS rotation filler, nightly and post-release
+baselines name their tiers, and `--benchmarks-by-confidence` skips it — so they run
+only when an attended eval asks: `ailang eval-suite --tier long-frontier ...`.
+Difficulty alone never qualifies a benchmark; runtime does.
 
 **Default tier**: `core`. `LoadSpec` (`internal/eval_harness/spec.go`) fills in
 `tier: core` when the field is absent, so unannotated benchmarks automatically

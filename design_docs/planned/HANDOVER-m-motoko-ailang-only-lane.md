@@ -1,4 +1,30 @@
-# HANDOVER — motoko in the ailang_only lane (2026-10-01)
+# HANDOVER — motoko in the ailang_only lane (2026-10-01; status updated 2026-10-08)
+
+## Status 2026-10-08 — read this first; the 2026-10-01 text below is history
+
+- **Valid A/B done** (2026-10-02, protocol below followed: one binary, per-run `fs_sandbox`, arms
+  sequential, transcripts read): `ailang_only` lane, GLM-5.3-Flash, 23 benchmarks x 3 trials —
+  **motoko 55/69, pi 55/69**, 4 discordant pairs each way (`eval-paired`: below the floor, a tie),
+  0 hardcoded passes, 0 `policy_violation`. Cost motoko $6.86 vs pi $4.20: GLM reasoned to the
+  65536 output cap on hard benchmarks (the empty-stop guard nudged twice, by design; pi gave up the
+  same way as `non_agentic`). Fixed: motoko GLM-Flash rows now cap at 32000 = pi (3cdfdd353).
+  Results: `eval_results/lane_ab_20261002_{pi,motoko}`.
+- **motoko vs codex on Sol 6.1** (new `chatgpt/` provider, subscription): 7/8 genuine each on 8
+  frontier benchmarks x 1; motoko ~1.5x input tokens. Mark: switch decided by REAL tasks over time,
+  not benchmarks.
+- **Shipped:** fork `sunholo/main-dst-20261002` @ `de68fddf` (upstream 4023bf08 + strict profiles,
+  lane, #209, one schema per tool, portable path guard) — cloud image pin in v0.52.0+ (prod runs
+  v0.52.1+), rig shim switched 2026-10-08. Upstream PRs: arniwesth/motoko_agent #234 (path guard),
+  #235 (one schema per tool); #209 still open.
+- **Agent switch:** `ailang-only-executor` -> `provider: motoko` on the multivac **dev** branch
+  (532d23c). Needs ailang `48282426d` (lane tasks default to the `ailang_only` profile; the cloud
+  job's `MOTOKO_CONFIG=dogfood` failed the lane gate) — on dev now, prod needs the next release +
+  promote, then multivac dev -> prod. Rollback: provider back to `pi`.
+- **Mission loops:** v1/docs/motoko paused; `role-run` does not admit motoko (no in-flight token
+  guard). Do not add a `motoko:` lane to the legacy shell driver.
+- **Not used:** herdr (needs an interactive herdr session; headless evals/jobs have none).
+- **Open known issue (all harnesses):** the agent prompt shows the expected output, so a solution
+  can print it; 22/5549 banked passes did (commonmark_emphasis, gauntlet_10).
 
 Design: [m-motoko-ailang-only-lane.md](m-motoko-ailang-only-lane.md). Goal (Mark): motoko is the best
 harness to write AILANG; the ailang_only executor boxes are the most secure place to do it. This

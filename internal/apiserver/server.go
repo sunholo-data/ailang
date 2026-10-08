@@ -378,6 +378,9 @@ func (s *Server) LoadModules(paths []string) error {
 			}
 		}
 	}
+	if err := s.validateMCPUI(); err != nil {
+		return err
+	}
 
 	// Eagerly evaluate all loaded modules so they're fully initialized before
 	// any HTTP requests arrive. This prevents deadlocks where concurrent requests
@@ -592,7 +595,9 @@ func (s *Server) buildRoutes() *http.ServeMux {
 	// MCP endpoint (streamable HTTP transport)
 	if s.mcpEnabled {
 		mcpSrv := NewMCPServer(s)
-		mux.Handle("/mcp/", http.StripPrefix("/mcp", mcpSrv.HTTPHandler()))
+		agent := http.StripPrefix("/mcp", mcpSrv.HTTPHandler())
+		mux.Handle("/mcp/", agent)
+		mux.Handle("/mcp", bareListed(agent, "/mcp/"))
 		// The directory projection (M-SERVEAPI-DIRECTORY-READY D3). ServeMux
 		// picks the longer pattern, so /mcp/connect/ never reaches /mcp/.
 		if hasListedSurface(s.GetModules()) {
@@ -602,8 +607,10 @@ func (s *Server) buildRoutes() *http.ServeMux {
 				h = listed.gatedHandler(h, s.maxUploadSize)
 				mux.HandleFunc(protectedResourceRoot, s.handleProtectedResource)
 				mux.HandleFunc(protectedResourcePath, s.handleProtectedResource)
+				mux.HandleFunc(protectedResourcePathBare, s.handleProtectedResource)
 			}
 			mux.Handle(listedMCPPath, h)
+			mux.Handle(strings.TrimSuffix(listedMCPPath, "/"), bareListed(h, listedMCPPath))
 		}
 	}
 
@@ -623,7 +630,10 @@ func (s *Server) buildRoutes() *http.ServeMux {
 	}
 	if s.mcpEnabled {
 		builtinPaths["/mcp/"] = true
+		builtinPaths["/mcp"] = true
 		builtinPaths[listedMCPPath] = true
+		builtinPaths[strings.TrimSuffix(listedMCPPath, "/")] = true
+		builtinPaths[protectedResourcePathBare] = true
 		builtinPaths[protectedResourceRoot] = true
 		builtinPaths[protectedResourcePath] = true
 	}

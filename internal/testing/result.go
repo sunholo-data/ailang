@@ -62,6 +62,9 @@ type SuiteResult struct {
 	// Engine says where named-test bodies ran under --bytecode. Not reported:
 	// outcomes are engine-independent; the CLI prints it on stderr.
 	Engine EngineStats
+	// NamedBatchFailures lists files whose named tests could not share one
+	// compile (named_batch.go). Reported on stderr and in --json; never silent.
+	NamedBatchFailures []BatchFailure
 }
 
 // NewSuiteResult creates a new empty suite result.

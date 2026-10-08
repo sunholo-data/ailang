@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -29,9 +28,6 @@ import (
 // evalTracer is the OpenTelemetry tracer for eval harness instrumentation.
 var evalTracer = otel.Tracer("ailang.eval")
 
-// gitDescribeSuffix matches the `-<commits>-g<sha>` metadata that `git describe` appends to a tag.
-var gitDescribeSuffix = regexp.MustCompile(`-\d+-g[0-9a-f]+`)
-
 // releaseTag reduces a build version to its RELEASE TAG so --bank-by-version buckets by RELEASE, not by
 // every dev build. Drops the git-describe dev metadata and a -dirty suffix:
 //
@@ -43,7 +39,7 @@ var gitDescribeSuffix = regexp.MustCompile(`-\d+-g[0-9a-f]+`)
 // Behaviour: the rotation re-evals on a NEW release tag (fresh sweep); dev builds under the same tag
 // reuse that tag's banked set (--skip-existing skips them). M-EVAL-VERSION-BANKING.
 func releaseTag(v string) string {
-	return strings.TrimSuffix(gitDescribeSuffix.ReplaceAllString(v, ""), "-dirty")
+	return eval_harness.ReleaseTag(v)
 }
 
 func runEvalSuite() {
@@ -106,7 +102,7 @@ func runEvalSuite() {
 	aliasStringFlag(fs, models, "model", "Alias of --models (canonical singular spelling; still accepts a comma-separated list)")
 	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all models from extended_suite (gpt5-2-codex, claude-opus-4-6, claude-sonnet-4-6, gemini-3-pro, gemini-2-5-pro)")
 	benchmarks := fs.String("benchmarks", "", "Comma-separated list of benchmarks (empty = auto-discover from benchmarks/)")
-	tier := fs.String("tier", "", "Comma-separated list of tiers to include (smoke|core|stretch|frontier|vision). Empty = all tiers. Applied after benchmark discovery.")
+	tier := fs.String("tier", "", "Comma-separated list of tiers to include (smoke|core|stretch|frontier|long-frontier|vision). Empty = all tiers. Applied after benchmark discovery.")
 	byConfidence := fs.String("benchmarks-by-confidence", "", "Select the most informative (non-saturated) benchmarks for the run mode from a ratings DB instead of --benchmarks/--tier. Pass a db path, or 'auto' for ~/.ailang/state/observatory.db (M-EVAL-RATING-EFFICIENCY).")
 	maxBenchmarks := fs.Int("max-benchmarks", 0, "Cap on benchmarks selected by --benchmarks-by-confidence (0 = no cap)")
 	langs := fs.String("langs", "python,ailang", "Comma-separated list of languages")

@@ -23,6 +23,7 @@ type callOpts struct {
 	Nowrap     bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
 	ParamNames []string // parameter names for named JSON binding
 	ParamTypes []string // parameter type strings for zero-value padding
+	ParamZeros []any    // declared-record zeros (param_zero.go)
 }
 
 // callFunction executes an AILANG function and writes the response.
@@ -71,7 +72,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 		var cleanup func()
 		var parseErr error
-		args, cleanup, parseErr = parseMultipartArgsWithNames(r, maxSize, opt.ParamNames, opt.ParamTypes)
+		args, cleanup, parseErr = parseMultipartArgsWithNames(r, maxSize, opt.ParamNames, opt.ParamTypes, opt.ParamZeros)
 		if cleanup != nil {
 			defer cleanup()
 		}
@@ -101,7 +102,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		// for GET handlers with declared params.
 		// See: design_docs/planned/v0_21_0/m-serveapi-get-query-shadow.md
 		var parseErr error
-		args, _, parseErr = resolveArgs(r, body, opt.ParamNames, opt.ParamTypes)
+		args, _, parseErr = resolveArgs(r, body, opt.ParamNames, opt.ParamTypes, opt.ParamZeros)
 		if parseErr != nil {
 			httpjson.Write(w, http.StatusBadRequest, FunctionCallResponse{
 				Module: modulePath,
@@ -484,7 +485,7 @@ func writeTempFile(src io.Reader, originalFilename string) (string, error) {
 // Non-file fields become strings. Unmatched params get zero-values.
 // Returns args, a cleanup function for temp files, and any error.
 // Falls back to positional parseMultipartArgs when no paramNames are provided.
-func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []string, paramTypes []string) ([]interface{}, func(), error) {
+func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []string, paramTypes []string, paramZeros []any) ([]interface{}, func(), error) {
 	if r.MultipartForm == nil || len(paramNames) == 0 {
 		args, err := parseMultipartArgs(r, maxSize)
 		return args, func() {}, err
@@ -571,11 +572,7 @@ func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []st
 	// Pass 3: zero-value pad any remaining unmatched params
 	for i := range args {
 		if args[i] == nil {
-			paramType := ""
-			if i < len(paramTypes) {
-				paramType = paramTypes[i]
-			}
-			args[i] = zeroValueForType(paramType)
+			args[i] = paramZero(paramTypes, paramZeros, i)
 		}
 	}
 

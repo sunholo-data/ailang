@@ -253,16 +253,17 @@ func TestClaudeCostModel(t *testing.T) {
 	}
 }
 
-// A CLI short name ("haiku") resolves through the claude-haiku-4-5 row's
-// aliases. It used to resolve through agent_model_name, until every claude row
+// A CLI short name ("haiku") resolves through the claude-haiku-5-5 row's
+// aliases (moved off claude-haiku-4-5 on 2026-10-08, when CLI 2.1.294 began
+// running claude-haiku-5-5 for --model haiku). It used to resolve through agent_model_name, until every claude row
 // was pinned to a full id (2026-09-29) because the sonnet/opus/fable aliases
 // re-point at the newest model. A name no tier matches yields an EXPLICIT
 // unpriced card, never another model's rates.
 func TestClaudeCostModel_ShortNameResolvesViaWireName_UnknownIsUnpriced(t *testing.T) {
 	exec, _ := New(testConfig()) // ClaudeModel = "haiku"
 	cm := exec.CostModel()
-	if cm == nil || cm.Unpriced || cm.Model != "claude-haiku-4-5" {
-		t.Fatalf("expected haiku to resolve through its alias to claude-haiku-4-5, got %+v", cm)
+	if cm == nil || cm.Unpriced || cm.Model != "claude-haiku-5-5" {
+		t.Fatalf("expected haiku to resolve through its alias to claude-haiku-5-5, got %+v", cm)
 	}
 
 	cfg := testConfig()

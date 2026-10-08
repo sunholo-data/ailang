@@ -15,7 +15,7 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "very_hard"
 expected_gain: "high"
-tier: frontier
+tier: long-frontier # 2026-10-06: re-tiered frontier->long-frontier — agent runs on local models hit the 1h timeout too often (attended evals only)
 tags: [state_machine, adt_pattern_match, error_handling]
 task_prompt: |
   Write a program in <LANG> that implements the following contract-reasoning

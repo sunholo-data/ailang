@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/fileguard"
@@ -34,7 +35,10 @@ func (h *Host) read(req Request) Response {
 		return *r
 	}
 	if req.Path == "" {
-		return refuse("read: path is required")
+		return refuse("read: path is required (use \".\" to list the sandbox root)")
+	}
+	if fi, err := h.root.Stat(req.Path); err == nil && fi.IsDir() {
+		return h.listDir(req.Path)
 	}
 	f, err := h.root.Open(req.Path)
 	if err != nil {
@@ -50,6 +54,42 @@ func (h *Host) read(req Request) Response {
 		return refuse("read %s: file exceeds the %d-byte transfer cap", req.Path, cap)
 	}
 	return Response{OK: true, Content: string(data)}
+}
+
+// maxListEntries bounds one directory listing.
+const maxListEntries = 2000
+
+// listDir answers a read of a DIRECTORY with its entries, one per line, a
+// trailing "/" on subdirectories. The lane has no shell and no other listing
+// tool, and `ailang tree` needs an ailang.toml at the root, so in a monorepo an
+// agent could not see the repo's layout: measured 2026-10-08, motoko spent all
+// 300 steps of a 3-line fix writing its own directory lister after
+// `read packages` was refused. `.git` is omitted (read-only to the agent and
+// never useful to list).
+func (h *Host) listDir(path string) Response {
+	entries, err := h.root.ReadDir(path)
+	if err != nil {
+		return refuse("read %s: %v", path, err)
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	var b strings.Builder
+	n := 0
+	for _, e := range entries {
+		if e.Name() == ".git" {
+			continue
+		}
+		if n == maxListEntries {
+			fmt.Fprintf(&b, "... (listing truncated at %d entries)\n", maxListEntries)
+			break
+		}
+		b.WriteString(e.Name())
+		if e.IsDir() {
+			b.WriteString("/")
+		}
+		b.WriteString("\n")
+		n++
+	}
+	return Response{OK: true, Content: fmt.Sprintf("directory %s (%d entries):\n%s", path, n, b.String())}
 }
 
 // protected is the ONE write gate every write the tool endpoint performs

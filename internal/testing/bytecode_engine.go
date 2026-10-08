@@ -30,6 +30,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/bytecode"
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/runner"
 	"github.com/sunholo-data/ailang/internal/vm"
 )
@@ -117,9 +118,17 @@ func (e *Executor) evalNamedTestBodyOnVM(baseSource string, hasModule bool, fold
 	}
 	e.cacheModules(&res)
 
-	// The lower pass still panics on some unbridged shapes; that is a compile
-	// failure, exactly as `ailang run --bytecode` treats it.
-	var img *bytecode.BytecodeImage
+	img, err := compileTestImage(res)
+	if err != nil {
+		return nil, err
+	}
+	return e.runVMEntry(img, runner.FindEntryProto(img, namedTestEntry))
+}
+
+// compileTestImage lowers a named-test compile to a validated bytecode image.
+// The lower pass still panics on some unbridged shapes; that is a compile
+// failure, exactly as `ailang run --bytecode` treats it.
+func compileTestImage(res pipeline.Result) (img *bytecode.BytecodeImage, err error) {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -134,7 +143,13 @@ func (e *Executor) evalNamedTestBodyOnVM(baseSource string, hasModule bool, fold
 	if err := img.Validate(); err != nil {
 		return nil, fmt.Errorf("bytecode validate: %w", err)
 	}
-	proto := runner.FindEntryProto(img, namedTestEntry)
+	return img, nil
+}
+
+// runVMEntry runs one nullary named-test entry on a fresh VM over img. A nil
+// proto means the entry is not in the image. Shared by the per-body path and
+// the batched one (named_batch.go).
+func (e *Executor) runVMEntry(img *bytecode.BytecodeImage, proto *bytecode.FuncPrototype) (eval.Value, error) {
 	if proto == nil {
 		return nil, fmt.Errorf("test body entry not found in bytecode image")
 	}

@@ -118,7 +118,7 @@ func TestParseMultipartArgsWithNames_FileToString(t *testing.T) {
 
 	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
 		[]string{"filepath", "format"},
-		[]string{"string", "string"},
+		[]string{"string", "string"}, nil,
 	)
 	if err != nil {
 		t.Fatalf("parseMultipartArgsWithNames: %v", err)
@@ -159,7 +159,7 @@ func TestParseMultipartArgsWithNames_FileToBytes(t *testing.T) {
 
 	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
 		[]string{"data", "format"},
-		[]string{"bytes", "string"},
+		[]string{"bytes", "string"}, nil,
 	)
 	if err != nil {
 		t.Fatalf("parseMultipartArgsWithNames: %v", err)
@@ -192,7 +192,7 @@ func TestParseMultipartArgsWithNames_UnmatchedParams(t *testing.T) {
 
 	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
 		[]string{"file", "apiKey"},
-		[]string{"bytes", "string"},
+		[]string{"bytes", "string"}, nil,
 	)
 	if err != nil {
 		t.Fatalf("parseMultipartArgsWithNames: %v", err)
@@ -220,7 +220,7 @@ func TestParseMultipartArgsWithNames_NoParamNames_Fallback(t *testing.T) {
 		map[string]string{"key": "val"},
 	)
 
-	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20, nil, nil)
+	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("parseMultipartArgsWithNames: %v", err)
 	}
@@ -251,7 +251,7 @@ func TestParseMultipartArgsWithNames_CleanupRemovesTempFiles(t *testing.T) {
 
 	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
 		[]string{"file"},
-		[]string{"string"},
+		[]string{"string"}, nil,
 	)
 	if err != nil {
 		t.Fatalf("parseMultipartArgsWithNames: %v", err)
@@ -282,7 +282,7 @@ func TestParseMultipartArgsWithNames_MismatchedFieldName(t *testing.T) {
 
 	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
 		[]string{"filepath"},
-		[]string{"string"},
+		[]string{"string"}, nil,
 	)
 	if err != nil {
 		t.Fatalf("parseMultipartArgsWithNames: %v", err)
@@ -320,7 +320,7 @@ func TestParseMultipartArgsWithNames_MismatchedFieldName_Bytes(t *testing.T) {
 
 	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
 		[]string{"data"},
-		[]string{"bytes"},
+		[]string{"bytes"}, nil,
 	)
 	if err != nil {
 		t.Fatalf("parseMultipartArgsWithNames: %v", err)
@@ -349,7 +349,7 @@ func TestParseMultipartArgsWithNames_MismatchedWithExtraFields(t *testing.T) {
 
 	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
 		[]string{"filepath", "format"},
-		[]string{"string", "string"},
+		[]string{"string", "string"}, nil,
 	)
 	if err != nil {
 		t.Fatalf("parseMultipartArgsWithNames: %v", err)
@@ -381,7 +381,7 @@ func TestParseMultipartArgsWithNames_ExactMatchTakesPriority(t *testing.T) {
 
 	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
 		[]string{"filepath"},
-		[]string{"string"},
+		[]string{"string"}, nil,
 	)
 	if err != nil {
 		t.Fatalf("parseMultipartArgsWithNames: %v", err)
@@ -407,7 +407,7 @@ func TestParseMultipartArgsWithNames_NamedOrdering(t *testing.T) {
 
 	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
 		[]string{"format", "file", "apiKey"},
-		[]string{"string", "bytes", "string"},
+		[]string{"string", "bytes", "string"}, nil,
 	)
 	if err != nil {
 		t.Fatalf("parseMultipartArgsWithNames: %v", err)
@@ -454,7 +454,7 @@ func TestMultipartStringParamStreamsToTempFile(t *testing.T) {
 	if err := req.ParseMultipartForm(multipartMemoryThreshold); err != nil {
 		t.Fatal(err)
 	}
-	args, cleanup, err := parseMultipartArgsWithNames(req, 64<<20, []string{"filepath"}, []string{"string"})
+	args, cleanup, err := parseMultipartArgsWithNames(req, 64<<20, []string{"filepath"}, []string{"string"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

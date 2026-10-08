@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sunholo-data/ailang/internal/modelreg"
+	"github.com/sunholo-data/ailang/internal/version"
 	"os"
 	"path/filepath"
 	"strings"
@@ -122,6 +123,12 @@ type RunMetrics struct {
 
 	// Prompt versioning (M-EVAL-LOOP)
 	PromptVersion string `json:"prompt_version,omitempty"` // Prompt version used (v0.3.0-hints, etc.)
+
+	// AilangVersion is the RELEASE tag of the ailang binary that produced this
+	// row (ReleaseTag of version.Version). Stamped in MetricsLogger.Log; for rows
+	// banked before the field existed, LoadRowFiles fills it from a version-named
+	// ancestor directory (eval_results/rotation/os-rolling/v0.52.3/...).
+	AilangVersion string `json:"ailang_version,omitempty"`
 
 	// Reproducibility (M-EVAL-LOOP)
 	BinaryHash string   `json:"binary_hash,omitempty"` // SHA256 of ailang binary
@@ -377,6 +384,12 @@ func (l *MetricsLogger) Log(m *RunMetrics) error {
 	// harness crashes were banked as valid model failures for six weeks. See
 	// applyValidityBackstop for what depended on that being wrong.
 	m.applyValidityBackstop()
+
+	// Which language release this measurement belongs to. Set at the single
+	// point every banked row passes through, like the validity backstop above.
+	if m.AilangVersion == "" {
+		m.AilangVersion = ReleaseTag(version.Version)
+	}
 
 	// Determine subdirectory based on eval mode
 	var targetDir string

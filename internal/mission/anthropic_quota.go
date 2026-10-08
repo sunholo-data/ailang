@@ -79,37 +79,39 @@ func (o AnthropicQuotaObservation) Blocked() bool {
 // operator, not a fleet setting; unset means rationed.
 func AnthropicRationEnabled() bool { return config.AnthropicRation() }
 
-// anthropicOAuthToken returns the subscription OAuth token, or "".
+// anthropicOAuthTokens returns the subscription OAuth tokens to try against the usage
+// endpoint, in order, or nil when there is no credential.
 //
-// The env var wins so an operator (and the tests) can supply one explicitly. The keychain
-// read is the fallback and is bounded: `security` prompts on a locked keychain, and an
-// unbounded prompt inside a launchd fire would hang the whole iteration.
+// ORDER: the login credential (keychain or ~/.claude/.credentials.json, whichever expires
+// later) FIRST, CLAUDE_CODE_OAUTH_TOKEN SECOND. It used to be the other way round, and that
+// one ordering is why the loops could not have a credential of their own:
 //
-// NOTE the asymmetry that makes this work at all: launchd jobs have keychain access, plain
-// shells often do not. That is why this resolves at RUN time in the mission fire rather
-// than being captured into config by a human session.
+//   - Measured 2026-09-22: a `claude setup-token` token authenticates for inference but is
+//     FORBIDDEN from the usage endpoint (HTTP 403). Preferred, it overrode a working login
+//     read with an unreadable bucket, which `mission quota --over` blocks by policy.
+//   - Measured 2026-10-07: without one, the loops' `claude` used the keychain login, whose
+//     refresh token is shared with every other session on the account. A remote session
+//     (no keychain access, so it refreshes ~/.claude/.credentials.json) rotated it, and the
+//     keychain copy died: "OAuth session expired and could not be refreshed" on every fire
+//     for 16 hours while `claude` worked fine in the operator's own shell.
 //
-// CLAUDE_CODE_OAUTH_TOKEN IS NOT A SUBSTITUTE FOR THE KEYCHAIN HERE, and the env
-// var winning is a hazard rather than a convenience. Measured 2026-09-22: a token
-// from `claude setup-token` authenticates but is FORBIDDEN from the usage
-// endpoint — HTTP 403, not 401 — while the keychain credential read 12.0%/11.4%
-// in the same minute. Because the env var is preferred, storing one in
-// secrets.env does not sit inert: it OVERRIDES a working keychain read with an
-// unreadable bucket, which `mission quota --over` then blocks by policy.
+// So the loops now run inference on a setup-token in CLAUDE_CODE_OAUTH_TOKEN, which no other
+// session refreshes, and this reader keeps reading USAGE with the login credential. The env
+// token stays a fallback for cloud containers, where it is the only credential there is.
 //
-// The keychain item carries scopes user:file_upload, user:inference,
-// user:mcp_servers, user:profile, user:sessions:claude_code; a setup-token token
-// evidently carries a narrower set. So the env var remains the documented escape
-// hatch for a token that CAN read usage, and is a footgun for one that cannot —
-// verify against the endpoint before storing one, never assume.
-func anthropicOAuthToken(ctx context.Context) string {
-	// LookupEnv, not Getenv: an explicitly EMPTY CLAUDE_CODE_OAUTH_TOKEN means "no
-	// credential" and must not fall through to the keychain. That is the same seam
-	// OLLAMA_API_KEY="" gives the Ollama reader, and without it a test — or an operator
-	// trying to observe the unauthenticated path — silently gets the login keychain and a
-	// verdict that depends on the real account's live quota.
-	if t, ok := config.ClaudeCodeOAuthToken(); ok {
-		return t
+// The keychain read is bounded: `security` prompts on a locked keychain, and an unbounded
+// prompt inside a launchd fire would hang the whole iteration. launchd jobs have keychain
+// access and plain shells often do not, which is why this resolves at RUN time in the
+// mission fire rather than being captured into config by a human session.
+func anthropicOAuthTokens(ctx context.Context) []string {
+	env, envSet := config.ClaudeCodeOAuthToken()
+	// LookupEnv semantics: an explicitly EMPTY CLAUDE_CODE_OAUTH_TOKEN means "no credential"
+	// and must not fall through to the keychain. That is the same seam OLLAMA_API_KEY=""
+	// gives the Ollama reader, and without it a test — or an operator trying to observe the
+	// unauthenticated path — silently gets the login keychain and a verdict that depends on
+	// the real account's live quota.
+	if envSet && env == "" {
+		return nil
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -119,23 +121,27 @@ func anthropicOAuthToken(ctx context.Context) string {
 	if p := anthropicCredentialsFile(); p != "" {
 		file, _ = os.ReadFile(p)
 	}
-	token, expiry := freshestClaudeCredential(keychain, file)
-	// Record the stored token's expiry so a STALE credential can be named as
-	// such. Claude Code refreshes its access token in memory and does not write
-	// the fresh one back here, so this blob goes stale while the app keeps
-	// working — which is exactly how the fleet ended up reading a week-old
-	// token, getting HTTP 401, and reporting the bucket as unmeasurable.
-	//
-	// Measured 2026-09-22: expiresAt was 2026-09-15, seven days earlier, while
-	// the neighbouring refreshToken was valid for another fourteen. Anthropic
-	// sat at ~89% free and three World iterations were routed away from it.
-	//
-	// So the reader also reads ~/.claude/.credentials.json, which the CLI DOES keep fresh, and
-	// takes whichever token expires later. Measured 2026-10-01: keychain token stale, file token
-	// valid for hours; with only the keychain read, the HTTP call 401'd, the `claude -p /usage`
-	// fallback took 178s against its 30s cut, and Anthropic read "unknown" on every fire.
+	login, expiry := freshestClaudeCredential(keychain, file)
+	// Record the stored token's expiry so a STALE credential can be named as such. Claude
+	// Code refreshes its access token in memory and does not always write the fresh one
+	// back, so a stored blob can go stale while the app keeps working (2026-09-22: the
+	// keychain's expiresAt was seven days old). Reading the file as well and taking the
+	// later expiry is what fixed that (2026-10-01).
 	lastKeychainExpiry = expiry
-	return token
+	return orderAnthropicTokens(login, env)
+}
+
+// orderAnthropicTokens is the pure ordering behind anthropicOAuthTokens: login first, env
+// second, empties and a duplicate dropped.
+func orderAnthropicTokens(login, env string) []string {
+	var out []string
+	if login != "" {
+		out = append(out, login)
+	}
+	if env != "" && env != login {
+		out = append(out, env)
+	}
+	return out
 }
 
 // anthropicCredentialsFile is the file Claude Code keeps its OAuth credential in alongside
@@ -208,7 +214,7 @@ func ObserveAnthropicQuota(now time.Time) AnthropicQuotaObservation {
 		Timeout:       5 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
-	o := observeAnthropicQuota(anthropicOAuthToken(context.Background()), now, client)
+	o := observeAnthropicQuotaWith(anthropicOAuthTokens(context.Background()), now, client)
 	if o.State != "unknown" {
 		return o
 	}
@@ -234,6 +240,29 @@ func ObserveAnthropicQuota(now time.Time) AnthropicQuotaObservation {
 	o.Reason = "subscription usage read from `claude -p /usage` (the HTTP endpoint was unreadable)"
 	evaluateAnthropicQuota(&o, now)
 	return o
+}
+
+// observeAnthropicQuotaWith tries each token in order and returns the first reading that is
+// not "unknown". When every token fails, the reasons are joined so the log names both the
+// login failure (say, a stale 401) and the env-token one (say, a setup-token's 403).
+func observeAnthropicQuotaWith(tokens []string, now time.Time, client *http.Client) AnthropicQuotaObservation {
+	if len(tokens) == 0 {
+		return observeAnthropicQuota("", now, client)
+	}
+	var first AnthropicQuotaObservation
+	var reasons []string
+	for i, tok := range tokens {
+		o := observeAnthropicQuota(tok, now, client)
+		if o.State != "unknown" {
+			return o
+		}
+		if i == 0 {
+			first = o
+		}
+		reasons = append(reasons, o.Reason)
+	}
+	first.Reason = strings.Join(reasons, "; then with CLAUDE_CODE_OAUTH_TOKEN: ")
+	return first
 }
 
 func observeAnthropicQuota(token string, now time.Time, client *http.Client) AnthropicQuotaObservation {

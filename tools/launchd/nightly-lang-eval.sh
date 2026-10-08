@@ -19,6 +19,9 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO" || exit 1
 # shellcheck source=tools/launchd/rig-lock.sh
 source "$(dirname "$0")/rig-lock.sh"
+# Lend the GPU between benchmarks while someone is at the desktop (rig-operator-presence.sh):
+# the nightly runs into the working morning, and the GPU also draws the screen.
+export AILANG_RIG_YIELD_TO_OPERATOR=1
 LOG=/tmp/ailang-nightly-lang-eval.log
 DATE=$(date +%Y%m%d)
 RESULTS_DIR="/tmp/lang_eval_${DATE}"
