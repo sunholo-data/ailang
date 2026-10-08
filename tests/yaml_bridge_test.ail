@@ -2,18 +2,18 @@
 module tests/yaml_bridge_test
 
 import std/yaml (yamlToJson, decode)
-import std/json (getString, get, asNumber)
+import std/json (getString, get, asNumber, keys, decode as jsonDecode)
 import std/option (Some, None)
 import std/result (Ok, Err)
 
 export func main() -> () ! {IO} {
   println("=== std/yaml Bridge Tests ===");
 
-  -- Test 1: yamlToJson produces JSON with sorted keys
+  -- Test 1: yamlToJson produces JSON with document-order keys
   let y1 = "name: STX\ncount: 3\nitems:\n  - a\n  - b\n";
   match yamlToJson(y1) {
     Ok(j) =>
-      if j == "{\"count\":3,\"items\":[\"a\",\"b\"],\"name\":\"STX\"}"
+      if j == "{\"name\":\"STX\",\"count\":3,\"items\":[\"a\",\"b\"]}"
       then println("✓ yamlToJson block mapping")
       else println("✗ yamlToJson wrong output: ${j}"),
     Err(e) => println("✗ yamlToJson failed: ${e}")
@@ -62,5 +62,26 @@ export func main() -> () ! {IO} {
   match yamlToJson("a: 1\n  b: 2\n") {
     Ok(_) => println("✗ should have rejected bad indentation"),
     Err(_) => println("✓ rejects malformed indentation")
+  };
+
+  -- Test 8: YAML and JSON retain the same b,a,c mapping order
+  match decode("b: 1\na: 2\nc: 3\n") {
+    Ok(y) => match jsonDecode("{\"b\":1,\"a\":2,\"c\":3}") {
+      Ok(j) => if keys(y) == ["b", "a", "c"] && keys(y) == keys(j)
+        then println("✓ YAML and JSON mapping key order")
+        else println("✗ mapping key order differs"),
+      Err(e) => println("✗ JSON decode failed: ${e}")
+    },
+    Err(e) => println("✗ ordered YAML decode failed: ${e}")
+  }
+}
+
+test "YAML and JSON mapping key order" {
+  match decode("b: 1\na: 2\nc: 3\n") {
+    Ok(y) => match jsonDecode("{\"b\":1,\"a\":2,\"c\":3}") {
+      Ok(j) => keys(y) == ["b", "a", "c"] && keys(y) == keys(j),
+      Err(_) => false
+    },
+    Err(_) => false
   }
 }
