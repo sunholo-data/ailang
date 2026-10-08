@@ -15,12 +15,15 @@ import (
 
 // OllamaQuotaObservation retains the legacy session/weekly fractional usage gauge.
 type OllamaQuotaObservation struct {
-	GaugeStatus  string             `json:"gauge_status,omitempty"`
-	State        string             `json:"state"`
-	Reason       string             `json:"reason"`
-	ObservedAt   time.Time          `json:"observed_at"`
-	SessionUsage *float64           `json:"session_usage,omitempty"`
-	WeeklyUsage  *float64           `json:"weekly_usage,omitempty"`
+	GaugeStatus  string    `json:"gauge_status,omitempty"`
+	State        string    `json:"state"`
+	Reason       string    `json:"reason"`
+	ObservedAt   time.Time `json:"observed_at"`
+	SessionUsage *float64  `json:"session_usage,omitempty"`
+	WeeklyUsage  *float64  `json:"weekly_usage,omitempty"`
+	// RequestCount is the request total from the request-count shape (see
+	// parseOllamaRequestCounts); set only when that shape was read.
+	RequestCount *int64             `json:"request_count,omitempty"`
 	Windows      []CodexQuotaWindow `json:"windows,omitempty"`
 }
 
@@ -72,6 +75,9 @@ func observeOllamaQuota(paths Paths, key string, now time.Time, client *http.Cli
 	}
 	o = parseOllamaUsage(data, now)
 	if o.SessionUsage == nil || o.WeeklyUsage == nil {
+		if counts, ok := parseOllamaRequestCounts(data, now); ok {
+			return counts
+		}
 		return o
 	}
 	// Bank the reading BEFORE any verdict. The rate ration is the only pacing available
@@ -137,6 +143,42 @@ func parseOllamaUsage(data []byte, now time.Time) OllamaQuotaObservation {
 	o.WeeklyUsage = body.Limits.Weekly.Usage
 	o.Reason = "provider usage units recorded; capacity and reset metadata required"
 	return o
+}
+
+// parseOllamaRequestCounts reads the shape /api/usage returns since ~2026-10-07:
+//
+//	{"range":"7d","scope":"self","granularity":"day","totals":{"request_count":923},
+//	 "buckets":[{"from":...,"until":...,"request_count":292}, ...]}
+//
+// Request COUNTS only — no limit, no fraction, no reset — so no ration can be computed from
+// it, and the legacy gauge parse rejected it as malformed, which blocked every pi:ollama/*
+// rung. Mark, attended 2026-10-08, option A: admit Ollama UNRATIONED on this shape. It is a
+// flat-rate subscription, so an overrun costs no money; the driver already demotes a rung
+// that answers 429 (RUNTIME_QUOTA_SIG `^429:`) and re-walks the chain. The accepted cost is
+// that loops can spend the weekly limit attended sessions would otherwise use. Anything that
+// is neither shape still blocks: this admits a recognised provider answer, not a failure.
+func parseOllamaRequestCounts(data []byte, now time.Time) (OllamaQuotaObservation, bool) {
+	var body struct {
+		Range   string `json:"range"`
+		Buckets []struct {
+			RequestCount *int64 `json:"request_count"`
+		} `json:"buckets"`
+		Totals struct {
+			RequestCount *int64 `json:"request_count"`
+		} `json:"totals"`
+	}
+	if json.Unmarshal(data, &body) != nil || body.Range == "" || body.Buckets == nil ||
+		body.Totals.RequestCount == nil || *body.Totals.RequestCount < 0 {
+		return OllamaQuotaObservation{}, false
+	}
+	return OllamaQuotaObservation{
+		State:        "ok",
+		GaugeStatus:  "UNMEASURED",
+		ObservedAt:   now,
+		RequestCount: body.Totals.RequestCount,
+		Reason: fmt.Sprintf("Ollama reports request counts only (%d in %s), no limits; admitted unrationed "+
+			"(Mark 2026-10-08) — a 429 at runtime demotes the rung", *body.Totals.RequestCount, body.Range),
+	}, true
 }
 
 // evaluateOllamaGauge uses the existing Pi extension policy: V50 measured session
