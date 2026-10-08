@@ -1,0 +1,113 @@
+{
+  "sprint_id": "M-STD-YAML-ENCODE",
+  "status": "not_started",
+  "created": "2026-10-07T18:44:50Z",
+  "design_doc": "design_docs/planned/v0_53_0/m-std-yaml-encode.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-std-yaml-encode-sprint-plan.md",
+  "github_issues": [],
+  "source_report": "inbox_1791394438696_00b01c33",
+  "source_pull_requests": [
+    1620
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "yaml",
+        "json"
+      ],
+      "reason": "No YAML registry package found; reuse local JSON escaping, number formatting and Result helpers for the approved builtin."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "yaml",
+        "json"
+      ],
+      "reason": "Thin std/yaml export and integration tests use the existing shared std/json ADT; no package dependency needed."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "yaml",
+        "json"
+      ],
+      "reason": "Docs and example demonstrate the existing stdlib API; no independent registry capability needed."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 255,
+    "estimated_total_loc": 510,
+    "estimated_days": 2,
+    "estimated_hours": 10,
+    "basis": "Design estimate of 8h plus 25% buffer; shallow history does not establish measured LOC/day."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "name": "Ordered YAML builtin and acceptance tests",
+      "description": "Ordered YAML builtin and acceptance tests",
+      "estimated_loc": 340,
+      "estimated_hours": 5,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Registration is pure and typed `Json -> Result[string, string]`; no new dependencies or map/sort in the emit path.",
+        "All keys and string values are double-quoted; two-space block indentation, flow only for empty collections, exactly one trailing newline, no tags/markers/anchors/wrapping.",
+        "Unsorted and duplicate keys emit in their original list order; re-decoding duplicates returns Err naming the duplicate key.",
+        "NaN and both infinities, including nested values, return Err rather than null or YAML non-finite tokens.",
+        "Scalar and nested byte fixtures parse via the real yamlToJSONImpl; finite unique-key values round-trip modulo recursive object order under today's decoder.",
+        "Focused YAML Go tests pass, with at least 90% statement coverage of new emitter helpers; existing YAML/JSON builtin tests remain green."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "name": "Stdlib export, integration tests and golden",
+      "description": "Stdlib export, integration tests and golden",
+      "estimated_loc": 65,
+      "estimated_hours": 2.5,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "std/yaml type-checks and exports encode with the approved Result signature; builtins listing shows the new pure builtin.",
+        "The new AILANG integration suite checks exact round-trips for sorted objects and byte order for unsorted objects, with the sibling caveat stated in-test.",
+        "Golden diff adds exactly the `_yaml_encode` type entry; any stdlib baseline diff is limited to the approved new export.",
+        "Existing yaml_bridge_test and yaml_config example pass against the built binary; existing JSON encode behavior remains unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "name": "Reference docs, runnable example and final checks",
+      "description": "Reference docs, runnable example and final checks",
+      "estimated_loc": 105,
+      "estimated_hours": 2.5,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Runnable example checks and runs with IO capability, emits pinned block YAML, and is represented in the example manifest.",
+        "Reference page, stdlib index and Unreleased changelog describe the signature, dialect, limitations and precise round-trip caveat.",
+        "Focused tests, golden check, stdlib verification, example gate, Go tests, lint and WASM build checks pass; attributable failures are resolved or explicitly reported.",
+        "No decode-side changes, new Go dependency, release bump, or compiled-Go codegen support is introduced."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

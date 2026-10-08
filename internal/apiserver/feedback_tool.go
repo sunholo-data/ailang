@@ -63,6 +63,7 @@ func (ms *MCPServer) registerFeedbackTool() {
 			Required: []string{"title", "body", "category", "ailang_version"},
 		},
 	}
+	tool.Meta = ms.toolMeta(tool.Name, ExportInfo{}) // listed: noauth; /mcp/: nil
 
 	ms.mcpServer.AddTool(tool, ms.handleSubmitFeedback)
 }

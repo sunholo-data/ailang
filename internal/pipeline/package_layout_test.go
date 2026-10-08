@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/loader"
 )
 
@@ -63,5 +64,69 @@ func TestDeclaredModuleMatchesPackageLayout_AbsoluteEntryFromAnyCwd(t *testing.T
 	// And a wrong declaration is still a mismatch.
 	if declaredModuleMatchesPackageLayout(pkgDir, "test/greeter/other", modID, file) {
 		t.Errorf("a module declared elsewhere must not match")
+	}
+}
+
+// TestValidateModulePath_SingleFileInsidePackage pins the stapledons-godot
+// report (2026-10-06): `ailang check sim/solar_departure_test.ail` from the
+// repo root failed MOD010 for a module `check --package sim` accepts, because
+// without --package the declared path was compared with the cwd-relative
+// file path. The nearest ailang.toml above the file now decides. Paths are
+// cwd-relative, as the CLI passes them, which also keeps the temp-dir MOD010
+// relaxation out of the way so the strict branch is what is tested.
+func TestValidateModulePath_SingleFileInsidePackage(t *testing.T) {
+	// Not t.TempDir(): on Linux that is under /tmp, which IsTempPath always
+	// relaxes, so the premise check below failed on every CI run. The user
+	// cache dir is outside every temp root IsTempPath knows.
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		t.Skipf("no user cache dir: %v", err)
+	}
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.MkdirTemp(cacheDir, "ailang-layout-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	if loader.IsTempPath(root) {
+		t.Skipf("user cache dir %s is under a temp root here", root)
+	}
+	pkgDir := filepath.Join(root, "sim")
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := "[package]\nname = \"stapledons/sim\"\nversion = \"0.1.0\"\nedition = \"1\"\n"
+	if err := os.WriteFile(filepath.Join(pkgDir, "ailang.toml"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "x_test.ail"), []byte("module stapledons/sim/x_test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		cwd, file, declared string
+		ok                  bool
+	}{
+		{root, "sim/x_test.ail", "stapledons/sim/x_test", true}, // repo root
+		{pkgDir, "x_test.ail", "stapledons/sim/x_test", true},   // inside the package
+		{root, "sim/x_test.ail", "stapledons/sim/other", false}, // wrong name still fails
+		{root, "sim/x_test.ail", "sim/x_test", true},            // cwd-relative form unchanged
+	}
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	for _, c := range cases {
+		if err := os.Chdir(c.cwd); err != nil {
+			t.Fatal(err)
+		}
+		if loader.IsTempPath(c.file) {
+			t.Fatalf("premise: %q counts as a temp path, so MOD010 would be relaxed", c.file)
+		}
+		mod := &loader.LoadedModule{File: &ast.File{Path: c.file, Module: &ast.ModuleDecl{Path: c.declared}}}
+		err := validateModulePath(mod, strings.TrimSuffix(c.file, ".ail"), &Config{})
+		if got := err == nil; got != c.ok {
+			t.Errorf("cwd=%s file=%s module %s: ok=%v, want %v (err=%v)", filepath.Base(c.cwd), c.file, c.declared, got, c.ok, err)
+		}
 	}
 }

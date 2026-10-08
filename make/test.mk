@@ -95,6 +95,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_base.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_codex_quota_admission.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_scope_guard.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_codex_controller_env.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_fleet_idle.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_ollama_quota_admission.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_anthropic_quota_admission.sh

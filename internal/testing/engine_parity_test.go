@@ -112,11 +112,16 @@ func TestEngineParity_SameReportOnBothEngines(t *testing.T) {
 }
 
 // The mixed fixture covers each route: bodies the VM runs (including one that
-// calls an evaluator-only helper through the bridge, and an ADT match), and
-// bodies that fall back (a runtime error, a non-bool body).
+// calls an evaluator-only helper through the bridge, an ADT match, and a
+// non-bool body) and a body that falls back (a runtime error).
+//
+// The non-bool body ran on the evaluator until M-TEST-RUNNER-COMPILE-ONCE:
+// its VM entry was annotated `-> bool`, so its compile failed. Batched
+// entries carry no return annotation, so the VM runs it and reports the same
+// "expected bool result" the evaluator does.
 func TestEngineParity_MixedFixtureRoutes(t *testing.T) {
 	bc := runEngine(t, engineFixture(t, "mixed.ail"), true, false, 0)
-	want := EngineStats{VMBodies: 8, FallbackBodies: 2}
+	want := EngineStats{VMBodies: 9, FallbackBodies: 1}
 	got := bc.Engine
 	got.FirstFallback = ""
 	if got != want {
@@ -143,7 +148,7 @@ func TestEngineParity_StrictFailsOnlyNonVMBodies(t *testing.T) {
 	ev := runEngine(t, path, false, false, 0)
 	st := runEngine(t, path, true, true, 0)
 
-	strictOnly := map[string]bool{"runtime error": true, "non-bool body": true, "bridged helper": true}
+	strictOnly := map[string]bool{"runtime error": true, "bridged helper": true}
 	evByName := map[string]TestResult{}
 	for _, tr := range outcomes(ev).Tests {
 		evByName[tr.Name] = tr
@@ -159,8 +164,8 @@ func TestEngineParity_StrictFailsOnlyNonVMBodies(t *testing.T) {
 			t.Errorf("%q under strict: %+v, want the evaluator's %+v", tr.Name, tr, want)
 		}
 	}
-	if st.Engine.StrictFailures != 3 || st.Engine.FallbackBodies != 0 {
-		t.Errorf("strict engine stats = %+v, want 3 strict failures and no fallback", st.Engine)
+	if st.Engine.StrictFailures != 2 || st.Engine.FallbackBodies != 0 {
+		t.Errorf("strict engine stats = %+v, want 2 strict failures and no fallback", st.Engine)
 	}
 	if !reflect.DeepEqual(outcomes(st).Properties, outcomes(ev).Properties) {
 		t.Errorf("properties differ under strict mode")
