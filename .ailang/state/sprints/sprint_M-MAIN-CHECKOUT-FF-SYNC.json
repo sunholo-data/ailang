@@ -69,16 +69,18 @@
         "/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_skill_sync.sh returns 0.",
         "/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_skill_sync.sh --mutations returns 0 with non-vacuous mutation failures."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T09:20:52.481107+00:00",
+      "completed": "2026-10-08T09:22:51.507368+00:00",
+      "notes": "M1 complete: helper/test syntax rc=0; 41 pristine synthetic arms rc=0; 41 isolated mutants killed (each mutant rc=1, pristine control rc=0), harness rc=0 on bash 3.2.57. Optional-lock-free byte/inventory snapshots; linked-worktree lock and late-ref refusal covered. No live checkout/state access or worktree Git writes. Full cumulative post-M1 files in .snap/M1."
     },
     {
       "id": "M2",
       "description": "Integrate sync after kill-switch/overlap yield with report-only dry-run field, real apply before stagger, make suite wiring and Added changelog fragment.",
       "estimated_loc": 100,
-      "dependencies": ["M1"],
+      "dependencies": [
+        "M1"
+      ],
       "files": [
         "tools/launchd/mission-control.sh",
         "tools/launchd/test_skill_sync.sh",
