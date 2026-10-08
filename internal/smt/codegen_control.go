@@ -24,10 +24,18 @@ func encodeLet(let *core.Let) (string, error) {
 // encodeMatch encodes a match expression.
 // For enum ADTs: (match var ((Variant1 body1) (Variant2 body2)))
 // For ADTs with fields: (match var (((Ctor field1 field2) body)))
+//
+// SMT-LIB match only accepts datatype constructors, and has no guards. A
+// match with literal patterns (on Int/String/Bool) or with any guard goes
+// through encodeMatchAsIte instead; emitting either into an SMT match is a Z3
+// error for literals and silently drops the guard otherwise (unsound).
 func encodeMatch(m *core.Match) (string, error) {
 	scrutinee, err := EncodeExpr(m.Scrutinee)
 	if err != nil {
 		return "", fmt.Errorf("match scrutinee: %w", err)
+	}
+	if needsIteMatch(m) {
+		return encodeMatchAsIte(scrutinee, m.Arms)
 	}
 
 	var arms []string
@@ -44,6 +52,127 @@ func encodeMatch(m *core.Match) (string, error) {
 	}
 
 	return fmt.Sprintf("(match %s (%s))", scrutinee, strings.Join(arms, " ")), nil
+}
+
+// needsIteMatch reports whether a match must be lowered to an ite chain:
+// any guarded arm, or any top-level literal pattern.
+func needsIteMatch(m *core.Match) bool {
+	for _, arm := range m.Arms {
+		if arm.Guard != nil {
+			return true
+		}
+		if _, ok := arm.Pattern.(*core.LitPattern); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// encodeMatchAsIte lowers a match to a first-match-wins ite chain. Each arm
+// contributes a test (pattern test ∧ guard) and a body; variable patterns
+// bind the scrutinee with a let around both. The chain must end in an
+// unguarded irrefutable arm (wildcard or variable), or unguarded `true` and
+// `false` arms between them — otherwise there is no value for the
+// fall-through case and the function is skipped, not encoded with an
+// invented default. (Exhaustiveness is only a warning in the elaborator, so
+// constructor coverage cannot be assumed here.)
+func encodeMatchAsIte(scrutinee string, arms []core.MatchArm) (string, error) {
+	type iteArm struct{ test, body string }
+	var chain []iteArm
+	fallback := ""
+	seenBool := map[bool]bool{}
+	for _, arm := range arms {
+		if lp, ok := arm.Pattern.(*core.LitPattern); ok && arm.Guard == nil {
+			if b, isBool := lp.Value.(bool); isBool && seenBool[!b] {
+				body, err := EncodeExpr(arm.Body)
+				if err != nil {
+					return "", fmt.Errorf("match body: %w", err)
+				}
+				fallback = body // the other boolean value is already handled
+				break
+			} else if isBool {
+				seenBool[b] = true
+			}
+		}
+		test, bindVar, err := encodeIteTest(scrutinee, arm.Pattern)
+		if err != nil {
+			return "", err
+		}
+		body, err := EncodeExpr(arm.Body)
+		if err != nil {
+			return "", fmt.Errorf("match body: %w", err)
+		}
+		if arm.Guard != nil {
+			guard, err := EncodeExpr(arm.Guard)
+			if err != nil {
+				return "", fmt.Errorf("match guard: %w", err)
+			}
+			if bindVar != "" {
+				guard = fmt.Sprintf("(let ((%s %s)) %s)", bindVar, scrutinee, guard)
+			}
+			if test == "true" {
+				test = guard
+			} else {
+				test = fmt.Sprintf("(and %s %s)", test, guard)
+			}
+		}
+		if bindVar != "" {
+			body = fmt.Sprintf("(let ((%s %s)) %s)", bindVar, scrutinee, body)
+		}
+		if test == "true" {
+			fallback = body
+			break // later arms are unreachable
+		}
+		chain = append(chain, iteArm{test, body})
+	}
+	if fallback == "" {
+		return "", fmt.Errorf("%w: literal or guarded match without an unguarded catch-all arm", ErrUnsupportedConstruct)
+	}
+	out := fallback
+	for i := len(chain) - 1; i >= 0; i-- {
+		out = fmt.Sprintf("(ite %s %s %s)", chain[i].test, chain[i].body, out)
+	}
+	return out, nil
+}
+
+// encodeIteTest returns the SMT test for one top-level pattern ("true" for
+// irrefutable patterns) and, for a variable pattern, the name to bind.
+func encodeIteTest(scrutinee string, pat core.CorePattern) (test, bindVar string, err error) {
+	switch p := pat.(type) {
+	case *core.WildcardPattern:
+		return "true", "", nil
+	case *core.VarPattern:
+		return "true", p.Name, nil
+	case *core.LitPattern:
+		lit, err := litPatternValue(p)
+		if err != nil {
+			return "", "", err
+		}
+		return fmt.Sprintf("(= %s %s)", scrutinee, lit), "", nil
+	case *core.ConstructorPattern:
+		if len(p.Args) == 0 {
+			return fmt.Sprintf("((_ is %s) %s)", p.Name, scrutinee), "", nil
+		}
+	}
+	return "", "", fmt.Errorf("%w: guarded match arm with pattern %T", ErrUnsupportedConstruct, pat)
+}
+
+// litPatternValue encodes a literal pattern's value the way encodeLit encodes
+// the same literal in an expression (quoted strings, negative ints).
+func litPatternValue(p *core.LitPattern) (string, error) {
+	switch v := p.Value.(type) {
+	case int64:
+		return encodeLit(&core.Lit{Kind: core.IntLit, Value: v})
+	case int:
+		return encodeLit(&core.Lit{Kind: core.IntLit, Value: int64(v)})
+	case float64:
+		return encodeLit(&core.Lit{Kind: core.FloatLit, Value: v})
+	case bool:
+		return encodeLit(&core.Lit{Kind: core.BoolLit, Value: v})
+	case string:
+		return encodeLit(&core.Lit{Kind: core.StringLit, Value: v})
+	}
+	return "", fmt.Errorf("%w: literal pattern of type %T", ErrUnsupportedConstruct, p.Value)
 }
 
 // encodePattern encodes a Core pattern for SMT-LIB match.
@@ -71,7 +200,9 @@ func encodePattern(pat core.CorePattern) (string, error) {
 		// SMT-LIB uses _ as wildcard in some dialects; use a fresh variable
 		return "_", nil
 	case *core.LitPattern:
-		return fmt.Sprintf("%v", p.Value), nil
+		// Top-level literal arms are encoded by encodeMatchAsIte; a literal
+		// nested inside a constructor or record pattern has no SMT match form.
+		return "", fmt.Errorf("%w: literal pattern nested inside a constructor or record pattern", ErrUnsupportedConstruct)
 	case *core.RecordPattern:
 		return encodeRecordPattern(p)
 	default:

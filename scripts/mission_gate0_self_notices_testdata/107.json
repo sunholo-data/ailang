@@ -1,0 +1,348 @@
+{
+  "comments": [
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-08-31T09:27:02Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5476398952",
+      "body": "# Mission `world` — weekly report\n\n**Window** last 168h (since 2026-08-24) · **generated** 2026-08-31 11:26\n\n| mission | iters (wk/all) | commits | lines+ | metered $ | opus | opus/it | refuted | ref/it |\n|---|---:|---:|---:|---:|---:|---:|---:|---:|\n| **world** | 24 / 139 | 49 | 17859 | $1.19 | 12 | 0.50 | 77 | 3.2 |\n| **fleet** | **67** | | | **$2.08** | **57** | | **217** | |\n\n`$` is a **lower bound** (fail-soft posting) · `~` shared repo, subject-attributed · fleet tokens **205997618** (all chains incl. evals; per-mission not exposed)\n\n## Landed\n\n**world** — 24 iterations, latest first\n- `#138` 2026-08-31 · inherited P49 verified; PARKED-ON-LANE awaiting independent evaluator\n- `#139` 20"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-08-31T09:28:27Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5476414307",
+      "body": "**Iteration 139 — P49 landed; the judge measured that 22 of 23 mutations walked straight through the fence it replaced**\n- **Pick**: row 49 — not queue order. Iter-138 parked it `PARKED-ON-LANE` (capacity, no ask); its predicate \"re-probe the evaluator after Mon 07:00 local\" fired today.\n- **Outcome**: LANDED · [PRODUCT] · evaluator sonnet **96/100, zero blocking** · [#106](https://github.com/sunholo-data/ailang-world/pull/106) → [`7ab42aa`](https://github.com/sunholo-data/ailang-world/commit/7ab42aa) · record `0961d66`\n- **Progress**: 49 of 56 filed rows closed; 7 routable (50–56) plus 39; row 48 blocked on one decision. Closed row 49, opened row 56.\n- **Up next (banked)**: row 50 shell-ass"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-08-31T14:36:56Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5479911963",
+      "body": "**Iteration 140 — P50 parked: the design AND the queue row behind it rest on a shell premise I measured false**\n- **Pick**: row 50 `w-shell-assignment-parser-drops-an-indented-assignment` (queue head)\n- **Outcome**: PARKED `needs-human-review` · REFUTATION · no evaluator (no code routed) · record [`2c698da`](https://github.com/sunholo-data/ailang-world/commit/2c698da), Gate 3b green (2/2 checks)\n- **Progress**: 49 of 58 queue rows closed; rows 51–58 + 39 routable. This iteration closed **no** row, parked one, and added row 58. Goal unmoved.\n- **Up next (banked)**: row 51 `w-inventory-test-blind-to-asymmetric-addition` — evaluator-found, same gate file, unblocked · row 58 `w-verify-go-is-red-"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-08-31T20:25:05Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5484082940",
+      "body": "**Iteration 141 — row 51 lands; the judge measured 7 of 9 arms walking straight through the test we replaced**\n- **Pick**: row 51 `w-inventory-test-blind-to-asymmetric-addition` (queue head)\n- **Outcome**: LANDED · [PRODUCT] · evaluator `sonnet` **97/100 PASS, zero blocking** · [#108](https://github.com/sunholo-data/ailang-world/pull/108) → [`d195717`](https://github.com/sunholo-data/ailang-world/commit/d195717), Gate 3b green on the merge commit\n- **Progress**: **51 of 59 filed queue rows closed** (was 49 of 58); closed 51, filed 59, amended 58. The gate guarding every future floor-raise now catches an asymmetric addition to either home — **6 real mutants were invisible to it before today**"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-01T01:20:03Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5487151836",
+      "body": "**Iteration 142 — row 52 called the bug \"non-exploitable\"; it is exploitable both ways, and two quorum rounds then killed two locators**\n- **Pick**: queue head, row 52 `w-wiring-test-step-scoping-imprecise-under-key-reorder`\n- **Outcome**: PARKED · [REFUTATION] · no code routed, so no evaluator · record [`a362624`](https://github.com/sunholo-data/ailang-world/commit/a362624), CI green 2/2\n- **Progress**: 51 of 59 queue rows closed; this iteration closed none and parked row 52 — goal distance unmoved. Rows 48, 50, 52 now wait on human decisions.\n- **Up next (banked)**: row 53 quorum-reviewer-silenced — ungated, mostly upstream (`ailang#941`), cheapest · rows 54–57 evaluator findings from iter"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-01T05:39:47Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5489437804",
+      "body": "**Iteration 143 — row 53's own mechanism is refuted, and the real class is behind three of the fleet's known vacuous passes**\n- **Pick**: row 53 `w-quorum-reviewer-silenced-by-its-own-review-content` (queue head)\n- **Outcome**: ROUTED — World-side complete · [REFUTATION] · no code routed (the fix is in `sunholo-data/ailang`, frozen core here) · record [`42f8edb`](https://github.com/sunholo-data/ailang-world/commit/42f8edb), Gate 3b **GREEN** 2/2\n- **Progress**: rows closed **52 of 59 filed**; 54–59 routable, then 39. Goal distance unmoved — the charter still has no countable finish line (standing process-fix trigger).\n- **Up next (banked)**: row **54** — the drift gate guarding frozen core c"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-01T16:16:06Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5496949692",
+      "body": "**Iteration 145 — row 48 lands: deleting the block your ruling mandates was GREEN in both lanes, and 6 of 6 gutting mutants survived the old test**\n\n- **Pick**: row 48 `w-racecontrol-floor-bump-disarms-the-race-control` — queue head once `D-WORLD-28` unparked it.\n- **Outcome**: LANDED · PRODUCT · evaluator `sonnet` **98/100, zero blocking** · PR [#109](https://github.com/sunholo-data/ailang-world/pull/109) → [`c13ad1f`](https://github.com/sunholo-data/ailang-world/commit/c13ad1f), Gate 3b green on the merge commit.\n- **Progress**: **54 of 61** queue rows closed (+1). Two new rows filed from the judge (60, 61); routable list is 50, 52, 54–61, then 39. **The decision ledger is 17 rows with ZER"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-01T20:57:45Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5500336918",
+      "body": "**Iteration 146 — row 50 unparked by your ruling, revised to it, then re-parked: the rationale is false for one shape nobody had measured**\n\n- **Pick**: row 50 `w-shell-assignment-parser-drops-an-indented-assignment` (queue head, unparked by `D-WORLD-29`)\n- **Outcome**: PARKED · [REFUTATION] · no sprint routed · [`e9a0efa`](https://github.com/sunholo-data/ailang-world/commit/e9a0efa)\n- **Progress**: goal unmoved — **54 of 61** rows closed. The doc now matches your ratified direction (623 → 695 lines); row 50 is blocked on one named decision, not an unreviewed doc.\n- **Up next (banked)**: **52** — CI step-scoping, ratified by `D-WORLD-30`, doc banked · **54** — the drift gate compares the dri"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-01T23:05:53Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5501651165",
+      "body": "**Iteration 147 — row 52 lands: the step locator was wrong in BOTH directions, and both of this iteration's refutations are of its own work**\n- **Pick**: row 52 `w-wiring-test-step-scoping-imprecise-under-key-reorder` (queue head; unparked by your `D-WORLD-30`)\n- **Outcome**: LANDED · PRODUCT · evaluator 93/100 zero blocking · PR [#110](https://github.com/sunholo-data/ailang-world/pull/110) → [`a1744d3`](https://github.com/sunholo-data/ailang-world/commit/a1744d3), Gate 3b green on the merge commit\n- **Progress**: **55 of 63 rows closed** (was 54 of 61). Row 52 closes; rows 62 and 63 open, both from the judge and both reproduced first-party before filing.\n- **Up next (banked)**: `54` driver "
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-02T03:56:21Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5504117140",
+      "body": "**Iteration 148 — the gate whose name is \"driver drift\" compared the copy to itself, so 705 lines of staleness read green**\n- **Pick**: row 54 `w-driver-copy-stale-and-the-drift-gate-compares-it-to-itself` (queue head)\n- **Outcome**: LANDED · [PRODUCT|**HARNESS**|ADMIN|REFUTATION] · evaluator 86/100 · [#111](https://github.com/sunholo-data/ailang-world/pull/111) → [`14036ee`](https://github.com/sunholo-data/ailang-world/commit/14036ee) · Gate 3b green on the merge AND the record commit\n- **Progress**: **56 of 64 queue rows closed** (55 of 63 last iteration — row 54 closes, row 64 opens from this iteration's own judge finding). Clause-2 gate-hardening sweep continues.\n- **Up next (banked)**: "
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-02T08:45:53Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5506930623",
+      "body": "**Iteration 149 — row 55 lands: the gate false-redded the standard fix for a famous Actions footgun**\n- **Pick**: row 55 `w-dispatch-lever-parser-false-reds-on-valid-yaml` (queue head)\n- **Outcome**: LANDED · HARNESS · evaluator `sonnet` 95/100, zero blocking · [#112](https://github.com/sunholo-data/ailang-world/pull/112) → [`165b9fd`](https://github.com/sunholo-data/ailang-world/commit/165b9fd); Gate 3b green on the merge AND the record [`aa610dc`](https://github.com/sunholo-data/ailang-world/commit/aa610dc)\n- **Progress**: **57 of 66 rows closed** (56 of 64 last iteration; row 55 closes, rows 65–66 open from this iteration's own planner and judge). The gate now accepts quoted `\"on\":` and f"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-02T12:02:13Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5509203405",
+      "body": "⚠️ Mission iteration **FAILED to complete** (rc=143 — timeout or crash) at 2026-09-02 14:02 CEST. Log on the rig: `/tmp/ailang-mission-world.log`. The queue is untouched; the next interval will retry."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-02T15:21:07Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5511926513",
+      "body": "⚠️ Mission iteration **FAILED to complete** (rc=143 — timeout or crash) at 2026-09-02 17:21 CEST. Log on the rig: `/tmp/ailang-mission-world.log`. The queue is untouched; the next interval will retry."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-02T19:27:22Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5515140953",
+      "body": "⚠️ Mission iteration **FAILED to complete** (rc=143 — timeout or crash) at 2026-09-02 21:27 CEST. Log on the rig: `/tmp/ailang-mission-world.log`. The queue is untouched; the next interval will retry."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-03T10:53:05Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5524604664",
+      "body": "**Iteration 151 — two dead slots in a row: row 56 landed untagged, and the rig rebooted 286s after iteration 150's Gate-4 stamp**\n- **Pick**: not the queue head — Gate 2's died-mid-flight traces returned two consecutive orphaned iterations; the mandated disposition is verify-and-record, not redo.\n- **Outcome**: LANDED (bookkeeping repair + precondition restore; no PR) · **HARNESS** · [`038c140`](https://github.com/sunholo-data/ailang-world/commit/038c140) + [`b5c303e`](https://github.com/sunholo-data/ailang-world/commit/b5c303e) · Gate 3b GREEN (3/3, SHA-addressed)\n- **Progress**: **goal unmoved.** 59 of 72 rows closed — *carried, not measured*. Row 56 (PR #113 → `725ad5a`) had landed with *"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-03T10:57:25Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5524657581",
+      "body": "**Iteration 151 — correction, against my own record above**\n\nI reported slot 1's cause (the iteration that merged row 56 as PR #113 and vanished) as **unrecoverable**, because the reboot wiped the driver log. **That was wrong.** The driver had already announced it — a comment on *this issue*, `2026-09-02T19:27:22Z`: *\"⚠️ Mission iteration FAILED to complete (rc=143 — timeout or crash)\"*, **61 seconds after the merge**.\n\n- `rc=143` is a deliberate watchdog kill (`mission-control.sh:597` breaks the retry loop on `143|137`).\n- **Stall, not hard timeout, by elimination:** `HARD_TIMEOUT` is `21600`s and the fire started `18:27:39Z` — ~60 min of a 6 h budget rules out the only other `143` producer"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-03T15:38:52Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5528174246",
+      "body": "**Iteration 152 — row 57's cause is refuted, and the issue it kills is one we filed ourselves: `--type` is misfiled, not ignored, and correcting it would change nothing**\n- **Pick**: row 57 (queue head, ungated)\n- **Outcome**: record LANDED [`a973e38`](https://github.com/sunholo-data/ailang-world/commit/a973e38)+[`d36359d`](https://github.com/sunholo-data/ailang-world/commit/d36359d) · [REFUTATION] · no code PR — the fix is upstream; deliverable is measurement + issues\n- **Progress**: **goal unmoved** — no product surface changed; row census stays *carried, not measured* (row 72).\n- **Up next (banked)**: row 58 `verify_go` is **flaky** at base, not deterministically red — wants an instrument"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-03T20:13:39Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5531541584",
+      "body": "**Iteration 153 — row 58 lands: the interpreter-probe timeout is a *concurrency* defect, not a speed one**\n- **Pick**: row 58 (queue head, ungated)\n- **Outcome**: LANDED · HARNESS · no evaluator (controller-authored direct fix) · [#115](https://github.com/sunholo-data/ailang-world/pull/115) → [`12b8c87`](https://github.com/sunholo-data/ailang-world/commit/12b8c87), Gate 3b green on the merge commit (present=3==expected=3)\n- **Progress**: goal unmoved — loop machinery; no product surface changed. Census still carried, not measured (row 72).\n- **Up next (banked)**: **59** grep cannot prove an assertion is live · **76 (new)** the `verify_go.sh` gap below — needs a *fleet* call, so it ranks earl"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-04T00:59:09Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5534148837",
+      "body": "**Iteration 154 — row 59 designed and quorum-cleared; the doc kept committing its own thesis, twice**\n- **Pick**: queue head row 59 (`w-static-grep-cannot-prove-an-assertion-is-live`) — also the condition your `D-WORLD-31` ruling attached (\"contingent on row 59 actually being taken next\").\n- **Outcome**: DESIGN LANDED, no sprint · [HARNESS] · doc `w-load-bearing-criteria-need-a-mutation-not-a-grep.md`, 620 lines · [`80c0a42`](https://github.com/sunholo-data/ailang-world/commit/80c0a42) [`29f0093`](https://github.com/sunholo-data/ailang-world/commit/29f0093) [`fe1e411`](https://github.com/sunholo-data/ailang-world/commit/fe1e411) · CI green 3/3, SHA-addressed.\n- **Progress**: **goal unmoved**"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-05T12:19:58Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5551769482",
+      "body": "**Iteration 155 — row 59 lands and row 50 closes with it; the planner, not the quorum, caught the doc committing its own thesis four more times**\n- **Pick**: queue row 59 (queue head; `D-WORLD-31`'s own condition required it be taken next)\n- **Outcome**: LANDED · HARNESS · evaluator **96/100** (round 1, zero blocking) · [#116](https://github.com/sunholo-data/ailang-world/pull/116) → [`fb8bc29`](https://github.com/sunholo-data/ailang-world/commit/fb8bc29) [`5d84209`](https://github.com/sunholo-data/ailang-world/commit/5d84209) [`d353ef1`](https://github.com/sunholo-data/ailang-world/commit/d353ef1)\n- **Progress**: clause-2 gate-hardening queue — rows 59 AND 50 both close, open queue 20 → 18. "
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-05T17:04:32Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5553393181",
+      "body": "**Iteration 156 — row 60 lands: the row named one identifier-pinned needle and there were three**\n- **Outcome**: LANDED · HARNESS · **no evaluator — controller-authored ~0.1d fix, so generator == judge, stated plainly** · PR [#117](https://github.com/sunholo-data/ailang-world/pull/117) → [`3417088`](https://github.com/sunholo-data/ailang-world/commit/3417088), CI green 3/3 on the merge commit (`present=3 == expected=3`, enumerated from `ci.yml`)\n- **Progress**: goal unmoved — clause-2 gate hardening. Row 60 closes; queue head moves to row 61.\n- **Up next (banked)**: row **61** — the same P1 gate fails OPEN on one inserted line past every arm in the sprint, a strictly worse defect than row 60"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-05T17:05:10Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5553397431",
+      "body": "Correction to the iteration 156 report above, so the channel stays accurate: row **82** is a **first instance**, below the shared skill's own ≥2-friction bar, so it is **recorded in the charter and NOT filed upstream to V1** — the digest's wording (\"proposes a shared-skill fix to V1\") overstated it. Nothing is owed by the fleet and nothing is owed by you. Corrected in the charter at `dc82a41`+1.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-05T20:37:31Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5554624630",
+      "body": "**Iteration 157 — row 61 lands, and the row's own preferred fix is measured fail-open even unmutated**\n- **Pick**: queue row 61 (queue head) — the P1 toolchain-floor gate opened on one inserted line.\n- **Outcome**: LANDED · [HARNESS] · no evaluator (controller-authored ~0.2d fix, so generator == judge — stated, not concealed) · PR [#118](https://github.com/sunholo-data/ailang-world/pull/118) → squash [`8b600fd`](https://github.com/sunholo-data/ailang-world/commit/8b600fd), record [`ae9a615`](https://github.com/sunholo-data/ailang-world/commit/ae9a615). CI green 3/3 on both.\n- **Progress**: clause-2 gate-hardening queue — rows 58/59/60/61 landed on four consecutive iterations; head moves to *"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-05T22:19:18Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5555168588",
+      "body": "**Iteration 158 — row 62 lands, and for the second iteration running the row's own proposed fix was measured fail-open**\n- **Pick**: row 62 (queue head)\n- **Outcome**: LANDED · HARNESS · no evaluator — generator == judge, stated · [`dcf534f`](https://github.com/sunholo-data/ailang-world/commit/dcf534f) (PR #119) · record [`834d2d0`](https://github.com/sunholo-data/ailang-world/commit/834d2d0) (PR #120) · Gate 3b green 3/3 on both merges\n- **Progress**: charter clause-2 gate-hardening queue — rows **58–62 landed on five consecutive iterations**; head moves to row **63**. The CI flag scan now reads the guarded step's own mapping key and its VALUE, not any text in the block: a legitimate `conti"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T02:51:04Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5556457995",
+      "body": "**Iteration 159 — row 63 lands, and the branch the row left unfired is the reachable one**\n- **Pick**: row 63 (queue head)\n- **Outcome**: LANDED · HARNESS · no evaluator — generator == judge, stated · [`2115172`](https://github.com/sunholo-data/ailang-world/commit/2115172) (PR #121) · record [`c3e5f5f`](https://github.com/sunholo-data/ailang-world/commit/c3e5f5f) (PR #122) · process fix [`d81ac42`](https://github.com/sunholo-data/ailang-world/commit/d81ac42) (PR #123) · Gate 3b green 3/3 on every merge\n- **Progress**: goal unmoved. Charter clause-2 gate-hardening queue — rows **58–63 landed on six consecutive iterations**; head moves to row **64**.\n- **Up next (banked)**:\n  - **64** `w-fleet"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T05:40:46Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5557245234",
+      "body": "🔁 Controller model: **claude:claude-opus-5 → codex:gpt-6-astra** (probe ok) at 2026-09-06 07:40 CEST. Automatic — Anthropic preference order `claude-opus-5,codex:gpt-6-astra,claude-opus-4-8,claude-fable-5-1`, then `codex:gpt-5.6-sol,codex:gpt-6-astra,pi:ollama/glm-5.3:cloud`; reverts when a higher-preference probe succeeds again."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T07:11:19Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5557659412",
+      "body": "**Iteration 160 — row 64 residual scope lands**\n\n- **Pick**: row 64, fleet residual reporting boundary.\n- **Outcome**: LANDED · HARNESS · evaluator 88/100 · [implementation bf15c73](https://github.com/sunholo-data/ailang-world/commit/bf15c73f143651a4a32aeec956a878efb1ae328c); merge CI 3/3 green.\n- **Progress**: seven-clause 1.0 bar; goal unmoved. Row64 landed; no additional clause certified.\n- **Up next (banked)**: row 65 — repair test-file compilation fences.\n- Row 66 — cover quoted flow-key trimming.\n- **Cost**: metered $0.1501 · quota buckets Codex Astra/Sol, Ollama Cloud MiniMax.\n- **DECISIONS FOR MARK**: D-WORLD-32 — rotate/revoke and replace the local credential exposed in the tool tra"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T10:22:17Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5558590848",
+      "body": "**Iteration161 — row65 design parked after two blocked quorums**\n\n- **Pick**: row65, test-file compile fences.\n- **Outcome**: PARKED · HARNESS · evaluator N/A (design blocked) · record [`b7e4a8e`](https://github.com/sunholo-data/ailang-world/commit/b7e4a8e3609b7be82dec114f51ea21c1692b6900); PR126 and merge CI3/3 green.\n- **Progress**: seven-clause1.0 bar; goal unmoved. No implementation or additional clause certified.\n- **Up next (banked)**:\n  - row66 — quoted flow-key trim coverage; next ready harness item.\n  - row68 — fleet-owned pinned-repo guard; next upstream routing item.\n- **Key find**: the proposed guard misses ordinary Markdown backticks. R2: Astra/Gemini reject; GLM invalid/absent."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T10:43:13Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5558690528",
+      "body": "🔁 Controller model: **codex:gpt-6-astra → codex:gpt-5.6-sol** (probe ok) at 2026-09-06 12:43 CEST. Automatic — Anthropic preference order `claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1`, then `codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3`; reverts when a higher-preference probe succeeds again."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T10:43:16Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5558690818",
+      "body": "**Executor/planner lane degraded on this fire** — recorded before the iteration ran.\n\n- `designer`: **anthropic** lane `claude-fable-5-1` unusable (probe rc=`2` — unusable (rc=2)) → handed to `codex:gpt-6-astra`\n- `evaluator`: **anthropic** lane `sonnet` unusable (probe rc=`2` — unusable (rc=2)) → handed to `pi:ollama/minimax-m3:cloud`\n\nController: `gpt-5.6-sol` (probe ok). Effective roles now: designer=`codex:gpt-6-astra` planner=`codex:gpt-5.6-sol` executor=`codex:gpt-5.6-sol` evaluator=`pi:ollama/minimax-m3:cloud`.\nDriver log: `/tmp/ailang-mission-world.log`. If this repeats across fires, the lane is down — check the bucket, and check that this mission's plist carries a PATH that reaches "
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T10:45:34Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5558701755",
+      "body": "**Driver ran UNPINNED on this fire** — recorded before the iteration ran.\n\n- driver pin: **FAILED** — `/Users/voightkampff/dev/sunholo-data/ailang-world/tools/launchd/lib/pin-root.sh is absent — this clone predates the driver pin (#558)`. This fire ran `/Users/voightkampff/dev/sunholo-data/ailang-world` at `5634d55` (1 behind `origin/dev`), so any landed driver/skill/charter fix newer than that commit was NOT in effect.\n\nMission `world`. Driver log: `/tmp/ailang-mission-world.log`. The fire still ran; only its code provenance is\nunknown. Fix: reconcile that clone with `origin/dev`, or find why the fetch failed. Until then\nevery fire silently runs whatever that working tree happens to hold — "
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T11:17:13Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5558854670",
+      "body": "**Iteration 162 — DE-FORK CI repair parked at authority gate**\n- **Pick**: dev CI red at `e92594c`, outranking row66.\n- **Outcome**: PARKED · HARNESS · evaluator PASS 90/100 · branch `mission/world-iter162` at `2b2fa4f73c1997de88645a80e3c3f8b1381449be`; no PR/merge; dev remains red.\n- **Progress**: seven-clause 1.0 bar; goal unmoved. No implementation or clause certified.\n- **Up next**: D-WORLD-34 if answered; otherwise row66, then row68. Row39 remains next product work.\n- **Key find**: DE-FORK deleted local driver files while CI/`verify_go.sh` still invoked them. Two design quorums blocked on whether row76/D-WORLD-DRIVER-1 allows retiring the obsolete live diagnostic.\n- **Routing**: designe"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T11:20:11Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5558869414",
+      "body": "**Iteration 162 routing correction**\n\nThe parked outcome and PASS 90/100 independent review stand. The first digest misstated the evaluator transport after the evaluator role overstepped its read-only brief while writing the record.\n\nObserved routing: configured evaluator `pi:ollama/minimax-m3:cloud` and its OpenRouter twin were unavailable through this controller's mandatory Agent-tool model surface. The fallback-chain Astra tail would equal the Astra designer. A separate `gpt-5.5` evaluator was therefore spawned through the Agent tool, preserving generator-not-equal-judge. There was no Agent wait/list failure and no Codex CLI evaluator run.\n\nPlanner and executor remained unspawned because "
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T14:45:41Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5559990053",
+      "body": "**Driver ran UNPINNED on this fire** — recorded before the iteration ran.\n\n- driver pin: **FAILED** — `/Users/voightkampff/dev/sunholo-data/ailang-world/tools/launchd/lib/pin-root.sh is absent — this clone predates the driver pin (#558)`. This fire ran `/Users/voightkampff/dev/sunholo-data/ailang-world` at `9166de0` (0 behind `origin/dev`), so any landed driver/skill/charter fix newer than that commit was NOT in effect.\n\nMission `world`. Driver log: `/tmp/ailang-mission-world.log`. The fire still ran; only its code provenance is\nunknown. Fix: reconcile that clone with `origin/dev`, or find why the fetch failed. Until then\nevery fire silently runs whatever that working tree happens to hold — "
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T15:03:52Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5560095969",
+      "body": "**Iteration 163 — DE-FORK repair remains parked after all four Agent roles fail closed**\n- **Pick**: inherited dev-CI red (outranks row66).\n- **Outcome**: PARKED · HARNESS · evaluator **94/100 PASS** · branch record [`a531926`](https://github.com/sunholo-data/ailang-world/commit/a531926e77e2793334d3f2c6b75ab15986ee6971); no implementation/merge.\n- **Progress**: seven-clause 1.0 bar; goal unmoved. Exact-head CI still fails on two consumers of deleted DE-FORK driver files; four later steps remain unmeasured.\n- **Up next (banked)**: D-WORLD-34 → revise/re-quorum DE-FORK repair · row66 quoted flow-key trim after landing gate recovers · row68 fleet-owned pin guard.\n- **Key find**: No new fact or "
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T19:10:32Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5561495368",
+      "body": "**Iteration 164 — DE-FORK repair remains parked**\n- **Pick**: inherited dev-CI red (outranks row66).\n- **Outcome**: PARKED · HARNESS · evaluator **92/100 PASS** · branch record [`a87734c`](https://github.com/sunholo-data/ailang-world/commit/a87734c); no implementation/merge.\n- **Progress**: seven-clause 1.0 bar; goal unmoved. Exact-head CI still fails on the two deleted-driver consumers; no new clause certified.\n- **Up next (banked)**: D-WORLD-34 → revise/re-quorum DE-FORK repair · row66 quoted flow-key trim after landing gate recovers · row68 fleet-owned pin guard.\n- **Key find**: No Mark directive or technical fact resolved the row76/D-WORLD-DRIVER-1 conflict. Designer parked; planner/exec"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T19:14:28Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5561519456",
+      "body": "**Iteration 164 — routing provenance correction**\n- Designer `gpt-6-astra` was the declared provider-pinned Agent route, not a fallback.\n- The configured evaluator `pi:ollama/minimax-m3:cloud` failed to spawn with `Unknown model`.\n- Required fallback evaluator Agent `gpt-5.5` was spawned; it obtained a separate read-only `codex exec -m gpt-5.5` judgment: PASS 92/100, zero blockers, no landing authorized.\n- The fallback Agent exceeded its read-only brief by performing bookkeeping/reporting; the controller verified every mutation and corrected the branch record at [`358c360`](https://github.com/sunholo-data/ailang-world/commit/358c360).\n\n🤖 Generated with [Claude Code](https://claude.com/claude"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-06T23:04:51Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5562808796",
+      "body": "**Iteration 165 — DE-FORK CI repair remains parked at the authority gate**\n- **Pick**: inherited own-repo CI red (outranks queue work)\n- **Outcome**: PARKED · HARNESS · evaluator 91/100 · [record `00d3406`](https://github.com/sunholo-data/ailang-world/commit/00d3406cf6cbd9fa99fe795b0ec08b98223f27f4)\n- **Progress**: seven-clause 1.0 bar; goal unmoved. Dev remains red and no additional clause was certified.\n- **Up next (banked)**: row66 quoted flow-key trim — next READY repair\n  row68 fleet-owned pinned-repo guard — follows row66\n  row39 — next product work\n- **Key find**: Exact-head PR CI reproduces the inherited split: AILANG passes; Go and launchd checks invoke files deleted by attended DE-"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-07T02:46:52Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5564331872",
+      "body": "🔁 Controller model: **codex:gpt-5.6-sol → pi:ollama/glm-5.3:cloud** (Anthropic+codex unavailable; pi fallback rung) at 2026-09-07 04:46 CEST. Automatic — Anthropic preference order `claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1`, then `codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3`; reverts when a higher-preference probe succeeds again."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-07T02:47:09Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5564333640",
+      "body": "**Executor/planner lane degraded on this fire** — recorded before the iteration ran.\n\n- `designer`: **anthropic** lane `claude-fable-5-1` unusable (probe rc=`2` — unusable (rc=2)) → handed to `codex:gpt-6-astra`\n- `evaluator`: **anthropic** lane `sonnet` unusable (probe rc=`2` — unusable (rc=2)) → handed to `pi:ollama/minimax-m3:cloud`\n- `designer`: **codex** lane `gpt-6-astra` unusable (probe rc=`1`) → handed to `pi:ollama/deepseek-v4-flash:0731-cloud`\n- `planner`: **codex** lane `gpt-5.6-sol` unusable (probe rc=`1`) → handed to `pi:ollama/kimi-k3:cloud`\n- `executor`: **codex** lane `gpt-5.6-sol` unusable (probe rc=`1`) → handed to `pi:ollama/deepseek-v4-flash:0731-cloud`\n\nController: `olla"
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-07T02:47:28Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5564335766",
+      "body": "⚠️ Mission iteration **FAILED to complete** (rc=1 — timeout or crash) at 2026-09-07 04:47 CEST. Log on the rig: `/tmp/ailang-mission-world.log`. The queue is untouched; the next interval will retry. Further identical failures are silent until the rc changes or an iteration completes."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-07T06:45:16Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5566204018",
+      "body": "🔁 Controller model: **pi:ollama/glm-5.3:cloud → claude:claude-opus-5** (probe ok) at 2026-09-07 08:45 CEST. Automatic — Anthropic preference order `claude-opus-5,codex:gpt-5.6-sol,claude-fable-5-1`, then `codex:gpt-5.6-sol,pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3`; reverts when a higher-preference probe succeeds again."
+    },
+    {
+      "author": {
+        "login": "sunholo-voight-kampff"
+      },
+      "createdAt": "2026-09-07T07:51:27Z",
+      "url": "https://github.com/sunholo-data/ailang-world/issues/107#issuecomment-5567242335",
+      "body": "→ continues in #129\n\nThis thread is closed for new directives; comment on #129 instead.\nIteration 166's report is posted there.\n"
+    }
+  ]
+}

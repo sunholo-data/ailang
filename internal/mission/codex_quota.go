@@ -163,9 +163,15 @@ func (o *CodexQuotaObservation) evaluateWithMargin(now time.Time, margin float64
 			start := w.ResetsAt.Add(-time.Duration(w.WindowMinutes) * time.Minute)
 			w.AllowancePercent = WeekdayPacePercent(start, now, paceLocation)
 		}
+		// An UNUSED window gets no margin. Codex reports an idle weekly window as 0% used
+		// with resets_at = now + 7 days — the window has not started, so its "start" is
+		// always now and the pace allowance is always 0pp. With the margin applied that is
+		// 0 < 2 forever: nothing could ever be admitted to start it. Measured 2026-10-07,
+		// the day the margin shipped: the window reset early, every loop refused Codex, and
+		// no fire could spend the first token that would have started the clock.
 		if w.UsedPercent >= 100 || w.UsedPercent > w.AllowancePercent {
 			over = true
-		} else if headroom := w.AllowancePercent - w.UsedPercent; headroom < margin {
+		} else if headroom := w.AllowancePercent - w.UsedPercent; headroom < margin && w.UsedPercent > 0 {
 			if !short || headroom < shortHeadroom {
 				shortHeadroom = headroom
 			}

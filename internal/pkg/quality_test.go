@@ -205,3 +205,28 @@ func TestQualityReport_JSONHasSchemaAndProvenance(t *testing.T) {
 		}
 	}
 }
+
+// #1305: a smoke discovered but not executed (`pkg quality --no-run`) is
+// "not run", not "failed" — a badge, never the PUB015 gate. A smoke that DID
+// run and failed still gates on the publisher's machine.
+func TestBuildQualityReport_SmokeNotRunIsNotAFailure(t *testing.T) {
+	m := qualityManifest("experimental", []string{})
+	notRun := cleanInputs()
+	notRun.Attested = &AttestedBlock{Smoke: &SmokeSection{Present: true, NotRun: true, Notes: "not run (--no-run)"}}
+	r := BuildQualityReport(m, ModePublisher, notRun, false)
+	if hasCode(r.Gates, "PUB015") || r.HasGates() {
+		t.Errorf("un-run smoke must not gate: %v", r.Gates)
+	}
+	if !hasCode(r.Badges, "PUB015") {
+		t.Errorf("un-run smoke should be reported as a not-run badge: %v", r.Badges)
+	}
+	if strict := BuildQualityReport(m, ModePublisher, notRun, true); hasCode(strict.Gates, "PUB015") {
+		t.Errorf("--strict must not promote a not-run smoke (info): %v", strict.Gates)
+	}
+
+	failed := cleanInputs()
+	failed.Attested = &AttestedBlock{Smoke: &SmokeSection{Present: true, Passed: false}}
+	if r := BuildQualityReport(m, ModePublisher, failed, false); !hasCode(r.Gates, "PUB015") {
+		t.Errorf("a smoke that ran and failed must still gate: %v", r.Gates)
+	}
+}

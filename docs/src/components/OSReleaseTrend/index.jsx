@@ -96,7 +96,7 @@ export default function OSReleaseTrend() {
       entries.flatMap((e) => e.rows.map((r) => r.model).filter(Boolean))
     ));
 
-    const allTiers = ['core', 'stretch', 'frontier', 'vision', 'smoke'];
+    const allTiers = ['core', 'stretch', 'frontier', 'long-frontier', 'vision', 'smoke'];
     const chartData = entries.map((e) => {
       const point = { version: e.ailang_version };
       e.rows.forEach((r) => { if (r && r.model) point[r.model] = metricValue(r, tier, metric); });

@@ -84,6 +84,11 @@ type Mission struct {
 	root string `toml:"-"` //nolint:unused // set by Load, read by DriverPath
 }
 
+// Root is the repo root of the checkout that holds the registry this mission was
+// loaded from — the PARENT of the registry directory (LoadFile, :245–246), never the
+// registry directory itself. Empty only for a Mission constructed outside Load.
+func (m *Mission) Root() string { return m.root }
+
 // nameOK reports whether s is a usable mission name. Mission names become
 // filenames, launchd labels and state-file keys, so the character set is
 // deliberately narrow.

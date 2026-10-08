@@ -63,6 +63,7 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 	core := filterBenchmarksByTier(all, []string{"core"})
 	stretch := filterBenchmarksByTier(all, []string{"stretch"})
 	frontier := filterBenchmarksByTier(all, []string{"frontier"})
+	longFrontier := filterBenchmarksByTier(all, []string{"long-frontier"})
 	vision := filterBenchmarksByTier(all, []string{"vision"})
 	experimental := filterBenchmarksByTier(all, []string{"experimental"})
 
@@ -71,7 +72,7 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 	// measure gaps, don't score capability) — included in the sum invariant
 	// but NOT in the distribution drift detector below. "frontier" tier added
 	// 2026-07-11 (M-EVAL-FRONTIER-TIER) — included in both.
-	if got := len(smoke) + len(core) + len(stretch) + len(frontier) + len(vision) + len(experimental); got != len(all) {
+	if got := len(smoke) + len(core) + len(stretch) + len(frontier) + len(longFrontier) + len(vision) + len(experimental); got != len(all) {
 		t.Errorf("tier counts sum to %d, want %d (tier-per-benchmark invariant)", got, len(all))
 	}
 
@@ -101,10 +102,15 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 	// contract_leap_year), 8 demoted frontier->stretch (all 3 flagships now
 	// pass them in standard mode) — core 19->23, stretch 21->25, frontier
 	// 16->8. Pure redistribution; core+stretch+frontier unchanged at 56.
+	// long-frontier tier (2026-10-06): quine, gauntlet_10,
+	// legal_obligation_engine (frontier) and commonmark_emphasis (stretch) moved
+	// out — 38-83% of their local agent runs hit the 1h timeout; attended-only.
+	// stretch 25->24, frontier 8->5, long-frontier 0->4.
 	checkTierCount(t, "smoke", len(smoke), 23, 3)
 	checkTierCount(t, "core", len(core), 23, 3)
-	checkTierCount(t, "stretch", len(stretch), 25, 3)
-	checkTierCount(t, "frontier", len(frontier), 8, 3)
+	checkTierCount(t, "stretch", len(stretch), 24, 3)
+	checkTierCount(t, "frontier", len(frontier), 5, 3)
+	checkTierCount(t, "long-frontier", len(longFrontier), 4, 3)
 	checkTierCount(t, "vision", len(vision), 9, 3)
 
 	// Combined filter returns the union.

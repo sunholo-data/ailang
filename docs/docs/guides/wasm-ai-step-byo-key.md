@@ -2,6 +2,7 @@
 title: Browser ai.step (BYO API key)
 description: Call the typed std/ai Step API from browser-AILANG via direct provider HTTP fetch with the user's localStorage API key
 sidebar_label: WASM ai.step (BYO key)
+reviewBy: 2026-12-07
 ---
 
 # Browser `ai.step` with BYO API key

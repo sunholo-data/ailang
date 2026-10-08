@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-02-22
+---
+
 # Coordinator Daemon
 
 The AILANG Coordinator is an always-on daemon that automatically processes incoming tasks using AI agents (currently Claude Code) with human-in-the-loop approval workflows.

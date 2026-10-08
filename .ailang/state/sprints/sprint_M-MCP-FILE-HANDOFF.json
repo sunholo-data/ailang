@@ -1,0 +1,117 @@
+{
+  "sprint_id": "M-MCP-FILE-HANDOFF",
+  "status": "in_progress",
+  "design_doc": "design_docs/planned/v0_53_0/m-mcp-file-handoff.md",
+  "plan": "design_docs/planned/v0_53_0/m-mcp-file-handoff-sprint-plan.md",
+  "features": [
+    {
+      "id": "F0",
+      "description": "docparse: stop silent fallbacks (descriptions + content cap)",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "see sprint plan row F0"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-07T16:30:00Z",
+      "notes": "docparse PR #225 (dc4cd6e) -> v0.34.3 promoted to prod. Guidance on mcpParse/mcpConvert/editDocument verified on live tools/list in dev, test and prod (3/3 each); prod smoke OK; mcp check 5/5. e2e 81/81. claude.ai AGM re-test transcript still to capture (F5)."
+    },
+    {
+      "id": "F1",
+      "description": "spike: MCP App file-input widget in claude.ai",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "see sprint plan row F1"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-07T15:46:17Z",
+      "notes": "claude.ai web (Firefox): widget at *.claudemcpcontent.com uploaded 14502 B docx via direct fetch POST (preflight+200) AND via host tools/call; same sha256 9081b7b0... both. connectDomains enforced. ui/message shows caution banner -> use ui/update-model-context. Desktop untested."
+    },
+    {
+      "id": "F1c",
+      "description": "serve-api MCP Apps serving: @mcp_ui_resource, @mcp_ui, @mcp_app_only",
+      "dependencies": [
+        "F1b"
+      ],
+      "acceptance_criteria": [
+        "see sprint plan row F1c"
+      ],
+      "passes": true,
+      "started": "2026-10-07",
+      "completed": "2026-10-07",
+      "notes": "@mcp_ui_resource(uri, domains...) on () -> string: resources/list + resources/read, mimeType text/html;profile=mcp-app, _meta.ui.csp {connectDomains, resourceDomains: []} on both list entry and read content; \"self\" = request PublicBaseURL via an internal header the HTTP wrapper always overwrites (stripped from _headers); stdio read of a self widget errors. @mcp_ui -> _meta.ui.resourceUri + legacy _meta[\"ui/resourceUri\"]; @mcp_app_only -> _meta.ui.visibility [\"app\"] (tool stays in tools/list, host hides it; callable). Load errors: unknown @mcp_ui URI, non-ui:// URI, bad origin, args/non-string resource fn, duplicate URI, @mcp_ui on resource fn. Resources capability was already always advertised. Golden testdata/mcp_ui.golden.json; 13/13 mutants killed; readyModule e2e unchanged. Pending: patch release."
+    },
+    {
+      "id": "F1b",
+      "description": "serve-api @mcp_file + securitySchemes + mcp/www_authenticate",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "see sprint plan row F1b"
+      ],
+      "passes": true,
+      "started": "2026-10-07",
+      "completed": "2026-10-07",
+      "notes": "@mcp_file -> _meta openai/fileParams + OpenAI file schema (inline, additionalProperties:false) on /mcp/ and /mcp/connect/; binds closed 4-string record (optional fields \"\", extras dropped; required unless @optional, which binds the all-empty record); bad name/type/secret = LoadModules error. Listed surface: securitySchemes top-level + _meta mirror (oauth2 | noauth). Refused gated call: HTTP 401 + WWW-Authenticate unchanged, body = JSON-RPC isError result with _meta mcp/www_authenticate [header]. mcp check --target openai: file-params + security-schemes. Tests: golden tools/list (testdata/mcp_file_tools_list.golden.json), bind e2e, refusal _meta, load errors, mcpcheck units; 15/15 mutants killed. Pending: patch release; V11 (does ChatGPT read the 401 body?) still needs a live ChatGPT test."
+    },
+    {
+      "id": "F2",
+      "description": "package sunholo/mcp_files 0.1.0",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "see sprint plan row F2"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-07T18:30:00Z",
+      "notes": "sunholo/mcp_files 0.1.0 published (ailang-packages PR #98, 06fd34a). pkg quality no gates; Z3 10/10 (3 negative fixtures refuted); 72 tests; flow 19, serve-api e2e 12 (1.5MB sha256 round trip, replay 409, cross-account 404, 413 caps, CORS exact origin), fetch 7, IFC leaks 6/6, mutants 16/16 (re-verified by controller). fileRef = SEP-2631 mcp-file:// URI. Open: per-route/suffix CORS in serve-api (#1618), live widget run in F3."
+    },
+    {
+      "id": "F3",
+      "description": "docparse createUpload + POST /uploads + fileRef",
+      "dependencies": [
+        "F2",
+        "F1c"
+      ],
+      "acceptance_criteria": [
+        "see sprint plan row F3"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-07T18:40:00Z",
+      "notes": "docparse v0.35.0 in prod (PRs #226, #227): createUpload, POST /uploads, fileRef, upload widget ui://docparse/upload (branded AILANG Parse via mcp_files 0.1.2), uploadViaHost (app-only, 'ticket'), @mcp_file on parse/convert/edit. AILANG v0.52.5. dev/test/prod each: widget served with brand, mcp check --target both 7/7. Terraform upload_records TTL + temp-bucket objectUser applied dev/test/prod (2 added each, reviewed plans). test_mcp_files 62/62, mutations 8/8. Live claude.ai/ChatGPT user test = F5."
+    },
+    {
+      "id": "F4",
+      "description": "docparse @mcp_file (ChatGPT fileParams)",
+      "dependencies": [
+        "F1b"
+      ],
+      "acceptance_criteria": [
+        "see sprint plan row F4"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-07T18:40:00Z",
+      "notes": "docparse v0.35.0 in prod (PRs #226, #227): createUpload, POST /uploads, fileRef, upload widget ui://docparse/upload (branded AILANG Parse via mcp_files 0.1.2), uploadViaHost (app-only, 'ticket'), @mcp_file on parse/convert/edit. AILANG v0.52.5. dev/test/prod each: widget served with brand, mcp check --target both 7/7. Terraform upload_records TTL + temp-bucket objectUser applied dev/test/prod (2 added each, reviewed plans). test_mcp_files 62/62, mutations 8/8. Live claude.ai/ChatGPT user test = F5."
+    },
+    {
+      "id": "F5",
+      "description": "cross-client matrix + docs + listing",
+      "dependencies": [
+        "F3",
+        "F4"
+      ],
+      "acceptance_criteria": [
+        "see sprint plan row F5"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "velocity": {
+    "estimated_days": 5
+  }
+}

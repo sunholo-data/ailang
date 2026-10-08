@@ -1,6 +1,7 @@
 ---
 sidebar_label: Notification Daemon
 title: macOS Notification Daemon
+reviewBy: 2026-12-28
 ---
 
 # macOS Notification Daemon

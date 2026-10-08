@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-12-14
+---
+
 # AI Provider Routing (OpenRouter)
 
 > Available since v0.16.0 (M-AI-OPENROUTER).

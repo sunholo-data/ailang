@@ -2980,6 +2980,14 @@
       "run_mode": "serve-api"
     },
     {
+      "path": "yaml_roundtrip.ail",
+      "status": "working",
+      "tags": ["yaml", "config", "encoding", "roundtrip"],
+      "description": "Decode a config, update its year, and encode ordered block YAML (IO capability)",
+      "modules": ["std/io", "std/json", "std/list", "std/result", "std/yaml"],
+      "expected": {"stdout": "\"title\": \"Fysik A\"\n\"year\": 2027\n", "exit_code": 0}
+    },
+    {
       "path": "yaml_config.ail",
       "status": "working",
       "tags": [

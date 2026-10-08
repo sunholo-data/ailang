@@ -25,7 +25,7 @@ import DataProvenance from '../DataProvenance';
 // Tier order + labels for the M6 toggle. Core is the headline tier
 // (primary metric), so it's the default selection when the tiers block
 // is present in the dashboard JSON.
-const TIER_ORDER = ['smoke', 'core', 'stretch', 'frontier', 'vision'];
+const TIER_ORDER = ['smoke', 'core', 'stretch', 'frontier', 'long-frontier', 'vision'];
 const TIER_LABELS = {
   smoke: 'Smoke',
   core: 'Core',

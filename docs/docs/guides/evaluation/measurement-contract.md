@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-01-04
+---
+
 # The Measurement Contract
 
 Every number in a trend line has to earn its place. This page describes the

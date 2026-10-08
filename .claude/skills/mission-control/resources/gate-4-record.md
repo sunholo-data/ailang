@@ -58,7 +58,8 @@ iteration 171 had a full log entry and no index row, and Gate 2 greps this index
 picking — so a missing row does not error, it answers "nothing like this has been tried"
 confidently and wrongly.
 
-First action: `bash tools/launchd/mission-heartbeat.sh stamp gate-4`.
+First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp gate-4 ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac`.
+Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
 **FIRST: overwrite `design_docs/${MISSION_NAME}-mission-dashboard.md`** (Mark 2026-08-04: the
 30-second control context for fresh sessions — his long-lived thread was burning 14%/week of quota

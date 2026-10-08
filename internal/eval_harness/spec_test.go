@@ -297,7 +297,7 @@ func TestValidTiers_EnumMembers(t *testing.T) {
 	// Every tier in ValidTiers should be accepted; unknown should be rejected.
 	// "frontier" added M-EVAL-FRONTIER-TIER (v0.29.0), sits above stretch.
 	// "experimental" reserved for diagnostic probes — see spec.go ValidTiers comment.
-	want := map[string]bool{"smoke": true, "core": true, "stretch": true, "frontier": true, "vision": true, "experimental": true}
+	want := map[string]bool{"smoke": true, "core": true, "stretch": true, "frontier": true, "long-frontier": true, "vision": true, "experimental": true}
 	if len(ValidTiers) != len(want) {
 		t.Errorf("ValidTiers has %d entries, want %d", len(ValidTiers), len(want))
 	}
@@ -417,22 +417,29 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	// they measure language gaps, not score capability, so their growth is
 	// independent of the smoke/core/stretch/frontier/vision budget). Tolerance
 	// ±3 kept so future drift still trips this check.
+	// Re-centered 2026-10-06 (long-frontier tier): quine, gauntlet_10,
+	// legal_obligation_engine (frontier) and commonmark_emphasis (stretch) moved
+	// to long-frontier — 38-83% of their local agent runs hit the 1h timeout.
+	// stretch 25 -> 24, frontier 8 -> 5, long-frontier 0 -> 4.
 	if smoke := tierCounts["smoke"]; smoke < 20 || smoke > 26 {
 		t.Errorf("smoke count = %d, want 23±3", smoke)
 	}
 	if core := tierCounts["core"]; core < 20 || core > 26 {
 		t.Errorf("core count = %d, want 23±3", core)
 	}
-	if stretch := tierCounts["stretch"]; stretch < 22 || stretch > 28 {
-		t.Errorf("stretch count = %d, want 25±3", stretch)
+	if stretch := tierCounts["stretch"]; stretch < 21 || stretch > 27 {
+		t.Errorf("stretch count = %d, want 24±3", stretch)
 	}
-	if frontier := tierCounts["frontier"]; frontier < 5 || frontier > 11 {
-		t.Errorf("frontier count = %d, want 8±3", frontier)
+	if frontier := tierCounts["frontier"]; frontier < 2 || frontier > 8 {
+		t.Errorf("frontier count = %d, want 5±3", frontier)
+	}
+	if lf := tierCounts["long-frontier"]; lf < 1 || lf > 7 {
+		t.Errorf("long-frontier count = %d, want 4±3", lf)
 	}
 	if vision := tierCounts["vision"]; vision < 6 || vision > 12 {
 		t.Errorf("vision count = %d, want 9±3", vision)
 	}
-	t.Logf("Tier distribution: smoke=%d core=%d stretch=%d frontier=%d vision=%d experimental=%d (total %d)",
+	t.Logf("Tier distribution: smoke=%d core=%d stretch=%d frontier=%d long-frontier=%d vision=%d experimental=%d (total %d)",
 		tierCounts["smoke"], tierCounts["core"], tierCounts["stretch"], tierCounts["frontier"],
-		tierCounts["vision"], tierCounts["experimental"], benchCount)
+		tierCounts["long-frontier"], tierCounts["vision"], tierCounts["experimental"], benchCount)
 }

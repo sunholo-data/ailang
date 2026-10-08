@@ -12,6 +12,18 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 27 | 2026-10-08 | main-checkout ff-only auto-sync LANDED: #1647 `15d47b5dc` (D-FLEET-15 = A), judged PASS 91; ticket resolved [HARNESS] |
+| 26 | 2026-10-08 | gate0 self-notice read LANDED: #1604 `59c3e6a55`, re-judged PASS 96 on the merged head; ticket resolved; record #1636 landed [HARNESS] |
+| 25 | 2026-10-07 | `blocking=all` codex-controller role-env ticket LANDED: #1635 `0ceb1db01`, judged PASS 93; ticket resolved [HARNESS] |
+| 24 | 2026-10-07 | native role pins absent; planner/evaluator Agent pins rejected → PARKED-ON-LANE, no acceptance [ADMIN] |
+| 23 | 2026-10-06 | P1 #8 verified live at HEAD, but every role lane is over ration (ollama hard-capped mid-fire by this controller's own session) → PARKED-ON-LANE; ze... |
+| 22 | 2026-10-06 | Gate-0 self-notice read built + judged PASS 87→91→93 as PR #1604; merge blocked by an inherited dev red (07e1a89bc) → PARKED-ON-CLOCK; P1 #6 parked... |
+| 21 | 2026-10-06 | pi-runner pre-dirty fix LANDED: #1593 `c2bf04af3`, re-judged PASS 100 after the Actions incident cleared; ticket resolved [HARNESS] |
+| 20 | 2026-10-05 | pi-runner pre-dirty fix built + judged PASS 86→85 as PR #1593; landing blocked by a GitHub Actions major outage → PARKED-ON-CLOCK [HARNESS] |
+| 19 | 2026-10-05 | both P0 heads LANDED: heartbeat #1578 and rotate-log pair #1580 (after a Windows walk-up hang fix); 3 tickets resolved [HARNESS] |
+| 18 | 2026-10-04 | rotate-log pair built + judged PASS 97 as PR #1580; parked on the same weekend TestOllamaQuota* red; #1578 re-probed still red [HARNESS] |
+| 17 | 2026-10-03 | heartbeat fix pushed as #1578 and re-judged PASS 95; merge blocked by a weekend-only red in TestOllamaQuota* → PARKED-ON-CLOCK [HARNESS] |
+| 16 | 2026-10-03 | heartbeat driver-root fix built + judged PASS 96; push blocked by the pinned scope guard, guard arm LANDED #1575 [HARNESS] |
 | 15 | 2026-10-03 | controller HTTP 402 classified as capacity; pause no longer reads as a crash — LANDED #1549 [HARNESS] |
 | 14 | 2026-10-02 | controller HTTP 402 proposal parked for D-FLEET-11; admission-bypass premise refuted [HARNESS] |
 | 13 | 2026-10-02 | interrupted iteration 12 record recovered; heartbeat remains parked for D-FLEET-10 [ADMIN] |

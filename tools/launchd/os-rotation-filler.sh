@@ -98,6 +98,7 @@ CURSOR="$HOME/.ailang/state/os-filler-cursor"
 # benchmark enters the local rotation and local ELO becomes comparable to cloud.
 # Set OS_FILLER_AILANG_FULL=0 to disable the AILANG-first pass.
 AILANG_FULL="${OS_FILLER_AILANG_FULL:-1}"
+# long-frontier is deliberately absent: attended evals only (see spec.go TierLongFrontier).
 FULL_TIERS="${OS_FILLER_FULL_TIERS:-core,stretch,frontier}"
 FULL_CHUNK="${OS_FILLER_FULL_CHUNK:-3}"        # benchmarks per cycle for the ailang-only pass
 # Lap budget: one cursor wrap is NOT proof of coverage — a cycle that times out or
@@ -117,6 +118,14 @@ FULL_MAX_LAPS="${OS_FILLER_FULL_MAX_LAPS:-3}"
 # AILANG-first pass) for cross-language signal before AILANG fully fills. Set
 # OS_FILLER_AILANG_FULL=0 for a legacy pure cross-language rig.
 FORCE_4LANG="${OS_FILLER_4LANG:-0}"
+# CROSS-LANGUAGE is OFF by default (2026-10-06). It was never switched off — it only
+# looked off because AILANG coverage never completed, so the hand-off never fired.
+# Once the chronic timeouts moved to the attended-only long-frontier tier, the set
+# became completable and the hand-off would have started python/js/go on its own.
+# With it off, a version whose AILANG coverage is complete leaves the rig IDLE, which
+# is the point: the GPU is shared with the desktop, and idle rig is not wasted rig.
+# OS_FILLER_CROSS_LANG=1 restores the automatic hand-off.
+CROSS_LANG="${OS_FILLER_CROSS_LANG:-0}"
 # PRE-NIGHTLY GUARD (replaced a fixed 04:00-07:00 blackout, 2026-09-11).
 #
 # The old window was sized for a ~3-hour nightly and had stopped being true: the
@@ -243,6 +252,14 @@ fi
 if ! curl -s --max-time 3 http://127.0.0.1:11434/api/version >/dev/null 2>&1; then
   log "ollama unreachable — skip"; exit 0
 fi
+
+# 2b. Someone is using the desktop — the GPU draws it, so leave it alone
+#     (rig-operator-presence.sh). Mid-chunk, eval-suite lends the GPU between
+#     benchmarks instead (AILANG_RIG_YIELD_TO_OPERATOR, exported below).
+if rig_operator_present; then
+  log "operator at the desktop — skip"; exit 0
+fi
+export AILANG_RIG_YIELD_TO_OPERATOR=1
 
 # 3. Yield if any rig job (nightly / lang-eval) holds the lock.
 if ! rig_lock_acquire nowait; then
@@ -418,7 +435,9 @@ fi
 # immediately when forced early via OS_FILLER_4LANG=1. Same rule as nightly-lang-eval:
 # the 4-language-capable benchmark pool. ailang cells are already banked from the
 # AILANG-first pass, so --skip-existing effectively adds only python/javascript/go here.
-if [ "$AILANG_DONE" = "1" ] || [ "$FORCE_4LANG" = "1" ]; then
+if [ "$AILANG_DONE" = "1" ] && [ "$CROSS_LANG" != "1" ] && [ "$FORCE_4LANG" != "1" ]; then
+  log "AILANG coverage complete for $VERSION; cross-language pass is off (OS_FILLER_CROSS_LANG=0) — rig left idle"
+elif [ "$AILANG_DONE" = "1" ] || [ "$FORCE_4LANG" = "1" ]; then
   # shellcheck disable=SC2207
   BENCHES=( $(for f in benchmarks/*.yml; do
     # M-EVAL-RELIABLE-GRADING: ailang-only reimplement benchmarks (grade_entrypoint marker) join
@@ -624,7 +643,7 @@ if [ -d "$ROLL/$VERSION" ]; then
 fi
 
 AILANG_VER="$(tr -d '[:space:]' < std/VERSION 2>/dev/null || true)"
-if [ -n "$AILANG_VER" ] && [ -d "eval_results/baselines/${AILANG_VER}" ]; then
+if [ -n "$AILANG_VER" ] && { [ -d "eval_results/baselines/${AILANG_VER}" ] || [ -d eval_results/rotation/cloud-rolling ]; }; then
   if bash tools/publish-unified-dashboard.sh "$AILANG_VER" >>"$LOG" 2>&1; then
     if [ "$BENCH_GIT_COMMIT" != "1" ]; then
       log "unified dashboard refreshed (${AILANG_VER}) — bucket sync publishes it; git commit retired (W5)"

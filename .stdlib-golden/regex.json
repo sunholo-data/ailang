@@ -21,13 +21,13 @@
     },
     {
       "name": "findAll",
-      "type": "(Regex,string)-\u003elist[\u003c*types.TRecord2\u003e]",
+      "type": "(Regex,string)-\u003elist[{end: int, groups: list[{end: int, start: int, text: string}], start: int, text: string}]",
       "effects": [],
       "pure": true
     },
     {
       "name": "findFirst",
-      "type": "(Regex,string)-\u003eOption[\u003c*types.TRecord2\u003e]",
+      "type": "(Regex,string)-\u003eOption[{end: int, groups: list[{end: int, start: int, text: string}], start: int, text: string}]",
       "effects": [],
       "pure": true
     },

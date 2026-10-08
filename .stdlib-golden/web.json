@@ -13,7 +13,7 @@
   "funcs": [
     {
       "name": "webFetch",
-      "type": "(string)-\u003eResult[\u003c*types.TRecord2\u003e,NetError]!{Net}",
+      "type": "(string)-\u003eResult[{content: string, links: list[string], title: string},NetError]!{Net}",
       "effects": [
         "Net"
       ],
@@ -21,7 +21,7 @@
     },
     {
       "name": "webSearch",
-      "type": "(string,int)-\u003eResult[list[\u003c*types.TRecord2\u003e],NetError]!{Net}",
+      "type": "(string,int)-\u003eResult[list[{content: string, title: string, url: string}],NetError]!{Net}",
       "effects": [
         "Net"
       ],

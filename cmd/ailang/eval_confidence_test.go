@@ -59,3 +59,35 @@ func TestSelectBenchmarksByConfidence(t *testing.T) {
 		}
 	}
 }
+
+// TestSelectBenchmarksByConfidence_SkipsLongFrontier: a long-frontier benchmark is
+// attended-only, so automatic selection must skip it even when it is the closest
+// to the median (quine is long-frontier in the real benchmarks dir).
+func TestSelectBenchmarksByConfidence_SkipsLongFrontier(t *testing.T) {
+	prev := evalBenchmarkDir
+	evalBenchmarkDir = "../../benchmarks"
+	t.Cleanup(func() { evalBenchmarkDir = prev })
+
+	dbPath := filepath.Join(t.TempDir(), "ratings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if _, err := observatory.MigrateWithVersion(db); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	models := map[string]float64{"a": 1500, "b": 1600, "c": 1700}
+	benches := map[string]float64{"quine": 1600, "near": 1650}
+	if err := observatory.SaveRatings(context.Background(), db, "agent", models, benches, nil, nil); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	_ = db.Close()
+
+	got, err := selectBenchmarksByConfidence(dbPath, "agent", 0)
+	if err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if len(got) != 1 || got[0] != "near" {
+		t.Errorf("got %v, want [near] (long-frontier quine skipped)", got)
+	}
+}

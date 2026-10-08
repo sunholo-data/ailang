@@ -2,6 +2,7 @@
 sidebar_position: 3
 title: Effect System
 description: Capability-based side effects in AILANG
+reviewBy: 2027-02-08
 ---
 
 # Effect System

@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-12-07
+---
+
 # `ailang lsp` — Language Server for AI agents and IDEs
 
 `ailang lsp` is a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server for `.ail` source files. It exposes the AILANG type checker, elaborator, and module loader as **structured wire-protocol responses** so any LSP client — a Claude Code session, a VS Code extension, an Emacs `lsp-mode` config — gets diagnostics, hover types, go-to-definition, find-references, and document symbols without having to shell out to `ailang check` and parse text.

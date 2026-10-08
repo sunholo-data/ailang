@@ -2,6 +2,8 @@
 sidebar_position: 10
 title: Testing Guide
 description: Property-based testing for deterministic AI code synthesis in AILANG
+reviewed: 2026-10-06
+reviewBy: 2026-11-16
 ---
 
 # AILANG Testing Guide
@@ -15,32 +17,32 @@ description: Property-based testing for deterministic AI code synthesis in AILAN
 - [Running Tests](#running-tests)
 - [CI/CD Integration](#cicd-integration)
 - [Examples](#examples)
-- [Advanced Topics](#advanced-topics)
+- [Debugging Failed Properties](#debugging-failed-properties)
 
 ---
 
 ## Quick Start
 
 ### Installation
-```bash
-# Clone and build
-git clone https://github.com/sunholo/ailang
-cd ailang
-make install
 
-# Verify installation
+Install the `ailang` binary as described in [Getting Started](/docs/guides/getting-started), then check it:
+
+```bash
 ailang test --help
 ```
 
 ### Your First Test
 Create `hello_test.ail`:
 ```ailang
-// Unit test (simple assertion)
-test "addition works" = 1 + 1 == 2
+module hello_test
 
-// Property test (QuickCheck-style)
-property "addition is commutative" (x: int, y: int) =
-  x + y == y + x
+-- Unit test: the body must evaluate to true
+test "addition works" { 1 + 1 == 2 }
+
+-- Property test (QuickCheck-style): 100 generated cases
+property "addition is commutative" {
+  forall(x: int, y: int) => x + y == y + x
+}
 ```
 
 Run it:
@@ -56,14 +58,25 @@ Test Results
 Module: All Tests
 
 Tests:
-  ✓ addition works
+  ✓ addition works (89.5µs)
+      at hello_test.ail:4:1
 
 Properties:
-  ✓ addition is commutative (100 cases)
+  ✓ addition is commutative (100 cases, 413.625µs)
+      at hello_test.ail:7:1
 
-✓ All tests passed
+──────────────────────────────────────────────────
+✓ All tests passed!
 
-2 tests: 2 passed, 0 failed, 0 skipped (0.2s)
+2 tests: 2 passed, 0 failed, 0 skipped (503.125µs)
+  ✓ Passed: 2
+  ✗ Failed: 0
+
+Seed:
+  mode: derived
+  master seed: 0
+  derivation: ailang-property-seed-v1
+  replay: ailang test --seed 0 hello_test.ail
 ```
 
 ---
@@ -72,67 +85,109 @@ Properties:
 
 ### Unit Tests
 
-Unit tests are simple boolean assertions:
+A unit test is a named block whose body must evaluate to `true`:
 
-```ailang
-test "name" = expression
+```text
+test "name" { expression }
 ```
 
 **Examples:**
 ```ailang
-// Basic assertions
-test "integers equal" = 42 == 42
-test "strings concat" = "hello world" == "hello world"
-test "lists append" = [1, 2] ++ [3] == [1, 2, 3]
+import std/list (map)
+import std/option (Option, Some, None)
 
-// Function tests
-test "map doubles list" =
-  map(\x. x * 2, [1, 2, 3]) == [2, 4, 6]
+-- Basic assertions
+test "integers equal" { 42 == 42 }
+test "string interpolation" { "hello ${"world"}" == "hello world" }
+test "lists append" { [1, 2] ++ [3] == [1, 2, 3] }
 
-// ADT tests
-test "Some wraps value" =
+-- Function tests
+test "map doubles list" { map(\x. x * 2, [1, 2, 3]) == [2, 4, 6] }
+
+-- ADT tests
+test "Some wraps value" {
   match Some(42) {
-    | Some(x) -> x == 42
-    | None -> false
+    Some(x) => x == 42,
+    None => false
   }
+}
 ```
+
+`++` concatenates lists only; for strings use `"${…}"` interpolation, `concat` or `join`.
+
+### Inline Tests
+
+A function can carry its own `(input, expected)` cases in a `tests [ … ]` list between the signature and the body. A function of several parameters takes its input as a tuple:
+
+```ailang
+export pure func square(x: int) -> int
+  tests [
+    (0, 0),
+    (3, 9),
+    (-4, 16)
+  ]
+{
+  x * x
+}
+
+export pure func add(a: int, b: int) -> int
+  tests [
+    ((1, 2), 3),
+    ((-1, 1), 0)
+  ]
+{
+  a + b
+}
+```
+
+Each case runs as its own test, named `<function>_test_<n>` (`square_test_1`, `add_test_2`, …). See `examples/snippets/v3_3/math/gcd.ail` and `examples/inline_tests_*.ail` for more.
 
 ### Property Tests
 
-Property tests verify invariants hold for many random inputs:
+Property tests verify that an invariant holds for many generated inputs:
 
 ```ailang
-property "name" (param: type, ...) = expression
+property "name" {
+  forall(param: type, ...) => predicate
+}
 ```
+
+The predicate can call the module's pure functions. Each property is compiled once, as a function of its binders, and called with each of 100 generated cases. A failing case is shrunk to a minimal counterexample: `forall(n: int) => n < 5` reports `property failed on input: [5]`.
 
 **Examples:**
 ```ailang
-// Commutativity
-property "addition commutes" (x: int, y: int) =
-  x + y == y + x
+import std/list (length, reverse)
 
-// Associativity
-property "addition associates" (x: int, y: int, z: int) =
-  (x + y) + z == x + (y + z)
+export pure func double(x: int) -> int = x * 2
 
-// Identity
-property "zero is additive identity" (x: int) =
-  x + 0 == x && 0 + x == x
+-- Commutativity
+property "addition commutes" {
+  forall(x: int, y: int) => x + y == y + x
+}
 
-// Conditional properties (implications)
-property "division by non-zero" (x: int, y: int) =
-  y != 0 ==> (x / y) * y + (x % y) == x
+-- Calling module functions
+property "double is additive" {
+  forall(n: int) => double(n) == n + n
+}
+
+-- A precondition: there is no `where`/`==>`, so write it as an if
+property "division by non-zero" {
+  forall(x: int, y: int) => if y == 0 then true else (x / y) * y + (x % y) == x
+}
+
+-- Lists
+property "reverse keeps length" {
+  forall(xs: [int]) => length(reverse(xs)) == length(xs)
+}
 ```
 
-**Supported Types:**
-- `int` - Integers (configurable range)
-- `float` - Floating-point numbers
-- `bool` - Booleans
-- `string` - Strings (configurable length/charset)
-- `list(T)` - Lists of type T
-- `Option(T)` - Optional values (Some/None)
-- `Result(T, E)` - Results (Ok/Err)
-- Custom ADTs and records
+**Binder types with a generator:**
+- `int`, `float`, `bool`, `string`, `()`
+- lists (`[T]`), tuples (`(A, B)`) and records (`{name: string, age: int}`) of these
+- ADTs declared in the same module (`type Shape = Circle(float) | Square(float)`)
+
+A binder whose type has no generator (for example an imported `Option[int]`) skips that property with `no generator for type …`.
+
 
 ---
 
@@ -140,66 +195,63 @@ property "division by non-zero" (x: int, y: int) =
 
 ### How It Works
 
-1. **Generation**: Create 100 random test cases
-2. **Execution**: Run property on each case
-3. **Shrinking**: If failure, find minimal counterexample
+1. **Generation**: each binder gets a value from its type's generator, for 100 cases (a fixed count).
+2. **Execution**: the predicate runs on each case; the first `false` stops the property.
+3. **Shrinking**: the failing input is shrunk to a minimal counterexample, which is what gets reported.
 
 **Example:**
 ```ailang
-property "all integers less than 100" (x: int) =
-  x < 100
+property "all integers less than 100" {
+  forall(x: int) => x < 100
+}
 ```
 
-**Execution:**
+**Output** (`ailang test --no-color`, trimmed):
 ```
-→ Running property "all integers less than 100"
-  Generated: -523, 17, 891, 42, ..., 234
-  ✗ Failed on input: 234
-  Shrinking... 234 → 117 → 100
-  Minimal counterexample: 100
+Properties:
+  ✗ all integers less than 100 (2 cases, 109.792µs)
+      property failed on input: [100]
+      at fail_test.ail:3:1
+```
 
-✗ Property failed: all integers less than 100
-  Input: 100
-  Expected: true
-  Got: false
-```
+`(2 cases)` is how many cases ran before the failure. The input list holds one value per binder, in order. The intermediate shrink steps are not printed; only the minimal input is.
 
 ### Shrinking
 
-When a property fails, shrinking finds the **minimal failing input**:
+Shrinking repeatedly replaces a binder with a simpler value on which the predicate is still `false`, until nothing simpler fails:
 
-**Integer shrinking**: Binary search toward zero
+- **int**: toward zero (tries `0`, then a binary search, then `n - 1`), so `x < 100` reports `100`.
+- **float**: toward `0.0`, by halving.
+- **string**: by removing characters (empty string, halves, single characters). Characters themselves are not simplified.
+- **list**: by removing elements (empty list, halves, single elements), then by shrinking the first few elements. `forall(xs: [int]) => length(xs) < 3` reports `[[0, 0, 0]]`.
+
+`bool`, `()` and tuples are not shrunk, and an ADT counterexample may come back unshrunk.
+
+### Integer and Size Ranges
+
+Generated `int`s lie in `-1000..1000` and `float`s in `-1000.0..1000.0`; strings and lists of scalars have at most 100 elements. These ranges and the 100-case count are fixed: there are no flags or environment variables to change them.
+
+### Seeds and Replay
+
+Property generation is deterministic. By default each property's seed is derived from a master seed of `0`, so the same file produces the same cases every run. Every run ends by printing the seed and a replay command:
+
 ```
-1000 → 500 → 250 → 125 → 100 (minimal)
+Seed:
+  mode: derived
+  master seed: 0
+  derivation: ailang-property-seed-v1
+  replay: ailang test --seed 0 fail_test.ail
 ```
 
-**List shrinking**: Remove elements, shrink elements
+- `--seed N` sets the master seed (a signed int64).
+- `--random-seed` draws a fresh master seed and prints it for replay:
+
 ```
-[1, 2, 100, 4, 5] → [100] → shrink 100 → [50] → ...
-```
-
-**String shrinking**: Remove chunks, characters
-```
-"hello world" → "hello" → "hell" → "hel" → ...
-```
-
-### Configuration
-
-Customize generation with environment variables:
-
-```bash
-# Number of test cases (default: 100)
-export AILANG_TEST_RUNS=1000
-
-# Random seed (for reproducibility)
-export AILANG_TEST_SEED=42
-
-# Max size for collections (default: 100)
-export AILANG_TEST_MAX_SIZE=50
-
-# Integer range (default: -1000 to 1000)
-export AILANG_TEST_MIN_INT=-100
-export AILANG_TEST_MAX_INT=100
+Seed:
+  mode: master
+  master seed: -6170952522490737774
+  derivation: ailang-property-seed-v1
+  replay: ailang test --seed -6170952522490737774 fail_test.ail
 ```
 
 ---
@@ -209,86 +261,132 @@ export AILANG_TEST_MAX_INT=100
 ### Command-Line Interface
 
 ```bash
-# Run all tests in directory (recursive)
-ailang test .
+# Run all tests in the current directory (recursive)
+ailang test
 
-# Run tests in specific file
-ailang test examples/testing_basic.ail
+# Run all tests in a directory (recursive)
+ailang test tests/
 
-# Run tests in multiple files
+# Run tests in a specific file
+ailang test examples/inline_tests_arithmetic.ail
+
+# Run tests in several files (one summary)
 ailang test file1.ail file2.ail
 
-# Human-readable output (default)
-ailang test --format human .
-
 # JSON output (for CI/CD)
-ailang test --format json .
+ailang test --json .
 
 # Disable colored output
 ailang test --no-color .
 
-# Show help
+# Package mode: run every *_test.ail found via ailang.toml
+ailang test --package .
+
+# Show all flags
 ailang test --help
 ```
 
 ### Output Formats
 
+For this file:
+
+```ailang
+test "addition works" { 1 + 1 == 2 }
+test "subtraction broken" { 5 - 3 == 1 }
+
+property "addition commutes" {
+  forall(x: int, y: int) => x + y == y + x
+}
+```
+
 **Human (default)**:
 ```
-→ Running tests in .
+→ Running tests in json_test.ail
 
 Test Results
 Module: All Tests
 
 Tests:
-  ✓ addition works
-  ✗ subtraction broken
+  ✓ addition works (89.666µs)
+      at json_test.ail:3:1
+  ✗ subtraction broken (75.375µs)
+      expected true, got false
+      at json_test.ail:4:1
 
 Properties:
-  ✓ addition commutes (100 cases)
+  ✓ addition commutes (100 cases, 436.792µs)
+      at json_test.ail:6:1
 
 ──────────────────────────────────────────────────
 ✗ Some tests failed
 
-2 tests: 1 passed, 1 failed, 0 skipped (0.5s)
-  ✓ Passed: 1
+3 tests: 2 passed, 1 failed, 0 skipped (601.833µs)
+  ✓ Passed: 2
   ✗ Failed: 1
+
+Seed:
+  mode: derived
+  master seed: 0
+  derivation: ailang-property-seed-v1
+  replay: ailang test --seed 0 json_test.ail
 ```
 
-**JSON** (`--format json`):
+**JSON** (`--json`; the `→ Running tests` line goes to stderr, so stdout is pure JSON):
 ```json
 {
-  "module": "All Tests",
-  "tests": [
-    {
-      "name": "addition works",
-      "status": "pass",
-      "duration": 0.001
-    },
-    {
-      "name": "subtraction broken",
-      "status": "fail",
-      "message": "Expected true, got false",
-      "duration": 0.001
-    }
-  ],
+  "failed_tests": 1,
+  "module_path": "All Tests",
+  "passed_tests": 2,
   "properties": [
     {
+      "discarded_inputs": 0,
+      "duration": "432.958µs",
+      "generated_inputs": 100,
+      "location": "json_test.ail:6:1",
       "name": "addition commutes",
+      "seed": "279323736052768828",
+      "skip_kind": "",
       "status": "pass",
-      "cases": 100,
-      "duration": 0.5
+      "tests_run": 100
     }
   ],
-  "summary": {
-    "total": 2,
-    "passed": 1,
-    "failed": 1,
-    "skipped": 0,
-    "duration": 0.5
-  }
+  "seed": "0",
+  "seed_derivation": "ailang-property-seed-v1",
+  "seed_mode": "derived",
+  "skipped_tests": 0,
+  "success": false,
+  "tests": [
+    {
+      "duration": "136.125µs",
+      "location": "json_test.ail:3:1",
+      "name": "addition works",
+      "status": "pass"
+    },
+    {
+      "duration": "78.917µs",
+      "error": "expected true, got false",
+      "location": "json_test.ail:4:1",
+      "name": "subtraction broken",
+      "status": "fail"
+    }
+  ],
+  "total_duration": "648µs",
+  "total_tests": 3,
+  "vacuous_skips": 0
 }
 ```
+
+### How named tests are compiled
+
+All the `test "…" { … }` blocks in a file are compiled together, once, and each test then runs on its own fresh evaluator, or on a fresh VM under `--bytecode`. A file's test run therefore costs about one compile however many tests it has. A runtime error inside a test reports a position in your file; an error inside the test body itself is reported as `<file>:<line> (test body)`.
+
+Sometimes the shared compile fails, usually because one test body does not type-check. In that case `ailang test` prints, on stderr:
+
+```
+→ named tests in sim/x_test.ail: could not share one compile (<reason>); compiled each test separately
+```
+
+It then compiles each test on its own, so only the broken test fails, with its own error. `--json` reports the same thing under `named_test_batch_failures`. If the notice adds that every body compiles on its own, the fault is in the test harness, not your code; please report it.
 
 ---
 
@@ -306,65 +404,37 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Install AILANG
-        run: |
-          make install
-          echo "$HOME/go/bin" >> $GITHUB_PATH
+      - uses: sunholo-data/setup-ailang@v1
+        with:
+          version: latest
+          github-token: ${{ github.token }}
 
       - name: Run tests
-        run: |
-          ailang test --format json --no-color . > test-results.json
+        run: ailang test --json . > test-results.json
 
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: test-results.json
-
-      - name: Check test status
-        run: |
-          if ! ailang test --format json --no-color . | jq -e '.summary.failed == 0'; then
-            echo "Tests failed!"
-            exit 1
-          fi
 ```
 
-### GitLab CI
+The `Run tests` step fails the job on its own, because `ailang test` exits non-zero when a test fails. To inspect the JSON yourself, `jq -e '.success'` exits non-zero unless every test passed.
 
-`.gitlab-ci.yml`:
-```yaml
-stages:
-  - test
+### Other CI Systems
 
-test:
-  stage: test
-  image: golang:1.21
-  before_script:
-    - git clone https://github.com/sunholo/ailang
-    - cd ailang && make install && cd ..
-  script:
-    - ailang test --format json --no-color . | tee test-results.json
-  artifacts:
-    reports:
-      junit: test-results.json
-    paths:
-      - test-results.json
-```
+Install with the `install.sh` one-liner from [Getting Started](/docs/guides/getting-started), then run `ailang test --json .`. The JSON is AILANG's own shape, not JUnit XML, so do not declare it as a JUnit report.
 
 ### Exit Codes
 
-```bash
-# Exit code 0: All tests passed
-ailang test .
-echo $?  # 0
-
-# Exit code 1: Some tests failed
-ailang test failing.ail
-echo $?  # 1
-```
+| Exit code | Meaning |
+|-----------|---------|
+| `0` | All tests passed |
+| `1` | At least one test failed |
+| `1` | Every test was skipped (for example, no binder had a generator); pass `--allow-skips` to exit `0` instead |
 
 ### Pre-commit Hook
 
@@ -395,142 +465,134 @@ chmod +x .git/hooks/pre-commit
 ### Example 1: List Properties
 
 ```ailang
-// List reversal properties
-property "reverse twice is identity" (xs: list(int)) =
-  reverse(reverse(xs)) == xs
+import std/list (length, reverse)
 
-property "reverse preserves length" (xs: list(int)) =
-  length(reverse(xs)) == length(xs)
+property "reverse twice is identity" {
+  forall(xs: [int]) => reverse(reverse(xs)) == xs
+}
 
-property "reverse reverses order" (x: int, y: int) =
-  reverse([x, y]) == [y, x]
+property "reverse preserves length" {
+  forall(xs: [int]) => length(reverse(xs)) == length(xs)
+}
+
+property "reverse reverses order" {
+  forall(x: int, y: int) => reverse([x, y]) == [y, x]
+}
 ```
 
 ### Example 2: Tree Properties
 
+A binder can have an ADT type declared in the same module, including a recursive one:
+
 ```ailang
-type Tree =
-  | Leaf(int)
-  | Node(Tree, int, Tree)
+import std/list (length)
 
-property "tree depth is non-negative" (t: Tree) =
-  depth(t) >= 0
+type Tree = Leaf(int) | Node(Tree, int, Tree)
 
-property "tree size is positive" (t: Tree) =
-  size(t) > 0
+export pure func size(t: Tree) -> int {
+  match t {
+    Leaf(_) => 1,
+    Node(l, _, r) => size(l) + 1 + size(r)
+  }
+}
 
-property "inorder traversal preserves size" (t: Tree) =
-  length(inorder(t)) == size(t)
+export pure func depth(t: Tree) -> int {
+  match t {
+    Leaf(_) => 0,
+    Node(l, _, r) => {
+      let dl = depth(l);
+      let dr = depth(r);
+      1 + (if dl > dr then dl else dr)
+    }
+  }
+}
+
+export pure func inorder(t: Tree) -> [int] {
+  match t {
+    Leaf(v) => [v],
+    Node(l, v, r) => inorder(l) ++ [v] ++ inorder(r)
+  }
+}
+
+property "tree depth is non-negative" {
+  forall(t: Tree) => depth(t) >= 0
+}
+
+property "tree size is positive" {
+  forall(t: Tree) => size(t) > 0
+}
+
+property "inorder traversal preserves size" {
+  forall(t: Tree) => length(inorder(t)) == size(t)
+}
 ```
 
 ### Example 3: Conditional Properties
 
+There is no implication operator and no `where` clause. Write a precondition as an `if` whose other branch is `true`:
+
 ```ailang
-// Division with preconditions
-property "division identity" (x: int, y: int) =
-  y != 0 ==> (x / y) * y + (x % y) == x
+-- Division, for non-zero divisors
+property "division identity" {
+  forall(x: int, y: int) => if y == 0 then true else (x / y) * y + (x % y) == x
+}
 
-// List head with precondition
-property "non-empty list has head" (xs: list(int)) =
-  length(xs) > 0 ==> head(xs) != null
-
-// Positive number properties
-property "positive implies greater than zero" (x: int) =
-  x > 0 ==> x >= 1
+-- The same shape with `not`
+property "positive implies at least one" {
+  forall(x: int) => if not (x > 0) then true else x >= 1
+}
 ```
+
+Cases the precondition rules out still count toward the 100; they simply pass.
 
 ### Example 4: Algebraic Properties
 
 ```ailang
-// Monoid laws
-property "concatenation identity" (xs: list(int)) =
-  (xs ++ [] == xs) && ([] ++ xs == xs)
+import std/list (map)
 
-property "concatenation associativity" (xs: list(int), ys: list(int), zs: list(int)) =
-  (xs ++ ys) ++ zs == xs ++ (ys ++ zs)
+-- Monoid laws
+property "concatenation identity" {
+  forall(xs: [int]) => (xs ++ [] == xs) && ([] ++ xs == xs)
+}
 
-// Functor laws
-property "map identity" (xs: list(int)) =
-  map(\x. x, xs) == xs
+property "concatenation associativity" {
+  forall(xs: [int], ys: [int], zs: [int]) => (xs ++ ys) ++ zs == xs ++ (ys ++ zs)
+}
 
-property "map composition" (f: int -> int, g: int -> int, xs: list(int)) =
-  let composed = \x. f(g(x)) in
-  map(composed, xs) == map(f, map(g, xs))
+-- Functor laws
+property "map identity" {
+  forall(xs: [int]) => map(\x. x, xs) == xs
+}
+
+property "map composition" {
+  forall(xs: [int]) => {
+    let f = \x. x + 1;
+    let g = \x. x * 2;
+    map(\x. f(g(x)), xs) == map(f, map(g, xs))
+  }
+}
 ```
+
+Function-typed binders have no generator (`forall(f: int -> int, …)` is skipped with `no generator for type (int -> int)`), so fix the functions inside the predicate as above.
 
 ---
 
-## Advanced Topics
+## Debugging Failed Properties
 
-### Custom Generators
+A failure prints the minimal counterexample, one value per binder:
 
-For complex types, guide the generator with metadata:
+```
+  ✗ all integers less than 100 (2 cases, 109.792µs)
+      property failed on input: [100]
+```
+
+To reproduce it, re-run with the `replay:` command from the `Seed:` block, for example `ailang test --seed 0 fail_test.ail`. The same seed generates the same cases. Then copy the counterexample into a unit test so it stays fixed:
 
 ```ailang
-// @generator Tree: balanced tree with depth 0-5
-property "balanced tree depth bound" (t: Tree) =
-  depth(t) <= 5
-
-// @generator Point: x,y in range -1000 to 1000
-property "point distance non-negative" (p1: Point, p2: Point) =
-  distance(p1, p2) >= 0.0
+test "regression: 100 is not less than 100" { not (100 < 100) }
 ```
 
-### Debugging Failed Properties
-
-When a property fails, examine the minimal counterexample:
-
-```ailang
-property "controversial claim" (x: int) =
-  x < 100
-```
-
-Output:
-```
-✗ Property failed: controversial claim
-  Minimal counterexample: 100
-  Expected: true
-  Got: false
-
-Shrinking path: 523 → 261 → 130 → 115 → 107 → 103 → 101 → 100
-```
-
-### Test Organization
-
-Organize tests into files by category:
-
-```
-tests/
-  ├── unit/
-  │   ├── arithmetic.ail
-  │   ├── strings.ail
-  │   └── lists.ail
-  ├── properties/
-  │   ├── algebraic.ail
-  │   ├── functor_laws.ail
-  │   └── monad_laws.ail
-  └── integration/
-      ├── effects.ail
-      └── modules.ail
-```
-
-Run all tests:
-```bash
-ailang test tests/
-```
-
-### Performance Testing
-
-Test asymptotic behavior:
-
-```ailang
-property "map is O(n)" (xs: list(int)) =
-  let doubled = map(\x. x * 2, xs) in
-  length(doubled) == length(xs)
-
-property "sort preserves length" (xs: list(int)) =
-  length(sort(xs)) == length(xs)
-```
+A property that reports `⊘ … no generator for type …` was skipped, not passed. Change the binder to a type with a generator, or declare the ADT in the same module.
 
 ---
 
@@ -539,53 +601,56 @@ property "sort preserves length" (xs: list(int)) =
 ### 1. Property > Unit Test
 **Prefer properties when possible:**
 ```ailang
-// Weak: Only tests one case
-test "addition example" = 2 + 3 == 5
+-- Weak: only tests one case
+test "addition example" { 2 + 3 == 5 }
 
-// Strong: Tests 100 cases
-property "addition commutes" (x: int, y: int) =
-  x + y == y + x
+-- Strong: tests 100 generated cases
+property "addition commutes" {
+  forall(x: int, y: int) => x + y == y + x
+}
 ```
 
 ### 2. Shrinking-Friendly Properties
-**Write properties that shrink well:**
+**State a clear invariant**, so the minimal counterexample says what broke:
 ```ailang
-// Bad: Shrinking won't help
-property "complex condition" (x: int, y: int, z: int) =
-  (x + y) * z % 7 == 0  // Arbitrary, hard to debug
-
-// Good: Clear invariant
-property "addition preserves ordering" (x: int, y: int) =
-  x < y ==> x + 1 <= y + 1
+property "adding one preserves ordering" {
+  forall(x: int, y: int) => if x < y then x + 1 < y + 1 else true
+}
 ```
 
 ### 3. Test Algebraic Laws
 **Use mathematical properties:**
 ```ailang
-// Commutativity
-property "commutes" (x: T, y: T) = op(x, y) == op(y, x)
+export pure func maxInt(a: int, b: int) -> int = if a > b then a else b
 
-// Associativity
-property "associates" (x: T, y: T, z: T) =
-  op(op(x, y), z) == op(x, op(y, z))
+-- Commutativity
+property "max commutes" {
+  forall(x: int, y: int) => maxInt(x, y) == maxInt(y, x)
+}
 
-// Identity
-property "identity" (x: T) = op(x, identity) == x
+-- Associativity
+property "max associates" {
+  forall(x: int, y: int, z: int) => maxInt(maxInt(x, y), z) == maxInt(x, maxInt(y, z))
+}
+
+-- Idempotence
+property "max is idempotent" {
+  forall(x: int) => maxInt(x, x) == x
+}
 ```
 
-### 4. Use Conditional Properties
-**Test preconditions explicitly:**
+### 4. Write Preconditions as `if`
 ```ailang
-property "division correctness" (x: int, y: int) =
-  y != 0 ==> (x / y) * y + (x % y) == x
+property "division correctness" {
+  forall(x: int, y: int) => if y == 0 then true else (x / y) * y + (x % y) == x
+}
 ```
 
 ### 5. CI/CD Integration Checklist
-- Use `--format json --no-color` for CI
-- Check exit code: `0` = pass, `1` = fail
-- Upload test artifacts for debugging
-- Set appropriate timeouts (properties can be slow)
-- Use `AILANG_TEST_SEED` for reproducibility
+- Use `--json` (and `--no-color` for human output in logs)
+- Check the exit code: `0` = pass, non-zero = failure, or every test skipped
+- Upload the JSON as an artifact for debugging
+- Record the `seed` from the JSON (or the `replay:` line) to reproduce a failure
 
 ---
 
@@ -599,7 +664,6 @@ property "division correctness" (x: int, y: int) =
 
 ## Resources
 
-- **Examples**: `examples/testing_basic.ail`, `examples/testing_advanced.ail`
-- **API Docs**: See `internal/testing` package documentation
-- **Source**: https://github.com/sunholo/ailang
-- **Issues**: https://github.com/sunholo/ailang/issues
+- **Examples**: `examples/inline_tests_*.ail`, `examples/snippets/v3_3/math/gcd.ail`
+- **Source**: `internal/testing` (generators, shrinkers, runner)
+- **Issues**: https://github.com/sunholo-data/ailang/issues

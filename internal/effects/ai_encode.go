@@ -54,13 +54,16 @@ func makeOkStringResult(s string) eval.Value {
 
 // makeOkStepResult builds Ok(StepResult record) — for step.
 func makeOkStepResult(resp *ai.Response) eval.Value {
-	// Build the assistant Message record.
+	// Build the assistant Message record. Every field of the closed
+	// std/ai.Message type must be present (#572): responses carry no
+	// vision input, so images is always the empty list.
 	msgRec := &eval.RecordValue{
 		Fields: map[string]eval.Value{
 			"role":         &eval.StringValue{Value: "assistant"},
 			"content":      &eval.StringValue{Value: resp.Text},
 			"tool_calls":   encodeToolCalls(resp.ToolCalls),
 			"tool_call_id": &eval.StringValue{Value: ""},
+			"images":       &eval.ListValue{Elements: []eval.Value{}},
 		},
 	}
 	stepResult := &eval.RecordValue{

@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-03-01
+---
+
 # Parameterised Effects (Phase 1)
 
 > Available since v0.15.0 (M-EFFECT-REFINEMENT Phase 1).

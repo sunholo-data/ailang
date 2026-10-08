@@ -165,3 +165,24 @@ func TestResolveAnthropicCredential_FallsBackToClaudeCredentialsFile(t *testing.
 		}
 	})
 }
+
+// A `claude setup-token` token is raw, not the cloud JSON blob, and is an OAuth access token
+// as-is. It must select the OAuth lane, not fail as malformed JSON.
+func TestResolveAnthropicCredential_RawSetupTokenInEnv(t *testing.T) {
+	testutil.SetHomeDir(t, t.TempDir())
+	t.Setenv(EnvAnthropicAPIKey, "")
+	t.Setenv(EnvAnthropicAuthToken, "")
+	t.Setenv(EnvClaudeCodeOAuthToken, "sk-ant-oat01-raw\n")
+	got, err := ResolveAnthropicCredential()
+	if err != nil {
+		t.Fatalf("raw setup-token rejected: %v", err)
+	}
+	if got.Value != "sk-ant-oat01-raw" || !got.OAuth {
+		t.Errorf("got Value=%q OAuth=%v, want the trimmed raw token on the OAuth lane", got.Value, got.OAuth)
+	}
+	// The JSON blob shape is unchanged: malformed JSON is still an error.
+	t.Setenv(EnvClaudeCodeOAuthToken, "{not json")
+	if _, err := ResolveAnthropicCredential(); err == nil {
+		t.Error("malformed JSON blob accepted; want the existing error")
+	}
+}

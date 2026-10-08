@@ -202,6 +202,9 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 		if ollama.SessionUsage != nil && ollama.WeeklyUsage != nil {
 			fmt.Printf("  fractional gauge: session %.1f%%; weekly %.1f%%\n", 100**ollama.SessionUsage, 100**ollama.WeeklyUsage)
 		}
+		if ollama.RequestCount != nil {
+			fmt.Printf("  requests: %d in the provider's reporting range (no limit published)\n", *ollama.RequestCount)
+		}
 	}
 	if anthropic != nil {
 		mode := "REPORT ONLY"

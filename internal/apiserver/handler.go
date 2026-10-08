@@ -83,6 +83,7 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 					Nowrap:     route.IsNowrap,
 					ParamNames: route.ParamNames,
 					ParamTypes: route.ParamTypes,
+					ParamZeros: route.ParamZeros,
 				})
 				return
 			}
@@ -148,7 +149,7 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delegate to shared function caller with param names for named binding
-	s.callFunction(w, r, modulePath, funcName, callOpts{ParamNames: foundExport.ParamNames, ParamTypes: foundExport.ParamTypes})
+	s.callFunction(w, r, modulePath, funcName, callOpts{ParamNames: foundExport.ParamNames, ParamTypes: foundExport.ParamTypes, ParamZeros: foundExport.ParamZeros})
 }
 
 // camelToSnake converts a camelCase string to snake_case.
@@ -201,7 +202,7 @@ func zeroValueForType(typeName string) interface{} {
 // Missing parameters are padded with type-appropriate zero-values when
 // paramTypes is available, enabling functions to validate inputs instead
 // of crashing on unit values.
-func parseNamedArgs(body map[string]interface{}, paramNames []string, paramTypes []string) []interface{} {
+func parseNamedArgs(body map[string]interface{}, paramNames []string, paramTypes []string, paramZeros []any) []interface{} {
 	if len(paramNames) == 0 {
 		return nil
 	}
@@ -225,7 +226,7 @@ func parseNamedArgs(body map[string]interface{}, paramNames []string, paramTypes
 		}
 		// Pad missing param with type-appropriate zero-value
 		if i < len(paramTypes) {
-			args[i] = zeroValueForType(paramTypes[i])
+			args[i] = paramZero(paramTypes, paramZeros, i)
 		}
 	}
 	if matched == 0 {
@@ -244,8 +245,8 @@ func parseNamedArgs(body map[string]interface{}, paramNames []string, paramTypes
 // Implementation lives in parseArgsWithNamesEx (argresolve.go); this wrapper
 // preserves the (args, error) signature for callers and tests that don't
 // need argument-source provenance.
-func parseArgsWithNames(body []byte, paramNames []string, paramTypes []string) ([]interface{}, error) {
-	args, _, err := parseArgsWithNamesEx(body, paramNames, paramTypes)
+func parseArgsWithNames(body []byte, paramNames []string, paramTypes []string, paramZeros []any) ([]interface{}, error) {
+	args, _, err := parseArgsWithNamesEx(body, paramNames, paramTypes, paramZeros)
 	return args, err
 }
 

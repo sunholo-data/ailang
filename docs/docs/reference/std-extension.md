@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-01-18
+---
+
 # std/extension — helpers for AILANG extension packages
 
 The `std/extension` module (v0.19.0+) provides conventions and small utilities for AILANG packages that plug into a host runtime (typically [motoko_agent](https://github.com/sunholo-voight-kampff/motoko_agent)) via the `[extension]` manifest block. The first helper, `requireWorkdirFile`, is the canonical way for an extension to self-disable when a required consumer-side input is missing.

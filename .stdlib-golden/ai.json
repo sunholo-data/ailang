@@ -95,7 +95,7 @@
     },
     {
       "name": "callJsonResult",
-      "type": "(string,string)-\u003eResult[string,\u003c*types.TRecord2\u003e]!{AI}",
+      "type": "(string,string)-\u003eResult[string,{code: string, message: string, retryable: bool}]!{AI}",
       "effects": [
         "AI"
       ],
@@ -111,7 +111,7 @@
     },
     {
       "name": "callJsonSimpleResult",
-      "type": "(string)-\u003eResult[string,\u003c*types.TRecord2\u003e]!{AI}",
+      "type": "(string)-\u003eResult[string,{code: string, message: string, retryable: bool}]!{AI}",
       "effects": [
         "AI"
       ],
@@ -119,7 +119,7 @@
     },
     {
       "name": "callResult",
-      "type": "(string)-\u003eResult[string,\u003c*types.TRecord2\u003e]!{AI}",
+      "type": "(string)-\u003eResult[string,{code: string, message: string, retryable: bool}]!{AI}",
       "effects": [
         "AI"
       ],
@@ -127,7 +127,7 @@
     },
     {
       "name": "callSpeech",
-      "type": "(string,string,string,string)-\u003eResult[bytes,\u003c*types.TRecord2\u003e]!{AI}",
+      "type": "(string,string,string,string)-\u003eResult[bytes,{code: string, message: string, retryable: bool}]!{AI}",
       "effects": [
         "AI"
       ],
@@ -149,7 +149,7 @@
     },
     {
       "name": "step",
-      "type": "(string,list[Message],list[ToolSchema])-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{AI}",
+      "type": "(string,list[Message],list[ToolSchema])-\u003eResult[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]!{AI}",
       "effects": [
         "AI"
       ],
@@ -157,7 +157,7 @@
     },
     {
       "name": "stepWithCache",
-      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint])-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{AI}",
+      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint])-\u003eResult[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]!{AI}",
       "effects": [
         "AI"
       ],
@@ -165,7 +165,7 @@
     },
     {
       "name": "stepWithStream",
-      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e()!{IO})-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{AI}",
+      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e()!{IO})-\u003eResult[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]!{AI}",
       "effects": [
         "AI"
       ],
@@ -173,7 +173,7 @@
     },
     {
       "name": "stepWithStreamRecorded",
-      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e()!{IO})-\u003e\u003c*types.TRecord2\u003e!{AI}",
+      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e()!{IO})-\u003e{chunks: list[StreamChunk], outcome: Result[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]}!{AI}",
       "effects": [
         "AI"
       ],

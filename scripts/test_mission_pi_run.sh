@@ -18,6 +18,9 @@ MISSION_PI_SANDBOX_STAGE_PARENT="$TMP"
 MISSION_PI_CLAUDE_TMP_DIR="$TMP/claude"
 export MISSION_PI_SANDBOX_NODE_MODULES MISSION_PI_SANDBOX_STAGE_PARENT MISSION_PI_CLAUDE_TMP_DIR
 
+MISSION_PI_POLL_SECONDS=1; export MISSION_PI_POLL_SECONDS
+field() { jq -r ".$2" "$1"; } # field <verdict-file> <key>
+
 PASS=0; FAIL=0
 check() { # check <name> <expected-rc> <actual-rc> <expected-verdict> <verdict-file>
   got_v=$(sed -n 's/.*"verdict": "\([^"]*\)".*/\1/p' "$5" 2>/dev/null)
@@ -35,22 +38,26 @@ mkstub() { # mkstub <script-body> -> writes a `pi` stub and prepends it to PATH
   PATH="$TMP/bin:$PATH"; export PATH
 }
 
-mkrepo() { # mkrepo <dir> <dirty|clean>
+mkrepo() { # mkrepo <dir> <dirty|clean|dirty-untracked>
   rm -rf "$1"; mkdir -p "$1"; git -C "$1" init -q
   echo base > "$1/f.txt"; git -C "$1" add -A
   git -C "$1" -c user.email=t@t -c user.name=t commit -qm base
   [ "$2" = "dirty" ] && echo changed > "$1/f.txt"
+  [ "$2" = "dirty-untracked" ] && echo u0 > "$1/u.txt"
+  [ "$2" = "dirty-symlink" ] && { ln -s /nonexistent/x "$1/aaa"; echo u0 > "$1/zz.txt"; }
+  [ "$2" = "dirty-nested" ] && { mkdir "$1/aaa"; git -C "$1/aaa" init -q; echo u0 > "$1/zz.txt"; }
   return 0
 }
 
 echo "TEST 1: happy path -> ok (rc 0)"
-mkstub 'printf "%s\n" "{\"type\":\"tool_execution_end\"}" "{\"type\":\"agent_end\"}"'
+mkstub 'echo work > work.txt; printf "%s\n" "{\"type\":\"tool_execution_end\"}" "{\"type\":\"agent_end\"}"'
 mkrepo "$TMP/wt1" dirty; echo "do the thing" > "$TMP/d1.txt"
 "$SUT" --model m --directive "$TMP/d1.txt" --workdir "$TMP/wt1" --out "$TMP/o1.ndjson" \
        --max-seconds 30 --stall-seconds 10 >/dev/null 2>&1
 check "happy path" 0 $? ok "$TMP/o1.ndjson.verdict.json"
 
 echo "TEST 2: pi succeeds but changes nothing -> empty_worktree (rc 10)"
+mkstub 'printf "%s\n" "{\"type\":\"tool_execution_end\"}" "{\"type\":\"agent_end\"}"'
 mkrepo "$TMP/wt2" clean; echo d > "$TMP/d2.txt"
 "$SUT" --model m --directive "$TMP/d2.txt" --workdir "$TMP/wt2" --out "$TMP/o2.ndjson" \
        --max-seconds 30 --stall-seconds 10 >/dev/null 2>&1
@@ -96,7 +103,7 @@ fi
 echo "TEST 5: progress keeps the clock alive past the stall bound (no false positive)"
 # The guard must NOT fire on a slow-but-working run, or it just re-creates the old
 # 300 MB ceiling in a new costume.
-mkstub 'for i in 1 2 3 4 5 6 7 8; do printf "{\"type\":\"tool_execution_end\",\"i\":%s}\n" "$i"; sleep 2; done; printf "{\"type\":\"agent_end\"}\n"'
+mkstub 'echo work > work.txt; for i in 1 2 3 4 5 6 7 8; do printf "{\"type\":\"tool_execution_end\",\"i\":%s}\n" "$i"; sleep 2; done; printf "{\"type\":\"agent_end\"}\n"'
 mkrepo "$TMP/wt5" dirty; echo d > "$TMP/d5.txt"
 "$SUT" --model m --directive "$TMP/d5.txt" --workdir "$TMP/wt5" --out "$TMP/o5.ndjson" \
        --max-seconds 90 --stall-seconds 6 >/dev/null 2>&1
@@ -136,6 +143,83 @@ echo "TEST 7: bad arguments -> launch_failed (rc 14)"
 "$SUT" --model m --directive /nonexistent/nope --workdir "$TMP" --out "$TMP/o6.ndjson" >/dev/null 2>&1
 [ $? -eq 14 ] && { echo "  PASS: missing directive rejected"; PASS=$((PASS+1)); } \
               || { echo "  FAIL: missing directive not rejected"; FAIL=$((FAIL+1)); }
+
+# Pre-dirty worktree arms (ticket pi-runner:verdict-blind-to-commits-and-predirty). A tree that is
+# already dirty at launch must not read ok unless pi changed it; TEST 1 and TEST 5 used to pass only
+# because of that hole.
+run_pd() { # run_pd <n> <repo-mode> <stub-body> -> runs the SUT, sets PDRC and PDV
+  mkstub "$3"
+  mkrepo "$TMP/pd$1" "$2"; echo d > "$TMP/dpd$1.txt"
+  "$SUT" --model m --directive "$TMP/dpd$1.txt" --workdir "$TMP/pd$1" --out "$TMP/opd$1.ndjson" \
+         --max-seconds 30 --stall-seconds 10 >/dev/null 2>&1
+  PDRC=$?; PDV="$TMP/opd$1.ndjson.verdict.json"
+}
+expect_field() { # expect_field <name> <verdict-file> <key> <want>
+  got=$(field "$2" "$3")
+  if [ "$got" = "$4" ]; then echo "  PASS: $1 ($3=$got)"; PASS=$((PASS+1))
+  else echo "  FAIL: $1 — $3 expected $4, got $got"; FAIL=$((FAIL+1)); fi
+}
+
+echo "TEST 8.1: pre-dirty + no-op pi -> empty_worktree (rc 10)"
+run_pd 1 dirty ':'
+check "pre-dirty no-op" 10 $PDRC empty_worktree "$PDV"
+expect_field "pre-dirty no-op predirty_files" "$PDV" predirty_files 1
+expect_field "pre-dirty no-op changed_since_start" "$PDV" worktree_changed_since_start false
+V1="$PDV"
+
+echo "TEST 8.2: pre-dirty + new untracked file -> ok"
+run_pd 2 dirty 'echo n > new.txt'
+check "pre-dirty new file" 0 $PDRC ok "$PDV"
+expect_field "pre-dirty new file changed_since_start" "$PDV" worktree_changed_since_start true
+
+echo "TEST 8.3: pre-dirty + further edit to the already-dirty file -> ok"
+run_pd 3 dirty 'echo changed2 > f.txt'
+check "pre-dirty further edit" 0 $PDRC ok "$PDV"
+expect_field "J: arm 1 predirty_files" "$V1" predirty_files 1
+expect_field "J: arm 3 predirty_files" "$PDV" predirty_files 1
+expect_field "J: arm 3 changed_since_start" "$PDV" worktree_changed_since_start true
+
+echo "TEST 8.4: clean + no-op pi (control) -> empty_worktree"
+run_pd 4 clean ':'
+check "clean no-op" 10 $PDRC empty_worktree "$PDV"
+expect_field "clean no-op predirty_files" "$PDV" predirty_files 0
+
+echo "TEST 8.5: clean + committing pi (control) -> ok via commits"
+run_pd 5 clean 'echo c > f.txt; git add f.txt; git -c user.email=t@t -c user.name=t commit -qm c'
+check "clean commit" 0 $PDRC ok "$PDV"
+expect_field "clean commit commits_since_start" "$PDV" commits_since_start 1
+expect_field "clean commit changed_since_start" "$PDV" worktree_changed_since_start false
+
+echo "TEST 8.6: pre-dirty untracked file edited in place -> ok"
+run_pd 6 dirty-untracked 'echo u1 > u.txt'
+check "untracked edit" 0 $PDRC ok "$PDV"
+
+echo "TEST 8.7: pre-dirty + pi reverts the dirty edit -> ok (decision: the tree did change)"
+run_pd 7 dirty 'git checkout -- f.txt'
+check "revert of pre-dirty edit" 0 $PDRC ok "$PDV"
+expect_field "revert worktree_changed_files" "$PDV" worktree_changed_files 0
+expect_field "revert predirty_files" "$PDV" predirty_files 1
+
+# The fingerprint must hash entries git cannot (dangling symlink, nested repo) without losing the
+# files that sort after them. Killing mutation for 8.8: restore the batched
+# `git ls-files -o -z | xargs -0 git hash-object --` line (aborts at `aaa`, zz.txt never hashed).
+echo "TEST 8.8: unhashable untracked entry + in-place edit of a later untracked file -> ok"
+run_pd 8 dirty-symlink 'echo u1 > zz.txt'
+check "unhashable symlink + edit" 0 $PDRC ok "$PDV"
+expect_field "unhashable symlink changed_since_start" "$PDV" worktree_changed_since_start true
+
+echo "TEST 8.9: unhashable untracked entry + no-op pi (control) -> empty_worktree"
+run_pd 9 dirty-symlink ':'
+check "unhashable symlink no-op" 10 $PDRC empty_worktree "$PDV"
+expect_field "unhashable symlink no-op changed_since_start" "$PDV" worktree_changed_since_start false
+
+echo "TEST 8.10: nested repo entry + in-place edit of a later untracked file -> ok"
+run_pd 10 dirty-nested 'echo u1 > zz.txt'
+check "nested repo + edit" 0 $PDRC ok "$PDV"
+
+echo "TEST 8.11: nested repo entry + no-op pi (control) -> empty_worktree"
+run_pd 11 dirty-nested ':'
+check "nested repo no-op" 10 $PDRC empty_worktree "$PDV"
 
 echo
 echo "passed=$PASS failed=$FAIL"

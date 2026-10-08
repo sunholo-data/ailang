@@ -2,6 +2,7 @@
 sidebar_position: 5
 title: Arrays
 description: Fixed-size arrays in AILANG
+reviewBy: 2026-11-02
 ---
 
 # Arrays

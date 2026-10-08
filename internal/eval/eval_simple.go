@@ -397,7 +397,7 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 				return &FloatValue{Value: l.Value + r.Value}, nil
 			}
 		}
-		return nil, fmt.Errorf("'+' requires numeric types (use '++' for string concatenation)")
+		return nil, fmt.Errorf("'+' requires numeric types (to join strings use \"${a}${b}\" interpolation)")
 
 	case "++":
 		lStr, lOk := left.(*StringValue)

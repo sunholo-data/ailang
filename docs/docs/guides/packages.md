@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-03-01
+---
+
 # Package System
 
 AILANG's package system enables multi-package projects with deterministic dependency resolution, export enforcement, and effect ceilings. Packages are the primary unit of autonomous coordination — they define what an agent can see, change, what authority it has, and what guarantees it must preserve.

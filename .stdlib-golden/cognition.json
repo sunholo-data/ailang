@@ -12,7 +12,7 @@
     },
     {
       "name": "recvMsg",
-      "type": "(string)-\u003e\u003c*types.TRecord2\u003e!{Msg}",
+      "type": "(string)-\u003e{clock: int, from: string, msg_id: string, payload: string, to: string}!{Msg}",
       "effects": [
         "Msg"
       ],
@@ -20,7 +20,7 @@
     },
     {
       "name": "recvMsgResult",
-      "type": "(string)-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{Msg}",
+      "type": "(string)-\u003eResult[{clock: int, from: string, msg_id: string, payload: string, to: string},{code: string, message: string}]!{Msg}",
       "effects": [
         "Msg"
       ],
@@ -28,7 +28,7 @@
     },
     {
       "name": "sendMsg",
-      "type": "(string,string)-\u003e\u003c*types.TRecord2\u003e!{Msg}",
+      "type": "(string,string)-\u003e{budget_remaining: int, clock: int, msg_id: string}!{Msg}",
       "effects": [
         "Msg"
       ],
@@ -36,7 +36,7 @@
     },
     {
       "name": "sendMsgResult",
-      "type": "(string,string)-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{Msg}",
+      "type": "(string,string)-\u003eResult[{budget_remaining: int, clock: int, msg_id: string},{code: string, message: string}]!{Msg}",
       "effects": [
         "Msg"
       ],

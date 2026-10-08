@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-01-25
+---
+
 # M-EVAL-LOOP: Self-Improving AI Feedback Loop
 
 The M-EVAL-LOOP system transforms the AILANG eval harness from passive benchmarking into a **self-improving feedback loop** that teaches AI models and validates language improvements.

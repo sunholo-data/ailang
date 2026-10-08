@@ -1,16 +1,11 @@
-# Fleet mission — iteration 15, 2026-10-03
+# Fleet mission — iteration 27, 2026-10-08
 
-- Release v0.52.0 (CLI on PATH). Pin = origin/dev; the skill and all 12 resources match origin.
-- LANDED #1549 `27dab5bb4`: controller HTTP 402 → capacity (demote/re-walk → PAUSED-NO-CAPACITY), pause no longer posts a crash notice.
-- Ticket `driver:controller-fallback-…-402-reads-as-crash` resolved (≈24h filed→resolved). First resolution since iteration 10.
-- Evaluator pi:openrouter/minimax-m3 PASS 95/100. Done-gate green, with dry-runs under the world profile.
-- NEW finding: an Anthropic "hit your session limit" is ALSO recorded CRASHED (killed iteration 15 attempt 1). Outside D-FLEET-11's scope, and the fleet cannot file a ticket for it. Needs Mark (D-FLEET-13).
-- Next READY: heartbeat Revision 5 + fresh quorum (D-FLEET-10 = A) → rotate-log pair (D-FLEET-9 = A) → pi-runner pre-dirty.
-- D-FLEET-12 pair (retired codex models; opencode quota pool) is pre-authorized, no ruling needed.
-- Ledger: D-FLEET-10/11/12 normalized to RESOLVED; 1 OPEN (D-FLEET-13).
-- Quota: codex and ollama over ration; OpenRouter admitted; Anthropic opus/sonnet subscription OK this fire.
-- Metered this iteration $0.61 (quorum $0.28 in attempt 1, evaluator $0.33).
-- Routing: planner via Agent opus. Executor sonnet-5-5 via claude-sub (the Agent alias was denied by the provider pin). Evaluator re-routed to pi minimax (generator≠judge).
-- Retro: the charter done-gate now names the idle-sibling dry-run recipe. The pi judge sandbox blocks `mktemp -t` (backlog).
-- 10 coordinator approvals pending, untouched (operator-owned).
-- Bookkeeping #1380; log fleet-mission-log.md; design planned/m-controller-capacity-admission.md.
+- origin/dev `c92739681` at Gate 1. All 13 running mission-control files match origin (resolved symlink).
+- **LANDED:** P1 #6 `skill-surface:main-checkout-not-synced-to-dev`, #1647 → `15d47b5dc` (D-FLEET-15 = A). Judged **PASS 91** by sonnet (cross-vendor; codex planned and executed). Ticket resolved.
+- What it does: on every real fire, after the kill switch and overlap yield, the driver fast-forwards the checkout the skill symlink resolves to (ff-only; only on `dev`, 0 ahead, no op in progress, no dirty path in range; otherwise it logs `skill-sync=skip:<reason>`). Dry-run shows `skill-sync=` without writing.
+- Reach: live from the next fire of any mission. The main checkout was 4 behind with nothing dirty in range → expect `skill-sync=synced:N` in the next driver log.
+- Dev `test` was red on `TestModels_CloudHeadroomEqualised` (from 69ddedd29); handed to v1/motoko, and fixed by #1645 the same hour. Windows red persists (V1's lane).
+- Next: P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict` (ailang#651), then P1 #9 exit-path notices, then the Phase 3a skill-resolution spike.
+- Routing this fire: controller opus; planner + executor codex gpt-6.1-sol (recipe); evaluator sonnet (Agent tool). Metered $0.
+- OPEN decisions: none (D-FLEET-13/14/15 all ruled 2026-10-08).
+- Open tickets: 41.
