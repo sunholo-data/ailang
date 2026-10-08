@@ -1,6 +1,6 @@
 # M-STD-YAML-MAPPING-KEY-ORDER: `std/yaml` preserves YAML mapping key order
 
-**Status**: Planned
+**Status**: Implementation complete; awaiting coordinator evaluation
 **Target**: v0.53.0
 **Priority**: P1 (silent data loss in a shipped stdlib bridge; no correctness/security emergency)
 **Estimated**: ~1 day, ~150–200 LOC including tests (walker ~110 Go LOC in `internal/builtins/yaml.go`, tests ~+50, docs/comments small)
@@ -321,3 +321,6 @@ Single day: M1 spike + walker (~3h), guarantee matrix + re-pins (~3h), docs + ch
 
 **Document created**: 2026-10-07
 **Last updated**: 2026-10-07
+## Implementation handoff — 2026-10-08
+
+Approved option (a) is implemented. See the companion sprint plan execution record and `.ailang/state/sprints/sprint_M-STD-YAML-MAPPING-KEY-ORDER.json` for milestones and targeted validation under the crash-recovery constraints. Upstream generic decoding is retained only as discarded validation for alias bounds and typed errors; emitted bytes come from an ordered Node walk with a shared buffer. Independent review is complete; coordinator evaluation and publication remain downstream.

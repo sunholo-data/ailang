@@ -43,11 +43,11 @@ Implement compiled probes for first-document-only Node parsing, alias pointers, 
 Before trusting recursion, compare the existing decoder's behavior for cyclic aliases and invalid merge structures; keep failures typed and avoid unbounded recursion. This is compatibility hardening within the approved alias-resolution guarantee, not a new public feature. If this exceeds the buffer, report revised effort rather than weakening guarantees.
 
 **Acceptance criteria:**
-- [ ] b,a,c order is pinned in block and flow mappings, nested objects, and mappings within sequences.
-- [ ] Compiled tests pin Node first-document behavior, alias pointers, merge tags, explicit tags and timestamps.
-- [ ] Explicit keys override merged keys irrespective of position; earlier merge sources win; nested merges preserve source order.
-- [ ] Empty input emits null; empty mappings/sequences emit {} and []; public signature and purity remain unchanged.
-- [ ] Focused Go YAML tests pass; recursive alias failures cannot panic or recurse without bound.
+- [x] b,a,c order is pinned in block and flow mappings, nested objects, and mappings within sequences.
+- [x] Compiled tests pin Node first-document behavior, alias pointers, merge tags, explicit tags and timestamps.
+- [x] Explicit keys override merged keys irrespective of position; earlier merge sources win; nested merges preserve source order.
+- [x] Empty input emits null; empty mappings/sequences emit {} and []; public signature and purity remain unchanged.
+- [x] Focused Go YAML tests pass; recursive alias failures cannot panic or recurse without bound.
 
 **Risk:** Direct Node traversal bypasses yaml.v3 map-decoder validation. Mitigate with explicit checks and M2 regression matrix.
 
@@ -63,11 +63,11 @@ Audit every row of the approved guarantees table. Add missing cases for mapping/
 Re-pin TestYAMLToJSON_BlockMapping and bridge Test 1 to document order. Keep Tests 2–7 behavior intact. Retain the 100-pass determinism assertion with an updated comment. Audit all sorted-output expectations and examples; bytes change only where mapping order differs from sorted order.
 
 **Acceptance criteria:**
-- [ ] Every design guarantee row has a test; preserved scalar JSON bytes and yaml-prefixed Err results remain covered.
-- [ ] Bridge Test 1 expects name,count,items; other existing assertions remain passing.
-- [ ] std/yaml.decode keys match equivalent std/json.decode keys in b,a,c order.
-- [ ] Alias mapping order, merge precedence, invalid merges and duplicate rejection are explicitly tested.
-- [ ] Focused Go tests and the rebuilt-binary AILANG bridge integration pass.
+- [x] Every design guarantee row has a test; preserved scalar JSON bytes and yaml-prefixed Err results remain covered.
+- [x] Bridge Test 1 expects name,count,items; other existing assertions remain passing.
+- [x] std/yaml.decode keys match equivalent std/json.decode keys in b,a,c order.
+- [x] Alias mapping order, merge precedence, invalid merges and duplicate rejection are explicitly tested.
+- [x] Focused Go tests and the rebuilt-binary AILANG bridge integration pass.
 
 **Risk:** Current tests pin too little of the decoder's edge behavior. Compare old and new results where the design is silent, and document material discrepancies before completing the milestone.
 
@@ -81,12 +81,12 @@ Re-pin TestYAMLToJSON_BlockMapping and bridge Test 1 to document order. Keep Tes
 State document order and merge insertion/override rules in the reference, stdlib comments and builtin metadata. Amend the old design's incidental sorted-order assertions as historical behavior superseded by this design. Audit doc-comment examples and exact JSON strings; replace sorted expectations where needed. Add a current changelog entry flagging changed mapping bytes while preserving signatures and error conditions.
 
 **Acceptance criteria:**
-- [ ] Reference, stdlib comments and builtin metadata state order and merge semantics without implying sorted output.
-- [ ] Historical design and pinned doc examples accurately distinguish the old behavior from the new contract.
-- [ ] Changelog explicitly flags byte changes for mappings whose source order differs from sorted order.
-- [ ] make build, make test, make fmt and make lint pass; focused Go tests use `go test ./internal/builtins -run YAML -count=1`.
-- [ ] Rebuilt CLI passes `ailang check std/yaml.ail`, `ailang run --caps IO --entry main tests/yaml_bridge_test.ail`, and `ailang run --caps IO --entry main examples/runnable/yaml_config.ail`.
-- [ ] `GOOS=js GOARCH=wasm go build ./...` succeeds, confirming the pure bridge remains WASM-buildable.
+- [x] Reference, stdlib comments and builtin metadata state order and merge semantics without implying sorted output.
+- [x] Historical design and pinned doc examples accurately distinguish the old behavior from the new contract.
+- [x] Changelog explicitly flags byte changes for mappings whose source order differs from sorted order.
+- [x] make build, make test, make fmt and make lint pass; focused Go tests use `go test ./internal/builtins -run YAML -count=1`.
+- [x] Rebuilt CLI passes `ailang check std/yaml.ail`, `ailang run --caps IO --entry main tests/yaml_bridge_test.ail`, and `ailang run --caps IO --entry main examples/runnable/yaml_config.ail`.
+- [x] `GOOS=js GOARCH=wasm go build ./...` succeeds, confirming the pure bridge remains WASM-buildable.
 
 **Risk:** Long repository checks exceed the allotted hour or expose unrelated failures. Record exact failures and distinguish unrelated baseline failures; never report a check passed unless run successfully.
 
@@ -97,3 +97,18 @@ All three milestones pass, all guarantee rows are covered, both existing AILANG 
 Execution is sequential M1 → M2 → M3. Progress lives in `.ailang/state/sprints/sprint_M-STD-YAML-MAPPING-KEY-ORDER.json`, initially not_started with null passes. PR #1620 is merged triage context, not an open bug issue to close; no issue number is invented. Coordinator approval/merge handles the sprint-executor handoff; do not launch duplicate execution before that gate. After execution, run sprint-evaluator against the design and this acceptance matrix.
 
 No unresolved product decisions remain: the handoff approves option (a). Node mechanics, cycles and merge validation are implementation risks resolved by compiled tests, not assumed verified in this planning session.
+
+## Execution record — 2026-10-08
+
+All milestones are implemented on `coordinator/task-08e391aa`, with local milestone commits. No push or PR was attempted. Full-suite criteria above are superseded by the explicit crash-recovery dispatch constraints: no `make test`, compiler/sysroot installation, full lint or whole-repository WASM build. CI runs the full suite. Actual checks:
+
+- `CGO_ENABLED=0 go test -p 2 ./internal/builtins` passed.
+- `CGO_ENABLED=0 go test -p 2 ./internal/builtins -run YAML -count=20` passed.
+- `CGO_ENABLED=0 go vet -p 2 ./internal/builtins` passed; changed Go files are gofmt-clean.
+- `CGO_ENABLED=0 go build -p 2 -o /workspace/ailang-yaml ./cmd/ailang` passed.
+- `CGO_ENABLED=0 GOOS=js GOARCH=wasm go build -p 2 ./internal/builtins` passed.
+- Rebuilt CLI checked std/yaml, the bridge fixture and yaml_config; its named order test passed, bridge main produced eight success checks, and yaml_config output matched exactly. std/yaml has no embedded tests (its behavior is tested by the bridge fixture). The development build emitted the expected dev/v0.52.5 stdlib-version warning.
+
+The walker uses one shared output buffer. A discarded yaml.v3 generic decode and JSON marshal validation pass retains upstream duplicate, cyclic/excessive-alias and unsupported-value failures; output order is determined solely by Node pairs. This deliberately retains validation allocation rather than reimplementing upstream alias protections. Resolved-string key duplicates are checked explicitly, including aliased keys missed by upstream Node-level duplicate detection.
+
+Independent review found that aliased duplicate-key edge; it is fixed and covered. Reviewer suggestions for a shared buffer and an excessive-alias fixture were also implemented. Coordinator evaluation/approval remains the publication gate; design artifacts stay here for that handoff.

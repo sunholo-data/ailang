@@ -7,6 +7,8 @@ import std/result (Result, Ok, Err)
 import std/json (Json, decode as jsonDecode)
 
 -- Convert a YAML string to an equivalent JSON string (Go-backed).
+-- Mapping keys retain document order. Merges insert keys at the merge position;
+-- explicit keys override merged keys, and earlier merge sources win conflicts.
 -- Reads only the first document of a multi-document stream. Any YAML that cannot be
 -- represented as JSON (non-string map keys, NaN/Inf floats) returns Err — no coercion.
 export func yamlToJson(s: string) -> Result[string, string] {
