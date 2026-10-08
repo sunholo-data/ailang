@@ -30,6 +30,7 @@ type RouteEntry struct {
 	IsNowrap   bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
 	ParamNames []string // parameter names for named JSON binding
 	ParamTypes []string // parameter type strings for zero-value padding
+	ParamZeros []any    // declared-record zeros (param_zero.go)
 	IsWS       bool     // @route("WS", ...): WebSocket upgrade route
 	Effects    []string // declared effect row (WS routes)
 	WSReq      []string // WS routes: the req record fields the handler declares
@@ -40,6 +41,7 @@ type RouteEntry struct {
 // from the parsed AST for all exported functions. This enables named JSON
 // parameter binding and zero-value padding for missing parameters.
 func extractParamInfo(modInfo *ModuleInfo, file *ast.File) {
+	aliases := recordAliases(file)
 	for _, fn := range file.Funcs {
 		if !fn.IsExport {
 			continue
@@ -54,6 +56,7 @@ func extractParamInfo(modInfo *ModuleInfo, file *ast.File) {
 			if modInfo.Exports[i].Name == fn.Name {
 				modInfo.Exports[i].ParamNames = names
 				modInfo.Exports[i].ParamTypes = types
+				modInfo.Exports[i].ParamZeros = extractParamZeros(fn.Params, aliases)
 				break
 			}
 		}
@@ -379,6 +382,7 @@ func (s *Server) findRouteByPath(urlPath string) *RouteEntry {
 					IsNowrap:   exp.IsNowrap,
 					ParamNames: exp.ParamNames,
 					ParamTypes: exp.ParamTypes,
+					ParamZeros: exp.ParamZeros,
 				}
 			}
 		}
@@ -404,6 +408,7 @@ func (s *Server) getCustomRoutes() []RouteEntry {
 					IsNowrap:   exp.IsNowrap,
 					ParamNames: exp.ParamNames,
 					ParamTypes: exp.ParamTypes,
+					ParamZeros: exp.ParamZeros,
 					IsWS:       exp.IsWS,
 					Effects:    exp.Effects,
 					WSReq:      exp.WSReq,
@@ -452,7 +457,7 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux, builtinPaths map[strin
 					nil)
 				return
 			}
-			s.callFunction(w, req, r.Module, r.Function, callOpts{Raw: r.IsRaw, Nowrap: r.IsNowrap, ParamNames: r.ParamNames, ParamTypes: r.ParamTypes})
+			s.callFunction(w, req, r.Module, r.Function, callOpts{Raw: r.IsRaw, Nowrap: r.IsNowrap, ParamNames: r.ParamNames, ParamTypes: r.ParamTypes, ParamZeros: r.ParamZeros})
 		}
 		mux.HandleFunc(r.Path, s.corsWrap(s.authMiddleware(handler)))
 		registered[route.Path] = true

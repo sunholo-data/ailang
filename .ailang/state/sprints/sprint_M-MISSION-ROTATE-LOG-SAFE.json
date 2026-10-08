@@ -1,0 +1,82 @@
+{
+  "sprint_id": "M-MISSION-ROTATE-LOG-SAFE",
+  "status": "planned",
+  "created": "2026-10-04",
+  "design_doc": "design_docs/planned/m-mission-rotate-log-safe.md",
+  "sprint_plan": "design_docs/planned/m-mission-rotate-log-safe-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search unreachable from this lane (403 fetching registry index, sandbox network). In-repo reuse instead: existing Mission.root provenance (internal/mission/registry.go:83-84, set by LoadFile :245-246) exposed via a new additive Root() accessor; mission.RotateLog/Normalize unchanged; loader discovery semantics preserved for all callers (design audit C1-C11)."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Driver fixture reuses the in-repo awk-extraction pattern (tools/launchd/test_mission_stall.sh, test_controller_chain.sh) and LAUNCHD_SUITE wiring in make/test.mk; no package capability introduced."
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 345,
+    "estimated_days": 1,
+    "target_loc_per_day": 345
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "CLI implementation: additive Mission.Root() accessor (internal/mission/registry.go); missionRotateLog strict --stream log|status parsing, ruled --status rejection with D-FLEET-9 migration text BEFORE loadMissionRegistry, shared-repo targets mapped through the loaded registry's origin with loud empty-root failure; missionNormalize shared targets through the same origin (delete the :429 second CWD walk); DELETE repoRootFor (:383-396); loader error names tried locations; help/usage text updated",
+      "dependencies": [],
+      "estimated_loc": 110,
+      "acceptance_criteria": [
+        "go build ./cmd/ailang/ -> rc 0 (baseline c2bf5bef0: rc 0)",
+        "go test ./cmd/ailang/ -run 'TestMissionRegistry|TestRunMissionIteration' -count=1 -> ok (baseline: ok 0.760s; C11 signature/precedence no-regression)",
+        "grep -c \"repoRootFor\" cmd/ailang/mission_cmd.go -> 0 (baseline: 4 at :357,:383,:384,:429)",
+        "grep -rn \"repoRootFor\" cmd/ internal/ --include=\"*_test.go\" -> rc 1, zero hits (baseline: rc 1)",
+        "grep -c -- \"--status\" cmd/ailang/mission_cmd.go -> 1, the migration-rejection arm only (baseline: 4 at :137,:316,:330,:336)",
+        "go build -o bin/ailang ./cmd/ailang && (cd / && bin/ailang mission rotate-log foo --status) -> stderr contains '--stream status' and 'D-FLEET-9', does NOT contain 'mission registry', rc nonzero (RED->GREEN feature assertion; baseline: 'Error: failed to read mission registry missions: open missions: no such file or directory', rc 1)"
+      ]
+    },
+    {
+      "id": "M2",
+      "description": "Pinned synthetic Go tests cmd/ailang/mission_rotate_test.go (new, <=160 lines, package main, no t.Parallel): 9 tests covering registry-origin rotate target (absolute parent-of-registry path pin), external-Workdir targeting, --status rejection before registry load (ordering proof), byte-identical files on rejection, --stream status archive rotation, unknown stream rejection, normalize shared-origin mapping from a foreign CWD, normalize loud no-registry failure, Root() accessor parent pin. Each test names the mutation it kills; fixtures via t.TempDir synthetic registries/logs only",
+      "dependencies": ["M1"],
+      "estimated_loc": 150,
+      "acceptance_criteria": [
+        "go test ./cmd/ailang/ -run 'TestMissionRotateLog|TestMissionNormalizeShared|TestMissionNormalizeNoRegistry|TestMissionRegistryRoot' -count=1 -v -> all 9 tests PASS, none vacuous (RED->GREEN; baseline: 'ok ... [no tests to run]')",
+        "go test ./cmd/ailang/... -run 'Mission' -count=1 -> ok (baseline: ok 12.640s)",
+        "wc -l cmd/ailang/mission_rotate_test.go -> <= 160",
+        "Mutation drill: revert the M1 shared block to logDir = m.Workdir (drop registry origin) -> TestMissionRotateLogSharedRepoTargetsRegistryOrigin and TestMissionNormalizeSharedRepoTargetsRegistryOrigin must FAIL; one drill row recorded by the executor"
+      ]
+    },
+    {
+      "id": "M3",
+      "description": "Driver: _mc_export_mission_registry() in tools/launchd/mission-control.sh (validation: missing $MC_DRIVER_ROOT/missions logs and exits 2; export pinned registry) called in BOTH the binary branch (replacing the inline export at :1976) and the legacy controller branch (beside the MISSION_DRIVER_ROOT export at :2167, before the :2292/:2296 spawn); new bash 3.2 fixture tools/launchd/test_mission_registry_env.sh (awk-extraction pattern, 4 arms incl. both-branches wiring and ordering); wired into make/test.mk test-launchd-drivers after test_mission_iteration.sh",
+      "dependencies": [],
+      "estimated_loc": 75,
+      "acceptance_criteria": [
+        "/bin/bash -n tools/launchd/mission-control.sh -> rc 0 (baseline: rc 0)",
+        "grep -c \"AILANG_MISSION_REGISTRY\" tools/launchd/mission-control.sh -> >= 2 (baseline: 1)",
+        "grep -c \"_mc_export_mission_registry\" tools/launchd/mission-control.sh -> 3: def + binary call + legacy call (baseline: 0, new symbol)",
+        "/bin/bash tools/launchd/test_mission_registry_env.sh -> PASS all 4 arms (RED->GREEN; file absent at base)",
+        "make test-launchd-drivers -> rc 0 with the new suite included; UNINFORMATIVE UNDER SANDBOX in-lane (baseline: mktemp EPERM on /var/folders), controller re-runs env -i HOME=$HOME PATH=$PATH make test-launchd-drivers out-of-sandbox and records rc"
+      ]
+    },
+    {
+      "id": "M4",
+      "description": "Changelog fragment changelogs/unreleased/2026-10-04-mission-rotate-log-safe.md naming the --status -> --stream status migration (D-FLEET-9, immediate break) and the one-resolved-registry fix for rotate-log AND normalize plus the legacy-controller registry export; mission-loop-change done-gate executed by the controller out-of-sandbox",
+      "dependencies": ["M1", "M2", "M3"],
+      "estimated_loc": 10,
+      "acceptance_criteria": [
+        "go test ./cmd/ailang/... -run 'Mission' -count=1 -> ok (baseline: ok 12.640s)",
+        "grep -c \"stream status\" changelogs/unreleased/2026-10-04-mission-rotate-log-safe.md -> >= 1 (RED->GREEN; file absent at base)",
+        "env -i HOME=$HOME PATH=$PATH make test-launchd-drivers -> rc 0, controller-run outside the sandbox (in-sandbox results UNINFORMATIVE UNDER SANDBOX, neither pass nor fail)",
+        "Healthy dry-run on an idle sibling profile (NOT fleet), pinned to the tested SHA: AILANG_DRIVER_PINNED=worktree-test MISSION_WORKDIR=<sibling checkout> MISSION_PROFILE=<idle sibling> MISSION_DRY_RUN=1 /bin/bash tools/launchd/mission-control.sh -> prints 'DRY RUN ok' and 'lanes=ok', controller-run",
+        "Degraded dry-run: same command plus MISSION_DESIGNER_MODEL='claude:claude-drought-sim' MISSION_EVALUATOR_MODEL='claude-drought-sim' -> output matches 'lanes=DEGRADED' and names each degraded handoff, controller-run",
+        "Any test binding sockets or writing outside the worktree (dry-runs, launchd suite, probes) is controller-run out-of-sandbox; sandbox-obtained results labeled UNINFORMATIVE UNDER SANDBOX in the executor report"
+      ]
+    }
+  ]
+}

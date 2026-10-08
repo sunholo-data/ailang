@@ -26,7 +26,7 @@ const LANG_ORDER = ['ailang', 'python', 'javascript', 'go'];
 
 // Tier breakdown is carried per-row in os/latest.json but was never surfaced: a
 // single blended pass rate hides that (e.g.) frontier is 0% while core is ~89%.
-const TIER_ORDER = ['core', 'stretch', 'frontier', 'vision', 'smoke'];
+const TIER_ORDER = ['core', 'stretch', 'frontier', 'long-frontier', 'vision', 'smoke'];
 
 function tierColumns(rows) {
   const seen = new Set();

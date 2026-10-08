@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -105,5 +107,39 @@ func TestPublishDryRun_CleanFixturePasses(t *testing.T) {
 	}
 	if !strings.Contains(out, "Dry run complete") || !strings.Contains(out, "2/2 verified") {
 		t.Errorf("dry-run output must carry the quality report and complete:\n%s", out)
+	}
+	// #636: tarball, content and interface digests are printed in full.
+	for _, label := range []string{"Tarball hash", "Content hash", "Interface hash"} {
+		if !regexp.MustCompile(label + `: sha256:[0-9a-f]{64}\n`).MatchString(out) {
+			t.Errorf("dry-run must print the full %s:\n%s", label, out)
+		}
+	}
+}
+
+// #1305: `--no-run` on a package that ships a _smoke.ail discovers the smoke
+// without executing it and must not report it as a PUB015 failure (exit 2).
+func TestPkgQuality_NoRunSmokeIsNotRunNotFailed(t *testing.T) {
+	bin := buildAilang(t)
+	dir := copyFlatFixture(t)
+	// Pure: the fixture's [effects] max = [] and the smoke compiles with the package.
+	smoke := "module _smoke\n\nexport func main() -> () = ()\n"
+	if err := os.WriteFile(filepath.Join(dir, pkg.SmokeFile), []byte(smoke), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, stderr, exit := runAilangBin(t, bin, "pkg", "quality", "--json", "--no-run", dir)
+	var r pkg.QualityReport
+	if err := json.Unmarshal([]byte(out), &r); err != nil {
+		t.Fatalf("decode: %v\nstdout:\n%s\nstderr:\n%s", err, out, stderr)
+	}
+	for _, g := range r.Gates {
+		if g.Code == "PUB015" {
+			t.Errorf("un-run smoke reported as a PUB015 gate: %v", r.Gates)
+		}
+	}
+	if r.Smoke == nil || !r.Smoke.Present || !r.Smoke.NotRun || !strings.Contains(r.Smoke.Notes, "not run") {
+		t.Errorf("--no-run must report the smoke as present but not run: %+v", r.Smoke)
+	}
+	if exit != 0 {
+		t.Errorf("exit = %d, want 0 (the smoke was never evaluated)\ngates: %v", exit, r.Gates)
 	}
 }

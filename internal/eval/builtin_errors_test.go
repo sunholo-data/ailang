@@ -37,14 +37,14 @@ func TestArgTypeMismatch_ConcatConfusion(t *testing.T) {
 			builtin:  "_list_concat",
 			expected: "list",
 			got:      "string",
-			wantHint: "Use ++ for list concatenation",
+			wantHint: "++ is for lists only",
 		},
 		{
 			name:     "string concat got list",
 			builtin:  "_str_concat",
 			expected: "string",
 			got:      "list",
-			wantHint: "Use ++ for string concatenation",
+			wantHint: "Use ++ only for lists",
 		},
 	}
 
@@ -115,7 +115,7 @@ func TestArgTypeMismatch_MathOperations(t *testing.T) {
 			if !strings.Contains(msg, "arithmetic on strings") {
 				t.Errorf("Expected hint about arithmetic on strings in:\n%s", msg)
 			}
-			if !strings.Contains(msg, "Use ++ for string concatenation") {
+			if !strings.Contains(msg, "${expr}") || strings.Contains(msg, "++") {
 				t.Errorf("Expected concat hint in:\n%s", msg)
 			}
 		})

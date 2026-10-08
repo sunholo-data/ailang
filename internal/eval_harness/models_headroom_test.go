@@ -136,6 +136,16 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// Same pi harness clamp, for the executor fallback's metered rung from 2026-09-25
 		// (deepseek-v4.1-flash replaced 0731). Same openai-compat lane as pi-or-deepseek-v4-flash.
 		"pi-or-deepseek-v4-1-flash": 32000,
+
+		// DELIBERATE COST CAP, not a provider or harness ceiling — the one entry class
+		// here that is a policy choice, so it is named as one. motoko has no pi-style
+		// clamp and would send 65536, but on hard benchmarks GLM-Flash reasoned to that
+		// cap (gauntlet_10: 3 of 4 steps, 197k output tokens) and the 2026-10-02 lane
+		// A/B tied pi at 55/69 while costing $6.86 vs $4.20. 69ddedd29 (2026-10-08) set
+		// both motoko GLM-Flash rows to 32000 to match pi-or-glm-5-3-flash's wire budget,
+		// so the two lanes compare like for like. Lift both rows and drop these entries
+		// together if the A/B is re-run at parity and motoko no longer runs away.
+		"motoko-or-glm-5-3-flash": 32000, "motoko-lane-or-glm-5-3-flash": 32000,
 	}
 
 	c, err := LoadModelsConfig("../modelreg/models.yml")

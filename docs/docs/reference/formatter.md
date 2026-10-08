@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-12-28
+---
+
 # `ailang fmt` — Canonical Source Formatter
 
 `ailang fmt` rewrites AILANG source into one canonical textual form. AILANG's

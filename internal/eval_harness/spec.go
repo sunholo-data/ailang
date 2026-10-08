@@ -111,7 +111,16 @@ func (s *BenchmarkSpec) RequiresAgentWorkspace() bool {
 // "experimental" is reserved for diagnostic-purpose probes (expected_gain: "diagnostic")
 // that measure language gaps rather than score language capability — they are excluded
 // from the smoke/core/stretch/vision/frontier distribution targets.
-var ValidTiers = []string{"smoke", "core", "stretch", "frontier", "vision", "experimental"}
+// "long-frontier" (2026-10-06) holds benchmarks whose agent runs routinely exceed
+// the 1h wall clock on local models — they bought timeouts, not signal, in the
+// unattended rotation. No scheduled job lists the tier, so they run only when an
+// attended eval asks for them by tier or by name.
+var ValidTiers = []string{"smoke", "core", "stretch", "frontier", TierLongFrontier, "vision", "experimental"}
+
+// TierLongFrontier is the attended-only tier. Tier-filtered jobs exclude it by not
+// listing it; automatic selection that ignores tiers (--benchmarks-by-confidence)
+// must skip it explicitly.
+const TierLongFrontier = "long-frontier"
 
 // ValidTagTaxonomy lists the 12-tag taxonomy for BenchmarkSpec.Tags.
 // Tag definitions are in design_docs/planned/v0_13_0/m-eval-category-analysis.md §Component 1.

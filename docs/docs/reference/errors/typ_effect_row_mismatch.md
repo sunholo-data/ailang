@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-11-30
+---
+
 # Effect Row Mismatch
 
 **Error kind**: `row_mismatch` (effect variant)

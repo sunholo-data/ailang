@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-03-01
+---
+
 # Extension Packages
 
 Extension packages let you build a plugin ecosystem for any AILANG application — independently-versioned packages that each register one unit of pluggable behaviour at compile time.

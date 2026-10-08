@@ -29,6 +29,11 @@ type MCPServer struct {
 	// gated holds the listed-surface tool names declared @mcp_auth("oauth2").
 	// The Bearer gate guards exactly these; /mcp/ never populates it.
 	gated map[string]bool
+	// schemes holds each listed tool's securitySchemes (ChatGPT mixed auth),
+	// emitted top-level by securitySchemesMiddleware; nil on /mcp/.
+	schemes map[string][]map[string]any
+	// uiResources holds the @mcp_ui_resource widgets by ui:// URI.
+	uiResources map[string]uiResource
 }
 
 func mcpError(msg string) *mcp.CallToolResult {
@@ -85,11 +90,16 @@ func newMCPServer(srv *Server, listed bool) *MCPServer {
 
 	ms.registerTools()
 	ms.registerResources()
+	ms.registerUIResources()
+	mcpSrv.AddReceivingMiddleware(ms.uiResourcesListMiddleware)
 	if !srv.noFeedbackTool {
 		if srv.routesOnly {
 			log.Printf("MCP tool submit_feedback remains enabled with --routes-only; use --no-feedback-tool to suppress it")
 		}
 		ms.registerFeedbackTool()
+	}
+	if listed {
+		mcpSrv.AddReceivingMiddleware(ms.securitySchemesMiddleware)
 	}
 
 	return ms
@@ -259,6 +269,7 @@ func (ms *MCPServer) registerTools() {
 			Description: desc,
 			InputSchema: ms.inputSchemaFor(export),
 			Annotations: sdkToolAnnotations(hints, export.MCPTitle),
+			Meta:        ms.toolMeta(toolName, export),
 		}
 
 		ms.mcpServer.AddTool(tool, ms.makeToolHandler(c.modPath, export))
@@ -330,7 +341,7 @@ func validateOptionalParams(export ExportInfo) error {
 			return fmt.Errorf("@optional(%q): no such parameter (params: %s)", name, strings.Join(export.ParamNames, ", "))
 		case name == headersParam:
 			return fmt.Errorf("@optional(%q): _headers is bound from the request, not the client", name)
-		case idx >= len(export.ParamTypes) || zeroValueForType(export.ParamTypes[idx]) == nil:
+		case paramZero(export.ParamTypes, export.ParamZeros, idx) == nil:
 			typ := "unknown"
 			if idx < len(export.ParamTypes) {
 				typ = export.ParamTypes[idx]
@@ -391,7 +402,9 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 				v, present := argMap[name]
 				if !present || v == nil {
 					if optional[name] {
-						args[i] = zeroValueForType(export.ParamTypes[i])
+						// A record param binds its declared shape at
+						// field zeros (an @mcp_file param: all four "").
+						args[i] = paramZero(export.ParamTypes, export.ParamZeros, i)
 						continue
 					}
 					missing = append(missing, name)
@@ -412,16 +425,24 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 		if ms.listed {
 			for i, name := range paramNames {
 				if i < len(args) && isSecretParam(export, name) {
-					args[i] = zeroValueForType(export.ParamTypes[i])
+					args[i] = paramZero(export.ParamTypes, export.ParamZeros, i)
 				}
 			}
+		}
+
+		// @mcp_file params: the host's file object becomes the closed
+		// four-string record, named or positional. An omitted @optional file
+		// param already holds the empty file record and passes through.
+		if err := bindFileArgs(export, args); err != nil {
+			return mcpError(err.Error()), nil
 		}
 
 		for i, name := range paramNames {
 			if name == headersParam && i < len(args) {
 				var h http.Header
-				if extra := req.GetExtra(); extra != nil {
-					h = extra.Header
+				if extra := req.GetExtra(); extra != nil && extra.Header != nil {
+					h = extra.Header.Clone()
+					h.Del(publicBaseHeader) // serve-api's own, not the client's
 				}
 				args[i] = stringMapToJObject(h)
 			}
@@ -495,10 +516,10 @@ func (ms *MCPServer) RunStdio(ctx context.Context) error {
 // don't need server→client requests, which is the only feature stateless
 // mode disables.
 func (ms *MCPServer) HTTPHandler() http.Handler {
-	return mcp.NewStreamableHTTPHandler(
+	return withPublicBase(mcp.NewStreamableHTTPHandler(
 		func(r *http.Request) *mcp.Server { return ms.mcpServer },
 		&mcp.StreamableHTTPOptions{Stateless: true},
-	)
+	))
 }
 
 // buildNamedInputSchema creates a JSON Schema with named parameters from ExportInfo.

@@ -136,7 +136,7 @@
     },
     {
       "name": "mapAccumL",
-      "type": "((a,b)-\u003e\u003c*types.TTuple\u003e,a,list[b])-\u003e\u003c*types.TTuple\u003e",
+      "type": "((a,b)-\u003e(c,a),a,list[b])-\u003e(list[c],a)",
       "effects": [],
       "pure": true
     },
@@ -250,7 +250,7 @@
     },
     {
       "name": "zip",
-      "type": "(list[a],list[b])-\u003elist[\u003c*types.TTuple\u003e]",
+      "type": "(list[a],list[b])-\u003elist[(a,b)]",
       "effects": [],
       "pure": true
     },

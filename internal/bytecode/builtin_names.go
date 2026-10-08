@@ -125,6 +125,7 @@ var BuiltinNames = []string{
 	"__array_to_list",
 	"__array_append",
 	"__array_update_many",
+	"__yaml_encode",
 }
 
 // HOFBuiltinNames lists builtins that take closure arguments. These are

@@ -270,24 +270,71 @@ func formatTypeCanonicalDepth(t types.Type, getCanonName func(string) string, de
 		} else if typ.Row != nil {
 			openTail = "..." + formatTypeCanonicalDepth(typ.Row, getCanonName, depth+1)
 		}
-		labels := make([]string, 0, len(merged))
-		for name := range merged {
-			labels = append(labels, name)
+		return formatRecordCanonical(merged, openTail, getCanonName, depth)
+	case *types.TRecord2:
+		// #1374: the row-based record (e.g. std/ai's AIError inside Result[...])
+		// renders exactly like TRecord: sorted labels, "...<rowvar>" when open.
+		if typ.Row == nil {
+			return "{}"
 		}
-		sort.Strings(labels)
-		parts := make([]string, 0, len(labels)+1)
-		for _, name := range labels {
-			parts = append(parts, name+": "+formatTypeCanonicalDepth(merged[name], getCanonName, depth+1))
+		openTail := ""
+		if typ.Row.Tail != nil {
+			openTail = "..." + getCanonName(typ.Row.Tail.Name)
 		}
-		if openTail != "" {
-			parts = append(parts, openTail)
+		return formatRecordCanonical(typ.Row.Labels, openTail, getCanonName, depth)
+	case *types.TRecordOpen:
+		// Field-access shim record ({x: a | r}); same rendering as an open TRecord.
+		openTail := ""
+		if typ.Row != nil {
+			openTail = "..." + formatTypeCanonicalDepth(typ.Row, getCanonName, depth+1)
 		}
-		return "{" + strings.Join(parts, ", ") + "}"
+		return formatRecordCanonical(typ.Fields, openTail, getCanonName, depth)
+	case *types.TTuple:
+		elems := make([]string, len(typ.Elements))
+		for i, e := range typ.Elements {
+			elems[i] = formatTypeCanonicalDepth(e, getCanonName, depth+1)
+		}
+		return "(" + joinTypes(elems) + ")"
+	case *types.TArray:
+		return "Array[" + formatTypeCanonicalDepth(typ.Element, getCanonName, depth+1) + "]"
+	case *types.TMap:
+		return "Map[" + formatTypeCanonicalDepth(typ.Key, getCanonName, depth+1) + "," +
+			formatTypeCanonicalDepth(typ.Value, getCanonName, depth+1) + "]"
+	case *types.TLabelled:
+		// IFC-labelled type: the inner type plus its label, as the checker prints it
+		// (string<secret>); a bottom label carries no information and is dropped.
+		inner := formatTypeCanonicalDepth(typ.Inner, getCanonName, depth+1)
+		if typ.L == nil || typ.L == types.LabelBottom() {
+			return inner
+		}
+		return inner + "<" + strings.TrimSuffix(strings.TrimPrefix(typ.L.String(), "<"), ">") + ">"
+	case *types.TVar:
+		return getCanonName(typ.Name)
+	case *types.RowVar:
+		return getCanonName(typ.Name)
 	default:
 		// Fallback: return type name without traversing (cycle-safe)
 		// Don't call t.String() as it may hang on cyclic types
 		return fmt.Sprintf("<%T>", t)
 	}
+}
+
+// formatRecordCanonical renders record fields as {label: type, ...} in label
+// order, followed by openTail ("...<rowvar>") when the record is open.
+func formatRecordCanonical(fields map[string]types.Type, openTail string, getCanonName func(string) string, depth int) string {
+	labels := make([]string, 0, len(fields))
+	for name := range fields {
+		labels = append(labels, name)
+	}
+	sort.Strings(labels)
+	parts := make([]string, 0, len(labels)+1)
+	for _, name := range labels {
+		parts = append(parts, name+": "+formatTypeCanonicalDepth(fields[name], getCanonName, depth+1))
+	}
+	if openTail != "" {
+		parts = append(parts, openTail)
+	}
+	return "{" + strings.Join(parts, ", ") + "}"
 }
 
 // joinTypes joins type strings with commas

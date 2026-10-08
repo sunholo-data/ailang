@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-03-08
+---
+
 # AILANG Known Limitations
 
 > **Canonical page:** the maintained, live-verified limitations list is the published reference —

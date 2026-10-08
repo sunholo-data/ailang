@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-01-04
+---
+
 # Database Architecture & ID Relationships
 
 AILANG uses **three SQLite databases** with cross-references. Understanding ID relationships is critical for debugging, dashboard development, and coordinator work.

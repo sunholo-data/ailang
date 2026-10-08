@@ -2,6 +2,7 @@
 sidebar_position: 2
 title: ELO Ratings & Difficulty
 description: Model capability and benchmark difficulty derived from ELO ratings — per mode (standard vs agent), with saturation and grader-artifact flags.
+reviewBy: 2026-12-14
 ---
 
 import EloLeaderboard from '@site/src/components/EloLeaderboard';

@@ -25,6 +25,8 @@ test "passes" { sq(3.0) == 9.0 }
 test "fails" { sq(2.0) == 5.0 }
 
 test "non-bool body" { sq(1.0) }
+
+test "runtime error" { 1 / 0 == 0 }
 `
 	if err := os.WriteFile(file, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
@@ -62,7 +64,9 @@ test "non-bool body" { sq(1.0) }
 	if strings.Contains(evErr, "bytecode:") {
 		t.Errorf("evaluator run printed an engine summary:\n%s", evErr)
 	}
-	if !strings.Contains(bcErr, "bytecode: 2 named-test bodies ran on the VM, 1 fell back to the evaluator") {
+	// The non-bool body runs on the VM (its batched entry carries no `-> bool`,
+	// M-TEST-RUNNER-COMPILE-ONCE); the runtime error falls back.
+	if !strings.Contains(bcErr, "bytecode: 3 named-test bodies ran on the VM, 1 fell back to the evaluator") {
 		t.Errorf("stderr does not report where bodies ran:\n%s", bcErr)
 	}
 

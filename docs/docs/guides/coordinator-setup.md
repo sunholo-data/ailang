@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-12-14
+---
+
 # Setting Up the Coordinator for External Projects
 
 This guide explains how to configure the AILANG coordinator to manage agents for external repositories. The coordinator can run agents across multiple projects, enabling automated task delegation and approval workflows.

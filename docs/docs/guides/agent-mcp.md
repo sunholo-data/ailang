@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-01-04
+---
+
 # Hosted Docs MCP — Live AILANG Knowledge for Coding Agents
 
 `mcp.ailang.sunholo.com` is a remote [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes ~21 typed tools so AI coding agents can query AILANG documentation, stdlib, examples, design docs, benchmarks, and prompts as **structured data** — instead of scraping markdown.

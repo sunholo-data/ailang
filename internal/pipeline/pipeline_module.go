@@ -266,9 +266,20 @@ func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) err
 	if cfg.PackageDir != "" && declaredModuleMatchesPackageLayout(cfg.PackageDir, mod.File.Module.Path, modID, mod.File.Path) {
 		return nil
 	}
+	// Without --package, a file inside a package is judged by its own
+	// manifest: `ailang check sim/x_test.ail` is the same module that
+	// `check --package sim` accepts, so the package's ailang.toml (the nearest
+	// one above the file) says where its declared path lives. Only an exact
+	// layout match passes; any other mismatch still fails below.
+	if cfg.PackageDir == "" && mod.File.Path != "" {
+		if dir := pkg.FindManifest(filepath.Dir(mod.File.Path)); dir != "" &&
+			declaredModuleMatchesPackageLayout(dir, mod.File.Module.Path, modID, mod.File.Path) {
+			return nil
+		}
+	}
 
 	// Check if relaxation applies
-	isTempPath := loader.IsTempPath(modID)
+	isTempPath := isTempModuleFile(mod, modID)
 	shouldRelax := cfg.RelaxModules || isTempPath
 
 	if shouldRelax {

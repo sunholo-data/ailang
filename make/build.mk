@@ -24,9 +24,18 @@ build: prepare-embed ## Build the ailang binary to bin/
 	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/ailang
 	@echo "Build complete: $(BUILD_DIR)/$(BINARY)"
 
+# Re-sign the installed binary with a stable local identity, when one exists.
+# `go install` leaves an ad-hoc signature, so macOS privacy (TCC) treats every
+# rebuild as a new app and re-prompts for files/volumes. Create the identity once
+# in Keychain Access (Self Signed Root, Code Signing, name "ailang-local").
+SIGN_LOCAL = security find-identity -p codesigning 2>/dev/null | grep -q '"ailang-local"' \
+	&& codesign -f -s ailang-local --identifier com.sunholo.ailang "$$(go env GOPATH)/bin/$(BINARY)" \
+	&& echo "$(GREEN)$(CHECKMARK) Signed with ailang-local$(RESET)" || true
+
 install: prepare-embed ## Install ailang to GOPATH/bin + ~/.local/bin symlink (opencode-compat)
 	@echo "Installing $(BINARY)..."
 	@go install $(LDFLAGS) ./cmd/ailang
+	@$(SIGN_LOCAL)
 	@echo "$(GREEN)$(CHECKMARK) Installed to $$(go env GOPATH)/bin/$(BINARY)$(RESET)"
 	@# Symlink into ~/.local/bin for tools like opencode that use a sanitized
 	@# child-shell PATH (it doesn't include $$GOPATH/bin). Without this, the
@@ -50,6 +59,7 @@ install: prepare-embed ## Install ailang to GOPATH/bin + ~/.local/bin symlink (o
 
 quick-install: prepare-embed ## Quick install (GOPATH/bin + ~/.local/bin symlink)
 	@go install $(LDFLAGS) ./cmd/ailang
+	@$(SIGN_LOCAL)
 	@mkdir -p ~/.local/bin
 	@ln -sf "$$(go env GOPATH)/bin/$(BINARY)" ~/.local/bin/$(BINARY)
 	@echo "$(GREEN)$(CHECKMARK) ailang updated in $$(go env GOPATH)/bin (+ ~/.local/bin symlink)$(RESET)"

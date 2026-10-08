@@ -32,6 +32,41 @@ type Executor struct {
 	bytecode       bool
 	strictBytecode bool
 	engine         EngineStats
+
+	// Named tests share one compile per file (named_batch.go).
+	batch                  *namedBatch
+	batchResult            pipeline.Result
+	batchFailure           *BatchFailure
+	perBodyCompileFailures int // per-body compiles that failed after a batch failure
+	pipelineRuns           int // runNamedTestPipeline calls, for tests
+
+	// Inline-test compiles, memoized per file (#1328): every inline test used
+	// to compile the module twice (binding + cluster), so a 41-test file paid
+	// 82 compiles. The input is the same file each time, so the result is too.
+	inlineCompiles map[string]inlineCompile
+	inlineRuns     int // pipeline.Run calls made by inline tests, for tests
+}
+
+type inlineCompile struct {
+	res pipeline.Result
+	err error
+}
+
+// runInlineCompile runs the pipeline once per key and replays the result
+// (or the error: the same input fails the same way) for every later inline
+// test of the file. Callers cache modules from the result as before, so the
+// evaluator setup that follows each call is unchanged.
+func (e *Executor) runInlineCompile(key string, cfg pipeline.Config, src pipeline.Source) (pipeline.Result, error) {
+	if c, ok := e.inlineCompiles[key]; ok {
+		return c.res, c.err
+	}
+	e.inlineRuns++
+	res, err := pipeline.Run(cfg, src)
+	if e.inlineCompiles == nil {
+		e.inlineCompiles = make(map[string]inlineCompile)
+	}
+	e.inlineCompiles[key] = inlineCompile{res: res, err: err}
+	return res, err
 }
 
 // newEvaluator returns a fresh evaluator honouring the configured recursion
@@ -82,65 +117,11 @@ func (e *Executor) SetDebug(debug bool) {
 	e.enableDebug = debug
 }
 
-// EvaluateExpression evaluates a Surface AST expression through the pipeline.
-// Uses ModeEval to properly handle function definitions and expression evaluation.
-func (e *Executor) EvaluateExpression(expr ast.Expr) (eval.Value, error) {
-	// Build synthetic source with pure functions + test expression
-	// NOTE: No module declaration - this triggers ModeEval for direct evaluation
-	var sourceParts []string
-
-	// Include pure function definitions (not main() with effects)
-	if e.sourceFile != nil {
-		for _, f := range e.sourceFile.Funcs {
-			if f.IsPure {
-				// Reconstruct function source from AST
-				funcSrc := fmt.Sprintf("pure func %s(", f.Name)
-				for i, param := range f.Params {
-					if i > 0 {
-						funcSrc += ", "
-					}
-					funcSrc += fmt.Sprintf("%s: %v", param.Name, param.Type)
-				}
-				funcSrc += fmt.Sprintf(") -> %v {\n", f.ReturnType)
-				funcSrc += "  " + fmt.Sprintf("%v", f.Body) + "\n}\n\n"
-				sourceParts = append(sourceParts, funcSrc)
-			}
-		}
-	}
-
-	// Add test expression
-	sourceParts = append(sourceParts, fmt.Sprintf("%v", expr))
-
-	source := ""
-	for _, part := range sourceParts {
-		source += part
-	}
-
-	// Use pipeline with ModeEval (non-module evaluation)
-	cfg := pipeline.Config{
-		Mode:           pipeline.ModeEval,
-		GlobalResolver: e.globalResolver,
-	}
-	src := pipeline.Source{
-		Code:     source,
-		Filename: "_test.ail",
-		IsREPL:   true,
-	}
-
-	result, err := pipeline.Run(cfg, src)
-	if err != nil {
-		return nil, err
-	}
-
-	return result.Value, nil
-}
-
 // EvaluateEnsuresHarness evaluates a single iteration of an ensures-clause property test.
 // Returns a *eval.BoolValue: true if the ensures predicate held for the given inputs, false if violated.
 //
-// This is the M-DX26 Phase 5 entry point — it routes around the broken
-// EvaluateExpression source-synthesis path by evaluating Core directly,
-// the same way EvaluateInlineTestsWithHarness does for inline tests blocks.
+// This is the M-DX26 Phase 5 entry point: it evaluates Core directly, the
+// same way EvaluateInlineTestsWithHarness does for inline tests blocks.
 func (e *Executor) EvaluateEnsuresHarness(binding core.RecBinding, params []EnsuresParam, predicate ast.Expr) (eval.Value, error) {
 	return e.evaluateEnsuresHarnessCore(BuildEnsuresPropertyHarness(binding, params, predicate))
 }
@@ -225,6 +206,12 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	// prefix parselet in the general grammar, so it cannot survive the round-trip
 	// verbatim. `checks` is empty for assert-free bodies, which keep the legacy
 	// bool path unchanged.
+	if ent, ok := e.batchedEntry(bodyExprs); ok {
+		if val, handled, err := e.evaluateBatched(ent); handled {
+			return val, err
+		}
+	}
+
 	folded, checks := FoldTestBody(bodyExprs)
 	if folded == nil {
 		return nil, fmt.Errorf("named test block: FoldTestBody returned nil")
@@ -268,6 +255,9 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 
 	pipelineResult, err := e.runNamedTestPipeline(sb.String(), hasModule)
 	if err != nil {
+		if e.batchFailure != nil {
+			e.perBodyCompileFailures++
+		}
 		return nil, err
 	}
 	coreProg := pipelineResult.Artifacts.Core
@@ -309,6 +299,7 @@ func (e *Executor) runNamedTestPipeline(combinedSource string, hasModule bool) (
 	if e.modulePath != "" {
 		baseName = strings.TrimSuffix(filepath.Base(e.modulePath), ".ail")
 	}
+	e.pipelineRuns++
 	tmpDir, err := os.MkdirTemp("", "ailang-namedtest-*")
 	if err != nil {
 		return pipeline.Result{}, fmt.Errorf("failed to create temp dir for named test body: %w", err)
@@ -395,7 +386,7 @@ func decodeCheckSentinel(val eval.Value, checks []CheckInfo) (eval.Value, error)
 }
 
 // EvaluateInlineTestsWithHarness evaluates inline tests using the test harness builder.
-// This is the PREFERRED method for inline tests (fixes scoping issues in EvaluateExpression).
+// This is the PREFERRED method for inline tests.
 func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests []TestCase) (*eval.TupleValue, error) {
 	// Build test harness using the harness builder
 	harnessExpr := BuildInlineTestHarness(binding, tests)
@@ -443,11 +434,15 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 		return nil, fmt.Errorf("failed to read source file: %w", err)
 	}
 
-	// Strip out non-pure functions
+	// Strip out non-pure functions. Only the module-less branch below compiles
+	// this text: with a module file the pipeline reloads source from disk, so
+	// every function of a module file shares one compile (memo key "binding").
 	strippedSource := e.stripNonPureFunctions(string(sourceCode), sourceFile, functionName)
 
 	pipelineFilename := e.modulePath
+	memoKey := "binding"
 	if sourceFile.Module == nil {
+		memoKey = "binding:" + functionName
 		// Write temp file with synthetic module so the module pipeline can load it
 		tmpDir, tmpErr := os.MkdirTemp("", "ailang-test-*")
 		if tmpErr != nil {
@@ -473,7 +468,7 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 		IsREPL:   false,
 	}
 
-	result, err := pipeline.Run(cfg, src)
+	result, err := e.runInlineCompile(memoKey, cfg, src)
 	if err != nil {
 		return nil, fmt.Errorf("failed to elaborate source: %w", err)
 	}
@@ -643,7 +638,11 @@ func (e *Executor) ExtractPureClusterForFunction(
 		IsREPL:   false,
 	}
 
-	result, err := pipeline.Run(cfg, src)
+	// One compile per file: the input is the file on disk whatever the
+	// function (memo key "cluster"; it stays separate from "binding" because
+	// it runs without RelaxModules, and its failure routes to the binding
+	// harness).
+	result, err := e.runInlineCompile("cluster", cfg, src)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to elaborate source: %w", err)
 	}

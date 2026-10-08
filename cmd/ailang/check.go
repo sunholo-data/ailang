@@ -471,8 +471,8 @@ func printPhaseTimings(timings map[string]int64) {
 // Pinned by TestOutputInterface_ResolvesIntraPackageImportsFromRepoRoot.
 const outputInterfacePackageDir = ""
 
-func outputInterface(modulePath string, compact bool) {
-	jsonBytes, err := pipeline.BuildCanonicalJSON(context.Background(), outputInterfacePackageDir, modulePath)
+func outputInterface(modulePath string, compact bool, relaxModules bool) {
+	jsonBytes, err := pipeline.BuildCanonicalJSONRelaxed(context.Background(), outputInterfacePackageDir, modulePath, relaxModules)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)

@@ -124,7 +124,7 @@
     },
     {
       "name": "replaceMany",
-      "type": "(string,list[\u003c*types.TTuple\u003e])-\u003estring",
+      "type": "(string,list[(string,string)])-\u003estring",
       "effects": [],
       "pure": true
     },

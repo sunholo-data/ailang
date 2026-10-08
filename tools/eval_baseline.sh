@@ -15,7 +15,7 @@
 #   LANGS=... - Languages to test (default: python,ailang)
 #   PARALLEL=N - Number of parallel jobs (default: 15)
 #   RESUME=true - Resume interrupted run (skip existing results, don't delete)
-#   TIER=... - Tier filter (smoke,core,stretch,frontier,vision); mutually exclusive with BENCHMARKS
+#   TIER=... - Tier filter (smoke,core,stretch,frontier,long-frontier,vision); mutually exclusive with BENCHMARKS
 #   BENCHMARKS=... - Explicit comma-separated benchmark ID list (M-EVAL-STANDARD-CONFIDENCE-GATING);
 #     takes precedence over TIER when both are set. Lets a caller run a specific subset (e.g. a
 #     confidence-gated selection) into the same baseline dir as other calls — pair with RESUME=true

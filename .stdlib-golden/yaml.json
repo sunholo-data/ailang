@@ -9,6 +9,12 @@
       "pure": true
     },
     {
+      "name": "encode",
+      "type": "(Json)-\u003eResult[string,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "yamlToJson",
       "type": "(string)-\u003eResult[string,string]",
       "effects": [],

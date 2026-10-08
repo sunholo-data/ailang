@@ -1,3 +1,7 @@
+---
+reviewBy: 2026-12-07
+---
+
 # Option vs Result: which to use when
 
 `Option[T]` and `Result[T, E]` are AILANG's two main "this might not have a value" types — but they answer different questions and use **different constructors**. Mixing them up is one of the most common AILANG mistakes (a single typo crashed a production package in 2026 — see [M-MATCH-ADT-XCHECK](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_18_10/m-match-adt-xcheck.md)). Since v0.18.10, the AILANG typechecker rejects pattern matches that mix the two ADTs.

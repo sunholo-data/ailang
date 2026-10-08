@@ -2,6 +2,7 @@
 title: Three Camps Self-Audit
 sidebar_label: Three Camps Self-Audit
 description: AILANG's own results on 14 gap benchmarks that probe the three AI-native-language camps' core hypotheses.
+reviewBy: 2026-12-07
 ---
 
 # Three Camps Self-Audit

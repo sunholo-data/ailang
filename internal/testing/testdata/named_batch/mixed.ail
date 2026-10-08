@@ -1,0 +1,13 @@
+module named_batch/mixed
+
+export pure func double(x: int) -> int = x * 2
+
+export pure func safeDiv(a: int, b: int) -> int = a / b
+
+test "plain pass" { double(2) == 4 }
+test "plain false" { double(2) == 5 }
+test "assert pass" { assert double(1) == 2; assert double(3) == 6; true }
+test "assert second fails" { assert double(1) == 2; assert double(3) == 7; true }
+test "runtime error" { safeDiv(1, 0) == 0 }
+test "poly let" { let id = \x. x; id(1) == 1 && id("a") == "a" }
+test "body runtime error" { 1 / 0 == 0 }

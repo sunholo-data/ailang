@@ -2,6 +2,7 @@
 sidebar_position: 4
 title: Module System
 description: Code organization, imports, and exports in AILANG
+reviewBy: 2027-03-08
 ---
 
 # Module System

@@ -59,6 +59,15 @@ func (r *moduleGlobalResolver) ResolveValue(ref core.GlobalRef) (eval.Value, err
 		return r.resolveAdtFactory(ref)
 	}
 
+	// Case 0a': imported constructor in a module the runtime elaborated
+	// itself instead of the pipeline (#324) — see fallbackCtorRefs.
+	if modPath, ok := strings.CutPrefix(ref.Module, fallbackCtorModule); ok {
+		return nil, fmt.Errorf("constructor %s in module %s cannot be evaluated: the module was not compiled by the pipeline, "+
+			"and ModuleRuntime.LoadAndEvaluate does not resolve imported constructors in modules it elaborates itself. "+
+			"Run pipeline.Run and PreloadModule every result module before LoadAndEvaluate, as internal/runner/entrypoint.go does",
+			ref.Name, modPath)
+	}
+
 	// Case 0b: Builtin reference
 	if ref.Module == "$builtin" || strings.HasPrefix(ref.Name, "_") {
 		if val, ok := r.runtime.builtins.Get(ref.Name); ok {

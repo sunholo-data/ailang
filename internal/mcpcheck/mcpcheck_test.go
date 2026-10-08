@@ -1,6 +1,9 @@
 package mcpcheck
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func tl(name string, schema, ann map[string]any) tool {
 	return tool{Name: name, Title: "T", InputSchema: schema, Annotations: ann}
@@ -46,6 +49,37 @@ func TestCheckCredentials(t *testing.T) {
 		if got := Failed(checkCredentials(ts)); got != want {
 			t.Errorf("param %q: flagged=%v, want %v", name, got, want)
 		}
+	}
+}
+
+// A widget-only tool (visibility without "model") is exempt from the
+// credentials rule — reported SKIP with the reason — while the same param on
+// a model-visible tool still fails.
+func TestCheckCredentials_WidgetOnlyExempt(t *testing.T) {
+	props := map[string]any{"properties": map[string]any{"token": map[string]any{}}}
+	appOnly := tool{Name: "upload", InputSchema: props, Meta: map[string]any{"ui": map[string]any{"visibility": []any{"app"}}}}
+	fs := checkCredentials([]tool{appOnly})
+	if Failed(fs) {
+		t.Fatalf("widget-only tool must not fail: %+v", fs)
+	}
+	if fs[0].Status != Skip || !strings.Contains(fs[0].Message, "skipped: widget-only tool") {
+		t.Fatalf("want a SKIP naming the exemption: %+v", fs)
+	}
+	for name, meta := range map[string]map[string]any{
+		"no _meta":           nil,
+		"visibility default": {"ui": map[string]any{"resourceUri": "ui://x"}},
+		"model and app":      {"ui": map[string]any{"visibility": []any{"model", "app"}}},
+		"model only":         {"ui": map[string]any{"visibility": []any{"model"}}},
+	} {
+		tt := tool{Name: "upload", InputSchema: props, Meta: meta}
+		if !Failed(checkCredentials([]tool{tt})) {
+			t.Errorf("%s: a model-visible token param must still fail", name)
+		}
+	}
+	// The exemption is per tool.
+	visible := tool{Name: "parse", InputSchema: props}
+	if !Failed(checkCredentials([]tool{appOnly, visible})) {
+		t.Error("a model-visible tool's token must fail even beside a widget-only one")
 	}
 }
 

@@ -2,6 +2,7 @@
 sidebar_position: 9
 title: Semantic Caching vs Vector DBs
 description: When to use AILANG's semantic caching versus a dedicated vector database like ChromaDB
+reviewBy: 2027-01-11
 ---
 
 # Semantic Caching vs Vector Databases

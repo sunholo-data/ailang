@@ -130,9 +130,8 @@ func pkgPublishCommand(args []string) error {
 	// badge on both sides, not a refusal.
 	v2Hash := inputs.InterfaceHashV2
 
-	fmt.Printf("\n  Tarball: %d bytes (%s)\n", len(tarballData), tarballHash[:24]+"...")
-	fmt.Printf("  Content hash: %s\n", contentHash[:24]+"...")
-	fmt.Printf("  Interface hash: %s\n", interfaceHash[:24]+"...")
+	fmt.Println()
+	printPublishDigests(os.Stdout, len(tarballData), tarballHash, contentHash, interfaceHash, v2Hash)
 	fmt.Printf("  Exports: %v\n", manifest.Exports.Modules)
 	fmt.Printf("  Effects: %v\n", manifest.Effects.Max)
 
@@ -156,6 +155,20 @@ func pkgPublishCommand(args []string) error {
 	emitPublishMessages(manifest, cwd, contentHash, interfaceHash)
 
 	return nil
+}
+
+// printPublishDigests prints the identity about to become permanent. The
+// digests are printed in full: publishing is immutable and --dry-run is the
+// last reversible moment to confirm them, so a truncated digest would only
+// look like verification (#636).
+func printPublishDigests(w io.Writer, tarballBytes int, tarballHash, contentHash, interfaceHash, interfaceHashV2 string) {
+	fmt.Fprintf(w, "  Tarball: %d bytes\n", tarballBytes)
+	fmt.Fprintf(w, "  Tarball hash: %s\n", tarballHash)
+	fmt.Fprintf(w, "  Content hash: %s\n", contentHash)
+	fmt.Fprintf(w, "  Interface hash: %s\n", interfaceHash)
+	if interfaceHashV2 != "" {
+		fmt.Fprintf(w, "  Interface hash (v2): %s\n", interfaceHashV2)
+	}
 }
 
 // rewritePathDepsForPublish replaces path dependencies in ailang.toml with

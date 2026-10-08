@@ -20,7 +20,7 @@
     },
     {
       "name": "findByEmbedding",
-      "type": "(string,list[float],int,int,bool)-\u003elist[\u003c*types.TRecord2\u003e]!{SharedIndex}",
+      "type": "(string,list[float],int,int,bool)-\u003elist[{key: string, score: float, timestamp: int, version: int}]!{SharedIndex}",
       "effects": [
         "SharedIndex"
       ],
@@ -28,7 +28,7 @@
     },
     {
       "name": "findSimhash",
-      "type": "(string,int,int,int,bool)-\u003elist[\u003c*types.TRecord2\u003e]!{SharedIndex}",
+      "type": "(string,int,int,int,bool)-\u003elist[{key: string, score: float, timestamp: int, version: int}]!{SharedIndex}",
       "effects": [
         "SharedIndex"
       ],

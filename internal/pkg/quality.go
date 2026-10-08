@@ -150,6 +150,12 @@ type SmokeSection struct {
 	Present    bool    `json:"present"`
 	Passed     bool    `json:"passed"`
 	Seconds    float64 `json:"seconds,omitempty"`
+	// NotRun marks a smoke file that was discovered but deliberately not
+	// executed (`pkg quality --no-run`): Passed=false then means "unknown",
+	// not "failed", so it badges instead of raising PUB015 (#1305). Zero value
+	// = it ran, so attested blocks from older clients keep their meaning.
+	NotRun bool   `json:"not_run,omitempty"`
+	Notes  string `json:"notes,omitempty"`
 }
 
 type InterfaceSection struct {
@@ -357,7 +363,10 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 			s := *in.Attested.Smoke
 			s.Source, s.AttestedBy = SourceAttested, in.Attested.AttestedBy
 			r.Smoke = &s
-			if s.Present && !s.Passed {
+			switch {
+			case s.Present && s.NotRun:
+				r.badge("PUB015", "info", SmokeFile+" present but "+orNotRun(s.Notes))
+			case s.Present && !s.Passed:
 				r.finding("PUB015", mode == ModePublisher, "warn", "_smoke.ail failed")
 			}
 		}

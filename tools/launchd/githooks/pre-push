@@ -15,6 +15,7 @@ _scope_is_harness() {
   case "$1" in
     tools/launchd/*|internal/mission/*|cmd/ailang/mission*|missions/*) return 0 ;;
     .claude/skills/mission-*|.claude/skills/sprint-*|.pi/extensions/*) return 0 ;;
+    .agents/skills/mission-*|.agents/skills/sprint-*) return 0 ;;   # generated mirror of the .claude skills
     scripts/hooks/*|scripts/mission_*|scripts/test_mission_*) return 0 ;;   # tests of harness scripts (D-FLEET-5)
     design_docs/fleet-mission*) return 0 ;;   # the fleet's own queue, log and charter
   esac

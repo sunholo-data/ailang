@@ -1,3 +1,7 @@
+---
+reviewBy: 2027-02-22
+---
+
 # Notification Channels
 
 AILANG's notification framework (`internal/notify`) delivers outbound

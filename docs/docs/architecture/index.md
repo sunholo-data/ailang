@@ -1,6 +1,7 @@
 ---
 title: Architecture
 sidebar_position: 1
+reviewBy: 2027-01-25
 ---
 
 # AILANG Architecture

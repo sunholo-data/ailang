@@ -1,6 +1,7 @@
 ---
 title: Adding Operators
 sidebar_position: 4
+reviewBy: 2026-11-02
 ---
 
 # Adding/Extending Operators in AILANG

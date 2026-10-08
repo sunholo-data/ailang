@@ -99,3 +99,12 @@
   label: "D2: pass = compile∧runtime∧stdout (−0.12pp over history)"
   kind: taxonomy
   color: "#2E86DE"
+
+# long-frontier tier (2026-10-06): quine, gauntlet_10, legal_obligation_engine
+# (frontier) and commonmark_emphasis (stretch) left the scheduled tiers for the
+# attended-only long-frontier tier — their local agent runs hit the 1h timeout on
+# 38-83% of attempts. Series filtered to frontier/stretch lose them from here on.
+- version: v0.52.2
+  label: "long-frontier tier: 4 long-running benchmarks leave stretch/frontier"
+  kind: taxonomy
+  affects_tiers: [stretch, frontier]

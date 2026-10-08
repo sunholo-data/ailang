@@ -1,7 +1,8 @@
 # motoko_agent on this machine — the map
 
-**One-line answer (since 2026-09-28):** evals run `/Users/voightkampff/dev/mk-main`, branch
-`sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
+**One-line answer (since 2026-10-08):** evals run `/Users/voightkampff/dev/mk-20261002`, branch
+`sunholo/main-dst-20261002` (§10) — the commit the cloud image pins. Before that (2026-09-28..10-07):
+`/Users/voightkampff/dev/mk-main`, branch `sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
 (`cloud` and `ollama_microrag` profiles, `motoko_ext_ailang_tools`, rig-lease forwarding).
 Its extensions are the in-repo `packages/` copies. The ABI 2.2 fork (`sunholo/eval-canonical`)
 and its worktrees were removed on 2026-09-28; the branch survives on our fork. See §9.
@@ -182,7 +183,7 @@ against the old fork.
   Still to do: port `fmt` to ABI 8.0 (likely inside `motoko_ext_ailang_tools`).
 - ~~Local motoko in the rotation~~ — done (see above).
 
-## 10. Next branch: `sunholo/main-dst-20261002` (2026-10-02) — rig switch PENDING
+## 10. Canonical since 2026-10-08: `sunholo/main-dst-20261002` (rig and cloud on `de68fddf`)
 
 Worktree `~/dev/mk-20261002`, fork branch `sunholo/main-dst-20261002`. It is upstream `main`
 `4023bf08` (strict extensions #205/#206, `ailang_tools` #208 with Arni's review fixes) plus:
@@ -206,7 +207,8 @@ Verified on it (macOS): `make check_core` passes in full (10/10 path-guard check
 escapes included), `ailang_tools` unit tests, every profile's registry under strict, and 6
 concurrent cloud motoko trials (`motoko-or-deepseek-v4-flash`, 6/6, $0.06, no port collision).
 
-**Switch the rig** (`mk-main` -> this branch, then the `~/go/bin/motoko` shim comment) only while
-the os rotation is idle. The cloud image (`docker/Dockerfile.agent-motoko`) pins `de68fddf` on this
+**Rig switched 2026-10-08:** the `~/go/bin/motoko` shim now execs `~/dev/mk-20261002` (this branch is
+checked out in that worktree, so `mk-main` cannot take it; `mk-main` stays on `sunholo/main-dst` as
+the rollback — repoint the shim's exec line to go back). The cloud image (`docker/Dockerfile.agent-motoko`) pins `de68fddf` on this
 branch since 2026-10-02: the dev plane builds it from `dev`; test/prod get it only via a release +
 promote. Until the rig switches, rig and cloud run different motoko commits.

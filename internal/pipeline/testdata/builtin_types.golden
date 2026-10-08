@@ -214,6 +214,7 @@ _net_url_encode_form : list[{name: string, value: string}] -> string
 _net_url_parse : string -> Result[{fragment: string, host: string, path: string, port: string, query: string, scheme: string}, string]
 _net_url_parse_query : string -> list[{name: string, value: string}]
 _ollama_embed : (string, string) -> list[float] ! {IO}
+_ollama_embed_media : (string, string, bytes, bytes) -> list[float] ! {IO}
 _pkg_asset_path : (string, string) -> Result[string, string] ! {FS}
 _process_close_stdin : ProcessHandle -> () ! {Process}
 _process_exec : (string, list[string]) -> Result[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}, ProcessError] ! {Process}
@@ -335,6 +336,7 @@ _xml_parseWithLimit : (string, int) -> Result[XmlNode, string]
 _xml_sanitize : string -> string
 _xml_serialize : XmlNode -> string
 _xml_serializeWithDecl : XmlNode -> string
+_yaml_encode : Json -> Result[string, string]
 _yaml_to_json : string -> Result[string, string]
 _zip_buildArchive : list[{content: string, name: string}] -> Result[string, string]
 _zip_buildArchiveWithBytes : list[{data: string, name: string}] -> Result[string, string]

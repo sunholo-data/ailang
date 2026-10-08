@@ -73,6 +73,8 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_commits.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_sandbox.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_provider_quota.sh
+	@$(LAUNCHD_SUITE) scripts/test_mission_pi_run.sh
+	@$(LAUNCHD_SUITE) scripts/test_mission_gate0_self_notices.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_driver_notify.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_pi_ext_args.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_lane_check.sh
@@ -88,10 +90,12 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_kill_tree.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_memgate.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_iteration.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_registry_env.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_cron_kicker.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_base.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_codex_quota_admission.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_scope_guard.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_codex_controller_env.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_fleet_idle.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_ollama_quota_admission.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_anthropic_quota_admission.sh

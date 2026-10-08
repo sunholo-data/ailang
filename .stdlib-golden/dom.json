@@ -14,7 +14,7 @@
   "funcs": [
     {
       "name": "applyBatch",
-      "type": "(string,list[DOMPatch])-\u003e\u003c*types.TRecord2\u003e!{DOM}",
+      "type": "(string,list[DOMPatch])-\u003e{budget_remaining: int, node_ids: list[string]}!{DOM}",
       "effects": [
         "DOM"
       ],
@@ -22,7 +22,7 @@
     },
     {
       "name": "applyBatchResult",
-      "type": "(string,list[DOMPatch])-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{DOM}",
+      "type": "(string,list[DOMPatch])-\u003eResult[{budget_remaining: int, node_ids: list[string]},{code: string, message: string}]!{DOM}",
       "effects": [
         "DOM"
       ],
@@ -30,7 +30,7 @@
     },
     {
       "name": "applyPatch",
-      "type": "(string,DOMPatch)-\u003e\u003c*types.TRecord2\u003e!{DOM}",
+      "type": "(string,DOMPatch)-\u003e{budget_remaining: int, node_id: string}!{DOM}",
       "effects": [
         "DOM"
       ],
@@ -38,7 +38,7 @@
     },
     {
       "name": "applyPatchResult",
-      "type": "(string,DOMPatch)-\u003eResult[\u003c*types.TRecord2\u003e,\u003c*types.TRecord2\u003e]!{DOM}",
+      "type": "(string,DOMPatch)-\u003eResult[{budget_remaining: int, node_id: string},{code: string, message: string}]!{DOM}",
       "effects": [
         "DOM"
       ],

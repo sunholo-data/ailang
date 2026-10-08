@@ -288,6 +288,11 @@ grep -q 'MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6.1-sol}' "$driver" \
 grep -q 'MISSION_CONTROLLER_FALLBACK:-pi:ollama' "$driver" \
   && ok "controller fallback starts at pi (sol de-duplicated 2026-09-22)" \
   || bad "controller fallback starts at pi (sol de-duplicated 2026-09-22)" "missing"
+# 2026-10-07 (Mark, attended): no METERED controller rung. A controller re-sends its context
+# every turn; one OpenRouter GLM fire cost ~6 days of the OpenRouter ration.
+grep -qE 'MISSION_CONTROLLER_FALLBACK:-[^}]*openrouter/' "$driver" \
+  && bad "controller fallback has no metered OpenRouter rung" "an openrouter controller rung is back" \
+  || ok "controller fallback has no metered OpenRouter rung"
 # The designer keeps a codex rung — Sol 6.1 since 2026-09-30 (it replaced astra there).
 grep -q 'MISSION_DESIGNER_FALLBACK:-codex:gpt-6.1-sol' "$driver" \
   && ok "designer keeps its codex rung (gpt-6.1-sol)" || bad "designer keeps its codex rung (gpt-6.1-sol)" "codex rung removed from the designer"

@@ -14,6 +14,9 @@ const (
 	EnvRigLockHeld    = "AILANG_RIG_LOCK_HELD"
 	EnvRigHandoffFile = "RIG_HANDOFF_FILE"
 	EnvRigLease       = "AILANG_RIG_LEASE"
+	// EnvRigYieldToOperator opts a batch job into lending the GPU while the
+	// operator is at the keyboard (riglock.OperatorPresent).
+	EnvRigYieldToOperator = "AILANG_RIG_YIELD_TO_OPERATOR"
 )
 
 // RigLeaseNone is the value a GPU client carries when no lease is held. pi
@@ -37,7 +40,11 @@ var rigVars = []Var{
 	{EnvRigLockHeld, "0", AreaRig, "Set to 1 by a lock holder for its children, which then skip their own acquire."},
 	{EnvRigHandoffFile, "", AreaRig, "Path of the yield hand-off file; unset derives rig.handoff beside the lock directory."},
 	{EnvRigLease, RigLeaseNone, AreaRig, "Lease token of the held rig lock, exported by the holder for its GPU clients; the rig gateway admits long work only with the live token while the lock is held."},
+	{EnvRigYieldToOperator, "0", AreaRig, "Set to 1 by unattended batch jobs (rotation filler, nightly): at each checkpoint they lend the GPU while rig.operator says someone is using the desktop."},
 }
+
+// RigYieldToOperator reports AILANG_RIG_YIELD_TO_OPERATOR=1.
+func RigYieldToOperator() bool { return get(EnvRigYieldToOperator) == "1" }
 
 // RigLockDir returns RIG_LOCK_DIR, "" when unset.
 func RigLockDir() string { return get(EnvRigLockDir) }

@@ -181,6 +181,7 @@ var BuiltinTable = []BuiltinFunc{
 	builtinArrayToList,     // __array_to_list
 	builtinArrayAppend,     // __array_append
 	builtinArrayUpdateMany, // __array_update_many
+	builtinYamlEncode,      // __yaml_encode
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 7
 title: motoko Extension Author Workflow
+reviewBy: 2026-12-07
 ---
 
 # motoko Extension Author Workflow

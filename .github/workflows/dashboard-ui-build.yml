@@ -4,24 +4,97 @@ name: Dashboard UI Build
 # touch /ui, so that dependency bumps which would break the Cloud Run
 # dashboard deploy (via cloudbuild-trigger-ailang.yaml in ailang-multivac)
 # are caught before merge — without blocking Go-only PRs.
+#
+# PRs always run this workflow; the path decision happens in ui-changes
+# (from .github/ui-build-paths.txt) because a path-filtered workflow stays
+# Pending when no path matches and so can never be a required check (#503).
+# `UI build gate` always reports a conclusion and is the check to require.
 
 on:
   pull_request:
     branches: ["dev", "main"]
-    paths:
-      - "ui/**"
-      - "docker/Dockerfile.dashboard"
-      - ".github/workflows/dashboard-ui-build.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  ui-changes:
+    name: Detect UI changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      ui_changed: ${{ steps.detect.outputs.ui_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect UI-relevant changes
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "ui_changed=true" >> "$GITHUB_OUTPUT"
+            echo "event=$EVENT_NAME; ui_changed=true (full build trigger)"
+            exit 0
+          fi
+
+          if [ -z "$BASE_REF" ]; then
+            echo "::error::pull request base ref is empty"
+            exit 1
+          fi
+
+          if ! git rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
+            git fetch --no-tags origin \
+              "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+          fi
+          if ! git rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
+            echo "::error::cannot resolve origin/$BASE_REF"
+            exit 1
+          fi
+
+          MERGE_BASE=$(git merge-base "origin/$BASE_REF" HEAD)
+          if [ -z "$MERGE_BASE" ]; then
+            echo "::error::cannot determine merge base for origin/$BASE_REF and HEAD"
+            exit 1
+          fi
+
+          PATHSPECS=()
+          while IFS= read -r pathspec; do
+            PATHSPECS+=("$pathspec")
+          done < <(
+            sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' \
+              .github/ui-build-paths.txt
+          )
+          if [ "${#PATHSPECS[@]}" -eq 0 ]; then
+            echo "::error::.github/ui-build-paths.txt contains no usable pathspecs"
+            exit 1
+          fi
+
+          CHANGED=$(git diff --name-only "$MERGE_BASE" HEAD -- "${PATHSPECS[@]}")
+          echo "UI-filtered changed files since merge base $MERGE_BASE:"
+          printf '%s\n' "$CHANGED"
+
+          if [ -n "$CHANGED" ]; then
+            echo "ui_changed=true" >> "$GITHUB_OUTPUT"
+            echo "ui_changed=true"
+          else
+            echo "ui_changed=false" >> "$GITHUB_OUTPUT"
+            echo "ui_changed=false"
+          fi
+
   ui-build:
     name: UI build stage
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: ui-changes
+    if: needs.ui-changes.outputs.ui_changed == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -38,3 +111,38 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  ui-gate:
+    name: UI build gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [ui-changes, ui-build]
+    if: always()
+    steps:
+      - name: Adjudicate UI build
+        env:
+          DETECT_RESULT: ${{ needs.ui-changes.result }}
+          UI_CHANGED: ${{ needs.ui-changes.outputs.ui_changed }}
+          BUILD_RESULT: ${{ needs.ui-build.result }}
+        run: |
+          set -euo pipefail
+          echo "detector=$DETECT_RESULT ui_changed=$UI_CHANGED ui-build=$BUILD_RESULT"
+
+          if [ "$DETECT_RESULT" != "success" ]; then
+            echo "::error::ui-changes result=$DETECT_RESULT; cannot certify the UI build"
+            exit 1
+          fi
+
+          case "$UI_CHANGED" in
+            true)
+              [ "$BUILD_RESULT" = "success" ] && exit 0
+              echo "::error::UI-relevant paths changed but ui-build result=$BUILD_RESULT"
+              exit 1 ;;
+            false)
+              [ "$BUILD_RESULT" = "skipped" ] && exit 0
+              echo "::error::no UI-relevant paths changed but ui-build result=$BUILD_RESULT (expected skipped)"
+              exit 1 ;;
+            *)
+              echo "::error::ui-changes produced an unusable ui_changed value: '$UI_CHANGED'"
+              exit 1 ;;
+          esac

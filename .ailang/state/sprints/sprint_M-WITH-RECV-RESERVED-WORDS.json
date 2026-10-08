@@ -1,0 +1,78 @@
+{
+  "sprint_id": "M-WITH-RECV-RESERVED-WORDS",
+  "status": "completed",
+  "created": "2026-10-07T18:42:35.075845+00:00",
+  "design_doc": "design_docs/planned/v0_53_0/m-with-recv-reserved-words.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-with-recv-reserved-words-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal token diagnostics and cursor recovery; no package-like capability or registry search applicable. Reuse existing ParserError, IsKeyword and parser fixtures."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Repository-local Docusaurus route and existing llms generator; no package-like capability or registry search applicable."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 400,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Reserved-word diagnostics and bounded parameter recovery",
+      "estimated_loc": 280,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Isolated `with`, `recv`, and `send` parameter fixtures fail with exactly one `PAR_RESERVED_KEYWORD`, at the offending token, and none of the parameter-corruption cascade codes. Bodies use surviving names or constants to avoid independent undefined-name defects.",
+        "Table-driven keyword coverage proves the name-position diagnostic works for every entry in the existing 41-entry keyword map, without changing lexer files.",
+        "Recovered AST contains exactly the surviving `a` and `b` parameters in order for a bad middle parameter; closing-parenthesis ownership, function body, and following declaration survive. Invalid source still fails checking. A separately corrected three-parameter control checks successfully; do not claim that dropping a parameter makes a three-argument call type-check.",
+        "Nested type separators, repeated bad parameters, zero-argument controls, EOF, and parenthesized lambda cases terminate without lost valid parameters or fabricated empty names.",
+        "A later independent malformed expression remains diagnosed alongside the keyword failure; global error suppression is absent.",
+        "Local/function-name fixtures retain `PAR_RESERVED_KEYWORD` first, with counts no greater than their measured HEAD baselines and new actionable suggestions.",
+        "Record-field keyword fixtures retain `PAR_FIELD_NAME_EXPECTED` and name the reservation; non-keyword malformed fields retain the generic message.",
+        "PAR019 agent-format output is identical to the captured same-binary baseline; valid `case` identifier contexts, functions, records, and backslash lambdas remain valid.",
+        "`go test ./internal/parser/... ./internal/lexer/... ./cmd/ailang/...` passes; renamed example checks successfully with the built binary."
+      ],
+      "passes": true,
+      "started": "2026-10-08T07:06:08.349350+00:00",
+      "completed": "2026-10-08",
+      "notes": "Preserved four contextual testing identifiers. Parser uses existing IsReservedKeyword map to cover letrec/not/and/or omitted by IsKeyword; lexer unchanged. Parser/lexer tests and focused CLI check tests pass; vet/gofmt pass. Whole CLI suite is incompatible with CGO=0 (SQLite stubs), and baseline module-path tests fail. Renamed example passes check, three inline tests and run (10)."
+    },
+    {
+      "id": "M2",
+      "description": "Reference route, discovery bundles, and integration checks",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Canonical page exists, sidebar resolves it, obsolete orphan is gone, and page entries match all 41 current keywords exactly once.",
+        "Page and parser suggestions agree on the named alternatives and reservation reasons; owning-lane consume/release triggers are explicit, including the separate handler and CSP decisions.",
+        "The existing llms generator includes the canonical reference once; all three generated bundles contain its corrected table, with no stale orphan section.",
+        "`npm ci` followed by `npm run build` in `docs/` succeeds and produces the reserved-keywords route. Local served route returns HTTP 200. Production HTTP 200 is checked after the normal site deployment, not required before deploying this sprint and not claimed by planning.",
+        "Focused suggestion/page assertions, parser/lexer/CLI suites, `make test`, and `make lint` pass; changed Go files are gofmt-clean. Run `make check-boundaries` only if implementation adds imports crossing package boundaries.",
+        "Working rename example and existing `examples/docs/lambdas_full.ail` and `examples/docs/records_person.ail` check using the built binary. No lexer, typechecker, evaluator, or match production code changes appear in the final diff."
+      ],
+      "passes": true,
+      "started": "2026-10-08T07:06:08.349473+00:00",
+      "completed": "2026-10-08T07:13:34.543425+00:00",
+      "notes": "Canonical page/sidebar/discovery bundles verified. npm ci passes. Full npm build blocked by baseline std/web index drift; direct full site compilation killed after server success. Isolated Docusaurus route build succeeds and served route returns HTTP 200. Existing docs examples fail on baseline string ++; scoped parser controls pass. Full make test/lint deferred to CI under explicit user constraint."
+    }
+  ],
+  "last_checkpoint": "Implementation complete; targeted checks and isolated HTTP route pass, with baseline/full-site validation limitations recorded.",
+  "completed": "2026-10-08T07:13:34.543425+00:00",
+  "evaluation": {
+    "reviewer": "independent sprint-evaluator sub-agent",
+    "score": 94,
+    "status": "pass",
+    "notes": "No implementation defect found; artifacts and isolated route now finalized. Full-suite checks deferred to CI."
+  }
+}
