@@ -59,6 +59,9 @@ func NewRegistryClient() *RegistryClient {
 // FetchIndex downloads and parses the registry index.json.
 // Uses ETag caching — returns cached version if unchanged.
 func (rc *RegistryClient) FetchIndex() (*RegistryIndex, error) {
+	if err := RefuseIfConfined("fetching from the registry"); err != nil {
+		return nil, err
+	}
 	url := rc.BaseURL + "/index.json"
 
 	// Cache-bust: append timestamp to bypass GCS CDN stale cache
@@ -115,6 +118,9 @@ func (rc *RegistryClient) FetchIndex() (*RegistryIndex, error) {
 
 // FetchPackage downloads a package tarball from the registry.
 func (rc *RegistryClient) FetchPackage(name, version string) ([]byte, error) {
+	if err := RefuseIfConfined("fetching from the registry"); err != nil {
+		return nil, err
+	}
 	parts := strings.SplitN(name, "/", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid package name: %s (must be vendor/name)", name)
@@ -140,6 +146,9 @@ func (rc *RegistryClient) FetchPackage(name, version string) ([]byte, error) {
 
 // FetchMetadata downloads the metadata.json for a specific package version.
 func (rc *RegistryClient) FetchMetadata(name, version string) (*PackageMetadata, error) {
+	if err := RefuseIfConfined("fetching from the registry"); err != nil {
+		return nil, err
+	}
 	parts := strings.SplitN(name, "/", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid package name: %s", name)
@@ -211,9 +220,6 @@ func RegistryCacheDir() (string, error) {
 		return "", err
 	}
 	dir := fmt.Sprintf("%s/.ailang/cache/registry", home)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", err
-	}
 	return dir, nil
 }
 

@@ -271,6 +271,9 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						if err != nil {
 							return fmt.Errorf("failed to download %s@%s from registry: %w", depName, dep.Version, err)
 						}
+						if _, err := EnsureRegistryCacheDir(); err != nil {
+							return err
+						}
 						if err := os.MkdirAll(cachePath, 0755); err != nil {
 							return fmt.Errorf("failed to create cache dir: %w", err)
 						}

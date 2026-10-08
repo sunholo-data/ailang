@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-PKG-REGISTRY-CONFINEMENT",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-08T18:53:24.884354+00:00",
   "design_doc": "design_docs/planned/v0_52_6/m-pkg-registry-confinement.md",
   "sprint_plan": "design_docs/planned/v0_52_6/m-pkg-registry-confinement-sprint-plan.md",
@@ -52,10 +52,10 @@
         "A5: unconfined pkg-docs, install, and lock still fetch/extract successfully against a local HTTP fixture.",
         "Error text names confinement and operator provisioning; focused pkg/CLI tests pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-08T20:17:51.619396+00:00",
+      "notes": "Confinement and local-server docs/install/lock tests pass. Broader CLI registry selection has three unrelated CGO/sqlite environment failures; lint checkpoint running."
     },
     {
       "id": "M2",

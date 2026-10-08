@@ -68,6 +68,10 @@ func pkgDocsCommand(args []string) error {
 		}
 	}
 
+	if err := pkg.RefuseIfConfined("fetching from the registry"); err != nil {
+		return fmt.Errorf("package %s not provisioned: %w", name, err)
+	}
+
 	// Not cached — try fetching from registry
 	client := pkg.NewRegistryClient()
 	index, err := client.FetchIndex()
@@ -83,9 +87,19 @@ func pkgDocsCommand(args []string) error {
 				return fmt.Errorf("failed to download %s: %w", name, err)
 			}
 			// Extract to cache and display AGENT.md
-			cachePath, _ := pkg.CachedPackagePath(name, p.Latest)
-			os.MkdirAll(cachePath, 0755)
-			pkg.ExtractTarball(tarball, cachePath)
+			if _, err := pkg.EnsureRegistryCacheDir(); err != nil {
+				return err
+			}
+			cachePath, err := pkg.CachedPackagePath(name, p.Latest)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(cachePath, 0755); err != nil {
+				return err
+			}
+			if err := pkg.ExtractTarball(tarball, cachePath); err != nil {
+				return err
+			}
 
 			agentMD := filepath.Join(cachePath, "AGENT.md")
 			if data, err := os.ReadFile(agentMD); err == nil {
