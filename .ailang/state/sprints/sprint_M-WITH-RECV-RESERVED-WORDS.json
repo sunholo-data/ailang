@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-WITH-RECV-RESERVED-WORDS",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-07T18:42:35.075845+00:00",
   "design_doc": "design_docs/planned/v0_53_0/m-with-recv-reserved-words.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-with-recv-reserved-words-sprint-plan.md",
@@ -42,9 +42,9 @@
         "`go test ./internal/parser/... ./internal/lexer/... ./cmd/ailang/...` passes; renamed example checks successfully with the built binary."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-08T07:06:08.349350+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Preserved four contextual testing identifiers. Parser uses existing IsReservedKeyword map to cover letrec/not/and/or omitted by IsKeyword; lexer unchanged."
     },
     {
       "id": "M2",
@@ -62,9 +62,10 @@
         "Working rename example and existing `examples/docs/lambdas_full.ail` and `examples/docs/records_person.ail` check using the built binary. No lexer, typechecker, evaluator, or match production code changes appear in the final diff."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-08T07:06:08.349473+00:00",
       "completed": null,
       "notes": null
     }
-  ]
+  ],
+  "last_checkpoint": "Parser/lexer regression tests pass; CLI and documentation validation underway; full suite explicitly deferred to CI."
 }
