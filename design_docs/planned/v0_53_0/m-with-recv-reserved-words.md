@@ -1,6 +1,6 @@
 # M-WITH-RECV-RESERVED-WORDS: Keep `with`/`recv` Reserved, Fix the Diagnostic Floor They Stand On
 
-**Status**: Planned
+**Status**: Implemented locally (2026-10-08); validation notes in the sprint plan
 **Target**: v0.53.0
 **Priority**: P2 — real DX defect with one measured user report; class-wide (every reserved word) but low-frequency; no soundness impact
 **Estimated**: 1.5–2 days

@@ -373,3 +373,18 @@ The following are intentionally left open for the implementer:
 
 **Document created**: 2026-10-07
 **Last updated**: 2026-10-07
+### Execution correction: YAML-sensitive Unicode
+
+Real decode-bridge acceptance tests found that reusing JSON escaping alone rejects
+literal U+007F and normalizes literal U+0085 to a space. The emitter therefore
+reuses `escapeString` for ordinary text and emits U+007F–U+009F and U+2028/U+2029
+as JSON-compatible `\uXXXX` escapes. This retains the approved double-quoted
+dialect and round-trip contract without changing JSON escaping or YAML decode.
+
+Real boundary tests also found that literal U+FFFE/U+FFFF are rejected, so those
+use Unicode escapes too. Quoted keys reaching 1024 characters exceed yaml.v3's
+simple-key scanner limit. Oversized keys therefore emit deterministic explicit
+block-key syntax (`? "key"` followed by `: value`) at the same indentation.
+Ordinary key byte fixtures remain unchanged; this exception preserves the input
+and round-trip contract for long keys. Evaluator review should check this
+necessary correction to the design's one-line mapping illustration.
