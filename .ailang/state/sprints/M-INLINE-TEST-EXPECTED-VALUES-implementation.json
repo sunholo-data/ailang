@@ -1,0 +1,101 @@
+{
+  "sprint_id": "M-INLINE-TEST-EXPECTED-VALUES",
+  "issue_reference": "Refs #495",
+  "branch": "coordinator/task-f8300cac",
+  "status": "completed",
+  "pr_body": ".ailang/state/sprints/M-INLINE-TEST-EXPECTED-VALUES-pr-body.md",
+  "summary": "Composite expected values use the harness evaluator; shared check/test syntax diagnostics reject unsupported rows without panics.",
+  "validation": {
+    "focused_suites": [
+      "internal/ast",
+      "internal/testing",
+      "internal/pipeline",
+      "internal/errors",
+      "internal/lsp"
+    ],
+    "cli": "check/test/ai-check JSON diagnostics and capability denial pass",
+    "fixtures": "10 composite rows pass; a mismatching list fails; bad rows do not contaminate neighbors; warm runner cache cannot bypass check",
+    "static": "architecture boundaries, formatting and file sizes passed",
+    "make_test": "PASS: exit 0; 306 Go package reports + pi extension tests; CI=1, temporary subreaper, CGO enabled, timeout30m",
+    "make_lint": "PASS: exit 0, zero issues",
+    "verify_examples": "PASS: 232 passed, 0 failed, 9 skipped; 212 manifest modules checked, zero drift"
+  },
+  "f3": {
+    "z3": "4.8.12",
+    "composed_contracted_calls": "3 verified; exit 0",
+    "float_division_encoder_error": "verify and ai-check exit 1",
+    "limits": "Original 213-line sketch unavailable; no SMT change or issue closure."
+  },
+  "limitations": [
+    "Binary operators and unsupported AST forms remain excluded from rows.",
+    "Grammar validation does not prove name resolution, types or call purity.",
+    "Imported-module constructors remain outside harness constructor injection.",
+    "ailang test has no --caps option; capability-denial behavior is preserved."
+  ],
+  "adjustments": [
+    "Harness compiles deliberately defer validation to the row runner; strict module validation occurs before cache lookup.",
+    "Existing nullary composite rows improve from failure to pass; scalar behavior is unchanged."
+  ],
+  "completed": "2026-10-08T21:07:34.792592+00:00",
+  "design_doc": "design_docs/implemented/v0_53_0/m-inline-test-expected-values.md",
+  "sprint_plan": "design_docs/implemented/v0_53_0/m-inline-test-expected-values-sprint-plan.md",
+  "environment_notes": [
+    "Local make/jq/Zig C compiler/procps/uv and pinned Python3.12 installed outside repository.",
+    "Full suite uses temporary Linux orphan-reaping supervisor for container PID1.",
+    "Repository CI skip TestScriptProvider_Execute/timeout_kills_script applies; earlier setup/resource failures were not counted as passes.",
+    "One adapter timeout transient failure; all15 descendant cases pass in final full run."
+  ],
+  "evaluation_report": ".ailang/state/evaluations/eval_M-INLINE-TEST-EXPECTED-VALUES_round_1.json",
+  "files_created": [
+    ".ailang/state/evaluations/eval_M-INLINE-TEST-EXPECTED-VALUES_round_1.json",
+    ".ailang/state/sprints/M-INLINE-TEST-EXPECTED-VALUES-implementation.json",
+    ".ailang/state/sprints/M-INLINE-TEST-EXPECTED-VALUES-pr-body.md",
+    ".ailang/state/sprints/sprint_M-INLINE-TEST-EXPECTED-VALUES.json",
+    "cmd/ailang/inline_row_cli_test.go",
+    "design_docs/implemented/v0_53_0/m-inline-test-expected-values-sprint-plan.md",
+    "design_docs/implemented/v0_53_0/m-inline-test-expected-values.md",
+    "examples/inline_tests_expected_values.ail",
+    "internal/ast/test_row_expr.go",
+    "internal/ast/test_row_expr_test.go",
+    "internal/lsp/test_rows_diagnostics_test.go",
+    "internal/pipeline/validate_test_rows.go",
+    "internal/pipeline/validate_test_rows_test.go",
+    "internal/testing/expected_values_test.go",
+    "internal/testing/row_convert.go",
+    "internal/testing/testdata/inline_expected_values.ail",
+    "internal/testing/testdata/inline_rows_binary.ail",
+    "internal/testing/testdata/inline_rows_unsupported.ail"
+  ],
+  "files_modified": [
+    "changelogs/v0.32-current.md",
+    "design_docs/planned/v0_53_0/m-inline-test-expected-values.md",
+    "docs/docs/reference/language-syntax.md",
+    "examples/manifest.json",
+    "internal/errors/codes.go",
+    "internal/pipeline/pipeline.go",
+    "internal/pipeline/pipeline_module_phases.go",
+    "internal/pipeline/pipeline_single.go",
+    "internal/testing/contract_domain.go",
+    "internal/testing/executor.go",
+    "internal/testing/harness.go",
+    "internal/testing/harness_test.go",
+    "internal/testing/runner.go",
+    "internal/testing/value_splice_roundtrip_test.go"
+  ],
+  "actual_loc": {
+    "added": 840,
+    "removed": 219,
+    "excludes": "sprint bookkeeping and design relocation/status edits"
+  },
+  "evaluation": {
+    "result": "pass",
+    "score": 95,
+    "round": 1
+  },
+  "files_moved": [
+    {
+      "from": "design_docs/planned/v0_53_0/m-inline-test-expected-values.md",
+      "to": "design_docs/implemented/v0_53_0/m-inline-test-expected-values.md"
+    }
+  ]
+}

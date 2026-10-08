@@ -160,6 +160,12 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	result.Artifacts.AST = astFile
 	result.PhaseTimings["parse"] = time.Since(start).Milliseconds()
 
+	if !cfg.SkipTestRowValidation {
+		if err := validateTestRows(astFile); err != nil {
+			return result, err
+		}
+	}
+
 	// Phase 2: Elaborate to Core
 	start = time.Now()
 	_, elabSpan := telemetry.StartSpan(ctx, compilerTracer, "compile.elaborate")

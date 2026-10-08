@@ -1,0 +1,100 @@
+{
+  "sprint_id": "M-INLINE-TEST-EXPECTED-VALUES",
+  "status": "completed",
+  "created": "2026-10-08T19:03:10.424947+00:00",
+  "design_doc": "design_docs/implemented/v0_53_0/m-inline-test-expected-values.md",
+  "sprint_plan": "design_docs/implemented/v0_53_0/m-inline-test-expected-values-sprint-plan.md",
+  "github_issues": [
+    495
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search inline-test returned none; testing returned sunholo/testing_utils@0.1.1, inspected via info/docs. User-level assertions cannot implement Go AST conversion, pipeline diagnostics or runner regressions."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search inline-test returned none; testing returned sunholo/testing_utils@0.1.1, inspected via info/docs. User-level assertions cannot implement Go AST conversion, pipeline diagnostics or runner regressions."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Search inline-test returned none; testing returned sunholo/testing_utils@0.1.1, inspected via info/docs. User-level assertions cannot implement Go AST conversion, pipeline diagnostics or runner regressions."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 600,
+    "estimated_days": 2.5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Harden conversion and evaluate composite expected values",
+      "estimated_loc": 230,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "All astExprToCore callers propagate errors, including requires generation and AST property wrappers; unsupported nodes never panic.",
+        "EvaluateExpectedExpr replaces EvaluateLiteral using the existing module-scoped harness evaluator and constructor injection.",
+        "Nullary/applied local ADTs, lists, nested list-of-records, tuples, records and scalar negatives compare correctly; mismatches still fail.",
+        "Inline compile memoization adds no pipeline runs and requires/ensures regressions pass."
+      ],
+      "passes": true,
+      "started": "2026-10-08T19:35:00Z",
+      "completed": "2026-10-08T19:58:38.599279+00:00",
+      "notes": "Focused regressions pass, including composite expected values, errors instead of panics, shared syntax diagnostics, CLI JSON/LSP locations, neighboring row isolation and warm-cache refusal."
+    },
+    {
+      "id": "M2",
+      "description": "Share row grammar and diagnostics between check and test",
+      "estimated_loc": 240,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Recursive RowExprSupported in internal/ast accepts supported shapes and rejects every BinaryOp and unsupported nested form on both row arms.",
+        "TST001 and TST002 are registered with row locations and offending constructs; check exits 1 and ai-check includes check.errors.",
+        "Runner validates before evaluating any row arm and returns matching codes without process crashes; rejected-row CLI tests assert rc=1 and a test report.",
+        "Pipeline validation reaches module check, ai-check and LSP without importing internal/testing into the language closure.",
+        "Table-driven grammar/evaluation tests cover every AST expression kind with valid bindings for accepted identifiers/calls, plus nested rejection paths."
+      ],
+      "passes": true,
+      "started": "2026-10-08T19:35:00Z",
+      "completed": "2026-10-08T19:58:38.599279+00:00",
+      "notes": "Focused regressions pass, including composite expected values, errors instead of panics, shared syntax diagnostics, CLI JSON/LSP locations, neighboring row isolation and warm-cache refusal."
+    },
+    {
+      "id": "M3",
+      "description": "Verify regressions and document row limits",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "New examples/inline_tests_expected_values.ail checks and all composite rows pass; negative fixtures assert TST001/TST002 on check and test.",
+        "Existing scalar example outcomes retained; list/ADT failures repaired; effectful inline functions retain capability denial (baseline CLI has no --caps option).",
+        "make test, make lint and make check-boundaries pass; formatting is clean.",
+        "Language syntax documentation explains supported expected shapes, excluded operators and residual name-resolution/imported-constructor limits.",
+        "F3 design verification is carried forward as fixed/cannot-reproduce with its evidence limits; no SMT change or new issue is included."
+      ],
+      "passes": true,
+      "started": "2026-10-08T19:35:00Z",
+      "completed": "2026-10-08T21:07:34.792592+00:00",
+      "notes": "All final gates passed; capability-denial criterion preserved because --caps does not exist; scalar example outcomes unchanged and composite failures intentionally repaired."
+    }
+  ],
+  "last_checkpoint": "All milestones complete; full tests, lint, boundaries, formatting, sizes and verify-examples pass.",
+  "last_session": "2026-10-08T21:07:34.792592+00:00",
+  "completed": "2026-10-08T21:07:34.792592+00:00",
+  "actual_loc": {
+    "added": 840,
+    "removed": 219,
+    "excludes": "sprint bookkeeping and design relocation/status edits"
+  }
+}

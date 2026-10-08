@@ -159,6 +159,19 @@ pure func sum(xs: List[int]) -> int
 }
 ```
 
+Inline row inputs and expected values support scalar literals (including negative
+numbers), lists, tuples, records, local ADT constructors, and nested combinations.
+For example, a row may expect `[2, 3]`, `{value: 2}`, `Allow`, or `Deny("nope")`.
+Both arms share the same lightweight evaluator. Binary operators, lambdas,
+and other expressions requiring elaboration are rejected by `check` and `test`
+with TST001 (unsupported syntax) or TST002 (binary operator). Write the computed
+value directly, or use a named test block for those cases.
+
+This is a syntax gate: accepted identifiers and calls can still fail at test time
+because of name resolution, types, or capabilities. Imported-module constructors
+are not added to the harness environment by this feature. Row arity and tuple-input
+disambiguation retain their existing behavior.
+
 Run tests with:
 ```bash
 ailang test examples/factorial.ail
