@@ -55,7 +55,9 @@ Net/Clock inventory arithmetic) confirmed first-party and fixed — see Verifica
 >
 > Quorum artifacts: `.ailang/state/mission-quorum/m-bytecode-vm-parity-bugs-*.json`
 > (round 0 and round 1). Related filed bugs: **#505** (pattern arity — now tracked in the spun-out
-> doc), **#506** (unsafe replay — stays here, part of B4, blocked on A2).
+> doc), **#506** (unsafe replay — stays here, part of B4, blocked on A2), and **#1576** (deep-recursion
+> limit divergence + consumed-input unsafe replay — spun out 2026-10-08 to
+> [m-vm-stack-limit-parity.md](m-vm-stack-limit-parity.md); its B4 evidence is the addendum below).
 **Target**: v1.0.0 (clause-2 soundness residue on the V1 mission queue)
 **Priority**: **P0 ×2** — (1) `recursion_quicksort.ail` is a **silent wrong result** under
 `--bytecode` (no error, no fallback, wrong list; root cause #505). (2) The VM→evaluator fallback
@@ -130,6 +132,40 @@ The quicksort root cause is #505 (controller box below); `array_basic`'s code-le
 **not known** and Lane B stays investigation-first (Milestone B1). Do not anchor on the
 2026-04-08 hypotheses in the appendix; the symptom has changed since (`<List>` → `[3]`).
 
+### Addendum 2026-10-08 — #1576: a fourth family member, and two corrections to this doc's premises
+
+**[#1576](https://github.com/sunholo-data/ailang/issues/1576)** (P1, `from:stapledons_godot`, reported
+v0.52.0, triage-verified on dev `658ff76a3`): under `--bytecode`, a service handler at non-tail
+depth ~1170 prints its pre-recursion line and then **silently drops the rest** — exit 0, stderr
+silent, the interpreter answers. Root cause verified first-party (minimal repro + depth sweep +
+code reads, this worktree 2026-10-08): the VM's `DefaultMaxStack = 1000` **diverges from the
+evaluator's 10,000 default**, and `--max-recursion-depth` is **not wired to the production VM**
+(`internal/runner/vm.go:202` constructs it with the default; only the `ailang test` harness wires
+the flag, `internal/testing/bytecode_engine.go:161-163`). The silent drop is **B4's unsafe replay
+with a consumed-input dependency**: the fallback re-runs the entry after the VM run already
+consumed the stdin lines through the bridge, so the evaluator re-run reads EOF and exits 0. Two
+consequences for THIS doc's remaining scope:
+
+1. **New B4 field evidence, worse shape.** #4 (`tar_gzip_reader`) *duplicates* a println; #1576
+   shows the class where the committed effect is **unreplayable input** (stdin consumed) — the
+   re-run silently **truncates** the program's observable output instead of duplicating a line.
+   B4's investigation must cover both shapes; the truncated shape is strictly worse (a
+   duplicated header is at least visible).
+2. **A2 item 2's premise is now wrong.** It says "the VM leg must NOT pass `--quiet`" — but
+   **`--quiet` is the default for `ailang run` since v0.49.0** (`cmd/ailang/main_run.go:26`;
+   changelog "Changed — `ailang run` is quiet by default"), so *not passing* the flag still
+   suppresses the fallback warning and the A2 sniffer would never fire as written. The VM leg
+   must pass **`--verbose`** (the only un-quiet flag, `main_run.go:149-150`) — which also emits
+   the `✓ Running … via bytecode VM` status line to stderr; harmless, because A2 *sniffs* stderr
+   for the fallback marker and never diffs it. Correction applied in A2 item 2 below.
+
+The limit-divergence trigger itself is **not this doc's scope**: it is spun out to
+[m-vm-stack-limit-parity.md](m-vm-stack-limit-parity.md) (the same option-C carve-out as
+#505 → [m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md) — it does not depend on
+the A2 round). Post-fix, B4's trigger window shrinks from "any evaluator-legal depth > 1000" to
+"depths where the interpreter itself refuses (RT_REC_003)" — i.e. from evaluator-LEGAL input to
+illegal, which restores parity without touching B4's policy question.
+
 ## Verification Log (first-party, this worktree, 2026-07-28)
 
 All behavior claims re-measured here with the worktree `./bin/ailang` + the parity harness
@@ -152,6 +188,9 @@ All behavior claims re-measured here with the worktree `./bin/ailang` + the pari
 | Harness **never inspects vmStderr when vmExit==0** → exit-0 fallbacks invisible | read `verifyOne`, lines 190–218 |
 | Fallback warning emitted to **stderr** at `cmd/ailang/run_helpers.go:376`, text embeds the original vmErr | read of the emission site |
 | `cmd/ailang/run_bytecode_test.go:63` asserts **absence** of `"falling back to evaluator"` in non-fallback runs (pins the warning text) | read of the test |
+| **#1576 repro**: VM stdout truncated at the pre-recursion line, rc 0, **stderr silent under default flags**; `--verbose` reveals `bytecode path unavailable (vm: vm: stack overflow); falling back to evaluator`; a standalone `rep(5000)` (no stdin) prints its committed `START` **twice** — the unsafe-replay duplication shape | first-party minimal repro (service loop + deep non-tail handler + stdin), this worktree 2026-10-08 | 
+| `DefaultMaxStack = 1000` vs evaluator 10,000 (comment claims parity it never had); `--max-recursion-depth` reaches only the evaluator in the production path; the `ailang test` harness wires cap + flag and already asserts the contract (`TestEngineParity_RecursionLimitReachesVM`) | read `internal/vm/vm.go:12-14`, `internal/eval/eval_evaluator.go:167`, grep `internal/runner/` (no `machine.MaxStack` anywhere), read `internal/testing/bytecode_engine.go:42-44,158-163` + `engine_parity_test.go:174` |
+| `--quiet` is `ailang run`'s **default** (v0.49.0) → the fallback warning is suppressed in every default run, including A2's VM leg as item 2 originally specified it | read `cmd/ailang/main_run.go:21-29,149-150`, `internal/runner/entrypoint.go:152-155`, changelog v0.49.0 section |
 | Regression fixtures cited below exist and currently MATCH | `--only cons_expression`, `--only block_recursion` both MATCH |
 | `tests/golden/bytecode/` exists (golden_test.go etc.) | ls |
 
@@ -209,10 +248,14 @@ precedence settled in the Conflict Surface: effect-derived NON_DET is decided fr
    `http_put_bytes.ail`, `stdlib_game.ail`) move to NON_DET. All excluded files must be
    **reported in the NON_DET bucket by name, never silently dropped** — and nothing outside the
    11 (2 legacy + 9 effect) may land there (the `! {AI, IO}` files must NOT be swept in).
-2. **The VM leg must NOT pass `--quiet`** (eval leg unchanged). Verified this revision: the
-   fallback warning is emitted only `if !params.quiet` (`cmd/ailang/run_helpers.go`), and the
-   harness passes `--quiet` unconditionally (line 235) — so a stderr sniff as revision 0
-   specified it would never fire. Stderr is sniffed, never diffed, so the extra status lines are
+2. **The VM leg must NOT pass `--quiet` — CORRECTED 2026-10-08: it must pass `--verbose`** (eval
+   leg unchanged). Verified this revision: the fallback warning is emitted only `if !params.quiet`
+   (`cmd/ailang/run_helpers.go`), and the harness passes `--quiet` unconditionally (line 235) — so a
+   stderr sniff as revision 0 specified it would never fire. **But `--quiet` became `ailang run`'s
+   DEFAULT in v0.49.0** (see the #1576 addendum above): omitting the flag no longer un-suppresses
+   the warning. `--verbose` is the only flag that clears it (`cmd/ailang/main_run.go:149-150`), so
+   the VM leg passes `--verbose` (its extra stderr status lines are harmless — stderr is sniffed
+   for the fallback marker, never diffed). Stderr is sniffed, never diffed, so the extra status lines are
    harmless.
 3. **Exit-0 fallback detection**: when `vmExit == 0`, scan the VM leg's stderr for the fallback
    marker (`"falling back to evaluator"`, with the original vmErr embedded). If present:
@@ -572,4 +615,4 @@ Hard violations: none (A1 improves; A3/A4 untouched — no effect or authority c
 ---
 
 **Document created**: 2026-04-08
-**Last updated**: 2026-07-28 (revision 1 post-quorum: unsafe-replay soundness bug promoted to P0 + Milestone B4; Net/Clock inventory reconciled to 9 with exact post-A2 totals; fake-MATCH fallback rows exposed; `--quiet`-suppression defect in A2's original sniff design fixed)
+**Last updated**: 2026-10-08 (addendum: #1576 recorded as B4 field evidence — the consumed-input TRUNCATION shape — and the `--quiet`-default premise correction applied to A2 item 2; the limit-divergence trigger spun out to [m-vm-stack-limit-parity.md](m-vm-stack-limit-parity.md)). Was: 2026-07-28 (revision 1 post-quorum: unsafe-replay soundness bug promoted to P0 + Milestone B4; Net/Clock inventory reconciled to 9 with exact post-A2 totals; fake-MATCH fallback rows exposed; `--quiet`-suppression defect in A2's original sniff design fixed)
