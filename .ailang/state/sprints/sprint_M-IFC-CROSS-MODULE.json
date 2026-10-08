@@ -1,0 +1,123 @@
+{
+  "sprint_id": "M-IFC-CROSS-MODULE",
+  "status": "not_started",
+  "created": "2026-10-08",
+  "target_release": "v0.53.x",
+  "design_doc": "design_docs/planned/m-ifc-cross-module-labels.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-ifc-cross-module-labels-sprint-plan.md",
+  "github_issues": [
+    1134,
+    1132
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ifc; inspected sunholo/linkedin@0.5.1 info; docs unavailable (no AGENT.md). Application package cannot provide compiler IFC metadata, cache validation or enforcement."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ifc; inspected sunholo/linkedin@0.5.1 info; docs unavailable (no AGENT.md). Application package cannot provide compiler IFC metadata, cache validation or enforcement."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ifc; inspected sunholo/linkedin@0.5.1 info; docs unavailable (no AGENT.md). Application package cannot provide compiler IFC metadata, cache validation or enforcement."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ifc; inspected sunholo/linkedin@0.5.1 info; docs unavailable (no AGENT.md). Application package cannot provide compiler IFC metadata, cache validation or enforcement."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 1000,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Export IFC summaries and deterministic schema",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Every exported item has explicit IFC metadata; clean is distinguishable from missing.",
+        "Source labels, sink refinements, declared/intrinsic returns, and Declassify survive summary construction.",
+        "Local recursion and a wrapper around an imported secret producer retain intrinsic taint.",
+        "Each security-relevant summary field changes the digest; export map order does not.",
+        "TLabelled erasure and CoreTI/codegen behavior remain unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Persist summaries and reject incompatible caches",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Full cache JSON, compact/published JSON, and supported gob paths preserve every IFC summary field.",
+        "A validly hashed v1 artifact cannot bypass IFC enforcement and causes recompilation.",
+        "A v2 interface with absent or malformed metadata cannot be treated as clean.",
+        "A library-only refinement/intrinsic/return change invalidates dependent cached artifacts.",
+        "Cold and warm cache verdicts match, including a cached caller (audit whether IFC reruns on cache hits)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Enforce imported contracts in CLI and REPL",
+      "estimated_loc": 320,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "#1134 two-module repro fails, naming caller location, canonical imported callee and forbidden parameter.",
+        "Declared secret return and unannotated intrinsic-secret return both taint caller sinks.",
+        "Imported transparent functions join argument labels, including closure body taint.",
+        "A legal imported Declassify path passes; library return-label violations still fail.",
+        "Selective, renamed, qualified, shadowed, and transitive wrapper cases resolve correctly.",
+        "CLI and REPL agree for positive and negative fixtures; failed REPL loads publish nothing."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Examples, documentation and release validation",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Runnable lib/app example checks successfully; deliberately illegal fixtures fail for IFC rather than unrelated errors.",
+        "Guide no longer discloses the fixed cross-module limitation and still accurately describes Z3 limitations.",
+        "Teaching prompt and release notes describe imported sink errors and one-time cache recompilation.",
+        "Focused tests, full suite, lint, and architecture boundaries pass.",
+        "sprint-evaluator checks the finished implementation against the design and these criteria."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
