@@ -116,7 +116,11 @@ coordinator:
 | `provider` | string | Executor: `claude`, `codex`, `motoko`, `opencode`, `pi`, `managed_agents` (the Gemini CLI provider was retired in v0.22.0) |
 | `trigger_on_complete` | list | Agent IDs to trigger when this agent completes |
 | `auto_approve_handoffs` | bool | Skip approval for agent-to-agent handoffs |
-| `auto_merge` | bool | Automatically merge approved changes |
+| `auto_merge` | bool | Enable GitHub native auto-merge on scoped markdown PRs by default |
+| `auto_merge_code` | bool | Per-agent opt-in for code PRs; requires checks, scope and non-author reviewer |
+| `auto_merge_required_checks` | list | Exact check-run names required by target protections; verified on base HEAD |
+| `auto_merge_approver_secret` | string | Secret Manager name containing a second-user PAT, never token material |
+| `auto_merge_approver_identity` | string | Expected GitHub login; must match token and differ from PR author |
 | `session_continuity` | bool | Use `--resume` (Claude) or `--conversation-id` (Gemini) |
 | `max_concurrent_tasks` | int | Maximum concurrent tasks (0 = unlimited) |
 | `invoke` | object | How to invoke this agent (skill/agent/prompt) - v0.6.3+ |
@@ -1518,3 +1522,80 @@ When approving changes that conflict:
 - [Agent Messaging](./agent-messaging.md) - How to send messages
 - [Collaboration Hub](./collaboration-hub.md) - Web UI for monitoring
 - [Development Workflow](./development-workflow.md) - Integration with development
+
+
+### Code PR auto-merge and the Daneel rollout
+
+Refs #1599. Code auto-merge is trusted registry configuration. Messages and
+agent directives cannot opt themselves in. The default keeps the markdown floor:
+
+```yaml
+- id: docs-writer
+  auto_merge: true
+  artifact_patterns: ["documents/**/*.md"]
+```
+
+The first deployment is Daneel site publishing. Its proposed opt-in is:
+
+```yaml
+- id: site-agent
+  auto_merge: true
+  auto_merge_code: true
+  artifact_patterns: ["site/**"]
+  auto_merge_required_checks: ["site-wellformed", "image-size"]
+  auto_merge_approver_secret: site-approver-token
+  auto_merge_approver_identity: sunholo-voight-approver
+```
+
+These are field examples to add to otherwise complete registry entries.
+Code mode requires `auto_merge`, declared non-empty patterns, non-empty check
+names, a secret name and an expected login. It cannot use `skip_approval` or a
+direct push branch. Check names travel newline-separated, preserving commas.
+Secret material is fetched only inside the job, using its service account.
+Grant that account `roles/secretmanager.secretAccessor` on the one approver
+secret. Provision a second-user PAT limited to the target repository with
+pull-request review permission; GitHub App tokens are deferred in v1.
+The token's actual login must match the expected login (case-insensitive), and
+must differ from the PR author. The job's code-writing process shares the job
+service account: a second GitHub login is not isolation from that process.
+Consider a dedicated executor service account before production activation.
+
+The wrapper checks every changed path, resolves base HEAD, enumerates all base
+check-runs, and refuses missing names or unavailable/malformed API evidence.
+**Existence is not enforcement:** Mark must confirm that all configured names
+are required by the target ruleset. Native auto-merge performs the waiting;
+there is no direct merge API or polling loop. Mark must also confirm PR-required
+protection, one approving review, `require_last_push_approval`, blocked force
+push/deletion, restricted bypass, and repository native auto-merge enabled.
+
+The wrapper records configured/requested intent, enables native SQUASH auto-merge,
+then posts a non-author review after the final push, pinned to the pushed commit.
+Only confirmed review success records “enabled and approved.” A review failure
+attempts to disable auto-merge and records the result; a cleanup failure is loud
+and means auto-merge may remain enabled. The ruleset remains the merge boundary.
+
+Audit: the PR body records scope, check names, identity, state and `Refs #1599`;
+job logs record intent and successful enable/approval. `auto-merge-code` labels
+make the set enumerable (label failures warn and retain the body record):
+
+```bash
+gh pr list --repo sunholo-data/rdasouthwestgroup --state all --label auto-merge-code
+gh api repos/sunholo-data/rdasouthwestgroup/rules/branches/main
+```
+
+Refusal troubleshooting: check declared paths and the opt-in fields, compare
+configured check names with base check-runs, verify Secret Manager access and
+PAT expiry, and confirm actual/expected reviewer logins differ from the author.
+On approval/disable failure inspect the PR's current auto-merge state and repair
+credentials or review manually; do not grant bypass or weaken protections.
+
+Deployment evidence is **pending**; this repository sprint changes no live
+registry, ruleset, secret or IAM setting. Before activation, record:
+
+- [ ] Mark confirms protection and required-check enforcement.
+- [ ] An in-scope HTML/image staging PR enables auto-merge and gets non-author review.
+- [ ] An out-of-scope staging change is refused.
+- [ ] A failing required check keeps the staging PR unmerged.
+- [ ] The same staging PR merges after required checks succeed and review exists.
+- [ ] One staging merge is recorded, then ten clean production merges are observed
+      before Daneel rollout is accepted.

@@ -94,6 +94,12 @@ type DispatchParams struct {
 	// Trusted metadata from the agent registry, never from message content — the
 	// same authority boundary as WorkTier.
 	AutoMerge bool
+	// Code auto-merge authority comes exclusively from trusted registry metadata.
+	// Only a Secret Manager name travels here, never the approver token.
+	AutoMergeCode             bool
+	AutoMergeRequiredChecks   []string
+	AutoMergeApproverSecret   string
+	AutoMergeApproverIdentity string
 
 	// ArtifactPatterns is what this agent is DECLARED to produce. The wrapper's
 	// auto-merge guard requires every changed file to match one, so a run that

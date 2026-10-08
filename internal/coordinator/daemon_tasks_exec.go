@@ -272,7 +272,15 @@ func (d *Daemon) dispatchTasksCloud() error {
 				}
 				// Whether GitHub may merge this agent's PR on green. Registry
 				// metadata, so a message cannot ask for its own auto-merge.
+				if err := agent.ValidateAutoMergeCode(); err != nil {
+					d.logger.Printf("ERROR: task %s not dispatched: %v", task.ID, err)
+					continue
+				}
 				params.AutoMerge = agent.AutoMerge
+				params.AutoMergeCode = agent.AutoMergeCode
+				params.AutoMergeRequiredChecks = append([]string(nil), agent.AutoMergeRequiredChecks...)
+				params.AutoMergeApproverSecret = agent.AutoMergeApproverSecret
+				params.AutoMergeApproverIdentity = agent.AutoMergeApproverIdentity
 				// DECLARED patterns, not GetEffectiveArtifactPatterns(): that
 				// falls back to `**/*` for any unrecognised agent
 				// (DefaultArtifactPatterns), which is the opposite of a bound. The

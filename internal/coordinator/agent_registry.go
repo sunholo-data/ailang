@@ -150,10 +150,14 @@ type AgentConfig struct {
 	// EvaluatesParent marks an agent whose completions carry an
 	// EVALUATION_VERDICT: line to be attached to the PARENT task's pending
 	// approval (M2). Set on sprint-evaluator only.
-	EvaluatesParent bool   `yaml:"evaluates_parent" json:"evaluates_parent,omitempty"`
-	AutoMerge       bool   `yaml:"auto_merge" json:"auto_merge"`       // Automatically merge approved work
-	SkipApproval    bool   `yaml:"skip_approval" json:"skip_approval"` // Skip approval workflow entirely (for script agents)
-	Provider        string `yaml:"provider" json:"provider"`           // "claude" or "gemini"
+	EvaluatesParent           bool     `yaml:"evaluates_parent" json:"evaluates_parent,omitempty"`
+	AutoMergeCode             bool     `yaml:"auto_merge_code" json:"auto_merge_code"`                           // Opt in to scoped code PRs.
+	AutoMergeRequiredChecks   []string `yaml:"auto_merge_required_checks" json:"auto_merge_required_checks"`     // Base check names.
+	AutoMergeApproverSecret   string   `yaml:"auto_merge_approver_secret" json:"auto_merge_approver_secret"`     // Secret name only.
+	AutoMergeApproverIdentity string   `yaml:"auto_merge_approver_identity" json:"auto_merge_approver_identity"` // Expected login.
+	AutoMerge                 bool     `yaml:"auto_merge" json:"auto_merge"`                                     // Automatically merge approved work
+	SkipApproval              bool     `yaml:"skip_approval" json:"skip_approval"`                               // Skip approval workflow entirely (for script agents)
+	Provider                  string   `yaml:"provider" json:"provider"`                                         // "claude" or "gemini"
 	// ToolPolicy: what this agent may DO — "full" (the CLI's defaults; the
 	// coordinator's default, D6), "ailang_only" (read/edit/write + the
 	// AILANG gate, no shell), or an explicit canonical list. Resolved into
@@ -545,6 +549,9 @@ func (r *AgentRegistry) Validate() []string {
 		}
 		if len(agent.Capabilities) == 0 {
 			issues = append(issues, fmt.Sprintf("agent %q has no capabilities configured", id))
+		}
+		if err := agent.ValidateAutoMergeCode(); err != nil {
+			issues = append(issues, fmt.Sprintf("agent %q: %v", id, err))
 		}
 		// Validate trigger_on_complete references
 		for _, targetID := range agent.TriggerOnComplete {

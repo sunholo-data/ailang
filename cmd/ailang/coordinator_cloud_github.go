@@ -74,6 +74,10 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 		labels = []string{"cascade", "agent-task"}
 	}
 
+	if config.AutoMergeCode() {
+		body += "\n" + codeMergeSettingsFromEnv().audit("configured/requested; enable and approval pending")
+	}
+
 	prNum, prURL, err := createGitHubPR(ctx, token, repoOwner, repoName, title, body, branchName, baseBranch)
 	if err != nil {
 		// NOT best-effort. This branch carries work — the caller only reaches
@@ -112,11 +116,15 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 // never merges. There is no polling loop of ours to get wrong, and no path where
 // we merge something protection would have refused.
 func maybeEnableAutoMerge(ctx context.Context, token, owner, repo string, prNum int, workDir, baseBranch string) {
+	if config.AutoMergeCode() {
+		maybeEnableCodeAutoMerge(ctx, token, owner, repo, prNum, workDir, baseBranch)
+		return
+	}
 	if !config.AutoMerge() {
 		return
 	}
 
-	docsOnly, reason, err := branchIsAutoMergeable(ctx, workDir, baseBranch, artifactPatternsFromEnv())
+	docsOnly, reason, err := branchIsAutoMergeable(ctx, workDir, baseBranch, artifactPatternsFromEnv(), MergeModeDocs)
 	if err != nil {
 		// Could not tell -> do not enable. A PR left for a human is a delay; an
 		// auto-merged one we could not classify is a change nobody reviewed.
@@ -143,7 +151,7 @@ func maybeEnableAutoMerge(ctx context.Context, token, owner, repo string, prNum 
 //
 //  1. every changed file matches one of the agent's DECLARED artifact patterns
 //     (AILANG_ARTIFACT_PATTERNS, from the registry);
-//  2. every changed file is MARKDOWN.
+//  2. every changed file is MARKDOWN, unless trusted code mode was selected.
 //
 // This replaced a hardcoded `design_docs/|changelogs/` list, which was an
 // AILANG-REPO assumption baked into a wrapper that runs in EVERY agent's repo.
@@ -157,8 +165,11 @@ func maybeEnableAutoMerge(ctx context.Context, token, owner, repo string, prNum 
 // pkg-sunholo-ailang-parse legitimately declares `**/*`, which as a sole gate
 // would auto-merge anything the day someone flips its flag. The floor means
 // auto-merge can only ever land documents, so widening a pattern cannot quietly
-// widen what merges unreviewed.
-func branchIsAutoMergeable(ctx context.Context, workDir, baseBranch string, patterns []string) (bool, string, error) {
+// widen what merges unreviewed. Code mode adds check and non-author review gates.
+func branchIsAutoMergeable(ctx context.Context, workDir, baseBranch string, patterns []string, mode AutoMergeMode) (bool, string, error) {
+	if mode != MergeModeDocs && mode != MergeModeCode {
+		return false, "unknown auto-merge mode", nil
+	}
 	files, err := changedFiles(ctx, workDir, baseBranch)
 	if err != nil {
 		return false, "", fmt.Errorf("git diff against origin/%s: %w", baseBranch, err)
@@ -170,7 +181,7 @@ func branchIsAutoMergeable(ctx context.Context, workDir, baseBranch string, patt
 		return false, "the agent declares no artifact patterns, so nothing bounds what it may merge", nil
 	}
 	for _, f := range files {
-		if !strings.HasSuffix(f, ".md") {
+		if mode == MergeModeDocs && !strings.HasSuffix(f, ".md") {
 			return false, fmt.Sprintf("%s is not a document; auto-merge only ever lands markdown", f), nil
 		}
 		if !coordinator.MatchesArtifactPattern(patterns, f) {
@@ -637,6 +648,7 @@ func enableGitHubAutoMerge(ctx context.Context, token, owner, repo string, prNum
 	// alone would call every refusal a success — including "auto-merge is not
 	// allowed on this repository", which is precisely what we need to hear.
 	var resp struct {
+		Data   map[string]json.RawMessage `json:"data"`
 		Errors []struct {
 			Message string `json:"message"`
 		} `json:"errors"`
@@ -646,6 +658,9 @@ func enableGitHubAutoMerge(ctx context.Context, token, owner, repo string, prNum
 	}
 	if len(resp.Errors) > 0 {
 		return fmt.Errorf("%s", resp.Errors[0].Message)
+	}
+	if data := resp.Data["enablePullRequestAutoMerge"]; len(data) == 0 || string(data) == "null" {
+		return fmt.Errorf("GitHub did not confirm auto-merge enable")
 	}
 	return nil
 }
@@ -768,11 +783,14 @@ func agentPRBody(ctx context.Context, taskID, agentID, directive, workDir, baseB
 
 // changedFiles lists what the branch changes against its base.
 func changedFiles(ctx context.Context, workDir, baseBranch string) ([]string, error) {
-	cmd := gitexec.CommandContext(ctx, "diff", "--name-only", "origin/"+baseBranch+"...HEAD")
+	cmd := gitexec.CommandContext(ctx, "diff", "--name-only", "-z", "origin/"+baseBranch+"...HEAD")
 	cmd.Dir = workDir
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}
-	return strings.Fields(strings.TrimSpace(string(out))), nil
+	if len(out) == 0 {
+		return nil, nil
+	}
+	return strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00"), nil
 }
