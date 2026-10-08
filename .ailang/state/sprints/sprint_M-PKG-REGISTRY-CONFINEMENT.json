@@ -89,10 +89,10 @@
         "D5-selected stderr and exit status are asserted through check, not only the helper.",
         "Existing path-dependency behavior remains covered and root-only hashing cannot select the HOME copy."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-08T20:26:12.193081+00:00",
+      "notes": "Registry validation fails before compilation for mismatches/missing content; typed registry errors cannot be masked by path drift. Real check exits 0 for matching read-only root and 1 after tampering, with unchanged root snapshot. Short/empty hash and HOME-cache cases covered. Lint passes with GOMEMLIMIT=1GiB/GOMAXPROCS=2."
     },
     {
       "id": "M4",

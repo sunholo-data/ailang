@@ -216,18 +216,18 @@ func TestLockFile_ValidateContentHashes_Detect_Change(t *testing.T) {
 	}
 }
 
-func TestLockFile_ValidateContentHashes_SkipsRegistry(t *testing.T) {
+func TestLockFile_ValidateContentHashes_SkipsGit(t *testing.T) {
 	lf := &LockFile{
 		Schema:  LockFileSchema,
 		Version: "1.0.0",
 		Packages: []LockedPackage{
-			{Name: "test/lib", ContentHash: "sha256:fake", Source: "registry"},
+			{Name: "test/lib", ContentHash: "sha256:fake", Source: "git"},
 		},
 	}
 
-	// Should not error — registry deps are not validated locally
+	// Git dependencies retain their existing validation behavior.
 	if err := lf.ValidateContentHashes(); err != nil {
-		t.Errorf("should skip registry deps: %v", err)
+		t.Errorf("should skip git deps: %v", err)
 	}
 }
 
