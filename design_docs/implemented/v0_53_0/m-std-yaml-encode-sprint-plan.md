@@ -5,7 +5,7 @@
 Add pure `std/yaml.encode(Json) -> Result[string, string]` using an ordered, handwritten Go emitter. Ship the approved block dialect, round-trip tests, a runnable config-edit example, and reference documentation without changing decode.
 
 **Design:** [m-std-yaml-encode.md](m-std-yaml-encode.md)
-**Status:** Implementation complete; independent evaluation pending. Repository-wide test gate remains red; see final validation below.
+**Status:** Implemented, merged in #1634 (e7e31885c). Prior status: Implementation complete; independent evaluation pending.
 **Duration:** 2 days, 10 focused hours (8h design estimate + 25% buffer).
 **Estimated size:** 510 added/changed lines: 150 implementation, 250 tests, 110 docs/example/metadata.
 **Risk:** Medium — nested indentation and decode-side numeric/key-order behavior.

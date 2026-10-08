@@ -1,11 +1,11 @@
 # M-STD-YAML-ENCODE — `std/yaml` encode: the `Json` ADT → idiomatic block YAML
 
-**Status**: Planned
+**Status**: Implemented on dev in #1634 (e7e31885c; closes #1622), ships in v0.53.0. Prior status: Planned.
 **Target**: v0.53.0 (next minor planning folder; P2, no release commitment)
 **Priority**: P2 (Medium) — additive stdlib feature, no consumer blocked
 **Estimated**: ~1 day (≈4h Go builtin + tests, ≈2h stdlib surface + `.ail` tests, ≈2h docs/golden/example)
 **Dependencies**: `std/json`'s `Json` ADT and `kv`/`jo`/`js`/`jint` constructors (existing); `internal/builtins/yaml.go` (existing file, extended); **no new Go dependency**. Soft dependency: the decode-side key-order work item (triage Primary) decides which form of the round-trip caveat is live — see *Round-Trip Contract*.
-**Source**: [ailang-core triage, Secondary 2](../ailang-core-triage/yaml-decode-loses-mapping-key-order.md) (merged on `dev`, PR #1620; recommendation: design-doc). Original user report: `inbox_1791394438696_00b01c33` (via ailang-core). The predecessor doc [m-std-yaml](../../implemented/v0_30_0/m-std-yaml.md) explicitly deferred YAML emission to Future Work ("`std/yaml.encode(j: Json) -> Result[string, string]`"); this doc picks that up.
+**Source**: [ailang-core triage, Secondary 2](../../planned/ailang-core-triage/yaml-decode-loses-mapping-key-order.md) (merged on `dev`, PR #1620; recommendation: design-doc). Original user report: `inbox_1791394438696_00b01c33` (via ailang-core). The predecessor doc [m-std-yaml](../../implemented/v0_30_0/m-std-yaml.md) explicitly deferred YAML emission to Future Work ("`std/yaml.encode(j: Json) -> Result[string, string]`"); this doc picks that up.
 
 ## Axiom Compliance
 
@@ -320,7 +320,7 @@ The following are intentionally left open for the implementer:
 - [design_docs/implemented/v0_30_0/m-std-yaml.md](../../implemented/v0_30_0/m-std-yaml.md) — the decode-side bridge; *distinct from this doc*: it built ingestion (`yamlToJson`/`decode`) and explicitly deferred `encode` to Future Work. No overlap in shipped surface.
 
 **Sibling (decode-side key order):**
-- [design_docs/planned/ailang-core-triage/yaml-decode-loses-mapping-key-order.md](../ailang-core-triage/yaml-decode-loses-mapping-key-order.md) — source triage (PR #1620). Its **Primary** item is the decode-side fix this doc's round-trip caveat interacts with; at sprint-planning time the two should be **split into separate work items** (per the triage's dispatch note) and sequenced decode-first if convenient, though encode does not block on it.
+- [design_docs/planned/ailang-core-triage/yaml-decode-loses-mapping-key-order.md](../../planned/ailang-core-triage/yaml-decode-loses-mapping-key-order.md) — source triage (PR #1620). Its **Primary** item is the decode-side fix this doc's round-trip caveat interacts with; at sprint-planning time the two should be **split into separate work items** (per the triage's dispatch note) and sequenced decode-first if convenient, though encode does not block on it.
 
 **Structural templates (Go builtin + thin `.ail` wrapper):**
 - [design_docs/implemented/v0_3_23/M-JSON-ENCODE-BUILTIN.md] — `_json_encode`: the `TaggedValue` walk, `escapeString`, and `FormatJSONNumber` this design reuses.

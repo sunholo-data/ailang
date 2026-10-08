@@ -2,8 +2,8 @@
   "sprint_id": "M-STD-YAML-MAPPING-KEY-ORDER",
   "status": "completed",
   "created": "2026-10-07T18:37:38.718495+00:00",
-  "design_doc": "design_docs/planned/v0_53_0/m-std-yaml-mapping-key-order.md",
-  "sprint_plan": "design_docs/planned/v0_53_0/m-std-yaml-mapping-key-order-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_53_0/m-std-yaml-mapping-key-order.md",
+  "sprint_plan": "design_docs/implemented/v0_53_0/m-std-yaml-mapping-key-order-sprint-plan.md",
   "github_issues": [],
   "registry_reuse": [
     {
