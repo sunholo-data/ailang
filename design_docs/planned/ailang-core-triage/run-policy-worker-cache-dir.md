@@ -8,7 +8,8 @@ Refs #1547
 - **Priority**: P1
 - **Estimated**: 2 days
 - **Class**: bug (security, low; P1 by issue label)
-- **Recommend**: direct fix (allowlist + supervised default + tests). No quorum needed: one real decision (the default when the var is unset) is ruled on below.
+- **Recommend**: design-doc
+- **Shape**: allowlist + supervised default + tests. That is over the direct-fix limit (2 lines, 1 file), so the rubric calls it design-doc. The decisions section below rules on the one real decision (the default when the var is unset), so a sprint plan can be written straight from this row; no quorum needed.
 - **Dependencies**: none. Neighbour of, and deliberately out of scope of, [run-policy-result-line-forgeable.md](run-policy-result-line-forgeable.md) (#1548) — that doc's "Neighbour, not part of this doc" paragraph is this doc.
 - **Searched**: `AILANG_CACHE_DIR`, `workerEnvAllow`, `MkdirTemp`, `cache` across `cmd/ailang/`, `internal/pipeline/`, `internal/policytool/`, `design_docs/`, `docs/`; `git log --grep 1547` (shallow checkout: no fix commit); the design-doc-creator related-doc search (SimHash + neural: no matches). Nearest coverage: `implemented/v0_41_0/m-executor-policy-hardening.md` (built this supervisor and *mandates* "Resolve caches outside agent write authority or verify entries against the captured graph/toolchain" — its own run lane violates that line), `internal/policytool/cli_ops.go` (`ed1df2d3f`, #1554: the same hole already fixed for policy-tool's CLI children), and [ailang-core-backlog.md](../ailang-core-backlog.md) row 2026-10-03 (names #1547 as #1548's neighbour).
 
