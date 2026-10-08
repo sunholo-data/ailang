@@ -1,10 +1,10 @@
 # M-IFC-AUTHORITY-SCOPING — Narrowing IFC Authority Primitives (Scoped Declassify + Call-Site Positive-Label Enforcement)
 
-**Status**: Planned
+**Status**: Implemented (2026-10-08; awaiting merge)
 **Target**: v0.53.x (v0.54.0 fallback)
 **Priority**: P0 (High — security-sensitive semantics change to `internal/types`)
 **Estimated**: 3 days design baseline; 4 days buffered sprint
-**Sprint plan**: [authority-scoping sprint](v0_53_0/m-ifc-authority-scoping-sprint-plan.md) — Refs #752; Refs #1134
+**Sprint plan**: [authority-scoping sprint](m-ifc-authority-scoping-sprint-plan.md) — Refs #752; Refs #1134
 **Dependencies**: M-TAINT-TYPES label lattice (shipped); M-SECRET-EFFECT IFC walk (shipped); closure-laundering fix (1af9f5f30, shipped)
 
 > **Semantics change to `internal/types`.** Per AGENTS.md, `internal/types` is a
@@ -216,21 +216,21 @@ already occupied by `Rand[mode=…]` / `AI[mode=…, scope=…]`.
 ## Implementation Plan
 
 **Phase 1: Scoped capability surface** (~1 day)
-- [ ] Add `Declassify: {label: <open set>}` to `effectSchema` with the documented
+- [x] Add `Declassify: {label: <open set>}` to `effectSchema` with the documented
       key-level open-value exception in `validateEffectParams` (+ tests).
-- [ ] Covering rule for Declassify params in `SubsumeEffectRows` /
+- [x] Covering rule for Declassify params in `SubsumeEffectRows` /
       `effectParamsCompatible` (+ tests: `label=email` ⊄ `label=secret`;
       bare ⊇ everything).
 
 **Phase 2: IFC scoping + Check C** (~1.5 days)
-- [ ] `ifcSig.authorizedLabels`; Check B always runs with scoped authorization;
+- [x] `ifcSig.authorizedLabels`; Check B always runs with scoped authorization;
       extended `DeclassifyRequiredError` message.
-- [ ] Check C in `labelOfCall` + `ParamLabelCoverError` kind in `errors.go`.
-- [ ] Tests: all Verification Log shapes become fixtures (V2–V6 and their
+- [x] Check C in `labelOfCall` + `ParamLabelCoverError` kind in `errors.go`.
+- [x] Tests: all Verification Log shapes become fixtures (V2–V6 and their
       clean-pass counterparts).
 
 **Phase 3: Docs + examples** (~0.5 day)
-- [ ] Update `examples/runnable/secrets/` README and `ailang prompt` only if the
+- [x] Update `examples/runnable/secrets/` README and `ailang prompt` only if the
       IFC section asserts the old blanket semantics (verify with
       `ailang prompt` before editing — prompt changes have their own gate).
 
@@ -240,16 +240,16 @@ tests in `internal/types/*_test.go` (~150 LOC). No new files.
 
 ## Success Criteria
 
-- [ ] `! {Declassify[label=email]}` parses, type-checks, and authorizes only
+- [x] `! {Declassify[label=email]}` parses, type-checks, and authorizes only
       email relabels; relabelling `<secret>` under it is a `DeclassifyRequiredError`
       naming the authorized set.
-- [ ] A caller of a scoped declassifier declaring `! {Declassify[label=email]}`
+- [x] A caller of a scoped declassifier declaring `! {Declassify[label=email]}`
       cannot relabel `<secret>` in its own body.
-- [ ] `<secret>` argument to a `string<email>` parameter: `ParamLabelCoverError`;
+- [x] `<secret>` argument to a `string<email>` parameter: `ParamLabelCoverError`;
       unlabelled and `<email>` arguments still pass.
-- [ ] All three `examples/runnable/secrets/` fixtures and all existing IFC tests
+- [x] All three `examples/runnable/secrets/` fixtures and all existing IFC tests
       pass unchanged.
-- [ ] `make test`, `make lint`, `make check-boundaries` green.
+- [x] `make test`, `make lint`, `make check-boundaries` green.
 
 ## Non-Goals
 
@@ -295,10 +295,27 @@ auto-relaxation omitted from transcripts):
 | V8 | Mechanism claims: `buildIFCSig`/`checkFunc`/`calleeResultLabel` blanket behavior; effect params invariant | Read from `internal/types/ifc_check.go`, `internal/types/effects.go` (`SubsumeEffectRows`, `effectParamsCompatible`), `effectSchema` comment ("mode set is CLOSED") |
 | V9 | Fixtures exist | `ls examples/runnable/secrets/` → gated_secret.ail, leak_attempt.ail, secret_demo.ail |
 
+## Execution security adjustment (2026-10-08)
+
+Independent implementation review found that leaving `calleeResultLabel`
+unchanged would allow a scoped function with an unlabelled formal parameter to
+launder a secret-carrying actual argument. Check B seeds that formal at bottom,
+and Check C intentionally permits unlabelled parameters. Scoped call results
+therefore retain every unauthorized constituent of the **full** argument labels,
+including nested declared labels and closure bodies, before type hand-off.
+Authorized constituents may still be dropped; bare authority remains compatible.
+This is conservative even when the scoped callee ignores an argument.
+
+Scoped declassifiers with unlabelled returns also undergo Check B: their result
+policy lowers to bottom. Lexical closure bindings take precedence over module
+function signatures, preserving captured labels when names are shadowed.
+These changes implement the approved authority-narrowing goal without extending
+cross-module or runtime scope. The companion must reuse this result policy.
+
 ## Related Documents
 
 **Planned (companion):**
-- [m-ifc-cross-module-labels.md](m-ifc-cross-module-labels.md) — iface IFC summary
+- [m-ifc-cross-module-labels.md](../../planned/m-ifc-cross-module-labels.md) — iface IFC summary
   and imported-callee enforcement; owns the module-boundary half. Coordinate the
   `declassify` field shape (label list, not bool).
 

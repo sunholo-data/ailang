@@ -57,6 +57,9 @@ const (
 	// ! {Declassify} step. Enforced by CheckModuleIFC (ifc_check.go).
 	SinkRefinementError TypeErrorKind = "sink_refinement"
 
+	// ParamLabelCoverError reports an argument outside a positive parameter label.
+	ParamLabelCoverError TypeErrorKind = "param_label_cover"
+
 	// DeclassifyRequiredError (M-SECRET-EFFECT / M-TAINT-TYPES, v0.26.0) fires
 	// when a function declares an explicit return label that hides taint actually
 	// present in its body (label laundering) without declaring ! {Declassify}.
