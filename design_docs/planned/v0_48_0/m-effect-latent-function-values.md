@@ -1,12 +1,14 @@
 # M-EFFECT-LATENT-FUNCTION-VALUES — Charge the latent effects of function-valued arguments and record fields
 
 **Status**: Planned
-**Target**: v0.48.0 (soundness fix that rejects programs that compile today — minor bump)
+**Target**: v0.53.0 (next minor release; roll to v0.54.0 if the v0.53.x release train is closed; soundness fix that rejects programs that compile today)
 **Priority**: P0 (High) — a `pure` signature can be bypassed by `ailang check`; the runtime capability layer is the only backstop
 **Estimated**: 4–6 days (Phase 1 ≈ 2 days, Phase 2 ≈ 1 day, Phase 3 ≈ 1–2 day spike + build, Phase 4 ≈ 1 day)
-**Dependencies**: None. Independent of the parked [M-EFFECT-ROW-VAR-UNIFICATION](../v1_0_0/m-effect-row-var-unification.md) (#616) — see "Relation to prior art".
+**Dependencies**: No semantic prerequisite. Scheduling: land this fix first, then rebase #616 onto its per-App metadata and canonical effect-label representation. Independent of the historically parked [M-EFFECT-ROW-VAR-UNIFICATION](../v1_0_0/m-effect-row-var-unification.md) (#616) — see "Relation to prior art".
 **Source**: GitHub issues [#1326](https://github.com/sunholo-data/ailang/issues/1326) (effect leak through any higher-order function) and [#573](https://github.com/sunholo-data/ailang/issues/573) (effect checker not transitive through function-valued record-field calls, incl. the 2026-08-26 addendum on record-update / constructor-payload positions)
 **Base measured**: `origin/dev` = `1fcc479f1`, binary built from this worktree (`go build -o /tmp/ailang-ds ./cmd/ailang`; the version stamp shows the main checkout's HEAD — known worktree stamping quirk — so provenance was verified behaviourally, see V1–V4).
+
+**Scheduling update (2026-10-08)**: Mark approved scheduling from P0 triage; the design was approved and merged in #1378. Triage reverified both leaks on `origin/dev` `658ff76a3`. Implementation remains pending. See [sprint plan](../v0_53_0/m-effect-latent-function-values-sprint-plan.md). Refs #1326, Refs #573; sequencing Refs #616. Historical measurements and prototype results below are retained as evidence, not claims about the current tree.
 
 ## Summary
 

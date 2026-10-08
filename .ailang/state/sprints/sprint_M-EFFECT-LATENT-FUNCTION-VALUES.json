@@ -1,0 +1,127 @@
+{
+  "sprint_id": "M-EFFECT-LATENT-FUNCTION-VALUES",
+  "status": "not_started",
+  "created": "2026-10-08T18:44:07Z",
+  "design_doc": "design_docs/planned/v0_48_0/m-effect-latent-function-values.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-effect-latent-function-values-sprint-plan.md",
+  "github_issues": [
+    1326,
+    573
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search effects returned billing_entitlements and world/core; neither supplies compiler effect inference. Existing compiler internals and repo validation/documentation require local changes."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search effects returned billing_entitlements and world/core; neither supplies compiler effect inference. Existing compiler internals and repo validation/documentation require local changes."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search effects returned billing_entitlements and world/core; neither supplies compiler effect inference. Existing compiler internals and repo validation/documentation require local changes."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search effects returned billing_entitlements and world/core; neither supplies compiler effect inference. Existing compiler internals and repo validation/documentation require local changes."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 750,
+    "estimated_days": 5,
+    "basis": "Design task estimates plus 25% contingency; shallow history has no usable measured velocity."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Binding-aware resolution and canonical effect labels",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "AC9: shadowed applyStep accepted; direct IO call R0 remains rejected.",
+        "AC10: DOM callback collision is removed; single_agent_replay keeps its baseline status.",
+        "Canonical payload and unifier behavior tested independently; record payload mismatches still reject, effect budget/parameter checks remain active."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Preserve function-annotation labels",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "AC5\u2013AC6: R3 and all field/parameter/alias/ADT/update variants reject at the offending caller, naming IO; FS-only caller blames rowless rather than main.",
+        "AC7: stored-never-called hooks, closed-annotated storage-only callback and all package-ceiling controls stay accepted.",
+        "Missing-effect rejection requires effect-check diagnostic and correct function, not an unrelated parse/type error."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Publish pre-instantiation masks and charge latent arguments",
+      "estimated_loc": 330,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "AC1\u2013AC4: local HOF, sortBy and all six leaky std HOFs, cross-module recursive/forwarding/std-forwarding shapes and wrong FS row reject naming IO at the pure caller.",
+        "AC7\u2013AC8: storage-only callback controls, inferred-polymorphic combinator, pure-importer genuine-effect rejection and mapE example preserve their expected outcomes.",
+        "Missing publication for a successfully typed function App raises an internal invariant error; a false mask and absent entry are distinct. Tests cover pre-instantiation openness surviving concrete instantiation.",
+        "Same-module concrete-row recursive calls retain contamination-safe declared rows; no tail union/diff changes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "End-to-end evidence, runnable example and migration docs",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "AC11: tree-walk and bytecode run reject R1/R3 before execution; no side-effect marker appears.",
+        "AC12: compare fresh base/fixed example pass/fail sets and std import-probe sets; no unintended status changes. Recount current corpus, rather than asserting historical 425/49 counts.",
+        "New example checks and runs with required IO capability and expected output; pure storage-only construction checks without IO.",
+        "Mutation evidence and package/full repository checks below pass; report coverage and changed outcomes, then run sprint-evaluator after execution."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "related_github_issues": [
+    616
+  ],
+  "design_approval_pr": 1378,
+  "target_version": "v0.53.0",
+  "approval_status": "awaiting_sprint_plan_approval",
+  "merge_order": [
+    "M-EFFECT-LATENT-FUNCTION-VALUES",
+    "#616 rebased onto the latent-effects implementation"
+  ],
+  "execution_gate": "Sprint-plan approval ratifies L1-open and minor-release breaking posture; then coordinator approval handoff or explicit execute sprint."
+}
