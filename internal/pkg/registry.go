@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -264,4 +265,22 @@ func containsTag(tags []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// PackageDir selects the read-only package root exclusively when configured.
+// Computing a package path never creates directories.
+func PackageDir(name, version string) (string, error) {
+	if root := config.PackageRoot(); root != "" {
+		parts := strings.Split(name, "/")
+		if len(parts) != 2 {
+			return "", fmt.Errorf("invalid package name: %s", name)
+		}
+		for _, part := range append(parts, version) {
+			if part == "" || part == "." || part == ".." || strings.ContainsAny(part, `/\`) || !filepath.IsLocal(part) {
+				return "", fmt.Errorf("invalid package identity: %s@%s", name, version)
+			}
+		}
+		return filepath.Join(root, parts[0], parts[1], version), nil
+	}
+	return CachedPackagePath(name, version)
 }

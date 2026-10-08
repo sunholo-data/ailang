@@ -71,10 +71,10 @@
         "A2 positive: fully provisioned confined lock succeeds offline, with only its declared lock output.",
         "Loader tests cover the consumers used by check/ai-check/test/iface/tree and child environment retains the root."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-08T20:21:12.585156+00:00",
+      "notes": "Root-only loader/docs/resolver and offline transitive versioned lock tests pass; root misses reject HOME and legacy Path fallbacks. Config getter tested; childEnv preserves host environment."
     },
     {
       "id": "M3",

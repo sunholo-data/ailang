@@ -95,3 +95,56 @@ func TestPkgRegistryUnconfinedWorkflows(t *testing.T) {
 		})
 	}
 }
+
+func TestPkgDocsPackageRoot(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	root := t.TempDir()
+	t.Setenv(config.EnvPackageRoot, root)
+	t.Setenv(config.EnvAgentPolicy, "policy.toml")
+	dir := filepath.Join(root, "test", "lib", "0.1.0")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	guide := filepath.Join(dir, "AGENT.md")
+	if err := os.WriteFile(guide, []byte("operator guide"), 0444); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(dir, 0755) })
+	if err := pkgDocsCommand([]string{"test/lib"}); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("root changed: %v %v", entries, err)
+	}
+	data, err := os.ReadFile(guide)
+	if err != nil || string(data) != "operator guide" {
+		t.Fatal("guide changed")
+	}
+	if _, err := os.Stat(filepath.Join(home, ".ailang")); !os.IsNotExist(err) {
+		t.Fatal("HOME changed")
+	}
+	cached, err := pkg.CachedPackagePath("test/lib", "0.1.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(cached, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cached, "AGENT.md"), []byte("HOME fallback"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	missing := filepath.Join(root, "missing")
+	t.Setenv(config.EnvPackageRoot, missing)
+	if err := pkgDocsCommand([]string{"test/lib"}); err == nil || !strings.Contains(err.Error(), "AILANG_PACKAGE_ROOT") {
+		t.Fatalf("expected root refusal: %v", err)
+	}
+	if _, err := os.Stat(missing); !os.IsNotExist(err) {
+		t.Fatal("missing root created")
+	}
+}

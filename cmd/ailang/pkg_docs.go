@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
@@ -36,7 +37,11 @@ func pkgDocsCommand(args []string) error {
 	}
 
 	// Try to find AGENT.md in local cache (any version)
-	cacheDir, err := pkg.RegistryCacheDir()
+	cacheDir := config.PackageRoot()
+	var err error
+	if cacheDir == "" {
+		cacheDir, err = pkg.RegistryCacheDir()
+	}
 	if err != nil {
 		return err
 	}
@@ -52,6 +57,10 @@ func pkgDocsCommand(args []string) error {
 			fmt.Println(string(data))
 			return nil
 		}
+	}
+
+	if config.PackageRoot() != "" {
+		return fmt.Errorf("package %s is not provisioned in AILANG_PACKAGE_ROOT at %s; ask the operator to provision it", name, pkgCacheDir)
 	}
 
 	// Not in registry cache — check git cache
