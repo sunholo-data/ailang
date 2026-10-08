@@ -1,0 +1,150 @@
+{
+  "sprint_id": "M-EFFECT-ROW-VAR-UNIFICATION",
+  "status": "not_started",
+  "created": "2026-10-08T18:45:47Z",
+  "design_doc": "design_docs/planned/v1_0_0/m-effect-row-var-unification.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-effect-row-var-unification-sprint-plan.md",
+  "github_issues": [
+    616
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "2026-10-08 ailang pkg search 'effect': seven application packages, no compiler-internal candidate. Core Go constraint/algebra/publication/test work cannot depend on a source-language package; reuse existing compiler machinery."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "2026-10-08 ailang pkg search 'effect': seven application packages, no compiler-internal candidate. Core Go constraint/algebra/publication/test work cannot depend on a source-language package; reuse existing compiler machinery."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "2026-10-08 ailang pkg search 'effect': seven application packages, no compiler-internal candidate. Core Go constraint/algebra/publication/test work cannot depend on a source-language package; reuse existing compiler machinery."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "2026-10-08 ailang pkg search 'effect': seven application packages, no compiler-internal candidate. Core Go constraint/algebra/publication/test work cannot depend on a source-language package; reuse existing compiler machinery."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 183,
+    "estimated_total_loc": 1100,
+    "estimated_days": 6,
+    "estimated_implementation_loc": 390,
+    "estimated_test_loc": 650,
+    "estimated_docs_examples_loc": 60,
+    "estimate_basis": "Design 4-5 days plus about 25% contingency; shallow history cannot establish observed velocity",
+    "observed_loc_per_day": null
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Refresh constraint mechanism and combined baseline",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Refresh base-red tests for the pure single call, wrong-row IO, mixed two calls, and intra-helper runTwice on fresh temp paths/content; bank exit codes/messages and base SHA.",
+        "Pin #386 nested show/println and recursive multi-effect controls, #1091 closed pure exports, and companion pure/IO callbacks before modification.",
+        "Record the exact constraint/substitution boundary that prevents publication of the solved call effect; separate callee invocation effects from argument-evaluation effects.",
+        "Define return-only default-empty eligibility and enclosing-owned open-tail behavior with tests. Never default an argument-linked or enclosing-owned tail to empty.",
+        "Record current caller census for union, subsumption, typed-App outputs and validation entry points; update estimate if a wider architecture is necessary."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Preserve tails and make diagnostics actionable",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Same-tail union survives both required-row collection and suggested-row construction (design AC4/AC7); nil/closed-empty normalization is tested in both orders.",
+        "Distinct-tail conflicts never fabricate purity; parameter conflicts and budget composition retain existing behavior.",
+        "Diff/subsumption account for undischarged tails, compare canonical substituted identity, and preserve concrete effect checks; a declared e alone never absorbs concrete IO (AC10/AC11).",
+        "The runTwice helper with a pure outer signature is rejected; adding its proper row declaration accepts valid pure/IO instantiations after M3 (AC4).",
+        "Diagnostics name the undischarged tail or missing effect, force an invariant error for empty-diff failure, and omit identical Suggested fix text; closed concrete/lambda errors remain actionable (AC10)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Publish solved per-App invocation effects and consume them",
+      "estimated_loc": 430,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Pure single-call App publishes closed empty and checks clean (AC1); two occurrences publish independently as empty and IO (AC3/AC6).",
+        "Wrong FS declaration and pure mixed-call laundering reject naming IO; a correct IO declaration accepts (AC2/AC3/AC11).",
+        "Return-only row in the eligible concrete pure caller publishes empty; legitimate generic context publishes its owned tail (AC5/AC8).",
+        "Missing map/entry, wrong App key, malformed row and unowned tail fail with callee and App ID; deliberately omitted publication cannot fall back to CoreTI (AC8).",
+        "Both pipeline entry points and recursive/imported-module paths satisfy publication coverage; no stale declaration-level row is reused across Apps.",
+        "Nested show/println, recursive multi-effect inference and annotation/owned-tail invariants remain green; no callee-row eager-default workaround is introduced."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Joint regression matrix, examples and release evidence",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "AC11 full matrix passes: arms a/d/e/k; mixed IO+e accepted with IO and rejected without; concrete IO under e rejected; declared imported mapE pure accepted and forEachE wrong-row rejected; let alias, inline lambda, Debug+e and 71b610d68 recursion controls.",
+        "Inferred effect-transparent std/option, std/result and std/list combinators and #1091 pure-export guards pass independently of declared-row controls.",
+        "Companion same-module/imported/inline/field/parameter/constructor/record-update matrix remains sound, including pure callback acceptance and IO callback rejection.",
+        "Both new runnable examples check and run with expected results/caps; manifest is consistent. runTwice(noisy) under a pure signature fails check and cannot reach the old two-print execution.",
+        "Mutation checks kill tail stripping, declaration-level publication, missing-entry CoreTI fallback, tail-name-presence matching and removed blank-diff/suggestion guards; record an unreachable mutation rationale if type invariants prevent construction.",
+        "Focused package tests and full implementation gates pass (AC9); changelog explains accept-to-reject migration by declaring real effects, and LIMITATIONS entry is corrected if present (AC12).",
+        "Implementation PR body contains Refs #616 and Closes #616, links validation evidence and companion integration SHA; plan PR contains only Refs references. Closing/commenting occurs with authorized implementation merge, not planning."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "target_release": "v0.53.x",
+  "fallback_release": "v0.54.0",
+  "priority": "P0",
+  "planner_lane": "opus-required",
+  "approval_status": "scheduling_approved_plan_pending",
+  "approval_provenance": "Mark approved scheduling 2026-10-08; plan approval required before execution",
+  "related_github_issues": [
+    1326,
+    573
+  ],
+  "integration_dependencies": [
+    {
+      "issues": [
+        1326,
+        573
+      ],
+      "design_doc": "design_docs/planned/v0_48_0/m-effect-latent-function-values.md",
+      "status": "pending_verification",
+      "ordering": "Latent-values implementation first; rebase and rerun both matrices before shared-file implementation",
+      "companion_commit": null
+    }
+  ],
+  "execution_gate": "Approve plan through coordinator or attended execute sprint; retain opus-required routing and do not silently downgrade"
+}

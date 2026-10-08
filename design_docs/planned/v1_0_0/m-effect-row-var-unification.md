@@ -1,12 +1,14 @@
 # M-EFFECT-ROW-VAR-UNIFICATION — Discharge effect-row variables in the effect-checking pass
 
 **Status**: Planned
-**Target**: v1.0.0
+**Target**: v0.53.x (v0.54.0 if the v0.53 release train closes before integration)
 **Priority**: P0 (High) — static effect soundness hole, not just DX friction (see V10/V11)
 **Estimated**: 4–5 days (row algebra + explicit type-check/pipeline interface + validation + tests/docs)
-**Dependencies**: None
+**Dependencies**: Shared-file integration ordering with M-EFFECT-LATENT-FUNCTION-VALUES (#1326/#573); see the 2026-10-08 sprint plan
 **Planner-Lane**: opus-required (touches shared row algebra in `internal/types/` and the effect-validation pass; the contamination history in V25 makes a mechanical port risky)
 **Source**: GitHub issue [#616](https://github.com/sunholo-data/ailang/issues/616), re-reproduced and extended at `origin/dev` = `af6d56144`
+
+**Scheduling update (2026-10-08):** Mark approved scheduling after live P0 triage on `origin/dev` `658ff76a3`; the blank Suggested fix and pure runTwice(noisy) IO leak remain reproduced. Refs #616. [Sprint plan](../v0_53_0/m-effect-row-var-unification-sprint-plan.md) carries the narrowed cross-module regression claims, current #386 inference safeguards, and ordering with Refs #1326 / Refs #573. Historical verification rows below retain their original bases.
 
 ## Problem Statement
 
