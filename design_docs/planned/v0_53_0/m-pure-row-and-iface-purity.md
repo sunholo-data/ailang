@@ -187,7 +187,7 @@ One rule — **`pure` ⇔ closed, empty declared effect row** — enforced at th
 - [ ] `ailang iface` acceptance tests: `sneaky`-style module (with `pure` dropped) → `"pure": false` with `"effects": ["IO"]`; `std/ai/streaming.ail` → all 6 exports `false` (V3 flips); unannotated pure functions and `! {}` functions → `true`.
 - [ ] Latent-tail cases: `std/option.flatMap` → `true` (outer tail from callback `f`); minimal repro `export pure func g[a,b](f: a -> b, x: a) -> b { f(x) }` → `true`; **false control** `std/list.mapE` → `false` (declared `! {e}`, even though `e` also occurs in the callback row).
 - [ ] Keyword/iface invariant test: every std export with `IsPure` reports `"pure": true`; a failure names the export and is a #1091-class checker defect, not a reason to read the keyword.
-- [ ] Pure-combinator pins (`std/list` 11, `std/option` 3, `std/result` 3, `std/string` 3, `std/xml` 6 — the latent-values V11 census): written **after M-EFFECT-LATENT-FUNCTION-VALUES has landed** on the base branch; expected `true` (outer row closed-empty) for all ~26. If L1 changes any of their outer rows, the pin records the flip deliberately.
+- [ ] Pure-combinator pins (`std/list` 11, `std/option` 3, `std/result` 3, `std/string` 3, `std/xml` 6 — the latent-values V11 census): written **after M-EFFECT-LATENT-FUNCTION-VALUES has landed** on the base branch; expected `true` for all ~26 (outer row closed-empty, or latent as for `flatMap`). If L1 changes any of their outer rows, the pin records the flip deliberately.
 - [ ] Run the std re-measurement (the V8 script) and record the before/after flip count in the PR.
 
 **Phase 3: Rule 3, serve-api, cache, corpus** (~8 hours)
@@ -322,7 +322,7 @@ and `ailang verify` still verifies it, because admission now reads the row: `{De
 | `pure` + `! {e}` (row var, no labels) | 0 corpus sites (V11) | Rejected — #1091's principle: a pure function must not export an open row |
 | unannotated `func` + non-empty row | e.g. all 6 `std/ai/streaming.ail` exports | Check unchanged; iface `pure` flips `true` → `false` |
 | unannotated `func` + open row (`! {e}`) | e.g. `std/list.ail:205` `mapE` | Check unchanged; iface `pure` flips `true` → `false` (the row variable is invisible in today's JSON — V9) |
-| `pure` combinator with an unannotated callback, no outer row | ~26 std exports (`std/list.ail:58` `map`, `any`, `foldr`, …) | Check unchanged here (M-EFFECT-LATENT-FUNCTION-VALUES owns caller charging); iface `pure` stays `true` (outer row closed-empty); pinned after that doc lands |
+| `pure` combinator with an unannotated callback, no outer row | ~26 std exports (`std/list.ail:58` `map`, `any`, `foldr`, …) | Check unchanged here (M-EFFECT-LATENT-FUNCTION-VALUES owns caller charging); iface `pure` stays `true` (outer row closed-empty, or a latent callback tail as for `flatMap`); pinned after that doc lands |
 | `pure` prefix on a *lambda expression* (`parsePureLambda`, `parser_lambda.go:79-91`) | Half-supported: fails to parse in let-binding positions (V7) and its purity marking is an unmodified TODO ("Mark as pure somehow") | Out of scope (Non-Goals); Rule 1 is keyed on `FuncDecl.IsPure` and does not touch expression-position `pure` |
 | Ghost effect `Debug` | `ghostEffects = {"Debug"}` (`validate_effects.go:25-27`), transparent to callers | Unchanged — `pure + ! {Debug}` is rejected like any labelled row (0 corpus sites, V11); `Debug` stays out of `smtTransparentEffects` (it has runtime ops) |
 
