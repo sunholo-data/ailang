@@ -1,0 +1,45 @@
+module tests/yaml_encode_roundtrip
+
+import std/yaml (encode, decode)
+import std/json (Json, JNull, JBool, JNumber, JString, JArray, JObject)
+import std/result (Ok, Err)
+
+pure func roundtrip(j: Json) -> bool {
+  match encode(j) {
+    Ok(s) => match decode(s) { Ok(v) => v == j, Err(_) => false },
+    Err(_) => false
+  }
+}
+
+test "scalars and empty collections round-trip" {
+  assert roundtrip(JNull)
+  assert roundtrip(JBool(true))
+  assert roundtrip(JNumber(42.5))
+  assert roundtrip(JString("true\n\"quoted\""))
+  assert roundtrip(JArray([]))
+  assert roundtrip(JObject([]))
+}
+
+test "nested sorted unique-key objects round-trip exactly" {
+  -- Decode currently sorts object keys recursively; encode preserves list order.
+  assert roundtrip(JObject([
+    {key: "a", value: JArray([JObject([{key: "x", value: JNumber(1.0)}]), JNull])},
+    {key: "b", value: JString("日本")}
+  ]))
+}
+
+test "unsorted keys emit in pair-list order" {
+  assert match encode(JObject([{key: "z", value: JNull}, {key: "a", value: JBool(false)}])) {
+    Ok(s) => s == "\"z\": null\n\"a\": false\n",
+    Err(_) => false
+  }
+}
+
+test "duplicate keys emit unchanged and fail on decode" {
+  assert match encode(JObject([{key: "x", value: JNull}, {key: "x", value: JBool(true)}])) {
+    Ok(s) => s == "\"x\": null\n\"x\": true\n" && match decode(s) {
+      Err(_) => true, Ok(_) => false
+    },
+    Err(_) => false
+  }
+}

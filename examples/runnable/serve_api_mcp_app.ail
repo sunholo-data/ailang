@@ -1,0 +1,40 @@
+-- serve_api_mcp_app.ail - an MCP App (ext-apps) widget served by serve-api
+-- @mcp_ui_resource("ui://…", domains…) serves the function's HTML through
+-- resources/list and resources/read, with mimeType text/html;profile=mcp-app
+-- and _meta.ui.csp.connectDomains. "self" is this server's own origin.
+-- @mcp_ui("ui://…") makes a tool render that widget (_meta.ui.resourceUri).
+-- @mcp_app_only marks a tool the widget calls; the host hides it from the
+-- model (_meta.ui.visibility = ["app"]).
+-- Run with:
+--   ailang serve-api --mcp-http --caps IO examples/runnable/serve_api_mcp_app.ail
+module examples/runnable/serve_api_mcp_app
+import std/io (println)
+import std/string (length)
+
+-- The file picker. A real widget inlines the ext-apps client and POSTs the
+-- file to a connect domain; this one only shows the shape.
+@mcp_title("File picker")
+@mcp_ui_resource("ui://example/picker", "self")
+export func pickerHtml() -> string =
+  "<!doctype html><meta charset='utf-8'><input type='file' id='f'><pre id='out'></pre>"
+
+-- Ask the user to choose a file in the picker widget.
+@mcp_title("Choose a file")
+@mcp_hints("readOnly")
+@mcp_ui("ui://example/picker")
+export func chooseFile() -> string = "Picker shown. Ask the user to choose a file in it."
+
+-- Receives a small file from the widget, relayed by the host (base64).
+@mcp_title("Receive file from widget")
+@mcp_hints("idempotent")
+@mcp_ui("ui://example/picker")
+@mcp_app_only
+export func receiveFile(name: string, base64: string) -> string =
+  "received ${name}: ${show(length(base64))} base64 chars"
+
+-- Entry point for `ailang run`; not a tool on either MCP surface.
+@nomcp
+export func main() -> unit ! {IO} {
+  println(chooseFile())
+  println(receiveFile("a.docx", "UEsDBA=="))
+}

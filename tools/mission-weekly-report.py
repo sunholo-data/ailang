@@ -19,21 +19,74 @@ HONESTY RULES (they are why some cells say n/a — do not "fix" them by guessing
   * Per-mission TOKENS are not exposed by the rollup (top_stages is top-N). Summing
     them would understate silently, so only the fleet total is printed.
   * v1 and motoko SHARE a repo, so commits/lines are attributed by subject and are
-    approximate. Marked (~).
+    approximate. Marked (~). docs and fleet share it too with no subject convention,
+    so their commits/lines print as "—".
   * Lines-added is VOLUME, never efficiency — see the closing note.
 """
 import argparse, json, os, re, subprocess, sys
 from datetime import datetime, timedelta
 
-MISSIONS = [
-    # name, repo, log, charter, shared-repo attribution, launchd job (v1's is legacy-named)
-    ("v1",     "~/dev/sunholo-data/ailang",        "design_docs/v1-mission-log.md",     "design_docs/v1-mission.md",     "exclude", "dev.ailang.mission-control"),
-    ("world",  "~/dev/sunholo-data/ailang-world",  "design_docs/world-mission-log.md",  "design_docs/world-mission.md",  None,      "dev.ailang.mission-world"),
-    ("motoko", "~/dev/sunholo-data/ailang-motoko", "design_docs/motoko-mission-log.md", "design_docs/motoko-mission.md", "include", "dev.ailang.mission-motoko"),
-]
+# The mission table comes from the registry (missions/*.toml), so a new mission is
+# reported the day it is bootstrapped. A hardcoded list here missed stapledon for
+# 14 iterations ("unknown mission 'stapledon'", stapledon#14, 2026-10-05).
+# Only the attribution and launchd-label exceptions live here.
+REGISTRY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "missions")
+# Missions sharing sunholo-data/ailang: v1 and motoko are split by commit subject.
+# docs and fleet have no subject convention, so their commit/line counts are not
+# attributable and print as "—" rather than a guessed number.
+SHARE = {"v1": "exclude", "motoko": "include"}
+JOB = {"v1": "dev.ailang.mission-control"}  # legacy-named; others are mission-<name>
+_TOP_KEY = re.compile(r'^(\w+)\s*=\s*"([^"]*)"')
+
+
+def load_missions(registry=REGISTRY):
+    """(name, workdir, log, charter, share, job) per registry file, v1 first.
+
+    Parses only the top-level string keys (before the first [section]): the
+    launchd jobs can run this under macOS /usr/bin/python3 (3.9), which has no
+    tomllib. The log sits beside the charter as <charter>-log.md (every mission).
+    """
+    out = []
+    for fn in sorted(os.listdir(registry)):
+        if not fn.endswith(".toml"):
+            continue
+        keys = {}
+        with open(os.path.join(registry, fn)) as f:
+            for line in f:
+                if line.startswith("["):
+                    break
+                m = _TOP_KEY.match(line)
+                if m:
+                    keys[m.group(1)] = m.group(2)
+        name, doc = keys.get("name"), keys.get("doc")
+        if not name or not doc or not keys.get("workdir"):
+            sys.exit(f"{fn}: registry entry lacks name/workdir/doc")
+        repo = keys.get("repo", "")
+        share = SHARE.get(name, "unattributed" if repo == "sunholo-data/ailang" else None)
+        out.append((name, keys["workdir"], doc[:-3] + "-log.md", doc, share,
+                    JOB.get(name, f"dev.ailang.mission-{name}")))
+    out.sort(key=lambda m: (m[0] != "v1", m[0]))
+    return out
+
+
+MISSIONS = load_missions()
 # Header shapes differ by historical accident: "## 7 — date — x" (v1, motoko) vs
 # "## Iteration 7 — date — x" (world). Match both rather than rewriting the logs.
 ITER_RE = re.compile(r'^##\s+(?:Iteration\s+)?(\d+)\s+—\s+(\d{4}-\d{2}-\d{2})\s+—\s*(.*)$')
+# stapledon writes date first: "## 2026-09-30 (night): iteration 5, headline [PRODUCT]".
+# Its "pre-iteration 0" / "armed" entries are bootstrap notes and do not match.
+ITER_RE_DATE_FIRST = re.compile(r'^##\s+(\d{4}-\d{2}-\d{2})(?:\s+\([^)]*\))?:\s+iteration\s+(\d+),\s*(.*)$')
+
+
+def iter_header(line):
+    """(n, date, headline) for an iteration header in either convention, else None."""
+    m = ITER_RE.match(line)
+    if m:
+        return m.group(1), m.group(2), m.group(3)
+    m = ITER_RE_DATE_FIRST.match(line)
+    if m:
+        return m.group(2), m.group(1), m.group(3)
+    return None
 # Two conventions in the wild, both counted: v1 writes "**Ruled out.** (a) … (b) …"
 # (lettered, inline); motoko and world write "**Ruled out**:" followed by bullets.
 # Matching only one scored v1 at 4 refutations across 39 iterations instead of ~38 —
@@ -61,15 +114,15 @@ def parse_log(path, since):
     if not os.path.exists(path):
         return [], 0
     lines = open(path, errors="replace").read().split("\n")
-    idx = [(i, m) for i, l in enumerate(lines) for m in [ITER_RE.match(l)] if m]
+    idx = [(i, h) for i, l in enumerate(lines) for h in [iter_header(l)] if h]
     out = []
-    for n, (i, m) in enumerate(idx):
-        if m.group(2) < since:
+    for n, (i, (num, date, headline)) in enumerate(idx):
+        if date < since:
             continue
         end = idx[n + 1][0] if n + 1 < len(idx) else len(lines)
         body = "\n".join(lines[i:end])
         rm = RULED.search(body)
-        out.append({"n": m.group(1), "date": m.group(2), "headline": m.group(3),
+        out.append({"n": num, "date": date, "headline": headline,
                     "refs": len(ITEM.findall(rm.group(1))) if rm else 0})
     return out, len(idx)
 
@@ -227,11 +280,25 @@ def roadmap(charter, log, plist_name):
     return nxt, blocked, nominal
 
 
+def commit_volume(repo, since, share, filt):
+    # origin/HEAD, not origin/dev: stapledons-godot's default branch is main.
+    n_commits = sh(f"git log origin/HEAD --format='%s' --author='Voight-Kampff' "
+                   f"--since='{since}' {filt} | wc -l", repo) or "0"
+    # numstat interleaves with subjects, so attribution has to be per-commit inside awk —
+    # filtering the commit list alone left v1 and motoko reporting the SAME line count.
+    keep = {"include": 'tolower($0) ~ /motoko/',
+            "exclude": 'tolower($0) !~ /motoko/'}.get(share, '1')
+    churn = sh("git log origin/HEAD --numstat --format='@@%s' --author='Voight-Kampff' "
+               f"--since='{since}' | awk '/^@@/{{k=({keep}); next}} "
+               "k && NF==3 && $1 ~ /^[0-9]+$/ {a+=$1} END{print a+0}'", repo) or "0"
+    return n_commits, churn
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=int, default=168)
     ap.add_argument("--full", action="store_true")
-    ap.add_argument("--mission", help="scope to ONE mission (v1|world|motoko). Each mission rotates "
+    ap.add_argument("--mission", help="scope to ONE mission (any name in missions/*.toml). Each mission rotates "
                                       "its bookkeeping thread independently, so a fleet-wide report "
                                       "posted at rotation would land 3x, two thirds of it off-topic "
                                       "for the thread it is in. This emits that mission's rows plus a "
@@ -270,18 +337,13 @@ def main():
             filt = "| grep -i motoko"
         elif share == "exclude":
             filt = "| grep -vi motoko"
-        n_commits = sh(f"git log origin/dev --format='%s' --author='Voight-Kampff' "
-                       f"--since='{since}' {filt} | wc -l", repo) or "0"
-        # numstat interleaves with subjects, so attribution has to be per-commit inside awk —
-        # filtering the commit list alone left v1 and motoko reporting the SAME line count.
-        keep = {"include": 'tolower($0) ~ /motoko/',
-                "exclude": 'tolower($0) !~ /motoko/'}.get(share, '1')
-        churn = sh("git log origin/dev --numstat --format='@@%s' --author='Voight-Kampff' "
-                   f"--since='{since}' | awk '/^@@/{{k=({keep}); next}} "
-                   "k && NF==3 && $1 ~ /^[0-9]+$/ {a+=$1} END{print a+0}'", repo) or "0"
+        if share == "unattributed":
+            n_commits, churn = "—", "—"
+        else:
+            n_commits, churn = commit_volume(repo, since, share, filt)
         rows.append({"n": name, "it": len(iters), "tot": total, "cost": c.get("reported_cost", 0.0),
                      "opus": opus, "c": n_commits.strip(), "churn": churn.strip(),
-                     "refs": sum(i["refs"] for i in iters), "shared": share is not None})
+                     "refs": sum(i["refs"] for i in iters), "shared": share in ("include", "exclude")})
         landed[name] = iters
         decisions[name] = open_decisions(os.path.join(repo, charter))
         plan[name] = roadmap(os.path.join(repo, charter), os.path.join(repo, log), job)
@@ -295,11 +357,12 @@ def main():
             r["n"], r["it"], r["tot"], tilde, r["c"], tilde, r["churn"], r["cost"], r["opus"],
             f"{r['opus']/r['it']:.2f}" if r["it"] else "—",
             r["refs"], f"{r['refs']/r['it']:.1f}" if r["it"] else "—"))
-    print("| **fleet** | **%d** | | | **$%.2f** | **%d** | | **%d** | |" % (
+    # "all", not "fleet": fleet is also a mission name.
+    print("| **all** | **%d** | | | **$%.2f** | **%d** | | **%d** | |" % (
         sum(r["it"] for r in rows), sum(r["cost"] for r in rows),
         sum(r["opus"] for r in rows), sum(r["refs"] for r in rows)))
 
-    print(f"\n`$` is a **lower bound** (fail-soft posting) · `~` shared repo, subject-attributed · "
+    print(f"\n`$` is a **lower bound** (fail-soft posting) · `~` shared repo, subject-attributed · `—` shared repo, not attributable · "
           f"fleet tokens **{ftok}** (all chains incl. evals; per-mission not exposed)\n")
 
     print("## Goal distance — each mission's own claim\n")

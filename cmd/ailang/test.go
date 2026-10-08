@@ -123,6 +123,7 @@ func runTestsV2(paths []string, formatStr string, colorEnabled bool, allowSkips 
 			aggregateResults.VacuousSkips += fileResult.VacuousSkips
 			aggregateResults.TotalDuration += fileResult.TotalDuration
 			aggregateResults.Engine.Merge(fileResult.Engine)
+			aggregateResults.NamedBatchFailures = append(aggregateResults.NamedBatchFailures, fileResult.NamedBatchFailures...)
 		}
 	}
 	reportTestEngine(aggregateResults, cfg)
@@ -267,6 +268,7 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 			aggregateResults.VacuousSkips += fileResult.VacuousSkips
 			aggregateResults.TotalDuration += fileResult.TotalDuration
 			aggregateResults.Engine.Merge(fileResult.Engine)
+			aggregateResults.NamedBatchFailures = append(aggregateResults.NamedBatchFailures, fileResult.NamedBatchFailures...)
 		}
 	}
 	reportTestEngine(aggregateResults, cfg)
@@ -297,7 +299,14 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 // reportTestEngine names, on stderr, where named-test bodies ran under
 // --bytecode, so an evaluator fallback is never silent. Stdout (including
 // --json) is identical across engines.
+//
+// It also names every file whose named tests could not share one compile
+// (M-TEST-RUNNER-COMPILE-ONCE D1): those files fall back to one compile per
+// test, which is correct but slow, and the slowdown must not be silent.
 func reportTestEngine(res *ailangTesting.SuiteResult, cfg ailangTesting.TestConfig) {
+	for _, f := range res.NamedBatchFailures {
+		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("→"), f.Notice())
+	}
 	if !cfg.Bytecode {
 		return
 	}
@@ -333,6 +342,7 @@ func printTestHelp() {
 	fmt.Println("  ailang test --package ../lib   # Run tests in another package")
 	fmt.Println()
 	fmt.Println("Test Syntax:")
-	fmt.Println("  test \"name\" = expression       # Unit test (must return true)")
-	fmt.Println("  property \"name\" (x: int) = ... # Property test (QuickCheck-style)")
+	fmt.Println("  test \"name\" { expression }                # Unit test (must evaluate to true)")
+	fmt.Println("  property \"name\" { forall(x: int) => expr } # Property test, 100 generated cases")
+	fmt.Println("  func f(x: int) -> int tests [(1, 2)] { ... } # Inline (input, expected) table")
 }

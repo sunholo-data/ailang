@@ -3,6 +3,7 @@
 - **Date**: 2026-10-03
 - **Class**: bug (performance regression)
 - **Recommend**: design-doc
+- **Status**: FIXED 2026-10-06. The inline-test compiles are memoized per file (`Executor.runInlineCompile`); named tests compile once per file (M-TEST-RUNNER-COMPILE-ONCE). motoko `session.ail` went from 2,336 s to 35 s.
 - **Searched**: `#1328`, `session.ail`, `ARTIFACT_TOO_LARGE`, `maxArtifactBlobBytes`, `ExtractFunctionBinding`, `ExtractPureClusterForFunction`, `per-test`, `re-elaborat` across design_docs/ (only hit: `docs-mission-iter17-issue-inventory.md`, an inventory row with no analysis); `git log --grep` for test-path perf / cache-cap commits since 2026-09-15 (none touch the inline-test path); `ailang-core-backlog.md` (no row)
 - **Estimate**: ~40-80 lines in internal/testing/executor.go + runner.go, plus a regression test that counts pipeline runs
 
@@ -35,7 +36,7 @@ Reported by stapledons-godot (inbox_1791287299418_f86a7ce4). `cd sim && ailang t
 
 The path is `Executor.EvaluateNamedTestBodyExprs` → `runNamedTestPipeline` (internal/testing/executor.go). For every named test it writes the stripped module source **plus that test's body** to a private temp file and compiles it with `TransientRoot: true`. The compile cache never stores a transient root, and the source is different for each body. So the fix above (memoize one `pipeline.Result` per file) does not apply here, and raising the cap does not help either. Dependencies come from the cache; the test module itself is recompiled N times.
 
-The fix needs a design decision, because it changes how failures are isolated:
+**Design doc:** `design_docs/planned/v0_53_0/m-test-runner-compile-once.md`. It measured protocol_test going from 3m27s to about 11 s, with 0 differences in outcome. The fix needs a design decision, because it changes how failures are isolated:
 - Compile the test module **once**, with every body lowered to a synthetic entry (`__named_test_<k>() -> bool`, or the int-sentinel form for asserts per #590), and evaluate each entry on its own evaluator.
 - Open question: today, a body that fails to type-check fails only its own test. With one batched compile, one bad body fails them all. Options:
   - fall back to the per-body compile only when the batched compile fails (cheap and preserves behaviour), or

@@ -75,7 +75,24 @@ func TestDeclaredModuleMatchesPackageLayout_AbsoluteEntryFromAnyCwd(t *testing.T
 // cwd-relative, as the CLI passes them, which also keeps the temp-dir MOD010
 // relaxation out of the way so the strict branch is what is tested.
 func TestValidateModulePath_SingleFileInsidePackage(t *testing.T) {
-	root := t.TempDir()
+	// Not t.TempDir(): on Linux that is under /tmp, which IsTempPath always
+	// relaxes, so the premise check below failed on every CI run. The user
+	// cache dir is outside every temp root IsTempPath knows.
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		t.Skipf("no user cache dir: %v", err)
+	}
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.MkdirTemp(cacheDir, "ailang-layout-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	if loader.IsTempPath(root) {
+		t.Skipf("user cache dir %s is under a temp root here", root)
+	}
 	pkgDir := filepath.Join(root, "sim")
 	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
 		t.Fatal(err)

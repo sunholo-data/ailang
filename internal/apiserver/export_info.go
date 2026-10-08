@@ -8,6 +8,7 @@ type ExportInfo struct {
 	Arity       int      `json:"arity"`                  // number of parameters (-1 if not a function)
 	ParamNames  []string `json:"param_names,omitempty"`  // parameter names in order (for named JSON binding)
 	ParamTypes  []string `json:"param_types,omitempty"`  // parameter type strings in order (for zero-value padding)
+	ParamZeros  []any    `json:"-"`                      // per param: zero of its declared record type, nil otherwise (param_zero.go)
 	RouteMethod string   `json:"route_method,omitempty"` // custom HTTP method from @route annotation
 	RoutePath   string   `json:"route_path,omitempty"`   // custom URL path from @route annotation
 	IsRaw       bool     `json:"is_raw,omitempty"`       // @raw annotation: pass full HttpRequest record
@@ -21,6 +22,17 @@ type ExportInfo struct {
 	MCPAuth     string   `json:"mcp_auth,omitempty"`     // @mcp_auth: "oauth2" gates the tool on the listed surface; "" / "noauth" = open
 	MCPSecret   []string `json:"-"`                      // @mcp_secret: params dropped (zero-bound) on the listed surface
 	IsAgentOnly bool     `json:"-"`                      // @mcp_agent_only: absent from the listed surface
+	// @mcp_file: params that take an OpenAI file object (openai/fileParams).
+	// Validated at load (extractMCPFileAnnotations): a declared, non-secret
+	// param typed as the four-string file record.
+	MCPFile []string `json:"-"`
+	// MCP Apps (M-MCP-FILE-HANDOFF F1c, extractMCPUIAnnotations):
+	// @mcp_ui_resource: this function's HTML is the widget resource UIResource,
+	// with CSP connectDomains UIConnect ("self" = the server's public URL).
+	UIResource string   `json:"-"`
+	UIConnect  []string `json:"-"`
+	MCPUI      string   `json:"-"` // @mcp_ui: the tool renders this ui:// resource
+	IsAppOnly  bool     `json:"-"` // @mcp_app_only: visibility ["app"], hidden from the model
 	// @mcp_token_verifier: the server's one Bearer-token verifier. Never a
 	// tool (IsNoMCP) and, without @route, never an HTTP endpoint (IsNoExpose):
 	// exposed, it would be a token-guessing oracle.

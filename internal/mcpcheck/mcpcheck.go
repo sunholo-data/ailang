@@ -61,6 +61,9 @@ type tool struct {
 	Title       string         `json:"title"`
 	InputSchema map[string]any `json:"inputSchema"`
 	Annotations map[string]any `json:"annotations"`
+	Meta        map[string]any `json:"_meta"`
+	// SecuritySchemes is OpenAI's top-level mixed-auth declaration (O10).
+	SecuritySchemes any `json:"securitySchemes"`
 }
 
 type session struct {
@@ -108,9 +111,13 @@ func Run(ctx context.Context, opts Options) ([]Finding, error) {
 	creds := checkCredentials(list.Tools)
 	fs = append(fs, creds...)
 	fs = append(fs, checkZeroArg(list.Tools)...)
-	authFs, issuer := s.checkLazyAuth(ctx, list.Tools, hasFail(creds))
+	authFs, issuer, gated := s.checkLazyAuth(ctx, list.Tools, hasFail(creds))
 	fs = append(fs, authFs...)
 	fs = append(fs, s.checkAuthorizationServer(ctx, issuer)...)
+	if opts.Target == "openai" || opts.Target == "both" {
+		fs = append(fs, checkFileParams(list.Tools)...)
+		fs = append(fs, checkSecuritySchemes(list.Tools, gated)...)
+	}
 	return fs, nil
 }
 
@@ -154,21 +161,54 @@ func checkAnnotations(tools []tool, target string) []Finding {
 
 var credentialName = regexp.MustCompile(`(?i)(api[_-]?key|token|secret|password|passwd|credential|^auth$|authorization)`)
 
+// A widget-only tool (MCP Apps _meta.ui.visibility without "model", e.g.
+// serve-api's @mcp_app_only) is called by the host's widget and never listed
+// to the model, so a credential-shaped param there is not the model handling
+// a secret: it is reported as SKIP, not FAIL.
 func checkCredentials(tools []tool) []Finding {
 	var fs []Finding
+	skipped := false
 	for _, t := range tools {
 		props, _ := t.InputSchema["properties"].(map[string]any)
+		widgetOnly := hiddenFromModel(t)
 		for name := range props {
-			if credentialName.MatchString(name) {
-				fs = append(fs, Finding{"credentials", Fail, t.Name,
-					fmt.Sprintf("parameter %q looks like a credential: the model would handle a secret (use OAuth; on serve-api mark it @mcp_secret)", name), "A2,O1"})
+			if !credentialName.MatchString(name) {
+				continue
 			}
+			if widgetOnly {
+				skipped = true
+				fs = append(fs, Finding{"credentials", Skip, t.Name,
+					fmt.Sprintf("parameter %q looks like a credential — skipped: widget-only tool (_meta.ui.visibility excludes \"model\", so the model never sees it)", name), "A2,O1"})
+				continue
+			}
+			fs = append(fs, Finding{"credentials", Fail, t.Name,
+				fmt.Sprintf("parameter %q looks like a credential: the model would handle a secret (use OAuth; on serve-api mark it @mcp_secret)", name), "A2,O1"})
 		}
 	}
-	if len(fs) == 0 {
+	switch {
+	case Failed(fs):
+	case skipped:
+		fs = append(fs, Finding{"credentials", Pass, "", "no credential-shaped parameters on model-visible tools", "A2,O1"})
+	default:
 		fs = append(fs, Finding{"credentials", Pass, "", "no credential-shaped parameters", "A2,O1"})
 	}
 	return fs
+}
+
+// hiddenFromModel: the tool declares an MCP Apps visibility that excludes
+// "model" (absent = the default ["model", "app"]).
+func hiddenFromModel(t tool) bool {
+	ui, _ := t.Meta["ui"].(map[string]any)
+	vis, declared := ui["visibility"].([]any)
+	if !declared {
+		return false
+	}
+	for _, v := range vis {
+		if v == "model" {
+			return false
+		}
+	}
+	return true
 }
 
 // ---- check 3: zero-argument tools are callable with {} ----
@@ -205,9 +245,10 @@ func required(t tool) []string {
 
 var resourceMetadataRe = regexp.MustCompile(`resource_metadata="([^"]+)"`)
 
-func (s *session) checkLazyAuth(ctx context.Context, tools []tool, credentialParams bool) ([]Finding, string) {
+func (s *session) checkLazyAuth(ctx context.Context, tools []tool, credentialParams bool) ([]Finding, string, map[string]bool) {
 	var metaURL string
 	gated := 0
+	gatedNames := map[string]bool{}
 	for _, t := range tools {
 		ro, _ := t.Annotations["readOnlyHint"].(bool)
 		if !ro && len(required(t)) == 0 {
@@ -218,24 +259,25 @@ func (s *session) checkLazyAuth(ctx context.Context, tools []tool, credentialPar
 			continue
 		}
 		gated++
+		gatedNames[t.Name] = true
 		m := resourceMetadataRe.FindStringSubmatch(hdr.Get("WWW-Authenticate"))
 		if m == nil {
-			return []Finding{{"lazy-auth", Fail, t.Name, "401 without a resource_metadata challenge in WWW-Authenticate", "A3"}}, ""
+			return []Finding{{"lazy-auth", Fail, t.Name, "401 without a resource_metadata challenge in WWW-Authenticate", "A3"}}, "", gatedNames
 		}
 		metaURL = m[1]
 	}
 	if gated == 0 {
 		if credentialParams {
-			return []Finding{{"lazy-auth", Fail, "", "no tool answers 401 without a token, yet tools take credentials as arguments: authenticate with OAuth, not arguments", "A1,A3"}}, ""
+			return []Finding{{"lazy-auth", Fail, "", "no tool answers 401 without a token, yet tools take credentials as arguments: authenticate with OAuth, not arguments", "A1,A3"}}, "", gatedNames
 		}
-		return []Finding{{"lazy-auth", Pass, "", "no gated tools found (a public-data service needs no auth)", "A2"}}, ""
+		return []Finding{{"lazy-auth", Pass, "", "no gated tools found (a public-data service needs no auth)", "A2"}}, "", gatedNames
 	}
 	var meta struct {
 		Resource string   `json:"resource"`
 		Servers  []string `json:"authorization_servers"`
 	}
 	if err := s.getJSON(ctx, metaURL, &meta); err != nil {
-		return []Finding{{"lazy-auth", Fail, "", fmt.Sprintf("resource metadata %s: %v", metaURL, err), "A3"}}, ""
+		return []Finding{{"lazy-auth", Fail, "", fmt.Sprintf("resource metadata %s: %v", metaURL, err), "A3"}}, "", gatedNames
 	}
 	var fs []Finding
 	if strings.TrimSuffix(meta.Resource, "/") != strings.TrimSuffix(s.opts.URL, "/") {
@@ -243,12 +285,12 @@ func (s *session) checkLazyAuth(ctx context.Context, tools []tool, credentialPar
 	}
 	if len(meta.Servers) == 0 {
 		fs = append(fs, Finding{"lazy-auth", Fail, "", "resource metadata lists no authorization_servers", "A3"})
-		return fs, ""
+		return fs, "", gatedNames
 	}
 	if len(fs) == 0 {
 		fs = append(fs, Finding{"lazy-auth", Pass, "", fmt.Sprintf("%d gated tool(s) answer 401 with resource metadata naming %s", gated, meta.Servers[0]), "A3"})
 	}
-	return fs, meta.Servers[0]
+	return fs, meta.Servers[0], gatedNames
 }
 
 // ---- check 5: authorization server metadata (A5/A6; O6) ----

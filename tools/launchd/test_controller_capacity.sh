@@ -286,6 +286,15 @@ has_log "slot-verdict: PAUSED-NO-CAPACITY"; expect "paused" $?
 [ "$(count_sends 'PAUSED — no capacity')" -eq 1 ] && [ "$(count_sends 'Mission iteration FAILED')" -eq 0 ]; expect "1 pause notice, 0 FAILED" $?
 endcase
 
+# D-FLEET-13: claude's 5-hour-window stop is capacity, not a crash.
+begin session-limit-is-capacity
+CHAIN="$CH3"
+for m in a b c; do script openrouter/$m default 1 - "You've hit your session limit · resets 12:40am"; done
+runcase
+has_log "slot-verdict: PAUSED-NO-CAPACITY"; expect "paused" $?
+[ "$(count_sends 'Mission iteration FAILED')" -eq 0 ]; expect "0 FAILED" $?
+endcase
+
 begin transient-unchanged
 CHAIN="$CH3"
 script openrouter/a 1 1 - "API Error: Overloaded"

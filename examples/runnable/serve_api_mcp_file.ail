@@ -1,0 +1,46 @@
+-- serve_api_mcp_file.ail - an MCP tool that takes a file the user uploaded
+-- @mcp_file("file") marks the param as a host-supplied file. tools/list then
+-- carries _meta["openai/fileParams"] = ["file"] and OpenAI's file object schema
+-- for the param. ChatGPT fills it with {download_url, file_id, mime_type?,
+-- file_name?}, and serve-api binds that as the record below. mime_type and
+-- file_name bind "" when the host leaves them out.
+-- On /mcp/connect/ every tool also declares securitySchemes (oauth2 or noauth)
+-- for ChatGPT's mixed-auth rule.
+-- Run with:
+--   ailang serve-api --mcp-http --caps IO --oauth-issuer https://auth.example.com \
+--     examples/runnable/serve_api_mcp_file.ail
+-- Check it:  ailang mcp check http://localhost:8080/mcp/connect/ --target openai
+module examples/runnable/serve_api_mcp_file
+import std/io (println)
+import std/string (startsWith)
+
+type OpenAIFile = { download_url: string, file_id: string, mime_type: string, file_name: string }
+
+@mcp_token_verifier
+export func verifyToken(token: string) -> bool ! {IO} = startsWith(token, "demo_")
+
+-- Describe a file the user uploaded (needs a signed-in account).
+@mcp_title("Describe uploaded file")
+@mcp_hints("readOnly", "openWorld")
+@mcp_auth("oauth2")
+@mcp_file("file")
+export func describeFile(file: OpenAIFile) -> string ! {IO} = describe(file)
+
+-- Describe a file if one was given. Open: no sign-in needed.
+@mcp_title("Describe optional file")
+@mcp_hints("readOnly")
+@mcp_file("file")
+@optional("file")
+export func maybeDescribe(file: OpenAIFile) -> string = if file.file_id == "" then "no file" else describe(file)
+
+func describe(file: OpenAIFile) -> string {
+  let name = if file.file_name == "" then file.file_id else file.file_name
+  "${name} (${file.mime_type}) at ${file.download_url}"
+}
+
+-- Entry point for `ailang run`; not a tool on either MCP surface.
+@nomcp
+export func main() -> unit ! {IO} {
+  println(maybeDescribe({ download_url: "https://files.example/1", file_id: "file_1", mime_type: "application/pdf", file_name: "AGM.pdf" }))
+  println(maybeDescribe({ download_url: "", file_id: "", mime_type: "", file_name: "" }))
+}

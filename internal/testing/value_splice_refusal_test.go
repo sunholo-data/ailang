@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -124,80 +125,23 @@ export func main() -> int ! {} { 0 }
 	}
 }
 
-// TestRefusal_N4_Forall drives the forall path (runProperty → bindPropertyValues)
-// with an injected generator that yields an unspliceable value and asserts
-// StatusFail. The refusal happens inside bindPropertyValues, before the legacy
-// EvaluateExpression path is touched.
-func TestRefusal_N4_Forall(t *testing.T) {
-	r := newSpliceRunner()
-	r.genForType = func(typ ast.Type) (Generator, Shrinker) {
-		return &funcValueGenerator{}, NewNoOpShrinker()
-	}
-	prop := &ast.Property{
-		Name: "forallRefusal",
-		Kind: ast.PropertyKind, // any non-ensures/requires kind dispatches to the forall path
-		Binders: []*ast.Binder{
-			{Name: "x", Type: &ast.SimpleType{Name: "int"}},
-		},
-		Expr: &ast.Literal{Kind: ast.BoolLit, Value: true},
-	}
-	pc := PropertyCase{Name: "forallRefusal", Property: prop}
-	result := r.runProperty(pc)
-	if result.Status != StatusFail {
-		t.Fatalf("forall refusal: expected StatusFail, got %v (error: %s)", result.Status, result.Error)
-	}
-	if !strings.Contains(result.Error, "no literal splice") {
-		t.Errorf("forall refusal error = %q, want it to contain \"no literal splice\"", result.Error)
-	}
-}
-
-// TestRefusal_N5_Shrink drives shrinkCounterexample directly with a shrinker
-// that yields an unspliceable candidate. The splice refusal must be skipped
-// (best-effort continue): the function returns a minimal slice and does not
-// panic, and it must not change the reported verdict.
+// TestRefusal_N5_Shrink: a shrink candidate the predicate cannot evaluate
+// (here a FunctionValue for an int binder, which errors) is skipped, and the
+// original failing value stands. Since #624 the forall path passes values as
+// arguments, so there is no splice to refuse; the skip is the contract.
 func TestRefusal_N5_Shrink(t *testing.T) {
-	r := newSpliceRunner()
-	prop := &ast.Property{
-		Name:    "shrinkRefusal",
-		Kind:    ast.PropertyKind,
-		Binders: []*ast.Binder{{Name: "x", Type: &ast.SimpleType{Name: "int"}}},
-		Expr:    &ast.Literal{Kind: ast.BoolLit, Value: true},
-	}
 	failing := []eval.Value{&eval.IntValue{Value: 42}}
-	// funcValueShrinker yields an unspliceable FunctionValue, so bindPropertyValues
-	// refuses it; shrinkCounterexample must continue and keep the original value.
-	minimal := r.shrinkCounterexample(prop, failing, []Shrinker{&funcValueShrinker{}})
+	call := func(args []eval.Value) (eval.Value, error) {
+		if _, ok := args[0].(*eval.IntValue); !ok {
+			return nil, fmt.Errorf("expected int, got %T", args[0])
+		}
+		return &eval.BoolValue{Value: false}, nil
+	}
+	minimal := shrinkCounterexample(call, failing, []Shrinker{&funcValueShrinker{}})
 	if len(minimal) != 1 {
 		t.Fatalf("expected minimal slice of length 1, got %d", len(minimal))
 	}
 	if iv, ok := minimal[0].(*eval.IntValue); !ok || iv.Value != 42 {
 		t.Errorf("expected minimal value to be the original int 42, got %T %v", minimal[0], minimal[0])
-	}
-}
-
-// TestShrinkNilExprContract pins the implicit contract that makes the N-5 guard
-// in shrinkCounterexample redundant rather than load-bearing.
-//
-// Measured at iteration 169: neutering that guard to `if false && err != nil`
-// leaves the entire internal/testing package green, because a splice refusal
-// makes bindPropertyValues return (nil, err) and EvaluateExpression then errors
-// on the nil expression — the adjacent error branch continues for the same
-// effect. That redundancy is only true while EvaluateExpression ERRORS on nil
-// instead of panicking, which is an accident of its string-formatting
-// implementation, not a stated contract. This test states it. If it ever reds,
-// the N-5 guard has become the thing standing between a shrink attempt and a
-// panic, and its neutering mutation will start killing.
-func TestShrinkNilExprContract(t *testing.T) {
-	r := newSpliceRunner()
-	defer func() {
-		if p := recover(); p != nil {
-			t.Fatalf("EvaluateExpression(nil) panicked (%v); the N-5 guard in "+
-				"shrinkCounterexample is now load-bearing — re-run its neutering "+
-				"mutation and update the DECLARED REDUNDANT note in runner.go", p)
-		}
-	}()
-	if _, err := r.executor.EvaluateExpression(nil); err == nil {
-		t.Fatal("EvaluateExpression(nil) returned a nil error; the N-5 guard's " +
-			"redundancy rests on this erroring — see runner.go's DECLARED REDUNDANT note")
 	}
 }

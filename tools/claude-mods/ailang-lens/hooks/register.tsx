@@ -66,10 +66,40 @@ async function mtime($: EngineInterface, file: string): Promise<number> {
   }
 }
 
+/** Pure: the files a module imports by relative path (`import ./data/stars`). */
+export function relativeImports(file: string, source: string): string[] {
+  const dir = file.slice(0, file.lastIndexOf('/'))
+  return [...source.matchAll(/^\s*import\s+(\.{1,2}\/[\w./-]+)/gm)].map(m => {
+    const parts = `${dir}/${m[1]}.ail`.split('/')
+    const out: string[] = []
+    for (const part of parts) {
+      if (part === '..') out.pop()
+      else if (part !== '.') out.push(part)
+    }
+    return out.join('/')
+  })
+}
+
+// A module's result goes stale when the module, its package's manifest or
+// lock, or a module it imports by relative path changes: a package-qualified
+// import resolves through ailang.toml's [exports], so a manifest edit can
+// flip a check without the module itself changing.
+async function stampOf($: EngineInterface, file: string, root: string): Promise<number> {
+  let source = ''
+  try {
+    source = await $.fs.read(file)
+  } catch {
+    // gone: the stamp drops to 0 and the next check reports it
+  }
+  const paths = [file, `${root}/ailang.toml`, `${root}/ailang.lock`, ...relativeImports(file, source)]
+  return Math.max(...(await Promise.all(paths.map(path => mtime($, path)))))
+}
+
 async function analyse($: EngineInterface, file: string, previous?: LensModule): Promise<LensModule> {
   const started = Date.now()
-  const mtimeMs = await mtime($, file)
   const cwd = file.startsWith('/') ? await projectRoot($, file) : undefined
+  const root = cwd ?? '.'
+  const stamp = await stampOf($, file, root)
   const rel = cwd ? file.slice(cwd.length + 1) : file
   const [iface, check] = await Promise.all([
     $.process.run(['ailang', 'iface', rel], { cwd, timeoutMs: 20_000 }),
@@ -97,7 +127,8 @@ async function analyse($: EngineInterface, file: string, previous?: LensModule):
     passed: errors.length === 0 && check.exitCode === 0,
     errors,
     ms: Date.now() - started,
-    mtimeMs,
+    root,
+    stamp,
   }
 }
 
@@ -115,12 +146,20 @@ async function refresh($: EngineInterface, file: string): Promise<LensModule> {
   return lens
 }
 
-// Edit/Write are seen directly; anything else that touches a tracked file
-// (Bash, the person's editor) is caught by its mtime after a Bash call and
-// at the end of each turn.
+// Edit/Write are seen directly; anything else that touches a module, its
+// package manifest or a relative import (Bash, another session, the person's
+// editor) is caught by its stamp after a Bash call and at the end of each turn.
 async function refreshStale($: EngineInterface): Promise<void> {
   for (const known of await read($, modules)) {
-    if ((await mtime($, known.file)) !== known.mtimeMs) await refresh($, known.file)
+    if ((await stampOf($, known.file, known.root)) !== known.stamp) await refresh($, known.file)
+  }
+}
+
+// An edited .ail or ailang.toml can change how its package's other modules
+// check (exports, a sibling's signature), so they are re-checked with it.
+async function refreshPackage($: EngineInterface, edited: string): Promise<void> {
+  for (const known of await read($, modules)) {
+    if (known.file !== edited && known.root !== '.' && edited.startsWith(`${known.root}/`)) await refresh($, known.file)
   }
 }
 
@@ -160,11 +199,16 @@ export const register: Register = on => {
       return ran
     }
     const file = (e.tool === 'Edit' || e.tool === 'Write') ? e.file_path : undefined
-    if (!file?.endsWith('.ail') || ran.deny !== undefined || ran.isError) return ran
+    const isModule = file?.endsWith('.ail') === true
+    const isManifest = file?.endsWith('/ailang.toml') === true
+    if (!file || !(isModule || isManifest) || ran.deny !== undefined || ran.isError) return ran
 
     try {
-      await refresh($, file)
-      void $.ui.open({ id: PANE, title: 'AILANG lens' })
+      if (isModule) {
+        await refresh($, file)
+        void $.ui.open({ id: PANE, title: 'AILANG lens' })
+      }
+      await refreshPackage($, file)
     } catch (err) {
       $.ui.status(`ail lens: ${String(err).slice(0, 60)}`)
     }

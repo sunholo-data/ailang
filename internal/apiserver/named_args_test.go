@@ -168,7 +168,7 @@ func TestParseNamedArgs(t *testing.T) {
 
 	t.Run("exact match", func(t *testing.T) {
 		body := map[string]interface{}{"path": "file.docx", "outputFormat": "blocks", "maxSize": float64(100)}
-		args := parseNamedArgs(body, paramNames, paramTypes)
+		args := parseNamedArgs(body, paramNames, paramTypes, nil)
 		if len(args) != 3 {
 			t.Fatalf("expected 3 args, got %d", len(args))
 		}
@@ -182,7 +182,7 @@ func TestParseNamedArgs(t *testing.T) {
 
 	t.Run("snake_case match", func(t *testing.T) {
 		body := map[string]interface{}{"path": "file.docx", "output_format": "blocks"}
-		args := parseNamedArgs(body, paramNames, paramTypes)
+		args := parseNamedArgs(body, paramNames, paramTypes, nil)
 		if args == nil {
 			t.Fatal("expected args, got nil")
 		}
@@ -193,7 +193,7 @@ func TestParseNamedArgs(t *testing.T) {
 
 	t.Run("no match returns nil", func(t *testing.T) {
 		body := map[string]interface{}{"unknown": "val", "other": "val2"}
-		args := parseNamedArgs(body, paramNames, paramTypes)
+		args := parseNamedArgs(body, paramNames, paramTypes, nil)
 		if args != nil {
 			t.Errorf("expected nil for no matching keys, got %v", args)
 		}
@@ -201,7 +201,7 @@ func TestParseNamedArgs(t *testing.T) {
 
 	t.Run("partial match pads zero-values", func(t *testing.T) {
 		body := map[string]interface{}{"path": "file.docx"}
-		args := parseNamedArgs(body, paramNames, paramTypes)
+		args := parseNamedArgs(body, paramNames, paramTypes, nil)
 		if args == nil {
 			t.Fatal("expected args for partial match, got nil")
 		}
@@ -218,7 +218,7 @@ func TestParseNamedArgs(t *testing.T) {
 
 	t.Run("partial match without types falls back to nil", func(t *testing.T) {
 		body := map[string]interface{}{"path": "file.docx"}
-		args := parseNamedArgs(body, paramNames, nil)
+		args := parseNamedArgs(body, paramNames, nil, nil)
 		if args == nil {
 			t.Fatal("expected args for partial match, got nil")
 		}
@@ -229,7 +229,7 @@ func TestParseNamedArgs(t *testing.T) {
 
 	t.Run("empty param names", func(t *testing.T) {
 		body := map[string]interface{}{"path": "file.docx"}
-		args := parseNamedArgs(body, nil, nil)
+		args := parseNamedArgs(body, nil, nil, nil)
 		if args != nil {
 			t.Errorf("expected nil for empty param names, got %v", args)
 		}
@@ -237,7 +237,7 @@ func TestParseNamedArgs(t *testing.T) {
 
 	t.Run("extra keys ignored", func(t *testing.T) {
 		body := map[string]interface{}{"path": "file.docx", "extra_field": "ignored"}
-		args := parseNamedArgs(body, paramNames, paramTypes)
+		args := parseNamedArgs(body, paramNames, paramTypes, nil)
 		if args == nil {
 			t.Fatal("expected args, got nil")
 		}
@@ -278,7 +278,7 @@ func TestParseArgsWithNames(t *testing.T) {
 
 	t.Run("positional args take precedence", func(t *testing.T) {
 		body := []byte(`{"args": ["file.docx", "blocks"]}`)
-		args, err := parseArgsWithNames(body, paramNames, paramTypes)
+		args, err := parseArgsWithNames(body, paramNames, paramTypes, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -291,7 +291,7 @@ func TestParseArgsWithNames(t *testing.T) {
 		paramNames3 := []string{"a", "b", "c"}
 		paramTypes3 := []string{"string", "int", "bool"}
 		body := []byte(`{"args": ["hello"]}`)
-		args, err := parseArgsWithNames(body, paramNames3, paramTypes3)
+		args, err := parseArgsWithNames(body, paramNames3, paramTypes3, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -311,7 +311,7 @@ func TestParseArgsWithNames(t *testing.T) {
 
 	t.Run("named binding", func(t *testing.T) {
 		body := []byte(`{"path": "data/sample.docx", "output_format": "blocks"}`)
-		args, err := parseArgsWithNames(body, paramNames, paramTypes)
+		args, err := parseArgsWithNames(body, paramNames, paramTypes, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -328,7 +328,7 @@ func TestParseArgsWithNames(t *testing.T) {
 
 	t.Run("no param names falls back to parseArgs", func(t *testing.T) {
 		body := []byte(`{"path": "file.docx"}`)
-		args, err := parseArgsWithNames(body, nil, nil)
+		args, err := parseArgsWithNames(body, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -344,7 +344,7 @@ func TestParseArgsWithNames(t *testing.T) {
 		// type's zero value, so user code runs its normal validation
 		// path instead of crashing inside builtins on UnitValue.
 		// Regression test for inbox msg_20260408_104901_78aa2a4f.
-		args, err := parseArgsWithNames(nil, paramNames, paramTypes)
+		args, err := parseArgsWithNames(nil, paramNames, paramTypes, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -363,7 +363,7 @@ func TestParseArgsWithNames(t *testing.T) {
 		// A raw string body is passed through as a single argument
 		// (zero-value padding only applies to JSON object bodies)
 		body := []byte(`"just a string"`)
-		args, err := parseArgsWithNames(body, paramNames, paramTypes)
+		args, err := parseArgsWithNames(body, paramNames, paramTypes, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -377,7 +377,7 @@ func TestParseArgsWithNames_UnmatchedKeysZeroValuePadding(t *testing.T) {
 	t.Run("single string param with empty body object", func(t *testing.T) {
 		// POST {} to func foo(apiKey: string) should get "" not a Record
 		body := []byte(`{}`)
-		args, err := parseArgsWithNames(body, []string{"apiKey"}, []string{"string"})
+		args, err := parseArgsWithNames(body, []string{"apiKey"}, []string{"string"}, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -392,7 +392,7 @@ func TestParseArgsWithNames_UnmatchedKeysZeroValuePadding(t *testing.T) {
 	t.Run("single string param with non-matching keys", func(t *testing.T) {
 		// POST {"foo":"bar"} to func foo(apiKey: string) should get ""
 		body := []byte(`{"foo":"bar"}`)
-		args, err := parseArgsWithNames(body, []string{"apiKey"}, []string{"string"})
+		args, err := parseArgsWithNames(body, []string{"apiKey"}, []string{"string"}, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -407,7 +407,7 @@ func TestParseArgsWithNames_UnmatchedKeysZeroValuePadding(t *testing.T) {
 	t.Run("multi param with non-matching keys", func(t *testing.T) {
 		// POST {"x":"y"} to func bar(name: string, count: int) should get ["", 0]
 		body := []byte(`{"x":"y"}`)
-		args, err := parseArgsWithNames(body, []string{"name", "count"}, []string{"string", "int"})
+		args, err := parseArgsWithNames(body, []string{"name", "count"}, []string{"string", "int"}, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -425,7 +425,7 @@ func TestParseArgsWithNames_UnmatchedKeysZeroValuePadding(t *testing.T) {
 	t.Run("no params — raw passthrough preserved", func(t *testing.T) {
 		// func noParams() with POST {"key":"val"} — should get raw object
 		body := []byte(`{"key":"val"}`)
-		args, err := parseArgsWithNames(body, nil, nil)
+		args, err := parseArgsWithNames(body, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -449,7 +449,7 @@ func TestParseArgsWithNames_UnmatchedKeysZeroValuePadding(t *testing.T) {
 		args, err := parseArgsWithNames(
 			nil,
 			[]string{"name", "count", "active", "tags"},
-			[]string{"string", "int", "bool", "list"},
+			[]string{"string", "int", "bool", "list"}, nil,
 		)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -475,7 +475,7 @@ func TestParseArgsWithNames_UnmatchedKeysZeroValuePadding(t *testing.T) {
 	t.Run("matching key still works", func(t *testing.T) {
 		// POST {"apiKey":"secret"} to func foo(apiKey: string) — should get "secret"
 		body := []byte(`{"apiKey":"secret"}`)
-		args, err := parseArgsWithNames(body, []string{"apiKey"}, []string{"string"})
+		args, err := parseArgsWithNames(body, []string{"apiKey"}, []string{"string"}, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
