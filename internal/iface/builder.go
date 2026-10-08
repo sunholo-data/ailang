@@ -69,9 +69,10 @@ func astTypeToInternalType(t ast.Type) types.Type {
 			effectRow = types.EmptyEffectRow()
 		}
 		return &types.TFunc2{
-			Params:    paramTypes,
-			EffectRow: effectRow,
-			Return:    astTypeToInternalType(typ.Return),
+			Params:                 paramTypes,
+			EffectRow:              effectRow,
+			Return:                 astTypeToInternalType(typ.Return),
+			ConcreteEffectContract: len(typ.Effects) > 0 && !hasRowVarEffects(typ.Effects),
 		}
 
 	case *ast.ListType:
@@ -200,9 +201,10 @@ func applyLabelsFromAST(t types.Type, fd *ast.FuncDecl) types.Type {
 	}
 
 	return &types.TFunc2{
-		Params:    newParams,
-		EffectRow: outerEffectRow,
-		Return:    newRet,
+		Params:                 newParams,
+		EffectRow:              outerEffectRow,
+		ConcreteEffectContract: fn.ConcreteEffectContract,
+		Return:                 newRet,
 	}
 }
 
@@ -292,9 +294,10 @@ func restoreNestedEffectRow(typed types.Type, astT ast.Type) types.Type {
 		}
 	}
 	return &types.TFunc2{
-		Params:    newParams,
-		EffectRow: effectRow,
-		Return:    newRet,
+		Params:                 newParams,
+		EffectRow:              effectRow,
+		ConcreteEffectContract: typedFunc.ConcreteEffectContract,
+		Return:                 newRet,
 	}
 }
 
