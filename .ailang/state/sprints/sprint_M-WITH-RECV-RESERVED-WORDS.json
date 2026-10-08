@@ -2,8 +2,8 @@
   "sprint_id": "M-WITH-RECV-RESERVED-WORDS",
   "status": "completed",
   "created": "2026-10-07T18:42:35.075845+00:00",
-  "design_doc": "design_docs/planned/v0_53_0/m-with-recv-reserved-words.md",
-  "sprint_plan": "design_docs/planned/v0_53_0/m-with-recv-reserved-words-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_53_0/m-with-recv-reserved-words.md",
+  "sprint_plan": "design_docs/implemented/v0_53_0/m-with-recv-reserved-words-sprint-plan.md",
   "github_issues": [],
   "registry_reuse": [
     {

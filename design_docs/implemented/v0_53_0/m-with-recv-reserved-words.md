@@ -1,11 +1,11 @@
 # M-WITH-RECV-RESERVED-WORDS: Keep `with`/`recv` Reserved, Fix the Diagnostic Floor They Stand On
 
-**Status**: Implemented locally (2026-10-08); validation notes in the sprint plan
+**Status**: Implemented on dev in #1639 (28694e3ad; closes #1623), ships in v0.53.0. Prior status: Implemented locally (2026-10-08).
 **Target**: v0.53.0
 **Priority**: P2 — real DX defect with one measured user report; class-wide (every reserved word) but low-frequency; no soundness impact
 **Estimated**: 1.5–2 days
-**Dependencies**: None hard. **Coordination** (not blocking): [M-PARSER-ERROR-CASCADE-SUPPRESSION](../m-parser-error-cascade-suppression.md) (P1, planned) owns the general suppression policy and a `parseParams` recovery point; this doc implements only the *reserved-keyword cause-naming* at that site plus a param-list-local sync, and defers general declaration-boundary suppression to that doc.
-**Source**: [ailang-core triage PR #1620, Secondary 1](../ailang-core-triage/yaml-decode-loses-mapping-key-order.md) — user session `inbox_1791394438696_00b01c33` via ailang-core
+**Dependencies**: None hard. **Coordination** (not blocking): [M-PARSER-ERROR-CASCADE-SUPPRESSION](../../planned/m-parser-error-cascade-suppression.md) (P1, planned) owns the general suppression policy and a `parseParams` recovery point; this doc implements only the *reserved-keyword cause-naming* at that site plus a param-list-local sync, and defers general declaration-boundary suppression to that doc.
+**Source**: [ailang-core triage PR #1620, Secondary 1](../../planned/ailang-core-triage/yaml-decode-loses-mapping-key-order.md) — user session `inbox_1791394438696_00b01c33` via ailang-core
 **Class**: bug (DX), parser diagnostics. **No grammar change** in this revision.
 
 ## Decision
@@ -14,10 +14,10 @@
 
 Do **not** unreserve (a) or contextualize (b) either word in this revision. Both are recorded as the **named release trigger** on each word's owning lane instead:
 
-- `recv` (with `send`, `timeout`): released or consumed **when [M-CSP-SESSION-TYPES](../v1_1_0/m-csp-session-types.md) freezes its syntax design**. That doc currently plans `recv` as a *function name* (`recv(ch)`, `recv : Chan[T -> S] -> (T, Chan[S]) ! Chan`), which would require unreserving — but the lane is unfrozen (its own samples use `match ... with`, a shape AILANG rejects) and has not done its parser conflict analysis. Unreserving today on unfrozen-lane evidence is speculative in the same direction as the reservation it would remove.
-- `with`: released or consumed **when [M-EFFECT-HANDLERS](../v1_1_0/m-effect-handlers.md) freezes its syntax decision** (`handle e with H` vs `with H handle e` vs `match e with effect ...` — explicitly "pending parser conflict analysis" in that doc). Until then `with` keeps backing PAR019 (the measured ML `match x with` trap).
+- `recv` (with `send`, `timeout`): released or consumed **when [M-CSP-SESSION-TYPES](../../planned/v1_1_0/m-csp-session-types.md) freezes its syntax design**. That doc currently plans `recv` as a *function name* (`recv(ch)`, `recv : Chan[T -> S] -> (T, Chan[S]) ! Chan`), which would require unreserving — but the lane is unfrozen (its own samples use `match ... with`, a shape AILANG rejects) and has not done its parser conflict analysis. Unreserving today on unfrozen-lane evidence is speculative in the same direction as the reservation it would remove.
+- `with`: released or consumed **when [M-EFFECT-HANDLERS](../../planned/v1_1_0/m-effect-handlers.md) freezes its syntax decision** (`handle e with H` vs `with H handle e` vs `match e with effect ...` — explicitly "pending parser conflict analysis" in that doc). Until then `with` keeps backing PAR019 (the measured ML `match x with` trap).
 
-This is the same evidence discipline [M-DIALECT-KEYWORD-DIAGNOSTICS](../v1_0_0/m-dialect-keyword-diagnostics.md) applied in reverse. That doc ruled: *one measured occurrence buys one diagnostic, not a language-surface change; grammar-surface moves (aliases, keyword behavior) need named demand triggers* (two independent failures per spelling, five for aliases). It **deliberately does not cover this topic**: it rules narrowly on `case` (an identifier that was never reserved) and explicitly defers keyword-scope decisions behind evidence triggers — it never rules on *reserved-word scope*, i.e. whether `with`/`recv` should stay reserved, become contextual, or be freed. This doc supplies that missing ruling with the same pattern: **one report → diagnostic floor; grammar change → trigger.**
+This is the same evidence discipline [M-DIALECT-KEYWORD-DIAGNOSTICS](../../planned/v1_0_0/m-dialect-keyword-diagnostics.md) applied in reverse. That doc ruled: *one measured occurrence buys one diagnostic, not a language-surface change; grammar-surface moves (aliases, keyword behavior) need named demand triggers* (two independent failures per spelling, five for aliases). It **deliberately does not cover this topic**: it rules narrowly on `case` (an identifier that was never reserved) and explicitly defers keyword-scope decisions behind evidence triggers — it never rules on *reserved-word scope*, i.e. whether `with`/`recv` should stay reserved, become contextual, or be freed. This doc supplies that missing ruling with the same pattern: **one report → diagnostic floor; grammar change → trigger.**
 
 Two properties of option (c) settle it over (a)/(b):
 
@@ -221,11 +221,11 @@ Probes run with PATH `ailang` (`AILANG v0.52.5, Commit 7200786`); fixtures in a 
 
 ## Related Documents
 
-- [M-DIALECT-KEYWORD-DIAGNOSTICS](../v1_0_0/m-dialect-keyword-diagnostics.md) — the sibling this doc completes. Distinction: that doc rules on an *unreserved* identifier's dialect trap (`case`→`match`) and is **PARKED needs-human-review** on its arbitrary-lookahead detection mechanism; this doc's detection sites are all fixed-position (parameter name, field name — no lookahead past unbounded expressions), so the parking does not block it. Its evidence-trigger pattern is the standard this doc applies to reserved-word scope.
-- [M-PARSER-ERROR-CASCADE-SUPPRESSION](../m-parser-error-cascade-suppression.md) — P1 general suppression policy (cap, primary-prominence, declaration-boundary recovery points incl. `parseParams`). Boundary: that doc suppresses *reporting*; this doc adds *cause-naming* and param-list-local recovery for the reserved-word class. Its `parseParams` citation (`parser_expr.go:750`) has drifted to `parser_lambda.go:157`.
-- [M-CSP-SESSION-TYPES](../v1_1_0/m-csp-session-types.md) — owning lane for `recv`/`send`/`timeout` reservations; plans function form.
-- [M-EFFECT-HANDLERS](../v1_1_0/m-effect-handlers.md) — prospective consumer of `with` (`handle e with H`); syntax unfrozen.
-- [Triage PR #1620, Secondary 1](../ailang-core-triage/yaml-decode-loses-mapping-key-order.md) — provenance and the row-3/row-4 routing. Its two sibling items (yaml mapping-key order, std yaml encode) are separate work items per its dispatch note.
+- [M-DIALECT-KEYWORD-DIAGNOSTICS](../../planned/v1_0_0/m-dialect-keyword-diagnostics.md) — the sibling this doc completes. Distinction: that doc rules on an *unreserved* identifier's dialect trap (`case`→`match`) and is **PARKED needs-human-review** on its arbitrary-lookahead detection mechanism; this doc's detection sites are all fixed-position (parameter name, field name — no lookahead past unbounded expressions), so the parking does not block it. Its evidence-trigger pattern is the standard this doc applies to reserved-word scope.
+- [M-PARSER-ERROR-CASCADE-SUPPRESSION](../../planned/m-parser-error-cascade-suppression.md) — P1 general suppression policy (cap, primary-prominence, declaration-boundary recovery points incl. `parseParams`). Boundary: that doc suppresses *reporting*; this doc adds *cause-naming* and param-list-local recovery for the reserved-word class. Its `parseParams` citation (`parser_expr.go:750`) has drifted to `parser_lambda.go:157`.
+- [M-CSP-SESSION-TYPES](../../planned/v1_1_0/m-csp-session-types.md) — owning lane for `recv`/`send`/`timeout` reservations; plans function form.
+- [M-EFFECT-HANDLERS](../../planned/v1_1_0/m-effect-handlers.md) — prospective consumer of `with` (`handle e with H`); syntax unfrozen.
+- [Triage PR #1620, Secondary 1](../../planned/ailang-core-triage/yaml-decode-loses-mapping-key-order.md) — provenance and the row-3/row-4 routing. Its two sibling items (yaml mapping-key order, std yaml encode) are separate work items per its dispatch note.
 - [M-V1-STABILITY-PROMISE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/) — pre-1.0: no tiered promise covers keyword surface yet; the per-word trigger table (R5) is the seed of one.
 
 ## Dispatch Note
