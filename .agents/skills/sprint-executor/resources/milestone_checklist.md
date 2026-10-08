@@ -118,3 +118,16 @@
 ## Milestone Complete
 - [ ] Mark milestone as `completed` in TodoWrite
 - [ ] Move to next milestone or finalize sprint
+
+## AILANG syntax gate
+
+Before the first `.ail` creation or edit in each session, run `ailang prompt` (or MCP `prompt_get`
+when wired). AILANG has Z3 contracts, typed effect rows and inline tests that models' priors miss;
+load the prompt rather than writing from memory.
+
+- Record `AILANG prompt version loaded: <version>` in the milestone report; get the active CLI
+  version with `ailang prompt --version-active`.
+- For every showcase/demo module, discharge the plan's **contracts / effects / inline tests**
+  checklist and report each disposition with the implemented signature detail or
+  `skip: <one-line reason>`.
+- A skip without a recorded reason is a milestone failure; justified skips remain permitted.
