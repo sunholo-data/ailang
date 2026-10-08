@@ -1921,14 +1921,24 @@ fi
 #   MISSION_PROFILE=<m> MISSION_DRY_RUN=1                                      -> lanes=ok
 #   MISSION_PROFILE=<m> MISSION_DRY_RUN=1 MISSION_EXECUTOR_MODEL=codex:bogus \
 #     MISSION_PROBE_TIMEOUT=10                                                 -> lanes=DEGRADED(...)
+# Refresh the shared skill surface after disabled/overlap guards; never on dry-run.
+SKILL_SYNC_STATUS="error:helper-missing"; SKILL_SYNC_NOTE="skill-sync helper absent"
+if [ -f "$MC_DRIVER_ROOT/tools/launchd/lib/skill-sync.sh" ]; then
+  . "$MC_DRIVER_ROOT/tools/launchd/lib/skill-sync.sh"
+fi
+
 if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
+  if type mc_skill_sync >/dev/null 2>&1; then mc_skill_sync report; fi
   if [ -n "$_lane_degraded" ]; then
     _dry_lanes="DEGRADED($(printf '%s' "$_lane_degraded" | grep -c '^- '))$(printf '%s' "$_lane_degraded" | tr '\n' ' ')"
   else
     _dry_lanes="ok"
   fi
-  log "DRY RUN ok: mission=$MISSION_NAME repo-slug=$MISSION_REPO doc=$MISSION_DOC workdir=$REPO pidfile=$PIDFILE prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL | lanes=$_dry_lanes | pin=$PIN_STATUS($PIN_DRIFT behind)"; exit 0
+  log "DRY RUN ok: mission=$MISSION_NAME repo-slug=$MISSION_REPO doc=$MISSION_DOC workdir=$REPO pidfile=$PIDFILE prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL | lanes=$_dry_lanes | pin=$PIN_STATUS($PIN_DRIFT behind) | skill-sync=$SKILL_SYNC_STATUS"; exit 0
 fi
+
+if type mc_skill_sync >/dev/null 2>&1; then mc_skill_sync apply; fi
+log "skill-sync=$SKILL_SYNC_STATUS $SKILL_SYNC_NOTE"
 
 # 3b. BOOT STAGGER (2026-09-05). See _mc_boot_offset for the measurement. Placed
 #     AFTER the kill switch, the overlap yield and the dry run — a disabled
