@@ -3,6 +3,7 @@
 
 # Force LF for golden test files (prevents Windows CRLF issues)
 *.golden text eol=lf
+*.golden.* text eol=lf
 
 # Force LF for prompt files (prevents hash mismatches on Windows)
 prompts/*.md text eol=lf
