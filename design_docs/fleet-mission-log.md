@@ -809,3 +809,43 @@ Available native enum reported by both failed spawns: gpt-6.1-sol, gpt-6-astra, 
 **Retro lane**: backlog. Two non-blocking judge notes: `mc_toml_basic_string $'\x00'` returns `""` rc 0 (unreachable, since env cannot hold NUL); forwarded values are visible in `ps` (denylist keeps secrets out). Follow-up candidate for an attended ticket or decision: under a codex controller, a bare-alias evaluator pin (`sonnet`/`opus`) still resolves to `agent-tool <alias>`, which codex `spawn_agent` rejects (planner measured 1 of 26 codex-controller fires). That is the other half of World's evidence and may be routing policy, so it was not built. No skill edit (no second friction on one gap).
 
 **Next**: resume P1 #7, #1604 (dev Linux `test` green now): re-run its failed jobs on `2e0f92672`, require the required checks green, merge `--match-head-commit`, resolve `gate0:driver-crash-notices-invisible`. Then P1 #8 if the lanes admit it. D-FLEET-13/14/15 remain OPEN.
+
+## 26 — 2026-10-08 — gate0 self-notice read LANDED: #1604 `59c3e6a55`, re-judged PASS 96 on the merged head; ticket resolved; record #1636 landed [HARNESS]
+
+**Pick**: P1 #7 `gate0:driver-crash-notices-invisible`, iteration 25's named resume. No `blocking=all` ticket open (43 open; `ailang mission ticket open --json`). Its predicate was re-measured as a command, not transcribed: dev required `test` green at `0ceb1db01`.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; `mission_directives.sh --issue 1584 --since 2026-10-06T19:02:43Z` → 0 directives of 10 comments. Not a sweep week (iteration 19 swept), and no rotation: #1584 was created after Monday 07:00 local. Running skill: `SKILL.md` and all 12 resources `cmp`-identical to origin/dev at the resolved symlink. Pin == origin/dev `0ceb1db01`.
+
+**Observe**: record PR #1636 (iterations 22–25) open and UNSTABLE: required checks green, Windows red inherited. Dev check set at `0ceb1db01`: 17 checks; NOT-GREEN = Sonar, `test-windows`, `Build windows-latest` (5 tests), and `Build macos-latest` cancelled. `mission-lane-check.sh fleet`: READY, every role has a usable rung (ollama rungs skipped as over ration; openrouter $0.10 of $2.33).
+
+**Did**:
+- Landed #1636 → `752ee765a` (closing-keyword scan empty, `--match-head-commit 3a94d3df8`), and closed superseded #1611 and #1612 with a comment.
+- #1604: its `test` red on `2e0f92672` = inherited `TestValidateModulePath_SingleFileInsidePackage` (job 112275244977; 132,286 B log; one `--- FAIL`). 46 dev commits since its base `e68a264fb`. The only overlap with PR files is `make/test.mk`, where each side added a different line; `git merge-tree` clean. `gh pr update-branch` → `f4de90745`.
+- Re-judged, because the bytes under review changed (a merge). Evaluator below. PASS 96, 0 blocking. Report banked at `design_docs/fleet-mission-evidence/iteration26/judge-report.md`.
+- Controller reproduction, first-party, outside the sandbox, in the judge's worktree: suite `108 passed, 0 failed` rc 0. Mutant `: emit_for "$PREV_ISSUE"` → `103 passed, 5 failed` rc 1. Restore `cmp`-identical to `HEAD`; worktree porcelain = the report only.
+- PR CI on `f4de90745`: `test` SUCCESS (the job that was red), `lint`, `docs-gate`, `UI build gate`, `launchd drivers (bash 3.2)`, govulncheck, CodeQL green. `test-windows` failed tests `diff`-identical to dev `0ceb1db01`'s (5; logs 527,124 B vs 528,078 B). Squash-merged `--match-head-commit f4de90745` → `59c3e6a55`.
+- Resolved `gate0:driver-crash-notices-invisible` (`--sha 59c3e6a55`, "replied to v1"). Commented the verdict on #1160 via `--body-file` (comments 1 → 2, verified), then closed it.
+
+**Gate 3b**: run 37724543642 on `59c3e6a55` (full SHA, via `mission-base.sh record gate3b`; drift from Gate 1 = #1636 + #1604, this iteration's own merges). `test` success, `lint` success, `build` success, `launchd drivers (bash 3.2)` success, govulncheck and float determinism success. `test-windows` failures `diff`-identical to the parent's 5 (528,733 B log). Sonar failure, also on parent `0ceb1db01`. Required set green → LANDED.
+
+**Done-gate**: surface ✓ (`scripts/mission_gate0_self_notices.sh`, which every mission's Gate 0 runs via `MISSION_DRIVER_ROOT`, and both `gate-0-preflight.md` copies). Reach ✓ on origin/dev. **Running-skill reach PENDING**: `~/.claude/skills/mission-control` resolves to `~/dev/sunholo-data/ailang` (branch `dev`, `0 36` ahead/behind), where `grep -c "6a. SECOND, NO-AUTHORITY READ"` = 0, against 1 on origin. So no loop reads step 6a until that checkout is fast-forwarded (D-FLEET-15; not reconciled here, because Gate 1 reserves the standing authorisation to Mark). `make test-launchd-drivers` ✓ (CI leg on the merge SHA; the judge's in-sandbox rc 2 is the `mktemp` denial in the untouched `test_mission_lane_check.sh`). 0 driver bytes, so no dry-run. Nothing reloaded.
+
+**Progress**: 1 ticket resolved (filed 2026-09-26 → resolved 2026-10-08, ≈12 d). Clause 1 UNMEASURED; clause 2 UNMET; clause 3 MET (42 open); clause 4 prior evidence only; clause 5 preserved.
+
+**Routing evidence**: base-gate1=0ceb1db01df661c3608f0c3520a6eb28bcd6bab2@2026-10-08T03:20:14Z; base-gate3b=59c3e6a55bc58bb7202c0e9741fe46fc52547c61@2026-10-08T03:49:39Z; base=59c3e6a55bc58bb7202c0e9741fe46fc52547c61@2026-10-08T04:17:41Z (gate4). `MISSION_ROUTING_NOTE`: empty (as configured).
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer / Planner / Executor**: NOT SPAWNED. This was a resume of work iteration 22 had already planned, built (executor `claude:claude-sonnet-5-5`) and judged. The operator's standing request to use the Agent tool for roles applies where a role runs; the evaluator's lane is a `recipe`, so the Agent tool was not its specified path.
+- **Evaluator**: resolver `agent-tool sonnet declared:alias-pin`. `sonnet` is the executor's family (`claude-sonnet-5-5`), so the generator ≠ judge guard re-routed to the first declared fallback `pi:openrouter/minimax/minimax-m3`. Probe rc 0 (`ok`); openrouter within ration. Ran via `scripts/mission_pi_run.sh --max-seconds 3600` in `fleet-iter26-evaluator` (detached at `f4de90745`). Handshake acked (4× `"acked":true`). Verdict `ok` rc 0, 1190 s, 93 tool executions, 94 turns. 4,912,033 tok (407,371 in / 41,686 out / 4,462,976 cache-read), $0.4400 (provider-reported `usage.cost`). Judge ≠ generator: minimax vs sonnet-5-5 (executor) and opus (controller).
+- **Metered**: $0.44. **Ration**: ollama over; codex 3.0% of 7.3%; Anthropic 5h 9%, week 51% of 58.7%; openrouter $0.10 of $2.33 before the judge.
+
+**Ruled out**:
+- Re-running the failed jobs on the old head `2e0f92672`, as iteration 22's predicate wrote. Its base predates dev's `test` fix, so it would have re-run the inherited red; updating the branch was the cheaper, correct form.
+- Merging on iteration 22's PASS 93 alone: the merged bytes are new, and the operator requires a judge each landing.
+- Fast-forwarding the main checkout to make step 6a live: that is D-FLEET-15, still OPEN.
+- Fixing the Windows five or Sonar: V1's lane, outside Authority.
+
+**Retro lane**: no skill edit (no gap reached ≥2 frictions this fire). Observations, one each:
+- (1) A resume predicate written as "re-run failed jobs on head X" goes stale when dev moves under an unmerged PR. The robust form is "update the branch, then require green on the new head".
+- (2) The landed rule text is not live for any loop until the shared main checkout syncs. This is the first measured instance of a fleet fix landing on origin and not reaching the running skill; it is evidence for D-FLEET-15, not a new ask.
+
+**Next**: P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict` (ailang#651). Its PARKED-ON-LANE predicate held at this fire's Gate 3 (`mission-lane-check.sh fleet` READY; minimax judge lane ≠ executor), so re-measure it and take it. Then P1 #9 `driver:exit-path-notices-unbounded`. D-FLEET-13/14/15 remain OPEN.
