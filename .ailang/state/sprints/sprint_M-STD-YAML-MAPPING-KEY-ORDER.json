@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-STD-YAML-MAPPING-KEY-ORDER",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-07T18:37:38.718495+00:00",
   "design_doc": "design_docs/planned/v0_53_0/m-std-yaml-mapping-key-order.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-std-yaml-mapping-key-order-sprint-plan.md",
@@ -55,10 +55,10 @@
         "Empty input emits null; empty mappings/sequences emit {} and []; public signature and purity remain unchanged.",
         "Focused Go YAML tests pass; recursive alias failures cannot panic or recurse without bound."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T07:03:51.671435+00:00",
+      "completed": "2026-10-08T07:03:51.671435+00:00",
+      "notes": "Node-order emission and merge precedence pass YAML tests at count=20. yaml.v3 Decode plus JSON marshal validate and discard the old representation to preserve duplicate/cycle/excessive-alias and unsupported-value errors; only Node pairs determine emitted order. Baseline document-order regression fails as expected."
     },
     {
       "id": "M2",
@@ -99,5 +99,7 @@
       "completed": null,
       "notes": null
     }
-  ]
+  ],
+  "last_session": "2026-10-08T07:03:51.671435+00:00",
+  "last_checkpoint": "M1 complete"
 }

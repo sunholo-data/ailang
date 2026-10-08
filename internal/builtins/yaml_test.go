@@ -1,6 +1,8 @@
 package builtins
 
 import (
+	"encoding/json"
+	"gopkg.in/yaml.v3"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -77,9 +79,9 @@ func TestYAMLToJSON_NullValue(t *testing.T) {
 }
 
 func TestYAMLToJSON_BlockMapping(t *testing.T) {
-	// encoding/json sorts object keys, so the output is deterministic.
+	// Mapping pairs retain document order, including nested mappings.
 	in := "name: STX\ncount: 3\nnested:\n  x: 1.5\n  ok: true\n"
-	want := `{"count":3,"name":"STX","nested":{"ok":true,"x":1.5}}`
+	want := `{"name":"STX","count":3,"nested":{"x":1.5,"ok":true}}`
 	got := expectYAMLOk(t, callYAMLToJSON(t, in))
 	assert.Equal(t, want, got)
 }
@@ -138,7 +140,7 @@ func TestYAMLToJSON_NonStringArgErrors(t *testing.T) {
 }
 
 // TestYAMLToJSON_Deterministic guards against Go map iteration nondeterminism:
-// object key ordering must be stable across many passes (encoding/json sorts keys).
+// object key ordering must be stable across many passes (the Node tree preserves document order).
 func TestYAMLToJSON_Deterministic(t *testing.T) {
 	in := "z: 1\na: 2\nm: 3\nnested:\n  q: 4\n  b: 5\n"
 	want := expectYAMLOk(t, callYAMLToJSON(t, in))
@@ -146,4 +148,74 @@ func TestYAMLToJSON_Deterministic(t *testing.T) {
 		got := expectYAMLOk(t, callYAMLToJSON(t, in))
 		require.Equal(t, want, got, "output changed on pass %d", i)
 	}
+}
+
+func TestYAMLToJSON_DocumentOrder(t *testing.T) {
+	for _, input := range []string{"b: 1\na: 2\nc: 3\n", "{b: 1, a: 2, c: 3}"} {
+		require.Equal(t, `{"b":1,"a":2,"c":3}`, expectYAMLOk(t, callYAMLToJSON(t, input)))
+	}
+	require.Equal(t, `{"z":[{"b":1,"a":2}],"a":{"c":3,"b":2}}`, expectYAMLOk(t, callYAMLToJSON(t, "z: [{b: 1, a: 2}]\na: {c: 3, b: 2}")))
+}
+
+func TestYAMLToJSON_MergesAndAliases(t *testing.T) {
+	cases := []struct{ input, want string }{
+		{"base: &b {z: 1, a: 2}\ncopy: *b", `{"base":{"z":1,"a":2},"copy":{"z":1,"a":2}}`},
+		{"base: &b [x, y]\ncopy: *b", `{"base":["x","y"],"copy":["x","y"]}`},
+		{"base: &b {z: 1, a: 2}\nchild: {c: 3, <<: *b, a: 4}", `{"base":{"z":1,"a":2},"child":{"c":3,"z":1,"a":4}}`},
+		{"base: &b {z: 1, a: 2}\nchild: {a: 4, <<: *b, c: 3}", `{"base":{"z":1,"a":2},"child":{"a":4,"z":1,"c":3}}`},
+		{"a: &a {z: 1, b: 2}\nb: &b {b: 3, c: 4}\nx: {<<: [*a, *b]}", `{"a":{"z":1,"b":2},"b":{"b":3,"c":4},"x":{"z":1,"b":2,"c":4}}`},
+		{"a: &a {z: 1, b: 2}\nb: &b {c: 3, <<: *a}\nx: {<<: *b, d: 4}", `{"a":{"z":1,"b":2},"b":{"c":3,"z":1,"b":2},"x":{"c":3,"z":1,"b":2,"d":4}}`},
+		{"'<<': literal\n'1': a", `{"\u003c\u003c":"literal","1":"a"}`},
+	}
+	for _, tc := range cases {
+		require.Equal(t, tc.want, expectYAMLOk(t, callYAMLToJSON(t, tc.input)))
+	}
+}
+
+// Compare scalar bytes with the shipped generic decoder, without involving order.
+func TestYAMLToJSON_ScalarCompatibility(t *testing.T) {
+	for _, input := range []string{
+		"\n", "{}", "[]", "!!str 1", "!!int '5'", "2026-10-07",
+		"9007199254740993", "0x1F", "0o17", "1:30", "|\n  line1\n  line2\n",
+		"'<>&\"'", "{'<>&\"': '<>&'}", "!custom text",
+	} {
+		t.Run(input, func(t *testing.T) {
+			var old interface{}
+			require.NoError(t, yaml.Unmarshal([]byte(input), &old))
+			want, err := json.Marshal(old)
+			require.NoError(t, err)
+			require.Equal(t, string(want), expectYAMLOk(t, callYAMLToJSON(t, input)))
+		})
+	}
+}
+
+func TestYAMLToJSON_ValidationCompatibility(t *testing.T) {
+	for _, input := range []string{
+		"a: 1\na: 2", "<<: {}\n<<: {}", "true: x", "~: x", "? [a, b]\n: x",
+		"x: -.inf", "x: .nan", "x: .inf", "a: &a {b: *a}", "a: &a [*a]",
+		"<<: 1", "<<: [1]", "<<: [ {} , [] ]", "a: !!int nope",
+		"base: &b {1: x}\nx: {<<: *b}",
+	} {
+		t.Run(input, func(t *testing.T) {
+			var old interface{}
+			err := yaml.Unmarshal([]byte(input), &old)
+			if err == nil {
+				_, err = json.Marshal(old)
+			}
+			require.Error(t, err, "baseline must reject fixture")
+			require.Contains(t, expectYAMLErr(t, callYAMLToJSON(t, input)), "yaml:")
+		})
+	}
+	require.Equal(t, "yaml: yaml: map merge requires map or sequence of maps as the value", expectYAMLErr(t, callYAMLToJSON(t, "<<: 1")))
+}
+
+func TestYAMLNodeMechanics(t *testing.T) {
+	var node yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte("base: &b {z: 1}\nchild: {<<: *b}\n---\nignored: 2"), &node))
+	root := node.Content[0]
+	require.Len(t, root.Content, 4)
+	merge := root.Content[3]
+	require.Equal(t, "!!merge", merge.Content[0].Tag)
+	require.Equal(t, yaml.AliasNode, merge.Content[1].Kind)
+	require.Same(t, root.Content[1], merge.Content[1].Alias)
 }
