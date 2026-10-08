@@ -1,0 +1,83 @@
+{
+  "sprint_id": "M-RUN-POLICY-RESULT-UNFORGEABLE",
+  "status": "not_started",
+  "created": "2026-10-08T20:14:20Z",
+  "design_doc": "design_docs/planned/v0_53_0/m-run-policy-result-unforgeable.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-run-policy-result-unforgeable-sprint-plan.md",
+  "github_issues": [
+    1548
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_SUPERVISOR_PROVENANCE",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "policy",
+        "stderr"
+      ],
+      "inspected_packages": [
+        "sunholo/billing_entitlements@0.4.2",
+        "sunholo/external_backend@0.2.0"
+      ],
+      "reason": "Go supervisor must guard raw worker output outside the AILANG program; inspected packages provide billing policies and subprocess JSON wrappers."
+    },
+    {
+      "milestone": "M2_HOST_CONTRACT",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "policy",
+        "stderr"
+      ],
+      "inspected_packages": [
+        "sunholo/billing_entitlements@0.4.2",
+        "sunholo/external_backend@0.2.0"
+      ],
+      "reason": "Existing TypeScript host parser, embedded assets and protocol docs require native changes; inspected packages cannot supply host-line provenance."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 215,
+    "estimated_total_loc": 430,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_SUPERVISOR_PROVENANCE",
+      "description": "Only the supervisor can emit unprefixed contract lines and report supervisor limit rc 3.",
+      "estimated_loc": 320,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Forged result + worker exit 3 yields rc 1, a supervisor `worker_reserved_exit` envelope, and visible `worker: policy-result:` output; genuine timeout yields rc 3 and unprefixed reason `timeout` in the same charter test.",
+        "Both reserved tokens are escaped after every listed terminator and across chunk boundaries, including Unicode sequences split over three writes; near misses and mid-line tokens pass unchanged.",
+        "EOF/cancellation flushes strict token prefixes without losing bytes; injected prefixes are excluded from cap accounting; memory is bounded independent of line length.",
+        "Unterminated worker stderr cannot swallow either supervisor contract line; supervisor lines appear after relay drain on fresh LF-delimited lines.",
+        "Existing timeout, output-cap, descendant-kill, entry-from-policy and stdout-spoof tests retain their current assertions and pass; denial/refusal and other exit codes retain their contract.",
+        "`cmd/ailang/run_policy.go` retains fd-3 lifetime and timeout backstop; no open control fd during program execution."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_HOST_CONTRACT",
+      "description": "The host parses the supervisor's last LF-delimited contract lines and documents the repaired contract.",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1_SUPERVISOR_PROVENANCE"
+      ],
+      "acceptance_criteria": [
+        "Both parsers reject prefixed and non-LF-introduced forged lines and select the final matching LF-delimited line.",
+        "`composeEnvelope` keeps legitimate worker output visible and returns actual admission, digest and result; unterminated output no longer triggers stdout decision fallback on an admitted run.",
+        "Host tests pass, embedded copies match sources, and the guide/changelog explicitly explain the changed exit-3 behavior and retained timeout/output-limit shapes.",
+        "Targeted and full repository validation passes; sprint-evaluator can trace each design success criterion to a test or reviewed documentation change."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
