@@ -121,6 +121,7 @@ func validateSecretParams(e ExportInfo) error {
 // surface (/mcp/) is unchanged.
 func (ms *MCPServer) inputSchemaFor(e ExportInfo) map[string]any {
 	schema := buildNamedInputSchema(e)
+	applyFileSchema(schema, e)
 	if !ms.listed || len(e.MCPSecret) == 0 {
 		return schema
 	}
@@ -213,9 +214,9 @@ func (ms *MCPServer) gatedHandler(next http.Handler, maxBody int64) http.Handler
 			return
 		}
 		r.Body = io.NopCloser(bytes.NewReader(body))
-		for _, name := range protocol.ToolCallNames(body) {
-			if ms.gated[name] {
-				if !gate.Admit(w, r) {
+		for _, c := range protocol.ToolCalls(body) {
+			if ms.gated[c.Name] {
+				if !gate.AdmitCall(w, r, c.ID) {
 					return
 				}
 				break

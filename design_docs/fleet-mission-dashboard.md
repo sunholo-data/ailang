@@ -1,22 +1,11 @@
-# Fleet mission — iteration 21, 2026-10-06
+# Fleet mission — iteration 27, 2026-10-08
 
-- Release v0.52.1 (CLI on PATH). Pin = origin/dev `a12a319b5`. The running skill's 7 gate resources still lag origin: the main checkout is 22 commits behind (the #1578 stamp form). That is open ticket P1 #6.
-- **LANDED: pi-runner pre-dirty fix, #1593 → `c2bf04af3`.**
-  - A worktree fingerprint is taken before and after each pi run. A pre-dirty tree no longer reads `ok`, and an unhashable untracked entry no longer hides later edits.
-  - Re-judged at the merged head by `pi:openrouter/minimax/minimax-m3` (fresh, independent): **PASS 100**, 0 blocking. Evidence: 36/36 tests, 3/3 mutations red, and a hand repro of the bug (old code → `ok`, fixed code → rc 10).
-  - Ticket `pi-runner:verdict-blind-to-commits-and-predirty` resolved; world notified.
-- Iteration 20's record #1594 merged → `eb2850427`.
-- The GitHub Actions incident (19:11Z–22:49Z on 10-05) is resolved. Dev `CI` **success** on `c2bf04af3` (after the incident).
-- **Reds handed to V1 (not fleet's):**
-  - The `ailang-core-dev` Cloud Build fails every commit: node `v22.23.3` against a `v22.23.2` pin in `docker/Dockerfile.agent-base`.
-  - The `test-windows` `cmd/ailang` hang guard fired again on docs-only `eb2850427`.
-- Tickets: 38 open after this resolve. Clause 2 turnaround is still UNMET; this ticket was ~9.6 days from filing to resolve.
-- **Next:** P1 #6 `skill-surface:main-checkout-not-synced-to-dev`. This fire measured it live: the main checkout is 22 behind and 7 gate resources differ. It feeds the Phase 3a skill-resolution directive. The D-FLEET-12 pair is pre-authorized.
-- **Ledger, 2 OPEN:**
-  - D-FLEET-13: Anthropic "session limit" as capacity (rec A).
-  - D-FLEET-14: pin `now` in the `TestOllamaQuota*` tests (rec A). Attended PR #1583 appears to address it.
-- Quota: codex and ollama over daily ration; openrouter and Anthropic OK. Metered: $0.55 (evaluator).
-- Routing:
-  - Judge: `pi:openrouter/minimax/minimax-m3`, per the resolver's `reroute … generator-equals-judge`.
-  - No designer, planner or executor: this was a resume of judged work.
-- Bookkeeping thread: **#1584**. Log: fleet-mission-log.md.
+- origin/dev `c92739681` at Gate 1. All 13 running mission-control files match origin (resolved symlink).
+- **LANDED:** P1 #6 `skill-surface:main-checkout-not-synced-to-dev`, #1647 → `15d47b5dc` (D-FLEET-15 = A). Judged **PASS 91** by sonnet (cross-vendor; codex planned and executed). Ticket resolved.
+- What it does: on every real fire, after the kill switch and overlap yield, the driver fast-forwards the checkout the skill symlink resolves to (ff-only; only on `dev`, 0 ahead, no op in progress, no dirty path in range; otherwise it logs `skill-sync=skip:<reason>`). Dry-run shows `skill-sync=` without writing.
+- Reach: live from the next fire of any mission. The main checkout was 4 behind with nothing dirty in range → expect `skill-sync=synced:N` in the next driver log.
+- Dev `test` was red on `TestModels_CloudHeadroomEqualised` (from 69ddedd29); handed to v1/motoko, and fixed by #1645 the same hour. Windows red persists (V1's lane).
+- Next: P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict` (ailang#651), then P1 #9 exit-path notices, then the Phase 3a skill-resolution spike.
+- Routing this fire: controller opus; planner + executor codex gpt-6.1-sol (recipe); evaluator sonnet (Agent tool). Metered $0.
+- OPEN decisions: none (D-FLEET-13/14/15 all ruled 2026-10-08).
+- Open tickets: 41.

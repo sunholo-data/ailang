@@ -455,6 +455,10 @@ The Anthropic and OpenAI directories require four things of a listed MCP server:
 
 `serve-api` covers the server side with annotations, and `ailang mcp check` verifies the result.
 
+> **End to end:** [Publish an AILANG service as a Claude / ChatGPT connector](./mcp-connectors.md)
+> walks through the annotations, sign-in with `sunholo/mcp_oauth`, file input, `ailang mcp check`
+> and the directory submission checklist, using AILANG Parse as the worked example.
+
 **Two surfaces from one module.** When any export uses the annotations below, `serve-api`
 mounts a second MCP endpoint:
 
@@ -478,8 +482,9 @@ cancelled. Pure computation cannot be interrupted, so the in-flight cap bounds t
 **Resource metadata.** With `--oauth-issuer <url>`, `serve-api` serves
 `/.well-known/oauth-protected-resource` and `/.well-known/oauth-protected-resource/mcp/connect/`.
 `resource` is the listed URL as the client reached it (honouring `X-Forwarded-Proto`), and
-`authorization_servers` lists the issuer. The authorization server itself is separate. A shared
-AILANG package is planned (`sunholo/mcp_oauth`); until then, point the flag at your own.
+`authorization_servers` lists the issuer. The authorization server itself is separate: the
+registry package `sunholo/mcp_oauth` provides one in AILANG, served by the same process
+(see [the connector guide](./mcp-connectors.md#3-oauth-with-no-extra-infrastructure-sunholomcp_oauth)).
 
 **Check before you submit:**
 
@@ -495,6 +500,92 @@ The checks:
 5. the authorization server advertises S256 and CIMD or DCR, and answers within 10 s.
 
 It exits 1 on any FAIL. Each finding cites the vendor requirement it comes from.
+With `--target openai` (or `both`) it also checks:
+
+6. every `openai/fileParams` field has OpenAI's four-property file schema;
+7. every tool that answers 401 declares `securitySchemes: [{"type":"oauth2"}]`.
+
+**ChatGPT mixed auth.** On `/mcp/connect/`, every tool declares `securitySchemes`, both
+top level and mirrored in `_meta` (OpenAI's back-compat mirror):
+- `[{"type":"oauth2"}]` for `@mcp_auth("oauth2")` tools;
+- `[{"type":"noauth"}]` for everything else.
+
+A refused gated call still answers **HTTP 401 + `WWW-Authenticate`**, which is what Claude acts on.
+Its body is now a JSON-RPC tool error for the same request id, `isError: true`, with
+`_meta["mcp/www_authenticate"]: ["<the same header value>"]`, which is what ChatGPT reads.
+`/mcp/` declares no schemes.
+
+#### Files from the host: `@mcp_file`
+
+`@mcp_file("file")` marks a param as a file the host hands over. ChatGPT fills it with a
+download URL for a file the user uploaded (`_meta["openai/fileParams"]`). The param must be
+typed as this closed record, inline or as a type alias in the same module:
+
+```ailang
+type OpenAIFile = { download_url: string, file_id: string, mime_type: string, file_name: string }
+
+-- Parse a file the user uploaded.
+@mcp_title("Parse file")
+@mcp_hints("readOnly", "openWorld")
+@mcp_file("file")
+export func parseFile(file: OpenAIFile) -> string ! {IO} = "got ${file.file_name} at ${file.download_url}"
+```
+
+On both MCP surfaces the tool's `tools/list` entry gains two things:
+- `_meta: {"openai/fileParams": ["file"]}`;
+- for that param, OpenAI's file object schema: `{"type":"object","properties":{download_url,
+  file_id, mime_type, file_name: string},"required":["download_url","file_id"],
+  "additionalProperties":false}`. OpenAI's Scan Tools rejects any other shape.
+
+Binding:
+- `download_url` and `file_id` must be strings. Without them the call is refused before your
+  function runs.
+- `mime_type` and `file_name` bind `""` when the host leaves them out.
+- Any other fields the host sends are dropped.
+- The param is required unless it is also `@optional`. An omitted `@optional` file param binds
+  the all-empty record, so check `file.file_id == ""`.
+
+The annotation is repeatable (`@mcp_file("a", "b")` or one per param). Naming a param that does
+not exist, one that is not the four-string record, or one that is also `@mcp_secret` is a
+**load error**: `serve-api` refuses to start.
+
+Your function gets a URL, not bytes. Fetch it yourself under `Net`. Claude has no equivalent;
+the `sunholo/mcp_files` upload handoff covers it.
+
+#### Widgets (MCP Apps): `@mcp_ui_resource`, `@mcp_ui`, `@mcp_app_only`
+
+An MCP App is an HTML widget the host renders next to a tool result; claude.ai and ChatGPT both
+render them. `serve-api` implements the [ext-apps 2026-01-26](https://github.com/modelcontextprotocol/ext-apps)
+server side with three annotations:
+
+| Annotation | On | Effect |
+|---|---|---|
+| `@mcp_ui_resource("ui://svc/name", "<origin>", ...)` | an exported `() -> string` function that returns HTML | Listed by `resources/list`, served by `resources/read` with `mimeType: "text/html;profile=mcp-app"` and `_meta.ui.csp.connectDomains` = the origins given. `"self"` means this server's own origin, taken from the request, so the service never hard-codes its host. The function is not a tool, and without `@route` it is not an HTTP endpoint. |
+| `@mcp_ui("ui://svc/name")` | a tool | Adds `_meta.ui.resourceUri`, plus the pre-GA `_meta["ui/resourceUri"]` that current hosts still read. |
+| `@mcp_app_only` | a tool | Adds `_meta.ui.visibility: ["app"]`. The host keeps the tool out of the model's tool list, and the widget can still call it. The tool stays in `tools/list`, because the widget needs it there. |
+
+```ailang
+@mcp_title("File picker")
+@mcp_ui_resource("ui://example/picker", "self")
+export func pickerHtml() -> string =
+  "<!doctype html><meta charset='utf-8'><input type='file' id='f'><pre id='out'></pre>"
+
+@mcp_title("Choose a file")
+@mcp_hints("readOnly")
+@mcp_ui("ui://example/picker")
+export func chooseFile() -> string = "Picker shown. Ask the user to choose a file in it."
+```
+
+Load errors, so `serve-api` refuses to start:
+- an `@mcp_ui` URI that no `@mcp_ui_resource` declares;
+- a URI that is not `ui://`;
+- a connect domain that is not `"self"` or a bare origin (`https://host[:port]`, no path);
+- a resource function that takes arguments or does not return `string`;
+- the same URI declared twice.
+
+`"self"` needs an HTTP request. Over stdio, reading such a widget fails with that reason, and its
+`resources/list` entry carries no `_meta`. `resourceDomains` is always `[]`, so inline your
+scripts and styles. Full example: `examples/runnable/serve_api_mcp_app.ail`.
 
 Full example: `examples/runnable/serve_api_mcp_oauth.ail`. Embedders using
 `serveapi/protocol/mcphttp` get the same gate through `Config.Gate` (a `protocol.BearerGate`)

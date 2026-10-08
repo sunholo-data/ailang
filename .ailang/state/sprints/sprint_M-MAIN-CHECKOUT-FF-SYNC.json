@@ -1,0 +1,116 @@
+{
+  "sprint_id": "M-MAIN-CHECKOUT-FF-SYNC",
+  "status": "planned",
+  "created": "2026-10-08",
+  "design_doc": "design_docs/fleet-mission.md",
+  "sprint_plan": "design_docs/planned/sprint-plan-main-checkout-ff-sync.md",
+  "github_issues": [],
+  "metadata": {
+    "mission": "fleet",
+    "iteration": 27,
+    "role": "planner",
+    "ticket": "skill-surface:main-checkout-not-synced-to-dev",
+    "authority": "D-FLEET-15 = A; Mark; attended 2026-10-08; design_docs/fleet-mission.md:148",
+    "scope": "Guarded ff-only shared skill checkout sync. Plan only; no implementation, git write operations, messages or execution handoff performed.",
+    "json_shape_reference": ".ailang/state/sprints/sprint_m_syntax_ai_forgiving.json",
+    "env_convention": "Shell-only knobs documented at use sites like AILANG_DRIVER_PIN and AILANG_DRIVER_DRIFT_WARN; no Go Registry changes required.",
+    "report_mode": "Eligible report returns synced:N with an explicit would-sync note; target worktree, refs and index remain unchanged.",
+    "sandbox_gate_policy": "Verdicts touching external paths or sockets are UNINFORMATIVE UNDER SANDBOX. Base reds are findings, not blockers to planning or permission to expand scope.",
+    "planning_validation": "Base driver and pin-root bash -n returned 0. Runtime suites and live dry-run not executed.",
+    "implementation_files": [
+      "tools/launchd/lib/skill-sync.sh",
+      "tools/launchd/test_skill_sync.sh",
+      "tools/launchd/mission-control.sh",
+      "make/test.mk",
+      "changelogs/unreleased/2026-10-08-main-checkout-ff-sync.md"
+    ]
+  },
+  "velocity": {
+    "target_loc_per_day": 275,
+    "estimated_total_loc": 550,
+    "estimated_days": 2,
+    "loc_note": "M1=450, M2=100; task estimate with safety/mutation review, not a measured historical velocity."
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": "none",
+      "action": "none",
+      "reason": "No package-like capability: bash/Git host worktree safety cannot be supplied by an AILANG import. Reuse tools/launchd/lib/pin-root.sh::_pin_bounded. Package registry search not applicable."
+    },
+    {
+      "milestone": "M2",
+      "package": "none",
+      "action": "none",
+      "reason": "Existing driver and LAUNCHD_SUITE make harness are the integration surface; no AILANG package dependency. Package registry search not applicable."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1",
+      "description": "Create sourceable bash 3.2 skill-sync helper and isolated synthetic repository safety/mutation suite.",
+      "estimated_loc": 450,
+      "dependencies": [],
+      "files": [
+        "tools/launchd/lib/skill-sync.sh",
+        "tools/launchd/test_skill_sync.sh"
+      ],
+      "acceptance_criteria": [
+        "mc_skill_sync apply|report sets synced:N/current/skip:reason/error:token and a one-line note, always returns 0 and never exits caller.",
+        "All git calls are wall-clock bounded using the sourced _pin_bounded primitive; failure or missing primitive never falls back to direct unbounded git.",
+        "Resolve override or realpath of mission-control symlink to its git toplevel; skip absent/broken/non-worktree/self target; opt-out prevents all git calls.",
+        "Require dev branch, zero ahead, no rebase/merge/cherry-pick/revert/am/sequencer/bisect operation, no index.lock and no incoming-range/dirty-path intersection.",
+        "Parse NUL-delimited diff/status paths including rename sides, staged/unstaged/untracked paths; count unique collisions without contents; preserve dirty bytes.",
+        "Only eligible apply invokes merge --ff-only origin/dev once. Already current performs no merge. Revalidate snapshot; lock/ref refusals skip without retry or lock deletion.",
+        "Eligible report has synced:N plus would-sync note and preserves target HEAD/index/refs/worktree snapshot with GIT_OPTIONAL_LOCKS=0 inspection.",
+        "Every arm builds a fresh bare origin plus dev clone plus pusher clone under mktemp, uses temporary HOME/TMPDIR, local remotes and explicit fixture identity; no real checkout, HOME skills or mission state access.",
+        "All minimum and extended arms in the plan mutation table pass; every selected single mutant turns its named arm red and restored control green; timeout mutants are independently bounded.",
+        "/bin/bash -n tools/launchd/lib/skill-sync.sh and /bin/bash -n tools/launchd/test_skill_sync.sh return 0.",
+        "/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_skill_sync.sh returns 0.",
+        "/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_skill_sync.sh --mutations returns 0 with non-vacuous mutation failures."
+      ],
+      "passes": true,
+      "started": "2026-10-08T09:20:52.481107+00:00",
+      "completed": "2026-10-08T09:22:51.507368+00:00",
+      "notes": "M1 complete: helper/test syntax rc=0; 41 pristine synthetic arms rc=0; 41 isolated mutants killed (each mutant rc=1, pristine control rc=0), harness rc=0 on bash 3.2.57. Optional-lock-free byte/inventory snapshots; linked-worktree lock and late-ref refusal covered. No live checkout/state access or worktree Git writes. Full cumulative post-M1 files in .snap/M1."
+    },
+    {
+      "id": "M2",
+      "description": "Integrate sync after kill-switch/overlap yield with report-only dry-run field, real apply before stagger, make suite wiring and Added changelog fragment.",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1"
+      ],
+      "files": [
+        "tools/launchd/mission-control.sh",
+        "tools/launchd/test_skill_sync.sh",
+        "make/test.mk",
+        "changelogs/unreleased/2026-10-08-main-checkout-ff-sync.md"
+      ],
+      "acceptance_criteria": [
+        "Small call site sources helper from MC_DRIVER_ROOT after overlap yield; disabled/yielding paths never invoke new sync logic.",
+        "MISSION_DRY_RUN=1 calls report once and appends skill-sync=<status> to DRY RUN ok; real fires call apply once and log status+note before boot stagger.",
+        "Synthetic production seam extraction proves ordering, exact call count, mode, field and missing-helper diagnostics; empty extraction fails. No live providers/controllers/state are accessed by the suite.",
+        "New suite wired as @$(LAUNCHD_SUITE) tools/launchd/test_skill_sync.sh in test-launchd-drivers; make -n test-launchd-drivers contains this exact invocation.",
+        "New 2026-10-08-main-checkout-ff-sync.md fragment begins with ### Added, explains guards, report mode and shell env knobs; make check-changelog passes.",
+        "/bin/bash -n tools/launchd/mission-control.sh, helper and new test all return 0; wrapped pristine suite and --mutations both return 0.",
+        "make test-launchd-drivers run with unpiped exit status; external-path/socket sandbox verdicts labeled UNINFORMATIVE UNDER SANDBOX; inherited reds reported as findings.",
+        "Trusted controller done gate runs AILANG_DRIVER_PINNED=worktree-test MISSION_WORKDIR=$PWD MISSION_PROFILE=fleet MISSION_DRY_RUN=1 /bin/bash tools/launchd/mission-control.sh; observes DRY RUN ok with skill-sync field and unchanged target HEAD. Not executed by planner.",
+        "git diff --check and jq -e . .ailang/state/sprints/sprint_M-MAIN-CHECKOUT-FF-SYNC.json pass; scope review finds only planned files, no forbidden operations or out-of-scope env registration."
+      ],
+      "passes": true,
+      "started": "2026-10-08T09:23:19.352916+00:00",
+      "completed": "2026-10-08T09:26:59.571964+00:00",
+      "notes": "M2 complete: all nine required executor gates rc=0 on bash 3.2.57; 47 pristine arms passed; all 47 isolated mutants killed (mutant rc=1/control rc=0), mutation harness rc=0. Production driver seam guards, report/field, apply-before-stagger and missing-helper diagnostics exercised in synthetic labs. Unknown-selector rc=2 and zero-substitution harness rc=1 were expected rejections. Only allowed files changed; cumulative six-file snapshot in .snap/M2. No worktree Git writes, live driver, real main checkout/HOME/state or network probes. Optional full launchd suite not run; live dry-run remains the controller gate. Optional process inventory was sandbox-denied and UNINFORMATIVE UNDER SANDBOX."
+    }
+  ],
+  "risk_level": "medium",
+  "risks": [
+    "Shared dirty attended checkout: exact range intersection and byte-preservation assertions required; no stash/reset/checkout/rebase.",
+    "Concurrent missions/attended edits: final preflight cannot create an atomic transaction; Git lock/refusal is last defence and no retry or lock deletion is allowed.",
+    "NUL-delimited output cannot survive command substitution: bounded git must write raw streams to scratch files for parsing.",
+    "Report status vocabulary has no would-sync family: explicit would-sync note distinguishes computed synced:N verdict from mutation.",
+    "Live skill/common-dir and 0-ahead/3-behind/dirty measurements are supplied operator premises, not freshly probed planner results.",
+    "Historical mission-loop-change skill world-fork guidance is stale against current shared-driver root code; no out-of-scope port/reload planned."
+  ]
+}

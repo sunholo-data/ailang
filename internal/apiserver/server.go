@@ -378,6 +378,9 @@ func (s *Server) LoadModules(paths []string) error {
 			}
 		}
 	}
+	if err := s.validateMCPUI(); err != nil {
+		return err
+	}
 
 	// Eagerly evaluate all loaded modules so they're fully initialized before
 	// any HTTP requests arrive. This prevents deadlocks where concurrent requests

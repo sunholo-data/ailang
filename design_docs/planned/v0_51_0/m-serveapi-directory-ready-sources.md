@@ -29,6 +29,8 @@ re-check the decisions that cite it.
 | O6 | "`client_id_metadata_document_supported`: set to `true` when you want ChatGPT to use CIMD for client registration. ChatGPT prioritizes CIMD when it is available" and "For CIMD, ChatGPT supports `none` for public-client token exchange" | same page as O4 |
 | O8 | "Set `readOnlyHint`, `destructiveHint`, and `openWorldHint` to explicit boolean values (`true` or `false`) in each tool’s `annotations` object." (link text unwrapped) | Plugin guidelines: https://developers.openai.com/plugins/plugin-guidelines |
 | O7 | Redirect URI: `https://chatgpt.com/connector_platform_oauth_redirect` | same page as O4 |
+| O9 | "To let ChatGPT pass files to a tool, list each top-level file input in `_meta["openai/fileParams"]`. Each listed field must resolve to a file object or an array of file objects." / "The Scan Tools step and plugin submission reject a file schema that omits any of the four properties, does not require `download_url` and `file_id`, marks either optional property as required, or requires a property other than `download_url` or `file_id`." | Plugins reference: https://developers.openai.com/plugins/reference |
+| O10 | `securitySchemes` is a top-level tool field: "`noauth`: The tool is callable anonymously" / "`oauth2`: The tool needs an OAuth 2.0 access token"; reference: "`_meta[\"securitySchemes\"]` — Back-compat mirror for clients that only read `_meta`." | same pages as O4 and O9 |
 
 ## Not yet established
 

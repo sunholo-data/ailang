@@ -222,7 +222,7 @@ func TestArgResolution_AllSources(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(tc.method, tc.url, nil)
-			args, source, err := resolveArgs(req, tc.body, tc.paramNames, tc.paramTypes)
+			args, source, err := resolveArgs(req, tc.body, tc.paramNames, tc.paramTypes, nil)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -245,7 +245,7 @@ func TestArgResolution_ZeroPadDoesNotShadowQuery(t *testing.T) {
 		"/api/v1/debug/usage?args=smoke-test-claude&args=2026_04", nil)
 	args, source, err := resolveArgs(req, nil,
 		[]string{"uid", "period"},
-		[]string{"string", "string"})
+		[]string{"string", "string"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -269,34 +269,34 @@ func TestArgResolution_ZeroPadDoesNotShadowQuery(t *testing.T) {
 // shadowing-class bug returns.
 func TestParseArgsWithNamesEx_SourceLabels(t *testing.T) {
 	t.Run("empty body declared params → ZeroPadded", func(t *testing.T) {
-		_, src, _ := parseArgsWithNamesEx(nil, []string{"a"}, []string{"string"})
+		_, src, _ := parseArgsWithNamesEx(nil, []string{"a"}, []string{"string"}, nil)
 		if src != ArgSourceZeroPadded {
 			t.Errorf("source = %v, want ZeroPadded", src)
 		}
 	})
 	t.Run("matched named-body keys → Real", func(t *testing.T) {
 		_, src, _ := parseArgsWithNamesEx([]byte(`{"a":"x"}`),
-			[]string{"a"}, []string{"string"})
+			[]string{"a"}, []string{"string"}, nil)
 		if src != ArgSourceReal {
 			t.Errorf("source = %v, want Real", src)
 		}
 	})
 	t.Run("unmatched-key body + declared params → ZeroPadded", func(t *testing.T) {
 		_, src, _ := parseArgsWithNamesEx([]byte(`{"other":"x"}`),
-			[]string{"a"}, []string{"string"})
+			[]string{"a"}, []string{"string"}, nil)
 		if src != ArgSourceZeroPadded {
 			t.Errorf("source = %v, want ZeroPadded", src)
 		}
 	})
 	t.Run("structured args body → Real", func(t *testing.T) {
 		_, src, _ := parseArgsWithNamesEx([]byte(`{"args":["x"]}`),
-			[]string{"a"}, []string{"string"})
+			[]string{"a"}, []string{"string"}, nil)
 		if src != ArgSourceReal {
 			t.Errorf("source = %v, want Real", src)
 		}
 	})
 	t.Run("no declared params + empty body → None", func(t *testing.T) {
-		_, src, _ := parseArgsWithNamesEx(nil, nil, nil)
+		_, src, _ := parseArgsWithNamesEx(nil, nil, nil, nil)
 		if src != ArgSourceNone {
 			t.Errorf("source = %v, want None", src)
 		}
@@ -330,7 +330,7 @@ func TestRouteParamOmission_ZeroPadsNotNil(t *testing.T) {
 			body := []byte(`{"present":"x"}`)
 			args, src, err := parseArgsWithNamesEx(body,
 				[]string{"present", "missing"},
-				[]string{"string", tc.typeName})
+				[]string{"string", tc.typeName}, nil)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

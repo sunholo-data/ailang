@@ -248,3 +248,21 @@ test "in the body" { 1 / 0 == 0 }
 		}
 	}
 }
+
+// TestMapPositions_WindowsTempPath pins that a Windows temp position (backslash
+// separators, drive letter) maps back like a POSIX one; CI's test-windows lane
+// was the only place this ran before.
+func TestMapPositions_WindowsTempPath(t *testing.T) {
+	e := &Executor{modulePath: "pos.ail"}
+	ent := namedEntry{first: 15, last: 17, testLine: 14, label: "test body"}
+	for _, tc := range []struct{ msg, want string }{
+		{`RT001 at C:\Users\R~1\AppData\Local\Temp\ailang-namedtest-1392538084\pos.ail:6:53`, "RT001 at pos.ail:10:53"},
+		{`RT001 at /tmp/ailang-namedtest-1392538084/pos.ail:6:53`, "RT001 at pos.ail:10:53"},
+		{`RT001 at C:\Temp\ailang-namedtest-7\pos.ail:16:7`, "RT001 at pos.ail:14 (test body)"},
+	} {
+		lineMap := []int{1, 2, 3, 4, 5, 10}
+		if got := e.mapPositions(tc.msg, ent, lineMap); got != tc.want {
+			t.Errorf("mapPositions(%q) = %q, want %q", tc.msg, got, tc.want)
+		}
+	}
+}
