@@ -175,3 +175,35 @@ func stageToResult(stage *observatory.ChainStage) *BenchmarkResult {
 		},
 	}
 }
+
+// LoadResultsFromEvalChainsSince loads every eval-suite result recorded in a
+// chain created after `after`, across all chains and models. It is the
+// backfill source for the cloud-rolling bank: cloud placements are run one
+// model at a time and land in chains, not in a release baseline directory.
+//
+// Rows are returned as recorded; callers write them to disk and load them back
+// through LoadResultsFromDirs, which drops non-measurements (api_error) and
+// keeps the newest result per (model, id, lang, mode) slot.
+func LoadResultsFromEvalChainsSince(after time.Time) ([]*BenchmarkResult, error) {
+	store, err := observatory.OpenDefaultStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open observatory: %w", err)
+	}
+
+	stages, err := store.QueryEvalResults(context.Background(), observatory.EvalQueryOptions{
+		SourceRefPrefix: "eval-",
+		CreatedAfter:    &after,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to query eval results: %w", err)
+	}
+
+	results := make([]*BenchmarkResult, 0, len(stages))
+	for _, stage := range stages {
+		if stage.EvalAssessment == nil || stage.EvalAssessment.BenchmarkID == "" {
+			continue
+		}
+		results = append(results, stageToResult(stage))
+	}
+	return results, nil
+}

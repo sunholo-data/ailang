@@ -67,6 +67,10 @@ var anthropicThinkingStyles = map[string]AnthropicThinkingStyle{
 	// resolver does not emit, so "off" is not expressible here.
 	"claude-sonnet-5-5": {Adaptive: true, CanDisable: false},
 	"claude-sonnet-5":   {Adaptive: true, CanDisable: true},
+	// Haiku 5.5 (2026-10-08): adaptive only (budget_tokens 400s), on by default,
+	// default effort "medium". {type:"disabled"} is accepted at effort <= high
+	// (probed 2026-10-08) and 400s at xhigh/max.
+	"claude-haiku-5-5": {Adaptive: true, CanDisable: true},
 	// Fable 5 / Mythos 5: thinking is ALWAYS on. An explicit
 	// {type:"disabled"} is a 400 at any effort, so "off" is not expressible.
 	// Fable 5.1 (2026-09-01) keeps that surface unchanged — same generation,
