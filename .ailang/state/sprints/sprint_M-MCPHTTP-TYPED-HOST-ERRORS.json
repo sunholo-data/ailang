@@ -1,0 +1,106 @@
+{
+  "sprint_id": "M-MCPHTTP-TYPED-HOST-ERRORS",
+  "status": "not_started",
+  "created": "2026-10-08T18:53:51.154853+00:00",
+  "design_doc": "design_docs/planned/v0_52_6/m-mcphttp-typed-host-errors.md",
+  "sprint_plan": "design_docs/planned/v0_52_6/m-mcphttp-typed-host-errors-sprint-plan.md",
+  "github_issues": [
+    1602
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "mcp",
+        "jsonrpc"
+      ],
+      "reason": "Registry offers AILANG OAuth/file/email service packages, not a Go error contract; extend existing stdlib-only protocol seam."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "mcp",
+        "jsonrpc"
+      ],
+      "reason": "Repository handler and facade regression fixtures cannot be supplied by registry packages."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "mcp",
+        "jsonrpc"
+      ],
+      "reason": "Repository embedding guide and changelog document a Go host contract; package reuse does not apply."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 180,
+    "estimated_total_loc": 270,
+    "estimated_days": 1.5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Optional JSONRPCError contract and Invoke error mapping",
+      "estimated_loc": 125,
+      "estimated_hours": 3,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "protocol.JSONRPCError embeds error and exposes JSONRPCError() (int, string), with the nonzero-code/nonempty-message rule documented.",
+        "Single tools/call returns HTTP 200 SSE with exact host code/message and request id, including percent signs, quotes and Unicode.",
+        "errors.As resolves a fmt.Errorf %w wrapped typed error; code zero, empty message, plain and wrapped untyped errors retain the frozen envelope.",
+        "Hook tests exercise every SupportedVersions entry; go test ./serveapi/protocol/mcphttp and make check-protocol-closure pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Batch wire goldens and facade compatibility",
+      "estimated_loc": 100,
+      "estimated_hours": 2,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "A mixed success/typed-error/ping batch returns one HTTP 200 SSE array with every response matched to its own id.",
+        "A typed error reaches MCP through serveapi.New without production adapter changes.",
+        "TestEmbeddedMCPFrozenCallbackEnvelopes passes unchanged; timeout, capacity and cancellation mappings remain frozen.",
+        "Existing handler, gate, tool hints, bearer gate and SDK parity tests pass; no parity row is added for host errors because the SDK reference discards them."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Embedding documentation and final validation",
+      "estimated_loc": 45,
+      "estimated_hours": 1,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "serve-api.md documents a Go host error example, guard, errors.As wrapping, per-message SSE/batch behavior and frozen fallback; stale MCP SDK dependency sentence is corrected.",
+        "changelogs/v0.32-current.md has an Unreleased entry for typed MCP host errors, referring to #1602.",
+        "The Go host example is exercised by an executable Go example or the facade fixture; no AILANG syntax change or .ail example is required.",
+        "go test ./serveapi/... -count=1, make test, make lint and make check-protocol-closure pass.",
+        "Implementation PR body includes Refs #1602; release/pin follow-up is recorded for World without claiming this sprint publishes a release."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
