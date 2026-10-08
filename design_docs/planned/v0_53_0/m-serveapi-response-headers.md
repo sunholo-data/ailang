@@ -82,7 +82,7 @@ and `:1371-1382` show `_headers = { "X-Request-Id" = ... }` — `=` in record li
 string-keyed record fields cannot be declared in the return type. The documented mechanism has never
 worked as documented. And **no test covers the real path**: `TestWriteRawResponse`
 (`internal/apiserver/auth_test.go:122-125`) is an empty stub ("covered by integration tests" — there are
-none for `_headers`), and `TestNowrapHeaders_ExtractsFromGoMap` (`named_args_test.go:487-523`) tests a
+none for `_headers`), and `TestNowrapHeaders_ExtractsFromGoMap` (`named_args_test.go:491`) tests a
 hand-copied re-implementation of the loop, not the production code.
 
 **Impact:** every `serve-api` deployment (AI-generated services steered to this hosting) ships without
@@ -115,23 +115,23 @@ valid HTTP header name on both response paths — with every unusable `_headers`
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
-| D1. Static security headers are **on by default** (opt-out via `--no-static-security-headers`), not opt-in | Safe-by-default is the reporter's ask and the RFC 9700 driver; but it is a behavior change for any deployment that legitimately frames its own static HTML — must be a documented default + escape hatch, not an implementation detail | human | design | med |
+| D1. Static security headers are **on by default** (opt-out via `--no-static-security-headers`), not opt-in | Safe-by-default is the reporter's ask and the RFC 9700 driver; but it is a behavior change for any deployment that legitimately frames its own static HTML — must be a documented default + escape hatch, not an implementation detail | human — **ruled YES, Mark 2026-10-08** | design | med |
 | D2. Default set = `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'`, `Referrer-Policy: no-referrer`, on every `--static` response incl. 404 | Choosing `DENY`/`'none'` over `SAMEORIGIN`/`'self'` blocks self-framing too; error pages can be framed and sniffed as much as content, so all statuses | human | design | low |
 | D3. Override shape: repeatable `--static-header 'Name: value'`, last-wins per name, validated at startup (RFC 9110 token, non-empty value); no per-path map | One flag covers add + override + (with D1's kill switch) removal; per-path maps are YAGNI until a deployment asks | agent | design | low |
-| D4. Record `_headers` labels are remapped `_`→`-`; Json `_headers` names are exact | A record label `x_frame_options` currently produces the wire name `X_frame_options` — remapping changes what an existing (if broken) program sends: a public-surface change. The Json form keeps exact-name control as the escape hatch for any name a record cannot spell | human | design | med |
+| D4. Record `_headers` labels are remapped `_`→`-`; Json `_headers` names are exact | A record label `x_frame_options` currently produces the wire name `X_frame_options` — remapping changes what an existing (if broken) program sends: a public-surface change. The Json form keeps exact-name control as the escape hatch for any name a record cannot spell | human — **ruled YES, Mark 2026-10-08** | design | med |
 | D5. Extraction happens on the `eval.Value` **before** Go conversion, one shared helper for both dispatch sites | Post-`ToGo` the record and `JObject` forms are indistinguishable (`map[string]interface{}`), so D4's two rules cannot be applied; pre-`ToGo` mirrors `resultErrStatus` and fixes both sites with one mechanism | agent | design | med |
 | D6. Unusable `_headers` fails loudly: dispatch-time 500 + ERROR log naming the accepted shapes; `@route` registration additionally refuses a declared `_headers` type that is neither a string-valued record nor `Json` (the `WSReqIssue` pattern) | Defines new startup/type-error behaviour; the silent drop is the bug class | agent | design | med |
-| D7. `X-Elapsed-Ms` is server-owned (set last) on both paths; program `Content-Type` still wins over defaults | `@nowrap` today lets `_headers` overwrite the timing header (order: `:236-237` before `:239`); unifying on the `writeRawResponse` order is a small deliberate tightening | agent | design | low |
-| D8. `ailang mcp check` grows a framing probe: fetch the discovered authorization endpoint, FAIL (anthropic/both targets) when neither `X-Frame-Options` nor `frame-ancestors` is present | New check semantics in a submission gate; what counts as FAIL vs WARN is a rules decision | agent | design | low |
+| D7. Server-owned headers — `X-Elapsed-Ms`, every `Access-Control-*` header and `Vary` — are set last (or refused from `_headers`) on both paths, so a program cannot overwrite them; program `Content-Type` wins over the `_body` default, which requires setting that default **before** `WriteHeader` (it is not sent today — see Review notes 2026-10-08) | `@nowrap` today lets `_headers` overwrite the timing header (order: `:236-237` before `:239`); `corsWrap` sets the operator's CORS headers before the handler runs (`cors.go:28-37`), so program `_headers` can overwrite them today | agent | design | low |
+| D8. `ailang mcp check` grows a framing probe: send a well-formed dummy authorization request to the discovered authorization endpoint and judge only a final 2xx HTML response; FAIL (anthropic/both targets) when neither `X-Frame-Options` nor `frame-ancestors` is present | New check semantics in a submission gate; what counts as FAIL vs WARN is a rules decision | agent | design | low |
 
 ### Design Freeze
 
 Before implementation begins, these must be resolved:
 
-- [ ] D1: defaults-on for `--static` security headers (Mark sign-off at design review — the one
-      deployment-breaking default in this doc)
-- [ ] D4: `_`→`-` remap of record `_headers` labels, with the Json form as the exact-name escape hatch
-      (Mark sign-off — public-surface change to the `_headers` record format introduced in
+- [x] D1: defaults-on for `--static` security headers — **RULED YES by Mark, 2026-10-08** (the one
+      deployment-breaking default in this doc; escape hatches `--static-header` / `--no-static-security-headers`)
+- [x] D4: `_`→`-` remap of record `_headers` labels, with the Json form as the exact-name escape hatch
+      — **RULED YES by Mark, 2026-10-08** (public-surface change to the `_headers` record format introduced in
       `m-serve-api-agent-enhancements.md`)
 - [x] D5: pre-Go-conversion extraction, one shared helper at both sites
 - [x] D6: loud failure at dispatch + registration-time type refusal for `@route`
@@ -184,12 +184,12 @@ Ship Phase 1 as its own PR and release it even if Phase 2 slips; Phase 2 + 3 fol
    `Cache-Control`'s 2xx/304: caching a 404 is a correctness bug, framing it is a security bug.)
 
 2. **`ParseStaticHeader(v string) (name, value string, err error)`** — splits on the first `":"`;
-   trims; validates the name with the existing `isHTTPToken` (`ws_headers.go:57`, RFC 9110 token);
+   trims; validates the name with the existing `isHTTPToken` (`ws_headers.go:67-68`, RFC 9110 token);
    rejects a name that is empty or a control character is in the value; error names both the flag and
    the expected `Name: value` form (fail loudly, principle 2).
 
 3. **`--static-header` (repeatable, D3)** and **`--no-static-security-headers`** in
-   `cmd/ailang/serve_api.go`, using the existing `multiFlag` type (`serve_api.go:34-35`,
+   `cmd/ailang/serve_api.go`, using the existing `multiFlag` type (`serve_api.go:20-21`,
    `--cors-origin` precedent). Effective header map = defaults, then operator entries last-wins per
    name — so `--static-header "X-Frame-Options: SAMEORIGIN"` overrides one default, and the kill
    switch removes the default set wholesale (explicit, greppable, no empty-value magic).
@@ -228,6 +228,10 @@ Ship Phase 1 as its own PR and release it even if Phase 2 slips; Phase 2 + 3 fol
 
    Every name must pass `isHTTPToken` — else a loud error, never an invalid header on the wire.
    Every value must be a string (`*eval.StringValue` / `JString`) — else a loud error.
+   Every value must be free of CR, LF and other control characters (same rule as Phase 1's
+   `ParseStaticHeader`) — else a loud error, never a silently stripped or split header.
+   Names in the server-owned set (D7: `X-Elapsed-Ms`, `Access-Control-*`, `Vary`) are refused
+   loudly or overwritten last — the sprint picks one and pins it with a wire test.
    Loud error = the handler's response becomes a 500 with a structured error naming the accepted
    shapes and the offending field, plus an `[API]` ERROR log (the existing failure channel,
    `routes_dispatch.go:168-176`).
@@ -239,8 +243,13 @@ Ship Phase 1 as its own PR and release it even if Phase 2 slips; Phase 2 + 3 fol
    program headers (D7 — today the program can overwrite it).
 
 3. **`writeRawResponse` site** (`routes_dispatch.go:320-330`, replaced): same helper on
-   `rec.Fields["_headers"]`. Program `Content-Type` still wins over the `_body` default (current
-   behaviour, load-bearing for binary responses). `X-Elapsed-Ms` already set last — unchanged.
+   `rec.Fields["_headers"]`. **Correction (review 2026-10-08):** today the `_body` default
+   `Content-Type` is set *after* `w.WriteHeader(status)` (`routes_dispatch.go:341` vs `:347-359`), so
+   it is never sent and Go sniffs the type instead — the "program `Content-Type` still wins over the
+   `_body` default" behaviour is not current behaviour. Phase 2 moves the default-`Content-Type`
+   selection (program value if set, else the `_body`-type default) **before** `WriteHeader`, pinned
+   by a wire test per body type (bytes, string, JSON fallback). `X-Elapsed-Ms` and the other
+   server-owned headers (D7) are set last, still before `WriteHeader`.
 
 4. **Registration-time type check (D6)**: when reading `@route` annotations
    (`routes.go:93-131`), if the declared return type is a record with a `_headers` field whose
@@ -264,8 +273,12 @@ Ship Phase 1 as its own PR and release it even if Phase 2 slips; Phase 2 + 3 fol
 
 1. **Probe (D8)**: `internal/mcpcheck` already discovers the authorization server
    (`checkAuthorizationServer`, `mcpcheck.go:298`) and fetches well-known metadata. After that, GET
-   the authorization endpoint (follow redirects — the final HTML page is what gets framed), and when
-   the final response carries neither `X-Frame-Options` nor a `Content-Security-Policy` with a
+   the authorization endpoint with a **well-formed dummy authorization request**
+   (`response_type=code`, a dummy `client_id`, `redirect_uri`, `state`, and a PKCE
+   `code_challenge`/`code_challenge_method=S256`) and follow redirects — the final HTML page is what
+   gets framed. A bare GET earns a 400 without security headers and would raise false FAILs, so the
+   probe judges **only a final 2xx HTML response**; any other outcome is a WARN naming the status
+   seen, never a FAIL. When that final 2xx HTML response carries neither `X-Frame-Options` nor a `Content-Security-Policy` with a
    `frame-ancestors` directive, emit a finding: FAIL under `--target anthropic|both` (RFC 9700 is
    the connector rule), WARN under `openai` (Deferred). Unreachable/`--target`-less behaviour
    unchanged; a server without OAuth metadata skips the probe silently (nothing to frame).
@@ -356,6 +369,9 @@ export func worse() -> {_headers: Json} ! {IO} = {_headers: jo([kv("retry-after"
 - [ ] The Goals metrics verified with a fresh binary from this worktree (evidence in the PR)
 - [ ] Phase 1 mergeable and shippable independently of Phase 2 (separate PRs; the split is a success criterion, per scheduling)
 - [ ] Wire-level tests: `X-Frame-Options` + `Content-Security-Policy` on both dispatch paths, both forms
+- [ ] Wire test: the `_body` default `Content-Type` is actually sent (set before `WriteHeader`), and a program `Content-Type` wins
+- [ ] Wire test: program `_headers` cannot overwrite `X-Elapsed-Ms`, `Access-Control-*` or `Vary`
+- [ ] A route header value containing CR/LF or another control character fails loudly
 - [ ] Every loud-failure mode has a test (non-string value, non-JObject Json, invalid token, declared-bad type at registration)
 - [ ] Mutation-tested: revert the remap / the raw-path Json acceptance, watch tests fail
 - [ ] Regression fixtures (below) still pass unmodified
@@ -429,6 +445,30 @@ against a local serve-api with/without the defaults.
 | `mcp check` probe false-FAILs on an AS behind a bot-challenging edge | Medium | Probe failure is `WARN`-downgradable; findings quote the response headers seen; `--target` composition documented |
 | One more wrapper on the static path costs latency | Low | Two map writes per response; no measurable cost in bench |
 
+## Review notes 2026-10-08
+
+**Maintainer rulings (Mark, 2026-10-08):** D1 = YES (static security headers on by default);
+D4 = YES (record `_headers` labels remap `_`→`-`). Both ticked in the Design Freeze.
+
+Review findings, folded into the sections above:
+
+1. **`_body` default `Content-Type` is never sent.** `writeRawResponse` calls `w.WriteHeader(status)`
+   (`internal/apiserver/routes_dispatch.go:341`) before setting the default `Content-Type`
+   (`:347-359`); header writes after `WriteHeader` are ignored, so Go's sniffer picks the type. The
+   doc's earlier "program `Content-Type` still wins over the `_body` default (current behaviour)"
+   claim is corrected in Phase 2 item 3; Phase 2 sets defaults before `WriteHeader`, pinned by a wire test.
+2. **Program `_headers` can overwrite the operator's CORS headers.** `corsWrap` applies the origin
+   policy before the handler runs (`internal/apiserver/cors.go:28-37`), and both `_headers` sites then
+   `Set` whatever the program returns. D7's server-owned set is extended from `X-Elapsed-Ms` to every
+   `Access-Control-*` header and `Vary`.
+3. **D8 framing probe must not judge a bare GET.** A GET of the authorization endpoint without
+   parameters gets a 400 without security headers on most servers — false FAILs. The probe sends a
+   well-formed dummy authorization request and judges only a final 2xx HTML response (Phase 3 item 1).
+4. **Route header values reject CR/LF and other control characters loudly**, the same rule Phase 1
+   applies to `--static-header` (Phase 2 item 1).
+5. **Line refs corrected:** `isHTTPToken` is at `ws_headers.go:67-68`; `multiFlag`/`--cors-origin`
+   at `cmd/ailang/serve_api.go:20-21`; `TestNowrapHeaders_ExtractsFromGoMap` at `named_args_test.go:491`.
+
 ## Verification Log
 
 Every load-bearing claim in this doc, checked against the code or a live run (2026-10-08, HEAD `62ac2d09`,
@@ -445,11 +485,11 @@ binary `ailang` v0.52.5 commit `7200786`; the four live outcomes follow line-by-
 | 6 | Static path sets no security headers; only `Cache-Control` when flagged | grep `nosniff|X-Frame-Options|frame-ancestors|X-Content-Type-Options|Referrer-Policy` over `internal/ cmd/ serveapi/` (non-test) | hits only in `serveapi/protocol/{envelope.go:38, mcphttp/wire.go:67}` (MCP envelopes, not static) — Confirmed |
 | 7 | No CLI flag exists for static response headers | `ailang serve-api --help` + `serve_api.go` flag list | no such flag; `--static-header` unallocated — Confirmed |
 | 8 | `writeRawResponse` has no `_headers` test | read `auth_test.go:122-125` | empty stub, comment only — Confirmed |
-| 9 | `TestNowrapHeaders_ExtractsFromGoMap` tests a re-implementation, not production | read `named_args_test.go:487-523` | loop hand-copied in the test body — Confirmed |
+| 9 | `TestNowrapHeaders_ExtractsFromGoMap` tests a re-implementation, not production | read `named_args_test.go:491` | loop hand-copied in the test body — Confirmed |
 | 10 | Guide `_headers` examples do not compile | `ailang check` of their syntax (`=` in record literal; string-keyed fields) | `PAR016` (row 3's sibling) + row 2 — Confirmed |
-| 11 | `isHTTPToken` exists for name validation | read `ws_headers.go:57-67` | reusable, unexported, same package — Confirmed |
+| 11 | `isHTTPToken` exists for name validation | read `ws_headers.go:67-68` | reusable, unexported, same package — Confirmed |
 | 12 | `FuncDecl.ReturnType` is available at route registration for the declared-type check; AST shape validation has precedent | read `ast/ast_decl.go:49`, `routes.go:93-131` (WS precedent `extractWSReq` at `ws_headers.go:82` reading `fn.Params[1].Type`) | Confirmed |
-| 13 | Repeatable-flag precedent exists (`multiFlag`) | read `serve_api.go:34-35` (`--cors-origin`) | Confirmed |
+| 13 | Repeatable-flag precedent exists (`multiFlag`) | read `serve_api.go:20-21` (`--cors-origin`) | Confirmed |
 | 14 | `--static-cache` wrapper pattern to clone | read `static_cache.go` (parse, handler, writer, `Unwrap`) | Confirmed |
 | 15 | `mcp check` already discovers the authorization server and fetches well-known | read `internal/mcpcheck/mcpcheck.go:298-333` (`checkAuthorizationServer`, `wellKnown`, `getJSON`) | Confirmed — probe hook point exists |
 | 16 | Request-side `_headers: Json` is documented and exemplified (untouched surface) | read `docs/docs/guides/serve-api.md:419,1095-1113`, `examples/runnable/mcp_tools.ail:22`, `serve_api_mcp_header_auth.ail:34` | Confirmed |
