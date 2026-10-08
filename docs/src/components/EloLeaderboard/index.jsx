@@ -6,7 +6,7 @@ import DataProvenance from '../DataProvenance';
 // ELO leaderboard + difficulty-banded benchmark view (M-EVAL-DASHBOARD-REDESIGN).
 // Reads the per-mode `ratings` block emitted into latest.json by eval-report:
 //   ratings[mode] = {
-//     models:[{id,elo,band,benchmarks,lastRun?,lastVersion?}], benchmarks:[{id,elo,band,saturated,passRate,graderFlag?}],
+//     models:[{id,elo,band,benchmarks,core?,lastRun?,lastVersion?}], coreTotal?, benchmarks:[{id,elo,band,saturated,passRate,graderFlag?}],
 //     saturation:{...},
 //     byLang: { ailang:{models,benchmarks,saturation}, python:{...} }   // per-language fits
 //   }
@@ -138,8 +138,17 @@ export default function EloLeaderboard() {
   // benchmark set where a pass rate does not. Sourced from there rather than
   // redeclared here, so the two never silently drift apart again.
   const covThreshold = Math.max(1, Math.ceil(maxCov * ELO_COVERAGE_FRACTION));
-  const isProvisional = (m) => (m.benchmarks || 0) < covThreshold;
+  // Ranking gate (2026-10-08): when the export publishes coreTotal, a model is
+  // RANKED once it has run every core-tier benchmark in this mode and language;
+  // the max-coverage fraction below is the fallback for exports without it.
+  const coreTotal = block.coreTotal || 0;
+  const isProvisional = coreTotal
+    ? (m) => (m.core || 0) < coreTotal
+    : (m) => (m.benchmarks || 0) < covThreshold;
   const models = allModels; // all shown; provisional ones are flagged, not hidden
+  // Rank numbers count ranked rows only, so a provisional row never takes a place.
+  const rankOf = {};
+  models.filter((m) => !isProvisional(m)).forEach((m, k) => { rankOf[m.id] = k; });
 
   // ELO range for the leaderboard bars — over FULL-coverage models so a sparse
   // model's inflated ELO doesn't rescale everyone else's bars.
@@ -256,7 +265,7 @@ export default function EloLeaderboard() {
                   <th style={{ padding: '6px 8px', textAlign: 'center', verticalAlign: 'bottom' }}>#</th>
                   <th style={{ padding: '6px 10px', verticalAlign: 'bottom' }}>Model</th>
                   <th style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'bottom' }}>ELO</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'bottom', fontWeight: 400, color: 'var(--ifm-color-emphasis-500)' }} title="benchmarks run (of the max any model ran)">cov</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'bottom', fontWeight: 400, color: 'var(--ifm-color-emphasis-500)' }} title={coreTotal ? `core-tier benchmarks run (of ${coreTotal}); a model is ranked once it has run all of them` : 'benchmarks run (of the max any model ran)'}>{coreTotal ? 'core' : 'cov'}</th>
                   <th style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'bottom', fontWeight: 400, color: 'var(--ifm-color-emphasis-500)' }} title="AILANG release of this model's newest result (hover a row for the date) — models are measured at different times">last run</th>
                 </tr>
               </thead>
@@ -268,17 +277,17 @@ export default function EloLeaderboard() {
                   return (
                     <tr key={m.id} style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)', opacity: prov ? 0.65 : 1, background: local ? 'rgba(8,145,178,0.08)' : undefined, boxShadow: local ? 'inset 3px 0 0 #0891b2' : undefined }}>
                       <td style={{ padding: '6px 8px', textAlign: 'center', verticalAlign: 'middle', color: 'var(--ifm-color-emphasis-500)', fontVariantNumeric: 'tabular-nums' }}>
-                        {prov ? '·' : (MEDALS[i] || i + 1)}
+                        {prov ? '·' : (MEDALS[rankOf[m.id]] || rankOf[m.id] + 1)}
                       </td>
                       <td style={{ padding: 0, verticalAlign: 'middle' }}>
                         <div style={{ position: 'relative', padding: '6px 10px' }}>
                           <div style={{
                             position: 'absolute', top: 3, bottom: 3, left: 0, width: `${pct}%`,
                             background: prov ? 'var(--ifm-color-emphasis-500)' : 'var(--ifm-color-primary)',
-                            opacity: prov ? 0.1 : (i === 0 ? 0.24 : 0.13),
+                            opacity: prov ? 0.1 : (rankOf[m.id] === 0 ? 0.24 : 0.13),
                             borderRadius: '0 4px 4px 0',
                           }} />
-                          <span style={{ position: 'relative', fontWeight: (!prov && i === 0) ? 700 : 400, fontStyle: prov ? 'italic' : 'normal' }}>{modelShort(m.id)}</span>
+                          <span style={{ position: 'relative', fontWeight: (!prov && rankOf[m.id] === 0) ? 700 : 400, fontStyle: prov ? 'italic' : 'normal' }}>{modelShort(m.id)}</span>
                           {local && (
                             <span style={{ position: 'relative', marginLeft: 6 }}
                               title="On-device GPU agent: a local Qwen run through an agentic harness — slow, ~$0/run. Not directly comparable to hosted 0-shot models, shown for the free-local-option story.">
@@ -291,8 +300,10 @@ export default function EloLeaderboard() {
                         {Math.round(m.elo)}
                       </td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontSize: '0.85em', color: prov ? '#b45309' : 'var(--ifm-color-emphasis-500)', fontWeight: prov ? 700 : 400 }}
-                          title={prov ? `provisional — only ${m.benchmarks} of ${maxCov} benchmarks run so far; ELO not yet comparable` : `${m.benchmarks} benchmarks`}>
-                        {m.benchmarks != null ? m.benchmarks : '—'}
+                          title={coreTotal
+                            ? `${m.core || 0} of ${coreTotal} core benchmarks (${m.benchmarks} benchmarks in total)${prov ? ' — provisional until core is complete' : ''}`
+                            : (prov ? `provisional — only ${m.benchmarks} of ${maxCov} benchmarks run so far; ELO not yet comparable` : `${m.benchmarks} benchmarks`)}>
+                        {coreTotal ? `${m.core || 0}/${coreTotal}` : (m.benchmarks != null ? m.benchmarks : '—')}
                       </td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontSize: '0.85em', color: 'var(--ifm-color-emphasis-500)', whiteSpace: 'nowrap' }}
                           title={m.lastRun ? `newest result ${m.lastRun}` : undefined}>
@@ -305,7 +316,9 @@ export default function EloLeaderboard() {
             </table>
             {models.some(isProvisional) && (
               <p style={{ fontSize: '0.8em', color: 'var(--ifm-color-emphasis-600)', marginTop: 6 }}>
-                <span style={{ color: '#b45309', fontWeight: 700 }}>Provisional</span> rows (italic, low <strong>cov</strong>) have only run a fraction of the {maxCov} benchmarks — their ELO isn't yet comparable and settles as the rotation fills coverage in.
+                {coreTotal
+                  ? <><span style={{ color: '#b45309', fontWeight: 700 }}>Provisional</span> rows (italic) have not yet run all {coreTotal} core benchmarks — a model is ranked once it has. Its rating still uses every result it has.</>
+                  : <><span style={{ color: '#b45309', fontWeight: 700 }}>Provisional</span> rows (italic, low <strong>cov</strong>) have only run a fraction of the {maxCov} benchmarks — their ELO isn't yet comparable and settles as the rotation fills coverage in.</>}
               </p>
             )}
           </div>

@@ -1,6 +1,6 @@
 {
   "version": "v0.52.5",
-  "timestamp": "2026-10-08T17:12:32+02:00",
+  "timestamp": "2026-10-08T17:23:30+02:00",
   "totalRuns": 700,
   "aggregates": {
     "agentBenchmarks": [
@@ -35608,7 +35608,7 @@
   "history": [
     {
       "version": "v0.52.5",
-      "timestamp": "2026-10-08T17:12:28+02:00",
+      "timestamp": "2026-10-08T17:23:27+02:00",
       "successRate": 0.8785714285714286,
       "totalRuns": 700,
       "successCount": 615,
@@ -63397,11 +63397,13 @@
               "saturated": true
             }
           ],
+          "coreTotal": 23,
           "maxCoverage": 72,
           "models": [
             {
               "band": "Very hard",
               "benchmarks": 5,
+              "core": 0,
               "elo": 2687.4,
               "id": "claude-haiku-5-5",
               "lastRun": "2026-10-08",
@@ -63410,6 +63412,7 @@
             {
               "band": "Very hard",
               "benchmarks": 23,
+              "core": 0,
               "elo": 2451.3,
               "id": "motoko-or-glm-5-3-flash",
               "lastRun": "2026-08-27",
@@ -63418,6 +63421,7 @@
             {
               "band": "Very hard",
               "benchmarks": 31,
+              "core": 23,
               "elo": 2402.4,
               "id": "gpt6-1-sol",
               "lastRun": "2026-10-02",
@@ -63426,6 +63430,7 @@
             {
               "band": "Very hard",
               "benchmarks": 28,
+              "core": 21,
               "elo": 2371.5,
               "id": "gpt6-sol",
               "lastRun": "2026-09-30",
@@ -63434,6 +63439,7 @@
             {
               "band": "Very hard",
               "benchmarks": 30,
+              "core": 23,
               "elo": 2349.4,
               "id": "gpt6-astra",
               "lastRun": "2026-09-30",
@@ -63442,6 +63448,7 @@
             {
               "band": "Very hard",
               "benchmarks": 61,
+              "core": 20,
               "elo": 2263.9,
               "id": "motoko-local-qwen3-8-27b",
               "lastRun": "2026-09-27",
@@ -63450,6 +63457,7 @@
             {
               "band": "Very hard",
               "benchmarks": 66,
+              "core": 23,
               "elo": 2236.4,
               "id": "motoko-local-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-18",
@@ -63458,6 +63466,7 @@
             {
               "band": "Very hard",
               "benchmarks": 42,
+              "core": 19,
               "elo": 2116.5,
               "id": "claude-sonnet-5-5",
               "lastRun": "2026-09-29",
@@ -63466,6 +63475,7 @@
             {
               "band": "Very hard",
               "benchmarks": 23,
+              "core": 0,
               "elo": 2092.3,
               "id": "pi-or-glm-5-3-flash",
               "lastRun": "2026-10-02",
@@ -63474,6 +63484,7 @@
             {
               "band": "Very hard",
               "benchmarks": 72,
+              "core": 23,
               "elo": 2084.5,
               "id": "pi-qwen3-8-27b",
               "lastRun": "2026-10-08",
@@ -63482,6 +63493,7 @@
             {
               "band": "Very hard",
               "benchmarks": 29,
+              "core": 1,
               "elo": 2069,
               "id": "motoko-or-deepseek-v4-flash",
               "lastRun": "2026-10-02",
@@ -63490,6 +63502,7 @@
             {
               "band": "Very hard",
               "benchmarks": 23,
+              "core": 0,
               "elo": 2023.6,
               "id": "motoko-lane-or-glm-5-3-flash",
               "lastRun": "2026-10-02",
@@ -63498,6 +63511,7 @@
             {
               "band": "Very hard",
               "benchmarks": 72,
+              "core": 23,
               "elo": 2022.9,
               "id": "opencode-qwen3-8-27b",
               "lastRun": "2026-10-08",
@@ -63506,6 +63520,7 @@
             {
               "band": "Very hard",
               "benchmarks": 51,
+              "core": 21,
               "elo": 1993.2,
               "id": "motoko-local-qwen3-8-27b-microrag",
               "lastRun": "2026-10-08",
@@ -63514,6 +63529,7 @@
             {
               "band": "Hard",
               "benchmarks": 23,
+              "core": 0,
               "elo": 1802.1,
               "id": "opencode-or-glm-5-3-flash",
               "lastRun": "2026-09-03",
@@ -63522,6 +63538,7 @@
             {
               "band": "Hard",
               "benchmarks": 72,
+              "core": 23,
               "elo": 1709.7,
               "id": "pi-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-17",
@@ -63530,6 +63547,7 @@
             {
               "band": "Hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 1708.1,
               "id": "pi-qwen3-5-35b-a3b-mxfp8",
               "lastRun": "2026-06-15"
@@ -63537,6 +63555,7 @@
             {
               "band": "Moderate",
               "benchmarks": 39,
+              "core": 14,
               "elo": 1529.1,
               "id": "opencode-qwen3-5-35b-a3b-mxfp8",
               "lastRun": "2026-06-14"
@@ -63544,6 +63563,7 @@
             {
               "band": "Trivial",
               "benchmarks": 72,
+              "core": 23,
               "elo": 1284.2,
               "id": "opencode-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-16",
@@ -63832,11 +63852,13 @@
               "saturated": true
             }
           ],
+          "coreTotal": 23,
           "maxCoverage": 39,
           "models": [
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2910.5,
               "id": "pi-qwen3-8-27b",
               "lastRun": "2026-09-02",
@@ -63845,6 +63867,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2905.4,
               "id": "opencode-qwen3-8-27b",
               "lastRun": "2026-09-02",
@@ -63853,6 +63876,7 @@
             {
               "band": "Very hard",
               "benchmarks": 36,
+              "core": 14,
               "elo": 2905,
               "id": "motoko-local-qwen3-8-27b",
               "lastRun": "2026-09-02",
@@ -63861,6 +63885,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2265.5,
               "id": "motoko-local-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-10",
@@ -63869,6 +63894,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2058.1,
               "id": "pi-qwen3-5-35b-a3b-mxfp8",
               "lastRun": "2026-06-15"
@@ -63876,6 +63902,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 1954.8,
               "id": "pi-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-10",
@@ -63884,6 +63911,7 @@
             {
               "band": "Hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 1861,
               "id": "opencode-qwen3-5-35b-a3b-mxfp8",
               "lastRun": "2026-06-14"
@@ -63891,6 +63919,7 @@
             {
               "band": "Easy",
               "benchmarks": 39,
+              "core": 14,
               "elo": 1363.8,
               "id": "opencode-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-10",
@@ -64179,11 +64208,13 @@
               "saturated": true
             }
           ],
+          "coreTotal": 23,
           "maxCoverage": 39,
           "models": [
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2785.4,
               "id": "pi-qwen3-8-27b",
               "lastRun": "2026-09-02",
@@ -64192,6 +64223,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2265.3,
               "id": "opencode-qwen3-8-27b",
               "lastRun": "2026-09-02",
@@ -64200,6 +64232,7 @@
             {
               "band": "Very hard",
               "benchmarks": 36,
+              "core": 14,
               "elo": 2251.5,
               "id": "motoko-local-qwen3-8-27b",
               "lastRun": "2026-09-02",
@@ -64208,6 +64241,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2163.1,
               "id": "pi-qwen3-5-35b-a3b-mxfp8",
               "lastRun": "2026-06-15"
@@ -64215,6 +64249,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2073.8,
               "id": "motoko-local-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-10",
@@ -64223,6 +64258,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2070.1,
               "id": "pi-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-10",
@@ -64231,6 +64267,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 1928.7,
               "id": "opencode-qwen3-5-35b-a3b-mxfp8",
               "lastRun": "2026-06-14"
@@ -64238,6 +64275,7 @@
             {
               "band": "Easy",
               "benchmarks": 39,
+              "core": 14,
               "elo": 1356.3,
               "id": "opencode-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-10",
@@ -64367,14 +64405,14 @@
             {
               "band": "Moderate",
               "elo": 1552.1,
-              "id": "pattern_matching_complex",
+              "id": "float_eq",
               "passRate": 91.7,
               "saturated": false
             },
             {
               "band": "Moderate",
               "elo": 1552.1,
-              "id": "float_eq",
+              "id": "pattern_matching_complex",
               "passRate": 91.7,
               "saturated": false
             },
@@ -64526,11 +64564,13 @@
               "saturated": true
             }
           ],
+          "coreTotal": 23,
           "maxCoverage": 39,
           "models": [
             {
               "band": "Very hard",
               "benchmarks": 36,
+              "core": 14,
               "elo": 2859.5,
               "id": "motoko-local-qwen3-8-27b",
               "lastRun": "2026-09-02",
@@ -64539,6 +64579,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2425,
               "id": "motoko-local-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-10",
@@ -64547,6 +64588,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2370.7,
               "id": "opencode-qwen3-8-27b",
               "lastRun": "2026-09-02",
@@ -64555,6 +64597,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2354.8,
               "id": "pi-qwen3-8-27b",
               "lastRun": "2026-09-02",
@@ -64563,6 +64606,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2220.8,
               "id": "pi-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-10",
@@ -64571,6 +64615,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2151.9,
               "id": "pi-qwen3-5-35b-a3b-mxfp8",
               "lastRun": "2026-06-15"
@@ -64578,6 +64623,7 @@
             {
               "band": "Very hard",
               "benchmarks": 39,
+              "core": 14,
               "elo": 2062.7,
               "id": "opencode-qwen3-5-35b-a3b-mxfp8",
               "lastRun": "2026-06-14"
@@ -64585,6 +64631,7 @@
             {
               "band": "Easy",
               "benchmarks": 39,
+              "core": 14,
               "elo": 1411.7,
               "id": "opencode-qwen3-6-35b-a3b-mxfp8",
               "lastRun": "2026-08-10",
@@ -64598,11 +64645,13 @@
           }
         }
       },
+      "coreTotal": 23,
       "maxCoverage": 72,
       "models": [
         {
           "band": "Very hard",
           "benchmarks": 5,
+          "core": 0,
           "elo": 2676.5,
           "id": "claude-haiku-5-5",
           "lastRun": "2026-10-08",
@@ -64611,6 +64660,7 @@
         {
           "band": "Very hard",
           "benchmarks": 23,
+          "core": 0,
           "elo": 2448.1,
           "id": "motoko-or-glm-5-3-flash",
           "lastRun": "2026-08-27",
@@ -64619,6 +64669,7 @@
         {
           "band": "Very hard",
           "benchmarks": 31,
+          "core": 23,
           "elo": 2369,
           "id": "gpt6-1-sol",
           "lastRun": "2026-10-02",
@@ -64627,6 +64678,7 @@
         {
           "band": "Very hard",
           "benchmarks": 28,
+          "core": 21,
           "elo": 2343.2,
           "id": "gpt6-sol",
           "lastRun": "2026-09-30",
@@ -64635,6 +64687,7 @@
         {
           "band": "Very hard",
           "benchmarks": 30,
+          "core": 23,
           "elo": 2306.8,
           "id": "gpt6-astra",
           "lastRun": "2026-09-30",
@@ -64643,6 +64696,7 @@
         {
           "band": "Very hard",
           "benchmarks": 64,
+          "core": 22,
           "elo": 2245.1,
           "id": "motoko-local-qwen3-8-27b",
           "lastRun": "2026-09-27",
@@ -64651,6 +64705,7 @@
         {
           "band": "Very hard",
           "benchmarks": 72,
+          "core": 23,
           "elo": 2100.9,
           "id": "pi-qwen3-8-27b",
           "lastRun": "2026-10-08",
@@ -64659,6 +64714,7 @@
         {
           "band": "Very hard",
           "benchmarks": 66,
+          "core": 23,
           "elo": 2082.8,
           "id": "motoko-local-qwen3-6-35b-a3b-mxfp8",
           "lastRun": "2026-08-18",
@@ -64667,6 +64723,7 @@
         {
           "band": "Very hard",
           "benchmarks": 23,
+          "core": 0,
           "elo": 2066.4,
           "id": "pi-or-glm-5-3-flash",
           "lastRun": "2026-10-02",
@@ -64675,6 +64732,7 @@
         {
           "band": "Very hard",
           "benchmarks": 29,
+          "core": 1,
           "elo": 2045.7,
           "id": "motoko-or-deepseek-v4-flash",
           "lastRun": "2026-10-02",
@@ -64683,6 +64741,7 @@
         {
           "band": "Very hard",
           "benchmarks": 72,
+          "core": 23,
           "elo": 2037,
           "id": "opencode-qwen3-8-27b",
           "lastRun": "2026-10-08",
@@ -64691,6 +64750,7 @@
         {
           "band": "Very hard",
           "benchmarks": 42,
+          "core": 19,
           "elo": 2027.3,
           "id": "claude-sonnet-5-5",
           "lastRun": "2026-09-29",
@@ -64699,6 +64759,7 @@
         {
           "band": "Very hard",
           "benchmarks": 23,
+          "core": 0,
           "elo": 1995.1,
           "id": "motoko-lane-or-glm-5-3-flash",
           "lastRun": "2026-10-02",
@@ -64707,6 +64768,7 @@
         {
           "band": "Very hard",
           "benchmarks": 51,
+          "core": 21,
           "elo": 1945,
           "id": "motoko-local-qwen3-8-27b-microrag",
           "lastRun": "2026-10-08",
@@ -64715,6 +64777,7 @@
         {
           "band": "Hard",
           "benchmarks": 23,
+          "core": 0,
           "elo": 1804.9,
           "id": "opencode-or-glm-5-3-flash",
           "lastRun": "2026-09-03",
@@ -64723,6 +64786,7 @@
         {
           "band": "Hard",
           "benchmarks": 39,
+          "core": 14,
           "elo": 1800.1,
           "id": "pi-qwen3-5-35b-a3b-mxfp8",
           "lastRun": "2026-06-15"
@@ -64730,6 +64794,7 @@
         {
           "band": "Hard",
           "benchmarks": 72,
+          "core": 23,
           "elo": 1773.7,
           "id": "pi-qwen3-6-35b-a3b-mxfp8",
           "lastRun": "2026-08-17",
@@ -64738,6 +64803,7 @@
         {
           "band": "Moderate",
           "benchmarks": 39,
+          "core": 14,
           "elo": 1675.9,
           "id": "opencode-qwen3-5-35b-a3b-mxfp8",
           "lastRun": "2026-06-14"
@@ -64745,6 +64811,7 @@
         {
           "band": "Trivial",
           "benchmarks": 72,
+          "core": 23,
           "elo": 1289.7,
           "id": "opencode-qwen3-6-35b-a3b-mxfp8",
           "lastRun": "2026-08-16",
@@ -65094,15 +65161,15 @@
         {
           "band": "Easy",
           "elo": 1448.7,
-          "id": "bytecode_vm_trace",
-          "passRate": 66.7,
+          "id": "polymorphic_ord_defaulting",
+          "passRate": 100,
           "saturated": false
         },
         {
           "band": "Easy",
           "elo": 1448.7,
-          "id": "polymorphic_ord_defaulting",
-          "passRate": 100,
+          "id": "bytecode_vm_trace",
+          "passRate": 66.7,
           "saturated": false
         },
         {
@@ -65709,14 +65776,14 @@
             {
               "band": "Easy",
               "elo": 1461.6,
-              "id": "symbolic_diff",
+              "id": "stream_lcg_topk",
               "passRate": 100,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1461.6,
-              "id": "stream_lcg_topk",
+              "id": "symbolic_diff",
               "passRate": 100,
               "saturated": false
             },
@@ -65968,14 +66035,14 @@
             {
               "band": "Trivial",
               "elo": 1184.7,
-              "id": "explicit_state_threading",
+              "id": "canonical_convergence",
               "passRate": 100,
               "saturated": true
             },
             {
               "band": "Trivial",
               "elo": 1184.7,
-              "id": "canonical_convergence",
+              "id": "explicit_state_threading",
               "passRate": 100,
               "saturated": true
             },
@@ -66099,11 +66166,13 @@
               "saturated": true
             }
           ],
+          "coreTotal": 23,
           "maxCoverage": 92,
           "models": [
             {
               "band": "Very hard",
               "benchmarks": 31,
+              "core": 23,
               "elo": 2678.5,
               "id": "claude-fable-5-1",
               "lastRun": "2026-09-02",
@@ -66112,6 +66181,7 @@
             {
               "band": "Very hard",
               "benchmarks": 32,
+              "core": 23,
               "elo": 2512.8,
               "id": "claude-opus-5-5",
               "lastRun": "2026-09-22",
@@ -66120,6 +66190,7 @@
             {
               "band": "Very hard",
               "benchmarks": 32,
+              "core": 23,
               "elo": 2348.5,
               "id": "gpt6-sol",
               "lastRun": "2026-09-22",
@@ -66128,6 +66199,7 @@
             {
               "band": "Very hard",
               "benchmarks": 29,
+              "core": 23,
               "elo": 2322.2,
               "id": "claude-sonnet-5-5",
               "lastRun": "2026-09-29",
@@ -66136,6 +66208,7 @@
             {
               "band": "Very hard",
               "benchmarks": 92,
+              "core": 23,
               "elo": 2320.8,
               "id": "gemini-3-8-flash",
               "lastRun": "2026-09-02",
@@ -66144,6 +66217,7 @@
             {
               "band": "Very hard",
               "benchmarks": 33,
+              "core": 21,
               "elo": 2276.7,
               "id": "gemini-3-7-flash",
               "lastRun": "2026-09-02",
@@ -66152,6 +66226,7 @@
             {
               "band": "Very hard",
               "benchmarks": 49,
+              "core": 23,
               "elo": 2205.9,
               "id": "claude-haiku-5-5",
               "lastRun": "2026-10-08",
@@ -66160,6 +66235,7 @@
             {
               "band": "Very hard",
               "benchmarks": 69,
+              "core": 23,
               "elo": 2096.6,
               "id": "or-deepseek-v4-1-flash",
               "lastRun": "2026-09-25",
@@ -66168,6 +66244,7 @@
             {
               "band": "Very hard",
               "benchmarks": 32,
+              "core": 23,
               "elo": 2061.2,
               "id": "gpt6-luna",
               "lastRun": "2026-09-22",
@@ -66176,6 +66253,7 @@
             {
               "band": "Very hard",
               "benchmarks": 54,
+              "core": 23,
               "elo": 1981,
               "id": "or-hy4-preview",
               "lastRun": "2026-09-01",
@@ -66184,6 +66262,7 @@
             {
               "band": "Very hard",
               "benchmarks": 10,
+              "core": 3,
               "elo": 1949.1,
               "id": "gpt5-6-sol",
               "lastRun": "2026-09-01",
@@ -66192,6 +66271,7 @@
             {
               "band": "Very hard",
               "benchmarks": 9,
+              "core": 2,
               "elo": 1944.9,
               "id": "gpt5-6-terra",
               "lastRun": "2026-08-27",
@@ -66200,6 +66280,7 @@
             {
               "band": "Very hard",
               "benchmarks": 54,
+              "core": 23,
               "elo": 1932,
               "id": "or-glm-5-3-flash",
               "lastRun": "2026-09-03",
@@ -66208,6 +66289,7 @@
             {
               "band": "Hard",
               "benchmarks": 31,
+              "core": 23,
               "elo": 1887.4,
               "id": "or-glm-5-2",
               "lastRun": "2026-08-27",
@@ -66216,6 +66298,7 @@
             {
               "band": "Easy",
               "benchmarks": 47,
+              "core": 23,
               "elo": 1432.8,
               "id": "or-deepseek-v4-flash",
               "lastRun": "2026-09-25",
@@ -66472,14 +66555,14 @@
             {
               "band": "Easy",
               "elo": 1448.7,
-              "id": "polymorphic_ord_defaulting",
+              "id": "bytecode_vm_trace",
               "passRate": 0,
               "saturated": false
             },
             {
               "band": "Easy",
               "elo": 1448.7,
-              "id": "bytecode_vm_trace",
+              "id": "polymorphic_ord_defaulting",
               "passRate": 0,
               "saturated": false
             },
@@ -66624,11 +66707,13 @@
               "saturated": true
             }
           ],
+          "coreTotal": 23,
           "maxCoverage": 17,
           "models": [
             {
               "band": "Hard",
               "benchmarks": 16,
+              "core": 11,
               "elo": 1755.2,
               "id": "gpt6-luna",
               "lastRun": "2026-09-22",
@@ -66642,11 +66727,13 @@
           }
         }
       },
+      "coreTotal": 23,
       "maxCoverage": 92,
       "models": [
         {
           "band": "Very hard",
           "benchmarks": 31,
+          "core": 23,
           "elo": 2680.1,
           "id": "claude-fable-5-1",
           "lastRun": "2026-09-02",
@@ -66655,6 +66742,7 @@
         {
           "band": "Very hard",
           "benchmarks": 32,
+          "core": 23,
           "elo": 2620.1,
           "id": "claude-opus-5-5",
           "lastRun": "2026-09-22",
@@ -66663,6 +66751,7 @@
         {
           "band": "Very hard",
           "benchmarks": 32,
+          "core": 23,
           "elo": 2466.8,
           "id": "gpt6-sol",
           "lastRun": "2026-09-22",
@@ -66671,6 +66760,7 @@
         {
           "band": "Very hard",
           "benchmarks": 29,
+          "core": 23,
           "elo": 2323.8,
           "id": "claude-sonnet-5-5",
           "lastRun": "2026-09-29",
@@ -66679,6 +66769,7 @@
         {
           "band": "Very hard",
           "benchmarks": 92,
+          "core": 23,
           "elo": 2321.4,
           "id": "gemini-3-8-flash",
           "lastRun": "2026-09-02",
@@ -66687,6 +66778,7 @@
         {
           "band": "Very hard",
           "benchmarks": 33,
+          "core": 21,
           "elo": 2276.7,
           "id": "gemini-3-7-flash",
           "lastRun": "2026-09-02",
@@ -66695,6 +66787,7 @@
         {
           "band": "Very hard",
           "benchmarks": 49,
+          "core": 23,
           "elo": 2208.1,
           "id": "claude-haiku-5-5",
           "lastRun": "2026-10-08",
@@ -66703,6 +66796,7 @@
         {
           "band": "Very hard",
           "benchmarks": 69,
+          "core": 23,
           "elo": 2097.2,
           "id": "or-deepseek-v4-1-flash",
           "lastRun": "2026-09-25",
@@ -66711,6 +66805,7 @@
         {
           "band": "Very hard",
           "benchmarks": 54,
+          "core": 23,
           "elo": 1981.4,
           "id": "or-hy4-preview",
           "lastRun": "2026-09-01",
@@ -66719,6 +66814,7 @@
         {
           "band": "Very hard",
           "benchmarks": 10,
+          "core": 3,
           "elo": 1950.8,
           "id": "gpt5-6-sol",
           "lastRun": "2026-09-01",
@@ -66727,6 +66823,7 @@
         {
           "band": "Very hard",
           "benchmarks": 9,
+          "core": 2,
           "elo": 1946.6,
           "id": "gpt5-6-terra",
           "lastRun": "2026-08-27",
@@ -66735,6 +66832,7 @@
         {
           "band": "Very hard",
           "benchmarks": 32,
+          "core": 23,
           "elo": 1934.6,
           "id": "gpt6-luna",
           "lastRun": "2026-09-22",
@@ -66743,6 +66841,7 @@
         {
           "band": "Very hard",
           "benchmarks": 54,
+          "core": 23,
           "elo": 1932.1,
           "id": "or-glm-5-3-flash",
           "lastRun": "2026-09-03",
@@ -66751,6 +66850,7 @@
         {
           "band": "Hard",
           "benchmarks": 31,
+          "core": 23,
           "elo": 1887.1,
           "id": "or-glm-5-2",
           "lastRun": "2026-08-27",
@@ -66759,6 +66859,7 @@
         {
           "band": "Easy",
           "benchmarks": 47,
+          "core": 23,
           "elo": 1431.5,
           "id": "or-deepseek-v4-flash",
           "lastRun": "2026-09-25",

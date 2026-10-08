@@ -154,3 +154,31 @@ func TestRatingsForMode_AnchoredDropsDegenerateAndStampsLastRun(t *testing.T) {
 		t.Errorf("lastVersion = %v, want v0.52.3 (version of the newest result)", m["lastVersion"])
 	}
 }
+
+// TestRatingsForMode_CoreGate: each row reports how many core-tier benchmarks it
+// ran and the block reports the core total, so the site ranks only full-core models.
+func TestRatingsForMode_CoreGate(t *testing.T) {
+	coreOnce.Do(func() {}) // pin the set below instead of reading ./benchmarks
+	saved := coreSet
+	coreSet = map[string]bool{"c1": true, "c2": true}
+	defer func() { coreSet = saved }()
+
+	mk := func(id, model string, ok bool) *BenchmarkResult {
+		return &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: id, Lang: "ailang", Model: model, CompileOk: ok, RuntimeOk: ok, StdoutOk: ok}}
+	}
+	results := []*BenchmarkResult{
+		mk("c1", "full", true), mk("c2", "full", false), mk("x", "full", true),
+		mk("c1", "partial", true), mk("x", "partial", false),
+	}
+	block := ratingsForMode(results, false)
+	if block["coreTotal"] != 2 {
+		t.Fatalf("coreTotal = %v, want 2", block["coreTotal"])
+	}
+	core := map[string]interface{}{}
+	for _, m := range block["models"].([]map[string]interface{}) {
+		core[m["id"].(string)] = m["core"]
+	}
+	if core["full"] != 2 || core["partial"] != 1 {
+		t.Errorf("core coverage = %v, want full=2 partial=1", core)
+	}
+}
