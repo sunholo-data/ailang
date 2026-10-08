@@ -93,6 +93,7 @@ Arbitrary AILANG records and other ADTs are not accepted as input.
 
 ## Semantics and limits
 
+- **Key order.** Mapping keys are emitted in document order, including nested mappings and mappings in sequences. `decode` preserves that order in `std/json.keys`. Merge keys (`<<`) insert inherited keys at the merge position in source order; explicit keys override inherited keys regardless of position, and earlier sources in a merge sequence win conflicts. Nothing is sorted.
 - **Single document.** Only the first document of a multi-document stream (`---` separated) is read. `decodeAll` is future work.
 - **No silent coercion.** Any YAML that has no JSON representation returns `Err` rather than a guessed value:
   - **non-string map keys** (`1: a`, `true: x`) — JSON object keys must be strings;

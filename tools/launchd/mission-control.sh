@@ -870,11 +870,20 @@ PREFS="${MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6.1-sol}"
 # This chain is safe to extend with a `codex:*` entry — unlike the per-role
 # chains below — because the controller selector probes EVERY entry it walks
 # (_mc_probe_codex per codex:* rung), rather than handing off to a later loop.
-CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-pi:ollama/glm-5.3:cloud,pi:openrouter/z-ai/glm-5.3}"
+# OPENROUTER GLM RUNG RETIRED (Mark, attended 2026-10-07, option B). A controller drives the
+# whole iteration and re-sends its context every turn, which a metered bucket cannot carry:
+# stapledon's 2026-10-07 GLM controller fire ran 280 turns / 47.9M cache-read tokens (~$15 at
+# list) against a $2.33/day OpenRouter ration. Six other fires on this rung died on HTTP 402
+# because pi asked for ~935k output tokens (no maxTokens for the model in pi's models.json —
+# a config fault, since capped). The model itself was not the problem: across 12 failed GLM
+# fires one was model behaviour. The flat-rate Ollama GLM rung stays as the last resort, and
+# GLM stays a designer and quorum reviewer.
+CONTROLLER_FALLBACK="${MISSION_CONTROLLER_FALLBACK:-pi:ollama/glm-5.3:cloud}"
 NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"   # per-notify wall-clock cap, seconds (D-60)
 
 # Model probes + ration gate live in lib/lane-probe.sh (shared with mission-lane-check.sh).
 . "$MC_DRIVER_ROOT/tools/launchd/lib/lane-probe.sh"
+. "$MC_DRIVER_ROOT/tools/launchd/lib/codex-env-args.sh"
 
 # ---- runtime bucket exhaustion (M-QUOTA-RATIONING-ROUTING M4) -------------
 #
@@ -2263,10 +2272,17 @@ _mc_run_once() {
   rmdir "$_mc_hard_trigger" "$_mc_stall_trigger" 2>/dev/null || true
   printf '%s\t%s\tfired\t%s\t\n' "$(date +%s)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$MISSION_ATTEMPT" > "$_mc_heartbeat"
   # --- ATTEMPT HEARTBEAT END ---
+  # --- CODEX CONTROLLER EXEC START ---
   if [ "$CONTROLLER_PROVIDER" = "codex" ]; then
-    codex exec --skip-git-repo-check \
+    # codex's shell_environment_policy (inherit=core on the rig) strips the driver's exports from
+    # the controller's shells; forward the role env + scope guard per-variable (lib/codex-env-args.sh).
+    # ${arr[@]+…} because an empty array under `set -u` aborts in bash 3.2.
+    MC_CODEX_ENV_ARGS=()
+    mc_codex_env_args 2>>"$LOG"
+    codex exec ${MC_CODEX_ENV_ARGS[@]+"${MC_CODEX_ENV_ARGS[@]}"} --skip-git-repo-check \
       --dangerously-bypass-approvals-and-sandbox \
       --model "$MODEL" -C "$REPO" "$PROMPT" >>"$LOG" 2>&1 &
+  # --- CODEX CONTROLLER EXEC END ---
   elif [ "$CONTROLLER_PROVIDER" = "pi" ]; then
     # Last-resort rungs (Mark 2026-08-31): a pi-driven GLM controller is weaker than
     # opus/codex but keeps the loop breathing through a joint Anthropic+codex dry-out —
