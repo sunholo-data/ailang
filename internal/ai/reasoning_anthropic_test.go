@@ -20,6 +20,7 @@ func TestAnthropicThinkingStyleFor(t *testing.T) {
 		{"claude-opus-4-8", true, true, true},
 		{"claude-opus-4-7", true, true, true},
 		{"claude-sonnet-5", true, true, true},
+		{"claude-haiku-5-5", true, true, true},
 		// Always-on thinking: explicit disablement is rejected by the API.
 		{"claude-fable-5", true, true, false},
 		{"claude-mythos-5", true, true, false},

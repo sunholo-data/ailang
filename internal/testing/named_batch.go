@@ -196,8 +196,9 @@ func (m *mappedError) Unwrap() error { return m.err }
 var (
 	// A position in the private temp file a batch is compiled in. The dir is
 	// random per compile, so today's messages already differ run to run.
-	batchTempPos = regexp.MustCompile(`/?[^\s(]*ailang-namedtest-\d+/[^\s:/]+\.ail:(\d+)(:\d+)?`)
-	batchTempDir = regexp.MustCompile(`/?[^\s(]*ailang-namedtest-\d+/`)
+	// Either separator: Windows reports C:\...\ailang-namedtest-N\file.ail.
+	batchTempPos = regexp.MustCompile(`[/\\]?[^\s(]*ailang-namedtest-\d+[/\\][^\s:/\\]+\.ail:(\d+)(:\d+)?`)
+	batchTempDir = regexp.MustCompile(`[/\\]?[^\s(]*ailang-namedtest-\d+[/\\]`)
 )
 
 // mapBatchPositions rewrites temp-file positions in a batched entry's error
@@ -221,7 +222,7 @@ func (e *Executor) mapPositions(msg string, ent namedEntry, lineMap []int) strin
 		}
 		return m
 	})
-	return batchTempDir.ReplaceAllString(msg, filepath.Dir(e.modulePath)+"/")
+	return batchTempDir.ReplaceAllLiteralString(msg, filepath.Dir(e.modulePath)+string(filepath.Separator))
 }
 
 func (e *Executor) runBatchedEntry(ent namedEntry) (eval.Value, error) {

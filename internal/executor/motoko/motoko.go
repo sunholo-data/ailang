@@ -389,7 +389,10 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	if runTimeout < 5*time.Minute {
 		runTimeout = 3 * time.Hour
 	}
-	runCtx, cancelRun := context.WithTimeout(ctx, runTimeout)
+	// The idle watcher cancels idleCtx; the wall-clock bound sits under it.
+	idleCtx, cancelIdle := context.WithCancel(ctx)
+	defer cancelIdle()
+	runCtx, cancelRun := context.WithTimeout(idleCtx, runTimeout)
 	defer cancelRun()
 	// Observability: the effective wall-clock bound was invisible and cost a multi-run diagnosis
 	// (a too-short bound silently killed long agent runs mid-step). Always surface it on stderr.
@@ -560,7 +563,9 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	cmd.Stdout = cmd.Stderr
 
 	startTime := time.Now()
+	stopWatch := startIdleWatch(runCtx, task.IdleTimeout, sessionActivity(task.Workspace, sessionID, e.motokoRepo, stderrLogPath), cancelIdle)
 	runErr := runRegisteredCommand(cmd)
+	idleNote := stopWatch()
 	if err := runErr; err != nil {
 		// Process failure is NOT necessarily a task failure — the JSONL may
 		// still contain a valid run_summary with finish_reason="error".
@@ -586,7 +591,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 		span.SetStatus(codes.Error, "session jsonl not found")
 		return &executor.Result{
 			Success: false,
-			Error: noUsableSessionError(
+			Error: idleNote + noUsableSessionError(
 				fmt.Sprintf("motoko ran but no session JSONL found: %v", findErr),
 				runErr, stderrLogPath, stderrBuf.String()),
 			DurationMS: wallDurationMS,
@@ -599,7 +604,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 		span.SetStatus(codes.Error, "session jsonl parse failed")
 		return &executor.Result{
 			Success: false,
-			Error: noUsableSessionError(
+			Error: idleNote + noUsableSessionError(
 				fmt.Sprintf("motoko session JSONL parse failed: %v", parseErr),
 				runErr, stderrLogPath, stderrBuf.String()),
 			DurationMS: wallDurationMS,
@@ -664,6 +669,10 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 		// and was SIGKILLed at the 1h bound, banked as api_error.
 		if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
 			result.Error = fmt.Sprintf("motoko exceeded its wall-clock bound (%v): timeout — ", runTimeout) + result.Error
+		}
+		if idleNote != "" {
+			result.Error = idleNote + result.Error
+			result.FinishReason = executor.FinishTimeout
 		}
 	}
 
