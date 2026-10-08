@@ -152,12 +152,9 @@ func streamObservables(t *testing.T, result *SuiteResult) map[string]string {
 // derived seed. Both are exact and reproducible, not statistical: the seeds are
 // fixed constants, so the sampled values are fixed too.
 //
-// The forall site (runner.go's runProperty) has no stream observable in this
-// package today — every forall property in a unit-test fixture fails on its
-// first generated input with "evaluation failed: empty program", a pre-existing
-// harness limitation unrelated to this milestone. That site is pinned by the
-// seed stamp plus AC-SEED-SWEEP-M2 arm (c), and is called out here so a future
-// reader does not mistake its absence for coverage.
+// The forall site (runner.go's runProperty) is pinned separately by
+// TestForall_SeedDrivesTheStream (property_batch_test.go): until #624 every
+// forall property failed on its first case, so it had no observable stream.
 func TestRunner_DerivedSeedDrivesSampleStreams(t *testing.T) {
 	const (
 		requiresProp = "g_property_1" // the requires path (runner.go)

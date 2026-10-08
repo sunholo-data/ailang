@@ -190,7 +190,7 @@ func TestCacheArtifacts_ReadSnapshot(t *testing.T) {
 }
 
 func TestCacheArtifacts_ByteLimits(t *testing.T) {
-	if maxArtifactBlobBytes != 16<<20 || maxArtifactStampBytes != 64<<10 || maxModuleArtifactBytes != 32<<20 {
+	if maxArtifactBlobBytes != 64<<20 || maxArtifactStampBytes != 64<<10 || maxModuleArtifactBytes != 128<<20 {
 		t.Fatalf("production limits changed: blob=%d stamp=%d module=%d", maxArtifactBlobBytes, maxArtifactStampBytes, maxModuleArtifactBytes)
 	}
 

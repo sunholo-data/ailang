@@ -16,17 +16,28 @@ func (e *Executor) stripNonPureFunctions(source string, file *ast.File, keepFunc
 		keep[name] = true
 	}
 
+	stripped, _ := e.stripWithLineMap(source, file, keep)
+	return stripped
+}
+
+// stripWithLineMap is stripNonPureFunctions plus, for each kept line (index
+// i = stripped line i+1), its 1-based line in source. Removed blocks shift
+// every later line; the named-test batch maps runtime-error positions back
+// through it (named_batch.go).
+func (e *Executor) stripWithLineMap(source string, file *ast.File, keep map[string]bool) (string, []int) {
 	sourceLines := splitLines(source)
 	skipRanges := functionSkipRanges(file, keep)
 	skipRanges = append(skipRanges, testAndPropertySkipRanges(sourceLines, file)...)
 
 	lines := make([]string, 0, len(sourceLines))
+	orig := make([]int, 0, len(sourceLines))
 	for i, line := range sourceLines {
 		if !lineInRanges(i+1, skipRanges) {
 			lines = append(lines, line)
+			orig = append(orig, i+1)
 		}
 	}
-	return joinLines(lines)
+	return joinLines(lines), orig
 }
 
 func functionSkipRanges(file *ast.File, keep map[string]bool) []sourceLineRange {

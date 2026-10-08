@@ -63,6 +63,10 @@ func (r *Reporter) reportJSON(result *SuiteResult) error {
 		"seed_derivation": result.SeedDerivation,
 	}
 
+	if len(result.NamedBatchFailures) > 0 {
+		output["named_test_batch_failures"] = result.NamedBatchFailures
+	}
+
 	encoder := json.NewEncoder(r.writer)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(output)

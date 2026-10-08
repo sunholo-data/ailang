@@ -1,0 +1,153 @@
+[
+  {
+    "_meta": {
+      "openai/fileParams": [
+        "doc"
+      ],
+      "securitySchemes": [
+        {
+          "type": "noauth"
+        }
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": "Echo file"
+    },
+    "description": "Echo a file, if one was given.",
+    "inputSchema": {
+      "properties": {
+        "doc": {
+          "additionalProperties": false,
+          "properties": {
+            "download_url": {
+              "type": "string"
+            },
+            "file_id": {
+              "type": "string"
+            },
+            "file_name": {
+              "type": "string"
+            },
+            "mime_type": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "download_url",
+            "file_id"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "name": "echoFile",
+    "securitySchemes": [
+      {
+        "type": "noauth"
+      }
+    ],
+    "title": "Echo file"
+  },
+  {
+    "_meta": {
+      "openai/fileParams": [
+        "file"
+      ],
+      "securitySchemes": [
+        {
+          "type": "oauth2"
+        }
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": true,
+      "title": "Parse file"
+    },
+    "description": "Parse a file the host hands over.",
+    "inputSchema": {
+      "properties": {
+        "file": {
+          "additionalProperties": false,
+          "properties": {
+            "download_url": {
+              "type": "string"
+            },
+            "file_id": {
+              "type": "string"
+            },
+            "file_name": {
+              "type": "string"
+            },
+            "mime_type": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "download_url",
+            "file_id"
+          ],
+          "type": "object"
+        },
+        "mode": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "mode"
+      ],
+      "type": "object"
+    },
+    "name": "parseFile",
+    "securitySchemes": [
+      {
+        "type": "oauth2"
+      }
+    ],
+    "title": "Parse file"
+  },
+  {
+    "_meta": {
+      "securitySchemes": [
+        {
+          "type": "noauth"
+        }
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": "Plain"
+    },
+    "description": "No file param, no auth: unchanged on /mcp/.",
+    "inputSchema": {
+      "properties": {
+        "x": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "x"
+      ],
+      "type": "object"
+    },
+    "name": "plain",
+    "securitySchemes": [
+      {
+        "type": "noauth"
+      }
+    ],
+    "title": "Plain"
+  }
+]

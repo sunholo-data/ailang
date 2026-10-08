@@ -154,52 +154,66 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 
 // Infix parse functions
 
+// parseParams enters at '(' and leaves at the enclosing ')' (or EOF).
 func (p *Parser) parseParams() []*ast.Param {
 	params := []*ast.Param{}
-
 	if p.peekTokenIs(lexer.RPAREN) {
 		p.nextToken()
 		return params
 	}
-
 	p.nextToken()
-	param := &ast.Param{
-		Pos: p.curPos(),
-	}
-
-	if p.curTokenIs(lexer.IDENT) {
-		param.Name = p.curToken.Literal
-
-		if p.peekTokenIs(lexer.COLON) {
-			p.nextToken()
-			p.nextToken()
-			param.Type = p.parseType()
+	for {
+		if !p.curTokenIs(lexer.IDENT) && lexer.IsReservedKeyword(p.curToken.Literal) {
+			p.errors = append(p.errors, reservedKeywordError(p.curToken, "PAR_RESERVED_KEYWORD"))
+			p.syncReservedParam()
+			if p.curTokenIs(lexer.RPAREN) || p.curTokenIs(lexer.EOF) {
+				return params
+			}
+			p.nextToken() // synchronization owns the outer comma
+			continue
 		}
-	}
-
-	params = append(params, param)
-
-	for p.peekTokenIs(lexer.COMMA) {
-		p.nextToken()
-		p.nextToken()
-
-		param := &ast.Param{
-			Pos: p.curPos(),
-		}
-
+		param := &ast.Param{Pos: p.curPos()}
 		if p.curTokenIs(lexer.IDENT) {
 			param.Name = p.curToken.Literal
-
 			if p.peekTokenIs(lexer.COLON) {
 				p.nextToken()
 				p.nextToken()
 				param.Type = p.parseType()
 			}
 		}
-
 		params = append(params, param)
+		if !p.peekTokenIs(lexer.COMMA) {
+			break
+		}
+		p.nextToken()
+		p.nextToken()
 	}
-
 	p.expectPeek(lexer.RPAREN)
 	return params
+}
+
+// syncReservedParam drops only the invalid parameter, including its type.
+// Nested type delimiters do not own the enclosing parameter-list separators.
+func (p *Parser) syncReservedParam() {
+	depth := 0
+	for !p.curTokenIs(lexer.EOF) {
+		switch p.curToken.Type {
+		case lexer.LPAREN, lexer.LBRACE, lexer.LBRACKET:
+			depth++
+		case lexer.RPAREN:
+			if depth == 0 {
+				return
+			}
+			depth--
+		case lexer.RBRACE, lexer.RBRACKET:
+			if depth > 0 {
+				depth--
+			}
+		case lexer.COMMA:
+			if depth == 0 {
+				return
+			}
+		}
+		p.nextToken()
+	}
 }

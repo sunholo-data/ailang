@@ -174,6 +174,9 @@ func parseYield(s string) (Yield, error) {
 //
 // holder is this job's name; a handoff we requested ourselves is ignored.
 //
+// A job that opted in with AILANG_RIG_YIELD_TO_OPERATOR=1 also lends the GPU,
+// for as long as the operator is at the desktop (see operator.go).
+//
 // Callers MUST only invoke this when no work of their own is in flight. The
 // lock says "nobody else is driving the GPU", and a checkpoint that fires while
 // a benchmark is still streaming hands out a promise that is already false —
@@ -192,6 +195,14 @@ func Checkpoint(holder string) (bool, time.Duration) {
 	if !HeldByAncestor() {
 		return false, 0
 	}
+	if config.RigYieldToOperator() && OperatorPresent() {
+		checkpointMu.Lock()
+		defer checkpointMu.Unlock()
+		if !OperatorPresent() {
+			return false, 0
+		}
+		return true, lend("the operator", OperatorPresent)
+	}
 	y, ok := PendingYield()
 	if !ok || y.Requester == strings.TrimSpace(holder) {
 		return false, 0
@@ -206,6 +217,17 @@ func Checkpoint(holder string) (bool, time.Duration) {
 		return false, 0
 	}
 
+	// The requester signals it is done by clearing the handoff.
+	return true, lend(y.Requester, func() bool {
+		_, still := PendingYield()
+		return still
+	})
+}
+
+// lend releases the held lock, waits while waitWhile reports the borrower still
+// needs the GPU, then re-acquires it as the same hold. who names the borrower in
+// warnings. Callers hold checkpointMu.
+func lend(who string, waitWhile func() bool) time.Duration {
 	start := time.Now()
 	// The lease survives the yield. A yield LENDS the GPU; it does not end our
 	// hold. Everything under us carries our token — agents in this process and,
@@ -219,13 +241,10 @@ func Checkpoint(holder string) (bool, time.Duration) {
 	prevToken := CurrentLease().Token
 	_ = os.RemoveAll(lockDir())
 
-	// Wait for the requester to finish. It signals that by clearing the
-	// handoff; PendingYield also reports absent once the marker expires or the
-	// requester's pid dies, so neither a crash nor an overrun strands us here.
-	for {
-		if _, still := PendingYield(); !still {
-			break
-		}
+	// Wait while the borrower needs the GPU. Both markers report absent once
+	// they expire or their owner's pid dies, so neither a crash nor an overrun
+	// strands us here.
+	for waitWhile() {
 		time.Sleep(yieldPollInterval)
 	}
 
@@ -236,13 +255,13 @@ func Checkpoint(holder string) (bool, time.Duration) {
 		// Re-acquire failed (unwritable state dir). Say so rather than carrying
 		// on as if we still held a lock we do not — a silent false hold is how
 		// two jobs end up on one GPU.
-		fmt.Fprintf(os.Stderr, "Warning: rig lock NOT re-acquired after yielding to %s: %v\n", y.Requester, err)
-		return true, time.Since(start)
+		fmt.Fprintf(os.Stderr, "Warning: rig lock NOT re-acquired after yielding to %s: %v\n", who, err)
+		return time.Since(start)
 	}
 	if err := restoreHold(prevHolder, prevToken); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: rig lease not restored after yielding to %s (agents under the old lease will be refused): %v\n", y.Requester, err)
+		fmt.Fprintf(os.Stderr, "Warning: rig lease not restored after yielding to %s (agents under the old lease will be refused): %v\n", who, err)
 	}
-	return true, time.Since(start)
+	return time.Since(start)
 }
 
 // restoreHold rewrites the re-acquired lock with the holder line and lease token

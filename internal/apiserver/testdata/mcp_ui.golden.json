@@ -1,0 +1,115 @@
+{
+  "resources/list": {
+    "cacheScope": "public",
+    "resources": [
+      {
+        "description": "List of all loaded AILANG modules and their exports",
+        "mimeType": "application/json",
+        "name": "AILANG Modules",
+        "uri": "ailang://meta/modules"
+      },
+      {
+        "_meta": {
+          "ui": {
+            "csp": {
+              "connectDomains": [
+                "http://SELF",
+                "https://cdn.example.com"
+              ],
+              "resourceDomains": []
+            }
+          }
+        },
+        "description": "The upload widget.",
+        "mimeType": "text/html;profile=mcp-app",
+        "name": "uploadWidget",
+        "title": "Upload a file",
+        "uri": "ui://test/upload"
+      }
+    ],
+    "ttlMs": 0
+  },
+  "resources/read": {
+    "cacheScope": "public",
+    "contents": [
+      {
+        "_meta": {
+          "ui": {
+            "csp": {
+              "connectDomains": [
+                "http://SELF",
+                "https://cdn.example.com"
+              ],
+              "resourceDomains": []
+            }
+          }
+        },
+        "mimeType": "text/html;profile=mcp-app",
+        "text": "\u003c!doctype html\u003e\u003cp\u003epick a file\u003c/p\u003e",
+        "uri": "ui://test/upload"
+      }
+    ],
+    "ttlMs": 0
+  },
+  "tools/list": [
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://test/upload"
+        },
+        "ui/resourceUri": "ui://test/upload"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Choose a file"
+      },
+      "description": "Ask the user for a file.",
+      "inputSchema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "name": "chooseFile",
+      "title": "Choose a file"
+    },
+    {
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://test/upload",
+          "visibility": [
+            "app"
+          ]
+        },
+        "ui/resourceUri": "ui://test/upload"
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Upload via host"
+      },
+      "description": "Bytes from the widget, relayed by the host.",
+      "inputSchema": {
+        "properties": {
+          "data": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "data"
+        ],
+        "type": "object"
+      },
+      "name": "uploadViaHost",
+      "title": "Upload via host"
+    }
+  ]
+}
