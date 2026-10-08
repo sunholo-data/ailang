@@ -1088,7 +1088,10 @@ export STALL_CHILD_AGE
 # the codex probe's own output is written to it — so a loose pattern would demote
 # a healthy controller because the iteration happened to be writing about limits.
 # `^402:` is pi text-mode's OpenRouter credit refusal (`402: {"message":...`), fleet+stapledon 2026-10-02.
-RUNTIME_QUOTA_SIG="${MISSION_RUNTIME_QUOTA_SIG:-reached your session usage limit|hit your usage limit|Claude usage limit reached|^429:|^402:}"
+# `hit your session limit` is claude's 5-hour-window stop (`You've hit your session limit · resets
+# 12:40am`), fleet iteration 15 2026-10-02: it read as CRASHED at gate-3 instead of a capacity
+# pause. D-FLEET-13 = A (Mark, attended 2026-10-08), D-FLEET-11's narrow scope.
+RUNTIME_QUOTA_SIG="${MISSION_RUNTIME_QUOTA_SIG:-reached your session usage limit|hit your usage limit|hit your session limit|Claude usage limit reached|^429:|^402:}"
 # Bound the re-walks. The demote list already guarantees progress (each re-walk
 # removes one rung, so the chain is finite), but a bound keeps a pathological
 # chain from eating the slot.
