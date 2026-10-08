@@ -129,21 +129,21 @@ Migrate the sprint-state placeholder protocol for `estimated_loc` from the overl
 ### Implementation Plan
 
 **Phase 1: Sentinel migration** (~2 hours)
-- [ ] Edit `create_sprint_json.sh` `:130` and `:165` in `.claude/skills/sprint-planner/scripts/` (→ `None`)
-- [ ] Same two edits in `.agents/skills/sprint-planner/scripts/create_sprint_json.sh`
-- [ ] Edit `validate_sprint_json.sh` `:123-124` in `.claude/skills/sprint-executor/scripts/` (→ `.estimated_loc == null`, comment rewritten)
-- [ ] Same edit in `.agents/skills/sprint-executor/scripts/validate_sprint_json.sh`
-- [ ] `session_start.sh:164` display guard (`// "unset"`) in both trees
-- [ ] `json_progress_schema.md` field type + one-sentence semantics, both trees
+- [x] Edit `create_sprint_json.sh` `:130` and `:165` in `.claude/skills/sprint-planner/scripts/` (→ `None`)
+- [x] Same two edits in `.agents/skills/sprint-planner/scripts/create_sprint_json.sh`
+- [x] Edit `validate_sprint_json.sh` `:123-124` in `.claude/skills/sprint-executor/scripts/` (→ `.estimated_loc == null`, comment rewritten)
+- [x] Same edit in `.agents/skills/sprint-executor/scripts/validate_sprint_json.sh`
+- [x] `session_start.sh:164` display guard (`// "unset"`) in both trees
+- [x] `json_progress_schema.md` field type + one-sentence semantics, both trees
 
 **Phase 2: Fixture validation** (~2 hours)
-- [ ] Fixture matrix (see Testing Strategy) run against both trees' validators; record exit codes
-- [ ] Regression control: run the patched validator against 2–3 recent *completed* repo sprint JSONs (e.g. `.ailang/state/sprints/sprint_M-EVAL-ELO-PERSIST.json`) — must stay exit 0
-- [ ] `diff` the four scripts across the two trees — must be empty
+- [x] Fixture matrix (see Testing Strategy) run against both trees' validators; record exit codes
+- [x] Regression control: run the patched validator against 2–3 recent *completed* repo sprint JSONs (e.g. `.ailang/state/sprints/sprint_M-EVAL-ELO-PERSIST.json`) — must stay exit 0
+- [x] `diff` the four scripts across the two trees — must be empty
 
 **Phase 3: In-flight audit + docs** (~1 hour)
-- [ ] Read-only audit of non-completed state sprints carrying `estimated_loc: 0` (see Migration); record the ruling per sprint in the sprint JSON's `notes` — planner-owned
-- [ ] Update this doc's status → implemented via `move_to_implemented.sh` after landing
+- [x] Read-only audit of non-completed state sprints carrying `estimated_loc: 0` (see Migration); record the ruling per sprint in the sprint JSON's `notes` — planner-owned
+- [x] Update this doc's status → implemented via `move_to_implemented.sh` after landing
 
 ### Files to Modify/Create
 
@@ -207,16 +207,16 @@ VALIDATION FAILED: 1 error(s) found     ← live-verified on patched predicate, 
 
 ## Success Criteria
 
-- [ ] Fixture: milestone with `estimated_loc: 0` + real description/criteria → `validate_sprint_json.sh` exit **0** (acceptance: run recorded in the implementation report)
-- [ ] Fixture: `estimated_loc: null` → exit **1**, milestone ID named in the error
-- [ ] Fixture: key absent → exit **1**
-- [ ] Fixture: `estimated_loc: 245` (real estimate) → exit **0** (unchanged behavior)
-- [ ] `create_sprint_json.sh` parse-without-LOC path and no-milestone fallback both emit `null` (verified by generating a sprint JSON from a minimal plan)
-- [ ] `diff` of each modified script between `.claude/skills/` and `.agents/skills/` is empty
-- [ ] Regression: patched validator exits 0 on recent completed repo sprint JSONs
-- [ ] No `.ailang/state/sprints/*.json` historical file modified by this change
-- [ ] All tests passing (`make test-core` unaffected — no Go touched)
-- [ ] Documentation updated (`json_progress_schema.md` both trees; this doc moved to implemented)
+- [x] Fixture: milestone with `estimated_loc: 0` + real description/criteria → `validate_sprint_json.sh` exit **0** (acceptance: run recorded in the implementation report)
+- [x] Fixture: `estimated_loc: null` → exit **1**, milestone ID named in the error
+- [x] Fixture: key absent → exit **1**
+- [x] Fixture: `estimated_loc: 245` (real estimate) → exit **0** (unchanged behavior)
+- [x] `create_sprint_json.sh` parse-without-LOC path and no-milestone fallback both emit `null` (verified by generating a sprint JSON from a minimal plan)
+- [x] `diff` of each modified script between `.claude/skills/` and `.agents/skills/` is empty
+- [x] Regression: patched validator exits 0 on recent completed repo sprint JSONs
+- [x] No `.ailang/state/sprints/*.json` historical file modified by this change
+- [ ] All tests passing — pending compiler-equipped `make test-core`; see implementation report.
+- [x] Documentation updated (`json_progress_schema.md` both trees; this doc moved to implemented)
 
 ## Testing Strategy
 
@@ -375,3 +375,5 @@ a C compiler, so CGO cannot be enabled here. No Go files changed. The startup
 helper's green banner was not treated as evidence: its grep pipeline missed the
 missing make command. Re-run `make test-core` in a compiler-equipped environment
 before merge. Shell checks and the sentinel regression matrix passed.
+
+Independent read-only evaluator confirmed scope correctness, parity and shell syntax; no code defect found. Companion plan moved alongside this document. Final merge evaluation awaits a successful core regression run. The inbox handoff was refused because no agent serves sprint-evaluator in this environment; the refusal was not overridden.

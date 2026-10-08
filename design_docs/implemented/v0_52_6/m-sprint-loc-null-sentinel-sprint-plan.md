@@ -1,7 +1,7 @@
 # Sprint Plan: M-SPRINT-LOC-NULL-SENTINEL
 
 **Refs #563** — sunholo-data/ailang; no new issue.
-**Design:** [Approved sentinel migration](../../implemented/v0_52_6/m-sprint-loc-null-sentinel.md)
+**Design:** [Approved sentinel migration](m-sprint-loc-null-sentinel.md)
 **Date:** 2026-10-08
 **Status:** Implemented; ready for evaluator. Core regression requires a compiler-equipped environment.
 **Duration:** 1 working day, approximately 5 hours including 1 hour contingency.
@@ -11,7 +11,7 @@
 
 Make JSON `null` the unfilled milestone LOC sentinel. Accept an honest numeric zero, reject null or a missing key, and preserve the same contract in `.claude` and `.agents` skills.
 
-Read issue #563 and its comments through the GitHub API on 2026-10-08: open, P3, no comments. The approved design records the live defect on origin/dev 658ff76a3. This checkout still writes zero on both creator paths and rejects zero in both validators. The session display interpolates null literally; the schema still says number. No implementation has been completed.
+Read issue #563 and its comments through the GitHub API on 2026-10-08: open, P3, no comments. The approved design records the live defect on origin/dev 658ff76a3. This checkout still writes zero on both creator paths and rejects zero in both validators. The session display interpolates null literally; the schema still says number. Both milestones are implemented; the core regression rerun remains pending in a compiler-equipped environment.
 
 The seven-day velocity script found no usable LOC metrics. Git is shallow and exposes one recent documentation commit, so a measured LOC/day rate cannot be inferred. The current v0.52.5 changelog confirms recent activity but supplies no comparable script-migration duration. Use the design's five-hour estimate, with four hours scheduled work plus one hour contingency. Estimated changed production/documentation lines: 40 across both trees and the completion report; fixture commands are temporary and have no committed test LOC. Target capacity: 40 LOC/day, a planning allocation rather than measured velocity.
 

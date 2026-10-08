@@ -3,7 +3,7 @@
   "status": "completed",
   "created": "2026-10-08T19:02:42Z",
   "design_doc": "design_docs/implemented/v0_52_6/m-sprint-loc-null-sentinel.md",
-  "sprint_plan": "design_docs/planned/v0_52_6/m-sprint-loc-null-sentinel-sprint-plan.md",
+  "sprint_plan": "design_docs/implemented/v0_52_6/m-sprint-loc-null-sentinel-sprint-plan.md",
   "github_issues": [
     563
   ],
@@ -66,7 +66,7 @@
       "notes": "Verification/audit complete. make test-core unavailable (exit 127); direct equivalent with CGO disabled exits 1 on effects BrainStore SQLite tests. All other listed core packages pass. Compiler-equipped regression rerun required before merge. Legacy M1b zero remains unresolved for its owning planner; no old state rewritten."
     }
   ],
-  "notes": "Read-only legacy audit: M-CHAINS-EXECUTOR-TRANSCRIPTS/M0_PREFLIGHT valid zero (baseline checks); M-LIST-ACCESSOR-API/M6_CENSUS_REPORT_AND_HANDOFF valid docs-only zero; M-MISSION-AGENTIC-ROUTING/M1b_CODEX_CROSS_PROVIDER_EXECUTOR unresolved legacy zero requiring owner confirmation; M2_RIGHTSIZING_TABLE_AND_EVIDENCE_SCHEMA and M3_PLANNER_DOWNTIER_AB_PARKED valid docs-only zero. M-DX27-DOCS-SEARCH-GITHUB-FALLBACK has empty features. No pre-existing state files modified. Coordinator review and approval precede executor dispatch. PR body must include Refs #563. Implementation complete; evaluator handoff follows. No PR created by executor; coordinator PR body must retain Refs #563.",
+  "notes": "Read-only legacy audit: M-CHAINS-EXECUTOR-TRANSCRIPTS/M0_PREFLIGHT valid zero (baseline checks); M-LIST-ACCESSOR-API/M6_CENSUS_REPORT_AND_HANDOFF valid docs-only zero; M-MISSION-AGENTIC-ROUTING/M1b_CODEX_CROSS_PROVIDER_EXECUTOR unresolved legacy zero requiring owner confirmation; M2_RIGHTSIZING_TABLE_AND_EVIDENCE_SCHEMA and M3_PLANNER_DOWNTIER_AB_PARKED valid docs-only zero. M-DX27-DOCS-SEARCH-GITHUB-FALLBACK has empty features. No pre-existing state files modified. Coordinator review and approval precede executor dispatch. PR body must include Refs #563. Implementation complete; evaluator handoff follows. No PR created by executor; coordinator PR body must retain Refs #563. Independent local evaluator confirmed implementation scope correctness; final merge evaluation pending compiler-equipped regression. Inbox handoff refused because no evaluator agent serves the inbox.",
   "last_session": "2026-10-08T19:14:09Z",
   "last_checkpoint": "Sentinel fixture matrix, parity, syntax and completed controls passed; broad core regression limited by unavailable make/C compiler."
 }
