@@ -42,11 +42,18 @@ fi
 
 BASELINE_DIR="eval_results/baselines/${VERSION}"
 ROTATION_DIR="eval_results/rotation/os-rolling/${VERSION}"
+# Cloud models are measured over time, one placement at a time (model-manager
+# §5.5), not in a per-release baseline. Between releases the cloud side of the
+# dashboard is the rolling bank; each model's row carries its own lastRun date.
+CLOUD_ROLLING_DIR="eval_results/rotation/cloud-rolling"
 
 if [ ! -d "$BASELINE_DIR" ]; then
-  echo "error: cloud baseline dir not found: $BASELINE_DIR" >&2
-  echo "       (run the post-release eval baselines first)" >&2
-  exit 1
+  if [ -d "$CLOUD_ROLLING_DIR" ]; then
+    BASELINE_DIR="$CLOUD_ROLLING_DIR"
+  else
+    echo "error: no cloud results: neither $BASELINE_DIR nor $CLOUD_ROLLING_DIR exists" >&2
+    exit 1
+  fi
 fi
 
 echo "== publishing unified dashboard for ${VERSION} =="

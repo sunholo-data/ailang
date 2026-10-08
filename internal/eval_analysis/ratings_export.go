@@ -2,6 +2,7 @@ package eval_analysis
 
 import (
 	"sort"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
@@ -89,7 +90,16 @@ func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interf
 	trials := make([]eval_harness.Trial, 0, len(results))
 	pass := map[string][2]int{}                  // benchmark -> [passed, total]
 	modelBenches := map[string]map[string]bool{} // model -> distinct benchmark ids
+	lastRun := map[string]time.Time{}            // model -> newest result timestamp
+	wins, runs := map[string]int{}, map[string]int{}
 	for _, r := range results {
+		runs[r.Model]++
+		if r.Passed() {
+			wins[r.Model]++
+		}
+		if r.Timestamp.After(lastRun[r.Model]) {
+			lastRun[r.Model] = r.Timestamp
+		}
 		ok := r.Passed()
 		trials = append(trials, eval_harness.Trial{Model: r.Model, Bench: r.ID, Pass: ok})
 		v := pass[r.ID]
@@ -123,10 +133,24 @@ func fitLeaderboard(results []*BenchmarkResult, anchored bool) map[string]interf
 	}
 	models := make([]map[string]interface{}, 0, len(modelRatings))
 	for id, elo := range modelRatings {
-		models = append(models, map[string]interface{}{
+		// Same rule as attachRatingsToHistoryEntry: in an ANCHORED placement fit
+		// the benchmark side is fixed, so a winless or undefeated model has no
+		// finite rating (Bradley-Terry degeneracy) and its number is an artifact
+		// of the epoch count. A rolling bank makes this common — a model with a
+		// handful of rows can easily pass all of them.
+		if anchored && (wins[id] == 0 || wins[id] == runs[id]) {
+			continue
+		}
+		row := map[string]interface{}{
 			"id": id, "elo": round1(elo), "band": eval_harness.Band(elo),
 			"benchmarks": len(modelBenches[id]),
-		})
+		}
+		// Rolling publication: models are measured at different times, so each
+		// row says when its newest result was recorded (additive field).
+		if t := lastRun[id]; !t.IsZero() {
+			row["lastRun"] = t.UTC().Format("2006-01-02")
+		}
+		models = append(models, row)
 	}
 	sort.Slice(models, func(i, j int) bool { return models[i]["elo"].(float64) > models[j]["elo"].(float64) })
 

@@ -6,7 +6,7 @@ import DataProvenance from '../DataProvenance';
 // ELO leaderboard + difficulty-banded benchmark view (M-EVAL-DASHBOARD-REDESIGN).
 // Reads the per-mode `ratings` block emitted into latest.json by eval-report:
 //   ratings[mode] = {
-//     models:[{id,elo,band}], benchmarks:[{id,elo,band,saturated,passRate,graderFlag?}],
+//     models:[{id,elo,band,benchmarks,lastRun?}], benchmarks:[{id,elo,band,saturated,passRate,graderFlag?}],
 //     saturation:{...},
 //     byLang: { ailang:{models,benchmarks,saturation}, python:{...} }   // per-language fits
 //   }
@@ -257,6 +257,7 @@ export default function EloLeaderboard() {
                   <th style={{ padding: '6px 10px', verticalAlign: 'bottom' }}>Model</th>
                   <th style={{ padding: '6px 10px', textAlign: 'right', verticalAlign: 'bottom' }}>ELO</th>
                   <th style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'bottom', fontWeight: 400, color: 'var(--ifm-color-emphasis-500)' }} title="benchmarks run (of the max any model ran)">cov</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'bottom', fontWeight: 400, color: 'var(--ifm-color-emphasis-500)' }} title="date of this model's newest result — models are measured at different times">last run</th>
                 </tr>
               </thead>
               <tbody>
@@ -292,6 +293,9 @@ export default function EloLeaderboard() {
                       <td style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontSize: '0.85em', color: prov ? '#b45309' : 'var(--ifm-color-emphasis-500)', fontWeight: prov ? 700 : 400 }}
                           title={prov ? `provisional — only ${m.benchmarks} of ${maxCov} benchmarks run so far; ELO not yet comparable` : `${m.benchmarks} benchmarks`}>
                         {m.benchmarks != null ? m.benchmarks : '—'}
+                      </td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums', fontSize: '0.85em', color: 'var(--ifm-color-emphasis-500)', whiteSpace: 'nowrap' }}>
+                        {m.lastRun || '—'}
                       </td>
                     </tr>
                   );

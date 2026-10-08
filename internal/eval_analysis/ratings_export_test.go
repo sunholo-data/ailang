@@ -2,6 +2,7 @@ package eval_analysis
 
 import (
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
@@ -114,5 +115,38 @@ func TestRatingsForMode_Coverage(t *testing.T) {
 	}
 	if cov["sparse"] != 1 {
 		t.Errorf("sparse coverage = %d, want 1", cov["sparse"])
+	}
+}
+
+// TestRatingsForMode_AnchoredDropsDegenerateAndStampsLastRun: in the anchored
+// fit an undefeated model has no finite rating and must not be published; every
+// published row carries the date of its newest result (rolling publication).
+func TestRatingsForMode_AnchoredDropsDegenerateAndStampsLastRun(t *testing.T) {
+	day := func(d int) time.Time { return time.Date(2026, 9, d, 12, 0, 0, 0, time.UTC) }
+	mk := func(id, model string, ok bool, ts time.Time) *BenchmarkResult {
+		return &BenchmarkResult{RunMetrics: eval_harness.RunMetrics{ID: id, Lang: "ailang", Model: model,
+			CompileOk: ok, RuntimeOk: ok, StdoutOk: ok, Timestamp: ts}}
+	}
+	var results []*BenchmarkResult
+	for i, b := range []string{"fizzbuzz", "gcd_lcm", "csv_to_json_converter"} {
+		results = append(results,
+			mk(b, "mixed", i != 2, day(1+i)),
+			mk(b, "undefeated", true, day(1)))
+	}
+
+	block := ratingsForMode(results, true)
+	rows := map[string]map[string]interface{}{}
+	for _, m := range block["models"].([]map[string]interface{}) {
+		rows[m["id"].(string)] = m
+	}
+	if _, ok := rows["undefeated"]; ok {
+		t.Errorf("undefeated model published in the anchored fit: %v", rows["undefeated"])
+	}
+	m, ok := rows["mixed"]
+	if !ok {
+		t.Fatal("mixed model missing")
+	}
+	if m["lastRun"] != "2026-09-03" {
+		t.Errorf("lastRun = %v, want 2026-09-03 (newest result)", m["lastRun"])
 	}
 }
