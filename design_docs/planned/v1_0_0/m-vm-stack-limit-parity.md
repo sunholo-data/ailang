@@ -59,7 +59,7 @@ The same limit-divergence was already measured and worked around twice, without 
 
 | surface | VM frame cap | `--max-recursion-depth` wired to the VM? | evidence |
 |---|---|---|---|
-| `ailang test` named-test harness (`internal/testing/bytecode_engine.go`) | **10000** (`defaultVMMaxStack`, :44) | **yes** (:161-163, `machine.MaxStack = e.maxRecursionDepth`) | `TestEngineParity_RecursionLimitReachesVM` (`internal/testing/engine_parity_test.go:174`) asserts the exact contract this doc proposes — "bounds the VM's frame stack as it bounds the evaluator" |
+| `ailang test` named-test harness (`internal/testing/bytecode_engine.go`) | **10000** (`defaultVMMaxStack`, :44) | **yes** (:161-163, `machine.MaxStack = e.maxRecursionDepth`) | `TestEngineParity_RecursionLimitReachesVM` (`internal/testing/engine_parity_test.go:178`) asserts the exact contract this doc proposes — "bounds the VM's frame stack as it bounds the evaluator" |
 | **`ailang run` production path (`internal/runner/vm.go:202`)** | **1000** (`vm.NewVM` default) | **no** (`MaxRecursionDepth` reaches only the evaluator: `entrypoint.go:43-44`, `run.go:183-184`, `batch.go:109`) | this issue |
 | evaluator (both paths) | n/a — 10000 default | n/a | `eval_evaluator.go:167` |
 
@@ -78,8 +78,8 @@ And at v0.52.0 the stdlib itself was rewritten **iteratively** because of this s
 | `DefaultMaxStack = 1000`; comment claims evaluator parity | read `internal/vm/vm.go:12-14` |
 | Evaluator default limit 10,000; `--max-recursion-depth` default 10000 | read `internal/eval/eval_evaluator.go:167,179`; `cmd/ailang/main_run.go` (`fs.Int("max-recursion-depth", 10000, ...)`) |
 | `MaxRecursionDepth` reaches only the evaluator in the production path | grep `internal/runner/`: `entrypoint.go:43-44`, `run.go:183-184`, `batch.go:109` — all `SetMaxRecursionDepth` on an evaluator; no `machine.MaxStack` assignment anywhere in `internal/runner/` |
-| Exactly ONE production site constructs the VM, with the default cap | grep `NewVM(` repo-wide (excluding tests): only `internal/runner/vm.go:202`; `vm.NewVM` sets `MaxStack: DefaultMaxStack` |
-| The test harness overrides cap + wires the flag; and already asserts the contract | read `internal/testing/bytecode_engine.go:42-44,158-163`; `internal/testing/engine_parity_test.go:174-201` (`TestEngineParity_RecursionLimitReachesVM`) |
+| Exactly ONE production (`ailang run`) site constructs the VM with the default cap | grep `NewVM(` repo-wide (excluding `_test.go`): `internal/runner/vm.go:202` (default cap) and `internal/testing/bytecode_engine.go:160` (the non-test `ailang test` harness, which overrides `MaxStack` immediately after); `vm.NewVM` sets `MaxStack: DefaultMaxStack` |
+| The test harness overrides cap + wires the flag; and already asserts the contract | read `internal/testing/bytecode_engine.go:42-44,158-163`; `internal/testing/engine_parity_test.go:178-…` (`TestEngineParity_RecursionLimitReachesVM`) |
 | `--quiet` is the default for `ailang run` (fallback warning suppressed in every default invocation) | read `cmd/ailang/main_run.go:21-29,149-150` (`fs.Bool("quiet", true, …)`; `--verbose` clears it) and `internal/runner/entrypoint.go:152-155` (warning guarded by `!params.Quiet`); changelog v0.49.0 section "Changed — `ailang run` is quiet by default" |
 | A stdin-capable CLI test helper already exists (no testutil addition needed) | read `runWithStdin` (`cmd/ailang/tail_call_parity_test.go:17-36`, used by `ctor_alias_parity_test.go`, `div_zero_parity_test.go`, `import_collision_test.go`) |
 | No existing test pins `DefaultMaxStack = 1000` as a default (all VM tests set explicit small caps) | grep `MaxStack` in `internal/vm/*_test.go`, `internal/bytecode/compiler/call_test.go`: every hit is an explicit per-test override (5, 3, 8, 50) |
@@ -122,7 +122,7 @@ Single milestone, ~0.5 day (F1+F2+F3+tests). Every AC names a file that can fail
 
 **Positions this changes, and what else already lives there:**
 
-1. `DefaultMaxStack` (`internal/vm/vm.go:14`) — consumed by `NewVM`, whose only production caller is `internal/runner/vm.go:202`; the named-test harness **overrides** it (`bytecode_engine.go:161`), so `ailang test` behavior is unchanged. No test anywhere pins the default value (verified).
+1. `DefaultMaxStack` (`internal/vm/vm.go:14`) — consumed by `NewVM`, whose only `ailang run` caller is `internal/runner/vm.go:202`; the other non-test caller, the named-test harness (`internal/testing/bytecode_engine.go:160`), **overrides** it (`:161-164`), so `ailang test` behavior is unchanged. No test anywhere pins the default value (verified).
 2. `vm.MaxStack` semantics — the overflow guard sites (`vm.go:125` CallClosure, `vm.go:303` OpCall) and the framePool cap (`frame.go:81`). Raising the cap does not preallocate (lazy pool) and does not change Go-stack behavior (`vm.run` is iterative; HOF `CallClosure` re-entry nests `run` once per callback chain, unchanged).
 3. `--max-recursion-depth` flag plumbing (`internal/runner/entrypoint.go:26,43-44`; `run.go:183-184`; `batch.go:109`) — currently evaluator-only. F2 adds the VM leg at the same layer. **Intentional incompatibility**: `--bytecode --max-recursion-depth N` with N < ~1000 now actually bounds the VM (previously the flag was a no-op for the VM leg — silently, which is exactly the NO-SILENT-FALLBACKS sin). No test depends on the old no-op (verified: `grep --max-recursion-depth` in tests exercises evaluator legs and the already-wired test harness).
 4. Tail vs non-tail accounting — tail calls do not grow the frame stack (`OpTailCall` reuses the frame) and do not count toward the evaluator's limit either (#1486, `tail_call_parity_test.go` header). Depth-parity therefore holds for both shapes; `TestTailCallParityWithVM` (200,000 tail iterations) is the regression fixture.
@@ -151,7 +151,15 @@ Single milestone, ~0.5 day (F1+F2+F3+tests). Every AC names a file that can fail
 | Deep-recursion example files (>1000 frames) surface latent VM bugs now that they actually run on the VM instead of silently falling back | Medium | AC7 reconciliation-by-name; newly-DIVERGE rows are new VM bugs surfaced, filed, not reverted (parent AC5 discipline) |
 | Memory blowup at 10,000 default frames | Low | Heap frames + lazy pool, lighter per level than the evaluator's Go-stack levels that are already legal at 10,000; measured in sprint (AC timing budget) |
 | `--max-recursion-depth` accounting differs subtly between engines (evaluator counts builtin-callback re-entry; VM counts frames) | Low | 1:1 for non-tail calls, constant for tail calls on both (verified reasoning in Conflict Surface #4); AC4 pins the default-boundary behavior empirically |
+| Frame pool retention at very high caps: `releaseFrame` pools up to `MaxStack` frames (`internal/vm/frame.go:81`), so with `--max-recursion-depth 2000000` a single deep run can leave up to 2M pooled frames (and their register slabs) live until the VM is dropped | Low (opt-in flag; one VM per run) | Accepted for the `ailang run` lifetime; if a long-lived VM ever honours the flag, cap the pool independently of `MaxStack` (e.g. min(MaxStack, a fixed pool ceiling)) |
 | B4 lands later and re-litigates this cap | Low | Explicit scope boundary above: F1/F2 are correct under EITHER B4 policy branch (a shared limit is prerequisite-independent of the fallback policy) |
+
+## Review notes 2026-10-08
+
+- **Independently reproduced and fix confirmed.** The reviewer reproduced #1576 on origin/dev and confirmed the fix: with the VM's `DefaultMaxStack` at 10000 the service repro runs fully on the VM; at depth 11001 both engines fail loudly (interpreter `RT_REC_003`, VM strict `stack overflow`).
+- **Line refs corrected** (amended in place): `TestEngineParity_RecursionLimitReachesVM` is at `internal/testing/engine_parity_test.go:178`; "exactly one production site" is qualified, because the non-test `internal/testing/bytecode_engine.go:160` also constructs a VM (and overrides its cap); the fallback-warning guard is `internal/runner/entrypoint.go:152-155` (`if !params.Quiet`), not `cmd/ailang/run_helpers.go` (corrected in the parent doc's A2 item 2).
+- **Follow-up (cheap, recommended in this sprint or the next):** above the shared limit, a non-strict `--bytecode` run still falls back **silently** under the default `--quiet` until B4 lands. Print the fallback warning even in quiet mode — it is a correctness signal, not chatter — by dropping the `!params.Quiet` guard at `entrypoint.go:152` (check `cmd/ailang/run_bytecode_test.go`, which pins the warning text and its absence in non-fallback runs). This also lets the parent doc's A2 sniffer work without `--verbose`.
+- **Risk added**: frame-pool retention at a raised `--max-recursion-depth` (see Risks & Mitigations).
 
 ## Related Documents
 

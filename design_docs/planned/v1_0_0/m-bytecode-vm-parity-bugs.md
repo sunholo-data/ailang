@@ -166,6 +166,12 @@ the A2 round). Post-fix, B4's trigger window shrinks from "any evaluator-legal d
 "depths where the interpreter itself refuses (RT_REC_003)" — i.e. from evaluator-LEGAL input to
 illegal, which restores parity without touching B4's policy question.
 
+**Review notes 2026-10-08.** The emission-site references to `cmd/ailang/run_helpers.go` (~:376) in
+the 2026-07-28 Verification Log and Conflict Surface are stale: the guarded fallback warning now
+lives at `internal/runner/entrypoint.go:152-155`. Until B4 lands, a non-strict VM overrun above the
+shared limit still falls back silently under the default `--quiet`; the spun-out doc recommends
+printing the fallback warning even in quiet mode as a cheap stopgap.
+
 ## Verification Log (first-party, this worktree, 2026-07-28)
 
 All behavior claims re-measured here with the worktree `./bin/ailang` + the parity harness
@@ -189,7 +195,7 @@ All behavior claims re-measured here with the worktree `./bin/ailang` + the pari
 | Fallback warning emitted to **stderr** at `cmd/ailang/run_helpers.go:376`, text embeds the original vmErr | read of the emission site |
 | `cmd/ailang/run_bytecode_test.go:63` asserts **absence** of `"falling back to evaluator"` in non-fallback runs (pins the warning text) | read of the test |
 | **#1576 repro**: VM stdout truncated at the pre-recursion line, rc 0, **stderr silent under default flags**; `--verbose` reveals `bytecode path unavailable (vm: vm: stack overflow); falling back to evaluator`; a standalone `rep(5000)` (no stdin) prints its committed `START` **twice** — the unsafe-replay duplication shape | first-party minimal repro (service loop + deep non-tail handler + stdin), this worktree 2026-10-08 | 
-| `DefaultMaxStack = 1000` vs evaluator 10,000 (comment claims parity it never had); `--max-recursion-depth` reaches only the evaluator in the production path; the `ailang test` harness wires cap + flag and already asserts the contract (`TestEngineParity_RecursionLimitReachesVM`) | read `internal/vm/vm.go:12-14`, `internal/eval/eval_evaluator.go:167`, grep `internal/runner/` (no `machine.MaxStack` anywhere), read `internal/testing/bytecode_engine.go:42-44,158-163` + `engine_parity_test.go:174` |
+| `DefaultMaxStack = 1000` vs evaluator 10,000 (comment claims parity it never had); `--max-recursion-depth` reaches only the evaluator in the production path; the `ailang test` harness wires cap + flag and already asserts the contract (`TestEngineParity_RecursionLimitReachesVM`) | read `internal/vm/vm.go:12-14`, `internal/eval/eval_evaluator.go:167`, grep `internal/runner/` (no `machine.MaxStack` anywhere), read `internal/testing/bytecode_engine.go:42-44,158-163` + `engine_parity_test.go:178` |
 | `--quiet` is `ailang run`'s **default** (v0.49.0) → the fallback warning is suppressed in every default run, including A2's VM leg as item 2 originally specified it | read `cmd/ailang/main_run.go:21-29,149-150`, `internal/runner/entrypoint.go:152-155`, changelog v0.49.0 section |
 | Regression fixtures cited below exist and currently MATCH | `--only cons_expression`, `--only block_recursion` both MATCH |
 | `tests/golden/bytecode/` exists (golden_test.go etc.) | ls |
@@ -250,12 +256,15 @@ precedence settled in the Conflict Surface: effect-derived NON_DET is decided fr
    11 (2 legacy + 9 effect) may land there (the `! {AI, IO}` files must NOT be swept in).
 2. **The VM leg must NOT pass `--quiet` — CORRECTED 2026-10-08: it must pass `--verbose`** (eval
    leg unchanged). Verified this revision: the fallback warning is emitted only `if !params.quiet`
-   (`cmd/ailang/run_helpers.go`), and the harness passes `--quiet` unconditionally (line 235) — so a
+   (the guard now lives at `internal/runner/entrypoint.go:152-155`, `if !params.Quiet`; it was in
+   `cmd/ailang/run_helpers.go` at revision 1), and the harness passes `--quiet` unconditionally (line 235) — so a
    stderr sniff as revision 0 specified it would never fire. **But `--quiet` became `ailang run`'s
    DEFAULT in v0.49.0** (see the #1576 addendum above): omitting the flag no longer un-suppresses
    the warning. `--verbose` is the only flag that clears it (`cmd/ailang/main_run.go:149-150`), so
    the VM leg passes `--verbose` (its extra stderr status lines are harmless — stderr is sniffed
-   for the fallback marker, never diffed). Stderr is sniffed, never diffed, so the extra status lines are
+   for the fallback marker, never diffed). If [m-vm-stack-limit-parity.md](m-vm-stack-limit-parity.md)'s
+   follow-up lands (print the fallback warning even under `--quiet`), `--verbose` becomes
+   unnecessary but stays harmless. Stderr is sniffed, never diffed, so the extra status lines are
    harmless.
 3. **Exit-0 fallback detection**: when `vmExit == 0`, scan the VM leg's stderr for the fallback
    marker (`"falling back to evaluator"`, with the original vmErr embedded). If present:
