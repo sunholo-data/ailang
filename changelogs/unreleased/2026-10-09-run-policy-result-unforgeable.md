@@ -1,4 +1,4 @@
-## Fixed
+### Fixed
 
 - `ailang run --policy` now marks worker stderr lines beginning with `policy:` or
   `policy-result:` as `worker: `, preventing programs from forging supervisor
