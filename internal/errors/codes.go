@@ -5,6 +5,11 @@ package errors
 // Error code constants organized by phase.
 // Each constant represents a specific error condition with structured reporting.
 const (
+	// TST001 rejects unsupported inline-row syntax.
+	TST001 = "TST001"
+	// TST002 rejects operators requiring elaboration in inline rows.
+	TST002 = "TST002"
+
 	// ============================================================================
 	// Parser Errors (PAR###)
 	// ============================================================================
@@ -255,6 +260,8 @@ type ErrorInfo struct {
 
 // ErrorRegistry maps error codes to their information
 var ErrorRegistry = map[string]ErrorInfo{
+	TST001: {TST001, "typecheck", "testing", "Unsupported inline test row expression"},
+	TST002: {TST002, "typecheck", "testing", "Inline test row operator requires elaboration"},
 	// Parser errors
 	PAR001: {PAR001, "parser", "syntax", "Unexpected token"},
 	PAR002: {PAR002, "parser", "syntax", "Missing closing delimiter"},

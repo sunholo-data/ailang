@@ -61,7 +61,7 @@ pure func getGreeting() -> string
 pure func getZero() -> int
   tests [
     ((), 0),
-    ((), 0 + 0)
+    ((), 0)
   ]
 {
   0

@@ -5,6 +5,17 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "inline_tests_expected_values.ail",
+      "status": "working",
+      "tags": [
+        "testing",
+        "adt",
+        "lists"
+      ],
+      "description": "Composite expected values in inline test rows",
+      "modules": []
+    },
+    {
       "path": "adt_option.ail",
       "status": "working",
       "tags": [
