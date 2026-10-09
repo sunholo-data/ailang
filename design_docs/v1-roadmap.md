@@ -17,7 +17,7 @@ plus the message system *is* the orchestration framework):
 - the messages between them are typed, budgeted effects;
 - any widening of authority stops for a human.
 
-The flagship is a two-package orchestration whose CI proves each clause with a mutant that must fail.
+The flagship is **the package cascade itself**, run end to end on fixture packages in CI: additive → deterministic bump; a broken dependent → escalation; widening → a human. Each scenario has a mutant that must fail. It is blocked first on #1730 (the cascade does not dispatch today).
 See [m-v1-orchestration-flagship](planned/v1_0_0/m-v1-orchestration-flagship.md). The exact bar
 sentence is ratified per clause at the release gate, after that clause's prerequisite lands (verify,
 then freeze).
@@ -54,9 +54,10 @@ plan, so **the bottleneck is approval and execution**.
 | 7 | 2 | P0 #752: `Declassify` is whole-body authority ([m-ifc-authority-scoping](planned/m-ifc-authority-scoping.md)) | Design ✅, plan ✅ (v0_53_0) | Execute |
 | 8 | 2 | P0 #1134: IFC labels lost across modules ([m-ifc-cross-module-labels](planned/m-ifc-cross-module-labels.md)) | Design ✅ | Plan, then execute |
 | 9 | 2 | [m-bytecode-vm-parity-bugs](planned/v1_0_0/m-bytecode-vm-parity-bugs.md) | Design ✅ | Plan, then execute |
+| 9a | 4 | **#1730: cascade notifications are never dispatched** (the coordinator hydrates by a local-store id; 7 of 7 publish windows since 09-17 dropped) | **Filed 2026-10-09, P0** | Fix: dispatch from the envelope, or write the legacy row to the cloud store; needs a release and promote. **The flagship cannot demonstrate anything until this lands** |
 | 10 | 4 | [m-json-codecs](planned/v1_0_0/m-json-codecs.md) | **New 2026-10-09**, quorum r2 dispositioned | ⏸ F1–F3, then plan; small and unblocks 11 and 12 |
 | 11 | 4 | [m-typed-message-plane](planned/v1_0_0/m-typed-message-plane.md) (includes M-CLI-MSG-HANDLER as M2) | **New 2026-10-09**, quorum r2 dispositioned | ⏸ F1–F4; M0 (shadow field) first; nothing enforced without a clean window |
-| 12 | 4 | [m-v1-orchestration-flagship](planned/v1_0_0/m-v1-orchestration-flagship.md) | **New 2026-10-09** (r6), quorum r2 dispositioned | ⏸ F1–F4; M1–M3 can start now; M4 needs P1–P5 |
+| 12 | 4 | [m-v1-orchestration-flagship](planned/v1_0_0/m-v1-orchestration-flagship.md): **the package cascade, made provable** (Mark: "this is what I meant for v1.0.0") | **r7 2026-10-09** | ⏸ F1–F3; M1 (test the deterministic path) and M2 can start now; M3 needs #1730 and P1–P4 |
 | 13 | 2 / 4 | `m-ifc-ai-and-io-sinks`: prompts and output as secret sinks | **To write** | Design doc (a language-semantics change) |
 | 14 | 4 | [m-trace-label-aware](planned/v0_36_0/m-trace-label-aware.md) | Design ✅ | Plan; must land before flagship M1 (replay) |
 | 15 | 4 | [m-effect-clock-net-fs-modes](planned/v1_0_0/m-effect-clock-net-fs-modes.md) (effect sprint 3) | Design ✅ | Plan, then execute |

@@ -1,6 +1,6 @@
 # M-TYPED-MESSAGE-PLANE: typed, budgeted messages, without disturbing the plane that runs today
 
-**Status**: Planned (r3; Quorum guardrail spent: r1 and r2 both BLOCKED; every r2 objection is dispositioned below with new evidence rows. The sprint-planner re-verifies at plan time. Design Freeze open for Mark)
+**Status**: Planned (r4: M1 corrected after Mark pointed out that the cascade already runs on the cloud plane (#1730 filed); Quorum guardrail spent: r1 and r2 both BLOCKED; every r2 objection is dispositioned below with new evidence rows. The sprint-planner re-verifies at plan time. Design Freeze open for Mark)
 **Target**: v1.0.0, clause 4 (the orchestration half of the 1.0 claim)
 **Priority**: P0 for v1.0
 **Estimated**: ~2–3 weeks across M0–M5; each milestone ships and can be rolled back on its own
@@ -86,18 +86,24 @@ Rollback is flipping a kind back to `shadow` or `off`; no data migration runs in
 - Add the registry and the three validation modes.
 - Accept: every existing message round-trips unchanged; one test per mode.
 
-**M1: The package envelope can also reach the real plane, behind a switch** (~1–2 days)
-- **Keep the local write.** `ailang publish` keeps writing to the publisher's local store, which
-  `ailang pkg msg` reads today (`cmd/ailang/pkg_msg.go:166`, V12).
-- **Add a plane write behind `AILANG_PKG_MSG_TO_PLANE` (default off).** It also sends the same
-  envelope to the configured plane with `Schema` + `Body` set.
-  - Turning it on is a ruling (F4), not a deploy default. On the plane these messages reach `pkg:`
-    inboxes whose agents are designed to act on cascade messages (the `pkg-update` template), so
-    enabling it **wakes package agents**. That is the intent of the cascade, but it is a behaviour
-    change for prod.
-- **Validation:** the hand-written `ValidatePackageMessage` stays authoritative. The registry
-  validator runs alongside it in `shadow`, and its agreement with the hand-written one is counted per
-  kind. The envelope is promoted to `enforce` only after F3's clean window, like every other kind.
+**M1: One package envelope** (~2 days)
+
+*Corrected 2026-10-09 (Mark):* the package cascade **already** reaches the cloud plane.
+- `publish` sends a typed `CascadeEnvelopeFields` on the IAM-restricted `ailang-cascade` topic, and
+  only its legacy inbox copy goes to local SQLite (V13).
+- The earlier M1 ("send package messages to the plane behind a switch") was wrong and is removed.
+
+What remains is **duplication**:
+- Two package envelopes describe the same event: `PackageMessageEnvelope` (`ailang.package-message/v1`,
+  inbox, local) and `CascadeEnvelopeFields` (Pub/Sub, cloud).
+- Their change-class vocabularies differ (local `patch` / `minor` / `major` / `U`, mapped by
+  `mapChangeClassToSchema` to the cascade's A/B/C).
+- **The fix:** make `CascadeEnvelopeFields` the one schema, registered as `ailang.cascade/v1` in
+  this doc's registry. The legacy inbox copy is derived from it rather than built separately.
+- **Depends on #1730**, whose fix decides whether the legacy row moves to the cloud store or the
+  adapter dispatches from the envelope.
+- **Acceptance:** one builder, both outputs; a golden test that today's cascade envelope bytes are
+  unchanged.
 
 **M2: `Msg` runs from the CLI** (this is [M-CLI-MSG-HANDLER](../v0_38_6/m-cli-msg-handler.md), ~2–3 days)
 - `sendMsg` / `recvMsg` against the configured plane, with the Msg capability and budget.
@@ -144,8 +150,6 @@ Rollback is flipping a kind back to `shadow` or `off`; no data migration runs in
    identical for typed and untyped messages (golden test), and on any disagreement the markers win.
 6. Every enforcement is per schema id and reversible by config, with no deploy.
 
-7. `AILANG_PKG_MSG_TO_PLANE` defaults off; with it off, publish behaves byte-identically to today.
-
 ## Out of scope (v1.1)
 
 - **Declared contracts per agent or package** (which kinds an inbox accepts and emits, checked at
@@ -162,8 +166,7 @@ Rollback is flipping a kind back to `shadow` or `off`; no data migration runs in
   package, for v1. Inferring the id from the type needs type-directed elaboration and can follow.
 - [ ] **F3. The clean-window rule for `shadow` → `enforce`:** recommend 7 days with zero mismatches
   for that kind on the prod plane, reported by `messages health`.
-- [ ] **F4. When to turn on `AILANG_PKG_MSG_TO_PLANE`:** recommend after M0 ships and the package
-  agents' `pkg-update` template is re-read against real envelopes. It starts the cascade in prod.
+
 
 ## Changes since r1 (quorum BLOCKED 3/3, 2026-10-09)
 
@@ -176,6 +179,8 @@ Rollback is flipping a kind back to `shadow` or `off`; no data migration runs in
   `Resolve` / `Validate`, already a dependency (V11).
 
 ## Round-2 objections and dispositions (quorum r2 BLOCKED, 2026-10-09; guardrail spent)
+
+*Superseded 2026-10-09: the M1 these two dispositions answer was removed (the cascade already reaches the plane; see the new M1). They are kept as history.*
 
 - **glm (M1 not additive; local readers would starve; prod notification consumers change):** M1
   keeps the local write (its reader is cited, V12). The plane write is behind a default-off switch
@@ -225,6 +230,7 @@ Rollback is flipping a kind back to `shadow` or `off`; no data migration runs in
 | V7 | `Msg` has no CLI handler | `ailang docs std/cognition`: `sendMsg(string, string) -> { msg_id, clock, budget_remaining } ! {Msg}`; #1130 `ErrNoMsgHandler`; `design_docs/planned/v0_38_6/m-cli-msg-handler.md`; Daneel `authority.md:166-180` |
 | V8 | SQLite CHECK on `message_type` | `internal/messaging/schema.go:384` |
 | V9 | Packages give hashing and the cascade | `internal/pkg/hasher_v2.go` (`sha256:ifacev2:` over function names, types and effects); change classes A/B/C drive the cascade |
+| V13 | The cascade already reaches the cloud plane | `cmd/ailang/pkg_publish.go` ~455–510 (the legacy inbox via `EmitUpgradeAvailable(store, …)`, then the "Cascade-topic publish (M-PKG-AUTONOMOUS-CASCADE-SAFE M2) … the authoritative, IAM-restricted path that agents act on" with `CascadeEnvelopeFields`); `internal/pubsub/publisher.go:70-100`; topic `ailang-cascade`; #1730 |
 | V12 | The local package-message store has a reader | `cmd/ailang/pkg_msg.go:166` (`store, err := openPkgMsgStore()` in the `pkg msg` command) |
 | V11 | A JSON Schema validator is already a dependency | `go.mod`: `github.com/google/jsonschema-go v0.4.3`; module source `jsonschema/resolve.go:152` `func (root *Schema) Resolve(opts *ResolveOptions) (*Resolved, error)`, `jsonschema/validate.go:37` `func (rs *Resolved) Validate(instance any) error`; used today for MCP tool `InputSchema` (`internal/apiserver/feedback_tool.go:51`) |
 | V10 | Two type → schema mappers exist | `internal/apiserver/schema/schema.go:64` `TypeToSchema` (rich); `internal/apiserver/mcp.go:581-582` `ailangTypeToJSONSchema` (non-primitive → `"string"`) |
