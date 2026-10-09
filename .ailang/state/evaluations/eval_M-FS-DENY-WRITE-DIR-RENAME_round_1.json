@@ -1,0 +1,99 @@
+{
+  "sprint_id": "M-FS-DENY-WRITE-DIR-RENAME",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-08T19:38:17.377Z",
+  "design_doc": "design_docs/planned/v0_52_6/m-fs-deny-write-dir-rename.md",
+  "sprint_plan": "design_docs/planned/v0_52_6/m-fs-deny-write-dir-rename-sprint-plan.md",
+  "total_score": 59,
+  "pass_threshold": 70,
+  "result": "fail",
+  "score_breakdown": {
+    "tests_pass": 0,
+    "lint_clean": 10,
+    "acceptance_criteria": 19,
+    "code_quality": 10,
+    "documentation": 10,
+    "design_fidelity": 10
+  },
+  "hard_fails": [
+    {
+      "condition": "tests_broken",
+      "details": "Full make test is non-green: unrelated CLI helper linker processes killed, coordinator timeout-kills-script assertion fails, missing python/ps and process-group/memory-watchdog assertions fail. Affected fileguard/effects/policytool package suite passes. Validation cannot be waived under sprint-evaluator rubric.",
+      "output_snippet": "cmd/ailang: link: signal: killed; coordinator timeout_kills_script; eval_harness; executor/codex; executor/opencode"
+    }
+  ],
+  "automated_checks": {
+    "tests_pass": false,
+    "full_suite_exit_code": 1,
+    "additional_failed_packages": ["internal/proctree", "internal/riglock", "internal/smt"],
+    "diff_check_clean": true,
+    "tests_output": "/tmp/fs-test.log (full suite non-green); /tmp/fs-scoped-final.log: fileguard cached, effects 17.187s, policytool cached all PASS. Standalone clock timing flake passed narrow retry /tmp/fs-clock-retry.log.",
+    "lint_clean": true,
+    "lint_output": "/tmp/fs-lint-retry.log: 0 issues, Lint complete. Initial run OOM code 137; constrained retry GOFLAGS=-p=1 GOMAXPROCS=2 GOGC=30 passed.",
+    "file_sizes_ok": true,
+    "coverage_pct": null,
+    "format_ok": true,
+    "boundaries_ok": true,
+    "checks_evidence": [
+      "/tmp/fs-fmtcheck.log",
+      "/tmp/fs-sizes.log",
+      "/tmp/fs-boundaries.log"
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1_SHARED_MATCHER",
+      "met": true,
+      "criteria_met": 5,
+      "criteria_total": 5,
+      "evidence": "protect_move_test.go table covers literal/nested /**/mid-glob prefixes, Unicode folding, normalization, malformed patterns, allowed paths, .git precedence and original pattern spelling; scoped fileguard tests pass."
+    },
+    {
+      "feature_id": "M2_FS_ENFORCEMENT",
+      "met": true,
+      "criteria_met": 6,
+      "criteria_total": 6,
+      "evidence": "fs_deny_move_test.go covers both rename operations and operands, real Call dispatcher, independent destination fixture, all dispatched removal ops and FSRemove, empty ancestors, unchanged disk state and allowed operations. Scoped effects/policytool/fileguard pass. Existing containment/lock/direct-deny fixtures unchanged."
+    },
+    {
+      "feature_id": "M3_DOCS_VALIDATION",
+      "met": false,
+      "criteria_met": 5,
+      "criteria_total": 6,
+      "evidence": "Five documentation/validation-attempt/diff criteria materially fulfilled; parent records Refs #1569 for handoff. Final criterion requiring evaluator failures resolved is unmet. M3 passes=false intentionally. Scoring follows skill rubric: a milestone with passes=false contributes zero criteria to the score."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": "Not required by approved plan: no new language feature or .ail executable code; existing design examples plus new Go denial fixtures apply.",
+    "design_doc_status": "Planned; intentionally not moved on failed evaluation."
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Matches approved pure lexical refusal predicate, folding rules, direct-match/.git precedence, base-glob exclusion and both rename operands. Exactly six structural entry points use shared CheckMove, ordinary writes/mkdirs unchanged. Test file split is justified by 800-line limit. No scoped implementation/security defect found."
+  },
+  "regression_surface": {
+    "triggered": true,
+    "analysis_present": true,
+    "fixtures_present": true,
+    "evidence": "Conflict Surface names atomic publish, directory rename, containment destination, direct denial and lock primitives. fs_test.go, fs_containment_test.go, fs_deny_write_test.go, fs_lock_primitives_test.go fixture suites passed in scoped final run.",
+    "hard_fail": false
+  },
+  "feedback": [
+    {
+      "file": "/tmp/fs-test.log",
+      "category": "validation",
+      "issue": "Full repository test gate non-green despite passing affected security packages.",
+      "suggestion": "Restore missing external test prerequisites and sufficient memory/process-group support in a CI-equivalent environment, then run full make test once successfully. Do not change unrelated application behavior to disguise environment failures. Re-evaluate before moving design docs or declaring sprint complete.",
+      "severity": "high"
+    },
+    {
+      "file": ".ailang/state/sprints/sprint_M-FS-DENY-WRITE-DIR-RENAME.json",
+      "category": "sprint_artifacts",
+      "issue": "Validation milestone and completed sprint artifacts are intentionally pending.",
+      "suggestion": "After full test gate is green, finish M3 timestamps/notes/velocity and sprint plan checklist, then request independent next-round evaluation.",
+      "severity": "medium"
+    }
+  ],
+  "notes": "FAIL is a validation outcome, not a finding against the scoped security patch. Score: tests 0, lint 10, M1/M2 11 of 17 criteria =>19, code quality 15 minus incomplete sprint JSON/plan 5=>10, changelog/appropriate existing examples 10, pending design status 0, fidelity 10. No doc movement or implementation changes made by evaluator."
+}

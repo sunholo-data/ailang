@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-FS-DENY-WRITE-DIR-RENAME",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-08T18:52:50Z",
   "design_doc": "design_docs/planned/v0_52_6/m-fs-deny-write-dir-rename.md",
   "sprint_plan": "design_docs/planned/v0_52_6/m-fs-deny-write-dir-rename-sprint-plan.md",
@@ -42,7 +42,9 @@
   "velocity": {
     "target_loc_per_day": 160,
     "estimated_total_loc": 320,
-    "estimated_days": 2
+    "estimated_days": 2,
+    "actual_total_loc": 312,
+    "actual_days": 1
   },
   "features": [
     {
@@ -57,10 +59,10 @@
         "`CheckMove` preserves `.git` precedence and marks only additional ancestor violations with `Ancestor`; pattern text remains original.",
         "`go test ./internal/fileguard` passes and existing plain-check tests remain unchanged in behavior."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T19:25:50.903171+00:00",
+      "completed": "2026-10-08T19:25:50.903171+00:00",
+      "notes": "Shared matcher implemented; unit tests passed after failing compilation for missing APIs."
     },
     {
       "id": "M2_FS_ENFORCEMENT",
@@ -77,10 +79,10 @@
         "Unrelated directory moves, `run.json.tmp` to `run.json`, ancestor mkdir/write behavior, no-deny operation behavior and base-glob directory moves remain allowed; moved base-glob files remain write-protected.",
         "Existing `.git`, sandbox-boundary and direct-write protection tests pass; `go test ./internal/effects ./internal/fileguard ./internal/policytool` passes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T19:25:50.903171+00:00",
+      "completed": "2026-10-08T19:38:00.262495+00:00",
+      "notes": "Both rename variants and operands, all dispatched removals and FSRemove covered. Security denial and unchanged state tests pass; effects and policytool passed in full suite."
     },
     {
       "id": "M3_DOCS_VALIDATION",
@@ -98,18 +100,51 @@
         "Inspect the final diff for one shared matcher, correct handler coverage and unchanged write/mkdir semantics; carry `Refs #1569` in the implementation PR body.",
         "Run sprint-evaluator against the approved design and this plan after execution; resolve failures before reporting completion."
       ],
-      "passes": null,
-      "started": null,
+      "passes": false,
+      "started": "2026-10-08T19:25:50.903171+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Documentation and PR body complete. Format/lint/boundary/size gates pass; independent evaluation blocked by unrelated whole-suite failures. No merge approval claimed."
     }
   ],
-  "approval_status": "pending_sprint_approval",
+  "approval_status": "approved",
   "handoff": {
     "target": "sprint-executor",
     "trigger": "coordinator approval/merge of sprint-plan PR",
     "estimated_hours": 8,
     "risk_level": "medium",
     "pr_body_required": "Refs #1569"
-  }
+  },
+  "last_session": "2026-10-08T19:25:50.903171+00:00",
+  "last_checkpoint": "Implementation complete; independent evaluation cannot pass whole-suite validation.",
+  "implementation_complete": true,
+  "validation": {
+    "scoped_security_tests": "passed",
+    "fileguard": "passed",
+    "effects": "passed in full make test",
+    "policytool": "passed",
+    "make_fmt": "passed",
+    "make_fmt_check": "passed",
+    "make_check_boundaries": "passed",
+    "make_check_file_sizes": "passed",
+    "make_lint": "passed on constrained retry: GOFLAGS=-p=1 GOMAXPROCS=2 GOGC=30; zero issues",
+    "windows_cross_compile": "fileguard and effects passed (not Windows execution)",
+    "std_fs_check": "passed; expected dirty-build version warning",
+    "make_test": "failed outside changed code: helper go link signal:killed (cmd/ailang, registry-validator, pkg), coordinator timeout, eval_harness memory/process/Python tests, executor process-group termination tests",
+    "clock_retry": "passed after isolated load-related timing failure",
+    "coordinator_timeout_retry": "failed unchanged code: 10.007s versus <1s",
+    "full_suite_failed_packages": [
+      "github.com/sunholo-data/ailang/cmd/ailang",
+      "github.com/sunholo-data/ailang/cmd/registry-validator",
+      "github.com/sunholo-data/ailang/internal/coordinator",
+      "github.com/sunholo-data/ailang/internal/eval_harness",
+      "github.com/sunholo-data/ailang/internal/executor/codex",
+      "github.com/sunholo-data/ailang/internal/executor/opencode",
+      "github.com/sunholo-data/ailang/internal/pkg",
+      "github.com/sunholo-data/ailang/internal/proctree",
+      "github.com/sunholo-data/ailang/internal/riglock",
+      "github.com/sunholo-data/ailang/internal/smt"
+    ],
+    "scoped_final": "go test ./internal/fileguard ./internal/effects ./internal/policytool passed with CGO enabled and constrained concurrency"
+  },
+  "evaluation_report": ".ailang/state/evaluations/eval_M-FS-DENY-WRITE-DIR-RENAME_round_1.json"
 }

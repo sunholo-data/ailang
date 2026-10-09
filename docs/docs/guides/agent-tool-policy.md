@@ -125,6 +125,12 @@ pattern is a glob for one path (matched against the whole relative path and its 
 `.claude/settings.json`, so `".claude/**"` refuses both — on a case-sensitive Linux volume this
 over-denies the odd spelling, which is the fail-closed direction. The running program and the
 policy-tool share one matcher (`internal/fileguard/protect.go`), so the two cannot drift.
+Rename (both source and destination) and removal also protect matching ancestor directories:
+`.claude/settings.json` protects `.claude`, `a/b/**` protects `a`, and `a/*/x.txt`
+protects `a` and matching `a/<dir>` paths. Even empty protected ancestors cannot be removed.
+`dir/**` continues to protect the whole subtree and now protects its higher ancestors too.
+Basename patterns such as `*.yml` and `Makefile` follow files after a move, so they do not
+freeze unrelated directory names. Ordinary writes and mkdirs keep their direct-path checks.
 Refusals are `E_FS_PROTECTED` from every mutating FS op and a named refusal from every write the
 tool endpoint performs: `ailang_write`/`ailang_edit`, `fmt` with the `write` flag, `lock`
 (`ailang.lock`) and `design_quorum` (`.ailang/state/mission-quorum/`). The CLI child's compile

@@ -320,6 +320,13 @@ func (st *modulePipelineState) compileOneModule(modID link.ModuleID, unit *Compi
 			return err
 		}
 	}
+	// Validate before cache lookup: runner compiles can cache a module with
+	// invalid rows, but a later check must still reject those rows.
+	if !st.cfg.SkipTestRowValidation {
+		if err := validateTestRows(mod.File); err != nil {
+			return err
+		}
+	}
 	key, cacheable := st.prepareCacheLookup(mod, string(modID))
 	if cacheable && st.serveFromCache(mod, unit, key) {
 		return nil
@@ -371,7 +378,14 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 		st.rootDebugSink = compileResult.DebugSink
 	}
 
-	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, imports.ImportedTypeAliases, elaborator.GetDerivedEqTypes()); err != nil {
+	aliasParams := make(map[string][]string)
+	for name, params := range imports.ImportedAliasParams {
+		aliasParams[name] = params
+	}
+	for name, params := range elaborator.GetTypeAliasParams() {
+		aliasParams[name] = params
+	}
+	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, imports.ImportedTypeAliases, elaborator.GetTypeAliases(), aliasParams, elaborator.GetDerivedEqTypes()); err != nil {
 		return err
 	}
 

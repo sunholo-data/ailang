@@ -83,6 +83,15 @@ func unionRequiredEffectRows(a, b *types.Row) *types.Row {
 		return nil
 	}
 	for effect := range merged.Labels {
+		// Bare authority requires all labels, so it dominates a scoped requirement.
+		if effect == "Declassify" {
+			_, inA := a.Labels[effect]
+			_, inB := b.Labels[effect]
+			if (inA && len(a.Params[effect]) == 0) || (inB && len(b.Params[effect]) == 0) {
+				delete(merged.Params, effect)
+				continue
+			}
+		}
 		left := effectiveValidationParams(a, effect)
 		right := effectiveValidationParams(b, effect)
 		if len(left) == 0 && len(right) == 0 {

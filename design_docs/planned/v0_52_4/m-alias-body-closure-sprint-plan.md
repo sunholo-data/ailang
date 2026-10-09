@@ -7,10 +7,10 @@ Close interface alias bodies, exported schemes and constructor types over the de
 **Duration:** 4 engineering days (24 hours implementation/verification + 8 hours buffer).
 **Estimated total:** 720 LOC: approximately 260 implementation, 380 tests, 50 examples and 30 documentation.
 **Risk:** Medium; exhaustive rebuilding, recursive types, parameterized alias heads and digest finalization need care.
-**Status:** Plan prepared for coordinator approval; implementation has not started. The approved design authorizes planning, not execution. Plan approval/merge triggers sprint-executor through the coordinator.
+**Status:** Implementation complete; all four milestones verified. Independent sprint evaluation passed (95/100).
 **Target:** Next unreleased patch; retain v0_52_4 artifact location for lineage. Source std/VERSION is already v0.52.5; no release bump is part of this sprint.
 
-## Current status and velocity
+## Planning baseline and velocity
 
 - M1 local-shadow guards and M3 transitive cache dependencies from the parent design are present. Closure is absent; cacheKeyVersion is v5.
 - buildAndRegisterInterface currently builds then embeds transitive aliases without closing exported types. Its caller is pipeline_module_phases.go, which must also pass the local alias environment.
@@ -36,10 +36,10 @@ First bank failing T1/T2 and four-module tests. Implement a non-mutating rebuild
 
 **Acceptance criteria:**
 
-- [ ] Walker covers every concrete types.Type implementation, including TLabelled, v2 records/functions, rows, arrays and maps; nested aliases close without mutating inputs.
-- [ ] Cycles terminate deterministically; TypeName is preserved or assigned; primitives, nominal types and type variables retain identity.
-- [ ] T1 explicit-import and T2 both-import-order regressions pass; four-module navigation/sol/trappist regression passes.
-- [ ] Closure uses local aliases over post-shadow imported aliases, including unexported local dependencies; AliasParams remain intact.
+- [x] Walker covers every concrete types.Type implementation, including TLabelled, v2 records/functions, rows, arrays and maps; nested aliases close without mutating inputs.
+- [x] Cycles terminate deterministically; TypeName is preserved or assigned; primitives, nominal types and type variables retain identity.
+- [x] T1 explicit-import and T2 both-import-order regressions pass; four-module navigation/sol/trappist regression passes.
+- [x] Closure uses local aliases over post-shadow imported aliases, including unexported local dependencies; AliasParams remain intact.
 
 ### M2: Close export schemes and constructor types (~220 LOC)
 
@@ -54,11 +54,11 @@ Bank T3, constructor and capture tests, then close schemes and constructors with
 
 **Acceptance criteria:**
 
-- [ ] T3 annotation-only scheme regression passes; quantified variables, constraints and effects are preserved.
-- [ ] Constructor field/result aliases close while nominal ADT results remain nominal; constructor pattern regressions pass.
-- [ ] CapturedImportedAliasIsLoud becomes a positive regression; a residual nominal-shadow control still emits TC_TYPE_SHADOW_001.
-- [ ] Final interface digest reflects closed schemes and constructors, is deterministic and survives serialization; alias digest coverage remains intact.
-- [ ] Any digest-finalize helper lives in a new internal/iface/ file; internal/iface/builder.go stays at or below 800 lines.
+- [x] T3 annotation-only scheme regression passes; quantified variables, constraints and effects are preserved.
+- [x] Constructor field/result aliases close while nominal ADT results remain nominal; constructor pattern regressions pass.
+- [x] CapturedImportedAliasIsLoud becomes a positive regression; a residual nominal-shadow control still emits TC_TYPE_SHADOW_001.
+- [x] Final interface digest reflects closed schemes and constructors, is deterministic and survives serialization; alias digest coverage remains intact.
+- [x] Any digest-finalize helper lives in a new internal/iface/ file; internal/iface/builder.go stays at or below 800 lines.
 
 ### M3: Invalidate stale caches and document residuals (~100 LOC)
 
@@ -71,9 +71,9 @@ Use a synthesized v5 cache/manifest fixture rather than depending on an old exec
 
 **Acceptance criteria:**
 
-- [ ] cacheKeyVersion and migration assertions use v6; a v5 cache misses, a fresh v6 compile populates the cache, and an unchanged subsequent compile hits.
-- [ ] Alias edits still invalidate transitive dependents; cached and uncached compilation give equivalent results.
-- [ ] Shadow guard comments, parent M2 scope/status and docs/LIMITATIONS.md describe closure and residual parameterized/nominal/import-name behavior accurately.
+- [x] cacheKeyVersion and migration assertions use v6; a v5 cache misses, a fresh v6 compile populates the cache, and an unchanged subsequent compile hits.
+- [x] Alias edits still invalidate transitive dependents; cached and uncached compilation give equivalent results.
+- [x] Shadow guard comments, parent M2 scope/status and docs/LIMITATIONS.md describe closure and residual parameterized/nominal/import-name behavior accurately.
 
 ### M4: Verify runtime examples and regression matrix (~70 LOC)
 
@@ -86,11 +86,11 @@ Read `ailang prompt` before writing any .ail files. Validate examples with the n
 
 **Acceptance criteria:**
 
-- [ ] New examples/alias_body_closure package (ailang.toml, a.ail, b.ail, main.ail) checks and run with --args-json 1 returns 1 with both colliding imports.
-- [ ] T1/T2/T3 runtime checks and examples/intra_package_imports pass; record-update and args-json alias decoding controls pass.
-- [ ] make test-core and go test ./internal/pipeline/... ./internal/types/... ./internal/iface/... pass, then make lint check-boundaries check-file-sizes passes (full suite is left to CI).
-- [ ] Stapledons workaround-removal verification is recorded if accessible; otherwise record unavailable and rely on the mandatory four-module automated reproduction.
-- [ ] Sprint-evaluator receives plan, progress, test evidence and explicit remaining limitations after execution.
+- [x] New examples/alias_body_closure package (ailang.toml, a.ail, b.ail, main.ail) checks and run with --args-json 1 returns 1 with both colliding imports.
+- [x] T1/T2/T3 runtime checks and examples/intra_package_imports pass; record-update and args-json alias decoding controls pass.
+- [x] make test-core and go test ./internal/pipeline/... ./internal/types/... ./internal/iface/... pass, then make lint check-boundaries check-file-sizes passes (full suite is left to CI).
+- [x] Stapledons workaround-removal verification is recorded if accessible; otherwise record unavailable and rely on the mandatory four-module automated reproduction.
+- [x] Sprint-evaluator receives plan, progress, test evidence and explicit remaining limitations after execution.
 
 ## Scope and risks
 
@@ -110,3 +110,40 @@ Progress file: `.ailang/state/sprints/sprint_M-ALIAS-BODY-CLOSURE.json`.
 All milestones start with passes/started/completed/notes null. M1 → M2 → M3 → M4 is the critical path. No parallel implementation is planned. GitHub issue: #1614. The implementation PR body uses `Fixes #1614`. The parent's #1275 is related cache work and must not be auto-closed.
 
 Coordinator plan approval/merge is the execution gate; do not self-approve or start sprint-executor during planning. After execution, hand off the complete evidence to sprint-evaluator. No architectural decision is outstanding for this scoped plan; actual release version and external scratch-repo access are nonblocking operational details.
+
+
+## Execution evidence (2026-10-08)
+
+- Work stays on the clean assigned workspace branch `coordinator/task-a660f5f6`;
+  the planner's `coordinator/task-ba132afd` is handoff lineage, not this checkout.
+- Targeted pipeline/types/iface baseline passed before semantics changes. New
+  regressions failed first, including rejection of valid T1/T2/T3 calls and the
+  old compiler's incorrect acceptance of `countItem(one())` with unrelated shapes.
+- M1/M2: closure walker covers all concrete Type implementors, private aliases,
+  local precedence, immutable rebuilding, deterministic cycles, parameterized-head
+  preservation, schemes and constructors. `SetDerivedEq` already recomputes the
+  final digest, so no new helper or builder.go edit is needed (782 lines retained).
+- M3: synthesized v5 manifest causes cold compilation of every reachable module;
+  unchanged v6 execution performs zero core encodes; cached/uncached output agrees.
+- Runtime matrix returns 1 for both import orders and annotation-only schemes;
+  independent record shapes remain incompatible. Four-module Planet regression passes.
+- Provisioned Go PATH, jq, make and golangci-lint outside the repository. The startup
+  script was copied outside the repo to use test-core instead of forbidden full tests;
+  its grep-based check cannot detect missing make, so direct gate results are used.
+- External Stapledons checkout is unavailable in this workspace; mandatory automated
+  navigation/sol/trappist reproduction supplies the production-shape verification.
+- Initial test-core run exposed missing C compiler/CGO-disabled SQLite tests; a local
+  Zig C toolchain enabled the passing CGO-enabled rerun. Full make test stays in CI.
+
+- Final gates pass: CGO-enabled `make test-core`; targeted pipeline/types/iface
+  coverage suite; `make lint` (zero issues); `make fmt-check`; architecture and
+  file-size checks. Cold lint timed out at five minutes with zero issues; warm
+  rerun passed. Source build and both packages check; new run and nested JSON
+  input each return 1. Existing intra-package greet returns `Hello, closure!`.
+- Full test evidence and remaining limits:
+  [implementation report](m-alias-body-closure-implementation-report.md).
+
+- Independent evaluator received the plan, progress, implementation report and test
+  logs via a separate collaboration agent. Local `messages send sprint-evaluator`
+  was refused because no worker serves that inbox; no message was forced into an
+  unserved queue. Evaluation passed: 95/100, all 17 criteria met.

@@ -100,8 +100,11 @@ prints `CI_GATE=pass` or `CI_GATE=fail`, and **do not run `make test` yourself**
 running the full suite, lint and verify-examples on that head. A single long wait gets killed by
 the executor's idle timeout or the Bash tool's 10-minute cap, which is how every cloud evaluation
 on 09-29..10-02 died with no verdict. `CI_GATE=fail` is a HARD FAIL and names the failed checks.
-If every check was skipped, the PR conflicts with its base, and that is a fail too. The JSON
-records `gate_source: ci|local`.
+If every check was skipped, the PR conflicts with its base, and that is a fail too.
+`CI_GATE=error` means the PR or its checks could not be read: report it as a FAIL with that reason,
+never as a pass and never by running the gates locally instead. Without an authenticated `gh` (the
+cloud executor withholds `GITHUB_TOKEN`), `ci_gate.sh` reads GitHub's public REST API itself. The
+JSON records `gate_source: ci|local`.
 
 With no PR (`CI_GATE=none`) or with `EVAL_LOCAL_GATES=1`, it runs each gate locally **once**
 (output captured, never re-run to read the tail):

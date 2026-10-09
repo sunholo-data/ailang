@@ -36,6 +36,8 @@ type Protection struct {
 
 // Violation says why a path is protected. The zero value means writable.
 type Violation struct {
+	// Ancestor: the path can contain a deny-pattern target.
+	Ancestor bool
 	// GitDir: the path has a `.git` component.
 	GitDir bool
 	// Pattern: the first fs_deny_write pattern the path matched.
@@ -125,4 +127,56 @@ func foldRune(r rune) rune {
 		}
 	}
 	return m
+}
+
+// CheckMove protects both direct targets and ancestors for rename/remove.
+// Ordinary writes and mkdirs should continue to use Check.
+func (p Protection) CheckMove(rel string) Violation {
+	if v := p.Check(rel); v.Protected() {
+		return v
+	}
+	if pat := MatchDenyMove(p.DenyWrite, rel); pat != "" {
+		return Violation{Pattern: pat, Ancestor: true}
+	}
+	return Violation{}
+}
+
+// MatchDenyMove returns a direct match first, then the first pattern that
+// can match strictly beneath rel. Basename matches are deliberately excluded
+// from the latter check: those patterns follow files across directory moves.
+func MatchDenyMove(patterns []string, rel string) string {
+	if pat := MatchDenyWrite(patterns, rel); pat != "" {
+		return pat
+	}
+	key := foldKey(cleanRel(rel))
+	for _, orig := range patterns {
+		pat := foldKey(strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(orig)), "./"))
+		if mayMatchBeneath(pat, key) {
+			return orig
+		}
+	}
+	return ""
+}
+
+// mayMatchBeneath compares folded slash-separated components without touching
+// the filesystem. A remaining component represents a protected descendant.
+// Encountered malformed globs and ** fail closed.
+func mayMatchBeneath(pattern, rel string) bool {
+	pats, parts := strings.Split(pattern, "/"), strings.Split(rel, "/")
+	for i, part := range parts {
+		if i >= len(pats) {
+			return false
+		}
+		if pats[i] == "**" {
+			return true
+		}
+		matched, err := path.Match(pats[i], part)
+		if err != nil {
+			return true
+		}
+		if !matched {
+			return false
+		}
+	}
+	return len(pats) > len(parts)
 }

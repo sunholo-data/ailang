@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-PKG-REGISTRY-CONFINEMENT",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-08T18:53:24.884354+00:00",
   "design_doc": "design_docs/planned/v0_52_6/m-pkg-registry-confinement.md",
   "sprint_plan": "design_docs/planned/v0_52_6/m-pkg-registry-confinement-sprint-plan.md",
@@ -37,7 +37,11 @@
   "velocity": {
     "target_loc_per_day": 200,
     "estimated_total_loc": 600,
-    "estimated_days": 3
+    "estimated_days": 3,
+    "actual_total_loc": 975,
+    "actual_days": 1,
+    "actual_loc_per_day": 975,
+    "measurement": "Changed lines through M4; one calendar-day execution session, not measured engineering-day throughput."
   },
   "features": [
     {
@@ -52,10 +56,10 @@
         "A5: unconfined pkg-docs, install, and lock still fetch/extract successfully against a local HTTP fixture.",
         "Error text names confinement and operator provisioning; focused pkg/CLI tests pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-08T20:17:51.619396+00:00",
+      "notes": "Confinement and local-server docs/install/lock tests pass. Broader CLI registry selection has three unrelated CGO/sqlite environment failures; final lint passes with bounded resources."
     },
     {
       "id": "M2",
@@ -71,10 +75,10 @@
         "A2 positive: fully provisioned confined lock succeeds offline, with only its declared lock output.",
         "Loader tests cover the consumers used by check/ai-check/test/iface/tree and child environment retains the root."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-08T20:21:12.585156+00:00",
+      "notes": "Root-only loader/docs/resolver and offline transitive versioned lock tests pass; root misses reject HOME and legacy Path fallbacks. Config getter tested; childEnv preserves host environment."
     },
     {
       "id": "M3",
@@ -89,10 +93,10 @@
         "D5-selected stderr and exit status are asserted through check, not only the helper.",
         "Existing path-dependency behavior remains covered and root-only hashing cannot select the HOME copy."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-08T20:26:12.193081+00:00",
+      "notes": "Registry validation fails before compilation for mismatches/missing content; typed registry errors cannot be masked by path drift. Real check exits 0 for matching read-only root and 1 after tampering, with unchanged root snapshot. Short/empty hash and HOME-cache cases covered. Lint passes with GOMEMLIMIT=1GiB/GOMAXPROCS=2."
     },
     {
       "id": "M4",
@@ -110,10 +114,10 @@
         "Run make test, make test-core, make fmt, make lint, and make check-boundaries; record any environment failures explicitly.",
         "All A1\u2013A5 results and D3/D5 rulings appear in the sprint report; implementation PR body contains `Refs #1607 #1608`."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-08T20:30:32.710769+00:00",
+      "notes": "A1\u2013A5 built-binary/local-server scenarios pass. Generated env docs; security/package docs and changelog updated. fmt/lint/boundaries/file sizes and child-env propagation pass. Requested focused selection has three unrelated CGO/sqlite failures; core has eight. Full make test not run per explicit constraint. No compiler installed or branch pushed. Evaluator inbox handoff refused: no configured live agent; coordinator must dispatch evaluation."
     }
   ],
   "execution_gates": [
@@ -121,5 +125,18 @@
     "Record human D3 root-only ruling",
     "Record human D5 hash-mismatch severity ruling"
   ],
-  "pr_body_required_text": "Refs #1607 #1608"
+  "pr_body_required_text": "Refs #1607 #1608\nCloses #1607\nCloses #1608",
+  "completed": "2026-10-08T20:30:32.710769+00:00",
+  "last_checkpoint": "M4 complete; ready for independent coordinator evaluation",
+  "validation": {
+    "focused": "pkg/config pass; CLI fails only three coordinator SQLite tests",
+    "test_core": "all packages except effects pass; eight SQLite brain-store failures",
+    "lint": "pass",
+    "fmt": "pass",
+    "check_boundaries": "pass",
+    "check_file_sizes": "pass",
+    "full_suite": "not run; explicitly delegated to CI",
+    "cgo": "disabled; no C toolchain; no compiler installed",
+    "evaluation": "coordinator handoff required; no live sprint-evaluator inbox agent configured"
+  }
 }

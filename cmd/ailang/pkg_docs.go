@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
@@ -36,7 +37,11 @@ func pkgDocsCommand(args []string) error {
 	}
 
 	// Try to find AGENT.md in local cache (any version)
-	cacheDir, err := pkg.RegistryCacheDir()
+	cacheDir := config.PackageRoot()
+	var err error
+	if cacheDir == "" {
+		cacheDir, err = pkg.RegistryCacheDir()
+	}
 	if err != nil {
 		return err
 	}
@@ -54,6 +59,10 @@ func pkgDocsCommand(args []string) error {
 		}
 	}
 
+	if config.PackageRoot() != "" {
+		return fmt.Errorf("package %s is not provisioned in AILANG_PACKAGE_ROOT at %s; ask the operator to provision it", name, pkgCacheDir)
+	}
+
 	// Not in registry cache — check git cache
 	home, _ := os.UserHomeDir()
 	gitCacheBase := filepath.Join(home, ".ailang", "cache", "git")
@@ -66,6 +75,10 @@ func pkgDocsCommand(args []string) error {
 				return nil
 			}
 		}
+	}
+
+	if err := pkg.RefuseIfConfined("fetching from the registry"); err != nil {
+		return fmt.Errorf("package %s not provisioned: %w", name, err)
 	}
 
 	// Not cached — try fetching from registry
@@ -83,9 +96,19 @@ func pkgDocsCommand(args []string) error {
 				return fmt.Errorf("failed to download %s: %w", name, err)
 			}
 			// Extract to cache and display AGENT.md
-			cachePath, _ := pkg.CachedPackagePath(name, p.Latest)
-			os.MkdirAll(cachePath, 0755)
-			pkg.ExtractTarball(tarball, cachePath)
+			if _, err := pkg.EnsureRegistryCacheDir(); err != nil {
+				return err
+			}
+			cachePath, err := pkg.CachedPackagePath(name, p.Latest)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(cachePath, 0755); err != nil {
+				return err
+			}
+			if err := pkg.ExtractTarball(tarball, cachePath); err != nil {
+				return err
+			}
 
 			agentMD := filepath.Join(cachePath, "AGENT.md")
 			if data, err := os.ReadFile(agentMD); err == nil {

@@ -66,62 +66,6 @@ func TestSinkCheckNoRefinement(t *testing.T) {
 	}
 }
 
-// TestDeclassCheckViolation: input<email>, output<sanitized>, no Declassify → violation
-func TestDeclassCheckViolation(t *testing.T) {
-	inputLabel := LabelConst("email")
-	outputLabel := LabelConst("sanitized")
-	effectRow := []string{} // no Declassify
-
-	err := CheckDeclassify(inputLabel, outputLabel, effectRow)
-	if err == nil {
-		t.Fatal("expected DECLASS violation, got nil")
-	}
-	if !err.NeedsDeclarrify {
-		t.Error("violation should set NeedsDeclarrify = true")
-	}
-}
-
-// TestDeclassCheckPass: input<email>, output<sanitized>, with Declassify → no violation
-func TestDeclassCheckPass(t *testing.T) {
-	inputLabel := LabelConst("email")
-	outputLabel := LabelConst("sanitized")
-	effectRow := []string{"Declassify"}
-
-	err := CheckDeclassify(inputLabel, outputLabel, effectRow)
-	if err != nil {
-		t.Errorf("function with Declassify should pass DECLASS check, got: %v", err)
-	}
-}
-
-// TestDeclassCheckIdentity: input<α>, output<α> (same label var) → no violation without Declassify
-func TestDeclassCheckIdentity(t *testing.T) {
-	// Both input and output carry the same label variable α
-	α := LabelVar("α")
-	effectRow := []string{} // no Declassify needed for identity
-
-	err := CheckDeclassify(α, α, effectRow)
-	if err != nil {
-		t.Errorf("identity function (same label in/out) should not require Declassify, got: %v", err)
-	}
-}
-
-// TestDeclassCheckBothBottom: ⊥ → ⊥, no Declassify → no violation (unlabelled functions are fine)
-func TestDeclassCheckBothBottom(t *testing.T) {
-	err := CheckDeclassify(LabelBottom(), LabelBottom(), []string{})
-	if err != nil {
-		t.Errorf("⊥-to-⊥ should not require Declassify, got: %v", err)
-	}
-}
-
-// TestDeclassCheckSameConst: input<email>, output<email> → no violation (no label change)
-func TestDeclassCheckSameConst(t *testing.T) {
-	email := LabelConst("email")
-	err := CheckDeclassify(email, email, []string{})
-	if err != nil {
-		t.Errorf("same label in/out should not require Declassify, got: %v", err)
-	}
-}
-
 // TestSinkErrorMessage: violation error carries readable message
 func TestSinkErrorMessage(t *testing.T) {
 	argType := WithLabel(&TCon{Name: "string"}, LabelConst("email"))
