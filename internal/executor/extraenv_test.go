@@ -59,3 +59,31 @@ func TestValidateTaskCapabilities_RefusesDeniedExtraEnv(t *testing.T) {
 		t.Fatalf("ValidateTaskCapabilities = %v, want a pre-dispatch error naming LD_PRELOAD", err)
 	}
 }
+
+func TestBuildEnvironmentCodexOwnerIsHarnessOwned(t *testing.T) {
+	t.Setenv("CODEX_HOME", "/parent-mission-home")
+	t.Setenv("AILANG_CODEX_RUNTIME", "daemon")
+	for _, name := range []string{"CODEX_HOME", "AILANG_CODEX_RUNTIME", "codex_home", "ailang_codex_runtime"} {
+		t.Run(name, func(t *testing.T) {
+			_, err := BuildEnvironment(EnvironmentOptions{Executor: "codex", Model: "test", Task: &Task{ExtraEnv: map[string]string{name: "task-override"}}})
+			if err == nil || !strings.Contains(err.Error(), name) {
+				t.Fatalf("task owner override %s accepted: %v", name, err)
+			}
+		})
+	}
+	env, err := BuildEnvironment(EnvironmentOptions{Executor: "codex", Model: "test", Task: &Task{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"CODEX_HOME=/parent-mission-home", "AILANG_CODEX_RUNTIME=daemon"} {
+		found := false
+		for _, value := range env {
+			if value == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("parent owner field was not inherited: %s", want)
+		}
+	}
+}

@@ -48,6 +48,8 @@ var extraEnvDeniedExact = map[string]string{
 	// Harness-injected values: ExtraEnv outranks the harness layer, so these
 	// are refused outright rather than silently overwritten either way.
 	"PWD":                       "harness-injected working directory",
+	config.EnvCodexHome:         "harness-owned Codex credential home",
+	config.EnvCodexRuntime:      "harness-owned Codex refresh owner runtime",
 	"TRACEPARENT":               "harness-injected trace context",
 	"TRACESTATE":                "harness-injected trace context",
 	"AILANG_TASK_ID":            "harness-injected correlation ID",
