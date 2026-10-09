@@ -1,0 +1,114 @@
+{
+  "sprint_id": "M-NAMED-TEST-EFFECTFUL-HELPER",
+  "status": "not_started",
+  "created": "2026-10-08T08:43:46.322392+00:00",
+  "design_doc": "design_docs/planned/v0_53_0/m-named-test-effectful-helper.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-named-test-effectful-helper-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Internal Go source retention and line maps cannot be provided by the pure assertion package.",
+      "search_terms": [
+        "testing"
+      ],
+      "inspected_packages": [
+        "sunholo/testing_utils@0.1.1"
+      ]
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Internal entry diagnostics and engine routing cannot be provided by the pure assertion package.",
+      "search_terms": [
+        "testing"
+      ],
+      "inspected_packages": [
+        "sunholo/testing_utils@0.1.1"
+      ]
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Docs and verification examples use existing std/fs; no new package capability.",
+      "search_terms": [
+        "testing"
+      ],
+      "inspected_packages": [
+        "sunholo/testing_utils@0.1.1"
+      ]
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 105,
+    "estimated_total_loc": 420,
+    "estimated_days": 4,
+    "measurement_note": "Shallow history; planning capacity, not observed velocity."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Preserve helper declarations",
+      "estimated_loc": 140,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Unannotated pure helper passes under evaluator and bytecode, matching pure and explicit-empty-row controls.",
+        "All functions, annotations, contracts, imports, types, and bindings survive; only named-test/property blocks are removed, with correct original-line mapping.",
+        "Property batch and forced forallCaller fallback resolve an unannotated pure helper with the same seed/results.",
+        "Existing binding-extraction and malformed-control tests retain their behavior; uncalled effectful helpers do not execute.",
+        "Focused source-strip and named-batch tests pass; edited Go files are formatted."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Map entry effect failures truthfully",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Effectful helper and direct FS calls report the original construct name/file/line, pure-body contract, Missing effects: FS, and exported-entry `ailang run --caps FS` workaround.",
+        "Public test reports and fallback notices contain no synthetic function advice, temp paths, or std/debug import recommendation for a locally declared helper.",
+        "Mapper unit tests cover all three synthetic forms, multiple effect rows, and negative controls for user functions, undefined names, and unrelated errors.",
+        "Invalid unannotated effectful helpers retain the compiler's module-level effect error and original helper location; they are not falsely attributed to a pure test entry.",
+        "Evaluator, --bytecode, and --strict-bytecode agree on semantic results; expected engine-routing metadata is asserted separately.",
+        "An effectful test triggers truthful D1 fallback; valid pure sibling tests still pass, and no user error is called a harness bug.",
+        "Property effect errors identify the property rather than a named test, and property fallback preserves source mapping and seeded behavior."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Document and validate the contract",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Guide explicitly states named-test/property entry purity and the capability-granted exported-entry route for effectful verification.",
+        "Obtain `ailang prompt` before writing .ail fixtures/examples; `ailang check` accepts intended-valid examples, while the intentionally invalid class-5 fixture has an asserted failure.",
+        "Passing example succeeds under evaluator and bytecode; exported verification example succeeds with FS capability and fails without it.",
+        "Reporter repro and pure control are verified with a freshly built binary; effectful case fails truthfully and pure control passes.",
+        "`go test ./internal/testing ./cmd/ailang`, `make test-core`, `make check-boundaries`, `make fmt-check`, and `make lint` pass.",
+        "Focused coverage includes each changed strip/mapper branch and negative controls; existing package coverage does not regress without an explained reason.",
+        "Testing guide, limitations note, examples, and changelog describe the resulting behavior consistently."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

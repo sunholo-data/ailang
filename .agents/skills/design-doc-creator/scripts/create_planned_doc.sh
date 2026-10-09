@@ -138,8 +138,10 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
         echo "    (none found)"
     fi
 
-    # Merge for template (neural preferred)
-    IMPLEMENTED=$(merge_results "$IMPL_SIMHASH" "$IMPL_NEURAL")
+    # Merge for template (neural preferred). `|| true`: with zero matches the
+    # pipeline inside merge_results ends in grep|head whose status is 1, and under
+    # set -e + pipefail that would abort the whole script instead of yielding "".
+    IMPLEMENTED=$(merge_results "$IMPL_SIMHASH" "$IMPL_NEURAL" || true)
     [ -z "$IMPLEMENTED" ] && IMPLEMENTED="  (none found)"
     echo ""
 
@@ -164,8 +166,8 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
         echo "    (none found)"
     fi
 
-    # Merge for template (neural preferred)
-    PLANNED=$(merge_results "$PLAN_SIMHASH" "$PLAN_NEURAL")
+    # Merge for template (neural preferred). Same `|| true` guard as IMPLEMENTED.
+    PLANNED=$(merge_results "$PLAN_SIMHASH" "$PLAN_NEURAL" || true)
     [ -z "$PLANNED" ] && PLANNED="  (none found)"
     echo ""
 

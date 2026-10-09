@@ -1,6 +1,6 @@
 # M-TYPE-NAME-SHADOW: a module's own type must win, and the compile cache must see alias edits
 
-**Status**: Planned. M1 and M3 are implemented in the PR that adds this doc; M2 and M4 are doc-only.
+**Status**: Planned. M1 and M3 are implemented in the PR that adds this doc; **M2 is now specified and scheduled in [m-alias-body-closure](../v0_52_4/m-alias-body-closure.md)** (which also extends closure to export schemes, on T3 evidence); M4 remains doc-only.
 **Target**: v0.44.x (M1 and M3); M2 and M4 are unscheduled.
 **Priority**: P0 for M1 and M3 (silent wrong typing, and a stale "No errors"); P1 for M2; P2 for M4.
 **Estimated**: M1+M3 done (about 250 LOC with tests). M2 takes 1–2 days. M4 takes 1–2 weeks and changes how types are represented.
@@ -141,7 +141,7 @@ silently use the wrong Row.
 
 The interface digest format itself is unchanged; `aliasDigest` is computed on the cache side. The key changes, so every existing entry misses exactly once. There is no on-disk format change, so `cacheKeyVersion` is not bumped.
 
-### M2: close alias bodies over their defining module (doc only, 1–2 days)
+### M2: close alias bodies over their defining module (specified in [m-alias-body-closure](../v0_52_4/m-alias-body-closure.md), targeted v0.52.4)
 
 Build each interface's `TypeAliases` bodies **closed**. When the interface is built (`buildAndRegisterInterface`), replace every `TCon` in a body that names a record or transparent alias in the *defining* module's alias environment (local plus imported, after M1) with its expansion. That needs a `TCon`-substituting walker that is cycle-safe (a visited set per the type-traversal rule) and handles all type variants, and it must keep `TRecord.TypeName` so nominal codegen names survive. Recursive aliases and parameterized aliases applied with free variables stay as `TCon` and keep the M1 capture error. After M2:
 - the capture case in audit row 5 simply works (`TestTypeNameShadow_CapturedImportedAliasIsLoud` changes into a positive test);

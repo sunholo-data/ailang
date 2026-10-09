@@ -1,7 +1,16 @@
 # Codex Provider/Billing Lane Resolution
 
-**Status**: Planned
-**Target**: v0.39.0
+> **SUPERSEDED (2026-10-08)** by [m-codex-subscription-lane.md](v0_52_6/m-codex-subscription-lane.md).
+> Maintainer ruling on issue #903 (option 3, both): `codex*` fails loud **now**
+> (pointing at `chatgpt/`, which gets an HTTP deadline per #1259), and a `codex:`
+> AI-effect provider driving `codex exec --json` **replaces** the `chatgpt/`
+> direct-backend client — reversing this doc's D4 ("never build a provider that
+> shells out to codex exec"). This doc's fail-loud analysis (D1–D3, D5) is carried
+> forward into the successor; its "no codex lane, ever" ruling is not. It was
+> never implemented (nothing on disk follows it).
+
+**Status**: Superseded (2026-10-08) — Planned v0.39.0, not implemented
+**Target**: v0.39.0 (superseded before implementation)
 **Type**: Provider-routing / billing ruling (semantics of the `codex:` model prefix in the AI effect)
 **Priority**: P1 (High) — silent billing exposure
 **Estimated**: 2 days

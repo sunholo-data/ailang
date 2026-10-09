@@ -1,0 +1,125 @@
+{
+  "sprint_id": "M-PKG-REGISTRY-CONFINEMENT",
+  "status": "not_started",
+  "created": "2026-10-08T18:53:24.884354+00:00",
+  "design_doc": "design_docs/planned/v0_52_6/m-pkg-registry-confinement.md",
+  "sprint_plan": "design_docs/planned/v0_52_6/m-pkg-registry-confinement-sprint-plan.md",
+  "github_issues": [
+    1607,
+    1608
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched confinement, registry, content-hash; inspected sunholo/registry_validator@0.1.2 info/docs. Publishing validation cannot implement core Go confinement, resolution or compiler lock checks; reuse existing repository helpers and tools."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched confinement, registry, content-hash; inspected sunholo/registry_validator@0.1.2 info/docs. Publishing validation cannot implement core Go confinement, resolution or compiler lock checks; reuse existing repository helpers and tools."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched confinement, registry, content-hash; inspected sunholo/registry_validator@0.1.2 info/docs. Publishing validation cannot implement core Go confinement, resolution or compiler lock checks; reuse existing repository helpers and tools."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched confinement, registry, content-hash; inspected sunholo/registry_validator@0.1.2 info/docs. Publishing validation cannot implement core Go confinement, resolution or compiler lock checks; reuse existing repository helpers and tools."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 600,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Registry confinement gate",
+      "estimated_loc": 280,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "A1: confined uncached pkg-docs refuses, makes zero HTTP requests, and does not create HOME/.ailang.",
+        "A2 negative: confined lock requiring download or transitive index refuses without registry writes or network calls.",
+        "Both network methods and EnsureRegistryCacheDir refuse independently; pure path computation never creates directories.",
+        "A5: unconfined pkg-docs, install, and lock still fetch/extract successfully against a local HTTP fixture.",
+        "Error text names confinement and operator provisioning; focused pkg/CLI tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Read-only package root",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "A3: confined check and docs read the provisioned root successfully; root and HOME tree snapshots are unchanged.",
+        "Configured missing root/package refuses loudly despite a valid HOME cache; no fallback and no root creation.",
+        "Unset root preserves HOME-cache reads and existing git-cache behavior.",
+        "A2 positive: fully provisioned confined lock succeeds offline, with only its declared lock output.",
+        "Loader tests cover the consumers used by check/ai-check/test/iface/tree and child environment retains the root."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Registry content verification",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "A4: tampering with cached or root-provisioned registry source is detected at check time.",
+        "Matching registry entries pass; missing directory and malformed hashes produce useful errors without panic; empty hash validation remains rejected.",
+        "D5-selected stderr and exit status are asserted through check, not only the helper.",
+        "Existing path-dependency behavior remains covered and root-only hashing cannot select the HOME copy."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Documentation and security regression sweep",
+      "estimated_loc": 50,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Document the environment variable via existing config/docs tooling and verify the generated row matches pathVars.",
+        "Build the binary and rerun #1607's policy-tool repro with empty HOME; record refusal, no HTTP, no persistent registry creation.",
+        "Run operator-root, root-miss/no-fallback, tamper, provisioned-lock, and unconfined smoke scenarios on the built binary.",
+        "Run make test, make test-core, make fmt, make lint, and make check-boundaries; record any environment failures explicitly.",
+        "All A1\u2013A5 results and D3/D5 rulings appear in the sprint report; implementation PR body contains `Refs #1607 #1608`."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "execution_gates": [
+    "Plan approval and execute sprint authorization",
+    "Record human D3 root-only ruling",
+    "Record human D5 hash-mismatch severity ruling"
+  ],
+  "pr_body_required_text": "Refs #1607 #1608"
+}

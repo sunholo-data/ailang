@@ -2391,7 +2391,7 @@ export func main() -> () ! {IO} {
 ## Time and Dates (std/clock, std/datetime)
 
 **std/clock** — current time + sleep, requires `--caps Clock`:
-- `now() -> int ! {Clock}` - Current Unix timestamp (seconds since epoch)
+- `now() -> int ! {Clock}` - Current Unix timestamp (milliseconds since epoch)
 - `sleep(ms: int) -> () ! {Clock}` - Sleep for N milliseconds
 
 ```ailang
@@ -2405,7 +2405,7 @@ export func main() -> () ! {Clock, IO} {
 }
 ```
 
-**std/datetime** — pure date arithmetic on Unix timestamps (int seconds). Pure (no effect needed):
+**std/datetime** — pure date arithmetic on Unix timestamps (int milliseconds). Pure (no effect needed):
 - Accessors: `year(ts)`, `month(ts)`, `day(ts)`, `weekday(ts)`, `hour(ts)`, `minute(ts)`, `second(ts)` — all return `int`
 - Arithmetic: `addDays(ts, n)`, `addMonths(ts, n)`, `addYears(ts, n)`, `diffDays(a, b)` — all return `int`
 - Boundaries: `startOfDay(ts)`, `startOfWeek(ts)`, `startOfMonth(ts)` — return `int`
