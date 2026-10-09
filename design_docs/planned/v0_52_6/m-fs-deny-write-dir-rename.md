@@ -498,3 +498,7 @@ skill file was modified.
 
 **Document created**: 2026-10-08
 **Last updated**: 2026-10-08
+
+## Maintainer rulings (Ruled 2026-10-08 by Mark)
+
+All decisions marked `human` in the decisions table are ratified as written: ancestor protection as a rename/remove-time check in the shared matcher; refusal when a pattern can match the named path or anything strictly beneath it (base-name patterns excluded); writes and mkdirs stay on the plain check; over-denial is the fail-closed direction.

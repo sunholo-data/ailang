@@ -510,3 +510,7 @@ The following are intentionally left open for the implementer:
 
 **Document created**: 2026-10-08
 **Last updated**: 2026-10-08
+
+## Maintainer rulings (Ruled 2026-10-08 by Mark)
+
+The decision marked `human` is ratified as written: the frozen `-32603` envelope remains the fallback for every error that does not implement the hook.
