@@ -3,7 +3,7 @@
 Refs #1576 — https://github.com/sunholo-data/ailang/issues/1576
 
 **Design:** [m-vm-stack-limit-parity.md](m-vm-stack-limit-parity.md)
-**Related:** [m-bytecode-vm-parity-bugs.md](m-bytecode-vm-parity-bugs.md), Lane B4.
+**Related:** [m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md), Lane B4.
 **Status:** Implementation complete; independent sprint evaluation pending.
 **Duration:** 1 day (approximately 5 hours including 25% validation buffer).
 **Priority:** P1. **Risk:** Medium. **Estimated total:** 220 LOC (10 production, 190 tests, 20 documentation).
