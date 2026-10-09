@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 )
@@ -20,6 +21,10 @@ const DefaultBaseURL = "https://chatgpt.com/backend-api/codex"
 // ModelPrefix routes a model to this provider ("chatgpt/gpt-6.1-sol"); it is
 // stripped before the request.
 const ModelPrefix = "chatgpt/"
+
+// defaultDeadline bounds the entire exchange, including the SSE body. #1259
+// will absorb this backstop into the unified AI timeout configuration.
+const defaultDeadline = 10 * time.Minute
 
 var (
 	_ ai.Provider          = (*Client)(nil)
@@ -39,6 +44,11 @@ type Option func(*Client)
 // WithBaseURL points the client at another endpoint (tests).
 func WithBaseURL(u string) Option { return func(c *Client) { c.baseURL = strings.TrimRight(u, "/") } }
 
+// WithTimeout overrides the total HTTP exchange deadline, including streaming.
+func WithTimeout(timeout time.Duration) Option {
+	return func(c *Client) { c.httpClient.Timeout = timeout }
+}
+
 // WithCredential pins the credential instead of reading auth.json (tests).
 func WithCredential(cred Credential) Option {
 	return func(c *Client) { c.load = func() (Credential, error) { return cred, nil } }
@@ -47,7 +57,7 @@ func WithCredential(cred Credential) Option {
 // NewClient builds a client. The credential is read per request, so a token
 // codex refreshed mid-run is picked up.
 func NewClient(opts ...Option) *Client {
-	c := &Client{baseURL: DefaultBaseURL, httpClient: &http.Client{}, load: LoadCredential}
+	c := &Client{baseURL: DefaultBaseURL, httpClient: &http.Client{Timeout: defaultDeadline}, load: LoadCredential}
 	for _, o := range opts {
 		o(c)
 	}

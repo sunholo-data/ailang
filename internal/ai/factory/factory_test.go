@@ -259,3 +259,15 @@ func TestReadKeyFile(t *testing.T) {
 		t.Fatal("missing file must fail")
 	}
 }
+
+func TestCodexRefusesMeteredAndConfigDrivenFallback(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "sk-metered")
+	called := false
+	_, err := New("codex", WithConfigDriven(func(string) ai.Provider { called = true; return nil }))
+	if err == nil || !strings.Contains(err.Error(), "chatgpt/") || !strings.Contains(err.Error(), "#903") || called {
+		t.Fatalf("codex must refuse before fallback: %v, called=%v", err, called)
+	}
+	if _, err := New("openai"); err != nil {
+		t.Fatalf("explicit metered lane changed: %v", err)
+	}
+}

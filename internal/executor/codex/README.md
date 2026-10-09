@@ -92,13 +92,21 @@ at `~/.codex/auth.json` (or equivalent platform path) and reused by all subseque
 |---|---|
 | Laptop / desktop with browser | `codex login` |
 | Cloud VM / SSH session / CI runner | `codex login --device-auth` |
-| Automated pipeline (no human) | `OPENAI_API_KEY` env var |
-| AILANG coordinator daemon | `OPENAI_API_KEY` in coordinator env (preferred) |
+| Private cloud worker using subscription credentials | `AILANG_CODEX_AUTH_SECRET` |
+| AILANG coordinator daemon, subscription lane | `codex login --device-auth` or cloud subscription secret |
+| Deliberately metered automation | `OPENAI_API_KEY` / `AILANG_AUTH_MODE=apikey` |
 
-For the AILANG coordinator, `OPENAI_API_KEY` in the process environment is the most
-reliable approach — it survives container restarts and doesn't require cached session
-files to be present on every worker node. `codex login --device-auth` is the right
-choice for interactive developer machines that don't expose API keys.
+The subscription lane is the default: sign in locally with `codex login
+--device-auth`, or configure `AILANG_CODEX_AUTH_SECRET` for private cloud workers.
+Keep `OPENAI_API_KEY` absent when using ChatGPT-plan quota. The API-key alternative
+is explicitly metered and bills API credits.
+
+Refs #903: Phase 1 AI-effect calls using `codex*` fail loudly; use
+`chatgpt/gpt-6.1-sol` for the interim subscription provider, or an explicit
+`provider: openai` registry row for metered API access. The mission executor's
+`codex:gpt-*` models continue to use the Codex CLI independently. The interim
+`chatgpt/` HTTP client bounds the entire streaming exchange to 10 minutes;
+#1259 will absorb this backstop into the unified timeout configuration.
 
 ## Event Schema
 

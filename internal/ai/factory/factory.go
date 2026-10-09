@@ -132,6 +132,9 @@ func New(name string, opts ...Option) (*Client, error) {
 		}
 		return &Client{Provider: openai.NewClient(key, copts...), Type: typ, Lane: lane}, nil
 
+	case ai.ProviderCodex:
+		return nil, fmt.Errorf("codex: is the ChatGPT-subscription lane, not a metered OpenAI API model; AI-effect construction is unavailable (issue #903). Until the codex exec provider lands, use a chatgpt/ model (for example chatgpt/gpt-6.1-sol), the provider_executor lane for codex agent loops, or an explicit provider: openai registry row for deliberately metered API use")
+
 	case ai.ProviderChatGPT:
 		// Subscription OAuth only: the codex CLI's ChatGPT login. Checked here
 		// so a missing or expired login fails at setup, not on the first call.

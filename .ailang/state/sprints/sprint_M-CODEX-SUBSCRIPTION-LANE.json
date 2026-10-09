@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-CODEX-SUBSCRIPTION-LANE",
-  "status": "not_started",
+  "status": "paused",
   "created": "2026-10-08T19:17:51.210224+00:00",
   "design_doc": "design_docs/planned/v0_52_6/m-codex-subscription-lane.md",
   "sprint_plan": "design_docs/planned/v0_52_6/m-codex-subscription-lane-sprint-plan.md",
@@ -55,7 +55,8 @@
   "velocity": {
     "target_loc_per_day": 200,
     "estimated_total_loc": 1260,
-    "estimated_days": 6
+    "estimated_days": 6,
+    "actual_total_loc": 224
   },
   "features": [
     {
@@ -69,11 +70,12 @@
         "Motoko preflight checks subscription credentials and classifies the sentinel as subscription; mission executor routing and explicit provider: openai registry rows retain their behavior.",
         "Existing provider-prefix fixtures and coordinator spawn-recipe regression tests pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
-      "phase": "phase1"
+      "passes": true,
+      "started": "2026-10-09T07:33:56.367159+00:00",
+      "completed": "2026-10-09T07:48:52.626194+00:00",
+      "notes": "Acceptance verified; focused tests, core tests, fmt, lint and architecture gates passed. Phase 1 report records caller audit and the unrelated harness container exception.",
+      "phase": "phase1",
+      "actual_loc": 107
     },
     {
       "id": "M2",
@@ -86,14 +88,15 @@
         "Default HTTP deadline is 10 minutes, WithTimeout overrides it, and a continuously streaming httptest response terminates at the configured deadline; earlier context cancellation also works.",
         "No parallel timeout flag or env variable is introduced; #1259 absorption is documented.",
         "README describes subscription-first auth and the explicitly metered alternative; preserve the already-landed supersession banner rather than duplicating it.",
-        "A1–A5 and focused go test + make test-core pass; Phase 1 can ship independently before any Phase 2 code is merged.",
+        "A1\u2013A5 and focused go test + make test-core pass; Phase 1 can ship independently before any Phase 2 code is merged.",
         "Phase 1 STOP: commit M1-M2 locally with Refs #903, report, and stop; do not start D8 or M3 in the same run."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
-      "phase": "phase1"
+      "passes": true,
+      "started": "2026-10-09T07:33:56.367159+00:00",
+      "completed": "2026-10-09T07:48:52.626194+00:00",
+      "notes": "Acceptance verified; focused tests, core tests, fmt, lint and architecture gates passed. Phase 1 report records caller audit and the unrelated harness container exception.",
+      "phase": "phase1",
+      "actual_loc": 117
     },
     {
       "id": "D8",
@@ -229,5 +232,8 @@
     "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-CODEX-SUBSCRIPTION-LANE before each run and after every JSON update.",
     "Executor cannot push or merge; commit locally with Refs #903.",
     "No models.yml migration (M5) and no internal/ai/chatgpt/ removal (M6) before the D8 ruling."
-  ]
+  ],
+  "last_session": "2026-10-09T07:48:52.626194+00:00",
+  "last_checkpoint": "Phase 1 M1\u2013M2 complete; required STOP after local Refs #903 commit. D8 and Phase 2 not started. See phase1 report for validation and the container-specific harness exception.",
+  "implementation_report": "design_docs/planned/v0_52_6/m-codex-subscription-lane-phase1-report.md"
 }

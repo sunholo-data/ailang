@@ -122,7 +122,7 @@ func TestGuessProvider(t *testing.T) {
 		{"gpt-5.1", ProviderOpenAI},
 		{"o1-preview", ProviderOpenAI},
 		{"o3-mini", ProviderOpenAI},
-		{"codex-max", ProviderOpenAI},
+		{"codex-max", ProviderCodex},
 
 		// Anthropic models
 		{"claude-sonnet-4-5", ProviderAnthropic},
@@ -331,5 +331,16 @@ func TestResponse_Fields(t *testing.T) {
 	}
 	if resp.ReasonTokens != 25 {
 		t.Errorf("ReasonTokens = %d, want %d", resp.ReasonTokens, 25)
+	}
+}
+
+func TestCodexSubscriptionSentinel(t *testing.T) {
+	for _, model := range []string{"codex", "codex-max", "codex:gpt-6.1-sol", "CODEX:gpt-6-astra", "codex/openai"} {
+		if got := GuessProvider(model); got != ProviderCodex {
+			t.Errorf("%s: got %s", model, got)
+		}
+	}
+	if ProviderFromString("CODEX") != ProviderCodex || EnvVarForProvider(ProviderCodex) != "" {
+		t.Fatal("codex must have no metered key authority")
 	}
 }

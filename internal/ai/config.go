@@ -20,6 +20,8 @@ const (
 	// ProviderChatGPT is OpenAI on a ChatGPT subscription (codex's OAuth
 	// login, internal/ai/chatgpt), selected by the "chatgpt/" model prefix.
 	ProviderChatGPT ProviderType = "chatgpt"
+	// ProviderCodex reserves the subscription namespace; Phase 1 refuses AI-effect construction.
+	ProviderCodex ProviderType = "codex"
 )
 
 // openrouterVendorPrefixes lists known "vendor/" prefixes that identify a
@@ -68,6 +70,10 @@ func GuessProvider(modelName string) ProviderType {
 		return ProviderChatGPT
 	}
 
+	if strings.HasPrefix(lower, "codex") {
+		return ProviderCodex
+	}
+
 	// Explicit openrouter: prefix
 	if strings.HasPrefix(lower, "openrouter:") {
 		return ProviderOpenRouter
@@ -88,8 +94,7 @@ func GuessProvider(modelName string) ProviderType {
 	switch {
 	case strings.HasPrefix(lower, "gpt"),
 		strings.HasPrefix(lower, "o1"),
-		strings.HasPrefix(lower, "o3"),
-		strings.HasPrefix(lower, "codex"):
+		strings.HasPrefix(lower, "o3"):
 		return ProviderOpenAI
 	case strings.HasPrefix(lower, "claude"):
 		return ProviderAnthropic
@@ -171,6 +176,8 @@ func ProviderFromString(s string) ProviderType {
 		return ProviderLyceum
 	case "zai", "z-ai", "z.ai":
 		return ProviderZAI
+	case "codex":
+		return ProviderCodex
 	case "chatgpt":
 		return ProviderChatGPT
 	default:

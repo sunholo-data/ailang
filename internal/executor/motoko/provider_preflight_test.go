@@ -358,8 +358,10 @@ func TestRequireProviderCredential_ChatGPTNeedsCodexLogin(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(home, "auth.json"), []byte(auth), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := requireProviderCredential("chatgpt/gpt-6.1-sol"); err != nil {
-		t.Fatalf("a codex ChatGPT login must admit the run: %v", err)
+	for _, model := range []string{"chatgpt/gpt-6.1-sol", "codex:gpt-6.1-sol"} {
+		if err := requireProviderCredential(model); err != nil {
+			t.Fatalf("a codex ChatGPT login must admit %s: %v", model, err)
+		}
 	}
 
 	if got := motokoAuthLane("chatgpt/gpt-6.1-sol"); got != executor.AuthLaneSubscription {
@@ -367,5 +369,16 @@ func TestRequireProviderCredential_ChatGPTNeedsCodexLogin(t *testing.T) {
 	}
 	if got := motokoAuthLane("openrouter/z-ai/glm-5.3-flash"); got != executor.AuthLaneBilled {
 		t.Fatalf("an OpenRouter motoko row must stay billed, got %v", got)
+	}
+}
+
+func TestCodexPreflightSubscription(t *testing.T) {
+	t.Setenv("CODEX_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "sk-metered")
+	if err := requireProviderCredential("codex:gpt-6.1-sol"); err == nil || !strings.Contains(err.Error(), "ChatGPT subscription lane") {
+		t.Fatalf("expected subscription credential refusal: %v", err)
+	}
+	if got := motokoAuthLane("codex:gpt-6.1-sol"); got != executor.AuthLaneSubscription {
+		t.Fatalf("got %v", got)
 	}
 }
