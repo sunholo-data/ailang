@@ -66,6 +66,10 @@ func tryLoadPackageResolver(dir string) (loader.PackageResolver, error) {
 
 	// Validate content hashes — detect stale lock files
 	if err := lf.ValidateContentHashesFrom(manifestDir); err != nil {
+		var registryErr *pkg.RegistryContentError
+		if errors.As(err, &registryErr) {
+			return nil, err
+		}
 		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 	}
 

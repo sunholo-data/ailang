@@ -1,0 +1,4 @@
+module examples/alias_body_closure/b
+
+export type Item = {y: string}
+export pure func one() -> Item = {y: "b"}

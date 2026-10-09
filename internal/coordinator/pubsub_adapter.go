@@ -230,6 +230,16 @@ func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]st
 			notification.MessageID, fetchErr)
 		return fmt.Errorf("hydrating notification %s: %w", notification.MessageID, fetchErr)
 	}
+	if fullMsg == nil && envelope != nil && msgAttrs.Source == pubsub.SourceCascade {
+		rebuilt, err := a.materializeCascadeMessage(notification.MessageID, msgAttrs, envelope)
+		if err != nil {
+			// A failed write is retryable; the envelope will still be there.
+			a.logger.Printf("PubSubInboxAdapter: cannot store cascade message %s rebuilt from its envelope: %v — NOT dispatching; Pub/Sub will redeliver",
+				notification.MessageID, err)
+			return fmt.Errorf("materializing cascade notification %s: %w", notification.MessageID, err)
+		}
+		fullMsg = rebuilt
+	}
 	if fullMsg == nil {
 		// Ack: a redelivery would find the same absence.
 		a.logger.Printf("PubSubInboxAdapter: notification %s names a message that does not exist in the store — dropping, NOT dispatching",
@@ -321,3 +331,49 @@ func (a *PubSubInboxAdapter) MarkAsRead(_ string) error {
 
 // Compile-time check that PubSubInboxAdapter implements MessageStore.
 var _ MessageStore = (*PubSubInboxAdapter)(nil)
+
+// materializeCascadeMessage rebuilds a cascade notification's message from the
+// envelope it carries and stores it under the notification's id (#1730).
+//
+// `ailang publish` writes the upgrade-available row to the publisher's LOCAL
+// store, then publishes a cascade notification naming that local id. The
+// cloud store never has the row, so every cascade since 2026-09-17 was
+// dropped here as "names a message that does not exist". The envelope carries
+// everything the row held (M-PKG-CASCADE-DETERMINISTIC-FIRST), so the row is
+// rebuilt with the same builder the publisher uses and stored, which lets the
+// later readers that look the task's message up by id (the autonomy router,
+// the dashboard) find it too. PutMessageIfAbsent keeps a redelivery from
+// writing it twice.
+//
+// Returns (nil, nil) when the envelope cannot describe an upgrade (no root
+// package, or another message kind), so the caller drops as before.
+func (a *PubSubInboxAdapter) materializeCascadeMessage(id string, attrs pubsub.MessageAttributes, env *pubsub.CascadeEnvelopeFields) (*messaging.InboxMessage, error) {
+	if env.RootPackage == "" || attrs.Inbox == "" || attrs.MessageType != string(messaging.PkgMsgUpgradeAvailable) {
+		return nil, nil
+	}
+	name := env.RootPackage
+	if i := strings.LastIndex(name, "@"); i > 0 {
+		name = name[:i]
+	}
+	old := messaging.PackageVersionInfo{
+		Name: name, Version: env.FromVersion,
+		InterfaceHash: env.FromInterfaceHash, ContentHash: env.FromContentHash,
+		Effects: env.PrevEffectCeiling,
+	}
+	next := messaging.PackageVersionInfo{
+		Name: name, Version: env.ToVersion,
+		InterfaceHash: env.ToInterfaceHash, ContentHash: env.ToContentHash,
+		Effects: env.NewEffectCeiling,
+	}
+	msg, err := messaging.UpgradeAvailableMessage(old, next, []string{attrs.Inbox}, attrs.Category)
+	if err != nil || msg == nil {
+		return nil, err
+	}
+	msg.ID, msg.MessageID = id, id
+	if _, err := a.msgStore.PutMessageIfAbsent(context.Background(), msg); err != nil {
+		return nil, err
+	}
+	a.logger.Printf("PubSubInboxAdapter: cascade message %s was not in the store; rebuilt it from the envelope (%s %s → %s) and stored it",
+		id, name, env.FromVersion, env.ToVersion)
+	return msg, nil
+}

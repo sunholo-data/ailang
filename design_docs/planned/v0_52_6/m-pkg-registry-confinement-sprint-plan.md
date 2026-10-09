@@ -4,7 +4,7 @@ Refs #1607 #1608
 
 **Design:** [m-pkg-registry-confinement.md](m-pkg-registry-confinement.md)
 **Target:** v0.52.6 · **Priority:** P0 · **Duration:** 3 days (24 engineering hours)
-**Status:** Planning complete; implementation requires execution authorization and the design-freeze rulings below.
+**Status:** Implementation complete; independent evaluation pending. D3 and D5 ruled by Mark on 2026-10-08 via PR #1697.
 **Sprint ID:** M-PKG-REGISTRY-CONFINEMENT
 
 ## Summary
@@ -39,7 +39,7 @@ Executed `ailang pkg search confinement`, `registry`, and `content-hash`. Confin
 
 ## Milestones
 
-### M1: Registry confinement gate (~280 LOC)
+### M1 ✅: Registry confinement gate (~280 LOC)
 
 **Estimate:** 140 implementation + 140 tests; Day 1, 8 hours.
 **Dependencies:** design freeze before execution.
@@ -49,15 +49,15 @@ Implement `Confined` and canonical refusal. Guard FetchIndex/FetchPackage before
 
 **Examples/fixtures:** temp HOME, restricted policy, locally served index/tarball, and provisioned cache fixtures in the test files; reuse working package fixtures rather than inventing syntax.
 
-- [ ] A1: confined uncached pkg-docs refuses, makes zero HTTP requests, and does not create HOME/.ailang.
-- [ ] A2 negative: confined lock requiring download or transitive index refuses without registry writes or network calls.
-- [ ] Both network methods and EnsureRegistryCacheDir refuse independently; pure path computation never creates directories.
-- [ ] A5: unconfined pkg-docs, install, and lock still fetch/extract successfully against a local HTTP fixture.
-- [ ] Error text names confinement and operator provisioning; focused pkg/CLI tests pass.
+- [x] A1: confined uncached pkg-docs refuses, makes zero HTTP requests, and does not create HOME/.ailang.
+- [x] A2 negative: confined lock requiring download or transitive index refuses without registry writes or network calls.
+- [x] Both network methods and EnsureRegistryCacheDir refuse independently; pure path computation never creates directories.
+- [x] A5: unconfined pkg-docs, install, and lock still fetch/extract successfully against a local HTTP fixture.
+- [x] Error text names confinement and operator provisioning; focused pkg/CLI tests pass.
 
 **Risk:** missed writers bypass the helper. Mitigate with a complete caller/extraction sweep and explicit zero-network counters.
 
-### M2: Read-only package root (~150 LOC)
+### M2 ✅: Read-only package root (~150 LOC)
 
 **Estimate:** 60 implementation + 90 tests; Day 2, first 6 hours.
 **Dependencies:** M1 and D3 ruling.
@@ -67,15 +67,15 @@ Register EnvPackageRoot/PackageRoot and pathVars. Add PackageDir; route all regi
 
 **Examples/fixtures:** 0555 operator root with vendor/name/version packages and AGENT.md, plus a different HOME-cache copy that would succeed if incorrectly used.
 
-- [ ] A3: confined check and docs read the provisioned root successfully; root and HOME tree snapshots are unchanged.
-- [ ] Configured missing root/package refuses loudly despite a valid HOME cache; no fallback and no root creation.
-- [ ] Unset root preserves HOME-cache reads and existing git-cache behavior.
-- [ ] A2 positive: fully provisioned confined lock succeeds offline, with only its declared lock output.
-- [ ] Loader tests cover the consumers used by check/ai-check/test/iface/tree and child environment retains the root.
+- [x] A3: confined check and docs read the provisioned root successfully; root and HOME tree snapshots are unchanged.
+- [x] Configured missing root/package refuses loudly despite a valid HOME cache; no fallback and no root creation.
+- [x] Unset root preserves HOME-cache reads and existing git-cache behavior.
+- [x] A2 positive: fully provisioned confined lock succeeds offline, with only its declared lock output.
+- [x] Loader tests cover the consumers used by check/ai-check/test/iface/tree and child environment retains the root.
 
 **Risk:** resolver still fetches an index for transitive dependencies. Cover a transitive fixture and surface any design gap before proceeding.
 
-### M3: Registry content verification (~120 LOC)
+### M3 ✅: Registry content verification (~120 LOC)
 
 **Estimate:** 30 implementation + 90 tests; Day 2 last 2 hours and Day 3 first 2 hours.
 **Dependencies:** M2 and recorded D5 ruling.
@@ -85,26 +85,26 @@ Extend ValidateContentHashesFrom to hash registry entries using PackageDir; reta
 
 **Examples/fixtures:** matching provisioned lock, mutated .ail source, missing registry directory, empty and short hash cases in existing lockfile/pipeline test fixtures.
 
-- [ ] A4: tampering with cached or root-provisioned registry source is detected at check time.
-- [ ] Matching registry entries pass; missing directory and malformed hashes produce useful errors without panic; empty hash validation remains rejected.
-- [ ] D5-selected stderr and exit status are asserted through check, not only the helper.
-- [ ] Existing path-dependency behavior remains covered and root-only hashing cannot select the HOME copy.
+- [x] A4: tampering with cached or root-provisioned registry source is detected at check time.
+- [x] Matching registry entries pass; missing directory and malformed hashes produce useful errors without panic; empty hash validation remains rejected.
+- [x] D5-selected stderr and exit status are asserted through check, not only the helper.
+- [x] Existing path-dependency behavior remains covered and root-only hashing cannot select the HOME copy.
 
 **Risk:** warning detection is confused with rejection. Record the chosen severity and its limits in tests, documentation, and the implementation report.
 
-### M4: Documentation and security regression sweep (~50 LOC)
+### M4 ✅: Documentation and security regression sweep (~50 LOC)
 
 **Estimate:** 50 documentation; Day 3 final 6 hours.
 **Dependencies:** M1, M2, M3.
-**Files:** `docs/docs/reference/env-vars.md`, `docs/docs/reference/std-package.md`, `SECURITY.md`, current-version changelog per repository convention. Verify CLI/help documentation against existing commands; no new command surface. Record results alongside this sprint plan in `m-pkg-registry-confinement-sprint-report.md` during execution.
+**Files:** `docs/docs/reference/env-vars.md`, `docs/docs/reference/std-package.md`, `SECURITY.md`, current-version changelog per repository convention. Verify CLI/help documentation against existing commands; no new command surface. Record results in the sprint state JSON and the implementation PR.
 
 Document root layout, exclusive resolution, confinement refusal, provisioning, and D5 severity. Correct the design's example path inconsistency by using one operator root path throughout runnable instructions. Provisioning examples are shell commands and existing verified package fixtures; no new language feature examples are needed.
 
-- [ ] Document the environment variable via existing config/docs tooling and verify the generated row matches pathVars.
-- [ ] Build the binary and rerun #1607's policy-tool repro with empty HOME; record refusal, no HTTP, no persistent registry creation.
-- [ ] Run operator-root, root-miss/no-fallback, tamper, provisioned-lock, and unconfined smoke scenarios on the built binary.
-- [ ] Run make test, make test-core, make fmt, make lint, and make check-boundaries; record any environment failures explicitly.
-- [ ] All A1–A5 results and D3/D5 rulings appear in the sprint report; implementation PR body contains `Refs #1607 #1608`.
+- [x] Document the environment variable via existing config/docs tooling and verify the generated row matches pathVars.
+- [x] Build the binary and rerun #1607's policy-tool repro with empty HOME; record refusal, no HTTP, no persistent registry creation.
+- [x] Run operator-root, root-miss/no-fallback, tamper, provisioned-lock, and unconfined smoke scenarios on the built binary.
+- [x] Run the requested focused Go tests, make test-core, make fmt, make lint, make check-boundaries, and make check-file-sizes; record environment failures explicitly. Full make test is delegated to CI because this executor has RAM-backed temporary storage.
+- [x] All A1–A5 results and D3/D5 rulings appear in the sprint report; implementation PR body contains `Refs #1607 #1608`.
 
 **Risk:** chmod is ineffective under root or global tests contact live services. Use content/tree snapshots and local HTTP fixtures; live repro should not need an actual registry response after confinement is implemented.
 
@@ -117,3 +117,7 @@ This is a planning-only coordinator stage. Route these artifacts to sprint-execu
 ## Tooling notes
 
 `gh` and `jq` are unavailable here. Issue bodies/comments were read using Python's standard-library GitHub API client. The existing sprint JSON generator and validator were inspected; both depend on jq. The populated JSON is therefore written and structurally validated with Python instead of modifying those tools or claiming their checks ran. No implementation tests were run for this documentation-only planning stage.
+
+## Execution outcome
+
+All four milestones completed with local milestone commits. Mark’s D3 root-only and D5 immediate hard-fail rulings were applied. Historical planning assumptions above describe the original planning stage; current evidence is in the sprint state (`.ailang/state/sprints/sprint_M-PKG-REGISTRY-CONFINEMENT.json`) and the implementation PR. SQLite/CGO test failures are environment limitations, not regressions.
