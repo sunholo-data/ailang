@@ -110,5 +110,22 @@
     "score": 98,
     "round": 1,
     "report_path": ".ailang/state/evaluations/eval_M-RUN-POLICY-WORKER-CACHE_round_1.json"
+  },
+  "evaluation_feedback_repair": {
+    "correlation_id": "eval_M-RUN-POLICY-WORKER-CACHE_round_1",
+    "reported_score": 77,
+    "next_evaluation_round": 2,
+    "change": "Isolate cache placement subtests; skip only relative path when filepath.Rel fails, with runtime.GOOS and error diagnostic. Symlink availability skips only its own case.",
+    "base_commit": "67af4370341d25e0ce00b54bab9bb143e38385eb",
+    "branch": "coordinator/task-ed800792-repair",
+    "validation": {
+      "focused_cache_tests": "passed",
+      "format_and_diff": "passed",
+      "core_tests": "failed: existing internal/effects SQLite tests require CGO",
+      "lint": "unavailable: make and golangci-lint missing",
+      "windows": "awaiting CI"
+    },
+    "report_path": ".ailang/state/sprints/M-RUN-POLICY-WORKER-CACHE-round-2-completion.md",
+    "publishing": "Coordinator required: GitHub token absent; connector needs reauthentication"
   }
 }
