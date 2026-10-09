@@ -120,3 +120,32 @@ The `examples/asset_path.ail` shipped with this release uses a non-existent pack
 - [M-EXT-PORTABILITY-GATE design doc](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_19_0/m-ext-portability-gate.md) — the v0.19.0 sprint that introduced asset bundling, the pre-publish smoke gate, and `std/extension.requireWorkdirFile`.
 - [`std/extension.requireWorkdirFile`](./std-extension) — companion helper for extensions whose assets live in the consumer's workdir rather than the package itself.
 - [v0.19.0 changelog entry](https://github.com/sunholo-data/ailang/blob/dev/changelogs/v0.18-v0.25-eval-harness.md) — full v0.19.0 release notes.
+
+## Registry module resolution and confinement
+
+For `import pkg/...` module resolution and `ailang pkg-docs`, hosts can set
+`AILANG_PACKAGE_ROOT` to a read-only registry snapshot containing
+`<vendor>/<name>/<version>/ailang.toml` and package source files. The configured
+root is exclusive: a missing root, package, or docs guide is an error, with no
+HOME cache fallback or automatic root creation. Without this variable, registry
+modules and docs use `~/.ailang/cache/registry` as before. This setting does not
+change `std/package.assetPath`'s runtime asset lookup.
+
+Under `AILANG_AGENT_POLICY`, registry network fetches and cache writes refuse
+with a named confinement error. Pre-provisioned versioned dependencies can be
+locked offline; legacy transitive path dependencies that need an index refuse.
+Provision a root outside confinement:
+
+```bash
+ailang install sunholo/oauth@0.1.0
+mkdir -p /srv/ailang/packages
+cp -R ~/.ailang/cache/registry/. /srv/ailang/packages/
+chmod -R a-w /srv/ailang/packages
+export AILANG_PACKAGE_ROOT=/srv/ailang/packages
+```
+
+Registry `.ail` source content must match the lock's `content_hash` in the
+selected root or HOME cache. A mismatch makes `ailang check` exit non-zero in
+this release, with no deprecation window; missing registry content also fails.
+Path dependency drift continues to warn. Operators should regenerate a lock
+only after verifying and provisioning the intended package content.
