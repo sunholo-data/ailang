@@ -523,4 +523,4 @@ Full tests, lint, architecture/format/file-size checks and example validation pa
 F3 composed integer predicates verified; float-division encoding failure exits 1 in
 verify and ai-check. The original sketch is unavailable; no SMT change or closure
 of #495 is claimed. Execution details and plan adjustments are in the companion
-sprint plan and `.ailang/state/sprints/M-INLINE-TEST-EXPECTED-VALUES-implementation.json`.
+sprint plan.
