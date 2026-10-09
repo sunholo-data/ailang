@@ -245,6 +245,19 @@ See [`resources/sprint_plan_template.md`](resources/sprint_plan_template.md)
   - **Example files created and verified working** (CRITICAL - see CLAUDE.md)
   - Docs to update
 
+### 5.1. AILANG Syntax Gate (mandatory when any milestone writes `.ail` code)
+
+Before finalizing a plan that creates or edits `.ail` code:
+1. Load the current teaching prompt with `ailang prompt` (or MCP `prompt_get`
+   when the ailang-docs MCP is wired). Recording a version alone is not loading syntax.
+2. Record `AILANG prompt version loaded: <version>` in the plan, using
+   `ailang prompt --version-active` to obtain the active CLI version.
+3. For every showcase/demo module, record three checklist rows: **contracts**
+   (`requires`/`ensures`, verifiable with `ailang verify`), **effects** (a named
+   effect row such as `! {IO}`), and **inline tests** (`tests [(in, out)]` or a
+   property block). Each row must say `include` with planned signature detail,
+   or `skip: <one-line reason>`.
+
 ### 6. Present for Feedback
 
 **Show user:**

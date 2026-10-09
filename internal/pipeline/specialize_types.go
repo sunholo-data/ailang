@@ -229,9 +229,10 @@ func substituteType(typ types.Type, subst map[string]types.Type) types.Type {
 		}
 		newReturn := substituteType(t.Return, subst)
 		return &types.TFunc2{
-			Params:    newParams,
-			Return:    newReturn,
-			EffectRow: t.EffectRow, // Keep effects as-is for now
+			Params:                 newParams,
+			Return:                 newReturn,
+			EffectRow:              t.EffectRow, // Keep effects as-is for now
+			ConcreteEffectContract: t.ConcreteEffectContract,
 		}
 	case *types.TApp:
 		// Substitute in constructor and args

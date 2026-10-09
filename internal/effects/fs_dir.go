@@ -93,7 +93,7 @@ func fsRemoveFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := ctx.fsCheckMutation(path); err != nil {
+	if err := ctx.fsCheckMove(path); err != nil {
 		return nil, err
 	}
 	b, err := ctx.fsBackendFor()
@@ -132,10 +132,10 @@ func fsRenameFile(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := ctx.fsCheckMutation(oldPath); err != nil {
+	if err := ctx.fsCheckMove(oldPath); err != nil {
 		return nil, err
 	}
-	if err := ctx.fsCheckMutation(newPath); err != nil {
+	if err := ctx.fsCheckMove(newPath); err != nil {
 		return nil, err
 	}
 	b, err := ctx.fsBackendFor()
@@ -158,7 +158,7 @@ func fsRemoveFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) 
 	if err != nil {
 		return nil, err
 	}
-	if err := ctx.fsCheckMutation(path); err != nil {
+	if err := ctx.fsCheckMove(path); err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot remove file: %v", err)), nil
 	}
 	b, err := ctx.fsBackendFor()
@@ -178,10 +178,10 @@ func fsRenameFileResult(ctx *EffContext, args []eval.Value) (eval.Value, error) 
 	if err != nil {
 		return nil, err
 	}
-	if err := ctx.fsCheckMutation(oldPath); err != nil {
+	if err := ctx.fsCheckMove(oldPath); err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot rename file: %v", err)), nil
 	}
-	if err := ctx.fsCheckMutation(newPath); err != nil {
+	if err := ctx.fsCheckMove(newPath); err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot rename file: %v", err)), nil
 	}
 	b, err := ctx.fsBackendFor()
@@ -244,7 +244,7 @@ func fsRemoveDirResult(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := ctx.fsCheckMutation(path); err != nil {
+	if err := ctx.fsCheckMove(path); err != nil {
 		return fsMakeErr(fmt.Sprintf("cannot remove directory: %v", err)), nil
 	}
 	b, err := ctx.fsBackendFor()

@@ -105,9 +105,16 @@ func (r *Runner) runEnsuresProperty(propCase PropertyCase) PropertyResult {
 				result.Duration = time.Since(start)
 				return result
 			}
+			valueCore, err := astExprToCore(lit)
+			if err != nil {
+				result.Status = StatusFail
+				result.Error = err.Error()
+				result.Duration = time.Since(start)
+				return result
+			}
 			ensuresParams[i] = EnsuresParam{
 				Name:  params[i].Name,
-				Value: astExprToCore(lit),
+				Value: valueCore,
 			}
 		}
 

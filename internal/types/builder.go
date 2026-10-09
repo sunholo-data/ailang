@@ -243,7 +243,7 @@ func (fb *FuncBuilder) Build() Type {
 	}
 
 	for _, eff := range fb.effects {
-		effectRow.Labels[eff] = &TCon{Name: eff}
+		effectRow.Labels[eff] = Unit()
 	}
 
 	return &TFunc2{

@@ -156,7 +156,7 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 		if !changed {
 			return t
 		}
-		result := &TFunc2{Params: params, Return: ret, EffectRow: effectRow}
+		result := &TFunc2{Params: params, Return: ret, EffectRow: effectRow, ConcreteEffectContract: typ.ConcreteEffectContract}
 		visited[t] = result
 		return result
 

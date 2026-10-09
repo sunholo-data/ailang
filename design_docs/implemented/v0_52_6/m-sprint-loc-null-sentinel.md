@@ -2,7 +2,7 @@
 
 **Refs #563** (sunholo-data/ailang, P3, open; tracks the issue — no new issue filed)
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.52.6
 **Priority**: P3 (Low — matches the issue's `priority:P3` label)
 **Estimated**: 0.5 day (two-line script edits ×2 trees, schema/doc text, fixture validation)
@@ -129,21 +129,21 @@ Migrate the sprint-state placeholder protocol for `estimated_loc` from the overl
 ### Implementation Plan
 
 **Phase 1: Sentinel migration** (~2 hours)
-- [ ] Edit `create_sprint_json.sh` `:130` and `:165` in `.claude/skills/sprint-planner/scripts/` (→ `None`)
-- [ ] Same two edits in `.agents/skills/sprint-planner/scripts/create_sprint_json.sh`
-- [ ] Edit `validate_sprint_json.sh` `:123-124` in `.claude/skills/sprint-executor/scripts/` (→ `.estimated_loc == null`, comment rewritten)
-- [ ] Same edit in `.agents/skills/sprint-executor/scripts/validate_sprint_json.sh`
-- [ ] `session_start.sh:164` display guard (`// "unset"`) in both trees
-- [ ] `json_progress_schema.md` field type + one-sentence semantics, both trees
+- [x] Edit `create_sprint_json.sh` `:130` and `:165` in `.claude/skills/sprint-planner/scripts/` (→ `None`)
+- [x] Same two edits in `.agents/skills/sprint-planner/scripts/create_sprint_json.sh`
+- [x] Edit `validate_sprint_json.sh` `:123-124` in `.claude/skills/sprint-executor/scripts/` (→ `.estimated_loc == null`, comment rewritten)
+- [x] Same edit in `.agents/skills/sprint-executor/scripts/validate_sprint_json.sh`
+- [x] `session_start.sh:164` display guard (`// "unset"`) in both trees
+- [x] `json_progress_schema.md` field type + one-sentence semantics, both trees
 
 **Phase 2: Fixture validation** (~2 hours)
-- [ ] Fixture matrix (see Testing Strategy) run against both trees' validators; record exit codes
-- [ ] Regression control: run the patched validator against 2–3 recent *completed* repo sprint JSONs (e.g. `.ailang/state/sprints/sprint_M-EVAL-ELO-PERSIST.json`) — must stay exit 0
-- [ ] `diff` the four scripts across the two trees — must be empty
+- [x] Fixture matrix (see Testing Strategy) run against both trees' validators; record exit codes
+- [x] Regression control: run the patched validator against 2–3 recent *completed* repo sprint JSONs (e.g. `.ailang/state/sprints/sprint_M-EVAL-ELO-PERSIST.json`) — must stay exit 0
+- [x] `diff` the four scripts across the two trees — must be empty
 
 **Phase 3: In-flight audit + docs** (~1 hour)
-- [ ] Read-only audit of non-completed state sprints carrying `estimated_loc: 0` (see Migration); record the ruling per sprint in the sprint JSON's `notes` — planner-owned
-- [ ] Update this doc's status → implemented via `move_to_implemented.sh` after landing
+- [x] Read-only audit of non-completed state sprints carrying `estimated_loc: 0` (see Migration); record the ruling per sprint in the sprint JSON's `notes` — planner-owned
+- [x] Update this doc's status → implemented via `move_to_implemented.sh` after landing
 
 ### Files to Modify/Create
 
@@ -207,16 +207,16 @@ VALIDATION FAILED: 1 error(s) found     ← live-verified on patched predicate, 
 
 ## Success Criteria
 
-- [ ] Fixture: milestone with `estimated_loc: 0` + real description/criteria → `validate_sprint_json.sh` exit **0** (acceptance: run recorded in the implementation report)
-- [ ] Fixture: `estimated_loc: null` → exit **1**, milestone ID named in the error
-- [ ] Fixture: key absent → exit **1**
-- [ ] Fixture: `estimated_loc: 245` (real estimate) → exit **0** (unchanged behavior)
-- [ ] `create_sprint_json.sh` parse-without-LOC path and no-milestone fallback both emit `null` (verified by generating a sprint JSON from a minimal plan)
-- [ ] `diff` of each modified script between `.claude/skills/` and `.agents/skills/` is empty
-- [ ] Regression: patched validator exits 0 on recent completed repo sprint JSONs
-- [ ] No `.ailang/state/sprints/*.json` historical file modified by this change
-- [ ] All tests passing (`make test-core` unaffected — no Go touched)
-- [ ] Documentation updated (`json_progress_schema.md` both trees; this doc moved to implemented)
+- [x] Fixture: milestone with `estimated_loc: 0` + real description/criteria → `validate_sprint_json.sh` exit **0** (acceptance: run recorded in the implementation report)
+- [x] Fixture: `estimated_loc: null` → exit **1**, milestone ID named in the error
+- [x] Fixture: key absent → exit **1**
+- [x] Fixture: `estimated_loc: 245` (real estimate) → exit **0** (unchanged behavior)
+- [x] `create_sprint_json.sh` parse-without-LOC path and no-milestone fallback both emit `null` (verified by generating a sprint JSON from a minimal plan)
+- [x] `diff` of each modified script between `.claude/skills/` and `.agents/skills/` is empty
+- [x] Regression: patched validator exits 0 on recent completed repo sprint JSONs
+- [x] No `.ailang/state/sprints/*.json` historical file modified by this change
+- [ ] All tests passing — pending compiler-equipped `make test-core`; see implementation report.
+- [x] Documentation updated (`json_progress_schema.md` both trees; this doc moved to implemented)
 
 ## Testing Strategy
 
@@ -285,8 +285,8 @@ The following are intentionally left open for the implementer:
      index is empty in this checkout. Manually curated by grep; the duplicate/coverage gate was applied to these: -->
 
 **Implemented (may inform design):**
-- [m-planner-codex-lane.md](../implemented/v1_0_0/m-planner-codex-lane.md) — L23 records this exact validator line as a *partial downstream backstop* for the planner's placeholder path, with the `estimated_loc == 0` overload already flagged as a watch-item. This design resolves that watch-item; the L23 row itself is a dated record and stays as written.
-- [v1-mission-log-archive.md](../v1-mission-log-archive.md) — `:6398` (iteration 121, docs-only M5 refused; estimator set to 80 as workaround) and `:7327`/`:7347` (iteration 133, file-split milestone; `245` workaround; #563 routed to backlog). Both instances' workaround values are exactly what this design makes unnecessary.
+- [m-planner-codex-lane.md](../v1_0_0/m-planner-codex-lane.md) — L23 records this exact validator line as a *partial downstream backstop* for the planner's placeholder path, with the `estimated_loc == 0` overload already flagged as a watch-item. This design resolves that watch-item; the L23 row itself is a dated record and stays as written.
+- [v1-mission-log-archive.md](../../v1-mission-log-archive.md) — `:6398` (iteration 121, docs-only M5 refused; estimator set to 80 as workaround) and `:7327`/`:7347` (iteration 133, file-split milestone; `245` workaround; #563 routed to backlog). Both instances' workaround values are exactly what this design makes unnecessary.
 
 **Planned (check for overlap):**
 - (none — no planned doc touches the sprint-state placeholder protocol; grep over `design_docs/planned/` for `estimated_loc` returns only unrelated sprint-plan JSONs and a JSON-precedent row)
@@ -296,7 +296,7 @@ The following are intentionally left open for the implementer:
 - Issue #563 — sunholo-data/ailang — "sprint-state validator: estimated_loc == 0 is used as the 'unfilled placeholder' sentinel…" (open, P3, `area:mission`; read in full including zero comments)
 - Issue #544 — closed — the `.claude`/`.agents` skill-tree divergence this design must not reopen
 - [Design Axioms](/docs/references/axioms) — the 12 non-negotiable principles
-- [m-planner-codex-lane.md](../implemented/v1_0_0/m-planner-codex-lane.md) — the planner lane whose placeholder path this validator backstops
+- [m-planner-codex-lane.md](../v1_0_0/m-planner-codex-lane.md) — the planner lane whose placeholder path this validator backstops
 
 ## Verification Log
 
@@ -323,3 +323,57 @@ The following are intentionally left open for the implementer:
 
 **Document created**: 2026-10-08
 **Last updated**: 2026-10-08
+
+## Implementation Report
+
+**Refs #563** — implemented 2026-10-08 on `coordinator/task-6f7a887f`.
+
+Both skill trees now emit null on both creator placeholder paths, reject null/absent
+estimates, accept numeric zero, display unset estimates as `unset`, and document the
+number-or-null contract. No historical sprint JSON was changed.
+
+Verification used temporary working directories and each tree's actual script by
+absolute path. Validator fixtures were copies of this populated two-milestone sprint,
+changing only M1's estimate. Invocation: `bash <tree>/skills/sprint-executor/scripts/validate_sprint_json.sh PROBE`.
+
+| Probe (both trees) | Before | After |
+|---|---|---|
+| Validator: zero / null / absent / 245 | exits 1 / 0 / 0 / 0 | exits 0 / 1 / 1 / 0 |
+| Creator: heading without LOC | numeric 0 | null |
+| Creator: no milestone headings | numeric 0 | null |
+| Creator: explicit ~0 / ~245 LOC | numeric 0 / 245 | numeric 0 / 245 |
+
+Both rejected fixture variants named `M1_SENTINEL_MIGRATION`. Creator invocation:
+`bash <tree>/skills/sprint-planner/scripts/create_sprint_json.sh <case> plan.md`.
+Actual `session_start.sh DISPLAY` runs preserved `(estimated: 0 LOC)` and displayed
+`(estimated: unset LOC)` with temporary fixtures; external ailang/make/bc commands
+were stubbed to isolate display from network and unrelated tests.
+
+Pairwise byte comparisons passed for all four file pairs; `bash -n` passed for all
+six shell scripts; `git diff --check` passed. Completed controls
+M-AGENT-AILANG-ONLY-EXECUTION, M-AI-DECIDE-SYSTEM-ONE and M-AILANG-FMT all returned
+0 before and after in both trees. Each retained its single pre-existing warning
+(missing pre-gate registry reuse audit).
+
+The refreshed read-only audit found the same five non-completed zero milestones
+recorded in the sprint plan. Four remain valid baseline/docs-only estimates;
+M-MISSION-AGENTIC-ROUTING/M1b_CODEX_CROSS_PROVIDER_EXECUTOR remains unresolved and
+requires its owning planner's confirmation before that sprint executes. No old
+state record was rewritten and no estimate was fabricated.
+
+The current checkout lacked the approved planner artifacts; they were retrieved
+from coordinator/task-d071d41d (7a4faa07044f5ebdd94bb560c26a64fc3119e137).
+Issue #563 and its empty comments list were read through the GitHub API before edits.
+The PR body must include `Refs #563`; no new issue was opened.
+
+Core regression: `make test-core` could not start (exit 127: make unavailable).
+The same package list from `make/test.mk:404-411` was run directly with
+`AILANG_TEST_FAST_LOOP=1 CGO_ENABLED=0 /usr/local/go/bin/go test <CORE_PKGS> -count=1`.
+It returned 1: effects BrainStore SQLite tests require CGO and fail with the
+SQLite stub error. All other listed core packages passed. This image also lacks
+a C compiler, so CGO cannot be enabled here. No Go files changed. The startup
+helper's green banner was not treated as evidence: its grep pipeline missed the
+missing make command. Re-run `make test-core` in a compiler-equipped environment
+before merge. Shell checks and the sentinel regression matrix passed.
+
+Independent read-only evaluator confirmed scope correctness, parity and shell syntax; no code defect found. Companion plan moved alongside this document. Final merge evaluation awaits a successful core regression run. The inbox handoff was refused because no agent serves sprint-evaluator in this environment; the refusal was not overridden.

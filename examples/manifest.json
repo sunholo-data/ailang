@@ -5,6 +5,17 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "inline_tests_expected_values.ail",
+      "status": "working",
+      "tags": [
+        "testing",
+        "adt",
+        "lists"
+      ],
+      "description": "Composite expected values in inline test rows",
+      "modules": []
+    },
+    {
       "path": "adt_option.ail",
       "status": "working",
       "tags": [
@@ -2982,10 +2993,24 @@
     {
       "path": "yaml_roundtrip.ail",
       "status": "working",
-      "tags": ["yaml", "config", "encoding", "roundtrip"],
+      "tags": [
+        "yaml",
+        "config",
+        "encoding",
+        "roundtrip"
+      ],
       "description": "Decode a config, update its year, and encode ordered block YAML (IO capability)",
-      "modules": ["std/io", "std/json", "std/list", "std/result", "std/yaml"],
-      "expected": {"stdout": "\"title\": \"Fysik A\"\n\"year\": 2027\n", "exit_code": 0}
+      "modules": [
+        "std/io",
+        "std/json",
+        "std/list",
+        "std/result",
+        "std/yaml"
+      ],
+      "expected": {
+        "stdout": "\"title\": \"Fysik A\"\n\"year\": 2027\n",
+        "exit_code": 0
+      }
     },
     {
       "path": "yaml_config.ail",
@@ -3182,6 +3207,23 @@
       }
     },
     {
+      "path": "runnable/effect_latent_function_values.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "higher-order",
+        "regression"
+      ],
+      "description": "Declared effects through higher-order calls and record fields; pure hook storage",
+      "modules": [
+        "std/io"
+      ],
+      "expected": {
+        "stdout": "HOF: IO declared\nfield: IO declared\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/secrets/scoped_declassify.ail",
       "status": "working",
       "tags": [
@@ -3223,11 +3265,11 @@
     }
   ],
   "statistics": {
-    "total": 219,
-    "working": 211,
+    "total": 221,
+    "working": 213,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9634703196347032,
+    "coverage": 0.9638009049773756,
     "experimental": 0
   },
   "milestones": {
