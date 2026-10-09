@@ -180,3 +180,9 @@ build directories were removed and validation was retried sequentially.
 `make lint` passes with zero issues (warm cache, `GOGC=50`,
 `GOMEMLIMIT=512MiB`, one compiler worker). Validation is complete; the
 coordinator may submit the local branch for round-2 independent evaluation.
+
+Round-2 handoff was filed in canonical Firestore inbox `sprint-evaluator` as
+`inbox_1791539007059_27670625`. The CLI reported **FILED, NOT DISPATCHED**:
+cloud registry read returned GCS 403 and local Pub/Sub is disabled. The
+coordinator must dispatch independent evaluation. All changes are committed
+locally; pushing/merging remains the coordinator's responsibility per plan.
