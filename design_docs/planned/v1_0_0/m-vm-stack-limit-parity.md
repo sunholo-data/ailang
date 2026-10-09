@@ -2,7 +2,7 @@
 
 Refs [#1576](https://github.com/sunholo-data/ailang/issues/1576).
 
-**Status**: Planned — root cause verified live (see Verification Log), ready for quorum/sprint.
+**Status**: Implemented in the coordinator work branch; independent evaluation pending. See [implementation verification](m-vm-stack-limit-parity-verification.md).
 **Target**: v1.0.0 (clause-2 soundness residue; sibling of [m-bytecode-vm-parity-bugs.md](m-bytecode-vm-parity-bugs.md) Lane B, same carve-out as [m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md))
 **Priority**: **P1** (per the issue's `priority:P1` label) — silent wrong result: truncated stdout, exit 0, stderr silent under default flags.
 **Estimated**: ~0.5 day (root cause settled below; the production fix is two lines plus wiring plus regression tests — not investigation).

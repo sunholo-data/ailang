@@ -166,6 +166,13 @@ the A2 round). Post-fix, B4's trigger window shrinks from "any evaluator-legal d
 "depths where the interpreter itself refuses (RT_REC_003)" — i.e. from evaluator-LEGAL input to
 illegal, which restores parity without touching B4's policy question.
 
+**Implementation update 2026-10-09 (Refs #1576).** The approved stack-limit sprint
+raises the production VM default to 10,000 and wires positive depth overrides.
+The service and print-once regressions pass without fallback; the 200-file corpus has
+no status or exit changes. See [verification](m-vm-stack-limit-parity-verification.md).
+VM frames and evaluator depth are counted differently, so exact boundary parity is
+not promised. Above-limit replay and the quiet warning policy remain B4 work.
+
 **Review notes 2026-10-08.** The emission-site references to `cmd/ailang/run_helpers.go` (~:376) in
 the 2026-07-28 Verification Log and Conflict Surface are stale: the guarded fallback warning now
 lives at `internal/runner/entrypoint.go:152-155`. Until B4 lands, a non-strict VM overrun above the
