@@ -75,12 +75,12 @@ Add `fsCheckMove` with the existing sandbox resolution, early-return, `.git` and
 **Files:** `std/fs.ail` (comments only), `docs/docs/guides/agent-tool-policy.md`, `changelogs/v0.32-current.md`.
 **Examples:** Document the literal ancestor, nested `/**` ancestor and mid-glob cases using existing design examples/policy prose. No new `.ail` program is required; fetch `ailang prompt` before any `.ail` edit, and type-check if code is added.
 
-- [ ] FS rename/remove comments and the policy guide state that structural operations protect matching ancestor directories, including both rename operands.
-- [ ] The guide explains `dir/**` still protects all contents and now protects its higher ancestors; basename patterns keep their current behavior.
-- [ ] Add a Fixed entry under Unreleased referencing #1569 and the two sibling variants; do not bump versions or open a new issue.
-- [ ] Run `make fmt`, `make test`, `make lint`, and `make check-boundaries`; record actual results and surface any environmental blockers instead of claiming unrun checks passed.
-- [ ] Inspect the final diff for one shared matcher, correct handler coverage and unchanged write/mkdir semantics; carry `Refs #1569` in the implementation PR body.
-- [ ] Run sprint-evaluator against the approved design and this plan after execution; resolve failures before reporting completion.
+- [x] FS rename/remove comments and the policy guide state that structural operations protect matching ancestor directories, including both rename operands.
+- [x] The guide explains `dir/**` still protects all contents and now protects its higher ancestors; basename patterns keep their current behavior.
+- [x] Add a Fixed entry under Unreleased referencing #1569 and the two sibling variants; do not bump versions or open a new issue.
+- [x] Run `make fmt`, `make test`, `make lint`, and `make check-boundaries`; record actual results and surface any environmental blockers instead of claiming unrun checks passed.
+- [x] Inspect the final diff for one shared matcher, correct handler coverage and unchanged write/mkdir semantics; carry `Refs #1569` in the implementation PR body.
+- [x] Run sprint-evaluator against the approved design and this plan after execution; resolve failures before reporting completion.
 
 **Risk:** Full repository checks may exceed the small coding effort. Reserve two hours for validation/repair; report unrelated failures distinctly with evidence.
 
