@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/chatgpt"
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
@@ -367,5 +368,35 @@ func TestRequireProviderCredential_ChatGPTNeedsCodexLogin(t *testing.T) {
 	}
 	if got := motokoAuthLane("openrouter/z-ai/glm-5.3-flash"); got != executor.AuthLaneBilled {
 		t.Fatalf("an OpenRouter motoko row must stay billed, got %v", got)
+	}
+}
+
+func TestRequireProviderCredential_CodexSubscription(t *testing.T) {
+	t.Setenv("CODEX_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "metered-key")
+	model := "codex:gpt-6.1-sol"
+	if err := requireProviderCredential(model); err == nil {
+		t.Fatal("metered key must not admit codex without subscription login")
+	}
+	auth := `{"auth_mode":"apikey"}`
+	path, err := chatgpt.AuthPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(auth), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := requireProviderCredential(model); err == nil {
+		t.Fatal("API-key auth must be refused")
+	}
+	auth = `{"auth_mode":"chatgpt","tokens":{"access_token":"not-a-jwt","account_id":"acct"}}`
+	if err := os.WriteFile(path, []byte(auth), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := requireProviderCredential(model); err != nil {
+		t.Fatal(err)
+	}
+	if got := motokoAuthLane(model); got != executor.AuthLaneSubscription {
+		t.Fatalf("lane: %v", got)
 	}
 }

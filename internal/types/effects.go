@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/strutil"
@@ -35,7 +36,9 @@ func isEffectRowVar(name string) bool {
 // v1.0.0) add rows here, which UNLOCKS the syntax.
 //
 // This is intentional, not a fallback (per CLAUDE.md no-silent-fallbacks).
+// Declassify.label is the sole open-vocabulary exception: a single label name.
 var effectSchema = map[string]map[string]map[string]struct{}{
+	"Declassify": {"label": {}},
 	"Rand": {
 		"mode": {"os": {}, "seeded": {}, "crypto": {}},
 	},
@@ -108,7 +111,7 @@ func validateEffectParams(effectName string, params map[string]string) error {
 		keys := strutil.SortedKeys(params)
 		return fmt.Errorf(
 			"EFF_PARAMS_NOT_SUPPORTED: effect '%s' does not support parameters (found: %s). "+
-				"Only Rand, AI and Net[scope] accept parameters; Clock/FS modes are tracked in m-effect-clock-net-fs-modes.\n"+
+				"Only Rand, AI, Net[scope] and Declassify[label] accept parameters; Clock/FS modes are tracked in m-effect-clock-net-fs-modes.\n"+
 				"  Fix: drop the parameter and use the bare effect '%s'.",
 			effectName, strings.Join(keys, ", "), effectName)
 	}
@@ -123,6 +126,12 @@ func validateEffectParams(effectName string, params map[string]string) error {
 				"EFF_UNKNOWN_PARAM_KEY: effect '%s' has no parameter '%s'. Allowed keys: %s.\n"+
 					"  Fix: use one of the allowed keys, or drop the parameter for the default.",
 				effectName, key, strings.Join(sortedSetKeys(schema), ", "))
+		}
+		if effectName == "Declassify" && key == "label" {
+			if !validAuthorityLabel(value) {
+				return fmt.Errorf("EFF_INVALID_LABEL: Declassify requires a single non-reserved label identifier, got %q", value)
+			}
+			continue
 		}
 		if _, valueOK := allowed[value]; !valueOK {
 			return fmt.Errorf(
@@ -713,4 +722,17 @@ func FormatEffectRow(row *Row) string {
 	result += "}"
 
 	return result
+}
+
+// validAuthorityLabel excludes the internal wildcard and requirement-set encoding.
+func validAuthorityLabel(value string) bool {
+	if value == "" {
+		return false
+	}
+	for i, r := range value {
+		if !(unicode.IsLetter(r) || r == '_' || (i > 0 && unicode.IsDigit(r))) {
+			return false
+		}
+	}
+	return true
 }

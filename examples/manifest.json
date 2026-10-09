@@ -35,6 +35,17 @@
       ]
     },
     {
+      "path": "inline_tests_expected_values.ail",
+      "status": "working",
+      "tags": [
+        "testing",
+        "adt",
+        "lists"
+      ],
+      "description": "Composite expected values in inline test rows",
+      "modules": []
+    },
+    {
       "path": "adt_option.ail",
       "status": "working",
       "tags": [
@@ -3012,10 +3023,24 @@
     {
       "path": "yaml_roundtrip.ail",
       "status": "working",
-      "tags": ["yaml", "config", "encoding", "roundtrip"],
+      "tags": [
+        "yaml",
+        "config",
+        "encoding",
+        "roundtrip"
+      ],
       "description": "Decode a config, update its year, and encode ordered block YAML (IO capability)",
-      "modules": ["std/io", "std/json", "std/list", "std/result", "std/yaml"],
-      "expected": {"stdout": "\"title\": \"Fysik A\"\n\"year\": 2027\n", "exit_code": 0}
+      "modules": [
+        "std/io",
+        "std/json",
+        "std/list",
+        "std/result",
+        "std/yaml"
+      ],
+      "expected": {
+        "stdout": "\"title\": \"Fysik A\"\n\"year\": 2027\n",
+        "exit_code": 0
+      }
     },
     {
       "path": "yaml_config.ail",
@@ -3210,14 +3235,71 @@
         "stdout": "sum 1..100000 = 5000050000\nisEven(50001) = false\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/effect_latent_function_values.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "higher-order",
+        "regression"
+      ],
+      "description": "Declared effects through higher-order calls and record fields; pure hook storage",
+      "modules": [
+        "std/io"
+      ],
+      "expected": {
+        "stdout": "HOF: IO declared\nfield: IO declared\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/secrets/scoped_declassify.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "m-ifc-authority-scoping"
+      ],
+      "description": "Single-label Declassify authority for email redaction",
+      "modules": [],
+      "run_flags": [
+        "--caps",
+        "Declassify",
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "[redacted]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/secrets/positive_label_call.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "m-ifc-authority-scoping"
+      ],
+      "description": "Positive parameter coverage accepts literal bottom data",
+      "modules": [],
+      "run_flags": [
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "literal data\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 219,
-    "working": 211,
+    "total": 223,
+    "working": 215,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9634703196347032,
+    "coverage": 0.9641255605381166,
     "experimental": 0
   },
   "milestones": {

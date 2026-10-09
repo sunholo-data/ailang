@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-SPRINT-LOC-NULL-SENTINEL",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-08T19:02:42Z",
-  "design_doc": "design_docs/planned/v0_52_6/m-sprint-loc-null-sentinel.md",
-  "sprint_plan": "design_docs/planned/v0_52_6/m-sprint-loc-null-sentinel-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_52_6/m-sprint-loc-null-sentinel.md",
+  "sprint_plan": "design_docs/implemented/v0_52_6/m-sprint-loc-null-sentinel-sprint-plan.md",
   "github_issues": [
     563
   ],
@@ -38,10 +38,11 @@
         "Session displays preserve `0 LOC` and render unfilled estimates as `unset LOC`; both schemas document this contract.",
         "All four pairs of modified files are byte-identical; `bash -n` passes for all six modified shell files."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T19:02:42Z",
+      "completed": "2026-10-08T19:14:09Z",
+      "notes": "Acceptance probes passed in both skill trees. See implementation report for exact results.",
+      "actual_loc": 30
     },
     {
       "id": "M2_VERIFICATION_AND_AUDIT",
@@ -59,11 +60,13 @@
         "Pairwise comparisons and shell syntax checks pass; run `make test-core` as the approved design's regression check and record its result.",
         "Update `changelogs/v0.32-current.md` under Unreleased; use the existing move helper to move the design to implemented/v0_52_6 and update this sprint's design_doc link at completion."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T19:02:42Z",
+      "completed": "2026-10-08T19:14:09Z",
+      "notes": "Verification/audit complete. make test-core unavailable (exit 127); direct equivalent with CGO disabled exits 1 on effects BrainStore SQLite tests. All other listed core packages pass. Compiler-equipped regression rerun required before merge. Legacy M1b zero remains unresolved for its owning planner; no old state rewritten."
     }
   ],
-  "notes": "Read-only legacy audit: M-CHAINS-EXECUTOR-TRANSCRIPTS/M0_PREFLIGHT valid zero (baseline checks); M-LIST-ACCESSOR-API/M6_CENSUS_REPORT_AND_HANDOFF valid docs-only zero; M-MISSION-AGENTIC-ROUTING/M1b_CODEX_CROSS_PROVIDER_EXECUTOR unresolved legacy zero requiring owner confirmation; M2_RIGHTSIZING_TABLE_AND_EVIDENCE_SCHEMA and M3_PLANNER_DOWNTIER_AB_PARKED valid docs-only zero. M-DX27-DOCS-SEARCH-GITHUB-FALLBACK has empty features. No pre-existing state files modified. Coordinator review and approval precede executor dispatch. PR body must include Refs #563."
+  "notes": "Read-only legacy audit: M-CHAINS-EXECUTOR-TRANSCRIPTS/M0_PREFLIGHT valid zero (baseline checks); M-LIST-ACCESSOR-API/M6_CENSUS_REPORT_AND_HANDOFF valid docs-only zero; M-MISSION-AGENTIC-ROUTING/M1b_CODEX_CROSS_PROVIDER_EXECUTOR unresolved legacy zero requiring owner confirmation; M2_RIGHTSIZING_TABLE_AND_EVIDENCE_SCHEMA and M3_PLANNER_DOWNTIER_AB_PARKED valid docs-only zero. M-DX27-DOCS-SEARCH-GITHUB-FALLBACK has empty features. No pre-existing state files modified. Coordinator review and approval precede executor dispatch. PR body must include Refs #563. Implementation complete; evaluator handoff follows. No PR created by executor; coordinator PR body must retain Refs #563. Independent local evaluator confirmed implementation scope correctness; final merge evaluation pending compiler-equipped regression. Inbox handoff refused because no evaluator agent serves the inbox.",
+  "last_session": "2026-10-08T19:14:09Z",
+  "last_checkpoint": "Sentinel fixture matrix, parity, syntax and completed controls passed; broad core regression limited by unavailable make/C compiler."
 }

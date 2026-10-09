@@ -109,6 +109,14 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 
 	// For inline tests, use the harness-based approach
 	if testCase.IsInline {
+		for _, expr := range testCase.Body {
+			if problem := ast.RowExprSupported(expr); problem != nil {
+				result.Status = StatusFail
+				result.Error = fmt.Sprintf("%s at %s: %s", testCase.Name, problem.Pos, problem)
+				result.Duration = time.Since(start)
+				return result
+			}
+		}
 		// Get source file from executor (must be set via SetSourceFile)
 		if r.executor.sourceFile == nil {
 			result.Status = StatusFail
@@ -172,8 +180,8 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 			}
 			actualValue := actualsTuple.Elements[i]
 
-			// Evaluate expected expression (should be a simple literal)
-			expectedValue, err := r.executor.EvaluateLiteral(expected)
+			// Evaluate expected through the same module-scoped machinery as inputs.
+			expectedValue, err := r.executor.EvaluateExpectedExpr(expected)
 			if err != nil {
 				result.Status = StatusFail
 				result.Error = fmt.Sprintf("test %d: failed to evaluate expected: %v", i, err)
@@ -457,9 +465,16 @@ func (r *Runner) runRequiresProperty(propCase PropertyCase) PropertyResult {
 				result.Duration = time.Since(start)
 				return result
 			}
+			valueCore, err := astExprToCore(lit)
+			if err != nil {
+				result.Status = StatusFail
+				result.Error = err.Error()
+				result.Duration = time.Since(start)
+				return result
+			}
 			harnessParams[i] = EnsuresParam{
 				Name:  params[i].Name,
-				Value: astExprToCore(lit),
+				Value: valueCore,
 			}
 		}
 

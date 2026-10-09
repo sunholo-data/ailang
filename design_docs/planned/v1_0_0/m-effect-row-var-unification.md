@@ -3,8 +3,9 @@
 **Status**: Planned
 **Target**: v1.0.0
 **Priority**: P0 (High) — static effect soundness hole, not just DX friction (see V10/V11)
-**Estimated**: 4–5 days (row algebra + explicit type-check/pipeline interface + validation + tests/docs)
-**Dependencies**: None
+**Estimated**: 5 days (minimal App constraint repair + shared publication + row validation + corpus evidence)
+**Dependencies**: M-EFFECT-LATENT-FUNCTION-VALUES, landed in PR #1708 (`3d4f49720`) — the minimum required dependency, not the sweep base (see the sprint plan's sweep protocol)
+**Ordering**: runs BEFORE M-PURE-ROW-AND-IFACE-PURITY (#1443), which re-measures its pins after this lands. The two sprints must not run in parallel.
 **Planner-Lane**: opus-required (touches shared row algebra in `internal/types/` and the effect-validation pass; the contamination history in V25 makes a mechanical port risky)
 **Source**: GitHub issue [#616](https://github.com/sunholo-data/ailang/issues/616), re-reproduced and extended at `origin/dev` = `af6d56144`
 
@@ -38,8 +39,8 @@ an internal contradiction (V17, V21–V23).
 (exactly what the parser's own doc-comment recommends, V18) gets either a spurious,
 unactionable rejection or a silent soundness hole. The stdlib already ships 13 row-variable
 signatures (`std/list.ail` `mapE`/`filterE`/`foldlE`/`flatMapE`/`forEachE`, `std/stream.ail`,
-`std/ai/streaming.ail`, `std/smoke.ail` — V27); they survive today only because cross-module
-calls take a different, correct code path (V14–V15).
+`std/ai/streaming.ail`, `std/smoke.ail` — V27); V14–V15 establish only the declared row-polymorphic import controls. Inferred rows
+need separate coverage: #1091 demonstrated pure-row over-generalization across imports.
 
 ### What issue #616 gets wrong
 
@@ -556,443 +557,170 @@ internal/types/effects_test.go:183:result := UnionEffectRows(rowA, rowB)
 There are six grep hits: one definition, three test occurrences, and two production callers, both
 outside `internal/types`. The semantic change is therefore not confined to subsumption callers.
 
-## Root-Cause Mechanism (one paragraph)
+## Current Design — maintainer ruling, 2026-10-08
 
-`ValidateEffects` substitutes the declared `{e}` row for a direct same-module callee (V24/V25).
-That tail reaches consumers with incompatible semantics: subsumption treats it as non-pure,
-diagnostics omit it, and `UnionEffectRows` deletes it (V21–V23/V37). The type checker stores distinct
-call occurrences and concretized argument rows, but the callee result row is a fresh unsolved
-metavariable at each occurrence because the parameter and result uses of `e` are not shared
-(V31–V33). Therefore the validator cannot recover the call effect from `CoreTypeInfo`; the pipeline
-must receive an explicit per-call instantiated effect from the type checker, while row union must
-preserve any tail that legitimately remains.
+**Unparked for re-planning. Refs #616.** Mark ruled D-10 = **option A** on
+2026-10-08: a **minimal constraint repair at the App constraint**, where
+`internal/types/inference.go` mints an independent `freshEffectRow`. This supersedes
+PR #1678 and the earlier A3-only proposal; publication alone cannot repair an
+incorrectly constrained call row. Review findings:
+[PR #1678 review comment](https://github.com/sunholo-data/ailang/pull/1678#issuecomment-6067485482).
+The V1–V39 and quorum measurements below remain historical evidence at their named
+bases, not claims about the post-#1708 base.
 
-## High-Impact Decisions
+The minimum implementation base is dev at `3d4f49720` (PR #1708), which shipped
+M-EFFECT-LATENT-FUNCTION-VALUES. The executor branch starts from current dev, and the
+base/fixed corpus sweep uses the branch's actual merge-base with dev (recorded by SHA),
+not `3d4f49720`: #1707 has since changed `effects.go`, `effect_subsumption.go`,
+`validate_effects*.go` and `pipeline_single.go`, so a `3d4f49720` base would misreport flips. Its per-App publication is the required authority:
+**extend LatentParamMask with the resolved call row in one publication record**.
+Do not introduce a standalone `CallEffects[appID]` map or parallel lookup authority.
+Do not execute against the pre-#1708 base or concurrently with its implementation.
 
-| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
-|----------|-----------------|-----------|----------|-------------|
-| Teach the shipped row-variable feature; do not reject its syntax | Rejecting breaks 13 stdlib signatures (V27), so the evidence has settled this direction | controller evidence | design | high |
-| Publish per-call instantiated effects explicitly (A3) | `CoreTypeInfo` result rows are unsolved even when argument rows are concrete (V31–V35); an explicit interface makes the needed contract testable | design | design | high |
-| Fail loudly only when the documented publication invariant is violated | An expected unsolved `CoreTypeInfo` row is not an error; absence/malformed data from the new post-inference per-call map is | design | compile | med |
-| Preserve identical tails in `UnionEffectRows` | The current function deletes tails and launders repeated local calls (V37/R2) | reviewer requirement | compile | high |
-| An effect-check failure with an empty diff becomes structurally impossible (or fails loudly as an internal invariant violation) | This is the general form of the V5/blank-message defect; without the invariant the next tail-like bug is again invisible | agent | compile | low |
-| Declared row var still does NOT absorb concrete required effects | Preserves V13 semantics; changing it would silently weaken the effect system | agent (keep as-is) | design | low |
+### Fix site and bounded systemic audit
 
-### Design Freeze
+The AST App/FuncCall path in `inference.go` constructs a fresh result effect row
+independently of the argument rows. The Core App path in
+`typechecker_functions.go:inferApp` likewise constructs an expected function type
+with a fresh effect row and solves application equalities. Audit both paths,
+shared scheme instantiation/substitution and row equality so the same signature
+row variable relates callback and call result at that constraint. Repair only the
+necessary equality/sharing; do not rebuild global inference, add a row join, or
+reconstruct inference by matching signature names inside validation.
 
-Before implementation begins, these design decisions are frozen:
+Retain #386's local equality replay and enclosing-scope protections: eagerly
+closing a callee row has previously broken recursive multi-effect functions.
+Prove the repair on repeated calls, independent pure/IO instantiations, recursive
+calls and mixed concrete/open rows before broadening any solver change.
 
-- [x] Use A3: the type-checking pipeline publishes `CallEffects[appID]` after inference/zonking.
-- [x] Every successfully typed App gets an entry: closed empty for pure, concrete labels for a closed
-  instantiation, or an explicitly open row only when the surrounding polymorphic context owns that
-  tail. Missing/malformed entries violate the interface and fail loudly with callee and App ID.
-- [x] A fresh unsolved row metavariable in incidental `CoreTypeInfo` is expected (V31–V35), is never
-  consulted for discharge, and cannot trigger the fail-loud path.
-- [x] `UnionEffectRows` preserves an identical tail, rejects/conflict-reports distinct tails, and
-  never silently converts a surviving tail to nil.
-- [x] `EffectRowDiff` reports undischarged tails; an empty diff on failure is an internal invariant error.
+### One publication, two lifecycle stages
 
-## Deferred Decisions
+Extend the backing publication in `internal/types/typechecker_latent_mask.go`
+with a record containing the pre-application `LatentParamMask` and the post-solve,
+zonked **callee call row**. The mask is captured before argument unification;
+the row is finalized after the relevant substitutions/defaulting. The call row
+excludes argument evaluation effects: the collector combines those separately.
+Existing `LatentParamMask` callers can project from the same record during API
+migration; there must be one backing store and one authoritative presence bit.
 
-The following are intentionally left open for the implementer:
+Every successfully typed function App publishes a record, including pure calls
+(closed empty row) and all-false masks. Absence differs from purity. Clone masks
+and rows on publication/lookup so consumers cannot mutate inference state.
+Unowned unsolved metavariables, missing records and malformed records fail loudly
+with App ID/span; an open row is valid only when owned by the surrounding generic
+context. Return-only row variables require a tested minimal/default-empty
+instantiation in concrete callers; never silently discard an unresolved tail.
 
-- Exact wording of the new row-var diagnostic and whether it gets a structured code — **agent may choose**; if a code is added it MUST be verified unallocated first (`grep -rn "<code>" internal/ cmd/`); note the current effect-check failure text has no code at all.
-- Representation of the per-call map (new field on the existing inference result versus a small
-  companion result struct) — implementer may choose; its semantic contract above is fixed.
-- Whether `formatRow` (the DEBUG_EFFECTS printer) learns to render tails (`[| e]`) — **agent may choose**; strongly recommended given V17.
-- Test fixture file naming/organization under `examples/runnable/` — **agent may choose**.
-- Whether arm-e-style accidental passes get a changelog callout — **human at review**.
+Thread the unified lookup through both `pipeline_single.go` and
+`pipeline_module_compile.go` into `ValidateEffectsWithCalls` and the effect
+collector. Declared concrete rows retain contamination-safe authority (71b610d68);
+row-polymorphic calls use the solved publication, retaining declared concrete
+labels. Cover local and imported, declared and inferred polymorphic callees.
+`CoreTypeInfo`/`EffectValueType` retain their established structural/value uses;
+incidental callee occurrence types are not a fallback for the published call row.
 
-## Solution Design
+### Row algebra and diagnostics
 
-### Overview
+Normalize closed empty rows to pure. Required-row and suggested-row union both
+preserve an identical tail and a sole open tail; distinct unresolved tails must
+produce a deterministic explicit conflict, never a silent choice or purity.
+Use the existing no-join constraint model to resolve equal tails before union.
+Do not equate tails by printed spelling when binder identities differ.
 
-Implement A3: inference explicitly publishes the instantiated effect of every App, keyed by App ID,
-and validation consumes that interface only when the same-module declared row has a tail. Also:
+Subsumption/diff must report an undischarged tail against a pure/closed or
+incompatible declaration; matching owned tails pass. A declared tail does not
+absorb arbitrary concrete IO. Keep parameter/budget checks intact. Diagnostics
+name missing labels, parameter mismatches, or unresolved tails. An empty diff on
+failure is an internal invariant error. Suppress an identical suggested signature;
+render tail information so any printed migration is actionable.
 
-1. **Preserve tails during union.** `UnionEffectRows` keeps an identical tail when merging rows and
-   surfaces incompatible tails instead of deleting either. This closes the local `runTwice` hole
-   independently of top-level App discharge (V37).
-2. **Give tails defined subsumption semantics** so any tail that legitimately survives (a
-   row-polymorphic function's own body, arm a/V1) is handled explicitly rather than by
-   accident: `required.Tail != nil` is subsumed only by a declared row with a matching tail;
-   it is *reported by name* against a closed or pure declaration. A row with empty labels and
-   nil tail normalizes to pure.
-3. **Make the blank message impossible**: `EffectRowDiff` gains an
-   `UndischargedRowVars []string` field populated from tails; `writeEffectDiff` prints it;
-   `formatEffectError` returns an internal-invariant error ("effect check failed but the diff
-   is empty — this is a compiler bug, please report") if a failure ever again produces an
-   empty diff; the suggested-fix line is only printed when it differs from the current
-   signature.
+### #1091 re-scope, folded into this design
 
-### Architecture
+V14/V15 prove correctness only for **declared** row-polymorphic imports, not all
+cross-module calls. #1091 / M-EFFECT-PURE-ROW-OVERGENERALIZATION showed a declared
+pure recursive helper exported with a generalized row and an importer acquiring
+spurious FS. Its source fix shipped in v0.35.3; preserve closure before
+generalization and test standalone importer versus explicit dependency checking.
+Also cover inferred effect-transparent option/result/list combinators without
+`! {e}` annotations. Leaving VarGlobal untouched solely because V14/V15 passed
+is no longer an acceptable justification.
 
-**Components:**
+#1718 (callbacks nested in list/tuple/ADT arguments) remains outside this sprint.
+Only a trivially shared correction with no new structural traversal belongs here;
+otherwise record the remaining gap without weakening #1708's existing mask checks.
 
-1. **Per-call effect publication** (type-check pipeline): while checking an App, resolve its function
-   effect under the same substitution used for its arguments and write the zonked row to
-   `CallEffects[e.ID()]`. The contract covers V35: a return-only row variable in a concrete caller
-   must be solved by contextual/default empty-row rules before publication; if inference legitimately
-   leaves it generalized, publish that owned open tail rather than fabricating purity.
-2. **App collector consumption** (`internal/pipeline/validate_effects.go`): for a same-module callee
-   whose declared row has a tail, read `CallEffects[e.ID()]` and combine its row with declared concrete
-   labels. Concrete declarations keep the current contamination-safe path (V25). Missing entry,
-   wrong key/type, or a supposedly closed entry containing an unowned metavariable is a violated
-   documented invariant and fails loudly. The unsolved `CoreTypeInfo` rows in V31/V35 are expected
-   legacy observations, not invariant failures.
-3. **Tail-preserving union and subsumption** (`internal/types/effects.go:511-617,624`,
-   `internal/types/effect_subsumption.go:57` `DiffEffectRows`): normalize label-empty+tail-nil
-   rows to nil at entry; teach `DiffEffectRows` to emit `UndischargedRowVars` when
-   `required.Tail` is not covered by `declared.Tail`; `SubsumeEffectRows` fails when that
-   field is non-empty. Concrete-label logic is unchanged (preserves V12/V13/V15 behavior).
-   All callers are inside this pass (V26), so the semantic change cannot leak elsewhere.
-4. **Error-format invariant** (`internal/pipeline/validate_effects.go:520-563`): print
-   `Undischarged effect row variable(s): e — the callee's '{e}' could not be discharged at
-   this call site` (wording deferred); empty-diff-on-failure → internal-invariant error;
-   suppress the suggested-fix line when identical to the current signature.
-5. **Fixtures and tests** (new `internal/pipeline/effect_rowvar_discharge_test.go`, new
-   runnable example): every arm from the Verification Log that changes or must not change
-   becomes a pinned test.
+### File and execution constraints
 
-### Implementation Plan
+`internal/types/typechecker_core.go` is **exactly 800 lines** at this base, the CI
+limit. Put new logic in companion files (including publication helpers), and use
+replacement declarations without net growth where the checker needs a field.
+Check the sizes of other touched files too; do not accumulate overflow elsewhere.
 
-**Phase 1: row algebra + diagnostics (~1 day)**
-- [ ] Update `UnionEffectRows` at `internal/types/effects.go:606-616` to preserve `Tail` when
-  merging rows (keeping the tail if identical); define a loud conflict for distinct non-nil tails.
-- [ ] Add a unit AC and source regression for
-  `func runTwice(f: () -> int ! {e}) -> int = f() + f()`: the tail survives union and forces the
-  enclosing signature to declare `! {e}` (R2/V37).
-- [ ] `EffectRowDiff.UndischargedRowVars` + `DiffEffectRows` tail handling + normalization helper
-- [ ] `SubsumeEffectRows` consumes the new field; unit tests directly on rows (incl. the exact poisonous shape from V19: non-nil, label-empty, tail `e`)
-- [ ] `writeEffectDiff` prints the new field; `formatEffectError` invariant guard + suggested-fix suppression
-
-**Phase 2: explicit per-call effect interface (~1–2 days)**
-- [ ] Publish zonked `CallEffects[appID]` during type checking and thread it into validation.
-- [ ] Consume it in the App case, gated on `calleeEffects.Tail != nil`; never use
-  `extractEffectFromType` for this path (V36).
-- [ ] Add contract tests for pure, `{IO}`, two independent occurrences, V35 return-only, missing map
-  entry, malformed/unowned tail, and concrete-row control.
-- [ ] `formatRow` tail rendering for DEBUG_EFFECTS (recommended)
-
-**Phase 3: fixtures, regression sweep, docs (~1 day)**
-- [ ] Port arms a,b,d,e,g,k,l,m,n,h,i,j into pipeline tests (same-module AND cross-module); base-red assertions for b (accept), g/l (reject naming IO)
-- [ ] New runnable example `examples/runnable/effect_row_var_pure_caller.ail` + manifest entry
-- [ ] `make test`, `make verify-examples` (expect manifest drift class, not type regressions, if red)
-- [ ] CHANGELOG.md entry; `docs/LIMITATIONS.md` update if row-var limitations are listed there; close-out comment on #616
-
-### Files to Modify/Create
-
-**Modified files:**
-- type-check result/publication file selected during implementation (~+60 LOC) — per-App effect map
-- pipeline orchestration file selected during implementation (~+20 LOC) — thread map to validator
-- `internal/pipeline/validate_effects.go` (+70/−15 LOC) — consume per-call effects, invariant errors, DEBUG tails
-- `internal/pipeline/validate_effects_rows.go` (+15/−0 LOC) — normalization helper (label-empty + tail-nil → nil)
-- `internal/types/effect_subsumption.go` (+35/−5 LOC) — `UndischargedRowVars` in `EffectRowDiff` + `DiffEffectRows` tail logic
-- `internal/types/effects.go` (+30/−10 LOC) — tail-preserving `UnionEffectRows`, subsumption, normalization
-
-**Explicitly unchanged:** `extractEffectFromType` in `validate_effects.go:270-284`. V36 proves it
-drops label-empty tails, so this design neither calls nor extends it; changing the generic helper
-would broaden behavior for unrelated callers without being needed by A3.
-
-**New files:**
-- `internal/pipeline/effect_rowvar_discharge_test.go` (~250 LOC) — the arm matrix
-- `examples/runnable/effect_row_var_pure_caller.ail` (~15 LOC) + `examples/manifest.json` entry
-
-## Conflict Surface
-
-This design touches `internal/types/` (row algebra) and `internal/pipeline/` (validation
-pass). No parser, lexer, AST, elaboration, codegen, eval, or runtime-effects change.
-
-### Syntactic positions touched
-
-None. The grammar is untouched; `! {e}` already parses (V18) and continues to parse
-identically. This design changes *semantic* positions only.
-
-### Semantic positions touched, and what else lives there
-
-| Position | Existing occupant | Interaction | Measured by |
-|---|---|---|---|
-| `SubsumeEffectRows` / `DiffEffectRows` | Five measured pass call sites | Tail-aware semantics; concrete-label behavior pinned | V26 |
-| `UnionEffectRows` | Six grep hits: one definition, three test occurrences, two production callers (`validate_effects.go`, `validate_effects_rows.go`) | Both production callers receive tail preservation; suggested-row and required-row output need tests | V39 |
-| Type-check result boundary | Existing CoreTypeInfo carries distinct occurrences but unsolved result rows | Add explicit `CallEffects` output; do not reinterpret CoreTypeInfo | V31–V35 |
-| App-case callee-row selection | Same-module concrete declarations avoid CoreTypeInfo contamination | Tail-bearing declarations consume `CallEffects`; concrete path unchanged | V25, V34 |
-| Lambda sub-pass (`validate_effects.go:162`) | Enforces only CLOSED declared lambda rows (`declared.Tail == nil`) — open rows deliberately skipped (#386) | Unchanged. Note: after this fix `required` reaching :164 can newly contain resolved labels where it silently carried/dropped tails before; the closed-row gate’s semantics are unaffected, but the M3 test matrix must include an inline-lambda arm | V20 |
-| Ghost-effect erasure (`eraseGhostEffects`, runs on `required` before subsumption) | Label-based removal (`Debug`) | Operates on labels only; tails pass through it untouched — no interaction, but pin with one test (mixed `{Debug, e}` callee) | code read, `validate_effects.go:31-40` |
-| Effect budgets/params on rows (`Budgets`/`Params`, mode subsumption) | `DiffEffectRows` param logic; `unionRequiredEffectRows` conflict-preserving param merge | Untouched by tail logic (params key off labels). Budgets on a row-var tail are meaningless today and remain out of scope | V22 code read |
-| Cross-module callees (`VarGlobal` → typeInfo path) | ~~Already correct (V14/V15)~~ — **see correction below, this premise was too broad** | Unchanged — the new resolution applies only when the declared-map path is taken (`*core.Var` hit) | V14/V15 as pinned ACs, **re-scoped** |
-| `iface` freezing / formatter / elaboration (`internal/iface/builder.go` 25 RowVar mentions, `internal/format/types.go` 8, `internal/elaborate/file_funcs.go` 2) | Serialize/print/carry row-var signatures | Read-only consumers of the same `Row` struct; no struct field is changed (the new field is on `EffectRowDiff`, a validation-only type) | `grep -rn RowVar internal/ --include="*.go" \| grep -v _test` file census |
-| Runtime capability checks | Label/capability-based, no row vars (`internal/effects/` absent from the RowVar census) | Unchanged; remains the backstop measured in V11 | same census |
-
-### CORRECTION (2026-09-08, from [#1091](https://github.com/sunholo-data/ailang/issues/1091) / M-EFFECT-PURE-ROW-OVERGENERALIZATION)
-
-**This doc is parked. Before unparking it, re-scope the V14/V15 pinned ACs — the premise they
-support is narrower than stated.**
-
-This doc's Problem Statement says the shipped stdlib row-variable signatures "survive today only
-because cross-module calls take a different, **correct** code path (V14–V15)", and the Conflict
-Surface row above pins that path as "already correct". Both are true only for **declared**
-row-polymorphic callees, which is all V14/V15 measured (`std/list.mapE`, arms h/i). They are
-**false** for a callee whose row was *inferred* rather than declared:
-
-- A `pure func` whose body calls a recursive function exported
-  `(string, string) -> int ! {...ρ2}` with `RowVars=[ρ2]` — an effect-polymorphic row on a
-  declaration that promised the closed empty row.
-- Importing it produced `Callee type effects (from CoreTypeInfo): [FS]` on a call path where no
-  `FS` exists, i.e. the `VarGlobal` → typeInfo path yielded a wrong answer.
-
-So the accurate statement is: **the cross-module path is correct for declared row-polymorphic
-callees, and was wrong for over-generalized ones.** The over-generalization itself is fixed at
-source (v0.35.3): declared-closed rows are now closed before generalization, so the specific wrong
-input is gone. The re-scoping still matters, because "already correct" was being carried as a
-justification for leaving the `VarGlobal` path untouched — a justification that rested on a class
-of callee this doc never measured.
-
-Note also that a row variable can be load-bearing **without** any `! {e}` annotation: several
-stdlib combinators (`std/option.map`/`filter`/`flatMap`, `std/result.map`/`mapErr`/`flatMap`,
-`std/list.flatMap`) declare no effects yet share an inferred row between callback and result, which
-is what makes them effect-transparent. Any future work here must treat "declared `! {e}`" and
-"effect-polymorphic" as different sets.
-
-### Disambiguation strategy
-
-No grammar disambiguation changes. Semantically, declared concrete labels remain authoritative and
-the new per-App publication supplies only the instantiated tail contribution. `CoreTypeInfo` is not
-a fallback. A missing/malformed publication is an interface violation; an open row explicitly owned
-by the surrounding generic context is valid data.
-
-### Programs that MUST still work
-
-Regression fixtures (all measured at base in the Verification Log):
-
-1. `std/list.ail:217-261` — `mapE`/`filterE`/`foldlE`/`flatMapE`/`forEachE` row-var signatures, exercised via `examples/runnable/effectful_list_t1_mapE_basic.ail` (base RC=0, V30) and `TestEffectRowVariableImportsStillValidate` (base green, V28/V29)
-2. `std/stream.ail:100,146,178,237` + `std/ai/streaming.ail:174` — mixed rows `! {Stream, e}` (the arm-m shape, V12)
-3. Arm a (`runIt`'s own body: tail-for-tail, V1) — must keep passing under explicit tail subsumption
-4. Arm d (caller declares `! {e}`, V5) and arm e (caller declares the correct `! {IO}`, V6) — keep passing, now for the right reason
-5. Arms h/i (cross-module accept/reject, V14/V15) and arm n (`{e}` doesn't absorb IO, V13) — byte-compatible `Missing effects:` lines
-6. The 71b610d68 regression shape (pure same-module functions called after `println` chains) — pinned by the existing suite (`internal/pipeline` green at base, V29) plus one dedicated concrete-row recursive-call test
-
-### What deliberately changes
-
-- **Arm b/k class (false rejects) become accepts** — the #616 headline fix.
-- **Arm g/l class (laundering accepts) become rejects** naming the concrete effect. This is an
-  intentional breaking change for previously-"valid" programs — but every such program is
-  unsound (its signature lies about its effects), and `grep -rn '! {e' examples/ std/` shows
-  the shipped corpus contains no same-module row-var caller that would newly fail (stdlib
-  row-var functions are only called cross-module from examples). Migration path: declare the
-  real effects, exactly as the new message instructs.
-- **The blank error message becomes impossible**; failures always name at least one missing
-  effect, param mismatch, or undischarged row variable.
-- Anything else that breaks is a regression, not an intentional change.
-
-## Examples
-
-### Before (base, measured) → After (this design)
-
-```ailang
-module eff616/eff_b
-
-export func runIt(f: () -> int ! {e}) -> int ! {e} = f()
-
-func pureFn() -> int = 42
-
-export func purePath() -> int = runIt(pureFn)
-```
-- Before: `Effect checking failed for function 'purePath'` with empty diff and
-  `Suggested fix` == `Current signature` (V2).
-- After: `✓ No errors found!` — `e` is instantiated to the empty row at the call site.
-
-```ailang
-export func laundered() -> int ! {FS} = runIt(ioFn)   -- ioFn: () -> int ! {IO}
-```
-- Before: `✓ No errors found!` (V7) — and with two calls, even a fully pure signature passes
-  and executes IO under granted caps (V9–V11).
-- After: rejected with `Missing effects: IO` and suggested fix `! {FS, IO}` — identical in
-  shape to the cross-module message that already works today (V15).
+Execution gates: focused `go test ./internal/types/... ./internal/pipeline/...
+./internal/elaborate/...`, `make test-core`, `make lint`, `make check-boundaries`,
+`make check-file-sizes`, `make check-changelog`. Do not run full `make test` in the executor: RAM-backed
+`/tmp` has caused SIGBUS. The executor commits locally and cannot push.
+Documentation uses `Refs #616`; no issue-closing directive belongs in these docs.
 
 ## Acceptance Criteria
 
-Every AC names its base-state measurement (rule: a gate red/green at base measures the repo,
-not the change). "Suite green" appears only in combination with new fixtures that FAIL at
-base, so it cannot be vacuously satisfied (V28 proves the current suite does not reach this
-defect).
+- [ ] **AC1 — constraint repair**: #616's same-module `runIt(pureFn)` checks and
+  publishes a closed pure call row; IO instantiation publishes IO independently.
+  Pin AST and Core App constraints, not merely a validator workaround.
+- [ ] **AC2 — diagnostics**: regression covers the original blank diff and
+  identical Suggested fix. Pure caller accepts; a wrong FS wrapper around IO
+  rejects naming IO with a changed suggestion. No empty user-facing failure.
+- [ ] **AC3 — repeated-call soundness**: the historical pure
+  `runTwice(f: () -> int ! {e}) -> int = f() + f()` plus `runTwice(noisy)`
+  is rejected before execution. Record the old printing-twice behavior when it
+  still reproduces on the new base with IO granted. Corrected row-polymorphic
+  helper and IO caller run and print twice; capability enforcement is unchanged.
+- [ ] **AC4 — one authority**: mask and zonked call row share one per-App record;
+  pre-instantiation mask survives solving; missing/malformed records fail loudly;
+  pure/all-false differs from absent; lookup snapshots cannot mutate the store.
+- [ ] **AC5 — open-row boundary**: same-tail union/subsumption passes, distinct
+  tails conflict explicitly, unowned tails fail, return-only pure call resolves
+  without hidden fallback. Exercise both required and suggested-row union callers.
+- [ ] **AC6 — non-regression**: arms a/d/e/k/m/n/h/i/j, inferred combinators,
+  declared-pure imports (#1091), recursive concrete contamination controls,
+  #386 no-join tests and #1708 latent/storage-only controls keep their contracts.
+  Historical base behavior must be re-measured rather than assumed.
+- [ ] **AC7 — corpus sweep**: compare base (the executor branch's merge-base with dev,
+  recorded by SHA) and fixed `ailang check` for every
+  `examples/**/*.ail` and `std/**/*.ail`, with cold caches and matching stdlib.
+  Record inventory, command, status and diagnostics per file, including existing
+  failures; investigate std/stream and std/ai/streaming consumers explicitly.
+- [ ] **AC8 — flip rule**: each changed status is listed by path in the fragment
+  `changelogs/unreleased/<YYYY-MM-DD>-effect-row-var-unification.md` (opening with a
+  `### Fixed — …` heading; `make check-changelog` passes) with before/after,
+  reason and migration. Newly accepted pure programs need no migration; newly
+  rejected unsound programs require real effects or the shared generic row.
+  An unexplained flip or sound-program rejection blocks completion. Distinct-tail
+  conflicts in valid streaming code require repair, not blanket reclassification.
+- [ ] **AC9 — examples/docs**: add and verify a pure caller example and a corrected
+  noisy callback example (twice output). Update the example manifest and applicable
+  effect limitations. Fragment explains the soundness change and remaining #1718.
+- [ ] **AC10 — completion**: all focused/core/lint/boundary/size/changelog gates pass;
+  evidence records hashes, exact commands and mutation checks. Local commits only.
 
-- [ ] **AC1** (arm b, V2/V31): from a fresh temp path, `ailang check` exits **0** and the
-  publication probe records a closed empty `CallEffects[appID]`. Base: rc=1 and CoreTypeInfo tail `ρ3`.
-- [ ] **AC2** (arm g, V7): fresh temp path exits **1** with `Missing effects: IO`; probe records
-  `{IO}` for the App. Base: rc=0.
-- [ ] **AC3** (arm l, V9/V32): fresh temp path exits **1** with `Missing effects: IO`; its two App
-  entries are independently `{}` and `{IO}`. Base: rc=0 and result tails are `ρ8`/`ρ9`.
-- [ ] **AC4 (R2/runTwice)**: a unit test merging the same tail twice returns that tail, and a
-  fresh-path source test using `func runTwice(f: () -> int ! {e}) -> int = f() + f()` fails and
-  requires `! {e}` on the enclosing signature. Base: source check rc=0 laundering IO (Round-1 C2),
-  and `UnionEffectRows` returns nil for empty labels (V37).
-- [ ] **AC5 (V35 boundary)**: fresh-path `retOnly() -> int ! {e} = 42` / pure caller exits 0,
-  and its published call effect is closed empty. A unit variant that deliberately omits the App map
-  entry fails with the named invariant error. Base: source rc=1 with unsolved `ρ3` (V35).
-- [ ] **AC6 (per-occurrence publication)**: a type-check unit test asserts V9's two App IDs publish
-  independently as `{}` and `{IO}`. Base: no explicit publication interface exists and CoreTypeInfo
-  instead contains unsolved `ρ8`/`ρ9` (V32).
-- [ ] **AC7 (both union callers)**: unit tests drive the two production callers measured in V39 and
-  assert an identical tail survives both required-row collection and suggested-row construction.
-  Base: `UnionEffectRows` explicitly emits `Tail:nil` (V37).
-- [ ] **AC8 (interface invariant)**: missing, wrong-key, malformed, and unowned-metavariable entries
-  each fail loudly naming the callee and App ID; an explicitly owned open tail succeeds. Base: the
-  interface and invariant do not exist (V20/V31).
-- [ ] **AC9**: `go test ./internal/pipeline/ ./internal/types/ -count=1` is green including the new
-  base-red AC1–AC8/AC10 tests AND the AC11 no-regression arms. Base: suite is green without them and
-  does not reach the defect (V28/V29) — so "suite green" alone is NOT this AC; the new base-red tests
-  are what make it non-vacuous.
-- [ ] **AC10 (blank-diff invariant)**: (a) the poisonous row shape against nil reports `e`; (b) a
-  forced empty-diff failure returns the compiler-invariant error rather than a blank message. Base:
-  the blank message is produced by V2/V17 and the guard is absent (V20).
-- [ ] **AC11 (no-regression gate — one test per "Programs that MUST still work" entry, 1–6)**: this
-  design's whole risk is OVER-rejection, so the entries in the Conflict Surface are a done-gate, not
-  a description. Specifically: arm a keeps rc **0** (V1); arm d and arm e keep rc **0** (V5/V6);
-  arm k keeps rc **0** (V8 — it is in the deliberately-accepts set and must not flip to a reject);
-  arm m's `mixed` accepted / `mixedUndeclared` rejected with `Missing effects: IO` (V12); arm n keeps
-  rc **1** with `Missing effects: IO` (V13); arms h/i keep their cross-module accept/reject with
-  byte-identical `Missing effects:` text (V14/V15); `./bin/ailang check
-  examples/runnable/effectful_list_t1_mapE_basic.ail` exits **0** (V30); and one dedicated
-  concrete-row recursive-call test pins the 71b610d68 contamination shape (entry 6). Each arm runs
-  from a fresh temp path per V38. Base: every listed exit code and message is the measured base state
-  (V1/V5/V6/V8/V12/V13/V14/V15/V28/V29/V30), so this AC cannot be vacuously green — it can only be
-  satisfied by the arms still behaving as the base does. Note `ailang check std/list.ail` is NOT a
-  gate: red at base for an unrelated module-name reason (V30).
-- [ ] **AC12 (documentation deliverable)**: `CHANGELOG.md` entry describing the accept→reject class
-  change and its migration path; `docs/LIMITATIONS.md` row-variable entry updated or removed if
-  present (check at implementation time); `#616` closed with a comment linking the arms and naming
-  which of its two proposed options the evidence refuted. Base: none of these exist.
+## Sprint and scope
 
-## Testing Strategy
-
-**Unit tests (types):** `DiffEffectRows`/`SubsumeEffectRows` on constructed rows — poisonous
-shape (label-empty + tail), tail-vs-tail same name, tail-vs-tail different name, tail vs
-closed, tail vs nil, normalization (label-empty + tail-nil ≡ pure), params/budgets untouched
-by tail logic.
-
-**Integration tests (pipeline):** arms b/g/l, `runTwice`, V35, and the unchanged regression arm
-matrix as source-level `check` tests, same
-harness style as `check386`/`TestEffectRowVariableImportsStillValidate`
-(`internal/pipeline/effect_mode_subsumption_test.go:174`). Plus: inline-lambda arm (lambda
-sub-pass interplay, Conflict Surface row 3) and mixed `{Debug, e}` ghost-erasure arm.
-
-**Cache methodology constraint (V38):** every passing `.ail` probe is copied to a newly created temp
-directory and given fresh content/module identity before `check`; alternatively a future documented
-cache-bypass flag may be used. Re-running an unchanged passing path is not evidence and cannot satisfy
-an AC. Failing controls remain paired with passing probes when instrumentation output is asserted.
-
-**Regression-surface tests:** one per "Programs that MUST still work" entry (fixture list
-above; the stdlib entries via the existing example + import test).
-
-**Mutation kill matrix** (each observable is DOWNSTREAM of the mechanism — check exit codes
-and message content, never internal state set alongside the mutated code):
-
-| Mutation | Killed by | Downstream observable |
-|---|---|---|
-| Publish one declaration-level row instead of per-App rows | AC3 two-instantiation probe | entries must be independently `{}` and `{IO}` |
-| "Fix" by silently stripping tails instead of resolving them | AC2/AC3 | arm g/l must exit 1 naming IO; tail-stripping re-accepts them (this is why strip-the-tail is not a fix — it is the laundering bug with better DX) |
-| Missing per-App entry falls back to CoreTypeInfo | AC8 missing-entry unit test | invariant error must name callee and App ID; V31-style `ρN` is never accepted |
-| Tail subsumption matches by presence, not name | Test where the enclosing function declares `! {f}` but the required tail post-substitution is a different var — construct via a helper whose row var cannot unify with `f` (implementer sketches during M2; if the type layer makes this unrepresentable, document why and drop the name-match distinction as unreachable) | rc flips on the mismatched-name arm |
-| Empty-diff guard removed | AC10(b) | the invariant error text disappears → test fails |
-| Suggested-fix suppression removed | diagnostic unit asserts a fix line appears only when it differs | message content |
-
-**Manual testing:** re-run the full arm matrix from the Verification Log; re-run the V11
-runtime probe (uncapped run of arm l must now be unreachable — the file no longer passes
-`check`).
-
-## Non-Goals
-
-- **Sharing signature row variables through ordinary unification (A2)** — A3 adds a publication
-  interface without redesigning general signature instantiation.
-- **Parser changes** — `! {e}` syntax, the typo guard (V4), and PAR_EFF002 for uppercase unknowns (V3) are all untouched.
-- **Runtime capability semantics** — the V11 backstop behavior is unchanged.
-- **Budgets/params on row-var tails** (`! {e @limit=5}`-class questions) — out of scope; today's label-keyed budget logic is preserved as-is.
-- **The `m-effect-row-poly-params` residue** (lambda closed-row unification against concrete rows) — different bug, already implemented; its stale "Planned" header is a docs chore, not this sprint.
-- **`formatRow`-style debug polish beyond tail rendering** — nice-to-have only.
-
-## Timeline
-
-**Day 1**: Phase 1 tail-preserving union, subsumption/diff, diagnostics, unit tests.
-**Day 2**: publish per-App effects and thread the result through the pipeline.
-**Day 3**: validator consumption, contract failures, V35 boundary, arms b/g/l.
-**Day 4**: regression matrix, cache-safe manual probes, examples and docs.
-**Day 5 (buffer)**: conflict-surface sweep and full gates.
-
-Total: 4–5 days. A3 crosses the type-check/pipeline boundary and `UnionEffectRows` has two production
-callers (V39), so the previous 3–4 day estimate was too narrow.
-
-## Risks & Mitigations
-
-| Risk | Impact | Mitigation |
-|------|--------|-----------|
-| Re-importing 71b610d68 contamination | High | A3 never uses CoreTypeInfo for discharge; concrete declaration regression stays in the matrix |
-| Per-App publication incomplete | High | Contract requires every typed App; missing/malformed data fails loudly; AC8 |
-| Tail union change affects suggested and required rows | Medium | Test both measured production callers from V39, including `runTwice` and diagnostic suggestions |
-| Newly-rejected unsound programs in the wild (arm g/l class) | Medium | Intentional (see "What deliberately changes"); message names the exact missing effect + fix; shipped corpus measured clean |
-| Tail name-matching subtleties across nested row-poly functions | Medium | Explicit tail-vs-tail tests in M2; the mutation-4 arm probes name capture; deferred decision documents the fallback |
-| Perf: one extra typeInfo lookup per row-var call site | Low | Lookup is a map get; gated on `Tail != nil`, which is rare (13 stdlib sites) |
-
-## Axiom Compliance
-
-**Canonical reference:** [Design Axioms](/docs/references/axioms)
-
-| Axiom | Score | Justification |
-|-------|-------|---------------|
-| A1: Determinism | 0 | No nondeterminism introduced; validation stays deterministic |
-| A2: Replayability | 0 | No impact |
-| A3: Effect Legibility | **+2** | Closes a measured hole where signatures lie about effects (V9–V11); restores "the signature tells you the effects" |
-| A4: Explicit Authority | +1 | Static layer again matches the capability layer instead of deferring to the runtime backstop |
-| A5: Bounded Verification | +1 | Effect check becomes locally decidable at each call site (occurrence-level discharge) |
-| A6: Safe Concurrency | 0 | No impact |
-| A7: Machines First | +1 | Removes a blank, self-contradictory diagnostic that no agent can act on (V2); errors become mechanically actionable |
-| A8: Minimal Syntax | 0 | No syntax change |
-| A9: Cost Visibility | 0 | No impact |
-| A10: Composability | +1 | Row-polymorphic stdlib combinators become usable same-module, matching their cross-module behavior |
-| A11: Structured Failure | +1 | New structured diff field; empty-diff failures impossible by construction |
-| A12: System Boundary | 0 | No boundary change |
-
-**Net Score: +7** ✅ Proceed.
-
-### Hard Violation Check
-
-- [x] A1 (Determinism): no implicit nondeterminism introduced
-- [x] A3 (Effects): removes hidden side effects; introduces none
-- [x] A4 (Authority): no ambient access granted
-- [x] A7 (Machines First): optimizes for machine-actionable diagnostics
-
-## Proposed Direction (and what would make it wrong)
-
-**Direction: A3 — explicitly publish per-call instantiated effects, then consume that documented
-interface in effect validation.** This follows R1's reviewer-authored default. V31–V33 show why:
-CoreTypeInfo has occurrence granularity but not the instantiated result effect. Phase 1 also repairs
-tail union so repeated calls inside a generic function cannot launder the tail (V37/R2).
-
-**Why not A2:** sharing a single row variable across all signature positions is the deepest root fix,
-but it changes general instantiation/unification semantics and has the largest conflict surface. The
-measurements establish the defect, not that this broader change is safe within this bounded sprint.
-
-**Why not B2:** V32 proves argument types can derive `runIt`'s effect, but V35 proves that rule is
-incomplete for return-only variables. Encoding signature-variable matching again in validation would
-duplicate type-checker semantics and still need a separate boundary rule. A3 publishes the answer at
-the layer that owns inference.
-
-No new human decision is required; V27 already refutes rejecting the shipped syntax.
+The companion sprint plan decomposes this work into constraint repair, shared
+publication/validation, regression matrix, and corpus/migration verification.
+No parser syntax changes, global inference redesign, runtime capability changes,
+new row joins, arbitrary tail budget semantics, or nested callback traversal.
+The earlier plan in PR #1678 is superseded, not an executor input.
 
 ## References
 
-- **Issue**: [#616 — Effect row variables parse but never unify](https://github.com/sunholo-data/ailang/issues/616)
-- **Related (DISTINCT) prior work**: `design_docs/implemented/v0_29_0/m-effect-row-poly-params.md` — type-layer lambda/closed-row unification, shipped v0.29.0; stale "Planned" header noted in V30a
-- **Contamination history**: commit `71b610d68` (2025-12-24) — why same-module callees read declared rows
-- **Lambda sub-pass provenance**: M-EFFECT-ROW-SHOW-INTERP (#386) — the `declared.Tail == nil` gate at `validate_effects.go:162`
-- **Axiom reference**: [Design Axioms](/docs/references/axioms)
+- [#616](https://github.com/sunholo-data/ailang/issues/616)
+- [#1091](https://github.com/sunholo-data/ailang/issues/1091)
+- [#1708](https://github.com/sunholo-data/ailang/pull/1708), `3d4f49720`
+- [#1718](https://github.com/sunholo-data/ailang/issues/1718)
+- `design_docs/planned/v0_48_0/m-effect-latent-function-values.md`
+- `design_docs/implemented/v0_29_0/m-effect-row-poly-params.md`
 
-## Future Work
-
-- Render row-var tails in `FormatEffectRow`/`formatRow` everywhere (signatures currently print without their tail in some diagnostics, e.g. arm n's "Current signature" omits `! {e}`)
-- Budget/param semantics for row-var tails (currently undefined and out of scope)
-- Docs page for effect-row polymorphism (the feature is shipped but undocumented outside code comments)
-
-## Quorum verification log
+## Historical quorum verification log (superseded architecture)
 
 ### Round 1 — 2026-08-11T20:49:35Z — **BLOCKED** (artifact `m-effect-row-var-unification-2026-08-11T20-49-35Z.json`, metered $0.1103)
 

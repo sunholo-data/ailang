@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-EFFECT-LATENT-FUNCTION-VALUES",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-08T18:44:07Z",
   "design_doc": "design_docs/planned/v0_48_0/m-effect-latent-function-values.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-effect-latent-function-values-sprint-plan.md",
@@ -38,7 +38,9 @@
     "target_loc_per_day": 150,
     "estimated_total_loc": 750,
     "estimated_days": 5,
-    "basis": "Design task estimates plus 25% contingency; shallow history has no usable measured velocity."
+    "basis": "Design task estimates plus 25% contingency; shallow history has no usable measured velocity.",
+    "actual_source_lines_added": 858,
+    "measurement_note": "Raw source/test LOC only; generated prompt/website copies excluded. Session timing was not instrumented, so no actual LOC/day rate is claimed."
   },
   "features": [
     {
@@ -51,10 +53,10 @@
         "AC10: DOM callback collision is removed; single_agent_replay keeps its baseline status.",
         "Canonical payload and unifier behavior tested independently; record payload mismatches still reject, effect budget/parameter checks remain active."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:55:37.436643+00:00",
+      "completed": "2026-10-08T21:02:19.165250+00:00",
+      "notes": "Approved acceptance matrix passes; targeted mutations red with each component disabled and green restored. Final package/core/lint/format/size/boundary/example gates passed."
     },
     {
       "id": "M2",
@@ -64,14 +66,14 @@
         "M1"
       ],
       "acceptance_criteria": [
-        "AC5–AC6: R3 and all field/parameter/alias/ADT/update variants reject at the offending caller, naming IO; FS-only caller blames rowless rather than main.",
+        "AC5\u2013AC6: R3 and all field/parameter/alias/ADT/update variants reject at the offending caller, naming IO; FS-only caller blames rowless rather than main.",
         "AC7: stored-never-called hooks, closed-annotated storage-only callback and all package-ceiling controls stay accepted.",
         "Missing-effect rejection requires effect-check diagnostic and correct function, not an unrelated parse/type error."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:55:37.436643+00:00",
+      "completed": "2026-10-08T21:02:19.165250+00:00",
+      "notes": "Approved acceptance matrix passes; targeted mutations red with each component disabled and green restored. Final package/core/lint/format/size/boundary/example gates passed."
     },
     {
       "id": "M3",
@@ -82,16 +84,16 @@
         "M2"
       ],
       "acceptance_criteria": [
-        "AC1–AC4: local HOF, sortBy and all six leaky std HOFs, cross-module recursive/forwarding/std-forwarding shapes and wrong FS row reject naming IO at the pure caller.",
-        "AC7–AC8: storage-only callback controls, inferred-polymorphic combinator, pure-importer genuine-effect rejection and mapE example preserve their expected outcomes.",
+        "AC1\u2013AC4: local HOF, sortBy and all six leaky std HOFs, cross-module recursive/forwarding/std-forwarding shapes and wrong FS row reject naming IO at the pure caller.",
+        "AC7\u2013AC8: storage-only callback controls, inferred-polymorphic combinator, pure-importer genuine-effect rejection and mapE example preserve their expected outcomes.",
         "Missing publication for a successfully typed function App raises an internal invariant error; a false mask and absent entry are distinct. Tests cover pre-instantiation openness surviving concrete instantiation.",
         "Same-module concrete-row recursive calls retain contamination-safe declared rows; no tail union/diff changes.",
         "make check-file-sizes passes: new type-checker code lives in companion files, not typechecker_core.go (799) or typechecker_functions.go (778)."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:55:37.436643+00:00",
+      "completed": "2026-10-08T21:02:19.165250+00:00",
+      "notes": "Approved acceptance matrix passes; targeted mutations red with each component disabled and green restored. Final package/core/lint/format/size/boundary/example gates passed."
     },
     {
       "id": "M4",
@@ -107,12 +109,12 @@
         "AC12: compare fresh base/fixed example pass/fail sets and std import-probe sets; no unintended status changes. Recount current corpus, rather than asserting historical 425/49 counts. Any example/std file that flips status is named in the CHANGELOG with its migration.",
         "New example checks and runs with required IO capability and expected output; pure storage-only construction checks without IO.",
         "Mutation evidence and package/full repository checks below pass; report coverage and changed outcomes, then run sprint-evaluator after execution.",
-        "CHANGELOG Breaking — soundness entry names external consumers: motoko_agent ExtCtx.ports hooks, docparse, ailang-parse."
+        "CHANGELOG Breaking \u2014 soundness entry names external consumers: motoko_agent ExtCtx.ports hooks, docparse, ailang-parse."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:55:37.436643+00:00",
+      "completed": "2026-10-08T21:02:19.165250+00:00",
+      "notes": "Approved acceptance matrix passes; targeted mutations red with each component disabled and green restored. Final package/core/lint/format/size/boundary/example gates passed."
     }
   ],
   "related_github_issues": [
@@ -120,12 +122,12 @@
   ],
   "design_approval_pr": 1378,
   "target_version": "v0.53.0",
-  "approval_status": "awaiting_sprint_plan_approval",
+  "approval_status": "approved",
   "merge_order": [
     "M-EFFECT-LATENT-FUNCTION-VALUES",
     "M-EFFECT-ROW-VAR-UNIFICATION (#616, plan PR #1678 on hold) rebased onto this implementation, extending its per-App publication (LatentParamMask + call row)"
   ],
-  "execution_gate": "Release-scope freezes ruled by Mark 2026-10-08; execution awaits sprint-plan approval (coordinator approval handoff or explicit execute sprint).",
+  "execution_gate": "Explicit approved planner handoff: user invoked sprint-executor on 2026-10-08.",
   "maintainer_rulings": [
     {
       "date": "2026-10-08",
@@ -135,7 +137,7 @@
     {
       "date": "2026-10-08",
       "ruled_by": "Mark",
-      "decision": "Breaking-change posture accepted: minor bump, CHANGELOG 'Breaking — soundness', no opt-out flag."
+      "decision": "Breaking-change posture accepted: minor bump, CHANGELOG 'Breaking \u2014 soundness', no opt-out flag."
     }
   ],
   "validation_gates": [
@@ -149,6 +151,17 @@
   "executor_notes": [
     "Do not run full `make test` (SIGBUS in RAM-backed /tmp); full suite runs in CI.",
     "Executors cannot push or merge.",
-    "internal/types/typechecker_core.go is 799 lines and typechecker_functions.go 778 on origin/dev; CI fails >800 — put new code in companion files."
-  ]
+    "internal/types/typechecker_core.go is 799 lines and typechecker_functions.go 778 on origin/dev; CI fails >800 \u2014 put new code in companion files."
+  ],
+  "last_session": "2026-10-08T20:55:37.436643+00:00",
+  "last_checkpoint": "All four milestones implemented; stable gates and corpus comparisons passed; evaluator round 2 PASS 96/100",
+  "implementation_notes": [
+    "TFunc2.ConcreteEffectContract preserves concrete callback annotation provenance through computed callees, substitutions and cache serialization; no reliance on row-tail names.",
+    "Three historical std HOFs (any/findIndex/foldr) already reject IO callbacks on base via closed iterative builtin signatures. Their baseline behavior is preserved.",
+    "Alias heads resolved for effect validation by checker EffectValueType; structural CoreTI remains available to lowering."
+  ],
+  "completed": "2026-10-08T21:02:19.165250+00:00",
+  "validation_report": "design_docs/planned/v0_53_0/m-effect-latent-function-values-validation.md",
+  "evaluation_report": ".ailang/state/evaluations/eval_M-EFFECT-LATENT-FUNCTION-VALUES_round_2.json",
+  "validation_evidence": ".ailang/state/sprints/validation_M-EFFECT-LATENT-FUNCTION-VALUES.json"
 }

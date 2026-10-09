@@ -127,7 +127,7 @@ for section in sections:
     description = heading_match.group(2).strip()
     # Remove trailing parenthetical from description if it leaked
     description = re.sub(r'\s*\(~\d+\s*(hours?|LOC).*\)\s*$', '', description)
-    estimated_loc = int(heading_match.group(3)) if heading_match.group(3) else 0
+    estimated_loc = int(heading_match.group(3)) if heading_match.group(3) else None
 
     # Extract acceptance criteria from - [ ] lines
     criteria = []
@@ -162,7 +162,7 @@ if not milestones:
     milestones = [{
         "id": "MILESTONE_ID",
         "description": "Milestone description (auto-parse failed - fill manually)",
-        "estimated_loc": 0,
+        "estimated_loc": None,
         "dependencies": [],
         "acceptance_criteria": ["Criterion 1", "Criterion 2"],
         "passes": None,

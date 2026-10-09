@@ -101,6 +101,17 @@ func EraseEffectFromRow(row *types.Row, effect string) *types.Row {
 type declaredLambdaLookup func(nodeID uint64) (*types.Row, bool)
 
 func ValidateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo types.CoreTypeInfo, lambdaLookup ...declaredLambdaLookup) error {
+	return validateEffects(surfaceAST, coreProg, coreTypeInfo, nil, nil, lambdaLookup...)
+}
+
+func ValidateEffectsWithCalls(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo types.CoreTypeInfo, maskLookup latentMaskLookup, lambdaLookup declaredLambdaLookup, valueLookup ...effectValueLookup) error {
+	if maskLookup == nil {
+		return fmt.Errorf("internal invariant: missing LatentParamMask lookup")
+	}
+	return validateEffects(surfaceAST, coreProg, coreTypeInfo, maskLookup, valueLookup, lambdaLookup)
+}
+
+func validateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo types.CoreTypeInfo, maskLookup latentMaskLookup, valueLookup []effectValueLookup, lambdaLookup ...declaredLambdaLookup) error {
 	// Early return for empty programs
 	if len(coreProg.Decls) == 0 {
 		return nil
@@ -118,10 +129,14 @@ func ValidateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo 
 		}
 	}
 
+	collector := &effectCollector{typeInfo: coreTypeInfo, declared: declaredEffects, maskLookup: maskLookup, invariant: new(error)}
+	if len(valueLookup) > 0 {
+		collector.valueLookup = valueLookup[0]
+	}
 	// Walk all top-level declarations
 	// Note: Top-level declarations are often wrapped in Let/LetRec nodes
 	for _, decl := range coreProg.Decls {
-		if err := validateDecl(decl, declaredEffects, coreTypeInfo); err != nil {
+		if err := validateDecl(decl, declaredEffects, coreTypeInfo, collector); err != nil {
 			return err
 		}
 	}
@@ -137,19 +152,19 @@ func ValidateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo 
 	// row); when unavailable (legacy callers) this pass is skipped.
 	if len(lambdaLookup) > 0 && lambdaLookup[0] != nil {
 		for _, decl := range coreProg.Decls {
-			if err := validateLambdaAnnotations(decl, declaredEffects, coreTypeInfo, lambdaLookup[0]); err != nil {
+			if err := validateLambdaAnnotations(decl, declaredEffects, coreTypeInfo, lambdaLookup[0], collector); err != nil {
 				return err
 			}
 		}
 	}
 
-	return nil
+	return *collector.invariant
 }
 
 // validateLambdaAnnotations recursively finds inline lambdas with an explicit
 // CLOSED effect annotation and rejects any whose body requires an effect the
 // annotation does not declare. M-EFFECT-ROW-SHOW-INTERP (#386).
-func validateLambdaAnnotations(expr core.CoreExpr, declaredEffects map[string]*types.Row, typeInfo types.CoreTypeInfo, lookup declaredLambdaLookup) error {
+func validateLambdaAnnotations(expr core.CoreExpr, declaredEffects map[string]*types.Row, typeInfo types.CoreTypeInfo, lookup declaredLambdaLookup, collector *effectCollector) error {
 	if expr == nil {
 		return nil
 	}
@@ -160,47 +175,48 @@ func validateLambdaAnnotations(expr core.CoreExpr, declaredEffects map[string]*t
 		// effects). Only enforce when the source annotation is a CLOSED row (no
 		// tail): open/row-polymorphic callbacks subsume extra effects legitimately.
 		if declared, ok := lookup(e.ID()); ok && declared != nil && declared.Tail == nil {
-			required := eraseGhostEffects(collectRequiredEffects(e.Body, typeInfo, declaredEffects))
+			required := eraseGhostEffects(collector.shadow(e.Params...).collect(e.Body))
 			if !types.SubsumeEffectRows(required, declared) {
 				return formatLambdaEffectError(e.Span().String(), required, declared)
 			}
 		}
-		return validateLambdaAnnotations(e.Body, declaredEffects, typeInfo, lookup)
+		return validateLambdaAnnotations(e.Body, declaredEffects, typeInfo, lookup, collector.shadow(e.Params...))
 	case *core.App:
-		if err := validateLambdaAnnotations(e.Func, declaredEffects, typeInfo, lookup); err != nil {
+		if err := validateLambdaAnnotations(e.Func, declaredEffects, typeInfo, lookup, collector); err != nil {
 			return err
 		}
 		for _, a := range e.Args {
-			if err := validateLambdaAnnotations(a, declaredEffects, typeInfo, lookup); err != nil {
+			if err := validateLambdaAnnotations(a, declaredEffects, typeInfo, lookup, collector); err != nil {
 				return err
 			}
 		}
 	case *core.Let:
-		if err := validateLambdaAnnotations(e.Value, declaredEffects, typeInfo, lookup); err != nil {
+		if err := validateLambdaAnnotations(e.Value, declaredEffects, typeInfo, lookup, collector); err != nil {
 			return err
 		}
-		return validateLambdaAnnotations(e.Body, declaredEffects, typeInfo, lookup)
+		return validateLambdaAnnotations(e.Body, declaredEffects, typeInfo, lookup, collector.shadow(e.Name))
 	case *core.LetRec:
+		collector = collector.shadow(recBindingNames(e.Bindings)...)
 		for _, b := range e.Bindings {
-			if err := validateLambdaAnnotations(b.Value, declaredEffects, typeInfo, lookup); err != nil {
+			if err := validateLambdaAnnotations(b.Value, declaredEffects, typeInfo, lookup, collector); err != nil {
 				return err
 			}
 		}
-		return validateLambdaAnnotations(e.Body, declaredEffects, typeInfo, lookup)
+		return validateLambdaAnnotations(e.Body, declaredEffects, typeInfo, lookup, collector)
 	case *core.If:
-		if err := validateLambdaAnnotations(e.Cond, declaredEffects, typeInfo, lookup); err != nil {
+		if err := validateLambdaAnnotations(e.Cond, declaredEffects, typeInfo, lookup, collector); err != nil {
 			return err
 		}
-		if err := validateLambdaAnnotations(e.Then, declaredEffects, typeInfo, lookup); err != nil {
+		if err := validateLambdaAnnotations(e.Then, declaredEffects, typeInfo, lookup, collector); err != nil {
 			return err
 		}
-		return validateLambdaAnnotations(e.Else, declaredEffects, typeInfo, lookup)
+		return validateLambdaAnnotations(e.Else, declaredEffects, typeInfo, lookup, collector)
 	}
 	return nil
 }
 
 // validateDecl validates a single declaration, handling Let/LetRec specially
-func validateDecl(decl core.CoreExpr, declaredEffects map[string]*types.Row, typeInfo types.CoreTypeInfo) error {
+func validateDecl(decl core.CoreExpr, declaredEffects map[string]*types.Row, typeInfo types.CoreTypeInfo, collector *effectCollector) error {
 	// If this is a LetRec, validate each binding as a separate function
 	if letRec, ok := decl.(*core.LetRec); ok {
 		for _, binding := range letRec.Bindings {
@@ -211,7 +227,10 @@ func validateDecl(decl core.CoreExpr, declaredEffects map[string]*types.Row, typ
 			debugLog("  Declared effects: %s", formatRow(declared))
 
 			// Collect required effects from Core AST
-			required := collectRequiredEffects(binding.Value, typeInfo, declaredEffects)
+			required := collector.collect(binding.Value)
+			if *collector.invariant != nil {
+				return *collector.invariant
+			}
 			debugLog("  Required effects: %s", formatRow(required))
 
 			// Ghost effects (Debug) don't need to be declared by callers
@@ -234,7 +253,10 @@ func validateDecl(decl core.CoreExpr, declaredEffects map[string]*types.Row, typ
 		debugLog("  Declared effects: %s", formatRow(declared))
 
 		// Collect required effects from Core AST
-		required := collectRequiredEffects(let.Value, typeInfo, declaredEffects)
+		required := collector.collect(let.Value)
+		if *collector.invariant != nil {
+			return *collector.invariant
+		}
 		debugLog("  Required effects: %s", formatRow(required))
 
 		// Ghost effects (Debug) don't need to be declared by callers
@@ -246,7 +268,7 @@ func validateDecl(decl core.CoreExpr, declaredEffects map[string]*types.Row, typ
 		}
 
 		// Also validate the body
-		return validateDecl(let.Body, declaredEffects, typeInfo)
+		return validateDecl(let.Body, declaredEffects, typeInfo, collector)
 	}
 
 	// For other declarations (shouldn't happen in normal flow)
@@ -302,7 +324,8 @@ func extractEffectFromType(t types.Type) *types.Row {
 // collectRequiredEffects recursively walks the expression to collect all required effects
 // Returns the union of all effects used in the expression
 // declaredEffects maps function names to their declared effect signatures from Surface AST
-func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, declaredEffects map[string]*types.Row) *types.Row {
+func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
+	typeInfo, declaredEffects := collector.typeInfo, collector.declared
 	if expr == nil {
 		return nil
 	}
@@ -330,7 +353,7 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 	case *core.Lambda:
 		// Lambdas: the effects are in their type, and we need to check the body
 		debugLog("    Lambda -> checking body")
-		bodyEffects := collectRequiredEffects(e.Body, typeInfo, declaredEffects)
+		bodyEffects := collector.shadow(e.Params...).collect(e.Body)
 		debugLog("    Lambda body effects: %s", formatRow(bodyEffects))
 		return bodyEffects
 
@@ -354,19 +377,24 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 
 		// Fall back to CoreTypeInfo only if NOT found in declared effects
 		if !usedDeclared {
-			if t, ok := typeInfo.Get(e.Func.ID()); ok {
+			if t, ok := collector.effectType(e.Func); ok {
 				calleeEffects = extractEffectFromType(t)
 				debugLog("      Callee type effects (from CoreTypeInfo): %s", formatRow(calleeEffects))
 			}
 		}
 
 		// Also recursively check function and arguments for effects
-		funcEffects := collectRequiredEffects(e.Func, typeInfo, declaredEffects)
+		funcEffects := collector.collect(e.Func)
 		debugLog("      Func expr effects: %s", formatRow(funcEffects))
 
+		mask := collector.applicationMask(e)
 		var argEffects *types.Row
 		for i, arg := range e.Args {
-			argEff := collectRequiredEffects(arg, typeInfo, declaredEffects)
+
+			argEff := collector.collect(arg)
+			if i < len(mask) && mask[i] {
+				argEff = unionRequiredEffectRows(argEff, collector.latentEffects(arg))
+			}
 			debugLog("      Arg[%d] effects: %s", i, formatRow(argEff))
 			argEffects = unionRequiredEffectRows(argEffects, argEff)
 		}
@@ -396,8 +424,8 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		// chain. Inner block/ANF lets — which validateDecl never recurses into —
 		// require their body to be walked here for soundness.
 		debugLog("    Let(%s) -> checking value and body", e.Name)
-		valueEffects := collectRequiredEffects(e.Value, typeInfo, declaredEffects)
-		bodyEffects := collectRequiredEffects(e.Body, typeInfo, declaredEffects)
+		valueEffects := collector.collect(e.Value)
+		bodyEffects := collector.shadow(e.Name).collect(e.Body)
 		effects := unionRequiredEffectRows(valueEffects, bodyEffects)
 		debugLog("    Let(%s) effects (value ∪ body): %s", e.Name, formatRow(effects))
 		return effects
@@ -407,21 +435,22 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		// the #386 rationale on why the body must be traversed).
 		debugLog("    LetRec with %d bindings", len(e.Bindings))
 		var effects *types.Row
+		collector = collector.shadow(recBindingNames(e.Bindings)...)
 		for _, binding := range e.Bindings {
 			debugLog("      LetRec binding: %s", binding.Name)
-			bindingEffects := collectRequiredEffects(binding.Value, typeInfo, declaredEffects)
+			bindingEffects := collector.collect(binding.Value)
 			debugLog("      LetRec binding %s effects: %s", binding.Name, formatRow(bindingEffects))
 			effects = unionRequiredEffectRows(effects, bindingEffects)
 		}
-		effects = unionRequiredEffectRows(effects, collectRequiredEffects(e.Body, typeInfo, declaredEffects))
+		effects = unionRequiredEffectRows(effects, collector.collect(e.Body))
 		debugLog("    LetRec total effects: %s", formatRow(effects))
 		return effects
 
 	case *core.If:
 		// If: union of condition, then, and else effects
-		condEffects := collectRequiredEffects(e.Cond, typeInfo, declaredEffects)
-		thenEffects := collectRequiredEffects(e.Then, typeInfo, declaredEffects)
-		elseEffects := collectRequiredEffects(e.Else, typeInfo, declaredEffects)
+		condEffects := collector.collect(e.Cond)
+		thenEffects := collector.collect(e.Then)
+		elseEffects := collector.collect(e.Else)
 
 		result := unionRequiredEffectRows(condEffects, thenEffects)
 		result = unionRequiredEffectRows(result, elseEffects)
@@ -429,44 +458,44 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 
 	case *core.Match:
 		// Match: union of scrutinee and all arms
-		scrutEffects := collectRequiredEffects(e.Scrutinee, typeInfo, declaredEffects)
+		scrutEffects := collector.collect(e.Scrutinee)
 		result := scrutEffects
 
 		for _, arm := range e.Arms {
-			armEffects := collectRequiredEffects(arm.Body, typeInfo, declaredEffects)
+			armEffects := collector.shadow(patternBindingNames(arm.Pattern)...).collect(arm.Body)
 			result = unionRequiredEffectRows(result, armEffects)
 		}
 		return result
 
 	case *core.BinOp:
 		// Binary operators: union of left and right
-		leftEffects := collectRequiredEffects(e.Left, typeInfo, declaredEffects)
-		rightEffects := collectRequiredEffects(e.Right, typeInfo, declaredEffects)
+		leftEffects := collector.collect(e.Left)
+		rightEffects := collector.collect(e.Right)
 		return unionRequiredEffectRows(leftEffects, rightEffects)
 
 	case *core.UnOp:
 		// Unary operators: effects from operand
-		return collectRequiredEffects(e.Operand, typeInfo, declaredEffects)
+		return collector.collect(e.Operand)
 
 	case *core.Record:
 		// Records: union of all field effects
 		var effects *types.Row
 		for _, fieldVal := range e.Fields {
-			fieldEffects := collectRequiredEffects(fieldVal, typeInfo, declaredEffects)
+			fieldEffects := collector.collect(fieldVal)
 			effects = unionRequiredEffectRows(effects, fieldEffects)
 		}
 		return effects
 
 	case *core.RecordAccess:
 		// Record access: effects from record expression
-		return collectRequiredEffects(e.Record, typeInfo, declaredEffects)
+		return collector.collect(e.Record)
 
 	case *core.RecordUpdate:
 		// Record update: union of base and updated fields
-		baseEffects := collectRequiredEffects(e.Base, typeInfo, declaredEffects)
+		baseEffects := collector.collect(e.Base)
 		var updateEffects *types.Row
 		for _, updateVal := range e.Updates {
-			fieldEffects := collectRequiredEffects(updateVal, typeInfo, declaredEffects)
+			fieldEffects := collector.collect(updateVal)
 			updateEffects = unionRequiredEffectRows(updateEffects, fieldEffects)
 		}
 		return unionRequiredEffectRows(baseEffects, updateEffects)
@@ -475,7 +504,7 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		// Lists: union of all element effects
 		var effects *types.Row
 		for _, elem := range e.Elements {
-			elemEffects := collectRequiredEffects(elem, typeInfo, declaredEffects)
+			elemEffects := collector.collect(elem)
 			effects = unionRequiredEffectRows(effects, elemEffects)
 		}
 		return effects
@@ -484,7 +513,7 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 		// Tuples: union of all element effects
 		var effects *types.Row
 		for _, elem := range e.Elements {
-			elemEffects := collectRequiredEffects(elem, typeInfo, declaredEffects)
+			elemEffects := collector.collect(elem)
 			effects = unionRequiredEffectRows(effects, elemEffects)
 		}
 		return effects
@@ -498,14 +527,14 @@ func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, dec
 
 	case *core.DictAbs:
 		// Dictionary abstraction: check body effects
-		return collectRequiredEffects(e.Body, typeInfo, declaredEffects)
+		return collector.collect(e.Body)
 
 	case *core.DictApp:
 		// Dictionary application: check dict and all argument effects
-		dictEffects := collectRequiredEffects(e.Dict, typeInfo, declaredEffects)
+		dictEffects := collector.collect(e.Dict)
 		var argEffects *types.Row
 		for _, arg := range e.Args {
-			argEff := collectRequiredEffects(arg, typeInfo, declaredEffects)
+			argEff := collector.collect(arg)
 			argEffects = unionRequiredEffectRows(argEffects, argEff)
 		}
 		return unionRequiredEffectRows(dictEffects, argEffects)
@@ -558,8 +587,18 @@ func writeEffectDiff(msg *strings.Builder, diff types.EffectRowDiff) {
 		fmt.Fprintf(msg, "  Missing effects: %s\n", strings.Join(diff.Missing, ", "))
 	}
 	for _, mismatch := range diff.ParamMismatches {
-		fmt.Fprintf(msg, "  Effect %s mismatch: %s requires %s=%s; declaration provides %s=%s\n",
-			mismatch.Key, mismatch.Effect, mismatch.Key, mismatch.RequiredValue,
-			mismatch.Key, mismatch.DeclaredValue)
+		fmt.Fprintf(msg, "  Effect %s mismatch: %s requires %s; declaration provides %s\n",
+			mismatch.Key, mismatch.Effect,
+			formatEffectParamValue(mismatch.Effect, mismatch.Key, mismatch.RequiredValue),
+			formatEffectParamValue(mismatch.Effect, mismatch.Key, mismatch.DeclaredValue))
 	}
+}
+
+// formatEffectParamValue renders key=value, or "unscoped <Effect>" when the
+// side carries no parameter (e.g. a bare Declassify callee under a scoped caller).
+func formatEffectParamValue(effect, key, value string) string {
+	if value == "" {
+		return "unscoped " + effect
+	}
+	return key + "=" + value
 }

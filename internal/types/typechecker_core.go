@@ -79,6 +79,7 @@ type CoreTypeChecker struct {
 	// the effect validator to enforce closed inline-lambda annotations against
 	// their body effects. M-EFFECT-ROW-SHOW-INTERP (#386).
 	declaredLambdaEffects map[uint64]*Row
+	latentParamMasks      map[uint64][]bool
 	returnTypeAnnots      map[uint64]Type   // Return type annotations from elaboration (Lambda NodeID → return type)
 	CoreTI                CoreTypeInfo      // Core NodeID → inferred types (principal types for lowering)
 	constructorTypes      map[string]string // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")

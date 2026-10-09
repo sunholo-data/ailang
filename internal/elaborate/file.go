@@ -146,7 +146,13 @@ func collectModuleLets(file *ast.File) []*ModuleLet {
 }
 
 // ElaborateFile transforms a complete file with module structure to Core ANF
-func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
+func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err error) {
+	e.typeAnnotationErr = nil
+	defer func() {
+		if e.typeAnnotationErr != nil {
+			prog, err = nil, e.typeAnnotationErr
+		}
+	}()
 	// For REPL/simple cases without module or funcs
 	if file.Module == nil || (len(file.Imports) == 0 && len(file.Funcs) == 0) {
 		// First, process type declarations to register constructors

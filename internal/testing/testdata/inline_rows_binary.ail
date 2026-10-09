@@ -1,0 +1,4 @@
+module inline_rows_binary
+export func identity(x: int) -> int ! {}
+tests [ (1 + 2, 3), (3, 1 + 2) ]
+{ x }

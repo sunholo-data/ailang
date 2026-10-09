@@ -30,6 +30,47 @@ own compiler diagnostic.
 
 ## Type System Limitations
 
+### Concrete Function-Effect Annotations Remain Open
+
+**Status**: Deferred upper-bound enforcement (M-EFFECT-LATENT-FUNCTION-VALUES Phase 3)
+**Verified at**: v0.53.0 implementation working tree over `48f4b5ef929532cc6bf89d32034435ec616f80e7`, 2026-10-08
+
+Function-type annotations preserve their concrete effects, but currently permit a
+wider callback when storing it. This checks successfully:
+
+```ailang
+module width
+import std/io (println)
+import std/env (getEnv)
+type Hooks = {f: int -> int ! {IO}}
+func wider(x: int) -> int ! {IO, Env} {
+  let _ = getEnv("HOME");
+  let _ = println("wider");
+  x
+}
+pure func mk() -> Hooks = {f: wider}
+```
+
+`AILANG_NO_CACHE=1 ailang check width.ail` exits 0. Do not use a stored callback's
+annotation as an upper bound on its runtime capabilities; declare every effect its
+implementation performs. Calling an annotated field and passing an effectful value
+to an effect-polymorphic HOF do now charge latent effects. Closed annotation bounds
+remain a separate spike under the existing [#573](https://github.com/sunholo-data/ailang/issues/573)
+and [#1326](https://github.com/sunholo-data/ailang/issues/1326) design; no new issue is required.
+
+
+### Effectful Callbacks Nested in Data Arguments Are Not Yet Charged
+
+**Status**: Open, tracked in [#1718](https://github.com/sunholo-data/ailang/issues/1718)
+**Verified at**: v0.53.0 implementation, 2026-10-08
+
+Latent effects are charged for a callback passed directly to a HOF or stored in a
+record field, but not for one nested inside a list, tuple or ADT argument. With an
+effectful `logIt`, a pure caller still checks for `applyHead([logIt], x)`,
+`applyFst((logIt, x))` and `applyOpt(Some(logIt), x)`. Declare the callback's effects
+on the caller explicitly until #1718 lands.
+
+
 ### Y-Combinator and Recursive Lambdas (By Design)
 
 **Status**: Design constraint, not a bug
@@ -298,34 +339,37 @@ The permanent fix changes the evaluator's list representation and its consumers.
 multi-week programme currently in progress; the representation spike returned GO, but no runtime
 representation fix has shipped yet.
 
-#### 2. Evaluator recursion depth cap (`RT_REC_003`)
+#### 2. Recursion depth caps
 
-`ailang run` caps evaluator recursion at **10,000 frames** by default
-(`cmd/ailang/main_run.go:35`; the evaluator defaults are also set at
-`internal/eval/eval_evaluator.go:148,160`). Exceeding the cap returns `RT_REC_003`, as pinned by
-`internal/eval/recursion_test.go:265,301-302`. The evaluator has no tail-call elimination, so even
-tail-position or deep right-recursive code reaches this wall instead of becoming an iterative
-loop. A same-scope scan on 2026-08-21 found the positive `recursionDepth` guard in two files under
-`internal/eval/` and no tail-call implementation there; the sole tail-call match is a test that
-explicitly verifies the evaluator does not advertise nonexistent tail-call elimination.
+`ailang run` defaults to a **10,000** recursion-depth ceiling in the evaluator and a
+**10,000** frame ceiling in the bytecode VM. Positive `--max-recursion-depth N` values
+set the ceiling for both backends; zero or negative values retain the defaults.
+The evaluator counts evaluation depth, including builtin callback re-entry, while the VM
+counts live call frames, so exact boundary depths can differ. Tail calls run at constant
+depth on both backends.
+
+An evaluator overrun reports `RT_REC_003`; a strict bytecode overrun reports `stack overflow`.
+Non-strict `--bytecode` can still restart on the evaluator after overflow, replaying committed
+IO or seeing already-consumed stdin. Aligning the limits avoids this fallback for ordinary
+deep recursion within the default ceiling; it does not make replay safe (Refs #1576).
 
 The executable remedy test at v0.33.1-171-gc62e64878 (2026-08-21) measured a right-recursive
 `sum(300)`: it raises `RT_REC_003` with a 100-frame ceiling and completes after the ceiling is raised
 to 10,000 (`internal/eval/rt_rec_003_message_test.go:31-112`).
 
-**Workaround**: pass `--max-recursion-depth N` to raise the evaluator's depth ceiling. Prefer the
+**Workaround**: pass `--max-recursion-depth N` to raise both backends' depth ceilings. Prefer the
 iterative `map`, `foldl`, and `takeMap` paths above where they express the operation.
 
 **Raised ceilings are honoured (2026-09-26, #1317).** Before, a raised ceiling could not be
 reached: the evaluator recursed on one goroutine, whose stack Go caps at 512 MB (1 GB at most), so
 programs died with `fatal error: stack overflow` well below N (plain recursion at 200k–400k calls,
 list-pattern matching at ~84k). Deep evaluation now continues on a fresh goroutine every 131,072
-evaluator levels (`evalSegmentLevels`, `internal/eval/eval_expressions.go`). Depth is therefore bounded
-by N and memory, and exceeding N is always `RT_REC_003`. Measured: 1,999,000 plain calls under
+evaluator levels (`evalSegmentLevels`, `internal/eval/eval_expressions.go`). Evaluator depth is therefore bounded
+by N and memory, and exceeding N reports `RT_REC_003`. Measured: 1,999,000 plain calls under
 `--max-recursion-depth 2000000` complete in 9.5 s at 12.8 GB peak RSS, which is the cost of that
 much live recursion. Recursion that re-enters the evaluator through a builtin callback (`map`,
 `foldl`, `sortBy`, ...) now reports `RT_REC_003` as one line, not once per level. Raising the
-depth ceiling does **not** add tail-call elimination and does **not** fix the memory amplification
+depth ceiling does **not** fix the memory amplification
 from `::`; allowing a quadratic recursive builder to run longer can increase its memory use.
 
 ### Strict evaluation: `take(n, flatMap(f, xs))` bounds the result, not the peak

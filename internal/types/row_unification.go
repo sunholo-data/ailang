@@ -73,6 +73,10 @@ func (ru *RowUnifier) UnifyRows(r1, r2 *Row, sub Substitution) (Substitution, er
 		unifier = NewUnifier()
 	}
 	for label := range common {
+		// Effect labels have no structural payload; modes and budgets are checked separately.
+		if r1.Kind.Equals(EffectRow) {
+			continue
+		}
 		var err error
 		sub, err = unifier.Unify(r1.Labels[label], r2.Labels[label], sub)
 		if err != nil {

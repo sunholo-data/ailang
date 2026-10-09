@@ -129,27 +129,53 @@ func buildSkillDirectiveWithConfig(task *TaskRecord, agent *AgentConfig, invoke 
 	sb.WriteString(fmt.Sprintf("Invoke the %s skill to complete this task.\n", skillName))
 
 	// Add output markers as a prominent suffix - these are CRITICAL for coordinator to track artifacts
-	if len(effectiveMarkers) > 0 {
-		sb.WriteString("\n---\n\n")
-		sb.WriteString("## CRITICAL: Coordinator Output Requirements\n\n")
-		sb.WriteString("**You MUST include these exact markers at the END of your response.**\n")
-		sb.WriteString("The coordinator parses these to track artifacts and post updates to GitHub.\n\n")
-		sb.WriteString("```\n")
-		for _, marker := range effectiveMarkers {
-			sb.WriteString(fmt.Sprintf("%s <path-to-file>\n", marker))
-		}
-		sb.WriteString("```\n\n")
-		sb.WriteString("**Example format:**\n")
-		sb.WriteString("```\n")
-		for _, marker := range effectiveMarkers {
-			// Show example with backticks for markdown
-			sb.WriteString(fmt.Sprintf("**%s** `design_docs/planned/v0_6_3/example.md`\n", marker))
-		}
-		sb.WriteString("```\n")
-	}
+	writeOutputMarkers(&sb, effectiveMarkers)
 
 	sb.WriteString(blockedContract)
 	return sb.String()
+}
+
+// writeOutputMarkers appends the block that tells the agent which marker lines
+// to end with. Most markers carry a file path (DESIGN_DOC_CREATED: …). The
+// evaluator's verdict does not: ParseEvaluationVerdict reads
+// "EVALUATION_VERDICT: PASS score=84" on a bare line. This block used to show
+// every marker as "<path-to-file>" with a bold example, so on 2026-10-09 the
+// cloud evaluator dutifully ended "EVALUATION_VERDICT: <path>", which parses as
+// no verdict, whatever its system prompt said.
+func writeOutputMarkers(sb *strings.Builder, markers []string) {
+	if len(markers) == 0 {
+		return
+	}
+	sb.WriteString("\n---\n\n")
+	sb.WriteString("## CRITICAL: Coordinator Output Requirements\n\n")
+	sb.WriteString("**You MUST include these exact markers at the END of your response.**\n")
+	sb.WriteString("The coordinator parses these to track artifacts and post updates to GitHub.\n\n")
+	sb.WriteString("```\n")
+	for _, marker := range markers {
+		if marker == EvaluationVerdictMarker {
+			sb.WriteString(marker + " PASS score=<0-100>\n")
+			sb.WriteString(marker + " FAIL score=<0-100> reasons=<short list>\n")
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("%s <path-to-file>\n", marker))
+	}
+	sb.WriteString("```\n\n")
+	sb.WriteString("**Example format:**\n")
+	sb.WriteString("```\n")
+	for _, marker := range markers {
+		if marker == EvaluationVerdictMarker {
+			// A bare line: the parser does not strip markdown.
+			sb.WriteString(marker + " PASS score=82\n")
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("**%s** `design_docs/planned/v0_6_3/example.md`\n", marker))
+	}
+	sb.WriteString("```\n")
+	for _, marker := range markers {
+		if marker == EvaluationVerdictMarker {
+			sb.WriteString("\nWrite the " + marker + " line once, as the last line, on its own line with no markdown, and with exactly one of PASS or FAIL.\n")
+		}
+	}
 }
 
 // blockedContract tells every agent how to say "I could not start".
@@ -191,23 +217,7 @@ func buildAgentHandoffDirectiveWithConfig(task *TaskRecord, agent *AgentConfig, 
 	sb.WriteString(fmt.Sprintf("Hand off this task to the %s agent for processing.\n", targetAgent))
 
 	// Add output markers as a prominent suffix - these are CRITICAL for coordinator to track artifacts
-	if len(effectiveMarkers) > 0 {
-		sb.WriteString("\n---\n\n")
-		sb.WriteString("## CRITICAL: Coordinator Output Requirements\n\n")
-		sb.WriteString("**You MUST include these exact markers at the END of your response.**\n")
-		sb.WriteString("The coordinator parses these to track artifacts and post updates to GitHub.\n\n")
-		sb.WriteString("```\n")
-		for _, marker := range effectiveMarkers {
-			sb.WriteString(fmt.Sprintf("%s <path-to-file>\n", marker))
-		}
-		sb.WriteString("```\n\n")
-		sb.WriteString("**Example format:**\n")
-		sb.WriteString("```\n")
-		for _, marker := range effectiveMarkers {
-			sb.WriteString(fmt.Sprintf("**%s** `design_docs/planned/v0_6_3/example.md`\n", marker))
-		}
-		sb.WriteString("```\n")
-	}
+	writeOutputMarkers(&sb, effectiveMarkers)
 
 	return sb.String()
 }

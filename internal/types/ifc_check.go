@@ -44,13 +44,15 @@ var ifcBuiltinSourceLabels = map[string]string{
 // CheckModuleIFC runs the static IFC check over a parsed module, returning any
 // violations as TypeCheckErrors (empty when the module is clean).
 //
-// It enforces two rules over the label lattice:
+// It enforces three rules over the label lattice:
 //
 //	(A) Sink refinement — a value whose label subsumes ℓ must not be passed to a
 //	    parameter declared T{not ℓ}. Checked at every call site.
 //	(B) Declassification — a function declaring an *explicit* return label must
 //	    not return a value carrying a label that its declared output drops, unless
-//	    it declares ! {Declassify}. Checked at every function definition.
+//	    its Declassify authority covers every hidden label. Checked at every function definition.
+//
+// (C) Positive parameter labels must cover every argument constituent at local calls.
 //
 // Functions without an explicit return label are label-transparent: their result
 // label is the join of their body's intrinsic label and their actual argument
@@ -82,11 +84,11 @@ func CheckModuleIFC(file *ast.File) []*TypeCheckError {
 
 // ifcSig is the IFC-relevant projection of a local function's signature.
 type ifcSig struct {
-	decl           *ast.FuncDecl
-	params         []ifcParam
-	returnLabel    Label // declared return label; ⊥ when unannotated
-	hasReturnLabel bool  // return type carried an explicit <label>
-	declassify     bool  // ! {Declassify} present in the effect row
+	decl             *ast.FuncDecl
+	params           []ifcParam
+	returnLabel      Label    // declared return label; ⊥ when unannotated
+	hasReturnLabel   bool     // return type carried an explicit <label>
+	authorizedLabels []string // none=[], bare=["*"], scoped=[label] (single label in v1)
 }
 
 type ifcParam struct {
@@ -138,13 +140,18 @@ func buildIFCSig(fn *ast.FuncDecl) *ifcSig {
 	}
 	for _, eff := range fn.Effects {
 		if eff.Name == "Declassify" {
-			sig.declassify = true
+			sig.authorizedLabels = []string{"*"}
+			for _, p := range eff.Params {
+				if p.Key == "label" {
+					sig.authorizedLabels = []string{p.Value}
+				}
+			}
 		}
 	}
 	return sig
 }
 
-// checkFunc runs Check A (via the body walk) and Check B over one function.
+// checkFunc runs Checks A/C (via the body walk) and Check B over one function.
 func (c *ifcChecker) checkFunc(sig *ifcSig) {
 	env := make(ifcEnv, len(sig.params))
 	for _, p := range sig.params {
@@ -152,11 +159,11 @@ func (c *ifcChecker) checkFunc(sig *ifcSig) {
 	}
 	bodyLabel := c.labelOf(sig.decl.Body, env)
 
-	// Check B: an explicit return label must cover the body's actual label,
-	// unless the function is authorised to declassify.
-	if sig.hasReturnLabel && !sig.declassify {
-		if leaked := labelNotCoveredBy(bodyLabel, sig.returnLabel); leaked != "" {
-			c.errs = append(c.errs, newDeclassError(sig.decl, bodyLabel, sig.returnLabel, leaked))
+	// Check B: the return label and declared authority jointly cover the body.
+	// Declassifiers with unlabelled returns lower to bottom too; check them.
+	if sig.hasReturnLabel || len(sig.authorizedLabels) > 0 {
+		if leaked := unauthorizedLabel(bodyLabel, sig.returnLabel, sig.authorizedLabels); leaked != "" {
+			c.errs = append(c.errs, newDeclassError(sig.decl, bodyLabel, sig.returnLabel, leaked, sig.authorizedLabels))
 		}
 	}
 }
@@ -365,11 +372,15 @@ func (c *ifcChecker) joinElems(elems []ast.Expr, env ifcEnv) Label {
 	return result
 }
 
-// labelOfCall computes a call's result label and runs Check A on the callee's
-// sink parameters.
+// labelOfCall computes a call's result label and runs Checks A/C on the callee's
+// sink refinements and positive parameter labels.
 func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env ifcEnv) Label {
 	name := calleeName(call.Func)
 	sig, isLocal := c.sigs[name]
+	// A lexical binding shadows a module declaration; use the closure fallback.
+	if _, bound := env[name]; bound {
+		isLocal = false
+	}
 
 	// Each argument is walked ONCE. argLabels are full labels (used by Check A
 	// and by unknown callees); passed are the hand-off labels into a local
@@ -389,9 +400,12 @@ func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env ifcEnv) Label {
 	}
 
 	if isLocal {
-		// Check A: sink refinements on the callee's parameters.
+		// Checks A/C: negative refinements and positive labels on local parameters.
 		if !c.silent {
 			for i, p := range sig.params {
+				if i < len(argLabels) && !LabelEqual(p.label, LabelBottom()) && labelNotCoveredBy(argLabels[i], p.label) != "" {
+					c.errs = append(c.errs, newParamLabelCoverError(call, p, argLabels[i]))
+				}
 				if p.hasNot && i < len(argLabels) {
 					if CheckSinkLabel(argLabels[i], p.notLabel) != nil {
 						c.errs = append(c.errs, newSinkError(call, p.name, p.notLabel, argLabels[i]))
@@ -399,7 +413,7 @@ func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env ifcEnv) Label {
 				}
 			}
 		}
-		return c.calleeResultLabel(sig, passed)
+		return c.calleeResultLabel(sig, passed, argLabels)
 	}
 	if src, ok := ifcBuiltinSourceLabels[name]; ok {
 		return LabelConst(src)
@@ -417,11 +431,19 @@ func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env ifcEnv) Label {
 }
 
 // calleeResultLabel computes the label produced by calling a known local function.
-func (c *ifcChecker) calleeResultLabel(sig *ifcSig, argLabels []Label) Label {
-	if sig.declassify {
-		// Declassification authoritatively relabels the result to the declared
-		// output (typically ⊥/clean), breaking the taint chain.
-		return sig.returnLabel
+func (c *ifcChecker) calleeResultLabel(sig *ifcSig, argLabels, fullArgLabels []Label) Label {
+	if len(sig.authorizedLabels) > 0 {
+		// Bare authority retains legacy relabelling. Scoped authority must also
+		// account for actual arguments: unlabelled formals seed bottom during
+		// Check B, and cannot prove that secret-carrying actuals are covered.
+		// Use FULL labels, before hand-off strips type-matched declared labels.
+		result := sig.returnLabel
+		for _, part := range normalisedParts(joinLabels(fullArgLabels)) {
+			if unauthorizedLabel(part, sig.returnLabel, sig.authorizedLabels) != "" {
+				result = LabelJoin(result, part)
+			}
+		}
+		return result
 	}
 	if sig.hasReturnLabel {
 		return sig.returnLabel
@@ -567,13 +589,44 @@ func newSinkError(call *ast.FuncCall, paramName, notLabel string, argLabel Label
 	}
 }
 
-func newDeclassError(fn *ast.FuncDecl, bodyLabel, declared Label, leaked string) *TypeCheckError {
+func newDeclassError(fn *ast.FuncDecl, bodyLabel, declared Label, leaked string, authority []string) *TypeCheckError {
 	return &TypeCheckError{
 		Kind:     DeclassifyRequiredError,
 		Position: fn.Pos.String(),
 		Message: fmt.Sprintf(
-			"information-flow violation: function %q returns a value labelled %s but declares return label %s, hiding <%s>",
-			fn.Name, bodyLabel, declared, leaked),
-		Suggestion: "add ! {Declassify} to the effect row to authorise lowering this label, or widen the declared return label",
+			"information-flow violation: function %q returns a value labelled %s but declares return label %s, hiding <%s>; declared authority %s",
+			fn.Name, bodyLabel, declared, leaked, formatAuthority(authority)),
+		Suggestion: "widen the declared return label, authorize the hidden label with Declassify[label=...], or explicitly use bare Declassify for blanket authority",
+	}
+}
+
+// unauthorizedLabel checks return coverage plus the stable authority summary.
+func unauthorizedLabel(have, declared Label, labels []string) string {
+	result := LabelBottom()
+	for _, label := range labels {
+		if label == "*" {
+			return ""
+		}
+		result = LabelJoin(result, LabelConst(label))
+	}
+	return labelNotCoveredBy(have, LabelJoin(declared, result))
+}
+
+func formatAuthority(labels []string) string {
+	if len(labels) == 0 {
+		return "none"
+	}
+	if labels[0] == "*" {
+		return "Declassify"
+	}
+	return fmt.Sprintf("Declassify[label=%s]", labels[0])
+}
+
+func newParamLabelCoverError(call *ast.FuncCall, param ifcParam, label Label) *TypeCheckError {
+	return &TypeCheckError{
+		Kind:       ParamLabelCoverError,
+		Position:   call.Pos.String(),
+		Message:    fmt.Sprintf("information-flow violation: value labelled %s reaches parameter %q declared %s, which does not cover it", label, param.name, param.typ),
+		Suggestion: "relabel explicitly through a scoped declassifier, or widen the parameter's declared label",
 	}
 }

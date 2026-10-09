@@ -22,6 +22,8 @@ workarounds. Verified open at v0.33.1 (2026-08-17):
 
 | Limitation | Kind | Verified-at repro |
 |---|---|---|
+| **Concrete function-effect annotation upper bounds** | Deferred Phase 3 | Verified 2026-10-08 on the v0.53.0 implementation: storing an `! {IO, Env}` function in an `! {IO}` field still checks; see the canonical page and existing #573/#1326. |
+| **Effectful callbacks nested in list/tuple/ADT arguments** | Not yet charged | `applyHead([logIt], x)`, `applyFst((logIt, x))`, `applyOpt(Some(logIt), x)` check in a pure caller although `logIt` performs IO; tracked in [#1718](https://github.com/sunholo-data/ailang/issues/1718). |
 | **Y-combinator / recursive lambdas** | Design constraint (Hindley-Milner occurs-check) | `let Y = \f. (\x. f(x(x)))(\x. f(x(x)))` → `occurs check failed`. Use named `func` recursion. |
 | **If-else multi-statement branches need braces** | Design constraint (no layout-sensitive parsing) | bare `let` in an `else` → "if-else branches require explicit braces". Wrap in `{ … }`. |
 | **Duplicate record types with identical fields** | Go-codegen only (interpreter unaffected) | `--emit-go` may pick the first structurally-matching struct. `ailang run` returns the correct value. |
@@ -122,3 +124,14 @@ is outside it and is stated rather than papered over.
 File an issue at <https://github.com/sunholo-data/ailang/issues> with: AILANG version
 (`ailang --version`), a minimal repro, expected vs actual behavior, and whether it's a bug or a
 design constraint.
+
+## Same-named types across imports
+
+Nonrecursive nullary alias bodies, exported function types and constructor fields
+are closed in their defining module. Importing an unrelated `Item` or `Planet`
+therefore cannot change a name nested inside another module's exported type.
+Applied parameterized alias heads and recursive references remain unresolved;
+nominal ADT names are not module-qualified. Local capture of residual names retains
+`TC_TYPE_SHADOW_001`. When the importer itself writes an ambiguous bare type name,
+explicit imports still use last-wins and bulk alias imports first-wins behavior.
+Import ambiguity diagnostics and REPL/WASM/SMT top-level name merging are deferred.

@@ -1,0 +1,7 @@
+module examples/alias_body_closure/a
+
+export type Item = {x: int, w: int}
+export type Box = {items: [Item]}
+
+export pure func mk() -> Box = {items: [{x: 1, w: 2}]}
+export pure func count(b: Box) -> int = match b.items { [] => 0, _ :: _ => 1 }

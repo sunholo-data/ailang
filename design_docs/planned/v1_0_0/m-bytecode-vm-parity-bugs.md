@@ -57,7 +57,7 @@ Net/Clock inventory arithmetic) confirmed first-party and fixed — see Verifica
 > (round 0 and round 1). Related filed bugs: **#505** (pattern arity — now tracked in the spun-out
 > doc), **#506** (unsafe replay — stays here, part of B4, blocked on A2), and **#1576** (deep-recursion
 > limit divergence + consumed-input unsafe replay — spun out 2026-10-08 to
-> [m-vm-stack-limit-parity.md](m-vm-stack-limit-parity.md); its B4 evidence is the addendum below).
+> [m-vm-stack-limit-parity.md](../../implemented/v1_0_0/m-vm-stack-limit-parity.md); its B4 evidence is the addendum below).
 **Target**: v1.0.0 (clause-2 soundness residue on the V1 mission queue)
 **Priority**: **P0 ×2** — (1) `recursion_quicksort.ail` is a **silent wrong result** under
 `--bytecode` (no error, no fallback, wrong list; root cause #505). (2) The VM→evaluator fallback
@@ -160,11 +160,18 @@ consequences for THIS doc's remaining scope:
    for the fallback marker and never diffs it. Correction applied in A2 item 2 below.
 
 The limit-divergence trigger itself is **not this doc's scope**: it is spun out to
-[m-vm-stack-limit-parity.md](m-vm-stack-limit-parity.md) (the same option-C carve-out as
+[m-vm-stack-limit-parity.md](../../implemented/v1_0_0/m-vm-stack-limit-parity.md) (the same option-C carve-out as
 #505 → [m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md) — it does not depend on
 the A2 round). Post-fix, B4's trigger window shrinks from "any evaluator-legal depth > 1000" to
 "depths where the interpreter itself refuses (RT_REC_003)" — i.e. from evaluator-LEGAL input to
 illegal, which restores parity without touching B4's policy question.
+
+**Implementation update 2026-10-09 (Refs #1576).** The approved stack-limit sprint
+raises the production VM default to 10,000 and wires positive depth overrides.
+The service and print-once regressions pass without fallback; the 200-file corpus has
+no status or exit changes. See [verification](../../implemented/v1_0_0/m-vm-stack-limit-parity-verification.md).
+VM frames and evaluator depth are counted differently, so exact boundary parity is
+not promised. Above-limit replay and the quiet warning policy remain B4 work.
 
 **Review notes 2026-10-08.** The emission-site references to `cmd/ailang/run_helpers.go` (~:376) in
 the 2026-07-28 Verification Log and Conflict Surface are stale: the guarded fallback warning now
@@ -262,7 +269,7 @@ precedence settled in the Conflict Surface: effect-derived NON_DET is decided fr
    DEFAULT in v0.49.0** (see the #1576 addendum above): omitting the flag no longer un-suppresses
    the warning. `--verbose` is the only flag that clears it (`cmd/ailang/main_run.go:149-150`), so
    the VM leg passes `--verbose` (its extra stderr status lines are harmless — stderr is sniffed
-   for the fallback marker, never diffed). If [m-vm-stack-limit-parity.md](m-vm-stack-limit-parity.md)'s
+   for the fallback marker, never diffed). If [m-vm-stack-limit-parity.md](../../implemented/v1_0_0/m-vm-stack-limit-parity.md)'s
    follow-up lands (print the fallback warning even under `--quiet`), `--verbose` becomes
    unnecessary but stays harmless. Stderr is sniffed, never diffed, so the extra status lines are
    harmless.
@@ -624,4 +631,4 @@ Hard violations: none (A1 improves; A3/A4 untouched — no effect or authority c
 ---
 
 **Document created**: 2026-04-08
-**Last updated**: 2026-10-08 (addendum: #1576 recorded as B4 field evidence — the consumed-input TRUNCATION shape — and the `--quiet`-default premise correction applied to A2 item 2; the limit-divergence trigger spun out to [m-vm-stack-limit-parity.md](m-vm-stack-limit-parity.md)). Was: 2026-07-28 (revision 1 post-quorum: unsafe-replay soundness bug promoted to P0 + Milestone B4; Net/Clock inventory reconciled to 9 with exact post-A2 totals; fake-MATCH fallback rows exposed; `--quiet`-suppression defect in A2's original sniff design fixed)
+**Last updated**: 2026-10-08 (addendum: #1576 recorded as B4 field evidence — the consumed-input TRUNCATION shape — and the `--quiet`-default premise correction applied to A2 item 2; the limit-divergence trigger spun out to [m-vm-stack-limit-parity.md](../../implemented/v1_0_0/m-vm-stack-limit-parity.md)). Was: 2026-07-28 (revision 1 post-quorum: unsafe-replay soundness bug promoted to P0 + Milestone B4; Net/Clock inventory reconciled to 9 with exact post-A2 totals; fake-MATCH fallback rows exposed; `--quiet`-suppression defect in A2's original sniff design fixed)

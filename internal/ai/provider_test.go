@@ -122,7 +122,7 @@ func TestGuessProvider(t *testing.T) {
 		{"gpt-5.1", ProviderOpenAI},
 		{"o1-preview", ProviderOpenAI},
 		{"o3-mini", ProviderOpenAI},
-		{"codex-max", ProviderOpenAI},
+		{"codex-max", ProviderCodex},
 
 		// Anthropic models
 		{"claude-sonnet-4-5", ProviderAnthropic},
@@ -331,5 +331,19 @@ func TestResponse_Fields(t *testing.T) {
 	}
 	if resp.ReasonTokens != 25 {
 		t.Errorf("ReasonTokens = %d, want %d", resp.ReasonTokens, 25)
+	}
+}
+
+func TestCodexRoutingSentinel(t *testing.T) {
+	for _, name := range []string{"codex-max", "codex:gpt-6.1-sol", "CODEX", "codex/model"} {
+		if got := GuessProvider(name); got != ProviderCodex {
+			t.Errorf("%s: got %s", name, got)
+		}
+	}
+	if got := ProviderFromString("CODEX"); got != ProviderCodex {
+		t.Errorf("parse: %s", got)
+	}
+	if got := EnvVarForProvider(ProviderCodex); got != "" {
+		t.Errorf("metered key authority: %s", got)
 	}
 }

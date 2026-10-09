@@ -1,9 +1,9 @@
 # M-TYPE-NAME-SHADOW: a module's own type must win, and the compile cache must see alias edits
 
-**Status**: Planned. M1 and M3 are implemented in the PR that adds this doc; **M2 is now specified and scheduled in [m-alias-body-closure](../v0_52_4/m-alias-body-closure.md)** (which also extends closure to export schemes, on T3 evidence); M4 remains doc-only.
-**Target**: v0.44.x (M1 and M3); M2 and M4 are unscheduled.
+**Status**: Planned. M1 and M3 are implemented in the PR that adds this doc; **M2 is implemented by [m-alias-body-closure](../v0_52_4/m-alias-body-closure.md)** (which also extends closure to export schemes, on T3 evidence); M4 remains doc-only.
+**Target**: v0.44.x (M1 and M3); M2 is delivered for the next unreleased patch; M4 is unscheduled.
 **Priority**: P0 for M1 and M3 (silent wrong typing, and a stale "No errors"); P1 for M2; P2 for M4.
-**Estimated**: M1+M3 done (about 250 LOC with tests). M2 takes 1–2 days. M4 takes 1–2 weeks and changes how types are represented.
+**Estimated**: M1+M3 done (about 250 LOC with tests). M2 delivered in the alias-body-closure sprint, pending independent evaluation. M4 takes 1–2 weeks and changes how types are represented.
 **Dependencies**: None. M2 builds on M1.
 **Reporter**: Daneel, 2026-09-26 (sunholo-data/daneel PR #229, branch `feat/links`). Reproduced on v0.40.1 and on v0.43.1-8.
 
@@ -87,15 +87,15 @@ The file:line references below are at HEAD 0e9a554, before the fix.
 |---|------|----------|------|--------|
 | 1 | `pipeline_module_compile.go:122-140`: register aliases on the checker | bare name, imported registered after local | **the reported bug** | **fixed (M1)** |
 | 2 | `pipeline_module_imports.go:133`: transitive alias pull | bare name; first write wins in map order; reads every loaded module | nondeterministic, and reaches modules that are not imported | **fixed (M1/M3)**: sorted, limited to the import closure |
-| 3 | `pipeline_module_imports.go:224`: all aliases of a direct import | bare name, first write wins in import order | wrong when two direct imports export the same name and the importer uses that name | open: M2 and M4 |
+| 3 | `pipeline_module_imports.go:224`: all aliases of a direct import | bare name, first write wins in import order | wrong when two direct imports export the same name and the importer uses that name | deferred: import ambiguity diagnostics and M4 |
 | 4 | `pipeline_module_compile.go:96-109`: `adtTypeParams` | type name, imported set first; local set only `if !exists` | a local ADT named like an imported ADT got the **imported** parameter count | **fixed (M1)**: local names are removed from `ImportedADTTypeParams` |
-| 5 | `iface/builder.go:462-525`: `Iface.TypeAliases` bodies | a body names other types by bare `TCon` | `Seen = {rows:[Row]}` is expanded in the importer's scope, so a local `Row` captures it | **loud error (M1)**; real fix is M2 |
+| 5 | `iface/builder.go:462-525`: `Iface.TypeAliases` bodies | a body names other types by bare `TCon` | `Seen = {rows:[Row]}` is expanded in the importer's scope, so a local `Row` captures it | closed nonrecursive nullary bodies (M2); residual nominal/recursive/applied-head capture remains loud |
 | 6 | `pipeline_module_compile.go:525` `embedTransitiveAliases` | bare name | could embed an imported `Row` into the interface of a module that has its own private `Row` | **fixed (M1)**: local names are removed before embedding |
 | 7 | Constructors: `resolveSelectiveImports` auto-imports all constructors, first write wins (`:242`); `ImportedCtorTypes` | constructor name, then ADT name | two imported ADTs with the same constructor name collide, and a `TCon "Row"` ADT is nominally equal across modules | open: M4. Local constructors already override imported ones (`compile.go:103`) |
 | 8 | ADT / nominal identity: `TCon{Name}` and `TRecord.TypeName` | bare name | `ma.T` and `mb.T` unify as the same type, and codegen names collide | open: M4 (changes the type representation) |
 | 9 | Typeclass instances: `derived_eq.go` → `InstEnv.Add` and `DictionaryRegistry.RegisterDerivedEq` (`types/dictionaries.go:463`, key `prelude::Eq::<lowercased name>`) | lowercased bare name | two modules each deriving Eq on `Row` collide; the duplicate is swallowed silently (`derived_eq.go:34`). Harmless today only because runtime equality is structural. `Row` and `row` also collide | open: M4 |
-| 10 | REPL/WASM `repl/module_registry_load.go:71-74` (elaborator) and `:243-249` (checker) | bare name, map order across modules | the local definition wins on the checker, but which foreign `Row` wins is nondeterministic | open: M2 (same fix as the pipeline) |
-| 11 | SMT `smt/verify.go:90-99` `recordAliases` / `adtTypes` merge | bare name, first write wins | a contract could be encoded against the wrong `Row` | open: M2 |
+| 10 | REPL/WASM `repl/module_registry_load.go:71-74` (elaborator) and `:243-249` (checker) | bare name, map order across modules | the local definition wins on the checker, but which foreign `Row` wins is nondeterministic | closed interfaces (M2); top-level alias merging deferred |
+| 11 | SMT `smt/verify.go:90-99` `recordAliases` / `adtTypes` merge | bare name, first write wins | a contract could be encoded against the wrong `Row` | closed interfaces (M2); top-level name merging deferred |
 | 12 | `AllCtorTypes` (`pipeline_module_imports.go:59`) | constructor name | used only in diagnostics; the worst case is a misleading suggestion | accepted |
 
 ## Stale-cache finding (item 3 of the report)
@@ -141,12 +141,12 @@ silently use the wrong Row.
 
 The interface digest format itself is unchanged; `aliasDigest` is computed on the cache side. The key changes, so every existing entry misses exactly once. There is no on-disk format change, so `cacheKeyVersion` is not bumped.
 
-### M2: close alias bodies over their defining module (specified in [m-alias-body-closure](../v0_52_4/m-alias-body-closure.md), targeted v0.52.4)
+### M2: close alias bodies over their defining module (implemented via [m-alias-body-closure](../v0_52_4/m-alias-body-closure.md), next unreleased patch)
 
-Build each interface's `TypeAliases` bodies **closed**. When the interface is built (`buildAndRegisterInterface`), replace every `TCon` in a body that names a record or transparent alias in the *defining* module's alias environment (local plus imported, after M1) with its expansion. That needs a `TCon`-substituting walker that is cycle-safe (a visited set per the type-traversal rule) and handles all type variants, and it must keep `TRecord.TypeName` so nominal codegen names survive. Recursive aliases and parameterized aliases applied with free variables stay as `TCon` and keep the M1 capture error. After M2:
+Build each interface's `TypeAliases` bodies, exported schemes and constructor field/result types **closed**. When the interface is built (`buildAndRegisterInterface`), replace every `TCon` in a body that names a record or transparent alias in the *defining* module's alias environment (local plus imported, after M1) with its expansion. That needs a `TCon`-substituting walker that is cycle-safe (a visited set per the type-traversal rule) and handles all type variants, and it must keep `TRecord.TypeName` so nominal codegen names survive. Recursive references and all applied parameterized alias heads stay opaque; arguments close safely. Residual local capture keeps the M1 error. After M2:
 - the capture case in audit row 5 simply works (`TestTypeNameShadow_CapturedImportedAliasIsLoud` changes into a positive test);
-- audit row 3 shrinks to "the importer names `Row` itself while two imports export different `Row`s". That case should be an **ambiguity error naming both modules**, unless one is imported by symbol (`import links (Row)`), in which case the explicit import wins;
-- rows 10 and 11 (REPL/WASM and SMT) adopt the same shadow-then-closed rule.
+- audit row 3 shrinks to "the importer names `Row` itself while two imports export different `Row`s". Import ambiguity diagnostics remain deferred; explicit imports are last-wins, bulk alias imports first-wins;
+- closed interfaces benefit rows 10 and 11 (REPL/WASM and SMT), but their top-level name merging remains deferred.
 
 Cost: interface digests and cached interfaces change once, and error messages show expanded records where they used to show a name inside an alias body. The top-level name is kept through `TypeName`.
 
@@ -195,7 +195,7 @@ These are in `internal/pipeline/local_type_shadows_import_test.go` and `cache_tr
 - [x] A local type always wins over imported ones, for every type kind.
 - [x] Using a captured alias gives a coded error naming both modules.
 - [x] An alias edit anywhere in the import closure invalidates the importer's cache entry.
-- [ ] M2: closed alias bodies. The capture test becomes positive, and two different imported `Row`s referenced by name give an ambiguity error.
+- [x] M2: nonrecursive nullary alias bodies, export schemes and constructor types closed; capture test positive; cache v6. Applied parameterized heads, recursive references and import ambiguity diagnostics remain deferred.
 - [ ] M4: module-qualified nominal identity (separate doc).
 
 ## Design Freeze

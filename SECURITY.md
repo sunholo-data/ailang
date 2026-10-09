@@ -169,3 +169,19 @@ static-analysis badges on the README provide independent verification:
 If you believe the AI-authored nature of the codebase has introduced a security
 issue (e.g. a backdoor, unsafe default, credential leak), please report it via
 the same channels above.
+
+## Registry confinement
+
+When `AILANG_AGENT_POLICY` is set, registry network fetches and registry-cache
+creation are refused, including through policy-tool's `pkg_docs` and `lock`.
+Hosts can provision a read-only `AILANG_PACKAGE_ROOT` laid out as
+`<vendor>/<name>/<version>`. When set, module resolution and package docs use
+only this root; a missing package never falls back to the writable HOME cache.
+Package reads do not create registry directories. Provision packages with
+`ailang install` outside confinement, then copy the registry tree into the root.
+
+Registry dependencies are checked against the lock file's `content_hash` before
+compilation. A mismatch or unreadable registry directory makes `ailang check`
+exit non-zero immediately. Operators must protect the root and lock file from
+agent writes; content verification does not authenticate an agent-modified lock.
+Path dependency drift retains its existing warning behavior.

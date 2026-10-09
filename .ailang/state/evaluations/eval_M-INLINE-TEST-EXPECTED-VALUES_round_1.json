@@ -1,0 +1,143 @@
+{
+  "sprint_id": "M-INLINE-TEST-EXPECTED-VALUES",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-08T21:08:00Z",
+  "design_doc": "design_docs/implemented/v0_53_0/m-inline-test-expected-values.md",
+  "sprint_plan": "design_docs/implemented/v0_53_0/m-inline-test-expected-values-sprint-plan.md",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 28,
+    "code_quality": 13,
+    "documentation": 15,
+    "design_fidelity": 9
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "tests_output": "Definitive make test exit 0: /tmp/inline-full-green.log. Run with CI=1, CGO_ENABLED=1, local Zig C compiler, procps, uv/CPython, bounded Go resources and temporary Linux child subreaper; coordinator timeout case uses its existing CI skip.",
+    "lint_clean": true,
+    "lint_output": "make lint exit 0, 0 issues: /tmp/inline-lint-final.log",
+    "file_sizes_ok": true,
+    "formatting_clean": true,
+    "boundaries_clean": true,
+    "static_output": "/tmp/inline-static-final.log",
+    "verify_examples": true,
+    "examples_output": "make verify-examples exit 0: /tmp/inline-verify-examples-green.log; 232 passed, 0 failed, 9 skipped; 212 manifest checks, 0 drift. Existing missing lambda_expressions entry is nonfatal.",
+    "coverage_pct": null,
+    "coverage_note": "Focused subset coverage only; /tmp/inline-coverage.log is not whole-package coverage."
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "All conversion callers propagate errors without unsupported-node panics.",
+      "met": true,
+      "evidence": "Caller audit includes requires generation, contract_domain, AST property wrapper and harness builders; focused/full tests green."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Expected evaluation replaces scalar-only EvaluateLiteral and shares module constructor environment.",
+      "met": true,
+      "evidence": "EvaluateExpectedExpr calls astExprToCore and newHarnessEvaluator; EvaluateLiteral has no remaining references."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Composite shapes, scalar negatives and mismatches compare correctly.",
+      "met": true,
+      "evidence": "10-row fixture covers local nullary/applied ADTs, lists/empty/nested records, tuple/record and negative; actual mismatching list fails."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Inline compile memoization and contract regressions preserved.",
+      "met": true,
+      "evidence": "No extra pipeline.Run introduced; existing compile-once/property/requires/ensures tests pass full suite."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Recursive grammar admits supported forms and rejects unsupported/binary forms on both arms.",
+      "met": true,
+      "evidence": "RowExprSupported table/parity tests cover AST kinds and nested forms."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "TST diagnostics registered and include positions/check JSON.",
+      "met": true,
+      "evidence": "Codes registry, validateTestRows span/function/row data; CLI check/ai-check JSON assertions pass."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Runner rejects rows before evaluation and emits failing-row report.",
+      "met": true,
+      "evidence": "Direct runner bypass test plus CLI --json report asserts row names, locations, nonzero failures and matching TST errors."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Strict check/ai-check/LSP validation preserves architecture and cache correctness.",
+      "met": true,
+      "evidence": "LSP location test; boundaries green; TestRunnerCompileCannotCacheAwayRowValidation green."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Grammar/evaluation premise coverage includes valid bindings and nested rejections.",
+      "met": true,
+      "evidence": "TestRowGrammarEvaluationParity uses real local ADT bindings; unsupported forms fail safely."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "New composite example checks/tests and negative fixture diagnostics pass.",
+      "met": true,
+      "evidence": "10 rows green; verify-examples gate green; final CLI tests green."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Original scalar corpus and successful --caps IO behavior preserved.",
+      "met": false,
+      "evidence": "Scalar corpus preserved and composites repaired; capability denial test green. Original --caps success subclause is impossible with existing test CLI and was explicitly corrected in final plan; partial fulfillment retained as deduction."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Required broad/static checks pass.",
+      "met": true,
+      "evidence": "Definitive make test, make lint, check-boundaries, formatting, sizes and verify-examples all exit 0."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Language documentation describes supported grammar and residual limits.",
+      "met": true,
+      "evidence": "language-syntax.md/changelog updated; design and companion plan moved together to implemented."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Bounded F3 evidence carried forward without SMT change or new issue.",
+      "met": true,
+      "evidence": "/tmp/inline-f3-composed.log and encoding log; no SMT implementation changes or issue posting."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "implemented pending merge",
+    "sprint_artifacts_completed": true
+  },
+  "design_fidelity": {
+    "score": 9,
+    "notes": "Option A implemented through shared AST-to-Core conversion and existing module-scoped harness evaluator. Test compiler deliberately bypasses file-wide row validation because runner rejects each row before evaluation; strict check validates before cache lookup. This justified adjustment preserves valid neighboring inline/named tests and prevents cached runner compiles from creating check false greens."
+  },
+  "regression_surface": {
+    "triggered": true,
+    "passed": true,
+    "score": 10,
+    "notes": "Design Conflict Surface enumerates constructs and fixtures. Corpus differential preserves scalar outcomes; existing nullary list/ADT failures now pass, unsupported operator row still fails. Named/property/contract/multiarg regressions and capability denial pass."
+  },
+  "feedback": [],
+  "limitations": [
+    "Original plan expected successful ailang test --caps IO, but existing CLI has no --caps flag; original success subclause is not verified. Existing capability denial is preserved and tested; no CLI capability feature added.",
+    "Shared gate validates syntax only, not identifiers, types, call purity or arity. Imported-module constructor injection remains unsupported.",
+    "F3 composed integer contracts verify; float-division encoder error remains loud at rc=1. Original 213-line sketch was unavailable, so no issue closure follows.",
+    "Initial broad attempts were non-verdict environment failures: absent C compiler/ps/uv, resource exhaustion, unreaped descendants and existing CI-flaky timeout. Final configured run completed successfully."
+  ],
+  "notes": "Independent reviewer edited only this report. No PR creation, issue creation, issue posting, issue closure or other external messages performed. Base rubric scored 95/100; regression bonus recorded separately rather than exceeding 100. Deduction: original unsupported capability-success premise (acceptance -2), new recursive converter function length (code quality -2), justified harness bypass integration adjustment (fidelity -1)."
+}

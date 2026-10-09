@@ -1,0 +1,16 @@
+[package]
+name = "examples/alias_body_closure"
+version = "0.1.0"
+edition = "1"
+
+[exports]
+modules = ["examples/alias_body_closure/a", "examples/alias_body_closure/b", "examples/alias_body_closure/main"]
+
+[effects]
+max = []
+
+[stability]
+level = "experimental"
+
+[metadata]
+ai_summary = "Same-named imported record types retain their defining module's scope."
