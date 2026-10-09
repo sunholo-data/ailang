@@ -20,6 +20,6 @@ Impact is as the reporter says: low. Confinement is unaffected and the lie is ab
 
 **Recommendation.** Do (2) as the default fix, since it repairs the documented contract for every host without new flags. Add (1) only if a host asks for a machine channel separate from human stderr. The decisions to rule on are: the remapped exit code for a worker that exits 3 (this is a contract change for programs that deliberately `exit(3)`), and whether escaped lines are rewritten or dropped. Pin both with a test where the program prints a forged envelope and exits 3, and the host-visible result must differ from a real `timeout_ms` kill.
 
-Neighbour, not part of this doc: **#1547** (`run --policy` ignores `AILANG_CACHE_DIR`) is a direct fix. `workerEnvAllow` (`run_policy_supervise.go:44`) omits `AILANG_CACHE_DIR`, so the worker's compile cache always lands in `<fs_sandbox>/.ailang/cache`. Add it to the allowlist, or give the worker a private temp cache the way `ed1df2d3f` now does for policy-tool's CLI children, plus a test that `.ailang/` is not created in the sandbox.
+Neighbour, not part of this doc: **#1547** (`run --policy` ignores `AILANG_CACHE_DIR`) is a direct fix, now specced in [run-policy-worker-cache-dir.md](run-policy-worker-cache-dir.md). `workerEnvAllow` (`run_policy_supervise.go:44`) omits `AILANG_CACHE_DIR`, so the worker's compile cache always lands in `<fs_sandbox>/.ailang/cache`.
 
 Issue: https://github.com/sunholo-data/ailang/issues/1548
