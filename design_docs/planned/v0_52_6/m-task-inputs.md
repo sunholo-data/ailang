@@ -1,4 +1,4 @@
-# M-TASK-INPUTS: Typed Task Inputs — Fetch a Named {repo, ref, path} Into the Workspace Before the Agent Runs
+# M-TASK-INPUTS: Typed Task Inputs — Fetch a Named `{repo, ref, path}` Into the Workspace Before the Agent Runs
 
 Refs #1600
 
@@ -98,7 +98,7 @@ Before implementation begins, these must be resolved:
 - [x] D2 — allowlist on the trusted registry, enforced at dispatch
 - [x] D3 — fetch in the job parent, before the executor
 - [x] D4 — default dest excluded from git; explicit dest new-files-only with an instruction-path denylist
-- [ ] D7 confirmation is design-level: local-lane support is intentionally deferred (a sprint may not expand scope into it without a new decision)
+- [x] D7 confirmation is design-level: local-lane support is intentionally deferred (a sprint may not expand scope into it without a new decision) — **Ruled 2026-10-08 by Mark: confirmed: cloud lane only in v1.**
 
 ## Solution Design
 
@@ -391,3 +391,7 @@ Every load-bearing claim above, checked against the code (branch `coordinator/ta
 | V19 | Related-doc coverage gate: no existing doc covers typed task inputs | `ailang docs search` (SimHash, 1887 docs): "task inputs", "daneel site agent private branch attachments", manual greps of planned/ for "inputs", "daneel" | No duplicate/coverage hit ≥ threshold — proceed; adjacent docs cited in Related Documents |
 | V20 | Create-script search step works but the script exits 1 when implemented-search returns no matches (`set -e` + `pipefail`: `merge_results`'s grep exits 1 on empty input) | Ran `create_planned_doc.sh m-task-inputs v0_52_6` → EXIT=1 after "(none found)"; traced `bash -x` | Confirmed — script bug recorded; scaffold filled manually from the script's own template (lines 209–449) |
 | V21 | `AilangWrite` is a text tool (motivates D4's explicit-dest path for binary inputs): content is a JSON string written verbatim | Read `internal/policytool/fs_ops.go:120-143` (`write`: `WriteString(req.Content)`, transfer cap, no binary encoding surface) | Confirmed — binary placement must be done by the job's copy, not the agent's tools |
+
+## Maintainer rulings (Ruled 2026-10-08 by Mark)
+
+All decisions marked `human` in the decisions table (D1 typed field, D2 registry-side `inputs_allow`, D3 fetch in the job parent, D4 `.incoming/<n>/` default, D7 cloud lane only) are ratified as written.

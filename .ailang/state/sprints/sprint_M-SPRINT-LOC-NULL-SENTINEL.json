@@ -1,0 +1,69 @@
+{
+  "sprint_id": "M-SPRINT-LOC-NULL-SENTINEL",
+  "status": "not_started",
+  "created": "2026-10-08T19:02:42Z",
+  "design_doc": "design_docs/planned/v0_52_6/m-sprint-loc-null-sentinel.md",
+  "sprint_plan": "design_docs/planned/v0_52_6/m-sprint-loc-null-sentinel-sprint-plan.md",
+  "github_issues": [
+    563
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_SENTINEL_MIGRATION",
+      "package": null,
+      "action": "none",
+      "reason": "Repository-local Bash/Python/jq protocol and verification; no package-like capability. Registry search not applicable; reuse existing skill scripts and documentation helper."
+    },
+    {
+      "milestone": "M2_VERIFICATION_AND_AUDIT",
+      "package": null,
+      "action": "none",
+      "reason": "Repository-local Bash/Python/jq protocol and verification; no package-like capability. Registry search not applicable; reuse existing skill scripts and documentation helper."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 40,
+    "estimated_total_loc": 40,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_SENTINEL_MIGRATION",
+      "description": "Migrate sentinel producers and consumers",
+      "estimated_loc": 24,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Both creator placeholder paths emit JSON null; explicit heading estimates including zero retain their numeric value.",
+        "Both validators reject null and an absent key and accept zero without changing other placeholder checks.",
+        "Session displays preserve `0 LOC` and render unfilled estimates as `unset LOC`; both schemas document this contract.",
+        "All four pairs of modified files are byte-identical; `bash -n` passes for all six modified shell files."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_VERIFICATION_AND_AUDIT",
+      "description": "Verify fixtures and record migration audit",
+      "estimated_loc": 16,
+      "dependencies": [
+        "M1_SENTINEL_MIGRATION"
+      ],
+      "acceptance_criteria": [
+        "Both validators return 0, 1, 1, 0 for zero, null, absent and 245 respectively; rejected milestone IDs appear in diagnostics.",
+        "Both creators emit null for no-LOC headings and fallback templates, and retain numeric zero/245 from explicit headings.",
+        "Session-start round trip demonstrates zero and unset output, using valid temporary fixtures so validation gates do not obscure display verification.",
+        "Two or three completed sprint regression controls pass before and after; record any baseline warnings separately rather than altering records to hide them.",
+        "Audit every current non-completed zero milestone and record its disposition in this sprint's notes/report; no pre-existing sprint JSON is rewritten.",
+        "Pairwise comparisons and shell syntax checks pass; run `make test-core` as the approved design's regression check and record its result.",
+        "Update `changelogs/v0.32-current.md` under Unreleased; use the existing move helper to move the design to implemented/v0_52_6 and update this sprint's design_doc link at completion."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "notes": "Read-only legacy audit: M-CHAINS-EXECUTOR-TRANSCRIPTS/M0_PREFLIGHT valid zero (baseline checks); M-LIST-ACCESSOR-API/M6_CENSUS_REPORT_AND_HANDOFF valid docs-only zero; M-MISSION-AGENTIC-ROUTING/M1b_CODEX_CROSS_PROVIDER_EXECUTOR unresolved legacy zero requiring owner confirmation; M2_RIGHTSIZING_TABLE_AND_EVIDENCE_SCHEMA and M3_PLANNER_DOWNTIER_AB_PARKED valid docs-only zero. M-DX27-DOCS-SEARCH-GITHUB-FALLBACK has empty features. No pre-existing state files modified. Coordinator review and approval precede executor dispatch. PR body must include Refs #563."
+}
