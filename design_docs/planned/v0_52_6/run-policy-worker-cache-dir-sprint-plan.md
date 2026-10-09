@@ -4,7 +4,7 @@ Refs #1547
 
 - **Sprint:** M-RUN-POLICY-WORKER-CACHE
 - **Date:** 2026-10-08
-- **Status:** Planned; design approved by coordinator handoff, execution awaits sprint-plan approval.
+- **Status:** In progress; execution authorized 2026-10-09.
 - **Target:** v0.52.6 (checkout v0.52.5)
 - **Duration:** 2 days, approximately 10 hours including 25% contingency.
 - **Risk:** Medium: subprocess cleanup and filesystem trust boundary.
@@ -47,11 +47,11 @@ The seven-day velocity script found only one planning commit in this shallow che
 
 Add the allowlist entry and thread the selected default into `workerEnv`, updating all callers. Introduce the smallest testable cache lifecycle helper needed to exercise creation/placement/start-failure cleanup without adding public CLI knobs. Preserve credential filtering and use the existing supervisor deadline.
 
-- [ ] Restricted workers receive exactly one effective cache value; non-empty operator value wins, empty/unset uses the injected default.
-- [ ] Trusted-host environment passthrough and provider-scoped credential tests remain unchanged in behavior.
-- [ ] Generated cache directories are private, outside the sandbox, and removed on normal exit, start failure, timeout, output-cap termination, and worker failure.
-- [ ] Invalid temporary base or in-sandbox TMPDIR produces explicit refusal; generated directories are removed before refusal.
-- [ ] Relative, existing symlink, and missing-leaf symlink operator paths are classified correctly; in-sandbox operator values warn once and proceed.
+- [x] Restricted workers receive exactly one effective cache value; non-empty operator value wins, empty/unset uses the injected default.
+- [x] Trusted-host environment passthrough and provider-scoped credential tests remain unchanged in behavior.
+- [x] Generated cache directories are private, outside the sandbox, and removed on normal exit, start failure, timeout, output-cap termination, and worker failure.
+- [x] Invalid temporary base or in-sandbox TMPDIR produces explicit refusal; generated directories are removed before refusal.
+- [x] Relative, existing symlink, and missing-leaf symlink operator paths are classified correctly; in-sandbox operator values warn once and proceed.
 
 **Risk:** `refusePolicy` uses `os.Exit`, bypassing deferred cleanup. Arrange allocations after pipe setup and explicitly clean before refusal. Tests must prove cleanup, not only assert helper return values.
 

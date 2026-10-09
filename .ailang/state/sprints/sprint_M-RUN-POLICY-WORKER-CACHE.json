@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-RUN-POLICY-WORKER-CACHE",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-08T20:13:49.298915+00:00",
   "design_doc": "design_docs/planned/ailang-core-triage/run-policy-worker-cache-dir.md",
   "sprint_plan": "design_docs/planned/v0_52_6/run-policy-worker-cache-dir-sprint-plan.md",
@@ -50,10 +50,10 @@
         "Invalid or in-sandbox temporary base refuses explicitly after cleanup, including symlink aliases.",
         "Operator inside-root paths, including missing leaves below symlinks, warn once and proceed without deleting operator caches."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T10:12:30.562127+00:00",
+      "completed": "2026-10-09T10:12:30.562127+00:00",
+      "notes": "Implemented cache forwarding, private lifecycle, symlink-aware operator classification and supervisorLine warning. Unit regressions pass. First whole-repo lint killed with exit 137 during cold environment setup; reduced-memory rerun scheduled for final validation. Lifecycle integration regressions follow in M2."
     },
     {
       "id": "M2",
