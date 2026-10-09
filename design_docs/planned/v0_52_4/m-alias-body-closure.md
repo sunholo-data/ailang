@@ -1,7 +1,7 @@
 # M-ALIAS-BODY-CLOSURE: interface alias bodies and schemes must be closed over their defining module
 
-**Status**: Planned
-**Target**: v0.52.4
+**Status**: Implementation complete; independent sprint evaluation passed (95/100)
+**Target**: Next unreleased patch (v0.52.4 artifact lineage)
 **Priority**: P0 (a silent wrong type rejects valid programs; hit in production code in stapledons-godot-trappist)
 **Estimated**: 3–4 days
 **Dependencies**: M-TYPE-NAME-SHADOW M1+M3 (shipped in v0.44.x). **This doc specifies and schedules M2 of [m-type-name-shadow-and-cache](../v0_44_0/m-type-name-shadow-and-cache.md)**, which that doc deferred as "doc only, unscheduled", and extends its scope with a trigger class that doc did not cover (see Problem Statement, T3).
@@ -131,23 +131,23 @@ At interface build time, every type that leaves a module — alias bodies in `If
 ### Implementation Plan
 
 **Phase 1: walker + alias-body closure (~1 day)**
-- [ ] Implement the rebuilding walker with an exhaustive type switch; add a unit test enumerating every `Substitute` implementor (the switch and the test are generated from the same list to prevent silent gaps).
-- [ ] Wire closure of `Iface.TypeAliases` bodies in `buildAndRegisterInterface`.
-- [ ] Pipeline tests: T1 (`TestAliasBodyClosure_ExplicitImportOfUnrelatedSameNameType`), T2 (`TestAliasBodyClosure_ImportOrderDoesNotCaptureInnerName`), stapledons 4-module shape (`TestAliasBodyClosure_NavigationSolTrappistShape`).
+- [x] Implement the rebuilding walker with an exhaustive type switch; add a unit test enumerating every `Substitute` implementor (the switch and the test are generated from the same list to prevent silent gaps).
+- [x] Wire closure of `Iface.TypeAliases` bodies in `buildAndRegisterInterface`.
+- [x] Pipeline tests: T1 (`TestAliasBodyClosure_ExplicitImportOfUnrelatedSameNameType`), T2 (`TestAliasBodyClosure_ImportOrderDoesNotCaptureInnerName`), stapledons 4-module shape (`TestAliasBodyClosure_NavigationSolTrappistShape`).
 
 **Phase 2: scheme + constructor closure (~1 day)**
-- [ ] Apply the walker to export schemes and constructor field/result types.
-- [ ] Pipeline test: T3 (`TestAliasBodyClosure_AnnotationSchemeNotCapturedByImporter`).
-- [ ] Flip `TestTypeNameShadow_CapturedImportedAliasIsLoud` to the positive `TestAliasBodyClosure_CapturedImportedAliasNowWorks` (keep the old name as an alias or delete it — parent doc predicts this flip; keep a control that TC_TYPE_SHADOW_001 still fires for the residual nominal case).
+- [x] Apply the walker to export schemes and constructor field/result types.
+- [x] Pipeline test: T3 (`TestAliasBodyClosure_AnnotationSchemeNotCapturedByImporter`).
+- [x] Flip `TestTypeNameShadow_CapturedImportedAliasIsLoud` to the positive `TestAliasBodyClosure_CapturedImportedAliasNowWorks` (keep the old name as an alias or delete it — parent doc predicts this flip; keep a control that TC_TYPE_SHADOW_001 still fires for the residual nominal case).
 
 **Phase 3: cache + docs (~0.5 day)**
-- [ ] `cacheKeyVersion` "v5"→"v6"; update the hard assertion at `cache_invalidation_test.go:339`; add `TestAliasBodyClosure_CacheInvalidatedOnce` (compile with v5-era cached ifaces present → all miss).
-- [ ] Update the comment block in `internal/pipeline/type_name_shadow.go` (capture is now the residual guard, not the main mechanism) and the parent doc's M2 status line.
-- [ ] Document the residual import-order behavior for names the importer itself writes in `docs/LIMITATIONS.md`.
+- [x] `cacheKeyVersion` "v5"→"v6"; update the hard assertion at `cache_invalidation_test.go:339`; add `TestAliasBodyClosure_CacheInvalidatedOnce` (compile with v5-era cached ifaces present → all miss).
+- [x] Update the comment block in `internal/pipeline/type_name_shadow.go` (capture is now the residual guard, not the main mechanism) and the parent doc's M2 status line.
+- [x] Document the residual import-order behavior for names the importer itself writes in `docs/LIMITATIONS.md`.
 
 **Phase 4: verification (~0.5 day)**
-- [ ] `make test-core`, `go test ./internal/pipeline/... ./internal/types/... ./internal/iface/...`.
-- [ ] Scratch-clone the stapledons repro, revert the `Exoplanet` rename, confirm `trappistFacts(solSystem())` typechecks (manual gate; the 4-module pipeline test covers the shape if the clone is unavailable).
+- [x] `make test-core`, `go test ./internal/pipeline/... ./internal/types/... ./internal/iface/...`.
+- [x] Production-shape verification: mandatory four-module navigation/sol/trappist regression passes. External Stapledons scratch-clone verification is unavailable in this workspace.
 
 ### Files to Modify/Create
 
@@ -207,14 +207,14 @@ The `Item` inside `Box`'s body is a bare name resolved by whoever reads it.
 
 ## Success Criteria
 
-- [ ] T1 repro: `count(mk())` returns 1 with both imports present (`TestAliasBodyClosure_ExplicitImportOfUnrelatedSameNameType`)
-- [ ] T2 repro: import order cannot change another module's types (`TestAliasBodyClosure_ImportOrderDoesNotCaptureInnerName`)
-- [ ] T3 repro: annotation schemes are not captured (`TestAliasBodyClosure_AnnotationSchemeNotCapturedByImporter`)
-- [ ] Captured-alias program from the M1 suite compiles and runs correctly (positive flip of `TestTypeNameShadow_CapturedImportedAliasIsLoud`)
-- [ ] TC_TYPE_SHADOW_001 still fires for the residual nominal-shadow case (control test)
-- [ ] All existing tests in `internal/pipeline/{cross_module_nonrecord_alias,cross_package_alias,alias_poly,ctor_alias_pattern,local_type_shadows_import,cache_transitive_alias,cache_alias_digest_stable}_test.go` pass
-- [ ] Cache invalidates exactly once (version bump test)
-- [ ] All tests passing (`make test-core`), documentation updated
+- [x] T1 repro: `count(mk())` returns 1 with both imports present (`TestAliasBodyClosure_ExplicitImportOfUnrelatedSameNameType`)
+- [x] T2 repro: import order cannot change another module's types (`TestAliasBodyClosure_ImportOrderDoesNotCaptureInnerName`)
+- [x] T3 repro: annotation schemes are not captured (`TestAliasBodyClosure_AnnotationSchemeNotCapturedByImporter`)
+- [x] Captured-alias program from the M1 suite compiles and runs correctly (positive flip of `TestTypeNameShadow_CapturedImportedAliasIsLoud`)
+- [x] TC_TYPE_SHADOW_001 still fires for the residual nominal-shadow case (control test)
+- [x] All existing tests in `internal/pipeline/{cross_module_nonrecord_alias,cross_package_alias,alias_poly,ctor_alias_pattern,local_type_shadows_import,cache_transitive_alias,cache_alias_digest_stable}_test.go` pass
+- [x] Cache invalidates exactly once (version bump test)
+- [x] All tests passing (`make test-core`), documentation updated
 
 ## Testing Strategy
 
@@ -334,3 +334,13 @@ The following are intentionally left open for the implementer:
 ## Maintainer rulings (Ruled 2026-10-08 by Mark)
 
 The decision marked `human` is ratified as written: M4 (module-qualified nominal identity) remains a separate future doc.
+
+
+## Implementation evidence (2026-10-08)
+
+All scoped phases and success criteria are implemented and verified; independent
+sprint evaluation passed (95/100). See the
+[implementation report](m-alias-body-closure-implementation-report.md) for red/green
+regressions, runtime/cache evidence, final gates and the documented residuals.
+Applied parameterized heads and recursive references remain opaque as permitted;
+import ambiguity diagnostics and module-qualified nominal identity are deferred.

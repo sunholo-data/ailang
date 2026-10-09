@@ -154,6 +154,15 @@ func renderConstructor(name string, fieldTypes []types.Type) string {
 // colSpan: int, ...}`) with canonical type-variable names, so the compact iface exposes record
 // fields instead of a bare `type Name`. M-IFACE-RECORD-FIELDS.
 func renderTypeAlias(target types.Type) string {
+	// M-ALIAS-BODY-CLOSURE tags a closed record alias with its own name (the nominal
+	// rule unification relies on). The alias BODY is the structure, though: rendering
+	// the root by TypeName would print `Foo = Foo`. Strip the tag on the root only;
+	// nested aliases inside the body still render by name, as before closure.
+	if rec, ok := target.(*types.TRecord); ok && rec.TypeName != "" {
+		structural := *rec
+		structural.TypeName = ""
+		target = &structural
+	}
 	varMap := make(map[string]string)
 	varCounter := 0
 	getCanonName := func(original string) string {

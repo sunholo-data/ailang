@@ -1,0 +1,11 @@
+module examples/alias_body_closure/main
+
+import ./a (Box, mk, count)
+import ./b (Item, one)
+
+-- Item here belongs to b; the Item nested in Box still belongs to a.
+export pure func unrelated() -> Item = one()
+export pure func run(n: int) -> int = count(mk())
+
+-- Control for JSON decoding of a closed nested alias.
+export pure func countInput(b: Box) -> int = count(b)
