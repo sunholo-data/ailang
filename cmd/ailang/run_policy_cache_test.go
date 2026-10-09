@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -36,26 +37,46 @@ func TestWorkerCacheEnvironment(t *testing.T) {
 
 func TestPolicyCachePlacement(t *testing.T) {
 	root := t.TempDir()
-	alias := filepath.Join(t.TempDir(), "alias")
-	if err := os.Symlink(root, alias); err != nil {
-		t.Skip(err)
+	for name, path := range map[string]string{
+		"absolute":     root,
+		"missing-leaf": filepath.Join(root, "missing"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if !cacheInsideSandbox(root, path) {
+				t.Fatalf("missed inside path %s", path)
+			}
+		})
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	relative, err := filepath.Rel(cwd, root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, path := range []string{relative, root, filepath.Join(root, "missing"), filepath.Join(alias, "missing", "leaf")} {
+	t.Run("relative", func(t *testing.T) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		relative, err := filepath.Rel(cwd, root)
+		if err != nil {
+			// Windows CI can place t.TempDir on a different drive volume than the
+			// working directory, which makes filepath.Rel fail; skip only this case.
+			t.Skipf("relative path unavailable on %s: %v", runtime.GOOS, err)
+		}
+		if !cacheInsideSandbox(root, relative) {
+			t.Fatalf("missed inside path %s", relative)
+		}
+	})
+	t.Run("symlink-missing-leaf", func(t *testing.T) {
+		alias := filepath.Join(t.TempDir(), "alias")
+		if err := os.Symlink(root, alias); err != nil {
+			t.Skip(err)
+		}
+		path := filepath.Join(alias, "missing", "leaf")
 		if !cacheInsideSandbox(root, path) {
 			t.Fatalf("missed inside path %s", path)
 		}
-	}
-	if cacheInsideSandbox(root, t.TempDir()) {
-		t.Fatal("outside classified inside")
-	}
+	})
+	t.Run("outside", func(t *testing.T) {
+		if cacheInsideSandbox(root, t.TempDir()) {
+			t.Fatal("outside classified inside")
+		}
+	})
 }
 
 func TestPolicyCacheStartFailureCleanup(t *testing.T) {
