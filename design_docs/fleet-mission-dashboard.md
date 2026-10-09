@@ -1,13 +1,17 @@
-# Fleet mission — iteration 28, 2026-10-08
+# Fleet mission — iteration29, 2026-10-09
 
-- Release v0.52.5; origin/dev `3e032cf4f`; all 21 checks success.
-- P1 #8 PARKED-ON-LANE: `quorum:zero-signal-guard-vacuous-with-controller-verdict`.
-- Candidate `planned/m-quorum-external-zero-signal-guard.md`: native gpt-6.1-sol; NOT reviewed/approved/implemented.
-- Native evaluator sonnet/opus: Unknown model. Declared Minimax/Sonnet/Opus recipe admission probes rc75; Anthropic/OpenRouter over ration.
-- Resume: admitted declared judge ≠ gpt-6.1-sol, then quorum → approved plan → execute → evaluate.
-- No controller acceptance; planner/executor prerequisites unmet; ticket remains open.
-- Next: P1 #9 exit notices, then Phase 3a skill-resolution spike.
-- Cadence 6h when tickets exist; configured routing unchanged. No reload.
-- OPEN human decisions: none. Capacity re-probes need no ruling.
-- 42 open tickets, 0 resolved; goal unmoved. Main dirty work untouched.
-- Metered role spend $0; role tokens not reported.
+- Release v0.52.5; origin/dev `48f4b5ef9`; workflow success, 17 checks, core-dev deployment failure outside fleet scope.
+- `agent-tool:sonnet-unavailable` OPEN/PARKED-ON-LANE (external native capability) (only blocking=all ticket).
+- 47 open signatures; 8 occurrence records, latest workaround successful/blocking=none.
+- Native host offers OpenAI only; native Minimax rejected Unknown model.
+- Native Sol designer/planner: repository cannot add hosting runtime tools/models.
+- Existing user authorization permits documented fallback; declared Minimax recipe probe rc0.
+- Independent evaluator report pending; no verdict or runtime diff claimed.
+- Resume native ticket when capability proven on affected controller; workaround existing declared CLI recipes.
+- Iteration28 orphan record preserved verbatim alongside29; original PR #1662/worktree unchanged.
+- P1 #8 candidate remains unreviewed/unapproved/unimplemented; then P1 #9 exit notices.
+- Cadence6h with tickets; configured routing unchanged; no reload.
+- OPEN human decisions: none; no new ruling required for existing fallback.
+- 0 resolved; goal unmoved. Clauses1 unmeasured,2 unmet,3 met,4 prior evidence,5 preserved.
+- Last20 fleet HARNESS16/20 expected under inverted admissibility; landings25/26/27 moved clause2.
+- Role tokens not reported; Minimax cost pending. Self-notice/full lane-check completion unknown.
