@@ -1,0 +1,92 @@
+{
+  "sprint_id": "M-NAMEDTEST-STRIP-STRING-BLIND-BRACES",
+  "status": "not_started",
+  "created": "2026-10-09T10:57:48.677010+00:00",
+  "design_doc": "design_docs/planned/v0_53_1/m-namedtest-strip-string-blind-braces.md",
+  "sprint_plan": "design_docs/planned/v0_53_1/m-namedtest-strip-string-blind-braces-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searches test and parser; inspected sunholo/testing_utils@0.1.1 with pkg info/docs. Assertion helpers cannot supply Go AST closing positions or fix compiler source stripping; reuse existing repository parser and strip APIs, add no package dependency."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searches test and parser; inspected sunholo/testing_utils@0.1.1 with pkg info/docs. Assertion helpers cannot supply Go AST closing positions or fix compiler source stripping; reuse existing repository parser and strip APIs, add no package dependency."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searches test and parser; inspected sunholo/testing_utils@0.1.1 with pkg info/docs. Assertion helpers cannot supply Go AST closing positions or fix compiler source stripping; reuse existing repository parser and strip APIs, add no package dependency."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 300,
+    "estimated_days": 2
+  },
+  "estimated_hours": 10,
+  "risk_level": "low",
+  "features": [
+    {
+      "id": "M1",
+      "description": "Record authoritative closing positions on test and property declarations",
+      "estimated_loc": 70,
+      "estimated_hours": 2.5,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "TestDecl and PropertyDecl expose additive End ast.Pos fields; String() and Position() stay unchanged.",
+        "Both parsers capture p.curPos() at the verified closing RBRACE without advancing the cursor.",
+        "Parser cases cover single-line, multiline, nested real braces, strings, comments, brace-bearing names and adjacent declarations for both node types."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Replace character scanning in both source stripping paths",
+      "estimated_loc": 130,
+      "estimated_hours": 3.5,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "testAndPropertySkipRanges accepts only the AST file and uses Pos.Line through End.Line; all character scanning is deleted.",
+        "Both stripWithLineMap and stripTestBlocks call the new helper; their public signatures and function-retention rules stay unchanged.",
+        "Unit tests assert exact stripped source and line maps for tests and properties with opening and closing braces in strings, comments and names.",
+        "Unset and inverted End positions collapse to the declaration start line for both hand-built declaration types; existing strip and helper-retention tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Pin command behavior across engines and document the fix",
+      "estimated_loc": 100,
+      "estimated_hours": 2,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "A freshly built CLI checks the new fixture and runs three trigger tests plus a clean sibling with their own expected outcomes.",
+        "Default, --bytecode and --strict-bytecode agree on a VM-compatible fixture; no shared-compile failure or harness-bug notice appears.",
+        "A deliberately false sibling is reported as an assertion outcome, never a module parse failure; property-batch regression coverage also passes.",
+        "make test-core, go test ./internal/testing ./internal/parser ./internal/format ./cmd/ailang, make lint and make check-boundaries pass.",
+        "changelogs/v0.32-current.md Unreleased documents the fix and the escaped-quote distinction; design status is updated on completion, moved to implemented on ship."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
