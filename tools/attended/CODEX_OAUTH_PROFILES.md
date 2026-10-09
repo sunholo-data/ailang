@@ -67,7 +67,11 @@ home's protected Unix WebSocket socket with `AILANG_CODEX_RUNTIME=daemon`; a mis
 owner fails rather than starting a private auth manager. Smoke-test quota and a
 small inference through this path before resuming mission dispatch. Stop the owner
 only after its mission consumers have stopped; use the same explicit home with
-`codex app-server daemon stop`.
+`codex app-server daemon stop` for the managed daemon. For a foreground owner
+managed by launchd, stop its mission-only service label instead. The attended
+server rollout uses `dev.ailang.codex-mission-owner`; its plist is
+`~/Library/LaunchAgents/dev.ailang.codex-mission-owner.plist`. Keep exactly one
+owner service for the mission home.
 
 Cloud rollout must replace every image that consumes the cloud secret before
 publishing the fresh cloud authorization. Old executors do not honor the lease:

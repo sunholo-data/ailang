@@ -57,7 +57,7 @@ func TestDaemonProtocolMapsExecEvents(t *testing.T) {
 		}
 	}()
 	var out bytes.Buffer
-	err := runDaemonProtocol(context.Background(), client, client, DaemonExecOptions{Model: "model", Directive: "do task", Sandbox: "workspace-write", ApprovalPolicy: "never"}, &out)
+	err := runDaemonProtocol(context.Background(), &jsonLineDaemonTransport{encoder: json.NewEncoder(client), decoder: json.NewDecoder(client)}, DaemonExecOptions{Model: "model", Directive: "do task", Sandbox: "workspace-write", ApprovalPolicy: "never"}, &out)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestDaemonProtocolCancellationInterruptsOwnedTurn(t *testing.T) {
 			}
 		}
 	}()
-	err := runDaemonProtocol(ctx, client, client, DaemonExecOptions{Model: "model", Directive: "task"}, io.Discard)
+	err := runDaemonProtocol(ctx, &jsonLineDaemonTransport{encoder: json.NewEncoder(client), decoder: json.NewDecoder(client)}, DaemonExecOptions{Model: "model", Directive: "task"}, io.Discard)
 	if err != context.Canceled {
 		t.Fatalf("cancel=%v", err)
 	}
@@ -167,8 +167,22 @@ func TestDaemonProtocolAmbiguousTurnStartQuarantines(t *testing.T) {
 			}
 		}
 	}()
-	err := runDaemonProtocol(context.Background(), client, client, DaemonExecOptions{Model: "model", Directive: "task"}, io.Discard)
+	err := runDaemonProtocol(context.Background(), &jsonLineDaemonTransport{encoder: json.NewEncoder(client), decoder: json.NewDecoder(client)}, DaemonExecOptions{Model: "model", Directive: "task"}, io.Discard)
 	if !errors.Is(err, ErrProcessTerminationUnconfirmed) {
 		t.Fatalf("ambiguous turn=%v", err)
 	}
+}
+
+// JSONL fixtures implement only the daemon message contract, never generic
+// Read/Write. Production uses one validated JSON message per WebSocket frame.
+type jsonLineDaemonTransport struct {
+	encoder *json.Encoder
+	decoder *json.Decoder
+}
+
+func (t *jsonLineDaemonTransport) sendMessage(value any) error { return t.encoder.Encode(value) }
+func (t *jsonLineDaemonTransport) receiveMessage() (daemonMessage, error) {
+	var m daemonMessage
+	err := t.decoder.Decode(&m)
+	return m, err
 }

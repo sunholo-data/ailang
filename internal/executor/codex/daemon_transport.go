@@ -1,7 +1,6 @@
 package codex
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -38,32 +37,35 @@ func dialDaemon(ctx context.Context, env []string) (*websocket.Conn, error) {
 	return c, nil
 }
 
-type daemonWebSocketStream struct {
-	conn    *websocket.Conn
-	pending *bytes.Reader
+// daemonTransport carries domain messages, never arbitrary I/O streams.
+// Codex's WebSocket protocol puts one JSON-RPC object in each text frame;
+// surrounding newlines are whitespace, but concatenated objects are invalid.
+type daemonTransport interface {
+	sendMessage(any) error
+	receiveMessage() (daemonMessage, error)
 }
 
-func (s *daemonWebSocketStream) Read(p []byte) (int, error) {
-	for s.pending == nil || s.pending.Len() == 0 {
-		kind, b, err := s.conn.ReadMessage()
-		if err != nil {
-			return 0, err
-		}
-		if kind != websocket.TextMessage {
-			return 0, fmt.Errorf("unexpected Codex daemon frame type")
-		}
-		s.pending = bytes.NewReader(append(b, '\n'))
+type daemonWebSocketTransport struct{ conn *websocket.Conn }
+
+func (t *daemonWebSocketTransport) receiveMessage() (daemonMessage, error) {
+	var m daemonMessage
+	kind, data, err := t.conn.ReadMessage()
+	if err != nil {
+		return m, err
 	}
-	return s.pending.Read(p)
+	if kind != websocket.TextMessage {
+		return m, fmt.Errorf("unexpected Codex daemon frame type")
+	}
+	if err := json.Unmarshal(data, &m); err != nil {
+		return m, fmt.Errorf("invalid Codex daemon message: %w", err)
+	}
+	return m, nil
 }
-func (s *daemonWebSocketStream) Write(p []byte) (int, error) {
-	if err := s.conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
-		return 0, err
+func (t *daemonWebSocketTransport) sendMessage(value any) error {
+	if err := t.conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return err
 	}
-	if err := s.conn.WriteMessage(websocket.TextMessage, bytes.TrimSpace(p)); err != nil {
-		return 0, err
-	}
-	return len(p), nil
+	return t.conn.WriteJSON(value)
 }
 
 // CallDaemonRPC makes quota/attended RPC calls on the same credential owner.
@@ -86,15 +88,13 @@ func CallDaemonRPC(ctx context.Context, home, method string, params json.RawMess
 		case <-done:
 		}
 	}()
-	stream := &daemonWebSocketStream{conn: c}
-	enc := json.NewEncoder(stream)
-	dec := json.NewDecoder(stream)
-	if err := enc.Encode(map[string]any{"id": 1, "method": "initialize", "params": map[string]any{"clientInfo": map[string]any{"name": "ailang-mission-quota", "version": "1"}}}); err != nil {
+	transport := &daemonWebSocketTransport{conn: c}
+	if err := transport.sendMessage(map[string]any{"id": 1, "method": "initialize", "params": map[string]any{"clientInfo": map[string]any{"name": "ailang-mission-quota", "version": "1"}}}); err != nil {
 		return nil, err
 	}
 	for {
-		var m daemonMessage
-		if err := dec.Decode(&m); err != nil {
+		m, err := transport.receiveMessage()
+		if err != nil {
 			return nil, err
 		}
 		if m.ID != nil && *m.ID == 1 {
@@ -104,19 +104,19 @@ func CallDaemonRPC(ctx context.Context, home, method string, params json.RawMess
 			break
 		}
 	}
-	if err := enc.Encode(map[string]any{"method": "initialized"}); err != nil {
+	if err := transport.sendMessage(map[string]any{"method": "initialized"}); err != nil {
 		return nil, err
 	}
 	request := map[string]any{"id": 2, "method": method}
 	if len(params) > 0 {
 		request["params"] = params
 	}
-	if err := enc.Encode(request); err != nil {
+	if err := transport.sendMessage(request); err != nil {
 		return nil, err
 	}
 	for {
-		var m daemonMessage
-		if err := dec.Decode(&m); err != nil {
+		m, err := transport.receiveMessage()
+		if err != nil {
 			return nil, err
 		}
 		if m.ID != nil && *m.ID == 2 {

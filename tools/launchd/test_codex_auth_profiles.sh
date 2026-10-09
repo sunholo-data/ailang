@@ -31,6 +31,25 @@ if ( export AILANG_CODEX_RUNTIME=cli; mc_codex_exec --model m prompt ); then ech
 # Wiring assertions cover probes and controllers; the existing env-forward suite
 # exercises the controller's actual extracted block with a daemon stub.
 grep -q 'mc_codex_exec.*MC_CODEX_ENV_ARGS' "$HERE/mission-control.sh"
-grep -q '_mc_bounded.*mc_codex_exec' "$HERE/lib/lane-probe.sh"
+grep -q '_mc_bounded.*MC_CODEX_COMMAND' "$HERE/lib/lane-probe.sh"
 grep -q 'CODEX_HOME|AILANG_CODEX_RUNTIME' "$HERE/lib/codex-env-args.sh"
+# Exercise the real bounded probe, including graceful cancellation. Wiring
+# assertions alone cannot catch Bash exec refusing a shell function.
+export CODEX_HOME="$HOME/custom" AILANG_CODEX_RUNTIME=daemon
+. "$HERE/lib/lane-probe.sh"
+log() { :; }
+_mc_is_over_ration() { return 1; }
+_mc_probe_codex test-model
+[[ $(head -2 "$T/argv" | tr '\n' ' ') == 'mission codex-exec ' ]]
+cat > "$T/bin/ailang" <<'EOF'
+#!/bin/bash
+trap 'sleep 3; echo interrupted > "$TERM_OUT"; exit 0' TERM
+while :; do sleep 1; done
+EOF
+export TERM_OUT="$T/terminated" PROBE_TIMEOUT=1
+set +e
+_mc_probe_codex test-model
+rc=$?
+set -e
+[[ $rc == 124 && $(cat "$TERM_OUT") == interrupted ]]
 echo 'PASS mission OAuth home, daemon routing, and fail-loud isolation'

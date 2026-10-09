@@ -3,7 +3,6 @@ package codex
 // The exec CLI embeds its own app-server in 0.162.0. Missions instead connect
 // to one explicitly managed daemon; proxy clients never load or refresh auth.
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -49,8 +48,8 @@ func RunDaemonExec(ctx context.Context, codexPath string, opts DaemonExecOptions
 		return err
 	}
 	defer conn.Close()
-	stream := &daemonWebSocketStream{conn: conn}
-	return runDaemonProtocol(ctx, stream, stream, opts, out)
+	transport := &daemonWebSocketTransport{conn: conn}
+	return runDaemonProtocol(ctx, transport, opts, out)
 }
 
 type daemonMessage struct {
@@ -63,7 +62,7 @@ type daemonMessage struct {
 	} `json:"error"`
 }
 
-func runDaemonProtocol(ctx context.Context, r io.Reader, w io.Writer, opts DaemonExecOptions, out io.Writer) (errOut error) {
+func runDaemonProtocol(ctx context.Context, transport daemonTransport, opts DaemonExecOptions, out io.Writer) (errOut error) {
 	if opts.Model == "" {
 		return errors.New("Codex daemon requires an explicit model")
 	}
@@ -83,10 +82,9 @@ func runDaemonProtocol(ctx context.Context, r io.Reader, w io.Writer, opts Daemo
 	default:
 		return errors.New("unsupported Codex daemon approval policy")
 	}
-	enc := json.NewEncoder(w)
 	output := json.NewEncoder(out)
 	send := func(id int, method string, params any) error {
-		return enc.Encode(map[string]any{"id": id, "method": method, "params": params})
+		return transport.sendMessage(map[string]any{"id": id, "method": method, "params": params})
 	}
 	emit := func(v map[string]any) error { return output.Encode(v) }
 	type received struct {
@@ -96,29 +94,18 @@ func runDaemonProtocol(ctx context.Context, r io.Reader, w io.Writer, opts Daemo
 	messages := make(chan received, 64)
 	readerDone := make(chan struct{})
 	defer close(readerDone)
-	// Closing the proxy's pipes at return releases this reader, including cancel.
+	// Closing the daemon connection at return releases the message receiver.
 	go func() {
-		sc := bufio.NewScanner(r)
-		sc.Buffer(make([]byte, 64<<10), 16<<20)
-		for sc.Scan() {
-			var m daemonMessage
-			if err := json.Unmarshal(sc.Bytes(), &m); err != nil {
-				messages <- received{err: errors.New("malformed Codex daemon protocol message")}
-				return
-			}
+		for {
+			m, err := transport.receiveMessage()
 			select {
-			case messages <- received{message: m}:
+			case messages <- received{message: m, err: err}:
 			case <-readerDone:
 				return
 			}
-		}
-		err := sc.Err()
-		if err == nil {
-			err = io.EOF
-		}
-		select {
-		case messages <- received{err: err}:
-		case <-readerDone:
+			if err != nil {
+				return
+			}
 		}
 	}()
 	if err := send(1, "initialize", map[string]any{"clientInfo": map[string]any{"name": "ailang-mission-exec", "version": "1"}, "capabilities": map[string]any{"experimentalApi": false}}); err != nil {
@@ -192,7 +179,7 @@ func runDaemonProtocol(ctx context.Context, r io.Reader, w io.Writer, opts Daemo
 			}
 			if m.ID != nil {
 				if m.Method != "" {
-					if err := enc.Encode(map[string]any{"id": *m.ID, "error": map[string]any{"code": -32601, "message": "AILANG daemon adapter does not support this server request"}}); err != nil {
+					if err := transport.sendMessage(map[string]any{"id": *m.ID, "error": map[string]any{"code": -32601, "message": "AILANG daemon adapter does not support this server request"}}); err != nil {
 						return err
 					}
 					canceled = fmt.Errorf("unsupported Codex daemon server request %s", m.Method)
@@ -207,7 +194,7 @@ func runDaemonProtocol(ctx context.Context, r io.Reader, w io.Writer, opts Daemo
 				}
 				switch *m.ID {
 				case 1:
-					if err := enc.Encode(map[string]any{"method": "initialized"}); err != nil {
+					if err := transport.sendMessage(map[string]any{"method": "initialized"}); err != nil {
 						return err
 					}
 					p := map[string]any{"model": opts.Model, "cwd": opts.Workspace, "sandbox": opts.Sandbox, "approvalPolicy": opts.ApprovalPolicy, "config": opts.Config, "ephemeral": opts.Ephemeral, "threadSource": "exec"}

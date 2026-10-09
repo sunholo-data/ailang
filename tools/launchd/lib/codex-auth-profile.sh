@@ -18,10 +18,15 @@ mc_select_codex_profile() {
   export CODEX_HOME="$canonical" AILANG_CODEX_RUNTIME=daemon
 }
 
-mc_codex_exec() {
+mc_codex_command() {
   case "${AILANG_CODEX_RUNTIME:-}" in
-    daemon) ailang mission codex-exec "$@" ;;
-    "") codex exec "$@" ;; # legacy callers outside an initialized mission driver
+    daemon) MC_CODEX_COMMAND=(ailang mission codex-exec) ;;
+    "") MC_CODEX_COMMAND=(codex exec) ;; # legacy callers outside an initialized mission driver
     *) echo 'codex profile: unsupported runtime; no exec fallback' >&2; return 1 ;;
   esac
+}
+
+mc_codex_exec() {
+  mc_codex_command || return
+  "${MC_CODEX_COMMAND[@]}" "$@"
 }
