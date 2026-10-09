@@ -120,10 +120,11 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 			}
 		}
 	}
+	guard := newStderrGuard(os.Stderr)
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() { defer wg.Done(); copyCapped(os.Stdout, stdout) }()
-	go func() { defer wg.Done(); copyCapped(os.Stderr, stderr) }()
+	go func() { defer wg.Done(); defer guard.Flush(); copyCapped(guard, stderr) }()
 
 	// The control line: exactly one message, or none if the worker died
 	// before deciding.
@@ -156,34 +157,39 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 		case "admitted":
 			if ctrl.Admission != nil {
 				b, _ := json.Marshal(ctrl.Admission)
-				fmt.Fprintf(os.Stderr, "policy: %s\n", b)
+				guard.supervisorLine(fmt.Sprintf("policy: %s", b))
 			}
 		}
 	}
 
 	switch {
 	case overCap.Load():
-		fmt.Fprintf(os.Stderr, "policy-result: %s\n", limitEnvelope(res, "execute", "output_limit",
-			fmt.Sprintf("combined stdout+stderr exceeded max_output_bytes (%d); worker killed", limit)))
+		guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, "execute", "output_limit",
+			fmt.Sprintf("combined stdout+stderr exceeded max_output_bytes (%d); worker killed", limit))))
 		return 3
 	case errors.Is(ctx.Err(), context.DeadlineExceeded):
-		fmt.Fprintf(os.Stderr, "policy-result: %s\n", limitEnvelope(res, stageFor(gotCtrl), "timeout",
-			fmt.Sprintf("exceeded timeout_ms (%s); worker process group killed", res.Timeout)))
+		guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, stageFor(gotCtrl), "timeout",
+			fmt.Sprintf("exceeded timeout_ms (%s); worker process group killed", res.Timeout))))
 		return 3
 	}
 
 	if waitErr != nil {
 		var exitErr *exec.ExitError
 		if errors.As(waitErr, &exitErr) {
+			if exitErr.ExitCode() == 3 {
+				guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, stageFor(gotCtrl), "worker_reserved_exit",
+					"worker exited with reserved code 3; remapped to 1 (no supervisor limit)")))
+				return 1
+			}
 			return exitErr.ExitCode()
 		}
-		fmt.Fprintf(os.Stderr, "policy-result: %s\n", limitEnvelope(res, stageFor(gotCtrl), "worker_failed", waitErr.Error()))
+		guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, stageFor(gotCtrl), "worker_failed", waitErr.Error())))
 		return 1
 	}
 	if !gotCtrl {
 		// The worker exited 0 without deciding: never treat as admitted.
-		fmt.Fprintf(os.Stderr, "policy-result: %s\n", limitEnvelope(res, "admit", "no_decision",
-			"the worker exited without reporting an admission decision on the control channel"))
+		guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, "admit", "no_decision",
+			"the worker exited without reporting an admission decision on the control channel")))
 		return 1
 	}
 	return 0
