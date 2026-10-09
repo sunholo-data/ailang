@@ -1,0 +1,193 @@
+{
+  "sprint_id": "M-TASK-INPUTS",
+  "status": "planned",
+  "created": "2026-10-08T18:53:50.182743+00:00",
+  "design_doc": "design_docs/planned/v0_52_6/m-task-inputs.md",
+  "sprint_plan": "design_docs/planned/v0_52_6/m-task-inputs-sprint-plan.md",
+  "github_issues": [
+    1600
+  ],
+  "velocity": {
+    "target_loc_per_day": 262.5,
+    "estimated_total_loc": 2100,
+    "estimated_days": 8,
+    "basis": "Planning assumption; seven-day shallow history has no measured implementation velocity"
+  },
+  "features": [
+    {
+      "id": "M1_TYPED_MESSAGE_PLANE",
+      "description": "Define the shared typed input contract and preserve validated inputs through every message ingress, store and adapter.",
+      "estimated_loc": 650,
+      "implementation_loc": 360,
+      "test_loc": 290,
+      "estimated_days": 2.5,
+      "dependencies": [],
+      "files": [
+        "internal/messaging/task_inputs.go",
+        "internal/coordinator/task_inputs.go",
+        "internal/messaging/inbox.go",
+        "internal/messaging/schema.go",
+        "internal/messaging/schema_migrations.go",
+        "internal/storage/firestore/messaging_convert.go",
+        "internal/coordinator/daemon_http.go",
+        "cmd/ailang/messages_send.go",
+        "internal/coordinator/message_adapter.go",
+        "internal/coordinator/pubsub_adapter.go",
+        "internal/coordinator/watcher.go"
+      ],
+      "acceptance_criteria": [
+        "One canonical TaskInput type is usable by messaging and coordinator without an import cycle; JSON field names match the approved design.",
+        "Validation rejects malformed repo/ref, raw SHA refs, traversal, invalid digest and more than 16 inputs; HTTP returns 400 and CLI rejects malformed inputs files.",
+        "SQLite insert/list/get and Firestore map round trips preserve all fields; legacy records decode with no inputs, malformed stored JSON returns an error.",
+        "Migration from the current terminal schema preserves existing messages and inputs across reopening; fresh schema and repeated startup work.",
+        "HTTP, CLI, Pub/Sub hydration, polling adapter and watcher preserve the same ordered input list."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_TASK_GRANTS_DISPATCH",
+      "description": "Persist task inputs and enforce the trusted registry grant before cloud dispatch, then carry metadata to the job.",
+      "estimated_loc": 450,
+      "implementation_loc": 250,
+      "test_loc": 200,
+      "estimated_days": 1.5,
+      "dependencies": [
+        "M1_TYPED_MESSAGE_PLANE"
+      ],
+      "files": [
+        "internal/coordinator/store.go",
+        "internal/coordinator/store_sqlite_queries.go",
+        "internal/coordinator/store_sqlite_schema.go",
+        "internal/storage/firestore/coordinator_convert.go",
+        "internal/coordinator/daemon_tasks_polling.go",
+        "internal/coordinator/agent_registry.go",
+        "internal/coordinator/daemon_tasks_exec.go",
+        "internal/coordinator/cloud_dispatcher.go",
+        "internal/dispatch/cloudrun/dispatcher.go",
+        "internal/config/job.go"
+      ],
+      "acceptance_criteria": [
+        "Both task creation sites copy inputs; SQLite and Firestore task round trips preserve fields, order and legacy empty values.",
+        "inputs_allow accepts exact owner/repo entries from the trusted agent registry; empty grants deny all requested inputs and sender content cannot widen the grant.",
+        "Unauthorized repo wraps ErrDispatchPermanent, calls MarkTaskFailed and posts the named repo/agent reason without dispatch or requeue.",
+        "Allowed cloud inputs serialize as AILANG_TASK_INPUTS; malformed env JSON fails explicitly; absent inputs preserve previous dispatch params/env behavior.",
+        "Local tasks with inputs fail explicitly as unsupported before executor startup; no local fetch behavior is introduced."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_PARENT_FETCH_PROVENANCE",
+      "description": "Fetch and verify all inputs in the cloud job parent before starting the executor, preserving workspace and credential boundaries.",
+      "estimated_loc": 800,
+      "implementation_loc": 440,
+      "test_loc": 360,
+      "estimated_days": 2.5,
+      "dependencies": [
+        "M2_TASK_GRANTS_DISPATCH"
+      ],
+      "files": [
+        "cmd/ailang/coordinator_cloud_inputs.go",
+        "cmd/ailang/coordinator_cloud_inputs_test.go",
+        "cmd/ailang/coordinator_cloud.go",
+        "cmd/ailang/coordinator_cloud_github.go",
+        "cmd/ailang/coordinator_cloud_executor.go"
+      ],
+      "acceptance_criteria": [
+        "Branch/tag shallow clones resolve HEAD and deliver a file, directory or whole tree in input order before the executor starts; missing refs/paths fail loudly with the input index.",
+        "Default .incoming/<n>/ is excluded from git; explicit destinations create new files only; copied whole trees omit .git metadata.",
+        "Source and destination traversal, source symlinks including ancestor components, destination symlinks, existing-file collisions and harness instruction paths at any depth are rejected.",
+        "Single-file sha256 and every manifest.sha256 entry are checked; malformed manifests, missing entries, escaping entries and mismatches fail before executor invocation.",
+        "A named 256 MiB aggregate copied-byte cap is enforced while reading; all inputs stage and verify before delivery, failures clean temporary clones and never start the executor.",
+        "Provenance in job logs and completion report includes repo, requested ref, resolved commit, effective dest and verified digests; failure reports retain indexed reasons.",
+        "Parent uses the existing HTTPS token helper for allowlisted input reads; tests prove the child does not receive the fleet token or input clone credential material, including the workspace SSH deploy-key case.",
+        "Zero-input tasks retain previous clone, executor and completion behavior; temp-repo integration tests require no network or model."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_EXAMPLES_ACCEPTANCE",
+      "description": "Document task input configuration, add runnable transport examples and bank end-to-end acceptance evidence with a staged Daneel follow-up.",
+      "estimated_loc": 200,
+      "implementation_loc": 100,
+      "test_loc": 100,
+      "estimated_days": 1.5,
+      "dependencies": [
+        "M3_PARENT_FETCH_PROVENANCE"
+      ],
+      "files": [
+        "docs/docs/guides/agent-messaging.md",
+        "docs/docs/guides/coordinator.md",
+        "docs/docs/guides/coordinator-setup.md",
+        "examples/task_inputs/inputs.json",
+        "examples/task_inputs/agent-config.yaml",
+        "examples/task_inputs/README.md"
+      ],
+      "acceptance_criteria": [
+        "Examples show default excluded inputs, explicit binary placement and exact inputs_allow with tool_policy ailang_only; JSON examples validate with the production validator and sample config parses.",
+        "Guides document --inputs-file, HTTP inputs, AILANG_TASK_INPUTS, branch/tag-only refs, checksums, copied-byte cap, permanent errors, untrusted data and cloud-only support.",
+        "Focused package tests and make test, make lint, make check-boundaries pass; changed validators/copy code target at least 85 percent statement coverage with refusal paths asserted.",
+        "Bank a no-network end-to-end ingress-to-job fixture showing bytes/provenance and denied-input no-dispatch behavior; attach a staged cloud publish checklist for daneel#335.",
+        "When deployment access exists, verify the site agent with a real daneel-memory branch, no shell, correct PR diff and provenance; otherwise record the external acceptance as pending without claiming the migration completed."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_TYPED_MESSAGE_PLANE",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "task inputs",
+        "git",
+        "checksum"
+      ],
+      "reason": "Registry searches on 2026-10-08 returned no candidates. This milestone changes Go host transport, trusted dispatch or job filesystem plumbing; an AILANG package cannot implement that boundary. Reuse existing Go stores, gitexec, credential helper, excludeFromGit and error/report seams."
+    },
+    {
+      "milestone": "M2_TASK_GRANTS_DISPATCH",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "task inputs",
+        "git",
+        "checksum"
+      ],
+      "reason": "Registry searches on 2026-10-08 returned no candidates. This milestone changes Go host transport, trusted dispatch or job filesystem plumbing; an AILANG package cannot implement that boundary. Reuse existing Go stores, gitexec, credential helper, excludeFromGit and error/report seams."
+    },
+    {
+      "milestone": "M3_PARENT_FETCH_PROVENANCE",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "task inputs",
+        "git",
+        "checksum"
+      ],
+      "reason": "Registry searches on 2026-10-08 returned no candidates. This milestone changes Go host transport, trusted dispatch or job filesystem plumbing; an AILANG package cannot implement that boundary. Reuse existing Go stores, gitexec, credential helper, excludeFromGit and error/report seams."
+    },
+    {
+      "milestone": "M4_DOCS_EXAMPLES_ACCEPTANCE",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "task inputs",
+        "git",
+        "checksum"
+      ],
+      "reason": "Registry searches on 2026-10-08 returned no candidates. This milestone changes Go host transport, trusted dispatch or job filesystem plumbing; an AILANG package cannot implement that boundary. Reuse existing Go stores, gitexec, credential helper, excludeFromGit and error/report seams."
+    }
+  ]
+}
