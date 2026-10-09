@@ -1,19 +1,19 @@
 # Quorum External Zero-Signal Guard
 
-**Status**: Planned — candidate only; pending independent review capacity
+**Status**: Planned — candidate, revision 2; quorum round 1 returned BLOCKED, revision pending re-review
 **Target**: Next patch after approval (unversioned)
 **Priority**: P1 — fleet charter #8, ailang#651
 **Estimated**: 2 hours including regression verification (estimate, not measured)
 **Dependencies**: Admitted independent review and normal planning/execution gates
 **Planner-Lane**: codex-ok
-**Created / revised**: 2026-10-08, fleet iteration 28, revision 1
-**Author**: native codex:gpt-6.1-sol (role tokens: not reported)
+**Created / revised**: 2026-10-08, fleet iteration 28, revision 1; revised 2026-10-09, revision 2 (pi, designer role — answers quorum round 1)
+**Author**: native codex:gpt-6.1-sol (role tokens: not reported); revision 2 by pi (designer role, fleet-i30)
 
 ## Problem Statement
 
-At origin/dev `3e032cf4f13682a455129274d99097842c56e5ae`, `synthesize` counts present external reviewer outcomes, then increments the same count for a non-nil controller. Its zero-signal guard therefore permits all external reviewers to be absent when the controller passes. The result is `proceed`, although nobody outside the controller produced a verdict. This is a source-verified mechanism; this iteration has not run a new live provider quorum or counted production occurrences.
+At origin/dev `3e032cf4f13682a455129274d99097842c56e5ae` (re-confirmed at the revision-2 pin `1e872b0000`: controller increment `quorum.go:165`, guard `:176`), `synthesize` counts present external reviewer outcomes, then increments the same count for a non-nil controller. Its zero-signal guard therefore permits all external reviewers to be absent when the controller passes. The result is `proceed`, although nobody outside the controller produced a verdict. This is a source-verified mechanism; this iteration has not run a new live provider quorum or counted production occurrences.
 
-The existing `TestRunQuorum_AllAbsentRefusesToProceed` and `TestRunSeatedQuorum_NothingAnswersBlocks` pass a nil controller. They exercise zero participants, leaving the controller-pass combination uncovered. Fleet iteration 23 already verified the ticket and parked it on capacity; the index through iteration 27 records no implementation for this ticket. This candidate advances design only.
+The existing `TestRunQuorum_AllAbsentRefusesToProceed` and `TestRunSeatedQuorum_NothingAnswersBlocks` pass a nil controller, and a repo-wide survey of every non-nil `ControllerReview` use in test files (V10) shows the controller-pass-with-zero-present-reviewers combination is uncovered suite-wide: no existing test pairs a non-nil controller with zero present external reviewers while expecting proceed, so the intended flip breaks no existing fixture. Fleet iteration 23 already verified the ticket and parked it on capacity; the index through iteration 27 records no implementation for this ticket. This candidate advances design only.
 
 ## Goals
 
@@ -23,13 +23,13 @@ Require at least one present external Tier-1 reviewer outcome before synthesis c
 
 | Decision | Why it matters | Chosen By | Deadline | Change Cost |
 |---|---|---|---|---|
-| Exclude controller from external-signal count | Prevents controller-only clearance | agent, subject to review | design | low |
-| Preserve one-reviewer minimum and existing seating | Avoids introducing a full-seat or vendor-policy requirement | agent, subject to review | design | low |
-| Keep Tier-2 additive, unable to unblock failed Tier-1 | Matches existing escalation composition | agent, subject to review | design | low |
+| Exclude controller from external-signal count | Prevents controller-only clearance | agent-chosen; independently quorum-reviewed (round 1 blocked — this revision answers it; re-review pending) | design | low |
+| Preserve one-reviewer minimum and existing seating | Avoids introducing a full-seat or vendor-policy requirement | agent-chosen; independently quorum-reviewed (round 1 blocked — this revision answers it; re-review pending) | design | low |
+| Keep Tier-2 additive, unable to unblock failed Tier-1 | Matches existing escalation composition | agent-chosen; independently quorum-reviewed (round 1 blocked — this revision answers it; re-review pending) | design | low |
 
 ### Design Freeze
 
-This document has no outstanding human policy choice. It is not approval or execution authorization. Independent quorum, planning and execution gates remain pending. Unattended quorum is required; no quorum is run in this iteration because the controller reports native Sonnet unavailable (`Unknown model`) and the evaluator resolver refuses over-ration Anthropic/OpenRouter. Those capacity facts are controller-supplied, not independently measured by this author.
+This document has no outstanding human policy choice. It is not approval or execution authorization. Quorum review and the normal plan/execute gates are still pending: round 1 of the independent design quorum ran and returned BLOCKED (two blocking objections plus one pass-with-concern), and this revision 2 answers all three but is not itself re-reviewed. Round 1 was previously delayed on capacity (native Sonnet/Opus unsupported, Anthropic/OpenRouter over ration); the capacity facts, the round-1 verdict record and the verbatim objections are controller-supplied, not independently measured by this author, and no round-1 artifacts exist in this worktree (`.ailang/state/mission-quorum/` is absent here). The answering measurements (V10–V13) are this author's, run in this worktree.
 
 ## Solution Design
 
@@ -64,7 +64,7 @@ Use existing `present` and `fakeRunner` helpers; all runners are in-process stub
 | one pass, one absent | reject | blocked | controller note; no zero-signal objection |
 | one reject, one absent | nil / pass | blocked | reviewer objection; no zero-signal objection |
 
-For the absent-pair/controller-pass row, assert both model/reason pairs retained in input order, controller verdict/note retained, and totals equal the supplied costs and input/output token sums (including absent outcomes). This prevents solving the gate by deleting outcomes or their accounting. Assert `AbsentReviewers` remains a non-nil empty slice for all-present inputs through the existing serialization test.
+For the absent-pair/controller-pass row, assert both model/reason pairs retained in input order, controller verdict/note retained, and totals equal the supplied costs and input/output token sums (including absent outcomes). This prevents solving the gate by deleting outcomes or their accounting. For the two-absent/controller-reject row, assert BOTH objections in deterministic order — controller note first, then the zero-signal objection — which holds by construction: `synthesize` has no early return before the external-count guard (V13). Assert `AbsentReviewers` remains a non-nil empty slice for all-present inputs through the existing serialization test.
 
 Add a seated orchestration regression with primary `a`, reserve `b`, benched `z`, all absent, controller pass. Assert `blocked`, all three absences named, and fallback attempted; this catches an incorrect early-return fix that bypasses replacement or synthesizes before final outcomes.
 
@@ -74,7 +74,7 @@ Mutation evidence required during execution: restoring only the controller count
 
 ## Verification Log
 
-All source claims below were independently read in this worktree at the pinned HEAD, which equals origin/dev.
+All source claims below were read in this worktree. Revision-1 rows V1–V9 were read at the then-pinned origin/dev HEAD `3e032cf4f13682a455129274d99097842c56e5ae`; revision-2 rows V10–V13 were run at this worktree's pinned HEAD `1e872b0000`, where V1's load-bearing positions (reviewer increment :156, controller increment :165, guard :176) were re-confirmed unchanged. One excerpt is controller-supplied: the GitHub-issue text inside V11, quoted from the controller's read at 2026-10-09 because this worktree has no network access. Every negative or absence claim is paired with a known-positive control in the same row.
 
 | ID | Claim | Evidence / result |
 |---|---|---|
@@ -87,6 +87,10 @@ All source claims below were independently read in this worktree at the pinned H
 | V7 | Prior design overlap checked | `rg --files design_docs` filtered for quorum; `rg -n 'zero.signal|zero-signal|controller.only' design_docs/planned design_docs/implemented`; related docs below, no dedicated guard design found in this search. |
 | V8 | Prior fleet attempt is parked, not implemented | Read full `fleet-mission-index.md` through iteration 27; iteration 23 entry and archived status describe capacity park. No claim about unindexed external work. |
 | V9 | Baseline package verification | `go test ./internal/mission/quorum` exited 0: `ok github.com/sunholo-data/ailang/internal/mission/quorum 0.767s`. Does not test the new matrix or prove the proposed fix. |
+| V10 | Suite-wide survey: NO existing test pairs a non-nil controller with ZERO present external reviewers while expecting proceed, so the intended controller-only flip (proceed → blocked) breaks no existing fixture (answers round-1 blocking objection oc-glm-5.3; extends V2 from two sample bodies to the whole suite) | Command: `grep -rn "ControllerReview" --include="*_test.go" .` → exactly 4 hits: `escalate_test.go:9` (helper signature `func qr(reviewers []*ReviewerOutcome, controller *ControllerReview) *QuorumResult`), `escalate_test.go:84` (`TestShouldEscalate_ControllerSplit`: ONE PRESENT reviewer m1 + controller reject → expects escalation; present external signal exists), `quorum_test.go:66` (`TestRunQuorum_ControllerRejectBlocks`: ONE PRESENT reviewer m1 + controller reject → expects blocked), `seating_test.go:118` (`TestRunSeatedQuorum_RecallsTheAuthorsVendorOnlyWhenNobodyAnswers`: primary a,b and reserve c absent, benched z recalled AND present as author-vendor fallback + controller pass; asserts the z seat label and 3 named absences, never asserts a verdict). Known-positive control in the same survey: `grep -rn "ControllerReview{" --include="*_test.go" internal/mission/quorum/` → 3 hits (the same three literals), proving the survey grep sees present fixtures so the absence elsewhere is real, not a path/spelling artifact. |
+| V11 | Mandate premise: charter #8 and ailang#651 state the exact ticket semantics the fix implements (answers round-1 blocking objection oc-kimi-k3) | Charter `design_docs/fleet-mission.md`, P1 queue row #8 (line 192), re-derived by this author from the worktree file, verbatim: "`quorum:zero-signal-guard-vacuous-with-controller-verdict`: `quorum.go:164-165` counts the controller as present before the zero-signal guard (:176). A controller-only "quorum" proceeds (ailang#651)." GitHub issue sunholo-data/ailang#651, titled "design-quorum: the zero-signal guard is vacuous whenever a controller verdict is supplied — 3 docs shipped on 'proceed' with 0 of 2 reviewers present", summary: the guard "can never fire on the invocation the mission-control skill mandates, because the controller's own verdict increments the same presentCount it tests"; measured 86 of 87 artifacts carrying a controller verdict — issue text quoted from the controller's read at 2026-10-09 (controller-supplied; no network access in this worktree). Worktree corroboration: `.claude/skills/mission-control/resources/gate-2-pick.md:234-238` independently states "the controller's own `--controller-verdict` increments the same `presentCount` it tests" and "measured: **86 of 87** artifacts carry one; control — the single artifact without one reads `blocked`". Line positions re-confirmed in this tree: controller increment `quorum.go:165`, guard `:176` (the skill file's older `:168` reference is stale). |
+| V12 | Mandate semantics: the mandated remedy is a present-EXTERNAL count; the reviewer-named alternatives are NOT mandated (answers round-1 blocking objection oc-kimi-k3) | `.claude/skills/mission-control/resources/gate-2-pick.md` (Gate-2 fleet branch), lines 238–239, verbatim: "Filed as `#651` for the code fix; until it lands, the count that matters is **present EXTERNAL reviewers**, and zero of them is a park, not a pass." This matches the chosen remedy exactly — the guard's count excludes the controller and tests present external reviewers only, with zero of them a blocked verdict (park), not a pass. The alternatives the reviewer named (full-seat requirement, 2+ present reviewers, removing the controller from the artifact entirely) appear in no mandate source (charter row #8, issue #651 as quoted in V11, gate-2-pick.md) and are explicitly out of scope; controller veto, controller artifact entry, N-1 degradation and Tier-2 monotonicity are retained. |
+| V13 | `synthesize` emits BOTH objections for the two-absent/controller-reject matrix row; no early return precedes the external-count guard, so the matrix row's dual-objection expectation is correct by construction (answers round-1 pass-with-concern gemini-3-1-pro) | Command: `grep -n "return" internal/mission/quorum/quorum.go` → `88: return &QuorumResult{`, `124: return q`, `129: return q`, `182: return s`. Exactly ONE return (:182, the function end) lies inside `synthesize` (`func` at :141); :88 is `RunQuorum`, :124/:129 are `RunQuorumWithEscalation`. The reviewer-reject branch (:157), controller-reject branch (:166) and zero-signal guard (:176) each append to `s.BlockingObjections` (:159, :168, :178) WITHOUT early return, so under the proposed design both the controller note and the zero-signal objection are emitted, in that order. |
 
 Scaffolding/related-search deviation: author used the skill structure and local `rg`/source reads. The create script invokes neural searches; it was not run because this task prohibits metered quota use. No language-support claim, new diagnostic code, banked schema change or compiler pass is proposed.
 
@@ -135,4 +139,48 @@ The implementer may choose table-driven versus subtest organization and local va
 
 ## Review State
 
-Candidate only, revision 1. Independent design quorum: NOT RUN / pending capacity. Independent evaluator: unavailable per controller report. Sprint plan: not created. Implementation, commit, push and ticket resolution: not performed. Resume with admitted independent review, then the normal design/plan/execute/evaluate gates.
+Candidate, revision 2. Independent design quorum, round 1: RUN — verdict BLOCKED, with two blocking objections (oc-glm-5.3: the claim that existing all-absent regressions omit the controller was evidenced only at two sample test bodies, not suite-wide; oc-kimi-k3: the load-bearing policy premise — "fleet charter #8, ailang#651" — was never quoted, and the doc's authority wording was self-contradictory, freezing "no outstanding human policy choice" while marking the decisions merely "subject to review") and one pass-with-concern (gemini-3-1-pro: a synthesis early-return on a controller veto might emit only one of the two objections expected for the two-absent/controller-reject matrix row). The round-1 verdict record and verbatim objections are controller-supplied (no round-1 artifacts exist in this worktree — `.ailang/state/mission-quorum/` is absent here); the answering measurements are this author's, run in this worktree at HEAD `1e872b0000`. Independent evaluator: unavailable per controller report.
+
+Revision 2 answers all three without changing the fix shape — the guard still counts present EXTERNAL reviewer outcomes only; the controller keeps veto and a distinct artifact entry; N-1 degradation is preserved; Tier-2 stays monotonic; the existing zero-signal objection text is retained. V10 answers oc-glm-5.3 with a suite-wide survey and known-positive control. V11 and V12, plus the Design Freeze and High-Impact Decisions wording corrections, answer oc-kimi-k3: the mandate sources are now quoted verbatim, "Chosen By" states the decisions are agent-chosen AND independently quorum-reviewed (round 1 blocked — this revision answers it; re-review pending), and the Freeze states plainly that quorum review and the normal plan/execute gates are still pending. V13 answers gemini-3-1-pro: `synthesize` has exactly one return, at the function end, so both objections are emitted for the contested matrix row.
+
+Pending: quorum re-review of this revision. Sprint plan: not created. Implementation, commit, push and ticket resolution: not performed. Resume with admitted independent re-review, then the normal design/plan/execute/evaluate gates.
+
+### Implementation report (revision 2)
+
+Exactly one file changed — this document. Verification Log rows added (V10–V13); no existing evidence row altered. Wording-only changes: header Status / Created-revised / Author lines; Problem Statement now cites the V10 suite-wide survey and re-confirms the defect positions at the revision-2 pin; High-Impact Decisions "Chosen By" corrected from "agent, subject to review" to agent-chosen AND independently quorum-reviewed; Design Freeze reconciled (round 1 ran and blocked; re-review and plan/execute gates still pending); Verification Log preamble now pins both HEADs and marks the single controller-supplied excerpt; one V13-backed ordering sentence added to the matrix section; this Review State rewritten. Test matrix, mutation-evidence requirement, axioms table and Success Criteria are otherwise unchanged. No git write operations were performed; the controller commits this work.
+
+Rows added, with each command's observed output:
+
+- **V10** (answers blocking objection 1, oc-glm-5.3). Command: `grep -rn "ControllerReview" --include="*_test.go" .` Observed — exactly 4 hits:
+
+  ```
+  ./internal/mission/quorum/seating_test.go:118:	ctrl := &ControllerReview{Verdict: VerdictPass, Note: "the controller is Anthropic too"}
+  ./internal/mission/quorum/escalate_test.go:9:func qr(reviewers []*ReviewerOutcome, controller *ControllerReview) *QuorumResult {
+  ./internal/mission/quorum/escalate_test.go:84:	}, &ControllerReview{Verdict: VerdictReject, Note: "an axiom conflict I see in session"})
+  ./internal/mission/quorum/quorum_test.go:66:	ctrl := &ControllerReview{Verdict: VerdictReject, Note: "controller sees an axiom conflict"}
+  ```
+
+  Known-positive control in the same survey: `grep -rn "ControllerReview{" --include="*_test.go" internal/mission/quorum/`. Observed — 3 hits:
+
+  ```
+  internal/mission/quorum/seating_test.go:118:	ctrl := &ControllerReview{Verdict: VerdictPass, Note: "the controller is Anthropic too"}
+  internal/mission/quorum/escalate_test.go:84:	}, &ControllerReview{Verdict: VerdictReject, Note: "an axiom conflict I see in session"})
+  internal/mission/quorum/quorum_test.go:66:	ctrl := &ControllerReview{Verdict: VerdictReject, Note: "controller sees an axiom conflict"}
+  ```
+
+  Reading the four sites: escalate_test.go:84 (`TestShouldEscalate_ControllerSplit`) and quorum_test.go:66 (`TestRunQuorum_ControllerRejectBlocks`) each pair the controller with ONE PRESENT reviewer m1, expecting escalation and blocked respectively; seating_test.go:118 (`TestRunSeatedQuorum_RecallsTheAuthorsVendorOnlyWhenNobodyAnswers`) pairs a controller pass with benched z recalled AND present plus 3 named absences (a, b, c), asserts the z seat label and never asserts a verdict; escalate_test.go:9 is a helper signature. Conclusion: NO existing test pairs a non-nil controller with ZERO present external reviewers while expecting proceed — the intended controller-only flip breaks no existing fixture.
+
+- **V11** (answers blocking objection 2 part a, oc-kimi-k3). Charter quote re-derived by this author from the worktree file `design_docs/fleet-mission.md` (P1 queue row #8, line 192), verbatim: "`quorum:zero-signal-guard-vacuous-with-controller-verdict`: `quorum.go:164-165` counts the controller as present before the zero-signal guard (:176). A controller-only "quorum" proceeds (ailang#651)." GitHub issue sunholo-data/ailang#651, titled "design-quorum: the zero-signal guard is vacuous whenever a controller verdict is supplied — 3 docs shipped on 'proceed' with 0 of 2 reviewers present" (summary: the guard "can never fire on the invocation the mission-control skill mandates, because the controller's own verdict increments the same presentCount it tests"; measured 86 of 87 artifacts carrying a controller verdict) — recorded as quoted from the controller's read at 2026-10-09; this worktree has no network access. Worktree corroboration: `gate-2-pick.md:234-238` independently states the same mechanism ("the controller's own `--controller-verdict` increments the same `presentCount` it tests") and the same measurement ("86 of 87 artifacts carry one; control — the single artifact without one reads `blocked`").
+
+- **V12** (answers blocking objection 2 part c, oc-kimi-k3). `gate-2-pick.md:238-239`, verbatim: "Filed as `#651` for the code fix; until it lands, the count that matters is **present EXTERNAL reviewers**, and zero of them is a park, not a pass." Matches the chosen remedy — the controller is excluded from the external-signal minimum; zero present externals is a blocked verdict, not a pass. The reviewer-named alternatives (full-seat requirement, 2+ present reviewers, removing the controller from the artifact entirely) appear in no mandate source and are explicitly out of scope.
+
+- **V13** (answers the pass-with-concern, gemini-3-1-pro). Command: `grep -n "return" internal/mission/quorum/quorum.go`. Observed:
+
+  ```
+  88:	return &QuorumResult{
+  124:		return q
+  129:		return q
+  182:	return s
+  ```
+
+  Exactly one return (:182, the function end) lies inside `synthesize` (func at :141); the reviewer-reject branch (:157), controller-reject branch (:166) and zero-signal guard (:176) all append to `s.BlockingObjections` (:159, :168, :178) without early return, so under the proposed design both the controller note and the zero-signal objection are emitted for the two-absent/controller-reject matrix row — the dual-objection expectation is correct by construction.
