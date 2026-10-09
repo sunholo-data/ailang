@@ -1,7 +1,7 @@
 # serve-api Response Headers: Security Headers on `--static` + Hyphenated Route Headers
 
-**Status**: Planned
-**Target**: v0.53.0 (next release; the `--static` security-header half is P0 and ships first — see Splitting below)
+**Status**: Implemented; independent local evaluation passed (95/100); full suite pending coordinator PR CI
+**Target**: v0.54.0 (next release; the `--static` security-header half is P0 and ships first — see Splitting below)
 **Priority**: P0 (security #1597; silent-failure bug #1609)
 **Estimated**: 1 week (Phase 1: 1 day · Phase 2: 2–3 days · Phase 3: 1 day · buffer)
 **Dependencies**: None
@@ -121,7 +121,7 @@ valid HTTP header name on both response paths — with every unusable `_headers`
 | D4. Record `_headers` labels are remapped `_`→`-`; Json `_headers` names are exact | A record label `x_frame_options` currently produces the wire name `X_frame_options` — remapping changes what an existing (if broken) program sends: a public-surface change. The Json form keeps exact-name control as the escape hatch for any name a record cannot spell | human — **ruled YES, Mark 2026-10-08** | design | med |
 | D5. Extraction happens on the `eval.Value` **before** Go conversion, one shared helper for both dispatch sites | Post-`ToGo` the record and `JObject` forms are indistinguishable (`map[string]interface{}`), so D4's two rules cannot be applied; pre-`ToGo` mirrors `resultErrStatus` and fixes both sites with one mechanism | agent | design | med |
 | D6. Unusable `_headers` fails loudly: dispatch-time 500 + ERROR log naming the accepted shapes; `@route` registration additionally refuses a declared `_headers` type that is neither a string-valued record nor `Json` (the `WSReqIssue` pattern) | Defines new startup/type-error behaviour; the silent drop is the bug class | agent | design | med |
-| D7. Server-owned headers — `X-Elapsed-Ms`, every `Access-Control-*` header and `Vary` — are set last (or refused from `_headers`) on both paths, so a program cannot overwrite them; program `Content-Type` wins over the `_body` default, which requires setting that default **before** `WriteHeader` (it is not sent today — see Review notes 2026-10-08) | `@nowrap` today lets `_headers` overwrite the timing header (order: `:236-237` before `:239`); `corsWrap` sets the operator's CORS headers before the handler runs (`cors.go:28-37`), so program `_headers` can overwrite them today | agent | design | low |
+| D7. Server-owned headers — `X-Elapsed-Ms`, every `Access-Control-*` header and `Vary`, plus the message-framing headers `Content-Length`, `Transfer-Encoding`, `Connection`, `Keep-Alive`, `Upgrade`, `Trailer`, `TE` and `Proxy-*` (review 2026-10-09) — are set last (or refused from `_headers`) on both paths, so a program cannot overwrite them; program `Content-Type` wins over the `_body` default, which requires setting that default **before** `WriteHeader` (it is not sent today — see Review notes 2026-10-08) | `@nowrap` today lets `_headers` overwrite the timing header (order: `:236-237` before `:239`); `corsWrap` sets the operator's CORS headers before the handler runs (`cors.go:28-37`), so program `_headers` can overwrite them today | agent | design | low |
 | D8. `ailang mcp check` grows a framing probe: send a well-formed dummy authorization request to the discovered authorization endpoint and judge only a final 2xx HTML response; FAIL (anthropic/both targets) when neither `X-Frame-Options` nor `frame-ancestors` is present | New check semantics in a submission gate; what counts as FAIL vs WARN is a rules decision | agent | design | low |
 
 ### Design Freeze
@@ -232,6 +232,12 @@ Ship Phase 1 as its own PR and release it even if Phase 2 slips; Phase 2 + 3 fol
    `ParseStaticHeader`) — else a loud error, never a silently stripped or split header.
    Names in the server-owned set (D7: `X-Elapsed-Ms`, `Access-Control-*`, `Vary`) are refused
    loudly or overwritten last — the sprint picks one and pins it with a wire test.
+   **Review 2026-10-09:** the `_` → `-` label mapping also let a route set message-framing headers
+   (`Transfer-Encoding: "identity, chunked"` put two TE headers on the wire; `Content-Length: "3"`
+   truncated an 11-byte body). D7's refused set therefore also covers, case-insensitively,
+   `Content-Length`, `Transfer-Encoding`, `Connection`, `Keep-Alive`, `Upgrade`, `Trailer`, `TE`
+   and every `Proxy-*` name — refused loudly (structured 500 + ERROR log) on both the record and
+   the Json/`@nowrap` paths.
    Loud error = the handler's response becomes a 500 with a structured error naming the accepted
    shapes and the offending field, plus an `[API]` ERROR log (the existing failure channel,
    `routes_dispatch.go:168-176`).
@@ -367,7 +373,7 @@ export func worse() -> {_headers: Json} ! {IO} = {_headers: jo([kv("retry-after"
 ## Success Criteria
 
 - [ ] The Goals metrics verified with a fresh binary from this worktree (evidence in the PR)
-- [ ] Phase 1 mergeable and shippable independently of Phase 2 (separate PRs; the split is a success criterion, per scheduling)
+- [ ] Phase 1 mergeable and shippable independently of Phase 2 (self-contained first commits on one branch, per approved sprint plan)
 - [ ] Wire-level tests: `X-Frame-Options` + `Content-Security-Policy` on both dispatch paths, both forms
 - [ ] Wire test: the `_body` default `Content-Type` is actually sent (set before `WriteHeader`), and a program `Content-Type` wins
 - [ ] Wire test: program `_headers` cannot overwrite `X-Elapsed-Ms`, `Access-Control-*` or `Vary`
@@ -494,7 +500,7 @@ binary `ailang` v0.52.5 commit `7200786`; the four live outcomes follow line-by-
 | 15 | `mcp check` already discovers the authorization server and fetches well-known | read `internal/mcpcheck/mcpcheck.go:298-333` (`checkAuthorizationServer`, `wellKnown`, `getJSON`) | Confirmed — probe hook point exists |
 | 16 | Request-side `_headers: Json` is documented and exemplified (untouched surface) | read `docs/docs/guides/serve-api.md:419,1095-1113`, `examples/runnable/mcp_tools.ail:22`, `serve_api_mcp_header_auth.ail:34` | Confirmed |
 | 17 | No new error codes proposed | this doc proposes plain startup errors / 500 + log, no `PARxxx`/`TCxxx`/`MODxxx` allocations | n/a — no grep needed |
-| 18 | Target version: v0.53.0 is the next open release (folder `planned/v0_53_0` active; `implemented/v0_53_0` docs marked "ships in v0.53.0"; current release v0.52.5) | `std/VERSION`, `ls design_docs/planned/v0_53_0/`, `implemented/v0_53_0/m-std-yaml-encode.md` status line | Confirmed |
+| 18 | Historical design target was v0.53.0 while the installed binary was v0.52.5. Execution found std/VERSION v0.53.0 and retargeted to v0.54.0 (see execution target update). | std/VERSION and execution checkout | Retargeted |
 
 ## References
 
@@ -512,3 +518,11 @@ binary `ailang` v0.52.5 commit `7200786`; the four live outcomes follow line-by-
 - A `--route-security-headers` default for `@route` responses, if deployments want the Phase 1 defaults
   without per-handler code (YAGNI: handlers can now set them)
 - `frame-ancestors` with origins (not just `'none'`) behind a flag, if a multi-frame portal asks
+
+## Execution target update (2026-10-09)
+
+`std/VERSION` is now v0.53.0. Retargeted this design and its approved sprint to v0.54.0. The approved sprint supersedes the earlier separate-PR scheduling: M1 is the self-contained first commit, available for cherry-picking; the coordinator raises the implementation PR. Refs #1597. Refs #1609.
+
+## Implementation evidence
+
+Implemented in self-contained static-first commits on `coordinator/task-62c68b6a`. See the companion sprint plan and `docs/sprint-retros/M-SERVEAPI-RESPONSE-HEADERS-retro.md` for wire evidence, mutation checks and explicit baseline/CI limitations.

@@ -20,6 +20,9 @@ func serveAPICommand(args []string) error {
 	var corsOrigins multiFlag
 	fs.Var(&corsOrigins, "cors-origin", "Allow cross-origin requests from this exact origin (scheme://host[:port]); repeatable. Unlisted origins get 403 on non-GET requests")
 	frontendFlag := fs.String("frontend", "", "Path to React/Vite project (proxies non-/api/ requests to Vite dev server)")
+	var staticHeaders multiFlag
+	fs.Var(&staticHeaders, "static-header", "Static response header Name: value (repeatable, last wins)")
+	noStaticSecurity := fs.Bool("no-static-security-headers", false, "Disable default static security headers")
 	staticFlag := fs.String("static", "", "Path to built frontend files (serve as static files)")
 	watchFlag := fs.Bool("watch", false, "Watch .ail files for changes and hot-reload")
 	capsFlag := fs.String("caps", "", "Capabilities to grant (comma-separated: "+runner.CapsList+")")
@@ -65,6 +68,9 @@ func serveAPICommand(args []string) error {
 		return err
 	}
 
+	if _, err := apiserver.ParseStaticHeaders(*staticFlag, *noStaticSecurity, staticHeaders); err != nil {
+		return err
+	}
 	staticCache, err := apiserver.ParseStaticCache(*staticCacheFlag)
 	if err != nil {
 		return err
@@ -171,6 +177,7 @@ func serveAPICommand(args []string) error {
 
 		NoIntrospection: *noIntrospectionFlag,
 		StaticCache:     staticCache,
+		StaticHeaders:   apiserver.StaticHeaderOptions{Disabled: *noStaticSecurity, Headers: staticHeaders},
 	}
 
 	srv := apiserver.New(basePath, cfg)
@@ -227,6 +234,8 @@ func printServeAPIHelp() {
 	fmt.Println("                       unlisted origins get 403 on POST/PUT/DELETE and preflights")
 	fmt.Println("  --frontend PATH      Path to React/Vite project for dev proxy")
 	fmt.Println("  --static PATH        Path to built frontend files")
+	fmt.Println("  --static-header H    Static response header 'Name: value' (repeatable, last wins)")
+	fmt.Println("  --no-static-security-headers  Disable default nosniff/framing/referrer headers")
 	fmt.Println("  --static-cache V     Cache-Control on --static 2xx/304: 'immutable' or a max-age in seconds")
 	fmt.Println("  --watch              Watch .ail files for changes and hot-reload")
 	fmt.Printf("  --caps CAPS          Capabilities to grant (comma-separated: %s)\n", runner.CapsList)

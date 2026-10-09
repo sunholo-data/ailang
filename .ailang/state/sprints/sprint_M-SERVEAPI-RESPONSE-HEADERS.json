@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-SERVEAPI-RESPONSE-HEADERS",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-08T20:14:13Z",
-  "design_doc": "design_docs/planned/v0_53_0/m-serveapi-response-headers.md",
-  "sprint_plan": "design_docs/planned/v0_53_0/m-serveapi-response-headers-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_54_0/m-serveapi-response-headers.md",
+  "sprint_plan": "design_docs/implemented/v0_54_0/m-serveapi-response-headers-sprint-plan.md",
   "github_issues": [
     1597,
     1609
@@ -33,7 +33,11 @@
     "estimated_total_loc": 1120,
     "estimated_days": 6,
     "measured_loc_per_day": null,
-    "estimate_basis": "Limited checkout history; design-based estimates including one verification/review day."
+    "estimate_basis": "Limited checkout history; design-based estimates including one verification/review day.",
+    "actual_total_loc": 1216,
+    "actual_days": 1,
+    "actual_loc_per_day": 1216,
+    "notes": "One cloud execution session; actual LOC counts added lines in M1-M3 commits, not an empirical day-rate forecast."
   },
   "features": [
     {
@@ -49,10 +53,11 @@
         "CLI help, operator examples, migration guidance and changelog fragment changelogs/unreleased/YYYY-MM-DD-serve-api-static-security-headers.md ship in the M1 commits; fresh-binary curl evidence is recorded.",
         "M1 is self-contained commits FIRST on the branch (no M2/M3 files) so a human can split or cherry-pick them to ship first; wiring lives in internal/apiserver/static_headers.go with near-zero growth in server.go (788 lines)."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T07:47:00Z",
+      "completed": "2026-10-09T08:05:23Z",
+      "notes": "Self-contained first commit 42b444ed. Static wire defaults cover 200/301/307/304/404, Config overrides/opt-out, startup validation, API/MCP/A2A/proxy isolation. Fresh-binary curl recorded. server.go stays 794 lines (+6).",
+      "actual_loc": 302
     },
     {
       "id": "M2",
@@ -60,7 +65,7 @@
       "estimated_loc": 540,
       "dependencies": [],
       "acceptance_criteria": [
-        "Both forms × both paths send X-Frame-Options and CSP through the real server; Result.Ok coverage exercises the existing unwrap behavior.",
+        "Both forms \u00d7 both paths send X-Frame-Options and CSP through the real server; Result.Ok coverage exercises the existing unwrap behavior.",
         "Json preserves exact underscore names; record names remap; _headers metadata is absent from serialized response bodies and original eval records are not mutated.",
         "Invalid shapes, non-string fields/JObject values, invalid names and control characters produce structured 500 responses plus ERROR logs naming accepted forms and offending fields.",
         "Declared incompatible @route _headers types are refused at registration; valid record/Json declarations remain accepted.",
@@ -69,10 +74,11 @@
         "New runnable example checks and serves all four combinations; request-side mcp_tools and serve_api_mcp_header_auth fixtures and their auth suite remain unchanged and pass.",
         "Temporarily reverting the remap or raw Json acceptance makes the corresponding production wire test fail; restore changes afterward."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T07:48:00Z",
+      "completed": "2026-10-09T08:08:26Z",
+      "notes": "Commit d250d0b5. Shared eval.Value extraction, record remap, exact Json names, atomic validation, server-owned header refusal, registration alias/Result checks, Content-Type ordering. Both forms \u00d7 both paths + Result wire matrix pass, bad header handlers log ERROR and return structured 500. Both mutation tests fail as intended; restored suite passes. AILANG prompt version loaded: v0.16.6. Showcase effects: pure signatures; contracts skipped because behavior is HTTP metadata at hosting boundary; inline tests skipped because no-input handlers are covered by real server tests. Guide examples and response/auth examples check. Existing mcp_tools.ail Option[string] vs string error reproduces on installed pre-sprint binary; request fixture unchanged.",
+      "actual_loc": 641
     },
     {
       "id": "M3",
@@ -88,10 +94,11 @@
         "Existing target-less behavior and metadata checks remain unchanged; tests pin target composition and error cases.",
         "Both corrected guide examples are extracted and checked with the fresh binary; connector guide distinguishes new defaults from the workaround for older releases."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T07:46:00Z",
+      "completed": "2026-10-09T08:11:41.122910+00:00",
+      "notes": "Commit fc7cb61a. Exact dummy OAuth/S256 parameter tests, final redirect/protection outcome matrix and discovered-endpoint integration tests pass. Fresh CLI probe protected both PASS, unprotected both FAIL, unprotected openai WARN.",
+      "actual_loc": 273
     }
   ],
   "verification_gate": {
@@ -110,13 +117,15 @@
       "All named examples and request-header regressions pass, and mutation evidence is recorded.",
       "sprint-evaluator assesses the final implementation against the approved design; unresolved acceptance failures block completion."
     ],
-    "passes": null
+    "passes": true,
+    "completed": "2026-10-09T08:11:41.122910+00:00",
+    "notes": "Fresh make build, focused apiserver/mcpcheck suites, intended CLI filter ServeAPI|Static|^TestHelp, make lint (successful warm-cache retry), fmt-check, check-file-sizes, check-cli-docs, check-changelog, check-boundaries and verify-examples pass. 234 runnable examples pass, 9 skipped; manifest no drift. Full make test deferred to CI as planned. test-core has preexisting SQLite CGO-disabled failures; unrelated broad Help pattern matched timing test (34.89s >30s under contention), intended CLI tests pass. Pre-sprint installed binary reproduces mcp_tools Option[string] defect. Independent local evaluation PASS 95/100; report .ailang/state/evaluations/eval_M-SERVEAPI-RESPONSE-HEADERS_round_1.json."
   },
   "handoff": {
     "approval_required": true,
     "dispatch": "Coordinator plan approval; do not duplicate executor dispatch."
   },
-  "target_version": "v0.53.0",
+  "target_version": "v0.54.0",
   "executor_constraints": [
     "M1 as self-contained commits first on the branch; no separate PR A/PR B.",
     "server.go (788 lines): M1 wiring in new static_headers.go, near-zero growth in server.go.",
@@ -124,5 +133,14 @@
     "No full make test locally (SIGBUS in RAM-backed /tmp): focused go test on touched packages plus make test-core; full suite runs in CI.",
     "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-SERVEAPI-RESPONSE-HEADERS before starting and after every JSON update.",
     "Executor cannot push or merge; commit locally with Refs #1597 / Refs #1609."
-  ]
+  ],
+  "last_session": "2026-10-09T08:11:41.122910+00:00",
+  "last_checkpoint": "M4 complete; independent local evaluation PASS 95/100; coordinator PR/full CI pending",
+  "evaluation": {
+    "result": "pass",
+    "score": 95,
+    "round": 1,
+    "report": ".ailang/state/evaluations/eval_M-SERVEAPI-RESPONSE-HEADERS_round_1.json",
+    "scope": "local implementation; full CI and merge pending"
+  }
 }

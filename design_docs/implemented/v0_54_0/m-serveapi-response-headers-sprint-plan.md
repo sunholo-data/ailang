@@ -4,18 +4,18 @@
 
 Make static hosting safe by default, then make route response headers usable on both dispatch paths with explicit failures. Refs #1597. Refs #1609. No new issue is required.
 
-**Design:** `design_docs/planned/v0_53_0/m-serveapi-response-headers.md`
-**Target:** v0.53.0 / v0.53.x; current `std/VERSION` is v0.52.5, so the target is not stale.
+**Design:** `design_docs/implemented/v0_54_0/m-serveapi-response-headers.md`
+**Target:** v0.54.0; current `std/VERSION` is v0.53.0, so the target is not stale.
 **Duration:** 6 working days, approximately 36 focused hours including 6 hours of integration/review buffer.
 **Estimated total:** 1,120 LOC (440 implementation, 480 tests, 200 examples/docs).
 **Risk:** Medium: public defaults and header naming change; maintainer rulings D1/D4 are already approved.
-**State:** Planning complete; execution awaits sprint approval through the coordinator. Design approval does not imply implementation has started.
+**State:** Implementation and independent local evaluation completed on 2026-10-09 (95/100); coordinator PR/CI follow.
 
 ## Current Status and Estimate Basis
 
 The checkout is clean at planning start, on `coordinator/task-78bcfd88`. The incoming design artifact is present; its original work branch was `coordinator/task-68b343ad`.
 
-Source inspection confirms both response sites still contain their independent header loops, raw Json headers are unhandled, and raw Content-Type defaults are assigned after WriteHeader. The design audits static, raw, nowrap, registration, CORS, request headers, guide examples, and MCP discovery: the systemic-analysis gate is satisfied. None of the implementation milestones is complete.
+Source inspection confirms both response sites still contain their independent header loops, raw Json headers are unhandled, and raw Content-Type defaults are assigned after WriteHeader. The design audits static, raw, nowrap, registration, CORS, request headers, guide examples, and MCP discovery: the systemic-analysis gate is satisfied. At planning time none of the implementation milestones was complete; all milestones are now complete, with local baseline exceptions recorded below.
 
 The skill's seven-day velocity script found only one visible commit (8f15a892, an unrelated sprint-plan commit) and no usable LOC metrics. This checkout's limited history cannot establish an empirical LOC/day or completion rate. Use the design's six-day estimate with explicit buffer rather than treating planning activity as implementation velocity. Planned capacity is about 187 total LOC/day; this is a budget, not a measured rate. Re-estimate after M1 if its tests or CLI wiring exceed one day.
 
@@ -47,12 +47,12 @@ Create `internal/apiserver/static_headers.go` and `static_headers_test.go`; upda
 
 Clone static_cache's startup/wrapper pattern. Default to nosniff, DENY, frame-ancestors 'none', and no-referrer; implement repeatable --static-header with case-insensitive last-wins names and --no-static-security-headers. Validate token names and nonempty values free of controls before serving. Security applies to every static status, while cache behavior stays 2xx/304-only. Demonstrate operator commands in the guide using an existing runnable service; no new AILANG feature is required in M1.
 
-- [ ] Real server wire tests show all four defaults on static 200, redirect, 304, and 404 responses.
-- [ ] Overrides, repeated case variants, opt-out, and opt-out plus explicit headers produce the specified wire headers.
-- [ ] Invalid names/values and either flag without --static fail startup with actionable errors.
-- [ ] API/MCP/A2A and frontend proxy responses do not acquire static defaults; static cache regression tests pass.
-- [ ] CLI help, operator examples, migration guidance and the changelog fragment ship in the M1 commits; fresh-binary curl evidence is recorded.
-- [ ] M1 commits come first on the branch and are self-contained (no M2/M3 files), so they can be split or cherry-picked to ship first; `server.go` net growth is near zero.
+- [x] Real server wire tests show all four defaults on static 200, redirect, 304, and 404 responses.
+- [x] Overrides, repeated case variants, opt-out, and opt-out plus explicit headers produce the specified wire headers.
+- [x] Invalid names/values and either flag without --static fail startup with actionable errors.
+- [x] API/MCP/A2A and frontend proxy responses do not acquire static defaults; static cache regression tests pass.
+- [x] CLI help, operator examples, migration guidance and the changelog fragment ship in the M1 commits; fresh-binary curl evidence is recorded.
+- [x] M1 commits come first on the branch and are self-contained (no M2/M3 files), so they can be split or cherry-picked to ship first; `server.go` net growth is near zero.
 
 Risk: an app legitimately framing static HTML needs both X-Frame-Options and CSP overrides (SAMEORIGIN alone leaves frame-ancestors 'none' blocking frames). Document both overrides or the wholesale opt-out.
 
@@ -65,14 +65,14 @@ Create `internal/apiserver/route_headers.go` and `route_headers_test.go`; update
 
 Extract from eval.Value after existing Result.Ok unwrapping and before ToGo. Records remap underscores to hyphens; JObject names remain exact. Validate the entire header set before mutating the writer so a later invalid field cannot leak partial program headers into an error response. Choose D7's explicit refusal option: reject X-Elapsed-Ms, Access-Control-* and Vary case-insensitively after normalization, retaining operator CORS and timing ownership. Set raw body Content-Type defaults before WriteHeader, then permit a valid program Content-Type override. Add declared-return-type diagnostics following WSReqIssue; avoid rejecting legitimate Json aliases or Result-wrapped returns supported by the existing dispatch.
 
-- [ ] Both forms × both paths send X-Frame-Options and CSP through the real server; Result.Ok coverage exercises the existing unwrap behavior.
-- [ ] Json preserves exact underscore names; record names remap; _headers metadata is absent from serialized response bodies and original eval records are not mutated.
-- [ ] Invalid shapes, non-string fields/JObject values, invalid names and control characters produce structured 500 responses plus ERROR logs naming accepted forms and offending fields.
-- [ ] Declared incompatible @route _headers types are refused at registration; valid record/Json declarations remain accepted.
-- [ ] Reserved-header attempts fail loudly on both paths and cannot overwrite CORS, Vary or timing; valid program Content-Type wins over defaults.
-- [ ] Raw string, bytes and JSON body defaults appear on the wire before status commitment.
-- [ ] New runnable example checks and serves all four combinations; request-side mcp_tools and serve_api_mcp_header_auth fixtures and their auth suite remain unchanged and pass.
-- [ ] Temporarily reverting the remap or raw Json acceptance makes the corresponding production wire test fail; restore changes afterward.
+- [x] Both forms × both paths send X-Frame-Options and CSP through the real server; Result.Ok coverage exercises the existing unwrap behavior.
+- [x] Json preserves exact underscore names; record names remap; _headers metadata is absent from serialized response bodies and original eval records are not mutated.
+- [x] Invalid shapes, non-string fields/JObject values, invalid names and control characters produce structured 500 responses plus ERROR logs naming accepted forms and offending fields.
+- [x] Declared incompatible @route _headers types are refused at registration; valid record/Json declarations remain accepted.
+- [x] Reserved-header attempts fail loudly on both paths and cannot overwrite CORS, Vary or timing; valid program Content-Type wins over defaults.
+- [x] Raw string, bytes and JSON body defaults appear on the wire before status commitment.
+- [x] New runnable example checks and serves all four combinations; request-side mcp_tools and serve_api_mcp_header_auth fixtures and their auth suite remain unchanged and pass.
+- [x] Temporarily reverting the remap or raw Json acceptance makes the corresponding production wire test fail; restore changes afterward.
 
 Risk: Result/alias handling and row-polymorphic declared shapes require following existing AST/export conventions rather than inventing compiler semantics. Keep implementation in the hosting boundary.
 
@@ -83,11 +83,11 @@ Risk: Result/alias handling and row-polymorphic declared shapes require followin
 
 Update `internal/mcpcheck/mcpcheck.go` and its tests (or a small framing-specific file if size checks require it). Extend discovered metadata with authorization_endpoint. Use existing bounded/context-aware HTTP client behavior, send response_type=code, dummy client_id/redirect_uri/state and valid S256 PKCE parameters, and follow redirects. Judge only final 2xx HTML. Choose WARN for openai; anthropic/both missing protections FAIL. Reuse M2's example in `serve-api.md`, replace the two broken examples, and finish connector guidance and a changelog fragment `changelogs/unreleased/YYYY-MM-DD-serve-api-route-response-headers.md` for M2/M3 without delaying M1 docs.
 
-- [ ] Mock authorization server asserts every dummy request parameter and redirect-following behavior.
-- [ ] Final 2xx HTML with X-Frame-Options or CSP frame-ancestors passes; without either FAILs for anthropic/both and WARNs for openai.
-- [ ] Non-2xx, non-HTML, unreachable endpoints and redirect/client failures WARN with useful outcome details; no OAuth metadata skips the probe.
-- [ ] Existing target-less behavior and metadata checks remain unchanged; tests pin target composition and error cases.
-- [ ] Both corrected guide examples are extracted and checked with the fresh binary; connector guide distinguishes new defaults from the workaround for older releases.
+- [x] Mock authorization server asserts every dummy request parameter and redirect-following behavior.
+- [x] Final 2xx HTML with X-Frame-Options or CSP frame-ancestors passes; without either FAILs for anthropic/both and WARNs for openai.
+- [x] Non-2xx, non-HTML, unreachable endpoints and redirect/client failures WARN with useful outcome details; no OAuth metadata skips the probe.
+- [x] Existing target-less behavior and metadata checks remain unchanged; tests pin target composition and error cases.
+- [x] Both corrected guide examples are extracted and checked with the fresh binary; connector guide distinguishes new defaults from the workaround for older releases.
 
 Risk: dummy clients often receive a rejection rather than consent HTML. WARN is required in that case; absence of an assessable page is not a security PASS.
 
@@ -98,10 +98,10 @@ Risk: dummy clients often receive a rejection rather than consent HTML. WARN is 
 
 This is a verification-only milestone, not an implementable feature. Do **not** run the full `make test` locally: in the executor's RAM-backed /tmp it has crashed with SIGBUS; the full suite runs in CI on the PR. Run the full acceptance matrix against a fresh build, inspect that the M1 commits stay self-contained, and record results. Any review edits consume the buffer; re-estimate if scope grows beyond it.
 
-- [ ] make build, focused `go test ./internal/apiserver/... ./internal/mcpcheck/...` plus `go test ./cmd/ailang/... -run 'ServeAPI|Static|Help' -count=1`, make test-core, make lint, make check-file-sizes, make check-cli-docs, make check-changelog and make check-boundaries pass, or concrete pre-existing failures are recorded separately.
-- [ ] Fresh-binary curl evidence covers defaults/override/opt-out and all four route header cases; local mcp check evidence covers assessable protected and unprotected consent pages.
-- [ ] All named examples and request-header regressions pass, and mutation evidence is recorded.
-- [ ] sprint-evaluator assesses the final implementation against the approved design; unresolved acceptance failures block completion.
+- [x] make build, focused `go test ./internal/apiserver/... ./internal/mcpcheck/...` plus `go test ./cmd/ailang/... -run 'ServeAPI|Static|Help' -count=1`, make test-core, make lint, make check-file-sizes, make check-cli-docs, make check-changelog and make check-boundaries pass, or concrete pre-existing failures are recorded separately.
+- [x] Fresh-binary curl evidence covers defaults/override/opt-out and all four route header cases; local mcp check evidence covers assessable protected and unprotected consent pages.
+- [x] All named examples and request-header regressions pass, and mutation evidence is recorded.
+- [x] sprint-evaluator assesses the final implementation against the approved design; unresolved acceptance failures block completion.
 
 ## Day-by-Day Execution
 
@@ -125,3 +125,9 @@ Design decisions are frozen. There are no remaining design approval questions. C
 ## Planning Artifact Validation
 
 `.claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-SERVEAPI-RESPONSE-HEADERS` passes (re-checked at review, 2026-10-09, with jq). The executor must re-run it before starting and after every sprint JSON update. No implementation tests were run during planning.
+
+## Execution evidence (2026-10-09)
+
+M1 `42b444ed` is the first self-contained implementation commit; M2 `d250d0b5` and M3 `fc7cb61a` follow. The executor branch is `coordinator/task-62c68b6a` (the coordinator supplied a new checkout). Target retargeted to v0.54.0 because std/VERSION is v0.53.0.
+
+Local gates pass, with baseline/environment exceptions recorded in `docs/sprint-retros/M-SERVEAPI-RESPONSE-HEADERS-retro.md`. Full CI remains the coordinator PR gate. The checked criteria above describe implemented behavior; named-fixture/test-core preexisting failures are explicitly excepted rather than claimed passing. No push, merge or new issue. Refs #1597. Refs #1609.

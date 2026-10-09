@@ -5,6 +5,21 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/serve_api_response_headers.ail",
+      "status": "working",
+      "tags": [
+        "http",
+        "headers",
+        "records",
+        "json"
+      ],
+      "description": "Route response headers on raw and nowrap paths, using records and Json",
+      "modules": [
+        "std/json",
+        "std/result"
+      ]
+    },
+    {
       "path": "inline_tests_expected_values.ail",
       "status": "working",
       "tags": [
@@ -3265,11 +3280,11 @@
     }
   ],
   "statistics": {
-    "total": 221,
-    "working": 213,
+    "total": 222,
+    "working": 214,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9638009049773756,
+    "coverage": 0.963963963963964,
     "experimental": 0
   },
   "milestones": {
