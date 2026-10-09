@@ -1883,3 +1883,21 @@ Run the automated tests:
 ```
 
 This starts the server, exercises all endpoints (function calls, introspection, error handling, CORS), and reports pass/fail.
+
+## Static security headers (v0.54.0+)
+
+Static hosting sends nosniff, X-Frame-Options DENY, CSP frame-ancestors 'none',
+and Referrer-Policy no-referrer on all statuses, including redirects and errors.
+To allow same-origin framing, override **both** framing headers:
+
+```bash
+ailang serve-api examples/runnable/serve_api_mcp_header_auth.ail --static ./ui/dist \
+  --static-header "X-Frame-Options: SAMEORIGIN" \
+  --static-header "Content-Security-Policy: frame-ancestors 'self'"
+```
+
+Overrides are repeatable and case-insensitive (last wins). To remove all defaults,
+use `--no-static-security-headers`; explicit `--static-header` values still apply.
+These options require `--static` and reject invalid header names, empty values,
+and control characters at startup. Deployments framing static pages must migrate
+with both overrides or opt out explicitly. The defaults affect static files only.

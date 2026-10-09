@@ -330,14 +330,14 @@ ailang serve-api --mcp-http --routes-only \
 Put an `index.html` in each static directory, because `--static` otherwise lists directory
 contents.
 
-**Anti-framing guard.** An authorization server must stop its consent page being framed
-(RFC 9700 §4.16). `serve-api --static` cannot send `X-Frame-Options` or CSP `frame-ancestors` yet
-([ailang#1597](https://github.com/sunholo-data/ailang/issues/1597)). Routes cannot set hyphenated
-response headers either ([ailang#1609](https://github.com/sunholo-data/ailang/issues/1609)). So the
-page defends itself. Parse's `oauth-login.html` ships as `<html class="af-hidden">`. A synchronous
-`antiframe.js` in `<head>` reveals the page only when `window.self === window.top`, and otherwise
-tries to break out of the frame. The consent script also refuses to run while framed. Copy that
-pattern until #1597 is fixed.
+**Anti-framing guard.** From v0.54.0, `serve-api --static` sends
+`X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`
+by default, plus nosniff and no-referrer. Keep these defaults for OAuth consent
+pages. `--static-header` overrides individual headers;
+`--no-static-security-headers` removes defaults and requires you to supply your
+own protections. On older releases, configure these headers at the reverse
+proxy. Parse's synchronous `antiframe.js` guard and consent-script frame check
+remain an additional defense for older deployments.
 
 ### Security properties
 

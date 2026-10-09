@@ -90,7 +90,8 @@ type Server struct {
 	ws             *wsState            // WebSocket route sessions (routes_ws.go)
 
 	// M-SERVEAPI-OPERATOR-SURFACE
-	noIntrospection bool   // --no-introspection: no /api/_meta/* and no /api/_health
+	noIntrospection bool // --no-introspection: no /api/_meta/* and no /api/_health
+	staticHeaders   StaticHeaderOptions
 	staticCache     string // --static-cache: the Cache-Control value for --static 2xx/304 ("" = none)
 }
 
@@ -163,7 +164,8 @@ type Config struct {
 	NoIntrospection bool
 	// StaticCache is the Cache-Control value set on --static 2xx/304
 	// responses; build it with ParseStaticCache. "" sets none.
-	StaticCache string
+	StaticCache   string
+	StaticHeaders StaticHeaderOptions
 	// OAuthIssuer is the authorization server named in the listed MCP
 	// surface's protected-resource metadata (--oauth-issuer). Required for
 	// any @mcp_auth("oauth2") tool. M-SERVEAPI-DIRECTORY-READY.
@@ -247,6 +249,7 @@ func New(basePath string, cfg Config) *Server {
 		ws:                 newWSState(cfg.WS),
 		noIntrospection:    cfg.NoIntrospection,
 		staticCache:        cfg.StaticCache,
+		staticHeaders:      cfg.StaticHeaders,
 	}
 }
 
@@ -517,6 +520,9 @@ func (s *Server) Start() error {
 		return s.StartMCP()
 	}
 
+	if err := s.ValidateStaticHeaders(); err != nil {
+		return err
+	}
 	if err := s.ValidateWSRoutes(); err != nil {
 		return err
 	}
@@ -570,7 +576,7 @@ func (s *Server) Start() error {
 	return srv.Serve(ln)
 }
 
-func (s *Server) buildRoutes() *http.ServeMux {
+func (s *Server) buildRoutes() http.Handler {
 	mux := http.NewServeMux()
 
 	// Meta/introspection endpoints, OpenAPI spec + interactive docs.
@@ -647,7 +653,7 @@ func (s *Server) buildRoutes() *http.ServeMux {
 
 	// Static files or frontend proxy
 	if s.staticPath != "" {
-		mux.Handle("/", staticCacheHandler(s.staticCache, http.FileServer(http.Dir(s.staticPath))))
+		mux.Handle("/", s.staticHandler())
 	} else if s.frontendPath != "" {
 		// Proxy to Vite dev server
 		viteURL, _ := url.Parse("http://localhost:5173")
@@ -655,7 +661,7 @@ func (s *Server) buildRoutes() *http.ServeMux {
 		mux.Handle("/", proxy)
 	}
 
-	return mux
+	return s.staticRoutingHandler(mux)
 }
 
 func (s *Server) startViteProxy() error {

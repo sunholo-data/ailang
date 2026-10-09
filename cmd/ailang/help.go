@@ -383,6 +383,7 @@ func printHelp() {
 	fmt.Println("Web & Services:")
 	fmt.Printf("  %s                         # Start Observatory dashboard\n", cyan("ailang server"))
 	fmt.Printf("  %s          # Serve modules as REST API\n", cyan("ailang serve-api ./api/"))
+	fmt.Println("    --static PATH enables security headers; --static-header 'Name: value' overrides; --no-static-security-headers opts out")
 	fmt.Println()
 	fmt.Println("WebAssembly (Browser):")
 	fmt.Printf("  %s  # Download WASM\n", cyan("gh release download --repo sunholo-data/ailang -p 'ailang-wasm.tar.gz'"))
