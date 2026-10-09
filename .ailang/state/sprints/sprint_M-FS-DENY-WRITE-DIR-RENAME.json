@@ -1,0 +1,115 @@
+{
+  "sprint_id": "M-FS-DENY-WRITE-DIR-RENAME",
+  "status": "not_started",
+  "created": "2026-10-08T18:52:50Z",
+  "design_doc": "design_docs/planned/v0_52_6/m-fs-deny-write-dir-rename.md",
+  "sprint_plan": "design_docs/planned/v0_52_6/m-fs-deny-write-dir-rename-sprint-plan.md",
+  "github_issues": [
+    1569
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_SHARED_MATCHER",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "fileguard",
+        "sandbox"
+      ],
+      "reason": "Both registry searches returned no packages. Extend existing internal/fileguard Go host enforcement; an AILANG package cannot replace the pre-effect security gate."
+    },
+    {
+      "milestone": "M2_FS_ENFORCEMENT",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "fileguard",
+        "sandbox"
+      ],
+      "reason": "Both registry searches returned no packages. Wire existing Go effects handlers and FSRemove to the shared structural gate; no package capability is needed."
+    },
+    {
+      "milestone": "M3_DOCS_VALIDATION",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "fileguard",
+        "sandbox"
+      ],
+      "reason": "Both registry searches returned no packages. Document and validate the existing host policy/runtime contract; no package dependency is needed."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 160,
+    "estimated_total_loc": 320,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_SHARED_MATCHER",
+      "description": "Shared structural-mutation matcher",
+      "estimated_loc": 160,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Literal `.claude/settings.json`, `a/b/**` and `a/*/x.txt` refuse their matching ancestors; direct protected paths remain refused.",
+        "Case/NFC folding, leading `./`, cleaned paths, wildcard components, middle `**` and malformed-glob fail-closed behavior have explicit unit cases.",
+        "Unrelated paths and `.claude/sub` remain allowed under `.claude/settings.json`; base patterns `*.yml` and `Makefile` do not freeze unrelated directory names.",
+        "`CheckMove` preserves `.git` precedence and marks only additional ancestor violations with `Ancestor`; pattern text remains original.",
+        "`go test ./internal/fileguard` passes and existing plain-check tests remain unchanged in behavior."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_FS_ENFORCEMENT",
+      "description": "Structural FS enforcement and denial evidence",
+      "estimated_loc": 145,
+      "dependencies": [
+        "M1_SHARED_MATCHER"
+      ],
+      "acceptance_criteria": [
+        "For literal, nested `/**` and mid-glob policies, source moves and independently prepared destination planting are refused before any mutation.",
+        "Both rename variants exercise both operands through `effects.Call`; throwing variants report `E_FS_PROTECTED`, Result variants return `Err` containing the same code.",
+        "All three dispatched removal variants refuse an empty protected ancestor with `E_FS_PROTECTED`, avoiding a false pass from the backend's non-empty-directory error; `FSRemove` is tested directly as an exported helper.",
+        "Every denied mutation asserts unchanged file content and source/destination directory state; do not demand denial of an arbitrary temporary-path write that the policy does not protect.",
+        "Unrelated directory moves, `run.json.tmp` to `run.json`, ancestor mkdir/write behavior, no-deny operation behavior and base-glob directory moves remain allowed; moved base-glob files remain write-protected.",
+        "Existing `.git`, sandbox-boundary and direct-write protection tests pass; `go test ./internal/effects ./internal/fileguard ./internal/policytool` passes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_DOCS_VALIDATION",
+      "description": "Policy documentation and release validation",
+      "estimated_loc": 15,
+      "dependencies": [
+        "M1_SHARED_MATCHER",
+        "M2_FS_ENFORCEMENT"
+      ],
+      "acceptance_criteria": [
+        "FS rename/remove comments and the policy guide state that structural operations protect matching ancestor directories, including both rename operands.",
+        "The guide explains `dir/**` still protects all contents and now protects its higher ancestors; basename patterns keep their current behavior.",
+        "Add a Fixed entry under Unreleased referencing #1569 and the two sibling variants; do not bump versions or open a new issue.",
+        "Run `make fmt`, `make test`, `make lint`, and `make check-boundaries`; record actual results and surface any environmental blockers instead of claiming unrun checks passed.",
+        "Inspect the final diff for one shared matcher, correct handler coverage and unchanged write/mkdir semantics; carry `Refs #1569` in the implementation PR body.",
+        "Run sprint-evaluator against the approved design and this plan after execution; resolve failures before reporting completion."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "approval_status": "pending_sprint_approval",
+  "handoff": {
+    "target": "sprint-executor",
+    "trigger": "coordinator approval/merge of sprint-plan PR",
+    "estimated_hours": 8,
+    "risk_level": "medium",
+    "pr_body_required": "Refs #1569"
+  }
+}
