@@ -89,33 +89,12 @@ All milestones have been completed and tests pass.
 **FILES_MODIFIED**: `internal/existing.go`
 ```
 
-## Unattended runs (coordinator tasks, mission fires, `claude -p`)
-
-When no human is in the session to answer, every "pause", "ask the user" or
-"wait for approval" step in this skill becomes **commit and continue**:
-
-- **Commit after each milestone** on the work branch. Uncommitted work is lost work:
-  the coordinator pushes your branch when you finish. Never wait for permission to commit.
-- **A blocker on one milestone is not a stop.** Record it (sprint JSON `notes`, the plan's
-  checkbox left open with a one-line reason), then carry on with every milestone that
-  does not depend on it. A failure that already exists at the starting commit (a broken
-  docs build, a pre-existing failing test) is recorded and worked around, not escalated.
-- **Stop only when no remaining milestone can make progress**, and say exactly what
-  blocks each one in the final report.
-- Decisions the plan leaves open: take the option the design doc's decisions point to,
-  write down why in the sprint JSON, and continue.
-
-Measured 2026-10-08: Claude Haiku 5.5 replaying four merged sprint-executor tasks stopped
-twice at these pause points — once holding a finished sprint uncommitted for permission,
-once halting after M1 over a docs failure that predated the task — where the original
-executor completed both. Haiku now sits on the executor fallback chain.
-
 ## Core Principles
 
 1. **Test-Driven**: All code must pass tests before moving to next milestone
 2. **Lint-Clean**: All code must pass linting before moving to next milestone
 3. **Document as You Go**: Update CHANGELOG.md and sprint plan progressively
-4. **Pause for Breath**: Stop at natural breakpoints for review and approval — **interactive sessions only; see "Unattended runs" below**
+4. **Pause for Breath**: Stop at natural breakpoints for review and approval — **interactive sessions only; unattended runs commit and continue, see [resources/unattended_runs.md](resources/unattended_runs.md)**
 5. **Track Everything**: Use TodoWrite to maintain visible progress
 6. **DX-First**: Improve AILANG development experience as we go - make it easier next time
 7. **Parallelize When Possible**: Independent milestones run as concurrent Task sub-agents for speed
