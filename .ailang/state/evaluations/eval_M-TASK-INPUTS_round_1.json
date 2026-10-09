@@ -188,7 +188,8 @@
     "changelog_updated": true,
     "examples_created": true,
     "example_kind": "JSON/YAML transport examples as approved; no language examples needed",
-    "design_doc_status": "Implemented; design and companion plan archived together"
+    "design_doc_status": "Implemented; design and companion plan archived together",
+    "changelog_path": "changelogs/unreleased/2026-10-09-task-inputs.md"
   },
   "design_fidelity": {
     "score": 10,
@@ -222,5 +223,25 @@
     "result": "pass",
     "log": "/tmp/task-inputs-1600-portable-fixture.log",
     "limitation": "Focused rerun passed locally; Windows CI execution remains a separate signal on the published PR."
+  },
+  "post_gate_gitexec_review": {
+    "change": "Nine relocated bare git exec.CommandContext calls in coordinator_cloud_task.go now use the existing absolute gitexec.CommandContext resolver. Removed unused os/exec import and obsolete coordinator_cloud.go baseline entry; no new baseline exemption added.",
+    "review": "Independently compared every call: context, git arguments, stdout/stderr and Run/Output behavior are preserved. Baseline shrinks by nine and the check reports 35 remaining sites.",
+    "gates": {
+      "check-git-exec": "pass",
+      "check-referenced-paths": "pass (88 paths)",
+      "check-changelog": "pass (13 fragments; shared Unreleased section clean)",
+      "focused_cloud_credential_input_tests": "pass",
+      "make_lint": "pass (0 issues)",
+      "check-cli-docs": "pass"
+    },
+    "evidence_logs": [
+      "/tmp/task-inputs-1600-extra-gates.log",
+      "/tmp/task-inputs-1600-gitexec-tests.log",
+      "/tmp/task-inputs-1600-gitexec-lint.log"
+    ],
+    "changelog_fix": "Moved the previously shared Unreleased entry into changelogs/unreleased/2026-10-09-task-inputs.md, consistent with repository CI policy.",
+    "scope": "Full independent test/size/example gates remain recorded at 0b5993561; this narrow post-gate call-site fix has additional focused tests, lint and static CI-surface gates. Published PR CI provides final head verification.",
+    "result": "pass"
   }
 }

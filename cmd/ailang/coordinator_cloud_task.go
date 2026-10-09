@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -72,7 +71,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	if pluginRepo != "" {
 		pluginDir = filepath.Join("/plugins", taskID, "ailang_bootstrap")
 		fmt.Printf("execute-job: cloning plugin repo %s\n", pluginRepo)
-		pluginCloneCmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", pluginRepo, pluginDir)
+		pluginCloneCmd := gitexec.CommandContext(ctx, "clone", "--depth", "1", pluginRepo, pluginDir)
 		pluginCloneCmd.Stdout = os.Stdout
 		pluginCloneCmd.Stderr = os.Stderr
 		if err := pluginCloneCmd.Run(); err != nil {
@@ -126,7 +125,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	}
 
 	fmt.Printf("execute-job: cloning %s (branch=%s)\n", repoURL, baseBranch)
-	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--branch", baseBranch, "--depth", "1", repoURL, workDir)
+	cloneCmd := gitexec.CommandContext(ctx, "clone", "--branch", baseBranch, "--depth", "1", repoURL, workDir)
 	cloneCmd.Stdout = os.Stdout
 	cloneCmd.Stderr = os.Stderr
 	if err := cloneCmd.Run(); err != nil {
@@ -144,7 +143,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	}
 
 	// M-HARNESS-COMMIT-CONTRACT: Capture clone point for artifact discovery.
-	clonePointCmd := exec.CommandContext(ctx, "git", "-C", workDir, "rev-parse", "HEAD")
+	clonePointCmd := gitexec.CommandContext(ctx, "-C", workDir, "rev-parse", "HEAD")
 	clonePointOutput, _ := clonePointCmd.Output()
 	clonePoint := strings.TrimSpace(string(clonePointOutput))
 
@@ -169,7 +168,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		branchName = fmt.Sprintf("coordinator/%s", taskID)
 		fmt.Printf("execute-job: creating branch %s\n", branchName)
 
-		checkoutCmd := exec.CommandContext(ctx, "git", "-C", workDir, "checkout", "-b", branchName)
+		checkoutCmd := gitexec.CommandContext(ctx, "-C", workDir, "checkout", "-b", branchName)
 		checkoutCmd.Stdout = os.Stdout
 		checkoutCmd.Stderr = os.Stderr
 		if err := checkoutCmd.Run(); err != nil {
@@ -310,7 +309,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 				time.Now().UTC().Format(time.RFC3339), strings.TrimSpace(directive), coAuthor)
 		}
 
-		commitCmd := exec.CommandContext(ctx, "git", "-C", workDir, "commit", "-m", commitMsg)
+		commitCmd := gitexec.CommandContext(ctx, "-C", workDir, "commit", "-m", commitMsg)
 		commitCmd.Stdout = os.Stdout
 		commitCmd.Stderr = os.Stderr
 		if err := commitCmd.Run(); err != nil {
@@ -323,12 +322,12 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// Step 5b: Check for unpushed commits.
 	// If origin/{branchName} doesn't exist yet (new coordinator branch), git log
 	// exits 128 — treat that as "entire branch is unpushed" and proceed to push.
-	logCmd := exec.CommandContext(ctx, "git", "-C", workDir, "log", fmt.Sprintf("origin/%s..HEAD", branchName), "--oneline")
+	logCmd := gitexec.CommandContext(ctx, "-C", workDir, "log", fmt.Sprintf("origin/%s..HEAD", branchName), "--oneline")
 	logOutput, err := logCmd.Output()
 	newBranch := false
 	if err != nil {
 		// Check whether the remote ref simply doesn't exist yet.
-		lsRemote := exec.CommandContext(ctx, "git", "-C", workDir, "ls-remote", "--exit-code", "origin", branchName)
+		lsRemote := gitexec.CommandContext(ctx, "-C", workDir, "ls-remote", "--exit-code", "origin", branchName)
 		if lsRemote.Run() != nil {
 			// Remote ref absent — whole branch needs pushing.
 			newBranch = true
@@ -379,7 +378,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	if repoURL != "" {
 		if unpushed {
 			fmt.Printf("execute-job: unpushed commits:\n%s", string(logOutput))
-			unshallowCmd := exec.CommandContext(ctx, "git", "-C", workDir, "fetch", "--unshallow")
+			unshallowCmd := gitexec.CommandContext(ctx, "-C", workDir, "fetch", "--unshallow")
 			unshallowCmd.Stdout = os.Stdout
 			unshallowCmd.Stderr = os.Stderr
 			if err := unshallowCmd.Run(); err != nil {
@@ -403,7 +402,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 			// have to be talking about the same commits, and HEAD is the one
 			// thing that means "what the agent actually produced" whichever
 			// branch it decided to stand on.
-			pushCmd := exec.CommandContext(ctx, "git", "-C", workDir, "push", "origin", pushRefspec(branchName))
+			pushCmd := gitexec.CommandContext(ctx, "-C", workDir, "push", "origin", pushRefspec(branchName))
 			pushCmd.Stdout = os.Stdout
 			pushCmd.Stderr = os.Stderr
 			if err := pushCmd.Run(); err != nil {
