@@ -39,12 +39,14 @@ CFG
 EOF
 # The lib the check sources: probe outcomes come from env (OVER = space-separated over-ration rungs).
 cat > "$R/tools/launchd/lib/lane-probe.sh" <<'EOF'
+. "$(dirname "${BASH_SOURCE[0]}")/codex-auth-profile.sh"
 _mc_is_over_ration() { case " ${OVER:-} " in *" $1 "*) return 0;; esac; return 1; }
 # Like the real lib, the probes apply the ration gate themselves and return 75 when blocked.
 _mc_probe() { _mc_is_over_ration "$1" && return 75; echo "claude $1" >> "$CALLS"; case " ${DEAD_PROBES:-} " in *" $1 "*) return 2;; esac; return 0; }
 _mc_probe_codex() { _mc_is_over_ration "codex:$1" && return 75; echo "codex $1" >> "$CALLS"; case " ${DEAD_PROBES:-} " in *" codex:$1 "*) return 1;; esac; return 0; }
 _mc_probe_pi() { echo "piprobe $1" >> "$CALLS"; return 0; }
 EOF
+cp "$HERE/lib/codex-auth-profile.sh" "$R/tools/launchd/lib/codex-auth-profile.sh"
 # The pi runner: verdict per model from PI_VERDICTS ("model=verdict ..."); FLAKY models fail once.
 cat > "$R/scripts/mission_pi_run.sh" <<'EOF'
 #!/bin/bash

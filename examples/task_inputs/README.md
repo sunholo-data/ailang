@@ -78,7 +78,7 @@ transport, both storage backends and unauthorized no-dispatch behavior.
 This repository change does not deploy the job image or modify the live registry.
 The Daneel migration is pending until this checklist is completed:
 
-- Build/publish a v0.52.6 job image containing this implementation; deploy the coordinator and executor together.
+- Release a version containing this implementation through `cloudbuild-release.yaml` to test, then promote that tested version with `ailang-multivac/scripts/release.sh promote core vX.Y.Z`; deploy the coordinator and executor together.
 - Configure the site agent's exact `inputs_allow: [sunholo-data/daneel-memory]`, `tool_policy: ailang_only`, available model and trusted untrusted-data guidance.
 - Push a real `incoming/DNL-...` branch with binary attachments and a valid manifest to `daneel-memory`.
 - Update the Daneel sender in daneel#335 to send the typed `inputs` field instead of a token-bearing shell fetch.

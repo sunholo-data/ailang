@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"os"
+	"os/signal"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
@@ -60,7 +62,7 @@ func executeJobWorkspace() (string, error) {
 	return config.DeprecatedDefault(coordinator.EnvWorkspace, coordinator.DeprecatedWorkspaceDefault)
 }
 
-func coordinatorExecuteJob(args []string) error {
+func coordinatorExecuteJob(args []string) (returnErr error) {
 	// Parse flags
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
@@ -99,7 +101,8 @@ func coordinatorExecuteJob(args []string) error {
 
 	// Initialize Pub/Sub client as early as possible so the defer guard can use it.
 	// If Pub/Sub init itself fails, we fall back to stderr logging.
-	ctx := context.Background()
+	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
 	var publisher *pubsub.Publisher
 	var completionSent atomic.Bool
 
@@ -145,7 +148,8 @@ func coordinatorExecuteJob(args []string) error {
 	// Defer guard: catches panics and any exit path that forgot to publish.
 	defer func() {
 		if r := recover(); r != nil {
-			publishCompletion("failed", fmt.Sprintf("panic: %v", r), "", nil, gitEvidence{}, "")
+			returnErr = fmt.Errorf("panic: %v", r)
+			publishCompletion("failed", returnErr.Error(), "", nil, gitEvidence{}, "")
 		} else if !completionSent.Load() {
 			// Should not happen — means we returned without publishing.
 			publishCompletion("failed", "unknown: exited without publishing completion", "", nil, gitEvidence{}, "")
@@ -187,7 +191,21 @@ func coordinatorExecuteJob(args []string) error {
 	}
 	// Write refreshed subscription tokens back however the task ends; a container
 	// is discarded after one task, so an unpersisted refresh is lost.
-	defer codexCred.persist()
+	if codexCred != nil {
+		ctx = codexCred.ctx
+		defer func() {
+			if r := recover(); r != nil {
+				codexCred.quarantine()
+				panic(r)
+			}
+			if err := codexCred.finish(); err != nil {
+				fmt.Fprintln(os.Stderr, "execute-job: credential finalization failed:", err)
+				if returnErr == nil {
+					returnErr = err
+				}
+			}
+		}()
+	}
 	if err := preflightExecutor(ctx, provider); err != nil {
 		publishCompletion("failed", err.Error(), "", nil, gitEvidence{}, "")
 		return err
@@ -223,6 +241,10 @@ func coordinatorExecuteJob(args []string) error {
 
 	// Execute the task
 	branchName, execResult, evidence, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model, timeoutStr)
+
+	// Finalize rotating credentials before reporting success. Failed executor
+	// tasks may also have refreshed; persist those before releasing ownership.
+	execErr = finalizeCodexCredential(codexCred, execErr)
 
 	// Write artifact files to the GCS-mounted directory (/artifacts/tasks/{taskID}/).
 	// The artifact bucket is mounted read-write at /artifacts via Cloud Run volume mount.

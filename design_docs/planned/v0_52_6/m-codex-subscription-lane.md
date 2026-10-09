@@ -396,3 +396,160 @@ All rows verified by code reads / greps in this checkout (`c3bfb1c0`, shallow de
 
 **Document created**: 2026-10-08
 **Last updated**: 2026-10-08
+
+## Operational addendum: three OAuth profiles on one account (2026-10-09)
+
+**Status:** Approved by Mark on 2026-10-09; implementation and validation in progress.
+**Priority:** P1. **Estimated:** 2–4 days including cloud rollout and fault tests.
+**Scope:** Credential ownership for interactive use, local missions, and cloud
+executions. This closes the fleet-auth follow-up explicitly deferred by Phase 1;
+it does not implement the AI-effect provider or choose the deferred D8 migration.
+
+### User requirement and diagnosis
+
+Mark requests one ChatGPT OAuth account for all three operational profiles.
+Retain subscription authentication and the existing shared quota accounting.
+Separate OAuth authorizations and refresh state; creating additional accounts
+or switching automation to metered API billing is outside this request.
+
+Observed on 2026-10-09:
+
+| Evidence | Finding and limit |
+| --- | --- |
+| Local Codex auth logs | First failure at 15:28 Copenhagen; server code `refresh_token_expired`. No observed `refresh_token_reused` diagnostic. This does not prove a refresh collision. |
+| Mission profiles, launchd plists, and secrets.env | No CODEX_HOME override found. Mission probes/controllers use the default local home. Fleet ran Codex controller/author roles at 07:43. |
+| PR #1731, merged 09:35:32 UTC | Phase 1 routing/timeout changes; fleet serialization remains follow-up work. |
+| Cloud Run codex and codex-go jobs | Both reference `ailang-codex-auth-json`; taskCount=1 per execution does not serialize separate executions. |
+| Secret Manager version metadata | Only version 1, created September 30. No refresh write-back version observed; this alone does not establish current validity or task activity. |
+| install/persist code | Restore happens before preflight; persist compares timestamps then adds a version. These checks do not hold a distributed lease through execution. |
+| Codex 0.162.0 CLI help | Shared daemon and `app-server proxy` are available. Availability does not prove that every exec/quota caller shares one auth manager. |
+
+### Profile contract
+
+| Profile | Credential location | Ownership |
+| --- | --- | --- |
+| Interactive | Existing `~/.codex` | Existing interactive login and runtime; do not migrate active sessions. |
+| Local missions | Proposed `~/.codex-missions` | Fresh login to the same account; all mission profiles and nested executors inherit this home. |
+| Cloud | Existing secret `ailang-codex-auth-json`, restored to explicit container CODEX_HOME | Fresh cloud-only login to the same account, with exclusive execution ownership across job variants. |
+
+The homes are distinct directories, not symlinks. Run `codex login` independently
+for the mission and cloud profiles. Never seed either from the interactive
+auth.json. Codex TOML model profiles do not substitute for separate auth homes.
+Use file-backed credential storage for the automation roots, permissions 0700
+for directories and 0600 for credential files. Provision audited configuration,
+skills/plugins, MCP definitions and trust settings separately from credentials;
+moving CODEX_HOME without those resources could change mission behavior.
+
+### Refresh ownership and concurrency
+
+**Local:** Prefer one managed daemon for the mission home, preserving concurrent
+mission threads while one auth manager owns refresh. Route quota RPC through
+`codex app-server proxy` to that same daemon, rather than launching an independent
+app-server against its auth.json. Verify exec, controller, probes, nested roles,
+and quota RPC actually converge on that owner before enabling concurrent use.
+Existing `internal/ai/chatgpt` remains a read-only credential consumer.
+
+This requires a measured implementation spike with an isolated temporary home,
+fake rotating-token endpoint and concurrent requests. Do not assert that merely
+starting a daemon solves the problem. If installed CLI exec cannot use the same
+owner, use an explicit app-server execution adapter or bring a serialized-mode
+tradeoff back for approval. Do not add a non-reentrant whole-mission lock that
+deadlocks when a controller invokes a nested role.
+
+**Cloud:** Acquire a distributed exclusive credential lease keyed by canonical
+project/secret identity BEFORE fetching auth. Hold it across installation,
+health/preflight, execution and refreshed-secret persistence. Codex and codex-go,
+retries, and every subscription execution entry point share this key. A
+process-local mutex and taskCount=1 are insufficient.
+
+Use the existing Firestore storage boundary for transactional lease ownership.
+Heartbeat and cancellation must stop the Codex process tree on lease loss. Lease
+expiry alone is not fencing: a stale live worker must not continue refreshing.
+Before takeover, verify termination of the previous Cloud Run execution; if that
+cannot be verified, block rather than issue the same rotating credential twice.
+Use owner/generation checks for write-back and release. Persist the refreshed
+file before releasing ownership, including failed tasks that refreshed first.
+Write-back failure blocks subsequent use of the old secret and raises an
+operational recovery requirement. Do not log credentials or silently resume
+from an obsolete seed. No change to the OAuth wire flow: Codex owns refresh.
+
+### Implementation and rollout
+
+1. Add one attended provisioning/check command under `tools/attended/` for the
+   three roots. Validate subscription mode, equal account/workspace identity,
+   and distinct refresh credentials locally; output only pass/fail and profile
+   labels. Do not expose tokens, emails, account IDs or token digests in reports.
+2. Add a tested shared mission-home selection to the launchd driver and installer;
+   preserve explicit operator overrides. Quota and executor helpers resolve the
+   same home. Audit pinned driver copies and local coordinator/eval entry points.
+3. Complete the daemon ownership spike, then implement tested quota RPC routing
+   and any execution changes it demonstrates are necessary.
+4. Implement the cloud ownership lease at the execute-job boundary, covering all
+   restore/run/persist paths; update IAM and infrastructure in their owning repo.
+5. At an idle boundary, obtain two user-completed OAuth logins to the same account.
+   Validate identity/isolation before publishing the cloud secret. Activate only
+   after code, daemon, infrastructure and provisioning checks pass.
+6. Smoke-test local missions plus an interactive turn, then cloud codex and
+   codex-go executions. Rollback must keep the isolated homes or pause automation;
+   restoring shared interactive credentials would reintroduce the defect.
+
+### Acceptance criteria and validation commands
+
+- [ ] `bash tools/attended/check_codex_oauth_profiles.sh` reports same account and
+  workspace, distinct credentials, subscription mode, and file permissions.
+  This command is proposed, not currently implemented.
+- [ ] New `tools/launchd/test_codex_auth_profiles.sh` exercises all mission profiles,
+  probes, nested roles and quota reads, including missing-auth refusal.
+- [ ] A focused executor/mission test proves concurrent local requests use one
+  refresh owner and a simulated rotation yields one refresh and valid later calls.
+- [ ] Cloud credential lease tests exercise codex versus codex-go overlap,
+  preflight refresh, cancellation, process termination, lease loss, crash recovery,
+  failed persistence, stale writer rejection and release after durable write-back.
+- [ ] `go test ./internal/executor/... ./internal/mission/... ./cmd/ailang/...`
+  and `make check-boundaries` pass. Add lease/storage tests in the owning package.
+- [ ] Deployment smoke evidence records the profile labels and success outcomes
+  without token values; cloud version metadata advances after a forced test refresh.
+- [ ] Documentation explains one account/shared subscription limits and three
+  independent authorizations. Authentication failures remain explicit.
+
+### Axiom compliance for this operational extension
+
+| Axiom | Score | Reason |
+| --- | --- | --- |
+| A1 Determinism | 0 | Operational scheduling only; language evaluation unchanged. |
+| A2 Replayability | +1 | Ownership/generation and profile labels provide auditable lifecycle evidence. |
+| A3 Explicit effects | 0 | Auth/network writes remain explicit host operations. |
+| A4 Explicit authority | +1 | Runtime-specific credentials replace shared interactive authority. |
+| A5 Bounded verification | +1 | Fake rotating-token tests and bounded lease failure tests. |
+| A6 Safe concurrency | +1 | One refresh owner per OAuth authorization. |
+| A7 Machines first | +1 | Check command gives explicit machine-readable outcomes. |
+| A8 Minimal syntax | 0 | No language syntax change. |
+| A9 Cost visibility | 0 | Existing subscription provenance and account quota remain. |
+| A10 Composability | +1 | Reuses Codex auth and existing storage/executor boundaries. |
+| A11 Structured failure | +1 | Lease loss and failed persistence block credential reuse. |
+| A12 System boundary | 0 | Host integrations remain outside the language core. |
+
+Net +7; no hard-gate negative. Scores are proposed design judgments, not
+implementation evidence.
+
+### References and remaining uncertainty
+
+- [Official Codex CI/CD auth guidance](https://learn.chatgpt.com/docs/auth/ci-cd-auth):
+  per-runner/serialized credential streams, refreshed-file persistence, and refresh
+  failure recovery. This is operational guidance, not a blanket account-policy ruling.
+- [Official accounts/sessions guidance](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions):
+  serialize refreshes for the same renewable session. Its custom-client flow is
+  not a replacement for Codex CLI's login implementation.
+- Local code: `tools/launchd/mission-control.sh`, `tools/launchd/lib/lane-probe.sh`,
+  `internal/mission/codex_app_server_quota.go`,
+  `cmd/ailang/coordinator_cloud_codexauth.go`,
+  `internal/executor/codex/subscription_auth.go`,
+  `internal/executor/envpolicy.go` (CODEX_ inheritance),
+  `internal/ai/chatgpt/auth.go` (read-only consumer).
+- The previous cloud-login comment says a dedicated token family is intended;
+  we have not compared its identity with the interactive credential. Independent
+  provisioning and the profile check establish the desired state at rollout.
+- Explicit account-policy authorization remains Mark's reported OpenAI guidance;
+  this proposal does not claim three isolated logins grant extra quota or guarantee
+  permanent sessions. User participation is required for the new browser/device
+  authorizations.
