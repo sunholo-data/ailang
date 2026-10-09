@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-SKILL-FEATURE-DISCOVERABILITY-GATE",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-08T18:52:43.712673+00:00",
   "design_doc": "design_docs/planned/v0_52_6/m-skill-feature-discoverability-gate.md",
   "sprint_plan": "design_docs/planned/v0_52_6/m-skill-feature-discoverability-gate-sprint-plan.md",
@@ -24,7 +24,8 @@
   "velocity": {
     "target_loc_per_day": 104,
     "estimated_total_loc": 52,
-    "estimated_days": 0.5
+    "estimated_days": 0.5,
+    "actual_total_loc": 48
   },
   "features": [
     {
@@ -38,10 +39,11 @@
         "Every planned showcase module has the three include-or-justify rows.",
         "Planner mirror compares byte-identically and skill format checks pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T19:10:38.921118+00:00",
+      "completed": "2026-10-08T19:10:38.921118+00:00",
+      "notes": "Implemented approved syntax gate; bash scripts/check_skills.sh and byte-identical mirror comparison passed. All acceptance criteria reviewed.",
+      "actual_loc": 26
     },
     {
       "id": "M2",
@@ -58,10 +60,22 @@
         "Review confirms no `.ail` output bypasses the gate and offline CLI loading is supported.",
         "Diff contains only the four planned skill edits; no compact-prompt promise or runtime changes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T19:10:38.921118+00:00",
+      "completed": "2026-10-08T19:10:38.921118+00:00",
+      "notes": "Implemented approved syntax gate; bash scripts/check_skills.sh and byte-identical mirror comparison passed. All acceptance criteria reviewed.",
+      "actual_loc": 22
     }
-  ]
+  ],
+  "completed": "2026-10-08T19:10:38.921118+00:00",
+  "last_session": "2026-10-08T19:10:38.921118+00:00",
+  "last_checkpoint": "M2 complete: skill checker, mirror comparisons, whitespace check and instruction review passed",
+  "validation": {
+    "skill_checker": "passed: all 42 skills",
+    "mirror_comparisons": "both passed",
+    "diff_check": "passed",
+    "sprint_json": "Python JSON parse and structural milestone validation passed; jq unavailable",
+    "runtime_tests": "not applicable: approved instruction-only scope",
+    "measurement": "Pending next world showcase generations; owned by world mission operator/coordinator"
+  }
 }
