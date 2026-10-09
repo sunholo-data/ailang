@@ -1,0 +1,7 @@
+module examples/runnable/effect_row_var_pure_caller
+
+func runIt(f: () -> int ! {e}) -> int ! {e} = f()
+func quiet() -> int = 42
+
+-- The callback's empty row discharges the generic call's row.
+export pure func main() -> int tests [((), 42)] { runIt(quiet) }

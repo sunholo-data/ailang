@@ -229,7 +229,7 @@ func validateDecl(decl core.CoreExpr, declaredEffects map[string]*types.Row, typ
 			// Collect required effects from Core AST
 			required := collector.collect(binding.Value)
 			if *collector.invariant != nil {
-				return *collector.invariant
+				return fmt.Errorf("function %s: %w", binding.Name, *collector.invariant)
 			}
 			debugLog("  Required effects: %s", formatRow(required))
 
@@ -255,7 +255,7 @@ func validateDecl(decl core.CoreExpr, declaredEffects map[string]*types.Row, typ
 		// Collect required effects from Core AST
 		required := collector.collect(let.Value)
 		if *collector.invariant != nil {
-			return *collector.invariant
+			return fmt.Errorf("function %s: %w", let.Name, *collector.invariant)
 		}
 		debugLog("  Required effects: %s", formatRow(required))
 
@@ -295,7 +295,7 @@ func extractEffectFromType(t types.Type) *types.Row {
 		// Function type with effects
 		row := typ.EffectRow
 		// Normalize: empty effect row = nil (pure)
-		if row != nil && len(row.Labels) == 0 {
+		if row != nil && len(row.Labels) == 0 && row.Tail == nil {
 			return nil
 		}
 		return row
@@ -305,7 +305,7 @@ func extractEffectFromType(t types.Type) *types.Row {
 		if fn, ok := typ.Constructor.(*types.TFunc2); ok {
 			row := fn.EffectRow
 			// Normalize: empty effect row = nil (pure)
-			if row != nil && len(row.Labels) == 0 {
+			if row != nil && len(row.Labels) == 0 && row.Tail == nil {
 				return nil
 			}
 			return row
@@ -337,13 +337,7 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 		return nil
 
 	case *core.VarGlobal:
-		// Global variables might have effects (e.g., builtins)
-		if t, ok := typeInfo.Get(e.ID()); ok {
-			eff := extractEffectFromType(t)
-			debugLog("    VarGlobal(%s.%s) -> %s", e.Ref.Module, e.Ref.Name, formatRow(eff))
-			return eff
-		}
-		debugLog("    VarGlobal(%s.%s) -> [] (no type info)", e.Ref.Module, e.Ref.Name)
+		// Referring to a function value does not invoke its latent effects.
 		return nil
 
 	case *core.Lit:
@@ -387,22 +381,43 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 		funcEffects := collector.collect(e.Func)
 		debugLog("      Func expr effects: %s", formatRow(funcEffects))
 
-		mask := collector.applicationMask(e)
+		publication := collector.applicationEffects(e)
+		debugLog("      Published App %d call row: %v", e.ID(), publication.CallRow)
+		mask := publication.LatentParamMask
+		if collector.maskLookup != nil && (!usedDeclared || calleeEffects != nil && calleeEffects.Tail != nil) {
+			calleeEffects = cloneEffectRow(publication.CallRow)
+			if publication.ImplicitOwnedTail && calleeEffects != nil {
+				calleeEffects.Tail = nil
+			}
+		}
 		var argEffects *types.Row
 		for i, arg := range e.Args {
 
 			argEff := collector.collect(arg)
 			if i < len(mask) && mask[i] {
-				argEff = unionRequiredEffectRows(argEff, collector.latentEffects(arg))
+				var latent *types.Row
+				if collector.maskLookup == nil {
+					latent = collector.latentEffects(arg)
+				} else if i >= len(publication.CallbackRows) || publication.CallbackRows[i] == nil {
+					if *collector.invariant == nil {
+						*collector.invariant = fmt.Errorf("internal invariant: missing callback row for typed application %d at %s (argument %d)", e.ID(), e.Span(), i)
+					}
+				} else {
+					latent = cloneEffectRow(publication.CallbackRows[i])
+					if i < len(publication.ImplicitCallbacks) && publication.ImplicitCallbacks[i] && latent != nil {
+						latent.Tail = nil
+					}
+				}
+				argEff = collector.union(argEff, latent)
 			}
 			debugLog("      Arg[%d] effects: %s", i, formatRow(argEff))
-			argEffects = unionRequiredEffectRows(argEffects, argEff)
+			argEffects = collector.union(argEffects, argEff)
 		}
 		debugLog("      Combined arg effects: %s", formatRow(argEffects))
 
 		// Union all effects
-		result := unionRequiredEffectRows(calleeEffects, funcEffects)
-		result = unionRequiredEffectRows(result, argEffects)
+		result := collector.union(calleeEffects, funcEffects)
+		result = collector.union(result, argEffects)
 		debugLog("      App total effects: %s", formatRow(result))
 		return result
 
@@ -426,7 +441,7 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 		debugLog("    Let(%s) -> checking value and body", e.Name)
 		valueEffects := collector.collect(e.Value)
 		bodyEffects := collector.shadow(e.Name).collect(e.Body)
-		effects := unionRequiredEffectRows(valueEffects, bodyEffects)
+		effects := collector.union(valueEffects, bodyEffects)
 		debugLog("    Let(%s) effects (value ∪ body): %s", e.Name, formatRow(effects))
 		return effects
 
@@ -440,9 +455,9 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 			debugLog("      LetRec binding: %s", binding.Name)
 			bindingEffects := collector.collect(binding.Value)
 			debugLog("      LetRec binding %s effects: %s", binding.Name, formatRow(bindingEffects))
-			effects = unionRequiredEffectRows(effects, bindingEffects)
+			effects = collector.union(effects, bindingEffects)
 		}
-		effects = unionRequiredEffectRows(effects, collector.collect(e.Body))
+		effects = collector.union(effects, collector.collect(e.Body))
 		debugLog("    LetRec total effects: %s", formatRow(effects))
 		return effects
 
@@ -452,8 +467,8 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 		thenEffects := collector.collect(e.Then)
 		elseEffects := collector.collect(e.Else)
 
-		result := unionRequiredEffectRows(condEffects, thenEffects)
-		result = unionRequiredEffectRows(result, elseEffects)
+		result := collector.union(condEffects, thenEffects)
+		result = collector.union(result, elseEffects)
 		return result
 
 	case *core.Match:
@@ -463,7 +478,7 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 
 		for _, arm := range e.Arms {
 			armEffects := collector.shadow(patternBindingNames(arm.Pattern)...).collect(arm.Body)
-			result = unionRequiredEffectRows(result, armEffects)
+			result = collector.union(result, armEffects)
 		}
 		return result
 
@@ -471,7 +486,7 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 		// Binary operators: union of left and right
 		leftEffects := collector.collect(e.Left)
 		rightEffects := collector.collect(e.Right)
-		return unionRequiredEffectRows(leftEffects, rightEffects)
+		return collector.union(leftEffects, rightEffects)
 
 	case *core.UnOp:
 		// Unary operators: effects from operand
@@ -482,7 +497,7 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 		var effects *types.Row
 		for _, fieldVal := range e.Fields {
 			fieldEffects := collector.collect(fieldVal)
-			effects = unionRequiredEffectRows(effects, fieldEffects)
+			effects = collector.union(effects, fieldEffects)
 		}
 		return effects
 
@@ -496,16 +511,16 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 		var updateEffects *types.Row
 		for _, updateVal := range e.Updates {
 			fieldEffects := collector.collect(updateVal)
-			updateEffects = unionRequiredEffectRows(updateEffects, fieldEffects)
+			updateEffects = collector.union(updateEffects, fieldEffects)
 		}
-		return unionRequiredEffectRows(baseEffects, updateEffects)
+		return collector.union(baseEffects, updateEffects)
 
 	case *core.List:
 		// Lists: union of all element effects
 		var effects *types.Row
 		for _, elem := range e.Elements {
 			elemEffects := collector.collect(elem)
-			effects = unionRequiredEffectRows(effects, elemEffects)
+			effects = collector.union(effects, elemEffects)
 		}
 		return effects
 
@@ -514,7 +529,7 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 		var effects *types.Row
 		for _, elem := range e.Elements {
 			elemEffects := collector.collect(elem)
-			effects = unionRequiredEffectRows(effects, elemEffects)
+			effects = collector.union(effects, elemEffects)
 		}
 		return effects
 
@@ -535,9 +550,9 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 		var argEffects *types.Row
 		for _, arg := range e.Args {
 			argEff := collector.collect(arg)
-			argEffects = unionRequiredEffectRows(argEffects, argEff)
+			argEffects = collector.union(argEffects, argEff)
 		}
-		return unionRequiredEffectRows(dictEffects, argEffects)
+		return collector.union(dictEffects, argEffects)
 
 	default:
 		// Unknown expression type - be conservative and assume no effects
@@ -548,6 +563,9 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 // formatEffectError creates a helpful error message for effect violations
 func formatEffectError(funcName string, required *types.Row, declared *types.Row) error {
 	diff := types.DiffEffectRows(required, declared)
+	if len(diff.Missing) == 0 && len(diff.ParamMismatches) == 0 && diff.UnresolvedTail == "" {
+		return fmt.Errorf("internal invariant: effect failure for function %s has an empty difference", funcName)
+	}
 
 	// Build helpful error message
 	var msg strings.Builder
@@ -559,14 +577,14 @@ func formatEffectError(funcName string, required *types.Row, declared *types.Row
 
 	// Show current and suggested signatures
 	msg.WriteString(fmt.Sprintf("  Current signature: func %s(...) -> T", funcName))
-	if declared != nil && len(declared.Labels) > 0 {
+	if declared != nil && (len(declared.Labels) > 0 || declared.Tail != nil) {
 		msg.WriteString(fmt.Sprintf(" %s", types.FormatEffectRow(declared)))
 	}
 	msg.WriteString("\n")
 
 	// A union can retain the wrong declared mode or render a conflict set,
 	// neither of which is a valid fix. Only suggest the label-union case.
-	if len(diff.ParamMismatches) == 0 {
+	if len(diff.ParamMismatches) == 0 && diff.UnresolvedTail == "" {
 		suggestedEffects := types.UnionEffectRows(declared, required)
 		msg.WriteString(fmt.Sprintf("  Suggested fix:     func %s(...) -> T %s\n", funcName, types.FormatEffectRow(suggestedEffects)))
 	}
@@ -583,6 +601,9 @@ func formatLambdaEffectError(span string, required, declared *types.Row) error {
 }
 
 func writeEffectDiff(msg *strings.Builder, diff types.EffectRowDiff) {
+	if diff.UnresolvedTail != "" {
+		fmt.Fprintf(msg, "  Unresolved effect tail: %s; propagate the shared row in the function signature\n", diff.UnresolvedTail)
+	}
 	if len(diff.Missing) > 0 {
 		fmt.Fprintf(msg, "  Missing effects: %s\n", strings.Join(diff.Missing, ", "))
 	}

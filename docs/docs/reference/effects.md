@@ -597,7 +597,7 @@ Functions can work with any effect set:
 
 ```typescript
 -- Works with any effects
-func twice[e](f: () -> () ! e) -> () ! e {
+func twice[e](f: () -> () ! {e}) -> () ! {e} {
   f();
   f()
 }
@@ -606,6 +606,13 @@ func twice[e](f: () -> () ! e) -> () ! e {
 twice(\(). println("Hello"))  -- ! {IO}
 twice(\(). writeFile("log", "entry"))  -- ! {FS}
 ```
+
+The callback row and the call row share the same effect variable. A pure
+callback resolves the call to pure; an IO callback requires IO at the caller.
+A helper that invokes an explicitly effect-polymorphic callback must propagate
+that row, including when it invokes the callback twice. An unresolved tail is
+reported directly rather than producing an empty suggested annotation. Runtime
+capability grants are still required for concrete effects.
 
 ### Conditional Effects
 

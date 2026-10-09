@@ -3307,14 +3307,36 @@
         "stdout": "literal data\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/effect_row_var_pure_caller.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "polymorphism"
+      ],
+      "description": "Pure callback discharges its generic call row; returns 42",
+      "modules": []
+    },
+    {
+      "path": "runnable/effect_row_var_noisy_twice.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "polymorphism"
+      ],
+      "description": "Generic callback helper prints callback twice",
+      "modules": [
+        "std/io"
+      ]
     }
   ],
   "statistics": {
-    "total": 224,
-    "working": 216,
+    "total": 226,
+    "working": 218,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9642857142857143,
+    "coverage": 0.9646017699115044,
     "experimental": 0
   },
   "milestones": {

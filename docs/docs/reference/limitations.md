@@ -59,6 +59,13 @@ remain a separate spike under the existing [#573](https://github.com/sunholo-dat
 and [#1326](https://github.com/sunholo-data/ailang/issues/1326) design; no new issue is required.
 
 
+Direct effect-polymorphic callback calls now share and resolve their call row
+([#616](https://github.com/sunholo-data/ailang/issues/616)). A pure callback can
+be called from a pure wrapper. A helper that invokes a callback with an explicitly
+open effect row must propagate that row; omitting it is rejected before execution.
+This also applies to repeated callback invocations. Runtime capabilities remain
+required for concrete effects.
+
 ### Effectful Callbacks Nested in Data Arguments Are Not Yet Charged
 
 **Status**: Open, tracked in [#1718](https://github.com/sunholo-data/ailang/issues/1718)

@@ -232,6 +232,7 @@ func substituteType(typ types.Type, subst map[string]types.Type) types.Type {
 			Params:                 newParams,
 			Return:                 newReturn,
 			EffectRow:              t.EffectRow, // Keep effects as-is for now
+			ImplicitEffectContract: t.ImplicitEffectContract,
 			ConcreteEffectContract: t.ConcreteEffectContract,
 		}
 	case *types.TApp:

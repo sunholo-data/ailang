@@ -10,7 +10,7 @@ M-EFFECT-LATENT-FUNCTION-VALUES). The sweep base is the executor branch's actual
 merge-base with dev, recorded by SHA (see M4).
 **Ordering:** this sprint runs BEFORE M-PURE-ROW-AND-IFACE-PURITY (#1443), which
 re-measures its pins after this lands. They must not run in parallel.
-**Approval:** proposed; execution awaits plan approval through the coordinator.
+**Approval:** approved by the coordinator handoff; execution completed 2026-10-09.
 The design unpark/re-scope and this plan must travel in the same planning PR.
 
 ## Decision and current status
@@ -268,3 +268,20 @@ base/fixed sweep has run. Approval of this planning PR supplies the coordinator
 handoff. No executor dispatch is authorized merely by re-planning. The unresolved
 implementation choices are companion file organization and diagnostic wording;
 D-10, publication authority, scope and completion gates are fixed.
+
+## Executor completion — 2026-10-09
+
+- [x] M1: shared App constraint, red measurements and constraint mutation.
+- [x] M2: one sealed mask/call-row authority, diagnostics, unions and ownership.
+- [x] M3: runtime, imports, recursion/no-join controls and both runnable demos.
+- [x] M4: full corpus evidence, zero status flips, fragment and six required gates.
+
+Actual branch: `coordinator/task-c86840f2`; the planner branch is represented by
+the base planning commit. The scoped ownership and inferred-function origin
+controls exceeded the 260 implementation-line estimate; no global solver or
+structural callback traversal was added. Execution ran sequentially in one
+session; elapsed development effort was not instrumented as a LOC/day metric.
+See [validation report](m-effect-row-var-unification-validation.md) and the
+JSON evidence for commands, hashes, status/category counts, mutations and bounded
+#1091 coverage. Design stays planned until independent evaluator review.
+Local commit only; no push. Refs #616.

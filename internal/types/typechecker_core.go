@@ -79,7 +79,7 @@ type CoreTypeChecker struct {
 	// the effect validator to enforce closed inline-lambda annotations against
 	// their body effects. M-EFFECT-ROW-SHOW-INTERP (#386).
 	declaredLambdaEffects map[uint64]*Row
-	latentParamMasks      map[uint64][]bool
+	applicationEffects    map[uint64]ApplicationEffects
 	returnTypeAnnots      map[uint64]Type   // Return type annotations from elaboration (Lambda NodeID → return type)
 	CoreTI                CoreTypeInfo      // Core NodeID → inferred types (principal types for lowering)
 	constructorTypes      map[string]string // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
@@ -521,7 +521,7 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	// M-DX4 FIX: Apply FULL substitution (unification + defaulting) to CoreTypeInfo
 	// This ensures CoreTI has concrete types (Int, Float, etc.) instead of type variables.
 	// Must apply the composed substitution to resolve chains (e.g., α37 → α38 → Float).
-	tc.CoreTI.ApplySubstitution(sub)
+	tc.applyApplicationSubstitution(sub)
 
 	// Apply final substitution to typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)
@@ -664,7 +664,7 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 
 	// M-DX4 FIX V2: Apply FULL substitution (unification + defaulting) to CoreTypeInfo
 	// Must be AFTER composition so we have the complete substitution with chains resolved
-	tc.CoreTI.ApplySubstitution(sub)
+	tc.applyApplicationSubstitution(sub)
 
 	// Apply the complete substitution (unification + defaulting) to the typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)

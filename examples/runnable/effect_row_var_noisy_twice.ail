@@ -1,0 +1,8 @@
+module examples/runnable/effect_row_var_noisy_twice
+import std/io (println)
+
+-- Both callback invocations share the helper's declared effect row.
+func runTwice(f: () -> int ! {e}) -> int ! {e} = f() + f()
+func noisy() -> int ! {IO} { let _ = println("callback"); 21 }
+
+export func main() -> () ! {IO} { let _ = runTwice(noisy); () }

@@ -421,6 +421,7 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			Params:                 params,
 			EffectRow:              openEffectRow,
 			ConcreteEffectContract: concreteContract,
+			ImplicitEffectContract: len(typ.Effects) == 0,
 			Return:                 e.astTypeToInternalType(typ.Return),
 		}
 

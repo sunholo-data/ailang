@@ -137,8 +137,9 @@ func (t *TFunc2) MarshalJSON() ([]byte, error) {
 		Params                 []json.RawMessage `json:"params"`
 		EffectRow              json.RawMessage   `json:"effect_row,omitempty"`
 		Return                 json.RawMessage   `json:"return"`
+		ImplicitEffectContract bool              `json:"implicit_effect_contract,omitempty"`
 		ConcreteEffectContract bool              `json:"concrete_effect_contract,omitempty"`
-	}{params, effBytes, retBytes, t.ConcreteEffectContract})
+	}{params, effBytes, retBytes, t.ImplicitEffectContract, t.ConcreteEffectContract})
 	return json.Marshal(typeJSON{Tag: "tfunc2", Data: raw})
 }
 
@@ -411,6 +412,7 @@ func UnmarshalType(data []byte) (Type, error) {
 			Params                 []json.RawMessage `json:"params"`
 			EffectRow              json.RawMessage   `json:"effect_row,omitempty"`
 			Return                 json.RawMessage   `json:"return"`
+			ImplicitEffectContract bool              `json:"implicit_effect_contract,omitempty"`
 			ConcreteEffectContract bool              `json:"concrete_effect_contract,omitempty"`
 		}
 		if err := json.Unmarshal(envelope.Data, &d); err != nil {
@@ -438,7 +440,7 @@ func UnmarshalType(data []byte) (Type, error) {
 				effectRow = row
 			}
 		}
-		return &TFunc2{Params: params, EffectRow: effectRow, Return: ret, ConcreteEffectContract: d.ConcreteEffectContract}, nil
+		return &TFunc2{Params: params, EffectRow: effectRow, Return: ret, ImplicitEffectContract: d.ImplicitEffectContract, ConcreteEffectContract: d.ConcreteEffectContract}, nil
 
 	case "trecord":
 		var d struct {

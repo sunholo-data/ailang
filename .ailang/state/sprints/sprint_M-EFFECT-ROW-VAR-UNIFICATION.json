@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-EFFECT-ROW-VAR-UNIFICATION",
-  "status": "planned",
+  "status": "completed",
   "created": "2026-10-09",
   "design_doc": "design_docs/planned/v1_0_0/m-effect-row-var-unification.md",
   "sprint_plan": "design_docs/planned/v1_0_0/m-effect-row-var-unification-sprint-plan.md",
@@ -12,9 +12,9 @@
     1718
   ],
   "supersedes_pr": 1678,
-  "base_commit": "merge-base of the executor branch with dev (record SHA at M1)",
+  "base_commit": "acaf73390eac8d8d8bb7ec71d7a3ea12bc74a886",
   "dependency_pr": 1708,
-  "approval_status": "pending",
+  "approval_status": "approved",
   "execution_gate": "Coordinator plan approval required before sprint-executor implementation.",
   "maintainer_rulings": [
     {
@@ -27,7 +27,7 @@
     "target_loc_per_day": 140,
     "estimated_total_loc": 700,
     "estimated_days": 5,
-    "basis": "Shallow history prevents measured LOC/day; 858 raw lines in prior sprint without timing; 24–30 hours includes about 25% contingency."
+    "basis": "Shallow history prevents measured LOC/day; 858 raw lines in prior sprint without timing; 24\u201330 hours includes about 25% contingency."
   },
   "registry_reuse": [
     {
@@ -66,10 +66,10 @@
         "Return-only row resolves in a concrete pure caller; recursion and #386 no-join controls pass.",
         "Record #616 blank diagnostic and pure runTwice(noisy) base behavior; constraint mutation trips a new test."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T10:06:05.118120+00:00",
+      "completed": "2026-10-09T10:43:56.631653+00:00",
+      "notes": "App row sharing, scoped ownership/generalization and return-only instantiation repaired; base issue behavior measured, mutation fails and no-join/recursion controls pass."
     },
     {
       "id": "M2_SHARED_PUBLICATION",
@@ -84,10 +84,10 @@
         "Same/sole tails survive both union callers; distinct tails conflict explicitly; matching owned tails subsume; declared tail does not absorb IO; no blank/identical Suggested fix.",
         "typechecker_core.go stays at or below 800 lines with new code in companions."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T10:43:56.631653+00:00",
+      "completed": "2026-10-09T10:43:56.631653+00:00",
+      "notes": "One sealed per-App publication with zonked rows and immutable mask snapshots; explicit tail diagnostics, safe union and ownership invariants; core stays 800 lines."
     },
     {
       "id": "M3_REGRESSIONS",
@@ -101,10 +101,10 @@
         "Design AC6: all historical arms, #1091 declared-pure standalone/explicit dependency imports, inferred combinators, #386 and #1708 controls pass their contracts.",
         "Design AC9: two runnable examples check/run, manifest updated, prompt reloaded, per-demo contract/effect/inline-test decisions followed."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T10:43:56.631653+00:00",
+      "completed": "2026-10-09T10:43:56.631653+00:00",
+      "notes": "Issue/runtime/import/streaming regression matrix passes, including corrected twice output and capability rejection; two runnable demos and manifest/docs updated."
     },
     {
       "id": "M4_CORPUS_MIGRATIONS",
@@ -115,14 +115,14 @@
       ],
       "acceptance_criteria": [
         "Design AC7: cold-cache base (executor branch merge-base with dev, SHA recorded)/fixed ailang check records every examples/**/*.ail and std/**/*.ail path, commands/status/diagnostics, matching stdlib, and streaming consumer probes.",
-        "Design AC8: each flipped path in changelogs/unreleased/<YYYY-MM-DD>-effect-row-var-unification.md (opening with a `### Fixed — …` heading) has before/after, reason and migration; unexplained flips and valid streaming regressions block completion.",
+        "Design AC8: each flipped path in changelogs/unreleased/<YYYY-MM-DD>-effect-row-var-unification.md (opening with a `### Fixed \u2014 \u2026` heading) has before/after, reason and migration; unexplained flips and valid streaming regressions block completion.",
         "Design AC10: focused go tests, make test-core, make lint, make check-boundaries, make check-file-sizes and make check-changelog pass; no full make test.",
         "Validation Markdown and per-file JSON evidence recorded; local commits only, no push; coordinator evaluator handoff after execution."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T10:43:56.631653+00:00",
+      "completed": "2026-10-09T10:43:56.631653+00:00",
+      "notes": "All six gates pass; base 496 files/545 checks/462 passes, fixed 498/547/464; 83 unchanged semantic failures; zero existing flips; full JSON evidence and fragment recorded. Evaluator handoff follows local commit."
     }
   ],
   "validation_gates": [
@@ -143,12 +143,16 @@
     "typechecker_functions.go is 781 lines; M1 edits it but new code goes in companion files (typechecker_app_effects.go).",
     "#1706 (alias closure) may land first; expect to rebase on pipeline_module_compile.go/phases.go and rebuild the sweep base from the new merge-base.",
     "Sweep base = executor branch merge-base with dev (record SHA); 3d4f49720 is the minimum dependency only.",
-    "Changelog fragment: changelogs/unreleased/<YYYY-MM-DD>-effect-row-var-unification.md, opening with `### Fixed — …`.",
+    "Changelog fragment: changelogs/unreleased/<YYYY-MM-DD>-effect-row-var-unification.md, opening with `### Fixed \u2014 \u2026`.",
     "Runs before M-PURE-ROW-AND-IFACE-PURITY (#1443); never in parallel with it."
   ],
   "validation_report": "design_docs/planned/v1_0_0/m-effect-row-var-unification-validation.md",
   "validation_evidence": ".ailang/state/sprints/validation_M-EFFECT-ROW-VAR-UNIFICATION.json",
   "minimum_dependency_commit": "3d4f49720",
   "sweep_base": "Build the base binary from the executor branch's actual merge-base with dev and record that SHA. 3d4f49720 (#1708) is only the minimum required dependency: #1707 has since changed effects.go, effect_subsumption.go, validate_effects*.go and pipeline_single.go, so a 3d4f49720 base would misreport flips.",
-  "ordering": "Runs BEFORE M-PURE-ROW-AND-IFACE-PURITY (#1443), which re-measures its pins after this lands. They must not run in parallel."
+  "ordering": "Runs BEFORE M-PURE-ROW-AND-IFACE-PURITY (#1443), which re-measures its pins after this lands. They must not run in parallel.",
+  "approval_evidence": "User coordinator handoff: Previous work has been approved. Please continue; invoke sprint-executor.",
+  "branch_name": "coordinator/task-c86840f2",
+  "last_session": "2026-10-09T10:43:56.631653+00:00",
+  "completed": "2026-10-09T10:43:56.631653+00:00"
 }

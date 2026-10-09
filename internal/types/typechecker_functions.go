@@ -57,6 +57,10 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 
 	// Save old env and use new one for body
 	oldEnv := ctx.env
+	newEnv, ownerErr := tc.lambdaRowOwnerEnv(newEnv, lam.ID())
+	if ownerErr != nil {
+		return nil, oldEnv, ownerErr
+	}
 	ctx.env = newEnv
 
 	// Infer body type
@@ -137,9 +141,10 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 	}
 
 	funcType := &TFunc2{
-		Params:    paramTypes,
-		EffectRow: funcEffectRow,
-		Return:    bodyNode.GetType().(Type),
+		ImplicitEffectContract: !lambdaHasEffectAnnotation(tc, lam),
+		Params:                 paramTypes,
+		EffectRow:              funcEffectRow,
+		Return:                 bodyNode.GetType().(Type),
 	}
 
 	return &typedast.TypedLambda{
@@ -499,7 +504,7 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 	typeFreeRowVars := freeEffectRowVarsInType(typ)
 	var envFreeRowVars map[string]bool
 	if currentEnv != nil {
-		envFreeRowVars = currentEnv.FreeEffectRowVars()
+		envFreeRowVars = currentEnv.effectRowsAbove(baseEnv)
 	}
 	generalizedRowVars := []string{}
 	for v := range typeFreeRowVars {
@@ -581,14 +586,15 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 
 	// Create result type variable and fresh effect row for the function's effects
 	resultType := ctx.freshTypeVar()
-	effectRow := ctx.freshEffectRow()
+	effectRow := ctx.applicationEffectRow(tc.effectAliasHead(getType(funcNode)))
 
 	// Unify function type with expected type
 	// The effectRow variable will be unified with the function's actual effect row
 	expectedFuncType := &TFunc2{
-		Params:    argTypes,
-		EffectRow: effectRow,
-		Return:    resultType,
+		ImplicitEffectContract: true,
+		Params:                 argTypes,
+		EffectRow:              effectRow,
+		Return:                 resultType,
 	}
 
 	// The Path is only rendered when this constraint FAILS to unify, so we can
@@ -617,6 +623,8 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 	if err != nil {
 		return nil, ctx.env, err
 	}
+
+	callRow := applicationCallRow(tc.effectAliasHead(getType(funcNode)), effectRow)
 
 	// Drop any binding of an enclosing-scope variable: those are owned by an outer
 	// binder (e.g. the recursive function's own effect row) and must be resolved
@@ -676,7 +684,7 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 
 	appEffectRow := combineEffectList(appEffects)
 
-	tc.publishLatentMask(app.ID(), latentMask)
+	tc.publishApplicationWithCallee(app.ID(), latentMask, callRow, ctx, argNodes)
 	return &typedast.TypedApp{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    app.ID(),

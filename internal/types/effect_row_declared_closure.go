@@ -134,5 +134,6 @@ func (tc *CoreTypeChecker) closeDeclaredEffectRowForBinding(nodeID uint64, typ T
 	if len(sub) == 0 {
 		return typ
 	}
+	tc.registerApplicationClosure(nodeID, sub)
 	return ApplySubstitution(sub, typ)
 }

@@ -623,15 +623,22 @@ func UnionEffectRows(a, b *Row) *Row {
 		}
 	}
 
-	// If no effects after merging, return nil (pure)
-	if len(effectLabels) == 0 {
+	tail := a.Tail
+	if tail == nil {
+		tail = b.Tail
+	}
+	if a.Tail != nil && b.Tail != nil && !a.Tail.Equals(b.Tail) {
+		panic(fmt.Sprintf("distinct unresolved effect tails %q and %q", a.Tail.Name, b.Tail.Name))
+	}
+	// A label-free open row is not pure.
+	if len(effectLabels) == 0 && tail == nil {
 		return nil
 	}
 
 	return &Row{
 		Kind:    EffectRow,
 		Labels:  effectLabels,
-		Tail:    nil,
+		Tail:    tail,
 		Budgets: budgets,
 		Params:  params,
 	}
@@ -642,7 +649,7 @@ func UnionEffectRows(a, b *Row) *Row {
 // only for validation; it is NOT function-type compatibility. Function-value
 // effect rows remain invariant in Unifier.unifyRows.
 func SubsumeEffectRows(a, b *Row) bool {
-	if a == nil {
+	if a == nil || (len(a.Labels) == 0 && a.Tail == nil) {
 		return true // Pure is subsumed by anything
 	}
 	if b == nil {
@@ -650,7 +657,7 @@ func SubsumeEffectRows(a, b *Row) bool {
 	}
 
 	diff := DiffEffectRows(a, b)
-	return len(diff.Missing) == 0 && len(diff.ParamMismatches) == 0
+	return len(diff.Missing) == 0 && len(diff.ParamMismatches) == 0 && diff.UnresolvedTail == ""
 }
 
 // EffectRowDifference returns the effects in 'a' that are not in 'b'
@@ -675,7 +682,7 @@ func EffectRowDifference(a, b *Row) []string {
 // Returns "! {IO, FS}" for non-empty rows, "" for pure (nil)
 // Includes budget annotations when present: "! {IO @limit=5, FS}"
 func FormatEffectRow(row *Row) string {
-	if row == nil || len(row.Labels) == 0 {
+	if row == nil || (len(row.Labels) == 0 && row.Tail == nil) {
 		return "" // Pure function, omit effect annotation
 	}
 
@@ -718,6 +725,12 @@ func FormatEffectRow(row *Row) string {
 		} else {
 			result += head
 		}
+	}
+	if row.Tail != nil {
+		if len(labels) > 0 {
+			result += ", "
+		}
+		result += row.Tail.Name
 	}
 	result += "}"
 

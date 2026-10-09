@@ -8,8 +8,8 @@ import (
 // A present all-false mask differs from absent metadata (a compiler invariant failure).
 // #616 can extend this single publication with the resolved call row.
 func (tc *CoreTypeChecker) LatentParamMask(appID uint64) ([]bool, bool) {
-	mask, ok := tc.latentParamMasks[appID]
-	return append([]bool(nil), mask...), ok
+	record, ok := tc.applicationEffects[appID]
+	return append([]bool(nil), record.LatentParamMask...), ok
 }
 
 func callbackMask(t Type) []bool {
@@ -46,10 +46,12 @@ func (tc *CoreTypeChecker) preApplicationMask(ctx *InferenceContext, expr core.C
 }
 
 func (tc *CoreTypeChecker) publishLatentMask(id uint64, mask []bool) {
-	if tc.latentParamMasks == nil {
-		tc.latentParamMasks = make(map[uint64][]bool)
+	if tc.applicationEffects == nil {
+		tc.applicationEffects = make(map[uint64]ApplicationEffects)
 	}
-	tc.latentParamMasks[id] = append([]bool(nil), mask...)
+	record := tc.applicationEffects[id]
+	record.LatentParamMask = append([]bool(nil), mask...)
+	tc.applicationEffects[id] = record
 }
 
 // EffectValueType resolves alias heads for the post-inference effect validator.

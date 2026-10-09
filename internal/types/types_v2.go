@@ -332,6 +332,7 @@ func (r *Row) Substitute(subs map[string]Type) Type {
 
 // TFunc2 represents a function type with effect row
 type TFunc2 struct {
+	ImplicitEffectContract bool // callback annotation omitted its effect row
 	ConcreteEffectContract bool // explicit concrete annotation; its fresh L1-open tail is compatibility, not effect polymorphism
 	Params                 []Type
 	EffectRow              *Row // Row of kind KRow(KEffect)
@@ -399,6 +400,7 @@ func (t *TFunc2) Substitute(subs map[string]Type) Type {
 		EffectRow:              effectRow,
 		Return:                 t.Return.Substitute(subs),
 		ConcreteEffectContract: t.ConcreteEffectContract,
+		ImplicitEffectContract: t.ImplicitEffectContract,
 	}
 }
 

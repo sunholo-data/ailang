@@ -1,6 +1,6 @@
 # M-EFFECT-ROW-VAR-UNIFICATION — Discharge effect-row variables in the effect-checking pass
 
-**Status**: Planned
+**Status**: Implemented (v1.0.0) — evaluated 2026-10-09
 **Target**: v1.0.0
 **Priority**: P0 (High) — static effect soundness hole, not just DX friction (see V10/V11)
 **Estimated**: 5 days (minimal App constraint repair + shared publication + row validation + corpus evidence)
@@ -664,43 +664,43 @@ Documentation uses `Refs #616`; no issue-closing directive belongs in these docs
 
 ## Acceptance Criteria
 
-- [ ] **AC1 — constraint repair**: #616's same-module `runIt(pureFn)` checks and
+- [x] **AC1 — constraint repair**: #616's same-module `runIt(pureFn)` checks and
   publishes a closed pure call row; IO instantiation publishes IO independently.
   Pin AST and Core App constraints, not merely a validator workaround.
-- [ ] **AC2 — diagnostics**: regression covers the original blank diff and
+- [x] **AC2 — diagnostics**: regression covers the original blank diff and
   identical Suggested fix. Pure caller accepts; a wrong FS wrapper around IO
   rejects naming IO with a changed suggestion. No empty user-facing failure.
-- [ ] **AC3 — repeated-call soundness**: the historical pure
+- [x] **AC3 — repeated-call soundness**: the historical pure
   `runTwice(f: () -> int ! {e}) -> int = f() + f()` plus `runTwice(noisy)`
   is rejected before execution. Record the old printing-twice behavior when it
   still reproduces on the new base with IO granted. Corrected row-polymorphic
   helper and IO caller run and print twice; capability enforcement is unchanged.
-- [ ] **AC4 — one authority**: mask and zonked call row share one per-App record;
+- [x] **AC4 — one authority**: mask and zonked call row share one per-App record;
   pre-instantiation mask survives solving; missing/malformed records fail loudly;
   pure/all-false differs from absent; lookup snapshots cannot mutate the store.
-- [ ] **AC5 — open-row boundary**: same-tail union/subsumption passes, distinct
+- [x] **AC5 — open-row boundary**: same-tail union/subsumption passes, distinct
   tails conflict explicitly, unowned tails fail, return-only pure call resolves
   without hidden fallback. Exercise both required and suggested-row union callers.
-- [ ] **AC6 — non-regression**: arms a/d/e/k/m/n/h/i/j, inferred combinators,
+- [x] **AC6 — non-regression**: arms a/d/e/k/m/n/h/i/j, inferred combinators,
   declared-pure imports (#1091), recursive concrete contamination controls,
   #386 no-join tests and #1708 latent/storage-only controls keep their contracts.
   Historical base behavior must be re-measured rather than assumed.
-- [ ] **AC7 — corpus sweep**: compare base (the executor branch's merge-base with dev,
+- [x] **AC7 — corpus sweep**: compare base (the executor branch's merge-base with dev,
   recorded by SHA) and fixed `ailang check` for every
   `examples/**/*.ail` and `std/**/*.ail`, with cold caches and matching stdlib.
   Record inventory, command, status and diagnostics per file, including existing
   failures; investigate std/stream and std/ai/streaming consumers explicitly.
-- [ ] **AC8 — flip rule**: each changed status is listed by path in the fragment
+- [x] **AC8 — flip rule**: each changed status is listed by path in the fragment
   `changelogs/unreleased/<YYYY-MM-DD>-effect-row-var-unification.md` (opening with a
   `### Fixed — …` heading; `make check-changelog` passes) with before/after,
   reason and migration. Newly accepted pure programs need no migration; newly
   rejected unsound programs require real effects or the shared generic row.
   An unexplained flip or sound-program rejection blocks completion. Distinct-tail
   conflicts in valid streaming code require repair, not blanket reclassification.
-- [ ] **AC9 — examples/docs**: add and verify a pure caller example and a corrected
+- [x] **AC9 — examples/docs**: add and verify a pure caller example and a corrected
   noisy callback example (twice output). Update the example manifest and applicable
   effect limitations. Fragment explains the soundness change and remaining #1718.
-- [ ] **AC10 — completion**: all focused/core/lint/boundary/size/changelog gates pass;
+- [x] **AC10 — completion**: all focused/core/lint/boundary/size/changelog gates pass;
   evidence records hashes, exact commands and mutation checks. Local commits only.
 
 ## Sprint and scope

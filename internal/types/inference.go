@@ -208,13 +208,14 @@ func (ctx *InferenceContext) Infer(expr ast.Expr) (Type, *Row, error) {
 
 		// Create fresh result type and effect row
 		resultType := ctx.freshTypeVar()
-		resultEffects := ctx.freshEffectRow()
+		resultEffects := ctx.applicationEffectRow(fnType)
 
 		// Generate function type constraint
 		expectedFnType := &TFunc2{
-			Params:    argTypes,
-			EffectRow: resultEffects,
-			Return:    resultType,
+			ImplicitEffectContract: true,
+			Params:                 argTypes,
+			EffectRow:              resultEffects,
+			Return:                 resultType,
 		}
 
 		ctx.addConstraint(TypeEq{
