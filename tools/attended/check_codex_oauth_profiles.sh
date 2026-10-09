@@ -32,8 +32,8 @@ if ! jq -en --slurpfile interactive "${homes[0]}/auth.json" --slurpfile missions
   [$interactive, $missions, $cloud] |
   if any(.[]; length != 1) then false else
     map(.[0]) as $profiles |
-    all($profiles[]; .auth_mode == "chatgpt" and (.OPENAI_API_KEY == null or .OPENAI_API_KEY == "") and (.tokens.access_token | present) and (.tokens.id_token | present) and (.tokens.refresh_token | present)) and
     ($profiles | map(identity)) as $identities |
+    all($profiles[]; .auth_mode == "chatgpt" and (.OPENAI_API_KEY == null or .OPENAI_API_KEY == "") and (.tokens.access_token | present) and (.tokens.id_token | present) and (.tokens.refresh_token | present)) and
     all($identities[]; (.user | present) and (.workspace | present) and .workspace == .claimed_workspace) and
     ([$identities[].user] | unique | length == 1) and
     ([$identities[].workspace] | unique | length == 1) and
