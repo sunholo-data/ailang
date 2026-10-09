@@ -73,8 +73,28 @@ func greet(name: string) -> () ! {IO} {
 |----------|------|-------------|
 | `println` | `string -> () ! {IO}` | Print with newline |
 | `print` | `string -> () ! {IO}` | Print without newline |
-| `readLine` | `() -> string ! {IO}` | Read line from stdin |
+| `readLine` | `() -> string ! {IO}` | Read line from stdin; blank lines and EOF both return `""`. Use `readLineOpt` for input loops. |
+| `readLineOpt` | `() -> Option[string] ! {IO}` | Read line from stdin: `Some(line)` for content (including blank lines), `None` at EOF. |
 | `exit` | `int -> () ! {IO}` | Terminate this program with an exit code (see below) |
+
+`readLineOpt` removes trailing LF/CRLF like `readLine`. A final unterminated line
+returns `Some(line)` once; subsequent reads return `None`. Other reader errors
+propagate as runtime errors. Import `Some` and `None` from `std/option` to match:
+
+```typescript
+import std/io (readLineOpt, println)
+import std/option (Some, None)
+
+func loop() -> () ! {IO} {
+  match readLineOpt(()) {
+    Some(line) => { println(line); loop() },
+    None => ()
+  }
+}
+```
+
+See [`io_readline_eof.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/io_readline_eof.ail)
+for a runnable stdin echo loop.
 
 #### Exit code
 
@@ -467,7 +487,7 @@ especially for capability-constrained (auditable/sandboxed) programs:
 
 | stdlib module | Capability | Notes |
 |---------------|-----------|-------|
-| `std/io` | `IO` | `print`, `println`, `readLine`, `writeBytes`, `flush`, `printErr`/`eprintln` |
+| `std/io` | `IO` | `print`, `println`, `readLine`/`readLineOpt`, `writeBytes`, `flush`, `printErr`/`eprintln` |
 | `std/fs` | `FS` | file read/write |
 | `std/clock` | `Clock` | `now`, `sleep` (use a seed for deterministic time) |
 | `std/datetime` | `Clock` | `now()` is effectful; formatting/arithmetic are pure |

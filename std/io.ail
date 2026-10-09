@@ -7,6 +7,8 @@
 
 module std/io
 
+import std/option (Option)
+
 -- print: Print string without newline
 export func print(s: string) -> () ! {IO} = _io_print(s)
 
@@ -14,7 +16,12 @@ export func print(s: string) -> () ! {IO} = _io_print(s)
 export func println(s: string) -> () ! {IO} = _io_println(s)
 
 -- readLine: Read line from stdin
+-- Returns "" for both blank lines and EOF. Use readLineOpt for input loops.
 export func readLine() -> string ! {IO} = _io_readLine()
+
+-- Some(line) includes blank lines and final unterminated content; None means EOF.
+-- Trims trailing LF/CRLF like readLine; other read errors propagate.
+export func readLineOpt() -> Option[string] ! {IO} = _io_readLineOpt()
 
 -- writeBytes: Write raw bytes to stdout
 -- Enables piping binary data to external tools

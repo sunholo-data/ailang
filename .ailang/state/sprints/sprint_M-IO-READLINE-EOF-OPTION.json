@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-IO-READLINE-EOF-OPTION",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-03T07:50:16.293188+00:00",
   "design_doc": "design_docs/planned/v0_52_0/m-io-readline-eof-option.md",
   "sprint_plan": "design_docs/planned/v0_52_0/m-io-readline-eof-option-sprint-plan.md",
@@ -9,7 +9,8 @@
   "velocity": {
     "target_loc_per_day": 200,
     "estimated_total_loc": 400,
-    "estimated_days": 2
+    "estimated_days": 2,
+    "actual_total_loc": 444
   },
   "features": [
     {
@@ -23,10 +24,10 @@
         "CRLF trimming matches readLine; non-EOF reader errors propagate; mixed reads share ctx.GetIOReader without losing buffered data.",
         "Existing TestIOReadLine_* pass unchanged; builtin type, metadata and doctor validation pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-03T09:45:22.943861+00:00",
+      "completed": "2026-10-03T09:45:22.943861+00:00",
+      "notes": "Focused IO tests pass, including legacy readLine, blank/EOF, CRLF, partial lines, errors, capability/unit validation and shared reader. Since metadata targets next minor v0.53.0; current std/VERSION is v0.52.1."
     },
     {
       "id": "M2",
@@ -41,10 +42,10 @@
         "Pipe-driven CLI tests deliver a, blank, b for a newline-separated input and terminate; empty input exits immediately; unterminated final input is retained.",
         "Integration tests use a timeout to detect EOF spinning and assert output and exit status."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-03T09:51:28.442657+00:00",
+      "completed": "2026-10-03T09:54:04.831071+00:00",
+      "notes": "Trace classification and both normalization call forms pass; bounded CLI tests preserve a/blank/b, exit on empty stdin, retain unterminated content, and freeze legacy blank-line behavior."
     },
     {
       "id": "M3",
@@ -60,10 +61,10 @@
         "A new teaching prompt version is created through prompt-manager; historical prompt hashes remain unchanged and prompt freeze checks pass.",
         "make build, make test, make lint, make check-boundaries, make verify-examples and make check-prompt-freeze pass; regex_capture example remains working."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": false,
+      "started": "2026-10-03T09:51:28.442657+00:00",
+      "completed": "2026-10-03T10:22:24.672651+00:00",
+      "notes": "Example/type check/empty-stdin and regex Option regression pass; verify-examples, lint (0 issues), boundaries, prompt freeze (60 entries; 59 historical hashes unchanged), changelog and whitespace gates pass. Full make test is not green on this host: linker/compiler processes killed, deep-recursion subprocess exit -1, timeout-policy descendant test fails; run stopped after failures. Implementation is complete, but M3 final full-suite acceptance criterion remains open for coordinator/evaluator on a suitable host."
     }
   ],
   "registry_reuse": [
@@ -85,5 +86,19 @@
       "action": "none",
       "reason": "Search stdin returned no packages; io returned application packages. Host API documentation, prompts and examples require repository updates."
     }
-  ]
+  ],
+  "last_session": "2026-10-03T09:45:22.943861+00:00",
+  "last_checkpoint": "Implementation committed for evaluation; full-suite validation remains open on the cloud host",
+  "validation": {
+    "focused_tests": "pass",
+    "cli_regressions": "pass",
+    "build": "pass",
+    "doctor_builtins": "pass",
+    "lint": "pass (0 issues)",
+    "check_boundaries": "pass",
+    "verify_examples": "pass",
+    "check_prompt_freeze": "pass",
+    "regex_capture": "pass",
+    "make_test": "incomplete: unrelated resource/process-supervision failures on cloud host"
+  }
 }

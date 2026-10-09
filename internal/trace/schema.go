@@ -133,6 +133,7 @@ var nonDeterministicOps = map[string]bool{
 	"Clock.now":       true, // Wall clock always varies
 	"Clock.sleep":     true, // Real-time delays vary
 	"IO.readLine":     true, // Depends on stdin
+	"IO.readLineOpt":  true, // Depends on stdin, including EOF
 	"Net.httpGet":     true, // Network responses vary
 	"Net.httpPost":    true, // Network responses vary
 	"Net.httpRequest": true, // Network responses vary

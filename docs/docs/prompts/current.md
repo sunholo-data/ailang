@@ -469,17 +469,23 @@ export func main() -> () ! {IO, FS, Env} {
   }
 }
 
--- Reading lines from stdin (readLine reads one line, returns "" at EOF)
+-- Reading lines from stdin: Some("") is a blank line; None is EOF.
+-- Prefer readLineOpt for input loops. readLine returns "" for both EOF and blank lines.
 -- Run: printf "hello\nworld\n" | ailang run --caps IO --entry main program.ail
+-- Add these imports to the program:
+-- import std/io (readLineOpt, println)
+-- import std/option (Some, None)
 func loop() -> () ! {IO} {
-  let line = readLine();
-  if line == "" then ()
-  else {
-    println("Got: ${line}");
-    loop()
+  match readLineOpt(()) {
+    Some(line) => { println("Got: ${line}"); loop() },
+    None => ()
   }
 }
 ```
+
+`readLineOpt() -> Option[string] ! {IO}` trims LF/CRLF, preserves final
+unterminated content as `Some(line)` once, and returns `None` repeatedly at EOF.
+Other reader errors propagate. Never infer EOF from `line == ""` in an input loop.
 
 **Common effect combinations:**
 | Task | Required Effects |
@@ -489,7 +495,7 @@ func loop() -> () ! {IO} {
 | HTTP requests | `! {Net}` (add IO if also printing) |
 | Environment vars | `! {Env}` |
 | CLI arguments | `! {Env}` (use `getArgs()` from `std/env`) |
-| Read from stdin | `! {IO}` (use `readLine()` from `std/io`) |
+| Read from stdin | `! {IO}` (use `readLineOpt()` from `std/io` for EOF-aware loops) |
 | AI calls | `! {AI}` |
 | Run external commands | `! {Process}` or `! {IO, Process}` |
 | Exit with code | `! {IO}` (use `exit(code)` from `std/io`) |
@@ -514,7 +520,7 @@ export func main() -> () ! {IO} { println("hi") }
 
 | Effect | Functions | Import |
 |--------|-----------|--------|
-| `IO` | `print`, `println`, `readLine`, `writeBytes`, `exit` | `std/io` (print is builtin) |
+| `IO` | `print`, `println`, `readLine`, `readLineOpt`, `writeBytes`, `exit` | `std/io` (print is builtin) |
 | `FS` | `readFile`, `writeFile`, `fileExists`, `listDir`, `walk`, `glob`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
 | `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
 | `Env` | `getArgs`, `getEnv`, `getEnvOr`, `hasEnv` | `std/env` |
@@ -632,7 +638,7 @@ func handleRequest(path: string) -> Response ! {Net} {
 
 **Common imports:**
 ```ailang
-import std/io (println, readLine)
+import std/io (println, readLine, readLineOpt)
 import std/fs (readFile, writeFile, fileExists, listDir, walk, glob, mkdir, mkdirAll, isDir, isFile, removeFile)
 -- walk(root) -> [string] ! {FS}: every file under root, recursively, sorted, paths prefixed with root.
 -- glob(root, ".ail") -> [string] ! {FS}: walk filtered by suffix. Never hand-roll a recursive listDir/isDir walker.

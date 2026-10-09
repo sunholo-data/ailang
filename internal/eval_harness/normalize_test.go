@@ -5,6 +5,19 @@ import (
 	"testing"
 )
 
+func TestNormalizeProgram_ReadLineOpt(t *testing.T) {
+	for _, call := range []string{"readLineOpt(())", "readLineOpt ()"} {
+		if !needsIO(call) {
+			t.Errorf("IO not detected for %q", call)
+		}
+		src := "module benchmark/solution\nexport func main() -> () ! {IO} { let _ = " + call + "; () }\n"
+		got, log := normalizeProgram(src, []string{"IO"})
+		if len(log.AddedImports) != 1 || log.AddedImports[0] != "std/io" || !strings.Contains(got, "import std/io") {
+			t.Errorf("missing IO import for %q: %+v\n%s", call, log, got)
+		}
+	}
+}
+
 func TestNormalizeProgram_BareExpression(t *testing.T) {
 	code := "print 5 % 3"
 	caps := []string{"IO"}
