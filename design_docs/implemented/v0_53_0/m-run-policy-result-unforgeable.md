@@ -1,6 +1,6 @@
 # M-RUN-POLICY-RESULT-UNFORGEABLE: the confined program cannot forge the supervisor's `policy-result:` line (#1548)
 
-**Status**: Planned
+**Status**: Implemented (sprint completed 2026-10-09; merge pending via #1744). Prior status: Planned.
 **Target**: v0.53.0 (triage doc carried no target; retargeted per maintainer scheduling, 2026-10-08)
 **Priority**: P0 (maintainer-approved scheduling from the P0 issue triage, 2026-10-08; triage severity: bug, security, low)
 **Estimated**: 2 days (M1 6h, M2 4h, plus buffer)
