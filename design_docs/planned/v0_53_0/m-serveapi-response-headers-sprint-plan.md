@@ -21,7 +21,7 @@ The skill's seven-day velocity script found only one visible commit (8f15a892, a
 
 ## Delivery and Issue Policy
 
-PR A contains M1 only: static security defaults, flags, wire tests, CLI reference, operator docs, and its changelog entry. It must be independently mergeable and releasable before route work. PR B contains M2 and M3. M4 verifies the combined result without holding PR A for later work. Use Refs #1597 and Refs #1609 in planning/development references. Only implementation PRs use closing keywords, for the issue each actually fixes; do not close issues from the planning PR. No new GitHub issue, release tag, or implementation is part of this planning task.
+One branch, M1 first. Keep M1 (static security defaults, flags, wire tests, CLI reference, operator docs and its changelog fragment) as **self-contained commits at the start of the branch**, touching no M2/M3 files, so a human can split them into their own PR or cherry-pick them to ship first. M2 and M3 follow as later commits. M4 verifies the combined result. The executor cannot push or merge: it commits locally and the coordinator raises the PR. Use `Refs #1597` and `Refs #1609` in commits and plan text; closing the issues is the maintainer's decision at merge. No new GitHub issue, release tag, or implementation is part of this planning task.
 
 ## Registry Reuse Audit
 
@@ -38,12 +38,12 @@ No package contribution or new dependency is necessary. The installed CLI warned
 
 ## Milestones
 
-### M1: Independently shippable static security headers (~360 LOC)
+### M1: Static security headers, as self-contained first commits (~360 LOC)
 
 **Estimate:** 150 implementation + 150 tests + 60 docs = 360 LOC; day 1, 6 hours.
 **Dependencies:** None.
 
-Create `internal/apiserver/static_headers.go` and `static_headers_test.go`; update `server.go`, `cmd/ailang/serve_api.go`, `cmd/ailang/help.go` and `docs/docs/reference/cli.md` as required by the CLI source-of-truth workflow. Update `docs/docs/guides/serve-api.md`, `docs/docs/guides/mcp-connectors.md`, and `changelogs/v0.32-current.md` in this first PR. Load cli-doc-maintainer when changing flags/help.
+Create `internal/apiserver/static_headers.go` and `static_headers_test.go`; update `cmd/ailang/serve_api.go`, `cmd/ailang/help.go` and `docs/docs/reference/cli.md` as required by the CLI source-of-truth workflow. `internal/apiserver/server.go` is already 788 lines: all M1 wiring (option parsing, validation, the static wrapper) lives in `static_headers.go`, and server.go gets only a near-zero hook (one or two lines calling into it). Update `docs/docs/guides/serve-api.md`, `docs/docs/guides/mcp-connectors.md`, and a changelog fragment `changelogs/unreleased/YYYY-MM-DD-serve-api-static-security-headers.md` (never `changelogs/v0.32-current.md`) in the M1 commits. Load cli-doc-maintainer when changing flags/help.
 
 Clone static_cache's startup/wrapper pattern. Default to nosniff, DENY, frame-ancestors 'none', and no-referrer; implement repeatable --static-header with case-insensitive last-wins names and --no-static-security-headers. Validate token names and nonempty values free of controls before serving. Security applies to every static status, while cache behavior stays 2xx/304-only. Demonstrate operator commands in the guide using an existing runnable service; no new AILANG feature is required in M1.
 
@@ -51,8 +51,8 @@ Clone static_cache's startup/wrapper pattern. Default to nosniff, DENY, frame-an
 - [ ] Overrides, repeated case variants, opt-out, and opt-out plus explicit headers produce the specified wire headers.
 - [ ] Invalid names/values and either flag without --static fail startup with actionable errors.
 - [ ] API/MCP/A2A and frontend proxy responses do not acquire static defaults; static cache regression tests pass.
-- [ ] CLI help, operator examples, migration guidance and changelog ship in PR A; fresh-binary curl evidence is recorded.
-- [ ] PR A is independently reviewable and releasable before M2/M3.
+- [ ] CLI help, operator examples, migration guidance and the changelog fragment ship in the M1 commits; fresh-binary curl evidence is recorded.
+- [ ] M1 commits come first on the branch and are self-contained (no M2/M3 files), so they can be split or cherry-picked to ship first; `server.go` net growth is near zero.
 
 Risk: an app legitimately framing static HTML needs both X-Frame-Options and CSP overrides (SAMEORIGIN alone leaves frame-ancestors 'none' blocking frames). Document both overrides or the wholesale opt-out.
 
@@ -81,7 +81,7 @@ Risk: Result/alias handling and row-polymorphic declared shapes require followin
 **Estimate:** 70 implementation + 70 tests + 80 docs = 220 LOC; day 5, 6 hours.
 **Dependencies:** M2 for checked route docs; probe is technically independent.
 
-Update `internal/mcpcheck/mcpcheck.go` and its tests (or a small framing-specific file if size checks require it). Extend discovered metadata with authorization_endpoint. Use existing bounded/context-aware HTTP client behavior, send response_type=code, dummy client_id/redirect_uri/state and valid S256 PKCE parameters, and follow redirects. Judge only final 2xx HTML. Choose WARN for openai; anthropic/both missing protections FAIL. Reuse M2's example in `serve-api.md`, replace the two broken examples, and finish connector/changelog guidance without delaying M1 docs.
+Update `internal/mcpcheck/mcpcheck.go` and its tests (or a small framing-specific file if size checks require it). Extend discovered metadata with authorization_endpoint. Use existing bounded/context-aware HTTP client behavior, send response_type=code, dummy client_id/redirect_uri/state and valid S256 PKCE parameters, and follow redirects. Judge only final 2xx HTML. Choose WARN for openai; anthropic/both missing protections FAIL. Reuse M2's example in `serve-api.md`, replace the two broken examples, and finish connector guidance and a changelog fragment `changelogs/unreleased/YYYY-MM-DD-serve-api-route-response-headers.md` for M2/M3 without delaying M1 docs.
 
 - [ ] Mock authorization server asserts every dummy request parameter and redirect-following behavior.
 - [ ] Final 2xx HTML with X-Frame-Options or CSP frame-ancestors passes; without either FAILs for anthropic/both and WARNs for openai.
@@ -96,9 +96,9 @@ Risk: dummy clients often receive a rejection rather than consent HTML. WARN is 
 **Estimate:** 0 planned production/test LOC; day 6, 6 hours reserved for review and fixes.
 **Dependencies:** M1, M2, M3.
 
-This is a verification-only milestone, not an implementable feature. Run the full acceptance matrix against a fresh build, inspect each PR's scope, and record results. Any review edits consume the buffer; re-estimate if scope grows beyond it.
+This is a verification-only milestone, not an implementable feature. Do **not** run the full `make test` locally: in the executor's RAM-backed /tmp it has crashed with SIGBUS; the full suite runs in CI on the PR. Run the full acceptance matrix against a fresh build, inspect that the M1 commits stay self-contained, and record results. Any review edits consume the buffer; re-estimate if scope grows beyond it.
 
-- [ ] make build, make test, make lint, make check-file-sizes, make check-cli-docs, make check-changelog and make check-boundaries pass, or concrete pre-existing failures are recorded separately.
+- [ ] make build, focused `go test ./internal/apiserver/... ./internal/mcpcheck/...` plus `go test ./cmd/ailang/... -run 'ServeAPI|Static|Help' -count=1`, make test-core, make lint, make check-file-sizes, make check-cli-docs, make check-changelog and make check-boundaries pass, or concrete pre-existing failures are recorded separately.
 - [ ] Fresh-binary curl evidence covers defaults/override/opt-out and all four route header cases; local mcp check evidence covers assessable protected and unprotected consent pages.
 - [ ] All named examples and request-header regressions pass, and mutation evidence is recorded.
 - [ ] sprint-evaluator assesses the final implementation against the approved design; unresolved acceptance failures block completion.
@@ -107,11 +107,11 @@ This is a verification-only milestone, not an implementable feature. Run the ful
 
 | Day | Work | Exit condition |
 |---|---|---|
-| 1 | M1 defaults, flags, startup validation, wire tests and operator docs | Independent security PR A ready |
+| 1 | M1 defaults, flags, startup validation, wire tests and operator docs | Self-contained M1 commits first on the branch |
 | 2 | M2 shared extraction/validation and unit cases | Both accepted forms parsed before Go conversion |
 | 3 | M2 dispatch integration, header ownership, Content-Type ordering | Real four-cell wire matrix passes |
-| 4 | M2 registration diagnostics, runnable example, regression/mutation checks | Route implementation ready for PR B |
-| 5 | M3 probe fixtures, target outcomes and corrected docs | PR B complete |
+| 4 | M2 registration diagnostics, runnable example, regression/mutation checks | Route implementation committed |
+| 5 | M3 probe fixtures, target outcomes and corrected docs | M2/M3 commits complete |
 | 6 | M4 full checks, fresh-binary evidence, evaluator and review fixes | Acceptance evidence complete |
 
 ## Success Metrics and Handoff
@@ -124,4 +124,4 @@ Design decisions are frozen. There are no remaining design approval questions. C
 
 ## Planning Artifact Validation
 
-Python JSON parsing and structural assertions passed: three populated features, known dependencies, one registry decision per feature, existing artifact paths, issue links [1597, 1609], and summed LOC 1,120. `git diff --check` passed. The repository `validate_sprint_json.sh` could not perform its jq checks because jq is absent in this environment (its generic output says “Invalid JSON syntax”; independent parsing confirms the JSON is valid). Re-run that validator in the equipped executor environment. No implementation tests were run during planning.
+`.claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-SERVEAPI-RESPONSE-HEADERS` passes (re-checked at review, 2026-10-09, with jq). The executor must re-run it before starting and after every sprint JSON update. No implementation tests were run during planning.

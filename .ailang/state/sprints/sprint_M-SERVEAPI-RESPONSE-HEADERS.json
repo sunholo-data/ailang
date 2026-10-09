@@ -38,7 +38,7 @@
   "features": [
     {
       "id": "M1",
-      "description": "Independently shippable static security headers",
+      "description": "Static security headers (self-contained commits first on the branch)",
       "estimated_loc": 360,
       "dependencies": [],
       "acceptance_criteria": [
@@ -46,8 +46,8 @@
         "Overrides, repeated case variants, opt-out, and opt-out plus explicit headers produce the specified wire headers.",
         "Invalid names/values and either flag without --static fail startup with actionable errors.",
         "API/MCP/A2A and frontend proxy responses do not acquire static defaults; static cache regression tests pass.",
-        "CLI help, operator examples, migration guidance and changelog ship in PR A; fresh-binary curl evidence is recorded.",
-        "PR A is independently reviewable and releasable before M2/M3."
+        "CLI help, operator examples, migration guidance and changelog fragment changelogs/unreleased/YYYY-MM-DD-serve-api-static-security-headers.md ship in the M1 commits; fresh-binary curl evidence is recorded.",
+        "M1 is self-contained commits FIRST on the branch (no M2/M3 files) so a human can split or cherry-pick them to ship first; wiring lives in internal/apiserver/static_headers.go with near-zero growth in server.go (788 lines)."
       ],
       "passes": null,
       "started": null,
@@ -60,7 +60,7 @@
       "estimated_loc": 540,
       "dependencies": [],
       "acceptance_criteria": [
-        "Both forms \u00d7 both paths send X-Frame-Options and CSP through the real server; Result.Ok coverage exercises the existing unwrap behavior.",
+        "Both forms × both paths send X-Frame-Options and CSP through the real server; Result.Ok coverage exercises the existing unwrap behavior.",
         "Json preserves exact underscore names; record names remap; _headers metadata is absent from serialized response bodies and original eval records are not mutated.",
         "Invalid shapes, non-string fields/JObject values, invalid names and control characters produce structured 500 responses plus ERROR logs naming accepted forms and offending fields.",
         "Declared incompatible @route _headers types are refused at registration; valid record/Json declarations remain accepted.",
@@ -105,7 +105,7 @@
     "estimated_loc": 0,
     "estimated_days": 1,
     "acceptance_criteria": [
-      "make build, make test, make lint, make check-file-sizes, make check-cli-docs, make check-changelog and make check-boundaries pass, or concrete pre-existing failures are recorded separately.",
+      "make build, focused go test ./internal/apiserver/... ./internal/mcpcheck/... plus go test ./cmd/ailang/... -run ServeAPI|Static|Help, make test-core, make lint, make check-file-sizes, make check-cli-docs, make check-changelog and make check-boundaries pass (full make test runs in CI, not locally: SIGBUS in RAM-backed /tmp), or concrete pre-existing failures are recorded separately.",
       "Fresh-binary curl evidence covers defaults/override/opt-out and all four route header cases; local mcp check evidence covers assessable protected and unprotected consent pages.",
       "All named examples and request-header regressions pass, and mutation evidence is recorded.",
       "sprint-evaluator assesses the final implementation against the approved design; unresolved acceptance failures block completion."
@@ -116,5 +116,13 @@
     "approval_required": true,
     "dispatch": "Coordinator plan approval; do not duplicate executor dispatch."
   },
-  "target_version": "v0.53.0"
+  "target_version": "v0.53.0",
+  "executor_constraints": [
+    "M1 as self-contained commits first on the branch; no separate PR A/PR B.",
+    "server.go (788 lines): M1 wiring in new static_headers.go, near-zero growth in server.go.",
+    "Changelog: fragments changelogs/unreleased/YYYY-MM-DD-<slug>.md; never changelogs/v0.32-current.md.",
+    "No full make test locally (SIGBUS in RAM-backed /tmp): focused go test on touched packages plus make test-core; full suite runs in CI.",
+    "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-SERVEAPI-RESPONSE-HEADERS before starting and after every JSON update.",
+    "Executor cannot push or merge; commit locally with Refs #1597 / Refs #1609."
+  ]
 }
