@@ -96,7 +96,7 @@ Extend ValidateContentHashesFrom to hash registry entries using PackageDir; reta
 
 **Estimate:** 50 documentation; Day 3 final 6 hours.
 **Dependencies:** M1, M2, M3.
-**Files:** `docs/docs/reference/env-vars.md`, `docs/docs/reference/std-package.md`, `SECURITY.md`, current-version changelog per repository convention. Verify CLI/help documentation against existing commands; no new command surface. Record results alongside this sprint plan in `m-pkg-registry-confinement-sprint-report.md` during execution.
+**Files:** `docs/docs/reference/env-vars.md`, `docs/docs/reference/std-package.md`, `SECURITY.md`, current-version changelog per repository convention. Verify CLI/help documentation against existing commands; no new command surface. Record results in the sprint state JSON and the implementation PR.
 
 Document root layout, exclusive resolution, confinement refusal, provisioning, and D5 severity. Correct the design's example path inconsistency by using one operator root path throughout runnable instructions. Provisioning examples are shell commands and existing verified package fixtures; no new language feature examples are needed.
 
@@ -120,4 +120,4 @@ This is a planning-only coordinator stage. Route these artifacts to sprint-execu
 
 ## Execution outcome
 
-All four milestones completed with local milestone commits. Mark’s D3 root-only and D5 immediate hard-fail rulings were applied. Historical planning assumptions above describe the original planning stage; current evidence is in [the sprint report](m-pkg-registry-confinement-sprint-report.md). SQLite/CGO test failures are environment limitations, not regressions.
+All four milestones completed with local milestone commits. Mark’s D3 root-only and D5 immediate hard-fail rulings were applied. Historical planning assumptions above describe the original planning stage; current evidence is in the sprint state (`.ailang/state/sprints/sprint_M-PKG-REGISTRY-CONFINEMENT.json`) and the implementation PR. SQLite/CGO test failures are environment limitations, not regressions.

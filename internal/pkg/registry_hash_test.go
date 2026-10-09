@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestRegistryContentHash(t *testing.T) {
@@ -37,8 +39,8 @@ func TestRegistryContentHash(t *testing.T) {
 		t.Fatal("short hash accepted")
 	}
 	t.Setenv("AILANG_PACKAGE_ROOT", t.TempDir())
-	if err := lf.ValidateContentHashes(); err == nil {
-		t.Fatal("missing registry directory accepted")
+	if err := lf.ValidateContentHashes(); err == nil || !strings.Contains(err.Error(), "not provisioned in AILANG_PACKAGE_ROOT") || strings.Contains(err.Error(), "lstat") {
+		t.Fatalf("missing registry directory: want named not-provisioned error, got %v", err)
 	}
 	lf.Packages[0].ContentHash = ""
 	if err := lf.Validate(); err == nil {
@@ -61,8 +63,7 @@ func TestRegistryContentHashCannotBeMaskedByPathDrift(t *testing.T) {
 
 func TestRegistryContentHashHomeCache(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv("AILANG_PACKAGE_ROOT", "")
 	dir, err := CachedPackagePath("test/lib", "0.1.0")
 	if err != nil {

@@ -10,12 +10,12 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestPkgDocsConfinement(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv(config.EnvAgentPolicy, "policy.toml")
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; http.Error(w, "unexpected fetch", 500) }))
@@ -38,8 +38,7 @@ func TestPkgRegistryUnconfinedWorkflows(t *testing.T) {
 	for _, op := range []string{"docs", "install", "lock"} {
 		t.Run(op, func(t *testing.T) {
 			home := t.TempDir()
-			t.Setenv("HOME", home)
-			t.Setenv("USERPROFILE", home)
+			testutil.SetHomeDir(t, home)
 			src := t.TempDir()
 			for name, data := range map[string]string{"ailang.toml": "[package]\nname = \"test/lib\"\nversion = \"0.1.0\"\nedition = \"1\"\n", "AGENT.md": "Test package guide"} {
 				if err := os.WriteFile(filepath.Join(src, name), []byte(data), 0644); err != nil {
@@ -98,8 +97,7 @@ func TestPkgRegistryUnconfinedWorkflows(t *testing.T) {
 
 func TestPkgDocsPackageRoot(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	testutil.SetHomeDir(t, home)
 	root := t.TempDir()
 	t.Setenv(config.EnvPackageRoot, root)
 	t.Setenv(config.EnvAgentPolicy, "policy.toml")

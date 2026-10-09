@@ -9,13 +9,13 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestPkgRegistryContentHashCheck(t *testing.T) {
 	bin := buildAilang(t)
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	testutil.SetHomeDir(t, home)
 	root := t.TempDir()
 	t.Setenv(config.EnvPackageRoot, root)
 	t.Setenv(config.EnvAgentPolicy, "policy.toml")

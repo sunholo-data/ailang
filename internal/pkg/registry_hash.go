@@ -1,6 +1,11 @@
 package pkg
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+
+	"github.com/sunholo-data/ailang/internal/config"
+)
 
 // RegistryContentError marks registry trust failures that must stop compilation.
 // Path dependency drift keeps its existing authoring warning behavior.
@@ -19,6 +24,11 @@ func (lf *LockFile) validateRegistryContentHashes() error {
 		dir, err := PackageDir(p.Name, p.Version)
 		if err != nil {
 			return &RegistryContentError{fmt.Errorf("cannot resolve registry dependency %s: %w", p.Name, err)}
+		}
+		if config.PackageRoot() != "" {
+			if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
+				return &RegistryContentError{fmt.Errorf("registry package %s@%s is not provisioned in AILANG_PACKAGE_ROOT at %s; ask the operator to provision it", p.Name, p.Version, dir)}
+			}
 		}
 		hash, err := ContentHash(dir)
 		if err != nil {

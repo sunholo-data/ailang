@@ -7,12 +7,12 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestPackageRootResolution(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	testutil.SetHomeDir(t, home)
 	root := t.TempDir()
 	t.Setenv("AILANG_PACKAGE_ROOT", root)
 	t.Setenv(config.EnvAgentPolicy, "policy.toml")
@@ -45,8 +45,7 @@ func TestPackageRootResolution(t *testing.T) {
 
 func TestPackageRootRegistryLockOffline(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	testutil.SetHomeDir(t, home)
 	root := t.TempDir()
 	t.Setenv("AILANG_PACKAGE_ROOT", root)
 	t.Setenv(config.EnvAgentPolicy, "policy.toml")

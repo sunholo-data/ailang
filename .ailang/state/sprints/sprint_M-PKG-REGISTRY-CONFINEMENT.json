@@ -138,6 +138,5 @@
     "full_suite": "not run; explicitly delegated to CI",
     "cgo": "disabled; no C toolchain; no compiler installed",
     "evaluation": "coordinator handoff required; no live sprint-evaluator inbox agent configured"
-  },
-  "pr_body_path": "design_docs/planned/v0_52_6/m-pkg-registry-confinement-pr-body.md"
+  }
 }

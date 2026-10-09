@@ -9,12 +9,12 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestRegistryConfinement(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv(config.EnvAgentPolicy, "policy.toml")
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.Write([]byte(`{}`)) }))
@@ -42,8 +42,7 @@ func TestRegistryConfinement(t *testing.T) {
 
 func TestRegistryCacheConfinementWrites(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv(config.EnvAgentPolicy, "policy.toml")
 	if _, err := EnsureRegistryCacheDir(); err == nil {
 		t.Fatal("confined cache creation allowed")
@@ -67,8 +66,7 @@ func TestRegistryCacheConfinementWrites(t *testing.T) {
 
 func TestRegistryConfinementResolverMiss(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv(config.EnvAgentPolicy, "policy.toml")
 	root := t.TempDir()
 	writeManifest(t, root, `[package]

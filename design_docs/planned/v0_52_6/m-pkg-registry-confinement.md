@@ -328,4 +328,4 @@ Run 'ailang lock' to update    ← the lock's content_hash no longer matches the
 
 ## Implementation evidence
 
-See [sprint report](m-pkg-registry-confinement-sprint-report.md) for A1–A5, validation results, environment limitations, and the implementation PR body. No full `make test` was run and no branch was pushed.
+A1–A5 evidence, validation results and environment limitations are recorded in the sprint state (`.ailang/state/sprints/sprint_M-PKG-REGISTRY-CONFINEMENT.json`) and the implementation PR.
