@@ -31,7 +31,11 @@ _mc_bounded() {
     if [ "$(date +%s)" -ge "$deadline" ]; then
       kill "$pid" 2>/dev/null
       grace_deadline=$(( $(date +%s) + ${MC_BOUNDED_TERMINATION_GRACE:-2} ))
-      while kill -0 "$pid" 2>/dev/null && [ "$(date +%s)" -lt "$grace_deadline" ]; do sleep 1; done
+      if [ -z "${MC_BOUNDED_TERMINATION_GRACE+x}" ]; then
+        sleep 2 # preserve the existing aggregate notice-drain timing
+      else
+        while kill -0 "$pid" 2>/dev/null && [ "$(date +%s)" -lt "$grace_deadline" ]; do sleep 1; done
+      fi
       kill -9 "$pid" 2>/dev/null || true
       grace_deadline=$(( $(date +%s) + 2 ))
       while kill -0 "$pid" 2>/dev/null && [ "$(date +%s)" -lt "$grace_deadline" ]; do sleep 1; done
