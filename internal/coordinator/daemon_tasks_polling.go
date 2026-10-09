@@ -193,6 +193,7 @@ func (d *Daemon) pollAndProcessTasks() error {
 		task := &TaskRecord{
 			ID:            taskID,
 			MessageID:     msg.ID,
+			Inputs:        append([]TaskInput(nil), msg.Inputs...),
 			AgentID:       agentID,          // M-COORD-ARTIFACT-DISCOVERY: Set AgentID from inbox
 			ParentTaskID:  msg.ParentTaskID, // M-TASK-HIERARCHY: Link to parent task for handoff chains
 			Iteration:     iteration,        // M-TASK-HIERARCHY: Iteration number for feedback loops
@@ -497,6 +498,7 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		task := &TaskRecord{
 			ID:            taskID,
 			MessageID:     msg.ID,
+			Inputs:        append([]TaskInput(nil), msg.Inputs...),
 			AgentID:       agentID,
 			ParentTaskID:  msg.ParentTaskID,
 			Iteration:     iteration,

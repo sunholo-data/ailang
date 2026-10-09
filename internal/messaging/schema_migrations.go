@@ -11,7 +11,7 @@ import (
 func MigrateDB(db *sql.DB) error {
 	// Check current schema version
 	var currentVersion string
-	err := db.QueryRow("SELECT version FROM schema_version ORDER BY created_at DESC LIMIT 1").Scan(&currentVersion)
+	err := db.QueryRow("SELECT version FROM schema_version ORDER BY created_at DESC, rowid DESC LIMIT 1").Scan(&currentVersion)
 	if err != nil {
 		// No version table or no version - assume 1.0.0
 		currentVersion = "1.0.0"
@@ -86,6 +86,9 @@ func MigrateDB(db *sql.DB) error {
 		// is how a vocabulary addition reaches an existing database. "feedback"
 		// is the addition that needed it (2026-09-07).
 		if err := migrateV180ToV190(db); err != nil {
+			return fmt.Errorf("refresh message vocabulary: %w", err)
+		}
+		if err := migrateV190ToV1100(db); err != nil {
 			return fmt.Errorf("migration to v1.10.0 failed: %w", err)
 		}
 	}
@@ -519,6 +522,7 @@ func migrateV180ToV190(db *sql.DB) error {
 		parent_task_id TEXT,
 		chain_id TEXT,
 		envelope TEXT DEFAULT '{}',
+ inputs TEXT DEFAULT '[]',
 		status TEXT NOT NULL DEFAULT 'unread',
 		created_at TEXT NOT NULL,
 		read_at TEXT,

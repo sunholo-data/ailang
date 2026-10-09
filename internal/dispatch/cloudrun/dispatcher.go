@@ -5,6 +5,7 @@ package cloudrun
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // jobRunner abstracts the Cloud Run Jobs API client for testing.
@@ -230,6 +232,16 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		{Name: "AILANG_TASK_TITLE", Values: &runpb.EnvVar_Value{Value: params.TaskTitle}},
 		{Name: "AILANG_REPO_URL", Values: &runpb.EnvVar_Value{Value: params.RepoURL}},
 		{Name: "AILANG_BRANCH", Values: &runpb.EnvVar_Value{Value: params.Branch}},
+	}
+	if err := messaging.ValidateTaskInputs(params.Inputs); err != nil {
+		return fmt.Errorf("%w: %v", coordinator.ErrDispatchPermanent, err)
+	}
+	if len(params.Inputs) > 0 {
+		raw, err := json.Marshal(params.Inputs)
+		if err != nil {
+			return fmt.Errorf("%w: inputs: %v", coordinator.ErrDispatchPermanent, err)
+		}
+		envOverrides = append(envOverrides, &runpb.EnvVar{Name: config.EnvTaskInputs, Values: &runpb.EnvVar_Value{Value: string(raw)}})
 	}
 	// For skip_approval agents, push directly to target branch instead of coordinator/{taskID}.
 	if params.PushBranch != "" {

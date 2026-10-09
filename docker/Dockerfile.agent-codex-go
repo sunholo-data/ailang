@@ -3,6 +3,15 @@
 ARG PROJECT
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-codex:latest
 
+# Build prerequisites for make targets and CGO-backed SQLite tests.
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    make \
+    gcc \
+    libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+USER ailang
+
 # Go toolchain — matches go.mod version in the ailang repo
 COPY --from=golang:1.26-bookworm /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"

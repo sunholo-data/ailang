@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-TASK-INPUTS",
-  "status": "planned",
+  "status": "completed",
   "created": "2026-10-08T18:53:50.182743+00:00",
   "design_doc": "design_docs/planned/v0_52_6/m-task-inputs.md",
   "sprint_plan": "design_docs/planned/v0_52_6/m-task-inputs-sprint-plan.md",
@@ -42,10 +42,10 @@
         "Migration from the current terminal schema preserves existing messages and inputs across reopening; fresh schema and repeated startup work.",
         "HTTP, CLI, Pub/Sub hydration, polling adapter and watcher preserve the same ordered input list."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T14:33:41.915193+00:00",
+      "completed": "2026-10-09T15:14:04.586309+00:00",
+      "notes": "Canonical messaging type; strict validation/CLI/HTTP ingress; SQLite 1.10.0 additive migration; Firestore conversion; polling/watcher/PubSub preservation. Storage reopen and legacy fixtures pass."
     },
     {
       "id": "M2_TASK_GRANTS_DISPATCH",
@@ -76,10 +76,10 @@
         "Allowed cloud inputs serialize as AILANG_TASK_INPUTS; malformed env JSON fails explicitly; absent inputs preserve previous dispatch params/env behavior.",
         "Local tasks with inputs fail explicitly as unsupported before executor startup; no local fetch behavior is introduced."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T14:33:41.915193+00:00",
+      "completed": "2026-10-09T15:14:04.586309+00:00",
+      "notes": "Task inputs persisted in both stores and both daemon creation sites. Exact trusted inputs_allow checked before publish/dispatch, denial fails permanently and posts thread reason. Cloud env and local pre-start refusal pass."
     },
     {
       "id": "M3_PARENT_FETCH_PROVENANCE",
@@ -108,10 +108,10 @@
         "Parent uses the existing HTTPS token helper for allowlisted input reads; tests prove the child does not receive the fleet token or input clone credential material, including the workspace SSH deploy-key case.",
         "Zero-input tasks retain previous clone, executor and completion behavior; temp-repo integration tests require no network or model."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T14:33:41.915193+00:00",
+      "completed": "2026-10-09T15:14:04.586309+00:00",
+      "notes": "Parent HTTPS fetch before deterministic/AI execution; private temporary clones; all-input bounded staging, SHA/manifest verification, new-files-only atomic delivery/rollback, git exclusion verification, instruction/metadata/symlink refusal and completion provenance including later failure. No-network branch/tag and child credential tests pass."
     },
     {
       "id": "M4_DOCS_EXAMPLES_ACCEPTANCE",
@@ -138,10 +138,10 @@
         "Bank a no-network end-to-end ingress-to-job fixture showing bytes/provenance and denied-input no-dispatch behavior; attach a staged cloud publish checklist for daneel#335.",
         "When deployment access exists, verify the site agent with a real daneel-memory branch, no shell, correct PR diff and provenance; otherwise record the external acceptance as pending without claiming the migration completed."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T14:33:41.915193+00:00",
+      "completed": "2026-10-09T15:14:04.586309+00:00",
+      "notes": "Production-decoded JSON/YAML examples, CLI help, guides, changelog, source Docker make/gcc/libc6-dev fix and banked acceptance/coverage artifacts. Full required gates pass. Live deployment/Daneel migration explicitly pending; image build not available locally."
     }
   ],
   "registry_reuse": [
@@ -189,5 +189,8 @@
       ],
       "reason": "Registry searches on 2026-10-08 returned no candidates. This milestone changes Go host transport, trusted dispatch or job filesystem plumbing; an AILANG package cannot implement that boundary. Reuse existing Go stores, gitexec, credential helper, excludeFromGit and error/report seams."
     }
-  ]
+  ],
+  "completed": "2026-10-09T15:14:04.586309+00:00",
+  "validation_artifact": ".ailang/state/sprints/M-TASK-INPUTS/validation.json",
+  "external_acceptance": "pending: staged Daneel rollout, see examples/task_inputs/README.md"
 }

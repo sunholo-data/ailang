@@ -29,6 +29,7 @@ import (
 
 // gitEvidence is what an executor run leaves behind for the approval card.
 type gitEvidence struct {
+	Inputs       []taskInputProvenance
 	ChangedFiles []string
 	BaseCommit   string // the clone point — immutable
 	HeadCommit   string // captured after a successful push — immutable

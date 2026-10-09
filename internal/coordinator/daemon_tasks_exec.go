@@ -133,6 +133,18 @@ func (d *Daemon) dispatchTasksCloud() error {
 			continue
 		}
 
+		var inputAgent *AgentConfig
+		if d.agentRegistry != nil {
+			inputAgent = d.agentRegistry.GetAgentByID(task.AgentID)
+		}
+		if len(task.Inputs) > 0 && inputAgent != nil && inputAgent.ResolveLane() == LaneLocal {
+			d.handleDispatchError(task, fmt.Errorf("%w: task inputs require cloud execution; agent %q is local", ErrDispatchPermanent, task.AgentID))
+			continue
+		}
+		if err := ValidateInputsForAgent(task.Inputs, inputAgent); err != nil {
+			d.handleDispatchError(task, err)
+			continue
+		}
 		// Determine the provider: the AGENT's own declaration wins over the
 		// coordinator's default.
 		//
@@ -195,6 +207,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 			}
 			params := DispatchParams{
 				TaskID:    task.ID,
+				Inputs:    append([]TaskInput(nil), task.Inputs...),
 				AgentID:   task.AgentID,
 				Workspace: task.Workspace,
 				Provider:  provider,

@@ -406,7 +406,8 @@ type postMessageRequest struct {
 	// requires. Routed to a worker whose advertised tags ⊇ this set. Empty
 	// (default) = no routing constraint (any subscribed worker may claim).
 	// Examples: ["ollama:gemma4-26b-ailang"], ["gpu:m4-max", "local-models"].
-	Requires []string `json:"requires,omitempty"`
+	Requires []string    `json:"requires,omitempty"`
+	Inputs   []TaskInput `json:"inputs,omitempty"`
 }
 
 // postMessageResponse is returned on successful message creation.
@@ -442,6 +443,11 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := messaging.ValidateTaskInputs(req.Inputs); err != nil {
+		httpjson.Write(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
 	// Apply defaults.
 	if req.Category == "" {
 		req.Category = messaging.CategoryGeneral
@@ -458,6 +464,7 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	// Build and store the message.
 	msg := &messaging.InboxMessage{
 		FromAgent:   req.From,
+		Inputs:      req.Inputs,
 		ToInbox:     req.Inbox,
 		MessageType: req.MessageType,
 		Title:       req.Title,

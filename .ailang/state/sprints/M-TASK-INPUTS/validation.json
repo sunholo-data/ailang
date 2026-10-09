@@ -1,0 +1,33 @@
+{
+  "sprint_id": "M-TASK-INPUTS",
+  "issue": 1600,
+  "checked_at": "2026-10-09T15:14:04.586309+00:00",
+  "base_commit": "1e872b00005b3b9524643c197f44fda018487927",
+  "gates": {
+    "make test": "pass (Go and pi extensions; final shared milestone checkpoint exit 0)",
+    "make lint": "pass (0 issues; final shared checkpoint)",
+    "make check-boundaries": "pass (no violations)",
+    "make check-file-sizes": "pass (all files <=800 lines)",
+    "make verify-examples": "pass (0 import drift; existing lambda_expressions.ail missing-on-disk warning)",
+    "make build": "pass; messages and execute-job help advertise new flag/env",
+    "git diff --check": "pass"
+  },
+  "coverage": {
+    "canonical_validation": {
+      "covered_statements": 61,
+      "total_statements": 62,
+      "percent": 98.39
+    },
+    "filesystem_and_manifest": {
+      "covered_statements": 247,
+      "total_statements": 272,
+      "percent": 90.81
+    }
+  },
+  "automated_acceptance": "cmd/ailang TestTaskInputsNoNetworkIngressToJob; daemon HTTP/polling/PubSub fixtures; both store backends; permanent denial thread reason; binary bytes, branch/tag resolved SHA, exclusion, digest pins, rollback, metadata/symlink/overwrite/cap refusals, credential filtering and failed completion provenance",
+  "external_acceptance": {
+    "status": "pending",
+    "reason": "New coordinator/executor builds and live Daneel sender/registry rollout are not deployed by this source change. Docker is unavailable locally, so the codex-go image toolchain addition is source-reviewed, not image-build verified.",
+    "checklist": "examples/task_inputs/README.md#staged-cloud-acceptance--pending-deployment"
+  }
+}

@@ -73,6 +73,7 @@ func printMessagesHelp() {
 	fmt.Println("Send Flags:")
 	fmt.Println("  --payload <data>     Send payload via flag (alternative to positional arg)")
 	fmt.Println("  --title <text>       Message title")
+	fmt.Println("  --inputs-file <f>    JSON array of cloud task inputs (trusted repo grants required)")
 	fmt.Println("  --from <agent>       Sender name (default: cli)")
 	fmt.Println("  --correlation <id>   Correlation ID for grouping")
 	fmt.Println("  --envelope-code <f>  File paths for code envelope slot (comma-separated, or 'auto')")

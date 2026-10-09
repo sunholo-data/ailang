@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // InvokeConfig specifies how an agent should be invoked.
@@ -99,10 +100,12 @@ type ApprovalConfig struct {
 // AgentConfig represents a configured agent in the coordinator system.
 // Each agent has an inbox, workspace, and capabilities for task execution.
 type AgentConfig struct {
-	ID        string `yaml:"id" json:"id"`
-	Label     string `yaml:"label" json:"label"`
-	Inbox     string `yaml:"inbox" json:"inbox"`         // Message inbox to watch
-	Workspace string `yaml:"workspace" json:"workspace"` // Base directory for worktrees
+	// InputsAllow is trusted repo authority; empty denies all external inputs.
+	InputsAllow []string `yaml:"inputs_allow" json:"inputs_allow,omitempty"`
+	ID          string   `yaml:"id" json:"id"`
+	Label       string   `yaml:"label" json:"label"`
+	Inbox       string   `yaml:"inbox" json:"inbox"`         // Message inbox to watch
+	Workspace   string   `yaml:"workspace" json:"workspace"` // Base directory for worktrees
 
 	// ExecutionLane declares WHERE this agent's work runs: "cloud" (a Cloud Run
 	// Job that clones Repo) or "local" (a bare-metal worker using Workspace as a
@@ -552,6 +555,11 @@ func (r *AgentRegistry) Validate() []string {
 		}
 		if err := agent.ValidateAutoMergeCode(); err != nil {
 			issues = append(issues, fmt.Sprintf("agent %q: %v", id, err))
+		}
+		for _, repo := range agent.InputsAllow {
+			if err := messaging.ValidateInputRepo(repo); err != nil {
+				issues = append(issues, fmt.Sprintf("agent %q inputs_allow: %v", id, err))
+			}
 		}
 		// Validate trigger_on_complete references
 		for _, targetID := range agent.TriggerOnComplete {

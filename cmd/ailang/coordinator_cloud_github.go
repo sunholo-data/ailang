@@ -613,6 +613,7 @@ func printExecuteJobHelp() {
 	fmt.Println("  AILANG_BRANCH           Base branch (default: dev)")
 	fmt.Println("  AILANG_PUSH_BRANCH      Push directly to this branch (skip coordinator/ branch)")
 	fmt.Println("  AILANG_DIRECTIVE        Task prompt/directive")
+	fmt.Println("  AILANG_TASK_INPUTS      JSON inputs fetched and verified before the executor (cloud only)")
 	fmt.Println("  AILANG_TOPIC_PREFIX     Topic prefix (default: ailang)")
 	fmt.Println("  AILANG_PLUGIN_REPO      Git URL for shared skills plugin (--plugin-dir)")
 	fmt.Println("  AILANG_MODEL            AI model override (e.g., sonnet, opus)")

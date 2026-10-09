@@ -32,6 +32,7 @@ const (
 	EnvAcknowledgeOnly         = "AILANG_ACKNOWLEDGE_ONLY"
 	EnvSubdirectory            = "AILANG_SUBDIRECTORY"
 	EnvGitMode                 = "AILANG_GIT_MODE"
+	EnvTaskInputs              = "AILANG_TASK_INPUTS"
 	EnvSiteSlug                = "AILANG_SITE_SLUG"
 	EnvBriefID                 = "AILANG_BRIEF_ID"
 	EnvGitAuthorName           = "AILANG_GIT_AUTHOR_NAME"
@@ -54,6 +55,7 @@ const (
 const DefaultJobBranch = "dev"
 
 var jobVars = []Var{
+	{EnvTaskInputs, "", AreaJob, "JSON task inputs fetched by the cloud job parent before the executor; malformed values fail the task."},
 	{EnvAgentID, "", AreaJob, "Agent the job runs as; recorded on spans and completions."},
 	{EnvMaxCostUSD, "", AreaJob, "Per-task cost budget in USD; unset or malformed means no cap (malformed is logged and ignored)."},
 	{EnvCascadeRootPackage, "", AreaJob, "Root package of a package cascade; when set the job tries the deterministic bump first and the PR is labelled and titled as a cascade."},
@@ -231,3 +233,6 @@ func ApproverSecret() string { return strings.TrimSpace(get(EnvApproverSecret)) 
 
 // ApproverIdentity returns the expected GitHub login.
 func ApproverIdentity() string { return strings.TrimSpace(get(EnvApproverIdentity)) }
+
+// TaskInputs returns task metadata verbatim; the job validates it before fetching.
+func TaskInputs() string { return get(EnvTaskInputs) }

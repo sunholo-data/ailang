@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/sqliteopen"
 	"github.com/sunholo-data/ailang/internal/statedir"
 )
@@ -150,6 +151,7 @@ func (s *SQLiteStore) migrate() error {
 
 	// Add new columns if they don't exist (for existing databases)
 	alterQueries := []string{
+		"ALTER TABLE tasks ADD COLUMN inputs TEXT DEFAULT '[]'",
 		"ALTER TABLE tasks ADD COLUMN input_tokens INTEGER DEFAULT 0",
 		// M-PIPELINE-RECONCILIATION M1: evaluator verdict on the approval (D1(b))
 		"ALTER TABLE approval_requests ADD COLUMN evaluation TEXT",
@@ -232,6 +234,13 @@ func (s *SQLiteStore) migrate() error {
 
 // CreateTask creates a new task
 func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
+	if err := messaging.ValidateTaskInputs(task.Inputs); err != nil {
+		return err
+	}
+	inputsJSON, err := json.Marshal(task.Inputs)
+	if err != nil {
+		return err
+	}
 	// Serialize capabilities to JSON
 	var capsJSON []byte
 	if len(task.Capabilities) > 0 {
@@ -255,11 +264,11 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 		                   chain_id, stage_id, created_at,
 		                   root_package, root_change_class, from_version, to_version,
 		                   from_interface_hash, to_interface_hash, from_content_hash, to_content_hash,
-		                   effects_widened, prev_effect_ceiling, new_effect_ceiling)
+		                   effects_widened, prev_effect_ceiling, new_effect_ceiling, inputs)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-		        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := s.db.ExecContext(ctx, query,
+	_, err = s.db.ExecContext(ctx, query,
 		task.ID, task.MessageID, task.ThreadID, task.ParentTaskID, task.Title, task.Content,
 		task.Type, task.Kind, task.Source, task.Priority, task.Status, task.Workspace,
 		task.AgentID, string(capsJSON), task.ImpactLevel, task.EstimatedCost,
@@ -267,7 +276,7 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 		task.ChainID, task.StageID, task.CreatedAt,
 		task.RootPackage, task.RootChangeClass, task.FromVersion, task.ToVersion,
 		task.FromInterfaceHash, task.ToInterfaceHash, task.FromContentHash, task.ToContentHash,
-		task.EffectsWidened, string(prevEffectsJSON), string(newEffectsJSON),
+		task.EffectsWidened, string(prevEffectsJSON), string(newEffectsJSON), string(inputsJSON),
 	)
 	return err
 }
@@ -280,7 +289,7 @@ func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, erro
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
-		       capabilities_json, impact_level, estimated_cost
+		       capabilities_json, impact_level, estimated_cost, inputs
 		FROM tasks WHERE id = ?
 	`
 	row := s.db.QueryRowContext(ctx, query, id)
@@ -294,13 +303,20 @@ func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, erro
 
 // UpdateTask updates an existing task
 func (s *SQLiteStore) UpdateTask(ctx context.Context, task *TaskRecord) error {
+	if err := messaging.ValidateTaskInputs(task.Inputs); err != nil {
+		return err
+	}
+	inputsJSON, err := json.Marshal(task.Inputs)
+	if err != nil {
+		return err
+	}
 	query := `
 		UPDATE tasks SET
 			title = ?, content = ?, type = ?, priority = ?, status = ?,
 			provider = ?, worktree_id = ?, thread_id = ?, workspace = ?,
 			session_id = ?, iteration = ?,
 			started_at = ?, completed_at = ?, duration_ns = ?,
-			error = ?, output = ?, cost = ?, tokens_used = ?
+			error = ?, output = ?, cost = ?, tokens_used = ?, inputs = ?
 		WHERE id = ?
 	`
 	var durationNs int64
@@ -308,12 +324,12 @@ func (s *SQLiteStore) UpdateTask(ctx context.Context, task *TaskRecord) error {
 		durationNs = int64(task.Duration)
 	}
 
-	_, err := s.db.ExecContext(ctx, query,
+	_, err = s.db.ExecContext(ctx, query,
 		task.Title, task.Content, task.Type, task.Priority, task.Status,
 		task.Provider, task.WorktreeID, task.ThreadID, task.Workspace,
 		task.SessionID, task.Iteration,
 		task.StartedAt, task.CompletedAt, durationNs,
-		task.Error, task.Output, task.Cost, task.TokensUsed,
+		task.Error, task.Output, task.Cost, task.TokensUsed, string(inputsJSON),
 		task.ID,
 	)
 	return err
@@ -334,7 +350,7 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
-		       capabilities_json, impact_level, estimated_cost
+		       capabilities_json, impact_level, estimated_cost, inputs
 		FROM tasks WHERE 1=1
 	`)
 
@@ -604,7 +620,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 		        session_id, iteration, chain_id, stage_id,
 		        created_at, started_at, completed_at, queued_at, duration_ns,
 		        error, output, cost, tokens_used,
-		        capabilities_json, impact_level, estimated_cost
+		        capabilities_json, impact_level, estimated_cost, inputs
 		FROM tasks WHERE fingerprint = ? ORDER BY created_at DESC LIMIT ?`,
 		int64(fingerprint), DedupCandidateLimit, // int64 on BOTH sides — see SetTaskFingerprint
 	)
