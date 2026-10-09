@@ -103,6 +103,11 @@ CGO and temporary orphan reaping because this container's PID 1 retains killed
 children as zombies; resource-bounded isolated builds resolved environment OOMs.
 The env reference was regenerated from its `internal/config/paths.go` metadata.
 
-Small repro latency: cold private default131.7ms; persistent override first142.4ms,
-second103.3ms. Timings are informational. Independent evaluator handoff follows
-completion; evaluation is recorded under `.ailang/state/evaluations/`.
+Small repro latency: cold private default 131.7ms; persistent override first 142.4ms,
+second 103.3ms. Timings are informational. Independent evaluation passed at 98/100 with all 11 acceptance criteria met;
+the report is `.ailang/state/evaluations/eval_M-RUN-POLICY-WORKER-CACHE_round_1.json`.
+
+Planned added LOC: 280; actual operational code/tests/docs added LOC: 396
+(M1 208, M2 189; net 383). Sprint/design/evaluation bookkeeping is
+excluded. Additional lifecycle coverage explains most of the expansion;
+environment setup and validation resource limits dominated session time.
