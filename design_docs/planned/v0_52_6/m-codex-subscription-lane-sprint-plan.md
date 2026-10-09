@@ -4,7 +4,19 @@ Refs #903 (related deadline umbrella: #1259)
 
 **Design:** [m-codex-subscription-lane.md](m-codex-subscription-lane.md)
 **Status:** Ready for sprint-plan review; implementation not started.
-**Duration:** 6 engineering days (Phase 1: 2; Phase 2: 4), excluding release waiting, D8 ruling and external ops work.
+**Duration:** 6 engineering days (Phase 1: 2; Phase 2: 4) plus a half-day D8 measurement step, excluding release waiting, the D8 ruling and external ops work.
+
+## Execution is split into three separate runs
+
+This sprint is **not** executed end to end in one run.
+
+| Run | Milestones | Starts when | Ends with |
+|-----|-----------|-------------|-----------|
+| **Phase 1** | M1, M2 | this plan merges | executor commits locally (messages carry `Refs #903`), reports, then **STOPs explicitly**. It does not start D8 or any Phase 2 milestone. |
+| **D8 step** | D8 (measurement only, no code) | Phase 1 is done (may run before Phase 1 merges) | a written measurement, then **STOP / BLOCKED** for the maintainer's ruling. The executor does not pick an arm. |
+| **Phase 2** | M3–M6 | Phase 1 has **merged** on `dev` **and** the D8 ruling is recorded in the design doc | Phase 2 work committed locally, `Refs #903`. |
+
+A Phase 2 run that finds Phase 1 unmerged or the D8 ruling absent stops immediately and reports BLOCKED. No `models.yml` migration (M5) and no `internal/ai/chatgpt/` removal (M6) happen before that ruling.
 **Targets:** v0.52.6 first; v0.53.0 second.
 **Risk:** low for Phase 1; high for Phase 2 migration and shared credentials.
 
@@ -44,20 +56,35 @@ Every milestone records action `none` for registry packages, with existing Go co
 
 **Dependencies:** M1
 **Duration:** 1 day(s).
-**Files to create/update:** `internal/ai/chatgpt/client.go`, `internal/ai/chatgpt/client_test.go`, `internal/executor/codex/README.md`, `design_docs/planned/m-codex-billing-lane-resolution.md`, `changelogs/`.
+**Files to create/update:** `internal/ai/chatgpt/client.go`, `internal/ai/chatgpt/client_test.go`, `internal/executor/codex/README.md`, `design_docs/planned/m-codex-billing-lane-resolution.md`, a changelog fragment `changelogs/unreleased/YYYY-MM-DD-codex-fail-loud-and-chatgpt-timeout.md` (never `changelogs/v0.32-current.md`).
 
 **Acceptance criteria:**
 
 - [ ] Default HTTP deadline is 10 minutes, WithTimeout overrides it, and a continuously streaming httptest response terminates at the configured deadline; earlier context cancellation also works.
 - [ ] No parallel timeout flag or env variable is introduced; #1259 absorption is documented.
 - [ ] README describes subscription-first auth and the explicitly metered alternative; preserve the already-landed supersession banner rather than duplicating it.
-- [ ] A1–A5 and required repository checks pass; Phase 1 can ship independently before any Phase 2 code is merged.
+- [ ] A1–A5 and the focused checks below pass; Phase 1 can ship independently before any Phase 2 code is merged.
+- [ ] **Phase 1 STOP.** The executor commits M1–M2 locally with `Refs #903`, reports the Phase 1 result, and stops. It does not begin D8 or M3 in the same run.
 
 **Examples:** Phase 1 uses routing and hung-stream Go fixtures plus README migration examples; no new language behavior.
 
+### D8: Measure the motoko-chatgpt row's tool use, then STOP for a ruling (~60 LOC, write-up only)
+
+**Dependencies:** M2 (separate run; may happen before Phase 1 merges)
+**Duration:** 0.5 day.
+**Files to create/update:** `design_docs/planned/v0_52_6/m-codex-subscription-lane-d8-measurement.md` (new). No code, no `models.yml` change.
+
+**Data source:** the per-run eval result JSON for model `motoko-chatgpt-gpt-6-1-sol` (under `eval_results/`, including any baselines) — the `agent_tool_calls` count and the `agent_transcript` field, whose `tool_call: <tool> <args>` lines are written by the motoko parser from the session's `native_tool_calls` events (M-MOTOKO-OBS-TRANSCRIPT). Where the row was used in a mission, add the chain records from `ailang chains` whose agent_id names the row. Record which files/chains were read, their dates and the run count; if no runs exist, say so — that is itself the measurement.
+
+**Acceptance criteria:**
+
+- [ ] For every run found: tool-call count, which tools, and whether the run used the harness tool loop (`std/ai` `Step` with tools) or was effectively single-turn.
+- [ ] The write-up states the two options from the design (a: delegate the loop to codex as one `Generate`; b: move the tool-loop arm to a sanctioned metered lane) and what the measurement implies for each, without choosing.
+- [ ] **STOP / BLOCKED** for the maintainer's D8 ruling. The executor records the sprint as blocked on D8 and ends the run.
+
 ### M3: Adapt the existing executor to the AI provider contract (~350 LOC)
 
-**Dependencies:** M2
+**Dependencies:** M2, D8 ruling (Phase 2 run; starts only after Phase 1 has merged and the ruling is recorded)
 **Duration:** 2 day(s).
 **Files to create/update:** `internal/executor/codex/aieffect/provider.go`, `internal/executor/codex/aieffect/provider_test.go`, `internal/mission/quorum/agentic_provider.go`.
 
@@ -81,7 +108,7 @@ Every milestone records action `none` for registry packages, with existing Go co
 - [ ] Read-only credential validation moves to the platform layer, honors CODEX_HOME, and refuses missing, expired or API-key credentials with CodeAuthFailed; CLI owns refresh.
 - [ ] A process-wide mutex keyed by canonical auth path serializes validation plus execution; canceled queued calls exit without spawning and locks release after failure.
 - [ ] Subprocess environment excludes metered-key authority; subscription classification yields CostListPriceEquivalent with real tokens, and absent rates yield unknown provenance rather than fabricated spend.
-- [ ] Audit the codex/oauth job selection and link an ops-repo serialization task or isolated-credential evidence. In-process locking alone is explicitly insufficient for multiple processes or workers sharing one credential.
+- [ ] Audit the codex/oauth job selection. In-process locking alone is explicitly insufficient for multiple processes or workers sharing one credential; record the fleet serialization (or isolated-credential) work as a **follow-up in the sprint report**. This is not a pass condition for M4.
 
 **Examples:** M3–M5 use fake-executor/auth/host fixtures; M6 creates and verifies `examples/ai/codex_generate.ail` for the public lane.
 
@@ -95,7 +122,7 @@ Every milestone records action `none` for registry packages, with existing Go co
 
 - [ ] Inject a codex constructor without a core-to-platform import; both handler construction paths and eval harness wire it; unwired builds return a named registration error.
 - [ ] Repeat the factory.New grep including aliases and indirect callers; audit apiserver effect hosting and wire every supported host or document a deliberate fail-loud build.
-- [ ] Measure tool usage for every motoko-chatgpt-* row, record the evidence and obtain the D8 human ruling before changing models.yml. Harness tool-loop rows must use a sanctioned metered lane or an approved delegate-to-codex restructure.
+- [ ] Apply the **recorded** D8 ruling (from the D8 step) to `models.yml`; if the ruling is not recorded in the design doc, do not touch `models.yml` — STOP and report BLOCKED. Harness tool-loop rows use whichever arm the ruling picked (sanctioned metered lane or delegate-to-codex restructure).
 - [ ] Preserve historical registry identity as appropriate and verify changed row lookup, auth-lane classification and external references; migration has no silent reroute.
 
 **Examples:** M3–M5 use fake-executor/auth/host fixtures; M6 creates and verifies `examples/ai/codex_generate.ail` for the public lane.
@@ -104,37 +131,48 @@ Every milestone records action `none` for registry packages, with existing Go co
 
 **Dependencies:** M5
 **Duration:** 0.5 day(s).
-**Files to create/update:** `internal/ai/chatgpt/client.go`, `internal/ai/chatgpt/auth.go`, `internal/ai/factory/factory.go`, `internal/observatory/mission_rollup.go`, `docs/docs/guides/ai-routing.md`, `docs/docs/guides/mission-model-fleet.md`, `examples/ai/codex_generate.ail`, `examples/ai/README.md`, `changelogs/`.
+**Files to create/update:** `internal/ai/chatgpt/client.go`, `internal/ai/chatgpt/auth.go`, `internal/ai/factory/factory.go`, `internal/observatory/mission_rollup.go`, `docs/docs/guides/ai-routing.md`, `docs/docs/guides/mission-model-fleet.md`, `examples/ai/codex_generate.ail`, `examples/ai/README.md`, a changelog fragment `changelogs/unreleased/YYYY-MM-DD-codex-subscription-lane.md` (never `changelogs/v0.32-current.md`).
 
 **Acceptance criteria:**
 
-- [ ] Remove direct-backend client and obsolete credential implementation after references migrate; retain ProviderChatGPT as a loud deprecation error naming codex: and retain historical CanonicalQuotaBucket folding.
+- [ ] Only after the D8 ruling is recorded and M5 has applied it: remove direct-backend client and obsolete credential implementation after references migrate; retain ProviderChatGPT as a loud deprecation error naming codex: and retain historical CanonicalQuotaBucket folding.
 - [ ] No production path calls chatgpt.com/backend-api/codex; chatgpt/ deprecation, tool refusal and history rollup regressions pass.
 - [ ] Read ailang prompt before writing the example; ailang check validates examples/ai/codex_generate.ail; document required auth and single-turn contract plus both release migration notes.
-- [ ] Run a live AI-effect codex probe with OPENAI_API_KEY absent: subscription auth, real token counts, CostListPriceEquivalent and refreshed quota observations are evidenced. Verify one run of the approved migrated motoko row.
-- [ ] Required tests, formatting, lint and architecture gates pass; fleet serialization evidence is required before shared-credential rollout.
+- [ ] Write the live-probe procedure for the maintainer (AI-effect codex probe with OPENAI_API_KEY absent: subscription auth, real token counts, CostListPriceEquivalent, refreshed quota observations; one run of the migrated motoko row). The probe is **maintainer-run evidence**, attached later; it is not executor acceptance and its absence does not fail M6.
+- [ ] Focused tests, formatting, lint and architecture gates pass; fleet serialization is a report follow-up before shared-credential rollout, not an M6 pass condition.
 
 **Examples:** M3–M5 use fake-executor/auth/host fixtures; M6 creates and verifies `examples/ai/codex_generate.ail` for the public lane.
 
 ## Daily execution and gates
 
+Phase 1 run:
 - Day 1: M1 caller audit, routing and preflight tests, then implementation.
-- Day 2: M2 streamed deadline tests, auth README, Phase 1 checks and release review. Stop Phase 2 merge until Phase 1 ships.
-- Day 3: M3 executor seam, request mapping, unsupported tools/images and failures.
-- Day 4: Complete M3 bounds/cancellation; collect D8 run evidence and prepare the ops serialization task for parallel human review.
-- Day 5: M4 credential validation, queued cancellation, auth-path serialization and cost accounting.
-- Day 6: M5 host wiring and approved migration; M6 removal, examples, live probe and release checks. If D8 or fleet evidence is pending, leave Phase 2 incomplete and record the blocker; Phase 1 remains independently shippable.
+- Day 2: M2 streamed deadline tests, auth README, Phase 1 checks. Commit locally with `Refs #903` and **STOP**.
 
-Design approval supplied in the handoff ratifies D3, D6 and D7. D8 still requires measured usage and a human choice; unchecked design boxes are not evidence of an unapproved design. No migration choice is inferred from elapsed time. Ops work is external to this checkout; record a linked task without claiming that a local mutex enforces fleet serialization.
+D8 run (separate):
+- Half day: D8 measurement write-up, then **STOP / BLOCKED** for the ruling.
+
+Phase 2 run (separate; only after Phase 1 merged and D8 ruled):
+- Day 3: M3 executor seam, request mapping, unsupported tools/images and failures.
+- Day 4: Complete M3 bounds/cancellation.
+- Day 5: M4 credential validation, queued cancellation, auth-path serialization and cost accounting.
+- Day 6: M5 host wiring and the ruled migration; M6 removal, examples, maintainer probe procedure and checks.
+
+Design approval supplied in the handoff ratifies D3, D6 and D7. D8 was ruled *deferred* on 2026-10-08: take the measurement first and bring it back; the executor stops there and does not choose. No migration choice is inferred from elapsed time. Ops work is external to this checkout; record it as a report follow-up without claiming that a local mutex enforces fleet serialization.
 
 ## Verification and success metrics
 
 Use targeted Go package tests after each milestone (ai/factory/chatgpt, motoko, coordinator routing, codex/aieffect, executor cost, modelreg and observatory as touched). For changed packages, inspect coverage of the new behavior: every acceptance branch needs a meaningful regression; a repository percentage is not a substitute for deadline, cancellation, serialization or billing tests.
 
-At each phase release boundary run `make test`, `make test-core`, `make fmt`, `make lint`, `make check-boundaries`, and `make check-architecture-closure`. Confirm target availability in this checkout before execution and use the repository's documented equivalent if a target was renamed. Phase 2 also checks the example and runs the credentialed probe; record actual command results, token/provenance evidence and quota observation timestamps without credentials. Missing credentials block only the live verification and Phase 2 release, not fixture work or Phase 1.
+At each phase boundary run focused `go test` on the touched packages (Phase 1: `./internal/ai/... ./internal/executor/motoko/... ./internal/eval_harness/... ./cmd/ailang/...` with `-run` filters for the handler tests; Phase 2 adds `./internal/executor/... ./internal/modelreg/... ./internal/observatory/...`) plus `make test-core`, `make fmt`, `make lint`, `make check-boundaries`, and `make check-architecture-closure`. Do **not** run the full `make test` locally: in the executor's RAM-backed /tmp it has crashed with SIGBUS. The full suite runs in CI on the PR. Confirm target availability in this checkout before execution and use the repository's documented equivalent if a target was renamed. Phase 2 also checks the example; the credentialed probe is maintainer-run evidence (see M6). Record actual command results without credentials.
 
 Remaining risks: #1259 may land first (use its unified timeout mechanism if available); CLI schema drift (reuse executor parser); host injection omissions (loud unregistered error); different paths to the same credential (canonicalize lock keys); multi-process/fleet concurrency (ops evidence); tool-loop migration (D8 gate). Streaming, write-tool exposure, MCP bridge and generic timeout CLI changes remain outside this sprint.
 
 ## Coordinator handoff
 
-Artifacts below are ready for review. JSON syntax, milestone IDs, dependencies, LOC totals and per-milestone registry decisions were validated with Python. The repository shell validator could not run because jq is absent (its reported syntax failure is a missing-tool result). No implementation tests were run for this planning-only change. Per sprint-planner/resources/coordinator.md, merging the coordinator sprint-plan PR approves the plan and triggers sprint-executor. This planning task does not start implementation or self-approve that PR. Executor should read both phases and the JSON, preserve the independent Phase 1 release, and report unmet Phase 2 gates. PR body must contain `Refs #903`.
+Artifacts below are ready for review. The sprint JSON passes `.claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-CODEX-SUBSCRIPTION-LANE` (re-checked at review, 2026-10-09). No implementation tests were run for this planning-only change. Per sprint-planner/resources/coordinator.md, merging the coordinator sprint-plan PR approves the plan and triggers sprint-executor **for Phase 1 only** (M1–M2), which then stops. D8 and Phase 2 are later, separate runs (see the table at the top).
+
+Executor rules:
+- Re-run `.claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-CODEX-SUBSCRIPTION-LANE` before starting each run and after every sprint JSON update.
+- The executor cannot push or merge; it commits locally and the coordinator raises the PR. Commit messages and the PR body carry `Refs #903`.
+- Every changelog step writes a fragment `changelogs/unreleased/YYYY-MM-DD-<slug>.md`; never `changelogs/v0.32-current.md`.
