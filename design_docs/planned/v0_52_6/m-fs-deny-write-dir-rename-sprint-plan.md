@@ -78,9 +78,9 @@ Add `fsCheckMove` with the existing sandbox resolution, early-return, `.git` and
 - [x] FS rename/remove comments and the policy guide state that structural operations protect matching ancestor directories, including both rename operands.
 - [x] The guide explains `dir/**` still protects all contents and now protects its higher ancestors; basename patterns keep their current behavior.
 - [x] Add a Fixed entry under Unreleased referencing #1569 and the two sibling variants; do not bump versions or open a new issue.
-- [x] Run `make fmt`, `make test`, `make lint`, and `make check-boundaries`; record actual results and surface any environmental blockers instead of claiming unrun checks passed.
+- [x] Run `make fmt`, `make test`, `make lint`, and `make check-boundaries`; record actual results and surface any environmental blockers instead of claiming unrun checks passed. _(Executor ran focused `go test` on fileguard/effects/policytool plus gofmt; the full `make test` ran in PR CI, not in the executor.)_
 - [x] Inspect the final diff for one shared matcher, correct handler coverage and unchanged write/mkdir semantics; carry `Refs #1569` in the implementation PR body.
-- [x] Run sprint-evaluator against the approved design and this plan after execution; resolve failures before reporting completion.
+- [ ] Run sprint-evaluator against the approved design and this plan after execution; resolve failures before reporting completion. _(Not run: the coordinator evaluator stage failed with a worktree-cap error on 2026-10-08. An attended review substituted: reproduced the #1569 bypass and nine variants, all refused; see PR #1699 review.)_
 
 **Risk:** Full repository checks may exceed the small coding effort. Reserve two hours for validation/repair; report unrelated failures distinctly with evidence.
 
