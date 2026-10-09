@@ -8,12 +8,17 @@
     1443,
     574
   ],
-  "target_version": "v0.53.0",
+  "target_version": "next minor",
   "prerequisites": [
     {
       "name": "M-EFFECT-LATENT-FUNCTION-VALUES",
-      "condition": "Implementation landed on execution base; record commit and remeasure outer/callback schemes",
+      "condition": "#1708 (latent effects) merged at 3d4f49720; record the merge-base and remeasure the schemes",
       "design_doc": "design_docs/planned/v0_48_0/m-effect-latent-function-values.md"
+    },
+    {
+      "name": "M-EFFECT-ROW-VAR-UNIFICATION",
+      "condition": "Implementation (#616) merged; then remeasure the flatMap/mapE and ~26 combinator pins and the purity census on the new base",
+      "design_doc": "design_docs/planned/v1_0_0/m-effect-row-var-unification.md"
     }
   ],
   "registry_reuse": [
@@ -58,7 +63,7 @@
       "acceptance_criteria": [
         "pure with a labelled or open declared row fails check; diagnostic names the function, contradiction, and both repairs.",
         "Explicit empty and absent rows on pure declarations remain accepted; non-pure declarations are unchanged.",
-        "Pipeline tests cover IO, Debug, Declassify, var-only and mixed open rows, empty rows, and absent rows."
+        "Pipeline tests cover IO, Debug, Declassify, #1707's scoped Declassify[label=x], var-only and mixed open rows, empty rows, and absent rows; Rule 1 rejects `pure … ! {Declassify[label=x]}`."
       ],
       "passes": null,
       "started": null,
@@ -78,7 +83,8 @@
         "All six std/ai/streaming exports and std/list.mapE report false; std/option.flatMap reports true; std keyword-pure invariant and approximately 26 combinator pins pass after the prerequisite lands.",
         "serve-api uses iface purity without AST overwrite; MCP tags and read-only hints match iface, including open-row cases.",
         "Cache version advances once from the current base version; cache round-trip rejects stale always-true metadata and preserves derived values.",
-        "Non-function export type-walk policy is documented and tested, including values containing function types."
+        "Non-function export type-walk policy is documented and tested, including values containing function types.",
+        "Purity derivation lives in new internal/iface/purity.go; internal/iface/builder.go (785 lines) only swaps the determinePurity call and stays within the size limit."
       ],
       "passes": null,
       "started": null,
@@ -95,7 +101,8 @@
       ],
       "acceptance_criteria": [
         "SMT entry and callee admission use keyword OR an explicit closed row containing only Declassify or no labels; missing-row non-pure functions are refused.",
-        "IO, Debug, mixed Declassify/IO and all open rows are refused; Declassify functions never gain IsPure metadata.",
+        "Rule 3 rowAdmissible accepts #1707's scoped Declassify[label=x] atom alongside bare Declassify and empty rows.",
+        "IO, Debug, mixed Declassify/IO (including Declassify[label=x] + IO) and all open rows are refused; Declassify functions never gain IsPure metadata.",
         "Migrated safe prompt-injection reference verifies 3 contracts with 0 violations; injected reference reports 1 violation on injectedForward.",
         "Seven known contradictory declarations in four example/benchmark files are migrated and formatted; pipeline-backed and IFC Go fixtures use valid declarations.",
         "Existing no-row pure functions remain SMT-admitted and cross-module Declassify callees remain inlinable."
@@ -115,17 +122,39 @@
         "M3"
       ],
       "acceptance_criteria": [
-        "Active v0.16.6 prompt and embedded/current copies agree after amendment; versions.json hash and note are updated; frozen prompts stay byte-identical.",
+        "Active v0.16.6 prompt and embedded/docs/current copies (including docs/docs/prompts/v0.16.6.md, same 6 rejected spellings) agree after amendment; versions.json hash and note are updated; frozen prompts stay byte-identical.",
         "Benchmark contract_spec, IFC guide and why-ailang snippets use valid effectful signatures; three llms.txt bundles are regenerated with make generate-llms-txt.",
         "Multiline live-material sweep finds zero rejected spellings outside intentional negative tests, frozen prompts and historical records.",
-        "prompt_injection eval runs against the amended prompt and spec with model/config/result provenance and failures recorded in the implementation PR.",
-        "Effects reference and current changelog document the breaking spelling and iface JSON semantic change.",
-        "make test, make fmt, make lint and make check-boundaries pass; touched examples check and verification outcomes remain pinned."
+        "Effects reference and changelog fragment changelogs/unreleased/<YYYY-MM-DD>-pure-row-iface-purity.md (opening with `### `) document the breaking spelling and iface JSON semantic change.",
+        "Focused go test ./internal/pipeline/... ./internal/iface/... ./internal/smt/... ./internal/apiserver/... ./internal/types/..., make test-core, make fmt, make lint, make check-boundaries, make check-file-sizes and make check-changelog pass; touched examples check and verification outcomes remain pinned. Local commits only; no push."
       ],
       "passes": null,
       "started": null,
       "completed": null,
       "notes": null
     }
+  ],
+  "execution_preconditions": [
+    "HOLD: approve only after the M-EFFECT-ROW-VAR-UNIFICATION implementation (#616) has merged; then remeasure the flatMap/mapE and ~26 combinator pins and the purity census on the new base.",
+    "Dependency: #1708 (latent effects) merged at 3d4f49720; record the merge-base and remeasure the schemes.",
+    "Runs after M-EFFECT-ROW-VAR-UNIFICATION, never in parallel with it."
+  ],
+  "validation_gates": [
+    "go test ./internal/pipeline/... ./internal/iface/... ./internal/smt/... ./internal/apiserver/... ./internal/types/...",
+    "make test-core",
+    "make fmt",
+    "make lint",
+    "make check-boundaries",
+    "make check-file-sizes",
+    "make check-changelog"
+  ],
+  "maintainer_evidence": [
+    "prompt_injection eval re-run against the amended prompt/spec (needs API keys): maintainer-run, provenance recorded in the implementation PR; not an executor acceptance criterion."
+  ],
+  "executor_notes": [
+    "No full make test; local commits only; no push.",
+    "Z3 required; no model/API credentials required.",
+    "internal/iface/builder.go is 785 lines: purity derivation goes in internal/iface/purity.go. Watch list: internal/smt/encodable.go (729), internal/smt/callee_resolver.go (577).",
+    "Changelog: fragment changelogs/unreleased/<YYYY-MM-DD>-pure-row-iface-purity.md opening with `### `; do not edit changelogs/v*-current.md."
   ]
 }
