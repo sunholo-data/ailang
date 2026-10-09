@@ -1,15 +1,14 @@
 package firestore
 
 import (
-	"cloud.google.com/go/firestore"
 	"context"
 	"fmt"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
+	"cloud.google.com/go/firestore"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // First-write-wins primitives for task finalisation (M-COMPLETION-PATH-PARITY M0b).
@@ -117,6 +116,9 @@ func (s *MessagingStore) PutMessageIfAbsent(ctx context.Context, msg *messaging.
 	}
 	normalizeInboxDefaults(msg)
 
+	if err := messaging.ValidateTaskInputs(msg.Inputs); err != nil {
+		return false, err
+	}
 	_, err := s.client.Doc(collInbox, msg.ID).Create(ctx, inboxToMap(msg))
 	if err != nil {
 		if isAlreadyExists(err) {

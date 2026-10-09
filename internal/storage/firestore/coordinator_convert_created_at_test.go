@@ -64,7 +64,10 @@ func TestTaskQueuedAtRoundTrips(t *testing.T) {
 		CreatedAt: time.Date(2026, 9, 17, 5, 14, 26, 0, time.UTC),
 		QueuedAt:  &queued,
 	})
-	back := mapToTask(m)
+	back, err := mapToTask(m)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if back.QueuedAt == nil || !back.QueuedAt.Equal(queued) {
 		t.Fatalf("queued_at did not round-trip: got %v, want %v", back.QueuedAt, queued)
 	}

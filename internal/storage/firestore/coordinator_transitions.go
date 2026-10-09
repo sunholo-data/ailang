@@ -248,7 +248,11 @@ func (s *CoordinatorStore) FindDuplicateTask(ctx context.Context, fingerprint ui
 		if err != nil {
 			return nil, err
 		}
-		if task := mapToTask(doc.Data()); task.BlocksDuplicate(scope) {
+		task, err := mapToTask(doc.Data())
+		if err != nil {
+			return nil, err
+		}
+		if task.BlocksDuplicate(scope) {
 			return task, nil
 		}
 	}
@@ -333,7 +337,11 @@ func (s *CoordinatorStore) GetTasksByGithubIssue(ctx context.Context, issueNum i
 		if err != nil {
 			return nil, err
 		}
-		tasks = append(tasks, mapToTask(doc.Data()))
+		task, err := mapToTask(doc.Data())
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
 	}
 	return tasks, nil
 }
@@ -354,7 +362,11 @@ func (s *CoordinatorStore) GetTasksByStage(ctx context.Context, stage coordinato
 		if err != nil {
 			return nil, err
 		}
-		tasks = append(tasks, mapToTask(doc.Data()))
+		task, err := mapToTask(doc.Data())
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
 	}
 	return tasks, nil
 }

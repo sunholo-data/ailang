@@ -34,6 +34,7 @@ const (
 	EnvAcknowledgeOnly         = "AILANG_ACKNOWLEDGE_ONLY"
 	EnvSubdirectory            = "AILANG_SUBDIRECTORY"
 	EnvGitMode                 = "AILANG_GIT_MODE"
+	EnvTaskInputs              = "AILANG_TASK_INPUTS"
 	EnvSiteSlug                = "AILANG_SITE_SLUG"
 	EnvBriefID                 = "AILANG_BRIEF_ID"
 	EnvGitAuthorName           = "AILANG_GIT_AUTHOR_NAME"
@@ -56,6 +57,7 @@ const (
 const DefaultJobBranch = "dev"
 
 var jobVars = []Var{
+	{EnvTaskInputs, "", AreaJob, "JSON task inputs fetched by the cloud job parent before the executor; malformed values fail the task."},
 	{EnvCloudRunExecution, "", AreaJob, "Cloud Run execution identity supplied by the runtime; required for exclusive subscription credential ownership."},
 	{EnvAgentID, "", AreaJob, "Agent the job runs as; recorded on spans and completions."},
 	{EnvMaxCostUSD, "", AreaJob, "Per-task cost budget in USD; unset or malformed means no cap (malformed is logged and ignored)."},
@@ -234,6 +236,9 @@ func ApproverSecret() string { return strings.TrimSpace(get(EnvApproverSecret)) 
 
 // ApproverIdentity returns the expected GitHub login.
 func ApproverIdentity() string { return strings.TrimSpace(get(EnvApproverIdentity)) }
+
+// TaskInputs returns task metadata verbatim; the job validates it before fetching.
+func TaskInputs() string { return get(EnvTaskInputs) }
 
 // CloudRunExecution returns the execution identity supplied by Cloud Run, empty outside a job.
 func CloudRunExecution() string { return get(EnvCloudRunExecution) }

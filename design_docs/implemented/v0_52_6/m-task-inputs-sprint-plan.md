@@ -3,7 +3,7 @@
 Refs #1600
 
 **Design:** [m-task-inputs.md](m-task-inputs.md) (approved handoff task-3091adbc).  
-**Target:** v0.52.6 · **Priority:** P2 · **Status:** Planned, awaiting sprint execution approval.  
+**Target:** v0.52.6 · **Priority:** P2 · **Status:** Completed locally on 2026-10-09; independent evaluation passed 95/100. Staged cloud deployment and Daneel migration pending.
 **Duration:** 8 engineering days across two weeks, approximately 48–64 hours.  
 **Estimate:** 2,100 LOC: 1,150 implementation/docs + 950 tests; **Risk:** High at filesystem and authority boundaries.
 
@@ -29,7 +29,7 @@ Ran `ailang pkg search 'task inputs'`, `ailang pkg search 'git'`, and `ailang pk
 
 ## Milestones
 
-### M1_TYPED_MESSAGE_PLANE: Define the shared typed input contract and preserve validated inputs through every message ingress, store and adapter.
+### ✅ M1_TYPED_MESSAGE_PLANE: Define the shared typed input contract and preserve validated inputs through every message ingress, store and adapter.
 
 **Estimate:** 360 implementation/docs + 290 tests = 650 LOC; 2.5 days.  
 **Dependencies:** None.  
@@ -39,13 +39,13 @@ Ran `ailang pkg search 'task inputs'`, `ailang pkg search 'git'`, and `ailang pk
 
 **Acceptance criteria:**
 
-- [ ] One canonical TaskInput type is usable by messaging and coordinator without an import cycle; JSON field names match the approved design.
-- [ ] Validation rejects malformed repo/ref, raw SHA refs, traversal, invalid digest and more than 16 inputs; HTTP returns 400 and CLI rejects malformed inputs files.
-- [ ] SQLite insert/list/get and Firestore map round trips preserve all fields; legacy records decode with no inputs, malformed stored JSON returns an error.
-- [ ] Migration from the current terminal schema preserves existing messages and inputs across reopening; fresh schema and repeated startup work.
-- [ ] HTTP, CLI, Pub/Sub hydration, polling adapter and watcher preserve the same ordered input list.
+- [x] One canonical TaskInput type is usable by messaging and coordinator without an import cycle; JSON field names match the approved design.
+- [x] Validation rejects malformed repo/ref, raw SHA refs, traversal, invalid digest and more than 16 inputs; HTTP returns 400 and CLI rejects malformed inputs files.
+- [x] SQLite insert/list/get and Firestore map round trips preserve all fields; legacy records decode with no inputs, malformed stored JSON returns an error.
+- [x] Migration from the current terminal schema preserves existing messages and inputs across reopening; fresh schema and repeated startup work.
+- [x] HTTP, CLI, Pub/Sub hydration, polling adapter and watcher preserve the same ordered input list.
 
-### M2_TASK_GRANTS_DISPATCH: Persist task inputs and enforce the trusted registry grant before cloud dispatch, then carry metadata to the job.
+### ✅ M2_TASK_GRANTS_DISPATCH: Persist task inputs and enforce the trusted registry grant before cloud dispatch, then carry metadata to the job.
 
 **Estimate:** 250 implementation/docs + 200 tests = 450 LOC; 1.5 days.  
 **Dependencies:** M1_TYPED_MESSAGE_PLANE.  
@@ -55,13 +55,13 @@ Ran `ailang pkg search 'task inputs'`, `ailang pkg search 'git'`, and `ailang pk
 
 **Acceptance criteria:**
 
-- [ ] Both task creation sites copy inputs; SQLite and Firestore task round trips preserve fields, order and legacy empty values.
-- [ ] inputs_allow accepts exact owner/repo entries from the trusted agent registry; empty grants deny all requested inputs and sender content cannot widen the grant.
-- [ ] Unauthorized repo wraps ErrDispatchPermanent, calls MarkTaskFailed and posts the named repo/agent reason without dispatch or requeue.
-- [ ] Allowed cloud inputs serialize as AILANG_TASK_INPUTS; malformed env JSON fails explicitly; absent inputs preserve previous dispatch params/env behavior.
-- [ ] Local tasks with inputs fail explicitly as unsupported before executor startup; no local fetch behavior is introduced.
+- [x] Both task creation sites copy inputs; SQLite and Firestore task round trips preserve fields, order and legacy empty values.
+- [x] inputs_allow accepts exact owner/repo entries from the trusted agent registry; empty grants deny all requested inputs and sender content cannot widen the grant.
+- [x] Unauthorized repo wraps ErrDispatchPermanent, calls MarkTaskFailed and posts the named repo/agent reason without dispatch or requeue.
+- [x] Allowed cloud inputs serialize as AILANG_TASK_INPUTS; malformed env JSON fails explicitly; absent inputs preserve previous dispatch params/env behavior.
+- [x] Local tasks with inputs fail explicitly as unsupported before executor startup; no local fetch behavior is introduced.
 
-### M3_PARENT_FETCH_PROVENANCE: Fetch and verify all inputs in the cloud job parent before starting the executor, preserving workspace and credential boundaries.
+### ✅ M3_PARENT_FETCH_PROVENANCE: Fetch and verify all inputs in the cloud job parent before starting the executor, preserving workspace and credential boundaries.
 
 **Estimate:** 440 implementation/docs + 360 tests = 800 LOC; 2.5 days.  
 **Dependencies:** M2_TASK_GRANTS_DISPATCH.  
@@ -71,16 +71,16 @@ Ran `ailang pkg search 'task inputs'`, `ailang pkg search 'git'`, and `ailang pk
 
 **Acceptance criteria:**
 
-- [ ] Branch/tag shallow clones resolve HEAD and deliver a file, directory or whole tree in input order before the executor starts; missing refs/paths fail loudly with the input index.
-- [ ] Default .incoming/<n>/ is excluded from git; explicit destinations create new files only; copied whole trees omit .git metadata.
-- [ ] Source and destination traversal, source symlinks including ancestor components, destination symlinks, existing-file collisions and harness instruction paths at any depth are rejected.
-- [ ] Single-file sha256 and every manifest.sha256 entry are checked; malformed manifests, missing entries, escaping entries and mismatches fail before executor invocation.
-- [ ] A named 256 MiB aggregate copied-byte cap is enforced while reading; all inputs stage and verify before delivery, failures clean temporary clones and never start the executor.
-- [ ] Provenance in job logs and completion report includes repo, requested ref, resolved commit, effective dest and verified digests; failure reports retain indexed reasons.
-- [ ] Parent uses the existing HTTPS token helper for allowlisted input reads; tests prove the child does not receive the fleet token or input clone credential material, including the workspace SSH deploy-key case.
-- [ ] Zero-input tasks retain previous clone, executor and completion behavior; temp-repo integration tests require no network or model.
+- [x] Branch/tag shallow clones resolve HEAD and deliver a file, directory or whole tree in input order before the executor starts; missing refs/paths fail loudly with the input index.
+- [x] Default .incoming/<n>/ is excluded from git; explicit destinations create new files only; copied whole trees omit .git metadata.
+- [x] Source and destination traversal, source symlinks including ancestor components, destination symlinks, existing-file collisions and harness instruction paths at any depth are rejected.
+- [x] Single-file sha256 and every manifest.sha256 entry are checked; malformed manifests, missing entries, escaping entries and mismatches fail before executor invocation.
+- [x] A named 256 MiB aggregate copied-byte cap is enforced while reading; all inputs stage and verify before delivery, failures clean temporary clones and never start the executor.
+- [x] Provenance in job logs and completion report includes repo, requested ref, resolved commit, effective dest and verified digests; failure reports retain indexed reasons.
+- [x] Parent uses the existing HTTPS token helper for allowlisted input reads; tests prove the child does not receive the fleet token or input clone credential material, including the workspace SSH deploy-key case.
+- [x] Zero-input tasks retain previous clone, executor and completion behavior; temp-repo integration tests require no network or model.
 
-### M4_DOCS_EXAMPLES_ACCEPTANCE: Document task input configuration, add runnable transport examples and bank end-to-end acceptance evidence with a staged Daneel follow-up.
+### ✅ M4_DOCS_EXAMPLES_ACCEPTANCE: Document task input configuration, add runnable transport examples and bank end-to-end acceptance evidence with a staged Daneel follow-up.
 
 **Estimate:** 100 implementation/docs + 100 tests = 200 LOC; 1.5 days.  
 **Dependencies:** M3_PARENT_FETCH_PROVENANCE.  
@@ -90,11 +90,11 @@ Ran `ailang pkg search 'task inputs'`, `ailang pkg search 'git'`, and `ailang pk
 
 **Acceptance criteria:**
 
-- [ ] Examples show default excluded inputs, explicit binary placement and exact inputs_allow with tool_policy ailang_only; JSON examples validate with the production validator and sample config parses.
-- [ ] Guides document --inputs-file, HTTP inputs, AILANG_TASK_INPUTS, branch/tag-only refs, checksums, copied-byte cap, permanent errors, untrusted data and cloud-only support.
-- [ ] Focused package tests and make test, make lint, make check-boundaries pass; changed validators/copy code target at least 85 percent statement coverage with refusal paths asserted.
-- [ ] Bank a no-network end-to-end ingress-to-job fixture showing bytes/provenance and denied-input no-dispatch behavior; attach a staged cloud publish checklist for daneel#335.
-- [ ] When deployment access exists, verify the site agent with a real daneel-memory branch, no shell, correct PR diff and provenance; otherwise record the external acceptance as pending without claiming the migration completed.
+- [x] Examples show default excluded inputs, explicit binary placement and exact inputs_allow with tool_policy ailang_only; JSON examples validate with the production validator and sample config parses.
+- [x] Guides document --inputs-file, HTTP inputs, AILANG_TASK_INPUTS, branch/tag-only refs, checksums, copied-byte cap, permanent errors, untrusted data and cloud-only support.
+- [x] Focused package tests and make test, make lint, make check-boundaries pass; changed validators/copy code target at least 85 percent statement coverage with refusal paths asserted.
+- [x] Bank a no-network end-to-end ingress-to-job fixture showing bytes/provenance and denied-input no-dispatch behavior; attach a staged cloud publish checklist for daneel#335.
+- [x] When deployment access exists, verify the site agent with a real daneel-memory branch, no shell, correct PR diff and provenance; otherwise record the external acceptance as pending without claiming the migration completed.
 
 ## Day-by-day execution
 
@@ -131,3 +131,26 @@ This sprint produces code, tests, transport examples and guides in this reposito
 PR body must include **Refs #1600**; link only the existing issue and do not open a new one. Suggested PR body: “Plan typed cloud task inputs across messaging, trusted dispatch and parent-side fetch, with storage round trips, safe delivery, checksums and provenance. Refs #1600. Validation: sprint JSON schema/milestone checks and git diff whitespace check.”
 
 The coordinator consumes the plan and JSON markers and presents this sprint for approval. Merging the coordinator sprint-plan PR is the execution gate documented by the sprint-planner skill; do not self-approve or start sprint-executor from this planning task. After approval, executor reads the JSON in milestone order; evaluator checks the criteria against the approved design and records any external acceptance still pending.
+
+## Execution evidence — 2026-10-09
+
+All four milestones are implemented locally after the cloud executor was blocked
+before implementation (missing make/CGO toolchain). The companion sprint JSON and
+`.ailang/state/sprints/M-TASK-INPUTS/validation.json` bank acceptance and all required
+gates. Canonical validation coverage is 98.39%; filesystem/manifest helper coverage
+is 90.81%. The no-network fixture delivers actual binary bytes from temporary
+branch/tag repos, resolves commits, verifies git exclusion/provenance and cleans
+clones; transport/store/denial and credential boundary regressions also pass.
+
+The estimate was 2,100 changed LOC over eight engineering days. Actual implementation
+was one attended agent session (approximately 47.6 minutes through independent
+review and checks); this is not a new measured human LOC/day baseline. The existing
+cloud execution function was moved into a companion file to keep every file under
+800 lines. Implementation commit `0b5993561` changes 71 files with 3,301 insertions and
+648 deletions, including the move, docs and banked coverage/evidence.
+
+The final external criterion is satisfied by recording rollout as **pending**, not
+by claiming a live publish. Deployment of coordinator/executor builds, site registry
+changes and Daneel sender migration remain external work; the staged checklist is
+in `examples/task_inputs/README.md`. The codex-go Dockerfile installs make, gcc and
+libc6-dev; its image was not built locally because Docker is unavailable.

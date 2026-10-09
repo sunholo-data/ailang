@@ -94,7 +94,8 @@ func TestSendViaHTTP_PostsCorrectShape(t *testing.T) {
 	t.Setenv("AILANG_COORD_HTTP_PORT", port)
 
 	tags := []string{"agent:motoko", "ollama:gemma4-26b-ailang"}
-	err := sendViaHTTP("eval-rig", "test title", "test content", "sprint-executor", "general", "", tags)
+	inputs := []messaging.TaskInput{{Repo: "a/b", Ref: "main", Path: "poster.png", Dest: "images/"}}
+	err := sendViaHTTP("eval-rig", "test title", "test content", "sprint-executor", "general", "", tags, inputs)
 	if err != nil {
 		t.Fatalf("sendViaHTTP returned error: %v", err)
 	}
@@ -102,6 +103,7 @@ func TestSendViaHTTP_PostsCorrectShape(t *testing.T) {
 	// Validate request shape — these match the postMessageRequest fields
 	// in internal/coordinator/daemon_http.go.
 	want := map[string]interface{}{
+		"inputs":   []interface{}{map[string]interface{}{"repo": "a/b", "ref": "main", "path": "poster.png", "dest": "images/"}},
 		"inbox":    "eval-rig",
 		"title":    "test title",
 		"content":  "test content",
@@ -148,7 +150,7 @@ func TestSendViaHTTP_HonorsAPIKey(t *testing.T) {
 	t.Setenv("AILANG_COORD_HTTP_PORT", port)
 	t.Setenv("COORDINATOR_API_KEY", "test-secret-key")
 
-	err := sendViaHTTP("eval-rig", "t", "c", "f", "", "", []string{"agent:motoko"})
+	err := sendViaHTTP("eval-rig", "t", "c", "f", "", "", []string{"agent:motoko"}, nil)
 	if err != nil {
 		t.Fatalf("sendViaHTTP returned error: %v", err)
 	}
@@ -169,7 +171,7 @@ func TestSendViaHTTP_ErrorWhenUnreachable(t *testing.T) {
 	t.Setenv("PORT", "")
 	testutil.SetHomeDir(t, t.TempDir())
 
-	err := sendViaHTTP("eval-rig", "t", "c", "f", "", "", []string{"agent:motoko"})
+	err := sendViaHTTP("eval-rig", "t", "c", "f", "", "", []string{"agent:motoko"}, nil)
 	if err == nil {
 		t.Fatal("expected error when no PORT configured, got nil")
 	}

@@ -6,6 +6,33 @@ reviewBy: 2027-02-22
 
 The AILANG Coordinator is an always-on daemon that automatically processes incoming tasks using AI agents (currently Claude Code) with human-in-the-loop approval workflows.
 
+## Declared cloud task inputs
+
+Cloud agents can receive external files through typed message `inputs`, rather
+than fetching with an agent shell. The trusted agent registry's `inputs_allow`
+is an exact, case-sensitive list of `owner/repo` grants; empty means deny all.
+Unauthorized inputs use the permanent dispatch failure path: the task is failed
+and its thread receives the named repo/agent reason. They are not requeued.
+`ailang coordinator agents <id>` shows the declared grant.
+
+The dispatcher carries validated inputs in `AILANG_TASK_INPUTS`. After workspace
+clone/branch creation, the job parent shallow-clones branch/tag inputs with its
+existing HTTPS fleet credential, even for an SSH deploy-key workspace. It resolves
+commits, stages all bytes, verifies optional single-file `sha256` and every entry
+in a root `manifest.sha256`, preflights destinations, then delivers before starting
+the executor. No input clone or fleet token is passed to the agent child.
+
+Default `.incoming/<n>/` destinations are git-excluded. Explicit destinations can
+place binary files into the PR but never overwrite existing files. The parent
+refuses traversal, symlinks (including ancestors), instruction/metadata paths,
+bad/missing checksums and more than 256 MiB of copied bytes per task. That cap does
+not limit network clone size. Provenance is appended to completion summaries and
+logged before execution. Input content remains untrusted data.
+
+This feature is cloud-only: a local task declaring inputs fails before executor
+startup. Zero-input behavior is unchanged. See [Agent Messaging](agent-messaging.md#cloud-task-inputs)
+and the [examples and deployment checklist](https://github.com/sunholo-data/ailang/tree/dev/examples/task_inputs).
+
 ## Overview
 
 The coordinator watches for messages across multiple inboxes, routes them to configured agents, and executes tasks in isolated git worktrees. This enables:

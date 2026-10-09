@@ -91,6 +91,9 @@ func printAgentDetail(a *coordinator.AgentConfig, source string) {
 
 	// Declared: what the YAML says.
 	fmt.Println("DECLARED")
+	if len(a.InputsAllow) > 0 {
+		fmt.Printf("  %-20s %s\n", "inputs_allow", strings.Join(a.InputsAllow, ", "))
+	}
 	for _, kv := range [][2]string{
 		{"label", a.Label},
 		{"inbox", a.Inbox},
@@ -169,7 +172,7 @@ func agentDetail(a *coordinator.AgentConfig) map[string]any {
 		"declared": map[string]any{
 			"timeout": a.Timeout, "idle_timeout": a.IdleTimeout,
 			"output_markers": a.OutputMarkers, "artifact_patterns": a.ArtifactPatterns,
-			"tool_policy": a.ToolPolicy, "policy_path": a.PolicyPath,
+			"inputs_allow": a.InputsAllow, "tool_policy": a.ToolPolicy, "policy_path": a.PolicyPath,
 		},
 		"effective": map[string]any{
 			"timeout": a.GetEffectiveTimeout().String(), "idle_timeout": a.GetEffectiveIdleTimeout().String(),

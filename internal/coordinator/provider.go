@@ -23,6 +23,7 @@ const (
 
 // Task represents a task to be executed
 type Task struct {
+	Inputs       []TaskInput
 	ID           string
 	Title        string
 	Content      string

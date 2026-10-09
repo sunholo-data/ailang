@@ -50,6 +50,9 @@ func normalizeInboxDefaults(msg *messaging.InboxMessage) {
 }
 
 func (s *MessagingStore) InsertInboxMessageWithContext(ctx context.Context, msg *messaging.InboxMessage) error {
+	if err := messaging.ValidateTaskInputs(msg.Inputs); err != nil {
+		return err
+	}
 	if msg.ID == "" {
 		msg.ID = fmt.Sprintf("inbox_%d_%s", time.Now().UnixMilli(), generateShortID())
 	}
@@ -117,7 +120,10 @@ func (s *MessagingStore) ListInboxMessages(opts messaging.InboxListOptions) ([]m
 		if err != nil {
 			return nil, err
 		}
-		m := mapToInbox(doc.Data())
+		m, err := mapToInbox(doc.Data())
+		if err != nil {
+			return nil, err
+		}
 
 		// Client-side date filtering (Firestore compound query limits)
 		if opts.StartDate != "" {
@@ -163,7 +169,7 @@ func (s *MessagingStore) GetInboxMessage(id string) (*messaging.InboxMessage, er
 		}
 		return nil, err
 	}
-	return mapToInbox(doc.Data()), nil
+	return mapToInbox(doc.Data())
 }
 
 // FindMessageByPrefix resolves a short ID prefix to a full message ID.

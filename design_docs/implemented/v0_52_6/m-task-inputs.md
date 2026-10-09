@@ -2,11 +2,11 @@
 
 Refs #1600
 
-**Status**: Planned
+**Status**: Implemented — independent evaluation passed 95/100 on 2026-10-09. Cloud deployment and the Daneel migration remain pending.
 **Target**: v0.52.6
 **Priority**: P2 (matches `priority:P2` on the issue)
 **Estimated**: 5–7 engineering days (message plane ~2, registry/dispatch enforcement ~1.5, job fetch ~2, site-agent migration + docs ~1, regression/edge tests throughout)
-**Dependencies**: None hard. Complements planned [M-EXECUTOR-ENV-HARDENING](../v0_49_1/m-executor-env-hardening.md) (this feature is one of the "narrowings" its D2 anticipates) and implemented [M-AGENT-AILANG-ONLY-EXECUTION](../../implemented/v0_39_0/m-agent-ailang-only-execution.md) (the `ailang_only` lane the site agent will move to).
+**Dependencies**: None hard. Complements planned [M-EXECUTOR-ENV-HARDENING](../../planned/v0_49_1/m-executor-env-hardening.md) (this feature is one of the "narrowings" its D2 anticipates) and implemented [M-AGENT-AILANG-ONLY-EXECUTION](../v0_39_0/m-agent-ailang-only-execution.md) (the `ailang_only` lane the site agent will move to).
 **Routing**: AILANG fix under [PROGRAM](../../PROGRAM.md) — coordinator/harness Go only; no motoko core change, no language change.
 
 ## Axiom Compliance
@@ -337,12 +337,12 @@ The following are intentionally left open for the implementer:
 ## Related Documents
 
 **Implemented (may inform design):**
-- [M-AGENT-AILANG-ONLY-EXECUTION](../../implemented/v0_39_0/m-agent-ailang-only-execution.md) (v0.39.0) — the `ailang_only` lane this feature enables for the site agent
-- [M-EXECUTOR-POLICY-HARDENING](../../implemented/v0_41_0/m-executor-policy-hardening.md) (v0.41.0) — the sandboxed file tools (`AilangRead`/`AilangWrite`) the site agent will use on the fetched files
+- [M-AGENT-AILANG-ONLY-EXECUTION](../v0_39_0/m-agent-ailang-only-execution.md) (v0.39.0) — the `ailang_only` lane this feature enables for the site agent
+- [M-EXECUTOR-POLICY-HARDENING](../v0_41_0/m-executor-policy-hardening.md) (v0.41.0) — the sandboxed file tools (`AilangRead`/`AilangWrite`) the site agent will use on the fetched files
 
 **Planned (check for overlap):**
-- [M-EXECUTOR-ENV-HARDENING](../v0_49_1/m-executor-env-hardening.md) (v0.49.1) — E5/D2 own the credential boundary this feature's parent-side fetch respects; D2 anticipates "scoped per-task token" as its own follow-up
-- [M-COORDINATOR-EXECUTION-TRUST](m-coordinator-execution-trust.md) — the trusted-registry authority pattern (`work_tier`) that `inputs_allow` copies
+- [M-EXECUTOR-ENV-HARDENING](../../planned/v0_49_1/m-executor-env-hardening.md) (v0.49.1) — E5/D2 own the credential boundary this feature's parent-side fetch respects; D2 anticipates "scoped per-task token" as its own follow-up
+- [M-COORDINATOR-EXECUTION-TRUST](../../planned/m-coordinator-execution-trust.md) — the trusted-registry authority pattern (`work_tier`) that `inputs_allow` copies
 
 **Duplicate gate:** SimHash/neural searches for "task inputs", "fetch repo files workspace", and "daneel site agent attachments" found no implemented or planned doc covering typed task inputs (closest hits are the four docs above, all adjacent — credential boundary, tool policy — none covers input delivery). Distinct by scope: this doc owns the message → dispatch → fetch path only.
 
