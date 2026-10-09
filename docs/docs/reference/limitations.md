@@ -50,6 +50,18 @@ remain a separate spike under the existing [#573](https://github.com/sunholo-dat
 and [#1326](https://github.com/sunholo-data/ailang/issues/1326) design; no new issue is required.
 
 
+### Effectful Callbacks Nested in Data Arguments Are Not Yet Charged
+
+**Status**: Open, tracked in [#1718](https://github.com/sunholo-data/ailang/issues/1718)
+**Verified at**: v0.53.0 implementation, 2026-10-08
+
+Latent effects are charged for a callback passed directly to a HOF or stored in a
+record field, but not for one nested inside a list, tuple or ADT argument. With an
+effectful `logIt`, a pure caller still checks for `applyHead([logIt], x)`,
+`applyFst((logIt, x))` and `applyOpt(Some(logIt), x)`. Declare the callback's effects
+on the caller explicitly until #1718 lands.
+
+
 ### Y-Combinator and Recursive Lambdas (By Design)
 
 **Status**: Design constraint, not a bug
