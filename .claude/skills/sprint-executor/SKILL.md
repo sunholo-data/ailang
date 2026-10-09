@@ -94,7 +94,7 @@ All milestones have been completed and tests pass.
 1. **Test-Driven**: All code must pass tests before moving to next milestone
 2. **Lint-Clean**: All code must pass linting before moving to next milestone
 3. **Document as You Go**: Update CHANGELOG.md and sprint plan progressively
-4. **Pause for Breath**: Stop at natural breakpoints for review and approval
+4. **Pause for Breath**: Stop at natural breakpoints for review and approval — **interactive sessions only; unattended runs commit and continue, see [resources/unattended_runs.md](resources/unattended_runs.md)**
 5. **Track Everything**: Use TodoWrite to maintain visible progress
 6. **DX-First**: Improve AILANG development experience as we go - make it easier next time
 7. **Parallelize When Possible**: Independent milestones run as concurrent Task sub-agents for speed
@@ -273,7 +273,7 @@ After Phase 1 initialization, choose between sequential or parallel execution ba
    - Set `completed: "<ISO timestamp>"`
    - Add `notes: "<summary of what was done>"`
 7. **DX Reflection** - Identify and implement quick wins (<15 min), defer larger improvements
-8. **Pause for Breath** - Show progress, ask user if ready to continue
+8. **Pause for Breath** - Show progress, ask user if ready to continue (interactive only — unattended runs commit and continue)
 
 After all milestones complete, proceed to **Phase 4: Finalize Sprint**.
 

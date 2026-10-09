@@ -1788,8 +1788,8 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
       # Remember what is left so the pi loop can advance instead of jumping to opus.
       remvar="MISSION_${role}_CHAIN_REMAINING"
       printf -v "$remvar" '%s' "$(_chain_tail "$_chain")"; export "$remvar"
-      # EXECUTOR RUNG 2 (Mark attended 2026-09-29): when codex is dry, the executor goes to
-      # claude-sonnet-5-5 BEFORE the pi chain, on every mission that uses this default.
+      # EXECUTOR RUNG 2 (Mark attended 2026-09-29; model changed 2026-10-08, below): when codex
+      # is dry, the executor goes to the Anthropic rung BEFORE the pi chain, on every mission that uses this default.
       # Grounds: anchored standard ELO 2295.8 vs gpt6-sol's 2288.7 at the same $2/$10, and
       # 41/42 agent smoke+core on this exact lane (claude CLI, subscription) — models.yml
       # claude-sonnet-5-5. Probed like the opus rung (_mc_probe carries the Anthropic ration
@@ -1797,7 +1797,12 @@ for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
       # The generator != judge check compares model FAMILIES (resolve-role-spawn.sh), so the
       # `sonnet` evaluator reroutes when this rung is taken. The pi head stays in the
       # remaining chain. Disable per mission with MISSION_EXECUTOR_ANTHROPIC_RUNG=''.
-      _ex_rung="${MISSION_EXECUTOR_ANTHROPIC_RUNG-claude:claude-sonnet-5-5}"
+      # 2026-10-08 (Mark): the rung is claude-haiku-5-5 — agent 32/32 core+frontier+long-frontier
+      # on this lane at ~1/17 of Sonnet's list cost per solved benchmark, and the lightest draw
+      # on the shared Anthropic allowance. Sonnet is not a second rung here: both are probed
+      # against the same allowance, so if Haiku's probe fails Sonnet's would too. Set
+      # MISSION_EXECUTOR_ANTHROPIC_RUNG=claude:claude-sonnet-5-5 to go back.
+      _ex_rung="${MISSION_EXECUTOR_ANTHROPIC_RUNG-claude:claude-haiku-5-5}"
       if [ "$role" = EXECUTOR ] && [ -n "$_ex_rung" ] && [ "$fb" != "$_ex_rung" ]; then
         _ex_m="${_ex_rung#claude:}"
         case "${_an_probed:-:}" in *":${_ex_m}:"*) : ;; *)
