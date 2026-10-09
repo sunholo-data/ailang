@@ -558,8 +558,18 @@ func writeEffectDiff(msg *strings.Builder, diff types.EffectRowDiff) {
 		fmt.Fprintf(msg, "  Missing effects: %s\n", strings.Join(diff.Missing, ", "))
 	}
 	for _, mismatch := range diff.ParamMismatches {
-		fmt.Fprintf(msg, "  Effect %s mismatch: %s requires %s=%s; declaration provides %s=%s\n",
-			mismatch.Key, mismatch.Effect, mismatch.Key, mismatch.RequiredValue,
-			mismatch.Key, mismatch.DeclaredValue)
+		fmt.Fprintf(msg, "  Effect %s mismatch: %s requires %s; declaration provides %s\n",
+			mismatch.Key, mismatch.Effect,
+			formatEffectParamValue(mismatch.Effect, mismatch.Key, mismatch.RequiredValue),
+			formatEffectParamValue(mismatch.Effect, mismatch.Key, mismatch.DeclaredValue))
 	}
+}
+
+// formatEffectParamValue renders key=value, or "unscoped <Effect>" when the
+// side carries no parameter (e.g. a bare Declassify callee under a scoped caller).
+func formatEffectParamValue(effect, key, value string) string {
+	if value == "" {
+		return "unscoped " + effect
+	}
+	return key + "=" + value
 }
