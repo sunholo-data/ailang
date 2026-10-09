@@ -6,6 +6,7 @@ Preserve YAML mapping document order through `yamlToJson` and `decode`, using th
 
 **Design:** [Approved design](m-std-yaml-mapping-key-order.md)
 **Target:** v0.53.0
+**Status:** Implemented, merged in #1638 (f34214657).
 **Duration:** 1 engineering day (7 hours work + 1 hour contingency).
 **Estimated total:** 200 changed LOC: 110 implementation, 70 tests, 20 documentation/comments.
 **Risk:** Medium; merge expansion and alias recursion deserve more attention than the basic order change.

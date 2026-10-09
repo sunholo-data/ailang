@@ -104,7 +104,7 @@ The coordinator consumes the plan and progress JSON markers, presents sprint app
 - Used the clean coordinator checkout `coordinator/task-7de2c711`; handoff branch name was from the planner task.
 - Current `std/VERSION` is v0.52.1. Builtin Since metadata targets the next minor, v0.53.0; no release version was bumped. Approved artifact paths remain unchanged.
 - Release note is `changelogs/unreleased/2026-10-03-readline-eof-option.md`, following the current changelog fragment workflow rather than editing the active release file.
-- Prompt-manager created v0.16.7 from v0.16.6. `ailang prompt freeze --migrate` marked the previous head legacy; historical text and hashes remain unchanged. Updated the registry split-count fixture for the new head.
+- Prompt-manager first created v0.16.7 from v0.16.6 and froze v0.16.6 as legacy. Reworked at merge (2026-10-09): under D-41 (c) a prompt version stays mutable until its first banked use, and v0.16.6 has none, so the readLineOpt teaching is amended into v0.16.6 in place (all six copies, hash regenerated, note appended) and v0.16.7 is dropped. dev had meanwhile amended v0.16.6 in place (#1665), which a v0.16.7 copy would have silently reverted.
 - User-local make/jq and the installed Go toolchain support validation in this cloud checkout. The startup script initially reported a false green when make was unavailable; explicit make runs provide the actual gate evidence.
 
 ## Execution verification

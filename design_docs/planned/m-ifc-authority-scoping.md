@@ -1,9 +1,10 @@
 # M-IFC-AUTHORITY-SCOPING — Narrowing IFC Authority Primitives (Scoped Declassify + Call-Site Positive-Label Enforcement)
 
 **Status**: Planned
-**Target**: v0.39.0
+**Target**: v0.53.x (v0.54.0 fallback)
 **Priority**: P0 (High — security-sensitive semantics change to `internal/types`)
-**Estimated**: 3 days
+**Estimated**: 3 days design baseline; 4 days buffered sprint
+**Sprint plan**: [authority-scoping sprint](v0_53_0/m-ifc-authority-scoping-sprint-plan.md) — Refs #752; Refs #1134
 **Dependencies**: M-TAINT-TYPES label lattice (shipped); M-SECRET-EFFECT IFC walk (shipped); closure-laundering fix (1af9f5f30, shipped)
 
 > **Semantics change to `internal/types`.** Per AGENTS.md, `internal/types` is a
@@ -74,8 +75,18 @@ flow at the call site.
 ### 1. Label-scoped Declassify: `! {Declassify[label=…]}`
 
 Ride the **existing** parameterised-effect syntax (`Rand[mode=crypto]`); no new
-parser surface. `! {Declassify[label=email]]` — one `label` key, comma-separated
-label list; bare `! {Declassify}` means **all labels** (⊤, today's semantics).
+parser surface. `! {Declassify[label=email]}` — one `label` key naming a
+**single** label; bare `! {Declassify}` means **all labels** (⊤, today's semantics).
+
+> **Maintainer ruling (Mark, 2026-10-08):** `Declassify` takes a **single label
+> in v1**: `Declassify[label=email]`. No parser change and no repeated
+> `Declassify[...]` atoms — the parser keeps rejecting duplicate effect names
+> (`internal/parser/parser_effect.go`, `PAR_EFF001_DUP`). A function that must
+> relabel more than one label uses bare `! {Declassify}` in v1. Multi-label
+> scoped authority (a list syntax or repeated atoms) is future work and needs its
+> own design. The authorized-label *set* below is therefore ⊤ or a one-element
+> set in v1; the covering rule and the companion's label-list summary keep the
+> set shape so multi-label can be added without a schema change.
 
 **Why label-scoped, not argument-scoped:** taint composes via `LabelJoin`, so
 argument positions do not stay separable — in `f(s, other)` with body `s ++ other`
@@ -165,7 +176,7 @@ Two coordination points so the docs do not conflict:
   list** from day one (`declassify: ["email"]`; `[]` = none; bare = `["*"]`),
   and its per-param summary already carries `label`, which is exactly what
   Check C needs cross-module.
-- If both land in v0.39.0, land this doc first (intra-module semantics), then
+- If both land in v0.53.x (or v0.54.0), land this doc first (intra-module semantics), then
   the companion serializes the already-final shapes.
 
 ## Conflict Surface
@@ -309,4 +320,4 @@ auto-relaxation omitted from transcripts):
 ---
 
 **Document created**: 2026-09-13
-**Last updated**: 2026-09-13
+**Last updated**: 2026-10-08

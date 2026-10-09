@@ -2,8 +2,8 @@
   "sprint_id": "M-STD-YAML-ENCODE",
   "status": "completed",
   "created": "2026-10-07T18:44:50Z",
-  "design_doc": "design_docs/planned/v0_53_0/m-std-yaml-encode.md",
-  "sprint_plan": "design_docs/planned/v0_53_0/m-std-yaml-encode-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_53_0/m-std-yaml-encode.md",
+  "sprint_plan": "design_docs/implemented/v0_53_0/m-std-yaml-encode-sprint-plan.md",
   "github_issues": [],
   "source_report": "inbox_1791394438696_00b01c33",
   "source_pull_requests": [

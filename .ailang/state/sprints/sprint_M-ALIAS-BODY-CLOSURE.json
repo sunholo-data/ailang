@@ -1,0 +1,130 @@
+{
+  "sprint_id": "M-ALIAS-BODY-CLOSURE",
+  "status": "not_started",
+  "created": "2026-10-08T19:11:12.533728+00:00",
+  "design_doc": "design_docs/planned/v0_52_4/m-alias-body-closure.md",
+  "sprint_plan": "design_docs/planned/v0_52_4/m-alias-body-closure-sprint-plan.md",
+  "github_issues": [
+    1614
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "type alias",
+        "compiler"
+      ],
+      "reason": "Both registry searches returned no packages; internal Go compiler interface/cache semantics and regression verification require core changes, not an AILANG package."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "type alias",
+        "compiler"
+      ],
+      "reason": "Both registry searches returned no packages; internal Go compiler interface/cache semantics and regression verification require core changes, not an AILANG package."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "type alias",
+        "compiler"
+      ],
+      "reason": "Both registry searches returned no packages; internal Go compiler interface/cache semantics and regression verification require core changes, not an AILANG package."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "searches": [
+        "type alias",
+        "compiler"
+      ],
+      "reason": "Both registry searches returned no packages; internal Go compiler interface/cache semantics and regression verification require core changes, not an AILANG package."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 180,
+    "estimated_total_loc": 720,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Close alias bodies in the defining module",
+      "estimated_loc": 330,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Walker covers every concrete types.Type implementation, including TLabelled, v2 records/functions, rows, arrays and maps; nested aliases close without mutating inputs.",
+        "Cycles terminate deterministically; TypeName is preserved or assigned; primitives, nominal types and type variables retain identity.",
+        "T1 explicit-import and T2 both-import-order regressions pass; four-module navigation/sol/trappist regression passes.",
+        "Closure uses local aliases over post-shadow imported aliases, including unexported local dependencies; AliasParams remain intact."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Close export schemes and constructor types",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "T3 annotation-only scheme regression passes; quantified variables, constraints and effects are preserved.",
+        "Constructor field/result aliases close while nominal ADT results remain nominal; constructor pattern regressions pass.",
+        "CapturedImportedAliasIsLoud becomes a positive regression; a residual nominal-shadow control still emits TC_TYPE_SHADOW_001.",
+        "Final interface digest reflects closed schemes and constructors, is deterministic and survives serialization; alias digest coverage remains intact.",
+        "Any digest-finalize helper lives in a new internal/iface/ file; internal/iface/builder.go stays at or below 800 lines."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Invalidate stale caches and document residuals",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "cacheKeyVersion and migration assertions use v6; a v5 cache misses, a fresh v6 compile populates the cache, and an unchanged subsequent compile hits.",
+        "Alias edits still invalidate transitive dependents; cached and uncached compilation give equivalent results.",
+        "Shadow guard comments, parent M2 scope/status and docs/LIMITATIONS.md describe closure and residual parameterized/nominal/import-name behavior accurately."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Verify runtime examples and regression matrix",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "New examples/alias_body_closure package (ailang.toml, a.ail, b.ail, main.ail) checks and run with --args-json 1 returns 1 with both colliding imports.",
+        "T1/T2/T3 runtime checks and examples/intra_package_imports pass; record-update and args-json alias decoding controls pass.",
+        "make test-core and go test ./internal/pipeline/... ./internal/types/... ./internal/iface/... pass, then make lint check-boundaries check-file-sizes passes (full suite is left to CI).",
+        "Stapledons workaround-removal verification is recorded if accessible; otherwise record unavailable and rely on the mandatory four-module automated reproduction.",
+        "Sprint-evaluator receives plan, progress, test evidence and explicit remaining limitations after execution."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
