@@ -1,0 +1,145 @@
+{
+  "sprint_id": "M-EFFECT-ROW-VAR-UNIFICATION",
+  "status": "planned",
+  "created": "2026-10-09",
+  "design_doc": "design_docs/planned/v1_0_0/m-effect-row-var-unification.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-effect-row-var-unification-sprint-plan.md",
+  "github_issues": [
+    616
+  ],
+  "related_github_issues": [
+    1091,
+    1718
+  ],
+  "supersedes_pr": 1678,
+  "base_commit": "3d4f49720",
+  "dependency_pr": 1708,
+  "approval_status": "pending",
+  "execution_gate": "Coordinator plan approval required before sprint-executor implementation.",
+  "maintainer_rulings": [
+    {
+      "date": "2026-10-08",
+      "ruled_by": "Mark",
+      "decision": "D-10 option A: minimal constraint repair at App; extend existing per-App LatentParamMask publication with call row, one authority."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 140,
+    "estimated_total_loc": 700,
+    "estimated_days": 5,
+    "basis": "Shallow history prevents measured LOC/day; 858 raw lines in prior sprint without timing; 24\u201330 hours includes about 25% contingency."
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M1_APP_CONSTRAINT",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search effects returned billing_entitlements and world/core; neither provides compiler inference. Extend existing internals, tests and repository docs."
+    },
+    {
+      "milestone": "M2_SHARED_PUBLICATION",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search effects returned billing_entitlements and world/core; neither provides compiler inference. Extend existing internals, tests and repository docs."
+    },
+    {
+      "milestone": "M3_REGRESSIONS",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search effects returned billing_entitlements and world/core; neither provides compiler inference. Extend existing internals, tests and repository docs."
+    },
+    {
+      "milestone": "M4_CORPUS_MIGRATIONS",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search effects returned billing_entitlements and world/core; neither provides compiler inference. Extend existing internals, tests and repository docs."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_APP_CONSTRAINT",
+      "description": "Minimal App constraint repair and base repro measurements",
+      "estimated_loc": 190,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Design AC1: AST/Core App equality shares callback and call rows; independent pure and IO calls resolve without order contamination.",
+        "Return-only row resolves in a concrete pure caller; recursion and #386 no-join controls pass.",
+        "Record #616 blank diagnostic and pure runTwice(noisy) base behavior; constraint mutation trips a new test."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_SHARED_PUBLICATION",
+      "description": "Extend LatentParamMask publication with zonked call row; repair tail validation and diagnostics",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1_APP_CONSTRAINT"
+      ],
+      "acceptance_criteria": [
+        "Design AC2/AC4/AC5: one per-App store publishes pre-unification LatentParamMask and post-solve zonked callee call row, immutable snapshots and one presence authority.",
+        "Both pipeline entry points consume the publication; missing/malformed/unowned rows fail loudly; present pure/all-false differs from absent.",
+        "Same/sole tails survive both union callers; distinct tails conflict explicitly; matching owned tails subsume; declared tail does not absorb IO; no blank/identical Suggested fix.",
+        "typechecker_core.go stays at or below 800 lines with new code in companions."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_REGRESSIONS",
+      "description": "Issue repros, import/recursion controls and runnable examples",
+      "estimated_loc": 155,
+      "dependencies": [
+        "M2_SHARED_PUBLICATION"
+      ],
+      "acceptance_criteria": [
+        "Design AC3: pure runTwice(noisy) rejects before printing; corrected generic helper and IO caller print twice; runtime capability rejection preserved.",
+        "Design AC6: all historical arms, #1091 declared-pure standalone/explicit dependency imports, inferred combinators, #386 and #1708 controls pass their contracts.",
+        "Design AC9: two runnable examples check/run, manifest updated, prompt reloaded, per-demo contract/effect/inline-test decisions followed."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_CORPUS_MIGRATIONS",
+      "description": "Base/fixed complete example and std sweep, migrations and executor gates",
+      "estimated_loc": 55,
+      "dependencies": [
+        "M3_REGRESSIONS"
+      ],
+      "acceptance_criteria": [
+        "Design AC7: cold-cache base/fixed ailang check records every examples/**/*.ail and std/**/*.ail path, commands/status/diagnostics, matching stdlib, and streaming consumer probes.",
+        "Design AC8: each flipped path in changelogs/unreleased/m-effect-row-var-unification.md has before/after, reason and migration; unexplained flips and valid streaming regressions block completion.",
+        "Design AC10: focused go tests, make test-core, make lint, make check-boundaries and make check-file-sizes pass; no full make test.",
+        "Validation Markdown and per-file JSON evidence recorded; local commits only, no push; coordinator evaluator handoff after execution."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "validation_gates": [
+    "go test ./internal/types/... ./internal/pipeline/... ./internal/elaborate/...",
+    "make test-core",
+    "make lint",
+    "make check-boundaries",
+    "make check-file-sizes"
+  ],
+  "executor_notes": [
+    "No full make test: SIGBUS in RAM-backed /tmp.",
+    "Local commits only; cannot push or merge. Use Refs #616.",
+    "typechecker_core.go is exactly 800 lines; new logic in companion files.",
+    "No standalone CallEffects[appID]; extend existing publication.",
+    "#1718 out of scope unless trivially shared.",
+    "All example/std flips require a named changelog fragment entry with migration."
+  ],
+  "validation_report": "design_docs/planned/v1_0_0/m-effect-row-var-unification-validation.md",
+  "validation_evidence": ".ailang/state/sprints/validation_M-EFFECT-ROW-VAR-UNIFICATION.json"
+}
