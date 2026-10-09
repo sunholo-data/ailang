@@ -1,0 +1,10 @@
+{
+  "provider": "openrouter",
+  "model": "minimax/minimax-m3",
+  "tokens_in_including_cache": 2530122,
+  "tokens_out": 17083,
+  "cost_usd": 0.20670036,
+  "calls": 59,
+  "native_role_tokens": "not reported",
+  "probe_metered_cost": "not reported; excluded from known evaluator total"
+}
