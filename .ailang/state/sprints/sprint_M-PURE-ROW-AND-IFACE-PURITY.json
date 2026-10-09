@@ -1,0 +1,131 @@
+{
+  "sprint_id": "M-PURE-ROW-AND-IFACE-PURITY",
+  "status": "not_started",
+  "created": "2026-10-09T06:20:31.353468+00:00",
+  "design_doc": "design_docs/planned/v0_53_0/m-pure-row-and-iface-purity.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-sprint-plan.md",
+  "github_issues": [
+    1443,
+    574
+  ],
+  "target_version": "v0.53.0",
+  "prerequisites": [
+    {
+      "name": "M-EFFECT-LATENT-FUNCTION-VALUES",
+      "condition": "Implementation landed on execution base; record commit and remeasure outer/callback schemes",
+      "design_doc": "design_docs/planned/v0_48_0/m-effect-latent-function-values.md"
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searches purity/effects; world/core is world-graph contracts (no AGENT.md); billing_entitlements is billing policy. Existing Go compiler/SMT/iface and repo migration tools required."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searches purity/effects; world/core is world-graph contracts (no AGENT.md); billing_entitlements is billing policy. Existing Go compiler/SMT/iface and repo migration tools required."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searches purity/effects; world/core is world-graph contracts (no AGENT.md); billing_entitlements is billing policy. Existing Go compiler/SMT/iface and repo migration tools required."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searches purity/effects; world/core is world-graph contracts (no AGENT.md); billing_entitlements is billing policy. Existing Go compiler/SMT/iface and repo migration tools required."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 215,
+    "estimated_total_loc": 860,
+    "estimated_days": 4,
+    "contingency_days": 1,
+    "basis": "Planning assumption; shallow history has no measurable implementation velocity."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Reject contradictory pure signatures",
+      "estimated_loc": 120,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "pure with a labelled or open declared row fails check; diagnostic names the function, contradiction, and both repairs.",
+        "Explicit empty and absent rows on pure declarations remain accepted; non-pure declarations are unchanged.",
+        "Pipeline tests cover IO, Debug, Declassify, var-only and mixed open rows, empty rows, and absent rows."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Derive iface purity and unify consumers",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Closed empty outer rows report true; labelled and declared-open outer rows report false without reading IsPure.",
+        "An undeclared outer tail shared with a callback row is latent and reports true; an unrelated tail or any outer label reports false.",
+        "All six std/ai/streaming exports and std/list.mapE report false; std/option.flatMap reports true; std keyword-pure invariant and approximately 26 combinator pins pass after the prerequisite lands.",
+        "serve-api uses iface purity without AST overwrite; MCP tags and read-only hints match iface, including open-row cases.",
+        "Cache version advances once from the current base version; cache round-trip rejects stale always-true metadata and preserves derived values.",
+        "Non-function export type-walk policy is documented and tested, including values containing function types."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Preserve SMT verification and migrate source corpus",
+      "estimated_loc": 330,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "SMT entry and callee admission use keyword OR an explicit closed row containing only Declassify or no labels; missing-row non-pure functions are refused.",
+        "IO, Debug, mixed Declassify/IO and all open rows are refused; Declassify functions never gain IsPure metadata.",
+        "Migrated safe prompt-injection reference verifies 3 contracts with 0 violations; injected reference reports 1 violation on injectedForward.",
+        "Seven known contradictory declarations in four example/benchmark files are migrated and formatted; pipeline-backed and IFC Go fixtures use valid declarations.",
+        "Existing no-row pure functions remain SMT-admitted and cross-module Declassify callees remain inlinable."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Migrate teaching material and validate release",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Active v0.16.6 prompt and embedded/current copies agree after amendment; versions.json hash and note are updated; frozen prompts stay byte-identical.",
+        "Benchmark contract_spec, IFC guide and why-ailang snippets use valid effectful signatures; three llms.txt bundles are regenerated with make generate-llms-txt.",
+        "Multiline live-material sweep finds zero rejected spellings outside intentional negative tests, frozen prompts and historical records.",
+        "prompt_injection eval runs against the amended prompt and spec with model/config/result provenance and failures recorded in the implementation PR.",
+        "Effects reference and current changelog document the breaking spelling and iface JSON semantic change.",
+        "make test, make fmt, make lint and make check-boundaries pass; touched examples check and verification outcomes remain pinned."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
