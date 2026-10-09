@@ -1,4 +1,4 @@
-## Added
+### Added
 
 - **serve-api: typed host errors over MCP** (#1602). Errors from `Invoker.Invoke`
   implementing `protocol.JSONRPCError` now return their exact nonzero code and
