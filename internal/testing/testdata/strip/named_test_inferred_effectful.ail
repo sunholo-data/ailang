@@ -1,0 +1,4 @@
+module named_test_inferred_effectful
+import std/fs (readFile)
+func check() -> bool = readFile("fixture.txt") != ""
+test "invalid helper" { check() }

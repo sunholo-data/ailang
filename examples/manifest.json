@@ -5,6 +5,36 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "tests/named_helper_purity.ail",
+      "status": "working",
+      "tags": [
+        "testing",
+        "purity"
+      ],
+      "description": "Named-test and seeded property regression for plain effect-free exports; unused FS helper stays uncalled.",
+      "modules": [
+        "std/fs"
+      ]
+    },
+    {
+      "path": "tests/effectful_fixture_verification.ail",
+      "status": "working",
+      "tags": [
+        "testing",
+        "effects",
+        "fs"
+      ],
+      "description": "Exported fixture verification entry; run from repository root with --caps FS,IO.",
+      "expected": {
+        "stdout": "fixture verified\n",
+        "exit_code": 0
+      },
+      "modules": [
+        "std/fs",
+        "std/io"
+      ]
+    },
+    {
       "path": "runnable/serve_api_response_headers.ail",
       "status": "working",
       "tags": [
@@ -3280,11 +3310,11 @@
     }
   ],
   "statistics": {
-    "total": 222,
-    "working": 214,
+    "total": 224,
+    "working": 216,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.963963963963964,
+    "coverage": 0.9642857142857143,
     "experimental": 0
   },
   "milestones": {

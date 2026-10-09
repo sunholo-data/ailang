@@ -1,0 +1,3 @@
+module named_test_effectful_direct
+import std/fs (readFile)
+test "direct effects" { readFile("fixture.txt") != "" }

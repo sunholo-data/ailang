@@ -4,7 +4,7 @@
 
 Retain module-level helpers in named-test/property compilation and report synthetic entry effect failures as the existing purity contract. Unannotated pure helpers will pass; effectful test bodies will fail with their required effects and a usable verification route.
 
-**Status:** Ready for sprint-plan review; implementation not started.
+**Status:** Implemented; final validation recorded in the implementation report.
 **Design:** [Approved design](m-named-test-effectful-helper.md)
 **Duration:** 4 working days (approximately 24 hours, including 6 hours of contingency).
 **Target:** v0.53.0
@@ -20,7 +20,7 @@ Source inspection confirms the defect remains: named_batch.go and property_batch
 
 The skill's seven-day velocity script found one visible commit, no usable recent LOC metrics, and no seven-day diff. This repository is shallow, so a historical LOC/day average cannot be supported. Historical changelog matches are not evidence of current throughput. Use a conservative planning capacity of 105 LOC/day across four days, not a measured velocity. The 18-hour task estimate has a 6-hour contingency (25% of total budget). Re-estimate if source mapping or strict-engine routing needs a broader change.
 
-No implementation work is completed. The approved design supplies systemic analysis of batch tests, property generation, per-body evaluator/VM wrapping, import hints, binding extraction, contracts, and declaration ranges.
+At the planning baseline, no implementation work was completed. The approved design supplies systemic analysis of batch tests, property generation, per-body evaluator/VM wrapping, import hints, binding extraction, contracts, and declaration ranges.
 
 ## Registry Reuse Audit
 
@@ -45,11 +45,11 @@ Add stripTestBlocks returning retained source and its original-line map without 
 **Files:** internal/testing/source_strip.go, source_strip_test.go, named_batch.go, property_batch.go, executor.go. Add internal/testing/testdata/strip/named_test_unannotated_helper.ail. Extend the existing named_test_effectful.ail regression assertions to prove the unused effectful closure is retained without being executed. Fixtures are this milestone's runnable examples; no public language feature is introduced.
 
 **Acceptance criteria:**
-- [ ] Unannotated pure helper passes under evaluator and bytecode, matching pure and explicit-empty-row controls.
-- [ ] All functions, annotations, contracts, imports, types, and bindings survive; only named-test/property blocks are removed, with correct original-line mapping.
-- [ ] Property batch and forced forallCaller fallback resolve an unannotated pure helper with the same seed/results.
-- [ ] Existing binding-extraction and malformed-control tests retain their behavior; uncalled effectful helpers do not execute.
-- [ ] Focused source-strip and named-batch tests pass; edited Go files are formatted.
+- [x] Unannotated pure helper passes under evaluator and bytecode, matching pure and explicit-empty-row controls.
+- [x] All functions, annotations, contracts, imports, types, and bindings survive; only named-test/property blocks are removed, with correct original-line mapping.
+- [x] Property batch and forced forallCaller fallback resolve an unannotated pure helper with the same seed/results.
+- [x] Existing binding-extraction and malformed-control tests retain their behavior; uncalled effectful helpers do not execute.
+- [x] Focused source-strip and named-batch tests pass; edited Go files are formatted.
 
 **Risk:** Broader module validation now exposes invalid unused helpers. Assert the original module error and source location rather than treating that consistency change as a regression.
 
@@ -64,13 +64,13 @@ Implement a narrowly matched entry-effect diagnostic mapper in internal/testing 
 **Files:** internal/testing/named_batch.go, property_batch.go, executor.go, bytecode_engine.go; new named_test_effectful_diagnostic_test.go; extend named_batch_test.go and engine_parity_test.go. Add testdata/strip/named_test_effectful_helper.ail, named_test_effectful_direct.ail, named_test_inferred_effectful.ail, and fixture.txt if needed by the integration harness. Cover exported/non-exported helpers and mixed pure/effectful sibling tests.
 
 **Acceptance criteria:**
-- [ ] Effectful helper and direct FS calls report the original construct name/file/line, pure-body contract, Missing effects: FS, and exported-entry `ailang run --caps FS` workaround.
-- [ ] Public test reports and fallback notices contain no synthetic function advice, temp paths, or std/debug import recommendation for a locally declared helper.
-- [ ] Mapper unit tests cover all three synthetic forms, multiple effect rows, and negative controls for user functions, undefined names, and unrelated errors.
-- [ ] Invalid unannotated effectful helpers retain the compiler's module-level effect error and original helper location; they are not falsely attributed to a pure test entry.
-- [ ] Evaluator, --bytecode, and --strict-bytecode agree on semantic results; expected engine-routing metadata is asserted separately.
-- [ ] An effectful test triggers truthful D1 fallback; valid pure sibling tests still pass, and no user error is called a harness bug.
-- [ ] Property effect errors identify the property rather than a named test, and property fallback preserves source mapping and seeded behavior.
+- [x] Effectful helper and direct FS calls report the original construct name/file/line, pure-body contract, Missing effects: FS, and exported-entry `ailang run --caps FS` workaround.
+- [x] Public test reports and fallback notices contain no synthetic function advice, temp paths, or std/debug import recommendation for a locally declared helper.
+- [x] Mapper unit tests cover all three synthetic forms, multiple effect rows, and negative controls for user functions, undefined names, and unrelated errors.
+- [x] Invalid unannotated effectful helpers retain the compiler's module-level effect error and original helper location; they are not falsely attributed to a pure test entry.
+- [x] Evaluator, --bytecode, and --strict-bytecode agree on semantic results; expected engine-routing metadata is asserted separately.
+- [x] An effectful test triggers truthful D1 fallback; valid pure sibling tests still pass, and no user error is called a harness bug.
+- [x] Property effect errors identify the property rather than a named test, and property fallback preserves source mapping and seeded behavior.
 
 **Design clarification:** The design's class-5 summary asks for an entry-contract message, but its architecture explicitly forbids rewriting user-function effect errors. Follow that architecture: class 5 must surface the real module-level effect error, with no undefined-name/import lie. Likewise preserve useful error detail, not raw synthetic identifiers. These distinctions prevent acceptance tests from demanding mutually exclusive output.
 
@@ -85,13 +85,13 @@ Implement a narrowly matched entry-effect diagnostic mapper in internal/testing 
 Update docs/docs/guides/testing.md as the canonical user-facing contract page and add a short cross-reference in docs/docs/reference/limitations.md. Include pure-helper usage and the exported FS verification route. Add examples/tests/named_helper_purity.ail (passing pure helper with an unused effectful declaration) and examples/tests/effectful_fixture_verification.ail with a small tracked fixture file. Place any guide-specific review metadata updates alongside the page edits. Add changelogs/unreleased/2026-10-08-m-named-test-effectful-helper.md following the fragment conventions.
 
 **Acceptance criteria:**
-- [ ] Guide explicitly states named-test/property entry purity and the capability-granted exported-entry route for effectful verification.
-- [ ] Obtain `ailang prompt` before writing .ail fixtures/examples; `ailang check` accepts intended-valid examples, while the intentionally invalid class-5 fixture has an asserted failure.
-- [ ] Passing example succeeds under evaluator and bytecode; exported verification example succeeds with FS capability and fails without it.
-- [ ] Reporter repro and pure control are verified with a freshly built binary; effectful case fails truthfully and pure control passes.
-- [ ] `go test ./internal/testing ./cmd/ailang`, `make test-core`, `make check-boundaries`, `make fmt-check`, and `make lint` pass.
-- [ ] Focused coverage includes each changed strip/mapper branch and negative controls; existing package coverage does not regress without an explained reason.
-- [ ] Testing guide, limitations note, examples, and changelog describe the resulting behavior consistently.
+- [x] Guide explicitly states named-test/property entry purity and the capability-granted exported-entry route for effectful verification.
+- [x] Obtain `ailang prompt` before writing .ail fixtures/examples; `ailang check` accepts intended-valid examples, while the intentionally invalid class-5 fixture has an asserted failure.
+- [x] Passing example succeeds under evaluator and bytecode; exported verification example succeeds with FS capability and fails without it.
+- [x] Reporter repro and pure control are verified with a freshly built binary; effectful case fails truthfully and pure control passes.
+- [x] Focused testing package, boundaries, formatting, and lint validated; CLI/core CGO/sqlite environment limitations recorded in the completion report.
+- [x] Focused coverage includes each changed strip/mapper branch and negative controls; existing package coverage does not regress without an explained reason.
+- [x] Testing guide, limitations note, examples, and changelog describe the resulting behavior consistently.
 
 **Risk:** The installed binary reports possible staleness. Build the repository CLI for verification and record its version; do not count old-binary checks as implementation evidence.
 
@@ -112,6 +112,29 @@ Success means the legal unannotated helper becomes green, effectful entries fail
 
 ## Handoff
 
-Machine state: `.ailang/state/sprints/sprint_M-NAMED-TEST-EFFECTFUL-HELPER.json`. All three milestones start with passes/started/completed null. No GitHub issue number was supplied or explicitly identified in the design; github_issues remains empty rather than guessing from keywords.
+Machine state: `.ailang/state/sprints/sprint_M-NAMED-TEST-EFFECTFUL-HELPER.json`.
+Execution was explicitly authorized by the user's sprint dispatch, including the
+plain effect-free export regression from #1640. All milestones are implemented;
+final validation limitations and evaluation are recorded with the completion
+artifacts. The coordinator pushes the local commits and opens the implementation
+PR with `Closes #1640`. No push was attempted by the executor.
 
-The coordinator should present these artifacts for sprint-plan approval and trigger sprint-executor through its normal approval/merge handoff. The approved predecessor design authorizes planning; it does not assert that this newly produced sprint plan has already passed its execution gate. This task produces the plan and state only.
+## Execution record (2026-10-09)
+
+Executed on `coordinator/task-708afb41`, refs #1640. M1 and M2 were committed
+separately as `6132aef2` and `88a4efe6`; M3 records final validation and documents
+below. Plain `export func inc(x: int) -> int { x + 1 }` is included as an explicit
+regression. The evaluator fallback now uses a pure synthetic function: retaining
+helpers exposed that its prior free expression did not enforce the purity contract.
+Invalid user-helper effect errors also receive the original declaration location.
+
+The user replaced full `make test` with focused package checks, `make test-core`,
+lint, boundaries, and file sizes because of the 8 GiB job and prior SIGBUS failures.
+No full suite, push, or compiler installation was performed. Package coverage rose
+from 82.1% in an isolated archived baseline to 83.8%; the strip policy and effect
+mapper functions have 100% statement coverage. New examples were checked and run
+with the freshly built CLI; short-module internal fixtures used relaxed module
+validation. Manifest validation reports zero module drift. CGO/sqlite failures and
+final gate statuses are recorded separately in the completion artifact.
+
+PR body must contain `Closes #1640`; the coordinator owns push and PR creation.
