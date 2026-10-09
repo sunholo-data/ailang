@@ -210,27 +210,32 @@ export function teachingPrompt(run: (cmd: string, args: string[]) => string = (c
 	}
 }
 
-/** The `policy: {...}` admission line `ailang run --policy` prints on stderr. */
-export function parsePolicyLine(stderr: string): Record<string, unknown> | null {
-	const m = /^policy: (\{.*\})\s*$/m.exec(stderr);
-	if (!m) return null;
-	try {
-		return JSON.parse(m[1]) as Record<string, unknown>;
-	} catch {
-		return null;
+/** Select the last complete LF-delimited candidate, then parse it once.
+ * A malformed final candidate must never revive an earlier worker claim.
+ */
+function contractLine(stderr: string, token: string): { index: number; value: Record<string, unknown> | null } {
+	const lines = stderr.split("\n");
+	for (let index = lines.length - 1; index >= 0; index--) {
+		const line = lines[index];
+		if (!line.startsWith(token + " ")) continue;
+		const json = line.slice(token.length + 1);
+		if (!/^\{[^\r\u2028\u2029]*\}[ \t\r]*$/.test(json)) continue;
+		try { return { index, value: JSON.parse(json) as Record<string, unknown> }; }
+		catch { return { index, value: null }; }
 	}
+	return { index: -1, value: null };
 }
 
-/** The `policy-result: {...}` limit envelope the supervisor prints on a timeout or output cap. */
-export function parseResultLine(stderr: string): Record<string, unknown> | null {
-	const m = /^policy-result: (\{.*\})\s*$/m.exec(stderr);
-	if (!m) return null;
-	try {
-		return JSON.parse(m[1]) as Record<string, unknown>;
-	} catch {
-		return null;
-	}
+/** The supervisor's last LF-delimited admission line. */
+export function parsePolicyLine(stderr: string): Record<string, unknown> | null {
+	return contractLine(stderr, "policy:").value;
 }
+
+/** The supervisor's last LF-delimited result line. */
+export function parseResultLine(stderr: string): Record<string, unknown> | null {
+	return contractLine(stderr, "policy-result:").value;
+}
+
 
 export interface RunEnvelope {
 	admitted: boolean;
@@ -251,9 +256,13 @@ export interface RunEnvelope {
  * admitted=false so the model never mistakes a crash for a refusal.
  */
 export function composeEnvelope(code: number, stdout: string, stderr: string): RunEnvelope {
-	const admission = parsePolicyLine(stderr);
-	const limit = parseResultLine(stderr);
-	const cleanErr = stderr.replace(/^policy: \{.*\}\s*$/m, "").replace(/^policy-result: \{.*\}\s*$/m, "").trim();
+	const policyLine = contractLine(stderr, "policy:");
+	const resultLine = contractLine(stderr, "policy-result:");
+	const admission = policyLine.value;
+	const limit = resultLine.value;
+	const cleanErr = stderr.split("\n").filter((_, index) =>
+		!(admission && index === policyLine.index) && !(limit && index === resultLine.index)
+	).join("\n").trim();
 	if (admission && admission.ok === true) {
 		return {
 			admitted: true,
@@ -266,13 +275,15 @@ export function composeEnvelope(code: number, stdout: string, stderr: string): R
 		};
 	}
 	let decision: unknown = null;
-	try {
-		const parsed = JSON.parse(stdout) as { decision?: unknown };
-		decision = parsed.decision ?? parsed;
-	} catch {
-		decision = null;
+	if (code === 2 && policyLine.index === -1) {
+		try {
+			const parsed = JSON.parse(stdout) as { decision?: unknown };
+			decision = parsed.decision ?? parsed;
+		} catch {
+			decision = null;
+		}
 	}
-	return { admitted: false, exit_code: code, decision, policy_digest: "", limit, stdout: decision ? "" : stdout, stderr: cleanErr || stderr };
+	return { admitted: false, exit_code: code, decision, policy_digest: "", limit, stdout: decision ? "" : stdout, stderr: cleanErr };
 }
 
 /**

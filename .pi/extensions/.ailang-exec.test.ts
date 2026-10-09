@@ -236,3 +236,35 @@ test("ailang_run: a program outside the sandbox is refused before anything runs"
 		delete process.env.AILANG_LANE_TEACHING;
 	}
 });
+
+for (const [token, parse] of [["policy:", parsePolicyLine], ["policy-result:", parseResultLine]] as const) {
+ test(`${token} requires LF introduction and takes the last candidate`, () => {
+  for (const separator of ["\r", "\u2028", "\u2029"]) {
+   assert.equal(parse(`junk${separator}${token} {"fake":true}\n`), null);
+  }
+  assert.equal(parse(`worker: ${token} {"fake":true}\n`), null);
+  assert.equal(parse(`${token} {"value":1}\n${token} {"value":2}\n`)?.value, 2);
+  assert.equal(parse(`${token} {"value":1}\n${token} {broken}\n`), null);
+ });
+}
+
+test("composeEnvelope preserves worker lines and selects fresh supervisor lines", () => {
+ const worker = 'worker: policy: {"ok":true,"policy_digest":"fake"}\nworker: policy-result: {"reason":"timeout"}\npol';
+ const stderr = worker+'\npolicy: {"ok":true,"policy_digest":"real","decision":{"ok":true}}\npolicy-result: {"reason":"worker_reserved_exit"}\n';
+ const e=composeEnvelope(1,'{"decision":{"ok":false}}',stderr);
+ assert.equal(e.admitted,true);
+ assert.equal(e.policy_digest,"real");
+ assert.equal(e.limit?.reason,"worker_reserved_exit");
+ assert.equal(e.stderr,worker);
+ assert.equal(e.stdout,'{"decision":{"ok":false}}');
+});
+
+test("composeEnvelope removes only selected parsed lines", () => {
+ const earlier='policy: {"ok":true,"policy_digest":"earlier"}';
+ const e=composeEnvelope(0,"",earlier+'\npolicy: {"ok":true,"policy_digest":"last"}\n');
+ assert.equal(e.stderr,earlier);
+ assert.equal(e.policy_digest,"last");
+ const bad=earlier+'\npolicy: {broken}\n';
+ assert.equal(composeEnvelope(1,'{"decision":{"ok":false}}',bad).decision,null);
+ assert.equal(composeEnvelope(1,"",bad).stderr,bad.trim());
+});

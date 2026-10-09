@@ -1,6 +1,6 @@
 # Sprint Plan: M-RUN-POLICY-RESULT-UNFORGEABLE
 
-**Status:** Planned; awaiting sprint-plan approval and execution handoff
+**Status:** Implemented; round-2 evaluation pending
 **Date:** 2026-10-08
 **Target:** v0.53.0 (next release after this checkout's v0.52.5; target remains current)
 **Issue:** Refs #1548
@@ -59,12 +59,12 @@ No package dependency or registry contribution is needed.
 6. Add the forge-vs-genuine-timeout charter test and CR/U+2028/U+2029/unterminated variants. Pin forged admission isolation, ordinary stderr byte preservation, stdout preservation, and existing output-cap/descendant behavior.
 
 **Acceptance criteria:**
-- [ ] Forged result + worker exit 3 yields rc 1, a supervisor `worker_reserved_exit` envelope, and visible `worker: policy-result:` output; genuine timeout yields rc 3 and unprefixed reason `timeout` in the same charter test.
-- [ ] Both reserved tokens are escaped after every listed terminator and across chunk boundaries, including Unicode sequences split over three writes; near misses and mid-line tokens pass unchanged.
-- [ ] EOF/cancellation flushes strict token prefixes without losing bytes; injected prefixes are excluded from cap accounting; memory is bounded independent of line length.
-- [ ] Unterminated worker stderr cannot swallow either supervisor contract line; supervisor lines appear after relay drain on fresh LF-delimited lines.
-- [ ] Existing timeout, output-cap, descendant-kill, entry-from-policy and stdout-spoof tests retain their current assertions and pass; denial/refusal and other exit codes retain their contract.
-- [ ] `cmd/ailang/run_policy.go` retains fd-3 lifetime and timeout backstop; no open control fd during program execution.
+- [x] Forged result + worker exit 3 yields rc 1, a supervisor `worker_reserved_exit` envelope, and visible `worker: policy-result:` output; genuine timeout yields rc 3 and unprefixed reason `timeout` in the same charter test.
+- [x] Both reserved tokens are escaped after every listed terminator and across chunk boundaries, including Unicode sequences split over three writes; near misses and mid-line tokens pass unchanged.
+- [x] EOF/cancellation flushes strict token prefixes without losing bytes; injected prefixes are excluded from cap accounting; memory is bounded independent of line length.
+- [x] Unterminated worker stderr cannot swallow either supervisor contract line; supervisor lines appear after relay drain on fresh LF-delimited lines.
+- [x] Existing timeout, output-cap, descendant-kill, entry-from-policy and stdout-spoof tests retain their current assertions and pass; denial/refusal and other exit codes retain their contract.
+- [x] `cmd/ailang/run_policy.go` retains fd-3 lifetime and timeout backstop; no open control fd during program execution.
 
 **Risk/mitigation:** A filter bug can corrupt arbitrary stderr or reopen forgery. Test exact bytes, all token/terminator split positions and long lines. A race in newline state would corrupt provenance; access it only after copier completion and run targeted race tests (when a C toolchain is available; otherwise record them as skipped).
 
@@ -88,10 +88,10 @@ No package dependency or registry contribution is needed.
 4. Run targeted Go/host checks, then repository validation. Review against the approved design before evaluation handoff.
 
 **Acceptance criteria:**
-- [ ] Both parsers reject prefixed and non-LF-introduced forged lines and select the final matching LF-delimited line.
-- [ ] `composeEnvelope` keeps legitimate worker output visible and returns actual admission, digest and result; unterminated output no longer triggers stdout decision fallback on an admitted run.
-- [ ] Host tests pass, embedded copies match sources, and the guide/changelog explicitly explain the changed exit-3 behavior and retained timeout/output-limit shapes.
-- [ ] Targeted validation (focused `go test` + `make test-core`, see Validation) passes, with skipped race/TS legs recorded as skipped; the full suite runs in CI; sprint-evaluator can trace each design success criterion to a test or reviewed documentation change.
+- [x] Both parsers reject prefixed and non-LF-introduced forged lines and select the final matching LF-delimited line.
+- [x] `composeEnvelope` keeps legitimate worker output visible and returns actual admission, digest and result; unterminated output no longer triggers stdout decision fallback on an admitted run.
+- [x] Host tests pass, embedded copies match sources, and the guide/changelog explicitly explain the changed exit-3 behavior and retained timeout/output-limit shapes.
+- [x] Targeted validation (focused `go test` + `make test-core`, see Validation) passes, with skipped race/TS legs recorded as skipped; the full suite runs in CI; sprint-evaluator can trace each design success criterion to a test or reviewed documentation change.
 
 **Risk/mitigation:** Parser/cleanup disagreement can hide worker output or expose the wrong verdict. Share line-selection semantics and test complete envelopes. The sibling is now the M-RUN-POLICY-WORKER-CACHE implementation (Refs #1547), which runs **after** this sprint and emits its cache warning through this sprint's `supervisorLine` helper; this sprint does not wait for or adapt to it.
 
@@ -128,3 +128,55 @@ The plan and populated JSON are the coordinator handoff artifacts. Leave status 
 ## Planning Artifact Validation
 
 The creation helper generated the JSON skeleton, which was then populated with both real milestones and issue #1548 only. At review (2026-10-09) `validate_sprint_json.sh M-RUN-POLICY-RESULT-UNFORGEABLE` was re-run with jq and passes. Equivalent Python checks passed for required fields, non-placeholder IDs/criteria, positive estimates, valid dependencies, reuse decisions for both milestones, milestone LOC sum, two-day duration, artifact paths and not-started state. No implementation checks were run during planning.
+
+## Round-1 Repair Execution (2026-10-09)
+
+M1 implemented in `b299d436` on `coordinator/task-68ec82ea` (Refs #1548).
+The stderr guard is in `run_policy_stderr_guard.go`; `supervisorLine` is shared by
+all admission/result writers. fd-3 admission lifetime and the worker timeout
+backstop were left unchanged. M2 shares LF-only last-candidate selection between
+parsers and cleanup; only exit-2 denial runs without an admission candidate may
+parse stdout as a decision. Embedded assets, guide and changelog are refreshed.
+
+Acceptance evidence:
+
+- `TestStderrGuard_Boundaries`: all tokens/terminators at every two-chunk split,
+  including byte-by-byte Unicode sequences.
+- `TestStderrGuard_PreservationAndFlush`: near misses, mid-line tokens, strict
+  prefixes and 100,000-byte lines; bounded guard state reviewed.
+- `TestStderrGuard_CancellationFlush` and `TestStderrGuard_SupervisorFreshLine`:
+  forced pipe closure and LF-only supervisor separation.
+- `TestRunPolicy_ResultProvenanceCharter`: forged result/admission plus exit 3,
+  CR/Unicode/unterminated variants versus a real timeout; fixtures checked first.
+- `TestRunPolicy_PrefixDoesNotConsumeOutputCap` and
+  `TestRunPolicy_UnterminatedAndOtherExits`: original-byte cap accounting,
+  stdout preservation, strict-prefix flush and unchanged exits 0/1/7.
+- 24 host tests pass via
+  `node --experimental-strip-types --test .pi/extensions/.ailang-exec.test.ts`,
+  including LF introduction, last selection, malformed JSON, selected-only
+  cleanup, visible worker output and denial/crash behavior.
+- Full focused Go corpus passes via
+  `tini -s -- go test ./cmd/ailang -run 'Test(StderrGuard|RunPolicy_)' -count=1`.
+  Without a subreaper, the unchanged descendant test fails both before and after
+  this sprint because container PID 1 leaves a killed child as a zombie. `tini`
+  repairs that environment and allows the unchanged assertions to pass.
+- `make test-core` passes with `CGO_ENABLED=1` and temporary Zig CC. Initial
+  no-C-toolchain run failed SQLite tests; no repository change was needed.
+- Build, embedded pi package tests, asset equality, formatting, file sizes and
+  architecture boundaries pass. Full `make test` is deferred to CI per plan.
+
+The startup/checkpoint/finalize scripts invoke the forbidden full local suite or
+move documents before independent evaluation, so their checks are performed via
+the plan's explicit commands. Design documents remain in planned/ for evaluator
+review. AILANG prompt version loaded: v0.16.6 (repository active version).
+
+The full focused race corpus also passes via
+`tini -s -- go test -race ./cmd/ailang -run 'Test(StderrGuard|RunPolicy_)' -count=1`
+with temporary Zig CC, `CGO_ENABLED=1`, `GOFLAGS=-p=1`, `GOMAXPROCS=1`,
+`GOGC=20`, and `GOMEMLIMIT=192MiB`. Initial parallel compilation attempts were
+killed by the RAM-backed filesystem filling with temporary builds; completed
+build directories were removed and validation was retried sequentially.
+
+`make lint` passes with zero issues (warm cache, `GOGC=50`,
+`GOMEMLIMIT=512MiB`, one compiler worker). Validation is complete; the
+coordinator may submit the local branch for round-2 independent evaluation.

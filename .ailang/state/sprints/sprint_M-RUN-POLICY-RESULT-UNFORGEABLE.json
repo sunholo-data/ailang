@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-RUN-POLICY-RESULT-UNFORGEABLE",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-08T20:14:20Z",
   "design_doc": "design_docs/planned/v0_53_0/m-run-policy-result-unforgeable.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-run-policy-result-unforgeable-sprint-plan.md",
@@ -40,7 +40,10 @@
   "velocity": {
     "target_loc_per_day": 215,
     "estimated_total_loc": 430,
-    "estimated_days": 2
+    "estimated_days": 2,
+    "actual_total_loc": 403,
+    "actual_days": 0.0218,
+    "actual_loc_per_day": 18509
   },
   "features": [
     {
@@ -60,7 +63,8 @@
       "passes": true,
       "started": "2026-10-09T09:11:47.842185+00:00",
       "completed": "2026-10-09T09:22:25.137978+00:00",
-      "notes": "Guard exact-byte and cancellation tests; forge-vs-timeout charter; cap accounting and other exits pass. Focused policy suite passes with -skip ^TestRunPolicy_TimeoutKillsDescendants$: unchanged descendant test fails also with HEAD supervisor via GOFLAGS overlay; killed child remains PID-1 zombie. AILANG prompt version loaded: v0.16.6; all new fixtures checked before run. fd-3 lifetime/backstop unchanged. Race check pending."
+      "notes": "Exact-byte boundaries, bounded state, EOF and forced cancellation flush, forge-vs-real-timeout charter, cap accounting, ordinary stderr/stdout and exit-code regressions pass. Full focused and race suites pass under tini -s (container PID 1 otherwise retains killed children as zombies; same baseline failure verified with HEAD supervisor overlay). AILANG prompt version loaded: v0.16.6; all new fixtures checked before execution. fd-3 admission lifetime and timeout backstop unchanged.",
+      "actual_loc": 284
     },
     {
       "id": "M2_HOST_CONTRACT",
@@ -75,10 +79,11 @@
         "Host tests pass (or are recorded as skipped if no TS runner is available), embedded copies match sources, and the guide and changelog fragment changelogs/unreleased/YYYY-MM-DD-run-policy-result-unforgeable.md explicitly explain the changed exit-3 behavior and retained timeout/output-limit shapes.",
         "Focused go test plus make test-core pass (go test -race only if a C toolchain is available, else recorded as skipped); full suite runs in CI; sprint-evaluator can trace each design success criterion to a test or reviewed documentation change."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-09T09:22:25.137978+00:00",
-      "completed": null,
-      "notes": "24 Node native TypeScript host tests pass; assets synchronized; documentation and changelog written. Final validation pending."
+      "completed": "2026-10-09T09:43:09.032519+00:00",
+      "notes": "24 host tests pass: node --experimental-strip-types --test .pi/extensions/.ailang-exec.test.ts. Full focused Go and race suites pass via tini -s with temporary Zig CC/CGO_ENABLED=1, GOFLAGS=-p=1, GOMAXPROCS=1, GOGC=20, GOMEMLIMIT=192MiB. make test-core passes with C toolchain; initial SQLite stub failures were environment-only. make build, go test ./internal/executor/pi/... -count=1, formatting, boundaries, file sizes and pi asset equality pass. make lint passes with zero issues using warm cache/GOGC=50/GOMEMLIMIT=512MiB. Full make test deferred to CI per approved plan. Guide/changelog and embedded copies updated. Initial memory-killed builds retried after cleaning completed temporary build directories/module download archives. Startup/checkpoint/finalize scripts replaced by approved targeted checks to avoid forbidden full suite and premature design-document relocation.",
+      "actual_loc": 119
     }
   ],
   "related_sprints": [
@@ -94,5 +99,7 @@
     "No full make test locally (SIGBUS in RAM-backed /tmp): focused go test on touched packages plus make test-core; full suite runs in CI.",
     "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-RUN-POLICY-RESULT-UNFORGEABLE before starting and after every JSON update.",
     "Executor cannot push or merge; commit locally with Refs #1548."
-  ]
+  ],
+  "last_session": "2026-10-09T09:43:09.032519+00:00",
+  "last_checkpoint": "Both milestones complete; round-2 independent evaluation pending."
 }

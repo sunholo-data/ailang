@@ -296,3 +296,41 @@ child env's sorted names. It changes when a lane starts inheriting a new name.
 leave `printenv`, tool and MCP subprocess inheritance and `~/.gitconfig`, but a same-user process
 can still read the parent's `/proc/<pid>/environ` or a file the parent can read. The boundary for
 that is a UID split (audit H-6) and the egress lock.
+
+### Supervisor line provenance
+
+Only the supervisor emits unprefixed `policy:` and `policy-result:` contract
+lines on stderr. Worker stderr beginning with either complete token is preserved
+with `worker: ` prepended. The guard recognises stream start and boundaries after
+LF, CR, VT, FF, U+001C–U+001E, U+0085, U+2028 and U+2029, including sequences split
+across writes. Mid-line tokens and incomplete tokens at EOF remain unchanged.
+Injected markers do not count towards `max_output_bytes`; stdout stays program output.
+
+After draining worker output, the supervisor starts each contract line on a fresh
+LF-delimited line, including when worker stderr ends without a newline. Hosts
+should split stderr on LF and select the **last** matching line for each token,
+then parse its JSON once. A malformed selected line must not fall back to an
+earlier candidate. Remove only successfully parsed selected contract lines from
+displayed stderr; retain `worker: ` lines as program diagnostics. Parse stdout as
+a denial decision only for exit 2 without an admission line.
+
+Exit 3 is reserved for supervisor timeout and output-limit kills. Their existing
+`timeout` / `output_limit` envelopes and exit codes are unchanged. A worker that
+exits 3 without a supervisor limit now produces exit **1** and a supervisor result
+with reason `worker_reserved_exit`, whose message records the original code 3.
+Other worker exit codes and denial/refusal behavior retain their existing contract.
+The admission control pipe still closes before program execution.
+
+For example, a program printing a forged timeout and exiting 3 produces:
+
+```text
+worker: policy-result: {"reason":"timeout","policy_digest":"fake"}
+policy: {"ok":true,"policy_digest":"<actual digest>",…}
+policy-result: {"version":1,"stage":"execute","reason":"worker_reserved_exit",…}
+```
+
+The exit code is 1. A genuine supervisor timeout still produces an unprefixed
+`policy-result:` with `reason:"timeout"` and exit 3. A legitimate diagnostic
+beginning `policy:` remains visible as `worker: policy: …`. Unterminated worker
+output such as `pol` appears on its own line before the supervisor admission,
+so it cannot hide admission or cause stdout to be treated as a denial.
