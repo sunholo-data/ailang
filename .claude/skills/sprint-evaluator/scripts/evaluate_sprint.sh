@@ -59,6 +59,21 @@ run_gate() {
     return 1
 }
 
+# --- CI verdict (preferred) ---
+# When the work under evaluation has a pull request, its CI has already run the
+# full suite, lint and verify-examples on that head. ci_gate.sh waits for it,
+# printing a line a minute so an executor's idle timeout never fires (the cloud
+# evaluator was killed mid-`make test` on every run 09-29..10-02). Set
+# EVAL_LOCAL_GATES=1 to force the local runs below.
+GATE_BRANCH="${BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null)}"
+GATE_SOURCE="local"
+CI_RESULT=""
+if [ "${EVAL_LOCAL_GATES:-0}" != "1" ] && [ -n "$GATE_BRANCH" ] && [ "$GATE_BRANCH" != "dev" ] && [ "$GATE_BRANCH" != "HEAD" ]; then
+    echo ""
+    echo "── CI Verdict ($GATE_BRANCH) ────────────────────────────────"
+    CI_RESULT=$("$(dirname "$0")/ci_gate.sh" "$GATE_BRANCH" | tee /dev/stderr | grep '^CI_GATE=' | tail -1)
+fi
+
 # --- Test Suite ---
 # EVAL_PACKAGES="./internal/foo/... ./cmd/bar" scopes the run to the sprint's
 # packages (a fast pre-check). Unset = `make test`, the CI-equivalent run.
@@ -66,14 +81,30 @@ echo ""
 echo "── Running Tests ──────────────────────────────────────────────"
 TESTS_PASS=false
 TESTS_OUTPUT=""
-if [ -n "${EVAL_PACKAGES:-}" ]; then
+case "$CI_RESULT" in
+    CI_GATE=pass*|CI_GATE=fail*|CI_GATE=pending*) GATE_SOURCE="ci" ;;
+esac
+if [ "$GATE_SOURCE" = "ci" ]; then
+    echo "From CI: ${CI_RESULT#CI_GATE=}"
+    case "$CI_RESULT" in
+        CI_GATE=pass*) TESTS_PASS=true; echo "✅ Tests PASS (CI)" ;;
+        CI_GATE=pending*)
+            TESTS_OUTPUT="CI still running"
+            echo "⏳ CI still running. Re-run: $(dirname "$0")/ci_gate.sh $GATE_BRANCH"
+            echo "   until it prints CI_GATE=pass or CI_GATE=fail (each call waits up to 4 minutes)."
+            echo "   Do NOT run make test yourself: CI is running the full suite on this head." ;;
+        *) TESTS_OUTPUT="${CI_RESULT#CI_GATE=fail }"; echo "❌ Tests FAIL (CI)"; echo "$TESTS_OUTPUT" ;;
+    esac
+elif [ -n "${EVAL_PACKAGES:-}" ]; then
     echo "Scope: EVAL_PACKAGES=$EVAL_PACKAGES"
     read -r -a EVAL_PKGS <<<"$EVAL_PACKAGES"   # bash 3.2-safe (no mapfile)
     TEST_CMD=(go test "${EVAL_PKGS[@]}" -count=1)
 else
     TEST_CMD=(make test)
 fi
-if run_gate tests "${TEST_CMD[@]}"; then
+if [ "$GATE_SOURCE" = "ci" ]; then
+    :
+elif run_gate tests "${TEST_CMD[@]}"; then
     TESTS_PASS=true
     echo "✅ Tests PASS"
 else
@@ -91,7 +122,11 @@ echo ""
 echo "── Running Lint ───────────────────────────────────────────────"
 LINT_CLEAN=false
 LINT_OUTPUT=""
-if run_gate lint make lint; then
+if [ "$GATE_SOURCE" = "ci" ]; then
+    # CI's lint job is one of the checks the verdict above covers.
+    LINT_CLEAN=$TESTS_PASS
+    echo "$([ "$LINT_CLEAN" = true ] && echo "✅ Lint CLEAN (CI)" || echo "❌ Lint not confirmed (CI red)")"
+elif run_gate lint make lint; then
     LINT_CLEAN=true
     echo "✅ Lint CLEAN"
 else
@@ -206,6 +241,8 @@ cat <<EOF
   "sprint_id": "$SPRINT_ID",
   "branch": "$BRANCH",
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "gate_source": "$GATE_SOURCE",
+  "ci_result": "$(printf '%s' "${CI_RESULT:-}" | sed 's/"/\\"/g')",
   "automated_checks": {
     "tests_pass": $TESTS_PASS,
     "lint_clean": $LINT_CLEAN,
