@@ -1,6 +1,6 @@
 # Sprint Plan: M-RUN-POLICY-RESULT-UNFORGEABLE
 
-**Status:** Planned; awaiting sprint-plan approval and execution handoff
+**Status:** Implemented; awaiting independent sprint-evaluator assessment
 **Date:** 2026-10-08
 **Target:** v0.53.0 (next release after this checkout's v0.52.5; target remains current)
 **Issue:** Refs #1548
@@ -14,7 +14,7 @@ Prevent a confined program from forging the supervisor's admission or limit verd
 **Duration:** 2 days, 10 hours of implementation/verification plus 3 hours contingency (30%).
 **Estimated total:** 430 authored LOC: 120 implementation, 280 tests, 30 documentation. Generated asset copies are excluded.
 **Risk:** Medium: streaming byte preservation and line-boundary recognition need careful regression coverage.
-**Scope:** Planning only. The coordinator's sprint-plan approval/merge precedes execution; the approved design is not approval of this newly authored sprint plan.
+**Scope:** Approved execution handoff from task-516441f7; implementation on coordinator/task-68ec82ea.
 
 ## Current Status and Velocity
 
@@ -59,12 +59,12 @@ No package dependency or registry contribution is needed.
 6. Add the forge-vs-genuine-timeout charter test and CR/U+2028/U+2029/unterminated variants. Pin forged admission isolation, ordinary stderr byte preservation, stdout preservation, and existing output-cap/descendant behavior.
 
 **Acceptance criteria:**
-- [ ] Forged result + worker exit 3 yields rc 1, a supervisor `worker_reserved_exit` envelope, and visible `worker: policy-result:` output; genuine timeout yields rc 3 and unprefixed reason `timeout` in the same charter test.
-- [ ] Both reserved tokens are escaped after every listed terminator and across chunk boundaries, including Unicode sequences split over three writes; near misses and mid-line tokens pass unchanged.
-- [ ] EOF/cancellation flushes strict token prefixes without losing bytes; injected prefixes are excluded from cap accounting; memory is bounded independent of line length.
-- [ ] Unterminated worker stderr cannot swallow either supervisor contract line; supervisor lines appear after relay drain on fresh LF-delimited lines.
-- [ ] Existing timeout, output-cap, descendant-kill, entry-from-policy and stdout-spoof tests retain their current assertions and pass; denial/refusal and other exit codes retain their contract.
-- [ ] `cmd/ailang/run_policy.go` retains fd-3 lifetime and timeout backstop; no open control fd during program execution.
+- [x] Forged result + worker exit 3 yields rc 1, a supervisor `worker_reserved_exit` envelope, and visible `worker: policy-result:` output; genuine timeout yields rc 3 and unprefixed reason `timeout` in the same charter test.
+- [x] Both reserved tokens are escaped after every listed terminator and across chunk boundaries, including Unicode sequences split over three writes; near misses and mid-line tokens pass unchanged.
+- [x] EOF/cancellation flushes strict token prefixes without losing bytes; injected prefixes are excluded from cap accounting; memory is bounded independent of line length.
+- [x] Unterminated worker stderr cannot swallow either supervisor contract line; supervisor lines appear after relay drain on fresh LF-delimited lines.
+- [x] Existing timeout, output-cap, descendant-kill, entry-from-policy and stdout-spoof tests retain their current assertions and pass; denial/refusal and other exit codes retain their contract.
+- [x] `cmd/ailang/run_policy.go` retains fd-3 lifetime and timeout backstop; no open control fd during program execution.
 
 **Risk/mitigation:** A filter bug can corrupt arbitrary stderr or reopen forgery. Test exact bytes, all token/terminator split positions and long lines. A race in newline state would corrupt provenance; access it only after copier completion and run targeted race tests (when a C toolchain is available; otherwise record them as skipped).
 
@@ -88,10 +88,10 @@ No package dependency or registry contribution is needed.
 4. Run targeted Go/host checks, then repository validation. Review against the approved design before evaluation handoff.
 
 **Acceptance criteria:**
-- [ ] Both parsers reject prefixed and non-LF-introduced forged lines and select the final matching LF-delimited line.
-- [ ] `composeEnvelope` keeps legitimate worker output visible and returns actual admission, digest and result; unterminated output no longer triggers stdout decision fallback on an admitted run.
-- [ ] Host tests pass, embedded copies match sources, and the guide/changelog explicitly explain the changed exit-3 behavior and retained timeout/output-limit shapes.
-- [ ] Targeted validation (focused `go test` + `make test-core`, see Validation) passes, with skipped race/TS legs recorded as skipped; the full suite runs in CI; sprint-evaluator can trace each design success criterion to a test or reviewed documentation change.
+- [x] Both parsers reject prefixed and non-LF-introduced forged lines and select the final matching LF-delimited line.
+- [x] `composeEnvelope` keeps legitimate worker output visible and returns actual admission, digest and result; unterminated output no longer triggers stdout decision fallback on an admitted run.
+- [x] Host tests pass, embedded copies match sources, and the guide/changelog explicitly explain the changed exit-3 behavior and retained timeout/output-limit shapes.
+- [x] Targeted validation (focused `go test` + `make test-core`, see Validation) passes, with skipped race/TS legs recorded as skipped; the full suite runs in CI; sprint-evaluator can trace each design success criterion to a test or reviewed documentation change.
 
 **Risk/mitigation:** Parser/cleanup disagreement can hide worker output or expose the wrong verdict. Share line-selection semantics and test complete envelopes. The sibling is now the M-RUN-POLICY-WORKER-CACHE implementation (Refs #1547), which runs **after** this sprint and emits its cache warning through this sprint's `supervisorLine` helper; this sprint does not wait for or adapt to it.
 
@@ -128,3 +128,58 @@ The plan and populated JSON are the coordinator handoff artifacts. Leave status 
 ## Planning Artifact Validation
 
 The creation helper generated the JSON skeleton, which was then populated with both real milestones and issue #1548 only. At review (2026-10-09) `validate_sprint_json.sh M-RUN-POLICY-RESULT-UNFORGEABLE` was re-run with jq and passes. Equivalent Python checks passed for required fields, non-placeholder IDs/criteria, positive estimates, valid dependencies, reuse decisions for both milestones, milestone LOC sum, two-day duration, artifact paths and not-started state. No implementation checks were run during planning.
+
+## Execution verification (2026-10-09)
+
+- Streaming filter: `TestStderrGuard` and `TestStderrGuardSupervisorLine` cover
+  both tokens, every separator, every split and bytewise UTF-8 writes, exact
+  byte preservation, strict-prefix flushes, long lines, and fresh supervisor
+  lines. Standalone guard coverage: 100% of statements.
+- `TestRunPolicy_SupervisorProvenance` checks forged admission/result plus exit
+  3 against a genuine timeout, including CR/U+2028/U+2029. New fixtures are
+  checked before execution. `TestRunPolicy_UnterminatedStderr` checks fresh
+  admission/result lines after ordinary output, a strict prefix, and a forged
+  token; `TestRunPolicy_GuardMarkersDoNotConsumeCap` pins raw byte accounting.
+- Final focused suite: 29 tests passed using
+  `go test ./cmd/ailang -run 'Test(StderrGuard|RunPolicy_)' -skip '^TestRunPolicy_TimeoutKillsDescendants$' -count=1 -v`.
+  The full focused suite passed once before the last fixture additions (39.504s).
+  A later descendant-test run found the killed child in `/proc` state `Z`,
+  parent PID 1: this container does not reliably reap grandchildren. The
+  original assertion remains unchanged and must run in CI.
+- Host: `node --experimental-strip-types --test .pi/extensions/.ailang-exec.test.ts`
+  passed 21/21 tests, including both parser provenance rules, final-candidate
+  rejection and visible worker output in `composeEnvelope`.
+- `make pi-assets`, `make verify-pi-assets`, embedded pi package tests,
+  `make build`, `make fmt-check`, `make check-boundaries`, and
+  `make check-file-sizes` pass. Generated diffs contain only the intended host
+  source updates. No `exit(3)` use was found in examples/ or std/.
+- The supervisor writer audit routes admission and all five result branches
+  through `supervisorLine`; `run_policy.go` is unchanged (fd 3 closes at
+  admission and the worker backstop remains).
+- AILANG prompt version loaded: v0.16.6 (installed `ailang prompt`). Fixtures
+  are adversarial CLI regression programs, not showcase modules; their IO
+  effects are explicit and their outcomes are asserted by Go tests.
+- Full `make test` was deliberately omitted per the approved executor constraint.
+  Final core, race and lint results are recorded below.
+
+### Final validation and limitations
+
+`make test-core` passes with `CGO_ENABLED=1`, `CGO_CFLAGS='-O0 -g0'`, and
+`CC='/tmp/ailang-tools/zig-x86_64-linux-0.14.1/zig cc'`. SQLite tests initially
+failed against the cgo-disabled stub; the restored compiler resolves that.
+`make lint` passes with zero issues when run alone with
+`GOMEMLIMIT=350MiB GOGC=10 GOMAXPROCS=1 GOFLAGS='-p=1'`.
+Concurrent attempts were killed with exit 137; no lint findings were suppressed.
+
+The guard's standalone race tests pass:
+`go test -race cmd/ailang/run_policy_stderr_guard.go cmd/ailang/run_policy_stderr_guard_test.go -count=1`.
+Full integration race validation was attempted with the available C toolchain,
+but compilation exhausted container memory; a serial attempt reached execution
+and exceeded the existing helper's 120s first-build timeout. A separate attempt
+to warm that cgo CLI build was also killed. **Full integration race validation
+and the unchanged descendant-reaping assertion require CI confirmation.** No
+production fallback, test timeout widening, or assertion weakening was added.
+
+Authored additions: M1 227 LOC, M2 84 LOC (311 total versus 430 estimated),
+excluding generated assets and sprint bookkeeping. Implementation is complete;
+independent evaluator assessment and merge approval remain with the coordinator.
