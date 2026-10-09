@@ -1,6 +1,6 @@
 # Sprint Plan: M-RUN-POLICY-RESULT-UNFORGEABLE
 
-**Status:** Implemented; awaiting independent sprint-evaluator assessment
+**Status:** Implemented; sprint-evaluator round 3 PASS (2026-10-09, 100/100)
 **Date:** 2026-10-08
 **Target:** v0.53.0 (next release after this checkout's v0.52.5; target remains current)
 **Issue:** Refs #1548

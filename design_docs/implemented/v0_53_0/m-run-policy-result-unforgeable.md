@@ -1,6 +1,6 @@
 # M-RUN-POLICY-RESULT-UNFORGEABLE: the confined program cannot forge the supervisor's `policy-result:` line (#1548)
 
-**Status**: Planned
+**Status**: Implemented (evaluated round 3, pass — 2026-10-09; round-2 SonarCloud S1764 finding was in the M-ALIAS-BODY-CLOSURE test fixed by PR #1746)
 **Target**: v0.53.0 (triage doc carried no target; retargeted per maintainer scheduling, 2026-10-08)
 **Priority**: P0 (maintainer-approved scheduling from the P0 issue triage, 2026-10-08; triage severity: bug, security, low)
 **Estimated**: 2 days (M1 6h, M2 4h, plus buffer)
