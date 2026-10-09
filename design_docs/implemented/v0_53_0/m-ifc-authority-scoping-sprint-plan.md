@@ -1,8 +1,8 @@
 # Sprint Plan: M-IFC-AUTHORITY-SCOPING
 
-**Status:** Planned; scheduling approved by Mark on 2026-10-08; Declassify syntax ruled by Mark on 2026-10-08 (single label, see below). Merging this plan dispatches the executor; there is no further human gate before coding.
+**Status:** Implemented; scheduling approved by Mark on 2026-10-08; Declassify syntax ruled by Mark on 2026-10-08 (single label, see below). Merging this plan dispatches the executor; there is no further human gate before coding.
 **Target:** v0.53.x (v0.54.0 if the security review misses the v0.53.x window).
-**Design:** [m-ifc-authority-scoping.md](../m-ifc-authority-scoping.md), merged 05a6457d1.
+**Design:** [m-ifc-authority-scoping.md](m-ifc-authority-scoping.md), merged 05a6457d1.
 **Issue links:** Refs #752; Refs #1134 (sequencing dependency only).
 **Duration:** 4 engineering days, approximately 23 focused hours including review buffer.
 **Risk:** High — security-sensitive effect validation and IFC semantics.
@@ -53,10 +53,10 @@ Audit effects.go's schema, validation, defaults, elaboration, row merge/formatti
 **Files:** internal/types/effects.go, effects_test.go and existing effect schema/row tests; internal/types/row_unification.go only if the audit identifies a required invariant-preserving normalization adjustment. Inspect internal/parser/parser_effect.go and parser_effect_params_test.go; no parser change (add at most a regression test pinning PAR_EFF001_DUP for duplicate Declassify atoms).
 **Examples:** no new example in M1; M4 supplies scoped examples after validation and checking agree.
 
-- [ ] Scoped single-label atoms validate; unknown keys and malformed/empty values fail loudly.
-- [ ] Duplicate Declassify atoms (scoped or mixed bare/scoped) still fail with PAR_EFF001_DUP; no parser grammar change; a reserved wildcard label is rejected.
-- [ ] Bare covers any scope and a scope covers itself; a scoped declaration cannot cover bare or a different label; a missing effect still fails.
-- [ ] Rand/AI defaults and exact parameter invariance, budgets, row variables and function-value effect invariance retain existing behavior.
+- [x] Scoped single-label atoms validate; unknown keys and malformed/empty values fail loudly.
+- [x] Duplicate Declassify atoms (scoped or mixed bare/scoped) still fail with PAR_EFF001_DUP; no parser grammar change; a reserved wildcard label is rejected.
+- [x] Bare covers any scope and a scope covers itself; a scoped declaration cannot cover bare or a different label; a missing effect still fails.
+- [x] Rand/AI defaults and exact parameter invariance, budgets, row variables and function-value effect invariance retain existing behavior.
 
 **Risk:** weakening shared effect comparisons. Mitigate with a separate directional helper and regression tests for every affected caller.
 
@@ -69,10 +69,10 @@ Replace the boolean projection with explicit none/scoped/all authority. Always e
 **Files:** internal/types/ifc_check.go, ifc_check_test.go, ifc_closure_test.go, sink_check.go and sink_check_test.go as required by the audit.
 **Examples:** M4 adds a passing scoped declassifier and tests retain rejected variants.
 
-- [ ] Authorized relabel passes; unrelated secret and mixed joins containing an unauthorized constituent fail and name the label and scope.
-- [ ] A caller declaring only its callee's scope cannot relabel unrelated secret data; widening must be explicit.
-- [ ] Scoped authority cannot launder a secret-carrying closure; no-authority rejection and bare-authority legacy acceptance remain intact.
-- [ ] Existing declared record/alias/ADT deep-label and projection tests pass; legacy helper has one documented disposition.
+- [x] Authorized relabel passes; unrelated secret and mixed joins containing an unauthorized constituent fail and name the label and scope.
+- [x] A caller declaring only its callee's scope cannot relabel unrelated secret data; widening must be explicit.
+- [x] Scoped authority cannot launder a secret-carrying closure; no-authority rejection and bare-authority legacy acceptance remain intact.
+- [x] Existing declared record/alias/ADT deep-label and projection tests pass; legacy helper has one documented disposition.
 
 **Risk:** return-label over-approximation or loss of nested labels. Mitigate with nested-field, join and closure controls, retaining surface-AST IFC and HM behavior.
 
@@ -85,10 +85,10 @@ Add Check C to the local resolved-callee path, using each already-computed argum
 **Files:** internal/types/ifc_check.go, errors.go, ifc_check_test.go and existing static-type IFC tests.
 **Examples:** M4 adds a passing positive-label call; failing arg-to-sqlsafe programs remain test fixtures.
 
-- [ ] Maintainer arg-to-sqlsafe repro and design secret-to-email repro fail with ParamLabelCoverError at the call edge.
-- [ ] Bottom/unlabelled, literals and matching-label arguments pass; joins with any uncovered constituent fail.
-- [ ] Check A still enforces negative refinements, Check B still rejects unauthorized return relabels, and transparent result-label joining remains unchanged.
-- [ ] Argument labels include declared nested types and closure bodies; intrinsic-label walks do not duplicate diagnostics.
+- [x] Maintainer arg-to-sqlsafe repro and design secret-to-email repro fail with ParamLabelCoverError at the call edge.
+- [x] Bottom/unlabelled, literals and matching-label arguments pass; joins with any uncovered constituent fail.
+- [x] Check A still enforces negative refinements, Check B still rejects unauthorized return relabels, and transparent result-label joining remains unchanged.
+- [x] Argument labels include declared nested types and closure bodies; intrinsic-label walks do not duplicate diagnostics.
 
 **Risk:** Check C falsely implies positive labels are proof of sanitization. Document that bottom passes and these are lattice coverage constraints, not provenance guarantees.
 
@@ -100,11 +100,11 @@ Obtain the current ailang prompt before writing any .ail files. Add examples/run
 
 **Files:** the two named new examples, README.md, ifc-labels.mdx, changelogs/v0.32-current.md, existing IFC integration test harnesses.
 
-- [ ] Both new examples check and run as documented; gated_secret and secret_demo retain clean verdicts and leak_attempt retains its expected single SinkRefinementError.
-- [ ] Design V1–V8 mechanisms have regression coverage, including intentional Check C rejection, scoped propagation and bare compatibility.
-- [ ] Compatibility audit verdicts below match expectations (any deviation is explained in notes, not silently accepted).
-- [ ] `go test ./internal/types/... ./internal/parser/...` and `make test-core` pass, plus make lint and make check-boundaries. Do not run the full `make test` locally (it has crashed executors with SIGBUS in RAM-backed /tmp); CI runs the full suite on the PR.
-- [ ] Documentation explains opt-in scopes, bottom acceptance, blanket-authority hazard and deliberate rejection of cross-label calls; no runtime IFC or cross-module completion is claimed.
+- [x] Both new examples check and run as documented; gated_secret and secret_demo retain clean verdicts and leak_attempt retains its expected single SinkRefinementError.
+- [x] Design V1–V8 mechanisms have regression coverage, including intentional Check C rejection, scoped propagation and bare compatibility.
+- [x] Compatibility audit verdicts below match expectations (any deviation is explained in notes, not silently accepted).
+- [x] `go test ./internal/types/... ./internal/parser/...` and `make test-core` pass, plus make lint and make check-boundaries. Do not run the full `make test` locally (it has crashed executors with SIGBUS in RAM-backed /tmp); CI runs the full suite on the PR.
+- [x] Documentation explains opt-in scopes, bottom acceptance, blanket-authority hazard and deliberate rejection of cross-label calls; no runtime IFC or cross-module completion is claimed.
 
 **Risk:** stale binary masks results. Build before CLI verification and record exact tested revision and command results.
 
@@ -127,3 +127,34 @@ If any verdict changes, stop and record it: either the change is the intended #7
 All acceptance criteria above are required. Track internal/types coverage before/after; do not reduce IFC branch coverage, and exercise new authorization and coverage branches explicitly rather than relying only on a global percentage. M4 integration review checks no TLabelled changes reach CoreTI/codegen and no module layer boundary changes are introduced.
 
 JSON progress is .ailang/state/sprints/sprint_M-IFC-AUTHORITY-SCOPING.json; all milestone passes remain null. Merging this plan PR is the execution authorization: the coordinator dispatches sprint-executor on merge, followed by sprint-evaluator. There is no separate pre-coding approval step. The executor works on its own branch and opens a PR; it does not push to dev or merge, and the landed commit is recorded by the coordinator, not by the executor.
+
+## Execution outcome — 2026-10-08
+
+All four milestones completed on `coordinator/task-8ffaca1d`. Types/parser tests,
+core tests, lint (zero issues), formatting, architecture boundaries, file sizes,
+and the example gate passed. Examples: 234 passed, nine existing skips, no
+failures; 213 manifest modules checked with no drift. Types coverage increased
+from 52.7% to 52.9%. The full suite remains assigned to CI per this plan.
+
+Compatibility audit: both inbox programs retain three verified/two violations;
+expected_ailang_safe retains three verified/zero violations; injected retains
+two verified/one violation. Each also reports main without contracts. std/secret,
+gated_secret and secret_demo check clean; leak_attempt has one sink error.
+Both new examples check and run successfully.
+
+Independent review round 1 exposed scoped-call laundering through unlabelled
+formals. Regression failed before the fix; scoped results now preserve all
+unauthorized full argument constituents before type hand-off, including nested
+labels and closures. The design records this necessary adjustment. Scoped
+unlabelled returns are checked too, and lexical bindings override module
+function signatures. Removed the unused bool-only CheckDeclassify helper.
+
+Fresh-container checks required temporary jq/make, Zig for SQLite CGO, Z3 and
+lint tooling. Memory caps and reduced concurrency resolved build/lint OOM.
+No tooling or resource-limit changes are shipped in the repository.
+
+The companion #1134 must rebase onto this implementation and reuse authority
+none=[], bare=["*"], scoped=[single label] plus the full-actual result policy.
+Teaching-prompt additions remain a recorded follow-up. No runtime IFC or
+cross-module completion is claimed. GitHub authentication is unavailable;
+PR text is staged in .ailang/state/sprints/M-IFC-AUTHORITY-SCOPING-pr.md.

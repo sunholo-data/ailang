@@ -141,6 +141,27 @@ pure func sneakySanitize(raw: string<email>) -> string<sanitized> ! {}
 The `{Declassify}` effect makes label-lowering **auditable** — every
 sanitiser is locatable by `grep -r '! {Declassify}'`.
 
+### Scoped authority and positive call parameters
+
+`! {Declassify[label=email]}` authorizes dropping only `<email>`. A caller
+must declare that scope or bare `Declassify`; declaring `label=secret` does not
+cover it. Unrelated secret data and mixed joins remain protected, including
+labels carried by closures. Scoped call results retain unauthorized labels
+from actual arguments even when the formal parameter is unlabelled. This
+conservative rule also applies when the function ignores an argument. V1 supports one label per declaration and rejects
+duplicate Declassify atoms. Bare Declassify keeps its whole-body authority,
+which propagates to callers and can authorize unrelated relabels.
+
+At local call sites, a parameter `value: string<sqlsafe>` covers only arguments
+whose constituent labels are covered by `<sqlsafe>`. Matching labels, literals,
+and unlabelled (bottom) values pass; `<arg>` and `<secret>` fail with
+`param_label_cover`. Relabel through an explicit scoped declassifier or widen
+the parameter label. This rule constrains lattice coverage; it is not proof of
+sanitization or provenance. Negative sink refinements remain enforced too.
+
+These checks are static and local to the module. Cross-module enforcement is
+tracked separately in #1134; this change adds no runtime IFC.
+
 ## Why Identity Bypass Doesn't Work
 
 Pure operations propagate labels through their result via the **APP-PURE**

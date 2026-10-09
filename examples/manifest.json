@@ -3222,14 +3222,54 @@
         "stdout": "HOF: IO declared\nfield: IO declared\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/secrets/scoped_declassify.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "m-ifc-authority-scoping"
+      ],
+      "description": "Single-label Declassify authority for email redaction",
+      "modules": [],
+      "run_flags": [
+        "--caps",
+        "Declassify",
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "[redacted]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/secrets/positive_label_call.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "m-ifc-authority-scoping"
+      ],
+      "description": "Positive parameter coverage accepts literal bottom data",
+      "modules": [],
+      "run_flags": [
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "literal data\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 218,
-    "working": 210,
+    "total": 221,
+    "working": 213,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.963302752293578,
+    "coverage": 0.9638009049773756,
     "experimental": 0
   },
   "milestones": {
