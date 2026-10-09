@@ -1,4 +1,4 @@
-## Codex routing refusal and interim ChatGPT deadline
+### Fixed — Codex routing refusal and interim ChatGPT deadline
 
 Refs #903; interim HTTP deadline portion of #1259 absorbed.
 
