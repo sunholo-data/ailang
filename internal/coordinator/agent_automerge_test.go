@@ -47,7 +47,8 @@ func TestAgentConfigAutoMergeGuideExamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocks := strings.Split(string(guide), "```yaml\n")
+	normalized := strings.ReplaceAll(string(guide), "\r\n", "\n")
+	blocks := strings.Split(normalized, "```yaml\n")
 	for _, id := range []string{"docs-writer", "site-agent"} {
 		example := ""
 		for _, block := range blocks[1:] {

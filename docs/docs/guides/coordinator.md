@@ -1568,6 +1568,11 @@ there is no direct merge API or polling loop. Mark must also confirm PR-required
 protection, one approving review, `require_last_push_approval`, blocked force
 push/deletion, restricted bypass, and repository native auto-merge enabled.
 
+**The target ruleset MUST dismiss stale approvals when new commits are pushed,
+or require approval of the most recent push (`require_last_push_approval`).**
+Otherwise a commit pushed after the bot's approval inherits that approval and
+can auto-merge without any review of the new code.
+
 The wrapper records configured/requested intent, enables native SQUASH auto-merge,
 then posts a non-author review after the final push, pinned to the pushed commit.
 Only confirmed review success records “enabled and approved.” A review failure

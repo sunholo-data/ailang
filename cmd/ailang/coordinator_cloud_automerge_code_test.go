@@ -229,7 +229,7 @@ func TestAutoMergeCodeSequenceAndRollback(t *testing.T) {
 					return 200, string(b)
 				}
 			})
-			s := codeMergeSettings{true, []string{"site"}, []string{"site/**"}, "secret-name", "reviewer"}
+			s := codeMergeSettings{true, []string{"site"}, []string{"site/**"}, "secret-name", "reviewer", "head-sha"}
 			err := executeCodeAutoMerge(context.Background(), "fleet-token", "o", "r", 1, "main", s, func(context.Context, string) (string, error) { return "review-token", nil })
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("err=%v calls=%v", err, calls)
@@ -266,7 +266,7 @@ func TestAutoMergeCodeSequenceAndRollback(t *testing.T) {
 }
 
 func TestAutoMergeCodeRefusesBeforeEnable(t *testing.T) {
-	for _, name := range []string{"invalid config", "missing check", "base API failure", "empty base SHA", "secret failure", "empty secret", "intent audit failure", "malformed checks", "incomplete checks"} {
+	for _, name := range []string{"invalid config", "missing check", "base API failure", "empty base SHA", "secret failure", "empty secret", "intent audit failure", "malformed checks", "incomplete checks", "local head mismatch"} {
 		t.Run(name, func(t *testing.T) {
 			enabled := false
 			autoMergeAPI(t, func(r *http.Request) (int, string) {
@@ -301,7 +301,10 @@ func TestAutoMergeCodeRefusesBeforeEnable(t *testing.T) {
 					return 200, `{"user":{"login":"author"},"head":{"sha":"head"},"body":"Original"}`
 				}
 			})
-			s := codeMergeSettings{true, []string{"site"}, []string{"site/**"}, "secret", "reviewer"}
+			s := codeMergeSettings{true, []string{"site"}, []string{"site/**"}, "secret", "reviewer", "head"}
+			if name == "local head mismatch" {
+				s.localHead = "other"
+			}
 			if name == "invalid config" {
 				s.autoMerge = false
 			}
@@ -316,6 +319,9 @@ func TestAutoMergeCodeRefusesBeforeEnable(t *testing.T) {
 			})
 			if err == nil || enabled {
 				t.Fatalf("refusal missing: enabled=%v err=%v", enabled, err)
+			}
+			if name == "local head mismatch" && !strings.Contains(err.Error(), "does not match the local HEAD") {
+				t.Fatalf("head mismatch not the refusal reason: %v", err)
 			}
 			if strings.Contains(err.Error(), "sensitive-token") {
 				t.Fatal("secret error exposed")

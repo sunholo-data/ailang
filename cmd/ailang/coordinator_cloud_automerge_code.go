@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -26,10 +27,13 @@ type codeMergeSettings struct {
 	autoMerge        bool
 	checks, patterns []string
 	secret, identity string
+	// localHead is the commit the wrapper classified and pushed. When set,
+	// the PR head must match it before any review is posted.
+	localHead string
 }
 
 func codeMergeSettingsFromEnv() codeMergeSettings {
-	return codeMergeSettings{config.AutoMerge(), config.AutoMergeRequiredChecks(), artifactPatternsFromEnv(), config.ApproverSecret(), config.ApproverIdentity()}
+	return codeMergeSettings{config.AutoMerge(), config.AutoMergeRequiredChecks(), artifactPatternsFromEnv(), config.ApproverSecret(), config.ApproverIdentity(), ""}
 }
 func (s codeMergeSettings) validate() error {
 	return (&coordinator.AgentConfig{AutoMerge: s.autoMerge, AutoMergeCode: true, AutoMergeRequiredChecks: s.checks, ArtifactPatterns: s.patterns, AutoMergeApproverSecret: s.secret, AutoMergeApproverIdentity: s.identity}).ValidateAutoMergeCode()
@@ -272,6 +276,9 @@ func executeCodeAutoMerge(ctx context.Context, token, owner, repo string, pr int
 	if err != nil {
 		return err
 	}
+	if s.localHead != "" && !strings.EqualFold(head, s.localHead) {
+		return fmt.Errorf("PR head %s does not match the local HEAD %s; refusing to approve code the wrapper did not inspect", head, s.localHead)
+	}
 	intent := s.audit("configured/requested; enable and approval pending")
 	if err := updateCodeMergeAudit(ctx, token, owner, repo, pr, intent); err != nil {
 		return fmt.Errorf("record code auto-merge intent: %w", err)
@@ -320,6 +327,12 @@ func maybeEnableCodeAutoMerge(ctx context.Context, token, owner, repo string, pr
 		fmt.Fprintf(os.Stderr, "execute-job: auto-merge NOT enabled: %s\n", reason)
 		return
 	}
+	localHead, err := exec.CommandContext(ctx, "git", "-C", workDir, "rev-parse", "HEAD").Output()
+	if err != nil || strings.TrimSpace(string(localHead)) == "" {
+		fmt.Fprintf(os.Stderr, "execute-job: auto-merge NOT enabled: cannot resolve local HEAD\n")
+		return
+	}
+	s.localHead = strings.TrimSpace(string(localHead))
 	if err := executeCodeAutoMerge(ctx, token, owner, repo, pr, base, s, fetchCodeApproverSecret); err != nil {
 		fmt.Fprintf(os.Stderr, "execute-job: code auto-merge incomplete on #%d: %v\n", pr, err)
 	}
