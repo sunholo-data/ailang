@@ -29,5 +29,12 @@
     "status": "pending",
     "reason": "New coordinator/executor builds and live Daneel sender/registry rollout are not deployed by this source change. Docker is unavailable locally, so the codex-go image toolchain addition is source-reviewed, not image-build verified.",
     "checklist": "examples/task_inputs/README.md#staged-cloud-acceptance--pending-deployment"
+  },
+  "implementation_commit": "0b59935611ce7c7e4116156f154f3768d70e13b5",
+  "independent_evaluation": ".ailang/state/evaluations/eval_M-TASK-INPUTS_round_1.json",
+  "post_gate_test_only_change": {
+    "change": "Portable file:///C:/... URI for no-network Windows fixture",
+    "command": "go test ./cmd/ailang -run TestTaskInputsNoNetworkIngressToJob",
+    "result": "pass; runtime unchanged"
   }
 }

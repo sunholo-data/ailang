@@ -3,7 +3,7 @@
 Refs #1600
 
 **Design:** [m-task-inputs.md](m-task-inputs.md) (approved handoff task-3091adbc).  
-**Target:** v0.52.6 · **Priority:** P2 · **Status:** Completed locally on 2026-10-09; independent evaluation pending.
+**Target:** v0.52.6 · **Priority:** P2 · **Status:** Completed locally on 2026-10-09; independent evaluation passed 95/100. Staged cloud deployment and Daneel migration pending.
 **Duration:** 8 engineering days across two weeks, approximately 48–64 hours.  
 **Estimate:** 2,100 LOC: 1,150 implementation/docs + 950 tests; **Risk:** High at filesystem and authority boundaries.
 
@@ -29,7 +29,7 @@ Ran `ailang pkg search 'task inputs'`, `ailang pkg search 'git'`, and `ailang pk
 
 ## Milestones
 
-### M1_TYPED_MESSAGE_PLANE: Define the shared typed input contract and preserve validated inputs through every message ingress, store and adapter.
+### ✅ M1_TYPED_MESSAGE_PLANE: Define the shared typed input contract and preserve validated inputs through every message ingress, store and adapter.
 
 **Estimate:** 360 implementation/docs + 290 tests = 650 LOC; 2.5 days.  
 **Dependencies:** None.  
@@ -45,7 +45,7 @@ Ran `ailang pkg search 'task inputs'`, `ailang pkg search 'git'`, and `ailang pk
 - [x] Migration from the current terminal schema preserves existing messages and inputs across reopening; fresh schema and repeated startup work.
 - [x] HTTP, CLI, Pub/Sub hydration, polling adapter and watcher preserve the same ordered input list.
 
-### M2_TASK_GRANTS_DISPATCH: Persist task inputs and enforce the trusted registry grant before cloud dispatch, then carry metadata to the job.
+### ✅ M2_TASK_GRANTS_DISPATCH: Persist task inputs and enforce the trusted registry grant before cloud dispatch, then carry metadata to the job.
 
 **Estimate:** 250 implementation/docs + 200 tests = 450 LOC; 1.5 days.  
 **Dependencies:** M1_TYPED_MESSAGE_PLANE.  
@@ -61,7 +61,7 @@ Ran `ailang pkg search 'task inputs'`, `ailang pkg search 'git'`, and `ailang pk
 - [x] Allowed cloud inputs serialize as AILANG_TASK_INPUTS; malformed env JSON fails explicitly; absent inputs preserve previous dispatch params/env behavior.
 - [x] Local tasks with inputs fail explicitly as unsupported before executor startup; no local fetch behavior is introduced.
 
-### M3_PARENT_FETCH_PROVENANCE: Fetch and verify all inputs in the cloud job parent before starting the executor, preserving workspace and credential boundaries.
+### ✅ M3_PARENT_FETCH_PROVENANCE: Fetch and verify all inputs in the cloud job parent before starting the executor, preserving workspace and credential boundaries.
 
 **Estimate:** 440 implementation/docs + 360 tests = 800 LOC; 2.5 days.  
 **Dependencies:** M2_TASK_GRANTS_DISPATCH.  
@@ -80,7 +80,7 @@ Ran `ailang pkg search 'task inputs'`, `ailang pkg search 'git'`, and `ailang pk
 - [x] Parent uses the existing HTTPS token helper for allowlisted input reads; tests prove the child does not receive the fleet token or input clone credential material, including the workspace SSH deploy-key case.
 - [x] Zero-input tasks retain previous clone, executor and completion behavior; temp-repo integration tests require no network or model.
 
-### M4_DOCS_EXAMPLES_ACCEPTANCE: Document task input configuration, add runnable transport examples and bank end-to-end acceptance evidence with a staged Daneel follow-up.
+### ✅ M4_DOCS_EXAMPLES_ACCEPTANCE: Document task input configuration, add runnable transport examples and bank end-to-end acceptance evidence with a staged Daneel follow-up.
 
 **Estimate:** 100 implementation/docs + 100 tests = 200 LOC; 1.5 days.  
 **Dependencies:** M3_PARENT_FETCH_PROVENANCE.  
@@ -143,10 +143,11 @@ branch/tag repos, resolves commits, verifies git exclusion/provenance and cleans
 clones; transport/store/denial and credential boundary regressions also pass.
 
 The estimate was 2,100 changed LOC over eight engineering days. Actual implementation
-was one attended agent session (approximately 40 minutes including independent
+was one attended agent session (approximately 47.6 minutes through independent
 review and checks); this is not a new measured human LOC/day baseline. The existing
 cloud execution function was moved into a companion file to keep every file under
-800 lines. A final diff records exact line totals, including that move.
+800 lines. Implementation commit `0b5993561` changes 71 files with 3,301 insertions and
+648 deletions, including the move, docs and banked coverage/evidence.
 
 The final external criterion is satisfied by recording rollout as **pending**, not
 by claiming a live publish. Deployment of coordinator/executor builds, site registry

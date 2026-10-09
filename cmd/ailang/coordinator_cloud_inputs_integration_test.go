@@ -70,9 +70,13 @@ func TestTaskInputsNoNetworkIngressToJob(t *testing.T) {
 		t.Fatal(err)
 	}
 	var clones []string
+	sourcePath := filepath.ToSlash(source)
+	if !strings.HasPrefix(sourcePath, "/") {
+		sourcePath = "/" + sourcePath // file:///C:/... on Windows
+	}
 	f := taskInputFetcher{limit: maxTaskInputBytes, clone: func(ctx context.Context, input messaging.TaskInput, dest string) (string, error) {
 		clones = append(clones, dest)
-		cmd := gitexec.CommandContext(ctx, "clone", "--depth", "1", "--single-branch", "--branch", input.Ref, "--", "file://"+source, dest)
+		cmd := gitexec.CommandContext(ctx, "clone", "--depth", "1", "--single-branch", "--branch", input.Ref, "--", "file://"+sourcePath, dest)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return "", fmtInputCloneError(out, err)
 		}

@@ -2,8 +2,8 @@
   "sprint_id": "M-TASK-INPUTS",
   "status": "completed",
   "created": "2026-10-08T18:53:50.182743+00:00",
-  "design_doc": "design_docs/planned/v0_52_6/m-task-inputs.md",
-  "sprint_plan": "design_docs/planned/v0_52_6/m-task-inputs-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_52_6/m-task-inputs.md",
+  "sprint_plan": "design_docs/implemented/v0_52_6/m-task-inputs-sprint-plan.md",
   "github_issues": [
     1600
   ],
@@ -11,7 +11,12 @@
     "target_loc_per_day": 262.5,
     "estimated_total_loc": 2100,
     "estimated_days": 8,
-    "basis": "Planning assumption; seven-day shallow history has no measured implementation velocity"
+    "basis": "Planning assumption; seven-day shallow history has no measured implementation velocity",
+    "actual_git_insertions": 3301,
+    "actual_git_deletions": 648,
+    "actual_files_changed": 71,
+    "actual_basis": "Implementation commit 0b5993561; includes an existing cloud-function move, docs and banked coverage/evidence. Not a human LOC/day baseline.",
+    "attended_elapsed_minutes_through_evaluation": 47.6
   },
   "features": [
     {
@@ -192,5 +197,7 @@
   ],
   "completed": "2026-10-09T15:14:04.586309+00:00",
   "validation_artifact": ".ailang/state/sprints/M-TASK-INPUTS/validation.json",
-  "external_acceptance": "pending: staged Daneel rollout, see examples/task_inputs/README.md"
+  "external_acceptance": "pending: staged Daneel rollout, see examples/task_inputs/README.md",
+  "evaluation_report": ".ailang/state/evaluations/eval_M-TASK-INPUTS_round_1.json",
+  "pull_request": "https://github.com/sunholo-data/ailang/pull/1753"
 }
