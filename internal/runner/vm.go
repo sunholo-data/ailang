@@ -200,6 +200,9 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 	}
 
 	machine := vm.NewVM(img)
+	if params.MaxRecursionDepth > 0 {
+		machine.MaxStack = params.MaxRecursionDepth
+	}
 	// Wire the eval bridge in non-strict mode so EvalOnly stubs trap back
 	// to the evaluator. In strict mode, leaving Interop nil makes any trap
 	// a loud VM error.
