@@ -50,7 +50,7 @@ Each feature in the sprint:
 {
   "id": "string",
   "description": "string",
-  "estimated_loc": "number",
+  "estimated_loc": "number | null",
   "actual_loc": "number | null",
   "dependencies": ["string"],
   "acceptance_criteria": ["string"],
@@ -60,6 +60,8 @@ Each feature in the sprint:
   "notes": "string | null"
 }
 ```
+
+`estimated_loc: null` (or an absent key) means the estimate is unfilled. Numeric `0` is a valid net-zero estimate.
 
 **⚠️ CRITICAL: Constrained Modification Pattern**
 

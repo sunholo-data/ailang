@@ -1,0 +1,4 @@
+module inline_rows_unsupported
+export func identity(x: int) -> int ! {}
+tests [ (apply(\x. x, 3), 3) ]
+{ x }

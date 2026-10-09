@@ -27,7 +27,7 @@ import (
 //   - tests: List of test cases (each contains input/expected tuple expressions)
 //
 // Output: Core expression that evaluates all tests and returns tuple of actuals
-func BuildInlineTestHarness(binding core.RecBinding, tests []TestCase) core.CoreExpr {
+func BuildInlineTestHarness(binding core.RecBinding, tests []TestCase) (core.CoreExpr, error) {
 	if len(tests) == 0 {
 		// No tests - return unit
 		return &core.Lit{
@@ -36,7 +36,7 @@ func BuildInlineTestHarness(binding core.RecBinding, tests []TestCase) core.Core
 			},
 			Kind:  core.UnitLit,
 			Value: nil,
-		}
+		}, nil
 	}
 
 	// Build nested Lets for test evaluation
@@ -72,12 +72,12 @@ func BuildInlineTestHarness(binding core.RecBinding, tests []TestCase) core.Core
 		// Extract (input, expected) tuple from test body
 		// testCase.Body is []ast.Expr with one element: the tuple
 		if len(testCase.Body) == 0 {
-			panic(fmt.Sprintf("test case %d has empty body", i))
+			return nil, fmt.Errorf("test case %d has empty body", i)
 		}
 
 		tupleExpr, ok := testCase.Body[0].(*ast.Tuple)
-		if !ok {
-			panic(fmt.Sprintf("test case %d body is not a tuple", i))
+		if !ok || len(tupleExpr.Elements) != 2 {
+			return nil, fmt.Errorf("test case %d body is not an (input, expected) tuple", i)
 		}
 
 		// tuple.Elements[0] is input (or tuple of inputs for multi-arg)
@@ -86,7 +86,10 @@ func BuildInlineTestHarness(binding core.RecBinding, tests []TestCase) core.Core
 
 		// Build function call: functionName(input)
 		// For multi-arg functions, input will be a tuple we need to pass as multiple args
-		functionCall := buildFunctionCall(binding.Name, inputExpr)
+		functionCall, err := buildFunctionCall(binding.Name, inputExpr)
+		if err != nil {
+			return nil, err
+		}
 
 		// Wrap in Let binding
 		body = &core.Let{
@@ -108,14 +111,14 @@ func BuildInlineTestHarness(binding core.RecBinding, tests []TestCase) core.Core
 		Body:     body,
 	}
 
-	return harness
+	return harness, nil
 }
 
 // buildFunctionCall builds a Core App expression for calling a function with given argument(s).
 // Handles both single-arg and multi-arg function calls.
 // IMPORTANT: Core Lambda can have multiple params, so App should pass all args at once,
 // not as curried applications.
-func buildFunctionCall(functionName string, inputExpr ast.Expr) core.CoreExpr {
+func buildFunctionCall(functionName string, inputExpr ast.Expr) (core.CoreExpr, error) {
 	funcVar := &core.Var{
 		CoreNode: core.CoreNode{
 			NodeID: nextNodeID(),
@@ -129,7 +132,11 @@ func buildFunctionCall(functionName string, inputExpr ast.Expr) core.CoreExpr {
 		// Convert all tuple elements to Core
 		args := make([]core.CoreExpr, len(tuple.Elements))
 		for i, elem := range tuple.Elements {
-			args[i] = astExprToCore(elem)
+			var err error
+			args[i], err = astExprToCore(elem)
+			if err != nil {
+				return nil, err
+			}
 		}
 		return &core.App{
 			CoreNode: core.CoreNode{
@@ -137,133 +144,21 @@ func buildFunctionCall(functionName string, inputExpr ast.Expr) core.CoreExpr {
 			},
 			Func: funcVar,
 			Args: args,
-		}
+		}, nil
 	}
 
 	// Single-arg function: f(a)
-	inputCore := astExprToCore(inputExpr)
+	inputCore, err := astExprToCore(inputExpr)
+	if err != nil {
+		return nil, err
+	}
 	return &core.App{
 		CoreNode: core.CoreNode{
 			NodeID: nextNodeID(),
 		},
 		Func: funcVar,
 		Args: []core.CoreExpr{inputCore},
-	}
-}
-
-// astExprToCore converts a simple AST expression to Core (literals and composite types).
-// This is a minimal converter for test harness construction.
-func astExprToCore(expr ast.Expr) core.CoreExpr {
-	switch e := expr.(type) {
-	case *ast.Literal:
-		return &core.Lit{
-			CoreNode: core.CoreNode{
-				NodeID: nextNodeID(),
-			},
-			Kind:  astLitKindToCore(e.Kind),
-			Value: e.Value,
-		}
-	case *ast.Tuple:
-		// Convert tuple elements
-		elements := make([]core.CoreExpr, len(e.Elements))
-		for i, elem := range e.Elements {
-			elements[i] = astExprToCore(elem)
-		}
-		return &core.Tuple{
-			CoreNode: core.CoreNode{
-				NodeID: nextNodeID(),
-			},
-			Elements: elements,
-		}
-	case *ast.List:
-		// Convert list elements
-		elements := make([]core.CoreExpr, len(e.Elements))
-		for i, elem := range e.Elements {
-			elements[i] = astExprToCore(elem)
-		}
-		return &core.List{
-			CoreNode: core.CoreNode{
-				NodeID: nextNodeID(),
-			},
-			Elements: elements,
-		}
-	case *ast.UnaryOp:
-		// Handle unary operations like -3
-		operand := astExprToCore(e.Expr)
-		return &core.UnOp{
-			CoreNode: core.CoreNode{
-				NodeID: nextNodeID(),
-			},
-			Op:      e.Op,
-			Operand: operand,
-		}
-	case *ast.BinaryOp:
-		// Predicates in ensures clauses use binary ops: ==, !=, <, <=, >, >=, &&, ||, +, *, ...
-		left := astExprToCore(e.Left)
-		right := astExprToCore(e.Right)
-		return &core.BinOp{
-			CoreNode: core.CoreNode{
-				NodeID: nextNodeID(),
-			},
-			Op:    e.Op,
-			Left:  left,
-			Right: right,
-		}
-	case *ast.Identifier:
-		// Handle identifiers (including ADT constructors like None, True, False)
-		return &core.Var{
-			CoreNode: core.CoreNode{
-				NodeID: nextNodeID(),
-			},
-			Name: e.Name,
-		}
-	case *ast.FuncCall:
-		// Handle function/constructor application like Some(5), Pair(1, 2)
-		fn := astExprToCore(e.Func)
-		args := make([]core.CoreExpr, len(e.Args))
-		for i, arg := range e.Args {
-			args[i] = astExprToCore(arg)
-		}
-		return &core.App{
-			CoreNode: core.CoreNode{
-				NodeID: nextNodeID(),
-			},
-			Func: fn,
-			Args: args,
-		}
-	case *ast.Record:
-		// Handle record literals like {x: 1, y: 2}
-		fields := make(map[string]core.CoreExpr)
-		for _, field := range e.Fields {
-			fields[field.Name] = astExprToCore(field.Value)
-		}
-		return &core.Record{
-			CoreNode: core.CoreNode{
-				NodeID: nextNodeID(),
-			},
-			Fields: fields,
-		}
-	default:
-		panic(fmt.Sprintf("unsupported AST expression type in test harness: %T", expr))
-	}
-}
-
-// astLitKindToCore converts AST literal kind to Core literal kind.
-func astLitKindToCore(kind ast.LiteralKind) core.LitKind {
-	switch kind {
-	case ast.IntLit:
-		return core.IntLit
-	case ast.FloatLit:
-		return core.FloatLit
-	case ast.BoolLit:
-		return core.BoolLit
-	case ast.StringLit:
-		return core.StringLit
-	case ast.UnitLit:
-		return core.UnitLit
-	default:
-		panic(fmt.Sprintf("unsupported literal kind: %v", kind))
-	}
+	}, nil
 }
 
 // EnsuresParam pairs a function parameter name with its generated Core value
@@ -300,8 +195,12 @@ type EnsuresParam struct {
 //     `+`/`*`/etc. Use BuildEnsuresPropertyHarnessFromCore for already-lowered predicates.
 //
 // Output: Core expression that, when evaluated, returns true if ensures holds for these inputs.
-func BuildEnsuresPropertyHarness(binding core.RecBinding, params []EnsuresParam, predicate ast.Expr) core.CoreExpr {
-	return BuildEnsuresPropertyHarnessFromCore(binding, params, astExprToCore(predicate))
+func BuildEnsuresPropertyHarness(binding core.RecBinding, params []EnsuresParam, predicate ast.Expr) (core.CoreExpr, error) {
+	pred, err := astExprToCore(predicate)
+	if err != nil {
+		return nil, err
+	}
+	return BuildEnsuresPropertyHarnessFromCore(binding, params, pred), nil
 }
 
 // BuildEnsuresPropertyHarnessFromCore is the lowered-Core variant of
@@ -426,7 +325,7 @@ func BuildRequiresPropertyHarnessFromCore(params []EnsuresParam, predicateCore c
 //	)
 //
 // All cluster bindings are in scope via the shared LetRec.
-func BuildClusterTestHarness(cluster *PureCluster, tests []TestCase) core.CoreExpr {
+func BuildClusterTestHarness(cluster *PureCluster, tests []TestCase) (core.CoreExpr, error) {
 	if len(tests) == 0 {
 		// No tests - return unit
 		return &core.Lit{
@@ -435,7 +334,7 @@ func BuildClusterTestHarness(cluster *PureCluster, tests []TestCase) core.CoreEx
 			},
 			Kind:  core.UnitLit,
 			Value: nil,
-		}
+		}, nil
 	}
 
 	// Build nested Lets for test evaluation (same as single-binding version)
@@ -468,18 +367,21 @@ func BuildClusterTestHarness(cluster *PureCluster, tests []TestCase) core.CoreEx
 		varName := testVarNames[i]
 
 		if len(testCase.Body) == 0 {
-			panic(fmt.Sprintf("test case %d has empty body", i))
+			return nil, fmt.Errorf("test case %d has empty body", i)
 		}
 
 		tupleExpr, ok := testCase.Body[0].(*ast.Tuple)
-		if !ok {
-			panic(fmt.Sprintf("test case %d body is not a tuple", i))
+		if !ok || len(tupleExpr.Elements) != 2 {
+			return nil, fmt.Errorf("test case %d body is not an (input, expected) tuple", i)
 		}
 
 		inputExpr := tupleExpr.Elements[0]
 
 		// Call the function under test (not dependencies)
-		functionCall := buildFunctionCall(cluster.FuncName, inputExpr)
+		functionCall, err := buildFunctionCall(cluster.FuncName, inputExpr)
+		if err != nil {
+			return nil, err
+		}
 
 		body = &core.Let{
 			CoreNode: core.CoreNode{
@@ -500,7 +402,7 @@ func BuildClusterTestHarness(cluster *PureCluster, tests []TestCase) core.CoreEx
 		Body:     body,
 	}
 
-	return harness
+	return harness, nil
 }
 
 // Global node ID counter for test harness (simple approach for now).

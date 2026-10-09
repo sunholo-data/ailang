@@ -1,0 +1,34 @@
+module inline_expected_values
+
+type Decision = Allow | Deny(string)
+export func decide(ok: bool) -> Decision ! {}
+tests [ (true, Allow), (false, Deny("nope")) ]
+{ if ok then Allow else Deny("nope") }
+
+export func numbers(x: int) -> list[int] ! {}
+tests [ (2, [2, 3]), (0, [0, 1]) ]
+{ [x, x + 1] }
+
+export func empty(x: int) -> list[int] ! {}
+tests [ (0, []) ]
+{ [] }
+
+export func pair(x: int) -> (int, int) ! {}
+tests [ (2, (2, 2)) ]
+{ (x, x) }
+
+export func record(x: int) -> {value: int} ! {}
+tests [ (2, {value: 2}) ]
+{ {value: x} }
+
+export func nested(x: int) -> list[{value: list[int]}] ! {}
+tests [ (2, [{value: [2]}]) ]
+{ [{value: [x]}] }
+
+export func negative(x: int) -> int ! {}
+tests [ (-2, -2) ]
+{ x }
+
+export func add(a: int, b: int) -> int ! {}
+tests [ ((2, 3), 5) ]
+{ a + b }

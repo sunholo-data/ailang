@@ -1,0 +1,233 @@
+{
+  "sprint_id": "M-CODEX-SUBSCRIPTION-LANE",
+  "status": "not_started",
+  "created": "2026-10-08T19:17:51.210224+00:00",
+  "design_doc": "design_docs/planned/v0_52_6/m-codex-subscription-lane.md",
+  "sprint_plan": "design_docs/planned/v0_52_6/m-codex-subscription-lane-sprint-plan.md",
+  "github_issues": [
+    903,
+    1259
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: codex (no packages), oauth, ai. Inspected sunholo/external_backend@0.2.0 and sunholo/oauth@0.1.0 with pkg info/docs. These are AILANG libraries: external_backend handles single JSON stdout, not NDJSON AI providers; oauth implements installed-app grants, not sanctioned Codex CLI auth. Reuse the existing Go executor, parser, auth bootstrap and cost taxonomy; no registry dependency fits this host-level work."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: codex (no packages), oauth, ai. Inspected sunholo/external_backend@0.2.0 and sunholo/oauth@0.1.0 with pkg info/docs. These are AILANG libraries: external_backend handles single JSON stdout, not NDJSON AI providers; oauth implements installed-app grants, not sanctioned Codex CLI auth. Reuse the existing Go executor, parser, auth bootstrap and cost taxonomy; no registry dependency fits this host-level work."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: codex (no packages), oauth, ai. Inspected sunholo/external_backend@0.2.0 and sunholo/oauth@0.1.0 with pkg info/docs. These are AILANG libraries: external_backend handles single JSON stdout, not NDJSON AI providers; oauth implements installed-app grants, not sanctioned Codex CLI auth. Reuse the existing Go executor, parser, auth bootstrap and cost taxonomy; no registry dependency fits this host-level work."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: codex (no packages), oauth, ai. Inspected sunholo/external_backend@0.2.0 and sunholo/oauth@0.1.0 with pkg info/docs. These are AILANG libraries: external_backend handles single JSON stdout, not NDJSON AI providers; oauth implements installed-app grants, not sanctioned Codex CLI auth. Reuse the existing Go executor, parser, auth bootstrap and cost taxonomy; no registry dependency fits this host-level work."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: codex (no packages), oauth, ai. Inspected sunholo/external_backend@0.2.0 and sunholo/oauth@0.1.0 with pkg info/docs. These are AILANG libraries: external_backend handles single JSON stdout, not NDJSON AI providers; oauth implements installed-app grants, not sanctioned Codex CLI auth. Reuse the existing Go executor, parser, auth bootstrap and cost taxonomy; no registry dependency fits this host-level work."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: codex (no packages), oauth, ai. Inspected sunholo/external_backend@0.2.0 and sunholo/oauth@0.1.0 with pkg info/docs. These are AILANG libraries: external_backend handles single JSON stdout, not NDJSON AI providers; oauth implements installed-app grants, not sanctioned Codex CLI auth. Reuse the existing Go executor, parser, auth bootstrap and cost taxonomy; no registry dependency fits this host-level work."
+    },
+    {
+      "milestone": "D8",
+      "package": null,
+      "action": "none",
+      "reason": "Measurement and write-up only; no code, so no registry package applies."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 1260,
+    "estimated_days": 6
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Reject codex guesses and verify caller separation",
+      "estimated_loc": 140,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Re-audit GuessProvider, ProviderFromString, EnvVarForProvider, factory.New and envpolicy callers before edits; record mission spawn-recipe pins reaching the codex executor rather than the AI effect.",
+        "ProviderCodex sentinel covers codex* guesses and string parsing; no API-key variable is associated with it; direct and registry-fallback construction pin the actionable #903 error pointing to chatgpt/.",
+        "Motoko preflight checks subscription credentials and classifies the sentinel as subscription; mission executor routing and explicit provider: openai registry rows retain their behavior.",
+        "Existing provider-prefix fixtures and coordinator spawn-recipe regression tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "phase": "phase1"
+    },
+    {
+      "id": "M2",
+      "description": "Bound interim client and prepare Phase 1 release",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Default HTTP deadline is 10 minutes, WithTimeout overrides it, and a continuously streaming httptest response terminates at the configured deadline; earlier context cancellation also works.",
+        "No parallel timeout flag or env variable is introduced; #1259 absorption is documented.",
+        "README describes subscription-first auth and the explicitly metered alternative; preserve the already-landed supersession banner rather than duplicating it.",
+        "A1–A5 and focused go test + make test-core pass; Phase 1 can ship independently before any Phase 2 code is merged.",
+        "Phase 1 STOP: commit M1-M2 locally with Refs #903, report, and stop; do not start D8 or M3 in the same run."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "phase": "phase1"
+    },
+    {
+      "id": "D8",
+      "description": "Measure motoko-chatgpt-gpt-6-1-sol tool use, write it up, then STOP/BLOCKED for the maintainer ruling",
+      "phase": "d8",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Data source named and read: per-run eval result JSON for model motoko-chatgpt-gpt-6-1-sol under eval_results/ (agent_tool_calls, agent_transcript tool_call lines from native_tool_calls), plus ailang chains records naming the row; files/chains, dates and run count recorded (zero runs is a valid result).",
+        "Per run: tool-call count, tools used, harness tool loop (std/ai Step with tools) vs effectively single-turn; written to design_docs/planned/v0_52_6/m-codex-subscription-lane-d8-measurement.md. No code and no models.yml change.",
+        "Write-up states options (a) delegate-to-codex and (b) metered lane for the tool-loop arm and what the data implies, without choosing.",
+        "STOP / BLOCKED for the maintainer D8 ruling; the executor does not pick an arm."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Adapt the existing executor to the AI provider contract",
+      "estimated_loc": 350,
+      "dependencies": [
+        "M2",
+        "D8"
+      ],
+      "acceptance_criteria": [
+        "Generate uses the existing codex executor and its NDJSON parser with bounded time/turns, cancellation, and the read-only question tool set; no coordinator import from the adapter.",
+        "Strip codex: from pinned models; bare codex names reach the CLI unchanged and fail loudly there; prompt, final text, token/cache usage, finish reason and failures map correctly.",
+        "Step with harness tools returns CodeToolsNotSupported; tool-free Step delegates to Generate; images return CodeCapabilityNotSupported; no streaming interface is claimed.",
+        "Fake-executor fixtures cover success, failure, malformed or missing output, cancellation, model normalization and unsupported requests; no subprocess starts for rejected capabilities."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "phase": "phase2"
+    },
+    {
+      "id": "M4",
+      "description": "Enforce subscription auth, serialization and cost provenance",
+      "estimated_loc": 240,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Read-only credential validation moves to the platform layer, honors CODEX_HOME, and refuses missing, expired or API-key credentials with CodeAuthFailed; CLI owns refresh.",
+        "A process-wide mutex keyed by canonical auth path serializes validation plus execution; canceled queued calls exit without spawning and locks release after failure.",
+        "Subprocess environment excludes metered-key authority; subscription classification yields CostListPriceEquivalent with real tokens, and absent rates yield unknown provenance rather than fabricated spend.",
+        "Audit the codex/oauth job selection. In-process locking alone is insufficient for multiple processes or workers sharing one credential; record fleet serialization / isolated-credential work as a follow-up in the sprint report (not a pass condition)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "phase": "phase2"
+    },
+    {
+      "id": "M5",
+      "description": "Wire hosts and resolve motoko migration before replacement",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Inject a codex constructor without a core-to-platform import; both handler construction paths and eval harness wire it; unwired builds return a named registration error.",
+        "Repeat the factory.New grep including aliases and indirect callers; audit apiserver effect hosting and wire every supported host or document a deliberate fail-loud build.",
+        "Apply the recorded D8 ruling to models.yml; if the ruling is not recorded in the design doc, do not touch models.yml: STOP and report BLOCKED.",
+        "Preserve historical registry identity as appropriate and verify changed row lookup, auth-lane classification and external references; migration has no silent reroute."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "phase": "phase2"
+    },
+    {
+      "id": "M6",
+      "description": "Remove direct backend and validate Phase 2 release",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "Only after the D8 ruling is recorded and M5 applied it: Remove direct-backend client and obsolete credential implementation after references migrate; retain ProviderChatGPT as a loud deprecation error naming codex: and retain historical CanonicalQuotaBucket folding.",
+        "No production path calls chatgpt.com/backend-api/codex; chatgpt/ deprecation, tool refusal and history rollup regressions pass.",
+        "Read ailang prompt before writing the example; ailang check validates examples/ai/codex_generate.ail; document required auth and single-turn contract plus both release migration notes.",
+        "Write the live-probe procedure (codex AI-effect probe with OPENAI_API_KEY absent; one run of the migrated motoko row). The probe is maintainer-run evidence attached later, not executor acceptance.",
+        "Focused tests, formatting, lint and architecture gates pass; fleet serialization is a report follow-up before shared-credential rollout, not a pass condition."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "phase": "phase2"
+    }
+  ],
+  "execution_phases": [
+    {
+      "run": "phase1",
+      "milestones": [
+        "M1",
+        "M2"
+      ],
+      "starts": "plan merge",
+      "ends": "commit locally with Refs #903, report, STOP"
+    },
+    {
+      "run": "d8",
+      "milestones": [
+        "D8"
+      ],
+      "starts": "after Phase 1 is done",
+      "ends": "STOP/BLOCKED for maintainer D8 ruling"
+    },
+    {
+      "run": "phase2",
+      "milestones": [
+        "M3",
+        "M4",
+        "M5",
+        "M6"
+      ],
+      "starts": "after Phase 1 has merged AND the D8 ruling is recorded",
+      "ends": "commit locally with Refs #903"
+    }
+  ],
+  "executor_constraints": [
+    "Changelog: fragments changelogs/unreleased/YYYY-MM-DD-<slug>.md; never changelogs/v0.32-current.md.",
+    "No full make test locally (SIGBUS in RAM-backed /tmp): focused go test on touched packages plus make test-core; full suite runs in CI.",
+    "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-CODEX-SUBSCRIPTION-LANE before each run and after every JSON update.",
+    "Executor cannot push or merge; commit locally with Refs #903.",
+    "No models.yml migration (M5) and no internal/ai/chatgpt/ removal (M6) before the D8 ruling."
+  ]
+}

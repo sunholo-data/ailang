@@ -1,0 +1,2049 @@
+{
+  "base_commit": "48f4b5ef929532cc6bf89d32034435ec616f80e7",
+  "binary_sha256": {
+    "base": "108056e4ddb8c3cd5bfb2b0c0534bd9632559af6d0ed6bc441933a83002d22f2",
+    "fixed": "77d693cff183961ced2d4c9daca296d8be4e6ce04a3ffb4ebec565afbf9c87f1"
+  },
+  "example_statuses": {
+    "examples/ai_devtools_workflow/discount_calculator.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/ai_modes.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/ai_openrouter_routing.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/archive/broken/nested_records.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/broken/sem_frame_test.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/broken/testing_advanced.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/broken/testing_basic.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/debug/debug_let.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/debug/debug_let2.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/debug/debug_types_demo.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/nested_match_variants/nested_match_ai_generated.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/nested_match_variants/nested_match_comprehensive.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/nested_match_variants/nested_match_debug.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/nested_match_variants/nested_match_no_comment.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/nested_match_variants/nested_match_three_levels.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/archive/nested_match_variants/nested_match_with_io.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/asset_path.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/bitwise_or.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/bounded_xml_fold.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/bugs/concat_operator_list_inference.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/bugs/list_concat_match.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/bugs/parser_infinite_loop_on_test_syntax.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/cognitive_os/single_agent_replay.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/configdriven_provider_demo/main.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/coordinator_e2e_test.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/datetime_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/debug/anf_example.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/debug/list_concat.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/deriving_eq.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/docs/adt_option_pattern.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/docs/cli_greeter.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/docs/io_print_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/docs/io_println_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/docs/lambdas_full.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/docs/module_add_record.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/docs/module_greet.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/docs/module_main_int.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/docs/module_process_record.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/docs/module_with_helper.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/docs/npc_dialogue.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/docs/read_file.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/docs/records_person.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/docs/summarize_file.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/effect_budget_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/eq_containers.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/eq_containers_negative/anon_record.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/eq_containers_negative/depth9.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/eq_containers_negative/fn_elements.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/eq_containers_negative/fn_field.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/eq_containers_negative/generic_list_fn.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/eq_containers_negative/nominal_record.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/eq_containers_negative/reached_fn_field.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/eq_containers_negative/residual_fn.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/expected_fail/effect_budgets.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/expected_fail/effect_budgets_exhausted.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/expected_fail/effect_budgets_multi.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/expected_fail/effect_budgets_rand.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/expected_fail/match_foreign_constructor_option.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/expected_fail/match_foreign_constructor_result.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/experimental/ai_agent_integration.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/experimental/concurrent_pipeline.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/experimental/factorial.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/experimental/quicksort.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/experimental/web_api.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/extension_self_disable.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/first_non_repeat.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/float_nan.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/fmt_let_chain_comments.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/hello_coordinator.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/hello_world.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/if_then_else_blocks.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/imports/combined_alias.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/imports/module_alias.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/imports/symbol_alias.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/inline_tests_arithmetic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/inline_tests_best_practices.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/inline_tests_nullary.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/inline_tests_recursive.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/inline_tests_types.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/integer_literals.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/intra_package_imports/service.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/intra_package_imports/types.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/lsp_xref_fixture/a.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/lsp_xref_fixture/b.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/match_hof_lambda.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/modal_rand.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/multi_module/core/types.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/multi_module/main.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/option_pattern_import_free.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/pattern_matching_adt.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/poly_arith_lambda.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/prelude_option_result.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/progress_bar.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/record_cons_pattern.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/record_in_result.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/record_list_extraction.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/reference/budget_basic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/reference/budget_exhausted.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/reference/budget_minimum.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/reference/budget_per_invocation.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/reference/capability_budgets.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/reference/env_allowlist.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/reference/env_basic.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/reference/env_config.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/reference/env_openai.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/reference/env_simple.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/reference/env_snapshot.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/reference/neural_semantic_search.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/reference/ollama_embed_test.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/reference/semantic_retrieval.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/reference/sharedmem_cache.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/regex_basics.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/regex_capture.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/regex_log_orchestration.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/adt_list_fields.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/adt_option.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/adt_simple.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/adt_tree.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_caching.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_call.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_call_json_simple_result.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_call_result.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_call_speech.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_call_stream.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_effect.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_image_generation.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_stream_openai.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_streaming.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_tool_loop.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/ai_vision_input.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/arithmetic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/array_adt.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/array_basic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/array_float_kernels.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/array_grid.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/batch_processing.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/bitwise.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/block_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/block_recursion.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/bounded_take_flatmap.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/bug_float_comparison.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/bytes_base64url.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/claude_haiku_call.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/cli_args_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/closures.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/complex_types.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/cons_expression.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/access_control.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/basic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/cross_function.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/cross_module_functions.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/cross_module_functions_lib.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/cross_module_types.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/cross_module_types_lib.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/empty_list_sort_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/ensures_violation_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/finance.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/hof_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/inbox_injection.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/inbox_injection_v2.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/inbox_v2_app.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/inbox_v2_lib.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/insurance.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/interpolation_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/invoice.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/list_recursive_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/list_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/nested_record_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/nullary_constant_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/park.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/per_function_depth_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/quantifier_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/record_adt_cycle_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/record_adt_sort_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/record_discovery_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/record_pattern_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/record_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/recursive_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/scoring.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/shapes_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/showcase.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/string_verify.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/temperature.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/contracts/unencodable_callee_skip.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/conway_grid.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/crypto_hashing.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/debug_effect.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/debug_types_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/decide_jev.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/demo_ai_api.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/demos/adt_pipeline.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/demos/hello_io.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/directory_listing.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/directory_ops.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effectful_list.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effectful_list_t1_mapE_basic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effectful_list_t2_filterE_bool.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effectful_list_t3_foldlE_acc.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effectful_list_t4_flatMapE_expand.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effectful_list_t5_forEachE_unit.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effectful_list_t6_pure_flatMap.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effectful_list_t7_chain_combinators.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effectful_list_t8_string_list.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effects_basic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effects_fs_io.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/effects_pure.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/exit_code.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/factorial.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/fnv1a.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/fs_bytes_roundtrip.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/fs_walk_glob.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/func_expressions.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/game_npc_dialogue.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/guards_basic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/guards_module.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/hello.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/html_parser.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/http_put_bytes.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/http_simple.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/if_else_chain.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/imported_adt_types.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/imports.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/imports_basic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/json_array_extraction.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/json_basic_decode.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/json_bool_encoding.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/json_helpers.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/json_jint.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/json_parsing.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/jwt_decode.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/lambdas.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/lambdas_advanced.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/lambdas_closures.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/lambdas_curried.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/lambdas_higher_order.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/letrec_recursion.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/list_extremes.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/list_helpers.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/list_pattern_cons.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/list_pattern_records.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/list_patterns.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/list_safe_indexing.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/list_sum.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/mapAccumL_running_total.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/map_basic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/match_arm_block.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/match_arm_block_io.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/match_in_block.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/math_trig.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/mcp_tools.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/runnable/micro_block_if.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/micro_block_seq.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/micro_io_echo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/micro_option_map.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/micro_record_person.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/module_let_helpers.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/nested_match_minimal.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/nested_match_simple.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/nested_patterns.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/net_scope_public.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/no_loops_filter_map.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/no_loops_fold.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/no_loops_recursion.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/option_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/parser_block_trailing_record.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/pattern_sugar.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/patterns.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/poly_adt_result_type.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/polymorphic_adt.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/polymorphic_comparison_simple.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/polymorphic_lambdas_phase1.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/process_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/process_stdin_write.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/process_subcmd_allowlist.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/record_in_match.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/record_patterns.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/record_update.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/record_width_subtyping.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/records.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/recursion_factorial.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/recursion_fibonacci.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/recursion_match.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/recursion_mutual.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/recursion_quicksort.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/reserved_keyword_names.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/secrets/gated_secret.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/secrets/leak_attempt.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/runnable/secrets/secret_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/serve_api_mcp_app.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/serve_api_mcp_file.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/serve_api_mcp_header_auth.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/serve_api_mcp_hints.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/serve_api_mcp_oauth.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/serve_api_named_params.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/serve_api_webhook.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/set_operations.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/simple.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/simple_func_match.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/split_argument_order.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/split_map_join.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/splitmix64.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/std_audio_brief.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/std_deflate_pdf_objstm.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stdlib_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stdlib_demo_simple.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stdlib_embedding.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stdlib_game.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stdlib_gzip.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stdlib_sharedindex.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stdlib_simhash.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stdlib_smoke.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stream_multi_source.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stream_process_source.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stream_sse.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/stream_websocket.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/string_chars.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/string_contains.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/string_interp_nested.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/string_interpolation.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/string_parsing.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/string_repeat.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/string_split.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/structured_ai_basic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/structured_ai_schema.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/syntax_ai_forgiving.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/tail_recursion_loop.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/tar_gzip_reader.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/test_cli_io.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/test_fizzbuzz.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/test_guard_bool.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/test_import_func.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/test_io_builtins.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/test_module_minimal.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/type_classes.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/type_inference.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/type_inference_regression.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/typeclasses.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/url_encode.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/uuid.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/values_basic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/vm_strict_pure_builtins.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/web_search.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/runnable/xml_build.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/xml_escape.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/xml_fold.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/xml_lenient.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/xml_parser.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/xml_space_preserve.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/xml_walk_perf.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/xml_zip_roundtrip.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/yaml_config.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/yaml_roundtrip.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/zip_build_in_memory.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/zip_reader.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/runnable/zip_xml_fold.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/safety/drop_table_blocked.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/safety/lying_signature.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/safety/net_only_admitted.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/serveapi_ws_bridge.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/short_circuit_and.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/short_circuit_or.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/sim_stub/world.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/snippets/numeric_conversion.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/snippets/showcase/lambdas_basic.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/snippets/showcase/lambdas_records.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/snippets/showcase/lists.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/snippets/type_classes_working_reference.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/snippets/v3_3/math/gcd.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/strict_fallbacks_demo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/string_char_access.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/string_replace.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/adt_test_harness.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/bug_modulo_operator.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/demos/effects_pure.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/inline_tests_adt.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/inline_tests_edge_cases.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/inline_tests_multiarg.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/inline_tests_nullary.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/inline_tests_recursive.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/inline_tests_unary.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/micro_clock_measure.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/micro_net_fetch.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/module_constants.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/no_let_test.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/recursion_error.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/simple_let_test.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/sugar_call0.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_arithmetic_operations.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_boolean_logic.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_both_comments.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_capability_budget_exhausted.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_capability_denied_fs.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_capability_denied_io.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_comment_bug.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_comparison_operators.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_conditionals.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_cross_function_deps.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_edge_cases.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_effect_annotation.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_effect_capability.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_effect_fs.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_effect_io.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_effect_io_simple.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_exhaustive_bool_complete.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_exhaustive_bool_incomplete.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_exhaustive_wildcard.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_float_comparison.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_float_eq_works.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_float_modulo.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_guard_debug.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_guard_false.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_identity.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_import_ctor.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_imported_list_functions.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_integral.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_invocation.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_list_recursion.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_lists.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_m_r7_comprehensive.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_math_functions.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_modulo_works.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_net_file_protocol.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_net_localhost.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_net_security.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_no_import.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_record_subsumption.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_simple.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_single_guard.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_stdlib_sprint.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_string_operations.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/tests/test_use_constructor.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/tests/test_with_import.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/trace_testing.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/type_alias_poly.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/url_parse_basics.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/url_route_dispatch.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/wasm_friendly_patterns.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/wasm_step_byo_key/chat.ail": {
+      "base": 0,
+      "fixed": 0
+    },
+    "examples/web_api_demo/api/greet.ail": {
+      "base": 1,
+      "fixed": 1
+    },
+    "examples/web_api_demo/api/math.ail": {
+      "base": 1,
+      "fixed": 1
+    }
+  },
+  "std_import_statuses": {
+    "std/ai/streaming": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/ai": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/array": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/audio": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/bytes": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/clock": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/cognition": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/crypto": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/datetime": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/debug": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/deflate": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/dom": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/embedding": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/env": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/extension": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/fs": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/game": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/gzip": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/html": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/io": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/iter": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/json": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/jwt": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/list": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/map": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/math": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/net": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/option": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/package": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/process": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/rand": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/regex": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/result": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/secret": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/sem": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/sharedindex": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/sharedmem": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/simhash": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/smoke": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/stream/bridge": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/stream": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/string": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/tar": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/trace": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/trace_test": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/web": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/xml": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/yaml": {
+      "base": 0,
+      "fixed": 0
+    },
+    "std/zip": {
+      "base": 0,
+      "fixed": 0
+    }
+  },
+  "mutations": {
+    "L2": {
+      "exit": 1,
+      "failures": [
+        "--- FAIL: TestLatentFunctionValues (0.32s)",
+        "--- FAIL: TestLatentFunctionValues/local_hof (0.02s)",
+        "--- FAIL: TestLatentFunctionValues/wrong_row (0.02s)",
+        "--- FAIL: TestLatentStdHOFs (1.39s)",
+        "--- FAIL: TestLatentStdHOFs/sortBy (0.15s)",
+        "--- FAIL: TestLatentStdHOFs/zipWith (0.15s)",
+        "--- FAIL: TestLatentStdHOFs/flatMap (0.15s)",
+        "--- FAIL: TestLatentCrossModule (0.22s)",
+        "--- FAIL: TestLatentCrossModule/recursive (0.02s)",
+        "--- FAIL: TestLatentCrossModule/forwarding (0.02s)",
+        "--- FAIL: TestLatentCrossModule/std_forwarding (0.15s)"
+      ]
+    },
+    "L1": {
+      "exit": 1,
+      "failures": [
+        "--- FAIL: TestLatentFunctionValues (0.32s)",
+        "--- FAIL: TestLatentFunctionValues/field (0.02s)",
+        "--- FAIL: TestLatentFunctionValues/inline_field (0.02s)",
+        "--- FAIL: TestLatentFunctionValues/parameter (0.02s)",
+        "--- FAIL: TestLatentFunctionValues/alias (0.02s)",
+        "--- FAIL: TestLatentFunctionValues/adt (0.02s)",
+        "--- FAIL: TestLatentFunctionValues/closed_storage (0.02s)"
+      ]
+    },
+    "open_gate": {
+      "exit": 1,
+      "failures": [
+        "--- FAIL: TestLatentFunctionValues (0.32s)",
+        "--- FAIL: TestLatentFunctionValues/closed_storage (0.03s)",
+        "--- FAIL: TestLatentStorageAlias (0.08s)",
+        "--- FAIL: TestLatentStorageAlias/{let_mk_=_box;_mk(loud)} (0.02s)",
+        "--- FAIL: TestLatentStorageAlias/=_(if_true_then_box_else_box)(loud) (0.02s)",
+        "--- FAIL: TestLatentStorageAlias/{let_h_=_{mk:box};_h.mk(loud)} (0.02s)",
+        "--- FAIL: TestLatentStorageAlias/{let_mk:_(int_->_int_!_{IO})_->_Hooks_=_box;_mk(loud)} (0.02s)"
+      ]
+    },
+    "D4": {
+      "exit": 1,
+      "failures": [
+        "--- FAIL: TestLatentFunctionValues (0.32s)",
+        "--- FAIL: TestLatentFunctionValues/shadow_parameter (0.02s)",
+        "--- FAIL: TestLatentFunctionValues/shadow_let (0.02s)"
+      ]
+    },
+    "L0_canonical": {
+      "exit": 1,
+      "failures": [
+        "--- FAIL: TestEffectLabelPayload (0.00s)"
+      ]
+    },
+    "L0_unifier": {
+      "exit": 1,
+      "failures": [
+        "--- FAIL: TestRowPayloadKinds (0.00s)",
+        "--- FAIL: TestRowPayloadKinds/effect (0.00s)"
+      ]
+    },
+    "L0_combined": {
+      "exit": 1,
+      "failures": [
+        "--- FAIL: TestLatentDOMReplay (0.02s)"
+      ]
+    }
+  },
+  "gates": {
+    "focused_packages": 0,
+    "test_core_cgo": 0,
+    "lint": 0,
+    "fmt_check": 0,
+    "file_sizes": 0,
+    "boundaries": 0,
+    "verify_examples": 0,
+    "tree_walk_and_bytecode_rejection": 0
+  },
+  "full_repository_suite": "deferred to implementation PR CI by approved plan",
+  "evaluation_score": 96,
+  "evaluation_round": 2
+}

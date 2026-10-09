@@ -143,13 +143,32 @@ func fsRejectProbe(ctx *EffContext, op, path string, err error) {
 // (#1559: on APFS/NTFS `.CLAUDE/x` IS `.claude/x`). Reads are unaffected;
 // `.gitignore` and `.gitattributes` are ordinary files.
 func (ctx *EffContext) fsCheckMutation(path string) error {
+	return ctx.fsCheckProtection(path, false)
+}
+
+// fsCheckMove also protects ancestors of deny-pattern targets. Both operands
+// of a rename and every removal entry point must use this structural check.
+func (ctx *EffContext) fsCheckMove(path string) error {
+	return ctx.fsCheckProtection(path, true)
+}
+
+func (ctx *EffContext) fsCheckProtection(path string, move bool) error {
 	if ctx == nil || (!ctx.Env.ProtectGitDir && len(ctx.Env.DenyWrite) == 0) {
 		return nil
 	}
 	prot := fileguard.Protection{GitDir: ctx.Env.ProtectGitDir, DenyWrite: ctx.Env.DenyWrite}
-	v := prot.Check(fsRelToRoot(ctx.Env.Sandbox, path))
+	rel := fsRelToRoot(ctx.Env.Sandbox, path)
+	var v fileguard.Violation
+	if move {
+		v = prot.CheckMove(rel)
+	} else {
+		v = prot.Check(rel)
+	}
 	if v.GitDir {
 		return fmt.Errorf("E_FS_PROTECTED: %s is under .git, which is read-only in restricted mode", path)
+	}
+	if v.Ancestor {
+		return fmt.Errorf("E_FS_PROTECTED: %s is an ancestor of paths protected by fs_deny_write %q — read-only under this policy", path, v.Pattern)
 	}
 	if v.Pattern != "" {
 		return fmt.Errorf("E_FS_PROTECTED: %s matches fs_deny_write %q — read-only under this policy", path, v.Pattern)
@@ -268,7 +287,7 @@ func (ctx *EffContext) FSMkdirAll(path string) error {
 
 // FSRemove removes a file, empty directory or link entry through the backend.
 func (ctx *EffContext) FSRemove(path string) error {
-	if err := ctx.fsCheckMutation(path); err != nil {
+	if err := ctx.fsCheckMove(path); err != nil {
 		return err
 	}
 	b, err := ctx.fsBackendFor()

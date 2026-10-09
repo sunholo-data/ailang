@@ -320,6 +320,13 @@ func (st *modulePipelineState) compileOneModule(modID link.ModuleID, unit *Compi
 			return err
 		}
 	}
+	// Validate before cache lookup: runner compiles can cache a module with
+	// invalid rows, but a later check must still reject those rows.
+	if !st.cfg.SkipTestRowValidation {
+		if err := validateTestRows(mod.File); err != nil {
+			return err
+		}
+	}
 	key, cacheable := st.prepareCacheLookup(mod, string(modID))
 	if cacheable && st.serveFromCache(mod, unit, key) {
 		return nil

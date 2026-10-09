@@ -256,6 +256,16 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	fmt.Fprintf(os.Stderr, "claude-executor: %s %s\n", e.claudePath, strings.Join(args, " "))
 
 	// Set up environment using shared builder (M-UNIFIED-AI-CONTROL-PLANE)
+	// A setup-token is the one credential the claude child must receive in its
+	// environment: Claude Code reads it from CLAUDE_CODE_OAUTH_TOKEN. The JSON
+	// blob stays out (it went to the credentials file above), as does
+	// everything else the env policy withholds.
+	var executorEnv []string
+	if authMode != "apikey" {
+		if tok := oauthSetupToken(); tok != "" {
+			executorEnv = append(executorEnv, config.EnvClaudeCodeOAuthToken+"="+tok)
+		}
+	}
 	childEnv, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:                  task,
 		SessionID:             sessionID,
@@ -265,6 +275,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		EnableClaudeTelemetry: true,
 		GCPProject:            task.GCPProject,
 		GCPLocation:           task.GCPLocation,
+		ExecutorEnv:           executorEnv,
 	})
 	if err != nil {
 		return nil, err
@@ -278,8 +289,9 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	}()
 	cmd.Env = childEnv
 
-	// CLAUDE_CODE_OAUTH_TOKEN (M-CLOUD-OAUTH: the env var crashes Claude Code;
-	// credentials are in ~/.claude/.credentials.json) and, outside apikey
+	// CLAUDE_CODE_OAUTH_TOKEN as a JSON blob (M-CLOUD-OAUTH: the blob in the env
+	// var crashes Claude Code; it goes to ~/.claude/.credentials.json; a
+	// setup-token is passed through above) and, outside apikey
 	// mode, ANTHROPIC_API_KEY (M-CLOUD-DUAL-AUTH) never reach the child: the
 	// shared EnvPolicy withholds every credential-shaped name and grants
 	// ANTHROPIC_API_KEY to claude only under AILANG_AUTH_MODE=apikey

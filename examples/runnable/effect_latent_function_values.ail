@@ -1,0 +1,21 @@
+-- Calling a hook performs its effects; constructing/storing it is pure.
+module examples/runnable/effect_latent_function_values
+import std/io (println)
+
+type Hooks = { onEvent: string -> () ! {IO} }
+
+func logEvent(s: string) -> () ! {IO} = println(s)
+
+pure func mkHooks() -> Hooks = { onEvent: logEvent }
+
+func applyTo(f: string -> (), s: string) -> () = f(s)
+
+func throughHOF() -> () ! {IO} = applyTo(logEvent, "HOF: IO declared")
+
+func throughField(hooks: Hooks) -> () ! {IO} = hooks.onEvent("field: IO declared")
+
+export func main() -> () ! {IO} {
+  let hooks = mkHooks();
+  throughHOF();
+  throughField(hooks)
+}
