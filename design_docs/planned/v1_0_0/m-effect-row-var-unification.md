@@ -4,7 +4,8 @@
 **Target**: v1.0.0
 **Priority**: P0 (High) — static effect soundness hole, not just DX friction (see V10/V11)
 **Estimated**: 5 days (minimal App constraint repair + shared publication + row validation + corpus evidence)
-**Dependencies**: M-EFFECT-LATENT-FUNCTION-VALUES, landed in PR #1708 (`3d4f49720`)
+**Dependencies**: M-EFFECT-LATENT-FUNCTION-VALUES, landed in PR #1708 (`3d4f49720`) — the minimum required dependency, not the sweep base (see the sprint plan's sweep protocol)
+**Ordering**: runs BEFORE M-PURE-ROW-AND-IFACE-PURITY (#1443), which re-measures its pins after this lands. The two sprints must not run in parallel.
 **Planner-Lane**: opus-required (touches shared row algebra in `internal/types/` and the effect-validation pass; the contamination history in V25 makes a mechanical port risky)
 **Source**: GitHub issue [#616](https://github.com/sunholo-data/ailang/issues/616), re-reproduced and extended at `origin/dev` = `af6d56144`
 
@@ -567,8 +568,11 @@ incorrectly constrained call row. Review findings:
 The V1–V39 and quorum measurements below remain historical evidence at their named
 bases, not claims about the post-#1708 base.
 
-The implementation base is now dev at `3d4f49720` (PR #1708), which shipped
-M-EFFECT-LATENT-FUNCTION-VALUES. Its per-App publication is the required authority:
+The minimum implementation base is dev at `3d4f49720` (PR #1708), which shipped
+M-EFFECT-LATENT-FUNCTION-VALUES. The executor branch starts from current dev, and the
+base/fixed corpus sweep uses the branch's actual merge-base with dev (recorded by SHA),
+not `3d4f49720`: #1707 has since changed `effects.go`, `effect_subsumption.go`,
+`validate_effects*.go` and `pipeline_single.go`, so a `3d4f49720` base would misreport flips. Its per-App publication is the required authority:
 **extend LatentParamMask with the resolved call row in one publication record**.
 Do not introduce a standalone `CallEffects[appID]` map or parallel lookup authority.
 Do not execute against the pre-#1708 base or concurrently with its implementation.
@@ -654,7 +658,7 @@ Check the sizes of other touched files too; do not accumulate overflow elsewhere
 
 Execution gates: focused `go test ./internal/types/... ./internal/pipeline/...
 ./internal/elaborate/...`, `make test-core`, `make lint`, `make check-boundaries`,
-`make check-file-sizes`. Do not run full `make test` in the executor: RAM-backed
+`make check-file-sizes`, `make check-changelog`. Do not run full `make test` in the executor: RAM-backed
 `/tmp` has caused SIGBUS. The executor commits locally and cannot push.
 Documentation uses `Refs #616`; no issue-closing directive belongs in these docs.
 
@@ -681,12 +685,14 @@ Documentation uses `Refs #616`; no issue-closing directive belongs in these docs
   declared-pure imports (#1091), recursive concrete contamination controls,
   #386 no-join tests and #1708 latent/storage-only controls keep their contracts.
   Historical base behavior must be re-measured rather than assumed.
-- [ ] **AC7 — corpus sweep**: compare base and fixed `ailang check` for every
+- [ ] **AC7 — corpus sweep**: compare base (the executor branch's merge-base with dev,
+  recorded by SHA) and fixed `ailang check` for every
   `examples/**/*.ail` and `std/**/*.ail`, with cold caches and matching stdlib.
   Record inventory, command, status and diagnostics per file, including existing
   failures; investigate std/stream and std/ai/streaming consumers explicitly.
-- [ ] **AC8 — flip rule**: each changed status is listed by path in
-  `changelogs/unreleased/m-effect-row-var-unification.md` with before/after,
+- [ ] **AC8 — flip rule**: each changed status is listed by path in the fragment
+  `changelogs/unreleased/<YYYY-MM-DD>-effect-row-var-unification.md` (opening with a
+  `### Fixed — …` heading; `make check-changelog` passes) with before/after,
   reason and migration. Newly accepted pure programs need no migration; newly
   rejected unsound programs require real effects or the shared generic row.
   An unexplained flip or sound-program rejection blocks completion. Distinct-tail
@@ -694,7 +700,7 @@ Documentation uses `Refs #616`; no issue-closing directive belongs in these docs
 - [ ] **AC9 — examples/docs**: add and verify a pure caller example and a corrected
   noisy callback example (twice output). Update the example manifest and applicable
   effect limitations. Fragment explains the soundness change and remaining #1718.
-- [ ] **AC10 — completion**: all focused/core/lint/boundary/size gates pass;
+- [ ] **AC10 — completion**: all focused/core/lint/boundary/size/changelog gates pass;
   evidence records hashes, exact commands and mutation checks. Local commits only.
 
 ## Sprint and scope

@@ -5,7 +5,11 @@ Refs #616. Re-plan dated 2026-10-09; supersedes PR #1678.
 **Design:** [m-effect-row-var-unification.md](m-effect-row-var-unification.md)
 **Duration:** 5 days, approximately 24–30 hours including contingency.
 **Risk:** High: effect soundness, row solver interactions and streaming consumers.
-**Base:** dev `3d4f49720` (PR #1708, M-EFFECT-LATENT-FUNCTION-VALUES).
+**Base:** current dev; minimum required dependency `3d4f49720` (PR #1708,
+M-EFFECT-LATENT-FUNCTION-VALUES). The sweep base is the executor branch's actual
+merge-base with dev, recorded by SHA (see M4).
+**Ordering:** this sprint runs BEFORE M-PURE-ROW-AND-IFACE-PURITY (#1443), which
+re-measures its pins after this lands. They must not run in parallel.
 **Approval:** proposed; execution awaits plan approval through the coordinator.
 The design unpark/re-scope and this plan must travel in the same planning PR.
 
@@ -84,6 +88,11 @@ from its freshly built base/fixed toolchain before creating `.ail` fixtures.
 `typechecker_functions.go`, new `internal/types/typechecker_app_effects.go` and
 `internal/types/typechecker_app_effects_test.go`; existing substitution/row-unifier
 files only if the minimal constraint repair demonstrably requires them.
+**Size note:** `typechecker_functions.go` is 781 lines (CI limit 800). M1 edits it, but
+new code goes in companion files (`typechecker_app_effects.go`); keep its net growth
+at or near zero.
+**Rebase note:** #1706 (alias closure) may land first. Expect to rebase over its edits
+to `internal/pipeline/pipeline_module_compile.go` and `phases.go`.
 **Example/fixture:** temporary pipeline source modules for runIt, runTwice and
 retOnly; persistent runnable demos belong to M3.
 
@@ -175,7 +184,12 @@ the contract anyway. Use NoCache in pipeline fixtures and fresh runtime paths.
 
 ### Reproducible sweep protocol (AC7/AC8)
 
-- At M1, build the base binary from `3d4f49720` and preserve its matching source
+- At M1, compute `git merge-base HEAD origin/dev` on the executor branch and build
+  the base binary from **that** SHA (record it). `3d4f49720` (#1708) is only the
+  minimum required dependency, not the base: #1707 has since changed `effects.go`,
+  `effect_subsumption.go`, `validate_effects*.go` and `pipeline_single.go`, so a
+  `3d4f49720` base would misreport flips. If the branch is rebased (e.g. over #1706),
+  rebuild the base from the new merge-base and record both. Preserve its matching source
   and stdlib in a detached worktree or read-only source snapshot. Never switch a
   dirty branch. Record full SHA, binary hash, build command/version and Go version.
   Build fixed binary from the final executor tree and record commit/tree hash.
@@ -214,7 +228,9 @@ per-file records and flip classification. Reuse existing example audit tools whe
 possible, extending only the missing full recursive/std comparison support.
 
 **Documentation:** create the implementation changelog fragment
-`changelogs/unreleased/m-effect-row-var-unification.md` (do not edit root CHANGELOG).
+`changelogs/unreleased/<YYYY-MM-DD>-effect-row-var-unification.md` (dated the day it is written;
+do not edit root CHANGELOG or `changelogs/v*-current.md`). It must open with a
+`### Fixed — …` heading and pass `make check-changelog`.
 Name **every flipped path** with before/after, cause and migration, including new
 accepts requiring no action; if there are none say so with corpus counts. Explain
 static soundness versus the unchanged runtime capability backstop and remaining
@@ -228,6 +244,7 @@ make test-core
 make lint
 make check-boundaries
 make check-file-sizes
+make check-changelog
 ```
 
 Run working-example checks/runs and corpus comparisons in addition to these gates.
@@ -238,7 +255,7 @@ no arbitrary coverage percentage substitutes for the regression matrix.
 
 **Acceptance:** AC7–AC10 pass; inventory fully accounted for, all flips have
 per-file migrations, streaming users have explicit evidence, no touched file
-exceeds the CI size limit. Re-run focused checks only after relevant changes.
+exceeds the CI size limit, fragment passes `make check-changelog`. Re-run focused checks only after relevant changes.
 Executor makes local commits with `Refs #616`, cannot push or merge. Send results
 through the coordinator for sprint-evaluator review after execution.
 

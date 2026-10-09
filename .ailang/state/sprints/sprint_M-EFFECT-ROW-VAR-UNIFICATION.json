@@ -12,7 +12,7 @@
     1718
   ],
   "supersedes_pr": 1678,
-  "base_commit": "3d4f49720",
+  "base_commit": "merge-base of the executor branch with dev (record SHA at M1)",
   "dependency_pr": 1708,
   "approval_status": "pending",
   "execution_gate": "Coordinator plan approval required before sprint-executor implementation.",
@@ -27,7 +27,7 @@
     "target_loc_per_day": 140,
     "estimated_total_loc": 700,
     "estimated_days": 5,
-    "basis": "Shallow history prevents measured LOC/day; 858 raw lines in prior sprint without timing; 24\u201330 hours includes about 25% contingency."
+    "basis": "Shallow history prevents measured LOC/day; 858 raw lines in prior sprint without timing; 24–30 hours includes about 25% contingency."
   },
   "registry_reuse": [
     {
@@ -114,9 +114,9 @@
         "M3_REGRESSIONS"
       ],
       "acceptance_criteria": [
-        "Design AC7: cold-cache base/fixed ailang check records every examples/**/*.ail and std/**/*.ail path, commands/status/diagnostics, matching stdlib, and streaming consumer probes.",
-        "Design AC8: each flipped path in changelogs/unreleased/m-effect-row-var-unification.md has before/after, reason and migration; unexplained flips and valid streaming regressions block completion.",
-        "Design AC10: focused go tests, make test-core, make lint, make check-boundaries and make check-file-sizes pass; no full make test.",
+        "Design AC7: cold-cache base (executor branch merge-base with dev, SHA recorded)/fixed ailang check records every examples/**/*.ail and std/**/*.ail path, commands/status/diagnostics, matching stdlib, and streaming consumer probes.",
+        "Design AC8: each flipped path in changelogs/unreleased/<YYYY-MM-DD>-effect-row-var-unification.md (opening with a `### Fixed — …` heading) has before/after, reason and migration; unexplained flips and valid streaming regressions block completion.",
+        "Design AC10: focused go tests, make test-core, make lint, make check-boundaries, make check-file-sizes and make check-changelog pass; no full make test.",
         "Validation Markdown and per-file JSON evidence recorded; local commits only, no push; coordinator evaluator handoff after execution."
       ],
       "passes": null,
@@ -130,7 +130,8 @@
     "make test-core",
     "make lint",
     "make check-boundaries",
-    "make check-file-sizes"
+    "make check-file-sizes",
+    "make check-changelog"
   ],
   "executor_notes": [
     "No full make test: SIGBUS in RAM-backed /tmp.",
@@ -138,8 +139,16 @@
     "typechecker_core.go is exactly 800 lines; new logic in companion files.",
     "No standalone CallEffects[appID]; extend existing publication.",
     "#1718 out of scope unless trivially shared.",
-    "All example/std flips require a named changelog fragment entry with migration."
+    "All example/std flips require a named changelog fragment entry with migration.",
+    "typechecker_functions.go is 781 lines; M1 edits it but new code goes in companion files (typechecker_app_effects.go).",
+    "#1706 (alias closure) may land first; expect to rebase on pipeline_module_compile.go/phases.go and rebuild the sweep base from the new merge-base.",
+    "Sweep base = executor branch merge-base with dev (record SHA); 3d4f49720 is the minimum dependency only.",
+    "Changelog fragment: changelogs/unreleased/<YYYY-MM-DD>-effect-row-var-unification.md, opening with `### Fixed — …`.",
+    "Runs before M-PURE-ROW-AND-IFACE-PURITY (#1443); never in parallel with it."
   ],
   "validation_report": "design_docs/planned/v1_0_0/m-effect-row-var-unification-validation.md",
-  "validation_evidence": ".ailang/state/sprints/validation_M-EFFECT-ROW-VAR-UNIFICATION.json"
+  "validation_evidence": ".ailang/state/sprints/validation_M-EFFECT-ROW-VAR-UNIFICATION.json",
+  "minimum_dependency_commit": "3d4f49720",
+  "sweep_base": "Build the base binary from the executor branch's actual merge-base with dev and record that SHA. 3d4f49720 (#1708) is only the minimum required dependency: #1707 has since changed effects.go, effect_subsumption.go, validate_effects*.go and pipeline_single.go, so a 3d4f49720 base would misreport flips.",
+  "ordering": "Runs BEFORE M-PURE-ROW-AND-IFACE-PURITY (#1443), which re-measures its pins after this lands. They must not run in parallel."
 }
