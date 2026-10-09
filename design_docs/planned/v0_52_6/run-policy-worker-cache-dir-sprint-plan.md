@@ -8,8 +8,12 @@ Refs #1547
 - **Target:** v0.52.6 (checkout v0.52.5)
 - **Duration:** 2 days, approximately 10 hours including 25% contingency.
 - **Risk:** Medium: subprocess cleanup and filesystem trust boundary.
-- **Design:** [run-policy-worker-cache-dir.md](run-policy-worker-cache-dir.md)
-- **Neighbour:** [run-policy-result-line-forgeable.md](run-policy-result-line-forgeable.md) (#1548 / PR #1679).
+- **Design:** [run-policy-worker-cache-dir.md](../ailang-core-triage/run-policy-worker-cache-dir.md)
+- **Neighbour:** [run-policy-result-line-forgeable.md](../ailang-core-triage/run-policy-result-line-forgeable.md) (#1548; sprint M-RUN-POLICY-RESULT-UNFORGEABLE).
+
+## Ordering: runs after M-RUN-POLICY-RESULT-UNFORGEABLE
+
+This sprint executes **after** the M-RUN-POLICY-RESULT-UNFORGEABLE implementation (Refs #1548) has landed on `dev`. Both edit `cmd/ailang/run_policy_supervise.go`; #1548 introduces the fresh-line `supervisorLine` helper that keeps supervisor lines on their own line, distinct from marked worker output. This sprint's in-sandbox-cache `warning:` line is emitted **through that `supervisorLine` helper**, not with a raw `fmt.Fprintf(os.Stderr, ...)`. If the executor finds #1548's implementation not yet on `dev`, it stops and reports BLOCKED rather than re-implementing the helper.
 
 ## Goal and current status
 
@@ -26,7 +30,7 @@ The seven-day velocity script found only one planning commit in this shallow che
 - If supervisor `TMPDIR` places the generated directory inside the sandbox (including a symlink alias), remove it and refuse with a clear explanation. Do not fall back silently or warn-and-proceed for generated defaults.
 - Use symlink-aware containment. `entryInsideSandbox` resolves existing paths, but an operator path may not yet exist: resolve its nearest existing ancestor and append missing components before testing containment, or reuse an existing equivalent helper. Test a missing cache leaf under a symlink into the sandbox. Keep this limited to cache placement; do not alter entry admission semantics.
 - Only compilation in the worker writes the generated outside cache; the confined program's FS handler cannot write there. `trusted_host` retains full environment passthrough and existing defaults.
-- Warning text begins with `warning:` and never `policy`. Reuse established refusal handling for errors and check compatibility with #1548's authoritative result channel. No changes to result-channel parsing are part of this sprint.
+- Warning text begins with `warning:` and never `policy`. Reuse established refusal handling for errors and emit the warning through #1548's `supervisorLine` helper. No changes to result-channel parsing are part of this sprint.
 - Exclude persistent shared caching, cache-format verification, removal of old in-sandbox caches, and #1548 implementation.
 
 ## Registry reuse audit
@@ -55,7 +59,7 @@ Add the allowlist entry and thread the selected default into `workerEnv`, updati
 
 **Estimate:** 115 integration-test + 25 documentation LOC; Day 2, 5 hours including contingency.
 **Dependencies:** M1.
-**Files:** `cmd/ailang/run_policy_supervise_test.go`, `docs/docs/reference/env-vars.md`, `docs/docs/guides/agent-tool-policy.md`, `changelogs/v0.32-current.md`.
+**Files:** `cmd/ailang/run_policy_supervise_test.go`, `docs/docs/reference/env-vars.md`, `docs/docs/guides/agent-tool-policy.md`, a changelog fragment `changelogs/unreleased/YYYY-MM-DD-run-policy-worker-cache-dir.md` (never `changelogs/v0.32-current.md`).
 
 Use `buildAilang`, `runAilangBin`, `writePolicy`, and existing test fixtures. Capture default temp directories using a dedicated outside-sandbox TMPDIR and verify no `ailang-policy-cache-*` survives. Preserve parent env deliberately with test-local overrides so ambient operator configuration cannot hide regressions.
 
@@ -64,25 +68,27 @@ Use `buildAilang`, `runAilangBin`, `writePolicy`, and existing test fixtures. Ca
 - [ ] In-sandbox override emits exactly one `warning:` line naming poison risk and mitigation while the admitted run succeeds; trusted-host behavior remains compatible.
 - [ ] In-sandbox and symlinked TMPDIR cases refuse, leave no generated directory, and do not execute the program.
 - [ ] Existing timeout, output-limit, admission, output-preservation, and credential suites pass; cleanup exercised on worker-error paths.
-- [ ] Documentation describes cold default compilation, cleanup, override ownership, warning exception, and unsafe-TMPDIR refusal; changelog references #1547.
+- [ ] Documentation describes cold default compilation, cleanup, override ownership, warning exception, and unsafe-TMPDIR refusal; the changelog fragment references #1547.
 
 **Example coverage:** No new language feature or permanent `.ail` example is required. Reuse the existing policy-test example fixtures and the issue's runnable CLI repro. If adding/editing `.ail` fixtures, first obtain `ailang prompt`, then check them with `ailang check` under the appropriate policy context.
-**Risk:** #1548 modifies the same supervisor. Reconcile its current code when executing and run its output tests; cache diagnostics must not impersonate authoritative result lines.
+**Risk:** #1548 modifies the same supervisor and lands first (see Ordering). Build on its code, emit the warning via `supervisorLine`, and run its output tests; cache diagnostics must not impersonate authoritative result lines.
 
 ## Validation and success metrics
 
-Run focused `go test ./cmd/ailang -run 'TestWorkerEnv|TestRunPolicy' -count=1`, then the full `go test ./cmd/ailang` suite. Format changed Go files and run `make lint` and `make test` before completion. Run `make check-boundaries` if execution introduces any cross-package dependency. Planning itself does not claim implementation tests have passed.
+Run focused `go test ./cmd/ailang/... -run 'TestWorkerEnv|TestRunPolicy|TestPolicy' -count=1` (add `-run` filters for any new test names), plus `make test-core`. Format changed Go files and run `make lint` before completion. Do **not** run the full `make test` (or an unfiltered `go test ./cmd/ailang/...`) locally: in the executor's RAM-backed /tmp the full suite has crashed with SIGBUS. The full suite runs in CI on the PR. Run `make check-boundaries` if execution introduces any cross-package dependency. Planning itself does not claim implementation tests have passed.
 
 Coverage target is behavioral: every new environment/placement branch and every post-allocation exit path listed above has a regression, with no regression in existing policy suites. Record cold-run latency for the small repro and compare with an external persistent override; do not gate correctness on an arbitrary performance threshold. No new permanent files in the sandbox and no leaked generated temp caches are permitted.
 
 ## Execution handoff and PR body
 
-Use the plan and `.ailang/state/sprints/sprint_M-RUN-POLICY-WORKER-CACHE.json` after sprint-plan approval. Both milestones start unexecuted. The coordinator's merge/approval workflow routes the artifacts to sprint-executor; this planning task does not self-approve or begin implementation. Do not open a new issue or close #1548.
+Use the plan and `.ailang/state/sprints/sprint_M-RUN-POLICY-WORKER-CACHE.json` after sprint-plan approval. Both milestones start unexecuted. The coordinator's merge/approval workflow routes the artifacts to sprint-executor; this planning task does not self-approve or begin implementation. Do not open a new issue. #1548 is owned by its own sprint; reference it only as `Refs #1548`.
+
+Executor rules: re-run `.claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-RUN-POLICY-WORKER-CACHE` before starting and after every sprint JSON update. The executor cannot push or merge; it commits locally (messages carry `Refs #1547`) and the coordinator raises the PR.
 
 Suggested plan PR body:
 
 > Refs #1547
 >
-> Plans restricted worker cache forwarding and private per-run default isolation, with explicit unsafe-TMPDIR refusal, cleanup regressions, and operator documentation. Includes two milestones over two days and machine-readable progress state. Cross-links the neighbouring #1548 result-channel design without implementing it.
+> Plans restricted worker cache forwarding and private per-run default isolation, with explicit unsafe-TMPDIR refusal, cleanup regressions, and operator documentation. Includes two milestones over two days and machine-readable progress state. Cross-links the neighbouring #1548 result-channel design without implementing it; runs after that sprint lands.
 >
 > Validation: sprint JSON schema, milestone dependencies, estimates, and populated registry decisions checked. Implementation tests are scheduled in the plan.
