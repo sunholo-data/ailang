@@ -82,7 +82,7 @@ echo "── Running Tests ─────────────────�
 TESTS_PASS=false
 TESTS_OUTPUT=""
 case "$CI_RESULT" in
-    CI_GATE=pass*|CI_GATE=fail*|CI_GATE=pending*) GATE_SOURCE="ci" ;;
+    CI_GATE=pass*|CI_GATE=fail*|CI_GATE=pending*|CI_GATE=error*) GATE_SOURCE="ci" ;;
 esac
 if [ "$GATE_SOURCE" = "ci" ]; then
     echo "From CI: ${CI_RESULT#CI_GATE=}"
@@ -93,6 +93,11 @@ if [ "$GATE_SOURCE" = "ci" ]; then
             echo "⏳ CI still running. Re-run: $(dirname "$0")/ci_gate.sh $GATE_BRANCH"
             echo "   until it prints CI_GATE=pass or CI_GATE=fail (each call waits up to 4 minutes)."
             echo "   Do NOT run make test yourself: CI is running the full suite on this head." ;;
+        CI_GATE=error*)
+            # Unreadable is not "no PR": falling back to local gates here is how
+            # an auth failure once turned into a silent local run.
+            TESTS_OUTPUT="CI verdict unreadable: ${CI_RESULT#CI_GATE=error }"
+            echo "❌ Tests NOT CONFIRMED: $TESTS_OUTPUT" ;;
         *) TESTS_OUTPUT="${CI_RESULT#CI_GATE=fail }"; echo "❌ Tests FAIL (CI)"; echo "$TESTS_OUTPUT" ;;
     esac
 elif [ -n "${EVAL_PACKAGES:-}" ]; then
