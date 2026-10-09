@@ -3,7 +3,7 @@
 Refs #903 (related deadline umbrella: #1259)
 
 **Design:** [m-codex-subscription-lane.md](m-codex-subscription-lane.md)
-**Status:** Ready for sprint-plan review; implementation not started.
+**Status:** Phase 1 (M1–M2) implemented and locally validated; STOP at the Phase 1 boundary. D8 and Phase 2 are separate gated runs.
 **Duration:** 6 engineering days (Phase 1: 2; Phase 2: 4) plus a half-day D8 measurement step, excluding release waiting, the D8 ruling and external ops work.
 
 ## Execution is split into three separate runs
@@ -45,10 +45,10 @@ Every milestone records action `none` for registry packages, with existing Go co
 
 **Acceptance criteria:**
 
-- [ ] Re-audit GuessProvider, ProviderFromString, EnvVarForProvider, factory.New and envpolicy callers before edits; record mission spawn-recipe pins reaching the codex executor rather than the AI effect.
-- [ ] ProviderCodex sentinel covers codex* guesses and string parsing; no API-key variable is associated with it; direct and registry-fallback construction pin the actionable #903 error pointing to chatgpt/.
-- [ ] Motoko preflight checks subscription credentials and classifies the sentinel as subscription; mission executor routing and explicit provider: openai registry rows retain their behavior.
-- [ ] Existing provider-prefix fixtures and coordinator spawn-recipe regression tests pass.
+- [x] Re-audit GuessProvider, ProviderFromString, EnvVarForProvider, factory.New and envpolicy callers before edits; record mission spawn-recipe pins reaching the codex executor rather than the AI effect.
+- [x] ProviderCodex sentinel covers codex* guesses and string parsing; no API-key variable is associated with it; direct and registry-fallback construction pin the actionable #903 error pointing to chatgpt/.
+- [x] Motoko preflight checks subscription credentials and classifies the sentinel as subscription; mission executor routing and explicit provider: openai registry rows retain their behavior.
+- [x] Existing provider-prefix fixtures and coordinator spawn-recipe regression tests pass.
 
 **Examples:** Phase 1 uses routing and hung-stream Go fixtures plus README migration examples; no new language behavior.
 
@@ -60,11 +60,11 @@ Every milestone records action `none` for registry packages, with existing Go co
 
 **Acceptance criteria:**
 
-- [ ] Default HTTP deadline is 10 minutes, WithTimeout overrides it, and a continuously streaming httptest response terminates at the configured deadline; earlier context cancellation also works.
-- [ ] No parallel timeout flag or env variable is introduced; #1259 absorption is documented.
-- [ ] README describes subscription-first auth and the explicitly metered alternative; preserve the already-landed supersession banner rather than duplicating it.
-- [ ] A1–A5 and the focused checks below pass; Phase 1 can ship independently before any Phase 2 code is merged.
-- [ ] **Phase 1 STOP.** The executor commits M1–M2 locally with `Refs #903`, reports the Phase 1 result, and stops. It does not begin D8 or M3 in the same run.
+- [x] Default HTTP deadline is 10 minutes, WithTimeout overrides it, and a continuously streaming httptest response terminates at the configured deadline; earlier context cancellation also works.
+- [x] No parallel timeout flag or env variable is introduced; #1259 absorption is documented.
+- [x] README describes subscription-first auth and the explicitly metered alternative; preserve the already-landed supersession banner rather than duplicating it.
+- [x] A1–A5 and the focused checks below pass; Phase 1 can ship independently before any Phase 2 code is merged.
+- [x] **Phase 1 STOP.** The executor commits M1–M2 locally with `Refs #903`, reports the Phase 1 result, and stops. It does not begin D8 or M3 in the same run.
 
 **Examples:** Phase 1 uses routing and hung-stream Go fixtures plus README migration examples; no new language behavior.
 

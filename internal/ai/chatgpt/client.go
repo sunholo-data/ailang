@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 )
@@ -16,6 +17,9 @@ import (
 // DefaultBaseURL is the ChatGPT codex backend. It speaks only the streaming
 // Responses API.
 const DefaultBaseURL = "https://chatgpt.com/backend-api/codex"
+
+// DefaultTimeout bounds the entire HTTP response, including continuous SSE output.
+const DefaultTimeout = 10 * time.Minute
 
 // ModelPrefix routes a model to this provider ("chatgpt/gpt-6.1-sol"); it is
 // stripped before the request.
@@ -39,6 +43,12 @@ type Option func(*Client)
 // WithBaseURL points the client at another endpoint (tests).
 func WithBaseURL(u string) Option { return func(c *Client) { c.baseURL = strings.TrimRight(u, "/") } }
 
+// WithTimeout overrides the total HTTP deadline (zero disables it).
+// This absorbs the interim client deadline portion of #1259 without a new flag.
+func WithTimeout(timeout time.Duration) Option {
+	return func(c *Client) { c.httpClient.Timeout = timeout }
+}
+
 // WithCredential pins the credential instead of reading auth.json (tests).
 func WithCredential(cred Credential) Option {
 	return func(c *Client) { c.load = func() (Credential, error) { return cred, nil } }
@@ -47,7 +57,7 @@ func WithCredential(cred Credential) Option {
 // NewClient builds a client. The credential is read per request, so a token
 // codex refreshed mid-run is picked up.
 func NewClient(opts ...Option) *Client {
-	c := &Client{baseURL: DefaultBaseURL, httpClient: &http.Client{}, load: LoadCredential}
+	c := &Client{baseURL: DefaultBaseURL, httpClient: &http.Client{Timeout: DefaultTimeout}, load: LoadCredential}
 	for _, o := range opts {
 		o(c)
 	}

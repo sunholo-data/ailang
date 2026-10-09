@@ -49,7 +49,7 @@ func requireProviderCredential(model string) error {
 	// The ChatGPT subscription lane carries no env key: its credential is the
 	// codex CLI's login, which the child reads from $HOME. Refuse here rather
 	// than 401 inside motoko.
-	if provider == ai.ProviderChatGPT {
+	if provider == ai.ProviderChatGPT || provider == ai.ProviderCodex {
 		if _, err := chatgpt.LoadCredential(); err != nil {
 			return fmt.Errorf("motoko model %q runs on the ChatGPT subscription lane: %w — refusing run", model, err)
 		}
@@ -72,7 +72,8 @@ func requireProviderCredential(model string) error {
 // ChatGPT lane is a subscription, so its priced cost is list-price-equivalent,
 // never metered spend.
 func motokoAuthLane(model string) executor.AuthLane {
-	if ai.GuessProvider(model) == ai.ProviderChatGPT {
+	provider := ai.GuessProvider(model)
+	if provider == ai.ProviderChatGPT || provider == ai.ProviderCodex {
 		return executor.AuthLaneSubscription
 	}
 	return executor.AuthLaneForModel(model)
