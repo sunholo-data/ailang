@@ -106,7 +106,7 @@ func (e *Executor) prepareNamedTests(cases []TestCase, properties []PropertyCase
 		}
 	}
 
-	base, lineMap := e.stripWithLineMap(string(src), e.sourceFile, nil)
+	base, lineMap := e.stripTestBlocks(string(src), e.sourceFile)
 	es := newEntrySource(base)
 	entries := make(map[ast.Expr]namedEntry)
 	for _, tc := range cases {

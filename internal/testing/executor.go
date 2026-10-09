@@ -191,7 +191,7 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 		hasModule = e.sourceFile.Module != nil
 		src, err := os.ReadFile(e.modulePath)
 		if err == nil {
-			baseSource = e.stripNonPureFunctions(string(src), e.sourceFile)
+			baseSource, _ = e.stripTestBlocks(string(src), e.sourceFile)
 		}
 		// If read fails, baseSource stays empty — we'll wrap in a synthetic module below.
 	}

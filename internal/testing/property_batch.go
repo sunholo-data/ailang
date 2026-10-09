@@ -63,7 +63,7 @@ func (e *Executor) forallCaller(p *ast.Property) (propertyCall, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read source file: %w", err)
 	}
-	base, lineMap := e.stripWithLineMap(string(src), e.sourceFile, nil)
+	base, lineMap := e.stripTestBlocks(string(src), e.sourceFile)
 	es := newEntrySource(base)
 	ent := es.add(namedBatchPrefix+"prop_0", binderParams(p), PrintAILANGSource(p.Expr), p.Pos.Line)
 	ent.label = "property"

@@ -1,10 +1,12 @@
 {
   "sprint_id": "M-NAMED-TEST-EFFECTFUL-HELPER",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-08T08:43:46.322392+00:00",
   "design_doc": "design_docs/planned/v0_53_0/m-named-test-effectful-helper.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-named-test-effectful-helper-sprint-plan.md",
-  "github_issues": [],
+  "github_issues": [
+    1640
+  ],
   "registry_reuse": [
     {
       "milestone": "M1",
@@ -62,10 +64,10 @@
         "Existing binding-extraction and malformed-control tests retain their behavior; uncalled effectful helpers do not execute.",
         "Focused source-strip and named-batch tests pass; edited Go files are formatted."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T06:22:10.622779+00:00",
+      "completed": "2026-10-09T06:22:10.622779+00:00",
+      "notes": "Regression failed with undefined inc before retention; focused strip/batch/property tests pass."
     },
     {
       "id": "M2",
@@ -110,5 +112,6 @@
       "completed": null,
       "notes": null
     }
-  ]
+  ],
+  "last_checkpoint": "M1"
 }
