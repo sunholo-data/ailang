@@ -55,6 +55,7 @@ type namedBatch struct {
 }
 
 type namedEntry struct {
+	title  string
 	name   string
 	checks []CheckInfo
 	// Lines [first, last] of this entry in the batched source, and the test's
@@ -120,6 +121,7 @@ func (e *Executor) prepareNamedTests(cases []TestCase, properties []PropertyCase
 		name := fmt.Sprintf("%s%d", namedBatchPrefix, len(entries))
 		ent := es.add(name, "", PrintAILANGSource(folded), tc.Location.Line)
 		ent.checks = checks
+		ent.title = tc.Name
 		entries[tc.Body[0]] = ent
 	}
 	props := make(map[*ast.Property]namedEntry)
@@ -130,6 +132,7 @@ func (e *Executor) prepareNamedTests(cases []TestCase, properties []PropertyCase
 		name := fmt.Sprintf("%sprop_%d", namedBatchPrefix, len(props))
 		ent := es.add(name, binderParams(pc.Property), PrintAILANGSource(pc.Property.Expr), pc.Property.Pos.Line)
 		ent.label = "property"
+		ent.title = pc.Name
 		props[pc.Property] = ent
 	}
 	if len(entries)+len(props) == 0 {
@@ -138,7 +141,20 @@ func (e *Executor) prepareNamedTests(cases []TestCase, properties []PropertyCase
 
 	res, err := e.runNamedTestPipeline(es.String(), e.sourceFile.Module != nil)
 	if err != nil {
-		e.batchFailure = &BatchFailure{Module: e.modulePath, Reason: err.Error()}
+		reason := e.mapPositions(err.Error(), namedEntry{}, lineMap)
+		for _, ent := range entries {
+			if strings.Contains(err.Error(), "Effect checking failed for function '"+ent.name+"'\n") {
+				reason = e.mapEntryEffectError(reason, ent)
+				break
+			}
+		}
+		for _, ent := range props {
+			if strings.Contains(err.Error(), "Effect checking failed for function '"+ent.name+"'\n") {
+				reason = e.mapEntryEffectError(reason, ent)
+				break
+			}
+		}
+		e.batchFailure = &BatchFailure{Module: e.modulePath, Reason: reason}
 		return
 	}
 	e.cacheModules(&res)

@@ -85,10 +85,10 @@
         "An effectful test triggers truthful D1 fallback; valid pure sibling tests still pass, and no user error is called a harness bug.",
         "Property effect errors identify the property rather than a named test, and property fallback preserves source mapping and seeded behavior."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T06:25:35.780034+00:00",
+      "completed": "2026-10-09T06:25:35.780034+00:00",
+      "notes": "Failing diagnostics reproduced first; mapper, engine parity, mixed siblings, invalid helpers, and strict compile-failure accounting pass. Evaluator fallback now compiles a pure entry."
     },
     {
       "id": "M3",
@@ -113,5 +113,5 @@
       "notes": null
     }
   ],
-  "last_checkpoint": "M1"
+  "last_checkpoint": "M2"
 }

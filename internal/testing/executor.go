@@ -166,16 +166,9 @@ func (e *Executor) evaluateEnsuresHarnessCore(harnessExpr core.CoreExpr) (eval.V
 // EvaluateNamedTestBodyExprs evaluates the body expressions of a named test block.
 //
 // This is the execution path for `test "name" { <exprs> }` blocks.
-// It reuses the module-scope elaboration approach from the inline-test harness (v0.4.7):
-//
-//  1. Reads the source file, strips non-pure functions, appends the body expressions
-//     (using their AST string representations) to the source text.
-//  2. Runs the combined source through the full pipeline (including OpLowering) to
-//     produce a Core program where the body expressions are the final decls.
-//  3. Evaluates the Core program with EvalCoreProgram (returns last value).
-//
-// This ensures arithmetic operators (via OpLowering) and all module-scope bindings
-// work correctly — exactly the same pipeline path used by inline-test evaluation.
+// It retains module declarations, removes test/property blocks, and compiles
+// the folded body as a pure entry through the full pipeline. The evaluator
+// calls that entry with module-scoped bindings, just as the batch and VM do.
 //
 // Returns the final evaluated value so the caller can check the bool pass/fail contract.
 func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value, error) {
@@ -186,12 +179,14 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	// Build source: stripped file content + body expressions appended.
 	// Try to read the source file; fall back to empty if unavailable (unit tests with fake paths).
 	var baseSource string
+	var lineMap []int
+	ent := e.entryForBody(bodyExprs)
 	var hasModule bool
 	if e.sourceFile != nil {
 		hasModule = e.sourceFile.Module != nil
 		src, err := os.ReadFile(e.modulePath)
 		if err == nil {
-			baseSource, _ = e.stripTestBlocks(string(src), e.sourceFile)
+			baseSource, lineMap = e.stripTestBlocks(string(src), e.sourceFile)
 		}
 		// If read fails, baseSource stays empty — we'll wrap in a synthetic module below.
 	}
@@ -221,6 +216,9 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	// fall back to the evaluator below, unless --strict-bytecode.
 	if e.bytecode {
 		val, vmErr := e.evalNamedTestBodyOnVM(baseSource, hasModule, folded, len(checks) > 0)
+		if vmErr != nil {
+			vmErr = &mappedError{msg: e.mapEntryCompileError(vmErr.Error(), ent, lineMap), err: vmErr}
+		}
 		switch {
 		case vmErr == nil:
 			e.engine.VMBodies++
@@ -236,31 +234,20 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 		}
 	}
 
-	// Append the folded body expression.
-	// Use PrintAILANGSource (not expr.String()) because String() uses prefix
-	// notation for FuncCall which is not valid AILANG syntax.
-	//
-	// IMPORTANT: The top-level expression must NOT be an *ast.Let node.
-	// ElaborateFile skips top-level *ast.Let statements (they are treated as
-	// module-level let bindings that wrap functions, not free expressions).
-	// Wrapping in a block "{ expr }" makes it an *ast.Block at the top level,
-	// which is elaborated as a regular expression and evaluates correctly.
-	var sb strings.Builder
-	sb.WriteString(baseSource)
-	sb.WriteString("\n")
-	sb.WriteString("{ ")
-	sb.WriteString(PrintAILANGSource(folded))
-	sb.WriteString(" }")
-	sb.WriteString("\n")
+	// Use a pure function on the evaluator fallback too. A free top-level
+	// expression does not enforce the named-test purity contract when it
+	// calls a retained effectful helper.
+	es := newEntrySource(baseSource)
+	generated := es.add(namedTestEntry, "", PrintAILANGSource(folded), ent.testLine)
+	ent.first, ent.last = generated.first, generated.last
 
-	pipelineResult, err := e.runNamedTestPipeline(sb.String(), hasModule)
+	pipelineResult, err := e.runNamedTestPipeline(es.String(), hasModule)
 	if err != nil {
 		if e.batchFailure != nil {
 			e.perBodyCompileFailures++
 		}
-		return nil, err
+		return nil, &mappedError{msg: e.mapEntryCompileError(err.Error(), ent, lineMap), err: err}
 	}
-	coreProg := pipelineResult.Artifacts.Core
 
 	// Cache modules for future use.
 	e.cacheModules(&pipelineResult)
@@ -269,7 +256,11 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	// This ensures function bindings are in scope when the body expression is evaluated.
 	evaluator := e.newHarnessEvaluator()
 
-	val, err := evaluator.EvalCoreProgram(coreProg)
+	fn, ok := evaluator.Env().Get(e.rootModule + "." + namedTestEntry)
+	if !ok {
+		return nil, fmt.Errorf("test body entry is not bound in the test harness")
+	}
+	val, err := evaluator.CallValueN(fn, nil)
 	if err != nil {
 		return nil, fmt.Errorf("evaluation error: %w", err)
 	}

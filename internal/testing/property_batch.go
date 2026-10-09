@@ -67,6 +67,12 @@ func (e *Executor) forallCaller(p *ast.Property) (propertyCall, error) {
 	es := newEntrySource(base)
 	ent := es.add(namedBatchPrefix+"prop_0", binderParams(p), PrintAILANGSource(p.Expr), p.Pos.Line)
 	ent.label = "property"
+	for _, d := range e.sourceFile.Decls {
+		if pd, ok := d.(*ast.PropertyDecl); ok && pd.Property == p {
+			ent.title = pd.Name
+			break
+		}
+	}
 	res, err := e.runNamedTestPipeline(es.String(), e.sourceFile.Module != nil)
 	if err != nil {
 		if e.batchFailure != nil {
@@ -74,7 +80,7 @@ func (e *Executor) forallCaller(p *ast.Property) (propertyCall, error) {
 		}
 		// The compile error names the private temp file; point it at the
 		// user's file and the property's own line instead (D5).
-		return nil, &mappedError{msg: e.mapPositions(err.Error(), ent, lineMap), err: err}
+		return nil, &mappedError{msg: e.mapEntryCompileError(err.Error(), ent, lineMap), err: err}
 	}
 	e.cacheModules(&res)
 	return e.callerFor(ent, lineMap, e.modules, e.rootModule), nil
@@ -92,7 +98,7 @@ func (e *Executor) callerFor(ent namedEntry, lineMap []int, modules map[string]*
 		}
 		v, err := ev.CallValueN(fn, args)
 		if err != nil {
-			return nil, &mappedError{msg: e.mapPositions(err.Error(), ent, lineMap), err: err}
+			return nil, &mappedError{msg: e.mapEntryCompileError(err.Error(), ent, lineMap), err: err}
 		}
 		return v, nil
 	}
