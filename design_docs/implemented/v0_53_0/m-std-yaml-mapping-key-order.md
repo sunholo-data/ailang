@@ -1,6 +1,6 @@
 # M-STD-YAML-MAPPING-KEY-ORDER: `std/yaml` preserves YAML mapping key order
 
-**Status**: Implementation complete; awaiting coordinator evaluation
+**Status**: Implemented on dev in #1638 (f34214657; closes #1621), ships in v0.53.0. Prior status: Implementation complete; awaiting coordinator evaluation.
 **Target**: v0.53.0
 **Priority**: P1 (silent data loss in a shipped stdlib bridge; no correctness/security emergency)
 **Estimated**: ~1 day, ~150–200 LOC including tests (walker ~110 Go LOC in `internal/builtins/yaml.go`, tests ~+50, docs/comments small)
@@ -306,9 +306,9 @@ Single day: M1 spike + walker (~3h), guarantee matrix + re-pins (~3h), docs + ch
 
 ## Related Documents
 
-- [design_docs/implemented/v0_30_0/m-std-yaml.md](../implemented/v0_30_0/m-std-yaml.md) — the shipped bridge this doc amends; its "map keys sorted" phrasing becomes historical.
+- [design_docs/implemented/v0_30_0/m-std-yaml.md](../v0_30_0/m-std-yaml.md) — the shipped bridge this doc amends; its "map keys sorted" phrasing becomes historical.
 - [docs/docs/reference/std-yaml.md](../../../docs/docs/reference/std-yaml.md) — the user-facing contract page to be updated.
-- [design_docs/planned/ailang-core-triage/yaml-decode-loses-mapping-key-order.md](../ailang-core-triage/yaml-decode-loses-mapping-key-order.md) — triage source (Primary item). Secondary 1 (`with`/`recv` reserved words) and Secondary 2 (yaml encode) are **deliberately out of scope here** per the triage dispatch note: separate subsystems, separate docs.
+- [design_docs/planned/ailang-core-triage/yaml-decode-loses-mapping-key-order.md](../../planned/ailang-core-triage/yaml-decode-loses-mapping-key-order.md) — triage source (Primary item). Secondary 1 (`with`/`recv` reserved words) and Secondary 2 (yaml encode) are **deliberately out of scope here** per the triage dispatch note: separate subsystems, separate docs.
 - [internal/builtins/json_decode.go](../../../internal/builtins/json_decode.go) — the ordered-decoder pattern the walker mirrors.
 
 ## References

@@ -3,8 +3,8 @@
   "branch_name": "coordinator/task-08e391aa",
   "sprint_id": "M-STD-YAML-MAPPING-KEY-ORDER",
   "sprint_json_path": ".ailang/state/sprints/sprint_M-STD-YAML-MAPPING-KEY-ORDER.json",
-  "design_doc_path": "design_docs/planned/v0_53_0/m-std-yaml-mapping-key-order.md",
-  "sprint_plan_path": "design_docs/planned/v0_53_0/m-std-yaml-mapping-key-order-sprint-plan.md",
+  "design_doc_path": "design_docs/implemented/v0_53_0/m-std-yaml-mapping-key-order.md",
+  "sprint_plan_path": "design_docs/implemented/v0_53_0/m-std-yaml-mapping-key-order-sprint-plan.md",
   "files_created": [
     ".ailang/state/sprints/M-STD-YAML-MAPPING-KEY-ORDER-implementation.json"
   ],
@@ -12,8 +12,8 @@
     ".ailang/state/sprints/sprint_M-STD-YAML-MAPPING-KEY-ORDER.json",
     "changelogs/v0.32-current.md",
     "design_docs/implemented/v0_30_0/m-std-yaml.md",
-    "design_docs/planned/v0_53_0/m-std-yaml-mapping-key-order-sprint-plan.md",
-    "design_docs/planned/v0_53_0/m-std-yaml-mapping-key-order.md",
+    "design_docs/implemented/v0_53_0/m-std-yaml-mapping-key-order-sprint-plan.md",
+    "design_docs/implemented/v0_53_0/m-std-yaml-mapping-key-order.md",
     "docs/docs/reference/std-yaml.md",
     "internal/builtins/yaml.go",
     "internal/builtins/yaml_test.go",

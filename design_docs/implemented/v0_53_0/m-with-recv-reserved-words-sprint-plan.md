@@ -3,7 +3,7 @@
 **Design:** [Approved design](m-with-recv-reserved-words.md)
 **Sprint ID:** M-WITH-RECV-RESERVED-WORDS
 **Created:** 2026-10-07
-**Status:** Implementation complete locally; validation limitations recorded below.
+**Status:** Implemented, merged in #1639 (28694e3ad). Prior status: Implementation complete locally.
 **Target:** v0.53.0
 **Duration:** 2 working days (12 hours planned work + 3 hours contingency).
 **Risk:** Medium — parameter synchronization must preserve delimiter ownership.
