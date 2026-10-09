@@ -6,7 +6,7 @@
 
 ## Scope and approved decisions
 
-The handoff states the previous design work is approved. This plan uses its recommended D2 (preserve multiline layout), D3 (enforce supported sink positions, reject unsupported ones), and D4 (keep list concat SKIPPED and document interpolation). These choices are explicit for sprint review, not fresh implementation approval. D1 reuses lexer scanning. D5 selects the existing repeatable `--cors-origin https://*.domain` syntax, keeping schemes and ports explicit and avoiding a second flag. Interpret the design's leading wildcard as exactly one host label; do not broaden to arbitrary descendant hosts. Per-route CORS, quasiquote parsing and list-join SMT encoding stay deferred.
+The handoff states the previous design work is approved. This plan uses its recommended D2 (preserve multiline layout), D3 (enforce supported sink positions, reject unsupported ones), and D4 (keep list concat SKIPPED and document interpolation). D2, D3 and D4 are **RULED** (2026-10-08, Mark, as recommended; PR #1697): implement them as written, without re-asking. D1 reuses lexer scanning. D5 selects the existing repeatable `--cors-origin https://*.domain` syntax, keeping schemes and ports explicit and avoiding a second flag. Interpret the design's leading wildcard as exactly one host label; do not broaden to arbitrary descendant hosts. Per-route CORS, quasiquote parsing and list-join SMT encoding stay deferred.
 
 Item 3 shipped in merged design commit f610b897 (#1665); do not repeat the prompt edits. Verify propagation after rebuilding. This remains a partial resolution of the grab-bag: PR body and milestone commits must contain **Refs #1618**, with no new issue and no automatic closing keyword.
 
@@ -14,7 +14,7 @@ Item 3 shipped in merged design commit f610b897 (#1665); do not repeat the promp
 
 Read GitHub issue #1618 and its comments endpoint on 2026-10-08: no comments. Clean starting worktree, branch coordinator/task-2adc9287. Design includes all six live reproductions, source mechanisms and conflict-surface audit. Item 1 differs from the earlier triage because unbalanced braces are required. Planning inspected current originpolicy and normalization implementations; policy still compares exact origins and normalization needs contract traversal.
 
-Available binary is v0.52.5 commit 7200786 and warns it may be stale. Go, gh and jq are absent. No fresh-source build, coverage baseline or source test execution is claimed. Executor must provision the normal Go toolchain and Z3, rebuild, and re-run each design reproducer before changing its slice. If a defect is already fixed, bank the reproduction result and adjust that slice rather than patching blindly. Run `ailang prompt` before writing any .ail fixture.
+Available binary is v0.52.5 commit 7200786 and warns it may be stale. Go, gh and jq are absent. No fresh-source build, coverage baseline or source test execution is claimed. Executor must provision the normal Go toolchain (and Z3 where available; see M4 for the z3-absent rule), rebuild, and re-run each design reproducer before changing its slice. If a defect is already fixed, bank the reproduction result and adjust that slice rather than patching blindly. Run `ailang prompt` before writing any .ail fixture.
 
 ## Velocity and capacity
 
@@ -73,7 +73,7 @@ Implement against the corresponding design slice; first bank its failing reprodu
 Implement against the corresponding design slice; first bank its failing reproducer, then add controls covering the surrounding mechanism.
 
 - [ ] Existing normalization runs over Contract.Expr for requires and ensures, preserving type information, unique node IDs and idempotence.
-- [ ] String and bool interpolation contract examples verify with Z3; body-side controls still verify.
+- [ ] String and bool interpolation contract examples verify with Z3; body-side controls still verify. If `z3` is absent from the executor environment, record this criterion as **skipped (z3 absent)** in the sprint JSON notes and continue; it does not block M4 (the normalization, type-info and residue criteria still apply and are tested without Z3).
 - [ ] Unsupported hole types retain honest residue diagnostics identifying contract interpolation.
 - [ ] List concat remains honestly SKIPPED with documented interpolation guidance; no recursive SMT join encoding is added.
 
@@ -90,6 +90,7 @@ Implement against the corresponding design slice; first bank its failing reprodu
 - [ ] Widget OPTIONS returns 204 with concrete Origin echo and POST reaches handler; hostile lookalike suffix POST returns 403.
 - [ ] REST and WebSocket checks on both listeners use the same matcher; exact/same/missing-origin behavior and allow-all WebSocket semantics retain existing controls.
 - [ ] CLI help and CORS docs explain suffix grants apply globally; per-route scoping remains deferred.
+- [ ] `internal/apiserver/server.go` is already 788 lines: any CORS wiring goes in `internal/platform/originpolicy` or a new file under `internal/apiserver/`, with near-zero net growth in server.go.
 
 ## Day-by-day execution
 
@@ -97,16 +98,18 @@ Implement against the corresponding design slice; first bank its failing reprodu
 - Day 2 (6h): complete M2 preservation and corpus validation (4h), M3 sink-position inventory and failing fixtures (2h).
 - Day 3 (6h): M3 enforcement/rejection, nested-path controls and IFC regressions.
 - Day 4 (6h): M4 normalization/type-info/residue controls (4h), M5 origin parsing and matching (2h).
-- Day 5 (6h): finish M5 integration/CLI docs (3h), full checks and sprint evaluation evidence (3h).
+- Day 5 (6h): finish M5 integration/CLI docs (3h), focused package tests + `make test-core` (full suite runs in CI) and sprint evaluation evidence (3h).
 
 Slices have no functional dependencies; sequential execution reduces shared review churn. M3 is the critical uncertainty. M2 risk is mismatched literal/token attachment; payload equality and existing roundtrip gates are mandatory. M4 risk is proving a different tree than runtime; use the shared typed pass, never verify-only rewriting. M5 risk is widening an origin grant; scheme, port, label boundary and malformed-input negative tests define the grant.
 
 ## Validation and completion
 
-Run targeted Go package tests for each changed slice, formatter corpus/roundtrip gates and IFC fixtures. Execute .ail examples with their required capabilities and `ailang check`; contract examples additionally require Z3 verification. Use existing repository test commands rather than a new harness. On completion run `make test`, `make fmt`, `make lint`, `make check-boundaries` and `make check-prompt-freeze`. Compare source/embedded prompt registries and verify rebuilt `ailang prompt` teaches milliseconds. Record deployed MCP-host propagation as a separate deployment requirement; this sprint does not claim a redeploy.
+Run targeted Go package tests for each changed slice, formatter corpus/roundtrip gates and IFC fixtures. Execute .ail examples with their required capabilities and `ailang check`; contract examples additionally require Z3 verification (recorded as skipped if z3 is absent, per M4). Use existing repository test commands rather than a new harness. Do **not** run the full `make test` locally: in the executor's RAM-backed /tmp it has crashed with SIGBUS. Run focused `go test` on the touched packages (`./internal/testing/... ./internal/lexer/... ./internal/format/... ./internal/types/... ./internal/pipeline/... ./internal/smt/... ./internal/platform/originpolicy/... ./internal/apiserver/...`) plus `make test-core`; the full suite runs in CI on the PR. On completion also run `make fmt`, `make lint`, `make check-boundaries` and `make check-prompt-freeze`. Compare source/embedded prompt registries and verify rebuilt `ailang prompt` teaches milliseconds. Record deployed MCP-host propagation as a separate deployment requirement; this sprint does not claim a redeploy.
 
-Measure affected-package coverage before/after and require no regression with meaningful positive and negative controls; no repository-wide percentage baseline is invented. Update relevant formatter/CORS/IFC/verification documentation, docs/LIMITATIONS.md and changelog per slice. Every example or fixture listed above must have recorded expected results. Evaluate completed work with sprint-evaluator against the approved design and these criteria.
+Measure affected-package coverage before/after and require no regression with meaningful positive and negative controls; no repository-wide percentage baseline is invented. Update relevant formatter/CORS/IFC/verification documentation, docs/LIMITATIONS.md, and write a changelog fragment per slice as `changelogs/unreleased/YYYY-MM-DD-<slug>.md` (e.g. `2026-10-1x-mcp-friction-string-aware-extraction.md`); never edit `changelogs/v0.32-current.md`. Every example or fixture listed above must have recorded expected results. Evaluate completed work with sprint-evaluator against the approved design and these criteria.
 
 ## Handoff
 
-Machine state: `.ailang/state/sprints/sprint_M-MCP-FILES-FRICTION.json`. All five milestones start unpassed. Coordinator plan merge provides sprint approval and triggers sprint-executor; do not start implementation during planning or send a duplicate manual execution request before that approval. No open design question blocks plan production; approval review must confirm the explicit D2/D3/D4 assumptions above.
+Machine state: `.ailang/state/sprints/sprint_M-MCP-FILES-FRICTION.json`. All five milestones start unpassed. Coordinator plan merge provides sprint approval and triggers sprint-executor; do not start implementation during planning or send a duplicate manual execution request before that approval. No open design question blocks plan production or execution: D2/D3/D4 are RULED (2026-10-08, Mark, as recommended; PR #1697), so the executor does not stop on them.
+
+Executor rules: re-run `.claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-MCP-FILES-FRICTION` before starting and after every sprint JSON update. The executor cannot push or merge; it commits locally (messages carry `Refs #1618`) and the coordinator raises the PR.
