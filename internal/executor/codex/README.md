@@ -63,42 +63,31 @@ and confirmed by the NDJSON fixture at `testdata/codex_response.jsonl`.
 
 ## Authentication
 
-Codex CLI reads credentials from (in priority order):
+The subscription-first lane uses the ChatGPT login created by `codex login`.
+On headless machines use `codex login --device-auth`. Keep each credential's
+job stream serialized; shared credentials across workers require fleet-level
+serialization or separate credentials (Phase 2 ops follow-up).
 
-1. `OPENAI_API_KEY` environment variable — recommended for CI/CD and cloud machines
-2. The local credential cache created by `codex login` (ChatGPT Plus/Pro OAuth2 session)
+For subscription jobs, keep `OPENAI_API_KEY` absent and use a ChatGPT-mode
+`auth.json` at `$CODEX_HOME/auth.json` or `~/.codex/auth.json`. The CLI owns refresh.
+The executor's health check permits a cached login without an API key.
 
-The executor does **not** fail `HealthCheck` when `OPENAI_API_KEY` is unset —
-Codex may be using cached auth. A `DEBUG_AGENT=1` trace prints a warning so
-missing auth is still surfaced for the developer.
+An explicitly selected API-key login is the **metered alternative**, not the
+subscription lane. Do not assume a codex-shaped model name selects billing.
 
-### Headless / Remote / Cloud Machines
+### AI-effect migration (Phase 1, #903)
 
-On machines without a browser (cloud VMs, remote SSH sessions, coordinator workers):
+AI-effect `codex*` model guesses now fail loudly, including `codex:<model>`.
+Use `chatgpt/<model>` for the interim subscription provider. Its total HTTP
+response deadline is 10 minutes, including continuously streaming output;
+Go callers may override it with `chatgpt.WithTimeout`. Earlier context
+cancellation still terminates requests. This absorbs the interim client
+portion of #1259 without introducing another CLI timeout flag or environment
+variable. A future CLI-backed provider requires the separately approved Phase 2.
 
-```bash
-# Device authorization flow — prints a URL + code; authorize on any device with a browser
-codex login --device-auth
-```
-
-This is the OAuth2 Device Authorization Grant (RFC 8628). It avoids the browser redirect
-requirement of the standard `codex login` flow. Once authorized, credentials are cached
-at `~/.codex/auth.json` (or equivalent platform path) and reused by all subsequent
-`codex` invocations on that machine.
-
-**Which to use:**
-
-| Environment | Method |
-|---|---|
-| Laptop / desktop with browser | `codex login` |
-| Cloud VM / SSH session / CI runner | `codex login --device-auth` |
-| Automated pipeline (no human) | `OPENAI_API_KEY` env var |
-| AILANG coordinator daemon | `OPENAI_API_KEY` in coordinator env (preferred) |
-
-For the AILANG coordinator, `OPENAI_API_KEY` in the process environment is the most
-reliable approach — it survives container restarts and doesn't require cached session
-files to be present on every worker node. `codex login --device-auth` is the right
-choice for interactive developer machines that don't expose API keys.
+Explicit registry `provider: openai` remains the metered API lane (for example,
+`gpt5-2-codex`). Mission `codex:<model>` executor pins still select the Codex CLI;
+they do not pass through AI-effect model guessing.
 
 ## Event Schema
 
