@@ -193,6 +193,9 @@ func jobSuffixForVariant(variant, authMode string) (string, error) {
 // The job is identified by the pattern: projects/{project}/locations/{region}/jobs/{prefix}-agent-executor
 // This matches the Terraform-defined job name in cloud_run_jobs.tf.
 func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchParams) error {
+	if err := (&coordinator.AgentConfig{AutoMerge: params.AutoMerge, AutoMergeCode: params.AutoMergeCode, AutoMergeRequiredChecks: params.AutoMergeRequiredChecks, AutoMergeApproverSecret: params.AutoMergeApproverSecret, AutoMergeApproverIdentity: params.AutoMergeApproverIdentity, ArtifactPatterns: params.ArtifactPatterns, SkipApproval: params.PushBranch != ""}).ValidateAutoMergeCode(); err != nil {
+		return fmt.Errorf("%w: %v", coordinator.ErrDispatchPermanent, err)
+	}
 	// M-EXECUTOR-VARIANTS + M-CLOUD-DUAL-AUTH: select the Cloud Run Job template.
 	// Each variant has its own job with the corresponding Docker image baked in.
 	// Auth mode selects between OAuth and API-key job templates within each variant.
@@ -307,6 +310,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			})
 		}
 	}
+	envOverrides = append(envOverrides, codeAutoMergeEnv(params)...)
 	envOverrides = append(envOverrides, prMetaEnv(params)...)
 	// M-AGENT-AILANG-ONLY-EXECUTION: the tool lane, and the program policy by
 	// CONTENT (the Job cannot read the coordinator's disk). full = no override.

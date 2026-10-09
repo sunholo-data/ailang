@@ -5,34 +5,38 @@ import "strings"
 // Variables the cloud dispatcher sets on a Cloud Run Job (`ailang coordinator
 // execute-job`). They describe ONE task; nothing outside the job reads them.
 const (
-	EnvAgentID            = "AILANG_AGENT_ID"
-	EnvMaxCostUSD         = "AILANG_MAX_COST_USD"
-	EnvCascadeRootPackage = "AILANG_CASCADE_ROOT_PACKAGE"
-	EnvCascadeChangeClass = "AILANG_CASCADE_CHANGE_CLASS"
-	EnvCascadeToVersion   = "AILANG_CASCADE_TO_VERSION"
-	EnvDirective          = "AILANG_DIRECTIVE"
-	EnvDirectiveSource    = "AILANG_DIRECTIVE_SOURCE"
-	EnvAutoMerge          = "AILANG_AUTO_MERGE"
-	EnvArtifactPatterns   = "AILANG_ARTIFACT_PATTERNS"
-	EnvTaskTitle          = "AILANG_TASK_TITLE"
-	EnvPRLabels           = "AILANG_PR_LABELS"
-	EnvMergeStarts        = "AILANG_MERGE_STARTS"
-	EnvImageProvider      = "AILANG_IMAGE_PROVIDER"
-	EnvProvider           = "AILANG_PROVIDER"
-	EnvBranch             = "AILANG_BRANCH"
-	EnvPushBranch         = "AILANG_PUSH_BRANCH"
-	EnvPluginRepo         = "AILANG_PLUGIN_REPO"
-	EnvModel              = "AILANG_MODEL"
-	EnvTimeout            = "AILANG_TIMEOUT"
-	EnvIdleTimeout        = "AILANG_IDLE_TIMEOUT"
-	EnvAcknowledgeOnly    = "AILANG_ACKNOWLEDGE_ONLY"
-	EnvSubdirectory       = "AILANG_SUBDIRECTORY"
-	EnvGitMode            = "AILANG_GIT_MODE"
-	EnvSiteSlug           = "AILANG_SITE_SLUG"
-	EnvBriefID            = "AILANG_BRIEF_ID"
-	EnvGitAuthorName      = "AILANG_GIT_AUTHOR_NAME"
-	EnvGitAuthorEmail     = "AILANG_GIT_AUTHOR_EMAIL"
-	EnvSSHKeySecret       = "AILANG_SSH_KEY_SECRET"
+	EnvAgentID                 = "AILANG_AGENT_ID"
+	EnvMaxCostUSD              = "AILANG_MAX_COST_USD"
+	EnvCascadeRootPackage      = "AILANG_CASCADE_ROOT_PACKAGE"
+	EnvCascadeChangeClass      = "AILANG_CASCADE_CHANGE_CLASS"
+	EnvCascadeToVersion        = "AILANG_CASCADE_TO_VERSION"
+	EnvDirective               = "AILANG_DIRECTIVE"
+	EnvDirectiveSource         = "AILANG_DIRECTIVE_SOURCE"
+	EnvAutoMerge               = "AILANG_AUTO_MERGE"
+	EnvAutoMergeCode           = "AILANG_AUTO_MERGE_CODE"
+	EnvAutoMergeRequiredChecks = "AILANG_AUTO_MERGE_REQUIRED_CHECKS"
+	EnvApproverSecret          = "AILANG_APPROVER_SECRET"
+	EnvApproverIdentity        = "AILANG_APPROVER_IDENTITY"
+	EnvArtifactPatterns        = "AILANG_ARTIFACT_PATTERNS"
+	EnvTaskTitle               = "AILANG_TASK_TITLE"
+	EnvPRLabels                = "AILANG_PR_LABELS"
+	EnvMergeStarts             = "AILANG_MERGE_STARTS"
+	EnvImageProvider           = "AILANG_IMAGE_PROVIDER"
+	EnvProvider                = "AILANG_PROVIDER"
+	EnvBranch                  = "AILANG_BRANCH"
+	EnvPushBranch              = "AILANG_PUSH_BRANCH"
+	EnvPluginRepo              = "AILANG_PLUGIN_REPO"
+	EnvModel                   = "AILANG_MODEL"
+	EnvTimeout                 = "AILANG_TIMEOUT"
+	EnvIdleTimeout             = "AILANG_IDLE_TIMEOUT"
+	EnvAcknowledgeOnly         = "AILANG_ACKNOWLEDGE_ONLY"
+	EnvSubdirectory            = "AILANG_SUBDIRECTORY"
+	EnvGitMode                 = "AILANG_GIT_MODE"
+	EnvSiteSlug                = "AILANG_SITE_SLUG"
+	EnvBriefID                 = "AILANG_BRIEF_ID"
+	EnvGitAuthorName           = "AILANG_GIT_AUTHOR_NAME"
+	EnvGitAuthorEmail          = "AILANG_GIT_AUTHOR_EMAIL"
+	EnvSSHKeySecret            = "AILANG_SSH_KEY_SECRET"
 	// M-AGENT-AILANG-ONLY-EXECUTION: the tool-policy lane and its program
 	// policy, delivered to a Cloud Run Job by CONTENT (the container cannot see
 	// the coordinator's filesystem). execute-job materialises the TOML read-only
@@ -57,7 +61,11 @@ var jobVars = []Var{
 	{EnvCascadeToVersion, "", AreaJob, "Version the cascade bumps the dependency to."},
 	{EnvDirective, "", AreaJob, "Inline task directive; read only when AILANG_DIRECTIVE_SOURCE is unset (a coordinator older than the Firestore hand-off). Cloud Run caps it at 32,768 bytes."},
 	{EnvDirectiveSource, "", AreaJob, "Where the job reads its directive: \"firestore\" = task_directives/<AILANG_TASK_ID>, and a missing document fails the task. Unset = AILANG_DIRECTIVE."},
-	{EnvAutoMerge, "0", AreaJob, "1 lets the job enable GitHub auto-merge on a docs-only PR that matches the artifact patterns."},
+	{EnvAutoMerge, "0", AreaJob, "1 lets the job enable native auto-merge on scoped PRs; code requires a separate opt-in."},
+	{EnvAutoMergeCode, "0", AreaJob, "1 opts in to scoped code auto-merge with required checks and a non-author approver."},
+	{EnvAutoMergeRequiredChecks, "", AreaJob, "Newline-separated check names required by the target ruleset and verified on base HEAD."},
+	{EnvApproverSecret, "", AreaJob, "Secret Manager name holding the non-author token; never token material."},
+	{EnvApproverIdentity, "", AreaJob, "Expected non-author GitHub login."},
 	{EnvArtifactPatterns, "", AreaJob, "Newline-separated path patterns the dispatcher declared as the task's artifacts; the auto-merge scope guard."},
 	{EnvTaskTitle, "", AreaJob, "Human-written task title used as the message subject; unset derives one from the directive."},
 	{EnvPRLabels, "", AreaJob, "Comma-separated labels the job adds to its PR besides agent-task (the agent's needs-*-approval label)."},
@@ -201,3 +209,25 @@ func SSHHostAlias() string {
 	}
 	return defaultOf(EnvSSHHostAlias)
 }
+
+// AutoMergeCode reports the explicit code opt-in.
+func AutoMergeCode() bool { return getOr(EnvAutoMergeCode) == "1" }
+
+// AutoMergeRequiredChecks preserves commas within check names.
+func AutoMergeRequiredChecks() []string {
+	raw := strings.TrimSpace(get(EnvAutoMergeRequiredChecks))
+	if raw == "" {
+		return nil
+	}
+	out := strings.Split(raw, "\n")
+	for i := range out {
+		out[i] = strings.TrimSpace(out[i])
+	}
+	return out
+}
+
+// ApproverSecret returns a secret name, never its material.
+func ApproverSecret() string { return strings.TrimSpace(get(EnvApproverSecret)) }
+
+// ApproverIdentity returns the expected GitHub login.
+func ApproverIdentity() string { return strings.TrimSpace(get(EnvApproverIdentity)) }

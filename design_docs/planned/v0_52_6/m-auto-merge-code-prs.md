@@ -2,7 +2,7 @@
 
 Refs #1599 (sunholo-data/ailang) · upstream use case: sunholo-data/daneel#335 (M-DANEEL-SITE-PUBLISH, merged 2026-10-06) · maintainer ruling 2026-10-08 (issue #1599 comment): code PRs may auto-merge per agent, provided required checks pass and a non-author identity approves.
 
-**Status**: Planned
+**Status**: Implementation complete; independent evaluation and deployment pending
 **Target**: v0.52.6
 **Priority**: P2 (Medium) — matches issue labels (`priority:P2`, `area:messaging`)
 **Estimated**: ~4 days (plumbing 1d, wrapper 1.5d, tests+docs+runbook 1.5d)
@@ -355,3 +355,13 @@ Platform claims that remain unverifiable from this repo (GitHub does not count t
 
 **Document created**: 2026-10-08
 **Last updated**: 2026-10-08
+
+
+## Repository implementation (2026-10-08)
+
+Refs #1599. See [implementation report](m-auto-merge-code-prs-implementation.md)
+for delivered milestones, focused tests, CGO limitations and deployment gates.
+The approved sprint's file-size override moved code-mode helpers into
+`coordinator_cloud_automerge_code.go`; small config/env helpers use sibling files.
+No production opt-in or staging merge is claimed. Independent evaluator approval
+is pending; this document remains in planned until that decision.
