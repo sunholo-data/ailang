@@ -9,6 +9,7 @@
 
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/codex-auth-profile.sh"
 
 # _mc_bounded SECONDS CMD... — run CMD with a hard wall-clock cap.
 # rc = CMD's rc, or 124 on expiry (mirrors GNU `timeout`, which this rig does not have).
@@ -117,7 +118,7 @@ _mc_probe_codex() {
     log "codex:$m quota admission blocked; skipping inference probe"
     return 75
   fi
-  _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$m" 'reply with exactly: ok'
+  _mc_bounded "$PROBE_TIMEOUT" mc_codex_exec --skip-git-repo-check --model "$m" 'reply with exactly: ok'
   rc=$?
   [ "$rc" -eq 124 ] && log "controller fallback codex:$m probe timed out after ${PROBE_TIMEOUT}s"
   [ "$rc" -ne 0 ] && log "controller fallback codex:$m probe failed (rc=$rc): $(printf '%s' "$MC_BOUNDED_OUT" | tail -3 | tr '\n' ' ')"

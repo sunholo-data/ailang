@@ -7,3 +7,10 @@ import (
 
 func configureProcessTree(cmd *exec.Cmd) { proctree.Configure(cmd) }
 func killProcessTree(cmd *exec.Cmd)      { proctree.Kill(cmd) }
+
+func terminateProcessTree(cmd *exec.Cmd) error {
+	if cmd == nil || cmd.Process == nil {
+		return nil
+	}
+	return proctree.KillGroup(cmd.Process.Pid)
+}

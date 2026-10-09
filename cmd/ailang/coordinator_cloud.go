@@ -6,9 +6,11 @@ import (
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
@@ -64,7 +66,7 @@ func executeJobWorkspace() (string, error) {
 	return config.DeprecatedDefault(coordinator.EnvWorkspace, coordinator.DeprecatedWorkspaceDefault)
 }
 
-func coordinatorExecuteJob(args []string) error {
+func coordinatorExecuteJob(args []string) (returnErr error) {
 	// Parse flags
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
@@ -103,7 +105,8 @@ func coordinatorExecuteJob(args []string) error {
 
 	// Initialize Pub/Sub client as early as possible so the defer guard can use it.
 	// If Pub/Sub init itself fails, we fall back to stderr logging.
-	ctx := context.Background()
+	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
 	var publisher *pubsub.Publisher
 	var completionSent atomic.Bool
 
@@ -176,7 +179,8 @@ func coordinatorExecuteJob(args []string) error {
 	// Defer guard: catches panics and any exit path that forgot to publish.
 	defer func() {
 		if r := recover(); r != nil {
-			publishCompletion("failed", fmt.Sprintf("panic: %v", r), "", nil, gitEvidence{}, "")
+			returnErr = fmt.Errorf("panic: %v", r)
+			publishCompletion("failed", returnErr.Error(), "", nil, gitEvidence{}, "")
 		} else if !completionSent.Load() {
 			// Should not happen — means we returned without publishing.
 			publishCompletion("failed", "unknown: exited without publishing completion", "", nil, gitEvidence{}, "")
@@ -218,7 +222,21 @@ func coordinatorExecuteJob(args []string) error {
 	}
 	// Write refreshed subscription tokens back however the task ends; a container
 	// is discarded after one task, so an unpersisted refresh is lost.
-	defer codexCred.persist()
+	if codexCred != nil {
+		ctx = codexCred.ctx
+		defer func() {
+			if r := recover(); r != nil {
+				codexCred.quarantine()
+				panic(r)
+			}
+			if err := codexCred.finish(); err != nil {
+				fmt.Fprintln(os.Stderr, "execute-job: credential finalization failed:", err)
+				if returnErr == nil {
+					returnErr = err
+				}
+			}
+		}()
+	}
 	if err := preflightExecutor(ctx, provider); err != nil {
 		publishCompletion("failed", err.Error(), "", nil, gitEvidence{}, "")
 		return err
@@ -254,6 +272,10 @@ func coordinatorExecuteJob(args []string) error {
 
 	// Execute the task
 	branchName, execResult, evidence, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model, timeoutStr)
+
+	// Finalize rotating credentials before reporting success. Failed executor
+	// tasks may also have refreshed; persist those before releasing ownership.
+	execErr = finalizeCodexCredential(codexCred, execErr)
 
 	// Write artifact files to the GCS-mounted directory (/artifacts/tasks/{taskID}/).
 	// The artifact bucket is mounted read-write at /artifacts via Cloud Run volume mount.
@@ -734,60 +756,4 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// After the push: HEAD is final, so the two SHAs bounding the diff are
 	// immutable and the approval card renders identically on every replay.
 	return branchName, execResult, collectGitEvidence(ctx, workDir, clonePoint), nil
-}
-
-// assertRemoteMatchesHead proves the branch we published carries the commit we
-// built. A push can exit 0 having sent something other than the agent's work —
-// measured 2026-09-13, when it sent a branch ref still sitting at the clone
-// point while HEAD held two design documents.
-//
-// This is deliberately an assertion and not a log line: a completion that names
-// changed_files on a branch that does not contain them is worse than a failure,
-// because everything downstream believes it.
-func assertRemoteMatchesHead(ctx context.Context, workDir, branchName string) error {
-	headOut, err := gitexec.CommandContext(ctx, "-C", workDir, "rev-parse", "HEAD").Output()
-	if err != nil {
-		return fmt.Errorf("cannot read local HEAD to verify the push: %w", err)
-	}
-	head := strings.TrimSpace(string(headOut))
-
-	lsOut, err := gitexec.CommandContext(ctx, "-C", workDir, "ls-remote", "origin", "refs/heads/"+branchName).Output()
-	if err != nil {
-		return fmt.Errorf("cannot read origin/%s to verify the push: %w", branchName, err)
-	}
-	fields := strings.Fields(string(lsOut))
-	if len(fields) == 0 {
-		return fmt.Errorf("push reported success but origin/%s does not exist — the work is at %s locally and was NOT published", branchName, head)
-	}
-	if remote := fields[0]; remote != head {
-		return fmt.Errorf("push reported success but origin/%s is %s, not the HEAD we built (%s) — the work was NOT published to that branch",
-			branchName, remote, head)
-	}
-	fmt.Printf("execute-job: verified origin/%s is at %s\n", branchName, head)
-	return nil
-}
-
-// configureGitAuthor sets the commit author for this task's checkout.
-//
-// Both halves or neither: git resolves user.name and user.email independently,
-// so setting one leaves the other on the container default and produces a commit
-// half-attributed to each identity — worse than either alone, and hard to spot.
-func configureGitAuthor(ctx context.Context, workDir string) {
-	name, email := config.GitAuthor()
-	if name == "" || email == "" {
-		if name != "" || email != "" {
-			fmt.Fprintf(os.Stderr, "warning: git identity is half-configured (name=%q email=%q) — using the container default for BOTH rather than mixing identities\n", name, email)
-		}
-		return
-	}
-	for _, kv := range [][2]string{{"user.name", name}, {"user.email", email}} {
-		cmd := gitexec.CommandContext(ctx, "-C", workDir, "config", kv[0], kv[1])
-		if err := cmd.Run(); err != nil {
-			// Loud: the commit will still be made, but by somebody else, and an
-			// author line nobody checked is how a record stops being evidence.
-			fmt.Fprintf(os.Stderr, "warning: could not set git %s=%q: %v — commits will carry the container's identity\n", kv[0], kv[1], err)
-			return
-		}
-	}
-	fmt.Printf("execute-job: commits authored as %s <%s>\n", name, email)
 }

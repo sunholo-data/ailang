@@ -5,6 +5,8 @@ import "strings"
 // Variables the cloud dispatcher sets on a Cloud Run Job (`ailang coordinator
 // execute-job`). They describe ONE task; nothing outside the job reads them.
 const (
+	// Supplied by Cloud Run itself: required for auditable credential ownership.
+	EnvCloudRunExecution       = "CLOUD_RUN_EXECUTION"
 	EnvAgentID                 = "AILANG_AGENT_ID"
 	EnvMaxCostUSD              = "AILANG_MAX_COST_USD"
 	EnvCascadeRootPackage      = "AILANG_CASCADE_ROOT_PACKAGE"
@@ -54,6 +56,7 @@ const (
 const DefaultJobBranch = "dev"
 
 var jobVars = []Var{
+	{EnvCloudRunExecution, "", AreaJob, "Cloud Run execution identity supplied by the runtime; required for exclusive subscription credential ownership."},
 	{EnvAgentID, "", AreaJob, "Agent the job runs as; recorded on spans and completions."},
 	{EnvMaxCostUSD, "", AreaJob, "Per-task cost budget in USD; unset or malformed means no cap (malformed is logged and ignored)."},
 	{EnvCascadeRootPackage, "", AreaJob, "Root package of a package cascade; when set the job tries the deterministic bump first and the PR is labelled and titled as a cascade."},
@@ -231,3 +234,6 @@ func ApproverSecret() string { return strings.TrimSpace(get(EnvApproverSecret)) 
 
 // ApproverIdentity returns the expected GitHub login.
 func ApproverIdentity() string { return strings.TrimSpace(get(EnvApproverIdentity)) }
+
+// CloudRunExecution returns the execution identity supplied by Cloud Run, empty outside a job.
+func CloudRunExecution() string { return get(EnvCloudRunExecution) }
