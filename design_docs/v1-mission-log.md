@@ -2662,3 +2662,10 @@ first live reading of the instrument this iteration shipped.
 - `gemini-3-1-pro` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
 - `oc-glm-5-3` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
 - controller (in-session, not an API call) → **pass** — In-session controller check: every load-bearing premise was verified against v0.51.1 source (18-row Verification Log: resolver refusal/passthrough at ai_handlers.go:182-199 + models.go:249-255, no image Result variant, direct path has no resolver, LastRoutingMetadata reads bound handler only, budget is per-op). Language claims verified with ailang check (no optional params; Result shape compiles). Known gap recorded as V18: no Go toolchain in this workspace, test baseline deferred to the sprint executor. Routing design places the handler choice in AIContext because the resolver runs before the handler sees the model (V11) — mechanism read from code, not inferred.
+
+#### Design-quorum review — `design_docs/planned/v0_52_4/m-alias-body-closure.md` (2026-10-07T16:04:12Z)
+
+- **Synthesis: PROCEED** (total $0.0000, 0 in / 0 out tok)
+- `gemini-3-1-pro` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- `gpt5-6-sol` → **ABSENT** (auth) — degraded to N-1, not a silent pass
+- controller (in-session, not an API call) → **pass** — Root cause traced to verified code paths (flat aliasEnv at unification_core.go:17/172, guard-less symbol-import assignment at pipeline_module_imports.go:244, first-wins bulk at :277); three triggers reproduced live on v0.52.3; fix is the parent doc's parked M2 extended to export schemes on T3 evidence; all negative-existence claims carry grep/read rows in the Verification Log
