@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MCPHTTP-TYPED-HOST-ERRORS",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-08T18:53:51.154853+00:00",
   "design_doc": "design_docs/planned/v0_52_6/m-mcphttp-typed-host-errors.md",
   "sprint_plan": "design_docs/planned/v0_52_6/m-mcphttp-typed-host-errors-sprint-plan.md",
@@ -42,7 +42,10 @@
   "velocity": {
     "target_loc_per_day": 180,
     "estimated_total_loc": 270,
-    "estimated_days": 1.5
+    "estimated_days": 1.5,
+    "actual_total_loc": 200,
+    "actual_days": 0.005,
+    "actual_loc_per_day": 40313.4
   },
   "features": [
     {
@@ -57,10 +60,11 @@
         "errors.As resolves a fmt.Errorf %w wrapped typed error; code zero, empty message, plain and wrapped untyped errors retain the frozen envelope.",
         "Hook tests exercise every SupportedVersions entry; go test ./serveapi/protocol/mcphttp and make check-protocol-closure pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T06:20:00.979948+00:00",
+      "completed": "2026-10-09T06:20:18.981218+00:00",
+      "notes": "Red/green wire tests across all SupportedVersions; focused mcphttp suite and protocol closure pass. Lint tool setup in progress; final lint required.",
+      "actual_loc": 108
     },
     {
       "id": "M2",
@@ -76,10 +80,11 @@
         "TestEmbeddedMCPFrozenCallbackEnvelopes passes unchanged; timeout, capacity and cancellation mappings remain frozen.",
         "Existing handler, gate, tool hints, bearer gate and SDK parity tests pass; no parity row is added for host errors because the SDK reference discards them."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T06:21:50.785571+00:00",
+      "completed": "2026-10-09T06:21:50.785571+00:00",
+      "notes": "Exact mixed batch SSE and untyped batch fallback goldens; wrapped EffectsUnrecorded through public New facade. All protocol packages and focused facade/frozen/gate/parity regressions pass. Full facade suite retry pending dependency cache warming. Existing untyped batch fallback has null id (design prose claimed first id); preserved actual behavior.",
+      "actual_loc": 41
     },
     {
       "id": "M3",
@@ -97,10 +102,23 @@
         "go test ./serveapi/... -count=1, make test, make lint and make check-protocol-closure pass.",
         "Implementation PR body includes Refs #1602; release/pin follow-up is recorded for World without claiming this sprint publishes a release."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T06:27:09.621851+00:00",
+      "completed": "2026-10-09T06:27:09.621851+00:00",
+      "notes": "Guide and executable facade fixture document hook, wrapping, guard, SSE/batches and fallback. User dispatch overrides: dated unreleased fragment, Closes #1602 PR body artifact, no full make test; CI owns full suite. make test-core attempted: eight pre-existing effects brain tests fail because CGO_ENABLED=0/no C compiler; all other packages pass. Lint (0 issues), serveapi/... tests, protocol closure, boundaries and file sizes pass. Independent review found no implementation defects. Coordinator evaluation handoff ready.",
+      "actual_loc": 51
     }
-  ]
+  ],
+  "last_checkpoint": "M3 complete: focused suite, lint, boundaries, closure and sizes pass; test-core has only CGO/SQLite environment failures",
+  "last_session": "2026-10-09T06:27:09.621851+00:00",
+  "validation": {
+    "serveapi_tests": "pass",
+    "lint": "pass: 0 issues",
+    "protocol_closure": "pass: linux darwin windows",
+    "boundaries": "pass",
+    "file_sizes": "pass",
+    "test_core": "environment failure: 8 internal/effects brain tests require CGO/sqlite; other core packages pass",
+    "full_suite": "deferred to CI per user constraint"
+  },
+  "implementation_report": ".ailang/state/implementation/m-mcphttp-typed-host-errors-pr.md"
 }
