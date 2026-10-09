@@ -8,7 +8,9 @@ package codex
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -16,6 +18,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/strutil"
 	"github.com/sunholo-data/ailang/internal/telemetry"
@@ -183,18 +186,51 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	}()
 	cmd.Env = env
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
+	var stdout io.ReadCloser
+	var stderr io.Reader
+	start := cmd.Start
+	wait, stop, finishNative := nativeProcessLifecycle(cmd)
+	if config.CodexRuntime() == "daemon" {
+		var cancel context.CancelFunc
+		stdout, start, wait, cancel, err = daemonExecution(ctx, codexPath, task, e.getModel(task), directive, env)
+		if err != nil {
+			return nil, err
+		}
+		stop = cancel
+		defer cancel()
+		defer func() {
+			if err := stdout.Close(); errors.Is(err, ErrProcessTerminationUnconfirmed) {
+				out = nil
+				outErr = err
+			}
+		}()
+		stderr = strings.NewReader("")
+	} else {
+		if runtime := config.CodexRuntime(); runtime != "" && runtime != "cli" {
+			return nil, fmt.Errorf("unsupported AILANG_CODEX_RUNTIME %q", runtime)
+		}
+		stdout, err = cmd.StdoutPipe()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+		}
+		stderr, err = cmd.StderrPipe()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
+		}
 	}
 
 	startTime := time.Now()
-	if err := cmd.Start(); err != nil {
+	if err := start(); err != nil {
 		return nil, fmt.Errorf("failed to start codex: %w", err)
+	}
+
+	if config.CodexRuntime() != "daemon" {
+		defer func() {
+			if err := finishNative(); err != nil {
+				out = nil
+				outErr = err
+			}
+		}()
 	}
 
 	timeout := task.Timeout
@@ -363,7 +399,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 						if deltaIn > 0 || deltaOut > 0 {
 							if _, exceeded := task.Budget.Add(deltaIn, deltaOut); exceeded {
 								costKilled = true
-								killProcessTree(cmd)
+								stop()
 							}
 						}
 						// Whole-input already; see splitCodexInputTokens' doc for why this
@@ -372,7 +408,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 							inputTokens+outputTokens > task.MaxTokensPerBench {
 							thrashKilled = true
 							thrashKilledAtTokens = inputTokens + outputTokens
-							killProcessTree(cmd)
+							stop()
 						}
 					}
 				}
@@ -439,7 +475,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 					if deltaIn > 0 || deltaOut > 0 {
 						if _, exceeded := task.Budget.Add(deltaIn, deltaOut); exceeded {
 							costKilled = true
-							killProcessTree(cmd)
+							stop()
 						}
 					}
 					// Whole-input already — see splitCodexInputTokens' doc.
@@ -447,7 +483,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 						inputTokens+outputTokens > task.MaxTokensPerBench {
 						thrashKilled = true
 						thrashKilledAtTokens = inputTokens + outputTokens
-						killProcessTree(cmd)
+						stop()
 					}
 				}
 
@@ -514,13 +550,13 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			fmt.Fprintf(os.Stderr, "[CODEX] %d output line(s) exceeded %d bytes and were truncated\n",
 				n, executor.MaxLineBytes)
 		}
-		done <- cmd.Wait()
+		done <- wait()
 	}()
 
 	for {
 		select {
 		case <-hardTimer.C:
-			killProcessTree(cmd)
+			stop()
 			timeoutErr := fmt.Errorf("timeout after %v (hard ceiling)", timeout)
 			handler.OnError(timeoutErr)
 			span.RecordError(timeoutErr)
@@ -550,7 +586,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			}, nil
 
 		case <-ttftTimer.C:
-			killProcessTree(cmd)
+			stop()
 			ttftErr := fmt.Errorf("codex produced no output within %v (prefill timeout)", ttftTimeout)
 			handler.OnError(ttftErr)
 			span.RecordError(ttftErr)
@@ -577,7 +613,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			last := time.Unix(0, lastActivity.Load())
 			idle := time.Since(last)
 			if idle >= idleTimeout {
-				killProcessTree(cmd)
+				stop()
 				idleErr := fmt.Errorf("codex idle for %v mid-generation (no output)", idle.Round(time.Second))
 				handler.OnError(idleErr)
 				span.RecordError(idleErr)

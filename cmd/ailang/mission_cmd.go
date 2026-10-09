@@ -30,6 +30,8 @@ func missionCommand(args []string) error {
 		return nil
 	}
 	switch args[0] {
+	case "codex-exec":
+		return missionCodexExec(args[1:])
 	case "report":
 		if code := runMissionReport(args[1:]); code != 0 {
 			return iterationExit(code, fmt.Errorf("mission report failed (exit %d)", code))
@@ -67,13 +69,15 @@ func missionCommand(args []string) error {
 		printMissionHelp()
 		return nil
 	default:
-		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, ticket, role-run, attempt, iterate, status, resume, cancel, retry-review, confirm-stopped, activation, report)", args[0])
+		return fmt.Errorf("unknown mission subcommand %q (want: list, doctor, install, apply, rotate-log, normalize, quota, codex-exec, ticket, role-run, attempt, iterate, status, resume, cancel, retry-review, confirm-stopped, activation, report)", args[0])
 	}
 }
 
 func printMissionHelp() {
 	fmt.Print(`ailang mission — registry, execution and communications
 
+  ailang mission codex-exec --model MODEL [-C DIR] [-c KEY=TOML] PROMPT
+                                   run through the managed Codex daemon for CODEX_HOME
   ailang mission report --mission NAME --body-file FILE [--dry-run]
                                    post a report to the resolved bookkeeping issue
                                    see report --help for state/issue overrides

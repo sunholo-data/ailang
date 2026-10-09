@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/config"
 	"os"
 	"path/filepath"
 	"time"
@@ -66,6 +67,12 @@ func NewerRefresh(prev, cur []byte) bool {
 
 // InstalledAuthPath is where codex reads its credential.
 func InstalledAuthPath() (string, error) {
+	if home := config.CodexHome(); home != "" {
+		if !filepath.IsAbs(home) {
+			return "", errors.New("CODEX_HOME must be absolute")
+		}
+		return filepath.Join(home, "auth.json"), nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("locate home directory for codex auth: %w", err)
