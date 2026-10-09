@@ -21,6 +21,47 @@ every remaining limitation is a reproducible artifact, not lore.
 
 ## Type System Limitations
 
+### Concrete Function-Effect Annotations Remain Open
+
+**Status**: Deferred upper-bound enforcement (M-EFFECT-LATENT-FUNCTION-VALUES Phase 3)
+**Verified at**: v0.53.0 implementation working tree over `48f4b5ef929532cc6bf89d32034435ec616f80e7`, 2026-10-08
+
+Function-type annotations preserve their concrete effects, but currently permit a
+wider callback when storing it. This checks successfully:
+
+```ailang
+module width
+import std/io (println)
+import std/env (getEnv)
+type Hooks = {f: int -> int ! {IO}}
+func wider(x: int) -> int ! {IO, Env} {
+  let _ = getEnv("HOME");
+  let _ = println("wider");
+  x
+}
+pure func mk() -> Hooks = {f: wider}
+```
+
+`AILANG_NO_CACHE=1 ailang check width.ail` exits 0. Do not use a stored callback's
+annotation as an upper bound on its runtime capabilities; declare every effect its
+implementation performs. Calling an annotated field and passing an effectful value
+to an effect-polymorphic HOF do now charge latent effects. Closed annotation bounds
+remain a separate spike under the existing [#573](https://github.com/sunholo-data/ailang/issues/573)
+and [#1326](https://github.com/sunholo-data/ailang/issues/1326) design; no new issue is required.
+
+
+### Effectful Callbacks Nested in Data Arguments Are Not Yet Charged
+
+**Status**: Open, tracked in [#1718](https://github.com/sunholo-data/ailang/issues/1718)
+**Verified at**: v0.53.0 implementation, 2026-10-08
+
+Latent effects are charged for a callback passed directly to a HOF or stored in a
+record field, but not for one nested inside a list, tuple or ADT argument. With an
+effectful `logIt`, a pure caller still checks for `applyHead([logIt], x)`,
+`applyFst((logIt, x))` and `applyOpt(Some(logIt), x)`. Declare the callback's effects
+on the caller explicitly until #1718 lands.
+
+
 ### Y-Combinator and Recursive Lambdas (By Design)
 
 **Status**: Design constraint, not a bug

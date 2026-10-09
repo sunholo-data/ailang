@@ -351,6 +351,10 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 		case "bytes":
 			return types.TBytes
 		default:
+			// Expand function aliases so effect validation sees their latent row.
+			if alias, ok := e.typeAliases[typ.Name].(*types.TFunc2); ok {
+				return alias
+			}
 			// Type constructor (e.g., user-defined ADT)
 			return &types.TCon{Name: typ.Name}
 		}
@@ -400,10 +404,24 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			Labels: make(map[string]types.Type),
 			Tail:   &types.RowVar{Name: fmt.Sprintf("ε_annot%d", e.freshVarNum), Kind: types.EffectRow},
 		}
+		concreteContract := false
+		if len(typ.Effects) > 0 {
+			annotated, err := types.ElaborateEffectRowWithBudgets(typ.Effects)
+			if err != nil {
+				e.typeAnnotationErr = fmt.Errorf("invalid function effect annotation: %w", err)
+				return nil
+			}
+			concreteContract = annotated.Tail == nil
+			if annotated.Tail == nil {
+				annotated.Tail = openEffectRow.Tail
+			}
+			openEffectRow = annotated
+		}
 		return &types.TFunc2{
-			Params:    params,
-			EffectRow: openEffectRow,
-			Return:    e.astTypeToInternalType(typ.Return),
+			Params:                 params,
+			EffectRow:              openEffectRow,
+			ConcreteEffectContract: concreteContract,
+			Return:                 e.astTypeToInternalType(typ.Return),
 		}
 
 	case *ast.TypeApp:

@@ -562,6 +562,8 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 		return nil, ctx.env, err
 	}
 
+	latentMask := tc.preApplicationMask(ctx, app.Func, getType(funcNode))
+
 	// Infer argument types
 	var argNodes []typedast.TypedNode
 	var argTypes []Type
@@ -674,6 +676,7 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 
 	appEffectRow := combineEffectList(appEffects)
 
+	tc.publishLatentMask(app.ID(), latentMask)
 	return &typedast.TypedApp{
 		TypedExpr: typedast.TypedExpr{
 			NodeID:    app.ID(),

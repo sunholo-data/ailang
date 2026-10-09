@@ -301,9 +301,10 @@ func findStdDir(t *testing.T) string {
 // first, over-broad version of this fix actually broke.
 //
 // A higher-order function can be effect-polymorphic WITHOUT declaring `! {e}`: its
-// callback row and its result row simply share an INFERRED row variable, and that
-// sharing is what lets callers pass an effectful lambda. `std/list.flatMap` is exactly
-// this — no effect annotation at all — and `docparse/services/epub_parser` calls it as
+// callback accepts an INFERRED open row even when the exported outer row is
+// closed. The effect validator charges the callback at application; it does not
+// require callback/result tail sharing. `std/list.flatMap` has no effect annotation,
+// and `docparse/services/epub_parser` calls it as
 // `flatMap(\entry. epubParseContentFile(filepath, entry), contentFiles)` with an
 // `! {FS}` lambda.
 //

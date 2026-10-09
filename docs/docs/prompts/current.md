@@ -401,7 +401,7 @@ func twice(f: int -> int, x: int) -> int = f(f(x))
 | ADT | `type Tree = Leaf(int) \| Node(Tree, int, Tree)` |
 | ADT with Eq | `type Color = Red \| Green \| Blue deriving (Eq)` |
 | Record with Eq | `type Point = {x: int, y: int} deriving (Eq)` (anonymous records have no `==`) |
-| `==` / `!=` support | int, float, string, bool, and any list, `Option`, `Result` or tuple whose parts support it (`xs == []`, `o == Some(3)`, `(a, b) == (1, "x")`), plus types declared `deriving (Eq)`. Functions have no `==`. Float `==` is IEEE: NaN is never equal to anything, itself included; test with `isNaN(x)` from `std/math` |
+| `==` / `!=` support | int, float, string, bool, and any list, `Option`, `Result` or tuple whose parts support it (`xs == []`, `o == Some(3)`, `(a, b) == (1, "x")`), plus types declared `deriving (Eq)`. Functions have no `==`. Float `==` is IEEE: NaN is never equal to anything, itself included; test with `isNaN(x)` from `std/math`. Float `<` `<=` `>` `>=` are IEEE too: false whenever either side is NaN, so `if x > hi` does not catch a NaN |
 | Record | `{name: "A", age: 30}` |
 | Record update | `{base \| field: val}` |
 | Open record type | `{name: string \| r}` or `{name: string, ...}` |
@@ -412,6 +412,11 @@ func twice(f: int -> int, x: int) -> int = f(f(x))
 ## Effects (Side Effects Must Be Declared)
 
 **Every function performing I/O must declare effects in the signature!**
+
+Calling a function-valued record field performs its annotated effects. Passing a
+function to a higher-order function with an unannotated or effect-polymorphic
+callback parameter also requires the caller to declare the callback’s effects.
+Constructing a record that stores a callback does not perform those effects.
 
 ```ailang
 -- Pure (no effects) - use `pure func` or omit effect annotation

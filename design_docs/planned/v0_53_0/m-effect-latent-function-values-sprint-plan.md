@@ -1,6 +1,6 @@
 # M-EFFECT-LATENT-FUNCTION-VALUES sprint plan
 
-**Status**: Planned — scheduling authorized; release-scope freezes ruled by Mark 2026-10-08 (see Scope decisions); execution awaits sprint-plan approval.
+**Status**: Completed — final validation passed; independent evaluation round 2 PASS 96/100. Execution authorized by the approved planner handoff on 2026-10-08.
 **Date**: 2026-10-08
 **Target**: v0.53.0; move to v0.54.0 if the v0.53.x train is closed. Do not ship this acceptance-changing fix as a v0.52.x patch.
 **Design**: [approved design](../v0_48_0/m-effect-latent-function-values.md), merged in #1378.
@@ -33,9 +33,9 @@ The velocity script found one documentation commit in this shallow seven-day his
 
 Update internal/pipeline/validate_effects.go so declaredEffects resolves top-level bindings, including argument lookup; track lexical bindings through lambdas, lets and patterns. Update internal/types/builder.go to Unit() payloads and internal/types/row_unification.go to skip payload unification only for EffectRow; preserve effect parameter/budget compatibility and record-row payload checks. Add focused tests in those packages and internal/pipeline/effect_latent_function_values_test.go.
 
-- [ ] AC9: shadowed applyStep accepted; direct IO call R0 remains rejected.
-- [ ] AC10: DOM callback collision is removed; single_agent_replay keeps its baseline status.
-- [ ] Canonical payload and unifier behavior tested independently; record payload mismatches still reject, effect budget/parameter checks remain active.
+- [x] AC9: shadowed applyStep accepted; direct IO call R0 remains rejected.
+- [x] AC10: DOM callback collision is removed; single_agent_replay keeps its baseline status.
+- [x] Canonical payload and unifier behavior tested independently; record payload mismatches still reject, effect budget/parameter checks remain active.
 
 Example controls: examples/cognitive_os/single_agent_replay.ail; new runnable example deferred to M4. Risk: incomplete lexical traversal or weakening record unification.
 
@@ -45,9 +45,9 @@ Example controls: examples/cognitive_os/single_agent_replay.ail; new runnable ex
 
 Update internal/elaborate/file_funcs.go FuncType conversion using existing effect elaboration helpers: preserve concrete labels, params and budgets, use the written named tail where present, and retain fresh tails for unannotated arrows. Use L1-open for concrete annotations. Test parameter/return/let annotations, named and inline records, aliases, ADT payloads and record updates in elaborate and pipeline tests.
 
-- [ ] AC5–AC6: R3 and all field/parameter/alias/ADT/update variants reject at the offending caller, naming IO; FS-only caller blames rowless rather than main.
-- [ ] AC7: stored-never-called hooks, closed-annotated storage-only callback and all package-ceiling controls stay accepted.
-- [ ] Missing-effect rejection requires effect-check diagnostic and correct function, not an unrelated parse/type error.
+- [x] AC5–AC6: R3 and all field/parameter/alias/ADT/update variants reject at the offending caller, naming IO; FS-only caller blames rowless rather than main.
+- [x] AC7: stored-never-called hooks, closed-annotated storage-only callback and all package-ceiling controls stay accepted.
+- [x] Missing-effect rejection requires effect-check diagnostic and correct function, not an unrelated parse/type error.
 
 Example controls: existing DOM replay and effectful_list_t1_mapE_basic.ail. Risk: named tails must retain source identity without adding #616 tail-solving semantics.
 
@@ -57,10 +57,10 @@ Example controls: existing DOM replay and effectful_list_t1_mapE_basic.ail. Risk
 
 Update internal/types/typechecker_functions.go, typechecker_literals.go and the CoreTypeChecker metadata owner (typechecker_core.go as needed) to publish the callee scheme's callback openness per successfully typed App. Handle local/global/lambda/field/computed callee paths explicitly. Thread the lookup through internal/pipeline/pipeline_single.go and pipeline_module_compile.go to ValidateEffects. At open callback positions, charge concrete latent labels using binding-aware same-module declarations or value types. Keep existing imported/lambda handling and ghost-effect erasure.
 
-- [ ] AC1–AC4: local HOF, sortBy and all six leaky std HOFs, cross-module recursive/forwarding/std-forwarding shapes and wrong FS row reject naming IO at the pure caller.
-- [ ] AC7–AC8: storage-only callback controls, inferred-polymorphic combinator, pure-importer genuine-effect rejection and mapE example preserve their expected outcomes.
-- [ ] Missing publication for a successfully typed function App raises an internal invariant error; a false mask and absent entry are distinct. Tests cover pre-instantiation openness surviving concrete instantiation.
-- [ ] Same-module concrete-row recursive calls retain contamination-safe declared rows; no tail union/diff changes.
+- [x] AC1–AC4: local HOF, sortBy and all six leaky std HOFs, cross-module recursive/forwarding/std-forwarding shapes and wrong FS row reject naming IO at the pure caller.
+- [x] AC7–AC8: storage-only callback controls, inferred-polymorphic combinator, pure-importer genuine-effect rejection and mapE example preserve their expected outcomes.
+- [x] Missing publication for a successfully typed function App raises an internal invariant error; a false mask and absent entry are distinct. Tests cover pre-instantiation openness surviving concrete instantiation.
+- [x] Same-module concrete-row recursive calls retain contamination-safe declared rows; no tail union/diff changes.
 
 **File-size gate:** on origin/dev `internal/types/typechecker_core.go` is 799 lines and `typechecker_functions.go` is 778; CI `make check-file-sizes` fails any file over 800. Put new code (mask publication, callee-path handling, metadata accessors) in companion files (e.g. `typechecker_latent_mask.go`), keeping edits to those two files to call sites of a few lines.
 
@@ -72,10 +72,10 @@ Example: HOF accept arm to be added in M4. Risk: scheme provenance can be lost b
 
 Create examples/runnable/effect_latent_function_values.ail and its examples/manifest.json entry. Show accepted declared-effect HOF and field invocation and pure storage-only hook construction; negative programs stay in Go tests. Read ailang prompt before writing AILANG. Update CHANGELOG.md with Breaking — soundness and signature migration (naming the known external consumers that may start failing `check`: motoko_agent `ExtCtx.ports` hooks, docparse, ailang-parse), docs/LIMITATIONS.md where applicable, and the active teaching prompt through the repository prompt workflow. Correct the misleading mechanism comment in internal/pipeline/effect_pure_row_overgeneralization_test.go.
 
-- [ ] AC11: tree-walk and bytecode run reject R1/R3 before execution; no side-effect marker appears.
-- [ ] AC12: compare fresh base/fixed example pass/fail sets and std import-probe sets; no unintended status changes. Recount current corpus, rather than asserting historical 425/49 counts. Any example or std file that flips status is recorded by name in the CHANGELOG with its migration (the `! {…}` row to add or the call to move).
-- [ ] New example checks and runs with required IO capability and expected output; pure storage-only construction checks without IO.
-- [ ] Mutation evidence and package/full repository checks below pass; report coverage and changed outcomes, then run sprint-evaluator after execution.
+- [x] AC11: tree-walk and bytecode run reject R1/R3 before execution; no side-effect marker appears.
+- [x] AC12: compare fresh base/fixed example pass/fail sets and std import-probe sets; no unintended status changes. Recount current corpus, rather than asserting historical 425/49 counts. Any example or std file that flips status is recorded by name in the CHANGELOG with its migration (the `! {…}` row to add or the call to move).
+- [x] New example checks and runs with required IO capability and expected output; pure storage-only construction checks without IO.
+- [x] Mutation evidence and package/full repository checks below pass; report coverage and changed outcomes, then run sprint-evaluator after execution.
 
 ## Validation and success metrics
 
@@ -100,3 +100,22 @@ Ran ailang pkg search effects on 2026-10-08: returned sunholo/billing_entitlemen
 **Maintainer rulings (Mark, 2026-10-08):** (1) ship L1-open now — do not hold the release for closed rows (V13 width hole stays Phase 3, behind a spike); (2) accept the breaking-change posture — minor bump, CHANGELOG "Breaking — soundness", no opt-out flag. Both are recorded as ticked Design Freeze items in the [design](../v0_48_0/m-effect-latent-function-values.md). Sprint-plan approval remains the execution gate. Closed rows/open-on-use and V13 width enforcement are excluded from this 750-LOC estimate. Record V13 as a limitation linked to the existing issues; do not create another GitHub issue in this task.
 
 The planning PR body must contain Refs #1326, Refs #573 and Refs #616, with no closing keywords. Only the implementation PR, after AC1–AC12 pass, should contain Closes #1326 and Closes #573; retain Refs #616. Do not close #616 here. No GitHub issue is created. Plan/JSON remain not_started for the coordinator's approval path; merging the approved planning PR is the coordinator handoff, or an attended user says execute sprint. Do not dispatch execution before that gate.
+
+## Execution notes (2026-10-08)
+
+The current base is `48f4b5ef929532cc6bf89d32034435ec616f80e7`, not the planner's
+historical checkout. Source callback contracts now travel on `TFunc2` as
+`ConcreteEffectContract`; this prevents L1-open's compatibility tail from becoming
+caller-charged polymorphism through record fields, computed callees, substitutions,
+or cache serialization. Per-App `LatentParamMask` remains the checker/validator
+publication that #616 will extend. Function aliases resolve through a checker value
+lookup, while lowering retains structural CoreTI.
+
+`any`, `findIndex`, and `foldr` already reject IO callbacks on this base due to
+closed iterative builtin callback contracts (#1518); preserve that behavior rather
+than changing std signatures. `sortBy`, `zipWith`, `flatMap`, recursive `anyR`, local
+forwarding and std `flatMap` forwarding now reject undeclared IO at the caller.
+
+See [execution validation](m-effect-latent-function-values-validation.md) for fresh
+corpus counts, mutation results, coverage and final gates. Full repository tests
+remain the implementation PR's CI gate; this executor does not push or merge.
