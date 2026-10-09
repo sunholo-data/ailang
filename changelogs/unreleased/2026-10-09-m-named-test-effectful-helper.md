@@ -1,4 +1,4 @@
-## Fixed
+### Fixed — named tests and properties keep effectful helpers (#1640)
 
 - Named tests and forall properties retain all module-level helpers, including plain
   effect-free `export func` declarations (#1640). Unused effectful helpers remain
