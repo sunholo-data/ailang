@@ -1825,8 +1825,44 @@ only; `make check-protocol-closure` measures and enforces that guarantee in CI.
 
 The split is contract versus machinery: `serveapi/protocol` does not provide
 HTTP handlers or callback bounding. Import `serveapi` for the ready-made MCP and
-A2A handlers and bounded callback runner; its MCP handler brings the MCP SDK
-dependency subtree.
+A2A handlers and bounded callback runner. The MCP dispatcher is SDK-free;
+`make check-protocol-closure` also checks the handler and facade build closures.
+
+### Typed MCP host errors
+
+An error returned by `Invoker.Invoke` can opt into `protocol.JSONRPCError`:
+
+```go
+type effectsUnrecorded struct{ refs []string }
+
+func (e effectsUnrecorded) Error() string { return "effects unrecorded: commit failed" }
+func (e effectsUnrecorded) JSONRPCError() (int, string) {
+    return -32002, fmt.Sprintf("effects unrecorded; commit failed; refs=%v", e.refs)
+}
+```
+
+Return this error from `Invoke` when an effect ran but its commit failed. The
+MCP handler uses `errors.As`, so wrapping with `fmt.Errorf("invoke: %w", err)`
+works too. The code must be nonzero and the message nonempty. Both pass through
+verbatim, including percent signs; use server-error codes `-32000..-32099` or
+application-defined codes. Reserved codes pass through at the host's risk.
+
+For request id `41` and refs `er-1`, `er-2`, the response is HTTP 200 with
+`Content-Type: text/event-stream`:
+
+```text
+event: message
+data: {"jsonrpc":"2.0","id":41,"error":{"code":-32002,"message":"effects unrecorded; commit failed; refs=[er-1 er-2]"}}
+
+```
+
+This error answers only its calling message. In a supported batch
+(`2025-03-26`), sibling results survive in the same SSE response array with
+their own ids. Errors without the hook, zero codes and empty messages retain
+the frozen whole-POST JSON envelope: `-32603 "host callback failed"`.
+Timeout, cancellation and capacity mappings remain unchanged. This hook applies
+only to MCP `Invoke` errors; session resolution, tool discovery and A2A keep
+their existing behavior. No `isError`, `error.data` or `_meta` channel is added.
 
 ### Ownership boundary
 
