@@ -2,7 +2,6 @@ package apiserver
 
 import (
 	"fmt"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -486,67 +485,4 @@ func TestParseArgsWithNames_UnmatchedKeysZeroValuePadding(t *testing.T) {
 			t.Errorf("args[0] = %v, want 'secret'", args[0])
 		}
 	})
-}
-
-func TestNowrapHeaders_ExtractsFromGoMap(t *testing.T) {
-	goResult := map[string]interface{}{
-		"data":  "parsed content",
-		"count": float64(15),
-		"_headers": map[string]interface{}{
-			"X-Request-Id":          "req_abc123",
-			"X-RateLimit-Remaining": "99",
-		},
-	}
-
-	w := httptest.NewRecorder()
-	w.Header().Set("Content-Type", "application/json")
-
-	if headersVal, ok := goResult["_headers"]; ok {
-		if headers, ok := headersVal.(map[string]interface{}); ok {
-			for k, v := range headers {
-				if sv, ok := v.(string); ok {
-					w.Header().Set(k, sv)
-				}
-			}
-		}
-		delete(goResult, "_headers")
-	}
-
-	if w.Header().Get("X-Request-Id") != "req_abc123" {
-		t.Errorf("expected X-Request-Id header 'req_abc123', got %q", w.Header().Get("X-Request-Id"))
-	}
-	if w.Header().Get("X-RateLimit-Remaining") != "99" {
-		t.Errorf("expected X-RateLimit-Remaining header '99', got %q", w.Header().Get("X-RateLimit-Remaining"))
-	}
-	if _, ok := goResult["_headers"]; ok {
-		t.Error("expected _headers to be removed from result map")
-	}
-	if goResult["data"] != "parsed content" {
-		t.Errorf("expected data field preserved, got %v", goResult["data"])
-	}
-}
-
-func TestNowrapHeaders_NoHeaders(t *testing.T) {
-	goResult := map[string]interface{}{
-		"data": "content",
-	}
-
-	w := httptest.NewRecorder()
-	if headersVal, ok := goResult["_headers"]; ok {
-		if headers, ok := headersVal.(map[string]interface{}); ok {
-			for k, v := range headers {
-				if sv, ok := v.(string); ok {
-					w.Header().Set(k, sv)
-				}
-			}
-		}
-		delete(goResult, "_headers")
-	}
-
-	if len(w.Header()) != 0 {
-		t.Errorf("expected no headers for result without _headers, got %v", w.Header())
-	}
-	if goResult["data"] != "content" {
-		t.Error("result should be unchanged")
-	}
 }

@@ -87,7 +87,7 @@ func platformCommands() []Command {
 		{
 			Name:    "serve-api",
 			Group:   groupOps,
-			Summary: "Serve AILANG exports as REST endpoints",
+			Summary: "Serve AILANG exports as REST endpoints; --static sends security headers, --static-header overrides, --no-static-security-headers opts out",
 			Run:     serveAPICommand,
 		},
 		{

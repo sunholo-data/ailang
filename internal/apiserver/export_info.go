@@ -36,12 +36,13 @@ type ExportInfo struct {
 	// @mcp_token_verifier: the server's one Bearer-token verifier. Never a
 	// tool (IsNoMCP) and, without @route, never an HTTP endpoint (IsNoExpose):
 	// exposed, it would be a token-guessing oracle.
-	IsTokenVerifier bool     `json:"-"`
-	VerifierSigOK   bool     `json:"-"`                     // declared signature is exactly (string) -> bool
-	Optional        []string `json:"optional,omitempty"`    // @optional annotation: params not required on MCP (absent/null → zero value)
-	DocComment      string   `json:"doc_comment,omitempty"` // doc comment (-- lines) preceding the function
-	IsWS            bool     `json:"is_ws,omitempty"`       // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
-	Effects         []string `json:"-"`                     // declared effect row (WS registration check)
-	WSReq           []string `json:"-"`                     // WS routes: the declared req record fields, sorted
-	WSReqIssue      string   `json:"-"`                     // WS routes: why the declared req record is refused ("" = accepted)
+	IsTokenVerifier      bool     `json:"-"`
+	VerifierSigOK        bool     `json:"-"`                     // declared signature is exactly (string) -> bool
+	Optional             []string `json:"optional,omitempty"`    // @optional annotation: params not required on MCP (absent/null → zero value)
+	DocComment           string   `json:"doc_comment,omitempty"` // doc comment (-- lines) preceding the function
+	IsWS                 bool     `json:"is_ws,omitempty"`       // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface
+	Effects              []string `json:"-"`                     // declared effect row (WS registration check)
+	WSReq                []string `json:"-"`                     // WS routes: the declared req record fields, sorted
+	ResponseHeadersIssue string   `json:"-"`                     // incompatible declared @route response headers
+	WSReqIssue           string   `json:"-"`                     // WS routes: why the declared req record is refused ("" = accepted)
 }

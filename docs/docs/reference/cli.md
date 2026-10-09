@@ -121,7 +121,7 @@ Reachable as `ailang ops <command>` and, unchanged, as `ailang <command>`.
 | `ailang ops mission` | `ailang mission` | Mission registry, iteration, role dispatch and reports |
 | `ailang ops models` | `ailang models` | Model registry: role, source, publish |
 | `ailang ops rig-gate` | `ailang rig-gate` | GPU admission gateway in front of ollama (rig lock lease) |
-| `ailang ops serve-api` | `ailang serve-api` | Serve AILANG exports as REST endpoints |
+| `ailang ops serve-api` | `ailang serve-api` | Serve AILANG exports as REST endpoints; --static sends security headers, --static-header overrides, --no-static-security-headers opts out |
 | `ailang ops storage` | `ailang storage` | Storage plane status (which backend each store resolved to) |
 | `ailang ops workspaces` | `ailang workspaces` | Workspace management |
 

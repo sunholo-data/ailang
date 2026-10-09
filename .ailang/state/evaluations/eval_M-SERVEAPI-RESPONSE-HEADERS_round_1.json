@@ -1,0 +1,84 @@
+{
+  "sprint_id": "M-SERVEAPI-RESPONSE-HEADERS",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-09T09:20:00Z",
+  "design_doc": "design_docs/implemented/v0_54_0/m-serveapi-response-headers.md",
+  "sprint_plan": "design_docs/implemented/v0_54_0/m-serveapi-response-headers-sprint-plan.md",
+  "branch": "coordinator/task-62c68b6a",
+  "pull_request": "https://github.com/sunholo-data/ailang/pull/1728",
+  "head_sha": "02061e86c22a4c6236d62e1d0adb5db72cdd49e6",
+  "total_score": 98,
+  "pass_threshold": 70,
+  "result": "fail",
+  "gate_source": "ci",
+  "evaluation_scope": "CI verdict from PR #1728 head; independent evaluator run. Supersedes the executor-authored round-1 draft that shipped in the finalize commit (the generator must not judge itself).",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 29,
+    "code_quality": 13,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [
+    "CI_GATE=fail on PR #1728 head 02061e86c: govulncheck (vuln gate) failed. Unallowlisted findings GO-2026-4514 (github.com/buger/jsonparser DoS, fixed in v1.1.2; repo pins v1.1.1) and GO-2026-5932 (golang.org/x/crypto; repo already on v0.57.0 = latest, no fixed version). Reproduced locally with govulncheck v1.3.0 + tools/govulncheck-filter against the allowlist. Pre-existing baseline: the same gate fails at the sprint's base commit 52ce877c5 (Release v0.53.0); the sprint touched no go.mod/go.sum, so it did not cause this failure — but a red merge gate is a hard fail regardless (skill rule: CI_GATE=fail is never reported as pass)."
+  ],
+  "automated_checks": {
+    "gate_source": "ci",
+    "ci_gate_result": "fail",
+    "ci_gate_detail": "PR #1728: 25 checks, failed: govulncheck (vuln gate); 2 macos build checks still pending at evaluation time",
+    "tests_pass": true,
+    "tests_evidence": "CI 'test' job success on head 02061e86c (full suite incl. verify-examples); locally spot-verified sprint test inventory: static_headers_test.go (7 wire/config/validation tests), route_headers_test.go (6), route_headers_validation_test.go, route_header_types_test.go, mcpcheck/framing_test.go (4)",
+    "lint_clean": true,
+    "lint_evidence": "CI 'lint' job success on head",
+    "build_pass": true,
+    "build_evidence": "CI 'build' job success (ubuntu/windows); CodeQL, SonarCloud, docs gates green",
+    "file_sizes_ok": true,
+    "file_sizes_evidence": "local re-run of the check-file-sizes loop: no Go file under internal/ or cmd/ exceeds 800 lines (server.go at 794)",
+    "verify_examples_ok": true,
+    "verify_examples_evidence": "run inside CI 'test' job (success); examples/manifest.json carries the new serve_api_response_headers entry"
+  },
+  "acceptance_criteria": {
+    "script_note": "check_acceptance_criteria.sh marked 18/19 prose criteria 'unverifiable' — a known limitation of its file/test-name anchors, not a genuine gap. The judge verified them independently:",
+    "m1": "6/6 met — static defaults (nosniff, X-Frame-Options DENY, CSP frame-ancestors 'none', Referrer-Policy) in static_headers.go:22-25 with wire tests incl. clean-path redirect isolation; --static-header repeatable + --no-static-security-headers in cmd/ailang/serve_api.go:24-25 with startup validation tests; API/proxy/protocol isolation tests; CLI help (serve_api.go:237-238, help.go:386), serve-api.md migration section, changelog fragment shipped; M1 is the first isolated commit 42b444ed6 (no M2/M3 files); fresh-binary curl evidence in the retro.",
+    "m2": "8/8 met, one with self-reported evidence — shared pre-ToGo extraction (responseHeaders in route_headers.go, D5), record _→- remap with Json exact names (D4), atomic validation + 500 + shape-quoted errors (D6, route_headers.go:15-40), server-owned refusal of x-elapsed-ms/vary/access-control-* (D7, route_headers.go:36), registration validation tests, wire matrix incl. Result.Ok, runnable example in manifest. The temporary-revert mutation criterion (-1) is evidenced only by the retro, not by a durable fixture.",
+    "m3": "5/5 met — framing_test.go pins dummy authorization request parameters/S256, redirect-to-final-HTML, target outcome matrix (FAIL anthropic/both, WARN openai), metadata composition, inconclusive bounds; guide examples replaced with checked snippets; mcp-connectors.md distinguishes new defaults from the old JS workaround; fresh mcp check evidence in the retro (PASS/WARN/FAIL matrix)."
+  },
+  "documentation_check": {
+    "changelog_updated": true,
+    "changelog_evidence": "changelogs/unreleased/2026-10-09-serve-api-route-response-headers.md and 2026-10-09-serve-api-static-security-headers.md",
+    "examples_created": true,
+    "examples_evidence": "examples/runnable/serve_api_response_headers.ail registered in examples/manifest.json",
+    "design_doc_status": "Implemented — design doc and companion sprint plan moved together to design_docs/implemented/v0_54_0/ per the 2026-07-29 companion-move rule; retro at docs/sprint-retros/M-SERVEAPI-RESPONSE-HEADERS-retro.md"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "All frozen decisions implemented as specified: D1 defaults-on with escape hatches; D2 exact default header set incl. 404; D3 repeatable --static-header last-wins with startup validation; D4 remap with Json escape hatch; D5 pre-conversion eval.Value extraction in one shared helper at both dispatch sites; D6 loud 500 + registration refusal quoting the accepted shapes; D7 server-owned headers refused + body defaults before status commitment; D8 mcp check framing probe with FAIL/WARN matrix. Axiom net +5 documented."
+  },
+  "feedback": [
+    {
+      "file": "go.mod",
+      "issue": "HARD FAIL (merge gate): govulncheck vuln gate is red on PR #1728 head — GO-2026-4514 (github.com/buger/jsonparser Delete offset DoS) is unallowlisted; repo pins v1.1.1, upstream fix is v1.1.2. Verified pre-existing at base 52ce877c5; the sprint introduced no dependency changes.",
+      "suggestion": "Add a scoped bump github.com/buger/jsonparser v1.1.1 -> v1.1.2 to this PR (or a separate chore PR). Verified fix available; no code impact expected. Do not expand scope beyond the bump."
+    },
+    {
+      "file": ".govulncheck-allow.yml",
+      "issue": "GO-2026-5932 (golang.org/x/crypto) is also unallowlisted, but the repo is already on v0.57.0 (latest published), so there is no dependency fix to take — resolving it requires a new allowlist entry with reason + expires per the file's own protocol, which is a maintainer security-review decision.",
+      "suggestion": "Escalate to Mark/maintainer: re-arm the allowlist for GO-2026-5932 (module-level finding, same shape as the Ollama entries) or rule a dependency action. The evaluator cannot approve merging on a red vuln gate; until re-armed, PR #1728 must not merge even though its test/lint/build/docs gates are green."
+    },
+    {
+      "file": ".ailang/state/evaluations/eval_M-SERVEAPI-RESPONSE-HEADERS_round_1.json",
+      "issue": "The finalize commit shipped an executor-authored 'evaluation report' (95/100 pass) written at sprint-finalize time. That violated the independent-judge rule and overstated the result (it recorded ci_status 'pending' where the gate has since failed).",
+      "suggestion": "Process note only: never commit an evaluation report from the executor role. This report supersedes it."
+    }
+  ],
+  "baseline_exceptions": [
+    "govulncheck (vuln gate) failure is repo-wide and pre-dates the sprint (also red at 52ce877c5, Release v0.53.0); findings GO-2026-4514/GO-2026-5932 are new upstream advisories published after the 2026-07-31 allowlist re-verification, with allowlist entries only expiring 2026-10-29.",
+    "CI 'Build macos-latest' checks were still pending (conclusion None) at evaluation time; the gate stops on the govulncheck fail regardless."
+  ],
+  "notes": "Implementation quality is high and would pass on the rubric (98/100): every milestone's tests exist and CI's full suite, lint, build, docs and verify-examples are green on the PR head; design decisions D1-D8 are all present and verified in code. The verdict is FAIL solely on the skill's CI-gate hard-fail rule: the vuln gate is red on the head and must be green (or the finding resolved via the allowlist protocol) before merge approval. One fix is in executor scope (jsonparser v1.1.2 bump); the other (x/crypto allowlist re-arm) is a maintainer decision and has been escalated in the feedback.",
+  "regression_surface": {
+    "triggered": false,
+    "note": "Sprint touches internal/apiserver, internal/mcpcheck, cmd/ailang CLI files — none of the triggering packages (parser/lexer/ast/types/elaborate/iface/codegen/eval/vm/effects/exec.go)."
+  }
+}

@@ -2,7 +2,7 @@
 
 **Issue:** Refs #1602 — sunholo-data/ailang (existing issue; no new issue)
 **Design:** [Approved design](m-mcphttp-typed-host-errors.md)
-**Status:** Planned; design approved by coordinator handoff, sprint awaiting approval
+**Status:** Implemented; M1–M3 completed on 2026-10-09, evaluation handoff ready
 **Target:** v0.52.6
 **Duration:** 1.5 days (6 hours work + 2 hours contingency; remaining wall time for review/checks)
 **Risk:** Low implementation complexity, medium compatibility risk
@@ -31,7 +31,7 @@ Executed `ailang pkg search mcp` and `ailang pkg search jsonrpc`. MCP returned `
 
 ## Milestones
 
-### M1: Optional hook and Invoke mapping (~125 LOC)
+### ✅ M1: Optional hook and Invoke mapping (~125 LOC)
 
 **Estimate:** 25 production + 100 tests/example LOC; 3 hours, Day 1.
 **Dependencies:** None.
@@ -42,14 +42,14 @@ Declare `JSONRPCError` embedding error with `JSONRPCError() (int, string)`. In c
 
 **Acceptance criteria:**
 
-- [ ] protocol.JSONRPCError embeds error and exposes JSONRPCError() (int, string), with the nonzero-code/nonempty-message rule documented.
-- [ ] Single tools/call returns HTTP 200 SSE with exact host code/message and request id, including percent signs, quotes and Unicode.
-- [ ] errors.As resolves a fmt.Errorf %w wrapped typed error; code zero, empty message, plain and wrapped untyped errors retain the frozen envelope.
-- [ ] Hook tests exercise every SupportedVersions entry; go test ./serveapi/protocol/mcphttp and make check-protocol-closure pass.
+- [x] protocol.JSONRPCError embeds error and exposes JSONRPCError() (int, string), with the nonzero-code/nonempty-message rule documented.
+- [x] Single tools/call returns HTTP 200 SSE with exact host code/message and request id, including percent signs, quotes and Unicode.
+- [x] errors.As resolves a fmt.Errorf %w wrapped typed error; code zero, empty message, plain and wrapped untyped errors retain the frozen envelope.
+- [x] Hook tests exercise every SupportedVersions entry; go test ./serveapi/protocol/mcphttp and make check-protocol-closure pass.
 
 **Risk and mitigation:** Malformed hooks or formatted messages change the wire contract; cover guard cases and use a literal %s format. Runner-generated sentinel errors retain their existing path.
 
-### M2: Batch and facade compatibility (~100 LOC)
+### ✅ M2: Batch and facade compatibility (~100 LOC)
 
 **Estimate:** 100 tests/example LOC; 2 hours, Day 1.
 **Dependencies:** M1.
@@ -60,14 +60,14 @@ Pin complete SSE response shapes and ids for a mixed batch and a facade invocati
 
 **Acceptance criteria:**
 
-- [ ] A mixed success/typed-error/ping batch returns one HTTP 200 SSE array with every response matched to its own id.
-- [ ] A typed error reaches MCP through serveapi.New without production adapter changes.
-- [ ] TestEmbeddedMCPFrozenCallbackEnvelopes passes unchanged; timeout, capacity and cancellation mappings remain frozen.
-- [ ] Existing handler, gate, tool hints, bearer gate and SDK parity tests pass; no parity row is added for host errors because the SDK reference discards them.
+- [x] A mixed success/typed-error/ping batch returns one HTTP 200 SSE array with every response matched to its own id.
+- [x] A typed error reaches MCP through serveapi.New without production adapter changes.
+- [x] TestEmbeddedMCPFrozenCallbackEnvelopes passes unchanged; timeout, capacity and cancellation mappings remain frozen.
+- [x] Existing handler, gate, tool hints, bearer gate and SDK parity tests pass; no parity row is added for host errors because the SDK reference discards them.
 
 **Risk and mitigation:** Typed errors could abort a batch or change adapter behavior; full wire goldens and facade tests prove response collection and pass-through.
 
-### M3: Documentation and delivery checks (~45 LOC)
+### ✅ M3: Documentation and delivery checks (~45 LOC)
 
 **Estimate:** 45 guide/changelog LOC; 1 hour, Day 2.
 **Dependencies:** M1, M2.
@@ -78,11 +78,11 @@ Document opt-in behavior, nonzero/nonempty guard, wrapping, HTTP 200 SSE and bat
 
 **Acceptance criteria:**
 
-- [ ] serve-api.md documents a Go host error example, guard, errors.As wrapping, per-message SSE/batch behavior and frozen fallback; stale MCP SDK dependency sentence is corrected.
-- [ ] changelogs/v0.32-current.md has an Unreleased entry for typed MCP host errors, referring to #1602.
-- [ ] The Go host example is exercised by an executable Go example or the facade fixture; no AILANG syntax change or .ail example is required.
-- [ ] go test ./serveapi/... -count=1, make test, make lint and make check-protocol-closure pass.
-- [ ] Implementation PR body includes Refs #1602; release/pin follow-up is recorded for World without claiming this sprint publishes a release.
+- [x] serve-api.md documents a Go host error example, guard, errors.As wrapping, per-message SSE/batch behavior and frozen fallback; stale MCP SDK dependency sentence is corrected.
+- [x] changelogs/v0.32-current.md has an Unreleased entry for typed MCP host errors, referring to #1602.
+- [x] The Go host example is exercised by an executable Go example or the facade fixture; no AILANG syntax change or .ail example is required.
+- [x] go test ./serveapi/... -count=1, make test, make lint and make check-protocol-closure pass.
+- [x] Implementation PR body includes Refs #1602; release/pin follow-up is recorded for World without claiming this sprint publishes a release.
 
 **Risk and mitigation:** Documentation could imply World is already unblocked; distinguish merged code from the published release and World pin update.
 
@@ -112,3 +112,33 @@ Sprint ID: `M-MCPHTTP-TYPED-HOST-ERRORS`.
 Plan path: `design_docs/planned/v0_52_6/m-mcphttp-typed-host-errors-sprint-plan.md`.
 Progress path: `.ailang/state/sprints/sprint_M-MCPHTTP-TYPED-HOST-ERRORS.json`.
 Execute M1 → M2 → M3 after sprint approval. Expected effort: 6h + 2h buffer; estimated LOC: 270. All milestone passes/start/completion fields remain null at planning completion.
+
+## Execution record (2026-10-09)
+
+M1 and M2 were committed separately. M1 wire tests failed before implementation
+in all six direct/wrapped typed cases across the three supported versions, then
+passed with the hook. M2 pins mixed batch responses and the wrapped host example
+through public `serveapi.New`; frozen callback tests remain unchanged.
+
+The explicit executor dispatch overrides the original checklist: the changelog
+is `changelogs/unreleased/2026-10-09-mcphttp-typed-host-errors.md`; full `make test`
+is deferred to CI, and the implementation PR body uses `Closes #1602`.
+The original checklist remains above for planning provenance; checked validation
+items mean the dispatch's replacement checks were run, with environment failures
+recorded below rather than a claim that full `make test` passed.
+
+The design's untyped batch description claimed a first-request id. The existing
+frozen envelope actually uses `id: null` for a batch. The extra untyped batch
+golden preserves that behavior; no production envelope changes were made.
+
+World delivery still requires a later release and dependency pin update.
+Independent sprint review found no implementation defects; final validation
+results are in the companion implementation report and sprint JSON.
+
+Final checks: `go test ./serveapi/... -count=1`, `make lint` (0 issues),
+`make check-protocol-closure`, `make check-boundaries` and
+`make check-file-sizes` pass. `make test-core` was attempted: all packages pass
+except eight existing SQLite brain tests in `internal/effects`, because
+`CGO_ENABLED=0` and no C compiler is available. No compiler was installed.
+Full `make test` was not run. Implementation report / ready PR body:
+`.ailang/state/implementation/m-mcphttp-typed-host-errors-pr.md`.

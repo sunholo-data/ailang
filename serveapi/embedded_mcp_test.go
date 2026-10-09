@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -410,5 +411,35 @@ func TestEmbeddedMCPOverloadEnvelopeAndFastControl(t *testing.T) {
 	wg.Wait()
 	if overload.Load() != 0 {
 		t.Fatalf("fast overloads=%d", overload.Load())
+	}
+}
+
+// effectsUnrecorded is the embedding guide's host error example.
+type effectsUnrecorded struct{ refs []string }
+
+func (e effectsUnrecorded) Error() string { return "effects unrecorded: commit failed" }
+func (e effectsUnrecorded) JSONRPCError() (int, string) {
+	return -32002, fmt.Sprintf("effects unrecorded; commit failed; refs=%v", e.refs)
+}
+
+type typedErrorFacadeHost struct{ fixtureHost }
+
+func (typedErrorFacadeHost) Tools(context.Context, Session) ([]ToolDescriptor, error) {
+	return []ToolDescriptor{objectTool("commit")}, nil
+}
+func (typedErrorFacadeHost) Invoke(context.Context, Session, Invocation) (InvocationResult, error) {
+	return InvocationResult{}, fmt.Errorf("invoke: %w", effectsUnrecorded{refs: []string{"er-1", "er-2"}})
+}
+
+func TestEmbeddedMCPTypedHostErrorThroughNew(t *testing.T) {
+	host := typedErrorFacadeHost{}
+	api, err := New(Config{Resolver: host, Tools: host, Invoker: host, Agent: AgentInfo{Name: "typed-host", Version: "1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := mcpPost(api.MCPHandler(), `{"jsonrpc":"2.0","id":41,"method":"tools/call","params":{"name":"commit","arguments":{}}}`)
+	want := "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":41,\"error\":{\"code\":-32002,\"message\":\"effects unrecorded; commit failed; refs=[er-1 er-2]\"}}\n\n"
+	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "text/event-stream" || rec.Body.String() != want {
+		t.Fatalf("status=%d type=%q body=%q; want 200 SSE %q", rec.Code, rec.Header().Get("Content-Type"), rec.Body.String(), want)
 	}
 }

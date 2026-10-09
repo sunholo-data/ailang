@@ -35,6 +35,21 @@
       ]
     },
     {
+      "path": "runnable/serve_api_response_headers.ail",
+      "status": "working",
+      "tags": [
+        "http",
+        "headers",
+        "records",
+        "json"
+      ],
+      "description": "Route response headers on raw and nowrap paths, using records and Json",
+      "modules": [
+        "std/json",
+        "std/result"
+      ]
+    },
+    {
       "path": "inline_tests_expected_values.ail",
       "status": "working",
       "tags": [
@@ -3295,11 +3310,11 @@
     }
   ],
   "statistics": {
-    "total": 223,
-    "working": 215,
+    "total": 224,
+    "working": 216,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9641255605381166,
+    "coverage": 0.9642857142857143,
     "experimental": 0
   },
   "milestones": {
