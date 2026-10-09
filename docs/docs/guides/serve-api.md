@@ -1378,7 +1378,10 @@ work with `_body` and `@nowrap`, including Result.Ok returns; `_headers` metadat
 is excluded from the response body. Invalid shapes, non-string values, invalid
 names, or control characters return a structured 500 and an ERROR log. Declared
 incompatible `@route` header types fail registration. X-Elapsed-Ms, Vary, and
-Access-Control-* are server-owned and attempts to set them fail. Program
+Access-Control-* are server-owned and attempts to set them fail. So are the
+message-framing headers Content-Length, Transfer-Encoding, Connection,
+Keep-Alive, Upgrade, Trailer, TE and any Proxy-* name (case-insensitive): a
+route that sets one gets the same structured 500 and ERROR log. Program
 Content-Type overrides raw body defaults (string: text/plain; bytes:
 application/octet-stream; other values: application/json). See the four runnable
 combinations in `examples/runnable/serve_api_response_headers.ail`.

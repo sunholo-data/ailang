@@ -121,7 +121,7 @@ valid HTTP header name on both response paths — with every unusable `_headers`
 | D4. Record `_headers` labels are remapped `_`→`-`; Json `_headers` names are exact | A record label `x_frame_options` currently produces the wire name `X_frame_options` — remapping changes what an existing (if broken) program sends: a public-surface change. The Json form keeps exact-name control as the escape hatch for any name a record cannot spell | human — **ruled YES, Mark 2026-10-08** | design | med |
 | D5. Extraction happens on the `eval.Value` **before** Go conversion, one shared helper for both dispatch sites | Post-`ToGo` the record and `JObject` forms are indistinguishable (`map[string]interface{}`), so D4's two rules cannot be applied; pre-`ToGo` mirrors `resultErrStatus` and fixes both sites with one mechanism | agent | design | med |
 | D6. Unusable `_headers` fails loudly: dispatch-time 500 + ERROR log naming the accepted shapes; `@route` registration additionally refuses a declared `_headers` type that is neither a string-valued record nor `Json` (the `WSReqIssue` pattern) | Defines new startup/type-error behaviour; the silent drop is the bug class | agent | design | med |
-| D7. Server-owned headers — `X-Elapsed-Ms`, every `Access-Control-*` header and `Vary` — are set last (or refused from `_headers`) on both paths, so a program cannot overwrite them; program `Content-Type` wins over the `_body` default, which requires setting that default **before** `WriteHeader` (it is not sent today — see Review notes 2026-10-08) | `@nowrap` today lets `_headers` overwrite the timing header (order: `:236-237` before `:239`); `corsWrap` sets the operator's CORS headers before the handler runs (`cors.go:28-37`), so program `_headers` can overwrite them today | agent | design | low |
+| D7. Server-owned headers — `X-Elapsed-Ms`, every `Access-Control-*` header and `Vary`, plus the message-framing headers `Content-Length`, `Transfer-Encoding`, `Connection`, `Keep-Alive`, `Upgrade`, `Trailer`, `TE` and `Proxy-*` (review 2026-10-09) — are set last (or refused from `_headers`) on both paths, so a program cannot overwrite them; program `Content-Type` wins over the `_body` default, which requires setting that default **before** `WriteHeader` (it is not sent today — see Review notes 2026-10-08) | `@nowrap` today lets `_headers` overwrite the timing header (order: `:236-237` before `:239`); `corsWrap` sets the operator's CORS headers before the handler runs (`cors.go:28-37`), so program `_headers` can overwrite them today | agent | design | low |
 | D8. `ailang mcp check` grows a framing probe: send a well-formed dummy authorization request to the discovered authorization endpoint and judge only a final 2xx HTML response; FAIL (anthropic/both targets) when neither `X-Frame-Options` nor `frame-ancestors` is present | New check semantics in a submission gate; what counts as FAIL vs WARN is a rules decision | agent | design | low |
 
 ### Design Freeze
@@ -232,6 +232,12 @@ Ship Phase 1 as its own PR and release it even if Phase 2 slips; Phase 2 + 3 fol
    `ParseStaticHeader`) — else a loud error, never a silently stripped or split header.
    Names in the server-owned set (D7: `X-Elapsed-Ms`, `Access-Control-*`, `Vary`) are refused
    loudly or overwritten last — the sprint picks one and pins it with a wire test.
+   **Review 2026-10-09:** the `_` → `-` label mapping also let a route set message-framing headers
+   (`Transfer-Encoding: "identity, chunked"` put two TE headers on the wire; `Content-Length: "3"`
+   truncated an 11-byte body). D7's refused set therefore also covers, case-insensitively,
+   `Content-Length`, `Transfer-Encoding`, `Connection`, `Keep-Alive`, `Upgrade`, `Trailer`, `TE`
+   and every `Proxy-*` name — refused loudly (structured 500 + ERROR log) on both the record and
+   the Json/`@nowrap` paths.
    Loud error = the handler's response becomes a 500 with a structured error naming the accepted
    shapes and the offending field, plus an `[API]` ERROR log (the existing failure channel,
    `routes_dispatch.go:168-176`).

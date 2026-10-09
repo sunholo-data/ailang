@@ -36,6 +36,9 @@ func responseHeaders(value eval.Value) (http.Header, error) {
 		if lower == "x-elapsed-ms" || lower == "vary" || strings.HasPrefix(lower, "access-control-") {
 			return fmt.Errorf("%s; field %q is owned by the server", responseHeadersShape, name)
 		}
+		if isFramingHeader(lower) {
+			return fmt.Errorf("%s; field %q is a message-framing header owned by the server", responseHeadersShape, name)
+		}
 		headers.Set(name, value)
 		return nil
 	}
@@ -88,6 +91,25 @@ func responseHeaders(value eval.Value) (http.Header, error) {
 		return nil, fmt.Errorf("%s; got %T", responseHeadersShape, v)
 	}
 	return headers, nil
+}
+
+// framingHeaders frame the HTTP message itself. A route that set them could
+// emit duplicate Transfer-Encoding headers or a Content-Length that truncates
+// the body, so they are refused like the D7 server-owned set.
+var framingHeaders = map[string]bool{
+	"content-length":    true,
+	"transfer-encoding": true,
+	"connection":        true,
+	"keep-alive":        true,
+	"upgrade":           true,
+	"trailer":           true,
+	"te":                true,
+}
+
+// isFramingHeader reports whether a lower-cased name is a framing or
+// hop-by-hop header (including every proxy-* name).
+func isFramingHeader(lower string) bool {
+	return framingHeaders[lower] || strings.HasPrefix(lower, "proxy-")
 }
 
 func withoutResponseHeaders(value eval.Value) eval.Value {

@@ -42,6 +42,18 @@ func TestResponseHeaderFailuresBothHandlers(t *testing.T) {
 		{"reserved-timing", "{x_elapsed_ms: string}", "{x_elapsed_ms: \"999\"}", "x-elapsed-ms"},
 		{"reserved-cors", "Json", "jo([kv(\"aCcEsS-CoNtRoL-Allow-Origin\", js(\"evil\"))])", "aCcEsS-CoNtRoL-Allow-Origin"},
 		{"reserved-vary", "{vary: string}", "{vary: \"evil\"}", "vary"},
+		{"framing-content-length", "{content_length: string}", "{content_length: \"3\"}", "content-length"},
+		{"framing-transfer-encoding", "{transfer_encoding: string}", "{transfer_encoding: \"identity, chunked\"}", "transfer-encoding"},
+		{"framing-connection", "{connection: string}", "{connection: \"close\"}", "connection"},
+		{"framing-keep-alive", "{keep_alive: string}", "{keep_alive: \"timeout=5\"}", "keep-alive"},
+		{"framing-upgrade", "{upgrade: string}", "{upgrade: \"websocket\"}", "upgrade"},
+		{"framing-trailer", "{trailer: string}", "{trailer: \"X-Foo\"}", "trailer"},
+		{"framing-te", "{te: string}", "{te: \"trailers\"}", "te"},
+		{"framing-proxy", "{proxy_authenticate: string}", "{proxy_authenticate: \"Basic\"}", "proxy-authenticate"},
+		{"framing-json-content-length", "Json", "jo([kv(\"CoNtEnT-LeNgTh\", js(\"3\"))])", "CoNtEnT-LeNgTh"},
+		{"framing-json-transfer-encoding", "Json", "jo([kv(\"Transfer-Encoding\", js(\"identity, chunked\"))])", "Transfer-Encoding"},
+		{"framing-json-te", "Json", "jo([kv(\"TE\", js(\"trailers\"))])", "TE"},
+		{"framing-json-proxy", "Json", "jo([kv(\"Proxy-Connection\", js(\"keep-alive\"))])", "Proxy-Connection"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, nowrap := range []bool{false, true} {
