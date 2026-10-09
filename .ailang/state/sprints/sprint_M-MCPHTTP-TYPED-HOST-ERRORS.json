@@ -76,10 +76,10 @@
         "TestEmbeddedMCPFrozenCallbackEnvelopes passes unchanged; timeout, capacity and cancellation mappings remain frozen.",
         "Existing handler, gate, tool hints, bearer gate and SDK parity tests pass; no parity row is added for host errors because the SDK reference discards them."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T06:21:50.785571+00:00",
+      "completed": "2026-10-09T06:21:50.785571+00:00",
+      "notes": "Exact mixed batch SSE and untyped batch fallback goldens; wrapped EffectsUnrecorded through public New facade. All protocol packages and focused facade/frozen/gate/parity regressions pass. Full facade suite retry pending dependency cache warming. Existing untyped batch fallback has null id (design prose claimed first id); preserved actual behavior."
     },
     {
       "id": "M3",
@@ -103,5 +103,5 @@
       "notes": null
     }
   ],
-  "last_checkpoint": "M1 implementation and focused tests complete"
+  "last_checkpoint": "M2 compatibility tests complete"
 }

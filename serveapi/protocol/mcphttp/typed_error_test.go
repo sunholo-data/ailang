@@ -87,3 +87,13 @@ func TestTypedHostError(t *testing.T) {
 		}
 	}
 }
+
+func TestTypedHostErrorBatch(t *testing.T) {
+	body := `[{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"echo"}},{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"fail"}},{"jsonrpc":"2.0","id":3,"method":"ping"}]`
+	const success = `{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"{\"ok\":true}"}],"structuredContent":{"ok":true}}}`
+	const failure = `{"jsonrpc":"2.0","id":2,"error":{"code":-32002,"message":"effects unrecorded; refs=[er-1 er-2]"}}`
+	const ping = `{"jsonrpc":"2.0","id":3,"result":{}}`
+	assertErrorWire(t, typedErrorHandler(t, typedHostError{-32002, "effects unrecorded; refs=[er-1 er-2]"}), "2025-03-26", body, "text/event-stream", sse("["+success+","+failure+","+ping+"]"))
+	// Untyped errors still discard sibling results and retain the frozen POST-level null id.
+	assertErrorWire(t, typedErrorHandler(t, errors.New("db down")), "2025-03-26", body, "application/json", "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"host callback failed\"}}\n")
+}
