@@ -160,6 +160,12 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	result.Artifacts.AST = astFile
 	result.PhaseTimings["parse"] = time.Since(start).Milliseconds()
 
+	if !cfg.SkipTestRowValidation {
+		if err := validateTestRows(astFile); err != nil {
+			return result, err
+		}
+	}
+
 	// Phase 2: Elaborate to Core
 	start = time.Now()
 	_, elabSpan := telemetry.StartSpan(ctx, compilerTracer, "compile.elaborate")
@@ -396,7 +402,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	// Validate effects (M-SOUNDNESS)
 	// This ensures functions declare all effects they use
 	// Compare declared effects from Surface AST with required effects from Core AST
-	if err := ValidateEffects(result.Artifacts.AST, coreProg, typeChecker.CoreTI, typeChecker.DeclaredLambdaEffectRow); err != nil {
+	if err := ValidateEffectsWithCalls(result.Artifacts.AST, coreProg, typeChecker.CoreTI, typeChecker.LatentParamMask, typeChecker.DeclaredLambdaEffectRow, typeChecker.EffectValueType); err != nil {
 		valErr := fmt.Errorf("effect checking failed: %w", err)
 		validateSpan.RecordError(valErr)
 		validateSpan.SetStatus(codes.Error, "effect validation failed")

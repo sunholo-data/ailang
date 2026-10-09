@@ -113,6 +113,9 @@ func New(name string, opts ...Option) (*Client, error) {
 	typ := ai.ProviderFromString(name)
 
 	switch typ {
+	case ai.ProviderCodex:
+		return nil, ai.NewAIError(ai.CodeCapabilityNotSupported,
+			"codex AI-effect routing is unavailable in Phase 1 (#903); use chatgpt/<model> for the interim ChatGPT subscription lane, or explicitly select provider openai for metered API use", false)
 	case ai.ProviderOpenAI:
 		baseURL := o.baseURL
 		if baseURL == "" {

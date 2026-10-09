@@ -118,6 +118,9 @@ func DiffEffectRows(required, declared *Row) EffectRowDiff {
 				}
 				compatible = isNarrowingParam(effect, key, present)
 			}
+			if effect == "Declassify" && key == "label" {
+				compatible = !declaredOK || (requiredOK && ModeSubsumes(effect, declaredValue, requiredValue))
+			}
 			if !compatible {
 				diff.ParamMismatches = append(diff.ParamMismatches, EffectParamMismatch{
 					Effect: effect, Key: key, RequiredValue: requiredValue, DeclaredValue: declaredValue,

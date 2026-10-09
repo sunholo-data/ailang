@@ -1161,29 +1161,20 @@ export func echo(req: {body: string, headers: Json, method: string, path: string
 `@nowrap` functions can set custom HTTP headers by including a `_headers` field in the return record. The `_headers` field is extracted as HTTP headers and excluded from the JSON response body:
 
 ```ailang
+module examples/runnable/serve_api_response_headers
+
 @nowrap
-@route("POST", "/api/v1/parse")
-export func parseFile(path: string) -> {data: string, count: int, _headers: {string: string}} ! {IO}
-  let result = parse(path)
-  {
-    data = result.text,
-    count = result.elementCount,
-    _headers = {
-      "X-Request-Id" = generateId(),
-      "X-RateLimit-Remaining" = "99"
-    }
-  }
+@route("GET", "/headers/nowrap-record")
+export pure func nowrapRecord() -> {data: string, _headers: {x_frame_options: string, content_security_policy: string}} =
+  {data: "ok", _headers: {x_frame_options: "DENY", content_security_policy: "frame-ancestors 'none'"}}
 ```
 
 ```bash
-curl -s -D- http://localhost:8080/api/v1/parse -d '{"path": "test.docx"}'
-# HTTP/1.1 200 OK
-# Content-Type: application/json
-# X-Request-Id: req_abc123
-# X-RateLimit-Remaining: 99
-# X-Elapsed-Ms: 42
-#
-# {"data": "parsed content", "count": 15}
+ailang serve-api examples/runnable/serve_api_response_headers.ail
+curl -i http://localhost:8080/headers/nowrap-record
+# X-Frame-Options: DENY
+# Content-Security-Policy: frame-ancestors 'none'
+# {"data": "ok"}
 ```
 
 > **Note:** The `_headers` convention is consistent with the existing `_body`/`_status`/`_headers` pattern used for [binary responses](#binary-response-v094). For simple JSON responses that just need extra headers, `@nowrap` with `_headers` is more ergonomic than the full `_body` pattern.
@@ -1367,20 +1358,34 @@ Upload size limit: 50MB default, configurable via `--max-upload-size`.
 To return raw binary files (not JSON), return a record with `_body`, `_status`, and `_headers` fields:
 
 ```ailang
-@route("POST", "/api/v1/convert")
-export func convertToDocx(file: Bytes) -> {_body: Bytes, _status: int, _headers: {string: string}} ! {IO}
-  let result = convert(file, "docx")
-  {
-    _body = result,
-    _status = 200,
-    _headers = {
-      "Content-Type" = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition" = "attachment; filename=\"output.docx\""
-    }
-  }
+module examples/runnable/response_download
+import std/bytes (fromString)
+import std/json (Json, jo, kv, js)
+
+@route("GET", "/download")
+export pure func download() -> {_body: bytes, _status: int, _headers: Json} =
+  {_body: fromString("hello"), _status: 200,
+   _headers: jo([kv("Content-Type", js("text/plain")),
+                 kv("Content-Disposition", js("attachment; filename=hello.txt"))])}
 ```
 
 The server detects `_body` and sends a raw HTTP response instead of JSON-wrapping.
+
+From v0.54.0, record `_headers` labels replace underscores with hyphens
+(`x_frame_options` sends `X-Frame-Options`). Json `_headers` must be a JObject
+of JString values and preserve names exactly, including underscores. Both forms
+work with `_body` and `@nowrap`, including Result.Ok returns; `_headers` metadata
+is excluded from the response body. Invalid shapes, non-string values, invalid
+names, or control characters return a structured 500 and an ERROR log. Declared
+incompatible `@route` header types fail registration. X-Elapsed-Ms, Vary, and
+Access-Control-* are server-owned and attempts to set them fail. So are the
+message-framing headers Content-Length, Transfer-Encoding, Connection,
+Keep-Alive, Upgrade, Trailer, TE and any Proxy-* name (case-insensitive): a
+route that sets one gets the same structured 500 and ERROR log. Program
+Content-Type overrides raw body defaults (string: text/plain; bytes:
+application/octet-stream; other values: application/json). See the four runnable
+combinations in `examples/runnable/serve_api_response_headers.ail`.
+
 
 ---
 
@@ -1825,8 +1830,44 @@ only; `make check-protocol-closure` measures and enforces that guarantee in CI.
 
 The split is contract versus machinery: `serveapi/protocol` does not provide
 HTTP handlers or callback bounding. Import `serveapi` for the ready-made MCP and
-A2A handlers and bounded callback runner; its MCP handler brings the MCP SDK
-dependency subtree.
+A2A handlers and bounded callback runner. The MCP dispatcher is SDK-free;
+`make check-protocol-closure` also checks the handler and facade build closures.
+
+### Typed MCP host errors
+
+An error returned by `Invoker.Invoke` can opt into `protocol.JSONRPCError`:
+
+```go
+type effectsUnrecorded struct{ refs []string }
+
+func (e effectsUnrecorded) Error() string { return "effects unrecorded: commit failed" }
+func (e effectsUnrecorded) JSONRPCError() (int, string) {
+    return -32002, fmt.Sprintf("effects unrecorded; commit failed; refs=%v", e.refs)
+}
+```
+
+Return this error from `Invoke` when an effect ran but its commit failed. The
+MCP handler uses `errors.As`, so wrapping with `fmt.Errorf("invoke: %w", err)`
+works too. The code must be nonzero and the message nonempty. Both pass through
+verbatim, including percent signs; use server-error codes `-32000..-32099` or
+application-defined codes. Reserved codes pass through at the host's risk.
+
+For request id `41` and refs `er-1`, `er-2`, the response is HTTP 200 with
+`Content-Type: text/event-stream`:
+
+```text
+event: message
+data: {"jsonrpc":"2.0","id":41,"error":{"code":-32002,"message":"effects unrecorded; commit failed; refs=[er-1 er-2]"}}
+
+```
+
+This error answers only its calling message. In a supported batch
+(`2025-03-26`), sibling results survive in the same SSE response array with
+their own ids. Errors without the hook, zero codes and empty messages retain
+the frozen whole-POST JSON envelope: `-32603 "host callback failed"`.
+Timeout, cancellation and capacity mappings remain unchanged. This hook applies
+only to MCP `Invoke` errors; session resolution, tool discovery and A2A keep
+their existing behavior. No `isError`, `error.data` or `_meta` channel is added.
 
 ### Ownership boundary
 
@@ -1883,3 +1924,21 @@ Run the automated tests:
 ```
 
 This starts the server, exercises all endpoints (function calls, introspection, error handling, CORS), and reports pass/fail.
+
+## Static security headers (v0.54.0+)
+
+Static hosting sends nosniff, X-Frame-Options DENY, CSP frame-ancestors 'none',
+and Referrer-Policy no-referrer on all statuses, including redirects and errors.
+To allow same-origin framing, override **both** framing headers:
+
+```bash
+ailang serve-api examples/runnable/serve_api_mcp_header_auth.ail --static ./ui/dist \
+  --static-header "X-Frame-Options: SAMEORIGIN" \
+  --static-header "Content-Security-Policy: frame-ancestors 'self'"
+```
+
+Overrides are repeatable and case-insensitive (last wins). To remove all defaults,
+use `--no-static-security-headers`; explicit `--static-header` values still apply.
+These options require `--static` and reject invalid header names, empty values,
+and control characters at startup. Deployments framing static pages must migrate
+with both overrides or opt out explicitly. The defaults affect static files only.

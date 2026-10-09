@@ -1,0 +1,98 @@
+{
+  "sprint_id": "M-VM-STACK-LIMIT-PARITY",
+  "status": "completed",
+  "created": "2026-10-08T20:13:42Z",
+  "design_doc": "design_docs/planned/v1_0_0/m-vm-stack-limit-parity.md",
+  "sprint_plan": "design_docs/planned/v1_0_0/m-vm-stack-limit-parity-sprint-plan.md",
+  "github_issues": [
+    1576
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "search_terms": [],
+      "reason": "Registry search not applicable: core VM/runner depth enforcement and its CLI regression tests/documentation are not package-like capabilities; no registry dependency can replace these internal contracts."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "search_terms": [],
+      "reason": "Registry search not applicable: core VM/runner depth enforcement and its CLI regression tests/documentation are not package-like capabilities; no registry dependency can replace these internal contracts."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 220,
+    "estimated_total_loc": 220,
+    "estimated_days": 1,
+    "basis": "Design estimate plus validation buffer; shallow history supplies no measured LOC/day."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Enforce the production depth contract",
+      "estimated_loc": 60,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "New VM construction has MaxStack 10000; explicit smaller caps still overflow and tail calls stay constant-depth.",
+        "Pure non-tail depth 200 with `--bytecode --strict-bytecode --max-recursion-depth 50` exits nonzero with `stack overflow`; demonstrate red before wiring and green after (design AC3).",
+        "Default and positive override paths are covered; zero/negative values retain the default rather than disabling the cap.",
+        "`go test ./internal/vm/...` and the focused new CLI contract tests pass; vm.go grows at most +9 net lines; the new VM test lives in internal/vm/vm_stack_limit_test.go (vm_test.go untouched)."
+      ],
+      "passes": true,
+      "started": "2026-10-09T07:31:10.151683+00:00",
+      "completed": "2026-10-09T07:35:32.681801+00:00",
+      "notes": "Red-to-green VM default and production CLI flag contract verified. VM/runner/testing packages pass; pure CLI default, small positive, raised, zero, negative and above-default cases pass. vm.go net growth 0; existing explicit-cap/TCO tests preserved."
+    },
+    {
+      "id": "M2",
+      "description": "Lock service parity and reconcile the corpus",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Service handler with non-tail rep(1170), stdin `hello\\nvoice\\n`, and `--bytecode --verbose --caps IO --entry main` exits 0 with exactly four stdout lines: HELLO, ASK, HANDLED len=1170, HANDLED-AFTER; stderr has no `falling back to evaluator` (AC1). Compare the interpreter output too.",
+        "Standalone rep(5000) prints exactly START once and DONE len=5000, exits 0, and has no fallback warning under `--bytecode --verbose` (AC2).",
+        "Pure depth 9000 succeeds with identical interpreter/strict-VM output; depth 11001 fails loudly on both, with RT_REC_003 for the interpreter and stack overflow for the strict VM (AC4). IO-free strict fixtures return a computed value.",
+        "Focused go test ./internal/vm/... ./internal/runner/... ./internal/testing/... plus go test ./cmd/ailang/... -run StackLimit|Bytecode|TailCall|Fallback|Stdin, then make test-core, pass (AC5); full suite runs in CI.",
+        "Limitations reference documents default 10,000 and the shared flag, while distinguishing VM frame counting from evaluator depth accounting (AC6).",
+        "Run the full parity harness after rebuilding; reconcile every changed row by filename and status against the baseline (AC7). Record counts, commands, binary provenance, and timings. Never accept totals alone or a fallback as proof of VM success.",
+        "`make fmt`, `make lint`, and `git diff --check` pass; fixture type-checking and elapsed integration-test timings are recorded.",
+        "Changelog fragment changelogs/unreleased/YYYY-MM-DD-vm-stack-limit-parity.md records the behaviour change: --max-recursion-depth now bounds the VM; VM default 1000 -> 10000. Refs #1576."
+      ],
+      "passes": true,
+      "started": "2026-10-09T07:35:32.681801+00:00",
+      "completed": "2026-10-09T07:43:35.337423+00:00",
+      "notes": "AC1-AC7 verified. Service emits four exact lines; START once; strict depth/flag tests pass including zero/negative below and above default. Focused CGO package/CLI gates, test-core, verify-examples, fmt, lint, file sizes and diff-check pass. Corpus 200 rows: zero status/exit changes; timing-only stdout change in existing xml_walk_perf divergence. Verification report records hashes, timings, residual B4 and PR body Refs #1576."
+    }
+  ],
+  "related_design_docs": [
+    "design_docs/planned/v1_0_0/m-bytecode-vm-parity-bugs.md"
+  ],
+  "handoff": {
+    "target": "sprint-executor",
+    "dispatch": "coordinator approval/merge",
+    "pr_body_required": "Refs #1576",
+    "scope": "F1-F3 and AC1-AC7; B4 unsafe replay and optional quiet-warning follow-up remain separate.",
+    "branch_name": "coordinator/task-cd24567d",
+    "evaluation_status": "pending"
+  },
+  "executor_constraints": [
+    "internal/vm/vm.go is 791 lines: F1 comment rewrite stays at or under +9 net lines; new VM test in a new file, not vm_test.go.",
+    "Changelog: fragment changelogs/unreleased/YYYY-MM-DD-<slug>.md; never changelogs/v0.32-current.md.",
+    "No full make test locally (SIGBUS in RAM-backed /tmp): focused go test on touched packages plus make test-core; full suite runs in CI.",
+    "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-VM-STACK-LIMIT-PARITY before starting and after every JSON update.",
+    "Executor cannot push or merge; commit locally with Refs #1576."
+  ],
+  "completed": "2026-10-09T07:43:35.337423+00:00",
+  "last_session": "2026-10-09T07:43:35.337423+00:00",
+  "last_checkpoint": "M2 complete: all authorized local gates pass; independent evaluation and full-suite CI pending",
+  "verification_report": "design_docs/planned/v1_0_0/m-vm-stack-limit-parity-verification.md",
+  "actual_code_loc": {
+    "production_net": 3,
+    "test_lines_added": 146
+  }
+}

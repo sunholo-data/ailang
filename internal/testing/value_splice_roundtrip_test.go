@@ -44,7 +44,11 @@ func assertRoundTrip(t *testing.T, r *Runner, evaluator *eval.CoreEvaluator, v e
 	if err != nil {
 		t.Fatalf("valueToLiteral(%T): %v", v, err)
 	}
-	result, err := evaluator.Eval(astExprToCore(lit))
+	c, err := astExprToCore(lit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := evaluator.Eval(c)
 	if err != nil {
 		t.Fatalf("evaluate spliced %T: %v", v, err)
 	}

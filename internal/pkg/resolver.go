@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // VersionConflictError is returned when the dependency graph has incompatible
@@ -259,17 +261,23 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						registryClient = NewRegistryClient()
 					}
 					client := registryClient
-					cachePath, err := CachedPackagePath(depName, dep.Version)
+					cachePath, err := PackageDir(depName, dep.Version)
 					if err != nil {
 						return fmt.Errorf("failed to compute cache path for %s: %w", depName, err)
 					}
 
 					// Check if already cached
 					if _, statErr := os.Stat(filepath.Join(cachePath, ManifestFile)); statErr != nil {
+						if config.PackageRoot() != "" {
+							return fmt.Errorf("registry package %s@%s is not provisioned in AILANG_PACKAGE_ROOT at %s; ask the operator to provision it", depName, dep.Version, cachePath)
+						}
 						// Not cached — download from registry
 						tarballData, err := client.FetchPackage(depName, dep.Version)
 						if err != nil {
 							return fmt.Errorf("failed to download %s@%s from registry: %w", depName, dep.Version, err)
+						}
+						if _, err := EnsureRegistryCacheDir(); err != nil {
+							return err
 						}
 						if err := os.MkdirAll(cachePath, 0755); err != nil {
 							return fmt.Errorf("failed to create cache dir: %w", err)

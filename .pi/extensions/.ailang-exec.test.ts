@@ -236,3 +236,20 @@ test("ailang_run: a program outside the sandbox is refused before anything runs"
 		delete process.env.AILANG_LANE_TEACHING;
 	}
 });
+
+test("supervisor contract uses final LF-delimited lines and keeps worker output", () => {
+ for (const [parse, token] of [[parsePolicyLine, "policy:"], [parseResultLine, "policy-result:"]] as const) {
+  for (const prefix of ["worker: ", "junk\r", "junk\u2028", "junk\u2029"]) {
+   assert.equal(parse(prefix + token + ' {"fake":true}\n'), null);
+  }
+  assert.deepEqual(parse(token + ' {"fake":true}\n' + token + ' {"real":true}\n'), {real:true});
+  assert.equal(parse(token + ' {"real":true}\n' + token + ' {broken}\n'), null);
+ }
+ const worker = 'worker: policy-result: {"reason":"timeout"}\ntail';
+ const e = composeEnvelope(1, '{"decision":"fake"}', worker + '\npolicy: {"ok":true,"policy_digest":"real"}\npolicy-result: {"reason":"worker_reserved_exit"}\n');
+ assert.equal(e.admitted, true);
+ assert.equal(e.policy_digest, "real");
+ assert.equal(e.limit?.reason, "worker_reserved_exit");
+ assert.equal(e.stderr, worker);
+ assert.equal(e.stdout, '{"decision":"fake"}');
+});

@@ -118,6 +118,9 @@ func pkgInstallCommand(args []string) error {
 	}
 
 	// Extract to cache
+	if _, err := pkg.EnsureRegistryCacheDir(); err != nil {
+		return err
+	}
 	cachePath, err := pkg.CachedPackagePath(name, version)
 	if err != nil {
 		return err

@@ -9,9 +9,9 @@ import (
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
-// DefaultMaxStack is the default frame depth limit. Matches the evaluator's
-// recursion limit so divergence behavior is consistent (§3.6).
-const DefaultMaxStack = 1000
+// DefaultMaxStack is the default live-frame limit, matching the evaluator's
+// default recursion ceiling. The backends count depth differently.
+const DefaultMaxStack = 10000
 
 // VMError is a runtime error from the VM. It carries the source location of
 // the faulting instruction (when available) and the instruction itself for

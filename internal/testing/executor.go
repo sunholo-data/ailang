@@ -123,7 +123,11 @@ func (e *Executor) SetDebug(debug bool) {
 // This is the M-DX26 Phase 5 entry point: it evaluates Core directly, the
 // same way EvaluateInlineTestsWithHarness does for inline tests blocks.
 func (e *Executor) EvaluateEnsuresHarness(binding core.RecBinding, params []EnsuresParam, predicate ast.Expr) (eval.Value, error) {
-	return e.evaluateEnsuresHarnessCore(BuildEnsuresPropertyHarness(binding, params, predicate))
+	harness, err := BuildEnsuresPropertyHarness(binding, params, predicate)
+	if err != nil {
+		return nil, err
+	}
+	return e.evaluateEnsuresHarnessCore(harness)
 }
 
 // EvaluateEnsuresHarnessFromCore is the lowered-Core variant — accepts a predicate
@@ -323,11 +327,12 @@ func (e *Executor) runNamedTestPipeline(combinedSource string, hasModule bool) (
 	}
 
 	cfg := pipeline.Config{
-		Mode:           pipeline.ModeEval,
-		RelaxModules:   true,
-		PackageDir:     pkgDir,
-		TransientRoot:  true,
-		GlobalResolver: e.globalResolver,
+		SkipTestRowValidation: true,
+		Mode:                  pipeline.ModeEval,
+		RelaxModules:          true,
+		PackageDir:            pkgDir,
+		TransientRoot:         true,
+		GlobalResolver:        e.globalResolver,
 	}
 	pipelineSrc := pipeline.Source{
 		Code:     combinedSource,
@@ -389,7 +394,10 @@ func decodeCheckSentinel(val eval.Value, checks []CheckInfo) (eval.Value, error)
 // This is the PREFERRED method for inline tests.
 func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests []TestCase) (*eval.TupleValue, error) {
 	// Build test harness using the harness builder
-	harnessExpr := BuildInlineTestHarness(binding, tests)
+	harnessExpr, err := BuildInlineTestHarness(binding, tests)
+	if err != nil {
+		return nil, err
+	}
 
 	// Wrap harness in a Core program for evaluation
 	coreProg := &core.Program{
@@ -458,9 +466,10 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 		pipelineFilename = tmpFile
 	}
 	cfg := pipeline.Config{
-		Mode:           pipeline.ModeEval,
-		RelaxModules:   true,
-		GlobalResolver: e.globalResolver,
+		SkipTestRowValidation: true,
+		Mode:                  pipeline.ModeEval,
+		RelaxModules:          true,
+		GlobalResolver:        e.globalResolver,
 	}
 	src := pipeline.Source{
 		Code:     strippedSource,
@@ -509,57 +518,16 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	return nil, fmt.Errorf("function '%s' not found in Core program", functionName)
 }
 
-// EvaluateLiteral converts an AST literal expression to an eval.Value.
-func (e *Executor) EvaluateLiteral(expr ast.Expr) (eval.Value, error) {
-	// Handle UnaryOp (e.g., -3)
-	if unop, ok := expr.(*ast.UnaryOp); ok {
-		if unop.Op == "-" {
-			operand, err := e.EvaluateLiteral(unop.Expr)
-			if err != nil {
-				return nil, err
-			}
-			if intVal, ok := operand.(*eval.IntValue); ok {
-				return &eval.IntValue{Value: -intVal.Value}, nil
-			}
-			if floatVal, ok := operand.(*eval.FloatValue); ok {
-				return &eval.FloatValue{Value: -floatVal.Value}, nil
-			}
-			return nil, fmt.Errorf("cannot negate non-numeric value: %T", operand)
-		}
-		return nil, fmt.Errorf("unsupported unary operator: %s", unop.Op)
+// EvaluateExpectedExpr shares conversion and the module-scoped evaluator with inputs.
+func (e *Executor) EvaluateExpectedExpr(expr ast.Expr) (eval.Value, error) {
+	if problem := ast.RowExprSupported(expr); problem != nil {
+		return nil, problem
 	}
-
-	lit, ok := expr.(*ast.Literal)
-	if !ok {
-		return nil, fmt.Errorf("expected literal expression, got %T", expr)
+	c, err := astExprToCore(expr)
+	if err != nil {
+		return nil, err
 	}
-
-	switch lit.Kind {
-	case ast.IntLit:
-		if v, ok := lit.Value.(int64); ok {
-			return &eval.IntValue{Value: int(v)}, nil
-		}
-		return nil, fmt.Errorf("invalid int literal value: %T", lit.Value)
-	case ast.FloatLit:
-		if v, ok := lit.Value.(float64); ok {
-			return &eval.FloatValue{Value: v}, nil
-		}
-		return nil, fmt.Errorf("invalid float literal value: %T", lit.Value)
-	case ast.BoolLit:
-		if v, ok := lit.Value.(bool); ok {
-			return &eval.BoolValue{Value: v}, nil
-		}
-		return nil, fmt.Errorf("invalid bool literal value: %T", lit.Value)
-	case ast.StringLit:
-		if v, ok := lit.Value.(string); ok {
-			return &eval.StringValue{Value: v}, nil
-		}
-		return nil, fmt.Errorf("invalid string literal value: %T", lit.Value)
-	case ast.UnitLit:
-		return &eval.UnitValue{}, nil
-	default:
-		return nil, fmt.Errorf("unsupported literal kind: %v", lit.Kind)
-	}
+	return e.newHarnessEvaluator().EvalCoreProgram(&core.Program{Decls: []core.CoreExpr{c}})
 }
 
 // CompareValues checks if two values are equal.
@@ -595,7 +563,10 @@ func (e *Executor) EvaluateInlineTestsWithCluster(
 		Names:    names,
 	}
 
-	harnessExpr := BuildClusterTestHarness(cluster, tests)
+	harnessExpr, err := BuildClusterTestHarness(cluster, tests)
+	if err != nil {
+		return nil, err
+	}
 	harnessProgram := &core.Program{
 		Decls: []core.CoreExpr{harnessExpr},
 	}
@@ -626,8 +597,9 @@ func (e *Executor) ExtractPureClusterForFunction(
 	}
 
 	cfg := pipeline.Config{
-		Mode:           pipeline.ModeEval,
-		GlobalResolver: e.globalResolver,
+		SkipTestRowValidation: true,
+		Mode:                  pipeline.ModeEval,
+		GlobalResolver:        e.globalResolver,
 	}
 	src := pipeline.Source{
 		// With a filename, the module pipeline reloads source from disk

@@ -3,7 +3,7 @@
 Refs #1569
 
 **Design:** [Approved design](m-fs-deny-write-dir-rename.md)
-**Status:** Planned; implementation awaits sprint approval through the coordinator.
+**Status:** Implementation complete; validation gate unmet due to unrelated whole-suite failures.
 **Target:** v0.52.6
 **Priority:** P0 — filesystem sandbox bypass
 **Duration:** 2 working days, approximately 8 hours including 2 hours of review/validation buffer.
@@ -33,7 +33,7 @@ Recent changelog releases v0.52.1–v0.52.5 include the shared folded matcher (#
 
 ## Milestones
 
-### M1: Shared structural-mutation matcher (~160 LOC)
+### M1: ✅ Shared structural-mutation matcher (~160 LOC)
 
 **Estimated:** 60 implementation + 100 tests; 2 hours, Day 1.
 **Dependencies:** None.
@@ -42,15 +42,15 @@ Recent changelog releases v0.52.1–v0.52.5 include the shared folded matcher (#
 
 Add `Violation.Ancestor`, `MatchDenyMove`, `mayMatchBeneath` and `Protection.CheckMove`. Reuse existing cleaning/folding rules; preserve `Check` and `MatchDenyWrite` behavior. Apply direct protection first, retaining `.git` precedence, then component-prefix matching with a component remaining. Exclude base-name matching from the beneath predicate. Treat a `**` component and encountered malformed component globs conservatively as specified by the design. Return the original operator pattern and distinguish direct versus ancestor denial.
 
-- [ ] Literal `.claude/settings.json`, `a/b/**` and `a/*/x.txt` refuse their matching ancestors; direct protected paths remain refused.
-- [ ] Case/NFC folding, leading `./`, cleaned paths, wildcard components, middle `**` and malformed-glob fail-closed behavior have explicit unit cases.
-- [ ] Unrelated paths and `.claude/sub` remain allowed under `.claude/settings.json`; base patterns `*.yml` and `Makefile` do not freeze unrelated directory names.
-- [ ] `CheckMove` preserves `.git` precedence and marks only additional ancestor violations with `Ancestor`; pattern text remains original.
-- [ ] `go test ./internal/fileguard` passes and existing plain-check tests remain unchanged in behavior.
+- [x] Literal `.claude/settings.json`, `a/b/**` and `a/*/x.txt` refuse their matching ancestors; direct protected paths remain refused.
+- [x] Case/NFC folding, leading `./`, cleaned paths, wildcard components, middle `**` and malformed-glob fail-closed behavior have explicit unit cases.
+- [x] Unrelated paths and `.claude/sub` remain allowed under `.claude/settings.json`; base patterns `*.yml` and `Makefile` do not freeze unrelated directory names.
+- [x] `CheckMove` preserves `.git` precedence and marks only additional ancestor violations with `Ancestor`; pattern text remains original.
+- [x] `go test ./internal/fileguard` passes and existing plain-check tests remain unchanged in behavior.
 
 **Risk:** A second normalization rule or an overly broad basename check changes existing policy semantics. Mitigate by using the current helpers and paired allowed/denied cases. Include root-relative `.` in the unit audit; do not invent root-move semantics if the backend already rejects it. Escalate any conflict with the frozen predicate before changing it.
 
-### M2: Structural FS enforcement and denial evidence (~145 LOC)
+### M2: ✅ Structural FS enforcement and denial evidence (~145 LOC)
 
 **Estimated:** 25 implementation + 120 tests; 3 hours, Day 1 and Day 2.
 **Dependencies:** M1.
@@ -59,12 +59,12 @@ Add `Violation.Ancestor`, `MatchDenyMove`, `mayMatchBeneath` and `Protection.Che
 
 Add `fsCheckMove` with the existing sandbox resolution, early-return, `.git` and error-code behavior, calling `CheckMove`. Wire both operands of `renameFile` and `renameFileResult`; wire `removeFile`, `removeFileResult`, `removeDirResult` and exported `FSRemove`. Keep writes, appends and mkdir handlers on `fsCheckMutation`. Audit the call-site list against current source rather than design line numbers.
 
-- [ ] For literal, nested `/**` and mid-glob policies, source moves and independently prepared destination planting are refused before any mutation.
-- [ ] Both rename variants exercise both operands through `effects.Call`; throwing variants report `E_FS_PROTECTED`, Result variants return `Err` containing the same code.
-- [ ] All three dispatched removal variants refuse an empty protected ancestor with `E_FS_PROTECTED`, avoiding a false pass from the backend's non-empty-directory error; `FSRemove` is tested directly as an exported helper.
-- [ ] Every denied mutation asserts unchanged file content and source/destination directory state; do not demand denial of an arbitrary temporary-path write that the policy does not protect.
-- [ ] Unrelated directory moves, `run.json.tmp` to `run.json`, ancestor mkdir/write behavior, no-deny operation behavior and base-glob directory moves remain allowed; moved base-glob files remain write-protected.
-- [ ] Existing `.git`, sandbox-boundary and direct-write protection tests pass; `go test ./internal/effects ./internal/fileguard ./internal/policytool` passes.
+- [x] For literal, nested `/**` and mid-glob policies, source moves and independently prepared destination planting are refused before any mutation.
+- [x] Both rename variants exercise both operands through `effects.Call`; throwing variants report `E_FS_PROTECTED`, Result variants return `Err` containing the same code.
+- [x] All three dispatched removal variants refuse an empty protected ancestor with `E_FS_PROTECTED`, avoiding a false pass from the backend's non-empty-directory error; `FSRemove` is tested directly as an exported helper.
+- [x] Every denied mutation asserts unchanged file content and source/destination directory state; do not demand denial of an arbitrary temporary-path write that the policy does not protect.
+- [x] Unrelated directory moves, `run.json.tmp` to `run.json`, ancestor mkdir/write behavior, no-deny operation behavior and base-glob directory moves remain allowed; moved base-glob files remain write-protected.
+- [x] Existing `.git`, sandbox-boundary and direct-write protection tests pass; `go test ./internal/effects ./internal/fileguard ./internal/policytool` passes.
 
 **Risk:** Tests can mistake ordinary filesystem failure for security denial or omit destination-only attacks. Use empty ancestors and independently prepared trees, and assert the security code plus disk state. Policy-tool currently has no structural operation, so its write/edit gate remains unchanged; future structural ops must explicitly call `CheckMove`.
 
@@ -75,12 +75,12 @@ Add `fsCheckMove` with the existing sandbox resolution, early-return, `.git` and
 **Files:** `std/fs.ail` (comments only), `docs/docs/guides/agent-tool-policy.md`, `changelogs/v0.32-current.md`.
 **Examples:** Document the literal ancestor, nested `/**` ancestor and mid-glob cases using existing design examples/policy prose. No new `.ail` program is required; fetch `ailang prompt` before any `.ail` edit, and type-check if code is added.
 
-- [ ] FS rename/remove comments and the policy guide state that structural operations protect matching ancestor directories, including both rename operands.
-- [ ] The guide explains `dir/**` still protects all contents and now protects its higher ancestors; basename patterns keep their current behavior.
-- [ ] Add a Fixed entry under Unreleased referencing #1569 and the two sibling variants; do not bump versions or open a new issue.
-- [ ] Run `make fmt`, `make test`, `make lint`, and `make check-boundaries`; record actual results and surface any environmental blockers instead of claiming unrun checks passed.
-- [ ] Inspect the final diff for one shared matcher, correct handler coverage and unchanged write/mkdir semantics; carry `Refs #1569` in the implementation PR body.
-- [ ] Run sprint-evaluator against the approved design and this plan after execution; resolve failures before reporting completion.
+- [x] FS rename/remove comments and the policy guide state that structural operations protect matching ancestor directories, including both rename operands.
+- [x] The guide explains `dir/**` still protects all contents and now protects its higher ancestors; basename patterns keep their current behavior.
+- [x] Add a Fixed entry under Unreleased referencing #1569 and the two sibling variants; do not bump versions or open a new issue.
+- [x] Run `make fmt`, `make test`, `make lint`, and `make check-boundaries`; record actual results and surface any environmental blockers instead of claiming unrun checks passed. _(Executor ran focused `go test` on fileguard/effects/policytool plus gofmt; the full `make test` ran in PR CI, not in the executor.)_
+- [x] Inspect the final diff for one shared matcher, correct handler coverage and unchanged write/mkdir semantics; carry `Refs #1569` in the implementation PR body.
+- [ ] Run sprint-evaluator against the approved design and this plan after execution; resolve failures before reporting completion. _(Not run: the coordinator evaluator stage failed with a worktree-cap error on 2026-10-08. An attended review substituted: reproduced the #1569 bypass and nine variants, all refused; see PR #1699 review.)_
 
 **Risk:** Full repository checks may exceed the small coding effort. Reserve two hours for validation/repair; report unrelated failures distinctly with evidence.
 
@@ -102,4 +102,23 @@ Symlink write-through, shell/exec mutation policy, recursive deletion APIs, poli
 ## Coordinator handoff
 
 Progress file: `.ailang/state/sprints/sprint_M-FS-DENY-WRITE-DIR-RENAME.json`.
-All milestones begin unstarted with `passes: null`. The approved design authorizes planning; this newly created sprint plan still requires the coordinator's plan-approval step. Approval/merge of the sprint-plan PR triggers sprint-executor; do not self-merge or start implementation from this planning task. The executor should use `Refs #1569` in its PR body and should not create another issue.
+The coordinator handoff explicitly approved execution of this sprint plan. Implementation runs on `coordinator/task-6bda97e1`; the original planner branch remains `coordinator/task-1f55def0`. The prepared implementation PR body includes `Refs #1569`; no new issue was created.
+
+
+## Execution evidence (2026-10-08)
+
+Implementation completed on `coordinator/task-6bda97e1`. The new structural regression
+matrix failed before wiring and now passes. Unit matcher tests, effects regressions,
+policy-tool tests, Windows cross-compilation, and `ailang check std/fs.ail` pass.
+`make fmt`, `make fmt-check`, `make check-boundaries`, and `make check-file-sizes` pass.
+`make lint` passes with zero issues using `GOFLAGS=-p=1 GOMAXPROCS=2 GOGC=30` after an
+initial memory-killed run.
+
+Full `make test` is non-green outside this patch: CLI/validator/package helper linking
+was killed; coordinator timeout (confirmed isolated: 10 seconds vs <1 second),
+eval-harness Python/process-monitor tests, and executor process-group termination tests
+failed in this minimal container. The affected effects, fileguard and policytool packages
+pass. Independent evaluation must remain FAIL until the whole-suite gate passes on a
+suitable runner; M3 and sprint completion are not marked passed. No unrelated code was changed.
+
+Prepared PR body: `.ailang/state/sprints/M-FS-DENY-WRITE-DIR-RENAME-pr-body.md`.

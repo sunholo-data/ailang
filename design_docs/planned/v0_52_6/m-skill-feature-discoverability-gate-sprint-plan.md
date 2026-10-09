@@ -3,7 +3,7 @@
 Refs #476
 
 **Design:** [Approved design](m-skill-feature-discoverability-gate.md)
-**Status:** Planned; implementation not started
+**Status:** Implementation completed; pending independent sprint evaluation
 **Target:** v0.52.6
 **Duration:** 0.5 day (4 hours); subsequent showcase observations are external follow-up
 **Sprint ID:** M-SKILL-FEATURE-DISCOVERABILITY-GATE
@@ -55,10 +55,10 @@ must not substitute for loading syntax. For each planned showcase/demo module, r
 contracts, named effects, and inline tests as include with signature detail or skip
 with a one-line reason. Mirror the complete file byte-identically.
 
-- [ ] Gate is visible in the planning workflow and explicitly conditional on `.ail` output.
-- [ ] Prompt loading and version recording are distinct requirements; MCP is optional.
-- [ ] Every planned showcase module has the three include-or-justify rows.
-- [ ] Planner mirror compares byte-identically and skill format checks pass.
+- [x] Gate is visible in the planning workflow and explicitly conditional on `.ail` output.
+- [x] Prompt loading and version recording are distinct requirements; MCP is optional.
+- [x] Every planned showcase module has the three include-or-justify rows.
+- [x] Planner mirror compares byte-identically and skill format checks pass.
 
 **Examples:** No new `.ail` examples: the approved design already contains validated
 before/after examples; this milestone adds instructions, not a language feature.
@@ -77,12 +77,12 @@ planner's contracts/effects/tests checklist; an unexplained skip fails the miles
 Mirror the file, review both gates end-to-end, and run the existing skill checker and
 both `cmp` checks. Keep changes confined to the four skill files.
 
-- [ ] Core Principles requires actual syntax loading before the first `.ail` write per session.
-- [ ] Reports record the prompt version and each showcase checklist disposition.
-- [ ] Skips without reasons fail; justified skips remain permitted.
-- [ ] Both mirror pairs pass `cmp`; `make check-skills` or its underlying script passes.
-- [ ] Review confirms no `.ail` output bypasses the gate and offline CLI loading is supported.
-- [ ] Diff contains only the four planned skill edits; no compact-prompt promise or runtime changes.
+- [x] Core Principles requires actual syntax loading before the first `.ail` write per session.
+- [x] Reports record the prompt version and each showcase checklist disposition.
+- [x] Skips without reasons fail; justified skips remain permitted.
+- [x] Both mirror pairs pass `cmp`; `make check-skills` or its underlying script passes.
+- [x] Review confirms no `.ail` output bypasses the gate and offline CLI loading is supported.
+- [x] Diff contains only the four planned skill edits; no compact-prompt promise or runtime changes.
 
 **Examples:** No source examples created or changed. Review the design's verified examples
 as context without copying unvalidated syntax into skills.
@@ -132,3 +132,27 @@ Suggested PR body: “Refs #476. Require prompt loading before AILANG writes in 
 planner/executor skills and record showcase contracts/effects/tests as include or
 justified skip. Keep both skill trees identical. Validation: skill checker and mirror
 comparisons. Showcase outcome measurement follows on the next world generations.”
+
+## Execution Report
+
+Refs #476. Completed M1 and M2 on coordinator/task-810ed4e9: 48 instruction
+lines across the four planned skill files (estimate: 52). The approved planner
+artifacts were recovered from coordinator/task-30ff4c9e because this checkout
+did not contain them. Sprint metadata updates are separate from implementation.
+
+Validation: `bash scripts/check_skills.sh` passed for all 42 skills; both mirror
+pairs passed `cmp`; `git diff --check` passed. Python validated sprint JSON
+syntax, milestone IDs, criteria and dependencies because `jq` is unavailable.
+No runtime tests or new source examples are needed for the approved markdown scope.
+Review confirmed CLI loading without MCP, separate load/version requirements,
+per-session executor loading, and include-or-justified-skip reporting.
+
+Outcome measurements remain pending with the world mission operator/coordinator:
+record feature-use rates and transcript adherence over the next three showcase
+generations using the method above; no observed improvement is claimed here.
+
+PR body: Refs #476. Require prompt loading before AILANG writes in the planner
+and executor skills, and record showcase contracts/effects/tests as include or
+justified skip. Keep both skill trees identical. Validation: skill checker,
+mirror comparisons, and whitespace checks passed. Showcase outcome measurement
+follows on the next world generations.

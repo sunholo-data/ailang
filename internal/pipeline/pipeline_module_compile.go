@@ -335,7 +335,7 @@ func runPostTypeCheckPhases(
 
 	// Validate effects (M-SOUNDNESS)
 	// Compare declared effects from Surface AST with required effects from Core AST
-	if err := ValidateEffects(unit.Surface, unit.Core, typeChecker.CoreTI, typeChecker.DeclaredLambdaEffectRow); err != nil {
+	if err := ValidateEffectsWithCalls(unit.Surface, unit.Core, typeChecker.CoreTI, typeChecker.LatentParamMask, typeChecker.DeclaredLambdaEffectRow, typeChecker.EffectValueType); err != nil {
 		return fmt.Errorf("effect checking failed in %s: %w", modID, err)
 	}
 
@@ -512,12 +512,15 @@ func extractFuncParamsFromExpr(expr core.CoreExpr, result map[string][]string) {
 // buildAndRegisterInterface builds the module interface and registers it with the linker.
 // importedAliases are type aliases from this module's imports, used to embed transitive
 // aliases referenced in exported function signatures (M-TYPE-ALIAS).
+// localAliases includes private dependencies; aliasParams preserves polymorphic heads.
 func buildAndRegisterInterface(
 	unit *CompileUnit,
 	modID string,
 	moduleTypeEnv *types.TypeEnv,
 	modLinker *link.ModuleLinker,
 	importedAliases map[string]types.Type,
+	localAliases map[string]types.Type,
+	aliasParams map[string][]string,
 	derivedEq []string,
 ) error {
 	// Convert pipeline constructors to iface constructors
@@ -527,6 +530,8 @@ func buildAndRegisterInterface(
 		return fmt.Errorf("interface build error in %s: %w", modID, err)
 	}
 
+	closeInterfaceTypes(unitIface, importedAliases, localAliases, aliasParams)
+
 	// M-TYPE-ALIAS: Embed transitive type aliases referenced in exported function signatures.
 	// When Package B exports getUsage() -> Result[Usage, string] and Usage is defined in
 	// Package A, we need Usage in B's interface so Package C can resolve it transitively.
@@ -534,6 +539,7 @@ func buildAndRegisterInterface(
 		embedTransitiveAliases(unitIface, importedAliases)
 	}
 
+	// SetDerivedEq also finalizes the digest after closure and transitive embedding.
 	if err := unitIface.SetDerivedEq(derivedEq); err != nil {
 		return fmt.Errorf("interface build error in %s: %w", modID, err)
 	}

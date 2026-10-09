@@ -1,0 +1,52 @@
+{
+  "sprint_id": "M-IFC-AUTHORITY-SCOPING",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-08T20:41:16.832453+00:00",
+  "design_doc": "design_docs/planned/m-ifc-authority-scoping.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-ifc-authority-scoping-sprint-plan.md",
+  "total_score": 66,
+  "pass_threshold": 70,
+  "result": "fail",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 0,
+    "acceptance_criteria": 23,
+    "code_quality": 9,
+    "documentation": 10,
+    "design_fidelity": 4
+  },
+  "hard_fails": [
+    {
+      "condition": "unauthorized_label_laundering",
+      "details": "Scoped declassifiers with unlabelled formals erase unauthorized actual argument labels through unconditional calleeResultLabel return."
+    }
+  ],
+  "automated_checks": {
+    "tests_pass": true,
+    "tests_output": "Parent package tests pass; core CGO log contains passing package results. Full make test explicitly deferred to CI by approved plan.",
+    "lint_clean": null,
+    "lint_output": "Capped lint run ongoing at review time",
+    "file_sizes_ok": true,
+    "coverage_pct": "52.8% (baseline 52.7%)"
+  },
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "planned; execution artifacts pending completion"
+  },
+  "design_fidelity": {
+    "score": 4,
+    "notes": "Schema, directional effect coverage, Check C and declaration-side Check B match design. Scoped call result policy still erases labels beyond authorized scope on unlabelled formals."
+  },
+  "feedback": [
+    {
+      "file": "internal/types/ifc_check.go",
+      "function": "calleeResultLabel",
+      "category": "security",
+      "issue": "func reveal(x: string) -> string ! {Declassify[label=email]} { x } passes declaration-side Check B with x at bottom; reveal(s) where s:string<secret> then returns bottom, allowing sink laundering. Positive Check C does not apply to this unlabelled formal.",
+      "suggestion": "Ensure scoped declassifiers preserve unauthorized actual argument labels at call sites (including full declared/deep/closure labels), or reject such flows soundly. Add direct, nested and closure actual-argument controls; bare Declassify must keep legacy behavior.",
+      "severity": "high"
+    }
+  ],
+  "notes": "Independent read-only review; no implementation edits. Parent notified promptly. Lint, required verify-examples and final artifact completion are pending and must be confirmed in next evaluation."
+}

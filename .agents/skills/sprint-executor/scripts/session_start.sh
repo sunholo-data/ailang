@@ -161,7 +161,7 @@ if [ "$NOT_STARTED" -gt 0 ]; then
             (.dependencies | length) == 0 or
             all(.dependencies[]; . as $dep | any(.features[]; .id == $dep and .passes == true))
         ) |
-        "  → \(.id): \(.description) (estimated: \(.estimated_loc) LOC)" |
+        "  → \(.id): \(.description) (estimated: \(.estimated_loc // "unset") LOC)" |
         @text
     ' "$PROGRESS_FILE" | head -1)
 

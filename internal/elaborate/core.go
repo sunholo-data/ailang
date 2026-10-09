@@ -13,16 +13,17 @@ import (
 
 // Elaborator transforms surface AST to Core ANF
 type Elaborator struct {
-	nextID       uint64
-	surfaceSpans map[uint64]ast.Pos  // Map Core IDs to surface positions
-	effectAnnots map[uint64][]string // Map Core IDs to effect annotations from AST
-	freshVarNum  int                 // For generating fresh variable names
-	moduleLoader *loader.ModuleLoader
-	filePath     string                      // Current file path for relative imports
-	globalEnv    map[string]core.GlobalRef   // Global environment for imports (name -> GlobalRef)
-	constructors map[string]*ConstructorInfo // Available constructors (name -> info)
-	warnings     []*ExhaustivenessWarning    // Accumulated warnings
-	exChecker    *ExhaustivenessChecker      // Exhaustiveness checker
+	typeAnnotationErr error // latched by recursive annotation conversion
+	nextID            uint64
+	surfaceSpans      map[uint64]ast.Pos  // Map Core IDs to surface positions
+	effectAnnots      map[uint64][]string // Map Core IDs to effect annotations from AST
+	freshVarNum       int                 // For generating fresh variable names
+	moduleLoader      *loader.ModuleLoader
+	filePath          string                      // Current file path for relative imports
+	globalEnv         map[string]core.GlobalRef   // Global environment for imports (name -> GlobalRef)
+	constructors      map[string]*ConstructorInfo // Available constructors (name -> info)
+	warnings          []*ExhaustivenessWarning    // Accumulated warnings
+	exChecker         *ExhaustivenessChecker      // Exhaustiveness checker
 	// typeAliases stores type aliases for expansion during type checking
 	// M-BUGFIX: Maps alias names to their underlying types (e.g., "Coord" -> {x: int, y: int})
 	typeAliases map[string]types.Type

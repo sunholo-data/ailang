@@ -54,6 +54,11 @@ const (
 
 // Config contains pipeline configuration options
 type Config struct {
+	// SkipTestRowValidation is for the test harness, which validates each row
+	// before execution so a bad neighbor does not poison a shared compile.
+	// Check, ai-check and LSP must leave this false; no CLI flag exposes it.
+	SkipTestRowValidation bool
+
 	Mode                    Mode                  // Execution mode (Check or Eval)
 	JSON                    bool                  // Output JSON format
 	Compact                 bool                  // Use compact JSON

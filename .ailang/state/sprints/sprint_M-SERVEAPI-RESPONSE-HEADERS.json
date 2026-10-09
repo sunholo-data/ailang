@@ -1,0 +1,146 @@
+{
+  "sprint_id": "M-SERVEAPI-RESPONSE-HEADERS",
+  "status": "completed",
+  "created": "2026-10-08T20:14:13Z",
+  "design_doc": "design_docs/implemented/v0_54_0/m-serveapi-response-headers.md",
+  "sprint_plan": "design_docs/implemented/v0_54_0/m-serveapi-response-headers-sprint-plan.md",
+  "github_issues": [
+    1597,
+    1609
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "headers search; inspected sunholo/http_helpers@0.1.5 info/docs: outbound request helpers cannot implement Go static middleware; reuse static_cache and isHTTPToken."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "headers search; inspected http_helpers info/docs: no eval.Value extraction or route registration capability; reuse std/json and existing WS diagnostics."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "oauth search; inspected sunholo/mcp_oauth@0.1.1 info/docs: authorization server is a consumer, not the Go framing checker; extend existing mcpcheck HTTP client."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 187,
+    "estimated_total_loc": 1120,
+    "estimated_days": 6,
+    "measured_loc_per_day": null,
+    "estimate_basis": "Limited checkout history; design-based estimates including one verification/review day.",
+    "actual_total_loc": 1216,
+    "actual_days": 1,
+    "actual_loc_per_day": 1216,
+    "notes": "One cloud execution session; actual LOC counts added lines in M1-M3 commits, not an empirical day-rate forecast."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Static security headers (self-contained commits first on the branch)",
+      "estimated_loc": 360,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Real server wire tests show all four defaults on static 200, redirect, 304, and 404 responses.",
+        "Overrides, repeated case variants, opt-out, and opt-out plus explicit headers produce the specified wire headers.",
+        "Invalid names/values and either flag without --static fail startup with actionable errors.",
+        "API/MCP/A2A and frontend proxy responses do not acquire static defaults; static cache regression tests pass.",
+        "CLI help, operator examples, migration guidance and changelog fragment changelogs/unreleased/YYYY-MM-DD-serve-api-static-security-headers.md ship in the M1 commits; fresh-binary curl evidence is recorded.",
+        "M1 is self-contained commits FIRST on the branch (no M2/M3 files) so a human can split or cherry-pick them to ship first; wiring lives in internal/apiserver/static_headers.go with near-zero growth in server.go (788 lines)."
+      ],
+      "passes": true,
+      "started": "2026-10-09T07:47:00Z",
+      "completed": "2026-10-09T08:05:23Z",
+      "notes": "Self-contained first commit 42b444ed. Static wire defaults cover 200/301/307/304/404, Config overrides/opt-out, startup validation, API/MCP/A2A/proxy isolation. Fresh-binary curl recorded. server.go stays 794 lines (+6).",
+      "actual_loc": 302
+    },
+    {
+      "id": "M2",
+      "description": "Unified route response headers and registration validation",
+      "estimated_loc": 540,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Both forms \u00d7 both paths send X-Frame-Options and CSP through the real server; Result.Ok coverage exercises the existing unwrap behavior.",
+        "Json preserves exact underscore names; record names remap; _headers metadata is absent from serialized response bodies and original eval records are not mutated.",
+        "Invalid shapes, non-string fields/JObject values, invalid names and control characters produce structured 500 responses plus ERROR logs naming accepted forms and offending fields.",
+        "Declared incompatible @route _headers types are refused at registration; valid record/Json declarations remain accepted.",
+        "Reserved-header attempts fail loudly on both paths and cannot overwrite CORS, Vary or timing; valid program Content-Type wins over defaults.",
+        "Raw string, bytes and JSON body defaults appear on the wire before status commitment.",
+        "New runnable example checks and serves all four combinations; request-side mcp_tools and serve_api_mcp_header_auth fixtures and their auth suite remain unchanged and pass.",
+        "Temporarily reverting the remap or raw Json acceptance makes the corresponding production wire test fail; restore changes afterward."
+      ],
+      "passes": true,
+      "started": "2026-10-09T07:48:00Z",
+      "completed": "2026-10-09T08:08:26Z",
+      "notes": "Commit d250d0b5. Shared eval.Value extraction, record remap, exact Json names, atomic validation, server-owned header refusal, registration alias/Result checks, Content-Type ordering. Both forms \u00d7 both paths + Result wire matrix pass, bad header handlers log ERROR and return structured 500. Both mutation tests fail as intended; restored suite passes. AILANG prompt version loaded: v0.16.6. Showcase effects: pure signatures; contracts skipped because behavior is HTTP metadata at hosting boundary; inline tests skipped because no-input handlers are covered by real server tests. Guide examples and response/auth examples check. Existing mcp_tools.ail Option[string] vs string error reproduces on installed pre-sprint binary; request fixture unchanged.",
+      "actual_loc": 641
+    },
+    {
+      "id": "M3",
+      "description": "MCP framing probe and completed route documentation",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Mock authorization server asserts every dummy request parameter and redirect-following behavior.",
+        "Final 2xx HTML with X-Frame-Options or CSP frame-ancestors passes; without either FAILs for anthropic/both and WARNs for openai.",
+        "Non-2xx, non-HTML, unreachable endpoints and redirect/client failures WARN with useful outcome details; no OAuth metadata skips the probe.",
+        "Existing target-less behavior and metadata checks remain unchanged; tests pin target composition and error cases.",
+        "Both corrected guide examples are extracted and checked with the fresh binary; connector guide distinguishes new defaults from the workaround for older releases."
+      ],
+      "passes": true,
+      "started": "2026-10-09T07:46:00Z",
+      "completed": "2026-10-09T08:11:41.122910+00:00",
+      "notes": "Commit fc7cb61a. Exact dummy OAuth/S256 parameter tests, final redirect/protection outcome matrix and discovered-endpoint integration tests pass. Fresh CLI probe protected both PASS, unprotected both FAIL, unprotected openai WARN.",
+      "actual_loc": 273
+    }
+  ],
+  "verification_gate": {
+    "id": "M4",
+    "description": "Combined verification and review buffer",
+    "dependencies": [
+      "M1",
+      "M2",
+      "M3"
+    ],
+    "estimated_loc": 0,
+    "estimated_days": 1,
+    "acceptance_criteria": [
+      "make build, focused go test ./internal/apiserver/... ./internal/mcpcheck/... plus go test ./cmd/ailang/... -run ServeAPI|Static|Help, make test-core, make lint, make check-file-sizes, make check-cli-docs, make check-changelog and make check-boundaries pass (full make test runs in CI, not locally: SIGBUS in RAM-backed /tmp), or concrete pre-existing failures are recorded separately.",
+      "Fresh-binary curl evidence covers defaults/override/opt-out and all four route header cases; local mcp check evidence covers assessable protected and unprotected consent pages.",
+      "All named examples and request-header regressions pass, and mutation evidence is recorded.",
+      "sprint-evaluator assesses the final implementation against the approved design; unresolved acceptance failures block completion."
+    ],
+    "passes": true,
+    "completed": "2026-10-09T08:11:41.122910+00:00",
+    "notes": "Fresh make build, focused apiserver/mcpcheck suites, intended CLI filter ServeAPI|Static|^TestHelp, make lint (successful warm-cache retry), fmt-check, check-file-sizes, check-cli-docs, check-changelog, check-boundaries and verify-examples pass. 234 runnable examples pass, 9 skipped; manifest no drift. Full make test deferred to CI as planned. test-core has preexisting SQLite CGO-disabled failures; unrelated broad Help pattern matched timing test (34.89s >30s under contention), intended CLI tests pass. Pre-sprint installed binary reproduces mcp_tools Option[string] defect. Independent local evaluation PASS 95/100; report .ailang/state/evaluations/eval_M-SERVEAPI-RESPONSE-HEADERS_round_1.json."
+  },
+  "handoff": {
+    "approval_required": true,
+    "dispatch": "Coordinator plan approval; do not duplicate executor dispatch."
+  },
+  "target_version": "v0.54.0",
+  "executor_constraints": [
+    "M1 as self-contained commits first on the branch; no separate PR A/PR B.",
+    "server.go (788 lines): M1 wiring in new static_headers.go, near-zero growth in server.go.",
+    "Changelog: fragments changelogs/unreleased/YYYY-MM-DD-<slug>.md; never changelogs/v0.32-current.md.",
+    "No full make test locally (SIGBUS in RAM-backed /tmp): focused go test on touched packages plus make test-core; full suite runs in CI.",
+    "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-SERVEAPI-RESPONSE-HEADERS before starting and after every JSON update.",
+    "Executor cannot push or merge; commit locally with Refs #1597 / Refs #1609."
+  ],
+  "last_session": "2026-10-09T08:11:41.122910+00:00",
+  "last_checkpoint": "M4 complete; independent local evaluation PASS 95/100; coordinator PR/full CI pending",
+  "evaluation": {
+    "result": "pass",
+    "score": 95,
+    "round": 1,
+    "report": ".ailang/state/evaluations/eval_M-SERVEAPI-RESPONSE-HEADERS_round_1.json",
+    "scope": "local implementation; full CI and merge pending"
+  }
+}

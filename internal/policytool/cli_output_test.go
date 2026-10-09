@@ -93,9 +93,19 @@ func TestPolicyTool_BuiltinsListNarrowingFlags(t *testing.T) {
 // #1552: every CLI child carries the policy path, so the child knows it is
 // confined (examples resolution then ignores cwd-relative corpora).
 func TestPolicyTool_ChildEnvCarriesPolicy(t *testing.T) {
+	t.Setenv(config.EnvPackageRoot, "/operator/packages")
 	f := newFixture(t, "")
 	t.Setenv(config.EnvAgentPolicy, "/somewhere/else.toml")
 	env := f.host.childEnv()
+	foundRoot := false
+	for _, kv := range env {
+		if kv == config.EnvPackageRoot+"=/operator/packages" {
+			foundRoot = true
+		}
+	}
+	if !foundRoot {
+		t.Fatal("child environment lost operator package root")
+	}
 	want := config.EnvAgentPolicy + "=" + f.policyPath
 	n := 0
 	for _, kv := range env {

@@ -120,8 +120,9 @@ else
 fi
 
 # Check each milestone has required fields
-# Note: estimated_loc == 0 is the placeholder from create_sprint_json.sh (not 200 - that's a valid real estimate)
-INCOMPLETE_MILESTONES=$(jq -r '.features[] | select(.description == "Milestone description" or .estimated_loc == 0) | .id' "$PROGRESS_FILE")
+# null (or an absent key) means the planner has not filled in the estimate.
+# Zero is a valid estimate for a net-zero milestone.
+INCOMPLETE_MILESTONES=$(jq -r '.features[] | select(.description == "Milestone description" or .estimated_loc == null) | .id' "$PROGRESS_FILE")
 if [ -n "$INCOMPLETE_MILESTONES" ]; then
     echo -e "${RED}ERROR: Milestones with default/placeholder values:${NC}"
     echo "$INCOMPLETE_MILESTONES"

@@ -125,6 +125,12 @@ pattern is a glob for one path (matched against the whole relative path and its 
 `.claude/settings.json`, so `".claude/**"` refuses both — on a case-sensitive Linux volume this
 over-denies the odd spelling, which is the fail-closed direction. The running program and the
 policy-tool share one matcher (`internal/fileguard/protect.go`), so the two cannot drift.
+Rename (both source and destination) and removal also protect matching ancestor directories:
+`.claude/settings.json` protects `.claude`, `a/b/**` protects `a`, and `a/*/x.txt`
+protects `a` and matching `a/<dir>` paths. Even empty protected ancestors cannot be removed.
+`dir/**` continues to protect the whole subtree and now protects its higher ancestors too.
+Basename patterns such as `*.yml` and `Makefile` follow files after a move, so they do not
+freeze unrelated directory names. Ordinary writes and mkdirs keep their direct-path checks.
 Refusals are `E_FS_PROTECTED` from every mutating FS op and a named refusal from every write the
 tool endpoint performs: `ailang_write`/`ailang_edit`, `fmt` with the `write` flag, `lock`
 (`ailang.lock`) and `design_quorum` (`.ailang/state/mission-quorum/`). The CLI child's compile
@@ -290,3 +296,35 @@ child env's sorted names. It changes when a lane starts inheriting a new name.
 leave `printenv`, tool and MCP subprocess inheritance and `~/.gitconfig`, but a same-user process
 can still read the parent's `/proc/<pid>/environ` or a file the parent can read. The boundary for
 that is a UID split (audit H-6) and the egress lock.
+
+### Supervisor line provenance
+
+Under `run --policy`, only the supervisor emits unprefixed `policy:` and
+`policy-result:` stderr lines. Worker output beginning with either token is
+marked `worker: ` and remains visible. The guard recognises LF, CR, VT, FF,
+U+001C/U+001D/U+001E, U+0085, U+2028 and U+2029, including split UTF-8 sequences.
+Other worker bytes and stdout are preserved; markers do not consume the worker
+output allowance. After draining worker output, the supervisor inserts LF when
+needed so each contract line starts on a fresh LF-delimited line.
+
+Exit 3 is reserved for supervisor-enforced `timeout` and `output_limit` verdicts,
+whose envelope shapes are unchanged. A program that exits 3 without triggering
+such a limit now returns exit 1 with reason `worker_reserved_exit`, naming the
+original code. Denial (exit 2) and other program exit codes keep their contracts.
+
+For example, a program printing a forged timeout then exiting 3 produces:
+
+```text
+worker: policy-result: {"reason":"timeout","policy_digest":"fake"}
+policy: {"ok":true,"policy_digest":"<actual>",…}
+policy-result: {"reason":"worker_reserved_exit",…}
+```
+
+A real deadline still produces exit 3 and `policy-result: {"reason":"timeout",…}`.
+Legitimate output such as `policy: hello` becomes `worker: policy: hello`.
+Unterminated `tail` becomes `tail\npolicy: {...}\n` before the result line.
+Hosts should parse stderr separately from stdout, split on LF only, and select
+the final matching line for each token. Parse that line once; malformed final
+JSON must return an error/null rather than revive an earlier candidate. Remove
+only the selected successfully parsed contract lines from displayed stderr;
+retain marked worker lines.

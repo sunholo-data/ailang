@@ -35,11 +35,31 @@ type PackageVersionInfo struct {
 // upgrade-available message if there are meaningful changes.
 // Returns the sent message ID, or empty string if no message was needed.
 func EmitUpgradeAvailable(store *Store, old, new PackageVersionInfo, recipients []string) (string, error) {
-	if old.Version == new.Version && old.ContentHash == new.ContentHash {
-		return "", nil // No change
+	msg, err := UpgradeAvailableMessage(old, new, recipients, "")
+	if err != nil || msg == nil {
+		return "", err
 	}
+	if err := store.InsertInboxMessage(msg); err != nil {
+		return "", fmt.Errorf("failed to send package message: %w", err)
+	}
+	return msg.MessageID, nil
+}
 
-	changeClass := classifyChange(old, new)
+// UpgradeAvailableMessage builds the upgrade-available inbox message that
+// EmitUpgradeAvailable stores, without storing it. A changeClass of "" means
+// classify it from old and new; the cloud coordinator passes the publisher's
+// own label, which the cascade notification carries. Returns nil when nothing
+// changed.
+//
+// It exists so the coordinator can rebuild a cascade notification's message
+// when the publisher stored it somewhere the coordinator cannot read (#1730).
+func UpgradeAvailableMessage(old, new PackageVersionInfo, recipients []string, changeClass string) (*InboxMessage, error) {
+	if old.Version == new.Version && old.ContentHash == new.ContentHash {
+		return nil, nil // No change
+	}
+	if changeClass == "" {
+		changeClass = classifyChange(old, new)
+	}
 
 	env := &PackageMessageEnvelope{
 		Schema:    PackageMessageSchema,
@@ -61,7 +81,10 @@ func EmitUpgradeAvailable(store *Store, old, new PackageVersionInfo, recipients 
 		Status: "open",
 	}
 
-	return sendPackageMessage(store, env)
+	if err := ValidatePackageMessage(env); err != nil {
+		return nil, fmt.Errorf("invalid package message: %w", err)
+	}
+	return env.ToInboxMessage()
 }
 
 // EmitInterfaceChangeNotice emits an interface-change-notice when a package's
