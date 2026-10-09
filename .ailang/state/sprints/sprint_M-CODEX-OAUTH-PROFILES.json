@@ -72,7 +72,7 @@
       "passes": null,
       "started": "2026-10-09T14:05:46.947491+00:00",
       "completed": null,
-      "notes": "Independent review identified and fixes resolved environment/transport/shutdown defects. Final full/driver gates running; live cloud OAuth/profile checker/deploy/smoke pending. Do not mark operationally complete."
+      "notes": "Final full make test, focused/race suites, full launchd Bash3.2 suite, lint, boundaries, size, CLI and changelog gates passed. Both fresh device logins and offline same-account/distinct-refresh checker passed. Finalized mission daemon live smoke passed. Installed binary and6 idle local profiles switched to dedicated home/runtime and reviewed SHA with rollback backups; installed driver pin verified. Cloud IAM verified; CI/merge/versioned cloud deployment/publish/smoke pending. Independent source review has no remaining P1/P2 findings; operational sprint remains incomplete."
     }
   ],
   "registry_reuse": [
@@ -107,7 +107,7 @@
     "estimated_days": 4,
     "actual_total_loc": 0
   },
-  "last_session": "2026-10-09T14:31:39.353080+00:00",
-  "last_checkpoint": "M1\u2013M3 implementation complete; M4 integration/release validation pending.",
+  "last_session": "2026-10-09T14:40:03.043245+00:00",
+  "last_checkpoint": "Local mission activation completed; cloud authorization staged and IAM verified. PR #1752 awaiting CI/release.",
   "status": "in_progress"
 }

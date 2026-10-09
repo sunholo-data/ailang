@@ -35,7 +35,7 @@ Estimated 850 LOC; dependencies: none.
 
 Estimated 250 LOC; dependencies: M1, M2, M3.
 
-- [ ] Focused Go, shell, boundary and lint checks pass; independent evaluator reviews criteria.
+- [x] Focused Go, shell, boundary and lint checks pass; independent evaluator reviews criteria.
 - [ ] Two user-completed logins validate same account and independent credentials; cloud and local smoke tests pass before activation.
 
 ## Files and checks
@@ -53,3 +53,5 @@ Do not activate incomplete ownership paths. Interactive home remains untouched. 
 ## Execution evidence (2026-10-09)
 
 M1–M3 source and offline acceptance checks passed. A real Codex 0.162.0 daemon served eight concurrent quota clients plus a later read with exactly one fake-token refresh. Mission OAuth was independently authorized and a live daemon inference returned `MISSION_AUTH_OK`. The mission owner was restarted with a minimal environment. Final integrated gates, cloud authorization/profile comparison, deployment and cloud smoke remain pending; production fleets have not been switched.
+
+Final full regression/race/driver suites and lint/boundary/size/CLI/changelog gates passed. Both device logins and the complete profile checker passed. The tested binary and six idle local mission profiles were activated with a reviewed source pin and rollback copies; the installed driver pin was verified without running a mission. Cloud IAM passed read-only checks. PR #1752 contains the fix. Cloud CI/merge/versioned deployment, secret publication and smoke remain pending.
