@@ -95,9 +95,9 @@ direct-fix, follow-up-doc pointer, or shipped-here — so no item needs re-triag
 
 Before implementation begins (slices 1, 2, 4, 5), these must be resolved:
 
-- [ ] D2 ratified: does fmt preserve multi-line string layout as-written? (Recommended: yes — see Solution Design; the alternative is documenting flatten as canonical and pointing embedded sources at assets/)
-- [ ] D3 ratified: enforce vs reject-first for `{not ℓ}` inside field types (recommended: enforce for plain-field writes and fn-domain call-through; reject with an error where enforcement is not yet expressible)
-- [ ] D4 ratified: encode `_str_join` vs document-around
+- [x] D2 ratified: does fmt preserve multi-line string layout as-written? (Recommended: yes — see Solution Design; the alternative is documenting flatten as canonical and pointing embedded sources at assets/) — **Ruled 2026-10-08 by Mark: the recommended option, as written.**
+- [x] D3 ratified: enforce vs reject-first for `{not ℓ}` inside field types (recommended: enforce for plain-field writes and fn-domain call-through; reject with an error where enforcement is not yet expressible) — **Ruled 2026-10-08 by Mark: the recommended option, as written.**
+- [x] D4 ratified: encode `_str_join` vs document-around — **Ruled 2026-10-08 by Mark: the recommended option, as written.**
 - [ ] D1/D5 are agent-decidable from the frames below; no human input required beyond this doc's approval
 
 ## Solution Design

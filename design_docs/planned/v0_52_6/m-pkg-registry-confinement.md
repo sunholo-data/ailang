@@ -85,8 +85,8 @@ Registry packages resolve **only** under `os.UserHomeDir()/.ailang/cache/registr
 
 Before implementation begins, these must be resolved:
 
-- [ ] D3 ratified: package-root-only resolution, no HOME fallback when `AILANG_PACKAGE_ROOT` is set
-- [ ] D5 ratified: mismatch severity at `check` (loud-warning-now vs hard-fail-now)
+- [x] D3 ratified: package-root-only resolution, no HOME fallback when `AILANG_PACKAGE_ROOT` is set — **Ruled 2026-10-08 by Mark: yes, package-root-only resolution; no HOME fallback when `AILANG_PACKAGE_ROOT` is set.**
+- [x] D5 ratified: mismatch severity at `check` (loud-warning-now vs hard-fail-now) — **Ruled 2026-10-08 by Mark: hard-fail now: a registry `content_hash` mismatch makes `ailang check` exit non-zero in this release (no deprecation window).**
 
 ## Solution Design
 
