@@ -64,6 +64,12 @@ func TestNamedTestEffect_Mapper(t *testing.T) {
 			t.Errorf("mapper %s: %s", symbol, got)
 		}
 	}
+	mismatch := "Effect checking failed for function '__namedtest_0'\n  Effect mode mismatch: FS requires mode=read; declaration provides mode=write\n"
+	got := e.mapEntryEffectError(mismatch, ent)
+	if !strings.Contains(got, "Effect mode mismatch:") || !strings.Contains(got, "--caps <required-effects>") {
+		t.Fatalf("effect-mode detail lost: %s", got)
+	}
+
 	for _, msg := range []string{"Effect checking failed for function 'main'\n  Missing effects: FS", "undefined variable: check", "unrelated '__namedtest_0'", "Effect checking failed for function '__namedtest_bad'\n", "quoted Effect checking failed for function '__namedtest_0'\n"} {
 		if got := e.mapEntryEffectError(msg, ent); got != msg {
 			t.Errorf("rewrote control %q as %q", msg, got)
@@ -80,7 +86,7 @@ test "uses helper" { check() }
 	for _, mode := range [][2]bool{{false, false}, {true, false}, {true, true}} {
 		res, _ := runWithExecutor(t, path, mode[0], mode[1])
 		msg := res.Tests[0].Error
-		if !strings.Contains(msg, "Effect checking failed for function 'check'") || !strings.Contains(msg, "Missing effects: FS") || strings.Contains(msg, "undefined variable") || strings.Contains(msg, "checked pure") || strings.Contains(msg, "ailang-namedtest-") {
+		if !strings.Contains(msg, "Effect checking failed for function 'check'") || !strings.Contains(msg, "Missing effects: FS") || !strings.Contains(msg, path+":3:") || strings.Contains(msg, "undefined variable") || strings.Contains(msg, "checked pure") || strings.Contains(msg, "ailang-namedtest-") {
 			t.Fatalf("invalid helper: %s", msg)
 		}
 	}

@@ -1,0 +1,166 @@
+{
+  "sprint_id": "M-NAMED-TEST-EFFECTFUL-HELPER",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-09T06:40:29.505728+00:00",
+  "design_doc": "design_docs/planned/v0_53_0/m-named-test-effectful-helper.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-named-test-effectful-helper-sprint-plan.md",
+  "total_score": 97,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 18,
+    "lint_clean": 10,
+    "acceptance_criteria": 29,
+    "code_quality": 15,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "testing_package_pass": true,
+    "testing_package_coverage_pct": 83.8,
+    "baseline_coverage_pct": 82.1,
+    "changed_strip_mapper_coverage_pct": 100,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "boundaries_ok": true,
+    "formatting_ok": true,
+    "manifest_modules_drift": 0,
+    "cli_package_status": "failed_outside_changed_scope",
+    "test_core_status": "environment_limited",
+    "test_core_failure_reason": "CGO_ENABLED=0 SQLite stub failures; user explicitly instructed recording this separately without installing C compilers.",
+    "full_suite_run": false,
+    "examples_scope": "New examples/tests additions directly checked and run with freshly built CLI, plus manifest --ci validation. Broad make verify-examples runnable suite intentionally omitted to limit resource pressure; full make test prohibited by user.",
+    "cli_focused_test_command_pass": true,
+    "cli_full_failure_summary": "29 top-level CGO/sqlite failures plus three unchanged failures reproduced on prechange archive: TestMissionHeartbeatRenewsThenCancelsWorker, TestWarnSilentRatchet_WarnWhenVersionBumpsWithoutMessage, TestRunPolicy_TimeoutKillsDescendants. TestDeepRecursionHonoursMaxRecursionDepth transient full-suite failure passed current isolated recheck and baseline.",
+    "regression_recheck_pass": true,
+    "sprint_artifacts_complete": true
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Unannotated pure helper passes under evaluator and bytecode, matching pure and explicit-empty-row controls.",
+      "met": true,
+      "evidence": "Helper retention and line-map tests; seeded fallback equality; package suite green."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "All functions, annotations, contracts, imports, types, and bindings survive; only named-test/property blocks are removed, with correct original-line mapping.",
+      "met": true,
+      "evidence": "Helper retention and line-map tests; seeded fallback equality; package suite green."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Property batch and forced forallCaller fallback resolve an unannotated pure helper with the same seed/results.",
+      "met": true,
+      "evidence": "Helper retention and line-map tests; seeded fallback equality; package suite green."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Existing binding-extraction and malformed-control tests retain their behavior; uncalled effectful helpers do not execute.",
+      "met": true,
+      "evidence": "Helper retention and line-map tests; seeded fallback equality; package suite green."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Focused source-strip and named-batch tests pass; edited Go files are formatted.",
+      "met": true,
+      "evidence": "Helper retention and line-map tests; seeded fallback equality; package suite green."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Effectful helper and direct FS calls report the original construct name/file/line, pure-body contract, Missing effects: FS, and exported-entry `ailang run --caps FS` workaround.",
+      "met": true,
+      "evidence": "Diagnostic mapper, engine parity, strict failure, invalid helper source-location tests; fresh CLI full-output verification."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Public test reports and fallback notices contain no synthetic function advice, temp paths, or std/debug import recommendation for a locally declared helper.",
+      "met": true,
+      "evidence": "Diagnostic mapper, engine parity, strict failure, invalid helper source-location tests; fresh CLI full-output verification."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Mapper unit tests cover all three synthetic forms, multiple effect rows, and negative controls for user functions, undefined names, and unrelated errors.",
+      "met": true,
+      "evidence": "Diagnostic mapper, engine parity, strict failure, invalid helper source-location tests; fresh CLI full-output verification."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Invalid unannotated effectful helpers retain the compiler's module-level effect error and original helper location; they are not falsely attributed to a pure test entry.",
+      "met": true,
+      "evidence": "Diagnostic mapper, engine parity, strict failure, invalid helper source-location tests; fresh CLI full-output verification."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Evaluator, --bytecode, and --strict-bytecode agree on semantic results; expected engine-routing metadata is asserted separately.",
+      "met": true,
+      "evidence": "Diagnostic mapper, engine parity, strict failure, invalid helper source-location tests; fresh CLI full-output verification."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "An effectful test triggers truthful D1 fallback; valid pure sibling tests still pass, and no user error is called a harness bug.",
+      "met": true,
+      "evidence": "Diagnostic mapper, engine parity, strict failure, invalid helper source-location tests; fresh CLI full-output verification."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Property effect errors identify the property rather than a named test, and property fallback preserves source mapping and seeded behavior.",
+      "met": true,
+      "evidence": "Diagnostic mapper, engine parity, strict failure, invalid helper source-location tests; fresh CLI full-output verification."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Guide explicitly states named-test/property entry purity and the capability-granted exported-entry route for effectful verification.",
+      "met": true,
+      "evidence": "Docs/examples/changelog reviewed; fresh binary examples/caps checks; scoped gates green; coverage 82.1% archived baseline to83.8% current, changed strip/mapper functions100%. Broader CLI/core validation limitations recorded separately."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Obtain `ailang prompt` before writing .ail fixtures/examples; `ailang check` accepts intended-valid examples, while the intentionally invalid class-5 fixture has an asserted failure.",
+      "met": true,
+      "evidence": "Docs/examples/changelog reviewed; fresh binary examples/caps checks; scoped gates green; coverage 82.1% archived baseline to83.8% current, changed strip/mapper functions100%. Broader CLI/core validation limitations recorded separately."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Passing example succeeds under evaluator and bytecode; exported verification example succeeds with FS capability and fails without it.",
+      "met": true,
+      "evidence": "Docs/examples/changelog reviewed; fresh binary examples/caps checks; scoped gates green; coverage 82.1% archived baseline to83.8% current, changed strip/mapper functions100%. Broader CLI/core validation limitations recorded separately."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Reporter repro and pure control are verified with a freshly built binary; effectful case fails truthfully and pure control passes.",
+      "met": true,
+      "evidence": "Docs/examples/changelog reviewed; fresh binary examples/caps checks; scoped gates green; coverage 82.1% archived baseline to83.8% current, changed strip/mapper functions100%. Broader CLI/core validation limitations recorded separately."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "`go test ./internal/testing ./cmd/ailang`, `make test-core`, `make check-boundaries`, `make fmt-check`, and `make lint` pass.",
+      "met": false,
+      "evidence": "Literal full gate is not green. Changed internal/testing package and CLI TestTestCommand suite pass; lint/fmt/boundaries pass. Core fails on CGO SQLite stubs. CLI broader failures are CGO stubs, three reproduced preexisting baseline failures, and one transient subprocess failure passing isolated recheck. User explicitly permitted separate recording of CGO/toolchain limitations; no regression demonstrated."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Focused coverage includes each changed strip/mapper branch and negative controls; existing package coverage does not regress without an explained reason.",
+      "met": true,
+      "evidence": "Docs/examples/changelog reviewed; fresh binary examples/caps checks; scoped gates green; coverage 82.1% archived baseline to83.8% current, changed strip/mapper functions100%. Broader CLI/core validation limitations recorded separately."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Testing guide, limitations note, examples, and changelog describe the resulting behavior consistently.",
+      "met": true,
+      "evidence": "Docs/examples/changelog reviewed; fresh binary examples/caps checks; scoped gates green; coverage 82.1% archived baseline to83.8% current, changed strip/mapper functions100%. Broader CLI/core validation limitations recorded separately."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Implemented; approved paths retained"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Keeps all helper declarations for named tests/properties; retains binding-extraction policy; synthetic pure entries enforce the contract across fallback engines. Exact-heading mapper avoids rewriting user-function errors; invalid user helper errors receive original location. Plain effect-free exported inc regression and deterministic seeded fallback equality are covered."
+  },
+  "feedback": [],
+  "notes": "Independent review PASS with validation caveats,97/100. No blocking implementation defect or introduced regression found. Literal all-package/core green criterion is unmet because of recorded environment/preexisting failures; changed-scope tests, fresh CLI behavior, lint, formatting, boundaries, file sizes, and manifest validation pass. Approved planned artifact paths retained per executor handoff rather than moving design/plan. Sprint state completed with milestone timestamps, notes, validation exceptions, and actual LOC velocity."
+}

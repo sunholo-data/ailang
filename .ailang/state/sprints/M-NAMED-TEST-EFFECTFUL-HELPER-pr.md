@@ -1,0 +1,5 @@
+Named tests and forall properties now retain module-level helpers, so plain effect-free exports such as `export func inc(x: int) -> int { x + 1 }` remain callable. Effectful bodies fail with the original construct/location, required effects, purity contract, and exported-entry capability workaround. Evaluator fallback enforces the same pure-entry contract as batching and bytecode; invalid helpers preserve their module errors and declaration locations.
+
+Validation includes focused testing and CLI package suites, core tests, lint, boundaries, formatting, file sizes, and fresh CLI verification across evaluator/bytecode/strict modes. Full-suite execution is delegated to CI. The testing package and focused CLI test-command cases pass, with coverage improving from 82.1% to 83.8%. Core/full CLI runs expose CGO/sqlite failures and three unrelated failures reproduced on the pre-change baseline. One recursion subprocess failure passed an isolated recheck. These validation limitations are detailed in the implementation completion report.
+
+Closes #1640

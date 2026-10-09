@@ -1,0 +1,10 @@
+module examples/tests/effectful_fixture_verification
+
+import std/fs (readFile)
+import std/io (println)
+
+export func main() -> () ! {FS, IO} {
+  let contents = readFile("examples/tests/named_helper_fixture.txt");
+  if contents == "named helper fixture\n" then println("fixture verified")
+  else println("fixture mismatch")
+}

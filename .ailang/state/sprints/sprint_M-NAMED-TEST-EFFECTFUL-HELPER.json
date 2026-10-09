@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-NAMED-TEST-EFFECTFUL-HELPER",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-08T08:43:46.322392+00:00",
   "design_doc": "design_docs/planned/v0_53_0/m-named-test-effectful-helper.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-named-test-effectful-helper-sprint-plan.md",
@@ -49,7 +49,9 @@
     "target_loc_per_day": 105,
     "estimated_total_loc": 420,
     "estimated_days": 4,
-    "measurement_note": "Shallow history; planning capacity, not observed velocity."
+    "measurement_note": "Actual additions/deletions exclude sprint metadata and design-status updates; no full-session elapsed-time measurement available.",
+    "actual_total_loc": 473,
+    "actual_deleted_loc": 42
   },
   "features": [
     {
@@ -107,11 +109,37 @@
         "Focused coverage includes each changed strip/mapper branch and negative controls; existing package coverage does not regress without an explained reason.",
         "Testing guide, limitations note, examples, and changelog describe the resulting behavior consistently."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T06:39:23.044299+00:00",
+      "completed": "2026-10-09T06:39:23.044299+00:00",
+      "notes": "Docs/examples/changelog, exact plain-export and seeded-fallback regressions, original invalid-helper locations verified. Testing package83.8%; focused TestTestCommand suite passes. Lint/boundaries/format/file-size/manifest checks pass. Core and full CLI failures separately documented; no C toolchain installed."
     }
   ],
-  "last_checkpoint": "M2"
+  "last_checkpoint": "M3 complete; independent evaluation and coordinator handoff",
+  "last_session": "2026-10-09T06:39:23.044299+00:00",
+  "completed": "2026-10-09T06:39:23.044299+00:00",
+  "validation": {
+    "testing_package": "pass",
+    "coverage_before": 82.1,
+    "coverage_after": 83.8,
+    "changed_strip_mapper_coverage": 100,
+    "cli_focused_TestTestCommand": "pass",
+    "cli_package": "failed:29 direct CGO/sqlite tests;3 other failures reproduced on prechange baseline;1 recursion subprocess failure passes isolated recheck",
+    "test_core": "failed:8 CGO/sqlite brain tests",
+    "lint": "pass;10m external timeout override",
+    "boundaries": "pass",
+    "file_sizes": "pass",
+    "format": "pass",
+    "manifest": "pass;0 module drift",
+    "fresh_cli_examples_and_regressions": "pass",
+    "full_make_test_run": false,
+    "pushed": false,
+    "cli_recursion_recheck": "pass"
+  },
+  "evaluation": {
+    "result": "pass",
+    "score": 97,
+    "round": 1,
+    "report": ".ailang/state/evaluations/eval_M-NAMED-TEST-EFFECTFUL-HELPER_round_1.json"
+  }
 }

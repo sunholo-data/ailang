@@ -238,7 +238,19 @@ func (e *Executor) mapPositions(msg string, ent namedEntry, lineMap []int) strin
 		}
 		return m
 	})
-	return batchTempDir.ReplaceAllLiteralString(msg, filepath.Dir(e.modulePath)+string(filepath.Separator))
+	msg = batchTempDir.ReplaceAllLiteralString(msg, filepath.Dir(e.modulePath)+string(filepath.Separator))
+	// The effect checker reports a function heading without a source span.
+	// Retained invalid helpers must still identify their original declaration.
+	if e.sourceFile != nil {
+		for _, f := range e.sourceFile.Funcs {
+			heading := "Effect checking failed for function '" + f.Name + "'\n"
+			if strings.Contains(msg, heading) {
+				msg = strings.Replace(msg, heading, fmt.Sprintf("Effect checking failed for function '%s' (%s:%d:%d)\n", f.Name, e.modulePath, f.Pos.Line, f.Pos.Column), 1)
+				break
+			}
+		}
+	}
+	return msg
 }
 
 func (e *Executor) runBatchedEntry(ent namedEntry) (eval.Value, error) {

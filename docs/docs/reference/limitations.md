@@ -19,6 +19,15 @@ every remaining limitation is a reproducible artifact, not lore.
 
 ---
 
+## Named-test effects (by design)
+
+Named-test bodies and `forall` property predicates are checked pure. Module helpers
+are visible regardless of whether they use the `pure` keyword, but effectful calls
+require verification through an exported entry run with explicit capabilities.
+See the [Testing Guide](/docs/guides/testing#named-test-and-property-purity) for examples
+and the FS fixture verification route. An invalid module-level helper retains its
+own compiler diagnostic.
+
 ## Type System Limitations
 
 ### Y-Combinator and Recursive Lambdas (By Design)

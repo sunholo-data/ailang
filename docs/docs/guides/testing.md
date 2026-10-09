@@ -2,7 +2,7 @@
 sidebar_position: 10
 title: Testing Guide
 description: Property-based testing for deterministic AI code synthesis in AILANG
-reviewed: 2026-10-06
+reviewed: 2026-10-09
 reviewBy: 2026-11-16
 ---
 
@@ -20,6 +20,33 @@ reviewBy: 2026-11-16
 - [Debugging Failed Properties](#debugging-failed-properties)
 
 ---
+
+## Named-test and property purity
+
+Named-test bodies and `forall` property predicates are checked pure. All module-level
+helpers remain visible, including plain `func` and `export func` declarations without
+an effect annotation. An unused effectful helper is retained as a closure and does not
+run merely because the module is tested.
+
+```ailang
+module helper_test
+export func inc(x: int) -> int { x + 1 }
+test "plain export" { inc(1) == 2 }
+```
+
+Calling a helper declared with `! {FS}`, or calling `readFile` directly, fails with
+`Missing effects: FS` and the original test/property name and location. Test bodies
+cannot grant capabilities. Verify effectful behavior through an exported entry instead:
+
+```bash
+ailang run --caps FS,IO examples/tests/effectful_fixture_verification.ail
+```
+
+The example reads a tracked fixture and prints its verification result; FS grants file
+access and IO grants output. For deterministic named tests, use pure checks over
+byte-mirror fixtures. See `examples/tests/named_helper_purity.ail` for a plain export,
+a seeded property, and an unused FS helper. Invalid helper declarations still report
+the compiler's module error rather than a test-body purity diagnostic.
 
 ## Quick Start
 

@@ -5,6 +5,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/lexer"
 	"github.com/sunholo-data/ailang/internal/parser"
+	"os"
 	"strings"
 	"testing"
 )
@@ -44,6 +45,27 @@ property "increment" { forall(n: int) => inc(n) == n + 1 }
 	}
 }
 
+func TestForall_UnannotatedHelperSeededFallback(t *testing.T) {
+	path := writeEngineSource(t, "seedhelpers.ail", `module seedhelpers
+export func inc(x: int) -> int { x + 1 }
+property "small increment" { forall(n: int) => inc(n) < 50 }
+`)
+	batched, _ := runWithExecutor(t, path, false, false)
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src = append(src, []byte("\ntest \"force fallback\" { inc(\"bad\") == 1 }\n")...)
+	if err := os.WriteFile(path, src, 0600); err != nil {
+		t.Fatal(err)
+	}
+	fallback, _ := runWithExecutor(t, path, false, false)
+	a, b := propsByName(batched)["small increment"], propsByName(fallback)["small increment"]
+	if len(fallback.NamedBatchFailures) != 1 || a.Status != StatusFail || a.Status != b.Status || a.Seed != b.Seed || a.TestsRun != b.TestsRun || a.Error != b.Error || a.FailingInput != b.FailingInput {
+		t.Fatalf("seeded batch/fallback mismatch: %+v / %+v", a, b)
+	}
+}
+
 func TestStripTestBlocks_RetainsDeclarationsAndLines(t *testing.T) {
 	src := `module retain
 import std/fs (readFile)
@@ -67,6 +89,30 @@ property "second" { forall(n: int) => inc(n) == n + 1 }
 	for i, line := range splitLines(got) {
 		if line != splitLines(src)[lines[i]-1] {
 			t.Fatalf("line map %v", lines)
+		}
+	}
+}
+
+func TestStripTestBlocks_PreservesContractAndAnnotationFixtures(t *testing.T) {
+	for _, name := range []string{"named_test_contract.ail", "named_test_annotated.ail", "named_test_effectful.ail"} {
+		_, src, file := parseStripFixture(t, name)
+		got, lines := new(Executor).stripTestBlocks(src, file)
+		original := splitLines(src)
+		for i, line := range splitLines(got) {
+			if line != original[lines[i]-1] {
+				t.Fatalf("%s: line map %v", name, lines)
+			}
+		}
+		for _, fn := range file.Funcs {
+			if !strings.Contains(got, "func "+fn.Name) {
+				t.Errorf("%s: missing %s", name, fn.Name)
+			}
+		}
+		if strings.Contains(src, "@verify") && !strings.Contains(got, "@verify") {
+			t.Error("annotation removed")
+		}
+		if strings.Contains(src, "requires {") && !strings.Contains(got, "requires {") {
+			t.Error("contract removed")
 		}
 	}
 }
