@@ -1,7 +1,7 @@
 # serve-api Response Headers: Security Headers on `--static` + Hyphenated Route Headers
 
-**Status**: Planned
-**Target**: v0.53.0 (next release; the `--static` security-header half is P0 and ships first — see Splitting below)
+**Status**: Implemented; independent local evaluation passed (95/100); full suite pending coordinator PR CI
+**Target**: v0.54.0 (next release; the `--static` security-header half is P0 and ships first — see Splitting below)
 **Priority**: P0 (security #1597; silent-failure bug #1609)
 **Estimated**: 1 week (Phase 1: 1 day · Phase 2: 2–3 days · Phase 3: 1 day · buffer)
 **Dependencies**: None
@@ -367,7 +367,7 @@ export func worse() -> {_headers: Json} ! {IO} = {_headers: jo([kv("retry-after"
 ## Success Criteria
 
 - [ ] The Goals metrics verified with a fresh binary from this worktree (evidence in the PR)
-- [ ] Phase 1 mergeable and shippable independently of Phase 2 (separate PRs; the split is a success criterion, per scheduling)
+- [ ] Phase 1 mergeable and shippable independently of Phase 2 (self-contained first commits on one branch, per approved sprint plan)
 - [ ] Wire-level tests: `X-Frame-Options` + `Content-Security-Policy` on both dispatch paths, both forms
 - [ ] Wire test: the `_body` default `Content-Type` is actually sent (set before `WriteHeader`), and a program `Content-Type` wins
 - [ ] Wire test: program `_headers` cannot overwrite `X-Elapsed-Ms`, `Access-Control-*` or `Vary`
@@ -494,7 +494,7 @@ binary `ailang` v0.52.5 commit `7200786`; the four live outcomes follow line-by-
 | 15 | `mcp check` already discovers the authorization server and fetches well-known | read `internal/mcpcheck/mcpcheck.go:298-333` (`checkAuthorizationServer`, `wellKnown`, `getJSON`) | Confirmed — probe hook point exists |
 | 16 | Request-side `_headers: Json` is documented and exemplified (untouched surface) | read `docs/docs/guides/serve-api.md:419,1095-1113`, `examples/runnable/mcp_tools.ail:22`, `serve_api_mcp_header_auth.ail:34` | Confirmed |
 | 17 | No new error codes proposed | this doc proposes plain startup errors / 500 + log, no `PARxxx`/`TCxxx`/`MODxxx` allocations | n/a — no grep needed |
-| 18 | Target version: v0.53.0 is the next open release (folder `planned/v0_53_0` active; `implemented/v0_53_0` docs marked "ships in v0.53.0"; current release v0.52.5) | `std/VERSION`, `ls design_docs/planned/v0_53_0/`, `implemented/v0_53_0/m-std-yaml-encode.md` status line | Confirmed |
+| 18 | Historical design target was v0.53.0 while the installed binary was v0.52.5. Execution found std/VERSION v0.53.0 and retargeted to v0.54.0 (see execution target update). | std/VERSION and execution checkout | Retargeted |
 
 ## References
 
@@ -512,3 +512,11 @@ binary `ailang` v0.52.5 commit `7200786`; the four live outcomes follow line-by-
 - A `--route-security-headers` default for `@route` responses, if deployments want the Phase 1 defaults
   without per-handler code (YAGNI: handlers can now set them)
 - `frame-ancestors` with origins (not just `'none'`) behind a flag, if a multi-frame portal asks
+
+## Execution target update (2026-10-09)
+
+`std/VERSION` is now v0.53.0. Retargeted this design and its approved sprint to v0.54.0. The approved sprint supersedes the earlier separate-PR scheduling: M1 is the self-contained first commit, available for cherry-picking; the coordinator raises the implementation PR. Refs #1597. Refs #1609.
+
+## Implementation evidence
+
+Implemented in self-contained static-first commits on `coordinator/task-62c68b6a`. See the companion sprint plan and `docs/sprint-retros/M-SERVEAPI-RESPONSE-HEADERS-retro.md` for wire evidence, mutation checks and explicit baseline/CI limitations.

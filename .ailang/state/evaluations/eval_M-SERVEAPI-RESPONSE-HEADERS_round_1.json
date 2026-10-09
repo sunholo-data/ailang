@@ -1,0 +1,205 @@
+{
+  "sprint_id": "M-SERVEAPI-RESPONSE-HEADERS",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-09T08:12:48.689590+00:00",
+  "design_doc": "design_docs/implemented/v0_54_0/m-serveapi-response-headers.md",
+  "sprint_plan": "design_docs/implemented/v0_54_0/m-serveapi-response-headers-sprint-plan.md",
+  "branch": "coordinator/task-62c68b6a",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "evaluation_scope": "approved local implementation gates; not a CI or merge approval",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "gate_source": "local",
+    "tests_pass": true,
+    "tests_output": "/tmp/headers-final-focused.log and /tmp/headers-cli-focused-final.log: all sprint packages and intended CLI tests pass",
+    "lint_clean": true,
+    "lint_output": "/tmp/headers-lint-final.log: 0 issues; successful make lint after initial timeout",
+    "file_sizes_ok": true,
+    "format_ok": true,
+    "cli_docs_ok": true,
+    "changelog_ok": true,
+    "boundaries_ok": true,
+    "examples_ok": true,
+    "full_suite_run": false,
+    "ci_status": "pending; coordinator PR not yet created"
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Real server wire tests show all four defaults on static 200, redirect, 304, and 404 responses.",
+      "met": true,
+      "evidence": "static_headers_test.go: default/redirect/304/404, real Config flags, startup refusals, protocol/proxy/API isolation; first isolated commit 42b444ed; fresh curl in retrospective."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Overrides, repeated case variants, opt-out, and opt-out plus explicit headers produce the specified wire headers.",
+      "met": true,
+      "evidence": "static_headers_test.go: default/redirect/304/404, real Config flags, startup refusals, protocol/proxy/API isolation; first isolated commit 42b444ed; fresh curl in retrospective."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Invalid names/values and either flag without --static fail startup with actionable errors.",
+      "met": true,
+      "evidence": "static_headers_test.go: default/redirect/304/404, real Config flags, startup refusals, protocol/proxy/API isolation; first isolated commit 42b444ed; fresh curl in retrospective."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "API/MCP/A2A and frontend proxy responses do not acquire static defaults; static cache regression tests pass.",
+      "met": true,
+      "evidence": "static_headers_test.go: default/redirect/304/404, real Config flags, startup refusals, protocol/proxy/API isolation; first isolated commit 42b444ed; fresh curl in retrospective."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "CLI help, operator examples, migration guidance and changelog fragment changelogs/unreleased/YYYY-MM-DD-serve-api-static-security-headers.md ship in the M1 commits; fresh-binary curl evidence is recorded.",
+      "met": true,
+      "evidence": "static_headers_test.go: default/redirect/304/404, real Config flags, startup refusals, protocol/proxy/API isolation; first isolated commit 42b444ed; fresh curl in retrospective."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "M1 is self-contained commits FIRST on the branch (no M2/M3 files) so a human can split or cherry-pick them to ship first; wiring lives in internal/apiserver/static_headers.go with near-zero growth in server.go (788 lines).",
+      "met": true,
+      "evidence": "static_headers_test.go: default/redirect/304/404, real Config flags, startup refusals, protocol/proxy/API isolation; first isolated commit 42b444ed; fresh curl in retrospective."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Both forms \u00d7 both paths send X-Frame-Options and CSP through the real server; Result.Ok coverage exercises the existing unwrap behavior.",
+      "met": true,
+      "evidence": "route_headers_test.go production wire matrix including Result.Ok; route_headers_validation_test.go errors/atomicity/immutability/body defaults/exact Json and registration; alias tests; mutation logs fail then restore green."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Json preserves exact underscore names; record names remap; _headers metadata is absent from serialized response bodies and original eval records are not mutated.",
+      "met": true,
+      "evidence": "route_headers_test.go production wire matrix including Result.Ok; route_headers_validation_test.go errors/atomicity/immutability/body defaults/exact Json and registration; alias tests; mutation logs fail then restore green."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Invalid shapes, non-string fields/JObject values, invalid names and control characters produce structured 500 responses plus ERROR logs naming accepted forms and offending fields.",
+      "met": true,
+      "evidence": "route_headers_test.go production wire matrix including Result.Ok; route_headers_validation_test.go errors/atomicity/immutability/body defaults/exact Json and registration; alias tests; mutation logs fail then restore green."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Declared incompatible @route _headers types are refused at registration; valid record/Json declarations remain accepted.",
+      "met": true,
+      "evidence": "route_headers_test.go production wire matrix including Result.Ok; route_headers_validation_test.go errors/atomicity/immutability/body defaults/exact Json and registration; alias tests; mutation logs fail then restore green."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Reserved-header attempts fail loudly on both paths and cannot overwrite CORS, Vary or timing; valid program Content-Type wins over defaults.",
+      "met": true,
+      "evidence": "route_headers_test.go production wire matrix including Result.Ok; route_headers_validation_test.go errors/atomicity/immutability/body defaults/exact Json and registration; alias tests; mutation logs fail then restore green."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Raw string, bytes and JSON body defaults appear on the wire before status commitment.",
+      "met": true,
+      "evidence": "route_headers_test.go production wire matrix including Result.Ok; route_headers_validation_test.go errors/atomicity/immutability/body defaults/exact Json and registration; alias tests; mutation logs fail then restore green."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "New runnable example checks and serves all four combinations; request-side mcp_tools and serve_api_mcp_header_auth fixtures and their auth suite remain unchanged and pass.",
+      "met": true,
+      "evidence": "route_headers_test.go production wire matrix including Result.Ok; route_headers_validation_test.go errors/atomicity/immutability/body defaults/exact Json and registration; alias tests; mutation logs fail then restore green."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Temporarily reverting the remap or raw Json acceptance makes the corresponding production wire test fail; restore changes afterward.",
+      "met": true,
+      "evidence": "route_headers_test.go production wire matrix including Result.Ok; route_headers_validation_test.go errors/atomicity/immutability/body defaults/exact Json and registration; alias tests; mutation logs fail then restore green."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Mock authorization server asserts every dummy request parameter and redirect-following behavior.",
+      "met": true,
+      "evidence": "framing_test.go exact dummy parameters/S256 digest, redirect final HTML, target statuses, metadata composition and failures; checked guide snippets and live MCP evidence in retrospective."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Final 2xx HTML with X-Frame-Options or CSP frame-ancestors passes; without either FAILs for anthropic/both and WARNs for openai.",
+      "met": true,
+      "evidence": "framing_test.go exact dummy parameters/S256 digest, redirect final HTML, target statuses, metadata composition and failures; checked guide snippets and live MCP evidence in retrospective."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Non-2xx, non-HTML, unreachable endpoints and redirect/client failures WARN with useful outcome details; no OAuth metadata skips the probe.",
+      "met": true,
+      "evidence": "framing_test.go exact dummy parameters/S256 digest, redirect final HTML, target statuses, metadata composition and failures; checked guide snippets and live MCP evidence in retrospective."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Existing target-less behavior and metadata checks remain unchanged; tests pin target composition and error cases.",
+      "met": true,
+      "evidence": "framing_test.go exact dummy parameters/S256 digest, redirect final HTML, target statuses, metadata composition and failures; checked guide snippets and live MCP evidence in retrospective."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Both corrected guide examples are extracted and checked with the fresh binary; connector guide distinguishes new defaults from the workaround for older releases.",
+      "met": true,
+      "evidence": "framing_test.go exact dummy parameters/S256 digest, redirect final HTML, target statuses, metadata composition and failures; checked guide snippets and live MCP evidence in retrospective."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "make build, focused go test ./internal/apiserver/... ./internal/mcpcheck/... plus go test ./cmd/ailang/... -run ServeAPI|Static|Help, make test-core, make lint, make check-file-sizes, make check-cli-docs, make check-changelog and make check-boundaries pass (full make test runs in CI, not locally: SIGBUS in RAM-backed /tmp), or concrete pre-existing failures are recorded separately.",
+      "met": true,
+      "evidence": "Final focused tests, build, lint and repository gates passed; durable retrospective records wire/mutation evidence and reproduced baseline/environment exceptions. Independent review completed."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Fresh-binary curl evidence covers defaults/override/opt-out and all four route header cases; local mcp check evidence covers assessable protected and unprotected consent pages.",
+      "met": true,
+      "evidence": "Final focused tests, build, lint and repository gates passed; durable retrospective records wire/mutation evidence and reproduced baseline/environment exceptions. Independent review completed."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "All named examples and request-header regressions pass, and mutation evidence is recorded.",
+      "met": true,
+      "evidence": "Final focused tests, build, lint and repository gates passed; durable retrospective records wire/mutation evidence and reproduced baseline/environment exceptions. Independent review completed."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "sprint-evaluator assesses the final implementation against the approved design; unresolved acceptance failures block completion.",
+      "met": true,
+      "evidence": "Final focused tests, build, lint and repository gates passed; durable retrospective records wire/mutation evidence and reproduced baseline/environment exceptions. Independent review completed."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Implemented; design and companion sprint plan moved together"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Both header forms share pre-conversion extraction and atomic validation. Static defaults include ServeMux clean-path redirects with API isolation. Framing heuristic and target outcomes follow approved design."
+  },
+  "feedback": [],
+  "code_quality_notes": "Rubric deduction capped at -5 for >50-line helper functions (responseHeaders and AST declaration/alias resolution); focused modules remain below file size ceiling. No blocking defects found.",
+  "baseline_exceptions": [
+    {
+      "check": "make test-core",
+      "reason": "8 preexisting brain SQLite tests require CGO; environment CGO_ENABLED=0 and gcc absent",
+      "evidence": "/tmp/headers-core.log"
+    },
+    {
+      "check": "mcp_tools.ail",
+      "reason": "Unchanged fixture Option[string]/string comparison fails with fresh and installed pre-sprint binary; required request-side fixture left unchanged",
+      "evidence": "/tmp/headers-mcp-tools-baseline.log"
+    },
+    {
+      "check": "broad CLI regex",
+      "reason": "Unrelated Helpers timing test exceeded30s under concurrent work; anchored intended Help suite passes",
+      "evidence": "docs/sprint-retros/M-SERVEAPI-RESPONSE-HEADERS-retro.md"
+    }
+  ],
+  "notes": "PASS for approved local scope. Full make test expressly deferred to PR CI due prior SIGBUS; CI must pass before merge. Framing probe checks accepted XFO or CSP directive presence, not a browser enforcement proof. Durable evidence: docs/sprint-retros/M-SERVEAPI-RESPONSE-HEADERS-retro.md."
+}
