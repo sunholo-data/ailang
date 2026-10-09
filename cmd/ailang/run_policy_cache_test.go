@@ -124,3 +124,13 @@ func TestPolicyCachePrivateAndOperatorOwned(t *testing.T) {
 		t.Fatalf("operator cache removed: %v", err)
 	}
 }
+
+func TestPolicyCacheWithoutSandbox(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cacheInsideSandbox("", cwd) {
+		t.Fatal("absent sandbox treated as cwd")
+	}
+}

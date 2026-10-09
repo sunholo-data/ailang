@@ -139,6 +139,20 @@ so read-only ops write nothing into the sandbox. A boolean flag takes `""` or `"
 other value (including `"false"`) is refused, not ignored — and request keys are exact and
 unique: `FLAGS` is not `flags`, and a duplicated key is a refusal, not a merge.
 
+**Restricted run compile caches.** `ailang run --policy` honours a non-empty
+`AILANG_CACHE_DIR` override and retains that operator-owned directory. With the
+variable unset or empty, each run cold-compiles into a private temporary cache
+outside `fs_sandbox`; the supervisor removes it after worker exit, including
+worker errors, timeouts, and output limits. If `TMPDIR` places that generated
+cache inside the sandbox (including through a symlink), the supervisor removes
+it and refuses before starting the worker. Choose a `TMPDIR` outside the sandbox.
+An explicit cache override inside the sandbox is permitted with one `warning:`
+line: program writes could poison future compiles, so protect the cache with
+`fs_deny_write`. Relative paths and missing leaves beneath symlinks are checked.
+For warm compilation, choose an external persistent override and manage its
+lifetime yourself. `trusted_host` keeps full environment passthrough and its
+usual cache defaults.
+
 **The program file must be inside `fs_sandbox`.** `ailang run --policy` refuses an entry file
 outside the sandbox (the module root the imports resolve from would otherwise be anywhere on the
 host); `ailang_run` says so before shelling out.

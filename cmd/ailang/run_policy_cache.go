@@ -20,7 +20,7 @@ func startPolicyWorker(cmd *exec.Cmd, res *policy.Resolved) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("cannot create worker compile cache: %w", err)
 		}
-		if entryInsideSandbox(res.Root, cache) {
+		if res.Root != "" && entryInsideSandbox(res.Root, cache) {
 			_ = os.RemoveAll(cache)
 			return "", fmt.Errorf("temporary compile cache is inside fs_sandbox; choose a TMPDIR outside the sandbox")
 		}
@@ -38,6 +38,9 @@ func startPolicyWorker(cmd *exec.Cmd, res *policy.Resolved) (string, error) {
 // Resolve the nearest existing ancestor so missing leaves below a symlink
 // cannot hide an operator cache inside the sandbox. Entry admission is unchanged.
 func cacheInsideSandbox(root, path string) bool {
+	if root == "" {
+		return false
+	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return false
