@@ -5870,7 +5870,12 @@ roles:
   # claude-sonnet-5-5 is rung 2 (2026-09-29, Mark attended): level with gpt6-sol on the
   # anchored standard series (2295.8 vs 2288.7, same $2/$10) and 41/42 agent smoke+core on
   # the claude CLI subscription lane. Mirrors the shell driver's EXECUTOR RUNG 2.
-  executor:  [gpt6-1-sol, claude-sonnet-5-5, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
+  # claude-haiku-5-5 is rung 2 ahead of Sonnet 5.5 (2026-10-08, Mark): agent core 23/23 and
+  # 32/32 across core+frontier+long-frontier on the claude CLI lane, at 1/17 of Sonnet's list
+  # cost per solved benchmark; replaying four merged sprint-executor tasks it completed 3 and
+  # finished M1 of the 4th (it stopped at the skill's pause points — see the sprint-executor
+  # skill's "Unattended runs"). Sonnet stays the next rung.
+  executor:  [gpt6-1-sol, claude-haiku-5-5, claude-sonnet-5-5, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
   # evaluator leads with pi, not opencode (changed 2026-09-14). The binary mission path is
   # the only LaneLocal consumer of this row; the coordinator's retry chain reads it on
   # LaneCloud but short-circuits first for any agent carrying an explicit model

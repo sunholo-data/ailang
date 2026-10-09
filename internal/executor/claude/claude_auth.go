@@ -94,6 +94,31 @@ func underArtifactRoot(dir string) bool {
 	return false
 }
 
+// setupTokenPrefix marks a long-lived `claude setup-token` token, as opposed
+// to the JSON credential blob (access + refresh token) the cloud secret used
+// to hold.
+const setupTokenPrefix = "sk-ant-oat"
+
+// oauthSetupToken returns CLAUDE_CODE_OAUTH_TOKEN when it holds a setup-token,
+// else "".
+//
+// The JSON blob cannot survive a stateless container: Claude refreshes it
+// in-process and the refreshed pair dies with the container, so once the
+// stored refresh token is spent every later run fails. Measured 2026-10-09 on
+// the dev and prod cloud secrets (versions from March and April):
+// "Failed to authenticate: OAuth session expired and could not be refreshed".
+// A setup-token does not refresh and lasts about a year, and Claude Code reads
+// it natively from CLAUDE_CODE_OAUTH_TOKEN, which is the documented headless
+// path and how the local mission loops authenticate.
+func oauthSetupToken() string {
+	token, _ := config.ClaudeCodeOAuthToken()
+	token = strings.TrimSpace(token)
+	if strings.HasPrefix(token, setupTokenPrefix) {
+		return token
+	}
+	return ""
+}
+
 // writeCredentialsFile writes ~/.claude/.credentials.json from the
 // CLAUDE_CODE_OAUTH_TOKEN environment variable (M-CLOUD-OAUTH).
 //
@@ -104,10 +129,16 @@ func underArtifactRoot(dir string) bool {
 //	env var (inner):  {"accessToken":"...","refreshToken":"...","expiresAt":...}
 //	file (wrapper):   {"claudeAiOauth":{"accessToken":"...","refreshToken":"...","expiresAt":...}}
 //
-// Returns nil if CLAUDE_CODE_OAUTH_TOKEN is not set (no-op for local dev).
+// Returns nil if CLAUDE_CODE_OAUTH_TOKEN is not set (no-op for local dev), and
+// for a setup-token, which the child receives in its environment instead (see
+// oauthSetupToken).
 func writeCredentialsFile() error {
 	token, _ := config.ClaudeCodeOAuthToken()
 	if token == "" {
+		return nil
+	}
+	if oauthSetupToken() != "" {
+		fmt.Fprintf(os.Stderr, "claude-auth: using a setup-token, passed to the claude child as %s (no credentials file)\n", config.EnvClaudeCodeOAuthToken)
 		return nil
 	}
 

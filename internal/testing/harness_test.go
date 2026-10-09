@@ -16,7 +16,10 @@ func TestBuildInlineTestHarness_EmptyTests(t *testing.T) {
 	tests := []TestCase{}
 
 	// Act
-	result := BuildInlineTestHarness(binding, tests)
+	result, err := BuildInlineTestHarness(binding, tests)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Assert
 	if _, ok := result.(*core.Lit); !ok {
@@ -42,7 +45,10 @@ func TestBuildInlineTestHarness_SingleTest(t *testing.T) {
 	tests := []TestCase{testCase}
 
 	// Act
-	result := BuildInlineTestHarness(binding, tests)
+	result, err := BuildInlineTestHarness(binding, tests)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Assert - should be LetRec
 	letRec, ok := result.(*core.LetRec)
@@ -129,7 +135,10 @@ func TestBuildInlineTestHarness_MultipleTests(t *testing.T) {
 	}
 
 	// Act
-	result := BuildInlineTestHarness(binding, tests)
+	result, err := BuildInlineTestHarness(binding, tests)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Assert - should be LetRec with nested Lets
 	letRec, ok := result.(*core.LetRec)
@@ -208,7 +217,10 @@ func TestBuildInlineTestHarness_MultiArgFunction(t *testing.T) {
 	tests := []TestCase{testCase}
 
 	// Act
-	result := BuildInlineTestHarness(binding, tests)
+	result, err := BuildInlineTestHarness(binding, tests)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Assert
 	letRec, ok := result.(*core.LetRec)
@@ -263,7 +275,10 @@ func TestBuildInlineTestHarness_NodeIDsUnique(t *testing.T) {
 	}
 
 	// Act
-	result := BuildInlineTestHarness(binding, tests)
+	result, err := BuildInlineTestHarness(binding, tests)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Assert - collect all node IDs
 	nodeIDs := make(map[uint64]bool)
@@ -330,7 +345,10 @@ func TestBuildClusterTestHarness_EmptyTests(t *testing.T) {
 		Names: map[string]bool{"test": true},
 	}
 
-	result := BuildClusterTestHarness(cluster, []TestCase{})
+	result, err := BuildClusterTestHarness(cluster, []TestCase{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if _, ok := result.(*core.Lit); !ok {
 		t.Errorf("Expected Lit (unit) for empty tests, got %T", result)
@@ -354,7 +372,10 @@ func TestBuildClusterTestHarness_SingleBinding(t *testing.T) {
 		FunctionCtx: "factorial",
 	}
 
-	result := BuildClusterTestHarness(cluster, []TestCase{testCase})
+	result, err := BuildClusterTestHarness(cluster, []TestCase{testCase})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	letRec, ok := result.(*core.LetRec)
 	if !ok {
@@ -406,7 +427,10 @@ func TestBuildClusterTestHarness_MultipleBindings(t *testing.T) {
 		FunctionCtx: "lcm",
 	}
 
-	result := BuildClusterTestHarness(cluster, []TestCase{testCase})
+	result, err := BuildClusterTestHarness(cluster, []TestCase{testCase})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	letRec, ok := result.(*core.LetRec)
 	if !ok {
@@ -477,7 +501,10 @@ func TestBuildClusterTestHarness_MutualRecursion(t *testing.T) {
 		},
 	}
 
-	result := BuildClusterTestHarness(cluster, tests)
+	result, err := BuildClusterTestHarness(cluster, tests)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	letRec, ok := result.(*core.LetRec)
 	if !ok {
@@ -555,7 +582,10 @@ func TestBuildEnsuresPropertyHarness_SingleArg(t *testing.T) {
 		Right: makeIntLit(0),
 	}
 
-	result := BuildEnsuresPropertyHarness(binding, params, predicate)
+	result, err := BuildEnsuresPropertyHarness(binding, params, predicate)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	letRec, ok := result.(*core.LetRec)
 	if !ok {
@@ -638,7 +668,10 @@ func TestBuildEnsuresPropertyHarness_MultiArg(t *testing.T) {
 		},
 	}
 
-	result := BuildEnsuresPropertyHarness(binding, params, predicate)
+	result, err := BuildEnsuresPropertyHarness(binding, params, predicate)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Outer = Let(x, 3, ...), then Let(y, 4, ...), then Let(result, App, predicate).
 	letRec := result.(*core.LetRec)
@@ -694,7 +727,10 @@ func TestBuildEnsuresPropertyHarness_StringPredicate(t *testing.T) {
 		},
 	}
 
-	result := BuildEnsuresPropertyHarness(binding, params, predicate)
+	result, err := BuildEnsuresPropertyHarness(binding, params, predicate)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	letRec := result.(*core.LetRec)
 	nLet := letRec.Body.(*core.Let)
@@ -725,7 +761,10 @@ func TestBuildEnsuresPropertyHarness_PredicateIgnoresResult(t *testing.T) {
 	// Predicate: true (constant — pathological but legal)
 	predicate := makeBoolLit(true)
 
-	result := BuildEnsuresPropertyHarness(binding, params, predicate)
+	result, err := BuildEnsuresPropertyHarness(binding, params, predicate)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	letRec := result.(*core.LetRec)
 	xLet := letRec.Body.(*core.Let)

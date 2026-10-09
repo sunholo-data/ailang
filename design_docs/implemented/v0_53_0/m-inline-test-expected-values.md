@@ -2,11 +2,11 @@
 
 **Refs #495** (Finding 2; Finding 1 fixed by a9e26ffd6 / PR #549. Finding 3 re-verification: §F3 below.)
 
-**Status**: Planned
+**Status**: IMPLEMENTED (2026-10-08; pending merge)
 **Target**: v0.53.0
 **Priority**: P1 (Medium) — ADT- and list-returning functions cannot be table-tested at all, and the check leg reads green on rows the test leg cannot run.
 **Estimated**: 2 days
-**Dependencies**: None hard. Coordinates with [m-inline-test-multiarg-tuple-rows.md](../m-inline-test-multiarg-tuple-rows.md) (input-side row grammar; still Planned, target v0.39.0 — stale) — see §Relationship.
+**Dependencies**: None hard. Coordinates with [m-inline-test-multiarg-tuple-rows.md](../../planned/m-inline-test-multiarg-tuple-rows.md) (input-side row grammar; still Planned, target v0.39.0 — stale) — see §Relationship.
 
 ## Axiom Compliance
 
@@ -20,7 +20,7 @@ Every feature must align with AILANG's 12 Design Axioms. Score each axiom and ve
 |-------|-------|---------------|
 | A1: Determinism | +1 | Expected-value evaluation is a pure AST→Core conversion of a literal-shaped expression plus one evaluator pass — same input, same value, every run. No random generation involved (unlike property legs). |
 | A2: Replayability | 0 | Seeds, replay flags, and report formats unchanged. |
-| A3: Effect Legibility | 0 | No effect change. Effectful functions under test keep today's `--caps` gating (verified live, V6); the grammar admits no new effectful surface (arbitrary calls in rows were already possible on the input side). |
+| A3: Effect Legibility | 0 | No effect change. Effectful functions under test keep the existing capability-denial behavior (V6; `ailang test` has no `--caps` flag); the grammar admits no new effectful surface (arbitrary calls in rows were already possible on the input side). |
 | A4: Explicit Authority | 0 | No capability change. |
 | A5: Bounded Verification | +1 | The check leg gains a bounded, per-row static gate; today its silence on test rows is an unbounded "trust me" surface. The test leg fast-fails on rejected rows instead of dying mid-evaluation (or crashing the process, V5). |
 | A6: Safe Concurrency | 0 | No concurrency change. |
@@ -183,9 +183,9 @@ Route both row arms through the source-append + re-elaboration path named tests 
 
 - Rejected for now because it makes the **input** arm more capable than the expected arm
   fix requires, drags in the unresolved effectful-helper design
-  ([m-named-test-effectful-helper.md](m-named-test-effectful-helper.md): entries are
+  ([m-named-test-effectful-helper.md](../../planned/v0_53_0/m-named-test-effectful-helper.md): entries are
   `pure func`, effectful callees are refused — while inline tests on effectful functions
-  work today under `--caps`, V6, and must not regress), and costs a batched compile per
+  retain capability denial, V6, and must not regress), and costs a batched compile per
   file on both legs. When input-side elaboration is ever designed (with effect honesty),
   **both arms move together** and the grammar gate widens accordingly (§Future Work).
 
@@ -234,16 +234,16 @@ Route both row arms through the source-append + re-elaboration path named tests 
 ### Implementation Plan
 
 **Phase 1: expected arm + panic hardening** (~1 day)
-- [ ] M2: `astExprToCore` returns errors; fix the two builders + unit-test callers.
-- [ ] M1: `EvaluateExpectedExpr`; switch `runner.go`; port `EvaluateLiteral` unit tests.
-- [ ] Premise/acceptance tests: `u2b` (ADT nullary + applied), list, nested list-of-records, tuple, record rows all pass `ailang test` (V1/V2 repros become fixtures).
+- [x] M2: `astExprToCore` returns errors; fix the two builders + unit-test callers.
+- [x] M1: `EvaluateExpectedExpr`; switch `runner.go`; port `EvaluateLiteral` unit tests.
+- [x] Premise/acceptance tests: `u2b` (ADT nullary + applied), list, nested list-of-records, tuple, record rows all pass `ailang test` (V1/V2 repros become fixtures).
 
 **Phase 2: the shared gate** (~1 day)
-- [ ] M3 predicate in `internal/ast`; TST001/TST002 in `internal/errors/codes.go` + registry.
-- [ ] Pipeline stage `validate_test_rows`; check/ai-check/LSP surface them.
-- [ ] Runner fast-fail with the same codes.
-- [ ] Locked-step table test: predicate-accepts ⇒ evaluates; predicate-rejects ⇒ same code on both legs.
-- [ ] Regression sweep: `examples/inline_tests_*.ail` (5 files), `make test`, `make check-boundaries`.
+- [x] M3 predicate in `internal/ast`; TST001/TST002 in `internal/errors/codes.go` + registry.
+- [x] Pipeline stage `validate_test_rows`; check/ai-check/LSP surface them.
+- [x] Runner fast-fail with the same codes.
+- [x] Locked-step table test: predicate-accepts ⇒ evaluates; predicate-rejects ⇒ same code on both legs.
+- [x] Regression sweep: `examples/inline_tests_*.ail` (5 files), `make test`, `make check-boundaries`.
 
 ### Files to Modify/Create
 
@@ -274,13 +274,13 @@ validation stage, same class as `effect_ceiling.go`). No parser/lexer/typechecke
    parsing and are now *rejected by name* at check time instead of failing (or crashing) at
    test time.
 3. **Parser/typechecker disambiguation**: none needed — no grammar change. The check stage
-   runs on the parsed surface AST after the type check, so it never competes with
+   runs on the parsed surface AST before module cache lookup (and after parsing on the single-file path), so it never competes with
    elaboration.
 4. **Programs that MUST still work** (regression fixtures, all exist):
    - `examples/inline_tests_types.ail`, `examples/inline_tests_nullary.ail`,
      `examples/inline_tests_arithmetic.ail`, `examples/inline_tests_recursive.ail`,
      `examples/inline_tests_best_practices.ail` (the entire passing scalar corpus).
-   - Effectful functions under test with `--caps IO` (V6 live repro): the input-arm
+   - Effectful functions under test retain capability denial (V6 live repro): the input-arm
      harness and its capability gating are untouched.
    - Property/ensures legs: production uses pre-lowered Core predicates
      (`BuildEnsuresPropertyHarnessFromCore`); only unit tests use the AST wrapper.
@@ -306,7 +306,7 @@ source claims read at origin/dev `1dfd5615` (shallow checkout, both post-triage 
 | V3 | `EvaluateLiteral` accepts scalars only; `runner.go:176` is its only production caller | Code read `executor.go:512-565`; `grep -rn "EvaluateLiteral" internal/ cmd/` → definition, its self-recursion, and `runner.go:176` only (plus `_test.go`). |
 | V4 | Arithmetic in a row input fails: `BinOp reached evaluator; dictionaries not elaborated (op='+')`; check rc=0 | Live: `add` with `tests [ ((1+2, 3), 6) ]`; row 2 without arithmetic passes, proving the mechanism not the function. **Confirmed eager**: a function that ignores its input (`konst(x: int) -> int { 7 }`) still fails on the `1+2` row — so no currently-passing corpus can contain a `BinaryOp` row. |
 | V5 | Unsupported input node **panics the process** (rc=2) through `astExprToCore`'s default arm; check rc=0 | Live: `L.map(\x. x, [1, 2])` as row input → stack trace `harness.go:247` via `buildFunctionCall`/`BuildInlineTestHarness`; `ailang test` exits 2, no Test Results section. |
-| V6 | Inline tests on effectful functions run today under `--caps` (capability gate in the harness evaluator) | Live: `shout(n: int) -> string ! {IO}` with rows fails with `effect 'IO' requires capability, but none provided` — the gate exists and is the behavior to preserve. |
+| V6 | Inline tests on effectful functions enforce the capability gate (the CLI has no `--caps` flag) | Live: `shout(n: int) -> string ! {IO}` with rows fails with `effect 'IO' requires capability, but none provided` — the gate exists and is the behavior to preserve. |
 | V7 | `equalValues` already deep-compares `ListValue`, `TupleValue`, `RecordValue`, `TaggedValue` | Code read `executor_helpers.go:123-205`. (Known quirk, out of scope: `TaggedValue` compares `CtorName` only, not `TypeName`.) |
 | V8 | AST→Core→evaluator already round-trips ADT/list/record values | `TestB12_RoundTrip` (`value_splice_roundtrip_test.go:61`) asserts structural equality across the exact cycle M1 needs; `valueToLiteral` (`value_splice.go`) emits the same AST node kinds the predicate will accept. |
 | V9 | No check-time validation of test rows exists (negative-existence) | `grep -rn "Tests" internal/types/` → only a wasm comment; `internal/elaborate/file.go:421` copies `f.Tests` into SCC metadata and nothing else reads it pre-test. |
@@ -382,14 +382,14 @@ tests [ ((1+2, 3), 6) ]
 
 ## Success Criteria
 
-- [ ] The `u2b` fixture (ADT nullary + applied) passes `ailang test` (acceptance: both rows green).
-- [ ] A list expected `[2, 3]`, a nested list-of-records, a tuple and a record expected all pass.
-- [ ] `ailang check` on a row with arithmetic (V4 fixture) exits 1 with TST002 and the row's location; `ai-check` JSON carries it in `check.errors`.
-- [ ] `ailang check` on a row with an unsupported node (V5 fixture) exits 1 with TST001.
-- [ ] `ailang test` on the same fixtures fails the row with the same code — never a panic, never a process crash (rc=1 with a report).
-- [ ] Locked-step premise test: for every AST node kind, `RowExprSupported` acceptance matches `EvaluateExpectedExpr` success (table-driven, both directions).
-- [ ] All 5 `examples/inline_tests_*.ail` unchanged in outcomes; `make test`, `make check-boundaries` clean.
-- [ ] Effectful inline tests still run under `--caps` (V6 fixture unchanged in message and rc).
+- [x] The `u2b` fixture (ADT nullary + applied) passes `ailang test` (acceptance: both rows green).
+- [x] A list expected `[2, 3]`, a nested list-of-records, a tuple and a record expected all pass.
+- [x] `ailang check` on a row with arithmetic (V4 fixture) exits 1 with TST002 and the row's location; `ai-check` JSON carries it in `check.errors`.
+- [x] `ailang check` on a row with an unsupported node (V5 fixture) exits 1 with TST001.
+- [x] `ailang test` on the same fixtures fails the row with the same code — never a panic, never a process crash (rc=1 with a report).
+- [x] Locked-step premise test: for every AST node kind, `RowExprSupported` acceptance matches `EvaluateExpectedExpr` success (table-driven, both directions).
+- [x] All 5 existing inline examples retain scalar outcomes; list/ADT expected failures are repaired; `make test`, `make check-boundaries` clean.
+- [x] Effectful inline tests retain capability denial (V6 message and rc preserved; successful `--caps` premise corrected).
 
 ## Testing Strategy
 
@@ -413,7 +413,7 @@ tests [ ((1+2, 3), 6) ]
 
 Before implementation begins, these must be resolved:
 
-- [ ] Option A vs B/C confirmed by doc approval (user approval of this doc resolves it).
+- [x] Option A vs B/C confirmed by doc approval (user approval of this doc resolves it).
 
 ## Deferred Decisions
 
@@ -428,7 +428,7 @@ The following are intentionally left open for the implementer:
 
 **Not attempted in this feature:**
 - **Row shape and arity rulings** (flat rows, tuple-input arity disambiguation, mis-arity
-  refusal) — owned by [m-inline-test-multiarg-tuple-rows.md](../m-inline-test-multiarg-tuple-rows.md).
+  refusal) — owned by [m-inline-test-multiarg-tuple-rows.md](../../planned/m-inline-test-multiarg-tuple-rows.md).
   Until it lands, `check` remains silent on mis-arity rows; this is documented, not fixed here.
 - **Named-test-body visibility in `check`** (V10) and **properties[] row validation** — same
   disease, different surface; folding them in would triple the blast radius. Flagged as the
@@ -473,11 +473,11 @@ Overlap management, for the sprint planner:
 ## Related Documents
 
 **Planned (check for overlap):**
-- [m-inline-test-multiarg-tuple-rows.md](../m-inline-test-multiarg-tuple-rows.md) — input-side row grammar (see §Relationship)
-- [m-test-runner-compile-once.md](m-test-runner-compile-once.md) — named-test one-compile batch; the named-body mechanism Option C defers to
-- [m-named-test-effectful-helper.md](m-named-test-effectful-helper.md) — effect honesty for batched entries (why Option C is deferred)
-- [m-package-test-discovery.md](../m-package-test-discovery.md) — inline tests under `ailang test --package` (gate must not depend on run mode)
-- [inline-test-per-case-recompile-1328.md](../ailang-core-triage/inline-test-per-case-recompile-1328.md) — inline compile memoization (V14)
+- [m-inline-test-multiarg-tuple-rows.md](../../planned/m-inline-test-multiarg-tuple-rows.md) — input-side row grammar (see §Relationship)
+- [m-test-runner-compile-once.md](../../planned/v0_53_0/m-test-runner-compile-once.md) — named-test one-compile batch; the named-body mechanism Option C defers to
+- [m-named-test-effectful-helper.md](../../planned/v0_53_0/m-named-test-effectful-helper.md) — effect honesty for batched entries (why Option C is deferred)
+- [m-package-test-discovery.md](../../planned/m-package-test-discovery.md) — inline tests under `ailang test --package` (gate must not depend on run mode)
+- [inline-test-per-case-recompile-1328.md](../../planned/ailang-core-triage/inline-test-per-case-recompile-1328.md) — inline compile memoization (V14)
 
 **Implemented (may inform design):**
 - [m-test-harness-module-scoped-envs.md](../../implemented/v0_52_0/m-test-harness-module-scoped-envs.md) — the module-scoped harness evaluator M1 reuses (fixed #1574's collision leg)
@@ -511,3 +511,16 @@ Overlap management, for the sprint planner:
 
 **Document created**: 2026-10-08
 **Last updated**: 2026-10-08
+
+## Implementation result (2026-10-08)
+
+Composite expected values use the existing harness evaluator. A shared AST grammar
+produces TST001/TST002 in check, ai-check, LSP and the row runner. Harness compilation
+defers syntax rejection to each row so valid neighbors stay runnable; strict module
+validation precedes cache lookup. Conversion failures propagate as errors.
+
+Full tests, lint, architecture/format/file-size checks and example validation passed.
+F3 composed integer predicates verified; float-division encoding failure exits 1 in
+verify and ai-check. The original sketch is unavailable; no SMT change or closure
+of #495 is claimed. Execution details and plan adjustments are in the companion
+sprint plan.

@@ -8,6 +8,7 @@ const (
 	EnvGOPATH            = "GOPATH"
 	EnvProjectRoot       = "AILANG_PROJECT_ROOT"
 	EnvExamples          = "AILANG_EXAMPLES"
+	EnvPackageRoot       = "AILANG_PACKAGE_ROOT"
 	EnvZ3Path            = "AILANG_Z3_PATH"
 	EnvBrowserProfileDir = "AILANG_BROWSER_PROFILE_DIR"
 	EnvHome              = "HOME"
@@ -17,6 +18,7 @@ const (
 )
 
 var pathVars = []Var{
+	{EnvPackageRoot, "", AreaPaths, "Read-only, operator-provisioned registry package root (<vendor>/<name>/<version>). When set, resolution uses only this root, with no HOME cache fallback; never written or created. Set by the host, never the agent."},
 	{EnvStateDir, "~/.ailang", AreaPaths, "Directory for every local store (SQLite databases, ledgers, locks). Read by internal/statedir itself — a stdlib-only leaf that cannot import this package — and registered here so the reference lists it."},
 	{EnvCacheDir, "", AreaPaths, "Root of the compile cache (<dir>/compile) and the prompt cache; unset means <project>/.ailang/cache and $XDG_CACHE_HOME/ailang (else ~/.cache/ailang) respectively."},
 	{EnvStdlibPath, "", AreaPaths, "Path-list (OS separator) of stdlib directories; the first holding io.ail is the stdlib root for the whole process. Beats ./std and the installed copies; loses only to --stdlib-path. Set but holding no stdlib is an error. Unset falls through to ./std, <binary>/../std, the user data dir, system dirs, then the stdlib built into the binary."},
@@ -65,3 +67,6 @@ func XDGDataHome() string { return get(EnvXDGDataHome) }
 
 // AppData returns APPDATA, "" when unset.
 func AppData() string { return get(EnvAppData) }
+
+// PackageRoot returns the exclusive operator-provisioned registry root, or empty.
+func PackageRoot() string { return get(EnvPackageRoot) }

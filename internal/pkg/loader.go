@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // PackageLoader resolves package imports against a lock file.
@@ -170,12 +172,15 @@ func (pl *PackageLoader) packageDir(locked *LockedPackage) (string, error) {
 		return dir, nil
 	case "registry":
 		// Compute cache path at runtime (portable — no absolute paths in lock file)
-		dir, err := CachedPackagePath(locked.Name, locked.Version)
+		dir, err := PackageDir(locked.Name, locked.Version)
 		if err != nil || (dir != "" && func() bool { _, e := os.Stat(dir); return e != nil }()) {
 			// Fallback to stored Path for old lock files or non-standard cache locations
-			if locked.Path != "" {
+			if config.PackageRoot() == "" && locked.Path != "" {
 				dir = locked.Path
 			}
+		}
+		if err != nil {
+			return "", err
 		}
 		if dir == "" {
 			return "", fmt.Errorf("registry package %s not cached; run 'ailang install %s@%s'", locked.Name, locked.Name, locked.Version)

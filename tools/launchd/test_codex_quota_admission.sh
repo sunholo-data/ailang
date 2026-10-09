@@ -33,7 +33,7 @@ _chain_head() { printf '%s' "${1%%,*}"; }
 _chain_tail() { printf ''; }
 block=$(awk '/^for role in DESIGNER PLANNER EXECUTOR EVALUATOR; do/{active=1;buf=""} active{buf=buf $0 "\n"} active && /^done$/{if (buf ~ /cx_model=/) printf "%s",buf;active=0}' "$DRIVER")
 [ -n "$block" ] || { echo 'FAIL extraction'; exit 1; }
-# Anthropic is dry in this case, so the executor's sonnet rung (2026-09-29) is probed,
+# Anthropic is dry in this case, so the executor's Anthropic rung (2026-09-29; haiku-5-5 since 2026-10-08) is probed,
 # refused, and the role walks to pi — the path this case has always asserted.
 _mc_probe() { return 1; }
 eval "$block"
@@ -58,7 +58,7 @@ echo 'PASS reset credits in reserve are lifted into the notice, and absent when 
 
 # OPUS BEFORE PI (2026-09-26): with the knob on, a dry codex hands planner/executor to opus
 # when the Anthropic probe passes, and to the pi chain when it does not. Knob off = unchanged.
-# EXECUTOR RUNG 2 (2026-09-29): the EXECUTOR takes claude:claude-sonnet-5-5 ahead of both
+# EXECUTOR RUNG 2 (2026-09-29; model claude-haiku-5-5 since 2026-10-08): the EXECUTOR takes claude:claude-haiku-5-5 ahead of both
 # opus and pi whenever its probe passes, knob or no knob; MISSION_EXECUTOR_ANTHROPIC_RUNG=''
 # turns it off. The planner is untouched by the rung.
 _opb_run() {  # $1 = knob, $2 = anthropic probe rc, $3 = executor rung (omit = driver default)
@@ -72,22 +72,22 @@ _opb_run() {  # $1 = knob, $2 = anthropic probe rc, $3 = executor rung (omit = d
   eval "$block"
 }
 _opb_run 1 0
-[ "$MISSION_PLANNER_MODEL" = opus ] && [ "$MISSION_EXECUTOR_MODEL" = claude:claude-sonnet-5-5 ] && [ "$AN_PROBES" = 2 ] \
+[ "$MISSION_PLANNER_MODEL" = opus ] && [ "$MISSION_EXECUTOR_MODEL" = claude:claude-haiku-5-5 ] && [ "$AN_PROBES" = 2 ] \
   || { echo "FAIL opus-before-pi positive: $MISSION_PLANNER_MODEL $MISSION_EXECUTOR_MODEL probes=$AN_PROBES"; exit 1; }
 case "$_lane_degraded" in *'handed to `opus`'*) ;; *) echo "FAIL ledger does not name opus"; exit 1 ;; esac
-case "$_lane_degraded" in *'handed to `claude:claude-sonnet-5-5`'*) ;; *) echo "FAIL ledger does not name the sonnet rung"; exit 1 ;; esac
+case "$_lane_degraded" in *'handed to `claude:claude-haiku-5-5`'*) ;; *) echo "FAIL ledger does not name the haiku rung"; exit 1 ;; esac
 [ "$MISSION_EXECUTOR_CHAIN_REMAINING" = "pi:ollama/test" ] \
-  || { echo "FAIL sonnet rung dropped the pi head from the remaining chain: [$MISSION_EXECUTOR_CHAIN_REMAINING]"; exit 1; }
+  || { echo "FAIL haiku rung dropped the pi head from the remaining chain: [$MISSION_EXECUTOR_CHAIN_REMAINING]"; exit 1; }
 _opb_run 1 75
 [ "$MISSION_PLANNER_MODEL" = pi:ollama/test ] && [ "$MISSION_EXECUTOR_MODEL" = pi:ollama/test ] && [ "$AN_PROBES" = 2 ] \
   || { echo "FAIL opus-before-pi drought: $MISSION_PLANNER_MODEL $MISSION_EXECUTOR_MODEL probes=$AN_PROBES"; exit 1; }
 _opb_run 0 0
-[ "$MISSION_PLANNER_MODEL" = pi:ollama/test ] && [ "$MISSION_EXECUTOR_MODEL" = claude:claude-sonnet-5-5 ] && [ "$AN_PROBES" = 1 ] \
+[ "$MISSION_PLANNER_MODEL" = pi:ollama/test ] && [ "$MISSION_EXECUTOR_MODEL" = claude:claude-haiku-5-5 ] && [ "$AN_PROBES" = 1 ] \
   || { echo "FAIL knob off: planner must walk pi, executor still takes the rung: $MISSION_PLANNER_MODEL $MISSION_EXECUTOR_MODEL probes=$AN_PROBES"; exit 1; }
 _opb_run 0 0 ''
 [ "$MISSION_PLANNER_MODEL" = pi:ollama/test ] && [ "$MISSION_EXECUTOR_MODEL" = pi:ollama/test ] && [ "$AN_PROBES" = 0 ] \
   || { echo "FAIL rung disabled + knob off changed routing: $MISSION_PLANNER_MODEL $MISSION_EXECUTOR_MODEL probes=$AN_PROBES"; exit 1; }
-echo 'PASS opus-before-pi + executor rung 2: sonnet-5-5 takes a dry executor, opus the planner; Anthropic dry walks pi; rung and knob off unchanged'
+echo 'PASS opus-before-pi + executor rung 2: haiku-5-5 takes a dry executor, opus the planner; Anthropic dry walks pi; rung and knob off unchanged'
 
 # log() must be defined before its first caller, or bash resolves macOS /usr/bin/log.
 first_def=$(grep -n '^log() {' "$DRIVER" | head -1 | cut -d: -f1)
