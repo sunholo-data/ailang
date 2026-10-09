@@ -83,3 +83,41 @@ func TestCodexExitedLeaderStillStopsOwnedChildBeforeReturn(t *testing.T) {
 	}
 	t.Fatal("owned child remained live after leader exit and executor return")
 }
+
+func TestCodexNormalExecutionCanFinishAfterFiveSeconds(t *testing.T) {
+	t.Setenv("AILANG_CODEX_RUNTIME", "cli")
+	dir := t.TempDir()
+	binary := filepath.Join(dir, "fake-codex")
+	// Close streams before doing valid work: the event reader reaches Wait while
+	// the normal native task is still running. Cleanup's join deadline must not
+	// become an execution deadline.
+	script := "#!/bin/sh\necho '{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}'\nexec 1>&- 2>&-\nsleep 6\nexit 0\n"
+	if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	e, err := New(&executor.Config{CodexPath: binary, CodexModel: "test", TimeoutSeconds: 15})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := e.Execute(context.Background(), &executor.Task{Directive: "fixture", Workspace: dir, Timeout: 15 * time.Second, TTFTTimeout: 10 * time.Second})
+	if err != nil || result == nil || !result.Success {
+		t.Fatalf("normal execution unexpectedly bounded by cleanup: result=%+v error=%v", result, err)
+	}
+}
+
+func TestCodexTimeoutJoinsBeforeReturningResult(t *testing.T) {
+	t.Setenv("AILANG_CODEX_RUNTIME", "cli")
+	dir := t.TempDir()
+	binary := filepath.Join(dir, "fake-codex")
+	if err := os.WriteFile(binary, []byte("#!/bin/sh\nsleep 60 &\nwait\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	e, err := New(&executor.Config{CodexPath: binary, CodexModel: "test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := e.Execute(context.Background(), &executor.Task{Directive: "fixture", Workspace: dir, Timeout: 100 * time.Millisecond})
+	if err != nil || result == nil || result.Success {
+		t.Fatalf("timeout result=%+v error=%v", result, err)
+	}
+}

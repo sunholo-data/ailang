@@ -41,7 +41,11 @@ func daemonExecution(ctx context.Context, path string, task *executor.Task, mode
 		}
 		prefix := "mcp_servers." + s.Name + "."
 		cfg[prefix+"command"] = s.Command
-		cfg[prefix+"args"] = s.Args
+		args := s.Args
+		if args == nil {
+			args = []string{}
+		}
+		cfg[prefix+"args"] = args
 		mcpEnv := map[string]any{}
 		for _, name := range s.EnvVars {
 			val, ok := set[name]

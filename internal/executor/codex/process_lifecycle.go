@@ -1,7 +1,6 @@
 package codex
 
 import (
-	"errors"
 	"fmt"
 	"os/exec"
 	"sync"
@@ -15,31 +14,25 @@ func nativeProcessLifecycle(cmd *exec.Cmd) (wait func() error, stop func(), fini
 	var waitOnce sync.Once
 	waitDone := make(chan struct{})
 	var waitErr error
-	wait = func() error {
-		waitOnce.Do(func() { go func() { waitErr = cmd.Wait(); close(waitDone) }() })
-		select {
-		case <-waitDone:
-			return waitErr
-		case <-time.After(5 * time.Second):
-			return ErrProcessTerminationUnconfirmed
-		}
-	}
-	var terminationMu sync.Mutex
+	beginWait := func() { waitOnce.Do(func() { go func() { waitErr = cmd.Wait(); close(waitDone) }() }) }
+	wait = func() error { beginWait(); <-waitDone; return waitErr }
+	var stopOnce sync.Once
 	var terminationErr error
-	stop = func() {
-		if err := terminateProcessTree(cmd); err != nil {
-			terminationMu.Lock()
-			terminationErr = err
-			terminationMu.Unlock()
-		}
-	}
+	stop = func() { stopOnce.Do(func() { terminationErr = terminateProcessTree(cmd) }) }
+	// Context cancellation and explicit timeout share the same successful group
+	// kill. A repeated signal after reap can be rejected for zombie-only groups.
+	cmd.Cancel = func() error { stop(); return terminationErr }
 	finish = func() error {
 		stop()
-		terminationMu.Lock()
 		killErr := terminationErr
-		terminationMu.Unlock()
-		if err := wait(); errors.Is(err, ErrProcessTerminationUnconfirmed) || killErr != nil {
-			return fmt.Errorf("%w: wait=%v terminate=%v", ErrProcessTerminationUnconfirmed, err, killErr)
+		beginWait()
+		select {
+		case <-waitDone:
+			if killErr != nil {
+				return fmt.Errorf("%w: wait=%v terminate=%v", ErrProcessTerminationUnconfirmed, waitErr, killErr)
+			}
+		case <-time.After(5 * time.Second):
+			return fmt.Errorf("%w: cleanup join timed out", ErrProcessTerminationUnconfirmed)
 		}
 		return nil
 	}
