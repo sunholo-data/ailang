@@ -125,3 +125,9 @@ Files modified:
 - internal/executor/codex/README.md
 - .ailang/state/sprints/sprint_M-CODEX-SUBSCRIPTION-LANE.json
 - design_docs/planned/v0_52_6/m-codex-subscription-lane-sprint-plan.md
+
+Evaluator handoff: the sprint-executor skill's round-2 `ailang messages send
+sprint-evaluator` was attempted after the implementation commit. The messaging
+router refused it because no live agent serves that inbox and it is not declared
+human-triage. No forced message was sent. The coordinator completion markers and
+this report provide the review handoff; evaluator dispatch needs a live agent.
