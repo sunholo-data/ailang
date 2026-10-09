@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-RUN-POLICY-RESULT-UNFORGEABLE",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-08T20:14:20Z",
   "design_doc": "design_docs/planned/v0_53_0/m-run-policy-result-unforgeable.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-run-policy-result-unforgeable-sprint-plan.md",
@@ -57,10 +57,10 @@
         "`cmd/ailang/run_policy.go` retains fd-3 lifetime and timeout backstop; no open control fd during program execution.",
         "Supervisor contract lines go through a fresh-line helper named supervisorLine, which the later M-RUN-POLICY-WORKER-CACHE sprint (#1547) reuses."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T09:11:47.842185+00:00",
+      "completed": "2026-10-09T09:22:25.137978+00:00",
+      "notes": "Guard exact-byte and cancellation tests; forge-vs-timeout charter; cap accounting and other exits pass. Focused policy suite passes with -skip ^TestRunPolicy_TimeoutKillsDescendants$: unchanged descendant test fails also with HEAD supervisor via GOFLAGS overlay; killed child remains PID-1 zombie. AILANG prompt version loaded: v0.16.6; all new fixtures checked before run. fd-3 lifetime/backstop unchanged. Race check pending."
     },
     {
       "id": "M2_HOST_CONTRACT",
@@ -76,9 +76,9 @@
         "Focused go test plus make test-core pass (go test -race only if a C toolchain is available, else recorded as skipped); full suite runs in CI; sprint-evaluator can trace each design success criterion to a test or reviewed documentation change."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-09T09:22:25.137978+00:00",
       "completed": null,
-      "notes": null
+      "notes": "24 Node native TypeScript host tests pass; assets synchronized; documentation and changelog written. Final validation pending."
     }
   ],
   "related_sprints": [
