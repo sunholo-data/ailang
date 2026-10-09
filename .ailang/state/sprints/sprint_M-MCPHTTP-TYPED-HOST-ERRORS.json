@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MCPHTTP-TYPED-HOST-ERRORS",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-08T18:53:51.154853+00:00",
   "design_doc": "design_docs/planned/v0_52_6/m-mcphttp-typed-host-errors.md",
   "sprint_plan": "design_docs/planned/v0_52_6/m-mcphttp-typed-host-errors-sprint-plan.md",
@@ -57,10 +57,10 @@
         "errors.As resolves a fmt.Errorf %w wrapped typed error; code zero, empty message, plain and wrapped untyped errors retain the frozen envelope.",
         "Hook tests exercise every SupportedVersions entry; go test ./serveapi/protocol/mcphttp and make check-protocol-closure pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T06:20:00.979948+00:00",
+      "completed": "2026-10-09T06:20:18.981218+00:00",
+      "notes": "Red/green wire tests across all SupportedVersions; focused mcphttp suite and protocol closure pass. Lint tool setup in progress; final lint required."
     },
     {
       "id": "M2",
@@ -102,5 +102,6 @@
       "completed": null,
       "notes": null
     }
-  ]
+  ],
+  "last_checkpoint": "M1 implementation and focused tests complete"
 }
