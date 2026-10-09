@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/gitexec"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -327,7 +327,7 @@ func maybeEnableCodeAutoMerge(ctx context.Context, token, owner, repo string, pr
 		fmt.Fprintf(os.Stderr, "execute-job: auto-merge NOT enabled: %s\n", reason)
 		return
 	}
-	localHead, err := exec.CommandContext(ctx, "git", "-C", workDir, "rev-parse", "HEAD").Output()
+	localHead, err := gitexec.CommandContext(ctx, "-C", workDir, "rev-parse", "HEAD").Output()
 	if err != nil || strings.TrimSpace(string(localHead)) == "" {
 		fmt.Fprintf(os.Stderr, "execute-job: auto-merge NOT enabled: cannot resolve local HEAD\n")
 		return
