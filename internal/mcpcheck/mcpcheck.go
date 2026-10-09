@@ -297,19 +297,20 @@ func (s *session) checkLazyAuth(ctx context.Context, tools []tool, credentialPar
 
 func (s *session) checkAuthorizationServer(ctx context.Context, issuer string) []Finding {
 	if issuer == "" {
-		return []Finding{{"authorization-server", Skip, "", "no authorization server named (no gated tools)", "A6"}}
+		return []Finding{{"authorization-server", Skip, "", "no authorization server named (no gated tools)", "A6"}, s.checkAuthorizationFraming(ctx, "")}
 	}
 	start := time.Now()
 	var md struct {
-		PKCE     []string `json:"code_challenge_methods_supported"`
-		CIMD     bool     `json:"client_id_metadata_document_supported"`
-		AuthMeth []string `json:"token_endpoint_auth_methods_supported"`
-		Register string   `json:"registration_endpoint"`
+		PKCE                  []string `json:"code_challenge_methods_supported"`
+		AuthorizationEndpoint string   `json:"authorization_endpoint"`
+		CIMD                  bool     `json:"client_id_metadata_document_supported"`
+		AuthMeth              []string `json:"token_endpoint_auth_methods_supported"`
+		Register              string   `json:"registration_endpoint"`
 	}
 	url := wellKnown(issuer, "oauth-authorization-server")
 	if err := s.getJSON(ctx, url, &md); err != nil {
 		if err2 := s.getJSON(ctx, wellKnown(issuer, "openid-configuration"), &md); err2 != nil {
-			return []Finding{{"authorization-server", Fail, "", fmt.Sprintf("no metadata at %s: %v", url, err), "A6"}}
+			return []Finding{{"authorization-server", Fail, "", fmt.Sprintf("no metadata at %s: %v", url, err), "A6"}, s.checkAuthorizationFraming(ctx, "")}
 		}
 	}
 	var fs []Finding
@@ -325,7 +326,7 @@ func (s *session) checkAuthorizationServer(ctx context.Context, issuer string) [
 	if len(fs) == 0 {
 		fs = append(fs, Finding{"authorization-server", Pass, "", issuer + " advertises S256 and a client registration method", "A6,O6"})
 	}
-	return fs
+	return append(fs, s.checkAuthorizationFraming(ctx, md.AuthorizationEndpoint))
 }
 
 // wellKnown builds the RFC 8414 metadata URL: the well-known segment goes

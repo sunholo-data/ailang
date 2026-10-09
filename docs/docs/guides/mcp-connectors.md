@@ -596,3 +596,14 @@ needs a paid plan, and the Owner role on Team or Enterprise)
   [`sunholo/mcp_oauth`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_0/m-mcp-oauth-package.md),
   [file handoff](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-mcp-file-handoff.md).
 - Live example: `https://docparse.ailang.sunholo.com/mcp/connect/` (AILANG Parse).
+
+### Checking consent page framing
+
+`ailang mcp check https://your-service.example/mcp/ --target both`
+probes the discovered authorization endpoint with dummy OAuth code-flow and S256
+PKCE parameters, follows redirects, and judges only final 2xx HTML. A valid
+X-Frame-Options or CSP frame-ancestors protection passes. Missing protection
+fails anthropic/both targets and warns for openai. Rejected dummy clients,
+non-HTML responses, unreachable endpoints, and redirect failures warn because
+no consent page could be assessed. Without an authorization endpoint the probe
+is skipped. A warning does not establish that your consent page is protected.
