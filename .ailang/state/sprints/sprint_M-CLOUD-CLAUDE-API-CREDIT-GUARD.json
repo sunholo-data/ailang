@@ -243,10 +243,18 @@
     "registry_budget_race_log": "/private/tmp/claude-credit-registry-budget-race.log",
     "registry_budget_lint_log": "/private/tmp/claude-credit-registry-budget-lint.log",
     "infrastructure_candidate": "PASS: 292 offline shell tests, four mocked Terraform plans, validate/fmt; both flags false, no active agent/credit enrollment; unconditional scoped IAM patch requires review.",
-    "terraform_release_images": "PASS: lifecycle preserves verified releases; /private/tmp/claude-credit-release-image-validate.log"
+    "terraform_release_images": "PASS: lifecycle preserves verified releases; /private/tmp/claude-credit-release-image-validate.log",
+    "ci_quick": "PASS: /private/tmp/claude-credit-ci-quick.log, includes regenerated architecture closure and CLI/boundary/format/golden gates",
+    "ci_previous_failure": {
+      "head": "42bc80bff27a153aac912682295b9241c753dbf1",
+      "step": "Check ARCHITECTURE.md language-closure section is current",
+      "cause": "New host packages require generated full-binary count 133 to 135; language closure unchanged",
+      "resolution": "Regenerated using scripts/gen_architecture_closure.sh; check and ci-quick passed locally; rerun required CI"
+    },
+    "startup_dependencies": "READ-ONLY PASS: explicit basic canary uses dispatched inputs, app Firestore, GitHub, PubSub, artifact/Gateway permissions; no mandatory config mount/registry credential. Go memory matches existing 8Gi; deployed image/capacity proof remains pending."
   },
   "next_milestone": "M6",
-  "last_updated": "2026-10-10T08:12:03.882655+00:00",
+  "last_updated": "2026-10-10T08:34:04.275059+00:00",
   "execution_branch": "sprint/claude-api-credit-guard",
   "source_pull_request": "https://github.com/sunholo-data/ailang/pull/1755",
   "infrastructure_worktree": "/private/tmp/ailang-multivac-claude-credit",

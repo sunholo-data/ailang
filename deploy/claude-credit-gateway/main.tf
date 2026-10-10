@@ -250,7 +250,7 @@ resource "google_cloud_run_v2_job" "guarded" {
       }
       containers {
         image = each.value.image
-        resources { limits = { cpu = "2", memory = "4Gi" } }
+        resources { limits = { cpu = "2", memory = each.value.variant == "-go" ? "8Gi" : "4Gi" } }
         dynamic "env" {
           for_each = merge(each.value.cfg.config_env, { AILANG_CLOUD_PROJECT = each.value.cfg.project, AILANG_CLOUD_REGION = var.region, AILANG_STORAGE = "gcp", AILANG_TOPIC_PREFIX = each.value.cfg.topic_prefix, AILANG_AUTH_MODE = "apikey", AILANG_PROVIDER = "claude", AILANG_IMAGE_PROVIDER = "claude", AILANG_CLAUDE_CREDIT_ACCOUNT = "anthropic-api-credits", AILANG_MAX_COST_USD = "2", AILANG_GIT_MODE = "guardrails" })
           content {
