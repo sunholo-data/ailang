@@ -3,6 +3,15 @@
 **Recorded:** 2026-10-10. **State:** review candidate; no infrastructure applied,
 images built/pushed, credit account enabled, or billable inference performed.
 
+Review branches are available as [source draft PR #1755](https://github.com/sunholo-data/ailang/pull/1755)
+and [private infrastructure draft PR #6](https://github.com/sunholo-data/ailang-multivac/pull/6).
+The infrastructure candidate integrates the module under one production state,
+defaults both provision/runtime flags off, and supplies optional digest-only
+release mappings plus an unregistered canary recipe. Its 292 offline release
+tests and four mocked Terraform plans passed. The IAM hardening changes existing
+secret-reader permissions on a future normal apply even with those flags off;
+review dependencies and inherited readers before promotion. No branch was merged.
+
 ## Confirmed grant and remaining evidence
 
 Mark identified the provider credential as

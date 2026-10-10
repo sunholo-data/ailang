@@ -170,6 +170,7 @@ resource "google_cloud_run_v2_service" "gateway" {
     }
   }
   depends_on = [google_project_iam_member.gateway_ledger, google_firestore_database.authority, google_secret_manager_secret_iam_binding.provider_key, google_secret_manager_secret_iam_binding.signing_key, terraform_data.review_gate]
+  lifecycle { ignore_changes = [client, client_version, template[0].containers[0].image] }
 }
 resource "google_cloud_run_v2_service_iam_member" "gateway_caller" {
   for_each = var.deploy_runtime ? local.callers : toset([])
@@ -281,7 +282,7 @@ resource "google_cloud_run_v2_job" "guarded" {
     }
   }
   depends_on = [google_secret_manager_secret_iam_member.job_github, google_cloud_run_v2_service.gateway, terraform_data.review_gate]
-  lifecycle { ignore_changes = [client, client_version] }
+  lifecycle { ignore_changes = [client, client_version, template[0].template[0].containers[0].image] }
 }
 resource "google_cloud_run_v2_job_iam_member" "dispatch" {
   for_each = local.runtime_jobs

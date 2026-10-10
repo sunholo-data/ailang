@@ -68,6 +68,10 @@ guarded SA per environment. Jobs get only task-bound gateway capabilities and
 Google identity tokens; no real provider key, OAuth token, signing key, or ledger
 permissions.
 
+After creation, the normal verified image release pipeline owns gateway/job
+image updates. Terraform ignores subsequent image changes so a config apply
+cannot restore an older reviewed digest over a later verified release.
+
 The optional Dockerfile demonstrates a minimal Go-only service build. Its build
 context is the full ailang checkout and Go version matches go.mod. If adopted,
 add this image to the normal source release, image verification and promotion
