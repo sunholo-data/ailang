@@ -14,3 +14,5 @@ func setProcessGroup(_ *exec.Cmd) {}
 func killProcessGroup(_ int) error { return nil }
 
 func killProcess(_ int) error { return nil }
+
+func resolveGroupError(_ int, err error) error { return err }

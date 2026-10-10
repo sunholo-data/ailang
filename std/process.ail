@@ -112,3 +112,20 @@ export func closeProcessStdin(
 ) -> () ! {Process} {
   _process_close_stdin(handle)
 }
+
+-- Cancellation failures are distinct from command execution failures.
+export type WorkerCancelError =
+  | WorkerHandleInvalid(string)
+  | WorkerCancelUnsupported(string)
+  | WorkerCancelTimedOut(int)
+  | WorkerCancelFailed(string) deriving (Eq)
+
+-- Force-stop an owned POSIX worker and its non-detached descendants, then reap
+-- the child and join its writer within two seconds. Pending writes may be lost.
+-- Closing stdin is cooperative EOF and retains ownership until actual completion.
+-- Released, foreign and fabricated handles return WorkerHandleInvalid.
+-- Windows and JS/WASM report WorkerCancelUnsupported. Local worker termination
+-- does not guarantee a remote AI provider stops inference or billing.
+export func cancelProcess(handle: ProcessHandle) -> Result[(), WorkerCancelError] ! {Process} {
+  _process_cancel(handle)
+}

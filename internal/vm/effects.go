@@ -87,14 +87,29 @@ func (vm *VM) callEffectBuiltin(index int, args []bytecode.Value) (bytecode.Valu
 }
 
 func effectArgumentToEval(v bytecode.Value) (eval.Value, error) {
-	// Only TerminalSession crosses VM -> host as an ADT. Its constructor is
-	// representational; the host checks lease/context/token authority separately.
-	if v.Tag == bytecode.TagADT && v.AsADT().Ctor == "TerminalSession" {
+	// These integer handles are representational. Host operations separately
+	// enforce capabilities, execution-local registries and terminal leases.
+	if v.Tag == bytecode.TagADT {
 		a := v.AsADT()
-		if a.Tag != 0 || len(a.Fields) != 1 || a.Fields[0].Tag != bytecode.TagInt {
-			return nil, fmt.Errorf("invalid terminal handle representation")
+		var module, typ, kind string
+		switch a.Ctor {
+		case "TerminalSession":
+			module, typ, kind = "std/terminal", "TerminalSession", "terminal"
+		case "ProcessHandle":
+			module, typ, kind = "std/process", "ProcessHandle", "process"
+		case "StreamSource":
+			module, typ, kind = "std/stream", "StreamSource", "stream source"
+		default:
+			return BytecodeToEval(v)
 		}
-		return &eval.TaggedValue{ModulePath: "std/terminal", TypeName: "TerminalSession", CtorName: a.Ctor, Fields: []eval.Value{&eval.IntValue{Value: int(a.Fields[0].Int)}}}, nil
+		if a.Tag != 0 || len(a.Fields) != 1 || a.Fields[0].Tag != bytecode.TagInt {
+			return nil, fmt.Errorf("invalid %s handle representation", kind)
+		}
+		id := int(a.Fields[0].Int)
+		if int64(id) != a.Fields[0].Int {
+			return nil, fmt.Errorf("invalid %s handle representation: integer overflow", kind)
+		}
+		return &eval.TaggedValue{ModulePath: module, TypeName: typ, CtorName: a.Ctor, Fields: []eval.Value{&eval.IntValue{Value: id}}}, nil
 	}
 	return BytecodeToEval(v)
 }

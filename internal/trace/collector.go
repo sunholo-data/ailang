@@ -3,15 +3,18 @@ package trace
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"sync"
 	"time"
 )
 
 const traceVersion = "1.0"
 
 // Collector accumulates trace events during AILANG program execution.
-// Designed for single-threaded use within one evaluation.
+// Records evaluation and concurrent host cleanup safely. Span nesting models
+// one evaluation; cleanup effects observe the current serialized span.
 // Set on EffContext.Trace before execution begins.
 type Collector struct {
+	mu        sync.RWMutex
 	events    []TraceEvent
 	startTime time.Time
 	depth     int
@@ -53,6 +56,8 @@ type Collector struct {
 	// OnEvent is called for each trace event as it is recorded.
 	// Used by WASM to stream events to JavaScript in real-time.
 	// Nil means no streaming (events are only accumulated in events[]).
+	// Assign only before recording starts; use SetOnEvent for live changes.
+	// Callbacks run outside the lock and must synchronize their own shared sinks.
 	OnEvent func(TraceEvent)
 
 	// OTEL-compatible span IDs (M-WASM-TRACE)
@@ -95,6 +100,8 @@ func NewCollectorWithTier(tier Tier) *Collector {
 // cost is actually paid, so gating only inside the collector would fix the
 // retention without fixing the memory.
 func (c *Collector) RecordsFunctionCalls() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.tier >= TierDeep
 }
 
@@ -108,6 +115,8 @@ func (c *Collector) RecordsFunctionCalls() bool {
 // that pass raw strings; both markers are idempotent so a pre-bounded value
 // passes through unchanged (M-V1-MEMORY-FOOTPRINT M1).
 func (c *Collector) ValueBudget() (maxBytes int, redacted bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.maxValueBytes, c.valueMode == ValuesRedacted
 }
 
@@ -146,7 +155,12 @@ func (c *Collector) currentSpanID() string {
 
 // Enabled returns whether trace collection is active.
 func (c *Collector) Enabled() bool {
-	return c != nil && c.enabled
+	if c == nil {
+		return false
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.enabled
 }
 
 // Events returns all collected events.
@@ -154,12 +168,18 @@ func (c *Collector) Events() []TraceEvent {
 	if c == nil {
 		return nil
 	}
-	return c.events
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	events := make([]TraceEvent, len(c.events))
+	for i, event := range c.events {
+		events[i] = cloneTraceEvent(event)
+	}
+	return events
 }
 
 // RecordModuleStart records module entry.
 func (c *Collector) RecordModuleStart(name string, caps []string) {
-	if !c.Enabled() {
+	if !c.beginRecord(false) {
 		return
 	}
 	parentSpan := c.currentSpanID()
@@ -181,7 +201,7 @@ func (c *Collector) RecordModuleStart(name string, caps []string) {
 
 // RecordModuleEnd records module completion.
 func (c *Collector) RecordModuleEnd(name string, durationNS int64) {
-	if !c.Enabled() {
+	if !c.beginRecord(false) {
 		return
 	}
 	spanID := c.popSpan()
@@ -201,7 +221,7 @@ func (c *Collector) RecordModuleEnd(name string, durationNS int64) {
 
 // RecordFunctionEnter records function call entry.
 func (c *Collector) RecordFunctionEnter(name string, args []string) {
-	if !c.Enabled() || !c.RecordsFunctionCalls() {
+	if !c.beginRecord(true) {
 		return
 	}
 	c.depth++
@@ -226,7 +246,7 @@ func (c *Collector) RecordFunctionEnter(name string, args []string) {
 
 // RecordFunctionExit records function return.
 func (c *Collector) RecordFunctionExit(name string, result string) {
-	if !c.Enabled() || !c.RecordsFunctionCalls() {
+	if !c.beginRecord(true) {
 		return
 	}
 	var durationNS int64
@@ -248,15 +268,15 @@ func (c *Collector) RecordFunctionExit(name string, result string) {
 			DurationNS: durationNS,
 		},
 	}
-	c.record(evt)
 	if c.depth > 0 {
 		c.depth--
 	}
+	c.record(evt)
 }
 
 // RecordEffect records an effect invocation.
 func (c *Collector) RecordEffect(effectName, opName string, args []string, result string) {
-	if !c.Enabled() {
+	if !c.beginRecord(false) {
 		return
 	}
 	evt := EffectEvent{
@@ -288,7 +308,7 @@ func (c *Collector) RecordEffect(effectName, opName string, args []string, resul
 // strings are omitted from the serialised event (omitempty), so this is safe to
 // call for any effect; callers pass "" when a field is not applicable.
 func (c *Collector) RecordModedEffect(effectName, opName string, args []string, result, mode, contract string) {
-	if !c.Enabled() {
+	if !c.beginRecord(false) {
 		return
 	}
 	evt := EffectEvent{
@@ -322,7 +342,7 @@ func (c *Collector) RecordModedEffect(effectName, opName string, args []string, 
 // Used by the AI effect ops to surface OpenRouter routing decisions in the
 // trace stream.
 func (c *Collector) RecordAIEffect(opName string, args []string, result string, route *ResolvedRoute) {
-	if !c.Enabled() {
+	if !c.beginRecord(false) {
 		return
 	}
 	evt := EffectEvent{
@@ -350,7 +370,7 @@ func (c *Collector) RecordAIEffect(opName string, args []string, result string, 
 
 // RecordContractCheck records a contract verification result.
 func (c *Collector) RecordContractCheck(kind string, passed bool, msg, location, function string) {
-	if !c.Enabled() {
+	if !c.beginRecord(false) {
 		return
 	}
 	evt := TraceEvent{
@@ -373,7 +393,7 @@ func (c *Collector) RecordContractCheck(kind string, passed bool, msg, location,
 
 // RecordBudgetDelta records a budget state change after an effect invocation.
 func (c *Collector) RecordBudgetDelta(effect string, used, limit, remaining, physical int) {
-	if !c.Enabled() {
+	if !c.beginRecord(false) {
 		return
 	}
 	evt := TraceEvent{
@@ -396,7 +416,7 @@ func (c *Collector) RecordBudgetDelta(effect string, used, limit, remaining, phy
 
 // RecordError records an error event.
 func (c *Collector) RecordError(msg, location string) {
-	if !c.Enabled() {
+	if !c.beginRecord(false) {
 		return
 	}
 	evt := TraceEvent{
@@ -420,14 +440,30 @@ func (c *Collector) BaseTime() time.Time {
 	if c == nil {
 		return time.Time{}
 	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.startTime
 }
 
-// notify dispatches an event to the OnEvent callback if set.
-func (c *Collector) notify(evt TraceEvent) {
-	if c.OnEvent != nil {
-		c.OnEvent(evt)
+// SetOnEvent safely replaces the observer while evaluation is active.
+func (c *Collector) SetOnEvent(observer func(TraceEvent)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.OnEvent = observer
+}
+
+// beginRecord owns state through record, which releases the lock before calling
+// user code. Internal span/retention helpers must not acquire this lock again.
+func (c *Collector) beginRecord(deep bool) bool {
+	if c == nil {
+		return false
 	}
+	c.mu.Lock()
+	if !c.enabled || (deep && c.tier < TierDeep) {
+		c.mu.Unlock()
+		return false
+	}
+	return true
 }
 
 // nowNS returns nanoseconds since collector creation.

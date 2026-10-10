@@ -28,6 +28,9 @@ func (r *REPL) HandleCommand(cmd string, out io.Writer) {
 		r.printHelp(out)
 
 	case ":quit", ":q", ":exit":
+		if err := r.effContext.CloseWorkers(); err != nil {
+			fmt.Fprintf(out, "worker cleanup: %v\n", err)
+		}
 		fmt.Fprintln(out, green("Goodbye!"))
 		// Exit is handled by caller
 
@@ -101,6 +104,11 @@ func (r *REPL) HandleCommand(cmd string, out io.Writer) {
 		fmt.Print("\033[H\033[2J")
 
 	case ":reset":
+		if err := r.effContext.ResetWorkerScope(); err != nil {
+			fmt.Fprintf(out, "worker cleanup: %v\n", err)
+			return
+		}
+		r.effContext.BindWorkerScope()
 		r.env = eval.NewEnvironment()
 		r.typeEnv = types.NewTypeEnvWithBuiltins() // Reload builtins on reset
 		r.instEnv = types.NewInstanceEnv()

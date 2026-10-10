@@ -71,8 +71,7 @@ func (sc *StreamContext) AcquireSource(source EventSource) int {
 		sc.sources = make(map[int]EventSource)
 	}
 
-	id := sc.nextSourceID
-	sc.nextSourceID++
+	id := NextWorkerHandleID()
 	sc.sources[id] = source
 	return id
 }

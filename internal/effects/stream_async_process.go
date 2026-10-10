@@ -72,8 +72,12 @@ func StreamAsyncExecProcess(ctx *EffContext, args []eval.Value) (eval.Value, err
 		return nil, fmt.Errorf("_stream_async_exec_process: %w", denial)
 	}
 
+	admission, err := ctx.BeginWorker()
+	if err != nil {
+		return nil, fmt.Errorf("_stream_async_exec_process: %w", err)
+	}
 	source, err := NewProcessSource(
-		context.Background(),
+		admission.Context(),
 		resolvedPath,
 		cmdArgs,
 		nameVal.Value,
@@ -81,9 +85,26 @@ func StreamAsyncExecProcess(ctx *EffContext, args []eval.Value) (eval.Value, err
 		int(chunkSizeVal.Value),
 	)
 	if err != nil {
+		admission.Abort()
 		return nil, fmt.Errorf("_stream_async_exec_process: %w", err)
 	}
-
+	worker := source.(*processSource)
+	// Register data before completing admission: host source teardown follows
+	// the owner barrier and must not miss a concurrently starting source.
 	sourceID := ctx.Stream.AcquireSource(source)
+	admission.SetResourceID(sourceID)
+	if err := admission.Complete(worker); err != nil {
+		ctx.Stream.ReleaseSource(sourceID)
+		return nil, fmt.Errorf("_stream_async_exec_process: %w", err)
+	}
+	go func() {
+		<-worker.Done()
+		// Event delivery outlives the OS child: retain the source so even a fast
+		// child's queued final bytes remain selectable. Host teardown or explicit
+		// cancellation releases the source data. Keep failures owned for receipt.
+		if worker.Join(context.Background()) == nil {
+			admission.ReleaseWorker(worker)
+		}
+	}()
 	return makeStreamSource(sourceID), nil
 }

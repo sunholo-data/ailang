@@ -4,196 +4,244 @@ package effects
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"sync"
 	"syscall"
-	"time"
+
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
-// managedProcess holds a long-running subprocess with a writable stdin pipe.
-//
-// M-ASYNC-IO Phase 3: Enables incremental writes to a subprocess's stdin,
-// complementing processSource (Phase 2) which reads stdout.
-// Use case: streaming audio playback via sox, data pipelines via jq, etc.
+// managedProcess owns its child, process group, stdin pipe and writer task.
+// The sole waitLoop reaps the command and joins the writer before publishing Done.
 type managedProcess struct {
-	id      int
-	cmd     *exec.Cmd
-	stdin   io.WriteCloser
-	writeCh chan []byte   // Buffered write channel (capacity: 256)
-	done    chan struct{} // Closed when subprocess exits or Close() called
-	once    sync.Once     // Idempotent close
-	cancel  context.CancelFunc
-	mu      sync.Mutex
-	closed  bool  // Stdin pipe closed
-	exited  bool  // Subprocess has exited
-	exitErr error // Subprocess exit error (if any)
+	id         int
+	cmd        *exec.Cmd
+	stdin      io.WriteCloser
+	writeCh    chan []byte
+	done       chan struct{}
+	writerDone chan struct{}
+	stop       chan struct{}
+	once       sync.Once
+	cancel     context.CancelFunc
+	kill       func() error
+	mu         sync.Mutex
+	stopMu     sync.Mutex
+	closed     bool
+	exited     bool
+	exitErr    error
+	writeErr   error
+	stopErr    error
 }
 
-// NewManagedProcess spawns a subprocess with a writable stdin pipe.
-//
-// The subprocess is started immediately. A background goroutine (writeLoop)
-// drains the write channel and writes to the stdin pipe. Stdout and stderr
-// are discarded — use asyncExecProcess for stdout streaming.
-//
-// Parameters:
-//   - parentCtx: parent context (cancelled on program exit)
-//   - cmdPath: resolved absolute path to the binary
-//   - args: command arguments (no shell expansion)
 func NewManagedProcess(parentCtx context.Context, cmdPath string, args []string) (*managedProcess, error) {
+	return newManagedProcess(parentCtx, cmdPath, args, proctree.KillGroup)
+}
+
+func newManagedProcess(parentCtx context.Context, cmdPath string, args []string, killGroup func(int) error) (*managedProcess, error) {
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
 	ctx, cancel := context.WithCancel(parentCtx)
-
 	cmd := exec.CommandContext(ctx, cmdPath, args...)
-
-	stdinPipe, err := cmd.StdinPipe()
+	proctree.Configure(cmd)
+	// Context, explicit cancellation and natural completion share one checked
+	// termination attempt. Never re-signal a group after its members were killed.
+	var killOnce sync.Once
+	var killErr error
+	kill := func() error {
+		killOnce.Do(func() {
+			if WorkerCancellationSupported() {
+				killErr = killGroup(cmd.Process.Pid)
+			} else {
+				killErr = cmd.Process.Kill()
+				if errors.Is(killErr, os.ErrProcessDone) {
+					killErr = nil
+				}
+			}
+		})
+		return killErr
+	}
+	cmd.Cancel = func() error { return immediateWorkerStopError(kill()) }
+	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("stdin pipe: %w", err)
 	}
-
-	// Discard stdout and stderr — this is a write-only process handle
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-
 	if err := cmd.Start(); err != nil {
 		cancel()
+		_ = stdin.Close()
 		return nil, fmt.Errorf("start process: %w", err)
 	}
-
-	mp := &managedProcess{
-		cmd:     cmd,
-		stdin:   stdinPipe,
-		writeCh: make(chan []byte, 256),
-		done:    make(chan struct{}),
-		cancel:  cancel,
-	}
-
+	mp := &managedProcess{cmd: cmd, stdin: stdin, writeCh: make(chan []byte, 256), done: make(chan struct{}), writerDone: make(chan struct{}), stop: make(chan struct{}), cancel: cancel, kill: kill}
 	go mp.writeLoop()
 	go mp.waitLoop()
-
 	return mp, nil
 }
 
-// Write sends data to the subprocess's stdin pipe via the write channel.
-// Non-blocking: returns an error if the buffer is full or the pipe is closed.
+// Write accepts a copy without blocking. Channel sends and closure share mu.
 func (mp *managedProcess) Write(data []byte) error {
 	mp.mu.Lock()
+	defer mp.mu.Unlock()
 	if mp.closed {
-		mp.mu.Unlock()
 		return fmt.Errorf("stdin already closed")
 	}
 	if mp.exited {
-		mp.mu.Unlock()
 		return fmt.Errorf("process exited")
 	}
-	mp.mu.Unlock()
-
-	// Copy data to avoid caller mutation
-	buf := make([]byte, len(data))
-	copy(buf, data)
-
 	select {
-	case mp.writeCh <- buf:
+	case mp.writeCh <- append([]byte(nil), data...):
 		return nil
 	default:
 		return fmt.Errorf("write buffer full — subprocess may be stalled")
 	}
 }
 
-// CloseStdin closes the stdin pipe, signaling EOF to the subprocess.
-// Drains any remaining buffered writes first, then waits for subprocess exit.
+// CloseStdin requests cooperative EOF after queued bytes drain. It does not
+// relinquish ownership or wait for a child that may ignore its input forever.
 func (mp *managedProcess) CloseStdin() {
 	mp.mu.Lock()
-	if mp.closed {
-		mp.mu.Unlock()
-		return
+	defer mp.mu.Unlock()
+	if !mp.closed {
+		mp.closed = true
+		close(mp.writeCh)
 	}
-	mp.closed = true
-	mp.mu.Unlock()
-
-	// Close write channel — writeLoop will drain remaining and close stdin pipe
-	close(mp.writeCh)
 }
 
-// Close performs full cleanup: kills the subprocess and releases resources.
-// Safe to call multiple times.
-func (mp *managedProcess) Close() {
+func (mp *managedProcess) StdinClosing() bool {
+	mp.mu.Lock()
+	defer mp.mu.Unlock()
+	return mp.closed
+}
+
+// RequestStop force-stops this owned group. Repeated calls share one result.
+func (mp *managedProcess) RequestStop() error {
 	mp.once.Do(func() {
-		// Mark as closed so no more writes are accepted
-		mp.mu.Lock()
-		mp.closed = true
-		mp.mu.Unlock()
-
-		// Close write channel if not already closed by CloseStdin
-		select {
-		case _, ok := <-mp.writeCh:
-			if ok {
-				// Channel still open — we got a stale value, drain and close
-				// This is tricky — use a flag instead
-			}
-		default:
-		}
-		// Safe close: use sync to avoid double-close panic
-		mp.closeWriteChSafe()
-
-		// Cancel context (sends signal to subprocess)
-		mp.cancel()
-
-		// Wait for subprocess with grace period
-		timer := time.NewTimer(5 * time.Second)
-		defer timer.Stop()
-
+		mp.stopMu.Lock()
+		defer mp.stopMu.Unlock()
 		select {
 		case <-mp.done:
-			// Clean exit
-		case <-timer.C:
-			// Force kill after grace period
-			if mp.cmd.Process != nil {
-				_ = mp.cmd.Process.Signal(syscall.SIGKILL)
-			}
-		}
-	})
-}
-
-// closeWriteChSafe closes the write channel without panicking on double-close.
-func (mp *managedProcess) closeWriteChSafe() {
-	defer func() { recover() }() // Catch double-close panic
-	close(mp.writeCh)
-}
-
-// writeLoop drains the write channel and writes to the stdin pipe.
-// Exits when the channel is closed (by CloseStdin or Close).
-func (mp *managedProcess) writeLoop() {
-	for data := range mp.writeCh {
-		_, err := mp.stdin.Write(data)
-		if err != nil {
-			// Pipe broken — subprocess may have exited
-			mp.mu.Lock()
-			mp.closed = true
-			mp.mu.Unlock()
-			// Drain remaining channel entries to unblock senders
-			for range mp.writeCh {
-			}
 			return
+		default:
+		}
+		mp.CloseStdin()
+		close(mp.stop)
+		_ = mp.stdin.Close() // owned pipe; unblock any in-progress writer syscall
+		mp.stopErr = mp.kill()
+		mp.cancel()
+	})
+	mp.stopMu.Lock()
+	defer mp.stopMu.Unlock()
+	return immediateWorkerStopError(mp.stopErr)
+}
+
+// Join waits for the sole command waiter and owned writer, bounded by ctx.
+func (mp *managedProcess) Join(ctx context.Context) error {
+	select {
+	case <-mp.done:
+		mp.mu.Lock()
+		err := mp.exitErr
+		writeErr := mp.writeErr
+		mp.mu.Unlock()
+		var exited *exec.ExitError
+		if err != nil && !errors.As(err, &exited) && !errors.Is(err, context.Canceled) {
+			return err
+		}
+		mp.stopMu.Lock()
+		defer mp.stopMu.Unlock()
+		return errors.Join(proctree.ResolveGroupError(mp.cmd.Process.Pid, mp.stopErr), writeErr)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (mp *managedProcess) Done() <-chan struct{} { return mp.done }
+
+// Close is the compatibility host helper; public handlers use checked methods.
+func (mp *managedProcess) Close() {
+	_ = mp.RequestStop()
+	ctx, cancel := context.WithTimeout(context.Background(), WorkerShutdownTimeout)
+	defer cancel()
+	_ = mp.Join(ctx)
+}
+
+func (mp *managedProcess) writeLoop() {
+	defer close(mp.writerDone)
+	defer func() { _ = mp.stdin.Close() }()
+	for {
+		select {
+		case <-mp.stop:
+			return
+		default:
+		}
+		select {
+		case <-mp.stop:
+			return
+		case data, ok := <-mp.writeCh:
+			if !ok {
+				return
+			}
+			if _, err := mp.stdin.Write(data); err != nil {
+				mp.recordWriterError(err)
+				mp.CloseStdin()
+				return
+			}
 		}
 	}
-	// Channel closed — close stdin pipe to signal EOF
-	mp.stdin.Close()
 }
 
-// waitLoop waits for the subprocess to exit and records the result.
+// Pipe closure during cancellation and peer EOF are expected. Other writer
+// failures must reach cleanup receipts instead of disappearing with the task.
+func (mp *managedProcess) recordWriterError(err error) {
+	select {
+	case <-mp.stop:
+		return
+	default:
+	}
+	if errors.Is(err, os.ErrClosed) || errors.Is(err, syscall.EPIPE) {
+		return
+	}
+	mp.mu.Lock()
+	mp.writeErr = errors.Join(mp.writeErr, err)
+	mp.mu.Unlock()
+}
+
 func (mp *managedProcess) waitLoop() {
-	err := mp.cmd.Wait()
+	err := mp.cmd.Wait() // exactly one owner, including natural exit
 	mp.mu.Lock()
 	mp.exited = true
 	mp.exitErr = err
 	mp.mu.Unlock()
-	// Signal that subprocess has exited
-	select {
-	case <-mp.done:
-		// Already closed
-	default:
-		close(mp.done)
+	mp.CloseStdin()
+	_ = mp.stdin.Close()
+	<-mp.writerDone
+	// A descendant can hold the group after its leader exits. Finish group cleanup
+	// before Done permits registry release; never signal after Done is published.
+	mp.stopMu.Lock()
+	var groupErr error
+	if WorkerCancellationSupported() {
+		groupErr = mp.kill()
 	}
+	if mp.stopErr == nil {
+		mp.stopErr = groupErr
+	}
+	close(mp.done)
+	mp.stopMu.Unlock()
+	mp.cancel()
+}
+
+// Compile-time ownership interface check also catches accidental missing joins.
+var _ OwnedWorker = (*managedProcess)(nil)
+
+// A POSIX permission error can mean a zombie-only group on Darwin. The signal
+// phase retains that raw error, but defers its verdict to Join after Wait and
+// owned I/O complete. All other errors remain immediate; Join always checks.
+func immediateWorkerStopError(err error) error {
+	if WorkerCancellationSupported() && err == syscall.EPERM {
+		return nil
+	}
+	return err
 }

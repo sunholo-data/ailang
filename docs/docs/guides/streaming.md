@@ -167,7 +167,7 @@ Read from multiple sources (WebSocket, stdin, subprocesses) in a single event lo
 |----------|------|-------------|
 | `sourceOfConn` | `(StreamConn, string, int) -> StreamSource ! {Stream}` | Wrap a connection as named source |
 | `asyncReadStdinLines` | `(string, int) -> StreamSource ! {Stream}` | Create stdin line reader source |
-| `asyncExecProcess` | `(string, [string], string, int, int) -> StreamSource ! {Stream}` | Spawn subprocess, deliver stdout as chunks |
+| `asyncExecProcess` | `(string, [string], string, int, int) -> StreamSource ! {Stream, Process}` | Spawn subprocess, deliver stdout as chunks |
 | `selectEvents` | `([StreamSource], (StreamEvent) -> bool) -> unit ! {Stream}` | Run priority-ordered event loop |
 
 ### How selectEvents Works
@@ -441,3 +441,13 @@ option, and why `--policy` runs refuse the flag.
 - [Process Effect](/docs/reference/effects#process-effect) — Command execution and security
 - [Examples](/docs/examples) — Working AILANG programs
 - [Capability Budgets](/docs/reference/capability-budgets) — Rate-limiting effects
+
+### Cancelling owned workers (unreleased)
+
+`std/process.cancelProcess(handle)` returns `Result[(), WorkerCancelError] ! {Process}`. `std/stream.cancelProcessSource(source)` returns the same result with `! {Stream, Process}` and accepts sources created by `asyncExecProcess`. `Ok(())` confirms reaping and completion of runtime-owned IO. Explicit cancellation may discard queued stdin writes. Closing stdin alone signals EOF while keeping the worker owned until it finishes.
+
+The host shuts down owned workers when a run, batch item, embedded call, or REPL session ends. On macOS/Linux, this stops the owned process group within one two-second shutdown deadline. Released or foreign handles return `WorkerHandleInvalid`; Windows and JS/WASM return `WorkerCancelUnsupported` for explicit cancellation. See the [Process effect reference](/docs/reference/effects#process-effect) for all failure variants, embedding ownership, and platform limits.
+
+`selectEvents` borrows its sources. A handler returning false ends that selection and allows later reuse; it does not implicitly cancel a process. Worker cleanup leaves borrowed WebSocket transports and stdin open. A blocked borrowed stdin reader can remain pending until the read finishes, and retains its input lease during that time. Cancelling an OS worker that is waiting for an AI response does not promise cancellation of remote inference or provider charges.
+
+Runnable examples: `examples/runnable/process_cancel.ail` and `examples/runnable/stream_process_cancel.ail`, with `--caps IO,Process` and `--caps IO,Stream,Process` respectively. Both also support strict native bytecode execution.

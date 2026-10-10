@@ -1,0 +1,227 @@
+{
+  "sprint_id": "M-BACKGROUND-WORKER-LIFECYCLE",
+  "evaluation_round": 2,
+  "timestamp": "2026-10-10T17:58:00Z",
+  "design_doc": "design_docs/planned/m-background-worker-lifecycle.md",
+  "sprint_plan": "design_docs/planned/m-background-worker-lifecycle-sprint-plan.md",
+  "branch": "sprint/background-worker-lifecycle",
+  "baseline": "37001e839",
+  "evaluated_artifact_head": "26bd4e860cf5d2bb5415dc340961bad13a40b088",
+  "source_head": "b2be99ecc40b555a0cfd358f703f1580df5fd36e",
+  "gates_started_at_head": "d7884e3f087a51db1918edfd26df6502d95b9726",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "raw_rubric_score": 104,
+  "max_rubric_score": 110,
+  "scoring_note": "The six base categories total94/100; conditional regression coverage adds10/10. The schema's100-point aggregate is rounded from104/110=94.545%. Round1's hard-fail verdict is preserved irrespective of its raw score.",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 9,
+    "regression_surface_coverage": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "gate_source": "local",
+    "tests_pass": true,
+    "tests_exit_code": 0,
+    "tests_log": "/private/tmp/worker-independent-round2-test.log",
+    "lint_clean": true,
+    "lint_exit_code": 0,
+    "lint_issues": 0,
+    "lint_log": "/private/tmp/worker-independent-round2-lint.log",
+    "file_sizes_ok": true,
+    "file_sizes_exit_code": 0,
+    "file_sizes_log": "/private/tmp/worker-independent-round2-sizes.log",
+    "verify_examples_pass": true,
+    "verify_examples_exit_code": 0,
+    "verify_examples_log": "/private/tmp/worker-independent-round2-examples.log",
+    "examples": {
+      "total": 252,
+      "passed": 243,
+      "failed": 0,
+      "skipped": 9,
+      "manifest_total": 231,
+      "manifest_working": 223,
+      "module_drift": 0
+    },
+    "corpus_differential": {
+      "common_examples": 250,
+      "status_changes": 0,
+      "removed": 0,
+      "added": [
+        "runnable/process_cancel.ail",
+        "runnable/stream_process_cancel.ail"
+      ],
+      "log": "/private/tmp/worker-independent-corpus-diff.json"
+    },
+    "extra_gate_evidence": "/private/tmp/worker-round2-extra-gates.log:fmt-check,check-boundaries,check-changelog,48stdlib interfaces PASS",
+    "coverage_pct": "not rerun; opt-in",
+    "todo_hack_count": 0,
+    "source_content_sha256": "d050c10f93457fbd97c6a561c015066973847c3e1b43f1fb7d67e46782c441d4",
+    "source_content_hash_command": "git ls-tree -r HEAD -- internal cmd std examples/runnable go.mod go.sum Makefile make .stdlib-golden | shasum -a 256"
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Execution owner shares a two-second shutdown deadline across workers and rejects late admission safely.",
+      "met": true,
+      "evidence": "TestWorkerOwnerOneDeadlineAcrossTwentyRequests and TestWorkerOwnerStalledStopRemainsBoundedAndIdentified prove shared timeout; TestWorkerOwnerLateAdmissionIsJoined proves rejected admissions are stopped and joined."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Budget views share ownership; independent clones preserve policy with fresh Process/Stream registries.",
+      "met": true,
+      "evidence": "TestWorkerOwnerBudgetViewsShareAndCloneIsIndependent plus ProcessContext.Child/StreamContext.Child preserve policy with fresh registries."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Opaque non-reused IDs prevent cross-owner registry collisions; shutdown failures remain structured.",
+      "met": true,
+      "evidence": "Process-global non-reused IDs, owner-local lookups and SetResourceID; stop/wait/deadline failure tests report structured public-handle identity."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Closed stdin retains worker ownership until reaping; cooperative queued writes drain.",
+      "met": true,
+      "evidence": "TestManagedOwnership_CloseStdinRetainsWorker and CooperativeDrainAndWriterJoin cover retained ownership and all accepted queued bytes."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "cancelProcess returns typed results, enforces Process authority, stops owned POSIX groups and joins writer/Wait.",
+      "met": true,
+      "evidence": "ProcessCancel checks Process, resolves owner registry, uses checked process-group stop and bounded Join; direct Wait/descendant tests and exact CLI PID controls."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Natural exit, repeated cancellation, concurrent write/close, stale/foreign handles and Windows/WASM unsupported results are tested.",
+      "met": true,
+      "evidence": "Cancellation, concurrent write/close/blocked writer, stale/foreign handles and platform tests; actual JS/WASM result execution, Windows cross-compilation (not Windows runtime execution)."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "cancelProcessSource enforces Stream and Process authority and rejects non-process sources.",
+      "met": true,
+      "evidence": "TestStreamCancelProcessSource_AuthorityAndBudget and RejectsBorrowedAndForeignSources verify dual effects, budgets and kind/owner checks."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Async workers have one natural-exit Wait owner; final chunks drain and blocked consumers do not prevent cancellation.",
+      "met": true,
+      "evidence": "NaturalWaitPreservesPartialOutput, CancelUnconsumedOutput and concurrent stop/join tests establish one Wait and final chunks."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Source selection borrows sources; cancellation stops descendants and joins owned readers without closing borrowed stdin/connections.",
+      "met": true,
+      "evidence": "selectEvents borrows sources; descendants including leader-exits-first stop; borrowed reader/lease and connection adapters remain owned by callers."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "CLI/batch normal, error, exit(7), budget failure and cancellation clean up owned workers while preserving primary outcomes.",
+      "met": true,
+      "evidence": "TestWorkerCLIProcessExitLifecycle:35 evaluator/strict cases with startup barrier, exact PID absence and primary CLI/batch outcomes; runtime panic/error/exit tests; success control plus injected cleanup failure."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "SIGINT/SIGTERM restore terminal first, clean workers within the deadline, and retain 130/143 without signal-watcher deadlock.",
+      "met": true,
+      "evidence": "TestWorkerTerminalPTYLifecycle:11 native/strict cases verify exact PID absence, termios/cursor/screen restoration and130/143; unified signal subscription retained through shutdown."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Embedded requests, engine initialization/close and REPL reset/quit have explicit independent ownership; WebSocket close-code and borrowed-transport behavior is preserved.",
+      "met": true,
+      "evidence": "Request fork cleanup before callbacks clear, engine close during mocked AI callback without cache-mutex wait, borrowed caller base preserved, REPL reset/quit, actual WS1011 tests and existing1001 shutdown tests."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Strict VM supports the new Process operations through explicit effect dispatch; unsupported generated/platform paths fail visibly.",
+      "met": true,
+      "evidence": "Native VM effect dispatch tests and both strict showcases; original effect indices remain stable; Go generation rejects cancellation; WASM typed unsupported tested; Windows build documented."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Both original host-exit leak reproductions pass with exact PID/reaping evidence on the sprint build.",
+      "met": true,
+      "evidence": "Both before-fix official v0.54.0 reproductions remain live after host exit; sprint CLI matrix shows both worker paths absent/reaped including original selector-false case."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Provider-free blocking AI/effect, descendant, bystander, admission-race, 20-worker deadline and repeated-run resource controls pass.",
+      "met": true,
+      "evidence": "Provider-free real AI dispatch helper tests, descendant/bystander tests, late admission,20 blocked workers and10 repeated mixed runs with descriptor/goroutine controls."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Design conflict fixtures, examples/manifest, goldens, relevant race/PTy tests, full tests, lint, formatting, file sizes and architecture boundaries pass.",
+      "met": true,
+      "evidence": "Independent full tests/lint/sizes/examples PASS; all5live conflict fixtures;250common corpus statuses unchanged; banked focused races, PTY, formatting, boundaries and48stdlib interfaces."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Independent evaluator reports a passing verdict; artifacts, changelog, documentation and release/consumer handoff are complete; no push or release is performed.",
+      "met": true,
+      "evidence": "Final artifact commit26bd4e860 has all milestone passes/timestamps/LOC and honest local-unreleased status, changelog/examples/retro/handoff; this independent report passes. No push or release."
+    }
+  ],
+  "artifact_check": {
+    "status": "completed",
+    "milestones": 5,
+    "all_passes": true,
+    "all_completed_timestamps": true,
+    "all_notes": true,
+    "all_actual_loc": true,
+    "total_added_loc": 4682,
+    "deleted_loc": 420,
+    "actual_days_kind": "49.1min parallel calendar wall time, not human engineering velocity",
+    "design_and_plan_location": "planned/, implemented locally/unreleased; move together only when actual supporting version ships"
+  },
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Implemented locally, independent full gates passed; unreleased",
+    "sprint_plan_completed": true,
+    "retrospective_complete": true,
+    "release_consumer_handoff_explicit": true
+  },
+  "design_fidelity": {
+    "score": 9,
+    "notes": "Owner-local authority, single Wait, checked POSIX groups, shared shutdown deadline, buffered stdin grace, borrowed-resource rules, request/engine/REPL lifetimes and backend boundaries match the approved intent. Minor presentation choice: successful cleanup emits aggregate owner receipts while resource identity and phase are detailed in failures; no-worker traces are intentionally preserved."
+  },
+  "regression_surface_coverage": {
+    "score": 10,
+    "notes": "Filled conflict surface, actual output/PTY tests for all5named fixtures, explicit5000event EOF-loss regression and justification, example gate green,250baseline statuses unchanged; no full AST differential claim."
+  },
+  "feedback": [
+    {
+      "file": "internal/effects/worker_owner.go",
+      "function": "WorkerOwner.close",
+      "category": "code_quality",
+      "severity": "low",
+      "issue": "Lifecycle coordination and several test helper functions exceed50lines.",
+      "suggestion": "Consider extracting phase helpers in a later maintenance change while retaining one owner deadline and admission invariants. Deduction is5points maximum; not a blocker."
+    }
+  ],
+  "resolved_round_1_feedback": [
+    "Debug sink and FS policy configuration precedes Engine.SetEffContext cloning; request accumulators remain fresh. Existing CLI/API debug tests pass, including focused races.",
+    "No-worker traces preserve unchanged tail-call goldens; admitted/released workers still retain one shutdown receipt.",
+    "Manifest statistics corrected surgically; all example/module checks pass."
+  ],
+  "provenance_notes": [
+    "Gates began at clean d7884e3f0; b2be99ecc changed only one constructor comment from two lines to one, no executable token or test changed. Independently verified diff; sizes passed at800lines. No unnecessary semantic-source gate rerun.",
+    "26bd4e860 changes only design/plan/validation/retrospective/sprint-state artifacts; source-content hash remains identical to b2be99ecc.",
+    "Approved final status-only substitutions may replace four pending-artifact-report notes with this actual PASS95/100 and report path; they do not change source, requirements or gates."
+  ],
+  "delivery_limitations": [
+    "No push or release performed. Official supporting-release consumer cleanup retest remains explicitly pending for delivery.",
+    "Full process-group cancellation is POSIX. Windows host cleanup is leader-only; Windows compile checks are not runtime execution evidence. JS/WASM typed unsupported results ran under Node.",
+    "Borrowed blocking stdin retains its lease until its real reader completes; runtime does not close caller stdin.",
+    "Detached descendants, host SIGKILL/power loss, parent/provider AI abort and remote billing guarantees remain outside scope."
+  ],
+  "notes": "Independent evaluator authored no implementation, reported preflight defects and formally rejected round1. Round2 independently reran full tests and affected gates after source fixes, then audited completed artifacts. Scope is locally complete and ready for the user's later dev-delivery instruction."
+}

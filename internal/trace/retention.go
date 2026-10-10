@@ -81,7 +81,11 @@ const (
 )
 
 // SetValueMode selects whether values are recorded. See ValueMode.
-func (c *Collector) SetValueMode(m ValueMode) { c.valueMode = m }
+func (c *Collector) SetValueMode(m ValueMode) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.valueMode = m
+}
 
 // redactValue replaces a rendered value with a size descriptor.
 //
@@ -118,13 +122,19 @@ func isRedactedDescriptor(s string) bool {
 // SetLimits overrides the retention bounds. A value <= 0 disables that bound.
 // Exposed for tests and for callers that genuinely want everything.
 func (c *Collector) SetLimits(maxValueBytes, maxRetainedBytes int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.maxValueBytes = maxValueBytes
 	c.maxRetainedBytes = maxRetainedBytes
 }
 
 // DroppedEvents reports how many events the retention cap evicted. Non-zero
 // means the trace is incomplete at the HEAD.
-func (c *Collector) DroppedEvents() int { return c.dropped }
+func (c *Collector) DroppedEvents() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.dropped
+}
 
 // truncateValue bounds one rendered value, marking the elision explicitly so a
 // reader can tell a truncated value from a short one.
@@ -231,19 +241,24 @@ func isPinned(evt TraceEvent) bool {
 	return evt.Event == EventModuleStart
 }
 
-// record is the single point where an event enters the collector.
-//
-// Order matters: observers are notified BEFORE retention is applied, so a
-// streaming consumer (Collector.OnEvent) receives the COMPLETE event stream even
-// when the in-memory cap is evicting. That is what lets `deep` genuinely keep
-// everything — on disk, where the constraint is not RAM.
+// record finishes a beginRecord transaction. Retention and span state are
+// serialized, while observers get an independent complete event outside the
+// lock, even if retention evicts it. Callbacks may safely reenter the collector.
 func (c *Collector) record(evt TraceEvent) {
+	evt = cloneTraceEvent(evt)
 	c.boundValues(&evt)
-	c.notify(evt)
-
 	c.events = append(c.events, evt)
 	c.retainedBytes += eventSize(evt)
 	c.evictIfNeeded()
+	observer := c.OnEvent
+	var published TraceEvent
+	if observer != nil {
+		published = cloneTraceEvent(evt)
+	}
+	c.mu.Unlock()
+	if observer != nil {
+		observer(published)
+	}
 }
 
 // evictIfNeeded drops the oldest unpinned events until the retained total is

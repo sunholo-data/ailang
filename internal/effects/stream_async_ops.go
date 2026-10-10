@@ -141,8 +141,10 @@ func StreamSelectEvents(ctx *EffContext, args []eval.Value) (eval.Value, error) 
 // makeStreamSource creates a StreamSource(id) ADT value.
 func makeStreamSource(id int) eval.Value {
 	return &eval.TaggedValue{
-		CtorName: "StreamSource",
-		Fields:   []eval.Value{&eval.IntValue{Value: id}},
+		ModulePath: "std/stream",
+		TypeName:   "StreamSource",
+		CtorName:   "StreamSource",
+		Fields:     []eval.Value{&eval.IntValue{Value: id}},
 	}
 }
 
