@@ -1,0 +1,224 @@
+{
+  "sprint_id": "M-CODEX-OAUTH-PROFILES",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-09T17:24:20.398145+00:00",
+  "design_doc": "design_docs/planned/v0_52_6/m-codex-subscription-lane.md",
+  "sprint_plan": "design_docs/planned/v0_52_6/m-codex-oauth-profiles-sprint-plan.md",
+  "branch": "fix/codex-oauth-profiles",
+  "total_score": 97,
+  "score_is_provisional": false,
+  "pass_threshold": 70,
+  "result": "pass",
+  "evaluation_scope": "Final independent source, local integration and operational rollout evaluation of M-CODEX-OAUTH-PROFILES only. Deferred parent D8 implementation is not evaluated or completed.",
+  "release_ready": true,
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 13,
+    "documentation": 15,
+    "design_fidelity": 9
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "gate_source": "parent-run local logs inspected; no duplicated whole-repository suite",
+    "tests_pass": true,
+    "tests_output": "Final release candidate full GOFLAGS=-p=4 make test PASS per parent/log /private/tmp/codex-oauth-final-release-candidate-retest.log. Initial unrelated OpenCode load-sensitive startup fixture failure reproduced under CPU load; exact test3 isolated reruns PASS16.784s. Required PR and postmerge CI passed exact reviewed tree. No reviewer duplicate suite.",
+    "final_tree_full_tests_verified": true,
+    "lint_clean": true,
+    "lint_output": "/private/tmp/codex-oauth-final-gates.log: 0 lint issues; boundaries/file sizes pass. /private/tmp/codex-oauth-doc-gates.log confirms final file sizes and CLI reference. Earlier changelog gate corrected via fragment, gate passed, and fragment subsequently folded into changelogs/v0.32-current.md for published v0.53.1.",
+    "file_sizes_ok": true,
+    "boundaries_ok": true,
+    "shell_suite_final_verified": true,
+    "shell_output": "Parent complete Bash suite and remaining Make commands all PASS after preserving legacy default TERM grace and adding missing fixture helper dependency; notification98/0 and59 probe arms plus syntax pass. /private/tmp/codex-oauth-remaining-launchd.log.",
+    "real_cli_owner_spike": "Parent/local-agent reported installed Codex 0.162.0 isolated fake-token spike: 8 simultaneous quota clients plus a later client succeed with exactly 1 refresh. Source inspected in internal/executor/codex/daemon_live_test.go. Live inference smoke is a separate acceptance requirement.",
+    "live_profile_checker": "Parent confirmed both user-completed device authorizations and three-profile checker PASS with four fixed output lines; no credential values inspected or recorded by evaluator.",
+    "live_mission_smoke": "Parent reports rebuilt typed binary authenticated persistent mission-only minimal-environment owner smoke PASS: /private/tmp/codex-oauth-typed-live-smoke.log.",
+    "cloud_iam": "Runtime IAM includes datastore.user, secretAccessor and secretVersionAdder; actual reserved restore/persistence and both deployed subscription executions succeeded.",
+    "final_native_lifecycle_tests": "Final stopOnce variant PASS: native6-second stream-closed task,100ms timeout, reaped-leader descendant cleanup and shared external cancellation/deadline/timeout tests. Prior erroneous5-second normal execution limit reproduced red before fix.",
+    "jq_compatibility": "Identity bindings moved before all boolean checks; parent reports offline fixtures and live checker passing on jq1.7.1 and1.8.2. Source independently inspected.",
+    "ci_gate": "Required PR CI and postmerge37957167093 green on reviewed source, CodeQL checks+analysis green without suppression. v0.53.1 release and cloud pipeline promotion complete.",
+    "owner_env_policy_tests": "TestBuildEnvironmentCodexOwnerIsHarnessOwned rejects upper/lowercase CODEX_HOME and AILANG_CODEX_RUNTIME overrides via Task.ExtraEnv and confirms operator/host values still inherited. Validation occurs before env layers in the shared builder; no existing task/benchmark override usage found in narrow source search.",
+    "persistent_mission_owner": "Minimal-environment mission-only owner and tagged local smoke passed; final six mission profiles restored original dev pin policy while isolated home/runtime retained; reviewed merge ancestor verified.",
+    "typed_transport_tests": "Frame tests cover text object, surrounding newline, malformed payload, binary refusal and second-object rejection.20x focused protocol and final daemon race PASS1.344s per local agent. Real installed CLI8 concurrent quota clients plus later client perform exactly1 fake refresh.",
+    "bounded_probe_tests": "Parent confirms Bash3.2 actual bounded executable probe success, TERM3s graceful completion and corrected bounded post-KILL wait test PASS; syntax/diff checks pass.",
+    "live_cloud_smokes": "Independent artifact inspection confirms codex and codex-go terminal successful exact AUTH_SMOKE_OK, tools0, filesnone, with rotated credential latest restore and persistent secret references unchanged."
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Checker refuses credential copies, account/workspace mismatch, unsafe paths and permissions without exposing secrets.",
+      "met": true,
+      "evidence": "check_codex_oauth_profiles.sh performs private jq comparisons, fixed-label output, canonical directory and symlink/permission checks; fixture tests cover credential copies/mismatch/permissions."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Provisioning creates independent file-backed homes and never copies interactive credentials.",
+      "met": true,
+      "evidence": "provision_codex_oauth_profile.sh refuses existing auth, supports fresh browser/device login, prepares 0700/0600 file-backed homes and explicit audited config only."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Mission controller, probes, quota reads and nested executors resolve the isolated mission home.",
+      "met": true,
+      "evidence": "Mission driver/controller/probe/nested roles route dedicated home and daemon socket; missing auth refuses. Shared BuildEnvironment now refuses case-insensitive per-task overrides of CODEX_HOME/AILANG_CODEX_RUNTIME while preserving operator host configuration. Focused regression passes; all local profiles/persistent minimal-env owner and smoke confirmed by parent."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Measured daemon adapter uses one auth owner for concurrent local runs; unsupported CLI exec cannot silently bypass it.",
+      "met": true,
+      "evidence": "Direct daemon Unix WebSocket transport corrects raw-proxy assumption; isolated real CLI rotating-token quota test measures one refresh owner. Daemon runtime has no private fallback. Parent reports local mission inference smoke succeeded."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Transactionally acquire canonical credential before fetch and keep ownership through preflight/run/persist.",
+      "met": true,
+      "evidence": "Firestore lease keyed by canonical full secret resource and secret project; unique owner nonce; restore acquires before fetch; finish checks ownership and persists changed bytes before release. Overlap/stale-writer/write-failure tests inspected."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Cancellation/lease loss stops execution; failed persistence quarantines credential; no unsafe TTL takeover.",
+      "met": true,
+      "evidence": "Heartbeat cancels task context; native stopOnce group termination is shared by cmd.Cancel/explicit timeout/cleanup, normal Wait unbounded, finish cleanup joins bounded5s; kill/join uncertainty propagates sentinel and cloud finalizer quarantines. New6-second closed-stream/timeout/reaped-leader and external cancel/deadline tests pass. Daemon cancellation joins owned turn with bounded writes and marks ambiguous start unconfirmed. Nonexpiring lease forbids unsafe takeover."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Focused Go, shell, boundary and lint checks pass; independent evaluator reviews criteria.",
+      "met": true,
+      "status": "complete",
+      "evidence": "Final reviewed source required PR and postmerge CI passed; complete driver gates passed after fixture dependency/timing correction. Release candidate full Go suite passed with -p=4 after unrelated load-sensitive OpenCode fixture failed once and passed3 isolated reruns. Independent evaluator reviewed all fixes and actual rollout evidence without repeating full suites."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Two user-completed logins validate same account and independent credentials; cloud and local smoke tests pass before activation.",
+      "met": true,
+      "status": "complete",
+      "evidence": "Both independent OAuth authorizations/checker, tagged local mission smoke and existing interactive continuity passed. v0.53.1 released/promoted; reviewed actual runtime forced-refresh harness persisted version2\u21923; both promoted cloud variants later succeeded with exact AUTH_SMOKE_OK, no tools/files and persistent job references unchanged. Final inspect confirms all retained executions terminal, canonical lease unowned/nonquarantined and enabled3."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": false,
+    "examples_applicability": "No language feature; host operational scripts/Go tests satisfy the sprint-plan exception, so AILANG runnable examples are not required.",
+    "design_doc_status": "Operational addendum acceptance checked and completed in v0.53.1 with evidence link; parent provider migration remains planned in original location.",
+    "runbook_review": "Minimal daemon startup environment explicitly documented; inherited home/project MCP env_vars use startup environment and require deliberate resource audit. Cloud runbook requires draining all old consumers, transactional IAM, no TTL, fresh publication, both variants and attended recovery. Docker image sets explicit isolated home inherited by codex-go.",
+    "changelog_path": "changelogs/v0.32-current.md (v0.53.1 release section; unreleased fragment folded)"
+  },
+  "design_fidelity": {
+    "score": 9,
+    "notes": "Separate authorizations, shared subscription and single-owner requirements satisfied in source and deployed validation. Direct Unix WebSocket transport corrects measured proxy assumption. Explicit busy admission and attended recovery retain nonexpiring ownership safety. No metered fallback or deferred D8 migration introduced."
+  },
+  "resolved_findings": [
+    "P1: timeout return without termination join corrected; group cleanup now covers reaped-leader descendants and reports failure.",
+    "P1: per-thread shell environment now exact filtered set with inherit=none/include_only; task MCP env_vars supplied concrete authorized values; owner startup uses minimal audited environment.",
+    "P1: ambiguous turn/start disconnect marked unconfirmed; WebSocket writes bounded; cancellation awaits owned turn termination.",
+    "P2: command aggregatedOutput/exitCode translated to exec event keys; progress notifications preserve idle activity; unsupported tool allowlists fail explicitly.",
+    "jq 1.8.2 identity binding/boolean precedence corrected by binding identities before all boolean checks. Parent reports fixture and live checker passes with jq1.7.1 and1.8.2.",
+    "Post-review P1 found by parent and now corrected: normal native wait must not have a5-second cleanup deadline. Normal Wait is unbounded under existing executor timers; finish alone bounds joined shutdown5s. cmd.Cancel, explicit stops and finish share sync.Once termination, avoiding duplicate post-reap group signals. Windows uses original process handle. Six-second closed-stream, timeout, reaped-leader and external cancellation/deadline regressions pass; no ps-state workaround remains.",
+    "Post-review P1 found by parent and corrected: Task.ExtraEnv could override CODEX_HOME or AILANG_CODEX_RUNTIME after inheritance, redirecting structured nested clients to another home/private runtime. Both constants are now case-insensitively denied as harness-owned before BuildEnvironment layers apply. Host/operator overrides remain valid. Four upper/lowercase regression cases failed before fix and pass afterward; independent source review confirms shared validation coverage.",
+    "Additional P1 found during independent scanner feasibility review: bounded Codex probe passed mc_codex_exec shell function into Bash exec, which cannot execute functions. Central mc_codex_command now builds executable argv used by both direct helper and real bounded probe. Real bounded success and TERM3s cleanup regression pass. Codex gets30s cancellation grace; post-KILL observation is bounded2s, and wait is called only after disappearance so termination uncertainty remains explicit.",
+    "CodeQL current811/resurrected129 false cross-interface paths analyzed from primary SARIF. Domain message transport replaces generic daemon Read/Write bridge without HTTP sink edits or suppressions; text/binary/malformed/multiple-object/newline frame tests,20x protocol tests, final race, real9-client one-refresh spike and authenticated persistent-owner inference pass. Fresh CodeQL checks and analysis passed on final reviewed source without suppression or dismissal; required PR and postmerge CI passed."
+  ],
+  "feedback": [],
+  "notes": "Final independent evaluation PASS97/100. Source/local gates and actual operational acceptance complete for three-profile OAuth addendum. Typed transport removes infeasible generic-interface scanner flows without dismissal/suppression. Forced managed refresh through actual production runtime persisted2\u21923; both later cloud variants succeeded; final lease unowned/nonquarantined and executions terminal. No reviewer production mutations or duplicate full suite. Deferred parent D8 remains planned and issue903 open.",
+  "source_commit": "9d9190082f02885c9426bc49240b9b312716f8d3",
+  "pull_request": "https://github.com/sunholo-data/ailang/pull/1752",
+  "implementation_ready_for_review": true,
+  "local_mission_ready": true,
+  "cloud_release_ready": true,
+  "pending_source_validation": "None: reviewed PR1752 merged, postmerge/release CI and actual v0.53.1 promotion succeeded. Final operational evidence independently inspected.",
+  "codeql_review": {
+    "analysis_id": 1924137854,
+    "analysis_commit": "534d9c9fbf00fcf91eb7ab3c2633eb572507ec6a",
+    "alerts": [
+      811,
+      129
+    ],
+    "rule": "go/reflected-xss",
+    "primary_sarif": "/private/tmp/codex-codeql-1924137854.sarif.json",
+    "classification": "Current PR instances are infeasible cross-interface flows, not reachable HTTP XSS paths. Alert129 had a fixed dev instance and is resurrected on the PR by the new daemon source; its older API most_recent text is not the current SARIF trace.",
+    "flow": "daemon_transport.go ReadMessage -> custom generic Read buffer -> cmd/ailang/run_policy_supervise.go copyCapped src.Read/dst.Write -> statusWriter/responseRecorder HTTP Write. Alternate traces pass through LSP stdio and effects limitedWriter.",
+    "infeasibility_evidence": "copyCapped has only two concrete calls: os.Stdout plus os.Pipe, or stderrGuard plus os.Pipe. LSP stdio fields are os.Stdin/os.Stdout; limitedWriter wraps stdout/stderr bytes.Buffer. None receives daemonWebSocketStream or the HTTP wrappers. Cache is attached only to six JSON polling handlers. HTTP sink files are unchanged versus origin/dev.",
+    "remediation": "Replace generic daemon io.Reader/io.Writer bridge with domain sendMessage/receiveMessage transport. WebSocket frames decode directly into daemonMessage and writes encode structured JSON; protocol is not arbitrary byte streaming. Preserve frame validation/limits/deadlines/cancellation. Do not HTML-escape protocol bytes, modify unrelated HTTP sinks, dismiss alerts or suppress the rule.",
+    "fresh_scanner_verification": "Fresh CodeQL checks and analysis passed on final1bce449a0 candidate and required PR/postmerge CI passed on reviewed merged9d919 source; no suppression or dismissal."
+  },
+  "attended_publication_helper_review": {
+    "source": ".ailang/tmp/operator-cloud-oauth/main.go",
+    "code_verdict": "approved after malformed Firestore union values were made fail-closed",
+    "validation": "Independent fake-only uncached Go tests pass; injected HTTP transport performs no cloud calls or writes. Raw JSON regressions reject absent/wrong/multiple union alternatives, null scalar and invalid heartbeat.",
+    "ownership": "Uses runtime canonical SHA256 credential document, create/update CAS, non-expiring unique operator owner, reserve before rechecking image pins and retained terminal executions, quarantine on post-acquire uncertainty. Release follows acknowledged publication and enabled secret version advancement.",
+    "operational_prerequisite": "Postpromotion consumer audit confirms exactly two jobs; promoted pins/drain checks and CAS-held seed publication succeeded. Actual runtime refresh and both cloud smokes subsequently succeeded.",
+    "reviewer_live_writes": false
+  },
+  "sonar_review": {
+    "rule": "go:S4036",
+    "location": "internal/mission/codex_app_server_quota.go:57",
+    "verdict": "Pre-existing operator PATH executable-discovery hardening concern; no new OAuth profile regression or release blocker identified. No dismissal or suppression performed.",
+    "evidence": "origin/dev already launches codex by bare name using inherited operator environment. daemon branch returns direct RPC before executable discovery; unsupported runtimes refuse and daemon errors do not fall back to CLI. Task.ExtraEnv cannot supply PATH. Request parameters are encoded on JSON stdin.",
+    "threat_limit": "A lower-trust actor able to plant a codex executable in an earlier operator PATH directory could hijack the legacy cli branch. Absolute deployment-configured executable and directory ownership checks would be broader follow-up hardening; resolving PATH alone does not establish trust.",
+    "coverage": "Parent reports nonblocking Sonar new-code coverage 46.4% against reporting threshold80%; focused native/daemon/lifecycle/race and actual-owner smoke evidence remain separately recorded."
+  },
+  "operational_readiness_checklist": [
+    {
+      "item": "Postmerge dev CI and exact v0.53.1 tag/release pipeline",
+      "status": "complete",
+      "evidence": "Reviewed source merged9d919; required postmerge CI37957167093 succeeded; v0.53.1 tag pushed and release37962054287 published. Tagged local install/authenticated smoke passed."
+    },
+    {
+      "item": "Both cloud job digest pins and post-promotion exhaustive consumer inventory",
+      "status": "complete",
+      "evidence": "Postpromotion exhaustive production job audit /private/tmp/codex-oauth-v0.53.1-consumers.json found exactly codex/codex-go consumers with verified promoted digest pins; final helper inspect confirms pins."
+    },
+    {
+      "item": "Attended fresh cloud seed publication under canonical CAS lease",
+      "status": "complete",
+      "evidence": "Reviewed attended canonical CAS reservation verified prior executions drained; seed publication advanced enabled version1\u21922 and released ownership."
+    },
+    {
+      "item": "Live subscription execution success for codex and codex-go promoted images",
+      "status": "complete",
+      "evidence": "Both promoted normal cloud variants succeeded terminally with exact AUTH_SMOKE_OK, tools0/filesnone; persistent credential references unchanged."
+    },
+    {
+      "item": "Forced refresh causes durable secret metadata advance beyond publication baseline, then subsequent successful credential use",
+      "status": "complete",
+      "evidence": "Actual reviewed RPC-only runtime harness forced managed refresh and persisted enabled version2\u21923; both later normal cloud variants restored/used saved latest credential successfully."
+    },
+    {
+      "item": "Final executions terminal and canonical lease released without quarantine",
+      "status": "complete",
+      "evidence": "Final helper inspection confirms every retained execution terminal, canonical credential unowned/nonquarantined, enabled version3."
+    },
+    {
+      "item": "Interactive turn usable alongside isolated tagged mission profile",
+      "status": "complete",
+      "evidence": "Existing attended interactive session continued through tagged and post-cloud-rotation local mission smokes; no competing interactive owner created."
+    }
+  ],
+  "native_refresh_harness_review": {
+    "artifact": ".ailang/tmp/operator-cloud-oauth/runtime_refresh_test.go.txt",
+    "overlay": ".ailang/tmp/operator-cloud-oauth/runtime_refresh_overlay.json",
+    "tagged_checkout_commit": "9d9190082f02885c9426bc49240b9b312716f8d3",
+    "verdict": "Approved for exact explicit attended live gate only after root verifies promoted image pins, seed publication, consumer inventory and drained prior executions. Reviewer performed source inspection only.",
+    "boundary": "Actual production installCodexCredential acquires canonical lease before fetch; RPC-only managed account/read refreshToken:true; confirmed stopped process group before actual finalizeCodexCredential durable persist and release. No threads, turns or tools requested.",
+    "cleanup": "Context cancellation and explicit cleanup share sync.Once group signal. Stop precedes stdin close; Wait bounded5s and group absence bounded1s. Any termination uncertainty uses existing sentinel quarantine finalizer without reading/releasing auth.",
+    "privacy": "Native stdout/stderr, raw account replies, RPC errors and private credential bytes never printed; API-key environment entries stripped. Changed bytes and newer refresh timestamp checked privately. Only fixed labels and secret version metadata numbers reported.",
+    "acceptance_limit": "Actual reviewed live harness succeeded with durable2\u21923; both subsequent normal cloud variants succeeded. Full operational acceptance now complete."
+  },
+  "operational_rollout_evidence": {
+    "source": "Parent release/deployment metadata; reviewer inspected fixed-label native refresh log; no reviewer live mutation.",
+    "postmerge_ci": "37957167093 SUCCESS on reviewed merge9d9190082f02885c9426bc49240b9b312716f8d3",
+    "versioned_release": "v0.53.1 release37962054287 SUCCESS; cloudrelease7bd2ac92 SUCCESS all16 images/testhealth; agents dry run8a188523 SUCCESS; promote73792d9b SUCCESS all15 jobs per parent.",
+    "consumers": "Parent postpromotion audit /private/tmp/codex-oauth-v0.53.1-consumers.json confirms exactly two OAuth consumers with verified pins.",
+    "seed_publication": "Attended helper verifies terminal retained prior executions and unowned lease; publication enabled version1\u21922 and release confirmed.",
+    "forced_refresh": "Actual approved RPC-only Go overlay harness PASS; reviewer inspected /private/tmp/codex-oauth-v0.53.1-forced-refresh.log showing durable runtime persistence and version2\u21923, test PASS4.62s.",
+    "interactive_continuity": "Existing attended Codex session continued throughout isolated mission authentication smoke. No competing interactive login/owner spawned.",
+    "cloud_smokes": "Reviewer inspected both fixed-label REST smoke logs, metrics and exact AUTH_SMOKE_OK transcripts: terminal success, new image pin, execution-only API/GitHub credential blanking validated, persistent secret references unchanged. Both subsequent normal executions restore/use rotated production credential. tool_call_count0, files_created/files_modified null, output_tokens8.",
+    "final_ownership": "Reviewer inspected final-cloud-inspect.log: promoted pins verified, every retained execution terminal, canonical credential unowned; helper rejects quarantined documents; enabled version3.",
+    "staging_cleanup": "Parent retired obsolete staging seed to private inactive archive after durable rotation; no stale active cloud auth seed remains.",
+    "mission_final_pin": "Parent restored six idle mission profiles to original origin/dev policy with isolated home/runtime retained. Reviewer confirms reviewed9d919 commit is ancestor of current939beb6fd driver revision.",
+    "post_cloud_local_smoke": "Reviewer inspected /private/tmp/codex-oauth-v0.53.1-post-cloud-local-smoke.log: fixed-label MISSION_AUTH_OK after cloud rotation, inherited secret values withheld."
+  },
+  "final_documentation_review": "Approved four rollout evidence artifacts in /private/tmp/ailang-codex-oauth-rollout-evidence after scoped stale acceptance/identity wording corrections. Sprint JSON, plan, addendum and runbook align with inspected deployment/refresh/smoke evidence. Parent D8 remains planned and issue903 stays open. Documentation-only PR CI/publication may still be pending; operational fix is deployed and accepted.",
+  "documentation_artifact_worktree": "/private/tmp/ailang-codex-oauth-rollout-evidence"
+}
