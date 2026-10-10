@@ -122,6 +122,9 @@ resource "google_cloud_run_v2_service" "gateway" {
   name     = local.service_name
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
+  # The stable URL is also the application JWT audience. Cloud Run otherwise
+  # accepts only its generated service URL, which differs on this deployment.
+  custom_audiences = [local.gateway_url]
   template {
     service_account                  = google_service_account.gateway[0].email
     timeout                          = "660s"
