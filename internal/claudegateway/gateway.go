@@ -32,6 +32,7 @@ type Gateway struct {
 	Operators    map[string]bool
 	Coordinators map[string]string // authenticated coordinator -> permitted job SA
 	Now          func() time.Time
+	Diagnostic   func(UsageDiagnostic) // optional test/structured logging sink
 }
 
 func (g *Gateway) now() time.Time {
@@ -138,7 +139,18 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	settleCtx, settleCancel := context.WithTimeout(context.WithoutCancel(r.Context()), requestTimeout+30*time.Second)
 	defer settleCancel()
-	unresolved := func() { g.Authority.MarkUnresolved(settleCtx, cap.AccountID, requestID) }
+	var trace usageTrace
+	var upstreamID, providerRequestID string
+	stage := "upstream_connect"
+	unresolved := func() {
+		markErr := g.Authority.MarkUnresolved(settleCtx, cap.AccountID, requestID)
+		g.reportUnresolved(UsageDiagnostic{
+			Event: "credit_usage_unresolved", AccountID: cap.AccountID,
+			TaskID: diagnosticID(cap.TaskID), RequestID: requestID,
+			ProviderRequestID: diagnosticID(providerRequestID), MessageID: diagnosticID(upstreamID),
+			Stage: stage, Reason: diagnosticReason(err), UnresolvedMarked: markErr == nil, Stream: trace,
+		})
+	}
 	ctx, cancel := context.WithDeadline(r.Context(), deadline)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, upstreamURL, bytes.NewReader(raw))
@@ -168,6 +180,8 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
+	providerRequestID = resp.Header.Get("request-id")
+	stage = "upstream_status"
 	if resp.StatusCode != 200 {
 		unresolved()
 		fail(w, 502, "upstream did not return verifiable usage; reservation retained")
@@ -178,8 +192,8 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("request-id", id)
 	}
 	var usage modelreg.ClaudeUsage
-	var upstreamID string
 	if stream {
+		stage = "stream_usage"
 		if !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream") {
 			unresolved()
 			fail(w, 502, "invalid upstream stream")
@@ -187,15 +201,26 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
-		usage, upstreamID, err = relayStream(w, resp.Body, model, maxTokens)
+		usage, upstreamID, err = relayStreamWithTrace(w, resp.Body, model, maxTokens, &trace)
 	} else {
+		stage = "message_usage"
 		var body []byte
 		body, err = io.ReadAll(io.LimitReader(resp.Body, 32<<20+1))
 		if err == nil && len(body) > 32<<20 {
 			err = errors.New("response too large")
 		}
 		if err == nil {
-			usage, upstreamID, err = messageUsage(body, model, maxTokens)
+			if obj, decodeErr := decodeObject(body); decodeErr == nil {
+				trace.Final = usageObservation(obj["usage"])
+				trace.FinalSeen = true
+				json.Unmarshal(obj["id"], &upstreamID)
+			}
+			var verifiedID string
+			usage, verifiedID, err = messageUsage(body, model, maxTokens)
+			if err == nil {
+				upstreamID = verifiedID
+				trace.observeVerified(usage)
+			}
 		}
 		if err == nil {
 			w.Header().Set("Content-Type", "application/json")
@@ -206,11 +231,13 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		unresolved()
 		return
 	}
+	stage = "pricing"
 	cost, err := modelreg.ClaudeUsageCostAtRevision(model, usage, revision)
 	if err != nil {
 		unresolved()
 		return
 	}
+	stage = "settlement"
 	if err = g.Authority.Settle(settleCtx, cap.AccountID, requestID, creditbudget.MicroUSD(cost), upstreamID); err != nil {
 		unresolved()
 	}

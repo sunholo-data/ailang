@@ -1,17 +1,21 @@
 # Claude API credit deployment review — M0/M6
 
-**Recorded:** 2026-10-10. **State:** rollout in progress. Implementation merged;
-the private authority project is bootstrapped and billed. Gateway/jobs, grant
-enrollment, live canary and production image promotion remain pending. Admission
-is disabled; no billable Claude inference has been performed.
+**Recorded:** 2026-10-10. **State:** production runtime deployed, activation in progress.
+The private authority, operator identity, gateway and four guarded dev/prod jobs
+are provisioned through Terraform CI. v0.53.4 is released and promoted to prod;
+the public MCP reported 0.53.4 at promotion. The $200 grant is enrolled, but the
+first dev canary failed accounting after receiving a provider response. Admission
+is disabled; $1.32 remains reserved and unresolved. Provider spend is unverified.
 
 Merged work is available as [source PR #1755](https://github.com/sunholo-data/ailang/pull/1755)
 and [private infrastructure PR #6](https://github.com/sunholo-data/ailang-multivac/pull/6).
 One production state owns the shared authority and guarded jobs. Runtime defaults
-off, and the canary recipe remains unregistered. Scoped runtime-secret IAM was
+off; production explicitly enables reviewed immutable images. Manual canary
+registration and the explicit stable-audience correction passed dev/test/prod CI. Scoped runtime-secret IAM was
 deployed through normal configuration CI. The release-library regression suite
-now has 298 passing checks, including actual missing Job and Service messages;
-four mocked Terraform plans passed. Both existing Cloud Build administrators
+now has 304 passing checks, including actual missing Job/Service messages and
+preservation of guarded pins on routine dev deployments; five mocked Terraform
+plans passed, including the stable gateway audience regression. Both existing Cloud Build administrators
 remain explicitly trusted under the attended decision below.
 
 The user approved a one-time, three-addition Terraform bootstrap for the private
@@ -20,7 +24,8 @@ stopped before project creation because the production quota project's Billing A
 was disabled. That API was enabled through successful dev/test/prod Terraform CI
 at infrastructure `f0a10e8`; the refreshed bootstrap succeeded. Project
 `ailang-credit-authority` is active in folder `389195706883` and billing is enabled.
-Remaining provisioning is addition-only and returns to CI. The private repository's
+All remaining provisioning and runtime creation returned to CI; the one-time
+local exception is complete. The private repository's
 `docs/ops/claude-credit-guard.md` is the detailed attended deployment audit.
 
 ## Confirmed grant and remaining evidence
@@ -34,11 +39,13 @@ This record contains no credential value and does not itself create a grant.
 
 The operator attested the corrected organization/workspace and full allocation.
 Use `anthropic-credits-2026-10-28` as the stable internal AILANG allocation reference;
-it is not a claimed Anthropic grant ID. Record admission start and audit evidence
-at confirmation. A secret resource name and Models API success do not independently
-establish workspace membership or available credits. Activation and the live canary
-remain gated on deployed isolation, exact image/CLI verification and canonical
-grant confirmation with the attended evidence.
+it is not a claimed Anthropic grant ID. Canonical confirmation was recorded at
+2026-10-10T11:41:47Z, with admission start 11:41:46Z and the immutable private
+operations audit at infrastructure commit 7448d32 as evidence. A secret resource
+name and Models API success do not independently establish workspace membership
+or available credits; this allocation uses the attended operator attestation.
+Isolation, exact image/CLI verification, enrollment, and enable/disable controls
+passed. Live provider reconciliation remains a blocking rollout gate.
 No calendar rollover or key replacement renews the AILANG allowance.
 
 ### Attended rollout decision — 2026-10-10
@@ -60,7 +67,55 @@ requirement. Reassess any remaining secret/ledger permissions, model the impact 
 existing deployments, and implement through reviewed Terraform. This follow-up
 must preserve the shared credit accounting and explicit grant-renewal rules.
 
-## Actual cloud deployment inventory
+## Production rollout evidence
+
+| Step | Verified evidence |
+|---|---|
+| Exact v0.53.4 source CI | 38045035030 SUCCESS |
+| Published binaries | 38045034996 SUCCESS; v0.53.4 GitHub release |
+| Gated test image release | 26590781-a17e-4e60-8e9c-d5fa0325b300 SUCCESS |
+| Production core promotion | 6d51378c-7114-485d-b737-0dea0909c6c6 SUCCESS; public MCP latest 0.53.4 |
+| Dev verified image copy | e6188876-2c3c-4759-aa0d-356dee48b197 SUCCESS; test-to-dev agent-set copy, no rebuild |
+| Native image CLI proof | a6ae8bb8-003c-42ee-bbfa-ec924609eb48 SUCCESS; CLI2.1.296 in default and Go images |
+| Guarded runtime Terraform CI | b87ef343-c913-4070-bbd1-7ba8e53c2a50 SUCCESS; 15 additions, metadata update, no deletions |
+| Effective runtime IAM | e485df14-04e6-4deb-97b7-790d509d53bc SUCCESS; 10 dev/prod runtime identities, 30 secret/ledger testIamPermissions responses HTTP200, all granted arrays empty |
+| Canonical grant and controls | $200 confirmed for Holosun ApS/ailang; audited enable/disable preserved grant and accounting |
+| Live canary/reconciliation | Dev task task-481b76a4 FAILED after HTTP200, then HTTP402; $1.32 unresolved reservation preserved, account disabled. No prod canary or rotation promotion |
+
+The failed pilot's CLI totals are diagnostic observations rather than provider
+receipts. Raw SSE billing frames and the rejection reason were not retained.
+Protocol review found incompatible handling of supported cumulative input/cache
+updates and nullable observational output breakdowns; the precise failure remains
+unproven. Correct those contracts with regression fixtures and bounded billing-only
+diagnostics, then obtain provider evidence before releasing any held exposure.
+The operator currently sees no spend, which may reflect reporting lag or rounding.
+No retry, grant renewal, or ledger reset may bypass reconciliation.
+
+An attended direct key diagnostic subsequently succeeded at 2026-10-10T12:16:11Z
+using secret version 4: HTTP200, `OK`, 16 input / 4 output tokens, complete
+`message_stop`, and 4 microUSD calculated under the reviewed rate card. Its real
+usage frames include `output_tokens_details` and are banked in the regression
+suite. This verifies that key and the observed plain Messages contract; it is not
+an executor canary or evidence for the earlier unresolved request. The operator
+clarified the console balance as $199.77 remaining ($0.23 used).
+
+The first direct attempt returned a transport error without provider evidence,
+so its separate conservative 1,000,040 microUSD bound remains held in the attended
+audit; it is not falsely added to or settled in the canonical executor ledger.
+A second connection failed certificate verification before HTTP forwarding and
+is proved non-forwarded. The successful request used the system HTTPS client
+with verification enabled, no tools and no HTTP retries. The original $1.32
+gateway hold remains unchanged. Combined audited exposure/spend, including the
+reported $0.23 conservatively, remains within the $5 pilot envelope.
+
+The gateway's stable numeric origin and Cloud Run's generated URL differ.
+Terraform explicitly registers the stable origin in `custom_audiences`, matching
+application JWT validation. Both Cloud Run IAM and application authorization stay
+required. A token for the generated URL reached the application but failed its
+stable-audience check; stable-origin tokens need the explicit Cloud Run audience.
+See [Google's audience configuration](https://docs.cloud.google.com/run/docs/configuring/custom-audiences).
+
+## Initial cloud deployment inventory (historical M0 snapshot)
 
 ### Installed CLI compatibility evidence
 
@@ -86,7 +141,11 @@ establish actual client compatibility. Diagnostic output is retained at
 Automatic approval review rejected the proposed four-header allowlist expansion:
 it could weaken the fail-closed billing guard by admitting unverified features
 with different pricing or unbounded usage. The rejected change was not applied
-and the headers were not stripped or bypassed. That expansion remains unapplied. The user subsequently approved continuing the bounded compatibility review. The implemented safer contract uses the reviewed client proxy-compatibility setting to omit these beta capabilities at their source, rather than relaxing gateway admission. Text-only system messages are admitted under the documented standard input/cache bound. The installed CLI now passes both fake completion and a two-request harmless Bash tool loop, with separate reservations and exact settlement. M4 local compatibility is resolved; deployment and live activation remain blocked. See [CLI contract](m-cloud-claude-api-credit-guard-cli-contract.md).
+and the headers were not stripped or bypassed. That expansion remains unapplied. The user subsequently approved continuing the bounded compatibility review. The implemented safer contract uses the reviewed client proxy-compatibility setting to omit these beta capabilities at their source, rather than relaxing gateway admission. Text-only system messages are admitted under the documented standard input/cache bound. The installed CLI now passes both fake completion and a two-request harmless Bash tool loop, with separate reservations and exact settlement. M4 compatibility is resolved. The exact released default/Go images, Claude Code
+2.1.296, also passed fake completion and two-request Bash tool-loop/accounting
+checks in build `a6ae8bb8-003c-42ee-bbfa-ec924609eb48`, without live provider spend.
+Canonical grant enrollment is complete. The real-provider pilot failed accounting;
+stream compatibility repair and verified reconciliation remain pending. See [CLI contract](m-cloud-claude-api-credit-guard-cli-contract.md).
 
 The approved investigation reviewed those four features individually. Future expansion must
 retain the strict Messages-only body contract and helper model pinning, prove the

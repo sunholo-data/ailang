@@ -364,6 +364,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Five friction points + serve-api CORS gap from sunholo/mcp_files 0.1.0 (M-MCP-FILE-HANDOFF F2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/mcp-files-0.1.0-friction-batch.md)
 - [`messages send` silently stores unknown flags as the message body](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/messages-send-unknown-flags-stored-as-body.md)
 - [Named-test bodies fail float comparisons — missing Fractional dictionary in lowered path](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/named-test-float-dict-resolution.md)
+- [Native terminal input for pure AILANG TUIs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/native-terminal-tui-input.md)
 - [Nightly-eval holds the rig lock all night — widen the yield ask from os-rotation-filler to nightly-eval](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/nightly-eval-rig-lock-yield.md)
 - [`pkg quality` hides smoke output; smoke staging silently drops non-`assets/` data files](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/pkg-quality-smoke-output-and-staging.md)
 - [Per-subcommand process allowlist requested (git push --force leak in Daneel's audit trail)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/ailang-core-triage/process-subcmd-allowlist-already-shipped.md)
@@ -411,4 +412,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 286 planned features across 34 upcoming versions.*
+*Generated at build time. 287 planned features across 34 upcoming versions.*

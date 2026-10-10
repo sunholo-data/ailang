@@ -38,6 +38,12 @@ exposure and block further admission. A forwarded request is never refunded just
 because a lease expires. Tasks blocked by the budget do not silently switch to
 another provider or credential.
 
+When accounting fails, inspect provider billing evidence alongside the canonical
+reservation. A zero or empty console total can reflect reporting delay or display
+rounding; it does not prove that a forwarded request was free. Keep admission
+disabled until unresolved exposure is reconciled. Never reset the ledger, replace
+the grant, or retry an ambiguous request to clear a hold.
+
 ## Inspect and control the account
 
 Use `ailang coordinator credits --help` for the complete command contract.
@@ -55,8 +61,9 @@ All commands address the canonical gateway with `--remote gcp`, `--gateway`, and
 Mutating actions require an audit reference through `--evidence`. `confirm`,
 `enable`, and `promote` require explicit confirmation. Use `--yes` only after
 reviewing the canonical state. Operator service-account impersonation is supported
-through `--impersonate-service-account`; its Token Creator grant must be scoped
-to the operator identity. Executors and coordinators are not credit operators.
+through `--impersonate-service-account`; grant
+`roles/iam.serviceAccountOpenIdTokenCreator` on that operator identity only.
+AILANG directly mints an ID token; the broader access-token/signing role is unnecessary. Executors and coordinators are not credit operators.
 
 ## Confirm fresh credits in AILANG
 
@@ -88,6 +95,9 @@ Use the owning infrastructure repository's Terraform and release pipelines. One
 production state owns the authority and both environments' guarded jobs. Provision
 the private project and IAM first; securely add the signing-secret value outside
 Terraform state; then deploy runtime with verified immutable image digests.
+Set Cloud Run `custom_audiences` to the same gateway origin used by clients and
+application JWT validation when it differs from the generated service URL.
+IAM invocation and application identity checks remain required.
 Routine floating dev builds preserve the guarded runtime's release pins;
 versioned release/promotion owns its image updates.
 
