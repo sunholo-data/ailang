@@ -107,4 +107,4 @@ Actual implementation: 4,682 added code/test/showcase lines and 420 deleted line
 
 ## Release delivery
 
-On 2026-10-10 the user authorized delivery to dev and a new release. These completed records move together into `implemented/v0_54_3/` as part of release preparation. The runtime is included in v0.54.3; publication and exact-PID checks against its official artifact are the remaining delivery checks. Historical independent source validation remains at its recorded commits.
+On 2026-10-10 the user authorized delivery to dev and a new release. These completed records move together into `implemented/v0_54_4/` as part of release preparation. The runtime is included in v0.54.4; publication and exact-PID checks against its official artifact are the remaining delivery checks. Historical independent source validation remains at its recorded commits.

@@ -23,7 +23,13 @@ type workerBlockingAI struct {
 }
 
 func (h *workerBlockingAI) Call(string) (string, error) {
-	if err := os.WriteFile(h.ready, []byte(strconv.Itoa(os.Getpid())), 0600); err != nil {
+	// Publish only a complete PID: another process may observe file creation
+	// before WriteFile has written the contents, especially on Linux CI.
+	pending := h.ready + ".pending"
+	if err := os.WriteFile(pending, []byte(strconv.Itoa(os.Getpid())), 0600); err != nil {
+		return "", err
+	}
+	if err := os.Rename(pending, h.ready); err != nil {
 		return "", err
 	}
 	time.Sleep(time.Minute)

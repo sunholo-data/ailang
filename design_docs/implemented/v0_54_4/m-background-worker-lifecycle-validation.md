@@ -78,4 +78,12 @@ The round1 rejection and final round2 audit are preserved under `.ailang/state/e
 
 ## Release delivery
 
-On 2026-10-10 the user authorized delivery to dev and a new release. These completed records move together into `implemented/v0_54_3/` as part of release preparation. The runtime is included in v0.54.3; publication and exact-PID checks against its official artifact are the remaining delivery checks. Historical independent source validation remains at its recorded commits.
+On 2026-10-10 the user authorized delivery to dev and a new release. These completed records move together into `implemented/v0_54_4/` as part of release preparation. The runtime is included in v0.54.4; publication and exact-PID checks against its official artifact are the remaining delivery checks. Historical independent source validation remains at its recorded commits.
+
+## Release check corrections
+
+The first PR Linux run exposed a test acknowledgement race: file existence could be observed before the PID contents were written. The blocked-AI helper now writes a same-directory temporary file and renames it atomically. The cancellation, twenty-worker deadline and repeated-resource tests pass twenty repetitions under the race detector; exact PID assertions remain strict.
+
+The resident image acceptance fixture is restored before HTTP authentication tests, tracks each replacement boot PID, waits for completed boot and bounded shutdown, and cleans up the current server. Production authentication and worker runtime are unchanged. Independent read-only review approved both test corrections; a pinned-image acceptance proof and fresh PR/dev CI are delivery gates.
+
+Concurrent dev release preparation reserved v0.54.3 for its resident fixture repair. This worker release advances to v0.54.4 and retains that intervening change.

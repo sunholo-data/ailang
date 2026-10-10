@@ -1,8 +1,8 @@
 # M-BACKGROUND-WORKER-LIFECYCLE: Owned Subprocess Shutdown and Cancellation
 
-**Status**: Implemented; included in v0.54.3 (publication pending)
+**Status**: Implemented; included in v0.54.4 (publication pending)
 
-**Target**: v0.54.3 (source baseline v0.54.1)
+**Target**: v0.54.4 (source baseline v0.54.1)
 
 **Priority**: P1 — blocks the consumer application's worker feasibility gate
 
@@ -315,4 +315,4 @@ See the [validation record](m-background-worker-lifecycle-validation.md) and [sp
 
 ## Release delivery
 
-On 2026-10-10 the user authorized delivery to dev and a new release. These completed records move together into `implemented/v0_54_3/` as part of release preparation. The runtime is included in v0.54.3; publication and exact-PID checks against its official artifact are the remaining delivery checks. Historical independent source validation remains at its recorded commits.
+On 2026-10-10 the user authorized delivery to dev and a new release. These completed records move together into `implemented/v0_54_4/` as part of release preparation. The runtime is included in v0.54.4; publication and exact-PID checks against its official artifact are the remaining delivery checks. Historical independent source validation remains at its recorded commits.

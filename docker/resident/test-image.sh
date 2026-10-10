@@ -11,7 +11,23 @@
 set -uo pipefail
 # Leave nothing running: a backgrounded health server or herdr would hold the
 # CI step's stdout open and hang the build rather than failing it.
-cleanup() { pkill -f "health.mjs" 2>/dev/null; pkill -f "herdr server" 2>/dev/null; }
+stop_boot() {
+  [ -n "${BOOT:-}" ] || return 0
+  kill "$BOOT" 2>/dev/null || true
+  # boot's shutdown trap allows its server up to eight seconds to checkpoint.
+  for _ in $(seq 1 100); do
+    kill -0 "$BOOT" 2>/dev/null || break
+    sleep 0.1
+  done
+  kill -9 "$BOOT" 2>/dev/null || true
+  wait "$BOOT" 2>/dev/null || true
+  BOOT=
+}
+cleanup() {
+  stop_boot
+  pkill -f "server.mjs" 2>/dev/null || true
+  pkill -f "herdr server" 2>/dev/null || true
+}
 trap cleanup EXIT
 PASS=0; FAIL=0
 ok()   { echo "  PASS: $*"; PASS=$((PASS+1)); }
@@ -137,6 +153,13 @@ have "no policy env -> boot says execution is NOT granted" 'grep -q "program pol
 have "resident-run is gone"                           '! command -v resident-run >/dev/null 2>&1'
 
 echo "=== 5. public-ingress authorisation (Preview edge does not enforce invoker) ==="
+# The substitution probe killed every server.mjs, including the happy-path
+# server on 8080. Restore the real fixture before asserting its auth responses.
+stop_boot
+/usr/local/bin/boot.sh > /tmp/auth-boot.log 2>&1 &
+BOOT=$!
+for i in $(seq 1 60); do grep -q "resident agent ready" /tmp/auth-boot.log && break; sleep 1; done
+have "auth fixture boot completed and stays running" 'grep -q "resident agent ready" /tmp/auth-boot.log && kill -0 "$BOOT"'
 have "/livez is public and reveals nothing"     '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
 have "/health requires a token"                 '[ "$(curl -s -o /dev/null -w %{http_code} localhost:8080/health)" = "401" ]'
 have "agent card requires a token"              '[ "$(curl -s -o /dev/null -w %{http_code} localhost:8080/.well-known/agent.json)" = "401" ]'
@@ -449,9 +472,13 @@ have "boot states its session posture"      'grep -q "observability: .*\(session
 echo "=== 7. restart idempotence ==="
 # The 7-day ceiling makes restarts routine, so a second boot must behave like
 # the first rather than tripping over its own leftovers.
-kill $BOOT 2>/dev/null; pkill -f "herdr server" 2>/dev/null; sleep 3
+stop_boot
+pkill -f "herdr server" 2>/dev/null || true
 /usr/local/bin/boot.sh > /tmp/boot2.log 2>&1 &
+BOOT=$!
 for i in $(seq 1 90); do [ "$(curl -s localhost:8080/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
+for i in $(seq 1 60); do grep -q "resident agent ready" /tmp/boot2.log && break; sleep 1; done
+have "second boot completed and stays running" 'grep -q "resident agent ready" /tmp/boot2.log && kill -0 "$BOOT"'
 have "second boot serves again"           '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
 have "second boot found the home writable" 'grep -q "agent home writable" /tmp/boot2.log'
 
@@ -459,13 +486,10 @@ echo "=== 7b. surviving a STOP, not just a restart (M6) ==="
 # A restart keeps the writable layer; the idle sweep's stop/resume does not.
 # That distinction is the whole of M6, and it is only testable by destroying
 # the local layer the way Cloud Run does and booting onto the mount alone.
-# This boot gets its OWN PORT rather than competing for 8080, because the
-# contention is not worth fighting and twice cost a false negative: `$BOOT`
-# still names the FIRST boot here (section 7 restarts without recapturing it),
-# so killing it left section 7's server holding the port, the third boot never
-# bound, and the two assertions below reported as PRODUCT failures on code the
-# node suite passed. Killing is still attempted, but nothing depends on it.
-pkill -f "server.mjs" 2>/dev/null; pkill -f "boot.sh" 2>/dev/null
+# Stop and join the current boot before resetting its local layer. A separate
+# port also makes the stop/resume probe independent of the previous listener.
+stop_boot
+pkill -f "server.mjs" 2>/dev/null
 pkill -f "herdr server" 2>/dev/null
 # WAIT for it to be gone before seeding. pkill is asynchronous and the server's
 # own SIGTERM handler checkpoints on the way out, so seeding straight after the
