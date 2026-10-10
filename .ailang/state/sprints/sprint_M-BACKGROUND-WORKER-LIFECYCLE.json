@@ -1,0 +1,149 @@
+{
+  "sprint_id": "M-BACKGROUND-WORKER-LIFECYCLE",
+  "status": "not_started",
+  "created": "2026-10-10T17:06:50.131928+00:00",
+  "design_doc": "design_docs/planned/m-background-worker-lifecycle.md",
+  "sprint_plan": "design_docs/planned/m-background-worker-lifecycle-sprint-plan.md",
+  "markdown_plan": "design_docs/planned/m-background-worker-lifecycle-sprint-plan.md",
+  "github_issues": [],
+  "related_issues": [
+    231
+  ],
+  "report_message": "inbox_1791630246888_28589e92",
+  "approval": "User approved design, sprint planning and execution on 2026-10-10; hold push/release until fixed.",
+  "velocity": {
+    "target_loc_per_day": 425,
+    "estimated_total_loc": 3400,
+    "estimated_days": 8,
+    "actual_total_loc": 0,
+    "actual_days": null
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Shared execution ownership",
+      "estimated_loc": 500,
+      "actual_loc": null,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Execution owner shares a two-second shutdown deadline across workers and rejects late admission safely.",
+        "Budget views share ownership; independent clones preserve policy with fresh Process/Stream registries.",
+        "Opaque non-reused IDs prevent cross-owner registry collisions; shutdown failures remain structured."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Managed worker cancellation",
+      "estimated_loc": 650,
+      "actual_loc": null,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Closed stdin retains worker ownership until reaping; cooperative queued writes drain.",
+        "cancelProcess returns typed results, enforces Process authority, stops owned POSIX groups and joins writer/Wait.",
+        "Natural exit, repeated cancellation, concurrent write/close, stale/foreign handles and Windows/WASM unsupported results are tested."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Async process source cancellation",
+      "estimated_loc": 650,
+      "actual_loc": null,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "cancelProcessSource enforces Stream and Process authority and rejects non-process sources.",
+        "Async workers have one natural-exit Wait owner; final chunks drain and blocked consumers do not prevent cancellation.",
+        "Source selection borrows sources; cancellation stops descendants and joins owned readers without closing borrowed stdin/connections."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Runner and embedding lifecycle integration",
+      "estimated_loc": 850,
+      "actual_loc": null,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "CLI/batch normal, error, exit(7), budget failure and cancellation clean up owned workers while preserving primary outcomes.",
+        "SIGINT/SIGTERM restore terminal first, clean workers within the deadline, and retain 130/143 without signal-watcher deadlock.",
+        "Embedded requests, engine initialization/close and REPL reset/quit have explicit independent ownership; WebSocket close-code and borrowed-transport behavior is preserved.",
+        "Strict VM supports the new Process operations through explicit effect dispatch; unsupported generated/platform paths fail visibly."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Regression evidence and independent evaluation",
+      "estimated_loc": 750,
+      "actual_loc": null,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Both original host-exit leak reproductions pass with exact PID/reaping evidence on the sprint build.",
+        "Provider-free blocking AI/effect, descendant, bystander, admission-race, 20-worker deadline and repeated-run resource controls pass.",
+        "Design conflict fixtures, examples/manifest, goldens, relevant race/PTy tests, full tests, lint, formatting, file sizes and architecture boundaries pass.",
+        "Independent evaluator reports a passing verdict; artifacts, changelog, documentation and release/consumer handoff are complete; no push or release is performed."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process/terminal; inspected external_backend 0.2.0 and terminal_ui 0.2.0. This milestone requires core runtime ownership; reuse internal/proctree and existing effect/host APIs."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process/terminal; inspected external_backend 0.2.0 and terminal_ui 0.2.0. This milestone requires core runtime ownership; reuse internal/proctree and existing effect/host APIs."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process/terminal; inspected external_backend 0.2.0 and terminal_ui 0.2.0. This milestone requires core runtime ownership; reuse internal/proctree and existing effect/host APIs."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process/terminal; inspected external_backend 0.2.0 and terminal_ui 0.2.0. This milestone requires core runtime ownership; reuse internal/proctree and existing effect/host APIs."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process/terminal; inspected external_backend 0.2.0 and terminal_ui 0.2.0. This milestone requires core runtime ownership; reuse internal/proctree and existing effect/host APIs."
+    }
+  ],
+  "last_session": "2026-10-10T17:06:50.131928+00:00",
+  "last_checkpoint": null,
+  "delivery_gate": "Official released-runtime consumer retest pending future push/release."
+}

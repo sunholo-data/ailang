@@ -1,6 +1,6 @@
 # M-BACKGROUND-WORKER-LIFECYCLE: Owned Subprocess Shutdown and Cancellation
 
-**Status**: Planned — awaiting design approval; implementation has not begun
+**Status**: Approved — user approved sprint planning and execution on 2026-10-10
 
 **Target**: Next supporting release after approval; version TBD (source baseline v0.54.1)
 
@@ -96,11 +96,11 @@ Canonical reference: [Design Axioms](../../docs/docs/references/axioms.mdx).
 
 Before implementation, design approval must explicitly settle these proposals:
 
-- [ ] Approve the owner lifetimes and borrowed-resource rules below, including engine initialization ownership.
-- [ ] Approve `cancelProcess` and `cancelProcessSource`, their typed errors, and removal of completed handles without an unbounded receipt cache.
-- [ ] Approve POSIX full-tree support and the explicit Windows/WASM unsupported cancellation result.
-- [ ] Approve fresh ownership for independent request forks and shared ownership for budget views.
-- [ ] Approve the 2-second total deadline and 250 ms cooperative drain policy.
+- [x] Approve the owner lifetimes and borrowed-resource rules below, including engine initialization ownership.
+- [x] Approve `cancelProcess` and `cancelProcessSource`, their typed errors, and removal of completed handles without an unbounded receipt cache.
+- [x] Approve POSIX full-tree support and the explicit Windows/WASM unsupported cancellation result.
+- [x] Approve fresh ownership for independent request forks and shared ownership for budget views.
+- [x] Approve the 2-second total deadline and 250 ms cooperative drain policy.
 
 These are review choices, not remaining research prerequisites. Once approved, the implementer may resolve the internal choices in Deferred Decisions without another approval cycle.
 
@@ -300,4 +300,4 @@ This work does not add a general concurrency scheduler, CSP syntax, detached-wor
 
 The largest compatibility risks are buffered stdin shutdown, source output/Wait ordering, persistent embed/REPL lifetimes, and terminal signal reentrancy. They are explicit acceptance gates rather than incidental cleanup details. Platform support must remain truthful, and a deadline failure must not be hidden by a normal host exit.
 
-The authorized deliverable is this design document. Runtime changes require design approval, a sprint plan, an explicit execute instruction, and independent sprint evaluation. No runtime implementation, message acknowledgment, GitHub issue creation, or release is included in this design task.
+The user approved this design, sprint planning, and execution on 2026-10-10. Runtime implementation and independent sprint evaluation are authorized. Keep the work local until the fix passes its gates; pushing to dev and publishing a supporting release follow the user's next delivery instruction. The official-release consumer retest remains a delivery gate after that release, not a claim about the local sprint build.
