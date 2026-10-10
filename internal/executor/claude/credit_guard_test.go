@@ -50,6 +50,33 @@ func TestCreditHeadersPreserveSignatureAcrossCloudRunIAM(t *testing.T) {
 	}
 }
 
+func TestGuardedClaudeEnvironmentRejectsInheritedProviderRoutes(t *testing.T) {
+	blocked := []string{
+		"CLAUDE_CODE_USE_ANTHROPIC_AWS", "CLAUDE_CODE_USE_ANTHROPIC_GOOGLE_CLOUD", "CLAUDE_CODE_USE_MANTLE", "CLAUDE_CODE_USE_GATEWAY", "CLAUDE_CODE_USE_FUTURE_PROVIDER",
+		"ANTHROPIC_AWS_BASE_URL", "ANTHROPIC_GOOGLE_CLOUD_BASE_URL", "ANTHROPIC_BEDROCK_MANTLE_BASE_URL", "ANTHROPIC_UNIX_SOCKET", "ANTHROPIC_FUTURE_TRANSPORT",
+		"CLAUDE_CODE_SKIP_AWS_AUTH", "_CLAUDE_CODE_ASSUME_FIRST_PARTY_BASE_URL", "CLAUDE_CODE_API_BASE_URL",
+		"CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST", "CLAUDE_CODE_HOST_GATEWAY_LINEAGE", "CLAUDE_CODE_HOST_CREDS_FILE", "CLAUDE_CODE_HOST_AUTH_ENV_VAR", "CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH", "CLAUDE_CODE_GATEWAY_TOKEN_FILE_DESCRIPTOR", "CLAUDE_CODE_GATEWAY_HINT_HEADERS",
+		"CLAUDE_CONFIG_DIR", "CLAUDE_CODE_SETTINGS_PATH", "CLAUDE_CODE_OAUTH_TOKEN_HELPER", "ANTHROPIC_CUSTOM_HEADERS",
+	}
+	inherited := []string{"ANTHROPIC_API_KEY=capability", "HOME=/tmp/task", "PATH=/usr/bin", "CLAUDE_CODE_ENABLE_TELEMETRY=1"}
+	for _, name := range blocked {
+		inherited = append(inherited, name+"=inherited-route")
+	}
+	values := map[string]string{}
+	for _, entry := range guardCreditChildEnvironment(inherited, "https://gateway") {
+		name, value, _ := strings.Cut(entry, "=")
+		values[name] = value
+	}
+	for _, name := range blocked {
+		if _, present := values[name]; present {
+			t.Errorf("inherited route/config selector survived: %s", name)
+		}
+	}
+	if values["ANTHROPIC_API_KEY"] != "capability" || values["ANTHROPIC_BASE_URL"] != "https://gateway" || values["CLAUDE_CODE_SIMULATE_PROXY_USAGE"] != "1" || values["HOME"] != "/tmp/task" || values["CLAUDE_CODE_ENABLE_TELEMETRY"] != "1" {
+		t.Fatal("guard lost scoped gateway, compatibility, or harness environment")
+	}
+}
+
 func TestGuardedClaudeDisablesUnreviewedBillableDiscovery(t *testing.T) {
 	env := guardCreditChildEnvironment([]string{"ENABLE_TOOL_SEARCH=true", "CLAUDE_CODE_AUTO_MODE_SERVER=1", "CLAUDE_CODE_SIMULATE_PROXY_USAGE=0"}, "https://gateway")
 	values := map[string]string{}

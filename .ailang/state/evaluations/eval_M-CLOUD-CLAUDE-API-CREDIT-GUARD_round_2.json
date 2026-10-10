@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-CLOUD-CLAUDE-API-CREDIT-GUARD",
   "evaluation_round": 2,
-  "timestamp": "2026-10-10T08:13:32.903413+00:00",
+  "timestamp": "2026-10-10T08:50:40.745023+00:00",
   "design_doc": "design_docs/planned/m-cloud-claude-api-credit-guard.md",
   "sprint_plan": "design_docs/planned/m-cloud-claude-api-credit-guard-sprint-plan.md",
   "total_score": 91,
@@ -9,7 +9,7 @@
   "result": "FAIL",
   "implementation_result": "PASS",
   "implementation_score": 91,
-  "evaluation_scope": "Independent local review of M0-M5 including beta-free installed CLI compatibility and the corrected composed registry budget mapping. Complete sprint/activation remain pending M6 and final new-head CI.",
+  "evaluation_scope": "Independent local review of M0-M5 including beta-free installed CLI compatibility, corrected composed registry budget mapping, and conservative inherited provider/host routing namespace filtering. Full sprint/activation remain pending M6 and final-head CI.",
   "full_sprint_complete": false,
   "activation_result": "BLOCKED",
   "gate_source": "local",
@@ -44,7 +44,7 @@
     "cli_output": "/private/tmp/claude-credit-cli-tool-contract.log",
     "ci_pass": null,
     "coverage_pct": null,
-    "note": "Evaluator inspected supplied final logs and source independently; did not rerun full gates. Final continued suite contains 46,335 lines with no FAIL markers, lint reports zero issues, and complete gateway/executor race packages pass. Earlier unrestricted process-start fixture failure and isolated recheck are retained as prior evidence, not the final gate. Subsequent scoped registry-budget fix was independently reviewed and complete coordinator/dispatch/executor race plus fresh lint logs inspected; final new-head CI is required, not inferred from earlier suite or pre-fix PR checks.",
+    "note": "Evaluator inspected supplied final logs and source independently; did not rerun full gates. Final continued suite contains 46,335 lines with no FAIL markers, lint reports zero issues, and complete gateway/executor race packages pass. Earlier unrestricted process-start fixture failure and isolated recheck are retained as prior evidence, not the final gate. Subsequent scoped registry-budget fix was independently reviewed and complete coordinator/dispatch/executor race plus fresh lint logs inspected; final new-head CI is required, not inferred from earlier suite or pre-fix PR checks. Subsequent provider/host routing namespace fix was independently reviewed at the actual post-BuildEnvironment call site. Complete Claude executor/gateway race, zero-issue lint and installed fake-only completion/tool-loop logs pass; no new whole-suite execution was performed by evaluator.",
     "default_go_suite_pass": true,
     "tests_note": "All default test cases pass with package concurrency four. Required opt-in actual installed Claude 2.1.295 completion and two-request Bash printf tool-loop contract now also passes; fake upstream only.",
     "coordinator_cli_pass": true,
@@ -77,7 +77,10 @@
     "registry_budget_race_pass": true,
     "registry_budget_race_output": "/private/tmp/claude-credit-registry-budget-race.log",
     "latest_lint_clean": true,
-    "latest_lint_output": "/private/tmp/claude-credit-registry-budget-lint.log"
+    "latest_lint_output": "/private/tmp/claude-credit-route-lint.log",
+    "route_guard_pass": true,
+    "route_guard_race_output": "/private/tmp/claude-credit-route-green.log",
+    "latest_claude_cli_protocol_output": "/private/tmp/claude-credit-route-cli-smoke.log"
   },
   "acceptance_criteria": [
     {
@@ -348,6 +351,18 @@
         "/private/tmp/claude-credit-registry-budget-race.log",
         "/private/tmp/claude-credit-registry-budget-lint.log"
       ]
+    },
+    {
+      "file": "internal/executor/claude/credit_guard.go",
+      "line": 52,
+      "issue": "Removing only the older Vertex/Bedrock/Foundry provider selectors left modern provider, host gateway credential descriptors, alternate base URLs and Unix socket routing controls inherited into guarded jobs.",
+      "status": "resolved_locally",
+      "resolution": "Allowlist inherited ANTHROPIC_*, CLAUDE_* and _CLAUDE_* namespaces to scoped API task capability and harness telemetry only, then force reviewed gateway/model/compatibility controls. Trusted signed identity headers are appended after filtering. Regression rejects observed modern/host/config/descriptor/socket selectors and unknown future provider/transport names. Managed policy on disk remains authoritative; incompatible settings must block startup and image/canary verification remains M6.",
+      "evidence": [
+        "/private/tmp/claude-credit-route-green.log",
+        "/private/tmp/claude-credit-route-lint.log",
+        "/private/tmp/claude-credit-route-cli-smoke.log"
+      ]
     }
   ],
   "implementation_issues": [],
@@ -356,6 +371,7 @@
     "Private credit authority, gateway and dedicated guarded jobs are not provisioned/deployed. Review and verify immutable source-release image digests, the reviewed CLI artifact/version and infrastructure release integration before enabling any canary.",
     "Broad runtime and inherited folder secret-reader IAM grants remain documented. Scoped IAM change and isolated authority deployment require review and read-only verification; executors/coordinators must not obtain provider key or direct ledger-write authority.",
     "Live paired Google token transport, actual deployed executor protocol, aggregate reserved $5 canary, Anthropic billing-category reconciliation and rollback observations have not run.",
+    "Verify effective managed settings in the immutable job image/workspace. Managed host-gateway policy stored on disk remains authoritative; inherited environment filtering does not bypass it and incompatible policy must block startup.",
     "Required CI on the final PR head is pending. This report uses final supplied local gates; it does not substitute them for the required PR CI."
   ],
   "feedback": [
@@ -367,7 +383,7 @@
       "suggestion": "Keep the lane disabled and sprint in progress. Complete reviewed isolation/IAM and immutable image release, verified provider grant identity/allocation, required final-head CI, then a reserved aggregate $5 canary and provider billing reconciliation. Do not reset spending on confirmation or promotion."
     }
   ],
-  "notes": "No remaining implementation defect found in reviewed continuation. Actual CLI beta-free completion/tool loop and default/lint/race gates now pass; prior automatic-review rejection and round-1 failure remain preserved. The switch is an inspected, undocumented client implementation setting, not a provider promise; pin the image/CLI and rerun fake-only contract on upgrades. Narrow gateway validation remains the safety boundary if client behavior changes. M4/M5 restoration uses local composed evidence; provider-backed canary, real identity and billing evidence are still required. Evaluator changed only this new round-2 report, ran no full gates, made no cloud mutations and consumed no provider credits. Supplemental review identified the composed budget gap after draft PR creation. Local readiness is temporarily withdrawn; root owns the scoped budget fix. No evaluator implementation edits or new local test runs occurred. Scoped registry-budget integration is now resolved locally and readiness is restored after independent source/log inspection. The pre-budget PR head 3616ecc CI remains historical; final new-head CI is still pending. No new whole-suite rerun was performed by evaluator.",
+  "notes": "No remaining implementation defect found in reviewed continuation. Actual CLI beta-free completion/tool loop and default/lint/race gates now pass; prior automatic-review rejection and round-1 failure remain preserved. The switch is an inspected, undocumented client implementation setting, not a provider promise; pin the image/CLI and rerun fake-only contract on upgrades. Narrow gateway validation remains the safety boundary if client behavior changes. M4/M5 restoration uses local composed evidence; provider-backed canary, real identity and billing evidence are still required. Evaluator changed only this new round-2 report, ran no full gates, made no cloud mutations and consumed no provider credits. Supplemental review identified the composed budget gap after draft PR creation. Local readiness is temporarily withdrawn; root owns the scoped budget fix. No evaluator implementation edits or new local test runs occurred. Scoped registry-budget integration is now resolved locally and readiness is restored after independent source/log inspection. The pre-budget PR head 3616ecc CI remains historical; final new-head CI is still pending. No new whole-suite rerun was performed by evaluator. Supplemental provider-route review now resolves modern alternate provider and host gateway inheritance locally without broadening beta or pricing capabilities. Effective managed disk settings remain a deployed-image/canary gate. Current local implementation score stays 91; full sprint remains FAIL/deferred and activation BLOCKED.",
   "assessment_history": [
     {
       "round": 1,
@@ -394,6 +410,13 @@
       "score": 87,
       "implementation_result": "FAIL_RESOLVED_LOCALLY",
       "reason": "Interim composed registry budget failure resolved by explicit account-scoped limit after provider budget loading. YAML admission, zero-token invalid-limit, legacy-budget tests and coordinator/dispatch/executor race pass."
+    },
+    {
+      "round": 2,
+      "score": 91,
+      "implementation_result": "PASS_AFTER_PROVIDER_ROUTE_ISOLATION_FIX",
+      "full_sprint_result": "FAIL",
+      "reason": "Supplemental installed artifact inspection found newer provider/host routing selectors outside the original removal list. Conservative namespace allowlist fixes inherited route isolation; focused complete executor/gateway race, lint and real installed fake-only CLI contract pass. Final-head CI and M6 remain incomplete."
     }
   ],
   "approval_review": {
@@ -420,7 +443,20 @@
     "admitted_addition": "role:system string or text blocks with existing validated cache_control only",
     "provider_contract_source": "https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages",
     "provider_contract_observation": "Haiku 5.5 supports standard mid-conversation system messages without beta headers; tool changes, clear_at and per-message output controls require separate betas and remain rejected. Standard text uses ordinary input/cache accounting.",
-    "scope_limit": "Opt-in smoke uses actual CLI with synthetic capability, stub job identity and fake provider. It proves request/response/tool-loop compatibility and ledger behavior locally, not real billing or cloud Google authentication."
+    "scope_limit": "Opt-in smoke uses actual CLI with synthetic capability, stub job identity and fake provider. It proves request/response/tool-loop compatibility and ledger behavior locally, not real billing or cloud Google authentication.",
+    "provider_routing_boundary": {
+      "namespaces": [
+        "ANTHROPIC_*",
+        "CLAUDE_*",
+        "_CLAUDE_*"
+      ],
+      "inherited_allowlist": [
+        "ANTHROPIC_API_KEY",
+        "CLAUDE_CODE_ENABLE_TELEMETRY"
+      ],
+      "enforcement_order": "after shared BuildEnvironment; forced gateway/model/compatibility then trusted Google identity headers",
+      "managed_policy_scope": "Disk managed settings remain authoritative; effective incompatible host-gateway policy must block startup and is not bypassed."
+    }
   },
   "financial_invariant_review": {
     "hard_cap_preserved": true,
@@ -438,8 +474,8 @@
     "internal/claudegateway/request.go": "397090f28ee65b3f9665b6f8d316e21b1a1f297e64f58da9d42d3731ce6d71b5",
     "internal/claudegateway/system_contract_test.go": "0316cbb991e9556f7277d87937df45d65b2c0564744c54174229faa6adf1dc62",
     "internal/claudegateway/cli_smoke_test.go": "9c12a066aa4a8c0f58a811be6d437a53fd9021023d96298e933eb8c743230831",
-    "internal/executor/claude/credit_guard.go": "7786d2ffd142dd5b8912ae8a9cf5500661c1dba055a571e26b93fddfa0c0aab8",
-    "internal/executor/claude/credit_guard_test.go": "b108826add017dad814c76fb68d626ae35eabdbc7b5b43d11690f84777f5ee90",
+    "internal/executor/claude/credit_guard.go": "5e197bcb0c0f9845ff2800ef6ca848996a68a7ceb5f387f3adc65d55f265da0e",
+    "internal/executor/claude/credit_guard_test.go": "6cf80d773f9d8266826a974b164feb331b697ca2f601dcfaca69cbaf632d6a9a",
     "internal/coordinator/agent_registry.go": "7462f75b1866614a6a3dea60bfbdaf91b7d88e9f280227df1487320fe32d54e7",
     "internal/coordinator/cloud_credit.go": "9ec91507c733d9caed40203a662617679d2207b119c4a21132fb3171c4366d54",
     "internal/coordinator/daemon_tasks_exec.go": "0c6bfa4a0fee91b17fb650a7888a8f78d5010c100650292825f5214f682b0722",
@@ -449,8 +485,8 @@
     "pr": 1755,
     "url": "https://github.com/sunholo-data/ailang/pull/1755",
     "head_sha": "3616ecc72340158c8183484cfacecdc093b0e019",
-    "status": "historical_pending_pre_budget_fix; new-head CI pending",
+    "status": "historical_pre_route_fix_heads; final post-route-fix CI pending",
     "log": "/private/tmp/claude-credit-pr1755-ci-gate.log",
-    "note": "Five pre-budget checks remain pending with no reported failures as of 08:12:47Z. Root will push the mapped scoped-budget fix and provide new SHA for final gate; this report does not claim that head is CI-green."
+    "note": "Pre-route-fix head 42bc80b failed generated architecture freshness and was corrected by root. Head 56c54b has macOS CI failure under investigation and is to be superseded by the reviewed route-filter commit. No final CI pass is claimed; canonical checkpoint owns current SHA/verdict."
   }
 }

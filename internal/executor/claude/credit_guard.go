@@ -49,11 +49,17 @@ func guardCreditChildEnvironment(env []string, gateway string) []string {
 	// body fields if a later CLI changes this behavior. See the recorded CLI
 	// contract; no undocumented provider capability is forwarded or priced.
 	forced := map[string]string{"ANTHROPIC_BASE_URL": gateway, "ANTHROPIC_MODEL": modelreg.ClaudeCreditModel, "ANTHROPIC_DEFAULT_HAIKU_MODEL": modelreg.ClaudeCreditModel, "ANTHROPIC_DEFAULT_SONNET_MODEL": modelreg.ClaudeCreditModel, "ANTHROPIC_DEFAULT_OPUS_MODEL": modelreg.ClaudeCreditModel, "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "ENABLE_TOOL_SEARCH": "false", "CLAUDE_CODE_AUTO_MODE_SERVER": "0", "CLAUDE_CODE_SIMULATE_PROXY_USAGE": "1"}
-	remove := map[string]bool{"CLAUDE_CODE_OAUTH_TOKEN": true, "CLAUDE_CODE_OAUTH_TOKEN_HELPER": true, "ANTHROPIC_AUTH_TOKEN": true, "ANTHROPIC_CUSTOM_HEADERS": true, "CLAUDE_CODE_USE_VERTEX": true, "CLAUDE_CODE_USE_BEDROCK": true, "CLAUDE_CODE_USE_FOUNDRY": true}
 	result := make([]string, 0, len(env)+len(forced))
 	for _, v := range env {
 		name, _, _ := strings.Cut(v, "=")
-		if remove[name] {
+		// Provider/host routing controls change between CLI releases. Admit only
+		// the task capability and harness telemetry from these namespaces, then
+		// install our own route and signed identity headers. This also removes
+		// alternate config directories, sockets and host credential descriptors.
+		// Managed policy on disk remains authoritative; incompatible policy must
+		// fail startup and be resolved during image/canary review, not bypassed.
+		providerConfig := strings.HasPrefix(name, "ANTHROPIC_") || strings.HasPrefix(name, "CLAUDE_") || strings.HasPrefix(name, "_CLAUDE_")
+		if providerConfig && name != "ANTHROPIC_API_KEY" && name != "CLAUDE_CODE_ENABLE_TELEMETRY" {
 			continue
 		}
 		if _, overridden := forced[name]; overridden {

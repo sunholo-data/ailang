@@ -24,6 +24,14 @@ The switch is not an authentication or spend-control mechanism. The inspected us
 
 The switch is undocumented in the reviewed public gateway guide. The artifact proves current client implementation, not a provider promise for future releases. Pin and record the cloud client version/artifact, rerun the fake-only protocol test before an upgrade, and fail closed if a new client ignores the setting or sends unreviewed fields.
 
+## Provider-route environment boundary
+
+The same installed artifact supports newer provider selectors (`CLAUDE_CODE_USE_ANTHROPIC_AWS`, `CLAUDE_CODE_USE_ANTHROPIC_GOOGLE_CLOUD`, `CLAUDE_CODE_USE_MANTLE`, `CLAUDE_CODE_USE_GATEWAY`) in addition to Vertex, Bedrock and Foundry. Host gateway/authentication descriptors, alternate API base URLs and `ANTHROPIC_UNIX_SOCKET` also influence routing. Removing only the three older selectors was insufficient.
+
+For guarded jobs, inherited `ANTHROPIC_*`, `CLAUDE_*` and `_CLAUDE_*` controls are now denied except for the scoped task capability (`ANTHROPIC_API_KEY`) and harness telemetry (`CLAUDE_CODE_ENABLE_TELEMETRY`). The executor then installs the reviewed gateway/model/compatibility controls and obtains signed job identity headers. Regression tests include the observed host/provider/configuration/descriptor/socket inputs and unknown future provider/transport names. Ordinary executors retain their existing environment contract.
+
+This boundary does not override managed policy stored on disk. An image or workspace requiring host-gateway authentication is incompatible with this lane and must fail startup; image review and the deployed canary must verify the effective settings. No enterprise-policy bypass is added.
+
 ## Documented system-message subset and cost bound
 
 Anthropic documents ordinary mid-conversation `role: "system"` messages for Haiku 5.5 without a beta header. Admit only plain text/string content or text blocks with reviewed ordinary `cache_control`. Reject `clear_at`, per-message `output_config`, tool additions/removals and other extensions. Those are separately documented beta capabilities. Preserve admitted content and cache markers unchanged. See [mid-conversation system messages](https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages).
