@@ -112,6 +112,38 @@ have "messages -> refused (no schema)"               '! cli_ok "{\"op\":\"messag
 have "fmt ../../etc/x -> refused (leaves the sandbox)" '! cli_ok "{\"op\":\"fmt\",\"path\":\"../../etc/x\"}"'
 have "read outside the sandbox -> refused"           '! cli_ok "{\"op\":\"read\",\"path\":\"/etc/passwd\"}"'
 
+echo "=== 9. website build and browser tools work as the runtime user ==="
+have "acceptance runs without root" '[ "$(id -u)" -ne 0 ]'
+have "python build entry point parses YAML" 'python -c '\''import yaml; assert yaml.safe_load("slides: [one, two]")["slides"] == ["one", "two"]'\'''
+have "workspace venv has pip without root or network" 'python3 -m venv "$OUT/venv" && "$OUT/venv/bin/python" -m pip --version'
+have "Puppeteer uses the installed browser" '[ "$PUPPETEER_EXECUTABLE_PATH" = /usr/bin/chromium ] && [ "$PUPPETEER_SKIP_DOWNLOAD" = true ] && [ -x "$PUPPETEER_EXECUTABLE_PATH" ]'
+# A real launch, not just --version: execute page JS, render an image and print
+# a PDF without external resources or credentials. Executor containers do not
+# request sandbox privileges; --no-sandbox is explicit, never image-wide.
+cat > "$OUT/browser.html" <<'HTML'
+<!doctype html><html><body><script>document.body.textContent = 'AILANG_BROWSER_JS_OK';</script></body></html>
+HTML
+browser_probe() {
+  timeout 45s "$PUPPETEER_EXECUTABLE_PATH" --headless --no-sandbox \
+    --disable-dev-shm-usage --no-first-run --no-default-browser-check \
+    --user-data-dir="$OUT/chromium-profile" --window-size=1920,1080 \
+    "$@" "file://$OUT/browser.html" > "$OUT/browser-dom.txt" 2> "$OUT/browser-error.txt"
+}
+browser_dom_probe() {
+  browser_probe --dump-dom || { cat "$OUT/browser-error.txt" >&2; return 1; }
+  # HTML parsing can leave trailing whitespace after the inline script. Match
+  # the rendered body text, not its incidental serialization whitespace.
+  python3 - "$OUT/browser-dom.txt" <<'PY' || { cat "$OUT/browser-dom.txt" >&2; return 1; }
+import pathlib, re, sys
+dom = pathlib.Path(sys.argv[1]).read_text()
+assert re.search(r"<body>AILANG_BROWSER_JS_OK\s*</body>", dom), dom
+PY
+}
+have "Chromium launches and executes page JavaScript" 'browser_dom_probe'
+have "Chromium renders a PNG" 'browser_probe --screenshot="$OUT/browser.png" && python3 -c '\''import pathlib; assert pathlib.Path("'"$OUT"'/browser.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")'\'''
+have "Chromium prints a PDF" 'browser_probe --print-to-pdf="$OUT/browser.pdf" && python3 -c '\''import pathlib; assert pathlib.Path("'"$OUT"'/browser.pdf").read_bytes().startswith(b"%PDF-")'\'''
+if [ "$fail" -ne 0 ] && [ -f "$OUT/browser-error.txt" ]; then cat "$OUT/browser-error.txt" >&2; fi
+
 echo
 echo "passed: $pass  failed: $fail"
 [ "$fail" -eq 0 ]
