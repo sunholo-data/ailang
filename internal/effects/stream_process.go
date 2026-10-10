@@ -25,6 +25,7 @@ type processSource struct {
 	readerDone chan struct{}
 	once       sync.Once
 	groupOnce  sync.Once
+	killGroup  func(int) error
 	cmd        *exec.Cmd
 	stdout     *os.File
 	cancel     context.CancelFunc
@@ -36,6 +37,10 @@ type processSource struct {
 // NewProcessSource starts one owned process group and one Wait goroutine.
 // A private pipe keeps Wait from closing stdout before its final bytes drain.
 func NewProcessSource(parentCtx context.Context, cmdPath string, args []string, name string, priority int, chunkSize int) (EventSource, error) {
+	return newProcessSource(parentCtx, cmdPath, args, name, priority, chunkSize, proctree.KillGroup)
+}
+
+func newProcessSource(parentCtx context.Context, cmdPath string, args []string, name string, priority int, chunkSize int, killGroup func(int) error) (EventSource, error) {
 	if chunkSize <= 0 {
 		return nil, fmt.Errorf("chunkSize must be positive, got %d", chunkSize)
 	}
@@ -50,10 +55,10 @@ func NewProcessSource(parentCtx context.Context, cmdPath string, args []string, 
 	ps := &processSource{
 		name: name, priority: priority, ch: make(chan streamEvent, 100),
 		done: make(chan struct{}), completed: make(chan struct{}), readerDone: make(chan struct{}),
-		cmd: cmd, stdout: stdout, cancel: cancel,
+		cmd: cmd, stdout: stdout, cancel: cancel, killGroup: killGroup,
 	}
 	cmd.Stdout = childStdout
-	cmd.Cancel = ps.RequestStop // checked termination; never discard a kill error
+	cmd.Cancel = ps.RequestStop // raw termination errors remain owned until checked Join
 	if err := cmd.Start(); err != nil {
 		_ = stdout.Close()
 		_ = childStdout.Close()
@@ -83,7 +88,7 @@ func (ps *processSource) RequestStop() error {
 	})
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-	return ps.stopErr
+	return immediateWorkerStopError(ps.stopErr)
 }
 
 // finishGroup performs one checked termination attempt shared by context
@@ -92,7 +97,7 @@ func (ps *processSource) finishGroup(natural bool) {
 	ps.groupOnce.Do(func() {
 		var err error
 		if WorkerCancellationSupported() {
-			err = proctree.KillGroup(ps.cmd.Process.Pid)
+			err = ps.killGroup(ps.cmd.Process.Pid)
 		} else if !natural {
 			err = ps.cmd.Process.Kill()
 			if errors.Is(err, os.ErrProcessDone) {
@@ -111,7 +116,7 @@ func (ps *processSource) Join(ctx context.Context) error {
 	case <-ps.completed:
 		ps.mu.Lock()
 		defer ps.mu.Unlock()
-		return errors.Join(ps.stopErr, ps.joinErr)
+		return errors.Join(proctree.ResolveGroupError(ps.cmd.Process.Pid, ps.stopErr), ps.joinErr)
 	case <-ctx.Done():
 		return ctx.Err()
 	}

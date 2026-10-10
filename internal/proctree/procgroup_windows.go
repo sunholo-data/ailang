@@ -19,3 +19,5 @@ func killProcess(pid int) error {
 	}
 	return process.Kill()
 }
+
+func resolveGroupError(_ int, err error) error { return err }

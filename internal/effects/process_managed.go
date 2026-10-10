@@ -38,6 +38,10 @@ type managedProcess struct {
 }
 
 func NewManagedProcess(parentCtx context.Context, cmdPath string, args []string) (*managedProcess, error) {
+	return newManagedProcess(parentCtx, cmdPath, args, proctree.KillGroup)
+}
+
+func newManagedProcess(parentCtx context.Context, cmdPath string, args []string, killGroup func(int) error) (*managedProcess, error) {
 	if parentCtx == nil {
 		parentCtx = context.Background()
 	}
@@ -51,7 +55,7 @@ func NewManagedProcess(parentCtx context.Context, cmdPath string, args []string)
 	kill := func() error {
 		killOnce.Do(func() {
 			if WorkerCancellationSupported() {
-				killErr = proctree.KillGroup(cmd.Process.Pid)
+				killErr = killGroup(cmd.Process.Pid)
 			} else {
 				killErr = cmd.Process.Kill()
 				if errors.Is(killErr, os.ErrProcessDone) {
@@ -61,7 +65,7 @@ func NewManagedProcess(parentCtx context.Context, cmdPath string, args []string)
 		})
 		return killErr
 	}
-	cmd.Cancel = kill
+	cmd.Cancel = func() error { return immediateWorkerStopError(kill()) }
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		cancel()
@@ -131,7 +135,7 @@ func (mp *managedProcess) RequestStop() error {
 	})
 	mp.stopMu.Lock()
 	defer mp.stopMu.Unlock()
-	return mp.stopErr
+	return immediateWorkerStopError(mp.stopErr)
 }
 
 // Join waits for the sole command waiter and owned writer, bounded by ctx.
@@ -148,7 +152,7 @@ func (mp *managedProcess) Join(ctx context.Context) error {
 		}
 		mp.stopMu.Lock()
 		defer mp.stopMu.Unlock()
-		return errors.Join(mp.stopErr, writeErr)
+		return errors.Join(proctree.ResolveGroupError(mp.cmd.Process.Pid, mp.stopErr), writeErr)
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -231,3 +235,13 @@ func (mp *managedProcess) waitLoop() {
 
 // Compile-time ownership interface check also catches accidental missing joins.
 var _ OwnedWorker = (*managedProcess)(nil)
+
+// A POSIX permission error can mean a zombie-only group on Darwin. The signal
+// phase retains that raw error, but defers its verdict to Join after Wait and
+// owned I/O complete. All other errors remain immediate; Join always checks.
+func immediateWorkerStopError(err error) error {
+	if WorkerCancellationSupported() && err == syscall.EPERM {
+		return nil
+	}
+	return err
+}

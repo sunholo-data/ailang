@@ -84,7 +84,23 @@ func newWSFixture(t testing.TB, cfg Config, upstream string, configure func(*eff
 		t.Fatalf("ValidateWSRoutes: %v", err)
 	}
 	ts := httptest.NewServer(srv.buildRoutes())
-	t.Cleanup(ts.Close)
+	t.Cleanup(func() {
+		ts.Close()
+		// httptest.Close does not join hijacked WebSockets. Wait for each
+		// admitted route handler before Server.Close and TempDir cleanup;
+		// handlers may still be compiling and writing the project cache.
+		// Closing a transport may leave its event loop waiting for the
+		// configured idle/max timer; allow that existing bound to expire.
+		deadline := time.Now().Add(eff.Stream.MaxDuration + 5*time.Second)
+		for len(srv.ws.sem) > 0 {
+			srv.closeWSSessions()
+			if time.Now().After(deadline) {
+				t.Errorf("WS fixture handlers did not finish before cleanup: %d", len(srv.ws.sem))
+				break
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	})
 	return &wsFixture{srv: srv, http: ts, eff: eff}
 }
 

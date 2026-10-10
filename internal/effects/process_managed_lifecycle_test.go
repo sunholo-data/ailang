@@ -41,7 +41,7 @@ func TestManagedHelperProcess(t *testing.T) {
 		}
 		os.Exit(0)
 	}
-	if mode == "tree" {
+	if mode == "tree" || mode == "tree_exit" {
 		executable, err := os.Executable()
 		if err != nil {
 			os.Exit(3)
@@ -52,6 +52,18 @@ func TestManagedHelperProcess(t *testing.T) {
 		}
 		if err := os.WriteFile(path, []byte(strconv.Itoa(child.Process.Pid)), 0600); err != nil {
 			os.Exit(3)
+		}
+		if mode == "tree_exit" {
+			deadline := time.Now().Add(3 * time.Second)
+			for {
+				if _, err := os.Stat(path + ".child.ready"); err == nil {
+					os.Exit(0)
+				}
+				if time.Now().After(deadline) {
+					os.Exit(3)
+				}
+				time.Sleep(time.Millisecond)
+			}
 		}
 	}
 	if err := os.WriteFile(path+".ready", []byte("started"), 0600); err != nil {
