@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -125,6 +127,12 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 
 	// M-CLOUD-PROGRESS-TRACKING M3: Parse per-task cost budget from env var.
 	var maxCostUSD float64
+	if config.ClaudeCreditAccount() != "" {
+		parsed, err := strconv.ParseFloat(config.MaxCostUSD(), 64)
+		if err != nil || math.IsNaN(parsed) || math.IsInf(parsed, 0) || parsed < 0.000001 || parsed > 2 {
+			return nil, fmt.Errorf("credit budget blocked: invalid AILANG_MAX_COST_USD")
+		}
+	}
 	if maxCostStr := config.MaxCostUSD(); maxCostStr != "" {
 		if parsed, parseErr := fmt.Sscanf(maxCostStr, "%f", &maxCostUSD); parsed != 1 || parseErr != nil {
 			fmt.Fprintf(os.Stderr, "execute-job: invalid AILANG_MAX_COST_USD=%q, ignoring\n", maxCostStr)

@@ -7,6 +7,7 @@ import "strings"
 const (
 	// Supplied by Cloud Run itself: required for auditable credential ownership.
 	EnvCloudRunExecution       = "CLOUD_RUN_EXECUTION"
+	EnvClaudeCreditAccount     = "AILANG_CLAUDE_CREDIT_ACCOUNT"
 	EnvAgentID                 = "AILANG_AGENT_ID"
 	EnvMaxCostUSD              = "AILANG_MAX_COST_USD"
 	EnvCascadeRootPackage      = "AILANG_CASCADE_ROOT_PACKAGE"
@@ -57,10 +58,11 @@ const (
 const DefaultJobBranch = "dev"
 
 var jobVars = []Var{
+	{EnvClaudeCreditAccount, "", AreaJob, "Explicit guarded Claude API-credit lane; anthropic-api-credits requires a gateway capability, HTTPS origin, pinned Haiku 5.5 and finite positive task budget at most $2."},
 	{EnvTaskInputs, "", AreaJob, "JSON task inputs fetched by the cloud job parent before the executor; malformed values fail the task."},
 	{EnvCloudRunExecution, "", AreaJob, "Cloud Run execution identity supplied by the runtime; required for exclusive subscription credential ownership."},
 	{EnvAgentID, "", AreaJob, "Agent the job runs as; recorded on spans and completions."},
-	{EnvMaxCostUSD, "", AreaJob, "Per-task cost budget in USD; unset or malformed means no cap (malformed is logged and ignored)."},
+	{EnvMaxCostUSD, "", AreaJob, "Per-task cost budget in USD; the guarded Claude credit lane rejects unset/malformed/nonpositive budgets and caps tasks at $2; legacy lanes log and ignore malformed values."},
 	{EnvCascadeRootPackage, "", AreaJob, "Root package of a package cascade; when set the job tries the deterministic bump first and the PR is labelled and titled as a cascade."},
 	{EnvCascadeChangeClass, "", AreaJob, "Change class of the cascade (A content-only, B additive, ...); decides whether the deterministic path applies."},
 	{EnvCascadeToVersion, "", AreaJob, "Version the cascade bumps the dependency to."},
@@ -242,3 +244,5 @@ func TaskInputs() string { return get(EnvTaskInputs) }
 
 // CloudRunExecution returns the execution identity supplied by Cloud Run, empty outside a job.
 func CloudRunExecution() string { return get(EnvCloudRunExecution) }
+
+func ClaudeCreditAccount() string { return get(EnvClaudeCreditAccount) }

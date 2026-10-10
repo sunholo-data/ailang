@@ -71,6 +71,7 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 		}
 	}
 
+	defer releaseJobCreditAttempt()
 	// Read ALL environment variables upfront (before any early returns).
 	taskID := config.TaskID()
 	agentID := config.AgentID()
