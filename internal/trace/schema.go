@@ -130,12 +130,16 @@ type ResolvedRoute struct {
 // nonDeterministicOps maps effect.op pairs that are inherently non-deterministic.
 // Used by the collector to flag effect events for replay tolerance.
 var nonDeterministicOps = map[string]bool{
-	"Clock.now":       true, // Wall clock always varies
-	"Clock.sleep":     true, // Real-time delays vary
-	"IO.readLine":     true, // Depends on stdin
-	"Net.httpGet":     true, // Network responses vary
-	"Net.httpPost":    true, // Network responses vary
-	"Net.httpRequest": true, // Network responses vary
+	"Clock.now":            true, // Wall clock always varies
+	"Clock.sleep":          true, // Real-time delays vary
+	"IO.readLineOpt":       true, // Depends on stdin, preserves exact EOF
+	"IO.terminalInfo":      true, // Configured terminal facts
+	"IO.terminalReadEvent": true, // Native terminal input
+	"IO.withTerminal":      true, // Host scope and callback outcome
+	"IO.readLine":          true, // Depends on stdin
+	"Net.httpGet":          true, // Network responses vary
+	"Net.httpPost":         true, // Network responses vary
+	"Net.httpRequest":      true, // Network responses vary
 }
 
 // IsNonDeterministic returns true if the given effect+op pair is known to produce

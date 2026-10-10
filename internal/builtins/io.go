@@ -121,6 +121,33 @@ func registerIO() {
 		panic(fmt.Sprintf("failed to register _io_readLine: %v", err))
 	}
 
+	// Additive EOF-aware reader; the host shares its buffered reader with readLine.
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/io", Name: "_io_readLineOpt", NumArgs: 1, Effect: "IO",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.Unit()).Returns(T.App("Option", T.String())).Effects("IO")
+		},
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("_io_readLineOpt: expected unit")
+			}
+			if _, ok := args[0].(*eval.UnitValue); !ok {
+				return nil, fmt.Errorf("_io_readLineOpt: expected unit")
+			}
+			return effects.Call(ctx, "IO", "readLineOpt", nil)
+		},
+		Metadata: &BuiltinMetadata{
+			Description: "Read a line, returning None only at EOF",
+			LongDesc:    "Blank lines are Some(\"\"); a final partial line is Some before sticky None. Shares input with readLine.",
+			Returns:     "Option[string]", Since: "v0.54.0", Stability: StabilityStable,
+			Tags: []string{"io", "read", "input", "eof"}, Category: "io",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _io_readLineOpt: %v", err))
+	}
+
 	// _io_exit — terminate process with exit code
 	impl5 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 		return effects.Call(ctx, "IO", "exit", args)

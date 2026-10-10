@@ -98,6 +98,8 @@ const (
 
 	// Sentinel — keep last. Used by tests and disassemblers to bound the
 	// opcode space. Not a real instruction.
+	OpEffectCall // R[A] = host effect builtin B(R[A+1..A+C]) (ABC)
+
 	opCount
 )
 
@@ -173,6 +175,8 @@ func (op OpCode) String() string {
 		return "BUILTIN_TRAP"
 	case OpEffectTrap:
 		return "EFFECT_TRAP"
+	case OpEffectCall:
+		return "EFFECT_CALL"
 	}
 	return fmt.Sprintf("UNKNOWN(%d)", uint8(op))
 }

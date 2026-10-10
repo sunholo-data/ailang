@@ -1,0 +1,22 @@
+module examples/runnable/terminal_info
+import std/terminal (info)
+import std/result (Ok, Err)
+import std/io (println)
+
+-- Physical dimensions are usable only when both measured values are positive.
+pure func validSize(columns: int, rows: int) -> bool ! {}
+ensures { result == (columns > 0 && rows > 0) }
+  tests [
+    ((80, 24), true),
+    ((0, 24), false),
+    ((80, 0), false)
+  ] {
+  columns > 0 && rows > 0
+}
+
+export func main() -> () ! {IO} {
+  match info() {
+    Ok(facts) => println(show(facts)),
+    Err(problem) => println(show(problem))
+  }
+}

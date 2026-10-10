@@ -52,6 +52,9 @@ type EffContext struct {
 	IOReader       io.Reader             // Override for IO effect input (nil = os.Stdin)
 	stdinReader    *bufio.Reader         // Persistent buffered reader for readLine (lazily initialized)
 
+	terminalInput      *terminalInputState // shared across same-execution budget scopes
+	TerminalSignalExit func(int)           // host termination hook; native acquisition requires it
+
 	// M-BUDGET-SCOPING-BUG: re-entrancy guard for budget charging. A single
 	// logical effect op must charge the budget exactly ONCE, but each effect
 	// builtin passes through TWO RequireCapWithBudget call-sites: the runtime
@@ -292,17 +295,18 @@ func NewNetContext() *NetContext {
 func NewEffContext(args []string) *EffContext {
 	env, seedSet := loadEffEnv()
 	ctx := &EffContext{
-		Caps:         make(map[string]Capability),
-		Env:          env,
-		seedSet:      seedSet,            // M-EFFECT-REPLAY-CONTRACTS: seeded-mode gate
-		Clock:        NewClockContext(),  // Initialize monotonic time anchor
-		Net:          NewNetContext(),    // Initialize secure network defaults
-		Secret:       NewSecretContext(), // Initialize Secret resolver (1Password CLI)
-		EnvSnapshot:  captureEnvSnapshot(),
-		EnvAllowlist: nil, // nil = allow all (no restrictions by default)
-		Args:         args,
-		BudgetFrames: NewBudgetFrameStack(), // M-BUDGET-SCOPING-BUG: per-execution frame stack
-		fsRoot:       &fsRootHolder{},       // M-EXECUTOR-POLICY-HARDENING M1: shared sandbox root
+		Caps:          make(map[string]Capability),
+		terminalInput: &terminalInputState{},
+		Env:           env,
+		seedSet:       seedSet,            // M-EFFECT-REPLAY-CONTRACTS: seeded-mode gate
+		Clock:         NewClockContext(),  // Initialize monotonic time anchor
+		Net:           NewNetContext(),    // Initialize secure network defaults
+		Secret:        NewSecretContext(), // Initialize Secret resolver (1Password CLI)
+		EnvSnapshot:   captureEnvSnapshot(),
+		EnvAllowlist:  nil, // nil = allow all (no restrictions by default)
+		Args:          args,
+		BudgetFrames:  NewBudgetFrameStack(), // M-BUDGET-SCOPING-BUG: per-execution frame stack
+		fsRoot:        &fsRootHolder{},       // M-EXECUTOR-POLICY-HARDENING M1: shared sandbox root
 	}
 	// Debug is a ghost effect — always available, no explicit --caps needed
 	ctx.Grant(NewCapability("Debug"))
@@ -464,42 +468,45 @@ func (ctx *EffContext) SetBudget(budget *BudgetContext) {
 // Returns:
 //   - A new EffContext with the specified budget
 func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
+	ctx.inputState()
 	// Shallow copy - share all contexts except Budget
 	return &EffContext{
-		Caps:           ctx.Caps,
-		Env:            ctx.Env,
-		Clock:          ctx.Clock,
-		Net:            ctx.Net,
-		Debug:          ctx.Debug,
-		AI:             ctx.AI,
-		DOM:            ctx.DOM, // M-COG-RUNTIME (v0.21.x): preserve DOM handler across budget scopes
-		Msg:            ctx.Msg, // M-COG-RUNTIME (v0.21.x): preserve Msg handler across budget scopes
-		Cog:            ctx.Cog, // M-COG-RUNTIME-BROWSER (v0.21.x M4): preserve drain queue
-		SharedMem:      ctx.SharedMem,
-		SharedIndex:    ctx.SharedIndex,
-		Contracts:      ctx.Contracts,
-		Stream:         ctx.Stream,
-		Process:        ctx.Process,
-		Budget:         budget,
-		BudgetFrames:   ctx.BudgetFrames,   // M-BUDGET-SCOPING-BUG: SHARE frame stack across budget scopes (per-execution state)
-		BudgetReport:   ctx.BudgetReport,   // Preserve report across budget scopes (M-DX25)
-		DisableBudgets: ctx.DisableBudgets, // Preserve --no-budgets flag
-		EnvSnapshot:    ctx.EnvSnapshot,
-		EnvAllowlist:   ctx.EnvAllowlist,
-		Args:           ctx.Args,
-		Trace:          ctx.Trace,          // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
-		IOWriter:       ctx.IOWriter,       // Preserve IO writer across budget scopes
-		IOReader:       ctx.IOReader,       // Preserve IO reader across budget scopes
-		stdinReader:    ctx.stdinReader,    // Share persistent buffered reader across scopes
-		FnCaller:       ctx.FnCaller,       // Preserve function caller across budget scopes (M-STREAM-BIDI)
-		FnCallerN:      ctx.FnCallerN,      // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
-		GoCtx:          ctx.GoCtx,          // Preserve OTEL trace context across budget scopes
-		SpanWrapper:    ctx.SpanWrapper,    // Preserve OTEL span wrapper across budget scopes
-		randMode:       ctx.randMode,       // M-EFFECT-REPLAY-CONTRACTS: SHARE Rand-mode state across budget scopes (same execution)
-		netScope:       ctx.netScope,       // M-NET-SCOPE-PUBLIC: SHARE the public-scope depth (same execution)
-		seedSet:        ctx.seedSet,        // M-EFFECT-REPLAY-CONTRACTS: preserve AILANG_SEED presence
-		fsRoot:         ctx.fsRoot,         // M-EXECUTOR-POLICY-HARDENING M1: SHARE the sandbox root (owner closes)
-		operatorBudget: ctx.operatorBudget, // M-EXECUTOR-POLICY-HARDENING M4: SHARE the run ceiling
+		Caps:               ctx.Caps,
+		Env:                ctx.Env,
+		Clock:              ctx.Clock,
+		Net:                ctx.Net,
+		Debug:              ctx.Debug,
+		AI:                 ctx.AI,
+		DOM:                ctx.DOM, // M-COG-RUNTIME (v0.21.x): preserve DOM handler across budget scopes
+		Msg:                ctx.Msg, // M-COG-RUNTIME (v0.21.x): preserve Msg handler across budget scopes
+		Cog:                ctx.Cog, // M-COG-RUNTIME-BROWSER (v0.21.x M4): preserve drain queue
+		SharedMem:          ctx.SharedMem,
+		SharedIndex:        ctx.SharedIndex,
+		Contracts:          ctx.Contracts,
+		Stream:             ctx.Stream,
+		Process:            ctx.Process,
+		Budget:             budget,
+		BudgetFrames:       ctx.BudgetFrames,   // M-BUDGET-SCOPING-BUG: SHARE frame stack across budget scopes (per-execution state)
+		BudgetReport:       ctx.BudgetReport,   // Preserve report across budget scopes (M-DX25)
+		DisableBudgets:     ctx.DisableBudgets, // Preserve --no-budgets flag
+		EnvSnapshot:        ctx.EnvSnapshot,
+		EnvAllowlist:       ctx.EnvAllowlist,
+		Args:               ctx.Args,
+		Trace:              ctx.Trace,    // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
+		IOWriter:           ctx.IOWriter, // Preserve IO writer across budget scopes
+		IOReader:           ctx.IOReader, // Preserve IO reader across budget scopes
+		terminalInput:      ctx.terminalInput,
+		TerminalSignalExit: ctx.TerminalSignalExit,
+		stdinReader:        ctx.stdinReader,    // Share persistent buffered reader across scopes
+		FnCaller:           ctx.FnCaller,       // Preserve function caller across budget scopes (M-STREAM-BIDI)
+		FnCallerN:          ctx.FnCallerN,      // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
+		GoCtx:              ctx.GoCtx,          // Preserve OTEL trace context across budget scopes
+		SpanWrapper:        ctx.SpanWrapper,    // Preserve OTEL span wrapper across budget scopes
+		randMode:           ctx.randMode,       // M-EFFECT-REPLAY-CONTRACTS: SHARE Rand-mode state across budget scopes (same execution)
+		netScope:           ctx.netScope,       // M-NET-SCOPE-PUBLIC: SHARE the public-scope depth (same execution)
+		seedSet:            ctx.seedSet,        // M-EFFECT-REPLAY-CONTRACTS: preserve AILANG_SEED presence
+		fsRoot:             ctx.fsRoot,         // M-EXECUTOR-POLICY-HARDENING M1: SHARE the sandbox root (owner closes)
+		operatorBudget:     ctx.operatorBudget, // M-EXECUTOR-POLICY-HARDENING M4: SHARE the run ceiling
 	}
 }
 
@@ -682,14 +689,14 @@ func (ctx *EffContext) FlushIO() error {
 // The reader is lazily initialized and reused across calls, so buffered data
 // is preserved between readLine() invocations.
 func (ctx *EffContext) GetIOReader() *bufio.Reader {
-	if ctx.stdinReader == nil {
-		src := ctx.IOReader
-		if src == nil {
-			src = os.Stdin
-		}
-		ctx.stdinReader = bufio.NewReader(src)
+	state := ctx.inputState()
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.reader == nil {
+		state.reader = bufio.NewReader(ctx.inputEndpoint())
 	}
-	return ctx.stdinReader
+	ctx.stdinReader = state.reader
+	return state.reader
 }
 
 // Clone creates a shallow copy of the EffContext for per-request isolation.
@@ -704,6 +711,8 @@ func (ctx *EffContext) GetIOReader() *bufio.Reader {
 func (ctx *EffContext) Clone() interface{} {
 	clone := *ctx // shallow copy of config + shared references
 	clone.randMode = nil
+	clone.terminalInput = &terminalInputState{}
+	clone.stdinReader = nil
 	clone.netScope = nil // M-NET-SCOPE-PUBLIC: per-request, like randMode
 	// Debug output is per request: a shared accumulator interleaved every
 	// concurrent request's lines and was flushed by whichever finished first

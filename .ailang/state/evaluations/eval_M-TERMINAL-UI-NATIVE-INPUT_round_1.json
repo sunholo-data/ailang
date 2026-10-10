@@ -1,0 +1,341 @@
+{
+  "sprint_id": "M-TERMINAL-UI-NATIVE-INPUT",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-10T08:12:08.723040+00:00",
+  "design_doc": "design_docs/planned/m-terminal-ui-native-input.md",
+  "sprint_plan": "design_docs/planned/m-terminal-ui-native-input-sprint-plan.md",
+  "core_head": "cdcea3bdb7067a7cdac7e0a3171e12c56e77dc58",
+  "core_implementation_commit": "2f807c5638494f8f428ae63585671421dc47d6a1",
+  "package_commit": "c0ec852",
+  "result": "pending",
+  "implementation_review": "Local TUI technical controls pass; Windows CI portability repair independently reviewed but final runtime CI and required delivery remain pending.",
+  "base_score": 77,
+  "conditional_bonus_score": 10,
+  "total_score": 87,
+  "score_denominator": 110,
+  "pass_threshold": 70,
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 18,
+    "code_quality": 5,
+    "documentation": 15,
+    "design_fidelity": 9
+  },
+  "conditional_scores": {
+    "regression_surface_coverage": 10,
+    "performance_verification": "not applicable"
+  },
+  "hard_fails": [],
+  "blocking_conditions": [
+    {
+      "condition": "final_ci_pending",
+      "details": "Core PR #1756 CI is running. Local gate evidence does not substitute for a final CI verdict once a PR exists.",
+      "url": "https://github.com/sunholo-data/ailang/pull/1756",
+      "run_id": "38036835457"
+    },
+    {
+      "condition": "required_publication_pending",
+      "details": "Actual package publish attempt exited1: production validator lacks std/terminal;8pure files compiled and4files (_smoke,adapter,adapter_test,demo) failed. Supporting native API release required before retry and fresh registry install/smoke.",
+      "evidence": "/private/tmp/terminal-ui-publish-attempt.txt"
+    },
+    {
+      "condition": "wider_consumer_gate_blocked",
+      "classification": "Pre-existing current-dev compiler invariant; not attributed to terminal implementation",
+      "details": "Full existing crew validation fails in unchanged packages/content-library/library.ail frameTail at line 71:344: missing or malformed ApplicationEffects (LatentParamMask) for typed application 501. Untouched current-dev acc227e55 reproduces the identical error; independently confirmed with its own stdlib and cache disabled. Package repository CI and final release readiness cannot be claimed while this wider consumer gate is red.",
+      "integrated_evidence": "/private/tmp/terminal-package-crew-integrated.log",
+      "control_evidence": "/private/tmp/terminal-content-library-dev-control.log",
+      "control_commit": "acc227e55"
+    },
+    {
+      "condition": "windows_runtime_ci_revalidation_required",
+      "details": "Actual Windows CI found descriptor-only lease identity did not unify independently opened file aliases. Reviewed uncommitted repair queries disk identity from borrowed HANDLE (volume serial/file index); CHAR/PIPE retain handle identity without enabling native terminal mode. Targeted local race tests pass and Windows amd64 effects test executable compiles; actual Windows test execution remains required. Worker confirms Windows/WASM effects tests compile and Windows go vet passes; repair lint reports0issues. These do not replace actual Windows runtime CI.",
+      "implementation_files": [
+        "internal/effects/terminal_windows.go",
+        "internal/effects/terminal_windows_test.go",
+        "internal/effects/terminal_unsupported.go",
+        "internal/effects/terminal_unsupported_key.go",
+        "internal/effects/terminal_host_test.go"
+      ]
+    }
+  ],
+  "automated_checks": {
+    "gate_source": "local",
+    "final_gate_source": "ci",
+    "ci_gate": "Windows portability failed; repair awaiting actual runtime CI",
+    "tests_pass": true,
+    "tests_evidence": "Root confirmed integrated make test session7816 exit0; independently inspected complete /private/tmp/terminal-integrated-test.log with no FAIL entries. This whole-repository local run preceded the Windows portability repair; later targeted race and cross-compile evidence does not replace Windows runtime CI.",
+    "lint_clean": true,
+    "lint_evidence": "Root confirmed integrated make lint session81477 exit0; /private/tmp/terminal-integrated-lint.log reports0issues.",
+    "file_sizes_ok": true,
+    "file_sizes_evidence": "/private/tmp/terminal-file-sizes.log: all files within800line limit",
+    "boundaries_pass": true,
+    "boundaries_evidence": "/private/tmp/terminal-boundaries.log: no architecture boundary violations",
+    "examples_pass": true,
+    "examples_evidence": "/private/tmp/terminal-examples.log: verify-examples pass;223module checks,0drift;1preexisting stale entry reported",
+    "stdlib_interfaces_pass": true,
+    "stdlib_evidence": "/private/tmp/terminal-stdlib-verify.log:48interfaces stable; deliberate IO/terminal golden updates",
+    "coverage_pct": null
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M0",
+      "criterion": "Public types and callback/backend evidence frozen",
+      "met": true,
+      "evidence": "Actual registered effect-polymorphic callback and FS propagation controls pass. Existing package source preserved; IO lifecycle/context/input ownership contracts frozen. User approved design/execution and package publication.",
+      "implementation_evidence_present": true
+    },
+    {
+      "feature_id": "M0",
+      "criterion": "Existing package and additive EOF dependency verified",
+      "met": true,
+      "evidence": "Actual registered effect-polymorphic callback and FS propagation controls pass. Existing package source preserved; IO lifecycle/context/input ownership contracts frozen. User approved design/execution and package publication.",
+      "implementation_evidence_present": true
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Terminal info, exclusive lease, key/resize/idle/EOF decoder",
+      "met": true,
+      "evidence": "POSIX host/decoder, process-wide restoration, same-device/reader leases, stale/cross-context handles and typed errors implemented. Full effects suite passes; 100-repeat race queued-signal and async-read-ahead controls pass. macOS/Linux/Windows/WASM compile evidence. Actual PTY matrix in M4.",
+      "implementation_evidence_present": true
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Scope and signal cleanup, input ownership and validated handles tested",
+      "met": true,
+      "evidence": "POSIX host/decoder, process-wide restoration, same-device/reader leases, stale/cross-context handles and typed errors implemented. Full effects suite passes; 100-repeat race queued-signal and async-read-ahead controls pass. macOS/Linux/Windows/WASM compile evidence. Actual PTY matrix in M4.",
+      "implementation_evidence_present": true
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "std/terminal and readLineOpt compile and dispatch",
+      "met": true,
+      "evidence": "std/terminal/readLineOpt registered; evaluator and strict native VM dispatch; arbitrary callback ADTs, capability checks and no replay after native effects. Explicit Go codegen rejection. EOF auto-import regression and new prompt v0.16.7 (existing prompt preserved), signature golden intentionally additive. Three examples: 13 tests, 0 skips.",
+      "implementation_evidence_present": true
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Evaluator and strict VM parity; clear unsupported/backend behavior; examples",
+      "met": true,
+      "evidence": "std/terminal/readLineOpt registered; evaluator and strict native VM dispatch; arbitrary callback ADTs, capability checks and no replay after native effects. Explicit Go codegen rejection. EOF auto-import regression and new prompt v0.16.7 (existing prompt preserved), signature golden intentionally additive. Three examples: 13 tests, 0 skips.",
+      "implementation_evidence_present": true
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Events/widgets/transcript and explicit adapters",
+      "met": true,
+      "evidence": "Existing terminal_ui upgraded to 0.2.0 (ui source/tests unchanged). Strict quality: 0 gates;39 tests, 0 failures, 0 skips, including 37 named tests and 2 properties (100 cases each); strict VM: 37 named bodies, 0 fallback;source inline: 42 passes, 41 skips (26 no-generator); Z3: 12/34 verified, 21 skips, 1 encoding error, 0 refuted. Native/line/plain/auto; package IO,Env ceiling for demo args, library IO-only. >=0.54.0 floor retained.",
+      "implementation_evidence_present": true
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Native demo, physical viewport behavior, exact EOF and IO-only library quality; demo explicitly declares Env for argument access",
+      "met": true,
+      "evidence": "Existing terminal_ui upgraded to 0.2.0 (ui source/tests unchanged). Strict quality: 0 gates;39 tests, 0 failures, 0 skips, including 37 named tests and 2 properties (100 cases each); strict VM: 37 named bodies, 0 fallback;source inline: 42 passes, 41 skips (26 no-generator); Z3: 12/34 verified, 21 skips, 1 encoding error, 0 refuted. Native/line/plain/auto; package IO,Env ceiling for demo args, library IO-only. >=0.54.0 floor retained.",
+      "implementation_evidence_present": true
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Installed-bin arrow/resize and all teardown causes verified",
+      "met": false,
+      "evidence": "Integrated full make test exit 0; lint 0 issues; examples, boundaries, file sizes and 48 stdlib interfaces pass. 12 real PTY scenarios cover evaluator/VM normal, exit, error, SIGINT/SIGTERM, evaluator budget and host panic restoration. Installed native arrow/resize/state, line/plain blank and EOF, redirected auto checks pass. Decoder and cleanup mutations fail the controls. Platform builds pass. Current-binary CLI checks pass after removing an external stdlib override from the dev-stamped shim fixture. Windows CI subsequently caught descriptor-only identity in unsupported-platform leases; real file identity repair and deferred fixture release are in progress. Completion remains pending actual CI.",
+      "implementation_evidence_present": true
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Portability, replay, plain/EOF and regression checks; mutation controls",
+      "met": false,
+      "evidence": "Integrated full make test exit 0; lint 0 issues; examples, boundaries, file sizes and 48 stdlib interfaces pass. 12 real PTY scenarios cover evaluator/VM normal, exit, error, SIGINT/SIGTERM, evaluator budget and host panic restoration. Installed native arrow/resize/state, line/plain blank and EOF, redirected auto checks pass. Decoder and cleanup mutations fail the controls. Platform builds pass. Current-binary CLI checks pass after removing an external stdlib override from the dev-stamped shim fixture. Windows CI subsequently caught descriptor-only identity in unsupported-platform leases; real file identity repair and deferred fixture release are in progress. Completion remains pending actual CI.",
+      "implementation_evidence_present": true
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Documentation and branch artifacts complete",
+      "met": false,
+      "evidence": "Core PR #1756 and package PR #117 are committed and mergeable. Independent technical review: 82/100 plus 10 regression bonus; local full test/lint gates pass and no remaining implementation defect found. Core CI pending. Package crew CI and actual authorized publication both fail because the released compiler/validator lacks std/terminal. Publication attempt: validator v0.53.2, 8 files pass, 4 adapter/demo files fail. Supporting core release, accepted publication and fresh registry installation remain required; sprint stays in progress. Wider crew consumer also reproduces a pre-existing pure-recursion ApplicationEffects compiler invariant on untouched dev; recorded separately. Core release approval is pending.",
+      "implementation_evidence_present": false
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Evaluator passes with evidence and reviewable separate commits",
+      "met": false,
+      "evidence": "Core PR #1756 and package PR #117 are committed and mergeable. Independent technical review: 82/100 plus 10 regression bonus; local full test/lint gates pass and no remaining implementation defect found. Core CI pending. Package crew CI and actual authorized publication both fail because the released compiler/validator lacks std/terminal. Publication attempt: validator v0.53.2, 8 files pass, 4 adapter/demo files fail. Supporting core release, accepted publication and fresh registry installation remain required; sprint stays in progress. Wider crew consumer also reproduces a pre-existing pure-recursion ApplicationEffects compiler invariant on untouched dev; recorded separately. Core release approval is pending.",
+      "implementation_evidence_present": false
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Package publication accepted by supporting released validator; fresh registry consumer install and binary smoke verified",
+      "met": false,
+      "evidence": "Core PR #1756 and package PR #117 are committed and mergeable. Independent technical review: 82/100 plus 10 regression bonus; local full test/lint gates pass and no remaining implementation defect found. Core CI pending. Package crew CI and actual authorized publication both fail because the released compiler/validator lacks std/terminal. Publication attempt: validator v0.53.2, 8 files pass, 4 adapter/demo files fail. Supporting core release, accepted publication and fresh registry installation remain required; sprint stays in progress. Wider crew consumer also reproduces a pre-existing pure-recursion ApplicationEffects compiler invariant on untouched dev; recorded separately. Core release approval is pending.",
+      "implementation_evidence_present": false
+    }
+  ],
+  "criteria_scoring": {
+    "met": 8,
+    "total": 13,
+    "method": "Per skill only passes:true milestones receive criteria points. Actual Windows CI reopened M4; M0..M3 currently contribute8of13criteria. M4 portability and M5 final delivery remain pending."
+  },
+  "code_quality_deductions": [
+    {
+      "points": 5,
+      "reason": "New functions exceed50lines (deduction capped at5): TerminalWith, TerminalReadEvent, terminalSession.nextEvent, VM.callEffectBuiltin and PTY integration driver."
+    },
+    {
+      "points": 3,
+      "reason": "Sprint execution artifacts are honestly incomplete: M4 portability revalidation, M5 delivery and completed sprint status remain pending."
+    },
+    {
+      "points": 2,
+      "reason": "Sprint markdown retains pending M4/M5 completion items."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "matches implementation on branch; final validation/release/publication in progress; remains planned as required"
+  },
+  "design_fidelity": {
+    "score": 9,
+    "notes": "Core stays at configured-endpoint IO facts/scopes/events, with exclusive reader ownership and mandatory restoration; widgets/replay/adapters stay in existing package. Demo requires declared Env for arguments. Budget-annotated effectful package adapters currently require evaluator and are explicitly rejected by strict VM; core unbudgeted native API and pure package named tests have strict parity. Unsupported platform/Go codegen behavior is explicit. Native supporting release and registry publication are not claimed."
+  },
+  "regression_surface": {
+    "conflict_surface_present": true,
+    "named_fixtures": "TestTerminalExistingIOFixturesParity pins micro_io_echo, test_io_builtins and progress_bar across evaluator/strict VM; original package ui/ui_test source preserved byte-for-byte. TestNativeVMFailureDoesNotReplayIO covers consumed input/output after native failure. Imported callback contract matrix tests declared/superset/missing/pure effects."
+  },
+  "independent_review_controls": [
+    {
+      "issue": "Signal cleanup raced with app output in buffered writer",
+      "resolution": "LineBufferedWriter mutex serializes Write/Flush",
+      "before": "/private/tmp/terminal-writer-race.log: focused reproduction fails under race detector",
+      "after": "/private/tmp/terminal-writer-race-fixed.log: same independent fixture passes under race detector"
+    },
+    {
+      "issue": "Queued termination could be swallowed when callback completes",
+      "resolution": "watchSignals stop branch drains pending diverted signal",
+      "after": "/private/tmp/evaluator-signal.log:100queued SIGTERM+closed-stop cases pass"
+    },
+    {
+      "issue": "Async stdin private Scanner discarded unread data",
+      "resolution": "Owned source uses shared persistent reader and prepends un-emitted line before releasing ownership",
+      "before": "/private/tmp/evaluator-async.log: readLineOpt incorrectly returnsNone",
+      "after": "/private/tmp/evaluator-async-fixed.log: independent control preserves line101andline102"
+    },
+    {
+      "issue": "EOF normalization and canonical documentation incomplete",
+      "resolution": "readLineOpt auto-import regression, new teaching prompt and canonical raw-input limitations updated"
+    },
+    {
+      "issue": "Frozen prompt transition previously pinned obsolete active version",
+      "resolution": "Test retains corpus floors and requires exactly active mutable version; registries agree. Independent byte comparison confirms pre-sprint v0.16.6 source unchanged. Source and mirror have19banked/40legacy/1mutable(v0.16.7)."
+    },
+    {
+      "issue": "Imported callbacks dropped effect-contract metadata",
+      "resolution": "Merged v0.53.3 repair shallow-copies TFunc2 before closing structural fields; concrete/implicit flags preserved. New imported/inline effect and nonmutation controls are substantive."
+    }
+  ],
+  "package_validation": {
+    "source": "packages/terminal-ui/VALIDATION.md at package commitc0ec852",
+    "native_tests": {
+      "passed": 39,
+      "failed": 0,
+      "skipped": 0,
+      "named": 37,
+      "properties": 2,
+      "property_cases_each": 100
+    },
+    "strict_bytecode": {
+      "named_bodies": 37,
+      "fallback": 0,
+      "properties_execute_on_evaluator_by_cli_definition": true
+    },
+    "source_inline": {
+      "passed": 42,
+      "failed": 0,
+      "skipped": 41,
+      "no_generator_skips": 26
+    },
+    "contracts": {
+      "verified": 12,
+      "total": 34,
+      "skipped": 21,
+      "encoding_errors": 1,
+      "refuted": 0,
+      "note": "Z3 Option[string] encoding error is not a proof or a runtime test failure"
+    },
+    "strict_quality_gates": 0,
+    "smoke": "passed",
+    "publication": "Actual publication attempt rejected(exit1), production validator missing std/terminal;8pure files compiled and4failed. No accepted publication or fresh registry consumer smoke.",
+    "package_pr": "https://github.com/sunholo-data/ailang-packages/pull/117",
+    "publication_evidence": "/private/tmp/terminal-ui-publish-attempt.txt",
+    "supporting_validation_doc": "design_docs/planned/m-terminal-ui-native-input-validation.md",
+    "release_preparation": {
+      "ci_runtime_pin": "v0.54.0, proposed and pushed in 9aa82e6; downloadable supporting runtime requires the core release",
+      "crew_consumer_lock": "Path lock refreshed in f80f38e; terminal_ui now resolves to 0.2.0",
+      "tui_validation": "Own 39 tests, strict quality and PTY controls remain green; broader crew gate is qualified separately"
+    }
+  },
+  "pty_and_mutation_evidence": {
+    "pty_cases": 12,
+    "cases": "Evaluator/strict normal custom application ADT,exit,error,SIGINT,SIGTERM; evaluator IO budget; real panic child. Installed demo immediate arrows/selection,20x8shrink/80x24grow state preservation and termios/cursor/alternate-screen restoration.",
+    "decoder_mutation": "/private/tmp/terminal-mutation-terminal_decoder.log: Up-to-Down map mutation rejected",
+    "cleanup_mutation": "/private/tmp/terminal-mutation-terminal.log: restore removal rejected"
+  },
+  "feedback": [
+    {
+      "file": ".ailang/state/sprints/sprint_M-TERMINAL-UI-NATIVE-INPUT.json",
+      "category": "delivery",
+      "issue": "Full sprint remains incomplete: final CI pending; actual publication rejected because released validator lacks std/terminal, and fresh registry consumer evidence cannot yet exist.",
+      "suggestion": "Retain in_progress and planned documents. Record CI conclusion; publish only after released validator supports std/terminal; verify fresh registry consumer install and command smoke. Do not relax runtime floor or treat dry-run as delivery.",
+      "severity": "blocking"
+    },
+    {
+      "file": "packages/content-library/library.ail:71",
+      "function": "frameTail",
+      "category": "wider_consumer",
+      "issue": "Current integrated and untouched dev compilers both fail application 501 with the same ApplicationEffects (LatentParamMask) invariant. This blocks wider crew validation and release readiness, while the terminal package controls remain green.",
+      "suggestion": "Track and resolve the compiler invariant with a scoped plan and re-run the existing wider consumer gate before final release/package-repository CI acceptance. Preserve the paired baseline evidence; do not characterize this as a TUI regression or hide it.",
+      "severity": "blocking"
+    },
+    {
+      "file": "internal/effects/terminal_windows.go",
+      "category": "portability",
+      "issue": "Actual Windows CI failure has a reviewed repair, but runtime CI has not yet established correctness on Windows.",
+      "suggestion": "Commit and push reviewed platform repair, verify actual Windows test execution and required portability gates; retain M4 pending until those pass. Do not characterize cross-compilation as Windows runtime proof.",
+      "severity": "blocking"
+    }
+  ],
+  "notes": "This is a scored technical review with a pending whole-sprint verdict. Score includes10conditional regression points (maximum110). Numerical threshold does not satisfy the explicit required delivery criterion. No implementation edits, message acknowledgements, release approvals or design relocation performed. Additional wider-consumer failure is baseline-reproduced and qualifies release readiness; technical score remains scoped to the TUI implementation. No unrelated compiler edits or additional whole-repository test run performed during this update. Supporting core release approval remains an operator checkpoint. Windows CI portability failure reopened M4; the current provisional numerical score withholds its acceptance points (historical score retained). Independent review found no defect in the precise Windows repair, but actual Windows runtime CI remains required.",
+  "updated": "2026-10-10T08:25:26.939283+00:00",
+  "package_delivery_head": "f80f38e",
+  "wider_consumer_control": {
+    "condition": "wider_consumer_gate_blocked",
+    "classification": "Pre-existing current-dev compiler invariant; not attributed to terminal implementation",
+    "details": "Full existing crew validation fails in unchanged packages/content-library/library.ail frameTail at line 71:344: missing or malformed ApplicationEffects (LatentParamMask) for typed application 501. Untouched current-dev acc227e55 reproduces the identical error; independently confirmed with its own stdlib and cache disabled. Package repository CI and final release readiness cannot be claimed while this wider consumer gate is red.",
+    "integrated_evidence": "/private/tmp/terminal-package-crew-integrated.log",
+    "control_evidence": "/private/tmp/terminal-content-library-dev-control.log",
+    "control_commit": "acc227e55"
+  },
+  "prior_score_snapshot": {
+    "base_score": 82,
+    "conditional_bonus_score": 10,
+    "total_score": 92,
+    "denominator": 110,
+    "reason": "Historical local technical review before actual Windows CI reopened M4."
+  },
+  "portability_repair_review": {
+    "status": "reviewed; awaiting committed-head actual Windows CI",
+    "ownership": "Only evaluation artifact edited by evaluator; platform implementation belongs to worker/root",
+    "disk_alias_identity": "GetFileType FILE_TYPE_DISK then GetFileInformationByHandle: VolumeSerialNumber plus FileIndexHigh/FileIndexLow unify aliases and distinguish files.",
+    "borrowed_handle": "HANDLE queried directly; no os.File wrapper, finalizer or close. Invalid/unknown identities return explicit errors.",
+    "line_input_compatibility": "CHAR/PIPE use typed handle identity; disk metadata is not required for console/pipe stdin. Windows raw sessions remain Unsupported.",
+    "build_tag_partition": "Windows identity defined only for windows; fallback key only for !darwin&&!linux&&!windows; unsupported mode functions remain !darwin&&!linux. No duplicate or missing key on covered targets.",
+    "test_hygiene": "Deferred first lease release is idempotent and prevents an assertion failure from contaminating subsequent tests.",
+    "windows_fixtures": "Disk aliases/distinct file identities and borrowed handle survival; stable pipe handle/invalid handle; blank/final/EOF pipe readLineOpt; NUL character device and native Unsupported.",
+    "local_race_test": "Worker reports targeted -race pass in1.466s; full Windows behavior not inferred from macOS test execution.",
+    "windows_cross_compile": "Windows amd64 effects test executable compiled; not executed on Windows yet.",
+    "wasm_cross_compile": "Worker confirms WASM effects test compilation passed; this is compile evidence, not browser runtime terminal behavior.",
+    "new_defects_found": [],
+    "windows_vet": "Worker confirms Windows go vet passed.",
+    "lint": "Independently inspected /private/tmp/terminal-windows-repair-lint.log:0issues and lint completion."
+  }
+}

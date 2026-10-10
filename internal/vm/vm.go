@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/effects"
 	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/types"
 )
@@ -54,6 +55,13 @@ var ErrStackOverflow = errors.New("vm: stack overflow")
 type VM struct {
 	Image    *bytecode.BytecodeImage
 	MaxStack int
+
+	// Effects is the configured host context. Native VM dispatch never uses evaluator fallback.
+	Effects *effects.EffContext
+
+	// EffectCalls counts attempted native host dispatches. A runner must not
+	// replay an execution once this is nonzero, including capability denial.
+	EffectCalls uint64
 
 	// Stack tracks the active frames for overflow detection. The currently
 	// executing frame is the top; entries below it are paused callers.
@@ -604,6 +612,15 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			frame.Regs[inst.A()] = result
 			frame.IP++
 
+		case bytecode.OpEffectCall:
+			argBase := int(inst.A()) + 1
+			result, err := vm.callEffectBuiltin(int(inst.B()), frame.Regs[argBase:argBase+int(inst.C())])
+			if err != nil {
+				return bytecode.Value{}, vm.errWrap(frame, "EFFECT_CALL: ", err, inst)
+			}
+			frame.Regs[inst.A()] = result
+			frame.IP++
+
 		case bytecode.OpBuiltinTrap:
 			name := "<unknown>"
 			if v, ok := frame.Proto.LookupConstant(int(inst.Bx()), vm.Image); ok && v.Tag == bytecode.TagString {
@@ -616,30 +633,6 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 		default:
 			return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("unknown opcode %d", op), inst)
 		}
-	}
-}
-
-// errWrap is errAt for an instruction that failed with err: the message is
-// prefix + err's text and err is kept as the VMError's Cause.
-func (vm *VM) errWrap(frame *Frame, prefix string, err error, inst bytecode.Instruction) *VMError {
-	e := vm.errAt(frame, prefix+err.Error(), inst)
-	e.Cause = err
-	return e
-}
-
-// errAt builds a VMError with source-location info from the current frame.
-func (vm *VM) errAt(frame *Frame, msg string, inst bytecode.Instruction) *VMError {
-	line := 0
-	if frame.IP >= 0 && frame.IP < len(frame.Proto.LineInfo) {
-		line = frame.Proto.LineInfo[frame.IP]
-	}
-	return &VMError{
-		Msg:      msg,
-		Func:     frame.Proto.Name,
-		File:     frame.Proto.File,
-		Line:     line,
-		IP:       frame.IP,
-		OpString: inst.Op().String(),
 	}
 }
 

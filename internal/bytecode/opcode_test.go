@@ -143,7 +143,7 @@ func TestOpCount_Stable(t *testing.T) {
 	// If you add a new opcode, update this number deliberately. This guards
 	// against accidental opcode space changes that would invalidate any
 	// serialized bytecode in the wild (none yet, but the discipline matters).
-	const expected = 34 // bumped for OpUpdateRecord (M-VM-DETERMINISM)
+	const expected = 35 // appended OpEffectCall (M-TERMINAL-UI-NATIVE-INPUT)
 	if OpCount() != expected {
 		t.Errorf("OpCount() = %d, expected %d — if you added an opcode, update this test and bump bytecode format version", OpCount(), expected)
 	}

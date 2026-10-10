@@ -5,6 +5,50 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/terminal_info.ail",
+      "status": "working",
+      "tags": [
+        "terminal",
+        "effects",
+        "io"
+      ],
+      "description": "Configured terminal TTY facts and measured dimensions under IO.",
+      "modules": [
+        "std/io",
+        "std/result",
+        "std/terminal"
+      ]
+    },
+    {
+      "path": "runnable/terminal_keys.ail",
+      "status": "working",
+      "tags": [
+        "terminal",
+        "effects",
+        "io"
+      ],
+      "description": "Scoped native key events and host-owned cleanup; requires a POSIX terminal.",
+      "modules": [
+        "std/io",
+        "std/result",
+        "std/terminal"
+      ]
+    },
+    {
+      "path": "runnable/terminal_line_input.ail",
+      "status": "working",
+      "tags": [
+        "terminal",
+        "effects",
+        "io"
+      ],
+      "description": "Option line input distinguishes blank and final partial lines from EOF.",
+      "modules": [
+        "std/io",
+        "std/option"
+      ]
+    },
+    {
       "path": "tests/named_helper_purity.ail",
       "status": "working",
       "tags": [
@@ -3332,11 +3376,11 @@
     }
   ],
   "statistics": {
-    "total": 226,
-    "working": 218,
+    "total": 229,
+    "working": 221,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9646017699115044,
+    "coverage": 0.9650655021834061,
     "experimental": 0
   },
   "milestones": {

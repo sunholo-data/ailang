@@ -2,7 +2,6 @@ package effects
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 )
@@ -76,7 +75,11 @@ func StreamAsyncReadStdinLines(ctx *EffContext, args []eval.Value) (eval.Value, 
 		return nil, fmt.Errorf("E_STREAM_NO_CONTEXT: Stream effect not configured (missing --caps Stream)")
 	}
 
-	source := NewStdinSource(os.Stdin, nameVal.Value, int(priorityVal.Value))
+	release, err := ctx.beginInputRead()
+	if err != nil {
+		return nil, fmt.Errorf("asyncReadStdinLines: %w", err)
+	}
+	source := newOwnedStdinSource(ctx.GetIOReader(), nameVal.Value, int(priorityVal.Value), release, ctx.prependIOInput)
 	sourceID := ctx.Stream.AcquireSource(source)
 
 	return makeStreamSource(sourceID), nil

@@ -161,7 +161,9 @@ func TestRealRegistry_PostMigrationSplitCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, l, m, id := split(source)
-	if b != 19 || l != 39 || m != 1 || id != "v0.16.6" {
+	// The migrated corpus is the floor; subsequent prompt releases add frozen
+	// versions while keeping exactly the current active version mutable.
+	if b < 19 || l < 39 || m != 1 || id != source.Active || mirror.Active != source.Active {
 		t.Fatalf("split %d/%d/%d %s", b, l, m, id)
 	}
 	a, _ := json.Marshal(source.Versions)
