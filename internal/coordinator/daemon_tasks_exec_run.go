@@ -113,6 +113,18 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	}
 
 	directive := BuildDirectiveFromConfig(task, agentConfig)
+
+	// M-CASCADE-DISPATCH-GUARD: a cascade-repair directive on a non-cascade
+	// task is a misroute (see cascade_dispatch_guard.go). Fail the task loudly
+	// instead of running an agent that can only stop without committing.
+	if guardErr := ValidateCascadeDirective(task, directive); guardErr != nil {
+		d.logger.Printf("[cascade-guard] Task %s: %v — marking failed, not executing", task.ID, guardErr)
+		if err := d.taskStore.MarkTaskFailed(d.ctx, task.ID, guardErr); err != nil {
+			d.logger.Printf("[cascade-guard] Task %s: marking failed also failed: %v", task.ID, err)
+		}
+		return nil
+	}
+
 	d.logger.Printf("[DEBUG] Built directive (first 500 chars): %s", strutil.Truncate(directive, 500))
 	analyzed := &AnalyzedTask{
 		Task: &Task{

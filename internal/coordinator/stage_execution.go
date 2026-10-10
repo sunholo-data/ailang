@@ -270,6 +270,19 @@ func buildTemplateDirective(task *TaskRecord, agent *AgentConfig) string {
 	}
 	result = strings.ReplaceAll(result, "{{.PrevEffectCeiling}}", strings.Join(task.PrevEffectCeiling, ", "))
 	result = strings.ReplaceAll(result, "{{.NewEffectCeiling}}", strings.Join(task.NewEffectCeiling, ", "))
+	// M-CASCADE-DISPATCH-GUARD: the template must name the repository the
+	// wrapper actually cloned, not a hardcoded monorepo assumption baked into a
+	// template that ships to every pkg-* agent (a docparse agent was handed a
+	// directive claiming it was in ailang-packages — task-a8c0e096). ResolveRepo
+	// prefers the explicit repo field and falls back to an org/repo workspace;
+	// a local path workspace renders as the workspace, which is at least the
+	// truth about where the agent is standing.
+	repo := agent.ResolveRepo()
+	if repo == "" {
+		repo = agent.Workspace
+	}
+	result = strings.ReplaceAll(result, "{{.Repo}}", repo)
+	result = strings.ReplaceAll(result, "{{.Subdirectory}}", agent.Subdirectory)
 
 	return result
 }

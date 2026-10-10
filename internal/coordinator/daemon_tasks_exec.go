@@ -188,6 +188,21 @@ func (d *Daemon) dispatchTasksCloud() error {
 				}
 			}
 
+			// M-CASCADE-DISPATCH-GUARD (defense in depth — the polling loop
+			// refuses these before CreateTask, but a task created before that
+			// guard landed, or via a path that bypasses polling, still reaches
+			// here): a cascade-repair directive on a non-cascade task is a
+			// misroute. Fail the task loudly rather than start a paid Cloud Run
+			// job whose first act would be the template's "stop without
+			// committing" bail-out.
+			if guardErr := ValidateCascadeDirective(task, directive); guardErr != nil {
+				d.logger.Printf("[cascade-guard] Task %s: %v — marking failed, not dispatching", task.ID, guardErr)
+				if err := d.taskStore.MarkTaskFailed(d.ctx, task.ID, guardErr); err != nil {
+					d.logger.Printf("[cascade-guard] Task %s: marking failed also failed: %v", task.ID, err)
+				}
+				continue
+			}
+
 			// M-MESSAGE-PLANE-FAIL-LOUD M3 (D3): a LOCAL-lane agent must never be
 			// cloud-dispatched. Measured 2026-08-26: 10 consecutive Cloud Run jobs
 			// died on arrival for agent=eval-rig because the job received a Mac

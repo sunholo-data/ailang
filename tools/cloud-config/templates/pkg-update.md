@@ -41,8 +41,11 @@ You do NOT need to:
   package. Re-publishing is a separate human-approved action after the PR merges.
 
 ## Working Context
-- Repository: `sunholo-data/ailang-packages` (monorepo)
-- You're already in the right package directory (the wrapper cd'd you here)
+- Repository: `{{.Repo}}` (rendered from the wrapper's agent config — this is
+  the repo the wrapper actually cloned for you; if it is not the repo that
+  depends on `{{.RootPackage}}`, you have been misrouted — see the
+  defense-in-depth note below)
+- Package directory: `{{.Subdirectory}}` (the wrapper cd'd you here)
 - Read `AGENT.md` for any package-specific instructions
 
 ## If you can't repair within ~10 turns
