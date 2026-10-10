@@ -25,6 +25,21 @@ type CloudCreditCapability struct {
 	AccountID  string `json:"account_id"`
 }
 
+// applyCloudCreditAgentConfig runs after legacy provider budget resolution.
+// A missing guarded limit stays zero so admission fails closed, rather than
+// inheriting a provider budget that belongs to a different spending lane.
+func applyCloudCreditAgentConfig(p *DispatchParams, agent *AgentConfig) {
+	if agent == nil {
+		return
+	}
+	p.CreditAccount = agent.CreditAccount
+	p.CreditGatewayURL = agent.CreditGatewayURL
+	p.CreditJobIdentity = agent.CreditJobIdentity
+	if agent.CreditAccount != "" {
+		p.MaxCostUSD = agent.CreditMaxCostUSD
+	}
+}
+
 func ValidateCloudCreditLane(p DispatchParams) error {
 	if p.CreditAccount == "" {
 		return nil

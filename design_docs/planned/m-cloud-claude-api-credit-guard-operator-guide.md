@@ -49,6 +49,17 @@ The kill switch stops new sends; it cannot undo an already forwarded billable re
 
 ## Pilot contract
 
+The canary's trusted agent registry entry must explicitly set
+`credit_max_cost_usd: 2`, alongside `credit_account: anthropic-api-credits`,
+`credit_gateway_url` and `credit_job_identity`. Use `provider: claude`,
+`auth_mode: apikey`, `model: claude-haiku-5-5`, a default/Go Claude variant and
+a timeout of at most `50m`. Missing, nonfinite or out-of-range credit budgets
+fail before admission; the legacy Claude provider/global budget is not inherited.
+This scoped setting preserves the existing OAuth and request-key budgets. Keep
+the canary recipe outside the live registry until the deployment gates pass;
+there is no per-agent `enabled` flag. Register it explicitly with
+`auto_merge: false` and `skip_approval: false` for the reviewed canary.
+
 Only exact Haiku 5.5 Messages requests are admitted. Every request reserves the entire model context at the highest supported cache-write rate and requested output (thinking included), up to $1.32. Complete verified usage settles that reservation; estimated prompt counts and CLI budgets cannot authorize spending. Helper/subagent requests pass through the same endpoint and get separate reservations. Paid server tools, images/documents, fallback/advisor/compaction inference, batch/priority/residency premiums and unknown beta features are blocked until separately bounded.
 
 A task has a unique admitted attempt, bound job identity, model, budget and lease. The job supplies both a Google ID token for the gateway audience and a signed capability in `x-api-key`; neither is a provider credential. Task timeouts are capped at 50 minutes for token lifetime. Failed launch admission becomes a visible permanent budget block, not automatic credential/model fallback.

@@ -244,6 +244,9 @@ type AgentConfig struct {
 	CreditAccount     string `yaml:"credit_account" json:"credit_account,omitempty"`
 	CreditGatewayURL  string `yaml:"credit_gateway_url" json:"credit_gateway_url,omitempty"`
 	CreditJobIdentity string `yaml:"credit_job_identity" json:"credit_job_identity,omitempty"`
+	// CreditMaxCostUSD is required for the guarded API-credit lane. It never
+	// inherits or changes the legacy provider/global task budget.
+	CreditMaxCostUSD float64 `yaml:"credit_max_cost_usd" json:"credit_max_cost_usd,omitempty"`
 
 	// Per-agent Docker image variant (M-EXECUTOR-VARIANTS, v1.1.0).
 	// Selects which pre-built agent image to use for Cloud Run Job execution.
