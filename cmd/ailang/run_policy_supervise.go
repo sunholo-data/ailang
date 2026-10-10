@@ -44,7 +44,7 @@ import (
 var workerEnvAllow = []string{
 	"PATH", "HOME", "TMPDIR", "TMP", "TEMP", "TZ", "LANG", "LC_ALL", "LC_CTYPE",
 	"USER", "LOGNAME", "AILANG_STDLIB_PATH", "AILANG_QUIET_WARNINGS", "AILANG_TRACE",
-	"AILANG_SEED", "GOCACHE", "GOFLAGS",
+	"AILANG_SEED", "AILANG_CACHE_DIR", "GOCACHE", "GOFLAGS",
 }
 
 // supervisePolicyRun runs the worker and returns the exit code the parent
@@ -70,7 +70,6 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 	cmd := exec.CommandContext(ctx, exe, args...)
 	cmd.ExtraFiles = []*os.File{ctrlW} // fd 3 in the worker
 	cmd.Stdin = os.Stdin
-	cmd.Env = workerEnv(res)
 	proctree.Configure(cmd)
 	cmd.WaitDelay = proctree.DefaultWaitDelay
 
@@ -89,8 +88,16 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 	}
 	cmd.Stdout = stdoutW
 	cmd.Stderr = stderrW
-	if err := cmd.Start(); err != nil {
-		refusePolicy("cannot start the worker: %v", err)
+	cache, err := startPolicyWorker(cmd, res)
+	if err != nil {
+		refusePolicy("%v", err)
+	}
+	if cache != "" {
+		defer os.RemoveAll(cache)
+	}
+	guard := newStderrGuard(os.Stderr)
+	if res.Restricted() && config.CacheDir() != "" && cacheInsideSandbox(res.Root, config.CacheDir()) {
+		guard.supervisorLine("warning: AILANG_CACHE_DIR is inside fs_sandbox; program writes can poison the compile cache; use fs_deny_write to deny cache writes")
 	}
 	// The worker holds the write ends now.
 	_ = ctrlW.Close()
@@ -120,7 +127,6 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 			}
 		}
 	}
-	guard := newStderrGuard(os.Stderr)
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() { defer wg.Done(); copyCapped(os.Stdout, stdout) }()
@@ -231,7 +237,7 @@ func stageFor(admitted bool) string {
 // program never sees it). On Cloud Run the Google provider needs none of
 // them (ADC via the metadata server); locally it is the provider's key.
 // Nothing else's key ever reaches the worker.
-func workerEnv(res *policy.Resolved) []string {
+func workerEnv(res *policy.Resolved, defaultCache string) []string {
 	if !res.Restricted() {
 		return os.Environ()
 	}
@@ -242,6 +248,10 @@ func workerEnv(res *policy.Resolved) []string {
 	names = append(names, executor.PolicyCredentialVars(res)...)
 	out := make([]string, 0, len(names))
 	for _, name := range names {
+		if name == "AILANG_CACHE_DIR" && config.CacheDir() == "" && defaultCache != "" {
+			out = append(out, name+"="+defaultCache)
+			continue
+		}
 		if config.RawSet(name) {
 			out = append(out, name+"="+config.Raw(name))
 		}

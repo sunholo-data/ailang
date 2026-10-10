@@ -465,14 +465,14 @@ func TestWorkerEnv_ProviderScopedCredentials(t *testing.T) {
 		return false
 	}
 	noAI := &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"IO"}}
-	env := workerEnv(noAI)
+	env := workerEnv(noAI, "")
 	for _, k := range []string{"OPENROUTER_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY"} {
 		if has(env, k) {
 			t.Errorf("no-AI worker must not see %s", k)
 		}
 	}
 	gem := &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"AI", "IO"}, AIProvider: "gemini-3-5-flash-lite"}
-	env = workerEnv(gem)
+	env = workerEnv(gem, "")
 	if !has(env, "GOOGLE_API_KEY") || !has(env, "GEMINI_API_KEY") {
 		t.Errorf("gemini worker must see the Google credentials: %v", env)
 	}
@@ -480,11 +480,11 @@ func TestWorkerEnv_ProviderScopedCredentials(t *testing.T) {
 		t.Errorf("gemini worker must not see other providers' keys")
 	}
 	stub := &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"AI", "IO"}, AIProvider: "stub"}
-	if env := workerEnv(stub); has(env, "GOOGLE_API_KEY") || has(env, "OPENROUTER_API_KEY") {
+	if env := workerEnv(stub, ""); has(env, "GOOGLE_API_KEY") || has(env, "OPENROUTER_API_KEY") {
 		t.Errorf("stub needs no credentials")
 	}
 	trusted := &policy.Resolved{Mode: policy.ModeTrustedHost, Effects: []string{"IO"}}
-	if env := workerEnv(trusted); !has(env, "OPENROUTER_API_KEY") {
+	if env := workerEnv(trusted, ""); !has(env, "OPENROUTER_API_KEY") {
 		t.Errorf("trusted_host gets the operator's full environment")
 	}
 }
@@ -516,7 +516,7 @@ func TestWorkerEnv_WebBackendCredential(t *testing.T) {
 		{"net_allow without Net cap", &policy.Resolved{Mode: policy.ModeRestricted, Effects: []string{"IO"}, NetAllow: []string{"ollama.com"}}, false},
 	}
 	for _, tc := range cases {
-		env := workerEnv(tc.res)
+		env := workerEnv(tc.res, "")
 		if got := has(env, "OLLAMA_API_KEY"); got != tc.want {
 			t.Errorf("%s: OLLAMA_API_KEY present=%v, want %v", tc.name, got, tc.want)
 		}
