@@ -107,7 +107,10 @@ func (c *aliasBodyCloser) walk(t types.Type) types.Type {
 	case *types.Row:
 		return c.row(t)
 	case *types.TFunc2:
-		return &types.TFunc2{Params: c.slice(t.Params), Return: c.walk(t.Return), EffectRow: c.row(t.EffectRow)}
+		// Preserve effect-contract metadata while closing the structural fields.
+		copy := *t
+		copy.Params, copy.Return, copy.EffectRow = c.slice(t.Params), c.walk(t.Return), c.row(t.EffectRow)
+		return &copy
 	case *types.TRecord2:
 		return &types.TRecord2{Row: c.row(t.Row)}
 	case *types.TLabelled:
