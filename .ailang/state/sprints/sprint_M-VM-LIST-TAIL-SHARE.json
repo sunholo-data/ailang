@@ -1,0 +1,112 @@
+{
+  "sprint_id": "M-VM-LIST-TAIL-SHARE",
+  "status": "not_started",
+  "created": "2026-10-09T11:48:02.226812+00:00",
+  "design_doc": "design_docs/planned/v0_53_0/m-vm-list-tail-share.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-vm-list-tail-share-sprint-plan.md",
+  "github_issues": [
+    676
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search list returned application packages a2ui, duckdb, decisions and mcp_oauth; none can replace in-tree VM list storage, CLI dispatch or repository regression evidence."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search list returned application packages a2ui, duckdb, decisions and mcp_oauth; none can replace in-tree VM list storage, CLI dispatch or repository regression evidence."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Search list returned application packages a2ui, duckdb, decisions and mcp_oauth; none can replace in-tree VM list storage, CLI dispatch or repository regression evidence."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Search list returned application packages a2ui, duckdb, decisions and mcp_oauth; none can replace in-tree VM list storage, CLI dispatch or repository regression evidence."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 150,
+    "estimated_total_loc": 600,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Fresh-build baseline and benchmark fixtures",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "AC-0: build the unchanged checkout; record commit, binary version/hash, OS/architecture and startup baseline; reproduce V6\u2013V9 using that binary.",
+        "Add walk, foldl and build fixtures and fail-fast min-of-5 harness; record 40k/80k/160k both-engine results and disassembly showing _list_tail and TAIL_CALL.",
+        "Benchmark inputs are equivalent, outputs checked, and list construction separated from consumption; no strict-only run is labelled VM before M3."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Shared immutable list views and safety regression tests",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "AC-1: _list_tail, take and drop use shared subslices with unchanged clamping, arity/type errors and builtin indices.",
+        "Nonempty result backing addresses match input offsets; allocation counts and bytes remain constant with list length, permitting the ListObj wrapper allocation.",
+        "Negative/zero/length/overlength and empty cases pass; cons, sortBy, array conversion and bridge tests preserve original values and evaluator parity."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Strict-bytecode run flag implies VM",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "AC-4: run --strict-bytecode alone selects the VM, pure supported entry succeeds, and a proven evaluator-only entry fails with the strict error and nonzero exit.",
+        "run --bytecode --strict-bytecode and test --strict-bytecode behavior remain covered; ordinary --bytecode retains existing bridge behavior.",
+        "Flag help says it implies --bytecode; change the actual runFile argument in main_run.go and audit central help text for consistency."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Performance acceptance, documentation and release evidence",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "AC-2/2b: min-of-5 VM 160k walk <=2x evaluator and 160k/80k <=2; record 786432-element linear-built float-list walk and <=2s target when startup is about 0.35s.",
+        "AC-3: commit runnable harness and before/after table with timing provenance and allocation evidence; record failures without suppressing stderr.",
+        "AC-5: make test, make lint and make verify-examples pass; first_non_repeat, record_cons_pattern and url_route_dispatch outputs agree across engines.",
+        "AC-6: std/list header and take/drop/tail comments describe sharing; LIMITATIONS states backing-array retention and preserves D-19 construction warnings; unreleased changelog explains strict-flag behavior.",
+        "Run sprint-evaluator against design AC-0 through AC-6; log all results and unresolved thresholds before marking sprint complete."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
