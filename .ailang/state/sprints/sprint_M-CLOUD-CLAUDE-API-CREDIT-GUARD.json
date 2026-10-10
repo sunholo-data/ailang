@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-CLOUD-CLAUDE-API-CREDIT-GUARD",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-09T15:25:05.085868+00:00",
-  "design_doc": "design_docs/planned/m-cloud-claude-api-credit-guard.md",
-  "sprint_plan": "design_docs/planned/m-cloud-claude-api-credit-guard-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard.md",
+  "sprint_plan": "design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard-sprint-plan.md",
   "github_issues": [],
   "approval": {
     "design_approved": true,
@@ -64,7 +64,12 @@
   "velocity": {
     "target_loc_per_day": 300,
     "estimated_total_loc": 2610,
-    "estimated_days": 9
+    "estimated_days": 9,
+    "actual_total_loc": 10118,
+    "actual_deleted_loc": 131,
+    "actual_days": 0.949,
+    "actual_loc_per_day": 10660,
+    "measurement": "Added/deleted source lines including tests/docs in d1f2fc4c7,81f9a3772,be15f1042; excludes infrastructure and unrelated merges/releases"
   },
   "features": [
     {
@@ -199,28 +204,53 @@
         "All relevant tests, formatting/lint, boundary checks and required CI pass.",
         "Deployment changes are reviewable under infrastructure policy; canary/rollout evidence and operator guide are complete."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-10T07:21:05.866997+00:00",
-      "completed": null,
-      "notes": "Complete local default suite/lint and gateway/executor race pass, including actual installedCLI fake completion/tool loop. Review-only Terraform/IAM artifacts validated. Required PR CI, built/deployed image verification, isolated authority/IAM provisioning, user organization/workspace and live $5 canary billing reconciliation remain pending; lane disabled."
+      "completed": "2026-10-10T14:11:55.458174+00:00",
+      "notes": "v0.54.1 exact release/full CI and cloud CLI proof passed. Canonical conservative recovery booked2550044 without refund; dev/prod canaries settled6509+6516 with four complete verified receipts and zeroholds. Audited promotion preserved booked2563069/conservative2550040; evaluator enabled through dev/test/prodTerraform CI, test excluded, noIAMchange. Live dev/prod overlay/ready100percent and all44otheragents preserved. Final independent evaluation PASS94/100, all33criteria, no blockers; website publication SUCCESS."
     }
   ],
   "deferred": [
-    "Extend account-based confirmation/status and spending guards to other credit pools in a follow-up."
+    "Extend account-based confirmation/status and spending guards to other credit pools in a follow-up.",
+    "Follow-up sprint: evaluate federated Anthropic authentication first, then narrow inherited Cloud Build secret/ledger permissions if still needed; preserve unrelated deployments and implement through reviewed Terraform."
   ],
   "execution_worktree": "/private/tmp/ailang-claude-credit-guard",
   "activation": {
-    "enabled": false,
+    "enabled": true,
     "confirmed_allocation_usd": 200,
     "user_confirmed_expiry_date": "2026-10-28",
     "conservative_expiry": "2026-10-28T00:00:00Z",
     "secret_resource": "projects/ailang-multivac/secrets/ailang-anthropic-api-key",
-    "blockers": [
-      "Deployed image/CLI contract verification and required CI pending",
-      "Gateway and isolated authority infrastructure not deployed",
-      "Verified Anthropic org/workspace and stable cycle reference pending",
-      "Live canary and billing reconciliation pending"
-    ]
+    "blockers": [],
+    "organization_name": "Holosun ApS",
+    "organization_evidence": "Attended correction: Holosun ApS organization, aitana and ailang workspaces",
+    "workspace": "ailang",
+    "proposed_allocation_reference": "anthropic-credits-2026-10-28",
+    "intended_workspace_name": "ailang",
+    "workspace_evidence": "Attended user confirmed replacement secret after stating rotation into ailang workspace; Models API authenticates the replacement but does not establish workspace identity.",
+    "key_rotation_status": "user_confirmed_complete_authentication_verified",
+    "workspace_name": "ailang",
+    "verified_secret_version": "projects/ailang-multivac/secrets/ailang-anthropic-api-key/versions/4",
+    "key_authentication_evidence": "/private/tmp/claude-credit-key-auth-check.json",
+    "control_plane_decision": {
+      "decision": "Retain both existing Cloud Build accounts as trusted deployment administrators for this rollout; do not change folder IAM.",
+      "source": "Attended user: lets leave cloudbuild as ok to use anthropic for now; get the work published to prod",
+      "principals": [
+        "sa-cloudbuild@ailang-multivac-deploy.iam.gserviceaccount.com",
+        "sa-cloudbuild@multivac-deploy.iam.gserviceaccount.com"
+      ],
+      "folder_iam_changed": false
+    },
+    "grant_confirmed_at": "2026-10-10T11:41:47.287347Z",
+    "admission_start": "2026-10-10T11:41:46Z",
+    "unresolved_exposure_usd": 0,
+    "additional_manual_diagnostic_hold_usd": 0,
+    "canary_enabled": true,
+    "booked_exposure_usd": 2.563069,
+    "conservative_debited_usd": 2.55004,
+    "canary_complete": true,
+    "first_regular_workload": "sprint-evaluator",
+    "operating_available_usd": 187.436931
   },
   "validation": {
     "full_test": "PASS: final full make test GOTEST=\"go test -p 4\"; initial concurrent process-start deadline failures passed in isolation and full limited-concurrency rerun",
@@ -229,9 +259,9 @@
     "gateway_fault_race": "PASS",
     "firestore_emulator_race": "PASS: real concurrent clients",
     "terraform_preview": "fmt/validate PASS; IAM patch apply-check PASS",
-    "live_canary": "NOT RUN",
-    "provider_spend_usd": 0,
-    "ci": "PENDING: required checks on the final PR head, #1755",
+    "live_canary": "PASS: repaired dev/prod tasks7001d497/20eab360; receipts fully reconciled; audited promoted",
+    "provider_spend_usd": 0.013029,
+    "ci": "PASS: exact source77969517f46dae40d2e863abb804dd26fe916b6d;26 completed checks,19 SUCCESS/7 intentionally SKIPPED, zero pending/failure/cancellation; both macOS matrix legs passed",
     "claude_cli_protocol": "PASS: installed2.1.295 beta-free ordinary completion and two-request Bash printf tool loop; separate reserves/settlement, zero real spend",
     "claude_cli_protocol_log": "/private/tmp/claude-credit-route-cli-smoke.log",
     "full_test_log": "/private/tmp/claude-credit-tests-limited-concurrency.log",
@@ -263,15 +293,472 @@
       "all_github_jobs": "PASS after unchanged macOS memory probe retry and cancelled companion reruns",
       "resolution": "Added admission, uncertain usage/cache/SSE, and synthetic job identity boundary tests; no production changes or gate weakening. Next-head Sonar/CI required."
     },
-    "coverage_focused_race": "PASS: /private/tmp/claude-credit-combined-coverage.log; gateway statement coverage90.3%; source Sonar metric remains to be confirmed on next head",
+    "coverage_focused_race": "PASS: /private/tmp/claude-credit-combined-coverage.log; gateway statement coverage 90.3%; final source Sonar new-code coverage confirmed 84.6%",
     "coverage_lint": "PASS:0 issues; /private/tmp/claude-credit-coverage-lint.log",
-    "coverage_ci_quick": "PASS: /private/tmp/claude-credit-coverage-ci-quick.log"
+    "coverage_ci_quick": "PASS: /private/tmp/claude-credit-coverage-ci-quick.log",
+    "ci_gate_log": "/private/tmp/claude-credit-pr1755-coverage-ci-gate.log",
+    "ci_final_rollup": "/private/tmp/claude-credit-pr1755-coverage-final-rollup.json",
+    "sonar": {
+      "result": "PASS",
+      "new_code_coverage_pct": 84.6,
+      "required_pct": 80,
+      "head": "77969517f46dae40d2e863abb804dd26fe916b6d",
+      "gate_evidence": "/private/tmp/claude-credit-pr1755-sonar-final-gate.json"
+    },
+    "provider_key_authentication": {
+      "checked_at": "2026-10-10T10:00:14.300382+00:00",
+      "secret_version": "projects/ailang-multivac/secrets/ailang-anthropic-api-key/versions/4",
+      "secret_created_at": "2026-10-10T09:57:38.365686Z",
+      "endpoint": "https://api.anthropic.com/v1/models?limit=1000",
+      "method": "GET",
+      "inference_requests": 0,
+      "provider_spend_usd": 0,
+      "workspace_name_user_attested": "ailang",
+      "workspace_verified_by_api": false,
+      "http_status": 200,
+      "request_id": "req_011CftMwBVvQnYxJsKygkLo1",
+      "result": "AUTHENTICATION_PASS",
+      "model_count": 14,
+      "has_more": false,
+      "claude_haiku_5_5_available": true,
+      "haiku_model_ids": [
+        "claude-haiku-5-5",
+        "claude-haiku-4-5-20251001"
+      ]
+    },
+    "post_merge_ci": {
+      "state": "FAILURE: unrelated macOS measurement timer fault fixture; exact release head macOS passed and Linux/Windows checks pending final CI conclusion",
+      "commit": "d1f2fc4c7ff381b48f9005f5e0a157a3c2b95ced",
+      "run": "https://github.com/sunholo-data/ailang/actions/runs/38043688355"
+    },
+    "post_merge_cloud_builds": {
+      "source": {
+        "id": "a12a0f80-d900-4050-b784-b0399b4ea8d5",
+        "trigger": "ailang-core-dev",
+        "commit": "d1f2fc4c7ff381b48f9005f5e0a157a3c2b95ced",
+        "observed_status": "FAILURE:optional absent job real gcloud output; fixed in infrastructure2fa1d01"
+      },
+      "infrastructure": {
+        "id": "7aa9d846-a28a-4997-9c3f-4baa9d17d5a1",
+        "trigger": "ailang-multivac-config-dev",
+        "commit": "872e2bdb20f44b26da8156e42e188c1e8f0aeefd",
+        "observed_status": "SUCCESS"
+      },
+      "project": "ailang-multivac-deploy",
+      "region": "europe-west3"
+    },
+    "provision_plan": {
+      "result": "PASS",
+      "adds": 38,
+      "updates": 2,
+      "removals": 4,
+      "removals_are_existing_runtime_broad_secret_grants": true,
+      "cloud_run_runtime_creations": 0,
+      "summary": "/private/tmp/claude-credit-prod-provision-summary.json"
+    },
+    "release_prechecks": "PASS: all five checks; /private/tmp/claude-credit-release-prechecks.log",
+    "release_post_checks": {
+      "tests": "PASS",
+      "lint": "PASS:0 issues",
+      "test_log": "/private/tmp/claude-credit-release-post-test.log",
+      "lint_log": "/private/tmp/claude-credit-release-post-lint.log",
+      "version": "v0.53.4",
+      "commit": "dda3360a8a627209f68ecc864e38b8221d090667",
+      "installed_version": "v0.53.4",
+      "ci_run": "https://github.com/sunholo-data/ailang/actions/runs/38045035030",
+      "tag_pushed": true,
+      "production_promoted": true
+    },
+    "optional_credit_job_lookup_fix": {
+      "result": "PASS:298 checks across sh and dash, both actual Jobs and Services absence formats",
+      "red_log": "/private/tmp/claude-credit-lib-regression-red.log",
+      "green_log": "/private/tmp/claude-credit-lib-regression-green.log",
+      "published_infra_commit": "f0a10e80ba88e2e625f245fb8f63046f78f1beff",
+      "branches": [
+        "dev",
+        "test",
+        "prod"
+      ]
+    },
+    "project_bootstrap_plan": {
+      "plan": "/private/tmp/claude-credit-project-bootstrap.tfplan",
+      "log": "/private/tmp/claude-credit-project-bootstrap-plan.log",
+      "additions": 3,
+      "changes": 0,
+      "removals": 0,
+      "iam_changes": 0,
+      "approval": "APPROVED: attended user approved the one-time Terraform bootstrap",
+      "applied": true,
+      "attempt": "Project not created: SERVICE_DISABLED cloudbilling API in quota project ailang-multivac; only two terraform_data review records created. Billing API now staged through CI.",
+      "result": "PASS:3 additions,0 changes,0 removals; no IAM/runtime changes",
+      "project_number": "660527076951",
+      "billing_enabled": true,
+      "folder": "389195706883",
+      "retry_log": "/private/tmp/claude-credit-project-bootstrap-retry-apply.log"
+    },
+    "billing_api_stage": {
+      "commit": "f0a10e80ba88e2e625f245fb8f63046f78f1beff",
+      "plan": "/private/tmp/claude-credit-billing-api-plan.log",
+      "external_additions": 1,
+      "external_removals": 0,
+      "review_metadata_removals": 2,
+      "runtime_enabled": false,
+      "dev_build": "84a5612c-6a65-4b6d-836c-0f17439efb63",
+      "test_build": "cc765e07-71df-4e66-be24-a2009861cdbf",
+      "approval_review": "Initial push rejected due to two destroys; safe plan inspection proved both validation-only terraform_data markers, no cloud resources/IAM/credit data. Push accepted after evidence.",
+      "status": "SUCCESS dev/test/prod"
+    },
+    "release_dev_build": {
+      "id": "6ef7f168-ca29-4920-b5c4-138fd4ee26f1",
+      "status": "FAILURE: actual missing-service gcloud format now fixed in infra f0a10e8",
+      "log": "/private/tmp/claude-credit-release-dev-build.log"
+    },
+    "remaining_provision": {
+      "commit": "f6f8801024698d383f7fab9b92ba93cd6c0f10dc",
+      "result": "READ-ONLY PLAN PASS:25 additions,no changes/deletions,no runtime creation; dev/test CI passed; production push complete, apply pending",
+      "summary": "/private/tmp/claude-credit-remaining-provision-summary.json"
+    },
+    "operator_documentation": {
+      "website_guide": "docs/docs/guides/claude-api-credits.md",
+      "private_operations": "docs/ops/claude-credit-guard.md",
+      "website_build": "PASS:/private/tmp/claude-credit-docs-final-build.log;independentlockeddependenciesresolvedsharedcacheSSGfault",
+      "stdlib_index_fix": "User explicitly approved missing std/web index row",
+      "renewal": "manual fresh-credit confirmation only",
+      "website_commit": "81f9a3772 (repair/update);originalguidepublished d0272a4e8"
+    },
+    "m6_rollout_2026_10_10": {
+      "release": "v0.53.4",
+      "exact_release_ci": "38045035030 SUCCESS",
+      "test_release": "26590781-a17e-4e60-8e9c-d5fa0325b300 SUCCESS",
+      "production_promote": "6d51378c-7114-485d-b737-0dea0909c6c6 SUCCESS",
+      "production_mcp_latest": "0.53.4",
+      "native_image_fake_cli": "a6ae8bb8-003c-42ee-bbfa-ec924609eb48 SUCCESS; default/Go Claude Code2.1.296; completion and 2-request Bash loop; no live provider spend",
+      "dev_verified_copy": "e6188876-2c3c-4759-aa0d-356dee48b197 SUCCESS",
+      "runtime_ci": "b87ef343-c913-4070-bbd1-7ba8e53c2a50 SUCCESS; 15 additions 0 deletions",
+      "gateway_ready_revision": "ailang-claude-credit-gateway-00001-qgg",
+      "signing_secret_version": "1; value never logged or put in Terraform state",
+      "auth_correction": "PASS: explicit stable custom audience7448d32 dev/test/prodCI successful; operatorstatus and controlsverified",
+      "canary_registration": "PASS: actual dev/prod GCS registry; test absent; 44 existing agents preserved",
+      "provider_spend_usd": null,
+      "manual_grant_confirmation": "PASS: $200 Holosun ApS/ailang anthropic-credits-2026-10-28; confirmed11:41:47Z; expires2026-10-28T00:00:00Z",
+      "live_canary_reconciliation": "FAILED/PENDING: task-481b76a4 full1320000microUSD unresolved; no prodcanary or promotion",
+      "effective_runtime_iam": "PASS: e485df14-04e6-4deb-97b7-790d509d53bc SUCCESS;10identities30HTTP200 allgranted[]",
+      "operator_controls": "PASS: audited enable/disable retained limits, grant and accounting; disabled afterfailedcanary",
+      "unresolved_exposure_usd": 1.32,
+      "stream_usage_repair": "Published dev81f9a3772; fulltestPASS, finalfocusedracePASS,lint0,boundariesPASS,ci-quickPASS,docsbuildSUCCESS. Independent reviewfoundnoguardweakening; latestverifiedobservationgapfixed. RequiredGitHubCI/releasedimagepending.",
+      "provider_observation": "Attended user reports no visible spend;maybelag;notverifiedbillingevidence",
+      "repair_test_log": "/private/tmp/claude-credit-stream-repair-full-test.log",
+      "repair_race_log": "/private/tmp/claude-credit-usage-repair-final-race.log",
+      "repair_lint_log": "/private/tmp/claude-credit-stream-repair-final-lint.log",
+      "repair_ci_quick_log": "/private/tmp/claude-credit-stream-repair-ci-quick.log",
+      "operations_audit": "12cc156: prod64c25c8a/testa661c010SUCCESS;no resource/IAMchanges; failedpilot/retainedexposure/grant/IAMproof documented",
+      "disabled_state_after_repair": "/private/tmp/claude-credit-disabled-status-after-repair.json;Enabledfalse,Unresolved1320000,ActiveTasks0",
+      "attended_direct_key_diagnostic": {
+        "tested_at": "2026-10-10T12:16:11.671110+00:00",
+        "secret_version": "projects/ailang-multivac/secrets/ailang-anthropic-api-key/versions/4",
+        "model": "claude-haiku-5-5",
+        "http_status": 200,
+        "provider_request_id": "req_011CftYJVtDadJ5EhMwfBKKa",
+        "provider_workspace_id": "wrkspc_01PVEJKFGgG4qbGAPEFYXkjv",
+        "message_id": "msg_011CftYJWuV7zW8PnGfTwYbX",
+        "message_stop": true,
+        "calculated_cost_micro_usd": 4,
+        "state": "verified_provider_response",
+        "receipt": "/private/tmp/claude-credit-second-direct-key-test-curl.json"
+      },
+      "manual_diagnostic_unresolved_micro_usd": 1000040,
+      "manual_diagnostic_nonforwarded": "Second attempt SSL certificate verification failed before HTTP request;request_count0. No certificate checks disabled.",
+      "provider_balance_user_attested": "199.77 USD remaining (0.23 used);attendedclarification2026-10-10;not a per-request reconciliation receipt",
+      "observed_protocol_fixture": "Public1ef56b4b3;gatewayracePASS:/private/tmp/claude-credit-observed-provider-fixture-race.log;providerkeyresponseHTTP20016input4outputcomplete;output_tokens_detailsobserved,originalcanarybillingstillunresolved",
+      "manual_diagnostic_aggregate_with_reported_spend_usd": 2.550044,
+      "direct_key_audit_commit": "50133b7 published dev/test/prod;onlyoperationsdocumentdiffagainstdeployed d0fe926, noTerraform/IAMchanges",
+      "historical": true,
+      "superseded_by": "validation.m6_recovery_continuation; original failed pilot retained for audit"
+    },
+    "provider_spend_status": "Four complete gateway billing receipts reconciled plus attended complete direct diagnostic receipt; historical ambiguous charges conservatively booked",
+    "m6_recovery_continuation": {
+      "authorization": "Attended user continue with this, following concrete audited conservative recovery and rollout proposal",
+      "design": "design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard-recovery.md",
+      "worktree": "/private/tmp/ailang-claude-credit-dev-pins",
+      "state": "completed",
+      "expected_initial_booked_micro_usd": 2550044,
+      "expected_conservative_micro_usd": 2550040,
+      "expected_canary_remaining_micro_usd": 2449956,
+      "provider_verified_direct_micro_usd": 4,
+      "no_refund": true,
+      "runtime_enabled": true,
+      "source_implementation": "be15f1042",
+      "independent_review": "PASS94/100: final independent evaluation round3; all33criteria, no blockers",
+      "authority_domain_race": "PASS:/private/tmp/ailang-credit-recovery-domain-race.log",
+      "real_firestore_two_client_race": "PASS:/private/tmp/ailang-credit-recovery-emulator-race.log",
+      "gateway_receipt_race": "PASS:/tmp/credit-receipts-race.log",
+      "full_pre_test": "PASS:/private/tmp/claude-credit-recovery-pre-test.log",
+      "pre_lint": "PASS:0issues:/private/tmp/claude-credit-recovery-final-pre-lint.log",
+      "post_lint": "PASS:0issues:/private/tmp/claude-credit-recovery-post-lint.log",
+      "post_ci_quick": "PASS:/private/tmp/claude-credit-recovery-post-ci-quick.log",
+      "release_docs_build": "PASS:/private/tmp/claude-credit-recovery-release-docs-build.log",
+      "operations_audit_commit": "2d4e3c69ac056c41bb72691cd709271bf15ea97a;publisheddev/test/prod",
+      "target_release": "v0.54.1",
+      "final_whole_tree_test": "PASS:/private/tmp/claude-credit-recovery-post-test.log",
+      "source_head": "e2e2bd73f3715977db355b1a2d20860b28ede20e",
+      "github_ci": "PASS:38053586760",
+      "previous_stream_repair_ci": "PASS:38051540304",
+      "source_published_to_dev": true,
+      "release_tag_pushed": true,
+      "isolated_release_binary": "PASS: AILANG v0.54.1; exact e2e2bd73f3715977db355b1a2d20860b28ede20e",
+      "source_dev_build": "379135f9-ba2b-41ac-a2f2-8bf7e3b035c7 SUCCESS",
+      "prepared_evaluator_config": {
+        "commit": "2ce04b8",
+        "activation": false,
+        "mock_plans": "PASS:12/12",
+        "independent_review": "PASS",
+        "production_plan": {
+          "add": 0,
+          "change": 1,
+          "destroy": 0,
+          "iam_changes": 0
+        },
+        "published_to_dev": true,
+        "test_prod_pending": false,
+        "dev_ci": "56d33118-edad-48ef-9531-0bed79a837af SUCCESS;livecanaryregistered,evaluatornotactivated"
+      },
+      "sonar": "PASS:exact e2e2bd73",
+      "tag_commit": "e2e2bd73f3715977db355b1a2d20860b28ede20e",
+      "concurrent_dev_docs_merge": "bd27ae80d3c00de3fa18c58d602971d5af5d1974;tag-created-at-dev-head remainsancestor;exacttestedreleasepreserved",
+      "config_routing_repair": {
+        "commit": "69118b0",
+        "tests": "PASS:483 across sh/dash",
+        "independent_review": "PASS",
+        "no_iam_or_trigger_changes": true,
+        "state": "PASS: published dev/test/prod; CI and activation completed",
+        "live_dev_parent": "befa140e-a9d4-487b-86f7-5a64c6ab0833 SUCCESS",
+        "live_dev_child": "def8a8a9-a1bd-4acc-812d-c29d61c8f291 SUCCESS",
+        "test_config": "fa0564c8-1573-4680-8701-bcc9d64a9661 SUCCESS",
+        "test_agents": "dea95d7d-0f33-49cb-a027-f0facfd083f0 SUCCESS"
+      },
+      "release_artifacts": "PASS:38055376322;publicv0.54.1;allplatformbinaries",
+      "brain_index": "PASS:68syntax,394builtins,250examples;currentACTIVE_PROMPTv0.16.7;canonicalprojectbrain",
+      "test_release_build": "61b4da93-532f-40a6-b4ec-731e5dfa4444 SUCCESS",
+      "native_image_proof": {
+        "build": "6721b94c-867b-440f-8967-ee2f47c02f49 SUCCESS",
+        "cli": "2.1.296",
+        "default_and_go": "completion+two-requestBashloopPASS;noSKIP",
+        "provider_spend": 0,
+        "log": "/private/tmp/claude-credit-v54.1-image-smoke.log"
+      },
+      "promotion_dry_run": "0b54bc4d-6140-4733-b993-6ac4c1689945 SUCCESS",
+      "production_main_config": "e6a1f4f9-ab34-415f-b07c-6693edbec756 SUCCESS",
+      "production_duplicate_config_failure": "Historical state-lock collision; resolved by successful retry514da07f-881a-47b5-aead-67552ee3412d; no force-unlock or raw fallback",
+      "immutable_digests": {
+        "version": "v0.54.1",
+        "source": "e2e2bd73f3715977db355b1a2d20860b28ede20e",
+        "test_release_build": "61b4da93-532f-40a6-b4ec-731e5dfa4444",
+        "agent": "sha256:d93e1a947617b346ebd044a4dfbc10fb954ffb8c31f60b840469983e758c23c6",
+        "agent-go": "sha256:10f1dd71d32f305d5f1e86dde2b700617bd9172273874045c688caec1b1e1f4d",
+        "coordinator": "sha256:c9aaee21a42aa0c7b693c8139aa9ff461f0c7fcee4cecce2dc0d4decf8eecb1e"
+      },
+      "production_promote": "09860acd-d7c3-453b-9b3f-4061c1347980 SUCCESS",
+      "dev_verified_copy": "5c92bcd5-a401-432f-ab58-0b259b1590df SUCCESS",
+      "production_gateway_revision": "ailang-claude-credit-gateway-00004-lkf READY@c9aaee21",
+      "production_mcp_latest": "0.54.1",
+      "production_config_retry": "514da07f-881a-47b5-aead-67552ee3412d SUCCESS",
+      "recovery": "PASS:allfourdebits;booked2550044,conservative2550040,held0,reconciliationfalse",
+      "original_request_id": "d96611e9-8ed7-40a1-961d-58396f8a0871",
+      "original_provider_metadata": "Actual0/UpstreamIDempty retained;stateconservative-debit",
+      "canary_complete": true,
+      "canary_enabled": true,
+      "remaining_canary_micro_usd": 2436931,
+      "dev_canary": {
+        "task": "task-7001d497",
+        "execution": "ailang-dev-agent-executor-go-claude-credit-hdkng",
+        "completed_at": "2026-10-10T13:48:41Z",
+        "gateway_micro_usd": 6509
+      },
+      "prod_canary": {
+        "task": "task-20eab360",
+        "execution": "ailang-agent-executor-go-claude-credit-7js6t",
+        "completed_at": "2026-10-10T13:57:11Z",
+        "gateway_micro_usd": 6516
+      },
+      "provider_receipts_reconciled": true,
+      "booked_micro_usd": 2563069,
+      "conservative_micro_usd": 2550040,
+      "canary_gateway_micro_usd": 13025,
+      "pilot_remaining_micro_usd": 2436931,
+      "reserved_micro_usd": 0,
+      "unresolved_micro_usd": 0,
+      "forwarding_micro_usd": 0,
+      "readiness_review": "independent PASS",
+      "promotion": "audited PASS, CanaryComplete=true, no reset",
+      "immutable_canary_evidence": "https://github.com/sunholo-data/ailang-multivac/blob/8a860353790c72f4be9da1a92301846c8761d187/docs/ops/claude-credit-guard.md#repaired-release-and-reconciled-canaries--2026-10-10",
+      "dev_activation_ci": "4dfffd91-68c3-466e-a13e-81306a33482d SUCCESS",
+      "regular_evaluator_enabled": true,
+      "activation_infrastructure_commit": "82b12885f85d0c75ac3f433e76df6fd4c57f4a90",
+      "activation_ci": {
+        "dev": "4dfffd91-68c3-466e-a13e-81306a33482d SUCCESS",
+        "test": "784d8ec2-48c9-456b-8223-3a7344d17eee SUCCESS",
+        "prod": "e343eb32-0a1e-4d3d-8357-6cef04707e6a SUCCESS"
+      },
+      "live_registry_proof": "/private/tmp/claude-credit-v54.1-evaluator-live-verification.json",
+      "live_credit_status": "/private/tmp/claude-credit-v54.1-evaluator-live-status.json",
+      "coordinator_revisions": {
+        "dev": "ailang-dev-coordinator-03456-sls",
+        "prod": "ailang-coordinator-00215-n6k"
+      },
+      "final_independent_evaluation": "PASS94/100, all33criteria, no blockers",
+      "final_operations_audit": "https://github.com/sunholo-data/ailang-multivac/blob/prod/docs/ops/claude-credit-guard.md#verified-production-activation--2026-10-10",
+      "final_docs_build": "PASS standalone dependency directory; standard registry generation; /private/tmp/claude-credit-v54.1-completion-docs-build.log",
+      "final_docs_publication": "548cec57650bdd25575fdfb72c569467aecfc02f documentation deployment SUCCESS38059323634; guide live at https://ailang.sunholo.com/docs/guides/claude-api-credits; archive-reference followup99b8e9495b8adffd784e65b1662d0fb556db03c7 publisheddev",
+      "release_notice": "canonical user inbox_1791642161166_2854f194 viarelease-manager",
+      "owned_emulator_cleanup": "PASS session10360 stoppedafteralltests",
+      "final_docs_ci": {
+        "completion_head": "548cec57650bdd25575fdfb72c569467aecfc02f",
+        "final_head": "99b8e9495b8adffd784e65b1662d0fb556db03c7",
+        "ci": 38059323632,
+        "final_ci": 38059831139,
+        "docs": 38059323634,
+        "docs_result": "SUCCESS; published content verified",
+        "build": 38059323625,
+        "build_result": "SUCCESS",
+        "final_build": 38059831167,
+        "final_build_result": "SUCCESS attempt3; both macOS, Windows, Linux and release bundle passed without code/test changes",
+        "status": "PASS",
+        "final_build_previous_attempts": [
+          {
+            "attempt": 1,
+            "failure": "TestClockSleepZero: measured10ms; wants <10ms",
+            "log": "/private/tmp/claude-credit-final-docs-macos-build-actual-failure.log"
+          },
+          {
+            "attempt": 2,
+            "failure": "TestMemprobeDebugLogDoesNotAccumulate: measured35MB; wants <=30MB",
+            "log": "/private/tmp/claude-credit-final-docs-macos-build-retry-failure.log"
+          }
+        ],
+        "ci_result": "SUCCESS",
+        "completion_head_all_checks": "PASS: CI38059323632, build38059323625, documentation38059323634",
+        "final_ci_result": "SUCCESS",
+        "completed_at": "2026-10-10T15:03:20.299165+00:00",
+        "runs": [
+          {
+            "conclusion": "success",
+            "databaseId": 38059831139,
+            "headSha": "99b8e9495b8adffd784e65b1662d0fb556db03c7",
+            "name": "CI",
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "databaseId": 38059831167,
+            "headSha": "99b8e9495b8adffd784e65b1662d0fb556db03c7",
+            "name": "Build and Release",
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "databaseId": 38059323625,
+            "headSha": "548cec57650bdd25575fdfb72c569467aecfc02f",
+            "name": "Build and Release",
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "databaseId": 38059323634,
+            "headSha": "548cec57650bdd25575fdfb72c569467aecfc02f",
+            "name": "Deploy Documentation to GitHub Pages",
+            "status": "completed"
+          },
+          {
+            "conclusion": "success",
+            "databaseId": 38059323632,
+            "headSha": "548cec57650bdd25575fdfb72c569467aecfc02f",
+            "name": "CI",
+            "status": "completed"
+          }
+        ]
+      },
+      "final_live_status": "/private/tmp/claude-credit-v54.1-final-status.json; Enabled/Eligible/CanaryComplete true, zero holds/blockers; unchanged booked2563069",
+      "final_live_status_snapshot": {
+        "AccountID": "anthropic-api-credits",
+        "Organization": "Holosun ApS",
+        "Workspace": "ailang",
+        "Enabled": true,
+        "OperatingCeiling": 190000000,
+        "DailyCeiling": 6000000,
+        "TaskCeiling": 2000000,
+        "MaxTasks": 2,
+        "Grant": {
+          "AccountID": "anthropic-api-credits",
+          "GrantID": "anthropic-credits-2026-10-28",
+          "Amount": 200000000,
+          "Available": 200000000,
+          "StartsAt": "2026-10-10T11:41:46Z",
+          "ExpiresAt": "2026-10-28T00:00:00Z",
+          "Operator": "ailang-claude-credit-operator@ailang-multivac.iam.gserviceaccount.com",
+          "Evidence": "https://github.com/sunholo-data/ailang-multivac/blob/7448d321439dfd73f8664e9265ff6a44778c327f/docs/ops/claude-credit-guard.md#allocation-and-attended-decisions",
+          "ExpectedGrantID": "",
+          "ConfirmedAt": "2026-10-10T11:41:47.287347Z"
+        },
+        "Settled": 2563069,
+        "ConservativeDebited": 2550040,
+        "Reserved": 0,
+        "Forwarding": 0,
+        "Unresolved": 0,
+        "ReconciliationRequired": false,
+        "ReconciliationReason": "",
+        "Leases": {},
+        "CanaryComplete": true,
+        "CanarySettled": 2563069,
+        "CanaryGatewaySettled": 13025,
+        "CanaryReserved": 0,
+        "Available": 187436931,
+        "CanaryAvailable": 2436931,
+        "Eligible": true,
+        "Blockers": null,
+        "Day": {
+          "Settled": 2563069,
+          "Reserved": 0,
+          "ConservativeDebited": 2550040
+        },
+        "ActiveTasks": 0
+      }
+    },
+    "provider_spend_scope": "Verified gateway canaries0.013025 plus verified direct diagnostic0.000004; conservative2.550040 is not actual provider spend"
   },
-  "next_milestone": "M6",
-  "last_updated": "2026-10-10T09:21:24.315666+00:00",
+  "next_milestone": null,
+  "last_updated": "2026-10-10T15:03:20.299260+00:00",
   "execution_branch": "sprint/claude-api-credit-guard",
   "source_pull_request": "https://github.com/sunholo-data/ailang/pull/1755",
   "infrastructure_worktree": "/private/tmp/ailang-multivac-claude-credit",
   "infrastructure_branch": "sprint/claude-api-credit-guard-infra",
-  "infrastructure_pull_request": "https://github.com/sunholo-data/ailang-multivac/pull/6"
+  "infrastructure_pull_request": "https://github.com/sunholo-data/ailang-multivac/pull/6",
+  "source_head": "e2e2bd73f3715977db355b1a2d20860b28ede20e",
+  "infrastructure_head": "decfdf0366ab60e6e72e19feabc48bb7fb464b74",
+  "merges": {
+    "source": {
+      "pr": 1755,
+      "base": "dev",
+      "commit": "d1f2fc4c7ff381b48f9005f5e0a157a3c2b95ced",
+      "merged_at": "2026-10-10T10:05:22Z",
+      "state": "MERGED"
+    },
+    "infrastructure": {
+      "pr": 6,
+      "base": "dev",
+      "commit": "872e2bdb20f44b26da8156e42e188c1e8f0aeefd",
+      "merged_at": "2026-10-10T10:05:05Z",
+      "state": "MERGED"
+    },
+    "authorization": "Attended user: please merge them in"
+  },
+  "completed": "2026-10-10T14:11:55.458174+00:00",
+  "final_evaluation": {
+    "status": "PASS",
+    "score": 94,
+    "round": 3,
+    "independent_judge": "credit_evaluation",
+    "report": ".ailang/state/evaluations/eval_M-CLOUD-CLAUDE-API-CREDIT-GUARD_round_3.json"
+  },
+  "documentation_worktree": "/private/tmp/ailang-claude-credit-completion-docs",
+  "documentation_head": "99b8e9495b8adffd784e65b1662d0fb556db03c7"
 }
