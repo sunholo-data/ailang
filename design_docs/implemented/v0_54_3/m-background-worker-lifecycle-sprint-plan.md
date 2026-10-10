@@ -103,4 +103,8 @@ Complete runtime cleanup and local consumer feasibility tests in this sprint. Th
 
 No milestone is complete until its acceptance criteria and verification evidence pass. Update only progress/timing/evidence fields in sprint JSON during execution; preserve requirements. After independent evaluation, retain an explicit implemented-locally/unreleased status. Move the design and plan together to the actual implemented release directory when the supporting version ships.
 
-Actual implementation: 4,682 added code/test/showcase lines and 420 deleted lines; local elapsed calendar wall time 49.1 minutes with parallel agents. This is not human engineering-day throughput. See [retrospective](../../docs/sprint-retros/M-BACKGROUND-WORKER-LIFECYCLE-retro.md) and the independent Round2 report for final evidence.
+Actual implementation: 4,682 added code/test/showcase lines and 420 deleted lines; local elapsed calendar wall time 49.1 minutes with parallel agents. This is not human engineering-day throughput. See [retrospective](../../../docs/sprint-retros/M-BACKGROUND-WORKER-LIFECYCLE-retro.md) and the independent Round2 report for final evidence.
+
+## Release delivery
+
+On 2026-10-10 the user authorized delivery to dev and a new release. These completed records move together into `implemented/v0_54_3/` as part of release preparation. The runtime is included in v0.54.3; publication and exact-PID checks against its official artifact are the remaining delivery checks. Historical independent source validation remains at its recorded commits.

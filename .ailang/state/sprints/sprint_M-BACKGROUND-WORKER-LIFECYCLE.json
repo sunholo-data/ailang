@@ -2,9 +2,9 @@
   "sprint_id": "M-BACKGROUND-WORKER-LIFECYCLE",
   "status": "completed",
   "created": "2026-10-10T17:06:50.131928+00:00",
-  "design_doc": "design_docs/planned/m-background-worker-lifecycle.md",
-  "sprint_plan": "design_docs/planned/m-background-worker-lifecycle-sprint-plan.md",
-  "markdown_plan": "design_docs/planned/m-background-worker-lifecycle-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_54_3/m-background-worker-lifecycle.md",
+  "sprint_plan": "design_docs/implemented/v0_54_3/m-background-worker-lifecycle-sprint-plan.md",
+  "markdown_plan": "design_docs/implemented/v0_54_3/m-background-worker-lifecycle-sprint-plan.md",
   "github_issues": [],
   "related_issues": [
     231
@@ -148,6 +148,7 @@
   ],
   "last_session": "2026-10-10T17:55:56.522692+00:00",
   "last_checkpoint": "M1-M5 PASS locally; independent final Round2 evaluation PASS95/100, including full gates and artifact audit. No push/release.",
-  "delivery_gate": "Official released-runtime consumer retest pending future push/release.",
-  "completed": "2026-10-10T17:55:56.522692+00:00"
+  "delivery_gate": "Dev delivery and v0.54.3 publication authorized; official released-runtime cleanup retest pending publication.",
+  "completed": "2026-10-10T17:55:56.522692+00:00",
+  "release_version": "v0.54.3"
 }

@@ -1,8 +1,8 @@
 # M-BACKGROUND-WORKER-LIFECYCLE: Owned Subprocess Shutdown and Cancellation
 
-**Status**: Implemented locally; independent full gates passed — unreleased
+**Status**: Implemented; included in v0.54.3 (publication pending)
 
-**Target**: Next supporting release after approval; version TBD (source baseline v0.54.1)
+**Target**: v0.54.3 (source baseline v0.54.1)
 
 **Priority**: P1 — blocks the consumer application's worker feasibility gate
 
@@ -47,7 +47,7 @@ The root cause crosses several paths:
 - Async source `Close` starts cleanup and returns without waiting. Its only `cmd.Wait` is initiated by `Close`, rather than natural completion.
 - Neither standard-library surface exports a worker cancellation operation.
 
-The [implemented managed-stdin design](../implemented/v0_9_0/m-async-io-process-stdin.md) already promises cleanup on program exit. This follow-up repairs that unfulfilled lifecycle guarantee and specifies the missing public cancellation boundary. The terminal package can present the operation, but cannot implement runtime subprocess ownership itself.
+The [implemented managed-stdin design](../v0_9_0/m-async-io-process-stdin.md) already promises cleanup on program exit. This follow-up repairs that unfulfilled lifecycle guarantee and specifies the missing public cancellation boundary. The terminal package can present the operation, but cannot implement runtime subprocess ownership itself.
 
 ## Goals and Success Metrics
 
@@ -61,7 +61,7 @@ The [implemented managed-stdin design](../implemented/v0_9_0/m-async-io-process-
 
 ## Axiom Compliance
 
-Canonical reference: [Design Axioms](../../docs/docs/references/axioms.mdx).
+Canonical reference: [Design Axioms](../../../docs/docs/references/axioms.mdx).
 
 | Axiom | Score | Justification |
 |---|---:|---|
@@ -163,7 +163,7 @@ The function lines above describe signatures, not standalone declarations. A com
 
 Wrong owner, fabricated nonexistent ID, and wrong source kind produce typed failure without signalling any process. `cancelProcessSource` does not cancel stdin readers or connection adapters. Existing missing-capability and budget failures retain their established effect failure path; the new operations must perform their declared checks. Mandatory host cleanup is not charged to a depleted user budget.
 
-Cancellation uses the same 2-second total stop-and-join deadline; `WorkerCancelTimedOut` carries that limit in milliseconds. Cancellation kills the **local OS worker**, including one blocked in an AI call. It does not add an abort operation to the parent evaluator's own AI handler, and does not guarantee remote inference or billing stops when a client disappears. [#231's provider-context design](v0_29_0/m-agent-step-cancellation.md) handles that separate boundary.
+Cancellation uses the same 2-second total stop-and-join deadline; `WorkerCancelTimedOut` carries that limit in milliseconds. Cancellation kills the **local OS worker**, including one blocked in an AI call. It does not add an abort operation to the parent evaluator's own AI handler, and does not guarantee remote inference or billing stops when a client disappears. [#231's provider-context design](../../planned/v0_29_0/m-agent-step-cancellation.md) handles that separate boundary.
 
 ### 4. Process Trees and Bounded Cleanup
 
@@ -211,11 +211,11 @@ Stdin-source `Close` currently signals a stop channel, but `Scanner.Scan` or `Re
 
 Fixture bodies were read during this design audit:
 
-- [process_stdin_write.ail](../../examples/runnable/process_stdin_write.ail): buffered writes followed by stdin closure; accepted queued writes drain for a cooperative child.
-- [stream_process_source.ail](../../examples/runnable/stream_process_source.ail): chunked process output and stdin selection; preserve final partial chunks and source priority.
-- [stream_multi_source.ail](../../examples/runnable/stream_multi_source.ail): handler false followed by normal host work; stopping selection does not close borrowed stdin.
-- [terminal_keys.ail](../../examples/runnable/terminal_keys.ail): q/Escape/EOF/Interrupted paths retain terminal restoration; add owned-worker PTY coverage around these paths.
-- [process_demo.ail](../../examples/runnable/process_demo.ail): synchronous `exec` retains nonzero-exit-as-`Ok` completion semantics and typed spawn failures.
+- [process_stdin_write.ail](../../../examples/runnable/process_stdin_write.ail): buffered writes followed by stdin closure; accepted queued writes drain for a cooperative child.
+- [stream_process_source.ail](../../../examples/runnable/stream_process_source.ail): chunked process output and stdin selection; preserve final partial chunks and source priority.
+- [stream_multi_source.ail](../../../examples/runnable/stream_multi_source.ail): handler false followed by normal host work; stopping selection does not close borrowed stdin.
+- [terminal_keys.ail](../../../examples/runnable/terminal_keys.ail): q/Escape/EOF/Interrupted paths retain terminal restoration; add owned-worker PTY coverage around these paths.
+- [process_demo.ail](../../../examples/runnable/process_demo.ail): synchronous `exec` retains nonzero-exit-as-`Ok` completion semantics and typed spawn failures.
 
 ## Validation and Acceptance Criteria
 
@@ -278,12 +278,12 @@ Checks were performed on 2026-10-10. Source paths below refer to latest-dev comm
 
 The pre-creation neural search for “background worker process lifecycle cancellation” ranked planned AI-step cancellation at 0.44 and implemented process guardrails at 0.37; other relevant top results were lower. Neither the planned 0.75 nor implemented 0.65 duplicate threshold was met. Embedding scans were partial (71/200 planned and 102/200 implemented), so these scores are discovery evidence rather than proof of exhaustive absence. Targeted repository search and direct reading established the distinctions:
 
-- [Managed process stdin, implemented v0.9.0](../implemented/v0_9_0/m-async-io-process-stdin.md): promises exit cleanup, but its wiring and live-handle retention are incomplete. This document repairs the guarantee and adds explicit cancellation.
-- [AI-step cancellation](v0_29_0/m-agent-step-cancellation.md) and [provider-context triage](ailang-core-triage/ai-cancellable-provider-context.md): cancel an AI call within its parent evaluator. This document owns and stops OS subprocess workers; it does not change AI provider interfaces.
-- [Process guardrails proposal](../implemented/v0_5_6/m-eval-process-guardrails.md): focuses on the evaluation harness; its historical status metadata is inconsistent and does not prove this runtime behavior shipped. Reuse current `internal/proctree` implementation instead.
-- [CSP/session-types proposal](v1_1_0/m-csp-session-types.md): a broader scheduler/channel design. Worker ownership here does not depend on new language syntax or that scheduler.
-- [Native terminal input, implemented v0.54.0](../implemented/v0_54_0/m-terminal-ui-native-input.md): delivers terminal primitives and records the worker feasibility failure; this design closes that separate runtime gap.
-- [Program north star](../PROGRAM.md): this is runtime work in the AILANG fix lane. Reply-inbox rendering, crew reaction policy, and package presentation remain consumer-level work after the gate passes.
+- [Managed process stdin, implemented v0.9.0](../v0_9_0/m-async-io-process-stdin.md): promises exit cleanup, but its wiring and live-handle retention are incomplete. This document repairs the guarantee and adds explicit cancellation.
+- [AI-step cancellation](../../planned/v0_29_0/m-agent-step-cancellation.md) and [provider-context triage](../../planned/ailang-core-triage/ai-cancellable-provider-context.md): cancel an AI call within its parent evaluator. This document owns and stops OS subprocess workers; it does not change AI provider interfaces.
+- [Process guardrails proposal](../v0_5_6/m-eval-process-guardrails.md): focuses on the evaluation harness; its historical status metadata is inconsistent and does not prove this runtime behavior shipped. Reuse current `internal/proctree` implementation instead.
+- [CSP/session-types proposal](../../planned/v1_1_0/m-csp-session-types.md): a broader scheduler/channel design. Worker ownership here does not depend on new language syntax or that scheduler.
+- [Native terminal input, implemented v0.54.0](../v0_54_0/m-terminal-ui-native-input.md): delivers terminal primitives and records the worker feasibility failure; this design closes that separate runtime gap.
+- [Program north star](../../PROGRAM.md): this is runtime work in the AILANG fix lane. Reply-inbox rendering, crew reaction policy, and package presentation remain consumer-level work after the gate passes.
 
 ## Deferred Decisions
 
@@ -312,3 +312,7 @@ Concurrent cleanup required synchronizing trace record/snapshot/config operation
 Live `stream_process_source` verification exposed an existing multiplexer closure probe that consumed queued events from other sources. Tracking closed channels avoids those receives and busy selection of closed sources, preserving final chunks and existing priority/borrowing semantics. A 5,000-event semantic test failed before that fix and passes after it.
 
 See the [validation record](m-background-worker-lifecycle-validation.md) and [sprint plan](m-background-worker-lifecycle-sprint-plan.md). Independent Round2 full tests, lint, file sizes and example verification pass at source head `b2be99ecc`; all 250 baseline example statuses remain unchanged. The final artifact report is recorded alongside the sprint state. Nothing has been pushed or released; the official supporting-runtime consumer gate remains after delivery.
+
+## Release delivery
+
+On 2026-10-10 the user authorized delivery to dev and a new release. These completed records move together into `implemented/v0_54_3/` as part of release preparation. The runtime is included in v0.54.3; publication and exact-PID checks against its official artifact are the remaining delivery checks. Historical independent source validation remains at its recorded commits.

@@ -74,4 +74,8 @@ Round2 evaluates source head `b2be99ecc` after tests began at `d7884e3f0`. The i
 
 An unchanged source-baseline executable at `37001e839` passed241examples with9skips. Final example verification passed243with9skips: all250common file statuses match, no file was removed, and the only additions are the two cancellation showcases. This is a status/output-fixture regression control, not a claim that a full AST differential tool ran. The existing stale `lambda_expressions.ail` manifest warning remains nonfatal; no new module drift exists.
 
-The round1 rejection and final round2 audit are preserved under `.ailang/state/evaluations/`. The [sprint retrospective](../../docs/sprint-retros/M-BACKGROUND-WORKER-LIFECYCLE-retro.md) records elapsed time, source LOC and integration corrections.
+The round1 rejection and final round2 audit are preserved under `.ailang/state/evaluations/`. The [sprint retrospective](../../../docs/sprint-retros/M-BACKGROUND-WORKER-LIFECYCLE-retro.md) records elapsed time, source LOC and integration corrections.
+
+## Release delivery
+
+On 2026-10-10 the user authorized delivery to dev and a new release. These completed records move together into `implemented/v0_54_3/` as part of release preparation. The runtime is included in v0.54.3; publication and exact-PID checks against its official artifact are the remaining delivery checks. Historical independent source validation remains at its recorded commits.
