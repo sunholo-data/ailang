@@ -3,11 +3,12 @@ package runner
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/sunholo-data/ailang/internal/effects"
 	ailtrace "github.com/sunholo-data/ailang/internal/trace"
 	"go.opentelemetry.io/otel"
-	"os"
-	"strings"
 )
 
 // Emit after worker shutdown so the cleanup receipt precedes final flush.

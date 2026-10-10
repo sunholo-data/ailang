@@ -52,6 +52,18 @@ with tempfile.TemporaryDirectory() as work:
   assert probe.returncode in (0, 1), ('PID probe failed', probe.returncode, probe.stderr)
   assert not probe.stdout.strip(), ('owned worker remains alive or unreaped', worker_pid, probe.stdout)
   after = termios.tcgetattr(slave)`, 1)
+
+	harness = strings.Replace(harness, " output = b''", " output = b''\n worker_pid = None\n worker_absent = False", 1)
+	harness = strings.Replace(harness, "  after = termios.tcgetattr(slave)", "  worker_absent = True\n  after = termios.tcgetattr(slave)", 1)
+	harness = strings.Replace(harness, "  os.close(master); os.close(slave)", `  if not worker_absent:
+   pidfile = os.path.join(work, 'worker.pid')
+   if worker_pid is None and os.path.exists(pidfile):
+    try: worker_pid = int(open(pidfile).read())
+    except ValueError: pass
+   if worker_pid and worker_pid > 1:
+    try: os.kill(worker_pid, signal.SIGKILL)
+    except ProcessLookupError: pass
+  os.close(master); os.close(slave)`, 1)
 	for _, backend := range []string{"eval", "strict"} {
 		for _, scenario := range []string{"normal", "exit", "error", "sigint", "sigterm", "budget"} {
 			if backend == "strict" && scenario == "budget" {
