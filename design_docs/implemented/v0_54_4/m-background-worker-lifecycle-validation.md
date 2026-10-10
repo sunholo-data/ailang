@@ -87,3 +87,9 @@ The first PR Linux run exposed a test acknowledgement race: file existence could
 The resident image acceptance fixture is restored before HTTP authentication tests, tracks each replacement boot PID, waits for completed boot and bounded shutdown, and cleans up the current server. Production authentication and worker runtime are unchanged. Independent read-only review approved both test corrections; the pinned-image acceptance proof passed all 133 checks in Cloud Build `81bef821-1dea-4ad8-8ac9-e38d7ba8d30d` against resident image digest `sha256:9db4a5508b29172527918adc6e37635b3a9105a2b40d08350f8ba88525454770`. Fresh PR/dev CI remain delivery gates.
 
 Concurrent dev release preparation reserved v0.54.3 for its resident fixture repair. This worker release advances to v0.54.4 and retains that intervening change.
+
+### macOS release CI cleanup correction
+
+The final PR macOS run printed all async echo output but failed during group shutdown with EPERM. Apple XNU's [killpg1 implementation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c) excludes zombies from group iteration and returns EPERM if it finds no eligible member. Teardown racing that iteration explains the observed result. Group cleanup now makes one signal-0 existence check after EPERM and accepts only ESRCH, proving that the same group is gone; any still-present group or probe error retains the original failure. There is no second destructive signal, retry delay, change to the shared deadline, or bypass of Wait/reaping.
+
+The deterministic seven-case regression test first failed, then passed. Ten focused proctree/effects race repetitions passed, including natural exit, descendants, blocked AI, cancellation, shared deadline and repeated resources. Independent read-only review approved the exact change; full tests and lint passed after the correction, as did twenty repetitions of the macOS async echo fixture. A new complete PR/dev CI run gates delivery.
