@@ -4,7 +4,7 @@ Implementation: core PR [#1756](https://github.com/sunholo-data/ailang/pull/1756
 package PR [#117](https://github.com/sunholo-data/ailang-packages/pull/117).
 Core feature commit 2f807c563; integrated current dev acc227e55 at cdcea3bdb.
 Package feature commit c0ec852, integrated compiler evidence e52ae17.
-Local implementation validation passes. Independent technical review: 82/100 plus 10 regression bonus points, with no remaining implementation defect found. CI/final delivery and required release/
+Local implementation validation passes. Independent provisional review: 77/100 plus 10 regression bonus points; M4 CI acceptance remains withheld. CI/final delivery and required release/
 publication/registry consumer checks are pending; this is not a completed sprint.
 
 ## Concrete evidence
@@ -81,3 +81,16 @@ without a scoped plan. Evidence: `/private/tmp/terminal-package-crew-integrated.
 and `/private/tmp/terminal-content-library-dev-control.log`. Terminal-ui's own
 39 tests, strict quality and PTY controls remain green. This wider consumer gate
 must be resolved before claiming package repository CI/final release readiness.
+
+## Windows CI repair
+
+The original Windows effects job failed descriptor alias exclusion, followed by a
+leaked test reservation. The repair uses borrowed HANDLE queries: disk files share
+volume/file-index identity; pipe/character input uses handle identity without disk
+metadata queries. Native mode remains Unsupported. The test now defers its lease
+release immediately. Added Windows controls cover disk aliases/distinct identities,
+handle lifetime, pipe blank/final-partial/EOF, invalid handles and NUL character
+input. Windows/WASM effects tests compile, Windows vet, native race controls and
+final lint pass. Independent review found no new defect. Actual Windows runtime CI
+on the repaired commit is still required; M4 remains pending, and no release was
+made. Original Windows log: `/private/tmp/terminal-ci-windows.log`.

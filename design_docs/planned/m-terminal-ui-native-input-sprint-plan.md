@@ -64,7 +64,7 @@ Ownership: package `packages/terminal-ui/**` only. Demo checklist: contracts inc
 - [x] Installed `[bin]` runs from unrelated cwd; PTY arrow-key/resize tests work under evaluator and strict VM.
 - [x] PTY state/escape restoration is checked for normal/error/budget/exit/panic/SIGINT/SIGTERM; changed decoder/cleanup mutation fails controls.
 - [x] Plain output has no ESC; blank line survives; EOF exits; event replay is deterministic and altered event changes outcome.
-- [x] Full applicable test/lint/boundary/build checks pass; inherited baseline/environment failures are recorded separately and do not masquerade as regressions.
+- [ ] Full applicable test/lint/boundary/build checks pass; inherited baseline/environment failures are recorded separately and do not masquerade as regressions.
 - [x] Package lock/check/named/inline tests/strict quality/smoke/dry-run evidence includes actual totals and property skips.
 
 Root ownership: runner/CLI wiring, end-to-end tests, package installation controls and portability validation. Existing example fixtures must be checked/run where applicable.
@@ -84,7 +84,7 @@ The sprint validates against its built binary and package checkout. Package regi
 
 ## Execution evidence and delivery state
 
-M0–M4 are implemented and locally verified. Integrated full `make test` and lint
+M0–M3 are implemented; M4 local gates pass, with the Windows CI reader-identity correction repaired/reviewed and actual runtime CI pending. Integrated full `make test` and lint
 pass on core commit cdcea3bdb, including the current dev imported callback repair.
 [Validation and delivery evidence](m-terminal-ui-native-input-validation.md)
 records actual PTY, mutation, package, portability and registry results.

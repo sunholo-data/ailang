@@ -87,10 +87,10 @@
         "Installed-bin arrow/resize and all teardown causes verified",
         "Portability, replay, plain/EOF and regression checks; mutation controls"
       ],
-      "passes": true,
+      "passes": null,
       "started": "2026-10-10T07:33:30.107370+00:00",
-      "completed": "2026-10-10T08:12:03.277973+00:00",
-      "notes": "Integrated full make test exit 0; lint 0 issues; examples, boundaries, file sizes and 48 stdlib interfaces pass. 12 real PTY scenarios cover evaluator/VM normal, exit, error, SIGINT/SIGTERM, evaluator budget and host panic restoration. Installed native arrow/resize/state, line/plain blank and EOF, redirected auto checks pass. Decoder and cleanup mutations fail the controls. Platform builds pass. Current-binary CLI checks pass after removing an external stdlib override from the dev-stamped shim fixture."
+      "completed": null,
+      "notes": "Integrated full make test exit 0; lint 0 issues; examples, boundaries, file sizes and 48 stdlib interfaces pass. 12 real PTY scenarios cover evaluator/VM normal, exit, error, SIGINT/SIGTERM, evaluator budget and host panic restoration. Installed native arrow/resize/state, line/plain blank and EOF, redirected auto checks pass. Decoder and cleanup mutations fail the controls. Platform builds pass. Current-binary CLI checks pass after removing an external stdlib override from the dev-stamped shim fixture. Windows CI subsequently caught descriptor-only identity in unsupported-platform leases; real Windows disk identity and deferred fixture release are repaired and independently reviewed. Windows/WASM effects tests compile, Windows vet and native race/lint controls pass; actual Windows runtime CI is still required. Completion remains pending actual CI."
     },
     {
       "id": "M5",
@@ -108,7 +108,7 @@
       "passes": null,
       "started": "2026-10-10T07:58:50.167088+00:00",
       "completed": null,
-      "notes": "Core PR #1756 and package PR #117 are committed and mergeable. Independent technical review: 82/100 plus 10 regression bonus; local full test/lint gates pass and no remaining implementation defect found. Core CI pending. Package crew CI and actual authorized publication both fail because the released compiler/validator lacks std/terminal. Publication attempt: validator v0.53.2, 8 files pass, 4 adapter/demo files fail. Supporting core release, accepted publication and fresh registry installation remain required; sprint stays in progress."
+      "notes": "Core PR #1756 and package PR #117 are committed and mergeable. Independent provisional review: 77/100 plus 10 regression bonus, with M4 CI acceptance withheld; local full test/lint gates pass and no remaining implementation defect found. Core CI pending. Package crew CI and actual authorized publication both fail because the released compiler/validator lacks std/terminal. Publication attempt: validator v0.53.2, 8 files pass, 4 adapter/demo files fail. Supporting core release, accepted publication and fresh registry installation remain required; sprint stays in progress. Wider crew consumer also reproduces a pre-existing pure-recursion ApplicationEffects compiler invariant on untouched dev; recorded separately. Core release approval is pending."
     }
   ],
   "registry_reuse": [
@@ -160,7 +160,7 @@
     "actual_days": null
   },
   "last_session": "2026-10-10T08:12:03.277973+00:00",
-  "last_checkpoint": "M4 local gates verified; M5 CI and supporting release/publication pending",
+  "last_checkpoint": "M4 Windows identity repaired and independently reviewed; actual CI, supporting core release/publication and separate consumer compiler blocker pending",
   "status": "in_progress",
   "authorization": {
     "design_and_execute": "great please sprint plan then execute",

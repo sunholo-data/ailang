@@ -255,6 +255,7 @@ func TestTerminalDeviceAliasesAndCloneReaderExclusion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer release() // always relinquish the first reservation, including assertion failures
 	second := &EffContext{IOReader: alias}
 	if stolenRelease, err := second.beginInputRead(); err == nil {
 		stolenRelease()
