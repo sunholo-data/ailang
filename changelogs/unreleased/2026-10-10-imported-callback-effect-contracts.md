@@ -1,3 +1,0 @@
-### Fixed — Imported callbacks retain their declared effects (2026-10-10)
-
-Preserve concrete and implicit effect-contract metadata when closing module interfaces. Since v0.53.1, importing a record containing an explicitly effectful callback could reject a valid caller with a spurious unresolved `ε_annot` tail, even though the identical same-module declaration passed. Callers still must declare all callback effects; genuine polymorphic effect tails remain intact. Regression coverage checks the two-file Daneel Host/dispatch case, same-module parity, missing effects, and callback contract preservation. Follow-up to [M-EFFECT-ROW-VAR-UNIFICATION](../../design_docs/implemented/v1_0_0/m-effect-row-var-unification.md).
