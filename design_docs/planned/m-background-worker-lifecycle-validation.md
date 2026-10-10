@@ -50,6 +50,8 @@ Run native lifecycle controls outside the restricted sandbox: PID inspection, PT
 
 ## Final gates
 
+Independent round 1 rejected the frozen implementation at `99bda5b8a`: full tests found missing API debug lines after engine context cloning and irrelevant shutdown trace events in no-worker programs; example verification found stale manifest statistics. Lint and file-size gates passed. The fixes configure the API sink and policy before cloning, serialize the shared fallback debug drain, preserve existing no-worker trace goldens while retaining completed-worker receipts, and correct only the three manifest totals. Focused regression tests reproduce the failures before each correction and pass afterward. The CLI debug polling test also needed synchronized stdout capture to make its existing concurrent readiness polling race-safe.
+
 | Gate | Status at source freeze |
 |---|---|
 |Clean baseline full make test/lint|PASS|
@@ -63,3 +65,5 @@ Run native lifecycle controls outside the restricted sandbox: PID inspection, PT
 ## Delivery handoff
 
 Keep commits local on `sprint/background-worker-lifecycle` until independent gates pass. The user plans a later push to dev. Publish a supporting runtime after that delivery, then rerun the consumer cleanup feasibility gate with its pinned official version/commit and exact PID evidence. Resume reply inbox and parallel crew reactions only after that published-runtime gate passes. Local subprocess termination does not fix parent/provider cancellation issue#231 or guarantee remote inference/billing stops. POSIX descendants that deliberately detach, hostSIGKILL and power loss remain outside the guarantee.
+
+The design and companion sprint plan remain together under `planned/` with an explicit implemented-locally/unreleased status; move both to the actual supporting release directory when that release ships. No release version is assigned by the local sprint.

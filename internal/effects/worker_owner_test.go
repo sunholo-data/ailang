@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/trace"
 )
 
 type ownedTestWorker struct {
@@ -285,5 +287,45 @@ func TestWorkerOwnerReleasedNaturalFailureIsNotLost(t *testing.T) {
 	a.ReleaseWorker(w)
 	if err := ctx.CloseWorkers(); err == nil || !strings.Contains(err.Error(), "injected wait failure") {
 		t.Fatalf("released failure disappeared: %v", err)
+	}
+}
+
+func TestWorkerOwnerReceiptsPreserveNoWorkerTraces(t *testing.T) {
+	ctx := NewEffContext(nil)
+	ctx.Trace = trace.NewCollector()
+	child := ctx.Clone().(*EffContext)
+	if err := child.CloseWorkers(); err != nil {
+		t.Fatal(err)
+	}
+	if err := ctx.CloseWorkers(); err != nil {
+		t.Fatal(err)
+	}
+	if events := ctx.Trace.Events(); len(events) != 0 {
+		t.Fatalf("no-worker execution gained cleanup events: %v", events)
+	}
+}
+
+func TestWorkerOwnerReceiptsRetainReleasedWorkerHistory(t *testing.T) {
+	ctx := NewEffContext(nil)
+	ctx.Trace = trace.NewCollector()
+	a, err := ctx.BeginWorker()
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := &ownedTestWorker{done: make(chan struct{})}
+	if err := a.Complete(w); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.RequestStop(); err != nil {
+		t.Fatal(err)
+	}
+	a.ReleaseWorker(w)
+	for i := 0; i < 2; i++ {
+		if err := ctx.CloseWorkers(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if events := ctx.Trace.Events(); len(events) != 1 {
+		t.Fatalf("completed worker must retain exactly one cleanup receipt: %v", events)
 	}
 }

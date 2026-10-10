@@ -11,9 +11,29 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
+
+// The exec copy goroutine writes stderr while the test polls for server
+// readiness and the emitted Debug lines.
+type serveAPIDebugBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *serveAPIDebugBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *serveAPIDebugBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
 
 // TestServeAPI_NoCapsStillFlushesDebugOutput is the D5 regression test for
 // M-DEBUG-SINK-STRUCTURED-LINES: before the fix, serve-api constructed its
@@ -46,7 +66,7 @@ export func ping() -> string =
 	defer cancel()
 	// Deliberately NO --caps: the bug only reproduces without it.
 	cmd := exec.CommandContext(ctx, binary, "serve-api", "--port", port, moduleRoot)
-	var stderr bytes.Buffer
+	var stderr serveAPIDebugBuffer
 	cmd.Stderr = &stderr
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
@@ -117,7 +137,7 @@ func freePort(t *testing.T) string {
 	return fmt.Sprint(l.Addr().(*net.TCPAddr).Port)
 }
 
-func waitForServer(t *testing.T, healthURL string, stderr *bytes.Buffer) {
+func waitForServer(t *testing.T, healthURL string, stderr *serveAPIDebugBuffer) {
 	t.Helper()
 	deadline := time.Now().Add(20 * time.Second)
 	for time.Now().Before(deadline) {

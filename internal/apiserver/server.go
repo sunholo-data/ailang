@@ -82,6 +82,7 @@ type Server struct {
 	maxUploadSize  int64               // maximum upload size in bytes (0 = use DefaultMaxUploadSize)
 	apiKeyHeader   string              // HTTP header name for API key auth
 	apiKeyEnv      string              // env var containing expected API key
+	debugFlushMu   sync.Mutex          // serializes the shared fallback Debug drain
 	effCtx         *effects.EffContext // for Debug output collection
 	logLevel       int                 // minimum severity for Debug output
 	oauthIssuer    string              // --oauth-issuer: required by @mcp_auth("oauth2") tools
@@ -196,7 +197,6 @@ func New(basePath string, cfg Config) *Server {
 	var storedEffCtx *effects.EffContext
 	if cfg.EffCtx != nil {
 		if effCtx, ok := cfg.EffCtx.(*effects.EffContext); ok && effCtx != nil {
-			eng.SetEffContext(cfg.EffCtx)
 			storedEffCtx = effCtx
 		}
 	}
@@ -223,6 +223,11 @@ func New(basePath string, cfg Config) *Server {
 	// on behalf of one request.
 	if storedEffCtx != nil && storedEffCtx.Env.FSMaxBytes == 0 {
 		storedEffCtx.Env.FSMaxBytes = maxUpload
+	}
+	if storedEffCtx != nil {
+		// SetEffContext creates an engine-owned clone. Complete sink and
+		// policy configuration first so request clones inherit both.
+		eng.SetEffContext(storedEffCtx)
 	}
 	return &Server{
 		engine:             eng,
@@ -343,6 +348,8 @@ func (s *Server) DroppedModules() []DroppedModule {
 // JSON so Cloud Logging lifts their severity; unstructured lines keep the
 // timestamped "[Debug] " decoration (M-DEBUG-SINK-STRUCTURED-LINES).
 func (s *Server) flushDebugOutput() {
+	s.debugFlushMu.Lock()
+	defer s.debugFlushMu.Unlock()
 	if s.effCtx == nil {
 		return
 	}

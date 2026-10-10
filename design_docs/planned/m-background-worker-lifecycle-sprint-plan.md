@@ -101,4 +101,4 @@ Complete runtime cleanup and local consumer feasibility tests in this sprint. Th
 
 ## Progress
 
-No milestone is complete until its acceptance criteria and verification evidence pass. Update only progress/timing/evidence fields in sprint JSON during execution; preserve requirements. The design and plan move together to implemented after an independent passing evaluation, with a truthful unreleased-delivery annotation.
+No milestone is complete until its acceptance criteria and verification evidence pass. Update only progress/timing/evidence fields in sprint JSON during execution; preserve requirements. After independent evaluation, retain an explicit implemented-locally/unreleased status. Move the design and plan together to the actual implemented release directory when the supporting version ships.

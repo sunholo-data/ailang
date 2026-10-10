@@ -39,6 +39,7 @@ type WorkerOwner struct {
 	children       map[*WorkerOwner]struct{}
 	mu             sync.Mutex
 	closing        bool
+	hadWorkers     bool
 	pending        map[*WorkerAdmission]struct{}
 	workers        map[OwnedWorker]*WorkerAdmission
 	pendingDone    chan struct{}
@@ -159,6 +160,7 @@ func (a *WorkerAdmission) Complete(worker OwnedWorker) error {
 			return
 		}
 		a.owner.mu.Lock()
+		a.owner.hadWorkers = true
 		if !a.owner.closing {
 			a.owner.workers[worker] = a
 			a.finishPendingLocked()
@@ -400,11 +402,12 @@ func (owner *WorkerOwner) flushReceipts() {
 		owner.mu.Lock()
 		children := owner.closedChildren
 		record, err, elapsed, pending := owner.recordReceipt, owner.closeErr, owner.elapsed, owner.pendingReaders
+		hasReceipt := owner.hadWorkers || err != nil || pending != 0
 		owner.mu.Unlock()
 		for _, child := range children {
 			child.flushReceipts()
 		}
-		if record != nil {
+		if record != nil && hasReceipt {
 			record(err, elapsed, pending)
 		}
 	})
