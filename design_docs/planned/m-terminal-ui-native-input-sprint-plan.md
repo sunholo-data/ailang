@@ -61,17 +61,17 @@ Ownership: package `packages/terminal-ui/**` only. Demo checklist: contracts inc
 
 ## M4 — End-to-end regression and portability (450 LOC, 9h; depends M1/M2/M3)
 
-- [ ] Installed `[bin]` runs from unrelated cwd; PTY arrow-key/resize tests work under evaluator and strict VM.
-- [ ] PTY state/escape restoration is checked for normal/error/budget/exit/panic/SIGINT/SIGTERM; changed decoder/cleanup mutation fails controls.
-- [ ] Plain output has no ESC; blank line survives; EOF exits; event replay is deterministic and altered event changes outcome.
-- [ ] Full applicable test/lint/boundary/build checks pass; inherited baseline/environment failures are recorded separately and do not masquerade as regressions.
-- [ ] Package lock/check/named/inline tests/strict quality/smoke/dry-run evidence includes actual totals and property skips.
+- [x] Installed `[bin]` runs from unrelated cwd; PTY arrow-key/resize tests work under evaluator and strict VM.
+- [x] PTY state/escape restoration is checked for normal/error/budget/exit/panic/SIGINT/SIGTERM; changed decoder/cleanup mutation fails controls.
+- [x] Plain output has no ESC; blank line survives; EOF exits; event replay is deterministic and altered event changes outcome.
+- [x] Full applicable test/lint/boundary/build checks pass; inherited baseline/environment failures are recorded separately and do not masquerade as regressions.
+- [x] Package lock/check/named/inline tests/strict quality/smoke/dry-run evidence includes actual totals and property skips.
 
 Root ownership: runner/CLI wiring, end-to-end tests, package installation controls and portability validation. Existing example fixtures must be checked/run where applicable.
 
 ## M5 — Documentation, evaluation and delivery (200 LOC, 3h; depends M4)
 
-- [ ] Changelog fragment, maintained limitations, builtin/package docs and usage examples reflect actual behavior/platform boundaries.
+- [x] Changelog fragment, maintained limitations, builtin/package docs and usage examples reflect actual behavior/platform boundaries.
 - [ ] Sprint plan and JSON record each acceptance result and all required evidence; both ride the core branch.
 - [ ] Sprint-evaluator assesses tests/lint/acceptance/code/docs/fidelity plus conditional regression coverage; fix real findings and re-evaluate.
 - [ ] Core/package changes are committed separately and reviewable; supporting core version and validator are verified, package is published, and a fresh consumer installs and runs the published binary.
@@ -81,3 +81,19 @@ Root ownership: runner/CLI wiring, end-to-end tests, package installation contro
 Days 1–2 M0 and fail-first tests; days 2–5 M1/M2; days 4–7 M3; days 7–9 M4; day 10 M5 and buffer. Parallel agent execution reduces attended elapsed time but does not turn the estimates into measured velocity.
 
 The sprint validates against its built binary and package checkout. Package registry publication is required by the user’s scope expansion; the validator’s release-only rollout requires a supporting core release first; no package claims published availability or silently relaxes its runtime floor. If core release scheduling is pending, keep a truthful minimum version and record publication as pending rather than claim the sprint complete.
+
+## Execution evidence and delivery state
+
+M0–M4 are implemented and locally verified. Integrated full `make test` and lint
+pass on core commit cdcea3bdb, including the current dev imported callback repair.
+[Validation and delivery evidence](m-terminal-ui-native-input-validation.md)
+records actual PTY, mutation, package, portability and registry results.
+Core [PR #1756](https://github.com/sunholo-data/ailang/pull/1756) and package
+[PR #117](https://github.com/sunholo-data/ailang-packages/pull/117) are separate,
+mergeable drafts. CI and independent final evaluation remain pending.
+
+An actual authorized `ailang publish` request on 2026-10-10 was rejected by the
+v0.53.2 validator: std/terminal is absent; 8 files compile and 4 adapter/demo files
+fail. This confirms the supporting-core-release dependency. M5 stays incomplete
+until the released validator accepts publication and a fresh registry consumer
+installs/runs it. The runtime floor remains >=0.54.0.

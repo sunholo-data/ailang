@@ -37,7 +37,7 @@
       "passes": true,
       "started": "2026-10-10T07:33:30.107370+00:00",
       "completed": "2026-10-10T07:58:50.167088+00:00",
-      "notes": "POSIX host/decoder, process-wide restoration, same-device/reader leases, stale/cross-context handles and typed errors implemented. Full effects suite passes; race100 queued-signal and async-read-ahead controls pass. macOS/Linux/Windows/WASM compile evidence. Actual PTY matrix in M4."
+      "notes": "POSIX host/decoder, process-wide restoration, same-device/reader leases, stale/cross-context handles and typed errors implemented. Full effects suite passes; 100-repeat race queued-signal and async-read-ahead controls pass. macOS/Linux/Windows/WASM compile evidence. Actual PTY matrix in M4."
     },
     {
       "id": "M2",
@@ -54,7 +54,7 @@
       "passes": true,
       "started": "2026-10-10T07:33:30.107370+00:00",
       "completed": "2026-10-10T07:58:50.167088+00:00",
-      "notes": "std/terminal/readLineOpt registered; evaluator and strict native VM dispatch; arbitrary callback ADTs, capability checks and no replay after native effects. Explicit Go codegen rejection. EOF auto-import regression and new prompt v0.16.7 (existing prompt preserved), signature golden intentionally additive. Three examples13tests0skips."
+      "notes": "std/terminal/readLineOpt registered; evaluator and strict native VM dispatch; arbitrary callback ADTs, capability checks and no replay after native effects. Explicit Go codegen rejection. EOF auto-import regression and new prompt v0.16.7 (existing prompt preserved), signature golden intentionally additive. Three examples: 13 tests, 0 skips."
     },
     {
       "id": "M3",
@@ -71,7 +71,7 @@
       "passes": true,
       "started": "2026-10-10T07:33:30.107370+00:00",
       "completed": "2026-10-10T07:58:50.167088+00:00",
-      "notes": "Existing terminal_ui upgraded0.2.0 (ui source/tests unchanged). Strict quality0gates;39tests0fail0skip incl37named2properties(100cases each), strictVM37named0fallback;source inline42pass41skips(26no-generator), Z3 12/34verified21skip1encodingerror0refuted. Native/line/plain/auto; package IO,Env ceiling for demo args, library IO-only. >=0.54.0 floor retained."
+      "notes": "Existing terminal_ui upgraded to 0.2.0 (ui source/tests unchanged). Strict quality: 0 gates;39 tests, 0 failures, 0 skips, including 37 named tests and 2 properties (100 cases each); strict VM: 37 named bodies, 0 fallback;source inline: 42 passes, 41 skips (26 no-generator); Z3: 12/34 verified, 21 skips, 1 encoding error, 0 refuted. Native/line/plain/auto; package IO,Env ceiling for demo args, library IO-only. >=0.54.0 floor retained."
     },
     {
       "id": "M4",
@@ -87,10 +87,10 @@
         "Installed-bin arrow/resize and all teardown causes verified",
         "Portability, replay, plain/EOF and regression checks; mutation controls"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-10T07:33:30.107370+00:00",
-      "completed": null,
-      "notes": "Installed-bin native/resize/state preservation, line blank/plain EOF/auto and12real PTY cases pass. Decoder key-map and cleanup-restoration mutations rejected. Final stable full tests/examples/stdlib/lint gates in progress."
+      "completed": "2026-10-10T08:12:03.277973+00:00",
+      "notes": "Integrated full make test exit 0; lint 0 issues; examples, boundaries, file sizes and 48 stdlib interfaces pass. 12 real PTY scenarios cover evaluator/VM normal, exit, error, SIGINT/SIGTERM, evaluator budget and host panic restoration. Installed native arrow/resize/state, line/plain blank and EOF, redirected auto checks pass. Decoder and cleanup mutations fail the controls. Platform builds pass. Current-binary CLI checks pass after removing an external stdlib override from the dev-stamped shim fixture."
     },
     {
       "id": "M5",
@@ -108,7 +108,7 @@
       "passes": null,
       "started": "2026-10-10T07:58:50.167088+00:00",
       "completed": null,
-      "notes": "Documentation/review fixes prepared. Publication intentionally pending supporting released core/validator; production validator v0.53.2 lacks APIs. No claim of publication or full sprint completion."
+      "notes": "Core PR #1756 and package PR #117 are committed and mergeable. Independent technical review: 82/100 plus 10 regression bonus; local full test/lint gates pass and no remaining implementation defect found. Core CI pending. Package crew CI and actual authorized publication both fail because the released compiler/validator lacks std/terminal. Publication attempt: validator v0.53.2, 8 files pass, 4 adapter/demo files fail. Supporting core release, accepted publication and fresh registry installation remain required; sprint stays in progress."
     }
   ],
   "registry_reuse": [
@@ -159,11 +159,12 @@
     "estimated_days": 10,
     "actual_days": null
   },
-  "last_session": "2026-10-10T07:58:50.167088+00:00",
-  "last_checkpoint": "M3 verified; M4 final gates in progress",
+  "last_session": "2026-10-10T08:12:03.277973+00:00",
+  "last_checkpoint": "M4 local gates verified; M5 CI and supporting release/publication pending",
   "status": "in_progress",
   "authorization": {
     "design_and_execute": "great please sprint plan then execute",
     "publish_package": "we can publish the package as part of our sprint"
-  }
+  },
+  "evaluation_report": ".ailang/state/evaluations/eval_M-TERMINAL-UI-NATIVE-INPUT_round_1.json"
 }
