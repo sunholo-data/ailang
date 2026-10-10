@@ -64,9 +64,9 @@ Independent round 1 rejected the frozen implementation at `99bda5b8a`: full test
 
 ## Delivery handoff
 
-Keep commits local on `sprint/background-worker-lifecycle` until independent gates pass. The user plans a later push to dev. Publish a supporting runtime after that delivery, then rerun the consumer cleanup feasibility gate with its pinned official version/commit and exact PID evidence. Resume reply inbox and parallel crew reactions only after that published-runtime gate passes. Local subprocess termination does not fix parent/provider cancellation issue#231 or guarantee remote inference/billing stops. POSIX descendants that deliberately detach, hostSIGKILL and power loss remain outside the guarantee.
+The local sprint retained commits on `sprint/background-worker-lifecycle` until independent gates passed. The user subsequently authorized pushing to dev and releasing; see Release delivery below. Publish a supporting runtime after that delivery, then rerun the consumer cleanup feasibility gate with its pinned official version/commit and exact PID evidence. Resume reply inbox and parallel crew reactions only after that published-runtime gate passes. Local subprocess termination does not fix parent/provider cancellation issue#231 or guarantee remote inference/billing stops. POSIX descendants that deliberately detach, hostSIGKILL and power loss remain outside the guarantee.
 
-The design and companion sprint plan remain together under `planned/` with an explicit implemented-locally/unreleased status; move both to the actual supporting release directory when that release ships. No release version is assigned by the local sprint.
+The local sprint originally retained the design and companion sprint plan under `planned/` without assigning a release. The authorized release preparation now archives both with this validation record in `implemented/v0_54_4/`.
 
 ## Final source and regression provenance
 
@@ -84,6 +84,6 @@ On 2026-10-10 the user authorized delivery to dev and a new release. These compl
 
 The first PR Linux run exposed a test acknowledgement race: file existence could be observed before the PID contents were written. The blocked-AI helper now writes a same-directory temporary file and renames it atomically. The cancellation, twenty-worker deadline and repeated-resource tests pass twenty repetitions under the race detector; exact PID assertions remain strict.
 
-The resident image acceptance fixture is restored before HTTP authentication tests, tracks each replacement boot PID, waits for completed boot and bounded shutdown, and cleans up the current server. Production authentication and worker runtime are unchanged. Independent read-only review approved both test corrections; a pinned-image acceptance proof and fresh PR/dev CI are delivery gates.
+The resident image acceptance fixture is restored before HTTP authentication tests, tracks each replacement boot PID, waits for completed boot and bounded shutdown, and cleans up the current server. Production authentication and worker runtime are unchanged. Independent read-only review approved both test corrections; the pinned-image acceptance proof passed all 133 checks in Cloud Build `81bef821-1dea-4ad8-8ac9-e38d7ba8d30d` against resident image digest `sha256:9db4a5508b29172527918adc6e37635b3a9105a2b40d08350f8ba88525454770`. Fresh PR/dev CI remain delivery gates.
 
 Concurrent dev release preparation reserved v0.54.3 for its resident fixture repair. This worker release advances to v0.54.4 and retains that intervening change.
