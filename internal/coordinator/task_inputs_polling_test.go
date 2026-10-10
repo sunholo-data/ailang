@@ -12,9 +12,9 @@ import (
 	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
-func TestTaskInputsDaemonPollingBothCreationSites(t *testing.T) {
-	for _, cloud := range []bool{false, true} {
-		t.Run(map[bool]string{false: "local transport", true: "cloud transport"}[cloud], func(t *testing.T) {
+func TestTaskInputsDaemonPollingAllIngressPaths(t *testing.T) {
+	for _, transport := range []string{"local transport", "cloud transport", "recovery before notification"} {
+		t.Run(transport, func(t *testing.T) {
 			d := newTestDaemonWithMsgStore(t)
 			d.ctx = context.Background()
 			d.analyzer = NewTaskAnalyzer(0.8)
@@ -28,13 +28,23 @@ func TestTaskInputsDaemonPollingBothCreationSites(t *testing.T) {
 			}
 			defer store.Close()
 			d.taskStore = store
-			inputs := []TaskInput{{Repo: "org/data", Ref: "main", Path: "poster.png"}, {Repo: "org/data", Ref: "v1", Path: "notes"}}
+			inputs := []TaskInput{{Repo: "org/data", Ref: "main", Path: "poster.png", Dest: ".incoming/poster", SHA256: strings.Repeat("a", 64)}, {Repo: "org/data", Ref: "v1", Path: "notes"}}
 			msg := &messaging.InboxMessage{ID: "msg-12345678", ToInbox: "site", FromAgent: "sender", MessageType: "request", Title: "poster", Payload: "build a landing page", Inputs: inputs}
 			if err := d.msgStore.InsertInboxMessage(msg); err != nil {
 				t.Fatal(err)
 			}
-			if cloud {
+			if transport != "local transport" {
 				d.cloudInboxAdapter = NewPubSubInboxAdapter(nil, "", "site", d.msgStore, d.logger)
+				if transport == "recovery before notification" {
+					// Reproduce #1757: recovery enters the drain first; normal
+					// delivery follows and is deduplicated against the same task.
+					sweep := NewBackstopSweep(d.msgStore, d.agentRegistry, d.cloudInboxAdapter, d.logger)
+					sweep.mode = BackstopDispatch
+					sweep.SweepOnce(d.ctx)
+					if len(d.cloudInboxAdapter.buffered) != 1 {
+						t.Fatal("sweep did not recover the stored message")
+					}
+				}
 				data, _ := json.Marshal(pubsub.MessageNotification{MessageID: msg.ID})
 				if err := d.cloudInboxAdapter.HandleNotification(data, map[string]string{"inbox": "site"}); err != nil {
 					t.Fatal(err)
