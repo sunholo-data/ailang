@@ -65,3 +65,19 @@ Validation documentation is excluded from the source archive identity.
 The core release tag also triggers the normal CLI/WASM/test deployment pipelines.
 The package publication permission does not itself decide unrelated cloud approval
 items, which remain untouched.
+
+## Wider consumer control discovered during release preparation
+
+The existing crew CI workflow was pinned to v0.52.0. Package PR #117 now proposes
+v0.54.0, matching the manifest floor, and refreshes the crew consumer's path lock.
+Its downloadable runtime remains dependent on the supporting core release.
+
+Running the complete existing crew validation with the integrated compiler stopped
+in the unchanged content-library package: frameTail line 71:344 has a missing/
+malformed ApplicationEffects (LatentParamMask) invariant. The exact error also
+occurs with an untouched current-dev acc227e55 build, with independent stdlib and
+cache disabled. It predates the terminal implementation and is not hidden or fixed
+without a scoped plan. Evidence: `/private/tmp/terminal-package-crew-integrated.log`
+and `/private/tmp/terminal-content-library-dev-control.log`. Terminal-ui's own
+39 tests, strict quality and PTY controls remain green. This wider consumer gate
+must be resolved before claiming package repository CI/final release readiness.
