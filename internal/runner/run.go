@@ -70,10 +70,14 @@ type Options struct {
 	StrictBytecode    bool
 
 	// Effects
-	Env     EnvFlags
-	Net     NetOptions
-	Stream  StreamOptions
-	Process ProcessOptions
+	// TerminalSignalExit is a caller-owned process termination hook. Native
+	// terminal sessions restore terminal state before calling it on a signal.
+	// Embedders must supply their lifecycle hook to enable native input.
+	TerminalSignalExit func(int)
+	Env                EnvFlags
+	Net                NetOptions
+	Stream             StreamOptions
+	Process            ProcessOptions
 	// FSMaxBytes is the --fs-max-bytes text ("" = AILANG_FS_MAX_BYTES, else
 	// unbounded); resolved by SetupFSLimit (M-V1-MEMORY-FOOTPRINT M3).
 	FSMaxBytes      string
@@ -398,6 +402,7 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 
 	// Set up effect context with capability grants
 	effCtx := effects.NewEffContext(programArgs)
+	effCtx.TerminalSignalExit = opts.TerminalSignalExit
 	// This runner OWNS the sandbox root handle (M-EXECUTOR-POLICY-HARDENING
 	// M1): derived contexts share it, only the owner closes it, once.
 	defer effCtx.CloseFSRoot()

@@ -1,0 +1,169 @@
+{
+  "sprint_id": "M-TERMINAL-UI-NATIVE-INPUT",
+  "created": "2026-10-10T07:33:30.107370+00:00",
+  "estimated_duration_days": 10,
+  "correlation_id": "sprint_M-TERMINAL-UI-NATIVE-INPUT",
+  "design_doc": "design_docs/planned/m-terminal-ui-native-input.md",
+  "markdown_plan": "design_docs/planned/m-terminal-ui-native-input-sprint-plan.md",
+  "github_issues": [],
+  "features": [
+    {
+      "id": "M0",
+      "description": "Freeze terminal API and reader/lifecycle contracts",
+      "estimated_loc": 150,
+      "actual_loc": null,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Public types and callback/backend evidence frozen",
+        "Existing package and additive EOF dependency verified"
+      ],
+      "passes": true,
+      "started": "2026-10-10T07:33:30.107370+00:00",
+      "completed": "2026-10-10T07:58:50.167088+00:00",
+      "notes": "Actual registered effect-polymorphic callback and FS propagation controls pass. Existing package source preserved; IO lifecycle/context/input ownership contracts frozen. User approved design/execution and package publication."
+    },
+    {
+      "id": "M1",
+      "description": "Implement POSIX terminal host and decoder",
+      "estimated_loc": 900,
+      "actual_loc": null,
+      "dependencies": [
+        "M0"
+      ],
+      "acceptance_criteria": [
+        "Terminal info, exclusive lease, key/resize/idle/EOF decoder",
+        "Scope and signal cleanup, input ownership and validated handles tested"
+      ],
+      "passes": true,
+      "started": "2026-10-10T07:33:30.107370+00:00",
+      "completed": "2026-10-10T07:58:50.167088+00:00",
+      "notes": "POSIX host/decoder, process-wide restoration, same-device/reader leases, stale/cross-context handles and typed errors implemented. Full effects suite passes; race100 queued-signal and async-read-ahead controls pass. macOS/Linux/Windows/WASM compile evidence. Actual PTY matrix in M4."
+    },
+    {
+      "id": "M2",
+      "description": "Register language surface and backend/EOF integration",
+      "estimated_loc": 650,
+      "actual_loc": null,
+      "dependencies": [
+        "M0"
+      ],
+      "acceptance_criteria": [
+        "std/terminal and readLineOpt compile and dispatch",
+        "Evaluator and strict VM parity; clear unsupported/backend behavior; examples"
+      ],
+      "passes": true,
+      "started": "2026-10-10T07:33:30.107370+00:00",
+      "completed": "2026-10-10T07:58:50.167088+00:00",
+      "notes": "std/terminal/readLineOpt registered; evaluator and strict native VM dispatch; arbitrary callback ADTs, capability checks and no replay after native effects. Explicit Go codegen rejection. EOF auto-import regression and new prompt v0.16.7 (existing prompt preserved), signature golden intentionally additive. Three examples13tests0skips."
+    },
+    {
+      "id": "M3",
+      "description": "Upgrade existing terminal_ui package",
+      "estimated_loc": 850,
+      "actual_loc": null,
+      "dependencies": [
+        "M0"
+      ],
+      "acceptance_criteria": [
+        "Events/widgets/transcript and explicit adapters",
+        "Native demo, physical viewport behavior, exact EOF and IO-only library quality; demo explicitly declares Env for argument access"
+      ],
+      "passes": true,
+      "started": "2026-10-10T07:33:30.107370+00:00",
+      "completed": "2026-10-10T07:58:50.167088+00:00",
+      "notes": "Existing terminal_ui upgraded0.2.0 (ui source/tests unchanged). Strict quality0gates;39tests0fail0skip incl37named2properties(100cases each), strictVM37named0fallback;source inline42pass41skips(26no-generator), Z3 12/34verified21skip1encodingerror0refuted. Native/line/plain/auto; package IO,Env ceiling for demo args, library IO-only. >=0.54.0 floor retained."
+    },
+    {
+      "id": "M4",
+      "description": "Verify installed demo, PTY lifecycle and regressions",
+      "estimated_loc": 450,
+      "actual_loc": null,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Installed-bin arrow/resize and all teardown causes verified",
+        "Portability, replay, plain/EOF and regression checks; mutation controls"
+      ],
+      "passes": null,
+      "started": "2026-10-10T07:33:30.107370+00:00",
+      "completed": null,
+      "notes": "Installed-bin native/resize/state preservation, line blank/plain EOF/auto and12real PTY cases pass. Decoder key-map and cleanup-restoration mutations rejected. Final stable full tests/examples/stdlib/lint gates in progress."
+    },
+    {
+      "id": "M5",
+      "description": "Evaluate, document and deliver the sprint",
+      "estimated_loc": 200,
+      "actual_loc": null,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Documentation and branch artifacts complete",
+        "Evaluator passes with evidence and reviewable separate commits",
+        "Package publication accepted by supporting released validator; fresh registry consumer install and binary smoke verified"
+      ],
+      "passes": null,
+      "started": "2026-10-10T07:58:50.167088+00:00",
+      "completed": null,
+      "notes": "Documentation/review fixes prepared. Publication intentionally pending supporting released core/validator; production validator v0.53.2 lacks APIs. No claim of publication or full sprint completion."
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M0",
+      "package": null,
+      "action": "none",
+      "reason": "Registry tui/terminal search finds no package that can replace host ownership, core builtin/backend plumbing or integration checks."
+    },
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Registry tui/terminal search finds no package that can replace host ownership, core builtin/backend plumbing or integration checks."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Registry tui/terminal search finds no package that can replace host ownership, core builtin/backend plumbing or integration checks."
+    },
+    {
+      "milestone": "M3",
+      "package": "sunholo/terminal_ui",
+      "action": "contribute",
+      "reason": "Verified existing source package; registry search/info/docs found no published candidate. Extend existing source directly."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Registry tui/terminal search finds no package that can replace host ownership, core builtin/backend plumbing or integration checks."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Registry tui/terminal search finds no package that can replace host ownership, core builtin/backend plumbing or integration checks."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 320,
+    "actual_loc_per_day": 0,
+    "target_milestones_per_week": 3,
+    "actual_milestones_per_week": 0,
+    "estimated_total_loc": 3200,
+    "actual_total_loc": 0,
+    "estimated_days": 10,
+    "actual_days": null
+  },
+  "last_session": "2026-10-10T07:58:50.167088+00:00",
+  "last_checkpoint": "M3 verified; M4 final gates in progress",
+  "status": "in_progress",
+  "authorization": {
+    "design_and_execute": "great please sprint plan then execute",
+    "publish_package": "we can publish the package as part of our sprint"
+  }
+}

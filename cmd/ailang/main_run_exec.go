@@ -94,6 +94,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 	}
 
 	opts := runner.Options{
+		TerminalSignalExit:  os.Exit,
 		Filename:            filename,
 		ProgramArgs:         programArgs,
 		Trace:               trace,

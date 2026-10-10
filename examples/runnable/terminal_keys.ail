@@ -1,0 +1,50 @@
+module examples/runnable/terminal_keys
+import std/terminal (withTerminal, readEvent, TerminalSession, TerminalEvent, Key, Text, Escape, EndOfInput, Interrupted, Idle)
+import std/result (Ok, Err)
+import std/io (println, flush)
+
+-- Inline inputs use scalars: the current harness does not bind imported ADT
+-- constructors while evaluating test arguments. Live key/EOF paths are PTY-tested.
+pure func doneClass(event_class: int) -> bool ! {}
+ensures { result == (event_class >= 1 && event_class <= 4) }
+  tests [
+    (0, false),
+    (1, true),
+    (3, true),
+    (5, false)
+  ] {
+  event_class >= 1 && event_class <= 4
+}
+
+-- TerminalEvent has no generated-property input support yet. The scalar core
+-- above carries the contract; PTY controls cover this imported-ADT adapter.
+pure func finished(event: TerminalEvent) -> bool ! {} {
+  match event {
+    Key(Text("q")) => doneClass(1),
+    Key(Escape) => doneClass(2),
+    EndOfInput => doneClass(3),
+    Interrupted => doneClass(4),
+    _ => doneClass(0)
+  }
+}
+
+func loop(session: TerminalSession) -> () ! {IO} {
+  match readEvent(session, -1) {
+    Ok(event) => {
+      println(show(event))
+      if finished(event) then () else loop(session)
+    },
+    Err(problem) => println(show(problem))
+  }
+}
+
+export func main() -> () ! {IO} {
+  match withTerminal({ alternate_screen: false, hide_cursor: false }, \session. {
+    println("Arrow keys respond immediately. Press q or Escape to quit.")
+    flush()
+    loop(session)
+  }) {
+    Ok(_) => (),
+    Err(problem) => println(show(problem))
+  }
+}

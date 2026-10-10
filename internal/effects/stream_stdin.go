@@ -3,6 +3,7 @@ package effects
 import (
 	"bufio"
 	"io"
+	"strings"
 	"sync"
 )
 
@@ -23,13 +24,28 @@ type stdinSource struct {
 // Typically called with os.Stdin. The goroutine reads until the reader is exhausted,
 // the source is closed, or an error occurs.
 func NewStdinSource(reader io.Reader, name string, priority int) EventSource {
+	return newOwnedStdinSource(reader, name, priority, nil)
+}
+
+// Release ownership only when the reader goroutine actually stops; Close cannot
+// cancel an arbitrary blocking reader, so releasing on Close would permit theft.
+func newOwnedStdinSource(reader io.Reader, name string, priority int, release func(), restore ...func(string)) EventSource {
 	src := &stdinSource{
 		name:     name,
 		priority: priority,
 		ch:       make(chan streamEvent, 100), // Stdin is slow relative to WebSocket
 		done:     make(chan struct{}),
 	}
-	go src.readLoop(reader)
+	go func() {
+		if release != nil {
+			defer release()
+		}
+		if shared, ok := reader.(*bufio.Reader); ok && len(restore) > 0 {
+			src.readOwnedLoop(shared, restore[0])
+		} else {
+			src.readLoop(reader)
+		}
+	}()
 	return src
 }
 
@@ -67,4 +83,37 @@ func (ss *stdinSource) readLoop(reader io.Reader) {
 		}
 	}
 	// Scanner exhausted (EOF or error) — goroutine exits, channel closes via defer
+}
+
+// Owned input uses the persistent reader directly: Scanner would retain and
+// discard a second private read-ahead buffer when a source closes.
+func (ss *stdinSource) readOwnedLoop(reader *bufio.Reader, restore func(string)) {
+	defer close(ss.ch)
+	for {
+		select {
+		case <-ss.done:
+			return
+		default:
+		}
+		line, err := reader.ReadString('\n')
+		if len(line) == 0 {
+			return
+		}
+		event := streamEvent{kind: "source_text", sourceName: ss.name, text: strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")}
+		select {
+		case <-ss.done:
+			restore(line)
+			return
+		default:
+		}
+		select {
+		case ss.ch <- event:
+		case <-ss.done:
+			restore(line)
+			return
+		}
+		if err != nil {
+			return
+		}
+	}
 }

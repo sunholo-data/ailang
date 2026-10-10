@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"sync"
 
 	"golang.org/x/term"
 )
@@ -24,15 +25,28 @@ func IsStdoutTTY() bool {
 // Replaces the prior unconditional 64KB full-buffer on a TTY (M-TERMINAL-IO),
 // which only updated the screen once the buffer filled.
 type LineBufferedWriter struct {
-	w *bufio.Writer
+	mu       sync.Mutex
+	w        *bufio.Writer
+	endpoint io.Writer
 }
 
 // NewLineBufferedWriter wraps w in a 64KB line-flushing buffer.
 func NewLineBufferedWriter(w io.Writer) *LineBufferedWriter {
-	return &LineBufferedWriter{w: bufio.NewWriterSize(w, 64*1024)}
+	return &LineBufferedWriter{w: bufio.NewWriterSize(w, 64*1024), endpoint: w}
+}
+
+// Fd preserves the configured terminal endpoint through buffering. A writer
+// without a descriptor reports an invalid descriptor instead of borrowing stdout.
+func (lw *LineBufferedWriter) Fd() uintptr {
+	if endpoint, ok := lw.endpoint.(interface{ Fd() uintptr }); ok {
+		return endpoint.Fd()
+	}
+	return ^uintptr(0)
 }
 
 func (lw *LineBufferedWriter) Write(p []byte) (int, error) {
+	lw.mu.Lock()
+	defer lw.mu.Unlock()
 	n, err := lw.w.Write(p)
 	if err != nil {
 		return n, err
@@ -47,4 +61,8 @@ func (lw *LineBufferedWriter) Write(p []byte) (int, error) {
 
 // Flush writes any buffered bytes to the underlying writer. Satisfies the
 // interface used by EffContext.FlushIO() and the exit-time flush.
-func (lw *LineBufferedWriter) Flush() error { return lw.w.Flush() }
+func (lw *LineBufferedWriter) Flush() error {
+	lw.mu.Lock()
+	defer lw.mu.Unlock()
+	return lw.w.Flush()
+}
