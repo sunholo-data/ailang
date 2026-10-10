@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-CLOUD-CLAUDE-API-CREDIT-GUARD",
   "evaluation_round": 2,
-  "timestamp": "2026-10-10T08:50:40.745023+00:00",
+  "timestamp": "2026-10-10T09:21:03.386302+00:00",
   "design_doc": "design_docs/planned/m-cloud-claude-api-credit-guard.md",
   "sprint_plan": "design_docs/planned/m-cloud-claude-api-credit-guard-sprint-plan.md",
   "total_score": 91,
@@ -9,7 +9,7 @@
   "result": "FAIL",
   "implementation_result": "PASS",
   "implementation_score": 91,
-  "evaluation_scope": "Independent local review of M0-M5 including beta-free installed CLI compatibility, corrected composed registry budget mapping, and conservative inherited provider/host routing namespace filtering. Full sprint/activation remain pending M6 and final-head CI.",
+  "evaluation_scope": "Independent local review of M0-M5 including beta-free installed CLI compatibility, corrected composed registry budget mapping, and conservative inherited provider/host routing namespace filtering. Full sprint/activation remain pending M6 and final-head CI. Supplemental meaningful financial-contract and synthetic identity coverage tests reviewed; production semantics unchanged.",
   "full_sprint_complete": false,
   "activation_result": "BLOCKED",
   "gate_source": "local",
@@ -44,7 +44,7 @@
     "cli_output": "/private/tmp/claude-credit-cli-tool-contract.log",
     "ci_pass": null,
     "coverage_pct": null,
-    "note": "Evaluator inspected supplied final logs and source independently; did not rerun full gates. Final continued suite contains 46,335 lines with no FAIL markers, lint reports zero issues, and complete gateway/executor race packages pass. Earlier unrestricted process-start fixture failure and isolated recheck are retained as prior evidence, not the final gate. Subsequent scoped registry-budget fix was independently reviewed and complete coordinator/dispatch/executor race plus fresh lint logs inspected; final new-head CI is required, not inferred from earlier suite or pre-fix PR checks. Subsequent provider/host routing namespace fix was independently reviewed at the actual post-BuildEnvironment call site. Complete Claude executor/gateway race, zero-issue lint and installed fake-only completion/tool-loop logs pass; no new whole-suite execution was performed by evaluator.",
+    "note": "Evaluator inspected supplied final logs and source independently; did not rerun full gates. Final continued suite contains 46,335 lines with no FAIL markers, lint reports zero issues, and complete gateway/executor race packages pass. Earlier unrestricted process-start fixture failure and isolated recheck are retained as prior evidence, not the final gate. Subsequent scoped registry-budget fix was independently reviewed and complete coordinator/dispatch/executor race plus fresh lint logs inspected; final new-head CI is required, not inferred from earlier suite or pre-fix PR checks. Subsequent provider/host routing namespace fix was independently reviewed at the actual post-BuildEnvironment call site. Complete Claude executor/gateway race, zero-issue lint and installed fake-only completion/tool-loop logs pass; no new whole-suite execution was performed by evaluator. Final source head a062f17c completed all GitHub jobs after same-head memprobe/failed-companion retries; its Sonar gate failed only new-code coverage75.6%<80%. Three test-only additions independently reviewed; complete focused gateway/executor/ledger/modelreg/dispatch race+coverage, fresh zero-issue lint and ci-quick logs pass. Local statement percentages do not establish the next Sonar new-code line gate.",
     "default_go_suite_pass": true,
     "tests_note": "All default test cases pass with package concurrency four. Required opt-in actual installed Claude 2.1.295 completion and two-request Bash printf tool-loop contract now also passes; fake upstream only.",
     "coordinator_cli_pass": true,
@@ -77,10 +77,14 @@
     "registry_budget_race_pass": true,
     "registry_budget_race_output": "/private/tmp/claude-credit-registry-budget-race.log",
     "latest_lint_clean": true,
-    "latest_lint_output": "/private/tmp/claude-credit-route-lint.log",
+    "latest_lint_output": "/private/tmp/claude-credit-coverage-lint.log",
     "route_guard_pass": true,
     "route_guard_race_output": "/private/tmp/claude-credit-route-green.log",
-    "latest_claude_cli_protocol_output": "/private/tmp/claude-credit-route-cli-smoke.log"
+    "latest_claude_cli_protocol_output": "/private/tmp/claude-credit-route-cli-smoke.log",
+    "coverage_contract_tests_pass": true,
+    "coverage_contract_race_output": "/private/tmp/claude-credit-combined-coverage.log",
+    "ci_quick_pass": true,
+    "ci_quick_output": "/private/tmp/claude-credit-coverage-ci-quick.log"
   },
   "acceptance_criteria": [
     {
@@ -363,6 +367,19 @@
         "/private/tmp/claude-credit-route-lint.log",
         "/private/tmp/claude-credit-route-cli-smoke.log"
       ]
+    },
+    {
+      "file": "internal/claudegateway/nested_contract.go",
+      "line": 45,
+      "issue": "Final PR SonarCloud new-code coverage was75.6% below80%; authenticated nested validator, response uncertainty and job identity exchange lacked meaningful exercised branches.",
+      "status": "local_test_gap_addressed_sonar_revalidation_pending",
+      "resolution": "Added three test files only: authenticated malformed nested/duplicate/content requests assert zero reservation and zero inference; supported requests settle ordinary charges; unverifiable JSON/SSE retains full reservation and blocks further inference; mixed-cache cases assert exact tiered settlements. Synthetic RSA ADC with localhost-only token transport asserts audience-bound exchange, paired child identity headers and fail-closed timeout/auth. Tests do not verify real Google IAM or live provider billing. No production code, threshold, exclusion or quality gate changed.",
+      "evidence": [
+        "/private/tmp/claude-credit-combined-coverage.log",
+        "/private/tmp/claude-credit-coverage-lint.log",
+        "/private/tmp/claude-credit-coverage-ci-quick.log",
+        "/private/tmp/claude-credit-pr1755-sonar-gate.json"
+      ]
     }
   ],
   "implementation_issues": [],
@@ -383,7 +400,7 @@
       "suggestion": "Keep the lane disabled and sprint in progress. Complete reviewed isolation/IAM and immutable image release, verified provider grant identity/allocation, required final-head CI, then a reserved aggregate $5 canary and provider billing reconciliation. Do not reset spending on confirmation or promotion."
     }
   ],
-  "notes": "No remaining implementation defect found in reviewed continuation. Actual CLI beta-free completion/tool loop and default/lint/race gates now pass; prior automatic-review rejection and round-1 failure remain preserved. The switch is an inspected, undocumented client implementation setting, not a provider promise; pin the image/CLI and rerun fake-only contract on upgrades. Narrow gateway validation remains the safety boundary if client behavior changes. M4/M5 restoration uses local composed evidence; provider-backed canary, real identity and billing evidence are still required. Evaluator changed only this new round-2 report, ran no full gates, made no cloud mutations and consumed no provider credits. Supplemental review identified the composed budget gap after draft PR creation. Local readiness is temporarily withdrawn; root owns the scoped budget fix. No evaluator implementation edits or new local test runs occurred. Scoped registry-budget integration is now resolved locally and readiness is restored after independent source/log inspection. The pre-budget PR head 3616ecc CI remains historical; final new-head CI is still pending. No new whole-suite rerun was performed by evaluator. Supplemental provider-route review now resolves modern alternate provider and host gateway inheritance locally without broadening beta or pricing capabilities. Effective managed disk settings remain a deployed-image/canary gate. Current local implementation score stays 91; full sprint remains FAIL/deferred and activation BLOCKED.",
+  "notes": "No remaining implementation defect found in reviewed continuation. Actual CLI beta-free completion/tool loop and default/lint/race gates now pass; prior automatic-review rejection and round-1 failure remain preserved. The switch is an inspected, undocumented client implementation setting, not a provider promise; pin the image/CLI and rerun fake-only contract on upgrades. Narrow gateway validation remains the safety boundary if client behavior changes. M4/M5 restoration uses local composed evidence; provider-backed canary, real identity and billing evidence are still required. Evaluator changed only this new round-2 report, ran no full gates, made no cloud mutations and consumed no provider credits. Supplemental review identified the composed budget gap after draft PR creation. Local readiness is temporarily withdrawn; root owns the scoped budget fix. No evaluator implementation edits or new local test runs occurred. Scoped registry-budget integration is now resolved locally and readiness is restored after independent source/log inspection. The pre-budget PR head 3616ecc CI remains historical; final new-head CI is still pending. No new whole-suite rerun was performed by evaluator. Supplemental provider-route review now resolves modern alternate provider and host gateway inheritance locally without broadening beta or pricing capabilities. Effective managed disk settings remain a deployed-image/canary gate. Current local implementation score stays 91; full sprint remains FAIL/deferred and activation BLOCKED. Sonar identified insufficient new-code coverage, now addressed with reviewed tests of financial failure/acceptance boundaries and synthetic job identity. Read-only public Sonar counts were1399 lines/341 uncovered; at least62 additional covered lines required. Local gateway statement coverage90.3% is evidence of focused execution only, not a claimed final Sonar pass. All production sources remain unchanged for this coverage continuation.",
   "assessment_history": [
     {
       "round": 1,
@@ -417,6 +434,13 @@
       "implementation_result": "PASS_AFTER_PROVIDER_ROUTE_ISOLATION_FIX",
       "full_sprint_result": "FAIL",
       "reason": "Supplemental installed artifact inspection found newer provider/host routing selectors outside the original removal list. Conservative namespace allowlist fixes inherited route isolation; focused complete executor/gateway race, lint and real installed fake-only CLI contract pass. Final-head CI and M6 remain incomplete."
+    },
+    {
+      "round": 2,
+      "score": 91,
+      "implementation_result": "PASS_LOCAL_COVERAGE_GAPS_ADDRESSED",
+      "full_sprint_result": "FAIL",
+      "reason": "Pre-test-addition a062f17c GitHub jobs passed after unchanged same-head memprobe retry; Sonar75.6% new coverage failed80% gate. Three meaningful financial/identity test-only files pass focused race, lint and ci-quick. New-head CI and Sonar must independently validate; M6 remains deferred."
     }
   ],
   "approval_review": {
@@ -479,14 +503,17 @@
     "internal/coordinator/agent_registry.go": "7462f75b1866614a6a3dea60bfbdaf91b7d88e9f280227df1487320fe32d54e7",
     "internal/coordinator/cloud_credit.go": "9ec91507c733d9caed40203a662617679d2207b119c4a21132fb3171c4366d54",
     "internal/coordinator/daemon_tasks_exec.go": "0c6bfa4a0fee91b17fb650a7888a8f78d5010c100650292825f5214f682b0722",
-    "internal/coordinator/cloud_credit_config_test.go": "5100d6e11e4604e6988b26d716ddacbf6a81dad911f93518eaa169e737471038"
+    "internal/coordinator/cloud_credit_config_test.go": "5100d6e11e4604e6988b26d716ddacbf6a81dad911f93518eaa169e737471038",
+    "internal/claudegateway/nested_admission_coverage_test.go": "9bb4cf6200e6bf57736d1498eea828633d08bf93cca0c7a4b358f0e02bac17db",
+    "internal/claudegateway/usage_failure_coverage_test.go": "df4a7a355569e938241dfde308230890b152650513089f4d8e7e13761af2da93",
+    "internal/executor/claude/credit_identity_test.go": "d23556b1a43394b59ff622681eeb7623f0fa9ffa462051fde11b0c83da9ebd12"
   },
   "supplemental_ci_monitoring": {
     "pr": 1755,
     "url": "https://github.com/sunholo-data/ailang/pull/1755",
-    "head_sha": "3616ecc72340158c8183484cfacecdc093b0e019",
-    "status": "historical_pre_route_fix_heads; final post-route-fix CI pending",
-    "log": "/private/tmp/claude-credit-pr1755-ci-gate.log",
-    "note": "Pre-route-fix head 42bc80b failed generated architecture freshness and was corrected by root. Head 56c54b has macOS CI failure under investigation and is to be superseded by the reviewed route-filter commit. No final CI pass is claimed; canonical checkpoint owns current SHA/verdict."
+    "head_sha": "a062f17c6f60101c00c497196f76d9e9c0cb6e33",
+    "status": "historical_all_GitHub_jobs_pass_Sonar_coverage_fail; next_test_only_head_pending",
+    "log": "/private/tmp/claude-credit-pr1755-route-ci-gate.log",
+    "note": "All final a062f17c GitHub jobs pass including both latest macOS matrix legs and Windows after same-head retries. Original unchanged memprobe failed38MB delta, rerun passed4MB; exact cause unproved. Sonar failed only new-code coverage75.6%<80%. Root will push test-only coverage additions and canonical checkpoint owns next SHA/verdict; report does not infer CI green from local statement coverage."
   }
 }

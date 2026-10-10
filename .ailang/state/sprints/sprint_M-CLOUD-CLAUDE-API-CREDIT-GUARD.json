@@ -255,10 +255,20 @@
     "provider_route_environment": "PASS: deny inherited provider/config/host/descriptor/socket namespaces, preserve task capability and harness telemetry, then force reviewed route. Managed disk policy remains authoritative and deployed settings verification stays pending.",
     "provider_route_red_log": "/private/tmp/claude-credit-route-red.log",
     "provider_route_race_log": "/private/tmp/claude-credit-route-green.log",
-    "provider_route_lint_log": "/private/tmp/claude-credit-route-lint.log"
+    "provider_route_lint_log": "/private/tmp/claude-credit-route-lint.log",
+    "coverage_gate_prior_failure": {
+      "head": "a062f17c6f60101c00c497196f76d9e9c0cb6e33",
+      "sonar_new_coverage_pct": 75.6,
+      "threshold_pct": 80,
+      "all_github_jobs": "PASS after unchanged macOS memory probe retry and cancelled companion reruns",
+      "resolution": "Added admission, uncertain usage/cache/SSE, and synthetic job identity boundary tests; no production changes or gate weakening. Next-head Sonar/CI required."
+    },
+    "coverage_focused_race": "PASS: /private/tmp/claude-credit-combined-coverage.log; gateway statement coverage90.3%; source Sonar metric remains to be confirmed on next head",
+    "coverage_lint": "PASS:0 issues; /private/tmp/claude-credit-coverage-lint.log",
+    "coverage_ci_quick": "PASS: /private/tmp/claude-credit-coverage-ci-quick.log"
   },
   "next_milestone": "M6",
-  "last_updated": "2026-10-10T08:47:36.860877+00:00",
+  "last_updated": "2026-10-10T09:21:24.315666+00:00",
   "execution_branch": "sprint/claude-api-credit-guard",
   "source_pull_request": "https://github.com/sunholo-data/ailang/pull/1755",
   "infrastructure_worktree": "/private/tmp/ailang-multivac-claude-credit",
