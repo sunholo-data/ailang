@@ -16,7 +16,7 @@ Plan: eight engineering days, 3,400 added production/test lines, using an explic
 
 LOC groups follow primary responsibility: supervisor/context/policy/error helpers in M1; managed operations in M2; stream operations and EOF/borrowed-resource regressions in M3; hosts/VM/trace/platform behavior in M4; actual AI/PID/PTY/conflict fixture tests in M5. Shared-file corrections are counted under that file's primary group. Milestone intervals overlap; review corrections continue after initial milestone checks.
 
-Actual elapsed calendar wall time from sprint creation to local gate completion: 49.1 minutes (0.034102 calendar days). Five milestones passed; final artifact audit records the formal Round2 verdict.
+Actual elapsed calendar wall time from sprint creation to local gate completion: 49.1 minutes (0.034102 calendar days). Five milestones passed; independent final Round2 verdict PASS95/100 includes the source and artifact audit, recorded in `.ailang/state/evaluations/eval_M-BACKGROUND-WORKER-LIFECYCLE_round_2.json`.
 
 ## Execution and independent review
 

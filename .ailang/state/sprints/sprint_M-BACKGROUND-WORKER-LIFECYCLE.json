@@ -111,7 +111,7 @@
       "passes": true,
       "started": "2026-10-10T17:43:22.063909+00:00",
       "completed": "2026-10-10T17:55:56.522692+00:00",
-      "notes": "PASS: independent Round2 full make test exit0, lint0issues, file sizes, verify-examples243pass/0fail/9skip, all250 baseline example statuses unchanged. Focused lifecycle races, exact PID/PTY, borrowed resources, WS, VM and platform checks passed. Independent substantive review passes; final artifact audit/report follows this artifact-only commit. Official published-runtime consumer retest remains future delivery gate."
+      "notes": "PASS: independent Round2 full make test exit0, lint0issues, file sizes, verify-examples243pass/0fail/9skip, all250 baseline example statuses unchanged. Focused lifecycle races, exact PID/PTY, borrowed resources, WS, VM and platform checks passed. Independent final Round2 evaluation PASS95/100, including artifact audit; report .ailang/state/evaluations/eval_M-BACKGROUND-WORKER-LIFECYCLE_round_2.json. Official published-runtime consumer retest remains future delivery gate."
     }
   ],
   "registry_reuse": [
@@ -147,7 +147,7 @@
     }
   ],
   "last_session": "2026-10-10T17:55:56.522692+00:00",
-  "last_checkpoint": "M1-M5 PASS locally; independent Round2 gates and substantive review pass; final artifact report pending. No push/release.",
+  "last_checkpoint": "M1-M5 PASS locally; independent final Round2 evaluation PASS95/100, including full gates and artifact audit. No push/release.",
   "delivery_gate": "Official released-runtime consumer retest pending future push/release.",
   "completed": "2026-10-10T17:55:56.522692+00:00"
 }

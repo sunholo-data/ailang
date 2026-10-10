@@ -60,7 +60,7 @@ Independent round 1 rejected the frozen implementation at `99bda5b8a`: full test
 |Final verify-stdlib|PASS:48interfaces|
 |Independent full make test|PASS: exit0 at Round2|
 |Independent make lint/check-file-sizes/verify-examples|PASS:0lint issues;800line limit;243examples pass/0fail/9skip;manifest231total/223working;0module drift|
-|Independent evaluation|PASS substantive source review; final artifact audit/report follows completion commit|
+|Independent evaluation|PASS95/100: final Round2 source and artifact audit; `.ailang/state/evaluations/eval_M-BACKGROUND-WORKER-LIFECYCLE_round_2.json`|
 
 ## Delivery handoff
 
