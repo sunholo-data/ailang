@@ -7,8 +7,8 @@ rollout status and activation evidence are linked below.
 Use the private `ailang-multivac` repo's branch-driven infrastructure pipeline;
 do not run a local apply or build/push production images from this directory.
 
-Read [deployment evidence](../../design_docs/planned/m-cloud-claude-api-credit-guard-deployment.md)
-for live resource names, blocking IAM findings and the outstanding grant fields.
+Read [deployment evidence](../../design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard-deployment.md)
+for live resource names, the confirmed grant and completed rollout evidence.
 
 The module creates a private Firestore project because existing executor SAs can
 write the production database. Its gateway runs in `ailang-multivac`, with access
