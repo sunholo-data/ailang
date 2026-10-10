@@ -15,4 +15,3 @@
 - The accompanying `sunholo/terminal_ui` package extends its existing renderer with
   selection, confirmation, paging and bounded versioned event replay. Native
   publication requires a supporting released core and registry validator.
-
