@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-BACKGROUND-WORKER-LIFECYCLE",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-10T17:06:50.131928+00:00",
   "design_doc": "design_docs/planned/m-background-worker-lifecycle.md",
   "sprint_plan": "design_docs/planned/m-background-worker-lifecycle-sprint-plan.md",
@@ -15,15 +15,18 @@
     "target_loc_per_day": 425,
     "estimated_total_loc": 3400,
     "estimated_days": 8,
-    "actual_total_loc": 0,
-    "actual_days": null
+    "actual_total_loc": 4682,
+    "actual_days": 0.034102,
+    "actual_loc_measurement": "Added production, test and showcase lines in internal/, cmd/, std/, examples/runnable/ between approved-plan commit 956458c36 and source head b2be99ecc; excludes documentation, manifest, interface goldens and state artifacts. Deleted lines reported separately in retrospective.",
+    "actual_wall_seconds": 2946.391,
+    "actual_time_measurement": "Elapsed calendar wall time from sprint creation to local gate completion with parallel agents; not human engineering days or an inferred future LOC/day velocity."
   },
   "features": [
     {
       "id": "M1",
       "description": "Shared execution ownership",
       "estimated_loc": 500,
-      "actual_loc": null,
+      "actual_loc": 836,
       "dependencies": [],
       "acceptance_criteria": [
         "Execution owner shares a two-second shutdown deadline across workers and rejects late admission safely.",
@@ -39,7 +42,7 @@
       "id": "M2",
       "description": "Managed worker cancellation",
       "estimated_loc": 650,
-      "actual_loc": null,
+      "actual_loc": 762,
       "dependencies": [
         "M1"
       ],
@@ -57,7 +60,7 @@
       "id": "M3",
       "description": "Async process source cancellation",
       "estimated_loc": 650,
-      "actual_loc": null,
+      "actual_loc": 1131,
       "dependencies": [
         "M1"
       ],
@@ -75,7 +78,7 @@
       "id": "M4",
       "description": "Runner and embedding lifecycle integration",
       "estimated_loc": 850,
-      "actual_loc": null,
+      "actual_loc": 1427,
       "dependencies": [
         "M2",
         "M3"
@@ -95,7 +98,7 @@
       "id": "M5",
       "description": "Regression evidence and independent evaluation",
       "estimated_loc": 750,
-      "actual_loc": null,
+      "actual_loc": 526,
       "dependencies": [
         "M4"
       ],
@@ -105,10 +108,10 @@
         "Design conflict fixtures, examples/manifest, goldens, relevant race/PTy tests, full tests, lint, formatting, file sizes and architecture boundaries pass.",
         "Independent evaluator reports a passing verdict; artifacts, changelog, documentation and release/consumer handoff are complete; no push or release is performed."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-10T17:43:22.063909+00:00",
-      "completed": null,
-      "notes": "Implementation and focused evidence complete; independent final full repository gates and verdict pending. Official-release consumer retest remains next-delivery gate."
+      "completed": "2026-10-10T17:55:56.522692+00:00",
+      "notes": "PASS: independent Round2 full make test exit0, lint0issues, file sizes, verify-examples243pass/0fail/9skip, all250 baseline example statuses unchanged. Focused lifecycle races, exact PID/PTY, borrowed resources, WS, VM and platform checks passed. Independent substantive review passes; final artifact audit/report follows this artifact-only commit. Official published-runtime consumer retest remains future delivery gate."
     }
   ],
   "registry_reuse": [
@@ -143,7 +146,8 @@
       "reason": "Searched process/terminal; inspected external_backend 0.2.0 and terminal_ui 0.2.0. This milestone requires core runtime ownership; reuse internal/proctree and existing effect/host APIs."
     }
   ],
-  "last_session": "2026-10-10T17:43:22.063909+00:00",
-  "last_checkpoint": "M1-M4 PASS; source frozen for independent full gates. M5 pending evaluator.",
-  "delivery_gate": "Official released-runtime consumer retest pending future push/release."
+  "last_session": "2026-10-10T17:55:56.522692+00:00",
+  "last_checkpoint": "M1-M5 PASS locally; independent Round2 gates and substantive review pass; final artifact report pending. No push/release.",
+  "delivery_gate": "Official released-runtime consumer retest pending future push/release.",
+  "completed": "2026-10-10T17:55:56.522692+00:00"
 }

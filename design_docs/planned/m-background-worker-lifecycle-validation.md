@@ -1,6 +1,6 @@
 # M-BACKGROUND-WORKER-LIFECYCLE validation
 
-Status: implementation and focused checks complete locally; independent full gates pending. Unreleased, no push. Source baseline `37001e839` (stdlib v0.54.1). User approved design/planning/execution on 2026-10-10.
+Status: locally complete; independent full gates and substantive review pass. Unreleased, no push. Source baseline `37001e839` (stdlib v0.54.1). User approved design/planning/execution on 2026-10-10.
 
 ## Before and after: exact process identity
 
@@ -52,18 +52,26 @@ Run native lifecycle controls outside the restricted sandbox: PID inspection, PT
 
 Independent round 1 rejected the frozen implementation at `99bda5b8a`: full tests found missing API debug lines after engine context cloning and irrelevant shutdown trace events in no-worker programs; example verification found stale manifest statistics. Lint and file-size gates passed. The fixes configure the API sink and policy before cloning, serialize the shared fallback debug drain, preserve existing no-worker trace goldens while retaining completed-worker receipts, and correct only the three manifest totals. Focused regression tests reproduce the failures before each correction and pass afterward. The CLI debug polling test also needed synchronized stdout capture to make its existing concurrent readiness polling race-safe.
 
-| Gate | Status at source freeze |
+| Gate | Final local result |
 |---|---|
 |Clean baseline full make test/lint|PASS|
 |Final focused lifecycle/backend/trace/WS races and PID/PTy controls|PASS|
 |Final make fmt-check, check-boundaries, check-changelog|PASS|
 |Final verify-stdlib|PASS:48interfaces|
-|Independent full make test|Pending|
-|Independent make lint/check-file-sizes/verify-examples|Pending|
-|Independent evaluation|Pending|
+|Independent full make test|PASS: exit0 at Round2|
+|Independent make lint/check-file-sizes/verify-examples|PASS:0lint issues;800line limit;243examples pass/0fail/9skip;manifest231total/223working;0module drift|
+|Independent evaluation|PASS substantive source review; final artifact audit/report follows completion commit|
 
 ## Delivery handoff
 
 Keep commits local on `sprint/background-worker-lifecycle` until independent gates pass. The user plans a later push to dev. Publish a supporting runtime after that delivery, then rerun the consumer cleanup feasibility gate with its pinned official version/commit and exact PID evidence. Resume reply inbox and parallel crew reactions only after that published-runtime gate passes. Local subprocess termination does not fix parent/provider cancellation issue#231 or guarantee remote inference/billing stops. POSIX descendants that deliberately detach, hostSIGKILL and power loss remain outside the guarantee.
 
 The design and companion sprint plan remain together under `planned/` with an explicit implemented-locally/unreleased status; move both to the actual supporting release directory when that release ships. No release version is assigned by the local sprint.
+
+## Final source and regression provenance
+
+Round2 evaluates source head `b2be99ecc` after tests began at `d7884e3f0`. The intervening commit collapses exactly one API constructor comment to stay within the 800-line file-size gate; no executable token or test changed, and the evaluator independently verified that diff. Full tests ran again after the Round1 source corrections, with retained logs `/private/tmp/worker-independent-round2-{test,lint,sizes,examples}.log`. Formatting, boundaries, changelog and all48stdlib interfaces were rechecked after the corrections (`/private/tmp/worker-round2-extra-gates.log`).
+
+An unchanged source-baseline executable at `37001e839` passed241examples with9skips. Final example verification passed243with9skips: all250common file statuses match, no file was removed, and the only additions are the two cancellation showcases. This is a status/output-fixture regression control, not a claim that a full AST differential tool ran. The existing stale `lambda_expressions.ail` manifest warning remains nonfatal; no new module drift exists.
+
+The round1 rejection and final round2 audit are preserved under `.ailang/state/evaluations/`. The [sprint retrospective](../../docs/sprint-retros/M-BACKGROUND-WORKER-LIFECYCLE-retro.md) records elapsed time, source LOC and integration corrections.

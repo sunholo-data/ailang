@@ -1,6 +1,6 @@
 # M-BACKGROUND-WORKER-LIFECYCLE: Owned Subprocess Shutdown and Cancellation
 
-**Status**: Implemented locally; independent final validation pending — unreleased
+**Status**: Implemented locally; independent full gates passed — unreleased
 
 **Target**: Next supporting release after approval; version TBD (source baseline v0.54.1)
 
@@ -221,18 +221,18 @@ Fixture bodies were read during this design audit:
 
 Use deterministic helper children and mock/blocking AI effects, **without live provider calls**. Test helpers must emit a startup acknowledgement and expose their exact PID/group identity before cancellation; avoid startup races and broad process-name killing.
 
-- [ ] Reproduce both reported host-exit cases before the fix; both pass after it. In particular, closing stdin must not hide a still-running worker from teardown.
-- [ ] Cancel managed and async workers during a provider-free blocked AI/effect stub. A second worker and an unrelated bystander remain alive until their own cleanup.
-- [ ] Stop a worker that created a non-detached grandchild, including a leader-exits-first case; prove process-group death and direct-child reaping.
-- [ ] Cover natural EOF/final partial chunk, stdin EOF/drained queued writes, output backpressure, blocked pipe reads/writes, and repeated/in-flight cancellation without double Wait or channel panic.
-- [ ] Reject fabricated nonexistent, stale, wrong-owner, and wrong-kind handles; verify fresh request registry isolation and shared ownership across budget views.
-- [ ] Cover normal return, error, budget exhaustion, `exit(7)`, recovered panic, parent cancellation, and SIGINT/SIGTERM. Preserve primary exit codes and terminal state.
-- [ ] Inject kill/wait failure and deadline exhaustion: expose structured failure, do not report successful cleanup, and fail otherwise-successful host execution.
-- [ ] Admit workers concurrently with shutdown; every started child is either owned and joined or rejected and cleaned up.
-- [ ] With 20 simultaneously blocked workers, cleanup uses one deadline rather than 20 serial waits; verify runtime-owned goroutines and descriptors do not accumulate over repeated runs.
-- [ ] Embedded call, engine initialization/close, REPL reset/quit, and WebSocket error/shutdown lifetimes pass. Closing one request does not close another or a caller-owned base/transport.
-- [ ] Run focused effects/runner/runtime/embed/apiserver/REPL tests, race detector for lifecycle races, relevant PTY tests, `make check-boundaries`, formatting/lint, and applicable broader repository checks.
-- [ ] Native/VM API behavior matches; Windows and JS/WASM compile and deliver their documented unsupported cancellation result. Full-tree acceptance is explicitly POSIX until Windows supervision is added.
+- [x] Reproduce both reported host-exit cases before the fix; both pass after it. In particular, closing stdin must not hide a still-running worker from teardown.
+- [x] Cancel managed and async workers during a provider-free blocked AI/effect stub. A second worker and an unrelated bystander remain alive until their own cleanup.
+- [x] Stop a worker that created a non-detached grandchild, including a leader-exits-first case; prove process-group death and direct-child reaping.
+- [x] Cover natural EOF/final partial chunk, stdin EOF/drained queued writes, output backpressure, blocked pipe reads/writes, and repeated/in-flight cancellation without double Wait or channel panic.
+- [x] Reject fabricated nonexistent, stale, wrong-owner, and wrong-kind handles; verify fresh request registry isolation and shared ownership across budget views.
+- [x] Cover normal return, error, budget exhaustion, `exit(7)`, recovered panic, parent cancellation, and SIGINT/SIGTERM. Preserve primary exit codes and terminal state.
+- [x] Inject kill/wait failure and deadline exhaustion: expose structured failure, do not report successful cleanup, and fail otherwise-successful host execution.
+- [x] Admit workers concurrently with shutdown; every started child is either owned and joined or rejected and cleaned up.
+- [x] With 20 simultaneously blocked workers, cleanup uses one deadline rather than 20 serial waits; verify runtime-owned goroutines and descriptors do not accumulate over repeated runs.
+- [x] Embedded call, engine initialization/close, REPL reset/quit, and WebSocket error/shutdown lifetimes pass. Closing one request does not close another or a caller-owned base/transport.
+- [x] Run focused effects/runner/runtime/embed/apiserver/REPL tests, race detector for lifecycle races, relevant PTY tests, `make check-boundaries`, formatting/lint, and applicable broader repository checks.
+- [x] Native/VM API behavior matches; Windows and JS/WASM compile and deliver their documented unsupported cancellation result. Full-tree acceptance is explicitly POSIX until Windows supervision is added.
 - [ ] Re-run the consumer cleanup gate against an official published supporting runtime, with pinned version/commit and exact PID evidence. Only then hand back the reply-inbox/parallel-reaction application work.
 
 Existing tests are partial evidence: `TestManagedProcess_KillOnClose` and `TestProcessContext_CloseAllManaged` directly invoke internal cleanup and wait for managed completion; they do not exercise host exit. `TestProcessSource_CloseKillsProcess`, `ContextCancellation`, and `EOFClosesCleanly` assert event-channel closure, which does not establish process reaping. Preserve these tests and add integration evidence at the missing boundary.
@@ -311,4 +311,4 @@ Concurrent cleanup required synchronizing trace record/snapshot/config operation
 
 Live `stream_process_source` verification exposed an existing multiplexer closure probe that consumed queued events from other sources. Tracking closed channels avoids those receives and busy selection of closed sources, preserving final chunks and existing priority/borrowing semantics. A 5,000-event semantic test failed before that fix and passes after it.
 
-See the [validation record](m-background-worker-lifecycle-validation.md) and [sprint plan](m-background-worker-lifecycle-sprint-plan.md). Final independent gates are pending at this source freeze. Nothing has been pushed or released; the official supporting-runtime consumer gate remains after delivery.
+See the [validation record](m-background-worker-lifecycle-validation.md) and [sprint plan](m-background-worker-lifecycle-sprint-plan.md). Independent Round2 full tests, lint, file sizes and example verification pass at source head `b2be99ecc`; all 250 baseline example statuses remain unchanged. The final artifact report is recorded alongside the sprint state. Nothing has been pushed or released; the official supporting-runtime consumer gate remains after delivery.

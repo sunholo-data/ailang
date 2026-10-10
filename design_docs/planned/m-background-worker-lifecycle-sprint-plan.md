@@ -1,6 +1,6 @@
 # Sprint Plan: M-BACKGROUND-WORKER-LIFECYCLE
 
-**Status:** Implementation complete locally; M5 independent final gates pending. User approved execution on 2026-10-10.
+**Status:** Completed locally; independent full gates and substantive review pass. User approved execution on 2026-10-10.
 **Design:** [Owned subprocess lifecycle](m-background-worker-lifecycle.md)
 **Duration:** 8 engineering days including integration buffer; 3,400 LOC total (implementation plus tests).
 **Risk:** High: runtime ownership, pipe/Wait ordering, signals, embedding concurrency.
@@ -63,14 +63,14 @@ Files: async process source/handlers and source registry, `std/stream.ail`, sour
 
 Files: runner/batch, runtime request boundary, embed close/call, REPL lifecycle, terminal signal integration, VM/bytecode effect support and host regression tests. Preserve WebSocket-owned transports.
 
-### M5: Regression evidence and independent evaluation (~750 LOC)
+### ✅ M5: Regression evidence and independent evaluation (~750 LOC)
 **Dependencies:** M4
 **Estimate:** 750 LOC including regression tests.
 
 - [x] Both original host-exit leak reproductions pass with exact PID/reaping evidence on the sprint build.
 - [x] Provider-free blocking AI/effect, descendant, bystander, admission-race, 20-worker deadline and repeated-run resource controls pass.
-- [ ] Design conflict fixtures, examples/manifest, goldens, relevant race/PTy tests, full tests, lint, formatting, file sizes and architecture boundaries pass.
-- [ ] Independent evaluator reports a passing verdict; artifacts, changelog, documentation and release/consumer handoff are complete; no push or release is performed.
+- [x] Design conflict fixtures, examples/manifest, goldens, relevant race/PTy tests, full tests, lint, formatting, file sizes and architecture boundaries pass.
+- [x] Independent evaluator reports a passing verdict; artifacts, changelog, documentation and release/consumer handoff are complete; no push or release is performed.
 
 Files: integration/PTY fixtures, `examples/manifest.json`, affected stdlib/builtin goldens, docs/effects reference, changelog fragment, validation report and sprint retrospective.
 
@@ -102,3 +102,5 @@ Complete runtime cleanup and local consumer feasibility tests in this sprint. Th
 ## Progress
 
 No milestone is complete until its acceptance criteria and verification evidence pass. Update only progress/timing/evidence fields in sprint JSON during execution; preserve requirements. After independent evaluation, retain an explicit implemented-locally/unreleased status. Move the design and plan together to the actual implemented release directory when the supporting version ships.
+
+Actual implementation: 4,682 added code/test/showcase lines and 420 deleted lines; local elapsed calendar wall time 49.1 minutes with parallel agents. This is not human engineering-day throughput. See [retrospective](../../docs/sprint-retros/M-BACKGROUND-WORKER-LIFECYCLE-retro.md) and the independent Round2 report for final evidence.
