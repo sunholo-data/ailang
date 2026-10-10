@@ -261,3 +261,21 @@ This first release excludes mouse support, rich keyboard-protocol negotiation, p
 - [Maintained limitations](../../docs/docs/reference/limitations.md#interactive-stdin--keyboard-input) and [PROGRAM](../PROGRAM.md) — public boundary and routing principles.
 
 **Created / last updated**: 2026-10-10. Implementation and package publication are authorized by the user messages recorded above. No message acknowledgement or unrelated coordinator approval is included.
+
+### M4 integration addendum: recursive row alias resolution
+
+The complete crew consumer gate exposed a pre-existing compiler defect also
+reproduced on untouched dev: a pure recursive function with five or more nested
+conditional self-calls could leave the final application's effect row unowned.
+The row unifier applied only one substitution hop before comparing tails, then
+rebound an intermediate alias and disconnected the final call from the declared
+closed row. This is independent of native terminal dispatch.
+
+The integration repair resolves the complete alias chain before row unification,
+retaining row kind, labels, budgets, minimum budgets, refinement parameters and
+provenance. A cycle guard keeps cyclic aliases open rather than silently treating
+them as pure. ApplicationEffects ownership checks remain mandatory. Regression
+controls cover four/five/eight recursive branches, real IO rejection in a pure
+recursive function, effect/record multi-hop open and closed aliases, metadata and
+cycle behavior. General structural substitution APIs are unchanged; this repair
+is confined to the row-unification boundary.

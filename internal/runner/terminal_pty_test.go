@@ -22,7 +22,7 @@ func TestTerminalCLIPTYLifecycle(t *testing.T) {
 	}
 	python, err := exec.LookPath("python3")
 	if err != nil {
-		t.Skip("python3 required for standard-library PTY harness")
+		t.Fatalf("python3 required for native terminal lifecycle controls: %v", err)
 	}
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {

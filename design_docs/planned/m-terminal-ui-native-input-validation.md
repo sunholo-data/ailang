@@ -4,13 +4,20 @@ Implementation: core PR [#1756](https://github.com/sunholo-data/ailang/pull/1756
 package PR [#117](https://github.com/sunholo-data/ailang-packages/pull/117).
 Core feature commit 2f807c563; integrated current dev acc227e55 at cdcea3bdb.
 Package feature commit c0ec852, integrated compiler evidence e52ae17.
-Local implementation validation passes. Independent provisional review: 77/100 plus 10 regression bonus points; M4 CI acceptance remains withheld. CI/final delivery and required release/
-publication/registry consumer checks are pending; this is not a completed sprint.
+Local implementation validation passes. Independent provisional review: 77/100
+plus 10 regression bonus points. Repaired Windows and Linux runtime CI passed at
+274f0be88 (CI run 38037895269); Sonar alone rejected new coverage at 69.1%, below
+its unchanged 80% gate. Meaningful additional host/VM/image/EOF controls address
+that gap. Final-head CI, publication and fresh registry consumer checks remain
+required; this is not a completed sprint. The user explicitly approved both PR
+merges, a supporting core release and package publication.
 
 ## Concrete evidence
 
 | Check | Result |
 |---|---|
+| Release preflight | All five gates pass: tests, lint, file sizes, import goldens and eval configuration; `/private/tmp/terminal-pre-release-checks-final.log` |
+| v0.54.0 metadata checks | Post-update full make test and lint exit 0; boundaries and changelog/design references pass |
 | Integrated full `make test` | Exit 0, `/private/tmp/terminal-integrated-test.log` |
 | Integrated lint | 0 issues, `/private/tmp/terminal-integrated-lint.log` |
 | Architecture / file sizes | No violations, all files <=800 lines |
@@ -76,8 +83,11 @@ Running the complete existing crew validation with the integrated compiler stopp
 in the unchanged content-library package: frameTail line 71:344 has a missing/
 malformed ApplicationEffects (LatentParamMask) invariant. The exact error also
 occurs with an untouched current-dev acc227e55 build, with independent stdlib and
-cache disabled. It predates the terminal implementation and is not hidden or fixed
-without a scoped plan. Evidence: `/private/tmp/terminal-package-crew-integrated.log`
+cache disabled. It predates the terminal implementation. The M4 integration
+addendum scopes its repair to complete alias resolution at the row-unification
+boundary; ApplicationEffects invariants and real-effect rejection remain intact.
+Four/five/eight-arm recursion and effect/record alias controls pass. Evidence:
+`/private/tmp/terminal-package-crew-integrated.log`
 and `/private/tmp/terminal-content-library-dev-control.log`. Terminal-ui's own
 39 tests, strict quality and PTY controls remain green. This wider consumer gate
 must be resolved before claiming package repository CI/final release readiness.
@@ -92,5 +102,20 @@ release immediately. Added Windows controls cover disk aliases/distinct identiti
 handle lifetime, pipe blank/final-partial/EOF, invalid handles and NUL character
 input. Windows/WASM effects tests compile, Windows vet, native race controls and
 final lint pass. Independent review found no new defect. Actual Windows runtime CI
-on the repaired commit is still required; M4 remains pending, and no release was
-made. Original Windows log: `/private/tmp/terminal-ci-windows.log`.
+on repaired commit 274f0be88 passed (run 38037895269, test-windows); Linux tests,
+lint, vulnerability, float determinism, CodeQL and platform builds also passed.
+Original Windows log: `/private/tmp/terminal-ci-windows.log`.
+
+## Coverage repair without changing the gate
+
+The original PR Sonar report measured 69.1% new coverage; reliability, security,
+maintainability, duplication and reviewed-hotspot conditions passed. Instrumented
+Go-process PTY tests now exercise the actual terminal host while Python's standard
+library holds the PTY master. Host coverage increased by 105 statements: terminal.go
+215/232 (92.7%), terminal_posix.go 22/28 (78.6%), Darwin operations 7/7 (100%).
+The effects race/coverage suite and vet passed. VM boundary coverage is 52/53
+statements (98.1%); terminal ADT identity and new image admission/disassembly are
+100%; EOF builtin logic is 10/11, with the remaining guard an init panic.
+These controls assert errors, authority, ownership, events and restoration;
+thresholds and exclusions are unchanged. Missing Python is a failure in CI.
+Final Linux Sonar measurement remains required.

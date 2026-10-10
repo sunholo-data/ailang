@@ -464,3 +464,36 @@ func TestTerminalPrependExposesAllExistingBufferedInput(t *testing.T) {
 		}
 	}
 }
+
+func TestTerminalHostRejectsInvalidArgumentShapes(t *testing.T) {
+	cases := []struct {
+		name string
+		call func(*EffContext, []eval.Value) (eval.Value, error)
+		args []eval.Value
+	}{
+		{"info arguments", TerminalInfo, []eval.Value{&eval.UnitValue{}}},
+		{"scope arguments", TerminalWith, nil},
+		{"scope options", TerminalWith, []eval.Value{&eval.UnitValue{}, &eval.UnitValue{}}},
+		{"scope missing booleans", TerminalWith, []eval.Value{&eval.RecordValue{Fields: map[string]eval.Value{}}, &eval.UnitValue{}}},
+		{"event arguments", TerminalReadEvent, nil},
+		{"event timeout", TerminalReadEvent, []eval.Value{&eval.UnitValue{}, &eval.StringValue{Value: "10"}}},
+	}
+	for _, item := range cases {
+		t.Run(item.name, func(t *testing.T) {
+			if _, err := item.call(&EffContext{}, item.args); err == nil {
+				t.Fatal("invalid host argument shape accepted")
+			}
+		})
+	}
+	for _, handle := range []eval.Value{
+		&eval.UnitValue{},
+		terminalTag("TerminalSession"),
+		terminalTag("TerminalSession", &eval.StringValue{Value: "1"}),
+		terminalTag("Idle", &eval.IntValue{Value: 1}),
+	} {
+		value, err := TerminalReadEvent(&EffContext{}, []eval.Value{handle, &eval.IntValue{Value: 0}})
+		if err != nil || !strings.Contains(value.String(), "InvalidSession") {
+			t.Fatalf("invalid handle %v: %v %v", handle, value, err)
+		}
+	}
+}
