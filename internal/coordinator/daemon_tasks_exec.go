@@ -271,6 +271,9 @@ func (d *Daemon) dispatchTasksCloud() error {
 				if agent.AuthMode != "" {
 					params.AuthMode = agent.AuthMode
 				}
+				params.CreditAccount = agent.CreditAccount
+				params.CreditGatewayURL = agent.CreditGatewayURL
+				params.CreditJobIdentity = agent.CreditJobIdentity
 				// M-GIT-GUARDRAILS: Per-agent git mode for PreToolUse hook enforcement.
 				if agent.GitMode != "" {
 					params.GitMode = agent.GitMode

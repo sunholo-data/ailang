@@ -7,8 +7,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	run "cloud.google.com/go/run/apiv2"
 	runpb "cloud.google.com/go/run/apiv2/runpb"
@@ -21,6 +23,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/modelreg"
 )
 
 // jobRunner abstracts the Cloud Run Jobs API client for testing.
@@ -30,11 +33,13 @@ type jobRunner interface {
 
 // Dispatcher implements coordinator.CloudDispatcher using Cloud Run Jobs API.
 type Dispatcher struct {
-	client     jobRunner
-	directives DirectiveWriter
-	projectID  string
-	region     string
-	prefix     string
+	creditRelease   func(context.Context, coordinator.CloudCreditCapability) error
+	creditAdmission func(context.Context, coordinator.DispatchParams) (coordinator.CloudCreditCapability, error)
+	client          jobRunner
+	directives      DirectiveWriter
+	projectID       string
+	region          string
+	prefix          string
 }
 
 // DirectiveWriter persists a task's directive where the job reads it
@@ -194,7 +199,7 @@ func jobSuffixForVariant(variant, authMode string) (string, error) {
 // Dispatch triggers a Cloud Run Job execution with per-execution env var overrides.
 // The job is identified by the pattern: projects/{project}/locations/{region}/jobs/{prefix}-agent-executor
 // This matches the Terraform-defined job name in cloud_run_jobs.tf.
-func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchParams) error {
+func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchParams) (returnErr error) {
 	if err := (&coordinator.AgentConfig{AutoMerge: params.AutoMerge, AutoMergeCode: params.AutoMergeCode, AutoMergeRequiredChecks: params.AutoMergeRequiredChecks, AutoMergeApproverSecret: params.AutoMergeApproverSecret, AutoMergeApproverIdentity: params.AutoMergeApproverIdentity, ArtifactPatterns: params.ArtifactPatterns, SkipApproval: params.PushBranch != ""}).ValidateAutoMergeCode(); err != nil {
 		return fmt.Errorf("%w: %v", coordinator.ErrDispatchPermanent, err)
 	}
@@ -210,9 +215,54 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	if err := checkVariantProviderAgreement(params.ExecutorVariant, params.Provider); err != nil {
 		return fmt.Errorf("%w: %v", coordinator.ErrDispatchPermanent, err)
 	}
+	if params.CreditAccount != "" {
+		switch params.ExecutorVariant {
+		case "", "default":
+			jobSuffix = "agent-executor-claude-credit"
+		case "go":
+			jobSuffix = "agent-executor-go-claude-credit"
+		default:
+			return fmt.Errorf("%w: guarded Claude requires a dedicated default or go credit job", coordinator.ErrDispatchPermanent)
+		}
+	}
 	jobName := fmt.Sprintf("projects/%s/locations/%s/jobs/%s-%s",
 		d.projectID, d.region, d.prefix, jobSuffix)
 
+	if err := coordinator.ValidateCloudCreditLane(params); err != nil {
+		return fmt.Errorf("%w: credit budget blocked: %v", coordinator.ErrDispatchPermanent, err)
+	}
+	var credit coordinator.CloudCreditCapability
+	if params.CreditAccount != "" {
+		if d.creditAdmission != nil {
+			credit, err = d.creditAdmission(ctx, params)
+		} else {
+			credit, err = coordinator.AdmitCloudCreditTask(ctx, params, nil, nil)
+		}
+		if err != nil {
+			return fmt.Errorf("%w: credit budget blocked: %v", coordinator.ErrDispatchPermanent, err)
+		}
+	}
+	launchMayHaveStarted := false
+	defer func() {
+		if params.CreditAccount == "" || credit.Capability == "" || launchMayHaveStarted {
+			return
+		}
+		releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
+		var releaseErr error
+		if d.creditRelease != nil {
+			releaseErr = d.creditRelease(releaseCtx, credit)
+		} else {
+			releaseErr = coordinator.ReleaseCloudCreditTask(releaseCtx, credit, nil, nil)
+		}
+		if releaseErr != nil {
+			if returnErr != nil {
+				returnErr = fmt.Errorf("%w (credit lease release failed; exposure retained: %v)", returnErr, releaseErr)
+			} else {
+				returnErr = fmt.Errorf("credit lease release failed; exposure retained: %w", releaseErr)
+			}
+		}
+	}()
 	envOverrides := []*runpb.EnvVar{
 		{Name: "AILANG_TASK_ID", Values: &runpb.EnvVar_Value{Value: params.TaskID}},
 		{Name: "AILANG_AGENT_ID", Values: &runpb.EnvVar_Value{Value: params.AgentID}},
@@ -278,8 +328,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	}
 	// M-CLOUD-PROGRESS-TRACKING: Pass per-task cost budget for mid-execution enforcement.
 	if params.MaxCostUSD > 0 {
+		budget := fmt.Sprintf("%.4f", params.MaxCostUSD)
+		if params.CreditAccount != "" {
+			budget = fmt.Sprintf("%.6f", math.Floor(params.MaxCostUSD*1e6)/1e6)
+		}
 		envOverrides = append(envOverrides, &runpb.EnvVar{
-			Name: "AILANG_MAX_COST_USD", Values: &runpb.EnvVar_Value{Value: fmt.Sprintf("%.4f", params.MaxCostUSD)},
+			Name: "AILANG_MAX_COST_USD", Values: &runpb.EnvVar_Value{Value: budget},
 		})
 	}
 	// M-GIT-GUARDRAILS: Pass per-agent git mode for PreToolUse hook enforcement.
@@ -407,6 +461,20 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		})
 	}
 
+	if params.CreditAccount != "" {
+		for name, value := range map[string]string{
+			"AILANG_CLAUDE_CREDIT_ACCOUNT":             credit.AccountID,
+			"ANTHROPIC_BASE_URL":                       credit.GatewayURL,
+			"ANTHROPIC_API_KEY":                        credit.Capability,
+			"ANTHROPIC_DEFAULT_HAIKU_MODEL":            modelreg.ClaudeCreditModel,
+			"ANTHROPIC_DEFAULT_SONNET_MODEL":           modelreg.ClaudeCreditModel,
+			"ANTHROPIC_DEFAULT_OPUS_MODEL":             modelreg.ClaudeCreditModel,
+			"CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS":   "1",
+			"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+		} {
+			envOverrides = append(envOverrides, &runpb.EnvVar{Name: name, Values: &runpb.EnvVar_Value{Value: value}})
+		}
+	}
 	// M-CLOUD-DUAL-AUTH: Inject API key and auth mode marker for apikey mode.
 	// The Cloud Run Job reads ANTHROPIC_API_KEY natively (Claude Code supports it).
 	// AILANG_AUTH_MODE tells the executor to skip OAuth credentials file writing.
@@ -460,7 +528,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 
 	// RunJob returns a long-running operation. We only check the initial error —
 	// job completion is reported via Pub/Sub completions topic, not by polling.
+	launchMayHaveStarted = true
 	_, err = d.client.RunJob(ctx, req)
+	if params.CreditAccount != "" && (status.Code(err) == codes.InvalidArgument || status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied) {
+		launchMayHaveStarted = false
+		return fmt.Errorf("%w: guarded Cloud Run launch rejected: %v", coordinator.ErrDispatchPermanent, err)
+	}
 	if status.Code(err) == codes.InvalidArgument {
 		// The request itself is malformed; the same request fails the same way
 		// on every retry, so say so rather than queue it again.

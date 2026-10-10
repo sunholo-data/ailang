@@ -67,6 +67,9 @@ func (e *ClaudeExecutor) getModel(task *executor.Task) string {
 // getModel to avoid threading an error through every call site of a helper
 // that runs after this guard has already passed.
 func (e *ClaudeExecutor) requireModel(task *executor.Task) error {
+	if err := validateCreditEnvironment(e.getModel(task)); err != nil {
+		return err
+	}
 	if e.getModel(task) == "" {
 		return executor.ErrUnresolvedModel("claude", "ClaudeModel")
 	}

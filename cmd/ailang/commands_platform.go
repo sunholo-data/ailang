@@ -187,6 +187,12 @@ func platformCommands() []Command {
 			},
 		},
 		{
+			Name:    "credit-gateway",
+			Group:   groupOps,
+			Summary: "Serve the guarded Claude API credit gateway",
+			Run:     creditGatewayCommand,
+		},
+		{
 			Name:    "coordinator",
 			Group:   groupOps,
 			Summary: "Manage the autonomous agent daemon",

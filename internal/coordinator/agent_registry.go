@@ -240,7 +240,10 @@ type AgentConfig struct {
 	// Per-agent auth mode override (M-CLOUD-DUAL-AUTH, v0.9.2).
 	// "oauth" (default) or "apikey" — selects Cloud Run Job template.
 	// User-provided API keys from messages override this setting.
-	AuthMode string `yaml:"auth_mode" json:"auth_mode,omitempty"`
+	AuthMode          string `yaml:"auth_mode" json:"auth_mode,omitempty"`
+	CreditAccount     string `yaml:"credit_account" json:"credit_account,omitempty"`
+	CreditGatewayURL  string `yaml:"credit_gateway_url" json:"credit_gateway_url,omitempty"`
+	CreditJobIdentity string `yaml:"credit_job_identity" json:"credit_job_identity,omitempty"`
 
 	// Per-agent Docker image variant (M-EXECUTOR-VARIANTS, v1.1.0).
 	// Selects which pre-built agent image to use for Cloud Run Job execution.
