@@ -225,8 +225,7 @@ func New(basePath string, cfg Config) *Server {
 		storedEffCtx.Env.FSMaxBytes = maxUpload
 	}
 	if storedEffCtx != nil {
-		// SetEffContext creates an engine-owned clone. Complete sink and
-		// policy configuration first so request clones inherit both.
+		// Clone after configuring the sink and policy inherited by requests.
 		eng.SetEffContext(storedEffCtx)
 	}
 	return &Server{
