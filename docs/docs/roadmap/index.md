@@ -48,17 +48,18 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-EFFECT-CLOCK-NET-FS-MODES: Port Clock, Net, FS to Parameterised Modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-clock-net-fs-modes.md)
 - [M-EFFECT-REFINEMENT: Parameterised Effects and Unified Replay Contracts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md)
 - [Sprint Plan: M-EFFECT-REPLAY-SUBSUMPTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-replay-subsumption-sprint-plan.md)
-- [Sprint Plan: M-EFFECT-ROW-VAR-UNIFICATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-row-var-unification-sprint-plan.md)
-- [M-EFFECT-ROW-VAR-UNIFICATION validation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-row-var-unification-validation.md)
-- [M-EFFECT-ROW-VAR-UNIFICATION — Discharge effect-row variables in the effect-checking pass](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-row-var-unification.md)
 - [M-EFFECT-SCOPE-PARAMS: Capability-Scoping Parameters on Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-scope-params.md)
 - [Sprint Plan — M-MISSION-SLOT-HEARTBEAT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-mission-slot-heartbeat-sprint-plan.md)
 - [M-MISSION-SLOT-HEARTBEAT: Per-Gate Heartbeat for Mission Slot Death Attribution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-mission-slot-heartbeat.md)
 - [Sprint Plan: M-NIGHTLY-RUN-VALIDITY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-run-validity-gate-sprint-plan.md)
 - [Sprint Plan: M-NIGHTLY-SUSTAINED-FAILURE-LABEL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-sustained-failure-label-sprint-plan.md)
 - [Sprint Plan: M-NIGHTLY-UNMEASURED-CATEGORY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-unmeasured-category-gate-sprint-plan.md)
-- [Sprint Plan: M-VM-STACK-LIMIT-PARITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-vm-stack-limit-parity-sprint-plan.md)
-- [M-VM-STACK-LIMIT-PARITY — the bytecode VM's 1000-frame cap diverges from the evaluator's 10,000 recursion limit: evaluator-legal deep recursion silently truncates service handlers under `--bytecode`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-vm-stack-limit-parity.md)
+
+## Planned for v0.53.1
+
+- [M-BYTECODE-STRICT-256-REG-CEILING — strict-VM register-pressure failures are silent until RUN time: >256-element list literals and if/else-if chains over wide records become `evaluator-only` with no compile-time, `check`-time, or non-strict-run warning](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_1/m-bytecode-strict-256-reg-ceiling.md)
+- [Named-test source strip: parse-time block ends replace the string-blind brace scan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_1/m-namedtest-strip-string-blind-braces.md)
+- [Property Domain Parity: requires-filtered forall properties, named failing inputs, attested-run agreement](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_1/m-property-domain-parity.md)
 
 ## Planned for v0.53.0
 
@@ -74,16 +75,16 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-NAMED-TEST-EFFECTFUL-HELPER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-named-test-effectful-helper-sprint-plan.md)
 - [Named Test Effectful Helper Honesty (strip policy + truthful diagnostics)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-named-test-effectful-helper.md)
 - [M-PURE-ROW-AND-IFACE-PURITY — `pure` must mean `! {}`: reject the keyword beside a declared effect row, and derive iface purity from the checked row](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-pure-row-and-iface-purity.md)
-- [Sprint Plan: M-RUN-POLICY-RESULT-UNFORGEABLE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-run-policy-result-unforgeable-sprint-plan.md)
-- [M-RUN-POLICY-RESULT-UNFORGEABLE: the confined program cannot forge the supervisor's `policy-result:` line (#1548)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-run-policy-result-unforgeable.md)
-- [Sprint Plan: M-SERVEAPI-RESPONSE-HEADERS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-serveapi-response-headers-sprint-plan.md)
-- [serve-api Response Headers: Security Headers on `--static` + Hyphenated Route Headers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-serveapi-response-headers.md)
 - [M-TEST-RUNNER-COMPILE-ONCE: `ailang test` compiles a test file once, not once per named test](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-test-runner-compile-once.md)
+- [M-VM-LIST-TAIL-SHARE: O(1) list-tail binding on the bytecode VM (cons-pattern walks are O(n²))](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-vm-list-tail-share.md)
 
 ## Planned for v0.52.6
 
+- [M-AUTO-MERGE-CODE-PRS implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-auto-merge-code-prs-implementation.md)
 - [Sprint Plan: M-AUTO-MERGE-CODE-PRS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-auto-merge-code-prs-sprint-plan.md)
 - [Per-Agent Auto-Merge for Code PRs (check-gated, non-author approver)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-auto-merge-code-prs.md)
+- [M-CODEX-OAUTH-PROFILES sprint](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-codex-oauth-profiles-sprint-plan.md)
+- [M-CODEX-SUBSCRIPTION-LANE Phase 1 report](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-codex-subscription-lane-phase1-report.md)
 - [Sprint Plan: M-CODEX-SUBSCRIPTION-LANE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-codex-subscription-lane-sprint-plan.md)
 - [M-CODEX-SUBSCRIPTION-LANE: `codex*` fails loud now, a bounded `chatgpt/` client, and a `codex exec --json` AI-effect provider to replace the direct backend](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-codex-subscription-lane.md)
 - [M-EXECUTOR-CREDENTIAL-REPOS: Read-Only Child Git Credentials for Named Extra Repositories](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-executor-credential-repos.md)
@@ -96,8 +97,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-SKILL-FEATURE-DISCOVERABILITY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-skill-feature-discoverability-gate-sprint-plan.md)
 - [M-SKILL-FEATURE-DISCOVERABILITY-GATE: a mandatory prompt-load step before agents write .ail](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-skill-feature-discoverability-gate.md)
 - [Sprint Plan: M-SPRINT-LOC-NULL-SENTINEL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-sprint-loc-null-sentinel-sprint-plan.md)
-- [Sprint Plan: M-TASK-INPUTS — Typed cloud task inputs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-task-inputs-sprint-plan.md)
-- [M-TASK-INPUTS: Typed Task Inputs — Fetch a Named `{repo, ref, path}` Into the Workspace Before the Agent Runs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-task-inputs.md)
 - [Sprint Plan: Restricted worker compile-cache isolation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/run-policy-worker-cache-dir-sprint-plan.md)
 
 ## Planned for v0.52.4
@@ -412,4 +411,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 290 planned features across 33 upcoming versions.*
+*Generated at build time. 286 planned features across 34 upcoming versions.*
