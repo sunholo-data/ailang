@@ -18,7 +18,7 @@ func parseUsage(raw json.RawMessage, outputRequired bool) (modelreg.ClaudeUsage,
 	if err != nil {
 		return u, err
 	}
-	allowed := map[string]bool{"input_tokens": true, "output_tokens": true, "cache_read_input_tokens": true, "cache_creation_input_tokens": true, "cache_creation": true, "server_tool_use": true, "service_tier": true, "inference_geo": true}
+	allowed := map[string]bool{"input_tokens": true, "output_tokens": true, "cache_read_input_tokens": true, "cache_creation_input_tokens": true, "cache_creation": true, "server_tool_use": true, "service_tier": true, "inference_geo": true, "output_tokens_details": true}
 	for k := range obj {
 		if !allowed[k] {
 			return u, errors.New("unsupported usage category")
@@ -32,11 +32,10 @@ func parseUsage(raw json.RawMessage, outputRequired bool) (modelreg.ClaudeUsage,
 			}
 			return 0, nil
 		}
-		var n int64
-		if err := json.Unmarshal(b, &n); err != nil || n < 0 {
-			return 0, errors.New("invalid usage")
+		if !required && bytes.Equal(bytes.TrimSpace(b), []byte("null")) {
+			return 0, nil
 		}
-		return n, nil
+		return usageCounter(b)
 	}
 	if u.InputTokens, err = read("input_tokens", true); err != nil {
 		return u, err
@@ -59,44 +58,63 @@ func parseUsage(raw json.RawMessage, outputRequired bool) (modelreg.ClaudeUsage,
 		if len(c) != 2 {
 			return u, errors.New("cache TTL categories unsupported")
 		}
-		if err = json.Unmarshal(c["ephemeral_5m_input_tokens"], &u.CacheWrite5mTokens); err != nil {
+		if u.CacheWrite5mTokens, err = usageCounter(c["ephemeral_5m_input_tokens"]); err != nil {
 			return u, err
 		}
-		if err = json.Unmarshal(c["ephemeral_1h_input_tokens"], &u.CacheWrite1hTokens); err != nil {
+		if u.CacheWrite1hTokens, err = usageCounter(c["ephemeral_1h_input_tokens"]); err != nil {
 			return u, err
 		}
 		if u.CacheWrite5mTokens < 0 || u.CacheWrite1hTokens < 0 || u.CacheWrite5mTokens > total || u.CacheWrite1hTokens != total-u.CacheWrite5mTokens {
 			return u, errors.New("cache usage inconsistent")
 		}
 	} else if b, ok := obj["cache_creation"]; ok && string(b) != "null" {
-		var counts map[string]int64
-		if err = json.Unmarshal(b, &counts); err != nil {
+		counts, err := decodeObject(b)
+		if err != nil {
 			return u, err
 		}
-		for _, n := range counts {
-			if n != 0 {
+		for name, raw := range counts {
+			if name != "ephemeral_5m_input_tokens" && name != "ephemeral_1h_input_tokens" {
+				return u, errors.New("cache TTL categories unsupported")
+			}
+			n, err := usageCounter(raw)
+			if err != nil || n != 0 {
 				return u, errors.New("cache usage inconsistent")
 			}
 		}
 	}
 	if b, ok := obj["server_tool_use"]; ok && string(b) != "null" {
-		var counts map[string]int64
-		if err = json.Unmarshal(b, &counts); err != nil {
+		counts, err := decodeObject(b)
+		if err != nil {
 			return u, err
 		}
-		for _, n := range counts {
-			if n != 0 {
+		for name, raw := range counts {
+			if name != "web_search_requests" && name != "web_fetch_requests" {
+				return u, errors.New("unsupported paid tool usage")
+			}
+			n, err := usageCounter(raw)
+			if err != nil || n != 0 {
 				return u, errors.New("unsupported paid tool usage")
 			}
 		}
 	}
-	if b, ok := obj["service_tier"]; ok {
+	if b, ok := obj["output_tokens_details"]; ok && !bytes.Equal(bytes.TrimSpace(b), []byte("null")) {
+		details, err := decodeObject(b)
+		if err != nil || len(details) != 1 {
+			return u, errors.New("unsupported output usage breakdown")
+		}
+		thinking, err := usageCounter(details["thinking_tokens"])
+		if err != nil || thinking > u.OutputTokens {
+			return u, errors.New("invalid output usage breakdown")
+		}
+		// output_tokens is the inclusive billing total; never add this breakdown.
+	}
+	if b, ok := obj["service_tier"]; ok && !bytes.Equal(bytes.TrimSpace(b), []byte("null")) {
 		var tier string
 		if json.Unmarshal(b, &tier) != nil || tier != "standard" {
 			return u, errors.New("unsupported usage service tier")
 		}
 	}
-	if b, ok := obj["inference_geo"]; ok {
+	if b, ok := obj["inference_geo"]; ok && !bytes.Equal(bytes.TrimSpace(b), []byte("null")) {
 		var geo string
 		if json.Unmarshal(b, &geo) != nil || (geo != "global" && geo != "") {
 			return u, errors.New("unsupported inference residency")
@@ -124,6 +142,10 @@ func messageUsage(raw []byte, model string, maxTokens int) (modelreg.ClaudeUsage
 	return u, id, nil
 }
 func relayStream(w http.ResponseWriter, body io.Reader, model string, maxTokens int) (modelreg.ClaudeUsage, string, error) {
+	return relayStreamWithTrace(w, body, model, maxTokens, &usageTrace{})
+}
+
+func relayStreamWithTrace(w http.ResponseWriter, body io.Reader, model string, maxTokens int, trace *usageTrace) (modelreg.ClaudeUsage, string, error) {
 	var u modelreg.ClaudeUsage
 	var id string
 	started, delta, stopped := false, false, false
@@ -174,50 +196,37 @@ func relayStream(w http.ResponseWriter, body io.Reader, model string, maxTokens 
 			if id == "" || responseModel != model {
 				return errors.New("invalid stream identity")
 			}
+			trace.Start = usageObservation(msg["usage"])
 			u, err = parseUsage(msg["usage"], true)
 			if err != nil {
 				return err
 			}
 			started = true
+			trace.Started = true
+			trace.observeVerified(u)
 		case "message_delta":
 			if !started {
 				return errors.New("unexpected message_delta")
 			}
 			delta = true
+			trace.Final = usageObservation(obj["usage"])
+			trace.FinalSeen = true
 			usage, err := decodeObject(obj["usage"])
 			if err != nil {
 				return err
 			}
-			// Input/cache fields may be repeated only with identical values; output is
-			// cumulative, not a delta to add twice.
-			for k, b := range usage {
-				switch k {
-				case "output_tokens":
-					var output int64
-					if err = json.Unmarshal(b, &output); err != nil || output < u.OutputTokens {
-						return errors.New("nonmonotonic output usage")
-					}
-					u.OutputTokens = output
-				case "input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "cache_creation", "server_tool_use", "service_tier", "inference_geo":
-					start := map[string]any{"input_tokens": u.InputTokens, "output_tokens": u.OutputTokens, "cache_read_input_tokens": u.CacheReadTokens, "cache_creation_input_tokens": u.CacheWrite5mTokens + u.CacheWrite1hTokens, "cache_creation": map[string]int64{"ephemeral_5m_input_tokens": u.CacheWrite5mTokens, "ephemeral_1h_input_tokens": u.CacheWrite1hTokens}}
-					start[k] = json.RawMessage(b)
-					encoded, _ := json.Marshal(start)
-					check, err := parseUsage(encoded, true)
-					if err != nil || check != u {
-						return errors.New("inconsistent stream usage")
-					}
-				default:
-					return errors.New("unsupported stream usage category")
-				}
+			updated, err := mergeStreamUsage(u, usage, maxTokens)
+			if err != nil {
+				return err
 			}
-			if _, ok := usage["output_tokens"]; !ok || u.OutputTokens < 0 || u.OutputTokens > int64(maxTokens) {
-				return errors.New("missing or impossible stream output usage")
-			}
+			u = updated
+			trace.observeVerified(u)
 		case "message_stop":
 			if !started || !delta {
 				return errors.New("truncated stream")
 			}
 			stopped = true
+			trace.Stopped = true
 		case "ping":
 		case "content_block_start", "content_block_delta", "content_block_stop":
 			if !started || delta {

@@ -1,7 +1,9 @@
 # Claude credit gateway infrastructure candidate
 
-This directory is a **review proposal**, not a deployed stack. The authority is
-shared by dev/prod and defaults off (`provision=false`, `deploy_runtime=false`).
+This directory contains the reusable reviewed module. The owning private
+infrastructure stack provisions the shared dev/prod authority through Terraform CI.
+Module defaults stay off (`provision=false`, `deploy_runtime=false`); actual
+rollout status and activation evidence are linked below.
 Use the private `ailang-multivac` repo's branch-driven infrastructure pipeline;
 do not run a local apply or build/push production images from this directory.
 
