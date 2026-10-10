@@ -1,0 +1,277 @@
+{
+  "sprint_id": "M-CLOUD-CLAUDE-API-CREDIT-GUARD",
+  "status": "in_progress",
+  "created": "2026-10-09T15:25:05.085868+00:00",
+  "design_doc": "design_docs/planned/m-cloud-claude-api-credit-guard.md",
+  "sprint_plan": "design_docs/planned/m-cloud-claude-api-credit-guard-sprint-plan.md",
+  "github_issues": [],
+  "approval": {
+    "design_approved": true,
+    "design_approved_at": "2026-10-09",
+    "source": "Attended user: execute sprint",
+    "sprint_plan_approved": true,
+    "execution_authorized": true,
+    "required_instruction": "execute sprint",
+    "execution_authorized_at": "2026-10-10",
+    "cli_contract_extension_approved": true,
+    "cli_contract_extension_approved_at": "2026-10-10",
+    "cli_contract_extension_source": "Attended user: ok yes continue you have approval; proved cost bound required"
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M0",
+      "package": null,
+      "action": "none",
+      "reason": "Operational inventory and supported request evidence; no runtime package needed."
+    },
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Inspected sunholo/firestore@0.7.3 and sunholo/billing_store@0.9.3; use in-tree Go Firestore RunTransaction for host credit authority."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Extend in-tree modelreg pricing; inspected budget keyword candidates sunholo/gemini_live@0.5.0 and sunholo/decisions@0.4.0 are unrelated."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches for gateway/anthropic returned no candidates; implement narrow host Messages budget gateway."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Use existing Go Claude executor, environment policy, registry and Cloud Run dispatch; no new AILANG package dependency."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Use coordinator CLI and credit authority; inspected billing_store CRUD operates on application billing records, a different boundary."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "Integrate host modules and retain deployment evidence; no new runtime package."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 2610,
+    "estimated_days": 9
+  },
+  "features": [
+    {
+      "id": "M0",
+      "description": "Deployment and request-contract evidence",
+      "estimated_loc": 80,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Deployment evidence names exact cloud projects/jobs/images and external infrastructure ownership.",
+        "Supported request types, pricing bounds, helper models, and credential transport are verified or explicitly blocked.",
+        "Actual grant and allocation evidence are recorded without secret material; unavailable evidence blocks activation.",
+        "No live inference is required before the reserved smoke path exists."
+      ],
+      "passes": true,
+      "started": "2026-10-10",
+      "completed": "2026-10-10T07:21:05.866997+00:00",
+      "notes": "Deployment/request contracts recorded, actual secret metadata inventoried, user confirmed $200 available and expiry October 28. Org/workspace and live isolation expressly blocked; no inference spent. Installed Claude CLI 2.1.295 mandatory beta headers explicitly blocked; fake-only protocol diagnostic fails closed before reservation/send. Approved continuation verified2.1.295 proxy mode omits beta extensions at client; text-only GA system-message contract and fake tool loop now pass. Deployed-image compatibility remains M6 gate."
+    },
+    {
+      "id": "M1",
+      "description": "Shared grant and request authority",
+      "estimated_loc": 700,
+      "dependencies": [
+        "M0"
+      ],
+      "acceptance_criteria": [
+        "Parallel emulator clients cannot exceed account/task/day ceilings or the two-task pilot limit.",
+        "Same-cycle reconfirmation adds zero allowance; key rotation/restarts/date changes do not replenish it.",
+        "Duplicate settlement is harmless; lease expiry never refunds forwarded or unknown exposure.",
+        "Expiry, kill switch, storage failure, and unresolved grant transitions prevent new admission.",
+        "Relevant tests and formatting/lint pass."
+      ],
+      "passes": true,
+      "started": "2026-10-10",
+      "completed": "2026-10-10T07:21:05.866997+00:00",
+      "notes": "Integer transactions, immutable grants/reconfirmation, restart/expiry/unknown exposure, attempt-bound leases and $5 canary; domain/race/vet and real independent-client Firestore emulator proof passed."
+    },
+    {
+      "id": "M2",
+      "description": "Canonical request pricing",
+      "estimated_loc": 320,
+      "dependencies": [
+        "M0"
+      ],
+      "acceptance_criteria": [
+        "Tests cover exactly 100K and above, cache reads, five-minute/one-hour writes, thinking/output limits, and upward rounding.",
+        "Unknown model/feature/rate or unproved token bound cannot authorize a request.",
+        "Existing pricing tests pass without changing unrelated model rates or ordering.",
+        "Request and settlement record the pricing revision used."
+      ],
+      "passes": true,
+      "started": "2026-10-10",
+      "completed": "2026-10-10T07:21:05.866997+00:00",
+      "notes": "Canonical tier/cache/thinking pricing, full-window reservation, upward rounding and immutable revision; modelreg tests/race/vet passed."
+    },
+    {
+      "id": "M3",
+      "description": "Authenticated budget gateway",
+      "estimated_loc": 730,
+      "dependencies": [
+        "M0",
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Every upstream send has its own durable sufficient reservation, including retry/helper/subagent paths admitted by the contract.",
+        "Crash around sending, truncated SSE, client cancellation, duplicate events, and gateway restart preserve conservative exposure.",
+        "Unsupported billable routes/features/models and invalid credentials produce zero upstream inference calls.",
+        "Provider key remains gateway-only; capabilities cannot choose another account or enlarge limits.",
+        "Fixed-origin and streaming contract tests pass."
+      ],
+      "passes": true,
+      "started": "2026-10-10",
+      "completed": "2026-10-10T07:21:05.866997+00:00",
+      "notes": "Google identity plus signed attempt capability, fixed upstream, strict feature admission, durable send intent, complete usage settlement; streaming/cancellation/storage/redirect/restart-exposure fault tests passed."
+    },
+    {
+      "id": "M4",
+      "description": "Cloud executor and routing integration",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Job image, provider, auth mode, model, and account resolve coherently before launch.",
+        "Invalid/missing budgets fail closed rather than become zero/unlimited.",
+        "Budget-blocked work does not spin on retries or silently switch credentials/models.",
+        "Existing request-scoped user keys, OAuth lanes, and task/PR approval rules retain their behavior.",
+        "Metered and subscription accounting remain distinguishable; relevant regression tests pass."
+      ],
+      "passes": true,
+      "started": "2026-10-10",
+      "completed": "2026-10-10T07:57:38.652100+00:00",
+      "notes": "Guarded dispatch/model/auth/budgets, credential isolation and helper pinning validated. Reviewed2.1.295 client proxy mode removesbeta extensions before send; gateway still rejects all four. Standard text-only system input keeps existing price bound. Actual CLI completion and two-request Bash tool loop pass with per-request accounting. Full suite, lint and gateway/executor race pass; deployed image verification deferred M6. Integration found legacy provider budget $150; explicit credit_max_cost_usd now overrides it only for guarded agents, with missing/invalid limits denied and legacy budgets preserved. Independent installed-client audit exposed newer provider/host/config selectors; namespace allowlist now removes inherited route/auth controls, with actual-selector and future-selector regression cases. Focused race, lint and installed fake-only CLI protocol pass."
+    },
+    {
+      "id": "M5",
+      "description": "AILANG renewal and status commands",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Confirm writes audited canonical cloud state atomically and never takes an API key as input.",
+        "Same-cycle repeat adds no credit; invalid dates/amounts, unauthorized identity, and stale conflicting state fail visibly.",
+        "Status shows expiry, confirmed/operating ceilings, settled/reserved/unresolved exposure and every blocker.",
+        "Executors observe the next allowed request without a config restart; disabled/unreconciled accounts stay blocked.",
+        "Help and operating examples agree with actual flags; CLI tests pass."
+      ],
+      "passes": true,
+      "started": "2026-10-10",
+      "completed": "2026-10-10T07:57:38.652100+00:00",
+      "notes": "Canonical audited confirm/status/enable/disable/promote, exact USD/date/stale-grant checks and impersonation validated. Direct authority and gateway cases observe state without config restart; actual CLI can reach the same guardedrequest path after compatibility fix. Full suite and focused CLI tests pass; live canonical service observation remains M6."
+    },
+    {
+      "id": "M6",
+      "description": "Integrated validation and rollout evidence",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M0",
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "Dev/prod integration uses one credit authority for the shared grant; all smoke spend stays within the reserved $5.",
+        "Provider evidence reconciles supported billing categories; discrepancies block promotion.",
+        "Near-limit, expiry-without-renewal, reconfirmation, kill-switch, and unavailable-ledger scenarios show expected behavior.",
+        "All relevant tests, formatting/lint, boundary checks and required CI pass.",
+        "Deployment changes are reviewable under infrastructure policy; canary/rollout evidence and operator guide are complete."
+      ],
+      "passes": null,
+      "started": "2026-10-10T07:21:05.866997+00:00",
+      "completed": null,
+      "notes": "Complete local default suite/lint and gateway/executor race pass, including actual installedCLI fake completion/tool loop. Review-only Terraform/IAM artifacts validated. Required PR CI, built/deployed image verification, isolated authority/IAM provisioning, user organization/workspace and live $5 canary billing reconciliation remain pending; lane disabled."
+    }
+  ],
+  "deferred": [
+    "Extend account-based confirmation/status and spending guards to other credit pools in a follow-up."
+  ],
+  "execution_worktree": "/private/tmp/ailang-claude-credit-guard",
+  "activation": {
+    "enabled": false,
+    "confirmed_allocation_usd": 200,
+    "user_confirmed_expiry_date": "2026-10-28",
+    "conservative_expiry": "2026-10-28T00:00:00Z",
+    "secret_resource": "projects/ailang-multivac/secrets/ailang-anthropic-api-key",
+    "blockers": [
+      "Deployed image/CLI contract verification and required CI pending",
+      "Gateway and isolated authority infrastructure not deployed",
+      "Verified Anthropic org/workspace and stable cycle reference pending",
+      "Live canary and billing reconciliation pending"
+    ]
+  },
+  "validation": {
+    "full_test": "PASS: final full make test GOTEST=\"go test -p 4\"; initial concurrent process-start deadline failures passed in isolation and full limited-concurrency rerun",
+    "lint": "PASS: final checkpoint, 0 issues; /private/tmp/claude-credit-lint-final.log",
+    "boundaries": "PASS",
+    "gateway_fault_race": "PASS",
+    "firestore_emulator_race": "PASS: real concurrent clients",
+    "terraform_preview": "fmt/validate PASS; IAM patch apply-check PASS",
+    "live_canary": "NOT RUN",
+    "provider_spend_usd": 0,
+    "ci": "PENDING: required checks on the final PR head, #1755",
+    "claude_cli_protocol": "PASS: installed2.1.295 beta-free ordinary completion and two-request Bash printf tool loop; separate reserves/settlement, zero real spend",
+    "claude_cli_protocol_log": "/private/tmp/claude-credit-route-cli-smoke.log",
+    "full_test_log": "/private/tmp/claude-credit-tests-limited-concurrency.log",
+    "process_cleanup_recheck": "PASS: TestAdaptersStopOwnedDescendants; /private/tmp/claude-credit-proctree-recheck.log",
+    "continued_full_test": "PASS: make test GOTEST=\"go test -p 4\"; /private/tmp/claude-credit-continued-tests.log",
+    "continued_lint": "PASS: 0 issues; /private/tmp/claude-credit-continued-lint.log",
+    "continued_gateway_executor_race": "PASS: /private/tmp/claude-credit-continued-race.log",
+    "registry_budget": "PASS: YAML registry budget overrides production Claude $150 only for guarded lane; missing/invalid fail before identity acquisition. Coordinator/dispatch/executor race and lint pass.",
+    "registry_budget_race_log": "/private/tmp/claude-credit-registry-budget-race.log",
+    "registry_budget_lint_log": "/private/tmp/claude-credit-registry-budget-lint.log",
+    "infrastructure_candidate": "PASS: 292 offline shell tests, four mocked Terraform plans, validate/fmt; both flags false, no active agent/credit enrollment; unconditional scoped IAM patch requires review.",
+    "terraform_release_images": "PASS: lifecycle preserves verified releases; /private/tmp/claude-credit-release-image-validate.log",
+    "ci_quick": "PASS: /private/tmp/claude-credit-route-ci-quick.log after provider route isolation regression",
+    "ci_previous_failure": {
+      "head": "42bc80bff27a153aac912682295b9241c753dbf1",
+      "step": "Check ARCHITECTURE.md language-closure section is current",
+      "cause": "New host packages require generated full-binary count 133 to 135; language closure unchanged",
+      "resolution": "Regenerated using scripts/gen_architecture_closure.sh; check and ci-quick passed locally; rerun required CI"
+    },
+    "startup_dependencies": "READ-ONLY PASS: explicit basic canary uses dispatched inputs, app Firestore, GitHub, PubSub, artifact/Gateway permissions; no mandatory config mount/registry credential. Go memory matches existing 8Gi; deployed image/capacity proof remains pending.",
+    "provider_route_environment": "PASS: deny inherited provider/config/host/descriptor/socket namespaces, preserve task capability and harness telemetry, then force reviewed route. Managed disk policy remains authoritative and deployed settings verification stays pending.",
+    "provider_route_red_log": "/private/tmp/claude-credit-route-red.log",
+    "provider_route_race_log": "/private/tmp/claude-credit-route-green.log",
+    "provider_route_lint_log": "/private/tmp/claude-credit-route-lint.log",
+    "coverage_gate_prior_failure": {
+      "head": "a062f17c6f60101c00c497196f76d9e9c0cb6e33",
+      "sonar_new_coverage_pct": 75.6,
+      "threshold_pct": 80,
+      "all_github_jobs": "PASS after unchanged macOS memory probe retry and cancelled companion reruns",
+      "resolution": "Added admission, uncertain usage/cache/SSE, and synthetic job identity boundary tests; no production changes or gate weakening. Next-head Sonar/CI required."
+    },
+    "coverage_focused_race": "PASS: /private/tmp/claude-credit-combined-coverage.log; gateway statement coverage90.3%; source Sonar metric remains to be confirmed on next head",
+    "coverage_lint": "PASS:0 issues; /private/tmp/claude-credit-coverage-lint.log",
+    "coverage_ci_quick": "PASS: /private/tmp/claude-credit-coverage-ci-quick.log"
+  },
+  "next_milestone": "M6",
+  "last_updated": "2026-10-10T09:21:24.315666+00:00",
+  "execution_branch": "sprint/claude-api-credit-guard",
+  "source_pull_request": "https://github.com/sunholo-data/ailang/pull/1755",
+  "infrastructure_worktree": "/private/tmp/ailang-multivac-claude-credit",
+  "infrastructure_branch": "sprint/claude-api-credit-guard-infra",
+  "infrastructure_pull_request": "https://github.com/sunholo-data/ailang-multivac/pull/6"
+}

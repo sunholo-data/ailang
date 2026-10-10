@@ -54,15 +54,18 @@ type DispatchParams struct {
 	// executor's hardcoded 3m no matter what the registry declared — 41 agents
 	// declaring 5m/6m/10m, all silently 3m, while `coordinator agents <id>`
 	// printed the declared value as EFFECTIVE. Measured 2026-09-22.
-	IdleTimeout     string
-	AuthMode        string  // "oauth" (default) or "apikey" — selects Cloud Run Job template (M-CLOUD-DUAL-AUTH)
-	APIKey          string  // User-provided Anthropic API key, only when AuthMode == "apikey"
-	MaxCostUSD      float64 // Per-task cost budget (0 = unlimited) — M-CLOUD-PROGRESS-TRACKING
-	GitMode         string  // "guardrails", "strict", "permissive" — M-GIT-GUARDRAILS
-	SiteSlug        string  // Website site slug for commit message — M-HARNESS-COMMIT-CONTRACT
-	BriefID         string  // Brief ID for commit message — M-HARNESS-COMMIT-CONTRACT
-	Subdirectory    string  // Monorepo subdirectory for package agents — M-PKG-AUTONOMOUS-UPDATES
-	ExecutorVariant string  // Docker image variant — M-EXECUTOR-VARIANTS ("", "go", "codex", etc.)
+	IdleTimeout       string
+	AuthMode          string // "oauth" (default) or "apikey" — selects Cloud Run Job template (M-CLOUD-DUAL-AUTH)
+	CreditAccount     string // Explicit API-credit lane; never inferred from apikey mode.
+	CreditGatewayURL  string
+	CreditJobIdentity string  // Expected Cloud Run job service-account identity.
+	APIKey            string  // User-provided Anthropic API key, only when AuthMode == "apikey"
+	MaxCostUSD        float64 // Per-task cost budget (0 = unlimited) — M-CLOUD-PROGRESS-TRACKING
+	GitMode           string  // "guardrails", "strict", "permissive" — M-GIT-GUARDRAILS
+	SiteSlug          string  // Website site slug for commit message — M-HARNESS-COMMIT-CONTRACT
+	BriefID           string  // Brief ID for commit message — M-HARNESS-COMMIT-CONTRACT
+	Subdirectory      string  // Monorepo subdirectory for package agents — M-PKG-AUTONOMOUS-UPDATES
+	ExecutorVariant   string  // Docker image variant — M-EXECUTOR-VARIANTS ("", "go", "codex", etc.)
 
 	// WorkTier is the permission tier the session-protocol gate runs under
 	// ("tier1"/"tier2") — M-COORDINATOR-EXECUTION-TRUST M1a. Always set via

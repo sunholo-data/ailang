@@ -368,6 +368,9 @@ func (d *Daemon) dispatchTasksCloud() error {
 				}
 			}
 			// M-CLOUD-DUAL-AUTH: Check if the originating message had a user-provided API key.
+			applyCloudCreditAgentConfig(&params, agentCfg)
+			// User keys still take precedence for legacy lanes. A guarded lane's
+			// admission validator rejects a provider-key override explicitly.
 			// The cache is keyed by message ID — if a key exists, use apikey mode.
 			// This overrides per-agent defaults (user-provided key takes precedence).
 			if d.apiKeyCache != nil && task.MessageID != "" {
