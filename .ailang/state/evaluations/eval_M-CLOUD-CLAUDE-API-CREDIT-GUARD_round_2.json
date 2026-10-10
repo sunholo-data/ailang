@@ -1,0 +1,414 @@
+{
+  "sprint_id": "M-CLOUD-CLAUDE-API-CREDIT-GUARD",
+  "evaluation_round": 2,
+  "timestamp": "2026-10-10T07:59:47.108822+00:00",
+  "design_doc": "design_docs/planned/m-cloud-claude-api-credit-guard.md",
+  "sprint_plan": "design_docs/planned/m-cloud-claude-api-credit-guard-sprint-plan.md",
+  "total_score": 91,
+  "pass_threshold": 70,
+  "result": "FAIL",
+  "implementation_result": "PASS",
+  "implementation_score": 91,
+  "evaluation_scope": "Independent continuation review: M0-M5 local implementation and actual installed CLI compatibility pass; complete sprint and activation remain pending M6/required CI.",
+  "full_sprint_complete": false,
+  "activation_result": "BLOCKED",
+  "gate_source": "local",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 26,
+    "code_quality": 13,
+    "documentation": 13,
+    "design_fidelity": 9
+  },
+  "scoring_notes": "29/33 acceptance criteria verified, floor(29/33*30)=26. Final whole default suite, lint, gateway/executor race and actual installed Claude completion/tool loop pass. Local implementation clears 70-point threshold with no remaining implementation defect found. Four live/deployment/CI M6 criteria remain unfulfilled; this is not a full-sprint PASS or deployment approval. Sprint artifacts deliberately remain incomplete pending those gates.",
+  "hard_fails": [
+    {
+      "condition": "required_rollout_evidence_missing",
+      "details": "M6 live shared-authority rollout, deployed identity/CLI/image checks, provider billing reconciliation and required final-head CI have not run. No source-only review can establish these against the actual key/grant. Lane remains disabled."
+    }
+  ],
+  "automated_checks": {
+    "tests_pass": true,
+    "tests_output": "/private/tmp/claude-credit-continued-tests.log",
+    "lint_clean": true,
+    "lint_output": "/private/tmp/claude-credit-continued-lint.log",
+    "file_sizes_ok": true,
+    "boundary_check_pass": true,
+    "boundary_output": "/private/tmp/claude-credit-boundaries-final.log",
+    "emulator_race_pass": true,
+    "emulator_output": "/private/tmp/ailang-credit-m1-validation.log",
+    "gateway_race_pass": true,
+    "gateway_output": "/private/tmp/claude-credit-continued-race.log",
+    "cli_pass": true,
+    "cli_output": "/private/tmp/claude-credit-cli-tool-contract.log",
+    "ci_pass": null,
+    "coverage_pct": null,
+    "note": "Evaluator inspected supplied final logs and source independently; did not rerun full gates. Final continued suite contains 46,335 lines with no FAIL markers, lint reports zero issues, and complete gateway/executor race packages pass. Earlier unrestricted process-start fixture failure and isolated recheck are retained as prior evidence, not the final gate.",
+    "default_go_suite_pass": true,
+    "tests_note": "All default test cases pass with package concurrency four. Required opt-in actual installed Claude 2.1.295 completion and two-request Bash printf tool-loop contract now also passes; fake upstream only.",
+    "coordinator_cli_pass": true,
+    "coordinator_cli_output": "/private/tmp/claude-credit-cli-final.log",
+    "claude_cli_protocol_pass": true,
+    "claude_cli_protocol_output": "/private/tmp/claude-credit-cli-tool-contract.log",
+    "final_default_checkpoint_output": "/private/tmp/claude-credit-continued-tests.log",
+    "final_default_checkpoint_status": "continued whole-suite -p 4 run exited zero after compatibility implementation",
+    "default_go_suite_command": "make test GOTEST='go test -p 4'",
+    "default_go_suite_output": "/private/tmp/claude-credit-continued-tests.log",
+    "proctree_recheck_pass": true,
+    "proctree_recheck_output": "/private/tmp/claude-credit-proctree-recheck.log",
+    "checkpoint_failure_details": {
+      "package": "internal/proctree",
+      "tests": [
+        "TestAdaptersStopOwnedDescendants/claude/deadline",
+        "TestAdaptersStopOwnedDescendants/claude/timeout"
+      ],
+      "observed_error": "fixture never started",
+      "subsequent_evidence": "All adapter variants pass isolated; full make test with go test -p 4 passes, no test-source changes. Process-start pressure is an inference from rechecks, not a proved root-cause diagnosis."
+    },
+    "lint_output_summary": "0 issues; lint complete.",
+    "executor_race_pass": true,
+    "executor_race_output": "/private/tmp/claude-credit-continued-race.log",
+    "compatibility_red_output": "/private/tmp/claude-credit-compatibility-red.log",
+    "compatibility_green_output": "/private/tmp/claude-credit-compatibility-green.log",
+    "prior_protocol_failure_output": "/private/tmp/claude-credit-cli-protocol-final.log"
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M0",
+      "criterion": "Deployment evidence names exact cloud projects/jobs/images and external infrastructure ownership.",
+      "met": true,
+      "evidence": "design_docs/planned/m-cloud-claude-api-credit-guard-deployment.md records prod/dev projects, exact jobs, coordinator revisions/images, identities and private infrastructure owner."
+    },
+    {
+      "feature_id": "M0",
+      "criterion": "Supported request types, pricing bounds, helper models, and credential transport are verified or explicitly blocked.",
+      "met": true,
+      "evidence": "Narrow Messages/pricing contract and mandatory beta rejection remain validated. Independently inspected official CLI2.1.295 artifact/hash and its source proxy-mode beta filter; actual CLI completion and tool loop now pass beta-free. Documented GA system text/cache support adds no new rate category. Deployed-image verification is explicitly M6."
+    },
+    {
+      "feature_id": "M0",
+      "criterion": "Actual grant and allocation evidence are recorded without secret material; unavailable evidence blocks activation.",
+      "met": true,
+      "evidence": "Deployment/operator records retain attended $200 available-allocation confirmation and conservative 2026-10-28T00:00:00Z expiry; organization/workspace/cycle evidence remains a live gate. No secret value appears in artifacts."
+    },
+    {
+      "feature_id": "M0",
+      "criterion": "No live inference is required before the reserved smoke path exists.",
+      "met": true,
+      "evidence": "No provider inference or cloud activation performed; local fake upstream and Firestore emulator establish reservation path first."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Parallel emulator clients cannot exceed account/task/day ceilings or the two-task pilot limit.",
+      "met": true,
+      "evidence": "TestCreditAuthorityEmulatorConcurrentClients uses two independent Firestore clients and races final allowance; third task refused. Reserve atomically checks account/task/day and canary exposure in the same transaction. Domain concurrency/daily tests supplement emulator proof."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Same-cycle reconfirmation adds zero allowance; key rotation/restarts/date changes do not replenish it.",
+      "met": true,
+      "evidence": "Historical replay, same-cycle confirmation, restart policy and renewal tests preserve spend; Configure cannot overwrite policy or enable."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Duplicate settlement is harmless; lease expiry never refunds forwarded or unknown exposure.",
+      "met": true,
+      "evidence": "TestForwardingCannotRefundAndDuplicateSettlementIsHarmless, TestDailyCeilingAndLeaseExpiryNeverRefund and crash-intent tests preserve money through lease release, expiry and repeated settlement."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Expiry, kill switch, storage failure, and unresolved grant transitions prevent new admission.",
+      "met": true,
+      "evidence": "Expiry/kill-switch/storage-failure/reconciliation predicates are checked before Reserve and before durable send intent; unknown exposure survives renewal."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Relevant tests and formatting/lint pass.",
+      "met": true,
+      "evidence": "Final continued full make test GOTEST=go test -p 4 and lint pass; complete gateway/executor race also passes. Original real two-client emulator/race evidence remains /private/tmp/ailang-credit-m1-validation.log."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Tests cover exactly 100K and above, cache reads, five-minute/one-hour writes, thinking/output limits, and upward rounding.",
+      "met": true,
+      "evidence": "credit_pricing_test.go covers 100000/100001 boundary, all disjoint cache categories and TTLs, hidden thinking/output cap and upward micro-dollar rounding."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Unknown model/feature/rate or unproved token bound cannot authorize a request.",
+      "met": true,
+      "evidence": "Canonical card requires loaded verified exact model, positive bounded rates and explicit 1M/128K contract; unknown features rejected before Reserve by nested gateway tests."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Existing pricing tests pass without changing unrelated model rates or ordering.",
+      "met": true,
+      "evidence": "Existing scalar model rates/order remain unchanged; registry checks and final complete default suite with Go package concurrency four pass."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Request and settlement record the pricing revision used.",
+      "met": true,
+      "evidence": "Reservation.PricingRevision stores immutable rate-card digest; ClaudeUsageCostAtRevision refuses changed card and leaves reservation held."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Every upstream send has its own durable sufficient reservation, including retry/helper/subagent paths admitted by the contract.",
+      "met": true,
+      "evidence": "Gateway generates a new request UUID for every actual send, atomically reserves worst case, then durably MarkForwarded before http.Client.Do. TestEverySendHasReservationAndOnlyGatewayKey observes held exposure at transport entry."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Crash around sending, truncated SSE, client cancellation, duplicate events, and gateway restart preserve conservative exposure.",
+      "met": true,
+      "evidence": "fault_test.go tests detached client cancellation, reserve/forward/settle/unknown-marker storage faults; lifecycle tests test truncated SSE and event inconsistencies; ledger crash/restart tests retain forwarding exposure."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Unsupported billable routes/features/models and invalid credentials produce zero upstream inference calls.",
+      "met": true,
+      "evidence": "Strict route/model/nested allowlists and identity checks precede reservation/send. All four formerly mandatory CLI betas and system clear_at/per-message effort/nontext extensions are explicitly rejected with zero upstream calls and zero ledger exposure in system_contract_test.go."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Provider key remains gateway-only; capabilities cannot choose another account or enlarge limits.",
+      "met": true,
+      "evidence": "Only gateway runtime loads provider key. Capability binds account/task/attempt/job identity/expiry. Isolated authority project and key-only gateway IAM are explicit unfulfilled activation gates, not claimed deployed guarantees."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Fixed-origin and streaming contract tests pass.",
+      "met": true,
+      "evidence": "Fixed Anthropic origin, redirect refusal, pings/full SSE, exact final usage and cache-category accounting tests pass; final -race gateway log passes."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Job image, provider, auth mode, model, and account resolve coherently before launch.",
+      "met": true,
+      "evidence": "Literal guarded lane metadata and dedicated job selection pass. Production child forces proxy compatibility at source; installed CLI2.1.295 fake completion and two-request Bash tool loop pass with empty betas and exact ledger accounting. Verified deployed immutable image/CLI and Google auth remain M6.",
+      "verification_state": "local_contract_and_actual_installed_cli_pass_live_image_pending"
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Invalid/missing budgets fail closed rather than become zero/unlimited.",
+      "met": true,
+      "evidence": "Dispatch and child reject missing/malformed/nonfinite/nonpositive/over-$2 budgets; admission floors micro-dollar ceilings and rejects sub-micro requests."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Budget-blocked work does not spin on retries or silently switch credentials/models.",
+      "met": true,
+      "evidence": "Blocked admission becomes ErrDispatchPermanent with visible credit reason, zero job launch and no model/key fallback. Scoped attempt cleanup frees slots on known launch rejection and outer job completion without refunding request exposure; ambiguous launch retains lease."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Existing request-scoped user keys, OAuth lanes, and task/PR approval rules retain their behavior.",
+      "met": true,
+      "evidence": "New guard is conditional on explicit credit_account. Existing noncredit OAuth/user-key and approval regression suite remains green; real provider keys are refused in the guarded lane."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Metered and subscription accounting remain distinguishable; relevant regression tests pass.",
+      "met": true,
+      "evidence": "API auth remains apikey/metered; subscription accounting is unchanged. Executor environment strips alternative credentials/routes and pins all helper models."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Confirm writes audited canonical cloud state atomically and never takes an API key as input.",
+      "met": true,
+      "evidence": "Operator-only gateway admin routes authenticate Google identity; server supplies audit actor. CLI accepts grant evidence, never API-key input. Firestore Confirm atomically commits grant/account."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Same-cycle repeat adds no credit; invalid dates/amounts, unauthorized identity, and stale conflicting state fail visibly.",
+      "met": true,
+      "evidence": "Current cycle reconfirmation is idempotent; exact USD/date parsing, stale CAS, conflicting historical cycle, forged operator and coordinator-as-operator tests fail visibly."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Status shows expiry, confirmed/operating ceilings, settled/reserved/unresolved exposure and every blocker.",
+      "met": true,
+      "evidence": "Canonical JSON/human status includes organization/workspace/grant/expiry, spend/reserved/unresolved/forwarding exposure, canary remaining, eligible and daily/concurrency/account/reconciliation blockers."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Executors observe the next allowed request without a config restart; disabled/unreconciled accounts stay blocked.",
+      "met": true,
+      "evidence": "Canonical authority/gateway read-through and grant-confirmation cases establish state observation without config restart and retention of disabled/uncertain blockers. Actual CLI now reaches that same per-request gateway path for both requests in the tool loop. This is composed local evidence; a live grant transition in the deployed executor has not been claimed.",
+      "verification_state": "local_composed_proof_live_observation_pending"
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Help and operating examples agree with actual flags; CLI tests pass.",
+      "met": true,
+      "evidence": "Generated CLI/env docs checks and focused coordinator CLI tests remain valid; final continued complete suite and lint pass. Actual installed Claude protocol also now passes."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Dev/prod integration uses one credit authority for the shared grant; all smoke spend stays within the reserved $5.",
+      "met": false,
+      "evidence": "Review-only module uses one separate authority for dev/prod and server-side aggregate $5 canary is implemented/tested; neither environment is deployed or live-smoked."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Provider evidence reconciles supported billing categories; discrepancies block promotion.",
+      "met": false,
+      "evidence": "Provider billing reconciliation and actual hidden CLI inference verification have not run. No unsupported billing category is accepted as reconciled."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Near-limit, expiry-without-renewal, reconfirmation, kill-switch, and unavailable-ledger scenarios show expected behavior.",
+      "met": true,
+      "evidence": "Local near-limit, expiry, cycle replay/reconfirmation, kill-switch, unavailable storage and canary/renewal scenarios pass in unit/emulator/fake upstream tests."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "All relevant tests, formatting/lint, boundary checks and required CI pass.",
+      "met": false,
+      "evidence": "Final full default suite with package concurrency four, zero-issue lint, complete gateway/executor race, actual CLI fake-only completion/tool loop, earlier emulator and boundaries pass. Required final PR-head CI remains pending, so this full criterion is unfulfilled."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Deployment changes are reviewable under infrastructure policy; canary/rollout evidence and operator guide are complete.",
+      "met": false,
+      "evidence": "Terraform/IAM review proposal and operator/deployment guides are present and validated locally. Infrastructure promotion, closed IAM proof, live canary and rollback observations remain unfulfilled."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "example_type": "Operator CLI/config/request fixtures; no AILANG language feature/example required.",
+    "design_doc_status": "Design, sprint plan, operator/deployment/CLI-contract guide and state represent M0-M5 as locally validated and M6 incomplete. Activation remains disabled; design and companions remain planned.",
+    "sprint_artifacts_consistent": true
+  },
+  "design_fidelity": {
+    "score": 9,
+    "notes": "Shared transactional request authority, integer ceilings, immutable audited grants, strict fixed-origin gateway, credential isolation proposal and conservative request pricing match the approved design. Safer client mode omits unsupported beta behavior at its source; gateway does not remove beta headers or rewrite requests and still rejects all four. Only documented beta-free system text with ordinary cache semantics is newly admitted. Live deployment/billing proof is still missing."
+  },
+  "resolved_findings": [
+    {
+      "file": "internal/claudegateway/request.go",
+      "line": 94,
+      "issue": "Nested feature contracts and tool cache TTLs were forwarded without exhaustive supported-field/value validation. Unknown message/content fields also passed.",
+      "status": "resolved",
+      "resolution": "Strict nested/content/message and cache TTL allowlists added; TestUnknownNestedFeaturesNeverReserveOrForward passes with zero exposure/sends."
+    },
+    {
+      "file": "internal/coordinator/cloud_credit.go",
+      "line": 97,
+      "issue": "Private Cloud Run transport relied on a single authenticating Authorization header while application performs independent JWT validation.",
+      "status": "resolved",
+      "resolution": "Paired X-Serverless-Authorization and Authorization headers preserve application-verifiable token; all CLI, admission, release and Claude child paths assert the contract. Live token behavior still requires nonbillable canary preflight.",
+      "source": "https://docs.cloud.google.com/run/docs/authenticating/service-to-service"
+    },
+    {
+      "file": "internal/dispatch/cloudrun/dispatcher.go",
+      "line": 244,
+      "issue": "Admitted concurrency slots were never released on completed jobs or known failures before launch.",
+      "status": "resolved",
+      "resolution": "Attempt-scoped release route/authority, known rejected-launch cleanup and outer execute-job defer implemented; stale attempt cannot release newer lease; money remains reserved."
+    },
+    {
+      "file": "internal/coordinator/cloud_credit.go",
+      "line": 160,
+      "issue": "Successful gateway release HTTP 204 was initially treated as failure by client expecting 200.",
+      "status": "resolved",
+      "resolution": "Client accepts 204/200; authenticated scoped release regression passes."
+    },
+    {
+      "file": "deploy/claude-credit-gateway/main.tf",
+      "line": 127,
+      "issue": "Initial Cloud Run service timeout was shorter than supported upstream request deadline.",
+      "status": "resolved",
+      "resolution": "Service timeout now 660s, matching ten-minute request plus settlement/cleanup headroom."
+    },
+    {
+      "file": "internal/executor/claude/credit_guard.go",
+      "line": 47,
+      "issue": "Installed CLI2.1.295 mandatory beta headers prevented every guarded request in round 1.",
+      "status": "resolved_locally",
+      "resolution": "User-approved bounded continuation forces the inspected client proxy-compatibility switch, omitting beta extensions before sending. Gateway allowlist was not expanded. Actual CLI completion and two-request Bash printf loop pass under race, separately reserve/settle requests and leave no reservation. Live deployed image remains an activation gate.",
+      "evidence": "/private/tmp/claude-credit-cli-tool-contract.log"
+    }
+  ],
+  "implementation_issues": [],
+  "activation_blockers": [
+    "Verified Anthropic organization/workspace, stable grant/cycle reference, grant start and precise expiry/timezone/provider cap/allocation evidence remain outstanding. User confirmed $200 available and expiry date; conservative cutoff remains 2026-10-28T00:00:00Z.",
+    "Private credit authority, gateway and dedicated guarded jobs are not provisioned/deployed. Review and verify immutable source-release image digests, the reviewed CLI artifact/version and infrastructure release integration before enabling any canary.",
+    "Broad runtime and inherited folder secret-reader IAM grants remain documented. Scoped IAM change and isolated authority deployment require review and read-only verification; executors/coordinators must not obtain provider key or direct ledger-write authority.",
+    "Live paired Google token transport, actual deployed executor protocol, aggregate reserved $5 canary, Anthropic billing-category reconciliation and rollback observations have not run.",
+    "Required CI on the final PR head is pending. This report uses final supplied local gates; it does not substitute them for the required PR CI."
+  ],
+  "feedback": [
+    {
+      "file": "design_docs/planned/m-cloud-claude-api-credit-guard-deployment.md",
+      "category": "activation_gate",
+      "severity": "high",
+      "issue": "M6 deployment/provider/CI evidence remains incomplete.",
+      "suggestion": "Keep the lane disabled and sprint in progress. Complete reviewed isolation/IAM and immutable image release, verified provider grant identity/allocation, required final-head CI, then a reserved aggregate $5 canary and provider billing reconciliation. Do not reset spending on confirmation or promotion."
+    }
+  ],
+  "notes": "No remaining implementation defect found in reviewed continuation. Actual CLI beta-free completion/tool loop and default/lint/race gates now pass; prior automatic-review rejection and round-1 failure remain preserved. The switch is an inspected, undocumented client implementation setting, not a provider promise; pin the image/CLI and rerun fake-only contract on upgrades. Narrow gateway validation remains the safety boundary if client behavior changes. M4/M5 restoration uses local composed evidence; provider-backed canary, real identity and billing evidence are still required. Evaluator changed only this new round-2 report, ran no full gates, made no cloud mutations and consumed no provider credits.",
+  "assessment_history": [
+    {
+      "round": 1,
+      "score": 66,
+      "implementation_result": "FAIL",
+      "report": ".ailang/state/evaluations/eval_M-CLOUD-CLAUDE-API-CREDIT-GUARD_round_1.json",
+      "reason": "Required installed CLI protocol failed before admission; original report remains unchanged."
+    },
+    {
+      "round": 2,
+      "score": 91,
+      "implementation_result": "PASS",
+      "full_sprint_result": "FAIL",
+      "reason": "Bounded beta-free client protocol now passes locally; M6 deployment/provider/CI proof remains pending."
+    }
+  ],
+  "approval_review": {
+    "prior_round_rejection_preserved": true,
+    "rejected_action": "Expand gateway beta allowlist to accommodate unproved CLI beta capabilities.",
+    "reason": "Potentially unbounded or pricing-unverified capability changes.",
+    "continuation": "User explicitly approved continuing bounded compatibility review. Implementation leaves all four betas rejected and avoids their client generation; it does not perform the rejected action. No review approval of beta capabilities is claimed."
+  },
+  "requested_artifact_corrections": [
+    {
+      "artifact": "sprint plan/state/design/operator/deployment/CLI contract",
+      "correction": "Restore only M4/M5 local readiness with fake-only evidence; preserve M6 pending and disabled activation. Label the original beta failure and approval rejection as history.",
+      "status": "applied_and_independently_inspected_resolved",
+      "evidence": "Final sprint plan explicitly labels the initial failed CLI diagnostic as history and states the subsequent bounded client contract resolves it; state and criteria consistently restore M4/M5 local passes while M6 remains pending."
+    }
+  ],
+  "client_contract_evidence": {
+    "installed_version": "2.1.295",
+    "artifact": "/Users/voightkampff/.local/share/claude/versions/2.1.295",
+    "sha256": "0116ee2e0a513900b633d9951367f18747686478e2b462805b8c31609f047f70",
+    "independent_binary_inspection": true,
+    "source_filter_offset": 197216498,
+    "forced_environment": "CLAUDE_CODE_SIMULATE_PROXY_USAGE=1",
+    "admitted_addition": "role:system string or text blocks with existing validated cache_control only",
+    "provider_contract_source": "https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages",
+    "provider_contract_observation": "Haiku 5.5 supports standard mid-conversation system messages without beta headers; tool changes, clear_at and per-message output controls require separate betas and remain rejected. Standard text uses ordinary input/cache accounting.",
+    "scope_limit": "Opt-in smoke uses actual CLI with synthetic capability, stub job identity and fake provider. It proves request/response/tool-loop compatibility and ledger behavior locally, not real billing or cloud Google authentication."
+  },
+  "financial_invariant_review": {
+    "hard_cap_preserved": true,
+    "integer_micro_usd": true,
+    "reserve_before_durable_send_intent": true,
+    "unknown_exposure_preserved": true,
+    "renewal_does_not_refund_or_enable": true,
+    "attempt_cleanup_never_refunds_money": true,
+    "new_system_text_inside_existing_full_context_bound": true,
+    "unchanged_max_request_reservation_micro_usd": 1320000,
+    "live_key_isolation_verified": false,
+    "note": "Source and local fault/emulator evidence prove admitted-request authority behavior. Actual exclusive grant/IAM/provider guarantees remain conditional on M6 evidence; no real key or API credits were accessed by this evaluation."
+  },
+  "evaluated_source_files": {
+    "internal/claudegateway/request.go": "397090f28ee65b3f9665b6f8d316e21b1a1f297e64f58da9d42d3731ce6d71b5",
+    "internal/claudegateway/system_contract_test.go": "0316cbb991e9556f7277d87937df45d65b2c0564744c54174229faa6adf1dc62",
+    "internal/claudegateway/cli_smoke_test.go": "9c12a066aa4a8c0f58a811be6d437a53fd9021023d96298e933eb8c743230831",
+    "internal/executor/claude/credit_guard.go": "7786d2ffd142dd5b8912ae8a9cf5500661c1dba055a571e26b93fddfa0c0aab8",
+    "internal/executor/claude/credit_guard_test.go": "b108826add017dad814c76fb68d626ae35eabdbc7b5b43d11690f84777f5ee90"
+  }
+}

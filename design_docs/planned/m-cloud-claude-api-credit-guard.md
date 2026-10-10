@@ -1,6 +1,6 @@
 # M-CLOUD-CLAUDE-API-CREDIT-GUARD: Claude cloud execution within confirmed API credits
 
-**Status:** Design approved; execution authorized 2026-10-10. Budget guard locally validated; M4 CLI compatibility blocked and M6 rollout pending
+**Status:** Design approved; execution authorized 2026-10-10. Budget guard locally validated; Installed CLI compatibility validated; M6 rollout pending
 **Created:** 2026-10-09
 **Target:** Next scheduled release after v0.53.0; version assigned during sprint planning
 **Priority:** P1

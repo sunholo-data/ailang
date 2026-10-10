@@ -6,7 +6,7 @@ Enable Haiku 5.5 in cloud executors through an authenticated Anthropic budget ga
 with shared transactional request reservations and an operator credit-renewal command.
 
 **Design:** [Approved design](m-cloud-claude-api-credit-guard.md)
-**Status:** Executing — budget and operator components validated; M4 CLI compatibility blocked; M6 rollout pending
+**Status:** Executing — M0–M5 implemented and locally validated; M6 deployment/CI/canary pending
 **Duration:** 9 engineering days; infrastructure/credit access may add elapsed waiting time
 **Estimated size:** 2,610 LOC including tests and retained operational evidence
 **Risk:** High — correctness of request-cost bounds and failure accounting determines the spending guarantee
@@ -14,7 +14,7 @@ with shared transactional request reservations and an operator credit-renewal co
 
 User approval on 2026-10-09 covers the Claude-credit design and confirmation interface.
 Generalizing to other credit pools is explicitly a follow-up. The user authorized execution with “execute sprint” on 2026-10-10. Local implementation
-and default validation have run; installed-CLI compatibility fails and live rollout has not started. This plan does not replace or activate the unrelated existing sprint.
+and local validation have completed, including the installed-CLI completion and tool-loop contract. Live rollout has not started. This plan does not replace or activate the unrelated existing sprint.
 
 ## Current Status and Velocity
 
@@ -167,7 +167,7 @@ where a supported successor is unavailable.
 
 **Acceptance criteria:**
 
-- [ ] Job image, provider, auth mode, model, and account resolve coherently before launch. Guarded dispatch tests pass, but actual CLI 2.1.295 requests are rejected for four mandatory beta headers; compatibility remains blocked.
+- [x] Job image, provider, auth mode, model, and account resolve coherently before launch. Guarded dispatch tests and actual CLI2.1.295 completion/tool-loop fixtures pass; deployed immutable image verification is an M6 gate.
 - [x] Invalid/missing budgets fail closed rather than become zero/unlimited.
 - [x] Budget-blocked work does not spin on retries or silently switch credentials/models.
 - [x] Existing request-scoped user keys, OAuth lanes, and task/PR approval rules retain their behavior.
@@ -193,7 +193,7 @@ account enabling and ordinary task approval.
 - [x] Confirm writes audited canonical cloud state atomically and never takes an API key as input.
 - [x] Same-cycle repeat adds no credit; invalid dates/amounts, unauthorized identity, and stale conflicting state fail visibly.
 - [x] Status shows expiry, confirmed/operating ceilings, settled/reserved/unresolved exposure and every blocker.
-- [ ] Executors observe the next allowed request without a config restart; disabled/unreconciled accounts stay blocked. Authority and gateway fixtures pass; installed-CLI observation remains blocked by M4 compatibility.
+- [x] Executors observe the next allowed request without a config restart; disabled/unreconciled accounts stay blocked. Authority/gateway cases pass and installed CLI reaches that request path; live canonical service observation remains M6.
 - [x] Help and operating examples agree with actual flags; CLI tests pass.
 
 ### M6: Integrated validation and rollout evidence (~180 LOC)
@@ -261,7 +261,7 @@ identifiers and generic grant/usage records needed by this Claude scope; avoid b
 additional adapters, a broad provider gateway, or migrations in this sprint.
 
 Execution requires the user's explicit execute instruction under [AGENTS.md](../../AGENTS.md).
-Execution was authorized on 2026-10-10. M0/M1/M2/M3 passed their local gates. M5 command tests pass, with installed-client observation awaiting compatibility. M4 remains blocked by the installed CLI protocol diagnostic; M6 remains pending compatibility, live infrastructure, provider ownership evidence, CI and canary reconciliation.
+Execution was authorized on 2026-10-10. M0–M5 have passed local gates, including actual installed-CLI completion and a two-request tool loop with separate reservations and settlement. M6 remains pending deployed image compatibility, live infrastructure, provider ownership evidence, CI and canary reconciliation.
 Keep the pre-existing uncommitted work and active sprint state untouched.
 
 The progress JSON is authored using the inspected generator's schema. The generator
@@ -272,10 +272,10 @@ validator, and defer executor handoff until the explicit execution instruction.
 
 ## Execution evidence — 2026-10-10
 
-The user explicitly authorized this sprint. Implementation used an isolated worktree to preserve an unrelated unresolved merge. Full `make test`, `make lint`, architecture boundaries, focused race/fault tests and real Firestore emulator transaction contention passed. The final concurrent suite hit two existing process-start deadline failures; the cleanup regression passed in isolation and the full suite passed with `GOTEST="go test -p 4"` without source changes. This does not resolve the separately failing installed-CLI protocol gate. The infrastructure preview passes Terraform fmt/validate and its IAM patch passes apply-check.
+The user explicitly authorized this sprint. Implementation used an isolated worktree to preserve an unrelated unresolved merge. Full `make test`, `make lint`, architecture boundaries, focused race/fault tests and real Firestore emulator transaction contention passed. The final concurrent suite hit two existing process-start deadline failures; the cleanup regression passed in isolation and the full suite passed with `GOTEST="go test -p 4"` without source changes. That default-suite recheck did not resolve the initially failing installed-CLI protocol gate; the subsequent bounded client contract described below does. The infrastructure preview passes Terraform fmt/validate and its IAM patch passes apply-check.
 
 The authority enforces an aggregate $5 canary sublimit until audited `credits promote` records provider reconciliation; promotion never resets spending. Review fixes added strict nested request contracts, paired Cloud Run authentication headers, attempt-scoped lease cleanup and downward-rounded task limits. UTC daily exposure is assigned by admission date, not invoice date.
 
-The opt-in fake-only installed CLI diagnostic fails: Claude 2.1.295 sends `interleaved-thinking-2025-05-14`, `mid-conversation-system-2026-04-07`, `claude-code-20250219` and `effort-2025-11-24`. The gateway rejects these before reservation or send. Automatic approval review rejected allowing the unverified features; no allowlist expansion was applied. M4 therefore remains incomplete despite passing guarded dispatch regression tests.
+The initial opt-in fake-only installed CLI diagnostic failed: Claude 2.1.295 sends `interleaved-thinking-2025-05-14`, `mid-conversation-system-2026-04-07`, `claude-code-20250219` and `effort-2025-11-24`. The gateway rejected these before reservation or send, and continues to reject them if presented. Automatic approval review rejected allowing the unverified features; no allowlist expansion was applied. The user approved continuing the bounded compatibility review. The safer implementation disables these extensions at the client using the reviewed2.1.295 proxy-compatibility switch, keeps gateway beta rejection intact, and admits only documented standard text system messages. Actual CLI completion and a two-request Bash printf tool loop now pass under the race detector. M4/M5 local readiness is restored; no real inference occurred. See [CLI contract](m-cloud-claude-api-credit-guard-cli-contract.md).
 
-M6 remains pending: supported CLI compatibility, isolated authority and gateway deployment, narrowing existing runtime secret IAM, reviewed image/release integration, verified organization/workspace/cycle evidence, CI, live canary and provider billing reconciliation. No inference credit was consumed and the lane remains disabled. See [operator guide](m-cloud-claude-api-credit-guard-operator-guide.md) and [deployment evidence](m-cloud-claude-api-credit-guard-deployment.md).
+M6 remains pending: built/deployed image compatibility, isolated authority and gateway deployment, narrowing existing runtime secret IAM, reviewed image/release integration, verified organization/workspace/cycle evidence, CI, live canary and provider billing reconciliation. No inference credit was consumed and the lane remains disabled. See [operator guide](m-cloud-claude-api-credit-guard-operator-guide.md) and [deployment evidence](m-cloud-claude-api-credit-guard-deployment.md).

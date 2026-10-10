@@ -51,13 +51,13 @@ func TestCreditHeadersPreserveSignatureAcrossCloudRunIAM(t *testing.T) {
 }
 
 func TestGuardedClaudeDisablesUnreviewedBillableDiscovery(t *testing.T) {
-	env := guardCreditChildEnvironment([]string{"ENABLE_TOOL_SEARCH=true", "CLAUDE_CODE_AUTO_MODE_SERVER=1"}, "https://gateway")
+	env := guardCreditChildEnvironment([]string{"ENABLE_TOOL_SEARCH=true", "CLAUDE_CODE_AUTO_MODE_SERVER=1", "CLAUDE_CODE_SIMULATE_PROXY_USAGE=0"}, "https://gateway")
 	values := map[string]string{}
 	for _, variable := range env {
 		key, value, _ := strings.Cut(variable, "=")
 		values[key] = value
 	}
-	if values["ENABLE_TOOL_SEARCH"] != "false" || values["CLAUDE_CODE_AUTO_MODE_SERVER"] != "0" {
+	if values["ENABLE_TOOL_SEARCH"] != "false" || values["CLAUDE_CODE_AUTO_MODE_SERVER"] != "0" || values["CLAUDE_CODE_SIMULATE_PROXY_USAGE"] != "1" {
 		t.Fatal("billable discovery/server-classifier configuration not disabled")
 	}
 }

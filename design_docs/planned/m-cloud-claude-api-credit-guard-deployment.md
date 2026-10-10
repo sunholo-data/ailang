@@ -20,19 +20,19 @@ No calendar rollover or key replacement renews the AILANG allowance.
 
 ## Actual cloud deployment inventory
 
-### Installed CLI compatibility blocker
+### Installed CLI compatibility evidence
 
 The opt-in `TestClaudeCLIProtocolSmoke` uses the installed Claude CLI **2.1.295**,
 an empty home directory, no tools, synthetic credentials and a localhost gateway
-with a fake-only upstream. On 2026-10-10 it failed before any reservation or
+with a fake-only upstream. The initial 2026-10-10 run failed before any reservation or
 upstream inference. Despite experimental features being disabled, the CLI sends:
 
-| Required beta header | Current decision |
+| Baseline CLI beta header | Current decision |
 |---|---|
-| `interleaved-thinking-2025-05-14` | Rejected pending a reviewed supported contract |
-| `mid-conversation-system-2026-04-07` | Rejected pending a reviewed supported contract |
-| `claude-code-20250219` | Rejected pending a reviewed supported contract |
-| `effort-2025-11-24` | Rejected pending a reviewed supported contract |
+| `interleaved-thinking-2025-05-14` | Omitted by guarded client; still rejected by gateway |
+| `mid-conversation-system-2026-04-07` | Omitted by guarded client; still rejected by gateway |
+| `claude-code-20250219` | Omitted by guarded client; still rejected by gateway |
+| `effort-2025-11-24` | Omitted by guarded client; still rejected by gateway |
 
 Pinning `anthropic-beta` through `ANTHROPIC_CUSTOM_HEADERS` did not override the
 CLI's native list, so the ineffective override was removed. The guarded child
@@ -44,11 +44,11 @@ establish actual client compatibility. Diagnostic output is retained at
 Automatic approval review rejected the proposed four-header allowlist expansion:
 it could weaken the fail-closed billing guard by admitting unverified features
 with different pricing or unbounded usage. The rejected change was not applied
-and the headers were not stripped or bypassed. M4 and activation remain blocked.
+and the headers were not stripped or bypassed. That expansion remains unapplied. The user subsequently approved continuing the bounded compatibility review. The implemented safer contract uses the reviewed client proxy-compatibility setting to omit these beta capabilities at their source, rather than relaxing gateway admission. Text-only system messages are admitted under the documented standard input/cache bound. The installed CLI now passes both fake completion and a two-request harmless Bash tool loop, with separate reservations and exact settlement. M4 local compatibility is resolved; deployment and live activation remain blocked. See [CLI contract](m-cloud-claude-api-credit-guard-cli-contract.md).
 
-A concrete compatibility follow-up would review those four features individually,
+The approved investigation reviewed those four features individually. Future expansion must
 retain the strict Messages-only body contract and helper model pinning, prove the
-same maximum-cost reservation covers every admitted feature, and rerun this
+same maximum-cost reservation covers every admitted feature, and rerun the
 fake-only test before a reserved live canary. Allowlist expansion needs explicit
 approval and pricing evidence; approval alone cannot establish the spending bound.
 Anthropic warns that beta features may have different pricing. The documented

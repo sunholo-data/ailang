@@ -12,7 +12,10 @@
     "sprint_plan_approved": true,
     "execution_authorized": true,
     "required_instruction": "execute sprint",
-    "execution_authorized_at": "2026-10-10"
+    "execution_authorized_at": "2026-10-10",
+    "cli_contract_extension_approved": true,
+    "cli_contract_extension_approved_at": "2026-10-10",
+    "cli_contract_extension_source": "Attended user: ok yes continue you have approval; proved cost bound required"
   },
   "registry_reuse": [
     {
@@ -78,7 +81,7 @@
       "passes": true,
       "started": "2026-10-10",
       "completed": "2026-10-10T07:21:05.866997+00:00",
-      "notes": "Deployment/request contracts recorded, actual secret metadata inventoried, user confirmed $200 available and expiry October 28. Org/workspace and live isolation expressly blocked; no inference spent. Installed Claude CLI 2.1.295 mandatory beta headers explicitly blocked; fake-only protocol diagnostic fails closed before reservation/send."
+      "notes": "Deployment/request contracts recorded, actual secret metadata inventoried, user confirmed $200 available and expiry October 28. Org/workspace and live isolation expressly blocked; no inference spent. Installed Claude CLI 2.1.295 mandatory beta headers explicitly blocked; fake-only protocol diagnostic fails closed before reservation/send. Approved continuation verified2.1.295 proxy mode omits beta extensions at client; text-only GA system-message contract and fake tool loop now pass. Deployed-image compatibility remains M6 gate."
     },
     {
       "id": "M1",
@@ -153,10 +156,10 @@
         "Existing request-scoped user keys, OAuth lanes, and task/PR approval rules retain their behavior.",
         "Metered and subscription accounting remain distinguishable; relevant regression tests pass."
       ],
-      "passes": false,
+      "passes": true,
       "started": "2026-10-10",
-      "completed": null,
-      "notes": "Guarded dispatch, model/auth/task limits, credential transport, and isolated helper environment regression tests pass. Actual Claude CLI 2.1.295 protocol diagnostic fails: four mandatory beta headers rejected before reservation/send. Auto-review rejected expanding unverified beta allowance; compatible bounded contract remains required."
+      "completed": "2026-10-10T07:57:38.652100+00:00",
+      "notes": "Guarded dispatch/model/auth/budgets, credential isolation and helper pinning validated. Reviewed2.1.295 client proxy mode removesbeta extensions before send; gateway still rejects all four. Standard text-only system input keeps existing price bound. Actual CLI completion and two-request Bash tool loop pass with per-request accounting. Full suite, lint and gateway/executor race pass; deployed image verification deferred M6."
     },
     {
       "id": "M5",
@@ -172,10 +175,10 @@
         "Executors observe the next allowed request without a config restart; disabled/unreconciled accounts stay blocked.",
         "Help and operating examples agree with actual flags; CLI tests pass."
       ],
-      "passes": false,
+      "passes": true,
       "started": "2026-10-10",
-      "completed": null,
-      "notes": "Audited canonical confirm/status/enable/disable/promote, human SA impersonation, stale-cycle checks and exact USD parsing; CLI tests and generated docs checks passed. Installed-CLI verification of observing newly allowed requests without restart remains blocked by M4 compatibility; command implementation and focused tests are validated."
+      "completed": "2026-10-10T07:57:38.652100+00:00",
+      "notes": "Canonical audited confirm/status/enable/disable/promote, exact USD/date/stale-grant checks and impersonation validated. Direct authority and gateway cases observe state without config restart; actual CLI can reach the same guardedrequest path after compatibility fix. Full suite and focused CLI tests pass; live canonical service observation remains M6."
     },
     {
       "id": "M6",
@@ -199,7 +202,7 @@
       "passes": null,
       "started": "2026-10-10T07:21:05.866997+00:00",
       "completed": null,
-      "notes": "Local default tests/lint, transaction and gateway fault gates and review-only Terraform/IAM artifacts complete. Actual CLI compatibility diagnostic fails closed. Required CI, live rollout, aggregate reserved canary and provider billing reconciliation remain pending; lane disabled."
+      "notes": "Complete local default suite/lint and gateway/executor race pass, including actual installedCLI fake completion/tool loop. Review-only Terraform/IAM artifacts validated. Required PR CI, built/deployed image verification, isolated authority/IAM provisioning, user organization/workspace and live $5 canary billing reconciliation remain pending; lane disabled."
     }
   ],
   "deferred": [
@@ -213,7 +216,7 @@
     "conservative_expiry": "2026-10-28T00:00:00Z",
     "secret_resource": "projects/ailang-multivac/secrets/ailang-anthropic-api-key",
     "blockers": [
-      "Claude CLI 2.1.295 mandatory beta compatibility unresolved; allowlist expansion rejected by automatic approval review",
+      "Deployed image/CLI contract verification and required CI pending",
       "Gateway and isolated authority infrastructure not deployed",
       "Verified Anthropic org/workspace and stable cycle reference pending",
       "Live canary and billing reconciliation pending"
@@ -229,11 +232,14 @@
     "live_canary": "NOT RUN",
     "provider_spend_usd": 0,
     "ci": "NOT RUN (no PR yet)",
-    "claude_cli_protocol": "FAIL: installed CLI 2.1.295 sends four unapproved beta headers; zero upstream inference calls",
-    "claude_cli_protocol_log": "/private/tmp/claude-credit-cli-protocol-final.log",
+    "claude_cli_protocol": "PASS: installed2.1.295 beta-free ordinary completion and two-request Bash printf tool loop; separate reserves/settlement, zero real spend",
+    "claude_cli_protocol_log": "/private/tmp/claude-credit-cli-tool-contract.log",
     "full_test_log": "/private/tmp/claude-credit-tests-limited-concurrency.log",
-    "process_cleanup_recheck": "PASS: TestAdaptersStopOwnedDescendants; /private/tmp/claude-credit-proctree-recheck.log"
+    "process_cleanup_recheck": "PASS: TestAdaptersStopOwnedDescendants; /private/tmp/claude-credit-proctree-recheck.log",
+    "continued_full_test": "PASS: make test GOTEST=\"go test -p 4\"; /private/tmp/claude-credit-continued-tests.log",
+    "continued_lint": "PASS: 0 issues; /private/tmp/claude-credit-continued-lint.log",
+    "continued_gateway_executor_race": "PASS: /private/tmp/claude-credit-continued-race.log"
   },
-  "next_milestone": "M4",
-  "last_updated": "2026-10-10T07:39:50.974063+00:00"
+  "next_milestone": "M6",
+  "last_updated": "2026-10-10T07:57:38.652100+00:00"
 }

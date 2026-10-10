@@ -152,15 +152,19 @@ func validateMessage(raw []byte) (model string, maxTokens int, stream bool, err 
 		return "", 0, false, errors.New("messages required")
 	}
 	for _, m := range messages {
-		if m.Role != "user" && m.Role != "assistant" {
+		if m.Role != "user" && m.Role != "assistant" && m.Role != "system" {
 			return "", 0, false, errors.New("unsupported role")
 		}
-		if err = validateContent(m.Content); err != nil {
+		validate := validateContent
+		if m.Role == "system" {
+			validate = validateSystemContent
+		}
+		if err = validate(m.Content); err != nil {
 			return "", 0, false, err
 		}
 	}
 	if b, ok := obj["system"]; ok {
-		if err = validateContent(b); err != nil {
+		if err = validateSystemContent(b); err != nil {
 			return "", 0, false, err
 		}
 	}
@@ -171,6 +175,39 @@ func validateMessage(raw []byte) (model string, maxTokens int, stream bool, err 
 	}
 	return model, maxTokens, stream, nil
 }
+
+// Standard mid-conversation system messages share the ordinary input window
+// and cache prices. Inline tools, per-message effort and turn-scoped clear_at
+// remain outside this contract; message-object validation rejects extra fields.
+// https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages
+func validateSystemContent(raw json.RawMessage) error {
+	if err := validateContent(raw); err != nil {
+		return err
+	}
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 {
+		return errors.New("system content required")
+	}
+	if trimmed[0] == '"' {
+		return nil
+	}
+	if trimmed[0] != '[' {
+		return errors.New("unsupported system content")
+	}
+	var blocks []struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(raw, &blocks); err != nil {
+		return err
+	}
+	for _, b := range blocks {
+		if b.Type != "text" {
+			return errors.New("only text system content supported")
+		}
+	}
+	return nil
+}
+
 func validateContent(raw json.RawMessage) error {
 	var text string
 	if json.Unmarshal(raw, &text) == nil {

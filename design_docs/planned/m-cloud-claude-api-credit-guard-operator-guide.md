@@ -1,6 +1,6 @@
 # Claude API credit lane operations
 
-This implementation is disabled until the deployment checklist is complete. The installed Claude CLI 2.1.295 currently fails the fake-only protocol diagnostic: mandatory beta headers are rejected before reservation or upstream send. Passing default Go tests does not establish client compatibility; do not enable the canary until a bounded, reviewed CLI contract passes this diagnostic. It does not modify the existing OAuth or request-scoped user-key lanes. Other providers' credit pools remain a follow-up.
+This implementation is disabled until the deployment checklist is complete. The installed Claude CLI 2.1.295 now passes the fake-only completion and tool-loop diagnostics with client beta extensions disabled and text-only system messages admitted. The gateway still rejects unverified beta headers and body fields. Pin and verify the cloud image/CLI against this [contract](m-cloud-claude-api-credit-guard-cli-contract.md) before enabling the reserved canary; local tests do not establish deployed compatibility or real billing reconciliation. It does not modify the existing OAuth or request-scoped user-key lanes. Other providers' credit pools remain a follow-up.
 
 ## Initial grant evidence
 
