@@ -1,0 +1,6 @@
+Role: evaluator
+Requested native model: minimax/minimax-m3
+Error: Unknown model `minimax/minimax-m3` for spawn_agent. Available models: gpt-6.1-sol, gpt-6-astra, gpt-6-sol, gpt-6-luna, gpt-5.6-sol
+Actual fallback: recipe pi:openrouter/minimax/minimax-m3 declared:provider-pin
+Probe: _mc_probe_pi openrouter/minimax/minimax-m3, rc0
+Runner: scripts/mission_pi_run.sh, rc0, verdict ok, own worktree, handshake acked=true
