@@ -3,7 +3,7 @@
 Refs #1547
 
 - **Date**: 2026-10-08
-- **Status**: Planned
+- **Status**: Implemented 2026-10-09
 - **Target**: v0.52.6
 - **Priority**: P1
 - **Estimated**: 2 days
@@ -55,13 +55,13 @@ Refs #1547
 
 **Primary Goal:** in restricted mode, the compile cache is never inside the sandbox and never program-writable, with `AILANG_CACHE_DIR` honoured as the operator's opt-in.
 
-- [ ] Restricted run with `AILANG_CACHE_DIR` unset leaves no `.ailang/` in the sandbox; cache lands in a supervisor-created temp dir removed at exit.
-- [ ] Restricted run with `AILANG_CACHE_DIR` set writes `<dir>/compile` and nothing in-sandbox.
-- [ ] An operator value resolving inside `fs_sandbox` produces the one-line supervisor warning (not prefixed `policy`).
-- [ ] A `TMPDIR` inside `fs_sandbox` does not put the default temp cache in-sandbox (inside-root check on the injected dir).
-- [ ] No temp cache dir is left behind when the supervisor refuses before or at `cmd.Start`.
-- [ ] `trusted_host` behaviour unchanged (full env passthrough).
-- [ ] Existing policy tests pass (`go test ./cmd/ailang/` policy suites); docs rows updated.
+- [x] Restricted run with `AILANG_CACHE_DIR` unset leaves no `.ailang/` in the sandbox; cache lands in a supervisor-created temp dir removed at exit.
+- [x] Restricted run with `AILANG_CACHE_DIR` set writes `<dir>/compile` and nothing in-sandbox.
+- [x] An operator value resolving inside `fs_sandbox` produces the one-line supervisor warning (not prefixed `policy`).
+- [x] A `TMPDIR` inside `fs_sandbox` does not put the default temp cache in-sandbox (inside-root check on the injected dir).
+- [x] No temp cache dir is left behind when the supervisor refuses before or at `cmd.Start`.
+- [x] `trusted_host` behaviour unchanged (full env passthrough).
+- [x] Existing policy tests pass (`go test ./cmd/ailang/` policy suites); docs rows updated.
 
 ## Axiom Compliance
 
@@ -102,7 +102,7 @@ Refs #1547
 | 14 | No planned doc already covers #1547 | design-doc-creator related-doc search (SimHash + neural over planned/ and implemented/): no matches; `ailang-core-backlog.md` row 2026-10-03 names #1547 only as #1548's neighbour; `git log --grep 1547` on this checkout: no fix commit |
 | 15 | The issue's live repro (`.ailang/` created in-sandbox, `AILANG_CACHE_DIR` ignored by `run --policy`, honoured by `policy-tool`) | Triage 2026-10-08 on origin/dev `658ff76a3`; mechanism chain (rows 1-5) re-read at `1dfd5615` |
 
-Scope note: this change touches `cmd/ailang/run_policy_supervise.go` only (plus tests/docs) — not `internal/parser|lexer|ast|types|elaborate|iface|codegen|eval|vm|effects` or `cmd/ailang/exec.go`, so the Conflict Surface section is not triggered. The systemic audit (skill rule: "is this part of a larger pattern?") found the sibling instance of the same hole — policy-tool's CLI children — already fixed in `ed1df2d3f`; this fix adopts that pattern rather than inventing a second mechanism. `AILANG_STATE_DIR` is also absent from `workerEnvAllow`, but the `run` worker never touches the state dir (row 7), so it needs no change.
+Scope note: this change touches the run supervisor and its focused cache helper (plus tests/docs and environment-description metadata) — not `internal/parser|lexer|ast|types|elaborate|iface|codegen|eval|vm|effects` or `cmd/ailang/exec.go`, so the Conflict Surface section is not triggered. The systemic audit (skill rule: "is this part of a larger pattern?") found the sibling instance of the same hole — policy-tool's CLI children — already fixed in `ed1df2d3f`; this fix adopts that pattern rather than inventing a second mechanism. `AILANG_STATE_DIR` is also absent from `workerEnvAllow`, but the `run` worker never touches the state dir (row 7), so it needs no change.
 
 ## Review notes 2026-10-08
 
@@ -120,3 +120,18 @@ Folded from review; the first two are amended above, recorded here for traceabil
 - Backlog: [../ailang-core-backlog.md](../ailang-core-backlog.md) (2026-10-03 row, which names this doc's issue as the neighbour).
 
 Issue: https://github.com/sunholo-data/ailang/issues/1547
+
+## Implementation record (2026-10-09)
+
+Completed via M-RUN-POLICY-WORKER-CACHE. Cache selection/start cleanup and
+symlink-aware operator classification live in `cmd/ailang/run_policy_cache.go`;
+the supervisor allocates through that helper only after all pipes are ready and
+retains cleanup until worker termination. Generated inside-root placement refuses
+and removes explicitly; operator inside-root placement warns through the existing
+fresh-line `supervisorLine`. Empty roots are not classified as cwd.
+
+The generated env reference is sourced from `internal/config/paths.go`. Both
+milestones and all requested focused/core/lint/size/home-isolation checks passed.
+No full `make test`, push or merge was performed. See the
+[implementation report](../v0_52_6/run-policy-worker-cache-dir-implementation.md)
+for test environment details, latency measurements, artifact lists and PR body.
