@@ -1,0 +1,22 @@
+module examples/runnable/process_cancel
+
+import std/process (spawnProcess, cancelProcess, WorkerCancelError, WorkerHandleInvalid)
+import std/result (Result, Ok, Err)
+import std/io (println)
+
+-- Contracts: cancellation is an OS effect; PID/reaping integration tests cover
+-- its guarantees. This pure classifier has inline cases instead.
+pure func stopped(result: Result[(), WorkerCancelError]) -> bool {
+  match result { Ok(_) => true, Err(_) => false }
+}
+
+-- Primitive inputs exercise both Result branches through the runtime classifier.
+pure func stoppedCase(success: bool) -> bool tests [(true, true), (false, false)] {
+  let result = if success then Ok(()) else Err(WorkerHandleInvalid("expired"));
+  stopped(result)
+}
+
+export func main() -> () ! {Process, IO} {
+  let worker = spawnProcess("sleep", ["60"]);
+  println(show(stopped(cancelProcess(worker))))
+}

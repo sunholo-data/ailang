@@ -36,6 +36,7 @@
 
 module std/stream
 import std/result (Result, Ok, Err)
+import std/process (WorkerCancelError)
 
 -- ============================================================================
 -- Stream Types
@@ -148,7 +149,8 @@ export func selectEvents(sources: [StreamSource], handler: StreamEvent -> bool !
 
 -- Spawn a subprocess and deliver its stdout as SourceBytes events.
 -- Reads stdout in fixed-size chunks (chunkSize bytes per event).
--- The subprocess is killed when the source is closed or selectEvents exits.
+-- The subprocess is owned by its execution and stopped on host shutdown.
+-- selectEvents borrows sources; returning false does not cancel the subprocess.
 -- Reuses ProcessContext allowlist and security settings from std/process.
 -- cmd: Command name (resolved via allowlist/PATH)
 -- args: List of string arguments (no shell expansion)
@@ -157,6 +159,13 @@ export func selectEvents(sources: [StreamSource], handler: StreamEvent -> bool !
 -- chunkSize: Bytes per SourceBytes event (e.g. 4096 for audio, 65536 for video)
 export func asyncExecProcess(cmd: string, args: [string], name: string, priority: int, chunkSize: int) -> StreamSource ! {Stream, Process} {
   _stream_async_exec_process(cmd, args, name, priority, chunkSize)
+}
+
+-- Stop an owned subprocess group and join its child and reader (two-second limit).
+-- Rejects borrowed stdin/connection sources; Windows and JS/WASM are unsupported.
+-- Released or foreign handles return WorkerHandleInvalid.
+export func cancelProcessSource(source: StreamSource) -> Result[unit, WorkerCancelError] ! {Stream, Process} {
+  _stream_cancel_process_source(source)
 }
 
 -- ============================================================================

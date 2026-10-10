@@ -1,0 +1,31 @@
+-- Cancel an owned worker without live AI calls.
+-- Run: ailang run --caps IO,Stream,Process --process-allowlist sleep examples/runnable/stream_process_cancel.ail
+module examples/runnable/stream_process_cancel
+import std/io (println)
+import std/result (Result, Ok, Err)
+import std/process (WorkerCancelError, WorkerHandleInvalid)
+import std/stream (asyncExecProcess, cancelProcessSource)
+
+-- The process stop/join guarantee is tested with real PIDs in runtime tests.
+-- This pure classifier has inline checks; the shell declares all its effects.
+pure func cancelled(result: Result[unit, WorkerCancelError]) -> bool {
+  match result {
+    Ok(_) => true,
+    Err(_) => false
+  }
+}
+
+-- Primitive test inputs avoid imported constructors in inline-test arguments.
+pure func cancelledCase(success: bool) -> bool
+  tests [
+    (true, true),
+    (false, false)
+  ] {
+  let result = if success then Ok() else Err(WorkerHandleInvalid("stale"))
+  cancelled(result)
+}
+
+export func main() -> unit ! {IO, Stream, Process} {
+  let worker = asyncExecProcess("sleep", ["60"], "background", 1, 1024)
+  println(show(cancelled(cancelProcessSource(worker))))
+}

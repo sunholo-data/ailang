@@ -5,6 +5,20 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/process_cancel.ail",
+      "status": "working",
+      "tags": ["process", "effects", "cancellation"],
+      "description": "Cancel and join an owned subprocess with a typed result.",
+      "modules": ["std/io", "std/process", "std/result"]
+    },
+    {
+      "path": "runnable/stream_process_cancel.ail",
+      "status": "working",
+      "tags": ["process", "stream", "effects", "cancellation"],
+      "description": "Cancel and join an owned async process source.",
+      "modules": ["std/io", "std/process", "std/result", "std/stream"]
+    },
+    {
       "path": "runnable/terminal_info.ail",
       "status": "working",
       "tags": [

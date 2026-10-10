@@ -37,7 +37,7 @@ func setTraceHandler(this js.Value, args []js.Value) interface{} {
 	arg := args[0]
 	if arg.Type() == js.TypeNull || arg.Type() == js.TypeUndefined {
 		// Unregister handler
-		ctx.Trace.OnEvent = nil
+		ctx.Trace.SetOnEvent(nil)
 		return map[string]interface{}{"success": true}
 	}
 
@@ -49,10 +49,10 @@ func setTraceHandler(this js.Value, args []js.Value) interface{} {
 	}
 
 	callback := arg
-	ctx.Trace.OnEvent = func(evt trace.TraceEvent) {
+	ctx.Trace.SetOnEvent(func(evt trace.TraceEvent) {
 		jsEvt := traceEventToJS(evt)
 		callback.Invoke(jsEvt)
-	}
+	})
 
 	return map[string]interface{}{"success": true}
 }

@@ -143,8 +143,8 @@ func TestProcessContext_AcquireGetRelease(t *testing.T) {
 
 	// Acquire
 	id := pc.AcquireManagedProcess(mp)
-	if id != 0 {
-		t.Fatalf("expected first ID to be 0, got %d", id)
+	if id < 0 {
+		t.Fatalf("opaque handle ID must be nonnegative, got %d", id)
 	}
 
 	// Get
@@ -292,10 +292,17 @@ func TestProcessSpawn_EffectHandler(t *testing.T) {
 		t.Fatalf("ProcessCloseStdin: %v", err)
 	}
 
-	// Verify cleanup — handle should be released
+	// EOF is cooperative; wait for actual completion before checking release.
 	handleID, _ := extractProcessHandleID(result)
-	_, found := pc.GetManagedProcess(handleID)
-	if found {
-		t.Fatal("expected managed process to be released after close")
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		_, found := pc.GetManagedProcess(handleID)
+		if !found {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("naturally completed process was not released")
+		}
+		time.Sleep(time.Millisecond)
 	}
 }

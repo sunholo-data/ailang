@@ -1,6 +1,6 @@
 # Sprint Plan: M-BACKGROUND-WORKER-LIFECYCLE
 
-**Status:** Approved for execution by the user on 2026-10-10.
+**Status:** Implementation complete locally; M5 independent final gates pending. User approved execution on 2026-10-10.
 **Design:** [Owned subprocess lifecycle](m-background-worker-lifecycle.md)
 **Duration:** 8 engineering days including integration buffer; 3,400 LOC total (implementation plus tests).
 **Risk:** High: runtime ownership, pipe/Wait ordering, signals, embedding concurrency.
@@ -10,7 +10,7 @@
 
 The 7-day velocity script was run. Its broad changelog scan includes historical entries and its diff is only HEAD~1, so it does not justify a daily rate. The immediately preceding terminal runtime sprint added 1,388 production lines and 2,090 test lines across effects/runner/VM/bytecode/builtins. That sprint is useful scope evidence, not a reliable human-day throughput measurement. Use 425 LOC/day as a conservative planning assumption with the eight-day budget; record actual time and LOC separately.
 
-The leak is verified in official v0.54.0. Current baseline is `37001e839` (stdlib v0.54.1), plus the design commit. Shared ownership, public cancellation and host cleanup remain to be implemented. All five design-freeze choices are approved by the current user instruction.
+The leak is verified in official v0.54.0. Current baseline is `37001e839` (stdlib v0.54.1), plus the design commit. Shared ownership, public cancellation and host cleanup are implemented locally; release delivery remains pending. All five design-freeze choices are approved by the current user instruction.
 
 ## Registry Reuse Audit
 
@@ -22,44 +22,44 @@ M1 establishes the shared supervisor and its API. M2 (managed process files) and
 
 ## Milestones
 
-### M1: Shared execution ownership (~500 LOC)
+### ✅ M1: Shared execution ownership (~500 LOC)
 **Dependencies:** None
 **Estimate:** 500 LOC including regression tests.
 
-- [ ] Execution owner shares a two-second shutdown deadline across workers and rejects late admission safely.
-- [ ] Budget views share ownership; independent clones preserve policy with fresh Process/Stream registries.
-- [ ] Opaque non-reused IDs prevent cross-owner registry collisions; shutdown failures remain structured.
+- [x] Execution owner shares a two-second shutdown deadline across workers and rejects late admission safely.
+- [x] Budget views share ownership; independent clones preserve policy with fresh Process/Stream registries.
+- [x] Opaque non-reused IDs prevent cross-owner registry collisions; shutdown failures remain structured.
 
 Files: new `internal/effects/worker_owner*.go`, context ownership hooks, policy-copy helper and supervisor tests.
 
-### M2: Managed worker cancellation (~650 LOC)
+### ✅ M2: Managed worker cancellation (~650 LOC)
 **Dependencies:** M1
 **Estimate:** 650 LOC including regression tests.
 
-- [ ] Closed stdin retains worker ownership until reaping; cooperative queued writes drain.
-- [ ] cancelProcess returns typed results, enforces Process authority, stops owned POSIX groups and joins writer/Wait.
-- [ ] Natural exit, repeated cancellation, concurrent write/close, stale/foreign handles and Windows/WASM unsupported results are tested.
+- [x] Closed stdin retains worker ownership until reaping; cooperative queued writes drain.
+- [x] cancelProcess returns typed results, enforces Process authority, stops owned POSIX groups and joins writer/Wait.
+- [x] Natural exit, repeated cancellation, concurrent write/close, stale/foreign handles and Windows/WASM unsupported results are tested.
 
 Files: managed Process handlers/tracking, `std/process.ail`, cancellation builtin and tests. Example: `examples/runnable/process_cancel.ail`.
 
-### M3: Async process source cancellation (~650 LOC)
+### ✅ M3: Async process source cancellation (~650 LOC)
 **Dependencies:** M1
 **Estimate:** 650 LOC including regression tests.
 
-- [ ] cancelProcessSource enforces Stream and Process authority and rejects non-process sources.
-- [ ] Async workers have one natural-exit Wait owner; final chunks drain and blocked consumers do not prevent cancellation.
-- [ ] Source selection borrows sources; cancellation stops descendants and joins owned readers without closing borrowed stdin/connections.
+- [x] cancelProcessSource enforces Stream and Process authority and rejects non-process sources.
+- [x] Async workers have one natural-exit Wait owner; final chunks drain and blocked consumers do not prevent cancellation.
+- [x] Source selection borrows sources; cancellation stops descendants and joins owned readers without closing borrowed stdin/connections.
 
 Files: async process source/handlers and source registry, `std/stream.ail`, source cancellation builtin and tests. Example: `examples/runnable/stream_process_cancel.ail`.
 
-### M4: Runner and embedding lifecycle integration (~850 LOC)
+### ✅ M4: Runner and embedding lifecycle integration (~850 LOC)
 **Dependencies:** M2, M3
 **Estimate:** 850 LOC including regression tests.
 
-- [ ] CLI/batch normal, error, exit(7), budget failure and cancellation clean up owned workers while preserving primary outcomes.
-- [ ] SIGINT/SIGTERM restore terminal first, clean workers within the deadline, and retain 130/143 without signal-watcher deadlock.
-- [ ] Embedded requests, engine initialization/close and REPL reset/quit have explicit independent ownership; WebSocket close-code and borrowed-transport behavior is preserved.
-- [ ] Strict VM supports the new Process operations through explicit effect dispatch; unsupported generated/platform paths fail visibly.
+- [x] CLI/batch normal, error, exit(7), budget failure and cancellation clean up owned workers while preserving primary outcomes.
+- [x] SIGINT/SIGTERM restore terminal first, clean workers within the deadline, and retain 130/143 without signal-watcher deadlock.
+- [x] Embedded requests, engine initialization/close and REPL reset/quit have explicit independent ownership; WebSocket close-code and borrowed-transport behavior is preserved.
+- [x] Strict VM supports the new Process operations through explicit effect dispatch; unsupported generated/platform paths fail visibly.
 
 Files: runner/batch, runtime request boundary, embed close/call, REPL lifecycle, terminal signal integration, VM/bytecode effect support and host regression tests. Preserve WebSocket-owned transports.
 
@@ -67,8 +67,8 @@ Files: runner/batch, runtime request boundary, embed close/call, REPL lifecycle,
 **Dependencies:** M4
 **Estimate:** 750 LOC including regression tests.
 
-- [ ] Both original host-exit leak reproductions pass with exact PID/reaping evidence on the sprint build.
-- [ ] Provider-free blocking AI/effect, descendant, bystander, admission-race, 20-worker deadline and repeated-run resource controls pass.
+- [x] Both original host-exit leak reproductions pass with exact PID/reaping evidence on the sprint build.
+- [x] Provider-free blocking AI/effect, descendant, bystander, admission-race, 20-worker deadline and repeated-run resource controls pass.
 - [ ] Design conflict fixtures, examples/manifest, goldens, relevant race/PTy tests, full tests, lint, formatting, file sizes and architecture boundaries pass.
 - [ ] Independent evaluator reports a passing verdict; artifacts, changelog, documentation and release/consumer handoff are complete; no push or release is performed.
 

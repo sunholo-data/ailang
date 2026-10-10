@@ -66,8 +66,7 @@ type StreamContext struct {
 	nextID      int
 
 	// Event source management (M-ASYNC-IO)
-	sources      map[int]EventSource
-	nextSourceID int
+	sources map[int]EventSource
 
 	// Test hooks, nil in production — the same seam NetContext has, so the
 	// shared destination authorizer (net_authorize.go) is falsifiable for
@@ -205,4 +204,36 @@ func (sc *StreamContext) CloseAllWithCode(code int, reason string) {
 	for _, c := range conns {
 		c.CloseWithCode(code, reason)
 	}
+}
+
+// CloseSources releases source handles and signals their closure without
+// disconnecting borrowed transports or waiting on arbitrary borrowed readers.
+// Its result counts readers still active at this shutdown snapshot; it is a
+// diagnostic, not a promise that every io.Reader can be cancelled.
+func (sc *StreamContext) CloseSources() int { return sc.closeSources(false) }
+
+// CloseSourcesAfterWorkers releases source data after the supervisor has already
+// requested worker stops. Never repeat an owned worker's potentially blocked
+// stop operation beyond that shared deadline. Borrowed readers remain diagnostic.
+func (sc *StreamContext) CloseSourcesAfterWorkers() int { return sc.closeSources(true) }
+
+func (sc *StreamContext) closeSources(supervised bool) int {
+	sc.mu.Lock()
+	sources := make([]EventSource, 0, len(sc.sources))
+	for _, source := range sc.sources {
+		sources = append(sources, source)
+	}
+	sc.sources = make(map[int]EventSource)
+	sc.mu.Unlock()
+	pending := 0
+	for _, source := range sources {
+		if _, owned := source.(OwnedWorker); supervised && owned {
+			continue
+		}
+		source.Close()
+		if reader, ok := source.(interface{ PendingRead() bool }); ok && reader.PendingRead() {
+			pending++
+		}
+	}
+	return pending
 }

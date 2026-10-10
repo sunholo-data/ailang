@@ -81,6 +81,15 @@
       "pure": true
     },
     {
+      "name": "cancelProcessSource",
+      "type": "(StreamSource)-\u003eResult[(),WorkerCancelError]!{Process,Stream}",
+      "effects": [
+        "Process",
+        "Stream"
+      ],
+      "pure": true
+    },
+    {
       "name": "connect",
       "type": "(string,{headers: list[{name: string, value: string}]})-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
       "effects": [

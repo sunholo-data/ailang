@@ -22,9 +22,26 @@
     {
       "name": "ProcessOutput",
       "alias": "{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}"
+    },
+    {
+      "name": "WorkerCancelError",
+      "ctors": [
+        "WorkerCancelFailed(string)",
+        "WorkerCancelTimedOut(int)",
+        "WorkerCancelUnsupported(string)",
+        "WorkerHandleInvalid(string)"
+      ]
     }
   ],
   "funcs": [
+    {
+      "name": "cancelProcess",
+      "type": "(ProcessHandle)-\u003eResult[(),WorkerCancelError]!{Process}",
+      "effects": [
+        "Process"
+      ],
+      "pure": true
+    },
     {
       "name": "closeProcessStdin",
       "type": "(ProcessHandle)-\u003e()!{Process}",

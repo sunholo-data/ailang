@@ -21,7 +21,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/stdlibroot"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	ailtrace "github.com/sunholo-data/ailang/internal/trace"
-	"go.opentelemetry.io/otel"
 )
 
 // Options is everything `ailang run` decides from its flags. The CLI fills it
@@ -389,7 +388,7 @@ func runBatch(ctx context.Context, result pipeline.Result, opts Options) int {
 // returns an exit code >= 0 when the run must stop there — an error, a
 // --write-env-snapshot exit, or the program calling exit(N) — and -1 when
 // execution completed and Run's trailing output should follow.
-func runSingle(ctx context.Context, result pipeline.Result, opts Options, programArgs []string, caps string) int {
+func runSingle(ctx context.Context, result pipeline.Result, opts Options, programArgs []string, caps string) (status int) {
 	quiet := opts.Quiet
 	emitTrace := opts.EmitTrace
 
@@ -406,6 +405,25 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 	// This runner OWNS the sandbox root handle (M-EXECUTOR-POLICY-HARDENING
 	// M1): derived contexts share it, only the owner closes it, once.
 	defer effCtx.CloseFSRoot()
+	stopSignals := func() {}
+	cleanupDone := false
+	cleanupWorkers := func() error {
+		if cleanupDone {
+			return nil
+		}
+		cleanupDone = true
+		return effCtx.CloseWorkers()
+	}
+	defer func() {
+		cleanupErr := cleanupWorkers()
+		stopSignals()
+		if err := cleanupErr; err != nil {
+			fmt.Fprintf(os.Stderr, "worker cleanup: %v\n", err)
+			if status == 0 || status == -1 {
+				status = 1
+			}
+		}
+	}()
 	if err := GrantCapabilities(effCtx, caps); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		return 1
@@ -464,6 +482,7 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		return 1
 	}
+	effCtx.BindWorkerScope()
 	if err := SetupFSLimit(effCtx, opts.FSMaxBytes); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		return 1
@@ -607,6 +626,15 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 		effCtx.Trace.RecordModuleStart(moduleName, capsList)
 	}
 
+	if opts.TerminalSignalExit != nil {
+		stopSignals = effCtx.InstallWorkerSignalHandler(func(code int) {
+			_ = effCtx.FlushIO()
+			FlushDebugOutput(effCtx, opts.DebugLogLevel, "")
+			emitRunTrace(ctx, effCtx, emitTrace, traceOpts)
+			opts.TerminalSignalExit(code)
+		})
+	}
+
 	// Execute module entrypoint
 	moduleStartTime := time.Now()
 	execParams := ModuleExecParams{
@@ -644,8 +672,11 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 			failed = true
 		}
 	}()
-	if failed {
-		return 1
+	if cleanupErr := cleanupWorkers(); cleanupErr != nil {
+		fmt.Fprintf(os.Stderr, "worker cleanup: %v\n", cleanupErr)
+		if exitCode == nil || *exitCode == 0 {
+			failed = true
+		}
 	}
 
 	// M-PERF6B: Flush buffered stdout before any post-execution output
@@ -660,13 +691,8 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 		effCtx.Trace.RecordModuleEnd(moduleName, durationNS)
 	}
 
-	// If exit() was called, flush is done above, now exit with requested code
-	if exitCode != nil {
-		return *exitCode
-	}
-
 	// M-DX25: Print budget report after successful execution
-	if opts.BudgetReport != "" && effCtx.BudgetReport != nil && effCtx.BudgetReport.HasUsage() {
+	if !failed && exitCode == nil && opts.BudgetReport != "" && effCtx.BudgetReport != nil && effCtx.BudgetReport.HasUsage() {
 		var output string
 		switch opts.BudgetReport {
 		case "json":
@@ -681,25 +707,16 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 		}
 	}
 
-	// M-TRACE-EXPORT: Output semantic execution trace
-	if emitTrace != "" && effCtx.Trace != nil {
-		events := effCtx.Trace.Events()
+	emitRunTrace(ctx, effCtx, emitTrace, traceOpts)
 
-		// Phase 1: JSONL output to stdout
-		if strings.Contains(emitTrace, "jsonl") && len(events) > 0 {
-			if err := ailtrace.WriteJSONL(os.Stdout, events); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: trace output: %v\n", red("Error"), err)
-			}
-		}
-
-		// Phase 2: OTEL span emission
-		if (strings.Contains(emitTrace, "otel") || emitTrace == "auto") && len(events) > 0 {
-			evalTracer := otel.Tracer("ailang.eval")
-			if err := ailtrace.EmitOTELSpansWithOptions(ctx, evalTracer, events, effCtx.Trace.BaseTime(), traceOpts); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: OTEL trace emission: %v\n", red("Error"), err)
-			}
-		}
+	if exitCode != nil && *exitCode != 0 {
+		return *exitCode
 	}
-
+	if failed {
+		return 1
+	}
+	if exitCode != nil {
+		return *exitCode
+	}
 	return -1
 }

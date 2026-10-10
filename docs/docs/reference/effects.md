@@ -323,13 +323,22 @@ func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
 | `exec` | `(string, [string]) -> Result[ProcessOutput, ProcessError] ! {Process}` | Execute command with arguments |
 | `spawnProcess` | `(string, [string]) -> ProcessHandle ! {Process}` | Spawn subprocess with writable stdin pipe |
 | `writeProcessStdin` | `(ProcessHandle, bytes) -> Result[(), string] ! {Process}` | Write bytes to subprocess stdin |
-| `closeProcessStdin` | `(ProcessHandle) -> () ! {Process}` | Close stdin pipe (signals EOF) |
+| `closeProcessStdin` | `(ProcessHandle) -> () ! {Process}` | Signal EOF after accepted writes drain; retain worker ownership |
+| `cancelProcess` | `(ProcessHandle) -> Result[(), WorkerCancelError] ! {Process}` | Stop the owned worker and join its runtime tasks |
 
 **ProcessHandle:** Opaque ADT `ProcessHandle(int)` — returned by `spawnProcess`, used with `writeProcessStdin` and `closeProcessStdin`.
 
 **Completion Semantics (important):**
 - **`Ok`** = process completed (even with non-zero exit code) — check `out.exitCode`
 - **`Err`** = infrastructure failure (command not found, timeout, blocked by allowlist)
+
+**Worker lifetime and cancellation (unreleased):** CLI runs, batch items, embedded calls, and REPL sessions own their workers. Returning from the owner stops and joins workers; closing stdin keeps a live worker tracked. Cancellation resolves a handle in the current owner's registry and may discard pending writes. `Ok(())` means the direct child has been reaped and owned IO tasks have joined.
+
+`WorkerCancelError` has `WorkerHandleInvalid(string)`, `WorkerCancelUnsupported(string)`, `WorkerCancelTimedOut(int)` (milliseconds), and `WorkerCancelFailed(string)`. Released, fabricated, and foreign handles are invalid. Cancellation of a stdin or connection source is unsupported. Both Process and Stream capabilities and budgets apply to `cancelProcessSource`; mandatory host cleanup runs independently of user budgets.
+
+macOS/Linux cancellation stops the worker's process group, including non-detached descendants. Shutdown has one two-second total deadline, with up to 250 ms for workers already draining closed stdin. Windows explicit cancellation returns unsupported; host shutdown attempts direct-child cleanup. JS/WASM returns typed unsupported cancellation. This operation stops a local OS worker; it does not promise remote AI inference or billing cancellation. SIGINT/SIGTERM restore terminal state before worker cleanup and retain exit codes 130/143. Abrupt host SIGKILL and detached descendants are outside this guarantee.
+
+Go hosts supplying an effect context retain ownership of that base context. `Engine.SetEffContext` creates an engine-owned child, requests have independent child registries, and `Engine.Close` shuts those children down. Hosts that directly own an `EffContext` must call `CloseWorkers()` when their execution ends. REPL handles persist between lines and end on reset or quit. Stream selection borrows sources: returning false leaves them available for another selection or explicit cancellation. Source teardown leaves borrowed connection transports open; arbitrary blocked stdin readers may remain pending, holding their input lease until the read finishes.
 
 **ProcessOutput** fields: `stdout: bytes`, `stderr: bytes`, `exitCode: int`, `truncated: bool`, `resolvedPath: string`
 
@@ -396,7 +405,8 @@ func main() -> unit ! {Stream, IO} {
 | `ssePost` | `(string, string, StreamConfig) -> Result[StreamConn, StreamErrorKind] ! {Stream}` | Open SSE (POST) |
 | `sourceOfConn` | `(StreamConn, string, int) -> StreamSource ! {Stream}` | Wrap connection as event source |
 | `asyncReadStdinLines` | `(string, int) -> StreamSource ! {Stream}` | Stdin line reader source |
-| `asyncExecProcess` | `(string, [string], string, int, int) -> StreamSource ! {Stream}` | Subprocess stdout source |
+| `asyncExecProcess` | `(string, [string], string, int, int) -> StreamSource ! {Stream, Process}` | Subprocess stdout source |
+| `cancelProcessSource` | `(StreamSource) -> Result[(), WorkerCancelError] ! {Stream, Process}` | Stop and join an owned process source |
 | `selectEvents` | `([StreamSource], (StreamEvent) -> bool) -> unit ! {Stream}` | Multi-source event loop |
 
 **Event types:** `Message`, `Binary`, `Opened`, `Closed`, `StreamError`, `Ping`, `SSEData`, `SourceText`, `SourceBytes`

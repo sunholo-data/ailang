@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-BACKGROUND-WORKER-LIFECYCLE",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-10T17:06:50.131928+00:00",
   "design_doc": "design_docs/planned/m-background-worker-lifecycle.md",
   "sprint_plan": "design_docs/planned/m-background-worker-lifecycle-sprint-plan.md",
@@ -30,10 +30,10 @@
         "Budget views share ownership; independent clones preserve policy with fresh Process/Stream registries.",
         "Opaque non-reused IDs prevent cross-owner registry collisions; shutdown failures remain structured."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-10T17:11:57.961969+00:00",
+      "completed": "2026-10-10T17:26:59.134067+00:00",
+      "notes": "PASS: owner hierarchy, safe late admission, policy-preserving fresh registries, shared budget ownership, structured stop/deadline failures; focused native/race evidence worker-owner-ai-race.log. Twenty stalled child owners share one two-second deadline."
     },
     {
       "id": "M2",
@@ -48,10 +48,10 @@
         "cancelProcess returns typed results, enforces Process authority, stops owned POSIX groups and joins writer/Wait.",
         "Natural exit, repeated cancellation, concurrent write/close, stale/foreign handles and Windows/WASM unsupported results are tested."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-10T17:20:00+00:00",
+      "completed": "2026-10-10T17:26:59.134067+00:00",
+      "notes": "PASS: focused managed lifecycle/cancellation race tests repeated three times; actual checked descendant PID probe, direct ProcessState reaping, queued stdin drain, blocked writes and bystander isolation. Native showcase and inline tests pass; Windows/WASM cross-builds pass."
     },
     {
       "id": "M3",
@@ -66,10 +66,10 @@
         "Async workers have one natural-exit Wait owner; final chunks drain and blocked consumers do not prevent cancellation.",
         "Source selection borrows sources; cancellation stops descendants and joins owned readers without closing borrowed stdin/connections."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-10T17:20:00+00:00",
+      "completed": "2026-10-10T17:26:59.134067+00:00",
+      "notes": "PASS: async lifecycle/cancellation races repeated ten times; source/borrowed-input lease cases repeated twenty times. Natural final chunks, inherited descendants, full queue, handle isolation and Stream/Process budgets verified. Actual WASM typed-unsupported runtime test passed under Node; Windows compile passed."
     },
     {
       "id": "M4",
@@ -86,10 +86,10 @@
         "Embedded requests, engine initialization/close and REPL reset/quit have explicit independent ownership; WebSocket close-code and borrowed-transport behavior is preserved.",
         "Strict VM supports the new Process operations through explicit effect dispatch; unsupported generated/platform paths fail visibly."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-10T17:26:59.134067+00:00",
+      "completed": "2026-10-10T17:43:22.063909+00:00",
+      "notes": "PASS: native/strict VM exact-PID CLI/batch matrix,11 worker PTY cases,normal/error/exit/budget/signals,active engine close during mocked AI call,borrowed base isolation,REPL reset and WebSocket1011/1001. Full host focused race and vet pass; strict VM effect dispatch and explicit unsupported backend behavior pass."
     },
     {
       "id": "M5",
@@ -106,9 +106,9 @@
         "Independent evaluator reports a passing verdict; artifacts, changelog, documentation and release/consumer handoff are complete; no push or release is performed."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-10T17:43:22.063909+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Implementation and focused evidence complete; independent final full repository gates and verdict pending. Official-release consumer retest remains next-delivery gate."
     }
   ],
   "registry_reuse": [
@@ -143,7 +143,7 @@
       "reason": "Searched process/terminal; inspected external_backend 0.2.0 and terminal_ui 0.2.0. This milestone requires core runtime ownership; reuse internal/proctree and existing effect/host APIs."
     }
   ],
-  "last_session": "2026-10-10T17:06:50.131928+00:00",
-  "last_checkpoint": null,
+  "last_session": "2026-10-10T17:43:22.063909+00:00",
+  "last_checkpoint": "M1-M4 PASS; source frozen for independent full gates. M5 pending evaluator.",
   "delivery_gate": "Official released-runtime consumer retest pending future push/release."
 }

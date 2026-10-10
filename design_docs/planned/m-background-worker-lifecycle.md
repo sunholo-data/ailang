@@ -1,6 +1,6 @@
 # M-BACKGROUND-WORKER-LIFECYCLE: Owned Subprocess Shutdown and Cancellation
 
-**Status**: Approved — user approved sprint planning and execution on 2026-10-10
+**Status**: Implemented locally; independent final validation pending — unreleased
 
 **Target**: Next supporting release after approval; version TBD (source baseline v0.54.1)
 
@@ -102,7 +102,7 @@ Before implementation, design approval must explicitly settle these proposals:
 - [x] Approve fresh ownership for independent request forks and shared ownership for budget views.
 - [x] Approve the 2-second total deadline and 250 ms cooperative drain policy.
 
-These are review choices, not remaining research prerequisites. Once approved, the implementer may resolve the internal choices in Deferred Decisions without another approval cycle.
+The user approved all five choices on 2026-10-10. Internal choices preserve these boundaries.
 
 ## Solution Design
 
@@ -140,7 +140,7 @@ Calling `selectEvents` borrows its sources. Returning false stops selection, whi
 
 ### 3. Public Cancellation API
 
-Proposed additions, **not currently shipped**:
+Implemented additions, **not currently shipped**:
 
 ```ailang
 -- Export WorkerCancelError from std/process; import it in std/stream.
@@ -157,7 +157,7 @@ cancelProcess(handle: ProcessHandle) -> Result[(), WorkerCancelError] ! {Process
 cancelProcessSource(source: StreamSource) -> Result[(), WorkerCancelError] ! {Stream, Process}
 ```
 
-The function lines above describe signatures, not standalone declarations. A complete design-only stub containing these signatures and constructors type-checked under the official v0.54.0 runtime. Builtin registration, standard-library wrappers, native/VM behavior, and unsupported-backend diagnostics are implementation work.
+The function lines above describe signatures, not standalone declarations. A complete design-only stub containing these signatures and constructors type-checked under the official v0.54.0 runtime. Builtin registration, standard-library wrappers, native/VM behavior, and unsupported-backend diagnostics are implemented locally.
 
 `Ok(())` means the owned process has been stopped/reaped and its runtime-owned reader/writer tasks have joined. An already naturally completed but still registered entry can finish successfully. Concurrent cancellation calls join the same operation. Once an entry has been fully released, a later call returns `WorkerHandleInvalid`; repeated calls have no additional termination effect. This avoids retaining an unbounded tombstone ledger in long-lived REPL/engine sessions. Preserve existing idempotent `closeProcessStdin` behavior for released handles.
 
@@ -239,7 +239,7 @@ Existing tests are partial evidence: `TestManagedProcess_KillOnClose` and `TestP
 
 ## Implementation Outline
 
-This is a design decomposition, not an approved sprint:
+The approved sprint implements this decomposition:
 
 1. **Ownership and platform skeleton:** finalize review choices; establish host owner interfaces and policy-preserving child contexts; specify pipe/Wait ordering and admission races.
 2. **Managed workers:** process groups, retained tracking after stdin closure, checked cancellation, writer joins, typed public API and focused race tests.
@@ -301,3 +301,14 @@ This work does not add a general concurrency scheduler, CSP syntax, detached-wor
 The largest compatibility risks are buffered stdin shutdown, source output/Wait ordering, persistent embed/REPL lifetimes, and terminal signal reentrancy. They are explicit acceptance gates rather than incidental cleanup details. Platform support must remain truthful, and a deadline failure must not be hidden by a normal host exit.
 
 The user approved this design, sprint planning, and execution on 2026-10-10. Runtime implementation and independent sprint evaluation are authorized. Keep the work local until the fix passes its gates; pushing to dev and publishing a supporting release follow the user's next delivery instruction. The official-release consumer retest remains a delivery gate after that release, not a claim about the local sprint build.
+
+
+## Local Implementation Record
+
+The approved implementation adds execution owners, managed/async cancellation, checked process-group stop and single Wait, fresh request registries, host cleanup and unified signal handling. Shutdown receipts carry scope, elapsed time, borrowed-reader count and structured resource/phase errors. Resource IDs correlate public handles; timed-out owners never emit a joined receipt for unfinished children. Post-supervisor source teardown does not repeat an in-flight stop.
+
+Concurrent cleanup required synchronizing trace record/snapshot/config operations and delivering independent observer payloads outside the collector lock. Legacy `OnEvent` assignment remains initialization-only; `SetOnEvent` supports live changes. Existing bounded retention remains in force.
+
+Live `stream_process_source` verification exposed an existing multiplexer closure probe that consumed queued events from other sources. Tracking closed channels avoids those receives and busy selection of closed sources, preserving final chunks and existing priority/borrowing semantics. A 5,000-event semantic test failed before that fix and passes after it.
+
+See the [validation record](m-background-worker-lifecycle-validation.md) and [sprint plan](m-background-worker-lifecycle-sprint-plan.md). Final independent gates are pending at this source freeze. Nothing has been pushed or released; the official supporting-runtime consumer gate remains after delivery.

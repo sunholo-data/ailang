@@ -721,7 +721,8 @@ func registerStreamAsyncExecProcess() {
 			Description: "Spawn a subprocess and deliver its stdout as SourceBytes events",
 			LongDesc: `Spawns a subprocess and reads its stdout in fixed-size chunks,
 delivering each chunk as a SourceBytes(name, bytes) event into selectEvents.
-The subprocess is killed when the source is closed or the selectEvents loop exits.
+The execution owns subprocess shutdown. selectEvents borrows sources;
+returning false does not cancel them. Use cancelProcessSource for explicit stop/join.
 Requires both Process (for spawning) and Stream (for source creation) capabilities.
 Reuses ProcessContext allowlist and security settings from std/process.`,
 			Params: []ParamDoc{

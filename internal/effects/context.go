@@ -52,8 +52,10 @@ type EffContext struct {
 	IOReader       io.Reader             // Override for IO effect input (nil = os.Stdin)
 	stdinReader    *bufio.Reader         // Persistent buffered reader for readLine (lazily initialized)
 
-	terminalInput      *terminalInputState // shared across same-execution budget scopes
-	TerminalSignalExit func(int)           // host termination hook; native acquisition requires it
+	workerOwner           *WorkerOwner        // execution ownership; shared only by budget views
+	terminalInput         *terminalInputState // shared across same-execution budget scopes
+	TerminalSignalManaged bool                // CLI owns the single signal subscription
+	TerminalSignalExit    func(int)           // host termination hook; native acquisition requires it
 
 	// M-BUDGET-SCOPING-BUG: re-entrancy guard for budget charging. A single
 	// logical effect op must charge the budget exactly ONCE, but each effect
@@ -297,6 +299,7 @@ func NewEffContext(args []string) *EffContext {
 	ctx := &EffContext{
 		Caps:          make(map[string]Capability),
 		terminalInput: &terminalInputState{},
+		workerOwner:   newWorkerOwner(),
 		Env:           env,
 		seedSet:       seedSet,            // M-EFFECT-REPLAY-CONTRACTS: seeded-mode gate
 		Clock:         NewClockContext(),  // Initialize monotonic time anchor
@@ -471,42 +474,44 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 	ctx.inputState()
 	// Shallow copy - share all contexts except Budget
 	return &EffContext{
-		Caps:               ctx.Caps,
-		Env:                ctx.Env,
-		Clock:              ctx.Clock,
-		Net:                ctx.Net,
-		Debug:              ctx.Debug,
-		AI:                 ctx.AI,
-		DOM:                ctx.DOM, // M-COG-RUNTIME (v0.21.x): preserve DOM handler across budget scopes
-		Msg:                ctx.Msg, // M-COG-RUNTIME (v0.21.x): preserve Msg handler across budget scopes
-		Cog:                ctx.Cog, // M-COG-RUNTIME-BROWSER (v0.21.x M4): preserve drain queue
-		SharedMem:          ctx.SharedMem,
-		SharedIndex:        ctx.SharedIndex,
-		Contracts:          ctx.Contracts,
-		Stream:             ctx.Stream,
-		Process:            ctx.Process,
-		Budget:             budget,
-		BudgetFrames:       ctx.BudgetFrames,   // M-BUDGET-SCOPING-BUG: SHARE frame stack across budget scopes (per-execution state)
-		BudgetReport:       ctx.BudgetReport,   // Preserve report across budget scopes (M-DX25)
-		DisableBudgets:     ctx.DisableBudgets, // Preserve --no-budgets flag
-		EnvSnapshot:        ctx.EnvSnapshot,
-		EnvAllowlist:       ctx.EnvAllowlist,
-		Args:               ctx.Args,
-		Trace:              ctx.Trace,    // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
-		IOWriter:           ctx.IOWriter, // Preserve IO writer across budget scopes
-		IOReader:           ctx.IOReader, // Preserve IO reader across budget scopes
-		terminalInput:      ctx.terminalInput,
-		TerminalSignalExit: ctx.TerminalSignalExit,
-		stdinReader:        ctx.stdinReader,    // Share persistent buffered reader across scopes
-		FnCaller:           ctx.FnCaller,       // Preserve function caller across budget scopes (M-STREAM-BIDI)
-		FnCallerN:          ctx.FnCallerN,      // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
-		GoCtx:              ctx.GoCtx,          // Preserve OTEL trace context across budget scopes
-		SpanWrapper:        ctx.SpanWrapper,    // Preserve OTEL span wrapper across budget scopes
-		randMode:           ctx.randMode,       // M-EFFECT-REPLAY-CONTRACTS: SHARE Rand-mode state across budget scopes (same execution)
-		netScope:           ctx.netScope,       // M-NET-SCOPE-PUBLIC: SHARE the public-scope depth (same execution)
-		seedSet:            ctx.seedSet,        // M-EFFECT-REPLAY-CONTRACTS: preserve AILANG_SEED presence
-		fsRoot:             ctx.fsRoot,         // M-EXECUTOR-POLICY-HARDENING M1: SHARE the sandbox root (owner closes)
-		operatorBudget:     ctx.operatorBudget, // M-EXECUTOR-POLICY-HARDENING M4: SHARE the run ceiling
+		Caps:                  ctx.Caps,
+		Env:                   ctx.Env,
+		Clock:                 ctx.Clock,
+		Net:                   ctx.Net,
+		Debug:                 ctx.Debug,
+		AI:                    ctx.AI,
+		DOM:                   ctx.DOM, // M-COG-RUNTIME (v0.21.x): preserve DOM handler across budget scopes
+		Msg:                   ctx.Msg, // M-COG-RUNTIME (v0.21.x): preserve Msg handler across budget scopes
+		Cog:                   ctx.Cog, // M-COG-RUNTIME-BROWSER (v0.21.x M4): preserve drain queue
+		SharedMem:             ctx.SharedMem,
+		SharedIndex:           ctx.SharedIndex,
+		Contracts:             ctx.Contracts,
+		Stream:                ctx.Stream,
+		Process:               ctx.Process,
+		Budget:                budget,
+		BudgetFrames:          ctx.BudgetFrames,   // M-BUDGET-SCOPING-BUG: SHARE frame stack across budget scopes (per-execution state)
+		BudgetReport:          ctx.BudgetReport,   // Preserve report across budget scopes (M-DX25)
+		DisableBudgets:        ctx.DisableBudgets, // Preserve --no-budgets flag
+		EnvSnapshot:           ctx.EnvSnapshot,
+		EnvAllowlist:          ctx.EnvAllowlist,
+		Args:                  ctx.Args,
+		Trace:                 ctx.Trace,    // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
+		IOWriter:              ctx.IOWriter, // Preserve IO writer across budget scopes
+		IOReader:              ctx.IOReader, // Preserve IO reader across budget scopes
+		terminalInput:         ctx.terminalInput,
+		workerOwner:           ctx.executionWorkerOwner(),
+		TerminalSignalExit:    ctx.TerminalSignalExit,
+		TerminalSignalManaged: ctx.TerminalSignalManaged,
+		stdinReader:           ctx.stdinReader,    // Share persistent buffered reader across scopes
+		FnCaller:              ctx.FnCaller,       // Preserve function caller across budget scopes (M-STREAM-BIDI)
+		FnCallerN:             ctx.FnCallerN,      // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
+		GoCtx:                 ctx.GoCtx,          // Preserve OTEL trace context across budget scopes
+		SpanWrapper:           ctx.SpanWrapper,    // Preserve OTEL span wrapper across budget scopes
+		randMode:              ctx.randMode,       // M-EFFECT-REPLAY-CONTRACTS: SHARE Rand-mode state across budget scopes (same execution)
+		netScope:              ctx.netScope,       // M-NET-SCOPE-PUBLIC: SHARE the public-scope depth (same execution)
+		seedSet:               ctx.seedSet,        // M-EFFECT-REPLAY-CONTRACTS: preserve AILANG_SEED presence
+		fsRoot:                ctx.fsRoot,         // M-EXECUTOR-POLICY-HARDENING M1: SHARE the sandbox root (owner closes)
+		operatorBudget:        ctx.operatorBudget, // M-EXECUTOR-POLICY-HARDENING M4: SHARE the run ceiling
 	}
 }
 
@@ -710,6 +715,13 @@ func (ctx *EffContext) GetIOReader() *bufio.Reader {
 // (config) are preserved so a cloned request still honours AILANG_SEED.
 func (ctx *EffContext) Clone() interface{} {
 	clone := *ctx // shallow copy of config + shared references
+	clone.workerOwner = ctx.executionWorkerOwner().child()
+	if ctx.Process != nil {
+		clone.Process = ctx.Process.Child()
+	}
+	if ctx.Stream != nil {
+		clone.Stream = ctx.Stream.Child()
+	}
 	clone.randMode = nil
 	clone.terminalInput = &terminalInputState{}
 	clone.stdinReader = nil

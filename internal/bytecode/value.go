@@ -243,7 +243,7 @@ func (v Value) AsBytes() *BytesObj {
 }
 
 // StdADTTag returns standard ADT constructor ordinals, in declaration order
-// from std/option.ail, std/result.ail and std/terminal.ail. Host conversion and
+// from the supported stdlib declarations. Host conversion and
 // VM match compilation must use the same ordinals.
 func StdADTTag(modulePath, typeName, ctor string) (int, bool) {
 	switch {
@@ -260,6 +260,16 @@ func StdADTTag(modulePath, typeName, ctor string) (int, bool) {
 			return 0, true
 		case "Err":
 			return 1, true
+		}
+	case modulePath == "std/process" && typeName == "ProcessHandle" && ctor == "ProcessHandle":
+		return 0, true
+	case modulePath == "std/stream" && typeName == "StreamSource" && ctor == "StreamSource":
+		return 0, true
+	case modulePath == "std/process" && typeName == "WorkerCancelError":
+		for i, name := range []string{"WorkerHandleInvalid", "WorkerCancelUnsupported", "WorkerCancelTimedOut", "WorkerCancelFailed"} {
+			if name == ctor {
+				return i, true
+			}
 		}
 	case modulePath == "std/terminal":
 		var names []string

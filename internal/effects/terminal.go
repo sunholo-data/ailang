@@ -145,8 +145,11 @@ func TerminalWith(ctx *EffContext, args []eval.Value) (result eval.Value, err er
 		}
 		return terminalErr("Busy", "another line reader has unread buffered input"), nil
 	}
-	signals := make(chan os.Signal, 2)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	var signals chan os.Signal
+	if !ctx.TerminalSignalManaged {
+		signals = make(chan os.Signal, 2)
+		signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	}
 	device, acquireErr := terminalActivate(in, out)
 	if acquireErr != nil {
 		signal.Stop(signals)
@@ -206,7 +209,9 @@ func (session *terminalSession) run(body eval.Value) (result eval.Value, err err
 	if acquireErr != nil {
 		return terminalErr("InputFailure", acquireErr.Error()), nil
 	}
-	session.watchSignals()
+	if session.signals != nil {
+		session.watchSignals()
+	}
 	value, callErr := ctx.FnCaller(body, terminalTag("TerminalSession", &eval.IntValue{Value: session.id}))
 	if callErr != nil {
 		return nil, callErr
@@ -239,14 +244,12 @@ func (s *terminalSession) terminatePendingSignal() {
 	}
 }
 func (s *terminalSession) terminateSignal(sig os.Signal) {
-	if err := restoreActiveTerminals(); err != nil {
-		fmt.Fprintf(os.Stderr, "terminal cleanup: %v\n", err)
-	}
+
 	code := 130
 	if sig == syscall.SIGTERM {
 		code = 143
 	}
-	s.ctx.TerminalSignalExit(code)
+	s.ctx.HandleWorkerSignal(code)
 }
 
 func (s *terminalSession) close() error {
