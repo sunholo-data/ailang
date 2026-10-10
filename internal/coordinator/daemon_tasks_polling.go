@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
@@ -456,6 +457,27 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 				kind = "question"
 			} else {
 				kind = "directive"
+			}
+		}
+
+		// M-CASCADE-DISPATCH-GUARD: a message with no cascade context must never
+		// reach a pkg-* agent under the cascade-repair template (their DEFAULT
+		// template_file). Measured repeatedly (inbox_17; task-a8c0e096): such a
+		// dispatch cost a full paid agent run before the template's own defense
+		// note stopped the agent at step zero. Enforce the same invariant HERE —
+		// source=cascade plus a complete envelope — so the misroute fails loudly
+		// at dispatch time and costs one log line. Same suppression contract as
+		// the feedback gate: mark read (no destructive delete), no task created.
+		if agentCfg := d.agentRegistry.GetAgentByID(agentID); agentCfg != nil {
+			if invoke := agentCfg.GetEffectiveInvokeConfig(); invoke != nil && invoke.Type == "prompt" {
+				if tmpl, tmplErr := invoke.ResolveTemplateForType(agentCfg.Workspace, kind); tmplErr == nil && IsCascadeRepairTemplate(tmpl) {
+					if gaps := CascadeDispatchGaps(msg.Source, msg.RootPackage, msg.RootChangeClass, msg.ToVersion); len(gaps) > 0 {
+						d.logger.Printf("[cascade-guard] REFUSING dispatch of message %s to agent %s under the cascade-repair template: %s — "+
+							"not an authoritative cascade; this is a routing bug, not work for an agent", msg.ID, agentID, strings.Join(gaps, "; "))
+						d.cloudInboxAdapter.MarkAsRead(msg.ID)
+						continue
+					}
+				}
 			}
 		}
 
