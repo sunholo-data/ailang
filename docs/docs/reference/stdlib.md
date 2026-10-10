@@ -81,6 +81,7 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | Module | Purpose | Capability |
 |---|---|---|
 | `std/net` | HTTP GET/POST; HTTPS by default, DNS rebinding prevention | `Net` |
+| `std/web` | Web search and page fetch through the fixed Ollama backend | `Net` |
 | `std/stream` | WebSocket (bidirectional), SSE (server-sent events) | `Stream` |
 
 ## AI & Semantic

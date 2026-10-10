@@ -1,16 +1,27 @@
 # Claude API credit deployment review — M0/M6
 
-**Recorded:** 2026-10-10. **State:** review candidate; no infrastructure applied,
-images built/pushed, credit account enabled, or billable inference performed.
+**Recorded:** 2026-10-10. **State:** rollout in progress. Implementation merged;
+the private authority project is bootstrapped and billed. Gateway/jobs, grant
+enrollment, live canary and production image promotion remain pending. Admission
+is disabled; no billable Claude inference has been performed.
 
-Review branches are available as [source draft PR #1755](https://github.com/sunholo-data/ailang/pull/1755)
-and [private infrastructure draft PR #6](https://github.com/sunholo-data/ailang-multivac/pull/6).
-The infrastructure candidate integrates the module under one production state,
-defaults both provision/runtime flags off, and supplies optional digest-only
-release mappings plus an unregistered canary recipe. Its 292 offline release
-tests and four mocked Terraform plans passed. The IAM hardening changes existing
-secret-reader permissions on a future normal apply even with those flags off;
-review dependencies and inherited readers before promotion. No branch was merged.
+Merged work is available as [source PR #1755](https://github.com/sunholo-data/ailang/pull/1755)
+and [private infrastructure PR #6](https://github.com/sunholo-data/ailang-multivac/pull/6).
+One production state owns the shared authority and guarded jobs. Runtime defaults
+off, and the canary recipe remains unregistered. Scoped runtime-secret IAM was
+deployed through normal configuration CI. The release-library regression suite
+now has 298 passing checks, including actual missing Job and Service messages;
+four mocked Terraform plans passed. Both existing Cloud Build administrators
+remain explicitly trusted under the attended decision below.
+
+The user approved a one-time, three-addition Terraform bootstrap for the private
+project and two validation records, with no IAM/runtime changes. The first attempt
+stopped before project creation because the production quota project's Billing API
+was disabled. That API was enabled through successful dev/test/prod Terraform CI
+at infrastructure `f0a10e8`; the refreshed bootstrap succeeded. Project
+`ailang-credit-authority` is active in folder `389195706883` and billing is enabled.
+Remaining provisioning is addition-only and returns to CI. The private repository's
+`docs/ops/claude-credit-guard.md` is the detailed attended deployment audit.
 
 ## Confirmed grant and remaining evidence
 
@@ -21,10 +32,13 @@ expires on 2026-10-28. The conservative admission expiry is
 `2026-10-28T00:00:00Z`, pending the provider's exact expiry timestamp/timezone.
 This record contains no credential value and does not itself create a grant.
 
-The Console organization ID, dedicated workspace ID, grant/cycle identifier and
-start timestamp still need recording. A secret resource name cannot establish its
-organization, workspace, or allocation. Activation and the live canary remain
-blocked until those identities, provider-side caps and grant evidence agree.
+The operator attested the corrected organization/workspace and full allocation.
+Use `anthropic-credits-2026-10-28` as the stable internal AILANG allocation reference;
+it is not a claimed Anthropic grant ID. Record admission start and audit evidence
+at confirmation. A secret resource name and Models API success do not independently
+establish workspace membership or available credits. Activation and the live canary
+remain gated on deployed isolation, exact image/CLI verification and canonical
+grant confirmation with the attended evidence.
 No calendar rollover or key replacement renews the AILANG allowance.
 
 ### Attended rollout decision — 2026-10-10

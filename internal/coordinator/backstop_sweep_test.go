@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -218,6 +219,7 @@ func TestBackstopSweepCarriesDispatchSemantics(t *testing.T) {
 			Title:       "Redeploy needed",
 			MessageType: "request",
 			CreatedAt:   created,
+			Inputs:      []TaskInput{{Repo: "org/data", Ref: "incoming/poster", Path: "attachments", Dest: ".incoming/poster", SHA256: strings.Repeat("a", 64)}},
 		},
 	}}
 
@@ -230,6 +232,13 @@ func TestBackstopSweepCarriesDispatchSemantics(t *testing.T) {
 		t.Fatalf("recovered %d message(s), want 1", len(adapter.buffered))
 	}
 	got := adapter.buffered[0]
+	if !reflect.DeepEqual(got.Inputs, store.msgs[0].Inputs) {
+		t.Fatalf("recovery dropped typed input fields: got %+v, want %+v", got.Inputs, store.msgs[0].Inputs)
+	}
+	got.Inputs[0].Repo = "private/denied"
+	if store.msgs[0].Inputs[0].Repo != "org/data" {
+		t.Fatal("recovered inputs share mutable storage with the stored message")
+	}
 
 	if got.Kind != "request" {
 		t.Errorf("Kind = %q, want %q — dropping Kind makes every completion notice "+

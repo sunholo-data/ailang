@@ -21,6 +21,9 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: Cost-Per-Verified-Success KPI — M4a (Cohort Freeze Mechanism)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-cost-per-success-kpi-m4a-sprint-plan.md)
 - [Sprint Plan: Cost-Per-Verified-Success KPI (M1–M3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-cost-per-success-kpi-sprint-plan.md)
 - [Cost-Per-Verified-Success KPI](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-cost-per-success-kpi.md)
+- [Sprint Plan: M-EFFECT-ROW-VAR-UNIFICATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-effect-row-var-unification-sprint-plan.md)
+- [M-EFFECT-ROW-VAR-UNIFICATION validation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-effect-row-var-unification-validation.md)
+- [M-EFFECT-ROW-VAR-UNIFICATION — Discharge effect-row variables in the effect-checking pass](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-effect-row-var-unification.md)
 - [Sprint Plan — M-MCP-EXACT-TOOL-SURFACE-LANE-B](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-mcp-exact-tool-surface-lane-b-sprint-plan.md)
 - [M-MCP Exact Tool Surface Lane B: Embeddable Session-Owned Protocol Surface](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-mcp-exact-tool-surface-lane-b.md)
 - [Sprint Plan: M-NIGHTLY-FLAKE-GUARD](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-nightly-flake-guard-sprint-plan.md)
@@ -29,6 +32,14 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-PLANNER-CODEX-LANE: Route the Mission Planner Through the Hardened codex Spawn Recipe](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-planner-codex-lane.md)
 - [Sprint Plan: M-V1-MEMORY-FOOTPRINT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-v1-memory-footprint-sprint-plan.md)
 - [M-V1-MEMORY-FOOTPRINT: Memory efficiency audit and fixes for v1.0.0](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-v1-memory-footprint.md)
+- [Sprint Plan: M-VM-STACK-LIMIT-PARITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity-sprint-plan.md)
+- [M-VM-STACK-LIMIT-PARITY implementation verification](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity-verification.md)
+- [M-VM-STACK-LIMIT-PARITY — the bytecode VM's 1000-frame cap diverges from the evaluator's 10,000 recursion limit: evaluator-legal deep recursion silently truncates service handlers under `--bytecode`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity.md)
+
+## v0.54.0
+
+- [Sprint Plan: M-SERVEAPI-RESPONSE-HEADERS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-serveapi-response-headers-sprint-plan.md)
+- [serve-api Response Headers: Security Headers on `--static` + Hyphenated Route Headers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-serveapi-response-headers.md)
 
 ## v0.53.0
 
@@ -36,6 +47,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-IFC-AUTHORITY-SCOPING — Narrowing IFC Authority Primitives (Scoped Declassify + Call-Site Positive-Label Enforcement)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-ifc-authority-scoping.md)
 - [Sprint Plan: Inline-test expected values](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-inline-test-expected-values-sprint-plan.md)
 - [Inline-Test Expected Values: lists and ADTs evaluate; `check` rejects what `test` cannot run](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-inline-test-expected-values.md)
+- [Sprint Plan: M-RUN-POLICY-RESULT-UNFORGEABLE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-run-policy-result-unforgeable-sprint-plan.md)
+- [M-RUN-POLICY-RESULT-UNFORGEABLE: the confined program cannot forge the supervisor's `policy-result:` line (#1548)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-run-policy-result-unforgeable.md)
 - [Sprint Plan: M-STD-YAML-ENCODE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-std-yaml-encode-sprint-plan.md)
 - [M-STD-YAML-ENCODE — `std/yaml` encode: the `Json` ADT → idiomatic block YAML](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-std-yaml-encode.md)
 - [Sprint Plan: M-STD-YAML-MAPPING-KEY-ORDER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-std-yaml-mapping-key-order-sprint-plan.md)
@@ -47,6 +60,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 - [Sprint Plan: M-SPRINT-LOC-NULL-SENTINEL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_6/m-sprint-loc-null-sentinel-sprint-plan.md)
 - [Sprint-state `estimated_loc` sentinel migration: `0` → `null`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_6/m-sprint-loc-null-sentinel.md)
+- [Sprint Plan: M-TASK-INPUTS — Typed cloud task inputs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_6/m-task-inputs-sprint-plan.md)
+- [M-TASK-INPUTS: Typed Task Inputs — Fetch a Named `{repo, ref, path}` Into the Workspace Before the Agent Runs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_6/m-task-inputs.md)
 
 ## v0.52.0
 
@@ -1633,4 +1648,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 1170 design documents across 151 versions.*
+*Generated at build time. 1182 design documents across 152 versions.*
