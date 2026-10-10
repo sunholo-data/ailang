@@ -74,7 +74,27 @@ func greet(name: string) -> () ! {IO} {
 | `println` | `string -> () ! {IO}` | Print with newline |
 | `print` | `string -> () ! {IO}` | Print without newline |
 | `readLine` | `() -> string ! {IO}` | Read line from stdin |
+| `readLineOpt` | `() -> Option[string] ! {IO}` | Blank/final partial lines are `Some`; EOF is sticky `None` |
 | `exit` | `int -> () ! {IO}` | Terminate this program with an exit code (see below) |
+
+#### Native terminal input
+
+`std/terminal` uses the existing `IO` capability. `info()` reports configured input
+and output TTY status and optional physical dimensions. `withTerminal(options,
+body)` activates noncanonical, no-echo input for its callback, and returns
+`Result[a, TerminalError]`. The callback's effects propagate through `! {IO, e}`.
+
+`readEvent(session, timeout_ms)` returns typed key, resize, EOF, interruption or
+idle events. Timeouts are `-1` (block), `0` (poll), or `1..60000` milliseconds;
+`Idle` is separate from EOF. Session constructors grant no authority: the host
+rejects stale and cross-context handles, nested acquisition, competing line
+readers and pending buffered input. No operation opens another terminal device.
+
+macOS/Linux support this API in the evaluator and native bytecode VM. Windows
+and WASM return `Unsupported`; Go code generation rejects terminal operations
+at compile time. The CLI restores terminal state before signal termination.
+Embedders must inject their process-lifecycle hook to enable native scopes.
+An error from native activation must be handled explicitly by the application.
 
 #### Exit code
 

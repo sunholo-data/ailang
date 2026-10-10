@@ -468,27 +468,27 @@ the `Concurrency` effect), but full CSP with session types remains future work.
 
 ### Interactive stdin / Keyboard Input
 
-**Status**: Line input works; two narrower gaps remain (see the three rows below).
-**Verified at**: v0.33.1 (2026-08-17 — `std/io.readLine` and `std/stream.asyncReadStdinLines` present in the stdlib)
+**Status**: Line input and scoped native keys work; in-flight AI cancellation remains separate.
+**Verified at**: native-terminal sprint implementation, 2026-10-10 (supporting release pending).
 
-`std/io` provides `readLine()`, which reads one line from stdin and blocks until the user
-presses Enter — covering prompt-and-read and REPL-style input. `std/stream.asyncReadStdinLines`
-additionally provides a **concurrent, non-blocking line source** for `selectEvents` dispatch.
-So "no stdin" is a myth: line-oriented input is fully supported today.
-
-Two distinct things are *not* yet supported — keep them separate, they route differently:
+`std/io.readLineOpt()` returns `Some("")` for a blank line, `Some(text)` for a final
+partial line and sticky `None` at EOF. Legacy `readLine()` retains its string
+semantics. `std/stream.asyncReadStdinLines` supplies concurrent line events.
 
 | Need | Status | Tracking |
 |---|---|---|
-| **Line input** (`readLine`, `asyncReadStdinLines`) | ✅ Supported | — |
-| **Abort a long-running `std/ai.step()`** mid-call via stdin/signal | ❌ In progress | [#231](https://github.com/sunholo-data/ailang/issues/231) → `m-agent-step-cancellation` (extension + small fix) |
-| **Raw-mode single keypress** (no Enter/echo) for human-controlled games | ❌ By design — not in core | non-deterministic, unavailable in WASM, no agentic use case; would be a host/extension capability if ever needed |
+| **Line input** (`readLine`, `readLineOpt`, `asyncReadStdinLines`) | Supported | IO / Stream capabilities |
+| **Scoped native single keypress and resize** | macOS/Linux evaluator and native VM | `std/terminal`, IO, host lifecycle integration |
+| **Abort an in-flight `std/ai.step()`** | Separate cancellation work | [#231](https://github.com/sunholo-data/ailang/issues/231) |
 
-For a keyboard-controlled game today, design around it with a self-driving loop or
-line-at-a-time (`readLine`) input.
+Windows/WASM native operations return typed `Unsupported`. Go code generation
+rejects terminal operations at compile time. Budget-annotated terminal package
+adapters currently run through the evaluator; pure package tests and core terminal
+operations have strict bytecode coverage. Input ownership excludes competing line
+readers and preserves unread buffered data; handles expire with their scope.
 
-For real-time *output* (games, progress bars, dashboards), see `flush()` and the C-style
-string escapes (`\x1b`, `\u{…}`) added in v0.27.0 — `examples/progress_bar.ail`.
+For real-time output, use `flush()` after partial-line writes and ANSI string
+escapes (`\x1b`, `\u{…}`), as in `examples/progress_bar.ail`.
 
 ---
 

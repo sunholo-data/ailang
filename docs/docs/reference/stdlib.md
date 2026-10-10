@@ -69,7 +69,8 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 
 | Module | Purpose | Capability |
 |---|---|---|
-| `std/io` | Print to stdout, read from stdin, exit codes, raw bytes | `IO` |
+| `std/io` | Print to stdout, string or Option line input, exit codes, raw bytes | `IO` |
+| `std/terminal` | Configured TTY facts and scoped key/resize events (macOS/Linux) | `IO` |
 | `std/fs` | Read/write files; sandboxed via `AILANG_FS_SANDBOX` | `FS` |
 | `std/env` | Environment variable access (snapshot, allowlist, redaction) | `Env` |
 | `std/process` | Execute external commands; allowlist + timeout + size limits | `Process` |

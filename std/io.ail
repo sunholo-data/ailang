@@ -6,6 +6,7 @@
 -- Requires: IO capability (--caps IO)
 
 module std/io
+import std/option (Option)
 
 -- print: Print string without newline
 export func print(s: string) -> () ! {IO} = _io_print(s)
@@ -15,6 +16,10 @@ export func println(s: string) -> () ! {IO} = _io_println(s)
 
 -- readLine: Read line from stdin
 export func readLine() -> string ! {IO} = _io_readLine()
+
+-- readLineOpt: Preserve blank lines and distinguish EOF (None).
+-- A final partial line is Some before sticky None; shares input with readLine.
+export func readLineOpt() -> Option[string] ! {IO} = _io_readLineOpt()
 
 -- writeBytes: Write raw bytes to stdout
 -- Enables piping binary data to external tools

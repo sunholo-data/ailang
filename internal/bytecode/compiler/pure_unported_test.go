@@ -23,8 +23,8 @@ func TestCompile_PureUnportedBuiltinSaysPure(t *testing.T) {
 // TestCompile_EffectfulBuiltinStillPhase2E pins the other side: effectful
 // builtins keep the Phase 2E message.
 func TestCompile_EffectfulBuiltinStillPhase2E(t *testing.T) {
-	reason := evalReasonOf(t, "__io_println")
-	if !strings.Contains(reason, `effectful builtin "__io_println" not yet wired (Phase 2E)`) {
+	reason := evalReasonOf(t, "__net_httpRequest")
+	if !strings.Contains(reason, `effectful builtin "__net_httpRequest" not yet wired (Phase 2E)`) {
 		t.Errorf("EvalReason = %q, want the Phase 2E effectful message", reason)
 	}
 }

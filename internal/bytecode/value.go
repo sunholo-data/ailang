@@ -242,10 +242,9 @@ func (v Value) AsBytes() *BytesObj {
 	return v.Obj.(*BytesObj)
 }
 
-// StdADTTag returns the VM constructor ordinal of a std/option or std/result
-// constructor: the declaration order in std/option.ail (Some | None) and
-// std/result.ail (Ok | Err). The VM's builtins and match compilation use the
-// same ordinals.
+// StdADTTag returns standard ADT constructor ordinals, in declaration order
+// from std/option.ail, std/result.ail and std/terminal.ail. Host conversion and
+// VM match compilation must use the same ordinals.
 func StdADTTag(modulePath, typeName, ctor string) (int, bool) {
 	switch {
 	case modulePath == "std/option" && typeName == "Option":
@@ -262,6 +261,24 @@ func StdADTTag(modulePath, typeName, ctor string) (int, bool) {
 		case "Err":
 			return 1, true
 		}
+	case modulePath == "std/terminal":
+		var names []string
+		switch typeName {
+		case "TerminalSession":
+			names = []string{"TerminalSession"}
+		case "TerminalKey":
+			names = []string{"Text", "Up", "Down", "Left", "Right", "Enter", "Escape", "Backspace", "Tab", "Home", "End", "PageUp", "PageDown", "Delete"}
+		case "TerminalEvent":
+			names = []string{"Key", "Resize", "EndOfInput", "Interrupted", "Idle"}
+		case "TerminalError":
+			names = []string{"Unsupported", "NotTTY", "Busy", "InvalidSession", "InvalidTimeout", "InputFailure", "QueryFailure", "CleanupFailure"}
+		}
+		for i, name := range names {
+			if name == ctor {
+				return i, true
+			}
+		}
+
 	}
 	return 0, false
 }

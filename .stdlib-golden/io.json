@@ -59,6 +59,14 @@
       "pure": true
     },
     {
+      "name": "readLineOpt",
+      "type": "(())-\u003eOption[string]!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    },
+    {
       "name": "writeBytes",
       "type": "(bytes)-\u003e()!{IO}",
       "effects": [
