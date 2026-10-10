@@ -1,7 +1,7 @@
 # M-TERMINAL-UI-NATIVE-INPUT — Enable the existing terminal UI package
 
-**Status**: Implementation on sprint branch — final validation and release/publication in progress
-**Target**: AILANG v0.54.0 (proposed); `sunholo/terminal_ui` v0.2.0
+**Status**: Implemented and delivered — independent round2 PASS, 2026-10-10
+**Target**: AILANG v0.54.0; `sunholo/terminal_ui` v0.2.0
 **Priority**: P1 — reusable interactive CLIs built on shipped `[bin]` support
 **Estimated**: 8–12 engineering days across core and package repositories; sprint planning must calibrate this estimate
 **Dependencies**: shipped M-PKG-BIN-ENTRYPOINTS and M-TERMINAL-IO; M-IO-READLINE-EOF-OPTION for the line adapter's exact EOF contract
@@ -28,23 +28,23 @@ The old raw-input exclusion in M-AGENT-STEP-CANCELLATION and the maintained limi
 
 ## High-Impact Decisions
 
-The user approved this direction with “great please sprint plan then execute”, and then authorized package publication with “we can publish the package as part of our sprint”. Target core release scheduling remains subject to the release workflow; implementation uses the frozen contracts below.
+The user approved this direction with “great please sprint plan then execute”, authorized package publication, and explicitly authorized PR merges and the supporting release. The normal release workflow delivered v0.54.0; implementation uses the frozen contracts below.
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |---|---|---|---|---|
 | D1: Evolve existing `sunholo/terminal_ui` | Avoids a duplicate public package and preserves consumer investment | human; established by this session's clarification | design | high |
-| D2: Add `std/terminal` operations under existing `IO`, limited to configured input/output endpoints | Revises raw-input exclusion and defines authority boundary | human; proposed | design | high |
-| D3: Native adapter owns the terminal lease, mode changes, signals and cleanup; pure layout/navigation stays in the package | Cleanup cannot depend on an AILANG success path | human; proposed | design | high |
-| D4: First native release supports macOS/Linux; Windows and WASM return typed unsupported for native sessions | Controls portability scope without claiming emulated support | human; proposed | design | medium |
+| D2: Add `std/terminal` operations under existing `IO`, limited to configured input/output endpoints | Revises raw-input exclusion and defines authority boundary | human; approved 2026-10-10 | design | high |
+| D3: Native adapter owns the terminal lease, mode changes, signals and cleanup; pure layout/navigation stays in the package | Cleanup cannot depend on an AILANG success path | human; approved 2026-10-10 | design | high |
+| D4: First native release supports macOS/Linux; Windows and WASM return typed unsupported for native sessions | Controls portability scope without claiming emulated support | human; approved 2026-10-10 | design | medium |
 | D5: Native, line and plain modes have explicit selection; auto resolves once and reports its selected mode | Avoids silently changing interaction after a native failure | agent; specified below | design | medium |
 | D6: Keep `ui.ail` v0.1 behavior; add an adapter that respects actual small viewports | Existing minimum dimension clamp cannot describe a tiny physical terminal | agent; specified below | design | medium |
 
 ### Design Freeze
 
 - [x] Reuse existing package and its `[bin]` demo.
-- [ ] Approve the limited native IO surface and replacement of the raw-input exclusion (D2/D3).
-- [ ] Approve the first-release platform scope (D4).
-- [ ] Confirm callback/effect-row and strict-VM integration in M0 before freezing signatures.
+- [x] Approve the limited native IO surface and replacement of the raw-input exclusion (D2/D3).
+- [x] Approve the first-release platform scope (D4).
+- [x] Confirm callback/effect-row and strict-VM integration in M0 before freezing signatures.
 
 ## Solution Design
 
@@ -114,13 +114,25 @@ Preserve `ui` exports and sanitation. Add the following public modules:
 
 | Module | Responsibility |
 |---|---|
-| `events` | Package-level input ADT, pure key-to-action mappings, versioned event transcript encode/decode |
+| `events` | Package-level input ADT and pure key-to-action mappings |
+| `transcript` | Bounded versioned event codec, configuration validation and deterministic replay |
 | `widgets` | Bounded selection list, confirm dialog and paging state; pure update functions returning model plus optional accepted/cancelled result |
 | `adapter` | Native/line driver, explicit mode resolution, measured viewport handling and effectful rendering |
 
 Expose composable primitives before a generic application framework. The caller owns the event loop and business effects. Widget handlers must not execute shell commands, grant capabilities or call providers. A small standalone demo composes a selection list, a confirmation and the existing paged body; it proves the package can serve CLIs beyond the captain/crew application.
 
-Keep `[effects].max = ["IO"]` for the first package release. Core's effect-polymorphic scope allows consumer code to declare additional effects without adding those effects to the package's own adapter contract. Add exports for the three modules, retain `ui`, and keep `[bin] terminal-ui-demo = {module = "demo", entry = "main", caps = "IO"}`. Set the package's minimum AILANG version to the first release containing both native primitives and exact line EOF; do not ship a manifest floor naming a version whose APIs are absent.
+Library adapter exports use IO; core's effect-polymorphic scope allows consumer
+code to declare additional effects in its callback. Export events, widgets,
+transcript and adapter alongside the unchanged ui module. The implementation
+separates the bounded codec/replay functions into transcript for clarity.
+
+The original IO-only demo proposal overlooked the Env effect required by
+std/env.getArgs for the specified mode/viewport flags. As recorded in M3, the
+CLI declares IO,Env, and the package ceiling is `["IO", "Env"]` because it
+includes that executable; library adapters retain their IO-only signatures.
+`[bin] terminal-ui-demo` uses `{module = "demo", entry = "main", caps = "IO,Env"}`.
+The minimum AILANG version is >=0.54.0, containing native terminal primitives
+and exact line EOF.
 
 ### Modes and physical viewport
 
@@ -138,7 +150,8 @@ Existing effect traces provide observational evidence but render/truncate values
 
 ## Implementation Plan and Files
 
-This is a design outline, not an approved sprint. Work spans two repositories; stage one must produce a core release usable by stage two.
+The outline below was refined into the approved companion sprint plan. Work spans
+two repositories; the supporting core release preceded accepted package publication.
 
 | Phase | Deliverable | Estimate |
 |---|---|---|
@@ -167,9 +180,17 @@ No grammar position is extended, so parser ambiguity is unchanged. New module ty
 
 ## Examples
 
-Current verified consumer flow: `ailang install --path packages/terminal-ui` installs the existing `[bin]` command; its guide says every navigation key needs Enter. Package source and tests were run directly during design; installation itself is an implementation acceptance check, not a completed measurement here.
+Verified released consumer flow (AILANG v0.54.0 or newer):
 
-Proposed demo flows (future behavior):
+```sh
+ailang install sunholo/terminal_ui@0.2.0
+terminal-ui-demo --mode native
+```
+
+The installed command uses IO,Env; its library adapter uses IO. Fresh registry
+installation from an unrelated cwd verified the published bytes and native behavior.
+
+Implemented demo modes:
 
 ```text
 terminal-ui-demo --mode native
@@ -180,23 +201,26 @@ terminal-ui-demo --mode plain
   No ANSI escapes; stable text for redirected input/output.
 ```
 
-Consumer integration: depend on the exact published `sunholo/terminal_ui` version, import the pure widget and renderer modules, map typed events through a pure update function, and declare the consuming command in its existing `[bin]`. The application keeps journal/business data intact; sanitize only display projections. No CLI installs or registry publication were performed while authoring this design.
+Consumer integration: depend on the exact published `sunholo/terminal_ui` version, import the pure widget and renderer modules, map typed events through a pure update function, and declare the consuming command in its existing `[bin]`. The application keeps journal/business data intact; sanitize only display projections. Actual publication and fresh consumer evidence are recorded in the companion validation document.
 
 ## Success Criteria and Testing Strategy
 
-- [ ] Installed demo runs from an unrelated cwd with IO only; all native navigation actions work without Enter.
-- [ ] Physical size is measured and emitted on resize; shrink to 20×8 never renders a fabricated 40×16 viewport; enlargement retains state and clamps paging.
-- [ ] PTY tests compare terminal attributes before/after success, callback error, budget exhaustion, `exit(7)`, panic, SIGINT and SIGTERM. Verify cursor/alternate-screen restoration bytes and signal exit behavior, not just process completion.
-- [ ] Missing IO authority mutates nothing; fake/stale/cross-context handles and nested sessions fail; line/async/native reader ownership is tested; all workers stop after teardown.
-- [ ] Decoder handles split UTF-8/escape sequences, lone Escape, EOF, partial EOF, invalid bytes, timeout, oversized sequences and resize bursts. Mutation of key decoding or cleanup must fail the targeted control.
-- [ ] No-terminal and unsupported-platform behavior returns typed outcomes; injected input/output endpoints are honored. Native activation errors are never hidden by auto downgrade.
-- [ ] Same recorded inputs produce identical models and ordered frames, without native IO; a changed key/resize demonstrably changes the expected result.
-- [ ] Existing package tests pass under evaluator and strict bytecode with zero VM fallback. Run source inline tests explicitly and report property skips separately; add valid-domain properties for the new bounded models.
-- [ ] Line mode distinguishes blank input from EOF after M-IO-READLINE-EOF-OPTION lands; redirected/plain output contains no ESC bytes.
-- [ ] `ailang pkg quality --strict .`, lock/check, native tests, explicit inline tests and smoke all pass with totals recorded. `publish --dry-run` is packaging evidence only. Registry publication and consuming package installation are verified separately when authorized.
-- [ ] Core targeted tests, `make check-boundaries`, formatting/lint and affected backend checks pass; docs, AGENT.md and examples are updated. Go codegen/WASM behavior is explicit.
+- [x] Installed demo runs from an unrelated cwd with its minimal IO,Env command grants; library adapter signatures use IO. All native navigation actions work without Enter.
+- [x] Physical size is measured and emitted on resize; shrink to 20×8 never renders a fabricated 40×16 viewport; enlargement retains state and clamps paging.
+- [x] PTY tests compare terminal attributes before/after success, callback error, budget exhaustion, `exit(7)`, panic, SIGINT and SIGTERM. Verify cursor/alternate-screen restoration bytes and signal exit behavior, not just process completion.
+- [x] Missing IO authority mutates nothing; fake/stale/cross-context handles and nested sessions fail; line/async/native reader ownership is tested; terminal-owned polling/signal work stops after terminal teardown.
+- [x] Decoder handles split UTF-8/escape sequences, lone Escape, EOF, partial EOF, invalid bytes, timeout, oversized sequences and resize bursts. Mutation of key decoding or cleanup must fail the targeted control.
+- [x] No-terminal and unsupported-platform behavior returns typed outcomes; injected input/output endpoints are honored. Native activation errors are never hidden by auto downgrade.
+- [x] Same recorded inputs produce identical models and ordered frames, without native IO; a changed key/resize demonstrably changes the expected result.
+- [x] Existing package tests pass under evaluator and strict bytecode with zero VM fallback. Run source inline tests explicitly and report property skips separately; add valid-domain properties for the new bounded models.
+- [x] Line mode distinguishes blank input from EOF after M-IO-READLINE-EOF-OPTION lands; redirected/plain output contains no ESC bytes.
+- [x] `ailang pkg quality --strict .`, lock/check, native tests, explicit inline tests and smoke all pass with totals recorded. `publish --dry-run` is packaging evidence only. Registry publication and consuming package installation are verified separately when authorized.
+- [x] Core targeted tests, `make check-boundaries`, formatting/lint and affected backend checks pass; docs, AGENT.md and examples are updated. Go codegen/WASM behavior is explicit.
 
-## Verification Log (2026-10-10)
+## Historical Design-Time Verification Log (2026-10-10)
+
+These probes describe the initial v0.1.0/v0.53.2 baseline. Final released results
+are recorded in [validation and delivery evidence](m-terminal-ui-native-input-validation.md).
 
 | Claim | Evidence | Outcome / limit |
 |---|---|---|
@@ -247,18 +271,28 @@ Consumer integration: depend on the exact published `sunholo/terminal_ui` versio
 
 ## Deferred Decisions and Non-Goals
 
-The implementer may choose private helper names, test file organization, default colors and the internal poll abstraction within the fixed bounds. M0 freezes diagnostic payloads and backend registration details with evidence. Version scheduling is an operator/release decision; v0.54.0 is a proposal.
+The implementer may choose private helper names, test file organization, default colors and the internal poll abstraction within the fixed bounds. M0 froze diagnostic payloads and backend registration details with evidence. The operator authorized the supporting v0.54.0 release, which is now public.
 
 This first release excludes mouse support, rich keyboard-protocol negotiation, password-entry guarantees, background AI-step cancellation, a general task scheduler, Go CLI rewrites and a curses-style stdlib. Windows native input and browser-provided terminal sessions are future host adapters; pure rendering, line use and recorded events remain useful independently. Additional forms, tables, search boxes and themes can extend the same package after selection/confirmation/paging validates the model.
 
+The follow-up message `inbox_1791630246888_28589e92` reports managed and async
+subprocesses surviving host exit on v0.52.0. The same isolated provider-free
+reproductions also leave workers alive on a local build of the exact v0.54.0 tag
+361caeda1. This is an unresolved general process/source lifecycle bug, separate
+from terminal lease restoration; this sprint does not claim to fix it or expose
+worker cancellation. The managed-process design already promised shutdown
+cleanup, while the older #231 design covers AI-step abort rather than general
+worker ownership. It needs a dedicated follow-up covering both tracked process
+and async-source teardown, bounded cancellation and supervised descendants.
+
 ## Related Documents
 
-- [M-PKG-BIN-ENTRYPOINTS](../implemented/v0_40_1/m-pkg-bin-entrypoints.md) — implemented command distribution; reused, not redesigned.
-- [M-TERMINAL-IO](../implemented/v0_27_0/m-terminal-io.md) — implemented escapes/flush; explicitly excluded this input surface.
-- [M-AGENT-STEP-CANCELLATION](v0_29_0/m-agent-step-cancellation.md) — separate #231 use case and older exclusion this proposal asks to revise.
-- [M-IO-READLINE-EOF-OPTION](v0_52_0/m-io-readline-eof-option.md) — exact line EOF dependency, kept in its existing design.
-- [Initial triage](ailang-core-triage/native-terminal-tui-input.md) — superseded routing context: existing-package evidence and operator request now warrant this design.
-- [Maintained limitations](../../docs/docs/reference/limitations.md#interactive-stdin--keyboard-input) and [PROGRAM](../PROGRAM.md) — public boundary and routing principles.
+- [M-PKG-BIN-ENTRYPOINTS](../v0_40_1/m-pkg-bin-entrypoints.md) — implemented command distribution; reused, not redesigned.
+- [M-TERMINAL-IO](../v0_27_0/m-terminal-io.md) — implemented escapes/flush; explicitly excluded this input surface.
+- [M-AGENT-STEP-CANCELLATION](../../planned/v0_29_0/m-agent-step-cancellation.md) — separate #231 use case and older exclusion this proposal asks to revise.
+- [M-IO-READLINE-EOF-OPTION](../../planned/v0_52_0/m-io-readline-eof-option.md) — exact line EOF dependency, kept in its existing design.
+- [Initial triage](../../planned/ailang-core-triage/native-terminal-tui-input.md) — superseded routing context: existing-package evidence and operator request now warrant this design.
+- [Maintained limitations](../../../docs/docs/reference/limitations.md#interactive-stdin--keyboard-input) and [PROGRAM](../../PROGRAM.md) — public boundary and routing principles.
 
 **Created / last updated**: 2026-10-10. Implementation and package publication are authorized by the user messages recorded above. No message acknowledgement or unrelated coordinator approval is included.
 
@@ -279,3 +313,13 @@ controls cover four/five/eight recursive branches, real IO rejection in a pure
 recursive function, effect/record multi-hop open and closed aliases, metadata and
 cycle behavior. General structural substitution APIs are unchanged; this repair
 is confined to the row-unification boundary.
+
+## Delivery Closure (2026-10-10)
+
+Core PR #1756 and package PR #117 merged. Public AILANG v0.54.0 supports the
+accepted sunholo/terminal_ui@0.2.0 registry release. Independent round2 passed
+82/100 plus 10 conditional regression points (92/110), with no implementation
+or delivery blockers; its deductions record the pre-closure artifact state.
+All milestone state and companion documents are now complete and archived.
+See [validation evidence](m-terminal-ui-native-input-validation.md) for exact
+CI, release, registry identities and fresh consumer results.

@@ -1,6 +1,6 @@
 # Sprint Plan: M-TERMINAL-UI-NATIVE-INPUT
 
-**Status**: Approved for execution by operator, 2026-10-10
+**Status**: Completed — independent round2 PASS, 2026-10-10
 **Design**: [M-TERMINAL-UI-NATIVE-INPUT](m-terminal-ui-native-input.md)
 **Goal**: Enable native terminal interaction and evolve the existing `sunholo/terminal_ui` package.
 **Duration**: 10 engineering days / 60 hours, provisional
@@ -20,7 +20,7 @@ Registry searches `tui`/`terminal` returned no matches; `pkg info/docs sunholo/t
 
 M0 freezes the interface. Then M1 host and M2 builtin/backend work proceed in the same isolated core checkout with distinct ownership, while M3 pure package development proceeds in its own checkout. Integration M4 waits for all three; final evaluation M5 follows. The executor skill explicitly permits independent milestone sub-agents; the root integrates and owns runner wiring, plan/state/docs and end-to-end controls. Workers must not switch shared branches or revert other changes.
 
-## M0 — Contract and deployment-independent evidence (150 LOC, 6h)
+## M0 ✅ — Contract and deployment-independent evidence (150 LOC, 6h)
 
 - [x] Freeze `std/terminal`: info, scoped withTerminal callback, readEvent; typed values and errors; IO only for host operations.
 - [x] Confirm callback effect-row construction/VM wiring with actual registered-builtin checks, not just the earlier syntax stub.
@@ -29,7 +29,7 @@ M0 freezes the interface. Then M1 host and M2 builtin/backend work proceed in th
 
 Example: `examples/runnable/terminal_info.ail` (M2). Contracts: include pure size-validity helper; effects: `! {IO}` for main; inline tests: include boundary helper cases.
 
-## M1 — Native host and decoder (900 LOC, 18h; depends M0)
+## M1 ✅ — Native host and decoder (900 LOC, 18h; depends M0)
 
 - [x] POSIX info/size, device lease, validated session handles, bounded decoder, idle/EOF/resize behavior and typed unsupported-platform results.
 - [x] Noncanonical/no-echo input retains ISIG. Scope restores termios, descriptor flags and trusted cursor/alternate-screen sequences on callback return, error, panic and exit sentinel.
@@ -39,7 +39,7 @@ Example: `examples/runnable/terminal_info.ail` (M2). Contracts: include pure siz
 
 Ownership: `internal/effects/terminal*.go`, context terminal state/reader ownership, IO and stream stdin guards. Root owns runner/CLI lifecycle wiring. Example: `examples/runnable/terminal_keys.ail` (M2); contracts: include pure event classification; effects: `! {IO}`; inline tests: include key/idle classification cases.
 
-## M2 — Language surface, EOF and backends (650 LOC, 12h; depends M0)
+## M2 ✅ — Language surface, EOF and backends (650 LOC, 12h; depends M0)
 
 - [x] Register terminal builtins and `std/terminal` types/signatures with callback effect propagation, capability/budget dispatch and complete metadata.
 - [x] Add additive `std/io.readLineOpt` / `_io_readLineOpt` using the shared reader; preserve blank lines, final partial line and sticky EOF. Record nondeterministic trace parity.
@@ -49,7 +49,7 @@ Ownership: `internal/effects/terminal*.go`, context terminal state/reader owners
 
 Ownership: std, builtins, VM/bytecode/gen integration, trace replay classification and examples; host EOF handler coordinated with M1 ownership. Example `examples/runnable/terminal_line_input.ail`: contracts include pure line classifier; effects `! {IO}`; inline tests include blank/nonblank inputs. Existing progress_bar/micro_io_echo/test_io_builtins remain regression fixtures.
 
-## M3 — Existing package upgrade (850 LOC, 12h; depends M0; integration depends M1/M2)
+## M3 ✅ — Existing package upgrade (850 LOC, 12h; depends M0; integration depends M1/M2)
 
 - [x] Evolve `sunholo/terminal_ui` to v0.2.0; preserve ui exports/behavior and `[bin] terminal-ui-demo`.
 - [x] Add pure events/widgets and versioned bounded transcript replay; selection, confirmation and paging are reusable.
@@ -59,22 +59,22 @@ Ownership: std, builtins, VM/bytecode/gen integration, trace replay classificati
 
 Ownership: package `packages/terminal-ui/**` only. Demo checklist: contracts include navigation/selection invariants; effects `! {IO, Env}` for CLI argument access; inline tests include first/last navigation and cancellation. Smoke checklist: contracts skip (effectful host driver has no pure result invariant); effects `! {IO}`; inline tests include pure smoke classifier if introduced, otherwise skip with reason and meaningful named test coverage.
 
-## M4 — End-to-end regression and portability (450 LOC, 9h; depends M1/M2/M3)
+## M4 ✅ — End-to-end regression and portability (450 LOC, 9h; depends M1/M2/M3)
 
 - [x] Installed `[bin]` runs from unrelated cwd; PTY arrow-key/resize tests work under evaluator and strict VM.
 - [x] PTY state/escape restoration is checked for normal/error/budget/exit/panic/SIGINT/SIGTERM; changed decoder/cleanup mutation fails controls.
 - [x] Plain output has no ESC; blank line survives; EOF exits; event replay is deterministic and altered event changes outcome.
-- [ ] Full applicable test/lint/boundary/build checks pass; inherited baseline/environment failures are recorded separately and do not masquerade as regressions.
+- [x] Full applicable test/lint/boundary/build checks pass; inherited baseline/environment failures are recorded separately and do not masquerade as regressions.
 - [x] Package lock/check/named/inline tests/strict quality/smoke/dry-run evidence includes actual totals and property skips.
 
 Root ownership: runner/CLI wiring, end-to-end tests, package installation controls and portability validation. Existing example fixtures must be checked/run where applicable.
 
-## M5 — Documentation, evaluation and delivery (200 LOC, 3h; depends M4)
+## M5 ✅ — Documentation, evaluation and delivery (200 LOC, 3h; depends M4)
 
 - [x] Changelog fragment, maintained limitations, builtin/package docs and usage examples reflect actual behavior/platform boundaries.
-- [ ] Sprint plan and JSON record each acceptance result and all required evidence; both ride the core branch.
-- [ ] Sprint-evaluator assesses tests/lint/acceptance/code/docs/fidelity plus conditional regression coverage; fix real findings and re-evaluate.
-- [ ] Core/package changes are committed separately and reviewable; supporting core version and validator are verified, package is published, and a fresh consumer installs and runs the published binary.
+- [x] Sprint plan and JSON record each acceptance result and all required evidence; both ride the core branch.
+- [x] Sprint-evaluator assesses tests/lint/acceptance/code/docs/fidelity plus conditional regression coverage; fix real findings and re-evaluate.
+- [x] Core/package changes are committed separately and reviewable; supporting core version and validator are verified, package is published, and a fresh consumer installs and runs the published binary.
 
 ## Schedule and release boundary
 
@@ -84,16 +84,35 @@ The sprint validates against its built binary and package checkout. Package regi
 
 ## Execution evidence and delivery state
 
-M0–M3 are implemented; M4 local gates pass, with the Windows CI reader-identity correction repaired/reviewed and actual runtime CI pending. Integrated full `make test` and lint
-pass on core commit cdcea3bdb, including the current dev imported callback repair.
+M0–M5 pass. Actual Linux/Windows CI, lint, security, platform builds and docs pass
+on final reviewed head beb681d76 (run 38047208336); Sonar new coverage is 89.7%
+against its unchanged 80% gate. Local release preflight/post-update gates, real PTY
+and mutation controls, complete crew validation and the existing social regression
+also pass. The scoped recursive-row alias repair enables the unchanged crew
+consumer while preserving compiler invariants and real-effect rejection.
 [Validation and delivery evidence](m-terminal-ui-native-input-validation.md)
 records actual PTY, mutation, package, portability and registry results.
 Core [PR #1756](https://github.com/sunholo-data/ailang/pull/1756) and package
-[PR #117](https://github.com/sunholo-data/ailang-packages/pull/117) are separate,
-mergeable drafts. CI and independent final evaluation remain pending.
+[PR #117](https://github.com/sunholo-data/ailang-packages/pull/117) are separate.
+Core PR #1756 merged at cc0bf4453. The supporting v0.54.0 release is public at
+361caeda1; matching dev CI 38048763041 and release workflow 38050365288 passed.
+The released validator reports v0.54.0. Package CI 38050960642 passed complete
+crew, 8/8 mutation and social gates at 85ccdecb; PR #117 merged at acfe51adc.
+Actual registry publication accepted sunholo/terminal_ui@0.2.0. A fresh official
+v0.54.0 consumer passed identity, archive, shim, redirected-input and native
+arrow/resize/terminal-restoration checks. Independent round2 PASS and companion archival complete M5.
 
 An actual authorized `ailang publish` request on 2026-10-10 was rejected by the
 v0.53.2 validator: std/terminal is absent; 8 files compile and 4 adapter/demo files
-fail. This confirms the supporting-core-release dependency. M5 stays incomplete
-until the released validator accepts publication and a fresh registry consumer
-installs/runs it. The runtime floor remains >=0.54.0.
+fail. This confirms the supporting-core-release dependency. After v0.54.0 released, the validator accepted the same source identity and
+the fresh registry consumer passed. The runtime floor remains >=0.54.0.
+
+## Actual completion metrics
+
+Added Go/AILANG source and tests: 4,855 lines (core 3,862; package 993).
+Documentation, locks, generated interfaces and 7,905 copied prompt/mirror lines
+are excluded; M0/M5 are documentation-only. Attended elapsed time: about
+5.169 hours, including parallel agent execution, CI and release waits.
+This does not establish calibrated single-engineer daily/weekly velocity.
+Independent round2: 82/100 plus 10 regression bonus (92/110), no hard failures.
+The JSON state records all six completed milestones and final evidence.
