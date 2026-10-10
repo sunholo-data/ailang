@@ -136,6 +136,12 @@ have "boot moved the session gate aside"              '[ ! -f /home/ailang/.pi/a
 have "no policy env -> boot says execution is NOT granted" 'grep -q "program policy: NONE" /tmp/boot.log'
 have "resident-run is gone"                           '! command -v resident-run >/dev/null 2>&1'
 
+# Section 3 stopped the server after the key-substitution fixture. Restart it
+# before asserting HTTP authentication; a stopped server cannot return 401.
+/usr/local/bin/boot.sh > /tmp/auth-boot.log 2>&1 &
+BOOT=$!
+for i in $(seq 1 90); do [ "$(curl -s localhost:8080/livez 2>/dev/null)" = "ok" ] && break; sleep 1; done
+
 echo "=== 5. public-ingress authorisation (Preview edge does not enforce invoker) ==="
 have "/livez is public and reveals nothing"     '[ "$(curl -s localhost:8080/livez)" = "ok" ]'
 have "/health requires a token"                 '[ "$(curl -s -o /dev/null -w %{http_code} localhost:8080/health)" = "401" ]'
