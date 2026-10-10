@@ -27,6 +27,25 @@ organization, workspace, or allocation. Activation and the live canary remain
 blocked until those identities, provider-side caps and grant evidence agree.
 No calendar rollover or key replacement renews the AILANG allowance.
 
+### Attended rollout decision — 2026-10-10
+
+Mark confirmed the `Holosun ApS` organization and `ailang` workspace, rotated the
+provider key, and authorized publishing the guarded implementation to production.
+Secret version 4 authenticated with HTTP 200 on the nonbillable Models API;
+`claude-haiku-5-5` is available. That check used no inference or credit allowance.
+
+Both existing Cloud Build accounts remain trusted deployment administrators for
+this rollout, including their inherited secret/ledger access. Mark explicitly
+deferred narrowing those permissions; no folder IAM change was applied. Ordinary
+coordinator/executor identities remain outside the provider-key and ledger
+boundary enforced by the reviewed runtime IAM changes.
+
+**TODO — follow-up sprint:** evaluate federated Anthropic authentication before
+designing narrower Cloud Build access. It may remove the long-lived provider-key
+requirement. Reassess any remaining secret/ledger permissions, model the impact on
+existing deployments, and implement through reviewed Terraform. This follow-up
+must preserve the shared credit accounting and explicit grant-renewal rules.
+
 ## Actual cloud deployment inventory
 
 ### Installed CLI compatibility evidence
