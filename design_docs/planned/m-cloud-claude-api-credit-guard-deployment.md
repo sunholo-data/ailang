@@ -91,6 +91,23 @@ diagnostics, then obtain provider evidence before releasing any held exposure.
 The operator currently sees no spend, which may reflect reporting lag or rounding.
 No retry, grant renewal, or ledger reset may bypass reconciliation.
 
+An attended direct key diagnostic subsequently succeeded at 2026-10-10T12:16:11Z
+using secret version 4: HTTP200, `OK`, 16 input / 4 output tokens, complete
+`message_stop`, and 4 microUSD calculated under the reviewed rate card. Its real
+usage frames include `output_tokens_details` and are banked in the regression
+suite. This verifies that key and the observed plain Messages contract; it is not
+an executor canary or evidence for the earlier unresolved request. The operator
+clarified the console balance as $199.77 remaining ($0.23 used).
+
+The first direct attempt returned a transport error without provider evidence,
+so its separate conservative 1,000,040 microUSD bound remains held in the attended
+audit; it is not falsely added to or settled in the canonical executor ledger.
+A second connection failed certificate verification before HTTP forwarding and
+is proved non-forwarded. The successful request used the system HTTPS client
+with verification enabled, no tools and no HTTP retries. The original $1.32
+gateway hold remains unchanged. Combined audited exposure/spend, including the
+reported $0.23 conservatively, remains within the $5 pilot envelope.
+
 The gateway's stable numeric origin and Cloud Run's generated URL differ.
 Terraform explicitly registers the stable origin in `custom_audiences`, matching
 application JWT validation. Both Cloud Run IAM and application authorization stay

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -54,6 +55,27 @@ func TestMultipleCumulativeEventsPreserveLatestNonNullTotals(t *testing.T) {
 	}
 	if trace.LastVerified == nil || *trace.LastVerified != usage || trace.Final["input_tokens"] != nil || !trace.Stopped {
 		t.Fatalf("latest verified observations lost from diagnostic: %+v", trace)
+	}
+}
+
+// Billing frames observed from the attended, 16-output-token key diagnostic on
+// 2026-10-10. Identifiers are replaced; usage fields and counts are unchanged.
+// This is evidence for this diagnostic only, not the earlier failed canary.
+func TestProviderObservedStreamingUsage20261010(t *testing.T) {
+	stream := usageEvent("message_start", `{"type":"message_start","message":{"id":"msg-observed-usage","model":"claude-haiku-5-5","usage":{"input_tokens":16,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"output_tokens":4,"service_tier":"standard","inference_geo":"global"}}}`) +
+		usageEvent("message_delta", `{"type":"message_delta","usage":{"input_tokens":16,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":4,"output_tokens_details":{"thinking_tokens":0}}}`) +
+		usageEvent("message_stop", `{"type":"message_stop"}`)
+	u, id, err := relayStream(httptest.NewRecorder(), strings.NewReader(stream), "claude-haiku-5-5", 16)
+	if err != nil || id != "msg-observed-usage" || u != (modelreg.ClaudeUsage{InputTokens: 16, OutputTokens: 4}) {
+		t.Fatalf("observed billing contract rejected: %+v id=%s err=%v", u, id, err)
+	}
+	registry, err := modelreg.LoadModelsConfig(filepath.Join("..", "modelreg", "models.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cost, err := registry.ClaudeUsageCost("claude-haiku-5-5", u)
+	if err != nil || cost != 4 {
+		t.Fatalf("observed inclusive billing total wrong: cost=%d err=%v", cost, err)
 	}
 }
 
