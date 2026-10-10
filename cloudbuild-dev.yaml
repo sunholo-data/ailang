@@ -445,6 +445,10 @@ steps:
         set -e
         export REGION="${_REGION}" PROJECT="$_TARGET_PROJECT" PREFIX="${_PREFIX}" TAG=latest
         . /workspace/multivac/scripts/cloudbuild-lib.sh
+        # Guarded jobs keep verified release digests. Floating dev builds deploy
+        # the regular family; versioned release/promote owns guarded updates.
+        CLAUDE_CREDIT_JOBS=""
+        CLAUDE_CREDIT_SERVICES=""
         set_deploy core
         finish "dev deploy"
     waitFor:

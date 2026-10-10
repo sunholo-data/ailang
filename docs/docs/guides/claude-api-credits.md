@@ -88,6 +88,8 @@ Use the owning infrastructure repository's Terraform and release pipelines. One
 production state owns the authority and both environments' guarded jobs. Provision
 the private project and IAM first; securely add the signing-secret value outside
 Terraform state; then deploy runtime with verified immutable image digests.
+Routine floating dev builds preserve the guarded runtime's release pins;
+versioned release/promotion owns its image updates.
 
 Before a live canary, verify the deployed CLI's protocol, identities, key mounts,
 ledger isolation, and operator authentication. Confirm the grant, exercise status
