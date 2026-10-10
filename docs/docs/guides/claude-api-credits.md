@@ -197,3 +197,21 @@ evidence. Federation and deployment-administrator access are a follow-up sprint;
 other providers' credit pools and automated 50/75/90% spend notifications are
 separate follow-up work. Current canonical status and admission blockers enforce
 the monetary limits without relying on alert delivery.
+
+## Website workloads
+
+From v0.54.2, the guarded Claude Go image also supplies Python/PyYAML, virtual
+environments, Chromium and Yarn 1.22.22 for website builds and browser checks.
+Infrastructure can route `website-builder`, `site-blog`, `site-presentations`,
+`site-rda` and `site-sunholo` through this image using
+`claude_credit_websites_enabled`. The environment flag is separate from evaluator
+activation; test remains disabled. Dev and production use the shared gateway and
+their own guarded runtime identity.
+
+Each website task has a $2 ceiling and 45-minute timeout, sharing the $190
+operating ceiling, $6 daily ceiling, two-task concurrency limit and grant expiry
+with the evaluator. Workspaces, instructions, input grants and publishing
+approvals remain the same. Existing in-flight tasks keep their selected executor;
+new dispatches use the deployed configuration. Turning off the website flag
+restores the previous Pi/GLM routes through Terraform CI without resetting the
+credit ledger. Credit exhaustion itself does not trigger that switch.
