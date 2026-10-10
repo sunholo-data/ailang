@@ -1,7 +1,8 @@
-# Website tools in the Pi executor
+# Website tools in the cloud executors
 
-`agent-pi` (and its `agent-pi-go` child) includes Python 3, PyYAML,
-virtual environments and Chromium. Tasks still run as the non-root `ailang`
+`agent-pi` (and its `agent-pi-go` child) and, from v0.54.2, the Claude
+`agent-go` image include Python 3, PyYAML, virtual environments and Chromium.
+The Claude Go image also pins Yarn 1.22.22 for existing Yarn website builds. Tasks still run as the non-root `ailang`
 user. No repository permissions or task policy change.
 
 Run the repository's official build, for example `python build.py`. For extra
@@ -42,3 +43,9 @@ non-root venv/pip, and real Chromium JavaScript, screenshot and PDF probes.
 References: [Puppeteer configuration](https://pptr.dev/api/puppeteer.configuration),
 [installation](https://pptr.dev/guides/installation) and
 [container troubleshooting](https://pptr.dev/troubleshooting).
+
+The guarded Haiku website routes use the Claude `agent-go` image and the existing
+credit gateway. The model-free release check also exercises Node/npm and Yarn,
+YAML parsing, a venv with pip, Chromium JavaScript, a PNG and a PDF as the runtime
+user before activation. All five website agents share the confirmed credit pool;
+image tooling does not change their repository or publishing permissions.
