@@ -115,6 +115,7 @@ func (e *Engine) Confirm(ctx context.Context, c Confirmation) (Status, error) {
 		}
 		a.Grant = Grant{Confirmation: c, ConfirmedAt: now}
 		a.Settled = 0
+		a.ConservativeDebited = 0
 		// Outstanding exposure, disabled state, and reconciliation survive renewal.
 		if err := tx.Put("grants", c.GrantID, a.Grant); err != nil {
 			return err
@@ -202,7 +203,7 @@ func fits(settled, reserved, amount, ceiling MicroUSD) bool {
 }
 func (e *Engine) AdmitTask(ctx context.Context, t Task) error {
 	now := e.now().UTC()
-	if !validID(t.AccountID) || !validID(t.ID) || !validID(t.AttemptID) || t.JobIdentity == "" || len(t.Models) == 0 || t.Ceiling <= 0 || t.Settled != 0 || t.Reserved != 0 || t.Released || !t.LeaseUntil.After(now) {
+	if !validID(t.AccountID) || !validID(t.ID) || !validID(t.AttemptID) || t.JobIdentity == "" || len(t.Models) == 0 || t.Ceiling <= 0 || t.Settled != 0 || t.Reserved != 0 || t.ConservativeDebited != 0 || t.Released || !t.LeaseUntil.After(now) {
 		return fmt.Errorf("invalid task admission")
 	}
 	return e.store.Run(ctx, t.AccountID, func(tx Transaction) error {
@@ -219,6 +220,7 @@ func (e *Engine) AdmitTask(ctx context.Context, t Task) error {
 			binding := old
 			binding.Settled = 0
 			binding.Reserved = 0
+			binding.ConservativeDebited = 0
 			if reflect.DeepEqual(binding, t) {
 				return nil
 			}
@@ -233,6 +235,7 @@ func (e *Engine) AdmitTask(ctx context.Context, t Task) error {
 			}
 			t.Settled = old.Settled
 			t.Reserved = old.Reserved
+			t.ConservativeDebited = old.ConservativeDebited
 		}
 		s := status(a, now)
 		if !s.Eligible {
@@ -313,7 +316,7 @@ func (e *Engine) CompleteCanary(ctx context.Context, id, operator, evidence stri
 		if a.CanaryComplete {
 			return nil
 		}
-		if a.ReconciliationRequired || a.Reserved != 0 || a.Forwarding != 0 || a.Unresolved != 0 || a.CanaryReserved != 0 || a.CanarySettled <= 0 {
+		if a.ReconciliationRequired || a.Reserved != 0 || a.Forwarding != 0 || a.Unresolved != 0 || a.CanaryReserved != 0 || a.CanaryGatewaySettled <= 0 {
 			return blocked("canary requires settled spend and no uncertain or pending exposure")
 		}
 		a.CanaryComplete = true

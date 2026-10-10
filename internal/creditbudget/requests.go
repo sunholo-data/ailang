@@ -233,6 +233,7 @@ func (e *Engine) Settle(ctx context.Context, accountID, requestID string, actual
 				}
 				a.CanaryReserved -= r.Amount
 				a.CanarySettled += actual
+				a.CanaryGatewaySettled += actual
 			}
 			if r.State == "unresolved" {
 				a.Unresolved -= r.Amount

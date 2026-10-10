@@ -279,3 +279,12 @@ The authority enforces an aggregate $5 canary sublimit until audited `credits pr
 The initial opt-in fake-only installed CLI diagnostic failed: Claude 2.1.295 sends `interleaved-thinking-2025-05-14`, `mid-conversation-system-2026-04-07`, `claude-code-20250219` and `effort-2025-11-24`. The gateway rejected these before reservation or send, and continues to reject them if presented. Automatic approval review rejected allowing the unverified features; no allowlist expansion was applied. The user approved continuing the bounded compatibility review. The safer implementation disables these extensions at the client using the reviewed2.1.295 proxy-compatibility switch, keeps gateway beta rejection intact, and admits only documented standard text system messages. Actual CLI completion and a two-request Bash printf tool loop now pass under the race detector. M4/M5 local readiness is restored; no real inference occurred. See [CLI contract](m-cloud-claude-api-credit-guard-cli-contract.md).
 
 M6 remains pending: built/deployed image compatibility, isolated authority and gateway deployment, narrowing existing runtime secret IAM, reviewed image/release integration, verified organization/workspace/cycle evidence, CI, live canary and provider billing reconciliation. No inference credit was consumed and the lane remains disabled. See [operator guide](m-cloud-claude-api-credit-guard-operator-guide.md) and [deployment evidence](m-cloud-claude-api-credit-guard-deployment.md).
+
+### M6 recovery continuation — 2026-10-10
+
+The attended user authorized continuing the repair, audited conservative recovery,
+and dev/prod canaries. Execute the concrete authority → operator commands →
+CI/release → disabled-ledger recovery → canaries sequence in the
+[recovery addendum](m-cloud-claude-api-credit-guard-recovery.md). No uncertainty is
+refunded; external diagnostics and the conservative balance observation also
+consume the original allocation and $5 canary allowance. M6 remains incomplete.

@@ -2,8 +2,11 @@ package firestore
 
 import (
 	"context"
+	"fmt"
+	"sort"
 
 	"cloud.google.com/go/firestore"
+	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -50,4 +53,32 @@ func (t *creditTransaction) Get(collection, id string, into any) (bool, error) {
 }
 func (t *creditTransaction) Put(collection, id string, value any) error {
 	return t.tx.Set(t.doc(collection, id), value)
+}
+
+func (s *CreditStore) ListRequests(ctx context.Context, accountID, taskID string, limit int) ([]creditbudget.Request, error) {
+	if limit < 1 || limit > creditbudget.RequestInspectionLimit {
+		return nil, fmt.Errorf("invalid request inspection bound")
+	}
+	iter := s.client.Doc("credit_accounts", accountID).Collection("requests").Where("TaskID", "==", taskID).Limit(limit + 1).Documents(ctx)
+	defer iter.Stop()
+	rows := []creditbudget.Request{}
+	for {
+		snapshot, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(rows) == limit {
+			return nil, fmt.Errorf("request inspection truncated: more than %d requests", limit)
+		}
+		var r creditbudget.Request
+		if err := snapshot.DataTo(&r); err != nil {
+			return nil, err
+		}
+		rows = append(rows, r)
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].RequestID < rows[j].RequestID })
+	return rows, nil
 }

@@ -41,8 +41,9 @@ another provider or credential.
 When accounting fails, inspect provider billing evidence alongside the canonical
 reservation. A zero or empty console total can reflect reporting delay or display
 rounding; it does not prove that a forwarded request was free. Keep admission
-disabled until unresolved exposure is reconciled. Never reset the ledger, replace
-the grant, or retry an ambiguous request to clear a hold.
+disabled until unresolved exposure is reconciled or its complete reservation is
+recorded as an audited conservative debit. Never reset the ledger, replace the
+grant, or retry an ambiguous request to clear a hold.
 
 ## Inspect and control the account
 
@@ -52,18 +53,70 @@ All commands address the canonical gateway with `--remote gcp`, `--gateway`, and
 
 | Action | Purpose |
 |---|---|
-| `status` | Show the grant, expiry, settled/reserved/unresolved spend, and blockers. |
+| `status` | Show the grant, expiry, booked/reserved/unresolved spend, and blockers. |
+| `requests` | Inspect original request IDs, amounts and states for an explicit task. |
+| `conservative-debit` | Permanently count an unknown request’s complete reservation as used. |
+| `external-debit` | Count an attended diagnostic or other externally observed spend. |
 | `confirm` | Record an operator-verified allocation and its evidence. |
 | `enable` | Allow guarded canary admission after verification. |
 | `disable` | Stop new admission without resetting spend or outstanding exposure. |
 | `promote` | Finish canary mode after reconciliation; preserve all spend. |
 
 Mutating actions require an audit reference through `--evidence`. `confirm`,
-`enable`, and `promote` require explicit confirmation. Use `--yes` only after
+`enable`, `promote`, and both debit actions require explicit confirmation. Use `--yes` only after
 reviewing the canonical state. Operator service-account impersonation is supported
 through `--impersonate-service-account`; grant
 `roles/iam.serviceAccountOpenIdTokenCreator` on that operator identity only.
 AILANG directly mints an ID token; the broader access-token/signing role is unnecessary. Executors and coordinators are not credit operators.
+
+## Recover an unknown charge conservatively
+
+Recovery commands and retained usage receipts require v0.54.1 or later.
+
+Recovery requires a disabled account, no active tasks or forwarding requests,
+and the exact current `--grant-id`. First inspect `status` and
+`requests --task-id TASK_ID`. Inspection is bounded to 100 records and fails if
+the result would be truncated.
+
+If a complete provider receipt is unavailable, `conservative-debit` counts the
+entire original reservation as permanently used. `--amount-usd` must exactly
+match that reservation. The original unknown outcome remains in history; no
+provider receipt, actual cost or upstream ID is invented.
+
+```sh
+ailang coordinator credits conservative-debit --remote gcp \
+  --gateway https://GATEWAY.run.app --account anthropic-api-credits \
+  --impersonate-service-account OPERATOR@PROJECT.iam.gserviceaccount.com \
+  --grant-id CURRENT_GRANT --request-id ORIGINAL_REQUEST_ID \
+  --amount-usd ORIGINAL_FULL_RESERVATION --evidence AUDIT_REFERENCE --yes
+```
+
+Use `external-debit --debit-id UNIQUE_REFERENCE --amount-usd AMOUNT` for exposure
+from an attended direct diagnostic. Choose `--kind conservative` when its
+outcome or attribution is uncertain, or `--kind provider-verified` only with a
+retained complete provider receipt and reviewed pricing. Supply the same common
+flags, grant, evidence and `--yes`. A console balance is not a request receipt.
+Possible overlap may be counted conservatively; these commands cannot refund it.
+
+`Settled` is the total booked debit against the allowance. `ConservativeDebited`
+identifies the subset without verified provider spend. Moving a reservation into
+that subset creates no available capacity. Exact replays add nothing; changed
+IDs, grant, amount, identity or evidence conflict. Recovery does not enable the
+account and cannot clear unrelated accounting failures or over-reservation costs.
+
+All external and conservative debits consume the same initial $5 canary allowance.
+They cannot prove a successful gateway canary: `CanaryGatewaySettled` must contain
+positive verified gateway spend, with outstanding requests resolved and provider
+evidence reviewed. Fresh grant confirmation retains immutable history and follows
+the renewal rules below.
+
+After durable settlement, the gateway logs `credit_usage_settled` with internal
+and provider IDs, the exact pricing revision, cost in micro-USD and verified input,
+cache-read, cache-write TTL and inclusive output totals. Context pricing follows
+those counts and the rate card; admission enforces the supported service and
+residency classes. These receipts contain no prompt, response text or credentials.
+Retain the live canary receipts alongside provider billing evidence. Failure
+observations are separate diagnostics and cannot authorize settlement.
 
 ## Confirm fresh credits in AILANG
 

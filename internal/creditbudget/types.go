@@ -30,6 +30,9 @@ type Transaction interface {
 }
 
 type Authority interface {
+	ConservativeDebit(context.Context, ConservativeDebit) error
+	ExternalDebit(context.Context, ExternalDebit) error
+	Requests(context.Context, string, string) ([]Request, error)
 	Configure(context.Context, Policy) error
 	SetEnabled(context.Context, string, bool, string, string) error
 	CompleteCanary(context.Context, string, string, string) error
@@ -71,16 +74,17 @@ type Grant struct {
 	ConfirmedAt time.Time
 }
 type Task struct {
-	AccountID   string
-	ID          string
-	AttemptID   string
-	JobIdentity string
-	Models      []string
-	Ceiling     MicroUSD
-	LeaseUntil  time.Time
-	Settled     MicroUSD
-	Reserved    MicroUSD
-	Released    bool
+	AccountID           string
+	ID                  string
+	AttemptID           string
+	JobIdentity         string
+	Models              []string
+	Ceiling             MicroUSD
+	LeaseUntil          time.Time
+	Settled             MicroUSD
+	Reserved            MicroUSD
+	ConservativeDebited MicroUSD
+	Released            bool
 }
 type Reservation struct {
 	AccountID       string
@@ -105,9 +109,10 @@ type Request struct {
 }
 type Account struct {
 	Policy
-	Grant    Grant
-	Settled  MicroUSD
-	Reserved MicroUSD
+	Grant               Grant
+	Settled             MicroUSD
+	ConservativeDebited MicroUSD
+	Reserved            MicroUSD
 	// Forwarding is exposure with durable send intent and no complete result.
 	// It includes requests interrupted by a process crash before MarkUnresolved.
 	Forwarding             MicroUSD
@@ -117,6 +122,7 @@ type Account struct {
 	Leases                 map[string]time.Time
 	CanaryComplete         bool
 	CanarySettled          MicroUSD
+	CanaryGatewaySettled   MicroUSD
 	CanaryReserved         MicroUSD
 }
 type Status struct {
@@ -128,7 +134,29 @@ type Status struct {
 	Day             Day
 	ActiveTasks     int
 }
-type Day struct{ Settled, Reserved MicroUSD }
+type Day struct{ Settled, Reserved, ConservativeDebited MicroUSD }
+
+type ConservativeDebit struct {
+	AccountID, GrantID, RequestID string
+	ExpectedAmount                MicroUSD
+	Operator, Evidence            string
+}
+type ExternalDebit struct {
+	AccountID, GrantID, DebitID string
+	Amount                      MicroUSD
+	Kind, Operator, Evidence    string
+}
+type DebitAudit struct {
+	Action, AccountID, GrantID, RequestID, DebitID, Kind, Operator, Evidence string
+	Amount                                                                   MicroUSD
+	At                                                                       time.Time
+}
+
+// RequestReader is an optional store capability for bounded operator inspection.
+// Implementations return an error if more than limit records match.
+type RequestReader interface {
+	ListRequests(context.Context, string, string, int) ([]Request, error)
+}
 type Audit struct {
 	Operator, Evidence, Action string
 	At                         time.Time

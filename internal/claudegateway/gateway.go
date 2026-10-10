@@ -33,6 +33,7 @@ type Gateway struct {
 	Coordinators map[string]string // authenticated coordinator -> permitted job SA
 	Now          func() time.Time
 	Diagnostic   func(UsageDiagnostic) // optional test/structured logging sink
+	Receipt      func(UsageReceipt)    // verified billing receipt after durable settlement
 }
 
 func (g *Gateway) now() time.Time {
@@ -240,7 +241,11 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	stage = "settlement"
 	if err = g.Authority.Settle(settleCtx, cap.AccountID, requestID, creditbudget.MicroUSD(cost), upstreamID); err != nil {
 		unresolved()
+		return
 	}
+	g.reportSettled(UsageReceipt{Event: "credit_usage_settled", AccountID: cap.AccountID,
+		TaskID: cap.TaskID, RequestID: requestID, ProviderRequestID: providerRequestID,
+		MessageID: upstreamID, Model: model, PricingRevision: revision, CostMicroUSD: cost, Usage: usage})
 }
 func (g *Gateway) admin(w http.ResponseWriter, r *http.Request) {
 	if g.Authenticate == nil || g.Authority == nil {
@@ -295,6 +300,9 @@ func (g *Gateway) admin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	action := strings.TrimPrefix(r.URL.Path, prefix)
+	if g.recoveryAdmin(w, r, identity, action) {
+		return
+	}
 	var status creditbudget.Status
 	switch {
 	case action == "status" && r.Method == http.MethodGet:

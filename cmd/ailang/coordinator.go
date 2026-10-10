@@ -118,7 +118,7 @@ func printCoordinatorHelp() {
 	fmt.Println("  sync-threads   Sync thread agent from coordinator tasks")
 	fmt.Println("  execute-job    Execute a task in Cloud Run Job (M-PUBSUB)")
 	fmt.Println("  workers        List/probe worker hosts (bare-metal + Cloud Run; M-COORD-MULTI-HOST-WORKERS)")
-	fmt.Println("  credits        Confirm/status verified API credits (--remote gcp; --gateway HTTPS_URL)")
+	fmt.Println("  credits        Confirm/status API credits, inspect requests and audit recovery (--remote gcp; --gateway HTTPS_URL)")
 	fmt.Println("  help           Show this help message")
 	fmt.Println("")
 	fmt.Println("The coordinator daemon watches for incoming messages and executes tasks")

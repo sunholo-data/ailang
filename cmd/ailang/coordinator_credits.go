@@ -61,14 +61,14 @@ func parseCreditUSD(raw string) (creditbudget.MicroUSD, error) {
 }
 func runCoordinatorCredits(args []string, in io.Reader, out io.Writer, client *http.Client, token func(context.Context, string) (string, error)) error {
 	if len(args) > 0 && (args[0] == "--help" || args[0] == "help" || args[0] == "-h") {
-		fmt.Fprintln(out, "Usage: ailang coordinator credits confirm|status|enable|disable|promote --remote gcp --gateway HTTPS_URL\nGateway default: AILANG_CLAUDE_CREDIT_GATEWAY_URL\nconfirm: --account --grant-id --expected-grant-id --amount-usd --available-usd --starts-at --expires-at --evidence [--yes] [--json]\nstatus: --account [--json]\nCommon: --impersonate-service-account OPERATOR_SA (ADC caller needs scoped Token Creator)\nenable|disable|promote: --evidence (required); enable/promote also require --yes\nDates are RFC3339. Grant evidence confirms fresh allocation; calendar rollover never renews credits.")
+		fmt.Fprintln(out, "Usage: ailang coordinator credits confirm|status|enable|disable|promote|requests|conservative-debit|external-debit --remote gcp --gateway HTTPS_URL\nGateway default: AILANG_CLAUDE_CREDIT_GATEWAY_URL\nconfirm: --account --grant-id --expected-grant-id --amount-usd --available-usd --starts-at --expires-at --evidence [--yes] [--json]\nstatus: --account [--json]\nCommon: --impersonate-service-account OPERATOR_SA (ADC caller needs scoped Token Creator)\nenable|disable|promote: --evidence (required); enable/promote also require --yes\nrequests: --task-id ID [--json] (operator-only; maximum 100; truncation fails)\nconservative-debit: --grant-id --request-id --amount-usd (full original reservation) --evidence --yes\nexternal-debit: --grant-id --debit-id --amount-usd --kind conservative|provider-verified --evidence --yes\nSettled is booked total; ConservativeDebited is its unverified subset. Positive CanaryGatewaySettled is required for promotion.\nDates are RFC3339. Grant evidence confirms fresh allocation; calendar rollover never renews credits.")
 		return nil
 	}
 	if len(args) == 0 {
-		return fmt.Errorf("usage: coordinator credits confirm|status|enable|disable|promote --remote gcp --gateway HTTPS_URL [options]")
+		return fmt.Errorf("usage: coordinator credits confirm|status|enable|disable|promote|requests|conservative-debit|external-debit --remote gcp --gateway HTTPS_URL [options]")
 	}
 	action := args[0]
-	if action != "status" && action != "confirm" && action != "enable" && action != "disable" && action != "promote" {
+	if action != "status" && action != "confirm" && action != "enable" && action != "disable" && action != "promote" && action != "requests" && action != "conservative-debit" && action != "external-debit" {
 		return fmt.Errorf("unknown credits action %q", action)
 	}
 	fs := flag.NewFlagSet("coordinator credits "+action, flag.ContinueOnError)
@@ -78,13 +78,17 @@ func runCoordinatorCredits(args []string, in io.Reader, out io.Writer, client *h
 	account := fs.String("account", "anthropic-api-credits", "credit account")
 	grant := fs.String("grant-id", "", "provider grant or stable organization/cycle identifier")
 	expected := fs.String("expected-grant-id", "", "previous grant ID (empty for first grant)")
-	amount := fs.String("amount-usd", "", "confirmed grant amount")
+	amount := fs.String("amount-usd", "", "confirmed grant amount or exact debit amount")
+	taskID := fs.String("task-id", "", "task whose original requests to inspect")
+	requestID := fs.String("request-id", "", "original unresolved request to conservatively debit")
+	debitID := fs.String("debit-id", "", "unique stable external debit or receipt identifier")
+	kind := fs.String("kind", "", "external debit kind: conservative or provider-verified")
 	available := fs.String("available-usd", "", "available exclusively allocated credits")
 	starts := fs.String("starts-at", "", "grant start, RFC3339")
 	expires := fs.String("expires-at", "", "grant expiry, RFC3339")
 	evidence := fs.String("evidence", "", "reference to operator-verified grant and allocation evidence")
 	operatorSA := fs.String("impersonate-service-account", "", "mint the operator ID token through an allowlisted service account; requires scoped Token Creator")
-	yes := fs.Bool("yes", false, "confirm displayed grant without final prompt")
+	yes := fs.Bool("yes", false, "confirm the explicit grant or audited mutation")
 	jsonOut := fs.Bool("json", false, "print full canonical JSON status")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
@@ -120,6 +124,18 @@ func runCoordinatorCredits(args []string, in io.Reader, out io.Writer, client *h
 	}
 	var body []byte
 	endpoint := action
+	if action == "requests" {
+		if !creditIdentifier(*taskID) {
+			return fmt.Errorf("--task-id must be a nonempty safe task identifier")
+		}
+		endpoint += "?task_id=" + url.QueryEscape(*taskID)
+	}
+	if action == "conservative-debit" || action == "external-debit" {
+		body, err = creditRecoveryPayload(action, *account, *grant, *requestID, *debitID, *amount, *kind, *evidence, *yes)
+		if err != nil {
+			return err
+		}
+	}
 	if action == "enable" || action == "disable" || action == "promote" {
 		if strings.TrimSpace(*evidence) == "" {
 			return fmt.Errorf("--evidence is required for audited account enable/disable")
@@ -244,7 +260,7 @@ func runCoordinatorCredits(args []string, in io.Reader, out io.Writer, client *h
 		return fmt.Errorf("empty operator identity token")
 	}
 	method := http.MethodGet
-	if action != "status" {
+	if action != "status" && action != "requests" {
 		method = http.MethodPost
 	}
 	req, err := http.NewRequestWithContext(ctx, method, *gateway+"/admin/credits/"+*account+"/"+endpoint, bytes.NewReader(body))
@@ -269,6 +285,9 @@ func runCoordinatorCredits(args []string, in io.Reader, out io.Writer, client *h
 	if response.StatusCode != http.StatusOK {
 		return fmt.Errorf("credit authority rejected %s (%d): %s", action, response.StatusCode, strings.TrimSpace(string(data)))
 	}
+	if action == "requests" {
+		return printCreditRequests(out, data, *jsonOut)
+	}
 	var status creditbudget.Status
 	if err := json.Unmarshal(data, &status); err != nil {
 		return fmt.Errorf("invalid credit authority status: %w", err)
@@ -277,7 +296,8 @@ func runCoordinatorCredits(args []string, in io.Reader, out io.Writer, client *h
 		_, err = fmt.Fprintln(out, string(data))
 		return err
 	}
-	fmt.Fprintf(out, "Account: %s; organization: %s; workspace: %s\nGrant: %s; expires: %s\nConfirmed: $%.6f; operating ceiling: $%.6f; available: $%.6f\nSettled: $%.6f; reserved: $%.6f; unresolved: $%.6f\nEligible: %t; blockers: %s\n", status.AccountID, status.Organization, status.Workspace, status.Grant.GrantID, status.Grant.ExpiresAt.Format(time.RFC3339), float64(status.Grant.Amount)/1e6, float64(status.OperatingCeiling)/1e6, float64(status.Available)/1e6, float64(status.Settled)/1e6, float64(status.Reserved)/1e6, float64(status.Unresolved)/1e6, status.Eligible, strings.Join(status.Blockers, "; "))
-	fmt.Fprintf(out, "Forwarding exposure: $%.6f\nCanary complete: %t; settled: $%.6f; reserved: $%.6f; remaining: $%.6f\n", float64(status.Forwarding)/1e6, status.CanaryComplete, float64(status.CanarySettled)/1e6, float64(status.CanaryReserved)/1e6, float64(status.CanaryAvailable)/1e6)
+	fmt.Fprintf(out, "Account: %s; organization: %s; workspace: %s\nGrant: %s; expires: %s\nConfirmed: $%.6f; operating ceiling: $%.6f; available: $%.6f\nBooked settled: $%.6f; reserved: $%.6f; unresolved: $%.6f\nEligible: %t; blockers: %s\n", status.AccountID, status.Organization, status.Workspace, status.Grant.GrantID, status.Grant.ExpiresAt.Format(time.RFC3339), float64(status.Grant.Amount)/1e6, float64(status.OperatingCeiling)/1e6, float64(status.Available)/1e6, float64(status.Settled)/1e6, float64(status.Reserved)/1e6, float64(status.Unresolved)/1e6, status.Eligible, strings.Join(status.Blockers, "; "))
+	fmt.Fprintf(out, "Conservative debit subset: $%.6f (included in booked settled; unverified provider spend)\n", float64(status.ConservativeDebited)/1e6)
+	fmt.Fprintf(out, "Forwarding exposure: $%.6f\nCanary complete: %t; settled: $%.6f; reserved: $%.6f; remaining: $%.6f; verified gateway settled: $%.6f\n", float64(status.Forwarding)/1e6, status.CanaryComplete, float64(status.CanarySettled)/1e6, float64(status.CanaryReserved)/1e6, float64(status.CanaryAvailable)/1e6, float64(status.CanaryGatewaySettled)/1e6)
 	return nil
 }

@@ -3,6 +3,9 @@ package creditbudget
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
 	"sync"
 )
 
@@ -49,4 +52,35 @@ func (t *memoryTransaction) Put(collection, id string, value any) error {
 	}
 	t.pending[t.account+"/"+collection+"/"+id] = b
 	return nil
+}
+
+func (m *MemoryStore) ListRequests(ctx context.Context, accountID, taskID string, limit int) ([]Request, error) {
+	if limit < 1 || limit > RequestInspectionLimit {
+		return nil, fmt.Errorf("invalid request inspection bound")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	prefix := accountID + "/requests/"
+	rows := []Request{}
+	for key, b := range m.records {
+		if !strings.HasPrefix(key, prefix) {
+			continue
+		}
+		var r Request
+		if err := json.Unmarshal(b, &r); err != nil {
+			return nil, err
+		}
+		if r.TaskID != taskID {
+			continue
+		}
+		rows = append(rows, r)
+		if len(rows) > limit {
+			return nil, fmt.Errorf("request inspection truncated: more than %d requests", limit)
+		}
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].RequestID < rows[j].RequestID })
+	return rows, nil
 }
