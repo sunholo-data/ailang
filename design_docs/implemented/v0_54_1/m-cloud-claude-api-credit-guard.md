@@ -1,6 +1,6 @@
 # M-CLOUD-CLAUDE-API-CREDIT-GUARD: Claude cloud execution within confirmed API credits
 
-**Status:** Design approved; execution authorized 2026-10-10. Budget guard locally validated; Installed CLI compatibility validated; M6 rollout pending
+**Status:** Implemented in v0.54.1; dev/prod guarded evaluator active, all milestone gates passed; independent evaluation PASS94/100.
 **Created:** 2026-10-09
 **Target:** Next scheduled release after v0.53.0; version assigned during sprint planning
 **Priority:** P1
@@ -240,18 +240,18 @@ Estimates exclude tests. Reuse existing storage, secret, transport, and CLI conv
 
 ## Testing Strategy and Success Criteria
 
-- [ ] Parallel requests at the ceiling cannot over-reserve; include multiple gateway instances and both projects against the Firestore emulator.
-- [ ] Every upstream inference send has a durable sufficient reservation, including helper/compaction calls, retries, and subagents supported by the pilot.
-- [ ] Crash after reservation, crash around sending, truncated SSE, lost completion, duplicate event, and task/job retry never release unknown exposure or spend twice on one reservation.
-- [ ] Monetary rounding, both sides of 100K, mixed cache TTLs, thinking/output caps, and unsupported billable features have meaningful pricing tests.
-- [ ] Missing/malformed budgets, unavailable ledger, unauthorized job, unknown model/pricing, expired grant, stale capability, and disabled account prevent upstream calls.
-- [ ] Calendar rollover, key rotation, coordinator restart, same-grant reconfirmation, and task approval cannot replenish credits.
-- [ ] Grant transition retains uncertain old exposure and refuses new admission until the next allowance is confirmed.
-- [ ] Cloud jobs never receive the real API key or Admin credential; gateway credentials cannot authenticate to Anthropic or select another credit account.
-- [ ] Dev canary runs use the same ledger; aggregate live validation stays inside the $5 smoke allowance.
-- [ ] Provider-side billing evidence agrees with gateway cost categories within documented rounding/reporting timing; investigate discrepancies before promotion.
-- [ ] Successful Claude canary produces the usual reviewable artifacts; expiry/exhaustion yields the expected blocked/eligible-next-candidate behavior.
-- [ ] All relevant tests, formatting/lint, `make check-boundaries`, and required CI checks pass; operator guide documents setup, grant confirmation, secret rotation, status, and kill switch.
+- [x] Parallel requests at the ceiling cannot over-reserve; include multiple gateway instances and both projects against the Firestore emulator.
+- [x] Every upstream inference send has a durable sufficient reservation, including helper/compaction calls, retries, and subagents supported by the pilot.
+- [x] Crash after reservation, crash around sending, truncated SSE, lost completion, duplicate event, and task/job retry never release unknown exposure or spend twice on one reservation.
+- [x] Monetary rounding, both sides of 100K, mixed cache TTLs, thinking/output caps, and unsupported billable features have meaningful pricing tests.
+- [x] Missing/malformed budgets, unavailable ledger, unauthorized job, unknown model/pricing, expired grant, stale capability, and disabled account prevent upstream calls.
+- [x] Calendar rollover, key rotation, coordinator restart, same-grant reconfirmation, and task approval cannot replenish credits.
+- [x] Grant transition retains uncertain old exposure and refuses new admission until the next allowance is confirmed.
+- [x] Cloud jobs never receive the real API key or Admin credential; gateway credentials cannot authenticate to Anthropic or select another credit account.
+- [x] Dev canary runs use the same ledger; aggregate live validation stays inside the $5 smoke allowance.
+- [x] Provider-side billing evidence agrees with gateway cost categories within documented rounding/reporting timing; investigate discrepancies before promotion.
+- [x] Successful Claude canary produces the usual reviewable artifacts; expiry/exhaustion yields the expected blocked/eligible-next-candidate behavior.
+- [x] All relevant tests, formatting/lint, `make check-boundaries`, and required CI checks pass; operator guide documents setup, grant confirmation, secret rotation, status, and kill switch.
 
 Use targeted tests for modelreg, storage, gateway, executor, dispatch, and coordinator, plus Firestore-emulator integration. The existing test suite is run during implementation; this planning change requires document/link verification only.
 
@@ -317,9 +317,9 @@ Subscription OAuth execution in cloud, Vertex/Bedrock funding, automatic purchas
 
 ## Related Documents
 
-- [M-CLOUD-DUAL-AUTH](../implemented/v0_9_2/m-cloud-dual-auth.md): shipped API-key transport; this design adds fleet secret ownership and grant-wide request enforcement.
-- [M-CLOUD-PROGRESS-TRACKING](../implemented/v0_9_2/m-cloud-progress-tracking.md): existing streaming task cost cancellation, reused as a secondary stop.
-- [M-QUOTA-RATIONING-ROUTING](m-quota-rationing-routing.md): provider bucket rationing; observational subscription admission does not implement API credit reservations.
-- [M-CLOUD-PLANE-FALLBACK-LANES](m-cloud-plane-fallback-lanes.md): useful routing analysis; proposal explicitly untrusted. This design does not assume its implementation.
-- [Cloud coordinator config](../../docs/internal/cloud-coordinator-config.md): live configuration location and dev/prod promotion workflow.
-- [PROGRAM](../PROGRAM.md): harness/tooling change; motoko core remains frozen.
+- [M-CLOUD-DUAL-AUTH](../v0_9_2/m-cloud-dual-auth.md): shipped API-key transport; this design adds fleet secret ownership and grant-wide request enforcement.
+- [M-CLOUD-PROGRESS-TRACKING](../v0_9_2/m-cloud-progress-tracking.md): existing streaming task cost cancellation, reused as a secondary stop.
+- [M-QUOTA-RATIONING-ROUTING](../../planned/m-quota-rationing-routing.md): provider bucket rationing; observational subscription admission does not implement API credit reservations.
+- [M-CLOUD-PLANE-FALLBACK-LANES](../../planned/m-cloud-plane-fallback-lanes.md): useful routing analysis; proposal explicitly untrusted. This design does not assume its implementation.
+- [Cloud coordinator config](../../../docs/internal/cloud-coordinator-config.md): live configuration location and dev/prod promotion workflow.
+- [PROGRAM](../../PROGRAM.md): harness/tooling change; motoko core remains frozen.

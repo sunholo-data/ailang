@@ -36,10 +36,22 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-VM-STACK-LIMIT-PARITY implementation verification](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity-verification.md)
 - [M-VM-STACK-LIMIT-PARITY — the bytecode VM's 1000-frame cap diverges from the evaluator's 10,000 recursion limit: evaluator-legal deep recursion silently truncates service handlers under `--bytecode`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity.md)
 
+## v0.54.1
+
+- [Claude credit gateway: CLI compatibility evidence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard-cli-contract.md)
+- [Claude API credit deployment review — M0/M6](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard-deployment.md)
+- [Claude API credit lane operations](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard-operator-guide.md)
+- [M-CLOUD-CLAUDE-API-CREDIT-GUARD: conservative recovery addendum](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard-recovery.md)
+- [Sprint Plan: M-CLOUD-CLAUDE-API-CREDIT-GUARD](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard-sprint-plan.md)
+- [M-CLOUD-CLAUDE-API-CREDIT-GUARD: Claude cloud execution within confirmed API credits](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard.md)
+
 ## v0.54.0
 
 - [Sprint Plan: M-SERVEAPI-RESPONSE-HEADERS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-serveapi-response-headers-sprint-plan.md)
 - [serve-api Response Headers: Security Headers on `--static` + Hyphenated Route Headers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-serveapi-response-headers.md)
+- [Sprint Plan: M-TERMINAL-UI-NATIVE-INPUT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-terminal-ui-native-input-sprint-plan.md)
+- [Native terminal sprint validation and delivery](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-terminal-ui-native-input-validation.md)
+- [M-TERMINAL-UI-NATIVE-INPUT — Enable the existing terminal UI package](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-terminal-ui-native-input.md)
 
 ## v0.53.0
 
@@ -1648,4 +1660,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 1182 design documents across 152 versions.*
+*Generated at build time. 1191 design documents across 153 versions.*

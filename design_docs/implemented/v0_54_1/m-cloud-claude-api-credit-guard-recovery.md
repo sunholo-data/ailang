@@ -1,6 +1,6 @@
 # M-CLOUD-CLAUDE-API-CREDIT-GUARD: conservative recovery addendum
 
-**Date:** 2026-10-10. **Status:** Execution authorized by attended user “continue with this” after the recovery/repair/canary proposal. This completes M6 of the approved sprint, without increasing its allocation or limits.
+**Date:** 2026-10-10. **Status:** Implemented in v0.54.1; audited recovery, dev/prod canaries and guarded evaluator activation passed independent evaluation94/100. This completes M6 of the approved sprint, without increasing its allocation or limits.
 
 Related: [design](m-cloud-claude-api-credit-guard.md), [sprint](m-cloud-claude-api-credit-guard-sprint-plan.md), [operator guide](m-cloud-claude-api-credit-guard-operator-guide.md).
 
@@ -36,3 +36,12 @@ An operator may close an unknown request by permanently debiting its **entire or
 - All existing financial, expiry, concurrency, strict usage and identity guards remain active.
 - The live disabled ledger contains all attended diagnostic exposure before another provider send.
 - Documentation and the rollout audit include conservative debits, receipt IDs, original failure and federation/IAM follow-ups. M6 remains incomplete until real guarded canaries and production activation are verified.
+
+## Completed rollout
+
+The repaired v0.54.1 release passed exact-image CLI proof and dev/prod canaries.
+Recovery booked2,550,044 microUSD with2,550,040 conservative; gateway canaries
+added13,025 verified microUSD. Audited promotion and the existing read-only
+Haiku evaluator activation passed independent evaluation94/100 and Terraform
+CI. All held/unresolved/forwarding exposure is zero at the rollout snapshot.
+See [retained proof](../../verification/cloud-claude-api-credit-guard/rollout-v0.54.1.json).

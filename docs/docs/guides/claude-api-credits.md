@@ -6,7 +6,8 @@ reviewBy: 2027-01-10
 
 # Claude API credit guards
 
-Available in v0.53.4. Cloud use requires a deployed credit gateway, an isolated
+The initial guard shipped in v0.53.4; production recovery and retained usage
+receipts require v0.54.1 or later. Cloud use requires a deployed credit gateway, an isolated
 Firestore authority, verified executor images, and an explicitly confirmed grant.
 Installing the release does not enable the lane.
 
@@ -171,5 +172,28 @@ Federated provider credentials can change credential distribution, while the
 shared credit accounting and manual renewal rules still apply.
 
 See [Coordinator Workers](./coordinator-workers.md) for routing and the
-[credit guard design](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-cloud-claude-api-credit-guard.md)
+[credit guard design](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard.md)
 for the admission and accounting contract.
+
+## Initial allocation and production rollout
+
+The initial allocation is $200 for the Holosun ApS organization, `ailang` workspace,
+with conservative admission cutoff `2026-10-28T00:00:00Z`. The first regular
+workload is the existing read-only Haiku 5.5 sprint evaluator, using the Go cloud
+executor and the shared `anthropic-api-credits` account. Terraform renders this
+agent's routing with `claude_credit_evaluator_enabled=true` in dev and prod;
+test keeps it false. Task approvals and the evaluator's read-only scope still apply.
+
+The repaired dev and prod canaries settled $0.013025 from four complete provider
+receipts. Historical ambiguous requests and the balance observation were booked
+conservatively, preserving $2.550040 of unverified exposure. Total booked exposure
+at promotion was $2.563069, leaving $187.436931 under the $190 operating ceiling.
+These figures describe the rollout snapshot; use `credits status` for current state.
+
+Review the [retained rollout proof](https://github.com/sunholo-data/ailang/blob/dev/design_docs/verification/cloud-claude-api-credit-guard/rollout-v0.54.1.json)
+for request IDs, usage splits, exact pricing and promoted accounting.
+The private infrastructure operations guide records Terraform rollout and IAM
+evidence. Federation and deployment-administrator access are a follow-up sprint;
+other providers' credit pools and automated 50/75/90% spend notifications are
+separate follow-up work. Current canonical status and admission blockers enforce
+the monetary limits without relying on alert delivery.

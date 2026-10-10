@@ -1,6 +1,6 @@
 # Claude API credit lane operations
 
-The v0.53.4 lane was deployed with the account disabled, followed by an admitted dev canary that froze on unverified streaming usage. The installed cloud Claude CLI 2.1.296 passed fake-only completion and tool-loop diagnostics. The repaired usage contract, bounded receipts and audited recovery are being released for M6; guarded dev/prod canaries and rotation promotion remain pending. The gateway rejects unverified beta headers and body fields. See the [protocol contract](m-cloud-claude-api-credit-guard-cli-contract.md) and [recovery addendum](m-cloud-claude-api-credit-guard-recovery.md). Other providers’ credits remain a follow-up.
+The v0.53.4 lane was deployed with the account disabled, followed by an admitted dev canary that froze on unverified streaming usage. The installed cloud Claude CLI 2.1.296 passed fake-only completion and tool-loop diagnostics. The repaired v0.54.1 usage contract, bounded receipts and audited recovery passed new dev/prod canaries and audited promotion. Regular dev/prod evaluator activation passed Terraform CI; the original full hold was conservatively debited, with no refund or invented receipt. The gateway rejects unverified beta headers and body fields. See the [protocol contract](m-cloud-claude-api-credit-guard-cli-contract.md) and [recovery addendum](m-cloud-claude-api-credit-guard-recovery.md). Other providers’ credits remain a follow-up.
 
 ## Initial grant evidence
 
@@ -71,7 +71,7 @@ See [deployment proposal](m-cloud-claude-api-credit-guard-deployment.md) and `de
 ## Audited conservative recovery (M6 addendum)
 
 See the [recovery contract](m-cloud-claude-api-credit-guard-recovery.md) and the
-[website command guide](../../docs/docs/guides/claude-api-credits.md#recover-an-unknown-charge-conservatively).
+[website command guide](../../../docs/docs/guides/claude-api-credits.md#recover-an-unknown-charge-conservatively).
 An operator can convert the entire original unknown reservation to a permanent
 conservative debit, retaining history and creating no available capacity. External
 attended diagnostic exposure must also be booked before further paid calls.

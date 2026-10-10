@@ -1,6 +1,6 @@
 # Claude credit gateway: CLI compatibility evidence
 
-**Reviewed:** 2026-10-10. **Status:** installed-client completion and tool-loop compatibility passed locally; production activation remains blocked by the deployment checklist. This records a client configuration and bounded API subset, not approval to forward an undocumented beta.
+**Reviewed:** 2026-10-10. **Status:** installed-client completion and tool-loop compatibility passed locally and in exact released cloud images; v0.54.1 dev/prod gateway canaries reconciled and were promoted. This records a client configuration and bounded API subset, not approval to forward an undocumented beta.
 
 ## Decision
 

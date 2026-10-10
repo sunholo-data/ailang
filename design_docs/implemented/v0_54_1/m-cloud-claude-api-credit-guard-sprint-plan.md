@@ -6,7 +6,7 @@ Enable Haiku 5.5 in cloud executors through an authenticated Anthropic budget ga
 with shared transactional request reservations and an operator credit-renewal command.
 
 **Design:** [Approved design](m-cloud-claude-api-credit-guard.md)
-**Status:** Executing — M0–M5 implemented and locally validated; M6 deployment/CI/canary pending
+**Status:** Completed — M0–M6 passed; repaired dev/prod canaries reconciled, audited promoted and production evaluator active. Independent evaluation PASS94/100.
 **Duration:** 9 engineering days; infrastructure/credit access may add elapsed waiting time
 **Estimated size:** 2,610 LOC including tests and retained operational evidence
 **Risk:** High — correctness of request-cost bounds and failure accounting determines the spending guarantee
@@ -16,7 +16,7 @@ User approval on 2026-10-09 covers the Claude-credit design and confirmation int
 Generalizing to other credit pools is explicitly a follow-up. The user authorized execution with “execute sprint” on 2026-10-10. Local implementation
 and local validation have completed, including the installed-CLI completion and tool-loop contract. Live rollout has not started. This plan does not replace or activate the unrelated existing sprint.
 
-## Current Status and Velocity
+## Planning baseline and estimated velocity
 
 Existing Claude API-key authentication, Cloud Run variants, event-driven task limits,
 model registry, and Firestore transaction wrapper are reusable. The grant ledger,
@@ -66,7 +66,7 @@ package dependency or contribution to those candidates is warranted for this sco
 
 ## Milestones
 
-### M0: Deployment and request-contract evidence (~80 LOC)
+### ✅ M0: Deployment and request-contract evidence (~80 LOC)
 
 **Dependencies:** None
 **Estimate:** 80 LOC retained documentation; 0.5 day
@@ -87,7 +87,7 @@ Identify the authenticated gateway connection and capability-issuance path.
 - [x] Actual grant and allocation evidence are recorded without secret material; unavailable evidence blocks activation.
 - [x] No live inference is required before the reserved smoke path exists.
 
-### M1: Shared grant and request authority (~700 LOC)
+### ✅ M1: Shared grant and request authority (~700 LOC)
 
 **Dependencies:** M0
 **Estimate:** 450 implementation + 250 tests; 2 days
@@ -109,7 +109,7 @@ confirmation primitives distinct from task approval.
 - [x] Expiry, kill switch, storage failure, and unresolved grant transitions prevent new admission.
 - [x] Relevant tests and formatting/lint pass.
 
-### M2: Canonical request pricing (~320 LOC)
+### ✅ M2: Canonical request pricing (~320 LOC)
 
 **Dependencies:** M0
 **Estimate:** 200 implementation + 120 tests; 1 day
@@ -128,7 +128,7 @@ pricing context visible. Do not change role ordering or eval suite membership.
 - [x] Existing pricing tests pass without changing unrelated model rates or ordering.
 - [x] Request and settlement record the pricing revision used.
 
-### M3: Authenticated budget gateway (~730 LOC)
+### ✅ M3: Authenticated budget gateway (~730 LOC)
 
 **Dependencies:** M0, M1, M2
 **Estimate:** 450 implementation + 280 tests; 2 days
@@ -149,7 +149,7 @@ key server-side from Secret Manager; never return it or log credentials.
 - [x] Provider key remains gateway-only; capabilities cannot choose another account or enlarge limits.
 - [x] Fixed-origin and streaming contract tests pass.
 
-### M4: Cloud executor and routing integration (~300 LOC)
+### ✅ M4: Cloud executor and routing integration (~300 LOC)
 
 **Dependencies:** M1, M3
 **Estimate:** 160 implementation + 140 tests; 1 day
@@ -173,7 +173,7 @@ where a supported successor is unavailable.
 - [x] Existing request-scoped user keys, OAuth lanes, and task/PR approval rules retain their behavior.
 - [x] Metered and subscription accounting remain distinguishable; relevant regression tests pass.
 
-### M5: AILANG renewal and status commands (~300 LOC)
+### ✅ M5: AILANG renewal and status commands (~300 LOC)
 
 **Dependencies:** M1
 **Estimate:** 180 implementation + 120 tests; 1 day
@@ -196,7 +196,7 @@ account enabling and ordinary task approval.
 - [x] Executors observe the next allowed request without a config restart; disabled/unreconciled accounts stay blocked. Authority/gateway cases pass and installed CLI reaches that request path; live canonical service observation remains M6.
 - [x] Help and operating examples agree with actual flags; CLI tests pass.
 
-### M6: Integrated validation and rollout evidence (~180 LOC)
+### ✅ M6: Integrated validation and rollout evidence (~180 LOC)
 
 **Dependencies:** M0, M1, M2, M3, M4, M5
 **Estimate:** 100 documentation/config + 80 integration tests; 1 day
@@ -212,11 +212,11 @@ promoting selected agents. Document renewal, key rotation, status, disable, and 
 
 **Acceptance criteria:**
 
-- [ ] Dev/prod integration uses one credit authority for the shared grant; all smoke spend stays within the reserved $5.
-- [ ] Provider evidence reconciles supported billing categories; discrepancies block promotion.
-- [ ] Near-limit, expiry-without-renewal, reconfirmation, kill-switch, and unavailable-ledger scenarios show expected behavior.
-- [ ] All relevant tests, formatting/lint, boundary checks and required CI pass.
-- [ ] Deployment changes are reviewable under infrastructure policy; canary/rollout evidence and operator guide are complete.
+- [x] Dev/prod integration uses one credit authority for the shared grant; all smoke spend stays within the reserved $5.
+- [x] Provider evidence reconciles supported billing categories; discrepancies block promotion.
+- [x] Near-limit, expiry-without-renewal, reconfirmation, kill-switch, and unavailable-ledger scenarios show expected behavior.
+- [x] All relevant tests, formatting/lint, boundary checks and required CI pass.
+- [x] Deployment changes are reviewable under infrastructure policy; canary/rollout evidence and operator guide are complete.
 
 ## Day-by-Day Schedule
 
@@ -260,7 +260,7 @@ Follow-up: other providers' credit accounts and confirmation flows. Retain accou
 identifiers and generic grant/usage records needed by this Claude scope; avoid building
 additional adapters, a broad provider gateway, or migrations in this sprint.
 
-Execution requires the user's explicit execute instruction under [AGENTS.md](../../AGENTS.md).
+Execution requires the user's explicit execute instruction under [AGENTS.md](../../../AGENTS.md).
 Execution was authorized on 2026-10-10. M0–M5 have passed local gates, including actual installed-CLI completion and a two-request tool loop with separate reservations and settlement. M6 remains pending deployed image compatibility, live infrastructure, provider ownership evidence, CI and canary reconciliation.
 Keep the pre-existing uncommitted work and active sprint state untouched.
 
@@ -270,7 +270,7 @@ planning task has no linked issue and does not authorize message acknowledgement
 Accordingly, populate equivalent state directly, validate it with the existing sprint
 validator, and defer executor handoff until the explicit execution instruction.
 
-## Execution evidence — 2026-10-10
+## Historical execution evidence before recovery — 2026-10-10
 
 The user explicitly authorized this sprint. Implementation used an isolated worktree to preserve an unrelated unresolved merge. Full `make test`, `make lint`, architecture boundaries, focused race/fault tests and real Firestore emulator transaction contention passed. The final concurrent suite hit two existing process-start deadline failures; the cleanup regression passed in isolation and the full suite passed with `GOTEST="go test -p 4"` without source changes. That default-suite recheck did not resolve the initially failing installed-CLI protocol gate; the subsequent bounded client contract described below does. The infrastructure preview passes Terraform fmt/validate and its IAM patch passes apply-check.
 
@@ -288,3 +288,19 @@ CI/release → disabled-ledger recovery → canaries sequence in the
 [recovery addendum](m-cloud-claude-api-credit-guard-recovery.md). No uncertainty is
 refunded; external diagnostics and the conservative balance observation also
 consume the original allocation and $5 canary allowance. M6 remains incomplete.
+
+## Final rollout — 2026-10-10
+
+v0.54.1 exact source/image CI passed. The disabled canonical ledger booked all
+original and attended exposure conservatively before new sends. Repaired dev/prod
+canaries retained four complete provider receipts, settling13,025microUSD.
+Audited promotion preserved all2,563,069booked microUSD, including2,550,040
+conservative. No holds or reconciliation errors remain.
+
+The existing read-only Haiku evaluator is enabled through Terraform CI commit
+82b12885f85d0c75ac3f433e76df6fd4c57f4a90: dev4dfffd91, test784d8ec2,
+prode343eb32 allSUCCESS. Test is excluded; both ready dev/prod coordinators
+serve the approved rendered metadata; all44otheragents are preserved.
+No IAM or folder policy changed. [Retained proof](../../verification/cloud-claude-api-credit-guard/rollout-v0.54.1.json)
+and [retrospective](../../../docs/sprint-retros/M-CLOUD-CLAUDE-API-CREDIT-GUARD-retro.md)
+document exact receipts, conservative classification, limits and follow-ups.

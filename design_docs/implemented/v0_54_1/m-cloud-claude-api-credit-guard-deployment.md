@@ -1,6 +1,12 @@
 # Claude API credit deployment review — M0/M6
 
-**Recorded:** 2026-10-10. **State:** production runtime deployed, activation in progress.
+**Recorded:** 2026-10-10. **State:** v0.54.1 repaired canaries reconciled and audited promoted; regular dev/prod evaluator active through successful Terraform CI.
+
+Current rollout evidence is retained in [rollout proof](../../verification/cloud-claude-api-credit-guard/rollout-v0.54.1.json).
+The v0.53.4 account-disabled / unresolved figures below are the historical first
+pilot, superseded by full conservative recovery and new dev/prod canaries.
+
+## Historical first deployment and failed pilot
 The private authority, operator identity, gateway and four guarded dev/prod jobs
 are provisioned through Terraform CI. v0.53.4 is released and promoted to prod;
 the public MCP reported 0.53.4 at promotion. The $200 grant is enrolled, but the
@@ -67,7 +73,7 @@ requirement. Reassess any remaining secret/ledger permissions, model the impact 
 existing deployments, and implement through reviewed Terraform. This follow-up
 must preserve the shared credit accounting and explicit grant-renewal rules.
 
-## Production rollout evidence
+## Historical v0.53.4 rollout evidence
 
 | Step | Verified evidence |
 |---|---|
@@ -226,7 +232,7 @@ absent. These observations are read-only, not a full organization IAM audit.
 
 ## Concrete deployment candidate
 
-[The candidate module](../../deploy/claude-credit-gateway/main.tf) and its README
+[The candidate module](../../../deploy/claude-credit-gateway/main.tf) and its README
 provide two stages, both off by default. Provisioning creates the private authority,
 gateway/job SAs, exact provider/signing secret reader lists, and scoped job access.
 It creates a signing secret **resource only**; its random value of at least 32
