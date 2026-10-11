@@ -107,14 +107,14 @@
       "passes": null,
       "started": "2026-10-11T18:55:57.210407+00:00",
       "completed": null,
-      "notes": "Integrated marker-backed managed quit/EOF, original managed/two-async consumer and 19-case AI/generated-bin probes PASS; formatting/boundaries PASS. Consumer async EOF is natural completion, not a new EOF notification. Full local and CI/evaluation/release gates pending. Independent implementation evaluator PASS87/100; post-version full tests and lint PASS. Release prep archives design+plan+validation together; platform CI/dev merge/publication still pending."
+      "notes": "Integrated marker-backed managed quit/EOF, original managed/two-async consumer and 19-case AI/generated-bin probes PASS; formatting/boundaries PASS. Consumer async EOF is natural completion, not a new EOF notification. Full local and CI/evaluation/release gates pending. Independent implementation evaluator PASS87/100; post-version full tests and lint PASS. Release prep archives design+plan+validation together; platform CI/dev merge/publication still pending. PR1765 Linux runtime tests PASS; architecture closure documentation gate exposed missing generated runlife inventory. Regenerated via canonical script; local exact closure check PASS; new CI required."
     }
   ],
   "approval": {
     "date": "2026-10-11",
     "source": "attended user approved design and sprint execution; prior fix-and-release instruction"
   },
-  "last_checkpoint": "v0.54.5 prepared; full post-version tests/lintPASS and independentPASS87; release PR/CI next.",
+  "last_checkpoint": "PR1765 architecture inventory regenerated; awaiting renewed platform CI.",
   "last_session": "2026-10-11T19:31:18.301051+00:00",
   "evaluation": {
     "result": "pass",
