@@ -33,7 +33,7 @@ func TestPrepareRunAIHandler_KeySourceFrozenAndFailureCached(t *testing.T) {
 	if first == nil || !strings.Contains(first.Error(), missing) {
 		t.Fatalf("selected source changed: %v", first)
 	}
-	if err := os.WriteFile(missing, []byte("secret-never-log"), 0600); err != nil {
+	if err := os.WriteFile(missing, []byte("secret-never-log\ninvalid-extra-line"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	_, second := ctx.AI.Call("hi")
@@ -169,5 +169,50 @@ func TestPrepareRunAIHandler_RelativeKeyPathFrozen(t *testing.T) {
 	_, err := ctx.AI.Call("hi")
 	if err == nil || !strings.Contains(err.Error(), filepath.Join(selected, "missing.key")) {
 		t.Fatalf("relative key changed source: %v", err)
+	}
+}
+
+func TestPrepareRunAIHandler_ConfigDrivenAuthFrozen(t *testing.T) {
+	for _, header := range []bool{false, true} {
+		t.Run(map[bool]string{false: "bearer", true: "headers"}[header], func(t *testing.T) {
+			t.Setenv("AILANG_AI_KEY_FILE", "")
+			t.Setenv("LAZY_FIXTURE_CREDENTIAL", "selected-secret")
+			var calls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				name, want := "Authorization", "Bearer selected-secret"
+				if header {
+					name, want = "X-Fixture-Auth", "prefix selected-secret"
+				}
+				if r.Header.Get(name) != want {
+					t.Errorf("configured auth value changed: %s=%q", name, r.Header.Get(name))
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.Write([]byte(`{"text":"mock"}`))
+			}))
+			defer server.Close()
+			previous := ai.GlobalProviderRegistry
+			t.Cleanup(func() { ai.GlobalProviderRegistry = previous })
+			ai.GlobalProviderRegistry = ai.NewProviderRegistry()
+			spec := &pkg.AIProviderSpec{SchemaVersion: 1, Name: "auth-fixture", Endpoint: server.URL, RequestShape: "simple_completion", ResponsePath: "$.text", Auth: pkg.AIProviderAuth{Type: "bearer", Env: "LAZY_FIXTURE_CREDENTIAL"}}
+			if header {
+				spec.Auth = pkg.AIProviderAuth{}
+				spec.AuthHeaders = map[string]string{"X-Fixture-Auth": "prefix ${LAZY_FIXTURE_CREDENTIAL}"}
+			}
+			if err := ai.GlobalProviderRegistry.Register(spec.Name, configdriven.New(spec), "test fixture"); err != nil {
+				t.Fatal(err)
+			}
+			ctx := effects.NewEffContext(nil)
+			if err := prepareRunAIHandler(ctx, aiSetup{Model: "auth-fixture/test"}, nil, nil); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("LAZY_FIXTURE_CREDENTIAL", "late-secret")
+			if _, err := ctx.AI.Call("hi"); err != nil {
+				t.Fatal(err)
+			}
+			if calls.Load() != 1 {
+				t.Fatalf("calls=%d", calls.Load())
+			}
+		})
 	}
 }
