@@ -14,4 +14,4 @@ Related designs are [worker lifecycle](../../implemented/v0_54_4/m-background-wo
 
 The same message's stdin EOF observation and the separate generated-bin keyless `--offline`/`--help` report (`inbox_1791740982044_18b3491c`) are distinct concerns; they are not part of this cancellation triage artifact.
 
-Follow-up implementation: [M-WORKER-FOLLOWUP](../../implemented/v0_54_5/m-worker-policy-and-lazy-ai.md), independently accepted 87/100. Runtime release and pinned-artifact retest remain pending; original report and triage evidence above are preserved.
+Follow-up implementation: [M-WORKER-FOLLOWUP](../../implemented/v0_54_5/m-worker-policy-and-lazy-ai.md), independently accepted 87/100. Released in [v0.54.5](https://github.com/sunholo-data/ailang/releases/tag/v0.54.5); [official-artifact cleanup retests](../../implemented/v0_54_5/validation/release/official-acceptance-summary.json) pass for marker-backed managed and two unfinished async policy workers, with every recorded positive PID absent. Original report and baseline triage evidence above are preserved.

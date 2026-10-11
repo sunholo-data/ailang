@@ -1,6 +1,6 @@
 # Sprint M-WORKER-FOLLOWUP
 
-Status: M1–M3 complete; implementation independently accepted (87/100). M4 CI and release delivery are in progress. User approved execution on 2026-10-11.
+Status: M1–M4 complete; released v0.54.5. Historical independent implementation evaluation 87/100; final release delivery gates passed. User approved execution on 2026-10-11.
 Design: [M-WORKER-FOLLOWUP](m-worker-policy-and-lazy-ai.md).
 Target: v0.54.5, subject to checking the next available patch before publication.
 Estimated duration: 5 engineering days; estimated total: 2100 changed LOC, plus 25% time contingency. Recent seven-day velocity analysis found no reliable measured LOC/day; 420 LOC/day is a capacity assumption.
@@ -38,15 +38,15 @@ Wave 1: lifecycle M1→M2 and AI M3 independently in isolated worktrees. Wave 2:
 - [x] Direct CLI and generated bin offline/help pass with absent/unreadable keys and unavailable ADC/Ollama; real AI use fails loudly without credentials (AC6).
 - [x] Explicit eager setup and stub fixtures retain existing behavior; focused and race tests pass.
 
-### M4: Integration, independent evaluation and follow-up release (~380 LOC)
+### M4: ✅ Integration, independent evaluation and follow-up release (~380 LOC)
 **Dependencies:** M2, M3
 
 - [x] Add documented showcases and fixtures, update example manifest and changelog fragment; exercise all real-bin/policy acceptance probes.
-- [ ] Full Go tests, lint, formatting, boundaries, file sizes, meaningful race checks and cross-platform CI pass (AC10).
+- [x] Full Go tests, lint, formatting, boundaries, file sizes, meaningful race checks and cross-platform CI pass (AC10).
 - [x] Independent sprint evaluator assesses every AC; address findings before merge.
-- [ ] Commit completed plan/JSON and validation evidence in the implementation tree, then merge reviewed PR to dev.
-- [ ] Publish patch release; verify checksum/provenance and repeat tests with official artifact, rerun pinned consumer policy gate before claiming resolved (AC11).
-- [ ] Complete release-manager μRAG, cloudTEST→PROD and public MCP version checks; send authorized release notice.
+- [x] Commit completed plan/JSON and validation evidence in the implementation tree, then merge reviewed PR to dev.
+- [x] Publish patch release; verify checksum/provenance and repeat tests with official artifact, rerun pinned consumer policy gate before claiming resolved (AC11).
+- [x] Complete release-manager μRAG, cloudTEST→PROD and public MCP version checks; send authorized release notice.
 
 ## Day allocation and risk controls
 
@@ -67,3 +67,9 @@ AILANG prompt version loaded during preparation: v0.16.7. Executor must reload c
 | ai_offline_cli.ail | Pure mode parser contract for known offline/help choices | IO, Env, AI explicit; no AI on offline/help path | Empty args, help, offline and AI mode cases |
 
 Strict VM offline/help is covered; native VM AI dispatch remains outside this sprint. Live provider calls are unnecessary: use stubs and local mocked providers, and preserve missing-auth failures. No claims about remote provider inference cancellation.
+
+## Actual delivery
+
+PRs #1765 and #1766 merged to dev; immutable release source is 296231d. Full final PR/dev CI and all platform checks passed. Official artifact checksum/SLSA and consumer/AI/lifecycle gates passed. Brain 68/396/255 and public MCP 0.54.5 are verified; TEST and guarded PROD promotion passed and the release notice was delivered. [Evidence](validation/release/README.md) and [retrospective](../../../docs/sprint-retros/M-WORKER-FOLLOWUP-retro.md) retain actual measurements and scope limits.
+
+The tagged source changes 114 files (+6690/-180): runtime Go +1662/-143, tests +2465/-12, AILANG examples/fixtures +78/-12; the rest is documentation and validation. Planned 2100 changed LOC was lower than actual 6870. Engineering days and LOC/day were not measured; calendar duration includes parallel work and repeated CI/cloud gates.

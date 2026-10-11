@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-WORKER-FOLLOWUP",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-11T18:21:20Z",
   "design_doc": "design_docs/implemented/v0_54_5/m-worker-policy-and-lazy-ai.md",
   "sprint_plan": "design_docs/implemented/v0_54_5/m-worker-policy-and-lazy-ai-sprint-plan.md",
@@ -46,7 +46,7 @@
         "AC1: reproduce official v0.54.4 policy leak with positive fixture PIDs/PGIDs and clean only those fixture processes.",
         "Implement same-executable run detection, bounded versioned private stop/receipt transport, early registration and descriptor rollback.",
         "Preserve admission fd3; add separate policy worker lifeline, nested cleanup acknowledgement and no admission after stop.",
-        "Test malformed/oversized/forged receipt, supervisor loss, policy timeout/output/credential/provenance invariants and supported-platform guards (AC3\u20135)."
+        "Test malformed/oversized/forged receipt, supervisor loss, policy timeout/output/credential/provenance invariants and supported-platform guards (AC3–5)."
       ],
       "passes": true,
       "started": "2026-10-11T18:32:39.438142+00:00",
@@ -62,7 +62,7 @@
       ],
       "acceptance_criteria": [
         "RequestStop starts bounded protocol cancellation; Join requires inner cleanup receipt, direct Wait and owned I/O completion under one owner deadline.",
-        "Managed and two async policy workers vanish before successful cancellation; quit/EOF and natural completion join ownership (AC2\u20133).",
+        "Managed and two async policy workers vanish before successful cancellation; quit/EOF and natural completion join ownership (AC2–3).",
         "Missing acknowledgement produces typed failure; forced supervisor death stops inner worker, unrelated bystander survives (AC4).",
         "Existing external-command and platform cancellation behavior remains covered; race tests pass."
       ],
@@ -79,7 +79,7 @@
       "acceptance_criteria": [
         "Prepare/freeze structural model/provider/routing/auth-source configuration eagerly without reading credentials or probing a real provider.",
         "Initialize AIContext once at first authorized AI operation; cache complete context or error and preserve concrete optional interfaces.",
-        "Cover call/json/step/cache/stream/image/base64/refs/speech and metadata-only access; preserve capability/budget/error/trace behavior (AC7\u20139).",
+        "Cover call/json/step/cache/stream/image/base64/refs/speech and metadata-only access; preserve capability/budget/error/trace behavior (AC7–9).",
         "Direct CLI and generated bin offline/help pass with absent/unreadable keys and unavailable ADC/Ollama; real AI use fails loudly without credentials (AC6).",
         "Explicit eager setup and stub fixtures retain existing behavior; focused and race tests pass."
       ],
@@ -102,25 +102,72 @@
         "Independent sprint evaluator assesses every AC; address findings before merge.",
         "Commit completed plan/JSON and validation evidence in the implementation tree, then merge reviewed PR to dev.",
         "Publish patch release; verify checksum/provenance and repeat tests with official artifact, rerun pinned consumer policy gate before claiming resolved (AC11).",
-        "Complete release-manager \u03bcRAG, cloudTEST\u2192PROD and public MCP version checks; send authorized release notice."
+        "Complete release-manager μRAG, cloudTEST→PROD and public MCP version checks; send authorized release notice."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-11T18:55:57.210407+00:00",
-      "completed": null,
-      "notes": "Independent implementation evaluation PASS87/100. CI-exposed async stdout/receipt races fixed by8716b6b+47667ba; deterministic red controls,100-repetition fixes,10-race checks, independent focused races and exact-source full local gates PASS. Final PR1765 full platform checks passed and merged to dev e723303f. Dev main CI SUCCESS; separate dev release matrix memory test failed twice35/39MB under30MB. Publication held for retention-sensitive test calibration; no threshold relaxation or blind retry. Official artifacts/consumer retests, brain/cloud/notice pending."
+      "completed": "2026-10-11T22:54:34.443317+00:00",
+      "notes": "Independent implementation PASS 87/100 and final delivery AC10/AC11 PASS. Both PRs merged; exact tagged296 full CI/platform/docs/release SUCCESS. Retention-sensitive memory calibration preserves 30 MB bound and deliberate worker/independent controls fail at +61/+53 MB. Official signed/checksummed artifact, pinned marker/managed/async consumers, 19 AI and 38 lifecycle cases PASS. Brain 68/396/255; TEST 3 services/15 jobs and PROD 4/17 from 16 validated images; public MCP 0.54.5 and canonical release notice verified. Completion evidence in implemented validation/release."
     }
   ],
   "approval": {
     "date": "2026-10-11",
     "source": "attended user approved design and sprint execution; prior fix-and-release instruction"
   },
-  "last_checkpoint": "PR1765 merged/dev CI green; publication held for memory probe validation correction",
-  "last_session": "2026-10-11T21:14:11.227286+00:00",
+  "last_checkpoint": "All M1–M4 complete; v0.54.5 released and promoted to PROD; independent delivery PASS",
+  "last_session": "2026-10-11T22:54:34.443317+00:00",
   "evaluation": {
     "result": "pass",
     "score": 87,
     "round": 1,
     "report": ".ailang/state/evaluations/eval_M-WORKER-FOLLOWUP_round_1.json",
-    "scope": "implementation; M4 CI and release pending"
-  }
+    "scope": "Historical implementation PASS; final independent delivery addendum PASS",
+    "delivery_addendum": "design_docs/implemented/v0_54_5/validation/release/independent-delivery-addendum.json"
+  },
+  "release": {
+    "version": "v0.54.5",
+    "source_commit": "296231d657126e20b79eaaf258e86963344f368c",
+    "url": "https://github.com/sunholo-data/ailang/releases/tag/v0.54.5",
+    "evidence": "design_docs/implemented/v0_54_5/validation/release/delivery.json",
+    "notice_id": "inbox_1791758741766_88e9321e"
+  },
+  "actual_metrics": {
+    "base": "bc078dc1b41308542bbccd3417bf040283e817df",
+    "merge": "296231d657126e20b79eaaf258e86963344f368c",
+    "groups": {
+      "docs_and_metadata": {
+        "files": 16,
+        "insertions": 842,
+        "deletions": 13
+      },
+      "go_tests": {
+        "files": 23,
+        "insertions": 2465,
+        "deletions": 12
+      },
+      "go_runtime": {
+        "files": 45,
+        "insertions": 1662,
+        "deletions": 143
+      },
+      "ail_examples_and_fixtures": {
+        "files": 4,
+        "insertions": 78,
+        "deletions": 12
+      },
+      "validation_evidence": {
+        "files": 26,
+        "insertions": 1643,
+        "deletions": 0
+      }
+    },
+    "total_files": 114,
+    "actual_engineering_days": null,
+    "note": "420LOC/day was a planning capacity assumption. Wall time includes parallel implementation and required CI/cloud waits; it is not measured engineering days.",
+    "calendar_elapsed_seconds": 16394,
+    "calendar_elapsed_hours": 4.55,
+    "actual_loc_per_engineering_day": null,
+    "measurement_note": "Calendar elapsed includes parallel work and CI/cloud waits; engineering days, velocity and speedup were not measured. Immutable-tag diff excludes later documentation-only release records."
+  },
+  "completed": "2026-10-11T22:54:34Z"
 }

@@ -1,6 +1,6 @@
 # M-WORKER-FOLLOWUP: Policy Worker Lifetime and Keyless CLI Startup
 
-**Status**: Implemented; independent evaluation PASS 87/100. Platform CI and release delivery remain pending.
+**Status**: Released v0.54.5; independent implementation evaluation PASS 87/100 and all release gates passed.
 **Target**: v0.54.5 (available patch rechecked before release preparation).
 **Priority**: P1 — blocks Stapledon's reply-inbox cleanup gate and single-command offline/live CLI.
 **Estimated**: 5 engineering days, approximately 2,100 changed lines including tests and documentation; 25% contingency included in time.
@@ -104,8 +104,8 @@ Regression fixtures read/checked during design: `examples/runnable/process_cance
 - [x] AC7: First actual AI use initializes once; missing keys fail visibly, Result APIs return their established typed error, and a mock configured provider succeeds with exactly the expected requests. No live inference required.
 - [x] AC8: Initialization covers text/JSON, step/cache/streaming, image/reference/base64 and speech entry points without erasing optional interfaces, model restrictions, routing metadata or trace attribution. Denied/exhausted AI cannot initialize a provider.
 - [x] AC9: Config/provider/auth choices remain frozen, setup errors contain no secret, stubs stay deterministic, eager setup callers preserve their contract, and repeated runs/requests do not share new mutable initialization state accidentally.
-- [ ] AC10: Focused races, full Go tests, lint, file-size checks, architecture boundaries, relevant examples and all platform CI builds pass; independent sprint evaluation passes the criteria.
-- [ ] AC11: Merge reviewed changes to dev, publish the next available patch version, verify official artifact checksums/provenance and the above probes, refresh muRAG, pass cloud TEST gates, promote verified images to PROD and confirm the public MCP version. Rerun the consumer pinned-release policy cleanup gate before describing that gate as passed.
+- [x] AC10: Focused races, full Go tests, lint, file-size checks, architecture boundaries, relevant examples and all platform CI builds pass; independent sprint evaluation passes the criteria.
+- [x] AC11: Merge reviewed changes to dev, publish the next available patch version, verify official artifact checksums/provenance and the above probes, refresh muRAG, pass cloud TEST gates, promote verified images to PROD and confirm the public MCP version. Rerun the consumer pinned-release policy cleanup gate before describing that gate as passed.
 
 ## Implementation outline and estimates
 
@@ -190,4 +190,4 @@ The attended user approved this design and sprint execution on 2026-10-11. The e
 
 The implementation passes the full local release and independent evaluator gates. M1/M2 use private same-executable lifetime channels and a supervisor lifeline; M3 freezes selected and named-provider choices per execution while deferring client creation. Independent review findings for early exits, malformed stop requests, standalone cleanup failures and final-exit lifetime races are resolved. The startup PID fixture publishes atomically; 20 supervisor-loss repetitions pass without weakening assertions.
 
-The [round-1 report](validation/independent-evaluation-round-1.md) scores the implementation 87/100. AC10 remains pending platform CI; AC11 remains pending actual publication, official-artifact consumer retests, brain refresh and cloud delivery. Consumer async EOF currently finishes naturally after its worker duration; this sprint does not add an EOF event notification.
+The historical [round-1 report](validation/independent-evaluation-round-1.md) scores the implementation 87/100. Final source changes passed independent focused review, full local gates and all final PR/dev platform workflows. [Release delivery](validation/release/delivery.json) records the published v0.54.5 source 296231d, checksum/SLSA proof, official-binary consumer and 19 AI/38 lifecycle probes, brain refresh, TEST and PROD gates, public MCP 0.54.5 and canonical release notice. Consumer async EOF finishes naturally after its worker duration; this sprint does not add an EOF event notification.

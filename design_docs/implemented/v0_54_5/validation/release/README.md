@@ -1,0 +1,10 @@
+# v0.54.5 release validation
+
+GitHub release: https://github.com/sunholo-data/ailang/releases/tag/v0.54.5
+Source tag/merge: `296231d657126e20b79eaaf258e86963344f368c`. PRs #1765 and #1766 are merged into dev. Their final checks and the tagged merge’s full dev CI/platform/docs checks passed.
+
+The official Darwin ARM64 binary passed SHA256, source/tag/commit verification and cryptographic SLSA verification. All 40 required assets exist; the nine signed provenance subjects match the published checksums. Its managed marker-backed/original consumer gates, two async policy workers, 19 AI CLI/bin cases and 38 ordinary lifecycle cases passed. Every recorded owned positive PID is absent, including zombies. The async consumer’s EOF case is natural completion after its 12-second worker duration; immediate EOF source delivery is outside this sprint. No live AI providers were called.
+
+The canonical brain refresh indexed 68 syntax chunks,396 builtins and 255 examples. The indexer intentionally resolves teaching prompt v0.16.7; runtime release v0.54.5 does not bump that prompt. Other project/user namespaces were preserved. The memory calibration’s worker and independent retention controls fail at61/53 MB under the unchanged 30 MB bound; final macOS PR checks measured-2/+9 MB, dev checks+10/+3 MB. Identical Linux 299 MB measurements do not establish retention sensitivity there; that pre-existing measurement-floor caveat remains documented.
+
+Cloud TEST, guarded promotion dry run and PROD promotion all passed. The public MCP reports 0.54.5. The canonical production release notice is `inbox_1791758741766_88e9321e`. [Delivery summary](delivery.json) links every final workflow/build. Actual deployments rolled 3 TEST services/15 jobs and 4 PROD services/17 jobs from the 16 validated images; optional unprovisioned resources are explicit in the cloud records. Independent AC10/AC11 delivery review passed; the historical implementation score remains 87/100. See [delivery addendum](independent-delivery-addendum.md).

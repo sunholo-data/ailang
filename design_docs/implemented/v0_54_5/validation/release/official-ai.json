@@ -1,0 +1,121 @@
+{
+  "result": "PASS",
+  "runtime": "AILANG v0.54.5\nCommit: 296231d\nFull:   296231d657126e20b79eaaf258e86963344f368c\nBuilt:  2026-10-11T21:51:10Z\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026",
+  "provider_calls": 0,
+  "cases": [
+    {
+      "name": "install local generated bin",
+      "exit": 0,
+      "stdout": "\u2713 Lock: /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/worker-followup-ai-x807uqb8/package/ailang.lock (0 packages)\n\u2713 bin: keyless \u2192 /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/worker-followup-ai-x807uqb8/bin/keyless  (test/keyless@0.1.0, module cli, entry main, caps IO,Env,AI)\n\u26a0 /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/worker-followup-ai-x807uqb8/bin is not on your PATH. Add:  export PATH=\"/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/worker-followup-ai-x807uqb8/bin:$PATH\"\n",
+      "stderr": ""
+    },
+    {
+      "name": "z-ai/glm-5.3-flash: missing key --offline",
+      "exit": 0,
+      "stdout": "offline: no AI requested\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "z-ai/glm-5.3-flash: missing key --help",
+      "exit": 0,
+      "stdout": "Usage: ai_offline_cli [--offline|--help]; otherwise request AI\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "z-ai/glm-5.3-flash: unreadable key path --offline",
+      "exit": 0,
+      "stdout": "offline: no AI requested\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "z-ai/glm-5.3-flash: unreadable key path --help",
+      "exit": 0,
+      "stdout": "Usage: ai_offline_cli [--offline|--help]; otherwise request AI\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "gemini-2-5-flash: missing key --offline",
+      "exit": 0,
+      "stdout": "offline: no AI requested\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "gemini-2-5-flash: missing key --help",
+      "exit": 0,
+      "stdout": "Usage: ai_offline_cli [--offline|--help]; otherwise request AI\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "gemini-2-5-flash: unreadable key path --offline",
+      "exit": 0,
+      "stdout": "offline: no AI requested\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "gemini-2-5-flash: unreadable key path --help",
+      "exit": 0,
+      "stdout": "Usage: ai_offline_cli [--offline|--help]; otherwise request AI\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "ollama:definitely-unavailable: missing key --offline",
+      "exit": 0,
+      "stdout": "offline: no AI requested\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "ollama:definitely-unavailable: missing key --help",
+      "exit": 0,
+      "stdout": "Usage: ai_offline_cli [--offline|--help]; otherwise request AI\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "ollama:definitely-unavailable: unreadable key path --offline",
+      "exit": 0,
+      "stdout": "offline: no AI requested\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "ollama:definitely-unavailable: unreadable key path --help",
+      "exit": 0,
+      "stdout": "Usage: ai_offline_cli [--offline|--help]; otherwise request AI\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "generated bin --offline",
+      "exit": 0,
+      "stdout": "offline: no AI requested\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "strict offline --offline",
+      "exit": 0,
+      "stdout": "offline: no AI requested\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "generated bin --help",
+      "exit": 0,
+      "stdout": "Usage: ai_offline_cli [--offline|--help]; otherwise request AI\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "strict offline --help",
+      "exit": 0,
+      "stdout": "Usage: ai_offline_cli [--offline|--help]; otherwise request AI\n",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\n"
+    },
+    {
+      "name": "first real AI fails without key",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "models registry: source=embedded version=dbe433e0929822f8\nError: execution failed: E_AI_CALL_ERROR: [AuthFailed] OPENROUTER_API_KEY environment variable required\n"
+    },
+    {
+      "name": "stub real AI branch",
+      "exit": 0,
+      "stdout": "{\"kind\":\"Wait\"}\n",
+      "stderr": ""
+    }
+  ]
+}

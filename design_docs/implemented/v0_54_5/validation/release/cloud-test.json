@@ -1,0 +1,158 @@
+{
+  "result": "PASS TEST release",
+  "id": "b477aec0-35b6-4f69-8b54-8e63ef33d3b6",
+  "tag": "v0.54.5",
+  "source_commit": "296231d657126e20b79eaaf258e86963344f368c",
+  "project": "ailang-multivac-deploy",
+  "build_region": "europe-west3",
+  "target_project": "ailang-multivac-test",
+  "image_set_count": 16,
+  "step_results": [
+    {
+      "id": "ci-gate",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "setup-buildx",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "clone-multivac",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-coordinator",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "push-coordinator",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-dashboard",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-ntfy",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-mcp",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-agent-base",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-agent",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-agent-pi",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-agent-codex",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-agent-opencode",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-agent-eval",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-agent-motoko",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-agent-go",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-agent-pi-go",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-agent-codex-go",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-agent-eval-go",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "build-resident-pi",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "test-resident-pi",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "deploy-test",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "smoke-gate",
+      "status": "SUCCESS"
+    }
+  ],
+  "smoke_lines": [
+    "Step #22 - \"smoke-gate\": Already have image (with digest): gcr.io/cloud-builders/gcloud",
+    "Step #22 - \"smoke-gate\": TAG_NAME=v0.54.5  VER=0.54.5",
+    "Step #22 - \"smoke-gate\": GATE 1/4: MCP serves 0.54.5",
+    "Step #22 - \"smoke-gate\":   test MCP latest=0.54.5 (want 0.54.5)",
+    "Step #22 - \"smoke-gate\": GATE 2/4: MCP docs_search answers 0.54.5 (not unknown_version)",
+    "Step #22 - \"smoke-gate\":   ok",
+    "Step #22 - \"smoke-gate\": GATE 3/4: coordinator /health",
+    "Step #22 - \"smoke-gate\": GATE 4/4: dashboard /health",
+    "Step #22 - \"smoke-gate\": SMOKE GATE PASSED \u2014 v0.54.5 is on TEST and promotable:",
+    "Step #22 - \"smoke-gate\":   ailang-multivac/scripts/release.sh promote core v0.54.5"
+  ],
+  "image_results": [],
+  "full_log_sha256": "125392387dbe8325ecc3fd40cc1341431c2769578e6b807dc7fa4ea5fe1cf237",
+  "build_link": "https://console.cloud.google.com/cloud-build/builds;region=europe-west3/b477aec0-35b6-4f69-8b54-8e63ef33d3b6?project=ailang-multivac-deploy",
+  "services_rolled": [
+    "ailang-test-coordinator",
+    "ailang-test-dashboard",
+    "ailang-test-mcp"
+  ],
+  "jobs_updated": [
+    "ailang-test-agent-executor",
+    "ailang-test-agent-executor-apikey",
+    "ailang-test-agent-executor-go",
+    "ailang-test-agent-executor-go-apikey",
+    "ailang-test-agent-executor-codex",
+    "ailang-test-agent-executor-codex-apikey",
+    "ailang-test-agent-executor-codex-go",
+    "ailang-test-agent-executor-opencode",
+    "ailang-test-agent-executor-opencode-apikey",
+    "ailang-test-agent-executor-pi",
+    "ailang-test-agent-executor-pi-apikey",
+    "ailang-test-agent-executor-eval",
+    "ailang-test-agent-executor-eval-go",
+    "ailang-test-agent-executor-pi-go",
+    "ailang-test-agent-executor-motoko"
+  ],
+  "actual_services_count": 3,
+  "actual_jobs_count": 15,
+  "planned_jobs_count": 15,
+  "optional_services_explicitly_absent": [
+    "Step #21 - \"deploy-test\": ailang-test-ntfy: skipped (service does not exist yet)"
+  ],
+  "count_note": "16 images validated. TEST rolled 3 existing services and 15 existing jobs; ntfy and the guarded credit runtime are explicitly unprovisioned. PROD rolled 4 existing services and 17 existing jobs, including its existing credit runtime. Shared library records those optional resources; no new resources were created.",
+  "explicitly_skipped_unprovisioned_resources": [
+    "Step #21 - \"deploy-test\": ailang-test-agent-executor-claude-credit: skipped (guarded runtime not provisioned)",
+    "Step #21 - \"deploy-test\": ailang-test-agent-executor-go-claude-credit: skipped (guarded runtime not provisioned)",
+    "Step #21 - \"deploy-test\": ailang-test-claude-credit-gateway: skipped (guarded runtime not provisioned)",
+    "Step #21 - \"deploy-test\": ailang-test-ntfy: skipped (service does not exist yet)",
+    "Step #21 - \"deploy-test\": ailang-test-claude-credit-gateway: skipped (guarded runtime not provisioned)",
+    "Step #21 - \"deploy-test\": ailang-test-agent-executor-claude-credit: skipped (guarded runtime not provisioned)",
+    "Step #21 - \"deploy-test\": ailang-test-agent-executor-go-claude-credit: skipped (guarded runtime not provisioned)"
+  ],
+  "planned_services_count": 4
+}
