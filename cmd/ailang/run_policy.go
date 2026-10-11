@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/policy"
+	"github.com/sunholo-data/ailang/internal/runlife"
 )
 
 // M-AGENT-AILANG-ONLY-EXECUTION M2 / M-EXECUTOR-POLICY-HARDENING M3 —
@@ -290,7 +291,7 @@ func reportDecision(control *os.File, msg controlMessage) {
 		return
 	}
 	b, _ := json.Marshal(msg)
-	_, _ = control.Write(append(b, '\n'))
+	runlife.Admit(func() { _, _ = control.Write(append(b, '\n')) })
 	_ = control.Close()
 }
 

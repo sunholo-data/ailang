@@ -9,6 +9,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/runlife"
 	"github.com/sunholo-data/ailang/internal/runtime"
 )
 
@@ -31,6 +32,7 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 	stopSignals := func() {}
 	defer func() {
 		if cleanupErr := effCtx.CloseWorkers(); cleanupErr != nil {
+			runlife.RecordFailure(cleanupErr)
 			err = errors.Join(err, fmt.Errorf("worker cleanup: %w", cleanupErr))
 		}
 		FlushDebugOutput(effCtx, opts.DebugLogLevel, input)
@@ -43,7 +45,6 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 	}
 
 	effCtx.GoCtx = ctx
-	stopSignals = effCtx.InstallWorkerSignalHandler(opts.TerminalSignalExit)
 
 	if opts.NoBudgets {
 		effCtx.DisableBudgets = true
@@ -81,6 +82,13 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 	// the whole run (the caller checks for *EnvFlagError).
 	if _, err := SetupEnvContext(effCtx, opts.Env); err != nil {
 		return err
+	}
+
+	if err := runlife.Bind(effCtx.ShutdownWorkersContext); err != nil {
+		return err
+	}
+	if opts.TerminalSignalExit != nil {
+		stopSignals = effCtx.InstallWorkerSignalHandler(func(code int) { runlife.Complete(effCtx.CloseWorkers()); opts.TerminalSignalExit(code) })
 	}
 
 	rt.GetEvaluator().SetEffContext(effCtx)

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -17,6 +18,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/policy"
+	"github.com/sunholo-data/ailang/internal/runlife"
 	"github.com/sunholo-data/ailang/internal/runtime"
 	"github.com/sunholo-data/ailang/internal/stdlibroot"
 	"github.com/sunholo-data/ailang/internal/telemetry"
@@ -115,6 +117,8 @@ type Options struct {
 // printed it; the caller owns telemetry init, the root span on ctx, and the
 // os.Exit.
 func Run(ctx context.Context, opts Options) int {
+	defer runlife.Complete(nil)
+
 	filename := opts.Filename
 	programArgs := opts.ProgramArgs
 	entry := opts.Entry
@@ -406,14 +410,13 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 	// M1): derived contexts share it, only the owner closes it, once.
 	defer effCtx.CloseFSRoot()
 	stopSignals := func() {}
-	cleanupDone := false
+	var cleanupOnce sync.Once
+	var cleanupResult error
 	cleanupWorkers := func() error {
-		if cleanupDone {
-			return nil
-		}
-		cleanupDone = true
-		return effCtx.CloseWorkers()
+		cleanupOnce.Do(func() { cleanupResult = effCtx.CloseWorkers(); runlife.RecordFailure(cleanupResult) })
+		return cleanupResult
 	}
+
 	defer func() {
 		cleanupErr := cleanupWorkers()
 		stopSignals()
@@ -626,8 +629,13 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 		effCtx.Trace.RecordModuleStart(moduleName, capsList)
 	}
 
+	if err := runlife.Bind(effCtx.ShutdownWorkersContext); err != nil {
+		return 1
+	}
+
 	if opts.TerminalSignalExit != nil {
 		stopSignals = effCtx.InstallWorkerSignalHandler(func(code int) {
+			runlife.Complete(effCtx.CloseWorkers())
 			_ = effCtx.FlushIO()
 			FlushDebugOutput(effCtx, opts.DebugLogLevel, "")
 			emitRunTrace(ctx, effCtx, emitTrace, traceOpts)
