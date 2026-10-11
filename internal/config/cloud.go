@@ -65,6 +65,32 @@ func CloudProjectSource(ctx context.Context) (string, Source, error) {
 	return "", "", ErrNoCloudProject
 }
 
+// PrepareCloudProjectResolver freezes configured project sources without
+// consulting metadata. The returned resolver performs default discovery only
+// when no configured override was present; later env/config writes cannot
+// replace that startup choice.
+func PrepareCloudProjectResolver() func(context.Context) (string, error) {
+	project := strings.TrimSpace(get(EnvCloudProject))
+	if project == "" {
+		project = strings.TrimSpace(get(EnvGoogleCloudProject))
+	}
+	if project == "" {
+		project = projectFromConfigFile()
+	}
+	noMetadata := get(EnvNoMetadata) != ""
+	return func(ctx context.Context) (string, error) {
+		if project != "" {
+			return project, nil
+		}
+		if !noMetadata {
+			if p := projectFromMetadataAllowed(ctx); p != "" {
+				return p, nil
+			}
+		}
+		return "", ErrNoCloudProject
+	}
+}
+
 // Region resolves the cloud region: AILANG_CLOUD_REGION, then
 // GOOGLE_CLOUD_REGION, then the deprecated fleet default (D3).
 func Region() (string, error) {
@@ -128,6 +154,10 @@ func projectFromMetadata(ctx context.Context) string {
 	if os.Getenv(EnvNoMetadata) != "" {
 		return ""
 	}
+	return projectFromMetadataAllowed(ctx)
+}
+
+func projectFromMetadataAllowed(ctx context.Context) string {
 	metadata.mu.Lock()
 	defer metadata.mu.Unlock()
 	if metadata.done {

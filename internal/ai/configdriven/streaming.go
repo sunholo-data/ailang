@@ -35,6 +35,16 @@ type StreamRequest struct {
 // streaming dispatch goes through here so the budget/cap/span machinery
 // applies uniformly.
 func BuildStreamRequest(spec *pkg.AIProviderSpec, model string, messagesJSON string) (*StreamRequest, *ai.ProviderError) {
+	return buildStreamRequest(spec, model, messagesJSON, nil)
+}
+
+// BuildStreamRequest honors this provider's prepared auth environment, while
+// the package function retains the existing eager/dynamic contract.
+func (p *Provider) BuildStreamRequest(model, messagesJSON string) (*StreamRequest, *ai.ProviderError) {
+	return buildStreamRequest(p.spec, model, messagesJSON, p.envLookup)
+}
+
+func buildStreamRequest(spec *pkg.AIProviderSpec, model, messagesJSON string, lookup func(string) string) (*StreamRequest, *ai.ProviderError) {
 	// Error messages here flow up through aiStreamCall in cmd/ailang and
 	// get wrapped as Err(ProtocolError("...message...")). To preserve
 	// machine-readable error categorisation through that wrapping, we
@@ -101,7 +111,7 @@ func BuildStreamRequest(spec *pkg.AIProviderSpec, model string, messagesJSON str
 	}
 
 	// Build headers from the auth shape and any custom auth_headers.
-	headers, hdrErr := buildStreamHeaders(spec)
+	headers, hdrErr := buildStreamHeaders(spec, lookup)
 	if hdrErr != nil {
 		return nil, ai.NewProviderError(spec.Name, 0, hdrErr.Error(), hdrErr)
 	}
@@ -166,8 +176,8 @@ func injectStreamFlag(body []byte) ([]byte, error) {
 
 // buildStreamHeaders produces the headers list that StreamSSEPost expects.
 // Mirrors applyAuth's logic but emits a slice of HeaderPair rather than
-// mutating an *http.Request. Resolves env-var references at call time.
-func buildStreamHeaders(spec *pkg.AIProviderSpec) ([]HeaderPair, error) {
+// mutating an *http.Request. Uses the captured lookup when supplied.
+func buildStreamHeaders(spec *pkg.AIProviderSpec, env ...func(string) string) ([]HeaderPair, error) {
 	out := []HeaderPair{}
 
 	if spec.HasNamedAuth() {
@@ -175,13 +185,13 @@ func buildStreamHeaders(spec *pkg.AIProviderSpec) ([]HeaderPair, error) {
 		case "none":
 			// no-op
 		case "bearer":
-			secret, err := requireEnv(spec.Auth.Env)
+			secret, err := requireEnv(spec.Auth.Env, env...)
 			if err != nil {
 				return nil, err
 			}
 			out = append(out, HeaderPair{Name: "Authorization", Value: "Bearer " + secret})
 		case "x-api-key":
-			secret, err := requireEnv(spec.Auth.Env)
+			secret, err := requireEnv(spec.Auth.Env, env...)
 			if err != nil {
 				return nil, err
 			}
@@ -199,7 +209,7 @@ func buildStreamHeaders(spec *pkg.AIProviderSpec) ([]HeaderPair, error) {
 	}
 
 	for headerName, headerVal := range spec.AuthHeaders {
-		resolved, err := interpolateEnv(headerVal)
+		resolved, err := interpolateEnv(headerVal, env...)
 		if err != nil {
 			return nil, fmt.Errorf("auth_headers[%q]: %w", headerName, err)
 		}

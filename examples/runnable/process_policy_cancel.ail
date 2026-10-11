@@ -1,0 +1,35 @@
+module examples/runnable/process_policy_cancel
+
+import std/io (println, readLineOpt)
+import std/env (getArgs)
+import std/process (spawnProcess, cancelProcess, WorkerCancelError, WorkerHandleInvalid)
+import std/result (Result, Ok, Err)
+
+-- OS lifetime is proved with positive-PID integration tests, not a pure contract.
+pure func stopped(result: Result[(), WorkerCancelError]) -> bool {
+  match result { Ok(_) => true, Err(_) => false }
+}
+
+-- Z3 skips this contract because the callee uses parametric Result; inline tests
+-- and generated property cases check the same condition through the classifier.
+pure func stoppedCase(success: bool) -> bool ! {}
+ensures { result == success }
+  tests [(true, true), (false, false)] {
+  let result = if success then Ok(()) else Err(WorkerHandleInvalid("expired"));
+  stopped(result)
+}
+
+-- Pass this executing runtime's absolute path and this fixture's absolute folder.
+-- Press Enter or close stdin to cancel. Ok confirms joined policy-worker cleanup.
+export func main() -> () ! {IO, Env, Process} {
+  match getArgs() {
+    runtime :: root :: [] => {
+      let child = spawnProcess(runtime, ["run", "--policy", "${root}/process_policy_worker.toml",
+        "--chdir", root, "${root}/process_policy_worker.ail"]);
+      println("ready: press Enter or close stdin to cancel");
+      let line = readLineOpt();
+      println("cancel result: ${show(cancelProcess(child))}")
+    },
+    _ => println("Usage: process_policy_cancel ABSOLUTE_RUNTIME ABSOLUTE_FIXTURE_FOLDER")
+  }
+}

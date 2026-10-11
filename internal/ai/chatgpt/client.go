@@ -54,6 +54,11 @@ func WithCredential(cred Credential) Option {
 	return func(c *Client) { c.load = func() (Credential, error) { return cred, nil } }
 }
 
+// WithCredentialPath freezes the source while preserving per-request refresh.
+func WithCredentialPath(path string) Option {
+	return func(c *Client) { c.load = func() (Credential, error) { return LoadCredentialAt(path) } }
+}
+
 // NewClient builds a client. The credential is read per request, so a token
 // codex refreshed mid-run is picked up.
 func NewClient(opts ...Option) *Client {

@@ -1,0 +1,87 @@
+{
+  "version": "AILANG v0.54.4-15-gc9d524950\nCommit: c9d5249\nFull:   c9d52495029620b29ce4a7d307fafe3e4cda1d51\nBuilt:  2026-10-11_19:09:37\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026",
+  "providers": 0,
+  "cases": [
+    {
+      "name": "quit",
+      "command": [
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "run",
+        "--caps",
+        "IO,Env,Process",
+        "--process-allowlist",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "--chdir",
+        "/private/tmp/worker-followup-consumer-probe/repro",
+        "policy_exit.ail",
+        "--",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "/private/tmp/reply-m1-policy-quit-zno8c3e_"
+      ],
+      "home": "/private/tmp/reply-m1-policy-quit-zno8c3e_",
+      "before": [
+        {
+          "pid": 67426,
+          "ppid": 67411,
+          "pgid": 67426,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy /private/tmp/reply-m1-policy-quit-zno8c3e_/policy.toml --chdir /private/tmp/reply-m1-policy-quit-zno8c3e_ worker.ail"
+        },
+        {
+          "pid": 67434,
+          "ppid": 67426,
+          "pgid": 67434,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-policy-quit-zno8c3e_/policy.toml --chdir /private/tmp/reply-m1-policy-quit-zno8c3e_ worker.ail"
+        }
+      ],
+      "stdout": "ready\ncancel result: Ok(())\n",
+      "stderr": "",
+      "exit": 0,
+      "shutdown_ms": 7,
+      "after": [],
+      "clean": true,
+      "recorded_pids_absent": true,
+      "fixture_cleanup_after": []
+    },
+    {
+      "name": "eof",
+      "command": [
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "run",
+        "--caps",
+        "IO,Env,Process",
+        "--process-allowlist",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "--chdir",
+        "/private/tmp/worker-followup-consumer-probe/repro",
+        "policy_exit.ail",
+        "--",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "/private/tmp/reply-m1-policy-eof-huo4a668"
+      ],
+      "home": "/private/tmp/reply-m1-policy-eof-huo4a668",
+      "before": [
+        {
+          "pid": 67517,
+          "ppid": 67514,
+          "pgid": 67517,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy /private/tmp/reply-m1-policy-eof-huo4a668/policy.toml --chdir /private/tmp/reply-m1-policy-eof-huo4a668 worker.ail"
+        },
+        {
+          "pid": 67519,
+          "ppid": 67517,
+          "pgid": 67519,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-policy-eof-huo4a668/policy.toml --chdir /private/tmp/reply-m1-policy-eof-huo4a668 worker.ail"
+        }
+      ],
+      "stdout": "ready\ncancel result: Ok(())\n",
+      "stderr": "",
+      "exit": 0,
+      "shutdown_ms": 6,
+      "after": [],
+      "clean": true,
+      "recorded_pids_absent": true,
+      "fixture_cleanup_after": []
+    }
+  ],
+  "pass": true
+}

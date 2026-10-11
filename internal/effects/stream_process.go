@@ -10,28 +10,32 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/proctree"
+	"github.com/sunholo-data/ailang/internal/runlife"
 )
 
 // processSource owns its child process group, stdout pipe and reader. Selection
 // borrows the source; only cancellation or the execution owner stops it.
 type processSource struct {
-	name       string
-	priority   int
-	ch         chan streamEvent
-	done       chan struct{} // delivery/read cancellation, not completion
-	completed  chan struct{}
-	readerDone chan struct{}
-	once       sync.Once
-	groupOnce  sync.Once
-	killGroup  func(int) error
-	cmd        *exec.Cmd
-	stdout     *os.File
-	cancel     context.CancelFunc
-	mu         sync.Mutex
-	stopErr    error
-	joinErr    error
+	name         string
+	priority     int
+	ch           chan streamEvent
+	done         chan struct{} // delivery/read cancellation, not completion
+	completed    chan struct{}
+	readerDone   chan struct{}
+	once         sync.Once
+	groupOnce    sync.Once
+	killGroup    func(int) error
+	cmd          *exec.Cmd
+	stdout       *os.File
+	cancel       context.CancelFunc
+	mu           sync.Mutex
+	stopErr      error
+	joinErr      error
+	lifetime     *runlife.Child
+	stopDeadline time.Time
 }
 
 // NewProcessSource starts one owned process group and one Wait goroutine.
@@ -43,6 +47,9 @@ func NewProcessSource(parentCtx context.Context, cmdPath string, args []string, 
 func newProcessSource(parentCtx context.Context, cmdPath string, args []string, name string, priority int, chunkSize int, killGroup func(int) error) (EventSource, error) {
 	if chunkSize <= 0 {
 		return nil, fmt.Errorf("chunkSize must be positive, got %d", chunkSize)
+	}
+	if parentCtx == nil {
+		parentCtx = context.Background()
 	}
 	ctx, cancel := context.WithCancel(parentCtx)
 	stdout, childStdout, err := os.Pipe()
@@ -57,13 +64,27 @@ func newProcessSource(parentCtx context.Context, cmdPath string, args []string, 
 		done: make(chan struct{}), completed: make(chan struct{}), readerDone: make(chan struct{}),
 		cmd: cmd, stdout: stdout, cancel: cancel, killGroup: killGroup,
 	}
+	lifetime, err := runlife.Prepare(cmd, nil)
+	if err != nil {
+		stdout.Close()
+		childStdout.Close()
+		cancel()
+		return nil, fmt.Errorf("prepare runtime lifetime: %w", err)
+	}
+	ps.lifetime = lifetime
 	cmd.Stdout = childStdout
 	cmd.Cancel = ps.RequestStop // raw termination errors remain owned until checked Join
 	if err := cmd.Start(); err != nil {
+		if lifetime != nil {
+			lifetime.Abort()
+		}
 		_ = stdout.Close()
 		_ = childStdout.Close()
 		cancel()
 		return nil, fmt.Errorf("start process: %w", err)
+	}
+	if lifetime != nil {
+		lifetime.AfterStart()
 	}
 	_ = childStdout.Close() // only child writers now keep the reader open
 	go ps.readLoop(chunkSize)
@@ -80,11 +101,26 @@ func (ps *processSource) StdinClosing() bool         { return false }
 // RequestStop interrupts pipe reads and blocked delivery. Group termination
 // has one shared attempt, so natural completion cannot trigger later signals.
 func (ps *processSource) RequestStop() error {
+	bounded, cancel := context.WithTimeout(context.Background(), WorkerShutdownTimeout)
+	defer cancel()
+	return ps.RequestStopContext(bounded)
+}
+
+func (ps *processSource) RequestStopContext(deadline context.Context) error {
 	ps.once.Do(func() {
 		close(ps.done)
-		ps.finishGroup(false)
-		_ = ps.stdout.Close()
-		ps.cancel()
+		ps.mu.Lock()
+		ps.stopDeadline, _ = deadline.Deadline()
+		ps.mu.Unlock()
+		if ps.lifetime != nil {
+			ps.lifetime.RequestStop(deadline, func() error { ps.finishGroup(false); ps.mu.Lock(); defer ps.mu.Unlock(); return ps.stopErr })
+		} else {
+			ps.finishGroup(false)
+			ps.cancel()
+		}
+		if ps.lifetime == nil {
+			_ = ps.stdout.Close()
+		}
 	})
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
@@ -114,6 +150,9 @@ func (ps *processSource) finishGroup(natural bool) {
 func (ps *processSource) Join(ctx context.Context) error {
 	select {
 	case <-ps.completed:
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		ps.mu.Lock()
 		defer ps.mu.Unlock()
 		return errors.Join(proctree.ResolveGroupError(ps.cmd.Process.Pid, ps.stopErr), ps.joinErr)
@@ -128,6 +167,15 @@ func (ps *processSource) Close() { _ = ps.RequestStop() }
 
 func (ps *processSource) waitLoop() {
 	err := ps.cmd.Wait() // exactly one owner, including natural EOF
+	if ps.lifetime != nil {
+		ps.lifetime.AfterWait()
+		ctx, cancel := ps.receiptContext()
+		receiptErr := ps.lifetime.Join(ctx)
+		cancel()
+		ps.mu.Lock()
+		ps.joinErr = errors.Join(ps.joinErr, receiptErr)
+		ps.mu.Unlock()
+	}
 	// Finish inherited descendants before publishing completion, sharing the
 	// checked attempt so explicit cancellation never causes a second signal.
 	ps.finishGroup(true)
@@ -137,8 +185,24 @@ func (ps *processSource) waitLoop() {
 		ps.joinErr = errors.Join(ps.joinErr, err)
 	}
 	ps.mu.Unlock()
-	<-ps.readerDone
+	if ps.lifetime != nil {
+		select {
+		case <-ps.readerDone:
+		case <-ps.done:
+			// Keep registered runtime output readable until its sole Wait
+			// finishes. Closing it during cleanup could SIGPIPE the child
+			// before its private receipt. After Wait, close to bound drain
+			// even when a detached process retained an output descriptor.
+			_ = ps.stdout.Close()
+			<-ps.readerDone
+		}
+	} else {
+		<-ps.readerDone
+	}
 	ps.cancel()
+	if ps.lifetime != nil {
+		ps.lifetime.Abort()
+	}
 	close(ps.completed)
 }
 
@@ -147,20 +211,27 @@ func (ps *processSource) readLoop(chunkSize int) {
 	defer close(ps.ch)
 	defer ps.stdout.Close()
 	buf := make([]byte, chunkSize)
+	draining := false
 	for {
 		select {
 		case <-ps.done:
-			return
+			if ps.lifetime == nil {
+				return
+			}
+			draining = true
 		default:
 		}
 		n, err := io.ReadFull(ps.stdout, buf)
-		if n > 0 {
+		if n > 0 && !draining {
 			chunk := append([]byte(nil), buf[:n]...)
 			evt := streamEvent{kind: "source_bytes", sourceName: ps.name, data: chunk}
 			select {
 			case ps.ch <- evt:
 			case <-ps.done:
-				return
+				if ps.lifetime == nil {
+					return
+				}
+				draining = true
 			}
 		}
 		if err != nil {
@@ -176,4 +247,14 @@ func (ps *processSource) readLoop(chunkSize int) {
 			return
 		}
 	}
+}
+
+func (ps *processSource) receiptContext() (context.Context, context.CancelFunc) {
+	ps.mu.Lock()
+	deadline := ps.stopDeadline
+	ps.mu.Unlock()
+	if !deadline.IsZero() {
+		return context.WithDeadline(context.Background(), deadline)
+	}
+	return context.WithTimeout(context.Background(), WorkerShutdownTimeout)
 }

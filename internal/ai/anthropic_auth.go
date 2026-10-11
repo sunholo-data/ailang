@@ -62,11 +62,7 @@ func (c claudeOAuth) valid() error {
 }
 
 // credentialsFileToken reads the local Claude Code credential.
-func credentialsFileToken() (string, error) {
-	path, err := claudeCredentialsPath()
-	if err != nil {
-		return "", err
-	}
+func credentialsFileTokenAt(path string) (string, error) {
 	raw, err := os.ReadFile(path) // #nosec G304 -- fixed path under the user's home
 	if err != nil {
 		return "", err
@@ -120,10 +116,28 @@ func (c AnthropicCredential) Lane() string {
 // to fall back to (CLAUDE.md §2 — a fallback that changes who gets billed is
 // exactly the class that must error instead).
 func ResolveAnthropicCredential() (AnthropicCredential, error) {
-	if k := config.AnthropicAPIKey(); k != "" {
+	return PrepareAnthropicCredential()()
+}
+
+// PrepareAnthropicCredential freezes credential source selection without
+// reading the selected file. Resolution/freshness errors occur on first use.
+func PrepareAnthropicCredential() func() (AnthropicCredential, error) {
+	key, token := config.AnthropicAPIKey(), config.AnthropicAuthToken()
+	blob, _ := config.ClaudeCodeOAuthToken()
+	path, pathErr := claudeCredentialsPath()
+	if pathErr == nil {
+		path, pathErr = filepath.Abs(path)
+	}
+	return func() (AnthropicCredential, error) {
+		return resolveAnthropicCredentialAt(key, token, blob, path, pathErr)
+	}
+}
+
+func resolveAnthropicCredentialAt(key, token, blob, path string, pathErr error) (AnthropicCredential, error) {
+	if k := key; k != "" {
 		return AnthropicCredential{Value: k, OAuth: false}, nil
 	}
-	if t := config.AnthropicAuthToken(); t != "" {
+	if t := token; t != "" {
 		return AnthropicCredential{Value: t, OAuth: true}, nil
 	}
 	// The fleet's existing cloud convention: a JSON blob in the env. A RAW token is the
@@ -131,7 +145,7 @@ func ResolveAnthropicCredential() (AnthropicCredential, error) {
 	// loops carry it so no other session's refresh can expire their login (2026-10-07). It is
 	// an OAuth access token as-is; rejecting it as "not valid JSON" would fail every
 	// in-process Anthropic call made from a loop's environment.
-	if blob, _ := config.ClaudeCodeOAuthToken(); blob != "" {
+	if blob != "" {
 		if raw := strings.TrimSpace(blob); !strings.HasPrefix(raw, "{") {
 			return AnthropicCredential{Value: raw, OAuth: true}, nil
 		}
@@ -146,7 +160,10 @@ func ResolveAnthropicCredential() (AnthropicCredential, error) {
 	}
 	// Finally the local file the `claude` CLI itself uses. This is what makes
 	// standard mode work with no setup wherever agent mode already works.
-	if tok, err := credentialsFileToken(); err == nil {
+	if pathErr != nil {
+		return AnthropicCredential{}, pathErr
+	}
+	if tok, err := credentialsFileTokenAt(path); err == nil {
 		return AnthropicCredential{Value: tok, OAuth: true}, nil
 	} else if !os.IsNotExist(err) {
 		// A file that exists but is expired/malformed is a REAL problem: saying
@@ -154,7 +171,6 @@ func ResolveAnthropicCredential() (AnthropicCredential, error) {
 		// the actual fix is to refresh an existing one.
 		return AnthropicCredential{}, fmt.Errorf("Claude OAuth credential unusable: %w", err)
 	}
-	path, _ := claudeCredentialsPath()
 	return AnthropicCredential{}, fmt.Errorf(
 		"no Anthropic credential: set %s (metered API key), %s / %s (OAuth), or log in with the claude CLI so %s exists",
 		EnvAnthropicAPIKey, EnvAnthropicAuthToken, EnvClaudeCodeOAuthToken, path)

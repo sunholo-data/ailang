@@ -5,6 +5,53 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/ai_offline_cli.ail",
+      "status": "working",
+      "tags": [
+        "ai",
+        "cli",
+        "effects"
+      ],
+      "description": "Keyless offline/help branches with AI configured; first AI effect initializes the provider.",
+      "modules": [
+        "std/io",
+        "std/env",
+        "std/ai"
+      ]
+    },
+    {
+      "path": "runnable/process_policy_cancel.ail",
+      "status": "working",
+      "tags": [
+        "process",
+        "policy",
+        "cancellation",
+        "effects"
+      ],
+      "description": "Cancel a same-runtime policy worker and await acknowledged cleanup; takes runtime and fixture paths.",
+      "modules": [
+        "std/io",
+        "std/env",
+        "std/process",
+        "std/result"
+      ]
+    },
+    {
+      "path": "runnable/process_policy_worker.ail",
+      "status": "working",
+      "tags": [
+        "process",
+        "policy",
+        "clock",
+        "effects"
+      ],
+      "description": "Bounded companion policy worker for the cancellation example.",
+      "modules": [
+        "std/io",
+        "std/clock"
+      ]
+    },
+    {
       "path": "runnable/process_cancel.ail",
       "status": "working",
       "tags": ["process", "effects", "cancellation"],
@@ -3390,11 +3437,11 @@
     }
   ],
   "statistics": {
-    "total": 231,
-    "working": 223,
+    "total": 234,
+    "working": 226,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9653679653679653,
+    "coverage": 0.9658119658119658,
     "experimental": 0
   },
   "milestones": {

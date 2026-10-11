@@ -52,6 +52,7 @@ type WorkerOwner struct {
 	receiptOnce    sync.Once
 	elapsed        time.Duration
 	closedChildren []*WorkerOwner
+	closeContext   context.Context
 }
 
 func newWorkerOwner() *WorkerOwner {
@@ -68,6 +69,7 @@ func (owner *WorkerOwner) child() *WorkerOwner {
 	child.parent = owner
 	if owner.closing {
 		child.closing = true
+		child.closeContext = owner.closeContext
 	} else {
 		owner.children[child] = struct{}{}
 	}
@@ -167,10 +169,14 @@ func (a *WorkerAdmission) Complete(worker OwnedWorker) error {
 			a.owner.mu.Unlock()
 			return
 		}
+		parentDeadline := a.owner.closeContext
 		a.owner.mu.Unlock()
-		stopErr := worker.RequestStop()
+		if parentDeadline == nil {
+			parentDeadline = context.Background()
+		}
+		bounded, cancel := context.WithTimeout(parentDeadline, WorkerShutdownTimeout)
+		stopErr := requestWorkerStop(worker, bounded)
 		a.cancel()
-		bounded, cancel := context.WithTimeout(context.Background(), WorkerShutdownTimeout)
 		joinErr := worker.Join(bounded)
 		cancel()
 		a.err = errors.Join(fmt.Errorf("execution owner is shutting down"), stopErr, joinErr)
@@ -221,6 +227,7 @@ func (owner *WorkerOwner) close(parentDeadline context.Context) error {
 		defer cancel()
 		owner.mu.Lock()
 		owner.closing = true
+		owner.closeContext = bounded
 		workers := make(map[OwnedWorker]*WorkerAdmission, len(owner.workers))
 		for w, a := range owner.workers {
 			workers[w] = a
@@ -261,7 +268,7 @@ func (owner *WorkerOwner) close(parentDeadline context.Context) error {
 					}
 					timer.Stop()
 				}
-				stopErr := w.RequestStop()
+				stopErr := requestWorkerStop(w, bounded)
 				joinErr := w.Join(bounded)
 				var failures []error
 				if stopErr != nil {
@@ -366,9 +373,14 @@ func (ctx *EffContext) BindWorkerScope() {
 // CloseWorkers is mandatory host cleanup, independent of user capability budgets.
 // Calling it repeatedly returns the same cleanup outcome and emits one receipt.
 func (ctx *EffContext) CloseWorkers() error {
+	return ctx.CloseWorkersContext(context.Background())
+}
+
+// CloseWorkersContext carries an inherited owner deadline through nested runs.
+func (ctx *EffContext) CloseWorkersContext(parent context.Context) error {
 	ctx.BindWorkerScope()
 	owner := ctx.executionWorkerOwner()
-	err := owner.close(context.Background())
+	err := owner.close(parent)
 	owner.flushReceipts()
 	return err
 }
@@ -411,4 +423,13 @@ func (owner *WorkerOwner) flushReceipts() {
 			record(err, elapsed, pending)
 		}
 	})
+}
+
+// Context-aware workers carry the root cleanup budget across private runtime
+// boundaries. Other OwnedWorker implementations retain their existing contract.
+func requestWorkerStop(worker OwnedWorker, ctx context.Context) error {
+	if bounded, ok := worker.(interface{ RequestStopContext(context.Context) error }); ok {
+		return bounded.RequestStopContext(ctx)
+	}
+	return worker.RequestStop()
 }

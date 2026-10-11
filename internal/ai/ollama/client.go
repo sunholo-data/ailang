@@ -38,8 +38,9 @@ const (
 
 // Client implements ai.Provider for local Ollama models.
 type Client struct {
-	client   *ollamaapi.Client
-	endpoint string
+	client         *ollamaapi.Client
+	endpoint       string
+	frozenEndpoint bool
 }
 
 // ClientOption configures a Client.
@@ -49,6 +50,17 @@ type ClientOption func(*Client)
 func WithEndpoint(endpoint string) ClientOption {
 	return func(c *Client) {
 		c.endpoint = endpoint
+	}
+}
+
+// WithFrozenEndpoint accepts an already resolved endpoint. Ordinary
+// WithEndpoint retains the existing OLLAMA_HOST override behavior.
+func WithFrozenEndpoint(endpoint string) ClientOption {
+	return func(c *Client) {
+		c.frozenEndpoint = true
+		if endpoint != "" {
+			c.endpoint = endpoint
+		}
 	}
 }
 
@@ -68,7 +80,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		opt(c)
 	}
 
-	if envEndpoint := config.OllamaHost(); envEndpoint != "" {
+	if envEndpoint := config.OllamaHost(); !c.frozenEndpoint && envEndpoint != "" {
 		c.endpoint = envEndpoint
 	}
 

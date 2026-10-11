@@ -51,6 +51,7 @@ type EffContext struct {
 	IOWriter       io.Writer             // Override for IO effect output (nil = os.Stdout)
 	IOReader       io.Reader             // Override for IO effect input (nil = os.Stdin)
 	stdinReader    *bufio.Reader         // Persistent buffered reader for readLine (lazily initialized)
+	providerLookup ProviderLookup        // immutable per-run named AI providers; nil uses eager registry
 
 	workerOwner           *WorkerOwner        // execution ownership; shared only by budget views
 	terminalInput         *terminalInputState // shared across same-execution budget scopes
@@ -480,6 +481,7 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		Net:                   ctx.Net,
 		Debug:                 ctx.Debug,
 		AI:                    ctx.AI,
+		providerLookup:        ctx.providerLookup,
 		DOM:                   ctx.DOM, // M-COG-RUNTIME (v0.21.x): preserve DOM handler across budget scopes
 		Msg:                   ctx.Msg, // M-COG-RUNTIME (v0.21.x): preserve Msg handler across budget scopes
 		Cog:                   ctx.Cog, // M-COG-RUNTIME-BROWSER (v0.21.x M4): preserve drain queue

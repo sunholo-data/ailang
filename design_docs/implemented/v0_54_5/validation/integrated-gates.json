@@ -1,0 +1,59 @@
+{
+  "implementation_head": "0306217c7e1ed878409ed6f0514739561ee93927",
+  "result": "PASS",
+  "pre_release_checks": [
+    "make test",
+    "make lint",
+    "make check-file-sizes",
+    "make test-import-errors",
+    "run_eval_baseline.sh --validate"
+  ],
+  "additional_gates": [
+    "make verify-examples:228modules checked/0drift",
+    "make check-boundaries",
+    "gofmt: all changed Go files clean"
+  ],
+  "logs": [
+    {
+      "path": "/private/tmp/worker-followup-integrated-pre-release.log",
+      "sha256": "7fd7288e7a9a6427f51180740e76f435020f9501ccfb8fa749da35ffd48dc9bb",
+      "bytes": 415
+    },
+    {
+      "path": "/private/tmp/worker-followup-integrated-pre-release-test.log",
+      "sha256": "62430a4be8db1ef5f2cc8126fa5d872510b68e8da1fcf4f95fce51bf8ab79aac",
+      "bytes": 2850466
+    },
+    {
+      "path": "/private/tmp/worker-followup-integrated-pre-release-lint.log",
+      "sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f",
+      "bytes": 76
+    },
+    {
+      "path": "/private/tmp/worker-followup-integrated-pre-release-filesizes.log",
+      "sha256": "761b8c07afbb570114cae716851ccd134ae6499ca264df6e6115a7efb5bc00df",
+      "bytes": 80
+    },
+    {
+      "path": "/private/tmp/worker-followup-integrated-pre-release-goldens.log",
+      "sha256": "09a57f3a115ee72c0f526e6d9b216508c58fec893147702595e7d0110e0f72f4",
+      "bytes": 502
+    },
+    {
+      "path": "/private/tmp/worker-followup-integrated-pre-release-agent.log",
+      "sha256": "6d6a9d4440e532e7cd2faf057a336f6555476702587e5d5406697b9b7fbcf153",
+      "bytes": 253
+    },
+    {
+      "path": "/private/tmp/worker-followup-final-verify-examples.log",
+      "sha256": "967aa27e21197f2cb0776cdb604df61c476c485d12bce15e3a1bedef57d4c55a",
+      "bytes": 11583
+    },
+    {
+      "path": "/private/tmp/worker-followup-final-boundaries.log",
+      "sha256": "fa3800ac30a4698ec15076037a27f0afc619cf4013b44af3222a50537c26a5a4",
+      "bytes": 110
+    }
+  ],
+  "release_and_platform_ci": "Pending"
+}

@@ -1,6 +1,7 @@
 package effects
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -89,4 +90,10 @@ func (ctx *EffContext) InstallWorkerSignalHandler(exit func(int)) func() {
 	}()
 	var once sync.Once
 	return func() { once.Do(func() { signal.Stop(signals); close(stop); <-done }) }
+}
+
+// ShutdownWorkersContext is the CLI inherited-lifetime cleanup hook. Restore
+// native terminal state even when a blocked evaluator cannot unwind its defers.
+func (ctx *EffContext) ShutdownWorkersContext(deadline context.Context) error {
+	return errors.Join(restoreActiveTerminals(), ctx.CloseWorkersContext(deadline), ctx.FlushIO())
 }

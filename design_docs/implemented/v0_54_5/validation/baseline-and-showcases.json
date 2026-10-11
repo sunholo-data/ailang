@@ -1,0 +1,34 @@
+{
+  "baseline_commit": "bc078dc1b41308542bbccd3417bf040283e817df",
+  "baseline": {
+    "test": {
+      "result": "PASS",
+      "log_sha256": "4a4a423e3867c432cd618633e44d30147e3156fe4d7f63dbdb91ae425b88cd27",
+      "local_log": "/private/tmp/worker-followup-baseline-test.log"
+    },
+    "lint": {
+      "result": "PASS",
+      "log_sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f",
+      "local_log": "/private/tmp/worker-followup-baseline-lint.log"
+    }
+  },
+  "ailang_prompt_loaded": "v0.16.7",
+  "showcases": {
+    "typecheck": [
+      "ai_offline_cli.ail",
+      "process_policy_cancel.ail",
+      "process_policy_worker.ail"
+    ],
+    "inline_tests_and_generated_properties": {
+      "ai_offline_cli": 6,
+      "process_policy_cancel": 3
+    },
+    "z3": {
+      "mode": "VERIFIED",
+      "stoppedCase": "SKIPPED: parametric Result callee unsupported; same contract passes generated property tests"
+    },
+    "stub_eval_offline": "PASS",
+    "stub_strict_bytecode_help": "PASS"
+  },
+  "release_acceptance": "pending implementation and official-artifact validation"
+}

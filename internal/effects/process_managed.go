@@ -11,30 +11,35 @@ import (
 	"os/exec"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/proctree"
+	"github.com/sunholo-data/ailang/internal/runlife"
 )
 
 // managedProcess owns its child, process group, stdin pipe and writer task.
 // The sole waitLoop reaps the command and joins the writer before publishing Done.
 type managedProcess struct {
-	id         int
-	cmd        *exec.Cmd
-	stdin      io.WriteCloser
-	writeCh    chan []byte
-	done       chan struct{}
-	writerDone chan struct{}
-	stop       chan struct{}
-	once       sync.Once
-	cancel     context.CancelFunc
-	kill       func() error
-	mu         sync.Mutex
-	stopMu     sync.Mutex
-	closed     bool
-	exited     bool
-	exitErr    error
-	writeErr   error
-	stopErr    error
+	id           int
+	cmd          *exec.Cmd
+	stdin        io.WriteCloser
+	writeCh      chan []byte
+	done         chan struct{}
+	writerDone   chan struct{}
+	stop         chan struct{}
+	once         sync.Once
+	cancel       context.CancelFunc
+	kill         func() error
+	mu           sync.Mutex
+	stopMu       sync.Mutex
+	closed       bool
+	exited       bool
+	exitErr      error
+	writeErr     error
+	stopErr      error
+	receiptErr   error
+	lifetime     *runlife.Child
+	stopDeadline time.Time
 }
 
 func NewManagedProcess(parentCtx context.Context, cmdPath string, args []string) (*managedProcess, error) {
@@ -65,18 +70,33 @@ func newManagedProcess(parentCtx context.Context, cmdPath string, args []string,
 		})
 		return killErr
 	}
-	cmd.Cancel = func() error { return immediateWorkerStopError(kill()) }
+	lifetime, err := runlife.Prepare(cmd, nil)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("prepare runtime lifetime: %w", err)
+	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
+		if lifetime != nil {
+			lifetime.Abort()
+		}
 		cancel()
 		return nil, fmt.Errorf("stdin pipe: %w", err)
 	}
+	mp := &managedProcess{cmd: cmd, stdin: stdin, writeCh: make(chan []byte, 256), done: make(chan struct{}), writerDone: make(chan struct{}), stop: make(chan struct{}), cancel: cancel, kill: kill, lifetime: lifetime}
+	cmd.Cancel = mp.RequestStop
 	if err := cmd.Start(); err != nil {
+		if lifetime != nil {
+			lifetime.Abort()
+		}
 		cancel()
 		_ = stdin.Close()
 		return nil, fmt.Errorf("start process: %w", err)
 	}
-	mp := &managedProcess{cmd: cmd, stdin: stdin, writeCh: make(chan []byte, 256), done: make(chan struct{}), writerDone: make(chan struct{}), stop: make(chan struct{}), cancel: cancel, kill: kill}
+	if lifetime != nil {
+		lifetime.AfterStart()
+	}
+
 	go mp.writeLoop()
 	go mp.waitLoop()
 	return mp, nil
@@ -119,6 +139,12 @@ func (mp *managedProcess) StdinClosing() bool {
 
 // RequestStop force-stops this owned group. Repeated calls share one result.
 func (mp *managedProcess) RequestStop() error {
+	bounded, cancel := context.WithTimeout(context.Background(), WorkerShutdownTimeout)
+	defer cancel()
+	return mp.RequestStopContext(bounded)
+}
+
+func (mp *managedProcess) RequestStopContext(deadline context.Context) error {
 	mp.once.Do(func() {
 		mp.stopMu.Lock()
 		defer mp.stopMu.Unlock()
@@ -130,8 +156,13 @@ func (mp *managedProcess) RequestStop() error {
 		mp.CloseStdin()
 		close(mp.stop)
 		_ = mp.stdin.Close() // owned pipe; unblock any in-progress writer syscall
-		mp.stopErr = mp.kill()
-		mp.cancel()
+		mp.stopDeadline, _ = deadline.Deadline()
+		if mp.lifetime != nil {
+			mp.lifetime.RequestStop(deadline, mp.kill)
+		} else {
+			mp.stopErr = mp.kill()
+			mp.cancel()
+		}
 	})
 	mp.stopMu.Lock()
 	defer mp.stopMu.Unlock()
@@ -142,6 +173,9 @@ func (mp *managedProcess) RequestStop() error {
 func (mp *managedProcess) Join(ctx context.Context) error {
 	select {
 	case <-mp.done:
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		mp.mu.Lock()
 		err := mp.exitErr
 		writeErr := mp.writeErr
@@ -152,7 +186,7 @@ func (mp *managedProcess) Join(ctx context.Context) error {
 		}
 		mp.stopMu.Lock()
 		defer mp.stopMu.Unlock()
-		return errors.Join(proctree.ResolveGroupError(mp.cmd.Process.Pid, mp.stopErr), writeErr)
+		return errors.Join(proctree.ResolveGroupError(mp.cmd.Process.Pid, mp.stopErr), writeErr, mp.receiptErr)
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -211,6 +245,12 @@ func (mp *managedProcess) recordWriterError(err error) {
 
 func (mp *managedProcess) waitLoop() {
 	err := mp.cmd.Wait() // exactly one owner, including natural exit
+	if mp.lifetime != nil {
+		mp.lifetime.AfterWait()
+		ctx, cancel := mp.receiptContext()
+		mp.receiptErr = mp.lifetime.Join(ctx)
+		cancel()
+	}
 	mp.mu.Lock()
 	mp.exited = true
 	mp.exitErr = err
@@ -228,6 +268,9 @@ func (mp *managedProcess) waitLoop() {
 	if mp.stopErr == nil {
 		mp.stopErr = groupErr
 	}
+	if mp.lifetime != nil {
+		mp.lifetime.Abort()
+	}
 	close(mp.done)
 	mp.stopMu.Unlock()
 	mp.cancel()
@@ -244,4 +287,14 @@ func immediateWorkerStopError(err error) error {
 		return nil
 	}
 	return err
+}
+
+func (mp *managedProcess) receiptContext() (context.Context, context.CancelFunc) {
+	mp.stopMu.Lock()
+	deadline := mp.stopDeadline
+	mp.stopMu.Unlock()
+	if !deadline.IsZero() {
+		return context.WithDeadline(context.Background(), deadline)
+	}
+	return context.WithTimeout(context.Background(), WorkerShutdownTimeout)
 }
