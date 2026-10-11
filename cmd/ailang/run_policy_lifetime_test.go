@@ -32,7 +32,7 @@ func TestRunPolicy_SupervisorDeathStopsWorker(t *testing.T) {
 	writeAil(t, sandbox, "prog.ail", `module prog
 import std/process (exec)
 export func main() -> () ! {IO, Process} = {
-  let result = exec("sh", ["-c", "echo $PPID > worker.pid; echo $$ > subprocess.pid; exec sleep 60"]);
+  let result = exec("sh", ["-c", "echo $PPID > worker.pid.tmp; mv worker.pid.tmp worker.pid; echo $$ > subprocess.pid.tmp; mv subprocess.pid.tmp subprocess.pid; exec sleep 60"]);
   println(show(result))
 }
 `)
