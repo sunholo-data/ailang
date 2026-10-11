@@ -1,0 +1,85 @@
+{
+  "initial_commit": "8716b6b04933fb8062835bd665c531a035a7edea",
+  "result": "PASS exact final runtime full make test/lint/structure, independent focused races, PR1765 full platform checks and dev main CI; separate memory probe blocks release platform matrix",
+  "deterministic_red": "async cleanup-output receipt EOF; managed control passes",
+  "positive_repeat": 100,
+  "joined_reader_repeat": 100,
+  "race_repeat": 10,
+  "logs": [
+    {
+      "file": "worker-followup-stdout-receipt-before.log",
+      "sha256": "6fa28d8db49b40820944665940f72b47a970eafc5f32f5ba81abfe69a6fd9e08"
+    },
+    {
+      "file": "worker-followup-stdout-receipt-repeat.log",
+      "sha256": "cd8dccf8f96d809b5effbd01f24fa49c2b1a1bfefabb347af35f26df299137ce"
+    },
+    {
+      "file": "worker-followup-stdout-receipt-reader-repeat.log",
+      "sha256": "8ee4a2a56f193052dd4f3d647cae2620889f5475c620d0acc941854dd706aacf"
+    },
+    {
+      "file": "worker-followup-stdout-receipt-positive-race.log",
+      "sha256": "58c16d7b6ecf250bd46ff735b043de799530a2c91ee0c05d73cbe1c2d2520e97"
+    },
+    {
+      "file": "worker-followup-stdout-receipt-scoped.log",
+      "sha256": "67171975b2ce76fab009f88f50dfa9ce3ae33e7e0f5c716f45329efe8b984016"
+    },
+    {
+      "file": "worker-followup-stdout-receipt-lint.log",
+      "sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f"
+    },
+    {
+      "file": "worker-followup-stdout-final-test.log",
+      "sha256": "401d1b3fdc20aa58e460ae6211fdc2defd2c03aa8be04eef549bde802b1c3d70"
+    },
+    {
+      "file": "worker-followup-stdout-final-lint.log",
+      "sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f"
+    },
+    {
+      "file": "worker-followup-late-stdout-before.log",
+      "sha256": "98ad61b960f55833c7e57e84431ecac801da3ecfbf150b04c456992294e1a96f"
+    },
+    {
+      "file": "worker-followup-late-stdout-repeat.log",
+      "sha256": "770821b4da15d3b59dae1ef8892ab20e3a1094f3cc57eb963492123c51c4bea4"
+    },
+    {
+      "file": "worker-followup-late-stdout-race.log",
+      "sha256": "8107bd81f08dea333aea3466398163338a211bae654bb48a992270e98c3ebc40"
+    },
+    {
+      "file": "worker-followup-late-stdout-scoped.log",
+      "sha256": "e7266e604ae9a5fc36f12efb97efa844206115162963047c40b2c96e8384d8f7"
+    },
+    {
+      "file": "worker-followup-late-stdout-lint.log",
+      "sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f"
+    },
+    {
+      "file": "worker-followup-evaluator-stdout-focused-race.log",
+      "sha256": "4451efa1207ca38c9c63cc07f37f96aed4f388de65159027878e49e551043247"
+    },
+    {
+      "file": "worker-followup-late-final-test.log",
+      "sha256": "d1807e8869e9b35a43f45cdef763eaa1f59830a0611167375de8106039ea6382"
+    },
+    {
+      "file": "worker-followup-late-final-lint.log",
+      "sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f"
+    },
+    {
+      "file": "worker-followup-late-final-structure.log",
+      "sha256": "5138d488f7595b97f6ca6dcd5b3ae161a0fbafe4ec05b375fb730826c6bc277f"
+    }
+  ],
+  "final_runtime_commit": "47667ba7c3e63ca85dd7a4e8c54de6356ce1516d",
+  "independent_review": "PASS focused race count3,57.903s; final PR platform suite PASS",
+  "late_stop_red": "old one-shot check deadline exceeded0.57s",
+  "late_stop_repeat": 100,
+  "late_stop_race_repeat": 10,
+  "merged_pr": "https://github.com/sunholo-data/ailang/pull/1765",
+  "merge_commit": "e723303f4fead56b243dd9292a746baf52de0745"
+}

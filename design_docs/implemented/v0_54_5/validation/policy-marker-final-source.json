@@ -1,0 +1,89 @@
+{
+  "version": "AILANG v0.54.4-21-g47667ba7c\nCommit: 47667ba\nFull:   47667ba7c3e63ca85dd7a4e8c54de6356ce1516d\nBuilt:  2026-10-11_20:23:09\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026",
+  "providers": 0,
+  "cases": [
+    {
+      "name": "quit",
+      "command": [
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "run",
+        "--caps",
+        "IO,Env,Process",
+        "--process-allowlist",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "--chdir",
+        "/private/tmp/worker-followup-policy-marker-gate",
+        "policy_exit.ail",
+        "--",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "/private/tmp/reply-m1-policy-quit-ebm1n06b"
+      ],
+      "home": "/private/tmp/reply-m1-policy-quit-ebm1n06b",
+      "before": [
+        {
+          "pid": 12034,
+          "ppid": 12032,
+          "pgid": 12034,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy /private/tmp/reply-m1-policy-quit-ebm1n06b/policy.toml --chdir /private/tmp/reply-m1-policy-quit-ebm1n06b/sandbox worker.ail"
+        },
+        {
+          "pid": 12036,
+          "ppid": 12034,
+          "pgid": 12036,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-policy-quit-ebm1n06b/policy.toml --chdir /private/tmp/reply-m1-policy-quit-ebm1n06b/sandbox worker.ail"
+        }
+      ],
+      "worker_startup_marker": "actual worker entered main",
+      "stdout": "ready\ncancel result: Ok(())\n",
+      "stderr": "Warning: stdlib version mismatch: expected v0.54.4-21-g47667ba7c, found v0.54.5 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/std\n",
+      "exit": 0,
+      "shutdown_ms": 5,
+      "after": [],
+      "recorded_pids_absent": true,
+      "clean": true,
+      "fixture_cleanup_after": []
+    },
+    {
+      "name": "eof",
+      "command": [
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "run",
+        "--caps",
+        "IO,Env,Process",
+        "--process-allowlist",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "--chdir",
+        "/private/tmp/worker-followup-policy-marker-gate",
+        "policy_exit.ail",
+        "--",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "/private/tmp/reply-m1-policy-eof-kpg4dwez"
+      ],
+      "home": "/private/tmp/reply-m1-policy-eof-kpg4dwez",
+      "before": [
+        {
+          "pid": 12057,
+          "ppid": 12055,
+          "pgid": 12057,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy /private/tmp/reply-m1-policy-eof-kpg4dwez/policy.toml --chdir /private/tmp/reply-m1-policy-eof-kpg4dwez/sandbox worker.ail"
+        },
+        {
+          "pid": 12058,
+          "ppid": 12057,
+          "pgid": 12058,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-policy-eof-kpg4dwez/policy.toml --chdir /private/tmp/reply-m1-policy-eof-kpg4dwez/sandbox worker.ail"
+        }
+      ],
+      "worker_startup_marker": "actual worker entered main",
+      "stdout": "ready\ncancel result: Ok(())\n",
+      "stderr": "Warning: stdlib version mismatch: expected v0.54.4-21-g47667ba7c, found v0.54.5 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/std\n",
+      "exit": 0,
+      "shutdown_ms": 4,
+      "after": [],
+      "recorded_pids_absent": true,
+      "clean": true,
+      "fixture_cleanup_after": []
+    }
+  ],
+  "pass": true
+}
