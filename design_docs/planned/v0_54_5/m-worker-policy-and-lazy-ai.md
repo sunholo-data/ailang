@@ -96,10 +96,10 @@ Regression fixtures read/checked during design: `examples/runnable/process_cance
 ## Acceptance criteria
 
 - [x] AC1: Reproduce the reported policy leak before the fix with the official v0.54.4 binary, recording startup acknowledgement and exact positive supervisor/worker PIDs and PGIDs; cleanup is restricted to those owned fixtures.
-- [ ] AC2: Explicit managed cancellation and cancellation of two async sources remove all acknowledged supervisor/worker PIDs, including zombies, before success; each quit/EOF case remains within the shared two-second deadline plus a 500 ms observation allowance.
-- [ ] AC3: Normal return, error, exit, SIGINT/SIGTERM and owner/context shutdown include policy descendants; startup-cancel and nested-supervision races cannot leak workers or admit after shutdown.
-- [ ] AC4: Forced supervisor death triggers the worker lifeline fallback. Missing/failed/forged/oversized receipts cannot report public success; unrelated workers remain alive. Stalled cleanup returns a typed failure within deadline.
-- [ ] AC5: Policy denial, timeout/output limits, stdout/stderr spoof protection, restricted FS traversal/symlink tests and credential/environment restrictions pass unchanged in meaning. Sole Wait and bounded output preservation remain valid.
+- [x] AC2: Explicit managed cancellation and cancellation of two async sources remove all acknowledged supervisor/worker PIDs, including zombies, before success; each quit/EOF case remains within the shared two-second deadline plus a 500 ms observation allowance.
+- [x] AC3: Normal return, error, exit, SIGINT/SIGTERM and owner/context shutdown include policy descendants; startup-cancel and nested-supervision races cannot leak workers or admit after shutdown.
+- [x] AC4: Forced supervisor death triggers the worker lifeline fallback. Missing/failed/forged/oversized receipts cannot report public success; unrelated workers remain alive. Stalled cleanup returns a typed failure within deadline.
+- [x] AC5: Policy denial, timeout/output limits, stdout/stderr spoof protection, restricted FS traversal/symlink tests and credential/environment restrictions pass unchanged in meaning. Sole Wait and bounded output preservation remain valid.
 - [x] AC6: A generated local [bin] and direct run configured with a real model execute --offline and application --help without keys, unreadable configured key files, ADC/network probes or model calls. Cover evaluator and strict offline execution.
 - [x] AC7: First actual AI use initializes once; missing keys fail visibly, Result APIs return their established typed error, and a mock configured provider succeeds with exactly the expected requests. No live inference required.
 - [x] AC8: Initialization covers text/JSON, step/cache/streaming, image/reference/base64 and speech entry points without erasing optional interfaces, model restrictions, routing metadata or trace attribution. Denied/exhausted AI cannot initialize a provider.

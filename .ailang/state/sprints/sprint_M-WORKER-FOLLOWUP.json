@@ -51,7 +51,7 @@
       "passes": true,
       "started": "2026-10-11T18:32:39.438142+00:00",
       "completed": "2026-10-11T18:55:57.210407+00:00",
-      "notes": "M1 committed 1fbc6f992 and integrated: marker-backed official v0.54.4 leak; same-file private bounded lifecycle, admission fd3 preserved, worker lifeline. Full tests, policy suite, focused races and lint passed."
+      "notes": "M1 committed 1fbc6f992 and integrated: marker-backed official v0.54.4 leak; same-file private bounded lifecycle, admission fd3 preserved, worker lifeline. Full tests, policy suite, focused races and lint passed. Independent review gaps corrected by M2 d48ce8036, final exact policy/race regressions PASS."
     },
     {
       "id": "M2",
@@ -66,10 +66,10 @@
         "Missing acknowledgement produces typed failure; forced supervisor death stops inner worker, unrelated bystander survives (AC4).",
         "Existing external-command and platform cancellation behavior remains covered; race tests pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-11T18:32:39.438142+00:00",
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-11T19:13:04.436290+00:00",
+      "notes": "Integrated d48ce8036: strict private receipt + sole Wait + owned I/O joins and shared deadline. Final focused policy, effects/runlife race, 20 normal policy repeats and lint PASS; evaluator protocol/early-exit/direct-supervisor visibility findings corrected. Full integrated gate runs in M4."
     },
     {
       "id": "M3",
@@ -107,13 +107,13 @@
       "passes": null,
       "started": "2026-10-11T18:55:57.210407+00:00",
       "completed": null,
-      "notes": "Showcases/docs and guarded official-artifact/consumer probes prepared; integration/evaluation/release pending."
+      "notes": "Integrated marker-backed managed quit/EOF, original managed/two-async consumer and 19-case AI/generated-bin probes PASS; formatting/boundaries PASS. Consumer async EOF is natural completion, not a new EOF notification. Full local and CI/evaluation/release gates pending."
     }
   ],
   "approval": {
     "date": "2026-10-11",
     "source": "attended user approved design and sprint execution; prior fix-and-release instruction"
   },
-  "last_checkpoint": "M3 complete; M1/M2 evaluator protocol visibility fixes in final verification; M4 integration active, publication pending.",
-  "last_session": "2026-10-11T19:06:10.082606+00:00"
+  "last_checkpoint": "M1/M2/M3 integrated; consumer probes pass; frozen integrated pre-release and example gates running; final evaluator pending.",
+  "last_session": "2026-10-11T19:13:04.436290+00:00"
 }

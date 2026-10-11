@@ -21,13 +21,13 @@ Wave 1: lifecycle M1→M2 and AI M3 independently in isolated worktrees. Wave 2:
 - [x] Preserve admission fd3; add separate policy worker lifeline, nested cleanup acknowledgement and no admission after stop.
 - [x] Test malformed/oversized/forged receipt, supervisor loss, policy timeout/output/credential/provenance invariants and supported-platform guards (AC3–5).
 
-### M2: Managed and async acknowledged cancellation (~570 LOC)
+### M2: ✅ Managed and async acknowledged cancellation (~570 LOC)
 **Dependencies:** M1
 
-- [ ] RequestStop starts bounded protocol cancellation; Join requires inner cleanup receipt, direct Wait and owned I/O completion under one owner deadline.
-- [ ] Managed and two async policy workers vanish before successful cancellation; quit/EOF and natural completion join ownership (AC2–3).
-- [ ] Missing acknowledgement produces typed failure; forced supervisor death stops inner worker, unrelated bystander survives (AC4).
-- [ ] Existing external-command and platform cancellation behavior remains covered; race tests pass.
+- [x] RequestStop starts bounded protocol cancellation; Join requires inner cleanup receipt, direct Wait and owned I/O completion under one owner deadline.
+- [x] Managed and two async policy workers vanish before successful cancellation; quit/EOF and natural completion join ownership (AC2–3).
+- [x] Missing acknowledgement produces typed failure; forced supervisor death stops inner worker, unrelated bystander survives (AC4).
+- [x] Existing external-command and platform cancellation behavior remains covered; race tests pass.
 
 ### M3: ✅ Prepared AI configuration and lazy client creation (~500 LOC)
 **Dependencies:** none
@@ -41,7 +41,7 @@ Wave 1: lifecycle M1→M2 and AI M3 independently in isolated worktrees. Wave 2:
 ### M4: Integration, independent evaluation and follow-up release (~380 LOC)
 **Dependencies:** M2, M3
 
-- [ ] Add documented showcases and fixtures, update example manifest and changelog fragment; exercise all real-bin/policy acceptance probes.
+- [x] Add documented showcases and fixtures, update example manifest and changelog fragment; exercise all real-bin/policy acceptance probes.
 - [ ] Full Go tests, lint, formatting, boundaries, file sizes, meaningful race checks and cross-platform CI pass (AC10).
 - [ ] Independent sprint evaluator assesses every AC; address findings before merge.
 - [ ] Commit completed plan/JSON and validation evidence in the implementation tree, then merge reviewed PR to dev.
