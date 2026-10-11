@@ -1,0 +1,117 @@
+{
+  "sprint_id": "M-WORKER-FOLLOWUP",
+  "status": "not_started",
+  "created": "2026-10-11T18:21:20Z",
+  "design_doc": "design_docs/planned/v0_54_5/m-worker-policy-and-lazy-ai.md",
+  "sprint_plan": "design_docs/planned/v0_54_5/m-worker-policy-and-lazy-ai-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process and AI, inspected sunholo/external_backend@0.2.0 info/docs; one-shot package cannot enforce Go runtime pre-admission lifecycle or lazy provider initialization."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process and AI, inspected sunholo/external_backend@0.2.0 info/docs; one-shot package cannot enforce Go runtime pre-admission lifecycle or lazy provider initialization."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process and AI, inspected sunholo/external_backend@0.2.0 info/docs; one-shot package cannot enforce Go runtime pre-admission lifecycle or lazy provider initialization."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process and AI, inspected sunholo/external_backend@0.2.0 info/docs; one-shot package cannot enforce Go runtime pre-admission lifecycle or lazy provider initialization."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 420,
+    "estimated_total_loc": 2100,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Private runtime lifecycle and policy lifeline",
+      "estimated_loc": 650,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "AC1: reproduce official v0.54.4 policy leak with positive fixture PIDs/PGIDs and clean only those fixture processes.",
+        "Implement same-executable run detection, bounded versioned private stop/receipt transport, early registration and descriptor rollback.",
+        "Preserve admission fd3; add separate policy worker lifeline, nested cleanup acknowledgement and no admission after stop.",
+        "Test malformed/oversized/forged receipt, supervisor loss, policy timeout/output/credential/provenance invariants and supported-platform guards (AC3\u20135)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Managed and async acknowledged cancellation",
+      "estimated_loc": 570,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "RequestStop starts bounded protocol cancellation; Join requires inner cleanup receipt, direct Wait and owned I/O completion under one owner deadline.",
+        "Managed and two async policy workers vanish before successful cancellation; quit/EOF and natural completion join ownership (AC2\u20133).",
+        "Missing acknowledgement produces typed failure; forced supervisor death stops inner worker, unrelated bystander survives (AC4).",
+        "Existing external-command and platform cancellation behavior remains covered; race tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Prepared AI configuration and lazy client creation",
+      "estimated_loc": 500,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Prepare/freeze structural model/provider/routing/auth-source configuration eagerly without reading credentials or probing a real provider.",
+        "Initialize AIContext once at first authorized AI operation; cache complete context or error and preserve concrete optional interfaces.",
+        "Cover call/json/step/cache/stream/image/base64/refs/speech and metadata-only access; preserve capability/budget/error/trace behavior (AC7\u20139).",
+        "Direct CLI and generated bin offline/help pass with absent/unreadable keys and unavailable ADC/Ollama; real AI use fails loudly without credentials (AC6).",
+        "Explicit eager setup and stub fixtures retain existing behavior; focused and race tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Integration, independent evaluation and follow-up release",
+      "estimated_loc": 380,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Add documented showcases and fixtures, update example manifest and changelog fragment; exercise all real-bin/policy acceptance probes.",
+        "Full Go tests, lint, formatting, boundaries, file sizes, meaningful race checks and cross-platform CI pass (AC10).",
+        "Independent sprint evaluator assesses every AC; address findings before merge.",
+        "Commit completed plan/JSON and validation evidence in the implementation tree, then merge reviewed PR to dev.",
+        "Publish patch release; verify checksum/provenance and repeat tests with official artifact, rerun pinned consumer policy gate before claiming resolved (AC11).",
+        "Complete release-manager \u03bcRAG, cloudTEST\u2192PROD and public MCP version checks; send authorized release notice."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "approval": {
+    "date": "2026-10-11",
+    "source": "attended user approved design and sprint execution; prior fix-and-release instruction"
+  }
+}
