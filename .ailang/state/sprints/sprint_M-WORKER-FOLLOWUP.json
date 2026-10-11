@@ -49,7 +49,7 @@
         "Test malformed/oversized/forged receipt, supervisor loss, policy timeout/output/credential/provenance invariants and supported-platform guards (AC3\u20135)."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-11T18:32:39.438142+00:00",
       "completed": null,
       "notes": null
     },
@@ -67,7 +67,7 @@
         "Existing external-command and platform cancellation behavior remains covered; race tests pass."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-11T18:32:39.438142+00:00",
       "completed": null,
       "notes": null
     },
@@ -84,7 +84,7 @@
         "Explicit eager setup and stub fixtures retain existing behavior; focused and race tests pass."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-11T18:32:39.438142+00:00",
       "completed": null,
       "notes": null
     },
@@ -107,12 +107,13 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "Showcases/docs and guarded official-artifact/consumer probes prepared; integration/evaluation/release pending."
     }
   ],
   "approval": {
     "date": "2026-10-11",
     "source": "attended user approved design and sprint execution; prior fix-and-release instruction"
   },
-  "last_checkpoint": "Plan approved, AC1 official v0.54.4 leak reproduced; baseline tests running"
+  "last_checkpoint": "M1 focused regression tests pass; M2 and M3 TDD implementation active",
+  "last_session": "2026-10-11T18:32:39.438142+00:00"
 }
