@@ -52,6 +52,7 @@ type WorkerOwner struct {
 	receiptOnce    sync.Once
 	elapsed        time.Duration
 	closedChildren []*WorkerOwner
+	closeContext   context.Context
 }
 
 func newWorkerOwner() *WorkerOwner {
@@ -68,6 +69,7 @@ func (owner *WorkerOwner) child() *WorkerOwner {
 	child.parent = owner
 	if owner.closing {
 		child.closing = true
+		child.closeContext = owner.closeContext
 	} else {
 		owner.children[child] = struct{}{}
 	}
@@ -167,10 +169,14 @@ func (a *WorkerAdmission) Complete(worker OwnedWorker) error {
 			a.owner.mu.Unlock()
 			return
 		}
+		parentDeadline := a.owner.closeContext
 		a.owner.mu.Unlock()
-		stopErr := worker.RequestStop()
+		if parentDeadline == nil {
+			parentDeadline = context.Background()
+		}
+		bounded, cancel := context.WithTimeout(parentDeadline, WorkerShutdownTimeout)
+		stopErr := requestWorkerStop(worker, bounded)
 		a.cancel()
-		bounded, cancel := context.WithTimeout(context.Background(), WorkerShutdownTimeout)
 		joinErr := worker.Join(bounded)
 		cancel()
 		a.err = errors.Join(fmt.Errorf("execution owner is shutting down"), stopErr, joinErr)
@@ -221,6 +227,7 @@ func (owner *WorkerOwner) close(parentDeadline context.Context) error {
 		defer cancel()
 		owner.mu.Lock()
 		owner.closing = true
+		owner.closeContext = bounded
 		workers := make(map[OwnedWorker]*WorkerAdmission, len(owner.workers))
 		for w, a := range owner.workers {
 			workers[w] = a
@@ -261,7 +268,7 @@ func (owner *WorkerOwner) close(parentDeadline context.Context) error {
 					}
 					timer.Stop()
 				}
-				stopErr := w.RequestStop()
+				stopErr := requestWorkerStop(w, bounded)
 				joinErr := w.Join(bounded)
 				var failures []error
 				if stopErr != nil {
@@ -416,4 +423,13 @@ func (owner *WorkerOwner) flushReceipts() {
 			record(err, elapsed, pending)
 		}
 	})
+}
+
+// Context-aware workers carry the root cleanup budget across private runtime
+// boundaries. Other OwnedWorker implementations retain their existing contract.
+func requestWorkerStop(worker OwnedWorker, ctx context.Context) error {
+	if bounded, ok := worker.(interface{ RequestStopContext(context.Context) error }); ok {
+		return bounded.RequestStopContext(ctx)
+	}
+	return worker.RequestStop()
 }

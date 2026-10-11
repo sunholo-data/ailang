@@ -36,7 +36,7 @@ func ProcessCancel(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 	joinCtx, cancel := context.WithTimeout(context.Background(), WorkerShutdownTimeout)
 	defer cancel()
-	stopErr := mp.RequestStop()
+	stopErr := mp.RequestStopContext(joinCtx)
 	joinErr := mp.Join(joinCtx)
 	if errors.Is(joinErr, context.DeadlineExceeded) {
 		return WorkerCancelTimeout(), nil

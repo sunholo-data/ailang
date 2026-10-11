@@ -46,9 +46,9 @@ func StreamCancelProcessSource(ctx *EffContext, args []eval.Value) (eval.Value, 
 	if !ok {
 		return WorkerCancelFailure("WorkerCancelUnsupported", "source is not an owned process"), nil
 	}
-	stopErr := worker.RequestStop()
 	deadline, cancel := context.WithTimeout(context.Background(), WorkerShutdownTimeout)
 	defer cancel()
+	stopErr := worker.RequestStopContext(deadline)
 	joinErr := worker.Join(deadline)
 	if errors.Is(joinErr, context.DeadlineExceeded) {
 		return WorkerCancelTimeout(), nil

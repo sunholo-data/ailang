@@ -12,3 +12,10 @@ func bootstrapRunLifetime() error {
 	return err
 }
 func completeRunLifetime() { runlife.Complete(nil) }
+
+// Early CLI exits have no execution owner, but must still close admission and
+// acknowledge cleanup to an inherited owner. os.Exit does not run defers.
+func exitRunLifetime(code int) {
+	completeRunLifetime()
+	os.Exit(code)
+}
