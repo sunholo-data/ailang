@@ -13,13 +13,13 @@ Wave 1: lifecycle M1→M2 and AI M3 independently in isolated worktrees. Wave 2:
 
 ## Milestones
 
-### M1: Private runtime lifecycle and policy lifeline (~650 LOC)
+### M1: ✅ Private runtime lifecycle and policy lifeline (~650 LOC)
 **Dependencies:** none
 
-- [ ] AC1: reproduce official v0.54.4 policy leak with positive fixture PIDs/PGIDs and clean only those fixture processes.
-- [ ] Implement same-executable run detection, bounded versioned private stop/receipt transport, early registration and descriptor rollback.
-- [ ] Preserve admission fd3; add separate policy worker lifeline, nested cleanup acknowledgement and no admission after stop.
-- [ ] Test malformed/oversized/forged receipt, supervisor loss, policy timeout/output/credential/provenance invariants and supported-platform guards (AC3–5).
+- [x] AC1: reproduce official v0.54.4 policy leak with positive fixture PIDs/PGIDs and clean only those fixture processes.
+- [x] Implement same-executable run detection, bounded versioned private stop/receipt transport, early registration and descriptor rollback.
+- [x] Preserve admission fd3; add separate policy worker lifeline, nested cleanup acknowledgement and no admission after stop.
+- [x] Test malformed/oversized/forged receipt, supervisor loss, policy timeout/output/credential/provenance invariants and supported-platform guards (AC3–5).
 
 ### M2: Managed and async acknowledged cancellation (~570 LOC)
 **Dependencies:** M1

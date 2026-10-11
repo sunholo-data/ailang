@@ -48,10 +48,10 @@
         "Preserve admission fd3; add separate policy worker lifeline, nested cleanup acknowledgement and no admission after stop.",
         "Test malformed/oversized/forged receipt, supervisor loss, policy timeout/output/credential/provenance invariants and supported-platform guards (AC3\u20135)."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-11T18:32:39.438142+00:00",
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-11T18:55:57.210407+00:00",
+      "notes": "M1 committed 1fbc6f992 and integrated: marker-backed official v0.54.4 leak; same-file private bounded lifecycle, admission fd3 preserved, worker lifeline. Full tests, policy suite, focused races and lint passed."
     },
     {
       "id": "M2",
@@ -105,7 +105,7 @@
         "Complete release-manager \u03bcRAG, cloudTEST\u2192PROD and public MCP version checks; send authorized release notice."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-11T18:55:57.210407+00:00",
       "completed": null,
       "notes": "Showcases/docs and guarded official-artifact/consumer probes prepared; integration/evaluation/release pending."
     }
@@ -114,6 +114,6 @@
     "date": "2026-10-11",
     "source": "attended user approved design and sprint execution; prior fix-and-release instruction"
   },
-  "last_checkpoint": "M1 focused regression tests pass; M2 and M3 TDD implementation active",
-  "last_session": "2026-10-11T18:32:39.438142+00:00"
+  "last_checkpoint": "M1 integrated and passed; M2 final validation and M3 complete per-run auth/stream snapshot in progress; M4 integration underway.",
+  "last_session": "2026-10-11T18:55:57.210407+00:00"
 }
