@@ -48,6 +48,13 @@ func TestMain(m *testing.M) {
 					stopErr := nested.RequestStopContext(ctx)
 					return errors.Join(stopErr, nested.Join(ctx))
 				}
+				if mode == "cleanup-output" {
+					// Cancellation must keep the read endpoint alive while the
+					// registered runtime flushes output before its receipt.
+					if _, err := fmt.Fprint(os.Stdout, strings.Repeat("x", 64*1024)); err != nil {
+						return err
+					}
+				}
 				return os.WriteFile(path+".joined", []byte("joined"), 0600)
 			}); err != nil {
 				os.Exit(5)
@@ -79,7 +86,7 @@ func TestRuntimeOwnedWorkersRequireReceipt(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, async := range []bool{false, true} {
-		for _, mode := range []string{"good", "missing", "forged", "natural"} {
+		for _, mode := range []string{"good", "cleanup-output", "missing", "forged", "natural"} {
 			t.Run(fmt.Sprintf("async=%v/%s", async, mode), func(t *testing.T) {
 				marker := filepath.Join(t.TempDir(), "ready")
 				args := []string{"run", "--runtime-lifetime-helper", mode, marker}
@@ -130,7 +137,14 @@ func TestRuntimeOwnedWorkersRequireReceipt(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if mode == "good" {
+				if source, ok := worker.(*processSource); ok {
+					select {
+					case <-source.readerDone:
+					default:
+						t.Fatal("receipt success before owned stdout reader joined")
+					}
+				}
+				if mode == "good" || mode == "cleanup-output" {
 					if _, err := os.Stat(marker + ".joined"); err != nil {
 						t.Fatal("success before child cleanup acknowledgement")
 					}

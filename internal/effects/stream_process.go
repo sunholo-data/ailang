@@ -118,7 +118,9 @@ func (ps *processSource) RequestStopContext(deadline context.Context) error {
 			ps.finishGroup(false)
 			ps.cancel()
 		}
-		_ = ps.stdout.Close()
+		if ps.lifetime == nil {
+			_ = ps.stdout.Close()
+		}
 	})
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
@@ -183,6 +185,17 @@ func (ps *processSource) waitLoop() {
 		ps.joinErr = errors.Join(ps.joinErr, err)
 	}
 	ps.mu.Unlock()
+	if ps.lifetime != nil {
+		select {
+		case <-ps.done:
+			// Keep registered runtime output readable until its sole Wait
+			// finishes. Closing it during cleanup could SIGPIPE the child
+			// before its private receipt. After Wait, close to bound drain
+			// even when a detached process retained an output descriptor.
+			_ = ps.stdout.Close()
+		default:
+		}
+	}
 	<-ps.readerDone
 	ps.cancel()
 	if ps.lifetime != nil {
@@ -196,20 +209,27 @@ func (ps *processSource) readLoop(chunkSize int) {
 	defer close(ps.ch)
 	defer ps.stdout.Close()
 	buf := make([]byte, chunkSize)
+	draining := false
 	for {
 		select {
 		case <-ps.done:
-			return
+			if ps.lifetime == nil {
+				return
+			}
+			draining = true
 		default:
 		}
 		n, err := io.ReadFull(ps.stdout, buf)
-		if n > 0 {
+		if n > 0 && !draining {
 			chunk := append([]byte(nil), buf[:n]...)
 			evt := streamEvent{kind: "source_bytes", sourceName: ps.name, data: chunk}
 			select {
 			case ps.ch <- evt:
 			case <-ps.done:
-				return
+				if ps.lifetime == nil {
+					return
+				}
+				draining = true
 			}
 		}
 		if err != nil {
