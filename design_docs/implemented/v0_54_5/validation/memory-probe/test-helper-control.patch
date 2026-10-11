@@ -1,0 +1,10 @@
+--- cmd/ailang/main_test.go
++++ main_control_test.go
+@@ -363,6 +363,7 @@
+ // m.Run() returns.
+ // Uses a compiled binary instead of "go run" so exit codes propagate correctly.
+ func buildAilang(t *testing.T) string {
++	if os.Getenv("AILANG_MEMPROBE_CONTROL") == "1" { return "/private/tmp/worker-followup-m4-control/ailang-retaining" }
+ 	t.Helper()
+ 	ailangBinOnce.Do(func() {
+ 		projectRoot, err := filepath.Abs(filepath.Join("..", ".."))

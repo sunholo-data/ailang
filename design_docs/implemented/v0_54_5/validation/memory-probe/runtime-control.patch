@@ -1,0 +1,11 @@
+--- internal/runner/run.go
++++ run_control.go
+@@ -522,7 +522,7 @@
+ 	// line until the run ends, and a below-threshold line is dropped before it
+ 	// is stored. The final FlushDebugOutput stays as the no-sink fallback.
+ 	effCtx.Debug = effects.NewDebugContext()
+-	effects.DebugSink{MinLevel: opts.DebugLogLevel}.Attach(effCtx.Debug) // W nil: current os.Stderr
++	// TEST CONTROL: no arrival sink; retain every log until FlushDebugOutput. // W nil: current os.Stderr
+ 	_ = opts.DebugEffect                                                 // the context now always exists; the flag is kept for CLI compatibility
+ 
+ 	// M-VERIFY-CONTRACTS: Enable contract verification if requested

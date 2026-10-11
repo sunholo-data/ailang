@@ -1,0 +1,47 @@
+{
+  "base": "e723303f4fead56b243dd9292a746baf52de0745",
+  "normal_command": "go test ./cmd/ailang -run '^TestMemprobeDebugLogDoesNotAccumulate$' -count=1 -v",
+  "control_build": "go build -overlay /private/tmp/worker-followup-m4-control/runtime-overlay.json -o /private/tmp/worker-followup-m4-control/ailang-retaining ./cmd/ailang",
+  "control_command": "AILANG_MEMPROBE_CONTROL=1 go test -overlay /private/tmp/worker-followup-m4-control/test-overlay.json ./cmd/ailang -run '^TestMemprobeDebugLogDoesNotAccumulate$' -count=1 -v",
+  "env": [
+    "AILANG_RELAX_MODULES=1",
+    "AILANG_NO_TRACE=1",
+    "GOGC=100"
+  ],
+  "bound_mib": 30,
+  "normal_rss_mib": {
+    "raw_outer1": 54,
+    "matched_400_logs": 57,
+    "many_200k_logs": 57,
+    "delta": 0
+  },
+  "control_rss_mib": {
+    "raw_outer1": 54,
+    "matched_400_logs": 57,
+    "many_200k_logs": 119,
+    "delta": 61
+  },
+  "measurement_retries": 0,
+  "post_measurement_changes": "Diagnostic label explicitly says500logs; fixture comments and original multiline readability restored; no measurement semantics changed.",
+  "files": {
+    "candidate.patch": "5aa80d890a2c990c86e10a96323a16fd8987aea34e0b09e3ff7778b6f910f812",
+    "normal.log": "5a713587116952d3206c7dcdf4b080f979fcb9bee739aea9b271baaed4826dfc",
+    "retaining-control.log": "39618d86c8759def43e39ac25d927355c659decf41918bf14198a8b1d3354e34",
+    "lint.log": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f",
+    "runtime-control.patch": "1a861f5f6902b3338ae1149b6060e2e633715b31bd76f542559bd38fe399e02c",
+    "test-helper-control.patch": "dc8d48443645bad71068d96f4f3e01fa2d79c11f64e8793c88252ae6f53731b5",
+    "runtime-overlay.json": "3d6df76136471ffa73f02242fdca16e6cfb8afcc937b7ea66cbb884dac5d9f17",
+    "test-overlay.json": "ce95a03e70773fec3b7fed735cc2c410e6442ed5cb3f251cccdfaef69a0b6e01",
+    "run_control.go": "2d517978e564660870728886fc64b3cb51fc4ddfba277a6cc3195d362dc3c42d",
+    "main_control_test.go": "aac80660ae80e8a04355a144f6f30cc561e9516af5a8e4eed31d063d2cd0dc19",
+    "memprobe_test.go": "91f90e69a16cdcd7babf93fbc7000680fea7bba15a4cf999d311fa27c697a470",
+    "debuglog.ail": "75d373f3331c1b56e70ff1eb8f6d0722474db33e9cc2ed3b276d131399e6b20d"
+  },
+  "control_binary_sha256": "e0af7379eb96123cafd736424aa252b3de9f7db09451b919187151c07b744c68",
+  "go_version": "go version go1.26.9 darwin/arm64",
+  "candidate_scope": [
+    "cmd/ailang/memprobe_test.go",
+    "cmd/ailang/testdata/memprobe/debuglog.ail"
+  ],
+  "measurement_text_note": "Retained logs predate only explicit500logs label/comments/readability edits; measurement code and runtime semantics unchanged."
+}
