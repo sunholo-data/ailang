@@ -366,9 +366,14 @@ func (ctx *EffContext) BindWorkerScope() {
 // CloseWorkers is mandatory host cleanup, independent of user capability budgets.
 // Calling it repeatedly returns the same cleanup outcome and emits one receipt.
 func (ctx *EffContext) CloseWorkers() error {
+	return ctx.CloseWorkersContext(context.Background())
+}
+
+// CloseWorkersContext carries an inherited owner deadline through nested runs.
+func (ctx *EffContext) CloseWorkersContext(parent context.Context) error {
 	ctx.BindWorkerScope()
 	owner := ctx.executionWorkerOwner()
-	err := owner.close(context.Background())
+	err := owner.close(parent)
 	owner.flushReceipts()
 	return err
 }

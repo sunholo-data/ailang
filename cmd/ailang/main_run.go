@@ -11,6 +11,11 @@ import (
 )
 
 func runCommand() {
+	if err := bootstrapRunLifetime(); err != nil {
+		fmt.Fprintf(os.Stderr, "runtime lifetime: %v\n", err)
+		os.Exit(1)
+	}
+	defer completeRunLifetime()
 	// Parse run subcommand flags
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	traceFlag := fs.Bool("trace", false, "Enable execution tracing")
@@ -64,7 +69,7 @@ func runCommand() {
 	aiStubFlag := fs.Bool("ai-stub", false, "Enable AI effect with stub handler (returns default responses)")
 	aiStubFixturesFlag := fs.String("ai-stub-fixtures", "", "With --ai-stub: replay responses from this JSON fixture file keyed by sha256 of the request; a miss is an error")
 	aiNoADCFlag := fs.Bool("ai-no-adc", false, "Disable Google Application Default Credentials: a missing GOOGLE_API_KEY is a hard AuthFailed error (also AILANG_AI_NO_ADC=1)")
-	aiKeyFileFlag := fs.String("ai-key-file", "", "Read the --ai provider's API key from this file at startup; never echoed (also AILANG_AI_KEY_FILE)")
+	aiKeyFileFlag := fs.String("ai-key-file", "", "Read the --ai provider's API key from this file on the first AI effect; never echoed (also AILANG_AI_KEY_FILE)")
 	aiModelFlag := fs.String("ai", "", "Enable AI effect with model (e.g., claude-haiku-4-5, gpt5-mini, gemini-2-5-flash, anthropic/claude-sonnet-4.5 (OpenRouter))")
 	debugFlag := fs.Bool("debug", false, "Enable Debug effect with context (collects logs/assertions)")
 

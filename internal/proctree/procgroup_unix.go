@@ -4,6 +4,8 @@ package proctree
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -48,4 +50,18 @@ func resolveGroupErrorWith(pid int, err error, probe func(int, syscall.Signal) e
 		return nil
 	}
 	return err
+}
+
+// KillOwnGroup is exclusively the inherited policy lifeline backstop. It refuses
+// an interactive host group and validates self ownership before signalling.
+func KillOwnGroup() error {
+	pid := os.Getpid()
+	group, err := syscall.Getpgid(pid)
+	if err != nil {
+		return err
+	}
+	if pid <= 0 || group != pid {
+		return fmt.Errorf("runtime does not own its process group")
+	}
+	return KillGroup(pid)
 }
