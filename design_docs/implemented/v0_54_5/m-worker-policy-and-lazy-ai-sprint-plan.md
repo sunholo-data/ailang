@@ -1,6 +1,6 @@
 # Sprint M-WORKER-FOLLOWUP
 
-Status: approved for execution by the attended user on 2026-10-11.
+Status: M1–M3 complete; implementation independently accepted (87/100). M4 CI and release delivery are in progress. User approved execution on 2026-10-11.
 Design: [M-WORKER-FOLLOWUP](m-worker-policy-and-lazy-ai.md).
 Target: v0.54.5, subject to checking the next available patch before publication.
 Estimated duration: 5 engineering days; estimated total: 2100 changed LOC, plus 25% time contingency. Recent seven-day velocity analysis found no reliable measured LOC/day; 420 LOC/day is a capacity assumption.
@@ -43,7 +43,7 @@ Wave 1: lifecycle M1→M2 and AI M3 independently in isolated worktrees. Wave 2:
 
 - [x] Add documented showcases and fixtures, update example manifest and changelog fragment; exercise all real-bin/policy acceptance probes.
 - [ ] Full Go tests, lint, formatting, boundaries, file sizes, meaningful race checks and cross-platform CI pass (AC10).
-- [ ] Independent sprint evaluator assesses every AC; address findings before merge.
+- [x] Independent sprint evaluator assesses every AC; address findings before merge.
 - [ ] Commit completed plan/JSON and validation evidence in the implementation tree, then merge reviewed PR to dev.
 - [ ] Publish patch release; verify checksum/provenance and repeat tests with official artifact, rerun pinned consumer policy gate before claiming resolved (AC11).
 - [ ] Complete release-manager μRAG, cloudTEST→PROD and public MCP version checks; send authorized release notice.

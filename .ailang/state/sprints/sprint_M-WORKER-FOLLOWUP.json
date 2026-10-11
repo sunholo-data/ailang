@@ -2,8 +2,8 @@
   "sprint_id": "M-WORKER-FOLLOWUP",
   "status": "in_progress",
   "created": "2026-10-11T18:21:20Z",
-  "design_doc": "design_docs/planned/v0_54_5/m-worker-policy-and-lazy-ai.md",
-  "sprint_plan": "design_docs/planned/v0_54_5/m-worker-policy-and-lazy-ai-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_54_5/m-worker-policy-and-lazy-ai.md",
+  "sprint_plan": "design_docs/implemented/v0_54_5/m-worker-policy-and-lazy-ai-sprint-plan.md",
   "github_issues": [],
   "registry_reuse": [
     {
@@ -107,13 +107,20 @@
       "passes": null,
       "started": "2026-10-11T18:55:57.210407+00:00",
       "completed": null,
-      "notes": "Integrated marker-backed managed quit/EOF, original managed/two-async consumer and 19-case AI/generated-bin probes PASS; formatting/boundaries PASS. Consumer async EOF is natural completion, not a new EOF notification. Full local and CI/evaluation/release gates pending."
+      "notes": "Integrated marker-backed managed quit/EOF, original managed/two-async consumer and 19-case AI/generated-bin probes PASS; formatting/boundaries PASS. Consumer async EOF is natural completion, not a new EOF notification. Full local and CI/evaluation/release gates pending. Independent implementation evaluator PASS87/100; post-version full tests and lint PASS. Release prep archives design+plan+validation together; platform CI/dev merge/publication still pending."
     }
   ],
   "approval": {
     "date": "2026-10-11",
     "source": "attended user approved design and sprint execution; prior fix-and-release instruction"
   },
-  "last_checkpoint": "M1/M2/M3 integrated; consumer probes pass; frozen integrated pre-release and example gates running; final evaluator pending.",
-  "last_session": "2026-10-11T19:13:04.436290+00:00"
+  "last_checkpoint": "v0.54.5 prepared; full post-version tests/lintPASS and independentPASS87; release PR/CI next.",
+  "last_session": "2026-10-11T19:31:18.301051+00:00",
+  "evaluation": {
+    "result": "pass",
+    "score": 87,
+    "round": 1,
+    "report": ".ailang/state/evaluations/eval_M-WORKER-FOLLOWUP_round_1.json",
+    "scope": "implementation; M4 CI and release pending"
+  }
 }

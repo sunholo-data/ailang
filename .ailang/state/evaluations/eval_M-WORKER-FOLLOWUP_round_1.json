@@ -1,0 +1,343 @@
+{
+  "sprint_id": "M-WORKER-FOLLOWUP",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-11T19:22:58.352647+00:00",
+  "evaluated_head": "d1f91706dec6ebc933f4933bc5d020e05adf0fce",
+  "full_gates_head": "0306217c7e1ed878409ed6f0514739561ee93927",
+  "baseline_commit": "bc078dc1b41308542bbccd3417bf040283e817df",
+  "branch": "sprint/worker-policy-followup",
+  "gate_source": "local",
+  "design_doc": "design_docs/planned/v0_54_5/m-worker-policy-and-lazy-ai.md",
+  "sprint_plan": "design_docs/planned/v0_54_5/m-worker-policy-and-lazy-ai-sprint-plan.md",
+  "total_score": 87,
+  "pass_threshold": 70,
+  "result": "pass",
+  "verdict_scope": "Implementation review passes; whole sprint/delivery NOT complete. M4, AC10 platform CI and AC11 release delivery remain pending.",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 20,
+    "code_quality": 5,
+    "documentation": 15,
+    "design_fidelity": 10,
+    "regression_surface_coverage": 7
+  },
+  "scoring_notes": [
+    "Base80/100 plus7 conditional regression-surface points=87, pass threshold70.",
+    "M1\u2013M3 independently verified:13/19 criteria count under milestone-completion rubric; floor(13/19*30)=20. M4 showcases independently met, but null milestone earns no acceptance points. Pending CI/release not falsely marked complete.",
+    "Quality15 minus capped5 for >50-line new functions (runlife Bootstrap/Prepare, prepareRunAIHandler/binding), minus3 incomplete JSON completion/actual velocity and minus2 pending plan M4. No oversized files/new TODO/HACK/FIXME.",
+    "Conditional conflict analysis and named existing fixtures/example gate present; award7 because no current-baseline AST/corpus differential was banked. No parser/type syntax change.",
+    "Not a performance optimization sprint; profiling gate not triggered. Coverage opt-in skipped; no duplicate full suite."
+  ],
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "verify_examples_pass": true,
+    "coverage_pct": "skipped (opt-in)",
+    "todo_hack_count": 0,
+    "is_perf_sprint": false,
+    "each_gate_runs": 1,
+    "script_exit_code": 0,
+    "verify_examples_exit_code": 0,
+    "examples": {
+      "total": 255,
+      "passed": 246,
+      "failed": 0,
+      "skipped": 9,
+      "modules_checked": 228,
+      "module_drift": 0,
+      "preexisting_missing_manifest_entry": "lambda_expressions.ail"
+    },
+    "go_test_cache": "Default make test cache semantics retained; no forced duplicate full suite."
+  },
+  "gate_execution": {
+    "script": ".agents/skills/sprint-evaluator/scripts/evaluate_sprint.sh",
+    "arguments": [
+      "M-WORKER-FOLLOWUP",
+      "sprint/worker-policy-followup"
+    ],
+    "environment": {
+      "EVAL_LOCAL_GATES": "1",
+      "TMPDIR": "/private/tmp"
+    },
+    "retention_only_copy": "/private/tmp/worker-followup-evaluate-retain.sh changes only KEEP_LOGS=false\u2192true, gate commands unchanged.",
+    "helper_output_issue": "Zero-count grep -c || echo emits0twice and invalid TODO JSON; actual gates and independent diff count0 recorded, raw output retained.",
+    "criteria_helper_issue": "Pattern helper recognized only changelog;18 prose criteria unverifiable, none missing. Independent source/test/evidence judgment resolves M1\u2013M3 and showcases; pending delivery stays unmet. Nonrecognition is not evidence of runtime failure."
+  },
+  "post_gate_test_only_change": {
+    "commit": "d1f91706dec6ebc933f4933bc5d020e05adf0fce",
+    "file": "cmd/ailang/run_policy_lifetime_test.go",
+    "diff": "One shell fixture line now writes worker.pid.tmp/subprocess.pid.tmp then same-directory mv before ready acknowledgement. PID parsing/ownership/absence/deadline/bystander assertions unchanged. Runtime source identical to full_gates_head.",
+    "review": "Independent exact diff approved; atomic ready publication fixes create-before-write test race.",
+    "targeted_proof": "TestRunPolicy_SupervisorDeathStopsWorker count20 PASS10.149s, no full-suite repeat needed for unchanged runtime."
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "AC1: reproduce official v0.54.4 policy leak with positive fixture PIDs/PGIDs and clean only those fixture processes.",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "validation/v0.54.4-policy-marker-before.json: restricted worker entrypoint marker, separate positive supervisor/worker PID and PGID, false Ok survivor, scoped cleanup, zero providers."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Implement same-executable run detection, bounded versioned private stop/receipt transport, early registration and descriptor rollback.",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "runlife protocol/child/session: same-file and explicit run guard, symlink identity, max1KiB/versioned frames, no child PID authority, CLOEXEC and descriptor rollback; protocol and child tests PASS."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Preserve admission fd3; add separate policy worker lifeline, nested cleanup acknowledgement and no admission after stop.",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "policyLifetime and Session serialize start/Bind/Admit against stop; admission stays fd3; nested lifetime and admission/deadline tests PASS."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Test malformed/oversized/forged receipt, supervisor loss, policy timeout/output/credential/provenance invariants and supported-platform guards (AC3\u20135).",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "TestChildRequiresPrivateTerminalReceipt, TestBootstrapInvalidOwnerRequestFailsReceiptAfterCleanup, TestRunPolicy_SupervisorDeathStopsWorker, TestRunPolicy_RequiresCleanupReceiptBeforeSuccess and TestBootstrapNaturalReceiptPreservesPolicyLifeline PASS. Existing policy hardening/containment/provenance tests PASS."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "RequestStop starts bounded protocol cancellation; Join requires inner cleanup receipt, direct Wait and owned I/O completion under one owner deadline.",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "managedProcess/processSource waitLoop retain sole cmd.Wait, private receipt and owned writer/reader Join before Done; requestWorkerStop carries owner deadline. TestRuntimeNestedStopUsesRemainingDeadline PASS."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Managed and two async policy workers vanish before successful cancellation; quit/EOF and natural completion join ownership (AC2\u20133).",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "TestRunPolicy_OwnedCancellation PASS14 managed/two-async cancel/EOF/return/error/exit/SIGINT/SIGTERM scenarios with exact positive PID absence including zombies and2s+500ms bound. Integrated managed marker probe records quit5ms/EOF4ms."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Missing acknowledgement produces typed failure; forced supervisor death stops inner worker, unrelated bystander survives (AC4).",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "Missing/forged proof and stalled child deadline tests reject success. Forced supervisor loss removes owned worker/subprocess and leaves bystander alive; nested supervision PASS."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Existing external-command and platform cancellation behavior remains covered; race tests pass.",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "Existing process_cancel, stream_process_cancel, worker_permission and owner suites PASS; raw EPERM remains checked at Join. Final banked effects/runlife/CLI race output PASS, independently read/hashed."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Prepare/freeze structural model/provider/routing/auth-source configuration eagerly without reading credentials or probing a real provider.",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "prepareRunAIHandler/binding clone models/provider/allowed models/routing/attribution/auth environment/source paths before run. Factory frozen configuration and prepared Vertex defer credential-file/readiness/metadata/provider work; preparation tests PASS."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Initialize AIContext once at first authorized AI operation; cache complete context or error and preserve concrete optional interfaces.",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "ai_lazy.go sync.Once+synchronized publication yields complete concrete AIContext or cached error; metadata does not initialize. ConcurrentPublication/CachedFailureEverySurface/ResultRetainsAuthError tests PASS."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Cover call/json/step/cache/stream/image/base64/refs/speech and metadata-only access; preserve capability/budget/error/trace behavior (AC7\u20139).",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "AllSurfacesAndMetadata covers text/JSON/step/cache/stream/image/base64/refs/speech, resolver/options/route metadata/callbacks. AuthorityBeforeInitialization and named stream authority tests PASS."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Direct CLI and generated bin offline/help pass with absent/unreadable keys and unavailable ADC/Ollama; real AI use fails loudly without credentials (AC6).",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "TestAILazyCLI_KeylessOfflineAndHelp PASS72 direct cases plus installed generated bins. Integrated19cases cover strict offline/help, missing-key actual effect and stub control; no live provider calls."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Explicit eager setup and stub fixtures retain existing behavior; focused and race tests pass.",
+      "met": true,
+      "counted_for_score": true,
+      "evidence": "Prepared config/auth/key path/resolver tests and named none/stub/lazy streaming late-registry/auth mutation tests PASS. EffContext WithBudget/Clone preserve frozen lookup while no-model selected AI remainsnil; eager/deterministic stub controls and banked final AI race PASS."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Add documented showcases and fixtures, update example manifest and changelog fragment; exercise all real-bin/policy acceptance probes.",
+      "met": true,
+      "counted_for_score": false,
+      "evidence": "Examples/manifest/changelog/docs present; independent examples255total246pass0fail9skip and228modules0drift. Integrated consumer probes PASS."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Full Go tests, lint, formatting, boundaries, file sizes, meaningful race checks and cross-platform CI pass (AC10).",
+      "met": false,
+      "counted_for_score": false,
+      "evidence": "Independent full local test/lint/size/examples PASS; primary formatting/boundary/goldens/config PASS. Platform PR CI remains pending AC10."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Independent sprint evaluator assesses every AC; address findings before merge.",
+      "met": false,
+      "counted_for_score": false,
+      "evidence": "This independent evaluation verifies source and prior finding fixes; report/artifact commit and final reviewed PR remain pending."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Commit completed plan/JSON and validation evidence in the implementation tree, then merge reviewed PR to dev.",
+      "met": false,
+      "counted_for_score": false,
+      "evidence": "Status in_progress/M4 passes+completednull; completion artifacts/actual velocity/reviewed PR/dev merge pending."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Publish patch release; verify checksum/provenance and repeat tests with official artifact, rerun pinned consumer policy gate before claiming resolved (AC11).",
+      "met": false,
+      "counted_for_score": false,
+      "evidence": "No supporting release for evaluated runtime. Official checksums/provenance/probes and pinned consumer retest pending AC11."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Complete release-manager \u03bcRAG, cloudTEST\u2192PROD and public MCP version checks; send authorized release notice.",
+      "met": false,
+      "counted_for_score": false,
+      "evidence": "\u03bcRAG/cloudTEST\u2192PROD/publicMCP version/release notice pending actual release delivery."
+    }
+  ],
+  "design_acceptance": [
+    {
+      "id": "AC1",
+      "met": true,
+      "status": "verified implementation"
+    },
+    {
+      "id": "AC2",
+      "met": true,
+      "status": "verified implementation"
+    },
+    {
+      "id": "AC3",
+      "met": true,
+      "status": "verified implementation"
+    },
+    {
+      "id": "AC4",
+      "met": true,
+      "status": "verified implementation"
+    },
+    {
+      "id": "AC5",
+      "met": true,
+      "status": "verified implementation"
+    },
+    {
+      "id": "AC6",
+      "met": true,
+      "status": "verified implementation"
+    },
+    {
+      "id": "AC7",
+      "met": true,
+      "status": "verified implementation"
+    },
+    {
+      "id": "AC8",
+      "met": true,
+      "status": "verified implementation"
+    },
+    {
+      "id": "AC9",
+      "met": true,
+      "status": "verified implementation"
+    },
+    {
+      "id": "AC10",
+      "met": false,
+      "status": "pending platformCI/final evaluation artifacts"
+    },
+    {
+      "id": "AC11",
+      "met": false,
+      "status": "pending release delivery"
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Approved/in_progress with AC1\u20139 checked and AC10\u201311 pending; primary moves design+plan+validation together after verdict.",
+    "validation_readme": "Stale pending-evidence paragraph to reconcile during final artifact completion; primary acknowledged.",
+    "future_changelog_link": "implemented/v0_54_5 link awaits announced docs move before PR."
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Private inherited transport preserves admissionfd3 and grants no PID authority; same-runtime/file boundary and lifeline explicit. Root deadline, hard policy force, receipt+Wait+owned IO success, EPERM checked Join and optional AI interfaces retained. First authorized AI effect defers setup; static choices frozen; eager hosts retain behavior."
+  },
+  "staged_findings_resolved": [
+    "Early os.Exit/help/denial paths: ContinueOnError+exitRunLifetime; seven real early-exit cases PASS.",
+    "Malformed/closed request false success: Session retains failure before bounded cleanup; valid/malformed/oversized/version/wrong-kind/closed Bootstrap matrix PASS.",
+    "Standalone success ignoring failed receipt: worker_cleanup_failed exit1 before ordinarysuccess; missing/failed/good matrix PASS while denial/limit code paths preserved.",
+    "Final local request-close/lifeline race: completed local request ignored; separate lifeline remains to process exit and actualEOF forces. Controlled lifeline and20normal-policy-repeat evidence PASS.",
+    "Nonblocking nonatomic shell PID acknowledgement fixture: corrected test-only commit independently reviewed;20supervisor-loss repeats PASS."
+  ],
+  "feedback": [
+    {
+      "file": ".ailang/state/sprints/sprint_M-WORKER-FOLLOWUP.json",
+      "category": "delivery",
+      "severity": "info",
+      "issue": "M4/CI/release and completion metrics deliberately pending.",
+      "suggestion": "Bank reviewed CI/merge/release/official consumer/cloud/MCP and completed artifacts before whole-sprint completion claim."
+    }
+  ],
+  "evidence_logs": {
+    "evaluation": {
+      "local_path": "/private/tmp/worker-followup-evaluator-round1.log",
+      "bytes": 2644,
+      "sha256": "a1489bb41f881b862f853a878e7e55589bcc7e9a7aa4e50cb76f34f2bac349e6"
+    },
+    "tests": {
+      "local_path": "/private/tmp/sprint-eval.sIpSFd/tests.log",
+      "bytes": 2833803,
+      "sha256": "36da51bad8d6654acb650300094db8d756ae2153a0dcbb002aed7c1b6b8ccae2"
+    },
+    "lint": {
+      "local_path": "/private/tmp/sprint-eval.sIpSFd/lint.log",
+      "bytes": 76,
+      "sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f"
+    },
+    "file_sizes": {
+      "local_path": "/private/tmp/sprint-eval.sIpSFd/sizes.log",
+      "bytes": 80,
+      "sha256": "761b8c07afbb570114cae716851ccd134ae6499ca264df6e6115a7efb5bc00df"
+    },
+    "examples": {
+      "local_path": "/private/tmp/worker-followup-evaluator-round1-examples.log",
+      "bytes": 11583,
+      "sha256": "139f8176ae1d4e28d8bb95eeeabf670e858afcb2e60211dce8a769e4ef31f402"
+    },
+    "criteria_helper": {
+      "local_path": "/private/tmp/worker-followup-evaluator-round1-criteria-helper.log",
+      "bytes": 11808,
+      "sha256": "f004c4a64f15aab97670df6d82a9a43b58331fe28ed04302e21c550e3d437c67"
+    },
+    "lifecycle_race": {
+      "local_path": "/private/tmp/worker-followup-M2-lifeline-final-race.log",
+      "bytes": 121,
+      "sha256": "57ddc0a116f5c619fafab3c0e9b3728c275f3620adbb465a15ea4ab801ae72f8"
+    },
+    "ai_race": {
+      "local_path": "/private/tmp/worker-lazy-ai-configauth-final-race.log",
+      "bytes": 182,
+      "sha256": "e1669973abab23daa572742322972dd05ae5d027894f6d3bd1de196e5c2a2105"
+    },
+    "atomic_pid_repeat": {
+      "local_path": "/private/tmp/worker-followup-atomic-pid-repeat.log",
+      "bytes": 55,
+      "sha256": "cc3c5406c6fb89eb7e591e9b064fad9e18efe41217e32ef8cc8b63d5d2b794be"
+    }
+  },
+  "notes": "Independent judge authored only JSON and portable Markdown evaluation reports. No production edits, commit/publication, canonical messages or live inference. Implementation PASS permits continuing reviewed delivery, not a released-runtime cleanup claim."
+}

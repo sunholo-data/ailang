@@ -1,7 +1,7 @@
 # M-WORKER-FOLLOWUP: Policy Worker Lifetime and Keyless CLI Startup
 
-**Status**: Approved for sprint execution (user approval 2026-10-11).
-**Target**: v0.54.5, subject to rechecking the latest release before tagging.
+**Status**: Implemented; independent evaluation PASS 87/100. Platform CI and release delivery remain pending.
+**Target**: v0.54.5 (available patch rechecked before release preparation).
 **Priority**: P1 — blocks Stapledon's reply-inbox cleanup gate and single-command offline/live CLI.
 **Estimated**: 5 engineering days, approximately 2,100 changed lines including tests and documentation; 25% contingency included in time.
 **Dependencies**: Released v0.54.4 worker ownership/cancellation and existing policy supervisor. No package publication required.
@@ -10,7 +10,7 @@
 
 ## Problem and evidence
 
-The official v0.54.4 Darwin arm64 runtime, commit `bc078dc1b41308542bbccd3417bf040283e817df`, passes ordinary worker cancellation. The consumer's saved policy-worker retest still fails: `cancelProcess` prints `Ok(())`, the host exits in 2–5 ms, and a `--policy-worker` remains under PPID 1. Explicit cancellation of two async sources prints two `Ok(())` results and leaves two policy workers after a 48 ms quit. The consumer used zero providers and recorded fixture cleanup separately. This design inspected that evidence; it has not independently rerun the process reproduction yet.
+The official v0.54.4 Darwin arm64 runtime, commit `bc078dc1b41308542bbccd3417bf040283e817df`, passes ordinary worker cancellation. The consumer's saved policy-worker retest still fails: `cancelProcess` prints `Ok(())`, the host exits in 2–5 ms, and a `--policy-worker` remains under PPID 1. Explicit cancellation of two async sources prints two `Ok(())` results and leaves two policy workers after a 48 ms quit. The consumer used zero providers and recorded fixture cleanup separately. The sprint independently reproduced the leak with the official binary and an actual worker-entry marker, then banked passing managed and two-async integration probes in [validation](validation/README.md).
 
 The runtime creates the boundary itself. `supervisePolicyRun` starts its worker with `proctree.Configure`, so the worker is in a different group from the supervisor. The outer owner kills only its group. The policy timeout uses a background context; the fd-3 admission channel closes after one decision and cannot communicate continuing supervisor lifetime. The released lifecycle design explicitly scoped descendant termination to the owned group. This follow-up extends ownership through AILANG-created policy supervision rather than treating that worker as an arbitrary detached process.
 
@@ -144,12 +144,12 @@ Local probe transcripts: `/private/tmp/worker-followup-offline-probe/results.jso
 
 ## Related documents and distinction
 
-- [Policy cancellation triage](../ailang-core-triage/run-policy-worker-survives-cancellation.md): input report, not an implementation design.
+- [Policy cancellation triage](../../planned/ailang-core-triage/run-policy-worker-survives-cancellation.md): input report, not an implementation design.
 - [v0.54.4 worker lifecycle](../../implemented/v0_54_4/m-background-worker-lifecycle.md): existing group/owner API; this follow-up covers the runtime's separately grouped policy child.
 - [Policy hardening](../../implemented/v0_41_0/m-executor-policy-hardening.md): confinement, timeout, output and filtered-env invariants retained.
 - [Policy result integrity](../../implemented/v0_53_0/m-run-policy-result-unforgeable.md): admission/result provenance retained; lifecycle channels remain separate.
 - [Provider config](../../implemented/v0_15_0/m-ai-provider-config.md): provider declaration/dispatch reused, not reimplemented.
-- [Policy cache sprint](../v0_52_6/run-policy-worker-cache-dir-sprint-plan.md): pending neighboring edits in the supervisor; integrate if landed before implementation, do not fold its separate scope into this release.
+- [Policy cache sprint](../../planned/v0_52_6/run-policy-worker-cache-dir-sprint-plan.md): pending neighboring edits in the supervisor; integrate if landed before implementation, do not fold its separate scope into this release.
 
 ## Axiom compliance
 
@@ -185,3 +185,9 @@ Repository AGENTS.md requires design approval, sprint planning and an execute-sp
 ## Approval record
 
 The attended user approved this design and sprint execution on 2026-10-11. The existing instruction to fix both reports and publish a follow-up release remains in force.
+
+## Implementation and independent verification
+
+The implementation passes the full local release and independent evaluator gates. M1/M2 use private same-executable lifetime channels and a supervisor lifeline; M3 freezes selected and named-provider choices per execution while deferring client creation. Independent review findings for early exits, malformed stop requests, standalone cleanup failures and final-exit lifetime races are resolved. The startup PID fixture publishes atomically; 20 supervisor-loss repetitions pass without weakening assertions.
+
+The [round-1 report](validation/independent-evaluation-round-1.md) scores the implementation 87/100. AC10 remains pending platform CI; AC11 remains pending actual publication, official-artifact consumer retests, brain refresh and cloud delivery. Consumer async EOF currently finishes naturally after its worker duration; this sprint does not add an EOF event notification.
