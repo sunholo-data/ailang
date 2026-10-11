@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -15,6 +16,15 @@ import (
 // The supervisor's lifeline is independent of its process group. Every failure
 // cleanup below is scoped to positive PIDs acknowledged by this unique fixture.
 func TestRunPolicy_SupervisorDeathStopsWorker(t *testing.T) {
+	sleep, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("POSIX sleep fixture unavailable")
+	}
+	bystander := exec.Command(sleep, "60")
+	if err := bystander.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = bystander.Process.Kill(); _ = bystander.Wait() }()
 	bin := buildAilang(t)
 	dir := t.TempDir()
 	pol := writePolicy(t, dir, "security_mode = \"trusted_host\"\nallowed_caps = [\"IO\", \"Process\"]\nprocess_allow = [\"sh\"]\nentry = \"main\"\ntimeout_ms = 60000\nmax_output_bytes = 0\nfs_sandbox = \"${SANDBOX}\"\n")
@@ -41,7 +51,7 @@ export func main() -> () ! {IO, Process} = {
 	pids := []int{}
 	defer func() {
 		for _, pid := range pids {
-			if pid > 0 && !processGone(pid) {
+			if pid > 1 && !processGone(pid) {
 				killProcess(pid)
 			}
 		}
@@ -52,7 +62,7 @@ export func main() -> () ! {IO, Process} = {
 			raw, err := os.ReadFile(filepath.Join(sandbox, name))
 			if err == nil {
 				pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
-				if err != nil || pid <= 0 {
+				if err != nil || pid <= 1 {
 					t.Fatalf("invalid fixture pid %q", raw)
 				}
 				pids = append(pids, pid)
@@ -76,6 +86,9 @@ export func main() -> () ! {IO, Process} = {
 			allGone = allGone && processGone(pid)
 		}
 		if allGone {
+			if err := syscall.Kill(bystander.Process.Pid, 0); err != nil {
+				t.Fatalf("unrelated bystander terminated: %v", err)
+			}
 			return
 		}
 		time.Sleep(10 * time.Millisecond)

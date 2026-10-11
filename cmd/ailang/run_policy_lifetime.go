@@ -75,6 +75,9 @@ func (l *policyLifetime) stop(ctx context.Context) error {
 	l.child.RequestStop(ctx, l.killGroup)
 	select {
 	case <-l.done:
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		l.mu.Lock()
 		defer l.mu.Unlock()
 		return l.err

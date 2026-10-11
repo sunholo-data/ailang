@@ -17,16 +17,17 @@ import (
 // Child owns private pipes; its caller remains the sole exec.Cmd.Wait owner.
 // A successful Join requires a terminal receipt, never stdout or process death.
 type Child struct {
-	request   *os.File
-	receipt   *os.File
-	childEnds []*os.File
-	received  chan struct{}
-	waited    chan struct{}
-	stopOnce  sync.Once
-	waitOnce  sync.Once
-	closeOnce sync.Once
-	mu        sync.Mutex
-	err       error
+	request    *os.File
+	receipt    *os.File
+	childEnds  []*os.File
+	received   chan struct{}
+	waited     chan struct{}
+	stopOnce   sync.Once
+	waitOnce   sync.Once
+	closeOnce  sync.Once
+	mu         sync.Mutex
+	err        error
+	requestErr error
 }
 
 // Prepare registers only an executable with the executing runtime's file
@@ -144,7 +145,7 @@ func (c *Child) RequestStop(ctx context.Context, force func() error) {
 			err := writeFrame(c.request, frame{Kind: "stop", RemainingNS: int64(remaining)})
 			if err != nil {
 				c.mu.Lock()
-				c.err = errors.Join(c.err, fmt.Errorf("runtime stop request: %w", err))
+				c.requestErr = fmt.Errorf("runtime stop request: %w", err)
 				c.mu.Unlock()
 			}
 			timer := time.NewTimer(time.Until(deadline))
@@ -176,9 +177,18 @@ func (c *Child) AfterWait() {
 func (c *Child) Join(ctx context.Context) error {
 	select {
 	case <-c.received:
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		return c.err
+		// A peer which already completed may close its request pipe before
+		// cancellation wins. The private valid receipt, followed by direct Wait,
+		// proves cleanup; a failed request cannot invalidate that natural completion.
+		if c.err != nil {
+			return errors.Join(c.err, c.requestErr)
+		}
+		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}

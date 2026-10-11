@@ -22,6 +22,7 @@ type Session struct {
 	cleanup                    func(context.Context) error
 	failure                    error
 	once                       sync.Once
+	exitOnce                   sync.Once
 }
 
 var active struct {
@@ -72,6 +73,9 @@ func Bootstrap(meta string, exit func(int), fallback func()) (*Session, error) {
 	}
 	if err := writeFrame(s.receipt, frame{Kind: "ready"}); err != nil {
 		s.closeFiles()
+		if s.lifeline != nil {
+			_ = s.lifeline.Close()
+		}
 		return nil, err
 	}
 	active.Lock()
@@ -80,7 +84,18 @@ func Bootstrap(meta string, exit func(int), fallback func()) (*Session, error) {
 	go func() {
 		f, err := readFrame(s.request)
 		if err != nil || f.Kind != "stop" {
-			s.stop(ShutdownTimeout, false)
+			s.mu.Lock()
+			completed := s.completed
+			if !completed {
+				s.failure = errors.Join(s.failure, fmt.Errorf("invalid or closed owner stop channel"))
+			}
+			s.mu.Unlock()
+			if completed {
+				// Complete itself closes the request endpoint. Actual policy
+				// supervisor loss remains observable on the separate lifeline.
+				return
+			}
+			s.stop(ShutdownTimeout, s.lifeline != nil)
 			return
 		}
 		s.stop(time.Duration(f.RemainingNS), false)
@@ -134,7 +149,13 @@ func RecordFailure(err error) {
 func (s *Session) stop(remaining time.Duration, lostSupervisor bool) {
 	s.mu.Lock()
 	if s.stopped || s.completed {
+		completed := s.completed
 		s.mu.Unlock()
+		if lostSupervisor && completed {
+			// Cleanup has already completed; lifetime ownership still lasts
+			// until process exit, including the remaining CLI exit work.
+			s.terminate(1, true)
+		}
 		return
 	}
 	s.stopped = true
@@ -142,10 +163,7 @@ func (s *Session) stop(remaining time.Duration, lostSupervisor bool) {
 	s.mu.Unlock()
 	// A stuck application or cleanup cannot disable the inherited lifeline.
 	watchdog := time.AfterFunc(remaining, func() {
-		if lostSupervisor && s.fallback != nil {
-			s.fallback()
-		}
-		s.exit(1)
+		s.terminate(1, lostSupervisor || s.lifeline != nil)
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), remaining)
 	defer cancel()
@@ -155,19 +173,28 @@ func (s *Session) stop(remaining time.Duration, lostSupervisor bool) {
 	}
 	if lostSupervisor {
 		watchdog.Stop()
-		if s.fallback != nil {
-			s.fallback()
-		}
-		s.exit(1)
+		s.terminate(1, true)
 		return
 	}
 	s.Complete(err)
 	watchdog.Stop()
+	// A policy worker owns its isolated group. Once its private receipt has
+	// been written, clear inherited members even if the supervisor disappeared
+	// concurrently with this valid stop request. The sole parent waiter reaps it.
 	code := 0
 	if err != nil {
 		code = 1
 	}
-	s.exit(code)
+	s.terminate(code, s.lifeline != nil)
+}
+
+func (s *Session) terminate(code int, force bool) {
+	s.exitOnce.Do(func() {
+		if force && s.fallback != nil {
+			s.fallback()
+		}
+		s.exit(code)
+	})
 }
 func (s *Session) Complete(err error) {
 	s.once.Do(func() {
@@ -186,9 +213,9 @@ func (s *Session) Complete(err error) {
 func (s *Session) closeFiles() {
 	_ = s.request.Close()
 	_ = s.receipt.Close()
-	if s.lifeline != nil {
-		_ = s.lifeline.Close()
-	}
+	// Keep the policy lifeline live through the remaining CLI exit work.
+	// The OS closes it at process exit; closing it early would erase ownership
+	// if the supervisor vanished between the receipt and the actual exit.
 }
 
 // Admit serializes a policy admission decision against inherited stop. No

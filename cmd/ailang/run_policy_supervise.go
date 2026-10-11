@@ -201,6 +201,13 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 			"the worker exited without reporting an admission decision on the control channel")))
 		return 1
 	}
+	// A completed admitted worker still needs private cleanup proof. This
+	// applies to direct CLI supervisors as well as supervisors with an owner.
+	if lifetime.err != nil {
+		guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, stageFor(gotCtrl), "worker_cleanup_failed",
+			"worker exited without successful owned runtime cleanup")))
+		return 1
+	}
 	return 0
 }
 
