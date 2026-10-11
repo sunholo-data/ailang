@@ -187,16 +187,18 @@ func (ps *processSource) waitLoop() {
 	ps.mu.Unlock()
 	if ps.lifetime != nil {
 		select {
+		case <-ps.readerDone:
 		case <-ps.done:
 			// Keep registered runtime output readable until its sole Wait
 			// finishes. Closing it during cleanup could SIGPIPE the child
 			// before its private receipt. After Wait, close to bound drain
 			// even when a detached process retained an output descriptor.
 			_ = ps.stdout.Close()
-		default:
+			<-ps.readerDone
 		}
+	} else {
+		<-ps.readerDone
 	}
-	<-ps.readerDone
 	ps.cancel()
 	if ps.lifetime != nil {
 		ps.lifetime.Abort()

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -21,6 +22,11 @@ import (
 // An isolated same-executable helper models early runtime registration. Tests
 // still use actual owned process groups, pipes, the sole Wait and checked Join.
 func TestMain(m *testing.M) {
+	if len(os.Args) == 3 && os.Args[1] == "--runtime-held-output" {
+		_ = os.WriteFile(os.Args[2], []byte("inherited writer ready"), 0600)
+		time.Sleep(10 * time.Second) // bounded even if fixture setup/assertions fail
+		os.Exit(0)
+	}
 	if len(os.Args) > 4 && os.Args[1] == "run" && os.Args[2] == "--runtime-lifetime-helper" {
 		mode, path := os.Args[3], os.Args[4]
 		if mode != "missing" && mode != "forged" {
@@ -61,6 +67,22 @@ func TestMain(m *testing.M) {
 			}
 		}
 		_ = os.WriteFile(path, []byte("ready"), 0600)
+		if mode == "late-output" {
+			writer := exec.CommandContext(context.Background(), os.Args[0], "--runtime-held-output", path+".writer-ready")
+			writer.Stdout = os.Stdout
+			proctree.Configure(writer)
+			if err := writer.Start(); err != nil {
+				os.Exit(7)
+			}
+			if err := os.WriteFile(path+".writer-pid", []byte(strconv.Itoa(writer.Process.Pid)), 0600); err != nil {
+				_ = writer.Process.Kill()
+				_ = writer.Wait()
+				os.Exit(8)
+			}
+			_, _ = fmt.Fprint(os.Stdout, strings.Repeat("x", 128*16))
+			runlife.Complete(nil)
+			os.Exit(0)
+		}
 		fmt.Println("ready")
 		if mode == "forged" {
 			fmt.Println(`{"version":1,"kind":"ready"}`)
@@ -75,6 +97,84 @@ func TestMain(m *testing.M) {
 		}
 	}
 	os.Exit(m.Run())
+}
+
+func TestRuntimeLateStopJoinsBackpressuredInheritedOutput(t *testing.T) {
+	if !WorkerCancellationSupported() {
+		t.Skip("POSIX owned groups")
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(t.TempDir(), "ready")
+	// Install scoped cleanup before any proof wait or PID read can fail. The
+	// detached fixture also has its own finite lifetime as a setup backstop.
+	defer func() {
+		raw, err := os.ReadFile(marker + ".writer-pid")
+		if err != nil {
+			return
+		}
+		pid, err := strconv.Atoi(string(raw))
+		if err == nil && pid > 1 {
+			_ = proctree.KillGroup(pid)
+		}
+	}()
+	proofChecked := make(chan struct{})
+	source, err := newProcessSource(t.Context(), exe, []string{"run", "--runtime-lifetime-helper", "late-output", marker}, "fixture", 0, 16, func(pid int) error {
+		err := proctree.KillGroup(pid)
+		close(proofChecked)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ps := source.(*processSource)
+	defer ps.stdout.Close()
+	defer ps.Close()
+	select {
+	case <-proofChecked:
+	case <-time.After(5 * time.Second):
+		t.Fatal("natural Wait and private receipt did not finish")
+	}
+	raw, err := os.ReadFile(marker + ".writer-pid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, err := strconv.Atoi(string(raw))
+	if err != nil || pid <= 1 {
+		t.Fatalf("invalid owned inherited writer PID %q", raw)
+	}
+	deadline := time.Now().Add(time.Second)
+	for len(ps.ch) != cap(ps.ch) && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if len(ps.ch) != cap(ps.ch) {
+		t.Fatal("fixture did not saturate event delivery")
+	}
+	// The child and receipt have completed while this reader remains blocked
+	// delivering bytes. Cancellation is deliberately later than that boundary.
+	select {
+	case <-ps.readerDone:
+		t.Fatal("inherited output fixture reader finished before stop")
+	case <-time.After(50 * time.Millisecond):
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	if err := ps.RequestStopContext(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := ps.Join(ctx); err != nil {
+		t.Fatalf("late stop leaked inherited output reader: %v", err)
+	}
+	select {
+	case <-ps.readerDone:
+	default:
+		t.Fatal("late cancellation success before reader joined")
+	}
+	if runtimeFixtureGone(pid) {
+		t.Fatal("reader join required terminating detached inherited writer")
+	}
 }
 
 func TestRuntimeOwnedWorkersRequireReceipt(t *testing.T) {
