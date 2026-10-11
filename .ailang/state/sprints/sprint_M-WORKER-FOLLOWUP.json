@@ -83,10 +83,10 @@
         "Direct CLI and generated bin offline/help pass with absent/unreadable keys and unavailable ADC/Ollama; real AI use fails loudly without credentials (AC6).",
         "Explicit eager setup and stub fixtures retain existing behavior; focused and race tests pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-11T18:32:39.438142+00:00",
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-11T19:06:10.082606+00:00",
+      "notes": "M3 integrated be97a9b61+b7f8bf34f: first-effect context/error once; immutable provider/auth/routing choices, including named streaming and budget views. Exact full CLI/effects/configdriven, focused race, lint/boundaries/size/fmt PASS; 72 direct offline cases, generated bins, missing-key first-effect and local mock interfaces covered. No live providers."
     },
     {
       "id": "M4",
@@ -114,6 +114,6 @@
     "date": "2026-10-11",
     "source": "attended user approved design and sprint execution; prior fix-and-release instruction"
   },
-  "last_checkpoint": "M1 integrated and passed; M2 final validation and M3 complete per-run auth/stream snapshot in progress; M4 integration underway.",
-  "last_session": "2026-10-11T18:55:57.210407+00:00"
+  "last_checkpoint": "M3 complete; M1/M2 evaluator protocol visibility fixes in final verification; M4 integration active, publication pending.",
+  "last_session": "2026-10-11T19:06:10.082606+00:00"
 }

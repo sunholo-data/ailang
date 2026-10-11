@@ -29,14 +29,14 @@ Wave 1: lifecycle M1→M2 and AI M3 independently in isolated worktrees. Wave 2:
 - [ ] Missing acknowledgement produces typed failure; forced supervisor death stops inner worker, unrelated bystander survives (AC4).
 - [ ] Existing external-command and platform cancellation behavior remains covered; race tests pass.
 
-### M3: Prepared AI configuration and lazy client creation (~500 LOC)
+### M3: ✅ Prepared AI configuration and lazy client creation (~500 LOC)
 **Dependencies:** none
 
-- [ ] Prepare/freeze structural model/provider/routing/auth-source configuration eagerly without reading credentials or probing a real provider.
-- [ ] Initialize AIContext once at first authorized AI operation; cache complete context or error and preserve concrete optional interfaces.
-- [ ] Cover call/json/step/cache/stream/image/base64/refs/speech and metadata-only access; preserve capability/budget/error/trace behavior (AC7–9).
-- [ ] Direct CLI and generated bin offline/help pass with absent/unreadable keys and unavailable ADC/Ollama; real AI use fails loudly without credentials (AC6).
-- [ ] Explicit eager setup and stub fixtures retain existing behavior; focused and race tests pass.
+- [x] Prepare/freeze structural model/provider/routing/auth-source configuration eagerly without reading credentials or probing a real provider.
+- [x] Initialize AIContext once at first authorized AI operation; cache complete context or error and preserve concrete optional interfaces.
+- [x] Cover call/json/step/cache/stream/image/base64/refs/speech and metadata-only access; preserve capability/budget/error/trace behavior (AC7–9).
+- [x] Direct CLI and generated bin offline/help pass with absent/unreadable keys and unavailable ADC/Ollama; real AI use fails loudly without credentials (AC6).
+- [x] Explicit eager setup and stub fixtures retain existing behavior; focused and race tests pass.
 
 ### M4: Integration, independent evaluation and follow-up release (~380 LOC)
 **Dependencies:** M2, M3
