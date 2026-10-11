@@ -97,31 +97,49 @@ func TestMemprobeDeepTraceIsBoundedOnConsRecursion(t *testing.T) {
 // Debug.log used to retain every line for the whole run and apply --log-level
 // only at the final flush (M-V1-MEMORY-FOOTPRINT F6). 200k structured DEBUG
 // lines below an ERROR threshold must now cost nothing: they are dropped on
-// arrival. The comparison is against the same program logging 1 line.
+// arrival. Both measured arms construct 200k messages through the same nested
+// recursion; the floor logs once per inner batch (400 lines). The original
+// outer(1) arm remains a raw RSS diagnostic, but is not a matched-work floor.
 func TestMemprobeDebugLogDoesNotAccumulate(t *testing.T) {
 	bin, dir := memprobeSetup(t)
 	src, err := os.ReadFile(filepath.Join(dir, "debuglog.ail"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	one := strings.Replace(string(src), "outer(400)", "outer(1)", 1)
-	if err := os.WriteFile(filepath.Join(dir, "debuglog_one.ail"), []byte(strings.Replace(one, "module debuglog", "module debuglog_one", 1)), 0o644); err != nil {
-		t.Fatal(err)
+	if strings.Count(string(src), "outer(400, true)") != 1 {
+		t.Fatal("debuglog fixture must have one 200k-work entrypoint")
 	}
+	writeArm := func(name, entry string) {
+		t.Helper()
+		arm := strings.Replace(string(src), "outer(400, true)", entry, 1)
+		arm = strings.Replace(arm, "module debuglog", "module "+name, 1)
+		if err := os.WriteFile(filepath.Join(dir, name+".ail"), []byte(arm), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeArm("debuglog_one", "outer(1, true)")
+	writeArm("debuglog_floor", "outer(400, false)")
 	// GOGC=100 so the comparison measures RETENTION, not how much garbage the
 	// CLI's default GOGC=500 lets pile up before a cycle (measured: 200k
 	// lines old binary +64 MB retained; new +12 MB of transient garbage).
 	env := []string{"AILANG_RELAX_MODULES=1", "AILANG_NO_TRACE=1", "GOGC=100"}
-	floor, _ := peakRSS(t, dir, env, bin, "run", "--entry", "main", "--caps", "IO,Debug", "--log-level", "error", "debuglog_one.ail")
-	many, out := peakRSS(t, dir, env, bin, "run", "--entry", "main", "--caps", "IO,Debug", "--log-level", "error", "debuglog.ail")
-	if !strings.Contains(out, "done") {
-		t.Fatalf("run did not finish: %s", out)
+	measureArm := func(name string) int64 {
+		t.Helper()
+		rss, out := peakRSS(t, dir, env, bin, "run", "--entry", "main", "--caps", "IO,Debug", "--log-level", "error", name+".ail")
+		if !strings.Contains(out, "done") {
+			t.Fatalf("%s run did not finish: %s", name, out)
+		}
+		if strings.Contains(out, "tick") {
+			t.Fatalf("%s DEBUG lines leaked past --log-level error", name)
+		}
+		return rss
 	}
-	if strings.Contains(out, "tick") {
-		t.Fatalf("DEBUG lines leaked past --log-level error")
-	}
+	raw := measureArm("debuglog_one")
+	floor := measureArm("debuglog_floor")
+	many := measureArm("debuglog")
 	delta := (many - floor) >> 20
-	t.Logf("debuglog: 1 line %d MB, 200k lines %d MB, delta %d MB", floor>>20, many>>20, delta)
+	t.Logf("debuglog raw original outer(1) floor (500 logs): %d MB", raw>>20)
+	t.Logf("debuglog matched 200k work: 400 lines %d MB, 200k lines %d MB, delta %d MB", floor>>20, many>>20, delta)
 	if delta > 30 {
 		t.Fatalf("200k filtered Debug.log lines grew RSS by %d MB; want <= 30 (lines must be dropped on arrival, not retained; the old binary measured +64)", delta)
 	}
