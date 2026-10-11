@@ -22,7 +22,11 @@ import (
 // Explicit setupAIHandler callers (including serve-api) retain eager setup.
 func prepareRunAIHandler(effCtx *effects.EffContext, cfg aiSetup, routing *ai.AIRoutingPolicy, attr *ai.Attribution) error {
 	if cfg.Stub || cfg.Model == "" || cfg.StubFixtures != "" {
-		return setupAIHandler(effCtx, cfg, routing, attr)
+		if err := setupAIHandler(effCtx, cfg, routing, attr); err != nil {
+			return err
+		}
+		effCtx.WithProviderLookup(snapshotNamedProviders())
+		return nil
 	}
 	cwd, _ := os.Getwd()
 	if err := HarvestAndRegisterFromDir(cwd); err != nil {
@@ -61,6 +65,7 @@ func prepareRunAIHandler(effCtx *effects.EffContext, cfg aiSetup, routing *ai.AI
 	}
 	prepared := preparedRunAI{binding: binding, path: path, noADC: cfg.NoADC, frozen: frozen, opts: opts}
 	effCtx.AI = effects.NewLazyAIContext(prepared.initialize)
+	effCtx.WithProviderLookup(snapshotNamedProviders())
 	return nil
 }
 
@@ -187,7 +192,22 @@ func snapshotConfigDriven(provider ai.Provider) ai.Provider {
 				spec.AuthHeaders[name] = value
 			}
 		}
-		return configdriven.New(&spec)
+		return configdriven.New(&spec, configdriven.WithFrozenAuthEnvironment())
 	}
 	return provider
+}
+
+// Named streaming can run without a selected --ai handler. Capture its full
+// registry independently so every CLI branch obeys the same freeze boundary.
+func snapshotNamedProviders() func(string) (ai.Provider, bool) {
+	providers := make(map[string]ai.Provider)
+	for _, name := range ai.GlobalProviderRegistry.Names() {
+		if provider, ok := ai.GlobalProviderRegistry.Lookup(name); ok {
+			providers[name] = snapshotConfigDriven(provider)
+		}
+	}
+	return func(name string) (ai.Provider, bool) {
+		provider, ok := providers[name]
+		return provider, ok
+	}
 }

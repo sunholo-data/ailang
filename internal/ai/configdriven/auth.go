@@ -18,23 +18,27 @@ import (
 var envInterpolationPattern = regexp.MustCompile(`\$\{([A-Z_][A-Z0-9_]*)\}`)
 
 // applyAuth mutates the outgoing HTTP request to carry the auth shape
-// declared in the provider config. Resolves env-var references at call
-// time, not load time — fresh env each call.
+// declared in the provider config. The default reads fresh environment each
+// call; prepared providers pass their captured lookup instead.
 //
 // Returns an error if a referenced env var is unset, since silent fallback
 // to an empty Authorization header would produce a confusing 401 rather
 // than a clear "missing credential" diagnostic.
-func applyAuth(req *http.Request, spec *pkg.AIProviderSpec) error {
+func applyAuth(req *http.Request, spec *pkg.AIProviderSpec, env ...func(string) string) error {
+	lookup := config.Raw
+	if len(env) > 0 && env[0] != nil {
+		lookup = env[0]
+	}
 	// Named auth shape, if declared.
 	if spec.HasNamedAuth() {
-		if err := applyNamedAuth(req, spec.Auth); err != nil {
+		if err := applyNamedAuth(req, spec.Auth, lookup); err != nil {
 			return err
 		}
 	}
 	// auth_headers escape hatch, applied after named auth so it can
 	// extend (or override) headers from the named shape.
 	for headerName, headerVal := range spec.AuthHeaders {
-		resolved, err := interpolateEnv(headerVal)
+		resolved, err := interpolateEnv(headerVal, lookup)
 		if err != nil {
 			return fmt.Errorf("auth_headers[%q]: %w", headerName, err)
 		}
@@ -45,24 +49,24 @@ func applyAuth(req *http.Request, spec *pkg.AIProviderSpec) error {
 
 // applyNamedAuth handles the four documented v1 auth shapes:
 // bearer, x-api-key, query-param, none.
-func applyNamedAuth(req *http.Request, auth pkg.AIProviderAuth) error {
+func applyNamedAuth(req *http.Request, auth pkg.AIProviderAuth, lookup func(string) string) error {
 	switch auth.Type {
 	case "none":
 		return nil
 	case "bearer":
-		secret, err := requireEnv(auth.Env)
+		secret, err := requireEnv(auth.Env, lookup)
 		if err != nil {
 			return err
 		}
 		req.Header.Set("Authorization", "Bearer "+secret)
 	case "x-api-key":
-		secret, err := requireEnv(auth.Env)
+		secret, err := requireEnv(auth.Env, lookup)
 		if err != nil {
 			return err
 		}
 		req.Header.Set("x-api-key", secret)
 	case "query-param":
-		secret, err := requireEnv(auth.Env)
+		secret, err := requireEnv(auth.Env, lookup)
 		if err != nil {
 			return err
 		}
@@ -81,8 +85,12 @@ func applyNamedAuth(req *http.Request, auth pkg.AIProviderAuth) error {
 // unset. We deliberately do NOT fall back to empty — silent empty
 // credentials produce confusing 401 errors at the provider rather than a
 // clear "missing credential" diagnostic.
-func requireEnv(name string) (string, error) {
-	val := config.Raw(name)
+func requireEnv(name string, env ...func(string) string) (string, error) {
+	lookup := config.Raw
+	if len(env) > 0 && env[0] != nil {
+		lookup = env[0]
+	}
+	val := lookup(name)
 	if val == "" {
 		return "", fmt.Errorf("env var %s is unset (required for AI provider auth)", name)
 	}
@@ -91,12 +99,16 @@ func requireEnv(name string) (string, error) {
 
 // interpolateEnv resolves all ${VAR} references in s. Returns an error if
 // any referenced env var is unset.
-func interpolateEnv(s string) (string, error) {
+func interpolateEnv(s string, env ...func(string) string) (string, error) {
+	lookup := config.Raw
+	if len(env) > 0 && env[0] != nil {
+		lookup = env[0]
+	}
 	var firstErr error
 	result := envInterpolationPattern.ReplaceAllStringFunc(s, func(match string) string {
 		// match is "${VAR}"; strip braces.
 		varName := match[2 : len(match)-1]
-		val := config.Raw(varName)
+		val := lookup(varName)
 		if val == "" && firstErr == nil {
 			firstErr = fmt.Errorf("env var %s is unset (referenced in auth_headers as %s)", varName, match)
 		}
