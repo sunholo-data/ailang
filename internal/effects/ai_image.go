@@ -55,6 +55,13 @@ func (c *AIContext) resolveImageOptions(options string) (string, error) {
 
 // CallImage generates an image and writes it to outputPath.
 func (c *AIContext) CallImage(prompt, outputPath, options string) (string, error) {
+	resolved, initErr := c.ready()
+	if initErr != nil {
+		return "", initErr
+	}
+	if resolved != c {
+		return resolved.CallImage(prompt, outputPath, options)
+	}
 	if c.handler == nil {
 		return "", ErrNoAIHandler
 	}
@@ -67,6 +74,13 @@ func (c *AIContext) CallImage(prompt, outputPath, options string) (string, error
 
 // CallImageBase64 generates an image and returns it as base64 JSON.
 func (c *AIContext) CallImageBase64(prompt, options string) (string, error) {
+	resolved, initErr := c.ready()
+	if initErr != nil {
+		return "", initErr
+	}
+	if resolved != c {
+		return resolved.CallImageBase64(prompt, options)
+	}
 	if c.handler == nil {
 		return "", ErrNoAIHandler
 	}
@@ -92,6 +106,13 @@ func (c *AIContext) imageRefsHandler() (AIHandlerWithImageRefs, error) {
 
 // CallImageWithRefs generates an image conditioned on refs and writes it to outputPath.
 func (c *AIContext) CallImageWithRefs(prompt string, refs []ai.ImagePart, outputPath, options string) (string, error) {
+	resolved, initErr := c.ready()
+	if initErr != nil {
+		return "", initErr
+	}
+	if resolved != c {
+		return resolved.CallImageWithRefs(prompt, refs, outputPath, options)
+	}
 	rh, err := c.imageRefsHandler()
 	if err != nil {
 		return "", err
@@ -105,6 +126,13 @@ func (c *AIContext) CallImageWithRefs(prompt string, refs []ai.ImagePart, output
 
 // CallImageBase64WithRefs generates an image conditioned on refs and returns base64 JSON.
 func (c *AIContext) CallImageBase64WithRefs(prompt string, refs []ai.ImagePart, options string) (string, error) {
+	resolved, initErr := c.ready()
+	if initErr != nil {
+		return "", initErr
+	}
+	if resolved != c {
+		return resolved.CallImageBase64WithRefs(prompt, refs, options)
+	}
 	rh, err := c.imageRefsHandler()
 	if err != nil {
 		return "", err

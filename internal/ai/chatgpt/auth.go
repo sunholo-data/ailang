@@ -57,6 +57,11 @@ func LoadCredential() (Credential, error) {
 	if err != nil {
 		return Credential{}, err
 	}
+	return LoadCredentialAt(path)
+}
+
+// LoadCredentialAt reads fresh credentials at a previously selected path.
+func LoadCredentialAt(path string) (Credential, error) {
 	raw, err := os.ReadFile(path) // #nosec G304 -- the codex CLI's own credential path
 	if err != nil {
 		return Credential{}, fmt.Errorf("chatgpt: no ChatGPT credential at %s (log in with `codex login`): %w", path, err)
