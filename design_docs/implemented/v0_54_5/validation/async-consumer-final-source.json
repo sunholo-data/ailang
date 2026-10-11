@@ -1,0 +1,230 @@
+{
+  "runtime": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+  "version": "AILANG v0.54.4-21-g47667ba7c\nCommit: 47667ba\nFull:   47667ba7c3e63ca85dd7a4e8c54de6356ce1516d\nBuilt:  2026-10-11_20:23:09\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026",
+  "providers": 0,
+  "cases": [
+    {
+      "command": [
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "run",
+        "--package-dir",
+        "/private/tmp/worker-followup-consumer-probe",
+        "--caps",
+        "IO,FS,Env,Clock,Stream,Process",
+        "--process-allowlist",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "--fs-max-bytes",
+        "128KB",
+        "/private/tmp/worker-followup-consumer-probe/async_probe.ail",
+        "--",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "/private/tmp/worker-followup-consumer-probe",
+        "/private/tmp/reply-m1-rounds-fe76v2kj"
+      ],
+      "home": "/private/tmp/reply-m1-rounds-fe76v2kj",
+      "before": [
+        {
+          "pid": 12037,
+          "ppid": 12028,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy /private/tmp/reply-m1-rounds-fe76v2kj/worker1-policy.toml --chdir /private/tmp/reply-m1-rounds-fe76v2kj/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 12038,
+          "ppid": 12028,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy /private/tmp/reply-m1-rounds-fe76v2kj/worker2-policy.toml --chdir /private/tmp/reply-m1-rounds-fe76v2kj/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 12039,
+          "ppid": 12037,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-rounds-fe76v2kj/worker1-policy.toml --chdir /private/tmp/reply-m1-rounds-fe76v2kj/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 12040,
+          "ppid": 12038,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-rounds-fe76v2kj/worker2-policy.toml --chdir /private/tmp/reply-m1-rounds-fe76v2kj/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        }
+      ],
+      "after": [],
+      "state": {
+        "schema": "probe-state/1",
+        "run": "m1-probe",
+        "seq": 31,
+        "round": 2,
+        "keys": 2,
+        "ready": [
+          "worker1/1",
+          "worker2/1",
+          "worker1/2",
+          "worker2/2"
+        ],
+        "boundary": [
+          "worker1",
+          "worker2"
+        ],
+        "buf1": "",
+        "buf2": "",
+        "bad": 0,
+        "began": 1791750214012
+      },
+      "stdout": "Warning: stdlib version mismatch: expected v0.54.4-21-g47667ba7c, found v0.54.5 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/std\r\nprobe ready; n=status, round=second jobs, q=quit\r\nn\r\n{\"event\":\"keyboard\",\"keys\":1,\"round\":1,\"unfinished\":2,\"elapsed_ms\":350}\r\npart\r\n{\"event\":\"keyboard\",\"keys\":2,\"round\":1,\"unfinished\":0,\"elapsed_ms\":2123}\r\nround\r\n",
+      "elapsed_ms": 5081,
+      "quit_clean": true,
+      "name": "two rounds and partial-key",
+      "early": {
+        "schema": "probe-state/1",
+        "run": "m1-probe",
+        "seq": 5,
+        "round": 1,
+        "keys": 1,
+        "ready": [],
+        "boundary": [
+          "worker1",
+          "worker2"
+        ],
+        "buf1": "",
+        "buf2": "",
+        "bad": 0,
+        "began": 1791750214012
+      },
+      "stable_pids": true,
+      "stable_boots": true,
+      "partial_key_no_redraw": true,
+      "fixture_cleanup_after": []
+    },
+    {
+      "command": [
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "run",
+        "--package-dir",
+        "/private/tmp/worker-followup-consumer-probe",
+        "--caps",
+        "IO,FS,Env,Clock,Stream,Process",
+        "--process-allowlist",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "--fs-max-bytes",
+        "128KB",
+        "/private/tmp/worker-followup-consumer-probe/async_probe.ail",
+        "--",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "/private/tmp/worker-followup-consumer-probe",
+        "/private/tmp/reply-m1-cancel-5po8t7br"
+      ],
+      "home": "/private/tmp/reply-m1-cancel-5po8t7br",
+      "before": [
+        {
+          "pid": 12139,
+          "ppid": 12136,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy /private/tmp/reply-m1-cancel-5po8t7br/worker1-policy.toml --chdir /private/tmp/reply-m1-cancel-5po8t7br/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 12140,
+          "ppid": 12136,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy /private/tmp/reply-m1-cancel-5po8t7br/worker2-policy.toml --chdir /private/tmp/reply-m1-cancel-5po8t7br/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 12141,
+          "ppid": 12140,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-cancel-5po8t7br/worker2-policy.toml --chdir /private/tmp/reply-m1-cancel-5po8t7br/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 12142,
+          "ppid": 12139,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-cancel-5po8t7br/worker1-policy.toml --chdir /private/tmp/reply-m1-cancel-5po8t7br/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        }
+      ],
+      "after": [],
+      "state": {
+        "schema": "probe-state/1",
+        "run": "m1-probe",
+        "seq": 4,
+        "round": 1,
+        "keys": 0,
+        "ready": [],
+        "boundary": [
+          "worker1",
+          "worker2"
+        ],
+        "buf1": "",
+        "buf2": "",
+        "bad": 0,
+        "began": 1791750219026
+      },
+      "stdout": "Warning: stdlib version mismatch: expected v0.54.4-21-g47667ba7c, found v0.54.5 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/std\nprobe ready; n=status, round=second jobs, q=quit\ncancel results: Ok(()); Ok(())\nfinished {\"schema\":\"probe-state/1\",\"run\":\"m1-probe\",\"seq\":4,\"round\":1,\"keys\":0,\"ready\":[],\"boundary\":[\"worker1\",\"worker2\"],\"buf1\":\"\",\"buf2\":\"\",\"bad\":0,\"began\":1791750219026}\n",
+      "elapsed_ms": 447,
+      "quit_clean": true,
+      "name": "Quit while two jobs unfinished",
+      "quit_elapsed_ms": 61,
+      "fixture_cleanup_after": []
+    },
+    {
+      "command": [
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "run",
+        "--package-dir",
+        "/private/tmp/worker-followup-consumer-probe",
+        "--caps",
+        "IO,FS,Env,Clock,Stream,Process",
+        "--process-allowlist",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "--fs-max-bytes",
+        "128KB",
+        "/private/tmp/worker-followup-consumer-probe/async_probe.ail",
+        "--",
+        "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang",
+        "/private/tmp/worker-followup-consumer-probe",
+        "/private/tmp/reply-m1-eof-bv5uqjhu"
+      ],
+      "home": "/private/tmp/reply-m1-eof-bv5uqjhu",
+      "before": [
+        {
+          "pid": 12163,
+          "ppid": 12159,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy /private/tmp/reply-m1-eof-bv5uqjhu/worker1-policy.toml --chdir /private/tmp/reply-m1-eof-bv5uqjhu/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 12164,
+          "ppid": 12159,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy /private/tmp/reply-m1-eof-bv5uqjhu/worker2-policy.toml --chdir /private/tmp/reply-m1-eof-bv5uqjhu/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 12165,
+          "ppid": 12163,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-eof-bv5uqjhu/worker1-policy.toml --chdir /private/tmp/reply-m1-eof-bv5uqjhu/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 12166,
+          "ppid": 12164,
+          "command": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/bin/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-eof-bv5uqjhu/worker2-policy.toml --chdir /private/tmp/reply-m1-eof-bv5uqjhu/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        }
+      ],
+      "after": [],
+      "state": {
+        "schema": "probe-state/1",
+        "run": "m1-probe",
+        "seq": 16,
+        "round": 1,
+        "keys": 0,
+        "ready": [
+          "worker1/1",
+          "worker2/1"
+        ],
+        "boundary": [
+          "worker1",
+          "worker2"
+        ],
+        "buf1": "",
+        "buf2": "",
+        "bad": 0,
+        "began": 1791750219628
+      },
+      "stdout": "Warning: stdlib version mismatch: expected v0.54.4-21-g47667ba7c, found v0.54.5 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/std\nprobe ready; n=status, round=second jobs, q=quit\ncancel results: Ok(()); Ok(())\nfinished {\"schema\":\"probe-state/1\",\"run\":\"m1-probe\",\"seq\":16,\"round\":1,\"keys\":0,\"ready\":[\"worker1/1\",\"worker2/1\"],\"boundary\":[\"worker1\",\"worker2\"],\"buf1\":\"\",\"buf2\":\"\",\"bad\":0,\"began\":1791750219628}\n",
+      "elapsed_ms": 12347,
+      "quit_clean": true,
+      "name": "EOF distinct from Quit",
+      "immediate_eof_callback": false,
+      "declared_worker_lifetime_ms": 12000,
+      "fixture_cleanup_after": []
+    }
+  ],
+  "m1_pass": true
+}

@@ -107,15 +107,15 @@
       "passes": null,
       "started": "2026-10-11T18:55:57.210407+00:00",
       "completed": null,
-      "notes": "Integrated marker-backed managed quit/EOF, original managed/two-async consumer and 19-case AI/generated-bin probes PASS; formatting/boundaries PASS. Consumer async EOF is natural completion, not a new EOF notification. Full local and CI/evaluation/release gates pending. Independent implementation evaluator PASS87/100; post-version full tests and lint PASS. Release prep archives design+plan+validation together; platform CI/dev merge/publication still pending. PR1765 Linux runtime tests PASS; architecture closure documentation gate exposed missing generated runlife inventory. Regenerated via canonical script; local exact closure check PASS; new CI required."
+      "notes": "Independent implementation evaluation PASS87/100. CI-exposed async stdout/receipt races fixed by8716b6b+47667ba; deterministic red controls,100-repetition fixes,10-race checks, independent focused races and exact-source full local gates PASS. Final PR1765 full platform checks passed and merged to dev e723303f. Dev main CI SUCCESS; separate dev release matrix memory test failed twice35/39MB under30MB. Publication held for retention-sensitive test calibration; no threshold relaxation or blind retry. Official artifacts/consumer retests, brain/cloud/notice pending."
     }
   ],
   "approval": {
     "date": "2026-10-11",
     "source": "attended user approved design and sprint execution; prior fix-and-release instruction"
   },
-  "last_checkpoint": "PR1765 architecture inventory regenerated; awaiting renewed platform CI.",
-  "last_session": "2026-10-11T19:31:18.301051+00:00",
+  "last_checkpoint": "PR1765 merged/dev CI green; publication held for memory probe validation correction",
+  "last_session": "2026-10-11T21:14:11.227286+00:00",
   "evaluation": {
     "result": "pass",
     "score": 87,

@@ -5,19 +5,16 @@ module debuglog
 -- streams (or is dropped) on arrival, so RSS stays flat. Nested so the
 -- recursion depth stays under the 10,000 cap (inner returns before outer
 -- continues).
+-- Both arms build every message. every=false logs once per inner batch;
+-- every=true logs all 500 messages in each of the same 400 batches.
 import std/debug as Debug
 
-func inner(i: int) -> int ! {Debug} =
-  if i == 0 then 0 else
-    let _ = Debug.log("{\"severity\":\"DEBUG\",\"message\":\"tick ${show(i)} with some padding to make the line realistic\"}") in
-    inner(i - 1)
+func inner(i: int, every: bool) -> int ! {Debug} =
+  if i == 0 then 0 else let message = "{\"severity\":\"DEBUG\",\"message\":\"tick ${show(i)} with some padding to make the line realistic\"}" in
+  let _ = if every || i == 1 then Debug.log(message) else () in
+  inner(i - 1, every)
 
-func outer(n: int) -> int ! {Debug} =
-  if n == 0 then 0 else
-    let _ = inner(500) in
-    outer(n - 1)
+func outer(n: int, every: bool) -> int ! {Debug} =
+  if n == 0 then 0 else let _ = inner(500, every) in outer(n - 1, every)
 
-export func main() -> int ! {IO, Debug} =
-  let n = outer(400) in
-  let _ = println("done") in
-  n
+export func main() -> int ! {IO, Debug} = let n = outer(400, true) in let _ = println("done") in n
