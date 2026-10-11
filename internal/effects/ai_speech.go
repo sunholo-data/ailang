@@ -22,6 +22,13 @@ type AISpeechHandler interface {
 
 // CallSpeech dispatches to the handler's speech capability.
 func (c *AIContext) CallSpeech(text, voice, style, options string) ([]byte, error) {
+	resolved, initErr := c.ready()
+	if initErr != nil {
+		return nil, initErr
+	}
+	if resolved != c {
+		return resolved.CallSpeech(text, voice, style, options)
+	}
 	if c.handler == nil {
 		return nil, ErrNoAIHandler
 	}

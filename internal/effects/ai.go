@@ -133,6 +133,7 @@ type ModelResolver func(model string) (apiName string, err error)
 // Thread-safety: AIContext is designed for single-threaded use
 // within one evaluation. Create a new context for each step/tick.
 type AIContext struct {
+	lazy          *lazyAIContext
 	handler       AIHandler
 	modelResolver ModelResolver
 }
@@ -141,7 +142,13 @@ type AIContext struct {
 // if it implements AIHandlerWithRouting. Returns nil otherwise (or when
 // the handler is nil, or the most recent call didn't engage routing).
 func (c *AIContext) LastRoutingMetadata() *trace.ResolvedRoute {
-	if c == nil || c.handler == nil {
+	if c == nil {
+		return nil
+	}
+	if c.lazy != nil {
+		return c.lazy.metadataContext().LastRoutingMetadata()
+	}
+	if c.handler == nil {
 		return nil
 	}
 	if rh, ok := c.handler.(AIHandlerWithRouting); ok {
@@ -181,6 +188,13 @@ func (c *AIContext) resolveModel(model string) (string, error) {
 // Returns ErrNoAIHandler if no handler is configured.
 // This is intentional - no silent fallbacks for AI calls.
 func (c *AIContext) Call(input string) (string, error) {
+	resolved, initErr := c.ready()
+	if initErr != nil {
+		return "", initErr
+	}
+	if resolved != c {
+		return resolved.Call(input)
+	}
 	if c.handler == nil {
 		return "", ErrNoAIHandler
 	}
@@ -190,6 +204,13 @@ func (c *AIContext) Call(input string) (string, error) {
 // CallJson invokes the AI handler requesting structured JSON output.
 // If schema is non-empty, providers enforce the schema on the response.
 func (c *AIContext) CallJson(input string, schema string) (string, error) {
+	resolved, initErr := c.ready()
+	if initErr != nil {
+		return "", initErr
+	}
+	if resolved != c {
+		return resolved.CallJson(input, schema)
+	}
 	if c.handler == nil {
 		return "", ErrNoAIHandler
 	}
@@ -201,6 +222,13 @@ func (c *AIContext) CallJson(input string, schema string) (string, error) {
 // Sentinel error path (no handler) returns ErrNoAIHandler so the calling
 // effect op can wrap it as AIError{ProviderNotFound} for the AILANG side.
 func (c *AIContext) Step(model string, messages []ai.Message, tools []ai.ToolSchema) (*ai.Response, error) {
+	resolved, initErr := c.ready()
+	if initErr != nil {
+		return nil, initErr
+	}
+	if resolved != c {
+		return resolved.Step(model, messages, tools)
+	}
 	if c.handler == nil {
 		return nil, ErrNoAIHandler
 	}
@@ -214,6 +242,13 @@ func (c *AIContext) Step(model string, messages []ai.Message, tools []ai.ToolSch
 // StepWithCache is the cache-aware variant — passes through to the handler.
 // Empty cacheBreakpoints behaves bit-for-bit identically to Step.
 func (c *AIContext) StepWithCache(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint) (*ai.Response, error) {
+	resolved, initErr := c.ready()
+	if initErr != nil {
+		return nil, initErr
+	}
+	if resolved != c {
+		return resolved.StepWithCache(model, messages, tools, cacheBreakpoints)
+	}
 	if c.handler == nil {
 		return nil, ErrNoAIHandler
 	}
@@ -228,6 +263,13 @@ func (c *AIContext) StepWithCache(model string, messages []ai.Message, tools []a
 // onChunk fires per-chunk during SSE processing; final return is the same
 // typed *ai.Response as StepWithCache.
 func (c *AIContext) StepWithStream(model string, messages []ai.Message, tools []ai.ToolSchema, cacheBreakpoints []ai.CacheBreakpoint, onChunk func(ai.StreamChunk)) (*ai.Response, error) {
+	resolved, initErr := c.ready()
+	if initErr != nil {
+		return nil, initErr
+	}
+	if resolved != c {
+		return resolved.StepWithStream(model, messages, tools, cacheBreakpoints, onChunk)
+	}
 	if c.handler == nil {
 		return nil, ErrNoAIHandler
 	}
