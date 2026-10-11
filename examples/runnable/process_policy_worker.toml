@@ -1,0 +1,7 @@
+security_mode = "restricted"
+allowed_caps = ["IO", "Clock"]
+entry = "main"
+timeout_ms = 15000
+max_source_bytes = 65536
+max_module_graph_bytes = 131072
+max_output_bytes = 8192

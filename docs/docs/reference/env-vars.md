@@ -246,7 +246,7 @@ comes from the fallback the description names. The `DEBUG_*` compiler knobs are 
 | Variable | Default | What it does |
 |---|---|---|
 | `AILANG_AI_HTTP_LOG` | — | Path the OpenAI-compatible clients append their raw HTTP wire log to; unset falls back to the ai-http-log sentinel file under the state dir, and no sentinel means logging off. |
-| `AILANG_AI_KEY_FILE` | — | Path to a file holding the API key for the --ai model's provider, read once at startup and never echoed (same as ailang run --ai-key-file, which wins); the file's contents replace the provider's key variable. |
+| `AILANG_AI_KEY_FILE` | — | Path to a file holding the API key for the --ai model's provider, read once on the first AI effect in run (eagerly for service setup) and never echoed (same as ailang run --ai-key-file, which wins); the file's contents replace the provider's key variable. |
 | `AILANG_AI_NO_ADC` | — | Set to 1 to disable the Google provider's Application Default Credentials lane: a missing GOOGLE_API_KEY/GEMINI_API_KEY becomes a hard AuthFailed error instead of silently billing the gcloud project (same as ailang run --ai-no-adc). |
 | `BROWSERBASE_API_KEY` | — | Browserbase API key for browser eval sessions when the benchmark's browser config does not name another variable (read through Raw, since the name is configurable). |
 | `BROWSERBASE_PROJECT_ID` | — | Browserbase project id for browser eval sessions; same rule as the API key. |

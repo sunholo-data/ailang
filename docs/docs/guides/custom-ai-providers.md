@@ -37,6 +37,19 @@ ailang run --caps AI --ai my-llm --model my-llm/some-model main.ail
 
 That's it. Budget, AI cap, and trace spans all flow through the standard AILANG effect machinery.
 
+## Keyless help and offline branches
+
+`ailang run` resolves the selected model and provider configuration before your entrypoint, then creates the real provider client on the first AI effect. An application can offer `--help` or `--offline` without an API key, credential-file access, ADC lookup or a running local provider when that branch performs no AI effect. A generated `[bin]` entry with `run_flags = ["--ai", "z-ai/glm-5.3-flash"]` gets the same behavior; application arguments follow `--` unchanged.
+
+For example:
+
+```bash
+ailang run --caps IO,Env,AI --ai z-ai/glm-5.3-flash examples/runnable/ai_offline_cli.ail -- --offline
+ailang run --caps IO,Env,AI --ai z-ai/glm-5.3-flash examples/runnable/ai_offline_cli.ail -- --help
+```
+
+The first AI effect still requires the configured provider's credentials and reports authentication failures. `--ai-key-file` takes precedence over `AILANG_AI_KEY_FILE`; its path is selected at startup and its contents are read once when AI is first used. `--ai-no-adc` retains its prohibition on Google ADC. Provider/model configuration errors and explicit stub-fixture validation remain startup errors. Service setup such as `serve-api` retains eager provider initialization.
+
 ## When to use this vs a built-in provider
 
 | Use case | Path |

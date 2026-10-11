@@ -1,0 +1,22 @@
+module examples/runnable/ai_offline_cli
+
+import std/io (println)
+import std/env (getArgs)
+import std/ai (call)
+
+-- Mode 0 is offline, 1 is help, and 2 requests an AI response.
+pure func mode(flag: string) -> int ! {}
+ensures { result >= 0, result <= 2 }
+  tests [("--offline", 0), ("--help", 1), ("", 2), ("hello", 2)] {
+  match flag { "--offline" => 0, "--help" => 1, _ => 2 }
+}
+
+-- Provider behavior is effectful; integration tests use mocks and missing keys.
+export func main() -> () ! {IO, Env, AI} {
+  let flag = match getArgs() { first :: _ => first, [] => "" };
+  match mode(flag) {
+    0 => println("offline: no AI requested"),
+    1 => println("Usage: ai_offline_cli [--offline|--help]; otherwise request AI"),
+    _ => println(call("Say hello briefly"))
+  }
+}

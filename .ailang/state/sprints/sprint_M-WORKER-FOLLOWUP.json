@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-WORKER-FOLLOWUP",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-11T18:21:20Z",
   "design_doc": "design_docs/planned/v0_54_5/m-worker-policy-and-lazy-ai.md",
   "sprint_plan": "design_docs/planned/v0_54_5/m-worker-policy-and-lazy-ai-sprint-plan.md",
@@ -113,5 +113,6 @@
   "approval": {
     "date": "2026-10-11",
     "source": "attended user approved design and sprint execution; prior fix-and-release instruction"
-  }
+  },
+  "last_checkpoint": "Plan approved, AC1 official v0.54.4 leak reproduced; baseline tests running"
 }

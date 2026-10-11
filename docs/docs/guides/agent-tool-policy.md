@@ -20,6 +20,8 @@ edit. There is no shell. This page is the operator's view; the designs are
 | **Tools** | `ailang_run({path, args_json?})` calls the gate. `ailang_read/ailang_write/ailang_edit` and `ailang_cli({op, …})` are served by **`ailang policy-tool`**, a typed endpoint in the Go binary backed by the same resolved policy: file paths are root-anchored (a path outside the sandbox, or a symlink that leads outside, fails inside the syscall), and each CLI op has a schema — the argv is built in Go from validated fields, never composed by the model or the extension. With no policy attached every tool **refuses with a named reason** (default-deny) | `internal/policytool`, `.pi/extensions/ailang-exec.ts` |
 | **Profile** | `tool_policy: ailang_only` ⇒ `--no-builtin-tools --tools ailang_read,ailang_edit,ailang_write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli` (`ailang pi tool-profile ailang_only` prints it). pi's native `read`/`write`/`edit` — which see the whole host filesystem — are **not** in the lane | `internal/executor/toolpolicy.go`, `internal/executor/pi/toolnames.go` |
 
+When an owned managed process or async source starts `run --policy` using the same runtime executable, cancellation waits for the supervisor's acknowledgement that its separately grouped worker and owned tasks have stopped. A private worker lifeline also triggers cleanup if the supervisor disappears. Admission reporting remains separate; a missing cleanup acknowledgement produces a cancellation failure even if the worker later exits. Policy timeout and output limits retain their immediate execution-stop boundary.
+
 ## Writing a policy
 
 ```toml
