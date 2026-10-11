@@ -95,7 +95,7 @@ Regression fixtures read/checked during design: `examples/runnable/process_cance
 
 ## Acceptance criteria
 
-- [ ] AC1: Reproduce the reported policy leak before the fix with the official v0.54.4 binary, recording startup acknowledgement and exact positive supervisor/worker PIDs and PGIDs; cleanup is restricted to those owned fixtures.
+- [x] AC1: Reproduce the reported policy leak before the fix with the official v0.54.4 binary, recording startup acknowledgement and exact positive supervisor/worker PIDs and PGIDs; cleanup is restricted to those owned fixtures.
 - [ ] AC2: Explicit managed cancellation and cancellation of two async sources remove all acknowledged supervisor/worker PIDs, including zombies, before success; each quit/EOF case remains within the shared two-second deadline plus a 500 ms observation allowance.
 - [ ] AC3: Normal return, error, exit, SIGINT/SIGTERM and owner/context shutdown include policy descendants; startup-cancel and nested-supervision races cannot leak workers or admit after shutdown.
 - [ ] AC4: Forced supervisor death triggers the worker lifeline fallback. Missing/failed/forged/oversized receipts cannot report public success; unrelated workers remain alive. Stalled cleanup returns a typed failure within deadline.
@@ -127,7 +127,7 @@ Registry reuse: searched `process` and `AI`, inspected `sunholo/external_backend
 | Claim | Evidence observed on 2026-10-11 |
 |---|---|
 | Released baseline | gh release list: v0.54.4 Latest; source std/VERSION v0.54.4; official binary full commit bc078dc... |
-| Policy leak | Inspected consumer explicit-cancel/policy-cancel.json and lifecycle.json: separate positive PGIDs, PPID 1 survivors, Ok results; this session has not run that process fixture |
+| Policy leak | Inspected consumer explicit-cancel/policy-cancel.json and lifecycle.json: separate positive PGIDs, PPID 1 survivors, Ok results; independently reproduced before implementation; restricted worker entrypoint marker and recorded positive PIDs/PGIDs, guarded fixture cleanup, zero providers (validation/v0.54.4-policy-marker-before.json) |
 | Separate inner group | Read supervisePolicyRun and proctree.setProcessGroup: Configure before Start, Setpgid true |
 | Admission pipe supplies no lifetime | Read reportDecision: one JSON message and control.Close; supervisor scanner reads one line; no signal/parent-lifetime watcher in those functions |
 | Current owner stop has no policy receipt | Read managedProcess.RequestStop/Join and processSource.finishGroup/Join: group kill, direct Wait and owned I/O only; no inherited lifecycle transport in their spawn paths |
