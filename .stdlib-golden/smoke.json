@@ -3,6 +3,36 @@
   "types": [],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "tools",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "dispatch",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "dispatchAllTools",
       "type": "(list[string],(string)-\u003e())-\u003e()!{IO}",
       "effects": [
@@ -11,6 +41,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "name",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "dispatch",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "dispatchTool",
       "type": "(string,(string)-\u003e())-\u003e()!{IO}",
       "effects": [
@@ -19,6 +79,28 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "name",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "okSuite",
       "type": "(string)-\u003e()!{IO}",
       "effects": [
@@ -27,5 +109,5 @@
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }

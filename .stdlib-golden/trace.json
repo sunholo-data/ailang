@@ -3,6 +3,36 @@
   "types": [],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "name",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "data",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "event",
       "type": "(string,string)-\u003e()!{Trace}",
       "effects": [
@@ -11,6 +41,28 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "name",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "spanEnd",
       "type": "(string)-\u003e()!{Trace}",
       "effects": [
@@ -19,6 +71,28 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "name",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "spanStart",
       "type": "(string)-\u003e()!{Trace}",
       "effects": [
@@ -27,5 +101,5 @@
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }

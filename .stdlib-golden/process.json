@@ -35,6 +35,28 @@
   ],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "handle",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "cancelProcess",
       "type": "(ProcessHandle)-\u003eResult[(),WorkerCancelError]!{Process}",
       "effects": [
@@ -43,6 +65,28 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "handle",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "closeProcessStdin",
       "type": "(ProcessHandle)-\u003e()!{Process}",
       "effects": [
@@ -51,6 +95,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "cmd",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "args",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "exec",
       "type": "(string,list[string])-\u003eResult[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool},ProcessError]!{Process}",
       "effects": [
@@ -59,6 +133,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "cmd",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "args",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "spawnProcess",
       "type": "(string,list[string])-\u003eProcessHandle!{Process}",
       "effects": [
@@ -67,6 +171,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "handle",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "data",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "writeProcessStdin",
       "type": "(ProcessHandle,bytes)-\u003eResult[(),string]!{Process}",
       "effects": [
@@ -75,5 +209,5 @@
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }
