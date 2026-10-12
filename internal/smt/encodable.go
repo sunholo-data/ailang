@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 )
 
@@ -41,7 +42,7 @@ func (r SMTRejectionReason) String() string {
 // IsSMTEncodable checks whether a function can be SMT-verified.
 // Returns true with empty reasons if the function is in the decidable fragment.
 // Returns false with rejection reasons otherwise.
-func IsSMTEncodable(funcName string, meta *core.DeclMeta, body core.CoreExpr) (bool, []SMTRejectionReason) {
+func IsSMTEncodable(funcName string, meta *core.DeclMeta, body core.CoreExpr, decl ...*ast.FuncDecl) (bool, []SMTRejectionReason) {
 	var reasons []SMTRejectionReason
 
 	// Check 1: Must have contracts
@@ -53,12 +54,12 @@ func IsSMTEncodable(funcName string, meta *core.DeclMeta, body core.CoreExpr) (b
 		})
 	}
 
-	// Check 2: Must be pure
-	if !isPure(meta) {
+	// Check 2: Must have an SMT-admissible declaration
+	if !smtAdmissible(meta, decl...) {
 		reasons = append(reasons, SMTRejectionReason{
 			Code:    RejectNotPure,
 			Message: fmt.Sprintf("Function %q has effects", funcName),
-			Hint:    "Remove effect annotations or use ! {} for pure",
+			Hint:    "Use pure or an explicit closed row containing only Declassify (or ! {})",
 		})
 	}
 
@@ -126,15 +127,6 @@ func CollectCalleeNames(body core.CoreExpr, selfName string, prog *core.Program,
 // hasContracts checks if the function has any contracts.
 func hasContracts(meta *core.DeclMeta) bool {
 	return meta != nil && len(meta.Contracts) > 0
-}
-
-// isPure checks if the function is marked as pure.
-// Functions with empty effect sets (! {}) are pure.
-func isPure(meta *core.DeclMeta) bool {
-	if meta == nil {
-		return false
-	}
-	return meta.IsPure
 }
 
 // isRecursive checks if the body references the function name (self-recursion).
