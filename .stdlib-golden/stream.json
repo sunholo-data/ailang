@@ -64,6 +64,60 @@
   ],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "cmd",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "args",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "name",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "priority",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "chunkSize",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "asyncExecProcess",
       "type": "(string,list[string],string,int,int)-\u003eStreamSource!{Process,Stream}",
       "effects": [
@@ -73,6 +127,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "name",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "priority",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "asyncReadStdinLines",
       "type": "(string,int)-\u003eStreamSource!{Stream}",
       "effects": [
@@ -81,6 +165,28 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "source",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "cancelProcessSource",
       "type": "(StreamSource)-\u003eResult[(),WorkerCancelError]!{Process,Stream}",
       "effects": [
@@ -90,6 +196,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "url",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "config",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "connect",
       "type": "(string,{headers: list[{name: string, value: string}]})-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
       "effects": [
@@ -98,12 +234,56 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "u",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "defaultConfig",
       "type": "(())-\u003e{headers: [{name: string, value: string}]}",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "conn",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "disconnect",
       "type": "(StreamConn)-\u003e()!{Stream}",
       "effects": [
@@ -112,6 +292,44 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "url",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "body",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "config",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "ndjsonPost",
       "type": "(string,string,{headers: list[{name: string, value: string}]})-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
       "effects": [
@@ -120,6 +338,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "conn",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "handler",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "onEvent",
       "type": "(StreamConn,(StreamEvent)-\u003ebool)-\u003e()!{Stream}",
       "effects": [
@@ -128,6 +376,28 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "conn",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "runEventLoop",
       "type": "(StreamConn)-\u003e()!{Stream}",
       "effects": [
@@ -136,6 +406,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "sources",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "handler",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "selectEvents",
       "type": "(list[StreamSource],(StreamEvent)-\u003ebool)-\u003e()!{Stream}",
       "effects": [
@@ -144,6 +444,44 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "conn",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "name",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "priority",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "sourceOfConn",
       "type": "(StreamConn,string,int)-\u003eStreamSource!{Stream}",
       "effects": [
@@ -152,6 +490,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "url",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "config",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "sseConnect",
       "type": "(string,{headers: list[{name: string, value: string}]})-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
       "effects": [
@@ -160,6 +528,44 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "url",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "body",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "config",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "ssePost",
       "type": "(string,string,{headers: list[{name: string, value: string}]})-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
       "effects": [
@@ -168,6 +574,28 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "conn",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "status",
       "type": "(StreamConn)-\u003eStreamStatus!{Stream}",
       "effects": [
@@ -176,6 +604,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "conn",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "msg",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "transmit",
       "type": "(StreamConn,string)-\u003eResult[(),StreamErrorKind]!{Stream}",
       "effects": [
@@ -184,6 +642,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "conn",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "data",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "transmitBinary",
       "type": "(StreamConn,bytes)-\u003eResult[(),StreamErrorKind]!{Stream}",
       "effects": [
@@ -192,6 +680,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "url",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "handler",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "withSSE",
       "type": "(string,(StreamEvent)-\u003ebool)-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
       "effects": [
@@ -200,6 +718,36 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "url",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "handler",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "withStream",
       "type": "(string,(StreamEvent)-\u003ebool)-\u003eResult[StreamConn,StreamErrorKind]!{Stream}",
       "effects": [
@@ -208,5 +756,5 @@
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }

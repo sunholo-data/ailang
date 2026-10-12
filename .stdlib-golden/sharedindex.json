@@ -3,6 +3,36 @@
   "types": [],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "namespace",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "key",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "delete",
       "type": "(string,string)-\u003e()!{SharedIndex}",
       "effects": [
@@ -11,6 +41,28 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "namespace",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "entryCount",
       "type": "(string)-\u003eint!{SharedIndex}",
       "effects": [
@@ -19,6 +71,60 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "namespace",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "queryEmbedding",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "topK",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "maxScan",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "deterministic",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "findByEmbedding",
       "type": "(string,list[float],int,int,bool)-\u003elist[{key: string, score: float, timestamp: int, version: int}]!{SharedIndex}",
       "effects": [
@@ -27,6 +133,60 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "namespace",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "querySimhash",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "topK",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "maxScan",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "deterministic",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "findSimhash",
       "type": "(string,int,int,int,bool)-\u003elist[{key: string, score: float, timestamp: int, version: int}]!{SharedIndex}",
       "effects": [
@@ -35,6 +195,28 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "u",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "namespaces",
       "type": "(())-\u003elist[string]!{SharedIndex}",
       "effects": [
@@ -43,6 +225,60 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "namespace",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "key",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "simhash",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "version",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "timestamp",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "upsert",
       "type": "(string,string,int,int,int)-\u003e()!{SharedIndex}",
       "effects": [
@@ -51,6 +287,68 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "namespace",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "key",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "simhash",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "embedding",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "version",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          },
+          {
+            "name": "timestamp",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": ""
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "upsertWithEmbedding",
       "type": "(string,string,int,list[float],int,int)-\u003e()!{SharedIndex}",
       "effects": [
@@ -59,5 +357,5 @@
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }

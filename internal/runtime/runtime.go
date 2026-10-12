@@ -487,9 +487,15 @@ func (rt *ModuleRuntime) ListInstances() []string {
 // This is used when modules are loaded without full type checking (e.g., in tests)
 func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) *iface.Iface {
 	exports := make(map[string]*iface.IfaceItem)
+	summaries := types.AnalyzeModuleIFC(loaded.File, nil)
 
 	for name := range loaded.Exports {
+		summary := summaries[name]
+		if summary == nil {
+			summary = types.EmptyIFCSummary()
+		}
 		exports[name] = &iface.IfaceItem{
+			IFC:    summary,
 			Name:   name,
 			Type:   nil, // No type info available without type checking
 			Purity: false,
@@ -559,6 +565,7 @@ func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) *ifa
 	}
 
 	return &iface.Iface{
+		Schema:       iface.SchemaVersion,
 		Module:       loaded.Path,
 		Exports:      exports,
 		Constructors: constructors,

@@ -1,9 +1,9 @@
 # Sprint Plan: M-IFC-CROSS-MODULE
 
-> **HOLD: do not approve until the M-IFC-AUTHORITY-SCOPING implementation PR has merged.**
+> **Dependency met:** M-IFC-AUTHORITY-SCOPING (#1707) is on dev. This run executes M1–M2 only.
 
 **Target:** v0.53.x (v0.54.0 if release sequencing requires it)
-**Status:** Planned; on HOLD until the M-IFC-AUTHORITY-SCOPING implementation has merged (merging this plan dispatches the executor)
+**Status:** M1–M2 complete; M3–M4 pending (2026-10-12)
 **Date:** 2026-10-08
 **Issues:** Refs #1134; Refs #1132 (part 1 only)
 **Design:** `design_docs/planned/m-ifc-cross-module-labels.md` (merged df8bc23ca)
@@ -16,7 +16,7 @@
 
 Make imported sink refinements and return labels enforceable at compile time, using serializable per-export IFC summaries and the existing surface-AST checker. The same-module rejection must also occur when the sink moves to a library. Include intrinsic taint, scoped Declassify authority, positive parameter label coverage (Check C) for imported callees, CLI/REPL parity, and cache safety. Keep label erasure in unification and CoreTI/codegen unchanged.
 
-This implements #1134 and part 1 of #1132. Label-aware tracing, Z3 cross-module function contracts, and label-polymorphic inference remain separate work. Do not close #1132 after this sprint: its tracing half remains outstanding. No new issue is needed. The plan PR must use `Refs #1134` and `Refs #1132`; only the implementation PR may use `Closes #1134`, alongside `Refs #1132`.
+This implements #1134 and part 1 of #1132. Label-aware tracing, Z3 cross-module function contracts, and label-polymorphic inference remain separate work. Do not close #1132 after this sprint: its tracing half remains outstanding. No new issue is needed. The plan PR must use `Refs #1134` and `Refs #1132`; only the final implementation PR may use an issue-closing keyword for #1134, alongside `Refs #1132`.
 
 ## Dependency on M-IFC-AUTHORITY-SCOPING
 
@@ -38,7 +38,7 @@ Ran `ailang pkg search ifc`: one result, `sunholo/linkedin@0.5.1`. `pkg info sun
 
 ## Milestones
 
-### M1: Export IFC summaries and deterministic schema (~310 LOC)
+### M1: Export IFC summaries and deterministic schema (~310 LOC) — done 2026-10-12
 
 **Estimate:** 185 implementation + 125 tests; 1.5 days / 9 hours
 **Dependencies:** M-IFC-AUTHORITY-SCOPING implementation merged and this branch rebased on it
@@ -49,29 +49,29 @@ Files: `internal/types/ifc_check.go`, a small `internal/types/ifc_summary.go` if
 
 Example coverage: summary tests use the lib functions later published under `examples/runnable/ifc_cross_module/lib.ail`; no new standalone language feature is introduced.
 
-- [ ] Every exported item has explicit IFC metadata; clean is distinguishable from missing.
-- [ ] Positive param labels, sink refinements, declared/intrinsic returns, and the Declassify label list (none `[]`, bare `["*"]`, scoped `["email"]`) survive summary construction; no bool-shaped declassify field exists in the schema.
-- [ ] Local recursion and a wrapper around an imported secret producer retain intrinsic taint.
-- [ ] Each security-relevant summary field changes the digest; export map order does not.
-- [ ] TLabelled erasure and CoreTI/codegen behavior remain unchanged.
+- [x] Every exported item has explicit IFC metadata; clean is distinguishable from missing.
+- [x] Positive param labels, sink refinements, declared/intrinsic returns, and the Declassify label list (none `[]`, bare `["*"]`, scoped `["email"]`) survive summary construction; no bool-shaped declassify field exists in the schema.
+- [x] Local recursion and a wrapper around an imported secret producer retain intrinsic taint.
+- [x] Each security-relevant summary field changes the digest; export map order does not.
+- [x] TLabelled erasure and CoreTI/codegen behavior remain unchanged.
 
 Risk: summary computation re-enters checking or introduces an import cycle. Keep the analysis reusable and data types in types; reuse the existing fixed-point rules.
 
-### M2: Persist summaries and reject incompatible caches (~220 LOC)
+### M2: Persist summaries and reject incompatible caches (~220 LOC) — done 2026-10-12
 
 **Estimate:** 100 implementation + 120 tests; 1 day / 6 hours
 **Dependencies:** M1
 
-Update full cache JSON DTOs and both marshal/unmarshal paths in `internal/pipeline/cache_store.go`, iface gob/JSON coverage, and validation in `internal/pipeline/cache_artifacts.go`. Audit cache keys and dependency digest propagation in `cache_dep_closure.go`. Existing artifact hashes authenticate stored bytes, but the current artifact reader does not explicitly reject a v1 IFC schema: do not assume a schema string bump alone forces recompilation. Add schema/summary validation and bump `cacheKeyVersion` from `v5` to `v6` in `internal/pipeline/cache_key.go` (mandatory, not conditional), with a v5→v6 entry in its comment history naming this sprint; if dev has moved past v5 by the time this rebases, take the next unused value. Old entries become an observable cache miss and recompile from source; if no source/valid interface is available, report an actionable error instead of accepting clean metadata. Malformed v2 metadata must be rejected too.
+Update full cache JSON DTOs and both marshal/unmarshal paths in `internal/pipeline/cache_store.go`, iface gob/JSON coverage, and validation in `internal/pipeline/cache_artifacts.go`. Audit cache keys and dependency digest propagation in `cache_dep_closure.go`. Existing artifact hashes authenticate stored bytes, but the current artifact reader does not explicitly reject a v1 IFC schema: do not assume a schema string bump alone forces recompilation. Add schema/summary validation and bump `cacheKeyVersion` from dev `v6` to `v7` in `internal/pipeline/cache_key.go` (mandatory, not conditional), with a v6→v7 entry in its comment history naming this sprint; if dev has moved past v5 by the time this rebases, take the next unused value. Old entries become an observable cache miss and recompile from source; if no source/valid interface is available, report an actionable error instead of accepting clean metadata. Malformed v2 metadata must be rejected too.
 
 Files/tests: cache store/artifact tests, iface serialization tests, dependency invalidation integration tests. Example coverage uses M4's lib/app pair with cold and warm cache.
 
-- [ ] Full cache JSON, compact/published JSON, and supported gob paths preserve every IFC summary field.
-- [ ] `cacheKeyVersion` is bumped v5→v6 in internal/pipeline/cache_key.go with a history comment; a test shows a pre-bump cache entry misses.
-- [ ] A validly hashed v1 artifact cannot bypass IFC enforcement and causes recompilation.
-- [ ] A v2 interface with absent or malformed metadata cannot be treated as clean.
-- [ ] A library-only refinement/intrinsic/return change invalidates dependent cached artifacts.
-- [ ] Cold and warm cache verdicts match, including a cached caller (audit whether IFC reruns on cache hits).
+- [x] Full cache JSON, compact/published JSON, and supported gob paths preserve every IFC summary field.
+- [x] `cacheKeyVersion` is bumped dev v6→v7 in internal/pipeline/cache_key.go with a history comment; a test shows a pre-bump cache entry misses.
+- [x] A validly hashed v1 artifact cannot bypass IFC enforcement and causes recompilation.
+- [x] A v2 interface with absent or malformed metadata cannot be treated as clean.
+- [x] A library-only refinement/intrinsic/return change invalidates dependent cached artifacts.
+- [x] Cold and warm cache verdicts match, including a cached caller (audit whether IFC reruns on cache hits).
 
 Risk: cached caller bypasses the checker. Prove key/dependency invalidation and cold/warm verdict parity rather than relying on the design's unverified assertion that checking runs every compile.
 
@@ -145,4 +145,21 @@ The verdict matrix includes same/two-module sinks, imported positive-param Check
 
 Label lattice, TLabelled cache codec, closure-laundering fix and REPL gate already exist. The M-IFC-AUTHORITY-SCOPING implementation is a hard prerequisite (see HOLD); no other external package or new issue blocks work. The summary representation, REPL export storage, cache-hit behavior and all interface producers require execution-time audit; the tasks above explicitly cover those uncertainties.
 
-Machine progress: `.ailang/state/sprints/sprint_M-IFC-CROSS-MODULE.json`. All milestone passes begin null. This task creates planning artifacts only. Merging this plan PR dispatches the executor, which is why it is on HOLD until the M-IFC-AUTHORITY-SCOPING implementation PR has merged. The executor works on its own branch and opens a PR; it does not push to dev or merge. The implementation PR closes #1134 only after the entire acceptance matrix and docs update pass, and references #1132 for its partial delivery.
+Machine progress: `.ailang/state/sprints/sprint_M-IFC-CROSS-MODULE.json`. M1–M2 are complete in the 2026-10-12 partial run; M3–M4 remain pending. The dependency (#1707) is on dev. The executor commits locally on the coordinator branch; the coordinator opens the PR. The implementation PR completes #1134 only after the entire acceptance matrix and docs update pass, and references #1132 for its partial delivery.
+
+## Partial execution checkpoint — 2026-10-12
+
+M1–M2 only are implemented and locally committed. Dev was already at cache v6
+(M-ALIAS-BODY-CLOSURE), so this implementation uses v7. M3–M4 remain pending;
+imported call-edge enforcement and CLI/REPL import resolution are not yet delivered.
+The cache-hit audit confirmed that `serveFromCache` skips IFC checking. Summary
+changes therefore flow through dependency digests and invalidate cached callers.
+Cold/warm tests cover accepted callers and the existing local IFC rejection;
+imported-contract verdict parity remains part of M3.
+
+Focused Go tests for types, iface, pipeline, link and runtime pass. `make test-core`
+passes under a temporary Linux child-subreaper supervisor because this container's
+PID 1 leaves orphan zombies (the existing nested-process cleanup test fails without
+reaping). `make lint` passes with zero issues after bounding Go memory/concurrency
+and extending its runtime timeout. File-size and architecture-boundary checks pass.
+Full `make test` was not run, and no branch was pushed. PR reference: Refs #1134.

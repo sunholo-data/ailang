@@ -316,10 +316,11 @@ func TestCacheStore_ArtifactRoundTrip(t *testing.T) {
 		},
 		Iface: &iface.Iface{
 			Module: "test/module",
-			Schema: "ailang.iface/v1",
+			Schema: iface.SchemaVersion,
 			Digest: "abc123",
 			Exports: map[string]*iface.IfaceItem{
 				"x": {
+					IFC:    types.EmptyIFCSummary(),
 					Name:   "x",
 					Type:   &types.Scheme{Type: &types.TCon{Name: "int"}},
 					Purity: true,
@@ -498,7 +499,7 @@ func TestCacheStore_ArtifactRoundTrip_DiverseExprTypes(t *testing.T) {
 			Flags: core.ProgramFlags{},
 		},
 		CoreTI:       types.CoreTypeInfo{100: &types.TCon{Name: "int"}},
-		Iface:        &iface.Iface{Module: "test", Schema: "ailang.iface/v1", Exports: map[string]*iface.IfaceItem{}, Constructors: map[string]*iface.ConstructorScheme{}, Types: map[string]*iface.TypeExport{}, TypeAliases: map[string]types.Type{}},
+		Iface:        &iface.Iface{Module: "test/diverse", Schema: iface.SchemaVersion, Exports: map[string]*iface.IfaceItem{}, Constructors: map[string]*iface.ConstructorScheme{}, Types: map[string]*iface.TypeExport{}, TypeAliases: map[string]types.Type{}},
 		Constructors: map[string]*ConstructorInfo{},
 	}
 
