@@ -2,7 +2,7 @@
 # TESTING TARGETS
 # =============================================================================
 
-.PHONY: test test-parser test-parser-update test-lowering test-imports test-imports-success
+.PHONY: test test-changed test-parser test-parser-update test-lowering test-imports test-imports-success
 .PHONY: test-import-errors test-recursion test-iface-determinism test-builtin-freeze
 .PHONY: test-operator-assertions test-regression-guards test-builtin-consistency
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
@@ -412,3 +412,16 @@ CORE_PKGS := ./internal/lexer/... ./internal/parser/... ./internal/ast/... ./int
 
 test-core: ## Run the language-core tests only (lexer→VM, stdlib, fmt) — the fast inner loop
 	@AILANG_TEST_FAST_LOOP=1 $(GOTEST) $(CORE_PKGS) -count=1
+
+# Focused gate for agent executors and quick local checks: the Go packages this
+# branch touches (committed, uncommitted and untracked, vs the merge-base with
+# TEST_CHANGED_BASE) plus test-core. The full `make test` belongs to CI: on the
+# 8 GiB cloud executor with a RAM-backed /tmp it ran for hours and SIGBUS'd.
+TEST_CHANGED_BASE ?= origin/dev
+test-changed: ## Focused gate: tests for Go packages changed vs TEST_CHANGED_BASE (default origin/dev) + test-core; the full suite runs in CI
+	@base=$$(git merge-base HEAD $(TEST_CHANGED_BASE) 2>/dev/null || echo HEAD); \
+	pkgs=$$( { git diff --name-only $$base -- '*.go'; git ls-files --others --exclude-standard -- '*.go'; } \
+		| grep -v -e '/testdata/' -e '^cmd/wasm/' | while read -r f; do d=$$(dirname "$$f"); [ -d "$$d" ] && echo "./$$d"; done | sort -u ); \
+	if [ -n "$$pkgs" ]; then echo "test-changed: $$(echo $$pkgs | wc -w | tr -d ' ') package(s) vs $$base"; $(GOTEST) $$pkgs -count=1 || exit 1; \
+	else echo "test-changed: no Go packages changed vs $$base"; fi
+	@$(MAKE) --no-print-directory test-core

@@ -34,7 +34,7 @@
 - [ ] If test uses random/time-based data: verify with fixed seed or multiple runs
 
 ## Quality Verification
-- [ ] Run tests: `make test` - MUST PASS
+- [ ] Run tests: `make test-changed` (touched packages + test-core) - MUST PASS; full `make test` runs in CI
 - [ ] Run linting: `make lint` - MUST PASS
 - [ ] Check formatting: `make fmt-check` or run `make fmt`
 - [ ] If any fail, fix immediately before proceeding

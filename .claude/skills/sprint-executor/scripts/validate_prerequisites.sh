@@ -44,7 +44,7 @@ echo
 
 # 3. Run tests
 echo "3/5 Running tests..."
-if make test > /tmp/sprint_prereq_test.log 2>&1; then
+if make test-core > /tmp/sprint_prereq_test.log 2>&1; then
     echo "  ✓ All tests pass"
 else
     echo "  ✗ Tests failing"
