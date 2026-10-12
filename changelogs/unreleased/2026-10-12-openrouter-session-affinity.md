@@ -8,3 +8,4 @@
   header) stayed on one host for all 81 calls with 97% of input cached. motoko via `std/ai` was
   load-balanced over three hosts, one of which cached 8% of input and returned tool calls that
   contradicted the model's own reasoning.
+- motoko pin `aa23bbd1`: its launcher passes the motoko session id as `OPENROUTER_SESSION_ID`.
