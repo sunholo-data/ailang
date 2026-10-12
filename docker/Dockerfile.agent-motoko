@@ -10,7 +10,7 @@
 # subscription OAuth from anything but Claude Code (429, measured 2026-10-02).
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=a1ece42eb1bcd4a87fe866d4463175d6886416e1
+ARG MOTOKO_COMMIT=6de44ada4832c20e0000a460705a8e8f6bbc9d24
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -45,7 +45,9 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
 # profiles so compaction fires for fleet models the catalogue lacks (e3fa68ec,
 # 2026-10-08), and the lane's AILANG teaching prompt + pi's lane guidance
 # (b3347a96, 2026-10-12), and repetition_guard in the ailang_only profile
-# (a1ece42e, 2026-10-12). MOTOKO.md §10. Previous pins: b3347a96, e3fa68ec, de68fddf, 4d4917cd (sunholo/main-dst). Fetch-by-SHA pins the exact commit whatever the
+# (a1ece42e, 2026-10-12), whose result comparison now ignores the envelope's
+# tool_call_id (6de44ada; upstream arniwesth/motoko_agent#260).
+# MOTOKO.md §10. Previous pins: a1ece42e, b3347a96, e3fa68ec, de68fddf, 4d4917cd (sunholo/main-dst). Fetch-by-SHA pins the exact commit whatever the
 # branch does next.
 #
 # The fetch authenticates when the build passes a `github_token` secret

@@ -215,7 +215,9 @@ concurrent cloud motoko trials (`motoko-or-deepseek-v4-flash`, 6/6, $0.06, no po
   with ailang ≥ v0.54.6 (those providers dropped system-role messages). Cloud image pins it.
 - `repetition_guard` loads in the ailang_only profile (a1ece42e, 2026-10-12): GLM-5.3-Flash sent
   one malformed `ailang_cli` call 153 times on a real task; the guard refuses a call repeated with
-  byte-identical output and tells the model to change course.
+  byte-identical output and tells the model to change course. It could never fire on extension
+  tools until 6de44ada (upstream #260): each result envelope carries its own `tool_call_id`, so no
+  two results were identical (measured: 215 repeats, guard loaded, silent).
 
 **Rig switched 2026-10-08:** the `~/go/bin/motoko` shim now execs `~/dev/mk-20261002` (this branch is
 checked out in that worktree, so `mk-main` cannot take it; `mk-main` stays on `sunholo/main-dst` as
