@@ -29,7 +29,8 @@ make quick-install && ailang run --caps IO examples/hello.ail
 
 #### Core Testing
 ```bash
-make test                  # All tests (excludes scripts/)
+make test-changed          # Sprint gate: touched packages + test-core
+make test                  # Full suite (CI runs it; avoid in sprints: slow, SIGBUS on cloud executors)
 make test-coverage         # Tests with coverage report (coverage.html)
 make test-coverage-badge   # Quick coverage check (shows percentage)
 make ci                    # Full CI verification locally

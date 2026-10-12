@@ -13,7 +13,7 @@ Execute an approved sprint plan with continuous progress tracking, testing, and 
 - **Working directory**: !'git status --short | head -5'
 - **Active sprints**: !'ls .ailang/state/sprints/ 2>/dev/null | head -5 || echo "none"'
 - **Sprint progress**: !'for f in .ailang/state/sprints/sprint_*.json; do [ -f "$f" ] && echo "$(basename $f): status=$(jq -r .status $f 2>/dev/null), features=$(jq "[.features[] | select(.passes==true)] | length" $f 2>/dev/null)/$(jq ".features | length" $f 2>/dev/null)"; done 2>/dev/null || echo "no sprint files"'
-- **Tests**: !'make test 2>&1 | tail -1'
+- **Test gate**: `make test-changed` (packages this branch touches + `make test-core`). Never run the full `make test` here: it belongs to CI.
 - **Uncommitted changes**: !'git diff --stat HEAD 2>/dev/null | tail -1 || echo "clean"'
 
 > **Use the data above first.** Only re-run these commands manually if the injected context is empty or you need to refresh after making changes.
@@ -174,7 +174,7 @@ Run checkpoint after completing a milestone.
 **CRITICAL: Tests passing ≠ Feature working!** This script verifies with REAL DATA.
 
 **What it does:**
-1. Runs `make test` and `make lint`
+1. Runs `make test-changed` and `make lint`
 2. Shows git diff of changed files
 3. Checks file sizes (AI-friendly codebase guidelines)
 4. **Runs milestone-specific verification** (database queries, API calls, etc.)
@@ -363,7 +363,7 @@ Task(
     **Step 2: Write FAILING tests FIRST**
     For each acceptance criterion in the milestone:
     - Write a test that captures the expected behavior
-    - Run `make test` — confirm the new tests FAIL
+    - Run the new tests (`go test ./<pkg>/... -run <Name>`) — confirm they FAIL
     - Do NOT proceed to implementation until you have failing tests
 
     Acceptance criteria:
@@ -371,7 +371,7 @@ Task(
 
     **Step 3: Implement until all tests pass**
     - Write the minimum code to make each failing test pass
-    - Run `make test` after each change
+    - Run `go test` on the package you changed after each change
     - Run `make lint` — fix any issues immediately
     - Keep functions small and focused (<50 lines)
 
@@ -472,18 +472,19 @@ git merge sprint/m5-docs --no-ff -m "Integrate M5: docs"
 1. Identify which milestones conflict (check the conflicting files)
 2. Analyze the conflict — determine which milestone's changes take priority
 3. Resolve the conflict, preserving both milestones' functionality
-4. Run `make test` after resolution to verify nothing broke
+4. Run `make test-changed` after resolution to verify nothing broke
 5. Document the conflict and resolution in the sprint retrospective
 
 #### Step 3.3: Run Full Test Suite
 
 ```bash
-make test              # ALL tests must pass
+make test-changed      # touched packages + test-core must pass (full `make test` runs in CI)
 make lint              # ALL linting must pass
 make fmt-check         # Go formatting must be clean
 make check-file-sizes  # NO file >800 lines (CI-only gate; make test/lint DON'T cover it)
 ```
 
+**Test scope (2026-10-12, Mark): never run the full `make test` in a sprint.** On the cloud executor (8 GiB, RAM-backed `/tmp`) it runs for hours, has died with SIGBUS, and is the main reason runs hit the 3h timeout with all work lost. Use `make test-changed` (the Go packages this branch touches + `make test-core`), plus targeted gates the change needs (`make check-file-sizes`, `make check-changelog`, `make verify-stdlib` for stdlib/iface changes, `make verify-examples` for examples). CI runs the full suite on the PR. Commit after every milestone so a timeout cannot lose finished work.
 **Match CI locally before declaring done — `make test`/`lint` are NARROWER than CI**
 (added 2026-07-21 after iter-72 shipped TWO CI-only reds from the same gap — the local
 done-gate missing remote checks): (a) `make check-file-sizes` — a file already near 800
@@ -500,7 +501,7 @@ local scan beats a 15-minute CI round-trip per red.
    ```bash
    # Revert last merge to isolate
    git revert -m 1 HEAD
-   make test
+   make test-changed
    # If tests pass now, the reverted milestone caused the failure
    ```
 2. Fix the conflict between milestones
@@ -608,7 +609,7 @@ ailang messages send sprint-evaluator '{
 ## Key Features
 
 ### Continuous Testing
-- Run `make test` after every file change
+- Run `go test` on the package you changed after every file change; `make test-changed` at each milestone
 - Never proceed if tests fail
 - Track test count increase
 
@@ -744,7 +745,7 @@ This skill loads information progressively:
 1. Identify conflicting files between milestone branches
 2. Merge non-conflicting branches first
 3. For conflicts: resolve preserving both milestones' functionality
-4. Run `make test` after each conflict resolution
+4. Run `make test-changed` after each conflict resolution
 5. Document all conflicts in the sprint retrospective
 6. If resolution is unclear, ask the user before proceeding
 

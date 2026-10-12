@@ -207,11 +207,11 @@ echo ""
 echo -e "${BLUE}7. Pre-Session Validation${NC}"
 echo "   Running tests..."
 
-if make test 2>&1 | grep -q "FAIL"; then
+if make test-changed 2>&1 | grep -q "FAIL"; then
     echo -e "   ${RED}✗ Tests failing!${NC}"
     echo ""
     echo "⚠️  You should fix tests before continuing the sprint."
-    echo "   Run 'make test' to see details."
+    echo "   Run 'make test-changed' to see details."
     exit 1
 else
     echo -e "   ${GREEN}✓ All tests pass${NC}"
