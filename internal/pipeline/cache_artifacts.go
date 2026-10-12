@@ -28,8 +28,9 @@ const (
 	// Real modules outgrew them: stapledons-godot's 638-line protocol_test
 	// has a 21.8 MiB coretypeinfo.gob and motoko's session.ail is over 16 MiB,
 	// so those modules were never cached and recompiled on every run (#1328).
-	// CoreTypeInfo stores each node's type with no sharing between nodes,
-	// which is why it is the blob that grows; the ceilings stay a bounded read.
+	// CoreTypeInfo is DAG-encoded (cache_coreti_dag.go) since #1778: closed alias
+	// bodies took the plain-gob blob for session.ail to 188 MB; it is 276 KB now.
+	// The ceilings stay a bounded read.
 	maxArtifactBlobBytes   int64 = 64 << 20
 	maxArtifactStampBytes  int64 = 64 << 10
 	maxModuleArtifactBytes int64 = 128 << 20
@@ -115,11 +116,7 @@ func productionCacheArtifactCodec() cacheArtifactCodec {
 			err := gob.NewEncoder(&buf).Encode(program)
 			return buf.Bytes(), err
 		},
-		encodeCoreTI: func(info types.CoreTypeInfo) ([]byte, error) {
-			var buf bytes.Buffer
-			err := gob.NewEncoder(&buf).Encode(info)
-			return buf.Bytes(), err
-		},
+		encodeCoreTI:       encodeCoreTIDAG,
 		encodeIface:        marshalIfaceFull,
 		encodeConstructors: marshalConstructors,
 		decodeCore: func(data []byte) (*core.Program, error) {
@@ -127,11 +124,7 @@ func productionCacheArtifactCodec() cacheArtifactCodec {
 			err := gob.NewDecoder(bytes.NewReader(data)).Decode(&program)
 			return &program, err
 		},
-		decodeCoreTI: func(data []byte) (types.CoreTypeInfo, error) {
-			var info types.CoreTypeInfo
-			err := gob.NewDecoder(bytes.NewReader(data)).Decode(&info)
-			return info, err
-		},
+		decodeCoreTI:       decodeCoreTIDAG,
 		decodeIface:        unmarshalIfaceFull,
 		decodeConstructors: unmarshalConstructors,
 	}
