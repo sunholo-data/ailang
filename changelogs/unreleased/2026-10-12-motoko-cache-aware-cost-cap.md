@@ -8,4 +8,4 @@
   about $0.45. On direct Anthropic, cache tokens were not priced at all.
 - Rate conversion rounds instead of truncating: $0.15/M used to reach motoko as 14,999 millicents.
 - The forwarding moved from `motoko.go` into `costRateEnv` in `motoko/cost.go`.
-- `docker/Dockerfile.agent-motoko` pins motoko_agent `d668e630`, which carries the cache-aware meter.
+- `docker/Dockerfile.agent-motoko` pins motoko_agent `84fde7b7`, which carries the cache-aware meter and forwards its rate variables to the runtime.

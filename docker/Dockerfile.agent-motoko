@@ -10,7 +10,7 @@
 # subscription OAuth from anything but Claude Code (429, measured 2026-10-02).
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=d668e630e39e13a06a4211dedf24be15efa8347f
+ARG MOTOKO_COMMIT=84fde7b7653f5d78f8febd5e161f588a7ecf87a6
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -47,8 +47,8 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
 # (b3347a96, 2026-10-12), and repetition_guard in the ailang_only profile
 # (a1ece42e, 2026-10-12), whose result comparison now ignores the envelope's
 # tool_call_id (6de44ada; upstream arniwesth/motoko_agent#260), and a cost cap
-# that prices prompt-cache tokens (d668e630).
-# MOTOKO.md §10. Previous pins: 6de44ada, a1ece42e, b3347a96, e3fa68ec, de68fddf, 4d4917cd (sunholo/main-dst). Fetch-by-SHA pins the exact commit whatever the
+# that prices prompt-cache tokens (d668e630; its env forwarding 84fde7b7).
+# MOTOKO.md §10. Previous pins: d668e630, 6de44ada, a1ece42e, b3347a96, e3fa68ec, de68fddf, 4d4917cd (sunholo/main-dst). Fetch-by-SHA pins the exact commit whatever the
 # branch does next.
 #
 # The fetch authenticates when the build passes a `github_token` secret
