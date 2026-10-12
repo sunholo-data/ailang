@@ -230,7 +230,9 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 	// pi emits per-turn deltas in message_end (role=assistant); sum across turns.
 	var inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasonTokens int
 	var thrashKilledAt int
-	var totalCostUSD float64
+	// pi's own dollar figure, from pi's built-in price table — DIAGNOSTIC ONLY.
+	// The cost of record is registry rates × tokens (piRunCost, cost.go).
+	var selfReportedCostUSD float64
 	var sessionID string
 	var turnSpan trace.Span
 	var stderrBuf strings.Builder
@@ -392,7 +394,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 					reasonTokens += u.Reasoning
 					cacheReadTokens += u.CacheRead
 					cacheWriteTokens += u.CacheWrite
-					totalCostUSD += u.Cost.Total
+					selfReportedCostUSD += u.Cost.Total
 					if tp, over := capExceeded(task.MaxTokensPerBench, inputTokens, cacheWriteTokens, outputTokens); over && thrashKilledAt == 0 {
 						thrashKilledAt = tp
 						proctree.Kill(cmd)
@@ -421,7 +423,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 						turnSpan.SetAttributes(
 							attribute.Int("pi.input_tokens", u.Input),
 							attribute.Int("pi.output_tokens", u.Output),
-							attribute.Float64("pi.cost_usd", u.Cost.Total),
+							attribute.Float64("pi.self_reported_cost_usd", u.Cost.Total),
 						)
 					}
 					turnSpan.End()
@@ -445,12 +447,15 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 		select {
 		case err := <-done:
 			duration := time.Since(startTime)
+			costUSD, costProvenance := piRunCost(task, e.getModel(task), inputTokens, outputTokens, reasonTokens, cacheReadTokens, cacheWriteTokens)
 			span.SetAttributes(
 				attribute.Int("pi.turns", numTurns),
 				attribute.Int("pi.tool_calls", toolCallCount),
 				attribute.Int("pi.input_tokens", inputTokens),
 				attribute.Int("pi.output_tokens", outputTokens),
-				attribute.Float64("pi.cost_usd", totalCostUSD),
+				attribute.Float64("pi.cost_usd", costUSD),
+				attribute.String("pi.cost_provenance", string(costProvenance)),
+				attribute.Float64("pi.self_reported_cost_usd", selfReportedCostUSD),
 			)
 
 			// M-EVAL-COST-AND-SPEED-BUDGETS: speed metric.
@@ -488,13 +493,13 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 					ReasonTokens:             reasonTokens,
 					CacheReadInputTokens:     cacheReadTokens,
 					CacheCreationInputTokens: cacheWriteTokens,
-					CostUSD:                  totalCostUSD,
-					CostProvenance:           executor.ResolveCostProvenance(task, executor.AuthLaneForModel(task.Model)),
+					CostUSD:                  costUSD,
+					CostProvenance:           costProvenance,
 					NumTurns:                 numTurns,
 					ToolCallCount:            toolCallCount,
 					ToolCalls:                toolCalls,
 					SessionID:                sessionID,
-					ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason),
+					ProviderData:             withSelfReportedCost(piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason), selfReportedCostUSD),
 					CostKilledAt:             task.Budget.KilledAt(),
 					FirstAttemptMs:           firstAttemptMs,
 					SuccessAtMs:              -1,
@@ -548,13 +553,13 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 				ReasonTokens:             reasonTokens,
 				CacheReadInputTokens:     cacheReadTokens,
 				CacheCreationInputTokens: cacheWriteTokens,
-				CostUSD:                  totalCostUSD,
-				CostProvenance:           executor.ResolveCostProvenance(task, executor.AuthLaneForModel(task.Model)),
+				CostUSD:                  costUSD,
+				CostProvenance:           costProvenance,
 				NumTurns:                 numTurns,
 				ToolCallCount:            toolCallCount,
 				ToolCalls:                toolCalls,
 				SessionID:                sessionID,
-				ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason),
+				ProviderData:             withSelfReportedCost(piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason), selfReportedCostUSD),
 				CostKilledAt:             task.Budget.KilledAt(),
 				FirstAttemptMs:           firstAttemptMs,
 				SuccessAtMs:              -1,
@@ -630,16 +635,12 @@ func (e *PiExecutor) Capabilities() []executor.Capability {
 	}
 }
 
-// CostModel returns a placeholder cost model. Pi reports cost directly in
-// message_end.usage.cost.total per turn; the executor sums those values into
-// Result.CostUSD rather than recomputing from token counts.
+// CostModel returns the registry rate card for the executor's configured model,
+// or an explicit Unpriced card when the registry cannot resolve it. Result.CostUSD
+// prefers Task.Pricing and falls back to the TASK's model (see piRunCost); pi's
+// self-reported dollar figure is never used as the cost (cost.go).
 func (e *PiExecutor) CostModel() *executor.CostModel {
-	return &executor.CostModel{
-		ProviderName:    "pi",
-		InputTokenCost:  0.0,
-		OutputTokenCost: 0.0,
-		CacheReadCost:   0.0,
-	}
+	return piCostModel(e.model)
 }
 
 // Close releases any resources held by the executor.

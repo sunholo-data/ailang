@@ -229,6 +229,34 @@ func ResolveCostModel(task *Task, fallback *CostModel) *CostModel {
 	return fallback
 }
 
+// PriceTokens is the cost of record for an executor that has token counts:
+// registry rates (via ResolveCostModel) applied to the usage, plus the
+// provenance that labels the figure.
+//
+// An Unpriced (or nil) rate card returns $0 with CostProvenanceUnknown — never a
+// guessed rate, and never a metered $0, which would read as a free run. This is
+// the convention codex and managed_agents already follow inline; it exists as
+// one function so a harness that also self-reports a dollar figure (pi, from
+// its own built-in price table) has a single place to get the registry's
+// answer instead (2026-10-12: pi billed Haiku 5.5 ~56x over list price).
+//
+// usage.OutputTokens must include any hidden reasoning tokens — they bill at
+// the output rate — and usage.InputTokens must be FRESH input (disjoint from
+// cache reads/writes), as CalculateCost requires.
+func PriceTokens(task *Task, fallback *CostModel, lane AuthLane, usage TokenUsage) (float64, CostProvenance) {
+	cm := ResolveCostModel(task, fallback)
+	if cm == nil || cm.Unpriced {
+		return 0, CostProvenanceUnknown
+	}
+	// Same zero-rate rule as ResolveCostProvenance, applied to the card that was
+	// actually used: a fallback that resolved to a local (zero-priced) row is
+	// free-local, not a metered $0.
+	if cm.InputTokenCost == 0 && cm.OutputTokenCost == 0 {
+		return 0, CostFreeLocal
+	}
+	return cm.CalculateCost(usage), ResolveCostProvenance(task, lane)
+}
+
 // DefaultMaxCostUSD computes the fallback budget used when models.yml
 // omits a per-model `budgets:` block.
 //
