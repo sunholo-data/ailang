@@ -1,0 +1,57 @@
+{
+  "sprint_id": "M-QUORUM-ZERO-SIGNAL",
+  "status": "completed",
+  "created": "2026-10-12T00:00:00Z",
+  "verified_at": "8d0d3de0e",
+  "design_doc": "design_docs/planned/m-quorum-external-zero-signal-guard.md",
+  "sprint_plan": "design_docs/planned/sprint-plan-quorum-zero-signal-guard.md",
+  "ticket": "quorum:zero-signal-guard-vacuous-with-controller-verdict",
+  "github_issues": [
+    651
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_GUARD_EXTERNAL_COUNT",
+      "package": "internal/mission/quorum (seating.go:presentCount)",
+      "action": "none",
+      "reason": "Do NOT reuse seating.go:presentCount(q *QuorumResult) in synthesize: different layers — the helper counts q.Reviewers on a built *QuorumResult while synthesize runs on []*ReviewerOutcome before any result exists, and its outcomes loop already checks VerdictReject, so the retained inline externalPresentCount increment rides in the same pass; reuse would be circular or a second pass (design doc V16)."
+    },
+    {
+      "milestone": "M1_GUARD_EXTERNAL_COUNT",
+      "package": "internal/mission/quorum (test helpers present/fakeRunner, seat/poolRunner)",
+      "action": "reuse",
+      "reason": "Existing deterministic in-process stubs: fakeRunner (table-driven, absent-by-default for unlisted models) and present() cover every quorum_test.go matrix row; the seated regression reuses seating_test.go's poolRunner (records calls, for 'fallback attempted') and seat(); the Tier-2 regressions call SynthesizeWithTier2 directly with a hand-built *Tier2Result (RunQuorumWithEscalation would not escalate an all-absent Tier-1). No new runner, no credentials, no provider calls."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 560,
+    "estimated_total_loc": 140,
+    "estimated_days": 0.25
+  },
+  "features": [
+    {
+      "id": "M1_GUARD_EXTERNAL_COUNT",
+      "description": "Change synthesize so the zero-signal guard counts present EXTERNAL reviewer outcomes only (rename to externalPresentCount; remove the controller increment; retain the guard and its exact objection text 'no reviewer produced a verdict (all absent) — refusing to proceed on zero signal'; no early return before the guard; Tier-2 stays monotonic; accounting/absence records unchanged), add the deterministic controller/signal matrix in internal/mission/quorum/quorum_test.go, the all-absent seated regression with controller pass in seating_test.go, and the Tier-2 zero-signal regression plus positive control in tier2_test.go — with the pre-fix red run of the new controller-only tests and the pre/post full-suite green pair as bounding controls, and mutation drill MU1 recorded.",
+      "estimated_loc": 140,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Entire matrix above passes, and new controller-only tests fail before the fix. The full package suite (`go test ./internal/mission/quorum`) run BEFORE the fix stays green immediately AFTER the fix — that pre/post pair is the bounding control for any fixture the V10/V15 textual surveys could miss (oc-glm-5.3 round-2 concern, applied verbatim).",
+        "Seated replacement remains functional and all absences remain named.",
+        "Controller/reviewer/Tier-2 rejects retain vetoes; partial-present pass stays allowed.",
+        "Existing serialization, accounting and escalation tests pass.",
+        "`go test ./internal/mission/quorum` and `go test -race ./internal/mission/quorum` pass; run repository-required checks from the approved sprint.",
+        "Contract comments and implementation report describe the intentional controller-only behavior change.",
+        "For the absent-pair/controller-pass row, assert both model/reason pairs retained in input order, controller verdict/note retained, and totals equal the supplied costs and input/output token sums (including absent outcomes).",
+        "For the two-absent/controller-reject row, assert BOTH objections in deterministic order — controller note first, then the zero-signal objection — which holds by construction: `synthesize` has no early return before the external-count guard (V13).",
+        "Assert `AbsentReviewers` remains a non-nil empty slice for all-present inputs through the existing serialization test.",
+        "Add a seated orchestration regression with primary `a`, reserve `b`, benched `z`, all absent, controller pass. Assert `blocked`, all three absences named, and fallback attempted; this catches an incorrect early-return fix that bypasses replacement or synthesizes before final outcomes.",
+        "Add Tier-2 regression using all-absent Tier-1, controller pass, and a present passing Tier-2 outcome. Assert `blocked` and zero-signal objection retained. Add a positive control with one Tier-1 pass plus one absent and Tier-2 pass: `proceed`. Existing Tier-2 reject tests preserve veto behavior.",
+        "Mutation evidence required during execution: restoring only the controller count increment must make the new controller-pass/all-absent and empty-slice/pass cases fail. Restoring the fixed source must return those tests to green. Record actual commands/results in the implementation report."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-12T07:16:33Z",
+      "notes": "Implemented M1 on fleet/i32-quorum-zero-signal. Production change: quorum.go synthesize counts externalPresentCount for present external reviewers only; controller increment removed; zero-signal guard kept with exact objection text; no early return; RunQuorum/synthesize contract comments updated. Intentional behavior change: controller-only runs proceed -> blocked. Evidence: baseline `go test ./internal/mission/quorum -count=1` ok (0.363s, rc=0) before edits; pre-fix red run of new tests FAILED as required (controller-pass/all-absent, empty-slice controller pass and reject, two-absent controller reject, seated all-absent+controller pass, Tier-2 zero-signal rescue); post-fix `go test` ok (0.462s), `go test -race` ok (2.223s), `go vet` rc=0, `gofmt -l` empty; mutation MU1 (externalPresentCount++ restored inside controller block) FAILED the named cases, restored by copy (sha256 verified, identical) and green again. Changelog fragment changelogs/unreleased/2026-10-12-quorum-external-zero-signal.md passes scripts/changelog_fold.sh --check. Full report: design_docs/fleet-mission-evidence/iteration32/implementation-report.md. Caveat: started timestamp not captured from a clock during execution, so left null; completed read from date -u. No push performed."
+    }
+  ]
+}

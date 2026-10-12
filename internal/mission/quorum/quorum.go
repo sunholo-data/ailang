@@ -66,9 +66,11 @@ type AbsentNote struct {
 
 // RunQuorum runs the given reviewer models in PARALLEL and composes their
 // verdicts. The controller's in-session review (if provided) is folded into
-// the synthesis as a distinct participant. Degradation is graceful: an absent
-// reviewer is recorded (named, with reason) and the quorum proceeds with the
-// remaining present reviewers — a missing reviewer is NEVER a silent pass.
+// the synthesis as a distinct participant with veto authority, but it does NOT
+// count toward the external-signal minimum: the synthesis blocks unless at least
+// one present external reviewer outcome exists. Degradation is graceful: an
+// absent reviewer is recorded (named, with reason) and the quorum proceeds with
+// the remaining present reviewers — a missing reviewer is NEVER a silent pass.
 //
 // runner is the per-reviewer function (RunReviewer in production; a stub in
 // tests). isoTS is injected so the artifact timestamp is deterministic in
@@ -129,12 +131,17 @@ func RunQuorumWithEscalation(
 	return q
 }
 
-// synthesize composes present reviewers + the controller into a verdict.
+// synthesize composes present external reviewers + the controller into a verdict.
 //
 // Rule (from the design doc):
 //   - any present reviewer (or the controller) REJECTS → blocked; the objection
 //     goes back to the author.
-//   - all present participants PASS → proceed.
+//   - all present participants PASS → proceed, provided at least one PRESENT
+//     EXTERNAL reviewer outcome exists.
+//
+// The external-signal minimum counts present external reviewer outcomes only.
+// A controller pass is not external signal: a controller-only run blocks. The
+// controller keeps its veto and its own objection.
 //
 // Absent reviewers are recorded but do not vote; they can never turn a real
 // reject into a proceed, and their absence is always visible (Principle 2).
@@ -143,7 +150,7 @@ func synthesize(outcomes []*ReviewerOutcome, controller *ControllerReview) Synth
 	// [] (not null) when every reviewer was present — a consistent JSON shape
 	// for Phase E consumers.
 	s := Synthesis{Verdict: SynthProceed, AbsentReviewers: []AbsentNote{}}
-	presentCount := 0
+	externalPresentCount := 0
 
 	for _, o := range outcomes {
 		s.TotalCostUSD += o.CostUSD
@@ -153,7 +160,7 @@ func synthesize(outcomes []*ReviewerOutcome, controller *ControllerReview) Synth
 			s.AbsentReviewers = append(s.AbsentReviewers, AbsentNote{Model: o.Model, Reason: o.AbsentReason})
 			continue
 		}
-		presentCount++
+		externalPresentCount++
 		if o.Result.Verdict == VerdictReject {
 			s.Verdict = SynthBlocked
 			s.BlockingObjections = append(s.BlockingObjections,
@@ -162,7 +169,6 @@ func synthesize(outcomes []*ReviewerOutcome, controller *ControllerReview) Synth
 	}
 
 	if controller != nil {
-		presentCount++
 		if controller.Verdict == VerdictReject {
 			s.Verdict = SynthBlocked
 			s.BlockingObjections = append(s.BlockingObjections,
@@ -170,10 +176,11 @@ func synthesize(outcomes []*ReviewerOutcome, controller *ControllerReview) Synth
 		}
 	}
 
-	// Guard: if NO participant was present at all, that is not a pass — it is a
-	// blocked verdict with a synthetic objection so the loop never proceeds on
-	// zero signal (Principle 2 at the quorum level).
-	if presentCount == 0 {
+	// Guard: if NO present EXTERNAL reviewer produced a verdict, that is not a
+	// pass — it is a blocked verdict with a synthetic objection so the loop never
+	// proceeds on zero external signal (Principle 2 at the quorum level). A
+	// controller pass cannot satisfy it.
+	if externalPresentCount == 0 {
 		s.Verdict = SynthBlocked
 		s.BlockingObjections = append(s.BlockingObjections,
 			"no reviewer produced a verdict (all absent) — refusing to proceed on zero signal")

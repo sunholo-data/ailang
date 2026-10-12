@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -105,6 +106,100 @@ func TestRunQuorum_AllAbsentRefusesToProceed(t *testing.T) {
 	}
 	if len(q.Synthesis.AbsentReviewers) != 2 {
 		t.Errorf("want 2 named absentees, got %d", len(q.Synthesis.AbsentReviewers))
+	}
+}
+
+// zeroSignalObjection is the guard's synthetic objection. The fix keeps it verbatim.
+const zeroSignalObjection = "no reviewer produced a verdict (all absent) — refusing to proceed on zero signal"
+
+// costedAbsent is an absent outcome with non-zero cost and tokens, so the
+// accounting assertions prove absent outcomes are summed rather than dropped.
+func costedAbsent(model, reason string) *ReviewerOutcome {
+	return &ReviewerOutcome{Model: model, Present: false, AbsentReason: reason, CostUSD: 0.02, TokensIn: 300, TokensOut: 40}
+}
+
+// costedPresent is a present outcome that also carries tokens.
+func costedPresent(model string, v Verdict, obj string) *ReviewerOutcome {
+	o := present(model, v, obj)
+	o.TokensIn, o.TokensOut = 500, 70
+	return o
+}
+
+// TestSynthesize_ExternalSignalMatrix pins the zero-signal guard to present
+// EXTERNAL reviewers. The controller keeps its veto and its artifact entry, but
+// a controller pass cannot supply the external-signal minimum on its own.
+func TestSynthesize_ExternalSignalMatrix(t *testing.T) {
+	pass := &ControllerReview{Verdict: VerdictPass, Note: "controller passes"}
+	reject := &ControllerReview{Verdict: VerdictReject, Note: "controller veto"}
+	controllerVeto := "controller (in-session): controller veto"
+	twoAbsent := []*ReviewerOutcome{costedAbsent("m1", ReasonAuth), costedAbsent("m2", ReasonBudget)}
+	absentPair := []AbsentNote{{Model: "m1", Reason: ReasonAuth}, {Model: "m2", Reason: ReasonBudget}}
+
+	cases := []struct {
+		name           string
+		outcomes       []*ReviewerOutcome
+		ctrl           *ControllerReview
+		wantVerdict    SynthesisVerdict
+		wantObjections []string
+		wantAbsent     []AbsentNote
+	}{
+		{"two absent, controller nil", twoAbsent, nil, SynthBlocked, []string{zeroSignalObjection}, absentPair},
+		{"two absent, controller pass", twoAbsent, pass, SynthBlocked, []string{zeroSignalObjection}, absentPair},
+		{"two absent, controller reject", twoAbsent, reject, SynthBlocked, []string{controllerVeto, zeroSignalObjection}, absentPair},
+		{"empty slice, controller nil", nil, nil, SynthBlocked, []string{zeroSignalObjection}, nil},
+		{"empty slice, controller pass", nil, pass, SynthBlocked, []string{zeroSignalObjection}, nil},
+		{"empty slice, controller reject", nil, reject, SynthBlocked, []string{controllerVeto, zeroSignalObjection}, nil},
+		{"one pass, one absent, controller nil", []*ReviewerOutcome{costedPresent("m1", VerdictPass, "minor"), costedAbsent("m2", ReasonAuth)}, nil, SynthProceed, nil, []AbsentNote{{Model: "m2", Reason: ReasonAuth}}},
+		{"one pass, one absent, controller pass", []*ReviewerOutcome{costedPresent("m1", VerdictPass, "minor"), costedAbsent("m2", ReasonAuth)}, pass, SynthProceed, nil, []AbsentNote{{Model: "m2", Reason: ReasonAuth}}},
+		{"one pass, one absent, controller reject", []*ReviewerOutcome{costedPresent("m1", VerdictPass, "minor"), costedAbsent("m2", ReasonAuth)}, reject, SynthBlocked, []string{controllerVeto}, []AbsentNote{{Model: "m2", Reason: ReasonAuth}}},
+		{"one reject, one absent, controller nil", []*ReviewerOutcome{costedPresent("m1", VerdictReject, "premise X unverified"), costedAbsent("m2", ReasonBudget)}, nil, SynthBlocked, []string{"m1: premise X unverified"}, []AbsentNote{{Model: "m2", Reason: ReasonBudget}}},
+		{"one reject, one absent, controller pass", []*ReviewerOutcome{costedPresent("m1", VerdictReject, "premise X unverified"), costedAbsent("m2", ReasonBudget)}, pass, SynthBlocked, []string{"m1: premise X unverified"}, []AbsentNote{{Model: "m2", Reason: ReasonBudget}}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			table := map[string]*ReviewerOutcome{}
+			models := []string{}
+			var wantCost float64
+			var wantIn, wantOut int
+			for _, o := range c.outcomes {
+				table[o.Model] = o
+				models = append(models, o.Model)
+				wantCost += o.CostUSD
+				wantIn += o.TokensIn
+				wantOut += o.TokensOut
+			}
+			q := RunQuorum("doc.md", "body", "t", models, 0.10, c.ctrl, fakeRunner(table))
+
+			if q.Synthesis.Verdict != c.wantVerdict {
+				t.Errorf("verdict = %q, want %q", q.Synthesis.Verdict, c.wantVerdict)
+			}
+			if !reflect.DeepEqual(q.Synthesis.BlockingObjections, c.wantObjections) {
+				t.Errorf("blocking objections = %q, want %q", q.Synthesis.BlockingObjections, c.wantObjections)
+			}
+			if len(q.Synthesis.AbsentReviewers) != len(c.wantAbsent) {
+				t.Fatalf("absent reviewers = %+v, want %+v", q.Synthesis.AbsentReviewers, c.wantAbsent)
+			}
+			for i, want := range c.wantAbsent {
+				if q.Synthesis.AbsentReviewers[i] != want {
+					t.Errorf("absent[%d] = %+v, want %+v (input order)", i, q.Synthesis.AbsentReviewers[i], want)
+				}
+			}
+			if c.ctrl == nil {
+				if q.ControllerInSession != nil {
+					t.Errorf("controller recorded although none was supplied: %+v", q.ControllerInSession)
+				}
+			} else if q.ControllerInSession == nil || q.ControllerInSession.Verdict != c.ctrl.Verdict || q.ControllerInSession.Note != c.ctrl.Note {
+				t.Errorf("controller entry = %+v, want %+v", q.ControllerInSession, c.ctrl)
+			}
+			// Totals include absent outcomes: accounting is not reduced by the gate.
+			if d := q.Synthesis.TotalCostUSD - wantCost; d < -1e-9 || d > 1e-9 {
+				t.Errorf("total cost = %f, want %f", q.Synthesis.TotalCostUSD, wantCost)
+			}
+			if q.Synthesis.TotalTokensIn != wantIn || q.Synthesis.TotalTokensOut != wantOut {
+				t.Errorf("tokens in/out = %d/%d, want %d/%d", q.Synthesis.TotalTokensIn, q.Synthesis.TotalTokensOut, wantIn, wantOut)
+			}
+		})
 	}
 }
 

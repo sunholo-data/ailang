@@ -148,6 +148,42 @@ func TestRunSeatedQuorum_NothingAnswersBlocks(t *testing.T) {
 	}
 }
 
+// TestRunSeatedQuorum_AllAbsentControllerPassBlocks proves a controller pass does
+// not rescue a seated run where every seat, reserve and recalled benched seat is
+// absent: the run blocks, names all three absences, and attempts every fallback.
+func TestRunSeatedQuorum_AllAbsentControllerPassBlocks(t *testing.T) {
+	sel := Selection{Primary: []string{"a"}, Reserve: []string{"b"}, Benched: []string{"z"}}
+	f := &poolRunner{up: map[string]bool{}}
+	ctrl := &ControllerReview{Verdict: VerdictPass, Note: "controller passes"}
+	q := RunSeatedQuorum("doc", "body", "ts", sel, 3, 0.3, ctrl, f.run)
+
+	if q.Synthesis.Verdict != SynthBlocked {
+		t.Fatalf("synthesis = %s, want blocked: controller pass is not external signal", q.Synthesis.Verdict)
+	}
+	if want := []string{zeroSignalObjection}; !reflect.DeepEqual(q.Synthesis.BlockingObjections, want) {
+		t.Errorf("blocking objections = %q, want %q", q.Synthesis.BlockingObjections, want)
+	}
+	if !hasCall(f.calls, "b") || !hasCall(f.calls, "z") {
+		t.Errorf("fallback not attempted: calls = %v, want b (reserve) and z (benched)", f.calls)
+	}
+	var absent []string
+	for _, n := range q.Synthesis.AbsentReviewers {
+		absent = append(absent, n.Model)
+	}
+	if want := []string{"a", "b", "z"}; !reflect.DeepEqual(absent, want) {
+		t.Errorf("absent = %v, want %v named in order", absent, want)
+	}
+}
+
+func hasCall(xs []string, s string) bool {
+	for _, x := range xs {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
 func TestVendorOf_LaneIdsResolveByTheirModel(t *testing.T) {
 	if v := VendorOf("pi:openrouter/moonshotai/kimi-k3"); v != "moonshot" {
 		t.Errorf("pi lane vendor = %q, want moonshot", v)
