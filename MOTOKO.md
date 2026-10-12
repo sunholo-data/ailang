@@ -208,6 +208,11 @@ escapes included), `ailang_tools` unit tests, every profile's registry under str
 concurrent cloud motoko trials (`motoko-or-deepseek-v4-flash`, 6/6, $0.06, no port collision).
 
 - `agent.context_limit: 262144` on our profiles (e3fa68ec, 2026-10-08): the catalogue lacks every fleet model, so compaction never fired (context limit Unknown); the profile override makes it compact at ~196k.
+- the ailang_only lane teaches AILANG (b3347a96, 2026-10-12): the lane's system role was 1,783
+  chars against pi's canonical `ailang prompt` (~23k tokens) plus scratch-dir / package-ceiling
+  guidance. `motoko_ext_ailang_policy` now reads `ailang prompt` at registration and prepends it
+  (AILANG_LANE_TEACHING=0 turns it off, as on pi). On Anthropic/Gemini it only reaches the model
+  with ailang ≥ d62a21c88 (those providers dropped system-role messages). Cloud image pins it.
 
 **Rig switched 2026-10-08:** the `~/go/bin/motoko` shim now execs `~/dev/mk-20261002` (this branch is
 checked out in that worktree, so `mk-main` cannot take it; `mk-main` stays on `sunholo/main-dst` as
