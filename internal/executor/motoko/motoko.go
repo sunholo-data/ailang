@@ -480,40 +480,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	if task.MaxOutputTokens > 0 {
 		motokoEnv = append(motokoEnv, fmt.Sprintf("AILANG_OLLAMA_MAX_TOKENS=%d", task.MaxOutputTokens))
 	}
-	// M-MOTOKO-EVAL-HARNESS-HARDENING M5a (gaps #3, #9): forward cost rates
-	// from Task.Budget (sourced from models.yml by the eval harness) so
-	// motoko's cost_warning + cost_exhausted thresholds fire and run_summary
-	// reports a non-zero cost_usd. Pre-M5a, motoko's profile had no cost_rates
-	// for openrouter/anthropic models, leading to CostUSD=0 across every
-	// motoko-* model. Source-of-truth flow: AILANG models.yml → CostBudget
-	// (per-1K USD) → motoko env vars (per-1M millicents).
-	if task.Budget != nil {
-		if task.Budget.InputPer1K > 0 {
-			// per-1K USD × 1e8 = per-1M millicents
-			//   (×1000 for K→M, ×100 for $→¢, ×1000 for ¢→m¢)
-			inputMillicents := int64(task.Budget.InputPer1K * 1e8)
-			motokoEnv = append(motokoEnv, fmt.Sprintf("MOTOKO_COST_INPUT_PER_1M_MILLICENTS=%d", inputMillicents))
-		}
-		if task.Budget.OutputPer1K > 0 {
-			outputMillicents := int64(task.Budget.OutputPer1K * 1e8)
-			motokoEnv = append(motokoEnv, fmt.Sprintf("MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=%d", outputMillicents))
-		}
-		// M-EVAL-SWEET-SPOT-FOLLOWUP (v0.19.0): forward the hard cost cap so
-		// motoko's internal budget gate actually fires `finish_reason=
-		// "cost_exhausted"` when the cumulative cost crosses it. Pre-this,
-		// the cap was recorded as metadata only — gemma-4-26b famously ran
-		// to $0.94 against a $0.50 cap on balanced_parens (43 min, 222
-		// turns) because motoko never knew about the cap. Source-of-truth
-		// flow: models.yml budgets.max_cost_usd → CostBudget.MaxUSD →
-		// AI_MAX_COST_USD_CENTS (motoko reads this in src/core/config.ail).
-		// Motoko expects cents; CostBudget.MaxUSD is dollars → ×100.
-		if task.Budget.MaxUSD > 0 {
-			maxUSDCents := int64(task.Budget.MaxUSD * 100)
-			if maxUSDCents > 0 {
-				motokoEnv = append(motokoEnv, fmt.Sprintf("AI_MAX_COST_USD_CENTS=%d", maxUSDCents))
-			}
-		}
-	}
+	motokoEnv = append(motokoEnv, costRateEnv(task.Budget)...)
 	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
 		SessionID:   sessionID,

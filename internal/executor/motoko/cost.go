@@ -2,6 +2,7 @@ package motoko
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -91,4 +92,40 @@ func applyRegistryCost(res *executor.Result, task *executor.Task, model string) 
 		CacheReadInputTokens:     res.CacheReadInputTokens,
 		CacheCreationInputTokens: res.CacheCreationInputTokens,
 	})
+}
+
+// costRateEnv forwards Task.Budget's rates and cap to motoko's own meter.
+//
+// M-MOTOKO-EVAL-HARNESS-HARDENING M5a (gaps #3, #9): without the rates
+// motoko's cost_warning and cost_exhausted never fired and run_summary
+// reported $0. Flow: models.yml → CostBudget (per-1K USD) → motoko env
+// (per-1M millicents: per-1K USD × 1e8). The cap (M-EVAL-SWEET-SPOT-FOLLOWUP,
+// v0.19.0) goes as AI_MAX_COST_USD_CENTS — before it, gemma-4-26b ran to
+// $0.94 against a $0.50 cap because motoko never knew about it.
+//
+// The cache rates (2026-10-12) feed motoko's cache-aware meter (motoko_agent
+// 2026-10-12 cost_phase.step_cost_with_cache). Without them motoko prices
+// cache tokens at the input rate, which stopped GLM-5.3-Flash lane runs at a
+// self-reported $2.00 that OpenRouter billed at ~$0.45.
+//
+// Rounded, not truncated: $0.15/M is 0.00015 per 1K, and 0.00015*1e8 is
+// 14999.999… in float64, which int64() truncated to 14999.
+func costRateEnv(b *executor.CostBudget) []string {
+	if b == nil {
+		return nil
+	}
+	var env []string
+	perM := func(name string, per1K float64) {
+		if per1K > 0 {
+			env = append(env, fmt.Sprintf("%s=%d", name, int64(math.Round(per1K*1e8))))
+		}
+	}
+	perM("MOTOKO_COST_INPUT_PER_1M_MILLICENTS", b.InputPer1K)
+	perM("MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS", b.OutputPer1K)
+	perM("MOTOKO_COST_CACHE_READ_PER_1M_MILLICENTS", b.CacheReadPer1K)
+	perM("MOTOKO_COST_CACHE_WRITE_PER_1M_MILLICENTS", b.CacheWritePer1K)
+	if cents := int64(math.Round(b.MaxUSD * 100)); cents > 0 {
+		env = append(env, fmt.Sprintf("AI_MAX_COST_USD_CENTS=%d", cents))
+	}
+	return env
 }

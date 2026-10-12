@@ -4,6 +4,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -193,5 +194,29 @@ func TestParsedGLMRunIsRegistryPriced(t *testing.T) {
 	// The kill point stays the figure motoko's own cap compared against.
 	if res.CostKilledAt != glmMotokoUSD {
 		t.Errorf("CostKilledAt = %v, want motoko's %v", res.CostKilledAt, glmMotokoUSD)
+	}
+}
+
+// costRateEnv forwards all four rates and the cap in motoko's units, and
+// omits what the budget leaves unpriced (motoko then prices cache tokens at
+// the input rate).
+func TestCostRateEnv(t *testing.T) {
+	b := executor.NewCostBudgetWithCache(2, 0.00015, 0.0005, 0.00003, 0)
+	got := strings.Join(costRateEnv(b), " ")
+	for _, want := range []string{
+		"MOTOKO_COST_INPUT_PER_1M_MILLICENTS=15000",
+		"MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=50000",
+		"MOTOKO_COST_CACHE_READ_PER_1M_MILLICENTS=3000",
+		"AI_MAX_COST_USD_CENTS=200",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("costRateEnv = %q, missing %s", got, want)
+		}
+	}
+	if strings.Contains(got, "CACHE_WRITE") {
+		t.Errorf("an unpriced cache-write rate must be omitted, got %q", got)
+	}
+	if costRateEnv(nil) != nil {
+		t.Error("no budget, no env")
 	}
 }

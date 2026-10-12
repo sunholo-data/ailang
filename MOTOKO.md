@@ -218,6 +218,10 @@ concurrent cloud motoko trials (`motoko-or-deepseek-v4-flash`, 6/6, $0.06, no po
   byte-identical output and tells the model to change course. It could never fire on extension
   tools until 6de44ada (upstream #260): each result envelope carries its own `tool_call_id`, so no
   two results were identical (measured: 215 repeats, guard loaded, silent).
+- the in-run cost cap prices prompt-cache tokens (d668e630, 2026-10-12): `CostRates` gains cache
+  read/write rates (the executor forwards them from the budget), and cache reads come out of input
+  on OpenAI-shaped routes, where providers count them inside it. Before, GLM lane runs stopped at a
+  self-reported $2.00 that OpenRouter billed at about $0.45.
 
 **Rig switched 2026-10-08:** the `~/go/bin/motoko` shim now execs `~/dev/mk-20261002` (this branch is
 checked out in that worktree, so `mk-main` cannot take it; `mk-main` stays on `sunholo/main-dst` as
