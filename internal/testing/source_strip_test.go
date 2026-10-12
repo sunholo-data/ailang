@@ -197,3 +197,33 @@ func TestStripNonPureFunctions_ParseErrorDetectorHasPositiveControl(t *testing.T
 		})
 	}
 }
+
+func TestStripTestBlocks_LiteralAndCommentBraces(t *testing.T) {
+	for _, body := range []string{
+		`let s = "click { here";`,
+		`let s = "click } here";`,
+		`let s = "{ balanced }";`,
+		`let s = "escaped \" {";`,
+		"let s = \"first {\nsecond } }\";",
+		`let s = "outer { ${"inner }"} tail";`,
+		"let r = {x: {y: 1}}; -- } } {",
+		"let r = {x: 1}; // } }",
+	} {
+		t.Run(body, func(t *testing.T) {
+			source := "module strip_braces\npure func helper() -> int { 42 }\ntest \"first\" {\n" + body + "\nassert helper() == 42\n}\nproperty \"prop\" {\nforall(x: int) => x == x\n}\ntest \"sibling\" {\nassert true\n}\npure func after() -> int { 7 }\n"
+			p := parser.New(lexer.New(source, "strip_braces.ail"))
+			file := p.ParseFile()
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parse: %v", p.Errors())
+			}
+			got, lines := new(Executor).stripTestBlocks(source, file)
+			want := "module strip_braces\npure func helper() -> int { 42 }\npure func after() -> int { 7 }\n"
+			if got != want {
+				t.Fatalf("stripped = %q, want %q", got, want)
+			}
+			if len(lines) != 3 || lines[2] != 13+strings.Count(body, "\n") {
+				t.Fatalf("line map: %v", lines)
+			}
+		})
+	}
+}

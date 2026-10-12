@@ -1,6 +1,9 @@
 package testing
 
-import "github.com/sunholo-data/ailang/internal/ast"
+import (
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
+)
 
 type sourceLineRange struct {
 	start int
@@ -83,10 +86,11 @@ func isEffectivelyPure(f *ast.FuncDecl) bool {
 	return f.IsPure || (f.Effects != nil && len(f.Effects) == 0)
 }
 
-// testAndPropertySkipRanges preserves the existing brace-depth treatment of
-// declarations already collected as test cases.
+// testAndPropertySkipRanges matches declaration braces using the shared lexer
+// scanner, so literal text and comments cannot change structural depth.
 func testAndPropertySkipRanges(sourceLines []string, file *ast.File) []sourceLineRange {
 	var ranges []sourceLineRange
+	braces := lexer.CollectStructuralBraces([]byte(joinLines(sourceLines)))
 	for _, decl := range file.Decls {
 		var startLine int
 		switch d := decl.(type) {
@@ -100,21 +104,20 @@ func testAndPropertySkipRanges(sourceLines []string, file *ast.File) []sourceLin
 
 		depth := 0
 		endLine := startLine
-		for i := startLine - 1; i < len(sourceLines); i++ {
-			for _, ch := range sourceLines[i] {
-				switch ch {
-				case '{':
-					depth++
-				case '}':
-					depth--
-					if depth == 0 {
-						endLine = i + 1
-						goto foundEnd
-					}
+		for _, brace := range braces {
+			if brace.Line < startLine {
+				continue
+			}
+			if brace.Open {
+				depth++
+			} else {
+				depth--
+				if depth == 0 {
+					endLine = brace.Line
+					break
 				}
 			}
 		}
-	foundEnd:
 		ranges = append(ranges, sourceLineRange{start: startLine, end: endLine})
 	}
 	return ranges

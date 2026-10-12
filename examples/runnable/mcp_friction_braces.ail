@@ -1,0 +1,15 @@
+module examples/runnable/mcp_friction_braces
+
+-- Refs #1618: literal braces must not corrupt named-test extraction.
+-- Expected: 2 tests, 2 passed.
+export pure func helper() -> int { 42 }
+
+test "unbalanced literal braces" {
+  let opening = "click { here";
+  let closing = "click } here";
+  assert opening != closing
+}
+
+test "sibling passes" {
+  assert helper() == 42
+}

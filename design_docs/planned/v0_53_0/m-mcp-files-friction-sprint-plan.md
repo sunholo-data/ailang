@@ -34,9 +34,9 @@ Executed `ailang pkg search cors`, `formatting`, and `contracts`. First two retu
 
 Implement against the corresponding design slice; first bank its failing reproducer, then add controls covering the surrounding mechanism.
 
-- [ ] Unbalanced opening and closing braces inside literals leave both named tests passing (2/2).
-- [ ] Balanced literals, escaped quotes, multiline literals, interpolation, comments and nested record braces preserve test/property boundaries.
-- [ ] Reuse lexer scanning machinery without adding parser/AST spans; existing named-test regressions pass.
+- [x] Unbalanced opening and closing braces inside literals leave both named tests passing (2/2).
+- [x] Balanced literals, escaped quotes, multiline literals, interpolation, comments and nested record braces preserve test/property boundaries.
+- [x] Reuse lexer scanning machinery without adding parser/AST spans; existing named-test regressions pass.
 
 ### M2: Preserve source multiline string layout (~220 LOC)
 

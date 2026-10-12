@@ -1,6 +1,9 @@
 package lexer
 
-import "unicode/utf8"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 // comment_scan.go provides an OPT-IN, lossless comment scan used by `ailang fmt`.
 // It is deliberately separate from NextToken(): the parser-visible token stream
@@ -80,11 +83,28 @@ func CollectComments(source []byte) (comments []Comment, regions []LiteralRegion
 	return s.comments, s.regions
 }
 
+// StructuralBrace is a brace outside literals and comments. Interpolation is
+// contained by its string and does not affect enclosing declaration boundaries.
+type StructuralBrace struct {
+	Line int
+	Open bool
+}
+
+// CollectStructuralBraces reuses the lossless scanner's literal/comment rules.
+// Lines refer to normalized source, just like parser positions.
+func CollectStructuralBraces(source []byte) []StructuralBrace {
+	s := &commentScanner{input: string(Normalize(source)), collectBraces: true}
+	s.scan()
+	return s.braces
+}
+
 type commentScanner struct {
-	input    string
-	pos      int // byte offset of the next rune to read
-	comments []Comment
-	regions  []LiteralRegion
+	input         string
+	pos           int // byte offset of the next rune to read
+	comments      []Comment
+	regions       []LiteralRegion
+	collectBraces bool
+	braces        []StructuralBrace
 }
 
 // cur returns the current rune and its size without advancing.
@@ -123,6 +143,7 @@ func (s *commentScanner) advance() {
 // scan walks the source at code level, recording comments and pushing into
 // literal-skip subroutines for string/char/quasiquote literals.
 func (s *commentScanner) scan() {
+	line, previous := 1, 0
 	for s.pos < len(s.input) {
 		r, _ := s.cur()
 		switch {
@@ -139,6 +160,13 @@ func (s *commentScanner) scan() {
 			}
 		case r == '\'':
 			s.skipChar()
+		case r == '{' || r == '}':
+			if s.collectBraces {
+				line += strings.Count(s.input[previous:s.pos], "\n")
+				previous = s.pos
+				s.braces = append(s.braces, StructuralBrace{Line: line, Open: r == '{'})
+			}
+			s.advance()
 		default:
 			s.advance()
 		}
