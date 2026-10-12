@@ -197,7 +197,10 @@ Not a parser/typechecker change, but the codec sits on every cache hit, so:
 | V4 | The CoreTI blob is read only via `decodeCoreTI` | `grep -rn artifactCoreTIName internal/` | Only `cache_artifacts.go:189` (write) and `:338` (read) |
 | V5 | No pipeline consumer mutates a CoreTypeInfo type in place | grep for field writes (`.Fields[..]=`, `.Labels[..]=`, `.TypeName=`, `.Element=`, …) in internal/{pipeline,eval,vm,codegen,link,iface} | 4 sites, all on clones/copies: `validate_effects_rows.go:24,32,103`, `alias_body_closure.go:37`, `iface/json.go:163` |
 | V6 | 15 concrete `types.Type` implementors, all gob-registered | `grep "^func (.*) Substitute(" internal/types/*.go`; `internal/types/gob.go` | 15/15 |
-| V7 | gob refuses a typed nil inside an interface, so today's blobs never contain one | Unit test in M1 asserts both codecs error on it | Pending M1 |
+| V5b | Row metadata maps (`Budgets`, `MinBudgets`, `Params`, `Provenance`) are shared between decoded rows; nothing writes into them in place | grep for map writes and `delete(…)` on those fields: `validate_effects_rows.go:32,38,91,103`, `typechecker_app_effects.go:117,127`, `row_unification.go:193-203`, `typechecker_latent_mask.go:82` | All write into clones (`cloneEffectRow`, `cloneApplicationRow`, a copied `TFunc2`) or into the fresh maps `UnionEffectRows` builds; its nil-input passthrough is cloned by `unionRequiredEffectRows`. Confirmed |
+| V7 | gob refuses a typed nil inside an interface, so today's blobs never contain one | `TestCoreTIDAG_TypedNilFailsLikeGob` | Confirmed: both codecs refuse |
+| V9 | gob keeps an empty non-nil map distinct from nil but collapses empty slices | `TestCoreTIDAG_EveryVariantMatchesGob` zero cases (first run failed on `Fields: {}` until flagged) | Confirmed: encoded as `ctiFlagEmptyMap` |
+| V10 | `TLabelled` labels serialize through `MarshalLabel` (its own `GobEncode`), not through plain gob | `internal/types/label_gob.go` | Confirmed: the DAG codec stores the same `MarshalLabel` bytes |
 | V8 | `"v6"` is pinned in 4 test sites | `grep -rn '"v6"' internal/ cmd/` | Confirmed (listed in Files) |
 
 ## Examples
