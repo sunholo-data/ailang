@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 )
 
@@ -65,6 +66,10 @@ func ResolveCalleesFromRoots(
 	adtTypes map[string][]ADTVariant,
 	importedPrograms ...map[string]*core.Program,
 ) ([]CalleeDef, error) {
+	return resolveCalleesFromRoots(funcName, roots, prog, surfaceParams, surfaceReturnSorts, adtTypes, nil, importedPrograms...)
+}
+
+func resolveCalleesFromRoots(funcName string, roots []core.CoreExpr, prog *core.Program, surfaceParams map[string][]FunctionParam, surfaceReturnSorts map[string]string, adtTypes map[string][]ADTVariant, declarations map[*core.DeclMeta]*ast.FuncDecl, importedPrograms ...map[string]*core.Program) ([]CalleeDef, error) {
 	if prog == nil {
 		return nil, nil
 	}
@@ -120,7 +125,11 @@ func ResolveCalleesFromRoots(
 			returnSort = "Int"
 		}
 
-		encodable, _ := IsSMTEncodableForCallee(calleeName, meta, calleeBody)
+		// Contract-as-spec reasoning must not bypass the declaration row gate.
+		if !smtAdmissible(meta, declarations[meta]) {
+			return nil, fmt.Errorf("%w: callee %q has an inadmissible effect row", ErrUnsupportedConstruct, calleeName)
+		}
+		encodable, _ := IsSMTEncodableForCallee(calleeName, meta, calleeBody, declarations[meta])
 		if !encodable {
 			// Contract-as-spec fallback: emit a declare-const for the callee result
 			// and assert only the ensures clauses as axioms.
@@ -514,11 +523,11 @@ func unwrapLambda(body core.CoreExpr) ([]string, core.CoreExpr) {
 // IsSMTEncodableForCallee checks if a function can be used as a callee
 // in cross-function verification. Similar to IsSMTEncodable but doesn't
 // require contracts (callees don't need their own contracts to be inlined).
-func IsSMTEncodableForCallee(funcName string, meta *core.DeclMeta, body core.CoreExpr) (bool, []SMTRejectionReason) {
+func IsSMTEncodableForCallee(funcName string, meta *core.DeclMeta, body core.CoreExpr, decl ...*ast.FuncDecl) (bool, []SMTRejectionReason) {
 	var reasons []SMTRejectionReason
 
-	// Must be pure
-	if !isPure(meta) {
+	// Must have an SMT-admissible declaration
+	if !smtAdmissible(meta, decl...) {
 		reasons = append(reasons, SMTRejectionReason{
 			Code:    RejectNotPure,
 			Message: fmt.Sprintf("Callee %q has effects", funcName),

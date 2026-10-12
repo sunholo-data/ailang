@@ -2,7 +2,7 @@
 
 > **HOLD satisfied for this run:** #616 merged via PR #1745 and latent-function-values via PR #1708. Remeasured on current dev `7c43ece3`: 50 std modules, 484 exported functions, 168 labelled outer rows, 17 open outer rows, 271 keyword-pure exports, and 27 combinators (the historical 26 plus `list.mapAccumL`). See [M1–M2 evidence](m-pure-row-and-iface-purity-m1-m2-validation.md).
 
-**Status:** M1–M2 complete (local commits only); M3–M4 unstarted for the next run.
+**Status:** M1–M3 complete (local commits only); M4 unstarted for a later run. M3 evidence: [validation record](m-pure-row-and-iface-purity-m3-validation.md).
 **Target:** next minor (v0.53.0 is already released; ship in whichever minor is open when the implementation merges).
 **Design:** [Approved design](m-pure-row-and-iface-purity.md)
 **Source handoff:** task-5895e449; planning task task-20636394.
@@ -78,12 +78,12 @@ Every milestone records `none`: reuse the existing compiler, iface, SMT, apiserv
 
 **Acceptance criteria:**
 
-- [ ] SMT entry and callee admission use keyword OR an explicit closed row containing only Declassify or no labels; missing-row non-pure functions are refused.
-- [ ] Rule 3 (`rowAdmissible`) accepts #1707's scoped `Declassify[label=x]` atom alongside bare `Declassify` and `! {}`; tests pin `func … ! {Declassify[label=x]}` admitted.
-- [ ] IO, Debug, mixed Declassify/IO (including `Declassify[label=x]` + IO) and all open rows are refused; Declassify functions never gain IsPure metadata.
-- [ ] Migrated safe prompt-injection reference verifies 3 contracts with 0 violations; injected reference reports 1 violation on injectedForward.
-- [ ] Seven known contradictory declarations in four example/benchmark files are migrated and formatted; pipeline-backed and IFC Go fixtures use valid declarations.
-- [ ] Existing no-row pure functions remain SMT-admitted and cross-module Declassify callees remain inlinable.
+- [x] SMT entry and callee admission use keyword OR an explicit closed row containing only Declassify or no labels; missing-row non-pure functions are refused.
+- [x] Rule 3 (`rowAdmissible`) accepts #1707's scoped `Declassify[label=x]` atom alongside bare `Declassify` and `! {}`; tests pin `func … ! {Declassify[label=x]}` admitted.
+- [x] IO, Debug, mixed Declassify/IO (including `Declassify[label=x]` + IO) and all open rows are refused; Declassify functions never gain IsPure metadata.
+- [x] Migrated safe prompt-injection reference verifies 3 contracts with 0 violations; injected reference reports 1 violation on injectedForward.
+- [x] Seven known contradictory declarations in four example/benchmark files are migrated and formatted; pipeline-backed and IFC Go fixtures use valid declarations.
+- [x] Existing no-row pure functions remain SMT-admitted and cross-module Declassify callees remain inlinable.
 
 **Risk and mitigation:** Rule 1 temporarily breaks the IFC corpus until this milestone lands. Keep all milestones in one implementation PR. Use a distinct SMT-admissibility predicate for both top-level and callee paths; never mark Declassify functions pure.
 
@@ -127,7 +127,7 @@ Remeasure all std exported functions before/after on the actual base (the record
 
 Maintainer-run (needs API keys; not an executor gate): `ailang eval-suite --benchmarks prompt_injection` using the configured current model set and amended active prompt/spec. Save compiler commit, prompt hash, model/configuration and result location in the implementation PR; inspect compile failures for the old rejected spelling. Do not claim an eval pass if models still generate rejected code.
 
-The planning PR and milestone commits use `Refs #1443` and `Refs #574`; the implementation PR closes the issue. #574 remains a closed regression reference. Do not open a duplicate issue or close dependency issues from this sprint. The changelog must explain the signature migration and changed iface JSON purity signal, including the known external `sunholo/mcp_oauth` spelling risk without editing that external package here.
+The planning PR and milestone commits use `Refs #1443` and `Refs #574`; the implementation PR uses Refs #1443. #574 remains a closed regression reference. Do not open a duplicate issue or close dependency issues from this sprint. The changelog must explain the signature migration and changed iface JSON purity signal, including the known external `sunholo/mcp_oauth` spelling risk without editing that external package here.
 
 ## Approval and Handoff
 

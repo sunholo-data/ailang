@@ -1,6 +1,7 @@
-### Changed: checked pure signatures and derived interface purity (M1–M2)
+### Changed: checked pure signatures and derived interface purity (M1–M3)
 
 - Breaking spelling change: `pure func` rejects declared labelled or open effect rows, including scoped Declassify rows. Remove `pure` for an effectful declaration, or use an empty row with a pure body. Existing absent and explicit empty rows remain valid.
 - Interface JSON `pure` now derives from checked outer effect rows: labelled and declared-open rows report false; undeclared callback-shared tails remain latent. Non-function exports use a deep type walk. Serve-api/MCP use the interface signal, and compile cache v7 invalidates old always-true metadata.
-- This partial sprint does not migrate the IFC source or teaching corpus or change SMT admission; M3–M4 remain pending. External packages such as `sunholo/mcp_oauth` using `pure` beside Declassify must migrate that spelling when the complete change ships.
+- SMT entry and callee admission now accept explicit closed empty or Declassify-only rows, including scoped `Declassify[label=x]`, without changing purity metadata. Missing-row non-pure declarations, other effects and open rows remain outside admission.
+- Migrated seven contradictory IFC declarations in the inbox examples and prompt-injection references. The safe reference verifies three contracts; the injected reference still reports the `injectedForward` violation. Teaching-material migration remains M4. External packages such as `sunholo/mcp_oauth` using `pure` beside Declassify must migrate that spelling.
 - Package identity is unchanged by derived purity: the v2 interface hash treats `pure` as the constant it was under the old stub, because purity follows from the effect row and type that are already hashed. Effectful exports now publish `"pure": false`, but their `ifacev2:` hash does not move, so publishers and the registry validator need not upgrade in lockstep.

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/types"
 )
@@ -85,6 +86,8 @@ type EncodeResult struct {
 
 // EncodeFunctionOpts holds optional parameters for cross-function call resolution.
 type EncodeFunctionOpts struct {
+	// SurfaceDeclarations preserves declaration provenance for SMT admission, keyed by metadata identity.
+	SurfaceDeclarations map[*core.DeclMeta]*ast.FuncDecl
 	// Program is the full Core program (needed for resolving cross-function calls).
 	Program *core.Program
 	// SurfaceParams maps function names to their parameter info.
@@ -156,10 +159,10 @@ func EncodeFunction(
 				roots = append(roots, c.Expr)
 			}
 		}
-		calleeDefs, err = ResolveCalleesFromRoots(
+		calleeDefs, err = resolveCalleesFromRoots(
 			funcName, roots, opts[0].Program,
 			opts[0].SurfaceParams, opts[0].SurfaceReturnSorts, adtTypes,
-			opts[0].ImportedPrograms,
+			opts[0].SurfaceDeclarations, opts[0].ImportedPrograms,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("resolving cross-function calls: %w", err)

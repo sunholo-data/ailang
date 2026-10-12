@@ -36,6 +36,8 @@ export func unhintedThing(x: string) -> string ! {IO} { x }
 @mcp_hints()
 export func appendOnly(x: string) -> string ! {IO} { x }
 
+export func declassifyThing(x: string) -> string ! {Declassify[label=x]} { x }
+
 export func openThing[e](x: string) -> string ! {e} { x }
 
 @mcp_hints("readonly")
@@ -98,7 +100,7 @@ export func typoThing(x: string) -> string ! {IO} { x }
 	}
 	for _, mod := range srv.GetModules() {
 		for _, exp := range mod.Exports {
-			if exp.Name != "pureThing" && exp.Name != "openThing" && exp.Name != "unhintedThing" {
+			if exp.Name != "declassifyThing" && exp.Name != "pureThing" && exp.Name != "openThing" && exp.Name != "unhintedThing" {
 				continue
 			}
 			tool := tools[exp.Name]

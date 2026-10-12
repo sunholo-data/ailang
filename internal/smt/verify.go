@@ -112,14 +112,12 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		Timeout: opts.Timeout,
 	}
 
-	// Fixup: functions with ! {} (empty effects) are semantically pure
-	// but the parser only sets IsPure for the explicit `pure` keyword.
-	// For SMT verification, we treat empty-effect functions as pure.
-	for funcName, meta := range coreProg.Meta {
-		if fd, ok := surfaceFuncs[funcName]; ok {
-			if fd.Effects != nil && len(fd.Effects) == 0 && !meta.IsPure {
-				meta.IsPure = true
-			}
+	// Keep SMT admission separate from purity metadata. Key by metadata identity
+	// so imported functions with the same name retain their own declaration.
+	declarations := make(map[*core.DeclMeta]*ast.FuncDecl)
+	for name, fd := range surfaceFuncs {
+		if meta := coreProg.Meta[name]; meta != nil {
+			declarations[meta] = fd
 		}
 	}
 
@@ -138,15 +136,10 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	for modPath, mod := range modules {
 		if mod.Core != nil {
 			importedPrograms[modPath] = mod.Core
-			// Apply the same IsPure fixup as for same-module functions:
-			// imported functions with ! {} (empty effects) are semantically
-			// pure and must be marked so the callee resolver can inline them.
 			if mod.File != nil {
 				for _, fd := range mod.File.Funcs {
-					if meta, ok := mod.Core.Meta[fd.Name]; ok {
-						if fd.Effects != nil && len(fd.Effects) == 0 && !meta.IsPure {
-							meta.IsPure = true
-						}
+					if meta := mod.Core.Meta[fd.Name]; meta != nil {
+						declarations[meta] = fd
 					}
 				}
 			}
@@ -167,12 +160,13 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	}
 
 	encOpts := EncodeFunctionOpts{
-		Program:            coreProg,
-		SurfaceParams:      allSurfaceParams,
-		SurfaceReturnSorts: allSurfaceReturnSorts,
-		ExtraDeclarations:  adtRecordDecls,
-		RecordTypeAliases:  recordAliases,
-		ImportedPrograms:   importedPrograms,
+		SurfaceDeclarations: declarations,
+		Program:             coreProg,
+		SurfaceParams:       allSurfaceParams,
+		SurfaceReturnSorts:  allSurfaceReturnSorts,
+		ExtraDeclarations:   adtRecordDecls,
+		RecordTypeAliases:   recordAliases,
+		ImportedPrograms:    importedPrograms,
 	}
 
 	// Build the callee-sort gate inputs. The gate rejects a contracted function whose
@@ -251,7 +245,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		}
 
 		// Check if function is in the decidable SMT fragment
-		encodable, rejections := IsSMTEncodable(funcName, meta, body)
+		encodable, rejections := IsSMTEncodable(funcName, meta, body, surfaceFuncs[funcName])
 		// Callee-sort gate: reject cleanly if a cross-function callee has an
 		// unencodable signature type (e.g. Option[float]) rather than leaking an
 		// undeclared sort into the SMT script and crashing Z3. See M-SMT-CALLEE-SORT-GATE.

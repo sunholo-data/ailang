@@ -20,7 +20,6 @@
 -- Expect: 5 functions: 3 verified, 2 violations (injectedForward, attemptLaunder)
 
 module examples/runnable/contracts/inbox_v2_app
-
 import examples/runnable/contracts/inbox_v2_lib (Mail)
 import std/string (endsWith, length as strLen)
 
@@ -33,9 +32,8 @@ type SendAction = { to: string, body: string }
 -- sanitizeBody strips the raw content and returns a constant scrubbed
 -- value. The Declassify effect documents that this function intentionally
 -- changes the label of its input from <email> to <sanitized>.
-export pure func sanitizeBody(rawBody: string<email>) -> string<sanitized> ! {Declassify}
-ensures { result == "[sanitized]" }
-{
+export func sanitizeBody(rawBody: string<email>) -> string<sanitized> ! {Declassify}
+ensures { result == "[sanitized]" } {
   "[sanitized]"
 }
 
@@ -44,8 +42,7 @@ ensures { result == "[sanitized]" }
 -- ---------------------------------------------------------------------------
 
 export pure func isInternal(addr: string) -> bool ! {}
-ensures { result == endsWith(addr, "@company.com") }
-{
+ensures { result == endsWith(addr, "@company.com") } {
   endsWith(addr, "@company.com")
 }
 
@@ -55,10 +52,9 @@ ensures { result == endsWith(addr, "@company.com") }
 
 -- safeForward declassifies the imported Mail.body before placing it on
 -- the wire. Z3 verifies: result.body == "[sanitized]".
-export pure func safeForward(m: Mail, recipient: string) -> SendAction ! {Declassify}
+export func safeForward(m: Mail, recipient: string) -> SendAction ! {Declassify}
 requires { endsWith(recipient, "@company.com") }
-ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
-{
+ensures { endsWith(result.to, "@company.com"), result.body == "[sanitized]" } {
   { to: recipient, body: sanitizeBody(m.body) }
 }
 
@@ -77,11 +73,11 @@ ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
 --   → cross-module SINK VIOLATION
 --
 -- Z3 catches this today: result.body == m.body fails the postcondition.
+-- SINK VIOLATION: <email> → {not email}
 export pure func injectedForward(m: Mail, recipient: string) -> SendAction ! {}
 requires { endsWith(recipient, "@company.com") }
-ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
-{
-  { to: recipient, body: m.body }  -- SINK VIOLATION: <email> → {not email}
+ensures { endsWith(result.to, "@company.com"), result.body == "[sanitized]" } {
+  { to: recipient, body: m.body }
 }
 
 -- ---------------------------------------------------------------------------
@@ -91,21 +87,19 @@ ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
 -- attemptLaunder routes the imported Mail.body through an identity
 -- let-binding. APP-PURE rule: identity preserves labels, so `laundered`
 -- still carries <email>.
+-- SINK VIOLATION: <email> still flows
 export pure func attemptLaunder(m: Mail, recipient: string) -> SendAction ! {}
 requires { endsWith(recipient, "@company.com") }
-ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
-{
-  let laundered = m.body in
-  { to: recipient, body: laundered }  -- SINK VIOLATION: <email> still flows
+ensures { endsWith(result.to, "@company.com"), result.body == "[sanitized]" } {
+  let laundered = m.body in { to: recipient, body: laundered }
 }
 
 -- ---------------------------------------------------------------------------
 -- Entry point
 -- ---------------------------------------------------------------------------
 
-export func main() -> int ! {Declassify}
-{
-  let m = { body: "confidential-body", subject: "subject" };
-  let action = safeForward(m, "alice@company.com");
+export func main() -> int ! {Declassify} {
+  let m = { body: "confidential-body", subject: "subject" }
+  let action = safeForward(m, "alice@company.com")
   if isInternal(action.to) then strLen(action.body) else 0
 }
