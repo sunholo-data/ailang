@@ -31,7 +31,9 @@ import (
 // its Eq instances again, so v4 entries must miss.
 // v5 -> v6 (M-ALIAS-BODY-CLOSURE): interface aliases, export schemes and
 // constructor types are closed in their defining module. Open v5 bodies must miss.
-const cacheKeyVersion = "v6"
+// v6 -> v7 (M-PURE-ROW-AND-IFACE-PURITY): export purity is derived from
+// checked effect rows. Evict v6 interfaces carrying always-true stub metadata.
+const cacheKeyVersion = "v7"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

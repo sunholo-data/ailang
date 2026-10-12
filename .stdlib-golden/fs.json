@@ -8,7 +8,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "appendFileBytes",
@@ -16,7 +16,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "appendFileResult",
@@ -24,7 +24,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "fileExists",
@@ -32,7 +32,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "glob",
@@ -40,7 +40,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "isDir",
@@ -48,7 +48,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "isFile",
@@ -56,7 +56,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "listDir",
@@ -64,7 +64,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "mkdir",
@@ -72,7 +72,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "mkdirAll",
@@ -80,7 +80,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "mkdirAllResult",
@@ -88,7 +88,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "mkdirResult",
@@ -96,7 +96,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "readFile",
@@ -104,7 +104,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "readFileBytes",
@@ -112,7 +112,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "readFileRaw",
@@ -120,7 +120,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "readFileResult",
@@ -128,7 +128,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "removeDirResult",
@@ -136,7 +136,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "removeFile",
@@ -144,7 +144,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "removeFileResult",
@@ -152,7 +152,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "renameFile",
@@ -160,7 +160,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "renameFileResult",
@@ -168,7 +168,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "walk",
@@ -176,7 +176,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "writeFile",
@@ -184,7 +184,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "writeFileBytes",
@@ -192,7 +192,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "writeFileBytesResult",
@@ -200,7 +200,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "writeFileResult",
@@ -208,7 +208,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

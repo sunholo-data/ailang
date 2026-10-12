@@ -8,7 +8,7 @@
       "effects": [
         "Cog"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "recvMsg",
@@ -16,7 +16,7 @@
       "effects": [
         "Msg"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "recvMsgResult",
@@ -24,7 +24,7 @@
       "effects": [
         "Msg"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "sendMsg",
@@ -32,7 +32,7 @@
       "effects": [
         "Msg"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "sendMsgResult",
@@ -40,7 +40,7 @@
       "effects": [
         "Msg"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "subscribeMsg",
@@ -49,7 +49,7 @@
         "Cog",
         "Msg"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

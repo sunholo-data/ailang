@@ -18,7 +18,7 @@
       "effects": [
         "DOM"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "applyBatchResult",
@@ -26,7 +26,7 @@
       "effects": [
         "DOM"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "applyPatch",
@@ -34,7 +34,7 @@
       "effects": [
         "DOM"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "applyPatchResult",
@@ -42,7 +42,7 @@
       "effects": [
         "DOM"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "subscribe",
@@ -51,7 +51,7 @@
         "Cog",
         "DOM"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

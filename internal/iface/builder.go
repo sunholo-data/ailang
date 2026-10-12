@@ -360,7 +360,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 	}
 
 	// Process each export
-	for name, binding := range exports {
+	for name := range exports {
 		// Get the type from the environment
 		typ, err := b.typeEnv.Lookup(name)
 		if err != nil {
@@ -397,8 +397,8 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 			}
 		}
 
-		// Determine purity (for now, assume pure unless marked otherwise)
-		purity := b.determinePurity(binding)
+		// Publish purity from the checked outer row after restoration.
+		purity := derivePurity(scheme, funcDecls[name])
 
 		// Create interface item
 		item := &IfaceItem{
@@ -665,13 +665,6 @@ func (b *Builder) canonicalizeScheme(scheme *types.Scheme) (*types.Scheme, error
 		RowVars:  rowVars,
 		Type:     scheme.Type,
 	}, nil
-}
-
-// determinePurity analyzes an expression to determine if it's pure.
-// TODO: implement real analysis — currently returns true unconditionally
-// (the type-class/row-effect system is the actual source of purity info).
-func (b *Builder) determinePurity(_ core.CoreExpr) bool {
-	return true
 }
 
 // ifaceItem is used for JSON serialization

@@ -8,7 +8,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "exit",
@@ -16,7 +16,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "flush",
@@ -24,7 +24,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "print",
@@ -32,7 +32,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "printErr",
@@ -40,7 +40,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "println",
@@ -48,7 +48,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "readLine",
@@ -56,7 +56,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "readLineOpt",
@@ -64,7 +64,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "writeBytes",
@@ -72,7 +72,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

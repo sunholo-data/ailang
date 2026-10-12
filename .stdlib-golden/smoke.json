@@ -8,7 +8,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "dispatchTool",
@@ -16,7 +16,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "okSuite",
@@ -24,7 +24,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

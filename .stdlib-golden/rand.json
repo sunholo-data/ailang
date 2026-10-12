@@ -8,7 +8,7 @@
       "effects": [
         "Rand"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "rand_float",
@@ -16,7 +16,7 @@
       "effects": [
         "Rand"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "rand_int",
@@ -24,7 +24,7 @@
       "effects": [
         "Rand"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "rand_seed",
@@ -32,7 +32,7 @@
       "effects": [
         "Rand"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "uuid4",
@@ -40,7 +40,7 @@
       "effects": [
         "Rand"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

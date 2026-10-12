@@ -20,7 +20,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

@@ -48,7 +48,7 @@
       "name": "filterE",
       "type": "((a)-\u003ebool,list[a])-\u003e[a]",
       "effects": [],
-      "pure": true
+      "pure": false
     },
     {
       "name": "findIndex",
@@ -66,7 +66,7 @@
       "name": "flatMapE",
       "type": "((a)-\u003elist[b],list[a])-\u003e[b]",
       "effects": [],
-      "pure": true
+      "pure": false
     },
     {
       "name": "foldl",
@@ -78,7 +78,7 @@
       "name": "foldlE",
       "type": "((a,b)-\u003ea,a,list[b])-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": false
     },
     {
       "name": "foldr",
@@ -90,7 +90,7 @@
       "name": "forEachE",
       "type": "((a)-\u003e(),list[a])-\u003e()",
       "effects": [],
-      "pure": true
+      "pure": false
     },
     {
       "name": "head",
@@ -144,7 +144,7 @@
       "name": "mapE",
       "type": "((a)-\u003eb,list[a])-\u003e[b]",
       "effects": [],
-      "pure": true
+      "pure": false
     },
     {
       "name": "maximumFloat",

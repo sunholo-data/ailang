@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -35,7 +36,7 @@ export func unhintedThing(x: string) -> string ! {IO} { x }
 @mcp_hints()
 export func appendOnly(x: string) -> string ! {IO} { x }
 
-export pure func pureKeywordWithEffects(x: string) -> string ! {IO} { x }
+export func openThing[e](x: string) -> string ! {e} { x }
 
 @mcp_hints("readonly")
 export func typoThing(x: string) -> string ! {IO} { x }
@@ -91,11 +92,25 @@ export func typoThing(x: string) -> string ! {IO} { x }
 	if tl := tools["unhintedThing"]; tl == nil || tl.Annotations != nil || tl.Title != "" {
 		t.Errorf("unhintedThing must be listed without annotations: %+v", annOf(tl))
 	}
-	// The `pure` keyword is not a proof (the checker accepts it beside a
-	// declared row); only an empty effect row is. Nor is ExportInfo.Pure,
-	// which the iface builder sets true for everything.
-	if tl := tools["pureKeywordWithEffects"]; tl == nil || tl.Annotations != nil {
-		t.Errorf("pure keyword + ! {IO} must not be marked read-only: %+v", annOf(tl))
+	// Declared polymorphism has no visible labels, but is not a read-only proof.
+	if tl := tools["openThing"]; tl == nil || tl.Annotations != nil || strings.Contains(tl.Description, "[pure]") {
+		t.Errorf("declared open row must not be marked pure/read-only: %+v", annOf(tl))
+	}
+	for _, mod := range srv.GetModules() {
+		for _, exp := range mod.Exports {
+			if exp.Name != "pureThing" && exp.Name != "openThing" && exp.Name != "unhintedThing" {
+				continue
+			}
+			tool := tools[exp.Name]
+			if tool == nil {
+				t.Fatalf("missing tool %s", exp.Name)
+			}
+			tagged := strings.Contains(tool.Description, "[pure]")
+			readOnly := tool.Annotations != nil && tool.Annotations.ReadOnlyHint
+			if tagged != exp.Pure || readOnly != exp.Pure {
+				t.Errorf("%s iface=%v tagged=%v readOnly=%v", exp.Name, exp.Pure, tagged, readOnly)
+			}
+		}
 	}
 	// The Go-side built-in is listed on every server that keeps it on, so it
 	// must be directory-ready too.

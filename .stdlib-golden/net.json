@@ -26,7 +26,7 @@
       "effects": [
         "Net"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "httpPost",
@@ -34,7 +34,7 @@
       "effects": [
         "Net"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "httpRequest",
@@ -42,7 +42,7 @@
       "effects": [
         "Net"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "httpRequestBytes",
@@ -50,7 +50,7 @@
       "effects": [
         "Net"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "parseQuery",

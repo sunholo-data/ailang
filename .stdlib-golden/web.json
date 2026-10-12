@@ -17,7 +17,7 @@
       "effects": [
         "Net"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "webSearch",
@@ -25,7 +25,7 @@
       "effects": [
         "Net"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

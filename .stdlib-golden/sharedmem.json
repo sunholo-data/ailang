@@ -8,7 +8,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "delete",
@@ -16,7 +16,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "get",
@@ -24,7 +24,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "get_or",
@@ -32,7 +32,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "has_key",
@@ -40,7 +40,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "keys",
@@ -48,7 +48,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "put",
@@ -56,7 +56,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "put_if_absent",
@@ -64,7 +64,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

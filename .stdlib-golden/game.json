@@ -8,7 +8,7 @@
       "effects": [
         "Clock"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "frame_count",
@@ -16,7 +16,7 @@
       "effects": [
         "Clock"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "total_time",
@@ -24,7 +24,7 @@
       "effects": [
         "Clock"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

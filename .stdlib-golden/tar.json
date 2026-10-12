@@ -13,7 +13,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "listEntries",
@@ -21,7 +21,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "readEntry",
@@ -29,7 +29,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "readEntryBytes",
@@ -37,7 +37,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "readFromGzip",
@@ -45,7 +45,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "readFromGzipBytes",
@@ -53,7 +53,7 @@
       "effects": [
         "FS"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

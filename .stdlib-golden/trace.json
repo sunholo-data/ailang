@@ -8,7 +8,7 @@
       "effects": [
         "Trace"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "spanEnd",
@@ -16,7 +16,7 @@
       "effects": [
         "Trace"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "spanStart",
@@ -24,7 +24,7 @@
       "effects": [
         "Trace"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"

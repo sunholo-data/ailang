@@ -70,7 +70,7 @@
         "Process",
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "asyncReadStdinLines",
@@ -78,7 +78,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "cancelProcessSource",
@@ -87,7 +87,7 @@
         "Process",
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "connect",
@@ -95,7 +95,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "defaultConfig",
@@ -109,7 +109,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "ndjsonPost",
@@ -117,7 +117,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "onEvent",
@@ -125,7 +125,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "runEventLoop",
@@ -133,7 +133,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "selectEvents",
@@ -141,7 +141,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "sourceOfConn",
@@ -149,7 +149,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "sseConnect",
@@ -157,7 +157,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "ssePost",
@@ -165,7 +165,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "status",
@@ -173,7 +173,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "transmit",
@@ -181,7 +181,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "transmitBinary",
@@ -189,7 +189,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "withSSE",
@@ -197,7 +197,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "name": "withStream",
@@ -205,7 +205,7 @@
       "effects": [
         "Stream"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v1"
