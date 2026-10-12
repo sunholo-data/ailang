@@ -361,3 +361,25 @@ func TestPolicyTool_WriteCreatesParents(t *testing.T) {
 	}
 	f.outsideIntact(t)
 }
+
+// An argument refusal names the correct call shape, so a model that sent the
+// wrong field can correct itself instead of re-sending the same call.
+func TestPolicyTool_CLIRefusalShowsUsage(t *testing.T) {
+	f := newFixture(t, "")
+	for _, tc := range []struct {
+		req  Request
+		want string
+	}{
+		{Request{Op: "check", Module: "in.ail"}, `call it as {"op":"check","path":"<in-sandbox path>"}`},
+		{Request{Op: "test", Module: "sub"}, `{"op":"test","package":"<package dir>"}`},
+		{Request{Op: "iface", Path: "in.ail"}, `call it as {"op":"iface","module":"<module, e.g. std/fs>"}`},
+	} {
+		r := f.host.Dispatch(tc.req)
+		if r.OK || !strings.Contains(r.Refused, tc.want) {
+			t.Errorf("%s with the wrong field: ok=%v refused=%q, want it to contain %q", tc.req.Op, r.OK, r.Refused, tc.want)
+		}
+	}
+	if len(f.runs) != 0 {
+		t.Fatalf("a refused request ran: %v", f.runs)
+	}
+}

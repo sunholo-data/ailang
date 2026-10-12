@@ -246,7 +246,7 @@ func (h *Host) buildArgv(req Request) ([]string, cliSchema, error) {
 		v := fieldValue(req, sc.field)
 		if v == "" {
 			if sc.required {
-				return nil, sc, fmt.Errorf("op %s requires %s", req.Op, strings.ToLower(sc.field))
+				return nil, sc, fmt.Errorf("op %s requires %s — call it as %s", req.Op, strings.ToLower(sc.field), cliUsage(req.Op, sc))
 			}
 		} else {
 			tok, err := h.validate(sc.kind, v)
@@ -260,7 +260,7 @@ func (h *Host) buildArgv(req Request) ([]string, cliSchema, error) {
 	// not something to silently drop.
 	for name, present := range map[string]bool{"path": req.Path != "", "module": req.Module != "", "query": req.Query != "", "content": req.Content != "", "old_text": req.OldText != "", "new_text": req.NewText != "", "package": req.Package != ""} {
 		if present && !strings.EqualFold(name, sc.field) && !(name == "package" && req.Op == "test") {
-			return nil, sc, fmt.Errorf("op %s does not take %s", req.Op, name)
+			return nil, sc, fmt.Errorf("op %s does not take %s — call it as %s", req.Op, name, cliUsage(req.Op, sc))
 		}
 	}
 	if req.Op == "test" && req.Package != "" {
@@ -271,6 +271,23 @@ func (h *Host) buildArgv(req Request) ([]string, cliSchema, error) {
 		argv = append(argv, "--package", tok)
 	}
 	return argv, sc, nil
+}
+
+// cliUsage is the correct request shape for op, quoted in argument refusals.
+// A refusal that only names the wrong field left a model re-sending the same
+// call: measured 2026-10-12, GLM-5.3-Flash sent {op:check, module:...} 83
+// times and {op:test, module:...} 70 times on one task.
+func cliUsage(op string, sc cliSchema) string {
+	field := strings.ToLower(sc.field)
+	placeholder := map[string]string{"path": "<in-sandbox path>", "module": "<module, e.g. std/fs>", "query": "<search text>"}[field]
+	usage := fmt.Sprintf(`{"op":%q}`, op)
+	if field != "" {
+		usage = fmt.Sprintf(`{"op":%q,%q:%q}`, op, field, placeholder)
+	}
+	if op == "test" {
+		usage += ` or {"op":"test","package":"<package dir>"}`
+	}
+	return usage
 }
 
 func flagNames(sc cliSchema) string {

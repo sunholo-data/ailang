@@ -212,7 +212,10 @@ concurrent cloud motoko trials (`motoko-or-deepseek-v4-flash`, 6/6, $0.06, no po
   chars against pi's canonical `ailang prompt` (~23k tokens) plus scratch-dir / package-ceiling
   guidance. `motoko_ext_ailang_policy` now reads `ailang prompt` at registration and prepends it
   (AILANG_LANE_TEACHING=0 turns it off, as on pi). On Anthropic/Gemini it only reaches the model
-  with ailang ≥ d62a21c88 (those providers dropped system-role messages). Cloud image pins it.
+  with ailang ≥ v0.54.6 (those providers dropped system-role messages). Cloud image pins it.
+- `repetition_guard` loads in the ailang_only profile (a1ece42e, 2026-10-12): GLM-5.3-Flash sent
+  one malformed `ailang_cli` call 153 times on a real task; the guard refuses a call repeated with
+  byte-identical output and tells the model to change course.
 
 **Rig switched 2026-10-08:** the `~/go/bin/motoko` shim now execs `~/dev/mk-20261002` (this branch is
 checked out in that worktree, so `mk-main` cannot take it; `mk-main` stays on `sunholo/main-dst` as
