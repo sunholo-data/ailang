@@ -117,7 +117,8 @@ func TestAliasBodyClosure_CyclesMemoizationAndNames(t *testing.T) {
 	if env["A"].String() != before || env["Item"].(*types.TRecord).TypeName != "" {
 		t.Fatal("alias inputs mutated")
 	}
-	if first.alias("Item") != first.alias("Item") {
+	item := first.alias("Item")
+	if first.alias("Item") != item {
 		t.Fatal("acyclic expansions should be memoized")
 	}
 }
