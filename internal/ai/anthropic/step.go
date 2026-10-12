@@ -154,6 +154,11 @@ type stepMessagesRequest struct {
 	// OutputConfig carries the qualitative effort for adaptive-thinking models
 	// (Opus 4.7 and later), which no longer accept thinking.budget_tokens.
 	OutputConfig *outputConfig `json:"output_config,omitempty"`
+	// CacheControl is Anthropic's request-level automatic cache marker: the
+	// cache point moves to the last cacheable block on every call, so a tool
+	// loop reads its whole prior history from cache. Set for every request
+	// that carries tools (see buildStepRequest).
+	CacheControl *cacheControlBlock `json:"cache_control,omitempty"`
 }
 
 type stepMessage struct {
@@ -217,6 +222,16 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*stepMes
 			fmt.Sprintf("anthropic: failed to marshal system field: %v", err), false)
 	}
 	apiReq.System = systemField
+	// A request with tools is an agent loop that resends its whole history
+	// every turn. Without a moving cache point only a declared system
+	// breakpoint was cached and the history was billed at the full input
+	// rate on every turn — measured 2026-10-12, motoko on Haiku 5.5 sent 3.6M
+	// uncached input tokens on one task where pi (which marks the latest
+	// message) sent 66. The automatic marker costs a 1.25x write on new tokens
+	// and reads at 0.1x, so it wins from the second turn on.
+	if len(req.Tools) > 0 {
+		apiReq.CacheControl = &cacheControlBlock{Type: "ephemeral"}
+	}
 	if req.Temperature > 0 {
 		apiReq.Temperature = req.Temperature
 	}

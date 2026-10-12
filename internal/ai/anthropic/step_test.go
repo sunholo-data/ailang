@@ -609,3 +609,38 @@ func TestStep_RequestBody_ToolInputAsObject(t *testing.T) {
 		t.Errorf("tool_use input.name = %v, want foo", inputAsMap["name"])
 	}
 }
+
+// A request with tools carries the request-level automatic cache marker; one
+// without tools stays byte-identical (no cache_control key).
+func TestStep_RequestBody_ToolLoopAutoCache(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		tools []ai.ToolSchema
+		want  bool
+	}{
+		{"tools", []ai.ToolSchema{{Name: "read", Description: "r", Parameters: `{"type":"object","properties":{}}`}}, true},
+		{"no tools", nil, false},
+	} {
+		cap := &captureHandler{}
+		server := httptest.NewServer(cap)
+		_, err := NewClient("test-key", WithBaseURL(server.URL)).Step(context.Background(), &ai.Request{
+			Model: "claude-haiku-5-5", Tools: tc.tools,
+			Messages: []ai.Message{{Role: "user", Content: "hi"}},
+		})
+		server.Close()
+		if err != nil {
+			t.Fatalf("%s: Step() error = %v", tc.name, err)
+		}
+		var sent map[string]json.RawMessage
+		if err := json.Unmarshal(cap.captured, &sent); err != nil {
+			t.Fatalf("%s: captured body not JSON: %v", tc.name, err)
+		}
+		cc, has := sent["cache_control"]
+		if has != tc.want {
+			t.Fatalf("%s: cache_control present = %v, want %v", tc.name, has, tc.want)
+		}
+		if has && string(cc) != `{"type":"ephemeral"}` {
+			t.Fatalf("%s: cache_control = %s", tc.name, cc)
+		}
+	}
+}
