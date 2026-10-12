@@ -36,7 +36,9 @@ import (
 // v7 -> v8 (M-IFC-CROSS-MODULE): iface v2 requires complete IFC summaries,
 // including canonical forbidden arrays and reserved applied labels; pre-IFC
 // verdicts must miss. Preserve the v7 CoreTI shared-DAG codec.
-const cacheKeyVersion = "v8"
+// v8 -> v9 (M-PURE-ROW-AND-IFACE-PURITY, #1443): export purity is derived from
+// checked effect rows. Evict v8 interfaces carrying always-true stub metadata.
+const cacheKeyVersion = "v9"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

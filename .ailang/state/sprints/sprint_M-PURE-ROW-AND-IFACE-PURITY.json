@@ -86,10 +86,10 @@
         "Non-function export type-walk policy is documented and tested, including values containing function types.",
         "Purity derivation lives in new internal/iface/purity.go; internal/iface/builder.go (785 lines) only swaps the determinePurity call and stays within the size limit."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-12T19:16:59.396378+00:00",
+      "completed": "2026-10-12T19:21:59.794669+00:00",
+      "notes": "Derived purity matrix, 27 combinator pins and full std census pass (311 pure, 173 impure). Cache v7 eviction and round-trip, MCP consumer tests pass. Focused packages, lint, size and boundaries pass; make test-core passes under a temporary Linux subreaper because container PID 1 leaves stopped fixtures as zombies. Intentional stdlib purity JSON snapshots refreshed (27 modules, 166 flips); no type/effect/export drift."
     },
     {
       "id": "M3",
@@ -171,5 +171,27 @@
     "cache_next": "v7",
     "evidence": "design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-m1-m2-validation.md"
   },
-  "last_checkpoint": "M1 completed; M2 next"
+  "last_checkpoint": "M1\u2013M2 complete; M3\u2013M4 unstarted for the next run",
+  "purity_census_after": {
+    "exported_functions": 484,
+    "pure": 311,
+    "impure": 173,
+    "labelled_false": 168,
+    "declared_open_false": 14,
+    "keyword_pure_true": 271,
+    "combinator_pins_true": 27
+  },
+  "validation_results": {
+    "focused_pipeline_iface_apiserver": "pass",
+    "purity_matrix_count_20": "pass",
+    "new_purity_functions_statement_coverage": "100% each",
+    "test_core": "pass with temporary Linux subreaper wrapper",
+    "test_core_container_note": "Direct run hit a PID-1-owned zombie in TestRuntimeNestedStopUsesRemainingDeadline; isolated rerun reproduced it and wrapper rerun passed without effects source/test changes.",
+    "lint": "pass (zero issues)",
+    "file_sizes": "pass (builder.go 781 lines)",
+    "boundaries": "pass",
+    "changelog": "pass",
+    "stdlib_freeze": "27 modules, 166 pure true-to-false changes; all other JSON fields unchanged",
+    "stdlib_verification": "pass (48 top-level modules; all 50 checked by census)"
+  }
 }

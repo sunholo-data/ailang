@@ -79,4 +79,145 @@ reports zero issues; boundaries, file sizes and changelog checks pass.
 
 ## M2
 
-Pending implementation and validation.
+The companion `internal/iface/purity.go` derives the signal after builder row
+restoration. Function exports inspect only their outer row; callback-shared tails
+are latent only with an available declaration and no declared outer variable.
+Return-only and unrelated tails fail closed. Non-function exports use a deep,
+cycle-safe walk: effect rows anywhere (including nested functions) must be empty
+and closed. Record polymorphism itself does not imply an effect.
+
+The unit matrix and public builder test failed against the always-true stub before
+implementation. They now pass, including 20 repetitions and a cyclic type graph.
+The cache test demonstrated that a v6 manifest retained stale always-true metadata;
+v7 now evicts it. Actual checked empty, IO, declared-open and latent rows preserve
+their derived values through stamped artifact serialization and deserialization.
+Existing cache migration tests compare published stamps against the current
+version rather than an obsolete hard-coded v6 expectation.
+
+Census after M2: **311 pure / 173 impure** of 484 functions. All **168 labelled**
+and **14 declared-open** outer rows are false; these sets overlap. All **271
+keyword-pure** exports and **27 combinators** remain true. All six streaming
+exports and list.mapE are false. Three combinator outer tails remain callback-shared
+(list.flatMap, list.sortBy, option.flatMap); the other 24 are empty and closed.
+
+Serve-api no longer overwrites iface purity while extracting annotations. A direct
+regression preserves both possible iface values despite AST keyword spelling.
+The in-memory MCP tools/list integration checks the declared-open control, pure
+tag, and default read-only hint against the server export signal. Its obsolete
+contradictory IO fixture was replaced by a valid declared-open fixture as part of
+M2 consumer testing; no M3 source corpus or SMT admission changes were made.
+
+## Validation and environment
+
+- Focused pipeline cache/effect/purity tests and complete iface/apiserver packages pass.
+- `make test-core` passes under a temporary Linux subreaper wrapper. Its direct
+  run first exposed an obsolete v6 assertion in the alias-cache regression,
+  updated to require the current version. Separately, the untouched effects
+  lifetime test failed both directly and in isolation: its stopped fixture was a
+  zombie owned by PID 1. A `/tmp`-only Python wrapper sets Linux
+  `PR_SET_CHILD_SUBREAPER`, launches the unchanged command, and reaps orphaned
+  children. The isolated lifetime test and entire core gate then pass. No effects
+  implementation/test changes or skips were introduced. CI with a reaping init
+  does not need this container accommodation.
+- `make lint`: zero issues. `make check-file-sizes`: pass (builder.go 781 lines).
+- `make check-boundaries`, `make check-changelog`, formatting and diff checks pass.
+- Both new purity functions have 100% statement coverage in the focused unit run.
+- Fresh CLI probes report streaming false, list.mapE false, and both flatMap
+  controls true. The two M1 positive example modules check successfully.
+- The CI stdlib freeze gate initially rejected the intended metadata change.
+  `make freeze-stdlib` refreshes 27 modules (54 JSON/hash files): 166 true-to-false
+  purity changes, with no type, effect, export or schema drift. The gate covers
+  48 top-level modules; the census also checks both nested modules (50 total).
+- No full `make test`, push, M3/M4 implementation, or #1718 work performed.
+
+## Coordinator PR body
+
+Refs #1443.
+
+Implements only M1–M2: reject contradictory pure signatures, derive checked iface
+purity, preserve callback-latent combinators, use the signal in serve-api/MCP,
+and invalidate old metadata with cache v7. Re-freezes the intended stdlib JSON
+purity change. M3–M4 remain pending; this partial sprint is not release-ready.
+
+Validation: focused Go packages, core gate (container subreaper), lint, file sizes,
+boundaries, changelog and stdlib freeze verification. Census: 168 labelled and
+14 declared-open exports now false; 271 keyword-pure exports and 27 combinators
+remain true. No push; coordinator opens the PR.
+
+
+## Files created
+
+- `changelogs/unreleased/2026-10-12-pure-row-iface-purity.md`
+- `design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-m1-m2-validation.md`
+- `internal/apiserver/iface_purity_test.go`
+- `internal/iface/purity.go`
+- `internal/iface/purity_test.go`
+- `internal/pipeline/cache_purity_test.go`
+- `internal/pipeline/pure_signature_test.go`
+- `internal/pipeline/purity_census_test.go`
+
+## Files modified
+
+- `.ailang/state/sprints/sprint_M-PURE-ROW-AND-IFACE-PURITY.json`
+- `.stdlib-golden/ai.json`
+- `.stdlib-golden/ai.sha256`
+- `.stdlib-golden/clock.json`
+- `.stdlib-golden/clock.sha256`
+- `.stdlib-golden/cognition.json`
+- `.stdlib-golden/cognition.sha256`
+- `.stdlib-golden/debug.json`
+- `.stdlib-golden/debug.sha256`
+- `.stdlib-golden/dom.json`
+- `.stdlib-golden/dom.sha256`
+- `.stdlib-golden/env.json`
+- `.stdlib-golden/env.sha256`
+- `.stdlib-golden/extension.json`
+- `.stdlib-golden/extension.sha256`
+- `.stdlib-golden/fs.json`
+- `.stdlib-golden/fs.sha256`
+- `.stdlib-golden/game.json`
+- `.stdlib-golden/game.sha256`
+- `.stdlib-golden/gzip.json`
+- `.stdlib-golden/gzip.sha256`
+- `.stdlib-golden/io.json`
+- `.stdlib-golden/io.sha256`
+- `.stdlib-golden/list.json`
+- `.stdlib-golden/list.sha256`
+- `.stdlib-golden/net.json`
+- `.stdlib-golden/net.sha256`
+- `.stdlib-golden/package.json`
+- `.stdlib-golden/package.sha256`
+- `.stdlib-golden/process.json`
+- `.stdlib-golden/process.sha256`
+- `.stdlib-golden/rand.json`
+- `.stdlib-golden/rand.sha256`
+- `.stdlib-golden/secret.json`
+- `.stdlib-golden/secret.sha256`
+- `.stdlib-golden/sem.json`
+- `.stdlib-golden/sem.sha256`
+- `.stdlib-golden/sharedindex.json`
+- `.stdlib-golden/sharedindex.sha256`
+- `.stdlib-golden/sharedmem.json`
+- `.stdlib-golden/sharedmem.sha256`
+- `.stdlib-golden/smoke.json`
+- `.stdlib-golden/smoke.sha256`
+- `.stdlib-golden/stream.json`
+- `.stdlib-golden/stream.sha256`
+- `.stdlib-golden/tar.json`
+- `.stdlib-golden/tar.sha256`
+- `.stdlib-golden/terminal.json`
+- `.stdlib-golden/terminal.sha256`
+- `.stdlib-golden/trace.json`
+- `.stdlib-golden/trace.sha256`
+- `.stdlib-golden/web.json`
+- `.stdlib-golden/web.sha256`
+- `.stdlib-golden/zip.json`
+- `.stdlib-golden/zip.sha256`
+- `design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-sprint-plan.md`
+- `internal/apiserver/mcp_tool_hints_test.go`
+- `internal/apiserver/routes.go`
+- `internal/iface/builder.go`
+- `internal/pipeline/alias_body_closure_runtime_test.go`
+- `internal/pipeline/cache_invalidation_test.go`
+- `internal/pipeline/cache_key.go`
+- `internal/pipeline/validate_effects.go`

@@ -2,7 +2,7 @@
 
 > **HOLD satisfied for this run:** #616 merged via PR #1745 and latent-function-values via PR #1708. Remeasured on current dev `7c43ece3`: 50 std modules, 484 exported functions, 168 labelled outer rows, 17 open outer rows, 271 keyword-pure exports, and 27 combinators (the historical 26 plus `list.mapAccumL`). See [M1–M2 evidence](m-pure-row-and-iface-purity-m1-m2-validation.md).
 
-**Status:** M1–M2 authorized for execution; M3–M4 reserved for a later run.
+**Status:** M1–M2 complete (local commits only); M3–M4 unstarted for the next run.
 **Target:** next minor (v0.53.0 is already released; ship in whichever minor is open when the implementation merges).
 **Design:** [Approved design](m-pure-row-and-iface-purity.md)
 **Source handoff:** task-5895e449; planning task task-20636394.
@@ -55,16 +55,16 @@ Every milestone records `none`: reuse the existing compiler, iface, SMT, apiserv
 
 **Estimate:** 110 implementation + 190 tests. **Dependencies:** M1
 
-**Files and examples:** new `internal/iface/purity.go` (the purity derivation) and its tests, a minimal call-site edit in `internal/iface/builder.go`, builder tests, `internal/apiserver/routes.go`, MCP integration tests, `internal/pipeline/cache_key.go` and cache tests. Regression examples: `std/ai/streaming.ail`, `std/list.ail` (`map`, `mapE`) and `std/option.ail` (`flatMap`); use generated temporary modules for open-tail controls.
+**Files and examples:** new `internal/iface/purity.go` (the purity derivation) and its tests, a minimal call-site edit in `internal/iface/builder.go`, builder tests, `internal/apiserver/routes.go`, MCP integration tests, frozen `.stdlib-golden` JSON/hash snapshots, `internal/pipeline/cache_key.go` and cache tests. Regression examples: `std/ai/streaming.ail`, `std/list.ail` (`map`, `mapE`) and `std/option.ail` (`flatMap`); use generated temporary modules for open-tail controls.
 
 **Acceptance criteria:**
 
-- [ ] Closed empty outer rows report true; labelled and declared-open outer rows report false without reading IsPure.
-- [ ] An undeclared outer tail shared with a callback row is latent and reports true; an unrelated tail or any outer label reports false.
-- [ ] All six std/ai/streaming exports and std/list.mapE report false; std/option.flatMap reports true; std keyword-pure invariant and all 27 measured combinator pins pass (list 12, option 3, result 3, string 3, xml 6).
-- [ ] serve-api uses iface purity without AST overwrite; MCP tags and read-only hints match iface, including open-row cases.
-- [ ] Cache version advances once from the current base version; cache round-trip rejects stale always-true metadata and preserves derived values.
-- [ ] Non-function export type-walk policy is documented and tested, including values containing function types.
+- [x] Closed empty outer rows report true; labelled and declared-open outer rows report false without reading IsPure.
+- [x] An undeclared outer tail shared with a callback row is latent and reports true; an unrelated tail or any outer label reports false.
+- [x] All six std/ai/streaming exports and std/list.mapE report false; std/option.flatMap reports true; std keyword-pure invariant and all 27 measured combinator pins pass (list 12, option 3, result 3, string 3, xml 6).
+- [x] serve-api uses iface purity without AST overwrite; MCP tags and read-only hints match iface, including open-row cases.
+- [x] Cache version advances once from the current base version; cache round-trip rejects stale always-true metadata and preserves derived values.
+- [x] Non-function export type-walk policy is documented and tested, including values containing function types.
 
 **File size:** `internal/iface/builder.go` is 785 lines (CI limit 800) and M2 adds ~110 implementation LOC, so the derivation lives in the companion `internal/iface/purity.go`; `builder.go` only replaces the `determinePurity` stub's call. Watch list for M3: `internal/smt/encodable.go` (729) and `internal/smt/callee_resolver.go` (577); put `smtAdmissible`/`rowAdmissible` in a companion file if either would cross the limit.
 
