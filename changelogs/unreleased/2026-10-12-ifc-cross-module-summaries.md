@@ -5,3 +5,4 @@
 - Imported call enforcement and CLI/REPL integration remain scheduled for M3; this partial sprint does not yet enforce cross-module sinks.
 
 - Advance the compile cache from dev v6 to v7. Older entries recompile once from source; authenticated legacy schemas and incomplete/malformed v2 summaries are rejected. Library summary changes invalidate cached dependents.
+- Package identity is unchanged for unlabelled exports: the v2 interface hash ignores the iface JSON schema version and hashes an export's IFC summary only when it carries labels. A package without labels keeps its `ifacev2:` hash across this release, so publishers and the registry validator need not upgrade in lockstep; a label change still changes the identity.

@@ -61,6 +61,28 @@ func EmptyIFCSummary() *ImportedIFCSig {
 	return &ImportedIFCSig{Params: []IFCParam{}, Return: EncodeIFCLabel(LabelBottom()), Intrinsic: EncodeIFCLabel(LabelBottom()), Declassify: []string{}}
 }
 
+// IsUnlabelled reports whether the summary carries no security information: every
+// parameter is bottom with no forbidden sink, there is no declared return label, the
+// intrinsic body label is bottom, and there is no Declassify authority. Parameter
+// names are not security information. A nil summary is missing metadata, not
+// unlabelled, so it reports false.
+func (s *ImportedIFCSig) IsUnlabelled() bool {
+	if s == nil || s.HasReturnLabel || len(s.Declassify) > 0 {
+		return false
+	}
+	if !s.Return.isBottom() || !s.Intrinsic.isBottom() {
+		return false
+	}
+	for _, p := range s.Params {
+		if p.Forbidden != "" || !p.Label.isBottom() {
+			return false
+		}
+	}
+	return true
+}
+
+func (l IFCLabel) isBottom() bool { return len(l.Constants) == 0 && len(l.Variables) == 0 }
+
 // Validate rejects absent and noncanonical metadata at persistence boundaries.
 func (s *ImportedIFCSig) Validate() error {
 	if s == nil || s.Params == nil || s.Declassify == nil {
