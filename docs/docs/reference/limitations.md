@@ -19,6 +19,29 @@ every remaining limitation is a reproducible artifact, not lore.
 
 ---
 
+## IFC sink refinements in unsupported positions
+
+**Verified at:** 2026-10-12, M-MCP-FILES-FRICTION M3 source build (Refs #1618).
+
+Plain record-field writes and first-order function domains are enforced within
+one module. Function-valued codomains and sinks inside list/array/tuple elements,
+ADT fields, generic or recursive positions, nested higher-order domains, or top-level binding
+annotations receive an explicit `not enforceable` diagnostic. A refined function
+cannot be forwarded through a position that erases its domain restriction.
+
+Repro (the type may be unused):
+
+```ailang
+module unsupported_sink
+type Maker = { mk: () -> string{not secret} }
+```
+
+`ailang check` reports `{not secret} in function-typed value's codomain is not
+ enforceable here`. Use a plain record field or first-order annotated function
+parameter; refine a producer's declared source label rather than an opaque
+function's output. Source labels inside containers remain supported. Cross-module
+static enforcement is a separate deferred limitation; see the [IFC guide](../guides/ifc-labels.mdx).
+
 ## Named-test effects (by design)
 
 Named-test bodies and `forall` property predicates are checked pure. Module helpers

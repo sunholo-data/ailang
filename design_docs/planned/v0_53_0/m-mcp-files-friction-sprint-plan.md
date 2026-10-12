@@ -59,10 +59,10 @@ Implement against the corresponding design slice; first bank its failing reprodu
 
 Implement against the corresponding design slice; first bank its failing reproducer, then add controls covering the surrounding mechanism.
 
-- [ ] Secret plain-field writes and function-field domain calls are rejected for matching not-label refinements; safe values pass.
-- [ ] Unenforceable function-field codomain refinements receive an explicit diagnostic rather than being ignored.
-- [ ] Nested records, updates, aliases, ADT/list/tuple positions and higher-order paths are audited; enforce supported paths or explicitly reject unsupported annotations.
-- [ ] Existing source-label fixtures p1-p13/r1-r4 and inbox_injection_v2 retain their expected results.
+- [x] Secret plain-field writes and function-field domain calls are rejected for matching not-label refinements; safe values pass.
+- [x] Unenforceable function-field codomain refinements receive an explicit diagnostic rather than being ignored.
+- [x] Nested records, updates, aliases, ADT/list/tuple positions and higher-order paths are audited; enforce supported paths or explicitly reject unsupported annotations.
+- [x] Existing source-label fixtures p1-p13/r1-r4 and inbox_injection_v2 retain their expected results.
 
 ### M4: Normalize interpolation in contract clauses (~160 LOC)
 
@@ -113,3 +113,20 @@ Measure affected-package coverage before/after and require no regression with me
 Machine state: `.ailang/state/sprints/sprint_M-MCP-FILES-FRICTION.json`. All five milestones start unpassed. Coordinator plan merge provides sprint approval and triggers sprint-executor; do not start implementation during planning or send a duplicate manual execution request before that approval. No open design question blocks plan production or execution: D2/D3/D4 are RULED (2026-10-08, Mark, as recommended; PR #1697), so the executor does not stop on them.
 
 Executor rules: re-run `.claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-MCP-FILES-FRICTION` before starting and after every sprint JSON update. The executor cannot push or merge; it commits locally (messages carry `Refs #1618`) and the coordinator raises the PR.
+
+## First-half checkpoint (2026-10-12)
+
+M1–M3 are complete; M4/M5 remain intentionally unstarted for a separate run.
+The prompt unit item was verified on the rebuilt binary and not re-edited.
+Focused tests pass for testing, lexer, formatter, types and pipeline; their
+coverage has no regression against a9994e46. Independent scoped review found
+one missing multiline pattern path, now corrected with a regression test.
+`inbox_injection_v2` retains its expected 3 verified / 2 violations result.
+Cache version v8 avoids the v7 reservation in concurrent PRs #1771/#1782.
+
+`make test-core` was run without the full `make test`: all core packages pass
+except the pre-existing `effects.TestRuntimeNestedStopUsesRemainingDeadline`.
+The isolated retry reproduces it; the killed child remains a zombie owned by
+PID 1 in this executor. Lint, file sizes, boundaries, prompt freeze and changelog
+checks pass. Runnable-example verification is recorded in the sprint JSON.
+Refs #1618. The partial sprint remains paused at M3; no push or PR creation.

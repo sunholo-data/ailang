@@ -1,0 +1,16 @@
+module examples/expected_fail/mcp_friction_field_sinks
+
+-- Refs #1618: check must reject both leak functions with sink_refinement.
+-- safeWrite and safeCall are accepted independently (covered by IFC tests).
+type Box = { payload: string{not secret} }
+type Handler = { run: (string{not secret}) -> string }
+
+pure func source() -> string<secret> = "classified"
+
+export pure func safeWrite() -> Box = { payload: "public" }
+
+export pure func safeCall(h: Handler) -> string = h.run("public")
+
+export pure func leakWrite() -> Box = { payload: source() }
+
+export pure func leakCall(h: Handler) -> string = h.run(source())

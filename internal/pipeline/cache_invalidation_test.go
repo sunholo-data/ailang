@@ -336,23 +336,25 @@ func newWarmHitInstrumentedDeps(depCoreReads, warmEncodes *int) cacheDependencie
 }
 
 func TestCacheArtifacts_Migration(t *testing.T) {
-	if cacheKeyVersion != "v6" {
-		t.Fatalf("cache key version = %q, want v6 migration boundary", cacheKeyVersion)
+	if cacheKeyVersion != "v8" {
+		t.Fatalf("cache key version = %q, want v8 migration boundary", cacheKeyVersion)
 	}
 
-	t.Run("v5_manifest_forces_cold_v6_publication", func(t *testing.T) {
-		previousManifestForcesColdPublication(t)
-	})
+	for _, previous := range []string{"v5", "v6", "v7"} {
+		t.Run(previous+"_manifest_forces_cold_v8_publication", func(t *testing.T) {
+			previousManifestForcesColdPublication(t, previous)
+		})
+	}
 	t.Run("current_manifest_with_legacy_unstamped_blobs_misses", func(t *testing.T) {
 		legacyUnstampedBlobsMiss(t)
 	})
 }
 
-// previousManifestForcesColdPublication seeds a v6 cache, rewrites the
-// manifest to v5 (whose interface types were not closed), and asserts the next
-// run recompiles and re-publishes as a fresh v6 manifest and stamp (the
+// previousManifestForcesColdPublication seeds a v8 cache, rewrites the
+// manifest to a previous version (whose IFC acceptance may be weaker), and asserts the next
+// run recompiles and re-publishes as a fresh v8 manifest and stamp (the
 // migration boundary).
-func previousManifestForcesColdPublication(t *testing.T) {
+func previousManifestForcesColdPublication(t *testing.T, previous string) {
 	root := t.TempDir()
 	t.Chdir(root)
 	t.Setenv("AILANG_CACHE_DIR", "")
@@ -364,20 +366,20 @@ func previousManifestForcesColdPublication(t *testing.T) {
 
 	manifestPath := filepath.Join(root, ".ailang", "cache", "compile", "manifest.json")
 	manifest := readCacheManifest(t, manifestPath)
-	manifest.Version = "v5"
+	manifest.Version = previous
 	writeCacheManifest(t, manifestPath, manifest)
 
 	var warnings bytes.Buffer
 	result, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "answer.ail"}, cacheDependencies{newStore: NewCacheStore, stderr: &warnings})
 	if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
-		t.Fatalf("v5 migration did not compile current source: iface=%v err=%v", result.Interface, err)
+		t.Fatalf("%s migration did not compile current source: iface=%v err=%v", previous, result.Interface, err)
 	}
 	migrated := readCacheManifest(t, manifestPath)
-	if migrated.Version != "v6" {
-		t.Fatalf("migrated manifest version = %q, want v6", migrated.Version)
+	if migrated.Version != "v8" {
+		t.Fatalf("migrated manifest version = %q, want v8", migrated.Version)
 	}
 	stamp := readArtifactStamp(t, filepath.Join(root, ".ailang", "cache", "compile", "modules", "answer", artifactStampName))
-	if stamp.Version != "v6" || stamp.ModuleID != "answer" {
+	if stamp.Version != "v8" || stamp.ModuleID != "answer" {
 		t.Fatalf("migrated stamp = %#v", stamp)
 	}
 }

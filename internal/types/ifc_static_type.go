@@ -165,32 +165,8 @@ func declBodyTypes(td *ast.TypeDecl) []ast.Type {
 // whose instantiation the surface AST does not carry, so callers fall back to
 // the whole value's label (sound, imprecise).
 func (ts *ifcTypes) recordTypeOf(t ast.Type) *ast.RecordType {
-	for depth := 0; depth < 16 && t != nil; depth++ {
-		switch tt := t.(type) {
-		case *ast.LabelledType:
-			t = tt.Base
-		case *ast.RecordType:
-			return tt
-		case *ast.SimpleType:
-			td, ok := ts.decls[tt.Name]
-			if !ok || len(td.TypeParams) > 0 {
-				return nil
-			}
-			switch def := td.Definition.(type) {
-			case *ast.RecordType:
-				return def
-			case *ast.TypeAlias:
-				t = def.Target
-			default:
-				return nil
-			}
-		case *ast.TypeVar, *ast.FuncType, *ast.ListType, *ast.ArrayType, *ast.TupleType, *ast.TypeApp:
-			return nil // not a record
-		default:
-			panic(fmt.Sprintf("ifc recordTypeOf: unhandled ast.Type %T", t))
-		}
-	}
-	return nil
+	rt, _ := ts.sinkShape(t).(*ast.RecordType)
+	return rt
 }
 
 // fieldType is the declared type of field `name` in record type t, or nil.
@@ -216,7 +192,13 @@ func (c *ifcChecker) staticType(expr ast.Expr, env ifcEnv) ast.Type {
 		if v, ok := env[e.Name]; ok {
 			return v.typ
 		}
+		if sig := c.sigs[e.Name]; sig != nil {
+			return functionAnnotation(sig.decl.Params, sig.decl.ReturnType, sig.decl.Pos)
+		}
 	case *ast.FuncCall:
+		if fn := c.types.sinkFunction(c.staticType(e.Func, env)); fn != nil {
+			return fn.Return
+		}
 		name := calleeName(e.Func)
 		if _, shadowed := env[name]; shadowed {
 			return nil
@@ -227,6 +209,60 @@ func (c *ifcChecker) staticType(expr ast.Expr, env ifcEnv) ast.Type {
 		if td, ok := c.types.ctors[name]; ok {
 			return &ast.SimpleType{Name: td.Name, Pos: e.Pos}
 		}
+	case *ast.FuncLit:
+		return functionAnnotation(e.Params, e.ReturnType, e.Pos)
+	case *ast.Lambda:
+		return functionAnnotation(e.Params, nil, e.Pos)
+	case *ast.Record:
+		fields := make([]*ast.RecordField, len(e.Fields))
+		for i, f := range e.Fields {
+			typ := c.staticType(f.Value, env)
+			if typ == nil {
+				typ = &ast.TypeVar{Name: "_"}
+			}
+			fields[i] = &ast.RecordField{Name: f.Name, Type: typ}
+		}
+		return &ast.RecordType{Fields: fields, Pos: e.Pos}
+	case *ast.If:
+		left, right := c.staticType(e.Then, env), c.staticType(e.Else, env)
+		if sameType(left, right) {
+			return left
+		}
+	case *ast.Block:
+		cur := env
+		for i, sub := range e.Exprs {
+			if i == len(e.Exprs)-1 {
+				return c.staticType(sub, cur)
+			}
+			if let, ok := sub.(*ast.Let); ok && let.Body == nil {
+				typ := let.Type
+				if typ == nil {
+					typ = c.staticType(let.Value, cur)
+				}
+				cur = extendEnv(cur, let.Name, ifcVar{typ: typ})
+			}
+		}
+	case *ast.Let:
+		if e.Body != nil {
+			typ := e.Type
+			if typ == nil {
+				typ = c.staticType(e.Value, env)
+			}
+			return c.staticType(e.Body, extendEnv(env, e.Name, ifcVar{typ: typ}))
+		}
+	case *ast.Match:
+		var common ast.Type
+		for i, cs := range e.Cases {
+			typ := c.staticType(cs.Body, c.bindPatternTypes(cs.Pattern, c.staticType(e.Expr, env), env))
+			if i == 0 {
+				common = typ
+			} else if !sameType(common, typ) {
+				return nil
+			}
+		}
+		return common
+	case *ast.RecordUpdate:
+		return c.staticType(e.Base, env)
 	case *ast.RecordAccess:
 		return c.types.fieldType(c.staticType(e.Record, env), e.Field)
 	}

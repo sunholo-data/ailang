@@ -5,6 +5,31 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/mcp_friction_braces.ail",
+      "status": "working",
+      "tags": [
+        "testing",
+        "regression",
+        "strings"
+      ],
+      "description": "Refs #1618: unbalanced literal braces preserve both named tests; expected 2/2 passed.",
+      "modules": []
+    },
+    {
+      "path": "expected_fail/mcp_friction_field_sinks.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "records",
+        "expected-failure"
+      ],
+      "description": "Refs #1618: intentional sink_refinement errors for secret record-field writes and function-field calls.",
+      "expected": {
+        "exit_code": 1
+      },
+      "modules": []
+    },
+    {
       "path": "runnable/ai_offline_cli.ail",
       "status": "working",
       "tags": [
@@ -3437,11 +3462,11 @@
     }
   ],
   "statistics": {
-    "total": 234,
-    "working": 226,
+    "total": 236,
+    "working": 228,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9658119658119658,
+    "coverage": 0.9661016949152542,
     "experimental": 0
   },
   "milestones": {

@@ -293,3 +293,17 @@ Net +4, no hard violations.
 - `design_docs/planned/m-ifc-cross-module-labels.md` — the module-edge hole (out of scope)
 - `design_docs/planned/v0_52_0/m-mcp-oauth-package.md` — T7, V13–V16 (consumer of this fix)
 - `docs/docs/guides/ifc-labels.mdx`
+
+## Sink-refinement follow-up (M-MCP-FILES-FRICTION M3)
+
+Refs #1618 extends this source-label work with a separate sink traversal. The
+source-label rule for function types remains `deep(return)`; sink validation
+also traverses domains. Plain record writes and function-field applications
+are enforced across local aliases, nested records, updates, bindings and
+returns. Record destructuring retains known field types. Function-domain
+restrictions must survive transfers; erasure is diagnosed explicitly.
+
+Function-valued codomains, list/array/tuple elements, ADT fields, generic and
+nested higher-order positions, and top-level binding annotations are rejected
+as not enforceable. Source labels in those positions retain their existing
+behavior. The original p1–p13/r1–r4 fixtures remain regression controls.

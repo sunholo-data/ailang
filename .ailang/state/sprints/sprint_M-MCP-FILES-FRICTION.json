@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MCP-FILES-FRICTION",
-  "status": "in_progress",
+  "status": "paused",
   "created": "2026-10-08T19:11:57.545287+00:00",
   "design_doc": "design_docs/planned/v0_53_0/m-mcp-files-friction.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-mcp-files-friction-sprint-plan.md",
@@ -58,7 +58,7 @@
       "passes": true,
       "started": "2026-10-12T20:10:00+00:00",
       "completed": "2026-10-12T20:22:49.343363+00:00",
-      "notes": "Focused testing/lexer tests pass; coverage testing 84.5%, lexer 75.1%. Rebuilt CLI check and named tests: 2/2 passed. Prompt v0.16.7 loaded; rebuilt prompt confirms milliseconds. File sizes and boundaries pass. Baseline test-core fails unrelated effects TestRuntimeNestedStopUsesRemainingDeadline; isolated retry reproduces. Lint running after cold tool installation; final gate will be recorded before handoff. Lint passes. Runnable fixture simplified to boolean assertions after formatter corpus detected statement-let rendering limitation; fixture still passes 2/2."
+      "notes": "Focused testing/lexer tests pass; coverage testing 84.5%, lexer 75.1%. Rebuilt CLI check and named tests: 2/2 passed. Prompt v0.16.7 loaded; rebuilt prompt confirms milliseconds. File sizes and boundaries pass. Baseline test-core fails unrelated effects TestRuntimeNestedStopUsesRemainingDeadline; isolated retry reproduces. Lint running after cold tool installation; final gate will be recorded before handoff. Lint passes. Runnable fixture simplified to boolean assertions after formatter corpus detected statement-let rendering limitation; fixture still passes 2/2. Direct lexer scanner controls added; coverage baseline 76.1% -> 76.8%; testing remains 84.5%. Example has pure main for the generic runner."
     },
     {
       "id": "M2",
@@ -74,7 +74,7 @@
       "passes": true,
       "started": "2026-10-12T20:18:00+00:00",
       "completed": "2026-10-12T20:31:44.057991+00:00",
-      "notes": "Raw multiline source preserved only at verified anchors; plain payload checked by re-lexing, interpolation reparsed and compared with reversible AST-only rendering. Focused positive/negative/idempotence tests and entire format package pass, including corpus soundness and measurement gates. CLI runtime HTML output identical before/after fmt; fmt --check passes, multiline corpus fixture typechecks. Formatter rule 6 and user docs amended. Lint, file sizes, boundaries pass. Baseline test-core process-stop failure remains recorded; final core gate still required."
+      "notes": "Raw multiline source preserved only at verified anchors; plain payload checked by re-lexing, interpolation reparsed and compared with reversible AST-only rendering. Focused positive/negative/idempotence tests and entire format package pass, including corpus soundness and measurement gates. CLI runtime HTML output identical before/after fmt; fmt --check passes, multiline corpus fixture typechecks. Formatter rule 6 and user docs amended. Lint, file sizes, boundaries pass. Baseline test-core process-stop failure remains recorded; final core gate still required. Independent review identified match-pattern emission as a missing preservation path; corrected with a raw-pattern payload/idempotence regression and column accounting. Coverage baseline 87.6% -> 87.7%."
     },
     {
       "id": "M3",
@@ -87,10 +87,10 @@
         "Nested records, updates, aliases, ADT/list/tuple positions and higher-order paths are audited; enforce supported paths or explicitly reject unsupported annotations.",
         "Existing source-label fixtures p1-p13/r1-r4 and inbox_injection_v2 retain their expected results."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-12T20:24:00+00:00",
+      "completed": "2026-10-12T20:47:53.639056+00:00",
+      "notes": "Supported plain field writes and first-order function domains enforced through nested records, updates, local aliases, parameters, returns, bindings, inferred records, conditional bindings and record destructuring. Unsupported codomains, containers/ADTs, generic/recursive positions, nested higher-order domains, module bindings and callable-domain erasure fail explicitly. Source-label p1-p13/r1-r4 and all existing IFC tests pass. Focused types and pipeline packages pass, including field-sink integration and v5/v6/v7 -> v8 cache migration. Cache dev v6 and PR heads #1771/#1782 v7 checked; v8 selected to prevent cached acceptance bypass. Types coverage 53.8% -> 55.6%, pipeline 76.2% -> 76.3%. inbox_injection_v2 check passes; Z3 retains 3 verified, 2 violations, 1 without contracts. Negative field fixture is under examples/expected_fail and its Go regression asserts exactly two sink errors; safe paths remain clean. Independent read-only M1-M3 review found no remaining blocker after M2 pattern correction. Final test-core runs all core packages; only pre-existing effects TestRuntimeNestedStopUsesRemainingDeadline fails because PID 1 retains a killed child as a zombie (baseline and isolated retry reproduce). No full make test run. Lint, sizes and boundaries pass; final example gate pending at this checkpoint."
     },
     {
       "id": "M4",
@@ -134,5 +134,41 @@
     "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-MCP-FILES-FRICTION before starting and after every JSON update.",
     "Executor cannot push or merge; commit locally with Refs #1618."
   ],
-  "last_checkpoint": "M2 complete; M3 in progress; stop before M4"
+  "last_checkpoint": "M1-M3 complete and locally committed; M4/M5 intentionally unstarted per user scope.",
+  "validation": {
+    "scope": [
+      "M1",
+      "M2",
+      "M3"
+    ],
+    "excluded": [
+      "M4",
+      "M5"
+    ],
+    "baseline_commit": "a9994e467ef4f773fb808d9270b61128e9f7e36d",
+    "coverage_before": {
+      "lexer": 76.1,
+      "testing": 84.5,
+      "format": 87.6,
+      "types": 53.8,
+      "pipeline": 76.2
+    },
+    "coverage_after": {
+      "lexer": 76.8,
+      "testing": 84.5,
+      "format": 87.7,
+      "types": 55.6,
+      "pipeline": 76.3
+    },
+    "focused_tests": "passed",
+    "test_core": "fails only pre-existing effects TestRuntimeNestedStopUsesRemainingDeadline (PID-1 zombie); all other core packages pass",
+    "lint": "passed",
+    "file_sizes": "passed",
+    "boundaries": "passed",
+    "prompt_freeze": "passed",
+    "changelog": "passed",
+    "independent_review": "M1-M3 reviewed; M2 pattern gap corrected; no remaining scoped blocker",
+    "verify_examples": "pending",
+    "push": "not performed"
+  }
 }

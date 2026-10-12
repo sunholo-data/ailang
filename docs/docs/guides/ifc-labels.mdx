@@ -419,6 +419,31 @@ where `v`'s type puts `<x>` on `user`, type-checks (labels do not take part in
 unification) but `s.user` keeps `<x>`. Only a `! {Declassify}` function lowers
 a label.
 
+## Record-field sink refinements
+
+`{not ℓ}` on a plain record field checks values written to that field, including
+nested records, local aliases, record updates, return values, and call arguments.
+A function-valued field's domain is checked when the function is called:
+
+```ailang
+type Box = { payload: string{not secret} }
+type Handler = { run: (string{not secret}) -> string }
+```
+
+A `<secret>` value cannot enter `Box.payload` or an argument to `h.run`. Safe
+values pass. Extracting `h.run` into a local binding or record pattern retains
+its domain. Forwarding a function to a parameter or annotation that would erase
+its domain refinement is rejected explicitly. Opaque record transfers use the
+whole value's label conservatively; literal writes are checked field by field.
+
+The checker rejects refinements it cannot enforce: function-valued codomains,
+list/array/tuple elements, ADT constructor fields, generic or recursive positions, nested
+higher-order domains, and module-level binding annotations. Moving a refined
+function through an untyped callback, list, tuple, or ADT is also rejected.
+These errors say **not enforceable**; they never silently ignore the annotation.
+Use first-order annotated parameters, plain record fields, and producer functions
+with declared source labels instead. Cross-module enforcement remains deferred.
+
 ## Limitations (v0.26.0)
 
 - **Sink enforcement is intraprocedural.** A labelled value reaching a
@@ -433,8 +458,10 @@ a label.
   declared in the same module. A type imported from another module carries its
   labels to Z3 contracts through the iface, not to the static sink check; that
   hole is tracked in `design_docs/planned/m-ifc-cross-module-labels.md`.
-- **Refinements are sink-side only.** `T{not LABEL}` lives on parameter
-  positions; you cannot annotate a return type with a refinement.
+- **Refinements constrain receiving positions.** Plain return values and record
+  fields can be checked, as can first-order function domains. A refinement on a
+  function-valued field's codomain is rejected: the checker cannot establish that
+  obligation for an opaque producer function.
 - **Cross-module function calls in Z3.** Imported function calls cannot
   yet be encoded into the SMT context (the body lives in another Core
   program). Use cross-module *types* for cross-module label flow today;

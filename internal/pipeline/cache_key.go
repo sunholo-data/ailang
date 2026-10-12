@@ -31,7 +31,11 @@ import (
 // its Eq instances again, so v4 entries must miss.
 // v5 -> v6 (M-ALIAS-BODY-CLOSURE): interface aliases, export schemes and
 // constructor types are closed in their defining module. Open v5 bodies must miss.
-const cacheKeyVersion = "v6"
+// v6/v7 -> v8 (M-MCP-FILES-FRICTION M3): field sinks and callable domain
+// refinements are enforced by the surface IFC pass. Previously accepted blobs
+// must not bypass that pass through a verified cache hit. v7 is reserved by
+// concurrent PRs #1771 and #1782; dev and both heads checked 2026-10-12.
+const cacheKeyVersion = "v8"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

@@ -73,6 +73,30 @@ func CheckModuleIFC(file *ast.File) []*TypeCheckError {
 			c.sigs[fn.Name] = buildIFCSig(fn)
 		}
 	}
+	// Audit declarations even if they are never referenced.
+	for _, decl := range file.Decls {
+		if td, ok := decl.(*ast.TypeDecl); ok {
+			c.validateSinkAnnotation(&ast.SimpleType{Name: td.Name, Pos: td.Pos})
+		}
+	}
+	for _, fn := range file.Funcs {
+		if fn != nil {
+			for _, param := range fn.Params {
+				c.validateSinkAnnotation(param.Type)
+			}
+			c.validateSinkAnnotation(fn.ReturnType)
+		}
+	}
+	for _, node := range file.Statements {
+		switch binding := node.(type) {
+		case *ast.Let:
+			c.validateSinkType(binding.Type, "top-level binding", false, map[string]bool{})
+			c.validateSinkType(c.staticType(binding.Value, ifcEnv{}), "top-level binding", false, map[string]bool{})
+		case *ast.LetRec:
+			c.validateSinkType(binding.Type, "top-level binding", false, map[string]bool{})
+			c.validateSinkType(c.staticType(binding.Value, ifcEnv{}), "top-level binding", false, map[string]bool{})
+		}
+	}
 	// Walk function bodies in source order for deterministic diagnostics.
 	for _, fn := range file.Funcs {
 		if fn != nil && fn.Body != nil {
@@ -158,6 +182,7 @@ func (c *ifcChecker) checkFunc(sig *ifcSig) {
 		env[p.name] = ifcVar{label: p.label, typ: p.typ}
 	}
 	bodyLabel := c.labelOf(sig.decl.Body, env)
+	c.checkValueSinks(sig.decl.Body, sig.decl.ReturnType, env)
 
 	// Check B: the return label and declared authority jointly cover the body.
 	// Declassifiers with unlabelled returns lower to bottom too; check them.
@@ -203,6 +228,10 @@ func (c *ifcChecker) flowOf(expr ast.Expr, env ifcEnv) Label {
 	case *ast.Block:
 		return c.walkBlock(e, env, c.labelOf)
 	case *ast.If:
+		if c.staticType(e, env) == nil {
+			c.checkCallableTransfer(e.Then.Position(), c.staticType(e.Then, env), nil)
+			c.checkCallableTransfer(e.Else.Position(), c.staticType(e.Else, env), nil)
+		}
 		c.labelOf(e.Condition, env)
 		return LabelJoin(c.labelOf(e.Then, env), c.labelOf(e.Else, env))
 	case *ast.Match:
@@ -214,6 +243,10 @@ func (c *ifcChecker) flowOf(expr ast.Expr, env ifcEnv) Label {
 			armEnv := env
 			for _, name := range patternVars(cs.Pattern) {
 				armEnv = extendEnv(armEnv, name, ifcVar{label: scrut})
+			}
+			armEnv = c.bindPatternTypes(cs.Pattern, c.staticType(e.Expr, env), armEnv)
+			if c.staticType(e, env) == nil {
+				c.checkCallableTransfer(cs.Body.Position(), c.staticType(cs.Body, armEnv), nil)
 			}
 			if cs.Guard != nil {
 				c.labelOf(cs.Guard, armEnv)
@@ -228,11 +261,7 @@ func (c *ifcChecker) flowOf(expr ast.Expr, env ifcEnv) Label {
 		}
 		return result
 	case *ast.RecordUpdate:
-		result := c.labelOf(e.Base, env)
-		for _, f := range e.Fields {
-			result = LabelJoin(result, c.labelOf(f.Value, env))
-		}
-		return result
+		return c.handOff(e, c.staticType(e.Base, env), env)
 	case *ast.RecordAccess:
 		// Field-precise when the field's declared type is known: the field gets
 		// the record's FLOW label here, and labelOf adds deepLabel(field type)
@@ -263,9 +292,19 @@ func (c *ifcChecker) flowOf(expr ast.Expr, env ifcEnv) Label {
 		// than strictly necessary. For a security control that is the correct
 		// direction to err — over-approximating rejects safe programs, while
 		// under-approximating admits leaks silently.
+		for _, param := range e.Params {
+			c.validateSinkAnnotation(param.Type)
+		}
 		return c.labelOf(e.Body, typedParams(env, e.Params))
 	case *ast.FuncLit:
-		return c.labelOf(e.Body, typedParams(env, e.Params))
+		for _, param := range e.Params {
+			c.validateSinkAnnotation(param.Type)
+		}
+		c.validateSinkAnnotation(e.ReturnType)
+		bodyEnv := typedParams(env, e.Params)
+		label := c.labelOf(e.Body, bodyEnv)
+		c.checkValueSinks(e.Body, e.ReturnType, bodyEnv)
+		return label
 	default:
 		return LabelBottom()
 	}
@@ -324,6 +363,7 @@ func (c *ifcChecker) bindValue(value ast.Expr, annot ast.Type, env ifcEnv) ifcVa
 	if t == nil {
 		t = c.staticType(value, env)
 	}
+	c.validateSinkAnnotation(t)
 	return ifcVar{label: c.handOff(value, t, env), typ: t}
 }
 
@@ -337,17 +377,35 @@ func (c *ifcChecker) bindValue(value ast.Expr, annot ast.Type, env ifcEnv) ifcVa
 // annotation can never lower a label.
 func (c *ifcChecker) handOff(e ast.Expr, t ast.Type, env ifcEnv) Label {
 	if t == nil {
+		if update, ok := e.(*ast.RecordUpdate); ok {
+			if known := c.staticType(update.Base, env); known != nil {
+				return c.handOff(e, known, env)
+			}
+			result := c.labelOf(update.Base, env)
+			for _, f := range update.Fields {
+				result = LabelJoin(result, c.labelOf(f.Value, env))
+			}
+			return result
+		}
 		return c.labelOf(e, env)
 	}
 	switch x := e.(type) {
 	case *ast.Record:
 		if c.types.recordTypeOf(t) != nil {
+			c.checkStructuredSinkRoot(e, t, env)
 			result := LabelBottom()
 			for _, f := range x.Fields {
 				result = LabelJoin(result, c.handOff(f.Value, c.types.fieldType(t, f.Name), env))
 			}
 			return result
 		}
+	case *ast.RecordUpdate:
+		c.checkStructuredSinkRoot(e, t, env)
+		result := c.labelOf(x.Base, env)
+		for _, f := range x.Fields {
+			result = LabelJoin(result, c.handOff(f.Value, c.types.fieldType(t, f.Name), env))
+		}
+		return result
 	case *ast.Block:
 		return c.walkBlock(x, env, func(sub ast.Expr, cur ifcEnv) Label { return c.handOff(sub, t, cur) })
 	case *ast.Let:
@@ -358,15 +416,21 @@ func (c *ifcChecker) handOff(e ast.Expr, t ast.Type, env ifcEnv) Label {
 		c.labelOf(x.Condition, env)
 		return LabelJoin(c.handOff(x.Then, t, env), c.handOff(x.Else, t, env))
 	}
-	if sameType(c.staticType(e, env), t) {
-		return c.flowOf(e, env)
+	st := c.staticType(e, env)
+	c.checkCallableTransfer(e.Position(), st, t)
+	flow := c.flowOf(e, env)
+	label := LabelJoin(flow, c.types.deepLabel(st))
+	c.checkSinkTransfer(e.Position(), t, label, map[string]bool{})
+	if sameType(st, t) {
+		return flow
 	}
-	return c.labelOf(e, env)
+	return label
 }
 
 func (c *ifcChecker) joinElems(elems []ast.Expr, env ifcEnv) Label {
 	result := LabelBottom()
 	for _, el := range elems {
+		c.checkCallableTransfer(el.Position(), c.staticType(el, env), nil)
 		result = LabelJoin(result, c.labelOf(el, env))
 	}
 	return result
@@ -390,7 +454,19 @@ func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env ifcEnv) Label {
 	argLabels := make([]Label, len(call.Args))
 	passed := make([]Label, len(call.Args))
 	for i, a := range call.Args {
+		var target ast.Type
+		if isLocal && i < len(sig.params) {
+			target = sig.params[i].typ
+		} else if fn := c.types.sinkFunction(c.staticType(call.Func, env)); fn != nil && i < len(fn.Params) {
+			target = fn.Params[i]
+		}
 		flow := c.flowOf(a, env)
+		if isLocal && i < len(sig.params) && sig.params[i].hasNot {
+			if lt, ok := target.(*ast.LabelledType); ok {
+				target = lt.Base
+			}
+		}
+		c.checkValueSinks(a, target, env)
 		st := c.staticType(a, env)
 		argLabels[i] = LabelJoin(flow, c.types.deepLabel(st))
 		passed[i] = argLabels[i]

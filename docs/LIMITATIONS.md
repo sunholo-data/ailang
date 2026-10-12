@@ -22,6 +22,7 @@ workarounds. Verified open at v0.33.1 (2026-08-17):
 
 | Limitation | Kind | Verified-at repro |
 |---|---|---|
+| **IFC sink refinements in unsupported positions** | Explicitly rejected | Verified 2026-10-12: `type Maker = {mk: () -> string{not secret}}` reports `not enforceable`; lists/tuples/ADTs/generics and erased callback domains also fail loudly. See the canonical page. |
 | **Concrete function-effect annotation upper bounds** | Deferred Phase 3 | Verified 2026-10-08 on the v0.53.0 implementation: storing an `! {IO, Env}` function in an `! {IO}` field still checks; see the canonical page and existing #573/#1326. |
 | **Effectful callbacks nested in list/tuple/ADT arguments** | Not yet charged | `applyHead([logIt], x)`, `applyFst((logIt, x))`, `applyOpt(Some(logIt), x)` check in a pure caller although `logIt` performs IO; tracked in [#1718](https://github.com/sunholo-data/ailang/issues/1718). |
 | **Y-combinator / recursive lambdas** | Design constraint (Hindley-Milner occurs-check) | `let Y = \f. (\x. f(x(x)))(\x. f(x(x)))` → `occurs check failed`. Use named `func` recursion. |
