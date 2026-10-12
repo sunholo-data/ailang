@@ -8,7 +8,10 @@ import (
 	"github.com/sunholo-data/ailang/internal/pipeline"
 )
 
-const preRefactorModuleGreetJSON = "{\n  \"module\": \"examples/docs/module_greet\",\n  \"types\": [],\n  \"funcs\": [\n    {\n      \"name\": \"greet\",\n      \"type\": \"(string)-\\u003e()!{IO}\",\n      \"effects\": [\n        \"IO\"\n      ],\n      \"pure\": true\n    }\n  ],\n  \"schema\": \"ailang.iface/v1\"\n}\n"
+// preRefactorModuleGreetJSON was captured from the pre-refactor binary. M-PURE-ROW-AND-IFACE-PURITY
+// (#1443) deliberately changed "pure" for this IO export from the old always-true stub to
+// false. Package identity is unaffected (HashProjection hashes purity as a constant).
+const preRefactorModuleGreetJSON = "{\n  \"module\": \"examples/docs/module_greet\",\n  \"types\": [],\n  \"funcs\": [\n    {\n      \"name\": \"greet\",\n      \"type\": \"(string)-\\u003e()!{IO}\",\n      \"effects\": [\n        \"IO\"\n      ],\n      \"pure\": false\n    }\n  ],\n  \"schema\": \"ailang.iface/v1\"\n}\n"
 
 // repoRoot returns the repository root, two levels above cmd/ailang.
 func repoRoot(t *testing.T) string {

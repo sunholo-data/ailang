@@ -51,6 +51,15 @@ func HashProjection(j *InterfaceJSON) ([]byte, error) {
 	sort.Slice(projection.Funcs, func(a, b int) bool {
 		return projection.Funcs[a].Name < projection.Funcs[b].Name
 	})
+	// Purity is hashed as the constant every identity was computed with. Before
+	// M-PURE-ROW-AND-IFACE-PURITY (#1443) the published flag was a stub reporting
+	// true for every export; it is now derived from the export's effect row and
+	// type, which this projection already hashes through "effects" and "type".
+	// Hashing the derived flag would change the identity of every package with an
+	// effectful export without any interface change, and PUB005 refuses that skew.
+	for i := range projection.Funcs {
+		projection.Funcs[i].Pure = true
+	}
 
 	return json.Marshal(projection)
 }
