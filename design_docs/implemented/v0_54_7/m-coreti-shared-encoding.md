@@ -1,6 +1,6 @@
 # CoreTypeInfo cache blob: subtree-shared encoding (motoko `session.ail` 188 MB → under 1 MB)
 
-**Status**: Planned
+**Status**: Implemented (v0.54.7, #1788)
 **Target**: v0.54.7
 **Priority**: P0 (every motoko start pays a 70–130 s recompile; Cloud Run jobs always do)
 **Estimated**: 1.5 days
