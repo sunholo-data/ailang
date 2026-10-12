@@ -78,7 +78,11 @@ back to the original source.
 - **Parentheses are precedence-driven.** Redundant source parentheses are
   dropped; parentheses are reconstructed wherever omitting them would change the
   parsed expression.
-- **Literals are escaped canonically** through a single escaping routine.
+- **Multiline strings retain their source layout.** Strings containing raw newlines keep
+  their interior whitespace and escapes, including interpolation, after payload verification.
+  Strings written with `\n` escapes stay on one line. Both layouts can be canonical; formatting
+  is idempotent. Unsafe source attachments use canonical escaping.
+- **Other literals are escaped canonically** through a single escaping routine.
 
 The formatter performs no semantic rewrites: no constant folding, import/decl
 sorting, dead-code removal, alpha-renaming, or annotation inference.

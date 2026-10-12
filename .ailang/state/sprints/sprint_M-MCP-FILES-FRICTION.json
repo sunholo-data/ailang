@@ -58,7 +58,7 @@
       "passes": true,
       "started": "2026-10-12T20:10:00+00:00",
       "completed": "2026-10-12T20:22:49.343363+00:00",
-      "notes": "Focused testing/lexer tests pass; coverage testing 84.5%, lexer 75.1%. Rebuilt CLI check and named tests: 2/2 passed. Prompt v0.16.7 loaded; rebuilt prompt confirms milliseconds. File sizes and boundaries pass. Baseline test-core fails unrelated effects TestRuntimeNestedStopUsesRemainingDeadline; isolated retry reproduces. Lint running after cold tool installation; final gate will be recorded before handoff."
+      "notes": "Focused testing/lexer tests pass; coverage testing 84.5%, lexer 75.1%. Rebuilt CLI check and named tests: 2/2 passed. Prompt v0.16.7 loaded; rebuilt prompt confirms milliseconds. File sizes and boundaries pass. Baseline test-core fails unrelated effects TestRuntimeNestedStopUsesRemainingDeadline; isolated retry reproduces. Lint running after cold tool installation; final gate will be recorded before handoff. Lint passes. Runnable fixture simplified to boolean assertions after formatter corpus detected statement-let rendering limitation; fixture still passes 2/2."
     },
     {
       "id": "M2",
@@ -71,10 +71,10 @@
         "Corpus covers expression positions, escapes and interpolation; unsafe attachment fails closed using existing formatter behavior.",
         "Amend rule 6 in the implemented formatter design and update formatter user documentation."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-12T20:18:00+00:00",
+      "completed": "2026-10-12T20:31:44.057991+00:00",
+      "notes": "Raw multiline source preserved only at verified anchors; plain payload checked by re-lexing, interpolation reparsed and compared with reversible AST-only rendering. Focused positive/negative/idempotence tests and entire format package pass, including corpus soundness and measurement gates. CLI runtime HTML output identical before/after fmt; fmt --check passes, multiline corpus fixture typechecks. Formatter rule 6 and user docs amended. Lint, file sizes, boundaries pass. Baseline test-core process-stop failure remains recorded; final core gate still required."
     },
     {
       "id": "M3",
@@ -134,5 +134,5 @@
     "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-MCP-FILES-FRICTION before starting and after every JSON update.",
     "Executor cannot push or merge; commit locally with Refs #1618."
   ],
-  "last_checkpoint": "M1 complete; M2/M3 in authorized first-half scope; M4/M5 deferred"
+  "last_checkpoint": "M2 complete; M3 in progress; stop before M4"
 }

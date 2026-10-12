@@ -35,7 +35,8 @@ type printer struct {
 	// att indexes comment attachments by owner+place+boundary for interleaving.
 	// nil when formatting comment-free input (Phase-1 path), so the comment-free
 	// output is byte-identical to Phase 1.
-	att *attachIndex
+	att            *attachIndex
+	multilineSpans []interpHole
 
 	maxWidth         int
 	measuring        bool
@@ -125,8 +126,8 @@ func Source(program *ast.Program, options Options) ([]byte, error) {
 // parsed. It fails closed (returning an error, no partial output) on any
 // envelope/attachment inconsistency or a comment inside an interpolation hole.
 //
-// For comment-free input this produces byte-identical output to Source (the
-// attachment set is empty and every interleaving lookup misses).
+// Comment-free output agrees with Source except for source multiline strings,
+// whose verified original layout is preserved on this source-aware path.
 func SourceWithComments(program *ast.Program, source []byte, options Options) ([]byte, error) {
 	if program == nil {
 		return nil, fmt.Errorf("nil program")
@@ -147,9 +148,10 @@ func SourceWithComments(program *ast.Program, source []byte, options Options) ([
 		indent = "  "
 	}
 	p := &printer{
-		w:        newWriter(indent),
-		att:      newAttachIndex(env, atts),
-		maxWidth: resolveMaxWidth(options),
+		w:              newWriter(indent),
+		att:            newAttachIndex(env, atts),
+		maxWidth:       resolveMaxWidth(options),
+		multilineSpans: env.multilineStrings(),
 	}
 	if err := p.file(program.File); err != nil {
 		return nil, err

@@ -46,10 +46,10 @@ Implement against the corresponding design slice; first bank its failing reprodu
 
 Implement against the corresponding design slice; first bank its failing reproducer, then add controls covering the surrounding mechanism.
 
-- [ ] Original raw-newline literals retain their interior bytes only when re-lexing proves AST payload equality.
-- [ ] Formatting is idempotent, runtime payload unchanged, and escaped one-line literals remain one-line.
-- [ ] Corpus covers expression positions, escapes and interpolation; unsafe attachment fails closed using existing formatter behavior.
-- [ ] Amend rule 6 in the implemented formatter design and update formatter user documentation.
+- [x] Original raw-newline literals retain their interior bytes only when re-lexing proves AST payload equality.
+- [x] Formatting is idempotent, runtime payload unchanged, and escaped one-line literals remain one-line.
+- [x] Corpus covers expression positions, escapes and interpolation; unsafe attachment fails closed using existing formatter behavior.
+- [x] Amend rule 6 in the implemented formatter design and update formatter user documentation.
 
 ### M3: Enforce record field sink refinements (~340 LOC)
 

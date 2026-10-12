@@ -19,6 +19,10 @@ func (p *printer) expr(e ast.Expr, parentPrec int) error {
 	if e == nil {
 		return fmt.Errorf("nil expression node")
 	}
+	if raw, ok := p.sourceMultiline(e); ok {
+		p.w.writeVerbatim(raw)
+		return nil
+	}
 	switch n := e.(type) {
 	case *ast.Identifier:
 		p.w.write(n.Name)

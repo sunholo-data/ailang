@@ -1,0 +1,7 @@
+module internal/format/testdata/mcp_multiline
+
+export pure func page(name: string) -> string = "<html>
+  <body>${name}</body>
+</html>"
+
+export pure func escaped() -> string = "one\ntwo"

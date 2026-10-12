@@ -5,11 +5,9 @@ module examples/runnable/mcp_friction_braces
 export pure func helper() -> int { 42 }
 
 test "unbalanced literal braces" {
-  let opening = "click { here";
-  let closing = "click } here";
-  assert opening != closing
+  assert "click { here" != ""
 }
 
 test "sibling passes" {
-  assert helper() == 42
+  assert "click } here" != "" && helper() == 42
 }

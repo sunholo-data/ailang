@@ -98,9 +98,14 @@ The formatter emits source according to these rules:
    retain redundant parentheses only if the AST represents them; because the current AST has no
    parenthesis node, Phase 1 removes source-only redundant parentheses.
 
-6. **All literals are escaped canonically.** String and character emission must use one escaping
-   routine and must never reinterpret quasiquote template contents. Unsupported or malformed literal
-   payloads fail rather than falling back to a debug `String()` method.
+6. **Literals use canonical escaping, with source multiline layout preserved.** The source-aware
+   formatter retains a string token containing raw newlines only when its source anchor and
+   re-lexed payload agree with the AST. Interpolated strings additionally reparse and compare
+   their complete text/hole structure using the reversible AST-only printer. Interior bytes
+   are emitted verbatim; escaped one-line strings remain one-line. Unverified attachments
+   use canonical escaping. The AST-only printer still uses one escaping routine and never
+   reinterprets quasiquote template contents. Malformed payloads fail rather than using debug
+   `String()`. This D2 amendment was ruled 2026-10-08 (Refs #1618).
 
 ### Printer Architecture
 
