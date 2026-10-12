@@ -181,12 +181,8 @@ export type Seen = {url: string, rows: [Row]}
 export pure func seenAll(u: string) -> Seen { {url: u, rows: [{date: "d", from: "f"}]} }
 `
 
-// TestTypeNameShadow_CapturedImportedAliasIsLoud: interface alias bodies still
-// name other types by BARE name (links' Seen = {rows: [Row]}), so in a module
-// that declares its own Row, expanding Seen would silently pick up the LOCAL Row.
-// Until alias bodies are closed over their defining module (M2), using such an
-// alias must fail loudly and name both definitions — never resolve silently.
-func TestTypeNameShadow_CapturedImportedAliasIsLoud(t *testing.T) {
+// Closed alias bodies retain links.Row even when main declares its own Row.
+func TestAliasBodyClosure_CapturedImportedAliasNowWorks(t *testing.T) {
 	files := map[string]string{
 		"links.ail": linksModule,
 		"main.ail": `module main
@@ -207,18 +203,8 @@ pure func mine(v: string) -> Row { {verb: v} }
 export pure func main() -> string { firstDate(seenAll(mine("x").verb)) }
 `,
 	}
-	err := checkModules(t, files)
-	if err == nil {
-		t.Fatal("expected a loud error: links.Seen refers to links.Row, which main's own Row shadows")
-	}
-	msg := err.Error()
-	for _, want := range []string{"Seen", "Row", "links", "main"} {
-		if !strings.Contains(msg, want) {
-			t.Errorf("error should name %q, got: %v", want, msg)
-		}
-	}
-	if !strings.Contains(msg, "shadow") {
-		t.Errorf("error should say the local type shadows the imported one, got: %v", msg)
+	if err := checkModules(t, files); err != nil {
+		t.Fatal(err)
 	}
 }
 

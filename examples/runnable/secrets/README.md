@@ -43,3 +43,19 @@ coordinator/ntfy cloud feature; the local CLI runs with no approval gate.
 
 See the [IFC labels guide](../../../docs/docs/guides/ifc-labels.mdx) and
 [design doc](../../../design_docs/planned/v0_26_0/m-secret-effect-remote-approval.md).
+
+## Scoped authority and positive parameters
+
+`scoped_declassify.ail` uses `Declassify[label=email]` to authorize only email
+relabels. Run it with `ailang run --caps Declassify --entry main
+examples/runnable/secrets/scoped_declassify.ail`.
+
+`positive_label_call.ail` accepts literals at a `string<sqlsafe>` parameter.
+Run it with `ailang run --entry main
+examples/runnable/secrets/positive_label_call.ail`. A value carrying `<arg>`
+or `<secret>` is rejected at that call edge. Bottom (unlabelled data) passes;
+positive labels constrain lattice coverage and do not prove sanitization.
+
+Bare `Declassify` retains whole-body authority and propagates to callers.
+Prefer the scoped form when lowering only one label. V1 accepts one label and
+rejects repeated Declassify atoms; wider authority must be explicit and bare.

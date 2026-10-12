@@ -3,6 +3,7 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DRIVER="$HERE/mission-control.sh"
+. "$HERE/lib/codex-auth-profile.sh"
 log() { :; }
 PROBE_TIMEOUT=1
 PROBES=0

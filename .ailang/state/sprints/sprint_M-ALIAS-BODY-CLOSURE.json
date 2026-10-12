@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-ALIAS-BODY-CLOSURE",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-08T19:11:12.533728+00:00",
   "design_doc": "design_docs/planned/v0_52_4/m-alias-body-closure.md",
   "sprint_plan": "design_docs/planned/v0_52_4/m-alias-body-closure-sprint-plan.md",
@@ -52,7 +52,10 @@
   "velocity": {
     "target_loc_per_day": 180,
     "estimated_total_loc": 720,
-    "estimated_days": 4
+    "estimated_days": 4,
+    "actual_total_loc": 1080,
+    "measurement": "Added lines in sprint diff, including new files and documentation; daily velocity not inferred.",
+    "actual_code_and_examples_loc": 661
   },
   "features": [
     {
@@ -66,10 +69,10 @@
         "T1 explicit-import and T2 both-import-order regressions pass; four-module navigation/sol/trappist regression passes.",
         "Closure uses local aliases over post-shadow imported aliases, including unexported local dependencies; AliasParams remain intact."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:31:26.598331+00:00",
+      "completed": "2026-10-08T20:31:26.598331+00:00",
+      "notes": "Variant-complete immutable closure, safe acyclic memoization, deterministic cycles; T1/T2 and four-module regression pass."
     },
     {
       "id": "M2",
@@ -85,10 +88,10 @@
         "Final interface digest reflects closed schemes and constructors, is deterministic and survives serialization; alias digest coverage remains intact.",
         "Any digest-finalize helper lives in a new internal/iface/ file; internal/iface/builder.go stays at or below 800 lines."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:31:26.598331+00:00",
+      "completed": "2026-10-08T20:31:26.598331+00:00",
+      "notes": "T3, constructor patterns, positive captured-alias regression, residual nominal diagnostic and digest serialization pass. SetDerivedEq already finalizes digest; no helper needed."
     },
     {
       "id": "M3",
@@ -102,10 +105,10 @@
         "Alias edits still invalidate transitive dependents; cached and uncached compilation give equivalent results.",
         "Shadow guard comments, parent M2 scope/status and docs/LIMITATIONS.md describe closure and residual parameterized/nominal/import-name behavior accurately."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:31:26.598331+00:00",
+      "completed": "2026-10-08T20:31:26.598331+00:00",
+      "notes": "Cache v6; synthesized v5 manifest forces all modules cold, then zero encodes on unchanged warm run; runtime parity with NoCache. Residual docs updated."
     },
     {
       "id": "M4",
@@ -121,10 +124,41 @@
         "Stapledons workaround-removal verification is recorded if accessible; otherwise record unavailable and rely on the mandatory four-module automated reproduction.",
         "Sprint-evaluator receives plan, progress, test evidence and explicit remaining limitations after execution."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:31:26.598331+00:00",
+      "completed": "2026-10-08T20:41:52.624520+00:00",
+      "notes": "Runtime T1/T2/T3 matrix and record update return 1; example packages check, nested args-json returns 1. CGO-enabled test-core, targeted coverage, lint, fmt, boundaries and sizes pass. External Stapledons unavailable; four-module regression passes. Independent evaluator received all artifacts and test evidence via collaboration handoff; local CLI dispatch unavailable (no registered worker). Independent evaluation passed 95/100, all 17 criteria met; broader examples gate passed (232/0/9)."
     }
-  ]
+  ],
+  "last_session": "2026-10-08T20:41:52.624520+00:00",
+  "last_checkpoint": "M1\u2013M4 complete; all local gates passed; independent evaluation PASS 95/100 (17/17 criteria)",
+  "implementation_report": "design_docs/planned/v0_52_4/m-alias-body-closure-implementation-report.md",
+  "validation": {
+    "test_core": "passed with CGO enabled",
+    "targeted_tests": "passed",
+    "lint": "passed, zero issues (warm rerun after cold timeout)",
+    "fmt": "passed",
+    "boundaries": "passed",
+    "file_sizes": "passed",
+    "pipeline_coverage": 75.5,
+    "types_coverage": 52.7,
+    "iface_coverage": 42.4,
+    "full_suite": "deferred to CI per approved plan",
+    "external_stapledons": "unavailable; automated four-module reproduction passed",
+    "verify_examples": "passed independently: 232 passed, 0 failed, 9 skipped; zero manifest drift"
+  },
+  "evaluation_handoff": {
+    "channel": "collaboration",
+    "agent": "/root/sprint_evaluator",
+    "round": 1,
+    "local_cli_dispatch": "refused: no worker registered for sprint-evaluator"
+  },
+  "evaluation": {
+    "result": "pass",
+    "score": 95,
+    "round": 1,
+    "report": ".ailang/state/evaluations/eval_M-ALIAS-BODY-CLOSURE_round_1.json",
+    "criteria_met": 17,
+    "criteria_total": 17
+  }
 }

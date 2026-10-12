@@ -381,6 +381,17 @@ func (img *BytecodeImage) validateInstruction(p *FuncPrototype, protoIdx, ip int
 			}
 		}
 		return nil
+	case OpEffectCall:
+		if err := checkReg(inst.A(), "dest"); err != nil {
+			return err
+		}
+		if int(inst.B()) >= len(EffectBuiltinNames) {
+			return fmt.Errorf("bytecode: %s: invalid effect index %d", loc(), inst.B())
+		}
+		if uint16(inst.A())+uint16(inst.C()) >= uint16(p.NumRegs) {
+			return fmt.Errorf("bytecode: %s: effect args overflow registers", loc())
+		}
+		return nil
 	case OpBuiltinCall, OpBuiltinTrap, OpEffectTrap:
 		// Builtin/effect indices live in a runtime-side table; we can't
 		// validate them statically beyond bounds-checking the dest register.

@@ -4,6 +4,8 @@ package proctree
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -16,11 +18,18 @@ func setProcessGroup(cmd *exec.Cmd) {
 }
 
 func killProcessGroup(pid int) error {
-	err := syscall.Kill(-pid, syscall.SIGKILL)
+	return killProcessGroupWith(pid, syscall.Kill)
+}
+
+func killProcessGroupWith(pid int, kill func(int, syscall.Signal) error) error {
+	err := kill(-pid, syscall.SIGKILL)
 	if errors.Is(err, syscall.ESRCH) {
 		return nil
 	}
-	return err
+	// Darwin can find a group while its last member disappears, then return
+	// EPERM because there is nobody left to signal. Confirm absence without
+	// sending another termination signal; retain every real permission error.
+	return resolveGroupErrorWith(pid, err, kill)
 }
 
 func killProcess(pid int) error {
@@ -29,4 +38,30 @@ func killProcess(pid int) error {
 		return nil
 	}
 	return err
+}
+
+func resolveGroupError(pid int, err error) error {
+	return resolveGroupErrorWith(pid, err, syscall.Kill)
+}
+
+func resolveGroupErrorWith(pid int, err error, probe func(int, syscall.Signal) error) error {
+	// Do not clear wrapped/joined errors that might also carry I/O failures.
+	if err == syscall.EPERM && probe(-pid, 0) == syscall.ESRCH {
+		return nil
+	}
+	return err
+}
+
+// KillOwnGroup is exclusively the inherited policy lifeline backstop. It refuses
+// an interactive host group and validates self ownership before signalling.
+func KillOwnGroup() error {
+	pid := os.Getpid()
+	group, err := syscall.Getpgid(pid)
+	if err != nil {
+		return err
+	}
+	if pid <= 0 || group != pid {
+		return fmt.Errorf("runtime does not own its process group")
+	}
+	return KillGroup(pid)
 }

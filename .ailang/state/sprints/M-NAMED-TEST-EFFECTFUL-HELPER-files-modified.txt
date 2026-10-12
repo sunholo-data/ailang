@@ -1,0 +1,11 @@
+.ailang/state/sprints/sprint_M-NAMED-TEST-EFFECTFUL-HELPER.json
+design_docs/planned/v0_53_0/m-named-test-effectful-helper-sprint-plan.md
+design_docs/planned/v0_53_0/m-named-test-effectful-helper.md
+docs/docs/guides/testing.md
+docs/docs/reference/limitations.md
+examples/manifest.json
+internal/testing/bytecode_engine.go
+internal/testing/executor.go
+internal/testing/named_batch.go
+internal/testing/property_batch.go
+internal/testing/source_strip.go

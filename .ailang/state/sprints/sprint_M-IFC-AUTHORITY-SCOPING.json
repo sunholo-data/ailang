@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-IFC-AUTHORITY-SCOPING",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-08T18:44:47.068050+00:00",
-  "design_doc": "design_docs/planned/m-ifc-authority-scoping.md",
-  "sprint_plan": "design_docs/planned/v0_53_0/m-ifc-authority-scoping-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_53_0/m-ifc-authority-scoping.md",
+  "sprint_plan": "design_docs/implemented/v0_53_0/m-ifc-authority-scoping-sprint-plan.md",
   "target_release": "v0.53.x",
   "fallback_release": "v0.54.0",
   "github_issues": [
@@ -39,7 +39,9 @@
   "velocity": {
     "target_loc_per_day": 180,
     "estimated_total_loc": 660,
-    "estimated_days": 4
+    "estimated_days": 4,
+    "actual_total_loc": 798,
+    "loc_measurement": "Added plus removed lines in implementation diff, including documentation and sprint artifacts; no inferred daily velocity."
   },
   "features": [
     {
@@ -53,10 +55,10 @@
         "Bare covers any scope and a scope covers itself; a scoped declaration cannot cover bare or a different label; a missing effect still fails.",
         "Rand/AI defaults and exact parameter invariance, budgets, row variables and function-value effect invariance retain existing behavior."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:34:51.648434+00:00",
+      "completed": "2026-10-08T20:49:26.790954+00:00",
+      "notes": "Schema, directional covering, invariant comparison and conflict-preserving collector regressions pass."
     },
     {
       "id": "M2",
@@ -71,10 +73,10 @@
         "Scoped authority cannot launder a secret-carrying closure; no-authority rejection and bare-authority legacy acceptance remain intact.",
         "Existing declared record/alias/ADT deep-label and projection tests pass; legacy helper has one documented disposition."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:34:51.648434+00:00",
+      "completed": "2026-10-08T20:49:26.790954+00:00",
+      "notes": "Scoped return coverage, closure/shadowing and full-actual argument retention pass; unused legacy helper removed."
     },
     {
       "id": "M3",
@@ -89,10 +91,10 @@
         "Check A still enforces negative refinements, Check B still rejects unauthorized return relabels, and transparent result-label joining remains unchanged.",
         "Argument labels include declared nested types and closure bodies; intrinsic-label walks do not duplicate diagnostics."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:34:51.648434+00:00",
+      "completed": "2026-10-08T20:49:26.790954+00:00",
+      "notes": "Positive-label call coverage, joins, bottom, nested types, closures and silent diagnostic walks pass."
     },
     {
       "id": "M4",
@@ -103,15 +105,15 @@
       ],
       "acceptance_criteria": [
         "Both new examples check and run as documented; gated_secret and secret_demo retain clean verdicts and leak_attempt retains its expected single SinkRefinementError.",
-        "Design V1–V8 mechanisms have regression coverage, including intentional Check C rejection, scoped propagation and bare compatibility.",
+        "Design V1\u2013V8 mechanisms have regression coverage, including intentional Check C rejection, scoped propagation and bare compatibility.",
         "Compatibility audit verdicts match the plan's table (inbox_injection_v2.ail, inbox_v2_app.ail, expected_ailang_safe/injected.ail, std/secret.ail all unchanged); any deviation is explained in notes.",
         "go test ./internal/types/... ./internal/parser/... and make test-core pass, plus make lint and make check-boundaries; do not run full make test locally (SIGBUS risk in RAM-backed /tmp) - CI runs it.",
         "Documentation explains opt-in scopes, bottom acceptance, blanket-authority hazard and deliberate rejection of cross-label calls; no runtime IFC or cross-module completion is claimed."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:34:51.648434+00:00",
+      "completed": "2026-10-08T20:49:26.790954+00:00",
+      "notes": "CLI and compatibility audit match expected verdicts; core/types/parser, lint, examples, formatting, boundaries and file sizes pass."
     }
   ],
   "execution_preconditions": [
@@ -132,5 +134,55 @@
       "by": "Mark",
       "ruling": "Declassify takes a SINGLE label in v1 (Declassify[label=email]). No parser change, no repeated atoms; PAR_EFF001_DUP stays. Multi-label is future work."
     }
-  ]
+  ],
+  "last_session": "2026-10-08T20:34:51.648434+00:00",
+  "branch": "coordinator/task-8ffaca1d",
+  "last_checkpoint": "Completed; independent evaluation round 2 PASS 100/100",
+  "execution_notes": [
+    "CheckDeclassify and its unused bool-only tests removed; scoped return coverage has one implementation in ifc_check.go.",
+    "Validation requirement collector audited and updated: bare plus scoped requirements remain bare; different scoped requirements preserve their sorted union.",
+    "Companion #1134: none=[], bare=[\"*\"], scoped=[single label]; reuse local Check A/C and result policy.",
+    "Teaching prompt reviewed via ailang prompt: bare semantics remain valid; scoped authority and Check C teaching updates are a follow-up, outside this sprint.",
+    "Session startup script was inspected; its unconditional full make test conflicts with the approved RAM-backed /tmp restriction, so startup validation used the specified package and core targets.",
+    "Initial core run fails in environment with no C compiler (SQLite CGO stub); installing temporary Zig compiler to rerun.",
+    "Baseline types coverage 52.7%; implementation 52.8% before final diagnostics refinement.",
+    "Scoped declassifiers with unlabelled returns now undergo Check B because their call-result policy lowers to bottom.",
+    "Closure regression exposed lexical shadowing: bindings now override same-named module signatures in labelOfCall.",
+    "Compatibility count detail: verify reports main as an additional exported function without contracts; all contracted-function verdicts match the plan.",
+    "GitHub CLI auth absent: PR push/create cannot run; prepare local PR text and handoff.",
+    "Round-1 independent review found scoped-call laundering through unlabelled formals. Added failing regression; scoped results now preserve unauthorized constituents from full actual-argument labels before hand-off, including declared record fields and closure bodies. Documented design adjustment; bare controls remain unchanged.",
+    "Final lint passed with zero issues; temporary environment restoration and memory caps resolved initial CGO/OOM failures. New examples added to manifest with pinned stdout."
+  ],
+  "compatibility_audit": {
+    "inbox_injection_v2.ail": "3 verified, 2 violations; main without contracts",
+    "inbox_v2_app.ail": "3 verified, 2 violations; main without contracts",
+    "expected_ailang_safe.ail": "3 verified, 0 violations; main without contracts",
+    "expected_ailang_injected.ail": "2 verified, 1 violation; main without contracts",
+    "std/secret.ail": "clean",
+    "gated_secret.ail": "clean",
+    "secret_demo.ail": "clean",
+    "leak_attempt.ail": "one SinkRefinementError",
+    "scoped_declassify.ail": "checks; runs [redacted] with Declassify",
+    "positive_label_call.ail": "checks; runs literal data without capabilities"
+  },
+  "completed": "2026-10-08T20:49:26.790954+00:00",
+  "verification": {
+    "types_parser": "passed",
+    "test_core": "passed (CGO enabled)",
+    "lint": "passed, 0 issues (GOMEMLIMIT=256MiB GOMAXPROCS=1)",
+    "verify_examples": "234 passed, 9 existing skips, 0 failures",
+    "fmt_check": "passed",
+    "check_boundaries": "passed",
+    "check_file_sizes": "passed",
+    "coverage_before": 52.7,
+    "coverage_after": 52.9,
+    "full_suite": "deferred to CI per approved plan",
+    "determinism_regressions": "scoped/positive/declassify tests pass -count=20"
+  },
+  "evaluation": {
+    "result": "pass",
+    "score": 100,
+    "round": 2,
+    "report": ".ailang/state/evaluations/eval_M-IFC-AUTHORITY-SCOPING_round_2.json"
+  }
 }

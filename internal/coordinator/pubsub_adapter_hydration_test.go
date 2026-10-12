@@ -99,7 +99,8 @@ func TestPubSubAdapter_RealMessageStillDispatches(t *testing.T) {
 	a := NewPubSubInboxAdapter(nil, "sub", "sprint-planner",
 		&failingGetStore{msg: &messaging.InboxMessage{
 			MessageID: "msg-real", ToInbox: "sprint-planner", FromAgent: "coordinator",
-			Title: "Handoff: Design: secondary-model fallback", Payload: "Plan the sprint for the attached design doc.",
+			Inputs: []TaskInput{{Repo: "a/b", Ref: "main", Path: "file"}},
+			Title:  "Handoff: Design: secondary-model fallback", Payload: "Plan the sprint for the attached design doc.",
 		}}, newSilentLogger())
 
 	if err := a.HandleNotification(validNotification("msg-real"), notifyAttrs()); err != nil {
@@ -109,6 +110,9 @@ func TestPubSubAdapter_RealMessageStillDispatches(t *testing.T) {
 		t.Fatalf("buffered %d, want 1", len(a.buffered))
 	}
 	got := a.buffered[0]
+	if len(got.Inputs) != 1 || got.Inputs[0].Repo != "a/b" {
+		t.Fatalf("inputs were lost: %v", got.Inputs)
+	}
 	if got.Content != "Plan the sprint for the attached design doc." {
 		t.Errorf("content is not the hydrated body: %q", got.Content)
 	}

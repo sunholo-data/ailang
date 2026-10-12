@@ -72,6 +72,7 @@ func astTypeToInternalType(t ast.Type) types.Type {
 			Params:                 paramTypes,
 			EffectRow:              effectRow,
 			Return:                 astTypeToInternalType(typ.Return),
+			ImplicitEffectContract: len(typ.Effects) == 0,
 			ConcreteEffectContract: len(typ.Effects) > 0 && !hasRowVarEffects(typ.Effects),
 		}
 
@@ -203,6 +204,7 @@ func applyLabelsFromAST(t types.Type, fd *ast.FuncDecl) types.Type {
 	return &types.TFunc2{
 		Params:                 newParams,
 		EffectRow:              outerEffectRow,
+		ImplicitEffectContract: fn.ImplicitEffectContract,
 		ConcreteEffectContract: fn.ConcreteEffectContract,
 		Return:                 newRet,
 	}
@@ -296,6 +298,7 @@ func restoreNestedEffectRow(typed types.Type, astT ast.Type) types.Type {
 	return &types.TFunc2{
 		Params:                 newParams,
 		EffectRow:              effectRow,
+		ImplicitEffectContract: typedFunc.ImplicitEffectContract,
 		ConcreteEffectContract: typedFunc.ConcreteEffectContract,
 		Return:                 newRet,
 	}

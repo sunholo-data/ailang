@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-AUTO-MERGE-CODE-PRS",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-08T19:11:17.716262+00:00",
   "design_doc": "design_docs/planned/v0_52_6/m-auto-merge-code-prs.md",
   "sprint_plan": "design_docs/planned/v0_52_6/m-auto-merge-code-prs-sprint-plan.md",
@@ -36,7 +36,10 @@
   "velocity": {
     "target_loc_per_day": 190,
     "estimated_total_loc": 950,
-    "estimated_days": 5
+    "estimated_days": 5,
+    "actual_total_loc": 1306,
+    "actual_days": 0.0051,
+    "actual_loc_per_day": 254174
   },
   "features": [
     {
@@ -50,10 +53,10 @@
         "Code mode requires auto_merge, non-empty check names, approver secret name, expected identity, and declared patterns; invalid configuration refuses loudly.",
         "Secret material is fetched only inside the job and never appears in dispatch specs, PR bodies, or logs."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:32:13.844665+00:00",
+      "completed": "2026-10-08T20:32:13.844665+00:00",
+      "notes": "Trusted config, registry validation, dispatch env, defaults and round-trip tests pass. Secret names only."
     },
     {
       "id": "M2",
@@ -69,10 +72,10 @@
         "No direct merge API or polling loop is introduced; existing native SQUASH auto-merge remains the merge actor.",
         "requiredChecksPresentOnBase lives in new cmd/ailang/coordinator_cloud_automerge_code.go; coordinator_cloud_github.go gets only the branchIsAutoMergeable mode parameter change."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:32:13.844665+00:00",
+      "completed": "2026-10-08T20:32:13.844665+00:00",
+      "notes": "Unified production guard tested with real git repos; base SHA and paginated check evidence fail closed."
     },
     {
       "id": "M3",
@@ -90,10 +93,10 @@
         "API tests assert request ordering, successful approval, failure paths and retried existing-PR audit updates; label failure is loud and body/log audit persists.",
         "approvePRAsNonAuthor and the audit helpers live in cmd/ailang/coordinator_cloud_automerge_code.go, not coordinator_cloud_github.go."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:32:13.844665+00:00",
+      "completed": "2026-10-08T20:32:13.844665+00:00",
+      "notes": "API ordering, identity preflight, head-pinned approval, disable cleanup, durable retry audit and label failure tested."
     },
     {
       "id": "M4",
@@ -110,10 +113,16 @@
         "Staging checklist proves failing required checks block merge and successful checks plus non-author review permit merge; deployment evidence is recorded or explicitly pending.",
         "Daneel rollout requires one staging merge and ten clean production merges; no live registry/ruleset/secret changes are made as part of this repo sprint."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-08T20:32:13.844665+00:00",
+      "completed": "2026-10-08T20:39:37.685388+00:00",
+      "notes": "Guide examples validated through registry loader; docs/env reference/changelog updated. Focused wrapper/config/dispatch/registry tests, lint, boundaries, sizes and git-exec pass. Broad coordinator/core checks encounter pre-existing CGO-unavailable SQLite failures, separately recorded per plan. Staging evidence explicitly pending; no live deployment changes."
     }
-  ]
+  ],
+  "last_session": "2026-10-08T20:32:13.844665+00:00",
+  "last_checkpoint": "M1-M4 repository implementation complete; independent evaluation, CI and deployment pending",
+  "completed": "2026-10-08T20:39:37.685388+00:00",
+  "validation_report": "design_docs/planned/v0_52_6/m-auto-merge-code-prs-implementation.md",
+  "deployment_status": "pending: Mark protection confirmation, one staging merge, ten clean production merges",
+  "evaluation_status": "pending independent coordinator sprint-evaluator"
 }

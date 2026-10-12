@@ -169,6 +169,11 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		return
 	}
 
+	// Unwrap Result.Ok before inspecting raw-response metadata.
+	if tagged, ok := result.(*eval.TaggedValue); ok && tagged.CtorName == "Ok" && len(tagged.Fields) == 1 {
+		result = tagged.Fields[0]
+	}
+
 	// Check if result is a raw response record (has _body field)
 	if rec, ok := result.(*eval.RecordValue); ok {
 		if _, hasBody := rec.Fields["_body"]; hasBody {
@@ -205,30 +210,25 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		return
 	}
 
-	// Convert result to Go value
+	var headers http.Header
+	if opt.Nowrap {
+		var err error
+		headers, err = responseHeaders(result)
+		if err != nil {
+			writeResponseHeaderError(w, err, elapsed)
+			return
+		}
+		result = withoutResponseHeaders(result)
+	}
+
+	// Convert only after extracting response metadata from the typed value.
 	goResult, err := embed.ToGo(result)
 	if err != nil {
 		httpjson.Write(w, http.StatusInternalServerError, FunctionCallResponse{
-			Module:    modulePath,
-			Func:      funcName,
-			Error:     fmt.Sprintf("result conversion failed: %v", err),
-			ElapsedMs: elapsed,
+			Module: modulePath, Func: funcName,
+			Error: fmt.Sprintf("result conversion failed: %v", err), ElapsedMs: elapsed,
 		})
 		return
-	}
-
-	// Unwrap Result.Ok — return the inner value, not the Ok wrapper.
-	if tagged, ok := result.(*eval.TaggedValue); ok && tagged.CtorName == "Ok" {
-		goResult, err = embed.ToGo(tagged.Fields[0])
-		if err != nil {
-			httpjson.Write(w, http.StatusInternalServerError, FunctionCallResponse{
-				Module:    modulePath,
-				Func:      funcName,
-				Error:     fmt.Sprintf("result conversion failed: %v", err),
-				ElapsedMs: elapsed,
-			})
-			return
-		}
 	}
 
 	// @nowrap: return raw JSON without FunctionCallResponse envelope
@@ -236,19 +236,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Elapsed-Ms", fmt.Sprintf("%d", elapsed))
 
-		// Extract _headers from Go result map and set as HTTP headers
-		if m, ok := goResult.(map[string]interface{}); ok {
-			if headersVal, ok := m["_headers"]; ok {
-				if headers, ok := headersVal.(map[string]interface{}); ok {
-					for k, v := range headers {
-						if sv, ok := v.(string); ok {
-							w.Header().Set(k, sv)
-						}
-					}
-				}
-				delete(m, "_headers")
-			}
-		}
+		setResponseHeaders(w, headers)
 
 		w.WriteHeader(http.StatusOK)
 
@@ -317,16 +305,21 @@ func resultErrStatus(v eval.Value) (status int, payload eval.Value, isErr bool) 
 // writeRawResponse writes a raw HTTP response from a record with _body, _status, _headers fields.
 // This enables AILANG functions to return binary files with custom content types.
 func writeRawResponse(w http.ResponseWriter, rec *eval.RecordValue, elapsedMs int64) {
-	// Set custom headers from _headers field
-	if headersVal, ok := rec.Fields["_headers"]; ok {
-		if headersRec, ok := headersVal.(*eval.RecordValue); ok {
-			for k, v := range headersRec.Fields {
-				if sv, ok := v.(*eval.StringValue); ok {
-					w.Header().Set(k, sv.Value)
-				}
-			}
-		}
+	headers, err := responseHeaders(rec)
+	if err != nil {
+		writeResponseHeaderError(w, err, elapsedMs)
+		return
 	}
+	// Defaults must be on the writer before committing the status.
+	switch rec.Fields["_body"].(type) {
+	case *eval.BytesValue:
+		w.Header().Set("Content-Type", "application/octet-stream")
+	case *eval.StringValue:
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	default:
+		w.Header().Set("Content-Type", "application/json")
+	}
+	setResponseHeaders(w, headers)
 
 	// Add timing header
 	w.Header().Set("X-Elapsed-Ms", fmt.Sprintf("%d", elapsedMs))
@@ -344,20 +337,11 @@ func writeRawResponse(w http.ResponseWriter, rec *eval.RecordValue, elapsedMs in
 	body := rec.Fields["_body"]
 	switch b := body.(type) {
 	case *eval.BytesValue:
-		if w.Header().Get("Content-Type") == "" {
-			w.Header().Set("Content-Type", "application/octet-stream")
-		}
 		_, _ = w.Write(b.Value)
 	case *eval.StringValue:
-		if w.Header().Get("Content-Type") == "" {
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		}
 		_, _ = w.Write([]byte(b.Value))
 	default:
 		// Fall back to JSON for other types
-		if w.Header().Get("Content-Type") == "" {
-			w.Header().Set("Content-Type", "application/json")
-		}
 		goVal, _ := embed.ToGo(body)
 		_ = json.NewEncoder(w).Encode(goVal) // status already written above
 	}

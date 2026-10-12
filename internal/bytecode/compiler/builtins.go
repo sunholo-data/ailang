@@ -45,6 +45,14 @@ var hofBuiltinIndex = func() map[string]uint8 {
 	return m
 }()
 
+var effectBuiltinIndex = func() map[string]uint8 {
+	m := make(map[string]uint8, len(bytecode.EffectBuiltinNames))
+	for i, name := range bytecode.EffectBuiltinNames {
+		m[name] = uint8(i)
+	}
+	return m
+}()
+
 // isLowerPassDictFallback reports whether name has the shape that the
 // lower pass uses when it FAILS to resolve a dictionary method. Two
 // patterns:
@@ -115,6 +123,11 @@ func (fc *funcCompiler) compileBuiltinCall(e stmt.BuiltinCall) (uint8, error) {
 		fc.emit(bytecode.EncodeABC(bytecode.OpBuiltinCallHOF, dst, hofIdx, uint8(n)))
 		return dst, nil
 	}
+	if effectIdx, ok := effectBuiltinIndex[e.Name]; ok {
+		fc.emit(bytecode.EncodeABC(bytecode.OpEffectCall, dst, effectIdx, uint8(n)))
+		return dst, nil
+	}
+
 	// A pure registry builtin that is neither native nor adapted: say so, with
 	// the reason, instead of calling it effectful (#1447).
 	if spec, ok := bytecode.PureBuiltinSpec(e.Name); ok {

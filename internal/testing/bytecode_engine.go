@@ -114,6 +114,9 @@ func (e *Executor) evalNamedTestBodyOnVM(baseSource string, hasModule bool, fold
 
 	res, err := e.runNamedTestPipeline(sb.String(), hasModule)
 	if err != nil {
+		if e.batchFailure != nil {
+			e.perBodyCompileFailures++
+		}
 		return nil, fmt.Errorf("compile body: %w", err)
 	}
 	e.cacheModules(&res)

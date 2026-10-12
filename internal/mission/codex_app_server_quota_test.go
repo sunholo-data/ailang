@@ -195,3 +195,15 @@ func TestConsumeCodexResetCredit_SendsKeyAndCredit(t *testing.T) {
 		t.Error("an empty idempotency key must be refused: a retry could spend twice")
 	}
 }
+
+func TestCodexQuotaDaemonUsesProxy(t *testing.T) {
+	t.Setenv("AILANG_CODEX_RUNTIME", "daemon")
+	args, err := codexQuotaAppServerArgs()
+	if err != nil || strings.Join(args, " ") != "app-server proxy" {
+		t.Fatalf("args=%v error=%v", args, err)
+	}
+	t.Setenv("AILANG_CODEX_RUNTIME", "unsupported")
+	if _, err := codexQuotaAppServerArgs(); err == nil {
+		t.Fatal("unsupported runtime silently falls back to independent auth owner")
+	}
+}

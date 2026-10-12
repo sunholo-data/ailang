@@ -40,8 +40,12 @@ type ModelConfig struct {
 
 // Pricing represents model pricing information
 type Pricing struct {
-	InputPer1K  float64 `yaml:"input_per_1k"`
-	OutputPer1K float64 `yaml:"output_per_1k"`
+	// ClaudeCredit is the verified integer rate card for the guarded Claude API
+	// lane. Scalar rates below remain compatible with existing reporting; they
+	// cannot authorize a credit reservation or represent both cache TTLs.
+	ClaudeCredit *ClaudeCreditPricing `yaml:"claude_credit,omitempty"`
+	InputPer1K   float64              `yaml:"input_per_1k"`
+	OutputPer1K  float64              `yaml:"output_per_1k"`
 	// CacheReadPer1K prices prompt-cache READ tokens, which every major provider
 	// bills far below fresh input (OpenRouter ~20% of input; deepseek-v4-flash
 	// $0.016-0.028/M vs $0.08-0.14/M depending on the upstream host).

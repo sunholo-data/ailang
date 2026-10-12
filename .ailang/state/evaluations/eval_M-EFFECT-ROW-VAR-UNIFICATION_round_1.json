@@ -1,0 +1,27 @@
+{
+  "sprint_id": "M-EFFECT-ROW-VAR-UNIFICATION",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-09T11:18:32Z",
+  "design_doc": "design_docs/implemented/v1_0_0/m-effect-row-var-unification.md",
+  "sprint_plan": "design_docs/implemented/v1_0_0/m-effect-row-var-unification-sprint-plan.md",
+  "total_score": 97,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 15,
+    "lint_clean": 10,
+    "acceptance_criteria": 27,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10,
+    "regression_surface_coverage": 10,
+    "total": 97
+  },
+  "hard_fails": [],
+  "feedback": [],
+  "notes": "Independent round-1 evaluation of coordinator/task-c86840f2 (PR #1745) at b70b2f979 + two evaluator commits (e6336126c manifest fix, c1ee71cec doc archive).\n\nVERDICT: PASS (97/100). Head re-rooted onto dev's compacted history (dev was squashed to a 4-commit root on 2026-10-09, leaving the executor branch unrelated and PR #1745 unmergeable). Rebuild: sprint diff (acaf73390..c1ee71cec) applied onto 330020f30; only examples/manifest.json needed manual merge (dev gained one example; statistics re-based to 226/218). Rebuilt tree re-verified: go build ./... ok, focused gates ok, validate_manifest --ci ok, verify_examples 247/247 incl. both new demos. Backup ref: backup/task-c86840f2-old-lineage.\n\nVERIFIED:\n- Focused gates green locally: go test ./internal/types/... ./internal/pipeline/... ./internal/elaborate/...; test-core (sprint packages); check-boundaries; check-file-sizes (typechecker_core.go exactly 800); check-changelog; check-autoclose (3 records, 0 violations); validate_manifest --ci; verify_examples (246/246, both new demos pass with contract outputs).\n- CI (PR #1745): lint, test-windows (full go test ./...), govulncheck, codegen, float-determinism, builds all green.\n- D-10 ruling followed exactly: inference.go App constraint shares applicationEffectRow instead of independent freshEffectRow; #1708 LatentParamMask publication extended in place to one unified per-App authority (no standalone CallEffects); #1718 not silently expanded.\n- Regression surface: blank 'Suggested fix' invariant (TestEffectRowVariableEmptyDiffInvariant), reject-before-print runtime test (no CALLBACK_MARKER), streaming consumers (std/stream, std/ai/streaming same/distinct tail), #1091 declared/inferred import controls, mutation test trips when App row detached.\n- Corpus evidence: base acbe... recorded, 496 files / 545 checks base vs 547 fixed, zero existing status flips, all std modules pass direct+relaxed; changelog fragment opens with '### Fixed' and carries the migration.\n- Sprint artifacts complete; docs archived to implemented/ with companion plan and validation report.\n\nDEDUCTIONS:\n-5 tests_pass: CI test job red at verdict time \u2014 root-caused to examples/manifest.json statistics drift (221/213 recorded vs 223/215 calculated after the two new demos). Evaluator fixed surgically (e6336126c) and re-verified locally; commit must ride PR #1745 for CI to go green.\n-10 code_quality: executor's own validation gate list omitted verify-examples while the sprint touches examples/manifest.json \u2014 the drift reached CI through an otherwise green local gate set (recurrent manifest-drift class, 2nd instance reaching CI through a green evaluator path per skill notes).\n-3 acceptance_criteria: AC9 'manifest updated' sub-item incomplete as shipped.\n\nCI FAILURES NOT CHARGED TO THE SPRINT (verified, not assumed):\n- docs-build/docs-gate red: docusaurus 'Invalid sidebar file' \u2014 committed docs/src/data/packages-sidebar.json references packages/sunholo/* pages that only exist when sync-registry.sh can reach the external registry at run time (step is continue-on-error). Sidebars.js and packages-sidebar.json are byte-identical between the PR and its CI-passing base acaf73390; the sprint's docs diff is two prose paragraphs in existing reference pages. Repo-infra issue: the generated sidebar JSON must not be committed without its generated pages (or sync must clean/supersede it). Reproduced locally: with registry pages generated, the sidebar error disappears (build then OOM-killed in sandbox at webpack client stage \u2014 resource limit, not code).\n- std/web drift in check-stdlib-index: pre-existing on the branch AND dev (std/web.ail added earlier, absent from stdlib.md); only fires when an ailang binary is in PATH during docs build, which CI runners don't have. Local-environment artifact in this sandbox.\n\nFOLLOW-UPS (non-blocking): (1) land the manifest-fix commit; (2) file repo issue for committed packages-sidebar.json vs registry-generated pages; (3) add std/web to docs/docs/reference/stdlib.md or drop the stale index guard; (4) consider adding verify-examples to the executor gate list for any sprint touching examples/.",
+  "branch": "coordinator/task-c86840f2",
+  "pull_request": 1745,
+  "head_evaluated": "b70b2f979 (+ evaluator commits e6336126c, c1ee71cec)",
+  "head_pushed": "accdfc4bf (re-rooted onto compacted dev 330020f30; PR #1745 mergeable: true)"
+}

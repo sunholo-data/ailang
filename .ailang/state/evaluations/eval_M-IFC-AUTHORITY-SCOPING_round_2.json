@@ -1,0 +1,142 @@
+{
+  "sprint_id": "M-IFC-AUTHORITY-SCOPING",
+  "evaluation_round": 2,
+  "timestamp": "2026-10-08T20:50:10.080094+00:00",
+  "design_doc": "design_docs/implemented/v0_53_0/m-ifc-authority-scoping.md",
+  "sprint_plan": "design_docs/implemented/v0_53_0/m-ifc-authority-scoping-sprint-plan.md",
+  "total_score": 100,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 15,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "tests_output": "Package regressions and final make test-core pass; final build, verify-examples, manifest modules, formatting, boundaries and file sizes pass.",
+    "lint_clean": true,
+    "lint_output": "/tmp/ifc-lint-final.log: 0 issues; Lint complete",
+    "file_sizes_ok": true,
+    "coverage_pct": "52.9% (baseline 52.7%); unauthorizedLabel and newParamLabelCoverError 100%"
+  },
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Implemented; design and companion sprint plan relocated together; sprint JSON completed with all milestone notes/timestamps"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Scoped actual-argument residual labels conservatively retained; adjustment documented in design and guide. Directional covering remains confined to Declassify, function effect invariance remains intact, Checks A/B/C coverage preserved."
+  },
+  "feedback": [],
+  "notes": "Independent security review passes. Round-1 laundering bypass fixed by retaining unauthorized constituents of full actual labels before hand-off; direct, closure and typed-record regressions plus authorized-email/bare-secret controls cover the fix. All required approved-plan gates green, including package/core tests, capped lint, examples/manifest, formatting, boundaries and file sizes. Full make test deferred to CI by explicit approved sprint plan; no claim of full-suite local execution. Compatibility audits preserve contracted-function verdicts. GitHub PR publication unavailable due to absent authentication; concrete local PR text prepared by executor.",
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Scoped single-label atoms validate; unknown keys, malformed/empty values and a reserved wildcard label fail loudly.",
+      "met": true,
+      "evidence": "Schema, directional covering, invariant comparison and conflict-preserving collector regressions pass."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Duplicate Declassify atoms (scoped or mixed bare/scoped) still fail with PAR_EFF001_DUP; no parser grammar change.",
+      "met": true,
+      "evidence": "Schema, directional covering, invariant comparison and conflict-preserving collector regressions pass."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Bare covers any scope and a scope covers itself; a scoped declaration cannot cover bare or a different label; a missing effect still fails.",
+      "met": true,
+      "evidence": "Schema, directional covering, invariant comparison and conflict-preserving collector regressions pass."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Rand/AI defaults and exact parameter invariance, budgets, row variables and function-value effect invariance retain existing behavior.",
+      "met": true,
+      "evidence": "Schema, directional covering, invariant comparison and conflict-preserving collector regressions pass."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Authorized relabel passes; unrelated secret and mixed joins containing an unauthorized constituent fail and name the label and scope.",
+      "met": true,
+      "evidence": "Scoped return coverage, closure/shadowing and full-actual argument retention pass; unused legacy helper removed."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "A caller declaring only its callee's scope cannot relabel unrelated secret data; widening must be explicit.",
+      "met": true,
+      "evidence": "Scoped return coverage, closure/shadowing and full-actual argument retention pass; unused legacy helper removed."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Scoped authority cannot launder a secret-carrying closure; no-authority rejection and bare-authority legacy acceptance remain intact.",
+      "met": true,
+      "evidence": "Scoped return coverage, closure/shadowing and full-actual argument retention pass; unused legacy helper removed."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Existing declared record/alias/ADT deep-label and projection tests pass; legacy helper has one documented disposition.",
+      "met": true,
+      "evidence": "Scoped return coverage, closure/shadowing and full-actual argument retention pass; unused legacy helper removed."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Maintainer arg-to-sqlsafe repro and design secret-to-email repro fail with ParamLabelCoverError at the call edge.",
+      "met": true,
+      "evidence": "Positive-label call coverage, joins, bottom, nested types, closures and silent diagnostic walks pass."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Bottom/unlabelled, literals and matching-label arguments pass; joins with any uncovered constituent fail.",
+      "met": true,
+      "evidence": "Positive-label call coverage, joins, bottom, nested types, closures and silent diagnostic walks pass."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Check A still enforces negative refinements, Check B still rejects unauthorized return relabels, and transparent result-label joining remains unchanged.",
+      "met": true,
+      "evidence": "Positive-label call coverage, joins, bottom, nested types, closures and silent diagnostic walks pass."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Argument labels include declared nested types and closure bodies; intrinsic-label walks do not duplicate diagnostics.",
+      "met": true,
+      "evidence": "Positive-label call coverage, joins, bottom, nested types, closures and silent diagnostic walks pass."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Both new examples check and run as documented; gated_secret and secret_demo retain clean verdicts and leak_attempt retains its expected single SinkRefinementError.",
+      "met": true,
+      "evidence": "CLI and compatibility audit match expected verdicts; core/types/parser, lint, examples, formatting, boundaries and file sizes pass."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Design V1\u2013V8 mechanisms have regression coverage, including intentional Check C rejection, scoped propagation and bare compatibility.",
+      "met": true,
+      "evidence": "CLI and compatibility audit match expected verdicts; core/types/parser, lint, examples, formatting, boundaries and file sizes pass."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Compatibility audit verdicts match the plan's table (inbox_injection_v2.ail, inbox_v2_app.ail, expected_ailang_safe/injected.ail, std/secret.ail all unchanged); any deviation is explained in notes.",
+      "met": true,
+      "evidence": "CLI and compatibility audit match expected verdicts; core/types/parser, lint, examples, formatting, boundaries and file sizes pass."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "go test ./internal/types/... ./internal/parser/... and make test-core pass, plus make lint and make check-boundaries; do not run full make test locally (SIGBUS risk in RAM-backed /tmp) - CI runs it.",
+      "met": true,
+      "evidence": "CLI and compatibility audit match expected verdicts; core/types/parser, lint, examples, formatting, boundaries and file sizes pass."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Documentation explains opt-in scopes, bottom acceptance, blanket-authority hazard and deliberate rejection of cross-label calls; no runtime IFC or cross-module completion is claimed.",
+      "met": true,
+      "evidence": "CLI and compatibility audit match expected verdicts; core/types/parser, lint, examples, formatting, boundaries and file sizes pass."
+    }
+  ]
+}

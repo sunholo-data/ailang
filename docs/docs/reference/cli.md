@@ -112,6 +112,7 @@ Reachable as `ailang ops <command>` and, unchanged, as `ailang <command>`.
 | `ailang ops budget` | `ailang budget` | Budget monitoring |
 | `ailang ops chains` | `ailang chains` | Execution chains, traces, observatory and dashboard queries |
 | `ailang ops coordinator` | `ailang coordinator` | Manage the autonomous agent daemon |
+| `ailang ops credit-gateway` | `ailang credit-gateway` | Serve the guarded Claude API credit gateway |
 | `ailang ops daemon` | `ailang daemon` | Local ailang daemon: run, install, uninstall, status |
 | `ailang ops design-quorum` | `ailang design-quorum` | N-reviewer design quorum, reject-by-default |
 | `ailang ops design-review` | `ailang design-review` | AI review of a design document |
@@ -121,7 +122,7 @@ Reachable as `ailang ops <command>` and, unchanged, as `ailang <command>`.
 | `ailang ops mission` | `ailang mission` | Mission registry, iteration, role dispatch and reports |
 | `ailang ops models` | `ailang models` | Model registry: role, source, publish |
 | `ailang ops rig-gate` | `ailang rig-gate` | GPU admission gateway in front of ollama (rig lock lease) |
-| `ailang ops serve-api` | `ailang serve-api` | Serve AILANG exports as REST endpoints |
+| `ailang ops serve-api` | `ailang serve-api` | Serve AILANG exports as REST endpoints; --static sends security headers, --static-header overrides, --no-static-security-headers opts out |
 | `ailang ops storage` | `ailang storage` | Storage plane status (which backend each store resolved to) |
 | `ailang ops workspaces` | `ailang workspaces` | Workspace management |
 

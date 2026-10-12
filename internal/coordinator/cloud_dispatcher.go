@@ -30,11 +30,12 @@ type CloudDispatcher interface {
 
 // DispatchParams contains the parameters needed to trigger remote task execution.
 type DispatchParams struct {
-	TaskID    string // Coordinator task ID (e.g., "task-29404032")
-	AgentID   string // Target agent (e.g., "sprint-executor")
-	Workspace string // Workspace path
-	Provider  string // AI provider ("claude" or "gemini")
-	Directive string // Task prompt (optional — job can fetch from Firestore)
+	Inputs    []TaskInput // Validated task metadata, authorized against the trusted agent registry.
+	TaskID    string      // Coordinator task ID (e.g., "task-29404032")
+	AgentID   string      // Target agent (e.g., "sprint-executor")
+	Workspace string      // Workspace path
+	Provider  string      // AI provider ("claude" or "gemini")
+	Directive string      // Task prompt (optional — job can fetch from Firestore)
 	// TaskTitle is the human description of the work, carried so the job does not
 	// have to RE-DERIVE one from the prompt. The prompt is template-wrapped before
 	// dispatch, so its first line is boilerplate ("You are an autonomous AILANG
@@ -53,15 +54,18 @@ type DispatchParams struct {
 	// executor's hardcoded 3m no matter what the registry declared — 41 agents
 	// declaring 5m/6m/10m, all silently 3m, while `coordinator agents <id>`
 	// printed the declared value as EFFECTIVE. Measured 2026-09-22.
-	IdleTimeout     string
-	AuthMode        string  // "oauth" (default) or "apikey" — selects Cloud Run Job template (M-CLOUD-DUAL-AUTH)
-	APIKey          string  // User-provided Anthropic API key, only when AuthMode == "apikey"
-	MaxCostUSD      float64 // Per-task cost budget (0 = unlimited) — M-CLOUD-PROGRESS-TRACKING
-	GitMode         string  // "guardrails", "strict", "permissive" — M-GIT-GUARDRAILS
-	SiteSlug        string  // Website site slug for commit message — M-HARNESS-COMMIT-CONTRACT
-	BriefID         string  // Brief ID for commit message — M-HARNESS-COMMIT-CONTRACT
-	Subdirectory    string  // Monorepo subdirectory for package agents — M-PKG-AUTONOMOUS-UPDATES
-	ExecutorVariant string  // Docker image variant — M-EXECUTOR-VARIANTS ("", "go", "codex", etc.)
+	IdleTimeout       string
+	AuthMode          string // "oauth" (default) or "apikey" — selects Cloud Run Job template (M-CLOUD-DUAL-AUTH)
+	CreditAccount     string // Explicit API-credit lane; never inferred from apikey mode.
+	CreditGatewayURL  string
+	CreditJobIdentity string  // Expected Cloud Run job service-account identity.
+	APIKey            string  // User-provided Anthropic API key, only when AuthMode == "apikey"
+	MaxCostUSD        float64 // Per-task cost budget (0 = unlimited) — M-CLOUD-PROGRESS-TRACKING
+	GitMode           string  // "guardrails", "strict", "permissive" — M-GIT-GUARDRAILS
+	SiteSlug          string  // Website site slug for commit message — M-HARNESS-COMMIT-CONTRACT
+	BriefID           string  // Brief ID for commit message — M-HARNESS-COMMIT-CONTRACT
+	Subdirectory      string  // Monorepo subdirectory for package agents — M-PKG-AUTONOMOUS-UPDATES
+	ExecutorVariant   string  // Docker image variant — M-EXECUTOR-VARIANTS ("", "go", "codex", etc.)
 
 	// WorkTier is the permission tier the session-protocol gate runs under
 	// ("tier1"/"tier2") — M-COORDINATOR-EXECUTION-TRUST M1a. Always set via
@@ -94,6 +98,12 @@ type DispatchParams struct {
 	// Trusted metadata from the agent registry, never from message content — the
 	// same authority boundary as WorkTier.
 	AutoMerge bool
+	// Code auto-merge authority comes exclusively from trusted registry metadata.
+	// Only a Secret Manager name travels here, never the approver token.
+	AutoMergeCode             bool
+	AutoMergeRequiredChecks   []string
+	AutoMergeApproverSecret   string
+	AutoMergeApproverIdentity string
 
 	// ArtifactPatterns is what this agent is DECLARED to produce. The wrapper's
 	// auto-merge guard requires every changed file to match one, so a run that

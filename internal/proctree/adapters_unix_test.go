@@ -83,7 +83,8 @@ func TestAdaptersStopOwnedDescendants(t *testing.T) {
 					task.Budget = executor.NewCostBudget(0.001, 1, 1)
 				}
 				done := make(chan *executor.Result, 1)
-				go func() { result, _ := agent.Execute(ctx, task); done <- result }()
+				errorsOut := make(chan error, 1)
+				go func() { result, err := agent.Execute(ctx, task); errorsOut <- err; done <- result }()
 				var child int
 				until := time.Now().Add(8 * time.Second)
 				for time.Now().Before(until) {
@@ -105,8 +106,9 @@ func TestAdaptersStopOwnedDescendants(t *testing.T) {
 				}
 				select {
 				case result := <-done:
+					executionErr := <-errorsOut
 					if result == nil || result.Success {
-						t.Errorf("expected failed execution, got %+v", result)
+						t.Errorf("expected failed execution, got %+v (error=%v)", result, executionErr)
 					}
 					if reason == "tokens" && result != nil && result.ThrashKilledAt <= 1 {
 						t.Error("token guard did not fire")

@@ -94,6 +94,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 	}
 
 	opts := runner.Options{
+		TerminalSignalExit:  os.Exit,
 		Filename:            filename,
 		ProgramArgs:         programArgs,
 		Trace:               trace,
@@ -163,7 +164,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			return resolveRoutingPolicy(aiRoutingValues, programIface, entry)
 		},
 		AIHandler: func(effCtx *effects.EffContext, policy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
-			return setupAIHandler(effCtx, aiCfg, policy, attr)
+			return prepareRunAIHandler(effCtx, aiCfg, policy, attr)
 		},
 		ORReferer:    orReferer,
 		ORTitle:      orTitle,

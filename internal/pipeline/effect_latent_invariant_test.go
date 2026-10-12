@@ -19,12 +19,14 @@ func TestLatentMaskPublicationInvariant(t *testing.T) {
 	prog := &core.Program{Decls: []core.CoreExpr{&core.Let{Name: "use", Value: lam}}}
 	ti := types.CoreTypeInfo{1: &types.TFunc2{Return: types.TInt, EffectRow: types.EmptyEffectRow()}, 2: types.TInt}
 	for _, present := range []bool{false, true} {
-		err := ValidateEffectsWithCalls(&ast.File{}, prog, ti, func(uint64) ([]bool, bool) { return []bool{}, present }, nil)
+		err := ValidateEffectsWithCalls(&ast.File{}, prog, ti, func(uint64) (types.ApplicationEffects, bool) {
+			return types.ApplicationEffects{CallRow: types.EmptyEffectRow()}, present
+		}, nil)
 		if present {
 			if err != nil {
 				t.Fatal(err)
 			}
-		} else if err == nil || !strings.Contains(err.Error(), "internal invariant: missing LatentParamMask") {
+		} else if err == nil || !strings.Contains(err.Error(), "internal invariant: missing or malformed ApplicationEffects") {
 			t.Fatalf("want invariant error: %v", err)
 		}
 	}
@@ -63,5 +65,18 @@ export func main() -> () ! {IO} = println(show(rowless({f:loud})))`, "rowless"},
 				}
 			}
 		})
+	}
+}
+
+func TestApplicationPublicationMalformedRows(t *testing.T) {
+	fn := &core.Var{CoreNode: core.CoreNode{NodeID: 1}, Name: "identity"}
+	app := &core.App{CoreNode: core.CoreNode{NodeID: 2}, Func: fn}
+	prog := &core.Program{Decls: []core.CoreExpr{&core.Let{Name: "use", Value: &core.Lambda{Body: app}}}}
+	ti := types.CoreTypeInfo{1: &types.TFunc2{Return: types.TInt}, 2: types.TInt}
+	for _, row := range []*types.Row{nil, {}, {Kind: types.RecordRow}, {Kind: types.EffectRow, Tail: &types.RowVar{Name: "unowned", Kind: types.EffectRow}}} {
+		err := ValidateEffectsWithCalls(&ast.File{}, prog, ti, func(uint64) (types.ApplicationEffects, bool) { return types.ApplicationEffects{CallRow: row}, true }, nil)
+		if err == nil || !strings.Contains(err.Error(), "typed application 2") {
+			t.Fatalf("malformed publication accepted: %v", err)
+		}
 	}
 }

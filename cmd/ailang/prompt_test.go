@@ -292,6 +292,9 @@ func TestPromptCommand_EndsWithNewline(t *testing.T) {
 // TestMain ensures we're running from project root and wires the platform
 // backends the way main does (tests never call main).
 func TestMain(m *testing.M) {
+	if policyReceiptFixtureWorker() {
+		return
+	}
 	registerPlatform()
 	// The retired storage selectors are hard errors by design (M-V1-SIMPLIFY-S3
 	// M3) — `ailang run` refuses them through the secret-approver gate — and a

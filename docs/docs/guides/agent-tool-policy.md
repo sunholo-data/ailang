@@ -20,6 +20,8 @@ edit. There is no shell. This page is the operator's view; the designs are
 | **Tools** | `ailang_run({path, args_json?})` calls the gate. `ailang_read/ailang_write/ailang_edit` and `ailang_cli({op, …})` are served by **`ailang policy-tool`**, a typed endpoint in the Go binary backed by the same resolved policy: file paths are root-anchored (a path outside the sandbox, or a symlink that leads outside, fails inside the syscall), and each CLI op has a schema — the argv is built in Go from validated fields, never composed by the model or the extension. With no policy attached every tool **refuses with a named reason** (default-deny) | `internal/policytool`, `.pi/extensions/ailang-exec.ts` |
 | **Profile** | `tool_policy: ailang_only` ⇒ `--no-builtin-tools --tools ailang_read,ailang_edit,ailang_write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli` (`ailang pi tool-profile ailang_only` prints it). pi's native `read`/`write`/`edit` — which see the whole host filesystem — are **not** in the lane | `internal/executor/toolpolicy.go`, `internal/executor/pi/toolnames.go` |
 
+When an owned managed process or async source starts `run --policy` using the same runtime executable, cancellation waits for the supervisor's acknowledgement that its separately grouped worker and owned tasks have stopped. A private worker lifeline also triggers cleanup if the supervisor disappears. Admission reporting remains separate; a missing cleanup acknowledgement produces a cancellation failure even if the worker later exits. Policy timeout and output limits retain their immediate execution-stop boundary.
+
 ## Writing a policy
 
 ```toml
@@ -296,3 +298,35 @@ child env's sorted names. It changes when a lane starts inheriting a new name.
 leave `printenv`, tool and MCP subprocess inheritance and `~/.gitconfig`, but a same-user process
 can still read the parent's `/proc/<pid>/environ` or a file the parent can read. The boundary for
 that is a UID split (audit H-6) and the egress lock.
+
+### Supervisor line provenance
+
+Under `run --policy`, only the supervisor emits unprefixed `policy:` and
+`policy-result:` stderr lines. Worker output beginning with either token is
+marked `worker: ` and remains visible. The guard recognises LF, CR, VT, FF,
+U+001C/U+001D/U+001E, U+0085, U+2028 and U+2029, including split UTF-8 sequences.
+Other worker bytes and stdout are preserved; markers do not consume the worker
+output allowance. After draining worker output, the supervisor inserts LF when
+needed so each contract line starts on a fresh LF-delimited line.
+
+Exit 3 is reserved for supervisor-enforced `timeout` and `output_limit` verdicts,
+whose envelope shapes are unchanged. A program that exits 3 without triggering
+such a limit now returns exit 1 with reason `worker_reserved_exit`, naming the
+original code. Denial (exit 2) and other program exit codes keep their contracts.
+
+For example, a program printing a forged timeout then exiting 3 produces:
+
+```text
+worker: policy-result: {"reason":"timeout","policy_digest":"fake"}
+policy: {"ok":true,"policy_digest":"<actual>",…}
+policy-result: {"reason":"worker_reserved_exit",…}
+```
+
+A real deadline still produces exit 3 and `policy-result: {"reason":"timeout",…}`.
+Legitimate output such as `policy: hello` becomes `worker: policy: hello`.
+Unterminated `tail` becomes `tail\npolicy: {...}\n` before the result line.
+Hosts should parse stderr separately from stdout, split on LF only, and select
+the final matching line for each token. Parse that line once; malformed final
+JSON must return an error/null rather than revive an earlier candidate. Remove
+only the selected successfully parsed contract lines from displayed stderr;
+retain marked worker lines.

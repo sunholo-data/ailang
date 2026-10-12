@@ -4,6 +4,7 @@ import "strings"
 
 // The coordinator daemon and the commands that administer it.
 const (
+	EnvClaudeCreditGatewayURL  = "AILANG_CLAUDE_CREDIT_GATEWAY_URL"
 	EnvCoordinatorAPIKey       = "COORDINATOR_API_KEY"
 	EnvCoordinatorBindAddr     = "COORDINATOR_BIND_ADDR"
 	EnvPort                    = "PORT"
@@ -39,6 +40,7 @@ const (
 )
 
 var coordinatorVars = []Var{
+	{EnvClaudeCreditGatewayURL, "", AreaCoordinator, "Authenticated HTTPS origin for coordinator credits confirm/status/enable/disable/promote; default for --gateway, with Google ID-token authentication."},
 	{EnvCoordinatorAPIKey, "", AreaCoordinator, "Shared secret for the coordinator's HTTP API and the dashboard's WebSocket; the daemon rejects every request while it is unset (fail-closed since S3 M5) and `ailang coordinator` commands discover it from here first."},
 	{EnvCoordinatorBindAddr, "", AreaCoordinator, "Host the daemon's HTTP server binds; unset is 127.0.0.1 locally and 0.0.0.0 in cloud mode."},
 	{EnvPort, "", AreaCoordinator, "Cloud Run's port convention: when set, the daemon starts its HTTP server on it, `ailang server` and `ailang serve-api` bind 0.0.0.0 instead of 127.0.0.1 (DefaultBindHost; --bind overrides), and the registry validator listens on it (default 8080 there)."},
@@ -193,3 +195,5 @@ func ApprovalURL() string {
 
 // ApprovalToken returns AILANG_APPROVAL_TOKEN, "" when unset.
 func ApprovalToken() string { return get(EnvApprovalToken) }
+
+func ClaudeCreditGatewayURL() string { return get(EnvClaudeCreditGatewayURL) }

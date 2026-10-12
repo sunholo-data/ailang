@@ -38,6 +38,7 @@ var configDrivenTracer = telemetry.Tracer("ai.configdriven")
 type Provider struct {
 	spec       *pkg.AIProviderSpec
 	httpClient *http.Client
+	envLookup  func(string) string
 }
 
 // Option configures a Provider at construction time.
@@ -160,7 +161,7 @@ func (p *Provider) Generate(ctx context.Context, req *ai.Request) (*ai.Response,
 		return nil, ai.NewProviderError(p.spec.Name, 0, "build HTTP request: "+err.Error(), err)
 	}
 	authReq.Header.Set("Accept", "application/json")
-	if err := applyAuth(authReq, p.spec); err != nil {
+	if err := applyAuth(authReq, p.spec, p.envLookup); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, ai.NewProviderError(p.spec.Name, 0, err.Error(), err)

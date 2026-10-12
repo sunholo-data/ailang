@@ -1,0 +1,101 @@
+{
+  "version": "AILANG v0.54.4\nCommit: bc078dc\nFull:   bc078dc1b41308542bbccd3417bf040283e817df\nBuilt:  2026-10-10T20:13:02Z\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026",
+  "providers": 0,
+  "cases": [
+    {
+      "name": "quit",
+      "command": [
+        "/private/tmp/worker-release-v544-official/binary/ailang",
+        "run",
+        "--caps",
+        "IO,Env,Process",
+        "--process-allowlist",
+        "/private/tmp/worker-release-v544-official/binary/ailang",
+        "--chdir",
+        "/private/tmp/worker-followup-policy-marker-before",
+        "policy_exit.ail",
+        "--",
+        "/private/tmp/worker-release-v544-official/binary/ailang",
+        "/private/tmp/reply-m1-policy-quit-t8i90gmz"
+      ],
+      "home": "/private/tmp/reply-m1-policy-quit-t8i90gmz",
+      "before": [
+        {
+          "pid": 67875,
+          "ppid": 67862,
+          "pgid": 67875,
+          "command": "/private/tmp/worker-release-v544-official/binary/ailang run --policy /private/tmp/reply-m1-policy-quit-t8i90gmz/policy.toml --chdir /private/tmp/reply-m1-policy-quit-t8i90gmz/sandbox worker.ail"
+        },
+        {
+          "pid": 67877,
+          "ppid": 67875,
+          "pgid": 67877,
+          "command": "/private/tmp/worker-release-v544-official/binary/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-policy-quit-t8i90gmz/policy.toml --chdir /private/tmp/reply-m1-policy-quit-t8i90gmz/sandbox worker.ail"
+        }
+      ],
+      "worker_startup_marker": "actual worker entered main",
+      "stdout": "ready\ncancel result: Ok(())\n",
+      "stderr": "",
+      "exit": 0,
+      "shutdown_ms": 3,
+      "after": [
+        {
+          "pid": 67877,
+          "ppid": 1,
+          "pgid": 67877,
+          "command": "/private/tmp/worker-release-v544-official/binary/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-policy-quit-t8i90gmz/policy.toml --chdir /private/tmp/reply-m1-policy-quit-t8i90gmz/sandbox worker.ail"
+        }
+      ],
+      "clean": false,
+      "fixture_cleanup_after": []
+    },
+    {
+      "name": "eof",
+      "command": [
+        "/private/tmp/worker-release-v544-official/binary/ailang",
+        "run",
+        "--caps",
+        "IO,Env,Process",
+        "--process-allowlist",
+        "/private/tmp/worker-release-v544-official/binary/ailang",
+        "--chdir",
+        "/private/tmp/worker-followup-policy-marker-before",
+        "policy_exit.ail",
+        "--",
+        "/private/tmp/worker-release-v544-official/binary/ailang",
+        "/private/tmp/reply-m1-policy-eof-hbr4lk13"
+      ],
+      "home": "/private/tmp/reply-m1-policy-eof-hbr4lk13",
+      "before": [
+        {
+          "pid": 67895,
+          "ppid": 67893,
+          "pgid": 67895,
+          "command": "/private/tmp/worker-release-v544-official/binary/ailang run --policy /private/tmp/reply-m1-policy-eof-hbr4lk13/policy.toml --chdir /private/tmp/reply-m1-policy-eof-hbr4lk13/sandbox worker.ail"
+        },
+        {
+          "pid": 67896,
+          "ppid": 67895,
+          "pgid": 67896,
+          "command": "/private/tmp/worker-release-v544-official/binary/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-policy-eof-hbr4lk13/policy.toml --chdir /private/tmp/reply-m1-policy-eof-hbr4lk13/sandbox worker.ail"
+        }
+      ],
+      "worker_startup_marker": "actual worker entered main",
+      "stdout": "ready\ncancel result: Ok(())\n",
+      "stderr": "",
+      "exit": 0,
+      "shutdown_ms": 3,
+      "after": [
+        {
+          "pid": 67896,
+          "ppid": 1,
+          "pgid": 67896,
+          "command": "/private/tmp/worker-release-v544-official/binary/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-policy-eof-hbr4lk13/policy.toml --chdir /private/tmp/reply-m1-policy-eof-hbr4lk13/sandbox worker.ail"
+        }
+      ],
+      "clean": false,
+      "fixture_cleanup_after": []
+    }
+  ],
+  "pass": false
+}

@@ -73,12 +73,20 @@ func attributionHeaders(attr *ai.Attribution) http.Header {
 		}
 	}
 
-	return http.Header{
-		"HTTP-Referer":            []string{referer},
-		"X-OpenRouter-Title":      []string{title}, // Canonical (v0.16.0+)
-		"X-Title":                 []string{title}, // Backwards compat
-		"X-OpenRouter-Categories": []string{categories},
-	}
+	headers := make(http.Header)
+	headers.Set("HTTP-Referer", referer)
+	headers.Set("X-OpenRouter-Title", title)
+	headers.Set("X-Title", title)
+	headers.Set("X-OpenRouter-Categories", categories)
+	return headers
+}
+
+// FrozenAttribution resolves environment/default precedence before a deferred
+// handler is installed. Returning complete fields prevents late environment
+// changes from changing attribution on the first or later requests.
+func FrozenAttribution(attr *ai.Attribution) *ai.Attribution {
+	h := attributionHeaders(attr)
+	return &ai.Attribution{HTTPReferer: h.Get("HTTP-Referer"), Title: h.Get("X-OpenRouter-Title"), Categories: h.Get("X-OpenRouter-Categories")}
 }
 
 // requestHeaders is the bearer auth plus attribution every OpenRouter call carries.

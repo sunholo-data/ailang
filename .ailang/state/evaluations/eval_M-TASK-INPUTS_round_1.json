@@ -1,0 +1,247 @@
+{
+  "sprint_id": "M-TASK-INPUTS",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-09T15:21:16.479704+00:00",
+  "implementation_commit": "0b59935611ce7c7e4116156f154f3768d70e13b5",
+  "branch": "sprint/task-inputs-1600",
+  "design_doc": "design_docs/implemented/v0_52_6/m-task-inputs.md",
+  "sprint_plan": "design_docs/implemented/v0_52_6/m-task-inputs-sprint-plan.md",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "gate_source": "local",
+    "tests_pass": true,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "verify_examples_pass": true,
+    "boundaries_pass": true,
+    "build_pass": true,
+    "todo_hack_count": 0,
+    "is_perf_sprint": false,
+    "coverage": {
+      "canonical_validation": {
+        "covered_statements": 61,
+        "total_statements": 62,
+        "percent": 98.39
+      },
+      "filesystem_and_manifest": {
+        "covered_statements": 247,
+        "total_statements": 272,
+        "percent": 90.81
+      }
+    },
+    "evaluation_script_exit": 0,
+    "evaluation_script_log": "/tmp/task-inputs-1600-independent-evaluation.log",
+    "example_verification_log": "/tmp/task-inputs-1600-independent-examples.log"
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1_TYPED_MESSAGE_PLANE",
+      "criterion": "One canonical TaskInput type is usable by messaging and coordinator without an import cycle; JSON field names match the approved design.",
+      "met": true,
+      "evidence": "internal/messaging/task_inputs.go canonical type and internal/coordinator/task_inputs.go alias; package tests compile without cycles."
+    },
+    {
+      "feature_id": "M1_TYPED_MESSAGE_PLANE",
+      "criterion": "Validation rejects malformed repo/ref, raw SHA refs, traversal, invalid digest and more than 16 inputs; HTTP returns 400 and CLI rejects malformed inputs files.",
+      "met": true,
+      "evidence": "TestTaskInputsValidation, TestLoadTaskInputsFile and TestTaskInputsHTTPAndPolling assert syntax, SHA/count/path refusals and HTTP 400."
+    },
+    {
+      "feature_id": "M1_TYPED_MESSAGE_PLANE",
+      "criterion": "SQLite insert/list/get and Firestore map round trips preserve all fields; legacy records decode with no inputs, malformed stored JSON returns an error.",
+      "met": true,
+      "evidence": "TestInboxTaskInputsPersistence, TestInboxTaskInputsMapRoundTrip, TestTaskInputsTaskMapRoundTrip assert fields/order, legacy values and malformed stored JSON errors."
+    },
+    {
+      "feature_id": "M1_TYPED_MESSAGE_PLANE",
+      "criterion": "Migration from the current terminal schema preserves existing messages and inputs across reopening; fresh schema and repeated startup work.",
+      "met": true,
+      "evidence": "TestTaskInputsMigrationPreservesMessages plus TestInboxTaskInputsPersistence verify migration, repeated startup and reopen preservation."
+    },
+    {
+      "feature_id": "M1_TYPED_MESSAGE_PLANE",
+      "criterion": "HTTP, CLI, Pub/Sub hydration, polling adapter and watcher preserve the same ordered input list.",
+      "met": true,
+      "evidence": "TestSendViaHTTP_PostsCorrectShape, TestTaskInputsHTTPAndPolling, PubSubAdapter hydration fixture and TestTaskInputsDaemonPollingBothCreationSites verify ingress/adapters."
+    },
+    {
+      "feature_id": "M2_TASK_GRANTS_DISPATCH",
+      "criterion": "Both task creation sites copy inputs; SQLite and Firestore task round trips preserve fields, order and legacy empty values.",
+      "met": true,
+      "evidence": "TestTaskInputsDaemonPollingBothCreationSites, TestTaskInputsTaskSQLite, TestTaskInputsTaskSQLiteLegacyMigration and TestTaskInputsTaskMapRoundTrip."
+    },
+    {
+      "feature_id": "M2_TASK_GRANTS_DISPATCH",
+      "criterion": "inputs_allow accepts exact owner/repo entries from the trusted agent registry; empty grants deny all requested inputs and sender content cannot widen the grant.",
+      "met": true,
+      "evidence": "TestTaskInputsGrants; dispatchTasksCloud resolves trusted agent registry before publishing; ValidateInputsForAgent reads no sender grants."
+    },
+    {
+      "feature_id": "M2_TASK_GRANTS_DISPATCH",
+      "criterion": "Unauthorized repo wraps ErrDispatchPermanent, calls MarkTaskFailed and posts the named repo/agent reason without dispatch or requeue.",
+      "met": true,
+      "evidence": "TestTaskInputsDeniedFailsBeforePublishing and TestTaskInputsDaemonPollingBothCreationSites assert permanent stored failure, no publisher access and named thread reason."
+    },
+    {
+      "feature_id": "M2_TASK_GRANTS_DISPATCH",
+      "criterion": "Allowed cloud inputs serialize as AILANG_TASK_INPUTS; malformed env JSON fails explicitly; absent inputs preserve previous dispatch params/env behavior.",
+      "met": true,
+      "evidence": "TestTaskInputsDispatchEnv and TestTaskInputsJobAndCredentialBoundary assert transport, absent env and malformed env refusal."
+    },
+    {
+      "feature_id": "M2_TASK_GRANTS_DISPATCH",
+      "criterion": "Local tasks with inputs fail explicitly as unsupported before executor startup; no local fetch behavior is introduced.",
+      "met": true,
+      "evidence": "TestTaskInputsLocalRefusal executes against an uninitialized daemon; failure occurs before any executor/startup access."
+    },
+    {
+      "feature_id": "M3_PARENT_FETCH_PROVENANCE",
+      "criterion": "Branch/tag shallow clones resolve HEAD and deliver a file, directory or whole tree in input order before the executor starts; missing refs/paths fail loudly with the input index.",
+      "met": true,
+      "evidence": "TestTaskInputsNoNetworkIngressToJob resolves real temporary branch/tag HEADs; TestTaskInputsFetchDelivery and TestTaskInputsFetchRefusals cover shapes and missing ref/path."
+    },
+    {
+      "feature_id": "M3_PARENT_FETCH_PROVENANCE",
+      "criterion": "Default .incoming/<n>/ is excluded from git; explicit destinations create new files only; copied whole trees omit .git metadata.",
+      "met": true,
+      "evidence": "TestTaskInputsFetchDelivery and TestTaskInputsBatchCollisionsAndCancellation assert git exclusion, metadata omission, collision refusal and ignore-rule precedence."
+    },
+    {
+      "feature_id": "M3_PARENT_FETCH_PROVENANCE",
+      "criterion": "Source and destination traversal, source symlinks including ancestor components, destination symlinks, existing-file collisions and harness instruction paths at any depth are rejected.",
+      "met": true,
+      "evidence": "TestTaskInputsFetchRefusals and TestTaskInputsBatchCollisionsAndCancellation assert traversal, symlink/ancestor, instruction and explicit git-control-file refusals."
+    },
+    {
+      "feature_id": "M3_PARENT_FETCH_PROVENANCE",
+      "criterion": "Single-file sha256 and every manifest.sha256 entry are checked; malformed manifests, missing entries, escaping entries and mismatches fail before executor invocation.",
+      "met": true,
+      "evidence": "TestTaskInputsChecksumsAndAtomicStaging and TestTaskInputsStageReadFailuresAndFilePin assert valid pins plus malformed/missing/duplicate/escaping/mismatched manifest entries."
+    },
+    {
+      "feature_id": "M3_PARENT_FETCH_PROVENANCE",
+      "criterion": "A named 256 MiB aggregate copied-byte cap is enforced while reading; all inputs stage and verify before delivery, failures clean temporary clones and never start the executor.",
+      "met": true,
+      "evidence": "stageInputFile enforces aggregate limit while reading; TestTaskInputsChecksumsAndAtomicStaging asserts batch staging/cap; TestTaskInputsDeliveryRollback and no-network fixture assert rollback and clone cleanup."
+    },
+    {
+      "feature_id": "M3_PARENT_FETCH_PROVENANCE",
+      "criterion": "Provenance in job logs and completion report includes repo, requested ref, resolved commit, effective dest and verified digests; failure reports retain indexed reasons.",
+      "met": true,
+      "evidence": "TestTaskInputsNoNetworkIngressToJob validates provenance content; TestTaskInputsFailedCompletionRetainsProvenance verifies failed completions retain it; indexed fetch refusal tests cover error reasons."
+    },
+    {
+      "feature_id": "M3_PARENT_FETCH_PROVENANCE",
+      "criterion": "Parent uses the existing HTTPS token helper for allowlisted input reads; tests prove the child does not receive the fleet token or input clone credential material, including the workspace SSH deploy-key case.",
+      "met": true,
+      "evidence": "taskInputCloneArgs resets helpers and uses parent HTTPS token helper; TestTaskInputsJobAndCredentialBoundary asserts token filtering, child scopes, HTTPS input URL and SSH workspace behavior."
+    },
+    {
+      "feature_id": "M3_PARENT_FETCH_PROVENANCE",
+      "criterion": "Zero-input tasks retain previous clone, executor and completion behavior; temp-repo integration tests require no network or model.",
+      "met": true,
+      "evidence": "TestTaskInputsDispatchEnv, TestTaskInputsJobAndCredentialBoundary and TestTaskInputsFailedCompletionRetainsProvenance pin no-input behavior; executeCloudTask diff preserves existing flow and calls fetch before deterministic/AI execution."
+    },
+    {
+      "feature_id": "M4_DOCS_EXAMPLES_ACCEPTANCE",
+      "criterion": "Examples show default excluded inputs, explicit binary placement and exact inputs_allow with tool_policy ailang_only; JSON examples validate with the production validator and sample config parses.",
+      "met": true,
+      "evidence": "TestTaskInputsExamples uses production decoder, registry loader, grants and BuildDirectiveFromConfig; examples cover excluded directory and explicit binary placement."
+    },
+    {
+      "feature_id": "M4_DOCS_EXAMPLES_ACCEPTANCE",
+      "criterion": "Guides document --inputs-file, HTTP inputs, AILANG_TASK_INPUTS, branch/tag-only refs, checksums, copied-byte cap, permanent errors, untrusted data and cloud-only support.",
+      "met": true,
+      "evidence": "Reviewed agent-messaging.md, coordinator.md, coordinator-setup.md and examples/task_inputs/README.md against all specified operator limits and failure semantics."
+    },
+    {
+      "feature_id": "M4_DOCS_EXAMPLES_ACCEPTANCE",
+      "criterion": "Focused package tests and make test, make lint, make check-boundaries pass; changed validators/copy code target at least 85 percent statement coverage with refusal paths asserted.",
+      "met": true,
+      "evidence": "Independent full evaluate_sprint.sh and verify-examples pass; banked boundaries/build pass; targeted coverage profile exceeds 85% for canonical and filesystem/manifest helpers."
+    },
+    {
+      "feature_id": "M4_DOCS_EXAMPLES_ACCEPTANCE",
+      "criterion": "Bank a no-network end-to-end ingress-to-job fixture showing bytes/provenance and denied-input no-dispatch behavior; attach a staged cloud publish checklist for daneel#335.",
+      "met": true,
+      "evidence": "Banked .ailang/state/sprints/M-TASK-INPUTS/no-network-acceptance.log and TestTaskInputsDaemonPollingBothCreationSites; README staged cloud checklist."
+    },
+    {
+      "feature_id": "M4_DOCS_EXAMPLES_ACCEPTANCE",
+      "criterion": "When deployment access exists, verify the site agent with a real daneel-memory branch, no shell, correct PR diff and provenance; otherwise record the external acceptance as pending without claiming the migration completed.",
+      "met": true,
+      "evidence": "validation.json external_acceptance is pending with deployment/image-build limitation; README states live registry/sender migration is not completed."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "example_kind": "JSON/YAML transport examples as approved; no language examples needed",
+    "design_doc_status": "Implemented; design and companion plan archived together",
+    "changelog_path": "changelogs/unreleased/2026-10-09-task-inputs.md"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Typed ingress and both stores; trusted exact grants before publish/dispatch; cloud-only parent fetch, bounded verified staging and new-files-only placement; credentials stay out of child; completion provenance; external rollout explicitly pending."
+  },
+  "feedback": [],
+  "code_quality_deductions": [
+    {
+      "points": 5,
+      "reason": "Rubric capped long-function deduction: fetch, stageTaskInput and executeCloudTask exceed 50 lines. No file exceeds 800 lines."
+    }
+  ],
+  "review_fixes_verified": [
+    "Firestore PutMessageIfAbsent retains nil guard before Inputs access.",
+    "Failure completion passes returned input evidence and has dedicated regression.",
+    "Example invocation templates retain sender Content.",
+    "Both daemon task creation sites and named permanent thread refusal have fixtures.",
+    "Explicit git-control files refused; existing gitignore override causes default delivery refusal."
+  ],
+  "acceptance_helper_limitation": {
+    "criteria_unverifiable": 23,
+    "criteria_verified_missing": 0,
+    "reason": "check_acceptance_criteria.sh cannot recognize approved prose criteria; independent code inspection and concrete test evidence above establish each criterion. Generator passes flags were not used as sole evidence."
+  },
+  "evaluation_script_limitation": "Existing evaluate_sprint.sh emits duplicate zero lines for no TODO/HACK/FIXME, making that emitted JSON invalid. Individual gate verdicts and exit 0 were inspected; this report normalizes todo_hack_count to 0 without modifying the skill.",
+  "external_acceptance": "pending: staged Daneel rollout, see examples/task_inputs/README.md",
+  "notes": "Independent evaluator did not author implementation. Reviewed committed head on clean isolated worktree, ran required full evaluator gates once without duplicate repository coverage, and verified examples separately. Regression-surface and performance conditional categories do not apply. Live coordinator/executor image rollout, Docker image build and staged Daneel publish remain pending. PASS authorizes normal review, not production deployment or automatic merge.",
+  "post_gate_verification": {
+    "change": "Test fixture normalizes local file clone URLs for Windows with filepath.ToSlash and a leading slash. Runtime implementation is unchanged after the independently gated commit.",
+    "test": "TestTaskInputsNoNetworkIngressToJob",
+    "result": "pass",
+    "log": "/tmp/task-inputs-1600-portable-fixture.log",
+    "limitation": "Focused rerun passed locally; Windows CI execution remains a separate signal on the published PR."
+  },
+  "post_gate_gitexec_review": {
+    "change": "Nine relocated bare git exec.CommandContext calls in coordinator_cloud_task.go now use the existing absolute gitexec.CommandContext resolver. Removed unused os/exec import and obsolete coordinator_cloud.go baseline entry; no new baseline exemption added.",
+    "review": "Independently compared every call: context, git arguments, stdout/stderr and Run/Output behavior are preserved. Baseline shrinks by nine and the check reports 35 remaining sites.",
+    "gates": {
+      "check-git-exec": "pass",
+      "check-referenced-paths": "pass (88 paths)",
+      "check-changelog": "pass (13 fragments; shared Unreleased section clean)",
+      "focused_cloud_credential_input_tests": "pass",
+      "make_lint": "pass (0 issues)",
+      "check-cli-docs": "pass"
+    },
+    "evidence_logs": [
+      "/tmp/task-inputs-1600-extra-gates.log",
+      "/tmp/task-inputs-1600-gitexec-tests.log",
+      "/tmp/task-inputs-1600-gitexec-lint.log"
+    ],
+    "changelog_fix": "Moved the previously shared Unreleased entry into changelogs/unreleased/2026-10-09-task-inputs.md, consistent with repository CI policy.",
+    "scope": "Full independent test/size/example gates remain recorded at 0b5993561; this narrow post-gate call-site fix has additional focused tests, lint and static CI-surface gates. Published PR CI provides final head verification.",
+    "result": "pass"
+  }
+}

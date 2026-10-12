@@ -1,0 +1,53 @@
+{
+  "result": "PASS official DarwinARM64 v0.54.5 artifact",
+  "source_commit": "296231d657126e20b79eaaf258e86963344f368c",
+  "assets": {
+    "release": "https://github.com/sunholo-data/ailang/releases/tag/v0.54.5",
+    "tag": "v0.54.5",
+    "published": true,
+    "source_commit": "296231d657126e20b79eaaf258e86963344f368c",
+    "source_tag_matches": true,
+    "required_assets": 40,
+    "actual_assets": 40,
+    "darwin_archive_sha256": "deeacee1614bb51503ad405b80ef2deb77385b60cdc2348d25a3c14f127f29b0",
+    "signed_provenance_subjects": 9,
+    "all_provenance_digests_match": true
+  },
+  "cryptographic_provenance": "PASS SLSA verified official builder/exacttag+commit",
+  "marker_managed_shutdown_ms": [
+    4,
+    4
+  ],
+  "original_managed_shutdown_ms": [
+    5,
+    4
+  ],
+  "async_quit_ms": 54,
+  "async_unfinished_owned_pids": 4,
+  "all_positive_pids_absent": true,
+  "async_eof": "natural completion12391ms, immediate_eof_callback=false; new EOF source delivery remains outside sprint",
+  "ai_cases": 19,
+  "provider_calls": 0,
+  "ordinary_lifecycle": {
+    "result": "PASS",
+    "cases": 38,
+    "cleanup_cases": 36,
+    "supported_cleanup_cases": 35,
+    "strict_builtin_cleanup_refusals": 1,
+    "strict_budget_refusals": 2,
+    "all_workers_absent": true,
+    "max_shutdown_ms": 261
+  },
+  "logs": {
+    "verification.json": "08a5c646943d86123f3eab9fb5a80a07f29b6b47d66154430d92ec6c2a647775",
+    "slsa-verification.log": "df39672dea3c189f3825e09a80798cb5c2c53f22591b3efe9c3e59a78850b9f8",
+    "SHA256SUMS": "ed04c4c202be945e390a3365a95e97f88a987053ae82eb59291cbccd3e7e3310",
+    "version.log": "b7994fac076376d99bd9632e5ab9f79f76223d49cd38f1f8b0fe30eb2e3f85c4",
+    "marker-policy/policy-cancel.json": "8a9d8dbf34d6b300deecb8bddbb14ee2df360aa46f494a73873ae02312f43303",
+    "consumer-managed/policy-cancel.json": "7399bffa4a78328287a40a8164c043e33419687a06e7358c4002c3faff705b76",
+    "consumer-async/lifecycle.json": "99243a25e6ec10003f061dbb06f4a71e5217421ac4d762cee9c438fe2a65c1c6",
+    "ai.json": "adc85b376b66e7a701173f10765e99ef177df1826ea153964541bec8780fdfb7",
+    "ordinary-lifecycle.log": "a930504299b049364620b1d5eca4928cabd6fbf36b715878e9432567d119139b",
+    "post-release-checks.log": "a516e6faa7dc667c5ba7ad49a5f57770ac3672ab0a0ef734754a14c10cd7f72c"
+  }
+}

@@ -56,6 +56,7 @@ type options struct {
 	gcpProject   string
 	noADC        bool
 	configDriven func(name string) ai.Provider
+	frozen       *frozenConfiguration
 }
 
 // WithAPIKey supplies the credential explicitly; the environment is not read.
@@ -113,10 +114,13 @@ func New(name string, opts ...Option) (*Client, error) {
 	typ := ai.ProviderFromString(name)
 
 	switch typ {
+	case ai.ProviderCodex:
+		return nil, ai.NewAIError(ai.CodeCapabilityNotSupported,
+			"codex AI-effect routing is unavailable in Phase 1 (#903); use chatgpt/<model> for the interim ChatGPT subscription lane, or explicitly select provider openai for metered API use", false)
 	case ai.ProviderOpenAI:
 		baseURL := o.baseURL
 		if baseURL == "" {
-			baseURL = config.OpenAIBaseURL()
+			baseURL = o.envTrim(config.EnvOpenAIBaseURL)
 		}
 		key := o.key(typ)
 		if key == "" && baseURL == "" {
@@ -135,10 +139,22 @@ func New(name string, opts ...Option) (*Client, error) {
 	case ai.ProviderChatGPT:
 		// Subscription OAuth only: the codex CLI's ChatGPT login. Checked here
 		// so a missing or expired login fails at setup, not on the first call.
-		if _, err := chatgpt.LoadCredential(); err != nil {
+		load := chatgpt.LoadCredential
+		if o.frozen != nil {
+			load = func() (chatgpt.Credential, error) {
+				if o.frozen.chatPathErr != nil {
+					return chatgpt.Credential{}, o.frozen.chatPathErr
+				}
+				return chatgpt.LoadCredentialAt(o.frozen.chatPath)
+			}
+		}
+		if _, err := load(); err != nil {
 			return nil, err
 		}
 		var copts []chatgpt.Option
+		if o.frozen != nil {
+			copts = append(copts, chatgpt.WithCredentialPath(o.frozen.chatPath))
+		}
 		if o.baseURL != "" {
 			copts = append(copts, chatgpt.WithBaseURL(o.baseURL))
 		}
@@ -154,9 +170,9 @@ func New(name string, opts ...Option) (*Client, error) {
 		baseURL := o.baseURL
 		if baseURL == "" {
 			if typ == ai.ProviderLyceum {
-				baseURL = ai.LyceumBaseURL()
+				baseURL = o.endpoint(config.EnvLyceumBaseURL, config.DefaultLyceumBaseURL)
 			} else {
-				baseURL = ai.ZAIBaseURL()
+				baseURL = o.endpoint(config.EnvZAIBaseURL, config.DefaultZAIBaseURL)
 			}
 		}
 		return &Client{Provider: openai.NewClient(key, openai.WithBaseURL(baseURL)), Type: typ, Lane: LaneAPIKey}, nil
@@ -172,7 +188,11 @@ func New(name string, opts ...Option) (*Client, error) {
 		if o.apiKeyEnv != "" {
 			return nil, fmt.Errorf("%s environment variable required", o.apiKeyEnv)
 		}
-		cred, err := ai.ResolveAnthropicCredential()
+		resolve := ai.ResolveAnthropicCredential
+		if o.frozen != nil {
+			resolve = o.frozen.anthropic
+		}
+		cred, err := resolve()
 		if err != nil {
 			return nil, err
 		}
@@ -196,7 +216,7 @@ func New(name string, opts ...Option) (*Client, error) {
 		if o.apiKey != "" {
 			return &Client{Provider: gemini.NewClient(o.apiKey, o.geminiOpts()...), Type: typ, Lane: LaneAPIKey}, nil
 		}
-		noADC := o.noADC || config.AINoADC()
+		noADC := o.noADC || o.envTrim(config.EnvAINoADC) == "1"
 		if noADC && o.gcpProject != "" {
 			return nil, fmt.Errorf("Gemini: gcp_project=%q pins Vertex ADC, but ADC is disabled (--ai-no-adc / %s=1)", o.gcpProject, config.EnvAINoADC)
 		}
@@ -213,7 +233,7 @@ func New(name string, opts ...Option) (*Client, error) {
 		}
 		key := o.key(typ)
 		if key == "" && o.apiKeyEnv == "" {
-			key = config.GeminiAPIKey()
+			key = o.env(config.EnvGeminiAPIKey)
 		}
 		if key != "" {
 			return &Client{Provider: gemini.NewClient(key, o.geminiOpts()...), Type: typ, Lane: LaneAPIKey}, nil
@@ -236,7 +256,13 @@ func New(name string, opts ...Option) (*Client, error) {
 		// (IPv4-pinned so the harness cannot silently reach an uncapped
 		// Ollama.app listener over ::1 — see defaultEndpoint there).
 		var copts []ollama.ClientOption
-		if o.baseURL != "" {
+		if o.frozen != nil {
+			endpoint := o.frozen.env[config.EnvOllamaHost]
+			if endpoint == "" {
+				endpoint = o.baseURL
+			}
+			copts = append(copts, ollama.WithFrozenEndpoint(endpoint))
+		} else if o.baseURL != "" {
 			copts = append(copts, ollama.WithEndpoint(o.baseURL))
 		}
 		client, err := ollama.NewClient(copts...)
@@ -280,7 +306,7 @@ func (o *options) key(typ ai.ProviderType) string {
 		return o.apiKey
 	}
 	if env := o.keyEnv(typ); env != "" {
-		return config.Raw(env)
+		return o.env(env)
 	}
 	return ""
 }
@@ -300,8 +326,12 @@ func (o *options) anthropicOpts() []anthropic.ClientOption {
 }
 
 func (o *options) geminiOpts() []gemini.ClientOption {
+	var opts []gemini.ClientOption
 	if o.baseURL != "" {
-		return []gemini.ClientOption{gemini.WithBaseURL(o.baseURL)}
+		opts = append(opts, gemini.WithBaseURL(o.baseURL))
 	}
-	return nil
+	if o.frozen != nil {
+		opts = append(opts, o.frozen.vertex)
+	}
+	return opts
 }

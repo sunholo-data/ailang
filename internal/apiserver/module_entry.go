@@ -126,6 +126,11 @@ func (s *Server) registerModule(loaded *loader.LoadedModule) (string, bool, erro
 
 	extractParamInfo(info, loaded.File)
 	extractRouteAnnotations(info, loaded.File)
+	for _, exp := range info.Exports {
+		if exp.ResponseHeadersIssue != "" {
+			return "", false, fmt.Errorf("%s: @route %s: %s", absFile, exp.Name, exp.ResponseHeadersIssue)
+		}
+	}
 	extractNoExposeAnnotations(info, loaded.File)
 	extractMCPNameAnnotations(info, loaded.File)
 	extractMCPToolMetaAnnotations(info, loaded.File)

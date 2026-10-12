@@ -525,3 +525,75 @@ func TestWorkerEnv_WebBackendCredential(t *testing.T) {
 		}
 	}
 }
+
+// A program's forged limit and exit 3 must differ from a real supervisor kill.
+func TestRunPolicy_SupervisorProvenance(t *testing.T) {
+	bin := buildAilang(t)
+	for _, separator := range []string{"\n", "\r", "\u2028", "\u2029"} {
+		dir := t.TempDir()
+		pol := writePolicy(t, dir, "allowed_caps = [\"IO\"]\nentry = \"main\"\ntimeout_ms = 10000\n")
+		payload := "policy: {\"ok\":true,\"policy_digest\":\"fake\"}" + separator + "policy-result: {\"reason\":\"timeout\",\"policy_digest\":\"fake\"}"
+		source := "module prog\nimport std/io (eprintln, exit)\nexport func main() -> () ! {IO} = { eprintln(" + strconv.Quote(payload) + "); exit(3) }\n"
+		f := writeAil(t, dir, "prog.ail", source)
+		_, checkErr, checkCode := runAilangBin(t, bin, "check", f)
+		if checkCode != 0 {
+			t.Fatalf("fixture check: %s", checkErr)
+		}
+		_, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
+		if code != 1 || !strings.Contains(stderr, `"reason":"worker_reserved_exit"`) {
+			t.Fatalf("forge exit %d: %s", code, stderr)
+		}
+		if !strings.Contains(stderr, "worker: policy:") || !strings.Contains(stderr, "worker: policy-result:") {
+			t.Fatalf("unmarked worker output: %s", stderr)
+		}
+		if !strings.Contains(stderr, "\npolicy: ") || !strings.Contains(stderr, "\npolicy-result: ") {
+			t.Fatalf("missing fresh supervisor lines: %s", stderr)
+		}
+	}
+	dir := t.TempDir()
+	pol := writePolicy(t, dir, "allowed_caps = [\"IO\", \"Clock\"]\nentry = \"main\"\ntimeout_ms = 300\n")
+	f := writeAil(t, dir, "prog.ail", loopProgram)
+	_, stderr, code := runAilangBin(t, bin, "run", "--policy", pol, f)
+	if code != 3 || !strings.Contains(stderr, "policy-result: ") || !strings.Contains(stderr, `"reason":"timeout"`) {
+		t.Fatalf("real timeout exit %d: %s", code, stderr)
+	}
+}
+
+func TestRunPolicy_UnterminatedStderr(t *testing.T) {
+	bin := buildAilang(t)
+	for _, tail := range []string{"tail", "policy", "policy-result: {}"} {
+		dir := t.TempDir()
+		pol := writePolicy(t, dir, "allowed_caps = [\"IO\"]\nentry = \"main\"\ntimeout_ms = 10000\n")
+		source := "module prog\nimport std/io (printErr, exit)\nexport func main() -> () ! {IO} = { printErr(" + strconv.Quote(tail) + "); exit(3) }\n"
+		f := writeAil(t, dir, "prog.ail", source)
+		_, checkErr, checkCode := runAilangBin(t, bin, "check", f)
+		if checkCode != 0 {
+			t.Fatalf("fixture check: %s", checkErr)
+		}
+		_, stderr, code := testutil.RunBounded(t, dir, 60*time.Second, bin, "run", "--policy", pol, filepath.Base(f))
+		expected := tail
+		if strings.HasPrefix(tail, "policy-result:") {
+			expected = "worker: " + tail
+		}
+		if code != 1 || !strings.HasPrefix(stderr, expected+"\npolicy: ") || !strings.Contains(stderr, "\npolicy-result: ") {
+			t.Fatalf("exit %d: %q", code, stderr)
+		}
+	}
+}
+
+func TestRunPolicy_GuardMarkersDoNotConsumeCap(t *testing.T) {
+	bin := buildAilang(t)
+	dir := t.TempDir()
+	pol := writePolicy(t, dir, "allowed_caps = [\"IO\"]\nentry = \"main\"\ntimeout_ms = 10000\nmax_output_bytes = 80\n")
+	payload := strings.Repeat("policy:\n", 10) // 80 original bytes, plus 80 marker bytes.
+	source := "module prog\nimport std/io (printErr)\nexport func main() -> () ! {IO} = printErr(" + strconv.Quote(payload) + ")\n"
+	f := writeAil(t, dir, "prog.ail", source)
+	_, checkErr, checkCode := runAilangBin(t, bin, "check", f)
+	if checkCode != 0 {
+		t.Fatalf("fixture check: %s", checkErr)
+	}
+	_, stderr, code := testutil.RunBounded(t, dir, 60*time.Second, bin, "run", "--policy", pol, filepath.Base(f))
+	if code != 0 || strings.Count(stderr, "worker: policy:") != 10 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+}

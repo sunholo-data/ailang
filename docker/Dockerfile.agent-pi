@@ -24,6 +24,17 @@ FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 ARG PI_PACKAGE=@earendil-works/pi-coding-agent
 ARG PI_VERSION=0.85.1
 USER root
+# Website agents must build their source and inspect the rendered page as the
+# runtime user. PyYAML is a distro package; additional Python dependencies go
+# in a workspace venv (Debian's system Python is externally managed).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python-is-python3 python3-yaml python3-venv \
+    chromium fonts-liberation fonts-noto-color-emoji \
+    && rm -rf /var/lib/apt/lists/*
+# Repositories can npm ci their own Puppeteer version without downloading a
+# second browser. Launch flags remain explicit at the call site, not global.
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    PUPPETEER_SKIP_DOWNLOAD=true
 RUN npm uninstall -g @mariozechner/pi-coding-agent 2>/dev/null || true; \
     npm install -g "${PI_PACKAGE}@${PI_VERSION}" \
     && pi --version </dev/null | grep -qx "${PI_VERSION}" \

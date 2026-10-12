@@ -176,6 +176,9 @@ func formatInstruction(inst Instruction, ip int, p *FuncPrototype, img *Bytecode
 		}
 		return base
 
+	case OpEffectCall:
+		return fmt.Sprintf("EFFECT_CALL  r%d, builtin#%d, argc=%d", inst.A(), inst.B(), inst.C())
+
 	case OpEffectTrap:
 		return fmt.Sprintf("EFFECT_TRAP  r%d, effect#%d", inst.A(), inst.Bx())
 

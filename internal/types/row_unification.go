@@ -163,42 +163,57 @@ func (ru *RowUnifier) applySubToRow(sub Substitution, r *Row) *Row {
 		return nil
 	}
 
-	// Apply substitution to labels
-	labels := make(map[string]Type)
-	for k, v := range r.Labels {
-		labels[k] = ApplySubstitution(sub, v)
+	// Resolve the whole alias chain before unifying. A one-hop snapshot lets
+	// repeated recursive calls rebind an intermediate tail and disconnect the
+	// final call from the enclosing function's closed row.
+	result := cloneApplicationRow(r)
+	for name, typ := range result.Labels {
+		result.Labels[name] = ApplySubstitution(sub, typ)
 	}
-
-	// Apply substitution to tail
-	var tail *RowVar
-	if r.Tail != nil {
-		if subType, ok := sub[r.Tail.Name]; ok {
-			// Tail is substituted
-			if subRow, ok := subType.(*Row); ok {
-				// Merge labels
-				for k, v := range subRow.Labels {
-					if _, exists := labels[k]; exists {
-						// This shouldn't happen with correct unification
-						panic(fmt.Sprintf("label collision during substitution: %s", k))
-					}
-					labels[k] = v
+	seen := make(map[string]bool)
+	for result.Tail != nil && !seen[result.Tail.Name] {
+		name := result.Tail.Name
+		replacement, ok := sub[name]
+		if !ok {
+			break
+		}
+		seen[name] = true
+		switch resolved := replacement.(type) {
+		case *Row:
+			for label, typ := range resolved.Labels {
+				if _, exists := result.Labels[label]; exists {
+					panic(fmt.Sprintf("label collision during substitution: %s", label))
 				}
-				tail = subRow.Tail
-			} else if subVar, ok := subType.(*RowVar); ok {
-				tail = subVar
-			} else {
-				panic(fmt.Sprintf("row variable substituted with non-row type: %T", subType))
+				result.Labels[label] = ApplySubstitution(sub, typ)
 			}
-		} else {
-			tail = r.Tail
+			for effect, budget := range cloneApplicationBudgets(resolved.Budgets) {
+				if result.Budgets == nil {
+					result.Budgets = make(map[string]*int)
+				}
+				result.Budgets[effect] = budget
+			}
+			for effect, budget := range cloneApplicationBudgets(resolved.MinBudgets) {
+				if result.MinBudgets == nil {
+					result.MinBudgets = make(map[string]*int)
+				}
+				result.MinBudgets[effect] = budget
+			}
+			result.Params = mergeEffectParams(resolved.Params, result.Params)
+			for effect, span := range resolved.Provenance {
+				result.Provenance[effect] = span
+			}
+			result.Tail = resolved.Tail
+		case *RowVar:
+			result.Tail = resolved
+		default:
+			panic(fmt.Sprintf("row variable substituted with non-row type: %T", replacement))
 		}
 	}
-
-	return &Row{
-		Kind:   r.Kind,
-		Labels: labels,
-		Tail:   tail,
+	if result.Tail != nil {
+		tail := *result.Tail
+		result.Tail = &tail
 	}
+	return result
 }
 
 // canonicalizeRow returns the canonical representation of a row

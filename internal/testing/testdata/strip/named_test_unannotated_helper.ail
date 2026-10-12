@@ -1,0 +1,7 @@
+module named_test_unannotated_helper
+
+export func inc(x: int) -> int { x + 1 }
+func check() -> bool = inc(1) == 2
+
+test "plain export" { inc(1) == 2 }
+test "unannotated helper" { check() }

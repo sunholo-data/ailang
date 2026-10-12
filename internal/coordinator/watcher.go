@@ -9,6 +9,7 @@ import (
 
 // Message represents a message from the messaging system
 type Message struct {
+	Inputs       []TaskInput
 	ID           string
 	From         string
 	Title        string
@@ -148,6 +149,7 @@ func (w *MessageWatcher) messageToTask(msg *Message) *Task {
 		ID:           fmt.Sprintf("task-%s", msg.ID),
 		Title:        extractTitle(msg),
 		Content:      msg.Content,
+		Inputs:       msg.Inputs,
 		Kind:         kind,
 		Priority:     priority,
 		MessageID:    msg.ID,

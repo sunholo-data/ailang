@@ -41,7 +41,7 @@ var aiVars = []Var{
 	{EnvBrowserbaseAPIKey, "", AreaAI, "Browserbase API key for browser eval sessions when the benchmark's browser config does not name another variable (read through Raw, since the name is configurable)."},
 	{EnvBrowserbaseProject, "", AreaAI, "Browserbase project id for browser eval sessions; same rule as the API key."},
 	{EnvAINoADC, "", AreaAI, "Set to 1 to disable the Google provider's Application Default Credentials lane: a missing GOOGLE_API_KEY/GEMINI_API_KEY becomes a hard AuthFailed error instead of silently billing the gcloud project (same as ailang run --ai-no-adc)."},
-	{EnvAIKeyFile, "", AreaAI, "Path to a file holding the API key for the --ai model's provider, read once at startup and never echoed (same as ailang run --ai-key-file, which wins); the file's contents replace the provider's key variable."},
+	{EnvAIKeyFile, "", AreaAI, "Path to a file holding the API key for the --ai model's provider, read once on the first AI effect in run (eagerly for service setup) and never echoed (same as ailang run --ai-key-file, which wins); the file's contents replace the provider's key variable."},
 }
 
 // OpenAIBaseURL returns the trimmed OPENAI_BASE_URL, "" when unset.

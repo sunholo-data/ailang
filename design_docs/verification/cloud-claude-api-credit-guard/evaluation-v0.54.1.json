@@ -1,0 +1,537 @@
+{
+  "sprint_id": "M-CLOUD-CLAUDE-API-CREDIT-GUARD",
+  "evaluation_round": 3,
+  "timestamp": "2026-10-10T14:15:12.212143+00:00",
+  "design_doc": "design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard.md",
+  "sprint_plan": "design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard-sprint-plan.md",
+  "inspected_document_checkout": "/private/tmp/ailang-claude-credit-completion-docs",
+  "document_move_status": "Phase 7 complete: independently verified design, sprint plan and all four companion documents under design_docs/implemented/v0_54_1. Original approved drafts preserved separately by parent. Publication remains parent-owned; verdict and evaluation evidence unchanged.",
+  "evaluated_source_commit": "e2e2bd73f3715977db355b1a2d20860b28ede20e",
+  "evaluated_release": "v0.54.1",
+  "evaluated_infrastructure_commit": "82b12885f85d0c75ac3f433e76df6fd4c57f4a90",
+  "total_score": 94,
+  "pass_threshold": 70,
+  "result": "PASS",
+  "implementation_result": "PASS",
+  "implementation_score": 94,
+  "evaluation_scope": "Complete approved M0-M6, approved bounded CLI continuation, conservative recovery and actual dev/prod rollout. Independent evaluator authored no implementation and made no provider, secret access, deployment or IAM mutations.",
+  "full_sprint_complete": true,
+  "activation_result": "PASS: promoted account and guarded existing sprint-evaluator active in dev/prod; test overlay disabled.",
+  "gate_source": "ci",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 9
+  },
+  "scoring_notes": [
+    "33/33 sprint criteria fulfilled; feature passes/timestamps/notes, completed status and measured velocity independently checked in canonical state. Plan all milestones checked and design status reflects completion.",
+    "Code quality deduction is capped5 under the rubric for functions exceeding50lines: internal/claudegateway/gateway.go:50 ServeHTTP200lines; gateway.go:250 admin106lines; internal/creditbudget/recovery.go:46 ConservativeDebit88lines; cmd/ailang/coordinator_credits.go:62 runCoordinatorCredits242lines. These are cohesive host-boundary/transaction routines; no functional defect inferred.",
+    "Design fidelity deducts1 for proposed50/75/90percent automatic operational alerts not integrated. Canonical status/blockers and hard admission guards exist; alert integration is a documented nonblocking follow-up outside milestone acceptance.",
+    "Operational CLI examples, request/config fixtures and public/private runbooks satisfy examples component for a host/cloud feature; no AILANG syntax change warrants a synthetic runnable .ail example.",
+    "Parser/typechecker/compiler semantic regression and performance profiling conditional categories do not trigger for this host/cloud budget feature."
+  ],
+  "hard_fails": [],
+  "automated_checks": {
+    "exact_source_ci": {
+      "result": "PASS",
+      "commit": "e2e2bd73f3715977db355b1a2d20860b28ede20e",
+      "check_runs_completed_success": 38,
+      "ci_run": "https://github.com/sunholo-data/ailang/actions/runs/38053586760",
+      "release_run": "https://github.com/sunholo-data/ailang/actions/runs/38055376322",
+      "sonar": "SUCCESS on exact source; both macOS build contexts SUCCESS",
+      "method": "Independent authenticated GitHub check-runs read; no redundant whole local rerun."
+    },
+    "full_recovery_test": {
+      "result": "PASS",
+      "log": "/private/tmp/claude-credit-recovery-post-test.log"
+    },
+    "lint": {
+      "result": "PASS: 0 issues",
+      "log": "/private/tmp/claude-credit-recovery-post-lint.log"
+    },
+    "boundaries_ci_quick": {
+      "result": "PASS",
+      "log": "/private/tmp/claude-credit-recovery-post-ci-quick.log"
+    },
+    "authority_domain_race": {
+      "result": "PASS",
+      "log": "/private/tmp/ailang-credit-recovery-domain-race.log"
+    },
+    "actual_firestore_two_client_race": {
+      "result": "PASS: executed, not skipped",
+      "log": "/private/tmp/ailang-credit-recovery-emulator-race.log"
+    },
+    "gateway_receipt_race": {
+      "result": "PASS",
+      "log": "/private/tmp/credit-receipts-race.log"
+    },
+    "terraform_mocked_plans": {
+      "result": "PASS: 12 of 12",
+      "log": "/private/tmp/claude-credit-v54.1-activation-terraform-test.log"
+    },
+    "terraform_validate": {
+      "result": "PASS",
+      "log": "/private/tmp/claude-credit-v54.1-activation-terraform-validate.log"
+    },
+    "canonical_agents_ci_routing": {
+      "result": "PASS: 483 passed, 0 failed across sh and dash",
+      "log": "/private/tmp/ailang-credit-agents-routing-green.log"
+    },
+    "native_released_images_fake_cli": {
+      "result": "PASS: default and Go CLI 2.1.296 completion and two-request Bash loop; no skip or provider spend",
+      "build": "6721b94c-867b-440f-8967-ee2f47c02f49",
+      "log": "/private/tmp/claude-credit-v54.1-image-smoke.log"
+    },
+    "actual_activation_builds": {
+      "result": "PASS: independent gcloud builds describe reads returned SUCCESS at exact infrastructure commit",
+      "project": "ailang-multivac-deploy",
+      "region": "europe-west3",
+      "dev": "4dfffd91-68c3-466e-a13e-81306a33482d",
+      "test": "784d8ec2-48c9-456b-8223-3a7344d17eee",
+      "prod": "e343eb32-0a1e-4d3d-8357-6cef04707e6a"
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M0",
+      "criterion": "Deployment evidence names exact cloud projects/jobs/images and external infrastructure ownership.",
+      "met": true,
+      "evidence": "Recorded deployment/account/request contracts; confirmed Holosun ApS/ailang grant200USD expiring2026-10-28T00:00:00Z. Failed mandatory-beta protocol was safely rejected, then source-side proxy compatibility verified without widening gateway admission. Released default/Go CLI2.1.296 fake smoke build6721b94c passed before guarded live canaries."
+    },
+    {
+      "feature_id": "M0",
+      "criterion": "Supported request types, pricing bounds, helper models, and credential transport are verified or explicitly blocked.",
+      "met": true,
+      "evidence": "Recorded deployment/account/request contracts; confirmed Holosun ApS/ailang grant200USD expiring2026-10-28T00:00:00Z. Failed mandatory-beta protocol was safely rejected, then source-side proxy compatibility verified without widening gateway admission. Released default/Go CLI2.1.296 fake smoke build6721b94c passed before guarded live canaries."
+    },
+    {
+      "feature_id": "M0",
+      "criterion": "Actual grant and allocation evidence are recorded without secret material; unavailable evidence blocks activation.",
+      "met": true,
+      "evidence": "Recorded deployment/account/request contracts; confirmed Holosun ApS/ailang grant200USD expiring2026-10-28T00:00:00Z. Failed mandatory-beta protocol was safely rejected, then source-side proxy compatibility verified without widening gateway admission. Released default/Go CLI2.1.296 fake smoke build6721b94c passed before guarded live canaries."
+    },
+    {
+      "feature_id": "M0",
+      "criterion": "No live inference is required before the reserved smoke path exists.",
+      "met": true,
+      "evidence": "Recorded deployment/account/request contracts; confirmed Holosun ApS/ailang grant200USD expiring2026-10-28T00:00:00Z. Failed mandatory-beta protocol was safely rejected, then source-side proxy compatibility verified without widening gateway admission. Released default/Go CLI2.1.296 fake smoke build6721b94c passed before guarded live canaries."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Parallel emulator clients cannot exceed account/task/day ceilings or the two-task pilot limit.",
+      "met": true,
+      "evidence": "Atomic integer authority, domain/race and real independent-client Firestore emulator tests establish account/task/day/concurrency, immutable reconfirmation, expiry/kill-switch/storage fail-closed, and no lease-based monetary refunds. New conservative recovery and external debit emulator proof retains original exposure without enabling or resetting grant."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Same-cycle reconfirmation adds zero allowance; key rotation/restarts/date changes do not replenish it.",
+      "met": true,
+      "evidence": "Atomic integer authority, domain/race and real independent-client Firestore emulator tests establish account/task/day/concurrency, immutable reconfirmation, expiry/kill-switch/storage fail-closed, and no lease-based monetary refunds. New conservative recovery and external debit emulator proof retains original exposure without enabling or resetting grant."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Duplicate settlement is harmless; lease expiry never refunds forwarded or unknown exposure.",
+      "met": true,
+      "evidence": "Atomic integer authority, domain/race and real independent-client Firestore emulator tests establish account/task/day/concurrency, immutable reconfirmation, expiry/kill-switch/storage fail-closed, and no lease-based monetary refunds. New conservative recovery and external debit emulator proof retains original exposure without enabling or resetting grant."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Expiry, kill switch, storage failure, and unresolved grant transitions prevent new admission.",
+      "met": true,
+      "evidence": "Atomic integer authority, domain/race and real independent-client Firestore emulator tests establish account/task/day/concurrency, immutable reconfirmation, expiry/kill-switch/storage fail-closed, and no lease-based monetary refunds. New conservative recovery and external debit emulator proof retains original exposure without enabling or resetting grant."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Relevant tests and formatting/lint pass.",
+      "met": true,
+      "evidence": "Atomic integer authority, domain/race and real independent-client Firestore emulator tests establish account/task/day/concurrency, immutable reconfirmation, expiry/kill-switch/storage fail-closed, and no lease-based monetary refunds. New conservative recovery and external debit emulator proof retains original exposure without enabling or resetting grant."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Tests cover exactly 100K and above, cache reads, five-minute/one-hour writes, thinking/output limits, and upward rounding.",
+      "met": true,
+      "evidence": "Canonical modelreg tier/TTL/thinking/output/ceil tests pass; request stores immutable rate-card digest. Four retained live usage receipts were independently repriced at exact revision, matching4783,1726,4753,1763microUSD; one-hour/cache tier edge cases remain covered by tests."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Unknown model/feature/rate or unproved token bound cannot authorize a request.",
+      "met": true,
+      "evidence": "Canonical modelreg tier/TTL/thinking/output/ceil tests pass; request stores immutable rate-card digest. Four retained live usage receipts were independently repriced at exact revision, matching4783,1726,4753,1763microUSD; one-hour/cache tier edge cases remain covered by tests."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Existing pricing tests pass without changing unrelated model rates or ordering.",
+      "met": true,
+      "evidence": "Canonical modelreg tier/TTL/thinking/output/ceil tests pass; request stores immutable rate-card digest. Four retained live usage receipts were independently repriced at exact revision, matching4783,1726,4753,1763microUSD; one-hour/cache tier edge cases remain covered by tests."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Request and settlement record the pricing revision used.",
+      "met": true,
+      "evidence": "Canonical modelreg tier/TTL/thinking/output/ceil tests pass; request stores immutable rate-card digest. Four retained live usage receipts were independently repriced at exact revision, matching4783,1726,4753,1763microUSD; one-hour/cache tier edge cases remain covered by tests."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Every upstream send has its own durable sufficient reservation, including retry/helper/subagent paths admitted by the contract.",
+      "met": true,
+      "evidence": "Independent source review verifies paired Google job identity plus signed attempt capability, narrow feature/model admission, fixed origin, sufficient durable Reserve and MarkForwarded before transport, retained unknown exposure, and settlement-before-success-receipt. Complete fault/strict usage and security tests/races pass. Live IAM proof denies guarded/runtime jobs direct provider/signing secret and authority writes."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Crash around sending, truncated SSE, client cancellation, duplicate events, and gateway restart preserve conservative exposure.",
+      "met": true,
+      "evidence": "Independent source review verifies paired Google job identity plus signed attempt capability, narrow feature/model admission, fixed origin, sufficient durable Reserve and MarkForwarded before transport, retained unknown exposure, and settlement-before-success-receipt. Complete fault/strict usage and security tests/races pass. Live IAM proof denies guarded/runtime jobs direct provider/signing secret and authority writes."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Unsupported billable routes/features/models and invalid credentials produce zero upstream inference calls.",
+      "met": true,
+      "evidence": "Independent source review verifies paired Google job identity plus signed attempt capability, narrow feature/model admission, fixed origin, sufficient durable Reserve and MarkForwarded before transport, retained unknown exposure, and settlement-before-success-receipt. Complete fault/strict usage and security tests/races pass. Live IAM proof denies guarded/runtime jobs direct provider/signing secret and authority writes."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Provider key remains gateway-only; capabilities cannot choose another account or enlarge limits.",
+      "met": true,
+      "evidence": "Independent source review verifies paired Google job identity plus signed attempt capability, narrow feature/model admission, fixed origin, sufficient durable Reserve and MarkForwarded before transport, retained unknown exposure, and settlement-before-success-receipt. Complete fault/strict usage and security tests/races pass. Live IAM proof denies guarded/runtime jobs direct provider/signing secret and authority writes."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Fixed-origin and streaming contract tests pass.",
+      "met": true,
+      "evidence": "Independent source review verifies paired Google job identity plus signed attempt capability, narrow feature/model admission, fixed origin, sufficient durable Reserve and MarkForwarded before transport, retained unknown exposure, and settlement-before-success-receipt. Complete fault/strict usage and security tests/races pass. Live IAM proof denies guarded/runtime jobs direct provider/signing secret and authority writes."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Job image, provider, auth mode, model, and account resolve coherently before launch.",
+      "met": true,
+      "evidence": "Scoped credit_max_cost_usd overrides legacy150USD budget only for guarded agents; missing/invalid budget fails before token/transport. Provider route namespaces are allowlisted and forced to gateway/model; actual released CLI completion/tool loops and dev/prod exact-image tasks pass. Live evaluator registry uses scoped per-environment identity, Go variant, model, shared authority,2USD/45m while preserving approvals and all other agents. Budget refusal is permanent/visible rather than retry spin."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Invalid/missing budgets fail closed rather than become zero/unlimited.",
+      "met": true,
+      "evidence": "Scoped credit_max_cost_usd overrides legacy150USD budget only for guarded agents; missing/invalid budget fails before token/transport. Provider route namespaces are allowlisted and forced to gateway/model; actual released CLI completion/tool loops and dev/prod exact-image tasks pass. Live evaluator registry uses scoped per-environment identity, Go variant, model, shared authority,2USD/45m while preserving approvals and all other agents. Budget refusal is permanent/visible rather than retry spin."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Budget-blocked work does not spin on retries or silently switch credentials/models.",
+      "met": true,
+      "evidence": "Scoped credit_max_cost_usd overrides legacy150USD budget only for guarded agents; missing/invalid budget fails before token/transport. Provider route namespaces are allowlisted and forced to gateway/model; actual released CLI completion/tool loops and dev/prod exact-image tasks pass. Live evaluator registry uses scoped per-environment identity, Go variant, model, shared authority,2USD/45m while preserving approvals and all other agents. Budget refusal is permanent/visible rather than retry spin."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Existing request-scoped user keys, OAuth lanes, and task/PR approval rules retain their behavior.",
+      "met": true,
+      "evidence": "Scoped credit_max_cost_usd overrides legacy150USD budget only for guarded agents; missing/invalid budget fails before token/transport. Provider route namespaces are allowlisted and forced to gateway/model; actual released CLI completion/tool loops and dev/prod exact-image tasks pass. Live evaluator registry uses scoped per-environment identity, Go variant, model, shared authority,2USD/45m while preserving approvals and all other agents. Budget refusal is permanent/visible rather than retry spin."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Metered and subscription accounting remain distinguishable; relevant regression tests pass.",
+      "met": true,
+      "evidence": "Scoped credit_max_cost_usd overrides legacy150USD budget only for guarded agents; missing/invalid budget fails before token/transport. Provider route namespaces are allowlisted and forced to gateway/model; actual released CLI completion/tool loops and dev/prod exact-image tasks pass. Live evaluator registry uses scoped per-environment identity, Go variant, model, shared authority,2USD/45m while preserving approvals and all other agents. Budget refusal is permanent/visible rather than retry spin."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Confirm writes audited canonical cloud state atomically and never takes an API key as input.",
+      "met": true,
+      "evidence": "Canonical authenticated operator confirm/status/enable/disable/promote and recovery/inspection tests pass; CLI exact amount/date/CAS and audit actor binding reject unauthorized/conflicting state. Live grant confirmation and audited controls observe canonical state; promotion and rollout retain original grant/time and all accounting. CLI/operator examples and generated documentation match supported commands."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Same-cycle repeat adds no credit; invalid dates/amounts, unauthorized identity, and stale conflicting state fail visibly.",
+      "met": true,
+      "evidence": "Canonical authenticated operator confirm/status/enable/disable/promote and recovery/inspection tests pass; CLI exact amount/date/CAS and audit actor binding reject unauthorized/conflicting state. Live grant confirmation and audited controls observe canonical state; promotion and rollout retain original grant/time and all accounting. CLI/operator examples and generated documentation match supported commands."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Status shows expiry, confirmed/operating ceilings, settled/reserved/unresolved exposure and every blocker.",
+      "met": true,
+      "evidence": "Canonical authenticated operator confirm/status/enable/disable/promote and recovery/inspection tests pass; CLI exact amount/date/CAS and audit actor binding reject unauthorized/conflicting state. Live grant confirmation and audited controls observe canonical state; promotion and rollout retain original grant/time and all accounting. CLI/operator examples and generated documentation match supported commands."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Executors observe the next allowed request without a config restart; disabled/unreconciled accounts stay blocked.",
+      "met": true,
+      "evidence": "Canonical authenticated operator confirm/status/enable/disable/promote and recovery/inspection tests pass; CLI exact amount/date/CAS and audit actor binding reject unauthorized/conflicting state. Live grant confirmation and audited controls observe canonical state; promotion and rollout retain original grant/time and all accounting. CLI/operator examples and generated documentation match supported commands."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Help and operating examples agree with actual flags; CLI tests pass.",
+      "met": true,
+      "evidence": "Canonical authenticated operator confirm/status/enable/disable/promote and recovery/inspection tests pass; CLI exact amount/date/CAS and audit actor binding reject unauthorized/conflicting state. Live grant confirmation and audited controls observe canonical state; promotion and rollout retain original grant/time and all accounting. CLI/operator examples and generated documentation match supported commands."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Dev/prod integration uses one credit authority for the shared grant; all smoke spend stays within the reserved $5.",
+      "met": true,
+      "evidence": "Exact v0.54.1 source e2e2bd73 has38 completed SUCCESS check runs including full CI/Sonar/both macOS legs/release. Dev task7001d497 and prod20eab360 settle two requests each on verified linuxamd64 child3d8a1289. All exposure including recovery totals2.563069USD within5USD pilot, zero holds/reconciliation. Audited promotion preserves totals. Private82b12885 dev/test/prod Terraform builds all SUCCESS; live config/ready100percent coordinators verify dev/prod evaluator active, test unchanged and other44 original agents preserved. Operator and publication-ready docs retain immutable audit/proof."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Provider evidence reconciles supported billing categories; discrepancies block promotion.",
+      "met": true,
+      "evidence": "Exact v0.54.1 source e2e2bd73 has38 completed SUCCESS check runs including full CI/Sonar/both macOS legs/release. Dev task7001d497 and prod20eab360 settle two requests each on verified linuxamd64 child3d8a1289. All exposure including recovery totals2.563069USD within5USD pilot, zero holds/reconciliation. Audited promotion preserves totals. Private82b12885 dev/test/prod Terraform builds all SUCCESS; live config/ready100percent coordinators verify dev/prod evaluator active, test unchanged and other44 original agents preserved. Operator and publication-ready docs retain immutable audit/proof."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Near-limit, expiry-without-renewal, reconfirmation, kill-switch, and unavailable-ledger scenarios show expected behavior.",
+      "met": true,
+      "evidence": "Exact v0.54.1 source e2e2bd73 has38 completed SUCCESS check runs including full CI/Sonar/both macOS legs/release. Dev task7001d497 and prod20eab360 settle two requests each on verified linuxamd64 child3d8a1289. All exposure including recovery totals2.563069USD within5USD pilot, zero holds/reconciliation. Audited promotion preserves totals. Private82b12885 dev/test/prod Terraform builds all SUCCESS; live config/ready100percent coordinators verify dev/prod evaluator active, test unchanged and other44 original agents preserved. Operator and publication-ready docs retain immutable audit/proof."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "All relevant tests, formatting/lint, boundary checks and required CI pass.",
+      "met": true,
+      "evidence": "Exact v0.54.1 source e2e2bd73 has38 completed SUCCESS check runs including full CI/Sonar/both macOS legs/release. Dev task7001d497 and prod20eab360 settle two requests each on verified linuxamd64 child3d8a1289. All exposure including recovery totals2.563069USD within5USD pilot, zero holds/reconciliation. Audited promotion preserves totals. Private82b12885 dev/test/prod Terraform builds all SUCCESS; live config/ready100percent coordinators verify dev/prod evaluator active, test unchanged and other44 original agents preserved. Operator and publication-ready docs retain immutable audit/proof."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Deployment changes are reviewable under infrastructure policy; canary/rollout evidence and operator guide are complete.",
+      "met": true,
+      "evidence": "Exact v0.54.1 source e2e2bd73 has38 completed SUCCESS check runs including full CI/Sonar/both macOS legs/release. Dev task7001d497 and prod20eab360 settle two requests each on verified linuxamd64 child3d8a1289. All exposure including recovery totals2.563069USD within5USD pilot, zero holds/reconciliation. Audited promotion preserves totals. Private82b12885 dev/test/prod Terraform builds all SUCCESS; live config/ready100percent coordinators verify dev/prod evaluator active, test unchanged and other44 original agents preserved. Operator and publication-ready docs retain immutable audit/proof."
+    }
+  ],
+  "acceptance_summary": {
+    "met": 33,
+    "total": 33
+  },
+  "documentation_check": {
+    "changelog_updated": true,
+    "changelog": "changelogs/v0.32-current.md:v0.54.1andv0.53.4",
+    "examples_created": true,
+    "example_type": "Operational CLI/config/request fixtures for host/cloud feature",
+    "design_doc_status": "Implementedv0.54.1; sprint completed; final independent evaluation separately pending before publication. Historical failed pilot explicitly retained.",
+    "sprint_artifacts_consistent": true,
+    "operator_guide": "docs/docs/guides/claude-api-credits.md",
+    "immutable_public_proof": "design_docs/verification/cloud-claude-api-credit-guard/rollout-v0.54.1.json",
+    "private_canary_audit": "https://github.com/sunholo-data/ailang-multivac/blob/8a860353790c72f4be9da1a92301846c8761d187/docs/ops/claude-credit-guard.md#repaired-release-and-reconciled-canaries--2026-10-10"
+  },
+  "design_fidelity": {
+    "score": 9,
+    "approved_extensions": "Client-side beta omission without wider gateway acceptance; documented cumulative/null stream semantics; irreversible full-hold conservative debits/external exposure import; typed post-durable-settlement receipts; evaluator overlay and canonical config CI routing. All retain original allocation and strict request/identity bounds.",
+    "minor_gap": "Automatic 50%, 75% and 90% operational alerts remain a follow-up."
+  },
+  "implementation_issues": [],
+  "activation_blockers": [],
+  "resolved_findings": [
+    {
+      "issue": "Mandatory beta CLI incompatibility originally functionalFAIL66",
+      "resolution": "Approved source-side proxy compatibility omits extensions; gateway still denies all four; released native fake and real canaries pass."
+    },
+    {
+      "issue": "Inherited $150 provider budget overrode the $2 guarded budget",
+      "resolution": "Explicit per-agent credit_max_cost_usd is applied after provider budget mapping. Missing or invalid budgets fail before token acquisition or transport. Deployed overlay specifies $2."
+    },
+    {
+      "issue": "Host/provider/socket/config environment selectors could route around gateway",
+      "resolution": "Namespace allowlist then forced route/model controls; installed fake smoke and actual live jobs pass; managed disk policy remains authoritative and incompatible image must fail canary."
+    },
+    {
+      "issue": "Initial live unknown usage retained 1,320,000 microUSD and froze admission",
+      "resolution": "Cumulative usage replacement and null preservation were repaired with strict numeric, TTL and category validation. The entire original hold was permanently debited without invented usage. External exposure was booked before retries; four later receipts settled automatically."
+    },
+    {
+      "issue": "Last raw diagnostic delta could conceal previously merged totals",
+      "resolution": "LastVerified captures merged typed totals after every successful merge; last_delta remains separate. Multi-delta null preservation regression passes."
+    },
+    {
+      "issue": "No auditable successful usage receipt",
+      "resolution": "Bounded typed billing receipts are emitted only after successful durable settlement. Parse, pricing, stream and storage failures emit no success receipt."
+    },
+    {
+      "issue": "Agents-only raw upload could erase guarded overlay/canary",
+      "resolution": "Presence of either credit configuration variable synchronously delegates to the canonical Terraform pipeline. Child failure causes no raw upload or outer roll. The legacy absent-key path is preserved; hash and stat failures fail closed."
+    },
+    {
+      "issue": "Disabled evaluator review proposal required actual rollout proof",
+      "resolution": "Reviewed one GCS object update with no resource additions, deletions or IAM changes. All three environment builds succeeded. Live dev/prod YAML, effective CLI config and ready coordinators match the overlay; test remains unchanged. Production bytes match the plan exactly and all 45 non-target agents, including the manual canary, are identical."
+    }
+  ],
+  "financial_invariant_review": {
+    "confirmed_grant_micro_usd": 200000000,
+    "operating_ceiling_micro_usd": 190000000,
+    "daily_ceiling_micro_usd": 6000000,
+    "task_ceiling_micro_usd": 2000000,
+    "max_concurrent_tasks": 2,
+    "pilot_ceiling_micro_usd": 5000000,
+    "grant_id": "anthropic-credits-2026-10-28",
+    "grant_expires_at": "2026-10-28T00:00:00Z",
+    "renewal": "Only explicit fresh-credit confirmation renews capacity. Key rotation, date changes, reconfirmation, deployment and promotion do not replenish it.",
+    "account_booked_micro_usd": 2563069,
+    "conservative_subset_micro_usd": 2550040,
+    "verified_gateway_canary_micro_usd": 13025,
+    "earlier_provider_verified_external_debit_micro_usd": 4,
+    "reserved": 0,
+    "forwarding": 0,
+    "unresolved": 0,
+    "active_tasks": 0,
+    "reconciliation_required": false,
+    "canary_complete": true,
+    "operating_available_micro_usd": 187436931,
+    "booked_exposure_is_not_actual_provider_spend": true,
+    "no_refund_or_reset": true,
+    "original_unknown_metadata_preserved": "Actual remains 0 and UpstreamID empty; immutable original request transitions its full 1,320,000 microUSD hold into a conservative debit.",
+    "hard_bound": "Each admitted send reserves the verified full-window, worst cache-TTL and output bound of $1.32 before durable forwarding. Atomic account, task, day and canary checks precede sends; ambiguous sends retain full exposure. Immutable pricing and strict request admission reject unsupported billable features.",
+    "budget_scope": "Anthropic API allocation only; Cloud Run, Firestore, logging and compute charges are separate. Existing deployment administrators intentionally retain credential administration under the attended decision; this is outside the runtime-job guard."
+  },
+  "live_canary_evidence": {
+    "dev_task": "task-7001d497",
+    "dev_execution": "ailang-dev-agent-executor-go-claude-credit-hdkng",
+    "dev_charge_micro_usd": 6509,
+    "prod_task": "task-20eab360",
+    "prod_execution": "ailang-agent-executor-go-claude-credit-7js6t",
+    "prod_charge_micro_usd": 6516,
+    "pricing_revision": "anthropic-haiku-5-5-2026-10-10:b87b8022432a52501de75d0cdee13d82956dc554d8e809dd62823099fc69e5a9",
+    "independent_recomputed_per_request_micro_usd": [
+      4783,
+      1726,
+      4753,
+      1763
+    ],
+    "receipts": [
+      {
+        "event": "credit_usage_settled",
+        "account_id": "anthropic-api-credits",
+        "task_id": "task-7001d497",
+        "request_id": "01eafd1c-6737-4650-9da0-2cfb26b0b48f",
+        "provider_request_id": "req_011CftfLgz5bi1N6t3pWN2Xe",
+        "message_id": "msg_011CftfLhzrPhru2Kha7hN4x",
+        "model": "claude-haiku-5-5",
+        "pricing_revision": "anthropic-haiku-5-5-2026-10-10:b87b8022432a52501de75d0cdee13d82956dc554d8e809dd62823099fc69e5a9",
+        "cost_micro_usd": 4783,
+        "usage": {
+          "InputTokens": 8700,
+          "OutputTokens": 865,
+          "CacheReadTokens": 0,
+          "CacheWrite5mTokens": 27843,
+          "CacheWrite1hTokens": 0
+        }
+      },
+      {
+        "event": "credit_usage_settled",
+        "account_id": "anthropic-api-credits",
+        "task_id": "task-7001d497",
+        "request_id": "442a8535-5e38-4152-b8e4-0e537a9efe43",
+        "provider_request_id": "req_011CftfM53t8YPWTyrNZH6Np",
+        "message_id": "msg_011CftfM5H2QVC9fB6hxfeux",
+        "model": "claude-haiku-5-5",
+        "pricing_revision": "anthropic-haiku-5-5-2026-10-10:b87b8022432a52501de75d0cdee13d82956dc554d8e809dd62823099fc69e5a9",
+        "cost_micro_usd": 1726,
+        "usage": {
+          "InputTokens": 26,
+          "OutputTokens": 376,
+          "CacheReadTokens": 27843,
+          "CacheWrite5mTokens": 10049,
+          "CacheWrite1hTokens": 0
+        }
+      },
+      {
+        "event": "credit_usage_settled",
+        "account_id": "anthropic-api-credits",
+        "task_id": "task-20eab360",
+        "request_id": "d2751e48-48db-40ff-9488-af77a8235f0d",
+        "provider_request_id": "req_011CftfzD38SWBUFq1bT78zQ",
+        "message_id": "msg_011CftfzE6dExNpCr1Fcusu5",
+        "model": "claude-haiku-5-5",
+        "pricing_revision": "anthropic-haiku-5-5-2026-10-10:b87b8022432a52501de75d0cdee13d82956dc554d8e809dd62823099fc69e5a9",
+        "cost_micro_usd": 4753,
+        "usage": {
+          "InputTokens": 8700,
+          "OutputTokens": 805,
+          "CacheReadTokens": 0,
+          "CacheWrite5mTokens": 27843,
+          "CacheWrite1hTokens": 0
+        }
+      },
+      {
+        "event": "credit_usage_settled",
+        "account_id": "anthropic-api-credits",
+        "task_id": "task-20eab360",
+        "request_id": "fafc172e-b043-431e-9166-aecf873ca06a",
+        "provider_request_id": "req_011CftfzatnQMagaQj83vDbt",
+        "message_id": "msg_011Cftfzb7fsTS76tNQ5zPm6",
+        "model": "claude-haiku-5-5",
+        "pricing_revision": "anthropic-haiku-5-5-2026-10-10:b87b8022432a52501de75d0cdee13d82956dc554d8e809dd62823099fc69e5a9",
+        "cost_micro_usd": 1763,
+        "usage": {
+          "InputTokens": 26,
+          "OutputTokens": 470,
+          "CacheReadTokens": 27843,
+          "CacheWrite5mTokens": 9971,
+          "CacheWrite1hTokens": 0
+        }
+      }
+    ],
+    "image_index": "sha256:10f1dd71d32f305d5f1e86dde2b700617bd9172273874045c688caec1b1e1f4d",
+    "executed_linux_amd64_child": "sha256:3d8a1289a3c350a70fa39f3ff6fd074d0704b30da58a73f17c31b6ba78f145d4",
+    "gateway_image": "sha256:c9aaee21a42aa0c7b693c8139aa9ff461f0c7fcee4cecce2dc0d4decf8eecb1e",
+    "receipt_rounding": "Per-request upward rounding explains CLI $0.00650803 versus ledger $0.006509 for dev and CLI $0.00651528 versus ledger $0.006516 for prod.",
+    "transcript_limit": "Banked transcripts retain tool calls and assistant reports, not raw tool results. No false claim raw IAM tool outputs are retained."
+  },
+  "live_iam_evidence": {
+    "result": "PASS",
+    "build": "e485df14-04e6-4deb-97b7-790d509d53bc",
+    "log": "/private/tmp/claude-credit-all-runtime-iam-proof.log",
+    "checked_identities": 10,
+    "http200_permission_tests": 30,
+    "all_granted_permission_lists_empty": true,
+    "permissions": "Provider and signing secret versions.access; authority datastore get/create/update/delete.",
+    "scope": "Guarded, coordinator, dashboard, website-builder and billing identities in dev/prod. Existing trusted Cloud Build administrators performed testIamPermissions using exact job tokens, without reading secrets, changing IAM or running inference.",
+    "deployment_administrators": "Two existing Cloud Build accounts remain trusted by explicit attended decision; folder IAM is unchanged."
+  },
+  "live_activation_evidence": {
+    "account_status_artifact": "/private/tmp/claude-credit-v54.1-evaluator-live-status.json",
+    "registry_artifact": "/private/tmp/claude-credit-v54.1-evaluator-live-verification.json",
+    "prod_plan_equals_live_bytes": true,
+    "all_original_other_agents_preserved": 44,
+    "prod_all_nontarget_agents_including_canary_preserved": 45,
+    "test_unchanged": true,
+    "dev_ready_revision": "ailang-dev-coordinator-03456-sls",
+    "prod_ready_revision": "ailang-coordinator-00215-n6k",
+    "traffic_percent": 100,
+    "first_regular_workload": "sprint-evaluator",
+    "regular_workload_task_not_claimed": "Activation/config readiness verified; no additional regular inference dispatched merely for evaluation."
+  },
+  "nonblocking_followups": [
+    {
+      "item": "Automated credit alerts at 50%, 75% and 90%",
+      "reason": "Proposed operational visibility requirement; canonical status and hard admission guards are implemented. Alert integration is outside the milestone acceptance criteria."
+    },
+    {
+      "item": "Generalize canonicalconfirmation/guards to all credit pools",
+      "reason": "User explicitly follow-up, not sprint scope."
+    },
+    {
+      "item": "Federated credentials and narrower inherited deployment-admin IAM",
+      "reason": "The user expressly retained existing Cloud Build administrator trust and excluded folder IAM changes for this rollout."
+    }
+  ],
+  "assessment_history": [
+    {
+      "round": 1,
+      "report": ".ailang/state/evaluations/eval_M-CLOUD-CLAUDE-API-CREDIT-GUARD_round_1.json",
+      "result": "fail",
+      "score": 66,
+      "preserved": true
+    },
+    {
+      "round": 2,
+      "report": ".ailang/state/evaluations/eval_M-CLOUD-CLAUDE-API-CREDIT-GUARD_round_2.json",
+      "result": "FAIL",
+      "score": 91,
+      "preserved": true
+    }
+  ],
+  "approval_review": {
+    "historical_beta_allowlist_expansion": "Automatic approval review rejected expanding the beta allowlist because pricing was unverified and exposure potentially unbounded. The allowlist remains strict. The user then explicitly approved a bounded client compatibility path that omits those extensions.",
+    "deployment_scope": "The user authorized production publication, recovery and the selected read-only evaluator workload. Folder IAM changes were excluded."
+  },
+  "notes": [
+    "Round 1 and 2 reports remain unchanged. M6 stayed incomplete during the failed pilot and missing CI/live evidence. This final PASS follows repaired live canaries, irreversible conservative recovery, exact-release CI, audited promotion and deployed evaluator verification.",
+    "Parent retains ownership of publication, companion doc moves and canonical state final independent evaluation marker. No code/cloud mutations or secret reads by evaluator."
+  ],
+  "feedback": []
+}

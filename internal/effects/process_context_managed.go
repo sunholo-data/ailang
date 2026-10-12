@@ -3,14 +3,14 @@
 package effects
 
 import (
+	"context"
 	"sync"
 )
 
 // managedState holds managed process tracking state (not available on js/wasm).
 type managedState struct {
-	mu            sync.Mutex
-	managed       map[int]*managedProcess
-	nextManagedID int
+	mu      sync.Mutex
+	managed map[int]*managedProcess
 }
 
 // AcquireManagedProcess registers a managed process and returns its ID.
@@ -22,8 +22,7 @@ func (pc *ProcessContext) AcquireManagedProcess(mp *managedProcess) int {
 		pc.managed = make(map[int]*managedProcess)
 	}
 
-	id := pc.nextManagedID
-	pc.nextManagedID++
+	id := NextWorkerHandleID()
 	mp.id = id
 	pc.managed[id] = mp
 	return id
@@ -53,7 +52,14 @@ func (pc *ProcessContext) CloseAllManaged() {
 	}
 	pc.mu.Unlock()
 
+	bounded, cancel := context.WithTimeout(context.Background(), WorkerShutdownTimeout)
+	defer cancel()
+	var stops sync.WaitGroup
 	for _, mp := range procs {
-		mp.Close()
+		stops.Go(func() { _ = mp.RequestStop() })
+	}
+	stops.Wait()
+	for _, mp := range procs {
+		_ = mp.Join(bounded)
 	}
 }

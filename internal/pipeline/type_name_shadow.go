@@ -25,13 +25,12 @@ const TC_TYPE_SHADOW_001 = "TC_TYPE_SHADOW_001"
 // alias, alias-param and ADT-param tables — for every local type kind, so a
 // local sum type Row is not expanded by an imported record alias Row either.
 //
-// 2. Capture. Interface alias bodies still name other types by BARE name (links'
-// `Seen = {rows: [Row]}`), so in a module with its own Row, expanding Seen would
-// resolve to the LOCAL Row. Such aliases — and, to a fixpoint, aliases whose
-// bodies name them — are withheld from the alias env and registered as captured:
-// USING one is a loud TC_TYPE_SHADOW_001 naming both definitions; merely having
-// it in reach is fine. Closing alias bodies over their defining module removes
-// the need for this (M2 of design_docs/planned/v0_44_0/m-type-name-shadow-and-cache.md).
+// 2. Residual capture. Nullary nonrecursive aliases are now closed over their
+// defining module at interface build time (M-ALIAS-BODY-CLOSURE). Bare names
+// remain for nominal ADTs, recursive references and applied parameterized heads.
+// Withhold aliases containing those locally shadowed names, to a fixpoint;
+// USING one still emits TC_TYPE_SHADOW_001 rather than silently rebinding it.
+
 func shadowLocalTypeNames(imports *moduleImports, file *ast.File, modID string) {
 	if file == nil {
 		return

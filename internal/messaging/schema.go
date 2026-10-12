@@ -352,6 +352,7 @@ CREATE TABLE IF NOT EXISTS inbox_messages (
     -- Content
     title TEXT NOT NULL,
     payload TEXT,
+ inputs TEXT DEFAULT '[]',
 
     -- Content category (bug, feature, general) - for GitHub sync
     category TEXT,

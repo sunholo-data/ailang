@@ -1,0 +1,58 @@
+{
+  "head": "934424d79c6230ecfd0530613e77f60fbd913b22",
+  "build_workflow": "https://github.com/sunholo-data/ailang/actions/runs/38175950821",
+  "platform_result": "PASS Linux,2macOS,Windows",
+  "unchanged_threshold_mib": 30,
+  "measures": [
+    {
+      "platform": "linux",
+      "job": 114578262653,
+      "raw_mib": 299,
+      "floor_mib": 299,
+      "many_mib": 299,
+      "delta_mib": 0
+    },
+    {
+      "platform": "macOS",
+      "job": 114578262720,
+      "raw_mib": 52,
+      "floor_mib": 62,
+      "many_mib": 60,
+      "delta_mib": -2
+    },
+    {
+      "platform": "macOS",
+      "job": 114578262745,
+      "raw_mib": 52,
+      "floor_mib": 62,
+      "many_mib": 72,
+      "delta_mib": 9
+    }
+  ],
+  "linux_limitation": "Identical299MB readings may mask smaller differences. This caveat also affects the original test; Linux measurements do not prove retention sensitivity. Independent Darwin controls prove sensitivity at61/53MB failures. Exact allocator cause unproven; reviewer finds no new calibration blocker.",
+  "logs": {
+    "worker-followup-memory-pr-linux.log": "98465145f41bc132d261222cff4698bd4cb1151f3a5602b1a39f9db3d6b36085",
+    "worker-followup-memory-pr-macos-1.log": "4213554fbd534f90c4e95fe757b13359e563c6399fdf9b4cdc501e9621616bb2",
+    "worker-followup-memory-pr-macos-2.log": "6f444811d83c796008cedf154655603e4e21aa3ad13e91a5bb7482bb215ce91d",
+    "worker-followup-memory-dev-macos-114584559209.log": "22969520fa587fb50b04c1db8412016853a3dfec3aab19acf05efed0dfd39a8b",
+    "worker-followup-memory-dev-macos-114584559414.log": "500de1d7e17b6674b10284041216be8d055083fec8502f7f149d2fd6604028e6"
+  },
+  "dev_build_workflow": "https://github.com/sunholo-data/ailang/actions/runs/38178063325",
+  "dev_platform_result": "PASS Linux,2macOS,Windows",
+  "dev_measures": [
+    {
+      "job": 114584559209,
+      "raw_mib": 53,
+      "floor_mib": 62,
+      "many_mib": 73,
+      "delta_mib": 10
+    },
+    {
+      "job": 114584559414,
+      "raw_mib": 52,
+      "floor_mib": 58,
+      "many_mib": 61,
+      "delta_mib": 3
+    }
+  ]
+}

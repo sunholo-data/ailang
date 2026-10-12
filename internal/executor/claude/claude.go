@@ -281,6 +281,10 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		return nil, err
 	}
 	// D6: bank the child env's NAME set on every result shape.
+	childEnv, err = prepareCreditChildEnvironment(ctx, childEnv, task.Timeout, e.timeoutSeconds)
+	if err != nil {
+		return nil, err
+	}
 	envNames := executor.EnvNamesDigest(childEnv)
 	defer func() {
 		if out != nil {

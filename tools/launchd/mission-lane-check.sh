@@ -54,6 +54,7 @@ else row config dead "$(printf '%s' "$_doc" | grep -v '^⚠\|make quick-install'
 unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN OPENAI_API_KEY   # as the driver does: subscription lanes
 export MISSION_NAME="$NAME"
 . "$ROOT/tools/launchd/lib/lane-probe.sh"
+mc_select_codex_profile || exit 1
 [ "$IGNORE_RATION" = 1 ] && _mc_is_over_ration() { return 1; }   # after sourcing: overrides the lib's
 
 # --- 4. the clone the item worktrees come from ---------------------------------------------------

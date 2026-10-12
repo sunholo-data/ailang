@@ -402,7 +402,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	// Validate effects (M-SOUNDNESS)
 	// This ensures functions declare all effects they use
 	// Compare declared effects from Surface AST with required effects from Core AST
-	if err := ValidateEffectsWithCalls(result.Artifacts.AST, coreProg, typeChecker.CoreTI, typeChecker.LatentParamMask, typeChecker.DeclaredLambdaEffectRow, typeChecker.EffectValueType); err != nil {
+	if err := ValidateEffectsWithCalls(result.Artifacts.AST, coreProg, typeChecker.CoreTI, typeChecker.ApplicationEffects, typeChecker.DeclaredLambdaEffectRow, typeChecker.EffectValueType); err != nil {
 		valErr := fmt.Errorf("effect checking failed: %w", err)
 		validateSpan.RecordError(valErr)
 		validateSpan.SetStatus(codes.Error, "effect validation failed")

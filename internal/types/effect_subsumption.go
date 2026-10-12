@@ -76,6 +76,7 @@ type EffectParamMismatch struct {
 
 // EffectRowDiff distinguishes absent effects from incompatible parameters.
 type EffectRowDiff struct {
+	UnresolvedTail  string
 	Missing         []string
 	ParamMismatches []EffectParamMismatch
 }
@@ -85,6 +86,9 @@ func DiffEffectRows(required, declared *Row) EffectRowDiff {
 	var diff EffectRowDiff
 	if required == nil {
 		return diff
+	}
+	if required.Tail != nil && (declared == nil || declared.Tail == nil || !required.Tail.Equals(declared.Tail)) {
+		diff.UnresolvedTail = required.Tail.Name
 	}
 	for effect := range required.Labels {
 		if declared == nil {
@@ -117,6 +121,9 @@ func DiffEffectRows(required, declared *Row) EffectRowDiff {
 					present = declaredValue
 				}
 				compatible = isNarrowingParam(effect, key, present)
+			}
+			if effect == "Declassify" && key == "label" {
+				compatible = !declaredOK || (requiredOK && ModeSubsumes(effect, declaredValue, requiredValue))
 			}
 			if !compatible {
 				diff.ParamMismatches = append(diff.ParamMismatches, EffectParamMismatch{

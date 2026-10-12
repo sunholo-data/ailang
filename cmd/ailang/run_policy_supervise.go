@@ -73,6 +73,13 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 	cmd.Env = workerEnv(res)
 	proctree.Configure(cmd)
 	cmd.WaitDelay = proctree.DefaultWaitDelay
+	lifetime, err := preparePolicyLifetime(cmd)
+	if err != nil {
+		ctrlR.Close()
+		ctrlW.Close()
+		refusePolicy("cannot register worker lifetime: %v", err)
+	}
+	defer lifetime.close()
 
 	// Our own pipes, not cmd.StdoutPipe: exec.Cmd.Wait closes StdoutPipe's
 	// read end as soon as the worker exits, so output still in the pipe when
@@ -89,7 +96,7 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 	}
 	cmd.Stdout = stdoutW
 	cmd.Stderr = stderrW
-	if err := cmd.Start(); err != nil {
+	if err := lifetime.start(); err != nil {
 		refusePolicy("cannot start the worker: %v", err)
 	}
 	// The worker holds the write ends now.
@@ -120,10 +127,11 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 			}
 		}
 	}
+	guard := newStderrGuard(os.Stderr)
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() { defer wg.Done(); copyCapped(os.Stdout, stdout) }()
-	go func() { defer wg.Done(); copyCapped(os.Stderr, stderr) }()
+	go func() { defer wg.Done(); defer guard.Flush(); copyCapped(guard, stderr) }()
 
 	// The control line: exactly one message, or none if the worker died
 	// before deciding.
@@ -143,8 +151,10 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 	}()
 
 	waitErr := cmd.Wait()
-	drainOutput(&wg, proctree.DefaultWaitDelay, stdout, stderr)
+	lifetime.afterWait()
+	drainOutput(&wg, lifetime.remaining(), stdout, stderr)
 	<-ctrlDone
+	lifetime.finish()
 
 	// Re-emit the decision in the documented shape, from the control pipe
 	// only.
@@ -156,34 +166,46 @@ func supervisePolicyRun(policyPath, filename string, w runPolicyWidening, argsAf
 		case "admitted":
 			if ctrl.Admission != nil {
 				b, _ := json.Marshal(ctrl.Admission)
-				fmt.Fprintf(os.Stderr, "policy: %s\n", b)
+				guard.supervisorLine(fmt.Sprintf("policy: %s", b))
 			}
 		}
 	}
 
 	switch {
 	case overCap.Load():
-		fmt.Fprintf(os.Stderr, "policy-result: %s\n", limitEnvelope(res, "execute", "output_limit",
-			fmt.Sprintf("combined stdout+stderr exceeded max_output_bytes (%d); worker killed", limit)))
+		guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, "execute", "output_limit",
+			fmt.Sprintf("combined stdout+stderr exceeded max_output_bytes (%d); worker killed", limit))))
 		return 3
 	case errors.Is(ctx.Err(), context.DeadlineExceeded):
-		fmt.Fprintf(os.Stderr, "policy-result: %s\n", limitEnvelope(res, stageFor(gotCtrl), "timeout",
-			fmt.Sprintf("exceeded timeout_ms (%s); worker process group killed", res.Timeout)))
+		guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, stageFor(gotCtrl), "timeout",
+			fmt.Sprintf("exceeded timeout_ms (%s); worker process group killed", res.Timeout))))
 		return 3
 	}
 
 	if waitErr != nil {
 		var exitErr *exec.ExitError
 		if errors.As(waitErr, &exitErr) {
+			if exitErr.ExitCode() == 3 {
+				guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, stageFor(gotCtrl), "worker_reserved_exit",
+					"worker exited with reserved code 3; remapped to 1 (no supervisor limit)")))
+				return 1
+			}
 			return exitErr.ExitCode()
 		}
-		fmt.Fprintf(os.Stderr, "policy-result: %s\n", limitEnvelope(res, stageFor(gotCtrl), "worker_failed", waitErr.Error()))
+		guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, stageFor(gotCtrl), "worker_failed", waitErr.Error())))
 		return 1
 	}
 	if !gotCtrl {
 		// The worker exited 0 without deciding: never treat as admitted.
-		fmt.Fprintf(os.Stderr, "policy-result: %s\n", limitEnvelope(res, "admit", "no_decision",
-			"the worker exited without reporting an admission decision on the control channel"))
+		guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, "admit", "no_decision",
+			"the worker exited without reporting an admission decision on the control channel")))
+		return 1
+	}
+	// A completed admitted worker still needs private cleanup proof. This
+	// applies to direct CLI supervisors as well as supervisors with an owner.
+	if lifetime.err != nil {
+		guard.supervisorLine(fmt.Sprintf("policy-result: %s", limitEnvelope(res, stageFor(gotCtrl), "worker_cleanup_failed",
+			"worker exited without successful owned runtime cleanup")))
 		return 1
 	}
 	return 0

@@ -27,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 
 	"github.com/petermattis/goid"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -44,11 +45,15 @@ func embedGoroutineID() int {
 // Engine manages AILANG module compilation and execution.
 // It caches compiled modules for efficient repeated calls.
 type Engine struct {
-	mu       sync.RWMutex
-	runtime  *runtime.ModuleRuntime
-	basePath string
-	closed   bool
-	compiled map[string]bool // tracks which modules have been compiled through pipeline
+	mu           sync.RWMutex
+	runtime      *runtime.ModuleRuntime
+	basePath     string
+	closed       atomic.Bool
+	lifecycleMu  sync.Mutex
+	ownedContext interface{ CloseWorkers() error }
+	closeOnce    sync.Once
+	closeErr     error
+	compiled     map[string]bool // tracks which modules have been compiled through pipeline
 }
 
 // New creates a new AILANG embedding engine.
@@ -71,10 +76,18 @@ func New(basePath string) *Engine {
 
 // Close releases resources held by the engine.
 func (e *Engine) Close() error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.closed = true
-	return nil
+	e.closeOnce.Do(func() {
+		e.lifecycleMu.Lock()
+		e.closed.Store(true)
+		owned := e.ownedContext
+		e.lifecycleMu.Unlock()
+		// Initializers hold the module cache lock. Shutdown only needs the
+		// independent lifetime owner, and never waits for application code.
+		if owned != nil {
+			e.closeErr = owned.CloseWorkers()
+		}
+	})
+	return e.closeErr
 }
 
 // InvalidateModule clears all caches for a module, forcing recompilation on next call.
@@ -93,7 +106,7 @@ func (e *Engine) Load(modulePath string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if e.closed {
+	if e.closed.Load() {
 		return fmt.Errorf("engine is closed")
 	}
 
@@ -182,7 +195,7 @@ func (e *Engine) Call(modulePath, funcName string, args ...interface{}) (eval.Va
 func (e *Engine) CallPrepared(prepare func(effCtx interface{}), modulePath, funcName string, args ...interface{}) (eval.Value, error) {
 	// Fast path: check if module is already loaded (read lock only)
 	e.mu.RLock()
-	if e.closed {
+	if e.closed.Load() {
 		e.mu.RUnlock()
 		return nil, fmt.Errorf("engine is closed")
 	}
@@ -194,6 +207,10 @@ func (e *Engine) CallPrepared(prepare func(effCtx interface{}), modulePath, func
 	if inst == nil {
 		e.mu.Lock()
 		// Double-check after acquiring write lock
+		if e.closed.Load() {
+			e.mu.Unlock()
+			return nil, fmt.Errorf("engine is closed")
+		}
 		inst = e.runtime.GetInstance(modulePath)
 		if inst == nil {
 			if !alreadyCompiled {
@@ -255,7 +272,7 @@ func (e *Engine) CallPreserveFloats(modulePath, funcName string, args ...interfa
 		log.Printf("[CONCURRENCY] acquiring RLock %s/%s (goroutine %d)", modulePath, funcName, gid)
 	}
 	e.mu.RLock()
-	if e.closed {
+	if e.closed.Load() {
 		e.mu.RUnlock()
 		return nil, fmt.Errorf("engine is closed")
 	}
@@ -273,6 +290,10 @@ func (e *Engine) CallPreserveFloats(modulePath, funcName string, args ...interfa
 		}
 		e.mu.Lock()
 		// Double-check after acquiring write lock
+		if e.closed.Load() {
+			e.mu.Unlock()
+			return nil, fmt.Errorf("engine is closed")
+		}
 		inst = e.runtime.GetInstance(modulePath)
 		if inst == nil {
 			if !alreadyCompiled {
@@ -358,7 +379,7 @@ func (e *Engine) Eval(code string) (eval.Value, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if e.closed {
+	if e.closed.Load() {
 		return nil, fmt.Errorf("engine is closed")
 	}
 
@@ -389,7 +410,7 @@ func (e *Engine) ListExports(modulePath string) ([]string, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	if e.closed {
+	if e.closed.Load() {
 		return nil, fmt.Errorf("engine is closed")
 	}
 
@@ -406,7 +427,30 @@ func (e *Engine) ListExports(modulePath string) ([]string, error) {
 // The ctx parameter should be an *effects.EffContext; it uses interface{}
 // to avoid an import cycle between embed and effects packages.
 func (e *Engine) SetEffContext(ctx interface{}) {
+	e.mu.Lock()
+	e.lifecycleMu.Lock()
+	if e.closed.Load() {
+		e.lifecycleMu.Unlock()
+		e.mu.Unlock()
+		return
+	}
+	previous := e.ownedContext
+	e.ownedContext = nil
+	if cloner, ok := ctx.(interface{ Clone() interface{} }); ok {
+		ctx = cloner.Clone()
+		e.ownedContext, _ = ctx.(interface{ CloseWorkers() error })
+	}
+	if binder, ok := ctx.(interface{ BindWorkerScope() }); ok {
+		binder.BindWorkerScope()
+	}
 	e.runtime.GetEvaluator().SetEffContext(ctx)
+	e.lifecycleMu.Unlock()
+	e.mu.Unlock()
+	if previous != nil {
+		if err := previous.CloseWorkers(); err != nil {
+			fmt.Fprintf(os.Stderr, "worker cleanup replacing engine context: %v\n", err)
+		}
+	}
 }
 
 // GetCallValue returns the evaluator's CallValue function, which can be used
@@ -441,7 +485,7 @@ func (e *Engine) HasExport(modulePath, name string) bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	if e.closed {
+	if e.closed.Load() {
 		return false
 	}
 

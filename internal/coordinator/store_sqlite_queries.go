@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/sunholo-data/ailang/internal/messaging"
 	"time"
 )
 
@@ -51,7 +52,7 @@ func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) (
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
-		       capabilities_json, impact_level, estimated_cost
+		       capabilities_json, impact_level, estimated_cost, inputs
 		FROM tasks WHERE github_issue = ?
 		ORDER BY created_at DESC
 	`
@@ -80,7 +81,7 @@ func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
-		       capabilities_json, impact_level, estimated_cost
+		       capabilities_json, impact_level, estimated_cost, inputs
 		FROM tasks WHERE stage = ?
 		ORDER BY created_at DESC
 	`
@@ -178,7 +179,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	var chainID, stageID sql.NullString // M-CHAINS-SIMPLIFY
 	var githubIssue sql.NullInt64
 	var githubRepo sql.NullString
-	var capsJSON, impactLevel sql.NullString
+	var capsJSON, impactLevel, inputsJSON sql.NullString
 	var estimatedCost sql.NullFloat64
 	var kindCol, sourceCol sql.NullString // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
 
@@ -189,12 +190,16 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 		&sessionID, &iteration, &chainID, &stageID,
 		&task.CreatedAt, &startedAt, &completedAt, &queuedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
-		&capsJSON, &impactLevel, &estimatedCost,
+		&capsJSON, &impactLevel, &estimatedCost, &inputsJSON,
 	)
 	if err != nil {
 		return nil, err
 	}
 
+	task.Inputs, err = messaging.DecodeTaskInputs([]byte(inputsJSON.String))
+	if err != nil {
+		return nil, err
+	}
 	if kindCol.Valid {
 		task.Kind = kindCol.String
 	}
@@ -225,7 +230,7 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	var chainID, stageID sql.NullString // M-CHAINS-SIMPLIFY
 	var githubIssue sql.NullInt64
 	var githubRepo sql.NullString
-	var capsJSON, impactLevel sql.NullString
+	var capsJSON, impactLevel, inputsJSON sql.NullString
 	var estimatedCost sql.NullFloat64
 	var kindCol, sourceCol sql.NullString // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
 
@@ -236,12 +241,16 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 		&sessionID, &iteration, &chainID, &stageID,
 		&task.CreatedAt, &startedAt, &completedAt, &queuedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
-		&capsJSON, &impactLevel, &estimatedCost,
+		&capsJSON, &impactLevel, &estimatedCost, &inputsJSON,
 	)
 	if err != nil {
 		return nil, err
 	}
 
+	task.Inputs, err = messaging.DecodeTaskInputs([]byte(inputsJSON.String))
+	if err != nil {
+		return nil, err
+	}
 	if kindCol.Valid {
 		task.Kind = kindCol.String
 	}

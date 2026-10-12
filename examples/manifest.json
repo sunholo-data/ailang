@@ -5,6 +5,156 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/ai_offline_cli.ail",
+      "status": "working",
+      "tags": [
+        "ai",
+        "cli",
+        "effects"
+      ],
+      "description": "Keyless offline/help branches with AI configured; first AI effect initializes the provider.",
+      "modules": [
+        "std/io",
+        "std/env",
+        "std/ai"
+      ]
+    },
+    {
+      "path": "runnable/process_policy_cancel.ail",
+      "status": "working",
+      "tags": [
+        "process",
+        "policy",
+        "cancellation",
+        "effects"
+      ],
+      "description": "Cancel a same-runtime policy worker and await acknowledged cleanup; takes runtime and fixture paths.",
+      "modules": [
+        "std/io",
+        "std/env",
+        "std/process",
+        "std/result"
+      ]
+    },
+    {
+      "path": "runnable/process_policy_worker.ail",
+      "status": "working",
+      "tags": [
+        "process",
+        "policy",
+        "clock",
+        "effects"
+      ],
+      "description": "Bounded companion policy worker for the cancellation example.",
+      "modules": [
+        "std/io",
+        "std/clock"
+      ]
+    },
+    {
+      "path": "runnable/process_cancel.ail",
+      "status": "working",
+      "tags": ["process", "effects", "cancellation"],
+      "description": "Cancel and join an owned subprocess with a typed result.",
+      "modules": ["std/io", "std/process", "std/result"]
+    },
+    {
+      "path": "runnable/stream_process_cancel.ail",
+      "status": "working",
+      "tags": ["process", "stream", "effects", "cancellation"],
+      "description": "Cancel and join an owned async process source.",
+      "modules": ["std/io", "std/process", "std/result", "std/stream"]
+    },
+    {
+      "path": "runnable/terminal_info.ail",
+      "status": "working",
+      "tags": [
+        "terminal",
+        "effects",
+        "io"
+      ],
+      "description": "Configured terminal TTY facts and measured dimensions under IO.",
+      "modules": [
+        "std/io",
+        "std/result",
+        "std/terminal"
+      ]
+    },
+    {
+      "path": "runnable/terminal_keys.ail",
+      "status": "working",
+      "tags": [
+        "terminal",
+        "effects",
+        "io"
+      ],
+      "description": "Scoped native key events and host-owned cleanup; requires a POSIX terminal.",
+      "modules": [
+        "std/io",
+        "std/result",
+        "std/terminal"
+      ]
+    },
+    {
+      "path": "runnable/terminal_line_input.ail",
+      "status": "working",
+      "tags": [
+        "terminal",
+        "effects",
+        "io"
+      ],
+      "description": "Option line input distinguishes blank and final partial lines from EOF.",
+      "modules": [
+        "std/io",
+        "std/option"
+      ]
+    },
+    {
+      "path": "tests/named_helper_purity.ail",
+      "status": "working",
+      "tags": [
+        "testing",
+        "purity"
+      ],
+      "description": "Named-test and seeded property regression for plain effect-free exports; unused FS helper stays uncalled.",
+      "modules": [
+        "std/fs"
+      ]
+    },
+    {
+      "path": "tests/effectful_fixture_verification.ail",
+      "status": "working",
+      "tags": [
+        "testing",
+        "effects",
+        "fs"
+      ],
+      "description": "Exported fixture verification entry; run from repository root with --caps FS,IO.",
+      "expected": {
+        "stdout": "fixture verified\n",
+        "exit_code": 0
+      },
+      "modules": [
+        "std/fs",
+        "std/io"
+      ]
+    },
+    {
+      "path": "runnable/serve_api_response_headers.ail",
+      "status": "working",
+      "tags": [
+        "http",
+        "headers",
+        "records",
+        "json"
+      ],
+      "description": "Route response headers on raw and nowrap paths, using records and Json",
+      "modules": [
+        "std/json",
+        "std/result"
+      ]
+    },
+    {
       "path": "inline_tests_expected_values.ail",
       "status": "working",
       "tags": [
@@ -3222,14 +3372,76 @@
         "stdout": "HOF: IO declared\nfield: IO declared\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/secrets/scoped_declassify.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "m-ifc-authority-scoping"
+      ],
+      "description": "Single-label Declassify authority for email redaction",
+      "modules": [],
+      "run_flags": [
+        "--caps",
+        "Declassify",
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "[redacted]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/secrets/positive_label_call.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "m-ifc-authority-scoping"
+      ],
+      "description": "Positive parameter coverage accepts literal bottom data",
+      "modules": [],
+      "run_flags": [
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "literal data\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/effect_row_var_pure_caller.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "polymorphism"
+      ],
+      "description": "Pure callback discharges its generic call row; returns 42",
+      "modules": []
+    },
+    {
+      "path": "runnable/effect_row_var_noisy_twice.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "polymorphism"
+      ],
+      "description": "Generic callback helper prints callback twice",
+      "modules": [
+        "std/io"
+      ]
     }
   ],
   "statistics": {
-    "total": 218,
-    "working": 210,
+    "total": 234,
+    "working": 226,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.963302752293578,
+    "coverage": 0.9658119658119658,
     "experimental": 0
   },
   "milestones": {

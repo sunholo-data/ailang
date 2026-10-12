@@ -9,6 +9,7 @@
 
 QUOTA_SIG="usage limit|rate.?limit|quota|exceeded|too many requests|weekly limit"
 PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seconds
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/codex-auth-profile.sh"
 
 # _mc_bounded SECONDS CMD... — run CMD with a hard wall-clock cap.
 # rc = CMD's rc, or 124 on expiry (mirrors GNU `timeout`, which this rig does not have).
@@ -21,14 +22,28 @@ PROBE_TIMEOUT="${MISSION_PROBE_TIMEOUT:-120}"   # per-probe wall-clock cap, seco
 # ("every wait is bounded"), which the loop enforces on itself but the driver did not.
 _mc_bounded() {
   local secs="$1"; shift
-  local out_f rc deadline pid
+  local out_f rc deadline pid grace_deadline
   out_f=$(mktemp -t mc_bounded) || { MC_BOUNDED_OUT=""; return 125; }
   ( exec "$@" ) >"$out_f" 2>&1 &
   pid=$!
   deadline=$(( $(date +%s) + secs ))
   while kill -0 "$pid" 2>/dev/null; do
     if [ "$(date +%s)" -ge "$deadline" ]; then
-      kill "$pid" 2>/dev/null; sleep 2; kill -9 "$pid" 2>/dev/null
+      kill "$pid" 2>/dev/null
+      grace_deadline=$(( $(date +%s) + ${MC_BOUNDED_TERMINATION_GRACE:-2} ))
+      if [ -z "${MC_BOUNDED_TERMINATION_GRACE+x}" ]; then
+        sleep 2 # preserve the existing aggregate notice-drain timing
+      else
+        while kill -0 "$pid" 2>/dev/null && [ "$(date +%s)" -lt "$grace_deadline" ]; do sleep 1; done
+      fi
+      kill -9 "$pid" 2>/dev/null || true
+      grace_deadline=$(( $(date +%s) + 2 ))
+      while kill -0 "$pid" 2>/dev/null && [ "$(date +%s)" -lt "$grace_deadline" ]; do sleep 1; done
+      if kill -0 "$pid" 2>/dev/null; then
+        printf '\nprobe termination unconfirmed\n' >> "$out_f"
+      else
+        wait "$pid" 2>/dev/null || true
+      fi
       MC_BOUNDED_OUT="$(cat "$out_f" 2>/dev/null)"; rm -f "$out_f"
       return 124
     fi
@@ -111,13 +126,16 @@ _mc_probe() {
 # _mc_probe_codex MODEL → 0 usable | non-zero unusable. The OpenAI API key is
 # stripped above, so a pass proves the ChatGPT-subscription OAuth lane works.
 _mc_probe_codex() {
-  local m="$1" rc
+  local m="$1" rc MC_BOUNDED_TERMINATION_GRACE=30
   if _mc_is_over_ration "codex:$m"; then
     MC_BOUNDED_OUT="Codex quota admission blocked (over ration or observation unavailable)"
     log "codex:$m quota admission blocked; skipping inference probe"
     return 75
   fi
-  _mc_bounded "$PROBE_TIMEOUT" codex exec --skip-git-repo-check --model "$m" 'reply with exactly: ok'
+  # exec requires an executable, not the mc_codex_exec shell function. Give
+  # the daemon client time to interrupt and confirm its turn before hard kill.
+  mc_codex_command || return
+  _mc_bounded "$PROBE_TIMEOUT" "${MC_CODEX_COMMAND[@]}" --skip-git-repo-check --model "$m" 'reply with exactly: ok'
   rc=$?
   [ "$rc" -eq 124 ] && log "controller fallback codex:$m probe timed out after ${PROBE_TIMEOUT}s"
   [ "$rc" -ne 0 ] && log "controller fallback codex:$m probe failed (rc=$rc): $(printf '%s' "$MC_BOUNDED_OUT" | tail -3 | tr '\n' ' ')"

@@ -259,3 +259,30 @@ func TestReadKeyFile(t *testing.T) {
 		t.Fatal("missing file must fail")
 	}
 }
+
+func TestNew_CodexRefusesBeforeFallback(t *testing.T) {
+	isolate(t)
+	t.Setenv("OPENAI_API_KEY", "metered-key")
+	called := false
+	opts := []Option{WithAPIKey("explicit-key"), WithConfigDriven(func(string) ai.Provider { called = true; return &stubProvider{} })}
+	for _, name := range []string{"codex", "CODEX"} {
+		c, err := New(name, opts...)
+		if c != nil || err == nil || !strings.Contains(err.Error(), "#903") || !strings.Contains(err.Error(), "chatgpt/") {
+			t.Fatalf("%s: %+v %v", name, c, err)
+		}
+		var refusal *ai.AIError
+		if !errors.As(err, &refusal) || refusal.Code != ai.CodeCapabilityNotSupported || refusal.Retryable {
+			t.Fatalf("refusal must be typed and non-retryable: %v", err)
+		}
+		if refusal.Message != "codex AI-effect routing is unavailable in Phase 1 (#903); use chatgpt/<model> for the interim ChatGPT subscription lane, or explicitly select provider openai for metered API use" {
+			t.Fatalf("refusal message changed: %s", refusal.Message)
+		}
+		p, err := NewProvider(name, opts...)
+		if p != nil || err == nil || !strings.Contains(err.Error(), "#903") {
+			t.Fatalf("wrapper: %v %v", p, err)
+		}
+	}
+	if called {
+		t.Fatal("codex must not consult config-driven fallback")
+	}
+}

@@ -1,0 +1,55 @@
+{
+  "implementation_commit": "1ef484d6a3b49f49971cf770d0427055a5d05888",
+  "branch_name": "coordinator/task-c86840f2",
+  "files_created": [
+    ".ailang/state/sprints/validation_M-EFFECT-ROW-VAR-UNIFICATION.json",
+    "changelogs/unreleased/2026-10-09-effect-row-var-unification.md",
+    "design_docs/planned/v1_0_0/m-effect-row-var-unification-validation.md",
+    "examples/runnable/effect_row_var_noisy_twice.ail",
+    "examples/runnable/effect_row_var_pure_caller.ail",
+    "internal/pipeline/effect_rowvar_discharge_test.go",
+    "internal/types/effect_row_union.go",
+    "internal/types/typechecker_app_effects.go",
+    "internal/types/typechecker_app_effects_test.go",
+    "tools/audit-effect-rows.py",
+    ".ailang/state/sprints/implementation_M-EFFECT-ROW-VAR-UNIFICATION.json"
+  ],
+  "files_modified": [
+    ".ailang/state/sprints/sprint_M-EFFECT-ROW-VAR-UNIFICATION.json",
+    "design_docs/planned/v1_0_0/m-effect-row-var-unification-sprint-plan.md",
+    "design_docs/planned/v1_0_0/m-effect-row-var-unification.md",
+    "docs/docs/reference/effects.md",
+    "docs/docs/reference/limitations.md",
+    "examples/manifest.json",
+    "internal/elaborate/file_funcs.go",
+    "internal/iface/builder.go",
+    "internal/pipeline/effect_latent_invariant_test.go",
+    "internal/pipeline/pipeline_module_compile.go",
+    "internal/pipeline/pipeline_single.go",
+    "internal/pipeline/specialize_types.go",
+    "internal/pipeline/validate_effects.go",
+    "internal/pipeline/validate_effects_latent.go",
+    "internal/types/effect_row_declared_closure.go",
+    "internal/types/effect_subsumption.go",
+    "internal/types/effects.go",
+    "internal/types/inference.go",
+    "internal/types/json.go",
+    "internal/types/typechecker_core.go",
+    "internal/types/typechecker_functions.go",
+    "internal/types/typechecker_latent_mask.go",
+    "internal/types/typechecker_substitution.go",
+    "internal/types/types_v2.go",
+    "internal/types/unification_substitution.go"
+  ],
+  "validation_report": "design_docs/planned/v1_0_0/m-effect-row-var-unification-validation.md",
+  "evaluator_handoff": {
+    "status": "awaiting_coordinator_routing",
+    "requested_stage": "sprint-evaluator",
+    "attempts": [
+      "Direct sprint-evaluator inbox rejected: no serving agent registered.",
+      "Coordinator inbox send failed: installed CLI compiled CGO_ENABLED=0, sqlite unavailable.",
+      "CGO CLI build failed twice under bounded memory: compiler/linker killed."
+    ],
+    "delivery": "Coordinator completion markers carry the artifact manifest; no message was delivered."
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "sprint_id": "M-ALIAS-BODY-CLOSURE",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-08T20:44:21.411702+00:00",
+  "design_doc": "design_docs/planned/v0_52_4/m-alias-body-closure.md",
+  "sprint_plan": "design_docs/planned/v0_52_4/m-alias-body-closure-sprint-plan.md",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "tests_output": "CGO-enabled make test-core and targeted pipeline/types/iface coverage pass; evidence /workspace/alias-core-final.log and /workspace/alias-final-packages.log. Full make test deliberately deferred to CI by approved plan, overriding skill default.",
+    "lint_clean": true,
+    "lint_output": "/workspace/alias-lint-final.log: 0 issues.",
+    "file_sizes_ok": true,
+    "boundaries_ok": true,
+    "fmt_ok": true,
+    "coverage_pct": {
+      "pipeline": 75.5,
+      "types": 52.7,
+      "types/traverse": 92.1,
+      "iface": 42.4
+    },
+    "verify_examples": true,
+    "verify_examples_output": "Independent make verify-examples passes: 232 passed, 0 failed, 9 skipped; 211 modules checked, 0 drift. /workspace/alias-evaluator-examples.log. Existing experimental parse/stale-entry warnings are nonblocking."
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Walker covers every concrete types.Type implementation, including TLabelled, v2 records/functions, rows, arrays and maps; nested aliases close without mutating inputs.",
+      "met": true,
+      "evidence": "alias_body_closure.go; AllTypeVariants, CyclesMemoizationAndNames, ImportMatrix, NavigationSolTrappistShape, UnexportedDependencyAndLocalPrecedence and InterfaceAliasParamsAndImportedEnvironment tests; passing targeted/core logs."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Cycles terminate deterministically; TypeName is preserved or assigned; primitives, nominal types and type variables retain identity.",
+      "met": true,
+      "evidence": "alias_body_closure.go; AllTypeVariants, CyclesMemoizationAndNames, ImportMatrix, NavigationSolTrappistShape, UnexportedDependencyAndLocalPrecedence and InterfaceAliasParamsAndImportedEnvironment tests; passing targeted/core logs."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "T1 explicit-import and T2 both-import-order regressions pass; four-module navigation/sol/trappist regression passes.",
+      "met": true,
+      "evidence": "alias_body_closure.go; AllTypeVariants, CyclesMemoizationAndNames, ImportMatrix, NavigationSolTrappistShape, UnexportedDependencyAndLocalPrecedence and InterfaceAliasParamsAndImportedEnvironment tests; passing targeted/core logs."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Closure uses local aliases over post-shadow imported aliases, including unexported local dependencies; AliasParams remain intact.",
+      "met": true,
+      "evidence": "alias_body_closure.go; AllTypeVariants, CyclesMemoizationAndNames, ImportMatrix, NavigationSolTrappistShape, UnexportedDependencyAndLocalPrecedence and InterfaceAliasParamsAndImportedEnvironment tests; passing targeted/core logs."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "T3 annotation-only scheme regression passes; quantified variables, constraints and effects are preserved.",
+      "met": true,
+      "evidence": "RuntimeMatrix, InterfaceCopiesAndDigest, ConstructorFieldsAndPatterns, CapturedImportedAliasNowWorks and ResidualNominalCaptureIsLoud tests; SetDerivedEq finalizes digest after closure/embedding; builder.go unchanged at 782 lines."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Constructor field/result aliases close while nominal ADT results remain nominal; constructor pattern regressions pass.",
+      "met": true,
+      "evidence": "RuntimeMatrix, InterfaceCopiesAndDigest, ConstructorFieldsAndPatterns, CapturedImportedAliasNowWorks and ResidualNominalCaptureIsLoud tests; SetDerivedEq finalizes digest after closure/embedding; builder.go unchanged at 782 lines."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "CapturedImportedAliasIsLoud becomes a positive regression; a residual nominal-shadow control still emits TC_TYPE_SHADOW_001.",
+      "met": true,
+      "evidence": "RuntimeMatrix, InterfaceCopiesAndDigest, ConstructorFieldsAndPatterns, CapturedImportedAliasNowWorks and ResidualNominalCaptureIsLoud tests; SetDerivedEq finalizes digest after closure/embedding; builder.go unchanged at 782 lines."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Final interface digest reflects closed schemes and constructors, is deterministic and survives serialization; alias digest coverage remains intact.",
+      "met": true,
+      "evidence": "RuntimeMatrix, InterfaceCopiesAndDigest, ConstructorFieldsAndPatterns, CapturedImportedAliasNowWorks and ResidualNominalCaptureIsLoud tests; SetDerivedEq finalizes digest after closure/embedding; builder.go unchanged at 782 lines."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Any digest-finalize helper lives in a new internal/iface/ file; internal/iface/builder.go stays at or below 800 lines.",
+      "met": true,
+      "evidence": "RuntimeMatrix, InterfaceCopiesAndDigest, ConstructorFieldsAndPatterns, CapturedImportedAliasNowWorks and ResidualNominalCaptureIsLoud tests; SetDerivedEq finalizes digest after closure/embedding; builder.go unchanged at 782 lines."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "cacheKeyVersion and migration assertions use v6; a v5 cache misses, a fresh v6 compile populates the cache, and an unchanged subsequent compile hits.",
+      "met": true,
+      "evidence": "cacheKeyVersion v6; CacheInvalidatedOnce instruments cold encodes and zero warm encodes, checks runtime parity; transitive suites pass; LIMITATIONS and parent design scope updated."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Alias edits still invalidate transitive dependents; cached and uncached compilation give equivalent results.",
+      "met": true,
+      "evidence": "cacheKeyVersion v6; CacheInvalidatedOnce instruments cold encodes and zero warm encodes, checks runtime parity; transitive suites pass; LIMITATIONS and parent design scope updated."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Shadow guard comments, parent M2 scope/status and docs/LIMITATIONS.md describe closure and residual parameterized/nominal/import-name behavior accurately.",
+      "met": true,
+      "evidence": "cacheKeyVersion v6; CacheInvalidatedOnce instruments cold encodes and zero warm encodes, checks runtime parity; transitive suites pass; LIMITATIONS and parent design scope updated."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "New examples/alias_body_closure package (ailang.toml, a.ail, b.ail, main.ail) checks and run with --args-json 1 returns 1 with both colliding imports.",
+      "met": true,
+      "evidence": "New package files present; recorded CLI checks/runtime and args-json controls; core/packages/lint/boundaries/size/fmt logs pass; four-module fixture present and passing; collaboration evaluation handoff received."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "T1/T2/T3 runtime checks and examples/intra_package_imports pass; record-update and args-json alias decoding controls pass.",
+      "met": true,
+      "evidence": "New package files present; recorded CLI checks/runtime and args-json controls; core/packages/lint/boundaries/size/fmt logs pass; four-module fixture present and passing; collaboration evaluation handoff received."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "make test-core and go test ./internal/pipeline/... ./internal/types/... ./internal/iface/... pass, then make lint check-boundaries check-file-sizes passes (full suite is left to CI).",
+      "met": true,
+      "evidence": "New package files present; recorded CLI checks/runtime and args-json controls; core/packages/lint/boundaries/size/fmt logs pass; four-module fixture present and passing; collaboration evaluation handoff received."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Stapledons workaround-removal verification is recorded if accessible; otherwise record unavailable and rely on the mandatory four-module automated reproduction.",
+      "met": true,
+      "evidence": "New package files present; recorded CLI checks/runtime and args-json controls; core/packages/lint/boundaries/size/fmt logs pass; four-module fixture present and passing; collaboration evaluation handoff received."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Sprint-evaluator receives plan, progress, test evidence and explicit remaining limitations after execution.",
+      "met": true,
+      "evidence": "New package files present; recorded CLI checks/runtime and args-json controls; core/packages/lint/boundaries/size/fmt logs pass; four-module fixture present and passing; collaboration evaluation handoff received."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Implementation complete; independent evaluation pending accurately describes pre-verdict state; planned paths preserved for coordinator."
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Immutable closure in defining module uses post-shadow imports and private/local aliases, sorted traversal, acyclic-only memoization, preserved applied heads, schemes/constructors and final digest. Deferred recursion, parameterized-head, nominal-identity and import-ambiguity scope accurately documented."
+  },
+  "regression_surface": {
+    "analysis_present": true,
+    "fixtures_verified": true,
+    "notes": "Pipeline compilation behavior has filled Conflict Surface and explicit named existing regression fixtures covered by passing core/package suites. No parser/types/eval source modification; no conditional bonus added."
+  },
+  "feedback": [],
+  "concerns": [
+    "Full suite remains a CI responsibility under explicit approved plan.",
+    "External Stapledons checkout unavailable; mandatory automated navigation/sol/trappist four-module fixture passes.",
+    "M1\u2013M3 checkpoint timestamps do not establish actual milestone durations; actual added LOC is recorded without inventing daily velocity."
+  ],
+  "notes": "Independent code/diff/test review finds all 17 criteria met. Code-quality deduction capped at 5 for test functions longer than 50 lines (AllTypeVariants, InterfaceCopiesAndDigest, CacheInvalidatedOnce); no semantic defect found. No implementation edits, document moves, or commits performed."
+}

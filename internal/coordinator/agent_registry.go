@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
 	"sync"
+
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // InvokeConfig specifies how an agent should be invoked.
@@ -99,10 +100,12 @@ type ApprovalConfig struct {
 // AgentConfig represents a configured agent in the coordinator system.
 // Each agent has an inbox, workspace, and capabilities for task execution.
 type AgentConfig struct {
-	ID        string `yaml:"id" json:"id"`
-	Label     string `yaml:"label" json:"label"`
-	Inbox     string `yaml:"inbox" json:"inbox"`         // Message inbox to watch
-	Workspace string `yaml:"workspace" json:"workspace"` // Base directory for worktrees
+	// InputsAllow is trusted repo authority; empty denies all external inputs.
+	InputsAllow []string `yaml:"inputs_allow" json:"inputs_allow,omitempty"`
+	ID          string   `yaml:"id" json:"id"`
+	Label       string   `yaml:"label" json:"label"`
+	Inbox       string   `yaml:"inbox" json:"inbox"`         // Message inbox to watch
+	Workspace   string   `yaml:"workspace" json:"workspace"` // Base directory for worktrees
 
 	// ExecutionLane declares WHERE this agent's work runs: "cloud" (a Cloud Run
 	// Job that clones Repo) or "local" (a bare-metal worker using Workspace as a
@@ -150,10 +153,14 @@ type AgentConfig struct {
 	// EvaluatesParent marks an agent whose completions carry an
 	// EVALUATION_VERDICT: line to be attached to the PARENT task's pending
 	// approval (M2). Set on sprint-evaluator only.
-	EvaluatesParent bool   `yaml:"evaluates_parent" json:"evaluates_parent,omitempty"`
-	AutoMerge       bool   `yaml:"auto_merge" json:"auto_merge"`       // Automatically merge approved work
-	SkipApproval    bool   `yaml:"skip_approval" json:"skip_approval"` // Skip approval workflow entirely (for script agents)
-	Provider        string `yaml:"provider" json:"provider"`           // "claude" or "gemini"
+	EvaluatesParent           bool     `yaml:"evaluates_parent" json:"evaluates_parent,omitempty"`
+	AutoMergeCode             bool     `yaml:"auto_merge_code" json:"auto_merge_code"`                           // Opt in to scoped code PRs.
+	AutoMergeRequiredChecks   []string `yaml:"auto_merge_required_checks" json:"auto_merge_required_checks"`     // Base check names.
+	AutoMergeApproverSecret   string   `yaml:"auto_merge_approver_secret" json:"auto_merge_approver_secret"`     // Secret name only.
+	AutoMergeApproverIdentity string   `yaml:"auto_merge_approver_identity" json:"auto_merge_approver_identity"` // Expected login.
+	AutoMerge                 bool     `yaml:"auto_merge" json:"auto_merge"`                                     // Automatically merge approved work
+	SkipApproval              bool     `yaml:"skip_approval" json:"skip_approval"`                               // Skip approval workflow entirely (for script agents)
+	Provider                  string   `yaml:"provider" json:"provider"`                                         // "claude" or "gemini"
 	// ToolPolicy: what this agent may DO — "full" (the CLI's defaults; the
 	// coordinator's default, D6), "ailang_only" (read/edit/write + the
 	// AILANG gate, no shell), or an explicit canonical list. Resolved into
@@ -233,7 +240,13 @@ type AgentConfig struct {
 	// Per-agent auth mode override (M-CLOUD-DUAL-AUTH, v0.9.2).
 	// "oauth" (default) or "apikey" — selects Cloud Run Job template.
 	// User-provided API keys from messages override this setting.
-	AuthMode string `yaml:"auth_mode" json:"auth_mode,omitempty"`
+	AuthMode          string `yaml:"auth_mode" json:"auth_mode,omitempty"`
+	CreditAccount     string `yaml:"credit_account" json:"credit_account,omitempty"`
+	CreditGatewayURL  string `yaml:"credit_gateway_url" json:"credit_gateway_url,omitempty"`
+	CreditJobIdentity string `yaml:"credit_job_identity" json:"credit_job_identity,omitempty"`
+	// CreditMaxCostUSD is required for the guarded API-credit lane. It never
+	// inherits or changes the legacy provider/global task budget.
+	CreditMaxCostUSD float64 `yaml:"credit_max_cost_usd" json:"credit_max_cost_usd,omitempty"`
 
 	// Per-agent Docker image variant (M-EXECUTOR-VARIANTS, v1.1.0).
 	// Selects which pre-built agent image to use for Cloud Run Job execution.
@@ -545,6 +558,14 @@ func (r *AgentRegistry) Validate() []string {
 		}
 		if len(agent.Capabilities) == 0 {
 			issues = append(issues, fmt.Sprintf("agent %q has no capabilities configured", id))
+		}
+		if err := agent.ValidateAutoMergeCode(); err != nil {
+			issues = append(issues, fmt.Sprintf("agent %q: %v", id, err))
+		}
+		for _, repo := range agent.InputsAllow {
+			if err := messaging.ValidateInputRepo(repo); err != nil {
+				issues = append(issues, fmt.Sprintf("agent %q inputs_allow: %v", id, err))
+			}
 		}
 		// Validate trigger_on_complete references
 		for _, targetID := range agent.TriggerOnComplete {

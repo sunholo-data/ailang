@@ -216,7 +216,10 @@ func (s *CoordinatorStore) fullScanTaskStats(ctx context.Context) (*coordinator.
 			return nil, err
 		}
 		data := doc.Data()
-		task := mapToTask(data)
+		task, err := mapToTask(data)
+		if err != nil {
+			return nil, err
+		}
 
 		stats.TotalTasks++
 		switch task.Status {

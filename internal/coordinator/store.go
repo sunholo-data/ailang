@@ -7,13 +7,14 @@ import (
 
 // TaskRecord represents a task stored in the database
 type TaskRecord struct {
-	ID           string   `json:"id"`
-	MessageID    string   `json:"message_id,omitempty"`
-	ThreadID     string   `json:"thread_id,omitempty"`      // Thread in collaboration.db for dashboard visibility
-	ParentTaskID string   `json:"parent_task_id,omitempty"` // Parent task for hierarchy tracking (handoffs)
-	Title        string   `json:"title"`
-	Content      string   `json:"content"`
-	Type         TaskType `json:"type"`
+	Inputs       []TaskInput `json:"inputs,omitempty"`
+	ID           string      `json:"id"`
+	MessageID    string      `json:"message_id,omitempty"`
+	ThreadID     string      `json:"thread_id,omitempty"`      // Thread in collaboration.db for dashboard visibility
+	ParentTaskID string      `json:"parent_task_id,omitempty"` // Parent task for hierarchy tracking (handoffs)
+	Title        string      `json:"title"`
+	Content      string      `json:"content"`
+	Type         TaskType    `json:"type"`
 	// AttemptCount is how many Cloud Run executions this task has consumed, and
 	// ChainLinkIndex which model link the latest one ran on
 	// (M-COORDINATOR-EXECUTION-TRUST M3). Persisted rather than held in memory:

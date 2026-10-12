@@ -82,6 +82,7 @@ type Server struct {
 	maxUploadSize  int64               // maximum upload size in bytes (0 = use DefaultMaxUploadSize)
 	apiKeyHeader   string              // HTTP header name for API key auth
 	apiKeyEnv      string              // env var containing expected API key
+	debugFlushMu   sync.Mutex          // serializes the shared fallback Debug drain
 	effCtx         *effects.EffContext // for Debug output collection
 	logLevel       int                 // minimum severity for Debug output
 	oauthIssuer    string              // --oauth-issuer: required by @mcp_auth("oauth2") tools
@@ -90,7 +91,8 @@ type Server struct {
 	ws             *wsState            // WebSocket route sessions (routes_ws.go)
 
 	// M-SERVEAPI-OPERATOR-SURFACE
-	noIntrospection bool   // --no-introspection: no /api/_meta/* and no /api/_health
+	noIntrospection bool // --no-introspection: no /api/_meta/* and no /api/_health
+	staticHeaders   StaticHeaderOptions
 	staticCache     string // --static-cache: the Cache-Control value for --static 2xx/304 ("" = none)
 }
 
@@ -163,7 +165,8 @@ type Config struct {
 	NoIntrospection bool
 	// StaticCache is the Cache-Control value set on --static 2xx/304
 	// responses; build it with ParseStaticCache. "" sets none.
-	StaticCache string
+	StaticCache   string
+	StaticHeaders StaticHeaderOptions
 	// OAuthIssuer is the authorization server named in the listed MCP
 	// surface's protected-resource metadata (--oauth-issuer). Required for
 	// any @mcp_auth("oauth2") tool. M-SERVEAPI-DIRECTORY-READY.
@@ -194,7 +197,6 @@ func New(basePath string, cfg Config) *Server {
 	var storedEffCtx *effects.EffContext
 	if cfg.EffCtx != nil {
 		if effCtx, ok := cfg.EffCtx.(*effects.EffContext); ok && effCtx != nil {
-			eng.SetEffContext(cfg.EffCtx)
 			storedEffCtx = effCtx
 		}
 	}
@@ -222,6 +224,10 @@ func New(basePath string, cfg Config) *Server {
 	if storedEffCtx != nil && storedEffCtx.Env.FSMaxBytes == 0 {
 		storedEffCtx.Env.FSMaxBytes = maxUpload
 	}
+	if storedEffCtx != nil {
+		// Clone after configuring the sink and policy inherited by requests.
+		eng.SetEffContext(storedEffCtx)
+	}
 	return &Server{
 		engine:             eng,
 		modules:            make(map[string]*ModuleInfo),
@@ -247,6 +253,7 @@ func New(basePath string, cfg Config) *Server {
 		ws:                 newWSState(cfg.WS),
 		noIntrospection:    cfg.NoIntrospection,
 		staticCache:        cfg.StaticCache,
+		staticHeaders:      cfg.StaticHeaders,
 	}
 }
 
@@ -340,6 +347,8 @@ func (s *Server) DroppedModules() []DroppedModule {
 // JSON so Cloud Logging lifts their severity; unstructured lines keep the
 // timestamped "[Debug] " decoration (M-DEBUG-SINK-STRUCTURED-LINES).
 func (s *Server) flushDebugOutput() {
+	s.debugFlushMu.Lock()
+	defer s.debugFlushMu.Unlock()
 	if s.effCtx == nil {
 		return
 	}
@@ -517,6 +526,9 @@ func (s *Server) Start() error {
 		return s.StartMCP()
 	}
 
+	if err := s.ValidateStaticHeaders(); err != nil {
+		return err
+	}
 	if err := s.ValidateWSRoutes(); err != nil {
 		return err
 	}
@@ -570,7 +582,7 @@ func (s *Server) Start() error {
 	return srv.Serve(ln)
 }
 
-func (s *Server) buildRoutes() *http.ServeMux {
+func (s *Server) buildRoutes() http.Handler {
 	mux := http.NewServeMux()
 
 	// Meta/introspection endpoints, OpenAPI spec + interactive docs.
@@ -647,7 +659,7 @@ func (s *Server) buildRoutes() *http.ServeMux {
 
 	// Static files or frontend proxy
 	if s.staticPath != "" {
-		mux.Handle("/", staticCacheHandler(s.staticCache, http.FileServer(http.Dir(s.staticPath))))
+		mux.Handle("/", s.staticHandler())
 	} else if s.frontendPath != "" {
 		// Proxy to Vite dev server
 		viteURL, _ := url.Parse("http://localhost:5173")
@@ -655,7 +667,7 @@ func (s *Server) buildRoutes() *http.ServeMux {
 		mux.Handle("/", proxy)
 	}
 
-	return mux
+	return s.staticRoutingHandler(mux)
 }
 
 func (s *Server) startViteProxy() error {

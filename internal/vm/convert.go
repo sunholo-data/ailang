@@ -117,6 +117,8 @@ func EvalToBytecode(v eval.Value) (bytecode.Value, error) {
 		return bytecode.Unit(), nil
 	}
 	switch ev := v.(type) {
+	case *effectCallbackValue:
+		return ev.value, nil
 	case *eval.IntValue:
 		return bytecode.NewInt(int64(ev.Value)), nil
 	case *eval.FloatValue:

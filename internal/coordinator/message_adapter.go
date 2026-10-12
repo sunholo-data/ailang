@@ -44,6 +44,7 @@ func (a *InboxMessageAdapter) ListUnread() ([]*Message, error) {
 		}
 		result = append(result, &Message{
 			ID:           m.ID,
+			Inputs:       m.Inputs,
 			From:         m.FromAgent,
 			Title:        m.Title,
 			Content:      m.Payload,

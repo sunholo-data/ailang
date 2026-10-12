@@ -119,6 +119,9 @@ func extractRouteAnnotations(modInfo *ModuleInfo, file *ast.File) {
 				modInfo.Exports[i].IsNowrap = isNowrap
 				modInfo.Exports[i].IsWS = method == "WS"
 				modInfo.Exports[i].Effects = effs
+				if method != "WS" {
+					modInfo.Exports[i].ResponseHeadersIssue = declaredResponseHeadersIssue(fn, file)
+				}
 				if method == "WS" {
 					modInfo.Exports[i].WSReq, modInfo.Exports[i].WSReqIssue = extractWSReq(fn)
 				}

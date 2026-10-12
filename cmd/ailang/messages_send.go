@@ -24,6 +24,7 @@ import (
 func runMessagesSend(args []string) {
 	fs := flag.NewFlagSet("messages send", flag.ExitOnError)
 	// Note: --payload is preferred over --json to avoid confusion with --json output flag
+	inputsFile := fs.String("inputs-file", "", "JSON file declaring task inputs (cloud execution only)")
 	payloadFlag := fs.String("payload", "", "Send structured payload (alternative to positional message)")
 	title := fs.String("title", "", "Message title")
 	from := fs.String("from", "cli", "Sender agent name")
@@ -73,6 +74,11 @@ func runMessagesSend(args []string) {
 		os.Exit(1)
 	}
 
+	inputs, err := loadTaskInputsFile(*inputsFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
 	inbox := fs.Arg(0)
 
 	// Before anything is written: does this inbox do anything? An unknown one
@@ -125,7 +131,7 @@ func runMessagesSend(args []string) {
 	// stores the message + publishes the notification in one step.
 	if strings.TrimSpace(*requires) != "" {
 		tags := splitAndTrim(*requires, ",")
-		if err := sendViaHTTP(inbox, msgTitle, payload, *from, category, *repo, tags); err != nil {
+		if err := sendViaHTTP(inbox, msgTitle, payload, *from, category, *repo, tags, inputs); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 			os.Exit(1)
 		}
@@ -150,6 +156,7 @@ func runMessagesSend(args []string) {
 
 	msg := &messaging.InboxMessage{
 		FromAgent:     *from,
+		Inputs:        inputs,
 		ToInbox:       inbox,
 		MessageType:   messageType,
 		Title:         msgTitle,
@@ -283,7 +290,7 @@ func runMessagesSend(args []string) {
 // isn't reachable — common cause: the launchd plist was installed before
 // M-COORD-TAG-ROUTING-LASTMILE shipped, so PORT isn't set. The fix is
 // `make coord-install --port 8765`.
-func sendViaHTTP(inbox, title, content, from, category, repo string, requires []string) error {
+func sendViaHTTP(inbox, title, content, from, category, repo string, requires []string, inputs []messaging.TaskInput) error {
 	port := discoverCoordinatorHTTPPort()
 	if port == "" {
 		return fmt.Errorf("--requires needs the daemon's HTTP listener but no PORT is configured.\n  Fix: make coord-install   (or set AILANG_COORD_HTTP_PORT)")
@@ -303,6 +310,9 @@ func sendViaHTTP(inbox, title, content, from, category, repo string, requires []
 	}
 	if repo != "" {
 		body["github_repo"] = repo
+	}
+	if len(inputs) > 0 {
+		body["inputs"] = inputs
 	}
 	if len(requires) > 0 {
 		body["requires"] = requires

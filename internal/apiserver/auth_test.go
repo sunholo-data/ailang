@@ -118,8 +118,3 @@ func TestAuthMiddleware_MetaEndpointBypass(t *testing.T) {
 		}
 	}
 }
-
-func TestWriteRawResponse(t *testing.T) {
-	// Test that writeRawResponse handles BytesValue correctly
-	// (can't easily test without eval imports, covered by integration tests)
-}

@@ -73,9 +73,22 @@ ifc: {
   params:    [{ label: "secret" | "", notLabel: "email" | "" }, ...]  // per param, source label + sink refinement
   return:    "secret" | ""        // declared return label (⊥ = none)
   intrinsic: "secret" | ""       // body's effective label, params at ⊥ (see §2)
-  declassify: bool               // ! {Declassify} in the effect row
+  declassify: ["email"] | ["*"] | []  // authorized relabel labels: [] none, ["*"] bare ! {Declassify}, else sorted unique labels
 }
 ```
+
+> **Revision (2026-10-08, sprint planning; maintainer ruling by Mark the same day):**
+> `declassify` is a **label list from day one**, not a bool, so the summary never
+> ships a bool-shaped schema that M-IFC-AUTHORITY-SCOPING would immediately
+> invalidate. `[]` = no authority, `["*"]` = bare `! {Declassify}` (all labels),
+> otherwise the sorted unique authorized labels. Per the ruling that Declassify
+> takes a single label in v1 (`Declassify[label=email]`), a scoped declassifier
+> serializes as a one-element list; the list shape leaves room for multi-label
+> later without a schema change. `"*"` is reserved for this encoding. The
+> per-param `label` (positive source label) is carried so importers can run
+> Check C (positive parameter label coverage) against imported callees. This
+> work lands **after** the M-IFC-AUTHORITY-SCOPING implementation and is rebased
+> on it.
 
 This is metadata, **not a type change**: `TLabelled` wrapping stays as-is; refinements
 get a home outside the type system (they cannot ride `TLabelled` because a refinement
@@ -104,7 +117,7 @@ compile** computes the body's effective label with parameters seeded at ⊥ (the
 existing `effectiveBodyLabel` fixpoint in `ifc_check.go`) and stores it as
 `intrinsic`. A library wrapper that calls `secret()` with no return annotation then
 exports `intrinsic: "secret"`, and every importer sees the taint without any
-annotation burden. `declassify: true` exports instead promise
+annotation burden. Exports with non-empty `declassify` instead promise
 `return` authoritatively, breaking the taint chain as locally.
 
 ### 3. Caller-side enforcement (internal/types + pipeline + repl)
@@ -116,7 +129,8 @@ func CheckModuleIFC(file *ast.File, imports map[string]ImportedIFCSig) []*TypeCh
 ```
 
 `labelOfCall` routes an imported callee to the same logic as a local one: Check A
-runs against `params[i].notLabel`, and `calleeResultLabel` is
+runs against `params[i].notLabel`, Check C (from M-IFC-AUTHORITY-SCOPING) runs
+against `params[i].label`, and `calleeResultLabel` is
 `return` if declared or declassifying, else `join(intrinsic, argLabels)`. Callers:
 
 - `internal/pipeline/pipeline_module_compile.go` — build the map from

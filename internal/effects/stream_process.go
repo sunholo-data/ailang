@@ -4,151 +4,257 @@ package effects
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"sync"
-	"syscall"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/proctree"
+	"github.com/sunholo-data/ailang/internal/runlife"
 )
 
-// processSource implements EventSource for streaming subprocess stdout.
-//
-// M-ASYNC-IO Phase 2: Spawns a subprocess and delivers its stdout as SourceBytes
-// events into selectEventsLoop. The subprocess is killed when the source is closed.
+// processSource owns its child process group, stdout pipe and reader. Selection
+// borrows the source; only cancellation or the execution owner stops it.
 type processSource struct {
-	name     string
-	priority int
-	ch       chan streamEvent
-	done     chan struct{}
-	once     sync.Once
-	cmd      *exec.Cmd
-	cancel   context.CancelFunc
+	name         string
+	priority     int
+	ch           chan streamEvent
+	done         chan struct{} // delivery/read cancellation, not completion
+	completed    chan struct{}
+	readerDone   chan struct{}
+	once         sync.Once
+	groupOnce    sync.Once
+	killGroup    func(int) error
+	cmd          *exec.Cmd
+	stdout       *os.File
+	cancel       context.CancelFunc
+	mu           sync.Mutex
+	stopErr      error
+	joinErr      error
+	lifetime     *runlife.Child
+	stopDeadline time.Time
 }
 
-// NewProcessSource creates an EventSource that reads subprocess stdout in fixed-size chunks.
-//
-// The subprocess is started immediately. A background goroutine reads stdout in
-// chunkSize-byte increments and sends SourceBytes events to the channel.
-//
-// Parameters:
-//   - parentCtx: parent context (cancelled when selectEvents loop exits)
-//   - cmdPath: resolved absolute path to the binary
-//   - args: command arguments (no shell expansion)
-//   - name: source name for SourceBytes(name, data) matching
-//   - priority: dispatch priority in selectEvents (higher = checked first)
-//   - chunkSize: bytes per SourceBytes event (determines streaming latency)
-//
-// The subprocess is killed (SIGTERM → 5s grace → SIGKILL) when Close() is called
-// or when the parent context is cancelled.
+// NewProcessSource starts one owned process group and one Wait goroutine.
+// A private pipe keeps Wait from closing stdout before its final bytes drain.
 func NewProcessSource(parentCtx context.Context, cmdPath string, args []string, name string, priority int, chunkSize int) (EventSource, error) {
+	return newProcessSource(parentCtx, cmdPath, args, name, priority, chunkSize, proctree.KillGroup)
+}
+
+func newProcessSource(parentCtx context.Context, cmdPath string, args []string, name string, priority int, chunkSize int, killGroup func(int) error) (EventSource, error) {
 	if chunkSize <= 0 {
 		return nil, fmt.Errorf("chunkSize must be positive, got %d", chunkSize)
 	}
-
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
 	ctx, cancel := context.WithCancel(parentCtx)
-
-	cmd := exec.CommandContext(ctx, cmdPath, args...)
-
-	stdout, err := cmd.StdoutPipe()
+	stdout, childStdout, err := os.Pipe()
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("stdout pipe: %w", err)
 	}
-
-	// Discard stderr — streaming mode doesn't capture it
-	cmd.Stderr = nil
-
+	cmd := exec.CommandContext(ctx, cmdPath, args...)
+	proctree.Configure(cmd)
+	ps := &processSource{
+		name: name, priority: priority, ch: make(chan streamEvent, 100),
+		done: make(chan struct{}), completed: make(chan struct{}), readerDone: make(chan struct{}),
+		cmd: cmd, stdout: stdout, cancel: cancel, killGroup: killGroup,
+	}
+	lifetime, err := runlife.Prepare(cmd, nil)
+	if err != nil {
+		stdout.Close()
+		childStdout.Close()
+		cancel()
+		return nil, fmt.Errorf("prepare runtime lifetime: %w", err)
+	}
+	ps.lifetime = lifetime
+	cmd.Stdout = childStdout
+	cmd.Cancel = ps.RequestStop // raw termination errors remain owned until checked Join
 	if err := cmd.Start(); err != nil {
+		if lifetime != nil {
+			lifetime.Abort()
+		}
+		_ = stdout.Close()
+		_ = childStdout.Close()
 		cancel()
 		return nil, fmt.Errorf("start process: %w", err)
 	}
-
-	src := &processSource{
-		name:     name,
-		priority: priority,
-		ch:       make(chan streamEvent, 100),
-		done:     make(chan struct{}),
-		cmd:      cmd,
-		cancel:   cancel,
+	if lifetime != nil {
+		lifetime.AfterStart()
 	}
-
-	go src.readLoop(stdout, chunkSize)
-	return src, nil
+	_ = childStdout.Close() // only child writers now keep the reader open
+	go ps.readLoop(chunkSize)
+	go ps.waitLoop()
+	return ps, nil
 }
 
 func (ps *processSource) Name() string               { return ps.name }
 func (ps *processSource) Priority() int              { return ps.priority }
 func (ps *processSource) Events() <-chan streamEvent { return ps.ch }
+func (ps *processSource) Done() <-chan struct{}      { return ps.completed }
+func (ps *processSource) StdinClosing() bool         { return false }
 
-// Close stops the subprocess and cleans up resources.
-// Safe to call multiple times.
-func (ps *processSource) Close() {
+// RequestStop interrupts pipe reads and blocked delivery. Group termination
+// has one shared attempt, so natural completion cannot trigger later signals.
+func (ps *processSource) RequestStop() error {
+	bounded, cancel := context.WithTimeout(context.Background(), WorkerShutdownTimeout)
+	defer cancel()
+	return ps.RequestStopContext(bounded)
+}
+
+func (ps *processSource) RequestStopContext(deadline context.Context) error {
 	ps.once.Do(func() {
 		close(ps.done)
-		ps.cancel() // sends signal to subprocess via context
+		ps.mu.Lock()
+		ps.stopDeadline, _ = deadline.Deadline()
+		ps.mu.Unlock()
+		if ps.lifetime != nil {
+			ps.lifetime.RequestStop(deadline, func() error { ps.finishGroup(false); ps.mu.Lock(); defer ps.mu.Unlock(); return ps.stopErr })
+		} else {
+			ps.finishGroup(false)
+			ps.cancel()
+		}
+		if ps.lifetime == nil {
+			_ = ps.stdout.Close()
+		}
+	})
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	return immediateWorkerStopError(ps.stopErr)
+}
 
-		// Give subprocess time to exit gracefully, then force kill
-		go func() {
-			timer := time.NewTimer(5 * time.Second)
-			defer timer.Stop()
-
-			waitDone := make(chan struct{})
-			go func() {
-				_ = ps.cmd.Wait()
-				close(waitDone)
-			}()
-
-			select {
-			case <-waitDone:
-				// Clean exit
-			case <-timer.C:
-				// Force kill after grace period
-				if ps.cmd.Process != nil {
-					_ = ps.cmd.Process.Signal(syscall.SIGKILL)
-				}
+// finishGroup performs one checked termination attempt shared by context
+// cancellation, explicit cancellation and natural leader completion.
+func (ps *processSource) finishGroup(natural bool) {
+	ps.groupOnce.Do(func() {
+		var err error
+		if WorkerCancellationSupported() {
+			err = ps.killGroup(ps.cmd.Process.Pid)
+		} else if !natural {
+			err = ps.cmd.Process.Kill()
+			if errors.Is(err, os.ErrProcessDone) {
+				err = nil
 			}
-		}()
+		}
+		ps.mu.Lock()
+		ps.stopErr = err
+		ps.mu.Unlock()
 	})
 }
 
-func (ps *processSource) readLoop(stdout io.ReadCloser, chunkSize int) {
+// Join succeeds only after the direct child is reaped and the reader has joined.
+func (ps *processSource) Join(ctx context.Context) error {
+	select {
+	case <-ps.completed:
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		ps.mu.Lock()
+		defer ps.mu.Unlock()
+		return errors.Join(proctree.ResolveGroupError(ps.cmd.Process.Pid, ps.stopErr), ps.joinErr)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// Close follows EventSource's signal-only contract. The execution supervisor
+// and public cancellation operation perform the checked, deadline-bound join.
+func (ps *processSource) Close() { _ = ps.RequestStop() }
+
+func (ps *processSource) waitLoop() {
+	err := ps.cmd.Wait() // exactly one owner, including natural EOF
+	if ps.lifetime != nil {
+		ps.lifetime.AfterWait()
+		ctx, cancel := ps.receiptContext()
+		receiptErr := ps.lifetime.Join(ctx)
+		cancel()
+		ps.mu.Lock()
+		ps.joinErr = errors.Join(ps.joinErr, receiptErr)
+		ps.mu.Unlock()
+	}
+	// Finish inherited descendants before publishing completion, sharing the
+	// checked attempt so explicit cancellation never causes a second signal.
+	ps.finishGroup(true)
+	ps.mu.Lock()
+	var exitErr *exec.ExitError
+	if err != nil && !errors.As(err, &exitErr) && !errors.Is(err, context.Canceled) {
+		ps.joinErr = errors.Join(ps.joinErr, err)
+	}
+	ps.mu.Unlock()
+	if ps.lifetime != nil {
+		select {
+		case <-ps.readerDone:
+		case <-ps.done:
+			// Keep registered runtime output readable until its sole Wait
+			// finishes. Closing it during cleanup could SIGPIPE the child
+			// before its private receipt. After Wait, close to bound drain
+			// even when a detached process retained an output descriptor.
+			_ = ps.stdout.Close()
+			<-ps.readerDone
+		}
+	} else {
+		<-ps.readerDone
+	}
+	ps.cancel()
+	if ps.lifetime != nil {
+		ps.lifetime.Abort()
+	}
+	close(ps.completed)
+}
+
+func (ps *processSource) readLoop(chunkSize int) {
+	defer close(ps.readerDone)
 	defer close(ps.ch)
-	defer stdout.Close()
-
+	defer ps.stdout.Close()
 	buf := make([]byte, chunkSize)
-
+	draining := false
 	for {
 		select {
 		case <-ps.done:
-			return
+			if ps.lifetime == nil {
+				return
+			}
+			draining = true
 		default:
 		}
-
-		n, err := io.ReadFull(stdout, buf)
-
-		// Deliver any bytes read (even partial on EOF/error)
-		if n > 0 {
-			// Copy the bytes so the buffer can be reused
-			chunk := make([]byte, n)
-			copy(chunk, buf[:n])
-
-			evt := streamEvent{
-				kind:       "source_bytes",
-				sourceName: ps.name,
-				data:       chunk,
-			}
-
+		n, err := io.ReadFull(ps.stdout, buf)
+		if n > 0 && !draining {
+			chunk := append([]byte(nil), buf[:n]...)
+			evt := streamEvent{kind: "source_bytes", sourceName: ps.name, data: chunk}
 			select {
 			case ps.ch <- evt:
 			case <-ps.done:
-				return
+				if ps.lifetime == nil {
+					return
+				}
+				draining = true
 			}
 		}
-
 		if err != nil {
-			// EOF or read error — subprocess finished or pipe closed
+			if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+				select {
+				case <-ps.done:
+				default:
+					ps.mu.Lock()
+					ps.joinErr = errors.Join(ps.joinErr, fmt.Errorf("worker stdout read: %w", err))
+					ps.mu.Unlock()
+				}
+			}
 			return
 		}
 	}
+}
+
+func (ps *processSource) receiptContext() (context.Context, context.CancelFunc) {
+	ps.mu.Lock()
+	deadline := ps.stopDeadline
+	ps.mu.Unlock()
+	if !deadline.IsZero() {
+		return context.WithDeadline(context.Background(), deadline)
+	}
+	return context.WithTimeout(context.Background(), WorkerShutdownTimeout)
 }

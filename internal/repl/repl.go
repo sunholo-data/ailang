@@ -207,6 +207,20 @@ func (r *REPL) Start(in io.Reader, out io.Writer) {
 
 // StartWithContext begins the REPL session with OpenTelemetry context
 func (r *REPL) StartWithContext(ctx context.Context, in io.Reader, out io.Writer) {
+	r.effContext.GoCtx = ctx
+	r.effContext.BindWorkerScope()
+	stopCancellation := context.AfterFunc(ctx, func() {
+		if err := r.effContext.CloseWorkers(); err != nil {
+			fmt.Fprintf(os.Stderr, "worker cleanup: %v\n", err)
+		}
+	})
+	defer func() {
+		stopCancellation()
+		if err := r.effContext.CloseWorkers(); err != nil {
+			fmt.Fprintf(out, "worker cleanup: %v\n", err)
+		}
+	}()
+
 	// Generate session ID for tracing
 	sessionID := uuid.New().String()[:8]
 	sessionStart := time.Now()

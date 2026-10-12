@@ -29,6 +29,17 @@ func (e *Executor) stripWithLineMap(source string, file *ast.File, keep map[stri
 	skipRanges := functionSkipRanges(file, keep)
 	skipRanges = append(skipRanges, testAndPropertySkipRanges(sourceLines, file)...)
 
+	return stripSourceLines(sourceLines, skipRanges)
+}
+
+// stripTestBlocks retains the complete module for named tests and properties.
+// Purity is checked on generated entries, rather than inferred from syntax.
+func (e *Executor) stripTestBlocks(source string, file *ast.File) (string, []int) {
+	lines := splitLines(source)
+	return stripSourceLines(lines, testAndPropertySkipRanges(lines, file))
+}
+
+func stripSourceLines(sourceLines []string, skipRanges []sourceLineRange) (string, []int) {
 	lines := make([]string, 0, len(sourceLines))
 	orig := make([]int, 0, len(sourceLines))
 	for i, line := range sourceLines {

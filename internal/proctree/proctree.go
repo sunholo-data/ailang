@@ -53,3 +53,8 @@ func KillGroup(pid int) error { return killProcessGroup(pid) }
 // KillProcess SIGKILLs a single process — the fallback when pid is not a
 // group leader (an orphan found by port, not one we spawned).
 func KillProcess(pid int) error { return killProcess(pid) }
+
+// ResolveGroupError checks a pending termination error after the owned child
+// and I/O tasks have joined. It only observes the original group, never kills
+// again; only confirmed absence can clear a raw permission error.
+func ResolveGroupError(pid int, err error) error { return resolveGroupError(pid, err) }

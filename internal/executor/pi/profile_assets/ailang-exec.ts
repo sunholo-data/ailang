@@ -210,26 +210,28 @@ export function teachingPrompt(run: (cmd: string, args: string[]) => string = (c
 	}
 }
 
-/** The `policy: {...}` admission line `ailang run --policy` prints on stderr. */
-export function parsePolicyLine(stderr: string): Record<string, unknown> | null {
-	const m = /^policy: (\{.*\})\s*$/m.exec(stderr);
-	if (!m) return null;
-	try {
-		return JSON.parse(m[1]) as Record<string, unknown>;
-	} catch {
-		return null;
-	}
+/** Select only LF-delimited contract lines, after the worker relay has drained.
+ * Parse the final candidate once: malformed final JSON never revives an earlier line.
+ */
+function contractLine(stderr: string, token: string): { index: number; value: Record<string, unknown> | null } {
+ const lines = stderr.split("\n");
+ for (let i = lines.length - 1; i >= 0; i--) {
+  if (!lines[i].startsWith(token + " ")) continue;
+  const body = lines[i].slice(token.length + 1).trim();
+  try {
+   const value = JSON.parse(body);
+   return { index: i, value: value && typeof value === "object" && !Array.isArray(value) ? value : null };
+  } catch { return { index: i, value: null }; }
+ }
+ return { index: -1, value: null };
 }
 
-/** The `policy-result: {...}` limit envelope the supervisor prints on a timeout or output cap. */
+export function parsePolicyLine(stderr: string): Record<string, unknown> | null {
+ return contractLine(stderr, "policy:").value;
+}
+
 export function parseResultLine(stderr: string): Record<string, unknown> | null {
-	const m = /^policy-result: (\{.*\})\s*$/m.exec(stderr);
-	if (!m) return null;
-	try {
-		return JSON.parse(m[1]) as Record<string, unknown>;
-	} catch {
-		return null;
-	}
+ return contractLine(stderr, "policy-result:").value;
 }
 
 export interface RunEnvelope {
@@ -251,9 +253,12 @@ export interface RunEnvelope {
  * admitted=false so the model never mistakes a crash for a refusal.
  */
 export function composeEnvelope(code: number, stdout: string, stderr: string): RunEnvelope {
-	const admission = parsePolicyLine(stderr);
-	const limit = parseResultLine(stderr);
-	const cleanErr = stderr.replace(/^policy: \{.*\}\s*$/m, "").replace(/^policy-result: \{.*\}\s*$/m, "").trim();
+	const admissionLine = contractLine(stderr, "policy:");
+ const resultLine = contractLine(stderr, "policy-result:");
+ const admission = admissionLine.value;
+ const limit = resultLine.value;
+ const cleanErr = stderr.split("\n").filter((_, i) =>
+  !(admission && i === admissionLine.index) && !(limit && i === resultLine.index)).join("\n").trim();
 	if (admission && admission.ok === true) {
 		return {
 			admitted: true,

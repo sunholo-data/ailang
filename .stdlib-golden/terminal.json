@@ -1,0 +1,92 @@
+{
+  "module": "std/terminal",
+  "types": [
+    {
+      "name": "TerminalError",
+      "ctors": [
+        "Busy(string)",
+        "CleanupFailure(string)",
+        "InputFailure(string)",
+        "InvalidSession(string)",
+        "InvalidTimeout(int)",
+        "NotTTY(string)",
+        "QueryFailure(string)",
+        "Unsupported(string)"
+      ]
+    },
+    {
+      "name": "TerminalEvent",
+      "ctors": [
+        "EndOfInput",
+        "Idle",
+        "Interrupted",
+        "Key(TerminalKey)",
+        "Resize(TerminalSize)"
+      ]
+    },
+    {
+      "name": "TerminalInfo",
+      "alias": "{input_tty: bool, output_tty: bool, raw_supported: bool, size: Option[TerminalSize]}"
+    },
+    {
+      "name": "TerminalKey",
+      "ctors": [
+        "Backspace",
+        "Delete",
+        "Down",
+        "End",
+        "Enter",
+        "Escape",
+        "Home",
+        "Left",
+        "PageDown",
+        "PageUp",
+        "Right",
+        "Tab",
+        "Text(string)",
+        "Up"
+      ]
+    },
+    {
+      "name": "TerminalOptions",
+      "alias": "{alternate_screen: bool, hide_cursor: bool}"
+    },
+    {
+      "name": "TerminalSession",
+      "ctors": [
+        "TerminalSession(int)"
+      ]
+    },
+    {
+      "name": "TerminalSize",
+      "alias": "{columns: int, rows: int}"
+    }
+  ],
+  "funcs": [
+    {
+      "name": "info",
+      "type": "(())-\u003eResult[TerminalInfo,TerminalError]!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    },
+    {
+      "name": "readEvent",
+      "type": "(TerminalSession,int)-\u003eResult[TerminalEvent,TerminalError]!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    },
+    {
+      "name": "withTerminal",
+      "type": "(TerminalOptions,(TerminalSession)-\u003ea)-\u003eResult[a,TerminalError]!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

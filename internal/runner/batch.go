@@ -2,12 +2,14 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/runlife"
 	"github.com/sunholo-data/ailang/internal/runtime"
 )
 
@@ -19,19 +21,25 @@ import (
 // declared mode is the same for every input because the same entry function
 // is invoked).
 func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string, opts Options,
-	routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
+	routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) (err error) {
 
 	// Fresh runtime per input — prevents state leaks between batch items
 	rt := runtime.NewModuleRuntime(".")
 
 	// Each input gets its own args: the input path is the sole program argument
 	effCtx := effects.NewEffContext([]string{input})
-	defer effCtx.CloseFSRoot() // per-input owner of the sandbox root (M-EXECUTOR-POLICY-HARDENING M1)
+	defer effCtx.CloseFSRoot() // this batch item owns its sandbox root
+	stopSignals := func() {}
+	defer func() {
+		if cleanupErr := effCtx.CloseWorkers(); cleanupErr != nil {
+			runlife.RecordFailure(cleanupErr)
+			err = errors.Join(err, fmt.Errorf("worker cleanup: %w", cleanupErr))
+		}
+		FlushDebugOutput(effCtx, opts.DebugLogLevel, input)
+		stopSignals()
+	}()
 	effCtx.Debug = effects.NewDebugContext()
 	effects.DebugSink{MinLevel: opts.DebugLogLevel, Label: input}.Attach(effCtx.Debug) // W nil: current os.Stderr
-	defer func() {
-		FlushDebugOutput(effCtx, opts.DebugLogLevel, input)
-	}()
 	if err := GrantCapabilities(effCtx, opts.Caps); err != nil {
 		return err
 	}
@@ -51,6 +59,7 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 	if err := SetupStreamHandler(effCtx, opts.Stream); err != nil {
 		return err
 	}
+	effCtx.BindWorkerScope()
 	if err := SetupFSLimit(effCtx, opts.FSMaxBytes); err != nil {
 		return err
 	}
@@ -73,6 +82,13 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 	// the whole run (the caller checks for *EnvFlagError).
 	if _, err := SetupEnvContext(effCtx, opts.Env); err != nil {
 		return err
+	}
+
+	if err := runlife.Bind(effCtx.ShutdownWorkersContext); err != nil {
+		return err
+	}
+	if opts.TerminalSignalExit != nil {
+		stopSignals = effCtx.InstallWorkerSignalHandler(func(code int) { runlife.Complete(effCtx.CloseWorkers()); opts.TerminalSignalExit(code) })
 	}
 
 	rt.GetEvaluator().SetEffContext(effCtx)

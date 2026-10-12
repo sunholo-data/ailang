@@ -19,6 +19,15 @@ every remaining limitation is a reproducible artifact, not lore.
 
 ---
 
+## Named-test effects (by design)
+
+Named-test bodies and `forall` property predicates are checked pure. Module helpers
+are visible regardless of whether they use the `pure` keyword, but effectful calls
+require verification through an exported entry run with explicit capabilities.
+See the [Testing Guide](/docs/guides/testing#named-test-and-property-purity) for examples
+and the FS fixture verification route. An invalid module-level helper retains its
+own compiler diagnostic.
+
 ## Type System Limitations
 
 ### Concrete Function-Effect Annotations Remain Open
@@ -49,6 +58,13 @@ to an effect-polymorphic HOF do now charge latent effects. Closed annotation bou
 remain a separate spike under the existing [#573](https://github.com/sunholo-data/ailang/issues/573)
 and [#1326](https://github.com/sunholo-data/ailang/issues/1326) design; no new issue is required.
 
+
+Direct effect-polymorphic callback calls now share and resolve their call row
+([#616](https://github.com/sunholo-data/ailang/issues/616)). A pure callback can
+be called from a pure wrapper. A helper that invokes a callback with an explicitly
+open effect row must propagate that row; omitting it is rejected before execution.
+This also applies to repeated callback invocations. Runtime capabilities remain
+required for concrete effects.
 
 ### Effectful Callbacks Nested in Data Arguments Are Not Yet Charged
 
@@ -330,34 +346,37 @@ The permanent fix changes the evaluator's list representation and its consumers.
 multi-week programme currently in progress; the representation spike returned GO, but no runtime
 representation fix has shipped yet.
 
-#### 2. Evaluator recursion depth cap (`RT_REC_003`)
+#### 2. Recursion depth caps
 
-`ailang run` caps evaluator recursion at **10,000 frames** by default
-(`cmd/ailang/main_run.go:35`; the evaluator defaults are also set at
-`internal/eval/eval_evaluator.go:148,160`). Exceeding the cap returns `RT_REC_003`, as pinned by
-`internal/eval/recursion_test.go:265,301-302`. The evaluator has no tail-call elimination, so even
-tail-position or deep right-recursive code reaches this wall instead of becoming an iterative
-loop. A same-scope scan on 2026-08-21 found the positive `recursionDepth` guard in two files under
-`internal/eval/` and no tail-call implementation there; the sole tail-call match is a test that
-explicitly verifies the evaluator does not advertise nonexistent tail-call elimination.
+`ailang run` defaults to a **10,000** recursion-depth ceiling in the evaluator and a
+**10,000** frame ceiling in the bytecode VM. Positive `--max-recursion-depth N` values
+set the ceiling for both backends; zero or negative values retain the defaults.
+The evaluator counts evaluation depth, including builtin callback re-entry, while the VM
+counts live call frames, so exact boundary depths can differ. Tail calls run at constant
+depth on both backends.
+
+An evaluator overrun reports `RT_REC_003`; a strict bytecode overrun reports `stack overflow`.
+Non-strict `--bytecode` can still restart on the evaluator after overflow, replaying committed
+IO or seeing already-consumed stdin. Aligning the limits avoids this fallback for ordinary
+deep recursion within the default ceiling; it does not make replay safe (Refs #1576).
 
 The executable remedy test at v0.33.1-171-gc62e64878 (2026-08-21) measured a right-recursive
 `sum(300)`: it raises `RT_REC_003` with a 100-frame ceiling and completes after the ceiling is raised
 to 10,000 (`internal/eval/rt_rec_003_message_test.go:31-112`).
 
-**Workaround**: pass `--max-recursion-depth N` to raise the evaluator's depth ceiling. Prefer the
+**Workaround**: pass `--max-recursion-depth N` to raise both backends' depth ceilings. Prefer the
 iterative `map`, `foldl`, and `takeMap` paths above where they express the operation.
 
 **Raised ceilings are honoured (2026-09-26, #1317).** Before, a raised ceiling could not be
 reached: the evaluator recursed on one goroutine, whose stack Go caps at 512 MB (1 GB at most), so
 programs died with `fatal error: stack overflow` well below N (plain recursion at 200k–400k calls,
 list-pattern matching at ~84k). Deep evaluation now continues on a fresh goroutine every 131,072
-evaluator levels (`evalSegmentLevels`, `internal/eval/eval_expressions.go`). Depth is therefore bounded
-by N and memory, and exceeding N is always `RT_REC_003`. Measured: 1,999,000 plain calls under
+evaluator levels (`evalSegmentLevels`, `internal/eval/eval_expressions.go`). Evaluator depth is therefore bounded
+by N and memory, and exceeding N reports `RT_REC_003`. Measured: 1,999,000 plain calls under
 `--max-recursion-depth 2000000` complete in 9.5 s at 12.8 GB peak RSS, which is the cost of that
 much live recursion. Recursion that re-enters the evaluator through a builtin callback (`map`,
 `foldl`, `sortBy`, ...) now reports `RT_REC_003` as one line, not once per level. Raising the
-depth ceiling does **not** add tail-call elimination and does **not** fix the memory amplification
+depth ceiling does **not** fix the memory amplification
 from `::`; allowing a quadratic recursive builder to run longer can increase its memory use.
 
 ### Strict evaluation: `take(n, flatMap(f, xs))` bounds the result, not the peak
@@ -449,27 +468,27 @@ the `Concurrency` effect), but full CSP with session types remains future work.
 
 ### Interactive stdin / Keyboard Input
 
-**Status**: Line input works; two narrower gaps remain (see the three rows below).
-**Verified at**: v0.33.1 (2026-08-17 — `std/io.readLine` and `std/stream.asyncReadStdinLines` present in the stdlib)
+**Status**: Line input and scoped native keys work; in-flight AI cancellation remains separate.
+**Verified at**: native-terminal sprint implementation, 2026-10-10 (supporting release pending).
 
-`std/io` provides `readLine()`, which reads one line from stdin and blocks until the user
-presses Enter — covering prompt-and-read and REPL-style input. `std/stream.asyncReadStdinLines`
-additionally provides a **concurrent, non-blocking line source** for `selectEvents` dispatch.
-So "no stdin" is a myth: line-oriented input is fully supported today.
-
-Two distinct things are *not* yet supported — keep them separate, they route differently:
+`std/io.readLineOpt()` returns `Some("")` for a blank line, `Some(text)` for a final
+partial line and sticky `None` at EOF. Legacy `readLine()` retains its string
+semantics. `std/stream.asyncReadStdinLines` supplies concurrent line events.
 
 | Need | Status | Tracking |
 |---|---|---|
-| **Line input** (`readLine`, `asyncReadStdinLines`) | ✅ Supported | — |
-| **Abort a long-running `std/ai.step()`** mid-call via stdin/signal | ❌ In progress | [#231](https://github.com/sunholo-data/ailang/issues/231) → `m-agent-step-cancellation` (extension + small fix) |
-| **Raw-mode single keypress** (no Enter/echo) for human-controlled games | ❌ By design — not in core | non-deterministic, unavailable in WASM, no agentic use case; would be a host/extension capability if ever needed |
+| **Line input** (`readLine`, `readLineOpt`, `asyncReadStdinLines`) | Supported | IO / Stream capabilities |
+| **Scoped native single keypress and resize** | macOS/Linux evaluator and native VM | `std/terminal`, IO, host lifecycle integration |
+| **Abort an in-flight `std/ai.step()`** | Separate cancellation work | [#231](https://github.com/sunholo-data/ailang/issues/231) |
 
-For a keyboard-controlled game today, design around it with a self-driving loop or
-line-at-a-time (`readLine`) input.
+Windows/WASM native operations return typed `Unsupported`. Go code generation
+rejects terminal operations at compile time. Budget-annotated terminal package
+adapters currently run through the evaluator; pure package tests and core terminal
+operations have strict bytecode coverage. Input ownership excludes competing line
+readers and preserves unread buffered data; handles expire with their scope.
 
-For real-time *output* (games, progress bars, dashboards), see `flush()` and the C-style
-string escapes (`\x1b`, `\u{…}`) added in v0.27.0 — `examples/progress_bar.ail`.
+For real-time output, use `flush()` after partial-line writes and ANSI string
+escapes (`\x1b`, `\u{…}`), as in `examples/progress_bar.ail`.
 
 ---
 

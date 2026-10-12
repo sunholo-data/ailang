@@ -1,0 +1,137 @@
+{
+  "sprint_id": "M-IFC-CROSS-MODULE",
+  "status": "not_started",
+  "created": "2026-10-08",
+  "target_release": "v0.53.x",
+  "design_doc": "design_docs/planned/m-ifc-cross-module-labels.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-ifc-cross-module-labels-sprint-plan.md",
+  "github_issues": [
+    1134,
+    1132
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ifc; inspected sunholo/linkedin@0.5.1 info; docs unavailable (no AGENT.md). Application package cannot provide compiler IFC metadata, cache validation or enforcement."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ifc; inspected sunholo/linkedin@0.5.1 info; docs unavailable (no AGENT.md). Application package cannot provide compiler IFC metadata, cache validation or enforcement."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ifc; inspected sunholo/linkedin@0.5.1 info; docs unavailable (no AGENT.md). Application package cannot provide compiler IFC metadata, cache validation or enforcement."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched ifc; inspected sunholo/linkedin@0.5.1 info; docs unavailable (no AGENT.md). Application package cannot provide compiler IFC metadata, cache validation or enforcement."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 210,
+    "estimated_total_loc": 1040,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Export IFC summaries and deterministic schema",
+      "estimated_loc": 310,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Every exported item has explicit IFC metadata; clean is distinguishable from missing.",
+        "Positive param labels, sink refinements, declared/intrinsic returns, and the Declassify label list (none [], bare [\"*\"], scoped [\"email\"]) survive summary construction; no bool-shaped declassify field exists in the schema.",
+        "Local recursion and a wrapper around an imported secret producer retain intrinsic taint.",
+        "Each security-relevant summary field changes the digest; export map order does not.",
+        "TLabelled erasure and CoreTI/codegen behavior remain unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Persist summaries and reject incompatible caches",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Full cache JSON, compact/published JSON, and supported gob paths preserve every IFC summary field.",
+        "cacheKeyVersion is bumped v5->v6 in internal/pipeline/cache_key.go with a history comment; a test shows a pre-bump cache entry misses.",
+        "A validly hashed v1 artifact cannot bypass IFC enforcement and causes recompilation.",
+        "A v2 interface with absent or malformed metadata cannot be treated as clean.",
+        "A library-only refinement/intrinsic/return change invalidates dependent cached artifacts.",
+        "Cold and warm cache verdicts match, including a cached caller (audit whether IFC reruns on cache hits)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Enforce imported contracts in CLI and REPL",
+      "estimated_loc": 350,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "#1134 two-module repro fails, naming caller location, canonical imported callee and forbidden parameter.",
+        "Declared secret return and unannotated intrinsic-secret return both taint caller sinks.",
+        "Imported transparent functions join argument labels, including closure body taint.",
+        "Imported Check C: a library param with a positive label called cross-module with an uncovered label fails with ParamLabelCoverError naming caller location and imported callee; bottom/literal and matching-label arguments pass.",
+        "A legal imported Declassify path passes for bare and scoped (Declassify[label=email]) library functions; a scoped imported declassifier does not authorize an unrelated label; library return-label violations still fail.",
+        "Selective, renamed, qualified, shadowed, and transitive wrapper cases resolve correctly.",
+        "CLI and REPL agree for positive and negative fixtures; failed REPL loads publish nothing."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Examples, documentation and release validation",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Runnable lib/app example checks successfully; deliberately illegal fixtures fail for IFC rather than unrelated errors.",
+        "Guide no longer discloses the fixed cross-module limitation and still accurately describes Z3 limitations.",
+        "Release notes describe imported sink and Check C errors and one-time cache recompilation (cacheKeyVersion bump).",
+        "Compatibility audit verdicts match the plan's table (inbox_v2_lib/inbox_v2_app, std/secret.ail and its importers gated_secret, secret_demo, leak_attempt); any deviation is explained in notes.",
+        "go test of the touched packages (internal/types, iface, pipeline, repl, parser) and make test-core pass, plus make lint and make check-boundaries; full make test is left to CI (SIGBUS risk locally)."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "execution_preconditions": [
+    "HOLD: do not approve until the M-IFC-AUTHORITY-SCOPING implementation PR has merged; rebase on it before starting"
+  ],
+  "sequencing": {
+    "follows": "M-IFC-AUTHORITY-SCOPING",
+    "related_issue": 752,
+    "shared_files": [
+      "internal/types/ifc_check.go",
+      "internal/types/effects.go"
+    ],
+    "handoff_contract": "Summary declassify is a label list: [] none, [\"*\"] bare, sorted unique labels otherwise (one element in v1 per 2026-10-08 single-label ruling); summary carries positive param labels; imported callees reuse local Check A/C and scoped result policy."
+  }
+}

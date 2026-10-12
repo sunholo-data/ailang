@@ -1,0 +1,40 @@
+{
+  "milestone": "M2",
+  "commit": "d48ce8036",
+  "result": "PASS focused final-head checkpoints",
+  "integrated_source_head": "c9d52495029620b29ce4a7d307fafe3e4cda1d51",
+  "captured_utc": "2026-10-11T19:13:04.436290+00:00",
+  "coverage": [
+    "14 managed/two-async cancellation/EOF/return/error/exit/SIGINT/SIGTERM exact PID absence cases",
+    "Nested supervision with remaining parent deadline; missing receipt typed failure; bystander survival",
+    "Hard timeout and 200 ms post-output-cap sentinel never executes",
+    "Early help/invalid-flags/chdir/missing-file/refusal/denial/startup exit receipts",
+    "Malformed/oversized/unsupported/wrong-kind/closed request failure receipts after bounded cleanup",
+    "Standalone admitted-success supervisor requires successful cleanup receipt",
+    "Post-receipt lifeline ownership, local-request-close distinction and stuck cleanup watchdog",
+    "20 repeated direct normal-policy successful exits"
+  ],
+  "logs": [
+    {
+      "path": "/private/tmp/worker-followup-M2-lifeline-final-policy.log",
+      "sha256": "82472efb79f8d2ba2e992895670117f7451eabd3291fe1765fa15f436a98bf38",
+      "bytes": 55
+    },
+    {
+      "path": "/private/tmp/worker-followup-M2-normal-policy-repeat.log",
+      "sha256": "f2ab19c3624144832397d5b5ed5dd5336b3c59e0463e37ef617f0b2422ba09c2",
+      "bytes": 54
+    },
+    {
+      "path": "/private/tmp/worker-followup-M2-lifeline-final-race.log",
+      "sha256": "57ddc0a116f5c619fafab3c0e9b3728c275f3620adbb465a15ea4ab801ae72f8",
+      "bytes": 121
+    },
+    {
+      "path": "/private/tmp/worker-followup-M2-lifeline-final-lint.log",
+      "sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f",
+      "bytes": 76
+    }
+  ],
+  "full_integrated_gate": "Pending; worker full make test passed before final guard, so final integrated make test required."
+}

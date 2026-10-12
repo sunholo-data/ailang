@@ -1,0 +1,108 @@
+{
+  "sprint_id": "M-BACKGROUND-WORKER-LIFECYCLE",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-10T17:48:00Z",
+  "source_head": "99bda5b8a4a2d8b95fb959e3cf7b464bd51e794c",
+  "design_doc": "design_docs/planned/m-background-worker-lifecycle.md",
+  "sprint_plan": "design_docs/planned/m-background-worker-lifecycle-sprint-plan.md",
+  "total_score": 62,
+  "pass_threshold": 70,
+  "result": "fail",
+  "gate_source": "local",
+  "score_breakdown": {
+    "tests_pass": 0,
+    "lint_clean": 10,
+    "acceptance_criteria": 23,
+    "code_quality": 5,
+    "documentation": 10,
+    "design_fidelity": 7,
+    "regression_surface_coverage": 7
+  },
+  "hard_fails": [
+    {
+      "condition": "tests_broken",
+      "details": "Full make test failed in cmd/ailang and internal/apiserver: five existing top-level tests. Debug sink configuration is lost by the new engine clone; no-worker runs add shutdown trace events."
+    },
+    {
+      "condition": "verify_examples_red",
+      "details": "Example manifest statistics remain 229 total / 221 working; actual entries are 231 total / 223 working, coverage 0.9653679653679653."
+    }
+  ],
+  "automated_checks": {
+    "tests_pass": false,
+    "tests_log": "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/sprint-eval.DCQYJS/tests.log",
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "verify_examples_pass": false,
+    "gate_log": "/private/tmp/worker-independent-evaluation-gates.log",
+    "verify_examples_log": "/private/tmp/worker-independent-verify-examples.log",
+    "coverage_pct": "not rerun; optional",
+    "todo_hack_count": 0,
+    "source_content_sha256": "9859ae33f2ade52108f758ac0c77dc27e54d5d0a63df72ae9ccff6aeea44644e",
+    "source_content_hash_command": "git ls-tree -r HEAD -- internal cmd std examples/runnable go.mod go.sum Makefile make .stdlib-golden | shasum -a 256"
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "met": true,
+      "evidence": "worker_owner tests cover shared deadline, admission races, fresh cloned registries, shared budget views, global IDs and structured identified failure."
+    },
+    {
+      "feature_id": "M2",
+      "met": true,
+      "evidence": "Managed cancellation/lifecycle tests cover retained stdin ownership, queued drain, blocked writes, foreign handles, reaping and descendant kill."
+    },
+    {
+      "feature_id": "M3",
+      "met": true,
+      "evidence": "Source cancellation tests cover dual capability/budget checks, natural final chunks, backpressure, descendants and borrowed resource isolation."
+    },
+    {
+      "feature_id": "M4",
+      "met": true,
+      "evidence": "Actual CLI/batch PID and PTY matrix plus request/engine/REPL/WS and explicit VM/backend tests exist and passed in the full run; compatibility regressions are separately rejected."
+    },
+    {
+      "feature_id": "M5",
+      "met": false,
+      "evidence": "Full tests and verify-examples failed. Independent verdict cannot pass; tracking correctly leaves M5 pending."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Approved; not yet finalized after independent evaluation"
+  },
+  "design_fidelity": {
+    "score": 7,
+    "notes": "Owned worker architecture and authority match the approved design. Debug sink inheritance and unrelated no-worker trace compatibility regressions prevent acceptance."
+  },
+  "feedback": [
+    {
+      "file": "internal/apiserver/server.go",
+      "line": 199,
+      "function": "New",
+      "category": "regression",
+      "severity": "high",
+      "issue": "Engine.SetEffContext clones Debug before server attaches DebugSink to the caller context; requests inherit no sink and all existing request debug lines disappear.",
+      "suggestion": "Attach complete Debug configuration before engine cloning. Preserve fresh request accumulators. Verify three existing apiserver debug sink tests and CLI no-caps debug test."
+    },
+    {
+      "file": "internal/effects/worker_owner.go",
+      "function": "BindWorkerScope/flushReceipts",
+      "category": "regression",
+      "severity": "high",
+      "issue": "Ordinary IO-only runs with no worker resources now emit two Process/shutdownWorkers trace events, breaking both existing tail-call goldens and adding unrelated process effects.",
+      "suggestion": "Emit receipts for owners that actually admitted workers or require cleanup diagnostics; preserve unchanged traces for no-worker executions. Keep real worker receipts and failure diagnostics."
+    },
+    {
+      "file": "examples/manifest.json",
+      "function": "statistics",
+      "category": "automated_gate",
+      "severity": "high",
+      "issue": "Adding two working examples did not update aggregate statistics.",
+      "suggestion": "Update only total, working and coverage to calculated values and rerun make verify-examples."
+    }
+  ],
+  "notes": "Independent read-only preflight surfaced and implementation fixed source-stop deadline extension, unfinished receipts, original-registry release/reset races, host signal defer ordering and concurrent trace access. Round1 full gates ran once on a clean frozen source head. Automated script prints an invalid duplicate zero in todo_hack_count when grep finds no matches; this report records the directly observed zero without treating script exit zero as test success. Official published-runtime consumer retest is explicitly deferred to delivery; no push/release was performed. Acceptance score uses 13/17 criteria via milestone passes; pending artifacts and long functions deduct code quality. Base score55 plus regression coverage bonus7."
+}

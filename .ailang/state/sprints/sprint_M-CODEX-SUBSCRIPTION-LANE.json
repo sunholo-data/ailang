@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-CODEX-SUBSCRIPTION-LANE",
-  "status": "not_started",
+  "status": "paused",
   "created": "2026-10-08T19:17:51.210224+00:00",
   "design_doc": "design_docs/planned/v0_52_6/m-codex-subscription-lane.md",
   "sprint_plan": "design_docs/planned/v0_52_6/m-codex-subscription-lane-sprint-plan.md",
@@ -55,7 +55,9 @@
   "velocity": {
     "target_loc_per_day": 200,
     "estimated_total_loc": 1260,
-    "estimated_days": 6
+    "estimated_days": 6,
+    "actual_total_loc": 352,
+    "measurement_note": "Changed lines (additions plus deletions) in M1 routing/tests and M2 client/tests/README/changelog; shared report, plan and state bookkeeping excluded."
   },
   "features": [
     {
@@ -69,11 +71,12 @@
         "Motoko preflight checks subscription credentials and classifies the sentinel as subscription; mission executor routing and explicit provider: openai registry rows retain their behavior.",
         "Existing provider-prefix fixtures and coordinator spawn-recipe regression tests pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
-      "phase": "phase1"
+      "passes": true,
+      "started": "2026-10-09T08:28:23.710784+00:00",
+      "completed": "2026-10-09T08:33:55.988066+00:00",
+      "notes": "Pre-edit caller audit recorded. Sentinel refuses direct and fallback factory construction; CLI/eval regressions, subscription preflight, explicit OpenAI row and mission routing fixtures pass.",
+      "phase": "phase1",
+      "actual_loc": 170
     },
     {
       "id": "M2",
@@ -89,11 +92,12 @@
         "A1–A5 and focused go test + make test-core pass; Phase 1 can ship independently before any Phase 2 code is merged.",
         "Phase 1 STOP: commit M1-M2 locally with Refs #903, report, and stop; do not start D8 or M3 in the same run."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
-      "phase": "phase1"
+      "passes": true,
+      "started": "2026-10-09T08:28:23.710784+00:00",
+      "completed": "2026-10-09T08:33:55.988066+00:00",
+      "notes": "10-minute total deadline and WithTimeout implemented; continuous-stream kill and earlier cancellation fixtures pass. #1259 absorption documented. Core, fmt, lint (0 issues), architecture and file-size checks pass. STOP after local Refs #903 commit.",
+      "phase": "phase1",
+      "actual_loc": 182
     },
     {
       "id": "D8",
@@ -229,5 +233,11 @@
     "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-CODEX-SUBSCRIPTION-LANE before each run and after every JSON update.",
     "Executor cannot push or merge; commit locally with Refs #903.",
     "No models.yml migration (M5) and no internal/ai/chatgpt/ removal (M6) before the D8 ruling."
-  ]
+  ],
+  "branch_name": "coordinator/task-6e2afe00",
+  "last_session": "2026-10-09T08:33:55.988066+00:00",
+  "last_checkpoint": "Phase 1 complete (M1/M2 passed). STOP per approved plan; separate D8 measurement run next, then maintainer ruling before Phase 2.",
+  "phase1_status": "completed",
+  "phase1_report": "design_docs/planned/v0_52_6/m-codex-subscription-lane-phase1-report.md",
+  "validation_notes": "Unfiltered eval-harness failures remain: missing uv for Python runners and lingering process-group member in TestMemWatchdogKillsGrandchild. Focused provider checks pass; full make test excluded per plan."
 }

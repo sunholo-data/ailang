@@ -1,0 +1,230 @@
+{
+  "runtime": "/private/tmp/worker-followup-v545-official/binary/ailang",
+  "version": "AILANG v0.54.5\nCommit: 296231d\nFull:   296231d657126e20b79eaaf258e86963344f368c\nBuilt:  2026-10-11T21:51:10Z\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026",
+  "providers": 0,
+  "cases": [
+    {
+      "command": [
+        "/private/tmp/worker-followup-v545-official/binary/ailang",
+        "run",
+        "--package-dir",
+        "/private/tmp/worker-followup-consumer-probe",
+        "--caps",
+        "IO,FS,Env,Clock,Stream,Process",
+        "--process-allowlist",
+        "/private/tmp/worker-followup-v545-official/binary/ailang",
+        "--fs-max-bytes",
+        "128KB",
+        "/private/tmp/worker-followup-consumer-probe/async_probe.ail",
+        "--",
+        "/private/tmp/worker-followup-v545-official/binary/ailang",
+        "/private/tmp/worker-followup-consumer-probe",
+        "/private/tmp/reply-m1-rounds-7x58gmh7"
+      ],
+      "home": "/private/tmp/reply-m1-rounds-7x58gmh7",
+      "before": [
+        {
+          "pid": 62636,
+          "ppid": 62627,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy /private/tmp/reply-m1-rounds-7x58gmh7/worker1-policy.toml --chdir /private/tmp/reply-m1-rounds-7x58gmh7/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 62637,
+          "ppid": 62627,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy /private/tmp/reply-m1-rounds-7x58gmh7/worker2-policy.toml --chdir /private/tmp/reply-m1-rounds-7x58gmh7/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 62638,
+          "ppid": 62636,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-rounds-7x58gmh7/worker1-policy.toml --chdir /private/tmp/reply-m1-rounds-7x58gmh7/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 62639,
+          "ppid": 62637,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-rounds-7x58gmh7/worker2-policy.toml --chdir /private/tmp/reply-m1-rounds-7x58gmh7/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        }
+      ],
+      "after": [],
+      "state": {
+        "schema": "probe-state/1",
+        "run": "m1-probe",
+        "seq": 31,
+        "round": 2,
+        "keys": 2,
+        "ready": [
+          "worker2/1",
+          "worker1/1",
+          "worker1/2",
+          "worker2/2"
+        ],
+        "boundary": [
+          "worker1",
+          "worker2"
+        ],
+        "buf1": "",
+        "buf2": "",
+        "bad": 0,
+        "began": 1791757910794
+      },
+      "stdout": "probe ready; n=status, round=second jobs, q=quit\r\nn\r\n{\"event\":\"keyboard\",\"keys\":1,\"round\":1,\"unfinished\":2,\"elapsed_ms\":346}\r\npart\r\n{\"event\":\"keyboard\",\"keys\":2,\"round\":1,\"unfinished\":0,\"elapsed_ms\":2147}\r\nround\r\n",
+      "elapsed_ms": 5131,
+      "quit_clean": true,
+      "name": "two rounds and partial-key",
+      "early": {
+        "schema": "probe-state/1",
+        "run": "m1-probe",
+        "seq": 5,
+        "round": 1,
+        "keys": 1,
+        "ready": [],
+        "boundary": [
+          "worker1",
+          "worker2"
+        ],
+        "buf1": "",
+        "buf2": "",
+        "bad": 0,
+        "began": 1791757910794
+      },
+      "stable_pids": true,
+      "stable_boots": true,
+      "partial_key_no_redraw": true,
+      "fixture_cleanup_after": []
+    },
+    {
+      "command": [
+        "/private/tmp/worker-followup-v545-official/binary/ailang",
+        "run",
+        "--package-dir",
+        "/private/tmp/worker-followup-consumer-probe",
+        "--caps",
+        "IO,FS,Env,Clock,Stream,Process",
+        "--process-allowlist",
+        "/private/tmp/worker-followup-v545-official/binary/ailang",
+        "--fs-max-bytes",
+        "128KB",
+        "/private/tmp/worker-followup-consumer-probe/async_probe.ail",
+        "--",
+        "/private/tmp/worker-followup-v545-official/binary/ailang",
+        "/private/tmp/worker-followup-consumer-probe",
+        "/private/tmp/reply-m1-cancel-2al_qyk9"
+      ],
+      "home": "/private/tmp/reply-m1-cancel-2al_qyk9",
+      "before": [
+        {
+          "pid": 62732,
+          "ppid": 62731,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy /private/tmp/reply-m1-cancel-2al_qyk9/worker1-policy.toml --chdir /private/tmp/reply-m1-cancel-2al_qyk9/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 62733,
+          "ppid": 62731,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy /private/tmp/reply-m1-cancel-2al_qyk9/worker2-policy.toml --chdir /private/tmp/reply-m1-cancel-2al_qyk9/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 62734,
+          "ppid": 62732,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-cancel-2al_qyk9/worker1-policy.toml --chdir /private/tmp/reply-m1-cancel-2al_qyk9/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 62735,
+          "ppid": 62733,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-cancel-2al_qyk9/worker2-policy.toml --chdir /private/tmp/reply-m1-cancel-2al_qyk9/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        }
+      ],
+      "after": [],
+      "state": {
+        "schema": "probe-state/1",
+        "run": "m1-probe",
+        "seq": 4,
+        "round": 1,
+        "keys": 0,
+        "ready": [],
+        "boundary": [
+          "worker2",
+          "worker1"
+        ],
+        "buf1": "",
+        "buf2": "",
+        "bad": 0,
+        "began": 1791757915821
+      },
+      "stdout": "probe ready; n=status, round=second jobs, q=quit\ncancel results: Ok(()); Ok(())\nfinished {\"schema\":\"probe-state/1\",\"run\":\"m1-probe\",\"seq\":4,\"round\":1,\"keys\":0,\"ready\":[],\"boundary\":[\"worker2\",\"worker1\"],\"buf1\":\"\",\"buf2\":\"\",\"bad\":0,\"began\":1791757915821}\n",
+      "elapsed_ms": 393,
+      "quit_clean": true,
+      "name": "Quit while two jobs unfinished",
+      "quit_elapsed_ms": 54,
+      "fixture_cleanup_after": []
+    },
+    {
+      "command": [
+        "/private/tmp/worker-followup-v545-official/binary/ailang",
+        "run",
+        "--package-dir",
+        "/private/tmp/worker-followup-consumer-probe",
+        "--caps",
+        "IO,FS,Env,Clock,Stream,Process",
+        "--process-allowlist",
+        "/private/tmp/worker-followup-v545-official/binary/ailang",
+        "--fs-max-bytes",
+        "128KB",
+        "/private/tmp/worker-followup-consumer-probe/async_probe.ail",
+        "--",
+        "/private/tmp/worker-followup-v545-official/binary/ailang",
+        "/private/tmp/worker-followup-consumer-probe",
+        "/private/tmp/reply-m1-eof-smrmhd1c"
+      ],
+      "home": "/private/tmp/reply-m1-eof-smrmhd1c",
+      "before": [
+        {
+          "pid": 62752,
+          "ppid": 62751,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy /private/tmp/reply-m1-eof-smrmhd1c/worker1-policy.toml --chdir /private/tmp/reply-m1-eof-smrmhd1c/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 62753,
+          "ppid": 62751,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy /private/tmp/reply-m1-eof-smrmhd1c/worker2-policy.toml --chdir /private/tmp/reply-m1-eof-smrmhd1c/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 62754,
+          "ppid": 62753,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-eof-smrmhd1c/worker2-policy.toml --chdir /private/tmp/reply-m1-eof-smrmhd1c/worker2 sunholo/crew_reply_probe/async_worker_probe.ail"
+        },
+        {
+          "pid": 62755,
+          "ppid": 62752,
+          "command": "/private/tmp/worker-followup-v545-official/binary/ailang run --policy-worker 3 --policy /private/tmp/reply-m1-eof-smrmhd1c/worker1-policy.toml --chdir /private/tmp/reply-m1-eof-smrmhd1c/worker1 sunholo/crew_reply_probe/async_worker_probe.ail"
+        }
+      ],
+      "after": [],
+      "state": {
+        "schema": "probe-state/1",
+        "run": "m1-probe",
+        "seq": 16,
+        "round": 1,
+        "keys": 0,
+        "ready": [
+          "worker2/1",
+          "worker1/1"
+        ],
+        "boundary": [
+          "worker1",
+          "worker2"
+        ],
+        "buf1": "",
+        "buf2": "",
+        "bad": 0,
+        "began": 1791757916344
+      },
+      "stdout": "probe ready; n=status, round=second jobs, q=quit\ncancel results: Ok(()); Ok(())\nfinished {\"schema\":\"probe-state/1\",\"run\":\"m1-probe\",\"seq\":16,\"round\":1,\"keys\":0,\"ready\":[\"worker2/1\",\"worker1/1\"],\"boundary\":[\"worker1\",\"worker2\"],\"buf1\":\"\",\"buf2\":\"\",\"bad\":0,\"began\":1791757916344}\n",
+      "elapsed_ms": 12391,
+      "quit_clean": true,
+      "name": "EOF distinct from Quit",
+      "immediate_eof_callback": false,
+      "declared_worker_lifetime_ms": 12000,
+      "fixture_cleanup_after": []
+    }
+  ],
+  "m1_pass": true
+}

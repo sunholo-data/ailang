@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/executor/codex"
 	"io"
 	"os"
 	"os/exec"
@@ -45,7 +47,14 @@ var codexAppServerCall = callCodexAppServer
 func callCodexAppServer(ctx context.Context, codexHome, method, params string) (json.RawMessage, error) {
 	ctx, cancel := context.WithTimeout(ctx, codexAppServerTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "codex", "app-server")
+	args, err := codexQuotaAppServerArgs()
+	if err != nil {
+		return nil, err
+	}
+	if config.CodexRuntime() == "daemon" {
+		return codex.CallDaemonRPC(ctx, codexHome, method, json.RawMessage(params))
+	}
+	cmd := exec.CommandContext(ctx, "codex", args...)
 	cmd.Env = append(os.Environ(), "CODEX_HOME="+codexHome)
 	cmd.WaitDelay = 2 * time.Second
 	stdin, err := cmd.StdinPipe()
@@ -76,6 +85,19 @@ func callCodexAppServer(ctx context.Context, codexHome, method, params string) (
 		return nil, fmt.Errorf("codex app-server: write request: %w", err)
 	}
 	return scanCodexAppServerReply(ctx, stdout, method)
+}
+
+// Mission callers use the same daemon owner as execution. An unavailable
+// proxy must fail rather than constructing a second refresh manager.
+func codexQuotaAppServerArgs() ([]string, error) {
+	switch runtime := config.CodexRuntime(); runtime {
+	case "daemon":
+		return []string{"app-server", "proxy"}, nil
+	case "", "cli":
+		return []string{"app-server"}, nil
+	default:
+		return nil, fmt.Errorf("unsupported AILANG_CODEX_RUNTIME %q", runtime)
+	}
 }
 
 // scanCodexAppServerReply reads JSON-RPC lines until the reply to id 2.

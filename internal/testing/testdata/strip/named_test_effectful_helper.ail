@@ -1,0 +1,5 @@
+module named_test_effectful_helper
+import std/fs (readFile)
+func check() -> bool ! {FS} = readFile("fixture.txt") != ""
+test "effectful helper" { check() }
+test "pure sibling" { true }

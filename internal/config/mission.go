@@ -14,6 +14,7 @@ const (
 	EnvAnthropicRation      = "AILANG_ANTHROPIC_RATION"
 	EnvMissionRegistry      = "AILANG_MISSION_REGISTRY"
 	EnvCodexHome            = "CODEX_HOME"
+	EnvCodexRuntime         = "AILANG_CODEX_RUNTIME"
 	EnvClaudeCode           = "CLAUDECODE"
 	EnvClaudeCodeSessionID  = "CLAUDE_CODE_SESSION_ID"
 	EnvUser                 = "USER"
@@ -41,6 +42,7 @@ var missionVars = []Var{
 	{EnvMissionDesignAuthor, "", AreaMission, "The designer lane that wrote a doc (e.g. codex:gpt-6-astra); design-quorum benches that vendor. Unset assumes a Claude author."},
 	{EnvAnthropicRation, "1", AreaMission, "0 turns off Anthropic subscription rationing for one attended process; unset means rationed."},
 	{EnvMissionRegistry, "", AreaMission, "Absolute directory holding mission definitions, instead of the built-in registry."},
+	{EnvCodexRuntime, "", AreaMission, "Codex execution owner: daemon for isolated local mission home, cli for an exclusive cloud execution; unset retains CLI behavior."},
 	{EnvCodexHome, "", AreaMission, "Codex CLI home whose auth and quota files are observed; unset means ~/.codex."},
 	{EnvClaudeCode, "", AreaMission, "Set to 1 by Claude Code in the sessions it runs; used only to label an attended identity."},
 	{EnvClaudeCodeSessionID, "", AreaMission, "Claude Code session id, appended to the attended identity label."},
@@ -87,3 +89,5 @@ func ClaudeCodeSessionID() string { return strings.TrimSpace(get(EnvClaudeCodeSe
 
 // User returns the trimmed USER, "" when unset.
 func User() string { return strings.TrimSpace(get(EnvUser)) }
+
+func CodexRuntime() string { return get(EnvCodexRuntime) }

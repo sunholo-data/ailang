@@ -1,0 +1,20 @@
+{
+  "result": "PASS",
+  "runtime_release": "v0.54.5",
+  "source_commit": "296231d657126e20b79eaaf258e86963344f368c",
+  "active_teaching_prompt": "v0.16.7",
+  "project_corpora": {
+    "ailang-syntax": 68,
+    "ailang-builtins": 396,
+    "ailang-examples": 255
+  },
+  "user_brain": "unchanged3135frames; syntax56/builtins319",
+  "other_project_namespaces": "unchanged resolutions1855/design-docs17",
+  "sample_search": "PASS project string-interpolation chunk taggedv0.16.7",
+  "version_note": "Canonical indexer resolves ACTIVE_PROMPT, not runtime release. Runtime patch54.5 intentionally leaves teaching prompt16.7 unchanged.",
+  "logs": {
+    "worker-followup-v545-brain-index.log": "a1f7cc3d16a3b45fbc08729a4be2ceccb619cb4cdd227184ff1c36629823c555",
+    "worker-followup-v545-brain-stats.log": "aca2ec7220545a8df15e214f708b7e311bcf993bd89d0841c5cef20f50763ab1",
+    "worker-followup-v545-brain-search.log": "92e4d5eb3b537ac3d76e030607f9116499f26908ce62c96f865c6294d54ee0ee"
+  }
+}

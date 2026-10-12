@@ -1,0 +1,34 @@
+{
+  "verdict": "PASS independent test-only calibration review",
+  "base": "e723303f4fead56b243dd9292a746baf52de0745",
+  "normal": {
+    "exit": 0,
+    "raw_500_logs_mib": 53,
+    "matched_400_logs_mib": 56,
+    "many_200k_logs_mib": 57,
+    "delta_mib": 0
+  },
+  "deliberate_retention": {
+    "exit": 1,
+    "raw_500_logs_mib": 54,
+    "matched_400_logs_mib": 57,
+    "many_200k_logs_mib": 110,
+    "delta_mib": 53
+  },
+  "threshold_mib": 30,
+  "GOGC": 100,
+  "measurement_retries": 0,
+  "both_measured_arms_iterations": 200000,
+  "message_construction": "identical before log-selection condition",
+  "all_three_arms": "exit0, done present, tick absent; retention control only final RSS assertion fails",
+  "isolated_control": "Only DebugSink.Attach removed using Go build overlay; final flush remains; no runtime edits committed",
+  "candidate_hashes": {
+    "cmd/ailang/memprobe_test.go": "91f90e69a16cdcd7babf93fbc7000680fea7bba15a4cf999d311fa27c697a470",
+    "cmd/ailang/testdata/memprobe/debuglog.ail": "75d373f3331c1b56e70ff1eb8f6d0722474db33e9cc2ed3b276d131399e6b20d"
+  },
+  "logs": {
+    "independent-normal.log": "4829823dd76ea5f46ebffde55e0d7e9d65212a0e9c249942f4e6a5d7cf1c6c18",
+    "independent-retention-red.log": "49d8b0964fc308d8d9b72528fce2bcfe95de34002de9f536502cdbf7459dd0ac"
+  },
+  "publication": "still requires renewed green CI and delivery gates"
+}

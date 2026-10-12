@@ -83,6 +83,7 @@ func mapToMessage(data map[string]interface{}) *messaging.Message {
 // --- InboxMessage conversion ---
 
 func inboxToMap(m *messaging.InboxMessage) map[string]interface{} {
+	inputsJSON, _ := json.Marshal(m.Inputs)
 	data := map[string]interface{}{
 		"id":              m.ID,
 		"message_id":      m.MessageID,
@@ -92,6 +93,7 @@ func inboxToMap(m *messaging.InboxMessage) map[string]interface{} {
 		"message_type":    m.MessageType,
 		"title":           m.Title,
 		"payload":         m.Payload,
+		"inputs":          string(inputsJSON),
 		"category":        m.Category,
 		"github_repo":     m.GitHubRepo,
 		"simhash":         nil,
@@ -122,9 +124,14 @@ func inboxToMap(m *messaging.InboxMessage) map[string]interface{} {
 	return data
 }
 
-func mapToInbox(data map[string]interface{}) *messaging.InboxMessage {
+func mapToInbox(data map[string]interface{}) (*messaging.InboxMessage, error) {
+	inputs, err := decodeStoredInputs(data["inputs"])
+	if err != nil {
+		return nil, err
+	}
 	m := &messaging.InboxMessage{
 		ID:             mapval.String(data, "id"),
+		Inputs:         inputs,
 		MessageID:      mapval.String(data, "message_id"),
 		CorrelationID:  mapval.String(data, "correlation_id"),
 		FromAgent:      mapval.String(data, "from_agent"),
@@ -154,7 +161,7 @@ func mapToInbox(data map[string]interface{}) *messaging.InboxMessage {
 	}
 	m.ReadAt = snapshotToTimePtr(data, "read_at")
 	m.ExpiresAt = snapshotToTimePtr(data, "expires_at")
-	return m
+	return m, nil
 }
 
 // --- Approval conversion ---

@@ -10,6 +10,8 @@ import (
 type ProviderType string
 
 const (
+	// ProviderCodex is a fail-loud sentinel until the CLI-backed AI lane lands (#903).
+	ProviderCodex      ProviderType = "codex"
 	ProviderOpenAI     ProviderType = "openai"
 	ProviderAnthropic  ProviderType = "anthropic"
 	ProviderGoogle     ProviderType = "google"
@@ -86,10 +88,11 @@ func GuessProvider(modelName string) ProviderType {
 
 	// Check prefixes
 	switch {
+	case strings.HasPrefix(lower, "codex"):
+		return ProviderCodex
 	case strings.HasPrefix(lower, "gpt"),
 		strings.HasPrefix(lower, "o1"),
-		strings.HasPrefix(lower, "o3"),
-		strings.HasPrefix(lower, "codex"):
+		strings.HasPrefix(lower, "o3"):
 		return ProviderOpenAI
 	case strings.HasPrefix(lower, "claude"):
 		return ProviderAnthropic
@@ -141,6 +144,8 @@ func EnvVarForProvider(provider ProviderType) string {
 		return "ANTHROPIC_API_KEY"
 	case ProviderGoogle:
 		return "GOOGLE_API_KEY" // ADC also supported separately
+	case ProviderCodex, ProviderChatGPT:
+		return "" // Subscription credentials, never a metered API key
 	case ProviderOllama:
 		return "" // Local, no API key
 	case ProviderOpenRouter:
@@ -157,6 +162,8 @@ func EnvVarForProvider(provider ProviderType) string {
 // ProviderFromString converts a string to ProviderType.
 func ProviderFromString(s string) ProviderType {
 	switch strings.ToLower(s) {
+	case "codex":
+		return ProviderCodex
 	case "openai":
 		return ProviderOpenAI
 	case "anthropic":

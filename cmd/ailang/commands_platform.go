@@ -87,7 +87,7 @@ func platformCommands() []Command {
 		{
 			Name:    "serve-api",
 			Group:   groupOps,
-			Summary: "Serve AILANG exports as REST endpoints",
+			Summary: "Serve AILANG exports as REST endpoints; --static sends security headers, --static-header overrides, --no-static-security-headers opts out",
 			Run:     serveAPICommand,
 		},
 		{
@@ -185,6 +185,12 @@ func platformCommands() []Command {
 				}
 				return nil
 			},
+		},
+		{
+			Name:    "credit-gateway",
+			Group:   groupOps,
+			Summary: "Serve the guarded Claude API credit gateway",
+			Run:     creditGatewayCommand,
 		},
 		{
 			Name:    "coordinator",

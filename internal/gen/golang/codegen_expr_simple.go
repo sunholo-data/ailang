@@ -57,6 +57,9 @@ func (g *Generator) generateLit(lit *core.Lit) error {
 
 // generateVar generates code for a Var expression (local variable reference).
 func (g *Generator) generateVar(v *core.Var) error {
+	if err := unsupportedHostSurface("", v.Name); err != nil {
+		return err
+	}
 	// M-CODEGEN-LETBIND-FIX: Check top-level variables FIRST (non-function lets).
 	// These must NOT get _impl suffix — they are plain Go variables.
 	if goName, ok := g.topLevelVars[v.Name]; ok {
@@ -95,6 +98,9 @@ func (g *Generator) generateVar(v *core.Var) error {
 
 // generateVarGlobal generates code for a VarGlobal expression (module-qualified reference).
 func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
+	if err := unsupportedHostSurface(e.Ref.Module, e.Ref.Name); err != nil {
+		return err
+	}
 	// Check if this is an ADT factory call (from elaboration)
 	// Elaborator generates: $adt.make_TypeName_CtorName
 	if e.Ref.Module == "$adt" && strings.HasPrefix(e.Ref.Name, "make_") {
@@ -414,4 +420,17 @@ func (g *Generator) getStringConvFunction(funcExpr core.CoreExpr) StringConvKind
 		return kind
 	}
 	return StringConvNone
+}
+
+// This backend has no scoped native host. Reject these lifecycle operations
+// during generation rather than emit a program that cannot honor their contract.
+func unsupportedHostSurface(module, name string) error {
+	if module == "std/terminal" || strings.HasPrefix(name, "_terminal_") ||
+		name == "_io_readLineOpt" || (module == "std/io" && name == "readLineOpt") ||
+		name == "_process_cancel" || name == "_stream_cancel_process_source" ||
+		(module == "std/process" && name == "cancelProcess") ||
+		(module == "std/stream" && name == "cancelProcessSource") {
+		return fmt.Errorf("%s.%s is not supported by Go codegen; use the evaluator or strict bytecode VM", module, name)
+	}
+	return nil
 }

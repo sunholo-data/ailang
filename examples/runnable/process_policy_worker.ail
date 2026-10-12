@@ -1,0 +1,12 @@
+module examples/runnable/process_policy_worker
+
+import std/io (println)
+import std/clock (sleep)
+
+-- This effectful policy fixture has no pure contract or inline tests.
+-- Subprocess integration tests prove cancellation during its bounded sleep.
+export func main() -> () ! {IO, Clock} {
+  println("policy worker started");
+  sleep(12000);
+  println("policy worker completed")
+}
