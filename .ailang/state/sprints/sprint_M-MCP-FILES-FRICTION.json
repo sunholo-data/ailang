@@ -58,7 +58,8 @@
       "passes": true,
       "started": "2026-10-12T20:10:00+00:00",
       "completed": "2026-10-12T20:22:49.343363+00:00",
-      "notes": "Focused testing/lexer tests pass; coverage testing 84.5%, lexer 75.1%. Rebuilt CLI check and named tests: 2/2 passed. Prompt v0.16.7 loaded; rebuilt prompt confirms milliseconds. File sizes and boundaries pass. Baseline test-core fails unrelated effects TestRuntimeNestedStopUsesRemainingDeadline; isolated retry reproduces. Lint running after cold tool installation; final gate will be recorded before handoff. Lint passes. Runnable fixture simplified to boolean assertions after formatter corpus detected statement-let rendering limitation; fixture still passes 2/2. Direct lexer scanner controls added; coverage baseline 76.1% -> 76.8%; testing remains 84.5%. Example has pure main for the generic runner."
+      "notes": "String/comment-aware structural brace extraction reuses the lexer scanner without parser/AST spans. Controls cover unbalanced opening/closing braces, balanced strings, escapes, multiline literals, interpolation, comments, nested records, properties and preserved line mapping. Focused testing/lexer suites pass; rebuilt CLI fixture passes 2/2 named tests and typechecks. Lexer coverage 76.1% -> 76.8%, testing 84.5% -> 84.5%. Direct scanner controls include chars, quasiquote text and Unicode. Pure main supports the example runner. Prompt v0.16.7 loaded before all .ail edits; rebuilt prompt confirms milliseconds with no prompt text change.",
+      "actual_loc": 109
     },
     {
       "id": "M2",
@@ -74,7 +75,8 @@
       "passes": true,
       "started": "2026-10-12T20:18:00+00:00",
       "completed": "2026-10-12T20:31:44.057991+00:00",
-      "notes": "Raw multiline source preserved only at verified anchors; plain payload checked by re-lexing, interpolation reparsed and compared with reversible AST-only rendering. Focused positive/negative/idempotence tests and entire format package pass, including corpus soundness and measurement gates. CLI runtime HTML output identical before/after fmt; fmt --check passes, multiline corpus fixture typechecks. Formatter rule 6 and user docs amended. Lint, file sizes, boundaries pass. Baseline test-core process-stop failure remains recorded; final core gate still required. Independent review identified match-pattern emission as a missing preservation path; corrected with a raw-pattern payload/idempotence regression and column accounting. Coverage baseline 87.6% -> 87.7%."
+      "notes": "Source multiline plain-string payloads re-lex to the AST value; interpolated tokens reparse and agree under reversible AST-only rendering. Verified source interior bytes are emitted verbatim; unsafe attachments canonicalize, escaped one-liners remain one-line. Positive/negative/idempotence/payload tests cover lists, tuples, records, conditional branches, interpolation, escapes and match patterns. Independent review found the pattern path, corrected with column accounting and regression. Full formatter suite/corpus passes; coverage 87.6% -> 87.8%. Runtime HTML output is identical before/after fmt; fmt --check and fixture typecheck pass. Formatter rule 6 and user docs amended.",
+      "actual_loc": 230
     },
     {
       "id": "M3",
@@ -90,7 +92,8 @@
       "passes": true,
       "started": "2026-10-12T20:24:00+00:00",
       "completed": "2026-10-12T20:47:53.639056+00:00",
-      "notes": "Supported plain field writes and first-order function domains enforced through nested records, updates, local aliases, parameters, returns, bindings, inferred records, conditional bindings and record destructuring. Unsupported codomains, containers/ADTs, generic/recursive positions, nested higher-order domains, module bindings and callable-domain erasure fail explicitly. Source-label p1-p13/r1-r4 and all existing IFC tests pass. Focused types and pipeline packages pass, including field-sink integration and v5/v6/v7 -> v8 cache migration. Cache dev v6 and PR heads #1771/#1782 v7 checked; v8 selected to prevent cached acceptance bypass. Types coverage 53.8% -> 55.6%, pipeline 76.2% -> 76.3%. inbox_injection_v2 check passes; Z3 retains 3 verified, 2 violations, 1 without contracts. Negative field fixture is under examples/expected_fail and its Go regression asserts exactly two sink errors; safe paths remain clean. Independent read-only M1-M3 review found no remaining blocker after M2 pattern correction. Final test-core runs all core packages; only pre-existing effects TestRuntimeNestedStopUsesRemainingDeadline fails because PID 1 retains a killed child as a zombie (baseline and isolated retry reproduce). No full make test run. Lint, sizes and boundaries pass; final example gate pending at this checkpoint."
+      "notes": "Supported plain field writes and first-order function domains enforced through nested records, updates, local aliases, parameters, returns, bindings, inferred records, conditional bindings and record destructuring. Unsupported codomains, containers/ADTs, generic/recursive positions, nested higher-order domains, module bindings and callable-domain erasure fail explicitly. Source-label p1-p13/r1-r4 and all existing IFC tests pass. Focused types and pipeline packages pass, including field-sink integration and v5/v6/v7 -> v8 cache migration. Cache dev v6 and PR heads #1771/#1782 v7 checked; v8 selected to prevent cached acceptance bypass. Types coverage 53.8% -> 55.6%, pipeline 76.2% -> 76.3%. inbox_injection_v2 check passes; Z3 retains 3 verified, 2 violations, 1 without contracts. Negative field fixture is under examples/expected_fail and its Go regression asserts exactly two sink errors; safe paths remain clean. Independent read-only M1-M3 review found no remaining blocker after M2 pattern correction. Final test-core runs all core packages; only pre-existing effects TestRuntimeNestedStopUsesRemainingDeadline fails because PID 1 retains a killed child as a zombie (baseline and isolated retry reproduce). No full make test run. Final lint, sizes, boundaries, examples, formatting, changelog and prompt-freeze gates pass. Final lint, file sizes, boundaries, formatting, changelog, prompt freeze and verify-examples all pass. M4/M5 intentionally remain unstarted.",
+      "actual_loc": 898
     },
     {
       "id": "M4",
@@ -134,7 +137,7 @@
     "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-MCP-FILES-FRICTION before starting and after every JSON update.",
     "Executor cannot push or merge; commit locally with Refs #1618."
   ],
-  "last_checkpoint": "M1-M3 complete and locally committed; M4/M5 intentionally unstarted per user scope.",
+  "last_checkpoint": "M1-M3 complete, verified and locally committed; paused before M4 as requested. No push.",
   "validation": {
     "scope": [
       "M1",
@@ -156,7 +159,7 @@
     "coverage_after": {
       "lexer": 76.8,
       "testing": 84.5,
-      "format": 87.7,
+      "format": 87.8,
       "types": 55.6,
       "pipeline": 76.3
     },
@@ -168,7 +171,55 @@
     "prompt_freeze": "passed",
     "changelog": "passed",
     "independent_review": "M1-M3 reviewed; M2 pattern gap corrected; no remaining scoped blocker",
-    "verify_examples": "pending",
-    "push": "not performed"
-  }
+    "verify_examples": "passed; all runnable examples pass, manifest has zero import drift",
+    "push": "not performed",
+    "formatting": "passed",
+    "final_worktree": "clean after checkpoint commit",
+    "elapsed_minutes": 43,
+    "ailang_syntax_gate": "v0.16.7 loaded; M1 pure helper/main with named tests, M2 pure payload corpus without contracts, M3 deliberate static-rejection fixture without executable inline tests; existing inbox contracts verified unchanged"
+  },
+  "files_created": [
+    "changelogs/unreleased/2026-10-12-mcp-friction-multiline-formatting.md",
+    "changelogs/unreleased/2026-10-12-mcp-friction-record-field-sinks.md",
+    "changelogs/unreleased/2026-10-12-mcp-friction-string-aware-extraction.md",
+    "examples/expected_fail/mcp_friction_field_sinks.ail",
+    "examples/runnable/mcp_friction_braces.ail",
+    "internal/format/multiline.go",
+    "internal/format/multiline_test.go",
+    "internal/format/testdata/mcp_multiline.ail",
+    "internal/lexer/structural_braces_test.go",
+    "internal/pipeline/ifc_sink_fields_test.go",
+    "internal/types/ifc_sink_fields_test.go",
+    "internal/types/ifc_sink_paths.go",
+    "internal/types/ifc_sink_types.go"
+  ],
+  "files_modified": [
+    ".ailang/state/sprints/sprint_M-MCP-FILES-FRICTION.json",
+    "design_docs/implemented/v0_30_0/m-ailang-fmt.md",
+    "design_docs/planned/v0_52_0/m-ifc-declared-record-labels.md",
+    "design_docs/planned/v0_53_0/m-mcp-files-friction-sprint-plan.md",
+    "docs/LIMITATIONS.md",
+    "docs/docs/guides/ifc-labels.mdx",
+    "docs/docs/reference/formatter.md",
+    "docs/docs/reference/limitations.md",
+    "examples/manifest.json",
+    "internal/format/expr.go",
+    "internal/format/format.go",
+    "internal/format/pattern.go",
+    "internal/lexer/comment_scan.go",
+    "internal/pipeline/alias_body_closure_runtime_test.go",
+    "internal/pipeline/cache_invalidation_test.go",
+    "internal/pipeline/cache_key.go",
+    "internal/testing/source_strip.go",
+    "internal/testing/source_strip_test.go",
+    "internal/types/ifc_check.go",
+    "internal/types/ifc_static_type.go"
+  ],
+  "execution_commits": {
+    "M1": "a7f61e3c",
+    "M2": "bc2bc910",
+    "M1_M2_review_corrections": "359c9f94",
+    "M3": "daedba92"
+  },
+  "last_session": "2026-10-12T20:52:31.466486+00:00"
 }
