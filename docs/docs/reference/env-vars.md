@@ -72,7 +72,7 @@ comes from the fallback the description names. The `DEBUG_*` compiler knobs are 
 | Variable | Default | What it does |
 |---|---|---|
 | `AILANG_BROWSER_PROFILE_DIR` | — | Root for browser profiles used by the browser commands; unset derives one under the state dir. |
-| `AILANG_CACHE_DIR` | — | Root of the compile cache (&lt;dir&gt;/compile) and the prompt cache; unset means &lt;project&gt;/.ailang/cache and $XDG_CACHE_HOME/ailang (else ~/.cache/ailang) respectively. |
+| `AILANG_CACHE_DIR` | — | Root of the compile cache (&lt;dir&gt;/compile) and the prompt cache; unset means &lt;project&gt;/.ailang/cache and $XDG_CACHE_HOME/ailang (else ~/.cache/ailang) respectively. Restricted `run --policy` honours non-empty overrides; empty/unset uses a private per-run temp directory outside `fs_sandbox`, removed after the worker exits (cold compilation). Operator directories are retained; inside-sandbox overrides warn about cache poisoning and `fs_deny_write`. An inside-sandbox `TMPDIR` is refused. `trusted_host` keeps normal defaults. |
 | `AILANG_EXAMPLES` | — | Directory `ailang examples` reads instead of searching upward from the binary. Unset tries next to the binary, ~/.ailang/examples, the working directory (not when AILANG_AGENT_POLICY is set), then the corpus built into the binary. |
 | `AILANG_PACKAGE_ROOT` | — | Read-only, operator-provisioned registry package root (&lt;vendor&gt;/&lt;name&gt;/&lt;version&gt;). When set, resolution uses only this root, with no HOME cache fallback; never written or created. Set by the host, never the agent. |
 | `AILANG_PROJECT_ROOT` | — | Root the embed engine resolves module paths against; must contain the requested module or Load fails. |

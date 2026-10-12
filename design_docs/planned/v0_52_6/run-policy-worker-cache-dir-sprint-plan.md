@@ -4,7 +4,7 @@ Refs #1547
 
 - **Sprint:** M-RUN-POLICY-WORKER-CACHE
 - **Date:** 2026-10-08
-- **Status:** Planned; design approved by coordinator handoff, execution awaits sprint-plan approval.
+- **Status:** Completed 2026-10-09; execution authorized by the user.
 - **Target:** v0.52.6 (checkout v0.52.5)
 - **Duration:** 2 days, approximately 10 hours including 25% contingency.
 - **Risk:** Medium: subprocess cleanup and filesystem trust boundary.
@@ -47,11 +47,11 @@ The seven-day velocity script found only one planning commit in this shallow che
 
 Add the allowlist entry and thread the selected default into `workerEnv`, updating all callers. Introduce the smallest testable cache lifecycle helper needed to exercise creation/placement/start-failure cleanup without adding public CLI knobs. Preserve credential filtering and use the existing supervisor deadline.
 
-- [ ] Restricted workers receive exactly one effective cache value; non-empty operator value wins, empty/unset uses the injected default.
-- [ ] Trusted-host environment passthrough and provider-scoped credential tests remain unchanged in behavior.
-- [ ] Generated cache directories are private, outside the sandbox, and removed on normal exit, start failure, timeout, output-cap termination, and worker failure.
-- [ ] Invalid temporary base or in-sandbox TMPDIR produces explicit refusal; generated directories are removed before refusal.
-- [ ] Relative, existing symlink, and missing-leaf symlink operator paths are classified correctly; in-sandbox operator values warn once and proceed.
+- [x] Restricted workers receive exactly one effective cache value; non-empty operator value wins, empty/unset uses the injected default.
+- [x] Trusted-host environment passthrough and provider-scoped credential tests remain unchanged in behavior.
+- [x] Generated cache directories are private, outside the sandbox, and removed on normal exit, start failure, timeout, output-cap termination, and worker failure.
+- [x] Invalid temporary base or in-sandbox TMPDIR produces explicit refusal; generated directories are removed before refusal.
+- [x] Relative, existing symlink, and missing-leaf symlink operator paths are classified correctly; in-sandbox operator values warn once and proceed.
 
 **Risk:** `refusePolicy` uses `os.Exit`, bypassing deferred cleanup. Arrange allocations after pipe setup and explicitly clean before refusal. Tests must prove cleanup, not only assert helper return values.
 
@@ -63,12 +63,12 @@ Add the allowlist entry and thread the selected default into `workerEnv`, updati
 
 Use `buildAilang`, `runAilangBin`, `writePolicy`, and existing test fixtures. Capture default temp directories using a dedicated outside-sandbox TMPDIR and verify no `ailang-policy-cache-*` survives. Preserve parent env deliberately with test-local overrides so ambient operator configuration cannot hide regressions.
 
-- [ ] Unset and explicitly empty overrides complete restricted runs without creating sandbox `.ailang/`, and leave no generated cache directory.
-- [ ] External override produces `<dir>/compile`, survives the run, and leaves no sandbox `.ailang/`.
-- [ ] In-sandbox override emits exactly one `warning:` line naming poison risk and mitigation while the admitted run succeeds; trusted-host behavior remains compatible.
-- [ ] In-sandbox and symlinked TMPDIR cases refuse, leave no generated directory, and do not execute the program.
-- [ ] Existing timeout, output-limit, admission, output-preservation, and credential suites pass; cleanup exercised on worker-error paths.
-- [ ] Documentation describes cold default compilation, cleanup, override ownership, warning exception, and unsafe-TMPDIR refusal; the changelog fragment references #1547.
+- [x] Unset and explicitly empty overrides complete restricted runs without creating sandbox `.ailang/`, and leave no generated cache directory.
+- [x] External override produces `<dir>/compile`, survives the run, and leaves no sandbox `.ailang/`.
+- [x] In-sandbox override emits exactly one `warning:` line naming poison risk and mitigation while the admitted run succeeds; trusted-host behavior remains compatible.
+- [x] In-sandbox and symlinked TMPDIR cases refuse, leave no generated directory, and do not execute the program.
+- [x] Existing timeout, output-limit, admission, output-preservation, and credential suites pass; cleanup exercised on worker-error paths.
+- [x] Documentation describes cold default compilation, cleanup, override ownership, warning exception, and unsafe-TMPDIR refusal; the changelog fragment references #1547.
 
 **Example coverage:** No new language feature or permanent `.ail` example is required. Reuse the existing policy-test example fixtures and the issue's runnable CLI repro. If adding/editing `.ail` fixtures, first obtain `ailang prompt`, then check them with `ailang check` under the appropriate policy context.
 **Risk:** #1548 modifies the same supervisor and lands first (see Ordering). Build on its code, emit the warning via `supervisorLine`, and run its output tests; cache diagnostics must not impersonate authoritative result lines.
@@ -85,10 +85,29 @@ Use the plan and `.ailang/state/sprints/sprint_M-RUN-POLICY-WORKER-CACHE.json` a
 
 Executor rules: re-run `.claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-RUN-POLICY-WORKER-CACHE` before starting and after every sprint JSON update. The executor cannot push or merge; it commits locally (messages carry `Refs #1547`) and the coordinator raises the PR.
 
-Suggested plan PR body:
+Implementation PR body and validation evidence: [implementation report](run-policy-worker-cache-dir-implementation.md). The PR body ends with `Closes #1547`.
 
-> Refs #1547
->
-> Plans restricted worker cache forwarding and private per-run default isolation, with explicit unsafe-TMPDIR refusal, cleanup regressions, and operator documentation. Includes two milestones over two days and machine-readable progress state. Cross-links the neighbouring #1548 result-channel design without implementing it; runs after that sprint lands.
->
-> Validation: sprint JSON schema, milestone dependencies, estimates, and populated registry decisions checked. Implementation tests are scheduled in the plan.
+## Execution record (2026-10-09)
+
+Both milestones completed. M1 was committed locally as `f14e86c4`; M2 is the
+commit containing the implementation report. No push or merge was performed.
+The inherited fresh-line `supervisorLine` is used for the `warning:` line.
+Tests cover every listed worker termination path, private permissions, operator
+ownership, missing leaves below symlinks and unsafe TMPDIR refusal. An absent
+sandbox root is handled explicitly rather than interpreted as cwd.
+
+All requested checks passed: focused Policy/Supervise/Worker/Cache suite (76
+top-level tests), `make test-core`, `make lint`, `make check-file-sizes`, and
+`make check-home-isolation`. No full `make test` was run. The focused suite used
+CGO and temporary orphan reaping because this container's PID 1 retains killed
+children as zombies; resource-bounded isolated builds resolved environment OOMs.
+The env reference was regenerated from its `internal/config/paths.go` metadata.
+
+Small repro latency: cold private default 131.7ms; persistent override first 142.4ms,
+second 103.3ms. Timings are informational. Independent evaluation passed at 98/100 with all 11 acceptance criteria met;
+the report is `.ailang/state/evaluations/eval_M-RUN-POLICY-WORKER-CACHE_round_1.json`.
+
+Planned added LOC: 280; actual operational code/tests/docs added LOC: 396
+(M1 208, M2 189; net 383). Sprint/design/evaluation bookkeeping is
+excluded. Additional lifecycle coverage explains most of the expansion;
+environment setup and validation resource limits dominated session time.
