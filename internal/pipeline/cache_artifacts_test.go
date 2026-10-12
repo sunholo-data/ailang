@@ -418,7 +418,7 @@ func testCachedModule(moduleID string, value int) *CachedModule {
 		},
 		Iface: &iface.Iface{
 			Module:       moduleID,
-			Schema:       "ailang.iface/v1",
+			Schema:       iface.SchemaVersion,
 			Digest:       fmt.Sprintf("digest-%d", value),
 			Exports:      map[string]*iface.IfaceItem{},
 			Constructors: map[string]*iface.ConstructorScheme{},

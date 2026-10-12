@@ -103,3 +103,15 @@ func TestIFCSyntheticSummary(t *testing.T) {
 		}
 	}
 }
+
+func TestIFCSummaryNestedDeclaredResult(t *testing.T) {
+	file := parseIFC(t, `module test/nested_summary
+ type Result = { email: string<email>, token: string<secret> }
+ func make(x: Result) -> Result { x }
+ `)
+	sigs := types.AnalyzeModuleIFC(file, nil)
+	intrinsic := sigs["make"].Intrinsic.Decode()
+	if !types.LabelSubsumes(intrinsic, types.LabelConst("email")) || !types.LabelSubsumes(intrinsic, types.LabelConst("secret")) {
+		t.Fatalf("declared result join lost: %s", intrinsic)
+	}
+}

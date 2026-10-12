@@ -43,7 +43,7 @@ func (st *modulePipelineState) depClosure(modID string) map[string]bool {
 }
 
 // cacheDepDigest is the per-dependency key component: the iface digest (exports,
-// constructors) plus a digest of its alias bodies and params, which the iface
+// constructors and per-export IFC summaries) plus a digest of its alias bodies and params, which the iface
 // digest does not cover.
 func cacheDepDigest(ifc *iface.Iface) string {
 	return ifc.Digest + "+" + aliasDigest(ifc)

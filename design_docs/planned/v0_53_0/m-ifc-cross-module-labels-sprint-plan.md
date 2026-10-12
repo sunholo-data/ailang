@@ -1,9 +1,9 @@
 # Sprint Plan: M-IFC-CROSS-MODULE
 
-> **HOLD: do not approve until the M-IFC-AUTHORITY-SCOPING implementation PR has merged.**
+> **Dependency met:** M-IFC-AUTHORITY-SCOPING (#1707) is on dev. This run executes M1–M2 only.
 
 **Target:** v0.53.x (v0.54.0 if release sequencing requires it)
-**Status:** Planned; on HOLD until the M-IFC-AUTHORITY-SCOPING implementation has merged (merging this plan dispatches the executor)
+**Status:** M1–M2 complete; M3–M4 pending (2026-10-12)
 **Date:** 2026-10-08
 **Issues:** Refs #1134; Refs #1132 (part 1 only)
 **Design:** `design_docs/planned/m-ifc-cross-module-labels.md` (merged df8bc23ca)
@@ -57,21 +57,21 @@ Example coverage: summary tests use the lib functions later published under `exa
 
 Risk: summary computation re-enters checking or introduces an import cycle. Keep the analysis reusable and data types in types; reuse the existing fixed-point rules.
 
-### M2: Persist summaries and reject incompatible caches (~220 LOC)
+### M2: Persist summaries and reject incompatible caches (~220 LOC) — done 2026-10-12
 
 **Estimate:** 100 implementation + 120 tests; 1 day / 6 hours
 **Dependencies:** M1
 
-Update full cache JSON DTOs and both marshal/unmarshal paths in `internal/pipeline/cache_store.go`, iface gob/JSON coverage, and validation in `internal/pipeline/cache_artifacts.go`. Audit cache keys and dependency digest propagation in `cache_dep_closure.go`. Existing artifact hashes authenticate stored bytes, but the current artifact reader does not explicitly reject a v1 IFC schema: do not assume a schema string bump alone forces recompilation. Add schema/summary validation and bump `cacheKeyVersion` from `v5` to `v6` in `internal/pipeline/cache_key.go` (mandatory, not conditional), with a v5→v6 entry in its comment history naming this sprint; if dev has moved past v5 by the time this rebases, take the next unused value. Old entries become an observable cache miss and recompile from source; if no source/valid interface is available, report an actionable error instead of accepting clean metadata. Malformed v2 metadata must be rejected too.
+Update full cache JSON DTOs and both marshal/unmarshal paths in `internal/pipeline/cache_store.go`, iface gob/JSON coverage, and validation in `internal/pipeline/cache_artifacts.go`. Audit cache keys and dependency digest propagation in `cache_dep_closure.go`. Existing artifact hashes authenticate stored bytes, but the current artifact reader does not explicitly reject a v1 IFC schema: do not assume a schema string bump alone forces recompilation. Add schema/summary validation and bump `cacheKeyVersion` from dev `v6` to `v7` in `internal/pipeline/cache_key.go` (mandatory, not conditional), with a v6→v7 entry in its comment history naming this sprint; if dev has moved past v5 by the time this rebases, take the next unused value. Old entries become an observable cache miss and recompile from source; if no source/valid interface is available, report an actionable error instead of accepting clean metadata. Malformed v2 metadata must be rejected too.
 
 Files/tests: cache store/artifact tests, iface serialization tests, dependency invalidation integration tests. Example coverage uses M4's lib/app pair with cold and warm cache.
 
-- [ ] Full cache JSON, compact/published JSON, and supported gob paths preserve every IFC summary field.
-- [ ] `cacheKeyVersion` is bumped v5→v6 in internal/pipeline/cache_key.go with a history comment; a test shows a pre-bump cache entry misses.
-- [ ] A validly hashed v1 artifact cannot bypass IFC enforcement and causes recompilation.
-- [ ] A v2 interface with absent or malformed metadata cannot be treated as clean.
-- [ ] A library-only refinement/intrinsic/return change invalidates dependent cached artifacts.
-- [ ] Cold and warm cache verdicts match, including a cached caller (audit whether IFC reruns on cache hits).
+- [x] Full cache JSON, compact/published JSON, and supported gob paths preserve every IFC summary field.
+- [x] `cacheKeyVersion` is bumped dev v6→v7 in internal/pipeline/cache_key.go with a history comment; a test shows a pre-bump cache entry misses.
+- [x] A validly hashed v1 artifact cannot bypass IFC enforcement and causes recompilation.
+- [x] A v2 interface with absent or malformed metadata cannot be treated as clean.
+- [x] A library-only refinement/intrinsic/return change invalidates dependent cached artifacts.
+- [x] Cold and warm cache verdicts match, including a cached caller (audit whether IFC reruns on cache hits).
 
 Risk: cached caller bypasses the checker. Prove key/dependency invalidation and cold/warm verdict parity rather than relying on the design's unverified assertion that checking runs every compile.
 
@@ -145,4 +145,21 @@ The verdict matrix includes same/two-module sinks, imported positive-param Check
 
 Label lattice, TLabelled cache codec, closure-laundering fix and REPL gate already exist. The M-IFC-AUTHORITY-SCOPING implementation is a hard prerequisite (see HOLD); no other external package or new issue blocks work. The summary representation, REPL export storage, cache-hit behavior and all interface producers require execution-time audit; the tasks above explicitly cover those uncertainties.
 
-Machine progress: `.ailang/state/sprints/sprint_M-IFC-CROSS-MODULE.json`. All milestone passes begin null. This task creates planning artifacts only. Merging this plan PR dispatches the executor, which is why it is on HOLD until the M-IFC-AUTHORITY-SCOPING implementation PR has merged. The executor works on its own branch and opens a PR; it does not push to dev or merge. The implementation PR completes #1134 only after the entire acceptance matrix and docs update pass, and references #1132 for its partial delivery.
+Machine progress: `.ailang/state/sprints/sprint_M-IFC-CROSS-MODULE.json`. M1–M2 are complete in the 2026-10-12 partial run; M3–M4 remain pending. The dependency (#1707) is on dev. The executor commits locally on the coordinator branch; the coordinator opens the PR. The implementation PR completes #1134 only after the entire acceptance matrix and docs update pass, and references #1132 for its partial delivery.
+
+## Partial execution checkpoint — 2026-10-12
+
+M1–M2 only are implemented and locally committed. Dev was already at cache v6
+(M-ALIAS-BODY-CLOSURE), so this implementation uses v7. M3–M4 remain pending;
+imported call-edge enforcement and CLI/REPL import resolution are not yet delivered.
+The cache-hit audit confirmed that `serveFromCache` skips IFC checking. Summary
+changes therefore flow through dependency digests and invalidate cached callers.
+Cold/warm tests cover accepted callers and the existing local IFC rejection;
+imported-contract verdict parity remains part of M3.
+
+Focused Go tests for types, iface, pipeline, link and runtime pass. `make test-core`
+passes under a temporary Linux child-subreaper supervisor because this container's
+PID 1 leaves orphan zombies (the existing nested-process cleanup test fails without
+reaping). `make lint` passes with zero issues after bounding Go memory/concurrency
+and extending its runtime timeout. File-size and architecture-boundary checks pass.
+Full `make test` was not run, and no branch was pushed. PR reference: Refs #1134.

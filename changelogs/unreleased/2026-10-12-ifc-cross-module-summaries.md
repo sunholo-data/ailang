@@ -3,3 +3,5 @@
 - Export deterministic v2 interface summaries carrying parameter labels and sink refinements, declared and intrinsic return labels, and scoped Declassify authority.
 - Preserve joined constant/variable labels, recursive intrinsic taint, and explicit clean metadata in compact JSON and gob interfaces.
 - Imported call enforcement and CLI/REPL integration remain scheduled for M3; this partial sprint does not yet enforce cross-module sinks.
+
+- Advance the compile cache from dev v6 to v7. Older entries recompile once from source; authenticated legacy schemas and incomplete/malformed v2 summaries are rejected. Library summary changes invalidate cached dependents.

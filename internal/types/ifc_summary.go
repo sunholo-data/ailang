@@ -160,7 +160,9 @@ func AnalyzeModuleIFC(file *ast.File, imports map[string]*ImportedIFCSig) map[st
 		}
 		s.Return = EncodeIFCLabel(sig.returnLabel)
 		s.HasReturnLabel = sig.hasReturnLabel
-		s.Intrinsic = EncodeIFCLabel(c.effectiveBodyLabel(fn.Name))
+		// Local calls also add deepLabel(return type) through labelOf.
+		// Carry that declared component here for consumers without this AST.
+		s.Intrinsic = EncodeIFCLabel(LabelJoin(c.effectiveBodyLabel(fn.Name), c.types.deepLabel(fn.ReturnType)))
 		s.Declassify = append(s.Declassify, sig.authorizedLabels...)
 		sort.Strings(s.Declassify)
 		out[fn.Name] = s
@@ -187,11 +189,5 @@ func importedIFCResult(s *ImportedIFCSig, args []Label) Label {
 // GobEncode preserves empty arrays (gob ordinarily decodes them as nil).
 func (s *ImportedIFCSig) GobEncode() ([]byte, error) { return json.Marshal(s) }
 func (s *ImportedIFCSig) GobDecode(data []byte) error {
-	type plain ImportedIFCSig
-	var decoded plain
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		return err
-	}
-	*s = ImportedIFCSig(decoded)
-	return s.Validate()
+	return json.Unmarshal(data, s)
 }

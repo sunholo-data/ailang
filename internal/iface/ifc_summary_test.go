@@ -31,7 +31,7 @@ func TestIFCSummaryBuilder(t *testing.T) {
 
 func TestIFCSummaryDigestAndCodecs(t *testing.T) {
 	base := NewIface("test/lib")
-	base.AddExport("f", &types.Scheme{Type: types.TString}, true)
+	base.AddExport("f", &types.Scheme{Type: &types.TFunc2{Params: []types.Type{types.TString}, Return: types.TString}}, true)
 	base.AddExport("clean", &types.Scheme{Type: types.TInt}, true)
 	s := base.Exports["f"].IFC
 	s.Params = []types.IFCParam{{Name: "x", Label: types.EncodeIFCLabel(types.LabelConst("email")), Forbidden: "secret"}}
@@ -99,7 +99,25 @@ func TestIFCSummaryDigestAndCodecs(t *testing.T) {
 	if err := decoded.Exports["clean"].IFC.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(decoded.Exports["f"].IFC.Params, s.Params) || !types.LabelEqual(decoded.Exports["f"].IFC.Intrinsic.Decode(), s.Intrinsic.Decode()) || !reflect.DeepEqual(decoded.Exports["f"].IFC.Declassify, s.Declassify) {
+	if !reflect.DeepEqual(decoded.Exports["f"].IFC, s) {
 		t.Fatal("gob metadata lost")
+	}
+}
+
+func TestIFCCompactRejectsMissingMetadata(t *testing.T) {
+	for _, raw := range []string{
+		`{"module":"lib","schema":"ailang.iface/v2","funcs":[{"name":"sink"}]}`,
+		`{"module":"lib","schema":"ailang.iface/v2","funcs":[{"name":"sink","ifc":null}]}`,
+	} {
+		var decoded InterfaceJSON
+		if err := json.Unmarshal([]byte(raw), &decoded); err == nil {
+			t.Fatal("missing published summary accepted")
+		}
+	}
+	i := NewIface("lib")
+	i.AddExport("sink", &types.Scheme{Type: types.TString}, true)
+	i.Exports["sink"].IFC = nil
+	if _, err := i.ToNormalizedJSON(); err == nil {
+		t.Fatal("missing summary published")
 	}
 }

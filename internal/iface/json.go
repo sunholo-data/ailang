@@ -45,6 +45,11 @@ type FuncJSON struct {
 // - Sort effect rows alphabetically
 // - Deterministic field ordering (via struct tags)
 func (i *Iface) ToNormalizedJSON() ([]byte, error) {
+	if i.Schema == SchemaVersion {
+		if err := i.ValidateIFC(); err != nil {
+			return nil, err
+		}
+	}
 	result := InterfaceJSON{
 		Module: i.Module,
 		Schema: i.Schema,

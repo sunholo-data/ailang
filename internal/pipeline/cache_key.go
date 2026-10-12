@@ -31,7 +31,9 @@ import (
 // its Eq instances again, so v4 entries must miss.
 // v5 -> v6 (M-ALIAS-BODY-CLOSURE): interface aliases, export schemes and
 // constructor types are closed in their defining module. Open v5 bodies must miss.
-const cacheKeyVersion = "v6"
+// v6 -> v7 (M-IFC-CROSS-MODULE): schema v2 requires per-export IFC summaries;
+// pre-summary interfaces must miss even in same-version builds.
+const cacheKeyVersion = "v7"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:
