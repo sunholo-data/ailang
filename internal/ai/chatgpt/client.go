@@ -148,10 +148,6 @@ type request struct {
 // and its result a function_call_output item, paired by call_id.
 func buildRequest(req *ai.Request) request {
 	out := request{Model: apiModel(req.Model), Stream: true, Store: false, ParallelToolCalls: true}
-	var sys []string
-	if req.SystemPrompt != "" {
-		sys = append(sys, req.SystemPrompt)
-	}
 	msgs := req.Messages
 	if len(msgs) == 0 && req.UserPrompt != "" {
 		msgs = []ai.Message{{Role: "user", Content: req.UserPrompt}}
@@ -159,9 +155,7 @@ func buildRequest(req *ai.Request) request {
 	for _, m := range msgs {
 		switch m.Role {
 		case "system":
-			if m.Content != "" {
-				sys = append(sys, m.Content)
-			}
+			// Carried in Instructions (req.SystemText).
 		case "assistant":
 			if m.Content != "" {
 				out.Input = append(out.Input, map[string]any{"type": "message", "role": "assistant",
@@ -179,7 +173,7 @@ func buildRequest(req *ai.Request) request {
 				"content": []map[string]any{{"type": "input_text", "text": m.Content}}})
 		}
 	}
-	out.Instructions = strings.Join(sys, "\n\n")
+	out.Instructions = req.SystemText()
 	for _, t := range req.Tools {
 		var params any = map[string]any{"type": "object", "properties": map[string]any{}}
 		if strings.TrimSpace(t.Parameters) != "" {

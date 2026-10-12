@@ -341,3 +341,23 @@ func TestPolicyTool_ReadDirectoryLists(t *testing.T) {
 	}
 	f.outsideIntact(t)
 }
+
+// A write creates missing parent directories inside the sandbox, and only there.
+func TestPolicyTool_WriteCreatesParents(t *testing.T) {
+	f := newFixture(t, "")
+	if r := f.host.Dispatch(Request{Op: "write", Path: ".ailang-scratch/a/probe.ail", Content: "x"}); !r.OK {
+		t.Fatalf("write into a new directory refused: %q", r.Refused)
+	}
+	if b, err := os.ReadFile(filepath.Join(f.sandbox, ".ailang-scratch", "a", "probe.ail")); err != nil || string(b) != "x" {
+		t.Fatalf("file not written: %q %v", b, err)
+	}
+	for _, p := range []string{"../escape/x.ail", "linkdir/new/x.ail", ".git/hooks/new/x"} {
+		if r := f.host.Dispatch(Request{Op: "write", Path: p, Content: "x"}); r.OK {
+			t.Errorf("write %q outside the writable sandbox was allowed", p)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(f.tmp, "escape")); err == nil {
+		t.Error("a parent directory was created outside the sandbox")
+	}
+	f.outsideIntact(t)
+}

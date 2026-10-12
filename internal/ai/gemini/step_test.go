@@ -522,8 +522,8 @@ func TestStep_TransportError_Cancel(t *testing.T) {
 	}
 }
 
-// TestStep_RequestBody_SystemPromptTopLevel: SystemPrompt → top-level
-// system_instruction; no system role in contents.
+// TestStep_RequestBody_SystemPromptTopLevel: SystemPrompt plus system-role
+// messages → top-level system_instruction; no system role in contents.
 func TestStep_RequestBody_SystemPromptTopLevel(t *testing.T) {
 	captured := &stepRequest{}
 	resp := stepResponseBody{
@@ -540,7 +540,7 @@ func TestStep_RequestBody_SystemPromptTopLevel(t *testing.T) {
 		Model:        "gemini-3-flash",
 		SystemPrompt: "You are a helpful assistant.",
 		Messages: []ai.Message{
-			{Role: "system", Content: "ignored — system goes top-level"},
+			{Role: "system", Content: "Lane rules."},
 			{Role: "user", Content: "hi"},
 		},
 	})
@@ -551,7 +551,7 @@ func TestStep_RequestBody_SystemPromptTopLevel(t *testing.T) {
 		t.Fatal("captured SystemInstruction is nil; expected top-level")
 	}
 	if len(captured.SystemInstruction.Parts) == 0 ||
-		captured.SystemInstruction.Parts[0].Text != "You are a helpful assistant." {
+		captured.SystemInstruction.Parts[0].Text != "You are a helpful assistant.\n\nLane rules." {
 		t.Errorf("SystemInstruction parts = %+v", captured.SystemInstruction.Parts)
 	}
 	for _, c := range captured.Contents {

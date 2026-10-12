@@ -12,6 +12,7 @@ package ai
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // Attribution carries per-request OpenRouter app-attribution overrides.
@@ -518,4 +519,24 @@ func NewProviderError(provider string, statusCode int, message string, err error
 		Message:    message,
 		Err:        err,
 	}
+}
+
+// SystemText is the whole system instruction for a provider with one top-level
+// system field instead of a system role inside messages (Anthropic, Gemini,
+// the ChatGPT Responses API): SystemPrompt, then every non-empty system-role
+// message in order, separated by a blank line. Dropping those messages instead
+// lost a multi-turn caller's entire system prompt — measured 2026-10-12, motoko
+// on direct Anthropic sent no system field at all (its prompt arrives as a
+// system-role message), so the model never saw the lane rules.
+func (r *Request) SystemText() string {
+	var parts []string
+	if r.SystemPrompt != "" {
+		parts = append(parts, r.SystemPrompt)
+	}
+	for _, m := range r.Messages {
+		if m.Role == "system" && m.Content != "" {
+			parts = append(parts, m.Content)
+		}
+	}
+	return strings.Join(parts, "\n\n")
 }

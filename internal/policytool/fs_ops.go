@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -129,6 +130,15 @@ func (h *Host) write(req Request) Response {
 	}
 	if int64(len(req.Content)) > h.maxTransfer() {
 		return refuse("write %s: content exceeds the %d-byte transfer cap", req.Path, h.maxTransfer())
+	}
+	// Create missing parents inside the root: the lane has no mkdir, so a
+	// first write to scratch/probe.ail (or the .ailang-scratch/ the lane
+	// prompt steers probes to) otherwise fails with "no such file or
+	// directory" (measured 2026-10-08: three refused writes in one task).
+	if dir := filepath.Dir(req.Path); dir != "." {
+		if err := h.root.MkdirAll(dir, 0o755); err != nil {
+			return refuse("write %s: %v", req.Path, err)
+		}
 	}
 	f, err := h.root.OpenFile(req.Path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {

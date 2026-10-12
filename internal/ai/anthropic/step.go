@@ -19,8 +19,8 @@ import (
 // out of the response into resp.ToolCalls.
 //
 // Wire shape contract:
-//   - SystemPrompt is sent as the top-level "system" field; system-role
-//     entries in req.Messages are dropped.
+//   - SystemPrompt and the system-role entries in req.Messages are sent
+//     together as the top-level "system" field (req.SystemText).
 //   - User messages with no ToolCallID emit a plain string content.
 //   - User messages with a ToolCallID, and Role="tool" messages, emit a
 //     content array containing a single tool_result block.
@@ -211,7 +211,7 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*stepMes
 	}
 	apiReq.Thinking = tb
 	apiReq.OutputConfig = oc
-	systemField, err := systemFieldFromPrompt(req.SystemPrompt, req.CacheBreakpoints)
+	systemField, err := systemFieldFromPrompt(req.SystemText(), req.CacheBreakpoints)
 	if err != nil {
 		return nil, ai.NewAIError(ai.CodeInternal,
 			fmt.Sprintf("anthropic: failed to marshal system field: %v", err), false)
@@ -224,7 +224,7 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*stepMes
 	for i, m := range req.Messages {
 		switch m.Role {
 		case "system":
-			// Anthropic separates system from messages — drop here.
+			// Carried in the top-level system field (req.SystemText).
 			continue
 
 		case "user":
