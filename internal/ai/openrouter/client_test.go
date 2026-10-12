@@ -598,3 +598,19 @@ func TestClient_DefaultBaseURL(t *testing.T) {
 		t.Errorf("baseURL = %q, want %q", client.baseURL, defaultBaseURL)
 	}
 }
+
+// Every OpenRouter request carries an x-session-id so OpenRouter keeps a
+// conversation on one upstream host: stable across calls in a process, and
+// OPENROUTER_SESSION_ID wins when an executor sets it.
+func TestAttributionHeaders_SessionAffinity(t *testing.T) {
+	t.Setenv("OPENROUTER_SESSION_ID", "")
+	a := attributionHeaders(nil).Get("X-Session-Id")
+	b := attributionHeaders(nil).Get("X-Session-Id")
+	if a == "" || a != b {
+		t.Fatalf("x-session-id must be set and stable within a process: %q then %q", a, b)
+	}
+	t.Setenv("OPENROUTER_SESSION_ID", "session_task-1-motoko")
+	if got := attributionHeaders(nil).Get("X-Session-Id"); got != "session_task-1-motoko" {
+		t.Fatalf("OPENROUTER_SESSION_ID must override the process id, got %q", got)
+	}
+}
