@@ -191,6 +191,7 @@ const sidebars = {
             'guides/coordinator',
             'guides/coordinator-setup',
             'guides/coordinator-workers',
+            'guides/claude-api-credits',
             'guides/collaboration-hub',
             'guides/agent-messaging',
             'guides/cloud-messaging-integration',

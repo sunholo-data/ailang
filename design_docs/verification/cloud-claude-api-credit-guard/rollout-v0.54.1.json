@@ -1,0 +1,320 @@
+{
+  "release": "v0.54.1",
+  "source_commit": "e2e2bd73f3715977db355b1a2d20860b28ede20e",
+  "recovery_booked_micro_usd": 2550044,
+  "conservative_debited_micro_usd": 2550040,
+  "verified_gateway_micro_usd": 13025,
+  "post_canary_booked_micro_usd": 2563069,
+  "initial_pilot_remaining_micro_usd": 2436931,
+  "post_promote_status": {
+    "AccountID": "anthropic-api-credits",
+    "Organization": "Holosun ApS",
+    "Workspace": "ailang",
+    "Enabled": true,
+    "OperatingCeiling": 190000000,
+    "DailyCeiling": 6000000,
+    "TaskCeiling": 2000000,
+    "MaxTasks": 2,
+    "Grant": {
+      "AccountID": "anthropic-api-credits",
+      "GrantID": "anthropic-credits-2026-10-28",
+      "Amount": 200000000,
+      "Available": 200000000,
+      "StartsAt": "2026-10-10T11:41:46Z",
+      "ExpiresAt": "2026-10-28T00:00:00Z",
+      "Operator": "ailang-claude-credit-operator@ailang-multivac.iam.gserviceaccount.com",
+      "Evidence": "https://github.com/sunholo-data/ailang-multivac/blob/7448d321439dfd73f8664e9265ff6a44778c327f/docs/ops/claude-credit-guard.md#allocation-and-attended-decisions",
+      "ExpectedGrantID": "",
+      "ConfirmedAt": "2026-10-10T11:41:47.287347Z"
+    },
+    "Settled": 2563069,
+    "ConservativeDebited": 2550040,
+    "Reserved": 0,
+    "Forwarding": 0,
+    "Unresolved": 0,
+    "ReconciliationRequired": false,
+    "ReconciliationReason": "",
+    "Leases": {},
+    "CanaryComplete": true,
+    "CanarySettled": 2563069,
+    "CanaryGatewaySettled": 13025,
+    "CanaryReserved": 0,
+    "Available": 187436931,
+    "CanaryAvailable": 2436931,
+    "Eligible": true,
+    "Blockers": null,
+    "Day": {
+      "Settled": 2563069,
+      "Reserved": 0,
+      "ConservativeDebited": 2550040
+    },
+    "ActiveTasks": 0
+  },
+  "receipts": [
+    {
+      "event": "credit_usage_settled",
+      "account_id": "anthropic-api-credits",
+      "task_id": "task-7001d497",
+      "request_id": "01eafd1c-6737-4650-9da0-2cfb26b0b48f",
+      "provider_request_id": "req_011CftfLgz5bi1N6t3pWN2Xe",
+      "message_id": "msg_011CftfLhzrPhru2Kha7hN4x",
+      "model": "claude-haiku-5-5",
+      "pricing_revision": "anthropic-haiku-5-5-2026-10-10:b87b8022432a52501de75d0cdee13d82956dc554d8e809dd62823099fc69e5a9",
+      "cost_micro_usd": 4783,
+      "usage": {
+        "InputTokens": 8700,
+        "OutputTokens": 865,
+        "CacheReadTokens": 0,
+        "CacheWrite5mTokens": 27843,
+        "CacheWrite1hTokens": 0
+      }
+    },
+    {
+      "event": "credit_usage_settled",
+      "account_id": "anthropic-api-credits",
+      "task_id": "task-7001d497",
+      "request_id": "442a8535-5e38-4152-b8e4-0e537a9efe43",
+      "provider_request_id": "req_011CftfM53t8YPWTyrNZH6Np",
+      "message_id": "msg_011CftfM5H2QVC9fB6hxfeux",
+      "model": "claude-haiku-5-5",
+      "pricing_revision": "anthropic-haiku-5-5-2026-10-10:b87b8022432a52501de75d0cdee13d82956dc554d8e809dd62823099fc69e5a9",
+      "cost_micro_usd": 1726,
+      "usage": {
+        "InputTokens": 26,
+        "OutputTokens": 376,
+        "CacheReadTokens": 27843,
+        "CacheWrite5mTokens": 10049,
+        "CacheWrite1hTokens": 0
+      }
+    },
+    {
+      "event": "credit_usage_settled",
+      "account_id": "anthropic-api-credits",
+      "task_id": "task-20eab360",
+      "request_id": "d2751e48-48db-40ff-9488-af77a8235f0d",
+      "provider_request_id": "req_011CftfzD38SWBUFq1bT78zQ",
+      "message_id": "msg_011CftfzE6dExNpCr1Fcusu5",
+      "model": "claude-haiku-5-5",
+      "pricing_revision": "anthropic-haiku-5-5-2026-10-10:b87b8022432a52501de75d0cdee13d82956dc554d8e809dd62823099fc69e5a9",
+      "cost_micro_usd": 4753,
+      "usage": {
+        "InputTokens": 8700,
+        "OutputTokens": 805,
+        "CacheReadTokens": 0,
+        "CacheWrite5mTokens": 27843,
+        "CacheWrite1hTokens": 0
+      }
+    },
+    {
+      "event": "credit_usage_settled",
+      "account_id": "anthropic-api-credits",
+      "task_id": "task-20eab360",
+      "request_id": "fafc172e-b043-431e-9166-aecf873ca06a",
+      "provider_request_id": "req_011CftfzatnQMagaQj83vDbt",
+      "message_id": "msg_011Cftfzb7fsTS76tNQ5zPm6",
+      "model": "claude-haiku-5-5",
+      "pricing_revision": "anthropic-haiku-5-5-2026-10-10:b87b8022432a52501de75d0cdee13d82956dc554d8e809dd62823099fc69e5a9",
+      "cost_micro_usd": 1763,
+      "usage": {
+        "InputTokens": 26,
+        "OutputTokens": 470,
+        "CacheReadTokens": 27843,
+        "CacheWrite5mTokens": 9971,
+        "CacheWrite1hTokens": 0
+      }
+    }
+  ],
+  "evidence": "https://github.com/sunholo-data/ailang-multivac/blob/8a860353790c72f4be9da1a92301846c8761d187/docs/ops/claude-credit-guard.md#repaired-release-and-reconciled-canaries--2026-10-10",
+  "activation": "enabled, Terraform CI and live registry verified",
+  "infrastructure_commit": "82b12885f85d0c75ac3f433e76df6fd4c57f4a90",
+  "activation_ci": {
+    "dev": "4dfffd91-68c3-466e-a13e-81306a33482d",
+    "test": "784d8ec2-48c9-456b-8223-3a7344d17eee",
+    "prod": "e343eb32-0a1e-4d3d-8357-6cef04707e6a"
+  },
+  "live_account_status": {
+    "AccountID": "anthropic-api-credits",
+    "Organization": "Holosun ApS",
+    "Workspace": "ailang",
+    "Enabled": true,
+    "OperatingCeiling": 190000000,
+    "DailyCeiling": 6000000,
+    "TaskCeiling": 2000000,
+    "MaxTasks": 2,
+    "Grant": {
+      "AccountID": "anthropic-api-credits",
+      "GrantID": "anthropic-credits-2026-10-28",
+      "Amount": 200000000,
+      "Available": 200000000,
+      "StartsAt": "2026-10-10T11:41:46Z",
+      "ExpiresAt": "2026-10-28T00:00:00Z",
+      "Operator": "ailang-claude-credit-operator@ailang-multivac.iam.gserviceaccount.com",
+      "Evidence": "https://github.com/sunholo-data/ailang-multivac/blob/7448d321439dfd73f8664e9265ff6a44778c327f/docs/ops/claude-credit-guard.md#allocation-and-attended-decisions",
+      "ExpectedGrantID": "",
+      "ConfirmedAt": "2026-10-10T11:41:47.287347Z"
+    },
+    "Settled": 2563069,
+    "ConservativeDebited": 2550040,
+    "Reserved": 0,
+    "Forwarding": 0,
+    "Unresolved": 0,
+    "ReconciliationRequired": false,
+    "ReconciliationReason": "",
+    "Leases": {},
+    "CanaryComplete": true,
+    "CanarySettled": 2563069,
+    "CanaryGatewaySettled": 13025,
+    "CanaryReserved": 0,
+    "Available": 187436931,
+    "CanaryAvailable": 2436931,
+    "Eligible": true,
+    "Blockers": null,
+    "Day": {
+      "Settled": 2563069,
+      "Reserved": 0,
+      "ConservativeDebited": 2550040
+    },
+    "ActiveTasks": 0
+  },
+  "live_registry_verification": {
+    "dev": {
+      "evaluator": {
+        "id": "sprint-evaluator",
+        "label": "Sprint Evaluator",
+        "inbox": "sprint-evaluator",
+        "workspace": "sunholo-data/ailang",
+        "capabilities": [
+          "research",
+          "docs"
+        ],
+        "provider": "claude",
+        "executor_variant": "go",
+        "role": "evaluator",
+        "model": "claude-haiku-5-5",
+        "execution_lane": "cloud",
+        "auth_mode": "apikey",
+        "credit_account": "anthropic-api-credits",
+        "credit_gateway_url": "https://ailang-claude-credit-gateway-1032908249524.europe-west1.run.app",
+        "credit_job_identity": "ailang-dev-claude-credit@ailang-multivac-dev.iam.gserviceaccount.com",
+        "credit_max_cost_usd": 2,
+        "timeout": "45m",
+        "trigger_on_complete": [],
+        "auto_approve_handoffs": false,
+        "auto_merge": false,
+        "skip_approval": true,
+        "evaluates_parent": true,
+        "session_continuity": false,
+        "max_concurrent_tasks": 1,
+        "invoke": {
+          "type": "skill",
+          "name": "sprint-evaluator"
+        },
+        "system_prompt": "You are the pipeline's evaluation stage. Assess the parent task's work\n(the handoff message carries the executor's report; the branch is\npushed) against the sprint plan and the sprint-evaluator skill's\nscoring rubric. Tests and lint come from the branch's PR CI, never\nfrom running `make test` yourself: run\n`.claude/skills/sprint-evaluator/scripts/evaluate_sprint.sh <sprint-id> <branch>`,\nand while it reports CI_GATE=pending, run\n`.claude/skills/sprint-evaluator/scripts/ci_gate.sh <branch>` again\n(each call waits up to 4 minutes) until it reports CI_GATE=pass or\nCI_GATE=fail. CI_GATE=fail is a hard FAIL. Your FINAL output line MUST\nbe exactly one of:\n  EVALUATION_VERDICT: PASS score=<0-100>\n  EVALUATION_VERDICT: FAIL score=<0-100> reasons=<short list>\nEmit it once, last. If you cannot complete the assessment, say why and\nemit EVALUATION_VERDICT: FAIL score=0 reasons=<why>. Never merge,\ncommit, or modify files \u2014 you are read-only.\n",
+        "output_markers": [
+          "EVALUATION_VERDICT:"
+        ]
+      },
+      "other_agents_preserved": 44,
+      "agent_count": 46
+    },
+    "prod": {
+      "evaluator": {
+        "id": "sprint-evaluator",
+        "label": "Sprint Evaluator",
+        "inbox": "sprint-evaluator",
+        "workspace": "sunholo-data/ailang",
+        "capabilities": [
+          "research",
+          "docs"
+        ],
+        "provider": "claude",
+        "executor_variant": "go",
+        "role": "evaluator",
+        "model": "claude-haiku-5-5",
+        "execution_lane": "cloud",
+        "auth_mode": "apikey",
+        "credit_account": "anthropic-api-credits",
+        "credit_gateway_url": "https://ailang-claude-credit-gateway-1032908249524.europe-west1.run.app",
+        "credit_job_identity": "ailang-claude-credit@ailang-multivac.iam.gserviceaccount.com",
+        "credit_max_cost_usd": 2,
+        "timeout": "45m",
+        "trigger_on_complete": [],
+        "auto_approve_handoffs": false,
+        "auto_merge": false,
+        "skip_approval": true,
+        "evaluates_parent": true,
+        "session_continuity": false,
+        "max_concurrent_tasks": 1,
+        "invoke": {
+          "type": "skill",
+          "name": "sprint-evaluator"
+        },
+        "system_prompt": "You are the pipeline's evaluation stage. Assess the parent task's work\n(the handoff message carries the executor's report; the branch is\npushed) against the sprint plan and the sprint-evaluator skill's\nscoring rubric. Tests and lint come from the branch's PR CI, never\nfrom running `make test` yourself: run\n`.claude/skills/sprint-evaluator/scripts/evaluate_sprint.sh <sprint-id> <branch>`,\nand while it reports CI_GATE=pending, run\n`.claude/skills/sprint-evaluator/scripts/ci_gate.sh <branch>` again\n(each call waits up to 4 minutes) until it reports CI_GATE=pass or\nCI_GATE=fail. CI_GATE=fail is a hard FAIL. Your FINAL output line MUST\nbe exactly one of:\n  EVALUATION_VERDICT: PASS score=<0-100>\n  EVALUATION_VERDICT: FAIL score=<0-100> reasons=<short list>\nEmit it once, last. If you cannot complete the assessment, say why and\nemit EVALUATION_VERDICT: FAIL score=0 reasons=<why>. Never merge,\ncommit, or modify files \u2014 you are read-only.\n",
+        "output_markers": [
+          "EVALUATION_VERDICT:"
+        ]
+      },
+      "other_agents_preserved": 44,
+      "agent_count": 46
+    },
+    "test": {
+      "evaluator": {
+        "id": "sprint-evaluator",
+        "label": "Sprint Evaluator",
+        "inbox": "sprint-evaluator",
+        "workspace": "sunholo-data/ailang",
+        "capabilities": [
+          "research",
+          "docs"
+        ],
+        "provider": "claude",
+        "executor_variant": "go",
+        "role": "evaluator",
+        "model": "claude-haiku-5-5",
+        "timeout": "1h",
+        "trigger_on_complete": [],
+        "auto_approve_handoffs": false,
+        "auto_merge": false,
+        "skip_approval": true,
+        "evaluates_parent": true,
+        "session_continuity": false,
+        "max_concurrent_tasks": 1,
+        "invoke": {
+          "type": "skill",
+          "name": "sprint-evaluator"
+        },
+        "system_prompt": "You are the pipeline's evaluation stage. Assess the parent task's work\n(the handoff message carries the executor's report; the branch is\npushed) against the sprint plan and the sprint-evaluator skill's\nscoring rubric. Tests and lint come from the branch's PR CI, never\nfrom running `make test` yourself: run\n`.claude/skills/sprint-evaluator/scripts/evaluate_sprint.sh <sprint-id> <branch>`,\nand while it reports CI_GATE=pending, run\n`.claude/skills/sprint-evaluator/scripts/ci_gate.sh <branch>` again\n(each call waits up to 4 minutes) until it reports CI_GATE=pass or\nCI_GATE=fail. CI_GATE=fail is a hard FAIL. Your FINAL output line MUST\nbe exactly one of:\n  EVALUATION_VERDICT: PASS score=<0-100>\n  EVALUATION_VERDICT: FAIL score=<0-100> reasons=<short list>\nEmit it once, last. If you cannot complete the assessment, say why and\nemit EVALUATION_VERDICT: FAIL score=0 reasons=<why>. Never merge,\ncommit, or modify files \u2014 you are read-only.\n",
+        "output_markers": [
+          "EVALUATION_VERDICT:"
+        ]
+      },
+      "other_agents_preserved": 44,
+      "agent_count": 45
+    }
+  },
+  "ready_coordinator_revisions": {
+    "dev": "ailang-dev-coordinator-03456-sls",
+    "prod": "ailang-coordinator-00215-n6k"
+  },
+  "final_operations_audit": "https://github.com/sunholo-data/ailang-multivac/blob/decfdf0366ab60e6e72e19feabc48bb7fb464b74/docs/ops/claude-credit-guard.md#verified-production-activation--2026-10-10",
+  "release_ci": {
+    "required_checks": "38053586760 SUCCESS",
+    "published_release": "38055376322 SUCCESS",
+    "test_images": "61b4da93-532f-40a6-b4ec-731e5dfa4444 SUCCESS",
+    "exact_installed_cli_smoke": "6721b94c-867b-440f-8967-ee2f47c02f49 SUCCESS",
+    "production_promotion": "09860acd-d7c3-453b-9b3f-4061c1347980 SUCCESS",
+    "effective_runtime_iam": "e485df14-04e6-4deb-97b7-790d509d53bc SUCCESS"
+  },
+  "follow_ups": [
+    "Federated Anthropic authentication, then reassess deployment administrator IAM through Terraform",
+    "Other provider credit pools",
+    "Automated 50/75/90-percent spend notifications"
+  ],
+  "independent_evaluation": {
+    "result": "PASS",
+    "score": 94,
+    "round": 3,
+    "report": "evaluation-v0.54.1.json",
+    "hard_fails": []
+  }
+}

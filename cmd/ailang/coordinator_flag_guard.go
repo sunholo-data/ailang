@@ -56,7 +56,7 @@ var flagSetCoordinatorSubcommands = map[string]bool{
 	"agents": true, "pipeline": true, "prs": true, "agent-set": true, "agent-check": true, "lint": true,
 	"approvals": true, "approve": true, "reject": true, "cancel": true,
 	"watcher-status": true, "sync-threads": true, "execute-job": true,
-	"workers": true, "help": true, "--help": true, "-h": true,
+	"credits": true, "workers": true, "help": true, "--help": true, "-h": true,
 }
 
 // remoteAwareSubcommands actually read the plane named by --remote. Everything

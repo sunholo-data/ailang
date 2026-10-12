@@ -14,6 +14,7 @@ func init() {
 	RegisterOp("IO", "print", ioPrint)
 	RegisterOp("IO", "println", ioPrintln)
 	RegisterOp("IO", "readLine", ioReadLine)
+	RegisterOp("IO", "readLineOpt", ioReadLineOpt)
 	RegisterOp("IO", "writeBytes", ioWriteBytes)
 	RegisterOp("IO", "exit", ioExit)
 	RegisterOp("IO", "flush", ioFlush)
@@ -101,6 +102,11 @@ func ioReadLine(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("readLine: expected 0 arguments, got %d", len(args))
 	}
 
+	release, guardErr := ctx.beginInputRead()
+	if guardErr != nil {
+		return nil, fmt.Errorf("readLine: %w", guardErr)
+	}
+	defer release()
 	reader := ctx.GetIOReader()
 	line, err := reader.ReadString('\n')
 	if err != nil {
@@ -229,4 +235,37 @@ func ioEprintln(_ *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 	fmt.Fprintln(os.Stderr, str.Value)
 	return &eval.UnitValue{}, nil
+}
+
+// ioReadLineOpt distinguishes a blank line from a zero-byte EOF.
+func ioReadLineOpt(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 0 {
+		return nil, fmt.Errorf("readLineOpt: expected 0 arguments, got %d", len(args))
+	}
+	release, err := ctx.beginInputRead()
+	if err != nil {
+		return nil, fmt.Errorf("readLineOpt: %w", err)
+	}
+	defer release()
+	state := ctx.inputState()
+	state.mu.Lock()
+	ended := state.lineEOF
+	state.mu.Unlock()
+	if ended {
+		return terminalTag("None"), nil
+	}
+	line, err := ctx.GetIOReader().ReadString('\n')
+	if err != nil && err != io.EOF {
+		return nil, fmt.Errorf("readLineOpt: %w", err)
+	}
+	if err == io.EOF {
+		state.mu.Lock()
+		state.lineEOF = true
+		state.mu.Unlock()
+	}
+	if err == io.EOF && len(line) == 0 {
+		return terminalTag("None"), nil
+	}
+	line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
+	return terminalTag("Some", &eval.StringValue{Value: line}), nil
 }

@@ -1,0 +1,9 @@
+module examples/tests/named_helper_purity
+
+import std/fs (readFile)
+
+export func inc(x: int) -> int { x + 1 }
+func unusedFixture() -> string ! {FS} = readFile("examples/tests/named_helper_fixture.txt")
+
+test "plain export is visible" { inc(1) == 2 }
+property "increment" { forall(n: int) => inc(n) == n + 1 }

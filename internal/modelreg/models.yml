@@ -997,12 +997,37 @@ models:
       # Thinking and text share this cap — finish=length is truncation until proven otherwise.
     pricing:
       # TWO rate cards by prompt length: $0.10/$0.50 per 1M at <= 100K prompt tokens,
-      # $0.50/$2.50 above. Rows carry one card; eval prompts are ~23K, so the <= 100K card.
-      # A long-context agent turn past 100K is UNDERSTATED 5x by this row.
+      # $0.50/$2.50 above. Legacy scalar reporting uses the short-context card;
+      # strict API-credit reservations/settlement MUST use claude_credit below.
       input_per_1k: 0.0001    # $0.10 per million
       output_per_1k: 0.0005   # $0.50 per million
       cache_read_per_1k: 0.00001     # $0.01/M = 0.1x input
       cache_write_per_1k: 0.000125   # $0.125/M = 1.25x input — 5-minute cache write rate
+      claude_credit:
+        revision: "anthropic-haiku-5-5-2026-10-10"
+        source_url: "https://platform.claude.com/docs/en/models/haiku-5-5/overview"
+        verified_on: "2026-10-10"
+        # Plain single-inference Messages only. Gateway must reject server-side
+        # inference iterations, paid tools, premiums and unverified beta features.
+        # Context counts all disjoint input/cache classes; max_tokens strictly
+        # includes hidden thinking: /docs/en/build-with-claude/thinking.
+        bounds_verified: true
+        max_input_tokens: 1000000
+        max_output_tokens: 128000
+        short_context_limit: 100000
+        # Integer micro-USD per million tokens.
+        short_context:
+          input: 100000
+          output: 500000
+          cache_read: 10000
+          cache_write_5m: 125000
+          cache_write_1h: 200000
+        long_context:
+          input: 500000
+          output: 2500000
+          cache_read: 50000
+          cache_write_5m: 625000
+          cache_write_1h: 1000000
     budgets:
       # Same 3.0M blended-token WORK GATE as every agent_suite row (see claude-haiku-4-5).
       # $0.30 is that gate at $0.10/$0.50 list — on this rig claude runs on OAuth, so not spend.

@@ -16,6 +16,18 @@ type ToolSource interface {
 type Invoker interface {
 	Invoke(context.Context, Session, Invocation) (InvocationResult, error)
 }
+
+// JSONRPCError may be implemented by an error returned from Invoker.Invoke.
+// MCP answers that message, rather than the whole POST, with the exact code
+// and message. Wrapped errors are supported. The hook requires a nonzero code
+// and nonempty message; otherwise the frozen -32603 callback envelope applies.
+// Hosts should use server-error codes -32000..-32099 or application-defined
+// codes. Protocol-reserved codes -32700..-32600 pass through at the host's risk.
+type JSONRPCError interface {
+	error
+	JSONRPCError() (code int, message string)
+}
+
 type Invocation struct {
 	Name      string
 	Arguments json.RawMessage

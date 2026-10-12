@@ -191,8 +191,12 @@ func (s *BackstopSweep) SweepOnce(_ context.Context) {
 		//               it. Zero here means time.Since(zero) ≈ 292 years, so the
 		//               task is marked timed-out on the first tick after dispatch
 		//               — about 57s — and its failure feeds the loop above.
+		//   Inputs    — recovery can precede Pub/Sub hydration. Losing inputs here
+		//               creates a task without its files; the later notification
+		//               is deduplicated and cannot restore them (#1757).
 		s.adapter.Enqueue(&Message{
 			ID:        m.ID,
+			Inputs:    append([]TaskInput(nil), m.Inputs...),
 			From:      m.FromAgent,
 			Title:     m.Title,
 			Content:   m.Payload,

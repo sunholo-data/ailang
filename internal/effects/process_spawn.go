@@ -3,7 +3,6 @@
 package effects
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -59,12 +58,24 @@ func ProcessSpawn(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("_process_spawn_process: %w", err)
 	}
 
-	mp, err := NewManagedProcess(context.Background(), resolvedPath, cmdArgs)
+	admission, err := ctx.BeginWorker()
 	if err != nil {
+		return nil, err
+	}
+	mp, err := NewManagedProcess(admission.Context(), resolvedPath, cmdArgs)
+	if err != nil {
+		admission.Abort()
 		return nil, fmt.Errorf("_process_spawn_process: %w", err)
 	}
 
-	handleID := ctx.Process.AcquireManagedProcess(mp)
+	processContext := ctx.Process
+	handleID := processContext.AcquireManagedProcess(mp)
+	admission.SetResourceID(handleID)
+	if err := admission.Complete(mp); err != nil {
+		processContext.ReleaseManagedProcess(handleID)
+		return nil, err
+	}
+	go func() { <-mp.Done(); processContext.ReleaseManagedProcess(handleID); admission.ReleaseWorker(mp) }()
 	return makeProcessHandle(handleID), nil
 }
 
@@ -128,7 +139,6 @@ func ProcessCloseStdin(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 
 	mp.CloseStdin()
-	ctx.Process.ReleaseManagedProcess(handleID)
 
 	return &eval.UnitValue{}, nil
 }
@@ -152,8 +162,10 @@ func resolveCommand(pc *ProcessContext, cmdName string, args []string) (string, 
 // makeProcessHandle creates a ProcessHandle(id) ADT value.
 func makeProcessHandle(id int) eval.Value {
 	return &eval.TaggedValue{
-		CtorName: "ProcessHandle",
-		Fields:   []eval.Value{&eval.IntValue{Value: id}},
+		ModulePath: "std/process",
+		TypeName:   "ProcessHandle",
+		CtorName:   "ProcessHandle",
+		Fields:     []eval.Value{&eval.IntValue{Value: id}},
 	}
 }
 
@@ -163,7 +175,7 @@ func extractProcessHandleID(v eval.Value) (int, error) {
 	if !ok {
 		return 0, fmt.Errorf("expected ProcessHandle(int), got %T", v)
 	}
-	if adt.CtorName != "ProcessHandle" || len(adt.Fields) < 1 {
+	if adt.CtorName != "ProcessHandle" || len(adt.Fields) != 1 {
 		return 0, fmt.Errorf("expected ProcessHandle(int), got %s", adt.CtorName)
 	}
 	intVal, ok := adt.Fields[0].(*eval.IntValue)
@@ -176,15 +188,19 @@ func extractProcessHandleID(v eval.Value) (int, error) {
 // processResultOk creates Ok(()) — a Result success with unit value.
 func processResultOk() eval.Value {
 	return &eval.TaggedValue{
-		CtorName: "Ok",
-		Fields:   []eval.Value{&eval.UnitValue{}},
+		ModulePath: "std/result",
+		TypeName:   "Result",
+		CtorName:   "Ok",
+		Fields:     []eval.Value{&eval.UnitValue{}},
 	}
 }
 
 // processResultErr creates Err(message) — a Result error with string message.
 func processResultErr(msg string) eval.Value {
 	return &eval.TaggedValue{
-		CtorName: "Err",
-		Fields:   []eval.Value{&eval.StringValue{Value: msg}},
+		ModulePath: "std/result",
+		TypeName:   "Result",
+		CtorName:   "Err",
+		Fields:     []eval.Value{&eval.StringValue{Value: msg}},
 	}
 }

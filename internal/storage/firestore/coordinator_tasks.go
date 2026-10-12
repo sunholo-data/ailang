@@ -3,6 +3,7 @@ package firestore
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/messaging"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -16,6 +17,9 @@ import (
 // --- Task CRUD ---
 
 func (s *CoordinatorStore) CreateTask(ctx context.Context, task *coordinator.TaskRecord) error {
+	if err := messaging.ValidateTaskInputs(task.Inputs); err != nil {
+		return err
+	}
 	data := taskToMap(task)
 	_, err := s.client.Doc(collTasks, task.ID).Set(ctx, data)
 	if err == nil {
@@ -32,10 +36,13 @@ func (s *CoordinatorStore) GetTask(ctx context.Context, id string) (*coordinator
 		}
 		return nil, err
 	}
-	return mapToTask(doc.Data()), nil
+	return mapToTask(doc.Data())
 }
 
 func (s *CoordinatorStore) UpdateTask(ctx context.Context, task *coordinator.TaskRecord) error {
+	if err := messaging.ValidateTaskInputs(task.Inputs); err != nil {
+		return err
+	}
 	data := taskToMap(task)
 	_, err := s.client.Doc(collTasks, task.ID).Set(ctx, data, firestore.MergeAll)
 	return err
@@ -112,7 +119,11 @@ func (s *CoordinatorStore) ListTasks(ctx context.Context, filter *coordinator.Ta
 		if err != nil {
 			return nil, err
 		}
-		tasks = append(tasks, mapToTask(doc.Data()))
+		task, err := mapToTask(doc.Data())
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
 	}
 	return tasks, nil
 }

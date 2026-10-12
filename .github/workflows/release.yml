@@ -280,6 +280,7 @@ jobs:
       # generator job below. Format expected by the generator: one line
       # per artifact, "<sha256>  <basename>".
       hashes: ${{ steps.compute-subjects.outputs.hashes }}
+      release-id: ${{ steps.bundle-release.outputs.id }}
 
     steps:
     - name: Checkout code
@@ -406,6 +407,7 @@ jobs:
         echo 'See [web/README.md](https://github.com/${{ github.repository }}/blob/main/web/README.md) for integration guide.' >> changelog.md
 
     - name: Create Release (draft)
+      id: bundle-release
       # Created as a draft so the SLSA provenance job (next) can attach
       # multiple.intoto.jsonl. Once a release is published GitHub locks
       # its assets ("immutable releases") and post-publish uploads fail
@@ -448,37 +450,50 @@ jobs:
     permissions:
       actions: read       # detect the build workflow
       id-token: write     # OIDC token for keyless signing
-      contents: write     # attach .intoto.jsonl to the release
+      contents: write     # reusable workflow declares this for its optional upload job
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       base64-subjects: "${{ needs.create-release.outputs.hashes }}"
-      upload-assets: true
-      # Keep the release in draft state while we attach provenance.
-      # GitHub locks asset lists once a release is published
-      # ("immutable releases"), so post-publish uploads fail with
-      # "Cannot upload assets to an immutable release". Typed as
-      # string per the generator's input schema.
-      draft-release: "true"
+      # The generator always uploads a signed current-run Actions artifact.
+      # Its release uploader can create a second same-tag draft, stranding the
+      # provenance there. Finalize attaches it to the exact bundle draft ID.
+      upload-assets: false
       provenance-name: "multiple.intoto.jsonl"
 
   finalize-release:
     name: Publish Release
-    needs: [provenance]
+    needs: [create-release, provenance]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
+      actions: read
       contents: write
     steps:
-      - name: Publish draft release
-        # Flip draft -> published now that provenance has been attached.
-        # After this point GitHub locks the asset list (immutable
-        # releases), which is what we want — the published release is
-        # complete and tamper-evident.
+      - name: Download signed provenance from this run
+        uses: actions/download-artifact@v8
+        with:
+          name: multiple.intoto.jsonl
+          path: provenance
+      - name: Attach provenance and publish the bundle draft
+        # Use the captured release ID, never an ambiguous same-tag draft.
+        # Publication locks assets, so missing/failed provenance fails closed.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release-id }}
         run: |
           set -euo pipefail
-          gh release edit "$TAG" \
-            --repo "${{ github.repository }}" \
-            --draft=false
+          [[ "$RELEASE_ID" =~ ^[1-9][0-9]*$ ]]
+          test -s provenance/multiple.intoto.jsonl
+          endpoint="repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID"
+          gh api "$endpoint" > bundle.json
+          jq -e --arg tag "$TAG" '.tag_name == $tag and .draft == true and any(.assets[]; .name == "SHA256SUMS")' bundle.json
+          upload_url=$(jq -r '.upload_url | split("{")[0]' bundle.json)
+          gh api --method POST "$upload_url?name=multiple.intoto.jsonl" \
+            -H 'Content-Type: application/octet-stream' \
+            --input provenance/multiple.intoto.jsonl > uploaded.json
+          jq -e '.name == "multiple.intoto.jsonl" and .size > 0 and .state == "uploaded"' uploaded.json
+          gh api "$endpoint" > complete.json
+          jq -e 'any(.assets[]; .name == "multiple.intoto.jsonl" and .size > 0)' complete.json
+          gh api --method PATCH "$endpoint" -F draft=false > published.json
+          jq -e --arg tag "$TAG" '.tag_name == $tag and .draft == false' published.json

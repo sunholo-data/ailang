@@ -1,0 +1,34 @@
+{
+  "base": "bc078dc1b41308542bbccd3417bf040283e817df",
+  "merge": "296231d657126e20b79eaaf258e86963344f368c",
+  "groups": {
+    "docs_and_metadata": {
+      "files": 16,
+      "insertions": 842,
+      "deletions": 13
+    },
+    "go_tests": {
+      "files": 23,
+      "insertions": 2465,
+      "deletions": 12
+    },
+    "go_runtime": {
+      "files": 45,
+      "insertions": 1662,
+      "deletions": 143
+    },
+    "ail_examples_and_fixtures": {
+      "files": 4,
+      "insertions": 78,
+      "deletions": 12
+    },
+    "validation_evidence": {
+      "files": 26,
+      "insertions": 1643,
+      "deletions": 0
+    }
+  },
+  "total_files": 114,
+  "actual_engineering_days": null,
+  "note": "420LOC/day was a planning capacity assumption. Wall time includes parallel implementation and required CI/cloud waits; it is not measured engineering days."
+}

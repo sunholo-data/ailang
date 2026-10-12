@@ -11,8 +11,13 @@ import (
 )
 
 func runCommand() {
+	if err := bootstrapRunLifetime(); err != nil {
+		fmt.Fprintf(os.Stderr, "runtime lifetime: %v\n", err)
+		exitRunLifetime(1)
+	}
+	defer completeRunLifetime()
 	// Parse run subcommand flags
-	fs := flag.NewFlagSet("run", flag.ExitOnError)
+	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	traceFlag := fs.Bool("trace", false, "Enable execution tracing")
 	seedFlag := fs.Int("seed", 0, "Random seed for deterministic execution")
 	virtualTime := fs.Bool("virtual-time", false, "Use virtual time for deterministic execution")
@@ -64,7 +69,7 @@ func runCommand() {
 	aiStubFlag := fs.Bool("ai-stub", false, "Enable AI effect with stub handler (returns default responses)")
 	aiStubFixturesFlag := fs.String("ai-stub-fixtures", "", "With --ai-stub: replay responses from this JSON fixture file keyed by sha256 of the request; a miss is an error")
 	aiNoADCFlag := fs.Bool("ai-no-adc", false, "Disable Google Application Default Credentials: a missing GOOGLE_API_KEY is a hard AuthFailed error (also AILANG_AI_NO_ADC=1)")
-	aiKeyFileFlag := fs.String("ai-key-file", "", "Read the --ai provider's API key from this file at startup; never echoed (also AILANG_AI_KEY_FILE)")
+	aiKeyFileFlag := fs.String("ai-key-file", "", "Read the --ai provider's API key from this file on the first AI effect; never echoed (also AILANG_AI_KEY_FILE)")
 	aiModelFlag := fs.String("ai", "", "Enable AI effect with model (e.g., claude-haiku-4-5, gpt5-mini, gemini-2-5-flash, anthropic/claude-sonnet-4.5 (OpenRouter))")
 	debugFlag := fs.Bool("debug", false, "Enable Debug effect with context (collects logs/assertions)")
 
@@ -143,8 +148,10 @@ func runCommand() {
 
 	// Parse from os.Args[2:] (everything after "run")
 	if err := fs.Parse(os.Args[2:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-		os.Exit(1)
+		if err == flag.ErrHelp {
+			exitRunLifetime(0)
+		}
+		exitRunLifetime(2)
 	}
 	if *verboseFlag {
 		*quietFlag = false
@@ -152,7 +159,7 @@ func runCommand() {
 	if *chdirFlag != "" {
 		if err := os.Chdir(*chdirFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: --chdir %s: %v\n", *chdirFlag, err)
-			os.Exit(1)
+			exitRunLifetime(1)
 		}
 	}
 
@@ -178,7 +185,7 @@ func runCommand() {
 	resolvedArgsJSON, err := resolveArgsJSON(*argsJSONFlag, *argsFileFlag, os.Stdin)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-		os.Exit(2)
+		exitRunLifetime(2)
 	}
 	*argsJSONFlag = resolvedArgsJSON
 
@@ -187,7 +194,7 @@ func runCommand() {
 		f, err := os.Create(*cpuprofileFlag)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating CPU profile: %v\n", err)
-			os.Exit(1)
+			exitRunLifetime(1)
 		}
 		rpprof.StartCPUProfile(f)
 		defer func() {
@@ -224,7 +231,7 @@ func runCommand() {
 	if _, err := applyResolvedMemoryLimit(*maxMemoryFlag, *quietFlag || *jsonFlag); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		fmt.Println("Examples: 256MB, 512MB, 1GB, 2GB, cgroup")
-		os.Exit(1)
+		exitRunLifetime(1)
 	}
 
 	// Check for filename argument
@@ -232,13 +239,13 @@ func runCommand() {
 		fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
 		fmt.Println("Usage: ailang run [--caps IO] [--entry main] [--args-json '<json>'] <file.ail>")
 		fmt.Println("Note: Flags must come BEFORE the filename")
-		os.Exit(1)
+		exitRunLifetime(1)
 	}
 
 	filename := fs.Arg(0)
 	if tok := misplacedRunFlag(fs, fs.Args()[1:]); tok != "" {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), misplacedRunFlagError(tok))
-		os.Exit(1)
+		exitRunLifetime(1)
 	}
 
 	// M-AGENT-AILANG-ONLY-EXECUTION M2: with --policy the authority is the
@@ -252,7 +259,7 @@ func runCommand() {
 		if *policyWorkerFlag == 0 {
 			// PARENT: supervise a worker and exit with its verdict. Nothing
 			// executes in this process (M-EXECUTOR-POLICY-HARDENING M3).
-			os.Exit(supervisePolicyRun(*policyFlag, filename, widening, os.Args[2:]))
+			exitRunLifetime(supervisePolicyRun(*policyFlag, filename, widening, os.Args[2:]))
 		}
 		control := os.NewFile(uintptr(*policyWorkerFlag), "policy-control")
 		resolved := applyRunPolicy(*policyFlag, filename, widening, control)

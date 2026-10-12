@@ -9,6 +9,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/bytecode"
 	"github.com/sunholo-data/ailang/internal/bytecode/compiler"
+	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/gen/lower"
 	"github.com/sunholo-data/ailang/internal/gen/stmt"
@@ -200,6 +201,9 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 	}
 
 	machine := vm.NewVM(img)
+	if effCtx, ok := rt.GetEvaluator().GetEffContext().(*effects.EffContext); ok {
+		machine.Effects = effCtx
+	}
 	if params.MaxRecursionDepth > 0 {
 		machine.MaxStack = params.MaxRecursionDepth
 	}
@@ -237,7 +241,9 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 
 	result, err := machine.Run(proto, bcArgs)
 	if err != nil {
-		return false, fmt.Errorf("vm: %w", err)
+		// Native effects may have consumed input or emitted output before failure.
+		// Report an attempted execution so non-strict mode cannot replay it.
+		return machine.EffectCalls > 0, fmt.Errorf("vm: %w", err)
 	}
 	printVMResult(result, params)
 	return true, nil

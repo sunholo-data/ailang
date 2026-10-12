@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/policy"
+	"github.com/sunholo-data/ailang/internal/runlife"
 )
 
 // M-AGENT-AILANG-ONLY-EXECUTION M2 / M-EXECUTOR-POLICY-HARDENING M3 —
@@ -105,7 +106,7 @@ var activeRunPolicy *policy.Resolved
 // refusePolicy prints a named refusal and exits 1.
 func refusePolicy(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, "%s: --policy: %s\n", red("Error"), fmt.Sprintf(format, a...))
-	os.Exit(1)
+	exitRunLifetime(1)
 }
 
 // resolveRunPolicyFor loads the policy ONCE, refuses widening flags, applies
@@ -203,7 +204,7 @@ func applyRunPolicy(policyPath, filename string, w runPolicyWidening, control *o
 		if control == nil {
 			emitJSON(out)
 		}
-		os.Exit(code)
+		exitRunLifetime(code)
 	}
 
 	resolved := runPolicyResolved{
@@ -290,7 +291,7 @@ func reportDecision(control *os.File, msg controlMessage) {
 		return
 	}
 	b, _ := json.Marshal(msg)
-	_, _ = control.Write(append(b, '\n'))
+	runlife.Admit(func() { _, _ = control.Write(append(b, '\n')) })
 	_ = control.Close()
 }
 

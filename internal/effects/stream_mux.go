@@ -51,6 +51,7 @@ func selectEventsLoop(
 	maxTimer := time.NewTimer(maxDuration)
 	defer maxTimer.Stop()
 
+	closed := make(map[<-chan streamEvent]bool)
 	for {
 		// Phase 1: Non-blocking priority-ordered check
 		delivered := false
@@ -60,9 +61,14 @@ func selectEventsLoop(
 			for i := 0; i < n; i++ {
 				idx := (b.rotation + i) % n
 				src := b.sources[idx]
+				channel := src.Events()
+				if closed[channel] {
+					continue
+				}
 				select {
-				case evt, ok := <-src.Events():
+				case evt, ok := <-channel:
 					if !ok {
+						closed[channel] = true
 						continue // Source closed, skip
 					}
 					// Reset idle timer
@@ -94,6 +100,17 @@ func selectEventsLoop(
 		// Phase 2: No events ready — block on any source (+ timers)
 		{
 			cases := buildSelectCases(sorted, idleTimer, maxTimer)
+			allClosed := true
+			for i, src := range sorted {
+				if closed[src.Events()] {
+					cases[i].Chan = reflect.Value{}
+				} else {
+					allClosed = false
+				}
+			}
+			if allClosed {
+				return nil
+			}
 			chosen, value, ok := reflect.Select(cases)
 
 			if chosen == len(sorted) {
@@ -110,23 +127,10 @@ func selectEventsLoop(
 			}
 
 			if !ok {
-				// Source channel closed
-				// Check if ALL sources are closed
-				allClosed := true
-				for _, src := range sorted {
-					select {
-					case _, open := <-src.Events():
-						if open {
-							allClosed = false
-						}
-					default:
-						allClosed = false
-					}
-				}
-				if allClosed {
-					return nil
-				}
-				continue // Some sources still open
+				// Observe closure only on the selected channel. Probing other
+				// channels with receives would discard their queued output.
+				closed[sorted[chosen].Events()] = true
+				continue
 			}
 
 			// Reset idle timer

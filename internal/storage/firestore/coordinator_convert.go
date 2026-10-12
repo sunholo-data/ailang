@@ -1,6 +1,7 @@
 package firestore
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
@@ -18,6 +19,7 @@ import (
 // and ageable. Fixing this does NOT excuse the caller from setting CreatedAt — the
 // detector reports an unknowable age loudly rather than acting on one.
 func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
+	inputsJSON, _ := json.Marshal(t.Inputs)
 	if t.CreatedAt.IsZero() {
 		t.CreatedAt = time.Now()
 	}
@@ -28,6 +30,7 @@ func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
 		"parent_task_id": t.ParentTaskID,
 		"title":          t.Title,
 		"content":        t.Content,
+		"inputs":         string(inputsJSON),
 		"type":           string(t.Type),
 		"kind":           t.Kind,
 		"source":         t.Source, // M-PKG-AUTONOMOUS-CASCADE-SAFE M1: Pub/Sub topic origin
@@ -99,9 +102,14 @@ func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
 }
 
 // mapToTask converts a Firestore document map to a TaskRecord.
-func mapToTask(data map[string]interface{}) *coordinator.TaskRecord {
+func mapToTask(data map[string]interface{}) (*coordinator.TaskRecord, error) {
+	inputs, err := decodeStoredInputs(data["inputs"])
+	if err != nil {
+		return nil, err
+	}
 	t := &coordinator.TaskRecord{
 		ID:             mapval.String(data, "id"),
+		Inputs:         inputs,
 		MessageID:      mapval.String(data, "message_id"),
 		ThreadID:       mapval.String(data, "thread_id"),
 		ParentTaskID:   mapval.String(data, "parent_task_id"),
@@ -178,7 +186,7 @@ func mapToTask(data map[string]interface{}) *coordinator.TaskRecord {
 		}
 	}
 
-	return t
+	return t, nil
 }
 
 // approvalToMap converts an ApprovalRequestRecord to a Firestore document map.

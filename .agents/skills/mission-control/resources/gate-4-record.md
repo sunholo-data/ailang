@@ -41,6 +41,20 @@ Gate 2 greps before picking. Nothing is deleted; the command is verified lossles
 Regenerated, never appended: an append-only index drifts the moment an entry is edited,
 and an index that answers "already tried?" confidently and wrongly is worse than none.
 
+**⚠ ON A SHARED-REPO MISSION, `rotate-log` WRITES INTO THE CHECKOUT THAT `AILANG_MISSION_REGISTRY`
+NAMES, NOT INTO YOUR CWD, AND THE DRIVER EXPORTS THAT VARIABLE AS THE *PIN* WORKTREE** (fleet
+iterations 28 and 32). The command resolves its target as the registry's root
+(`cmd/ailang/mission_cmd.go`, "ROTATE WHERE THE FILE IS CANONICAL"). Under the driver,
+`AILANG_MISSION_REGISTRY=<pin>/missions`, so running it from a record worktree rotates and
+regenerates the throwaway pin. Overriding `MISSION_WORKDIR` does not help. Measured at
+iteration 32: two runs from the record worktree printed pin paths, and each one added a duplicate
+"Older entries are ARCHIVED" notice to the pin's log. When you write the record anywhere but the
+checkout that variable names, pass it explicitly:
+`AILANG_MISSION_REGISTRY="$PWD/missions" ailang mission rotate-log ${MISSION_NAME} --keep 20`.
+Then check that both printed paths (`archive`, `INDEX`) are under your record worktree, and that
+`git -C "$MISSION_WORKDIR" status --porcelain` is empty. The tell: the paths it prints are not the
+directory you are standing in.
+
 **`ailang` here is the FLEET CLI on PATH — never the mission's `$AILANG_BIN`.** A mission may
 pin an OLDER compiler for reproducibility, and that pin is a *compiler*, not the mission CLI:
 two different jobs wearing one name. The older binary may not carry the `mission` command

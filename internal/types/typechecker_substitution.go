@@ -74,6 +74,7 @@ func (tc *CoreTypeChecker) FinalizeSubstitutions() {
 // M-FIX-FLOAT-OP: This ensures float types are preserved after defaulting
 // M-TYPENAME-NESTED-PROPAGATION: Also propagates TypeName from type aliases
 func (tc *CoreTypeChecker) applySubstitutionToCoreTI(sub Substitution) {
+	tc.substituteApplicationRows(sub)
 	if tc.CoreTI == nil {
 		return
 	}

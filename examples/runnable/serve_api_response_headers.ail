@@ -1,0 +1,30 @@
+module examples/runnable/serve_api_response_headers
+
+import std/json (Json, jo, kv, js)
+import std/result (Result, Ok, Err)
+
+-- Both record and Json headers work on raw and @nowrap responses.
+-- Serve: ailang serve-api examples/runnable/serve_api_response_headers.ail
+-- Test: curl -i localhost:8080/headers/raw-record (and the other three paths).
+@route("GET", "/headers/raw-record")
+export pure func rawRecord() -> {_body: string, _headers: {x_frame_options: string, content_security_policy: string}} =
+  {_body: "ok", _headers: {x_frame_options: "DENY", content_security_policy: "frame-ancestors 'none'"}}
+
+@route("GET", "/headers/raw-json")
+export pure func rawJson() -> {_body: string, _headers: Json} =
+  {_body: "ok", _headers: jo([kv("X-Frame-Options", js("DENY")), kv("Content-Security-Policy", js("frame-ancestors 'none'"))])}
+
+@nowrap
+@route("GET", "/headers/nowrap-record")
+export pure func nowrapRecord() -> {data: string, _headers: {x_frame_options: string, content_security_policy: string}} =
+  {data: "ok", _headers: {x_frame_options: "DENY", content_security_policy: "frame-ancestors 'none'"}}
+
+@nowrap
+@route("GET", "/headers/nowrap-json")
+export pure func nowrapJson() -> {data: string, _headers: Json} =
+  {data: "ok", _headers: jo([kv("X-Frame-Options", js("DENY")), kv("Content-Security-Policy", js("frame-ancestors 'none'"))])}
+
+@route("GET", "/headers/result")
+export pure func wrapped() -> Result[{_body: string, _headers: Json}, string] = Ok(rawJson())
+
+export pure func main() -> string = rawRecord()._body

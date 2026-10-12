@@ -146,15 +146,15 @@ func TestCLI_RunBytecode_StrictFails(t *testing.T) {
 	src := filepath.Join(tmpDir, "bcrun_strict.ail")
 	srcContent := `module test/bcrun_strict
 
-import std/io (println)
+import std/clock (now)
 
-export func main() -> () ! {IO} = println("nope")
+export func main() -> int ! {Clock} = now()
 `
 	if err := os.WriteFile(src, []byte(srcContent), 0644); err != nil {
 		t.Fatalf("write src: %v", err)
 	}
 
-	_, stderr, exitCode := runCLI(t, "run", "--verbose", "--bytecode", "--strict-bytecode", "--caps", "IO", "--relax-modules", src)
+	_, stderr, exitCode := runCLI(t, "run", "--verbose", "--bytecode", "--strict-bytecode", "--caps", "Clock", "--relax-modules", src)
 	if exitCode == 0 {
 		t.Fatalf("expected non-zero exit, got 0\nstderr=%s", stderr)
 	}

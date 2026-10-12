@@ -1,0 +1,26 @@
+module examples/runnable/terminal_line_input
+import std/io (readLineOpt, println)
+import std/option (Some, None)
+
+pure func blank(line: string) -> bool ! {}
+ensures { result == (line == "") }
+  tests [
+    ("", true),
+    ("hello", false),
+    (" ", false)
+  ] {
+  line == ""
+}
+
+func readAll() -> () ! {IO} {
+  match readLineOpt() {
+    None => println("EOF"),
+    Some(line) => {
+      println(if blank(line) then "BLANK" else line)
+      readAll()
+    }
+  }
+}
+
+-- Try: printf '\nhello\nlast' | ailang run --caps IO --entry main this.ail
+export func main() -> () ! {IO} = readAll()

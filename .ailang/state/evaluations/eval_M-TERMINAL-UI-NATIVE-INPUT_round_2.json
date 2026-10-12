@@ -1,0 +1,476 @@
+{
+  "sprint_id": "M-TERMINAL-UI-NATIVE-INPUT",
+  "evaluation_round": 2,
+  "timestamp": "2026-10-10T12:42:16.066859+00:00",
+  "design_doc": "design_docs/planned/m-terminal-ui-native-input.md",
+  "sprint_plan": "design_docs/planned/m-terminal-ui-native-input-sprint-plan.md",
+  "final_archive_refs": {
+    "design_doc": "design_docs/implemented/v0_54_0/m-terminal-ui-native-input.md",
+    "sprint_plan": "design_docs/implemented/v0_54_0/m-terminal-ui-native-input-sprint-plan.md",
+    "validation": "design_docs/implemented/v0_54_0/m-terminal-ui-native-input-validation.md",
+    "status": "Coordinator clerical follow-up after this verdict; paths not asserted archived yet"
+  },
+  "core_reviewed_head": "beb681d7626705633fd211ddb842efa48e1fd213",
+  "core_implementation_commit": "2f807c5638494f8f428ae63585671421dc47d6a1",
+  "core_merge_commit": "cc0bf4453",
+  "core_release_head": "361caeda13830b0a3faa11919cc2b5d37a14dde1",
+  "package_reviewed_head": "85ccdecbf88eef3f3d93732daec61bce94f3590b",
+  "package_merge_commit": "acfe51adcbb8905a126128f016b09e394b05b4a1",
+  "result": "pass",
+  "base_score": 82,
+  "conditional_bonus_score": 10,
+  "total_score": 92,
+  "score_denominator": 110,
+  "pass_threshold": 70,
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 23,
+    "code_quality": 5,
+    "documentation": 15,
+    "design_fidelity": 9
+  },
+  "conditional_scores": {
+    "regression_surface_coverage": 10,
+    "performance_verification": "not applicable: functionality sprint without an optimization goal"
+  },
+  "criteria_scoring": {
+    "met": 10,
+    "total": 13,
+    "raw_points": 23.076923076923077,
+    "awarded_points": 23,
+    "method": "Rubric counts all criteria only for passes:true milestones; M0-M4 contribute 10/13. M5 remains null awaiting this independent verdict and artifact closure, so no M5 scoring credit despite independently verified publication/consumer delivery."
+  },
+  "hard_fails": [],
+  "blocking_conditions": [],
+  "implementation_review": "PASS. Implementation and required publication/consumer delivery are evidenced. No remaining terminal implementation defect found. Sprint state and archival bookkeeping still require coordinator closure; the evaluator has not modified them.",
+  "automated_checks": {
+    "gate_source": "ci",
+    "ci_gate": "pass",
+    "tests_pass": true,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "boundaries_pass": true,
+    "examples_pass": true,
+    "stdlib_interfaces_pass": true,
+    "coverage_pct": 89.7,
+    "coverage_metric": "Sonar new-code coverage, unchanged 80% threshold; not repository-wide total coverage",
+    "todo_hack_count": 0,
+    "core_ci": {
+      "conclusion": "success",
+      "headSha": "361caeda13830b0a3faa11919cc2b5d37a14dde1",
+      "jobs": [
+        {
+          "conclusion": "success",
+          "name": "docs"
+        },
+        {
+          "conclusion": "success",
+          "name": "dependency-submission"
+        },
+        {
+          "conclusion": "success",
+          "name": "lint"
+        },
+        {
+          "conclusion": "success",
+          "name": "changes"
+        },
+        {
+          "conclusion": "success",
+          "name": "test"
+        },
+        {
+          "conclusion": "success",
+          "name": "float determinism (arm64)"
+        },
+        {
+          "conclusion": "success",
+          "name": "test-windows"
+        },
+        {
+          "conclusion": "success",
+          "name": "govulncheck (vuln gate)"
+        },
+        {
+          "conclusion": "success",
+          "name": "launchd drivers (bash 3.2)"
+        },
+        {
+          "conclusion": "success",
+          "name": "build"
+        }
+      ],
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/38048763041"
+    },
+    "package_ci": {
+      "conclusion": "success",
+      "headSha": "85ccdecbf88eef3f3d93732daec61bce94f3590b",
+      "jobs": [
+        {
+          "conclusion": "success",
+          "name": "crew",
+          "steps": [
+            {
+              "conclusion": "success",
+              "name": "Set up job"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4"
+            },
+            {
+              "conclusion": "success",
+              "name": "Install pinned runtime and solver"
+            },
+            {
+              "conclusion": "success",
+              "name": "Crew behaviour, replay, strict VM and installed CLI"
+            },
+            {
+              "conclusion": "success",
+              "name": "Behavioural mutation controls"
+            },
+            {
+              "conclusion": "success",
+              "name": "Existing social lab regression"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4"
+            },
+            {
+              "conclusion": "success",
+              "name": "Complete job"
+            }
+          ]
+        }
+      ],
+      "url": "https://github.com/sunholo-data/ailang-packages/actions/runs/38050960642"
+    },
+    "sonar_evidence": "/private/tmp/terminal-sonar-final-integration-gate.json: all conditions OK, coverage 89.7%, duplication 0%, reviewed hotspots 100%",
+    "other_gate_evidence": [
+      "/private/tmp/terminal-pre-release-checks-final.log",
+      "/private/tmp/terminal-boundaries.log",
+      "/private/tmp/terminal-file-sizes.log",
+      "/private/tmp/terminal-examples.log",
+      "/private/tmp/terminal-stdlib-verify.log"
+    ],
+    "execution_note": "No full tests were rerun by this evaluation. Authenticated GitHub CI on the exact released core and reviewed package heads is canonical; earlier independent focused controls are retained."
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M0",
+      "criterion": "Public types and callback/backend evidence frozen",
+      "met": true,
+      "actual_evidence_met": true,
+      "evidence": "Actual registered effect-polymorphic callback and FS propagation controls pass. Existing package source preserved; IO lifecycle/context/input ownership contracts frozen. User approved design/execution and package publication."
+    },
+    {
+      "feature_id": "M0",
+      "criterion": "Existing package and additive EOF dependency verified",
+      "met": true,
+      "actual_evidence_met": true,
+      "evidence": "Actual registered effect-polymorphic callback and FS propagation controls pass. Existing package source preserved; IO lifecycle/context/input ownership contracts frozen. User approved design/execution and package publication."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Terminal info, exclusive lease, key/resize/idle/EOF decoder",
+      "met": true,
+      "actual_evidence_met": true,
+      "evidence": "POSIX host/decoder, process-wide restoration, same-device/reader leases, stale/cross-context handles and typed errors implemented. Full effects suite passes; 100-repeat race queued-signal and async-read-ahead controls pass. macOS/Linux/Windows/WASM compile evidence. Actual PTY matrix in M4."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Scope and signal cleanup, input ownership and validated handles tested",
+      "met": true,
+      "actual_evidence_met": true,
+      "evidence": "POSIX host/decoder, process-wide restoration, same-device/reader leases, stale/cross-context handles and typed errors implemented. Full effects suite passes; 100-repeat race queued-signal and async-read-ahead controls pass. macOS/Linux/Windows/WASM compile evidence. Actual PTY matrix in M4."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "std/terminal and readLineOpt compile and dispatch",
+      "met": true,
+      "actual_evidence_met": true,
+      "evidence": "std/terminal/readLineOpt registered; evaluator and strict native VM dispatch; arbitrary callback ADTs, capability checks and no replay after native effects. Explicit Go codegen rejection. EOF auto-import regression and new prompt v0.16.7 (existing prompt preserved), signature golden intentionally additive. Three examples: 13 tests, 0 skips."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Evaluator and strict VM parity; clear unsupported/backend behavior; examples",
+      "met": true,
+      "actual_evidence_met": true,
+      "evidence": "std/terminal/readLineOpt registered; evaluator and strict native VM dispatch; arbitrary callback ADTs, capability checks and no replay after native effects. Explicit Go codegen rejection. EOF auto-import regression and new prompt v0.16.7 (existing prompt preserved), signature golden intentionally additive. Three examples: 13 tests, 0 skips."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Events/widgets/transcript and explicit adapters",
+      "met": true,
+      "actual_evidence_met": true,
+      "evidence": "Existing terminal_ui upgraded to 0.2.0 (ui source/tests unchanged). Strict quality: 0 gates;39 tests, 0 failures, 0 skips, including 37 named tests and 2 properties (100 cases each); strict VM: 37 named bodies, 0 fallback;source inline: 42 passes, 41 skips (26 no-generator); Z3: 12/34 verified, 21 skips, 1 encoding error, 0 refuted. Native/line/plain/auto; package IO,Env ceiling for demo args, library IO-only. >=0.54.0 floor retained."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Native demo, physical viewport behavior, exact EOF and IO-only library quality; demo explicitly declares Env for argument access",
+      "met": true,
+      "actual_evidence_met": true,
+      "evidence": "Existing terminal_ui upgraded to 0.2.0 (ui source/tests unchanged). Strict quality: 0 gates;39 tests, 0 failures, 0 skips, including 37 named tests and 2 properties (100 cases each); strict VM: 37 named bodies, 0 fallback;source inline: 42 passes, 41 skips (26 no-generator); Z3: 12/34 verified, 21 skips, 1 encoding error, 0 refuted. Native/line/plain/auto; package IO,Env ceiling for demo args, library IO-only. >=0.54.0 floor retained."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Installed-bin arrow/resize and all teardown causes verified",
+      "met": true,
+      "actual_evidence_met": true,
+      "evidence": "Final reviewed head beb681d76 passed all required CI (run 38047208336), actual Linux/Windows tests and all platform builds. Sonar passed with 89.7% new coverage against the unchanged 80% gate. Full release preflight/post-update tests and lint, boundaries, sizes, examples and 48 stdlib interfaces pass. Twelve real CLI PTY cases, race controls, input/cleanup mutations and installed source-bin checks pass. The scoped row-alias repair preserves invariants. Complete crew validation, eight compiling behavioral mutations and the social regression pass (approximately 45m36s without compiler caches). Core PR #1756 merged at cc0bf4453. Released distribution and publication are recorded in M5."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Portability, replay, plain/EOF and regression checks; mutation controls",
+      "met": true,
+      "actual_evidence_met": true,
+      "evidence": "Final reviewed head beb681d76 passed all required CI (run 38047208336), actual Linux/Windows tests and all platform builds. Sonar passed with 89.7% new coverage against the unchanged 80% gate. Full release preflight/post-update tests and lint, boundaries, sizes, examples and 48 stdlib interfaces pass. Twelve real CLI PTY cases, race controls, input/cleanup mutations and installed source-bin checks pass. The scoped row-alias repair preserves invariants. Complete crew validation, eight compiling behavioral mutations and the social regression pass (approximately 45m36s without compiler caches). Core PR #1756 merged at cc0bf4453. Released distribution and publication are recorded in M5."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Documentation and branch artifacts complete",
+      "met": false,
+      "actual_evidence_met": false,
+      "evidence": "Changelog, canonical limitations, examples, package documentation and design deviations reviewed. JSON M5 passes/completed, sprint status, plan completion and archive are still clerical follow-up, so this criterion is not yet fully complete."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Evaluator passes with evidence and reviewable separate commits",
+      "met": false,
+      "actual_evidence_met": true,
+      "evidence": "Independent round-2 review supports PASS; separate core/package PRs merged. This report records exact CI, release, publication and consumer evidence."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Package publication accepted by supporting released validator; fresh registry consumer install and binary smoke verified",
+      "met": false,
+      "actual_evidence_met": true,
+      "evidence": "Actual publication accepted at 2026-10-10T12:31:31Z; live registry content/interface identity independently matched. Official released binary and fresh registry-installed shim pass native arrow/resize/termios-cursor-alternate-screen and redirected blank/final-partial/EOF controls."
+    }
+  ],
+  "code_quality_deductions": [
+    {
+      "points": 5,
+      "reason": "Functions exceed 50 lines, deduction capped at 5: internal/effects/terminal.go TerminalWith, terminalSession.run and terminalSession.nextEvent; real PTY tests also exceed the threshold. No file-size gate violation."
+    },
+    {
+      "points": 3,
+      "reason": "Sprint JSON remains in_progress with M5 passes:null and completed:null at evaluation; completion fields and final report reference need closure."
+    },
+    {
+      "points": 2,
+      "reason": "Sprint markdown retains three M5 completion boxes; design success boxes and archive remain to finalize after verdict."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Reflects public supporting core release and explicit remaining delivery review; still in planned pending coordinator archive. Env and transcript-module deviations, native platform boundaries and unresolved general worker leak disclosed."
+  },
+  "design_fidelity": {
+    "score": 9,
+    "notes": "Host core contains configured-endpoint facts/session/events and mandatory cleanup; pure UI/widgets/replay remain in the existing package. Original ui APIs/source preserved. Env grant is necessary only for specified command arguments and declared in demo/package ceiling; adapter exports remain IO (plus caller-polymorphic callback effects). Transcript is separated into its own pure module. Both changes are justified and explicit. Core unbudgeted native API is evaluator/strict-VM compatible; @limit effectful package adapter/demo is explicitly unsupported by strict VM with no hidden fallback, retaining a minor fidelity limitation."
+  },
+  "regression_surface": {
+    "conflict_surface_present": true,
+    "named_fixtures": "TestTerminalExistingIOFixturesParity pins micro_io_echo, test_io_builtins and progress_bar; TestNativeVMFailureDoesNotReplayIO prevents replay after native effects; imported callbacks preserve concrete/implicit effect contracts. Existing package ui and ui_test bytes preserved.",
+    "wider_consumers": "Complete crew and social behavioral/replay/strict-VM/installed-CLI corpus passed locally and in exact-head package CI. Eight mutations all compiled and were killed. No weakening of effect/capability invariants.",
+    "row_alias_repair": "Pre-existing pure recursive five-plus conditional-call effect ownership failure reproduced on untouched dev. Complete alias normalization at RowUnifier boundary fixes it. Four/five/eight branches and real IO denial are pinned; effect/record open/closed chains, cycle guard, metadata budgets/minima/params/provenance and detached unresolved tails reviewed. General substitution API unchanged."
+  },
+  "independent_review_controls": [
+    {
+      "issue": "Signal cleanup raced with app output in buffered writer",
+      "resolution": "LineBufferedWriter mutex serializes Write/Flush",
+      "before": "/private/tmp/terminal-writer-race.log: focused reproduction fails under race detector",
+      "after": "/private/tmp/terminal-writer-race-fixed.log: same independent fixture passes under race detector"
+    },
+    {
+      "issue": "Queued termination could be swallowed when callback completes",
+      "resolution": "watchSignals stop branch drains pending diverted signal",
+      "after": "/private/tmp/evaluator-signal.log:100queued SIGTERM+closed-stop cases pass"
+    },
+    {
+      "issue": "Async stdin private Scanner discarded unread data",
+      "resolution": "Owned source uses shared persistent reader and prepends un-emitted line before releasing ownership",
+      "before": "/private/tmp/evaluator-async.log: readLineOpt incorrectly returnsNone",
+      "after": "/private/tmp/evaluator-async-fixed.log: independent control preserves line101andline102"
+    },
+    {
+      "issue": "EOF normalization and canonical documentation incomplete",
+      "resolution": "readLineOpt auto-import regression, new teaching prompt and canonical raw-input limitations updated"
+    },
+    {
+      "issue": "Frozen prompt transition previously pinned obsolete active version",
+      "resolution": "Test retains corpus floors and requires exactly active mutable version; registries agree. Independent byte comparison confirms pre-sprint v0.16.6 source unchanged. Source and mirror have19banked/40legacy/1mutable(v0.16.7)."
+    },
+    {
+      "issue": "Imported callbacks dropped effect-contract metadata",
+      "resolution": "Merged v0.53.3 repair shallow-copies TFunc2 before closing structural fields; concrete/implicit flags preserved. New imported/inline effect and nonmutation controls are substantive."
+    },
+    {
+      "issue": "Windows descriptor-only alias identity failed actual Windows CI",
+      "resolution": "Borrowed disk HANDLE volume/file index identity; CHAR/PIPE use handle identity without native support. Lease cleanup deferred in tests. Actual Windows CI now passed."
+    },
+    {
+      "issue": "Original Sonar new coverage 69.1%",
+      "resolution": "Meaningful capability/EOF/VM authority/ADT/admission tests plus actual instrumented Go-host PTY controls. Missing Python fails on supported native platforms; no CI environment gates, Sonar threshold/exclusion changes or removed assertions. Final measured 89.7%."
+    },
+    {
+      "issue": "Multi-hop row normalization initially shared extension budget pointers and final unresolved tail",
+      "resolution": "Fail-first mutation controls exposed both. Budgets/minimum budgets and unresolved tail now detached; parameters/provenance retained, cycles remain open. Focused types/pipeline suite and full canonical core CI pass."
+    }
+  ],
+  "package_validation": {
+    "source": "Official v0.54.0 package tests and quality; exact-head released-runtime package CI 38050960642",
+    "native_tests": {
+      "passed": 39,
+      "failed": 0,
+      "skipped": 0,
+      "named": 37,
+      "properties": 2,
+      "property_cases_each": 100
+    },
+    "strict_bytecode": {
+      "named_bodies": 37,
+      "fallback": 0,
+      "properties_execute_on_evaluator_by_cli_definition": true
+    },
+    "source_inline": {
+      "passed": 42,
+      "failed": 0,
+      "skipped": 41,
+      "no_generator_skips": 26
+    },
+    "contracts": {
+      "verified": 12,
+      "total": 34,
+      "skipped": 21,
+      "encoding_errors": 1,
+      "refuted": 0,
+      "note": "Z3 Option[string] encoding error is not a proof or a runtime test failure"
+    },
+    "strict_quality_gates": 0,
+    "smoke": "passed",
+    "publication": "Accepted sunholo/terminal_ui@0.2.0; independently read matching live registry metadata; fresh official-runtime consumer smoke passed.",
+    "package_pr": "https://github.com/sunholo-data/ailang-packages/pull/117 (merged)",
+    "publication_evidence": "/private/tmp/terminal-ui-publish-attempt.txt",
+    "supporting_validation_doc": "design_docs/planned/m-terminal-ui-native-input-validation.md",
+    "release_preparation": {
+      "ci_runtime_pin": "v0.54.0, proposed and pushed in 9aa82e6; downloadable supporting runtime requires the core release",
+      "crew_consumer_lock": "Path lock refreshed in f80f38e; terminal_ui now resolves to 0.2.0",
+      "tui_validation": "Own 39 tests, strict quality and PTY controls remain green; broader crew gate is qualified separately"
+    }
+  },
+  "release_delivery": {
+    "version": "v0.54.0",
+    "release_url": "https://github.com/sunholo-data/ailang/releases/tag/v0.54.0",
+    "workflow": {
+      "conclusion": "success",
+      "headSha": "361caeda13830b0a3faa11919cc2b5d37a14dde1",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/38050365288"
+    },
+    "signature_assets_present": true,
+    "validator": {
+      "ailang": "AILANG v0.54.0\nCommit: 361caed\nFull:   361caeda13830b0a3faa11919cc2b5d37a14dde1\nBuilt:  2026-10-10T12:02:17Z\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026",
+      "features": "check-package,path-dep-rewrite,relative-imports,type-alias-propagation",
+      "validator": "v0.54.0"
+    },
+    "validator_build": "aab70f9f-bd2c-4122-a848-403f2cfb8efc",
+    "prod_promotion_build": "71ada3e1-589d-4983-b4fc-e1c4ba07ec1d",
+    "prod_promotion_evidence": "Coordinator verified SUCCESS and MCP0.54.0; supplementary to terminal core/package gates",
+    "brain_refresh_evidence": "/private/tmp/terminal-v54-brain-index-final.log: active prompt v0.16.7, 68 syntax/394 builtins/250 examples",
+    "publication": {
+      "status": "accepted",
+      "package": "sunholo/terminal_ui",
+      "version": "0.2.0",
+      "published_at": "2026-10-10T12:31:31Z",
+      "log": "/private/tmp/terminal-ui-v02-published.log",
+      "metadata_url": "https://storage.googleapis.com/ailang-registry/packages/sunholo/terminal_ui/0.2.0/metadata.json",
+      "independent_metadata_capture": "/private/tmp/terminal-evaluator-published-metadata.json",
+      "content_hash": "sha256:9d041ee63b3aa5768af55cb3bf03e722a36a1d825957223f1b105f851f5ed4a8",
+      "interface_hash_v2": "sha256:ifacev2:e6b520bcefb43b7d8275594cad099203a701bb154dd53980ad8bddb6d908aab2",
+      "tarball_hash": "sha256:f2d1d92914a7fe231faa3e68031278fcb7151f5f3204a2aaef3b88fb84b6c606"
+    },
+    "fresh_consumer": {
+      "status": "pass",
+      "consumer": "/private/tmp/terminal-registry-consumer-keiwz44a",
+      "binary": "/private/tmp/terminal-v54-official/ailang",
+      "binary_sha256": "b9e2174b72cd4173d85633b3954978f8f664761385db042c9bf43f43a8d1f08c",
+      "release_archive": "/private/tmp/terminal-v54-official/darwin.arm64.ailang.tar.gz",
+      "release_archive_sha256": "b67b8931875e8a6dd96bc34a6b912657c25b08905f817d20a15cb484c1d4580e",
+      "release_binary_member": "ailang",
+      "release_checksums": "/private/tmp/terminal-v54-official/SHA256SUMS",
+      "release_checksums_sha256": "9398c901922ccc3052607a98993bfeab0a90aa42103a3aa040a5f3a9791ee134",
+      "package": "sunholo/terminal_ui",
+      "version": "0.2.0",
+      "registry": "https://storage.googleapis.com/ailang-registry",
+      "no_developer_stdlib_override": true,
+      "registry_metadata_identity": {
+        "name": "sunholo/terminal_ui",
+        "version": "0.2.0",
+        "content_hash": "sha256:9d041ee63b3aa5768af55cb3bf03e722a36a1d825957223f1b105f851f5ed4a8",
+        "interface_hash_v2": "sha256:ifacev2:e6b520bcefb43b7d8275594cad099203a701bb154dd53980ad8bddb6d908aab2"
+      },
+      "archive_sha256": "sha256:f2d1d92914a7fe231faa3e68031278fcb7151f5f3204a2aaef3b88fb84b6c606",
+      "installed_archive_members_verified": 15,
+      "shim": "/private/tmp/terminal-registry-consumer-keiwz44a/bin/terminal-ui-demo",
+      "package_cache": "/Users/voightkampff/.ailang/cache/registry/sunholo/terminal_ui/0.2.0",
+      "redirected_checks": [
+        "line: blank/final-partial/EOF",
+        "plain: blank/final-partial/EOF",
+        "auto: blank/final-partial/EOF"
+      ],
+      "native": {
+        "phases": [
+          "initial menu",
+          "Down updates before Enter",
+          "Enter selects item 2",
+          "20x8 compact frame",
+          "80x24 restores selected state",
+          "q exit"
+        ],
+        "termios_restored": true,
+        "cursor_restored": true,
+        "alternate_screen_restored": true,
+        "pendin_masked": true
+      }
+    },
+    "fresh_consumer_evidence": "/private/tmp/terminal-registry-consumer-keiwz44a/evidence/report.json",
+    "fresh_consumer_fixture": "/private/tmp/terminal-registry-consumer-smoke.py",
+    "fresh_consumer_review": "Reviewed actual registry download/install log, all 15 archived source members compared byte-for-byte, shim official-runtime/registry-cache execution, release archive SHA256/binary member identity, unrelated cwd/new compiler cache, redirected blank/final-partial/EOF checks and native phased PTY assertions. Termios comparison covers all attributes except transient macOS PENDIN; canonical/echo/ISIG and speeds/control characters are preserved. Cursor/alternate-screen sequences and their ordering checked."
+  },
+  "scope_clarification": {
+    "accepted": true,
+    "original_wording": "all workers stop after teardown",
+    "evaluated_wording": "terminal-owned polling/signal work stops after terminal teardown",
+    "reason": "The acceptance item concerns terminal lease/input ownership and the original non-goals already excluded background AI cancellation/general scheduling. Terminal polling occurs within readEvent and the signal watcher is stopped by terminal scope close. The clarification is consistent with that boundary and is not evidence of general process cleanup.",
+    "unresolved_followup": "Managed/async subprocess leak reported by inbox_1791630246888_28589e92 remains reproduced with local build of exact v0.54.0 tag. It needs its own bounded process/source lifecycle and descendant supervision design. This review does not claim it fixed."
+  },
+  "feedback": [
+    {
+      "file": ".ailang/state/sprints/sprint_M-TERMINAL-UI-NATIVE-INPUT.json",
+      "category": "artifacts",
+      "severity": "low",
+      "issue": "M5, sprint status and evaluation report reference remain pending despite now-verified delivery.",
+      "suggestion": "Record actual final package CI, publication and consumer evidence; set completion timestamps/status and link round2 after accepting this verdict. Keep measured velocity qualified."
+    },
+    {
+      "file": "design_docs/planned/m-terminal-ui-native-input-sprint-plan.md",
+      "category": "documentation",
+      "severity": "low",
+      "issue": "Final M5 boxes, design success checks/status and archive paths still need closure.",
+      "suggestion": "Complete truthful delivery status and move design, sprint plan and validation companion together into implemented/v0_54_0; preserve historical rejected publication and proof limitations."
+    }
+  ],
+  "previous_round": {
+    "round": 1,
+    "result": "pending",
+    "score": 87,
+    "path": ".ailang/state/evaluations/eval_M-TERMINAL-UI-NATIVE-INPUT_round_1.json",
+    "unchanged": true
+  },
+  "notes": "PASS at 82/100 base plus 10/10 conditional regression coverage = 92/110. No hard failures. Required publication and fresh official-runtime registry smoke now succeed. Conservative rubric deductions preserve unfinished clerical artifact state; they do not negate delivery evidence. Historical round1 untouched. Evaluator owns only this report and temporary independent notes, and has not archived docs or changed sprint state."
+}

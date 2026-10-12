@@ -32,7 +32,7 @@ run_block() {
   : > "$T/log"; rm -f "$T/argv"
   env -i HOME="$T/home" PATH="$T/bin:/usr/bin:/bin" ARGV_OUT="$T/argv" LOG="$T/log" CODEX_HOME="$T/nocodex" \
     CONTROLLER_PROVIDER=codex MODEL=m REPO=/r PROMPT=PROMPTX RB_HELPER="$helper" RB_BLOCK="$block" "$@" \
-    /bin/bash -c 'set -u; . "$RB_HELPER"; . "$RB_BLOCK"; wait' 
+    RB_AUTH="$HERE/lib/codex-auth-profile.sh" /bin/bash -c 'set -u; . "$RB_HELPER"; . "$RB_AUTH"; . "$RB_BLOCK"; wait'
 }
 argv_lines() { tr '\0' '\n' < "$T/argv"; }
 mkdir -p "$T/home"

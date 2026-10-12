@@ -1,0 +1,20 @@
+Verifying release v0.54.5...
+
+1/4 Checking git tag...
+  ✓ Tag v0.54.5 exists
+
+2/4 Checking GitHub release...
+  ✓ GitHub release v0.54.5 exists
+
+3/4 Checking release binaries...
+  ✓ darwin.x64.ailang.tar.gz
+  ✓ darwin.arm64.ailang.tar.gz
+  ✓ linux.x64.ailang.tar.gz
+  ✓ win32.x64.ailang.zip
+  ✓ All platform binaries present
+
+4/4 Checking CI status...
+  ✓ Latest CI run passed
+
+✓ Release v0.54.5 verified successfully!
+URL: https://github.com/sunholo-data/ailang/releases/tag/v0.54.5

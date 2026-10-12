@@ -3,7 +3,6 @@ package codex
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 
 	"github.com/sunholo-data/ailang/internal/executor"
 )
@@ -25,11 +24,11 @@ import (
 // Unreadable or unrecognised → Unknown. A wrong "metered" is the failure mode
 // this exists to prevent, so it is never the fallback.
 func (e *CodexExecutor) authLane() executor.AuthLane {
-	home, err := os.UserHomeDir()
+	path, err := InstalledAuthPath()
 	if err != nil {
 		return executor.AuthLaneUnknown
 	}
-	data, err := os.ReadFile(filepath.Join(home, ".codex", "auth.json"))
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return executor.AuthLaneUnknown
 	}

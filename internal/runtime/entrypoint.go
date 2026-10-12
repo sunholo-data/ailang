@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -84,7 +85,7 @@ func CallEntrypoint(rt *ModuleRuntime, inst *ModuleInstance, name string, args [
 // StreamContext (M-SERVEAPI-WS-BRIDGE G6). prepare receives the clone
 // (an *effects.EffContext, typed interface{} to avoid the import) and never
 // the shared parent. A nil prepare is CallEntrypoint.
-func CallEntrypointPrepared(rt *ModuleRuntime, inst *ModuleInstance, name string, args []eval.Value, prepare func(effCtx interface{})) (eval.Value, error) {
+func CallEntrypointPrepared(rt *ModuleRuntime, inst *ModuleInstance, name string, args []eval.Value, prepare func(effCtx interface{})) (result eval.Value, err error) {
 	// 1. Get the entrypoint from exports
 	entrypoint, err := inst.GetExport(name)
 	if err != nil {
@@ -104,11 +105,6 @@ func CallEntrypointPrepared(rt *ModuleRuntime, inst *ModuleInstance, name string
 		log.Printf("[CONCURRENCY] Fork evaluator for %s.%s (goroutine %d)", inst.Path, name, goroutineID())
 	}
 	reqEval := rt.evaluator.Fork()
-	if prepare != nil {
-		if ec := reqEval.GetEffContext(); ec != nil {
-			prepare(ec)
-		}
-	}
 
 	// 4. Set up resolver for this request's module context
 	resolver := newModuleGlobalResolver(inst, rt)
@@ -119,6 +115,35 @@ func CallEntrypointPrepared(rt *ModuleRuntime, inst *ModuleInstance, name string
 	// causing FnCaller to use the shared evaluator instead of the fork.
 	rt.builtins.SetGoroutineEvaluator(reqEval)
 	defer rt.builtins.ClearGoroutineEvaluator()
+	// Close the owned request before clearing its builtin callback mapping.
+	// A non-clonable host context is borrowed and must never be torn down here.
+	if _, owned := rt.evaluator.GetEffContext().(interface{ Clone() interface{} }); owned {
+		if closer, ok := reqEval.GetEffContext().(interface{ CloseWorkers() error }); ok {
+			defer func() {
+				primaryPanic := recover()
+				cleanupErr := closer.CloseWorkers()
+				if primaryPanic != nil {
+					if cleanupErr != nil {
+						fmt.Fprintf(os.Stderr, "worker cleanup: %v\n", cleanupErr)
+					}
+					panic(primaryPanic)
+				}
+				if cleanupErr != nil {
+					err = errors.Join(err, fmt.Errorf("worker cleanup: %w", cleanupErr))
+					result = nil
+				}
+			}()
+		}
+	}
+	if prepare != nil {
+		if ec := reqEval.GetEffContext(); ec != nil {
+			prepare(ec)
+		}
+	}
+	if binder, ok := reqEval.GetEffContext().(interface{ BindWorkerScope() }); ok {
+		binder.BindWorkerScope()
+	}
+
 	// Deep recursion continues on fresh goroutines (#1317); each must map to
 	// this fork too, or builtins there would call back into the shared one.
 	reqEval.SetStackHopHook(func() func() {
@@ -130,7 +155,7 @@ func CallEntrypointPrepared(rt *ModuleRuntime, inst *ModuleInstance, name string
 	if debugConcurrency {
 		log.Printf("[CONCURRENCY] Calling %s.%s (goroutine %d)", inst.Path, name, goroutineID())
 	}
-	result, err := reqEval.CallFunction(fn, args)
+	result, err = reqEval.CallFunction(fn, args)
 	if debugConcurrency {
 		log.Printf("[CONCURRENCY] Done %s.%s (goroutine %d, err=%v)", inst.Path, name, goroutineID(), err)
 	}

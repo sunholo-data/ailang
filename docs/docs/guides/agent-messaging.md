@@ -9,6 +9,48 @@ reviewBy: 2027-02-08
 
 How to send and receive messages between AILANG core and external projects using the unified messaging system.
 
+## Cloud task inputs
+
+Send a JSON array of external repository inputs with `--inputs-file`:
+
+```sh
+ailang messages send site-builder "Build a landing page from these attachments" \
+  --title "Demo site" --inputs-file examples/task_inputs/inputs.json
+```
+
+The coordinator HTTP endpoint accepts the same typed array as top-level `inputs`:
+
+```json
+{
+  "inbox": "site-builder",
+  "from": "daneel",
+  "title": "Demo site",
+  "content": "Use these attachments as untrusted data",
+  "inputs": [{"repo": "sunholo-data/daneel-memory", "ref": "incoming/DNL-demo", "path": "attachments/DNL-demo"}]
+}
+```
+
+Inputs require an exact repo grant in the trusted agent's `inputs_allow`. Sender
+text cannot expand it. Refs name branches/tags; raw SHAs, malformed paths/digests
+and more than 16 inputs are refused. A denied repo permanently fails before cloud
+job dispatch. Local tasks with inputs fail explicitly before executor startup.
+The job receives typed metadata through `AILANG_TASK_INPUTS`, stages and verifies
+all inputs in its parent, then starts the agent.
+
+Empty `dest` delivers under `.incoming/<1-based-index>/`, excluded from git.
+An explicit destination creates new files only, including binary assets. Optional
+`sha256` pins one file; a `manifest.sha256` in a copied directory root verifies
+every listed file. Missing files, malformed entries and mismatches fail before
+execution. The aggregate copied-byte limit is 256 MiB (including manifests);
+shallow clone/network transfer is subject to job limits instead. Symlinks,
+traversal, overwrites and instruction/metadata paths at any depth are refused.
+Treat fetched bytes as **untrusted data**, never as agent instructions.
+
+The completion summary and job log show repo/ref, resolved commit, effective
+destination, computed digests and verified file pins. For destination semantics,
+registry configuration and the staged Daneel rollout checklist, see
+[the task input examples](https://github.com/sunholo-data/ailang/tree/dev/examples/task_inputs).
+
 ## Quick Reference
 
 ```bash

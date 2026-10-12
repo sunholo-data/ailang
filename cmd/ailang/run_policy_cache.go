@@ -10,9 +10,13 @@ import (
 	"github.com/sunholo-data/ailang/internal/policy"
 )
 
-// startPolicyWorker allocates only after the caller has set up all pipes.
-// Its errors are safe to pass to refusePolicy, which exits without defers.
-func startPolicyWorker(cmd *exec.Cmd, res *policy.Resolved) (string, error) {
+// startPolicyWorker allocates only after the caller has set up all pipes
+// and registered the worker lifetime. The caller sets cmd.Env (workerEnv with
+// no default cache) before runlife.Prepare appends its lifetime metadata, so
+// the private cache is APPENDED here rather than replacing the environment;
+// start is the lifetime's admission (cmd.Start + AfterStart). Its errors are
+// safe to pass to refusePolicy, which exits without defers.
+func startPolicyWorker(cmd *exec.Cmd, res *policy.Resolved, start func() error) (string, error) {
 	var cache string
 	if res.Restricted() && config.CacheDir() == "" {
 		var err error
@@ -25,8 +29,14 @@ func startPolicyWorker(cmd *exec.Cmd, res *policy.Resolved) (string, error) {
 			return "", fmt.Errorf("temporary compile cache is inside fs_sandbox; choose a TMPDIR outside the sandbox")
 		}
 	}
-	cmd.Env = workerEnv(res, cache)
-	if err := cmd.Start(); err != nil {
+	if cmd.Env == nil {
+		cmd.Env = workerEnv(res, "")
+	}
+	if cache != "" {
+		// exec dedups by key, last wins: this overrides an empty operator value.
+		cmd.Env = append(cmd.Env, "AILANG_CACHE_DIR="+cache)
+	}
+	if err := start(); err != nil {
 		if cache != "" {
 			_ = os.RemoveAll(cache)
 		}

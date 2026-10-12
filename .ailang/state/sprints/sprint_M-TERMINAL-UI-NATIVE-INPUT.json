@@ -1,0 +1,206 @@
+{
+  "sprint_id": "M-TERMINAL-UI-NATIVE-INPUT",
+  "created": "2026-10-10T07:33:30.107370+00:00",
+  "estimated_duration_days": 10,
+  "correlation_id": "sprint_M-TERMINAL-UI-NATIVE-INPUT",
+  "design_doc": "design_docs/implemented/v0_54_0/m-terminal-ui-native-input.md",
+  "markdown_plan": "design_docs/implemented/v0_54_0/m-terminal-ui-native-input-sprint-plan.md",
+  "github_issues": [],
+  "features": [
+    {
+      "id": "M0",
+      "description": "Freeze terminal API and reader/lifecycle contracts",
+      "estimated_loc": 150,
+      "actual_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Public types and callback/backend evidence frozen",
+        "Existing package and additive EOF dependency verified"
+      ],
+      "passes": true,
+      "started": "2026-10-10T07:33:30.107370+00:00",
+      "completed": "2026-10-10T07:58:50.167088+00:00",
+      "notes": "Actual registered effect-polymorphic callback and FS propagation controls pass. Existing package source preserved; IO lifecycle/context/input ownership contracts frozen. User approved design/execution and package publication."
+    },
+    {
+      "id": "M1",
+      "description": "Implement POSIX terminal host and decoder",
+      "estimated_loc": 900,
+      "actual_loc": 2292,
+      "dependencies": [
+        "M0"
+      ],
+      "acceptance_criteria": [
+        "Terminal info, exclusive lease, key/resize/idle/EOF decoder",
+        "Scope and signal cleanup, input ownership and validated handles tested"
+      ],
+      "passes": true,
+      "started": "2026-10-10T07:33:30.107370+00:00",
+      "completed": "2026-10-10T07:58:50.167088+00:00",
+      "notes": "POSIX host/decoder, process-wide restoration, same-device/reader leases, stale/cross-context handles and typed errors implemented. Full effects suite passes; 100-repeat race queued-signal and async-read-ahead controls pass. macOS/Linux/Windows/WASM compile evidence. Actual PTY matrix in M4."
+    },
+    {
+      "id": "M2",
+      "description": "Register language surface and backend/EOF integration",
+      "estimated_loc": 650,
+      "actual_loc": 1042,
+      "dependencies": [
+        "M0"
+      ],
+      "acceptance_criteria": [
+        "std/terminal and readLineOpt compile and dispatch",
+        "Evaluator and strict VM parity; clear unsupported/backend behavior; examples"
+      ],
+      "passes": true,
+      "started": "2026-10-10T07:33:30.107370+00:00",
+      "completed": "2026-10-10T07:58:50.167088+00:00",
+      "notes": "std/terminal/readLineOpt registered; evaluator and strict native VM dispatch; arbitrary callback ADTs, capability checks and no replay after native effects. Explicit Go codegen rejection. EOF auto-import regression and new prompt v0.16.7 (existing prompt preserved), signature golden intentionally additive. Three examples: 13 tests, 0 skips."
+    },
+    {
+      "id": "M3",
+      "description": "Upgrade existing terminal_ui package",
+      "estimated_loc": 850,
+      "actual_loc": 993,
+      "dependencies": [
+        "M0"
+      ],
+      "acceptance_criteria": [
+        "Events/widgets/transcript and explicit adapters",
+        "Native demo, physical viewport behavior, exact EOF and IO-only library quality; demo explicitly declares Env for argument access"
+      ],
+      "passes": true,
+      "started": "2026-10-10T07:33:30.107370+00:00",
+      "completed": "2026-10-10T07:58:50.167088+00:00",
+      "notes": "Existing terminal_ui upgraded to 0.2.0 (ui source/tests unchanged). Strict quality: 0 gates;39 tests, 0 failures, 0 skips, including 37 named tests and 2 properties (100 cases each); strict VM: 37 named bodies, 0 fallback;source inline: 42 passes, 41 skips (26 no-generator); Z3: 12/34 verified, 21 skips, 1 encoding error, 0 refuted. Native/line/plain/auto; package IO,Env ceiling for demo args, library IO-only. >=0.54.0 floor retained."
+    },
+    {
+      "id": "M4",
+      "description": "Verify installed demo, PTY lifecycle and regressions",
+      "estimated_loc": 450,
+      "actual_loc": 528,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Installed-bin arrow/resize and all teardown causes verified",
+        "Portability, replay, plain/EOF and regression checks; mutation controls"
+      ],
+      "passes": true,
+      "started": "2026-10-10T07:33:30.107370+00:00",
+      "completed": "2026-10-10T11:44:44.830522+00:00",
+      "notes": "Final reviewed head beb681d76 passed all required CI (run 38047208336), actual Linux/Windows tests and all platform builds. Sonar passed with 89.7% new coverage against the unchanged 80% gate. Full release preflight/post-update tests and lint, boundaries, sizes, examples and 48 stdlib interfaces pass. Twelve real CLI PTY cases, race controls, input/cleanup mutations and installed source-bin checks pass. The scoped row-alias repair preserves invariants. Complete crew validation, eight compiling behavioral mutations and the social regression pass (approximately 45m36s without compiler caches). Core PR #1756 merged at cc0bf4453. Released distribution and publication are recorded in M5."
+    },
+    {
+      "id": "M5",
+      "description": "Evaluate, document and deliver the sprint",
+      "estimated_loc": 200,
+      "actual_loc": 0,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Documentation and branch artifacts complete",
+        "Evaluator passes with evidence and reviewable separate commits",
+        "Package publication accepted by supporting released validator; fresh registry consumer install and binary smoke verified"
+      ],
+      "passes": true,
+      "started": "2026-10-10T07:58:50.167088+00:00",
+      "completed": "2026-10-10T12:43:39.090263+00:00",
+      "notes": "Core PR #1756 and package PR #117 merged. Public v0.54.0 at 361caeda1 passed matching dev CI 38048763041 and signed release/provenance workflow 38050365288. Validator, all-image TEST release and guarded PROD dry-run/promotion passed; public MCP latest 0.54.0. Required brain refresh was rerun after public release (68 syntax/394 builtins/250 examples, prompt v0.16.7); release-manager notification sent to canonical user inbox. Exact package head 85ccdec passed official tests/quality and complete CI 38050960642 including 8/8 mutation controls and social regression, then merged at acfe51ad. Actual publication accepted terminal_ui@0.2.0. Fresh official registry consumer verified identities, all 15 archive files, shim, redirected modes and native arrow/resize/full restoration. Independent round2 PASS:82/100 plus10 regression points (92/110); no hard failures or delivery blockers. Final design, plan and validation archived together; completed state and evidence committed in delivery closure PR. Separate general background-worker leak remains unresolved."
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M0",
+      "package": null,
+      "action": "none",
+      "reason": "Registry tui/terminal search finds no package that can replace host ownership, core builtin/backend plumbing or integration checks."
+    },
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Registry tui/terminal search finds no package that can replace host ownership, core builtin/backend plumbing or integration checks."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Registry tui/terminal search finds no package that can replace host ownership, core builtin/backend plumbing or integration checks."
+    },
+    {
+      "milestone": "M3",
+      "package": "sunholo/terminal_ui",
+      "action": "contribute",
+      "reason": "Verified existing source package; registry search/info/docs found no published candidate. Extend existing source directly."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Registry tui/terminal search finds no package that can replace host ownership, core builtin/backend plumbing or integration checks."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Registry tui/terminal search finds no package that can replace host ownership, core builtin/backend plumbing or integration checks."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 320,
+    "actual_loc_per_day": null,
+    "target_milestones_per_week": 3,
+    "actual_milestones_per_week": null,
+    "estimated_total_loc": 3200,
+    "actual_total_loc": 4855,
+    "estimated_days": 10,
+    "actual_days": 0.2154,
+    "measurement": "4855 added Go/AILANG source and test lines: core 3862, package 993. Excludes docs, locks, generated interfaces and 7905 copied prompt/mirror lines. Per-milestone source additions are path-attributed; M0/M5 are documentation-only. Parallel attended execution does not supply a calibrated single-engineer daily/weekly velocity. Actual days/hours report wall-clock attendance including parallel agents, CI and release waits, not engineering effort.",
+    "attended_elapsed_seconds": 18608.983,
+    "attended_elapsed_hours": 5.169
+  },
+  "last_session": "2026-10-10T12:43:39.090263+00:00",
+  "last_checkpoint": "M5 complete: independent round2 PASS, actual publication and fresh official registry consumer verified; final artifacts archived",
+  "status": "completed",
+  "authorization": {
+    "design_and_execute": "great please sprint plan then execute",
+    "publish_package": "we can publish the package as part of our sprint",
+    "merge_and_release": "yep merge in the PRs and publish - did it get into the last release or we need another?"
+  },
+  "evaluation_report": ".ailang/state/evaluations/eval_M-TERMINAL-UI-NATIVE-INPUT_round_2.json",
+  "release_delivery": {
+    "version": "v0.54.0",
+    "commit": "361caeda13830b0a3faa11919cc2b5d37a14dde1",
+    "ci_run": 38048763041,
+    "release_run": 38050365288,
+    "release_url": "https://github.com/sunholo-data/ailang/releases/tag/v0.54.0",
+    "validator_build": "aab70f9f-bd2c-4122-a848-403f2cfb8efc",
+    "test_build": "72de552e-f408-42a2-910c-6e13d95dbd14",
+    "prod_dry_run": "45389ccd-3e71-43f2-9dab-499f03a4e90c",
+    "prod_build": "71ada3e1-589d-4983-b4fc-e1c4ba07ec1d",
+    "prod_mcp_latest": "0.54.0",
+    "brain_active_prompt": "v0.16.7",
+    "brain_counts": {
+      "ailang-syntax": 68,
+      "ailang-builtins": 394,
+      "ailang-examples": 250
+    },
+    "release_notification": "inbox_1791634044005_28a46aa8",
+    "package_pr": 117,
+    "package_head": "85ccdecbf88eef3f3d93732daec61bce94f3590b",
+    "package_ci_run": 38050960642,
+    "publication": "accepted",
+    "package": "sunholo/terminal_ui@0.2.0",
+    "package_merge": "acfe51adcbb8905a126128f016b09e394b05b4a1",
+    "package_content_hash": "sha256:9d041ee63b3aa5768af55cb3bf03e722a36a1d825957223f1b105f851f5ed4a8",
+    "package_interface_hash": "sha256:ifacev2:e6b520bcefb43b7d8275594cad099203a701bb154dd53980ad8bddb6d908aab2",
+    "package_archive_hash": "sha256:f2d1d92914a7fe231faa3e68031278fcb7151f5f3204a2aaef3b88fb84b6c606",
+    "fresh_registry_consumer": "pass",
+    "fresh_registry_report": "/private/tmp/terminal-registry-consumer-keiwz44a/evidence/report.json",
+    "brain_index_log": "/private/tmp/terminal-v54-brain-index-final.log"
+  },
+  "completed": "2026-10-10T12:43:39.090263+00:00"
+}

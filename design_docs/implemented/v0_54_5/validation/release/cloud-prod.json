@@ -1,0 +1,72 @@
+{
+  "result": "PASS PRODpromotion",
+  "id": "a8ecb06e-708c-447d-9b45-d313600e7e92",
+  "version": "v0.54.5",
+  "service": "core",
+  "method": "exact TEST image copy by version, digest verification, services rolled and jobs pinned",
+  "steps": [
+    {
+      "id": "validate",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "promote-images",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "deploy-prod",
+      "status": "SUCCESS"
+    }
+  ],
+  "services_rolled": [
+    "ailang-coordinator",
+    "ailang-dashboard",
+    "ailang-mcp",
+    "ailang-claude-credit-gateway"
+  ],
+  "jobs_updated": [
+    "ailang-agent-executor",
+    "ailang-agent-executor-apikey",
+    "ailang-agent-executor-go",
+    "ailang-agent-executor-go-apikey",
+    "ailang-agent-executor-codex",
+    "ailang-agent-executor-codex-apikey",
+    "ailang-agent-executor-codex-go",
+    "ailang-agent-executor-opencode",
+    "ailang-agent-executor-opencode-apikey",
+    "ailang-agent-executor-pi",
+    "ailang-agent-executor-pi-apikey",
+    "ailang-agent-executor-eval",
+    "ailang-agent-executor-eval-go",
+    "ailang-agent-executor-pi-go",
+    "ailang-agent-executor-motoko",
+    "ailang-agent-executor-claude-credit",
+    "ailang-agent-executor-go-claude-credit"
+  ],
+  "actual_services_count": 4,
+  "actual_jobs_count": 17,
+  "optional_services_explicitly_absent": [
+    "Step #2 - \"deploy-prod\": ailang-ntfy: skipped (service does not exist yet)"
+  ],
+  "full_log_sha256": "b4bba00060f9a1a81e6747f7d667521ca4a538ed2e9dfe86b60a26751f669c47",
+  "build_link": "https://console.cloud.google.com/cloud-build/builds;region=europe-west3/a8ecb06e-708c-447d-9b45-d313600e7e92?project=ailang-multivac-deploy",
+  "versioned_prod_image_digests": {
+    "coordinator": "sha256:0e04d4234372c105a73b9aa2d088156c67085803aae730d39d8ed00bec732576",
+    "dashboard": "sha256:e18ae980428676c241ab1874847850682c17e3ab21e8e108ea30572746b0c02c",
+    "mcp": "sha256:fa05f3df33ddd266bf22a1ab10c064ee67209d2b605fbce7ab64647c0a06c74f",
+    "ntfy": "sha256:710a2002eade5d7c23e16235bcb3d53f960896e923dc7c0ea972aa8c571e2dbe",
+    "agent-base": "sha256:bca29de8f9032866bc7f5a24bf22d81b905632912800d688e2673ed7cac780b2",
+    "agent": "sha256:47cdf2284a4af255966565e0bd7b603225c4fee033ccde7c79c78a6b2379504f",
+    "agent-go": "sha256:70cf5f25182471b8620803a4d9ed88391c94405aff059a025cacac179d8daf44",
+    "agent-pi": "sha256:0110512abc3fd4d1a8515badd220dc9778a0819c615f5c84555ee07abfe9a842",
+    "agent-pi-go": "sha256:77ce97b928d3ea89c19dda6c112856c3b574b0ac7d0dc7a1fa89014f58d9cca0",
+    "agent-codex": "sha256:504eda60da7e391dfd8895bc0598fab567e883b903fe582b77c7d641ab486a06",
+    "agent-codex-go": "sha256:fe9c27d9f34bf40b782c0e121b535e35ce28f6b73fa24219e650177312bb3aeb",
+    "agent-opencode": "sha256:a446dc3ca143398c8bfa325dce1ecc6bd8373fa283388caccdbe5864d64b0533",
+    "agent-eval": "sha256:1022ac9618401a7ad4d7c3f1eeb9d86f6ad4bc1940c86cf888da7b3204f2c376",
+    "agent-eval-go": "sha256:179489978fbf9277b35744756a9e0fce2182fd32e40095bd94be68c007cf8cbd",
+    "agent-motoko": "sha256:c8e36f067d8ceba066f940b8845c680e49b5c5936990c1627060539dd4b5277f",
+    "resident-pi": "sha256:d79a7eb10f7e734445b42efaff279d864fd57178e5ba290db08bdcc276ef627c"
+  },
+  "image_count": 16
+}

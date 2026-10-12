@@ -884,6 +884,8 @@ NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"   # per-notify wall-clock cap, se
 # Model probes + ration gate live in lib/lane-probe.sh (shared with mission-lane-check.sh).
 . "$MC_DRIVER_ROOT/tools/launchd/lib/lane-probe.sh"
 . "$MC_DRIVER_ROOT/tools/launchd/lib/codex-env-args.sh"
+. "$MC_DRIVER_ROOT/tools/launchd/lib/codex-auth-profile.sh"
+mc_select_codex_profile || exit 1
 
 # ---- runtime bucket exhaustion (M-QUOTA-RATIONING-ROUTING M4) -------------
 #
@@ -2297,7 +2299,7 @@ _mc_run_once() {
     # ${arr[@]+…} because an empty array under `set -u` aborts in bash 3.2.
     MC_CODEX_ENV_ARGS=()
     mc_codex_env_args 2>>"$LOG"
-    codex exec ${MC_CODEX_ENV_ARGS[@]+"${MC_CODEX_ENV_ARGS[@]}"} --skip-git-repo-check \
+    mc_codex_exec ${MC_CODEX_ENV_ARGS[@]+"${MC_CODEX_ENV_ARGS[@]}"} --skip-git-repo-check \
       --dangerously-bypass-approvals-and-sandbox \
       --model "$MODEL" -C "$REPO" "$PROMPT" >>"$LOG" 2>&1 &
   # --- CODEX CONTROLLER EXEC END ---

@@ -1,0 +1,23 @@
+{
+  "result": "PASS full local validation after matched-workload correction",
+  "tested_head": "2302d9102144753072dcd9da7ba2105d42b0b7db",
+  "final_pr_head": "934424d79c6230ecfd0530613e77f60fbd913b22",
+  "head_difference": "portable documentation evidence encoding only; Go and AILANG files identical",
+  "gates": {
+    "test": {
+      "result": "PASS",
+      "file": "worker-followup-memory-final-test.log",
+      "sha256": "ea160478177b4ab8392131c6ede1546ccc9d5e27aeaa5fbe69106d57d2b14f5c"
+    },
+    "lint": {
+      "result": "PASS",
+      "file": "worker-followup-memory-final-lint.log",
+      "sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f"
+    },
+    "structure": {
+      "result": "PASS",
+      "file": "worker-followup-memory-final-structure.log",
+      "sha256": "1c2e1a45c2083dec9ce222d7373428dc935897f5c0458ca2e60726fb7382c42e"
+    }
+  }
+}

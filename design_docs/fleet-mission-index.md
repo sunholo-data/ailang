@@ -12,6 +12,10 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 32 | 2026-10-12 | P1 #8 quorum zero-signal guard BUILT and judged PASS 95 (sonnet), PR #1767; orphan iterations 30/31 credited [HARNESS] |
+| 31 | 2026-10-12 | ORPHAN (no record written): P1 #8 revisions replayed onto `0a2202ad6`, plan left untracked; slot PAUSED-NO-CAPACITY at gate-3 [HARNESS] |
+| 30 | 2026-10-09 | ORPHAN (no record written): P1 #8 quorum rounds 1–2 BLOCKED, revisions 2–3 under the carve-out; slot PAUSED-NO-CAPACITY at gate-2 [HARNESS] |
+| 29 | 2026-10-09 | native evaluator capability confirmed absent → PARKED-ON-LANE (external native capability); no runtime fix [HARNESS] |
 | 28 | 2026-10-08 | P1 #8 candidate designed; independent evaluator unavailable → PARKED-ON-LANE, no implementation [HARNESS] |
 | 27 | 2026-10-08 | main-checkout ff-only auto-sync LANDED: #1647 `15d47b5dc` (D-FLEET-15 = A), judged PASS 91; ticket resolved [HARNESS] |
 | 26 | 2026-10-08 | gate0 self-notice read LANDED: #1604 `59c3e6a55`, re-judged PASS 96 on the merged head; ticket resolved; record #1636 landed [HARNESS] |

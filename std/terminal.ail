@@ -1,0 +1,30 @@
+-- Native terminal host operations. Requires IO; widgets belong in packages.
+-- macOS/Linux support native scopes; other hosts return Unsupported.
+module std/terminal
+import std/option (Option)
+import std/result (Result)
+
+export type TerminalSize = { columns: int, rows: int }
+
+export type TerminalInfo = { input_tty: bool, output_tty: bool, raw_supported: bool, size: Option[TerminalSize] }
+
+export type TerminalOptions = { alternate_screen: bool, hide_cursor: bool }
+
+-- The constructor is not authority: the host validates context and scope.
+export type TerminalSession = TerminalSession(int)
+
+export type TerminalKey = Text(string) | Up | Down | Left | Right | Enter | Escape | Backspace | Tab | Home | End | PageUp | PageDown | Delete
+
+export type TerminalEvent = Key(TerminalKey) | Resize(TerminalSize) | EndOfInput | Interrupted | Idle
+
+export type TerminalError = Unsupported(string) | NotTTY(string) | Busy(string) | InvalidSession(string) | InvalidTimeout(int) | InputFailure(string) | QueryFailure(string) | CleanupFailure(string)
+
+export func info() -> Result[TerminalInfo, TerminalError] ! {IO} = _terminal_info()
+
+-- Cleanup is host-owned on success, runtime failure, exit and panic.
+export func withTerminal[a](options: TerminalOptions, body: TerminalSession -> a ! {e}) -> Result[a, TerminalError] ! {IO, e} =
+  _terminal_withTerminal(options, body)
+
+-- timeout_ms: 0 polls, 1..60000 waits, -1 blocks. Idle never means EOF.
+export func readEvent(session: TerminalSession, timeout_ms: int) -> Result[TerminalEvent, TerminalError] ! {IO} =
+  _terminal_readEvent(session, timeout_ms)

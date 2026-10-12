@@ -1,0 +1,22 @@
+{
+  "result": "PASS guarded PRODdryrun",
+  "id": "30c496c1-7039-48e8-a441-c97a701abf77",
+  "version": "v0.54.5",
+  "service": "core",
+  "dry_run": true,
+  "steps": [
+    {
+      "id": "validate",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "promote-images",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "deploy-prod",
+      "status": "SUCCESS"
+    }
+  ],
+  "log_sha256": "27bf3f23b251f153068835d4fe2af98ff313e777b07947dea17f33f3189d7d42"
+}

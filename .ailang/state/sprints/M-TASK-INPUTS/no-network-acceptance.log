@@ -1,0 +1,5 @@
+=== RUN   TestTaskInputsNoNetworkIngressToJob
+execute-job: Task input provenance: [{"repo":"org/data","ref":"incoming/demo","commit":"f08781a701bfc04f3d59bf896bfbd64b4c096d0f","dest":".incoming/1","sha256":{"poster.png":"930be0afa8d0193efa7b7021d9234a1420c18a06be3fe05e81a294b7a0bbb2a4"}},{"repo":"org/data","ref":"poster-v1","commit":"f08781a701bfc04f3d59bf896bfbd64b4c096d0f","dest":"public/poster.png","sha256":{"poster.png":"930be0afa8d0193efa7b7021d9234a1420c18a06be3fe05e81a294b7a0bbb2a4"}}]
+--- PASS: TestTaskInputsNoNetworkIngressToJob (0.31s)
+PASS
+ok  	github.com/sunholo-data/ailang/cmd/ailang	0.985s

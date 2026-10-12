@@ -1,0 +1,51 @@
+{
+  "milestone": "M3",
+  "result": "PASS",
+  "commits": [
+    "be97a9b61",
+    "b7f8bf34ff32ed1b61461db11bf94e76c05fbf0a"
+  ],
+  "captured_utc": "2026-10-11T19:06:39.453697+00:00",
+  "gates": [
+    "Full exact-head cmd/ailang, internal/effects and internal/ai/configdriven suites",
+    "Focused race tests",
+    "Lint, boundaries, file sizes and formatting"
+  ],
+  "coverage": [
+    "72 direct CLI offline/help cases and two installed generated bins",
+    "First selected AI effect/auth timing, cached initialization error, optional image/ref/speech/step/cache/stream APIs",
+    "Config-driven bearer and ${VAR} headers frozen; absent-at-preparation credentials remain absent",
+    "Named streamCall/callStream no-model/stub/lazy contexts, registry mutations, frozen delta parsing and authority-before-lookup",
+    "EffContext WithBudget and Clone preserve per-run immutable provider lookup; nil selected AI preserved",
+    "Eager setup and eager dynamic provider controls retained"
+  ],
+  "live_provider_calls": 0,
+  "logs": [
+    {
+      "path": "/private/tmp/worker-lazy-ai-final-focused.log",
+      "sha256": "ec8ab8cb9b6d8340f335770f54a6f27b5556224418e36c54b358af032aa576f7",
+      "bytes": 848
+    },
+    {
+      "path": "/private/tmp/worker-lazy-ai-full-focused.log",
+      "sha256": "eeaaba1e876954e5bd4487d19e77bc27ef0120a971189a7d3dc7b6a143964913",
+      "bytes": 689
+    },
+    {
+      "path": "/private/tmp/worker-lazy-ai-configauth-final-full.log",
+      "sha256": "e9f1253f17df497e79c12e87e766d8e6f9148633380772b16896164962339147",
+      "bytes": 185
+    },
+    {
+      "path": "/private/tmp/worker-lazy-ai-configauth-final-race.log",
+      "sha256": "e1669973abab23daa572742322972dd05ae5d027894f6d3bd1de196e5c2a2105",
+      "bytes": 182
+    },
+    {
+      "path": "/private/tmp/worker-lazy-ai-configauth-final-checks.log",
+      "sha256": "6fe191d602970d289908e046c76d7e536c6966194cc9962fc983752f887efb31",
+      "bytes": 338
+    }
+  ],
+  "release_delivery": "Pending; this is implementation evidence, not a published-release assertion."
+}

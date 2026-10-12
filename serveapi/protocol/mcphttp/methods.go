@@ -3,6 +3,7 @@ package mcphttp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/sunholo-data/ailang/serveapi/protocol"
 	"github.com/sunholo-data/ailang/serveapi/protocol/hostcall"
@@ -86,6 +87,12 @@ func (h *handler) callTool(req request, msg message) (response, error) {
 		return h.config.Invoker.Invoke(ctx, req.session, protocol.Invocation{Name: params.Name, Arguments: params.Arguments})
 	})
 	if err != nil {
+		var coded protocol.JSONRPCError
+		if errors.As(err, &coded) {
+			if code, message := coded.JSONRPCError(); code != 0 && message != "" {
+				return errorResponse(msg.ID, code, "%s", message), nil
+			}
+		}
 		return response{}, err
 	}
 	// Fail loud and distinguishably, as the A2A handler does: no result at all is

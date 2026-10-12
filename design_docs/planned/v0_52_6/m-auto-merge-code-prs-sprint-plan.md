@@ -54,7 +54,7 @@ No other part of the design changes.
 
 ## Proposed milestones
 
-### M1: Trusted configuration and dispatch plumbing (~240 LOC)
+### M1 ✅: Trusted configuration and dispatch plumbing (~240 LOC)
 
 **Estimated:** 130 implementation + 110 tests + 0 docs/example LOC.
 **Duration:** 1 day / 8 hours
@@ -63,14 +63,14 @@ No other part of the design changes.
 
 **Tasks and acceptance criteria:**
 
-- [ ] Four optional AgentConfig fields round-trip through YAML/JSON; absent values retain docs-only behavior. Field comments in `agent_registry.go` (750 lines) stay to one short line each.
-- [ ] Only trusted registry fields supply dispatch parameters and env; newline-separated checks preserve names containing commas.
-- [ ] Code mode requires auto_merge, non-empty check names, approver secret name, expected identity, and declared patterns; invalid configuration refuses loudly.
-- [ ] Secret material is fetched only inside the job and never appears in dispatch specs, PR bodies, or logs.
+- [x] Four optional AgentConfig fields round-trip through YAML/JSON; absent values retain docs-only behavior. Field comments in `agent_registry.go` (750 lines) stay to one short line each.
+- [x] Only trusted registry fields supply dispatch parameters and env; newline-separated checks preserve names containing commas.
+- [x] Code mode requires auto_merge, non-empty check names, approver secret name, expected identity, and declared patterns; invalid configuration refuses loudly.
+- [x] Secret material is fetched only inside the job and never appears in dispatch specs, PR bodies, or logs.
 
 **Risk and mitigation:** Authority leakage through message parameters: explicitly test registry-derived values and zero defaults.
 
-### M2: Unified scope and required-check gates (~250 LOC)
+### M2 ✅: Unified scope and required-check gates (~250 LOC)
 
 **Estimated:** 130 implementation + 120 tests + 0 docs/example LOC.
 **Duration:** 1.25 days / 10 hours
@@ -79,14 +79,14 @@ No other part of the design changes.
 
 **Tasks and acceptance criteria:**
 
-- [ ] Existing docs-mode acceptance and refusal semantics remain intact; HTML/images are eligible only in opted-in code mode and declared scope.
-- [ ] Production guard tests cover empty diff, empty patterns, out-of-scope changes, git errors, and code-mode opt-in; tests do not merely duplicate the matcher.
-- [ ] Named checks are resolved on base HEAD with pagination; missing names, empty sets, malformed responses and API failures refuse before enable.
-- [ ] No direct merge API or polling loop is introduced; existing native SQUASH auto-merge remains the merge actor.
+- [x] Existing docs-mode acceptance and refusal semantics remain intact; HTML/images are eligible only in opted-in code mode and declared scope.
+- [x] Production guard tests cover empty diff, empty patterns, out-of-scope changes, git errors, and code-mode opt-in; tests do not merely duplicate the matcher.
+- [x] Named checks are resolved on base HEAD with pagination; missing names, empty sets, malformed responses and API failures refuse before enable.
+- [x] No direct merge API or polling loop is introduced; existing native SQUASH auto-merge remains the merge actor.
 
 **Risk and mitigation:** Check drift or incomplete pagination: fail closed on unavailable/missing evidence and test multi-page results.
 
-### M3: Non-author approval and durable audit (~310 LOC)
+### M3 ✅: Non-author approval and durable audit (~310 LOC)
 
 **Estimated:** 200 implementation + 110 tests + 0 docs/example LOC.
 **Duration:** 1.5 days / 12 hours
@@ -95,15 +95,15 @@ No other part of the design changes.
 
 **Tasks and acceptance criteria:**
 
-- [ ] Approver secret fetch and actual-login/expected-login/PR-author checks finish before enable; identity comparison is case-insensitive.
-- [ ] Approval is posted after final push and native enable; wrong identity, author collision and secret/API errors produce actionable refusal without tokens.
-- [ ] Approval failure after enable cannot be reported as success; disable native auto-merge on failure where possible and surface cleanup failure explicitly.
-- [ ] PR body records configured intent separately from successful enable/approval; code PRs carry auto-merge-code label, check names, scope, identity and Refs #1599.
-- [ ] API tests assert request ordering, successful approval, failure paths and retried existing-PR audit updates; label failure is loud and body/log audit persists.
+- [x] Approver secret fetch and actual-login/expected-login/PR-author checks finish before enable; identity comparison is case-insensitive.
+- [x] Approval is posted after final push and native enable; wrong identity, author collision and secret/API errors produce actionable refusal without tokens.
+- [x] Approval failure after enable cannot be reported as success; disable native auto-merge on failure where possible and surface cleanup failure explicitly.
+- [x] PR body records configured intent separately from successful enable/approval; code PRs carry auto-merge-code label, check names, scope, identity and Refs #1599.
+- [x] API tests assert request ordering, successful approval, failure paths and retried existing-PR audit updates; label failure is loud and body/log audit persists.
 
 **Risk and mitigation:** Enable/review ordering and partial failure: preflight identity, test ordered calls and rollback diagnostics; never expose tokens.
 
-### M4: Regression validation and Daneel deployment runbook (~150 LOC)
+### M4 ✅: Regression validation and Daneel deployment runbook (~150 LOC)
 
 **Estimated:** 20 implementation + 60 tests + 70 docs/example LOC.
 **Duration:** 0.25 day / 2 hours + 1 day shared contingency
@@ -112,11 +112,11 @@ No other part of the design changes.
 
 **Tasks and acceptance criteria:**
 
-- [ ] Coordinator guide includes opt-in and docs-only YAML examples, required-check semantics, secret permissions, refusal troubleshooting and audit enumeration.
-- [ ] Runbook distinguishes check existence from required-by-ruleset enforcement and requires Mark confirmation before production opt-in.
-- [ ] Focused tests (`go test -run 'AutoMerge|Approv|RequiredCheck|AgentConfig'` on the touched packages) and `make test-core` pass, then `make lint check-boundaries check-file-sizes` passes; record command results and address regressions. CGO-unavailable failures are recorded separately, not as regressions.
-- [ ] Staging checklist proves failing required checks block merge and successful checks plus non-author review permit merge; deployment evidence is recorded or explicitly pending.
-- [ ] Daneel rollout requires one staging merge and ten clean production merges; no live registry/ruleset/secret changes are made as part of this repo sprint.
+- [x] Coordinator guide includes opt-in and docs-only YAML examples, required-check semantics, secret permissions, refusal troubleshooting and audit enumeration.
+- [x] Runbook distinguishes check existence from required-by-ruleset enforcement and requires Mark confirmation before production opt-in.
+- [x] Focused tests (`go test -run 'AutoMerge|Approv|RequiredCheck|AgentConfig'` on the touched packages) and `make test-core` pass, then `make lint check-boundaries check-file-sizes` passes; record command results and address regressions. CGO-unavailable failures are recorded separately, not as regressions.
+- [x] Staging checklist proves failing required checks block merge and successful checks plus non-author review permit merge; deployment evidence is recorded or explicitly pending.
+- [x] Daneel rollout requires one staging merge and ten clean production merges; no live registry/ruleset/secret changes are made as part of this repo sprint.
 
 **Risk and mitigation:** Environment-only proof is unavailable without credentials: distinguish repository validation from pending deployment evidence.
 
@@ -160,7 +160,7 @@ The approver token is fetched by the job's own service account (`fetchSecret`, `
 
 ## Coordinator handoff and PR body
 
-Keep sprint status `not_started` and every milestone `passes: null`. Coordinator review/merge of this plan is the execution gate; completion markers provide the automatic artifact handoff. Do not send a duplicate executor task or implement code during planning.
+Planning preserved `not_started`/`passes: null` until the approved executor handoff. Execution progress now records completed repository milestones; coordinator completion markers provide the independent evaluation handoff.
 
 Use this PR body when the coordinator opens the plan PR:
 
@@ -171,4 +171,14 @@ Use this PR body when the coordinator opens the plan PR:
 > Validation: populated sprint JSON checked for milestone dependencies, LOC totals, issue linkage and reuse decisions; documentation-only planning change.
 
 **Progress artifact:** `.ailang/state/sprints/sprint_M-AUTO-MERGE-CODE-PRS.json`
-**Approval:** Design approved in task-88edd78d handoff; this sprint is prepared for coordinator review, not self-approved.
+**Approval:** Design approved in task-88edd78d handoff; sprint execution authorized by the subsequent user/coordinator handoff. Independent implementation evaluation remains pending.
+
+
+## Execution record (2026-10-08)
+
+Refs #1599. Repository milestones implemented on `coordinator/task-5fd61a94`.
+See [implementation and validation report](m-auto-merge-code-prs-implementation.md).
+The broad coordinator filter and `make test-core` encountered existing SQLite
+CGO-unavailable failures, recorded separately as authorized by this plan.
+Live staging evidence is explicitly pending; no deployment settings changed.
+Independent sprint-evaluator approval and CI remain outstanding.

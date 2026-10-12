@@ -56,7 +56,10 @@ func (s *MessagingStore) SemanticSearch(opts messaging.SearchOptions) ([]messagi
 		if err != nil {
 			return nil, err
 		}
-		m := mapToInbox(doc.Data())
+		m, err := mapToInbox(doc.Data())
+		if err != nil {
+			return nil, err
+		}
 
 		score := simhash.Similarity(queryHash, messageSimhash(m))
 		if score >= threshold {
@@ -105,7 +108,10 @@ func (s *MessagingStore) FindSimilar(msgID string, threshold float64, limit int)
 		if err != nil {
 			return nil, err
 		}
-		m := mapToInbox(doc.Data())
+		m, err := mapToInbox(doc.Data())
+		if err != nil {
+			return nil, err
+		}
 		if m.ID == msgID {
 			continue
 		}
@@ -152,7 +158,11 @@ func (s *MessagingStore) FindDuplicates(inbox string, threshold float64) ([]mess
 		if err != nil {
 			return nil, err
 		}
-		msgs = append(msgs, mapToInbox(doc.Data()))
+		m, err := mapToInbox(doc.Data())
+		if err != nil {
+			return nil, err
+		}
+		msgs = append(msgs, m)
 	}
 
 	// Group by similarity using union-find approach

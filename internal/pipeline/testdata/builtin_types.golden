@@ -142,6 +142,7 @@ _io_print : string -> () ! {IO}
 _io_printErr : string -> () ! {IO}
 _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
+_io_readLineOpt : () -> Option[string] ! {IO}
 _io_writeBytes : bytes -> () ! {IO}
 _json_decode : string -> Result[Json, string]
 _json_decode_float_array : string -> Result[Array[float], string]
@@ -216,6 +217,7 @@ _net_url_parse_query : string -> list[{name: string, value: string}]
 _ollama_embed : (string, string) -> list[float] ! {IO}
 _ollama_embed_media : (string, string, bytes, bytes) -> list[float] ! {IO}
 _pkg_asset_path : (string, string) -> Result[string, string] ! {FS}
+_process_cancel : ProcessHandle -> Result[(), WorkerCancelError] ! {Process}
 _process_close_stdin : ProcessHandle -> () ! {Process}
 _process_exec : (string, list[string]) -> Result[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}, ProcessError] ! {Process}
 _process_spawn_process : (string, list[string]) -> ProcessHandle ! {Process}
@@ -272,6 +274,7 @@ _str_words : string -> list[string]
 _stream_async_exec_process : (string, list[string], string, int, int) -> StreamSource ! {Process, Stream}
 _stream_async_read_stdin_lines : (string, int) -> StreamSource ! {Stream}
 _stream_bridge : (StreamConn, StreamConn, s, (s, BridgeFrame) -> (s, Verdict)) -> (s, BridgeEnd) ! {Stream}
+_stream_cancel_process_source : StreamSource -> Result[(), WorkerCancelError] ! {Process, Stream}
 _stream_close : StreamConn -> () ! {Stream}
 _stream_connect : (string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 _stream_ndjson_post : (string, string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
@@ -295,6 +298,9 @@ _tar_readEntry : (string, string) -> Result[string, string] ! {FS}
 _tar_readEntryBytes : (string, string) -> Result[string, string] ! {FS}
 _tar_readFromGzip : (string, string) -> Result[string, string] ! {FS}
 _tar_readFromGzipBytes : (string, string) -> Result[string, string] ! {FS}
+_terminal_info : () -> Result[TerminalInfo, TerminalError] ! {IO}
+_terminal_readEvent : (TerminalSession, int) -> Result[TerminalEvent, TerminalError] ! {IO}
+_terminal_withTerminal : ({alternate_screen: bool, hide_cursor: bool}, TerminalSession -> a ! {...e}) -> Result[a, TerminalError] ! {IO, ...e}
 _trace_check : string -> bool
 _trace_emit : (string, int) -> () ! {Trace}
 _trace_event : (string, string) -> () ! {Trace}

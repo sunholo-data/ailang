@@ -133,6 +133,18 @@ func (d *Daemon) dispatchTasksCloud() error {
 			continue
 		}
 
+		var inputAgent *AgentConfig
+		if d.agentRegistry != nil {
+			inputAgent = d.agentRegistry.GetAgentByID(task.AgentID)
+		}
+		if len(task.Inputs) > 0 && inputAgent != nil && inputAgent.ResolveLane() == LaneLocal {
+			d.handleDispatchError(task, fmt.Errorf("%w: task inputs require cloud execution; agent %q is local", ErrDispatchPermanent, task.AgentID))
+			continue
+		}
+		if err := ValidateInputsForAgent(task.Inputs, inputAgent); err != nil {
+			d.handleDispatchError(task, err)
+			continue
+		}
 		// Determine the provider: the AGENT's own declaration wins over the
 		// coordinator's default.
 		//
@@ -195,6 +207,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 			}
 			params := DispatchParams{
 				TaskID:    task.ID,
+				Inputs:    append([]TaskInput(nil), task.Inputs...),
 				AgentID:   task.AgentID,
 				Workspace: task.Workspace,
 				Provider:  provider,
@@ -272,7 +285,15 @@ func (d *Daemon) dispatchTasksCloud() error {
 				}
 				// Whether GitHub may merge this agent's PR on green. Registry
 				// metadata, so a message cannot ask for its own auto-merge.
+				if err := agent.ValidateAutoMergeCode(); err != nil {
+					d.logger.Printf("ERROR: task %s not dispatched: %v", task.ID, err)
+					continue
+				}
 				params.AutoMerge = agent.AutoMerge
+				params.AutoMergeCode = agent.AutoMergeCode
+				params.AutoMergeRequiredChecks = append([]string(nil), agent.AutoMergeRequiredChecks...)
+				params.AutoMergeApproverSecret = agent.AutoMergeApproverSecret
+				params.AutoMergeApproverIdentity = agent.AutoMergeApproverIdentity
 				// DECLARED patterns, not GetEffectiveArtifactPatterns(): that
 				// falls back to `**/*` for any unrecognised agent
 				// (DefaultArtifactPatterns), which is the opposite of a bound. The
@@ -347,6 +368,9 @@ func (d *Daemon) dispatchTasksCloud() error {
 				}
 			}
 			// M-CLOUD-DUAL-AUTH: Check if the originating message had a user-provided API key.
+			applyCloudCreditAgentConfig(&params, agentCfg)
+			// User keys still take precedence for legacy lanes. A guarded lane's
+			// admission validator rejects a provider-key override explicitly.
 			// The cache is keyed by message ID — if a key exists, use apikey mode.
 			// This overrides per-agent defaults (user-provided key takes precedence).
 			if d.apiKeyCache != nil && task.MessageID != "" {

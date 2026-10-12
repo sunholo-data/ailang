@@ -8,7 +8,7 @@ import (
 
 type effectValueLookup func(uint64) (types.Type, bool)
 
-type latentMaskLookup func(uint64) ([]bool, bool)
+type latentMaskLookup func(uint64) (types.ApplicationEffects, bool)
 
 type effectCollector struct {
 	typeInfo    types.CoreTypeInfo
@@ -48,15 +48,15 @@ func (c *effectCollector) latentEffects(expr core.CoreExpr) *types.Row {
 	return nil
 }
 
-func (c *effectCollector) applicationMask(app *core.App) []bool {
+func (c *effectCollector) applicationEffects(app *core.App) types.ApplicationEffects {
 	if c.maskLookup == nil {
-		return nil
-	} // Legacy standalone validator callers.
-	mask, ok := c.maskLookup(app.ID())
-	if !ok && c.typeInfo.Has(app.ID()) && *c.invariant == nil {
-		*c.invariant = fmt.Errorf("internal invariant: missing LatentParamMask for typed application %d at %s", app.ID(), app.Span())
+		return types.ApplicationEffects{}
 	}
-	return mask
+	record, ok := c.maskLookup(app.ID())
+	if c.typeInfo.Has(app.ID()) && (!ok || record.CallRow == nil || record.CallRow.Kind == nil || !record.CallRow.Kind.Equals(types.EffectRow) || (record.CallRow.Tail != nil && !record.CallTailOwned)) && *c.invariant == nil {
+		*c.invariant = fmt.Errorf("internal invariant: missing or malformed ApplicationEffects (LatentParamMask) for typed application %d at %s", app.ID(), app.Span())
+	}
+	return record
 }
 
 func recBindingNames(bindings []core.RecBinding) []string {
@@ -104,4 +104,14 @@ func (c *effectCollector) effectType(expr core.CoreExpr) (types.Type, bool) {
 		return c.valueLookup(expr.ID())
 	}
 	return c.typeInfo.Get(expr.ID())
+}
+
+func (c *effectCollector) union(a, b *types.Row) *types.Row {
+	if _, err := types.CheckedUnionEffectRows(a, b); err != nil {
+		if *c.invariant == nil {
+			*c.invariant = err
+		}
+		return nil
+	}
+	return unionRequiredEffectRows(a, b)
 }

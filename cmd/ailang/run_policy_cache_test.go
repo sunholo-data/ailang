@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/policy"
+	"github.com/sunholo-data/ailang/internal/runlife"
 )
 
 func TestWorkerCacheEnvironment(t *testing.T) {
@@ -85,7 +88,7 @@ func TestPolicyCacheStartFailureCleanup(t *testing.T) {
 	t.Setenv("TMPDIR", base)
 	t.Setenv("AILANG_CACHE_DIR", "")
 	res := &policy.Resolved{Mode: policy.ModeRestricted, Root: t.TempDir()}
-	_, err := startPolicyWorker(exec.Command(filepath.Join(base, "missing-executable")), res)
+	_, err := startPolicyWorkerDirect(exec.Command(filepath.Join(base, "missing-executable")), res)
 	if err == nil {
 		t.Fatal("expected start failure")
 	}
@@ -94,7 +97,7 @@ func TestPolicyCacheStartFailureCleanup(t *testing.T) {
 		t.Fatalf("leaked cache: %v", entries)
 	}
 	res.Root = base
-	_, err = startPolicyWorker(exec.Command("unused"), res)
+	_, err = startPolicyWorkerDirect(exec.Command("unused"), res)
 	if err == nil || !strings.Contains(err.Error(), "inside fs_sandbox") {
 		t.Fatalf("unsafe placement: %v", err)
 	}
@@ -103,7 +106,7 @@ func TestPolicyCacheStartFailureCleanup(t *testing.T) {
 		t.Fatalf("leaked refused cache: %v", entries)
 	}
 	t.Setenv("TMPDIR", filepath.Join(base, "missing"))
-	if _, err = startPolicyWorker(exec.Command("unused"), res); err == nil {
+	if _, err = startPolicyWorkerDirect(exec.Command("unused"), res); err == nil {
 		t.Fatal("invalid temporary base accepted")
 	}
 }
@@ -124,7 +127,7 @@ func TestPolicyCachePrivateAndOperatorOwned(t *testing.T) {
 	t.Setenv("AILANG_CACHE_DIR", "")
 	res := &policy.Resolved{Mode: policy.ModeRestricted, Root: t.TempDir()}
 	cmd := exec.Command(os.Args[0], "-test.run=^$")
-	cache, err := startPolicyWorker(cmd, res)
+	cache, err := startPolicyWorker(cmd, res, cmd.Start)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +141,7 @@ func TestPolicyCachePrivateAndOperatorOwned(t *testing.T) {
 	}
 	operator := t.TempDir()
 	t.Setenv("AILANG_CACHE_DIR", operator)
-	if _, err := startPolicyWorker(exec.Command(filepath.Join(base, "missing")), res); err == nil {
+	if _, err := startPolicyWorkerDirect(exec.Command(filepath.Join(base, "missing")), res); err == nil {
 		t.Fatal("expected start failure")
 	}
 	if _, err := os.Stat(operator); err != nil {
@@ -153,5 +156,46 @@ func TestPolicyCacheWithoutSandbox(t *testing.T) {
 	}
 	if cacheInsideSandbox("", cwd) {
 		t.Fatal("absent sandbox treated as cwd")
+	}
+}
+
+func startPolicyWorkerDirect(cmd *exec.Cmd, res *policy.Resolved) (string, error) {
+	return startPolicyWorker(cmd, res, cmd.Start)
+}
+
+// The private cache is appended to the env runlife.Prepare already extended:
+// lifetime metadata survives and admission goes through lifetime.start.
+func TestPolicyCacheKeepsWorkerLifetime(t *testing.T) {
+	skipWithoutRestrictedMode(t)
+	t.Setenv("TMPDIR", t.TempDir())
+	t.Setenv("AILANG_CACHE_DIR", "")
+	res := &policy.Resolved{Mode: policy.ModeRestricted, Root: t.TempDir()}
+	ctrlR, ctrlW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ctrlR.Close()
+	// The receipt fixture worker exits 9 unless the lifetime metadata arrived.
+	cmd := exec.CommandContext(context.Background(), os.Args[0], "run", "--policy-worker", "3")
+	cmd.ExtraFiles = []*os.File{ctrlW}
+	cmd.Env = append(workerEnv(res, ""), "AILANG_TEST_POLICY_RECEIPT=good")
+	lifetime, err := preparePolicyLifetime(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lifetime.close()
+	cache, err := startPolicyWorker(cmd, res, lifetime.start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(cache)
+	_ = ctrlW.Close()
+	go func() { _, _ = io.Copy(io.Discard, ctrlR) }()
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("worker lost its lifetime metadata: %v", err)
+	}
+	env := strings.Join(cmd.Env, "\n")
+	if !strings.Contains(env, runlife.MetadataEnv+"=") || !strings.Contains(env, "AILANG_CACHE_DIR="+cache) {
+		t.Fatalf("worker env lost lifetime or cache: %v", cmd.Env)
 	}
 }

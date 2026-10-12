@@ -185,3 +185,16 @@ func TestFixBarePrintCalls(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeProgramReadLineOptAutoImport(t *testing.T) {
+	for _, call := range []string{"readLineOpt()", "readLineOpt ()"} {
+		code := "module benchmark/solution\nexport func main() -> () ! {IO} { let value = " + call + "; () }"
+		normalized, _ := normalizeProgram(code, []string{"IO"})
+		if !strings.Contains(normalized, "import std/io") {
+			t.Fatalf("EOF reader lacks auto import: %s", normalized)
+		}
+		if again, _ := normalizeProgram(normalized, []string{"IO"}); again != normalized {
+			t.Fatal("normalization is not idempotent")
+		}
+	}
+}

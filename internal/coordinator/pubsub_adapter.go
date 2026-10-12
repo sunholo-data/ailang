@@ -246,6 +246,7 @@ func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]st
 			notification.MessageID)
 		return nil
 	}
+	msg.Inputs = fullMsg.Inputs
 	msg.Title = fullMsg.Title
 	msg.Content = fullMsg.Payload
 	msg.From = fullMsg.FromAgent

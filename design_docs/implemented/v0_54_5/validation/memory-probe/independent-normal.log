@@ -1,0 +1,6 @@
+=== RUN   TestMemprobeDebugLogDoesNotAccumulate
+    memprobe_test.go:141: debuglog raw original outer(1) floor (500 logs): 53 MB
+    memprobe_test.go:142: debuglog matched 200k work: 400 lines 56 MB, 200k lines 57 MB, delta 0 MB
+--- PASS: TestMemprobeDebugLogDoesNotAccumulate (9.15s)
+PASS
+ok  	github.com/sunholo-data/ailang/cmd/ailang	9.918s

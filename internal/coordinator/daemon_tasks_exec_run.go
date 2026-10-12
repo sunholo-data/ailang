@@ -24,6 +24,9 @@ import (
 
 // executeTask runs a single task through the executor
 func (d *Daemon) executeTask(task *TaskRecord) error {
+	if len(task.Inputs) > 0 {
+		return fmt.Errorf("task inputs require cloud execution; local fetching is unsupported")
+	}
 	// Start OTEL span for task execution with a NEW trace root.
 	// CRITICAL: Use context.Background() instead of d.ctx to avoid trace contamination
 	// between tasks. Each task gets its own trace_id instead of all tasks sharing

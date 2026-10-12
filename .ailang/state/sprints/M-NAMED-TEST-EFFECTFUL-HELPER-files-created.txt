@@ -1,0 +1,17 @@
+.ailang/state/evaluations/eval_M-NAMED-TEST-EFFECTFUL-HELPER_round_1.json
+.ailang/state/sprints/M-NAMED-TEST-EFFECTFUL-HELPER-branch.txt
+.ailang/state/sprints/M-NAMED-TEST-EFFECTFUL-HELPER-completion.md
+.ailang/state/sprints/M-NAMED-TEST-EFFECTFUL-HELPER-files-created.txt
+.ailang/state/sprints/M-NAMED-TEST-EFFECTFUL-HELPER-files-modified.txt
+.ailang/state/sprints/M-NAMED-TEST-EFFECTFUL-HELPER-pr.md
+changelogs/unreleased/2026-10-09-m-named-test-effectful-helper.md
+examples/tests/effectful_fixture_verification.ail
+examples/tests/named_helper_fixture.txt
+examples/tests/named_helper_purity.ail
+internal/testing/entry_effect_error.go
+internal/testing/named_helper_retention_test.go
+internal/testing/named_test_effectful_diagnostic_test.go
+internal/testing/testdata/strip/named_test_effectful_direct.ail
+internal/testing/testdata/strip/named_test_effectful_helper.ail
+internal/testing/testdata/strip/named_test_inferred_effectful.ail
+internal/testing/testdata/strip/named_test_unannotated_helper.ail

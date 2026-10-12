@@ -1,0 +1,113 @@
+{
+  "sprint_id": "M-CODEX-OAUTH-PROFILES",
+  "created": "2026-10-09T14:05:46.947491+00:00",
+  "estimated_duration_days": 4,
+  "correlation_id": "sprint_M-CODEX-OAUTH-PROFILES_2026-10-09",
+  "design_doc": "design_docs/planned/v0_52_6/m-codex-subscription-lane.md",
+  "markdown_plan": "design_docs/planned/v0_52_6/m-codex-oauth-profiles-sprint-plan.md",
+  "github_issues": [
+    903
+  ],
+  "approval": "Mark approved design and execution in attended session 2026-10-09; no approval for unrelated D8 migration.",
+  "features": [
+    {
+      "id": "M1",
+      "description": "Provision three independent OAuth authorizations on one account",
+      "estimated_loc": 500,
+      "actual_loc": null,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Checker refuses credential copies, account/workspace mismatch, unsafe paths and permissions without exposing secrets.",
+        "Provisioning creates independent file-backed homes and never copies interactive credentials."
+      ],
+      "passes": true,
+      "started": "2026-10-09T14:05:46.947491+00:00",
+      "completed": "2026-10-09T14:31:39.353080+00:00",
+      "notes": "Offline fixture/mock tests pass, including device authorization; separate homes prepared with audited config, mission login completed. Cloud login remains pending; no auth copied."
+    },
+    {
+      "id": "M2",
+      "description": "Local mission home and one daemon refresh owner",
+      "estimated_loc": 900,
+      "actual_loc": null,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Mission controller, probes, quota reads and nested executors resolve the isolated mission home.",
+        "Measured daemon adapter uses one auth owner for concurrent local runs; unsupported CLI exec cannot silently bypass it."
+      ],
+      "passes": true,
+      "started": "2026-10-09T14:05:46.947491+00:00",
+      "completed": "2026-10-09T14:31:39.353080+00:00",
+      "notes": "Controller/probe/nested routing implemented; native Codex 0.162.0 nine-client spike performed exactly one fake-token refresh. Race and protocol tests pass; live mission daemon inference returned MISSION_AUTH_OK. Production mission fleet activation pending integration."
+    },
+    {
+      "id": "M3",
+      "description": "Cloud exclusive credential ownership",
+      "estimated_loc": 850,
+      "actual_loc": null,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Transactionally acquire canonical credential before fetch and keep ownership through preflight/run/persist.",
+        "Cancellation/lease loss stops execution; failed persistence quarantines credential; no unsafe TTL takeover."
+      ],
+      "passes": true,
+      "started": "2026-10-09T14:05:46.947491+00:00",
+      "completed": "2026-10-09T14:31:39.353080+00:00",
+      "notes": "Canonical nonexpiring Firestore ownership, heartbeat cancellation, durable rotation write-back and uncertain-termination quarantine implemented. Lease/cloud tests and race tests pass. Production SA read/add-version and datastore.user verified read-only; images not deployed."
+    },
+    {
+      "id": "M4",
+      "description": "Integration, independent evaluation and rollout",
+      "estimated_loc": 250,
+      "actual_loc": null,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Focused Go, shell, boundary and lint checks pass; independent evaluator reviews criteria.",
+        "Two user-completed logins validate same account and independent credentials; cloud and local smoke tests pass before activation."
+      ],
+      "passes": null,
+      "started": "2026-10-09T14:05:46.947491+00:00",
+      "completed": null,
+      "notes": "Final full make test, focused/race suites, full launchd Bash3.2 suite, lint, boundaries, size, CLI and changelog gates passed. Both fresh device logins and offline same-account/distinct-refresh checker passed. Finalized mission daemon live smoke passed. Installed binary and6 idle local profiles switched to dedicated home/runtime and reviewed SHA with rollback backups; installed driver pin verified. Cloud IAM verified; CI/merge/versioned cloud deployment/publish/smoke pending. Independent source review has no remaining P1/P2 findings; operational sprint remains incomplete."
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "action": "none",
+      "package": null,
+      "reason": "Searched registry oauth/lease; inspected sunholo/oauth info/docs. Existing package is an AILANG installed-app flow, not Codex CLI session ownership; reuse Codex login and Go Firestore client. No .ail implementation."
+    },
+    {
+      "milestone": "M2",
+      "action": "none",
+      "package": null,
+      "reason": "Searched registry oauth/lease; inspected sunholo/oauth info/docs. Existing package is an AILANG installed-app flow, not Codex CLI session ownership; reuse Codex login and Go Firestore client. No .ail implementation."
+    },
+    {
+      "milestone": "M3",
+      "action": "none",
+      "package": null,
+      "reason": "Searched registry oauth/lease; inspected sunholo/oauth info/docs. Existing package is an AILANG installed-app flow, not Codex CLI session ownership; reuse Codex login and Go Firestore client. No .ail implementation."
+    },
+    {
+      "milestone": "M4",
+      "action": "none",
+      "package": null,
+      "reason": "Searched registry oauth/lease; inspected sunholo/oauth info/docs. Existing package is an AILANG installed-app flow, not Codex CLI session ownership; reuse Codex login and Go Firestore client. No .ail implementation."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 625,
+    "estimated_total_loc": 2500,
+    "estimated_days": 4,
+    "actual_total_loc": 0
+  },
+  "last_session": "2026-10-09T14:40:03.043245+00:00",
+  "last_checkpoint": "Local mission activation completed; cloud authorization staged and IAM verified. PR #1752 awaiting CI/release.",
+  "status": "in_progress"
+}

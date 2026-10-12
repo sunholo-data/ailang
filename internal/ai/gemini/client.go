@@ -29,12 +29,14 @@ const (
 // Client implements ai.Provider for Google's Gemini API.
 // It supports both AI Studio and Vertex AI endpoints.
 type Client struct {
-	apiKey     string   // API key for AI Studio
-	projectID  string   // GCP project for Vertex AI
-	location   string   // Vertex AI location; see NewVertexAIClient for how it resolves
-	authType   AuthType // Authentication type
-	httpClient *http.Client
-	baseURL    string // Override base URL (for testing)
+	apiKey           string   // API key for AI Studio
+	projectID        string   // GCP project for Vertex AI
+	location         string   // Vertex AI location; see NewVertexAIClient for how it resolves
+	authType         AuthType // Authentication type
+	httpClient       *http.Client
+	baseURL          string // Override base URL (for testing)
+	preparedProject  func(context.Context) (string, error)
+	preparedLocation bool
 }
 
 // ClientOption configures a Client.
@@ -98,7 +100,7 @@ func NewVertexAIClient(projectID string, opts ...ClientOption) (*Client, error) 
 	for _, opt := range opts {
 		opt(c)
 	}
-	if c.location == "" {
+	if c.location == "" && !c.preparedLocation {
 		c.location = strings.TrimSpace(config.GoogleCloudLocation())
 	}
 	if c.location == "" {
@@ -111,7 +113,7 @@ func NewVertexAIClient(projectID string, opts ...ClientOption) (*Client, error) 
 
 	// Get project ID from gcloud if not provided
 	if c.projectID == "" {
-		project, err := getGCPProject()
+		project, err := c.resolveProject()
 		if err != nil {
 			return nil, ai.NewProviderError("gemini", 0, "failed to get GCP project", err)
 		}
@@ -194,6 +196,10 @@ func getGCPProject() (string, error) {
 		return project, nil
 	}
 
+	return discoverGcloudProject()
+}
+
+func discoverGcloudProject() (string, error) {
 	cmd := exec.Command("gcloud", "config", "get-value", "project")
 	output, err := cmd.Output()
 	if err != nil {

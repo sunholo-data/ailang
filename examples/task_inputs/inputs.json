@@ -1,0 +1,13 @@
+[
+  {
+    "repo": "sunholo-data/daneel-memory",
+    "ref": "incoming/DNL-demo",
+    "path": "attachments/DNL-demo"
+  },
+  {
+    "repo": "sunholo-data/daneel-memory",
+    "ref": "incoming/DNL-demo",
+    "path": "attachments/DNL-demo/poster.png",
+    "dest": "content/images/DNL-demo/poster.png"
+  }
+]

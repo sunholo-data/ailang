@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/ai/configdriven"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -85,7 +84,7 @@ func aiStreamCall(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 	// AI-specific variants to StreamErrorKind was rejected because the type
 	// is generic; AI-specific error structure belongs in std/ai/streaming
 	// (deferred to v1.1 alongside parseDelta).
-	registered, ok := ai.GlobalProviderRegistry.Lookup(providerName)
+	registered, ok := ctx.LookupProvider(providerName)
 	if !ok {
 		return makeStreamError("ProtocolError",
 			fmt.Sprintf("[ProviderNotFound] AI provider %q is not registered as a config-driven provider. Add an [[ai_provider]] block to ailang.toml or check installed packages.",
@@ -101,12 +100,10 @@ func aiStreamCall(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 			fmt.Sprintf("[ProviderNotFound] provider %q is not a config-driven provider; v1 streaming only supports providers declared via [[ai_provider]]",
 				providerName)), nil
 	}
-	spec := configProvider.Spec()
-
 	// Construct the SSE-POST request: URL, body (with stream:true injected
-	// for OpenAI-shaped providers), and headers (auth + custom). All env-var
-	// references resolve at call time.
-	streamReq, perr := configdriven.BuildStreamRequest(spec, model, messagesJSON)
+	// for OpenAI-shaped providers), and headers (auth + custom). CLI runs
+	// use captured environment values; eager hosts retain per-call lookup.
+	streamReq, perr := configProvider.BuildStreamRequest(model, messagesJSON)
 	if perr != nil {
 		// BuildStreamRequest's pre-flight failures (CapabilityNotSupported,
 		// ModelNotAllowed, missing env vars) are configuration violations,
@@ -251,7 +248,7 @@ func aiCallStream(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 	// Step 4: look up the provider config to get streaming.delta_path +
 	// done_sentinel. Lookup must succeed because streamCall just used it;
 	// failure here is an internal invariant violation.
-	registered, ok := ai.GlobalProviderRegistry.Lookup(providerVal.Value)
+	registered, ok := ctx.LookupProvider(providerVal.Value)
 	if !ok {
 		return makeAIErrorResult("ProviderNotFound",
 			fmt.Sprintf("provider %q disappeared from registry mid-call", providerVal.Value),

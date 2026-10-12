@@ -8,3 +8,15 @@ FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent:latest
 COPY --from=golang:1.26-bookworm /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOPATH="/home/ailang/go"
+
+# Website workloads use the guarded Claude Go lane as well as Go workloads.
+# Match the existing Pi website tools, then restore the runtime user.
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python-is-python3 python3-yaml python3-venv \
+    chromium fonts-liberation fonts-noto-color-emoji \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g yarn@1.22.22
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    PUPPETEER_SKIP_DOWNLOAD=true
+USER ailang

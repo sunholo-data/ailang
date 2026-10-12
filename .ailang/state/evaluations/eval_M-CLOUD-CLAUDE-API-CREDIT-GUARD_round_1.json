@@ -1,0 +1,406 @@
+{
+  "sprint_id": "M-CLOUD-CLAUDE-API-CREDIT-GUARD",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-10T07:40:40.352174+00:00",
+  "design_doc": "design_docs/planned/m-cloud-claude-api-credit-guard.md",
+  "sprint_plan": "design_docs/planned/m-cloud-claude-api-credit-guard-sprint-plan.md",
+  "total_score": 66,
+  "pass_threshold": 70,
+  "result": "fail",
+  "implementation_result": "fail",
+  "implementation_score": 66,
+  "evaluation_scope": "Amended independent round-1 review after actual installed Claude CLI 2.1.295 failed fake-only protocol smoke. Credit authority and admitted-request guard checks pass; usable cloud Claude executor integration has not passed.",
+  "full_sprint_complete": false,
+  "activation_result": "blocked",
+  "gate_source": "local",
+  "score_breakdown": {
+    "tests_pass": 0,
+    "lint_clean": 10,
+    "acceptance_criteria": 24,
+    "code_quality": 13,
+    "documentation": 13,
+    "design_fidelity": 6
+  },
+  "scoring_notes": "27/33 acceptance criteria verified (floor 24/30). Default Go suite remains green, but required real executor protocol smoke fails, so Tests Pass receives zero and functional local readiness PASS is withdrawn. Milestone M4 and integrated M5 next-request observation remain blocked, as does live M6.",
+  "hard_fails": [
+    {
+      "condition": "required_executor_protocol_smoke_failed",
+      "details": "Installed Claude CLI 2.1.295 sends mandatory interleaved-thinking-2025-05-14, mid-conversation-system-2026-04-07, claude-code-20250219 and effort-2025-11-24 beta headers. Gateway rejects HTTP 400 unsupported beta feature before reservation/upstream forwarding. Experimental-beta disable and custom-header beta pin did not provide a compatible supported protocol.",
+      "output_snippet": "TestClaudeCLIProtocolSmoke: exit status 1; API Error: 400 unsupported beta feature",
+      "evidence": "/private/tmp/claude-credit-cli-protocol-final.log"
+    },
+    {
+      "condition": "required_rollout_evidence_missing",
+      "details": "M6 live shared-authority rollout, authentication/protocol check, provider billing reconciliation and required CI are incomplete. Lane remains disabled; no spending guarantee against the actual key/account is asserted yet."
+    }
+  ],
+  "automated_checks": {
+    "tests_pass": false,
+    "tests_output": "/private/tmp/claude-credit-cli-protocol-final.log; successful default suite: /private/tmp/claude-credit-tests-limited-concurrency.log",
+    "lint_clean": true,
+    "lint_output": "/private/tmp/claude-credit-checkpoint-final.log; /tmp/milestone_lint.log",
+    "file_sizes_ok": true,
+    "boundary_check_pass": true,
+    "boundary_output": "/private/tmp/claude-credit-boundaries-final.log",
+    "emulator_race_pass": true,
+    "emulator_output": "/private/tmp/ailang-credit-m1-validation.log",
+    "gateway_race_pass": true,
+    "gateway_output": "/private/tmp/claude-credit-gateway-final.log",
+    "cli_pass": false,
+    "cli_output": "/private/tmp/claude-credit-cli-protocol-final.log",
+    "ci_pass": null,
+    "coverage_pct": null,
+    "note": "Independent evaluator inspected final unrestricted checkpoint, complete isolated proctree regression and limited-concurrency whole-suite logs once, without rerunning tests. Default gates pass after resource-pressure recheck; incompatible actual CLI mandatory betas remain a distinct failing feature gate. No test-source or beta allowlist changes occurred.",
+    "default_go_suite_pass": true,
+    "tests_note": "All default tests pass with Go package concurrency limited to four; all original test cases remain. Required opt-in installed Claude protocol smoke still fails, so overall functional test readiness fails.",
+    "coordinator_cli_pass": true,
+    "coordinator_cli_output": "/private/tmp/claude-credit-cli-final.log",
+    "claude_cli_protocol_pass": false,
+    "claude_cli_protocol_output": "/private/tmp/claude-credit-cli-protocol-final.log",
+    "final_default_checkpoint_output": "/private/tmp/claude-credit-checkpoint-final.log",
+    "final_default_checkpoint_status": "initial unrestricted checkpoint failed two process-start fixture deadlines; isolated adapter recheck and full limited-concurrency suite subsequently passed",
+    "default_go_suite_command": "make test GOTEST='go test -p 4'",
+    "default_go_suite_output": "/private/tmp/claude-credit-tests-limited-concurrency.log",
+    "proctree_recheck_pass": true,
+    "proctree_recheck_output": "/private/tmp/claude-credit-proctree-recheck.log",
+    "checkpoint_failure_details": {
+      "package": "internal/proctree",
+      "tests": [
+        "TestAdaptersStopOwnedDescendants/claude/deadline",
+        "TestAdaptersStopOwnedDescendants/claude/timeout"
+      ],
+      "observed_error": "fixture never started",
+      "subsequent_evidence": "All adapter variants pass isolated; full make test with go test -p 4 passes, no test-source changes. Process-start pressure is an inference from rechecks, not a proved root-cause diagnosis."
+    },
+    "lint_output_summary": "0 issues; lint complete."
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M0",
+      "criterion": "Deployment evidence names exact cloud projects/jobs/images and external infrastructure ownership.",
+      "met": true,
+      "evidence": "design_docs/planned/m-cloud-claude-api-credit-guard-deployment.md records prod/dev projects, exact jobs, coordinator revisions/images, identities and private infrastructure owner."
+    },
+    {
+      "feature_id": "M0",
+      "criterion": "Supported request types, pricing bounds, helper models, and credential transport are verified or explicitly blocked.",
+      "met": true,
+      "evidence": "Narrow supported Messages/cache contract verified through unit/fake-upstream cases. Actual installed Claude CLI 2.1.295 compatibility is now explicitly BLOCKED: mandatory beta headers are rejected. M0 permits evidence to be recorded blocked; no broader beta pricing contract is assumed."
+    },
+    {
+      "feature_id": "M0",
+      "criterion": "Actual grant and allocation evidence are recorded without secret material; unavailable evidence blocks activation.",
+      "met": true,
+      "evidence": "Deployment/operator records retain attended $200 available-allocation confirmation and conservative 2026-10-28T00:00:00Z expiry; organization/workspace/cycle evidence remains a live gate. No secret value appears in artifacts."
+    },
+    {
+      "feature_id": "M0",
+      "criterion": "No live inference is required before the reserved smoke path exists.",
+      "met": true,
+      "evidence": "No provider inference or cloud activation performed; local fake upstream and Firestore emulator establish reservation path first."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Parallel emulator clients cannot exceed account/task/day ceilings or the two-task pilot limit.",
+      "met": true,
+      "evidence": "TestCreditAuthorityEmulatorConcurrentClients uses two independent Firestore clients and races final allowance; third task refused. Reserve atomically checks account/task/day and canary exposure in the same transaction. Domain concurrency/daily tests supplement emulator proof."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Same-cycle reconfirmation adds zero allowance; key rotation/restarts/date changes do not replenish it.",
+      "met": true,
+      "evidence": "Historical replay, same-cycle confirmation, restart policy and renewal tests preserve spend; Configure cannot overwrite policy or enable."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Duplicate settlement is harmless; lease expiry never refunds forwarded or unknown exposure.",
+      "met": true,
+      "evidence": "TestForwardingCannotRefundAndDuplicateSettlementIsHarmless, TestDailyCeilingAndLeaseExpiryNeverRefund and crash-intent tests preserve money through lease release, expiry and repeated settlement."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Expiry, kill switch, storage failure, and unresolved grant transitions prevent new admission.",
+      "met": true,
+      "evidence": "Expiry/kill-switch/storage-failure/reconciliation predicates are checked before Reserve and before durable send intent; unknown exposure survives renewal."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Relevant tests and formatting/lint pass.",
+      "met": true,
+      "evidence": "Final full default suite passes via make test GOTEST=go test -p 4; lint passes. Emulator/race/vet evidence remains /private/tmp/ailang-credit-m1-validation.log. Initial process-start fixtures passed isolated and in the complete limited-concurrency suite."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Tests cover exactly 100K and above, cache reads, five-minute/one-hour writes, thinking/output limits, and upward rounding.",
+      "met": true,
+      "evidence": "credit_pricing_test.go covers 100000/100001 boundary, all disjoint cache categories and TTLs, hidden thinking/output cap and upward micro-dollar rounding."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Unknown model/feature/rate or unproved token bound cannot authorize a request.",
+      "met": true,
+      "evidence": "Canonical card requires loaded verified exact model, positive bounded rates and explicit 1M/128K contract; unknown features rejected before Reserve by nested gateway tests."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Existing pricing tests pass without changing unrelated model rates or ordering.",
+      "met": true,
+      "evidence": "Existing scalar model rates/order remain unchanged; registry checks and final complete default suite with Go package concurrency four pass."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Request and settlement record the pricing revision used.",
+      "met": true,
+      "evidence": "Reservation.PricingRevision stores immutable rate-card digest; ClaudeUsageCostAtRevision refuses changed card and leaves reservation held."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Every upstream send has its own durable sufficient reservation, including retry/helper/subagent paths admitted by the contract.",
+      "met": true,
+      "evidence": "Gateway generates a new request UUID for every actual send, atomically reserves worst case, then durably MarkForwarded before http.Client.Do. TestEverySendHasReservationAndOnlyGatewayKey observes held exposure at transport entry."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Crash around sending, truncated SSE, client cancellation, duplicate events, and gateway restart preserve conservative exposure.",
+      "met": true,
+      "evidence": "fault_test.go tests detached client cancellation, reserve/forward/settle/unknown-marker storage faults; lifecycle tests test truncated SSE and event inconsistencies; ledger crash/restart tests retain forwarding exposure."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Unsupported billable routes/features/models and invalid credentials produce zero upstream inference calls.",
+      "met": true,
+      "evidence": "Strict nested allowlists, duplicate JSON rejection, model/beta/route validation and job identity/capability checks precede reservation/send; zero-upstream tests cover unsupported paths/features."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Provider key remains gateway-only; capabilities cannot choose another account or enlarge limits.",
+      "met": true,
+      "evidence": "Only gateway runtime loads provider key. Capability binds account/task/attempt/job identity/expiry. Isolated authority project and key-only gateway IAM are explicit unfulfilled activation gates, not claimed deployed guarantees."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Fixed-origin and streaming contract tests pass.",
+      "met": true,
+      "evidence": "Fixed Anthropic origin, redirect refusal, pings/full SSE, exact final usage and cache-category accounting tests pass; final -race gateway log passes."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Job image, provider, auth mode, model, and account resolve coherently before launch.",
+      "met": false,
+      "evidence": "Literal lane metadata validation and dedicated job selection pass, but actual CLI 2.1.295 always sends mandatory unsupported beta headers and exits on HTTP 400 before any message forwards. No compatible verified job/CLI image is established.",
+      "verification_state": "unit_contract_passed_actual_executor_blocked"
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Invalid/missing budgets fail closed rather than become zero/unlimited.",
+      "met": true,
+      "evidence": "Dispatch and child reject missing/malformed/nonfinite/nonpositive/over-$2 budgets; admission floors micro-dollar ceilings and rejects sub-micro requests."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Budget-blocked work does not spin on retries or silently switch credentials/models.",
+      "met": true,
+      "evidence": "Blocked admission becomes ErrDispatchPermanent with visible credit reason, zero job launch and no model/key fallback. Scoped attempt cleanup frees slots on known launch rejection and outer job completion without refunding request exposure; ambiguous launch retains lease."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Existing request-scoped user keys, OAuth lanes, and task/PR approval rules retain their behavior.",
+      "met": true,
+      "evidence": "New guard is conditional on explicit credit_account. Existing noncredit OAuth/user-key and approval regression suite remains green; real provider keys are refused in the guarded lane."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Metered and subscription accounting remain distinguishable; relevant regression tests pass.",
+      "met": true,
+      "evidence": "API auth remains apikey/metered; subscription accounting is unchanged. Executor environment strips alternative credentials/routes and pins all helper models."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Confirm writes audited canonical cloud state atomically and never takes an API key as input.",
+      "met": true,
+      "evidence": "Operator-only gateway admin routes authenticate Google identity; server supplies audit actor. CLI accepts grant evidence, never API-key input. Firestore Confirm atomically commits grant/account."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Same-cycle repeat adds no credit; invalid dates/amounts, unauthorized identity, and stale conflicting state fail visibly.",
+      "met": true,
+      "evidence": "Current cycle reconfirmation is idempotent; exact USD/date parsing, stale CAS, conflicting historical cycle, forged operator and coordinator-as-operator tests fail visibly."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Status shows expiry, confirmed/operating ceilings, settled/reserved/unresolved exposure and every blocker.",
+      "met": true,
+      "evidence": "Canonical JSON/human status includes organization/workspace/grant/expiry, spend/reserved/unresolved/forwarding exposure, canary remaining, eligible and daily/concurrency/account/reconciliation blockers."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Executors observe the next allowed request without a config restart; disabled/unreconciled accounts stay blocked.",
+      "met": false,
+      "evidence": "Authority and confirmation tests establish read-through/no-restart semantics and preservation of disabled/reconciliation state. Actual installed Claude never reaches admission because its mandatory beta headers are rejected, so integrated next-allowed-executor-request observation remains unproven.",
+      "verification_state": "authority_unit_proof_passed_executor_integration_blocked"
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Help and operating examples agree with actual flags; CLI tests pass.",
+      "met": true,
+      "evidence": "Generated CLI/env docs checks, focused coordinator CLI checks, lint and final complete default suite with Go package concurrency four pass. Actual Claude CLI protocol remains a separately failing M4 gate."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Dev/prod integration uses one credit authority for the shared grant; all smoke spend stays within the reserved $5.",
+      "met": false,
+      "evidence": "Review-only module uses one separate authority for dev/prod and server-side aggregate $5 canary is implemented/tested; neither environment is deployed or live-smoked."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Provider evidence reconciles supported billing categories; discrepancies block promotion.",
+      "met": false,
+      "evidence": "Provider billing reconciliation and actual hidden CLI inference verification have not run. No unsupported billing category is accepted as reconciled."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Near-limit, expiry-without-renewal, reconfirmation, kill-switch, and unavailable-ledger scenarios show expected behavior.",
+      "met": true,
+      "evidence": "Local near-limit, expiry, cycle replay/reconfirmation, kill-switch, unavailable storage and canary/renewal scenarios pass in unit/emulator/fake upstream tests."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "All relevant tests, formatting/lint, boundary checks and required CI pass.",
+      "met": false,
+      "evidence": "Final complete default suite with Go package concurrency four, lint, isolated process-tree regressions, race/emulator and boundaries pass. Actual installed Claude CLI protocol fails; required PR CI remains pending."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Deployment changes are reviewable under infrastructure policy; canary/rollout evidence and operator guide are complete.",
+      "met": false,
+      "evidence": "Terraform/IAM review proposal and operator/deployment guides are present and validated locally. Infrastructure promotion, closed IAM proof, live canary and rollback observations remain unfulfilled."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "example_type": "Operator CLI/config/request fixtures; no AILANG language feature/example required.",
+    "design_doc_status": "Matches blocked implementation: M0-M3 locally validated, M4 compatibility and M5 integrated observation false/incomplete, M6 pending. Design and companions remain planned; activation disabled.",
+    "sprint_artifacts_consistent": true
+  },
+  "design_fidelity": {
+    "score": 6,
+    "notes": "Approved shared-request authority, integer ceilings, audited immutable grants, credential isolation proposal and conservative admitted-request pricing are implemented. The frozen goal of usable Claude cloud executors is currently blocked by mandatory CLI betas outside that contract. Rejecting them protects credits; it does not establish executor readiness. No broadened or unverified pricing contract is approved."
+  },
+  "resolved_findings": [
+    {
+      "file": "internal/claudegateway/request.go",
+      "line": 94,
+      "issue": "Nested feature contracts and tool cache TTLs were forwarded without exhaustive supported-field/value validation. Unknown message/content fields also passed.",
+      "status": "resolved",
+      "resolution": "Strict nested/content/message and cache TTL allowlists added; TestUnknownNestedFeaturesNeverReserveOrForward passes with zero exposure/sends."
+    },
+    {
+      "file": "internal/coordinator/cloud_credit.go",
+      "line": 97,
+      "issue": "Private Cloud Run transport relied on a single authenticating Authorization header while application performs independent JWT validation.",
+      "status": "resolved",
+      "resolution": "Paired X-Serverless-Authorization and Authorization headers preserve application-verifiable token; all CLI, admission, release and Claude child paths assert the contract. Live token behavior still requires nonbillable canary preflight.",
+      "source": "https://docs.cloud.google.com/run/docs/authenticating/service-to-service"
+    },
+    {
+      "file": "internal/dispatch/cloudrun/dispatcher.go",
+      "line": 244,
+      "issue": "Admitted concurrency slots were never released on completed jobs or known failures before launch.",
+      "status": "resolved",
+      "resolution": "Attempt-scoped release route/authority, known rejected-launch cleanup and outer execute-job defer implemented; stale attempt cannot release newer lease; money remains reserved."
+    },
+    {
+      "file": "internal/coordinator/cloud_credit.go",
+      "line": 160,
+      "issue": "Successful gateway release HTTP 204 was initially treated as failure by client expecting 200.",
+      "status": "resolved",
+      "resolution": "Client accepts 204/200; authenticated scoped release regression passes."
+    },
+    {
+      "file": "deploy/claude-credit-gateway/main.tf",
+      "line": 127,
+      "issue": "Initial Cloud Run service timeout was shorter than supported upstream request deadline.",
+      "status": "resolved",
+      "resolution": "Service timeout now 660s, matching ten-minute request plus settlement/cleanup headroom."
+    }
+  ],
+  "implementation_issues": [
+    {
+      "file": "internal/executor/claude/credit_guard.go",
+      "line": 47,
+      "category": "executor_compatibility",
+      "severity": "high",
+      "issue": "Installed Claude 2.1.295 emits mandatory beta headers that the gateway must currently refuse; the executor lane cannot complete even a one-turn fake-only request.",
+      "suggestion": "Keep existing allowlist and activation disabled. Establish an approved, bounded and compatible executor protocol or verified compatible pinned CLI/image before claiming readiness; rerun fake-only protocol smoke before any provider-backed canary. This review does not authorize broadening the allowlist or bypassing automatic approval review."
+    }
+  ],
+  "activation_blockers": [
+    "Actual installed Claude CLI 2.1.295 compatibility fails before admission on mandatory unsupported beta headers. Automatic approval review rejected expanding that allowlist; no compatible approved protocol/image is yet verified.",
+    "Verified Anthropic organization/workspace, stable grant/cycle identifier, grant start and exact expiry/timezone/provider-side cap/allocation evidence remain outstanding.",
+    "Private credit authority, gateway and dedicated guarded jobs are not provisioned/deployed; verified immutable source-release image digests and integration into infrastructure release maps remain outstanding.",
+    "Broad production runtime and inherited folder secret-reader IAM grants are documented. Scoped IAM patch and authority isolation need infrastructure review, deployment and read-only verification before any request can safely access the real key.",
+    "Live Google authentication/Claude CLI protocol compatibility, aggregate reserved $5 canary and Anthropic billing reconciliation have not run.",
+    "Required CI on the final PR head remains pending; this report uses local gates because no PR exists."
+  ],
+  "feedback": [
+    {
+      "file": "internal/executor/claude/credit_guard.go",
+      "line": 47,
+      "category": "executor_compatibility",
+      "severity": "high",
+      "issue": "Installed Claude 2.1.295 emits mandatory beta headers that the gateway must currently refuse; the executor lane cannot complete even a one-turn fake-only request.",
+      "suggestion": "Keep existing allowlist and activation disabled. Establish an approved, bounded and compatible executor protocol or verified compatible pinned CLI/image before claiming readiness; rerun fake-only protocol smoke before any provider-backed canary. This review does not authorize broadening the allowlist or bypassing automatic approval review."
+    },
+    {
+      "file": "design_docs/planned/m-cloud-claude-api-credit-guard-deployment.md",
+      "category": "activation_gate",
+      "severity": "high",
+      "issue": "Live M6 evidence remains incomplete.",
+      "suggestion": "Keep lane disabled and M6 incomplete. Complete reviewed infrastructure/identity/provider evidence and required CI, then reserve canary, reconcile billing and obtain scoped promotion evidence. This requires rollout/operator evidence, not reimplementing the accepted local code."
+    }
+  ],
+  "notes": "Previous local implementation PASS is withdrawn after direct actual CLI evidence. Financial guard checks remain valid and safely refused the incompatible client; no provider calls, API credit spend or allowlist expansion occurred. New guarded environment disables tool search and auto server routing, with focused checks passing, but this does not resolve mandatory beta compatibility. Preserve earlier resolved findings. Keep sprint incomplete and activation disabled; no implementation edits made by evaluator. Artifact corrections were subsequently applied by executor and independently inspected; sprint and documents now consistently reflect compatibility blockage. The final post-guard default checkpoint was still running at the last read; failing actual CLI protocol evidence is the final diagnostic path. Final gate update: unrestricted checkpoint failed only two existing process-start fixture deadlines; isolated full adapter regression and entire default suite at -p 4 subsequently passed without changing test sources. Functional FAIL 66 remains due to actual installed Claude protocol incompatibility; all activation and pricing-review restrictions remain.",
+  "assessment_history": [
+    {
+      "timestamp": "2026-10-10T07:23:40.732036+00:00",
+      "implementation_result": "pass",
+      "score": 91,
+      "disposition": "withdrawn after actual installed Claude CLI protocol smoke failed; earlier fake-only/request/ledger gates remain valid evidence."
+    }
+  ],
+  "approval_review": {
+    "action": "Expand gateway beta allowlist to admit mandatory Claude CLI headers",
+    "result": "rejected",
+    "reason": "Potentially unbounded or pricing-unverified features could undermine the confirmed credit ceiling.",
+    "evidence_source": "Executor/root handoff reports the automatic approval review rejection.",
+    "policy_for_this_reassessment": "Do not change the gateway allowlist or bypass the rejection; evaluator changes this report only."
+  },
+  "requested_artifact_corrections": [
+    {
+      "file": ".ailang/state/sprints/sprint_M-CLOUD-CLAUDE-API-CREDIT-GUARD.json",
+      "change": "Set M4 passes=false and completed=null with exact mandatory beta/fake-only failure evidence. M5 command implementation remains validated, but its integrated next-request criterion is pending; use passes=null/false and completed=null if milestone passes means every criterion. Add compatibility and automatic-review refusal to activation blockers. M0 can retain passes=true because blocked evidence is explicitly permitted, with revised notes. M1/M2/M3 guard-only checks remain validated; M6 remains incomplete.",
+      "status": "applied and independently inspected"
+    },
+    {
+      "file": "design_docs/planned/m-cloud-claude-api-credit-guard-sprint-plan.md",
+      "change": "Replace blanket M0-M5 passed/local-validation claims with precise subset readiness and blocked M4/M5 integration. Uncheck coherent deployed job/CLI protocol and integrated next-request observation criteria until a compatible verified protocol passes.",
+      "status": "applied and independently inspected"
+    },
+    {
+      "file": "design_docs/planned/m-cloud-claude-api-credit-guard.md",
+      "change": "State actual CLI compatibility failure and preserve disabled execution status; do not claim Claude cloud enablement is delivered.",
+      "status": "applied and independently inspected"
+    },
+    {
+      "file": "design_docs/planned/m-cloud-claude-api-credit-guard-operator-guide.md",
+      "change": "Warn installed Claude 2.1.295 is rejected before reservation/send. Treat enable/promote commands as future gated operations until compatible bounded protocol/image is verified; retain current beta allowlist.",
+      "status": "applied and independently inspected"
+    },
+    {
+      "file": "design_docs/planned/m-cloud-claude-api-credit-guard-deployment.md",
+      "change": "Record CLI version, exact mandatory beta headers, synthetic/fake-only smoke failure, zero provider calls/spend and reported automatic-review refusal. Carry compatibility as activation gate before infrastructure canary.",
+      "status": "applied and independently inspected"
+    }
+  ]
+}
