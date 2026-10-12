@@ -7,18 +7,6 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
-## 13 — 2026-10-02 — interrupted iteration 12 record recovered; heartbeat remains parked for D-FLEET-10 [ADMIN]
-
-**Picked**: VERIFY-AND-LAND of iteration 12's stranded record, per died-mid-flight gate. Found staged record/design files in sibling worktree `fleet-iter12-heartbeat` and no open fleet PR. No second implementation item selected. Three untracked artifacts in the pin and two stale plan/JSON artifacts in the old worktree are byte-preserved and excluded.
-**Reality check**: Three source quorum JSON artifacts all synthesize BLOCKED. Reproduced on /bin/bash 3.2.57: unset-root expansion fails rc127 with a command string, rc1 with a script file; contract should assert nonzero. The absoluteness gap is real. Source log incorrectly said Gemini proposed no fix and that CLI recipes satisfied the operator's Agent request; those claims are corrected in the recovered record. Source quorum JSON is archived under `fleet-mission-evidence/iteration12/`.
-**Shipped**: record only; rejected Revision 4 is retained as a historical proposal, never approved. No heartbeat code changed, no ticket resolved. D-FLEET-10 remains OPEN; D-FLEET-8/9 remain RESOLVED. Existing decision rows normalized into the standard four-column marked ledger without changing answers or attended evidence; scripts validate ten rows and generate only D-FLEET-10 as OPEN.
-**Progress**: goal unmoved (0 tickets resolved). Clause 1 product share UNMEASURED; clause 2 turnaround UNMET/at risk; clause 3 one queue MET by ticket store; clause 4 idle-is-free prior evidence only; clause 5 preserved by shipping no fix. Fleet's previous work iterations are HARNESS by its charter's inverted admissibility; this record is ADMIN. Prior three landings (7,9,10) moved turnaround; no three-landing drift alarm.
-**Routing evidence**: base=e513faa487a76d8fb2dfb41af530b88f17fa8b94@2026-10-02T08:34:14Z (Gate4). Controller native codex:gpt-6.1-sol (tok: not reported). User expressly requests Agent transport, overriding CLI recipes. Designer: rotation after Sol, native glm-5.3:cloud then kimi-k3:cloud then claude-opus-5-5 each rejected Unknown model; native gpt-6.1-sol fallback ran read-only design review (tok: not reported). Planner derive: codex:gpt-6.1-sol declared:planner-lane-default-pin; native gpt-6.1-sol read-only readiness review (tok: not reported). Executor default codex:gpt-6.1-sol; native gpt-6.1-sol read-only premises/inventory review (tok: not reported). Evaluator sonnet rejected Unknown model; native separate fresh-context gpt-6.1-sol fallback per current gate3 lines242-252, FLAG judge-independence:same-model-fresh-context (tok: not reported). This is four role checkpoints on a record recovery, not a completed design/plan/execute sprint. Evaluator record PASS 96/100, round1, no record blockers; implementation score UNMEASURED. Native validation errors have no numeric rc. Quota probe rc0: ollama and openrouter over ration, Anthropic unknown/blocked; no API spend incurred this run, native subscription quota consumption not reported.
-**Verification**: original record source hashes preserved; all source plan/JSON files excluded. Ledger valid, design byte-identical to source, all decisions/queue/bar/Authority sections retained. Latest source CLI reports v0.50.0-6-g021c46907-dirty, so no compiler or production gate verdict claimed. Dev check set at e513faa had launchd and macOS build failures with other checks unfinished; named CI lookup returned older commits and is not HEAD evidence. Full product tests/done-gate not run for record-only changes. Remote record PR/merge CI will be tracked by exact SHA; record not called LANDED before confirmation. Base failures measured: launchd job110762944401 fails mirror sync for sprint-evaluator; macOS build job110762859936 fails TestMemWatchdogKillsAllocator after60s. These are base failures, not caused by this docs-only diff.
-**Ruled out**: continuing stale plan, self-approving blocked quorum, resolving D10 unattended, controller-as-judge, using retired GPT models, reading/acking mission-fleet tickets, touching the sixteen pending coordinator approvals. New blocking-all controller ticket remains open: existing fallback now checks every rung's ration, but the 402 slot-classification half remains unverified; no full resolution claimed.
-**Retro lane**: record corrections only, no shared skill or routing-policy edit. Independent roles caught stale plan scope, draft dashboard's unverified CI claim, and incomplete reviewer characterization. Same-model fresh-context judge is FLAGGED under the current skill rather than silently inheriting the controller verdict. Nothing reloaded.
-**Next**: D-FLEET-10 human ruling with Revision5 and fresh quorum as recommended. Banked D-FLEET-9 rotate-log pair follows; pre-dirty runner next. Blocking-all controller-capacity ticket needs its two halves checked before policy routing or resolution.
-
 ## 14 — 2026-10-02 — controller HTTP 402 proposal parked for D-FLEET-11; admission-bypass premise refuted [HARNESS]
 
 **Picked**: `driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash`, new blocking=all ticket (one occurrence, filed by attended session); charter expressly puts blocking-all above the attended groom. Heartbeat remains parked on OPEN D-FLEET-10; D-FLEET-8/9 stay RESOLVED. No new allowlisted directive on #1380 since 2026-10-01T19:02:37Z (0 of 17 comments). Sixteen coordinator approvals are operator-owned and untouched. Inherited heartbeat sprint JSON and plan in pin, old worktrees, and active docs sprint are untouched.
@@ -816,3 +804,61 @@ Credited by iteration 32 from died-mid-flight traces. The slot ran 2026-10-12T01
 - (3) Two consecutive capacity-paused slots (30, 31) did real work and wrote no record. `PAUSED-NO-CAPACITY` at gate-2/3 strands work exactly like a crash, so the died-mid-flight traces are what recovered it.
 
 **Next**: P1 #9 `driver:exit-path-notices-unbounded`, then the Phase 3a skill-resolution spike (directive "after P1, before P2"). Follow-ups from the judge, not ticketed: the report's pre-fix RED output is condensed, MU1 rc not captured, and the seated test alone does not kill the early-return mutant (the matrix does).
+
+## 33 — 2026-10-12 — P1 #9 exit-path notices bounded and store-scoped, judged PASS 90 (sonnet), PR #1791 → `e7dd6c127` [HARNESS]
+
+**Pick**: charter P1 #9 `driver:exit-path-notices-unbounded` (filed by v1 iteration 315, 2026-09-26). It is the queue head after iteration 32. 53 open tickets. The only `blocking=all` ticket, `agent-tool:sonnet-unavailable`, stays parked as iterations 29 and 32 assessed it. Index grep: no prior attempt on this item.
+
+**Preflight**: armed; gh `sunholo-voight-kampff`; billing CLEAN. Directives: 0 on #1768 (3 comments, all self; the `mission-1768-last-seen` watermark was absent) and 0 on #1584 since 2026-10-11T18:46:20Z (28 comments, all self). Self-notices rc 0: no crash notices; control `852:10` ok, one of two watermarks readable. Ledger unchanged (15 RESOLVED, 0 OPEN). No rotation or sweep due: #1768 was created after this Monday's boundary, and the sweep ran at iteration 32.
+
+**Observe**: origin/dev == pin == `06d524c59`. `SKILL.md` and all 12 resources are `cmp`-identical to origin in both the resolved symlink target and the pin. Dev CI on `06d524c59` was in progress at Gate 1 (16 checks, 8 pending, 0 failed).
+
+**Reality check at HEAD**: three unbounded pairs remained, at `mission-control.sh:2038/2041` (refusal), `:2529/2532` (late-kill "work landed") and `:2550/2553` (rc-fail). The charter's line numbers had drifted. None of the three scoped the message store, so even when they did send, they wrote to the rig's local SQLite inbox. `tools/launchd/lib/*.sh` holds no sends.
+
+**Did**:
+- **Planner** (opus, Agent tool, foreground) wrote `sprint-plan-exit-path-notices-bounded.md` (`468604ba4`). It adds a one-shot helper, `_mc_exit_notice`, that is bounded per channel and always returns 0. The helper scopes the store with the same per-command `env AILANG_STORAGE_MESSAGING=gcp …` form `_mc_notify` uses, and the slot-verdict send gets the same scoping. The plan rejected `_mc_notify` for these sites because it uses one body for both channels, adds date-stamped titles (a text change), and its retry/spool could stretch the exit path to about 2 min. Test arms: E1–E3 for the hang path, E4–E9 for preservation, and source guards G1–G3. G1 checks every send is bounded, G2 that every send is store-scoped, G3 that the F8 literal is present.
+- **Executor** (`claude:claude-haiku-5-5` via `claude-sub`; probe rc 0, run rc 0, about 30 min) committed `1fe1e3911` (fix, tests and changelog fragment) and `5c8ac0daf` (report plus RED/GREEN logs).
+  - Before the fix, `test_driver_notify.sh` failed 11 arms (104/11). After it, the suite passed 115/0. `test_controller_capacity`, `test_mission_heartbeat` and the gate0 self-notices suite are green; `make test-launchd-drivers` rc 0; `check-changelog` rc 0.
+  - It ran 9 mutation drills, each rc 1 and each caught by its targeted arm.
+  - Its anchor tightening of E5 came from drill d2, which survived the original arm.
+- **Evaluator** (sonnet, Agent tool, foreground, in its own detached worktree `fleet-i33-judge` at `5c8ac0daf`): **PASS 90**, 0 blocking.
+  - Titles, bodies, exit codes and the F8 literal are byte-identical; the F8 control still fires.
+  - `_mc_notice_suppressed` reads this send's own `MC_BOUNDED_OUT`. The helper is `set -u`-safe and bash-3.2-safe. Worst case with both channels hung is about 36 s per call.
+  - Mutation drills: M1–M5 killed (bare ailang send, dropped store prefix, F8 body, bare gh call, late-kill title). M6 was UNMEASURED: the drill was cut off by the tool limit.
+  - It reported `test_driver_notify.sh` at 113/2, with the same 2 arms red on pristine base.
+- **Controller check**: re-ran the suite in the judge tree under `env -i`: rc 0, 115/0. The judge's 2 failures came from the controller session's exported `MISSION_ROUTING_NOTE`, not from the change. Recorded in `fleet-mission-evidence/iteration33/controller-addendum.md`, beside the verbatim `judge-report.md` (`986def325`).
+
+**Gate 3b**: PR #1791 head `986def325`. 25 checks complete, 0 failures (`test`, `lint`, `build`, `launchd drivers (bash 3.2)`, `test-windows`, all Build legs, SonarCloud, CodeQL, govulncheck). The poll was SHA-pinned with a per-invocation log. Squash-merged `--match-head-commit 986def325` → `e7dd6c127`.
+
+**Done-gate**:
+- Surface ✓: `tools/launchd/mission-control.sh`, the driver every mission runs.
+- Reach ✓: on origin/dev, so every pinned mission picks it up on its next fire. This is a driver change, so no binary rebuild is needed.
+- Dry-run ✓, healthy and degraded, under the idle armed **stapledon** profile (`env -i`, `AILANG_DRIVER_PINNED=e7dd6c127…`, from a detached worktree at the merge). Both rc 0 and `DRY RUN ok`. The degraded arm used `MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`, which was handed to opus. No stapledon pidfile was written.
+- `make test-launchd-drivers` at `e7dd6c127` under `env -i`: rc 0 unpiped, 590 s ✓.
+- Nothing reloaded ✓.
+- Ticket resolved with `--sha e7dd6c127`: rc 0, replied to v1; 53 → 52 open.
+
+**Progress**: 1 ticket resolved; it was filed 2026-09-26 and resolved 2026-10-12, ≈16.5 d. Clause 1 UNMEASURED. Clause 2 UNMET. Clause 3 MET (53 open). Clause 4: prior evidence only. Clause 5 preserved: judged, with required CI green on the PR head.
+
+**Routing evidence**: base-gate1=06d524c59ebd10d249ad8cae97b3d57231e9c862@2026-10-12T20:56:48Z; base=e7dd6c127b87b5568b9f1dfa74e9546cb47879c6@2026-10-12T22:48:40Z (gate4). Dev moved only by this PR's own merge. `MISSION_ROUTING_NOTE`: "controller pi:ollama/glm-5.3:cloud → claude:claude-opus-5-5 (probe ok); lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — over daily ration) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — over daily ration) → handed to `claude:claude-haiku-5-5`".
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: not spawned. The ticket is mechanical, and the charter says to design only when the fix warrants it. The rotation was not advanced.
+- **Planner**: resolver `agent-tool opus fail-closed:env-pin`, spawned via the Agent tool `model=opus`, foreground (127,638 tok). The first spawn was refused by the spawn-pin hook (`fail-closed:role-missing`) because the role token was not alone on line 1. It was re-spawned with `MISSION-ROLE: planner` as the whole first line.
+- **Executor**: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin`, run via `claude-sub -p --model claude-haiku-5-5 --permission-mode bypassPermissions` in `~/.ailang-worktrees/fleet-i33` (tok: not reported by `claude -p` text output).
+- **Evaluator**: resolver `agent-tool sonnet declared:alias-pin`, spawned via the Agent tool `model=sonnet`, foreground, in its own worktree. PASS 90 (73,027 tok). Judge independence: a different model from the generator (haiku) and the planner (opus); same vendor.
+- The operator's standing request to use the Agent tool was honoured for every role whose resolved path is the Agent tool (planner, evaluator). The executor's resolved path is a provider recipe. No role failed to spawn.
+- **Metered**: $0 (Anthropic subscription only).
+
+**Ruled out**:
+- Reusing `_mc_notify` at these sites. It would change the titles and could triple the exit-path wall clock.
+- Date-stamping the titles. That changes the text and is filed as a follow-up.
+- Bounding `nightly-eval.sh` and the other rig scripts. They are outside this ticket, and the guardrail is ticket-driven only.
+- Taking `agent-tool:sonnet-unavailable` ahead of #9. Its resume predicate is native capability on non-Claude controllers.
+
+**Retro lane**: observations only; there is no second friction for a skill edit.
+- (1) The spawn-pin hook requires `MISSION-ROLE: <role>` to be the ENTIRE first line. A trailing parenthetical is refused as `role-missing`, while the skill's wording ("as the FIRST line") reads as a prefix. Instance 1; it cost one refused spawn.
+- (2) Agent-tool roles inherit the controller's exported `MISSION_*` environment. That makes `test_driver_notify.sh`'s routing-note arms fail inside any sub-agent, and a judge could read that as a regression; this judge correctly attributed it to base. Instance 1; there is a workaround (`env -i`). Not ticketed: the fleet does not self-source.
+- (3) `rotate-log` added a duplicate "Older entries are ARCHIVED" notice again (instance 4, after iterations 28, 31 and 32), collapsed by hand. The `AILANG_MISSION_REGISTRY` override kept the pin clean, as the iteration-32 skill fix prescribes.
+- (4) Planner follow-ups, not ticketed: `driver:exit-notice-titles-undated` (an undated title is refused as a duplicate after the first send) and `nightly-eval:unbounded-sends`.
+
+**Next**: the Phase 3a skill-resolution spike. P1 is now exhausted, and the directive says "after P1, before P2"; it is measurement only. Then P2 #10 `skill:gate0-ledger-provenance-S`.
