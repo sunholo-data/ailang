@@ -7,83 +7,6 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 40. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-> **Older entries are ARCHIVED.** This file holds the newest 20. The full record of every
-> iteration is in `fleet-mission-log-archive.md`, and a one-line index of ALL of them —
-> the thing to grep before picking work, so the loop never repeats itself — is in
-> `fleet-mission-index.md`.
-
-## 9 — 2026-09-30 — mission-base derives its base ref from origin/HEAD (stapledon's `main`); ticket resolved; iteration 8's record landed [HARNESS]
-
-**Picked**: P0 #3 `mission-base:hardcoded-origin-dev`, the top READY row in Mark's 2026-09-29 rerank (P0 #1 PARKED D-FLEET-8, P0 #2 PARKED D-FLEET-9 by iteration 8's record #1416, which was open at pick). It was also the top ticket by slots lost (5, stapledon, recurred 2026-09-30 13:43Z). No directive on #1380 since the 13:06:28Z watermark (0 of 11 comments). Mechanical class, not policy (HD-2a).
-**Reality check**: At base `440c7f01d`, `tools/launchd/mission-base.sh:10` still read `REF="${MISSION_BASE_REF:-origin/dev}"`. The old script run in the stapledon clone gave rc 1, `mission-base: cannot resolve origin/dev`. `git symbolic-ref --short refs/remotes/origin/HEAD` in all 6 mission clones gave 5 → `origin/dev` (ailang, -fleet, -world, -motoko, -docs) and stapledons-godot → `origin/main`, all rc 0. So derivation is correct for every current mission. The driver does not call the script; only the gate resources do.
-**Shipped**: [#1418](https://github.com/sunholo-data/ailang/pull/1418), squash `cb7c51c8e`. `resolve_ref` order: `MISSION_BASE_REF` → `origin/HEAD` target → rc 1 naming both remedies, with no row written. It is resolved once per `snap`/`record`/`drift`; `last` needs no ref. `test_mission_base.sh` fixtures now set `origin/HEAD`, plus T1–T5. Changelog fragment `2026-09-30-mission-base-default-branch.md`. Ticket resolved with the merge SHA (5 occurrences; replied to stapledon). Also landed iteration 8's record [#1416](https://github.com/sunholo-data/ailang/pull/1416) (`60af11ee0`). Its only red was dev's changelog-hygiene failure, since fixed on dev (control: dev `440c7f01d` `test` success). `gh pr update-branch` re-ran CI; CLEAN; closing-keyword scan clean (matcher control fired); merged.
-**Progress**: Clause 2: one 5-occurrence ticket resolved at ~72h from first filing (over the 48h target; it waited behind two parked designs). Clauses 3–5 met. Clause 1 not remeasured. Open tickets 16 → 15.
-**Routing evidence**: base=60af11ee0875f6228fae9b7611532b64c0cf0577@2026-09-30T21:21:58Z (Gate 4); Gate-1 base `440c7f01dd178a1541f3318ab9307a859f9537b3@2026-09-30T19:46:21Z`; Gate-3b `cb7c51c8e8400435d866e889116b9a79e2d6e086@2026-09-30T20:48:56Z` (drift = our own merge). Controller `claude:claude-opus-5-5` (tok: not reported). Designer: not spawned (resolver `recipe claude:claude-opus-5-5 declared:provider-pin`). The charter says to design only when warranted, and this was a one-default fix. Planner `opus` via Agent tool (`opus fail-closed:env-pin`, derive-planner-lane verbatim; 52,408 tok). Executor `claude:claude-sonnet-5-5` via `claude-sub` recipe (`declared:provider-pin`; probe rc 0; tok: not reported). Evaluator: resolver `reroute pi:openrouter/minimax/minimax-m3 generator-equals-judge`. Its probe from the worktree failed, and from /tmp returned rc 0. The real run via `mission_pi_run.sh` returned `sandbox_not_ready` rc 17 (pi_rc 1, 10 s, 0 tool executions), recorded with `mission-lane-dead.sh`. FLAGGED fallback to the next declared lane `claude:claude-sonnet-4-6` via `claude-sub` (tok: not reported). Generator ≠ judge: Sonnet 5.5 generated and Sonnet 4.6 judged; different models, same vendor. Evaluator rounds 1, PASS 100.
-**Verification**: Executor gates rc 0 (13 arms; launchd suite PASS=25; check-changelog). The controller re-ran `/bin/bash -n`, `test_mission_base.sh` unpiped rc 0, and `env -i HOME=$HOME PATH=$PATH make test-launchd-drivers` rc 0 on `aa78fff1e`. Evaluator mutation drills on the real script (cp backup + cmp restore): always-origin/dev → T1–T4 red; silent fallback → T3; ignore override → T2; drop drift resolve → T4 plus 2 existing drift arms. No vacuous arm. PR checks CLEAN, including `launchd drivers (bash 3.2)`, `test`, `lint` and `build`. Merge-commit `cb7c51c8e`: 15/16 green; SonarCloud failure = new-code coverage 74.5% < 80, also failing on `440c7f01d`, `834b6e1db`, `a60a72d17` and `b9cd1bd20` (inherited; bash change). Done-gate note: no driver dry run was performed. The driver never calls `mission-base.sh`, so a dry run cannot exercise it. The healthy/degraded pair is the live A/B (ailang pin records `origin/dev` = 440c7f01d; stapledon records `origin/main`) plus T3 (no `origin/HEAD` → loud rc 1). Nothing was reloaded.
-**Ruled out**: A silent `origin/dev`/`main`/`master` fallback when `origin/HEAD` is unset. It would re-create this bug for any repo whose default is neither, and the repo forbids silent fallbacks. Network derivation (`git ls-remote --symref`): the helper deliberately reads the shared .git without fetching.
-**Retro lane**: (1) New harness defect, measured: every pi role launched inside a `sunholo-data/ailang` worktree fails to start. The 8 ailang-managed tools in `~/.pi/agent/extensions` (installed 2026-09-29 09:26) collide with the same tools in the repo's project-local `.pi/extensions`, and pi 0.85.1 refuses duplicates. The runner then names it `sandbox_not_ready`, which misattributes the cause. Control: the same probe from /tmp returned rc 0. The fleet cannot file it (`ailang mission ticket file` → "the fleet mission works tickets; it does not file them"), so it is raised to Mark in the report rather than self-sourced into the queue. (2) The resolved ticket's evidence notes that the gate resources still call `bash tools/launchd/mission-base.sh` by relative path; from a non-ailang CWD use `$AILANG_DRIVER_SRC/...`. That is the parked D-FLEET-8 class, not reopened here. No skill edit.
-**Next**: P1 #4 `pi-runner:quota-429-reported-as-empty-worktree` (then #5 pre-dirty). D-FLEET-8 and D-FLEET-9 stay parked for Mark.
-
 ## 10 — 2026-10-01 — pi runner types a provider quota refusal as `provider_quota` rc 19; stale-pin re-file of mission-base resolved [HARNESS]
 
 **Picked**: P1 #4 `pi-runner:quota-429-reported-as-empty-worktree`, the top READY row in Mark's 2026-09-29 rerank (P0 #1 PARKED D-FLEET-8, P0 #2 PARKED D-FLEET-9, P0 #3 LANDED). Mechanical class: no driver code routes on the runner's rc (`grep mission_pi_run tools/launchd/mission-control.sh` → comments only), so a new verdict changes no lane order. No directive on #1380 since the 2026-09-30T13:06:28Z watermark (0 of 12 comments). Bookkeeping second pick: `mission-base:hardcoded-origin-dev` had re-opened (stapledon iter 5, filed 21:43Z).
@@ -844,3 +767,31 @@ Available native enum reported by both failed spawns: gpt-6.1-sol, gpt-6-astra, 
 **Retro lane**: backlog observation, no policy/skill change. Native alias refusal recurs (iterations 11/24/28); World tickets corroborate unsupported Sonnet. Routing-policy signal, not permission to widen the chain. The initial STATUS matcher included the rotation heading and aborted before writing. The first rotate-log invocation followed exported MISSION_WORKDIR to the pin and added only a duplicate archive notice; those exact added bytes were restored (pin clean), then worktree overrides were used. Existing STATUS stamps have paragraph bodies, so rotation used bounded structural sections and byte-preserved the complete iteration25 block in the archive.
 
 **Next**: re-probe declared evaluator chain; rc0 on a judge distinct from gpt-6.1-sol enables fresh design quorum with `--author codex:gpt-6.1-sol`, then approved-plan/execute/evaluate. P1 #9 exit notices follows; Phase 3a spike after P1. Human decisions: none.
+
+## 29 — 2026-10-09 — native evaluator capability confirmed absent → PARKED-ON-LANE (external native capability); no runtime fix [HARNESS]
+
+**Pick**: `agent-tool:sonnet-unavailable`, the only `blocking=all` ticket, ahead of P1 #8. 47 open signatures; 8 occurrence records. The latest occurrence is `blocking=none` with a successful workaround; the aggregate retains earlier blocking occurrences. Eight records do not establish eight terminal slot losses.
+
+**Preflight**: armed; gh `sunholo-voight-kampff`; billing CLEAN; 0 directives of 14 comments since 2026-10-08T11:03:31Z. Decision ledger 15 RESOLVED, 0 OPEN. Full lane-check returned READY with every role ok. Self-notices rc1 identified the October4 rc143 death already credited by iteration22; no new orphan implementation. Died-mid-flight PR/worktree/dirty-state traces recovered the unmerged iteration28 record, not implementation.
+
+**Observe**: origin/dev `48f4b5ef929532cc6bf89d32034435ec616f80e7`; CI workflow success, 17 checks with only `ailang-core-dev` deployment failure (outside fleet scope), not all-green. SKILL.md and all 12 resources match origin in both pin and resolved symlink. Worktree starts from this base plus cherry-picked iteration28 record `0932ac757` from clean PR #1662 head `4f173d9206d4d3f635f315ec76c594b6f609cdb3`. The original PR/worktree remain unchanged; inherited iteration28 is preserved verbatim, including its explicitly unreviewed candidate.
+
+**Did**: native Sol designer and planner supplied read-only assessment. The repository cannot add missing models or tools to the hosting runtime. Native evaluator request `minimax/minimax-m3` was rejected `Unknown model`; the host advertised only `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`, and `gpt-5.6-sol`. No runtime, policy, skill or product change is justified. Ticket remains OPEN/PARKED-ON-LANE (external native capability).
+
+**Gate 3 / capacity**: structural native capability failure, distinguished from exhausted quota. Current role transport recovered through the admitted recipe; the open host-capability ticket park does not block this fire’s independent judge or bookkeeping completion. User authorizes documented fallback after role spawn failure. Existing gate3 lines243–254 also permit fresh-context Sol fallback when no cross-vendor quota, FLAGGED; no new human ruling needed. Declared Minimax probe `_mc_probe_pi openrouter/minimax/minimax-m3` rc0 this fire. Independent evaluator uses documented pi runner cross-vendor fallback after native rejection; independent Minimax bookkeeping review PASS95/100, 0 blocking; report at `design_docs/fleet-mission-evidence/iteration29/judge-report.md` (verbatim), controller corrections in adjacent `controller-addendum.md`. No verdict or score fabricated.
+
+**Bookkeeping verification**: controller fresh-PATH `go test ./internal/mission -run 'Canonical|RepoLocal' -count=1` rc0 (0.353s), ledger valid15rows, whitespace clean, and iteration28 body byte-identical. Independent Minimax bookkeeping review PASS95/100, 0 blocking; report at `design_docs/fleet-mission-evidence/iteration29/judge-report.md` (verbatim), controller corrections in adjacent `controller-addendum.md`. STATUS rotation preserves complete iteration26 in the archive; iteration27/28 retained live. Queue and decision ledger retained. Last20 index share 16/20 HARNESS, expected under fleet inverted admissibility, not a product-loop cap breach. Last three ticket landings25/26/27 moved clause2.
+
+**Gate 3b / done-gate**: not LANDED; no runtime diff, implementation, product landing, ticket resolution, reload, suite or dry-run claimed. Record review is separate from accepting P1 #8's candidate.
+
+**Progress**: clause1 UNMEASURED; clause2 UNMET; clause3 MET (47 open); clause4 prior evidence only; clause5 preserved (no fix shipped). 0 tickets resolved; goal unmoved.
+
+**Routing evidence**: base-gate1=48f4b5ef929532cc6bf89d32034435ec616f80e7@2026-10-09T05:44:26Z; base=48f4b5ef929532cc6bf89d32034435ec616f80e7@2026-10-09T05:52:47Z (gate4). Controller native `gpt-6.1-sol` (tok: not reported); designer native `gpt-6.1-sol` (tok: not reported); planner native `gpt-6.1-sol` (tok: not reported); executor native `gpt-6.1-sol`, resolver `recipe codex:gpt-6.1-sol declared:provider-pin` (tok: not reported). User overrides transport only; declared Sol model pin retained. Evaluator native `minimax/minimax-m3` rejected (tok: not reported), then declared `pi:openrouter/minimax/minimax-m3` (2,547,205 provider tokens incl. cache; evaluator metered $0.206700). Known evaluator metered=$0.206700; model probes cost not reported separately; subscription role costs do not measure quota. Configured routing unchanged.
+
+**Resolver evidence**: designer `recipe codex:gpt-6.1-sol declared:provider-pin`; planner `recipe codex:gpt-6.1-sol anthropic-fallback:fail-closed:no-doc`; executor `recipe codex:gpt-6.1-sol declared:provider-pin`; evaluator `recipe pi:openrouter/minimax/minimax-m3 declared:provider-pin`. Designer/planner/executor native transport is the operator override; evaluator native rejection is recorded above and actual recipe transport is recovered. `MISSION_ROUTING_NOTE`: controller pi:ollama/glm-5.3:cloud → codex:gpt-6.1-sol (probe ok); lanes degraded: ; `designer`: **anthropic** lane `claude-opus-5-5` unusable (probe rc=`75` — over daily ration) → handed to `codex:gpt-6.1-sol`; `evaluator`: **anthropic** lane `sonnet` unusable (probe rc=`75` — over daily ration) → handed to `pi:openrouter/minimax/minimax-m3`
+
+**Ruled out**: treating native host model absence as quota; adding models/tools from repository code; undeclared native model substitution; controller acceptance; closing the aggregate ticket on one successful workaround; counting occurrences as terminal losses; adopting or approving iteration28's design by banking its orphan record; self-sourced fleet ticket or policy repair.
+
+**Retro lane**: observation only, no mandatory skill edit or routing-policy change. The pi judge's live read-only ticket query stalled for >2min; controller terminated only that verified child PID35584, so the judge used the canonical ticket snapshot. Runner ended ok rc0 in448s,86tools, served model confirmed `openrouter/minimax/minimax-m3`. Its report contains incorrect SHA-equivalence/banner-attribution sentences and a mental-only drill; controller re-measured and documented those limitations separately without rewriting the verdict. Iteration28 conflated native transport capability with recipe quota capacity; this fire records them separately and uses the existing authorized fallback. No new decision needed; ledger unchanged.
+
+**Next**: resume selected ticket only when native capability is proven on the affected controller; workaround remains existing declared CLI recipes. P1 #8 candidate next, then P1 #9 exit notices. Candidate requires independent review, quorum/approval and approved-plan execution gates; no approval claimed. Human decisions: none.
