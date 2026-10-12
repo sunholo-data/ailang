@@ -125,6 +125,10 @@ func validateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo 
 			if err != nil {
 				return fmt.Errorf("elaborate effects for function %q: %w", funcDecl.Name, err)
 			}
+			if funcDecl.IsPure && row != nil && (len(row.Labels) > 0 || row.Tail != nil) {
+				return fmt.Errorf("Effect checking failed for function '%s'\n  The pure keyword contradicts the declared effect row %s.\n  Suggested fix: remove pure to keep the effect row, or remove the effects and use ! {} with a pure body.",
+					funcDecl.Name, types.FormatEffectRow(row))
+			}
 			declaredEffects[funcDecl.Name] = row
 		}
 	}
