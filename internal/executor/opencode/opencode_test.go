@@ -450,7 +450,8 @@ func TestExecuteStreaming_ParsesFixture(t *testing.T) {
 		t.Errorf("expected output tokens 159 (per-step deltas summed), got %d", result.OutputTokens)
 	}
 
-	// Cost summed across steps
+	// Registry × tokens (Haiku 4.5); opencode's own per-step figures happen to
+	// agree for this fixture. The disagreeing case is in cost_test.go.
 	const wantCost = 0.02164725 + 0.02219475
 	const epsilon = 1e-7
 	if diff := result.CostUSD - wantCost; diff > epsilon || diff < -epsilon {

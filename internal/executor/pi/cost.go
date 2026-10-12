@@ -1,8 +1,6 @@
 package pi
 
 import (
-	"strings"
-
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
@@ -16,24 +14,10 @@ import (
 // the mission stage cost cap on healthy runs. It is kept only as diagnostic
 // metadata (ProviderData["pi_self_reported_cost_usd"]), never as the cost.
 
-// piCostModel resolves the registry rate card for a pi model string.
-//
-// pi names models "<provider>/<model-id>". The full string is tried first (pi
-// rows declare it as agent_model_name). If nothing matches, the bare model id is
-// tried, but accepted ONLY when the row it resolves to belongs to that same
-// provider — so "anthropic/claude-haiku-5-5" prices as the direct Anthropic row,
-// while "ollama/<x>" can never borrow a cloud row's price. Anything else is an
-// explicit Unpriced card: $0 with provenance "unknown", not a guess.
+// piCostModel resolves the registry rate card for a pi "<provider>/<model-id>"
+// string. See executor.HarnessCostModel for the resolution rules.
 func piCostModel(model string) *executor.CostModel {
-	if cm, err := executor.CostModelFor(model); err == nil {
-		return cm
-	}
-	if provider, id, ok := strings.Cut(model, "/"); ok && id != "" {
-		if cm, err := executor.CostModelFor(id); err == nil && cm.ProviderName == provider {
-			return cm
-		}
-	}
-	return executor.UnpricedCostModel("pi", model)
+	return executor.HarnessCostModel("pi", model)
 }
 
 // piRunCost prices a pi run's accumulated tokens. Task.Pricing (set by the eval

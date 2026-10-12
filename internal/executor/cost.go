@@ -1,9 +1,11 @@
 package executor
 
 import (
-	"github.com/sunholo-data/ailang/internal/modelreg"
 	"math"
+	"strings"
 	"sync/atomic"
+
+	"github.com/sunholo-data/ailang/internal/modelreg"
 )
 
 // CostBudget enforces a hard USD ceiling on a single Task execution.
@@ -255,6 +257,30 @@ func PriceTokens(task *Task, fallback *CostModel, lane AuthLane, usage TokenUsag
 		return 0, CostFreeLocal
 	}
 	return cm.CalculateCost(usage), ResolveCostProvenance(task, lane)
+}
+
+// HarnessCostModel resolves the registry rate card for a "<provider>/<model-id>"
+// string — the model grammar pi, motoko and opencode all share.
+//
+// The full string is tried first (harness rows declare it as agent_model_name).
+// If nothing matches, the bare model id is tried, but accepted ONLY when the row
+// it resolves to belongs to that same provider: "anthropic/claude-haiku-5-5"
+// prices as the direct Anthropic row, while "ollama/<x>" can never borrow a
+// cloud row's price and "openrouter/z-ai/glm-5.3-flash" can never pick up the
+// Lyceum row that also answers to "z-ai/glm-5.3-flash". Anything else is an
+// explicit Unpriced card ($0 with provenance "unknown"), never a guess.
+//
+// Callers use it only when Task.Pricing is absent; Task.Pricing wins.
+func HarnessCostModel(harness, model string) *CostModel {
+	if cm, err := CostModelFor(model); err == nil {
+		return cm
+	}
+	if provider, id, ok := strings.Cut(model, "/"); ok && id != "" {
+		if cm, err := CostModelFor(id); err == nil && cm.ProviderName == provider {
+			return cm
+		}
+	}
+	return UnpricedCostModel(harness, model)
 }
 
 // DefaultMaxCostUSD computes the fallback budget used when models.yml
