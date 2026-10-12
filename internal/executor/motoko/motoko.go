@@ -685,10 +685,9 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	if result.SessionID == "" {
 		result.SessionID = sessionID
 	}
-	// motoko's run_summary cost comes from whatever provider it routed to.
-	// OpenRouter-routed models bill real credits; local ollama models carry
-	// zero rates in models.yml and resolve to free-local regardless of lane.
-	result.CostProvenance = executor.ResolveCostProvenance(task, motokoAuthLane(task.Model))
+	// Cost of record = registry rates × run_summary tokens, never motoko's own
+	// meter (which ignores cache tokens). See cost.go.
+	applyRegistryCost(result, task, e.getModel(task))
 
 	// Surface metrics for any MetricsHandler observers.
 	if mh, ok := handler.(executor.MetricsHandler); ok {
@@ -697,7 +696,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 			InputTokens:    result.InputTokens,
 			OutputTokens:   result.OutputTokens,
 			CostUSD:        result.CostUSD,
-			CostProvenance: executor.ResolveCostProvenance(task, motokoAuthLane(task.Model)),
+			CostProvenance: result.CostProvenance,
 			DurationMS:     result.DurationMS,
 			SessionID:      result.SessionID,
 			Success:        result.Success,
@@ -734,11 +733,9 @@ func (e *MotokoExecutor) Capabilities() []executor.Capability {
 	}
 }
 
-// CostModel returns a generic default cost model for motoko.
-// Actual cost depends on the underlying provider (resolved via OpenRouter for
-// motoko-* models). The CostModel here is used only for pre-flight estimates;
-// the real cost comes from motoko's run_summary.total_cost_usd field, which
-// the parser populates into Result.CostUSD directly.
+// CostModel returns a generic default cost model for motoko, used only for
+// pre-flight estimates. The cost of record is registry rates × run_summary
+// tokens (applyRegistryCost); motoko's own total_cost_usd is diagnostic only.
 func (e *MotokoExecutor) CostModel() *executor.CostModel {
 	return &executor.CostModel{
 		ProviderName:    "motoko",

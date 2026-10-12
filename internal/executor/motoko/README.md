@@ -62,7 +62,11 @@ Unknown event types are silently captured into `ProviderData["motoko_events"]` f
 
 ## Cost model
 
-Cost is read directly from motoko's `run_summary.total_cost_usd` (computed motoko-side from `cost_rates` per profile, in millicents → USD). The adapter does NOT call `CostModel.CalculateCost()` — motoko's number is authoritative because it includes the OpenRouter passthrough markup that pricing tables don't capture.
+`Result.CostUSD` is `internal/modelreg/models.yml` rates × the `run_summary` tokens, via `executor.PriceTokens` (`Task.Pricing` first, else the motoko model string resolved through the registry with `executor.HarnessCostModel`). motoko's own `run_summary.total_cost_usd` is kept only as `ProviderData["motoko_self_reported_cost_usd"]`: its meter (`step_cost_millicents`) prices input + output only, so it undercounts direct Anthropic runs (cache tokens unpriced: Haiku 5.5 $0.013 vs $0.055) and overcounts OpenAI-shaped routes (cache hits billed at the full input rate: GLM-5.3-Flash/OpenRouter $2.00 vs $0.44 registry).
+
+**Input tokens are normalised to FRESH input.** motoko copies `ai.Response.InputTokens` through, which is disjoint from cache reads on the direct Anthropic wire (`anthropic/…`) but INCLUDES them on every OpenAI/Gemini-shaped wire (`openrouter/…`, `openai/…`, `chatgpt/…`, `google/…`, `ollama/…`). On those routes the adapter subtracts `cache_read_input_tokens` from `InputTokens` (the executor contract, as codex does) and keeps the raw figure as `ProviderData["motoko_reported_input_tokens"]`. A cache read larger than the input on such a route is unpriced ($0, `unknown`, `motoko_cost_unpriced_reason`), not clamped.
+
+`CostKilledAt` stays motoko's own figure — the value its cap compared against.
 
 When `run_summary` is absent (crash mid-run), the adapter falls back to summing per-step `cost_usd` fields from `thinking` events. `Result.Success` is set to `false` in that case with a clear `Error` message.
 
