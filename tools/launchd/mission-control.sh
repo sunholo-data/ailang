@@ -338,6 +338,42 @@ _mc_notify() {
   fi
 }
 
+# _mc_exit_notice LABEL TITLE MSG_BODY GH_BODY — one-shot, BOUNDED, NON-FATAL exit-path notice.
+# The refusal, late-kill and rc-fail notices used to call `ailang messages send` and
+# `gh issue comment` bare. Both are network calls, and a hang there wedged the exiting
+# process: launchd does not start a second instance of a live job, so the mission's next
+# fire was blocked too, and on the refusal path the blocked mission could not reach its own
+# retry. Each channel gets ONE bounded shot (no retry, no spool): the next fire re-derives
+# these conditions anyway. The send is store-scoped exactly as _mc_notify scopes it, because
+# unscoped it lands in this machine's private SQLite inbox and exits 0 — delivered to nobody.
+# A failure is LOUD in the driver log with its reason, and never aborts the exit.
+_mc_exit_notice() {
+  local label="$1" title="$2" mbody="$3" gbody="$4" _rc _out
+  _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+    ailang messages send controlplane "$mbody" --title "$title" --from "$MSG_FROM"; _rc=$?
+  if [ "$_rc" -ne 0 ]; then
+    _out="$MC_BOUNDED_OUT"
+    [ "$_rc" -eq 124 ] && _out="timed out after ${NOTIFY_TIMEOUT}s (no output)"
+    [ -z "$_out" ] && _out="no output (rc=$_rc)"
+    # A same-title repeat is refused by the inbox (titles are not date-stamped here, see the
+    # follow-up in the sprint plan). That is the inbox saying it already has the notice, not a
+    # channel failure, so it is logged as such rather than as a WARNING.
+    if _mc_notice_suppressed; then
+      log "${label} notice already in the inbox (duplicate title) — not re-sent"
+    else
+      log "WARNING: ${label} notice FAILED to send via ailang messages (rc=$_rc): $(printf '%s' "$_out" | tail -c 300 | tr '\n' ' ')"
+    fi
+  fi
+  [ -n "${MISSION_GH_ISSUE:-}" ] || return 0   # silent when unset, as these sites always were
+  _mc_bounded "$NOTIFY_TIMEOUT" gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" --body "$gbody"; _rc=$?
+  if [ "$_rc" -ne 0 ]; then
+    _out="$MC_BOUNDED_OUT"; [ "$_rc" -eq 124 ] && _out="timed out after ${NOTIFY_TIMEOUT}s (no output)"
+    [ -z "$_out" ] && _out="no output (rc=$_rc)"
+    log "WARNING: ${label} notice FAILED to post to issue #${MISSION_GH_ISSUE} (rc=$_rc): $(printf '%s' "$_out" | tail -c 300 | tr '\n' ' ')"
+  fi
+  return 0
+}
+
 # --- stall detection (see the stall watchdog below) -------------------------
 # _mc_descendants PID → echoes PID and every descendant PID (one per line).
 _mc_descendants() {
@@ -2022,6 +2058,7 @@ fi
 
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
 #    are stripped above, so a passing probe proves keychain/token auth too).
+# --- REFUSAL NOTICE START ---
 if ! select_model; then
   log "NO usable controller in Anthropic prefs ($PREFS) or fallback ($CONTROLLER_FALLBACK). Refusing."
   # Announce ONCE per blocked episode, not once per refusal. mission-recovery.sh
@@ -2035,17 +2072,16 @@ if ! select_model; then
     : > "$BLOCKED_FILE"
     _mc_load_ration
     _ref_reserve=$(_mc_reset_hint | sed 's/^/- 💳 /')
-    ailang messages send controlplane \
+    _mc_exit_notice refusal "Mission iteration blocked: no usable model" \
       "mission-control refused to start: no usable controller in Anthropic prefs ($PREFS) or fallback ($CONTROLLER_FALLBACK). Per-model reasons are in the driver log. Zero tokens spent beyond probes. Further refusals in this episode are silent; mission-recovery retries automatically.${_ref_reserve:+ Held in reserve (attended decision): $(printf '%s' "$_ref_reserve" | tr '\n' ' ')}" \
-      --title "Mission iteration blocked: no usable model" --from "$MSG_FROM" 2>/dev/null
-    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-      --body "⚠️ Mission iteration did not start: **no usable controller** in Anthropic preferences (\`$PREFS\`) or fallback (\`$CONTROLLER_FALLBACK\`). Per-model detail is in the driver log. \`mission-recovery\` retries automatically; further refusals in this episode are silent to avoid comment spam.${_ref_reserve:+
+      "⚠️ Mission iteration did not start: **no usable controller** in Anthropic preferences (\`$PREFS\`) or fallback (\`$CONTROLLER_FALLBACK\`). Per-model detail is in the driver log. \`mission-recovery\` retries automatically; further refusals in this episode are silent to avoid comment spam.${_ref_reserve:+
 
 **Held in reserve** (an attended decision — the loop never spends these):
-${_ref_reserve}}" 2>/dev/null
+${_ref_reserve}}"
   fi
   exit 1
 fi
+# --- REFUSAL NOTICE END ---
 rm -f "$BLOCKED_FILE"   # a probe succeeded — the blocked episode (if any) is over
 
 # Controller model CHANGES (transitions only) go into MISSION_ROUTING_NOTE, which the
@@ -2508,7 +2544,8 @@ case "$_mc_slot_verdict" in
     _mc_slot_episode="$_mc_slot_state/mission-${MISSION_NAME}-reaped.episode"
     if [ ! -f "$_mc_slot_episode" ] || [ "$(cat "$_mc_slot_episode" 2>/dev/null)" != "$_mc_slot_verdict" ]; then
       printf '%s' "$_mc_slot_verdict" > "$_mc_slot_episode"
-      _mc_bounded 30 ailang messages send controlplane \
+      _mc_bounded 30 env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+        ailang messages send controlplane \
         "Mission slot verdict: $_mc_slot_verdict (rc=$RC, attempt=${MISSION_ATTEMPT:-1}/$TRANSIENT_RETRIES). Log: $LOG" \
         --title "Mission slot reaped: $_mc_slot_verdict" --from "$MSG_FROM" || true
       [ -n "${MISSION_GH_ISSUE:-}" ] && _mc_bounded 30 gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
@@ -2519,6 +2556,7 @@ case "$_mc_slot_verdict" in
 esac
 # --- SLOT NOTIFY END ---
 
+# --- FINAL RC NOTICE START ---
 if [ "$RC" -ne 0 ]; then
   post_last_record=$(grep '^## ' "$MISSION_LOG_FILE" 2>/dev/null | tail -1)
   if [ -n "$post_last_record" ] && [ "$post_last_record" != "$pre_last_record" ]; then
@@ -2526,11 +2564,9 @@ if [ "$RC" -ne 0 ]; then
     # non-zero exit is a late kill of a lingering child, not a lost iteration.
     log "iteration exited rc=$RC AFTER recording itself — late kill, work landed"
     rm -f "$STATE_DIR/mission-${MISSION_NAME:-control}-rcfail.episode"   # not a crash episode
-    ailang messages send controlplane \
+    _mc_exit_notice late-kill "Mission iteration killed post-record (rc=$RC) — work landed" \
       "mission-control iteration exited rc=$RC AFTER its mission-log record landed (late watchdog kill of a lingering child, not a lost iteration). Record: ${post_last_record:0:160}. Log: $LOG" \
-      --title "Mission iteration killed post-record (rc=$RC) — work landed" --from "$MSG_FROM" 2>/dev/null
-    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-      --body "ℹ️ Mission iteration exited **rc=$RC after landing its record** at $(date '+%F %H:%M %Z') — the mission log gained an entry during this run, so this was a late watchdog kill of a lingering child, not a lost iteration. The queue advanced normally. Log on the rig: \`$LOG\`." 2>/dev/null
+      "ℹ️ Mission iteration exited **rc=$RC after landing its record** at $(date '+%F %H:%M %Z') — the mission log gained an entry during this run, so this was a late watchdog kill of a lingering child, not a lost iteration. The queue advanced normally. Log on the rig: \`$LOG\`."
   elif [ "${MC_PAUSED:-0}" -eq 1 ]; then
     # Already announced by the PAUSE branch's _mc_notify. Not a crash: no generic notice,
     # and the rcfail episode is left as-is (only rc change or completion ends it).
@@ -2547,11 +2583,9 @@ if [ "$RC" -ne 0 ]; then
       log "rc=$RC failure unchanged this episode — notice suppressed ($_rc_ep)"
     else
       printf '%s' "$RC" > "$_rc_ep"
-      ailang messages send controlplane \
+      _mc_exit_notice rc-fail "Mission iteration FAILED (rc=$RC)" \
         "mission-control iteration exited rc=$RC (timeout or crash). Log: $LOG" \
-        --title "Mission iteration FAILED (rc=$RC)" --from "$MSG_FROM" 2>/dev/null
-      [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-        --body "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; the next interval will retry. Further identical failures are silent until the rc changes or an iteration completes." 2>/dev/null
+        "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; the next interval will retry. Further identical failures are silent until the rc changes or an iteration completes."
     fi
   fi
 else
@@ -2560,3 +2594,4 @@ else
   # The skill itself sends the substantive report (Gate 5, both channels).
 fi
 exit "$RC"
+# --- FINAL RC NOTICE END ---

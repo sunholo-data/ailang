@@ -5,7 +5,8 @@ set -uo pipefail
 
 SP="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-DRV="$REPO_ROOT/tools/launchd/mission-control.sh"
+# MC_NOTIFY_DRIVER: a scratch copy of the driver, for mutation drills (same as MC_CAPACITY_DRIVER).
+DRV="${MC_NOTIFY_DRIVER:-$REPO_ROOT/tools/launchd/mission-control.sh}"
 LAB="${TMPDIR:-/tmp}/emitlab.$$"; rm -rf "$LAB"; mkdir -p "$LAB" "$LAB/bin"
 
 # --- M1: suite-owned PATH notifier stubs ---------------------------------------
@@ -1033,6 +1034,177 @@ if grep -q 'The authoritative runtime instructions are \${MC_SKILL_PATH}' "$DRV"
 else
   bad "prompt: skill path is resolved to an absolute MC_SKILL_PATH" "prompt still names a relative path"
 fi
+
+# --- EXIT-PATH NOTICES: bounded, store-scoped, non-fatal (fleet i33) -------------------
+# The three exit-path notices are awk-extracted BY MARKER from the driver, never retyped.
+# The helper _mc_exit_notice is extracted too, but its absence is an ARM failure (E0), not a
+# suite abort: pre-fix the marker blocks hold the bare sends, so the arms run the unfixed code
+# and show exactly which path hangs, drops its store scope or drops its reason.
+awk '/^# --- REFUSAL NOTICE START ---/,/^# --- REFUSAL NOTICE END ---/' "$DRV" > "$LAB/refusal_notice.sh"
+awk '/^# --- FINAL RC NOTICE START ---/,/^# --- FINAL RC NOTICE END ---/'   "$DRV" > "$LAB/final_notice.sh"
+awk '/^_mc_exit_notice\(\) \{/,/^\}$/'                                    "$DRV" > "$LAB/exit_helper.sh"
+for f in refusal_notice final_notice; do
+  if [ ! -s "$LAB/$f.sh" ]; then echo "FATAL: extraction of $f produced nothing"; exit 1; fi
+done
+
+# run_exit BLOCK STATE_DIR RC RECORD — one exit-path block in a bounded subshell (run_bounded
+# is the outer watchdog). BLOCK is refusal_notice or final_notice. RECORD=1 appends a `## `
+# mission-log record first (the late-kill branch). Env prefixes (STUB_HANG_*, AILANG_RC, ...)
+# reach the stubs through the function call. Sets EX_RC (124 = outer watchdog), EX_SECS, EX_TRACE.
+run_exit() {
+  local block="$1" sd="$2" rc_val="$3" rec="$4" tr outf att beg
+  tr=$(mktemp); outf=$(mktemp); att=$(mktemp); beg=$(date +%s)
+  run_bounded 30 "$outf" env MC_TRACE_FILE="$tr" MC_ATTEMPT_FILE="$att" MC_BOUNDED_TERMINATION_GRACE=0 \
+    /bin/bash -c '
+      set -uo pipefail
+      . "$MC_BND"   # _mc_bounded
+      NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"
+      log() { printf "LOG:%s\n" "$*" >> "$MC_TRACE_FILE"; }
+      MISSION_NAME=v1; MISSION_REPO=sunholo-data/ailang; MSG_FROM=mission-control
+      MISSION_GH_ISSUE=635; LOG=/tmp/x.log; REPO=/tmp/repo
+      STATE_DIR="$2"; BLOCKED_FILE="$2/mission-control.blocked"
+      MISSION_LOG_FILE="$2/mission-log.md"; PREFS=/tmp/prefs; CONTROLLER_FALLBACK=fallback
+      RC="$3"; MC_PAUSED=0; pre_last_record=""
+      if [ "$4" = 1 ]; then printf "## 2026-10-12 iteration record\n" > "$MISSION_LOG_FILE"; fi
+      select_model() { return 1; }; _mc_load_ration() { :; }; _mc_reset_hint() { :; }
+      . "$6"   # notice_helpers: _mc_notice_title, _mc_notice_suppressed
+      . "$5"   # _mc_exit_notice (empty before the fix)
+      . "$1"   # the REAL block
+    ' _ "$LAB/$block.sh" "$sd" "$rc_val" "$rec" "$LAB/exit_helper.sh" "$LAB/notice_helpers.sh"
+  EX_RC=$?
+  EX_SECS=$(( $(date +%s) - beg ))
+  EX_TRACE="$(cat "$tr" 2>/dev/null || true)"
+  rm -f "$tr" "$outf" "$att"
+}
+
+# hang_arm NAME BLOCK RC RECORD WANT_RC — both channels hang; must return inside the bound.
+# The 2 s bound gives about 4 s per path; the 14 s ceiling is the arm's, and the 30 s watchdog
+# in run_exit turns an UNBOUNDED send into rc 124, a FAIL, never a wedged suite.
+hang_arm() {
+  local name="$1" sd; sd=$(mktemp -d)
+  STUB_HANG_AILANG=1 STUB_HANG_GH=1 MISSION_NOTIFY_TIMEOUT=2 run_exit "$2" "$sd" "$3" "$4"
+  rm -rf "$sd"
+  if [ "$EX_RC" = 124 ]; then bad "$name" "outer watchdog tripped: an exit-path send is UNBOUNDED"; return; fi
+  if [ "$EX_SECS" -gt 14 ]; then bad "$name" "took ${EX_SECS}s (ceiling 14s)"; return; fi
+  if [ "$EX_RC" != "$5" ]; then bad "$name" "exit rc=$EX_RC, want $5"; return; fi
+  local nw; nw=$(printf '%s\n' "$EX_TRACE" | grep -c 'WARNING:.*FAILED to send.*timed out after 2s')
+  local ng; ng=$(printf '%s\n' "$EX_TRACE" | grep -c 'WARNING:.*FAILED to post to issue #635.*timed out after 2s')
+  if [ "$nw" -eq 1 ] && [ "$ng" -eq 1 ]; then ok "$name"; else bad "$name" "send-warn=$nw post-warn=$ng :: $(printf '%s' "$EX_TRACE" | tr '\n' '|')"; fi
+}
+
+echo "== exit-path notices: E0 helper present =="
+if [ -s "$LAB/exit_helper.sh" ]; then ok "E0: _mc_exit_notice is defined in the driver"
+else bad "E0: _mc_exit_notice is defined in the driver" "absent (pre-fix)"; fi
+
+echo "== exit-path notices: hang arms (E1-E3) =="
+hang_arm "E1: refusal path returns inside the bound with both channels hung" refusal_notice 1 0 1
+hang_arm "E2: late-kill path returns inside the bound with both channels hung" final_notice 143 1 143
+hang_arm "E3: rc-fail path returns inside the bound with both channels hung" final_notice 1 0 1
+
+echo "== exit-path notices: normal arms (E4-E6, preservation) =="
+_sd=$(mktemp -d); run_exit refusal_notice "$_sd" 1 0
+case "$EX_TRACE" in *"AILANG:messages send controlplane"*"--title Mission iteration blocked: no usable model --from"*"GH:issue comment 635"*"**no usable controller**"*)
+  if [ "$EX_RC" = 1 ] && [ -f "$_sd/mission-control.blocked" ]; then ok "E4: refusal sends title + GH body, exits 1, arms the episode marker"
+  else bad "E4: refusal sends title + GH body, exits 1, arms the episode marker" "rc=$EX_RC"; fi;;
+  *) bad "E4: refusal sends title + GH body, exits 1, arms the episode marker" "$(printf '%s' "$EX_TRACE" | tr '\n' '|')";; esac
+rm -rf "$_sd"
+
+_sd=$(mktemp -d); printf 1 > "$_sd/mission-v1-rcfail.episode"
+run_exit final_notice "$_sd" 143 1
+case "$EX_TRACE" in *"AILANG:messages send controlplane"*"--title Mission iteration killed post-record (rc=143) — work landed --from"*"GH:issue comment 635"*"rc=143 after landing its record"*)
+  if [ "$EX_RC" = 143 ] && [ ! -f "$_sd/mission-v1-rcfail.episode" ]; then ok "E5: late-kill title + GH body, exit 143, rc-fail episode cleared"
+  else bad "E5: late-kill title + GH body, exit 143, rc-fail episode cleared" "rc=$EX_RC"; fi;;
+  *) bad "E5: late-kill title + GH body, exit 143, rc-fail episode cleared" "$(printf '%s' "$EX_TRACE" | tr '\n' '|')";; esac
+rm -rf "$_sd"
+
+_sd=$(mktemp -d)
+run_exit final_notice "$_sd" 1 0
+case "$EX_TRACE" in *"AILANG:messages send controlplane"*"--title Mission iteration FAILED (rc=1) --from"*"GH:issue comment 635"*"--body ⚠️ Mission iteration **FAILED to complete** (rc=1 — timeout or crash)"*)
+  if [ "$EX_RC" = 1 ] && [ "$(cat "$_sd/mission-v1-rcfail.episode" 2>/dev/null)" = 1 ]; then ok "E6: rc-fail title + F8 GH body, exit 1, episode recorded"
+  else bad "E6: rc-fail title + F8 GH body, exit 1, episode recorded" "rc=$EX_RC"; fi;;
+  *) bad "E6: rc-fail title + F8 GH body, exit 1, episode recorded" "$(printf '%s' "$EX_TRACE" | tr '\n' '|')";; esac
+rm -rf "$_sd"
+
+echo "== exit-path notices: store scoping + reason (E7) =="
+# The stub prints its own store/project env and STUB_AILANG_OUT. A WARNING must carry BOTH:
+# the scope the send ran under, and the CLI's reason. Pre-fix the 2>/dev/null hid both.
+_e7_check() { # $1=name $2=block $3=rc $4=record
+  local sd; sd=$(mktemp -d)
+  AILANG_RC=1 STUB_AILANG_OUT='Error: boom' run_exit "$2" "$sd" "$3" "$4"
+  rm -rf "$sd"
+  if printf '%s\n' "$EX_TRACE" | grep 'WARNING:' | grep -F 'store=<gcp> proj=<ailang-multivac>' | grep -qF 'Error: boom'; then
+    ok "$1"
+  else bad "$1" "$(printf '%s' "$EX_TRACE" | tr '\n' '|')"; fi
+}
+_e7_check "E7a: refusal send is store-scoped to gcp and its failure reason is logged" refusal_notice 1 0
+_e7_check "E7b: late-kill send is store-scoped to gcp and its failure reason is logged" final_notice 143 1
+_e7_check "E7c: rc-fail send is store-scoped to gcp and its failure reason is logged"   final_notice 1 0
+
+echo "== exit-path notices: episode gates (E8) =="
+_sd=$(mktemp -d)
+run_exit refusal_notice "$_sd" 1 0; _e8a_rc=$EX_RC
+run_exit refusal_notice "$_sd" 1 0; _e8b_rc=$EX_RC; _e8b_tr=$EX_TRACE
+if [ "$_e8a_rc" = 1 ] && [ "$_e8b_rc" = 1 ] && ! printf '%s' "$_e8b_tr" | grep -q 'AILANG:\|GH:' \
+   && printf '%s' "$_e8b_tr" | grep -q 'already announced this episode'; then
+  ok "E8a: second identical refusal is silent, logged, exit 1"
+else bad "E8a: second identical refusal is silent, logged, exit 1" "rc=$_e8b_rc :: $(printf '%s' "$_e8b_tr" | tr '\n' '|')"; fi
+rm -rf "$_sd"
+
+_sd=$(mktemp -d)
+run_exit final_notice "$_sd" 1 0; _e8c_rc=$EX_RC
+run_exit final_notice "$_sd" 1 0; _e8d_rc=$EX_RC; _e8d_tr=$EX_TRACE
+if [ "$_e8c_rc" = 1 ] && [ "$_e8d_rc" = 1 ] && ! printf '%s' "$_e8d_tr" | grep -q 'AILANG:\|GH:' \
+   && printf '%s' "$_e8d_tr" | grep -q 'notice suppressed'; then
+  ok "E8b: second identical rc-fail is silent, logged, exit 1"
+else bad "E8b: second identical rc-fail is silent, logged, exit 1" "rc=$_e8d_rc :: $(printf '%s' "$_e8d_tr" | tr '\n' '|')"; fi
+rm -rf "$_sd"
+
+echo "== exit-path notices: duplicate title is not a failure (E9) =="
+_sd=$(mktemp -d)
+AILANG_RC=1 STUB_AILANG_OUT='duplicate message exists (ID: x)' run_exit final_notice "$_sd" 1 0
+if printf '%s' "$EX_TRACE" | grep -q 'already in the inbox' && ! printf '%s' "$EX_TRACE" | grep -q 'WARNING:.*FAILED to send'; then
+  ok "E9: same-day duplicate is logged as already in the inbox, not a WARNING"
+else bad "E9: same-day duplicate is logged as already in the inbox, not a WARNING" "$(printf '%s' "$EX_TRACE" | tr '\n' '|')"; fi
+rm -rf "$_sd"
+
+echo "== exit-path notices: source guards (G1-G3) =="
+# G_SEL: logical-line selector for the driver. Joins \-continued lines, drops comment lines,
+# prints "START: joined-text" for every logical line matching PAT. This is what a reviewer
+# reads as one statement, so a multi-line send is judged whole.
+G_SEL='
+  BEGIN { cont = 0 }
+  {
+    if (!cont) { if ($0 ~ /^[ \t]*#/) next; cur = $0; start = NR }
+    else { cur = cur " " $0 }
+    if ($0 ~ /\\$/) { sub(/\\$/, "", cur); cont = 1; next }
+    cont = 0
+    if (cur ~ PAT) print start ": " cur
+  }'
+_g1_sel=$(awk -v PAT='ailang messages send|gh issue comment' "$G_SEL" "$DRV")
+_g1_n=$(printf '%s\n' "$_g1_sel" | grep -c .)
+_g1_bad=$(printf '%s\n' "$_g1_sel" | grep -v '_mc_bounded' | cut -d: -f1 | tr '\n' ' ')
+if [ -z "$_g1_bad" ] && [ "$_g1_n" -ge 6 ]; then
+  ok "G1: every ailang-send / gh-comment is bounded (selected $_g1_n, need >=6)"
+else bad "G1: every ailang-send / gh-comment is bounded (selected $_g1_n, need >=6)" "unbounded at lines: ${_g1_bad:-none, but only $_g1_n selected}"; fi
+
+_g2_sel=$(awk -v PAT='ailang messages send' "$G_SEL" "$DRV")
+_g2_bad=$(printf '%s\n' "$_g2_sel" | grep -v 'env AILANG_STORAGE_MESSAGING=gcp' | grep . | cut -d: -f1 | tr '\n' ' ')
+if [ -z "$_g2_bad" ] && [ -n "$_g2_sel" ]; then
+  ok "G2: every ailang-send is store-scoped (env AILANG_STORAGE_MESSAGING=gcp)"
+else bad "G2: every ailang-send is store-scoped (env AILANG_STORAGE_MESSAGING=gcp)" "unscoped at lines: ${_g2_bad:-none}"; fi
+
+# G3a is the tripwire: the F8 literal (gate0 keys on it) appears exactly once, before and after.
+_g3_n=$(grep -c -F '⚠️ Mission iteration **FAILED to complete** (rc=' "$DRV")
+if [ "$_g3_n" -eq 1 ]; then ok "G3a: F8 literal present exactly once in the driver"
+else bad "G3a: F8 literal present exactly once in the driver" "count=$_g3_n"; fi
+# G3b: that one literal is the GH-body argument of an _mc_exit_notice call (post-fix only).
+_g3_in=$(awk '
+  /^[ \t]*_mc_exit_notice / { open = 1 }
+  open && index($0, "**FAILED to complete** (rc=") { hit++ }
+  open { if ($0 !~ /\\$/) open = 0 }
+  END { print hit + 0 }' "$DRV")
+if [ "$_g3_in" -eq 1 ]; then ok "G3b: the F8 literal is the GH body of an _mc_exit_notice call"
+else bad "G3b: the F8 literal is the GH body of an _mc_exit_notice call" "found inside a helper call: $_g3_in"; fi
 
 echo ""
 echo "==== $PASS passed, $FAIL failed ===="
