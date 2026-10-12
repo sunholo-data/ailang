@@ -2,6 +2,7 @@ package quorum
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -137,6 +138,45 @@ func TestSynthesizeWithTier2_NilIsTier1Identical(t *testing.T) {
 	with := SynthesizeWithTier2(tier1, nil, nil)
 	if with.Verdict != base.Verdict || len(with.BlockingObjections) != len(base.BlockingObjections) {
 		t.Errorf("nil Tier-2 must be identical to Tier-1 synthesis: base=%+v with=%+v", base, with)
+	}
+}
+
+// TestSynthesizeWithTier2_PassCannotRescueZeroSignalTier1 proves a Tier-2 pass
+// cannot rescue a Tier-1 result with no present external reviewer, even with a
+// controller pass. SynthesizeWithTier2 is called directly: ShouldEscalate never
+// escalates an all-absent Tier-1, so the orchestration path would not reach this.
+func TestSynthesizeWithTier2_PassCannotRescueZeroSignalTier1(t *testing.T) {
+	tier1 := []*ReviewerOutcome{
+		{Model: "m1", Present: false, AbsentReason: ReasonAuth},
+		{Model: "m2", Present: false, AbsentReason: ReasonBudget},
+	}
+	ctrl := &ControllerReview{Verdict: VerdictPass, Note: "controller passes"}
+	tier2 := &Tier2Result{Reviewers: []*ReviewerOutcome{present("t2", VerdictPass, "verified")}}
+
+	s := SynthesizeWithTier2(tier1, ctrl, tier2)
+	if s.Verdict != SynthBlocked {
+		t.Fatalf("verdict = %q, want blocked: a Tier-2 pass must not rescue zero Tier-1 signal", s.Verdict)
+	}
+	if want := []string{zeroSignalObjection}; !reflect.DeepEqual(s.BlockingObjections, want) {
+		t.Errorf("blocking objections = %q, want %q", s.BlockingObjections, want)
+	}
+}
+
+// TestSynthesizeWithTier2_OnePresentPassStillProceeds is the positive control:
+// one present Tier-1 pass plus one absent, with a Tier-2 pass, still proceeds.
+func TestSynthesizeWithTier2_OnePresentPassStillProceeds(t *testing.T) {
+	tier1 := []*ReviewerOutcome{
+		present("m1", VerdictPass, "minor"),
+		{Model: "m2", Present: false, AbsentReason: ReasonAuth},
+	}
+	tier2 := &Tier2Result{Reviewers: []*ReviewerOutcome{present("t2", VerdictPass, "verified")}}
+
+	s := SynthesizeWithTier2(tier1, nil, tier2)
+	if s.Verdict != SynthProceed {
+		t.Fatalf("verdict = %q, want proceed: one present external pass is signal", s.Verdict)
+	}
+	if len(s.BlockingObjections) != 0 {
+		t.Errorf("unexpected blocking objections: %v", s.BlockingObjections)
 	}
 }
 
