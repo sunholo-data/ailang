@@ -43,6 +43,16 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-12 — ITERATION 33: P1 #9 exit-path notices bounded and store-scoped LANDED — #1791 `e7dd6c127`, judged PASS 90 by sonnet; ticket resolved; P1 tier exhausted [HARNESS]
+
+The three remaining unbounded exit-path notice pairs in `tools/launchd/mission-control.sh` (the refusal, late-kill and rc-fail notices) now go through `_mc_exit_notice`. It makes one `_mc_bounded "$NOTIFY_TIMEOUT"` attempt per channel and always returns 0; a failure is logged as a WARNING with its reason, and a duplicate title is logged as already in the inbox. All three, plus the slot-verdict send, are now store-scoped (`env AILANG_STORAGE_MESSAGING=gcp …`). Before this, they wrote to the rig's local SQLite inbox. Titles, bodies, exit codes and the gate-0 F8 literal are byte-identical.
+
+The opus planner chose the helper over `_mc_notify` (no title change, and no retry that would stretch the exit path). The haiku executor (`claude-sub`) added hang, preservation and source-guard arms: 11 red before the fix, 115/0 after. The sonnet judge, in its own worktree, scored **PASS 90** with 0 blocking and M1–M5 mutants killed (M6 unmeasured). The judge's 2 red routing-note arms also failed on base and came from the controller's exported env; under `env -i` the suite is 115/0 (addendum banked).
+
+PR #1791 head `986def325`: 25 checks, 0 failures. Squash-merged → `e7dd6c127`. `make test-launchd-drivers` at the merge: rc 0 under `env -i`, 590 s. Healthy and degraded dry-runs under the idle stapledon profile: both `DRY RUN ok`, rc 0. Ticket resolved. Follow-ups, not ticketed: undated exit-notice titles, and unbounded sends in nightly-eval and other rig scripts.
+
+Clause map: **1** UNMEASURED; **2** UNMET (this ticket ≈16.5 d); **3** MET (53 open); **4** prior evidence only; **5** preserved. Next: the Phase 3a skill-resolution spike (P1 is now exhausted; directive "after P1, before P2").
+
 ## STATUS 2026-10-12 — ITERATION 32: P1 #8 quorum zero-signal guard LANDED — #1767 `a5f9af982`, judged PASS 95 by sonnet; ticket resolved; orphans 30/31 credited [HARNESS]
 
 Resumed iteration 28's PARKED-ON-LANE item. The predicate held this fire: Anthropic was available, and the evaluator resolved to `agent-tool sonnet`, which spawned. Two unrecorded slots had already carried the item:
@@ -60,10 +70,6 @@ Clause map: **1** UNMEASURED; **2** UNMET (this ticket took ≈16 d, mostly a ca
 ## STATUS 2026-10-09 — ITERATION 29: native evaluator unavailable → PARKED-ON-LANE (external native capability); documented independent fallback, no runtime fix [HARNESS]
 
 Only `blocking=all` ticket `agent-tool:sonnet-unavailable` selected (47 open, 8 occurrence records; latest successful workaround is blocking=none, not proof of eight terminal losses). Native host supports OpenAI models only; evaluator `minimax/minimax-m3` rejected Unknown model. Native Sol designer/planner confirmed the repository cannot install host runtime models/tools. Existing user authorization permits documented fallback; declared Minimax recipe probe rc0. Independent Minimax bookkeeping review PASS95/100, 0 blocking; verbatim report and controller correction addendum banked under `design_docs/fleet-mission-evidence/iteration29/`; no verdict, implementation or ticket resolution. Ticket remains OPEN/PARKED-ON-LANE (external native capability) until native capability is proven on the affected controller; existing declared CLI recipes remain workaround. Iteration28 record inherited verbatim from PR #1662, candidate unreviewed and unapproved; original PR/worktree unchanged. P1 #8 candidate then #9 next. No new human decision, policy or skill edit. Clause map: **1** UNMEASURED; **2** UNMET; **3** MET (47 open); **4** prior evidence only; **5** preserved (no fix shipped). 0 resolved; goal unmoved.
-
-## STATUS 2026-10-08 — ITERATION 28: P1 #8 candidate designed, PARKED-ON-LANE — native Sonnet/Opus unsupported; declared independent judge lanes refused; no implementation [HARNESS]
-
-Candidate [m-quorum-external-zero-signal-guard](planned/m-quorum-external-zero-signal-guard.md) by native gpt-6.1-sol. Source premise confirmed at `3e032cf4f`: controller increments the signal counter before the guard. No quorum, approval, sprint plan, execution or judge verdict; ticket remains open. Native evaluator attempts returned `Unknown model sonnet` and `Unknown model opus`. Fresh-binary admission probes: Minimax/OpenRouter, Sonnet and Opus each rc75 (Anthropic/OpenRouter measurably over ration). Resume = re-probe declared judge chain and require an admitted model distinct from gpt-6.1-sol, then quorum → approved plan → execute → independent evaluation. Capacity park, no new human ask. Clause map: **1** UNMEASURED; **2** UNMET (0 resolved); **3** MET (42 open); **4** prior evidence only; **5** preserved (no unjudged fix shipped). Goal unmoved.
 
 ## CURRENT GOAL
 
@@ -200,8 +206,7 @@ overnight: harness faults read as model faults)
 6. [LANDED · iteration 27] `skill-surface:main-checkout-not-synced-to-dev`: #1647 → `15d47b5dc` (D-FLEET-15 = A; judged PASS 91 by sonnet). `tools/launchd/lib/skill-sync.sh` fast-forwards the checkout the skill symlink resolves to, behind every guard in the ruling; the driver calls it after the kill switch and overlap yield (report on dry-run, apply before the boot stagger). Ticket resolved. Non-blocking follow-ups (judge): no arm pins `GIT_OPTIONAL_LOCKS=0`; the dry-run field prints `synced:N` for a would-sync verdict; the 5 s per-call cap also bounds the merge (0.66 s measured for 804 files, so it is load-sensitive). This feeds the Phase 3a skill-resolution directive below.
 7. [LANDED · iteration 26] `gate0:driver-crash-notices-invisible`: #1604 → `59c3e6a55` (built and judged PASS 93 at iteration 22; re-judged PASS 96 on the merged head by minimax at iteration 26). `scripts/mission_gate0_self_notices.sh` + Gate 0 step 6a in both skill copies. Ticket resolved; #1160 closed. Step 6a's text reaches a running loop only once the main checkout is fast-forwarded (D-FLEET-15; 36 behind at iteration 26).
 8. [LANDED · iteration 32] `quorum:zero-signal-guard-vacuous-with-controller-verdict`: #1767 → `a5f9af982` (judged PASS 95 by sonnet). `synthesize` counts present EXTERNAL reviewers only, so a controller-only quorum blocks; the controller keeps its veto. Designed iteration 28, quorum + revisions iteration 30, planned/built/judged iteration 32. Ticket resolved; ailang#651 closed. Reach: the PATH binary picks it up on its next rebuild or release.
-9. `driver:exit-path-notices-unbounded` (**PARTIAL**): the slot-verdict notices are bounded
-    (10448bad5). Unbounded: `:2579/2582`, `:2596/2599`, `:2114/2117` and `:2133`.
+9. [LANDED · iteration 33] `driver:exit-path-notices-unbounded`: #1791 → `e7dd6c127` (judged PASS 90 by sonnet). The refusal, late-kill and rc-fail notices go through `_mc_exit_notice`: bounded per channel, non-fatal and store-scoped. The slot-verdict send is store-scoped too. Ticket resolved. Follow-ups (planner), not ticketed: `driver:exit-notice-titles-undated`, `nightly-eval:unbounded-sends`.
 
 **P2 — hygiene, or correctness with a workaround**
 10. `skill:gate0-ledger-provenance-S`: `gate-0-preflight.md:174` still uses `-S'| D-nn |'`, which
@@ -230,6 +235,7 @@ overnight: harness faults read as model faults)
 `#1306` was half fixed by #1580 and got a verdict comment; it stays open for the orphan-row half.
 
 **Landed (history)**
+- `driver:exit-path-notices-unbounded`: #1791 `e7dd6c127` (iteration 33).
 - `quorum:zero-signal-guard-vacuous-with-controller-verdict`: #1767 `a5f9af982` (iteration 32).
 - `skill-surface:main-checkout-not-synced-to-dev`: #1647 `15d47b5dc` (iteration 27, D-FLEET-15 = A).
 - `gate0:driver-crash-notices-invisible`: #1604 `59c3e6a55` (built iteration 22, landed iteration 26).
