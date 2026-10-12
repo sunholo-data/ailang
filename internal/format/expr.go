@@ -423,7 +423,7 @@ func (p *printer) match(n *ast.Match) error {
 				caseErr = err
 				return
 			}
-			p.w.write(pat)
+			p.w.writeVerbatim(pat)
 			if c.Guard != nil {
 				p.w.write(" if ")
 				if err := p.expr(c.Guard, precLowest); err != nil {

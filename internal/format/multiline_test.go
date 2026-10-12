@@ -17,6 +17,7 @@ func TestMultilineSourceLayout(t *testing.T) {
 		"\"first\n  ${x} tail\nend\"",
 		"\"first\n  ${\"nested }\"} tail\"",
 		"(\"first\n  raw\", \"other\n  raw\")",
+		"match x { \"first\n  raw\" => \"match\", _ => \"other\" }",
 	} {
 		t.Run(expr, func(t *testing.T) {
 			src := []byte("module multiline\npure func f(x: string) = " + expr + "\n")

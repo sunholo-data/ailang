@@ -27,6 +27,9 @@ func (p *printer) patternString(pat ast.Pattern) (string, error) {
 	case *ast.Identifier:
 		return n.Name, nil
 	case *ast.Literal:
+		if raw, ok := p.sourceMultiline(n); ok {
+			return raw, nil
+		}
 		return literalString(n)
 	case *ast.ConsPattern:
 		head, err := p.patternString(n.Head)

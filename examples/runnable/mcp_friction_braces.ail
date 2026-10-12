@@ -11,3 +11,6 @@ test "unbalanced literal braces" {
 test "sibling passes" {
   assert "click } here" != "" && helper() == 42
 }
+
+-- The generic example runner uses main; named tests remain the regression.
+export pure func main() -> int = helper()
