@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-QUORUM-ZERO-SIGNAL",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-12T00:00:00Z",
   "verified_at": "8d0d3de0e",
   "design_doc": "design_docs/planned/m-quorum-external-zero-signal-guard.md",
@@ -48,10 +48,10 @@
         "Add Tier-2 regression using all-absent Tier-1, controller pass, and a present passing Tier-2 outcome. Assert `blocked` and zero-signal objection retained. Add a positive control with one Tier-1 pass plus one absent and Tier-2 pass: `proceed`. Existing Tier-2 reject tests preserve veto behavior.",
         "Mutation evidence required during execution: restoring only the controller count increment must make the new controller-pass/all-absent and empty-slice/pass cases fail. Restoring the fixed source must return those tests to green. Record actual commands/results in the implementation report."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-12T07:16:33Z",
+      "notes": "Implemented M1 on fleet/i32-quorum-zero-signal. Production change: quorum.go synthesize counts externalPresentCount for present external reviewers only; controller increment removed; zero-signal guard kept with exact objection text; no early return; RunQuorum/synthesize contract comments updated. Intentional behavior change: controller-only runs proceed -> blocked. Evidence: baseline `go test ./internal/mission/quorum -count=1` ok (0.363s, rc=0) before edits; pre-fix red run of new tests FAILED as required (controller-pass/all-absent, empty-slice controller pass and reject, two-absent controller reject, seated all-absent+controller pass, Tier-2 zero-signal rescue); post-fix `go test` ok (0.462s), `go test -race` ok (2.223s), `go vet` rc=0, `gofmt -l` empty; mutation MU1 (externalPresentCount++ restored inside controller block) FAILED the named cases, restored by copy (sha256 verified, identical) and green again. Changelog fragment changelogs/unreleased/2026-10-12-quorum-external-zero-signal.md passes scripts/changelog_fold.sh --check. Full report: design_docs/fleet-mission-evidence/iteration32/implementation-report.md. Caveat: started timestamp not captured from a clock during execution, so left null; completed read from date -u. No push performed."
     }
   ]
 }
