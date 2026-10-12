@@ -46,6 +46,7 @@ func registerFromSpecRegistry(ml *ModuleLinker) {
 		}
 
 		builtinIface.Exports[name] = &iface.IfaceItem{
+			IFC:    types.IFCSummaryFromScheme(typeScheme),
 			Name:   name,
 			Type:   typeScheme,
 			Purity: spec.IsPure,
@@ -180,6 +181,7 @@ func RegisterAdtModule(ml *ModuleLinker) {
 		}
 
 		adtIface.Exports[factoryName] = &iface.IfaceItem{
+			IFC:    types.IFCSummaryFromScheme(typeScheme),
 			Name:   factoryName,
 			Type:   typeScheme,
 			Purity: true, // Constructor application is pure

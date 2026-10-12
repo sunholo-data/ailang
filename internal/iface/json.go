@@ -31,10 +31,11 @@ type TypeJSON struct {
 
 // FuncJSON represents an exported function in normalized form
 type FuncJSON struct {
-	Name    string   `json:"name"`
-	Type    string   `json:"type"`
-	Effects []string `json:"effects"`
-	Pure    bool     `json:"pure"`
+	IFC     *types.ImportedIFCSig `json:"ifc,omitempty"`
+	Name    string                `json:"name"`
+	Type    string                `json:"type"`
+	Effects []string              `json:"effects"`
+	Pure    bool                  `json:"pure"`
 }
 
 // ToNormalizedJSON converts an Iface to normalized JSON
@@ -112,6 +113,7 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 		effects := extractEffects(export.Type)
 
 		funcJSON := FuncJSON{
+			IFC:     export.IFC,
 			Name:    name,
 			Type:    typeStr,
 			Effects: effects,

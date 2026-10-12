@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-IFC-CROSS-MODULE",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-08",
   "target_release": "v0.53.x",
   "design_doc": "design_docs/planned/m-ifc-cross-module-labels.md",
@@ -53,10 +53,10 @@
         "Each security-relevant summary field changes the digest; export map order does not.",
         "TLabelled erasure and CoreTI/codegen behavior remain unchanged."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-12T09:33:53.726835+00:00",
+      "completed": "2026-10-12T09:39:15.617610+00:00",
+      "notes": "Types-owned lossless summaries, recursive fixed point, resolved-import analysis API, explicit synthetic summaries, schema v2, canonical digest and compact/gob coverage complete. Focused types/iface/link/runtime tests pass; IFC tests pass -count=20. File sizes and boundaries pass. Full lint running after tool installation; test-core retry running after unrelated nested-process deadline failure under concurrent compilation. Final checks will be recorded in M2 checkpoint."
     },
     {
       "id": "M2",
@@ -133,5 +133,6 @@
       "internal/types/effects.go"
     ],
     "handoff_contract": "Summary declassify is a label list: [] none, [\"*\"] bare, sorted unique labels otherwise (one element in v1 per 2026-10-08 single-label ruling); summary carries positive param labels; imported callees reuse local Check A/C and scoped result policy."
-  }
+  },
+  "last_checkpoint": "M1 implementation banked; M2 next"
 }

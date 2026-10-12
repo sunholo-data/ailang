@@ -62,17 +62,7 @@ func CheckModuleIFC(file *ast.File) []*TypeCheckError {
 	if file == nil {
 		return nil
 	}
-	c := &ifcChecker{
-		types:     newIFCTypes(file),
-		sigs:      make(map[string]*ifcSig, len(file.Funcs)),
-		effLabel:  make(map[string]Label),
-		computing: make(map[string]bool),
-	}
-	for _, fn := range file.Funcs {
-		if fn != nil {
-			c.sigs[fn.Name] = buildIFCSig(fn)
-		}
-	}
+	c := newIFCChecker(file)
 	// Walk function bodies in source order for deterministic diagnostics.
 	for _, fn := range file.Funcs {
 		if fn != nil && fn.Body != nil {
@@ -111,6 +101,7 @@ type ifcVar struct {
 type ifcEnv map[string]ifcVar
 
 type ifcChecker struct {
+	imports   map[string]*ImportedIFCSig
 	types     *ifcTypes // module-local type declarations (ifc_static_type.go)
 	sigs      map[string]*ifcSig
 	errs      []*TypeCheckError
@@ -414,6 +405,11 @@ func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env ifcEnv) Label {
 			}
 		}
 		return c.calleeResultLabel(sig, passed, argLabels)
+	}
+	if _, bound := env[name]; !bound {
+		if imported := c.imports[name]; imported != nil {
+			return importedIFCResult(imported, argLabels)
+		}
 	}
 	if src, ok := ifcBuiltinSourceLabels[name]; ok {
 		return LabelConst(src)

@@ -16,7 +16,7 @@
 
 Make imported sink refinements and return labels enforceable at compile time, using serializable per-export IFC summaries and the existing surface-AST checker. The same-module rejection must also occur when the sink moves to a library. Include intrinsic taint, scoped Declassify authority, positive parameter label coverage (Check C) for imported callees, CLI/REPL parity, and cache safety. Keep label erasure in unification and CoreTI/codegen unchanged.
 
-This implements #1134 and part 1 of #1132. Label-aware tracing, Z3 cross-module function contracts, and label-polymorphic inference remain separate work. Do not close #1132 after this sprint: its tracing half remains outstanding. No new issue is needed. The plan PR must use `Refs #1134` and `Refs #1132`; only the implementation PR may use `Closes #1134`, alongside `Refs #1132`.
+This implements #1134 and part 1 of #1132. Label-aware tracing, Z3 cross-module function contracts, and label-polymorphic inference remain separate work. Do not close #1132 after this sprint: its tracing half remains outstanding. No new issue is needed. The plan PR must use `Refs #1134` and `Refs #1132`; only the final implementation PR may use an issue-closing keyword for #1134, alongside `Refs #1132`.
 
 ## Dependency on M-IFC-AUTHORITY-SCOPING
 
@@ -38,7 +38,7 @@ Ran `ailang pkg search ifc`: one result, `sunholo/linkedin@0.5.1`. `pkg info sun
 
 ## Milestones
 
-### M1: Export IFC summaries and deterministic schema (~310 LOC)
+### M1: Export IFC summaries and deterministic schema (~310 LOC) — done 2026-10-12
 
 **Estimate:** 185 implementation + 125 tests; 1.5 days / 9 hours
 **Dependencies:** M-IFC-AUTHORITY-SCOPING implementation merged and this branch rebased on it
@@ -49,11 +49,11 @@ Files: `internal/types/ifc_check.go`, a small `internal/types/ifc_summary.go` if
 
 Example coverage: summary tests use the lib functions later published under `examples/runnable/ifc_cross_module/lib.ail`; no new standalone language feature is introduced.
 
-- [ ] Every exported item has explicit IFC metadata; clean is distinguishable from missing.
-- [ ] Positive param labels, sink refinements, declared/intrinsic returns, and the Declassify label list (none `[]`, bare `["*"]`, scoped `["email"]`) survive summary construction; no bool-shaped declassify field exists in the schema.
-- [ ] Local recursion and a wrapper around an imported secret producer retain intrinsic taint.
-- [ ] Each security-relevant summary field changes the digest; export map order does not.
-- [ ] TLabelled erasure and CoreTI/codegen behavior remain unchanged.
+- [x] Every exported item has explicit IFC metadata; clean is distinguishable from missing.
+- [x] Positive param labels, sink refinements, declared/intrinsic returns, and the Declassify label list (none `[]`, bare `["*"]`, scoped `["email"]`) survive summary construction; no bool-shaped declassify field exists in the schema.
+- [x] Local recursion and a wrapper around an imported secret producer retain intrinsic taint.
+- [x] Each security-relevant summary field changes the digest; export map order does not.
+- [x] TLabelled erasure and CoreTI/codegen behavior remain unchanged.
 
 Risk: summary computation re-enters checking or introduces an import cycle. Keep the analysis reusable and data types in types; reuse the existing fixed-point rules.
 
@@ -145,4 +145,4 @@ The verdict matrix includes same/two-module sinks, imported positive-param Check
 
 Label lattice, TLabelled cache codec, closure-laundering fix and REPL gate already exist. The M-IFC-AUTHORITY-SCOPING implementation is a hard prerequisite (see HOLD); no other external package or new issue blocks work. The summary representation, REPL export storage, cache-hit behavior and all interface producers require execution-time audit; the tasks above explicitly cover those uncertainties.
 
-Machine progress: `.ailang/state/sprints/sprint_M-IFC-CROSS-MODULE.json`. All milestone passes begin null. This task creates planning artifacts only. Merging this plan PR dispatches the executor, which is why it is on HOLD until the M-IFC-AUTHORITY-SCOPING implementation PR has merged. The executor works on its own branch and opens a PR; it does not push to dev or merge. The implementation PR closes #1134 only after the entire acceptance matrix and docs update pass, and references #1132 for its partial delivery.
+Machine progress: `.ailang/state/sprints/sprint_M-IFC-CROSS-MODULE.json`. All milestone passes begin null. This task creates planning artifacts only. Merging this plan PR dispatches the executor, which is why it is on HOLD until the M-IFC-AUTHORITY-SCOPING implementation PR has merged. The executor works on its own branch and opens a PR; it does not push to dev or merge. The implementation PR completes #1134 only after the entire acceptance matrix and docs update pass, and references #1132 for its partial delivery.

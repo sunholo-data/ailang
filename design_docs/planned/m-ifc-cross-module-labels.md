@@ -66,17 +66,22 @@ exactly like local ones. Three coordinated pieces:
 
 ### 1. Iface IFC summary (internal/iface, schema v2)
 
-Extend `IfaceItem` with an optional IFC projection built at export time:
+Extend `IfaceItem` with a mandatory explicit IFC projection built at export time:
 
 ```
 ifc: {
-  params:    [{ label: "secret" | "", notLabel: "email" | "" }, ...]  // per param, source label + sink refinement
-  return:    "secret" | ""        // declared return label (⊥ = none)
-  intrinsic: "secret" | ""       // body's effective label, params at ⊥ (see §2)
-  declassify: ["email"] | ["*"] | []  // authorized relabel labels: [] none, ["*"] bare ! {Declassify}, else sorted unique labels
+  params: [{name: "input", label: {constants: [], variables: []}, forbidden: "email"}]
+  return: {constants: ["secret"], variables: []}
+  has_return_label: true
+  intrinsic: {constants: [], variables: []}  // params' flow labels at bottom
+  declassify: ["email"] | ["*"] | []
 }
 ```
 
+> **Implementation schema note (2026-10-12):** Every export carries metadata,
+> including explicit empty arrays for clean exports. Labels preserve constant and
+> variable constituents separately, including joins; display strings are not the codec.
+>
 > **Revision (2026-10-08, sprint planning; maintainer ruling by Mark the same day):**
 > `declassify` is a **label list from day one**, not a bool, so the summary never
 > ships a bool-shaped schema that M-IFC-AUTHORITY-SCOPING would immediately
