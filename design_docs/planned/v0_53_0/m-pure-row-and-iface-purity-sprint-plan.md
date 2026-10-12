@@ -1,8 +1,8 @@
 # Sprint Plan: M-PURE-ROW-AND-IFACE-PURITY
 
-> **HOLD: approve only after the M-EFFECT-ROW-VAR-UNIFICATION implementation (#616) has merged; then remeasure the flatMap/mapE and ~26 combinator pins and the purity census on the new base.** This sprint runs after M-EFFECT-ROW-VAR-UNIFICATION, never in parallel with it.
+> **HOLD satisfied for this run:** #616 merged via PR #1745 and latent-function-values via PR #1708. Remeasured on current dev `7c43ece3`: 50 std modules, 484 exported functions, 168 labelled outer rows, 17 open outer rows, 271 keyword-pure exports, and 27 combinators (the historical 26 plus `list.mapAccumL`). See [M1–M2 evidence](m-pure-row-and-iface-purity-m1-m2-validation.md).
 
-**Status:** Planned; awaiting sprint approval through the coordinator.
+**Status:** M1–M2 authorized for execution; M3–M4 reserved for a later run.
 **Target:** next minor (v0.53.0 is already released; ship in whichever minor is open when the implementation merges).
 **Design:** [Approved design](m-pure-row-and-iface-purity.md)
 **Source handoff:** task-5895e449; planning task task-20636394.
@@ -45,9 +45,9 @@ Every milestone records `none`: reuse the existing compiler, iface, SMT, apiserv
 
 **Acceptance criteria:**
 
-- [ ] pure with a labelled or open declared row fails check; diagnostic names the function, contradiction, and both repairs.
-- [ ] Explicit empty and absent rows on pure declarations remain accepted; non-pure declarations are unchanged.
-- [ ] Pipeline tests cover IO, Debug, Declassify, #1707's scoped `Declassify[label=x]`, var-only and mixed open rows, empty rows, and absent rows; Rule 1 rejects `pure … ! {Declassify[label=x]}`.
+- [x] pure with a labelled or open declared row fails check; diagnostic names the function, contradiction, and both repairs.
+- [x] Explicit empty and absent rows on pure declarations remain accepted; non-pure declarations are unchanged.
+- [x] Pipeline tests cover IO, Debug, Declassify, #1707's scoped `Declassify[label=x]`, var-only and mixed open rows, empty rows, and absent rows; Rule 1 rejects `pure … ! {Declassify[label=x]}`.
 
 **Risk and mitigation:** Checking only AST effect labels misses var-only rows. Inspect the elaborated declared row, including its tail; preserve normal body-effect checking.
 
@@ -61,14 +61,14 @@ Every milestone records `none`: reuse the existing compiler, iface, SMT, apiserv
 
 - [ ] Closed empty outer rows report true; labelled and declared-open outer rows report false without reading IsPure.
 - [ ] An undeclared outer tail shared with a callback row is latent and reports true; an unrelated tail or any outer label reports false.
-- [ ] All six std/ai/streaming exports and std/list.mapE report false; std/option.flatMap reports true; std keyword-pure invariant and approximately 26 combinator pins pass after the prerequisite lands.
+- [ ] All six std/ai/streaming exports and std/list.mapE report false; std/option.flatMap reports true; std keyword-pure invariant and all 27 measured combinator pins pass (list 12, option 3, result 3, string 3, xml 6).
 - [ ] serve-api uses iface purity without AST overwrite; MCP tags and read-only hints match iface, including open-row cases.
 - [ ] Cache version advances once from the current base version; cache round-trip rejects stale always-true metadata and preserves derived values.
 - [ ] Non-function export type-walk policy is documented and tested, including values containing function types.
 
 **File size:** `internal/iface/builder.go` is 785 lines (CI limit 800) and M2 adds ~110 implementation LOC, so the derivation lives in the companion `internal/iface/purity.go`; `builder.go` only replaces the `determinePurity` stub's call. Watch list for M3: `internal/smt/encodable.go` (729) and `internal/smt/callee_resolver.go` (577); put `smtAdmissible`/`rowAdmissible` in a companion file if either would cross the limit.
 
-**Risk and mitigation:** Callback tails can be mistaken for declared polymorphism. Track declaration context and callback-row sharing, fail closed on unrelated tails, and pin post-prerequisite schemes. Bump the current cache version once (v5 to v6 on this base), avoiding a stale hard-coded version if another change lands first.
+**Risk and mitigation:** Callback tails can be mistaken for declared polymorphism. Track declaration context and callback-row sharing, fail closed on unrelated tails, and pin post-prerequisite schemes. Bump the current cache version once (v6 to v7 on the execution base), avoiding a stale hard-coded version if another change lands first.
 
 ### M3: Preserve SMT verification and migrate source corpus (~330 LOC)
 

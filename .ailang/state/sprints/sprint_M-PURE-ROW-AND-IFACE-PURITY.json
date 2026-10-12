@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-PURE-ROW-AND-IFACE-PURITY",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-09T06:20:31.353468+00:00",
   "design_doc": "design_docs/planned/v0_53_0/m-pure-row-and-iface-purity.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-sprint-plan.md",
@@ -63,12 +63,12 @@
       "acceptance_criteria": [
         "pure with a labelled or open declared row fails check; diagnostic names the function, contradiction, and both repairs.",
         "Explicit empty and absent rows on pure declarations remain accepted; non-pure declarations are unchanged.",
-        "Pipeline tests cover IO, Debug, Declassify, #1707's scoped Declassify[label=x], var-only and mixed open rows, empty rows, and absent rows; Rule 1 rejects `pure … ! {Declassify[label=x]}`."
+        "Pipeline tests cover IO, Debug, Declassify, #1707's scoped Declassify[label=x], var-only and mixed open rows, empty rows, and absent rows; Rule 1 rejects `pure \u2026 ! {Declassify[label=x]}`."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-12T19:09:05.296097+00:00",
+      "completed": "2026-10-12T19:14:26.120491+00:00",
+      "notes": "16-case declared-row matrix passes; six contradictory cases confirmed red before implementation. Focused pipeline package, lint, boundaries, file sizes and changelog gate pass. M3 source migrations remain pending."
     },
     {
       "id": "M2",
@@ -80,7 +80,7 @@
       "acceptance_criteria": [
         "Closed empty outer rows report true; labelled and declared-open outer rows report false without reading IsPure.",
         "An undeclared outer tail shared with a callback row is latent and reports true; an unrelated tail or any outer label reports false.",
-        "All six std/ai/streaming exports and std/list.mapE report false; std/option.flatMap reports true; std keyword-pure invariant and approximately 26 combinator pins pass after the prerequisite lands.",
+        "All six std/ai/streaming exports and std/list.mapE report false; std/option.flatMap reports true; std keyword-pure invariant and all 27 measured combinator pins pass (list 12, option 3, result 3, string 3, xml 6).",
         "serve-api uses iface purity without AST overwrite; MCP tags and read-only hints match iface, including open-row cases.",
         "Cache version advances once from the current base version; cache round-trip rejects stale always-true metadata and preserves derived values.",
         "Non-function export type-walk policy is documented and tested, including values containing function types.",
@@ -155,6 +155,21 @@
     "No full make test; local commits only; no push.",
     "Z3 required; no model/API credentials required.",
     "internal/iface/builder.go is 785 lines: purity derivation goes in internal/iface/purity.go. Watch list: internal/smt/encodable.go (729), internal/smt/callee_resolver.go (577).",
-    "Changelog: fragment changelogs/unreleased/<YYYY-MM-DD>-pure-row-iface-purity.md opening with `### `; do not edit changelogs/v*-current.md."
-  ]
+    "Changelog: fragment changelogs/unreleased/<YYYY-MM-DD>-pure-row-iface-purity.md opening with `### `; do not edit changelogs/v*-current.md.",
+    "Run restricted to M1\u2013M2; M3\u2013M4 remain for a later run. Base/remote dev: 7c43ece3ce7abac639aa04777c3abc56e4117e65; cache base v6, next version v7. AILANG prompt version loaded: v0.16.7."
+  ],
+  "last_session": "2026-10-12T19:09:05.296097+00:00",
+  "baseline_measurement": {
+    "base_commit": "7c43ece3ce7abac639aa04777c3abc56e4117e65",
+    "std_modules": 50,
+    "exported_functions": 484,
+    "labelled_outer_rows": 168,
+    "open_outer_rows": 17,
+    "keyword_pure_exports": 271,
+    "rowless_callback_combinators": 27,
+    "cache_base": "v6",
+    "cache_next": "v7",
+    "evidence": "design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-m1-m2-validation.md"
+  },
+  "last_checkpoint": "M1 completed; M2 next"
 }
