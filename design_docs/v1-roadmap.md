@@ -1,6 +1,6 @@
 # V1 roadmap: the groomed path to v1.0.0
 
-**Groomed**: 2026-10-09, attended with Mark (Claude Opus 5.5). **Status**: proposal. The V1 loop is
+**Groomed**: 2026-10-09, attended with Mark (Claude Opus 5.5). **Re-groomed 2026-10-12**: seven rows landed (see "Landed since 2026-10-09"), two new P0 rows added. **Status**: proposal. The V1 loop is
 paused. Nothing here changes what it picks until the charter points its queue at this file (the
 "bar v3" charter refactor, a separate step).
 
@@ -17,12 +17,15 @@ plus the message system *is* the orchestration framework):
 - the messages between them are typed, budgeted effects;
 - any widening of authority stops for a human.
 
-The flagship is **the package cascade itself**, run end to end on fixture packages in CI: additive → deterministic bump; a broken dependent → escalation; widening → a human. Each scenario has a mutant that must fail. It is blocked first on #1730 (the cascade does not dispatch today).
+The flagship is **the package cascade itself**, run end to end on fixture packages in CI: additive → deterministic bump; a broken dependent → escalation; widening → a human. Each scenario has a mutant that must fail. #1730 (the cascade did not dispatch) is fixed and in prod since v0.54.5. No package has been published since, so the fix has not yet been exercised by real traffic.
 See [m-v1-orchestration-flagship](planned/v1_0_0/m-v1-orchestration-flagship.md). The exact bar
 sentence is ratified per clause at the release gate, after that clause's prerequisite lands (verify,
 then freeze).
 
-## Distance: N = 22 design docs remaining (was 12)
+## Distance: N = 18 design docs remaining (22 on 2026-10-09, 12 before that)
+
+**2026-10-12:** 22 − 6 landed rows (1, 2, 3, 4, 5, 7) + 2 new P0 rows (#1718, #1719) = **18**. Row 9a
+(#1730) landed too, but it was never counted. The rest of this section is the 2026-10-09 derivation of 22.
 
 Counted by the `D-51` unit: design docs serving an open clause, one count per doc.
 
@@ -41,23 +44,32 @@ Counted by the `D-51` unit: design docs serving an open clause, one count per do
 needs, not because progress went backwards. Most clause-2 items already have a design and a sprint
 plan, so **the bottleneck is approval and execution**.
 
+## Landed since 2026-10-09
+
+| Row | Item | How |
+|---|---|---|
+| 1 | #1326 + #573 latent effects through function values | executor PR #1708 merged 10-09 |
+| 2 | #616 effect-row variable unification | PR #1745 merged 10-09; issue closed 10-12; doc moved to `implemented/v1_0_0/` |
+| 3 | #1548 `policy-result:` forgeable | closed 10-09 |
+| 4 | #1569 `fs_deny_write` parent rename | closed 10-09 |
+| 5 | #1607 `pkg-docs` writes outside policy | closed 10-09 |
+| 7 | #752 `Declassify` whole-body authority | closed 10-09 |
+| 9a | #1730 cascade notifications never dispatched | `ba8245197` 10-09; released v0.54.3, prod on v0.54.5 (10-12) |
+
+Out-of-bar #1597 (serve-api security headers) also closed 10-09.
+
 ## Ordered work list (the loop picks top-down; ⏸ = waiting on Mark)
 
 | # | Clause | Item | State | Next action |
 |---|---|---|---|---|
-| 1 | 2 | P0 #1326 + #573: latent effects through function values ([m-effect-latent-function-values](planned/v0_48_0/m-effect-latent-function-values.md)) | Design ✅, plan ✅, **executor PR #1708 open** | ⏸ approve #1708, then judge and land |
-| 2 | 2 | P0 #616: effect-row variable unification ([doc](planned/v1_0_0/m-effect-row-var-unification.md)) | Design ✅, **plan PR #1678 open** | ⏸ approve #1678, then execute |
-| 3 | 2 / 4 | P0 #1548: a `run --policy` program can forge `policy-result:` | Triage note only (`ailang-core-triage/run-policy-result-line-forgeable.md`) | Design doc, then sprint |
-| 4 | 2 / 4 | P0 #1569: `fs_deny_write` bypassed by renaming a parent directory ([doc](planned/v0_52_6/m-fs-deny-write-dir-rename.md)) | Design ✅, plan ✅ | Execute |
-| 5 | 2 / 4 | P0 #1607: `policy-tool` `pkg-docs` writes outside policy ([doc](planned/v0_52_6/m-pkg-registry-confinement.md)) | Design ✅, plan ✅ | Execute |
-| 6 | 2 | P0 #1443: `pure func` accepts a declared effect row | Triage note only (`ailang-core-triage/pure-keyword-vs-declared-row-and-iface-purity.md`) | Design doc (may fold into #1) |
-| 7 | 2 | P0 #752: `Declassify` is whole-body authority ([m-ifc-authority-scoping](planned/m-ifc-authority-scoping.md)) | Design ✅, plan ✅ (v0_53_0) | Execute |
-| 8 | 2 | P0 #1134: IFC labels lost across modules ([m-ifc-cross-module-labels](planned/m-ifc-cross-module-labels.md)) | Design ✅ | Plan, then execute |
+| 6 | 2 | P0 #1443: `pure func` accepts a declared effect row ([plan](planned/v0_53_0/m-pure-row-and-iface-purity-sprint-plan.md)) | Plan ✅ (PR #1712 merged 10-12) | Execute (executor card awaiting approval) |
+| 6a | 2 | P0 #1718: an effectful callback inside a list, tuple or ADT argument is not charged | Issue only; named as the remainder in `implemented/v1_0_0/m-effect-row-var-unification.md` | Design doc, then sprint. **Last open effect-soundness hole (flagship P1)** |
+| 6b | 2 / 4 | P0 #1719: aliasing or higher-order passing of a sink bypasses IFC Checks A and C | Issue only | Design doc; fold into row 13 if the sink model covers it (flagship P3) |
+| 8 | 2 | P0 #1134: IFC labels lost across modules ([m-ifc-cross-module-labels](planned/m-ifc-cross-module-labels.md)) | Design ✅; executor re-dispatched as an M1–M2 slice after two failures (blocked, then a 3h timeout) | Land the slice, then M3+ |
 | 9 | 2 | [m-bytecode-vm-parity-bugs](planned/v1_0_0/m-bytecode-vm-parity-bugs.md) | Design ✅ | Plan, then execute |
-| 9a | 4 | **#1730: cascade notifications are never dispatched** (the coordinator hydrates by a local-store id; 7 of 7 publish windows since 09-17 dropped) | **Filed 2026-10-09, P0** | Fix: dispatch from the envelope, or write the legacy row to the cloud store; needs a release and promote. **The flagship cannot demonstrate anything until this lands** |
 | 10 | 4 | [m-json-codecs](planned/v1_0_0/m-json-codecs.md) | **New 2026-10-09**, quorum r2 dispositioned | ⏸ F1–F3, then plan; small and unblocks 11 and 12 |
 | 11 | 4 | [m-typed-message-plane](planned/v1_0_0/m-typed-message-plane.md) (includes M-CLI-MSG-HANDLER as M2) | **New 2026-10-09**, quorum r2 dispositioned | ⏸ F1–F4; M0 (shadow field) first; nothing enforced without a clean window |
-| 12 | 4 | [m-v1-orchestration-flagship](planned/v1_0_0/m-v1-orchestration-flagship.md): **the package cascade, made provable** (Mark: "this is what I meant for v1.0.0") | **r7 2026-10-09** | ⏸ F1–F3; M1 (test the deterministic path) and M2 can start now; M3 needs #1730 and P1–P4 |
+| 12 | 4 | [m-v1-orchestration-flagship](planned/v1_0_0/m-v1-orchestration-flagship.md): **the package cascade, made provable** (Mark: "this is what I meant for v1.0.0") | **r7 2026-10-09**; P0 #1730 done; P1 down to #1718; P2 down to #1720 (+ #1717, not P0) | ⏸ F1–F3; M1 and M2 can start now; M3 needs rows 6a, 15c, 8/6b/13 (P3) and P4 |
 | 13 | 2 / 4 | `m-ifc-ai-and-io-sinks`: prompts and output as secret sinks | **To write** | Design doc (a language-semantics change) |
 | 14 | 4 | [m-trace-label-aware](planned/v0_36_0/m-trace-label-aware.md) | Design ✅ | Plan; must land before flagship M1 (replay) |
 | 15 | 4 | [m-effect-clock-net-fs-modes](planned/v1_0_0/m-effect-clock-net-fs-modes.md) (effect sprint 3) | Design ✅ | Plan, then execute |
@@ -69,16 +81,16 @@ plan, so **the bottleneck is approval and execution**.
 | 18 | 5 | [m-verify-bounded-unrolling-false-counterexample](planned/m-verify-bounded-unrolling-false-counterexample.md) | Design ✅, idle since 08-23 | Plan |
 | 19 | 5 | [m-cohort-manifest-build-provenance](planned/m-cohort-manifest-build-provenance.md) | Design, **quorum round 4 BLOCKED** | ⏸ rule: re-scope, or OUT of the bar |
 
-Ordering rationale: rows 1–2 are already built or planned and wait only on approval, which is the
-cheapest progress available. Rows 3–5 are the gate's own escapes, so the flagship claim cannot ship
-while they are open. The flagship's two small enablers come before its large milestones.
+Ordering rationale (2026-10-12): row 6 has a merged plan and waits only on an approval, the cheapest
+progress available. Rows 6a and 6b are the remaining soundness and secrets holes the flagship's P1 and
+P3 depend on; row 15c is the last open `run --policy` escape (P2). The flagship's two small enablers come before its large milestones.
 
 ## OUT of the v1 bar (normal road or another owner)
 
 | Item | Where it goes | Why |
 |---|---|---|
 | `m-motoko-ailang-only-lane` | Motoko mission track | Not flagship-ready (no prod runs, no licence, ties pi at higher cost); cited as production use once its lane is in prod |
-| P0 #1597 serve-api `--static` security headers | Normal road, fix soon | Product security for the docparse deployment, not a language claim |
+| P0 #1597 serve-api `--static` security headers | Normal road | **Closed 2026-10-09** |
 | P0 #981 gate-0 directive watermark | Fleet | Mission harness |
 | `m-run-selector-enumeration-floor` | Fleet | Test-harness hygiene |
 | `m-effect-scope-params` | v1.1 | `D-27` |
