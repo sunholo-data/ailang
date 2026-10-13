@@ -228,6 +228,11 @@ overnight: harness faults read as model faults)
     the workaround.
 15. `driver:unclassified-state-unreachable`: `UNCLASSIFIED` appears 0 times in the driver.
     Low severity.
+16. `quorum:tier2-salvage-fold` (charter-tracked follow-up of #12; the fleet cannot file tickets, so this row is
+    its record — landing precondition of M-QUORUM-SALVAGE AC10): `SynthesizeWithTier2` still drops a salvaged
+    Tier-2 reject (designer V19 probe at `42652c19e`: `proceed`). Not live: `RunQuorumWithEscalation` has zero
+    non-test callers. Trigger: its first non-test caller. Fix: route the Tier-2 absent branch through `foldAbsent`
+    and wire `recordInvalid` in `agentic_caller.go` (~3 lines plus a test).
 
 **Weekly external-issue sweep 2026-10-05 (iteration 19; 0 new queue items).** 59 open issues enumerated (count checked against the listing); 57 had zero mentions in the charter, log, archive and dashboard. Controls: the positive one hit `#1380` 2 times, and the negative one fired. Most of the 57 are language, stdlib or product reports, which are V1's lane and outside this charter's Authority. The harness-shaped ones already have open fleet tickets, matched by title:
 - `#981` → `gate0:watermark-advanced-by-dying-fire`

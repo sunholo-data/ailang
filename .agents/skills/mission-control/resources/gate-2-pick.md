@@ -239,8 +239,8 @@ three syntheses reading `proceed` with zero model reviewers present
 `m-gemini-exec-project-plumbing-2026-07-16T17-44-15Z`), even though the absent reviewers had said
 reject in the retained raw text. `synthesize` in `internal/mission/quorum/quorum.go` now counts
 present EXTERNAL reviewers only: the controller's `--controller-verdict` cannot satisfy the guard,
-and zero external verdicts blocks. Salvage remains absent; a recovered reject vetoes, while a
-recovered pass contributes no signal. Read `.synthesis.absent_reviewers` before routing, and
+and zero external verdicts blocks. A salvaged reviewer is never counted as present: a recovered
+reject still vetoes, while a recovered pass contributes no signal. Read `.synthesis.absent_reviewers` before routing, and
 keep every named hole visible even when a reserve reviewer fills its seat.
 **AND WHEN A DOC BLOCKS ROUND AFTER ROUND, TRACK *WHICH SURFACE* EACH ROUND'S OBJECTIONS LAND ON —
 BECAUSE EVERY RULE ABOVE TELLS YOU HOW TO ANSWER A BLOCKED QUORUM AND NONE TELLS YOU WHEN TO STOP
