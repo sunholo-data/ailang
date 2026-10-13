@@ -2067,7 +2067,13 @@ models:
       "restricted with service accounts. Use authorization keys instead").
       Hard stop: AI Studio Project Spend Cap ($100/month, set 2026-10-13).
 
-      GATE: cost + pass-rate measurement PENDING. In NO suite.
+      GATE (2026-10-13): agent smoke tier 23/23 PASS, zero api_error/harness
+      failures (/tmp/smoke_gemini_agents, chain a00c3961). Cost $15.26 at the
+      proxy rates = $0.66/benchmark; avg 280s and ~83 turns per benchmark; 42.5M
+      input of which 40.1M cached (94%), 65K output. Expensive and slow next to
+      the CLI lanes, cheap per token because of the cache. The eval-suite dry-run
+      estimated $0.45 for the whole tier (no history) — 34x low; quote ~$0.70 x N.
+      Core/frontier placement not yet run. In NO suite, in NO role chain.
 
   gemini-3-8-flash:
     api_name: "gemini-3.8-flash"
