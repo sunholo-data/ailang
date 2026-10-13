@@ -1,6 +1,6 @@
 # M-QUORUM-SALVAGE — Never Discard a Reviewer's Reject; Locate the Parse Break
 
-**Status:** planned (revised 2026-10-14, fleet iteration 36; premise re-grounded at HEAD `42652c19e`; quorum round-1 revision applied, see the end of this doc)
+**Status:** implemented on branch `fleet/i36-quorum-salvage` (fleet iteration 36, 2026-10-14; M1-M3 re-verified outside the sandbox by the controller; moves to `implemented/` after landing)
 **Type:** mechanical quorum-transport fix (`internal/mission/quorum` + one mission-control skill file). No AILANG language, stdlib, motoko-core, routing, lane-order, quota/ration threshold or billing surface.
 **Source:** GitHub issue sunholo-data/ailang#941, the 2026-09-01 refresh comment (mission-world iter 143), which refuted the original premise.
 **Fleet tickets:** `quorum:invalid-absent-on-quoted-literals` (charter P2 #12, `design_docs/fleet-mission.md:223`) and `quorum:reviewer-invalid-json-discarded`. This one doc closes both.
