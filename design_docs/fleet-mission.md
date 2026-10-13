@@ -45,6 +45,8 @@ Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-a
 
 ## STATUS 2026-10-13 — ITERATION 34: Phase 3a skill-resolution spike MEASURED — P1–P3 answered with controlled marker skills, judged PASS 88 by sonnet; Phase 3b mechanism parked for Mark as D-FLEET-16 [HARNESS]
 
+Landed as PR #1793 → `3a972e34a` (26 checks, 0 failures on head `d112f7b26`).
+
 Mark's "after P1, before P2" directive was the pick; it is measurement only. The codex planner wrote the protocol (`sprint-plan-phase3a-skill-resolution-spike.md`), the codex executor built `skill_resolution_spike.sh`, and the controller ran it outside any sandbox. The controller first repaired 11 instrument defects that only live runs could expose; each is recorded in `fleet-mission-evidence/iteration34/findings.md`. Each run used per-run random tokens with before/after explicit-path and negative controls: claude 51/51 controls, pi 44/45, codex 32/43, with every codex miss a named provider-capacity error or scorer limit.
 
 Findings:
