@@ -301,6 +301,7 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult, benchmarkTier map[s
 		"codex":          "Codex CLI",
 		"motoko":         "motoko_agent",
 		"managed_agents": "Vertex Managed Agents API",
+		"gemini_agents":  "Gemini Developer API Managed Agents",
 	}
 
 	result := make(map[string]interface{}, len(perHarness))

@@ -2021,6 +2021,54 @@ models:
 
       GATE: cost + pass-rate measurement PENDING at registration. In NO suite.
 
+  # Gemini DEVELOPER API Managed Agents — the EDITING sibling of the row above (2026-10-13)
+  gemini-agents-antigravity:
+    api_name: "antigravity-preview-09-2026"
+    provider: "google"
+    default_thinking: "unknown"   # model behind the agent is unverifiable; see notes
+    description: "Gemini Developer API Managed Agents (antigravity 09-2026) — edits the local workspace via repo mount + patch export; version-free"
+    env_var: "GEMINI_AGENTS_API_KEY"  # SA-bound, generativelanguage-only key; scripts/security/setup_gemini_agents_project.sh
+    agent_cli: "gemini_agents"
+    agent_model_name: "antigravity-preview-09-2026"
+    max_output_tokens: 65536
+    pricing:
+      # BEST-AVAILABLE PROXY, not a verified rate: the model is unknown (notes).
+      # gemini-3.1-pro rates — what the agent self-reported, and above Argon's
+      # $2/$10 intro rate, so the proxy errs toward OVER-stating spend.
+      input_per_1k: 0.002         # $2.00 per 1M fresh input
+      output_per_1k: 0.012        # $12.00 per 1M (thought tokens bill here too)
+      cache_read_per_1k: 0.0002   # $0.20 per 1M (10% of input, Gemini standard)
+    budgets:
+      max_cost_usd: 2.00
+      hard_timeout_secs: 900
+    notes: |
+      WHY A SECOND ROW: Vertex (row above) cannot get edits out of the sandbox;
+      the Developer API can. Live-probed 2026-10-13 on project ailang-gemini-agents:
+      sources accept gcs|inline|repository|skill_registry (Vertex: gcs|skill_registry);
+      agent antigravity-preview-09-2026 is listed (Vertex: 404); the files API
+      GET environments/{id}/files/{path}?alt=media returns 200 (Vertex: 404).
+      E2E: repository mount of ailang -> agent created a file -> patch downloaded
+      -> `git apply --check` CLEAN locally. 21.7K in (11.6K cached) / 314 out, ~50s.
+
+      EXECUTOR (agent_cli gemini_agents): mounts the workspace's GitHub origin at
+      the merge-base with the remote, ships unpushed + uncommitted + untracked
+      changes as one inline patch, has the agent export a diff at the end,
+      applies it locally and deletes the sandbox. Non-git workspaces (eval
+      benchmarks) go up as inline files (1 MB/file, 2 MB total).
+
+      MODEL IS UNKNOWN, as with the Vertex row. agent_config.model is a recognised
+      field ("Unknown parameter" fires for others) and is echoed back, but a bogus
+      model is not rejected, and a run pinned to gemini-4-argon self-reported
+      "Gemini 3.1 Pro" (with zero thought tokens, which fits Argon). So this row
+      pins nothing; `<agent>/<model>` in agent_model_name sends a pin REQUEST,
+      recorded in ProviderData as managed_agents_requested_model.
+
+      AUTH: API key only — the Developer API refuses SA OAuth tokens (403
+      "restricted with service accounts. Use authorization keys instead").
+      Hard stop: AI Studio Project Spend Cap ($100/month, set 2026-10-13).
+
+      GATE: cost + pass-rate measurement PENDING. In NO suite.
+
   gemini-3-8-flash:
     api_name: "gemini-3.8-flash"
     provider: "google"

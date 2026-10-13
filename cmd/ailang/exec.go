@@ -136,10 +136,13 @@ func runExec() {
 		"claude": true, "gemini": true, "openai": true,
 		"anthropic": true, "ollama": true, "openrouter": true, "lyceum": true,
 		"zai": true,
+		// Gemini Developer API managed agents: edits the local workspace
+		// (repo mount + patch export), unlike "gemini" → Vertex managed_agents.
+		"gemini_agents": true,
 	}
 	if !validProviders[provider] {
 		fmt.Fprintf(os.Stderr, "%s: unknown provider %q\n", red("Error"), provider)
-		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, openai, anthropic, ollama, openrouter, lyceum, zai\n")
+		fmt.Fprintf(os.Stderr, "Valid providers: claude, gemini, gemini_agents, openai, anthropic, ollama, openrouter, lyceum, zai\n")
 		os.Exit(1)
 	}
 

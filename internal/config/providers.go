@@ -17,6 +17,7 @@ const (
 	EnvOllamaAPIKey         = "OLLAMA_API_KEY"
 	EnvGeminiAPIKey         = "GEMINI_API_KEY"
 	EnvGoogleAPIKey         = "GOOGLE_API_KEY"
+	EnvGeminiAgentsAPIKey   = "GEMINI_AGENTS_API_KEY"
 	EnvGitHubToken          = "GITHUB_TOKEN"
 	EnvCodexAuthSecret      = "AILANG_CODEX_AUTH_SECRET"
 )
@@ -33,6 +34,7 @@ var providerVars = []Var{
 	{EnvOllamaAPIKey, "", AreaProviders, "Ollama Cloud API key; the mission admission policy observes quota with it."},
 	{EnvGeminiAPIKey, "", AreaProviders, "Gemini API key the factory falls back to when GOOGLE_API_KEY is unset, Vertex ADC is unavailable and no key was given."},
 	{EnvGoogleAPIKey, "", AreaProviders, "Google API key: the Gemini provider's credential variable and the Gemini embedder's key."},
+	{EnvGeminiAgentsAPIKey, "", AreaProviders, "Gemini Developer API key for the gemini_agents executor (METERED, capped by the AI Studio project spend cap). SA-bound and restricted to generativelanguage in the locked ailang-gemini-agents project (scripts/security/setup_gemini_agents_project.sh); the Developer API refuses service-account OAuth, so a key is the only route."},
 	{EnvGitHubToken, "", AreaProviders, "GitHub token for PR creation, docs search and read-only API calls; falls back to `gh auth token` where a command can shell out."},
 }
 
@@ -44,6 +46,9 @@ func AnthropicAuthToken() string { return get(EnvAnthropicAuthToken) }
 
 // GeminiAPIKey returns GEMINI_API_KEY, "" when unset.
 func GeminiAPIKey() string { return get(EnvGeminiAPIKey) }
+
+// GeminiAgentsAPIKey returns GEMINI_AGENTS_API_KEY, "" when unset.
+func GeminiAgentsAPIKey() string { return get(EnvGeminiAgentsAPIKey) }
 
 // GoogleAPIKey returns GOOGLE_API_KEY, "" when unset.
 func GoogleAPIKey() string { return get(EnvGoogleAPIKey) }

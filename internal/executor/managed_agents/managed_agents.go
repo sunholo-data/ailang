@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"time"
@@ -27,6 +28,12 @@ type Executor struct {
 	timeoutSeconds int         // Default hard ceiling for one interaction
 	httpClient     httpClient  // Swappable for tests
 	tokens         tokenSource // Swappable for tests
+
+	// Developer API mode (gemini_agents, devapi.go). Zero values = Vertex.
+	name    string        // executor identifier: "managed_agents" or "gemini_agents"
+	devapi  bool          // true → Developer API transport + workspace round trip
+	baseURL string        // Developer API host (overridable for tests)
+	apiKey  func() string // Developer API key source; never logged
 }
 
 // New constructs the executor from the shared executor.Config.
@@ -47,11 +54,17 @@ func New(cfg *executor.Config) (*Executor, error) {
 		timeoutSeconds: timeout,
 		httpClient:     defaultHTTPClient(),
 		tokens:         defaultTokenSource,
+		name:           "managed_agents",
 	}, nil
 }
 
 // Name returns the executor identifier.
-func (e *Executor) Name() string { return "managed_agents" }
+func (e *Executor) Name() string {
+	if e.name == "" {
+		return "managed_agents" // zero-value Executor (tests) is the Vertex executor
+	}
+	return e.name
+}
 
 // Capabilities advertises supported features.
 //
@@ -63,6 +76,11 @@ func (e *Executor) Name() string { return "managed_agents" }
 // response and parsing them from Result.Output. See the eval harness's
 // managed_agents_bridge.go for that bridge.
 func (e *Executor) Capabilities() []executor.Capability {
+	if e.devapi {
+		// No CapRemoteSandbox: edits come back as a patch applied to the local
+		// workspace, so callers see files exactly as with a local CLI executor.
+		return []executor.Capability{executor.CapStreaming, executor.CapNetworkEgress}
+	}
 	return []executor.Capability{
 		executor.CapStreaming,
 		executor.CapSessionResume, // Multi-turn via interaction.id + environment_id
@@ -108,6 +126,10 @@ func (e *Executor) CostModel() *executor.CostModel {
 // call (it would cost real money on a service that provisions a sandbox);
 // validating the token source is sufficient signal for the harness doctor.
 func (e *Executor) HealthCheck(ctx context.Context) error {
+	if e.devapi {
+		_, err := e.devAPIKey()
+		return err
+	}
 	if e.tokens == nil {
 		return errors.New("managed_agents: token source not configured")
 	}
@@ -168,7 +190,7 @@ func (e *Executor) ExecuteStreaming(
 	// Resolve agent name. Task.Model carries the per-model override from
 	// models.yml::agent_model_name (e.g. "antigravity-preview-05-2026" or a
 	// future agent identifier).
-	agent := task.Model
+	agent, pinnedModel := splitAgentModel(task.Model)
 	if agent == "" {
 		agent = e.agent
 	}
@@ -188,15 +210,34 @@ func (e *Executor) ExecuteStreaming(
 	if err != nil {
 		return nil, err
 	}
+	directive := task.Directive
+	var plan *workspacePlan
+	if e.devapi && task.Workspace != "" {
+		plan, err = planWorkspace(ctx, task.Workspace)
+		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+			handler.OnError(err)
+			return &executor.Result{Success: false, Error: err.Error(), FinishReason: "error"}, err
+		}
+		if envRaw, err = plan.environment(); err != nil {
+			return nil, err
+		}
+		directive = plan.wrapDirective(directive)
+	}
+	var agentCfg *agentConfig
+	if pinnedModel != "" {
+		agentCfg = &agentConfig{Type: devAPIAgentModel, Model: pinnedModel}
+	}
 	body := &interactionRequest{
 		Stream:      true,
 		Background:  true,
 		Store:       true,
 		Agent:       agent,
+		AgentConfig: agentCfg,
 		Environment: envRaw,
 		Input: []inputBlock{{
 			Type:    "user_input",
-			Content: []contentBlock{{Type: "text", Text: task.Directive}},
+			Content: []contentBlock{{Type: "text", Text: directive}},
 		}},
 		SystemInstruction: task.SystemPrompt,
 	}
@@ -210,7 +251,7 @@ func (e *Executor) ExecuteStreaming(
 	defer cancel()
 
 	start := time.Now()
-	bodyReader, err := sendInteraction(reqCtx, e.httpClient, e.tokens, project, location, body)
+	bodyReader, err := e.send(reqCtx, project, location, body)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		handler.OnError(err)
@@ -351,6 +392,10 @@ func (e *Executor) ExecuteStreaming(
 	}
 
 	res.ProviderData = pd
+	if pinnedModel != "" {
+		// A REQUEST, not a verified fact — see splitAgentModel.
+		pd["managed_agents_requested_model"] = pinnedModel
+	}
 
 	// Determine Success + FinishReason.
 	switch state.Status {
@@ -389,12 +434,24 @@ func (e *Executor) ExecuteStreaming(
 		pd["managed_agents_parse_warning"] = parseErr.Error()
 	}
 
+	if e.devapi && state.EnvironmentID != "" {
+		e.finishDevAPI(reqCtx, task, plan, body, state.EnvironmentID, res, pd)
+	}
+
 	if !res.Success {
 		span.SetStatus(codes.Error, res.Error)
 		handler.OnError(errors.New(res.Error))
 	}
 
 	return res, nil
+}
+
+// send routes one interaction to the configured transport.
+func (e *Executor) send(ctx context.Context, project, location string, body any) (io.ReadCloser, error) {
+	if e.devapi {
+		return e.sendDevAPIInteraction(ctx, body)
+	}
+	return sendInteraction(ctx, e.httpClient, e.tokens, project, location, body)
 }
 
 // SetHTTPClient overrides the HTTP client. For tests.
@@ -407,6 +464,9 @@ func (e *Executor) SetTokenSource(t tokenSource) { e.tokens = t }
 func Register() {
 	executor.GlobalFactory().Register("managed_agents", func(cfg *executor.Config) (executor.Executor, error) {
 		return New(cfg)
+	})
+	executor.GlobalFactory().Register(DevAPIExecutorName, func(cfg *executor.Config) (executor.Executor, error) {
+		return NewDevAPI(cfg)
 	})
 }
 
