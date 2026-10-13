@@ -1,0 +1,1 @@
+VERDICT runid=1791874447-fafd54a911e77ed70f933ac9 arm=K-collision status=MATCH origin=H/H controls=1 rc=0 fence=off evidence=runs/1791874447-fafd54a911e77ed70f933ac9/calls/K-collision
