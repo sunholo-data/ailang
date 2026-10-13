@@ -1,137 +1,264 @@
-# M-QUORUM-SALVAGE — Salvage/Retry Policy for Parse-Failed Quorum Reviewer Responses
+# M-QUORUM-SALVAGE — Never Discard a Reviewer's Reject; Locate the Parse Break
 
-**Status:** planned
-**Type:** quorum-policy change (internal/mission/quorum; no AILANG language, stdlib, or motoko-core surface)
-**Source:** GitHub issue #941 (sunholo-data/ailang; mission-world iteration 133, measured first-party)
-**Version context:** v0.38.5
+**Status:** planned (revised 2026-10-14, fleet iteration 36; premise re-grounded at HEAD `42652c19e`)
+**Type:** mechanical quorum-transport fix (`internal/mission/quorum` + one mission-control skill file). No AILANG language, stdlib, motoko-core, routing, lane-order, quota/ration threshold or billing surface.
+**Source:** GitHub issue sunholo-data/ailang#941, the 2026-09-01 refresh comment (mission-world iter 143), which refuted the original premise.
+**Fleet tickets:** `quorum:invalid-absent-on-quoted-literals` (charter P2 #12, `design_docs/fleet-mission.md:223`) and `quorum:reviewer-invalid-json-discarded`. This one doc closes both.
+**Version context:** `v0.54.9-9-g42652c19e` (`git describe --tags`, 2026-10-14)
 
-## Problem
+## Premise correction
 
-A Tier-1 text reviewer that quoted the literals under discussion (e.g. `Some ...` inside a
-JSON string) produced JSON the parser rejected. `ParseReviewResult`
-(internal/mission/quorum/reviewer.go) failed, and `runReviewerWith` (run.go) /
-`RunAgenticReviewer` (agentic_caller.go) recorded the reviewer ABSENT with
-`AbsentReason = ReasonInvalid` ("invalid").
+The first version of this doc said reviewers broke JSON by quoting literals, and proposed a JSON-repair
+pass plus a re-ask. The #941 refresh **refuted that by measurement**: the cited literals were escaped
+correctly, and the break sat at byte 256, outside the published window. This revision drops the repair
+and the re-ask. It fixes three defects, all re-measured below at HEAD:
 
-The failure mode is real and recurring: reviewers reviewing string-literal-adjacent design
-docs naturally embed the literal in their `strongest_objection`/`proposed_fix`, and a bare
-quote inside a JSON string breaks `json.Unmarshal` on the whole object.
+1. **Verdict discarded (correctness).** On a parse failure the reviewer is recorded ABSENT
+   (`run.go:159-174`, `agentic_caller.go:201-206`, `claude_reviewer.go:121-126`). The raw text often
+   still holds a complete `"verdict":"reject"`. **7 of 7** `invalid` absences on disk carry one; the
+   control (all other absence reasons) has **0 of 90** (V3).
+2. **Diagnosis lost (observability).** `ParseReviewResult` publishes `(raw: %.200q)`, the first 200
+   bytes (`reviewer.go:135`). `*json.SyntaxError.Offset` appears nowhere, because `.Error()` omits it
+   (V5) and all three sites store only `perr.Error()` (`run.go:172`, `agentic_caller.go:204`,
+   `claude_reviewer.go:124`).
+3. **Wrong remedy (skill).** The absent-reviewer rule says *"re-run each absent reviewer alone with a
+   raised cap"* (`.claude/skills/mission-control/resources/gate-2-pick.md:185-189`, mirrored byte-identically
+   in `.agents/`). That rule targets `budget`. For `invalid` it spends more and fixes nothing.
 
-The prescribed remedy for absent reviewers — *re-run each absent reviewer alone with a
-raised cap* — targets budget exhaustion. For `invalid` it raises the budget for a problem
-that is not budget, and since the same doc re-elicits the same unescaped quote, it can
-loop indefinitely (same model, same prompt, same malformed output, higher spend).
+### What the zero-signal guard (#1767, `a5f9af982`) already covers, measured at HEAD
 
-Two gaps:
+`synthesize` now counts present EXTERNAL reviewers only, and blocks on zero (`quorum.go:153-187`).
+Measured against HEAD with a probe test (V7):
 
-1. **No repair attempt.** A one-shot salvage (a JSON-repair pass or a single re-ask with
-   escaped-literal guidance) would likely recover these verdicts cheaply — but no such
-   path exists.
-2. **`invalid` conflates distinct causes.** `ReasonInvalid` covers gate violations
-   (bad verdict enum, empty objection), quoting breakage, and truly malformed output. The
-   remedy layer cannot distinguish them, so the only lever it has (raise the cap) is wrong
-   for at least two of the three.
+| Shape | HEAD synthesis | Covered? |
+|---|---|---|
+| G1: every external reviewer absent `invalid` (hidden reject), controller `pass` | `blocked` | **Yes.** All 3 measured vacuous proceeds had this shape (V4) |
+| G2: one external `pass` plus one absent `invalid` (hidden reject), controller `pass` | `proceed` | **No** |
+| G3: `RunSeatedQuorum`, seats=3: A pass, B invalid (hidden reject), C pass, reserve D pass | `proceed` (4 outcomes; B listed absent) | **No.** This is the production path (`cmd/ailang/design_quorum.go:89`) |
 
-## Goals
+So the guard closed every measured instance. The live hole is the **N-1 shape**: a discarded reject
+next to at least one present pass. It has 0 measured instances on disk (V4), but at HEAD it can be
+built with no assumptions. The reserve refill (`seating.go:114-120`) makes it *more* likely: it
+replaces the silent rejecter with a fresh seat that may pass.
 
-- Recover parse-failed reviewer verdicts without weakening the reject-by-default contract.
-- Make `invalid` absences actionable: either repaired in-band, or classified so the remedy
-  layer knows the correct response.
-- Bound the repair so it cannot spin or silently inflate budget.
+## Goals / Non-goals
 
-## Non-Goals
+**Goals.** (G1) No reviewer-emitted `reject` can be dropped on the way to the synthesis. (G2) Every JSON
+parse failure records the byte offset and a window centred on it. (G3) The skill names a correct remedy
+for `invalid`.
 
-- Changing the reviewer schema, system prompt semantics, or verdict rubric.
-- Auto-coercing anything into a pass.
-- Repairing truncation failures (`finish_reason=length`) — that is already surfaced with a
-  models.yml remedy and is out of scope.
+**Non-goals.** No retry or re-ask (see *Retry: dropped*). No JSON repair. No model escalation. No change
+to seating, reserve order, roster, caps, `DefaultMaxCostUSD`, quota/ration thresholds or billing; those
+belong to Mark under HD-2a and are untouched. No change to `ShouldEscalate`. No change to the reviewer
+schema, prompts or `ValidateReviewResult`. **The fix is mechanical:** it changes how bytes the reviewer
+already returned are read and recorded, never what is asked or who is asked.
 
 ## Design
 
-### 1. Bounded salvage attempt inside the invalid path
+### D1. Salvage = a strict token scan, never a repair
 
-When `ParseReviewResult` returns a **JSON syntax error** (unmarshal failure — as opposed to
-a `ValidateReviewResult` gate violation), attempt exactly ONE salvage:
+New `salvageVerdict(raw string) *SalvagedVerdict` in a new `salvage.go`. It runs `json.Decoder.Token()`
+over `stripCodeFences(strings.TrimSpace(raw))`, the same bytes `ParseReviewResult` saw, and records
+only what the reviewer emitted as **complete JSON tokens before the break**:
 
-- **Order:** (a) mechanical repair pass first — a deterministic, local fixer that escapes
-  raw newlines/quotes inside string bodies and retries `json.Unmarshal` (a small, testable
-  helper, not an LLM call); (b) if that fails, ONE re-ask to the same reviewer with a
-  suffix prompt: *"Your previous response was not valid JSON because of unescaped quote
-  characters inside a string. Re-emit the same verdict with all literal quotes inside
-  string values escaped as \\\"."* The re-ask must NOT change the rubric or the doc body.
-- **Gate:** the salvaged result still passes through `ParseReviewResult` →
-  `ValidateReviewResult` unchanged. A repaired verdict with a missing/empty
-  `strongest_objection` is still an error, never a coerced pass. Reject-by-default holds:
-  salvage recovers *transport*, never *verdicts*.
-- **Audit:** on success, the outcome records `present: true` plus a new additive field
-  `salvaged: true` (and optionally `salvage_method: "repair" | "re-ask"`) so downstream
-  consumers and the catch-rate hook can see the verdict was recovered after a parse
-  failure. Additive + `omitempty` — existing artifacts stay byte-compatible.
+- The first token must be `{`. Otherwise it returns `nil`. Leading prose is not salvaged, because a quoted
+  `"reject"` in prose may be the doc's own text.
+- It reads top-level `key, value` pairs only. A nested `{`/`[` value stops the scan, so a `verdict` key at
+  depth 2 is never read.
+- `verdict` counts only on an exact `"pass"`/`"reject"` string token. **Any** recovered `reject` wins,
+  including duplicate keys, so the asymmetry favours blocking.
+- A free-text field (`strongest_objection`) counts only when it is **confirmed**: the next key or the
+  closing `}` must decode after it. Fixture F2 shows why. A bare quote ends a string early (`"the test
+  greps "`), and the tokenizer returns that prefix as a complete string before failing (V8).
+- The scan inserts, deletes and rewrites nothing. It cannot produce a field the reviewer did not emit.
 
-### 2. Distinguishing repairable from genuinely malformed
+```go
+// SalvagedVerdict is what a strict token scan recovered from a response that
+// ParseReviewResult rejected. It is audit plus a veto, never a vote.
+type SalvagedVerdict struct {
+	Verdict            Verdict `json:"verdict"`
+	StrongestObjection string  `json:"strongest_objection,omitempty"` // confirmed tokens only
+	Offset             int64   `json:"offset"`                         // -1 when the JSON was valid (gate violation)
+}
+```
 
-Classification is by failure stage and repair outcome, not by model introspection:
+### D2. Representation: still ABSENT, carrying a salvaged veto
 
-| Condition | Classification |
-|---|---|
-| Unmarshal error, mechanical repair succeeds | repaired (in-band) |
-| Unmarshal error, repair fails, re-ask succeeds | repaired (re-ask) |
-| Unmarshal error, repair + re-ask both fail | `invalid` with `parse_failure` detail |
-| `ValidateReviewResult` gate violation (bad verdict, empty objection/catch) | `invalid` with `gate_violation` detail — **never salvaged** (the model produced valid JSON saying something contract-breaking; re-asking would be retrying a policy failure, which is exactly the loop we are closing) |
+The outcome keeps `Present=false`, `AbsentReason="invalid"` and `Result=nil`, and gains one additive field,
+`Salvaged *SalvagedVerdict` (JSON tag `salvaged,omitempty`). Every existing reader of `.present` or
+`.result` (`ShouldEscalate`, `tier1Split`, `presentCount`, `MarkdownBlock`, the skill's `jq` reads,
+`cmd/ailang/design_review.go:131`) therefore sees exactly what it sees today. **No consumer can
+mistake a salvaged verdict for a validated one.** `AbsentNote` gains
+`SalvagedVerdict Verdict` (JSON tag `salvaged_verdict,omitempty`), so
+`.synthesis.absent_reviewers[]` shows it.
 
-A new optional field on `ReviewerOutcome` — `InvalidKind string` (`"parse_failure"` |
-`"gate_violation"`, omitempty) — gives the remedy layer the distinction without breaking
-the existing `absent_reason` enum consumers.
+Rules, folded through one helper `foldAbsent(&s, o, prefix)` that both `synthesize` (`quorum.go:159`) and
+`SynthesizeWithTier2` (`tier2.go:82`) call:
 
-### 3. Remedy mapping
+| Salvaged verdict | Effect on synthesis | Counts toward `externalPresentCount` / `presentCount`? |
+|---|---|---|
+| `reject` | `blocked`. Adds objection `"<model> [salvaged from invalid response]: <objection>"`, or `"... strongest_objection unrecoverable, see reviewer error"` when unconfirmed | **No** |
+| `pass` | **None.** Recorded for audit only | **No** |
+| none (`nil`) | None (today's behaviour) | No |
 
-The skill/doc guidance for absent reviewers becomes:
+**Why a salvaged pass never counts.** The contract makes a pass valid only with a stated closest
+concern and a `catch` (`reviewer.go:151-163`), and a broken response cannot show those survived.
+Counting it would let transport noise satisfy the zero-signal guard and the seat count. The costs are
+asymmetric. Discarding a real pass costs at most one reserve seat or one re-quorum. Counting a wrong
+pass costs a vacuous `proceed`, the failure this program has now patched twice. **Why a salvaged reject
+blocks with no objection.** Under reject-by-default a reviewer's `reject` is the veto. A missing
+objection makes it a weaker report, not a pass (`ValidateReviewResult`'s own wording, `reviewer.go:158`).
+A salvaged reject is *not* a present seat. `RunSeatedQuorum` therefore still fills its seat from the
+reserve, costing at most one extra seat at the existing cap. The synthesis is already `blocked`, so the
+extra seat cannot change the outcome. The seating code is not touched.
 
-- `budget` → re-run alone with a raised cap (existing behavior).
-- `invalid` + `gate_violation` → do NOT re-run with a raised cap; the reviewer is policy-
-  nonconforming — treat as a durable absence (N-1 degradation) and report it; repeated
-  occurrences flag the model in models.yml.
-- `invalid` + `parse_failure` → the salvage already ran once and failed; a raised cap
-  cannot help. Durable absence + report. One salvage per reviewer per run, hard-coded —
-  no second re-ask under any condition.
+The scan also runs on gate violations (valid JSON, e.g. `{"verdict":"reject","strongest_objection":""}`),
+with `Offset=-1`. That is the same rule: a reviewer's reject is never dropped.
 
-### 4. Budget and loop bounds
+### D3. Diagnostics: the offset plus a centred window
 
-- The salvage re-ask runs under the SAME `maxCostUSD` cap as the original call; its cost
-  is added to `out.CostUSD` and its token counts to the recorded `tokens_in/out`
-  (post-flight cap check applies to the combined cost — over-cap degrades to `budget`,
-  never blocks).
-- Exactly one salvage attempt per reviewer per quorum run — a constant, not a knob.
-- No escalation to other models on parse failure (that would change quorum composition
-  based on transport noise).
-- The mechanical repair pass is free (local string transformation, deterministic).
+One shared helper, `describeJSONError(err error, b []byte) string`, used by `ParseReviewResult`
+(`reviewer.go:135`) and by the claude envelope error (`claude_reviewer.go:111`). When
+`errors.As(err, &*json.SyntaxError)` holds, it renders:
 
-## Files Touched (planning estimate)
+`<err> at byte <Offset> of <len> (window [<a>:<b>]: %q)`, where `a = max(0, Offset-diagHalfWindow)`,
+`b = min(len, Offset+diagHalfWindow)`, and `const diagHalfWindow = 120`. Both ends snap to UTF-8 rune
+starts. Any other error keeps the current leading `%.200q`. The offset counts bytes of the *trimmed*
+text, the same bytes `json.Unmarshal` saw. Because `ParseReviewResult` builds the message, all three
+`out.Err = perr.Error()` sites, and the `%v perr` inside the `finish_reason=length` message
+(`run.go:170`), inherit it with no per-site edits. The measured #941 break at byte 256 falls inside
+`[136:376]` by construction.
 
-- `internal/mission/quorum/reviewer.go` — repair helper; `ParseReviewResult` unchanged in
-  contract.
-- `internal/mission/quorum/run.go` — salvage wiring in the `ReasonInvalid` path;
-  `Salvaged`/`InvalidKind` fields on `ReviewerOutcome`.
-- `internal/mission/quorum/agentic_caller.go` — same wiring for the Tier-2 agentic path.
-- Tests: quoting-breakage fixture from issue #941 (unescaped `Some ...` in
-  `strongest_objection`), gate-violation-not-salvaged, one-attempt bound, combined-cost
-  cap check.
+### D4. Wiring: one helper, three call sites
 
-## Acceptance Criteria
+`recordInvalid(out *ReviewerOutcome, raw string)` sets `out.Salvaged = salvageVerdict(raw)`. It is called
+on each `ReasonInvalid` parse branch (`run.go:161`, `agentic_caller.go:203`, `claude_reviewer.go:123`,
+passing `env.Result`). The claude **envelope** failure (`claude_reviewer.go:109-112`) is the CLI's
+transport, not the reviewer's verdict. It gets D3 diagnostics but no salvage.
 
-1. The issue-#941 transcript shape (raw quote inside a JSON string) is recovered by the
-   mechanical repair or single re-ask, and the recovered verdict passes
-   `ValidateReviewResult` unmodified.
-2. A gate-violating response is never re-asked and never coerced.
-3. At most one salvage attempt per reviewer per run; total observed cost still respects
-   the cap (degrading to `budget` when exceeded).
-4. Existing quorum artifact JSON remains backward-compatible (new fields additive +
-   omitempty).
-5. The remedy guidance distinguishes the three absent-reason classes, ending the
-   raise-the-cap-on-parse-failure loop.
+### Retry: dropped from scope (justified)
+
+- **Measured benefit is zero.** All 7 measured `invalid` absences were rejects (V3). After D2 each one
+  already ends `blocked`, which is the outcome a successful re-ask would give. A re-ask would only
+  improve the objection text.
+- **A second mechanism already exists.** `RunSeatedQuorum` refills an absent seat from the reserve
+  (`seating.go:114-120`). A same-model re-ask would add another path for the same need, with its own
+  cost accounting and its own interaction with the length-truncation branch.
+- Re-open as a follow-up only if a quorum is recorded where `salvaged == null` and the absence changed
+  the outcome. The `jq` read in AC10 finds it.
+
+### D5. Skill remedy, in scope (fleet allowlist)
+
+The remedy lives in `.claude/skills/mission-control/resources/gate-2-pick.md` and its byte-identical mirror
+`.agents/skills/mission-control/resources/gate-2-pick.md`. Grep found no remedy text in design-doc-creator
+(V12), so no out-of-scope follow-up is needed. Edits:
+
+- Lines 185-189 split the rule by reason. `budget`: re-run alone with a raised cap (unchanged).
+  `invalid` with `salvaged_verdict: reject`: the synthesis is already blocked; treat the objection as
+  real and revise; no re-run. `invalid` with no salvage: **never** raise the cap. At most one re-run
+  alone at the same cap; a second `invalid` is a durable absence, quoted "PROCEED at N-1, `<model>` absent (invalid)".
+- Lines 233-238 fix stale text. The guard cited at `quorum.go:168` landed in #1767 (`a5f9af982`) and is
+  now `quorum.go:183`, so *"until it lands"* becomes a landed note.
+- Sync: `tools/launchd/sync-agents-skills.sh`, then `--check` exits 0.
+
+## Files
+
+- `internal/mission/quorum/salvage.go`: NEW. `SalvagedVerdict`, `salvageVerdict`, `recordInvalid`, `describeJSONError`, `diagHalfWindow` (~110 LOC)
+- `internal/mission/quorum/salvage_test.go`: NEW. Fixtures F1-F3 and arms T1-T8 (~220 LOC)
+- `internal/mission/quorum/reviewer.go`: `ParseReviewResult` error via `describeJSONError` (~3 LOC)
+- `internal/mission/quorum/run.go`: `Salvaged` field on `ReviewerOutcome`; `recordInvalid` on the invalid branch (~8 LOC)
+- `internal/mission/quorum/agentic_caller.go`: `recordInvalid` on the invalid branch (~1 LOC)
+- `internal/mission/quorum/claude_reviewer.go`: `recordInvalid(out, env.Result)`; envelope error via `describeJSONError` (~3 LOC)
+- `internal/mission/quorum/quorum.go`: `AbsentNote.SalvagedVerdict`; `foldAbsent` used by `synthesize` (~25 LOC)
+- `internal/mission/quorum/tier2.go`: `SynthesizeWithTier2` absent branch via `foldAbsent` with prefix `[tier2] ` (~3 LOC)
+- `internal/mission/quorum/artifact.go`: `MarkdownBlock` absent line adds `; salvaged REJECT — blocks` (~4 LOC)
+- `.claude/skills/mission-control/resources/gate-2-pick.md`: D5 remedy split and stale-guard note
+- `.agents/skills/mission-control/resources/gate-2-pick.md`: byte-identical mirror via the sync script
+- `changelogs/unreleased/2026-10-14-quorum-salvage-verdict.md`: `### Fixed` fragment
+- `design_docs/planned/m-quorum-salvage-retry.md`: this doc; moves to `implemented/` on landing
+
+Nothing outside the allowlist changes. `cmd/ailang/design_quorum.go` and `design_review.go` compile
+unchanged (the fields are additive), and they pick up D3 through `o.Err`.
+
+## Fixtures (verified at HEAD with `go test`, V6)
+
+```go
+// Go raw strings, verbatim from the probe that produced V6.
+const F1 = `{"verdict":"reject","strongest_objection":"the table row a \| b is unescaped","catch":"x","proposed_fix":""}`
+const F2 = `{"verdict":"reject","strongest_objection":"asserts \"GOOS\" absent","catch":"the test greps "GOARCH" in ci.yml","proposed_fix":""}`
+const F3 = `{"verdict":"reject","strongest_objection":"cut off mid-sent`
+```
+
+| ID | `json.Unmarshal` error | `SyntaxError.Offset` / len |
+|---|---|---|
+| F1 | `invalid character '\|' in string escape code` (pipe after a backslash) | 61 / 108 |
+| F2 | `invalid character 'G' after object key:value pair` | 94 / 130 |
+| F3 | `unexpected end of JSON input` | 59 / 59 |
+
+`Decoder.Token` reports F3's break as `unexpected EOF`, worded differently from `Unmarshal`. D3 always
+uses the `Unmarshal` error. Salvage ignores the wording.
+
+## Acceptance Criteria (each arm names the mutant it kills)
+
+1. **T1 offset in error.** For F1/F2/F3, `ParseReviewResult` errors contain `at byte 61`, `at byte 94`
+   and `at byte 59`. *Kills M1: offset dropped from the message* (today's code fails this).
+2. **T2 centred window.** F2 padded with a 300-byte confirmed objection puts the break past byte 300.
+   The error window contains `GOARCH`. *Kills M2: reverting to the leading `%.200q`.*
+3. **T3 salvage table.** F1 gives reject with empty objection. F2 gives reject with objection
+   `asserts "GOOS" absent`. F3 gives reject with empty objection. Gate violation
+   `{"verdict":"reject","strongest_objection":"","catch":""}` gives reject with `Offset=-1`. A broken pass
+   gives pass. Prose `I would reject this` gives nil. `{"x":{"verdict":"reject"}}` gives nil. Duplicate
+   keys pass then reject give reject. *Kills M3: an unconfirmed free-text value accepted
+   (`{"verdict":"reject","strongest_objection":"the test greps "GOARCH" x"}` must give objection `""`),
+   M4: depth ignored, M5: prose scanned for `{`.*
+4. **T4 N-1 hole closed (G2).** `synthesize([present pass, absent invalid + Salvaged reject], ctrl pass)`
+   gives `blocked`, with one objection containing `[salvaged from invalid response]`. *Kills M6:
+   `foldAbsent` not called.* HEAD returns `proceed` (V7).
+5. **T5 salvaged pass is not signal.** `synthesize([absent invalid + Salvaged pass], ctrl pass)` gives
+   `blocked` with the zero-signal objection. *Kills M7: a salvaged pass counted toward
+   `externalPresentCount`.*
+6. **T6 production path (G3).** `RunSeatedQuorum` with a runner that calls `runReviewerWith` and a
+   `stubCaller` returning F2 for seat B, and passes for the rest, gives `blocked`. *Kills M8:
+   `recordInvalid` missing in `run.go`.*
+7. **T7 every seam wired.** `RunAgenticReviewer` with an F2 output, and `RunClaudeSubscriptionReviewer` with
+   `claudeReviewCall` stubbed to `{"is_error":false,"result":<F2>}`, each give `Salvaged.Verdict=="reject"`
+   and `Present==false`. `SynthesizeWithTier2` with a salvaged Tier-2 reject gives `blocked` and a
+   `[tier2] ` prefix. *Kills M9/M10/M11: one site or the Tier-2 fold not wired.*
+8. **T8 backward compatibility.** Marshalling a `budget` absence and an `AbsentNote` without salvage emits
+   no `salvaged` or `salvaged_verdict` key. A HEAD-shaped artifact JSON unmarshals into the new structs
+   unchanged. *Kills M12: `omitempty` dropped.* The existing
+   `TestRunReviewerWith_MalformedResponseIsInvalidAbsence`, `TestRunAgenticReviewer_MalformedOutputIsInvalidAbsence`
+   and `TestRunReviewerWith_TruncatedOutputFailsLoudly` pass unedited.
+9. **Mutation proof.** For M1, M6 and M8 the implementer reverts the change in a scratchpad copy (never
+   `git checkout <file>`), observes the named test fail, and restores it. The output goes in the sprint log.
+10. **Gates.** `go test ./internal/mission/quorum/ ./cmd/ailang/ -count=1` passes, `make lint` is clean,
+    and `tools/launchd/sync-agents-skills.sh --check` exits 0.
+    `grep -c salvaged_verdict .claude/skills/mission-control/resources/gate-2-pick.md` is at least 1.
+
+## Verification Log (all run 2026-10-14 in this worktree at `42652c19e` unless noted)
+
+| # | Claim | Command | Observed |
+|---|---|---|---|
+| V1 | Version | `git describe --tags` | `v0.54.9-9-g42652c19e` |
+| V2 | Leading 200-byte window; three sites keep only `perr.Error()` | `cat -n reviewer.go run.go agentic_caller.go claude_reviewer.go` | `reviewer.go:135` `%.200q`; `run.go:172`, `agentic_caller.go:204`, `claude_reviewer.go:124` `out.Err = perr.Error()` |
+| V3 | 7/7 invalid hold a recoverable reject; control 0/90 | `jq` over `~/dev/sunholo-data/{ailang,ailang-world}/.ailang/state/mission-quorum/*.json` (164+157 files), regex `verdict\"\s*:\s*\"reject` on `.error` | ailang invalid 5/5 true, world invalid 2/2 true; budget 26, unreachable 53, auth 5, quota 3, unknown-model 3, all false |
+| V4 | The 3 vacuous proceeds had 0 external present (G1 shape); 0 on-disk instances of the G2 shape | same `jq`, printing `.synthesis.verdict` and the present count per invalid artifact | 3× `proceed` present_ext=0, ctrl=pass; 2× `blocked` (present_ext 1 and 2) |
+| V5 | `SyntaxError.Error()` omits Offset | probe `strings.Contains(err.Error(), fmt.Sprint(off))` | `false` for F1, F2, F3 |
+| V6 | Fixtures yield the three signatures | temp `zz_probe_test.go` (deleted after), `go test -run TestZZProbe` | F1 `'\|' in string escape code` off 61; F2 `'G' after object key:value pair` off 94; F3 `unexpected end of JSON input` off 59 |
+| V7 | Guard covers G1, not G2/G3 | same probe calling `synthesize` and `RunSeatedQuorum` | G1 `blocked`; G2 `proceed`; G3 `proceed`, 4 reviewers, absent `[{B invalid}]` |
+| V8 | Token scan behaviour on F1-F3 | same probe, `json.Decoder.Token` loop | F1 `{ verdict reject strongest_objection ERR`; F2 `... "asserts \"GOOS\" absent" catch "the test greps " ERR`; F3 `... strongest_objection ERR:unexpected EOF` |
+| V9 | Guard is present-external-only | `sed -n 148,190p quorum.go`; `git log -- quorum.go` | `externalPresentCount` at 153/163/183; `a5f9af982 ... (#1767)` |
+| V10 | Production quorum uses `RunSeatedQuorum`, refills absent seats | `grep -n RunSeatedQuorum cmd/ailang/*.go`; `sed -n 108,130p seating.go` | `design_quorum.go:89`; reserve loop `seating.go:114-120` |
+| V11 | No existing salvage/token-scan helper; no outside-package reader of the new fields | `grep -rn "Token()\|salvag" internal/mission/quorum/`; `grep -rn "quorum\.\(ReviewerOutcome\|AbsentNote\|Synthesis\)" --include=*.go .` | none; only `cmd/ailang/design_review.go:130`, `design_quorum.go:188,193` (read `.Present`/`.Err` only) |
+| V12 | Remedy text location; mirror identical; not in design-doc-creator | `grep -rn "raised cap" .claude/skills .agents/skills`; `cmp` on both gate-2-pick.md copies; `grep -rn "max-cost\|absent" .claude/skills/design-doc-creator/SKILL.md` | `gate-2-pick.md:186` in both trees; `IDENTICAL`; no remedy hit |
+| V13 | Ticket `quorum:invalid-absent-on-quoted-literals` exists | `grep -rn` in `design_docs/` | `fleet-mission.md:223,235`; `fleet-mission-evidence/iteration14/open-ticket-signatures.json:63` |
+| V14 | Ticket `quorum:reviewer-invalid-json-discarded` exists | controller: `ailang mission ticket open --json` (fleet ticket store; no on-disk hit) | present, filed by `attended`, last seen 2026-10-08 |
+| V15 | #941 premise refuted (escaped literals, break at byte 256) | `gh issue view 941 --comments` | Refresh comment §1-§2: `ESCAPED \"GOOS\": True`, `Offset = 256` |
+| V16 | Quorum tests green at HEAD | `go test ./internal/mission/quorum/ -count=1` | `ok ... 0.584s` |
+| V17 | Whether the 4 `unexpected end` rows were provider truncation | n/a | **UNMEASURED** at HEAD. #941 §4 records that they predate the `finish_reason` guard (`885725f06`). This design does not depend on it |
 
 ## Related Documents
 
-- Design-doc-creator skill (quorum flow and absent-reviewer remedy wording — updated by
-  this doc's implementation).
-- internal/mission/quorum package docs (reject-by-default contract, #708 token accounting).
+- `design_docs/planned/m-quorum-external-zero-signal-guard.md`: the guard this extends from all-absent to N-1.
+- `design_docs/fleet-mission.md` P2 #12: the ticket row.
+- `.claude/skills/mission-control/resources/gate-2-pick.md`: the absent-reviewer rule (D5).
