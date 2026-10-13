@@ -1688,8 +1688,15 @@ models:
       Vertex access VERIFIED 2026-10-13: generateContent returns 200, modelVersion
       "gemini-4-argon"; negative control gemini-4-argon-zzz -> 404.
 
-      SMOKE + CORE GATES: PENDING at registration. Opt-in only, in NO suite.
-      Placement per model-manager §5.5 = CANDIDATE-ALONE core+frontier run.
+      GATES 2026-10-13 (standard, candidate alone, --tier smoke,core,frontier):
+      49/49 PASS — smoke 23/23 plus every core and frontier benchmark, incl.
+      csv_to_json_converter. ZERO thinking on all 49 (total == in + out on every
+      row; Vertex's total includes thoughts) — adaptive MEDIUM chose not to think.
+      avg 31.8K in / 0.4K out per run, $0.0676/run, $3.31 total, 1m28s wall at
+      parallel 4. Implicit cache hits only 82K of ~1.56M input (~5%).
+      Anchored ELO 2778.2 (banked) is a FLOOR — a perfect run has no upper bound,
+      same as claude-opus-5-5's 29/29 → 2871.9. Not a ranking between the two.
+      Still opt-in, in NO suite: promotion is a separate call.
       Agent mode: ❌ NOT wired (no agent_cli declared).
 
   # Google Gemini 3.5 Flash (released May 19, 2026 at Google I/O 2026)
