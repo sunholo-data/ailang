@@ -132,7 +132,7 @@ func ParseReviewResult(raw string) (*ReviewResult, error) {
 	trimmed := stripCodeFences(strings.TrimSpace(raw))
 	var r ReviewResult
 	if err := json.Unmarshal([]byte(trimmed), &r); err != nil {
-		return nil, fmt.Errorf("reviewer returned non-JSON or malformed response: %w (raw: %.200q)", err, trimmed)
+		return nil, fmt.Errorf("reviewer returned non-JSON or malformed response: %s", describeJSONError(err, []byte(trimmed)))
 	}
 	if err := ValidateReviewResult(&r); err != nil {
 		return nil, err
