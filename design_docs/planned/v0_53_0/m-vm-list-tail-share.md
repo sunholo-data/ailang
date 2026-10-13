@@ -1,12 +1,13 @@
 # M-VM-LIST-TAIL-SHARE: O(1) list-tail binding on the bytecode VM (cons-pattern walks are O(n²))
 
 **Status**: Planned — quorum attempted 2026-10-09 (`task-006b0353`): **all three external reviewers absent** (`gemini-3-1-pro` unreachable; `oc-kimi-k3` unreachable; `gpt6-1-sol` auth), recorded by name in `.ailang/state/mission-quorum/m-vm-list-tail-share-2026-10-09T11-00-54Z.json`; controller verdict **pass** — degraded to controller-only, **not quorum-cleared**. The 26-row first-party Verification Log is the load-bearing evidence; re-run quorum when a reviewer route is available (same convention as [m-bytecode-nested-pattern-lowering](../../implemented/v0_52_0/m-bytecode-nested-pattern-lowering.md)).
-**Target**: v0.53.0
+**Re-reported 2026-10-13** (`task-a0ee29fa`, v0.54.6 `71f4cf6`, md5 `81bacda6…`): a **second, independent consumer report** (sunholo lane — see Bug report) confirms the defect at v0.54.6 with new real-workload evidence (pprof, R2-CREW deadline). **The fix is still unimplemented at v0.54.8** — first-party re-derivation this session (V27–V29); all three copy sites live in this tree. Target lapsed (v0.53.0 → v0.54.8 shipped without it); re-target at sprint-planner time.
+**Target**: v0.53.0 (lapsed — see Status)
 **Priority**: P0 — a 52× engine divergence on the canonical functional list-walk idiom, reported from a downstream consumer mid-PR
 **Estimated**: ~2 days (fix is one line ×3 sites + tests + bench; the cost is measurement discipline), 2× where honest → 4 days
 **Dependencies**: None. **Coordination required** (text only): [m-list-cons-quadratic](../m-list-cons-quadratic.md) stays PARKED on D-19 — this doc does not touch `::`/`++` construction or the arena decision; `docs/LIMITATIONS.md` rows 41–42 and `std/list.ail`'s header both gain corrected text and must not contradict D-19's pending state.
 **Planner-Lane**: opus-required (VM builtin semantics + allocation behavior)
-**Bug report**: AILANG v0.52.0 (`bf2436a`, darwin arm64, binary md5 `2dd082832fbadf861b49a1a432a0130c`), `--bytecode`. Downstream consumer `stapledons-godot` (Edenhofer dust-map pass, R1-ISM-DUST PR B); workaround in flight: `foldl`.
+**Bug report**: AILANG v0.52.0 (`bf2436a`, darwin arm64, binary md5 `2dd082832fbadf861b49a1a432a0130c`), `--bytecode`. Downstream consumer `stapledons-godot` (Edenhofer dust-map pass, R1-ISM-DUST PR B); workaround in flight: `foldl`. **Second report 2026-10-13**: AILANG v0.54.6 (`71f4cf6`, binary md5 `81bacda6a3a81abe90bae00166ee1a76`), `ailang run --bytecode --caps IO,Env`; consumer `sunholo/crew_core` + `social_dynamics` (pprof: `vm.builtinListTail` 14% cumulative; HOF foldl/filter/any dominating) with the Stapledon R2-CREW 10-year crew skip (3,650 ticks) needing < 2 s vs ~60 s today. Same defect, same mechanism, new engine version — the repro, timings, and pprof are V28–V31.
 **Author**: design-doc-creator, unattended coordinator session (`task-006b0353`). This container has a live `ailang` binary (v0.52.5, commit `7200786`, md5 `8e4464db…` — near-lineage but **not** built from this tree, and **no Go toolchain / no `make`**, shallow single-commit clone). Wall-clock numbers below are first-party runs against that binary; source-line claims are reads at this tree (`59feeccf`, v0.53.0-dev). Provenance marks in the Verification Log.
 
 ## Routing Lane (per design_docs/PROGRAM.md §4)
@@ -88,6 +89,16 @@ audience writes the idiomatic form first) that consumes a list by pattern recurs
 the VM pays n²/2 element copies and the GC cycles they trigger. The consumer's
 dust-map pass hit exactly this and had to restructure to `foldl` as a workaround.
 
+**The second report (v0.54.6, V30/V31) makes it a product deadline, not a discomfort**:
+pprof on a real auto-play workload (`sunholo/crew_core` + `social_dynamics`) shows
+`vm.builtinListTail` at **14% cumulative**, with the HOF builtins
+(`hofBuiltinListFoldl/Filter/Any`) dominating the rest — and both modules recurse over
+lists everywhere (`p :: rest` in collect, refresh, deliveries). Stapledon's **R2-CREW
+needs a 10-year crew skip (3,650 ticks) in under 2 s; it takes ~60 s today**, a large
+part of that in tail copies. The reporter's minimal repro (V30) matches the first
+report's shape exactly: rec 10k = 0.19 s / 20k = 0.35 s / 40k = 1.18 s (wall, incl.
+~0.03 s startup), foldl flat at 0.04–0.05 s at every size.
+
 **A second, adjacent defect surfaced while reproducing this one** (V11): `ailang run
 --strict-bytecode` **without** `--bytecode` silently runs the evaluator — the strict flag
 only qualifies `--bytecode` (`BytecodeMode` stays false, `internal/runner/entrypoint.go:144`),
@@ -142,6 +153,12 @@ claim, instrument included per the skill's rule.
 | V24 [M] | The repro constructs type-check | `ailang check` on `full_repro.ail`, `walk_only.ail`, `walk_foldl.ail`, `build_only.ail` | `✓ No errors found!` ×4 — `x :: r` cons-pattern syntax, `match` with two arms, tail recursion, `foldl` with an if-step |
 | V25 [R] | The reporter's real path builds the list linearly | `std/embedding.ail:18-19` | `_embedding_decode(bytes) -> Option[list[float]]` — Go builtin, one-pass build; the walk, not the build, was their 427 s |
 | V26 [R] | The eval↔VM bridge deep-copies in both directions — sharing cannot leak across engines | `internal/vm/convert.go:40-51` (`bytecodeToEval` list case: fresh `dst := make(…)` per element) | a shared tail crossing the bridge is converted elementwise into a fresh slice |
+| V27 [R] | **Still unimplemented at v0.54.8** (this tree `b283b2d4`, read 2026-10-13): all three copy sites live; the v0.53.0 target lapsed | `sed -n '378,395p' internal/vm/builtins.go` (`tail := make(…); copy(tail, elems[n:])`); `internal/vm/builtins_list_poly.go:55-87` (`append([]bytecode.Value(nil), xs[:n]…)` / `append([]bytecode.Value{}, xs[n:]…)`); `ls bench/` → no `vm_tail_walk`; no changelog or doc references the fix | v0.53.0–v0.54.8 shipped without this doc's fix; a second consumer hit it in production |
+| V28 [M] | First-party re-derivation of the second reporter's exact repro on this tree's binary (v0.54.8, `b283b2d4`, `/usr/local/bin/ailang`; container has no Go toolchain but the binary's commit matches this tree) | `tailbench.ail` (reporter's file verbatim): `ailang check` ✓; `ailang run --quiet --bytecode --caps IO,Env --entry main tailbench.ail <mode> <n>`, min-of-3 | rec: 10k = 0.89 s, 20k = 1.91 s, 40k = 6.48 s — ×3.4 per doubling (quadratic); foldl: 10k/20k/40k = 0.61/0.49/0.40 s — flat at the ~0.4–0.6 s startup baseline (hello-world min-of-3 = 0.39 s). Same shape as both reports' machines, slower container |
+| V29 [M] | The repro's walk loop compiles to one native `_list_tail` copy per recursive step | `ailang disasm tailbench.ail` → prototype `tailbench.sumRec`: `BUILTIN_CALL r4, builtin#257 (_len)`, `BUILTIN_CALL r2, builtin#514 (_list_get)`, `BUILTIN_CALL r3, builtin#515 (_list_tail)`, `CLOSURE`, `TAIL_CALL` | `builtin#515` is `_list_tail` (`internal/vm/builtins.go:77`); the copy is the only superlinear op in the loop — matches V16 |
+| V30 [P2] | Second reporter's measurements (v0.54.6 `71f4cf6`, md5 `81bacda6…`, inherited, not re-run — machine ~15× faster than this container) | `ailang run --bytecode --caps IO,Env --entry main tailbench.ail rec N` | rec 10k = 0.19 s, 20k = 0.35 s, 40k = 1.18 s (wall, incl. ~0.03 s startup); foldl 0.04–0.05 s flat at every size; pprof on the real workload: `vm.builtinListTail` 14% cumulative, `hofBuiltinListFoldl/Filter/Any` dominating |
+| V31 [P2] | Second reporter's consumer impact (external packages, not in this tree, not re-run) | sunholo `crew_core` + `social_dynamics` auto-play | `p :: rest` recursion throughout (collect, refresh, deliveries); Stapledon R2-CREW 10-year crew skip (3,650 ticks) takes ~60 s against a < 2 s requirement — a large part in tail copies |
+| V32 [N] | No newer doc supersedes this one | `grep -rl 'tail share\|_list_tail\|subslice' design_docs/implemented/v0_53_0 … v0_54_7` → 0 covering hits (hits are `m-run-policy-result-unforgeable`, YAML key order, serveapi, terminal-ui, cloud credit guard, background worker — none touch list tails); `ls design_docs/planned/` → this doc remains the only queue entry for the walk half | The v0.53.0-folder placement is stale-targeted, not stale-covered; re-target in place at sprint-planner time |
 
 ### Workarounds note (W-1)
 
@@ -152,6 +169,11 @@ implementer runs the full test plan as AC-0/AC-5. Quorum was attempted and degra
 controller-only with all three reviewer routes recorded absent by name (Status header) —
 re-run when a route is available.
 
+**Update 2026-10-13** (`task-a0ee29fa`): the container now has a binary whose commit
+**matches this tree** (v0.54.8 `b283b2d4`), so V28/V29 are true first-party reads of this
+exact source; the no-Go-toolchain limit (and therefore (a)/(b)) still applies. The second
+report (V30/V31) is inherited — its workload packages are not in this tree.
+
 ## Goals
 
 **Primary Goal:** make consuming a list by pattern recursion (`x :: r` / `[x, …rest]`)
@@ -161,6 +183,7 @@ no copy per step — without changing a single observable value.
 **Success Metrics:**
 - `walk_only.ail` on `--bytecode`: ≤ 2× the interpreter at n = 160,000 (today: 52×), scaling ×≤2 per doubling (today ×3.9) (AC-2).
 - The reporter's shape — cons-pattern walk over a 786k-element decoded list — completes in ≤ 2 s on the VM (reporter baseline: 427 s; AC re-derived) (AC-2b).
+- Stapledon R2-CREW's 10-year crew skip (3,650 ticks, `crew_core`/`social_dynamics`) completes in < 2 s on the VM (today ~60 s; V31) — the second report's product deadline, re-measured on the implementer's machine as AC-2c.
 - Byte-identical outputs on every fixture and test (AC-5).
 - `ailang run --strict-bytecode` without `--bytecode` no longer silently runs the evaluator (AC-4).
 - A committed benchmark (`bench/vm_tail_walk/`) that pins the regression mechanically (AC-3).
@@ -323,7 +346,7 @@ per-step cost, both still true).
 
 - [ ] **AC-0** (gate): build this tree, re-derive the V6–V9 measurement tables, record in the sprint log (this container could not: V18).
 - [ ] **AC-1** `builtinListTail`/`builtinListTake`/`builtinListDrop` return shared subslices; clamping and error behavior byte-identical (`internal/eval/builtin_errors_test.go`, `internal/vm` parity tests green).
-- [ ] **AC-2** `walk_only.ail` on `--bytecode`: n=160,000 ≤ 2× the interpreter wall (base: 52×), ×≤2 per doubling from 80k (base ×3.9); net time ≈ foldl-class. **AC-2b** derived target: the reporter's 786k walk ≤ 2 s on a machine where hello-world startup is ~0.35 s.
+- [ ] **AC-2** `walk_only.ail` on `--bytecode`: n=160,000 ≤ 2× the interpreter wall (base: 52×), ×≤2 per doubling from 80k (base ×3.9); net time ≈ foldl-class. **AC-2b** derived target: the reporter's 786k walk ≤ 2 s on a machine where hello-world startup is ~0.35 s. **AC-2c** second report's consumer-level target: Stapledon R2-CREW 10-year crew skip (3,650 ticks over `crew_core`/`social_dynamics` lists) < 2 s on the VM (baseline ~60 s, V31), re-measured on the implementer's machine.
 - [ ] **AC-3** `bench/vm_tail_walk/run.sh` committed; before/after tables in the sprint report; the Go allocation test (`testing.AllocsPerRun` on `_list_tail` ≈ 0 allocs) green.
 - [ ] **AC-4** `ailang run --strict-bytecode` without `--bytecode` runs the VM strictly (an evaluator-only entry fails loudly with the strict error, not a silent evaluator run); `ailang test --strict-bytecode` unchanged.
 - [ ] **AC-5** `make test`, `make verify-examples` green; Conflict Surface §"MUST still work" fixtures byte-identical outputs.
@@ -424,4 +447,4 @@ gate, from reading the top candidates:
 ---
 
 **Document created**: 2026-10-09 (design-doc-creator, unattended coordinator session `task-006b0353`; live v0.52.5 binary available for measurements, no Go toolchain / no build of this tree — Verification Log provenance marks and W-1 apply)
-**Last updated**: 2026-10-09
+**Last updated**: 2026-10-13 (design-doc-creator, unattended coordinator session `task-a0ee29fa`: second consumer report v0.54.6 folded in — Status, Problem Statement, Success Metrics AC-2c, Verification Log V27–V32, W-1 update; first-party re-derivation on the tree-matching v0.54.8 binary confirms the fix never landed. No new doc created — duplicate/coverage gate: this doc is the queue entry for the topic.)
