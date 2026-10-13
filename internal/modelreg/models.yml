@@ -1629,6 +1629,69 @@ models:
       Also available: gemini-3.1-pro-preview-customtools (better at custom tool prioritization).
       Agent eval support: ✅ Fully supported via Gemini CLI.
 
+  # Google Gemini 4 Argon (GA October 13, 2026) — Google's new flagship.
+  gemini-4-argon:
+    api_name: "gemini-4-argon"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 4 Argon - Oct 2026 Google flagship; introductory $2/$10 until 2026-11-30, then $4/$20"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    # 32768, NOT the 1M the model card advertises. Vertex docs (fetched 2026-10-13):
+    # "A single synchronous request generates up to 65,536 thinking and output
+    # tokens, or 32,768 for non-streaming direct HTTP requests." Standard eval goes
+    # through non-streaming generateContent (internal/ai/gemini/generate.go), so
+    # 32768 is OUR ceiling. Vertex does NOT reject larger values (65537 / 131073 /
+    # 1,000,000 all returned 200 STOP, probed 2026-10-13) — it clamps silently, so
+    # the API will never tell you this number is wrong. Thinking shares the cap.
+    # The 32768 cut-off itself is DOCS-SOURCED, NOT MEASURED: two long-output probes
+    # (maxOutputTokens 200000) both ended finish=STOP early — 790/738 and 1805/4807
+    # tokens (non-stream/stream) — Argon self-terminates bulk output before any cap.
+    # The advertised 1M output is the context-window budget, not a per-request limit.
+    max_output_tokens: 32768
+    model_family: "gemini-4"
+    pricing:
+      # ⚠️  INTRODUCTORY PRICING — EXPIRES 2026-11-30; rates DOUBLE on 2026-12-01.
+      input_per_1k: 0.002          # $2.00 per 1M through 2026-11-30 → $4.00 from 2026-12-01
+      output_per_1k: 0.01          # $10.00 per 1M (incl. thinking) → $20.00 from 2026-12-01
+      cache_read_per_1k: 0.0001    # $0.10 per 1M (implicit caching only) → $0.20
+      expires: "2026-11-30"        # enforced by TestModels_PricingScheduleIsHonoured
+      next:
+        input_per_1k: 0.004
+        output_per_1k: 0.02
+        cache_read_per_1k: 0.0002
+    notes: |
+      GA 2026-10-13 (previously restricted to the Fairwind cyber-defender program).
+      1,048,576-token context window shared by input, thinking and output.
+
+      Pricing quoted from ai.google.dev/gemini-api/docs/pricing on 2026-10-13
+      (Google first-party), Standard paid tier, no >200k tier: input "$2.00 through
+      November 30, 2026 ... $4.00 starting December 1, 2026"; output incl. thinking
+      $10.00 → $20.00; cached input $0.10 → $0.20, "Implicit caching only (explicit
+      caching is not supported)". Batch/Flex are half; Priority is 1.8x.
+      vs gemini-3-1-pro ($2/$12, $4/$18 >200k): cheaper output during the intro
+      window, 1.67x the output price after it.
+
+      ⚠️  THINKING — ADAPTIVE, default level MEDIUM (LOW/MEDIUM/HIGH). The docs say
+      thinking_budget and thinkingLevel=MINIMAL are rejected with HTTP 400. Our
+      Gemini client emits thinkingConfig.thinkingBudget only when a reasoning
+      effort/budget is requested (applyReasoning), so default runs are safe, but
+      DO NOT set reasoning_effort / reasoning_max_tokens on this row: it would 400.
+      Probes 2026-10-13 with no reasoning params (Vertex global, ailang-dev):
+        "prove infinitely many primes" -> thoughtsTokenCount absent, 390 out, STOP
+        CSV-parser coding prompt       -> thoughtsTokenCount absent, 1110 out, STOP
+        strawberry + includeThoughts   -> 293 thoughts / 65 out
+        strawberry + thinkingLevel=HIGH -> 524 thoughts / 106 out (accepted)
+      So it often decides not to think at all; budget with output+thoughts anyway.
+
+      Vertex access VERIFIED 2026-10-13: generateContent returns 200, modelVersion
+      "gemini-4-argon"; negative control gemini-4-argon-zzz -> 404.
+
+      SMOKE + CORE GATES: PENDING at registration. Opt-in only, in NO suite.
+      Placement per model-manager §5.5 = CANDIDATE-ALONE core+frontier run.
+      Agent mode: ❌ NOT wired (no agent_cli declared).
+
   # Google Gemini 3.5 Flash (released May 19, 2026 at Google I/O 2026)
   # ⚠️  EXCLUDED FROM STANDARD EVAL ROTATION (v0.22.0, 2026-05-20).
   # The Vertex Managed Agents API path is cost-prohibitive due to a documented
