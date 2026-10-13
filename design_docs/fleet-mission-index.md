@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 34 | 2026-10-13 | Phase 3a skill-resolution spike measured (P1–P3), judged PASS 88 (sonnet); Phase 3b mechanism parked as D-FLEET-16 [HARNESS] |
 | 33 | 2026-10-12 | P1 #9 exit-path notices bounded and store-scoped, judged PASS 90 (sonnet), PR #1791 → `e7dd6c127` [HARNESS] |
 | 32 | 2026-10-12 | P1 #8 quorum zero-signal guard BUILT and judged PASS 95 (sonnet), PR #1767; orphan iterations 30/31 credited [HARNESS] |
 | 31 | 2026-10-12 | ORPHAN (no record written): P1 #8 revisions replayed onto `0a2202ad6`, plan left untracked; slot PAUSED-NO-CAPACITY at gate-3 [HARNESS] |

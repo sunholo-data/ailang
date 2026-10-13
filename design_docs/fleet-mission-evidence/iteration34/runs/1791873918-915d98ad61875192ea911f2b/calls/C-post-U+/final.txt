@@ -1,0 +1,3 @@
+```json
+{"skill_token": "ec47a31db07e1de2675292d1dcd5cdb3d9536c2c8b874b0f", "resource_token": "48bfda780455c27037f2e938746596257e747715d570370f"}
+```

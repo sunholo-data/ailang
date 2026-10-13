@@ -1,0 +1,98 @@
+{
+  "sprint_id": "M-HARNESS-PHASE3A-SPIKE",
+  "created": "2026-10-13",
+  "estimated_duration_days": 0.5,
+  "correlation_id": "fleet_iteration34_phase3a_skill_resolution",
+  "design_doc": "design_docs/planned/m-harness-mission-loop.md",
+  "markdown_plan": "design_docs/planned/sprint-plan-phase3a-skill-resolution-spike.md",
+  "plan_path": "design_docs/planned/sprint-plan-phase3a-skill-resolution-spike.md",
+  "planner_lane": "codex:gpt-6.1-sol",
+  "github_issues": [],
+  "approval": "Measurement planning authorized by Mark's standing 2026-09-26 directive and fleet iteration 34 pick. Controller runs evidence script outside sandbox and files findings; Phase 3b mechanism choice is parked for Mark.",
+  "status": "planned",
+  "features": [
+    {
+      "id": "M1",
+      "description": "P1 Claude marker resolution, World/v1 cases and one-token isolated subscription auth probe; shared safe runner",
+      "estimated_loc": 160,
+      "actual_loc": null,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "One Bash-3.2-compatible evidence script implements deadline/process cleanup, unique fresh-token skill/resource markers, per-arm raw streams and runid-labelled verdicts.",
+        "Claude explicit positive and absent-name negative controls pass; project, user, collision, add-dir, setting-sources, World and v1 subjects report token-discriminated origins with three fresh-session repeats for collision/World/v1.",
+        "Every Claude call uses claude-sub and claude-haiku-5-5; real and fresh CLAUDE_CONFIG_DIR auth probes request only one output token, never login/setup-token or credential writes; expected not-logged-in is recorded distinctly from instrument failure.",
+        "Every external write is confined to a new ledger-owned directory; trap removes markers and scratch, existing files/symlinks remain untouched, all touched parent listing SHA and line counts match before/after.",
+        "Controller obtains measured P1 evidence outside executor sandbox; failed controls, write-fence errors, unsafe cleanup or unresolved discovery cannot pass this milestone."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Build the single script at design_docs/fleet-mission-evidence/iteration34/skill_resolution_spike.sh; no inference in executor sandbox."
+    },
+    {
+      "id": "M2",
+      "description": "P2 Codex native skill discovery compared with explicit pin-rooted SKILL.md and resource reads",
+      "estimated_loc": 100,
+      "actual_loc": null,
+      "dependencies": ["M1"],
+      "acceptance_criteria": [
+        "Codex calls use only gpt-6.1-sol, bounded deadlines, null stdin, read-only sandbox, no daemon and ephemeral sessions; explicit positive and absent-name negative controls pass.",
+        "Project .claude/skills, project .agents/skills, user .agents/skills, user .codex/skills, same-name collision and explicit-by-path arms identify origins using distinct fresh skill/resource token pairs and native-catalog/tool provenance.",
+        "Fresh synthetic CODEX_HOME is tested without creating/copying auth.json; missing authentication is recorded as a finding and never mistaken for absent discovery.",
+        "Raw stdout/stderr and verdicts identify arm plus runid; touched real-user directories are restored with matching parent listing SHA and line counts; P2 discovery result is supported by passing controls."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Extend the same evidence script; no invented skills-config flag or model fallback. Synthetic-home auth failure alone need not invalidate controlled authenticated baseline findings."
+    },
+    {
+      "id": "M3",
+      "description": "P3 pi absolute --skill pin route for controller, automatic discovery and relative-resource provenance",
+      "estimated_loc": 80,
+      "actual_loc": null,
+      "dependencies": ["M1"],
+      "acceptance_criteria": [
+        "Pi uses ollama/kimi-k3:cloud, synthetic PI_CODING_AGENT_DIR, read-only tools, no extensions/context, bounded deadline and null stdin; explicit positive and absent-name negative controls pass.",
+        "Absolute --skill path returns both pin skill and pin-relative resource tokens with cwd=pin and World fixture outside checkout ancestry.",
+        "Project .agents/skills discovery, same-name automatic collision, and --no-skills plus --skill interaction have distinct runid-labelled verdicts; historical driver claim is remeasured rather than assumed.",
+        "Absent real ~/.pi/agent/skills remains absent; every external marker is removed and parent listing SHA/line counts match; all controls and subjects retain raw streams."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Extend the same evidence script. Explicit positive route does not use --no-skills; separately measure that flag's documented loading suppression."
+    },
+    {
+      "id": "M4",
+      "description": "Prepare evidence-backed Verification Log replacement rows and parked Phase 3b decision wording for controller filing",
+      "estimated_loc": 20,
+      "actual_loc": null,
+      "dependencies": ["M1", "M2", "M3"],
+      "acceptance_criteria": [
+        "Prepare runs/<runid>/verification-log-rows.md replacing the design doc's combined P1-P3 PENDING row with separate evidence-linked P1/P2/P3 answers, conditions, controls, auth limits and relative-resource origins; controller files the rows.",
+        "World with no project .claude/skills and v1 main-checkout cwd differing from pin receive explicit measured consequences; providers without established pin-rooted resolution are named unpinned for skills under tested conditions.",
+        "Prepare runs/<runid>/phase3b-decision.md for Mark naming measured options/limits without selecting or activating a mechanism; controller files the parked decision.",
+        "Bash syntax/static safety review passes; controller confirms every arm verdict, applicable controls passing and SHA-identical parent listings. No driver, installed skill, Go code, credentials or release-channel changes ship."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Wording only: controller edits design_docs/planned/m-harness-mission-loop.md and files Phase 3b decision. Do not claim goal 4 or Phase 3b complete."
+    }
+  ],
+  "registry_reuse": [
+    {"milestone": "M1", "package": null, "action": "none", "reason": "CLI/filesystem measurement only; no package-like capability, so registry search is inapplicable. Reuse installed CLI and shell utilities."},
+    {"milestone": "M2", "package": null, "action": "none", "reason": "Codex discovery measurement only; no package-like capability, so registry search is inapplicable. Extend the same evidence runner."},
+    {"milestone": "M3", "package": null, "action": "none", "reason": "Pi discovery measurement only; no package-like capability, so registry search is inapplicable. Extend the same evidence runner."},
+    {"milestone": "M4", "package": null, "action": "none", "reason": "Evidence-backed documentation wording only; no package-like capability, so registry search is inapplicable."}
+  ],
+  "velocity": {
+    "target_loc_per_day": 720,
+    "estimated_total_loc": 360,
+    "estimated_days": 0.5,
+    "actual_total_loc": 0
+  },
+  "last_session": null,
+  "last_checkpoint": null
+}
