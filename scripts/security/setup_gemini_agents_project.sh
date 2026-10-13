@@ -19,6 +19,7 @@
 #   curl -H "Authorization: Bearer $T" -H "x-goog-user-project: $PROJECT" \
 #        https://generativelanguage.googleapis.com/v1beta/models
 set -euo pipefail
+export CLOUDSDK_CORE_DISABLE_PROMPTS=1   # a gcloud y/N prompt must fail, never hang
 
 PROJECT=${PROJECT:-ailang-gemini-agents}
 REF_PROJECT=${REF_PROJECT:-ailang-dev}   # billing account + parent folder are copied from here
@@ -30,8 +31,13 @@ BUDGET_USD=${BUDGET_USD:-50}
 [ -n "$FOLDER" ] && [ -n "$BILLING" ] || { echo "could not read folder/billing from $REF_PROJECT" >&2; exit 1; }
 run() { echo "+ $*"; if [ "${APPLY:-0}" = 1 ]; then "$@"; fi; }
 
+# Prerequisite: roles/orgpolicy.policyAdmin at the ORG (org Owner/Admin do NOT include it):
+#   gcloud organizations add-iam-policy-binding <org-id> --member=user:<you> --role=roles/orgpolicy.policyAdmin
+# Re-runnable: steps that already happened are skipped or are idempotent upserts.
+
 # 1. Project under the ailang folder (inherits the org's no-API-keys policy). No Firebase, ever.
-run gcloud projects create "$PROJECT" --folder="$FOLDER" --name="AILANG Gemini agents - locked"
+if gcloud projects describe "$PROJECT" >/dev/null 2>&1; then echo "= project $PROJECT exists"
+else run gcloud projects create "$PROJECT" --folder="$FOLDER" --name="AILANG Gemini agents - locked"; fi
 
 # 2. Local policy hardening, on top of what the folder already inherits.
 #    - no SA key files (the folder does NOT enforce this today)
@@ -39,28 +45,36 @@ run gcloud projects create "$PROJECT" --folder="$FOLDER" --name="AILANG Gemini a
 run gcloud resource-manager org-policies enable-enforce iam.disableServiceAccountKeyCreation --project="$PROJECT"
 run gcloud resource-manager org-policies enable-enforce iam.automaticIamGrantsForDefaultServiceAccounts --project="$PROJECT"
 
-# 3. Billing, then ONLY the two APIs the keyless path needs.
+# 3. Billing; turn OFF the ~20 services a new project gets by default (BigQuery, Storage,
+#    Datastore, Dataplex...), keeping only service plumbing + audit logging; then enable
+#    ONLY what the keyless path needs (iam = SA management, iamcredentials = token minting).
 run gcloud billing projects link "$PROJECT" --billing-account="$BILLING"
-run gcloud services enable generativelanguage.googleapis.com iamcredentials.googleapis.com --project="$PROJECT"
+KEEP='^(serviceusage|servicemanagement|logging|monitoring|iam|iamcredentials|generativelanguage)\.googleapis\.com$'
+EXTRA=$(gcloud services list --enabled --project="$PROJECT" --format='value(config.name)' | grep -Ev "$KEEP" || true)
+if [ -n "$EXTRA" ]; then run gcloud services disable $EXTRA --project="$PROJECT" --force; fi
+run gcloud services enable generativelanguage.googleapis.com iam.googleapis.com iamcredentials.googleapis.com --project="$PROJECT"
 
-# 4. Allowlist services AFTER enabling, so nothing else (aiplatform, compute, firebase...) can be turned on.
-run gcloud resource-manager org-policies allow gcp.restrictServiceUsage \
-  generativelanguage.googleapis.com iamcredentials.googleapis.com --project="$PROJECT"
-
-# 5. One keyless SA. Its only role: consume this project's services (needed for x-goog-user-project).
-run gcloud iam service-accounts create gemini-agent --project="$PROJECT" \
-  --display-name="Gemini agent (keyless, impersonation only)"
+# 4. One keyless SA. Its only role: consume this project's services (needed for x-goog-user-project).
+#    Created BEFORE the allowlist below so the allowlist cannot block SA management.
+if gcloud iam service-accounts describe "$SA" --project="$PROJECT" >/dev/null 2>&1; then echo "= $SA exists"
+else run gcloud iam service-accounts create gemini-agent --project="$PROJECT" \
+  --display-name="Gemini agent (keyless, impersonation only)"; fi
 run gcloud projects add-iam-policy-binding "$PROJECT" \
   --member="serviceAccount:$SA" --role=roles/serviceusage.serviceUsageConsumer --condition=None
 run gcloud iam service-accounts add-iam-policy-binding "$SA" --project="$PROJECT" \
   --member="$USER_MEMBER" --role=roles/iam.serviceAccountTokenCreator
 
+# 5. Allowlist services LAST, so nothing else (aiplatform, compute, firebase...) can be turned on.
+run gcloud resource-manager org-policies allow gcp.restrictServiceUsage \
+  generativelanguage.googleapis.com iam.googleapis.com iamcredentials.googleapis.com --project="$PROJECT"
+
 # 6. Budget alerts at 50/90/100% (alerts only; the hard stop is the quota cap, set after enable — see below).
-run gcloud billing budgets create --billing-account="$BILLING" \
+if gcloud billing budgets list --billing-account="$BILLING" --format='value(displayName)' 2>/dev/null | grep -qx "$PROJECT cap"; then
+  echo "= budget '$PROJECT cap' exists"
+else run gcloud billing budgets create --billing-account="$BILLING" \
   --display-name="$PROJECT cap" --budget-amount="${BUDGET_USD}USD" \
   --filter-projects="projects/$PROJECT" \
-  --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0
-
+  --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0; fi
 
 echo
 echo "Next (read-only): list the real quota metric names so the daily cap is set on a measured name:"
