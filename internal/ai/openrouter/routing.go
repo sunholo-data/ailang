@@ -134,6 +134,9 @@ func SetProviderIgnore(m map[string][]string) {
 	providerIgnore = m
 }
 
+// ProviderIgnoreFor reports the installed exclusions for a model (diagnostics, tests).
+func ProviderIgnoreFor(model string) []string { return ignoreFor(model) }
+
 func ignoreFor(model string) []string {
 	providerIgnoreMu.RLock()
 	defer providerIgnoreMu.RUnlock()
