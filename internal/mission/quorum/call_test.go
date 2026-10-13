@@ -36,9 +36,9 @@ func TestReviewerMaxTokens_UsesRegistryNotAPolicyCap(t *testing.T) {
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		t.Skipf("models.yml unavailable: %v", err)
 	}
-	mc, err := modelreg.GlobalModelsConfig.GetModel("gemini-3-1-pro")
+	mc, err := modelreg.GlobalModelsConfig.GetModel("gemini-4-argon")
 	if err != nil {
-		t.Skipf("gemini-3-1-pro not in models.yml: %v", err)
+		t.Skipf("gemini-4-argon not in models.yml: %v", err)
 	}
 
 	got, err := reviewerMaxTokens(mc)
@@ -71,25 +71,25 @@ func TestResolveCaller_GeminiDoesNotReadGeminiKey(t *testing.T) {
 	if err := eval_harness.InitModelsConfig(); err != nil {
 		t.Skipf("models.yml unavailable: %v", err)
 	}
-	mc, err := modelreg.GlobalModelsConfig.GetModel("gemini-3-1-pro")
+	mc, err := modelreg.GlobalModelsConfig.GetModel("gemini-4-argon")
 	if err != nil {
-		t.Skipf("gemini-3-1-pro not in models.yml: %v", err)
+		t.Skipf("gemini-4-argon not in models.yml: %v", err)
 	}
 	// Assert the config itself proves the ADC route: env_var empty, provider
 	// google, gcp_project set. This is the static guarantee that GEMINI_API_KEY
 	// is never consulted — independent of whether ADC is live in CI.
 	if mc.Provider != "google" {
-		t.Errorf("gemini-3-1-pro provider = %q, want google", mc.Provider)
+		t.Errorf("gemini-4-argon provider = %q, want google", mc.Provider)
 	}
 	if mc.EnvVar != "" {
-		t.Errorf("gemini-3-1-pro env_var = %q, want empty (ADC path, not GEMINI_API_KEY)", mc.EnvVar)
+		t.Errorf("gemini-4-argon env_var = %q, want empty (ADC path, not GEMINI_API_KEY)", mc.EnvVar)
 	}
 	if mc.GCPProject == "" {
-		t.Errorf("gemini-3-1-pro gcp_project empty; ADC needs a project")
+		t.Errorf("gemini-4-argon gcp_project empty; ADC needs a project")
 	}
 
 	t.Setenv("GEMINI_API_KEY", "")
-	_, _, rerr := ResolveCaller("gemini-3-1-pro")
+	_, _, rerr := ResolveCaller("gemini-4-argon")
 	if rerr != nil {
 		// Only acceptable failure is ADC being unavailable in CI — and the
 		// error must be about ADC/Vertex, NEVER about GEMINI_API_KEY.
