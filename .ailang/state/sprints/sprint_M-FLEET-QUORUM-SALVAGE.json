@@ -1,0 +1,171 @@
+{
+  "sprint_id": "M-FLEET-QUORUM-SALVAGE",
+  "status": "not_started",
+  "created": "2026-10-14T00:00:00Z",
+  "mission": "fleet-mission",
+  "iteration": 36,
+  "role": "planner",
+  "verified_at": "4c5070c5010ebc15abadb7cb5de6edc7d036b7f1",
+  "design_doc": "design_docs/planned/m-quorum-salvage-retry.md",
+  "sprint_plan": "design_docs/planned/sprint-plan-quorum-salvage.md",
+  "github_issues": [941],
+  "tickets": [
+    "quorum:invalid-absent-on-quoted-literals",
+    "quorum:reviewer-invalid-json-discarded"
+  ],
+  "changelog_fragment": "changelogs/unreleased/2026-10-14-quorum-salvage-verdict.md",
+  "velocity": {
+    "target_loc_per_day": 580,
+    "estimated_total_loc": 580,
+    "estimated_days": 1,
+    "estimated_hours": 4,
+    "basis": "Planning allowance with buffer, not measured throughput: the prior quorum guard added 190 lines against a 140-LOC estimate; seven-day history has only two quorum changes and the velocity script does not establish a reliable rate."
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search quorum failed fetching storage.googleapis.com with DNS unavailable: UNINFORMATIVE UNDER SANDBOX, not an empty registry result. This private Go transport helper cannot depend on an AILANG registry package. Local search found no existing salvage/Token helper; reuse encoding/json and stripCodeFences."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Internal Go synthesis and caller integration, not a registry-package capability. Reuse stubCaller, cheapModel, present, fakeRunner, stubClaude and RunSeatedQuorum with separate per-call stubs; no new dependency. Registry search is unavailable under sandbox as recorded for M1."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Documentation-only remedy and generated mirror: reuse the existing mission-control resource and tools/launchd/sync-agents-skills.sh. No package-like capability or registry dependency is involved."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1",
+      "title": "Strict salvage scanner and shared diagnostics",
+      "description": "Add private strict token salvage and shared JSON diagnostics, the additive ReviewerOutcome.Salvaged field, and diagnostic-only parser/envelope wiring; production salvage recording and synthesis follow in M2.",
+      "estimated_loc": 300,
+      "estimated_hours": 1.5,
+      "dependencies": [],
+      "files": [
+        "internal/mission/quorum/salvage.go",
+        "internal/mission/quorum/salvage_test.go",
+        "internal/mission/quorum/run.go",
+        "internal/mission/quorum/reviewer.go",
+        "internal/mission/quorum/claude_reviewer.go",
+        "design_docs/planned/sprint-plan-quorum-salvage.md",
+        ".ailang/state/sprints/sprint_M-FLEET-QUORUM-SALVAGE.json"
+      ],
+      "acceptance_criteria": [
+        "T1 verifies F1/F2/F3 ParseReviewResult offsets 61/94/59; T2 verifies the centred error window contains GOARCH when the break is past byte 300.",
+        "T3 covers F1/F2/F3, valid JSON gate violations with Offset=-1, broken pass, duplicate verdicts with any reject winning, leading prose/root-array rejection, unconfirmed free text, nested-only verdicts, top-level verdicts after nested objects/arrays, and the exact M5b key/value-state fixture.",
+        "Scanner uses json.Decoder.Token over the parser's trimmed/fence-stripped bytes, requires the first token to be an object opener, tracks depth and top-level key/value state, and confirms free-text values only after a following key or closing root brace. It never repairs JSON.",
+        "describeJSONError uses SyntaxError.Offset and a clamped plus/minus 120-byte window snapped to UTF-8 rune starts. Non-SyntaxError diagnostics preserve leading %.200q. Tests cover multibyte boundaries, end clamping, trimmed offsets, and Claude envelope diagnostics.",
+        "ReviewerOutcome.Salvaged is additive with salvaged,omitempty. recordInvalid compiles with this field but production recording/synthesis behavior is deferred until M2.",
+        "Scratch mutations M1, M4b and M5b fail the named tests for the intended assertion; restoring scratch source makes those tests pass. Record commands, exit codes and actual failure output in plan execution evidence.",
+        "go test ./internal/mission/quorum/ -count=1 and go vet ./internal/mission/quorum/ pass; this milestone is independently green and bisectable."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "title": "Preserve absent vetoes through production synthesis and artifacts",
+      "description": "Wire recordInvalid above the length split and on Claude inner-result failure; add AbsentNote.SalvagedVerdict and one synthesize-only foldAbsent helper; render audit/veto labels and test production seams and compatibility.",
+      "estimated_loc": 240,
+      "estimated_hours": 1.5,
+      "dependencies": ["M1"],
+      "files": [
+        "internal/mission/quorum/run.go",
+        "internal/mission/quorum/claude_reviewer.go",
+        "internal/mission/quorum/quorum.go",
+        "internal/mission/quorum/artifact.go",
+        "internal/mission/quorum/salvage_test.go",
+        "internal/mission/quorum/reviewer_test.go",
+        "design_docs/planned/sprint-plan-quorum-salvage.md",
+        ".ailang/state/sprints/sprint_M-FLEET-QUORUM-SALVAGE.json"
+      ],
+      "acceptance_criteria": [
+        "recordInvalid(out, raw) replaces run.go's invalid assignment above FinishReason==length; recordInvalid(out, env.Result) replaces Claude inner-parse invalid assignment. Envelope failure gets diagnostics only, with Salvaged=nil.",
+        "Every salvaged response retains Present=false, AbsentReason=invalid and Result=nil. AbsentNote.SalvagedVerdict is tagged salvaged_verdict,omitempty; foldAbsent is called only from synthesize's absent branch.",
+        "T4 blocks present pass plus absent salvaged reject with the marked objection, including the unrecoverable-objection fallback. T5 blocks salvaged-pass-only/controller-pass on zero signal: salvage never counts as a vote, guard signal or seat.",
+        "T6 uses RunSeatedQuorum with fresh runReviewerWith/stubCaller calls, B returning F2 and A/C/D passing; D refills B's seat, all four outcomes remain, and synthesis blocks. T6b repeats the seated path using F3 plus FinishReason=length and checks the direct outcome's explicit truncation error and reject salvage.",
+        "T6c passes the valid JSON empty-objection/catch reject through runReviewerWith and observes absent invalid, Result=nil, salvaged reject and Offset=-1. HEAD validation errors already share perr != nil; do not restrict recording to SyntaxError cases.",
+        "T7 stubs valid Claude envelopes with F2 encoded as a Result string, plus a broken envelope carrying a misleading verdict; only the inner verdict is salvaged. Restore global stubs with cleanup and keep these tests sequential.",
+        "T8 verifies both omitempty fields, old artifact JSON decoding and exact Markdown suffixes '; salvaged REJECT — blocks' and '; salvaged PASS — audit only (not counted)'. Existing malformed-response and agentic malformed-output tests and all tier2_test.go tests pass unedited. Existing truncation test keeps all assertions and gains only its salvage assertion.",
+        "Scratch mutations M6, M8, M8b and M8c fail their named tests and pass after restoration; actual mutation evidence is recorded. No git write operation is used to create or restore mutants.",
+        "go test ./internal/mission/quorum/ -count=1, go test -race ./internal/mission/quorum/ -count=1 and go vet ./internal/mission/quorum/ pass. tier2.go, agentic_caller.go, seating.go, ShouldEscalate and CLI consumers are unedited."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "title": "Correct the absence remedy, mirror skills and finish acceptance",
+      "description": "Split the remedy by absence reason, replace the stale guard note with landed status, generate the byte-identical mirror, add the changelog fragment and collect focused acceptance evidence for controller review.",
+      "estimated_loc": 40,
+      "estimated_hours": 0.75,
+      "dependencies": ["M2"],
+      "files": [
+        ".claude/skills/mission-control/resources/gate-2-pick.md",
+        ".agents/skills/mission-control/resources/gate-2-pick.md",
+        "changelogs/unreleased/2026-10-14-quorum-salvage-verdict.md",
+        "design_docs/planned/sprint-plan-quorum-salvage.md",
+        ".ailang/state/sprints/sprint_M-FLEET-QUORUM-SALVAGE.json"
+      ],
+      "acceptance_criteria": [
+        "Budget retains a raised-cap solo re-run. Invalid plus salvaged reject means revise the real objection without re-run. Invalid with no salvage permits at most one same-cap solo re-run, never raised cap; a second invalid is a durable named absence wherever a degraded proceed is allowed. Salvaged pass remains audit only.",
+        "The stale guard text names landed #1767 and the present-external-only guard instead of claiming the controller still increments the count or saying until it lands.",
+        "Run tools/launchd/sync-agents-skills.sh outside sandbox and verify --check exits 0 and cmp shows the source and mirror byte-identical. grep -c salvaged_verdict on the source resource is at least one. Confirm the sync changed no unrelated sprint or mission skill files.",
+        "changelogs/unreleased/2026-10-14-quorum-salvage-verdict.md begins with ### Fixed and describes absent veto preservation, offset diagnostics, audit-only passes and the invalid remedy.",
+        "Outside sandbox, AC10 go test ./internal/mission/quorum/ ./cmd/ailang/ -count=1 and make lint pass. Also run the plan's make test-changed with pinned base, race/vet, formatting, boundary, file-size, changelog and shell-syntax checks; record any environment failure separately from code results.",
+        "All T1-T8 plus T6b/T6c and M5b assertions and seven mutation proofs are recorded in plan execution evidence. The independent evaluator and controller receive the artifacts; executor completion does not claim landing approval.",
+        "Explicit controller pre-landing requirement: create and verify the fleet-charter queue row quorum:tier2-salvage-fold with V19 evidence and first-non-test-caller trigger. This is controller bookkeeping, not an executor file/task."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "controller_landing_steps": [
+    {
+      "id": "C1",
+      "title": "Record the Tier-2 follow-up before landing",
+      "file": "design_docs/fleet-mission.md",
+      "required": true,
+      "executor_task": false,
+      "acceptance_criteria": [
+        "The queue contains quorum:tier2-salvage-fold, citing design V19: tier2.go:82-84 only appends absent notes and RunQuorumWithEscalation currently has no non-test caller.",
+        "The row triggers at the first non-test caller of RunQuorumWithEscalation and covers Tier-2 foldAbsent plus agentic_caller recording. Verify it exists before landing; do not file a fleet ticket through the CLI."
+      ]
+    },
+    {
+      "id": "C2",
+      "title": "Evaluate, review authority and land",
+      "executor_task": false,
+      "acceptance_criteria": [
+        "Obtain independent sprint evaluation against the approved spec, full test-arm matrix and actual mutation evidence; complete outside-sandbox gates and the mission's controller landing checks.",
+        "Review the final changed-file list against authority, handle all commits, and move the design to design_docs/implemented/m-quorum-salvage-retry.md with references updated when landing."
+      ]
+    }
+  ],
+  "planner_verification": {
+    "quorum_baseline": "PASS: GOPROXY=off go test ./internal/mission/quorum/ -count=1; package time 0.448s",
+    "skills_sync_check": "PASS: tools/launchd/sync-agents-skills.sh --check, exit 0, all six trees in sync",
+    "load_bearing_claims": "Requested run/reviewer/Claude/synthesize/artifact/seating citations match HEAD; exact file:line evidence is in the plan. Gate-violation errors reach the shared invalid branch. Stale skill guard note confirmed.",
+    "ci_coverage": "Yes: ci.yml:206 and :629 run go test ./...; build.yml:77 includes the quorum package via go list. Direct make target test-mission-registry runs ./internal/mission/... but is not itself wired to CI; make test also covers quorum.",
+    "uninformative_under_sandbox": [
+      "Registry search: observed storage.googleapis.com DNS failure, not evidence of no reusable package.",
+      "Live provider/review calls and socket-dependent cmd/ailang tests; the combined AC10 command must be run outside sandbox, not waived.",
+      "Skill copy mode writes the protected .agents tree; execute outside sandbox. Read-only --check is informative and passed.",
+      "Lint/tool installation, embed preparation and broader make gates may need tools or writes outside executor authority; record such environment failures and rerun through controller."
+    ]
+  }
+}
