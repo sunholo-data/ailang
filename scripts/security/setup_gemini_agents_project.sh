@@ -99,8 +99,15 @@ if [ "${CREATE_KEY:-0}" = 1 ]; then
   KEY_NAME=$(gcloud services api-keys list --project="$PROJECT" --filter="displayName=gemini-agent-key" --format='value(name)' 2>/dev/null | head -1 || true)
   if [ -n "$KEY_NAME" ]; then echo "= key gemini-agent-key exists ($KEY_NAME)"
   else
-    run gcloud services api-keys create --project="$PROJECT" --display-name=gemini-agent-key \
-      --api-target=service=generativelanguage.googleapis.com --service-account="$SA"
+    # gcloud echoes the full Key resource INCLUDING keyString on create — never let it reach a terminal.
+    echo "+ gcloud services api-keys create --project=$PROJECT --display-name=gemini-agent-key (output suppressed)"
+    if [ "${APPLY:-0}" = 1 ]; then
+      ERR=$(mktemp)
+      gcloud services api-keys create --project="$PROJECT" --display-name=gemini-agent-key \
+        --api-target=service=generativelanguage.googleapis.com --service-account="$SA" \
+        >/dev/null 2>"$ERR" || { grep -v -i keyString "$ERR" >&2; rm -f "$ERR"; exit 1; }
+      rm -f "$ERR"
+    fi
     [ "${APPLY:-0}" = 1 ] && KEY_NAME=$(gcloud services api-keys list --project="$PROJECT" --filter="displayName=gemini-agent-key" --format='value(name)' | head -1)
   fi
   if [ "${APPLY:-0}" = 1 ] && [ -n "$KEY_NAME" ]; then
