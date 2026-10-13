@@ -16,7 +16,9 @@ and the re-ask. It fixes three defects, all re-measured below at HEAD:
 1. **Verdict discarded (correctness).** On a parse failure the reviewer is recorded ABSENT
    (`run.go:159-174`, `agentic_caller.go:201-206`, `claude_reviewer.go:121-126`). The raw text often
    still holds a complete `"verdict":"reject"`. **7 of 7** `invalid` absences on disk carry one; the
-   control (all other absence reasons) has **0 of 90** (V3).
+   control (all other absence reasons) has **0 of 90** (V3). Salvageable by the strict scan: **4/4**
+   unexpected-end rows by construction; **3/3** syntax rows confirmed; **0** unconfirmable from the
+   retained window (V21).
 2. **Diagnosis lost (observability).** `ParseReviewResult` publishes `(raw: %.200q)`, the first 200
    bytes (`reviewer.go:135`). `*json.SyntaxError.Offset` appears nowhere, because `.Error()` omits it
    (V5) and all three sites store only `perr.Error()` (`run.go:172`, `agentic_caller.go:204`,
@@ -52,7 +54,7 @@ for `invalid`.
 **Scoped out: the Tier-2 wing.** `SynthesizeWithTier2` has the same hole at HEAD (V19 probe: `proceed`),
 but its only caller `RunQuorumWithEscalation` has **zero non-test callers**, and `RunAgenticReviewer` is
 reached only through it (V19). The `tier2.go` fold and `agentic_caller.go` hook move to follow-up
-`quorum:tier2-salvage-fold` (to be filed by the controller), triggered by the first non-test caller of
+`quorum:tier2-salvage-fold`, triggered by the first non-test caller of
 `RunQuorumWithEscalation`; with `foldAbsent` in place it is a ~3-line call.
 
 **Non-goals.** No retry or re-ask (see *Retry: dropped*). No JSON repair. No model escalation. No change
@@ -160,16 +162,18 @@ the **top** of each `if perr != nil` block: `run.go:161` and `claude_reviewer.go
 ```
 
 The length test sits **inside** the invalid block and only picks the `Err` text, so one call at 161
-covers both twigs; T6b proves it (kills M8b). `handlerCaller.CallJSON` returns no error on length
-(`call.go:39-55`), and 0/53 `unreachable` rows carried a reject (V3). The claude **envelope** failure
+covers both twigs; T6b proves it (kills M8b). V18 shows a `finish_reason=length` response lands in the
+`perr != nil` branch, and 0/53 `unreachable` rows carried a reject (V3). The claude **envelope** failure
 (`claude_reviewer.go:109-112`) is CLI transport: D3 diagnostics, no salvage. `agentic_caller.go:203` is
 Tier-2 only (follow-up).
 
 ### Retry: dropped from scope (justified)
 
-- **Measured benefit is zero, conditional on V18.** All 7 measured `invalid` absences were rejects (V3).
-  After D2 each one already ends `blocked`, which is the outcome a successful re-ask would give. A re-ask
-  would only improve the objection text. This holds only if the 4 `unexpected end` rows would still be
+- **Re-ask benefit is measured-zero for every row the strict scan provably recovers (the unexpected-end
+  rows plus any syntax rows confirmed in V21); residual unconfirmed rows are bounded by the D5 remedy (one
+  same-cap re-run when salvaged_verdict is absent) and the AC10 re-open trigger (salvaged == null and the
+  absence changed the outcome), so retry stays out of scope.** V21 confirms all 7 (4 + 3), so the residual
+  set is empty today. This holds only if the 4 `unexpected end` rows would still be
   `ReasonInvalid` at HEAD. All 4 predate the truncation guard `885725f06` (V3b). At HEAD a truncated
   reject is `ReasonInvalid` on the `finish_reason=length` twig (V18) and reaches `recordInvalid`. The
   condition holds. If D4 is ever moved below the twig split, this justification falls with it.
@@ -202,7 +206,7 @@ The remedy lives in `.claude/skills/mission-control/resources/gate-2-pick.md` an
 - `internal/mission/quorum/run.go`: `Salvaged` field on `ReviewerOutcome`; `recordInvalid` at line 161, above the truncation twig (~8 LOC)
 - `internal/mission/quorum/claude_reviewer.go`: `recordInvalid(out, env.Result)`; envelope error via `describeJSONError` (~3 LOC)
 - `internal/mission/quorum/quorum.go`: `AbsentNote.SalvagedVerdict`; `foldAbsent` used by `synthesize` (~25 LOC)
-- `internal/mission/quorum/artifact.go`: `MarkdownBlock` absent line adds `; salvaged REJECT — blocks` (~4 LOC)
+- `internal/mission/quorum/artifact.go`: `MarkdownBlock` absent line adds `; salvaged REJECT — blocks`, or `; salvaged PASS — audit only (not counted)` when Salvaged.Verdict==pass (~6 LOC)
 - `.claude/skills/mission-control/resources/gate-2-pick.md`: D5 remedy split and stale-guard note
 - `.agents/skills/mission-control/resources/gate-2-pick.md`: byte-identical mirror via the sync script
 - `changelogs/unreleased/2026-10-14-quorum-salvage-verdict.md`: `### Fixed` fragment
@@ -246,7 +250,9 @@ uses the `Unmarshal` error. Salvage ignores the wording.
    with its top-level objection. *Kills M3: an unconfirmed free-text value accepted
    (`{"verdict":"reject","strongest_objection":"the test greps "GOARCH" x"}` must give objection `""`),
    M4: depth ignored (a depth-2 `verdict` read), M4b: scan stops at the first nested opener (the
-   `meta` case gives nil), M5: prose scanned for `{`.*
+   `meta` case gives nil), M5: prose scanned for `{`.* Key/value state (gemini-4-argon, round 2):
+   `{"other":"verdict","reject":"pass","verdict":"pass","catch":"x` gives `pass`, not `reject`. *Kills M5b:
+   object keys not distinguished from string values at depth 1.*
 4. **T4 N-1 hole closed (G2).** `synthesize([present pass, absent invalid + Salvaged reject], ctrl pass)`
    gives `blocked`, with one objection containing `[salvaged from invalid response]`. *Kills M6:
    `foldAbsent` not called.* HEAD returns `proceed` (V7).
@@ -261,6 +267,12 @@ uses the `Unmarshal` error. Salvage ignores the wording.
    containing `finish_reason=length`, and `Salvaged.Verdict=="reject"`. The same stub fed through
    `RunSeatedQuorum` for seat B gives `blocked`. `TestRunReviewerWith_TruncatedOutputFailsLoudly` also
    asserts `Salvaged` is set. *Kills M8b: `recordInvalid` placed only on the non-truncation twig.*
+   **T6c gate-violation path (oc-glm-5-3 + oc-kimi-k3, round 2).** `runReviewerWith` with a stub returning
+   the gate-violation body `{"verdict":"reject","strongest_objection":"","catch":"","proposed_fix":""}`
+   yields `Present==false`, `AbsentReason=="invalid"`, `Salvaged.Verdict=="reject"`, `Salvaged.Offset==-1`.
+   If the probe shows gate violations do not flow through `perr != nil`, extend `recordInvalid` to that
+   branch or delete the `Offset=-1` semantics and D2's gate-violation paragraph. *Kills M8c: `recordInvalid`
+   placed on a parse-only branch.*
 7. **T7 claude seam wired.** `RunClaudeSubscriptionReviewer` with `claudeReviewCall` stubbed to
    `{"is_error":false,"result":<F2>}` gives `Salvaged.Verdict=="reject"` and `Present==false`; stubbed to
    a broken envelope `{"verdict":"reject","result":"x` (`claude_reviewer.go:109`) gives `Salvaged==nil`
@@ -268,15 +280,20 @@ uses the `Unmarshal` error. Salvage ignores the wording.
    wired; M10b: envelope error salvaged.* No Tier-2 arm (scoped out, V19).
 8. **T8 backward compatibility.** Marshalling a `budget` absence and an `AbsentNote` without salvage emits
    no `salvaged` or `salvaged_verdict` key. A HEAD-shaped artifact JSON unmarshals into the new structs
-   unchanged. *Kills M12: `omitempty` dropped.* The existing
+   unchanged. *Kills M12: `omitempty` dropped.* `MarkdownBlock` renders a salvaged reject as
+   `; salvaged REJECT — blocks` and a salvaged pass as `; salvaged PASS — audit only (not counted)`. The existing
    `TestRunReviewerWith_MalformedResponseIsInvalidAbsence`, `TestRunAgenticReviewer_MalformedOutputIsInvalidAbsence`
    and all `tier2_test.go` tests pass unedited. `TestRunReviewerWith_TruncatedOutputFailsLoudly` keeps
    its existing assertions and gains only the T6b one.
-9. **Mutation proof.** For M1, M4b, M6, M8 and M8b the implementer reverts the change in a scratchpad copy (never
+9. **Mutation proof.** For M1, M4b, M5b, M6, M8, M8b and M8c the implementer reverts the change in a scratchpad copy (never
    `git checkout <file>`), observes the named test fail, and restores it. The output goes in the sprint log.
 10. **Gates.** `go test ./internal/mission/quorum/ ./cmd/ailang/ -count=1` passes, `make lint` is clean,
     and `tools/launchd/sync-agents-skills.sh --check` exits 0.
     `grep -c salvaged_verdict .claude/skills/mission-control/resources/gate-2-pick.md` is at least 1.
+    **Landing precondition (oc-glm-5-3, round 2):** the Tier-2 follow-up `quorum:tier2-salvage-fold` is
+    recorded before landing. The fleet cannot file tickets (`ailang mission ticket file` refuses the fleet
+    mission: "the fleet mission works tickets; it does not file them", measured iteration 36), so it is
+    recorded as a row in `design_docs/fleet-mission.md`'s queue, with this doc's V19 evidence and its trigger.
 
 ## Verification Log (run 2026-10-14 in this worktree at `42652c19e`; V3b, V18-V20 at `72d4a639d`, which differs only in this doc)
 
@@ -303,6 +320,17 @@ uses the `Unmarshal` error. Salvage ignores the wording.
 | V18 | A HEAD truncation reaches the invalid block | `sed -n 150,180p internal/mission/quorum/run.go`; temp `zz_probe_test.go` (deleted): `runReviewerWith(stubCaller{raw:F3, resp:{FinishReason:"length"}})` | The `FinishReason=="length"` test is at :169, inside `if perr != nil` (:160), after `AbsentReason = ReasonInvalid` (:161). Probe: `present=false reason="invalid" err="reviewer output truncated at 16384 tokens (finish_reason=len…"` |
 | V19 | Tier-2 at HEAD and every consumer | `sed -n 60,93p tier2.go`; `grep -rn 'SynthesizeWithTier2\|ShouldEscalate\|RunTier2(\|RunQuorumWithEscalation\|RunAgenticReviewer(' --include='*.go' .`; same probe: `SynthesizeWithTier2([present pass], ctrl pass, Tier2{[absent invalid, hidden reject]})` | `tier2.go:73` calls `synthesize`, `:82-84` appends the absent note with no fold. Probe: `verdict=proceed absent=[{a@codex invalid}]` (the hole exists). Non-test callers: `ShouldEscalate` ← `quorum.go:122` only; `SynthesizeWithTier2`/`RunTier2` ← `quorum.go:123,130` only; `RunAgenticReviewer` ← `tier2.go:54` only; `RunQuorumWithEscalation` ← **none** (rest is `*_test.go`). `ShouldEscalate` reads `q.Reviewers[].Present/.Result` (`escalate.go:82-116`) before any Tier-2 synthesis, so it never reads a verdict, `blocked` or otherwise |
 | V20 | Depth-tracked token scan (gemini-4-argon refinement) | same probe, prototype scan that records keys only at depth 1 | `{"x":{"verdict":"reject"}}`→nil; `{"x":{…},"verdict":"pass","catch":"c"`→pass; `{"notes":["a",{"verdict":"reject"}],"verdict":"reject","strongest_objection":"top",…broken`→reject obj=`top`; `{"meta":{"k":1},"verdict":"reject","strongest_objection":"after nested","catch":"x`→reject obj=`after nested`; F2→reject obj=`asserts \"GOOS\" absent`; F3→reject obj=``; dup pass,reject→reject; prose→nil |
+| V21 | The strict depth-tracked scan recovers a depth-1 reject from each of the 7 stored windows (glm round 2) | controller, iteration 36: `jq` the 7 `invalid` rows' `.error` from both trees, `strconv.Unquote` the `(raw: …)` window, run a `json.Decoder.Token` scan recording `verdict` only at depth 1 with key/value state | 7/7: post-trim leading byte `{`; classes 4× `unexpected end of JSON input`, 2× `'\|' in string escape code`, 1× `'G' after object key:value pair`; `scan_verdict="reject"` on all 7, every scan stopping on window EOF (no syntax break inside the window, so the verdict token precedes the break) |
+
+## Quorum round 2 → bounded controller revision (narrow-refinement carve-out)
+
+Round 2 (artifact `m-quorum-salvage-retry-2026-10-13T23-12-01Z.json`): oc-glm-5-3 reject, oc-kimi-k3 pass,
+gemini-4-argon pass, gpt6-1-sol absent (OpenAI API 429, no credits). The one remaining block carries a
+concrete reviewer-authored fix and does not dispute the direction (its own fix keeps retry out of scope).
+The controller applied the reviewers' fixes verbatim: glm (1) V21 + restated premise, (2) the Retry bullet,
+(3) T6c, (4) as a landing precondition, adapted only because the fleet cannot file tickets (AC10);
+kimi (1) the `call.go` citation deleted in favour of V18, (2) T6c (merged with glm's), (3) the salvaged-PASS
+rendering in artifact.go and T8; gemini the key/value T3 case (M5b).
 
 ## Quorum round 1 → revision
 
