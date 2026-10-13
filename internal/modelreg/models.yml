@@ -6029,7 +6029,11 @@ benchmark_suite:
     # reliability gap, not a single-capability gap. Cost is a wash: $13.35 vs $13.59 per N=3
     # sweep, i.e. Opus 5 is marginally CHEAPER despite 1.9x the output tokens, because input
     # tokens (~816K, identical) dominate at core-tier prompt sizes.
-  - "gemini-3-1-pro"   # Google flagship (Feb 2026)
+  - "gemini-4-argon"    # Google flagship (Oct 2026) — REPLACED gemini-3-1-pro 2026-10-13 (Mark).
+    # Gate: standard smoke+core+frontier 49/49 run ALONE (3.1 Pro 25/26 on the overlapping
+    # dashboard set), $0.068/run vs $0.117, zero thinking tokens. Intro $2/$10 → $4/$20 from
+    # 2026-12-01; at that price input-dominated runs cost ~$0.135, Opus-5.5 parity.
+    # gemini-3-1-pro stays opt-in as the longitudinal comparison point.
   - "or-glm-5-3"       # z.ai flagship (Aug 2026, 753B) — added 2026-08-31 (Mark): smoke PASSED
     # 23/23 first pass (zero finish=length at 65536, whole tier $1.38). Lineage core
     # gate vs or-glm-5-2 PENDING (2026-09-01 post-budget-reset; per the row notes,
@@ -6105,7 +6109,8 @@ extended_suite:
     # sonnet-4-6's 23/26 (88.5%), ~35% higher cost/bench (new tokenizer + adaptive thinking default).
     # Narrow N=1 win — kept sonnet-4-6 alongside as the longitudinal anchor, not a replacement.
   - "claude-sonnet-4-6" # Anthropic previous-gen, kept as longitudinal anchor (Feb 2026)
-  - "gemini-3-1-pro"    # Google flagship (Feb 2026)
+  - "gemini-4-argon"     # Google flagship (Oct 2026) — REPLACED gemini-3-1-pro 2026-10-13 (Mark);
+    # gate record on the benchmark_suite entry. 3.1 Pro kept opt-in for longitudinal compare.
   - "gemini-3-7-flash"  # Google newest Flash (Aug 2026) — REPLACED gemini-3-6-flash 2026-08-13
     # (per Mark), three weeks after 3.6 took the same slot from 3.5. Matched head-to-head, same
     # command, same day, thinking-inclusive, N=1 unless noted:
