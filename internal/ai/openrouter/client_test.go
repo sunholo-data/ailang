@@ -615,20 +615,31 @@ func TestAttributionHeaders_SessionAffinity(t *testing.T) {
 	}
 }
 
-// The registry's per-model ignore list reaches the wire as provider.ignore,
-// merged with any caller routing policy, and only for that model.
-func TestRouteFor_RegistryIgnore(t *testing.T) {
-	SetProviderIgnore(map[string][]string{"z-ai/glm-5.3-flash": {"inference-net"}})
-	defer SetProviderIgnore(nil)
+// routeFor layers registry defaults < caller policy < AILANG_OPENROUTER_PROVIDER,
+// unions "ignore", and sends nothing for a model with no layer set.
+func TestRouteFor_Layers(t *testing.T) {
+	SetProviderDefaults(map[string]map[string]any{"z-ai/glm-5.3-flash": {"only": []any{"crusoe", "together"}, "ignore": []any{"inference-net"}, "sort": "price"}})
+	defer SetProviderDefaults(nil)
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", "")
 	pf, err := routeFor(&ai.Request{Model: "openrouter/z-ai/glm-5.3-flash"})
-	if err != nil || pf == nil || len(pf.Ignore) != 1 || pf.Ignore[0] != "inference-net" {
-		t.Fatalf("glm-5.3-flash must ignore inference-net, got %+v %v", pf, err)
+	if err != nil || pf["sort"] != "price" || pf["only"] == nil {
+		t.Fatalf("registry defaults must reach the wire, got %v %v", pf, err)
 	}
-	pf, err = routeFor(&ai.Request{Model: "z-ai/glm-5.3-flash", Routing: &ai.AIRoutingPolicy{Order: []string{"friendli"}}})
-	if err != nil || pf == nil || len(pf.Order) != 1 || len(pf.Ignore) != 1 {
-		t.Fatalf("ignore must merge with the caller's policy, got %+v %v", pf, err)
+	pf, _ = routeFor(&ai.Request{Model: "z-ai/glm-5.3-flash", Routing: &ai.AIRoutingPolicy{Order: []string{"friendli"}}})
+	if o, _ := pf["order"].([]any); len(o) != 1 || pf["only"] == nil {
+		t.Fatalf("caller policy must merge over the defaults, got %v", pf)
 	}
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", `{"sort":"throughput","ignore":["morph"]}`)
+	pf, _ = routeFor(&ai.Request{Model: "z-ai/glm-5.3-flash"})
+	if pf["sort"] != "throughput" || len(pf["ignore"].([]string)) != 2 {
+		t.Fatalf("the env override must win and union ignore, got %v", pf)
+	}
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", `not json`)
+	if _, err := routeFor(&ai.Request{Model: "z-ai/glm-5.3-flash"}); err == nil {
+		t.Fatal("a malformed override must fail loudly")
+	}
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", "")
 	if pf, _ := routeFor(&ai.Request{Model: "deepseek/deepseek-v4-flash"}); pf != nil {
-		t.Fatalf("another model must carry no provider block, got %+v", pf)
+		t.Fatalf("another model must carry no provider block, got %v", pf)
 	}
 }
