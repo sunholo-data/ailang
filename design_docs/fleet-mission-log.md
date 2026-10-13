@@ -874,7 +874,7 @@ Credited by iteration 32 from died-mid-flight traces. The slot ran 2026-10-12T01
 - **Evidence hygiene**: raw claude stream-json init events list personal addresses, so the raw streams stay on the rig at `~/.ailang/state/fleet-i34-spike-raw/`. Only distilled per-call artifacts are tracked. `make check-no-personal-email` rc 0. The judge report's one regex hit is the pattern it quoted.
 - **Safety**: after all runs, `find` over every real parent (`~/.claude/skills`, `~/.agents/skills`, `~/.codex-missions/skills`, `~/.codex/skills`, the main checkout's `.claude/skills`, `/private/tmp`, pin `.claude`/`.agents`) found 0 `zz-fleet-spike-*` entries, with the positive control `mission-control` = 1.
 
-**Gate 3b**: see the addendum below this entry (PR head poll).
+**Gate 3b**: PR #1793, head `d112f7b26`. A SHA-pinned poll with a per-head log: 26 checks complete, 0 failures. `MERGEABLE`/`CLEAN`. Squash-merged with `--match-head-commit d112f7b26` → `3a972e34a`. The PR body and commit messages had no closing keyword (scan control fired). This line was written by the follow-up record PR.
 
 **Done-gate**: not applicable as harness change. No driver, skill or Go code shipped; the only executable is an evidence script under `design_docs/`. The design doc's Phase 3a acceptance box is checked; Phase 3b is not started.
 
