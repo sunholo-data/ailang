@@ -85,6 +85,27 @@ RUN cd /opt/motoko_agent/src/tui && bun install --frozen-lockfile || bun install
 # it never installed anything.
 RUN cd /opt/motoko_agent && ailang lock
 
+# Warm the AILANG compile cache for the runtime's entry module, so a Cloud Run
+# Job (always a cold start) does not recompile motoko on every task. Measured
+# 2026-10-13 with ailang #1788: a cold compile of src/core/supervisor.ail takes
+# ~76 s; once the cache is warm, `ailang run` of the same entry starts in ~1 s.
+# The cache is keyed to the ailang binary, which agent-base installs from the
+# same release, so a cache warmed here is the one the runtime reads.
+#
+# Fail the build loudly rather than ship a cold image: any CACHE_WRITE_FAILED
+# (the ARTIFACT_TOO_LARGE regression that #1778/#1788 fixed was exactly this,
+# silently, on every run) or a missing session cache aborts the build.
+# Runs as root; the runtime user only needs to read it.
+RUN cd /opt/motoko_agent \
+    && ailang check src/core/supervisor.ail > /tmp/motoko-warm.log 2>&1 \
+    || { tail -40 /tmp/motoko-warm.log; exit 1; }; \
+    cd /opt/motoko_agent \
+    && if grep -q CACHE_WRITE_FAILED /tmp/motoko-warm.log; then \
+         grep CACHE_WRITE_FAILED /tmp/motoko-warm.log; echo "compile cache not written"; exit 1; fi \
+    && test -s src/core/.ailang/cache/compile/modules/src__core__session/coretypeinfo.gob \
+    && rm -f /tmp/motoko-warm.log \
+    && chmod -R a+rX /opt/motoko_agent
+
 # Put `motoko` on PATH so the executor adapter's `exec.LookPath("motoko")`
 # resolves cleanly. run-agent.sh accepts the directive as a positional arg and
 # reads MODEL / MOTOKO_CONFIG / WORKDIR / MOTOKO_SESSION_ID from env.
