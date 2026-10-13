@@ -1,6 +1,9 @@
 package openrouter
 
 import (
+	"strings"
+	"sync"
+
 	"github.com/sunholo-data/ailang/internal/ai"
 )
 
@@ -29,6 +32,10 @@ type providerField struct {
 	// MaxPrice caps the per-million-token price OpenRouter will pay when
 	// selecting an upstream provider. nil when no cap is set.
 	MaxPrice *maxPriceField `json:"max_price,omitempty"`
+
+	// Ignore lists upstream provider slugs OpenRouter must not route to.
+	// Filled from the model registry's openrouter_ignore (see routeFor).
+	Ignore []string `json:"ignore,omitempty"`
 }
 
 // maxPriceField is the JSON shape OpenRouter accepts under `provider.max_price`.
@@ -107,5 +114,53 @@ func translatePolicy(p *ai.AIRoutingPolicy) (*providerField, error) {
 		pf.MaxPrice = &maxPriceField{Prompt: price, Completion: price}
 	}
 
+	return pf, nil
+}
+
+// providerIgnore maps an OpenRouter wire model ("z-ai/glm-5.3-flash") to the
+// upstream provider slugs it must not be routed to. Registered once by the
+// command layer from the model registry (modelreg openrouter_ignore), so this
+// core package never reads models.yml itself.
+var (
+	providerIgnoreMu sync.RWMutex
+	providerIgnore   map[string][]string
+)
+
+// SetProviderIgnore installs the per-model provider ignore lists. Keys are
+// wire model names without the "openrouter/" prefix.
+func SetProviderIgnore(m map[string][]string) {
+	providerIgnoreMu.Lock()
+	defer providerIgnoreMu.Unlock()
+	providerIgnore = m
+}
+
+func ignoreFor(model string) []string {
+	providerIgnoreMu.RLock()
+	defer providerIgnoreMu.RUnlock()
+	return providerIgnore[strings.TrimPrefix(model, "openrouter/")]
+}
+
+// routeFor is the request's `provider` block: the caller's routing policy
+// plus the registry's ignore list for this model. nil when neither applies.
+//
+// Why a per-model ignore: OpenRouter load-balances a model over every host
+// that serves it, and hosts differ. Measured 2026-10-12, GLM-5.3-Flash:
+// inference-net/fp4 (4-bit weights) cached 8% of input against 91-97% on
+// Friendli, and its tool calls contradicted the model's own reasoning
+// ({"op":"tree","module":"x"} for 25+ steps while the reasoning said "use
+// path"). A routing policy cannot express that per model; the registry can.
+func routeFor(req *ai.Request) (*providerField, error) {
+	pf, err := translatePolicy(req.Routing)
+	if err != nil {
+		return nil, err
+	}
+	ignore := ignoreFor(req.Model)
+	if len(ignore) == 0 {
+		return pf, nil
+	}
+	if pf == nil {
+		pf = &providerField{}
+	}
+	pf.Ignore = append(append([]string(nil), pf.Ignore...), ignore...)
 	return pf, nil
 }

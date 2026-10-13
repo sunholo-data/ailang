@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -21,18 +22,19 @@ type ModelConfig struct {
 	ModelVendor              string   `yaml:"model_vendor,omitempty"` // Origin vendor, distinct from a hosting transport such as Ollama.
 	Description              string   `yaml:"description"`
 	EnvVar                   string   `yaml:"env_var"`
-	AgentCLI                 *string  `yaml:"agent_cli"`            // CLI command for agent eval (e.g., "claude", "openai", "gemini"), nil if not supported
-	AgentModelName           *string  `yaml:"agent_model_name"`     // Model name to pass to agent CLI (e.g., "haiku", "sonnet")
-	MaxOutputTokens          int      `yaml:"max_output_tokens"`    // Max output tokens (0 = handler default 4096)
-	DefaultThinking          string   `yaml:"default_thinking"`     // Thinking state when the harness sends NO thinking control (M-EVAL-TOKEN-HEADROOM). One of: "on" (thinks by default), "off" (needs an explicit ask), "always_on" (cannot be disabled — explicit disable is an API error), "none" (no thinking capability), "unknown" (NOT verified). Required on every entry: this is the column whose absence let GLM-5.2's truncated thinking read as a capability regression for a month. A row marked "unknown" must NOT have its token counts read as efficiency data
-	ReasoningMaxTokens       int      `yaml:"reasoning_max_tokens"` // Cap on hidden thinking tokens (0 = provider default / uncapped). OpenRouter only; best-effort — third-party upstreams may ignore it (observed: glm-5.2 via Baidu/StreamLake)
-	ReasoningEffort          string   `yaml:"reasoning_effort"`     // Vendor effort dial ("low"|"medium"|"high"; empty = vendor default). OpenRouter reasoning.effort — the DOCUMENTED control for effort-capable models (e.g. kimi-k3 Low/Standard/High/Max). Reasoning bills as output; record explicitly for eval reproducibility when deviating from default
-	TTFTTimeoutSeconds       int      `yaml:"ttft_timeout"`         // Prefill budget in seconds (0 = executor default 30s)
-	GenerationTimeoutSeconds int      `yaml:"generation_timeout"`   // Per-token idle budget after first event (0 = executor default 3m)
-	ModelFamily              string   `yaml:"model_family"`         // Logical model family for cross-harness grouping (e.g., "claude-sonnet-4-6"); empty = no grouping
-	GCPProject               string   `yaml:"gcp_project"`          // Override GOOGLE_CLOUD_PROJECT for this model's evals (e.g. "ailang-dev")
-	GCPLocation              string   `yaml:"gcp_location"`         // Override GOOGLE_CLOUD_LOCATION (e.g. "us-central1")
-	MotokoProfile            string   `yaml:"motoko_profile"`       // Override MOTOKO_CONFIG profile (default: "dogfood"); used when agent_cli is "motoko"
+	AgentCLI                 *string  `yaml:"agent_cli"`                   // CLI command for agent eval (e.g., "claude", "openai", "gemini"), nil if not supported
+	AgentModelName           *string  `yaml:"agent_model_name"`            // Model name to pass to agent CLI (e.g., "haiku", "sonnet")
+	MaxOutputTokens          int      `yaml:"max_output_tokens"`           // Max output tokens (0 = handler default 4096)
+	DefaultThinking          string   `yaml:"default_thinking"`            // Thinking state when the harness sends NO thinking control (M-EVAL-TOKEN-HEADROOM). One of: "on" (thinks by default), "off" (needs an explicit ask), "always_on" (cannot be disabled — explicit disable is an API error), "none" (no thinking capability), "unknown" (NOT verified). Required on every entry: this is the column whose absence let GLM-5.2's truncated thinking read as a capability regression for a month. A row marked "unknown" must NOT have its token counts read as efficiency data
+	ReasoningMaxTokens       int      `yaml:"reasoning_max_tokens"`        // Cap on hidden thinking tokens (0 = provider default / uncapped). OpenRouter only; best-effort — third-party upstreams may ignore it (observed: glm-5.2 via Baidu/StreamLake)
+	ReasoningEffort          string   `yaml:"reasoning_effort"`            // Vendor effort dial ("low"|"medium"|"high"; empty = vendor default). OpenRouter reasoning.effort — the DOCUMENTED control for effort-capable models (e.g. kimi-k3 Low/Standard/High/Max). Reasoning bills as output; record explicitly for eval reproducibility when deviating from default
+	TTFTTimeoutSeconds       int      `yaml:"ttft_timeout"`                // Prefill budget in seconds (0 = executor default 30s)
+	GenerationTimeoutSeconds int      `yaml:"generation_timeout"`          // Per-token idle budget after first event (0 = executor default 3m)
+	ModelFamily              string   `yaml:"model_family"`                // Logical model family for cross-harness grouping (e.g., "claude-sonnet-4-6"); empty = no grouping
+	GCPProject               string   `yaml:"gcp_project"`                 // Override GOOGLE_CLOUD_PROJECT for this model's evals (e.g. "ailang-dev")
+	GCPLocation              string   `yaml:"gcp_location"`                // Override GOOGLE_CLOUD_LOCATION (e.g. "us-central1")
+	MotokoProfile            string   `yaml:"motoko_profile"`              // Override MOTOKO_CONFIG profile (default: "dogfood"); used when agent_cli is "motoko"
+	OpenRouterIgnore         []string `yaml:"openrouter_ignore,omitempty"` // OpenRouter upstream provider slugs never to route this api_name to (sent as provider.ignore on every request, whichever harness or row). Per-row lists for the same api_name are unioned. Record the measurement that justified each entry in notes
 	Pricing                  Pricing  `yaml:"pricing"`
 	Budgets                  Budgets  `yaml:"budgets"` // M-EVAL-COST-AND-SPEED-BUDGETS (v0.16.0): cost-aware budget overrides
 	Notes                    string   `yaml:"notes"`
@@ -572,4 +574,26 @@ func (c *ModelsConfig) GetExecutorForModel(name string) (executorName string, mo
 	}
 
 	return executorName, modelName, nil
+}
+
+// OpenRouterIgnoreByAPIName is every openrouter row's openrouter_ignore,
+// keyed by api_name. Rows sharing an api_name (the pi, motoko and plain rows
+// of one model) are unioned: an upstream host is bad for the model, not for
+// one harness.
+func (c *ModelsConfig) OpenRouterIgnoreByAPIName() map[string][]string {
+	out := map[string][]string{}
+	if c == nil {
+		return out
+	}
+	for _, m := range c.Models {
+		if m.Provider != "openrouter" || len(m.OpenRouterIgnore) == 0 {
+			continue
+		}
+		for _, slug := range m.OpenRouterIgnore {
+			if !slices.Contains(out[m.APIName], slug) {
+				out[m.APIName] = append(out[m.APIName], slug)
+			}
+		}
+	}
+	return out
 }

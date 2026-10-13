@@ -79,7 +79,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	// Wrap the shared body in an OpenRouter-extended envelope that adds the
 	// optional `provider` field. We marshal the wrapped struct so the wire
 	// JSON is exactly: { ...chat completions fields, provider?: {...} }.
-	provider, rerr := translatePolicy(req.Routing)
+	provider, rerr := routeFor(req)
 	if rerr != nil {
 		e := ai.NewAIError(ai.CodeSchemaValidation,
 			fmt.Sprintf("openrouter: invalid routing policy: %v", rerr), false)

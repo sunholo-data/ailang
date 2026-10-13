@@ -614,3 +614,21 @@ func TestAttributionHeaders_SessionAffinity(t *testing.T) {
 		t.Fatalf("OPENROUTER_SESSION_ID must override the process id, got %q", got)
 	}
 }
+
+// The registry's per-model ignore list reaches the wire as provider.ignore,
+// merged with any caller routing policy, and only for that model.
+func TestRouteFor_RegistryIgnore(t *testing.T) {
+	SetProviderIgnore(map[string][]string{"z-ai/glm-5.3-flash": {"inference-net"}})
+	defer SetProviderIgnore(nil)
+	pf, err := routeFor(&ai.Request{Model: "openrouter/z-ai/glm-5.3-flash"})
+	if err != nil || pf == nil || len(pf.Ignore) != 1 || pf.Ignore[0] != "inference-net" {
+		t.Fatalf("glm-5.3-flash must ignore inference-net, got %+v %v", pf, err)
+	}
+	pf, err = routeFor(&ai.Request{Model: "z-ai/glm-5.3-flash", Routing: &ai.AIRoutingPolicy{Order: []string{"friendli"}}})
+	if err != nil || pf == nil || len(pf.Order) != 1 || len(pf.Ignore) != 1 {
+		t.Fatalf("ignore must merge with the caller's policy, got %+v %v", pf, err)
+	}
+	if pf, _ := routeFor(&ai.Request{Model: "deepseek/deepseek-v4-flash"}); pf != nil {
+		t.Fatalf("another model must carry no provider block, got %+v", pf)
+	}
+}
