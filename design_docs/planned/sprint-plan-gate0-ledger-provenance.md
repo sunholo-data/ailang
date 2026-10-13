@@ -112,3 +112,42 @@ Assert `undetermined:squash-merge` for all four, full flip SHA expanding `996c41
 - ROOT additions, `-G` removed-line matches and later rewords are distinct traps; bank actual mutation failures. Fixtures must isolate git configuration/hooks/signing so the rig's identity cannot contaminate expected verdicts.
 - This sprint changes source copies, not a live installed skill surface. The controller's normal merge/skill-sync workflow owns rollout; no driver, global skills, pending approvals or unrelated active sprint are modified here.
 - The planner stops after writing and validating these two artifacts. No execution handoff message, git write, implementation, background work or ledger reopening is part of this stage.
+
+## M1 mutation results (executor, in-sandbox)
+
+The first six rows are the controller-supplied prior-run measurements; they were not rerun.
+The remaining 14 drills used `LEDGER_SCRIPT_UT` with disposable instrument copies under
+`mktemp -d` in `/tmp`, a 45-second limit per suite, and `/bin/bash` 3.2.57. All completed
+in 5.46–8.10 seconds; every intended arm failed. No vacuous arm was found, and neither
+committed script was changed. Red lists enumerate failing arms, not assertion counts.
+For reproducibility, latest-hit overwrote the selected flip with the latest RESOLVED `-G`
+hit; minus-one-selection limited row history to `-1`; reword-as-flip removed earliest/parent
+guards; any-row-edit accepted added rows regardless of status. The removed-only mutant
+accepted the latest RESOLVED `-G` hit when the current row was OPEN. The ID-prefix mutant
+removed the ID-cell boundary, and fixed-space-regex required literal `| D-nn |` spacing.
+The self mutants ignored the override, removed case folding, or accepted an empty pattern.
+Missing-row and file-error mutants returned never-resolved; malformed-input failures returned
+rc 0; the email mutant emitted `%ae` on stderr. None printed captured identity data in the report.
+
+| Mutation | Target arm | Red arms | Target kill | Suite rc / evidence |
+|---|---|---|---|---|
+| old-pickaxe | A1 | A1,A2,A3,A5,A6,A9,A10,A11,A12,A13 | PASS | Prior run; not rerun |
+| classify-creation | A1 | A1,A2,A5,A9,A11 | PASS | Prior run; not rerun |
+| always-attended | A2 | A2,A11 | PASS | Prior run; not rerun |
+| ignore-committer | A3 | A3 | PASS | Prior run; not rerun |
+| author-before-squash | A3 | A3 | PASS | Prior run; not rerun |
+| require-open-parent | A4 | A4 | PASS | Prior run; not rerun |
+| latest-hit | A5 | A3,A5,A9 | PASS | 1 (measured this resume) |
+| minus-one-selection | A5 | A1,A2,A3,A5,A6,A9,A10,A11,A12,A13 | PASS | 1 (measured this resume) |
+| reword-as-flip | A5 | A3,A5 | PASS | 1 (measured this resume) |
+| any-row-edit-as-resolution | A6 | A1,A2,A3,A5,A6,A9,A10,A11,A12,A13 | PASS | 1 (measured this resume) |
+| missing-row-as-never-resolved | A7 | A7 | PASS | 1 (measured this resume) |
+| swallowed-file-errors | A8 | A8,A12 | PASS | 1 (measured this resume) |
+| removed-only-hit-accepted | A9 | A9 | PASS | 1 (measured this resume) |
+| unanchored-id-prefix | A10 | A10 | PASS | 1 (measured this resume) |
+| fixed-space-regex | A10 | A10 | PASS | 1 (measured this resume) |
+| ignored-self | A11 | A11 | PASS | 1 (measured this resume) |
+| case-sensitive-self | A11 | A11 | PASS | 1 (measured this resume) |
+| empty-self-accepted | A11 | A11 | PASS | 1 (measured this resume) |
+| success-on-malformed-input | A12 | A7,A8,A11,A12 | PASS | 1 (measured this resume) |
+| reintroduced-author-email | A13 | A1,A2,A3,A4,A5,A9,A10,A11,A13 | PASS | 1 (measured this resume) |
