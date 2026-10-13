@@ -58,7 +58,15 @@ run gcloud services enable generativelanguage.googleapis.com iam.googleapis.com 
 #    Created BEFORE the allowlist below so the allowlist cannot block SA management.
 if gcloud iam service-accounts describe "$SA" --project="$PROJECT" >/dev/null 2>&1; then echo "= $SA exists"
 else run gcloud iam service-accounts create gemini-agent --project="$PROJECT" \
-  --display-name="Gemini agent (keyless, impersonation only)"; fi
+  --display-name="Gemini agent (keyless, impersonation only)"
+  # A new SA is not yet visible to IAM bindings ("does not exist") for a few seconds.
+  if [ "${APPLY:-0}" = 1 ]; then
+    for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+      gcloud iam service-accounts describe "$SA" --project="$PROJECT" >/dev/null 2>&1 && break; sleep 5
+    done
+    sleep 10
+  fi
+fi
 run gcloud projects add-iam-policy-binding "$PROJECT" \
   --member="serviceAccount:$SA" --role=roles/serviceusage.serviceUsageConsumer --condition=None
 run gcloud iam service-accounts add-iam-policy-binding "$SA" --project="$PROJECT" \
