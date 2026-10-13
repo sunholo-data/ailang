@@ -114,13 +114,36 @@ looks at `.claude/skills`.
     `--fence off`; claude and pi ran fenced. Under the fence, claude's SessionStart hooks fail with
     EPERM and the session proceeds.
 
+12. Judge N2: after repair 8, a REMOVED pre-existing entry in a non-world parent was classed
+    `CONCURRENT_CHANGE`. It is now `SAFETY_FAILURE` unless the removed entry is another spike run's
+    `zz-fleet-spike-*` marker. Drill, run by the controller: an injected foreign deletion in
+    `~/.claude/skills` gives `SAFETY_FAILURE`, rc 1; an injected foreign addition gives
+    `CONCURRENT_CHANGE`, rc 0. The judge had measured the deletion case as `CONCURRENT_CHANGE`/`safety=OK`
+    before this fix. No live run is affected, because none of their deltas removed a non-spike entry.
+
 Aborted runs (`1791873811`, `1791874255`, `1791874263`, `1791874309`) were stopped on these defects
 and are not cited. Their raw streams, with those of every live run, are kept **outside the repo** at
 `~/.ailang/state/fleet-i34-spike-raw/` on the rig. The raw claude stream-json init events carry the
 user's full skill listing, including personal addresses, so only distilled per-call artifacts are
 tracked here: verdict, final answer, provenance, timing, rc and argv.
 
-**Safety.** Every live run's audits are `OK` or `CONCURRENT_CHANGE`, and no audit delta names a
-run id. After all runs, the controller checked the real parents (`~/.claude/skills`,
+**Safety.** Every live run's audits are `OK` or `CONCURRENT_CHANGE`. No audit delta names **that
+run's own** id; deltas in runs 4306, 4311 and 4447 name the overlapping sibling runs' markers
+(judge N1). After all runs, the controller checked the real parents (`~/.claude/skills`,
 `~/.agents/skills`, `~/.codex-missions/skills`, the main checkout's `.claude/skills`, `/private/tmp`)
 for `zz-fleet-spike-*` and found **none**.
+
+## Independent judge (sonnet, Agent tool, own worktree): PASS 88/100, 0 blocking
+
+Report: [judge-report.md](judge-report.md). The judge re-derived the load-bearing verdicts from
+`tokens.tsv` and the raw streams, and **replicated the three decision-relevant claims with its own
+minimal method** (not this script):
+- **C1**: claude collision → user-level token, 3 of 3; the negative control gave "Unknown skill".
+- **C2**: codex → `.claude/skills`-only gave ABSENT, `.agents/skills`-only returned its token, and the
+  negative gave ABSENT.
+- **C3**: pi `--skill <dir>` plus `/skill:<name>` → token; without `--skill`, no token.
+
+**Scope (judge N3, adopted).** Each collision precedence is a small-n reading on one model per CLI.
+claude "user wins": haiku, 2 spike runs plus 3 judge calls. codex "`$CODEX_HOME` wins": 1 arm. They
+are observations under the stated conditions, not universal precedence rules. K-by-path is an
+INSTRUMENT_FAILURE verdict: its subject read A/A, but a control was lost.

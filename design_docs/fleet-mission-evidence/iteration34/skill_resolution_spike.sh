@@ -58,7 +58,11 @@ audit() {
   if ! cmp -s "$run/audit/$i.before" "$run/audit/$i.after"; then
     # controller i34: a shared parent (/private/tmp) changes under concurrent writers; only a delta naming THIS run is ours
     diff "$run/audit/$i.before" "$run/audit/$i.after" | grep '^[<>]' > "$run/audit/$i.delta" || :
+    # judge N2 (i34): a REMOVED pre-existing entry is a safety failure unless it is another spike run's
+    # marker, or the parent is the shared world parent where foreign temp files come and go.
     if grep -Fq "$runid" "$run/audit/$i.delta"; then result=SAFETY_FAILURE; safety=SAFETY_FAILURE; failed=1
+    elif [ "$p" != "$world_parent" ] && grep '^<' "$run/audit/$i.delta" | grep -vq '^< zz-fleet-spike-'; then
+      result=SAFETY_FAILURE; safety=SAFETY_FAILURE; failed=1
     else result=CONCURRENT_CHANGE; fi
   fi
   audited[i]=1
