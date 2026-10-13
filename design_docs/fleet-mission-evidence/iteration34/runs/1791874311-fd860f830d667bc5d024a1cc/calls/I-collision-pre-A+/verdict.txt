@@ -1,0 +1,1 @@
+VERDICT runid=1791874311-fd860f830d667bc5d024a1cc arm=I-collision-pre-A+ status=MATCH origin=A/A controls=control rc=0 fence=on evidence=runs/1791874311-fd860f830d667bc5d024a1cc/calls/I-collision-pre-A+

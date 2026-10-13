@@ -1,0 +1,1 @@
+{"skill_token": "a14ca62c3a6e289a7e6dc1d00e23f6c620552c50b85b65df", "resource_token": "bd235073d905eb41a570257022338f4d19bcb9094e166bbc"}

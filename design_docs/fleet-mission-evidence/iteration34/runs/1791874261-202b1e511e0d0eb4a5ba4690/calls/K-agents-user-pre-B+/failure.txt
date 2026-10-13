@@ -1,0 +1,1 @@
+INSTRUMENT_FAILURE fence=on; inspect denied-operation evidence in stderr/debug/raw streams

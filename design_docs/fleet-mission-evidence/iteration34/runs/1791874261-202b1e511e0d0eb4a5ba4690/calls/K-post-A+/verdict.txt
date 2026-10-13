@@ -1,0 +1,1 @@
+VERDICT runid=1791874261-202b1e511e0d0eb4a5ba4690 arm=K-post-A+ status=INSTRUMENT_FAILURE origin=- controls=control rc=1 fence=on evidence=runs/1791874261-202b1e511e0d0eb4a5ba4690/calls/K-post-A+

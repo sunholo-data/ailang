@@ -1,0 +1,15 @@
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791873613-2718b2048dcd656fe89b00ba/runtime/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-scratch
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/tmp/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-world
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/pin/.agents/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/pin/.claude/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-claude
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/pin/.agents/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-project
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/user/.agents/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-agents-user
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/user/.codex/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-legacy-user
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/pin/.agents/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-collision
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/user/.agents/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-collision
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/user/.codex/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-collision
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/pin/.agents/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-by-path
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/user/.agents/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-by-path
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/user/.codex/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-by-path
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/spike-gates-mncyxarh/pin/.agents/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-home
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791873613-2718b2048dcd656fe89b00ba/runtime/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-scratch/KS/skills/zz-fleet-spike-1791873613-2718b2048dcd656fe89b00ba-k-home
