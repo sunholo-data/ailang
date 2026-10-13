@@ -49,7 +49,7 @@ run gcloud resource-manager org-policies enable-enforce iam.automaticIamGrantsFo
 #    Datastore, Dataplex...), keeping only service plumbing + audit logging; then enable
 #    ONLY what the keyless path needs (iam = SA management, iamcredentials = token minting).
 run gcloud billing projects link "$PROJECT" --billing-account="$BILLING"
-KEEP='^(serviceusage|servicemanagement|logging|monitoring|iam|iamcredentials|generativelanguage)\.googleapis\.com$'
+KEEP='^(serviceusage|servicemanagement|logging|monitoring|iam|iamcredentials|generativelanguage|apikeys)\.googleapis\.com$'
 EXTRA=$(gcloud services list --enabled --project="$PROJECT" --format='value(config.name)' | grep -Ev "$KEEP" || true)
 if [ -n "$EXTRA" ]; then run gcloud services disable $EXTRA --project="$PROJECT" --force; fi
 run gcloud services enable generativelanguage.googleapis.com iam.googleapis.com iamcredentials.googleapis.com --project="$PROJECT"
@@ -74,16 +74,45 @@ run gcloud iam service-accounts add-iam-policy-binding "$SA" --project="$PROJECT
 
 # 5. Allowlist services LAST, so nothing else (aiplatform, compute, firebase...) can be turned on.
 run gcloud resource-manager org-policies allow gcp.restrictServiceUsage \
-  generativelanguage.googleapis.com iam.googleapis.com iamcredentials.googleapis.com --project="$PROJECT"
+  generativelanguage.googleapis.com iam.googleapis.com iamcredentials.googleapis.com \
+  apikeys.googleapis.com --project="$PROJECT"
 
-# 6. Budget alerts at 50/90/100% (alerts only; the hard stop is the quota cap, set after enable — see below).
+# 6. Budget alerts at 50/90/100% (alerts only — the HARD stop is the AI Studio Project Spend Cap, step 8).
 if gcloud billing budgets list --billing-account="$BILLING" --format='value(displayName)' 2>/dev/null | grep -qx "$PROJECT cap"; then
   echo "= budget '$PROJECT cap' exists"
 else run gcloud billing budgets create --billing-account="$BILLING" \
   --display-name="$PROJECT cap" --budget-amount="${BUDGET_USD}USD" \
   --filter-projects="projects/$PROJECT" \
-  --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0; fi
+  --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0 \
+  || echo "! budget not created (needs billingbudgets API on your gcloud quota project) — create it in the Billing console"; fi
 
+
+# 7. API key — ONLY because the Gemini Developer API refuses SA OAuth tokens (403 "Access to Gemini
+#    API is restricted with service accounts. Use authorization keys instead", 2026-10-13).
+#    Blast radius is minimised: bound to the zero-role SA, restricted to generativelanguage only, in a
+#    project where nothing else can be enabled, behind a spend cap. The key string is written straight
+#    into SECRETS_FILE and never printed. Opt in with CREATE_KEY=1.
+SECRETS_FILE=${SECRETS_FILE:-$HOME/.config/ailang/secrets.env}
+KEY_VAR=GEMINI_AGENTS_API_KEY
+if [ "${CREATE_KEY:-0}" = 1 ]; then
+  run gcloud services enable apikeys.googleapis.com --project="$PROJECT"
+  KEY_NAME=$(gcloud services api-keys list --project="$PROJECT" --filter="displayName=gemini-agent-key" --format='value(name)' 2>/dev/null | head -1 || true)
+  if [ -n "$KEY_NAME" ]; then echo "= key gemini-agent-key exists ($KEY_NAME)"
+  else
+    run gcloud services api-keys create --project="$PROJECT" --display-name=gemini-agent-key \
+      --api-target=service=generativelanguage.googleapis.com --service-account="$SA"
+    [ "${APPLY:-0}" = 1 ] && KEY_NAME=$(gcloud services api-keys list --project="$PROJECT" --filter="displayName=gemini-agent-key" --format='value(name)' | head -1)
+  fi
+  if [ "${APPLY:-0}" = 1 ] && [ -n "$KEY_NAME" ]; then
+    KEY=$(gcloud services api-keys get-key-string "$KEY_NAME" --format='value(keyString)')
+    touch "$SECRETS_FILE"; chmod 600 "$SECRETS_FILE"
+    grep -v "^export $KEY_VAR=" "$SECRETS_FILE" > "$SECRETS_FILE.tmp" || true
+    printf 'export %s=%s\n' "$KEY_VAR" "$KEY" >> "$SECRETS_FILE.tmp" && mv "$SECRETS_FILE.tmp" "$SECRETS_FILE"
+    unset KEY; echo "= wrote $KEY_VAR to $SECRETS_FILE (value not shown)"
+  fi
+fi
+
+# 8. HARD STOP (manual, UI only): AI Studio → import project $PROJECT → set a Project Spend Cap.
+#    Enforced with ~10 min lag. The billing-account tier cap also applies on top.
 echo
-echo "Next (read-only): list the real quota metric names so the daily cap is set on a measured name:"
-echo "  gcloud alpha services quota list --service=generativelanguage.googleapis.com --consumer=projects/$PROJECT"
+echo "MANUAL: https://aistudio.google.com → import project $PROJECT → Spend → set a monthly cap."
