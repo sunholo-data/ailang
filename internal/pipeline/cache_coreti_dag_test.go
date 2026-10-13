@@ -136,7 +136,9 @@ func TestCoreTIDAG_EveryVariantMatchesGob(t *testing.T) {
 func TestCoreTIDAG_FieldCountsPinned(t *testing.T) {
 	want := map[string]int{
 		"TCon": 1, "TVar": 1, "TVar2": 2, "RowVar": 2, "TList": 1, "TArray": 1, "TMap": 2, "TTuple": 1,
-		"TRecord": 3, "TRecordOpen": 2, "TRecord2": 1, "TApp": 2, "TFunc2": 5, "TLabelled": 2, "Row": 7,
+		// TRecord's 4th field is groundMemo, a per-node cache (#1787) that is
+		// deliberately not encoded: a decoded record recomputes it on demand.
+		"TRecord": 4, "TRecordOpen": 2, "TRecord2": 1, "TApp": 2, "TFunc2": 5, "TLabelled": 2, "Row": 7,
 	}
 	for name, ty := range coreTIVariantSamples() {
 		if got := reflect.TypeOf(ty).Elem().NumField(); got != want[name] {

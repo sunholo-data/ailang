@@ -161,14 +161,24 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 		return result
 
 	case *TRecord:
-		changed := false
-		fields := make(map[string]Type)
+		// #1787: expanded alias bodies are ground; substitution cannot change them.
+		if isGroundType(typ) {
+			return t
+		}
+		var fields map[string]Type // allocated on the first changed field
 		for name, fieldType := range typ.Fields {
-			fields[name] = safeSubstitute(fieldType, sub, visited)
-			if fields[name] != fieldType {
-				changed = true
+			newField := safeSubstitute(fieldType, sub, visited)
+			if newField != fieldType && fields == nil {
+				fields = make(map[string]Type, len(typ.Fields))
+				for n, f := range typ.Fields {
+					fields[n] = f
+				}
+			}
+			if fields != nil {
+				fields[name] = newField
 			}
 		}
+		changed := fields != nil
 		var row Type
 		if typ.Row != nil {
 			row = safeSubstitute(typ.Row, sub, visited)
@@ -178,6 +188,12 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 		}
 		if !changed {
 			return t
+		}
+		if fields == nil {
+			fields = make(map[string]Type, len(typ.Fields))
+			for n, f := range typ.Fields {
+				fields[n] = f
+			}
 		}
 		// M-CODEGEN-RECORD-TYPENAME-PRESERVATION: Preserve TypeName through substitution
 		// TypeName is set during unification with nominal types (e.g., `Planet` from return annotation)
