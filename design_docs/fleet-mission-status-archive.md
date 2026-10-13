@@ -2,6 +2,20 @@
 
 Older STATUS stamps rotated out of [fleet-mission.md](fleet-mission.md) (newest 3 stay there). Append-only.
 
+## STATUS 2026-10-12 — ITERATION 32: P1 #8 quorum zero-signal guard LANDED — #1767 `a5f9af982`, judged PASS 95 by sonnet; ticket resolved; orphans 30/31 credited [HARNESS]
+
+Resumed iteration 28's PARKED-ON-LANE item. The predicate held this fire: Anthropic was available, and the evaluator resolved to `agent-tool sonnet`, which spawned. Two unrecorded slots had already carried the item:
+- **Iteration 30** (10-09, glm controller): quorum rounds 1–2 BLOCKED, then revision 3 with the reviewers' verbatim fixes under the narrow-refinement carve-out.
+- **Iteration 31** (10-12 01:08Z): replayed the revisions onto `0a2202ad6` and left an untracked plan.
+
+Both are credited in the log. The opus planner adopted the plan with 10 corrections, two of which prevented vacuous tests: call `SynthesizeWithTier2` directly, and use non-zero absent costs. The haiku executor (`claude-sub`) produced the fix (`externalPresentCount`, no controller increment, guard text unchanged) and a matrix, seated and Tier-2 regression set; the new tests were red before the fix. The sonnet judge, in its own worktree, scored **PASS 95** with 0 blocking and 6 of 6 mutants killed; the controller re-ran MU1 independently (3 tests red, restore `cmp`-identical).
+
+PR #1767 head `c55bc9a39`: 26 checks, 0 failures. Squash-merged → `a5f9af982`. Dev CI on `a5f9af982`: `test`, `lint`, `launchd drivers (bash 3.2)`, govulncheck, `test-windows` and all `Build` legs success (21 checks; release `build` still running at record time). `make test-launchd-drivers` at `a5f9af982`: rc 0 unpiped, 558 s. The pending record #1710 (iterations 28–29) also landed (`6d0e5fd76`) after a TempDir-race flake was re-run. Ticket resolved; #651 closed with a verdict.
+
+Reach caveat: loops run `design-quorum` through the PATH binary, which carries the fix only after its next rebuild or release. Weekly sweep: 60 open issues enumerated, 53 with zero mentions, 0 harness-shaped, so no new queue items.
+
+Clause map: **1** UNMEASURED; **2** UNMET (this ticket took ≈16 d, mostly a capacity park); **3** MET; **4** prior evidence only; **5** preserved.
+
 ## STATUS 2026-10-09 — ITERATION 29: native evaluator unavailable → PARKED-ON-LANE (external native capability); documented independent fallback, no runtime fix [HARNESS]
 
 Only `blocking=all` ticket `agent-tool:sonnet-unavailable` selected (47 open, 8 occurrence records; latest successful workaround is blocking=none, not proof of eight terminal losses). Native host supports OpenAI models only; evaluator `minimax/minimax-m3` rejected Unknown model. Native Sol designer/planner confirmed the repository cannot install host runtime models/tools. Existing user authorization permits documented fallback; declared Minimax recipe probe rc0. Independent Minimax bookkeeping review PASS95/100, 0 blocking; verbatim report and controller correction addendum banked under `design_docs/fleet-mission-evidence/iteration29/`; no verdict, implementation or ticket resolution. Ticket remains OPEN/PARKED-ON-LANE (external native capability) until native capability is proven on the affected controller; existing declared CLI recipes remain workaround. Iteration28 record inherited verbatim from PR #1662, candidate unreviewed and unapproved; original PR/worktree unchanged. P1 #8 candidate then #9 next. No new human decision, policy or skill edit. Clause map: **1** UNMEASURED; **2** UNMET; **3** MET (47 open); **4** prior evidence only; **5** preserved (no fix shipped). 0 resolved; goal unmoved.
