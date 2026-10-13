@@ -181,7 +181,8 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
    `attended` follows (a)'s attended-channel contract. Only `fleet` on a non-squash flip is
    **SELF-RESOLUTION**: re-open the row, FLAG it, report it, and do not action it.
    `undetermined:squash-merge`: report flip and creation SHAs; never re-open or ask for
-   confirmation on that basis. `never-resolved`: no attended resolution exists.
+   confirmation on that basis. Git cannot see a self-resolution that lands through a squash
+   merge, so the check is weaker there; it does not make that case safe. `never-resolved`: no attended resolution exists.
    rc 2 is an instrument failure, not a verdict: report it and stop provenance-dependent action.
    **(c) YOU MAY NOT USE THIS CHANNEL.** The loop never runs `mission_answer.sh`, never authors a
    commit with an attended identity, and never resolves a row on its own behalf.

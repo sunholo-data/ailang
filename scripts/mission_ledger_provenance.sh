@@ -99,8 +99,10 @@ for revision in $history; do
     printf '%s\n' "$patch" | grep -Eq "^\+${row_re#^}" || fatal 'creation addition unavailable'
     creation="$revision"
   fi
-  # Earliest verified ADDED resolution; removal and resolved-to-resolved reword are excluded.
-  if [ "$flip" = none ] && printf '%s\n' "$after" | grep -Eq "$resolved_re" && \
+  # LATEST verified non-RESOLVED -> RESOLVED addition: the transition that produced the
+  # current resolution, so a reopen + fleet re-resolve is not hidden behind an earlier
+  # attended flip. Removal and resolved-to-resolved reword are never transitions.
+  if printf '%s\n' "$after" | grep -Eq "$resolved_re" && \
      ! printf '%s\n' "$before" | grep -Eq "$resolved_re" && \
      printf '%s\n' "$patch" | grep -Eq "^\+${resolved_re#^}"; then
     flip="$revision"

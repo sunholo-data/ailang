@@ -151,3 +151,16 @@ rc 0; the email mutant emitted `%ae` on stderr. None printed captured identity d
 | empty-self-accepted | A11 | A11 | PASS | 1 (measured this resume) |
 | success-on-malformed-input | A12 | A7,A8,A11,A12 | PASS | 1 (measured this resume) |
 | reintroduced-author-email | A13 | A1,A2,A3,A4,A5,A9,A10,A11,A13 | PASS | 1 (measured this resume) |
+
+## Controller revision after evaluation (iteration 35)
+
+The sonnet judge (PASS 88, round 1) found N1: when a human resolves, then reopens, and then the fleet
+re-resolves directly, the earliest-flip rule reports `attended` even though the current resolution is
+fleet-authored. The controller reproduced it in a fixture. The instrument now selects the **latest**
+non-RESOLVED→RESOLVED transition, which is the one that produced the current resolution. Rewords and
+removed-only hits are still never transitions. New arm **A14** covers the reopen case. The A3 alias
+loop now expects the latest flip. The mutant that restores earliest selection (a `[ "$flip" = none ]`
+guard, applied on a disposable copy) turns **A14** and **A3** red. The suite passes 115/0. The real-history
+verdicts for D-FLEET-1/13/14/15/16 are unchanged. Judge N3 is adopted as a one-clause limit in rule
+6(b): git cannot see a squash-merged self-resolution. N2 (bold status cells), N4 (no attended-stamp
+check) and N5 (three defensive guards no arm exercises) stay as follow-ups, not ticketed.

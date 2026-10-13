@@ -73,8 +73,8 @@ expect 0 undetermined:squash-merge "$flip" "$creation"
 for committer in 'gItHuB[BoT]' web-flow; do
   row D-1 OPEN; commit Human
   row D-1 RESOLVED; commit sunholo-voight-kampff "$committer"
-  # Earliest flip stays selected even across subsequent resolutions.
-  expect 0 undetermined:squash-merge "$flip" "$creation"
+  # A later reopen + re-resolve is the current resolution, so its flip is selected.
+  expect 0 undetermined:squash-merge "$sha" "$creation"
 done
 # Independent first-flip fixtures exercise the other committer aliases.
 for committer in 'gItHuB[BoT]' web-flow; do
@@ -86,6 +86,14 @@ done
 repo A4; echo '# Charter' > "$file"; commit Human
 row D-1 RESOLVED; commit Human; expect 0 attended "$sha" "$sha"
 repo A4-root; arm=A4; row D-1 RESOLVED; commit Human; expect 0 attended "$sha" "$sha"
+
+# A14 kills earliest-transition selection: human resolves, human reopens, fleet
+# re-resolves directly. The current resolution is fleet-authored (iteration 35 judge N1).
+repo A14; row D-1 OPEN; commit sunholo-voight-kampff; creation=$sha
+row D-1 RESOLVED; commit Human
+row D-1 OPEN; commit Human
+row D-1 RESOLVED; commit 'Voight-Kampff (bot)'; flip=$sha
+expect 0 fleet "$flip" "$creation"
 
 # A5 kills latest -G / -1 --reverse and RESOLVED reword-as-flip.
 repo A5; row D-1 OPEN; commit sunholo-voight-kampff; creation=$sha
