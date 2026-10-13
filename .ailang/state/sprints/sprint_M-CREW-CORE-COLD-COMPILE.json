@@ -1,0 +1,232 @@
+{
+  "sprint_id": "M-CREW-CORE-COLD-COMPILE",
+  "status": "not_started",
+  "created": "2026-10-13T16:31:07.942888+00:00",
+  "design_doc": "design_docs/planned/v0_55_0/m-crew-core-cold-compile-followup.md",
+  "sprint_plan": "design_docs/planned/v0_55_0/m-crew-core-cold-compile-sprint-plan.md",
+  "github_issues": [
+    1811,
+    386
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal Go optimization, pipeline validation or repository docs; no package-like capability, so registry search is not applicable."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal Go optimization, pipeline validation or repository docs; no package-like capability, so registry search is not applicable."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal Go optimization, pipeline validation or repository docs; no package-like capability, so registry search is not applicable."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal Go optimization, pipeline validation or repository docs; no package-like capability, so registry search is not applicable."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal Go optimization, pipeline validation or repository docs; no package-like capability, so registry search is not applicable."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal Go optimization, pipeline validation or repository docs; no package-like capability, so registry search is not applicable."
+    },
+    {
+      "milestone": "M7",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal Go optimization, pipeline validation or repository docs; no package-like capability, so registry search is not applicable."
+    },
+    {
+      "milestone": "M8",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal Go optimization, pipeline validation or repository docs; no package-like capability, so registry search is not applicable."
+    },
+    {
+      "milestone": "M9",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal Go optimization, pipeline validation or repository docs; no package-like capability, so registry search is not applicable."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 140,
+    "estimated_total_loc": 1260,
+    "estimated_days": 9
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Pin baseline and semantic fixtures",
+      "estimated_loc": 140,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Network-free fixture compiles with caching disabled through the actual pipeline API.",
+        "#386 row-generalization and application-effect fixtures and depth-12 64 MB guard pass before edits.",
+        "Record hardware, compiler commit, Go version, three cold samples and baseline profile.",
+        "Run make test-changed, focused touched-package tests and make check-file-sizes. Compare semantics with M1; use raw gob equality only if repeated unchanged builds prove encoding deterministic, otherwise compare decoded canonical contents and record the serialization limitation."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Use qualified constraint bookkeeping",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Constraint selection, first-wins order and errors match baseline.",
+        "Tests cover constraints mentioning generalized and non-generalized variables and nested lets.",
+        "Run make test-changed, focused touched-package tests and make check-file-sizes. Compare semantics with M1; use raw gob equality only if repeated unchanged builds prove encoding deterministic, otherwise compare decoded canonical contents and record the serialization limitation."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Replace rendering-based constraint deduplication",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Corpus includes wide/open records, rows, ADTs, recursive types, aliases and class distinctions.",
+        "Forced collisions retain distinct constraints; genuine duplicates preserve the first object.",
+        "Artifact and diagnostic comparison and constraint-growth guard pass.",
+        "Run make test-changed, focused touched-package tests and make check-file-sizes. Compare semantics with M1; use raw gob equality only if repeated unchanged builds prove encoding deterministic, otherwise compare decoded canonical contents and record the serialization limitation."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Window effect-row environment traversal",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Inherited, shadowed and quantified row-variable tests preserve generalization semantics.",
+        "#386 fixtures and semantic artifact comparisons pass; record profile delta.",
+        "Run make test-changed, focused touched-package tests and make check-file-sizes. Compare semantics with M1; use raw gob equality only if repeated unchanged builds prove encoding deterministic, otherwise compare decoded canonical contents and record the serialization limitation."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Bound epoch-stamped substitution scratch maps",
+      "estimated_loc": 190,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Stale entries miss across passes; recursive ADTs and mu-types terminate with unchanged results.",
+        "Epoch wrap, repeated distinct compilations, reentrant traversal and race-focused checks pass.",
+        "Retained heap stays bounded; benchmark allocation and CPU deltas support the change.",
+        "Run make test-changed, focused touched-package tests and make check-file-sizes. Compare semantics with M1; use raw gob equality only if repeated unchanged builds prove encoding deterministic, otherwise compare decoded canonical contents and record the serialization limitation."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "description": "Extract and pin application substitution behavior",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "Extraction preserves diagnostics and decoded compile artifacts.",
+        "Focused fixtures exercise withheld enclosing variables, replayed equalities and subtree CoreTypeInfo consumers.",
+        "Run make test-changed, focused touched-package tests and make check-file-sizes. Compare semantics with M1; use raw gob equality only if repeated unchanged builds prove encoding deterministic, otherwise compare decoded canonical contents and record the serialization limitation."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M7",
+      "description": "Reduce application substitution work",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M6"
+      ],
+      "acceptance_criteria": [
+        "All #386 fixtures, recursive self-call withholding and declaration-boundary replay pass unchanged.",
+        "No unresolved type is left for downstream CoreTypeInfo consumers.",
+        "Re-profile deps-cached session and package check; report goals achieved or remaining bottleneck honestly.",
+        "Run make test-changed, focused touched-package tests and make check-file-sizes. Compare semantics with M1; use raw gob equality only if repeated unchanged builds prove encoding deterministic, otherwise compare decoded canonical contents and record the serialization limitation."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M8",
+      "description": "Install compile time and allocation regression guards",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M7"
+      ],
+      "acceptance_criteria": [
+        "Guard runs without registry/network and asserts both time and allocation.",
+        "Attempt the proposed 64 MB wide-fixture budget; if baseline cannot fit, report evidence and request a design revision rather than silently weakening it.",
+        "Fixed budget and calibration environment are recorded; two-week stability is tracked after merge, not claimed during execution.",
+        "Run make test-changed, focused touched-package tests and make check-file-sizes. Compare semantics with M1; use raw gob equality only if repeated unchanged builds prove encoding deterministic, otherwise compare decoded canonical contents and record the serialization limitation."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M9",
+      "description": "Document measurements and downstream retirement",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M8"
+      ],
+      "acceptance_criteria": [
+        "Deps-cached session check <=2.5 s and fully cold package check <=12 s with peak RSS <=300 MB, or explicitly report unmet goals and propose a separate follow-up.",
+        "Both engines run bankLimit successfully; explain encodeHostError argument decoding limitation.",
+        "Guide documents two concurrent cold runs and memory measurement without claiming an unperformed game CI run.",
+        "Changelog fragment opens with ###; implementation report includes profile deltas and semantic comparisons.",
+        "Run make test-changed, focused touched-package tests and make check-file-sizes. Compare semantics with M1; use raw gob equality only if repeated unchanged builds prove encoding deterministic, otherwise compare decoded canonical contents and record the serialization limitation."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
