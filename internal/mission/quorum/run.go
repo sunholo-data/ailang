@@ -161,7 +161,7 @@ func runReviewerWith(caller JSONCaller, mc *eval_harness.ModelConfig, out *Revie
 
 	result, perr := ParseReviewResult(raw)
 	if perr != nil {
-		out.AbsentReason = ReasonInvalid
+		recordInvalid(out, raw)
 		// Fail LOUDLY on a max_tokens truncation: a reasoning model whose
 		// thinking exhausted the output cap returns a valid-but-cut-off body
 		// that ParseReviewResult rejects as malformed JSON. Surfacing the

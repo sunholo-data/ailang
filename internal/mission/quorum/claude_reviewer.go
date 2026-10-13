@@ -120,7 +120,7 @@ func RunClaudeSubscriptionReviewer(model, docPath, docBody string) *ReviewerOutc
 	}
 	result, perr := ParseReviewResult(env.Result)
 	if perr != nil {
-		out.AbsentReason = ReasonInvalid
+		recordInvalid(out, env.Result)
 		out.Err = perr.Error()
 		return out
 	}

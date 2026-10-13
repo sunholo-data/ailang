@@ -93,7 +93,16 @@ func MarkdownBlock(q *QuorumResult) string {
 		if o.Present {
 			fmt.Fprintf(&b, "- `%s`%s → **%s** ($%.4f, %d/%d tok) — %s\n", o.Model, label, o.Result.Verdict, o.CostUSD, o.TokensIn, o.TokensOut, o.Result.StrongestObjection)
 		} else {
-			fmt.Fprintf(&b, "- `%s`%s → **ABSENT** (%s) — degraded to N-1, not a silent pass\n", o.Model, label, o.AbsentReason)
+			suffix := ""
+			if o.Salvaged != nil {
+				switch o.Salvaged.Verdict {
+				case VerdictReject:
+					suffix = "; salvaged REJECT — blocks"
+				case VerdictPass:
+					suffix = "; salvaged PASS — audit only (not counted)"
+				}
+			}
+			fmt.Fprintf(&b, "- `%s`%s → **ABSENT** (%s) — degraded to N-1, not a silent pass%s\n", o.Model, label, o.AbsentReason, suffix)
 		}
 	}
 	if q.ControllerInSession != nil {

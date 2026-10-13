@@ -12,7 +12,7 @@ type SynthesisVerdict string
 const (
 	// SynthProceed: unanimous pass among PRESENT reviewers → the doc proceeds.
 	SynthProceed SynthesisVerdict = "proceed"
-	// SynthBlocked: at least one present reviewer rejected → the objection
+	// SynthBlocked: a present or salvaged reviewer reject → the objection
 	// goes back to the doc author before planning.
 	SynthBlocked SynthesisVerdict = "blocked"
 )
@@ -60,8 +60,9 @@ type Synthesis struct {
 
 // AbsentNote records one missing reviewer for the synthesis.
 type AbsentNote struct {
-	Model  string `json:"model"`
-	Reason string `json:"reason"`
+	Model           string  `json:"model"`
+	Reason          string  `json:"reason"`
+	SalvagedVerdict Verdict `json:"salvaged_verdict,omitempty"`
 }
 
 // RunQuorum runs the given reviewer models in PARALLEL and composes their
@@ -143,8 +144,8 @@ func RunQuorumWithEscalation(
 // A controller pass is not external signal: a controller-only run blocks. The
 // controller keeps its veto and its own objection.
 //
-// Absent reviewers are recorded but do not vote; they can never turn a real
-// reject into a proceed, and their absence is always visible (Principle 2).
+// Absent reviewers never count as external signal. A salvaged reject retains
+// its veto; a salvaged pass is audit only. Every absence remains visible.
 func synthesize(outcomes []*ReviewerOutcome, controller *ControllerReview) Synthesis {
 	// AbsentReviewers is initialized to a non-nil empty slice so it marshals as
 	// [] (not null) when every reviewer was present — a consistent JSON shape
@@ -157,7 +158,7 @@ func synthesize(outcomes []*ReviewerOutcome, controller *ControllerReview) Synth
 		s.TotalTokensIn += o.TokensIn
 		s.TotalTokensOut += o.TokensOut
 		if !o.Present {
-			s.AbsentReviewers = append(s.AbsentReviewers, AbsentNote{Model: o.Model, Reason: o.AbsentReason})
+			foldAbsent(&s, o, o.Model)
 			continue
 		}
 		externalPresentCount++
@@ -187,4 +188,23 @@ func synthesize(outcomes []*ReviewerOutcome, controller *ControllerReview) Synth
 	}
 
 	return s
+}
+
+// foldAbsent records an absence and preserves a recovered veto without adding
+// a vote, external signal or seat. Only synthesize's absent branch calls it.
+func foldAbsent(s *Synthesis, o *ReviewerOutcome, prefix string) {
+	note := AbsentNote{Model: o.Model, Reason: o.AbsentReason}
+	if o.Salvaged != nil {
+		note.SalvagedVerdict = o.Salvaged.Verdict
+		if o.Salvaged.Verdict == VerdictReject {
+			objection := o.Salvaged.StrongestObjection
+			if objection == "" {
+				objection = "strongest_objection unrecoverable, see reviewer error"
+			}
+			s.Verdict = SynthBlocked
+			s.BlockingObjections = append(s.BlockingObjections,
+				fmt.Sprintf("%s [salvaged from invalid response]: %s", prefix, objection))
+		}
+	}
+	s.AbsentReviewers = append(s.AbsentReviewers, note)
 }
