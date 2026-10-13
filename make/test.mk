@@ -78,6 +78,9 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_provider_quota.sh
 	@$(LAUNCHD_SUITE) scripts/test_mission_pi_run.sh
 	@$(LAUNCHD_SUITE) scripts/test_mission_gate0_self_notices.sh
+	@$(LAUNCHD_SUITE) scripts/test_mission_ledger_provenance.sh
+	@/bin/bash -n scripts/mission_ledger_provenance.sh
+	@/bin/bash -n scripts/test_mission_ledger_provenance.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_driver_notify.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_pi_ext_args.sh
 	@$(LAUNCHD_SUITE) .claude/skills/sprint-evaluator/scripts/test_ci_gate.sh

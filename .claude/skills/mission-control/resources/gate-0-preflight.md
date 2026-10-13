@@ -172,15 +172,18 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
    **(b) PROVENANCE IS THE WHOLE CONTRACT.** The commit that flipped the row must be authored by an
    attended identity, never the fleet account. For any ledger row that changed since your last
    watermark, check it first-party:
-   `git log -1 --format='%an <%ae>' -S'| D-nn |' -- <charter>`. **Use that output to COMPARE,
-   never to RECORD** (Mark, attended 2026-09-02): the verdict is "attended" or "fleet", and that
-   is all that goes in the row. Writing the author's ADDRESS into an evidence cell publishes it —
+   `scripts/mission_ledger_provenance.sh --id D-nn --file <charter>`.
+   **Use that output to COMPARE, never to RECORD** (Mark, attended 2026-09-02): record only the
+   verdict and flip/creation SHAs. Writing the author's ADDRESS into an evidence cell publishes it —
    ledger rows are pasted verbatim into the public bookkeeping issue by every report, which is
    exactly how a personal address reached 11 places across 9 tracked files before this rule
-   existed. `make check-no-personal-email` fails the build if one comes back. If the flip was authored by
-   `sunholo-voight-kampff`, that is **SELF-RESOLUTION** — the exact failure `mission_directives.sh`'s
-   self-direction guard exists to prevent, arriving through the other door. Re-open the row, FLAG it,
-   and report it; do not action it.
+   existed. `make check-no-personal-email` fails the build if one comes back.
+   `attended` follows (a)'s attended-channel contract. Only `fleet` on a non-squash flip is
+   **SELF-RESOLUTION**: re-open the row, FLAG it, report it, and do not action it.
+   `undetermined:squash-merge`: report flip and creation SHAs; never re-open or ask for
+   confirmation on that basis. Git cannot see a self-resolution that lands through a squash
+   merge, so the check is weaker there; it does not make that case safe. `never-resolved`: no attended resolution exists.
+   rc 2 is an instrument failure, not a verdict: report it and stop provenance-dependent action.
    **(c) YOU MAY NOT USE THIS CHANNEL.** The loop never runs `mission_answer.sh`, never authors a
    commit with an attended identity, and never resolves a row on its own behalf.
    **Scope of (c), clarified 2026-09-02 after it was over-applied and cost an hour:** this binds

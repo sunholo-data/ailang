@@ -1,0 +1,93 @@
+{
+  "sprint_id": "M-FLEET-GATE0-LEDGER-PROVENANCE",
+  "created": "2026-10-13",
+  "status": "planned",
+  "mission": "fleet-mission",
+  "iteration": 35,
+  "ticket": "skill:gate0-ledger-provenance-S",
+  "baseline_commit": "b283b2d44",
+  "correlation_id": "sprint_M-FLEET-GATE0-LEDGER-PROVENANCE_2026-10-13",
+  "design_doc": "design_docs/planned/sprint-plan-gate0-ledger-provenance.md",
+  "markdown_plan": "design_docs/planned/sprint-plan-gate0-ledger-provenance.md",
+  "estimated_duration_days": 1,
+  "github_issues": [],
+  "approval": "Planning artifacts authorized for fleet iteration 35; execution and commits remain with the controller.",
+  "changelog_fragment": "changelogs/unreleased/2026-10-13-gate0-ledger-provenance.md",
+  "features": [
+    {
+      "id": "M1",
+      "title": "Read-only ledger provenance instrument and mutation-focused fixtures",
+      "description": "Find the earliest verified RESOLVED addition with a separate creation control; classify GitHub-committed flips as undetermined before comparing direct-commit author names.",
+      "estimated_loc": 340,
+      "estimated_minutes": 90,
+      "actual_loc": null,
+      "dependencies": [],
+      "files": [
+        "scripts/mission_ledger_provenance.sh",
+        "scripts/test_mission_ledger_provenance.sh"
+      ],
+      "acceptance_criteria": [
+        "Bash 3.2/BSD-compatible read-only CLI returns exactly one verdict line containing flip and creation full SHAs (or explicit none), no names or email addresses; successful classifications return 0 and instrument failures return 2.",
+        "Earliest verified added RESOLVED row is selected, including root and created-already-RESOLVED cases; removed-only changes and later rewords cannot replace the original flip.",
+        "Default self patterns cover sunholo-voight-kampff and Voight-Kampff (bot); validated case-insensitive --self name ERE overrides work; GitHub-like committer ambiguity takes precedence over author matching.",
+        "Fixture arms A1-A13 assert verdicts, return codes, independent flip and creation SHAs, stdout line count and no identity-address leakage; A1 also proves the old -S selects fleet creation.",
+        "Each test arm names its killed mutation and actual disposable mutation probes demonstrate the relevant failure; no production script is modified by probes.",
+        "Missing file/row, duplicate row, malformed options/IDs/patterns, uncommitted target, shallow history and git failures surface rc 2 rather than never-resolved.",
+        "/bin/bash scripts/test_mission_ledger_provenance.sh and /bin/bash -n scripts/mission_ledger_provenance.sh scripts/test_mission_ledger_provenance.sh pass outside the planner sandbox after implementation."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": null,
+      "notes": "Completed M1: instrument and suite committed by controller before resume; no script changes in this run. All 20 named mutations are banked in the plan: six supplied prior-run measurements were not rerun, and 14 remaining disposable-copy drills killed their intended arms (suite rc 1 each; 5.46-8.10 seconds each, 45-second limits). /bin/bash 3.2.57 syntax checks return 0 for both scripts; original suite rc 0, 112 passed / 0 failed in sandbox. Real-history classifications supplied by controller: D-FLEET-13/14/15/1 undetermined:squash-merge, D-FLEET-16 never-resolved."
+    },
+    {
+      "id": "M2",
+      "title": "Gate mirrors, CI wiring and changelog",
+      "description": "Replace rule 6(b)'s pickaxe with the instrument, preserve privacy and no-reasking rules, and wire the fixture into the existing macOS Bash 3.2 CI target.",
+      "estimated_loc": 60,
+      "estimated_minutes": 60,
+      "actual_loc": null,
+      "dependencies": ["M1"],
+      "files": [
+        ".claude/skills/mission-control/resources/gate-0-preflight.md",
+        ".agents/skills/mission-control/resources/gate-0-preflight.md",
+        "make/test.mk",
+        "changelogs/unreleased/2026-10-13-gate0-ledger-provenance.md"
+      ],
+      "acceptance_criteria": [
+        "Both Gate 0 rule 6(b) copies call scripts/mission_ledger_provenance.sh and remain byte-identical; the COMPARE, never RECORD sentence and address prohibition remain.",
+        "Only fleet from a non-squash flip triggers SELF-RESOLUTION/reopen/flag; undetermined:squash-merge reports both commits without reopening or asking for confirmation on that basis; rc 2 stops provenance-dependent action.",
+        "make/test.mk adds the fixture via LAUNCHD_SUITE plus both script syntax checks; make -n test-launchd-drivers shows the commands and make test-launchd-drivers passes outside sandbox. Existing shell classifier and macOS CI job run the target without workflow edits.",
+        "Real history returns undetermined:squash-merge for D-FLEET-13/14/15 with flip 996c411a4 and controls 32d19153a/845bbbbdf/752ee765a; D-FLEET-1 has literal RESOLVED flip e6990da9a and creation control b222b2eea, respecting its legacy RULED creation.",
+        "The dated changelog fragment opens with ### Fixed and explains both corrected flip selection and conservative squash ambiguity.",
+        "make test-changed, make check-no-personal-email check-changelog check-file-sizes, mirror cmp, sprint JSON validator and jq -e . pass; unavailable sandbox checks are reported as UNINFORMATIVE UNDER SANDBOX and rerun outside."
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": "M2 partially implemented; mirror criterion blocked by session permissions. Rule 6(b) updated only in .claude, make suite/syntax hooks and changelog complete. .agents/skills/mission-control/resources/gate-0-preflight.md is protected read-only and apply_patch rejected its write; exact proposed mirror patch is /tmp/fleet35-mutations.i5gu_1w1/gate-0-agents-mirror.patch. Gates: each script bash -n rc 0; fixture suite rc 0 (112/0); cmp rc 1; check-no-personal-email, check-changelog, check-file-sizes each rc 0; make -n test-launchd-drivers | grep -c ledger_provenance rc 0, count 3. Full test-launchd-drivers and Go suite not run per resume scope; no git writes. Controller must apply protected mirror patch and recheck cmp before declaring M2 complete."
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Repository-local Bash/git provenance instrumentation is not a package-like AILANG capability; registry search is not applicable. Reuse directive/self-notice script and throwaway fixture conventions."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Skill prose, changelog and make integration need no package capability. Reuse test-launchd-drivers and its existing sanitized LAUNCHD_SUITE/macOS Bash 3.2 CI wiring."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 400,
+    "estimated_days": 1,
+    "actual_total_loc": 0,
+    "basis": "Task-based estimate with buffer; velocity helper exited 141 without a reliable summary."
+  },
+  "last_session": null
+}
