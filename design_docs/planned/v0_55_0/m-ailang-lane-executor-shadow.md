@@ -1,11 +1,11 @@
 # Executor shadowing for AILANG-lane tasks
 
-**Status**: Planned. Quorum blocked twice; both objections addressed; awaiting ratification.
+**Status**: Planned. **Ratified by Mark 2026-10-13** (D1–D7 as written, after quorum rounds 1–2).
 **Target**: v0.55.0
 **Priority**: P1
 **Estimated**: 4–5 days (~3 days implementation, 1 day grading and report, 1 day verification + buffer)
 **Dependencies**: v0.54.8 (motoko image with a warm compile cache, cache-stable compaction, and OpenRouter routing parity with pi); a dedicated, capped OpenRouter key for shadow runs.
-**Quorum**: triggers 1 (design-freeze items D1–D4) and 3 (new banked-data schema: shadow task records and `ShadowComparison`) fire, so run `ailang design-quorum` before sprint planning. Round 1 (2026-10-13): gemini-3-1-pro rejected on unverified API claims; rows V17–V25 were added, and the observatory tagging premise turned out false and was redesigned. Round 2: gemini-3-1-pro rejected on the grader running `make test` in the control plane without a hard timeout; grading moved to a policy-confined, time-bounded Cloud Run job. gpt6-1-sol was unreachable both rounds (N−1). The re-quorum-once guardrail is used up: **awaiting human ratification** of D1–D7 and this revision.
+**Quorum**: triggers 1 (design-freeze items D1–D4) and 3 (new banked-data schema: shadow task records and `ShadowComparison`) fire, so run `ailang design-quorum` before sprint planning. Round 1 (2026-10-13): gemini-3-1-pro rejected on unverified API claims; rows V17–V25 were added, and the observatory tagging premise turned out false and was redesigned. Round 2: gemini-3-1-pro rejected on the grader running `make test` in the control plane without a hard timeout; grading moved to a policy-confined, time-bounded Cloud Run job. gpt6-1-sol was unreachable both rounds (N−1). The re-quorum-once guardrail was used up; **Mark ratified D1–D7 and this revision on 2026-10-13.**
 
 ## Related Documents
 
