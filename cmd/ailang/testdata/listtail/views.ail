@@ -1,0 +1,28 @@
+module cmd/ailang/testdata/listtail/views
+import std/list (range)
+
+-- #1814: the VM binds `rest` in `x :: rest` as a view of the parent list.
+-- These entries pin that a view behaves exactly like a copy.
+
+pure func sumRec(xs: [int], acc: int) -> int =
+  match xs { [] => acc, x :: rest => sumRec(rest, acc + x) }
+
+export pure func sumLarge(n: int) -> int = sumRec(range(0, n), 0)
+
+-- Building on a tail must leave the parent and the tail itself unchanged.
+export pure func reuse(u: ()) -> string =
+  match [1, 2, 3, 4] {
+    _ :: rest => {
+      let a = 0 :: rest;
+      let b = rest ++ [9];
+      let c = 7 :: rest;
+      "${show(a)} ${show(b)} ${show(c)} ${show(rest)}"
+    },
+    [] => "empty"
+  }
+
+-- Nested tails, a two-element head, and a tail that is matched again.
+pure func pairs(xs: [int]) -> [int] =
+  match xs { a :: b :: rest => (a * 10 + b) :: pairs(rest), [x] => [x], [] => [] }
+
+export pure func nested(u: ()) -> string = show(pairs([1, 2, 3, 4, 5]))

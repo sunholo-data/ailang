@@ -142,7 +142,7 @@ func patternBindings(s stmt.Expr, pat core.CorePattern) []stmt.Stmt {
 // [a, b, ...rest]; `x :: y :: []` becomes the closed [x, y]. The two forms
 // match exactly the same lists (a closed inner pattern pins the total
 // length), and the flat form needs one length check and no nested
-// _list_tail copies.
+// _list_tail calls.
 func normalizeListPattern(p *core.ListPattern) *core.ListPattern {
 	if p.Tail == nil {
 		return p

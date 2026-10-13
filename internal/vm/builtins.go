@@ -377,6 +377,13 @@ func builtinConcatString(args []bytecode.Value) (bytecode.Value, error) {
 
 // builtinListTail returns the suffix of a list starting at index n.
 // Used by the lower pass to bind `tail` in `head :: tail` patterns.
+//
+// The suffix shares the parent's backing array: list slices are never
+// mutated after NewList, so a view is safe, and it keeps recursion over
+// `x :: rest` linear instead of copying the remaining n-1 elements at every
+// step (#1814). The interpreter binds its tail the same way
+// (internal/eval/eval_patterns.go). The capacity is clipped to the length so
+// an append on the view can never write into the parent's spare capacity.
 func builtinListTail(args []bytecode.Value) (bytecode.Value, error) {
 	if len(args) != 2 {
 		return bytecode.Value{}, fmt.Errorf("_list_tail: expected 2 args, got %d", len(args))
@@ -395,9 +402,7 @@ func builtinListTail(args []bytecode.Value) (bytecode.Value, error) {
 	if n > len(elems) {
 		n = len(elems)
 	}
-	tail := make([]bytecode.Value, len(elems)-n)
-	copy(tail, elems[n:])
-	return bytecode.NewList(tail), nil
+	return bytecode.NewList(elems[n:len(elems):len(elems)]), nil
 }
 
 // builtinNotBool returns the boolean negation of its argument.

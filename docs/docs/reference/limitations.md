@@ -319,6 +319,11 @@ slice (`internal/eval/value.go:84-86`), and every `::` allocates a new slice and
 of the tail (`internal/builtins/list.go:87,98-103`). One prepend is therefore O(length of tail), and a
 list built by repeatedly prepending is O(n²) in copied element references and allocation volume.
 
+Taking a list apart is not affected: matching `x :: rest` binds `rest` as a view of the same slice,
+O(1), on both the evaluator (`internal/eval/eval_patterns.go`) and the bytecode VM
+(`internal/vm/builtins.go`, `builtinListTail`), so recursion that only consumes a list is linear.
+Until #1814 the VM copied the tail at every match, which made that recursion quadratic on `--bytecode`.
+
 The LC-1 representation spike measured this same current-slice control on 2026-08-20: its heaviest
 branching-prepend cell (4,096 prepends onto a retained 16,384-element tail) took **54.8 ms/op**,
 versus **73 µs/op** for the candidate cons-cell representation. The n=12,800 current-slice workload
