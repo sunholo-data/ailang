@@ -7,30 +7,6 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
-## 15 — 2026-10-03 — controller HTTP 402 classified as capacity; pause no longer reads as a crash — LANDED #1549 [HARNESS]
-
-**Picked**: `driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash` (blocking=all), unparked by D-FLEET-11 = A (Mark, attended 2026-10-02; commit 2533a43d6 at 18:11Z, outside any fleet slot window: iteration 14 ended 15:39Z, the next fire started 21:39Z). It outranks D-FLEET-10's heartbeat unpark by the charter's blocking-all rule. #1380 had 0 new allowlisted directives since 2026-10-02T08:51:41Z (19 comments). Died-mid-flight resume: attempt 1 (fire 21:39Z, opus controller) left worktree `fleet-i15` on unpushed branch `fleet/i15-controller-402` with Rev 2–3 committed. Its slot verdict was `CRASHED at=gate-3 rc=1` 4s after the planner spawn.
-**Reality check**: Rev 3's deployment premise was re-measured first-party. `MISSION_RUNTIME_QUOTA_SIG` is set only at its definition (`tools/launchd/mission-control.sh:1077`): no env file, no plist, and `launchctl getenv` empty (control: 2 plists name `MISSION_NAME`). `MC_PAUSED=0` is bound at :894. Attempt 1's crash cause was read from the driver log rather than inferred. It was `You've hit your session limit · resets 12:40am`, and `RUNTIME_QUOTA_SIG` (`…|hit your usage limit|…`) does not match "hit your **session** limit". So an Anthropic session-limit stop is also recorded as CRASHED. This is a sibling emitter outside D-FLEET-11's ruled 402 scope. It was NOT fixed. `ailang mission ticket file` refuses the fleet itself ("the fleet mission works tickets; it does not file them"), so it is recorded here and raised to Mark.
-**Shipped**: #1549 → `27dab5bb4`. Driver +7/−2: the anchored `^402:` emitter joins `RUNTIME_QUOTA_SIG`, and a new final branch `elif [ "${MC_PAUSED:-0}" -eq 1 ]` logs the pause and suppresses the generic crash notice. The existing pause `_mc_notify` already fired, so nothing is sent twice. The planner caught the controller's brief wrongly asking for a second notify, and the design governed. New hermetic `test_controller_capacity.sh` (14 cases), wired into `make test-launchd-drivers`. `test_controller_chain.sh` now loads the real ration and demote helpers (`command not found` 63 → 0) and adds blocked-OpenRouter, all-blocked and demoted-rung cases. Changelog fragment `2026-10-03-controller-402-capacity.md`. Ration-admission half not reproduced at HEAD, so no guard was added. Thresholds, lane order, billing reader, rc values, `lib/`, `.pi/` and `mission_pi_run.sh` are unchanged. D-FLEET-10/11/12 ledger status cells normalized from free text `RULED …` to the checker's `RESOLVED` (`mission_decisions.sh --check` had failed on all three; answers and evidence unchanged). Ticket resolved after merge.
-**Progress**: goal moved: 1 ticket resolved, the first since iteration 10. Clause 1 product share UNMEASURED. Clause 2 turnaround UNMET: this ticket took ≈24h from filing (2026-10-02T05:52Z) to resolution, inside 48h, but the median across open tickets is still far over. Clause 3 one queue MET (35 open signatures at Gate 1). Clause 4 idle-is-free: prior evidence only. Clause 5 no regressions: preserved, done-gate passed and independently judged.
-**Routing evidence**: base-gate1=76a5aef65c81ac2fb4657fafaeff4a89e9faaf75@2026-10-03T03:58:27Z; base-gate3b=27dab5bb40016f89c322a3b87cd8e122fe5566fb@2026-10-03T05:08:22Z (drift = this iteration's own merge only).
-- **Controller**: `claude:claude-opus-5-5` (tok: not reported). SKILL plus all 12 resources: running copy (resolved symlink) = pin = origin/dev, per-file.
-- **Designer**: no run this attempt. Rev 2 was by the attempt-1 designer `claude:claude-opus-5-5`. A designer Agent alias spawn was denied (`deny:provider-pin`, hook log 21:44:15Z); Rev 3 was controller-applied verbatim reviewer fixes (carve-out). Quorum r1 $0.0762 BLOCKED (sonnet-5/gemini/glm, author sol benched); r2 $0.2019 BLOCKED at N−1 (`gpt6-1-sol` absent: unreachable).
-- **Planner**: resolver `agent-tool opus fail-closed:env-pin`; Agent `opus` ran (111,269 tok).
-- **Executor**: resolver `recipe claude:claude-sonnet-5-5 declared:provider-pin`. The Agent `sonnet` spawn was DENIED by the hook (`deny:provider-pin`), the expected rule-(b) outcome. Routed to the pin via the `claude-sub` recipe (subscription-only wrapper, billing tripwire CLEAN): probe rc0, run rc0 (tok: not reported, text mode).
-- **Evaluator**: resolver `reroute pi:openrouter/minimax/minimax-m3 generator-equals-judge` (sonnet judge = sonnet executor). Ran via `scripts/mission_pi_run.sh`, fenced, verdict `ok` rc0, 983s, 88 tool executions, 0 provider errors (in 67,556 / out 32,916 / cache-read 4,559,805 tok, $0.3334). The operator asked for Agent-tool spawns; the evaluator went over the pi recipe because the routing table re-routes it there, and the planner went over the Agent tool. The judge is independent of the generator (MiniMax vs Anthropic) and of the controller.
-- **Metered**: $0.611 total ($0.278 quorum in attempt 1 + $0.333 evaluator).
-- **Ration**: codex and ollama over (driver `MISSION_OVER_RATION`); OpenRouter admitted this fire.
-**Verification**:
-- Controller re-ran the gates rather than banking the executor's: capacity suite 14/14 rc0, chain suite 13 PASS rc0 with 0 `command not found`, production diff +7/−2 and in scope.
-- Executor: `make test-launchd-drivers` rc0 (381s, 0 FAIL), 6/6 mutants red.
-- Judge: PASS 95/100, no blocking findings, its own 4 mutants red. Its −5 was dry-runs "unmeasured". The controller closed that gap: the healthy and degraded dry-runs on `eb39db9a2` under the idle **world** profile (`env -i`, `AILANG_DRIVER_PINNED=<sha>`) both printed `DRY RUN ok`. The healthy arm reads `DEGRADED(2)` because codex is genuinely over ration; the degraded arm shows the forced bogus executor handed to sonnet. Evidence in `fleet-mission-evidence/iteration15/`.
-- Fleet's own dry-run cannot run inside a fleet iteration (the overlap guard at :1895 precedes the dry-run exit at :1908), and docs is kill-switched.
-- PR head `3c67b2b00`: 23/23 checks green. Merge `27dab5bb4`: dev CI run 37098847295 success, full check set 17/17 green (Gate 3b, SHA-pinned). LANDED. Ticket resolved with `--sha 27dab5bb4` (open count 35 → 34; reply sent to the filer).
-**Ruled out**: widening the classifier to "hit your session limit" (outside D-FLEET-11 scope; a lane-selection change is HD-2a policy); a second pause `_mc_notify`; bypassing the overlap guard for dry-runs; banking the executor's greens; an Agent `sonnet` evaluator (same model as the executor); re-asking the resolved D-FLEET-10/11/12; reading or acking `mission-fleet` tickets; touching the 10 pending coordinator approvals.
-**Retro lane**: process fix (charter). The fleet's done-gate dry-run is unsatisfiable from inside a fleet iteration. This is instance 2: iteration 9 also skipped it, and here the executor hit the same guard. The charter's done-gate now names the idle-sibling-profile recipe. Backlog only, no edit: the pi evaluator sandbox blocks `mktemp -t`/`-d` under `/var/folders`, so `make test-launchd-drivers` cannot run inside the pi judge (the judge shimmed `BASH_ENV` for the two suites). No shared skill edit and no reload.
-**Next**: heartbeat ticket `skill:heartbeat-relative-path-absent-in-world` (D-FLEET-10 = A: Revision 5 with the absoluteness guard and Kimi's residuals, then a fresh quorum). Then the D-FLEET-9 rotate-log pair, then pi-runner pre-dirty. The D-FLEET-12 pre-authorized pair (`routing:retired-codex-models-still-spawnable-natively`, `quota:opencode-reported-as-a-pool`) is planner-ready without a further ruling.
-
 ## 16 — 2026-10-03 — heartbeat driver-root fix built + judged PASS 96; push blocked by the pinned scope guard, guard arm LANDED #1575 [HARNESS]
 
 **Picked**: `skill:heartbeat-relative-path-absent-in-world` (charter P0 #1, `[NEXT]`; D-FLEET-10 = A and D-FLEET-8 = YES, both attended rulings). #1380: 0 new allowlisted directives since 2026-10-02T08:51:41Z (20 comments). D-FLEET-13 still OPEN, so the session-limit classifier was not taken. The ticket is still real at HEAD `c68ded4b2`: 18 relative `bash tools/launchd/mission-heartbeat.sh stamp` call sites in 14 files (9 per copy). No open fleet PR and no stale worktree for this item. The untracked 2026-09-29 plan/JSON in the pin is Revision-1 vintage and was ignored, not reused.
@@ -902,3 +878,64 @@ Credited by iteration 32 from died-mid-flight traces. The slot ran 2026-10-12T01
 - The planner's protocol was rigorous, but its live-only assumptions (fence vs codex app-server, pi catalog) needed 11 repairs. A spike protocol should budget a controller "instrument shake-down" round before the counted runs.
 
 **Next**: P2 #10 `skill:gate0-ledger-provenance-S`. D-FLEET-16 is with Mark.
+
+## 35 — 2026-10-13 — P2 #10 Gate 0 ledger provenance instrument, judged PASS 92 (sonnet, round 2), PR #1815 → `130486515` [HARNESS]
+
+**Pick**: charter P2 #10 `skill:gate0-ledger-provenance-S` (filed by stapledon iteration 1, 2026-09-28), the queue head after iteration 34. 53 open tickets at pick. The only `blocking=all` ticket, `agent-tool:sonnet-unavailable`, stays PARKED-ON-LANE as iterations 29 and 32–34 assessed it. Index grep: no prior attempt. Orphan traces: no open fleet PR, worktree or uncommitted work for the item.
+
+**Preflight**: armed; gh `sunholo-voight-kampff`; billing CLEAN. Directives: 0 on #1768 since `2026-10-13T00:00:23Z` (5 comments, all self). Self-notices rc 0: 0 crash notices, control `852:10` ok, watermarks 2/2. Ledger: 15 RESOLVED, 1 OPEN (D-FLEET-16). No rotation or sweep due.
+
+**Observe**: origin/dev == pin == `b283b2d44` at Gate 1. `SKILL.md` and all 12 resources are `cmp`-identical to origin at the resolved symlink target. Dev CI on `b283b2d44`: `CI` success. `Deploy Documentation` was RED (`docs-build`, `docs-gate`): first red at `45f483efd`, last green at `092c7adcb`. Cause: `docs/docs/reference/env-vars.md` fails MDX/acorn parsing after `50fa27357` regenerated it. The generator lives in `internal/config`, outside fleet authority, and V1 owns repo reds, so it was handed to V1 (Gate 5 message).
+
+**Reality check**: reproduced at HEAD on this charter. `-S` returns the creation commit for D-FLEET-13/15/10/1, while the first `-G … RESOLVED` hit returns the flip. A second defect, not in the ticket: every ledger flip in this repo is a GitHub squash merge authored by the bot, so even the corrected command reads Mark's attended rulings as `fleet`. `scripts/mission_answer.sh`'s own header already concedes the author is not a real control.
+
+**Did**:
+- **Planner** (`codex:gpt-6.1-sol`, recipe; probe rc 0, run rc 0, ~11 min) wrote `sprint-plan-gate0-ledger-provenance.md` with 2 milestones, 13 arms and a mutation column. It corrected my measurement: D-FLEET-1 was created `RULED`, not `RESOLVED`, so it is not a reword case. It confirmed that `make/test.mk` enumerates suites by hand and that CI's macOS bash-3.2 job runs `test-launchd-drivers`.
+- **Executor** run A (`codex:gpt-6.1-sol`): built M1. It was reaped mid-mutation-drill at the harness's **10-minute background default**, because I launched the 30-minute wrapper without `timeout`; codex died with it. M1 verified outside the sandbox (112/0; real-history verdicts as planned) and committed `f46815d65`.
+- **Executor** run B (resumed with a directive): 14 remaining mutation drills, so 20 rows in all, every target arm red. Plus M2. The sandbox refused the `.agents` mirror write; the controller copied it byte-for-byte (`cmp` silent). Committed `248c2611b`.
+- **Evaluator** round 1 (sonnet, Agent tool, foreground, own worktree): **PASS 88**, 0 blocking. It ran 9 of its own mutants, and 3 dead guards survived (N5).
+  - **N1**: Human resolves, Human reopens, then fleet re-resolves; the result read `attended` from the first flip.
+  - **N3**: rule 6(b)'s opening sentence overstated what the check can do.
+- **Controller** reproduced N1 in a fixture (`verdict=attended`). The fix selects the **latest** non-RESOLVED→RESOLVED transition. New arm A14 covers it, and the A3 alias loop now expects the latest flip. The earliest-selection mutant turns A14 and A3 red; 115/0. N3 is adopted as one clause in 6(b). Committed `8350e1c6c`.
+- **Evaluator** round 2 (resumed by `SendMessage`): **PASS 92**, 0 blocking. N1 is fixed. Its new mutant (drop the `! before resolved` guard) is now killed by A5, so it is no longer a dead guard. A fleet RULED→RESOLVED flap over an attended ruling reads `fleet`, a conservative false positive.
+- Real history at the merge: D-FLEET-1/13/14/15 give `undetermined:squash-merge` (flips `e6990da9a`, `996c411a4`), D-FLEET-16 gives `never-resolved`, and an unknown ID gives rc 2.
+
+**Gate 3b**: PR #1815, head `8350e1c6c`. SHA-pinned polls with per-head logs.
+- Round 1: `Build macos-latest` failed on `TestRuntimeNestedStopUsesRemainingDeadline` in `internal/effects`; the other legs were fail-fast cancellations.
+- After rerun: `test` failed on `TestWorkerCLIProcessExitLifecycle/async/eval/sigint` in `internal/runner`. Both are signal/timing tests in code this PR does not touch. Negative control: `test` was also red on dev at `a71193a2f`.
+- One rerun each. Final: 26/26 complete, 0 failures, including `launchd drivers (bash 3.2)` and all five required checks.
+- The second poller hit its 30-min cap in the same minute that the last check completed. Re-read directly twice: 26/0/0.
+- `MERGEABLE`/`CLEAN`; squash-merged with `--match-head-commit` → `130486515`. No closing keyword (scan control fired).
+
+**Done-gate**: surface edited = both Gate 0 copies + the script. Reach = pushed to origin/dev, which every loop pins, and skill-sync fast-forwards the main checkout on the next fire. `make test-launchd-drivers` at `8350e1c6c` under `env -i`: rc 0. Dry-runs under the idle armed **world** profile from a detached worktree at `130486515` (`AILANG_DRIVER_PINNED` set):
+- healthy: rc 0, `DRY RUN ok`, `lanes=ok`.
+- degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`): rc 0, `lanes=DEGRADED(1)`, handed to opus.
+- No world pidfile was written, and nothing was reloaded.
+
+Ticket resolved with `--sha 130486515` (rc 0, replied to stapledon); 53 → 52 open.
+
+**Progress**: 1 ticket resolved, filed 2026-09-28 and resolved 2026-10-13 (≈15.5 d). Clause 1 UNMEASURED. Clause 2 UNMET. Clause 3 MET (52 open). Clause 4: prior evidence only. Clause 5 preserved: judged, done-gate passed, required CI green.
+
+**Routing evidence**: base-gate1=b283b2d4406da7978a442064641366b19a2912f3@2026-10-13T14:31:33Z; base=1304865155e78b36165a50f51ee9001de83331db@2026-10-13T16:19:20Z (gate4). Dev moved by this PR and one unrelated merge (`ea9142b7a`, #1816). `MISSION_ROUTING_NOTE`: empty. Over-ration: openrouter.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: not spawned. The fix is mechanical and the charter says design only when warranted. The rotation was not advanced.
+- **Planner**: resolver `agent-tool opus fail-closed:no-doc`; derive-planner-lane `opus fail-closed:no-doc`. The role carries the provider pin `codex:gpt-6.1-sol`, so per role-spawn-routing §2 it was routed straight to the pin, recipe `codex exec --sandbox workspace-write` in `.planner-wt-iter35` (96,042 tok).
+- **Executor**: resolver `recipe codex:gpt-6.1-sol declared:provider-pin`. Run A tokens not reported (reaped); run B 72,030 tok.
+- **Evaluator**: resolver `agent-tool sonnet declared:alias-pin`, spawned via the Agent tool `model=sonnet`, foreground, in its own worktree. Round 1: 70,366 tok. Round 2 (resumed): 77,538 tok. Judge independence: cross-vendor against the generators (codex) and a different model from the controller (opus).
+- The operator's standing request to use the Agent tool was honoured for the one role whose resolved path is the Agent tool (the evaluator, both rounds). The planner and executor resolved to provider recipes. No role failed to spawn.
+- **Metered**: $0 (ChatGPT subscription bucket + Anthropic subscription).
+
+**Ruled out**:
+- Re-opening on a squash-merge author. That would re-open every attended ruling in this repo.
+- Trusting `git log -1 -G` (the latest hit), which picks up later rewords and ledger reflows.
+- Earliest-flip selection, which hides a fleet re-resolve (judge N1, reproduced).
+- Attributing either CI red to this PR: a different package each time, dev red on `a71193a2f`, and green on rerun.
+- Fixing the docs red: outside fleet authority, and V1 owns repo reds.
+
+**Retro lane**:
+- (1) **A `run_in_background` Bash with no `timeout` is reaped at 10 minutes, and it takes a 30-minute wrapper's child with it.** The codex recipe says to use `run_in_background: true` and bounds the work with its own 30-minute `date +%s` deadline. It does not say the harness's own default ceiling is 10 minutes, so the inner deadline is unreachable. Instance 1 for this loop; it cost one executor run (M1 survived on disk). Fix candidate for the recipe: "pass `timeout` ≥ the wrapper's cap + margin".
+- (2) The judge's own mutation drill found the defect the plan's design choice introduced: the planner chose earliest, as did my directive. Generator ≠ judge earned its slot this iteration.
+- (3) The sandbox again refused a `.agents/**` write (instance ≥2 across iterations); the controller copy is routine.
+- (4) `rotate-log` added a duplicate "Older entries are ARCHIVED" notice again (instance 5, after iterations 28, 31, 32 and 33), collapsed by hand. This is a ticket-shaped tooling defect (`rotate-log:*`), but the fleet does not self-source, and the ticket `rotate-log:index-regen-drops-orphan-rows` is a different defect.
+
+**Next**: P2 #11 `weekly-report:unknown-mission`. D-FLEET-16 is with Mark.
