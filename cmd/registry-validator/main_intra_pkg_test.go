@@ -88,7 +88,7 @@ export pure func name() -> string = "Hi"
 export pure func greet() -> string = "Hello ${name()}"
 `)
 
-			ok, out := runAilangCheck(dir)
+			ok, out, _ := runAilangCheck(dir)
 			if !ok {
 				t.Fatalf("%s (%s) should pass validation; got:\n%s",
 					f.name, f.description, out)
@@ -138,7 +138,7 @@ import pkg/sunholo/firestore/client (getDoc)
 export pure func use() -> string = "stub"
 `)
 
-	ok, out := runAilangCheck(dir)
+	ok, out, _ := runAilangCheck(dir)
 	if ok {
 		t.Fatalf("external import to a non-existent package must error; output:\n%s", out)
 	}
