@@ -974,3 +974,59 @@ Reach is NOT confirmed (not on origin/dev).
 - (4) Quorum's OpenAI seat has been absent for lack of API credit since at least 2026-10-13 (both rounds). The reserve covers it, but the pool is effectively 4.
 
 **Next**: when dev's required checks are green, land PR #1824 and resolve both #12 tickets. Then P2 #13 `ci:launchd-suite-flakes-openrouter-peer-and-gh-hang`. D-FLEET-16 is with Mark.
+
+## 37 — 2026-10-14 — No landing possible: #12 (PR #1824) still BLOCKED on dev's required reds; #13 reproduction measured, live flakes outside fleet scope; judged PASS 88 (sonnet); D-FLEET-17/18 filed [HARNESS]
+
+**Pick**: iteration 36's **Next**: land PR #1824 once dev's required checks are green, then P2 #13. 51 open tickets at pick. The only `blocking=all` ticket, `agent-tool:sonnet-unavailable`, stays PARKED-ON-LANE as iterations 29 and 32–36 assessed it. Orphan traces: iteration 36's worktree `fleet-i36-salvage` and PR #1824 are both live and both recorded in iteration 36's record. No other open fleet PR exists. The record for iteration 36 is on the PR branch, not on dev, so the charter on dev read one iteration stale. I caught that at Gate 2 from the existing worktree.
+
+**Preflight**: armed; gh `sunholo-voight-kampff`; billing CLEAN. Directives: 0 on #1768 since `2026-10-13T00:00:23Z` (7 comments, all self). Self-notices rc 0: 0 crash notices, control `852:10` ok, watermarks 2/2. Ledger valid, 16 rows, 1 OPEN (D-FLEET-16). No rotation or sweep due.
+
+**Observe**: origin/dev == pin == `42652c19e`, unchanged since iteration 36. `SKILL.md` and all 12 resources `cmp`-identical to origin at the resolved symlink target. `CI`, `Build and Release` and `Deploy Documentation` are all **failure**; NOT-GREEN checks are `test`, `docs-gate`, `docs-build` and `Build windows-latest`, the same set as iteration 36.
+
+**Reality check (#12 resume predicate)**: FALSE. `test` and `docs-gate` are still red on origin/dev, and no open PR fixes either. V1, which owns repo reds, has its kill switch set (since 2026-09-14). PR #1824 is `BLOCKED`.
+- `test` fails `check-git-exec` on `devapi_workspace.go:237,259` (`ffef3402a`).
+- `docs-gate` fails on the MDX literal `'{"sort":"throughput"}'` at `env-vars.md:252`, generated from `internal/config/ai.go:43` (judge).
+
+**Did**:
+- **#13 reproduction (its mandated first step; measurement only)**: enumerated CI runs since 2026-09-28 and the `launchd drivers (bash 3.2)` job of every failed run. The controller covered 19 failures from 17:01Z (search cap); the judge's uncapped listing covered 21 from 13:08Z. Each log was grepped with a known-present control.
+  - **B** (gh hang, `tools/launchd/test_driver_notify.sh`): last FAIL 09-28 13:15Z, before the ticket was filed; 0 since.
+  - **A** (OpenRouter peer, `tools/eval/motoko_connection_probe.sh:79`): 09-28 13:44Z and 10-02; none since.
+  - **Untracked** `bound measurement refuses an unsuccessfully terminated timer` (`tools/eval/test_motoko_connection_probe.sh:1136`): 4× on dev (10-07, 10-10, 10-12 ×2). This is the live flake in the fleet's own done-gate suite.
+  - Others: 12 deterministic stale-mirror failures on 10-02 (since fixed) and 2 codex-oauth branch failures.
+  - `tools/eval/**` is refused for the fleet by `_scope_verdict`.
+- **Evaluator** (sonnet, Agent tool, foreground, `model=sonnet`, 60,226 tok): independently re-measured C1–C3 with its own `gh api` calls, its own enumeration, 21 logs and 6 jobs from successful runs. **PASS 88**. It confirmed the dispositions and made three corrections, all adopted:
+  1. `docs/` is in fleet scope; only the source (`ai.go`) is not, and the page is generated.
+  2. `Build windows-latest` is also red (not required).
+  3. The window caveat hid the 13:08–17:01Z slice, which held B's last FAIL and an A.
+- **Ledger**: filed D-FLEET-17 (who fixes dev's required reds while V1 is disabled; recommend A, an attended fix now; default C) and D-FLEET-18 (allowlist the two `tools/eval/*motoko_connection_probe*` files; recommend A; default C).
+- **Queue**: rows 12 and 13 updated. #13 kept OPEN: one signature is gone, but the live ones are out of scope.
+- Evidence: `fleet-mission-evidence/iteration37/findings.md`.
+
+**Gate 3b**: not applicable. Nothing was pushed for merge. This record is appended to PR #1824's branch as docs-only commits, beside iteration 36's record.
+
+**Progress**: 0 tickets resolved. Clause 1 UNMEASURED. Clause 2 UNMET; no landing is possible until dev is green. Clause 3 MET (51 open). Clause 4: prior evidence only. Clause 5 preserved; nothing shipped.
+
+**Routing evidence**: base-gate1=42652c19eaf975860f4f91a12b191d24738def79@2026-10-14T06:11:32Z; base=42652c19eaf975860f4f91a12b191d24738def79@2026-10-14T06:21:38Z (gate4). Dev did not move. `MISSION_ROUTING_NOTE`: empty. Over-ration: openrouter.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer, planner, executor**: NOT SPAWNED. This was deliberate; no role failed. No buildable item could land this fire:
+  - #12 is built and judged, waiting on dev.
+  - #13's live signatures are outside fleet scope (D-FLEET-18), and its in-scope half is not reproducing.
+  - Pre-building #14 behind the same red would only add a second blocked PR with record conflicts against #1824, and resolutions (clause 2) need a landing either way.
+  - Resolver answers, for the record: designer `recipe claude:claude-opus-5-5 declared:provider-pin`; planner `recipe codex:gpt-6.1-sol declared:planner-lane-default-pin`; executor `recipe codex:gpt-6.1-sol declared:provider-pin`.
+- **Evaluator**: `sonnet` via the Agent tool (resolver `agent-tool sonnet declared:alias-pin`), 60,226 tok. Judge independence: a different model from the controller (opus).
+- The operator's standing request to use the Agent tool was honoured for the one role that ran, whose resolved path is the Agent tool. No role failed to spawn.
+- **Metered**: $0.
+
+**Ruled out**:
+- Admin-merging #1824 over required reds: a guardrail.
+- Hand-editing the generated `env-vars.md`: it edits the mirror, not the source, and the next regeneration reverts it.
+- Adding a `git_exec_baseline.txt` row: outside scope, and it loosens a ratchet, which is the owner's call.
+- Resolving #13 as stale: A recurred after filing, and the timer flake is live.
+- Working the timer flake: it is untracked, so it would be self-sourced, and it is out of scope.
+
+**Retro lane**:
+- (1) **A record that lands only with its PR makes the charter on dev stale for every later fire.** Iteration 36 put its record on the blocked PR branch, so iteration 37's Gate 1 read iteration 35 as the latest and the queue head as #11. I caught it only because a `fleet-i36-salvage` worktree existed. Instance 1. While a landing PR is blocked, the next fire must read the record from the PR branch (`gh pr list --author @me --state open` at Gate 1). It is not yet a skill rule, because one instance is below the bar.
+- (2) Instance 2 of whole-iteration landing loss from a required dev red with its owner disabled (instance 1 is iteration 36). It is escalated as D-FLEET-17 instead of a second FYI.
+- (3) The judge again caught controller scope over-statement: "docs/ outside scope" was wrong, since only the source is. This is the rule-3b scope class: a true fact quoted for a wider sentence.
+
+**Next**: when D-FLEET-17's predicate holds (`test` and `docs-gate` green on origin/dev), update and land #1824, run the done-gate at the merge, and resolve both #12 tickets. Then P2 #14, or #13 if D-FLEET-18 = A. D-FLEET-16/17/18 are with Mark.
