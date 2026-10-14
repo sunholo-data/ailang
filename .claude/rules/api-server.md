@@ -44,6 +44,12 @@ after membership has been decided:
 - `@mcp_agent_only` hides a tool from the **listed** surface (`/mcp/connect/`) and
   leaves it on `/mcp/`. M-SERVEAPI-DIRECTORY-READY.
 
+A third narrowing is server-wide and applies to HTTP only: under `--mcp-connect-only`,
+`Server.isExposed` (the HTTP projection: dispatch, `@route` registration, OpenAPI, A2A,
+`_meta`) also drops every export that is an MCP tool, leaving the `@nomcp` routes. It lives
+next to the gateway in `authorized_surface.go` (`connectOnlyHidden`). HTTP consumers must call
+`s.isExposed`, not `loadedExportMember`, or they bypass it.
+
 `@mcp_secret` is not a narrowing: it reshapes the schema (the param is dropped and
 zero-bound) on the listed surface only. Protocol consumers must not add any other
 authority filtering or fold either narrowing into the shared membership gateway.

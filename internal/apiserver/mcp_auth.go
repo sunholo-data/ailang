@@ -168,6 +168,32 @@ func hasListedSurface(modules map[string]*ModuleInfo) bool {
 // listedMCPPath is where the directory projection is served.
 const listedMCPPath = "/mcp/connect/"
 
+// ValidateMCPConnectOnly refuses a --mcp-connect-only server that could not
+// gate its tools. The flag exists for a public service whose tools must never
+// run without a token, so a missing issuer or verifier is a startup error,
+// not a server that comes up with the tools silently dropped.
+func (s *Server) ValidateMCPConnectOnly() error {
+	if !s.mcpConnectOnly {
+		return nil
+	}
+	switch {
+	case !s.mcpEnabled:
+		return errors.New("--mcp-connect-only needs --mcp-http")
+	case s.a2aEnabled:
+		return errors.New("--mcp-connect-only cannot be combined with --a2a: A2A skills are not behind the Bearer gate")
+	case s.oauthIssuer == "":
+		return errors.New("--mcp-connect-only needs --oauth-issuer")
+	}
+	v, err := resolveTokenVerifier(s.GetModules())
+	if err != nil {
+		return fmt.Errorf("--mcp-connect-only: %w", err)
+	}
+	if v == nil {
+		return errors.New("--mcp-connect-only needs one @mcp_token_verifier function (token: string) -> bool")
+	}
+	return nil
+}
+
 // verifyToken calls the service's @mcp_token_verifier function. The call gets
 // its own effect context whose GoCtx carries the gate's deadline, so any Net
 // request the verifier makes is aborted when the gate stops waiting. Pure
@@ -279,4 +305,32 @@ func (s *Server) handleProtectedResource(w http.ResponseWriter, r *http.Request)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(protocol.ProtectedResourceMetadata(resource, s.oauthIssuer))
+}
+
+// mountMCP registers the MCP surfaces: the agent surface /mcp/ (unless
+// --mcp-connect-only) and the listed projection /mcp/connect/ with its Bearer
+// gate and protected-resource metadata.
+func (s *Server) mountMCP(mux *http.ServeMux) {
+	// --mcp-connect-only: no agent surface. Its tools are ungated, so on a
+	// public service it would bypass the Bearer gate.
+	if !s.mcpConnectOnly {
+		mcpSrv := NewMCPServer(s)
+		agent := http.StripPrefix("/mcp", mcpSrv.HTTPHandler())
+		mux.Handle("/mcp/", agent)
+		mux.Handle("/mcp", bareListed(agent, "/mcp/"))
+	}
+	// The directory projection (M-SERVEAPI-DIRECTORY-READY D3). ServeMux
+	// picks the longer pattern, so /mcp/connect/ never reaches /mcp/.
+	if s.mcpConnectOnly || hasListedSurface(s.GetModules()) {
+		listed := NewListedMCPServer(s)
+		var h http.Handler = http.StripPrefix(strings.TrimSuffix(listedMCPPath, "/"), listed.HTTPHandler())
+		if len(listed.gated) > 0 {
+			h = listed.gatedHandler(h, s.maxUploadSize)
+			mux.HandleFunc(protectedResourceRoot, s.handleProtectedResource)
+			mux.HandleFunc(protectedResourcePath, s.handleProtectedResource)
+			mux.HandleFunc(protectedResourcePathBare, s.handleProtectedResource)
+		}
+		mux.Handle(listedMCPPath, h)
+		mux.Handle(strings.TrimSuffix(listedMCPPath, "/"), bareListed(h, listedMCPPath))
+	}
 }
