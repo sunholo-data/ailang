@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 38 | 2026-10-14 | P2 #14 quorum artifact dir (repo-scoped MISSION_QUORUM_ARTIFACT_DIR + Gate 2 two-dir reader) designed, quorum'd, built, judged PASS 90 (sonnet); stacked PR on #1824, BLOCKED on dev reds [HARNESS] |
 | 37 | 2026-10-14 | No landing possible: #12 (PR #1824) still BLOCKED on dev's required reds; #13 reproduction measured, live flakes outside fleet scope; judged PASS 88... |
 | 36 | 2026-10-14 | P2 #11 ghost-resolved (`08ce76f30`); P2 #12 quorum salvage designed, quorum'd, built and judged PASS 88 (sonnet), PR #1824 BLOCKED on inherited dev... |
 | 35 | 2026-10-13 | P2 #10 Gate 0 ledger provenance instrument, judged PASS 92 (sonnet, round 2), PR #1815 → `130486515` [HARNESS] |

@@ -1030,3 +1030,73 @@ Reach is NOT confirmed (not on origin/dev).
 - (3) The judge again caught controller scope over-statement: "docs/ outside scope" was wrong, since only the source is. This is the rule-3b scope class: a true fact quoted for a wider sentence.
 
 **Next**: when D-FLEET-17's predicate holds (`test` and `docs-gate` green on origin/dev), update and land #1824, run the done-gate at the merge, and resolve both #12 tickets. Then P2 #14, or #13 if D-FLEET-18 = A. D-FLEET-16/17/18 are with Mark.
+
+## 38 — 2026-10-14 — P2 #14 quorum artifact dir designed, quorum'd, built and judged PASS 90 (sonnet); stacked PR on #1824, BLOCKED on dev's required reds [HARNESS]
+
+**Pick**: charter P2 #14 `quorum:artifact-dir-cwd-relative` (filed by v1, 2026-09-26). Iteration 37's **Next** was to land #1824 once dev is green. That predicate is still FALSE at `d15217d24`: `make check-git-exec` still fails on `devapi_workspace.go`, and `env-vars.md` still holds the MDX literal. So I took the next row and stacked it on #1824's branch, because both touch `artifact.go`. 51 open tickets. The only `blocking=all` ticket, `agent-tool:sonnet-unavailable`, stays PARKED-ON-LANE as iterations 29 and 32–37 assessed it.
+- Index grep: no prior attempt.
+- Orphan traces: iterations 36 and 37 left PR #1824 and worktree `fleet-i36-salvage`, and both records live on that branch only. The charter on dev still read iteration 35 and queue head #11, which iteration 36 had ghost-resolved. I caught it at Gate 2 from `gh pr list --author` plus `git worktree list`. This is instance 2 of iteration 37's retro (1).
+
+**Preflight**: armed; gh `sunholo-voight-kampff`; billing CLEAN. Directives: 0 on #1768 since `2026-10-13T00:00:23Z` (8 comments, all self). Self-notices rc 0: control `852:10` ok, watermarks 2/2. Ledger valid (16 rows on dev, 18 on the branch). No rotation or sweep due.
+
+**Observe**: origin/dev == pin == `bf46845d7` at Gate 1. `SKILL.md` and all 12 resources are `cmp`-identical to origin at the resolved symlink target; the CWD copy is the same. Dev CI has been red since `c43b6c0d9`. NOT-GREEN checks are `test` (`check-git-exec`), `docs-gate`/`docs-build` and `Build windows-latest`, the same set as iterations 36 and 37.
+
+**Reality check (#14)**: reproduced.
+- The pin's `.ailang/state/mission-quorum` holds 5 artifacts, the main checkout 164, the hand-used `~/.ailang/state/mission-quorum` 15, and `-world` 2.
+- `.gitignore:105` ignores the path.
+- Gate 2's `ls .ailang/state/mission-quorum/<doc-id>-*.json` is relative.
+- A constraint the ticket does not mention: `internal/policytool/cli_ops.go:60` gates the ailang_only sandbox's `design-quorum` write to the same relative path. Moving the default would let a sandboxed write escape, so the fix needed a design.
+
+**Did**:
+- **Designer** (rotation turn `codex:gpt-6.1-sol`, recipe, probe rc 0) wrote `m-quorum-artifact-dir-stable.md`: opt-in registered env, repo-scoped namespace, and policy-marker suppression.
+- **Quorum r1** (`--author codex`, sol benched; gemini-4-argon, oc-glm-5-3, oc-kimi-k3): **BLOCKED**.
+  - glm: marker status of the real lanes is unmeasured.
+  - kimi: the attended reader path is unspecified.
+- **Designer revision**: setter audit (85 refs / 36 files, 0 in launchd/scripts/mission env/plists), reader decision table, pre-flight limits; importer deferred.
+- **Quorum r2**: gemini pass, glm pass, kimi reject. kimi disputed cross-mode visibility with a concrete `proposed_fix`, not the design's direction. The controller applied its second alternative verbatim under the narrow-refinement carve-out: a fixed-order two-directory reader, AC11, and A1 downgraded to 0 (rev 3, `58decf4f2`).
+- **Planner** (`codex:gpt-6.1-sol`, resolver `declared:planner-lane-default-pin`) wrote a 2-milestone plan with a 9-row premise check. Among its corrections: `job.go` `AgentPolicy()` trims, so it must not be reused for confinement; the controller-launch paths are `:2048` and `:2337`/`:2381`/`:2383`; and `mc_codex_env_args` already forwards `MISSION_*`.
+- **Executor** (`codex:gpt-6.1-sol`, one 90-min-cap run, ~45 min):
+  - M1 complete: 16/16 mutants red then green.
+  - M2 built, but the sandbox refused the `.agents` mirror sync, which left 7 mutation rows and G1/G5/G13 UNINFORMATIVE.
+- **Controller** ran the sync outside the sandbox; only `gate-2-pick.md`'s mirror changed. Gates outside the sandbox: G1/G12 went red under the controller env and green under `env -i`. Bisected to `MISSION_NAME`, which the suite's own unset list missed. Fix: scrub every inherited `MISSION_*` (`compgen -e`). Its mutant (drop the loop) is red with `MISSION_NAME=fleet`. After that, all 23 M2 shell mutants went red then green, with no uninformative rows left. Commits were rebuilt per milestone from `.snap` via the index; the final tree differs from `.snap/M2` only by that fix and the mirror.
+- **Evaluator** (sonnet, Agent tool, foreground, own worktree): **PASS 90**, 0 blocking. It ran 9 mutants of its own (marker inversion, marker trim, explicit precedence, validation drop, suppression bypass, and three reader-order/fallback/error-dominance variants), all red. It confirmed that `design_quorum`'s policytool schema cannot pass `--artifact-dir`, and that every live `mission-*.env` sets a valid `MISSION_REPO` and no marker.
+  - N1: a failed init exits 2 before `_mc_notify` is defined, so it logs but does not notify.
+  - N2: legacy artifacts in other checkouts are not read (the importer is deferred).
+- Evidence: `fleet-mission-evidence/iteration38/` (executor report, mutation tables before and after the sync, both quorum artifacts, dry-run logs).
+
+**Gate 3b**: not applicable; nothing merged. The branch `fleet/i38-quorum-artifact-dir` is pushed at `b151064db`, and its PR is stacked on #1824.
+
+**Done-gate** (at `b151064db`, ahead of the merge): the surface edited is the driver wiring, the helper, the quorum writer and both Gate 2 copies. `make test-launchd-drivers` under `env -i`: rc 0. Dry-runs under the idle, armed **world** profile from the worktree, with `AILANG_DRIVER_PINNED` set:
+- healthy: rc 0, `lanes=ok`.
+- degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`): rc 0, `lanes=DEGRADED(1)`.
+- Both log `quorum artifact directory: ~/.ailang/state/mission-quorum-world`.
+- No world pidfile was written. Real quorum-directory manifests were unchanged before and after all gates.
+
+Reach is NOT confirmed (unmerged). The done-gate must be re-run at the merge.
+
+**Progress**: 0 tickets resolved. Clause 1 UNMEASURED. Clause 2 UNMET; #12 and #14 are both built and judged, waiting on dev. Clause 3 MET (51 open). Clause 4: prior evidence only. Clause 5 preserved; nothing shipped.
+
+**Routing evidence**: base-gate1=bf46845d758849c59aa38cddd0f8ff97f7ac0e1d@2026-10-14T12:25:56Z; base=d15217d24ac93cccbb43aaff2ce708c7aa019445@2026-10-14T13:46:47Z (gate4). Dev moved by 7 unrelated commits (executor/docs/modelreg). `MISSION_ROUTING_NOTE`: empty. Over-ration: openrouter.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: `codex:gpt-6.1-sol` (rotation turn after `claude:claude-opus-5-5`; pointer advanced). Create run: 172,938 tok. Revision: 107,683 tok. Rev 3 was the controller applying the carve-out. Quorum: r1 BLOCKED, r2 2/3 plus the verbatim fix; costs $0.1787 + $0.2288. Resolver: `recipe claude:claude-opus-5-5 declared:provider-pin` names the seed; the rotation chose codex.
+- **Planner**: resolver `recipe codex:gpt-6.1-sol declared:planner-lane-default-pin` (138,928 tok). It ran in the iteration worktree, not a separate detached planner worktree (the doc was committed there, and the artifacts were committed in place).
+- **Executor**: `recipe codex:gpt-6.1-sol declared:provider-pin` (177,078 tok).
+- **Evaluator**: resolver `agent-tool sonnet declared:alias-pin`, spawned via the Agent tool with `model=sonnet`, foreground, in its own worktree (67,642 tok). Judge independence: cross-vendor against the codex generators, and a different model from the controller.
+- The operator's standing request was honoured: every role was spawned at its resolved path, and the evaluator ran via the Agent tool. No role failed to spawn.
+- **Metered**: $0.41 (quorum OpenRouter/Vertex reviewers). Everything else ran on the ChatGPT and Anthropic subscriptions.
+
+**Ruled out**:
+- Resolving the default against git's common dir: it moves policytool's sandboxed write outside the sandbox.
+- Resolving it against `$HOME` unconditionally: same escape.
+- A reader-only fix: it cannot recover writes into deleted trees.
+- Parking after quorum r2: the one remaining reject carried a concrete fix that did not dispute direction (carve-out).
+- Pre-building the legacy importer: deferred by the designer and kept out.
+- Hand-editing the `.agents` mirror: the sync tool was used instead.
+
+**Retro lane**:
+- (1) **Records stranded on a blocked PR branch**, instance 2 (iteration 37 was instance 1). The charter on dev said iteration 35 and queue head #11, while the real state was iteration 37 on #1824's branch. Two instances meet the skill-fix bar. The fix candidate: Gate 1 reads open own-account fleet PR branches for newer records (`gh pr list --author @me --state open`, then `git show origin/<branch>:<charter>`). Not edited this iteration; see Gate 5.
+- (2) The codex sandbox again refused a `.agents/**` write (instance ≥3). The controller sync is routine now.
+- (3) The controller env leaked into a new shell suite (`MISSION_NAME`). The executor's sandbox env had no `MISSION_*`, so its green could not see it. This is the iteration-33 class again (instance 2): a suite that unsets a named list instead of a prefix.
+- (4) A new `MISSION_*` env with `${VAR:-}` checks in bash is fine. The driver's early exit 2 is not notified (judge N1). It is a follow-up, not ticketed.
+
+**Next**: when D-FLEET-17's predicate holds (`test` + `docs-gate` green on origin/dev), land #1824, then retarget and land this PR. Run the done-gate at each merge and resolve `quorum:invalid-absent-on-quoted-literals`, `quorum:reviewer-invalid-json-discarded` and `quorum:artifact-dir-cwd-relative`. Then P2 #15 `driver:unclassified-state-unreachable`. D-FLEET-16/17/18 are with Mark.

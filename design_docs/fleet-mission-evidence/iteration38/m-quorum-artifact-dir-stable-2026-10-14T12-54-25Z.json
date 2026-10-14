@@ -1,0 +1,62 @@
+{
+  "doc": "design_docs/planned/m-quorum-artifact-dir-stable.md",
+  "iso_ts": "2026-10-14T12:54:25Z",
+  "reviewers": [
+    {
+      "model": "gemini-4-argon",
+      "cost_usd": 0.01891,
+      "tokens_in": 8280,
+      "tokens_out": 235,
+      "present": true,
+      "result": {
+        "verdict": "pass",
+        "strongest_objection": "Standalone CLI validation of MISSION_QUORUM_ARTIFACT_DIR occurs inside WriteJSONArtifact after RunSeatedQuorum finishes, exposing standalone callers with malformed environment overrides to review costs (~$0.90 across primary seats plus potential reserve/recalled seats) before failing on the path error.",
+        "catch": "Verify during M2 rollout that live role shells across all active harnesses have empty AILANG_AGENT_POLICY in practice, and ensure the deferred CLI pre-flight follow-up (`cmd/ailang/design_quorum.go`) is tracked so standalone callers validate the artifact path before seat execution.",
+        "proposed_fix": "When `cmd/ailang/design_quorum.go` is in an eligible allowlist, call `quorum.ResolveArtifactDir(*artifactDir)` immediately after flag parsing (before `RunSeatedQuorum` at line 89) to fail fast on malformed overrides before incurring model costs."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-3",
+      "cost_usd": 0.08530700000000001,
+      "tokens_in": 7439,
+      "tokens_out": 17021,
+      "present": true,
+      "result": {
+        "verdict": "pass",
+        "strongest_objection": "The sentinel semantics let MISSION_QUORUM_ARTIFACT_DIR override an explicit --artifact-dir argument whenever that argument byte-equals the frozen constant, and the pre-write stderr diagnostic contract fires only when the policy marker is nonempty — so in the common marker-empty case a user's explicit argument is silently redirected to the env path at runtime, with the only indication being the existing post-write `quorum artifact: \u003cpath\u003e` line. The doc discloses the precedence change (env now beats an explicit flag) and defers flag-presence handling, but the runtime-undisclosed redirection of an explicit instruction is the closest thing in this design to the 'no silent fallbacks' axiom it otherwise enforces rigorously, and it is fixable inside the doc's own allowlist.",
+        "catch": "The 'observable suppression' paragraph scopes the stderr line to 'nonempty override AND marker' only. Verify and extend it so every sentinel-triggered redirection — including the marker-empty case where a validated override wins over an explicit sentinel-equal argument — emits an equivalent pre-write line naming the effective directory and reason (implementable wholly in artifact.go, no CLI edits). Also confirm the existing post-write `quorum artifact: \u003cpath\u003e` print at design_quorum.go:102 reaches every writer path the legibility argument relies on, and that the doc's Risks section names the accepted residual it currently leaves implicit: docs whose review history spans regimes (attended in-repo evidence vs host-mission $HOME evidence) remain reader-state-dependent and can still read UNREVIEWED when the checker's regime differs from the reviewer's regime.",
+        "proposed_fix": "Replace the diagnostic contract sentence with: 'For every default resolution whose effective directory differs from the raw writer argument (i.e., whenever the sentinel triggers), emit to stderr before any write: `quorum artifact directory: \u003ceffective absolute path\u003e; MISSION_QUORUM_ARTIFACT_DIR applied` or `quorum artifact directory: \u003ceffective absolute path\u003e; MISSION_QUORUM_ARTIFACT_DIR suppressed because AILANG_AGENT_POLICY is nonempty`, reporting effective directory and reason, never policy contents.' Extend AC2 with an arm asserting this line in the marker-empty sentinel+override case (mutation to kill: silenced diagnostic on non-suppression redirection), and add a Risks row stating: 'Docs with mixed-regime review history (attended in-repo evidence vs driver-exported host evidence) remain reader-state-dependent; a checker running in a different regime than the reviewer may still read UNREVIEWED. Acceptance is per-regime agreement, not cross-regime recovery.'"
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-kimi-k3",
+      "cost_usd": 0.12457499999999999,
+      "tokens_in": 7380,
+      "tokens_out": 6829,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The design creates two permanent, mutually invisible evidence namespaces for the same repository and then forbids the only mechanism that could bridge them. Post-ship, a driver-managed Gate 2 with a valid export reads ONLY the exported host directory (reader table: 'Marker empty, override nonempty (mission or attended) → ... use it'), while attended writers at a repo root keep writing `\u003crepo-root\u003e/.ailang/state/mission-quorum` (Goal 2, unchanged relative default). The doc explicitly says 'Do not automatically import or read both trees' and defers the legacy importer entirely ('recovery is not promised'). Consequences the doc's own numbers make concrete: the measured 164 artifacts in the main checkout and 13-14 in the home workaround remain unreadable to any mission-mode reader, and every future attended review adds to the stranded set from the mission reader's perspective — so the exact motivating symptom (a reviewed doc reading as UNREVIEWED and re-spending quorum) persists deterministically at the attended↔mission mode boundary. No acceptance arm tests cross-mode visibility (AC5 is mission-only, AC9 is attended-only), so the gap is unguarded. This also falsifies the A1 +1 determinism claim: whether a doc reads as REVIEWED becomes a function of ambient env (`MISSION_CONTROL_ACTIVE` / override presence), not of whether valid evidence exists. A P2 'correctness' fix whose design guarantees the observed defect keeps reproducing for an unbounded, growing artifact set — with the bridge follow-up having no owner, milestone, or AC — should not proceed as written.",
+        "catch": "Verify before M2 whether the new variable actually propagates automatically: the audit asserts the Codex helper 'forwards MISSION_*' but also notes the Codex daemon 'explicitly sets filtered env' — confirm whether `mc_codex_env_args` and the daemon filter admit NEW `MISSION_*` names by prefix or via an explicit allowlist. If it is an allowlist, the touch-point table is missing a production change (it adds only `internal/mission/dispatch/quorum_env_test.go`, a test), and 'live propagation UNVERIFIED' becomes a load-bearing unverified premise rather than an implementation-time risk. Also confirm no existing fixture or AC exercises a doc reviewed in attended mode then read by mission-mode Gate 2 — none is listed.",
+        "proposed_fix": "Add a scoped cross-mode reconciliation to M2 and an acceptance arm. Replace the blanket deferral with: 'At activation, after the driver validates the exported directory, run a one-shot importer that copies only `\u003ccurrent-repo-root\u003e/.ailang/state/mission-quorum/*.json` (and, for attended use, the inverse direction at Gate 2 time) into the effective namespace, host-only, additive, byte-preserving, never overwriting or deleting sources — the exact invariants the doc already specifies for the future importer — logging each copied basename to stderr.' Alternatively, if the importer is truly out of scope, define a deterministic fixed-order two-directory reader fallback: mission-mode readers with an export consult the exported dir first, then `\u003crepo-root\u003e/.ailang/state/mission-quorum`, emitting `quorum artifact directory: \u003cpath\u003e` per consulted directory; this is clone-layout-independent (git rev-parse is already used) and preserves fail-closed error semantics. In either case add AC11: 'Fixture artifact written by attended writer at repo root is found byte-identically by mission-mode reader with export set, and vice versa; absent fixture in both namespaces remains UNREVIEWED.' Downgrade A1 to 0 until cross-mode verdict stability is demonstrated."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Rev 2 answers all three r1 objections with measurements (marker setter audit 85 refs/36 files, 0 in launchd/scripts/mission env/plists); reader decision table + attended agreement arm added; importer deferred, core fix tight. Watch: the new driver abort on a raw AILANG_AGENT_POLICY must be proven inert for every live mission profile (it reads 0 today)."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "oc-kimi-k3: The design creates two permanent, mutually invisible evidence namespaces for the same repository and then forbids the only mechanism that could bridge them. Post-ship, a driver-managed Gate 2 with a valid export reads ONLY the exported host directory (reader table: 'Marker empty, override nonempty (mission or attended) → ... use it'), while attended writers at a repo root keep writing `\u003crepo-root\u003e/.ailang/state/mission-quorum` (Goal 2, unchanged relative default). The doc explicitly says 'Do not automatically import or read both trees' and defers the legacy importer entirely ('recovery is not promised'). Consequences the doc's own numbers make concrete: the measured 164 artifacts in the main checkout and 13-14 in the home workaround remain unreadable to any mission-mode reader, and every future attended review adds to the stranded set from the mission reader's perspective — so the exact motivating symptom (a reviewed doc reading as UNREVIEWED and re-spending quorum) persists deterministically at the attended↔mission mode boundary. No acceptance arm tests cross-mode visibility (AC5 is mission-only, AC9 is attended-only), so the gap is unguarded. This also falsifies the A1 +1 determinism claim: whether a doc reads as REVIEWED becomes a function of ambient env (`MISSION_CONTROL_ACTIVE` / override presence), not of whether valid evidence exists. A P2 'correctness' fix whose design guarantees the observed defect keeps reproducing for an unbounded, growing artifact set — with the bridge follow-up having no owner, milestone, or AC — should not proceed as written."
+    ],
+    "absent_reviewers": [],
+    "total_cost_usd": 0.228792,
+    "total_tokens_in": 23099,
+    "total_tokens_out": 24085
+  }
+}

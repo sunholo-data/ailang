@@ -1,0 +1,63 @@
+{
+  "doc": "design_docs/planned/m-quorum-artifact-dir-stable.md",
+  "iso_ts": "2026-10-14T12:45:33Z",
+  "reviewers": [
+    {
+      "model": "gemini-4-argon",
+      "cost_usd": 0.015390000000000001,
+      "tokens_in": 6425,
+      "tokens_out": 254,
+      "present": true,
+      "result": {
+        "verdict": "pass",
+        "strongest_objection": "By keeping cmd/ailang/design_quorum.go untouched and deferring ResolveArtifactDir(dir) to WriteJSONArtifact in artifact.go:40, any invalid MISSION_QUORUM_ARTIFACT_DIR configuration will only fail after the full LLM quorum review has executed and spent tokens, violating A9 (Cost Visibility / bounded waste on configuration errors).",
+        "catch": "Verify whether ResolveArtifactDir can also be invoked as a pre-flight check before launching reviewers inside the quorum package (or whether the entry point before WriteJSONArtifact is already in internal/mission/quorum), so invalid environment overrides fail fast before spending model quota.",
+        "proposed_fix": "In Solution Design (Resolution contract), add: 'Call ResolveArtifactDir(dir) both as a pre-flight validation check before invoking any quorum reviewers and inside WriteJSONArtifact before MkdirAll, ensuring invalid MISSION_QUORUM_ARTIFACT_DIR values fail fast at zero token cost without requiring edits to cmd/ailang/design_quorum.go.'"
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-glm-5-3",
+      "cost_usd": 0.050166800000000004,
+      "tokens_in": 5706,
+      "tokens_out": 9586,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The design's central guarantee — 'Every host-side mission writer and Gate 2 reader for the same repo resolves the same absolute directory' — rests on an unstated and unverified premise: that the actual quorum-writing and Gate 2-reading processes (driver-spawned controllers, Codex lanes via `mc_codex_env_args`, executor children under envpolicy) run with an empty raw `AILANG_AGENT_POLICY`. The Verification Log source-reads the executor envpolicy and dispatch surfaces but records only 'MISSION_* admitted in both forwarding surfaces' — never the marker status of those lanes — and explicitly marks live propagation UNVERIFIED. If any production writer lane is policy-marked, the resolution-contract suppression row ('raw `AILANG_AGENT_POLICY` nonempty → `ArtifactDir`; ignore override even if invalid') silently reverts that writer to CWD-relative writes inside the ephemeral pin/sprint trees, re-creating exactly the stranded-evidence defect this doc exists to fix, and a marked Gate 2 run likewise reads the ephemeral relative path — so the goal is false for the primary path. This suppression row also directly contradicts the doc's own stated rule 'Surface errors; never silently revert to local storage,' yet the Axiom table scores A11 +1 for 'Bad override/import conflicts surface errors.'",
+        "catch": "The author must verify and log, per lane, the raw `AILANG_AGENT_POLICY` value observed by real mission quorum writers and Gate 2 readers (controller spawn, `mc_codex_env_args` Codex lanes, executor envpolicy children) — the executor envpolicy source read is already in the log but its marker behavior was never recorded. Secondarily, reconcile the marked-caller suppression ('ignore override even if invalid', no error, no log) with the doc's own no-silent-fallback rule and the A11 +1 score, and with the goal sentence 'Every host-side mission writer', which currently overclaims what the mechanism guarantees.",
+        "proposed_fix": "Add a Verification Log row: `rg -n 'AILANG_AGENT_POLICY' tools/launchd internal/mission/dispatch internal/policytool cmd/ailang` plus one live driver run capturing the spawned child env, recording for each quorum-writing and Gate-2 lane whether the raw marker is empty. Add AC11: an end-to-end arm spawning the actual dispatch/Codex path asserting the writer child observes empty `AILANG_AGENT_POLICY` with `MISSION_QUORUM_ARTIFACT_DIR` exported and the artifact lands in the durable directory; a mutant that marks the lane must fail the arm by observably reverting to CWD-relative. Then either (a) confirm all production lanes are unmarked and narrow the Goal sentence to 'driver-mediated, unmarked writers and readers', or (b) if any lane is marked, rework the suppression — e.g., suppress only when the process CWD is a policytool sandbox, or have policytool itself set the override for gate-approved writes — and add a diagnostic log line whenever a marked caller suppresses a nonempty override, so 'never silently revert to local storage' and the A11 +1 claim both hold. Update the resolution-contract table to state the fallback is logged, not silent."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-kimi-k3",
+      "cost_usd": 0.113112,
+      "tokens_in": 5694,
+      "tokens_out": 6402,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The design's entire reason to exist — writer/reader agreement on one directory — is only fully specified for the driver-exported path, and the attended (no-export) path contains the original defect in latent form. The Go writer contract explicitly preserves CWD-relative attended behavior (row 4: no marker, override empty/unset → ArtifactDir, 'existing attended behavior'), but the Gate 2/bash reader is never given the equivalent decision table for that same state. 'attended AILANG fallback: current repo root' only describes locating the library via MISSION_DRIVER_ROOT, not which directory the reader resolves when MISSION_QUORUM_ARTIFACT_DIR is unset and MISSION_REPO may also be unset. The text as written admits three different attended reader behaviors — (i) hard error under 'resolution/read-permission errors are errors, never empty evidence' (a silent behavior change for attended sessions that today just look locally), (ii) resolution to the repo-namespaced home directory that attended writers per row 4 do not write to (recreating exactly the writer/reader split this doc exists to fix), or (iii) relative fallback — and none is tested: AC7's missing-env failure arm is scoped to mission fixtures, and no arm exercises Gate 2's shell block in an attended, no-export, no-MISSION_REPO process against a writer in the same state. Goals bullet 1 ('Every host-side mission writer and Gate 2 reader ... resolves the same absolute directory') is therefore asserted, not established, and the milestone text cannot be implemented unambiguously.",
+        "catch": "Two things to fix/verify: (1) Specify and test the attended reader branch — the bash library's behavior when the override is unset/empty, with and without the policy marker and with or without MISSION_REPO, must provably mirror the Go writer table row-for-row, or attended mode must be explicitly scoped out of the goals with Gate 2 falling back to today's exact relative lookup. (2) MISSION_REPO is the load-bearing key of the namespace table, yet the verification log never cites it as an actually-exported driver variable — 'source reads ... repo/driver separation verified' and 'live propagation UNVERIFIED' do not confirm MISSION_REPO is set by the profile the library sources. If it doesn't exist or isn't exported at that point, the driver export silently computes wrong/empty and the whole namespace scheme collapses.",
+        "proposed_fix": "Add a 'Reader resolution contract' subsection to the design freeze, mirroring the Go table: (a) override nonempty + valid absolute → use it; (b) override nonempty + invalid → error, never empty evidence; (c) override empty/unset + raw AILANG_AGENT_POLICY nonempty (untrimmed) → relative ArtifactDir; (d) override empty/unset + no marker → relative ArtifactDir, byte-identical to current Gate 2 behavior; and state explicitly that MISSION_REPO is consumed ONLY by the driver's exporter step, never required by Gate 2, so the attended reader provably reads the same CWD-relative directory the attended writer uses. Correspondingly amend Goals bullet 1 to 'same directory for driver-exported mission processes; attended sessions retain identical relative writer/reader behavior'. Add AC7b: 'Execute the extracted Gate 2 shell block with MISSION_QUORUM_ARTIFACT_DIR and MISSION_REPO both unset against a writer fixture with the same state: reader locates the writer's artifact in the CWD-relative path; no home-directory access occurs.' Add a verification-log row citing file:line where the driver profile exports MISSION_REPO (or, if it is a proposed new variable, mark the dependency explicitly and add an AC arm that the sourcing step fails loudly rather than exporting an empty namespace when it is absent)."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Scope respected (no CLI/policytool edits); policytool confinement argued from cli_ops.go:317-334/394-424 and enforced via marker suppression with a real host/child arm (AC4). Concern: the legacy importer (M2) is heavy for a P2 and could be split; not blocking."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "oc-glm-5-3: The design's central guarantee — 'Every host-side mission writer and Gate 2 reader for the same repo resolves the same absolute directory' — rests on an unstated and unverified premise: that the actual quorum-writing and Gate 2-reading processes (driver-spawned controllers, Codex lanes via `mc_codex_env_args`, executor children under envpolicy) run with an empty raw `AILANG_AGENT_POLICY`. The Verification Log source-reads the executor envpolicy and dispatch surfaces but records only 'MISSION_* admitted in both forwarding surfaces' — never the marker status of those lanes — and explicitly marks live propagation UNVERIFIED. If any production writer lane is policy-marked, the resolution-contract suppression row ('raw `AILANG_AGENT_POLICY` nonempty → `ArtifactDir`; ignore override even if invalid') silently reverts that writer to CWD-relative writes inside the ephemeral pin/sprint trees, re-creating exactly the stranded-evidence defect this doc exists to fix, and a marked Gate 2 run likewise reads the ephemeral relative path — so the goal is false for the primary path. This suppression row also directly contradicts the doc's own stated rule 'Surface errors; never silently revert to local storage,' yet the Axiom table scores A11 +1 for 'Bad override/import conflicts surface errors.'",
+      "oc-kimi-k3: The design's entire reason to exist — writer/reader agreement on one directory — is only fully specified for the driver-exported path, and the attended (no-export) path contains the original defect in latent form. The Go writer contract explicitly preserves CWD-relative attended behavior (row 4: no marker, override empty/unset → ArtifactDir, 'existing attended behavior'), but the Gate 2/bash reader is never given the equivalent decision table for that same state. 'attended AILANG fallback: current repo root' only describes locating the library via MISSION_DRIVER_ROOT, not which directory the reader resolves when MISSION_QUORUM_ARTIFACT_DIR is unset and MISSION_REPO may also be unset. The text as written admits three different attended reader behaviors — (i) hard error under 'resolution/read-permission errors are errors, never empty evidence' (a silent behavior change for attended sessions that today just look locally), (ii) resolution to the repo-namespaced home directory that attended writers per row 4 do not write to (recreating exactly the writer/reader split this doc exists to fix), or (iii) relative fallback — and none is tested: AC7's missing-env failure arm is scoped to mission fixtures, and no arm exercises Gate 2's shell block in an attended, no-export, no-MISSION_REPO process against a writer in the same state. Goals bullet 1 ('Every host-side mission writer and Gate 2 reader ... resolves the same absolute directory') is therefore asserted, not established, and the milestone text cannot be implemented unambiguously."
+    ],
+    "absent_reviewers": [],
+    "total_cost_usd": 0.17866880000000002,
+    "total_tokens_in": 17825,
+    "total_tokens_out": 16242
+  }
+}

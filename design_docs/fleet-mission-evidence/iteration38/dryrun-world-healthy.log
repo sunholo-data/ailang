@@ -1,0 +1,7 @@
+[2026-10-14 15:45:09] quorum artifact directory: /Users/voightkampff/.ailang/state/mission-quorum-world
+[2026-10-14 15:45:09] anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (the loops' own token) for inference; the quota reader reads usage with the login credential first
+[2026-10-14 15:45:09] driver pin: running committed origin/dev @ b151064dbbdfbae0987086347e94b4f6b299831e with mission work repository /Users/voightkampff/dev/sunholo-data/ailang-world (source clone ? was ? behind); pinned target ? behind origin/dev (baseline ?)
+[2026-10-14 15:45:09] driver pin drift: unknown (?); notice suppressed
+[2026-10-14 15:45:09] driver pin age: unknown (?); notice suppressed
+[2026-10-14 15:45:12] ration gate: blocked buckets (over ration or unknown quota):openrouter 
+[2026-10-14 15:45:49] DRY RUN ok: mission=world repo-slug=sunholo-data/ailang-world doc=design_docs/world-mission.md workdir=/Users/voightkampff/.ailang-driver-pin/fleet-i38-artifact-dir pidfile=/Users/voightkampff/.ailang/state/mission-world.pid prefs=claude-opus-5-5,codex:gpt-6.1-sol timeout=21600s | roles: designer=claude:claude-opus-5-5 planner=codex:gpt-6.1-sol executor=codex:gpt-6.1-sol evaluator=sonnet | lanes=ok | pin=pinned(? behind) | skill-sync=current
