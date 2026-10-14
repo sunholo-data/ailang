@@ -462,7 +462,7 @@ The guardrail (re-quorum once) is spent, so **a human ratifies the Design Freeze
 ## Future Work
 
 - `ailang init plugin` scaffold from the L5 template.
-- The code-execution service, which is the reuse test for every lane. **Now designed** in [m-ailang-executor-gemini-enterprise](../v0_55_0/m-ailang-executor-gemini-enterprise.md) (2026-10-14), which also adds Gemini Enterprise as a third directory. GE is A2A-first, and its MCP support is unverified (P0 spike).
+- The code-execution service, which is the reuse test for every lane. **Now designed** in [m-ailang-executor-gemini-enterprise](../v0_55_0/m-ailang-executor-gemini-enterprise.md) (2026-10-14), which exposes the `ailang_only` executor lane to Gemini Enterprise (MCP = lane tools, A2A = lane agent via a coordinator gateway) and adds GE as a third directory.
 - A DNS-verified MCP Registry namespace per service.
 
 ---
