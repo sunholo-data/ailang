@@ -20,6 +20,14 @@ We already run the most locked-down place to write AILANG: the **`ailang_only` e
 
 This matches the MCP-for-inline, A2A-for-delegation split from the suggestion pasted into the request. The difference is that both sides inherit a security boundary that has already been hardened and measured, rather than one written for this doc.
 
+## Existing surfaces this builds on (added 2026-10-14, after review)
+
+| Surface | What it is | How this design uses it |
+|---|---|---|
+| **Public docs MCP** (`mcp_tools/*.ail`, `ailang-mcp` / mcp.ailang.sunholo.com) | 21 read-only tools: docs, stdlib, examples, benchmarks, changelog, prompts. Plus the **built-in `submit_feedback`** tool (registered Go-side in `internal/apiserver/feedback_tool.go` on every serve-api MCP unless `--no-feedback-tool`), which writes to the plane's `public-feedback` inbox | The executor service serves `mcp_tools/` **and** `executor_tools/` together, so GE gets docs lookup, feedback and execution from **one** MCP URL. It reuses the `mcp` service account, which already holds exactly the feedback grants (topic-level publish, Firestore user). |
+| **`ailang_bootstrap`** (sunholo-data/ailang_bootstrap) | The install package for agents: a Claude/Codex plugin, skills (`skills/ailang`, `ailang-inbox`, …) and a **local stdio MCP** (`mcp-server/server.js`: `ailang_prompt`, `ailang_check`, `ailang_run`, `ailang_builtins`, `ailang_eval`) that shells out to the local CLI with file paths and caller-chosen `--caps` | The hosted executor uses the **same tool names**, so a model sees one vocabulary locally and in the cloud. The difference is deliberate: hosted tools take **code**, not paths, and callers never choose caps (policy decides). `skills/ailang/SKILL.md` is the teaching content the pasted suggestion called "SKILL.md". For GE it is delivered through `ailang_prompt` and the A2A card skill text, since GE does not install plugins. Follow-up: point the bootstrap README at the hosted endpoint as the zero-install option. |
+| **`ailang_only` executor lane** | See below | MCP projects its tools; A2A projects its agent. |
+
 ## Problem statement
 
 1. **The lane cannot be reached from outside the fleet.** Tasks arrive only through the message plane, which the coordinator turns into a Cloud Run Job. Nothing translates MCP or A2A into lane calls or lane tasks.
