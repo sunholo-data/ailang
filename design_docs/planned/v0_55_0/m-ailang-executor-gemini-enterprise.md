@@ -119,13 +119,8 @@ claude.ai, Claude Desktop and other directory clients expect an OAuth sign-in, n
 - **Built 2026-10-14:**
   - `executor_oauth/`: `oauth.ail`, `static/` and `test_oauth.sh`. The test runs 21 checks under real serve-api with stub storage.
   - multivac `executor-mcp-oauth`: a precondition refuses an empty allowlist until the rate limit exists.
-- **Blocked on a compiler regression:** `sunholo/mcp_oauth` 0.1.1 does not compile on ailang ≥ 0.53.1 (#1826: `mapE` over an annotated hook field trips a latent-effect invariant). 0.1.2 works around it (ailang-packages#141) and is waiting on merge + `ailang publish`.
-- **Rollout order:**
-  1. publish 0.1.2;
-  2. `ailang lock` in `executor_oauth/`, then commit the lock and the Dockerfile change;
-  3. the image build rolls both services;
-  4. push the multivac commit and apply (terraform creates the service);
-  5. `ailang mcp check <url>/mcp/connect/ --target both`, plus a Claude Code sign-in round trip.
+- **Compiler regression worked around:** `sunholo/mcp_oauth` 0.1.1 does not compile on ailang ≥ 0.53.1 (#1826: `mapE` over an annotated hook field trips a latent-effect invariant). 0.1.2 avoids it (ailang-packages#141) and is published.
+- **Deployed in dev 2026-10-14:** the lock and the Dockerfile are in 2eee31442. The image build rolled the IAM service (smoke 6/6), and multivac 6e2f6ea created `ailang-dev-executor-mcp-oauth`, allowlisted to `sunholo.com`. `ailang mcp check` passes every auth check (lazy-auth, authorization-server, security-schemes). Its remaining FAILs are directory annotations (title, read-only hints) on the `mcp_tools/` docs tools, which matter only for a directory listing.
 - **Open before prod:** the per-user rate limit, and a prod Firebase config on the page (it knows `ailang-multivac-dev` only).
 
 ### P2: A2A — the lane's agent, with our harness doing the work
@@ -232,7 +227,7 @@ Built (P1):
 - `changelogs/unreleased/2026-10-14-executor-mcp.md`
 
 Planned:
-- P1b (built, rollout pending): `executor_oauth/` (`oauth.ail`, `static/`, `test_oauth.sh`, own `ailang.toml`), serve-api `--mcp-connect-only` (`internal/apiserver`), `docker/Dockerfile.executor-mcp` CMD split, multivac `executor_mcp_oauth` service + Firestore TTL field
+- P1b (deployed in dev): `executor_oauth/` (`oauth.ail`, `static/`, `test_oauth.sh`, own `ailang.toml`), serve-api `--mcp-connect-only` (`internal/apiserver`), `docker/Dockerfile.executor-mcp` CMD split, multivac `executor_mcp_oauth` service + Firestore TTL field
 - P2: `internal/coordinator/a2a_gateway.go` (D2a, about 350 LOC, split if over 500) and `a2a_gateway_test.go`; `ailang-multivac/config/policies/ge-executor.toml`, `config/templates/ge-executor-task.md`, and the `ge-executor` agent in `config/config.cloud.yaml` (reaches prod only through the prod branch)
 - P3: `docs/docs/guides/gemini-enterprise.md` (public guide)
 
