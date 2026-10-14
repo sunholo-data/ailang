@@ -43,6 +43,16 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-14 — ITERATION 38: P2 #14 quorum artifact dir designed, quorum'd, built and judged PASS 90 by sonnet — stacked PR on #1824, BLOCKED on the same dev required reds [HARNESS]
+
+`ailang design-quorum` wrote its artifacts to a CWD-relative `.ailang/state/mission-quorum`, so under pin and sprint worktrees a reviewed doc read as unreviewed at Gate 2 (measured: 5 artifacts in the fleet pin, 164 in the main checkout, 15 in the hand-used `~/.ailang/state/mission-quorum`). Now the driver exports a repo-scoped `MISSION_QUORUM_ARTIFACT_DIR` (registered in `internal/config/mission.go`), the quorum writer uses it when the flag is left at its default, and Gate 2's new executable reader block consults the export first, then `<repo-root>/.ailang/state/mission-quorum`. A raw policy marker keeps every default write inside the ailang_only sandbox, and a real policytool host/child test proves it. Out of scope: the legacy importer, and the CLI pre-flight (`cmd/ailang/design_quorum.go` is outside fleet authority).
+
+How it was built: the codex designer (rotation turn `codex:gpt-6.1-sol`) wrote the doc. Quorum round 1 BLOCKED (glm, kimi). The designer revised it. Round 2: 2 pass and 1 reject (kimi). The controller applied kimi's verbatim `proposed_fix` under the narrow-refinement carve-out: a fixed-order two-directory reader, AC11, and A1 downgraded to 0. The codex planner corrected 9 premises. The codex executor built M1 (16/16 mutants killed) and M2; the sandbox refused the `.agents` mirror sync, so the controller ran it. The controller also scrubbed every inherited `MISSION_*` in the new shell suite: `MISSION_NAME` from a controller env had reddened an arm. The independent sonnet judge scored **PASS 90**, 0 blocking, and 9 of its own mutants went red. Non-blocking: a failed driver init exits 2 before `_mc_notify` exists, so it logs but does not notify.
+
+Done-gate at `b151064db`: `make test-launchd-drivers` rc 0 under `env -i`. World dry-runs (`AILANG_DRIVER_PINNED` set): healthy `lanes=ok`, degraded `lanes=DEGRADED(1)`, both rc 0, and both print `quorum artifact directory: …/mission-quorum-world`. No pidfile was written. Not LANDED: dev `d15217d24` is still red on `test` (`check-git-exec`) and `docs-gate`, so #1824 and this stacked PR wait on D-FLEET-17. The ticket stays open.
+
+Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is green; #12 and #14 are both ready); **3** MET (51 open); **4** prior evidence only; **5** preserved (nothing shipped). Next: when D-FLEET-17's predicate holds, land #1824, then this PR, run the done-gate at each merge, and resolve 3 tickets. Then P2 #15.
+
 ## STATUS 2026-10-14 — ITERATION 37: no landing possible — #12 still BLOCKED on dev's required reds (owner V1 disabled); #13 reproduction measured (B gone, A + an untracked timer flake live in `tools/eval/`, outside fleet scope), judged PASS 88 by sonnet; D-FLEET-17/18 filed [HARNESS]
 
 Dev HEAD `42652c19e` is unchanged since iteration 36, and the required `test` and `docs-gate` checks are still red:
@@ -78,16 +88,6 @@ Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is g
 Both are outside fleet authority. V1 owns repo reds, but its kill switch is set. Resume predicate: `test` and `docs-gate` green on origin/dev; then merge, run the done-gate, and resolve both tickets.
 
 Clause map: **1** UNMEASURED; **2** UNMET (#11 ≈16 d; #12 blocked); **3** MET (51 open + row 16); **4** prior evidence only; **5** preserved. Next: land #1824, then P2 #13.
-
-## STATUS 2026-10-13 — ITERATION 35: P2 #10 Gate 0 ledger provenance LANDED — #1815 `130486515`, judged PASS 92 by sonnet (round 2); ticket resolved [HARNESS]
-
-Gate 0 rule 6(b) used to check provenance with `git log -1 -S'| D-nn |'`. That pickaxe returns a row's CREATION commit, so every attended ruling read as fleet self-resolution. It now runs `scripts/mission_ledger_provenance.sh --id D-nn --file <charter>`. The instrument reports the LATEST OPEN→RESOLVED transition, with the creation commit as the control, and its verdict is one of: `attended`, `fleet`, `undetermined:squash-merge`, `never-resolved`, or rc 2. Only a fleet-authored flip that is not a squash merge counts as SELF-RESOLUTION. A flip committed by GitHub is reported and never re-opened, because a squash merge's author is the PR author, not the person who ruled. That applies to every ledger flip in this repo, including D-FLEET-1/13/14/15. Both skill copies are byte-identical. The 115-assertion bash-3.2 suite runs in `make test-launchd-drivers`, and CI runs it.
-
-How it was built: the codex planner wrote a 2-milestone plan with 13 test arms and corrected one controller measurement (D-FLEET-1 was created `RULED`). The codex executor built M1 and M2 across two runs. Its first run was reaped by my own 10-minute background default, after M1 was done. The sonnet judge scored round 1 **PASS 88**. Its finding N1 was that a reopen followed by a fleet re-resolve read `attended`. I reproduced it in a fixture and fixed it with latest-transition selection plus arm A14; the earliest-selection mutant turns A14 and A3 red. Round 2 scored **PASS 92**, 0 blocking.
-
-CI: 26/26 green on head `8350e1c6c` after two reruns of unrelated signal-timing flakes (`internal/effects` on macOS, `internal/runner` sigint). `test` was also red on dev at `a71193a2f`. Done-gate: the local `make test-launchd-drivers` passed with rc 0, and the healthy and degraded dry-runs (world profile, at the merge) passed. The ticket is resolved (52 open).
-
-Clause map: **1** UNMEASURED; **2** UNMET (this ticket ≈15.5 d); **3** MET (52 open); **4** prior evidence only; **5** preserved. Next: P2 #11 `weekly-report:unknown-mission`.
 
 ## CURRENT GOAL
 
@@ -238,8 +238,10 @@ overnight: harness faults read as model faults)
     judged. Merge when `test` and `docs-gate` are green on origin/dev, then run the done-gate at the merge and resolve both.
 13. [MEASURED · iteration 37 · D-FLEET-18] `ci:launchd-suite-flakes-openrouter-peer-and-gh-hang` (filed 2026-09-29). Reproduction
     measured: B (gh hang, `tools/launchd`) is gone (last 09-28 13:15Z). A (OpenRouter peer) last failed 10-02, and an untracked timer flake failed 4× on dev between 10-07 and 10-12. Both live ones are in `tools/eval/`, outside fleet scope. Ticket stays open.
-14. `quorum:artifact-dir-cwd-relative`: `artifact.go:14` is still CWD-relative. `--artifact-dir` is
-    the workaround.
+14. [IN-SPRINT · iteration 38 · stacked PR on #1824, judged PASS 90, BLOCKED on the same dev reds; D-FLEET-17] `quorum:artifact-dir-cwd-relative`:
+    designed (`m-quorum-artifact-dir-stable.md`, quorum r1 BLOCKED, r2 2/3 + carve-out), planned, built and judged. The driver exports a repo-scoped
+    `MISSION_QUORUM_ARTIFACT_DIR`, and Gate 2 reads export then repo-root. Merge after #1824, done-gate at the merge, then resolve.
+    Follow-ups (not ticketed): legacy importer; CLI pre-flight in `design_quorum.go` (outside scope); driver init exit 2 is not notified (judge N1).
 15. `driver:unclassified-state-unreachable`: `UNCLASSIFIED` appears 0 times in the driver.
     Low severity.
 16. `quorum:tier2-salvage-fold` (charter-tracked follow-up of #12; the fleet cannot file tickets, so this row is
