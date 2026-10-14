@@ -107,7 +107,7 @@ Deviations from the original plan, and why:
 
 claude.ai, Claude Desktop and other directory clients expect an OAuth sign-in, not a Google ID token, and GE's "OAuth 2.0" connector option needs the same. **Decision: our own sign-in server on `sunholo/mcp_oauth`**, adopted the way AILANG Parse did (`docparse_api/services/mcp_oauth.ail`). Reusing docparse's issuer was rejected: its tokens are docparse API keys, which carry docparse billing and API access.
 
-- **Hooks:** `authenticate` uses Firebase/Google sign-in, with an email-domain allowlist in dev and test like docparse's. `mint` issues an opaque executor token stored as a digest. `put/get/del` use Firestore records with a TTL. `revoke` deletes by digest.
+- **Hooks:** `authenticate` uses Firebase/Google sign-in. **Who may sign in (Mark, 2026-10-14):** `sunholo.com` only in dev, set through an email-domain allowlist env like docparse's `DOCPARSE_ALLOWED_EMAIL_DOMAINS`; **everyone in prod** (empty allowlist). Because prod is open to anyone with an account, a per-user rate limit keyed on the token's identity ships in P1b before any prod promote, not after. `mint` issues an opaque executor token stored as a digest. `put/get/del` use Firestore records with a TTL. `revoke` deletes by digest.
 - **Surface:** tools carry `@mcp_auth("oauth2")` on `/mcp/connect/`, with an `@mcp_token_verifier` checking the digest. serve-api runs with `--oauth-issuer`, and the sign-in page is served same-origin.
 - **Topology:** a **second Cloud Run service from the same image**, `ailang-dev-executor-mcp-oauth`. It is publicly reachable but serves tools only to bearer holders. The IAM-only service stays as it is for GE's service-agent path, so the working GE connector is not touched.
 - **Gains:** per-user identity in the `executor_call` log, which enables per-user rate limits, and access for people outside the Google IAM list.
@@ -178,7 +178,7 @@ Every row is a measurement against GE, recorded with the observed headers and re
 - **D3 — If P0-c shows GE cannot do authenticated A2A:** ship A2A open behind D5's budget and rate limit, or offer GE MCP only?
 - **D4 — serve-api Process allowlist.** **Resolved 2026-10-14: flags** (`--process-timeout`, `--process-allowlist`, same as `ailang run`). serve-api has no policy file to put it in, and a fixed 30s timeout had to be lifted anyway.
 - **D5 — A2A spend:** a per-day budget for `ge-executor`, a per-caller rate limit, and who pays when GE is used by an external org. Until this is decided, `ge-executor` is dev-only.
-- **D7 — OAuth issuer for user-facing clients.** **Resolved 2026-10-14 (Mark): our own sign-in server** on `sunholo/mcp_oauth`, not docparse's. See P1b.
+- **D7 — OAuth issuer for user-facing clients.** **Resolved 2026-10-14 (Mark): our own sign-in server** on `sunholo/mcp_oauth`, not docparse's. Sign-in limited to `sunholo.com` in dev; open to everyone in prod. See P1b.
 - **D6 — Scratch workspace:** a new empty repo (e.g. `sunholo-data/ge-executor-scratch`), or teach the coordinator a no-repo workspace. The first costs nothing; the second is a coordinator change.
 
 ## Conflict surface

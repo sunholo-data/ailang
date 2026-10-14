@@ -125,6 +125,8 @@ be in `executor_mcp_invokers`. claude.ai and Claude Desktop connectors need OAut
   - a second Cloud Run service, `ailang-dev-executor-mcp-oauth`, from the same image, publicly
     reachable, with tools only on `/mcp/connect/` behind `@mcp_auth("oauth2")`;
   - this IAM-only service stays as it is for GE's service-agent path;
+  - who may sign in: `sunholo.com` only in dev; everyone in prod, with a per-user rate limit
+    shipped before the prod promote;
   - to use OAuth from GE instead, put the sign-in server's authorization and token URLs in the
     connector form, set the redirect to `https://vertexaisearch.cloud.google.com/oauth-redirect`,
     and add the OAuth service's host to `allowed_egress_fqdns` (multivac `terraform-gemini-enterprise`).
