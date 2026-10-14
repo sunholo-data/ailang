@@ -121,6 +121,15 @@ fi
 # both provenance lines resolved to macOS /usr/bin/log ("log: Unknown subcommand
 # 'anthropic credential: ...'" in the launchd log) and never reached $LOG.
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
+# --- QUORUM ARTIFACT INIT START ---
+if ! . "$MC_DRIVER_ROOT/tools/launchd/lib/quorum-artifacts.sh"; then
+  log "ERROR: cannot source quorum artifact helper"; exit 2
+fi
+if ! mc_quorum_init; then
+  log "ERROR: quorum artifact initialization failed"; exit 2
+fi
+log "quorum artifact directory: $MISSION_QUORUM_ARTIFACT_DIR"
+# --- QUORUM ARTIFACT INIT END ---
 # ANTHROPIC CREDENTIAL PROVENANCE — say which path is in play, once per fire.
 #
 # There are two, and they fail differently. CLAUDE_CODE_OAUTH_TOKEN (from

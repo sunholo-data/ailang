@@ -171,13 +171,63 @@ reality**: `git log --grep`, does the code/test already exist, does `make test` 
 **QUORUM-AT-PICK (Mark 2026-07-16 — "old docs may not be up to new standards"):** the creation-time
 quorum hook only covers NEW/REVISED docs, so most of the backlog is pre-quorum (iteration 32's
 auto_caps doc, Oct 2025, reached the planner with zero multi-provider eyes). At pick time, if the
-picked doc has NO quorum artifact (`ls .ailang/state/mission-quorum/<doc-id>-*.json`), run the text
+picked doc has NO quorum artifact (use the checked reader below), run the text
 quorum BEFORE routing: `ailang design-quorum <doc.md> --controller-verdict <your own pass|reject>`
 (cents, budget-capped, N−1 degrade). Any-reject → the objections go to the designer role for a
 revision pass first (Gate 3's design-doc-creator lane), then re-quorum ONCE; still-rejected →
 `needs-human-review`, park, next item. Skip only for: bookkeeping-only picks, ghost-closes, and
 mission-infra docs the quorum already reviewed. This is a pick-time gate, not a re-litigation —
 one round, bounded.
+Use this executable reader with the existing `<doc-id>` filename slug. It returns 0
+(REVIEWED), 1 (UNREVIEWED), or 2 (ERROR: stop and repair wiring/configuration).
+An active mission requires the exported absolute directory and driver helper. An
+attended reader enters its current git repo root; a standalone policy reader stays
+in sandbox CWD without git ascent. A supplied driver root must be valid in every mode.
+Both directories are consulted, export first then current reader repo local fallback;
+an error in either dominates any match. No other checkout or legacy evidence is scanned.
+
+```bash
+# --- QUORUM READER START ---
+mc_quorum_gate2() {
+  local root helper driver="${MISSION_DRIVER_ROOT:-}"
+  if [ "${MISSION_CONTROL_ACTIVE:-0}" = 1 ]; then
+    if [ -n "${AILANG_AGENT_POLICY:-}" ]; then
+      echo "quorum ERROR: policy marker present; local confinement: $(pwd -P)/.ailang/state/mission-quorum" >&2; return 2
+    fi
+    if [ -z "${MISSION_QUORUM_ARTIFACT_DIR:-}" ] || [ -z "$driver" ]; then
+      echo 'quorum ERROR: active reader requires artifact export and driver root' >&2; return 2
+    fi
+  fi
+  if [ -n "${AILANG_AGENT_POLICY:-}" ]; then
+    root=$(pwd -P) || return 2
+  else
+    root=$(git rev-parse --show-toplevel) || { echo 'quorum ERROR: cannot resolve reader repo root' >&2; return 2; }
+  fi
+  case "$root" in /*) ;; *) echo 'quorum ERROR: reader root must be absolute' >&2; return 2 ;; esac
+  if [ -n "$driver" ]; then
+    case "$driver" in /*) ;; *) echo 'quorum ERROR: driver root must be absolute' >&2; return 2 ;; esac
+    helper="$driver/tools/launchd/lib/quorum-artifacts.sh"
+  else
+    helper="$root/tools/launchd/lib/quorum-artifacts.sh"
+  fi
+  if [ ! -r "$helper" ]; then echo 'quorum ERROR: unreadable artifact helper' >&2; return 2; fi
+  if ! . "$helper"; then echo 'quorum ERROR: cannot source artifact helper' >&2; return 2; fi
+  cd "$root" || { echo 'quorum ERROR: cannot enter reader repo root' >&2; return 2; }
+  mc_quorum_reader_dirs "$root" || return 2
+  mc_quorum_lookup "$1"
+}
+# --- QUORUM READER END ---
+```
+
+Call `mc_quorum_gate2 "<doc-id>"` in a checked conditional. Only rc 1 means no
+artifact and triggers the text quorum; rc 2 stops the pick. On rc 0,
+`MC_QUORUM_MATCHES` holds quoted absolute paths: read each with `jq ... "$artifact"`
+using the nested schema below and apply the existing verdict/remedy policy.
+Run `ailang design-quorum <doc.md> ...` from that same resolved CWD and environment,
+with `--artifact-dir` omitted, so reader and writer use the same resolution.
+No-export attended readers stay local; reverse cross-mode visibility requires the
+attended reader to share the mission writer's explicit export.
+
 **NARROW-REFINEMENT CARVE-OUT (added iter-95, 2nd instance — iter-93 `m-pure-prng` `split` was the
 1st):** twice now the one-revision-one-requorum→park gate parked a doc whose design DIRECTION both
 reviewers accepted, blocking SOLELY on narrow, obviously-resolvable defects the reviewers themselves
@@ -247,7 +297,7 @@ edit on it, and this iteration measured the writer). The rule above says *"read 
 and the neighbouring rule says the verdicts are the reviewers'. **Both are one level off**, and a
 controller who types the documented path gets a confident `null` — the vacuous pass this whole rule
 was written to close, reached by following the rule.
-Measured across **22 of 22** artifacts in `.ailang/state/mission-quorum/` (complete enumeration, not
+Historical local-path measurement: across **22 of 22** artifacts in `.ailang/state/mission-quorum/` (complete enumeration, not
 a sample; control — `has("synthesis")` = **22**): top-level `has("absent_reviewers")` = **0**, and
 `[.reviewers[] | select(has("verdict"))] | length` > 0 in **0**. The keys DO exist, one level down
 — `Synthesis.AbsentReviewers` at `internal/mission/quorum/quorum.go:51` and the reviewer verdict
