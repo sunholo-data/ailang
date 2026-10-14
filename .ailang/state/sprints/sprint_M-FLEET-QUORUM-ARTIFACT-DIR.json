@@ -517,10 +517,10 @@
           "evidence": ""
         }
       ],
-      "passes": null,
+      "passes": false,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "Blocked: sandbox denies sync tool writes to .agents. Source reader and other M2 implementation ready; mirror-dependent gates/mutations uninformative. Controller must synchronize and rerun; see .snap/REPORT.md."
     }
   ],
   "controller_landing_steps": [
