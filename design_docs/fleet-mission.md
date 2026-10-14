@@ -43,6 +43,24 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-14 — ITERATION 36: P2 #11 ghost-resolved (`08ce76f30`); P2 #12 quorum salvage built and judged PASS 88 by sonnet — PR #1824 BLOCKED on an inherited required red on dev [HARNESS]
+
+**#11** `weekly-report:unknown-mission` was already fixed on origin/dev by `08ce76f30` (attended, 2026-10-06). It was re-verified for all 6 registry missions and judged PASS by sonnet. Resolved (51 open).
+
+**#12** (`quorum:invalid-absent-on-quoted-literals` + `quorum:reviewer-invalid-json-discarded`, #941). The design was re-grounded on the #941 refresh and passed the quorum in three steps: round 1 blocked, round 2 had one reject, and a carve-out revision applied the reviewers' verbatim fixes. It was built by codex and judged **PASS 88** (sonnet, 0 blocking, 10/10 own mutants killed).
+- A reviewer recorded `invalid` whose raw text holds a complete depth-1 `reject` now blocks the quorum. A salvaged pass is audit only.
+- JSON errors carry the byte offset and a centred window.
+- The skill's absent-reviewer remedy is split by reason.
+- Tier-2 is scoped out to queue row 16.
+
+**Why it did not land**: PR #1824's only failures are dev HEAD `42652c19e`'s own reds, two of them required:
+- `test`: `check-git-exec` flags `internal/executor/managed_agents/devapi_workspace.go` from `ffef3402a`.
+- `docs-gate`: an MDX compile error in `env-vars.md`.
+
+Both are outside fleet authority. V1 owns repo reds, but its kill switch is set. Resume predicate: `test` and `docs-gate` green on origin/dev; then merge, run the done-gate, and resolve both tickets.
+
+Clause map: **1** UNMEASURED; **2** UNMET (#11 ≈16 d; #12 blocked); **3** MET (51 open + row 16); **4** prior evidence only; **5** preserved. Next: land #1824, then P2 #13.
+
 ## STATUS 2026-10-13 — ITERATION 35: P2 #10 Gate 0 ledger provenance LANDED — #1815 `130486515`, judged PASS 92 by sonnet (round 2); ticket resolved [HARNESS]
 
 Gate 0 rule 6(b) used to check provenance with `git log -1 -S'| D-nn |'`. That pickaxe returns a row's CREATION commit, so every attended ruling read as fleet self-resolution. It now runs `scripts/mission_ledger_provenance.sh --id D-nn --file <charter>`. The instrument reports the LATEST OPEN→RESOLVED transition, with the creation commit as the control, and its verdict is one of: `attended`, `fleet`, `undetermined:squash-merge`, `never-resolved`, or rc 2. Only a fleet-authored flip that is not a squash merge counts as SELF-RESOLUTION. A flip committed by GitHub is reported and never re-opened, because a squash merge's author is the PR author, not the person who ruled. That applies to every ledger flip in this repo, including D-FLEET-1/13/14/15. Both skill copies are byte-identical. The 115-assertion bash-3.2 suite runs in `make test-launchd-drivers`, and CI runs it.
@@ -67,16 +85,6 @@ Findings:
 The independent sonnet judge (own worktree) scored **PASS 88**, 0 blocking, and replicated C1–C3 with its own method. Its N2 finding (the concurrency audit could mask a foreign deletion) was fixed and mutation-drilled both ways. Every provider is pinnable for skills: codex only through the `.agents` mirror, pi only explicitly. Phase 3b's mechanism (A retire the user symlinks / B per-fire config dirs / C no change) is **D-FLEET-16, OPEN for Mark**.
 
 Clause map: **1** UNMEASURED; **2** UNMET (no ticket resolved; the directive is not a ticket); **3** MET (52 open); **4** prior evidence only; **5** preserved (no harness code shipped). Next: P2 #10 `skill:gate0-ledger-provenance-S`.
-
-## STATUS 2026-10-12 — ITERATION 33: P1 #9 exit-path notices bounded and store-scoped LANDED — #1791 `e7dd6c127`, judged PASS 90 by sonnet; ticket resolved; P1 tier exhausted [HARNESS]
-
-The three remaining unbounded exit-path notice pairs in `tools/launchd/mission-control.sh` (the refusal, late-kill and rc-fail notices) now go through `_mc_exit_notice`. It makes one `_mc_bounded "$NOTIFY_TIMEOUT"` attempt per channel and always returns 0; a failure is logged as a WARNING with its reason, and a duplicate title is logged as already in the inbox. All three, plus the slot-verdict send, are now store-scoped (`env AILANG_STORAGE_MESSAGING=gcp …`). Before this, they wrote to the rig's local SQLite inbox. Titles, bodies, exit codes and the gate-0 F8 literal are byte-identical.
-
-The opus planner chose the helper over `_mc_notify` (no title change, and no retry that would stretch the exit path). The haiku executor (`claude-sub`) added hang, preservation and source-guard arms: 11 red before the fix, 115/0 after. The sonnet judge, in its own worktree, scored **PASS 90** with 0 blocking and M1–M5 mutants killed (M6 unmeasured). The judge's 2 red routing-note arms also failed on base and came from the controller's exported env; under `env -i` the suite is 115/0 (addendum banked).
-
-PR #1791 head `986def325`: 25 checks, 0 failures. Squash-merged → `e7dd6c127`. `make test-launchd-drivers` at the merge: rc 0 under `env -i`, 590 s. Healthy and degraded dry-runs under the idle stapledon profile: both `DRY RUN ok`, rc 0. Ticket resolved. Follow-ups, not ticketed: undated exit-notice titles, and unbounded sends in nightly-eval and other rig scripts.
-
-Clause map: **1** UNMEASURED; **2** UNMET (this ticket ≈16.5 d); **3** MET (53 open); **4** prior evidence only; **5** preserved. Next: the Phase 3a skill-resolution spike (P1 is now exhausted; directive "after P1, before P2").
 
 ## CURRENT GOAL
 
@@ -218,10 +226,11 @@ overnight: harness faults read as model faults)
 
 **P2 — hygiene, or correctness with a workaround**
 10. [LANDED · iteration 35] `skill:gate0-ledger-provenance-S`: #1815 → `130486515` (judged PASS 92 by sonnet, round 2). Gate 0 rule 6(b) runs `scripts/mission_ledger_provenance.sh`: latest OPEN→RESOLVED transition, creation control, squash-merged flips `undetermined` (never re-opened). Ticket resolved. Follow-ups (judge), not ticketed: bold `**RESOLVED**` cells read as never-resolved (N2); the `Attended ruling` stamp is not checked (N4).
-11. `weekly-report:unknown-mission`: `tools/mission-weekly-report.py:28-33` hardcodes
-    `[v1, world, motoko]`. Read `missions/*.toml`.
-12. `quorum:invalid-absent-on-quoted-literals`: `ParseReviewResult` is still strict. The repair is
-    designed (`design_docs/planned/m-quorum-salvage-retry.md`) but not built.
+11. [LANDED · iteration 36, ghost] `weekly-report:unknown-mission`: already fixed by `08ce76f30` (attended,
+    2026-10-06; the script reads `missions/*.toml`). Re-verified for all 6 missions, judged PASS (sonnet). Ticket resolved.
+12. [IN-SPRINT · iteration 36 · PR #1824, judged PASS 88, BLOCKED on inherited dev red] `quorum:invalid-absent-on-quoted-literals`
+    + `quorum:reviewer-invalid-json-discarded` (#941): redesigned (`m-quorum-salvage-retry.md`, quorum + carve-out), built and
+    judged. Merge when `test` and `docs-gate` are green on origin/dev, then run the done-gate at the merge and resolve both.
 13. `ci:launchd-suite-flakes-openrouter-peer-and-gh-hang` (filed 2026-09-29): 5 launchd-job failures
     between 09-26 and 09-28 on two signatures, none since 09-28 13:44Z. Verify one reproduces first.
 14. `quorum:artifact-dir-cwd-relative`: `artifact.go:14` is still CWD-relative. `--artifact-dir` is
@@ -246,6 +255,7 @@ overnight: harness faults read as model faults)
 `#1306` was half fixed by #1580 and got a verdict comment; it stays open for the orphan-row half.
 
 **Landed (history)**
+- `weekly-report:unknown-mission`: already fixed by `08ce76f30`; resolved iteration 36 (ghost).
 - `skill:gate0-ledger-provenance-S`: #1815 `130486515` (iteration 35).
 - `driver:exit-path-notices-unbounded`: #1791 `e7dd6c127` (iteration 33).
 - `quorum:zero-signal-guard-vacuous-with-controller-verdict`: #1767 `a5f9af982` (iteration 32).

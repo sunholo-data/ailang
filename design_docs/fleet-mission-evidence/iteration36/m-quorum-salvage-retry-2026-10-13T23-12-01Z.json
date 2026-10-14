@@ -1,0 +1,77 @@
+{
+  "doc": "design_docs/planned/m-quorum-salvage-retry.md",
+  "iso_ts": "2026-10-13T23:12:01Z",
+  "reviewers": [
+    {
+      "model": "oc-glm-5-3",
+      "cost_usd": 0.08694120000000001,
+      "tokens_in": 8578,
+      "tokens_out": 17030,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The retry-dropped justification rests on an unverified premise. V3 measures only that the byte sequence verdict\":\"reject appears inside the stored 200-byte %.200q window (a regex over .error); the design's efficacy claim — 'After D2 each one already ends blocked, which is the outcome a successful re-ask would give' — requires the strictly stronger fact that salvageVerdict recovers a depth-1 reject token that decodes before the break. Only the 4 unexpected-end rows nearly entail that ('unexpected end of JSON input' means every token before EOF decoded, given a leading { and a depth-1 verdict, neither of which was checked); for the 3 syntax-error rows the break can sit before the verdict token (a bare quote inside strongest_objection ahead of the verdict key — the F2 shape), yielding Salvaged==nil and today's outcome, which is exactly the case where a re-ask would have changed the result. The retained 200-byte window cannot order break versus verdict for those rows, and the doc neither ran its own V20 prototype over them nor downgraded the 7/7 'recoverable reject' claim; the scope decision (dropping retry) therefore depends on a stronger claim than anything in the verification log.",
+        "catch": "Verify three things before landing: (1) re-measure the 7 on-disk invalid rows under the scan's actual semantics — run the V20 prototype over the stored windows, or at minimum record each row's post-trim leading byte and error class and split the 7/7 into confirmed vs unconfirmable; (2) the gate-violation path is asserted but never probed — recordInvalid sits inside the perr != nil block (run.go:160) and V18 probes only finish_reason=length, so nothing shows a valid-JSON gate failure like {\"verdict\":\"reject\",\"strongest_objection\":\"\"} actually returns an error from ParseReviewResult rather than being recorded through a different branch, meaning the Offset=-1 path may be dead code and gate-violation rejects still dropped, contradicting D2's 'a reviewer's reject is never dropped'; (3) the deferred Tier-2 hole (measured live at HEAD in V19) is assigned to quorum:tier2-salvage-fold, a ticket that is only 'to be filed' and a trigger (first non-test caller of RunQuorumWithEscalation) that nothing monitors.",
+        "proposed_fix": "Concrete revisions: (1) Add V21 applying the V20 prototype scan to each of the 7 stored raw windows, recording post-trim leading byte, error class, and whether the verdict token precedes any break visible in the window; restate the premise as 'salvageable by the strict scan: 4/4 unexpected-end rows by construction; X/3 syntax rows confirmed; the remainder unconfirmable from the retained window'. (2) Rewrite the Retry-dropped first bullet to: 'Re-ask benefit is measured-zero for every row the strict scan provably recovers (the unexpected-end rows plus any syntax rows confirmed in V21); residual unconfirmed rows are bounded by the D5 remedy (one same-cap re-run when salvaged_verdict is absent) and the AC10 re-open trigger (salvaged == null and the absence changed the outcome), so retry stays out of scope.' (3) Add a probe arm to T6 feeding {\"verdict\":\"reject\",\"strongest_objection\":\"\"} through runReviewerWith and asserting AbsentReason==invalid with Salvaged.Verdict==reject and Offset==-1; if the probe shows gate violations do not flow through perr != nil, extend recordInvalid to that branch or delete the Offset=-1 semantics and D2's gate-violation paragraph. (4) Make filing quorum:tier2-salvage-fold a landing precondition (add it to AC10) instead of 'to be filed by the controller'."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-kimi-k3",
+      "cost_usd": 0.124596,
+      "tokens_in": 8612,
+      "tokens_out": 6584,
+      "present": true,
+      "result": {
+        "verdict": "pass",
+        "strongest_objection": "The doc's core new behavior — blocking on a salvaged reject in the N-1 shape (G2/G3) — closes a failure mode with zero measured on-disk instances (V4 admits this explicitly; the 3 measured vacuous proceeds were all G1 and are already blocked by the #1767 guard). The hole is only demonstrated via probe-synthesized inputs at HEAD (V7). This is close to the strongest ground for rejection, but it falls short: the probes execute the real production path (synthesize, RunSeatedQuorum), the fix is small and mechanical, the asymmetric-cost argument is sound, and every load-bearing claim — line numbers, fixture offsets, token semantics, depth tracking, the truncation twig, the Tier-2 caller census — carries a verification-log row with command and observed output. The two admitted unmeasured items (V17 truncation-provider status; the `call.go:39-55` mechanism citation) are non-load-bearing because V18 demonstrates the truncation behavior end-to-end.",
+        "catch": "Two small verification gaps and one spec gap: (1) D4 asserts `handlerCaller.CallJSON` returns no error on length with a `call.go:39-55` line citation that has no verification-log row — the behavior is corroborated by the V18 probe, so either log the cite or drop it and defer to V18. (2) The gate-violation twig (valid JSON failing ValidateReviewResult → Salvaged with Offset=-1) is only exercised at the salvageVerdict unit level (T3); no acceptance arm drives it through runReviewerWith to prove the recordInvalid wiring catches validation failures, not just parse failures. (3) `MarkdownBlock` is specified only for the salvaged-reject line (`; salvaged REJECT — blocks`); the rendering for a salvaged pass (audit-only) is unspecified.",
+        "proposed_fix": "1. Add a verification row: `V21 | CallJSON returns nil error on finish_reason=length | sed -n 39,55p call.go + probe stubCaller{resp:{FinishReason:\"length\"}} | no error returned; outcome lands in the perr!=nil branch (V18)` — or delete the line citation from D4 and cite V18 only. 2. Add acceptance arm T6c: `runReviewerWith` with a stub returning the gate-violation body `{\"verdict\":\"reject\",\"strongest_objection\":\"\",\"catch\":\"\",\"proposed_fix\":\"\"}` yields Present==false, AbsentReason==\"invalid\", Salvaged.Verdict==\"reject\", Salvaged.Offset==-1`; kill mutant M8c: recordInvalid placed on a parse-only branch. 3. Amend the artifact.go Files entry and D2 to specify the salvaged-pass rendering, e.g. `MarkdownBlock` absent line adds `; salvaged PASS — audit only (not counted)` when Salvaged.Verdict==pass, and extend T8 to assert it."
+      },
+      "landed": null
+    },
+    {
+      "model": "gpt6-1-sol",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "unreachable",
+      "error": "openai error (429): You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.",
+      "landed": null
+    },
+    {
+      "model": "gemini-4-argon",
+      "cost_usd": 0.021226,
+      "tokens_in": 9403,
+      "tokens_out": 242,
+      "present": true,
+      "result": {
+        "verdict": "pass",
+        "strongest_objection": "In D1, depth tracking purely via json.Delim tokens inside json.Decoder.Token() requires explicitly distinguishing between object keys and string values at depth 1; otherwise, a top-level string value that happens to equal \"verdict\" followed by a key \"reject\" (e.g., {\"other_key\":\"verdict\",\"reject\":\"foo\"}) could be misidentified as a verdict key-value pair if key/value state is not tracked alongside depth.",
+        "catch": "Verify that the depth-1 state machine in salvageVerdict explicitly alternates key vs. value state at depth 1 (or tracks whether a key is expected next) rather than merely matching sequential string tokens \"verdict\" and \"reject\" at depth 1.",
+        "proposed_fix": "In T3 (salvage table), add a test case `{\"other\":\"verdict\",\"reject\":\"pass\",\"verdict\":\"pass\",\"catch\":\"x` (gives `pass`, not `reject`) to kill a mutant that fails to distinguish object keys from string values at depth 1."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Controller (opus, in-session), round 2: each round-1 objection answered by measurement (V18-V20); Tier-2 moved to follow-up quorum:tier2-salvage-fold with zero production callers measured; truncation enters the same invalid block; depth tracking adopted."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "oc-glm-5-3: The retry-dropped justification rests on an unverified premise. V3 measures only that the byte sequence verdict\":\"reject appears inside the stored 200-byte %.200q window (a regex over .error); the design's efficacy claim — 'After D2 each one already ends blocked, which is the outcome a successful re-ask would give' — requires the strictly stronger fact that salvageVerdict recovers a depth-1 reject token that decodes before the break. Only the 4 unexpected-end rows nearly entail that ('unexpected end of JSON input' means every token before EOF decoded, given a leading { and a depth-1 verdict, neither of which was checked); for the 3 syntax-error rows the break can sit before the verdict token (a bare quote inside strongest_objection ahead of the verdict key — the F2 shape), yielding Salvaged==nil and today's outcome, which is exactly the case where a re-ask would have changed the result. The retained 200-byte window cannot order break versus verdict for those rows, and the doc neither ran its own V20 prototype over them nor downgraded the 7/7 'recoverable reject' claim; the scope decision (dropping retry) therefore depends on a stronger claim than anything in the verification log."
+    ],
+    "absent_reviewers": [
+      {
+        "model": "gpt6-1-sol",
+        "reason": "unreachable"
+      }
+    ],
+    "total_cost_usd": 0.2327632,
+    "total_tokens_in": 26593,
+    "total_tokens_out": 23856
+  }
+}
