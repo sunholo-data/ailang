@@ -4,20 +4,21 @@ import "strings"
 
 // The mission outer loop and the identity of whoever is acting.
 const (
-	EnvMissionName          = "MISSION_NAME"
-	EnvMissionGHIssue       = "MISSION_GH_ISSUE"
-	EnvMissionControlActive = "MISSION_CONTROL_ACTIVE"
-	EnvControllerID         = "CONTROLLER_ID"
-	EnvMissionRole          = "MISSION_ROLE"
-	EnvMissionMeteredBudget = "MISSION_METERED_BUDGET_USD"
-	EnvMissionDesignAuthor  = "MISSION_DESIGN_AUTHOR"
-	EnvAnthropicRation      = "AILANG_ANTHROPIC_RATION"
-	EnvMissionRegistry      = "AILANG_MISSION_REGISTRY"
-	EnvCodexHome            = "CODEX_HOME"
-	EnvCodexRuntime         = "AILANG_CODEX_RUNTIME"
-	EnvClaudeCode           = "CLAUDECODE"
-	EnvClaudeCodeSessionID  = "CLAUDE_CODE_SESSION_ID"
-	EnvUser                 = "USER"
+	EnvMissionName              = "MISSION_NAME"
+	EnvMissionGHIssue           = "MISSION_GH_ISSUE"
+	EnvMissionControlActive     = "MISSION_CONTROL_ACTIVE"
+	EnvControllerID             = "CONTROLLER_ID"
+	EnvMissionRole              = "MISSION_ROLE"
+	EnvMissionMeteredBudget     = "MISSION_METERED_BUDGET_USD"
+	EnvMissionDesignAuthor      = "MISSION_DESIGN_AUTHOR"
+	EnvMissionQuorumArtifactDir = "MISSION_QUORUM_ARTIFACT_DIR"
+	EnvAnthropicRation          = "AILANG_ANTHROPIC_RATION"
+	EnvMissionRegistry          = "AILANG_MISSION_REGISTRY"
+	EnvCodexHome                = "CODEX_HOME"
+	EnvCodexRuntime             = "AILANG_CODEX_RUNTIME"
+	EnvClaudeCode               = "CLAUDECODE"
+	EnvClaudeCodeSessionID      = "CLAUDE_CODE_SESSION_ID"
+	EnvUser                     = "USER"
 )
 
 // MissionMessagePlaneProject is the Firestore project every mission stage
@@ -33,6 +34,7 @@ const (
 const MissionMessagePlaneProject = "ailang-multivac"
 
 var missionVars = []Var{
+	{EnvMissionQuorumArtifactDir, "", AreaMission, "Opt-in absolute quorum evidence directory; unset uses the current repo local directory. Raw nonempty AILANG_AGENT_POLICY suppresses default overrides for confinement; distinct explicit artifact paths retain precedence."},
 	{EnvMissionName, "", AreaMission, "Name of the mission whose fire this process belongs to (v1, docs, motoko, world, fleet); set by the mission driver. Default filer for `ailang mission ticket file`; the push scope guard keys on it."},
 	{EnvMissionGHIssue, "", AreaMission, "GitHub issue number that overrides the mission's directive channel, so a cutover can be rehearsed against a scratch issue."},
 	{EnvMissionControlActive, "0", AreaMission, "1 marks the process as running inside a mission-control iteration."},
@@ -91,3 +93,9 @@ func ClaudeCodeSessionID() string { return strings.TrimSpace(get(EnvClaudeCodeSe
 func User() string { return strings.TrimSpace(get(EnvUser)) }
 
 func CodexRuntime() string { return get(EnvCodexRuntime) }
+
+// MissionQuorumArtifactDir preserves raw path bytes; validation belongs to the writer.
+func MissionQuorumArtifactDir() string { return get(EnvMissionQuorumArtifactDir) }
+
+// AgentPolicyPresentRaw conservatively treats every nonempty marker, including whitespace, as confined.
+func AgentPolicyPresentRaw() bool { return get(EnvAgentPolicy) != "" }

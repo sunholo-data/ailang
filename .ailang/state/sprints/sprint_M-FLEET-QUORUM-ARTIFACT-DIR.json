@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-FLEET-QUORUM-ARTIFACT-DIR",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-14T00:00:00Z",
   "mission": "fleet-mission",
   "iteration": 38,
@@ -214,10 +214,10 @@
           "evidence": "ok  \tgithub.com/sunholo-data/ailang/internal/mission/quorum\t2.355s"
         }
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-14T13:22:07.214171+00:00",
+      "notes": "Implementation, scoped gates and scratch-copy mutations complete. Independent evaluation and activation remain controller-owned; see .snap/REPORT.md."
     },
     {
       "id": "M2",
