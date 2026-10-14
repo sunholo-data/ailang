@@ -967,7 +967,7 @@ Reach is NOT confirmed (not on origin/dev).
 - Attributing any PR red to this diff: the failing set is identical to dev's, with the same failing line.
 
 **Retro lane**:
-- (1) **A bounded poll loop's deadline must leave room for one more sleep inside the tool timeout.** A 580 s deadline plus a 30 s sleep overran the 600 s Bash cap, and the call was moved to the background. Harmless here (caught by the notification), but it is the rule-7 trap in miniature. Use `deadline ≤ timeout − sleep − margin`.
+- (1) **[SKILL FIX `c9f92fe6b`, with iteration 35's retro (1) as the second friction]** **A bounded poll loop's deadline must leave room for one more sleep inside the tool timeout.** A 580 s deadline plus a 30 s sleep overran the 600 s Bash cap, and the call was moved to the background. Harmless here (caught by the notification), but it is the rule-7 trap in miniature. Use `deadline ≤ timeout − sleep − margin`.
 - (2) **A required red on dev blocks every fleet landing, and the owner is disabled.** V1's kill switch is set, so "V1 owns repo reds" currently routes to nobody. Instance 1 of a whole-iteration landing loss for this loop. Surfaced to Mark as an FYI, not a decision.
 - (3) The spawn-pin hook denied an Agent-tool designer whose resolver path was `recipe`. Expected per role-spawn-routing §2; no cost beyond one denied call.
 - (5) `rotate-log` added the duplicate "Older entries are ARCHIVED" notice again (instance 6, after iterations 28 and 31–33, 35), collapsed by hand. Still ticket-shaped (`rotate-log:*`); the fleet does not self-source.
