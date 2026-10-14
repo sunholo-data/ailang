@@ -43,8 +43,8 @@ This matches the MCP-for-inline, A2A-for-delegation split from the suggestion pa
 | `ailang_verify(code, contracts)` as a separate tool | Contracts live *in* the code, and `ai-check` already returns type-check plus Z3 as one JSON (V5). | One `ailang_check`. |
 | Tag pure tools `readOnlyHint: true` | Already automatic for empty effect rows; effectful tools declare `@mcp_hints` (V7). | No new mechanism. |
 | "Multi-step synthesis and self-repair over A2A" | This is the **`ailang_only` executor agent** as it exists today. `daneel-executor` is already an answer-only agent on that lane (V16). | P2 is a gateway, not a new agent loop. |
-| "Register MCP as actions in the GE Data Store" | **Unverified.** The Aitana reference never registered MCP with GE; it is A2A only (R1). | **PENDING P0-a.** |
-| GE sends user OAuth plus `X-Serverless-Authorization` | **Unverified** in any repo. | **PENDING P0-b.** |
+| "Register MCP as actions in the GE Data Store" | **Documented 2026-10-14 (not yet exercised).** GE has a *custom MCP server data store* connector, Streamable HTTP only, auth "No authentication" or "OAuth 2.0" (auth URL, token URL, client id/secret, scopes, optional PKCE). It needs an org-policy override (`discoveryengine.managed.disableCustomMcpServerConnector`) and the MCP, auth and token FQDNs allow-listed. Redirect URI `https://vertexaisearch.cloud.google.com/oauth-redirect`. `readOnlyHint` tools skip the per-call user confirmation. Source: [GE custom MCP setup](https://docs.cloud.google.com/gemini/enterprise/docs/connectors/custom-mcp-server/set-up-custom-mcp-server), and Mark saw the form in the console. | **P0-a answered by docs; confirm on registration.** |
+| GE sends user OAuth plus `X-Serverless-Authorization` | **Documented 2026-10-14.** For default `*.run.app` URLs, GE sends `X-Serverless-Authorization` with a Google-signed ID token for `service-<PROJECT_NUMBER>@gcp-sa-discoveryengine.iam.gserviceaccount.com`. That identity needs `roles/run.invoker`. It is not sent for custom domains. `Authorization` carries the user's OAuth token unchanged. Consequence: the executor MCP can run **IAM-only (no `allUsers`)**, with Cloud Run checking the service agent and the app optionally checking the user token. Same source as above. | **P0-b answered by docs; confirm with the header-echo service.** |
 | "A2A is primarily M2M via OIDC" | The only working GE↔A2A path ran **unauthenticated** (R4). | **PENDING P0-c.** This is the biggest risk. |
 | Per-seat vs. central billing decides the protocol | MCP calls cost CPU only. A2A tasks cost **model tokens** (glm-5.3-flash via OpenRouter, metered) plus a Job. Billing is a real axis **for A2A only**. | D5: a budget and a rate limit on the A2A path. |
 
@@ -134,6 +134,18 @@ Follow the Aitana-proven path (R1, R5):
 4. `scripts/verify-ge-executor.sh` ports Aitana's 12 card checks and adds an MCP `tools/list`, an `ailang_check` round trip, a policy-refusal fixture and one A2A `message/stream` round trip against dev.
 5. Cloud Run `--timeout=3600` on the gateway, and no response-buffering middleware in front of the SSE path (Aitana: a logging middleware broke streaming).
 6. MCP registration follows whatever P0-a finds. If our GE edition has no custom-MCP path, the MCP service still serves Claude, ChatGPT and Cursor, and GE uses A2A only, as Aitana does.
+
+### Agent Gateway route (alternative MCP path, found 2026-10-14)
+
+GE can also reach an MCP server through **Agent Gateway egress**, preview (`v1alpha`). The steps:
+
+1. Register the server in **Agent Registry** (`gcloud agent-registry services create … --mcp-server-spec-type=tool-spec`).
+2. Import it into the GE app (`setUpDataConnector`, `mcp_server_source: REGISTRY_MCP`, `use_agent_gateway_egress: true`).
+3. Reach Cloud Run privately (`--ingress=internal`) over PSC, with IAP and IAM access policies authorising each call.
+
+It is available in us-central1 and europe-west1. It needs a VPC, a PSC attachment and DNS peering, and it enables gateway routing for all GE traffic, including LLM calls. Source: [codelab](https://codelabs.developers.google.com/agw-ge-custom-mcp-egress-vpc-registry), [Agent Gateway for GE](https://docs.cloud.google.com/gemini-enterprise-agent-platform/govern/gateways/agent-gateway-ge-deploy).
+
+**Recommendation:** use the direct custom-MCP connector with IAM-only Cloud Run first, because it needs no network build-out. Consider the gateway route only if central governance or private ingress is required.
 
 ### P0: discovery spike (attended, half a day, gates P2–P3)
 
