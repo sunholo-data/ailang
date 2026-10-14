@@ -217,7 +217,8 @@ ailang eval-suite --agent --models agy-gemini-3-1-pro --benchmarks "$SMOKE" --la
 - agy Cloud-project route: license auto-discovery found nothing; manual project `sunholo-gemini-enterprise` → "no license available".
 - The agy binary's project route fetches Gemini Code Assist licences (`aicode`/`businessaicode` FetchLicenses; `UNLICENSED_TIER` state) and calls `aiplatform` heavily.
 - Mark (manually, in the console) added IAM on `sunholo-gemini-enterprise` for m@sunholo.com: `roles/cloudaicompanion.user` (Gemini for Google Cloud User) and `roles/serviceusage.serviceUsageConsumer`. Verified by `get-iam-policy`; m@sunholo.com also holds `roles/owner` and `roles/discoveryengine.user` there. Subscription still not working at time of writing.
-- Unresolved: whether the `mark-gemini` Code Assist seat is assigned to m@sunholo.com, and whether agy accepts a legacy Code Assist seat or only a Gemini Enterprise entitlement. Fallback: API-key route on the locked `ailang-gemini-agents` key (metered, $100 cap).
+- ROOT CAUSE FOUND: `mark-gemini` used **automatic** licence assignment, which reclaims a seat from a user idle for ~a month — m@sunholo.com had been silently unassigned. Mark switched the subscription to **manual** assignment and assigned m@sunholo.com. Trap for the fleet: under automatic assignment an idle month silently de-licenses the lane; keep it manual.
+- Previously unresolved: whether the `mark-gemini` Code Assist seat is assigned to m@sunholo.com, and whether agy accepts a legacy Code Assist seat or only a Gemini Enterprise entitlement. Fallback: API-key route on the locked `ailang-gemini-agents` key (metered, $100 cap).
 
 ## Deferred Decisions
 
