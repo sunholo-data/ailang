@@ -157,6 +157,25 @@ steps:
           .
     waitFor: ['setup-buildx']
 
+  # Hosted code executor (M-AILANG-EXECUTOR-GE): mcp_tools + executor_tools on
+  # one MCP endpoint. Same context and snapshot as build-mcp.
+  - id: build-executor-mcp
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/executor-mcp:cache" \
+          --cache-to   "type=registry,ref=$$AR/executor-mcp:cache,mode=max" \
+          -t "$$AR/executor-mcp:latest" \
+          -f docker/Dockerfile.executor-mcp \
+          --push \
+          .
+    waitFor: ['setup-buildx']
+    allowFailure: true
+
   # ── Agent image DAG ────────────────────────────────────────────────────────
 
   # agent-base clones the bootstrap plugin (the cloud agents' hooks, including
@@ -456,6 +475,7 @@ steps:
       - push-coordinator
       - build-dashboard
       - build-mcp
+      - build-executor-mcp
       - build-ntfy
       - build-agent-go
       - build-agent-pi-go
