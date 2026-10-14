@@ -6,7 +6,7 @@
 allowed_caps     = ["IO"]
 fs_sandbox       = "/tmp/ailang-exec"   # = EXECUTOR_WORK_DIR; one dir per request
 security_mode    = "restricted"
-timeout_ms       = 20000                # supervisor kills the worker group
+timeout_ms       = 60000                # supervisor kills the worker group
 max_output_bytes = 65536
 max_source_bytes = 65536
 entry            = "main"

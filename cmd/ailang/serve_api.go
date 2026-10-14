@@ -43,6 +43,8 @@ func serveAPICommand(args []string) error {
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
 	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
+	processTimeoutFlag := fs.String("process-timeout", "", "Process exec timeout (e.g. 90s); default 30s. Needs --caps Process")
+	processAllowlistFlag := fs.String("process-allowlist", "", "Commands Process may exec (comma-separated, cmd or cmd:sub); default any on PATH. Needs --caps Process")
 	ws := registerServeAPIWSFlags(fs)
 
 	if err := fs.Parse(args); err != nil {
@@ -144,6 +146,15 @@ func serveAPICommand(args []string) error {
 			effCtx.Net.AllowLocalhost = true
 			effCtx.Net.AllowMetadata = true // Cloud Run needs GCP metadata server (169.254.169.254)
 		}
+	}
+
+	// --process-* mirror `ailang run`: without them serve-api's Process cap
+	// ran any PATH binary under a fixed 30s timeout (M-AILANG-EXECUTOR-GE).
+	if !effCtx.HasCap("Process") && (*processTimeoutFlag != "" || *processAllowlistFlag != "") {
+		return fmt.Errorf("--process-timeout and --process-allowlist need --caps Process")
+	}
+	if err := runner.SetupProcessHandler(effCtx, *processTimeoutFlag, *processAllowlistFlag, 0); err != nil {
+		return err
 	}
 
 	if err := ws.apply(effCtx); err != nil {
@@ -252,6 +263,8 @@ func printServeAPIHelp() {
 	fmt.Println("  --no-introspection   Serve no /api/_meta/* and no /api/_health (the paths stay reserved)")
 	fmt.Println("  --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	fmt.Println("  --oauth-issuer URL   OAuth authorization server for @mcp_auth(\"oauth2\") tools on /mcp/connect/")
+	fmt.Println("  --process-timeout D  Process exec timeout (default 30s; needs --caps Process)")
+	fmt.Println("  --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)")
 	printServeAPIWSHelp()
 	fmt.Println("  --help               Show this help message")
 	fmt.Println()

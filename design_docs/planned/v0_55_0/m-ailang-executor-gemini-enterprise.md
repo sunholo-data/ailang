@@ -92,7 +92,7 @@ An AILANG serve-api program (`mcp_tools/executor.ail`, served by its own Cloud R
 | `ailang_builtins_search(query)`, `ailang_examples_search(query)`, `ailang_docs_search(query)` | `policy-tool` ops `builtins_list` / `docs_search` / examples (V15) | BuiltinsSearch, ExamplesSearch |
 | `ailang_syntax()` | The `ailang prompt` teaching text | — (pi/motoko get it in the system role; Gemini can only get it from a tool) |
 
-`ge-mcp.toml` is **stricter than the executor policy**: `allowed_caps = ["IO"]`, no `Process`, no `Net`, `fs_sandbox` = the per-request dir, `timeout_ms` around 20000, and an output cap. The supervisor enforces the timeout; this is the v0.41 hardening (V14).
+`ge-mcp.toml` is **stricter than the executor policy**: `allowed_caps = ["IO"]`, no `Process`, no `Net`, `fs_sandbox` = the per-request dir, `timeout_ms` = 60000 (raised from 20000 on 2026-10-14 so real programs fit), and an output cap. The supervisor enforces the timeout; this is the v0.41 hardening (V14).
 
 Calling out to the binary means the executor program itself needs `FS` (to write the request file) and `Process` (to exec `ailang`) and nothing else. It runs under a **dedicated zero-role service account** on Cloud Run gen2.
 

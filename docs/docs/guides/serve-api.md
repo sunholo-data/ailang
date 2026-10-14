@@ -719,6 +719,8 @@ Flags:
   --ws-pass-header H   Give @route("WS") handlers this request header in req.headers (repeatable)
   --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)
   --oauth-issuer URL   OAuth authorization server for @mcp_auth("oauth2") tools on /mcp/connect/
+  --process-timeout D  Process exec timeout (default 30s; needs --caps Process)
+  --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)
 
 Arguments:
   <path...>            One or more .ail files or directories

@@ -4,6 +4,9 @@
 #   executor_tools/smoke.sh https://<service>.run.app/mcp/
 #   executor_tools/smoke.sh http://127.0.0.1:8791/mcp/
 #
+# The dev service is IAM-only: pass an identity token via MCP_TOKEN, e.g.
+#   MCP_TOKEN=$(gcloud auth print-identity-token) executor_tools/smoke.sh <url>/mcp/
+#
 # Checks: tools/list carries the five executor tools plus docs + submit_feedback;
 # ailang_run prints; an FS-using program is refused by policy; an infinite loop
 # is killed at the policy timeout; ailang_check reports a type error; ailang_eval
@@ -12,18 +15,21 @@ set -euo pipefail
 URL="${1:?usage: smoke.sh <mcp-url>}"
 
 python3 -I - "$URL" <<'PY'
-import json, sys, time, urllib.request
+import json, os, sys, time, urllib.request
 
 url = sys.argv[1]
+token = os.environ.get("MCP_TOKEN", "")
 fails = 0
 
 def rpc(method, params=None, timeout=90):
     body = {"jsonrpc": "2.0", "id": 1, "method": method}
     if params is not None:
         body["params"] = params
-    req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={
-        "content-type": "application/json",
-        "accept": "application/json, text/event-stream"})
+    headers = {"content-type": "application/json",
+               "accept": "application/json, text/event-stream"}
+    if token:
+        headers["authorization"] = "Bearer " + token
+    req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers)
     text = urllib.request.urlopen(req, timeout=timeout).read().decode()
     return json.loads(text[text.find("{"):])
 
