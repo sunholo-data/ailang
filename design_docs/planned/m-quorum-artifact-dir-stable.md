@@ -33,7 +33,7 @@ Both Gate 2 copies contain the relative lookup at `resources/gate-2-pick.md:139`
 |---|---|---|---|
 | Opt-in Registry env; relative constant frozen | Preserves policytool's write gate | recommendation / design approval | high |
 | Repo-scoped host directory; marked missions error | Prevents cross-repo matches and silent path divergence | recommendation / design approval | medium |
-| Defer additive import; no permanent read-both | Keeps a P2 durability fix bounded | recommendation / design approval | low |
+| Defer additive import; fixed-order two-directory reader fallback (quorum round 2, oc-kimi-k3 verbatim) | Keeps a P2 durability fix bounded while closing the attended↔mission boundary | recommendation / design approval | low |
 
 **Design freeze:** raw nonempty policy markers always confine default writes; never trim or validate the marker to relax suppression. Namespace by repo identity, not mission or clone path. Implementation still requires approval → planning → execution gates.
 
@@ -81,7 +81,7 @@ Gate 2 determines the current repo root with `git rev-parse --show-toplevel`; in
 | Reader state (default quorum invocation) | Directory / result |
 |---|---|
 | Active mission, marker nonempty or override empty/unset | Wiring/confinement error, not UNREVIEWED |
-| Marker empty, override nonempty (mission or attended) | Validate absolute override; use it; invalid is error |
+| Marker empty, override nonempty (mission or attended) | Validate absolute override; consult it FIRST, then `<repo-root>/.ailang/state/mission-quorum` (fixed order; see cross-mode fallback below); invalid is error |
 | Attended, marker empty, override empty/unset | `<current-repo-root>/ArtifactDir`; same as writer run there |
 | Standalone policy reader, marker nonempty | `<sandbox-CWD>/ArtifactDir`; suppress nonempty override loudly |
 | `MISSION_REPO` unset, attended | No namespace construction; local or explicit override row still works |
@@ -92,6 +92,8 @@ Gate 2 determines the current repo root with `git rev-parse --show-toplevel`; in
 | No repo root when attended fallback needs it | Configuration error, not UNREVIEWED |
 | Resolved directory absent, or no matching JSON | UNREVIEWED |
 | Permission/read/parse error, or path exists but is not a directory | Error, not UNREVIEWED |
+
+**Cross-mode fallback (quorum round 2, oc-kimi-k3 `proposed_fix`, applied verbatim under the narrow-refinement carve-out):** "define a deterministic fixed-order two-directory reader fallback: mission-mode readers with an export consult the exported dir first, then `<repo-root>/.ailang/state/mission-quorum`, emitting `quorum artifact directory: <path>` per consulted directory; this is clone-layout-independent (git rev-parse is already used) and preserves fail-closed error semantics." A match in either directory is REVIEWED; absence in both is UNREVIEWED; an error in either is an error. Scope note: `<repo-root>` is the reader's own `git rev-parse --show-toplevel`, so an attended artifact written in a DIFFERENT worktree (e.g. the main checkout, read from a pin) is still reached only by the explicit legacy importer follow-up or by the attended session exporting the override.
 
 Source failures stop the gate. With directory quoted, retain `<doc-id>-*.json`, slug, freshness/verdict rules. Print `quorum artifact directory: <absolute path>` before lookup; use that directory for all subsequent reads. Leave writer flag omitted and keep the same cwd/env for quorum invocation. Include an executable block in Gate 2 and test the block extracted from the actual skill. Clarify `:215` as a historical local-path measurement.
 
@@ -169,6 +171,7 @@ New Go arms set HOME to `t.TempDir()`; all shell/integration arms use `HOME=$(mk
 | AC7 | Execute the shell block extracted from the actual Gate 2 skill; absent is empty, unreadable/invalid config is error; missing env/driver root or marked active mission fails wiring check; attended unset driver root uses repo helper | Treat lookup errors as unreviewed; stale skill snippet |
 | AC8 | Actual Codex forwarding + dispatch environment builders with fake CLIs capture override AND marker presence; clean host lanes agree; contaminated startup/reader fails; policy children stay confined; `/bin/bash` 3.2, no model/quota probes | Unexported variable; strip `MISSION_*`; remove marked-mission guard; bash 4 construct |
 | AC9 | Extract Gate 2 shell block; attended process with override, marker, `MISSION_REPO`, `MISSION_DRIVER_ROOT`, active flag all unset; real writer at same fixture repo root; reader finds exact bytes/path. Repeat absent directory, zero matches and unreadable fixtures | Require mission identity/export for attended use; generate home default; reader/writer CWD mismatch |
+| AC11 | "Fixture artifact written by attended writer at repo root is found byte-identically by mission-mode reader with export set, and vice versa; absent fixture in both namespaces remains UNREVIEWED." (quorum round 2, oc-kimi-k3 verbatim) | Export-only reader (drop the repo-root fallback); reversed consult order; error in one directory swallowed as UNREVIEWED |
 | AC10 | Focused Go + shell tests, registry checks, skill sync, boundaries and lint pass; env docs updated; real-directory manifest before/after unchanged or absent | Omitted Registry/suite/mirror; accidental real-HOME fixture |
 
 Run `go test ./internal/mission/quorum ./internal/policytool`, focused config registry tests, the new shell test and `make test-launchd-drivers`; then `/bin/bash tools/launchd/sync-agents-skills.sh --check`, `make check-boundaries`, `make lint`. Full config tests also run on a runner permitting httptest listeners. An independent evaluator must remove suppression and revert the reader path and observe the corresponding arms fail; fixture-vs-fixture agreement alone is insufficient.
@@ -211,7 +214,7 @@ Original-pass observation manifest SHA256s (before = after within that pass; rev
 
 | Axiom | Score | Reason |
 |---|---:|---|
-| A1 Determinism | +1 | Exported host-mission directory independent of CWD; attended/policy paths explicitly scoped |
+| A1 Determinism | 0 | Downgraded per quorum round 2 (oc-kimi-k3): "Downgrade A1 to 0 until cross-mode verdict stability is demonstrated" (AC11) |
 | A2 Replayability | +1 | Future host-mission evidence survives ephemeral trees; no legacy recovery claim |
 | A3 Effect Legibility | 0 | Existing artifact write remains explicit |
 | A4 Explicit Authority | 0 | Policy-marked default remains confined |
@@ -236,6 +239,10 @@ Legacy attribution and missing sources require explicit reporting, not fabricate
 - **oc-kimi-k3 / objection 2:** Added reader decision table including unset repo/driver root, errors versus UNREVIEWED, repo-root cwd convention and extracted-block AC9 against an attended writer with all mission exports unset.
 - **gemini-4-argon / objection 3:** Verified pre-review entry points lack directory/error handoff; driver pre-flight is in scope, standalone CLI pre-flight is deferred; stated $0.90 primary-seat cap exposure and reserve-seat caveat.
 - **Controller scope note:** Deferred the importer entirely; core milestones only fix future durability/agreement, with legacy recovery explicitly separate.
+
+## Quorum round 2 response (controller, narrow-refinement carve-out)
+
+Round 2: gemini-4-argon pass, oc-glm-5-3 pass, oc-kimi-k3 reject (artifact `m-quorum-artifact-dir-stable-2026-10-14T12-54-25Z.json`). kimi's objection disputes completeness (cross-mode visibility), not direction, and carries a concrete `proposed_fix`; its second alternative (fixed-order two-directory reader) is applied verbatim above, with its AC11 and its A1 downgrade. Its first alternative (activation-time importer) stays deferred with the importer. glm's pass note (env silently redirects an explicit `--artifact-dir` equal to the sentinel) is carried to the planner as a non-blocking item: the existing post-write `quorum artifact: <path>` line is the only runtime signal.
 
 ## Related Documents / Out-of-Scope Follow-ups
 
