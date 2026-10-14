@@ -1,6 +1,6 @@
 # M-WORLD-RELEASE-PNG-ALLOWANCE — a path-scoped, content-verified PNG allowance in World's tracked-binary gate
 
-**Status**: Planned. Quorum r1 and r2 BLOCKED; every objection was addressed by measurement (V14–V19). Awaiting Mark: two freeze items, and whether to run a third round.
+**Status**: Planned — APPROVED by Mark 2026-10-14 (attended): allowance mechanism + caps 1 MiB/8 MiB ratified; quorum r3 waived. Sprint M-WORLD-PNG-ALLOWANCE.
 **Target**: fleet-authored commit to `sunholo-data/ailang-world` (no AILANG release needed)
 **Priority**: P1 — the last World v1.0.0 release row (150) is blocked on it, and the loop has idled 9 fires
 **Estimated**: ~0.5 day, attended
@@ -81,8 +81,8 @@ Any allowance built on git's classifier inherits both holes. The fix below repla
 
 ### Design Freeze
 
-- [ ] Mark: mechanism = path-scoped allowance (not LFS or external hosting)
-- [ ] Mark: caps 1 MiB/file, 8 MiB/dir (or other numbers)
+- [x] Mark: mechanism = path-scoped allowance (not LFS or external hosting)
+- [x] Mark: caps 1 MiB/file, 8 MiB/dir (or other numbers)
 
 ## Solution Design
 
