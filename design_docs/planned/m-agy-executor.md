@@ -205,12 +205,19 @@ ailang eval-suite --agent --models agy-gemini-3-1-pro --benchmarks "$SMOKE" --la
 | V7 | A process-group kill precedent exists | `internal/executor/motoko/motoko.go:367` (Setpgid plus group-kill Cancel) | Confirmed |
 | V8 | A shared version probe exists for asserting the pinned CLI version | `internal/executor/version.go` `VersionProbe.Raw/Identity` | Confirmed |
 | V9 | Without sign-in, `agy models` prints "Please sign in…" and exits 0 | local run 2026-10-13 under a 20 s alarm | Confirmed. Also an exit-0-on-error case the parser must not trust |
-| P1 | Mark has Google AI Pro/Ultra | none. He is unsure | **PENDING** (Phase 0) |
+| P1 | Mark has Google AI Pro/Ultra | No consumer AI Pro: agy refuses m@sunholo.com on the consumer route ("doesn't use Workspace, needs Gmail"). Billing export (2026-10-14) shows two live one-seat subscriptions on the shared billing account: Gemini Enterprise Standard `sunholo-dev` (~$35/mo) and Gemini Code Assist `mark-gemini` (~$22.80/mo), both since late July. agy's Cloud-project route against `sunholo-gemini-enterprise` reports "no license available" | **PENDING** (Phase 0; see log below) |
 | P2 | Subscription quota is 5-hour rolling plus weekly, with AI-credit overage | forum reports only (discuss.ai.google.dev/t/146716; antigravity.google/docs/cli/credits) | **PENDING** (Phase 0) |
 | P3 | Headless runs do not hang under launchd | not measured | **PENDING** (Phase 0) |
 | P4 | Quota exhaustion is observable (a field or error) before or at the failing run | not measured | **PENDING** (Phase 0) |
 | P5 | Whether `agy` auto-updates itself on start | `agy update` exists; startup behaviour not measured | **PENDING** (Phase 0) |
 | P6 | Under launchd the subscription keyring credential is readable without a GUI login | not measured. Prior: claude's keychain shadowing (memory: blanked-keychain incident) | **PENDING** (D2) |
+
+**Phase 0 sign-in log (attended, 2026-10-14):**
+- agy consumer route: rejected for m@sunholo.com (Workspace account; requires a Gmail account).
+- agy Cloud-project route: license auto-discovery found nothing; manual project `sunholo-gemini-enterprise` → "no license available".
+- The agy binary's project route fetches Gemini Code Assist licences (`aicode`/`businessaicode` FetchLicenses; `UNLICENSED_TIER` state) and calls `aiplatform` heavily.
+- Mark (manually, in the console) added IAM on `sunholo-gemini-enterprise` for m@sunholo.com: `roles/cloudaicompanion.user` (Gemini for Google Cloud User) and `roles/serviceusage.serviceUsageConsumer`. Verified by `get-iam-policy`; m@sunholo.com also holds `roles/owner` and `roles/discoveryengine.user` there. Subscription still not working at time of writing.
+- Unresolved: whether the `mark-gemini` Code Assist seat is assigned to m@sunholo.com, and whether agy accepts a legacy Code Assist seat or only a Gemini Enterprise entitlement. Fallback: API-key route on the locked `ailang-gemini-agents` key (metered, $100 cap).
 
 ## Deferred Decisions
 
