@@ -2581,7 +2581,8 @@ if [ -f "$_mc_slot_hb" ]; then
     0:complete) _mc_slot_verdict="COMPLETED" ;;
     0:abort) _mc_slot_verdict="ABORTED" ;;
     0:fired|0:) _mc_slot_verdict="DIED-PRE-GATE-0" ;;
-    0:gate-*) _mc_slot_verdict="REAPED at=$_mc_slot_last" ;;
+    0:gate-0|0:gate-1|0:gate-2|0:gate-3|0:gate-3b|0:gate-4|0:gate-5) _mc_slot_verdict="REAPED at=$_mc_slot_last" ;;
+    0:*) _mc_slot_verdict="UNCLASSIFIED at=$_mc_slot_last" ;;
     143:*|137:*) _mc_slot_verdict="KILLED at=${_mc_slot_last:-fired}" ;;
     *:*) _mc_slot_verdict="CRASHED at=${_mc_slot_last:-fired}" ;;
   esac
@@ -2604,7 +2605,7 @@ rm -f "$PIDFILE"   # this instance owns the run; yield paths above never reach h
 
 # --- SLOT NOTIFY START ---
 case "$_mc_slot_verdict" in
-  REAPED*|DIED-PRE-GATE-0|HEARTBEAT-MISSING)
+  REAPED*|DIED-PRE-GATE-0|HEARTBEAT-MISSING|UNCLASSIFIED*)
     _mc_slot_episode="$_mc_slot_state/mission-${MISSION_NAME}-reaped.episode"
     if [ ! -f "$_mc_slot_episode" ] || [ "$(cat "$_mc_slot_episode" 2>/dev/null)" != "$_mc_slot_verdict" ]; then
       printf '%s' "$_mc_slot_verdict" > "$_mc_slot_episode"
