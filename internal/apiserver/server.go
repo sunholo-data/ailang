@@ -741,7 +741,13 @@ func (s *Server) printStartupBanner(addr string) {
 		log.Println("    POST /a2a/                      (A2A JSON-RPC)")
 	}
 	if s.mcpEnabled {
-		log.Println("    POST /mcp/                      (MCP Streamable HTTP)")
+		// Mirrors mountMCP: --mcp-connect-only has no /mcp/.
+		if !s.mcpConnectOnly {
+			log.Println("    POST /mcp/                      (MCP Streamable HTTP)")
+		}
+		if s.mcpConnectOnly || hasListedSurface(s.GetModules()) {
+			log.Println("    POST /mcp/connect/              (MCP Streamable HTTP, listed)")
+		}
 	}
 
 	if s.frontendPath != "" {

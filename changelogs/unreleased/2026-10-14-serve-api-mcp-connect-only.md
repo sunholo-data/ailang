@@ -13,3 +13,8 @@ With `--mcp-connect-only`:
 Startup fails without `--mcp-http`, without `--oauth-issuer`, without an `@mcp_token_verifier`,
 or with `--a2a`. `TestMCPConnectOnly_*` covers each bypass (`/mcp/`, `@route`, the `/api/`
 catch-all, OpenAPI) through the real route table; removing any one of the four guards fails it.
+
+### Fixed — the serve-api startup banner lists the MCP endpoints actually mounted
+
+It listed `POST /mcp/` whenever MCP was on, including under `--mcp-connect-only`, where `/mcp/` is a 404. It now
+lists `/mcp/` only when that endpoint is mounted, and `/mcp/connect/` whenever the listed endpoint is.
