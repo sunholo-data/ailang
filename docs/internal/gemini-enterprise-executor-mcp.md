@@ -21,7 +21,7 @@ the values used. Design: [m-ailang-executor-gemini-enterprise](../../design_docs
 
 - GE app project: `sunholo-gemini-enterprise`, number `863281350736`.
 - GE calls the MCP as `service-863281350736@gcp-sa-discoveryengine.iam.gserviceaccount.com`,
-  sent as a Google-signed ID token in `X-Serverless-Authorization`. It is sent **only to default
+  sent as a Google-signed ID token in `X-Serverless-Authorization`. Confirmed live on 2026-10-14: GE's client (`google-adk/2.11.0`) got 200s from the IAM-only service. It is sent **only to default
   `*.run.app` URLs**, never to custom domains. That agent holds `roles/run.invoker` on the
   service; so does `user:m@sunholo.com` for hand testing. A call with no token gets 403.
 - The service runs as the existing `mcp` service account (feedback publish + Firestore only).
@@ -46,6 +46,9 @@ the values used. Design: [m-ailang-executor-gemini-enterprise](../../design_docs
    - Sensitive data protection policy: blank.
    - Description: the text below.
    If a failed attempt left a half-created connector (`ailang-mcp-dev_…`), delete it first.
+   After creating it, open the connector's **Actions** tab: every tool starts **Disabled**
+   (GE chat says "Actions for this custom MCP server are disabled"). Select all, then **Enable actions**.
+   `submit_feedback` is the only tool that writes (to the AILANG feedback inbox).
 5. **Verify:** `MCP_TOKEN=$(gcloud auth print-identity-token) executor_tools/smoke.sh <url>/mcp/`
    should report 6/6, with the infinite-loop check killed at about 60s. Then call a tool from GE chat.
 
