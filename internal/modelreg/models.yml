@@ -2032,12 +2032,15 @@ models:
     agent_model_name: "antigravity-preview-09-2026"
     max_output_tokens: 65536
     pricing:
-      # BEST-AVAILABLE PROXY, not a verified rate: the model is unknown (notes).
-      # gemini-3.1-pro rates — what the agent self-reported, and above Argon's
-      # $2/$10 intro rate, so the proxy errs toward OVER-stating spend.
-      input_per_1k: 0.002         # $2.00 per 1M fresh input
-      output_per_1k: 0.012        # $12.00 per 1M (thought tokens bill here too)
-      cache_read_per_1k: 0.0002   # $0.20 per 1M (10% of input, Gemini standard)
+      # BILLED rates, from the GCP billing export (2026-10-14): the 10-13 smoke
+      # gate on project ailang-gemini-agents billed as SKU "gemini 3.8 flash
+      # text" — 2.53M input $1.90, 40.1M cached $3.01, 193.6K output $0.73
+      # ($5.69 total vs $15.26 at the old 3.1-Pro proxy). Implied per-1M:
+      # $0.75 / $0.075 / ~$3.75. Billed output was ~3x the 65K our usage
+      # parse recorded — thought tokens are likely missing from the parse.
+      input_per_1k: 0.00075       # $0.75 per 1M fresh input
+      output_per_1k: 0.00375      # ~$3.75 per 1M (thought tokens bill here too)
+      cache_read_per_1k: 0.000075 # $0.075 per 1M
     budgets:
       max_cost_usd: 2.00
       hard_timeout_secs: 900
@@ -2056,6 +2059,10 @@ models:
       applies it locally and deletes the sandbox. Non-git workspaces (eval
       benchmarks) go up as inline files (1 MB/file, 2 MB total).
 
+      MODEL (billing evidence, 2026-10-14): the agent runs on Gemini 3.8 Flash —
+      every token of the 23-bench smoke billed under that SKU; the self-report
+      "Gemini 3.1 Pro" was wrong. The gemini-4-argon pin probe billed ~10K input
+      under an Argon SKU, so a pin may route SOME calls. Previously:
       MODEL IS UNKNOWN, as with the Vertex row. agent_config.model is a recognised
       field ("Unknown parameter" fires for others) and is echoed back, but a bogus
       model is not rejected, and a run pinned to gemini-4-argon self-reported

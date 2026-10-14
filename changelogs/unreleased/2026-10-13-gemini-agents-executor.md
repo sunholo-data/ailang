@@ -12,3 +12,7 @@ agent's edits applied on top. It took 131 s and cost $0.058. Auth is `GEMINI_AGE
 (new config var) from the locked `ailang-gemini-agents` project. New opt-in registry row:
 `gemini-agents-antigravity`. The Cloud Run accept-set pin goes from 77 to 88 cells and from 41 to
 52 accepted, because `gemini_agents` is binaryless like `managed_agents`.
+
+### Changed — gemini-agents-antigravity priced from the billing export
+
+The GCP billing export shows the antigravity agent bills as Gemini 3.8 Flash ($0.75 / $0.075 cached / ~$3.75 per 1M), not the 3.1 Pro proxy. The smoke gate really cost $5.69, not the $15.26 the proxy estimated.
