@@ -1,0 +1,48 @@
+{
+  "sprint_id": "M-FLEET-SLOT-UNCLASSIFIED",
+  "status": "planned",
+  "created": "2026-10-14T00:00:00Z",
+  "verified_at": "1f5f0d3ac07dfb35d49c46bc9d66e4ec0e097b51",
+  "design_doc": "design_docs/planned/v1_0_0/m-mission-slot-heartbeat.md",
+  "sprint_plan": "design_docs/planned/sprint-plan-slot-verdict-unclassified.md",
+  "ticket": "driver:unclassified-state-unreachable",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": "tools/launchd existing slot verdict/notify blocks and heartbeat test seams",
+      "action": "none",
+      "reason": "No package-like capability is being introduced; registry search is inapplicable. Reuse the existing awk-extracted production blocks, run_verdict helper and recording _mc_bounded stub; no new package or notification mechanism."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 100,
+    "estimated_days": 0.25
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Make rc=0 unknown heartbeat labels emit UNCLASSIFIED at=<raw label> before the catch-all CRASHED arm, tighten gate matching to the writer's exact gate-0/1/2/3/3b/4/5 enum, add UNCLASSIFIED to the existing bounded episode-gated phase-2 notice, add all named regressions and execute the mutation table, replace design residual R9 with one fixed-status line, and add changelogs/unreleased/2026-10-14-slot-verdict-unclassified.md. Only those four executor files are touched; no routing, threshold, quota, billing or other driver behavior changes.",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Premises are verified against HEAD 1f5f0d3ac07dfb35d49c46bc9d66e4ec0e097b51; the plan records nine current design-doc UNCLASSIFIED mentions instead of the ticket's historical five, and zero driver mentions.",
+        "New arms 'rc=0 last=bogus => UNCLASSIFIED at=bogus' and 'rc=0 last=gate-bogus => UNCLASSIFIED at=gate-bogus' assert exact verdict prefixes; both fail before the production fix and pass after it.",
+        "New arms 'rc=1 last=bogus => CRASHED at=bogus', 'rc=0 last=gate-3 => REAPED at=gate-3', 'rc=0 last=gate-3b => REAPED at=gate-3b', 'rc=143 and rc=137 last=bogus => KILLED at=bogus', and 'paused rc=0 last=bogus => PAUSED-NO-CAPACITY at=bogus' pass with unchanged non-zero, known-gate and pause behavior.",
+        "New arms 'phase-2 notifies UNCLASSIFIED once through _mc_bounded', 'phase-2 dedupes repeated UNCLASSIFIED verdict', and 'phase-2 COMPLETED resets UNCLASSIFIED episode' pass using recording stubs and the real extracted notify block; no test sends external messages.",
+        "New arm 'UNCLASSIFIED history verdict stays one whitespace-free token' preserves raw bogus label in the log and asserts seven fields in history, verdict=UNCLASSIFIED_at=bogus_label as field 2, and rc=0 as field 3, with no detached at= field.",
+        "Every existing heartbeat test remains green; markers, extraction-empty FATAL guards, history bound, retry behavior, missing heartbeat, known rc=0 verdicts, RC and PIDFILE ordering remain unchanged. All additions work on bash 3.2 without declare -A or lowercase expansion.",
+        "All ten mutants in the plan are killed by their named arms; record the actual failing assertion/output/rc and pristine green control, using temporary extracted copies without git writes or mutations to the live driver.",
+        "Design residual R9 is replaced with the plan's single FIXED line; the only new implementation artifact is changelogs/unreleased/2026-10-14-slot-verdict-unclassified.md, beginning with ### Fixed — mission slot UNCLASSIFIED verdict. R10 and other residuals remain untouched.",
+        "Controller runs outside the sandbox: bash tools/launchd/test_mission_heartbeat.sh; env -i HOME=$HOME PATH=$PATH make test-launchd-drivers on macOS /bin/bash 3.2; bash -n tools/launchd/mission-control.sh; /bin/bash -n tools/launchd/test_mission_heartbeat.sh; shellcheck on both touched shell files if present; make check-changelog. Record actual results. Socket-touching sandbox checks are UNINFORMATIVE and cannot satisfy host gates.",
+        "Independent sprint-evaluator reviews M1, tests and mutation evidence before completion; no self-approval.",
+        "Controller satisfies fleet-mission.md Done-gate: actual running surface and pushed pinned origin/dev reach confirmed; healthy and degraded dry-runs use AILANG_DRIVER_PINNED at the fixed SHA under a recorded idle armed sibling profile, both rc=0 with lanes=ok / lanes=DEGRADED respectively, no overlap/disabled early yield, no pidfile write, nothing reloaded mid-iteration. Use the charter synthetic-HOME fallback if no sibling qualifies; keep ticket open until evaluation, host gates, landing/reach and dry-runs are evidenced."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
