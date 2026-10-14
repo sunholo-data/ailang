@@ -38,7 +38,7 @@ EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/ailang", "serve-api", \
             "--bind", "0.0.0.0", \
             "--mcp-http", "--routes-only", \
-            "--caps", "FS,Env,Process,Rand", \
+            "--caps", "Clock,FS,Env,Process,Rand", \
             "--process-timeout", "90s", \
             "--process-allowlist", "/usr/local/bin/ailang:prompt,/usr/local/bin/ailang:ai-check,/usr/local/bin/ailang:run,/usr/local/bin/ailang:builtins", \
             "--port", "8080", \

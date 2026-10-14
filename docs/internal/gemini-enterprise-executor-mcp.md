@@ -68,6 +68,30 @@ Always call ailang_prompt first. It returns the syntax rules and stdlib referenc
 Write, check, fix, and re-check until clean, then run.
 ```
 
+## Seeing how callers use it
+
+Each tool call logs one JSON line (`jsonPayload.event = "executor_call"`). It records the
+tool, outcome, duration, code size and a 12-character code hash, plus the first error with
+the request directory stripped. The code itself is never logged. Outcomes:
+
+- `ok`
+- `check_failed` (ai-check)
+- `typecheck_failed` or `policy_violation` (refused before the run)
+- `runtime_error` (RTxxx)
+- `timeout`
+- `output_limit`
+- `no_match` (builtins search)
+- `exec_failed`, `code_too_large`
+
+```
+executor_tools/usage.sh        # last 24h: calls per tool, outcomes, pass rate, top errors
+executor_tools/usage.sh 7d
+```
+
+What to look for: a repeated `code_sha` means the caller resubmitted unchanged code. Code
+calls with no `ailang_prompt` call mean the connector description isn't steering it. The top
+first errors show what to teach.
+
 ## Using it from Claude Code
 
 ```

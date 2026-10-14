@@ -19,3 +19,9 @@ an identity token in `MCP_TOKEN`.
 These are the same flags `ailang run` has. Before this, a serve-api granted `Process` could exec any binary on PATH,
 under a fixed 30s timeout. The executor image now allows only `ailang prompt|ai-check|run|builtins`, at 90s.
 Either flag without `--caps Process` is an error.
+
+### Added — executor call telemetry
+
+Every hosted executor tool call logs one `executor_call` JSON line (tool, outcome, duration, code size and hash,
+first error; never the code). `executor_tools/usage.sh` summarises them from Cloud Logging. Runs are classified from
+the supervisor's own `policy-result` verdict, so a timeout or output-limit kill is never mistaken for a runtime error.
