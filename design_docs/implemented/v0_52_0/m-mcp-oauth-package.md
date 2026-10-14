@@ -1,6 +1,8 @@
 # M-MCP-OAUTH-PACKAGE: `sunholo/mcp_oauth`, an OAuth 2.1 authorization server for MCP services, in AILANG
 
-**Status**: Planned. **Design Freeze D1–D6 ratified by Mark, 2026-10-02** (attended session). Quorum round 0 BLOCKED on T7 (fixed with measured IFC semantics, V13–V16; no round-1 objection to it). Round 1 BLOCKED on T5 (hop-0 DNS to private IPs) and T2/T10 (revocation had no mechanism); both fixed below (S0 public-only Net mode, V17; `revoke` hook + token digests). The re-quorum guardrail is spent: no round 2.
+**Status**: **Implemented.** Package `sunholo/mcp_oauth` 0.1.0 was released on 2026-10-02 (sprint completed: P1–P4 plus S0/#1522, `7b50449e4`), and 0.1.1 added RFC 9207 `iss`. AILANG Parse (docparse ≥ v0.32.0) adopted it, and it is live in prod: `https://docparse.ailang.sunholo.com/.well-known/oauth-authorization-server`, with the resource at `/mcp/connect/` (checked 2026-10-14). Package source: `sunholo-data/ailang-packages`, `packages/mcp-oauth/`. Adopter reference: docparse `docparse_api/services/mcp_oauth.ail`. Next adopter: the hosted AILANG executor ([m-ailang-executor-gemini-enterprise](../../planned/v0_55_0/m-ailang-executor-gemini-enterprise.md)).
+
+*History:* Design Freeze D1–D6 ratified by Mark on 2026-10-02 (attended session). Quorum round 0 BLOCKED on T7 (fixed with measured IFC semantics, V13–V16). Round 1 BLOCKED on T5 and T2/T10, both fixed (S0 public-only Net mode, V17; `revoke` hook + token digests).
 **Target**: package `sunholo/mcp_oauth` 0.1.0 (monorepo `sunholo-data/ailang-packages`, `packages/mcp-oauth/`), plus one AILANG fix (S0, #1522) in v0.52.0
 **Priority**: P1. It is the last blocker before AILANG Parse can be listed in Anthropic's directory.
 **Estimated**: 5–6 days (S0 0.5d, P1 1.5d, P2 1.5d, P3 1d, P4 1–1.5d)

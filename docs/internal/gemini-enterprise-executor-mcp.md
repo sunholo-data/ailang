@@ -100,8 +100,7 @@ claude mcp add --transport http ailang-exec https://ailang-dev-executor-mcp-8124
 ```
 
 The identity token lasts about an hour, so re-add the server when it expires. The caller must
-be in `executor_mcp_invokers`. claude.ai and Claude Desktop connectors need OAuth, which is
-not built.
+be in `executor_mcp_invokers`. claude.ai and Claude Desktop connectors need OAuth: planned as design phase P1b (below).
 
 ## Traps hit on 2026-10-14
 
@@ -119,10 +118,16 @@ not built.
 
 ## Not yet done
 
-- User OAuth (needed for claude.ai and Claude Desktop connectors, and for per-user identity
-  in GE). The GE form takes an OAuth 2.0 authorization URL, token URL, client ID and secret,
-  with redirect `https://vertexaisearch.cloud.google.com/oauth-redirect`. Adding it means
-  adding the auth/token hosts to `allowed_egress_fqdns` and verifying the bearer in the app.
+- **User OAuth: decided, not built (design phase P1b, D7).** We'll run our own sign-in server
+  on `sunholo/mcp_oauth`, the package AILANG Parse runs in prod (adopter reference: docparse
+  `docparse_api/services/mcp_oauth.ail`). docparse's issuer is not reused: its tokens are
+  docparse API keys. Plan:
+  - a second Cloud Run service, `ailang-dev-executor-mcp-oauth`, from the same image, publicly
+    reachable, with tools only on `/mcp/connect/` behind `@mcp_auth("oauth2")`;
+  - this IAM-only service stays as it is for GE's service-agent path;
+  - to use OAuth from GE instead, put the sign-in server's authorization and token URLs in the
+    connector form, set the redirect to `https://vertexaisearch.cloud.google.com/oauth-redirect`,
+    and add the OAuth service's host to `allowed_egress_fqdns` (multivac `terraform-gemini-enterprise`).
 - A2A (long-running work on the motoko lane): design phase P2.
 - Agent Gateway / Agent Registry route: deliberately deferred. See the design doc.
 - Prod: the service exists in dev only.

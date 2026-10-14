@@ -54,7 +54,7 @@ no `Referrer-Policy`, anywhere in the static path (grep across `internal/`, `cmd
 `nosniff` in the tree is on MCP protocol envelopes, `serveapi/protocol/envelope.go:38` and
 `serveapi/protocol/mcphttp/wire.go:67`). RFC 9700 §4.16 requires an authorization server to stop its
 consent page being framed; the MCP OAuth package (`sunholo/mcp_oauth`, planned
-`design_docs/planned/v0_52_0/m-mcp-oauth-package.md`) steers adopters to host their sign-in page on
+`design_docs/implemented/v0_52_0/m-mcp-oauth-package.md`) steers adopters to host their sign-in page on
 `serve-api --static`, so those consent pages are framable. The published workaround
 (`docs/docs/guides/mcp-connectors.md:333-340`) is a synchronous JS anti-framing script copied into every
 page — defense the page must run itself, in content an attacker partially controls.
@@ -507,7 +507,7 @@ binary `ailang` v0.52.5 commit `7200786`; the four live outcomes follow line-by-
 - **Triage (this doc's mandate):** `design_docs/planned/ailang-core-triage/route-headers-hyphenated-names.md` (#1609), `design_docs/planned/ailang-core-triage/serve-api-static-security-headers.md` (#1597) — both recommend one design covering both; this is it
 - **Prior art for `_headers`:** `design_docs/implemented/v0_10_0/m-serve-api-agent-enhancements.md` (introduced the `_body`/`_status`/`_headers` pattern and the `@nowrap` `_headers` field; cannot rule on its own format — superseded here on names)
 - **Pattern to clone:** `design_docs/implemented/v0_46_0/m-serveapi-operator-surface.md` (D6 `--static-cache`, D7 header semantics, fail-loudly axiom A11, `wsReqShape` quoting)
-- **Consumer:** `design_docs/planned/v0_52_0/m-mcp-oauth-package.md` (OAuth surface this unblocks); `docs/docs/guides/mcp-connectors.md` (the workaround to retire)
+- **Consumer:** `design_docs/implemented/v0_52_0/m-mcp-oauth-package.md` (OAuth surface this unblocks); `docs/docs/guides/mcp-connectors.md` (the workaround to retire)
 - **RFC 9700** §4.16 (framing of authorization endpoints); RFC 9110 §5.1 (token = valid header name), §12.5.4 (`X-Content-Type-Options`)
 - **Issues:** Refs #1597, Refs #1609
 

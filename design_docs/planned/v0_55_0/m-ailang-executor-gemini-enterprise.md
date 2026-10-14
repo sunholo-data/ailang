@@ -1,10 +1,10 @@
 # M-AILANG-EXECUTOR-GE: the ailang_only executors, reachable from Gemini Enterprise over MCP and A2A
 
-**Status**: **P1 built 2026-10-14** — `executor_tools/executor.ail` + `docker/Dockerfile.executor-mcp`, deployed to dev as `ailang-dev-executor-mcp`, IAM-only, and connected to the GE app in `sunholo-gemini-enterprise`. Setup and rebuild runbook: [docs/internal/gemini-enterprise-executor-mcp.md](../../../docs/internal/gemini-enterprise-executor-mcp.md) (tool names mirror `ailang_bootstrap/mcp-server`; one endpoint also serves the docs tools and `submit_feedback`). Rest Planned (drafted 2026-10-14, attended; **revised the same day** to build on the existing `ailang_only` cloud executors instead of a fresh sandbox). Phase 0 is a discovery spike whose results gate Phases 2–3.
+**Status**: **P0-a/b answered and P1 built + live 2026-10-14.** `executor_tools/executor.ail` + `docker/Dockerfile.executor-mcp`, deployed to dev as `ailang-dev-executor-mcp` (IAM-only) and connected to the GE app in `sunholo-gemini-enterprise` as connector `ailang-mcp-dev`. GE tool calls were observed succeeding. Each call is logged (`executor_tools/usage.sh`). Setup and rebuild runbook: [docs/internal/gemini-enterprise-executor-mcp.md](../../../docs/internal/gemini-enterprise-executor-mcp.md). **Next: P1b** (OAuth for user-facing clients, decided 2026-10-14: our own sign-in server on `sunholo/mcp_oauth`). Then P0-c..e and P2 (A2A), which are still Planned.
 **Target**: v0.55.0
 **Priority**: P1. This is the first use of the `ailang_only` lane by callers outside our own fleet, and Gemini Enterprise (GE) is a channel the Aitana platform has already proven.
-**Estimated**: ~5.5 days. P0 spike 0.5d (attended: needs the GE console), P1 MCP 1.5d, P2 A2A gateway 2.5d, P3 registration and runbook 1d.
-**Dependencies**: none blocking. Builds on the **live** `ailang_only` lane: [m-agent-ailang-only-execution](../../implemented/v0_39_0/m-agent-ailang-only-execution.md), M-EXECUTOR-POLICY-HARDENING (v0.41.0), and [m-motoko-ailang-only-lane](../m-motoko-ailang-only-lane.md) (motoko on the lane since 2026-10-08). The OAuth lane reuses [m-mcp-oauth-package](../v0_52_0/m-mcp-oauth-package.md) if P0 shows GE wants OAuth.
+**Estimated**: remaining ~5 days. P1b OAuth 1d, P0-c..e spike 0.5d, P2 A2A gateway 2.5d, P3 A2A registration 0.5d. (Done: P0-a/b, P1, MCP registration and runbook.)
+**Dependencies**: none blocking. Builds on the **live** `ailang_only` lane: [m-agent-ailang-only-execution](../../implemented/v0_39_0/m-agent-ailang-only-execution.md), M-EXECUTOR-POLICY-HARDENING (v0.41.0), and [m-motoko-ailang-only-lane](../m-motoko-ailang-only-lane.md) (motoko on the lane since 2026-10-08). P1b adopts [m-mcp-oauth-package](../../implemented/v0_52_0/m-mcp-oauth-package.md) (`sunholo/mcp_oauth` 0.1.1, live in AILANG Parse), with our own sign-in server (D7).
 **Scope**: an AILANG serve-api program plus a Dockerfile (this repo); the A2A gateway (P2, location is D2); one new agent, `ge-executor`, plus a policy file in `ailang-multivac/config/`; a Cloud Run service in `ailang-multivac/terraform/` (dev first).
 
 **Quorum triggers fired**: **#4.** The load-bearing premises are about Gemini Enterprise, which we do not control: whether GE takes custom MCP servers, and what auth GE sends to a Cloud Run A2A agent. **#1** for the design-freeze items D1–D6. **#2** if D2 chooses the coordinator, since it would then take on a new public surface. Not run yet. Run it after P0, so the PENDING rows are measured first.
@@ -43,7 +43,7 @@ This matches the MCP-for-inline, A2A-for-delegation split from the suggestion pa
 | `ailang_verify(code, contracts)` as a separate tool | Contracts live *in* the code, and `ai-check` already returns type-check plus Z3 as one JSON (V5). | One `ailang_check`. |
 | Tag pure tools `readOnlyHint: true` | Already automatic for empty effect rows; effectful tools declare `@mcp_hints` (V7). | No new mechanism. |
 | "Multi-step synthesis and self-repair over A2A" | This is the **`ailang_only` executor agent** as it exists today. `daneel-executor` is already an answer-only agent on that lane (V16). | P2 is a gateway, not a new agent loop. |
-| "Register MCP as actions in the GE Data Store" | **Documented 2026-10-14 (not yet exercised).** GE has a *custom MCP server data store* connector, Streamable HTTP only, auth "No authentication" or "OAuth 2.0" (auth URL, token URL, client id/secret, scopes, optional PKCE). It needs an org-policy override (`discoveryengine.managed.disableCustomMcpServerConnector`) and the MCP, auth and token FQDNs allow-listed. Redirect URI `https://vertexaisearch.cloud.google.com/oauth-redirect`. `readOnlyHint` tools skip the per-call user confirmation. Source: [GE custom MCP setup](https://docs.cloud.google.com/gemini/enterprise/docs/connectors/custom-mcp-server/set-up-custom-mcp-server), and Mark saw the form in the console. | **CONFIRMED live 2026-10-14:** connector `ailang-mcp-dev` created in `sunholo-gemini-enterprise` after the org-policy override; GE listed all 28 tools (they start Disabled under the Actions tab and must be enabled). |
+| "Register MCP as actions in the GE Data Store" | GE has a *custom MCP server data store* connector, Streamable HTTP only, auth "No authentication" or "OAuth 2.0" (auth URL, token URL, client id/secret, scopes, optional PKCE). It needs an org-policy override (`discoveryengine.managed.disableCustomMcpServerConnector`) and the MCP, auth and token FQDNs allow-listed. Redirect URI `https://vertexaisearch.cloud.google.com/oauth-redirect`. `readOnlyHint` tools skip the per-call user confirmation. Source: [GE custom MCP setup](https://docs.cloud.google.com/gemini/enterprise/docs/connectors/custom-mcp-server/set-up-custom-mcp-server), and Mark saw the form in the console. | **CONFIRMED live 2026-10-14:** connector `ailang-mcp-dev` created in `sunholo-gemini-enterprise` after the org-policy override; GE listed all 28 tools (they start Disabled under the Actions tab and must be enabled). |
 | GE sends user OAuth plus `X-Serverless-Authorization` | **Documented 2026-10-14.** For default `*.run.app` URLs, GE sends `X-Serverless-Authorization` with a Google-signed ID token for `service-<PROJECT_NUMBER>@gcp-sa-discoveryengine.iam.gserviceaccount.com`. That identity needs `roles/run.invoker`. It is not sent for custom domains. `Authorization` carries the user's OAuth token unchanged. Consequence: the executor MCP can run **IAM-only (no `allUsers`)**, with Cloud Run checking the service agent and the app optionally checking the user token. Same source as above. | **CONFIRMED live 2026-10-14:** with "No authentication" selected, GE (`google-adk/2.11.0`) got 200/202 on 6 calls to the IAM-only service. Cloud Run IAM accepted the discoveryengine service agent; no `allUsers`. |
 | "A2A is primarily M2M via OIDC" | The only working GE↔A2A path ran **unauthenticated** (R4). | **PENDING P0-c.** This is the biggest risk. |
 | Per-seat vs. central billing decides the protocol | MCP calls cost CPU only. A2A tasks cost **model tokens** (glm-5.3-flash via OpenRouter, metered) plus a Job. Billing is a real axis **for A2A only**. | D5: a budget and a rate limit on the A2A path. |
@@ -67,38 +67,50 @@ This matches the MCP-for-inline, A2A-for-delegation split from the suggestion pa
         MCP (inline)                    A2A v0.3 (delegate)
              │                               │
              ▼                               ▼
-  ailang-executor-mcp (Cloud Run,     A2A gateway (D2: coordinator route
-  serve-api, stateless)               or a serve-api service)
+  ailang-dev-executor-mcp (Cloud     A2A gateway (D2: coordinator route
+  Run, serve-api, IAM-only)          or a serve-api service)
   executor.ail ── std/process ──┐            │ POST /api/messages → inbox ge-executor
                                 │            ▼
                                 │     coordinator ── dispatch ──▶ Cloud Run Job
                                 ▼                                 agent-pi / motoko
-             ailang run --policy ge-mcp.toml                      tool_policy: ailang_only
-             ailang policy-tool --policy ge-mcp.toml              policy: ge-executor.toml
+             ailang run --policy executor-policy.toml             tool_policy: ailang_only
+             ailang ai-check (check + Z3)                         policy: ge-executor.toml
              (restricted, supervised timeout,                     (same tools, same boundary)
               per-request sandbox dir)                               │
                                                                     ▼ completion summary
                                               gateway ◀── task completion ── streamed to GE
 ```
 
-### P1: MCP — the lane's tools, with Gemini as the harness
+### P1: MCP — the lane's tools, with Gemini as the harness (BUILT 2026-10-14)
 
-An AILANG serve-api program (`mcp_tools/executor.ail`, served by its own Cloud Run service) whose exported functions are thin adapters onto the **same two endpoints the lane's pi and motoko tools call** (V14, V15). It needs no new Go:
+An AILANG serve-api program, `executor_tools/executor.ail`, served together with the public docs tools (`mcp_tools/`) from one Cloud Run service, `ailang-dev-executor-mcp`. One MCP URL therefore gives a caller execution, docs lookup and `submit_feedback`. Tool names mirror `ailang_bootstrap`'s local MCP:
 
-| MCP tool | Adapter | Lane tool it mirrors |
-|---|---|---|
-| `ailang_check(code)` | Writes `code` into a per-request sandbox dir, then `policy-tool` op `check`, or `ailang ai-check` for check + Z3 (V5) | AilangCheck |
-| `ailang_run(code, entry, args_json)` | Writes the file, then `ailang run --policy ge-mcp.toml` | AilangRun |
-| `ailang_builtins_search(query)`, `ailang_examples_search(query)`, `ailang_docs_search(query)` | `policy-tool` ops `builtins_list` / `docs_search` / examples (V15) | BuiltinsSearch, ExamplesSearch |
-| `ailang_syntax()` | The `ailang prompt` teaching text | — (pi/motoko get it in the system role; Gemini can only get it from a tool) |
+| MCP tool | What it runs |
+|---|---|
+| `ailang_prompt()` | `ailang prompt`, the teaching text (pi/motoko get it in the system role; Gemini can only get it from a tool) |
+| `ailang_check(code)` | `ailang ai-check -relax-modules <dir>/main.ail`: type-check plus Z3 contracts in one JSON (V5) |
+| `ailang_run(code)` | `ailang run --policy executor-policy.toml --chdir <dir> main.ail`, entry `main` |
+| `ailang_eval(expression)` | The expression wrapped in `println(show(...))`, run under the same policy |
+| `ailang_builtins(search)` | `ailang builtins list --verbose --by-module`, filtered |
 
-`ge-mcp.toml` is **stricter than the executor policy**: `allowed_caps = ["IO"]`, no `Process`, no `Net`, `fs_sandbox` = the per-request dir, `timeout_ms` = 60000 (raised from 20000 on 2026-10-14 so real programs fit), and an output cap. The supervisor enforces the timeout; this is the v0.41 hardening (V14).
+Each request gets its own directory `$EXECUTOR_WORK_DIR/<uuid4>/main.ail`, removed afterwards; code is capped at 64KB. `docker/executor-policy.toml`: `allowed_caps = ["IO"]`, `security_mode = "restricted"`, `fs_sandbox = /tmp/ailang-exec`, `timeout_ms = 60000`, 64KB output and source caps. The supervisor enforces all of it (V14). Smoke fixtures (`executor_tools/smoke.sh`) cover the FS refusal, the timeout kill and a type error. All tools carry `@mcp_hints("readOnly","idempotent")`, so GE does not ask for a confirmation on every call.
 
-Calling out to the binary means the executor program itself needs `FS` (to write the request file) and `Process` (to exec `ailang`) and nothing else. It runs under a **dedicated zero-role service account** on Cloud Run gen2.
+Deviations from the original plan, and why:
+- **`ai-check` and `ailang run --policy` instead of `policy-tool`.** Both are the lane's boundaries (V14/V15), and `ai-check` gives one JSON for check and verify. The stateful `policy-tool` ops are not needed by stateless tools.
+- **The `mcp` service account, not a zero-role one.** `submit_feedback` needs exactly that account's grants (topic-level publish, Firestore user). Executed code cannot reach them, because the policy refuses `Net`, `Env` and `Process` before the program starts.
+- **G1 closed with flags, not a policy file (D4).** serve-api had a fixed 30s exec timeout and no allowlist. It now takes `--process-timeout` and `--process-allowlist`, matching `ailang run` and refused without `--caps Process` (V19). The image allows only `ailang:prompt|ai-check|run|builtins`, at 90s.
+- **Telemetry.** Each call logs one `executor_call` JSON line (tool, outcome, duration, code size and hash, first error; never the code), summarised by `executor_tools/usage.sh` (V21).
 
-**Not in P1: the stateful tools** (AilangRead/Edit/Write, AilangCLI). They need a workspace that persists across tool calls, and a stateless MCP service on Cloud Run has none. If GE turns out to need multi-file editing inline, that is the A2A path's job, or a later phase with a per-session workspace.
+**Not in P1: the stateful tools** (AilangRead/Edit/Write, AilangCLI). They need a workspace that persists across tool calls, and a stateless MCP service on Cloud Run has none. Multi-file work is the A2A path's job.
 
-**Gap G1 — serve-api has no Process allowlist** (V10). The executor program calls only `ailang`, so the exposure is our own code, not user input. Still, close it: the executor runs under serve-api with a policy-file `process_allow = ["ailang:run", "ailang:policy-tool", "ailang:ai-check"]`, reusing the existing `process_allow` key (`cmd/ailang/run_policy.go`) rather than adding a flag. **D4.**
+### P1b: OAuth for user-facing clients (decided 2026-10-14, D7)
+
+claude.ai, Claude Desktop and other directory clients expect an OAuth sign-in, not a Google ID token, and GE's "OAuth 2.0" connector option needs the same. **Decision: our own sign-in server on `sunholo/mcp_oauth`**, adopted the way AILANG Parse did (`docparse_api/services/mcp_oauth.ail`). Reusing docparse's issuer was rejected: its tokens are docparse API keys, which carry docparse billing and API access.
+
+- **Hooks:** `authenticate` uses Firebase/Google sign-in, with an email-domain allowlist in dev and test like docparse's. `mint` issues an opaque executor token stored as a digest. `put/get/del` use Firestore records with a TTL. `revoke` deletes by digest.
+- **Surface:** tools carry `@mcp_auth("oauth2")` on `/mcp/connect/`, with an `@mcp_token_verifier` checking the digest. serve-api runs with `--oauth-issuer`, and the sign-in page is served same-origin.
+- **Topology:** a **second Cloud Run service from the same image**, `ailang-dev-executor-mcp-oauth`. It is publicly reachable but serves tools only to bearer holders. The IAM-only service stays as it is for GE's service-agent path, so the working GE connector is not touched.
+- **Gains:** per-user identity in the `executor_call` log, which enables per-user rate limits, and access for people outside the Google IAM list.
 
 ### P2: A2A — the lane's agent, with our harness doing the work
 
@@ -133,7 +145,7 @@ Follow the Aitana-proven path (R1, R5):
 3. Put `iconUrl` on the **same host** as the card `url`.
 4. `scripts/verify-ge-executor.sh` ports Aitana's 12 card checks and adds an MCP `tools/list`, an `ailang_check` round trip, a policy-refusal fixture and one A2A `message/stream` round trip against dev.
 5. Cloud Run `--timeout=3600` on the gateway, and no response-buffering middleware in front of the SSE path (Aitana: a logging middleware broke streaming).
-6. MCP registration follows whatever P0-a finds. If our GE edition has no custom-MCP path, the MCP service still serves Claude, ChatGPT and Cursor, and GE uses A2A only, as Aitana does.
+6. MCP registration: **done 2026-10-14** as a GE custom MCP connector (no Agent Registry). Steps and traps are in the runbook. The GE project's org policies are code in multivac `terraform-gemini-enterprise/` (laptop apply).
 
 ### Agent Gateway route (alternative MCP path, found 2026-10-14)
 
@@ -153,19 +165,20 @@ Every row is a measurement against GE, recorded with the observed headers and re
 
 | ID | Question | How |
 |---|---|---|
-| P0-a | Does our GE edition accept a **custom MCP server**, and through what (data connector, "actions", the Agent Registry track)? | GE console plus the discoveryengine docs. Aitana's `v6.22.0/gemini-enterprise-agent-platform-adoption.md` says it is planned there too. |
-| P0-b | If P0-a = yes, what auth does GE send to MCP? | Register a header-echo serve-api (the `examples/runnable/serve_api_mcp_header_auth.ail` pattern). |
+| P0-a ✅ | Does our GE edition accept a **custom MCP server**, and through what (data connector, "actions", the Agent Registry track)? | GE console plus the discoveryengine docs. Aitana's `v6.22.0/gemini-enterprise-agent-platform-adoption.md` says it is planned there too. |
+| P0-b ✅ | If P0-a = yes, what auth does GE send to MCP? | Register a header-echo serve-api (the `examples/runnable/serve_api_mcp_header_auth.ail` pattern). |
 | P0-c | Can a `--deployment-target cloud_run` A2A agent be called **without** `allUsers` invoker? Which principal and which header? | Deploy the echo service with IAM ingress, grant `run.invoker` to `service-<NUM>@gcp-sa-discoveryengine.iam.gserviceaccount.com`, register and invoke. |
 | P0-d | Does GE fetch the card with the registrant's credentials or anonymously at call time? | Same echo service, with access logs. |
 | P0-e | How long will GE hold an A2A SSE stream before giving up? | Make the echo agent stream heartbeats for 10 / 20 / 40 min. This bounds the `ge-executor` timeout. |
 
 ## Design-freeze items (Mark)
 
-- **D1 — Which GE app/project?** The existing Aitana GE engine, or an AILANG-owned one? (The Console wizard and subscription purchase are required for a new one.)
+- **D1 — Which GE app/project?** **Resolved 2026-10-14:** `sunholo-gemini-enterprise` (project number 863281350736).
 - **D2 — Where the A2A gateway lives:** a coordinator route (recommended) or a serve-api service.
 - **D3 — If P0-c shows GE cannot do authenticated A2A:** ship A2A open behind D5's budget and rate limit, or offer GE MCP only?
-- **D4 — serve-api Process allowlist** through a policy file (recommended) or a new flag.
+- **D4 — serve-api Process allowlist.** **Resolved 2026-10-14: flags** (`--process-timeout`, `--process-allowlist`, same as `ailang run`). serve-api has no policy file to put it in, and a fixed 30s timeout had to be lifted anyway.
 - **D5 — A2A spend:** a per-day budget for `ge-executor`, a per-caller rate limit, and who pays when GE is used by an external org. Until this is decided, `ge-executor` is dev-only.
+- **D7 — OAuth issuer for user-facing clients.** **Resolved 2026-10-14 (Mark): our own sign-in server** on `sunholo/mcp_oauth`, not docparse's. See P1b.
 - **D6 — Scratch workspace:** a new empty repo (e.g. `sunholo-data/ge-executor-scratch`), or teach the coordinator a no-repo workspace. The first costs nothing; the second is a coordinator change.
 
 ## Conflict surface
@@ -186,36 +199,38 @@ Deterministic: the MCP tools run capability-free or IO-only code under a supervi
 
 | Phase | Work | Est. |
 |---|---|---|
-| P0 | Echo-service spike, rows P0-a to P0-e, results written back into the Verification Log | 0.5d attended |
-| P1 | `mcp_tools/executor.ail`, `ge-mcp.toml`, Process allowlist (D4), `docker/Dockerfile.executor`, policy-refusal and timeout fixtures, `ailang mcp check` passes; `terraform/cloud_run_executor_mcp.tf` in multivac **dev**, zero-role SA, no `allUsers` | 1.5d |
+| P0 | Rows P0-a/b: **done** (docs + live GE, V20). P0-c..e (A2A): echo-service spike, results written back into the Verification Log | 0.5d attended |
+| P1 | **Done 2026-10-14.** `executor_tools/executor.ail`, `docker/executor-policy.toml`, `docker/Dockerfile.executor-mcp`, serve-api `--process-*` flags, smoke fixtures, `executor_call` telemetry; multivac `cloud_run_executor_mcp.tf` (dev, IAM-only) and `terraform-gemini-enterprise/`; GE connector registered | done |
+| P1b | OAuth adopter module on `sunholo/mcp_oauth`, second service `executor-mcp-oauth`, Firestore TTL field, sign-in page, `ailang mcp check --target both` passes, Claude Code sign-in round trip | 1d |
 | P2 | `ge-executor` agent plus `ge-executor.toml` plus template (from `daneel-executor-task.md`); scratch workspace (D6); gateway (D2) with `message/stream`, `message/send`, `tasks/get`, card, completion-record wait and a loud timeout; spend cap and rate limit (D5) | 2.5d |
-| P3 | `scripts/verify-ge-executor.sh`, `docs/docs/guides/gemini-enterprise.md`, dev registration, a GE transcript, then a prod promote by the normal path | 1d |
+| P3 | A2A registration, `scripts/verify-ge-executor.sh`, a public guide `docs/docs/guides/gemini-enterprise.md`, then a prod promote by the normal path (MCP registration and runbook are done) | 0.5d |
 
 ### Files
 
-- `mcp_tools/executor.ail` — new, about 150 LOC
-- `docker/Dockerfile.executor` — new, modelled on `docker/Dockerfile.mcp`
-- `internal/coordinator/a2a_gateway.go` — new under D2a, about 350 LOC (split if over 500)
-- `internal/coordinator/a2a_gateway_test.go` — new: exposure gate, completion-record wait, loud timeout
-- `examples/runnable/serve_api_executor_mcp.ail` — new: the minimal adapter pattern
-- `docs/docs/guides/gemini-enterprise.md` — new runbook
-- `ailang-multivac/config/policies/ge-mcp.toml` — new (sibling repo)
-- `ailang-multivac/config/policies/ge-executor.toml` — new (sibling repo)
-- `ailang-multivac/config/templates/ge-executor-task.md` — new (sibling repo)
-- `ailang-multivac/config/config.cloud.yaml` — the `ge-executor` agent (sibling repo; reaches prod only through the prod branch)
-- `ailang-multivac/terraform/cloud_run_executor_mcp.tf` — new (sibling repo)
-- `changelogs/unreleased/<date>-ailang-executor-ge.md` — fragment
+Built (P1):
+- `executor_tools/executor.ail`, `executor_tools/smoke.sh`, `executor_tools/usage.sh`
+- `docker/executor-policy.toml`, `docker/Dockerfile.executor-mcp`; `cloudbuild-dev.yaml` step `build-executor-mcp`
+- `cmd/ailang/serve_api.go` (`--process-timeout`, `--process-allowlist`), `cmd/ailang/serve_api_process_test.go`
+- `docs/internal/gemini-enterprise-executor-mcp.md` (runbook)
+- `ailang-multivac/terraform/cloud_run_executor_mcp.tf`, `ailang-multivac/terraform-gemini-enterprise/`, `scripts/cloudbuild-lib.sh` (`CORE_SERVICES`), `terraform-triggers/triggers.tf` (`executor_tools/**`, apply pending)
+- `changelogs/unreleased/2026-10-14-executor-mcp.md`
+
+Planned:
+- P1b: `executor_tools/oauth.ail` (adopter hooks), a sign-in page, a second Cloud Run service plus a Firestore TTL field in multivac
+- P2: `internal/coordinator/a2a_gateway.go` (D2a, about 350 LOC, split if over 500) and `a2a_gateway_test.go`; `ailang-multivac/config/policies/ge-executor.toml`, `config/templates/ge-executor-task.md`, and the `ge-executor` agent in `config/config.cloud.yaml` (reaches prod only through the prod branch)
+- P3: `docs/docs/guides/gemini-enterprise.md` (public guide)
 
 ## Success criteria
 
-- [ ] P0 rows a–e measured and logged, with values redacted
-- [ ] MCP: `ailang_check` / `ailang_run` pass `ailang mcp check`; a `Net`/`Process`/`Env`/outside-sandbox-write fixture returns a named policy refusal; a timeout fixture is killed by the supervisor and the server stays healthy
+- [x] P0 rows a–b measured and logged (V20) · [ ] rows c–e (A2A)
+- [x] MCP: an FS fixture returns a named policy refusal (`policy_violation`); a timeout fixture is killed by the supervisor at 60s and the server stays healthy (`smoke.sh` 6/6 live, revision 00002) · [ ] `ailang mcp check` run against the service
 - [ ] A2A: a reference client (a2a-sdk 0.3) `message/stream` against dev yields `working` heartbeats, then an artifact holding the `ge-executor` answer
 - [ ] A2A: a forced executor stall produces `failed` with a named reason within the configured cap, never a hung stream
 - [ ] A2A: an agent without `a2a_exposed` cannot be reached (-32602)
 - [ ] The D5 spend cap refuses with a named reason once exhausted
-- [ ] Neither surface can be invoked anonymously, or D3 records the measured reason
-- [ ] Registered in GE (dev engine), with a GE transcript linked here for both MCP (if P0-a) and A2A
+- [x] MCP cannot be invoked anonymously (403 without a token, measured) · [ ] A2A, or D3 records the measured reason
+- [ ] P1b: an OAuth sign-in round trip from Claude Code against `executor-mcp-oauth`
+- [x] MCP registered in GE (`ailang-mcp-dev`); GE calls observed succeeding · [ ] a GE transcript linked here · [ ] A2A registered
 - [ ] `make test`, `make lint`, `make check-file-sizes` green; changelog fragment present
 
 ## Verification log
@@ -231,7 +246,7 @@ Deterministic: the MCP tools run capability-free or IO-only code under a supervi
 | V7 | A pure tool is auto read-only; an effectful tool declares `@mcp_hints` (`readOnly`/`destructive`/`idempotent`/`openWorld`) | `examples/runnable/serve_api_mcp_hints.ail:3-6`; `serveapi/protocol/tool_hints.go:23` |
 | V8 | `std/process.exec` has no shell, a 30s default timeout and a 10MB default output cap | `std/process.ail` header and `:64` |
 | V9 | `ailang run` with no `--caps` refuses IO | `effect 'IO' requires capability, but none provided` (2026-10-14) |
-| V10 | serve-api has no Process allowlist; with none, `Authorize` does a PATH lookup | `cmd/ailang/serve_api.go` (no process flags); `internal/effects/process_authorize.go` `!pc.HasAllowlist` |
+| V10 | *(Superseded by V19.)* serve-api had no Process allowlist; with none, `Authorize` does a PATH lookup | `internal/effects/process_authorize.go` `!pc.HasAllowlist` |
 | V11 | No A2A `.ail` example exists | Subagent grep of `examples/` |
 | V12 | Nothing in the apiserver reads `X-Serverless-Authorization` | `grep -rn` → only `internal/coordinator/cloud_credit.go` (client side) |
 | V13 | The `ailang_only` lane = 8 tools, no shell or native file tools; pi launched with `--no-builtin-tools` | `internal/executor/toolpolicy.go:53`; `internal/executor/pi/toolnames.go:84` (per m-motoko-ailang-only-lane, verified 2026-10-01) |
@@ -245,14 +260,18 @@ Deterministic: the MCP tools run capability-free or IO-only code under a supervi
 | R3 | GE rejects a card without `protocolVersion` or with bare-string extensions | Aitana F23, F24 |
 | R4 | The proven GE↔A2A path ran unauthenticated | `gde-ap-agent/cloudbuild.yaml:206,237-241`; `gemini-enterprise.md:467-469` |
 | R5 | Registration uses `agents-cli register-gemini-enterprise`; re-register makes duplicates | `gemini-enterprise.md:255-261`; F28 |
-| PENDING | P0-a…e | Not measurable in-repo. P0 spike |
+| V19 | serve-api's Process timeout was a fixed 30s (`NewProcessContext`); it now takes `--process-timeout`/`--process-allowlist`, refused without `--caps Process` | `internal/effects/process_context.go:37`; `cmd/ailang/serve_api.go`; `serve_api_process_test.go` (mutation-checked) |
+| V20 | GE custom MCP connector: needs the org-policy override; GE's client (`google-adk/2.11.0`) authenticates to an IAM-only `*.run.app` service as its discoveryengine service agent | Connector created 2026-10-14 after `disableCustomMcpServerConnector` was overridden; Cloud Run request log 200/202 from `google-adk/2.11.0` |
+| V21 | Each executor call logs one `executor_call` JSON line, and run outcomes come from the supervisor's decision and `policy-result` lines | `executor_tools/executor.ail`; all 8 outcome kinds exercised locally 2026-10-14 |
+| V22 | `sunholo/mcp_oauth` is shipped and live: 0.1.1 in docparse, `/.well-known/oauth-authorization-server` served in prod | `docparse/ailang.lock`; `curl https://docparse.ailang.sunholo.com/.well-known/oauth-authorization-server` (2026-10-14) |
+| PENDING | P0-c…e (A2A) | Not measurable in-repo. P0 spike |
 
 ## Related documents
 
 - [m-agent-ailang-only-execution](../../implemented/v0_39_0/m-agent-ailang-only-execution.md) — the lane this doc exposes.
 - [m-motoko-ailang-only-lane](../m-motoko-ailang-only-lane.md) — motoko as the lane harness (the `ge-executor` default).
 - [m-serveapi-directory-ready](../v0_51_0/m-serveapi-directory-ready.md) — the distribution umbrella. GE is the third directory, and this doc is its lane.
-- [m-mcp-oauth-package](../v0_52_0/m-mcp-oauth-package.md) — the OAuth 2.1 AS for MCP, reused if P0-b shows GE does user OAuth.
+- [m-mcp-oauth-package](../../implemented/v0_52_0/m-mcp-oauth-package.md) — the OAuth 2.1 AS for MCP; P1b adopts it (D7).
 - [m-task-status-truth](../m-task-status-truth.md) — why the gateway reads completion records, not status.
 - [m-protocol-support](../../implemented/v0_9_0/m-protocol-support.md) — the original serve-api MCP/A2A (v0.1 A2A).
 - [m-resident-agent-instances](../m-resident-agent-instances.md) — the per-user A2A coding agent. It is an alternative delegate, but not the default, since it is not on the locked-down lane.

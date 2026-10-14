@@ -369,7 +369,7 @@ So follow the package's adopter checklist:
 - never fetch a `client_id` URL under plain `Net`.
 
 The threat model (T1–T10) is in
-[`m-mcp-oauth-package.md`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_0/m-mcp-oauth-package.md).
+[`m-mcp-oauth-package.md`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-mcp-oauth-package.md).
 
 ## 4. Check readiness
 
@@ -593,7 +593,7 @@ needs a paid plan, and the Owner role on Team or Enterprise)
 - Design docs:
   [directory-ready](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_51_0/m-serveapi-directory-ready.md),
   [vendor sources](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_51_0/m-serveapi-directory-ready-sources.md),
-  [`sunholo/mcp_oauth`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_0/m-mcp-oauth-package.md),
+  [`sunholo/mcp_oauth`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-mcp-oauth-package.md),
   [file handoff](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-mcp-file-handoff.md).
 - Live example: `https://docparse.ailang.sunholo.com/mcp/connect/` (AILANG Parse).
 
