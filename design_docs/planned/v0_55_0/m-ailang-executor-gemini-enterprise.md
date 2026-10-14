@@ -108,9 +108,25 @@ Deviations from the original plan, and why:
 claude.ai, Claude Desktop and other directory clients expect an OAuth sign-in, not a Google ID token, and GE's "OAuth 2.0" connector option needs the same. **Decision: our own sign-in server on `sunholo/mcp_oauth`**, adopted the way AILANG Parse did (`docparse_api/services/mcp_oauth.ail`). Reusing docparse's issuer was rejected: its tokens are docparse API keys, which carry docparse billing and API access.
 
 - **Hooks:** `authenticate` uses Firebase/Google sign-in. **Who may sign in (Mark, 2026-10-14):** `sunholo.com` only in dev, set through an email-domain allowlist env like docparse's `DOCPARSE_ALLOWED_EMAIL_DOMAINS`; **everyone in prod** (empty allowlist). Because prod is open to anyone with an account, a per-user rate limit keyed on the token's identity ships in P1b before any prod promote, not after. `mint` issues an opaque executor token stored as a digest. `put/get/del` use Firestore records with a TTL. `revoke` deletes by digest.
-- **Surface:** tools carry `@mcp_auth("oauth2")` on `/mcp/connect/`, with an `@mcp_token_verifier` checking the digest. serve-api runs with `--oauth-issuer`, and the sign-in page is served same-origin.
-- **Topology:** a **second Cloud Run service from the same image**, `ailang-dev-executor-mcp-oauth`. It is publicly reachable but serves tools only to bearer holders. The IAM-only service stays as it is for GE's service-agent path, so the working GE connector is not touched.
-- **Gains:** per-user identity in the `executor_call` log, which enables per-user rate limits, and access for people outside the Google IAM list.
+- **Surface (as built, changed from the plan):** annotating the tools `@mcp_auth("oauth2")` was not enough. serve-api gated such a tool only on `/mcp/connect/`: it stayed ungated on `/mcp/`, and with its `@route` it was also plain `POST /api/executor/...`. On a public service that is three ways around the gate. AILANG Parse is safe only because its tools also need an API key. So serve-api gained **`--mcp-connect-only`** (98f0deeda):
+  - no `/mcp/`;
+  - every tool on `/mcp/connect/` defaults to `oauth2`;
+  - plain HTTP serves `@nomcp` exports only, which are the OAuth routes.
+
+  `executor_tools/executor.ail` is unchanged, so the IAM service is untouched. The `@mcp_token_verifier` checks the digest and logs `executor_auth` with the account. The sign-in page is served same-origin with `--static`.
+- **Topology:** a **second Cloud Run service from the same image**, `ailang-dev-executor-mcp-oauth`, with terraform `args` replacing the image CMD. It is publicly reachable but serves tools only to bearer holders. The IAM-only service stays as it is for GE's service-agent path, so the working GE connector is not touched.
+- **Gains:** per-user identity (`executor_auth` lines), which enables per-user rate limits, and access for people outside the Google IAM list.
+- **Built 2026-10-14:**
+  - `executor_oauth/`: `oauth.ail`, `static/` and `test_oauth.sh`. The test runs 21 checks under real serve-api with stub storage.
+  - multivac `executor-mcp-oauth`: a precondition refuses an empty allowlist until the rate limit exists.
+- **Blocked on a compiler regression:** `sunholo/mcp_oauth` 0.1.1 does not compile on ailang ≥ 0.53.1 (#1826: `mapE` over an annotated hook field trips a latent-effect invariant). 0.1.2 works around it (ailang-packages#141) and is waiting on merge + `ailang publish`.
+- **Rollout order:**
+  1. publish 0.1.2;
+  2. `ailang lock` in `executor_oauth/`, then commit the lock and the Dockerfile change;
+  3. the image build rolls both services;
+  4. push the multivac commit and apply (terraform creates the service);
+  5. `ailang mcp check <url>/mcp/connect/ --target both`, plus a Claude Code sign-in round trip.
+- **Open before prod:** the per-user rate limit, and a prod Firebase config on the page (it knows `ailang-multivac-dev` only).
 
 ### P2: A2A — the lane's agent, with our harness doing the work
 
@@ -216,7 +232,7 @@ Built (P1):
 - `changelogs/unreleased/2026-10-14-executor-mcp.md`
 
 Planned:
-- P1b: `executor_tools/oauth.ail` (adopter hooks), a sign-in page, a second Cloud Run service plus a Firestore TTL field in multivac
+- P1b (built, rollout pending): `executor_oauth/` (`oauth.ail`, `static/`, `test_oauth.sh`, own `ailang.toml`), serve-api `--mcp-connect-only` (`internal/apiserver`), `docker/Dockerfile.executor-mcp` CMD split, multivac `executor_mcp_oauth` service + Firestore TTL field
 - P2: `internal/coordinator/a2a_gateway.go` (D2a, about 350 LOC, split if over 500) and `a2a_gateway_test.go`; `ailang-multivac/config/policies/ge-executor.toml`, `config/templates/ge-executor-task.md`, and the `ge-executor` agent in `config/config.cloud.yaml` (reaches prod only through the prod branch)
 - P3: `docs/docs/guides/gemini-enterprise.md` (public guide)
 

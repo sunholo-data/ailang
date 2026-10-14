@@ -118,12 +118,16 @@ be in `executor_mcp_invokers`. claude.ai and Claude Desktop connectors need OAut
 
 ## Not yet done
 
-- **User OAuth: decided, not built (design phase P1b, D7).** We'll run our own sign-in server
-  on `sunholo/mcp_oauth`, the package AILANG Parse runs in prod (adopter reference: docparse
-  `docparse_api/services/mcp_oauth.ail`). docparse's issuer is not reused: its tokens are
-  docparse API keys. Plan:
+- **User OAuth: built, not yet deployed (design phase P1b, D7).** Our own sign-in server
+  is `executor_oauth/`, on `sunholo/mcp_oauth` (docparse's issuer is not reused: its tokens are
+  docparse API keys). It is blocked on publishing `sunholo/mcp_oauth` 0.1.2 (ailang #1826); the
+  rollout order is in the design doc. Run `executor_oauth/test_oauth.sh` locally (21 checks).
   - a second Cloud Run service, `ailang-dev-executor-mcp-oauth`, from the same image, publicly
-    reachable, with tools only on `/mcp/connect/` behind `@mcp_auth("oauth2")`;
+    reachable, run with serve-api `--mcp-connect-only`: no `/mcp/`, every tool on
+    `/mcp/connect/` behind the Bearer verifier, HTTP serves only the OAuth routes and sign-in page;
+  - once live, connect Claude Code with
+    `claude mcp add --transport http ailang-exec https://ailang-dev-executor-mcp-oauth-812435936917.europe-west1.run.app/mcp/connect/`
+    (no header: it opens the browser sign-in);
   - this IAM-only service stays as it is for GE's service-agent path;
   - who may sign in: `sunholo.com` only in dev; everyone in prod, with a per-user rate limit
     shipped before the prod promote;
