@@ -1,0 +1,97 @@
+{
+  "ailang_version": "v0.54.9-14-gbf46845d7-dirty",
+  "generated_at": "2026-10-14T17:28:57.823364Z",
+  "generator": "ailang lock v0.54.9-14-gbf46845d7-dirty",
+  "packages": [
+    {
+      "ailang": ">=0.12.1",
+      "content_hash": "sha256:2ada0f0d3fecb8d1bee68540003ef7ac07339237e937ab3d8ecd9fd16f6b146f",
+      "effects": [
+        "Env"
+      ],
+      "exports": [
+        "sunholo/config/loader"
+      ],
+      "interface_hash": "sha256:25664adc3eaba0832524fc443634997f8652d1cf693dd3ffded7c7ffc8047083",
+      "name": "sunholo/config",
+      "source": "registry",
+      "version": "0.1.2"
+    },
+    {
+      "ailang": ">=0.12.1",
+      "content_hash": "sha256:90274d1aa8e7acc06124338bc95cc7bdec20f1171093ba9828a599c54d3b7320",
+      "effects": [
+        "Env",
+        "Net"
+      ],
+      "exports": [
+        "sunholo/firebase_auth/firebase_jwt",
+        "sunholo/firebase_auth/firebase_token"
+      ],
+      "interface_hash": "sha256:b84e12ed614c65a3663cd85f633d5719596d8d0e7d94a158248e94750baa863d",
+      "name": "sunholo/firebase_auth",
+      "source": "registry",
+      "version": "0.1.2"
+    },
+    {
+      "ailang": ">=0.12.1",
+      "content_hash": "sha256:ea3491b2bea4e7f849f6cf5747cfb739638ac2449b4953798ce79192ff07074e",
+      "effects": [
+        "Env",
+        "FS",
+        "Net"
+      ],
+      "exports": [
+        "sunholo/firestore/client",
+        "sunholo/firestore/fields",
+        "sunholo/firestore/query"
+      ],
+      "interface_hash": "sha256:8ef80b8a1f2b31addc74bd8d29619e66cfe2c4cd7a8494a4ee02d8da264b8e13",
+      "name": "sunholo/firestore",
+      "source": "registry",
+      "version": "0.7.2"
+    },
+    {
+      "ailang": ">=0.12.1",
+      "content_hash": "sha256:3446eac4994d04c55cfc29fb490c911503ad2ca5c04ec491edc256509d311dee",
+      "effects": [
+        "Env",
+        "FS",
+        "Net"
+      ],
+      "exports": [
+        "sunholo/gcp_auth/project",
+        "sunholo/gcp_auth/token"
+      ],
+      "interface_hash": "sha256:22db0a58575c0664a3b1643c7010aa1c1619097b3b106196041e68674490ef39",
+      "name": "sunholo/gcp_auth",
+      "source": "registry",
+      "version": "0.8.1"
+    },
+    {
+      "ailang": ">=0.52.0",
+      "content_hash": "sha256:7cba9b663efaa44eb6b1d3b4706d6bdbd47da22ae1358bed89e6f9ed4b5f54e6",
+      "effects": [
+        "Clock",
+        "Declassify",
+        "Env",
+        "FS",
+        "IO",
+        "Net",
+        "Rand",
+        "SharedMem"
+      ],
+      "exports": [
+        "sunholo/mcp_oauth/cimd",
+        "sunholo/mcp_oauth/core",
+        "sunholo/mcp_oauth/flow"
+      ],
+      "interface_hash": "sha256:d739c96a9865897498c590c0e233af3fc1a67963d03522885991c507454a8d7c",
+      "name": "sunholo/mcp_oauth",
+      "source": "registry",
+      "version": "0.1.2"
+    }
+  ],
+  "schema": "ailang.lock/v1",
+  "schema_version": "1.0.0"
+}
