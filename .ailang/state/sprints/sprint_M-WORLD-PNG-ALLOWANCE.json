@@ -4,7 +4,7 @@
   "created": "2026-10-14T17:45:00Z",
   "design_doc": "design_docs/planned/m-world-release-png-allowance.md",
   "markdown_plan": "design_docs/planned/m-world-png-allowance-sprint-plan.md",
-  "status": "in_progress",
+  "status": "completed",
   "approval": {
     "approved_by": "Mark (attended)",
     "date": "2026-10-14"
@@ -55,10 +55,10 @@
         "Empty repo: non-vacuity FATAL",
         "Fixtures 9,10,12 reject"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-14T17:38:59Z",
+      "completed": "2026-10-14T17:38:59Z",
+      "notes": "whole-blob NUL scan; World tree 0/3471"
     },
     {
       "id": "M2",
@@ -71,10 +71,10 @@
         "Fixtures 1,13 pass; 2-8 reject with named reasons",
         "grep -ci png scripts/verify_go.sh >= 1"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-14T17:38:59Z",
+      "completed": "2026-10-14T17:38:59Z",
+      "notes": "allowance at verify_go.sh call site; png count 4; real Chrome controls validate"
     },
     {
       "id": "M3",
@@ -88,10 +88,10 @@
         "numstat mutation makes fixtures 9,10,12 fail",
         "No .github/ path in diff"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-14T17:38:59Z",
+      "completed": "2026-10-14T17:38:59Z",
+      "notes": "15/15 arms; mutation: old numstat gate passes arms 9,10,12; 8000-window passes 12"
     },
     {
       "id": "M4",
@@ -105,10 +105,10 @@
         "harness-resolved reply names SHA + contract",
         "ticket messages acked after reply"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-14T17:38:59Z",
+      "completed": "2026-10-14T18:13:23Z",
+      "notes": "ailang-world #260 squash 2d14dbd, CI green (go gate 22m37s); 2 verifygate tests updated for the extracted gate; harness-resolved replied, ticket closed (open png=0); World predicate png count=4"
     }
   ]
 }

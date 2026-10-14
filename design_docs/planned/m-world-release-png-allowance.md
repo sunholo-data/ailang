@@ -1,6 +1,6 @@
 # M-WORLD-RELEASE-PNG-ALLOWANCE — a path-scoped, content-verified PNG allowance in World's tracked-binary gate
 
-**Status**: Planned — APPROVED by Mark 2026-10-14 (attended): allowance mechanism + caps 1 MiB/8 MiB ratified; quorum r3 waived. Sprint M-WORLD-PNG-ALLOWANCE.
+**Status**: IMPLEMENTED 2026-10-14 — ailang-world #260 (squash `2d14dbd`), CI green; harness ticket resolved. Approved attended by Mark; quorum r3 waived.
 **Target**: fleet-authored commit to `sunholo-data/ailang-world` (no AILANG release needed)
 **Priority**: P1 — the last World v1.0.0 release row (150) is blocked on it, and the loop has idled 9 fires
 **Estimated**: ~0.5 day, attended
@@ -252,3 +252,15 @@ Trigger 2 fires: this overrides shared machinery, a CI gate World depends on and
 
 **Document created**: 2026-10-14
 **Last updated**: 2026-10-14
+
+## Implementation Report (2026-10-14)
+
+Landed as `sunholo-data/ailang-world#260`, squashed to `2d14dbd`. Both CI jobs were green; the Go gate took 22m37s.
+
+- `scripts/tracked_binary_gate.sh` (new): whole-blob NUL detector, PNG validator and caps; the allowance is declared at the `verify_go.sh` call site.
+- `scripts/test_tracked_binary_gate.sh` (new): 15 arms. Mutation results: the old numstat gate passes a binary in arms 9, 10 and 12, and an 8000-byte-window detector fails arm 12.
+- `scripts/verify_go.sh`: the inline block was replaced by the arms run plus the gate call (`grep -ci png` = 4).
+- **Deviation:** `host/verifygate/mission_config_gate_test.go` also had to change. Two tests pinned `verify_go.sh`'s inline gate: `TestVerifyGoProductCheckSequence` anchors, and the controlled-stage fixture in `TestMissionConfigDefaultFlowIntegration`, which now carries the real gate. The first CI run went red on exactly these two.
+- **Deviation:** no `website/static/img/v1/README.md`. The contract lives in the `verify_go.sh` comment and the gate header, so Docusaurus serves no stray README.
+- Today's tree reports `0 binary blobs among 3473`. The old numstat count omitted one empty blob.
+- `ailang mission ticket resolve` replied `harness-resolved` to `mission-world` and closed the occurrence. `mission ticket open` now lists 0 png signatures.
