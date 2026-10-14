@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/sunholo-data/ailang/internal/creditbudget"
 	"io"
 	"net/http"
@@ -93,5 +94,30 @@ func TestCreditTaskBudgetNeverRoundsUp(t *testing.T) {
 	})}
 	if _, err := AdmitCloudCreditTask(context.Background(), p, c, func(context.Context, string) (string, error) { return "identity", nil }); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A test inside a cloud agent's job inherits the live capability and gateway
+// URL. With no stub token, nothing may reach the gateway: on 2026-10-12 a
+// test's deferred release ended the running evaluator's task (task-f257f24d).
+func TestCreditGatewayUnreachableFromTestBinary(t *testing.T) {
+	if _, err := CloudCreditIdentityToken(context.Background(), "https://gateway"); !errors.Is(err, ErrCreditGatewayFromTest) {
+		t.Fatalf("identity token from a test binary: err = %v, want ErrCreditGatewayFromTest", err)
+	}
+	sent := 0
+	c := &http.Client{Transport: admissionTransport(func(r *http.Request) (*http.Response, error) {
+		sent++
+		return &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+	})}
+	live := CloudCreditCapability{AccountID: "anthropic-api-credits", GatewayURL: "https://gateway", Capability: "live-capability"}
+	if err := ReleaseCloudCreditTask(context.Background(), live, c, nil); !errors.Is(err, ErrCreditGatewayFromTest) {
+		t.Errorf("release with the real identity: err = %v, want ErrCreditGatewayFromTest", err)
+	}
+	p := DispatchParams{TaskID: "task", Provider: "claude", AuthMode: "apikey", Model: "claude-haiku-5-5", MaxCostUSD: 1, CreditAccount: "anthropic-api-credits", CreditGatewayURL: "https://gateway", CreditJobIdentity: "job@example.com"}
+	if _, err := AdmitCloudCreditTask(context.Background(), p, c, nil); !errors.Is(err, ErrCreditGatewayFromTest) {
+		t.Errorf("admission with the real identity: err = %v, want ErrCreditGatewayFromTest", err)
+	}
+	if sent != 0 {
+		t.Errorf("%d request(s) reached the gateway from a test binary", sent)
 	}
 }
