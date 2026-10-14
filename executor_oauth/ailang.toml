@@ -1,0 +1,24 @@
+# The OAuth sign-in server for the hosted AILANG executor's public service
+# (M-AILANG-EXECUTOR-GE P1b). Its own manifest so only this directory resolves
+# packages: mcp_tools/ and executor_tools/ stay dependency-free.
+[package]
+name = "sunholo/ailang_executor_oauth"
+module_prefix = "executor_oauth"
+version = "0.1.0"
+edition = "1"
+ailang = ">=0.54.0"
+description = "OAuth 2.1 sign-in for the hosted AILANG executor MCP (/mcp/connect/)"
+
+[exports]
+modules = ["executor_oauth/oauth"]
+
+[dependencies]
+"sunholo/mcp_oauth" = "0.1.2"
+"sunholo/firestore" = "0.7.2"
+"sunholo/firebase_auth" = "0.1.2"
+
+[effects]
+# SharedMem only because sunholo/mcp_oauth 0.1.x's Hooks record names it in
+# every hook row (record fields need exact rows); nothing here uses it.
+# Declassify is type-system-only and needs no runtime grant.
+max = ["IO", "FS", "Net", "Env", "Rand", "Clock", "Debug", "Declassify", "SharedMem"]
