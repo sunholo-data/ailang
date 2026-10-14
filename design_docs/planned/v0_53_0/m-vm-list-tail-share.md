@@ -2,12 +2,13 @@
 
 **Status**: Planned — quorum attempted 2026-10-09 (`task-006b0353`): **all three external reviewers absent** (`gemini-3-1-pro` unreachable; `oc-kimi-k3` unreachable; `gpt6-1-sol` auth), recorded by name in `.ailang/state/mission-quorum/m-vm-list-tail-share-2026-10-09T11-00-54Z.json`; controller verdict **pass** — degraded to controller-only, **not quorum-cleared**. The 26-row first-party Verification Log is the load-bearing evidence; re-run quorum when a reviewer route is available (same convention as [m-bytecode-nested-pattern-lowering](../../implemented/v0_52_0/m-bytecode-nested-pattern-lowering.md)).
 **Re-reported 2026-10-13** (`task-a0ee29fa`, v0.54.6 `71f4cf6`, md5 `81bacda6…`): a **second, independent consumer report** (sunholo lane — see Bug report) confirms the defect at v0.54.6 with new real-workload evidence (pprof, R2-CREW deadline). **The fix is still unimplemented at v0.54.8** — first-party re-derivation this session (V27–V29); all three copy sites live in this tree. Target lapsed (v0.53.0 → v0.54.8 shipped without it); re-target at sprint-planner time.
+**Re-reported 2026-10-14** (`task-6868ea74`, bug filed against v0.54.8; reporting binary v0.54.9-14-gbf46845d7-dirty, md5 `d24f5e8d…`, commit `bf46845d7`): a **third report, now with an implemented-and-measured fix**. The reporter applied the one-line capacity-capped share (`NewList(elems[n:len(elems):len(elems)])`, V36) to a v0.54.8 build and measured: minimal repro 6.5 s → **1.0 s** (memprofile: 99.95% in `builtinListTail`, 158 GB allocated at baseline); crew_core auto-run skip 16.1 s / 191 GB / 98% → **7.5 s / 4.3 GB, byte-identical output** (V34–V35). Still unimplemented in this tree (V33). The fix is now *validated by measurement on the real workload*, not just derived.
 **Target**: v0.53.0 (lapsed — see Status)
 **Priority**: P0 — a 52× engine divergence on the canonical functional list-walk idiom, reported from a downstream consumer mid-PR
 **Estimated**: ~2 days (fix is one line ×3 sites + tests + bench; the cost is measurement discipline), 2× where honest → 4 days
 **Dependencies**: None. **Coordination required** (text only): [m-list-cons-quadratic](../m-list-cons-quadratic.md) stays PARKED on D-19 — this doc does not touch `::`/`++` construction or the arena decision; `docs/LIMITATIONS.md` rows 41–42 and `std/list.ail`'s header both gain corrected text and must not contradict D-19's pending state.
 **Planner-Lane**: opus-required (VM builtin semantics + allocation behavior)
-**Bug report**: AILANG v0.52.0 (`bf2436a`, darwin arm64, binary md5 `2dd082832fbadf861b49a1a432a0130c`), `--bytecode`. Downstream consumer `stapledons-godot` (Edenhofer dust-map pass, R1-ISM-DUST PR B); workaround in flight: `foldl`. **Second report 2026-10-13**: AILANG v0.54.6 (`71f4cf6`, binary md5 `81bacda6a3a81abe90bae00166ee1a76`), `ailang run --bytecode --caps IO,Env`; consumer `sunholo/crew_core` + `social_dynamics` (pprof: `vm.builtinListTail` 14% cumulative; HOF foldl/filter/any dominating) with the Stapledon R2-CREW 10-year crew skip (3,650 ticks) needing < 2 s vs ~60 s today. Same defect, same mechanism, new engine version — the repro, timings, and pprof are V28–V31.
+**Bug report**: AILANG v0.52.0 (`bf2436a`, darwin arm64, binary md5 `2dd082832fbadf861b49a1a432a0130c`), `--bytecode`. Downstream consumer `stapledons-godot` (Edenhofer dust-map pass, R1-ISM-DUST PR B); workaround in flight: `foldl`. **Second report 2026-10-13**: AILANG v0.54.6 (`71f4cf6`, binary md5 `81bacda6a3a81abe90bae00166ee1a76`), `ailang run --bytecode --caps IO,Env`; consumer `sunholo/crew_core` + `social_dynamics` (pprof: `vm.builtinListTail` 14% cumulative; HOF foldl/filter/any dominating) with the Stapledon R2-CREW 10-year crew skip (3,650 ticks) needing < 2 s vs ~60 s today. Same defect, same mechanism, new engine version — the repro, timings, and pprof are V28–V31. **Third report 2026-10-14**: v0.54.8 (binary v0.54.9-14-gbf46845d7-dirty, md5 `d24f5e8d…`): same `crew_core`/`social_dynamics` lane, heap-profile-level attribution, and a **tested one-line fix** — V33–V36.
 **Author**: design-doc-creator, unattended coordinator session (`task-006b0353`). This container has a live `ailang` binary (v0.52.5, commit `7200786`, md5 `8e4464db…` — near-lineage but **not** built from this tree, and **no Go toolchain / no `make`**, shallow single-commit clone). Wall-clock numbers below are first-party runs against that binary; source-line claims are reads at this tree (`59feeccf`, v0.53.0-dev). Provenance marks in the Verification Log.
 
 ## Routing Lane (per design_docs/PROGRAM.md §4)
@@ -99,6 +100,18 @@ part of that in tail copies. The reporter's minimal repro (V30) matches the firs
 report's shape exactly: rec 10k = 0.19 s / 20k = 0.35 s / 40k = 1.18 s (wall, incl.
 ~0.03 s startup), foldl flat at 0.04–0.05 s at every size.
 
+**The third report (v0.54.8, V34–V35) upgrades the deadline from estimate to measured
+blocker, and adds a validated fix.** The same consumer lane, heap-profiled: a
+`crew_core` auto-run skip (`stapledons-godot`, `crew-sim --skip 1460 --cadence 30`)
+allocates **191 GB, 98% attributed to `builtinListTail`**, and takes 16.1 s — with the
+one-line share applied to a v0.54.8 build it takes **7.5 s and allocates 4.3 GB, with
+byte-identical output**. The minimal repro (`tail_repro.ail`: `walk` + a `foldl` calling
+`walk`, n = 20,000) goes 6.5 s / 158 GB (memprofile: 99.95% in `builtinListTail`)
+→ **1.0 s**. The mechanism is named at the source: `social_dynamics`'s
+`wire.oneObjectTail` frames **every host command char-by-char** with `c :: rest`, so a
+~2–4 KB answer command alone costs O(n²). This is the "10-years-in-2-s" skip budget
+being missed by a single copy line — three versions after the first report.
+
 **A second, adjacent defect surfaced while reproducing this one** (V11): `ailang run
 --strict-bytecode` **without** `--bytecode` silently runs the evaluator — the strict flag
 only qualifies `--bytecode` (`BytecodeMode` stays false, `internal/runner/entrypoint.go:144`),
@@ -122,7 +135,10 @@ engines already follow; this doc fixes the class, not the reported instance.
 Provenance: **[R]** = read first-party at this tree (`59feeccf`), command/line below;
 **[M]** = measured this session against the container's binary (v0.52.5, commit `7200786`,
 md5 `8e4464db…`, `/usr/local/bin/ailang`); **[P]** = the reporter's measurement
-(v0.52.0 `bf2436a`, md5 `2dd0828…`), inherited, not re-run; **[N]** = negative-existence
+(v0.52.0 `bf2436a`, md5 `2dd0828…`), inherited, not re-run; **[P2]** = the second
+reporter's measurement (v0.54.6 `71f4cf6`, md5 `81bacda6…`), inherited, not re-run;
+**[P3]** = the third reporter's measurement (v0.54.8 build, binary v0.54.9-14-gbf46845d7-dirty,
+md5 `d24f5e8d…`), inherited, not re-run; **[N]** = negative-existence
 claim, instrument included per the skill's rule.
 
 | # | Claim | Command / location | Observed |
@@ -158,7 +174,11 @@ claim, instrument included per the skill's rule.
 | V29 [M] | The repro's walk loop compiles to one native `_list_tail` copy per recursive step | `ailang disasm tailbench.ail` → prototype `tailbench.sumRec`: `BUILTIN_CALL r4, builtin#257 (_len)`, `BUILTIN_CALL r2, builtin#514 (_list_get)`, `BUILTIN_CALL r3, builtin#515 (_list_tail)`, `CLOSURE`, `TAIL_CALL` | `builtin#515` is `_list_tail` (`internal/vm/builtins.go:77`); the copy is the only superlinear op in the loop — matches V16 |
 | V30 [P2] | Second reporter's measurements (v0.54.6 `71f4cf6`, md5 `81bacda6…`, inherited, not re-run — machine ~15× faster than this container) | `ailang run --bytecode --caps IO,Env --entry main tailbench.ail rec N` | rec 10k = 0.19 s, 20k = 0.35 s, 40k = 1.18 s (wall, incl. ~0.03 s startup); foldl 0.04–0.05 s flat at every size; pprof on the real workload: `vm.builtinListTail` 14% cumulative, `hofBuiltinListFoldl/Filter/Any` dominating |
 | V31 [P2] | Second reporter's consumer impact (external packages, not in this tree, not re-run) | sunholo `crew_core` + `social_dynamics` auto-play | `p :: rest` recursion throughout (collect, refresh, deliveries); Stapledon R2-CREW 10-year crew skip (3,650 ticks) takes ~60 s against a < 2 s requirement — a large part in tail copies |
-| V32 [N] | No newer doc supersedes this one | `grep -rl 'tail share\|_list_tail\|subslice' design_docs/implemented/v0_53_0 … v0_54_7` → 0 covering hits (hits are `m-run-policy-result-unforgeable`, YAML key order, serveapi, terminal-ui, cloud credit guard, background worker — none touch list tails); `ls design_docs/planned/` → this doc remains the only queue entry for the walk half | The v0.53.0-folder placement is stale-targeted, not stale-covered; re-target in place at sprint-planner time |
+| V32 [N] | No newer doc supersedes this one | `grep -rl 'tail share\|_list_tail\|subslice' design_docs/implemented/v0_53_0 … v0_54_7` → 0 covering hits (hits are `m-run-policy-result-unforgeable`, YAML key order, serveapi, terminal-ui, cloud credit guard, background worker — none touch list tails); `ls design_docs/implemented/` → no `v0_54_9`; `ls design_docs/planned/` → this doc remains the only queue entry for the walk half | The v0.53.0-folder placement is stale-targeted, not stale-covered; re-target in place at sprint-planner time |
+| V33 [R] | **Still unimplemented at this tree** (v0.54.9-dev, HEAD `47499562`, shallow single-commit clone, no Go toolchain / no `make`; read 2026-10-14, session `task-6868ea74`) — third consecutive version lapsed | `sed -n '398,400p' internal/vm/builtins.go` (`tail := make(…); copy(tail, elems[n:])`); `internal/vm/builtins_list_poly.go:70,83` (`append([]bytecode.Value(nil), xs[:n]…)` / `append([]bytecode.Value{}, xs[n:]…)`); `ls bench/` → no `vm_tail_walk`; `std/list.ail:13-14` still carries "Matching `[x, …rest]` also copies `rest` on the bytecode VM"; `ls design_docs/implemented/ \| grep v0_54_9` → empty | Three consumer reports (v0.52.0, v0.54.6, v0.54.8) across four+ shipped versions; the one-line fix remains un-merged
+| V34 [P3] | Third reporter's minimal-repro measurements (v0.54.8 build; inherited, not re-run — no Go toolchain in this container, V18/V33) | `tail_repro.ail` (module `tail_repro`: `walk` over `range(0, 20000)` + `foldl` calling `walk` over `range(0, 20)`, `--bytecode --caps IO --entry main`) | baseline: 6.5 s, **158 GB allocated**, memprofile 99.95% in `builtinListTail`; with the one-line fix (V36): **1.0 s** — 6.5× and two orders of magnitude of allocation removed by one line
+| V35 [P3] | Third reporter's real-workload measurements (same lane as V30/V31: `crew_core` + `social_dynamics`, external packages, not in this tree, not re-run) | `crew-sim --skip 1460 --cadence 30` auto-run skip (stapledons-godot); `social_dynamics` `wire.oneObjectTail` frames each host command **char-by-char** with `c :: rest` (~2–4 KB answer ⇒ O(n²) per command) | baseline: 191 GB allocated, 98% in `builtinListTail`, 16.1 s; with the fix: **7.5 s, 4.3 GB, byte-identical output** — the "10-years-in-2-s" skip budget's single largest cost
+| V36 [R] | The reporter's tested fix is the **capacity-capped** three-index share, and the cap is load-bearing, not cosmetic | reporter's line: `return bytecode.NewList(elems[n:len(elems):len(elems)])`; Go slice semantics: a plain `elems[n:]` keeps `cap = cap(elems) − n` (spare backing-array capacity beyond `len`), and a plain prefix `xs[:n]` keeps `cap = cap(xs)` — an `append` into such a view writes **into the shared backing array**, and for `take` (`xs[:n]`) the written slot `xs[n]` is *visible to the original list* | V12's audit shows no such append exists today, so plain reslices would also be correct — but the cap makes the safety argument local (append always copies) instead of global (no site anywhere appends), at zero cost. This doc's Phase 1 snippet is updated to the capped form; the interpreter's alias (V2, `listVal.Elements[m:]`) is uncapped — noted as a strictly-weaker sibling, not a blocker |
 
 ### Workarounds note (W-1)
 
@@ -173,6 +193,13 @@ re-run when a route is available.
 **matches this tree** (v0.54.8 `b283b2d4`), so V28/V29 are true first-party reads of this
 exact source; the no-Go-toolchain limit (and therefore (a)/(b)) still applies. The second
 report (V30/V31) is inherited — its workload packages are not in this tree.
+
+**Update 2026-10-14** (`task-6868ea74`): third report inherited (V34–V35, same external
+packages); this container again has no Go toolchain and a shallow single-commit clone
+(V33), so the fix's "after" numbers remain the **reporter's measurements, not
+first-party** — but they are now measurements of *the actual one-line change on a v0.54.8
+build* (6.5 s → 1.0 s on the repro; 16.1 s → 7.5 s, byte-identical output on the real
+workload), which is stronger evidence than this doc's prior derived-only targets.
 
 ## Goals
 
@@ -216,18 +243,26 @@ Three small phases, independently shippable, smallest-first:
    `builtinListTail` becomes:
 
    ```go
-   // before                                          // after
-   tail := make([]bytecode.Value, len(elems)-n)       return bytecode.NewList(elems[n:]), nil
-   copy(tail, elems[n:])
+   // before                                          // after (reporter-tested, V34–V36)
+   tail := make([]bytecode.Value, len(elems)-n)       return bytecode.NewList(
+   copy(tail, elems[n:])                                  elems[n:len(elems):len(elems)]), nil
    return bytecode.NewList(tail), nil
    ```
 
    with the existing clamping (`n<0→0`, `n>len→len`) unchanged — note `elems[n:]` after
-   clamping is always well-formed. `builtinListTake` → `NewList(xs[:n])`,
-   `builtinListDrop` → `NewList(xs[n:])` (same clamping, V21). Lists are immutable at the
-   language level and the audit (V12) shows no VM path writes into a list's backing slice,
-   so the shared array can never be observed to change. The bridge deep-copies on engine
-   crossings (V26), so sharing stays VM-internal.
+   clamping is always well-formed. `builtinListTake` → `NewList(xs[:n:n])`,
+   `builtinListDrop` → `NewList(xs[n:len(xs):len(xs)])` (same clamping, V21). The
+   **three-index capacity caps are part of the fix, not style**: a plain `xs[:n]` (take)
+   leaves the result's capacity extending into the original's live elements, so any
+   future `append` into a take-result would overwrite `xs[n]` — *observable* through the
+   original list; a plain suffix reslice leaves spare backing-array capacity that two
+   appended aliases could clobber. V12's audit shows no such append exists today, but the
+   cap makes the safety property local to the constructor (append always copies) instead
+   of global (no VM site anywhere appends), at zero cost — and it is the exact form the
+   reporter measured on the real workload (V36). Lists are immutable at the language level
+   and the audit (V12) shows no VM path writes into a list's backing slice, so the shared
+   array can never be observed to change. The bridge deep-copies on engine crossings
+   (V26), so sharing stays VM-internal.
 
 2. **Phase 2 — `--strict-bytecode` implies the VM on `run` (P1, one line).** In
    `cmd/ailang/main_run.go`, treat `--strict-bytecode` as implying `--bytecode`
@@ -249,8 +284,8 @@ Three small phases, independently shippable, smallest-first:
 ### Implementation Plan
 
 **Phase 1 (the fix):**
-- [ ] `internal/vm/builtins.go` `builtinListTail`: copy → `NewList(elems[n:])`
-- [ ] `internal/vm/builtins_list_poly.go`: `builtinListTake`, `builtinListDrop` → share
+- [ ] `internal/vm/builtins.go` `builtinListTail`: copy → capacity-capped share `NewList(elems[n:len(elems):len(elems)])` (reporter-tested form, V36)
+- [ ] `internal/vm/builtins_list_poly.go`: `builtinListTake` → `NewList(xs[:n:n])`, `builtinListDrop` → `NewList(xs[n:len(xs):len(xs)])`
 - [ ] Go unit tests (below, Testing Strategy): aliasing-safety, allocation-count, clamp parity, error text unchanged
 - [ ] AC-0 baseline first: rebuild this tree, re-derive V6–V9 tables, record in the sprint log
 
@@ -448,3 +483,4 @@ gate, from reading the top candidates:
 
 **Document created**: 2026-10-09 (design-doc-creator, unattended coordinator session `task-006b0353`; live v0.52.5 binary available for measurements, no Go toolchain / no build of this tree — Verification Log provenance marks and W-1 apply)
 **Last updated**: 2026-10-13 (design-doc-creator, unattended coordinator session `task-a0ee29fa`: second consumer report v0.54.6 folded in — Status, Problem Statement, Success Metrics AC-2c, Verification Log V27–V32, W-1 update; first-party re-derivation on the tree-matching v0.54.8 binary confirms the fix never landed. No new doc created — duplicate/coverage gate: this doc is the queue entry for the topic.)
+**Last updated**: 2026-10-14 (design-doc-creator, unattended coordinator session `task-6868ea74`: third consumer report v0.54.8 folded in — Status, Problem Statement (measured blocker + `wire.oneObjectTail` mechanism), Verification Log V33–V36, W-1 update, Phase 1 snippet upgraded to the reporter-tested capacity-capped three-index form with the take-append hazard documented. A `v0_54_10` scaffold (`m-vm-list-tail-zero-copy`) was created by the skill's script and **removed** — duplicate/coverage gate: this doc remains the single queue entry for the topic.)
