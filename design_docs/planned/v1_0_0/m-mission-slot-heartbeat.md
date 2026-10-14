@@ -229,11 +229,11 @@ Decision table — **positive evidence only; there is no default-to-COMPLETED br
 | any | artifact missing | `HEARTBEAT-MISSING` (loud: driver wrote `fired` itself, so absence = driver/state-dir fault) |
 | 0 | last = `complete` | `COMPLETED` |
 | 0 | last = `abort` | `ABORTED` (legitimate Gate-0-family exit) |
-| 0 | last = `gate-N` | `REAPED at=gate-N` — **the D-52 deliverable** |
+| 0 | last = `gate-N` (one of the writer's labels `gate-0`..`gate-5`, `gate-3b`) | `REAPED at=gate-N` — **the D-52 deliverable** |
 | 0 | only `fired` | `DIED-PRE-GATE-0` (also what a silently disabled stamping mechanism looks like — loud either way, Q6) |
 | 143/137 | last = X | `KILLED at=X` (watchdog kill, now gate-attributed) |
 | other ≠0 | last = X | `CRASHED at=X` (the existing rc≠0 branch and its late-kill sub-branch keep their behavior; the verdict adds gate attribution alongside) |
-| — | anything else | `UNCLASSIFIED` (loud; never a checkmark) |
+| 0 | anything else (a label outside the writer's closed set, e.g. `gate-bogus`) | `UNCLASSIFIED at=<label>` (loud; never a checkmark). A non-zero rc with an unknown label stays `CRASHED`/`KILLED` above, so UNCLASSIFIED always means "exited 0 with an unknown label" (M-FLEET-SLOT-UNCLASSIFIED) |
 
 **Exact log line** (driver log, adjacent to the existing `iteration complete (rc=0)` /
 `iteration exited rc=$RC` lines) — reports the attempt it classifies:

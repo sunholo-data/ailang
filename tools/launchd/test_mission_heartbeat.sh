@@ -98,6 +98,9 @@ check "rc=1 last=gate-2 => CRASHED" "printf '%s' \"$out\" | grep -q 'slot-verdic
 rm -rf "$t"
 
 # Invalid labels bypass the writer only to model a corrupted heartbeat artifact.
+t=$(tmpdir); printf '0\tnow\t\t1\t\n' > "$t/mission-v1-heartbeat"; out=$(run_verdict "$t" 0)
+check "rc=0 empty last label => DIED-PRE-GATE-0" "printf '%s' \"$out\" | grep -Fq 'slot-verdict: DIED-PRE-GATE-0 rc=0'"
+rm -rf "$t"
 t=$(tmpdir); printf '0\tnow\tbogus\t1\t\n' > "$t/mission-v1-heartbeat"; out=$(run_verdict "$t" 0)
 check "rc=0 last=bogus => UNCLASSIFIED at=bogus" "printf '%s' \"$out\" | grep -Fq 'slot-verdict: UNCLASSIFIED at=bogus rc=0'"
 out=$(run_verdict "$t" 1)
