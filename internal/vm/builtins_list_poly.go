@@ -51,7 +51,8 @@ func builtinListReverse(args []bytecode.Value) (bytecode.Value, error) {
 }
 
 // builtinListTake implements __list_take: (int, [a]) -> [a]. n<=0 gives [],
-// n past the end gives the whole list.
+// n past the end gives the whole list. The result shares xs's backing array
+// (lists are immutable; the capacity cap keeps appends off the source).
 func builtinListTake(args []bytecode.Value) (bytecode.Value, error) {
 	if err := arity("__list_take", args, 2); err != nil {
 		return bytecode.Value{}, err
@@ -65,11 +66,12 @@ func builtinListTake(args []bytecode.Value) (bytecode.Value, error) {
 		return bytecode.Value{}, err
 	}
 	n = max(0, min(n, len(xs)))
-	return bytecode.NewList(append([]bytecode.Value(nil), xs[:n]...)), nil
+	return bytecode.NewList(xs[:n:n]), nil
 }
 
 // builtinListDrop implements __list_drop: (int, [a]) -> [a]. n<=0 gives the
-// whole list, n past the end gives [].
+// whole list, n past the end gives []. Shares xs's backing array, like
+// _list_tail.
 func builtinListDrop(args []bytecode.Value) (bytecode.Value, error) {
 	if err := arity("__list_drop", args, 2); err != nil {
 		return bytecode.Value{}, err
@@ -83,7 +85,7 @@ func builtinListDrop(args []bytecode.Value) (bytecode.Value, error) {
 		return bytecode.Value{}, err
 	}
 	n = max(0, min(n, len(xs)))
-	return bytecode.NewList(append([]bytecode.Value{}, xs[n:]...)), nil
+	return bytecode.NewList(xs[n:len(xs):len(xs)]), nil
 }
 
 // builtinListZip implements __list_zip: ([a], [b]) -> [(a, b)], truncating to

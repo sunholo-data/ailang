@@ -395,9 +395,10 @@ func builtinListTail(args []bytecode.Value) (bytecode.Value, error) {
 	if n > len(elems) {
 		n = len(elems)
 	}
-	tail := make([]bytecode.Value, len(elems)-n)
-	copy(tail, elems[n:])
-	return bytecode.NewList(tail), nil
+	// Lists are immutable, so the tail shares the source's backing array: O(1),
+	// which keeps `x :: rest` walks linear (#1827). The capacity cap stops any
+	// future append on the tail from writing into the source.
+	return bytecode.NewList(elems[n:len(elems):len(elems)]), nil
 }
 
 // builtinNotBool returns the boolean negation of its argument.
