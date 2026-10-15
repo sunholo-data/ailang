@@ -221,6 +221,7 @@ _process_cancel : ProcessHandle -> Result[(), WorkerCancelError] ! {Process}
 _process_close_stdin : ProcessHandle -> () ! {Process}
 _process_exec : (string, list[string]) -> Result[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}, ProcessError] ! {Process}
 _process_spawn_process : (string, list[string]) -> ProcessHandle ! {Process}
+_process_spawn_result : (string, list[string]) -> Result[ProcessHandle, ProcessError] ! {Process}
 _process_write_stdin : (ProcessHandle, bytes) -> Result[(), string] ! {Process}
 _rand_bool : () -> bool ! {Rand}
 _rand_float : (float, float) -> float ! {Rand}

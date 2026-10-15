@@ -1,0 +1,139 @@
+{
+  "sprint_id": "M-SPAWN-PROCESS-RESULT",
+  "status": "completed",
+  "created": "2026-10-15T08:11:25.709263+00:00",
+  "design_doc": "design_docs/planned/v0_54_7/spawn-process-result.md",
+  "sprint_plan": "design_docs/planned/v0_54_7/spawn-process-result-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both consume exec and cannot implement native spawn recovery; reuse repository runtime."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both consume exec and cannot implement native spawn recovery; reuse repository runtime."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Search process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both consume exec and cannot implement native spawn recovery; reuse repository runtime."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Search process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both consume exec and cannot implement native spawn recovery; reuse repository runtime."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 500,
+    "estimated_days": 2,
+    "actual_total_loc": 686,
+    "actual_deleted_loc": 23,
+    "measurement": "Added/deleted lines vs starting commit, excluding sprint JSON and imported sprint plan."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Share spawn lifecycle without changing legacy behavior",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Extract the shared authorization/admission/spawn lifecycle while preserving legacy errors and prefixes, including unprefixed admission errors.",
+        "Regression tests cover missing command, allowlist/confinement denial, success, and admission failure; no leaked workers or handles."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-15T08:28:27.733601+00:00",
+      "notes": "Legacy denial, ownership and admission tests pass; shared parsing/spawn/publication extracted with unchanged error text."
+    },
+    {
+      "id": "M2",
+      "description": "Expose typed spawn through stdlib and VM",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Register Process.spawnProcessResult and _process_spawn_result with Result[ProcessHandle, ProcessError] metadata and wrapper.",
+        "NotFound, NotAllowed including narrowed subcommands and confinement, OS SpawnFailed, and BeginWorker/Complete failures return typed Err after capability checking.",
+        "Append __process_spawn_result without changing existing bytecode indices; focused compiler/VM dispatch and builtin type tests pass.",
+        "Successful Ok handle supports stdin write/close and cancellation; capability absence retains policy failure."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-15T08:29:58.721206+00:00",
+      "notes": "Native dispatch, capability rejection, typed denials/OS failures and builtin type tests pass. Added scoped ProcessError VM ordinals because the existing bridge lacked them; append-only indices tested."
+    },
+    {
+      "id": "M3",
+      "description": "Lock down failure and lifecycle regressions",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Hermetic effects tests exercise each typed failure, including shutdown during admission completion; assert cleanup and distinguish no-child from child-started-then-cleaned-up cases.",
+        "CLI integration regression proves missing-command fallback prints started and after and exits zero; legacy spawn still aborts with its original error.",
+        "Targeted race tests for changed lifecycle tests pass without sleeps as synchronization."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-15T08:36:20.016050+00:00",
+      "notes": "Effects and CLI regression tests pass; fallback exits zero with started/after, legacy abort unchanged. Portable child fixture tests stdin/cancel and deterministic late admission cleanup. Targeted -race passes, including cancelled admission and missing runtime context."
+    },
+    {
+      "id": "M4",
+      "description": "Publish example and document process contracts",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "examples/runnable/process_spawn_result.ail and manifest entry demonstrate typed fallback under IO,Process with the missing command allowlisted; expected output includes after.",
+        "Effects reference and streaming guide document the new API, literal allowlist keys, and WorkerHandleInvalid after normal reaping.",
+        "Unreleased changelog fragment begins with ###; make test-changed, make check-file-sizes, make check-changelog, make verify-stdlib and make verify-examples pass."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-15T08:53:51.711006+00:00",
+      "notes": "Example, manifest, docs and changelog delivered; all 48 stdlib interfaces and 247 runnable examples pass. Formatting, file sizes, changelog and boundaries pass. Lint passes with timeout/memory adjustments. Full gates retain only baseline zombie/reaping failures after the additive builtin golden fix; see validation warnings."
+    }
+  ],
+  "completed": "2026-10-15T08:53:51.711006+00:00",
+  "last_checkpoint": "Implementation complete; independent evaluation requested. Three cleanup failures reproduce on baseline in this non-reaping container.",
+  "validation": {
+    "passed": [
+      "Targeted effects/builtin/bytecode/VM and CLI spawn regressions",
+      "Targeted race checks",
+      "Full internal/pipeline suite after builtin golden update",
+      "Deep recursion regression rerun with memory limit",
+      "All 48 stdlib interface checks",
+      "verify-examples: 247 passed, 0 failed, 9 skipped",
+      "Builtin health validation",
+      "fmt-check, check-file-sizes, check-changelog, check-boundaries",
+      "golangci-lint run --timeout 10m --concurrency 1 ./cmd/... ./internal/... ./serveapi/...: 0 issues"
+    ],
+    "warnings": [
+      "make test-changed and make test-core are not green in this container: TestRuntimeNestedStopUsesRemainingDeadline, TestRunPolicy_TimeoutKillsDescendants and TestRunPolicy_SupervisorDeathStopsWorker reproduce on untouched 79ede6ee. The reported survivors are PID-1-owned zombies.",
+      "Initial ps absence corrected with temporary extracted procps; deadline test then passed. Initial deep-recursion/pipeline process kills cleared with serialized memory-limited reruns.",
+      "make lint initially exited 137; memory-limited retry exceeded its 5m timeout with 0 issues. Same checks passed using 10m timeout, concurrency 1, GOMEMLIMIT=768MiB, GOGC=30, GOMAXPROCS=2.",
+      "Optional simplicity audit flags existing repository growth vs September 30; no new packages or dependency edges."
+    ],
+    "baseline_commit": "79ede6ee9de55510fb2988dc2d8febb6f513618f"
+  },
+  "evaluation_handoff": {
+    "message_id": "inbox_1792054443306_f6f1777f",
+    "inbox": "sprint-evaluator",
+    "store": "gcp:ailang-multivac",
+    "status": "filed_not_dispatched",
+    "reason": "Cloud routing config read denied (GCS 403); local configuration has Pub/Sub notifications disabled. Handoff persisted successfully in Firestore."
+  }
+}
