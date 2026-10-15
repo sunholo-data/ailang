@@ -121,10 +121,10 @@
         "Still-unported XML builtin retains its explicit strict-bytecode failure and reason.",
         "make test-changed, make verify-examples and make check-boundaries pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-15T09:08:13.876527+00:00",
+      "notes": "Reporter exact module and full-family strict/interpreter parity pass; XML still fails explicitly with __xml_nodeKind/opaque-type. Source CLI and verify-examples gates pending."
     },
     {
       "id": "M5",
@@ -154,10 +154,10 @@
         "Raw Unify and arity diagnostic tests retain their wording/codes; collision hints survive.",
         "Targeted internal/types tests and make test-changed pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-15T09:08:13.876527+00:00",
+      "notes": "Worker commit 5ec3b7864: tests first reproduced missing callee, then focused/imported module integration and full internal/types suite, go vet pass. Anonymous, raw Unify, arity and collision hints covered."
     },
     {
       "id": "M7",

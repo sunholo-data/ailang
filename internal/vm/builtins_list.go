@@ -8,10 +8,8 @@ import (
 
 // M-BYTECODE-STDLIB-BUILTINS M3: Pure list builtins wired to VM OpBuiltinCall.
 //
-// HOF builtins (map, filter, foldl) stay EvalOnly because the VM's BuiltinFunc
-// signature cannot call back into VM closures. Only pure-data list operations
-// are wired here. Map and bytes builtins are also deferred — the VM has no
-// TagMap or TagBytes value type.
+// These pure-data operations use BuiltinFunc. Higher-order list operations
+// use the separate HOFBuiltinTable so they can invoke VM closures.
 
 func builtinListNth(args []bytecode.Value) (bytecode.Value, error) {
 	if len(args) != 2 {

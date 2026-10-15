@@ -27,7 +27,7 @@ import (
 // Reasons a pure builtin's signature cannot cross the generic adapter.
 const (
 	ReasonPolymorphic = "polymorphic: a type variable can carry ADT or closure values the converter cannot name; needs a native port"
-	ReasonMap         = "map-value: the VM has no Map value"
+	ReasonMap         = "map-value: map signatures require a native port"
 	ReasonClosure     = "closure-arg: function-typed parameter; needs a native HOF port"
 	ReasonADTParam    = "adt-param: VM ADT values carry no type name, so they cannot be converted to evaluator values"
 	ReasonOpaque      = "opaque-type: a named type the converter does not know"

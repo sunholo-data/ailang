@@ -1,0 +1,19 @@
+-- Full std/map native VM parity, including canonical ordering and persistence.
+module examples/runnable/map_strict_parity
+import std/map as M
+import std/option (Some, None)
+
+pure func parity() -> bool ! {} tests [((), true)] {
+  let empty: Map[int, int] = M.empty();
+  let m = M.fromList([(2, 20), (-1, 10), (10, 100), (2, 22)]);
+  let updated = M.insert(m, 3, 30);
+  let removed = M.remove(updated, 2);
+  let value = match M.lookup(m, 2) { Some(v) => v, None => 0 };
+  M.size(empty) == 0 && M.size(m) == 3 && M.size(updated) == 4 &&
+  M.size(removed) == 3 && value == 22 &&
+  M.member(m, 2) && not(M.member(removed, 2)) &&
+  M.keys(m) == [-1, 10, 2] && M.values(m) == [10, 100, 22] &&
+  M.toList(m) == [(-1, 10), (10, 100), (2, 22)]
+}
+
+export func main() -> bool ! {} { parity() }
