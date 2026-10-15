@@ -43,6 +43,8 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-15 — ITERATION 40: stack recovery rechecked; PARKED on D-FLEET-17, independent fresh-context Sol judge PASS 95 for disposition only [ADMIN]
+
 ## STATUS 2026-10-14 — ITERATION 39: P2 #15 slot verdict UNCLASSIFIED made reachable — built and judged PASS 91 by sonnet (round 2); stacked on #1825, BLOCKED on dev's required reds; Gate 1 skill fix for records stranded on blocked PR branches [HARNESS]
 
 The driver's SLOT VERDICT `case` ended in an unconditional `*:*) CRASHED` arm. As a result, a slot that exited **0** with a heartbeat label outside the stamp writer's closed set was reported as crashed, and the design's `UNCLASSIFIED` verdict was unreachable (`grep -c` = 0). The fix has three parts:
@@ -72,24 +74,6 @@ How it was built: the codex designer (rotation turn `codex:gpt-6.1-sol`) wrote t
 Done-gate at `b151064db`: `make test-launchd-drivers` rc 0 under `env -i`. World dry-runs (`AILANG_DRIVER_PINNED` set): healthy `lanes=ok`, degraded `lanes=DEGRADED(1)`, both rc 0, and both print `quorum artifact directory: …/mission-quorum-world`. No pidfile was written. Not LANDED: dev `d15217d24` is still red on `test` (`check-git-exec`) and `docs-gate`, so #1824 and this stacked PR wait on D-FLEET-17. The ticket stays open.
 
 Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is green; #12 and #14 are both ready); **3** MET (51 open); **4** prior evidence only; **5** preserved (nothing shipped). Next: when D-FLEET-17's predicate holds, land #1824, then this PR, run the done-gate at each merge, and resolve 3 tickets. Then P2 #15.
-
-## STATUS 2026-10-14 — ITERATION 37: no landing possible — #12 still BLOCKED on dev's required reds (owner V1 disabled); #13 reproduction measured (B gone, A + an untracked timer flake live in `tools/eval/`, outside fleet scope), judged PASS 88 by sonnet; D-FLEET-17/18 filed [HARNESS]
-
-Dev HEAD `42652c19e` is unchanged since iteration 36, and the required `test` and `docs-gate` checks are still red:
-- `check-git-exec` fails on `internal/executor/managed_agents/devapi_workspace.go:237,259`, from `ffef3402a`.
-- `docs-gate` fails on an MDX `{"sort":"throughput"}` literal. It sits in `env-vars.md`, generated from `internal/config/ai.go:43`.
-- `Build windows-latest` is also red in the same package.
-
-Every fix is outside fleet scope. V1 owns repo reds, and its kill switch has been set since 09-14, so no PR to dev can merge. That includes PR #1824 (#12, judged PASS 88). Resume predicate: `test` and `docs-gate` green on origin/dev. **D-FLEET-17** asks how to unblock it.
-
-With landing impossible, the iteration took P2 #13's mandated first step, reproduction, which is measurement only. The window was ≥ 09-28 13:08Z, covering 21 failed `launchd drivers` jobs with controls:
-- **B** (gh hang, `tools/launchd`): last FAIL 09-28 13:15Z, before filing; 0 since.
-- **A** (OpenRouter peer): last 10-02.
-- An untracked flake, `bound measurement refuses an unsuccessfully terminated timer`, failed 4× on dev between 10-07 and 10-12.
-
-A and the timer flake both live in `tools/eval/*motoko_connection_probe*`. The guard refuses that path for the fleet, yet it runs inside the fleet's own done-gate (`make test-launchd-drivers`), so **D-FLEET-18** asks about the authority. #13 stays OPEN. The independent sonnet judge re-measured all three claims with its own commands: **PASS 88**. Its corrections are adopted: `docs/` is in scope but generated, the Windows red is noted, and the 13:08–17:01Z slice is covered. Evidence: `fleet-mission-evidence/iteration37/findings.md`.
-
-Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is green; #12 is ready); **3** MET (51 open); **4** prior evidence only; **5** preserved (nothing shipped). Next: when D-FLEET-17's predicate holds, land #1824 and resolve both #12 tickets. Then P2 #14 (`quorum:artifact-dir-cwd-relative`), or #13 if D-FLEET-18 = A.
 
 ## CURRENT GOAL
 
