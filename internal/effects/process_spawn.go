@@ -26,36 +26,52 @@ func init() {
 // Args: [cmd: string, args: [string]]
 // Returns: ProcessHandle(int) — opaque handle stored in ProcessContext.managed
 func ProcessSpawn(ctx *EffContext, args []eval.Value) (eval.Value, error) {
-	if len(args) != 2 {
-		return nil, fmt.Errorf("_process_spawn_process: expected 2 arguments (cmd, args), got %d", len(args))
-	}
-
-	cmdVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("_process_spawn_process: expected string for cmd, got %T", args[0])
-	}
-
-	argsVal, ok := args[1].(*eval.ListValue)
-	if !ok {
-		return nil, fmt.Errorf("_process_spawn_process: expected list for args, got %T", args[1])
-	}
-	cmdArgs := make([]string, len(argsVal.Elements))
-	for i, elem := range argsVal.Elements {
-		strVal, ok := elem.(*eval.StringValue)
-		if !ok {
-			return nil, fmt.Errorf("_process_spawn_process: args[%d] expected string, got %T", i, elem)
-		}
-		cmdArgs[i] = strVal.Value
+	cmd, cmdArgs, err := processSpawnArgs(args)
+	if err != nil {
+		return nil, err
 	}
 
 	if ctx.Process == nil {
 		return nil, fmt.Errorf("E_PROCESS_NO_CONTEXT: Process effect not configured (missing --caps Process)")
 	}
 
-	// Resolve command path via ProcessContext (reuse allowlist + LookPath)
-	resolvedPath, err := resolveCommand(ctx.Process, cmdVal.Value, cmdArgs)
+	return spawnManaged(ctx, cmd, cmdArgs)
+}
+
+// processSpawnArgs validates internal builtin arguments.
+func processSpawnArgs(args []eval.Value) (string, []string, error) {
+	if len(args) != 2 {
+		return "", nil, fmt.Errorf("_process_spawn_process: expected 2 arguments (cmd, args), got %d", len(args))
+	}
+
+	cmdVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return "", nil, fmt.Errorf("_process_spawn_process: expected string for cmd, got %T", args[0])
+	}
+
+	argsVal, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return "", nil, fmt.Errorf("_process_spawn_process: expected list for args, got %T", args[1])
+	}
+	cmdArgs := make([]string, len(argsVal.Elements))
+	for i, elem := range argsVal.Elements {
+		strVal, ok := elem.(*eval.StringValue)
+		if !ok {
+			return "", nil, fmt.Errorf("_process_spawn_process: args[%d] expected string, got %T", i, elem)
+		}
+		cmdArgs[i] = strVal.Value
+	}
+
+	return cmdVal.Value, cmdArgs, nil
+}
+
+// spawnManaged is the lifecycle shared by both public spawn operations.
+// Only resolution/start failures have the legacy builtin prefix; admission
+// errors retain their original text.
+func spawnManaged(ctx *EffContext, cmd string, cmdArgs []string) (eval.Value, error) {
+	resolvedPath, err := resolveCommand(ctx.Process, cmd, cmdArgs)
 	if err != nil {
-		return nil, fmt.Errorf("_process_spawn_process: %w", err)
+		return nil, &processSpawnStartupError{err}
 	}
 
 	admission, err := ctx.BeginWorker()
@@ -65,9 +81,14 @@ func ProcessSpawn(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	mp, err := NewManagedProcess(admission.Context(), resolvedPath, cmdArgs)
 	if err != nil {
 		admission.Abort()
-		return nil, fmt.Errorf("_process_spawn_process: %w", err)
+		return nil, &processSpawnStartupError{err}
 	}
 
+	return finishProcessSpawn(ctx, admission, mp)
+}
+
+// finishProcessSpawn publishes a handle only after admission succeeds.
+func finishProcessSpawn(ctx *EffContext, admission *WorkerAdmission, mp *managedProcess) (eval.Value, error) {
 	processContext := ctx.Process
 	handleID := processContext.AcquireManagedProcess(mp)
 	admission.SetResourceID(handleID)
@@ -204,3 +225,11 @@ func processResultErr(msg string) eval.Value {
 		Fields:     []eval.Value{&eval.StringValue{Value: msg}},
 	}
 }
+
+// processSpawnStartupError preserves legacy diagnostics while retaining a typed cause.
+type processSpawnStartupError struct{ error }
+
+func (e *processSpawnStartupError) Error() string {
+	return "_process_spawn_process: " + e.error.Error()
+}
+func (e *processSpawnStartupError) Unwrap() error { return e.error }

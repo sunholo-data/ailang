@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-SPAWN-PROCESS-RESULT",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-15T08:11:25.709263+00:00",
   "design_doc": "design_docs/planned/v0_54_7/spawn-process-result.md",
   "sprint_plan": "design_docs/planned/v0_54_7/spawn-process-result-sprint-plan.md",
@@ -46,10 +46,10 @@
         "Extract the shared authorization/admission/spawn lifecycle while preserving legacy errors and prefixes, including unprefixed admission errors.",
         "Regression tests cover missing command, allowlist/confinement denial, success, and admission failure; no leaked workers or handles."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-15T08:28:27.733601+00:00",
+      "notes": "Legacy denial, ownership and admission tests pass; shared parsing/spawn/publication extracted with unchanged error text."
     },
     {
       "id": "M2",
