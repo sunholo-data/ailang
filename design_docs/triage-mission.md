@@ -43,7 +43,11 @@ Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-
 
 ## STATUS 2026-10-15 — ITERATION 0: charter drafted, awaiting ratification (D-TRIAGE-1)
 
-## CURRENT LEVEL: **1 — Tidy** (Mark, attended 2026-10-15; D-TRIAGE-5)
+## CURRENT LEVEL: **2 — Approve** (Mark, attended 2026-10-15; D-TRIAGE-6)
+
+While `dev` CI is red, G1 blocks every approval, so the loop runs as Level 1 in practice until
+`dev` is green (D-TRIAGE-2). The first approval it makes is reported `[urgent]` to Daneel and Discord
+even when nothing went wrong, so Mark sees the first live use of the power.
 
 The level changes only by a recorded ruling in the ledger below. The loop may **demote** itself (G8)
 but never promote.
@@ -128,6 +132,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 | ID | Status | Decision / recorded answer | Evidence |
 |---|---|---|---|
 | D-TRIAGE-0 | RESOLVED | Start at **Level 0**. The loop is meant to use the approval system and merge "as appropriate", with Discord and Daneel facilitating. (Mark, attended 2026-10-15.) | This session. |
+| D-TRIAGE-6 | RESOLVED | Start at **Level 2 (Approve)**, superseding D-TRIAGE-5. Mark, attended 2026-10-15: "honestly level 2 looks ok for the loop". Under G1–G9: at most 4 approvals a day, each dispatching a next stage capped by `task_max_cost` ($25 global / $15 claude), so the worst case is about $100 a day of cloud-plane spend. G1 (`dev` green) gates it today. | This session; design doc "What approving and merging actually do". |
 | D-TRIAGE-5 | RESOLVED | Start at **Level 1 (Tidy)**, superseding D-TRIAGE-0's Level 0. Mark, attended 2026-10-15: "I think we can start at level 1". Guards T1–T4 added in the same commit. | This session. |
 | D-TRIAGE-1 | OPEN | Ratify bar, levels, G1–G9 and the communication plan (iteration 0). Recommendation: ratify as drafted. | Charter bootstrap 2026-10-15. |
 | D-TRIAGE-2 | OPEN | Red `dev` has no owner while V1 is paused (12/12 red on 2026-10-15). Options: (a) an attended fix now, before arming; (b) triage owns red `dev` while V1 is paused, routing the fix to `design-doc-creator`; (c) leave it with V1. Recommendation: (a), then (b) as the standing rule. | `gate-1-observe.md:233-271`; `mission-control.disabled`. |
@@ -139,7 +144,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 
 1. [NEXT] Bootstrap sprint: toml, env, idle pre-check, prompt switch, Gate 2/3 triage resources,
    tests, dry runs (design doc "Driver and skill changes"). Clause 5 and all clauses.
-2. First armed iteration at Level 1, attended. Clauses 1–3.
+2. First armed iteration at Level 2, attended (expect G1 to hold approvals until `dev` is green). Clauses 1–3.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.

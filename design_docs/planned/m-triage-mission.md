@@ -108,7 +108,7 @@ One iteration:
    *shadow ledger*: what it would have done, recorded so promotion is evidence-led.
 5. **Gate 4/5 (unchanged)** — record, digest, retro.
 
-## Levels (starts at 1 per Mark 2026-10-15; Mark promotes; demotion is automatic)
+## Levels (starts at 2 per Mark 2026-10-15, D-TRIAGE-6; Mark promotes; demotion is automatic)
 
 | Level | Admits | Guards |
 |---|---|---|
