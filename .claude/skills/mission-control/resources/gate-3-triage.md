@@ -66,7 +66,7 @@ Exactly one per item, with evidence (SHAs, paths, check names), read against `or
 
 **T1–T4** (charter, verbatim in force):
 
-- **T1** The judge (a different vendor from the verifier) concurs, and the close comment cites the
+- **T1** The judge (a different model from the verifier; same vendor allowed, D-TRIAGE-10) concurs, and the close comment cites the
   fix commit or reason and says "verified against origin/dev <sha>". The same applies to every
   attestation.
 - **T2** Never close an issue that still has a pending card or an open `coordinator/task-*` PR. The
@@ -85,13 +85,13 @@ To close, post the evidence first with `gh issue comment N --body-file <file>`, 
 `gh issue close N --reason completed|"not planned"`. `gh issue close` has no file form, and a
 backtick body passed inline under zsh loses its evidence silently (gate-5-retro 4.2(c)).
 
-### 3. Judge (different vendor, evaluator role) — REQUIRED
+### 3. Judge (different model, evaluator role) — REQUIRED
 
 Resolve with `tools/launchd/resolve-role-spawn.sh evaluator`. The default chain is `sonnet` →
-`pi:ollama/minimax-m3:cloud` → `pi:openrouter/minimax/minimax-m3`, vendor-disjoint from the
-verifier chain at every rung. **The judge must not share a vendor with the verifier that produced
-the verdict.** If the resolved judge would, take the next rung and record it. If no disjoint
-judge is reachable, take no ⚖ action this iteration and put the items in the digest. A verdict
+`pi:ollama/minimax-m3:cloud` → `pi:openrouter/minimax/minimax-m3`. **The judge must be a different
+model from the verifier that produced the verdict; sharing a vendor is allowed (D-TRIAGE-10, Mark
+2026-10-15), e.g. a haiku verifier judged by sonnet.** The resolver already reroutes a same-model
+judge. If no distinct judge is reachable, take no ⚖ action this iteration and put the items in the digest. A verdict
 without a judge is a report, never an action.
 
 The judge reviews **every verdict that triggers an action** (all ⚖ rows) and **every `VERIFIED`**.
