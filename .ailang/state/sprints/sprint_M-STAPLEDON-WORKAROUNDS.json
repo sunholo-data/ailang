@@ -86,10 +86,10 @@
         "Updating a map leaves aliases to the original unchanged; missing keys return None.",
         "TestPureBuiltinCoverage and targeted VM/compiler tests plus make test-changed pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-15T09:05:03.985055+00:00",
+      "notes": "Missing-native-function regression tests failed first. VM/evaluator bulk parity, point operations, opaque values, COW, bad inputs and builtin coverage ratchet pass -count=20. Full integration gates pending."
     },
     {
       "id": "M3",
@@ -103,10 +103,10 @@
         "Empty input, duplicates and mixed positive/negative integer ordering match evaluator.",
         "Bulk-operation tests, coverage ratchet and make test-changed pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-15T09:05:03.985055+00:00",
+      "notes": "Missing-native-function regression tests failed first. VM/evaluator bulk parity, point operations, opaque values, COW, bad inputs and builtin coverage ratchet pass -count=20. Full integration gates pending."
     },
     {
       "id": "M4",
