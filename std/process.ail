@@ -93,6 +93,18 @@ export func spawnProcess(
   _process_spawn_process(cmd, args)
 }
 
+-- Spawn a subprocess with recoverable startup errors.
+-- Ok(handle) supports the same stdin and cancellation operations as spawnProcess.
+-- Err(NotFound/NotAllowed/SpawnFailed) permits fallback after capability checking.
+-- On admission failure, any started child is stopped/reaped; no usable handle escapes.
+-- Allowlist keys match cmd literally (name and /abs/path/name are distinct).
+export func spawnProcessResult(
+  cmd: string,
+  args: [string]
+) -> Result[ProcessHandle, ProcessError] ! {Process} {
+  _process_spawn_result(cmd, args)
+}
+
 -- Write bytes to a managed process's stdin
 --
 -- Returns Ok(()) on success, Err(reason) if pipe closed or buffer full.

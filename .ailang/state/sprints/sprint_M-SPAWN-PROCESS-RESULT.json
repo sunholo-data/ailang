@@ -64,10 +64,10 @@
         "Append __process_spawn_result without changing existing bytecode indices; focused compiler/VM dispatch and builtin type tests pass.",
         "Successful Ok handle supports stdin write/close and cancellation; capability absence retains policy failure."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-15T08:29:58.721206+00:00",
+      "notes": "Native dispatch, capability rejection, typed denials/OS failures and builtin type tests pass. Added scoped ProcessError VM ordinals because the existing bridge lacked them; append-only indices tested."
     },
     {
       "id": "M3",

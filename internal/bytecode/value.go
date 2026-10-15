@@ -265,6 +265,12 @@ func StdADTTag(modulePath, typeName, ctor string) (int, bool) {
 		return 0, true
 	case modulePath == "std/stream" && typeName == "StreamSource" && ctor == "StreamSource":
 		return 0, true
+	case modulePath == "std/process" && typeName == "ProcessError":
+		for i, name := range []string{"NotAllowed", "NotFound", "PermissionDenied", "Timeout", "OutputLimitExceeded", "SpawnFailed", "AbnormalExit"} {
+			if name == ctor {
+				return i, true
+			}
+		}
 	case modulePath == "std/process" && typeName == "WorkerCancelError":
 		for i, name := range []string{"WorkerHandleInvalid", "WorkerCancelUnsupported", "WorkerCancelTimedOut", "WorkerCancelFailed"} {
 			if name == ctor {
