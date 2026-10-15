@@ -74,12 +74,21 @@ comes from the fallback the description names. The ` + "`DEBUG_*`" + ` compiler 
 	return b.Bytes()
 }
 
-// cell makes a doc line safe inside a Markdown table cell.
+// cell makes a doc line safe inside a Markdown table cell rendered by MDX.
+// Outside code spans, MDX reads "<" as JSX and "{" as a JS expression (a doc
+// that quoted '{"sort":"throughput"}' broke the whole docs build), so those
+// are spelled out as entities. Inside a `code span` MDX is literal, so an
+// entity there would render as "&lt;" verbatim; code spans are left alone.
+// The pipe is escaped everywhere: GFM splits table cells on it even inside
+// code spans.
 func cell(s string) string {
 	s = strings.ReplaceAll(s, "|", "\\|")
 	s = strings.ReplaceAll(s, "\n", " ")
-	// Angle brackets read as JSX in MDX; spell them out.
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	return s
+	parts := strings.Split(s, "`")
+	for i := 0; i < len(parts); i += 2 { // even indexes are outside code spans
+		parts[i] = mdxText.Replace(parts[i])
+	}
+	return strings.Join(parts, "`")
 }
+
+var mdxText = strings.NewReplacer("<", "&lt;", ">", "&gt;", "{", "&#123;", "}", "&#125;")

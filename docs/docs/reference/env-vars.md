@@ -202,7 +202,7 @@ comes from the fallback the description names. The `DEBUG_*` compiler knobs are 
 
 | Variable | Default | What it does |
 |---|---|---|
-| `AILANG_APPROVAL_ALLOWED_CALLERS` | — | Comma-separated service-account emails whose Google-signed ID tokens may create and poll secret approvals (`POST /api/approvals`, `GET /api/approvals/&lt;id&gt;`); unset admits no ID token. |
+| `AILANG_APPROVAL_ALLOWED_CALLERS` | — | Comma-separated service-account emails whose Google-signed ID tokens may create and poll secret approvals (`POST /api/approvals`, `GET /api/approvals/<id>`); unset admits no ID token. |
 | `AILANG_APPROVAL_AUDIENCE` | — | Comma-separated audiences an approval caller's ID token may carry; unset uses AILANG_APPROVAL_BASE_URL. |
 | `AILANG_APPROVAL_INTAKE_AUTH` | `enforce` | enforce (default) requires an ID token or AILANG_APPROVAL_TOKEN on secret-approval create/poll; off admits anonymous callers (rollback lever, logged loudly). Any other value enforces. |
 | `AILANG_APPROVAL_SIGNING_KEY` | — | HMAC key that signs the secret-approval action links, so ntfy buttons can POST without IAM; unset disables those endpoints. |
@@ -249,7 +249,7 @@ comes from the fallback the description names. The `DEBUG_*` compiler knobs are 
 | `AILANG_AI_HTTP_LOG` | — | Path the OpenAI-compatible clients append their raw HTTP wire log to; unset falls back to the ai-http-log sentinel file under the state dir, and no sentinel means logging off. |
 | `AILANG_AI_KEY_FILE` | — | Path to a file holding the API key for the --ai model's provider, read once on the first AI effect in run (eagerly for service setup) and never echoed (same as ailang run --ai-key-file, which wins); the file's contents replace the provider's key variable. |
 | `AILANG_AI_NO_ADC` | — | Set to 1 to disable the Google provider's Application Default Credentials lane: a missing GOOGLE_API_KEY/GEMINI_API_KEY becomes a hard AuthFailed error instead of silently billing the gcloud project (same as ailang run --ai-no-adc). |
-| `AILANG_OPENROUTER_PROVIDER` | — | JSON object merged into the OpenRouter `provider` routing block of every request, over the model registry's openrouter_provider and any caller routing policy ("ignore" lists are unioned). For experiments, e.g. '{"sort":"throughput"}'; a value that is not a JSON object fails the request. |
+| `AILANG_OPENROUTER_PROVIDER` | — | JSON object merged into the OpenRouter `provider` routing block of every request, over the model registry's openrouter_provider and any caller routing policy ("ignore" lists are unioned). For experiments, e.g. '&#123;"sort":"throughput"&#125;'; a value that is not a JSON object fails the request. |
 | `BROWSERBASE_API_KEY` | — | Browserbase API key for browser eval sessions when the benchmark's browser config does not name another variable (read through Raw, since the name is configurable). |
 | `BROWSERBASE_PROJECT_ID` | — | Browserbase project id for browser eval sessions; same rule as the API key. |
 | `LYCEUM_BASE_URL` | `https://api.lyceum.technology/openai/v1` | Overrides the Lyceum OpenAI-compatible endpoint, for tests and proxies. |
