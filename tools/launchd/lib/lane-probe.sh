@@ -300,3 +300,19 @@ _mc_ration_refuses() {
   [ "$(_mc_rung_bucket "$1")" = anthropic ] && _mc_ration_unreadable anthropic && return 1
   return 0
 }
+
+# _mc_spawn_over_ration → the bucket list exported as MISSION_OVER_RATION for in-iteration
+# spawns (resolve-role-spawn.sh, spawn-pin-hook.sh). Same verdict as _mc_ration_refuses:
+# an UNREADABLE Anthropic quota is left out, because the driver probed and admitted that
+# lane. Measured 2026-10-15 (triage, the fire after the controller fix): the haiku
+# executor passed the driver's probe, then resolve-role-spawn refused its recipe as
+# `over-ration:anthropic` and the hook denied the Agent spawn — zero verdicts.
+_mc_spawn_over_ration() {
+  local b out=""
+  _mc_load_ration
+  for b in $MC_OVER_RATION; do
+    [ "$b" = anthropic ] && _mc_ration_unreadable anthropic && continue
+    out="${out:+$out }$b"
+  done
+  printf '%s' "$out"
+}

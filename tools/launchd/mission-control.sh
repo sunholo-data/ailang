@@ -2275,8 +2275,7 @@ MISSION_DRIVER_ROOT="${MC_DRIVER_ROOT:-}"; export MISSION_DRIVER_ROOT
 _mc_export_mission_registry
 # The over-ration buckets travel with the resolved plan, so resolve-role-spawn.sh can
 # refuse a role recipe the driver itself would have refused (see that script's gate).
-_mc_load_ration
-MISSION_OVER_RATION=$(printf '%s' "$MC_OVER_RATION" | tr -s ' ' | sed 's/^ //; s/ $//'); export MISSION_OVER_RATION
+MISSION_OVER_RATION=$(_mc_spawn_over_ration); export MISSION_OVER_RATION
 for _role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
   _mv="MISSION_${_role}_MODEL"; _rv="${!_mv:-}"
   printf -v "MISSION_${_role}_RESOLVED" '%s' "$_rv"; export "MISSION_${_role}_RESOLVED"

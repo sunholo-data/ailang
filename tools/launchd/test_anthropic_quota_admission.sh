@@ -123,6 +123,23 @@ printf '%s' "$sel" | grep -q '_mc_is_over_ration' && { echo 'FAIL select_model s
 [ "$(printf '%s' "$sel" | grep -c '_mc_ration_refuses')" -ge 4 ] || { echo 'FAIL select_model lost a _mc_ration_refuses gate';exit 1; }
 echo 'PASS controller selection probes an UNREADABLE Anthropic quota and still refuses an OVER one'
 
+# SPAWN EXPORT gets the same split (2026-10-15: haiku executor admitted by the driver, then
+# refused by resolve-role-spawn as over-ration:anthropic because the export still listed it).
+body=$(awk '$0 == "_mc_spawn_over_ration() {" {on=1} on {print} on && /^}$/ {exit}' "$HERE/lib/lane-probe.sh")
+[ -n "$body" ] || { echo 'FAIL extraction _mc_spawn_over_ration';exit 1; }
+eval "$body"
+MC_OVER_RATION='codex anthropic openrouter'
+MC_RATION_REASONS='anthropic unknown: usage endpoint returned HTTP 429'
+[ "$(_mc_spawn_over_ration)" = 'codex openrouter' ] || { echo "FAIL spawn export kept an UNREADABLE anthropic: '$(_mc_spawn_over_ration)'";exit 1; }
+MC_RATION_REASONS='anthropic over 12.0% used / 11.4% allowed'
+[ "$(_mc_spawn_over_ration)" = 'codex anthropic openrouter' ] || { echo "FAIL spawn export dropped an OVER anthropic: '$(_mc_spawn_over_ration)'";exit 1; }
+grep -q '^MISSION_OVER_RATION=$(_mc_spawn_over_ration); export MISSION_OVER_RATION$' "$DRIVER" \
+  || { echo 'FAIL driver exports MISSION_OVER_RATION without _mc_spawn_over_ration';exit 1; }
+# End to end through the resolver: a claude: executor recipe is emitted, not refused.
+out=$(MISSION_OVER_RATION='codex openrouter' MISSION_EXECUTOR_MODEL=claude:claude-haiku-5-5 /bin/bash "$HERE/resolve-role-spawn.sh" executor 2>/dev/null)
+case "$out" in "recipe claude:claude-haiku-5-5"*) : ;; *) echo "FAIL resolver on the fixed export: $out";exit 1 ;; esac
+echo 'PASS spawn export drops an UNREADABLE Anthropic bucket, keeps an OVER one, and the resolver emits the recipe'
+
 # ORDERING: the kill switch must be reached BEFORE any inference probe.
 #
 # It is numbered gate 1 and was gate 1, but the role-probe block was inserted above it, so a
