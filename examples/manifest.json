@@ -2318,6 +2318,20 @@
       ]
     },
     {
+      "path": "runnable/map_strict_parity.ail",
+      "status": "working",
+      "tags": [
+        "map",
+        "bytecode",
+        "parity"
+      ],
+      "description": "All ten map operations with strict-bytecode parity, immutable updates and canonical iteration.",
+      "modules": [
+        "std/map",
+        "std/option"
+      ]
+    },
+    {
       "path": "runnable/mcp_tools.ail",
       "status": "broken",
       "tags": [

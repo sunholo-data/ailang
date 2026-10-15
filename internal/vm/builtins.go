@@ -182,6 +182,16 @@ var BuiltinTable = []BuiltinFunc{
 	builtinArrayAppend,     // __array_append
 	builtinArrayUpdateMany, // __array_update_many
 	builtinYamlEncode,      // __yaml_encode
+	builtinMapEmpty,
+	builtinMapInsert,
+	builtinMapLookup,
+	builtinMapMember,
+	builtinMapRemove,
+	builtinMapSize,
+	builtinMapFromList,
+	builtinMapToList,
+	builtinMapKeys,
+	builtinMapValues,
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as
@@ -305,6 +315,13 @@ func inspectVMShow(x any) eval.ShowNode {
 			names[i], items[i] = f.Name, f.Value
 		}
 		return eval.ShowNode{Kind: eval.ShowRecord, Names: names, Items: items}
+	case bytecode.TagMap:
+		items := make([]any, 0, len(v.AsMap().Entries)*2)
+		for _, k := range v.AsMap().SortedKeys() {
+			e := v.AsMap().Entries[k]
+			items = append(items, e.Key, e.Value)
+		}
+		return eval.ShowNode{Kind: eval.ShowMap, Items: items}
 	case bytecode.TagBytes:
 		b := v.AsBytes()
 		return eval.ShowNode{Text: (&eval.BytesValue{Value: b.B, Filename: b.Filename, MimeType: b.MimeType}).String()}

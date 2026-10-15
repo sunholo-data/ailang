@@ -42,7 +42,7 @@
 **Use case** (Stapledon's Voyage, design repo `vision/premise-and-loop.md` §6): a cross-run content
 library. Content generated in one playthrough (a "universe") is found by semantic near-match in later
 ones. The same machinery serves crew memories and the Archive's decaying retrieval index. The game
-repo is `sunholo-data/stapledons-godot` (see [stapledon-v0-54-6-workarounds.md](../v0_54_7/stapledon-v0-54-6-workarounds.md)
+repo is `sunholo-data/stapledons-godot` (see [stapledon-v0-54-6-workarounds.md](../../implemented/v0_54_7/stapledon-v0-54-6-workarounds.md)
 for the standing game↔engine friction register).
 
 AILANG already ships the pieces — SharedMem (flat cache), SharedIndex (namespace-partitioned
@@ -474,7 +474,7 @@ the known lockstep warning, see Risks):
 - [m-embed-task-prefix.md](../../implemented/v0_26_0/m-embed-task-prefix.md) — embedprefix
   role-prefixing; the SQLite auto-embed path already uses it (relevant if the game later wants
   auto-embedding on frame writes).
-- [stapledon-v0-54-6-workarounds.md](../v0_54_7/stapledon-v0-54-6-workarounds.md) — the standing
+- [stapledon-v0-54-6-workarounds.md](../../implemented/v0_54_7/stapledon-v0-54-6-workarounds.md) — the standing
   game↔engine friction register for Stapledon's Voyage (game repo
   `sunholo-data/stapledons-godot`, design repo `vision/premise-and-loop.md` §6, external).
 - [m-doc-sem-lazy-embeddings.md](../../implemented/v0_6_0/m-doc-sem-lazy-embeddings.md) — lazy

@@ -26,6 +26,7 @@ const (
 	TagADT
 	TagArray
 	TagBytes
+	TagMap
 )
 
 // String returns the human-readable tag name. Used for error messages and
@@ -54,6 +55,8 @@ func (t ValueTag) String() string {
 		return "ADT"
 	case TagArray:
 		return "Array"
+	case TagMap:
+		return "Map"
 	case TagBytes:
 		return "Bytes"
 	}
@@ -437,6 +440,8 @@ func (v Value) Equal(other Value) bool {
 			}
 		}
 		return true
+	case TagMap:
+		return v.AsMap().Equal(other.AsMap(), func(a, b Value) bool { return a.Equal(b) })
 	case TagBytes:
 		return string(v.Obj.(*BytesObj).B) == string(other.Obj.(*BytesObj).B)
 	case TagArray:
@@ -520,6 +525,8 @@ func (v Value) String() string {
 		}
 		sb.WriteByte(']')
 		return sb.String()
+	case TagMap:
+		return v.AsMap().String()
 	case TagBytes:
 		return fmt.Sprintf("<bytes:%d>", len(v.Obj.(*BytesObj).B))
 	case TagArray:
