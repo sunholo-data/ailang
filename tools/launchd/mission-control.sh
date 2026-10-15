@@ -2010,6 +2010,11 @@ fi
 
 if type mc_skill_sync >/dev/null 2>&1; then mc_skill_sync apply; fi
 log "skill-sync=$SKILL_SYNC_STATUS $SKILL_SYNC_NOTE"
+# The mission's own clone, opt-in (lib/skill-sync.sh mc_workdir_sync for the why).
+if [ "${MISSION_WORKDIR_SYNC:-0}" = 1 ] && type mc_workdir_sync >/dev/null 2>&1; then
+  mc_workdir_sync "$REPO"
+  log "workdir-sync=$SKILL_SYNC_STATUS $SKILL_SYNC_NOTE ($REPO)"
+fi
 
 # 3b. BOOT STAGGER (2026-09-05). See _mc_boot_offset for the measurement. Placed
 #     AFTER the kill switch, the overlap yield and the dry run — a disabled

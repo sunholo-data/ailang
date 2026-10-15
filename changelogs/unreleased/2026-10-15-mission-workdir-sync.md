@@ -1,0 +1,3 @@
+### Added — mission driver: opt-in fetch + ff-only sync of the mission's own clone
+
+- `mc_workdir_sync` (`tools/launchd/lib/skill-sync.sh`) fetches `origin dev` into `MISSION_WORKDIR` and reuses every skill-sync guard (dev only, nothing ahead, no operation in progress, no dirty path the range touches) to fast-forward it. Enabled with `MISSION_WORKDIR_SYNC=1`, set for triage only: its controller read a 14-commit-stale charter from `~/dev/sunholo-data/ailang-triage` and enforced a superseded T1 (60 verdicts, zero actions). Other missions' clones were 161–416 commits behind the same day; opting them in is a separate decision. Test: `test_mission_workdir_sync.sh` (2/2 mutants caught).
