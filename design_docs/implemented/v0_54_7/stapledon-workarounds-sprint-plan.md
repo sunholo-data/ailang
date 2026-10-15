@@ -3,7 +3,7 @@
 **Sprint ID:** M-STAPLEDON-WORKAROUNDS
 **Design:** [Approved workaround register](stapledon-v0-54-6-workarounds.md)
 **Planning date:** 2026-10-15
-**Status:** Implementation complete; final validation and independent evaluation in progress.
+**Status:** Completed; all seven milestones and focused validation gates passed.
 **Duration:** 4 working days, approximately 10 focused hours plus 3 hours contingency.
 **Estimate:** 1,400 LOC including implementation, tests, examples and documentation.
 **Risk:** Medium-high (new VM value representation and engine parity).
@@ -51,7 +51,7 @@ also recorded per milestone in JSON. No plausible reusable implementation candid
 
 ## Milestones
 
-### M1: VM map representation and conversion (~240 LOC)
+### M1: ✅ VM map representation and conversion (~240 LOC)
 
 **Estimate:** 140 implementation + 100 tests; 90 minutes. **Dependencies:** none.
 
@@ -63,13 +63,13 @@ Audit every ValueTag switch for the new variant; include map-valued results cros
 entrypoint/interop boundary. Companion tests: `value_map_test.go`, `convert_map_test.go`.
 Example: existing `examples/runnable/map_basic.ail` is the parity fixture for M4.
 
-- [ ] Map values round-trip across the evaluator bridge, including nested values and empty maps.
-- [ ] Canonical key identity, stable display/iteration and equality match evaluator semantics.
-- [ ] Targeted bytecode/VM tests and make test-changed pass; existing value kinds remain valid.
+- [x] Map values round-trip across the evaluator bridge, including nested values and empty maps.
+- [x] Canonical key identity, stable display/iteration and equality match evaluator semantics.
+- [x] Targeted bytecode/VM tests and make test-changed pass; existing value kinds remain valid.
 
 Risk: a missing tag switch can fail only at result conversion; explicit boundary tests cover it.
 
-### M2: Native map point operations (~240 LOC)
+### M2: ✅ Native map point operations (~240 LOC)
 
 **Estimate:** 150 implementation + 90 tests; 90 minutes. **Dependencies:** M1.
 
@@ -80,13 +80,13 @@ error behavior. Adjust compiler eligibility only as required for these six regis
 Remove exactly their six ratchet rows in the same milestone so coverage stays green.
 Example fixture: `examples/runnable/map_basic.ail` (final strict coverage in M4).
 
-- [ ] Six point operations execute natively with int/string/bool keys and opaque values.
-- [ ] Updating a map leaves aliases to the original unchanged; missing keys return None.
-- [ ] TestPureBuiltinCoverage and targeted VM/compiler tests plus make test-changed pass.
+- [x] Six point operations execute natively with int/string/bool keys and opaque values.
+- [x] Updating a map leaves aliases to the original unchanged; missing keys return None.
+- [x] TestPureBuiltinCoverage and targeted VM/compiler tests plus make test-changed pass.
 
 Risk: dictionary/key conventions differ between engines; use evaluator behavior as oracle.
 
-### M3: Native map bulk operations (~220 LOC)
+### M3: ✅ Native map bulk operations (~220 LOC)
 
 **Estimate:** 130 implementation + 90 tests; 75 minutes. **Dependencies:** M2.
 
@@ -95,13 +95,13 @@ tests. Preserve canonical ordering, duplicate-key winner behavior and tuple/ADT/
 shapes. Remove the remaining four map ratchet rows; keep unrelated unported families intact.
 Example: M4's `examples/runnable/map_strict_parity.ail` will exercise all ten operations.
 
-- [ ] All ten __map_* operations are native; the map family is absent from unportedPure.
-- [ ] Empty input, duplicates and mixed positive/negative integer ordering match evaluator.
-- [ ] Bulk-operation tests, coverage ratchet and make test-changed pass.
+- [x] All ten __map_* operations are native; the map family is absent from unportedPure.
+- [x] Empty input, duplicates and mixed positive/negative integer ordering match evaluator.
+- [x] Bulk-operation tests, coverage ratchet and make test-changed pass.
 
 Risk: numeric and lexical ordering differ; compare canonical encoding, not host map iteration.
 
-### M4: Strict-bytecode end-to-end parity (~220 LOC)
+### M4: ✅ Strict-bytecode end-to-end parity (~220 LOC)
 
 **Estimate:** 30 example/integration wiring + 190 tests; 90 minutes. **Dependencies:** M3.
 
@@ -110,14 +110,14 @@ Create `examples/runnable/map_strict_parity.ail` and focused engine parity tests
 Exercise all ten operations, value aliasing, duplicate keys, sorted iteration, and bridge
 results. Include the reporter's exact fromList/lookup shape as an executable regression.
 
-- [ ] Reporter repro returns 2 under interpreter and --bytecode --strict-bytecode.
-- [ ] Full-family parity fixture produces identical results on both engines, with no fallback.
-- [ ] Still-unported XML builtin retains its explicit strict-bytecode failure and reason.
-- [ ] make test-changed, make verify-examples and make check-boundaries pass.
+- [x] Reporter repro returns 2 under interpreter and --bytecode --strict-bytecode.
+- [x] Full-family parity fixture produces identical results on both engines, with no fallback.
+- [x] Still-unported XML builtin retains its explicit strict-bytecode failure and reason.
+- [x] make test-changed, make verify-examples and make check-boundaries pass.
 
 Risk: native unit tests can pass while compiled imports fail; strict CLI tests are mandatory.
 
-### M5: Preserve unchanged lockfile metadata (~200 LOC)
+### M5: ✅ Preserve unchanged lockfile metadata (~200 LOC)
 
 **Estimate:** 70 implementation + 130 tests; 90 minutes. **Dependencies:** none.
 
@@ -128,16 +128,16 @@ Missing locks still generate; unreadable or malformed locks must surface an acti
 error rather than silently treating them as absent. Preserve existing silent-ratchet
 warnings and relative-path semantics. No .ail example: Go CLI fixture packages cover this.
 
-- [ ] Consecutive unchanged locks are byte-identical, including across generator/version changes.
-- [ ] Empty dependencies behave identically; changed resolution receives fresh metadata.
-- [ ] Missing lock generates; malformed/unreadable lock errors are explicit.
-- [ ] --check writes nothing and retains 0/current, 1/drift behavior; portability tests pass.
-- [ ] Targeted cmd/ailang and internal/pkg tests plus make test-changed pass.
+- [x] Consecutive unchanged locks are byte-identical, including across generator/version changes.
+- [x] Empty dependencies behave identically; changed resolution receives fresh metadata.
+- [x] Missing lock generates; malformed/unreadable lock errors are explicit.
+- [x] --check writes nothing and retains 0/current, 1/drift behavior; portability tests pass.
+- [x] Targeted cmd/ailang and internal/pkg tests plus make test-changed pass.
 
 Risk: reserializing arbitrary handwritten JSON can normalize whitespace; byte identity is
 required for CLI-generated locks. Do not skip resolution/cache population on unchanged locks.
 
-### M6: Name the applied callee in diagnostics (~180 LOC)
+### M6: ✅ Name the applied callee in diagnostics (~180 LOC)
 
 **Estimate:** 60 implementation + 120 tests; 90 minutes. **Dependencies:** none.
 
@@ -148,15 +148,15 @@ at the application constraint path, including local solving, without changing ra
 Retain collision hints and arity diagnostic wording/codes. Use an invalid .ail test fixture
 embedded in the Go integration test rather than a runnable example that cannot typecheck.
 
-- [ ] Swapped std/map.lookup arguments produce a diagnostic containing lookup and its span.
-- [ ] Named local/imported applications carry their available names; anonymous heads stay neutral.
-- [ ] Raw Unify and arity diagnostic tests retain their wording/codes; collision hints survive.
-- [ ] Targeted internal/types tests and make test-changed pass.
+- [x] Swapped std/map.lookup arguments produce a diagnostic containing lookup and its span.
+- [x] Named local/imported applications carry their available names; anonymous heads stay neutral.
+- [x] Raw Unify and arity diagnostic tests retain their wording/codes; collision hints survive.
+- [x] Targeted internal/types tests and make test-changed pass.
 
 Risk: avoid synthesizing formal parameter names or signatures that inference does not retain.
 The design's illustrative full signature is not a requirement to invent missing context.
 
-### M7: Workaround register and release evidence (~100 LOC)
+### M7: ✅ Workaround register and release evidence (~100 LOC)
 
 **Estimate:** 100 documentation; 60 minutes. **Dependencies:** M4, M5, M6.
 
@@ -168,10 +168,10 @@ Record downstream instructions for sim/ship.ail readLineOpt migration and protoc
 (blank, final partial line, sticky EOF), CI workaround deletion after upgrade, and fresh-binary
 service-handler retest. Keep the ai/voice.ail doubling workaround pending #1576 closure.
 
-- [ ] W1/W3 fixes have recorded local evidence; W2 downstream migration is explicitly pending.
-- [ ] W4 links the existing B4/A2 dependency and requests confirmed-binary retest evidence.
-- [ ] No doc alias or new readLine behavior/API is introduced; no issue is auto-closed.
-- [ ] make check-file-sizes and make check-changelog pass; relevant examples/docs are accurate.
+- [x] W1/W3 fixes have recorded local evidence; W2 downstream migration is explicitly pending.
+- [x] W4 links the existing B4/A2 dependency and requests confirmed-binary retest evidence.
+- [x] No doc alias or new readLine behavior/API is introduced; no issue is auto-closed.
+- [x] make check-file-sizes and make check-changelog pass; relevant examples/docs are accurate.
 
 Risk: downstream repository is unavailable here; success means an actionable retirement
 checklist, not a claim that the game changed. External failing evidence belongs on #1576.
@@ -236,6 +236,6 @@ changed resolution and read-only checks. All downstream game work remains pendin
 
 Examples, core, package, formatting, boundaries, sizes and changelog gates pass. The
 initial changed-package suite's only failures were absent `ps` and zombie descendants
-left under the container PID1; a temporary procps/tini environment rerun is in progress.
+left under the container PID1; the procps/tini rerun passed all five changed packages (command suite 216.582s). Its core stage hit pipeline memory pressure; a full serial `make test-core` retry under tini passed all packages (pipeline 62.821s).
 The initial examples manifest aggregate-count error was fixed and the gate rerun green.
-Final lint and independent evaluation are pending; completion evidence is in sprint JSON.
+Final lint passed with zero issues. Independent evaluation passed at 96/100; report: `.ailang/state/evaluations/eval_M-STAPLEDON-WORKAROUNDS_round_1.json`. Completion evidence is in sprint JSON. The uncapped final test run used a twenty-minute package budget; an earlier 512MiB cap caused a test timeout and was removed.
