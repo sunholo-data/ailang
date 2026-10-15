@@ -2789,8 +2789,10 @@ models:
       input_per_1k: 0.00119
       output_per_1k: 0.00374
     notes: |
-      Third design-quorum reviewer, alongside gpt5-6-sol (OpenAI) and
-      gemini-3-1-pro (Google). Three vendors, three independent priors.
+      Was the third design-quorum reviewer, alongside gpt5-6-sol (OpenAI) and
+      gemini-3-1-pro (Google). Three vendors, three independent priors. The
+      current pool is defaultQuorumPool in cmd/ailang/design_quorum.go (Google
+      seat: gemini-4-argon since 2026-10-13; Z-AI seat: oc-glm-5-3).
 
       Why GLM-5.2 is the right model for THIS role specifically: its known
       weakness is OUTPUT headroom (max_completion 262,144 on OpenRouter — the

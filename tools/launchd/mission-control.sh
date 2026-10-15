@@ -1341,9 +1341,9 @@ fi
 # Unchanged by design: the lane is still Anthropic, so the rotation's provider spread is
 # untouched (astra = ChatGPT subscription, deepseek = flat-rate pi). Quorum independence
 # is enforced by design-quorum itself since 2026-09-25: the skill passes the designer as
-# --author, that vendor sits out, and three seats are drawn from the pool (gpt6-astra,
-# gemini-3-1-pro, oc-glm-5-3, oc-kimi-k3, claude-sonnet-5@claude-p), so on this Anthropic turn
-# Claude does not review the doc.
+# --author, that vendor sits out, and three seats are drawn from the pool (defaultQuorumPool in
+# cmd/ailang/design_quorum.go: gpt6-1-sol, gemini-4-argon, oc-glm-5-3, oc-kimi-k3,
+# claude-sonnet-5@claude-p), so on this Anthropic turn Claude does not review the doc.
 #
 # Worth knowing rather than acting on: the CONTROLLER is also claude-opus-5-5 as of today,
 # so one of the rotation's three entries now shares the controller's model. That is not the
