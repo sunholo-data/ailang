@@ -19,7 +19,7 @@ unforked skill, with a triage branch at Gate 2 and Gate 3 (`resources/gate-3-tri
 **Scheduling**: launchd `dev.ailang.mission-triage`, registry entry `missions/triage.toml`
 (interval 12h, boot offset 2520s). Billing guard as for every mission.
 **Log**: [triage-mission-log.md](triage-mission-log.md), append-only, one entry per iteration.
-**Human-facing reporting**: the GitHub bookkeeping issue (created at bootstrap), **Discord** via
+**Human-facing reporting**: the GitHub bookkeeping issue ([#1835](https://github.com/sunholo-data/ailang/issues/1835)), **Discord** via
 the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 ## Repo Profile
@@ -30,7 +30,7 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 - **Checkout**: the pin worktree `~/.ailang-driver-pin/triage`. The clone
   `~/dev/sunholo-data/ailang-triage` is only launchd's working directory. The mission writes
   nothing to the repo except its own charter, log and dashboard, through a PR.
-- **Bookkeeping issue**: `#<created at bootstrap>`, rotates weekly; live number in `~/.ailang/state/mission-triage-gh-issue`
+- **Bookkeeping issue**: `#1835` (created at bootstrap 2026-10-15), rotates weekly; live number in `~/.ailang/state/mission-triage-gh-issue`
 - **CI workflows Gate 1 polls**: `CI` (reported at the top of every digest; no loop action depends on it)
 - **Verify profile**: none of its own. It verifies other agents' work with the
   `github-issue-triage` recipe and `gh` reads.
@@ -136,11 +136,11 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 
 ## Queue
 
-1. [NEXT] Sprint B, the loop: toml, env, idle pre-check, prompt switch, Gate 2/3 triage resources,
+1. [DONE 2026-10-15, attended; not armed] Sprint B, the loop: toml, env, idle pre-check, prompt switch, Gate 2/3 triage resources,
    attestation format, tests, dry runs (design doc "The sprints"). All clauses.
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
-3. First armed iteration at Level 1, attended. Clauses 1–3.
+3. [NEXT] First armed iteration at Level 1, attended. Clauses 1–3.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.
