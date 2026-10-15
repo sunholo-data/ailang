@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-STAPLEDON-WORKAROUNDS",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-15T08:15:31Z",
-  "design_doc": "design_docs/planned/v0_54_7/stapledon-v0-54-6-workarounds.md",
-  "sprint_plan": "design_docs/planned/v0_54_7/stapledon-workarounds-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_54_7/stapledon-v0-54-6-workarounds.md",
+  "sprint_plan": "design_docs/implemented/v0_54_7/stapledon-workarounds-sprint-plan.md",
   "github_issues": [
     1447,
     1498,
@@ -56,7 +56,11 @@
   "velocity": {
     "target_loc_per_day": 350,
     "estimated_total_loc": 1400,
-    "estimated_days": 4
+    "estimated_days": 4,
+    "actual_total_loc": 1171,
+    "actual_days": 0.0347,
+    "actual_loc_per_day": 33786,
+    "notes": "Gross added+removed implementation/test/docs lines; excludes recovered planner plan and progress artifacts. Agent elapsed time includes cold setup and validation retries; not a human throughput estimate."
   },
   "features": [
     {
@@ -72,7 +76,8 @@
       "passes": true,
       "started": null,
       "completed": "2026-10-15T09:04:39.659966+00:00",
-      "notes": "Representation test failed first (undefined NewMap). Map bridge and value tests pass -count=20. Tag switch audit covers conversion, debug formatting, show and IEEE runtime equality; full gates pending integration."
+      "notes": "Representation test failed first (undefined NewMap). Map bridge and value tests pass -count=20. Tag switch audit covers conversion, debug formatting, show and IEEE runtime equality; focused gates passed.",
+      "actual_loc": 220
     },
     {
       "id": "M2",
@@ -89,7 +94,8 @@
       "passes": true,
       "started": null,
       "completed": "2026-10-15T09:05:03.985055+00:00",
-      "notes": "Missing-native-function regression tests failed first. VM/evaluator bulk parity, point operations, opaque values, COW, bad inputs and builtin coverage ratchet pass -count=20. Full integration gates pending."
+      "notes": "Missing-native-function regression tests failed first. VM/evaluator bulk parity, point operations, opaque values, COW, bad inputs and builtin coverage ratchet pass -count=20. Focused integration gates passed.",
+      "actual_loc": 152
     },
     {
       "id": "M3",
@@ -106,7 +112,8 @@
       "passes": true,
       "started": null,
       "completed": "2026-10-15T09:05:03.985055+00:00",
-      "notes": "Missing-native-function regression tests failed first. VM/evaluator bulk parity, point operations, opaque values, COW, bad inputs and builtin coverage ratchet pass -count=20. Full integration gates pending."
+      "notes": "Missing-native-function regression tests failed first. VM/evaluator bulk parity, point operations, opaque values, COW, bad inputs and builtin coverage ratchet pass -count=20. Focused integration gates passed.",
+      "actual_loc": 116
     },
     {
       "id": "M4",
@@ -124,7 +131,8 @@
       "passes": true,
       "started": null,
       "completed": "2026-10-15T09:08:13.876527+00:00",
-      "notes": "Reporter exact module and full-family strict/interpreter parity pass; XML still fails explicitly with __xml_nodeKind/opaque-type. Source CLI and verify-examples gates pending."
+      "notes": "Reporter exact module and full-family strict/interpreter parity pass; XML still fails explicitly with __xml_nodeKind/opaque-type. Source CLI and verify-examples gates passed.",
+      "actual_loc": 168
     },
     {
       "id": "M5",
@@ -141,7 +149,8 @@
       "passes": true,
       "started": null,
       "completed": "2026-10-15T09:15:53.540436+00:00",
-      "notes": "Commit 0145da1ae. Red reproduced timestamp churn and malformed-lock overwrite. Targeted command regression tests and go vet cmd/ailang/internal/pkg pass; internal/pkg full tests pass (101s). Full command/test-changed gate running."
+      "notes": "Commit 0145da1ae. Red reproduced timestamp churn and malformed-lock overwrite. Targeted command regression tests and go vet cmd/ailang/internal/pkg pass; internal/pkg full tests pass (101s). Full command/test-changed gate passed.",
+      "actual_loc": 188
     },
     {
       "id": "M6",
@@ -157,7 +166,8 @@
       "passes": true,
       "started": null,
       "completed": "2026-10-15T09:08:13.876527+00:00",
-      "notes": "Worker commit 5ec3b7864: tests first reproduced missing callee, then focused/imported module integration and full internal/types suite, go vet pass. Anonymous, raw Unify, arity and collision hints covered."
+      "notes": "Worker commit 5ec3b7864: tests first reproduced missing callee, then focused/imported module integration and full internal/types suite, go vet pass. Anonymous, raw Unify, arity and collision hints covered.",
+      "actual_loc": 179
     },
     {
       "id": "M7",
@@ -174,10 +184,11 @@
         "No doc alias or new readLine behavior/API is introduced; no issue is auto-closed.",
         "make check-file-sizes and make check-changelog pass; relevant examples/docs are accurate."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": "Package workflow guide, upstream register/downstream checklist and unreleased fragment written. Source CLI evidence recorded; final lint/test gate running."
+      "completed": "2026-10-15T09:37:04.210877+00:00",
+      "notes": "Register, package workflow guide and unreleased changelog complete. W1/W3 source-built evidence recorded; W2 migration and W4/#1576 downstream retest explicitly pending. All focused gates passed.",
+      "actual_loc": 148
     }
   ],
   "correlation_id": "task-20f42687",
@@ -192,18 +203,38 @@
     "inline_tests": "parity unit-input test passes in source-built CLI."
   },
   "validation": {
-    "status": "in_progress",
+    "status": "passed",
     "source_version": "v0.54.9",
     "source_code_commit": "0145da1aee83e10bc668820da0cce6f8d855aa90",
     "map_native_repeats": 20,
-    "core": "passed",
-    "package_tests": "passed",
+    "core": "passed entire make test-core under tini, serial -p=1, GOMEMLIMIT=1GiB; pipeline62.821s",
+    "package_tests": "passed: internal/pkg, 101s",
     "examples": "passed",
     "format": "passed",
     "boundaries": "passed",
     "file_sizes": "passed",
     "changelog": "passed",
-    "lint": "running",
-    "test_changed": "retrying under rootless procps + tini subreaper; initial only failures were missing ps and zombie ESRCH assertions"
+    "lint": "passed: 0 issues",
+    "test_changed": "five changed packages passed (cmd216.582s); initial combined core pipeline OOM resolved by full serial make test-core retry. Evidence combines both gate components, not a claim of zero exit from interrupted combined invocation.",
+    "environment_history": [
+      "Initial CLI suite only failures: missing ps and orphan zombies under PID1.",
+      "Rootless Debian procps/libproc2/tini restored inventory and orphan reaping.",
+      "512MiB retry caused recursion bound/package timeout; uncapped final suite passed cmd/ailang in 216.582s.",
+      "Concurrent examples link killed; serialized retry passed; manifest aggregate counts corrected.",
+      "Core parallel pipeline process exceeded memory. Serial 1GiB core run passed pipeline; full core rerun under tini passed all packages, including nested process cleanup."
+    ]
+  },
+  "completed": "2026-10-15T09:43:10.065056+00:00",
+  "last_checkpoint": "Seven milestones complete; independent evaluation PASS 96/100; all required test groups and other focused gates have successful final runs.",
+  "execution_base": "95106ba272834fe47340931ade7b690672083d3a",
+  "execution_branch": "coordinator/task-b299370e",
+  "planner_branch": "coordinator/task-3063755f",
+  "retrospective": "docs/sprint-retros/M-STAPLEDON-WORKAROUNDS-retro.md",
+  "evaluation": {
+    "result": "pass",
+    "score": 96,
+    "round": 1,
+    "report": ".ailang/state/evaluations/eval_M-STAPLEDON-WORKAROUNDS_round_1.json",
+    "commit": "5513c1816"
   }
 }
