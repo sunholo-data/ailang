@@ -81,10 +81,10 @@
         "CLI integration regression proves missing-command fallback prints started and after and exits zero; legacy spawn still aborts with its original error.",
         "Targeted race tests for changed lifecycle tests pass without sleeps as synchronization."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-15T08:36:20.016050+00:00",
+      "notes": "Effects and CLI regression tests pass; fallback exits zero with started/after, legacy abort unchanged. Portable child fixture tests stdin/cancel and deterministic late admission cleanup. Targeted -race passes, including cancelled admission and missing runtime context."
     },
     {
       "id": "M4",

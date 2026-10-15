@@ -4,7 +4,6 @@ package effects
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/eval"
 )
@@ -17,9 +16,6 @@ func ProcessSpawnResult(ctx *EffContext, args []eval.Value) (eval.Value, error) 
 	cmd, cmdArgs, err := processSpawnArgs(args)
 	if err != nil {
 		return nil, err
-	}
-	if ctx.Process == nil {
-		return nil, fmt.Errorf("E_PROCESS_NO_CONTEXT: Process effect not configured (missing --caps Process)")
 	}
 	v, err := spawnManaged(ctx, cmd, cmdArgs)
 	return processSpawnResult(v, err), nil
