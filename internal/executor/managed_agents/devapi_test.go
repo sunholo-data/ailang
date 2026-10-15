@@ -85,6 +85,10 @@ func newRepoWithRemote(t *testing.T) (dir, base string) {
 	t.Helper()
 	dir = t.TempDir()
 	git(t, dir, "init", "-q", "-b", "dev")
+	// The assertions compare exact bytes. A Windows runner's global
+	// core.autocrlf=true would check files out (and `git apply` them) with
+	// CRLF, so pin the repo to LF regardless of the host's git config.
+	git(t, dir, "config", "core.autocrlf", "false")
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("one\n"), 0o644)
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-q", "-m", "base")
@@ -172,7 +176,7 @@ func TestPlanWorkspace_LocalDeltaCoversEverythingAndSparesIndex(t *testing.T) {
 
 	// The patch must reproduce the working tree on a clean checkout of base.
 	clone := t.TempDir()
-	git(t, clone, "clone", "-q", dir, ".")
+	git(t, clone, "clone", "-q", "-c", "core.autocrlf=false", dir, ".")
 	git(t, clone, "checkout", "-q", "--detach", base)
 	cmd := exec.Command("git", "apply", "--binary", "-")
 	cmd.Dir = clone
