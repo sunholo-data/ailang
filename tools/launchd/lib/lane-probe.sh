@@ -284,3 +284,19 @@ _mc_is_over_ration() {
   case " $MC_OVER_RATION " in *" $b "*) return 0 ;; esac
   return 1
 }
+
+# _mc_ration_refuses ENTRY → true when controller selection must SKIP this rung without
+# probing it. Same verdict as _mc_is_over_ration except for one case: an Anthropic rung
+# whose quota is UNREADABLE goes on to _mc_probe, which probes it (see the note there).
+#
+# Measured 2026-10-15, triage's first armed fire: the usage endpoint returned 429, so
+# `quota --over` listed anthropic as `unknown`. The executor's haiku rung went through
+# _mc_probe and probed, but select_model checked _mc_is_over_ration first and refused
+# sonnet unprobed — "NO usable controller" on a healthy subscription. One concept, two
+# verdicts: the controller never got the unreadable≠exhausted rule the probe has had
+# since September.
+_mc_ration_refuses() {
+  _mc_is_over_ration "$1" || return 1
+  [ "$(_mc_rung_bucket "$1")" = anthropic ] && _mc_ration_unreadable anthropic && return 1
+  return 0
+}

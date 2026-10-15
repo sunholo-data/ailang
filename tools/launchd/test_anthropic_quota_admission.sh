@@ -98,6 +98,31 @@ printf '%s' "$_lane_degraded" | grep -q 'over daily ration' \
   && { echo "FAIL an unreadable quota was reported as OVER — they resume differently: $_lane_degraded";exit 1; }
 echo "PASS an UNREADABLE Anthropic quota PROBES the lane (${PROBES} call(s)) instead of refusing it"
 
+# CONTROLLER SELECTION gets the same split (2026-10-15, triage's first armed fire: anthropic
+# `unknown` on a 429, haiku executor probed, sonnet controller refused unprobed).
+body=$(awk '$0 == "_mc_ration_refuses() {" {on=1} on {print} on && /^}$/ {exit}' "$HERE/lib/lane-probe.sh")
+[ -n "$body" ] || { echo 'FAIL extraction _mc_ration_refuses';exit 1; }
+eval "$body"
+MC_OVER_RATION='codex anthropic openrouter'
+MC_RATION_REASONS='anthropic unknown: usage endpoint returned HTTP 429'
+for model in claude-sonnet-5-5 sonnet claude:claude-opus-5-5; do
+ _mc_ration_refuses "$model" && { echo "FAIL controller refuses $model on an UNREADABLE quota";exit 1; }
+done
+# Only Anthropic is excused: a codex rung over ration, and a metered rung, still refuse.
+_mc_ration_refuses codex:gpt-6.1-sol || { echo 'FAIL over-ration codex rung admitted';exit 1; }
+_mc_ration_refuses pi:openrouter/z-ai/glm-5.3 || { echo 'FAIL over-ration openrouter rung admitted';exit 1; }
+MC_RATION_REASONS='anthropic over 12.0% used / 11.4% allowed'
+_mc_ration_refuses sonnet || { echo 'FAIL controller admitted a measurably OVER anthropic rung';exit 1; }
+# Positive control: a rung whose bucket is not blocked at all is never refused.
+MC_OVER_RATION='anthropic'
+_mc_ration_refuses codex:gpt-6.1-sol && { echo 'FAIL controller refused a rung in an unblocked bucket';exit 1; }
+# Wiring: every controller-selection gate in select_model uses the shared verdict.
+sel=$(awk '/^select_model\(\) \{/{on=1} on{print} on && /^}$/{exit}' "$DRIVER")
+[ -n "$sel" ] || { echo 'FAIL select_model extraction';exit 1; }
+printf '%s' "$sel" | grep -q '_mc_is_over_ration' && { echo 'FAIL select_model still gates on _mc_is_over_ration';exit 1; }
+[ "$(printf '%s' "$sel" | grep -c '_mc_ration_refuses')" -ge 4 ] || { echo 'FAIL select_model lost a _mc_ration_refuses gate';exit 1; }
+echo 'PASS controller selection probes an UNREADABLE Anthropic quota and still refuses an OVER one'
+
 # ORDERING: the kill switch must be reached BEFORE any inference probe.
 #
 # It is numbered gate 1 and was gate 1, but the role-probe block was inserted above it, so a

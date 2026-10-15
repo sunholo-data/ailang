@@ -1,0 +1,3 @@
+### Fixed — mission driver: controller selection refused a healthy Anthropic lane on an unreadable quota
+
+- `select_model` gated every controller rung on `_mc_is_over_ration`, which blocks a bucket whose quota is merely *unknown*. `_mc_probe` has excused an UNREADABLE Anthropic quota (probe instead of refusing) since September, so the executor's haiku rung probed while the sonnet controller was refused unprobed — triage's first armed fire ended "NO usable controller" on a 429 from the usage endpoint. New `_mc_ration_refuses` (lib/lane-probe.sh) gives controller selection the same verdict; a measurably-over Anthropic bucket and every other blocked bucket still refuse. Pinned in `test_anthropic_quota_admission.sh` (3/3 mutants caught).

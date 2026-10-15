@@ -980,7 +980,7 @@ select_model() {
   if [ -n "${MISSION_MODEL:-}" ]; then
     # A demoted pin has a SPENT bucket, so honouring it again just reruns the
     # failure. Fall through to probing and let the chain answer.
-    if _mc_is_demoted "$(_mc_canon_id "$MISSION_MODEL")" || _mc_is_over_ration "$MISSION_MODEL"; then
+    if _mc_is_demoted "$(_mc_canon_id "$MISSION_MODEL")" || _mc_ration_refuses "$MISSION_MODEL"; then
       log "env pin $MISSION_MODEL unavailable (runtime limit or quota admission) — falling through to the chain"
     else
       _mc_set_controller "$MISSION_MODEL" "env pin"; return 0
@@ -995,7 +995,7 @@ select_model() {
       rm -f "$OVERRIDE_FILE"
       log "model override expired — resuming preference probing"
     elif [ -n "${ov_model:-}" ]; then
-      if _mc_is_demoted "$(_mc_canon_id "$ov_model")" || _mc_is_over_ration "$ov_model"; then
+      if _mc_is_demoted "$(_mc_canon_id "$ov_model")" || _mc_ration_refuses "$ov_model"; then
         log "override pin $ov_model DEMOTED this fire (runtime bucket limit) — falling through to the chain"
       else
         _mc_set_controller "$ov_model" "override file"; return 0
@@ -1021,7 +1021,7 @@ select_model() {
       log "controller candidate $m DEMOTED this fire (runtime bucket limit) — skipping"
       continue
     fi
-    if _mc_is_over_ration "$m"; then
+    if _mc_ration_refuses "$m"; then
       log "controller candidate $m is OVER RATION (bucket $(_mc_rung_bucket "$m")) — skipping to a cheaper rung"
       continue
     fi
@@ -1059,7 +1059,7 @@ select_model() {
       log "controller fallback rung $fb DEMOTED this fire (runtime bucket limit) — skipping"
       continue
     fi
-    if _mc_is_over_ration "$fb"; then
+    if _mc_ration_refuses "$fb"; then
       log "controller fallback rung $fb is OVER RATION (bucket $(_mc_rung_bucket "$fb")) — skipping to a cheaper rung"
       continue
     fi
