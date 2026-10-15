@@ -3,7 +3,7 @@
 **Sprint ID:** M-STAPLEDON-WORKAROUNDS
 **Design:** [Approved workaround register](stapledon-v0-54-6-workarounds.md)
 **Planning date:** 2026-10-15
-**Status:** Planned; implementation awaits sprint approval/coordinator handoff.
+**Status:** Implementation complete; final validation and independent evaluation in progress.
 **Duration:** 4 working days, approximately 10 focused hours plus 3 hours contingency.
 **Estimate:** 1,400 LOC including implementation, tests, examples and documentation.
 **Risk:** Medium-high (new VM value representation and engine parity).
@@ -222,3 +222,20 @@ Coordinator artifacts are the Markdown plan and `.ailang/state/sprints/sprint_M-
 Plan approval/merge routes to sprint-executor through the coordinator; do not self-approve,
 merge, or dispatch implementation while this new sprint is awaiting approval. The executor
 then runs sprint-evaluator against the approved design and these criteria.
+
+## Execution record (2026-10-15)
+
+M1–M6 are committed on `coordinator/task-b299370e` (the execution checkout's branch).
+The planner artifacts were recovered from `coordinator/task-3063755f`; no branch switch
+or destructive git operation was used. M5/M6 ran independently while the VM chain ran
+sequentially. Source-built CLI evidence uses v0.54.9 at code commit `0145da1ae`.
+The VM native tests pass 20 repetitions; exact reporter and full map fixture agree on
+both engines, including a map-valued entrypoint and strict XML refusal. Lock tests
+cover empty/path dependencies, metadata across versions, malformed/unreadable files,
+changed resolution and read-only checks. All downstream game work remains pending.
+
+Examples, core, package, formatting, boundaries, sizes and changelog gates pass. The
+initial changed-package suite's only failures were absent `ps` and zombie descendants
+left under the container PID1; a temporary procps/tini environment rerun is in progress.
+The initial examples manifest aggregate-count error was fixed and the gate rerun green.
+Final lint and independent evaluation are pending; completion evidence is in sprint JSON.

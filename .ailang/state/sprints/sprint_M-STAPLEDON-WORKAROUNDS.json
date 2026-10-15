@@ -138,10 +138,10 @@
         "--check writes nothing and retains 0/current, 1/drift behavior; portability tests pass.",
         "Targeted cmd/ailang and internal/pkg tests plus make test-changed pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-15T09:15:53.540436+00:00",
+      "notes": "Commit 0145da1ae. Red reproduced timestamp churn and malformed-lock overwrite. Targeted command regression tests and go vet cmd/ailang/internal/pkg pass; internal/pkg full tests pass (101s). Full command/test-changed gate running."
     },
     {
       "id": "M6",
@@ -177,10 +177,33 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "Package workflow guide, upstream register/downstream checklist and unreleased fragment written. Source CLI evidence recorded; final lint/test gate running."
     }
   ],
   "correlation_id": "task-20f42687",
   "issue_policy": "References only: #1447 parity ratchet, #1498 portability regression, #1576 cross-track; do not auto-close these umbrella/existing issues.",
-  "last_session": "2026-10-15T09:04:39.659966+00:00"
+  "last_session": "2026-10-15T09:04:39.659966+00:00",
+  "syntax_gate": {
+    "prompt_version": "v0.16.7",
+    "source_prompt_loaded": true,
+    "showcase": "examples/runnable/map_strict_parity.ail",
+    "contracts": "Skipped: VM map parity tested against evaluator; maps outside SMT support.",
+    "effects": "Explicit empty rows on pure parity and main.",
+    "inline_tests": "parity unit-input test passes in source-built CLI."
+  },
+  "validation": {
+    "status": "in_progress",
+    "source_version": "v0.54.9",
+    "source_code_commit": "0145da1aee83e10bc668820da0cce6f8d855aa90",
+    "map_native_repeats": 20,
+    "core": "passed",
+    "package_tests": "passed",
+    "examples": "passed",
+    "format": "passed",
+    "boundaries": "passed",
+    "file_sizes": "passed",
+    "changelog": "passed",
+    "lint": "running",
+    "test_changed": "retrying under rootless procps + tini subreaper; initial only failures were missing ps and zombie ESRCH assertions"
+  }
 }

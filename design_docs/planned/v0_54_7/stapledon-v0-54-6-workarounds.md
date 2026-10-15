@@ -1,6 +1,6 @@
 # Stapledon's Voyage v0.54.6 Bump: Workaround Register & Retirement Plan
 
-**Status**: Planned
+**Status**: Upstream implementation complete; validation and downstream retirement tracked below
 **Target**: v0.54.7
 **Priority**: P1
 **Estimated**: ~1 week
@@ -36,6 +36,34 @@ binary metadata reads `ailang version: v0.54.5, commit 296231d, md5 c08c18cf…`
 claims "v0.54.6, commit 71f4cf6". Those cannot both be the binary that ran. W1/W2 were
 re-verified here on the real v0.54.6 binary; W4 must be re-tested on a confirmed-fresh binary
 before concluding the in-ceiling fix did not cover the game's handler.
+
+## Execution and downstream bump checklist (2026-10-15)
+
+This sprint implements the upstream remedies. The original verification log below records
+v0.54.6 findings; it is historical evidence, not the status of the new implementation.
+No changes to sunholo-data/stapledons-godot are included in this repository sprint.
+
+| Workaround | Upstream status | Downstream retirement action |
+|---|---|---|
+| W1: array/list lookup tables | All ten map builtins now native; reporter and full-family fixture pass interpreter/strict VM engine tests | After upgrading to a release containing this sprint, re-run both engine commands and replace lookup builders where appropriate |
+| W2: blank line ends session | Existing `readLineOpt` API; game migration **pending** | Migrate `sim/ship.ail`; test `Some("")` for blank input, a final partial line, then sticky `None`; remove protocol's blank-line prohibition only after those tests pass |
+| W3: timestamp-ignore CI filter | Metadata preserved for unchanged resolutions; targeted CLI tests pass | After upgrading, replace the ignore/restore dance with `ailang lock --check` or `ailang lock` plus `git diff --exit-code -- ailang.lock` |
+| W4: doubling-built stub tones | Keep workaround; #1576 remains cross-tracked under [B4/A2](../v1_0_0/m-bytecode-vm-parity-bugs.md) | Re-test the actual service handler on a confirmed source/version/commit binary; retain doubling in `ai/voice.ail` until #1576 closes; attach any still-failing handler evidence to that issue |
+
+Local source-built evidence: source stdlib version **v0.54.9**, code commit
+`0145da1aee83e10bc668820da0cce6f8d855aa90`, built 2026-10-15 09:16:22 UTC with
+`make build VERSION=v0.54.9` (local build label, not a release). Teaching prompt refreshed:
+**v0.16.7**. The exact reporter module prints `2` on both engines; the all-ten-operation
+fixture prints `true` under strict bytecode and its inline test passes. Consecutive CLI
+locks plus `--check` leave the generated file byte-identical; a malformed lock errors and
+is not overwritten. Unit regressions additionally cover path dependencies, changed
+resolutions, prior generator/version metadata and unreadable files. Native map tests run
+20 times against evaluator behavior, including duplicates and negative/integer key order.
+
+At each bump, record the actual `ailang version` and commit used by the test commands,
+then update all four cited game call sites. The v0.54.5 auto-attached metadata does not
+establish a v0.54.6 reproduction. `ailang doc` continues to suggest `docs` without adding
+an alias. Swapped map lookup arguments now name `lookup` in the application diagnostic.
 
 ## Verification Log
 
@@ -240,23 +268,23 @@ current wording); the adjacent M-ARITY-STYLE diagnostic must not change.
 ### Implementation Plan
 
 **Phase 1: VM Map value + std/map port** (~3 days)
-- [ ] VM Map value type mirroring `eval.MapValue` (encoding, COW insert, sorted iteration)
-- [ ] Native implementations for the ten `__map_*` builtins in the VM
-- [ ] Shrink the `unportedPure` ratchet; add strict-bytecode parity tests (build/lookup/remove/iterate)
-- [ ] Acceptance: the reporter's `fl.ail` prints `2` under `--strict-bytecode`
+- [x] VM Map value type mirroring `eval.MapValue` (encoding, COW insert, sorted iteration)
+- [x] Native implementations for the ten `__map_*` builtins in the VM
+- [x] Shrink the `unportedPure` ratchet; add strict-bytecode parity tests (build/lookup/remove/iterate)
+- [x] Acceptance: the reporter's `fl.ail` prints `2` under `--strict-bytecode`
 
 **Phase 2: Lock determinism** (~0.5 day)
-- [ ] Preserve generation metadata on drift-free re-lock in `pkgLockCommand`
-- [ ] Tests: unchanged re-lock is byte-identical; drifted re-lock restamps; `--check` still never writes
-- [ ] Docs: `lock --check` as the CI gate; clean-machine cache behavior (V7)
+- [x] Preserve generation metadata on drift-free re-lock in `pkgLockCommand`
+- [x] Tests: unchanged re-lock is byte-identical; drifted re-lock restamps; `--check` still never writes
+- [x] Docs: `lock --check` as the CI gate; clean-machine cache behavior (V7)
 
 **Phase 3: Callee-named unification errors** (~1 day)
-- [ ] Thread the callee name into the application unification error at the application site
-- [ ] Update affected goldens; add a regression test using a swapped-args `std/map.lookup`
-- [ ] Verify the M-ARITY-STYLE diagnostic is unchanged
+- [x] Thread the callee name into the application unification error at the application site
+- [x] Update affected goldens; add a regression test using a swapped-args `std/map.lookup`
+- [x] Verify the M-ARITY-STYLE diagnostic is unchanged
 
 **Phase 4: Register, migrate, cross-track** (~0.5 day)
-- [ ] Doc note: bump re-check register with retirement statuses (W1 fixed, W2 retireable, W3 fixed, W4 pending #1576/B4)
+- [x] Doc note: bump re-check register with retirement statuses (W1 fixed, W2 retireable, W3 fixed, W4 pending #1576/B4)
 - [ ] Downstream (stapledons-godot, their repo): migrate `readLineOpt`; re-test #1576 handler; delete the git-diff laundering once Phase 2 ships
 
 ### Files to Modify/Create
@@ -405,4 +433,4 @@ lo.ail:5:9]: failed to unify parameter 0 of `lookup`: cannot unify Map[α7, α8]
 ---
 
 **Document created**: 2026-10-12
-**Last updated**: 2026-10-12
+**Last updated**: 2026-10-15
