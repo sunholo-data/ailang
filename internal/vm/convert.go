@@ -85,6 +85,8 @@ func bytecodeToEval(v bytecode.Value, display bool) (eval.Value, error) {
 			dst[i] = ev
 		}
 		return eval.NewArray(dst), nil
+	case bytecode.TagMap:
+		return mapToEval(v.AsMap(), display)
 	case bytecode.TagBytes:
 		b := v.AsBytes()
 		return &eval.BytesValue{Value: b.B, Filename: b.Filename, MimeType: b.MimeType}, nil
@@ -176,6 +178,8 @@ func EvalToBytecode(v eval.Value) (bytecode.Value, error) {
 		// NewRecord sorts alphabetically — record-iteration order from
 		// map[string]Value is non-deterministic, but the constructor handles it.
 		return bytecode.NewRecord(fields), nil
+	case *eval.MapValue:
+		return mapFromEval(ev)
 	case *eval.BytesValue:
 		return bytecode.NewBytes(&bytecode.BytesObj{B: ev.Value, Filename: ev.Filename, MimeType: ev.MimeType}), nil
 	case *eval.TaggedValue:
