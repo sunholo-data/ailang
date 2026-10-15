@@ -3,6 +3,9 @@
 First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp gate-5 ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac`.
 After every Gate-5 report has been sent and this iteration is fully complete, run
 `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp complete ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac` as the final gate action.
+**Triage (`MISSION_NAME=triage`)**: the report also follows `gate-3-triage.md` §7 (digest shape,
+and Discord/Daneel only on its stated triggers). Its §8 fingerprint `--record` runs after every
+report has been sent and before `stamp complete`.
 Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
 1. Scan this iteration's friction (evaluator feedback, executor corrections, your own dead ends)

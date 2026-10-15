@@ -66,6 +66,41 @@ The fleet loop exists to do exactly the work above, so for it:
   (pushed, since every mission runs the pinned `origin/dev`), dry-run healthy **and** degraded,
   `make test-launchd-drivers` green. Resolve only after the fix is on `origin/dev`.
 
+### THE TRIAGE MISSION — the pick is an ITEM LIST, not one backlog row (`MISSION_NAME=triage`)
+
+The triage loop ([charter](../../../../design_docs/triage-mission.md)) works the fleet's output
+queue: approval cards, agent PRs and bot-filed issues on `sunholo-data/ailang`. Standing rule 1
+("one backlog item") does not apply. Its Gate 2 builds the **item list** that
+[`gate-3-triage.md`](gate-3-triage.md) verifies, and it never self-sources code work (the
+admissibility rule above still binds: it routes, never fixes).
+
+1. **Read the three queues** (bounded, `--limit 1000`; `gh` truncates silently at the limit):
+   ```bash
+   ailang coordinator approvals --remote gcp --json        # .pending[]: id, task_id, created_at, age_hours,
+                                                           #   diff_available, agent_actionable, handoff_targets
+   gh pr list -R "$MISSION_REPO" --state open --limit 1000 \
+     --json number,title,author,headRefName,headRefOid,isDraft,mergeable,mergeStateStatus,updatedAt,labels,closingIssuesReferences
+   gh issue list -R "$MISSION_REPO" --state open --limit 1000 --json number,title,author,labels,createdAt,updatedAt
+   ```
+   A failed read is not an empty queue. Stop and report it.
+2. **Join them into items.** A card, its PR and its issue are **one item**, not three. Card ↔ PR
+   via `task_id` = the PR's `coordinator/task-<id>` head branch. PR ↔ issue via
+   `closingIssuesReferences` (or a `Closes #N` in the body). Two kinds of item matter most:
+   - **Orphans**: a `coordinator/task-*` PR with no pending card (H2, approved-but-unmerged or
+     never-carded), or a card with no PR. Orphans always go in the digest.
+   - **Stalled chains**: a green, mergeable, `diff_available` card older than 48h (clause 2).
+3. **Exclude, but report**: the current bookkeeping thread (`~/.ailang/state/mission-triage-gh-issue`),
+   Dependabot PRs (majors and red ones are Mark's), and other missions' PRs (`fleet/*`, …).
+4. **Select** (the cap keeps one iteration to about three verifier batches):
+   - **every item that changed since the last digest**: a new PR head, a new card, an issue whose
+     `updatedAt` is after the last digest. Compare against the newest rows in
+     `~/.ailang/state/mission-triage-shadow-ledger.jsonl`;
+   - **then the oldest N never-verified or stale items** (no ledger verdict in 7 days, clause 1),
+     N = 20 by default, until the list holds about 60.
+   Record the selection rule and the counts (changed / stale / skipped) in the Gate-4 row.
+5. Gate 1 already read `dev` CI. If it is red, the item list still runs: Level 1 merges nothing.
+   Red `dev` leads the digest (gate-3-triage.md §6).
+
 **The one carve-out**: bookkeeping the gates themselves mandate (Gate 4's log/index/dashboard
 writes) is not "harness work" — it is the iteration's own record-keeping.
 
