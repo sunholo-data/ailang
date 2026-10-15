@@ -12,8 +12,10 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
-| 38 | 2026-10-14 | P2 #14 quorum artifact dir (repo-scoped MISSION_QUORUM_ARTIFACT_DIR + Gate 2 two-dir reader) designed, quorum'd, built, judged PASS 90 (sonnet); stacked PR on #1824, BLOCKED on dev reds [HARNESS] |
-| 37 | 2026-10-14 | No landing possible: #12 (PR #1824) still BLOCKED on dev's required reds; #13 reproduction measured, live flakes outside fleet scope; judged PASS 88... |
+| 40 | 2026-10-15 | stack recovery rechecked; required dev reds persist, no further builds; independent disposition review PASS 95 (fresh-context Sol) [ADMIN] |
+| 39 | 2026-10-14 | P2 #15 slot verdict UNCLASSIFIED made reachable, judged PASS 91 (sonnet, round 2); stacked on #1825, BLOCKED on dev's required reds; Gate 1 skill f... |
+| 38 | 2026-10-14 | P2 #14 quorum artifact dir designed, quorum'd, built and judged PASS 90 (sonnet); stacked PR on #1824, BLOCKED on dev's required reds [HARNESS] |
+| 37 | 2026-10-14 | No landing possible: #12 (PR #1824) still BLOCKED on dev's required reds; #13 reproduction measured, live flakes outside fleet scope; judged PASS 8... |
 | 36 | 2026-10-14 | P2 #11 ghost-resolved (`08ce76f30`); P2 #12 quorum salvage designed, quorum'd, built and judged PASS 88 (sonnet), PR #1824 BLOCKED on inherited dev... |
 | 35 | 2026-10-13 | P2 #10 Gate 0 ledger provenance instrument, judged PASS 92 (sonnet, round 2), PR #1815 → `130486515` [HARNESS] |
 | 34 | 2026-10-13 | Phase 3a skill-resolution spike measured (P1–P3), judged PASS 88 (sonnet); Phase 3b mechanism parked as D-FLEET-16 [HARNESS] |

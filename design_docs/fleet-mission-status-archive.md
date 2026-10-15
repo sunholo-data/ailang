@@ -2,6 +2,24 @@
 
 Older STATUS stamps rotated out of [fleet-mission.md](fleet-mission.md) (newest 3 stay there). Append-only.
 
+## STATUS 2026-10-14 — ITERATION 36: P2 #11 ghost-resolved (`08ce76f30`); P2 #12 quorum salvage built and judged PASS 88 by sonnet — PR #1824 BLOCKED on an inherited required red on dev [HARNESS]
+
+**#11** `weekly-report:unknown-mission` was already fixed on origin/dev by `08ce76f30` (attended, 2026-10-06). It was re-verified for all 6 registry missions and judged PASS by sonnet. Resolved (51 open).
+
+**#12** (`quorum:invalid-absent-on-quoted-literals` + `quorum:reviewer-invalid-json-discarded`, #941). The design was re-grounded on the #941 refresh and passed the quorum in three steps: round 1 blocked, round 2 had one reject, and a carve-out revision applied the reviewers' verbatim fixes. It was built by codex and judged **PASS 88** (sonnet, 0 blocking, 10/10 own mutants killed).
+- A reviewer recorded `invalid` whose raw text holds a complete depth-1 `reject` now blocks the quorum. A salvaged pass is audit only.
+- JSON errors carry the byte offset and a centred window.
+- The skill's absent-reviewer remedy is split by reason.
+- Tier-2 is scoped out to queue row 16.
+
+**Why it did not land**: PR #1824's only failures are dev HEAD `42652c19e`'s own reds, two of them required:
+- `test`: `check-git-exec` flags `internal/executor/managed_agents/devapi_workspace.go` from `ffef3402a`.
+- `docs-gate`: an MDX compile error in `env-vars.md`.
+
+Both are outside fleet authority. V1 owns repo reds, but its kill switch is set. Resume predicate: `test` and `docs-gate` green on origin/dev; then merge, run the done-gate, and resolve both tickets.
+
+Clause map: **1** UNMEASURED; **2** UNMET (#11 ≈16 d; #12 blocked); **3** MET (51 open + row 16); **4** prior evidence only; **5** preserved. Next: land #1824, then P2 #13.
+
 ## STATUS 2026-10-13 — ITERATION 35: P2 #10 Gate 0 ledger provenance LANDED — #1815 `130486515`, judged PASS 92 by sonnet (round 2); ticket resolved [HARNESS]
 
 Gate 0 rule 6(b) used to check provenance with `git log -1 -S'| D-nn |'`. That pickaxe returns a row's CREATION commit, so every attended ruling read as fleet self-resolution. It now runs `scripts/mission_ledger_provenance.sh --id D-nn --file <charter>`. The instrument reports the LATEST OPEN→RESOLVED transition, with the creation commit as the control, and its verdict is one of: `attended`, `fleet`, `undetermined:squash-merge`, `never-resolved`, or rc 2. Only a fleet-authored flip that is not a squash merge counts as SELF-RESOLUTION. A flip committed by GitHub is reported and never re-opened, because a squash merge's author is the PR author, not the person who ruled. That applies to every ledger flip in this repo, including D-FLEET-1/13/14/15. Both skill copies are byte-identical. The 115-assertion bash-3.2 suite runs in `make test-launchd-drivers`, and CI runs it.
@@ -231,3 +249,21 @@ Gate 2 took the `blocking=all` ticket `agent-tool:mission-role-pins-unavailable`
 ## STATUS 2026-10-08 — ITERATION 26: P1 #7 gate0 self-notice read LANDED — #1604 `59c3e6a55`, re-judged PASS 96 on the merged head (minimax); ticket resolved; record #1636 landed [HARNESS]
 
 Resume of iteration 22's PARKED-ON-CLOCK item. Predicate re-measured as a command: dev required `test` green at `0ceb1db01` (check set: only `test-windows`/`Build windows-latest`/Sonar red, macOS a fail-fast cancel). #1604's own `test` red on `2e0f92672` was the inherited `TestValidateModulePath_SingleFileInsidePackage` (job 112275244977, 132 KB log, one `--- FAIL`). No `blocking=all` ticket open (43). PR files vs 46 dev commits since its base: one non-overlapping `make/test.mk` line each side, `merge-tree` clean. `gh pr update-branch` → `f4de90745`. The base moved by a merge, so the work was re-judged. Resolver `agent-tool sonnet declared:alias-pin`; sonnet = executor family (`claude-sonnet-5-5`), so the judge took the first declared evaluator fallback `pi:openrouter/minimax/minimax-m3` (openrouter $0.10 of $2.33, probe rc 0) via `mission_pi_run.sh` in the isolated worktree `fleet-iter26-evaluator`. Handshake acked (4× `acked:true`). Runner verdict `ok` rc 0, 1190 s, 93 tools, 0 commits. **PASS 96**, 0 blocking. Suite 108/0; AC table 18 PASS, 2 PARTIAL (6a block 16 lines vs ≤15; `make test-launchd-drivers` rc 2 in-sandbox on the untouched `test_mission_lane_check.sh` `mktemp` denial). 6 mutations red, restores sha-identical. Controller reproduced first-party, outside the sandbox: suite 108/0 rc 0; prev-issue-drop mutant 103/5 rc 1; restore `cmp`-identical. PR CI on `f4de90745`: `test`, `lint`, `docs-gate`, `UI build gate`, `launchd drivers (bash 3.2)` green; `test-windows` the same 5 tests as dev `0ceb1db01`. Squash-merged `--match-head-commit f4de90745` → `59c3e6a55`. Dev CI on `59c3e6a55`: `test`, `lint`, `build`, `launchd drivers (bash 3.2)`, govulncheck success; `test-windows` the identical 5 (inherited, V1); Sonar red as on the parent. Ticket `gate0:driver-crash-notices-invisible` resolved (v1 notified); #1160 verdict comment (count 1→2), closed. Also landed pending record #1636 → `752ee765a`, and closed superseded #1611/#1612. **Reach caveat:** the script reaches every pinned mission through `MISSION_DRIVER_ROOT`, but step 6a's TEXT reaches no running skill until the main checkout is fast-forwarded. Measured: `~/.claude/skills/mission-control` → `~/dev/sunholo-data/ailang`, `0 36` ahead/behind, `grep -c "6a. SECOND"` = 0 there and 1 at origin. This is D-FLEET-15's case, live. Done-gate: surface ✓ (`scripts/mission_gate0_self_notices.sh` + both `gate-0-preflight.md`); reach ✓ origin/dev, running skill pending D-FLEET-15; `make test-launchd-drivers` ✓ (CI leg on `59c3e6a55`); 0 driver bytes, so no dry-run; nothing reloaded ✓. Clause map: **1** UNMEASURED; **2** UNMET (this ticket ≈12 d filed 2026-09-26 → resolved); **3** MET (42 open signatures); **4** prior evidence only; **5** preserved (judged on the merged head; required CI green on the PR head and on the merge SHA).
+
+## STATUS 2026-10-14 — ITERATION 37: no landing possible — #12 still BLOCKED on dev's required reds (owner V1 disabled); #13 reproduction measured (B gone, A + an untracked timer flake live in `tools/eval/`, outside fleet scope), judged PASS 88 by sonnet; D-FLEET-17/18 filed [HARNESS]
+
+Dev HEAD `42652c19e` is unchanged since iteration 36, and the required `test` and `docs-gate` checks are still red:
+- `check-git-exec` fails on `internal/executor/managed_agents/devapi_workspace.go:237,259`, from `ffef3402a`.
+- `docs-gate` fails on an MDX `{"sort":"throughput"}` literal. It sits in `env-vars.md`, generated from `internal/config/ai.go:43`.
+- `Build windows-latest` is also red in the same package.
+
+Every fix is outside fleet scope. V1 owns repo reds, and its kill switch has been set since 09-14, so no PR to dev can merge. That includes PR #1824 (#12, judged PASS 88). Resume predicate: `test` and `docs-gate` green on origin/dev. **D-FLEET-17** asks how to unblock it.
+
+With landing impossible, the iteration took P2 #13's mandated first step, reproduction, which is measurement only. The window was ≥ 09-28 13:08Z, covering 21 failed `launchd drivers` jobs with controls:
+- **B** (gh hang, `tools/launchd`): last FAIL 09-28 13:15Z, before filing; 0 since.
+- **A** (OpenRouter peer): last 10-02.
+- An untracked flake, `bound measurement refuses an unsuccessfully terminated timer`, failed 4× on dev between 10-07 and 10-12.
+
+A and the timer flake both live in `tools/eval/*motoko_connection_probe*`. The guard refuses that path for the fleet, yet it runs inside the fleet's own done-gate (`make test-launchd-drivers`), so **D-FLEET-18** asks about the authority. #13 stays OPEN. The independent sonnet judge re-measured all three claims with its own commands: **PASS 88**. Its corrections are adopted: `docs/` is in scope but generated, the Windows red is noted, and the 13:08–17:01Z slice is covered. Evidence: `fleet-mission-evidence/iteration37/findings.md`.
+
+Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is green; #12 is ready); **3** MET (51 open); **4** prior evidence only; **5** preserved (nothing shipped). Next: when D-FLEET-17's predicate holds, land #1824 and resolve both #12 tickets. Then P2 #14 (`quorum:artifact-dir-cwd-relative`), or #13 if D-FLEET-18 = A.
