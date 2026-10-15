@@ -64,6 +64,20 @@ export func main() -> int {
 			}
 		})
 	}
+	mapResult := `module map_result
+import std/map (fromList)
+export func main() -> Map[string, int] { fromList([("b", 2), ("a", 1)]) }
+`
+	for _, strict := range []bool{false, true} {
+		filename := filepath.Join(t.TempDir(), "map_result.ail")
+		if err := os.WriteFile(filename, []byte(mapResult), 0600); err != nil {
+			t.Fatal(err)
+		}
+		got, err := runMapModule(t, filename, mapResult, strict)
+		if err != nil || strings.TrimSpace(got) != `Map{a: 1, b: 2}` {
+			t.Fatalf("map entrypoint strict=%v: %q %v", strict, got, err)
+		}
+	}
 	fixture := "examples/runnable/map_strict_parity.ail"
 	interpreted, err := runMapModule(t, fixture, "", false)
 	if err != nil {
