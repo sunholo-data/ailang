@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/gitexec"
 )
 
 // Workspace round trip for gemini_agents.
@@ -234,7 +234,7 @@ func (p *workspacePlan) wrapDirective(directive string) string {
 
 // applyPatch applies a downloaded patch to the local workspace.
 func applyPatch(ctx context.Context, dir string, patch []byte) error {
-	cmd := exec.CommandContext(ctx, "git", "apply", "--binary", "--whitespace=nowarn", "-")
+	cmd := gitexec.CommandContext(ctx, "apply", "--binary", "--whitespace=nowarn", "-")
 	cmd.Dir = dir
 	cmd.Stdin = bytes.NewReader(patch)
 	var stderr bytes.Buffer
@@ -256,7 +256,7 @@ func gitOutEnv(ctx context.Context, dir string, env []string, args ...string) (s
 }
 
 func gitRawEnv(ctx context.Context, dir string, env []string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := gitexec.CommandContext(ctx, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), env...)
 	var stdout, stderr bytes.Buffer
