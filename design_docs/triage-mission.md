@@ -31,7 +31,7 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
   `~/dev/sunholo-data/ailang-triage` is only launchd's working directory. The mission writes
   nothing to the repo except its own charter, log and dashboard, through a PR.
 - **Bookkeeping issue**: `#<created at bootstrap>`, rotates weekly; live number in `~/.ailang/state/mission-triage-gh-issue`
-- **CI workflows Gate 1 polls**: `CI` (the `dev`-green precondition for every action above Level 0)
+- **CI workflows Gate 1 polls**: `CI` (reported at the top of every digest; no loop action depends on it)
 - **Verify profile**: none of its own. It verifies other agents' work with the
   `github-issue-triage` recipe and `gh` reads.
 
@@ -43,14 +43,11 @@ Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-
 
 ## STATUS 2026-10-15 — ITERATION 0: charter drafted, awaiting ratification (D-TRIAGE-1)
 
-## CURRENT LEVEL: **2 — Approve** (Mark, attended 2026-10-15; D-TRIAGE-6)
+## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
-While `dev` CI is red, G1 blocks every approval, so the loop runs as Level 1 in practice until
-`dev` is green (D-TRIAGE-2). The first approval it makes is reported `[urgent]` to Daneel and Discord
-even when nothing went wrong, so Mark sees the first live use of the power.
-
-The level changes only by a recorded ruling in the ledger below. The loop may **demote** itself (G8)
-but never promote.
+This loop **never approves, rejects or merges**. Approving belongs to the coordinator. Its
+auto-approval policy (design doc Part A) reads this loop's attestations as one clause; until that
+ships, attested items go to Mark as "ready to approve". The level changes only by a recorded ruling.
 
 ## The bar
 
@@ -58,11 +55,11 @@ but never promote.
   verdict less than 7 days old, with evidence read against `origin/dev`.
 - **Clause 2, no silent stall**: no green, mergeable, `diff_available` card older than 48h is
   missing from the digest's decisions section.
-- **Clause 3, faithful shadow**: every would-be action above the current level is in the shadow ledger, and
-  each digest scores the ledger's agreement with what later happened to those items. This is the
-  promotion evidence.
+- **Clause 3, faithful shadow**: every verdict is in the shadow ledger, and each digest scores the
+  ledger's agreement with what later happened to those items. This is the evidence Part A's
+  policy is scored against before it auto-approves anything.
 - **Clause 4, zero harm**: no action above the current level; no label from the coordinator's
-  `watch_labels` (`bug`, `feature`, `from:*`); no approval that breaks a G-guard.
+  `watch_labels` (`bug`, `feature`, `from:*`); no approve, reject or merge by this loop.
 - **Clause 5, idle is free**: a fire with an unchanged queue spends no inference.
 
 ## Guardrails
@@ -73,38 +70,30 @@ In short:
 - **Approving is merging, and merging is approving.** Approve dispatches the next chain stage,
   then squash-merges. Hand-merging a coordinator PR makes the landed-card sweep approve it with
   dispatch. Neither has a "just one of the two" form.
-- **The authority gate in the CLI is advisory.** This charter enforces G1–G9; the code does not.
-- **Remote reject is final.** The chain fails, the PR closes, and the agent never sees the feedback (Level 3 only).
+- **So this loop does not approve.** Pressing `approve` from a loop would be a second approver
+  outside the coordinator, re-implementing its policy as prose (D-TRIAGE-7). Approval is the
+  coordinator's job: Part A of the design doc.
 - **Every merge redeploys dev** (16 images, coordinator included). Prod is tag-gated.
 - **Never** touch Dependabot majors, other missions' PRs (`fleet/*`, …), or prod. They are reported, not acted on.
-- **Red `dev` is not this mission's to fix** (V1 owns it; see D-TRIAGE-2). It blocks every action above
-  Level 0 and leads the digest.
+- **Red `dev` is not this mission's to fix** (V1 owns it; see D-TRIAGE-2). It leads the digest.
 - **It routes, never fixes**: defects → `design-doc-creator`, harness → `ailang mission ticket`, language
   gaps → V1 backlog.
 
-### Levels
+### What the loop may do (Level 1)
 
-| Level | Admits |
-|---|---|
-| 0 Observe | verify · label (`priority:*`, `area:*`, `needs-decision`) · evidence comments · digest · shadow ledger |
-| 1 Tidy | + close verified-fixed/obsolete/duplicate issues with SHA evidence · `coordinator prs --landed --apply` (no handoffs) under **T1–T4** |
-| 2 Approve | + `coordinator approve --remote gcp --yes --by mission-triage/<controller>` under **G1–G9** |
-| 3 Reject | + reject cards / close superseded agent PRs, after two unanswered digests and judge concurrence |
+- Verify every card, agent PR and bot-filed issue against `origin/dev`; label (`priority:*`,
+  `area:*`, `needs-decision`); evidence comments; digest; shadow ledger.
+- **Attest** `VERIFIED` PRs: a machine-readable PR comment carrying the verdict, head SHA, judge model
+  and evidence link (carrier: D-TRIAGE-9). A new push to the PR invalidates it.
+- Close verified fixed/obsolete/duplicate issues, and resolve landed cards, under **T1–T4**.
 
-**T1–T4** (Level 1):
-- **T1** The judge (a different vendor from the verifier) concurs, and the close comment cites the fix commit or reason and says "verified against origin/dev <sha>".
+**T1–T4**:
+- **T1** The judge (a different vendor from the verifier) concurs, and the close comment cites the fix commit or reason and says "verified against origin/dev <sha>". The same applies to every attestation.
 - **T2** Never close an issue that still has a pending card or an open `coordinator/task-*` PR. The coordinator imports only OPEN issues (`internal/messaging/github.go:397`), and closing one cancels nothing, so its chain would keep running against a closed issue. Those go in the digest instead.
 - **T3** Never close the current bookkeeping thread; at most 10 closes per iteration.
 - **T4** `prs --landed --apply` ends a landed card's chain WITHOUT starting the next stage. Every card resolved that way is listed in the digest with its handoff targets, so a chain worth continuing is visible to Mark (who can `--fire-handoffs` attended).
 
-Level 1 actions do NOT require a green `dev`: closing a verified-fixed issue and resolving an already-merged card do not merge anything.
-
-**G1–G9** (Level 2): G1 `dev` green · G2 every check on the PR head SUCCESS/SKIPPED · G3 MERGEABLE
-and not BEHIND · G4 `diff_available` and `agent_actionable` · G5 handoff targets in the digest
-first, ≤2 approvals/iteration and ≤4/day · G6 no `std/` without goldens, and nothing touching
-`internal/coordinator/`, `cloudbuild*.yaml`, `tools/launchd/`, `.github/workflows/`, `missions/` ·
-G7 bounded 30-min wait for the merge, orphan → `[urgent]` · G8 first post-merge `dev` CI red →
-`[urgent]` and self-demote to Level 1 · G9 `--by` names mission and controller.
+None of these needs a green `dev`: they merge nothing.
 
 ## Communication
 
@@ -132,19 +121,24 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 | ID | Status | Decision / recorded answer | Evidence |
 |---|---|---|---|
 | D-TRIAGE-0 | RESOLVED | Start at **Level 0**. The loop is meant to use the approval system and merge "as appropriate", with Discord and Daneel facilitating. (Mark, attended 2026-10-15.) | This session. |
-| D-TRIAGE-6 | RESOLVED | Start at **Level 2 (Approve)**, superseding D-TRIAGE-5. Mark, attended 2026-10-15: "honestly level 2 looks ok for the loop". Under G1–G9: at most 4 approvals a day, each dispatching a next stage capped by `task_max_cost` ($25 global / $15 claude), so the worst case is about $100 a day of cloud-plane spend. G1 (`dev` green) gates it today. | This session; design doc "What approving and merging actually do". |
+| D-TRIAGE-7 | RESOLVED | **Split** (Mark, attended 2026-10-15: "yes revise the design doc", answering whether the loop "is just replacing the coordinator's job"). Approving moves to a coordinator auto-approval policy (design doc Part A). This loop runs at Level 1, writes attestations the policy reads, and never approves, rejects or merges. Supersedes D-TRIAGE-6. | Design doc "Why two parts". |
+| D-TRIAGE-8 | OPEN | Where Part A's policy lives: (a) an AILANG module the coordinator loads; (b) extending `auto_merge_code` in Go. Recommendation: (a), per "policy decisions belong in AILANG, Go is the shell". | Design doc Part A item 4. |
+| D-TRIAGE-9 | OPEN | Attestation carrier: (a) a machine-readable PR comment (verdict, head SHA, judge, evidence); (b) a PR label; (c) a field on the approval card. Recommendation: (a). It carries a SHA and an author, and the coordinator's `gh` client already reads PRs. | Design doc Part B. |
+| D-TRIAGE-6 | RESOLVED | (Superseded by D-TRIAGE-7.) Start at **Level 2 (Approve)**, superseding D-TRIAGE-5. Mark, attended 2026-10-15: "honestly level 2 looks ok for the loop". Under G1–G9: at most 4 approvals a day, each dispatching a next stage capped by `task_max_cost` ($25 global / $15 claude), so the worst case is about $100 a day of cloud-plane spend. G1 (`dev` green) gates it today. | This session; design doc "What approving and merging actually do". |
 | D-TRIAGE-5 | RESOLVED | Start at **Level 1 (Tidy)**, superseding D-TRIAGE-0's Level 0. Mark, attended 2026-10-15: "I think we can start at level 1". Guards T1–T4 added in the same commit. | This session. |
-| D-TRIAGE-1 | OPEN | Ratify bar, levels, G1–G9 and the communication plan (iteration 0). Recommendation: ratify as drafted. | Charter bootstrap 2026-10-15. |
+| D-TRIAGE-1 | OPEN | Ratify the bar, the Level 1 scope with T1–T4 and attestations, and the communication plan (iteration 0). Recommendation: ratify as drafted. | Charter bootstrap 2026-10-15. |
 | D-TRIAGE-2 | OPEN | Red `dev` has no owner while V1 is paused (12/12 red on 2026-10-15). Options: (a) an attended fix now, before arming; (b) triage owns red `dev` while V1 is paused, routing the fix to `design-doc-creator`; (c) leave it with V1. Recommendation: (a), then (b) as the standing rule. | `gate-1-observe.md:233-271`; `mission-control.disabled`. |
 | D-TRIAGE-3 | OPEN | Discord threshold: post only on decision/orphan/red/level-change (drafted), or one post every iteration. Recommendation: as drafted. | Design doc "Communication". |
-| D-TRIAGE-4 | OPEN | Commission the Daneel **ruling relay** (reply `approve 1747` → a directive for this loop, closed-set words, rung 2) via the `daneel-design` inbox. Recommendation: yes, after two weeks of Level 0 digests show which words you actually use. | `daneel/authority.md:44,66`; axiom D8. |
+| D-TRIAGE-4 | OPEN | Commission the Daneel **ruling relay** (reply `approve 1747` → a human approval through the coordinator's normal path, or `hold 1723` → a directive for this loop; closed-set words, rung 2) via the `daneel-design` inbox. Recommendation: yes, after two weeks of Level 0 digests show which words you actually use. | `daneel/authority.md:44,66`; axiom D8. |
 <!-- decision-ledger:end -->
 
 ## Queue
 
-1. [NEXT] Bootstrap sprint: toml, env, idle pre-check, prompt switch, Gate 2/3 triage resources,
-   tests, dry runs (design doc "Driver and skill changes"). Clause 5 and all clauses.
-2. First armed iteration at Level 2, attended (expect G1 to hold approvals until `dev` is green). Clauses 1–3.
+1. [NEXT] Sprint B, the loop: toml, env, idle pre-check, prompt switch, Gate 2/3 triage resources,
+   attestation format, tests, dry runs (design doc "The sprints"). All clauses.
+2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
+   against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
+3. First armed iteration at Level 1, attended. Clauses 1–3.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.
