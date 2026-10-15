@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -51,6 +52,9 @@ func TestQuorumWriterChild(t *testing.T) {
 }
 
 func TestPolicyHostQuorumArtifacts(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("writer wrapper is a #!/bin/bash script; the launchd quorum driver it covers is macOS-only")
+	}
 	for _, name := range []string{"absolute", "invalid", "suppression_diagnostic", "deny_no_child"} {
 		t.Run(name, func(t *testing.T) {
 			home := t.TempDir()

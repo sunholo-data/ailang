@@ -4,11 +4,15 @@ import (
 	"context"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
 
 func TestQuorumArtifactShellSuite(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("runs /bin/bash on tools/launchd/test_quorum_artifacts.sh; the launchd quorum driver it covers is macOS-only")
+	}
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	script, err := filepath.Abs("../../../tools/launchd/test_quorum_artifacts.sh")
@@ -28,6 +32,9 @@ func TestQuorumArtifactShellSuite(t *testing.T) {
 // Keep the integration proofs executable independently when a protected mirror
 // prevents the aggregate suite from running. The aggregate remains a fatal gate.
 func TestQuorumArtifactWriterArms(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("runs /bin/bash on tools/launchd/test_quorum_artifacts.sh; the launchd quorum driver it covers is macOS-only")
+	}
 	for _, arm := range []string{"cross_tree_durable", "attended_no_exports", "cross_mode_fixed_order"} {
 		t.Run(arm, func(t *testing.T) {
 			home := t.TempDir()

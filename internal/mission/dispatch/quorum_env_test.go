@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -12,6 +13,9 @@ import (
 )
 
 func TestQuorumEnvironmentHandoff(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake CLI is a /bin/bash script; the launchd quorum driver it covers is macOS-only")
+	}
 	for _, arm := range []string{"clean", "inherited_marker", "task_policy"} {
 		t.Run(arm, func(t *testing.T) {
 			home := t.TempDir()
