@@ -1,7 +1,9 @@
 # motoko_agent on this machine — the map
 
-**One-line answer (since 2026-10-08):** evals run `/Users/voightkampff/dev/mk-20261002`, branch
-`sunholo/main-dst-20261002` (§10) — the commit the cloud image pins. Before that (2026-09-28..10-07):
+**One-line answer (since 2026-10-15):** evals run `/Users/voightkampff/dev/mk-20261015`, branch
+`sunholo/main-dst-20261015` @ `d5aa3e31` (§11) — upstream `main` 340fae14 + our commits, the
+commit the cloud image pins. 2026-10-08..10-15: `mk-20261002` / `sunholo/main-dst-20261002` (§10),
+now the rollback. Before that (2026-09-28..10-07):
 `/Users/voightkampff/dev/mk-main`, branch `sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
 (`cloud` and `ollama_microrag` profiles, `motoko_ext_ailang_tools`, rig-lease forwarding).
 Its extensions are the in-repo `packages/` copies. The ABI 2.2 fork (`sunholo/eval-canonical`)
@@ -228,3 +230,31 @@ checked out in that worktree, so `mk-main` cannot take it; `mk-main` stays on `s
 the rollback — repoint the shim's exec line to go back). The cloud image (`docker/Dockerfile.agent-motoko`) pins `de68fddf` on this
 branch since 2026-10-02: the dev plane builds it from `dev`; test/prod get it only via a release +
 promote. Until the rig switches, rig and cloud run different motoko commits.
+
+## 11. Canonical since 2026-10-15: `sunholo/main-dst-20261015` (rig and cloud on `d5aa3e31`)
+
+Worktree `~/dev/mk-20261015`, fork branch `sunholo/main-dst-20261015`: §10's branch rebased onto
+upstream `main` `340fae14` (2026-10-14), 346 upstream commits newer than `4023bf08` (about 300
+non-merge; most are chore/docs, ~40 touch behaviour: `refactor(core)`, `fix(tui)`, `fix(tools)`,
+spec 037, strict context-limit refusal #237).
+
+What the rebase did to our commits:
+
+- dropped as already upstream: repetition_guard tool_call_id (#260), byte-stable compaction summary
+  (#262), and our tool-schema dedupe (40d94780) — upstream landed the same fix as #220 and closed #235;
+  the `tool_catalog.ail` conflict was resolved to upstream's version;
+- the `verify_native_path_guard` Makefile fix (0992d765) applied empty — its content is in the tree;
+- `scripts/smoke_v2_dp7_gate.ail` (touched by the cost-cap commit) was deleted upstream; kept deleted;
+- `ailang.lock` taken from upstream and relocked (`d5aa3e31`), which adds `motoko_ext_ailang_policy`;
+  no absolute paths.
+
+Upstream's strict context-limit refusal (#237: strict + compactor + unknown limit exits 2) does not
+bite our profiles — `cloud`, `ollama`, `ollama_microrag` and `ailang_only` all set
+`agent.context_limit: 262144`.
+
+Verified: `make check_core` passes in full on macOS (59/59 core files, 192 `OK` checks, no FAIL).
+Not yet verified at switch time: a live eval trial on the new commit (local or cloud).
+
+**Rollback:** repoint `~/go/bin/motoko`'s exec line to `~/dev/mk-20261002` and the Dockerfile's
+`MOTOKO_COMMIT` to `b1ffa339`. Results banked before 2026-10-15 13:00 (including the v0.54.9 OS
+rotation) ran `b1ffa339`; do not pool them with later motoko rows as one build.

@@ -10,7 +10,7 @@
 # subscription OAuth from anything but Claude Code (429, measured 2026-10-02).
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=b1ffa3397b0941bf6d9e59331a8c539e19784f8b
+ARG MOTOKO_COMMIT=d5aa3e31b7e939a8fb7e73f0deb0f3e3a42e4508
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -34,9 +34,13 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
     && mv /root/.bun/bin/bun /usr/local/bin/bun \
     && chmod +x /usr/local/bin/bun
 
-# Check out motoko_agent at the pinned commit: branch sunholo/main-dst-20261002
-# of sunholo-voight-kampff/motoko_agent = Arni's upstream main 4023bf08 (strict
-# extension loading #205/#206, motoko_ext_ailang_tools #208) plus our commits:
+# Check out motoko_agent at the pinned commit: branch sunholo/main-dst-20261015
+# of sunholo-voight-kampff/motoko_agent = Arni's upstream main 340fae14
+# (2026-10-14) with our commits rebased on top (2026-10-15; MOTOKO.md §11).
+# Upstream now carries the tool-schema dedupe (#220), repetition_guard's
+# tool_call_id fix (#260) and the byte-stable compaction summary (#262), so
+# those are upstream's. The rest are ours, as on the previous branch
+# sunholo/main-dst-20261002 (upstream 4023bf08):
 # the cloud / ollama_microrag / ailang_only profiles with extensions.strict on,
 # motoko_ext_ailang_policy (the ailang_only lane), #209 (EditFile mode copy),
 # one schema per tool name (duplicate ReadFile/WriteFile/EditFile schemas made
@@ -50,7 +54,7 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
 # that prices prompt-cache tokens (d668e630; its env forwarding 84fde7b7), and
 # the session identity passed as OPENROUTER_SESSION_ID (aa23bbd1), and a
 # byte-stable compaction summary that keeps the prompt cache warm (b1ffa339).
-# MOTOKO.md §10. Previous pins: aa23bbd1, 84fde7b7, d668e630, 6de44ada, a1ece42e, b3347a96, e3fa68ec, de68fddf, 4d4917cd (sunholo/main-dst). Fetch-by-SHA pins the exact commit whatever the
+# MOTOKO.md §10. Previous pins: b1ffa339 (sunholo/main-dst-20261002), aa23bbd1, 84fde7b7, d668e630, 6de44ada, a1ece42e, b3347a96, e3fa68ec, de68fddf, 4d4917cd (sunholo/main-dst). Fetch-by-SHA pins the exact commit whatever the
 # branch does next.
 #
 # The fetch authenticates when the build passes a `github_token` secret
