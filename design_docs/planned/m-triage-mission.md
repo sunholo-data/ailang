@@ -108,12 +108,12 @@ One iteration:
    *shadow ledger*: what it would have done, recorded so promotion is evidence-led.
 5. **Gate 4/5 (unchanged)** — record, digest, retro.
 
-## Levels (start at 0; Mark promotes; demotion is automatic)
+## Levels (starts at 1 per Mark 2026-10-15; Mark promotes; demotion is automatic)
 
 | Level | Admits | Guards |
 |---|---|---|
 | **0 Observe** | Verify, label (`priority:*`, `area:*`, `needs-decision` only — never `bug`/`feature`/`from:*`, which re-import as coordinator tasks), comment with evidence, digest, shadow ledger | No approve, reject, merge, close |
-| **1 Tidy** | Close issues verdicted `CLOSE-FIXED`/`CLOSE-OBSOLETE`/`CLOSE-DUPLICATE` with commit SHA + "verified against origin/dev <sha>"; `coordinator prs --landed --apply` (no `--fire-handoffs`) for pre-cutoff landed cards | Judge concurs; never the current bookkeeping thread |
+| **1 Tidy** | Close issues verdicted `CLOSE-FIXED`/`CLOSE-OBSOLETE`/`CLOSE-DUPLICATE` with commit SHA + "verified against origin/dev <sha>"; `coordinator prs --landed --apply` (no `--fire-handoffs`) for pre-cutoff landed cards | Judge concurs; never an issue with a pending card or open `coordinator/task-*` PR (the coordinator imports only open issues, `internal/messaging/github.go:397`, and a close cancels nothing); never the current bookkeeping thread; ≤10 closes/iteration; every card resolved without handoffs listed in the digest. `dev` green NOT required (nothing merges) |
 | **2 Approve** | `coordinator approve --remote gcp --yes --by mission-triage/<controller>` | All of G1–G9 below |
 | **3 Reject / close PRs** | Reject cards and close superseded agent PRs | H6: final, work destroyed — judge concurs **and** the item has been in two consecutive digests unanswered |
 

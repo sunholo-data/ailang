@@ -43,7 +43,7 @@ Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-
 
 ## STATUS 2026-10-15 — ITERATION 0: charter drafted, awaiting ratification (D-TRIAGE-1)
 
-## CURRENT LEVEL: **0 — Observe** (Mark, attended 2026-10-15)
+## CURRENT LEVEL: **1 — Tidy** (Mark, attended 2026-10-15; D-TRIAGE-5)
 
 The level changes only by a recorded ruling in the ledger below. The loop may **demote** itself (G8)
 but never promote.
@@ -54,7 +54,7 @@ but never promote.
   verdict less than 7 days old, with evidence read against `origin/dev`.
 - **Clause 2, no silent stall**: no green, mergeable, `diff_available` card older than 48h is
   missing from the digest's decisions section.
-- **Clause 3, faithful shadow**: at Level 0, every would-be action is in the shadow ledger, and
+- **Clause 3, faithful shadow**: every would-be action above the current level is in the shadow ledger, and
   each digest scores the ledger's agreement with what later happened to those items. This is the
   promotion evidence.
 - **Clause 4, zero harm**: no action above the current level; no label from the coordinator's
@@ -83,9 +83,17 @@ In short:
 | Level | Admits |
 |---|---|
 | 0 Observe | verify · label (`priority:*`, `area:*`, `needs-decision`) · evidence comments · digest · shadow ledger |
-| 1 Tidy | + close verified-fixed/obsolete/duplicate issues with SHA evidence · `coordinator prs --landed --apply` (no handoffs) |
+| 1 Tidy | + close verified-fixed/obsolete/duplicate issues with SHA evidence · `coordinator prs --landed --apply` (no handoffs) under **T1–T4** |
 | 2 Approve | + `coordinator approve --remote gcp --yes --by mission-triage/<controller>` under **G1–G9** |
 | 3 Reject | + reject cards / close superseded agent PRs, after two unanswered digests and judge concurrence |
+
+**T1–T4** (Level 1):
+- **T1** The judge (a different vendor from the verifier) concurs, and the close comment cites the fix commit or reason and says "verified against origin/dev <sha>".
+- **T2** Never close an issue that still has a pending card or an open `coordinator/task-*` PR. The coordinator imports only OPEN issues (`internal/messaging/github.go:397`), and closing one cancels nothing, so its chain would keep running against a closed issue. Those go in the digest instead.
+- **T3** Never close the current bookkeeping thread; at most 10 closes per iteration.
+- **T4** `prs --landed --apply` ends a landed card's chain WITHOUT starting the next stage. Every card resolved that way is listed in the digest with its handoff targets, so a chain worth continuing is visible to Mark (who can `--fire-handoffs` attended).
+
+Level 1 actions do NOT require a green `dev`: closing a verified-fixed issue and resolving an already-merged card do not merge anything.
 
 **G1–G9** (Level 2): G1 `dev` green · G2 every check on the PR head SUCCESS/SKIPPED · G3 MERGEABLE
 and not BEHIND · G4 `diff_available` and `agent_actionable` · G5 handoff targets in the digest
@@ -120,6 +128,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 | ID | Status | Decision / recorded answer | Evidence |
 |---|---|---|---|
 | D-TRIAGE-0 | RESOLVED | Start at **Level 0**. The loop is meant to use the approval system and merge "as appropriate", with Discord and Daneel facilitating. (Mark, attended 2026-10-15.) | This session. |
+| D-TRIAGE-5 | RESOLVED | Start at **Level 1 (Tidy)**, superseding D-TRIAGE-0's Level 0. Mark, attended 2026-10-15: "I think we can start at level 1". Guards T1–T4 added in the same commit. | This session. |
 | D-TRIAGE-1 | OPEN | Ratify bar, levels, G1–G9 and the communication plan (iteration 0). Recommendation: ratify as drafted. | Charter bootstrap 2026-10-15. |
 | D-TRIAGE-2 | OPEN | Red `dev` has no owner while V1 is paused (12/12 red on 2026-10-15). Options: (a) an attended fix now, before arming; (b) triage owns red `dev` while V1 is paused, routing the fix to `design-doc-creator`; (c) leave it with V1. Recommendation: (a), then (b) as the standing rule. | `gate-1-observe.md:233-271`; `mission-control.disabled`. |
 | D-TRIAGE-3 | OPEN | Discord threshold: post only on decision/orphan/red/level-change (drafted), or one post every iteration. Recommendation: as drafted. | Design doc "Communication". |
@@ -130,7 +139,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 
 1. [NEXT] Bootstrap sprint: toml, env, idle pre-check, prompt switch, Gate 2/3 triage resources,
    tests, dry runs (design doc "Driver and skill changes"). Clause 5 and all clauses.
-2. First armed iteration at Level 0, attended. Clauses 1–3.
+2. First armed iteration at Level 1, attended. Clauses 1–3.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.
