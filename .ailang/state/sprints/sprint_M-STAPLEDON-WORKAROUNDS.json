@@ -1,0 +1,185 @@
+{
+  "sprint_id": "M-STAPLEDON-WORKAROUNDS",
+  "status": "not_started",
+  "created": "2026-10-15T08:15:31Z",
+  "design_doc": "design_docs/planned/v0_54_7/stapledon-v0-54-6-workarounds.md",
+  "sprint_plan": "design_docs/planned/v0_54_7/stapledon-workarounds-sprint-plan.md",
+  "github_issues": [
+    1447,
+    1498,
+    1576
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search map returned billing_stripe, a2ui and relativity, none implements Go VM maps; this is compiler/runtime infrastructure."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search map returned billing_stripe, a2ui and relativity, none implements Go VM maps; this is compiler/runtime infrastructure."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Search map returned billing_stripe, a2ui and relativity, none implements Go VM maps; this is compiler/runtime infrastructure."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Search map returned billing_stripe, a2ui and relativity, none implements Go VM maps; this is compiler/runtime infrastructure."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Search lockfile returned no packages; preservation belongs in the existing Go lock writer."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "Search diagnostics found sunholo/ail_diag@0.1.0; inspected info/docs: parses emitted output, cannot change inference diagnostics."
+    },
+    {
+      "milestone": "M7",
+      "package": null,
+      "action": "none",
+      "reason": "Documentation of existing stdlib and CLI behavior; no package implementation required."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 350,
+    "estimated_total_loc": 1400,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "VM map representation and conversion",
+      "estimated_loc": 240,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Map values round-trip across the evaluator bridge, including nested values and empty maps.",
+        "Canonical key identity, stable display/iteration and equality match evaluator semantics.",
+        "Targeted bytecode/VM tests and make test-changed pass; existing value kinds remain valid."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Native map point operations",
+      "estimated_loc": 240,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Six point operations execute natively with int/string/bool keys and opaque values.",
+        "Updating a map leaves aliases to the original unchanged; missing keys return None.",
+        "TestPureBuiltinCoverage and targeted VM/compiler tests plus make test-changed pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Native map bulk operations",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "All ten __map_* operations are native; the map family is absent from unportedPure.",
+        "Empty input, duplicates and mixed positive/negative integer ordering match evaluator.",
+        "Bulk-operation tests, coverage ratchet and make test-changed pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Strict-bytecode end-to-end parity",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Reporter repro returns 2 under interpreter and --bytecode --strict-bytecode.",
+        "Full-family parity fixture produces identical results on both engines, with no fallback.",
+        "Still-unported XML builtin retains its explicit strict-bytecode failure and reason.",
+        "make test-changed, make verify-examples and make check-boundaries pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Preserve unchanged lockfile metadata",
+      "estimated_loc": 200,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Consecutive unchanged locks are byte-identical, including across generator/version changes.",
+        "Empty dependencies behave identically; changed resolution receives fresh metadata.",
+        "Missing lock generates; malformed/unreadable lock errors are explicit.",
+        "--check writes nothing and retains 0/current, 1/drift behavior; portability tests pass.",
+        "Targeted cmd/ailang and internal/pkg tests plus make test-changed pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "description": "Name the applied callee in diagnostics",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Swapped std/map.lookup arguments produce a diagnostic containing lookup and its span.",
+        "Named local/imported applications carry their available names; anonymous heads stay neutral.",
+        "Raw Unify and arity diagnostic tests retain their wording/codes; collision hints survive.",
+        "Targeted internal/types tests and make test-changed pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M7",
+      "description": "Workaround register and release evidence",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M4",
+        "M5",
+        "M6"
+      ],
+      "acceptance_criteria": [
+        "W1/W3 fixes have recorded local evidence; W2 downstream migration is explicitly pending.",
+        "W4 links the existing B4/A2 dependency and requests confirmed-binary retest evidence.",
+        "No doc alias or new readLine behavior/API is introduced; no issue is auto-closed.",
+        "make check-file-sizes and make check-changelog pass; relevant examples/docs are accurate."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "correlation_id": "task-20f42687",
+  "issue_policy": "References only: #1447 parity ratchet, #1498 portability regression, #1576 cross-track; do not auto-close these umbrella/existing issues."
+}
