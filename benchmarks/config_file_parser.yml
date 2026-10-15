@@ -11,7 +11,7 @@ task_prompt: |
 
   **Requirements**:
 
-  1. Create a JSON config file named "app_config.json" containing:
+  1. Your program must itself create (write) a JSON config file named "app_config.json" containing:
      - app_name: "MyApp"
      - version: "1.0.0"
      - port: 8080
@@ -28,6 +28,9 @@ task_prompt: |
      "Loaded MyApp v1.0.0 on port 8080 with 3 features"
 
   The output format must be: "Loaded {app_name} v{version} on port {port} with {count} features"
+
+  Only your program is run, in an empty directory: any file you create outside the program will
+  not exist when it runs, so the program must write app_config.json before reading it.
 
 
 expected_stdout: |
