@@ -7,89 +7,6 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
-## 20 — 2026-10-05 — pi-runner pre-dirty fix built + judged PASS 86→85 as PR #1593; landing blocked by a GitHub Actions major outage → PARKED-ON-CLOCK [HARNESS]
-
-**Pick**: P1 #5 `pi-runner:verdict-blind-to-commits-and-predirty`, the pre-dirty half (charter `[NEXT]`; Mark's 2026-09-29 triage order).
-- Gate 0: kill switch armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; 0 directives on #1584 since `2026-10-05T12:33:09Z` (1 comment, public). 38 open tickets.
-- Gate 1:
-  - Pin = origin/dev `a12a319b5`. Running skill: `SKILL.md` + 5 resources match origin. 7 gate resources DIFFER: the resolved main checkout is 22 commits behind origin. The delta is the absolute `MISSION_DRIVER_ROOT` heartbeat-stamp form + the pi rc-19 line (#1578). This fire followed the resolved copy but used the absolute stamp form.
-  - Dev CI: last push run `d273ea1cd` failure = `test-windows`, `cmd/ailang` at 401 s / 96% of its timeout budget, with hang-guard FAILs (not logic). The 2 prior runs were green; V1 owns this lane, recorded only.
-  - HEAD `a12a319b5` (6 dependabot merges) had **no** push CI. Dispatched `CI` → `test` success, `lint` success; `changes` cancelled (unassigned 15 min), so Windows is unverified at HEAD.
-- Gate 2: the pick still reproduces at HEAD. `mission_pi_run.sh:346` gates `ok` on porcelain non-empty, and `:347` says a pre-dirty tree reads `ok` vacuously. No orphan iteration-20 PR or worktree. #1583 (`fix/ollama-quota-test-clock`, attended) addresses D-FLEET-14's subject; not fleet's PR, untouched.
-
-**Did**:
-- **Plan** (opus Agent) `6f60e0d53`, `design_docs/planned/sprint-plan-pi-runner-predirty.md`. Two load-bearing findings, both verified by the controller:
-  - TEST 1/5 started dirty with no-op stubs, so they passed only because of the bug.
-  - `scripts/test_mission_pi_run.sh` ran in no gate (`make/test.mk` listed only the three `tools/launchd/test_mission_pi_run_*` suites).
-- **Executor r1** `d3974c34f`:
-  - A worktree fingerprint is taken right after `BASE_HEAD` and again after the run: porcelain v1 -z + `git diff --binary HEAD` + untracked hashes → `git hash-object --stdin`.
-  - `ok` = fingerprint changed OR commits made.
-  - New JSON fields `predirty_files` and `worktree_changed_since_start`.
-  - Header comment fixed; the suite wired into `make test-launchd-drivers`; changelog fragment added.
-- **Judge r1 PASS 86**, 0 blocking. Finding 1 was reproduced first-party: the batched `xargs git hash-object` aborts at a dangling symlink (`fatal: could not open 'aaa'`, rc=1), so a later untracked edit reads `empty_worktree` (a live lane reported dead).
-- **Executor r2** `2e49cc9ac`: untracked entries are hashed one at a time, with stand-ins (symlink target; nested repo HEAD + porcelain). Arms 8.8–8.11 added.
-- **Judge r2 PASS 85**, 0 blocking.
-- Pushed through the pinned guard (`core.hooksPath` = pin); PR **#1593**.
-- **Gate 3b**:
-  - `lint` and `docs-gate` green (docs-gate after one re-run). `test` still running at record time.
-  - `changes` sat unassigned 15 min and was cancelled, so `launchd drivers` and `test-windows` were skipped.
-  - githubstatus: **Actions: major_outage**, "Incident with Actions" investigating since 21:09Z. The same symptom hit the 19:17Z dev dispatch.
-  - Not merged; ticket NOT resolved.
-
-**Progress**: 0 tickets resolved (38 open).
-- Clause 1 UNMEASURED.
-- Clause 2 UNMET.
-- Clause 3 MET.
-- Clause 4 prior evidence only.
-- Clause 5 preserved: nothing merged, and the judged head waits for a real `pull_request` CI suite.
-
-**Routing evidence**: base-gate1=a12a319b5eb9b208f4d8f5df21b6a892033b08e7@2026-10-05T19:14:56Z. `MISSION_ROUTING_NOTE`: codex over daily ration → planner opus, executor claude:claude-sonnet-5-5.
-- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
-- **Designer**: NOT SPAWNED. The resolver said `recipe claude:claude-opus-5-5`. The defect, cause and fix shape were measured at HEAD in one script, so the charter's "design only when the fix warrants one" applies, as in iteration 19.
-- **Planner**: resolver `agent-tool opus fail-closed:env-pin` → opus via the Agent tool, foreground (87,227 tok, 17 tools, 13 min).
-- **Executor**: resolver `recipe claude:claude-sonnet-5-5` → `claude-sub` in `~/.ailang-worktrees/fleet-i20-pi-predirty`. Billing CLEAN; probe rc0; r1 rc0, r2 rc0 (tok: not reported, text mode).
-- **Evaluator**: resolver `reroute pi:openrouter/minimax/minimax-m3 generator-equals-judge`.
-  - OpenRouter is in `MISSION_OVER_RATION`, so minimax was skipped. `claude:claude-sonnet-4-6` was skipped as the executor's family.
-  - Ran `opus` via the Agent tool, foreground for r1 (92,747 tok, 20 tools, 22 min), resumed by SendMessage for r2 (105,477 tok cumulative, 16 min).
-  - Judge ≠ generator (opus vs sonnet-5-5). FLAG: same model as the controller and the planner, in a fresh context.
-- **Metered**: $0.00. **Ration**: codex, ollama and openrouter over; Anthropic subscription OK.
-
-**Verification** (judge, first-party re-runs):
-- `scripts/test_mission_pi_run.sh` 36/36.
-- commits 9, sandbox 13, provider_quota 29, all rc0.
-- `make test-launchd-drivers` rc0, now running this suite.
-- `bash -n` rc0.
-- shellcheck identical to base.
-- `check-changelog` rc0.
-- Mutations red-on-mutate, each restored byte-identical (cmp + `git diff --quiet`):
-  - `ok` reverted to porcelain;
-  - diff-only fingerprint;
-  - porcelain-only fingerprint;
-  - untracked hashes dropped;
-  - batched `xargs` restored;
-  - time-varying fingerprint;
-  - fingerprint diffed against `BASE_HEAD`;
-  - post-run fingerprint failure counted as changed.
-- One judge mutation SURVIVED: the stand-in block replaced with `|| true` → 36/36, so no arm pins the stand-in (non-blocking follow-up).
-- 2,000-untracked-file timing: 18.06 s per-entry vs 0.098 s batched, same hash. It runs outside the wall clock.
-
-**Done-gate** (pending landing):
-- Surface ✓ (`scripts/mission_pi_run.sh` is what every pi lane runs).
-- Reach ✗ (not on origin/dev).
-- `make test-launchd-drivers` ✓ on the branch.
-- Nothing reloaded ✓.
-- No dry-run needed: 0 driver bytes changed.
-
-**Ruled out**:
-- Merging past the skipped `launchd drivers`/`test-windows` legs, or treating an outage green as a verdict (Gate 3b).
-- A third executor round for the judge-r2 non-blocking findings (one revision, bounded; queued as follow-ups instead).
-- Spawning a designer for a one-script fix.
-- Touching `TestOllamaQuota*` (D-FLEET-12/14) or #1583.
-- Reading or acking `mission-fleet`.
-- Re-asking D-FLEET-13/14.
-
-**Retro lane**: none for the skill. One observation: the GitHub `changes` path-filter job is a single point of failure. When it cannot get a runner, every path-gated leg is SKIPPED, which renders as neutral rather than red. A rollup that counts only failures reads that as clean.
-**Next**: land #1593 when Actions recovers (resume predicate in the queue row), resolve the ticket and reply to world. Then the Phase 3a skill-resolution directive. The D-FLEET-12 pair is planner-ready; D-FLEET-13/14 await Mark.
 
 ## 21 — 2026-10-06 — pi-runner pre-dirty fix LANDED: #1593 `c2bf04af3`, re-judged PASS 100 after the Actions incident cleared; ticket resolved [HARNESS]
 
@@ -1031,3 +948,38 @@ Reach is NOT confirmed (unmerged). Re-run the done-gate at the merge.
 - (4) `rotate-log` added the duplicate "Older entries are ARCHIVED" notice again (instance 7), collapsed by hand. Ticket-shaped (`rotate-log:*`); the fleet does not self-source.
 
 **Next**: when D-FLEET-17's predicate holds (`test` and `docs-gate` green on origin/dev), land #1824, then #1825, then this PR. Run the done-gate at each merge and resolve 4 tickets (`quorum:invalid-absent-on-quoted-literals`, `quorum:reviewer-invalid-json-discarded`, `quorum:artifact-dir-cwd-relative`, `driver:unclassified-state-unreachable`). Until then, do not stack further builds without a ruling. D-FLEET-16/17/18 are with Mark.
+
+## 40 — 2026-10-15 — stack recovery rechecked; required dev reds persist, no further builds; independent disposition review PASS 95 (fresh-context Sol) [ADMIN]
+
+**Pick**: recover and verify the existing stack, the Next of iteration 39: #1824 → #1825 → #1828. Origin/dev ends at iteration 35, but the attributed fleet PR branches contain complete records 36–39. These are completed, reported iterations, not four newly discovered crashes. No new sprint, design, source changes, or ticket resolutions this fire. 50 open signatures; the native Sonnet capability ticket remains PARKED-ON-LANE.
+
+**Preflight**: armed; gh sunholo-voight-kampff; billing CLEAN. Zero allowlisted directives among 10 comments on #1768 since 2026-10-13T00:00:23Z. Self-notices rc 0 (control 852:10, both watermarks valid). Latest branch ledger: 18 valid rows; exactly D-FLEET-16/17/18 OPEN, unchanged. No rotation/sweep due (weekly sweep iteration 32; current issue created October 12). Shared main dirt (fmt hook log, benchmark JSON, untracked background-worker design) and inherited .snap/ in the iteration-39 worktree left untouched.
+
+**Observe**: pin == dev == origin/dev 4749956296d226f06d92dd2458b36843a92d48a3. SKILL.md and all 12 resource files match origin in BOTH the authoritative pin and resolved main-checkout skill directory (26 per-file comparisons). CI 38617113857, Build and Release 38617113836, Deploy Documentation 38617113983 all completed failure at this SHA. The check-runs positive control is 20 entries. V1's kill switch exists.
+
+**Did**:
+- Designer (native Sol fallback): checked design/authority disposition. No design revision warranted; existing implementation has already been independently judged. D17 needs a human ruling or a green-dev predicate; D16/18 govern separate work.
+- Planner (native Sol): measured all three PR heads/bases and wrote the concrete resume checklist in iteration40/recovery-evidence.md. #1824 is OPEN/BLOCKED at b5ca4f6cf4083403499ba47fad7c7a9b9a3bc9a9; #1825 OPEN at 1f5f0d3ac07dfb35d49c46bc9d66e4ec0e097b51; #1828 OPEN at 10fdc22223c06d660a5769ccd604e0f06037acc8. Last two target their parent branches and have only skipped automerge checks, not implementation CI coverage.
+- Executor (native Sol, read-only recheck): source gate make check-git-exec rc 2 (underlying script rc 1), same missing baseline path internal/executor/managed_agents/devapi_workspace.go (2). Docs log confirms MDX/acorn failure at generated env-vars.md:252. Current test job has 48 skipped steps; docs-build 3. Local source gate ran on darwin/arm64; other platform results come from CI, not local execution.
+- Independent evaluator (fresh-context Sol): PASS 95/100 for PARKING/RESUME DISPOSITION ONLY; no implementation re-acceptance. Its newly measured required-context set is test, lint, build, docs-gate, UI build gate. Controller independently re-read protection and checks: test/docs-gate failure, lint success, build skipped, UI build gate absent. No green inferred for skipped/absent checks. Judge report: iteration40/judge-report.md. Follow-up independent review of this concrete record: PASS, no factual blocker; all prior live-log sections retained verbatim, status 37 moved intact, ledger and CURRENT GOAL onward byte-identical.
+- Controller rechecked failed log content (known-present PASS lines plus specific baseline error), branch heads, open ticket count, required-context set and ledger. The first worktree-helper launch left a pending/incomplete worktree (fleet-i40-record); its status is not a verdict. It was not repaired or used. A distinct helper invocation kept its parent command alive through wait and returned ready rc 0 for fleet-i40-record-verified, clean at the reviewed branch head. No inherited files were deleted.
+
+**Gate 3b**: BLOCKED, not bypassed. Resume predicate test + docs-gate SUCCESS on the exact current dev SHA is false. No merge, admin override, retarget, source push or automatic merge was requested. This bookkeeping-only record is appended to the existing #1828 branch, without another stacked PR.
+
+**Done-gate**: no implementation or rollout this iteration. Prior PASS 88/90/91 and pre-merge done-gates remain historical branch evidence only. Full launchd tests and healthy/degraded dry-runs are owed at each actual merge, then each ticket may resolve. Nothing reloaded.
+
+**Progress**: fleet clauses 1 UNMEASURED, 2 UNMET, 3 MET (50 open), 4 prior evidence only, 5 preserved. 0 tickets resolved; goal unmoved. Last three completed changes (35 provenance, 34 spike, 33 bounded notices) addressed turnaround/enabling work; this fire banks only a verified recovery state.
+
+**Routing evidence**: base-gate1=4749956296d226f06d92dd2458b36843a92d48a3@2026-10-15T02:36:44Z; base=4749956296d226f06d92dd2458b36843a92d48a3@2026-10-15T02:40:59Z (gate4). Record tree base=10fdc22223c06d660a5769ccd604e0f06037acc8 (latest blocked fleet record, unchanged remote #1828). MISSION_ROUTING_NOTE: controller claude:claude-opus-5-5 → codex:gpt-6.1-sol (probe ok). Over ration: anthropic openrouter.
+- Controller codex:gpt-6.1-sol (tok: not reported).
+- Designer: resolver refuse over-ration:anthropic; used admitted rotation fallback gpt-6.1-sol via native Agent at operator's explicit request, authority review only (tok: not reported). Rotation pointer unchanged: no design authored.
+- Planner: derive and resolver agree recipe codex:gpt-6.1-sol declared:planner-lane-default-pin; operator-requested native Agent transport, exact model unchanged (tok: not reported). Recovery checklist only; no vacuous sprint JSON.
+- Executor: resolver recipe codex:gpt-6.1-sol declared:provider-pin; operator-requested native Agent transport, exact model unchanged (tok: not reported). Read-only gate recheck, not implementation.
+- Evaluator: resolver agent-tool sonnet declared:alias-pin. Native spawn failed: Unknown model sonnet for spawn_agent; advertised models are gpt-6.1-sol, gpt-6-astra, gpt-6-sol, gpt-6-luna, gpt-5.6-sol. Anthropic/OpenRouter quota unavailable; Gate 3 fresh gpt-6.1-sol fallback spawned via native Agent with fork_turns=none (tok: not reported). judge-independence: same-model-fresh-context. No Astra spawn, no controller-only verdict. Distinct judge instance evaluated the disposition independently.
+- Metered: $0; all completed roles use ChatGPT subscription. Provider-reported token counts unavailable from native Agent responses; not invented as zero usage.
+
+**Ruled out**: repeating #11 (already resolved iteration 36); repeating #12/#14/#15 implementations; treating stacked PR CLEAN or skipped automerge as green CI; repairing dev's out-of-scope source paths without D17 authority; resolving/reopening human ledger decisions; bypassing Sonnet failure silently; advancing the watermark on self-authored comments; reading/acking fleet ticket messages.
+
+**Retro lane**: observations only; no skill/policy change. The already-proposed stranded-record skill fix b081a39a4 remains on #1828 and is itself blocked on dev. Native sonnet capability failure repeats the existing ticket; fresh-context independent judge worked. The first worktree helper's detached launch did not yield a ready artifact, while the foreground-parent wait did; one measured transport friction, not a new self-sourced ticket or fix. Status rotation CLI targets the archive, not the charter; its generated changes were restored byte-for-byte before the oldest charter stamp was moved with ledger/queue guards. Fleet harness share is 13/20 in the regenerated last-20 index; high fleet share is its explicit authority, not a product-loop breach.
+
+**Next**: re-run the named D17 predicate and allowlisted directives. When dev is green, verify/land #1824 → #1825 → #1828, fresh expected PR checks on each head and done-gates/CI on each merge SHA; resolve the four named tickets only then. Until then no further stacked builds without a ruling. D-FLEET-16/17/18 remain OPEN unchanged.
