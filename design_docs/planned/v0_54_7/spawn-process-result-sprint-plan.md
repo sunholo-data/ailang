@@ -2,7 +2,7 @@
 
 **Sprint ID:** M-SPAWN-PROCESS-RESULT
 **Design:** [spawn-process-result.md](spawn-process-result.md)
-**Status:** In progress; M1–M3 implemented and committed, final validation running.
+**Status:** Implementation completed; ready for independent evaluation. Baseline container cleanup failures documented below.
 **Duration:** 2 working days, about 7 hours including 90 minutes contingency.
 **Risk:** Medium: worker admission/cleanup and persisted bytecode compatibility.
 
@@ -125,3 +125,15 @@ AILANG prompt version loaded: v0.16.7. Example contracts: skipped because OS sta
 The approved process interface snapshot is intentionally updated for the one additive spawnProcessResult export; no other stdlib interface changes. Targeted race tests, builtin validation, formatting, file-size, changelog and architecture-boundary checks pass.
 
 Optional simplicity audit exits 2 against 2026-09-30: nonleaf closure 32→33 and tracked files 25,731→28,563 at measurement. The starting commit already has 28,555 tracked files, and this sprint introduces no package or dependency edges; this is existing repository-wide drift plus the expected additive files. The audit's timed core probe reports FAILED (also FAILED in its baseline); the required make test-changed gate independently runs test-core.
+
+### Final validation and handoff
+
+All four implementation milestones are complete. The final M4 all-green-gates checkbox remains open as an explicit validation caveat, rather than hiding a baseline failure. `make test-changed` and `make test-core` were run and are not green in this container: TestRuntimeNestedStopUsesRemainingDeadline, TestRunPolicy_TimeoutKillsDescendants and TestRunPolicy_SupervisorDeathStopsWorker reproduce on untouched starting commit 79ede6ee. Actual procps inspection shows the reported survivors are zombies adopted by PID 1. No cleanup semantics were changed to accommodate the container.
+
+The missing ps utility was supplied via temporary extracted Debian procps packages. The deadline test then passed. Deep-recursion tests pass with GOMEMLIMIT=512MiB/GOGC=30; the initial process kills were resource-related. The entire internal/pipeline suite passes when run alone (73.812s), after intentionally adding the one new builtin signature to builtin_types.golden; its first concurrent runs were resource-killed. All other core-package results passed. The new spawn CLI regression and all targeted lifecycle/race checks pass.
+
+`make verify-stdlib`: all 48 interfaces stable after the intentional additive process snapshot update. `make verify-examples`: 247 passed, 0 failed, 9 existing skips; manifest modules have no drift (one existing stale missing-file entry is logged). Builtin doctor, formatting, file-size, changelog and architecture checks pass.
+
+Lint: the initial run exited 137, and a 512MiB low-memory retry hit the default 5m timeout while reporting 0 issues. The same full configured linter scope passed with 0 issues using `GOMEMLIMIT=768MiB GOGC=30 GOMAXPROCS=2 golangci-lint run --timeout 10m --concurrency 1 ./cmd/... ./internal/... ./serveapi/...`.
+
+Added/deleted implementation and documentation lines vs starting commit (excluding sprint JSON and imported plan): see sprint JSON velocity metrics. The larger-than-planned test portion covers the full failure/lifecycle matrix, portable child fixture, exact legacy behavior and CLI regression. No stream API, parser/type-system change, release or new package dependency was added. Independent sprint-evaluator handoff follows this final checkpoint; merge/release remains outside this execution.
