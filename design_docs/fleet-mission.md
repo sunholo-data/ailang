@@ -43,6 +43,18 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-15 — ITERATION 41: the blocked stack LANDED — #1824 → `514ca3bc3`, #1839 (ex-#1825) → `10cb2fae0`, #1840 (ex-#1828) → `7c10ce00d`; 4 tickets resolved [HARNESS]
+
+D-FLEET-17's two causes had been fixed outside the fleet: `check-git-exec` passes, and the docs red was MDX, fixed by `95106ba27`, plus manifest statistics, fixed by `35a49b851`. Dev's remaining `test` red was an `internal/runner` PTY/signal flake, and a `--failed` rerun on `3342b46ce` came back green. So the stack was landed in order, with a fresh judge, CI and done-gate at each merge.
+- #1824 was closed and reopened for fresh checks, with no push. Sonnet scored the landing **PASS 90**.
+- The squash left #1825 and #1828 conflicting in the bookkeeping docs. Each was rebased onto dev as a new branch with an identical stable patch-id, and replaced by #1839 and #1840.
+- Fresh CI on #1839 found 3 defects that iterations 38 and 39 never saw, because a stacked PR gets no CI: Linux bash 5, Windows `/bin/bash` and POSIX-fs, and dev's newer `check-home-isolation`. The haiku executor fixed them in 4 commits, judged **PASS 88** and **94**.
+- #1840 went green first time after a local run of all 16 static gates. Landing **PASS 94**.
+
+Done-gate at every merge: `make test-launchd-drivers` rc 0 (`env -i`), and dry-runs healthy and degraded rc 0 (world at `514ca3bc3`, triage at `10cb2fae0` and `7c10ce00d`, because world went mid-fire). Tickets resolved: `quorum:invalid-absent-on-quoted-literals`, `quorum:reviewer-invalid-json-discarded`, `quorum:artifact-dir-cwd-relative`, `driver:unclassified-state-unreachable`. #941 closed.
+
+Clause map: **1** UNMEASURED; **2** UNMET (turnaround on these was about 19 d and 7 d); **3** MET (48 open); **4** prior evidence only; **5** preserved. Next: #16 `quorum:tier2-salvage-fold` (not live), then tickets by `slots_lost`. D-FLEET-17 is moot; D-FLEET-16 and D-FLEET-18 are with Mark.
+
 ## STATUS 2026-10-15 — ITERATION 40: stack recovery rechecked; PARKED on D-FLEET-17, independent fresh-context Sol judge PASS 95 for disposition only [ADMIN]
 
 ## STATUS 2026-10-14 — ITERATION 39: P2 #15 slot verdict UNCLASSIFIED made reachable — built and judged PASS 91 by sonnet (round 2); stacked on #1825, BLOCKED on dev's required reds; Gate 1 skill fix for records stranded on blocked PR branches [HARNESS]
@@ -64,16 +76,6 @@ Not LANDED: dev `474995629` is still red on `test` (`check-git-exec`, `devapi_wo
 Gate 5 skill fix (`b081a39a4`, both copies): Gate 1 now reads the newest record from the mission's own open PR branches, because iterations 37, 38 and 39 each booted on a charter that was stale by up to three iterations. This iteration also re-quorum'd #12's already-built doc for about $0.10 before noticing.
 
 Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is green; #12, #14 and #15 are ready); **3** MET (50 open); **4** prior evidence only; **5** preserved (nothing shipped). Next: when D-FLEET-17's predicate holds, land #1824, then #1825, then this PR, re-running the done-gate at each merge, and resolve 4 tickets.
-
-## STATUS 2026-10-14 — ITERATION 38: P2 #14 quorum artifact dir designed, quorum'd, built and judged PASS 90 by sonnet — stacked PR on #1824, BLOCKED on the same dev required reds [HARNESS]
-
-`ailang design-quorum` wrote its artifacts to a CWD-relative `.ailang/state/mission-quorum`, so under pin and sprint worktrees a reviewed doc read as unreviewed at Gate 2 (measured: 5 artifacts in the fleet pin, 164 in the main checkout, 15 in the hand-used `~/.ailang/state/mission-quorum`). Now the driver exports a repo-scoped `MISSION_QUORUM_ARTIFACT_DIR` (registered in `internal/config/mission.go`), the quorum writer uses it when the flag is left at its default, and Gate 2's new executable reader block consults the export first, then `<repo-root>/.ailang/state/mission-quorum`. A raw policy marker keeps every default write inside the ailang_only sandbox, and a real policytool host/child test proves it. Out of scope: the legacy importer, and the CLI pre-flight (`cmd/ailang/design_quorum.go` is outside fleet authority).
-
-How it was built: the codex designer (rotation turn `codex:gpt-6.1-sol`) wrote the doc. Quorum round 1 BLOCKED (glm, kimi). The designer revised it. Round 2: 2 pass and 1 reject (kimi). The controller applied kimi's verbatim `proposed_fix` under the narrow-refinement carve-out: a fixed-order two-directory reader, AC11, and A1 downgraded to 0. The codex planner corrected 9 premises. The codex executor built M1 (16/16 mutants killed) and M2; the sandbox refused the `.agents` mirror sync, so the controller ran it. The controller also scrubbed every inherited `MISSION_*` in the new shell suite: `MISSION_NAME` from a controller env had reddened an arm. The independent sonnet judge scored **PASS 90**, 0 blocking, and 9 of its own mutants went red. Non-blocking: a failed driver init exits 2 before `_mc_notify` exists, so it logs but does not notify.
-
-Done-gate at `b151064db`: `make test-launchd-drivers` rc 0 under `env -i`. World dry-runs (`AILANG_DRIVER_PINNED` set): healthy `lanes=ok`, degraded `lanes=DEGRADED(1)`, both rc 0, and both print `quorum artifact directory: …/mission-quorum-world`. No pidfile was written. Not LANDED: dev `d15217d24` is still red on `test` (`check-git-exec`) and `docs-gate`, so #1824 and this stacked PR wait on D-FLEET-17. The ticket stays open.
-
-Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is green; #12 and #14 are both ready); **3** MET (51 open); **4** prior evidence only; **5** preserved (nothing shipped). Next: when D-FLEET-17's predicate holds, land #1824, then this PR, run the done-gate at each merge, and resolve 3 tickets. Then P2 #15.
 
 ## CURRENT GOAL
 
@@ -219,18 +221,16 @@ overnight: harness faults read as model faults)
 10. [LANDED · iteration 35] `skill:gate0-ledger-provenance-S`: #1815 → `130486515` (judged PASS 92 by sonnet, round 2). Gate 0 rule 6(b) runs `scripts/mission_ledger_provenance.sh`: latest OPEN→RESOLVED transition, creation control, squash-merged flips `undetermined` (never re-opened). Ticket resolved. Follow-ups (judge), not ticketed: bold `**RESOLVED**` cells read as never-resolved (N2); the `Attended ruling` stamp is not checked (N4).
 11. [LANDED · iteration 36, ghost] `weekly-report:unknown-mission`: already fixed by `08ce76f30` (attended,
     2026-10-06; the script reads `missions/*.toml`). Re-verified for all 6 missions, judged PASS (sonnet). Ticket resolved.
-12. [IN-SPRINT · iteration 36 · PR #1824, judged PASS 88, BLOCKED on inherited dev red; re-checked iteration 37, still red; D-FLEET-17] `quorum:invalid-absent-on-quoted-literals`
-    + `quorum:reviewer-invalid-json-discarded` (#941): redesigned (`m-quorum-salvage-retry.md`, quorum + carve-out), built and
-    judged. Merge when `test` and `docs-gate` are green on origin/dev, then run the done-gate at the merge and resolve both.
+12. [LANDED · iteration 41] `quorum:invalid-absent-on-quoted-literals` + `quorum:reviewer-invalid-json-discarded` (#941): #1824 → `514ca3bc3`
+    (built iteration 36, PASS 88; landing re-judged PASS 90 by sonnet at iteration 41). Both tickets resolved; #941 closed.
 13. [MEASURED · iteration 37 · D-FLEET-18] `ci:launchd-suite-flakes-openrouter-peer-and-gh-hang` (filed 2026-09-29). Reproduction
     measured: B (gh hang, `tools/launchd`) is gone (last 09-28 13:15Z). A (OpenRouter peer) last failed 10-02, and an untracked timer flake failed 4× on dev between 10-07 and 10-12. Both live ones are in `tools/eval/`, outside fleet scope. Ticket stays open.
-14. [IN-SPRINT · iteration 38 · stacked PR on #1824, judged PASS 90, BLOCKED on the same dev reds; D-FLEET-17] `quorum:artifact-dir-cwd-relative`:
-    designed (`m-quorum-artifact-dir-stable.md`, quorum r1 BLOCKED, r2 2/3 + carve-out), planned, built and judged. The driver exports a repo-scoped
-    `MISSION_QUORUM_ARTIFACT_DIR`, and Gate 2 reads export then repo-root. Merge after #1824, done-gate at the merge, then resolve.
-    Follow-ups (not ticketed): legacy importer; CLI pre-flight in `design_quorum.go` (outside scope); driver init exit 2 is not notified (judge N1).
-15. [IN-SPRINT · iteration 39 · stacked PR on #1825, judged PASS 91 (round 2), BLOCKED on the same dev reds; D-FLEET-17] `driver:unclassified-state-unreachable`:
-    rc=0 with an unknown heartbeat label is now `UNCLASSIFIED at=<label>` (notified); REAPED matches only the writer's gate labels.
-    Merge after #1825, done-gate at the merge, then resolve.
+14. [LANDED · iteration 41] `quorum:artifact-dir-cwd-relative`: #1839 (replaces stacked #1825) → `10cb2fae0` (built iteration 38, PASS 90).
+    Fresh CI found 3 defects the stacked PR never ran: Linux bash 5, Windows `/bin/bash`/POSIX-fs, dev's newer `check-home-isolation`.
+    Fixed in 4 commits (judged PASS 88 and 94). Ticket resolved. Follow-ups (not ticketed): legacy importer; CLI pre-flight in `design_quorum.go`
+    (outside scope); driver init exit 2 is not notified (judge N1).
+15. [LANDED · iteration 41] `driver:unclassified-state-unreachable`: #1840 (replaces stacked #1828) → `7c10ce00d` (built iteration 39, PASS 91;
+    landing re-judged PASS 94). rc=0 with an unknown heartbeat label reads `UNCLASSIFIED at=<label>`. Ticket resolved.
 16. `quorum:tier2-salvage-fold` (charter-tracked follow-up of #12; the fleet cannot file tickets, so this row is
     its record — landing precondition of M-QUORUM-SALVAGE AC10): `SynthesizeWithTier2` still drops a salvaged
     Tier-2 reject (designer V19 probe at `42652c19e`: `proceed`). Not live: `RunQuorumWithEscalation` has zero
@@ -249,6 +249,9 @@ overnight: harness faults read as model faults)
 `#1306` was half fixed by #1580 and got a verdict comment; it stays open for the orphan-row half.
 
 **Landed (history)**
+- `driver:unclassified-state-unreachable`: #1840 `7c10ce00d` (built iteration 39, landed iteration 41).
+- `quorum:artifact-dir-cwd-relative`: #1839 `10cb2fae0` (built iteration 38, landed iteration 41).
+- `quorum:invalid-absent-on-quoted-literals` + `quorum:reviewer-invalid-json-discarded`: #1824 `514ca3bc3` (built iteration 36, landed iteration 41).
 - `weekly-report:unknown-mission`: already fixed by `08ce76f30`; resolved iteration 36 (ghost).
 - `skill:gate0-ledger-provenance-S`: #1815 `130486515` (iteration 35).
 - `driver:exit-path-notices-unbounded`: #1791 `e7dd6c127` (iteration 33).
