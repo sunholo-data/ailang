@@ -1,0 +1,107 @@
+{
+  "sprint_id": "M-SPAWN-PROCESS-RESULT",
+  "status": "not_started",
+  "created": "2026-10-15T08:11:25.709263+00:00",
+  "design_doc": "design_docs/planned/v0_54_7/spawn-process-result.md",
+  "sprint_plan": "design_docs/planned/v0_54_7/spawn-process-result-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both consume exec and cannot implement native spawn recovery; reuse repository runtime."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both consume exec and cannot implement native spawn recovery; reuse repository runtime."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Search process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both consume exec and cannot implement native spawn recovery; reuse repository runtime."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Search process; inspected sunholo/external_backend@0.2.0 and sunholo/duckdb@0.2.1 info/docs. Both consume exec and cannot implement native spawn recovery; reuse repository runtime."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 500,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Share spawn lifecycle without changing legacy behavior",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Extract the shared authorization/admission/spawn lifecycle while preserving legacy errors and prefixes, including unprefixed admission errors.",
+        "Regression tests cover missing command, allowlist/confinement denial, success, and admission failure; no leaked workers or handles."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Expose typed spawn through stdlib and VM",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Register Process.spawnProcessResult and _process_spawn_result with Result[ProcessHandle, ProcessError] metadata and wrapper.",
+        "NotFound, NotAllowed including narrowed subcommands and confinement, OS SpawnFailed, and BeginWorker/Complete failures return typed Err after capability checking.",
+        "Append __process_spawn_result without changing existing bytecode indices; focused compiler/VM dispatch and builtin type tests pass.",
+        "Successful Ok handle supports stdin write/close and cancellation; capability absence retains policy failure."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Lock down failure and lifecycle regressions",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Hermetic effects tests exercise each typed failure, including shutdown during admission completion; assert cleanup and distinguish no-child from child-started-then-cleaned-up cases.",
+        "CLI integration regression proves missing-command fallback prints started and after and exits zero; legacy spawn still aborts with its original error.",
+        "Targeted race tests for changed lifecycle tests pass without sleeps as synchronization."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Publish example and document process contracts",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "examples/runnable/process_spawn_result.ail and manifest entry demonstrate typed fallback under IO,Process with the missing command allowlisted; expected output includes after.",
+        "Effects reference and streaming guide document the new API, literal allowlist keys, and WorkerHandleInvalid after normal reaping.",
+        "Unreleased changelog fragment begins with ###; make test-changed, make check-file-sizes, make check-changelog, make verify-stdlib and make verify-examples pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
