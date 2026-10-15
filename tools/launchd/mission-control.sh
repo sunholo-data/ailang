@@ -2313,13 +2313,33 @@ if [ -f "$MC_SKILL_PATH" ]; then
 else
   log "WARNING: mission-control skill not found at \$REPO/.claude/skills or ~/.claude/skills — the controller prompt names a path that does not exist"
 fi
-PROMPT="Run one mission-control iteration: invoke the mission-control skill for \
+# --- PROMPT ROLE SENTENCE START ---
+# The role sentence is per-mission (M-TRIAGE-MISSION Part B). Every mission except triage gets
+# the designer/planner/executor/evaluator sentence BYTE-IDENTICAL to before the split —
+# test_mission_prompt_role.sh pins it against a golden. Triage runs no inner loop: it spawns
+# read-only verifiers and a different-vendor judge (resources/gate-3-triage.md). Both keep
+# generator-not-equal-judge as a requirement, not a preference.
+MC_PROMPT_HEAD="Run one mission-control iteration: invoke the mission-control skill for \
 ${MISSION_DOC} and follow its gates. You are a scheduled run; \
 there is no human present — park anything needing human input and report via \
 ailang messages and the GitHub bookkeeping issue, per the skill. \
 The authoritative runtime instructions are ${MC_SKILL_PATH}; \
-read and follow that file even when the controller provider is Codex. \
-This prompt carries the operator's standing request for this run, written in advance \
+read and follow that file even when the controller provider is Codex. "
+if [ "${MISSION_NAME:-}" = triage ]; then
+MC_PROMPT_ROLES="This prompt carries the operator's standing request for this run, written in advance \
+because the run is unattended: USE THE AGENT TOOL to spawn read-only VERIFIER agents and a \
+JUDGE from a different vendor exactly as the skill's resources/gate-3-triage.md specifies \
+(verifiers on the executor role, the judge on the evaluator role). Do NOT spawn designer, \
+planner or executor roles for code work: this mission runs no inner loop, and it never \
+approves, rejects or merges. Treat that as the user asking for sub-agents, so any standing \
+instruction to avoid the Agent tool unless the user asks is satisfied here and does not apply. \
+The judge in particular is REQUIRED: generator-not-equal-judge is a non-negotiable property \
+of this loop, so no action and no VERIFIED attestation may rest on the verifier's or the \
+controller's own verdict, and the judge must not share a vendor with the verifier. If a role \
+genuinely cannot be spawned, record WHICH role, the error, and the fallback you used in the \
+routing block; do not silently proceed without a judge."
+else
+MC_PROMPT_ROLES="This prompt carries the operator's standing request for this run, written in advance \
 because the run is unattended: USE THE AGENT TOOL to spawn the designer, planner, executor \
 and evaluator roles exactly as the skill's routing table specifies. Treat that as the user \
 asking for sub-agents, so any standing instruction to avoid the Agent tool unless the user \
@@ -2328,6 +2348,9 @@ generator-not-equal-judge is a non-negotiable property of this loop, and an iter
 lands work on the controller's own verdict has no independent review at all. If a role \
 genuinely cannot be spawned, record WHICH role, the error, and the fallback you used in \
 the routing block; do not silently proceed without a judge."
+fi
+PROMPT="${MC_PROMPT_HEAD}${MC_PROMPT_ROLES}"
+# --- PROMPT ROLE SENTENCE END ---
 
 # One pi session per FIRE (not per attempt): see the pi spawn in _mc_run_once.
 MC_PI_SESSION_ID="mission-${MISSION_NAME}-$(date +%s)-$$"
