@@ -246,7 +246,12 @@ standalone_policy_reader() {
   done
 }
 bash32_and_suite_reach() {
-  [ "$BASH_VERSINFO" = 3 ] && [ "${BASH_VERSINFO[1]}" = 2 ] || fail "expected bash 3.2"
+  # /bin/bash is 3.2 only on macOS; Linux CI runs this suite under bash 5.
+  if [ "$(uname -s)" = Darwin ]; then
+    [ "$BASH_VERSINFO" = 3 ] && [ "${BASH_VERSINFO[1]}" = 2 ] || fail "expected bash 3.2"
+  else
+    echo "SKIP bash32 version assertion: /bin/bash is $BASH_VERSION on $(uname -s)"
+  fi
   /bin/bash -n "$ROOT/tools/launchd/lib/quorum-artifacts.sh" || fail syntax
   make -C "$ROOT" -n test-launchd-drivers > "$HOME/recipes"
   [ "$(grep -cF '/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_quorum_artifacts.sh' "$HOME/recipes")" = 1 ] || fail reach
