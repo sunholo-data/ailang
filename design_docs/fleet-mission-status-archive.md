@@ -2,6 +2,16 @@
 
 Older STATUS stamps rotated out of [fleet-mission.md](fleet-mission.md) (newest 3 stay there). Append-only.
 
+## STATUS 2026-10-13 — ITERATION 35: P2 #10 Gate 0 ledger provenance LANDED — #1815 `130486515`, judged PASS 92 by sonnet (round 2); ticket resolved [HARNESS]
+
+Gate 0 rule 6(b) used to check provenance with `git log -1 -S'| D-nn |'`. That pickaxe returns a row's CREATION commit, so every attended ruling read as fleet self-resolution. It now runs `scripts/mission_ledger_provenance.sh --id D-nn --file <charter>`. The instrument reports the LATEST OPEN→RESOLVED transition, with the creation commit as the control, and its verdict is one of: `attended`, `fleet`, `undetermined:squash-merge`, `never-resolved`, or rc 2. Only a fleet-authored flip that is not a squash merge counts as SELF-RESOLUTION. A flip committed by GitHub is reported and never re-opened, because a squash merge's author is the PR author, not the person who ruled. That applies to every ledger flip in this repo, including D-FLEET-1/13/14/15. Both skill copies are byte-identical. The 115-assertion bash-3.2 suite runs in `make test-launchd-drivers`, and CI runs it.
+
+How it was built: the codex planner wrote a 2-milestone plan with 13 test arms and corrected one controller measurement (D-FLEET-1 was created `RULED`). The codex executor built M1 and M2 across two runs. Its first run was reaped by my own 10-minute background default, after M1 was done. The sonnet judge scored round 1 **PASS 88**. Its finding N1 was that a reopen followed by a fleet re-resolve read `attended`. I reproduced it in a fixture and fixed it with latest-transition selection plus arm A14; the earliest-selection mutant turns A14 and A3 red. Round 2 scored **PASS 92**, 0 blocking.
+
+CI: 26/26 green on head `8350e1c6c` after two reruns of unrelated signal-timing flakes (`internal/effects` on macOS, `internal/runner` sigint). `test` was also red on dev at `a71193a2f`. Done-gate: the local `make test-launchd-drivers` passed with rc 0, and the healthy and degraded dry-runs (world profile, at the merge) passed. The ticket is resolved (52 open).
+
+Clause map: **1** UNMEASURED; **2** UNMET (this ticket ≈15.5 d); **3** MET (52 open); **4** prior evidence only; **5** preserved. Next: P2 #11 `weekly-report:unknown-mission`.
+
 ## STATUS 2026-10-13 — ITERATION 34: Phase 3a skill-resolution spike MEASURED — P1–P3 answered with controlled marker skills, judged PASS 88 by sonnet; Phase 3b mechanism parked for Mark as D-FLEET-16 [HARNESS]
 
 Landed as PR #1793 → `3a972e34a` (26 checks, 0 failures on head `d112f7b26`).

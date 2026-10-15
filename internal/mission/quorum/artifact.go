@@ -7,11 +7,61 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // ArtifactDir is where machine-readable quorum verdicts land. It seeds Phase E
 // (the assignment-table evidence). One JSON per doc per run.
 const ArtifactDir = ".ailang/state/mission-quorum"
+
+// ResolveArtifactDir selects explicit paths first, then confines marked defaults,
+// then validates the opt-in override. Resolution never creates a directory.
+func ResolveArtifactDir(dir string) (string, error) {
+	if dir != "" && dir != ArtifactDir {
+		return dir, nil
+	}
+	override := config.MissionQuorumArtifactDir()
+	if config.AgentPolicyPresentRaw() {
+		if override != "" {
+			effective, err := confinedArtifactDir()
+			if err != nil {
+				return "", fmt.Errorf("resolve confined artifact dir: %w", err)
+			}
+			fmt.Fprintf(os.Stderr, "quorum artifact override suppressed: policy marker present; effective local directory: %s\n", effective)
+		}
+		return ArtifactDir, nil
+	}
+	if override != "" {
+		if err := validateArtifactDir(override); err != nil {
+			return "", err
+		}
+		return override, nil
+	}
+	return ArtifactDir, nil
+}
+
+// macOS can return a deleted CWD's former path; verify it before reporting it.
+func confinedArtifactDir() (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(cwd); err != nil {
+		return "", err
+	}
+	return filepath.Join(cwd, ArtifactDir), nil
+}
+
+func validateArtifactDir(dir string) error {
+	if strings.ContainsRune(dir, '\x00') {
+		return fmt.Errorf("quorum artifact directory contains NUL")
+	}
+	if strings.TrimSpace(dir) == "" || !filepath.IsAbs(dir) {
+		return fmt.Errorf("quorum artifact directory must be an absolute nonempty path")
+	}
+	return nil
+}
 
 var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
 
@@ -38,8 +88,10 @@ func Slug(docPath string) string {
 // with a numeric suffix. Every run yields its own file (Principle 2 — evidence
 // is never silently overwritten).
 func WriteJSONArtifact(dir string, q *QuorumResult) (string, error) {
-	if dir == "" {
-		dir = ArtifactDir
+	var err error
+	dir, err = ResolveArtifactDir(dir)
+	if err != nil {
+		return "", err
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("create artifact dir: %w", err)
