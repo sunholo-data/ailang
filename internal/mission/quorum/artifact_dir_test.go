@@ -10,12 +10,13 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func artifactEnv(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv(config.EnvMissionQuorumArtifactDir, "")
 	t.Setenv(config.EnvAgentPolicy, "")
 	return home

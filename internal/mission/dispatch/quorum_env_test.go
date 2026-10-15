@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestQuorumEnvironmentHandoff(t *testing.T) {
@@ -19,7 +20,7 @@ func TestQuorumEnvironmentHandoff(t *testing.T) {
 	for _, arm := range []string{"clean", "inherited_marker", "task_policy"} {
 		t.Run(arm, func(t *testing.T) {
 			home := t.TempDir()
-			t.Setenv("HOME", home)
+			testutil.SetHomeDir(t, home)
 			override := filepath.Join(home, " evidence with spaces ")
 			if err := os.WriteFile(filepath.Join(home, "task-policy"), []byte("allowed_caps = [\"IO\"]\nentry = \"main\"\n"), 0600); err != nil {
 				t.Fatal(err)

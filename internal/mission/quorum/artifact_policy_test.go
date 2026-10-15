@@ -11,6 +11,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/mission/quorum"
 	"github.com/sunholo-data/ailang/internal/policytool"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // The wrapper execs this test executable, never a provider or installed ailang.
@@ -58,7 +59,7 @@ func TestPolicyHostQuorumArtifacts(t *testing.T) {
 	for _, name := range []string{"absolute", "invalid", "suppression_diagnostic", "deny_no_child"} {
 		t.Run(name, func(t *testing.T) {
 			home := t.TempDir()
-			t.Setenv("HOME", home)
+			testutil.SetHomeDir(t, home)
 			sandbox := filepath.Join(home, "sandbox")
 			if err := os.Mkdir(sandbox, 0700); err != nil {
 				t.Fatal(err)

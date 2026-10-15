@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestQuorumArtifactShellSuite(t *testing.T) {
@@ -14,7 +16,7 @@ func TestQuorumArtifactShellSuite(t *testing.T) {
 		t.Skip("runs /bin/bash on tools/launchd/test_quorum_artifacts.sh; the launchd quorum driver it covers is macOS-only")
 	}
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	testutil.SetHomeDir(t, home)
 	script, err := filepath.Abs("../../../tools/launchd/test_quorum_artifacts.sh")
 	if err != nil {
 		t.Fatal(err)
@@ -38,7 +40,7 @@ func TestQuorumArtifactWriterArms(t *testing.T) {
 	for _, arm := range []string{"cross_tree_durable", "attended_no_exports", "cross_mode_fixed_order"} {
 		t.Run(arm, func(t *testing.T) {
 			home := t.TempDir()
-			t.Setenv("HOME", home)
+			testutil.SetHomeDir(t, home)
 			script, err := filepath.Abs("../../../tools/launchd/test_quorum_artifacts.sh")
 			if err != nil {
 				t.Fatal(err)
