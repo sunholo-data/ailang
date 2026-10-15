@@ -735,6 +735,7 @@ _mc_boot_offset() {
     motoko) echo 1260 ;;
     fleet)  echo 1680 ;;
     stapledon) echo 2100 ;;
+    triage) echo 2520 ;;
     *)      echo 0    ;;
   esac
 }
@@ -1684,6 +1685,33 @@ if [ "${MISSION_NAME:-}" = fleet ] && [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; th
   log "fleet: $_fl_open open ticket signature(s) — proceeding"
 fi
 # --- FLEET IDLE PRE-CHECK END ---
+
+# --- TRIAGE IDLE PRE-CHECK START ---
+# The triage mission (M-TRIAGE-MISSION Part B) digests the card/PR/issue queue; a fire whose
+# queue is unchanged since the last COMPLETED digest has nothing to do (charter clause 5,
+# "idle is free"). Same placement rules as fleet's: below the kill switch, above every probe
+# and the notice drain. The fingerprint (open PR heads, pending card ids, open issue
+# updatedAt minus the bookkeeping thread) comes from ONE helper that the controller also runs
+# with --record after posting its digest — the only writer of the state file. A fingerprint
+# that cannot be READ is neither unchanged nor changed: yield, loudly.
+if [ "${MISSION_NAME:-}" = triage ] && [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
+  _mc_bounded 120 /bin/bash "$MC_DRIVER_ROOT/tools/launchd/lib/triage-fingerprint.sh"; _tr_rc=$?
+  _tr_now=$(printf '%s\n' "$MC_BOUNDED_OUT" | tail -1)
+  _tr_hash=${_tr_now%% *}
+  if [ "$_tr_rc" -ne 0 ] || ! printf '%s' "$_tr_hash" | grep -Eq '^[0-9a-f]{64}$'; then
+    log "triage: cannot read the queue fingerprint (rc=$_tr_rc: $(printf '%s' "$MC_BOUNDED_OUT" | tail -2 | tr '\n' ' ')) — yielding; a failed read is neither zero nor work"
+    exit 0
+  fi
+  _tr_last=""
+  [ -f "$STATE_DIR/mission-triage-queue-fingerprint" ] \
+    && _tr_last=$(head -1 "$STATE_DIR/mission-triage-queue-fingerprint" 2>/dev/null)
+  if [ "${_tr_last%% *}" = "$_tr_hash" ]; then
+    log "triage: queue unchanged since the last digest (${_tr_now#* }) — idle, nothing spent"
+    exit 0
+  fi
+  log "triage: queue changed since the last digest (${_tr_now#* }; last: ${_tr_last:-none recorded}) — proceeding"
+fi
+# --- TRIAGE IDLE PRE-CHECK END ---
 
 # Deliver anything a previous fire could not. Placed after the pin decision so a drained
 # notice is reported by the same driver the rest of this fire runs, and BELOW the kill
