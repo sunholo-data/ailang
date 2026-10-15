@@ -125,7 +125,7 @@ Before implementation begins, these must be resolved:
 - [x] Error type: existing `ProcessError` ADT — `NotAllowed`/`NotFound`/`SpawnFailed` payloads only (no `Timeout`/`OutputLimitExceeded`/`AbnormalExit` reachable pre-spawn)
 - [x] `spawnProcess` signature and fail-fast semantics are untouched
 - [x] Bytecode name appended, not inserted
-- [ ] `asyncExecProcessResult`: same sprint or follow-up (default: **follow-up doc**, reusing this helper)
+- [x] `asyncExecProcessResult`: follow-up; no stream API is added in this sprint (approved sprint-plan scope).
 
 ## Solution Design
 
@@ -159,7 +159,7 @@ export func spawnProcessResult(
   observable instead of fatal).
 - `Err(NotFound(cmd))` — command not resolvable via `PATH`.
 - `Err(SpawnFailed(reason))` — OS spawn failure or admission failure
-  (execution owner shutting down): the child never existed.
+  (execution owner shutting down): no usable handle is returned. Admission completion can fail after a child starts; that child is stopped and reaped before returning.
 
 Type-checking of the exact surface (function returning
 `Result[ProcessHandle, ProcessError]`, constructing and matching

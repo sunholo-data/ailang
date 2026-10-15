@@ -77,7 +77,8 @@ export func exec(
 -- Opaque handle for a managed subprocess with writable stdin
 export type ProcessHandle = ProcessHandle(int) deriving (Eq)
 
--- Spawn a subprocess with writable stdin pipe
+-- Spawn a subprocess with writable stdin pipe. Startup failures abort the run;
+-- use spawnProcessResult to handle them and fall back.
 --
 -- Stdout and stderr are discarded. Use writeProcessStdin to send data
 -- and closeProcessStdin to signal EOF.

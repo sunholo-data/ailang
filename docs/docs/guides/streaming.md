@@ -269,6 +269,36 @@ export func main() -> unit ! {Stream, Process, IO} {
 
 **Requires both capabilities:** `--caps Stream,Process`
 
+### Recoverable subprocess startup (spawnProcessResult)
+
+Use `spawnProcessResult` when an optional worker may be unavailable. It returns `Result[ProcessHandle, ProcessError] ! {Process}`; `NotFound`, `NotAllowed` (including confined Process), and `SpawnFailed` can all trigger a fallback. Missing Process capability still fails as run policy. Admission failure may stop and reap an already-started child; no usable handle is returned.
+
+```ailang
+module examples/runnable/process_spawn_result
+
+import std/io (println)
+import std/process (spawnProcessResult, cancelProcess, NotFound, NotAllowed, SpawnFailed)
+import std/result (Ok, Err)
+
+-- Run with --caps IO,Process --process-allowlist crew-nonexistent-worker
+-- A missing optional worker is recoverable without probing PATH first.
+export func main() -> () ! {IO, Process} {
+  println("started");
+  match spawnProcessResult("crew-nonexistent-worker", ["x"]) {
+    Ok(handle) => match cancelProcess(handle) { _ => () },
+    Err(NotFound(_)) => println("worker unavailable; using fallback"),
+    Err(NotAllowed(_)) => println("worker denied; using fallback"),
+    Err(SpawnFailed(_)) => println("worker failed to start; using fallback"),
+    Err(_) => println("worker error; using fallback")
+  };
+  println("after")
+}
+```
+
+Run with `ailang run --quiet --caps IO,Process --process-allowlist crew-nonexistent-worker examples/runnable/process_spawn_result.ail`. Output includes `started`, the fallback message, and `after`.
+
+Allowlist entries match the literal command string: `name` and `/abs/path/name` are different keys.
+
 ### Subprocess Stdin Writing (spawnProcess)
 
 *Added in v0.9.0 (M-ASYNC-IO Phase 3)*
@@ -314,10 +344,11 @@ ailang run --caps Process,IO --entry main examples/runnable/process_stdin_write.
 | Function | Type | Description |
 |----------|------|-------------|
 | `spawnProcess` | `(string, [string]) -> ProcessHandle ! {Process}` | Spawn subprocess with writable stdin pipe |
+| `spawnProcessResult` | `(string, [string]) -> Result[ProcessHandle, ProcessError] ! {Process}` | Spawn with recoverable authorization/startup errors |
 | `writeProcessStdin` | `(ProcessHandle, bytes) -> Result[(), string] ! {Process}` | Write bytes to subprocess stdin |
 | `closeProcessStdin` | `(ProcessHandle) -> () ! {Process}` | Close stdin pipe (signals EOF) |
 
-**ProcessHandle** is an opaque ADT: `ProcessHandle(int)`. Do not construct manually — always use `spawnProcess`.
+**ProcessHandle** is an opaque ADT: `ProcessHandle(int)`. Do not construct manually — use `spawnProcess` or unwrap `Ok(handle)` from `spawnProcessResult`.
 
 **Write semantics:**
 - Non-blocking: uses a 256-slot buffered write channel
@@ -444,7 +475,7 @@ option, and why `--policy` runs refuse the flag.
 
 ### Cancelling owned workers
 
-`std/process.cancelProcess(handle)` returns `Result[(), WorkerCancelError] ! {Process}`. `std/stream.cancelProcessSource(source)` returns the same result with `! {Stream, Process}` and accepts sources created by `asyncExecProcess`. `Ok(())` confirms reaping and completion of runtime-owned IO. A managed or async child running the same runtime executable also acknowledges its owned cleanup, including separately grouped `--policy` workers. Missing acknowledgements return a typed cancellation failure. Explicit cancellation may discard queued stdin writes. Closing stdin alone signals EOF while keeping the worker owned until it finishes.
+`std/process.cancelProcess(handle)` returns `Result[(), WorkerCancelError] ! {Process}`. `std/stream.cancelProcessSource(source)` returns the same result with `! {Stream, Process}` and accepts sources created by `asyncExecProcess`. `Ok(())` confirms reaping and completion of runtime-owned IO. A managed or async child running the same runtime executable also acknowledges its owned cleanup, including separately grouped `--policy` workers. Missing acknowledgements return a typed cancellation failure. Explicit cancellation may discard queued stdin writes. Closing stdin alone signals EOF while keeping the worker owned until it finishes. Workers that exit are automatically reaped; a later `cancelProcess` returning `WorkerHandleInvalid` is the normal reaped case.
 
 The host shuts down owned workers when a run, batch item, embedded call, or REPL session ends. On macOS/Linux, this stops the owned process group within one two-second shutdown deadline. Released or foreign handles return `WorkerHandleInvalid`; Windows and JS/WASM return `WorkerCancelUnsupported` for explicit cancellation. See the [Process effect reference](/docs/reference/effects#process-effect) for all failure variants, embedding ownership, and platform limits.
 

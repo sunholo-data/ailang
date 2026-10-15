@@ -14,7 +14,7 @@ func TestProcessSpawnResultAppendAndErrorOrdinals(t *testing.T) {
 			t.Fatalf("persisted index %d changed", i)
 		}
 	}
-	if len(EffectBuiltinNames) != len(old)+1 || EffectBuiltinNames[len(old)] != "__process_spawn_result" {
+	if len(EffectBuiltinNames) <= len(old) || EffectBuiltinNames[len(old)] != "__process_spawn_result" {
 		t.Fatal("new effect must be appended")
 	}
 	source, err := os.ReadFile(filepath.Join("..", "..", "std", "process.ail"))

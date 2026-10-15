@@ -67,6 +67,14 @@
       "pure": true
     },
     {
+      "name": "spawnProcessResult",
+      "type": "(string,list[string])-\u003eResult[ProcessHandle,ProcessError]!{Process}",
+      "effects": [
+        "Process"
+      ],
+      "pure": true
+    },
+    {
       "name": "writeProcessStdin",
       "type": "(ProcessHandle,bytes)-\u003eResult[(),string]!{Process}",
       "effects": [

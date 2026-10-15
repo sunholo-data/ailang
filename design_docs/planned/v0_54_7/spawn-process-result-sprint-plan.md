@@ -2,7 +2,7 @@
 
 **Sprint ID:** M-SPAWN-PROCESS-RESULT
 **Design:** [spawn-process-result.md](spawn-process-result.md)
-**Status:** Planned; execution awaits sprint approval / coordinator merge.
+**Status:** In progress; M1–M3 implemented and committed, final validation running.
 **Duration:** 2 working days, about 7 hours including 90 minutes contingency.
 **Risk:** Medium: worker admission/cleanup and persisted bytecode compatibility.
 
@@ -44,8 +44,8 @@ The std/process wrapper retains explicit ! {Process}; its contract is tested at 
 
 **Acceptance criteria:**
 
-- [ ] Extract the shared authorization/admission/spawn lifecycle while preserving legacy errors and prefixes, including unprefixed admission errors.
-- [ ] Regression tests cover missing command, allowlist/confinement denial, success, and admission failure; no leaked workers or handles.
+- [x] Extract the shared authorization/admission/spawn lifecycle while preserving legacy errors and prefixes, including unprefixed admission errors.
+- [x] Regression tests cover missing command, allowlist/confinement denial, success, and admission failure; no leaked workers or handles.
 
 **Validation:** Focused tests for the changed package(s), then `make test-changed`.
 
@@ -57,10 +57,10 @@ The std/process wrapper retains explicit ! {Process}; its contract is tested at 
 
 **Acceptance criteria:**
 
-- [ ] Register Process.spawnProcessResult and _process_spawn_result with Result[ProcessHandle, ProcessError] metadata and wrapper.
-- [ ] NotFound, NotAllowed including narrowed subcommands and confinement, OS SpawnFailed, and BeginWorker/Complete failures return typed Err after capability checking.
-- [ ] Append __process_spawn_result without changing existing bytecode indices; focused compiler/VM dispatch and builtin type tests pass.
-- [ ] Successful Ok handle supports stdin write/close and cancellation; capability absence retains policy failure.
+- [x] Register Process.spawnProcessResult and _process_spawn_result with Result[ProcessHandle, ProcessError] metadata and wrapper.
+- [x] NotFound, NotAllowed including narrowed subcommands and confinement, OS SpawnFailed, and BeginWorker/Complete failures return typed Err after capability checking.
+- [x] Append __process_spawn_result without changing existing bytecode indices; focused compiler/VM dispatch and builtin type tests pass.
+- [x] Successful Ok handle supports stdin write/close and cancellation; capability absence retains policy failure.
 
 **Validation:** Focused tests for the changed package(s), then `make test-changed`.
 
@@ -72,9 +72,9 @@ The std/process wrapper retains explicit ! {Process}; its contract is tested at 
 
 **Acceptance criteria:**
 
-- [ ] Hermetic effects tests exercise each typed failure, including shutdown during admission completion; assert cleanup and distinguish no-child from child-started-then-cleaned-up cases.
-- [ ] CLI integration regression proves missing-command fallback prints started and after and exits zero; legacy spawn still aborts with its original error.
-- [ ] Targeted race tests for changed lifecycle tests pass without sleeps as synchronization.
+- [x] Hermetic effects tests exercise each typed failure, including shutdown during admission completion; assert cleanup and distinguish no-child from child-started-then-cleaned-up cases.
+- [x] CLI integration regression proves missing-command fallback prints started and after and exits zero; legacy spawn still aborts with its original error.
+- [x] Targeted race tests for changed lifecycle tests pass without sleeps as synchronization.
 
 **Validation:** Focused tests for the changed package(s), then `make test-changed`.
 
@@ -86,8 +86,8 @@ The std/process wrapper retains explicit ! {Process}; its contract is tested at 
 
 **Acceptance criteria:**
 
-- [ ] examples/runnable/process_spawn_result.ail and manifest entry demonstrate typed fallback under IO,Process with the missing command allowlisted; expected output includes after.
-- [ ] Effects reference and streaming guide document the new API, literal allowlist keys, and WorkerHandleInvalid after normal reaping.
+- [x] examples/runnable/process_spawn_result.ail and manifest entry demonstrate typed fallback under IO,Process with the missing command allowlisted; expected output includes after.
+- [x] Effects reference and streaming guide document the new API, literal allowlist keys, and WorkerHandleInvalid after normal reaping.
 - [ ] Unreleased changelog fragment begins with ###; make test-changed, make check-file-sizes, make check-changelog, make verify-stdlib and make verify-examples pass.
 
 **Validation:** Focused tests for the changed package(s), then `make test-changed`.
@@ -115,3 +115,13 @@ Executor gates: `make test-changed` (changed packages plus test-core), `make che
 Success requires all milestone criteria, runnable fallback output, no legacy behavior drift, lifecycle cleanup coverage, and both docs observations. Existing stdin/cancel/policy examples remain regression references. No release/tag/version bump is part of this sprint. No issue number was supplied; do not infer a GitHub issue from task IDs.
 
 This plan and its JSON are review artifacts. Under the coordinator workflow, merging the sprint-plan PR approves it and triggers sprint-executor; do not separately dispatch execution before that approval. See `.agents/skills/sprint-planner/resources/coordinator.md`.
+
+## Execution notes (2026-10-15)
+
+Recovered the exact approved planner artifacts from commit c1751499 because the executor checkout omitted them. Implementation stays on coordinator/task-431ee02d. M1 preserves legacy error text and ownership. M2 adds the builtin, stdlib wrapper and append-only VM dispatch; ProcessError needed a scoped VM constructor mapping, now checked against declaration order. M3 adds portable Go child-process lifecycle tests, typed failures, capability and missing-context checks, and the original CLI regression. The example prints started, a fallback message, and after with exit zero.
+
+AILANG prompt version loaded: v0.16.7. Example contracts: skipped because OS startup/authorization is effectful; explicit IO/Process effects included; inline tests skipped in favor of hermetic effects tests and CLI assertions. The example type-checks and runs using the rebuilt binary.
+
+The approved process interface snapshot is intentionally updated for the one additive spawnProcessResult export; no other stdlib interface changes. Targeted race tests, builtin validation, formatting, file-size, changelog and architecture-boundary checks pass.
+
+Optional simplicity audit exits 2 against 2026-09-30: nonleaf closure 32→33 and tracked files 25,731→28,563 at measurement. The starting commit already has 28,555 tracked files, and this sprint introduces no package or dependency edges; this is existing repository-wide drift plus the expected additive files. The audit's timed core probe reports FAILED (also FAILED in its baseline); the required make test-changed gate independently runs test-core.
