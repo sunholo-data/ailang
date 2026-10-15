@@ -2,6 +2,31 @@
 
 Older STATUS stamps rotated out of [fleet-mission.md](fleet-mission.md) (newest 3 stay there). Append-only.
 
+## STATUS 2026-10-13 — ITERATION 34: Phase 3a skill-resolution spike MEASURED — P1–P3 answered with controlled marker skills, judged PASS 88 by sonnet; Phase 3b mechanism parked for Mark as D-FLEET-16 [HARNESS]
+
+Landed as PR #1793 → `3a972e34a` (26 checks, 0 failures on head `d112f7b26`).
+
+Mark's "after P1, before P2" directive was the pick; it is measurement only. The codex planner wrote the protocol (`sprint-plan-phase3a-skill-resolution-spike.md`), the codex executor built `skill_resolution_spike.sh`, and the controller ran it outside any sandbox. The controller first repaired 11 instrument defects that only live runs could expose; each is recorded in `fleet-mission-evidence/iteration34/findings.md`. Each run used per-run random tokens with before/after explicit-path and negative controls: claude 51/51 controls, pi 44/45, codex 32/43, with every codex miss a named provider-capacity error or scorer limit.
+
+Findings:
+- **claude** discovers project `.claude/skills` from cwd, but a user-level same-name copy wins over every project copy and over `--add-dir`. A fresh `CLAUDE_CONFIG_DIR` keeps subscription auth under the loops' env token, and its `skills/` wins.
+- **codex** discovers `.agents/skills` and `$CODEX_HOME/skills` (the latter wins a collision), never `.claude/skills`. A fresh `CODEX_HOME` returns 401 without `auth.json`.
+- **pi** discovers nothing in `--print`. `--skill <abs>` loads a skill that is reachable only by `/skill:<name>`.
+
+The independent sonnet judge (own worktree) scored **PASS 88**, 0 blocking, and replicated C1–C3 with its own method. Its N2 finding (the concurrency audit could mask a foreign deletion) was fixed and mutation-drilled both ways. Every provider is pinnable for skills: codex only through the `.agents` mirror, pi only explicitly. Phase 3b's mechanism (A retire the user symlinks / B per-fire config dirs / C no change) is **D-FLEET-16, OPEN for Mark**.
+
+Clause map: **1** UNMEASURED; **2** UNMET (no ticket resolved; the directive is not a ticket); **3** MET (52 open); **4** prior evidence only; **5** preserved (no harness code shipped). Next: P2 #10 `skill:gate0-ledger-provenance-S`.
+
+## STATUS 2026-10-12 — ITERATION 33: P1 #9 exit-path notices bounded and store-scoped LANDED — #1791 `e7dd6c127`, judged PASS 90 by sonnet; ticket resolved; P1 tier exhausted [HARNESS]
+
+The three remaining unbounded exit-path notice pairs in `tools/launchd/mission-control.sh` (the refusal, late-kill and rc-fail notices) now go through `_mc_exit_notice`. It makes one `_mc_bounded "$NOTIFY_TIMEOUT"` attempt per channel and always returns 0; a failure is logged as a WARNING with its reason, and a duplicate title is logged as already in the inbox. All three, plus the slot-verdict send, are now store-scoped (`env AILANG_STORAGE_MESSAGING=gcp …`). Before this, they wrote to the rig's local SQLite inbox. Titles, bodies, exit codes and the gate-0 F8 literal are byte-identical.
+
+The opus planner chose the helper over `_mc_notify` (no title change, and no retry that would stretch the exit path). The haiku executor (`claude-sub`) added hang, preservation and source-guard arms: 11 red before the fix, 115/0 after. The sonnet judge, in its own worktree, scored **PASS 90** with 0 blocking and M1–M5 mutants killed (M6 unmeasured). The judge's 2 red routing-note arms also failed on base and came from the controller's exported env; under `env -i` the suite is 115/0 (addendum banked).
+
+PR #1791 head `986def325`: 25 checks, 0 failures. Squash-merged → `e7dd6c127`. `make test-launchd-drivers` at the merge: rc 0 under `env -i`, 590 s. Healthy and degraded dry-runs under the idle stapledon profile: both `DRY RUN ok`, rc 0. Ticket resolved. Follow-ups, not ticketed: undated exit-notice titles, and unbounded sends in nightly-eval and other rig scripts.
+
+Clause map: **1** UNMEASURED; **2** UNMET (this ticket ≈16.5 d); **3** MET (53 open); **4** prior evidence only; **5** preserved. Next: the Phase 3a skill-resolution spike (P1 is now exhausted; directive "after P1, before P2").
+
 ## STATUS 2026-10-12 — ITERATION 32: P1 #8 quorum zero-signal guard LANDED — #1767 `a5f9af982`, judged PASS 95 by sonnet; ticket resolved; orphans 30/31 credited [HARNESS]
 
 Resumed iteration 28's PARKED-ON-LANE item. The predicate held this fire: Anthropic was available, and the evaluator resolved to `agent-tool sonnet`, which spawned. Two unrecorded slots had already carried the item:

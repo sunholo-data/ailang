@@ -217,12 +217,19 @@ sharper on cost: `m-named-test-body-check-semantics-2026-08-07T04-40-40Z` printe
 `gpt5-6-sol` absent for *"estimated cost $0.1048 (doc ~14818 input tok) exceeds cap $0.1000"* —
 refused over **$0.0048** — on a doc `blocked` in the immediately preceding round at `04:26:48Z`
 where `gpt5-6-sol` was the substantive rejecter.
-**Rule.** Before acting on any synthesis whose verdict is `proceed`, read `absent_reviewers`. If it
-is non-empty: re-run each absent reviewer alone with a raised cap
-(`ailang design-review --reviewer <m> --max-cost-usd <raised>`) and fold its verdict in — a metered
-re-run is cents against the $5 iteration ceiling and is the cheapest gate in this loop. If a
-reviewer genuinely cannot be restored, then everywhere the verdict is quoted downstream it reads
-"PROCEED at N−1, `<model>` absent (`<reason>`)" — never a bare "quorum passed".
+**Rule.** Before acting on any synthesis, read `.synthesis.absent_reviewers` and apply the
+remedy by reason:
+- `budget`: re-run that reviewer alone with a raised cap
+  (`ailang design-review --reviewer <m> --max-cost-usd <raised>`) and fold its verdict in.
+- `invalid` with `salvaged_verdict: reject`: synthesis is already blocked. Treat the recovered
+  objection as real and revise the doc; do not re-run the reviewer.
+- `invalid` with no `salvaged_verdict`: never raise the cap. At most one solo re-run at the
+  same cap; a second `invalid` is a durable named absence.
+- `salvaged_verdict: pass`: audit only, never a vote, external signal or present seat.
+
+Wherever synthesis allows a degraded proceed and a reviewer cannot be restored, quote it
+downstream as "PROCEED at N-1, `<model>` absent (`<reason>`)" (a second invalid:
+"PROCEED at N-1, `<model>` absent (invalid)") — never a bare "quorum passed".
 **The author's vendor sits out (Mark, attended 2026-09-25).** Always pass the designer lane that
 wrote the doc: `ailang design-quorum <doc> --author "<designer lane>" ...` (e.g.
 `claude:claude-opus-5-5`, `codex:gpt-6.1-sol`). Reviewers come from a POOL — `gpt6-1-sol`,
@@ -261,19 +268,15 @@ generalisation is this file's own recurring shape aimed at itself: **a rule that
 QUERY is only as good as the query's path, and a wrong path returns `null` rather than an error.**
 Pair any documented `jq` read with a known-present sibling key in the same call (rule 3a aimed at a
 JSON path), so a `null` proves the key is absent rather than that you spelled it wrong.
-**And check `presentCount` has not been satisfied by YOU.** V1's artifacts carry three syntheses
-reading `proceed` with **zero of two** model reviewers present
+**The zero-signal guard is landed (#1767, `a5f9af982`).** Historical artifacts included
+three syntheses reading `proceed` with zero model reviewers present
 (`m-check-strict-fallbacks-2026-07-17T07-58-22Z`, `m-gemini-evaluator-diff-bridge-2026-07-16T23-03-39Z`,
-`m-gemini-exec-project-plumbing-2026-07-16T17-44-15Z`) — and in all three the absent reviewers had
-in fact said **reject**, recoverable from the captured raw text on disk. The zero-signal guard at
-`internal/mission/quorum/quorum.go:168` did not fire because the controller's own
-`--controller-verdict` increments the same `presentCount` it tests, and Gate 2 *mandates* that flag
-(measured: **86 of 87** artifacts carry one; control — the single artifact without one reads
-`blocked`). So the loop can pass a doc on its own self-assessment while the artifact says "quorum:
-proceed". Filed as `#651` for the code fix; until it lands, the count that matters is **present
-EXTERNAL reviewers**, and zero of them is a park, not a pass. The tell: you are about to route on a
-quorum and you have not read `absent_reviewers` — or you have read it, seen a name, and let the
-green verdict speak louder than the hole.
+`m-gemini-exec-project-plumbing-2026-07-16T17-44-15Z`), even though the absent reviewers had said
+reject in the retained raw text. `synthesize` in `internal/mission/quorum/quorum.go` now counts
+present EXTERNAL reviewers only: the controller's `--controller-verdict` cannot satisfy the guard,
+and zero external verdicts blocks. A salvaged reviewer is never counted as present: a recovered
+reject still vetoes, while a recovered pass contributes no signal. Read `.synthesis.absent_reviewers` before routing, and
+keep every named hole visible even when a reserve reviewer fills its seat.
 **AND WHEN A DOC BLOCKS ROUND AFTER ROUND, TRACK *WHICH SURFACE* EACH ROUND'S OBJECTIONS LAND ON —
 BECAUSE EVERY RULE ABOVE TELLS YOU HOW TO ANSWER A BLOCKED QUORUM AND NONE TELLS YOU WHEN TO STOP
 ANSWERING IT** (added 2026-08-23 V1 iteration 257; instance 1 is iteration 256, whose rounds 2 and 3
