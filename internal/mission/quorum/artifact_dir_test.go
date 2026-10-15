@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -171,6 +172,9 @@ func TestWriteJSONArtifact_DestinationError(t *testing.T) {
 		t.Fatal("local fallback")
 	}
 	t.Run("permission", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows ignores POSIX directory modes, so a 0500 dir is still writable")
+		}
 		dir := filepath.Join(home, "read-only")
 		if err := os.Mkdir(dir, 0500); err != nil {
 			t.Fatal(err)
@@ -216,6 +220,9 @@ func TestWriteJSONArtifact_OverrideNoClobber(t *testing.T) {
 }
 
 func TestResolveArtifactDir_CWDUnavailable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows cannot remove a process's current working directory")
+	}
 	if os.Getenv("QUORUM_CWD_CHILD") == "1" {
 		if err := os.Remove(os.Getenv("QUORUM_CWD_DIR")); err != nil {
 			t.Fatal(err)
