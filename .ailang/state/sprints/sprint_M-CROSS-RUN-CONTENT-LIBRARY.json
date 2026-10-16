@@ -83,9 +83,9 @@
     "target_loc_per_day": 199.0,
     "estimated_total_loc": 1990,
     "estimated_days": 10,
-    "actual_total_loc": 3510,
-    "actual_insertions": 3260,
-    "actual_deletions": 250,
+    "actual_total_loc": 3605,
+    "actual_insertions": 3345,
+    "actual_deletions": 260,
     "measurement": "Gross added+deleted lines vs base, including implementation/tests/docs/artifacts; each path attributed once to a milestone for LOC bookkeeping, not effort.",
     "actual_days": 0.02837132173611111,
     "actual_elapsed_hours": 0.6809117216666666,
@@ -402,7 +402,7 @@
         "internal/config/embed.go",
         "changelogs/unreleased/2026-10-13-cross-run-content-library.md"
       ],
-      "actual_loc": 989
+      "actual_loc": 1084
     }
   ],
   "last_session": "2026-10-16T16:22:32.968880+00:00",
