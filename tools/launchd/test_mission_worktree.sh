@@ -61,7 +61,7 @@ CHILDREN=""
 finish() {
   local p record rp rb rt rg current
   # Recover fixture-owned detached jobs even after an assertion fails.
-  for record in "$T"/arm-*/state/*.status.owner "$T"/arm-*/state/*.status.child; do
+  for record in "$T"/arm-*/state/*.status.owner "$T"/arm-*/state/*.status.started "$T"/arm-*/state/*.status.child "$T"/arm-*/state/*.status.started.tmp.*; do
     [ -f "$record" ] || continue
     { IFS= read -r rp; IFS= read -r rb; IFS= read -r rt; } < "$record"
     case "$rp" in ''|*[!0-9]*) continue;; esac
@@ -221,11 +221,12 @@ live_writer() {
   : > "$F/release"; result; verdict 'released writer' ready 0; consumed
 }
 race() {
-  local terminal
+  local terminal record
+  for record in owner started; do
   for terminal in ready failed:worktree_add_rc_1; do
-    fixture "race-${terminal//:/-}"; mkdir -p "$MISSION_WORKTREE_STATE"
+    fixture "race-$record-${terminal//:/-}"; mkdir -p "$MISSION_WORKTREE_STATE"
     git -C "$R" worktree add -qb "$BRANCH" "$WT" "$SHA"
-    printf '99999999\nold birth\nrace-token\n%s\n%s\n99999999\n' "$R" "$BRANCH" > "$SF.owner"
+    printf '99999999\nold birth\nrace-token\n%s\n%s\n99999999\n' "$R" "$BRANCH" > "$SF.$record"
     echo pending > "$SF"; export RACE_SF="$SF" RACE_TERMINAL="$terminal"
     cat > "$F/bin/ps" <<'SHIM'
 #!/bin/bash
@@ -236,6 +237,7 @@ SHIM
     PATH="$F/bin:$PATH" result 1
     if [ "$terminal" = ready ]; then verdict 'completion re-read' ready 0; else verdict 'failure re-read' "$terminal" 1; fi
     check 'race tree preserved' test -f "$WT/a"; check 'race branch preserved' git -C "$R" rev-parse --verify -q "$BRANCH"; consumed
+  done
   done
 }
 sentinel_case() {
@@ -290,6 +292,158 @@ SHIM
   PATH="$F/bin:$PATH" add
   result 1; verdict 'startup failure terminalized' failed:writer_died 1; consumed
 }
+# Pause the actual add/writer at an existing atomic-publication seam. The shim
+# never publishes after release, even if its parent was killed while it waited.
+paused_add() {
+  export PAUSE_SUFFIX=$1
+  cat > "$F/bin/mv" <<'SHIM'
+#!/bin/bash
+case "$2" in *"$PAUSE_SUFFIX")
+  echo "$PPID" > "$FIXTURE/paused-parent.tmp"
+  "$REAL_MV" "$FIXTURE/paused-parent.tmp" "$FIXTURE/paused-parent"
+  n=0
+  while [ ! -f "$FIXTURE/pause-release" ] && [ "$n" -lt 200 ]; do sleep .1; n=$((n+1)); done
+  exit 1 ;;
+esac
+exec "$REAL_MV" "$@"
+SHIM
+  chmod +x "$F/bin/mv"
+  (cd "$R" && exec env PATH="$F/bin:$PATH" /bin/bash "$MW" add "$BRANCH" "$SHA" "$WT") > "$F/add.out" 2> "$F/add.err" & AP=$!
+  CHILDREN="$CHILDREN $AP"
+  await_file "$F/paused-parent"
+}
+kill_fixture_pid() {
+  local p=$1 saved=$2 token=$3
+  if ! { [ -n "$saved" ] && [ "$(birth "$p")" = "$saved" ] &&
+    "$PS" -ww -p "$p" -o command= 2>/dev/null | grep -F -- "$token" >/dev/null; }; then
+    bad 'fixture PID verified before signal' "$p"; return 1
+  fi
+  kill -KILL "$p" 2>/dev/null || {
+    echo '  UNINFORMATIVE UNDER SANDBOX: fixture signal denied'; UNINFORMATIVE=$((UNINFORMATIVE+1)); return 1;
+  }
+}
+caller_before_owner() {
+  process_arm 'add killed before owner publication' || return 0
+  local mode ab wp wb wt wg n st
+  for mode in live dead; do
+    fixture "before-owner-$mode"
+    paused_add .status.owner || { bad 'owner publication paused' ''; return; }
+    { IFS= read -r wp; IFS= read -r wb; IFS= read -r wt; IFS= read -r wg; } < "$SF.started"
+    check 'owner absent at pause' test ! -e "$SF.owner"
+    check 'paused caller is add' test "$(cat "$F/paused-parent")" = "$AP"
+    # Even an old pending status must not expire a live registered writer.
+    touch -t 200001010000 "$SF"
+    result 0; verdict 'live started writer stays pending' pending 75
+    ab=$(birth "$AP"); kill_fixture_pid "$AP" "$ab" "$WT" || return
+    wait "$AP" 2>/dev/null || :
+    if [ "$mode" = dead ]; then kill_fixture_pid "$wp" "$wb" "$wt" || return; fi
+    result 15
+    if [ "$mode" = live ]; then verdict 'writer rendezvous failure' failed:owner_never_published 1
+    else verdict 'dead started identity' failed:writer_died 1; fi
+    : > "$F/pause-release"
+    n=0
+    while [ "$n" -lt 50 ]; do
+      st=$("$PS" -p "$wp" -o stat= 2>/dev/null)
+      case "$st" in ''|*Z*) break;; esac
+      sleep .1; n=$((n+1))
+    done
+    check 'writer exited before final absence checks' test "$n" -lt 50
+    removed; consumed; check 'started consumed' test ! -e "$SF.started"
+    check 'checkout never started' test ! -e "$SF.child"
+  done
+}
+caller_before_registration() {
+  process_arm 'add killed before writer registration' || return 0
+  fixture before-registration
+  paused_add .status.started || { bad 'writer registration paused' ''; return; }
+  local wp wb wt wg ab
+  # The unpublished record identifies the real writer held inside mv.
+  { IFS= read -r wp; IFS= read -r wb; IFS= read -r wt; IFS= read -r wg; } < "$SF.started.tmp.$(cat "$F/paused-parent")"
+  check 'started absent at pause' test ! -e "$SF.started"
+  check 'owner absent before registration' test ! -e "$SF.owner"
+  ab=$(birth "$AP"); kill_fixture_pid "$AP" "$ab" "$WT" || return
+  kill_fixture_pid "$wp" "$wb" "$wt" || return
+  wait "$AP" 2>/dev/null || :
+  : > "$F/pause-release"
+  MISSION_WORKTREE_OWNER_GRACE=0 result 2
+  verdict 'no registered writer terminalized' failed:owner_never_published 1
+  removed; consumed; check 'no checkout after caller death' test ! -e "$SF.child"
+}
+legacy_pending() {
+  fixture legacy; mkdir -p "$MISSION_WORKTREE_STATE" "$WT"
+  echo unrelated > "$WT/keep"; git -C "$R" branch "$BRANCH"
+  echo pending > "$SF"
+  MISSION_WORKTREE_OWNER_GRACE=3600 result 0; verdict 'young bare pending' pending 75
+  touch -t 200001010000 "$SF"
+  result 0; verdict 'aged bare pending' failed:owner_never_published 1; consumed
+  check 'unrelated path preserved' test "$(cat "$WT/keep")" = unrelated
+  check 'unrelated branch preserved' git -C "$R" rev-parse --verify -q "$BRANCH"
+  echo pending > "$SF"
+  MISSION_WORKTREE_OWNER_GRACE=0 result 0; verdict 'test age override' failed:owner_never_published 1; consumed
+  fixture dead-started; mkdir -p "$MISSION_WORKTREE_STATE"
+  echo pending > "$SF"; printf '99999999\nold birth\ndead-token\n99999999\n' > "$SF.started"
+  MISSION_WORKTREE_OWNER_GRACE=3600 result 0; verdict 'dead started without owner' failed:writer_died 1
+  consumed; check 'dead started consumed' test ! -e "$SF.started"; removed
+}
+registration_failure() {
+  local mode wr
+  for mode in register rendezvous invalid-owner completed; do
+    fixture "registration-$mode"; mkdir -p "$MISSION_WORKTREE_STATE"
+    echo pending > "$SF"
+    if [ "$mode" = register ] || [ "$mode" = completed ]; then
+      cat > "$F/bin/mv" <<'SHIM'
+#!/bin/bash
+case "$2" in *.status.started)
+  [ "$WRITER_TEST_COMPLETE" != completed ] || echo ready > "${2%.started}"
+  exit 1;;
+esac
+exec "$REAL_MV" "$@"
+SHIM
+      chmod +x "$F/bin/mv"
+    fi
+    [ "$mode" != invalid-owner ] || printf '0\n-\ninvalid\n%s\n%s\n-\n' "$R" "$BRANCH" > "$SF.owner"
+    PATH="$F/bin:$PATH" WRITER_TEST_COMPLETE="$mode" /bin/bash "$MW" _writer "$R" "$BRANCH" "$SHA" "$WT" "$SF" registration-token 1; wr=$?
+    check 'registration failure exits nonzero' test "$wr" = 1
+    result 0
+    if [ "$mode" = completed ]; then verdict 'terminal status preserved' ready 0
+    else verdict "$mode failure terminalized" failed:owner_never_published 1; fi
+    removed; consumed
+  done
+}
+changed_child_group() {
+  process_arm 'checkout group changed after identity check' || return 0
+  fixture changed-group; mkdir -p "$MISSION_WORKTREE_STATE"
+  set -m
+  /bin/bash -c 'n=0; while [ "$n" -lt 200 ]; do sleep .1; n=$((n+1)); done' child-group-token & local cp=$!
+  set +m
+  CHILDREN="$CHILDREN $cp"
+  local cb cg
+  cb=$(birth "$cp"); cg=$("$PS" -p "$cp" -o pgid= | tr -d ' ')
+  [ "$cg" = "$cp" ] && [ "$cg" != "$RUNNER_PGID" ] && [ -n "$cb" ] || { bad 'fixture private group' "$cg"; return; }
+  git -C "$R" worktree add -qb "$BRANCH" "$WT" "$SHA"
+  printf '99999999\nold birth\nwriter-token\n%s\n%s\n99999999\n' "$R" "$BRANCH" > "$SF.owner"
+  printf '%s\n%s\nchild-group-token\n%s\n' "$cp" "$cb" "$cg" > "$SF.child"
+  echo pending > "$SF"; export CHANGED_CHILD_PID="$cp" CHANGED_CHILD_PGID="$RUNNER_PGID"
+  cat > "$F/bin/ps" <<'SHIM'
+#!/bin/bash
+if [ "$*" = "-p $CHANGED_CHILD_PID -o pgid=" ]; then echo "$CHANGED_CHILD_PGID"; exit 0; fi
+exec "$REAL_PS" "$@"
+SHIM
+  chmod +x "$F/bin/ps"
+  PATH="$F/bin:$PATH" result 0; verdict 'changed group refuses cleanup' pending 75
+  check 'child survives group mismatch' kill -0 "$cp"
+  check 'path retained on group mismatch' test -f "$WT/a"
+  check 'branch retained on group mismatch' git -C "$R" rev-parse --verify -q "$BRANCH"
+  check 'state retained on group mismatch' test -e "$SF"
+  # With real inspection restored the verified fixture group can be quiesced.
+  result 2; verdict 'verified group recovery' failed:writer_died 1; removed; consumed
+  wait "$cp" 2>/dev/null || :
+}
+run_arm 'add killed before owner publication => terminal, never pending forever' caller_before_owner
+run_arm 'add killed before writer registration => terminal' caller_before_registration
+run_arm 'legacy bare pending without owner => terminal after age bound, no cleanup' legacy_pending
+run_arm 'writer registration/rendezvous failure => terminal' registration_failure
+run_arm 'checkout group changed after identity check => pending without signaling' changed_child_group
 run_arm 'writer killed mid-checkout => failed:writer_died rc=1 and cleanup' dead_writer
 run_arm 'caller group TERM after add => ready rc=0' caller_term
 run_arm 'live slow writer => pending rc=75 without cleanup' live_writer

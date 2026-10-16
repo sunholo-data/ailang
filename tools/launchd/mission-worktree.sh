@@ -3,7 +3,9 @@
 #
 #   mission-worktree.sh add BRANCH SHA PATH   start a background checkout; prints PATH
 #   mission-worktree.sh wait PATH [MAX_S]     prints ready | failed:<why> | pending
-#     exit 0 ready, 1 failed (including failed:writer_died), 75 pending (call again)
+#     exit 0 ready, 1 failed, 75 pending (call again)
+#     failures include failed:writer_died and failed:owner_never_published
+#   Bare pending expires after MISSION_WORKTREE_OWNER_GRACE seconds (default 60).
 #
 # A full checkout can outlive the controller's shell tool. Detach the writer and register
 # its identity before returning; wait recovers abandoned pending state after writer death.
@@ -19,6 +21,7 @@ cleanup() {
   git -C "$REPO" worktree prune >/dev/null 2>&1; git -C "$REPO" branch -D "$BRANCH" >/dev/null 2>&1
 }
 consume() { rm -f "$SF" "$SF.owner" "$SF.started" "$SF.child" "$SF.go"; }
+fail_pending() { [ "$(cat "$SF" 2>/dev/null)" != pending ] || echo "failed:$1" > "$SF"; }
 terminal() {
   case "$1" in
     ready) echo ready; consume; exit 0 ;;
@@ -46,6 +49,21 @@ owner() {
     IFS= read -r REPO; IFS= read -r BRANCH; IFS= read -r PGID; } < "$SF.owner"
   case "$PID" in ''|*[!0-9]*) return 1;; esac
   [ "$PID" -gt 1 ] && [ -n "$BIRTH" ] && [ -n "$TOKEN" ] && [ -n "$REPO" ] && [ -n "$BRANCH" ]
+}
+# No owner means checkout was never released: inspect state, never clean a tree.
+ownerless_dead() {
+  local pid b token stamp
+  if [ -f "$SF.started" ]; then
+    { IFS= read -r pid; IFS= read -r b; IFS= read -r token; } < "$SF.started"
+    case "$pid" in ''|*[!0-9]*) return 1;; esac
+    [ "$pid" -gt 1 ] && [ -n "$b" ] && [ -n "$token" ] || return 1
+    identity "$pid" "$b" "$token"; [ "$?" -eq 1 ]
+  else
+    # GNU first: on Linux `stat -f` is filesystem status and prints `?` with rc 0.
+    stamp=$(stat -c %Y "$SF" 2>/dev/null) || stamp=$(stat -f %m "$SF" 2>/dev/null) || return 1
+    case "$stamp" in ''|*[!0-9]*) return 1;; esac
+    [ "$(( $(date +%s) - stamp ))" -ge "${MISSION_WORKTREE_OWNER_GRACE:-60}" ]
+  fi
 }
 # Checkout has a separate, recorded group, so hooks cannot recreate a removed tree.
 quiesce() {
@@ -80,9 +98,10 @@ register() {
   printf '%s\n%s\n%s\n%s\n' "$$" "${b:--}" "$TOKEN" "${g:--}" > "$file.tmp.$$"
   mv "$file.tmp.$$" "$file"
 }
+# Bounds are wall-clock (SECONDS): a loaded rig makes each `sleep .1` cost ~0.2 s.
 rendezvous() {
-  local n=0
-  while [ ! -f "$1" ] && [ "$n" -lt 100 ]; do sleep .1; n=$((n+1)); done
+  local end=$((SECONDS + 10))
+  while [ ! -f "$1" ] && [ "$SECONDS" -lt "$end" ]; do sleep .1; done
   [ -f "$1" ]
 }
 case "${1:-}" in
@@ -95,13 +114,15 @@ case "${1:-}" in
     ;;
   _writer)
     REPO=$2; BRANCH=$3; SHA=$4; WT=$5; SF=$6; TOKEN=$7; LIMIT=$8
-    register "$SF.started"
-    rendezvous "$SF.owner" || exit 1
-    owner && [ "$PID" = "$$" ] || exit 1
+    [ "$(cat "$SF" 2>/dev/null)" = pending ] || exit 1
+    register "$SF.started" && rendezvous "$SF.owner" && owner && [ "$PID" = "$$" ] || {
+      fail_pending owner_never_published; exit 1;
+    }
+    [ "$(cat "$SF" 2>/dev/null)" = pending ] || exit 1
     set -m
     /bin/bash "$0" _checkout "$REPO" "$BRANCH" "$SHA" "$WT" "$SF" "$TOKEN" & p=$!
     set +m
-    rendezvous "$SF.child" || { echo failed:writer_died > "$SF"; exit 1; }
+    rendezvous "$SF.child" || { fail_pending writer_died; exit 1; }
     : > "$SF.go"
     s=0; reason=""
     while kill -0 "$p" 2>/dev/null; do
@@ -143,8 +164,8 @@ case "${1:-}" in
       set +m
     fi
     # A failed launcher still gets an owner record; wait can prove its PID absent.
-    s=0
-    while [ ! -f "$SF.started" ] && kill -0 "$PID" 2>/dev/null && [ "$s" -lt 100 ]; do sleep .1; s=$((s+1)); done
+    s=$((SECONDS + 10))
+    while [ ! -f "$SF.started" ] && kill -0 "$PID" 2>/dev/null && [ "$SECONDS" -lt "$s" ]; do sleep .1; done
     BIRTH=-; PGID=-
     if [ -f "$SF.started" ]; then
       { IFS= read -r started_pid; IFS= read -r BIRTH; IFS= read -r started_token; IFS= read -r PGID; } < "$SF.started"
@@ -174,10 +195,19 @@ case "${1:-}" in
             cleanup; echo failed:writer_died; consume; exit 1
           fi
         fi
+      elif [ "$v" = pending ] && [ ! -f "$SF.owner" ]; then
+        saved=$(cat "$SF.started" 2>/dev/null)
+        if ownerless_dead; then
+          v=$(cat "$SF" 2>/dev/null); terminal "$v"
+          if [ "$v" = pending ] && [ ! -f "$SF.owner" ] && [ "$(cat "$SF.started" 2>/dev/null)" = "$saved" ]; then
+            if [ -n "$saved" ]; then echo failed:writer_died; else echo failed:owner_never_published; fi
+            consume; exit 1
+          fi
+        fi
       fi
       [ "$s" -ge "$MAX" ] && { echo pending; exit 75; }
       sleep 1; s=$((s+1))
     done
     ;;
-  *) sed -n '2,6p' "$0" >&2; exit 2;;
+  *) sed -n '2,8p' "$0" >&2; exit 2;;
 esac
