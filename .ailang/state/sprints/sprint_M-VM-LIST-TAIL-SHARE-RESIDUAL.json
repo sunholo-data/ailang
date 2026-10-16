@@ -59,10 +59,10 @@
         "Runner rejects incorrect output and nonzero exit; min-of-3 and fresh binary provenance recorded",
         "Existing Phase 1 identity/cap/isolation tests pass without edits"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T15:30:00+00:00",
+      "completed": "2026-10-16T15:43:06.908156+00:00",
+      "notes": "All modules checked; min-of-3 complete on both engines, every output checked including 0/1/2 and strict-alone smokes. Fake wrong output and nonzero exit rejected with expected diagnostics. Raw measurements in execution report."
     },
     {
       "id": "M3",
