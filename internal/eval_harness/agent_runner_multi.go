@@ -459,7 +459,8 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	// diagnosticsOnly carries the session log out ALONGSIDE an error return so
 	// the caller can still bank the transcript of a run that produced no usable
 	// measurement. Every MEASUREMENT field is deliberately zero: this value is
-	// NOT a result and must never be counted as one. PROVENANCE is kept —
+	// NOT a result and must never be counted as one (a failed executor run adds
+	// its SPEND below — time, tokens, cost — but never a grade). PROVENANCE is kept —
 	// which harness version and tool lane the failure happened on is exactly
 	// what a diagnostic row is for (the 2026-09-16 A/B banked its first
 	// failure with executor_version and tool_policy both null).
@@ -489,20 +490,20 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	if !result.Success && result.Error != "" {
 		if !stepBudgetExhausted(result) {
 			diag := diagnosticsOnly()
-			// An idle-killed run spent real time and tokens before our watchdog
-			// ended it. Carry that SPEND (not a grade) so cost tallies and the
-			// banked row stop reading $0 / 0 ms; the caller marks it invalid.
-			if result.FinishReason == executor.FinishIdleKilled {
-				diag.DurationMS = result.DurationMS
-				diag.NumTurns = result.NumTurns
-				diag.ToolCallCount = result.ToolCallCount
-				diag.Usage = tokenUsageFromResult(result)
-				diag.Cost = result.CostUSD
-				if diag.Cost == 0 {
-					diag.Cost = CalculateCostWithCache(lookupKey, result.InputTokens, result.OutputTokens+result.ReasonTokens, result.CacheReadInputTokens, result.CacheCreationInputTokens)
-				}
-				diag.CostProvenance = string(result.CostProvenance)
+			// A run that failed — crashed, idle-killed, or stopped at its
+			// wall-clock bound — still spent real time and tokens. Carry that
+			// SPEND (not a grade) so cost tallies and the banked row stop
+			// reading $0 / 0 ms; the caller marks an idle kill invalid.
+			diag.FinishReason = result.FinishReason
+			diag.DurationMS = result.DurationMS
+			diag.NumTurns = result.NumTurns
+			diag.ToolCallCount = result.ToolCallCount
+			diag.Usage = tokenUsageFromResult(result)
+			diag.Cost = result.CostUSD
+			if diag.Cost == 0 {
+				diag.Cost = CalculateCostWithCache(lookupKey, result.InputTokens, result.OutputTokens+result.ReasonTokens, result.CacheReadInputTokens, result.CacheCreationInputTokens)
 			}
+			diag.CostProvenance = string(result.CostProvenance)
 			return diag, fmt.Errorf("executor %q failed for model %q: %s",
 				executorName, modelName, result.Error)
 		}
