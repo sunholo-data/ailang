@@ -3,9 +3,9 @@ package runner
 import (
 	"errors"
 	"fmt"
-	"os"
 	"sync"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/effects"
 )
 
@@ -74,5 +74,5 @@ func storagePath(flag, env string) string {
 	if flag != "" {
 		return flag
 	}
-	return os.Getenv(env)
+	return config.Raw(env)
 }
