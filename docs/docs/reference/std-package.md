@@ -62,7 +62,7 @@ func bridge_path() -> Result[string, string] ! {FS} =
 - `Err("package not installed: ...")` — no version of `pkgName` is in the registry cache.
 - `Err("asset not found: ...")` — the package is installed but the asset is absent (file was renamed, deleted, or never bundled).
 
-**Version selection**: when multiple versions of the package are installed, `assetPath` picks the lexically-highest version. This matches semantic versioning for the small versions used in practice (e.g. `0.10.0 > 0.2.0` lexically and semantically).
+**Version selection**: when the program runs under an `ailang.lock`, `assetPath` reads the locked package directory, the same one its modules were compiled from (registry, git or path dependency, and the root package itself). Without a lock, or for a package the lock does not list, it picks the highest installed version by semantic version (`0.10.0` beats `0.2.0`) under the registry cache (`~/.ailang/cache/registry`, or `AILANG_PACKAGE_ROOT` when set).
 
 **Security**:
 - Requires the `FS` effect — invocations need `--caps FS` at the CLI.

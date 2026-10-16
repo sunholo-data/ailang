@@ -4,7 +4,7 @@
 **Re-reported 2026-10-13** (`task-a0ee29fa`, v0.54.6 `71f4cf6`, md5 `81bacda6…`): a **second, independent consumer report** (sunholo lane — see Bug report) confirms the defect at v0.54.6 with new real-workload evidence (pprof, R2-CREW deadline). **The fix is still unimplemented at v0.54.8** — first-party re-derivation that session (V27–V29); all three copy sites then lived in this tree. **Superseded 2026-10-15: landed as #1827 / v0.54.10 (V41).** Target lapsed (v0.53.0 → v0.54.8 shipped without it); the residual re-targets at sprint-planner time.
 **Phase 1 LANDED 2026-10-15** (attended, #1827, **shipped v0.54.10**, V41): `_list_tail`/`__list_take`/`__list_drop` return capacity-capped subslices (`elems[n:len:len]`); `internal/vm/list_tail_share_test.go` (identity + clamp + cap tests, append-isolation, mutation-checked — V42). Reporter repro 6.77 s → 1.05 s on dev; the `std/list.ail` cost sentence (V14) was rewritten in the same release (V43).
 **Residual scope (this update — D-TRIAGE-14, attended 2026-10-16):** (1) Phase 2 — `--strict-bytecode` implies the bytecode VM on `run`; (2) `bench/vm_tail_walk/` with equivalent inputs and **checked** outputs; (3) the `docs/LIMITATIONS.md` retention row, consistent with [m-list-cons-quadratic](../m-list-cons-quadratic.md) staying PARKED on D-19. **Phase 1 is not re-planned** — the prior sprint card (`task-fc7451cd`, PR #1750) was rejected precisely because its M2 re-landed it. The cons-walk was re-measured on current dev first (V33–V38): the residual gap against the interpreter is **inverted** — the VM is now ~4.7× *faster* (Problem Statement, "Current state").
-**Target**: v0.53.0 (lapsed — Phase 1 shipped v0.54.10; the residual re-targets current dev ≥ v0.54.12 at sprint-planner time)
+**Target**: next release after current dev v0.54.12 (residual sprint planned 2026-10-16; v0.53.0 directory retained historically)
 **Priority**: P0 for the landed half (a 52× engine divergence on the canonical functional list-walk idiom, reported from a downstream consumer mid-PR); **P1 for the residual** (a silent-fallback CLI fix + mechanical regression pinning)
 **Estimated**: residual ~1 day (one-line flag fix + strict test; bench with checked outputs; one LIMITATIONS row + canonical entry), ×2 honest → 2 days. Phase 1's ~2 days were spent and landed in #1827.
 **Dependencies**: None. **Coordination required** (text only): [m-list-cons-quadratic](../m-list-cons-quadratic.md) stays PARKED on D-19 — this doc does not touch `::`/`++` construction or the arena decision; `docs/LIMITATIONS.md` rows 41–42 (the D-19 rows) stay as they are; the new retention row sits beside them without contradicting D-19's pending state. `std/list.ail`'s header was already corrected by #1827 (V43) and needs no further edit.
@@ -432,7 +432,7 @@ per-step cost, both still true).
 - [ ] **AC-R2** (= old AC-3, bench): `bench/vm_tail_walk/` committed with **equivalent inputs** (`range`-built lists, the repro's walk shape) and **checked outputs** — `run.sh` asserts each (program, n, engine) prints the expected closed-form value, FAILs on mismatch/nonzero exit, and diffs VM↔interpreter; min-of-N mirroring `vm_hof_callbacks` (V22); before/after tables in the sprint report (before: V6/V28; after: re-derived V33–V37 on the implementer's build).
 - [ ] **AC-R3** (= old AC-6 remainder): `docs/LIMITATIONS.md` gains the retention row **plus** its canonical entry in `docs/docs/reference/limitations.md`, worded so it neither contradicts rows 41–42 nor claims the D-19 construction fix (V37/V40).
 - [ ] **AC-R4** (no-redo gate): the sprint touches none of `internal/vm/builtins.go`, `internal/vm/builtins_list_poly.go`, `internal/vm/list_tail_share_test.go`, `std/list.ail` — all landed in #1827 and only re-verified; tests stay green.
-- [ ] **AC-R5** (= old AC-5): `make test`, `make verify-examples` green; Conflict Surface §"MUST still work" fixtures byte-identical (re-diffed this session, V35); changelog fragment `changelogs/unreleased/` with the strict-flag behavior note.
+- [ ] **AC-R5** (= old AC-5, executor gates updated at planning): `make test-changed`, targeted CLI/VM tests, `make check-file-sizes`, `make check-changelog`, and `make verify-examples` green (full `make test` remains CI-owned); Conflict Surface §"MUST still work" fixtures byte-identical (re-diffed this session, V35); changelog fragment `changelogs/unreleased/` with the strict-flag behavior note.
 
 ## Testing Strategy
 
@@ -550,3 +550,25 @@ gate, from reading the top candidates:
 **Document created**: 2026-10-09 (design-doc-creator, unattended coordinator session `task-006b0353`; live v0.52.5 binary available for measurements, no Go toolchain / no build of this tree — Verification Log provenance marks and W-1 apply)
 **Last updated**: 2026-10-13 (design-doc-creator, unattended coordinator session `task-a0ee29fa`: second consumer report v0.54.6 folded in — Status, Problem Statement, Success Metrics AC-2c, Verification Log V27–V32, W-1 update; first-party re-derivation on the tree-matching v0.54.8 binary confirms the fix never landed. No new doc created — duplicate/coverage gate: this doc is the queue entry for the topic.)
 **Updated 2026-10-16** (design-doc-creator, **attended** session under **D-TRIAGE-14**): Phase 1 marked landed (#1827 → v0.54.10, V41/V42) and **not re-planned** (the rejected card `task-fc7451cd` / PR #1750 recorded — its M2 re-landed it); scope cut to the residual — Phase 2 strict-flag (exact edit site `cmd/ailang/main_run_exec.go:128`), `bench/vm_tail_walk/` with equivalent inputs and checked outputs, `docs/LIMITATIONS.md` retention row + canonical entry consistent with D-19's parked rows 41–42; the cons-walk re-measured on current dev **first** (V33–V38, v0.54.11 binary) and the residual gap stated against the interpreter — **inverted: the VM is ~4.7× faster at 160k, flat net of startup**; residual acceptance AC-R1–AC-R5. No new doc created — this doc remains the queue entry for the topic (V32).
+
+## Residual sprint planning — 2026-10-16
+
+Plan: [m-vm-list-tail-share-sprint-plan.md](m-vm-list-tail-share-sprint-plan.md).
+Only AC-R1–R3 implementation is scheduled; AC-R4 guards #1827 against rework.
+AC-R5 uses focused executor gates per sprint-planner policy, with full tests in CI.
+Re-measured before planning using current-dev v0.54.12 binary
+`3af754c4703d659e11ae3c2dac9b512af93e7797-dirty` (not freshly built from this shallow
+checkout; Go/make unavailable). Three subprocess wall timings per engine/size; all exits
+and outputs checked against N−1 for range(0,N), threshold zero, cons-pattern walk.
+
+| N | Interpreter min (s) | VM min (s) |
+|---|---|---|
+| 40,000 | 0.489199 | 0.070488 |
+| 80,000 | 0.901381 | 0.097989 |
+| 160,000 | 1.782754 | 0.148465 |
+
+Residual walk slowdown: none. VM is 12.01× faster at 160k (0.0833× interpreter wall);
+absolute timings differ from V33–V38's environment and are not cross-machine speedups.
+Raw three-run samples and method are preserved in the sprint plan. These runs measure
+consumption only; D-19 and the construction limitation remain parked and unchanged.
+Executor must rebuild and repeat before reporting implementation results.

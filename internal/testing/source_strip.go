@@ -1,6 +1,9 @@
 package testing
 
-import "github.com/sunholo-data/ailang/internal/ast"
+import (
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
+)
 
 type sourceLineRange struct {
 	start int
@@ -83,9 +86,14 @@ func isEffectivelyPure(f *ast.FuncDecl) bool {
 	return f.IsPure || (f.Effects != nil && len(f.Effects) == 0)
 }
 
-// testAndPropertySkipRanges preserves the existing brace-depth treatment of
-// declarations already collected as test cases.
+// testAndPropertySkipRanges finds each test/property block's closing line by
+// matching LBRACE/RBRACE tokens from the real lexer, so a brace inside a string
+// literal, an interpolation or a comment is not counted (#1821: a raw rune scan
+// saw `"{a"` as an opening brace, stopped short, and left the block's tail in
+// the stripped source as a parse error).
 func testAndPropertySkipRanges(sourceLines []string, file *ast.File) []sourceLineRange {
+	var braces []lexer.Token
+	collected := false
 	var ranges []sourceLineRange
 	for _, decl := range file.Decls {
 		var startLine int
@@ -97,27 +105,51 @@ func testAndPropertySkipRanges(sourceLines []string, file *ast.File) []sourceLin
 		default:
 			continue
 		}
-
-		depth := 0
-		endLine := startLine
-		for i := startLine - 1; i < len(sourceLines); i++ {
-			for _, ch := range sourceLines[i] {
-				switch ch {
-				case '{':
-					depth++
-				case '}':
-					depth--
-					if depth == 0 {
-						endLine = i + 1
-						goto foundEnd
-					}
-				}
-			}
+		if !collected {
+			braces = braceTokens(joinLines(sourceLines))
+			collected = true
 		}
-	foundEnd:
-		ranges = append(ranges, sourceLineRange{start: startLine, end: endLine})
+		ranges = append(ranges, sourceLineRange{start: startLine, end: blockEndLine(braces, startLine)})
 	}
 	return ranges
+}
+
+// braceTokens lexes source and keeps only its LBRACE/RBRACE tokens, in order.
+func braceTokens(source string) []lexer.Token {
+	var out []lexer.Token
+	l := lexer.New(source, "")
+	for {
+		tok := l.NextToken()
+		if tok.Type == lexer.EOF {
+			return out
+		}
+		if tok.Type == lexer.LBRACE || tok.Type == lexer.RBRACE {
+			out = append(out, tok)
+		}
+	}
+}
+
+// blockEndLine returns the line of the brace closing the first block opened at
+// or after startLine. An unterminated block yields startLine, as before.
+func blockEndLine(braces []lexer.Token, startLine int) int {
+	depth := 0
+	for _, tok := range braces {
+		if tok.Line < startLine {
+			continue
+		}
+		if tok.Type == lexer.LBRACE {
+			depth++
+			continue
+		}
+		if depth == 0 {
+			continue
+		}
+		depth--
+		if depth == 0 {
+			return tok.Line
+		}
+	}
+	return startLine
 }
 
 func lineInRanges(line int, ranges []sourceLineRange) bool {
