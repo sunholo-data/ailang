@@ -158,3 +158,7 @@ Whole-repository `make lint` reported zero issues but exited 4 on its configured
 timeout, so it is not reported as a passing gate. Final file-size, changelog,
 architecture-boundary and Go-format checks all pass; example fmt check passes.
 All implementation changes are committed for the independent sprint-evaluator.
+
+Evaluation dispatch attempted via the sprint-executor skill. The CLI refused
+because no agent serves sprint-evaluator on this environment; no forced message
+was sent. The coordinator must route the artifact handoff to independent review.

@@ -99,5 +99,6 @@
     "test_changed": "fail: effects nested stop, pipeline killed; repeated with GOMAXPROCS=2 GOFLAGS=-p=1",
     "verify_examples": "fail: five unchanged runnable files with unexported main; manifest zero drift",
     "lint": "Changed packages: pass, 0 issues. Whole repository make lint: timeout (exit 4), reported 0 issues."
-  }
+  },
+  "evaluation_handoff": "Attempted via sprint-executor skill; CLI refused because no agent serves sprint-evaluator. Coordinator artifact handoff required; no force-send used."
 }
