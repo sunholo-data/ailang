@@ -1,7 +1,7 @@
 # Sprint Plan: M-OLLAMA-EMBED-RESULT-AI-EFFECT
 
 **Design:** [m-ollama-embed-result-ai-effect.md](m-ollama-embed-result-ai-effect.md)
-**Status:** Implementation complete; final validation in progress.
+**Status:** Implemented; ready for independent evaluation. Baseline gate exceptions are documented below.
 **Duration:** 3 engineering days, approximately 8 hours including 25% integration buffer.
 **Risk:** Medium — effect relabel and runtime budget/error boundaries.
 
@@ -97,11 +97,11 @@ Update internal/builtins/ollama_embed.go for AI labeling and dispatch; add regis
 Migrate examples/reference/ollama_embed_test.ail and neural_semantic_search.ail to wrappers/AI rows; add examples/reference/ollama_embed_fallback.ail with success/error fixture files alongside it. Update semantic-search.md, semantic-caching-how-to.mdx, effects.md, std/embedding header, internal/builtins/sharedindex.go metadata and cmd/ailang/ai_handlers.go warning. Add changelogs/unreleased/2026-10-16-ollama-embed-result-ai-effect.md, opening with ### .
 
 **Acceptance criteria:**
-- [ ] Fallback example exits zero and demonstrates both success and Err branches using checked-in fixtures and --caps AI,IO --ai-stub.
-- [ ] Legacy IO-only embedding row is rejected, IO-only capability cannot authorize AI entry, --caps auto follows the migrated row.
-- [ ] CLI smoke verifies AI-only embedding works without --ai against a fake endpoint; live-down recovery uses a controlled unreachable loopback endpoint, not external service availability.
-- [ ] make test-changed, make check-boundaries, make check-file-sizes, make check-changelog, make verify-stdlib and make verify-examples pass; report pre-existing failures separately.
-- [ ] Format touched Go/AILANG files and run focused lint for touched packages; existing std/ai Result and speech stub regressions remain green.
+- [x] Fallback example exits zero and demonstrates both success and Err branches using checked-in fixtures and --caps AI,IO --ai-stub.
+- [x] Legacy IO-only embedding row is rejected, IO-only capability cannot authorize AI entry, --caps auto follows the migrated row.
+- [x] CLI smoke verifies AI-only embedding works without --ai against a fake endpoint; live-down recovery uses a controlled unreachable loopback endpoint, not external service availability.
+- [x] make test-changed, make check-boundaries, make check-file-sizes, make check-changelog, make verify-stdlib and make verify-examples pass; report pre-existing failures separately.
+- [x] Format touched Go/AILANG files and run focused lint for touched packages; existing std/ai Result and speech stub regressions remain green.
 
 **Example coverage:** Fallback example plus both migrated reference examples; live models are optional integration checks.
 
@@ -143,3 +143,10 @@ Execution deviation: the transport helper lives in `internal/ai/ollama/embed` to
 - `make verify-stdlib` (48 interfaces), `make verify-examples`, boundary/size/changelog gates, touched Go/AIl formatting, focused Go vet, two inline tests and focused embedding/AI fixture/speech regressions pass.
 - Starting-commit baseline (`9c30ac23`) reproduces `TestRuntimeNestedStopUsesRemainingDeadline` and `TestProcessExec_TimeoutKillsGrandchildren` failures. Repository fmt-check also flags untouched `internal/eval_harness/pi_models_config_test.go`, including in the baseline checkout.
 - Core pipeline stress test `TestCoreTIDAG_SharedSubtreesCollapse` was killed under memory pressure; a bounded diagnostic run was stopped at its 10k-entry expansion. The remaining pipeline suite passes (66s). These unrelated tests are left unchanged.
+
+### Final gate results
+
+- Go vet and touched-file Go/AILANG formatting pass. Initial focused lint was killed by memory pressure; the bounded focused run and repository-wide `make lint` both pass with zero issues.
+- Bounded `make test-core` passes with only `TestRuntimeNestedStopUsesRemainingDeadline`, `TestProcessExec_TimeoutKillsGrandchildren` and `TestCoreTIDAG_SharedSubtreesCollapse` excluded. The original unfiltered gate failures are preserved above rather than represented as a clean full pass.
+- `make test-changed TEST_CHANGED_BASE=9c30ac23` ran all five touched Go packages: embedding transport, builtins and embed passed; effects failed the two baseline process tests. CLI failed three baseline-reproduced tests: `TestRunPolicy_DeadlineStopsExecutionWithoutProtocolGrace` (missing `ps`), `TestRunPolicy_TimeoutKillsDescendants`, and `TestRunPolicy_SupervisorDeathStopsWorker`.
+- Final build and fixture-driven fallback run pass. No live Ollama daemon is required. Independent sprint-evaluator review remains the next pipeline stage.
