@@ -20,7 +20,8 @@ bash tools/attended/provision_codex_oauth_profile.sh prepare cloud
 bash tools/attended/provision_codex_oauth_profile.sh login missions
 bash tools/attended/provision_codex_oauth_profile.sh login cloud
 bash tools/attended/check_codex_oauth_profiles.sh
-# Run only when the cloud rollout is ready to consume this authorization:
+# Run only after rollout readiness, while all consumers are paused or
+# a reviewed attended reservation holds the canonical cloud credential lease:
 bash tools/attended/provision_codex_oauth_profile.sh publish-cloud ailang-multivac ailang-codex-auth-json
 ```
 
@@ -75,8 +76,14 @@ owner service for the mission home.
 
 Cloud rollout must replace every image that consumes the cloud secret before
 publishing the fresh cloud authorization. Old executors do not honor the lease:
-stop dispatch, wait for all old executions to terminate, deploy both new Codex
-variants, then publish and smoke-test. The Codex image sets an isolated explicit
+deploy both new Codex variants and wait for all old executions to terminate.
+Before publishing, pause every consumer if supported. Where a per-agent pause is
+not available, use a reviewed attended reservation through the same canonical
+credential lease, recheck image pins and execution drain under ownership, publish
+and confirm durable enabled-version advancement, then release. New binaries must
+fail on contention while the reservation is held. The provisioning script itself
+does not acquire a lease: do not call it concurrently with cloud consumers.
+Smoke-test both variants after publication. The Codex image sets an isolated explicit
 `CODEX_HOME=/home/ailang/.codex`. Check Firestore transactional access and Secret
 Manager access/add-version permissions in the secret's project, and ensure the
 `credential_leases` collection has no TTL. Contending executions fail explicitly;
@@ -97,6 +104,23 @@ validity after activation.
 credential is supplied as a file path, never a token argument or environment
 literal. It adds a version to the specified existing secret and reports only
 success or failure; it does not update Cloud Run jobs or restart executions.
+
+After durable publication and handoff, retire the staging home's active
+`auth.json` into a mode-0600 inactive archive in a mode-0700 directory. A staging
+seed becomes stale when the runtime rotates its authorization; never run it or
+republish it. The cloud secret's latest enabled version is authoritative.
+Preparing a later replacement requires a new independent cloud device login.
+The three-home checker is a provisioning check before handoff, not a check of
+an intentionally retired staging home.
+
+For attended cloud smokes, clear write and API credentials only for that
+execution and request no tools or file changes. `gcloud run jobs execute` may
+reject a literal override of an existing secret environment reference locally.
+The [Cloud Run jobs.run API](https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs/run)
+supports execution overrides: validate the exact request with `validateOnly`,
+then verify execution metadata has empty credential values and no `valueSource`.
+Verify the persistent job retains its original secret references. Never weaken
+the persistent job configuration to work around the CLI validation.
 
 Offline verification (fixture JWTs and mock Codex/gcloud, no network):
 
