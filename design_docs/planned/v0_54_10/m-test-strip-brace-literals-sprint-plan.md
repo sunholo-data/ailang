@@ -102,3 +102,51 @@ Use targeted package tests and `make test-changed` (touched packages plus core c
 All lexical regression cases and existing conflict fixtures pass. End coordinates and preserved source maps have direct assertions. Product change stays near 25 LOC, with no grammar, effect or capability changes. No artificial coverage percentage is claimed; tests cover both declaration kinds, both strip entry points and the explicit legacy fallback.
 
 Progress artifact: `.ailang/state/sprints/sprint_M-TEST-STRIP-BRACE-LITERALS.json`. All milestones start unexecuted. No GitHub issue number was supplied; do not interpret numbered verification-log references as issue IDs. Coordinator artifact markers provide the handoff; merging/approving this plan triggers sprint-executor under the existing coordinator workflow.
+
+
+## Executor Progress (2026-10-16)
+
+- M1 implemented: both declarations record the validated closing token position;
+  focused AST/parser tests passed after zero-End failures were demonstrated.
+- M2 implemented: parser End.Line is authoritative, with exact output and line-map
+  tests for opening/closing/balanced braces, escaped JSON, interpolation, characters
+  and comments in both declaration kinds. Three strip fixtures pass.
+- Checkout differs from the planning snapshot: it already has the #1821 lexer-based
+  compatibility scanner. Preserve that scanner for zero-End hand-built ASTs rather
+  than restoring the older raw scanner; parser-created declarations bypass it.
+- Work remains on the assigned clean checkout branch coordinator/task-ae1f0398,
+  rather than switching to the planner's earlier branch.
+- AILANG prompt version loaded: v0.16.7 before writing fixtures and example.
+- Startup helper's jq dependency query and missing bc produced nonfatal warnings;
+  explicit package tests replace its unreliable pre-session test status.
+
+## CLI Validation
+
+Fresh `bin/ailang` built by `make build` accepts the new module and its
+canonical formatting. All eight tests pass with zero failures/skips in interpreter,
+bytecode, and strict bytecode modes; strict output contains no fallback notice.
+Conflict fixtures preserve their per-file counts: 2, 3, 3, and 1 (9 total).
+
+Public interpolation uses `"${1}{"` so the existing formatter can round-trip it;
+nested interpolation and character literals remain directly covered in unit tests
+and the nested-interpolation strip fixture. Comments inside bodies are covered
+in the table-driven unit cases.
+
+The full runnable-example workflow reports 243 passed, 5 failed, 9 intentionally
+skipped; manifest validation reports zero module drift. Its five failing files are
+unchanged by this sprint: adt_list_fields.ail, if_else_chain.ail,
+poly_adt_result_type.ail, record_in_match.ail, record_width_subtyping.ail.
+Each failure reports that its main entrypoint is not exported. These examples and
+entrypoint policy are outside this sprint's scope; the verify-examples checkbox
+remains open.
+
+The first concurrent test-changed run had a process-stop deadline failure and a
+killed pipeline package. A rerun limits Go package concurrency to avoid contention.
+
+Final limited-concurrency test-changed rerun: the three changed packages pass;
+effects still fails TestRuntimeNestedStopUsesRemainingDeadline (nested fixture
+survives the bounded stop), and pipeline is again killed by the environment.
+Other core packages pass. These broader gates remain red and M3's complete gate
+acceptance is explicitly false in the sprint JSON; implementation is complete,
+with independent evaluation pending. No unrelated effects, pipeline or example
+entrypoint changes were made to hide those failures.

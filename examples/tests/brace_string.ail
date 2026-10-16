@@ -1,0 +1,35 @@
+module examples/tests/brace_string
+import std/string (contains)
+
+test "opening brace" {
+  contains("{a", "{")
+}
+
+test "closing brace" {
+  contains("a}", "}")
+}
+
+test "JSON fragment" {
+  contains("\"promoted\":{\"kind\"", "{")
+}
+
+test "balanced braces" {
+  contains("{}", "{")
+}
+
+test "interpolation" {
+  "${1}{" == "1{"
+}
+
+-- Unbalanced braces in a comment: } } {
+test "comment control" {
+  "{" == "{"
+}
+
+test "ordinary control" {
+  1 + 1 == 2
+}
+
+property "brace property" {
+  forall(n: int) => contains("{a", "{")
+}
