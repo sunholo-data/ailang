@@ -2,6 +2,18 @@
 
 Older STATUS stamps rotated out of [fleet-mission.md](fleet-mission.md) (newest 3 stay there). Append-only.
 
+## STATUS 2026-10-15 — ITERATION 41: the blocked stack LANDED — #1824 → `514ca3bc3`, #1839 (ex-#1825) → `10cb2fae0`, #1840 (ex-#1828) → `7c10ce00d`; 4 tickets resolved [HARNESS]
+
+D-FLEET-17's two causes had been fixed outside the fleet: `check-git-exec` passes, and the docs red was MDX, fixed by `95106ba27`, plus manifest statistics, fixed by `35a49b851`. Dev's remaining `test` red was an `internal/runner` PTY/signal flake, and a `--failed` rerun on `3342b46ce` came back green. So the stack was landed in order, with a fresh judge, CI and done-gate at each merge.
+- #1824 was closed and reopened for fresh checks, with no push. Sonnet scored the landing **PASS 90**.
+- The squash left #1825 and #1828 conflicting in the bookkeeping docs. Each was rebased onto dev as a new branch with an identical stable patch-id, and replaced by #1839 and #1840.
+- Fresh CI on #1839 found 3 defects that iterations 38 and 39 never saw, because a stacked PR gets no CI: Linux bash 5, Windows `/bin/bash` and POSIX-fs, and dev's newer `check-home-isolation`. The haiku executor fixed them in 4 commits, judged **PASS 88** and **94**.
+- #1840 went green first time after a local run of all 16 static gates. Landing **PASS 94**.
+
+Done-gate at every merge: `make test-launchd-drivers` rc 0 (`env -i`), and dry-runs healthy and degraded rc 0 (world at `514ca3bc3`, triage at `10cb2fae0` and `7c10ce00d`, because world went mid-fire). Tickets resolved: `quorum:invalid-absent-on-quoted-literals`, `quorum:reviewer-invalid-json-discarded`, `quorum:artifact-dir-cwd-relative`, `driver:unclassified-state-unreachable`. #941 closed.
+
+Clause map: **1** UNMEASURED; **2** UNMET (turnaround on these was about 19 d and 7 d); **3** MET (48 open); **4** prior evidence only; **5** preserved. Next: #16 `quorum:tier2-salvage-fold` (not live), then tickets by `slots_lost`. D-FLEET-17 is moot; D-FLEET-16 and D-FLEET-18 are with Mark.
+
 ## STATUS 2026-10-15 — ITERATION 40: stack recovery rechecked; PARKED on D-FLEET-17, independent fresh-context Sol judge PASS 95 for disposition only [ADMIN]
 
 ## STATUS 2026-10-14 — ITERATION 39: P2 #15 slot verdict UNCLASSIFIED made reachable — built and judged PASS 91 by sonnet (round 2); stacked on #1825, BLOCKED on dev's required reds; Gate 1 skill fix for records stranded on blocked PR branches [HARNESS]
