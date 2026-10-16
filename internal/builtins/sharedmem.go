@@ -78,7 +78,17 @@ func sharedMemGetImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, e
 		return nil, fmt.Errorf("_sharedmem_get: SharedMem effect not enabled (use --caps SharedMem)")
 	}
 
-	value, found := ctx.SharedMem.Cache.Get(keyVal.Value)
+	var value []byte
+	var found bool
+	if checked, ok := ctx.SharedMem.Cache.(effects.CheckedSharedCache); ok {
+		var err error
+		value, found, err = checked.GetChecked(keyVal.Value)
+		if err != nil {
+			return nil, fmt.Errorf("_sharedmem_get: %w", err)
+		}
+	} else {
+		value, found = ctx.SharedMem.Cache.Get(keyVal.Value)
+	}
 	ctx.SharedMem.IncrGetCount()
 
 	if !found {
@@ -155,7 +165,13 @@ func sharedMemPutImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, e
 		return nil, fmt.Errorf("_sharedmem_put: SharedMem effect not enabled (use --caps SharedMem)")
 	}
 
-	ctx.SharedMem.Cache.Put(keyVal.Value, bytesVal.Value)
+	if checked, ok := ctx.SharedMem.Cache.(effects.CheckedSharedCache); ok {
+		if err := checked.PutChecked(keyVal.Value, bytesVal.Value); err != nil {
+			return nil, fmt.Errorf("_sharedmem_put: %w", err)
+		}
+	} else {
+		ctx.SharedMem.Cache.Put(keyVal.Value, bytesVal.Value)
+	}
 	ctx.SharedMem.IncrPutCount()
 
 	return &eval.UnitValue{}, nil
@@ -230,6 +246,9 @@ func sharedMemCASImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, e
 			return nil, fmt.Errorf("_sharedmem_cas: Some field should be bytes, got %T", oldTagged.Fields[0])
 		}
 		oldBytes = bytesVal.Value
+		if oldBytes == nil {
+			oldBytes = []byte{}
+		}
 	} else if oldTagged.CtorName != "None" {
 		return nil, fmt.Errorf("_sharedmem_cas: expected Some or None, got %s", oldTagged.CtorName)
 	}
@@ -244,7 +263,16 @@ func sharedMemCASImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, e
 		return nil, fmt.Errorf("_sharedmem_cas: SharedMem effect not enabled (use --caps SharedMem)")
 	}
 
-	success := ctx.SharedMem.Cache.CAS(keyVal.Value, oldBytes, newBytesVal.Value)
+	var success bool
+	if checked, ok := ctx.SharedMem.Cache.(effects.CheckedSharedCache); ok {
+		var err error
+		success, err = checked.CASChecked(keyVal.Value, oldBytes, newBytesVal.Value)
+		if err != nil {
+			return nil, fmt.Errorf("_sharedmem_cas: %w", err)
+		}
+	} else {
+		success = ctx.SharedMem.Cache.CAS(keyVal.Value, oldBytes, newBytesVal.Value)
+	}
 	ctx.SharedMem.IncrCASCount(success)
 
 	return &eval.BoolValue{Value: success}, nil
@@ -301,7 +329,13 @@ func sharedMemDeleteImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value
 		return nil, fmt.Errorf("_sharedmem_delete: SharedMem effect not enabled (use --caps SharedMem)")
 	}
 
-	ctx.SharedMem.Cache.Delete(keyVal.Value)
+	if checked, ok := ctx.SharedMem.Cache.(effects.CheckedSharedCache); ok {
+		if err := checked.DeleteChecked(keyVal.Value); err != nil {
+			return nil, fmt.Errorf("_sharedmem_delete: %w", err)
+		}
+	} else {
+		ctx.SharedMem.Cache.Delete(keyVal.Value)
+	}
 
 	return &eval.UnitValue{}, nil
 }
@@ -354,7 +388,16 @@ func sharedMemKeysImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, 
 		return nil, fmt.Errorf("_sharedmem_keys: SharedMem effect not enabled (use --caps SharedMem)")
 	}
 
-	keys := ctx.SharedMem.Cache.Keys()
+	var keys []string
+	if checked, ok := ctx.SharedMem.Cache.(effects.CheckedSharedCache); ok {
+		var err error
+		keys, err = checked.KeysChecked()
+		if err != nil {
+			return nil, fmt.Errorf("_sharedmem_keys: %w", err)
+		}
+	} else {
+		keys = ctx.SharedMem.Cache.Keys()
+	}
 	elements := make([]eval.Value, len(keys))
 	for i, k := range keys {
 		elements[i] = &eval.StringValue{Value: k}

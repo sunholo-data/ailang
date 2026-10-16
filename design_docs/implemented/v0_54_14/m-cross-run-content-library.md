@@ -1,7 +1,7 @@
 # Cross-Run Content Library: Persistent SharedMem/SharedIndex + std/ai.embed
 
-**Status**: Planned
-**Target**: v0.54.8
+**Status**: Implemented (independently evaluated, round 1)
+**Target**: v0.54.8 (original approved target; implemented on v0.54.13 checkout with v0.54.14 builtin metadata; no release performed)
 **Priority**: P1
 **Estimated**: ~2 weeks (~30 hours: 20h implementation + 6h testing + 4h docs, 2x'd)
 **Dependencies**: None hard. Builds on M-DX15/DX16 (SharedMem/SharedIndex effects, v0.5.11), M-BRAIN
@@ -213,41 +213,41 @@ stores. Do **not** point `--sharedmem-db` at the CLI brain's `~/.ailang/state/br
 ### Implementation Plan
 
 **Phase 1: Persistent SharedMem** (~6 hours)
-- [ ] `SharedMemOptions{DBPath string}` on `runner.Options`; `--sharedmem-db` flag +
+- [x] `SharedMemOptions{DBPath string}` on `runner.Options`; `--sharedmem-db` flag +
       `AILANG_SHAREDMEM_DB` env (flag wins); registry row in `internal/config`
-- [ ] `SetupSharedMemHandler(effCtx, opts) error`: open via `effects.OpenSharedCache` when path
+- [x] `SetupSharedMemHandler(effCtx, opts) error`: open via `effects.OpenSharedCache` when path
       set; hard error on open failure; error when flag set without `--caps SharedMem`
-- [ ] Update call sites: `internal/runner/run.go:477`, `internal/runner/batch.go:54`,
+- [x] Update call sites: `internal/runner/run.go:477`, `internal/runner/batch.go:54`,
       `cmd/ailang/serve_api.go` `initServeAPIStores` (keep the serve-api SharedMem path working —
       it was broken once before, found 2026-10-02 by the sunholo/mcp_oauth e2e)
-- [ ] Cross-process + restart integration tests (two processes, one file)
+- [x] Cross-process + restart integration tests (two processes, one file)
 
 **Phase 2: Persistent SharedIndex** (~8 hours)
-- [ ] `effects.RegisterSharedIndexOpener` / `effects.OpenSharedIndex` seam (mirror
+- [x] `effects.RegisterSharedIndexOpener` / `effects.OpenSharedIndex` seam (mirror
       `sharedmem_backend.go`; `ErrBackendNotRegistered` when nothing registered)
-- [ ] `SQLiteSharedIndex` in `internal/platform/sharedmem/sqlite_sharedindex.go`: schema above,
+- [x] `SQLiteSharedIndex` in `internal/platform/sharedmem/sqlite_sharedindex.go`: schema above,
       full `SharedIndex` interface, Strict ordering, `maxScan`
-- [ ] Register in `cmd/ailang/platform_init.go`; `SharedIndexOptions{DBPath}` + `--sharedindex-db`
+- [x] Register in `cmd/ailang/platform_init.go`; `SharedIndexOptions{DBPath}` + `--sharedindex-db`
       flag + env; same cap-gate and fatal-open rules as Phase 1
-- [ ] Restart + namespace-isolation tests; decode/encode round-trip for embeddings
+- [x] Restart + namespace-isolation tests; decode/encode round-trip for embeddings
 
 **Phase 3: std/ai.embed** (~10 hours)
-- [ ] `AIContext.embedder` + `WithEmbedder`; op `aiEmbed` in `internal/effects/ai_embed.go`
+- [x] `AIContext.embedder` + `WithEmbedder`; op `aiEmbed` in `internal/effects/ai_embed.go`
       (Result construction via the `ai_encode.go` helpers; `classifyOpError`)
-- [ ] `_ai_embed` builtin in `internal/builtins/ai_embed.go`: type
+- [x] `_ai_embed` builtin in `internal/builtins/ai_embed.go`: type
       `(string) -> Result[list[float], AIError] ! {AI}`, metadata per `BuiltinMetadata` conventions
-- [ ] `std/ai.ail`: `export func embed(text: string) -> Result[[float], AIError] ! {AI} = _ai_embed(text)`
+- [x] `std/ai.ail`: `export func embed(text: string) -> Result[[float], AIError] ! {AI} = _ai_embed(text)`
       (+ doc comment); bump `std/VERSION` in lockstep with the binary
-- [ ] Wiring in `cmd/ailang/ai_handlers.go` per resolution order; `--ai-stub` stub embedder
-- [ ] Unit tests: nil embedder → `ProviderNotFound`; provider error → classified `Err`;
+- [x] Wiring in `cmd/ailang/ai_handlers.go` per resolution order; `--ai-stub` stub embedder
+- [x] Unit tests: nil embedder → `ProviderNotFound`; provider error → classified `Err`;
       stub determinism (same text → same vector)
 
 **Phase 4: embed cache + docs** (~6 hours)
-- [ ] Caching decorator (in-process map + optional `embed_cache` table via sqliteopen);
+- [x] Caching decorator (in-process map + optional `embed_cache` table via sqliteopen);
       `--embed-cache-db` flag + env; stub-call-counter test proving cache hits
-- [ ] Fix `semantic-caching-how-to.mdx:17`; add a "Persistence" section with the flags; update
+- [x] Fix `semantic-caching-how-to.mdx:17`; add a "Persistence" section with the flags; update
       `cmd/ailang/help.go` and the env-var registry rows
-- [ ] New example: `examples/reference/cross_run_library.ail` (embed → upsertWithEmbedding →
+- [x] New example: `examples/reference/cross_run_library.ail` (embed → upsertWithEmbedding →
       findByEmbedding round-trip); add to `examples/manifest.json`
 
 ### Files to Modify/Create
@@ -320,15 +320,15 @@ ailang run --caps SharedMem,SharedIndex,AI \
 
 ## Success Criteria
 
-- [ ] Two-process SharedMem integration test passes (A puts, B gets, across `exec.Command` boundary)
-- [ ] Restart test: index entries upserted in run 1 are found in run 2 via the same DB path
-- [ ] `std/ai.embed` returns `Ok` under a Gemini/OpenAI embedder with no Ollama installed; typed
+- [x] Two-process SharedMem integration test passes (A puts, B gets, across `exec.Command` boundary)
+- [x] Restart test: index entries upserted in run 1 are found in run 2 via the same DB path
+- [x] `std/ai.embed` returns `Ok` under a Gemini/OpenAI embedder with no Ollama installed; typed
       `Err(AIError{code:"ProviderNotFound"})` when unconfigured; stub is deterministic
-- [ ] Cache: second embed of the same text makes zero provider calls (stub counter)
-- [ ] `--sharedmem-db` without `--caps SharedMem` exits non-zero with a message naming the flag
-- [ ] Default runs (no flags) behave byte-identically (existing suites green)
-- [ ] All tests passing (`make test`; `make check-boundaries` clean — core gains no platform import)
-- [ ] Documentation updated (guide fixed, help text, env registry, example in manifest)
+- [x] Cache: second embed of the same text makes zero provider calls (stub counter)
+- [x] `--sharedmem-db` without `--caps SharedMem` exits non-zero with a message naming the flag
+- [x] Default runs (no flags) behave byte-identically (existing suites green)
+- [x] All tests passing (`make test`; `make check-boundaries` clean — core gains no platform import)
+- [x] Documentation updated (guide fixed, help text, env registry, example in manifest)
 
 ## Conflict Surface
 
@@ -510,3 +510,7 @@ the known lockstep warning, see Risks):
 
 **Document created**: 2026-10-13
 **Last updated**: 2026-10-13
+
+## Implementation verification (2026-10-16)
+
+Implemented against the approved sprint plan, which superseded this design's broad local full-suite gate with changed packages plus test-core; CI retains the full suite. All six changed packages, test-core, lint, stdlib (48 interfaces), CLI docs, formatting, file sizes, changelog and architecture boundaries pass. The manifest has zero module drift. The new strict two-process showcase and named regression fixtures pass (the optional Ollama fixture is type-checked only). Aggregate verify-examples retains five unchanged baseline failures for unexported main functions; these are recorded under the approved unattended-run baseline-failure policy. Independent evaluation: 98/100, pass.

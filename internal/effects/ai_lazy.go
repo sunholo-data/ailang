@@ -39,7 +39,7 @@ func (c *AIContext) ready() (*AIContext, error) {
 		} else {
 			resolved, err = l.initialize()
 		}
-		if err == nil && (resolved == nil || resolved == c || resolved.lazy != nil || resolved.handler == nil) {
+		if err == nil && (resolved == nil || resolved == c || resolved.lazy != nil || (resolved.handler == nil && resolved.embedder == nil)) {
 			err = ErrNoAIHandler
 		}
 		if err == nil && c.modelResolver != nil {

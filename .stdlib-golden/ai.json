@@ -134,6 +134,14 @@
       "pure": true
     },
     {
+      "name": "embed",
+      "type": "(string)-\u003eResult[list[float],{code: string, message: string, retryable: bool}]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
       "name": "runTools",
       "type": "(string,list[Message],list[ToolSchema],(ToolCall)-\u003estring,int)-\u003eResult[[Message],AIError]!{AI}",
       "effects": [

@@ -1,0 +1,363 @@
+{
+  "sprint_id": "M-CROSS-RUN-CONTENT-LIBRARY",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-16T17:04:04.909976+00:00",
+  "design_doc": "design_docs/implemented/v0_54_14/m-cross-run-content-library.md",
+  "sprint_plan": "design_docs/implemented/v0_54_14/m-cross-run-content-library-sprint-plan.md",
+  "base_commit": "3ef185218d54052c09a6c6645d2b1b923d9e78f4",
+  "total_score": 98,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 13,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "gate_source": "local_scoped_per_approved_sprint_plan",
+    "tests_pass": true,
+    "tests_output": "All six changed packages pass in /tmp/cross-run-test-changed-green.log. Its aggregate failed only the intentional new builtin snapshot; refreshed exactly one signature and clean make test-core passes in /tmp/cross-run-test-core-final.log. Latest strict-config patch focused tests pass in /tmp/cross-run-explicit-config.log. Full repository suite belongs to CI under approved plan.",
+    "lint_clean": true,
+    "lint_output": "/tmp/cross-run-lint-verified.log: 0 issues",
+    "file_sizes_ok": true,
+    "static_gates": "/tmp/cross-run-verified-gates.log: stdlib (48), CLI docs, formatting, file sizes, changelog and boundaries pass",
+    "manifest": "/tmp/cross-run-manifest-final.log: 0 modules drift",
+    "verify_examples": {
+      "passed": 243,
+      "failed": 5,
+      "skipped": 9,
+      "baseline_exemption": true,
+      "failures": [
+        "adt_list_fields",
+        "if_else_chain",
+        "poly_adt_result_type",
+        "record_in_match",
+        "record_width_subtyping"
+      ],
+      "reason": "Unchanged baseline examples have non-exported main; pre-existing entry export enforcement. Approved unattended-run policy records baseline failures and continues. New example and named conflict fixtures validated explicitly."
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Flag overrides AILANG_SHAREDMEM_DB; missing SharedMem capability and failed DB open are fatal.",
+      "met": true,
+      "evidence": "handlers_shared_storage_test.go; runtime_cache_test.go concurrent CAS subprocesses; CLI subprocess showcase"
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "No path preserves in-memory behavior; resources close on success, setup failure and runtime failure.",
+      "met": true,
+      "evidence": "handlers_shared_storage_test.go; runtime_cache_test.go concurrent CAS subprocesses; CLI subprocess showcase"
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Sequential subprocess put/get and concurrent CAS tests show durable cross-process state.",
+      "met": true,
+      "evidence": "handlers_shared_storage_test.go; runtime_cache_test.go concurrent CAS subprocesses; CLI subprocess showcase"
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "handlers_shared_storage_test.go; runtime_cache_test.go concurrent CAS subprocesses; CLI subprocess showcase"
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Namespaces and files isolate entries; duplicate keys in different namespaces coexist.",
+      "met": true,
+      "evidence": "sqlite_sharedindex_test.go persistence/isolation; sharedindex_errors_test.go effect boundary failures"
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Reopening preserves metadata, signed SimHash bits and float32 encoded embeddings.",
+      "met": true,
+      "evidence": "sqlite_sharedindex_test.go persistence/isolation; sharedindex_errors_test.go effect boundary failures"
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Storage operation failures surface through the effect boundary; no empty-hit or successful-write disguise.",
+      "met": true,
+      "evidence": "sqlite_sharedindex_test.go persistence/isolation; sharedindex_errors_test.go effect boundary failures"
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "sqlite_sharedindex_test.go persistence/isolation; sharedindex_errors_test.go effect boundary failures"
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Strict order is score DESC then key ASC, including tied scores and bounded maxScan.",
+      "met": true,
+      "evidence": "sqlite_sharedindex_search_test.go parity, bounded scans, ordering, corruption and replacement"
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "topK and maxScan match existing contract; no-hit results are empty slices.",
+      "met": true,
+      "evidence": "sqlite_sharedindex_search_test.go parity, bounded scans, ordering, corruption and replacement"
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Dimension mismatch, corrupt blobs, delete and embedding replacement have explicit tested behavior.",
+      "met": true,
+      "evidence": "sqlite_sharedindex_search_test.go parity, bounded scans, ordering, corruption and replacement"
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "sqlite_sharedindex_search_test.go parity, bounded scans, ordering, corruption and replacement"
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Flag overrides AILANG_SHAREDINDEX_DB; missing SharedIndex capability is fatal.",
+      "met": true,
+      "evidence": "shared_storage_integration_test.go separate-process seed/query/fresh-file; runner isolation and serve-api regression tests"
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Separate subprocesses upsert then find by SimHash and embedding across restart.",
+      "met": true,
+      "evidence": "shared_storage_integration_test.go separate-process seed/query/fresh-file; runner isolation and serve-api regression tests"
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "SharedMem and SharedIndex coexist in one file; two files and namespaces remain isolated; serve-api SharedMem regression passes.",
+      "met": true,
+      "evidence": "shared_storage_integration_test.go separate-process seed/query/fresh-file; runner isolation and serve-api regression tests"
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "shared_storage_integration_test.go separate-process seed/query/fresh-file; runner isolation and serve-api regression tests"
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Nil embedder returns ProviderNotFound; provider timeout/rate-limit errors preserve typed retryability.",
+      "met": true,
+      "evidence": "ai_embed_test.go typed errors/lazy parity/accounting/budgets; changed effects package passes"
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Each invocation including cache hits records AI embed accounting and respects existing AI budgets.",
+      "met": true,
+      "evidence": "ai_embed_test.go typed errors/lazy parity/accounting/budgets; changed effects package passes"
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Lazy and eager contexts produce the same embedding Result and malformed input handling.",
+      "met": true,
+      "evidence": "ai_embed_test.go typed errors/lazy parity/accounting/budgets; changed effects package passes"
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "ai_embed_test.go typed errors/lazy parity/accounting/budgets; changed effects package passes"
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Builtin type and metadata agree with std/ai.embed; compiler checks import and AI effect requirement.",
+      "met": true,
+      "evidence": "ai_embed_compile_test.go and builtin tests; all 48 stdlib interfaces stable; builtin golden intentional one-line addition"
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Legacy _ollama_embed IO surface remains runnable with existing fixtures.",
+      "met": true,
+      "evidence": "ai_embed_compile_test.go and builtin tests; all 48 stdlib interfaces stable; builtin golden intentional one-line addition"
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "make verify-stdlib passes after intentional golden refresh; follow repository version policy without independent release/tag actions.",
+      "met": true,
+      "evidence": "ai_embed_compile_test.go and builtin tests; all 48 stdlib interfaces stable; builtin golden intentional one-line addition"
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "ai_embed_compile_test.go and builtin tests; all 48 stdlib interfaces stable; builtin golden intentional one-line addition"
+    },
+    {
+      "feature_id": "M7",
+      "criterion": "Explicit config wins; invalid explicit config surfaces an error and never silently derives.",
+      "met": true,
+      "evidence": "ai_embed_handlers_test.go provider transports/precedence/lazy freeze/strict config/default-run guard; focused latest tests pass"
+    },
+    {
+      "feature_id": "M7",
+      "criterion": "Gemini/OpenAI mock transports embed without Ollama; derived provider/model notice appears once.",
+      "met": true,
+      "evidence": "ai_embed_handlers_test.go provider transports/precedence/lazy freeze/strict config/default-run guard; focused latest tests pass"
+    },
+    {
+      "feature_id": "M7",
+      "criterion": "OpenRouter/Anthropic/configdriven do not implicitly derive; unconfigured embed returns ProviderNotFound.",
+      "met": true,
+      "evidence": "ai_embed_handlers_test.go provider transports/precedence/lazy freeze/strict config/default-run guard; focused latest tests pass"
+    },
+    {
+      "feature_id": "M7",
+      "criterion": "ai-stub yields stable dimensions/vectors and requires no credentials.",
+      "met": true,
+      "evidence": "ai_embed_handlers_test.go provider transports/precedence/lazy freeze/strict config/default-run guard; focused latest tests pass"
+    },
+    {
+      "feature_id": "M7",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "ai_embed_handlers_test.go provider transports/precedence/lazy freeze/strict config/default-run guard; focused latest tests pass"
+    },
+    {
+      "feature_id": "M8",
+      "criterion": "Repeated model/text invokes provider once; changed model/text misses; failures are not cached.",
+      "met": true,
+      "evidence": "embed_cache_test.go caching, model/text misses, defensive copies, concurrent access and batch ordering"
+    },
+    {
+      "feature_id": "M8",
+      "criterion": "Caller mutation cannot corrupt cached vectors; EmbedBatch preserves order and caches individual successes.",
+      "met": true,
+      "evidence": "embed_cache_test.go caching, model/text misses, defensive copies, concurrent access and batch ordering"
+    },
+    {
+      "feature_id": "M8",
+      "criterion": "Concurrent access is race-free; returned dimension and model metadata match wrapped embedder.",
+      "met": true,
+      "evidence": "embed_cache_test.go caching, model/text misses, defensive copies, concurrent access and batch ordering"
+    },
+    {
+      "feature_id": "M8",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "embed_cache_test.go caching, model/text misses, defensive copies, concurrent access and batch ordering"
+    },
+    {
+      "feature_id": "M9",
+      "criterion": "Reopened cache returns stored model/text vector with zero provider calls.",
+      "met": true,
+      "evidence": "platform/sharedmem/embed_cache_test.go reopened cache skips failing offline provider; dedicated table and corruption tests"
+    },
+    {
+      "feature_id": "M9",
+      "criterion": "Cache rows never appear in brain_frames or SharedMem keys; all three tables coexist.",
+      "met": true,
+      "evidence": "platform/sharedmem/embed_cache_test.go reopened cache skips failing offline provider; dedicated table and corruption tests"
+    },
+    {
+      "feature_id": "M9",
+      "criterion": "Corrupt/dimension-invalid rows and storage failures are surfaced explicitly; no silent persistent-store fallback.",
+      "met": true,
+      "evidence": "platform/sharedmem/embed_cache_test.go reopened cache skips failing offline provider; dedicated table and corruption tests"
+    },
+    {
+      "feature_id": "M9",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "platform/sharedmem/embed_cache_test.go reopened cache skips failing offline provider; dedicated table and corruption tests"
+    },
+    {
+      "feature_id": "M10",
+      "criterion": "Flag beats env; path without AI capability or unopenable path fails loudly.",
+      "met": true,
+      "evidence": "ai_embed_handlers_test.go cache capability/precedence/reopen; platform counted-provider restart; AI budget cache-hit tests"
+    },
+    {
+      "feature_id": "M10",
+      "criterion": "Persistent cache remains opt-in; in-process caching is enabled for configured embedders.",
+      "met": true,
+      "evidence": "ai_embed_handlers_test.go cache capability/precedence/reopen; platform counted-provider restart; AI budget cache-hit tests"
+    },
+    {
+      "feature_id": "M10",
+      "criterion": "Restart test with counted mock provider proves persistent hits; effect budget still counts each call.",
+      "met": true,
+      "evidence": "ai_embed_handlers_test.go cache capability/precedence/reopen; platform counted-provider restart; AI budget cache-hit tests"
+    },
+    {
+      "feature_id": "M10",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "ai_embed_handlers_test.go cache capability/precedence/reopen; platform counted-provider restart; AI budget cache-hit tests"
+    },
+    {
+      "feature_id": "M11",
+      "criterion": "ailang check and keyless ai-stub seed/query runs pass using one temporary DB for all flags.",
+      "met": true,
+      "evidence": "cross_run_library subprocess test, strict two-process demo and fresh-file control; named conflict fixtures run/check green"
+    },
+    {
+      "feature_id": "M11",
+      "criterion": "Process B retrieves process A content; fresh-file control returns no match.",
+      "met": true,
+      "evidence": "cross_run_library subprocess test, strict two-process demo and fresh-file control; named conflict fixtures run/check green"
+    },
+    {
+      "feature_id": "M11",
+      "criterion": "Manifest module metadata is accurate; existing SharedMem and SharedIndex runnable examples pass.",
+      "met": true,
+      "evidence": "cross_run_library subprocess test, strict two-process demo and fresh-file control; named conflict fixtures run/check green"
+    },
+    {
+      "feature_id": "M11",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "cross_run_library subprocess test, strict two-process demo and fresh-file control; named conflict fixtures run/check green"
+    },
+    {
+      "feature_id": "M12",
+      "criterion": "Guide distinguishes in-memory defaults from opt-in durable stores and warns against CLI brain DB key collisions.",
+      "met": true,
+      "evidence": "guide/help/config/changelog reviewed; static gates and manifest zero drift; baseline-only verify-examples failures recorded; aggregate baseline verify-examples failures exempted under approved unattended policy"
+    },
+    {
+      "feature_id": "M12",
+      "criterion": "OpenRouter users are told to configure a supported embedding provider separately; ANN and read-only capability remain deferred.",
+      "met": true,
+      "evidence": "guide/help/config/changelog reviewed; static gates and manifest zero drift; baseline-only verify-examples failures recorded; aggregate baseline verify-examples failures exempted under approved unattended policy"
+    },
+    {
+      "feature_id": "M12",
+      "criterion": "Focused final validation and file-size, changelog, boundary, CLI-doc, stdlib and example gates pass.",
+      "met": true,
+      "evidence": "guide/help/config/changelog reviewed; static gates and manifest zero drift; baseline-only verify-examples failures recorded; aggregate baseline verify-examples failures exempted under approved unattended policy"
+    },
+    {
+      "feature_id": "M12",
+      "criterion": "make test-changed passes for touched packages plus test-core.",
+      "met": true,
+      "evidence": "guide/help/config/changelog reviewed; static gates and manifest zero drift; baseline-only verify-examples failures recorded; aggregate baseline verify-examples failures exempted under approved unattended policy"
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "implemented; design and companion plan moved together"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Persistent capability-gated storage, checked operation errors, configured typed embeddings, content-hash caches and lifecycle follow approved design/plan. ANN and read-only capability deliberately deferred. Original target retained historically; no independent release/version bump."
+  },
+  "regression_surface": {
+    "triggered": true,
+    "conflict_analysis_present": true,
+    "fixtures": [
+      "sharedmem_cache runtime",
+      "semantic_retrieval runtime",
+      "neural_semantic_search type-check (optional Ollama runtime deferred)",
+      "stdlib_sharedindex runtime",
+      "serve-api SharedMem regression test"
+    ],
+    "verified": true
+  },
+  "feedback": [],
+  "notes": "Independent reviewer authored no implementation. Default IO-only run config regression and strict explicit-model policy bypass were reviewed and fixed before verdict. Two Code Quality points deducted for recorded TDD process deviation: initial red was not observed because missing Go PATH/cold dependency build prevented semantic execution before edits; no observed-red claim made. Sprint JSON completed 12/12 with timestamps/notes. Baseline example failures remain visible rather than being claimed green. No external operations performed."
+}

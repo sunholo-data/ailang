@@ -6,9 +6,9 @@
 --   2. Pull embedding model: ollama pull embeddinggemma
 --   3. Start Ollama: ollama serve
 --
--- Run: ailang run --caps IO,SharedIndex --entry main examples/neural_semantic_search.ail
+-- Run: ailang run --caps IO,SharedIndex --entry main examples/reference/neural_semantic_search.ail
 
-module examples/neural_semantic_search
+module examples/reference/neural_semantic_search
 import std/string (floatToStr, intToStr)
 
 -- ============================================================================
@@ -37,7 +37,7 @@ func search_by_embedding(ns: string, query: string, top_k: int) -> [{ key: strin
 }
 
 -- Main demonstration
-func main() -> string ! {IO, SharedIndex} {
+export func main() -> string ! {IO, SharedIndex} {
   let _ = _io_println("=== Neural Semantic Search Demo ===") in
   let _ = _io_println("") in
   -- Store beliefs with embeddings
@@ -48,7 +48,7 @@ func main() -> string ! {IO, SharedIndex} {
   let _ = store_belief_with_embedding("beliefs", "b4", "Rain falls from clouds to the ground", 1, 4000) in
   let _ = store_belief_with_embedding("beliefs", "b5", "The ocean appears blue due to light reflection", 1, 5000) in
   let count = _sharedindex_entry_count("beliefs") in
-  let _ = _io_println("Stored " ++ intToStr(count) ++ " beliefs with embeddings") in
+  let _ = _io_println("Stored ${intToStr(count)} beliefs with embeddings") in
   let _ = _io_println("") in
   -- Semantic search: "What color is the sky?"
   let _ = _io_println("Query: 'What color is the sky?'") in
@@ -71,7 +71,7 @@ func main() -> string ! {IO, SharedIndex} {
 func print_results(results: [{ key: string, score: float, version: int, timestamp: int }]) -> unit ! {IO} {
   match results {
     [] => _io_println("  (no results)"),
-    [first, ...rest] => let _ = _io_println("  " ++ first.key ++ " (score: " ++ floatToStr(first.score) ++ ")") in
+    [first, ...rest] => let _ = _io_println("  ${first.key} (score: ${floatToStr(first.score)})") in
     print_results(rest)
   }
 }

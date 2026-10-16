@@ -81,6 +81,7 @@ type Options struct {
 	Process            ProcessOptions
 	// FSMaxBytes is the --fs-max-bytes text ("" = AILANG_FS_MAX_BYTES, else
 	// unbounded); resolved by SetupFSLimit (M-V1-MEMORY-FOOTPRINT M3).
+	SharedStorage   SharedStorageOptions
 	FSMaxBytes      string
 	DebugEffect     bool
 	DebugLogLevel   int
@@ -484,8 +485,12 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 	}
 
 	// Set up effect handlers if requested
-	SetupSharedMemHandler(effCtx)   // SharedMem for semantic caching (M-DX15)
-	SetupSharedIndexHandler(effCtx) // SharedIndex for semantic retrieval (M-DX16)
+	closeStores, storageErr := SetupSharedStorage(effCtx, opts.SharedStorage)
+	if storageErr != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), storageErr)
+		return 1
+	}
+	defer func() { runlife.RecordFailure(closeStores()) }()
 	// Net HTTP request security settings
 	if err := SetupNetHandler(effCtx, opts.Net.AllowHTTP, opts.Net.AllowDomains, opts.Net.AllowLocalhost, opts.Net.AllowMetadata, opts.Net.Timeout); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -527,6 +532,7 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 			return 1
 		}
 	}
+	defer func() { runlife.RecordFailure(effCtx.AI.Close()) }()
 	// Debug.log streams to stderr on arrival under --log-level
 	// (M-V1-MEMORY-FOOTPRINT M2, D-E): a logging loop no longer retains every
 	// line until the run ends, and a below-threshold line is dropped before it
@@ -645,7 +651,7 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 
 	if opts.TerminalSignalExit != nil {
 		stopSignals = effCtx.InstallWorkerSignalHandler(func(code int) {
-			runlife.Complete(effCtx.CloseWorkers())
+			runlife.Complete(errors.Join(effCtx.CloseWorkers(), closeStores(), effCtx.AI.Close()))
 			_ = effCtx.FlushIO()
 			FlushDebugOutput(effCtx, opts.DebugLogLevel, "")
 			emitRunTrace(ctx, effCtx, emitTrace, traceOpts)

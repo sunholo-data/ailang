@@ -3,12 +3,12 @@
 ## Summary
 Make generated content survive process restarts and remain discoverable through configured-provider embeddings. Implements the approved [design](m-cross-run-content-library.md) for v0.54.8.
 
-**Status:** Planned; design approved by task-70cf8428 handoff. Sprint execution awaits coordinator plan approval.
+**Status:** Implementation complete; approved coordinator handoff executed on `coordinator/task-7f6a2223`. Changed-package/core, lint and static gates pass; independent evaluation passed (round 1, 98/100).
 **Duration:** 10 working days over two weeks; 18 hours milestone work plus 6 hours integration/uncertainty buffer = 24 hours. Each milestone targets one 60–90 minute executor run; stop and split rather than overflow it.
 **Risk:** Medium, chiefly persistent-store error propagation and provider setup.
 **Estimated LOC:** 1990, including implementation, tests, examples and docs.
 
-## Current status and estimate basis
+## Planning baseline and estimate basis
 The clean checkout at 6c1ac816 contains the approved design but no implementation. SharedMem/SharedIndex setup remains in-memory; SharedIndex interface operations currently have no error returns. SQLite SharedCache, AI Result helpers and messaging embedders already exist. ANN, read-only brain/storage capabilities, decay helpers and migrations remain future work.
 
 The velocity script was run for seven days. This checkout exposes only one recent design-doc commit, no usable diff history, and no recent LOC metrics; historical foundation changelog figures are not a measured current velocity. Planning assumption: 199 LOC per working day at 2.4 focused hours/day, with 33% time buffer over the 18-hour milestone subtotal. The design estimated 30 hours; reuse yields a provisional 24-hour estimate, with 30 hours as the conservative ceiling. Re-estimate after M3. No coverage baseline is claimed; measure changed-package coverage during execution and cover every new error/lifecycle branch rather than promise a repository-wide percentage.
@@ -26,7 +26,7 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 
 ## Milestones
 
-### M1: Persistent SharedMem wiring (~180 LOC)
+### ✅ M1: Persistent SharedMem wiring (~180 LOC)
 
 **Estimate:** 100 implementation/docs/example + 80 tests; 1.5 hours.
 **Dependencies:** None
@@ -35,12 +35,12 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; existing sharedmem_cache.ail and stdlib_sharedindex.ail.
 **Risk/mitigation:** SQLite lifecycle or contract drift: use temporary-file differential and failure tests.
 
-- [ ] Flag overrides AILANG_SHAREDMEM_DB; missing SharedMem capability and failed DB open are fatal.
-- [ ] No path preserves in-memory behavior; resources close on success, setup failure and runtime failure.
-- [ ] Sequential subprocess put/get and concurrent CAS tests show durable cross-process state.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] Flag overrides AILANG_SHAREDMEM_DB; missing SharedMem capability and failed DB open are fatal.
+- [x] No path preserves in-memory behavior; resources close on success, setup failure and runtime failure.
+- [x] Sequential subprocess put/get and concurrent CAS tests show durable cross-process state.
+- [x] make test-changed passes for touched packages plus test-core.
 
-### M2: SharedIndex opener and SQLite writes (~210 LOC)
+### ✅ M2: SharedIndex opener and SQLite writes (~210 LOC)
 
 **Estimate:** 140 implementation/docs/example + 70 tests; 1.5 hours.
 **Dependencies:** None
@@ -49,12 +49,12 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; existing sharedmem_cache.ail and stdlib_sharedindex.ail.
 **Risk/mitigation:** SQLite lifecycle or contract drift: use temporary-file differential and failure tests.
 
-- [ ] Namespaces and files isolate entries; duplicate keys in different namespaces coexist.
-- [ ] Reopening preserves metadata, signed SimHash bits and float32 encoded embeddings.
-- [ ] Storage operation failures surface through the effect boundary; no empty-hit or successful-write disguise.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] Namespaces and files isolate entries; duplicate keys in different namespaces coexist.
+- [x] Reopening preserves metadata, signed SimHash bits and float32 encoded embeddings.
+- [x] Storage operation failures surface through the effect boundary; no empty-hit or successful-write disguise.
+- [x] make test-changed passes for touched packages plus test-core.
 
-### M3: SharedIndex retrieval parity (~230 LOC)
+### ✅ M3: SharedIndex retrieval parity (~230 LOC)
 
 **Estimate:** 130 implementation/docs/example + 100 tests; 1.5 hours.
 **Dependencies:** M2
@@ -63,12 +63,12 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; existing sharedmem_cache.ail and stdlib_sharedindex.ail.
 **Risk/mitigation:** SQLite lifecycle or contract drift: use temporary-file differential and failure tests.
 
-- [ ] Strict order is score DESC then key ASC, including tied scores and bounded maxScan.
-- [ ] topK and maxScan match existing contract; no-hit results are empty slices.
-- [ ] Dimension mismatch, corrupt blobs, delete and embedding replacement have explicit tested behavior.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] Strict order is score DESC then key ASC, including tied scores and bounded maxScan.
+- [x] topK and maxScan match existing contract; no-hit results are empty slices.
+- [x] Dimension mismatch, corrupt blobs, delete and embedding replacement have explicit tested behavior.
+- [x] make test-changed passes for touched packages plus test-core.
 
-### M4: Persistent SharedIndex runner integration (~160 LOC)
+### ✅ M4: Persistent SharedIndex runner integration (~160 LOC)
 
 **Estimate:** 80 implementation/docs/example + 80 tests; 1.5 hours.
 **Dependencies:** M1, M3
@@ -77,12 +77,12 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; existing sharedmem_cache.ail and stdlib_sharedindex.ail.
 **Risk/mitigation:** SQLite lifecycle or contract drift: use temporary-file differential and failure tests.
 
-- [ ] Flag overrides AILANG_SHAREDINDEX_DB; missing SharedIndex capability is fatal.
-- [ ] Separate subprocesses upsert then find by SimHash and embedding across restart.
-- [ ] SharedMem and SharedIndex coexist in one file; two files and namespaces remain isolated; serve-api SharedMem regression passes.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] Flag overrides AILANG_SHAREDINDEX_DB; missing SharedIndex capability is fatal.
+- [x] Separate subprocesses upsert then find by SimHash and embedding across restart.
+- [x] SharedMem and SharedIndex coexist in one file; two files and namespaces remain isolated; serve-api SharedMem regression passes.
+- [x] make test-changed passes for touched packages plus test-core.
 
-### M5: Typed AI embedding effect (~190 LOC)
+### ✅ M5: Typed AI embedding effect (~190 LOC)
 
 **Estimate:** 100 implementation/docs/example + 90 tests; 1.5 hours.
 **Dependencies:** None
@@ -91,12 +91,12 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; cross_run_library.ail seed/query and existing legacy Ollama fixture.
 **Risk/mitigation:** Configuration or integration drift: use deterministic stubs, counted providers and focused regression tests.
 
-- [ ] Nil embedder returns ProviderNotFound; provider timeout/rate-limit errors preserve typed retryability.
-- [ ] Each invocation including cache hits records AI embed accounting and respects existing AI budgets.
-- [ ] Lazy and eager contexts produce the same embedding Result and malformed input handling.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] Nil embedder returns ProviderNotFound; provider timeout/rate-limit errors preserve typed retryability.
+- [x] Each invocation including cache hits records AI embed accounting and respects existing AI budgets.
+- [x] Lazy and eager contexts produce the same embedding Result and malformed input handling.
+- [x] make test-changed passes for touched packages plus test-core.
 
-### M6: Embedding builtin and stdlib surface (~160 LOC)
+### ✅ M6: Embedding builtin and stdlib surface (~160 LOC)
 
 **Estimate:** 100 implementation/docs/example + 60 tests; 1.5 hours.
 **Dependencies:** M5
@@ -105,12 +105,12 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; cross_run_library.ail seed/query and existing legacy Ollama fixture.
 **Risk/mitigation:** Configuration or integration drift: use deterministic stubs, counted providers and focused regression tests.
 
-- [ ] Builtin type and metadata agree with std/ai.embed; compiler checks import and AI effect requirement.
-- [ ] Legacy _ollama_embed IO surface remains runnable with existing fixtures.
-- [ ] make verify-stdlib passes after intentional golden refresh; follow repository version policy without independent release/tag actions.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] Builtin type and metadata agree with std/ai.embed; compiler checks import and AI effect requirement.
+- [x] Legacy _ollama_embed IO surface remains runnable with existing fixtures.
+- [x] make verify-stdlib passes after intentional golden refresh; follow repository version policy without independent release/tag actions.
+- [x] make test-changed passes for touched packages plus test-core.
 
-### M7: Configured provider resolution (~200 LOC)
+### ✅ M7: Configured provider resolution (~200 LOC)
 
 **Estimate:** 100 implementation/docs/example + 100 tests; 1.5 hours.
 **Dependencies:** M5
@@ -119,13 +119,13 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; cross_run_library.ail seed/query and existing legacy Ollama fixture.
 **Risk/mitigation:** Configuration or integration drift: use deterministic stubs, counted providers and focused regression tests.
 
-- [ ] Explicit config wins; invalid explicit config surfaces an error and never silently derives.
-- [ ] Gemini/OpenAI mock transports embed without Ollama; derived provider/model notice appears once.
-- [ ] OpenRouter/Anthropic/configdriven do not implicitly derive; unconfigured embed returns ProviderNotFound.
-- [ ] ai-stub yields stable dimensions/vectors and requires no credentials.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] Explicit config wins; invalid explicit config surfaces an error and never silently derives.
+- [x] Gemini/OpenAI mock transports embed without Ollama; derived provider/model notice appears once.
+- [x] OpenRouter/Anthropic/configdriven do not implicitly derive; unconfigured embed returns ProviderNotFound.
+- [x] ai-stub yields stable dimensions/vectors and requires no credentials.
+- [x] make test-changed passes for touched packages plus test-core.
 
-### M8: In-process embedding cache (~150 LOC)
+### ✅ M8: In-process embedding cache (~150 LOC)
 
 **Estimate:** 80 implementation/docs/example + 70 tests; 1.5 hours.
 **Dependencies:** M5
@@ -134,12 +134,12 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; cross_run_library.ail seed/query and existing legacy Ollama fixture.
 **Risk/mitigation:** Configuration or integration drift: use deterministic stubs, counted providers and focused regression tests.
 
-- [ ] Repeated model/text invokes provider once; changed model/text misses; failures are not cached.
-- [ ] Caller mutation cannot corrupt cached vectors; EmbedBatch preserves order and caches individual successes.
-- [ ] Concurrent access is race-free; returned dimension and model metadata match wrapped embedder.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] Repeated model/text invokes provider once; changed model/text misses; failures are not cached.
+- [x] Caller mutation cannot corrupt cached vectors; EmbedBatch preserves order and caches individual successes.
+- [x] Concurrent access is race-free; returned dimension and model metadata match wrapped embedder.
+- [x] make test-changed passes for touched packages plus test-core.
 
-### M9: SQLite embedding cache (~180 LOC)
+### ✅ M9: SQLite embedding cache (~180 LOC)
 
 **Estimate:** 100 implementation/docs/example + 80 tests; 1.5 hours.
 **Dependencies:** M8
@@ -148,12 +148,12 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; cross_run_library.ail seed/query and existing legacy Ollama fixture.
 **Risk/mitigation:** SQLite lifecycle or contract drift: use temporary-file differential and failure tests.
 
-- [ ] Reopened cache returns stored model/text vector with zero provider calls.
-- [ ] Cache rows never appear in brain_frames or SharedMem keys; all three tables coexist.
-- [ ] Corrupt/dimension-invalid rows and storage failures are surfaced explicitly; no silent persistent-store fallback.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] Reopened cache returns stored model/text vector with zero provider calls.
+- [x] Cache rows never appear in brain_frames or SharedMem keys; all three tables coexist.
+- [x] Corrupt/dimension-invalid rows and storage failures are surfaced explicitly; no silent persistent-store fallback.
+- [x] make test-changed passes for touched packages plus test-core.
 
-### M10: Embedding cache CLI integration (~130 LOC)
+### ✅ M10: Embedding cache CLI integration (~130 LOC)
 
 **Estimate:** 60 implementation/docs/example + 70 tests; 1.5 hours.
 **Dependencies:** M7, M9
@@ -162,12 +162,12 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; cross_run_library.ail seed/query and existing legacy Ollama fixture.
 **Risk/mitigation:** Configuration or integration drift: use deterministic stubs, counted providers and focused regression tests.
 
-- [ ] Flag beats env; path without AI capability or unopenable path fails loudly.
-- [ ] Persistent cache remains opt-in; in-process caching is enabled for configured embedders.
-- [ ] Restart test with counted mock provider proves persistent hits; effect budget still counts each call.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] Flag beats env; path without AI capability or unopenable path fails loudly.
+- [x] Persistent cache remains opt-in; in-process caching is enabled for configured embedders.
+- [x] Restart test with counted mock provider proves persistent hits; effect budget still counts each call.
+- [x] make test-changed passes for touched packages plus test-core.
 
-### M11: Cross-run showcase and regression fixtures (~120 LOC)
+### ✅ M11: Cross-run showcase and regression fixtures (~120 LOC)
 
 **Estimate:** 60 implementation/docs/example + 60 tests; 1.5 hours.
 **Dependencies:** M4, M6, M10
@@ -176,12 +176,12 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; cross_run_library.ail seed/query and existing legacy Ollama fixture.
 **Risk/mitigation:** Configuration or integration drift: use deterministic stubs, counted providers and focused regression tests.
 
-- [ ] ailang check and keyless ai-stub seed/query runs pass using one temporary DB for all flags.
-- [ ] Process B retrieves process A content; fresh-file control returns no match.
-- [ ] Manifest module metadata is accurate; existing SharedMem and SharedIndex runnable examples pass.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] ailang check and keyless ai-stub seed/query runs pass using one temporary DB for all flags.
+- [x] Process B retrieves process A content; fresh-file control returns no match.
+- [x] Manifest module metadata is accurate; existing SharedMem and SharedIndex runnable examples pass.
+- [x] make test-changed passes for touched packages plus test-core.
 
-### M12: Operator documentation and final gates (~80 LOC)
+### ✅ M12: Operator documentation and final gates (~80 LOC)
 
 **Estimate:** 60 implementation/docs/example + 20 tests; 1.5 hours.
 **Dependencies:** M11
@@ -190,10 +190,10 @@ Ran `ailang pkg search embeddings`, `sharedmem`, and `semantic`. `sharedmem` ret
 **Example coverage:** Cross-run showcase in M11; cross_run_library.ail seed/query and existing legacy Ollama fixture.
 **Risk/mitigation:** Configuration or integration drift: use deterministic stubs, counted providers and focused regression tests.
 
-- [ ] Guide distinguishes in-memory defaults from opt-in durable stores and warns against CLI brain DB key collisions.
-- [ ] OpenRouter users are told to configure a supported embedding provider separately; ANN and read-only capability remain deferred.
-- [ ] Focused final validation and file-size, changelog, boundary, CLI-doc, stdlib and example gates pass.
-- [ ] make test-changed passes for touched packages plus test-core.
+- [x] Guide distinguishes in-memory defaults from opt-in durable stores and warns against CLI brain DB key collisions.
+- [x] OpenRouter users are told to configure a supported embedding provider separately; ANN and read-only capability remain deferred.
+- [x] Focused final validation and file-size, changelog, boundary, CLI-doc, stdlib and example gates pass.
+- [x] make test-changed passes for touched packages plus test-core.
 
 ## Day-by-day schedule
 
@@ -230,6 +230,25 @@ Final executor gates: `make test-changed`, `make check-boundaries`, `make check-
 
 Add `changelogs/unreleased/2026-10-13-cross-run-content-library.md` beginning with `### `. Update existing help/env documentation sources and refresh intentional stdlib goldens with established tools. No repository-wide coverage gate is introduced for this feature.
 
-## Handoff
+## Original planner handoff
 
 Progress JSON: `.ailang/state/sprints/sprint_M-CROSS-RUN-CONTENT-LIBRARY.json`. All passes/started/completed fields begin null, with complete acceptance criteria and registry decisions. No GitHub issue was identified; #1800 is the landed design PR, not an issue to auto-close. The coordinator publishes artifacts for plan review; merging the plan PR triggers sprint-executor per the sprint-planner coordinator workflow. Do not self-approve or start implementation in this planning stage.
+
+
+## Execution record (2026-10-16)
+
+All twelve milestones implemented. The original v0.54.8 target was carried forward
+to the v0.54.13 checkout; new metadata targets v0.54.14, without a release/tag/version
+bump. See sprint JSON and [retrospective](../../../docs/sprint-retros/M-CROSS-RUN-CONTENT-LIBRARY-retro.md)
+for validation, actual diff metrics and workflow deviations.
+
+The checkbox for M12 example gates has a documented baseline exception: aggregate
+`make verify-examples` reports 243 pass, 5 unchanged fixtures with unexported main,
+and 9 skips. There are zero new failures and zero manifest module drift. Required
+semantic-cache fixtures were modernized and validated separately. The executor's
+unattended policy permits recording baseline failures and continuing.
+
+AILANG prompt loaded: v0.16.7. The new showcase consists entirely of effectful
+seed/query shells; pure contracts and inline tests are skipped for that reason.
+`ailang check`, separate-process seed/query plus fresh-file control, and explicit
+legacy fixture runs exercise the runtime behavior.

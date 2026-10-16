@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -133,9 +134,14 @@ type ModelResolver func(model string) (apiName string, err error)
 // Thread-safety: AIContext is designed for single-threaded use
 // within one evaluation. Create a new context for each step/tick.
 type AIContext struct {
-	lazy          *lazyAIContext
-	handler       AIHandler
-	modelResolver ModelResolver
+	lazy               *lazyAIContext
+	embedderConfigured bool
+	embedCacheResource EmbeddingCache
+	embedCacheClose    sync.Once
+	embedCacheCloseErr error
+	embedder           Embedder
+	handler            AIHandler
+	modelResolver      ModelResolver
 }
 
 // LastRoutingMetadata returns routing info from the underlying handler

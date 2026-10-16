@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-CROSS-RUN-CONTENT-LIBRARY",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-13T09:54:54.997338+00:00",
-  "design_doc": "design_docs/planned/v0_54_8/m-cross-run-content-library.md",
-  "sprint_plan": "design_docs/planned/v0_54_8/m-cross-run-content-library-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_54_14/m-cross-run-content-library.md",
+  "sprint_plan": "design_docs/implemented/v0_54_14/m-cross-run-content-library-sprint-plan.md",
   "github_issues": [],
   "registry_reuse": [
     {
@@ -82,7 +82,14 @@
   "velocity": {
     "target_loc_per_day": 199.0,
     "estimated_total_loc": 1990,
-    "estimated_days": 10
+    "estimated_days": 10,
+    "actual_total_loc": 3605,
+    "actual_insertions": 3345,
+    "actual_deletions": 260,
+    "measurement": "Gross added+deleted lines vs base, including implementation/tests/docs/artifacts; each path attributed once to a milestone for LOC bookkeeping, not effort.",
+    "actual_days": 0.02837132173611111,
+    "actual_elapsed_hours": 0.6809117216666666,
+    "timing_basis": "Elapsed wall time since first progress checkpoint, not human effort or comparable sequential working days."
   },
   "estimated_hours": 24,
   "features": [
@@ -97,10 +104,10 @@
         "Sequential subprocess put/get and concurrent CAS tests show durable cross-process state.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:02:06.862694+00:00",
+      "notes": "Added capability-gated flag/env persistence and owned cleanup, including partial setup failure. Checked SharedMem operations surface SQL errors; conditional CAS is atomic across independent processes.",
       "estimated_hours": 1.5,
       "files": [
         "internal/runner/handlers_shared_storage.go",
@@ -109,7 +116,8 @@
         "cmd/ailang/main_run.go",
         "cmd/ailang/serve_api.go",
         "internal/runner/handlers_shared_storage_test.go"
-      ]
+      ],
+      "actual_loc": 546
     },
     {
       "id": "M2",
@@ -122,17 +130,18 @@
         "Storage operation failures surface through the effect boundary; no empty-hit or successful-write disguise.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:02:06.862694+00:00",
+      "notes": "Registered the persistent index seam and namespace/key SQLite schema; checked writes, metadata, signed hashes, float32 vectors, deletes/count/namespaces and closed-handle failures are covered.",
       "estimated_hours": 1.5,
       "files": [
         "internal/effects/sharedindex_backend.go",
         "internal/platform/sharedmem/sqlite_sharedindex.go",
         "internal/platform/sharedmem/sqlite_sharedindex_test.go",
         "cmd/ailang/platform_init.go"
-      ]
+      ],
+      "actual_loc": 421
     },
     {
       "id": "M3",
@@ -147,15 +156,16 @@
         "Dimension mismatch, corrupt blobs, delete and embedding replacement have explicit tested behavior.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:02:06.862694+00:00",
+      "notes": "Bounded scans use deterministic key prefixes and score/key ranking. Differential fixtures cover SimHash/cosine parity, ties, dimension mismatch, replacement, isolation and corrupt blobs.",
       "estimated_hours": 1.5,
       "files": [
         "internal/platform/sharedmem/sqlite_sharedindex_search.go",
         "internal/platform/sharedmem/sqlite_sharedindex_search_test.go"
-      ]
+      ],
+      "actual_loc": 208
     },
     {
       "id": "M4",
@@ -171,10 +181,10 @@
         "SharedMem and SharedIndex coexist in one file; two files and namespaces remain isolated; serve-api SharedMem regression passes.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:02:06.862694+00:00",
+      "notes": "Run and batch accept storage options; serve-api inherits environment paths. Separate CLI processes prove shared-file persistence and a fresh-file negative control.",
       "estimated_hours": 1.5,
       "files": [
         "internal/runner/handlers_shared_storage.go",
@@ -183,7 +193,8 @@
         "internal/runner/batch.go",
         "cmd/ailang/serve_api.go",
         "cmd/ailang/shared_storage_integration_test.go"
-      ]
+      ],
+      "actual_loc": 76
     },
     {
       "id": "M5",
@@ -196,17 +207,18 @@
         "Lazy and eager contexts produce the same embedding Result and malformed input handling.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:02:06.862694+00:00",
+      "notes": "Added typed AI embed operation with eager/lazy embedding-only contexts, malformed-input handling, classified retryable errors, trace accounting and AI budgets including cache hits.",
       "estimated_hours": 1.5,
       "files": [
         "internal/effects/ai_embed.go",
         "internal/effects/ai_embed_test.go",
         "internal/effects/ai.go",
         "internal/effects/ai_lazy.go"
-      ]
+      ],
+      "actual_loc": 155
     },
     {
       "id": "M6",
@@ -221,10 +233,10 @@
         "make verify-stdlib passes after intentional golden refresh; follow repository version policy without independent release/tag actions.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:02:06.862694+00:00",
+      "notes": "Added _ai_embed/std/ai.embed, import/effect compiler tests and hermetic legacy Ollama regression. Intentionally refreshed std/ai interface and builtin type goldens; existing std/VERSION unchanged to avoid creating a release.",
       "estimated_hours": 1.5,
       "files": [
         "internal/builtins/ai_embed.go",
@@ -232,7 +244,8 @@
         "std/ai.ail",
         ".stdlib-golden/",
         "std/VERSION"
-      ]
+      ],
+      "actual_loc": 139
     },
     {
       "id": "M7",
@@ -248,17 +261,18 @@
         "ai-stub yields stable dimensions/vectors and requires no credentials.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:02:06.862694+00:00",
+      "notes": "Explicit embedding configuration wins; supported bound providers derive with a notice. Mocked Gemini/OpenAI requests need no Ollama. Unsupported providers return ProviderNotFound; lazy credentials/config are frozen; strict explicit-model policy is preserved. Unrelated non-AI runs ignore embedding configuration.",
       "estimated_hours": 1.5,
       "files": [
         "cmd/ailang/ai_embed_handlers.go",
         "cmd/ailang/ai_embed_handlers_test.go",
         "cmd/ailang/ai_handlers.go",
         "internal/config/embed.go"
-      ]
+      ],
+      "actual_loc": 513
     },
     {
       "id": "M8",
@@ -273,15 +287,16 @@
         "Concurrent access is race-free; returned dimension and model metadata match wrapped embedder.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:02:06.862694+00:00",
+      "notes": "Caching decorator keys model plus SHA256(text), serializes misses, copies vectors, preserves batch ordering and never caches failures. Concurrent callers invoke the provider once.",
       "estimated_hours": 1.5,
       "files": [
         "internal/effects/embed_cache.go",
         "internal/effects/embed_cache_test.go"
-      ]
+      ],
+      "actual_loc": 146
     },
     {
       "id": "M9",
@@ -296,17 +311,18 @@
         "Corrupt/dimension-invalid rows and storage failures are surfaced explicitly; no silent persistent-store fallback.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:02:06.862694+00:00",
+      "notes": "Dedicated embed_cache(model,text_hash,dim,vector,created_at) table preserves vectors across reopen, validates corrupt/dimension-invalid data and never leaks into SharedMem/brain frames. Offline counted-provider restart proves zero calls on a cache hit.",
       "estimated_hours": 1.5,
       "files": [
         "internal/platform/sharedmem/embed_cache.go",
         "internal/platform/sharedmem/embed_cache_test.go",
         "internal/effects/embed_cache_backend.go",
         "cmd/ailang/platform_init.go"
-      ]
+      ],
+      "actual_loc": 193
     },
     {
       "id": "M10",
@@ -322,17 +338,18 @@
         "Restart test with counted mock provider proves persistent hits; effect budget still counts each call.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:02:06.862694+00:00",
+      "notes": "Added embed-cache flag/env precedence, AI capability/open failure checks and nil-safe idempotent connection cleanup. Persistent caching is opt-in and configured embedders cache in memory.",
       "estimated_hours": 1.5,
       "files": [
         "cmd/ailang/main_run.go",
         "cmd/ailang/ai_embed_handlers.go",
         "cmd/ailang/ai_embed_cache_integration_test.go",
         "internal/runner/run.go"
-      ]
+      ],
+      "actual_loc": 7
     },
     {
       "id": "M11",
@@ -349,16 +366,17 @@
         "Manifest module metadata is accurate; existing SharedMem and SharedIndex runnable examples pass.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:02:06.862694+00:00",
+      "notes": "Cross-run seed/query showcase type-checks and separate processes retrieve payloads; a fresh DB has no match. Repaired required legacy reference fixtures to current syntax/frame schema; both keyless demos run and neural fixture checks without Ollama.",
       "estimated_hours": 1.5,
       "files": [
         "examples/reference/cross_run_library.ail",
         "examples/manifest.json",
         "cmd/ailang/cross_run_library_test.go"
-      ]
+      ],
+      "actual_loc": 117
     },
     {
       "id": "M12",
@@ -373,17 +391,126 @@
         "Focused final validation and file-size, changelog, boundary, CLI-doc, stdlib and example gates pass.",
         "make test-changed passes for touched packages plus test-core."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null,
+      "passes": true,
+      "started": "2026-10-16T16:22:32.968880+00:00",
+      "completed": "2026-10-16T17:03:24.251029+00:00",
+      "notes": "Updated guide/help/env registry/changelog. All changed packages, core, stdlib, CLI docs, formatting, sizes and boundaries verified; aggregate runnable examples retain five pre-existing unexported-main failures (no new failures), explicitly exempted under unattended-run policy. Final lint reports zero issues; strict-version two-process showcase passes.",
       "estimated_hours": 1.5,
       "files": [
         "docs/docs/guides/semantic-caching-how-to.mdx",
         "cmd/ailang/help.go",
         "internal/config/embed.go",
         "changelogs/unreleased/2026-10-13-cross-run-content-library.md"
+      ],
+      "actual_loc": 1084
+    }
+  ],
+  "last_session": "2026-10-16T16:22:32.968880+00:00",
+  "branch_name": "coordinator/task-7f6a2223",
+  "base_commit": "3ef185218d54052c09a6c6645d2b1b923d9e78f4",
+  "execution_mode": "parallel independent backend work, sequential integration and final verification",
+  "prompt_version_loaded": "v0.16.7",
+  "acceptance_exceptions": [
+    {
+      "milestone": "M12",
+      "gate": "make verify-examples",
+      "reason": "243 passed, 5 unchanged unexported-main failures, 9 skipped; manifest import metadata has zero drift. Baseline failures are recorded/continued per sprint-executor unattended_runs.md.",
+      "fixtures": [
+        "adt_list_fields",
+        "if_else_chain",
+        "poly_adt_result_type",
+        "record_in_match",
+        "record_width_subtyping"
       ]
     }
+  ],
+  "validation": {
+    "changed_packages": "all six passed in /tmp/cross-run-test-changed-green.log; expected new builtin golden was then refreshed and core rerun clean",
+    "core": "make test-core passed (/tmp/cross-run-test-core-final.log)",
+    "late_config_regression": "focused provider/config/lazy tests passed (/tmp/cross-run-explicit-config.log)",
+    "stdlib": "all 48 interfaces stable, final VERSION=v0.54.13 rebuild",
+    "lint": "make lint: 0 issues (/tmp/cross-run-lint-verified.log)",
+    "examples": "showcase + required reference fixture checks/runs pass; aggregate baseline exception above",
+    "syntax_showcase_skips": "Only effectful seed/query shells: no pure contracts or inline tests; separate-process Go integration tests provide coverage.",
+    "static": "CLI reference, formatting, 800-line limits, changelog and architecture boundaries pass (/tmp/cross-run-verified-gates.log)",
+    "manifest": "231 modules checked, 0 drift; one pre-existing missing-on-disk warning (/tmp/cross-run-manifest-final.log)",
+    "strict_demo": "seeded then retrieved payload in separate strict-version processes (/tmp/cross-run-strict-demo.log)"
+  },
+  "retrospective": "docs/sprint-retros/M-CROSS-RUN-CONTENT-LIBRARY-retro.md",
+  "last_checkpoint": "Completed and independently evaluated PASS 98/100. Design and sprint plan archived together; baseline example failures and test-first deviation documented.",
+  "completed": "2026-10-16T17:03:24.251029+00:00",
+  "workflow_deviations": [
+    "Tests authored/launched first, but missing Go PATH and cold builds prevented an observed semantic red before implementation.",
+    "Initial parallel cold compilation caused resource failures; final checks consolidated/serialized with unprivileged procps and normal subreaper handling.",
+    "Aggregate make test-changed reached the expected new builtin golden failure; after intentional one-line golden refresh, make test-core was rerun clean. All six changed packages passed; late strict-config patch has focused passing regression tests."
+  ],
+  "evaluation": {
+    "result": "pass",
+    "score": 98,
+    "round": 1,
+    "report": ".ailang/state/evaluations/eval_M-CROSS-RUN-CONTENT-LIBRARY_round_1.json"
+  },
+  "files_created": [
+    ".ailang/state/evaluations/eval_M-CROSS-RUN-CONTENT-LIBRARY_round_1.json",
+    "changelogs/unreleased/2026-10-13-cross-run-content-library.md",
+    "cmd/ailang/ai_embed_compile_test.go",
+    "cmd/ailang/ai_embed_handlers.go",
+    "cmd/ailang/ai_embed_handlers_test.go",
+    "cmd/ailang/shared_storage_integration_test.go",
+    "docs/sprint-retros/M-CROSS-RUN-CONTENT-LIBRARY-retro.md",
+    "examples/reference/cross_run_library.ail",
+    "internal/builtins/ai_embed.go",
+    "internal/builtins/ai_embed_test.go",
+    "internal/builtins/sharedindex_errors_test.go",
+    "internal/builtins/sharedmem_checked_test.go",
+    "internal/effects/ai_embed.go",
+    "internal/effects/ai_embed_test.go",
+    "internal/effects/embed_cache.go",
+    "internal/effects/embed_cache_backend.go",
+    "internal/effects/embed_cache_test.go",
+    "internal/effects/sharedindex_backend.go",
+    "internal/effects/sharedindex_backend_test.go",
+    "internal/effects/sharedmem_checked.go",
+    "internal/platform/sharedmem/embed_cache.go",
+    "internal/platform/sharedmem/embed_cache_test.go",
+    "internal/platform/sharedmem/runtime_cache.go",
+    "internal/platform/sharedmem/runtime_cache_test.go",
+    "internal/platform/sharedmem/sqlite_sharedindex.go",
+    "internal/platform/sharedmem/sqlite_sharedindex_legacy.go",
+    "internal/platform/sharedmem/sqlite_sharedindex_search.go",
+    "internal/platform/sharedmem/sqlite_sharedindex_search_test.go",
+    "internal/platform/sharedmem/sqlite_sharedindex_test.go",
+    "internal/runner/handlers_shared_storage.go",
+    "internal/runner/handlers_shared_storage_test.go"
+  ],
+  "files_modified": [
+    ".ailang/state/sprints/sprint_M-CROSS-RUN-CONTENT-LIBRARY.json",
+    ".stdlib-golden/ai.json",
+    ".stdlib-golden/ai.sha256",
+    "cmd/ailang/ai_handlers.go",
+    "cmd/ailang/ai_prepare.go",
+    "cmd/ailang/ai_setup.go",
+    "cmd/ailang/help.go",
+    "cmd/ailang/main_run.go",
+    "cmd/ailang/main_run_exec.go",
+    "cmd/ailang/repl.go",
+    "cmd/ailang/serve_api.go",
+    "design_docs/implemented/v0_54_14/m-cross-run-content-library-sprint-plan.md",
+    "design_docs/implemented/v0_54_14/m-cross-run-content-library.md",
+    "docs/docs/guides/semantic-caching-how-to.mdx",
+    "examples/manifest.json",
+    "examples/reference/neural_semantic_search.ail",
+    "examples/reference/semantic_retrieval.ail",
+    "examples/reference/sharedmem_cache.ail",
+    "internal/builtins/sharedindex.go",
+    "internal/builtins/sharedmem.go",
+    "internal/config/embed.go",
+    "internal/effects/ai.go",
+    "internal/effects/ai_lazy.go",
+    "internal/pipeline/testdata/builtin_types.golden",
+    "internal/platform/sharedmem/sqlite.go",
+    "internal/runner/batch.go",
+    "internal/runner/run.go",
+    "std/ai.ail"
   ]
 }

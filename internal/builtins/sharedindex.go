@@ -108,13 +108,15 @@ func sharedIndexUpsertImpl(ctx *effects.EffContext, args []eval.Value) (eval.Val
 		return nil, fmt.Errorf("_sharedindex_upsert: SharedIndex effect not enabled (use --caps SharedIndex)")
 	}
 
-	ctx.SharedIndex.Index.Upsert(
+	if err := effects.CheckedIndex(ctx.SharedIndex.Index).UpsertChecked(
 		nsVal.Value,
 		keyVal.Value,
 		int64(simhashVal.Value),
 		int64(versionVal.Value),
 		int64(timestampVal.Value),
-	)
+	); err != nil {
+		return nil, err
+	}
 	ctx.SharedIndex.IncrementUpsert()
 
 	return &eval.UnitValue{}, nil
@@ -177,7 +179,9 @@ func sharedIndexDeleteImpl(ctx *effects.EffContext, args []eval.Value) (eval.Val
 		return nil, fmt.Errorf("_sharedindex_delete: SharedIndex effect not enabled (use --caps SharedIndex)")
 	}
 
-	ctx.SharedIndex.Index.Delete(nsVal.Value, keyVal.Value)
+	if err := effects.CheckedIndex(ctx.SharedIndex.Index).DeleteChecked(nsVal.Value, keyVal.Value); err != nil {
+		return nil, err
+	}
 	ctx.SharedIndex.IncrementDelete()
 
 	return &eval.UnitValue{}, nil
@@ -276,13 +280,16 @@ func sharedIndexFindSimHashImpl(ctx *effects.EffContext, args []eval.Value) (eva
 		mode = effects.DeterminismStrict
 	}
 
-	results := ctx.SharedIndex.Index.FindSimilarSimHash(
+	results, err := effects.CheckedIndex(ctx.SharedIndex.Index).FindSimilarSimHashChecked(
 		nsVal.Value,
 		int64(queryVal.Value),
 		topKVal.Value,
 		maxScanVal.Value,
 		mode,
 	)
+	if err != nil {
+		return nil, err
+	}
 	ctx.SharedIndex.IncrementSearch(int64(len(results)))
 
 	// Convert results to AILANG list of records
@@ -352,7 +359,10 @@ func sharedIndexEntryCountImpl(ctx *effects.EffContext, args []eval.Value) (eval
 		return nil, fmt.Errorf("_sharedindex_entry_count: SharedIndex effect not enabled (use --caps SharedIndex)")
 	}
 
-	count := ctx.SharedIndex.Index.EntryCount(nsVal.Value)
+	count, err := effects.CheckedIndex(ctx.SharedIndex.Index).EntryCountChecked(nsVal.Value)
+	if err != nil {
+		return nil, err
+	}
 
 	return &eval.IntValue{Value: count}, nil
 }
@@ -405,7 +415,10 @@ func sharedIndexNamespacesImpl(ctx *effects.EffContext, args []eval.Value) (eval
 		return nil, fmt.Errorf("_sharedindex_namespaces: SharedIndex effect not enabled (use --caps SharedIndex)")
 	}
 
-	namespaces := ctx.SharedIndex.Index.Namespaces()
+	namespaces, err := effects.CheckedIndex(ctx.SharedIndex.Index).NamespacesChecked()
+	if err != nil {
+		return nil, err
+	}
 	elements := make([]eval.Value, len(namespaces))
 	for i, ns := range namespaces {
 		elements[i] = &eval.StringValue{Value: ns}
@@ -517,14 +530,16 @@ func sharedIndexUpsertEmbImpl(ctx *effects.EffContext, args []eval.Value) (eval.
 		embedding[i] = floatVal.Value
 	}
 
-	ctx.SharedIndex.Index.UpsertWithEmbedding(
+	if err := effects.CheckedIndex(ctx.SharedIndex.Index).UpsertWithEmbeddingChecked(
 		nsVal.Value,
 		keyVal.Value,
 		int64(simhashVal.Value),
 		embedding,
 		int64(versionVal.Value),
 		int64(timestampVal.Value),
-	)
+	); err != nil {
+		return nil, err
+	}
 	ctx.SharedIndex.IncrementUpsert()
 	ctx.SharedIndex.TraceUpsertWithEmbedding(nsVal.Value, keyVal.Value, len(embedding))
 
@@ -634,13 +649,16 @@ func sharedIndexFindByEmbeddingImpl(ctx *effects.EffContext, args []eval.Value) 
 		mode = effects.DeterminismStrict
 	}
 
-	results := ctx.SharedIndex.Index.FindSimilarByEmbedding(
+	results, err := effects.CheckedIndex(ctx.SharedIndex.Index).FindSimilarByEmbeddingChecked(
 		nsVal.Value,
 		queryEmbedding,
 		topKVal.Value,
 		maxScanVal.Value,
 		mode,
 	)
+	if err != nil {
+		return nil, err
+	}
 	ctx.SharedIndex.IncrementSearch(int64(len(results)))
 	ctx.SharedIndex.TraceFindByEmbedding(nsVal.Value, len(queryEmbedding), topKVal.Value, maxScanVal.Value, mode, len(results))
 

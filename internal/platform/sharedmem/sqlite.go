@@ -9,7 +9,6 @@
 package sharedmem
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
 	"sort"
@@ -27,6 +26,14 @@ var _ effects.BrainCache = (*SQLiteSharedCache)(nil)
 // Register installs this package as the persistent SharedCache backend.
 func Register() {
 	effects.RegisterSharedCacheOpener(Open)
+	effects.RegisterSharedIndexOpener(OpenSharedIndex)
+	effects.RegisterEmbeddingCacheOpener(func(path string) (effects.EmbeddingCache, error) {
+		cache, err := OpenEmbeddingCache(path)
+		if err != nil {
+			return nil, err
+		}
+		return cache, nil
+	})
 }
 
 // Open is the effects.SharedCacheOpener for SQLite. A nil *SQLiteSharedCache
@@ -187,49 +194,8 @@ func (c *SQLiteSharedCache) Delete(key string) {
 // If oldValue is nil, creates the key only if it doesn't exist.
 // Otherwise, updates only if the current value matches oldValue byte-for-byte.
 func (c *SQLiteSharedCache) CAS(key string, oldValue, newValue []byte) bool {
-	tx, err := c.db.Begin()
-	if err != nil {
-		return false
-	}
-	defer tx.Rollback() //nolint:errcheck
-
-	var current []byte
-	err = tx.QueryRow(`SELECT value FROM brain_frames WHERE key = ?`, key).Scan(&current)
-	exists := err == nil
-
-	now := time.Now().UnixMilli()
-
-	if oldValue == nil {
-		// Create-if-absent
-		if exists {
-			return false
-		}
-		_, err = tx.Exec(
-			`INSERT INTO brain_frames(key, value, created_at, updated_at) VALUES(?, ?, ?, ?)`,
-			key, newValue, now, now,
-		)
-		if err != nil {
-			return false
-		}
-		return tx.Commit() == nil
-	}
-
-	// Normal CAS
-	if !exists {
-		return false
-	}
-	if !bytes.Equal(current, oldValue) {
-		return false
-	}
-
-	_, err = tx.Exec(
-		`UPDATE brain_frames SET value = ?, updated_at = ? WHERE key = ?`,
-		newValue, now, key,
-	)
-	if err != nil {
-		return false
-	}
-	return tx.Commit() == nil
+	success, _ := c.CASChecked(key, oldValue, newValue)
+	return success
 }
 
 // Keys returns all keys in the cache.

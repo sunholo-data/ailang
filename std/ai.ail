@@ -423,3 +423,7 @@ export func callImageWithRefs(prompt: string, refs: [ImagePart], output_path: st
 -- Only requires AI capability (no file system access).
 export func callImageBase64WithRefs(prompt: string, refs: [ImagePart], options: string) -> string ! {AI} =
   _ai_call_image_base64_with_refs(prompt, refs, options)
+
+-- Embedding uses the configured embedding provider and counts against the AI budget.
+-- Provider failures are typed; no local service is required for cloud providers.
+export func embed(text: string) -> Result[[float], AIError] ! {AI} = _ai_embed(text)

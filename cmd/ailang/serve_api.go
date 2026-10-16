@@ -3,13 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/sunholo-data/ailang/internal/runner"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/sunholo-data/ailang/internal/apiserver"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/runner"
 )
 
 func serveAPICommand(args []string) error {
@@ -118,7 +119,7 @@ func serveAPICommand(args []string) error {
 	// every Debug.log line when no --caps/--ai-*/--verify-contracts flag was
 	// set (M-DEBUG-SINK-STRUCTURED-LINES D5). Real capabilities stay gated.
 	effCtx := effects.NewEffContext(nil)
-	if *capsFlag != "" || *aiModelFlag != "" || *aiStubFlag || *verifyContractsFlag {
+	if *capsFlag != "" || *aiModelFlag != "" || *aiStubFlag || *verifyContractsFlag || config.EmbedCacheDB() != "" {
 		if err := runner.GrantCapabilities(effCtx, *capsFlag); err != nil {
 			return err
 		}
@@ -133,8 +134,6 @@ func serveAPICommand(args []string) error {
 			effCtx.Contracts = effects.NewContractContextWithMode(effects.ContractModePanic)
 			log.Println("Contract verification enabled (panic mode)")
 		}
-
-		initServeAPIStores(effCtx)
 
 		// Initialize Stream context if Stream capability is granted
 		if effCtx.HasCap("Stream") {
@@ -151,6 +150,22 @@ func serveAPICommand(args []string) error {
 			effCtx.Net.AllowMetadata = true // Cloud Run needs GCP metadata server (169.254.169.254)
 		}
 	}
+
+	defer func() {
+		if err := effCtx.AI.Close(); err != nil {
+			log.Printf("embedding cache close: %v", err)
+		}
+	}()
+	// serve-api inherits durable store paths from the same environment as run.
+	closeStores, storageErr := runner.SetupSharedStorage(effCtx, runner.SharedStorageOptions{})
+	if storageErr != nil {
+		return storageErr
+	}
+	defer func() {
+		if err := closeStores(); err != nil {
+			log.Printf("shared storage close: %v", err)
+		}
+	}()
 
 	// --process-* mirror `ailang run`: without them serve-api's Process cap
 	// ran any PATH binary under a fixed 30s timeout (M-AILANG-EXECUTOR-GE).
@@ -217,7 +232,7 @@ func serveAPICommand(args []string) error {
 		fmt.Fprintln(os.Stderr, "  1. Move basePath outward (use a project root that contains all imports)")
 		fmt.Fprintln(os.Stderr, "  2. Replace relative ./X imports with canonical pkg/... imports")
 		fmt.Fprintln(os.Stderr, "  3. Set AILANG_SERVE_API_ALLOW_DROPS=1 to start anyway (NOT recommended)")
-		os.Exit(1)
+		return fmt.Errorf("serve-api registration validation failed")
 	}
 
 	// Wire FnCaller/FnCallerN for stream event handler dispatch and iterative builtins
