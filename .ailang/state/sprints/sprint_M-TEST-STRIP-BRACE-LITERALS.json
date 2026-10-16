@@ -84,7 +84,7 @@
       "passes": false,
       "started": null,
       "completed": "2026-10-16T16:11:51.114152+00:00",
-      "notes": "Implementation and direct CLI acceptance complete: 8/8 in all three engines, check and fmt pass; conflict counts 2/3/3/1. Broader acceptance gates not green: repeated effects TestRuntimeNestedStopUsesRemainingDeadline failure, pipeline process killed in both test-changed attempts; verify-examples 5 unchanged entrypoint export failures (243 pass, 9 skip). Lint pending."
+      "notes": "Implementation and direct CLI acceptance complete: 8/8 in all three engines, check and fmt pass; conflict counts 2/3/3/1. Broader acceptance gates not green: repeated effects TestRuntimeNestedStopUsesRemainingDeadline failure, pipeline process killed in both test-changed attempts; verify-examples 5 unchanged entrypoint export failures (243 pass, 9 skip). Focused lint passes with 0 issues; whole-repository lint timed out after reporting 0 issues."
     }
   ],
   "last_session": "2026-10-16T16:00:55.076945+00:00",
@@ -98,6 +98,6 @@
     "format_size_changelog_boundaries": "pass",
     "test_changed": "fail: effects nested stop, pipeline killed; repeated with GOMAXPROCS=2 GOFLAGS=-p=1",
     "verify_examples": "fail: five unchanged runnable files with unexported main; manifest zero drift",
-    "lint": "pending"
+    "lint": "Changed packages: pass, 0 issues. Whole repository make lint: timeout (exit 4), reported 0 issues."
   }
 }

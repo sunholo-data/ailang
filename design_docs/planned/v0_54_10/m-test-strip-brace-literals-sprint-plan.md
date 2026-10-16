@@ -150,3 +150,11 @@ Other core packages pass. These broader gates remain red and M3's complete gate
 acceptance is explicitly false in the sprint JSON; implementation is complete,
 with independent evaluation pending. No unrelated effects, pipeline or example
 entrypoint changes were made to hide those failures.
+
+
+Final lint: `golangci-lint run ./internal/ast/... ./internal/parser/...
+./internal/testing/... --timeout 3m` passes with zero issues.
+Whole-repository `make lint` reported zero issues but exited 4 on its configured
+timeout, so it is not reported as a passing gate. Final file-size, changelog,
+architecture-boundary and Go-format checks all pass; example fmt check passes.
+All implementation changes are committed for the independent sprint-evaluator.
