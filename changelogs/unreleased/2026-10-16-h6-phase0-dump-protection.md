@@ -9,3 +9,4 @@
 - New Linux probe test spawns a same-UID child through the executor spawn path and asserts both reads are
   denied, with a control run that must leak. `TestProctreeIsALeaf` now checks the linux, darwin and windows builds (a Linux-only import used to pass on a Mac). Design: `design_docs/planned/v0_49_1/m-executor-uid-split.md`.
 - Design rulings (attended 2026-10-16): D1 accepts the leaked refresh tokens as unverified rather than rotating (objects deleted, cloud on a setup-token); the cloud spike runs on a temporary dev-only Terraform job.
+- D6 ruled yes: local agent CLIs on the Mac rig get a dedicated hidden service account (not `daneel`); design doc commissioned.
