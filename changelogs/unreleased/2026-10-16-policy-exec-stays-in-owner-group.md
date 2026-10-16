@@ -1,3 +1,0 @@
-### Fixed — under `--policy`, an `exec` subprocess outlived the policy timeout and a lost supervisor
-
-`std/process` `exec` now leads its own process group, so a timeout kills its whole tree (see the entry above). But a `--policy` worker is contained by its supervisor killing the worker's group, and the new group took `exec`'s descendants outside that kill: `TestRunPolicy_TimeoutKillsDescendants` and `TestRunPolicy_SupervisorDeathStopsWorker` failed on dev. A run whose lifetime an owner holds now keeps `exec` children in the owner's group (`proctree.ConfigureContained`, set from `bootstrapRunLifetime`). Runs without an owner keep the new group kill. The policy supervisor's own worker spawn is unchanged.
