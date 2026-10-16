@@ -68,10 +68,10 @@
         "Discovery remains anchored to the entry source or explicit PackageDir; bare/self-only resolution keeps existing behavior.",
         "Focused pkg/pipeline tests, make test-changed and make check-boundaries pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-16T08:49:55.644065+00:00",
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-16T08:55:49.034053+00:00",
+      "notes": "Loader accessor and pipeline focused tests pass, including missing installs, relative path and legacy git paths, transitive target retention, malformed files and source-anchored pinned registry fixture. Existing resolver return API retained; module phase obtains targets from concrete loader. Architecture boundary and closure gates pass."
     },
     {
       "id": "M3",
