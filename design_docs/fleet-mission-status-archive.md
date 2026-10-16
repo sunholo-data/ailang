@@ -2,6 +2,26 @@
 
 Older STATUS stamps rotated out of [fleet-mission.md](fleet-mission.md) (newest 3 stay there). Append-only.
 
+## STATUS 2026-10-14 — ITERATION 39: P2 #15 slot verdict UNCLASSIFIED made reachable — built and judged PASS 91 by sonnet (round 2); stacked on #1825, BLOCKED on dev's required reds; Gate 1 skill fix for records stranded on blocked PR branches [HARNESS]
+
+The driver's SLOT VERDICT `case` ended in an unconditional `*:*) CRASHED` arm. As a result, a slot that exited **0** with a heartbeat label outside the stamp writer's closed set was reported as crashed, and the design's `UNCLASSIFIED` verdict was unreachable (`grep -c` = 0). The fix has three parts:
+- `REAPED` now matches only the writer's gate labels (`gate-0`..`gate-5`, `gate-3b`).
+- Any other rc=0 label reads `UNCLASSIFIED at=<label>` and goes through the existing episode-gated phase-2 notice.
+- Non-zero `CRASHED`/`KILLED` and the `PAUSED-NO-CAPACITY` override are unchanged.
+
+Built by codex (plan `cf055fd1a`, fix `81df7d609`): 11 new heartbeat arms (6 red before the fix) and 10 planned mutants killed. The sonnet judge ran 10 drills of its own and scored **PASS 86**. One of its drills survived: an empty last label at rc=0 had no covering arm. The controller added that arm (`e9783fae6`; it is the drill's sole killer) and fixed the Q4 table wording. Round 2 scored **PASS 91**, 0 blocking.
+
+Done-gate at `b081a39a4`:
+- `make test-launchd-drivers` passed under `env -i` (controller-capacity 15/0, heartbeat 37 arms).
+- World dry-runs: healthy `lanes=ok` and degraded `lanes=DEGRADED(1)`, both rc 0, with no pidfile written.
+- Real heartbeat, episode and verdict files are sha-identical before and after.
+
+Not LANDED: dev `474995629` is still red on `test` (`check-git-exec`, `devapi_workspace.go`) and on `docs-gate`, so this waits behind #1824 and #1825 (D-FLEET-17).
+
+Gate 5 skill fix (`b081a39a4`, both copies): Gate 1 now reads the newest record from the mission's own open PR branches, because iterations 37, 38 and 39 each booted on a charter that was stale by up to three iterations. This iteration also re-quorum'd #12's already-built doc for about $0.10 before noticing.
+
+Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is green; #12, #14 and #15 are ready); **3** MET (50 open); **4** prior evidence only; **5** preserved (nothing shipped). Next: when D-FLEET-17's predicate holds, land #1824, then #1825, then this PR, re-running the done-gate at each merge, and resolve 4 tickets.
+
 ## STATUS 2026-10-14 — ITERATION 38: P2 #14 quorum artifact dir designed, quorum'd, built and judged PASS 90 by sonnet — stacked PR on #1824, BLOCKED on the same dev required reds [HARNESS]
 
 `ailang design-quorum` wrote its artifacts to a CWD-relative `.ailang/state/mission-quorum`, so under pin and sprint worktrees a reviewed doc read as unreviewed at Gate 2 (measured: 5 artifacts in the fleet pin, 164 in the main checkout, 15 in the hand-used `~/.ailang/state/mission-quorum`). Now the driver exports a repo-scoped `MISSION_QUORUM_ARTIFACT_DIR` (registered in `internal/config/mission.go`), the quorum writer uses it when the flag is left at its default, and Gate 2's new executable reader block consults the export first, then `<repo-root>/.ailang/state/mission-quorum`. A raw policy marker keeps every default write inside the ailang_only sandbox, and a real policytool host/child test proves it. Out of scope: the legacy importer, and the CLI pre-flight (`cmd/ailang/design_quorum.go` is outside fleet authority).

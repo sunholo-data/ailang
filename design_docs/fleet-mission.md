@@ -43,6 +43,12 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-16 — ITERATION 42: `worktree:native-background-terminal-marker-missing` LANDED — #1843 → `51f9ecb29`, judged PASS 86 by sonnet (round 2, after FAIL 66); ticket resolved [HARNESS]
+
+`mission-worktree.sh` backgrounded its writer under `nohup`, so a tool host that tore down the caller's process group killed the writer, and `wait` returned `pending` forever. The controller reproduced this first-party before any change. The fix detaches the writer (Perl `POSIX::setsid`, with a bash `set -m` fallback) and publishes its identity (pid, `lstart`, launch token) before `add` returns. `wait` proves death by identity and re-reads the status, then cleans up only the owned tree and branch and reports `failed:writer_died`. Round 1 FAILED 66: a caller killed before the owner record was published still left `pending` forever. Round 2 makes every registration failure terminal (`failed:owner_never_published`) and resolves ownerless and legacy pending by identity or status age, with no cleanup. Controller edits made the bounds wall-clock and fixed the GNU `stat` order. Host suite 194/0; 19 of 20 mutants killed (the survivor is a Linux-only `stat` order). `make test-launchd-drivers` rc 0. World dry-runs: healthy and degraded both rc 0. Linux bash 5 is UNMEASURED.
+
+Out of scope, parked as D-FLEET-19: `messaging:pubsub-notify-wrong-project`. The rig's ADC credential has `quota_project_id=sunholo-gemini-enterprise`, and the code is in `cmd/ailang/messages_*`. Clause map: **1** UNMEASURED; **2** UNMET (this ticket took about 22 h, which is under 48 h, but the median is still dominated by older tickets); **3** MET; **4** prior evidence only; **5** preserved. Next: #16 is not live; then tickets by `slots_lost`.
+
 ## STATUS 2026-10-15 — ITERATION 41: the blocked stack LANDED — #1824 → `514ca3bc3`, #1839 (ex-#1825) → `10cb2fae0`, #1840 (ex-#1828) → `7c10ce00d`; 4 tickets resolved [HARNESS]
 
 D-FLEET-17's two causes had been fixed outside the fleet: `check-git-exec` passes, and the docs red was MDX, fixed by `95106ba27`, plus manifest statistics, fixed by `35a49b851`. Dev's remaining `test` red was an `internal/runner` PTY/signal flake, and a `--failed` rerun on `3342b46ce` came back green. So the stack was landed in order, with a fresh judge, CI and done-gate at each merge.
@@ -56,26 +62,6 @@ Done-gate at every merge: `make test-launchd-drivers` rc 0 (`env -i`), and dry-r
 Clause map: **1** UNMEASURED; **2** UNMET (turnaround on these was about 19 d and 7 d); **3** MET (48 open); **4** prior evidence only; **5** preserved. Next: #16 `quorum:tier2-salvage-fold` (not live), then tickets by `slots_lost`. D-FLEET-17 is moot; D-FLEET-16 and D-FLEET-18 are with Mark.
 
 ## STATUS 2026-10-15 — ITERATION 40: stack recovery rechecked; PARKED on D-FLEET-17, independent fresh-context Sol judge PASS 95 for disposition only [ADMIN]
-
-## STATUS 2026-10-14 — ITERATION 39: P2 #15 slot verdict UNCLASSIFIED made reachable — built and judged PASS 91 by sonnet (round 2); stacked on #1825, BLOCKED on dev's required reds; Gate 1 skill fix for records stranded on blocked PR branches [HARNESS]
-
-The driver's SLOT VERDICT `case` ended in an unconditional `*:*) CRASHED` arm. As a result, a slot that exited **0** with a heartbeat label outside the stamp writer's closed set was reported as crashed, and the design's `UNCLASSIFIED` verdict was unreachable (`grep -c` = 0). The fix has three parts:
-- `REAPED` now matches only the writer's gate labels (`gate-0`..`gate-5`, `gate-3b`).
-- Any other rc=0 label reads `UNCLASSIFIED at=<label>` and goes through the existing episode-gated phase-2 notice.
-- Non-zero `CRASHED`/`KILLED` and the `PAUSED-NO-CAPACITY` override are unchanged.
-
-Built by codex (plan `cf055fd1a`, fix `81df7d609`): 11 new heartbeat arms (6 red before the fix) and 10 planned mutants killed. The sonnet judge ran 10 drills of its own and scored **PASS 86**. One of its drills survived: an empty last label at rc=0 had no covering arm. The controller added that arm (`e9783fae6`; it is the drill's sole killer) and fixed the Q4 table wording. Round 2 scored **PASS 91**, 0 blocking.
-
-Done-gate at `b081a39a4`:
-- `make test-launchd-drivers` passed under `env -i` (controller-capacity 15/0, heartbeat 37 arms).
-- World dry-runs: healthy `lanes=ok` and degraded `lanes=DEGRADED(1)`, both rc 0, with no pidfile written.
-- Real heartbeat, episode and verdict files are sha-identical before and after.
-
-Not LANDED: dev `474995629` is still red on `test` (`check-git-exec`, `devapi_workspace.go`) and on `docs-gate`, so this waits behind #1824 and #1825 (D-FLEET-17).
-
-Gate 5 skill fix (`b081a39a4`, both copies): Gate 1 now reads the newest record from the mission's own open PR branches, because iterations 37, 38 and 39 each booted on a charter that was stale by up to three iterations. This iteration also re-quorum'd #12's already-built doc for about $0.10 before noticing.
-
-Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is green; #12, #14 and #15 are ready); **3** MET (50 open); **4** prior evidence only; **5** preserved (nothing shipped). Next: when D-FLEET-17's predicate holds, land #1824, then #1825, then this PR, re-running the done-gate at each merge, and resolve 4 tickets.
 
 ## CURRENT GOAL
 
@@ -176,6 +162,7 @@ Shared per-role routing from `mission-control`. Overrides in `~/.config/ailang/m
 | D-FLEET-16 | OPEN | **Phase 3b skill source: which mechanism pins each controller's skills to the promoted SHA?** The Phase 3a spike (iteration 34, PASS 88, `fleet-mission-evidence/iteration34/phase3b-decision.md`) measured: claude user-level `~/.claude/skills` beats every project copy and `--add-dir`; a per-fire `CLAUDE_CONFIG_DIR` keeps auth (env token) and its `skills/` wins. Codex reads `.agents/skills` + `$CODEX_HOME/skills` (CODEX_HOME wins), never `.claude/skills`; a per-fire CODEX_HOME needs a credential copy. pi: explicit `--skill` + `/skill:` only. **A (recommended):** retire the user-level mission-skill symlinks so the cwd=pin project copy resolves; World gets `--add-dir <pin>`; codex reads the pin's `.agents` mirror under a parity check (#544 becomes a gate) with `$CODEX_HOME/skills` free of mission names; pi gets `--skill <abs pin path>` per skill. Cost: attended sessions outside a checkout lose these skills. **B:** per-fire config dirs (claude `CLAUDE_CONFIG_DIR`; codex needs a credential-copy ruling); every fire must replicate settings, hooks and memory. **C:** no change for skills; Phase 3b promotes driver + binary only, and skills stay on the D-FLEET-15 fast-forward. Default if unanswered: C. | OPEN (filed 2026-10-13, iteration 34; measurement, no mechanism selected) |
 | D-FLEET-17 | OPEN | **Dev's REQUIRED checks have been red since 2026-10-13 20:02Z, from causes outside fleet scope, and the owner (V1) has been disabled since 09-14. No PR to dev can merge, including fleet #1824 (judged PASS 88). Who fixes it?** Causes, measured by the controller and the judge: (1) `test`: `make check-git-exec` refuses 2 bare `git` exec sites, `internal/executor/managed_agents/devapi_workspace.go:237,259` (`ffef3402a`). (2) `docs-gate`/`docs-build`: an MDX/acorn error at `docs/docs/reference/env-vars.md:252`, the `'{"sort":"throughput"}'` example, generated from `internal/config/ai.go:43`. (3) Not required: `Build windows-latest` fails 2 tests in the same package. **A (recommended):** an attended session fixes (1) and (2) now. Route both git calls through `internal/gitexec` (or add a `scripts/git_exec_baseline.txt` row), and escape or reword the brace example in `ai.go`, then regenerate. Each is a small diff. **B:** grant the fleet a narrow standing authority to fix a REQUIRED-check red on dev when the owning mission's kill switch is set. Such a fix ships alone, is judged by an evaluator, and passes the done-gate. **C:** no change; the fleet keeps building and parks every landing. Default if unanswered: C. | OPEN (filed 2026-10-14, iteration 37; `fleet-mission-evidence/iteration37/findings.md` §1) |
 | D-FLEET-18 | OPEN | **#13's live launchd-suite flakes sit in `tools/eval/`, which the scope guard refuses for the fleet, yet `make test-launchd-drivers` (the fleet's own done-gate, `make/test.mk:117`) runs them. Widen the authority?** Measured since 2026-09-28 13:08Z: signature A (OpenRouter peer, `tools/eval/motoko_connection_probe.sh:79`) last failed 10-02. The untracked `bound measurement refuses an unsuccessfully terminated timer` (`tools/eval/test_motoko_connection_probe.sh:1136`) failed 4× on dev, 10-07 to 10-12. Signature B (`tools/launchd`) has not failed since filing. The owning motoko loop has been disabled since 09-08. **A (recommended):** add exactly `tools/eval/motoko_connection_probe.sh` and `tools/eval/test_motoko_connection_probe.sh` to the fleet allowlist. The guard arm ships alone first (iteration-16 rule), then #13 is worked on both live signatures. **B:** route both flakes to motoko or an attended session; #13 stays parked. **C:** no change; #13 stays open. Default if unanswered: C. | OPEN (filed 2026-10-14, iteration 37; `fleet-mission-evidence/iteration37/findings.md` §2) |
+| D-FLEET-19 | OPEN | **`messaging:pubsub-notify-wrong-project` (world, 10-15) is outside fleet scope. Who fixes it, and how?** Measured at iteration 42: `notifyConfigForStore` (`cmd/ailang/messages_send.go:742`) already publishes to the store's project. The project in the error, `sunholo-gemini-enterprise`, is the `quota_project_id` of the rig's ADC credential (`~/.config/gcloud/application_default_credentials.json`), so Pub/Sub calls are billed to a project with the API disabled. The store write succeeds; only the notification fails. **A (recommended):** an attended session runs `gcloud auth application-default set-quota-project ailang-multivac` on the rig, after checking that nothing else on the rig (the GE executor work) relies on that quota project. **B:** a code fix in `cmd/ailang`/`internal/messaging` to pass `option.WithQuotaProject(<store project>)` to the Pub/Sub client. That is V1's lane, outside the fleet allowlist. **C:** no change; notifications from the rig keep failing silently, and the store still receives messages. Default if unanswered: C, and the ticket stays open. | OPEN (filed 2026-10-16, iteration 42) |
 <!-- decision-ledger:end -->
 
 ## Queue (top = next; tags: [NEXT] [IN-SPRINT] [PARKED] [LANDED] [RULED OUT])
@@ -237,6 +224,12 @@ overnight: harness faults read as model faults)
     non-test callers. Trigger: its first non-test caller. Fix: route the Tier-2 absent branch through `foldAbsent`
     and wire `recordInvalid` in `agentic_caller.go` (~3 lines plus a test).
 
+17. [LANDED · iteration 42] `worktree:native-background-terminal-marker-missing` (world iteration 268): #1843 → `51f9ecb29` (judged PASS 86 by sonnet in round 2, after FAIL 66).
+    `mission-worktree.sh` detaches its writer and records its identity; `wait` reports `failed:writer_died` / `failed:owner_never_published` instead of `pending` forever. Ticket resolved.
+    Follow-ups from the judge, not ticketed: the helper grew from 65 to 211 lines (proportionality); surviving mutant f (the writer's pending re-check before checkout); Linux bash 5 / procps is unmeasured.
+18. [PARKED · D-FLEET-19] `messaging:pubsub-notify-wrong-project` (world, 10-15): the cause is the rig's ADC quota project, and the fix is outside fleet scope.
+19. [D-FLEET-18 class] `ci:motoko-probe-refusing-live-path-unexpected-success` (triage, 10-16): dev `04496274e` reddened the non-required `launchd drivers` job at `tools/eval/test_motoko_connection_probe.sh`, in the same file as #13's live flake. Outside fleet scope until D-FLEET-18 is ruled; the PR #1843 run of the same job was green.
+
 **Weekly external-issue sweep 2026-10-05 (iteration 19; 0 new queue items).** 59 open issues enumerated (count checked against the listing); 57 had zero mentions in the charter, log, archive and dashboard. Controls: the positive one hit `#1380` 2 times, and the negative one fired. Most of the 57 are language, stdlib or product reports, which are V1's lane and outside this charter's Authority. The harness-shaped ones already have open fleet tickets, matched by title:
 - `#981` → `gate0:watermark-advanced-by-dying-fire`
 - `#1160` → `gate0:driver-crash-notices-invisible`
@@ -249,6 +242,7 @@ overnight: harness faults read as model faults)
 `#1306` was half fixed by #1580 and got a verdict comment; it stays open for the orphan-row half.
 
 **Landed (history)**
+- `worktree:native-background-terminal-marker-missing`: #1843 `51f9ecb29` (iteration 42).
 - `driver:unclassified-state-unreachable`: #1840 `7c10ce00d` (built iteration 39, landed iteration 41).
 - `quorum:artifact-dir-cwd-relative`: #1839 `10cb2fae0` (built iteration 38, landed iteration 41).
 - `quorum:invalid-absent-on-quoted-literals` + `quorum:reviewer-invalid-json-discarded`: #1824 `514ca3bc3` (built iteration 36, landed iteration 41).
