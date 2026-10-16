@@ -181,3 +181,9 @@ progress records and this evidence report. No representation or Phase 1 edits.
 The initial overlapping validation jobs caused avoidable memory pressure. Run
 large lint/link/benchmark jobs sequentially on this 8 GiB executor in future;
 GOMEMLIMIT=768MiB allowed lint to finish with zero issues.
+
+Evaluator handoff attempted via sprint-executor's prescribed `ailang messages send`.
+The CLI refused: no agent serves `sprint-evaluator` and it is not human-triage.
+`ailang coordinator agents` lists only `coordinator`; `messages inboxes` has none.
+No forced send was made. Independent evaluation remains pending through the
+coordinator's next stage; implementation is committed and ready for that stage.

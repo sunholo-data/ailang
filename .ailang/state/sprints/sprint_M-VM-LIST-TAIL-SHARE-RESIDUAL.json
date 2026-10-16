@@ -156,6 +156,6 @@
   "execution_approval": "User approved continuation and explicitly invoked sprint-executor",
   "completed": "2026-10-16T15:50:21.751217+00:00",
   "last_checkpoint": "M3 complete; independent evaluation pending; broad baseline failures disclosed",
-  "evaluation_status": "pending independent sprint-evaluator",
+  "evaluation_status": "pending: handoff refused because sprint-evaluator is not registered on this machine; coordinator must dispatch evaluation",
   "execution_report": "docs/sprint-retros/M-VM-LIST-TAIL-SHARE-RESIDUAL-retro.md"
 }
