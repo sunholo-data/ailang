@@ -176,11 +176,11 @@ These are proposals for Mark's approval, not ratified decisions.
 
 ### Design Freeze
 
-- [ ] D1: F-H6-1 cleanup and the rotation decision. **This does not wait on anything else.**
-- [ ] D2: approve Phase 0 as its own sprint.
-- [ ] Approve the spike (Phase 1, ~1 day, dev only) and its go/no-go rule ([Verdict](#verdict-value-vs-effort)).
+- [x] D1: F-H6-1 cleanup and the rotation decision. **Ruled 2026-10-16 (attended): accept as unknown, no rotation.** The 68 objects are deleted (0 in all three buckets, positive-controlled) and the code fix landed in #1441. Cloud now runs on a setup-token, so the leaked refresh tokens are probably dead, but that was not verified.
+- [x] D2: approve Phase 0 as its own sprint. **Approved 2026-10-16 (attended); landed in 8fa61c5e5 + aaacd140f.**
+- [x] Approve the spike (Phase 1, ~1 day, dev only) and its go/no-go rule ([Verdict](#verdict-value-vs-effort)). **Approved 2026-10-16 (attended). Route: a temporary dev-only job definition in the multivac Terraform, with the image built by the deploy-project pipeline, removed after the spike.** Dev Cloud Build runs as the default compute SA, which is never used.
 - [ ] D3, D4, D5: ratify only after the spike report. They are listed here so the spike measures what they need.
-- [ ] D6: Mac Studio as a separate doc (yes/no).
+- [x] D6: Mac Studio as a separate doc (yes/no). **Ruled 2026-10-16 (attended): yes, with a dedicated hidden service account (e.g. `_ailang_agent`), not the existing `daneel` user, which would share a UID with Daneel's own automation.** Commissioned from design-doc-creator (inbox_1792160182981_f0573def).
 
 ## Feasibility
 

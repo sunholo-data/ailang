@@ -343,9 +343,9 @@ func TestStep_HTTPReferer_XTitle_Headers(t *testing.T) {
 
 // --- additional coverage tests ---
 
-// TestStep_NoProviderField_WhenNoRouting confirms that without Routing the
-// outbound body has no `provider` field (back-compat fast path).
-func TestStep_NoProviderField_WhenNoRouting(t *testing.T) {
+// TestStep_FastestHostWhenNoRouting confirms that without Routing the
+// outbound body asks for the fastest host and nothing else.
+func TestStep_FastestHostWhenNoRouting(t *testing.T) {
 	cap := &captureHandler{}
 	server := httptest.NewServer(cap)
 	defer server.Close()
@@ -362,8 +362,8 @@ func TestStep_NoProviderField_WhenNoRouting(t *testing.T) {
 	if err := json.Unmarshal(cap.captured, &sent); err != nil {
 		t.Fatalf("captured body not JSON: %v", err)
 	}
-	if sent.Provider != nil {
-		t.Errorf("Provider field present when no routing: %+v", sent.Provider)
+	if sent.Provider == nil || sent.Provider.Sort != "throughput" || len(sent.Provider.Order) != 0 || sent.Provider.MaxPrice != nil {
+		t.Errorf("Provider with no routing = %+v, want only sort=throughput", sent.Provider)
 	}
 }
 

@@ -1,3 +1,0 @@
-### Fixed — `std/ai.stepWithStream` streams local ollama deltas to the caller
-
-With `AILANG_OLLAMA_V1_STREAM=1` the ollama client streamed the HTTP response but kept the chunks: it did not implement `ai.StreamingProvider`, so the handler ran `Step` and fired one synthetic chunk when the turn ended. motoko journals each delta to its session log, so a long local generation still looked like a hang to the executor's idle watchdog (9 of 39 v0.54.9 qwen3.8 runs were killed mid-generation). `ollama.Client.StreamStep` now forwards every content and reasoning delta as it arrives. Off the streaming path (flag unset, no tools, native tools) it emits the same synthetic chunks as before, and `Step` is unchanged.

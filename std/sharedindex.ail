@@ -29,7 +29,9 @@ export func delete(namespace: string, key: string) -> unit ! {SharedIndex} {
 -- Find entries similar to a query SimHash
 -- Returns list of {key, score, version, timestamp} sorted by similarity
 -- top_k: max results, max_scan: max entries to scan (0 = unlimited)
--- deterministic: true for consistent ordering, false for best-effort
+-- deterministic: true for identical results on identical index state; with
+-- max_scan > 0 it scans the lexicographically first max_scan keys (use 0 for
+-- full recall). false: best-effort, the scanned subset is unspecified
 -- @requires SharedIndex capability
 export func findSimhash(namespace: string, querySimhash: int, topK: int, maxScan: int, deterministic: bool) -> [{ key: string, score: float, version: int, timestamp: int }] ! {SharedIndex} {
   _sharedindex_find_simhash(namespace, querySimhash, topK, maxScan, deterministic)
@@ -56,6 +58,8 @@ export func upsertWithEmbedding(namespace: string, key: string, simhash: int, em
 
 -- Find entries similar to a query embedding using cosine similarity
 -- Returns list of {key, score, version, timestamp} sorted by similarity
+-- max_scan and deterministic behave as in findSimhash; max_scan also counts
+-- entries skipped for having no embedding
 -- @requires SharedIndex capability
 export func findByEmbedding(namespace: string, queryEmbedding: [float], topK: int, maxScan: int, deterministic: bool) -> [{ key: string, score: float, version: int, timestamp: int }] ! {SharedIndex} {
   _sharedindex_find_by_embedding(namespace, queryEmbedding, topK, maxScan, deterministic)

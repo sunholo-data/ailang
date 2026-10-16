@@ -5433,6 +5433,10 @@ models:
     # Parasail; 2.0 s median). Per call the two harnesses produced the same
     # ~155 output tokens; motoko's 9-minute median run against pi's 30 s was the
     # host, not the harness (OpenRouter Broadcast spans, glm-5.3-flash A/B).
+    # Excluding them only moved the price weighting to near-ai (12-20 tok/s,
+    # ~700 s for an 8k-token reasoning call vs ~38 s on coreweave), so every
+    # OpenRouter request now defaults to provider.sort "throughput"
+    # (internal/ai/openrouter/routing.go). This list still applies on top.
     openrouter_provider:
       only: ["inceptron", "gmicloud", "decart", "near-ai", "modal", "crusoe", "coreweave", "fireworks", "friendli", "together", "parasail"]
     pricing:

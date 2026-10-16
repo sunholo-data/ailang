@@ -1,5 +1,7 @@
 # Sprint Plan: M-TEST-PACKAGE-SOURCE-CHECK
 
+**Status**: Superseded — fixed attended in v0.54.13 (03e53668c) with a narrower change (source check after the tests, no `--no-source-check` flag); this plan was not executed.
+
 ## Summary
 
 Make `ailang test --package` run the full existing package check before executing tests, with fail-fast diagnostics, one JSON report, and an explicit `--no-source-check` escape hatch. Reuse `internal/check` rather than add compiler behavior.

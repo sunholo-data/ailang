@@ -85,7 +85,7 @@ func TestGenerate_ImageRequest_SendsModalities(t *testing.T) {
 	if srv.calls != 1 {
 		t.Fatalf("server calls = %d, want 1", srv.calls)
 	}
-	want := `{"model":"google/gemini-3-pro-image","messages":[{"role":"user","content":"portrait of the navigator"}],"max_tokens":4096,"modalities":["image","text"]}`
+	want := `{"model":"google/gemini-3-pro-image","messages":[{"role":"user","content":"portrait of the navigator"}],"max_tokens":4096,"provider":{"sort":"throughput"},"modalities":["image","text"]}`
 	if string(srv.body) != want {
 		t.Errorf("wire body mismatch\n got: %s\nwant: %s", srv.body, want)
 	}
@@ -128,14 +128,15 @@ func TestGenerate_ImageResponse_FirstImageWins(t *testing.T) {
 	}
 }
 
-// AC-3: a text-only request keeps the pre-change wire body exactly.
+// AC-3: a text-only request carries no image keys (the provider block is the
+// fastest-host routing default every request gets).
 func TestGenerate_TextRequest_NoImageKeys(t *testing.T) {
 	srv := &imageServer{reply: imageReply("hi")}
 	_, err := runImage(t, srv, &ai.Request{Model: "z-ai/glm-5.3", UserPrompt: "hello"})
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
-	want := `{"model":"z-ai/glm-5.3","messages":[{"role":"user","content":"hello"}],"max_tokens":4096}`
+	want := `{"model":"z-ai/glm-5.3","messages":[{"role":"user","content":"hello"}],"max_tokens":4096,"provider":{"sort":"throughput"}}`
 	if string(srv.body) != want {
 		t.Errorf("text body changed\n got: %s\nwant: %s", srv.body, want)
 	}
