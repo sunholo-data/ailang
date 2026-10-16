@@ -1,3 +1,0 @@
-### Fixed — failed agent runs bank what they spent
-
-Every executor failure (crash, wall-clock timeout, idle kill) used to bank 0 ms, 0 tokens and $0, so cost tallies under-counted and per-run medians read the slowest runs as instant. A glm-5.3-flash motoko run that streamed 41 steps for its whole 60-minute bound banked as a $0, 0 ms `timeout` with unlabelled cost provenance (2026-10-16). The idle-kill fix in v0.54.12 carried spend only for idle kills; `eval_harness.CarryFailedRunSpend` now does it for every failed run that ran, with its cost provenance. Only idle kills are marked invalid (`MarkIdleKilled`): a wall-clock timeout stays a valid model failure.

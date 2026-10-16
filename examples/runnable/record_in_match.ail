@@ -51,7 +51,7 @@ func logAndReturn(c: Color) -> string ! {IO} = match c {
   }
 }
 
-func main() -> () ! {IO} = {
+export func main() -> () ! {IO} = {
   let info = colorInfo(Red)
   println("Color: ${info.name}, Hex: ${info.hex}")
   let loc = locationInfo(Home)

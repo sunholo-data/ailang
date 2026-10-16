@@ -1,6 +1,6 @@
 # m-test-package-source-check — `test --package` type-checks every source module
 
-**Status**: Planned
+**Status**: Implemented in v0.54.13 (commit 03e53668c, #1845) as `checkUntestedSources` in `cmd/ailang/test_package_check.go`: after the tests, every non-test source module is checked via `check.CheckPackageFiles`; compile/interref/read/timeout failures exit 1 on stderr. STRICT_FALLBACK stays a `check --package` gate.
 **Target**: v0.54.13
 **Priority**: P1 (external CI correctness + a measured 2.0–3.6 min/run saving on the stapledons-godot 2-core runner)
 **Estimated**: 1–1.5 days (implementation ~3h, output contracts ~2h, tests + docs ~3h, buffer)
