@@ -123,9 +123,11 @@ WHY: charters are not linted; a wrong stamp passes silently until rotation moves
 reds it, usually in a LATER iteration than the one that wrote it.
 Before committing the record: `go test ./internal/mission/ -run Canonical -count=1` and
 `printf '%s\n' "$new_stamp" | grep -Eq '^## STATUS [0-9]{4}-[0-9]{2}-[0-9]{2} — ITERATION [0-9]+: [^[:space:]]'` (new_stamp = actual new heading).
-Repair: `ailang mission normalize` (dry run), inspect rewrites/unconvertibles, then `ailang mission normalize --apply`.
+The grep is the gate for a stamp still in the charter; the test sees only archived stamps.
+Repair: `ailang mission normalize` (dry run), inspect rewrites/unconvertibles, then `ailang mission normalize --apply`;
+an UNCONVERTIBLE heading (e.g. lower-case `iteration`) needs a hand edit.
 The normalizer repairs record streams, not charter prose; correct a charter stamp before rotation.
-Mission charters may keep a local note; this is the shared rule and governs new stamps over legacy examples below.
+A mission charter may add a local note but may not change this shape; this rule governs new stamps over legacy examples below.
 
 **⚠ AND THE COMMIT THAT LANDS THIS RECORD CAN *CLOSE AN ISSUE IT ONLY TALKED ABOUT* — GITHUB'S
 AUTO-CLOSE PARSER DOES NOT READ ENGLISH, AND GATE 4 MANDATES EXACTLY THE DISCURSIVE PROSE THAT
