@@ -1,0 +1,87 @@
+{
+  "sprint_id": "M-SHAREDINDEX-MAXSCAN-DETERMINISM",
+  "status": "not_started",
+  "created": "2026-10-16T14:30:56.370351+00:00",
+  "design_doc": "design_docs/planned/m-sharedindex-maxscan-determinism.md",
+  "sprint_plan": "design_docs/planned/m-sharedindex-maxscan-determinism-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search sharedindex and sharedmem returned no packages. Existing Go effect-backend determinism and its tests/docs must be corrected in core; a package cannot replace these runtime methods."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search sharedindex and sharedmem returned no packages. Existing Go effect-backend determinism and its tests/docs must be corrected in core; a package cannot replace these runtime methods."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search sharedindex and sharedmem returned no packages. Existing Go effect-backend determinism and its tests/docs must be corrected in core; a package cannot replace these runtime methods."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 300,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Deterministic bounded SharedIndex searches",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Both Strict search methods score only the lexicographically first maxScan keys under the existing read lock.",
+        "Six-key SimHash repro returns k1 with identical full results on 100 calls; an outside-prefix perfect match is excluded.",
+        "Embedding tests prove identical bounded results and that missing embeddings consume scan budget.",
+        "Boundary tests cover empty namespaces, topK truncation, tied scores, maxScan zero, negative and greater than namespace size; BestEffort retains raw map iteration.",
+        "Focused SharedIndex tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Canonical shared-memory key enumeration",
+      "estimated_loc": 35,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "InMemorySharedCache.Keys returns ascending keys for non-sorted insertions, repeated calls and after deletion.",
+        "Existing namespace isolation and shared-memory tests pass; no cache interface or capability changes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Contract documentation and cross-engine replay validation",
+      "estimated_loc": 85,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Interface and stdlib comments explain Strict prefix selection, BestEffort unspecified subset, examined-entry budget and maxScan zero for full recall.",
+        "A runnable six-key bounded-search example prints actual result keys and scores; ten fresh interpreter and ten strict-bytecode runs match a fixed expected result and each other.",
+        "make test-changed, make check-file-sizes, make check-changelog, make verify-stdlib and make verify-examples pass against the rebuilt binary.",
+        "An unreleased changelog fragment documents both observable ordering fixes and the bounded-scan recall trade-off."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
