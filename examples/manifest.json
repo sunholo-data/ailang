@@ -5,6 +5,27 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "reference/cross_run_library.ail",
+      "status": "working",
+      "tags": [
+        "ai",
+        "sharedmem",
+        "sharedindex",
+        "embeddings",
+        "persistence"
+      ],
+      "description": "Seed durable content and retrieve it in a second process using configured embeddings or the explicit offline AI stub.",
+      "modules": [
+        "std/ai",
+        "std/io",
+        "std/result",
+        "std/option",
+        "std/sharedmem",
+        "std/sharedindex",
+        "std/simhash"
+      ]
+    },
+    {
       "path": "runnable/process_spawn_result.ail",
       "status": "working",
       "tags": [
@@ -3466,11 +3487,11 @@
     }
   ],
   "statistics": {
-    "total": 236,
-    "working": 228,
+    "total": 237,
+    "working": 229,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9661016949152542,
+    "coverage": 0.9662447257383966,
     "experimental": 0
   },
   "milestones": {

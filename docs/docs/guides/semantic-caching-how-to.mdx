@@ -14,7 +14,7 @@ This guide explains the mental model, patterns, and best practices for using AIL
 **SharedMem + SharedIndex is the cognitive working memory for AI agents.**
 
 Think of it as:
-- **SharedMem**: A persistent key-value store where agents park their thoughts
+- **SharedMem**: An in-memory-by-default key-value store where agents park their thoughts
 - **SharedIndex**: A semantic search layer that finds related thoughts by meaning
 - **sem_frame**: The standard "thought" format - ID, version, timestamp, content, SimHash, and opaque payload
 
@@ -457,3 +457,63 @@ ailang run --caps IO,SharedMem,SharedIndex --entry main examples/neural_semantic
 - [Design Status](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_5_11/semantic-caching-complete.md) - Implementation details
 - [Future Work](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_0/semantic-caching-future.md) - Redis, Firestore, hybrid search
 - [Agent Messaging - Semantic Search](/docs/guides/agent-messaging#semantic-search) - Search CLI messages with SimHash and neural embeddings
+
+
+## Keep a content library across runs
+
+`SharedMem` and `SharedIndex` default to process-local memory. To retain data,
+pass `--sharedmem-db PATH` and `--sharedindex-db PATH`, with their corresponding
+capabilities. `--embed-cache-db PATH` optionally retains embeddings and requires
+`AI`. Each flag overrides its environment variable: `AILANG_SHAREDMEM_DB`,
+`AILANG_SHAREDINDEX_DB`, or `AILANG_EMBED_CACHE_DB`. `serve-api` accepts these
+paths through the environment. Failed database opens and storage operations
+surface errors; they do not fall back to memory. Connections close when the run,
+batch item, or server finishes.
+
+The three stores can share one SQLite file. SharedIndex entries are partitioned
+by `(namespace, key)` within that file; different files are independent.
+SharedMem uses flat keys, so prefix payload keys with your universe/library
+namespace. Avoid using your CLI brain database: SharedMem shares its
+`brain_frames` keyspace and can overwrite brain content. The index and embedding
+cache use dedicated tables. SQLite WAL and a busy timeout permit separate
+processes to share a file; keep writes short and handle errors under contention.
+
+The reference example has two entry points. Run them in separate processes:
+
+```bash
+ailang run --caps IO,AI,SharedMem,SharedIndex --ai-stub \
+  --sharedmem-db saves/library.db --sharedindex-db saves/library.db \
+  --embed-cache-db saves/library.db --entry seed examples/reference/cross_run_library.ail
+ailang run --caps IO,AI,SharedMem,SharedIndex --ai-stub \
+  --sharedmem-db saves/library.db --sharedindex-db saves/library.db \
+  --embed-cache-db saves/library.db --entry query examples/reference/cross_run_library.ail
+```
+
+`std/ai.embed(text)` returns `Result[[float], AIError] ! {AI}`. The explicit
+`--ai-stub` uses a deterministic 32-dimensional SHA256 test vector and needs no credentials. For real
+semantic near-matches, configure `embeddings:` in `~/.ailang/config.yaml` or
+`AILANG_EMBED_PROVIDER` with a supported Gemini, OpenAI, or Ollama provider.
+An explicit embedding configuration wins; otherwise a bound Gemini/OpenAI/Ollama
+completion provider supplies the embedding provider, with a diagnostic notice.
+OpenRouter, Anthropic, and custom completion providers require a separate
+supported embedding provider; they do not imply an embedding endpoint.
+
+For example, replace `--ai-stub` with `--ai gemini-2-5-flash` and configure:
+
+```bash
+export GOOGLE_API_KEY=your-key
+export AILANG_EMBED_PROVIDER=gemini
+export AILANG_EMBED_GEMINI_MODEL=text-embedding-004
+```
+
+Pin the embedding model for the lifetime of a namespace. Changing models can
+change vector dimensions and geometry; use a new namespace/file or re-embed the
+whole library. Configured embedders cache successful `(model, SHA256(text))`
+results in memory; the optional database cache survives restarts. Cache hits
+still consume an AI effect invocation and budget. Provider errors remain typed
+`Err(AIError)` values, including retryability.
+
+Searches remain linear and can be bounded with `maxScan`; deterministic mode
+scans keys in lexicographic order and breaks score ties by key. ANN indexing,
+read-only storage capabilities, and automatic decay/re-embedding migrations are
+future work.

@@ -1,0 +1,40 @@
+module examples/reference/cross_run_library
+import std/ai (embed)
+import std/io (println)
+import std/result (Ok, Err)
+import std/option (Some, None)
+import std/sharedmem (put, get)
+import std/sharedindex (upsertWithEmbedding, findByEmbedding, findSimhash)
+import std/simhash (simhash)
+
+-- Seed and query are separate process entry points. Use the same DB file for
+-- --sharedmem-db, --sharedindex-db and --embed-cache-db, plus --ai-stub.
+-- Pin the embedding provider/model before replacing the explicit offline stub.
+export func seed() -> () ! {IO, AI, SharedMem, SharedIndex} {
+  let content = "The crew remembers a blue star beyond the Archive"
+  match embed(content) {
+    Ok(vector) => {
+      put("voyage:archive:blue-star", _bytes_from_string(content))
+      upsertWithEmbedding("voyage:archive", "voyage:archive:blue-star", simhash(content), vector, 1, 1000)
+      println("seeded")
+    },
+    Err(error) => println("embedding error: ${error.code}")
+  }
+}
+
+export func query() -> () ! {IO, AI, SharedMem, SharedIndex} {
+  let hashes = findSimhash("voyage:archive", simhash("The crew remembers a blue star beyond the Archive"), 1, 0, true)
+  match hashes {
+    [] => println("no match"),
+    _ :: _ => match embed("The crew remembers a blue star beyond the Archive") {
+      Ok(vector) => match findByEmbedding("voyage:archive", vector, 1, 0, true) {
+        [] => println("no match"),
+        hit :: _ => match get(hit.key) {
+          Some(content) => println(_bytes_to_string(content)),
+          None => println("missing content")
+        }
+      },
+      Err(error) => println("embedding error: ${error.code}")
+    }
+  }
+}
