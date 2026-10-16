@@ -12,7 +12,7 @@ type Galaxy = { name: string, systems: [StarSystem] }
 
 type DataSet = { label: string, values: [int] }
 
-func main() -> unit ! {IO} = {
+export func main() -> unit ! {IO} = {
   let sol = { name: "Sol", planets: ["Earth", "Mars"] }
   println("Star system: ${sol.name}")
   println("Planet count: ${show(length(sol.planets))}")
