@@ -49,7 +49,7 @@ verify-examples-gate-selftest: build ## Prove the verify-examples gate fails (an
 	if [ "$$fail" != "0" ]; then exit 1; fi; \
 	echo "✅ gate self-test passed: broken example -> non-zero exit AND artifacts written"
 
-# Regenerate the manifest `modules` field (parser-backed). Commit the result.
+# Regenerate derived manifest statistics and parser-backed modules. Commit the result.
 backfill-manifest-modules: sync-examples-manifest ## Alias for sync-examples-manifest
 
 sync-examples-manifest: ## Sync derived modules and statistics in examples/manifest.json

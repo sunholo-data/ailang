@@ -1,7 +1,7 @@
 //go:build ignore
 // +build ignore
 
-// backfill_manifest_modules.go populates the `modules` field on every
+// backfill_manifest_modules.go synchronizes statistics and the `modules` field on every
 // examples/manifest.json entry using the shared, parser-backed extractor
 // (scripts/internal/importextract). Run once at development time and COMMIT the
 // result — `ailang docs --examples <module>` reads the committed field, never a
@@ -18,12 +18,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/buger/jsonparser"
-	"github.com/sunholo-data/ailang/internal/manifest"
 	"os"
 	"reflect"
 	"sort"
 
+	"github.com/buger/jsonparser"
+	"github.com/sunholo-data/ailang/internal/manifest"
 	"github.com/sunholo-data/ailang/scripts/internal/importextract"
 )
 

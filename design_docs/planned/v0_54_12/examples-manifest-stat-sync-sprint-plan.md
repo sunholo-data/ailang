@@ -1,6 +1,6 @@
 # Examples Manifest Statistics Sync — Sprint Plan
 
-**Status:** Implemented on coordinator/task-6aaf5a41; validation in progress.
+**Status:** Implementation committed on coordinator/task-6aaf5a41; broader validation has exceptions.
 **Sprint ID:** M-EXAMPLES-MANIFEST-STAT-SYNC
 **Design:** [Approved design](examples-manifest-stat-sync.md)
 **Source task:** task-18a95848; planning task task-85a3a46e; digest #1835.
@@ -93,7 +93,11 @@ Issue #1835 is the triage digest, not automatically a closeable implementation i
 
 - Current checkout: 257 runnable `.ail` files, **48** omissions under the shared
   resolver and underscore-scratch rules, rather than the design's 47. The shallow
-  snapshot has no parent history to identify the discrepancy. All 48 paths are
+  snapshot has no parent history to identify which classification changed. Current
+  accounting is 236 entries, 235 unique resolved paths, 209 listed runnable paths,
+  and 26 listed non-runnable paths (the design recorded 25). Thus 257 - 209 = 48;
+  the extra non-runnable classification accounts for the one-file difference.
+  All 48 paths are
   explicit in the reason-bearing validator map, rather than a directory exemption.
   Disposition backlog for #1835: classify each path as an authored manifest entry,
   permanent helper fixture, or removal. This task does not close that digest.
@@ -108,3 +112,24 @@ Issue #1835 is the triage digest, not automatically a closeable implementation i
   disposition backlog to #1835 is pending coordinator publication. The CLI refused
   the evaluator handoff because no agent serves `sprint-evaluator` on this plane;
   coordinator evaluation remains pending (no forced message to a dead inbox).
+
+### Validation results
+
+Passed: focused manifest/importextract tests, isolated manifest self-test,
+verify-examples gate self-test, full verify-examples gate, lint (0 issues),
+formatting, file-size, changelog, and valid-manifest byte comparison.
+No tracked report artifacts changed; the injected gate fixture was cleaned up.
+
+`make test-changed` was attempted twice, the second run with `GOFLAGS=-p=2`
+and `TEST_CHANGED_BASE=482a9a4e` to include both touched Go packages. Those packages
+passed. Both broader core runs failed on unchanged
+`internal/effects.TestRuntimeNestedStopUsesRemainingDeadline` (nested fixture
+survived bounded stop), and `internal/pipeline` was killed. No effects or pipeline
+sources differ from the starting snapshot. These failures are recorded rather
+than broadening this manifest-only task into runtime changes.
+
+The pipeline package subsequently **passed** alone with `GOMEMLIMIT=1GiB`
+(69.061s). The effects nested-stop test failed again in isolation (2.646s),
+without competing gates. M4's broad-gate acceptance remains unchecked for that
+inherited runtime failure; the isolated manifest and end-to-end example gates
+are green. GitHub publication and coordinator evaluation remain external follow-ups.
