@@ -1,6 +1,6 @@
 # M-SHAREDINDEX-MAXSCAN-DETERMINISM: Strict-mode bounded scans must be deterministic
 
-**Status**: Planned
+**Status**: Implemented in v0.54.13 (commit b6c9f592e, #1795). D1–D5 as designed: Strict uses `scanOrder` (sorted keys) in `internal/effects/sharedindex_inmemory.go`; `InMemorySharedCache.Keys()` sorted.
 **Target**: v0.54.8
 **Priority**: P1 (High)
 **Estimated**: 1 day
