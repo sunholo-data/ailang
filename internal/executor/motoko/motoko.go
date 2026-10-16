@@ -481,6 +481,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 		motokoEnv = append(motokoEnv, fmt.Sprintf("AILANG_OLLAMA_MAX_TOKENS=%d", task.MaxOutputTokens))
 	}
 	motokoEnv = append(motokoEnv, costRateEnv(task.Budget)...)
+	motokoEnv = append(motokoEnv, ollamaStreamEnv(e.getModel(task), os.Stderr)...)
 	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
 		SessionID:   sessionID,
@@ -530,7 +531,13 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	cmd.Stdout = cmd.Stderr
 
 	startTime := time.Now()
-	stopWatch := startIdleWatch(runCtx, task.IdleTimeout, sessionActivity(task.Workspace, sessionID, e.motokoRepo, stderrLogPath), cancelIdle)
+	var inFlight func() bool
+	var callBound time.Duration
+	if isOllamaModel(e.getModel(task)) {
+		inFlight = sessionCallInFlight(task.Workspace, sessionID, e.motokoRepo)
+		callBound = ollamaCallBound(env)
+	}
+	stopWatch := startIdleWatch(runCtx, task.IdleTimeout, sessionActivity(task.Workspace, sessionID, e.motokoRepo, stderrLogPath), inFlight, callBound, cancelIdle)
 	runErr := runRegisteredCommand(cmd)
 	idleNote := stopWatch()
 	if err := runErr; err != nil {
@@ -639,7 +646,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 		}
 		if idleNote != "" {
 			result.Error = idleNote + result.Error
-			result.FinishReason = executor.FinishTimeout
+			result.FinishReason = executor.FinishIdleKilled
 		}
 	}
 
