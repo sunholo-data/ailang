@@ -38,9 +38,12 @@ Each verifier gets [`github-issue-triage/resources/verify_agent_prompt.md`](../.
 filled in with `<DEV_SHA>` = `git rev-parse origin/dev` after a fetch. Append these instructions for
 PRs and cards:
 
-- For a PR: read `gh pr view N --json headRefOid,mergeable,mergeStateStatus,statusCheckRollup,files,body,closingIssuesReferences`
+- For a PR: read `gh pr view N --json headRefOid,isDraft,mergeable,mergeStateStatus,statusCheckRollup,files,body,closingIssuesReferences`
   and the diff. Ask whether it does what its issue or card asked, whether its checks are green on
   the head, and whether `dev` already contains or supersedes it.
+- A **draft** PR (`isDraft: true`) is never `VERIFIED`: its author has not declared it ready, and
+  `gh pr merge` refuses it. Report it as `NEEDS-DECISION` ("ready to leave draft?"). Measured
+  2026-10-16: draft PR #1754 was attested ready and the merge failed.
 - For a card: read the joined PR. A card with `diff_available=false`, or with no PR at all, is
   never `VERIFIED` (H4). Report it as `NEEDS-DECISION` or as an orphan.
 - Return the PR's `headRefOid` for every PR verdict. An attestation is bound to that SHA.
