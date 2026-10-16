@@ -25,6 +25,8 @@ import (
 // Thread-safety: EffContext is typically created once per evaluation and
 // should not be mutated concurrently.
 type EffContext struct {
+	PkgAssets map[string]PkgAssetTarget // Immutable locked targets; shared by clones and budget scopes.
+
 	Caps           map[string]Capability // Effect name → Capability grant
 	Env            EffEnv                // Environment configuration
 	Clock          *ClockContext         // Clock effect state (monotonic time)
@@ -498,6 +500,7 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		BudgetReport:          ctx.BudgetReport,   // Preserve report across budget scopes (M-DX25)
 		DisableBudgets:        ctx.DisableBudgets, // Preserve --no-budgets flag
 		EnvSnapshot:           ctx.EnvSnapshot,
+		PkgAssets:             ctx.PkgAssets,
 		EnvAllowlist:          ctx.EnvAllowlist,
 		Args:                  ctx.Args,
 		Trace:                 ctx.Trace,    // Preserve trace collector across budget scopes (M-TRACE-EXPORT)

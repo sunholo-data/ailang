@@ -41,13 +41,13 @@ func TestPkgAssetPath_Resolves(t *testing.T) {
 	}
 }
 
-// TestPkgAssetPath_PicksLatestVersion verifies that when multiple versions are
-// installed, the lexically-highest version is selected.
-func TestPkgAssetPath_PicksLatestVersion(t *testing.T) {
+// TestPkgAssetPath_PicksSemverMax verifies that when multiple versions are
+// installed, the semver-highest version is selected.
+func TestPkgAssetPath_PicksSemverMax(t *testing.T) {
 	home := t.TempDir()
 	testutil.SetHomeDir(t, home)
 	base := filepath.Join(home, ".ailang", "cache", "registry", "test", "pkg")
-	for _, v := range []string{"0.1.0", "0.2.0", "0.10.0"} {
+	for _, v := range []string{"0.1.0", "0.2.0", "0.9.0", "0.10.0", "garbage"} {
 		dir := filepath.Join(base, v, AssetsDir)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatalf("MkdirAll: %v", err)
@@ -66,9 +66,7 @@ func TestPkgAssetPath_PicksLatestVersion(t *testing.T) {
 	}
 	tagged := got.(*eval.TaggedValue)
 	gotPath := tagged.Fields[0].(*eval.StringValue).Value
-	// Lexical sort: "0.10.0" < "0.2.0" < "0.1.0"? No: "0.10.0" sorts before "0.2.0".
-	// We document "lexical sort" — that means "0.2.0" wins here.
-	want := filepath.Join(base, "0.2.0", AssetsDir, "v.txt")
+	want := filepath.Join(base, "0.10.0", AssetsDir, "v.txt")
 	if gotPath != want {
 		t.Errorf("expected %q, got %q", want, gotPath)
 	}

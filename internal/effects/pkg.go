@@ -20,8 +20,8 @@ func init() {
 // Resolves to the absolute filesystem path of an asset shipped inside an
 // installed AILANG package's assets/ subdirectory. The package must be
 // vendor/name format and present under ~/.ailang/cache/registry/. The most
-// recent installed version is selected (lexical sort, which matches semver
-// for the small versions used in practice).
+// recent installed version is selected using package compatibility semver
+// ordering when no locked dependency target is available.
 //
 // Returns:
 //   - Ok(absolutePath) when the asset exists
@@ -53,7 +53,7 @@ func pkgAssetPath(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 
 	parts := strings.SplitN(pkgName, "/", 3)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+	if len(parts) != 2 || !validAssetPackagePart(parts[0]) || !validAssetPackagePart(parts[1]) {
 		return fsMakeErr(fmt.Sprintf("invalid package name: %q (want vendor/name)", pkgName)), nil
 	}
 
@@ -72,27 +72,52 @@ func pkgAssetPath(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return fsMakeErr(fmt.Sprintf("invalid relative path: %q must not escape assets/", relPath)), nil
 	}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("pkgAssetPath: cannot resolve user home dir: %w", err)
+	var target PkgAssetTarget
+	locked := false
+	if ctx != nil {
+		target, locked = ctx.PkgAssets[pkgName]
 	}
-	pkgDir := filepath.Join(home, ".ailang", "cache", "registry", parts[0], parts[1])
-
-	versions, err := listInstalledVersions(pkgDir)
-	if err != nil || len(versions) == 0 {
-		return fsMakeErr(fmt.Sprintf("package not installed: %s", pkgName)), nil
+	if locked {
+		info, err := os.Stat(target.Dir)
+		if target.Dir == "" || err != nil || !info.IsDir() {
+			return fsMakeErr(fmt.Sprintf("package not installed: %s@%s (locked by ailang.lock); run 'ailang install %s@%s'", pkgName, target.Version, pkgName, target.Version)), nil
+		}
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("pkgAssetPath: cannot resolve user home dir: %w", err)
+		}
+		pkgDir := filepath.Join(home, ".ailang", "cache", "registry", parts[0], parts[1])
+		versions, err := listInstalledVersions(pkgDir)
+		if err != nil {
+			return fsMakeErr(fmt.Sprintf("cannot list installed versions: %s: %v", pkgName, err)), nil
+		}
+		if len(versions) == 0 {
+			return fsMakeErr(fmt.Sprintf("package not installed: %s", pkgName)), nil
+		}
+		valid := versions[:0]
+		for _, v := range versions {
+			if _, err := assetVersion(v); err == nil {
+				valid = append(valid, v)
+			}
+		}
+		if len(valid) == 0 {
+			return fsMakeErr(fmt.Sprintf("no valid installed versions: %s", pkgName)), nil
+		}
+		sort.Slice(valid, func(i, j int) bool { return compareAssetVersions(valid[i], valid[j]) < 0 })
+		target.Version = valid[len(valid)-1]
+		target.Dir = filepath.Join(pkgDir, target.Version)
 	}
-	chosen := versions[len(versions)-1]
-
-	full := filepath.Join(pkgDir, chosen, AssetsDir, clean)
+	chosen := target.Version
+	full := filepath.Join(target.Dir, AssetsDir, clean)
 	if info, err := os.Stat(full); err != nil || info.IsDir() {
 		return fsMakeErr(fmt.Sprintf("asset not found: %s in %s@%s", relPath, pkgName, chosen)), nil
 	}
 	return fsMakeOk(&eval.StringValue{Value: full}), nil
 }
 
-// AssetsDir is duplicated from internal/pkg to avoid an import cycle (effects must
-// not depend on pkg). Keep in sync with pkg.AssetsDir.
+// AssetsDir is duplicated from internal/pkg to preserve layering (effects does
+// not depend on the package loader). Keep in sync with pkg.AssetsDir.
 const AssetsDir = "assets"
 
 // listInstalledVersions returns subdirectory names under pkgDir, sorted ascending.
@@ -113,4 +138,9 @@ func listInstalledVersions(pkgDir string) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+// validAssetPackagePart keeps package names inside the cache namespace.
+func validAssetPackagePart(part string) bool {
+	return part != "" && part != "." && part != ".." && !strings.ContainsAny(part, `\:`)
 }

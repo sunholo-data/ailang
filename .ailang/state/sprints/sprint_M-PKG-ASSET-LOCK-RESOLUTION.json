@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-PKG-ASSET-LOCK-RESOLUTION",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-12T13:14:04Z",
   "design_doc": "design_docs/planned/v0_54_7/m-pkg-asset-lock-resolution.md",
   "sprint_plan": "design_docs/planned/v0_54_7/m-pkg-asset-lock-resolution-sprint-plan.md",
@@ -49,10 +49,10 @@
         "Path/git target directories resolve assets; sandbox, invalid package names, absolute paths and traversal still fail before lookup.",
         "WithBudget and Clone preserve targets without mutating the shared map; focused effects tests and make test-changed pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T08:49:55.644065+00:00",
+      "completed": "2026-10-16T08:54:59.933805+00:00",
+      "notes": "Focused effects regression tests pass. Confirmed pre-fix semantic failure: 0.9.0 selected over 0.10.0. Lock precedence, unresolved targets, context copies, local targets, validation, and compatibility parsing covered. Broader gate pending cold build."
     },
     {
       "id": "M2",
@@ -69,7 +69,7 @@
         "Focused pkg/pipeline tests, make test-changed and make check-boundaries pass."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-16T08:49:55.644065+00:00",
       "completed": null,
       "notes": null
     },
@@ -111,5 +111,6 @@
       "completed": null,
       "notes": null
     }
-  ]
+  ],
+  "last_session": "2026-10-16T08:49:55.644065+00:00"
 }
