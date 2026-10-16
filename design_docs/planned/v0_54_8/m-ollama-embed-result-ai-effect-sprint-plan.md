@@ -47,10 +47,10 @@ Move request and media encoding to internal/ai/ollama/embed.go returning []float
 Create internal/effects/ai_embed.go and ai_embed_test.go. Register embedOllama/embedOllamaMedia, use the shared helper, and inspect resolved stub/fixture handlers without requiring a chat provider for real local calls. Add deterministic input-dependent eight-dimensional unit vectors and AI trace events.
 
 **Acceptance criteria:**
-- [ ] effects.Call denies absent AI capability and zero budget before network access.
-- [ ] With AI and no chat handler, a fake Ollama server receives the call; an unrelated chat provider does not reroute it.
-- [ ] Stub vectors are repeatable, distinct across representative inputs, unit magnitude, and perform no network requests.
-- [ ] Text/media successes and failures emit bounded trace arguments without raw media bytes.
+- [x] effects.Call denies absent AI capability and zero budget before network access.
+- [x] With AI and no chat handler, a fake Ollama server receives the call; an unrelated chat provider does not reroute it.
+- [x] Stub vectors are repeatable, distinct across representative inputs, unit magnitude, and perform no network requests.
+- [x] Text/media successes and failures emit bounded trace arguments without raw media bytes.
 
 **Example coverage:** M5 supplies the runnable fallback and migrated text/media callers; earlier milestones use offline Go tests until wrappers land.
 
@@ -130,3 +130,5 @@ Tests must prove all new dispatch/error branches, four builtin signatures, exact
 Error fixture payloads carry string messages; preserve supplied fixture messages verbatim, and preserve existing builtin prefixes on real transport errors. Resolve any design ambiguity about where Result is built by following existing ADT helpers without wrapping capability/budget failures. Stub selection must not accidentally force lazy chat provider initialization for a real embedding-only call.
 
 Sprint JSON dependencies use exact milestone IDs. All passes/started/completed values begin null. Executor updates progress incrementally and finishes through sprint-evaluator. No additional package, provider abstraction, parser change, batch API or messaging embedder consolidation is in scope.
+
+Execution deviation: the transport helper lives in `internal/ai/ollama/embed` to avoid the existing parent-package dependency through OpenAI and telemetry back to effects. No provider-layer refactor was needed.

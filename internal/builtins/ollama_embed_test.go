@@ -2,7 +2,7 @@ package builtins
 
 import (
 	"encoding/base64"
-	"github.com/sunholo-data/ailang/internal/ai/ollama"
+	ollama "github.com/sunholo-data/ailang/internal/ai/ollama/embed"
 	"net/http"
 	"testing"
 	"time"

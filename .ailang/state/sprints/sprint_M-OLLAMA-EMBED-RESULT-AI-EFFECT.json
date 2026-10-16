@@ -71,10 +71,10 @@
         "Stub vectors are repeatable, distinct across representative inputs, unit magnitude, and perform no network requests.",
         "Text/media successes and failures emit bounded trace arguments without raw media bytes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T20:16:16.579210+00:00",
+      "completed": "2026-10-16T20:16:16.579210+00:00",
+      "notes": "Authority, budgets, deterministic unit stubs, lazy-provider independence and bounded media-free traces pass. Helper moved into ai/ollama/embed because parent imports telemetry -> effects, causing a cycle."
     },
     {
       "id": "M3",

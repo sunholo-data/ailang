@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/ai/ollama"
+	ollama "github.com/sunholo-data/ailang/internal/ai/ollama/embed"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/types"
