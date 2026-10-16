@@ -1,0 +1,47 @@
+{
+  "sprint_id": "M-FLEET-GATE4-STATUS-STAMP-SHAPE",
+  "status": "planned",
+  "created": "2026-10-16T20:06:50Z",
+  "verified_at": "bd30497a0f5bd8a89a54483643cdc55f5ff69991",
+  "design_doc": null,
+  "sprint_plan": "design_docs/planned/sprint-plan-gate4-status-stamp-shape.md",
+  "ticket": "skill:gate4-status-stamp-shape-unprescribed",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": "existing internal/mission canonicalStatusRe, canonicalEntryRe, canonical test and normalizer",
+      "action": "none",
+      "reason": "Documentation-only repair; no package-like capability or registry search needed. Reuse existing production grammar, repair CLI and tests by reference; introduce no package/helper/test file."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 328,
+    "estimated_total_loc": 41,
+    "estimated_days": 0.125,
+    "basis": "18 documentation LOC per mirrored resource plus 5 fragment LOC; zero persistent test LOC. Landed comparable a8042fa3f added 25/deleted 3 lines per mirror plus 5 fragment lines. 60-minute task estimate, not measured LOC/day; velocity helper exited 141 in git log | head and was not modified."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Prescribe shared canonical STATUS/log headings at Gate 4 writing step, explain delayed archive ratchet failure, document self-check and repair, qualify legacy World example, mirror both copies and add one changelog fragment.",
+      "estimated_loc": 41,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Execution changes only the two gate-4-record.md resource copies and changelogs/unreleased/2026-10-16-gate4-status-stamp-shape.md, with about 8-20 added lines per copy, byte-identical mirrors and a fragment beginning ### Fixed — . No routing, lane order, quota/ration thresholds, billing guards, CI workflows, SKILL.md, Go code, tests, charters or other resource changes.",
+        "At the STATUS update step prescribe literally ## STATUS <YYYY-MM-DD> — ITERATION <n>: <headline> for every mission, citing internal/mission/normalize.go canonicalStatusRe as authoritative over prose. Require EM DASH U+2014 with single spaces, upper-case ITERATION, colon directly after number and non-space headline; forbid COMPLETE/DONE before colon, date parentheses and lower-case iteration. Include one-line canonicalEntryRe log companion ## <n> — <YYYY-MM-DD> — <title>.",
+        "Explain delayed failure: charters are not linted, so a wrong stamp passes silently until rotation into *-mission-status-archive.md makes TestMissionDocHeadingsStayCanonical ratchet red, usually in a LATER iteration. Include focused canonical test, one-line grep of actual new stamp, dry-run ailang mission normalize then --apply repair, and optional charter-local notes under the shared rule. Preserve World casing war story, qualifying its form as non-canonical legacy.",
+        "The plan Perl check fills placeholders from the edited prescription and extracts canonicalStatusRe from production source: ## STATUS 2026-10-16 — ITERATION 44: x matches and the documented ## STATUS 2026-10-16 — ITERATION 44 COMPLETE: x does not. Run against both copies; output shape MATCH; forbidden NO MATCH, rc 0.",
+        "make check-skills, make check-context-docs, make check-referenced-paths, make check-changelog, make check-file-sizes, make check-doc-review, make check-no-personal-email and make check-tmpfile-hygiene return rc 0 on edited tree; cmp copies rc 0; go test ./internal/mission/ -run Canonical -count=1 and full go test ./internal/mission/ -count=1 have actual rc 0 evidence. Socket-bound full package needs outside-sandbox controller verification. Base-red gates are findings, not workarounds.",
+        "Independent evaluator runs four disposable text mutations: prescribed em dash to hyphen, COMPLETE before colon, dropped normalize.go/canonicalStatusRe reference, dropped rotation/ratchet WHY. Plan grep commands must each give original count 1 rc 0 and mutant count 0 rc 1; no persistent test files.",
+        "Controller rehearses an actual charter-to-status-archive rotation for each named live mission v1/docs/motoko/fleet/triage in a disposable snapshot, keeps newest three, proves moved-heading destination presence and charter arithmetic/content preservation, and runs focused and full mission tests rc 0 after each rotation. World cross-repo evidence is added if in live inventory; remains unverified here. No rehearsal artifacts in delivery diff.",
+        "CONTROLLER ONLY outside sandbox: env -i HOME=$HOME PATH=$PATH USER=$USER TMPDIR=$TMPDIR make test-launchd-drivers rc 0. Any network/socket/gh-dependent sandbox check is UNINFORMATIVE UNDER SANDBOX, never pass or fail. Missing controller evidence remains pending.",
+        "Controller actual iteration-44 Gate-4 record uses canonical shape and passes go test ./internal/mission/ -run Canonical -count=1 after recording/rotation. Independent sprint-evaluator acceptance is required; executor must not edit charters to supply controller evidence."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
