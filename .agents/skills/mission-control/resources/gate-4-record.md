@@ -111,6 +111,22 @@ Append an entry to `design_docs/v1-mission-log.md` using its fixed template — 
 value fields: evidence drives routing-policy changes; ruled-out stops re-chasing. Update the
 mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
 
+**Shared canonical record headings (all missions).**
+For every mission, write `## STATUS <YYYY-MM-DD> — ITERATION <n>: <headline>`.
+Source of truth: `internal/mission/normalize.go` `canonicalStatusRe`; the code regex wins over prose.
+Use EM DASH (U+2014), single spaces, upper-case `ITERATION`, a colon directly after <n>,
+and a headline starting with a non-space. No `COMPLETE`/`DONE` between number and colon,
+no parenthetical on the date, and no lower-case `iteration` (e.g. `## STATUS 2026-10-16 — ITERATION 44 COMPLETE: x` is forbidden).
+Log entry companion (`canonicalEntryRe`): `## <n> — <YYYY-MM-DD> — <title>`.
+WHY: charters are not linted; a wrong stamp passes silently until rotation moves it into
+`*-mission-status-archive.md`, where `TestMissionDocHeadingsStayCanonical`'s ratchet
+reds it, usually in a LATER iteration than the one that wrote it.
+Before committing the record: `go test ./internal/mission/ -run Canonical -count=1` and
+`printf '%s\n' "$new_stamp" | grep -Eq '^## STATUS [0-9]{4}-[0-9]{2}-[0-9]{2} — ITERATION [0-9]+: [^[:space:]]'` (new_stamp = actual new heading).
+Repair: `ailang mission normalize` (dry run), inspect rewrites/unconvertibles, then `ailang mission normalize --apply`.
+The normalizer repairs record streams, not charter prose; correct a charter stamp before rotation.
+Mission charters may keep a local note; this is the shared rule and governs new stamps over legacy examples below.
+
 **⚠ AND THE COMMIT THAT LANDS THIS RECORD CAN *CLOSE AN ISSUE IT ONLY TALKED ABOUT* — GITHUB'S
 AUTO-CLOSE PARSER DOES NOT READ ENGLISH, AND GATE 4 MANDATES EXACTLY THE DISCURSIVE PROSE THAT
 FEEDS IT** (added 2026-08-21 V1 iteration 240; two measured instances plus a recorded near-miss).
@@ -244,7 +260,8 @@ SHARED, SO HARDCODING ONE MISSION'S CASING BREAKS THE TELL FOR EVERY OTHER MISSI
 edit it, and corroborated first-party in BOTH repos before adoption — sibling-claim ghost
 discipline). Iteration 134 correctly diagnosed the casing trap but fixed it by pinning the literal
 to **V1's** format, `## STATUS 2026-08-07 — ITERATION 156:`. World stamps
-`## STATUS 2026-08-07 (iteration 60)` — lower-case and parenthesised. Measured against World's
+`## STATUS 2026-08-07 (iteration 60)` (a non-canonical legacy form; see the shared STATUS rule above)
+— lower-case and parenthesised. Measured against World's
 **healthy** charter, the prescribed form returns `grep -c "ITERATION 60"` → **0**, and — the part
 that matters — its known-present controls return **0 too** (`ITERATION 59` → 0, `ITERATION 58` → 0),
 while `grep -ci` returns **1 / 4 / 4**. So the remedy iteration 134 wrote to stop a healthy charter
