@@ -21,8 +21,13 @@ func setupRunEmbedder(ctx *effects.EffContext, cfg aiSetup, bound string, lazy .
 	if path == "" {
 		path = config.EmbedCacheDB()
 	}
-	if path != "" && !ctx.HasCap("AI") {
-		return fmt.Errorf("--embed-cache-db requires AI capability")
+	if !ctx.HasCap("AI") {
+		if path != "" {
+			return fmt.Errorf("--embed-cache-db requires AI capability")
+		}
+		// Embedding configuration belongs to AI-authorized runs. An unrelated
+		// IO-only program must not depend on CLI brain provider credentials.
+		return nil
 	}
 	var store effects.EmbeddingCache
 	if path != "" {

@@ -185,3 +185,20 @@ func TestRunEmbeddingCacheFlagOverridesEnvironment(t *testing.T) {
 		t.Fatal("environment cache opened despite flag")
 	}
 }
+
+func TestEmbeddingConfigurationDoesNotAffectRunsWithoutAI(t *testing.T) {
+	testutil.SetHomeDir(t, t.TempDir())
+	t.Setenv("AILANG_EMBED_CACHE_DB", "")
+	t.Setenv("AILANG_EMBED_PROVIDER", "invalid-brain-provider")
+	ctx := effects.NewEffContext(nil)
+	if err := setupAIHandler(ctx, aiSetup{}, nil, nil); err != nil {
+		t.Fatalf("unrelated run reads embedding config: %v", err)
+	}
+	if ctx.AI != nil {
+		t.Fatal("embedding context installed without AI authority")
+	}
+	ctx.Grant(effects.NewCapability("AI"))
+	if err := setupAIHandler(ctx, aiSetup{}, nil, nil); err == nil {
+		t.Fatal("AI run silently accepted invalid config")
+	}
+}

@@ -52,8 +52,11 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 	}
 
 	// Set up effect handlers
-	SetupSharedMemHandler(effCtx)
-	SetupSharedIndexHandler(effCtx)
+	closeStores, storageErr := SetupSharedStorage(effCtx, opts.SharedStorage)
+	if storageErr != nil {
+		return storageErr
+	}
+	defer func() { err = errors.Join(err, closeStores()) }()
 	if err := SetupNetHandler(effCtx, opts.Net.AllowHTTP, opts.Net.AllowDomains, opts.Net.AllowLocalhost, opts.Net.AllowMetadata, opts.Net.Timeout); err != nil {
 		return err
 	}
@@ -73,6 +76,7 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 			return fmt.Errorf("AI handler setup: %w", err)
 		}
 	}
+	defer func() { err = errors.Join(err, effCtx.AI.Close()) }()
 	// Debug is auto-granted as a ghost effect in NewEffContext() — no conditional setup needed
 	if opts.VerifyContracts {
 		effCtx.Contracts = effects.NewContractContextWithMode(effects.ContractModePanic)
@@ -89,7 +93,10 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 		return err
 	}
 	if opts.TerminalSignalExit != nil {
-		stopSignals = effCtx.InstallWorkerSignalHandler(func(code int) { runlife.Complete(effCtx.CloseWorkers()); opts.TerminalSignalExit(code) })
+		stopSignals = effCtx.InstallWorkerSignalHandler(func(code int) {
+			runlife.Complete(errors.Join(effCtx.CloseWorkers(), closeStores(), effCtx.AI.Close()))
+			opts.TerminalSignalExit(code)
+		})
 	}
 
 	rt.GetEvaluator().SetEffContext(effCtx)
