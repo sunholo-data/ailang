@@ -69,7 +69,7 @@ func TestPreflight_SkipsWhatItCannotJudge(t *testing.T) {
 }
 
 func TestPiModelsPath_HonoursAgentDirOverride(t *testing.T) {
-	if got := piModelsPath([]string{"PI_CODING_AGENT_DIR=/x/agent"}); got != "/x/agent/models.json" {
+	if got, want := piModelsPath([]string{"PI_CODING_AGENT_DIR=/x/agent"}), filepath.Join("/x/agent", "models.json"); got != want {
 		t.Errorf("piModelsPath = %q", got)
 	}
 }

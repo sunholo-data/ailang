@@ -170,7 +170,8 @@ func processExec(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	// motoko BashExec `cd /tmp/qtest && python3 gen.py && …` timed out, bash
 	// died, and python3 — which never wrote, so never got SIGPIPE — was
 	// reparented to launchd and grew until three of them held ~18 GB.
-	proctree.Configure(cmd)
+	// Under a --policy owner it stays in the owner's group (ConfigureContained).
+	proctree.ConfigureContained(cmd)
 
 	// WaitDelay bounds how long cmd.Run() blocks on the I/O pipes after the process exits or the
 	// context fires. Without it, a descendant that escaped the group (setsid, a daemon) keeps the

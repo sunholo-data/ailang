@@ -279,4 +279,3 @@ func TestLocalEvalRowsRequireLeasedProvider(t *testing.T) {
 		t.Fatal("mutation back to ollama was not detected")
 	}
 }
-

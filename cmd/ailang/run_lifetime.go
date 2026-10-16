@@ -8,7 +8,12 @@ import (
 )
 
 func bootstrapRunLifetime() error {
-	_, err := runlife.Bootstrap(config.Raw(runlife.MetadataEnv), os.Exit, func() { _ = proctree.KillOwnGroup() })
+	session, err := runlife.Bootstrap(config.Raw(runlife.MetadataEnv), os.Exit, func() { _ = proctree.KillOwnGroup() })
+	if session != nil {
+		// The owner contains this run by killing its process group, so a
+		// program's exec subprocesses must stay inside that group.
+		proctree.StayInOwnerGroup()
+	}
 	return err
 }
 func completeRunLifetime() { runlife.Complete(nil) }
