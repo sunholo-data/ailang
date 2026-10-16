@@ -367,7 +367,7 @@ The following are intentionally left open for the implementer:
 
 **Planned (check for overlap):**
 - `design_docs/planned/v0_54_12/examples-manifest-stat-sync.md` — same command family (package manifest stat reporting); check its banner-sync decisions for wording consistency. No overlap: it syncs example stats, this doc adds a source-check gate.
-- `design_docs/planned/v0_54_10/m-test-strip-brace-literals.md` — same `ailang test` area; orthogonal (named-test body stripping), no overlap with source-module discovery.
+- `design_docs/implemented/v0_54_13/m-test-strip-brace-literals.md` — same `ailang test` area; orthogonal (named-test body stripping), no overlap with source-module discovery.
 
 (Duplicate/coverage gate: SimHash + neural search over implemented/ and planned/ returned no match ≥ 0.45 for "test package source check" — V14. This doc's topic — package-mode source-check subsumption — is distinct from test-body compilation issues.)
 

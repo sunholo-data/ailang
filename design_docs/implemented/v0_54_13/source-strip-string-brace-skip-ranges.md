@@ -3,6 +3,7 @@
 - **Date**: 2026-09-15
 - **Class**: bug
 - **Recommend**: design-doc
+- **Resolution**: fixed in v0.54.13 by b6c9f592e (#1821) via option (b), the lexer token stream.
 - **Searched**: "skip range", "source strip", "test block", "named test", "strip test" across design_docs/ — no existing doc rules on the strip-range computation. Closest are `design_docs/implemented/v0_29_0/m-named-test-blocks.md` and `design_docs/planned/v0_33_1/m-named-test-body-check-semantics.md`, which govern test-block parsing/semantics, not the stripper.
 - **Estimate**: `~20-40 lines in internal/testing/source_strip.go`
 

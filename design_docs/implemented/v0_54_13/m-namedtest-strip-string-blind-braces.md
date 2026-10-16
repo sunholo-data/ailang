@@ -1,6 +1,6 @@
 # Named-test source strip: parse-time block ends replace the string-blind brace scan
 
-**Status**: Planned
+**Status**: Superseded — fixed in v0.54.13 by b6c9f592e (#1821). `testAndPropertySkipRanges` now takes block ends from the lexer token stream (`braceTokens`/`blockEndLine` in `internal/testing/source_strip.go`), so braces inside strings and comments no longer count (option (b) below). Regression test: `internal/testing/source_strip_brace_test.go`. This plan was not executed.
 **Target**: v0.53.1
 **Priority**: P1 (Medium) — a whole test file fails on valid source, but a workaround exists (brace-balanced string literals, or hoisting bodies into named `pure` funcs)
 **Estimated**: 1 day (implementation ~3h, tests ~3h, docs/verification ~2h)
@@ -26,7 +26,7 @@ Reported against v0.52.0 (`stapledons-godot sim/protocol_ism_test.ail`, every
 test in the file failing with `pipeline error: module loading error: failed to
 load .../ailang-namedtest-NNN/protocol_ism_test.ail: parse errors` while
 `ailang check` of the same file passes), and already triaged as
-`design_docs/planned/ailang-core-triage/source-strip-string-brace-skip-ranges.md`
+`design_docs/implemented/v0_54_13/source-strip-string-brace-skip-ranges.md`
 (2026-09-15, **Recommend: design-doc**).
 
 **Reproduced on the current tree** (v0.53.0-dev; installed binary v0.52.5,
@@ -506,7 +506,7 @@ The following are intentionally left open for the implementer:
      this topic; the artifacts below were located by reading the triage lane. -->
 
 **Triage (the row that recommended this doc):**
-- `design_docs/planned/ailang-core-triage/source-strip-string-brace-skip-ranges.md` — 2026-09-15 triage of this exact defect; lists the three fix options and the ~20-40 LOC estimate this design superseded with the parser-recording option
+- `design_docs/implemented/v0_54_13/source-strip-string-brace-skip-ranges.md` — 2026-09-15 triage of this exact defect; lists the three fix options and the ~20-40 LOC estimate this design superseded with the parser-recording option
 - `design_docs/planned/ailang-core-triage/ai-deadline-and-named-test-roundtrip.md` — independently reproduced the same mechanism (a later sibling's `"a{b"` fails the first test) and classified it duplicate-of the row above
 
 **Planned (adjacent, not overlapping):**

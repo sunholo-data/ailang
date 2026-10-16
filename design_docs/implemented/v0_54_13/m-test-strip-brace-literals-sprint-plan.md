@@ -1,5 +1,7 @@
 # Sprint Plan: M-TEST-STRIP-BRACE-LITERALS
 
+**Status**: Superseded — fixed in v0.54.13 by b6c9f592e (#1821). `testAndPropertySkipRanges` now takes block ends from the lexer token stream (`braceTokens`/`blockEndLine` in `internal/testing/source_strip.go`), so braces inside strings and comments no longer count (option (b) below). Regression test: `internal/testing/source_strip_brace_test.go`. This plan was not executed.
+
 ## Summary
 Make named-test and property stripping use parser-recorded closing-brace positions so braces in literals and comments cannot corrupt the compiled module.
 

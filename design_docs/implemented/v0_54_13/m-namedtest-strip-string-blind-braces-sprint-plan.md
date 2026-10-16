@@ -6,7 +6,7 @@ Make named tests and properties strip according to parser-recorded closing posit
 
 **Design:** [Approved design](m-namedtest-strip-string-blind-braces.md)
 **Target:** v0.53.1
-**Status:** Plan ready for coordinator review; implementation not started.
+**Status:** Superseded — fixed in v0.54.13 by b6c9f592e (#1821). `testAndPropertySkipRanges` now takes block ends from the lexer token stream (`braceTokens`/`blockEndLine` in `internal/testing/source_strip.go`), so braces inside strings and comments no longer count (option (b) below). Regression test: `internal/testing/source_strip_brace_test.go`. This plan was not executed.
 **Duration:** 2 working days, 10 hours budget (8 hours work plus 2 hours contingency).
 **Estimated change:** 300 added/modified LOC, including tests and fixtures; approximately 30 obsolete scanner lines deleted separately.
 **Dependencies:** None external; M1 → M2 → M3.

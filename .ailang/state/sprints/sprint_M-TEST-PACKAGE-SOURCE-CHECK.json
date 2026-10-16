@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-TEST-PACKAGE-SOURCE-CHECK",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-16T09:15:44Z",
-  "design_doc": "design_docs/planned/v0_54_13/m-test-package-source-check.md",
-  "sprint_plan": "design_docs/planned/v0_54_13/m-test-package-source-check-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_54_13/m-test-package-source-check.md",
+  "sprint_plan": "design_docs/implemented/v0_54_13/m-test-package-source-check-sprint-plan.md",
   "github_issues": [],
   "registry_reuse": [
     {
@@ -161,5 +161,6 @@
     "trigger": "coordinator plan approval/merge",
     "estimated_hours": 10,
     "risk_level": "medium"
-  }
+  },
+  "superseded": "Not executed: fixed directly in v0.54.13 by the #1845 fix (checkUntestedSources in cmd/ailang/test_package_check.go)."
 }

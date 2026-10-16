@@ -1,6 +1,6 @@
 # m-test-strip-brace-literals — Stop brace-counting raw text to find test-block ends
 
-**Status**: Planned
+**Status**: Superseded — fixed in v0.54.13 by b6c9f592e (#1821). `testAndPropertySkipRanges` now takes block ends from the lexer token stream (`braceTokens`/`blockEndLine` in `internal/testing/source_strip.go`), so braces inside strings and comments no longer count (option (b) below). Regression test: `internal/testing/source_strip_brace_test.go`. This plan was not executed.
 **Target**: v0.54.10
 **Priority**: P1 (breaks real user test suites; found in sunholo/crew_core 0.4.0 `population_test.ail`)
 **Estimated**: 0.5–1 day
