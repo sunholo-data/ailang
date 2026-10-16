@@ -234,6 +234,13 @@ func (fc *funcCompiler) compileReturnExpr(e stmt.Expr) error {
 		return err
 	}
 	fc.emit(bytecode.EncodeABC(bytecode.OpReturn, r, 0, 0))
+	// Control never falls through a RETURN, so its value register is free for
+	// the code that follows (the next arm of a tail if/else-if chain). Keeping
+	// it leaked one register per arm and fragmented the frame until a wide
+	// record rebuild could not find a contiguous block (#1736).
+	if !fc.isPinned(r) {
+		fc.regs.freeTemp(r)
+	}
 	return nil
 }
 

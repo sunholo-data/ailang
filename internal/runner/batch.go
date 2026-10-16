@@ -28,6 +28,7 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 
 	// Each input gets its own args: the input path is the sole program argument
 	effCtx := effects.NewEffContext([]string{input})
+	effCtx.PkgDirs = lockedPackageDirs(opts.Filename, opts.PackageDir)
 	defer effCtx.CloseFSRoot() // this batch item owns its sandbox root
 	stopSignals := func() {}
 	defer func() {
