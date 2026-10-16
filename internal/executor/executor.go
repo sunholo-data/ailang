@@ -375,6 +375,13 @@ const (
 	FinishThrashAborted = "thrash_aborted"
 	// FinishTimeout means a hard/idle/prefill timeout killed the run.
 	FinishTimeout = "timeout"
+	// FinishIdleKilled means the executor's own idle watchdog killed the run:
+	// its session log stopped growing. That is a harness verdict, not a model
+	// outcome — on the buffered ollama path the log is silent for a whole
+	// generation, and 9 of 39 v0.54.9 rig runs were killed mid-call that way —
+	// so the eval harness banks it as invalid (charged to us, retried) with the
+	// spend it really incurred, never as a model failure.
+	FinishIdleKilled = "idle_killed"
 	// FinishError means the run terminated abnormally (non-zero exit, crash,
 	// cancellation).
 	FinishError = "error"

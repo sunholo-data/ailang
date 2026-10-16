@@ -11,4 +11,5 @@ var EffectBuiltinNames = []string{
 	// Append only: persisted bytecode uses these explicit numeric indices.
 	"__process_spawn_process", "__process_write_stdin", "__process_close_stdin",
 	"__process_cancel", "__stream_async_exec_process", "__stream_cancel_process_source",
+	"__process_spawn_result",
 }

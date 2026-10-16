@@ -345,6 +345,19 @@ Path dependencies (`{ path = "../sim" }`) are recorded relative to the depending
 
 Run `ailang lock --check` in CI to verify the committed lock is current without rewriting it; it exits non-zero and lists each drifted entry. A lock written by an older ailang that names a path dependency by absolute path still loads while that directory exists, is reported as drift by `--check`, and is rewritten relative by the next `ailang lock`. If the absolute directory is gone (another checkout), the error says so and tells you to run `ailang lock`.
 
+On a fresh machine, run `ailang lock` from the package directory to resolve every dependency
+in the committed manifest and populate the package cache. `ailang install <package>` adds
+a named dependency; it is not the restore command for an existing manifest. Resolution
+still runs when the lock is current so missing cache entries can be fetched.
+
+An unchanged resolution preserves `generated_at`, `generator`, and `ailang_version`
+together, leaving a CLI-generated lock byte-identical even after a toolchain upgrade.
+Changed resolutions receive fresh metadata. CI can therefore use either
+`ailang lock --check` (read-only drift detection) or `ailang lock` followed by
+`git diff --exit-code -- ailang.lock`; timestamp-ignore filters and restoring the file are
+unnecessary. Malformed or unreadable existing locks produce an error.
+
+
 ### Version Conflict Detection
 
 AILANG uses flat dependencies — one version per package name. If a transitive dependency requires a different version than your root manifest pins, `ailang lock` fails with a structured error:

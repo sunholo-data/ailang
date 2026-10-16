@@ -68,6 +68,7 @@ test-shellcheck-autopush: ## Run mutation controls for the scoped ShellCheck gat
 LAUNCHD_SUITE := /bin/bash tools/launchd/lib/suite-env.sh
 
 test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices + hook stdout, bash 3.2)
+	@$(LAUNCHD_SUITE) tools/launchd/test_quorum_artifacts.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_codex_auth_profiles.sh
 	@$(LAUNCHD_SUITE) tools/attended/test_codex_oauth_profiles.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_suite_env.sh
@@ -104,6 +105,9 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_scope_guard.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_codex_controller_env.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_mission_fleet_idle.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_triage_idle.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_workdir_sync.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_mission_prompt_role.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_ollama_quota_admission.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_anthropic_quota_admission.sh
 	@$(LAUNCHD_SUITE) scripts/hooks/test_stage_isolation.sh

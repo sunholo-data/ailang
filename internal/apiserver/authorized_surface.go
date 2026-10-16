@@ -11,8 +11,20 @@ func loadedExportMember(routesOnly bool, export ExportInfo) bool {
 	return !routesOnly || export.RoutePath != ""
 }
 
+// isExposed is the HTTP projection of the loaded-export gateway: function
+// dispatch, @route registration, OpenAPI, A2A and _meta. It is the gateway
+// narrowed by connectOnlyHidden; the MCP surfaces use loadedExportMember.
 func (s *Server) isExposed(export ExportInfo) bool {
-	return loadedExportMember(s.routesOnly, export)
+	return loadedExportMember(s.routesOnly, export) && !s.connectOnlyHidden(export)
+}
+
+// connectOnlyHidden reports whether --mcp-connect-only keeps export off plain
+// HTTP. Under that flag a tool is reachable only through the gated
+// /mcp/connect/, so HTTP serves @nomcp exports alone (the OAuth and sign-in
+// routes). Without it, an executor tool with an @route would be callable by
+// anyone as POST /api/... on a public service.
+func (s *Server) connectOnlyHidden(export ExportInfo) bool {
+	return s.mcpConnectOnly && !export.IsNoMCP
 }
 
 // routesOnlyHint returns a banner line when @route exports and auto-exposed

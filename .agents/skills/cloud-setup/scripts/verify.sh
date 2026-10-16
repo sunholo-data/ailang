@@ -1,166 +1,69 @@
 #!/usr/bin/env bash
-# Verify AILANG cloud environment is correctly configured
+# Verify an Anthropic-hosted Claude Code cloud session is ready for AILANG work.
+# Read-only. Exit 0 = ready (warnings allowed), 1 = something setup.sh should have fixed.
+set -uo pipefail
 
-set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+cd "$ROOT" || exit 1
 
-echo "=========================================="
-echo "AILANG Environment Verification"
-echo "=========================================="
-echo ""
+GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; NC='\033[0m'
+ok()   { echo -e "${GREEN}✓${NC} $1"; }
+bad()  { echo -e "${RED}✗${NC} $1"; FAILURES=$((FAILURES + 1)); }
+warn() { echo -e "${YELLOW}⚠${NC} $1"; WARNINGS=$((WARNINGS + 1)); }
+FAILURES=0; WARNINGS=0
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+echo "== Toolchain"
+want="go$(awk '/^go /{print $2; exit}' go.mod)"
+have="$(go env GOVERSION 2>/dev/null || echo none)"
+[ "$have" = "$want" ] && ok "Go $have" || bad "Go $have, go.mod wants $want"
+[ "${GOTOOLCHAIN:-}" = "local" ] && [ "$have" != "$want" ] && \
+  bad "GOTOOLCHAIN=local blocks the toolchain go.mod asks for — unset it"
+for t in make git gh jq gcloud node; do
+  command -v "$t" >/dev/null 2>&1 && ok "$t" || bad "$t missing"
+done
+command -v z3 >/dev/null 2>&1 && ok "z3" || warn "z3 missing — ailang ai-check skips contract verification"
 
-success() { echo -e "${GREEN}✓${NC} $1"; }
-fail() { echo -e "${RED}✗${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠${NC} $1"; }
-
-FAILURES=0
-WARNINGS=0
-
-# Ensure PATH includes Go
-export PATH=/usr/local/go/bin:$PATH
-
-echo "Checking tools..."
-echo ""
-
-# Check Go
-if command -v go &> /dev/null; then
-    GO_VER=$(go version 2>/dev/null | awk '{print $3}')
-    if [[ "$GO_VER" == "go1.24"* ]]; then
-        success "Go: $GO_VER"
-    else
-        warn "Go: $GO_VER (expected 1.24+)"
-        WARNINGS=$((WARNINGS + 1))
-    fi
+echo "== ailang"
+if command -v ailang >/dev/null 2>&1; then
+  v="$(ailang --version 2>/dev/null | head -1)"
+  case "$v" in *dev*) warn "ailang reports '$v' — unstamped build; use make quick-install" ;; *) ok "ailang on PATH: $v" ;; esac
+  ailang run --caps IO examples/runnable/hello.ail 2>&1 | grep -q Hello && ok "runs hello.ail" || bad "cannot run hello.ail"
 else
-    fail "Go: not found"
-    FAILURES=$((FAILURES + 1))
+  bad "ailang not on PATH — run scripts/setup.sh"
 fi
 
-# Check make
-if command -v make &> /dev/null; then
-    success "make: $(make --version 2>/dev/null | head -1 | awk '{print $3}')"
+echo "== GCP"
+# Not `print-access-token`: the harness sets a CLOUDSDK_AUTH_ACCESS_TOKEN placeholder, so that
+# succeeds while every API call fails CREDENTIALS_MISSING (measured 2026-10-16).
+acct="$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | head -1)"
+if [ -n "$acct" ]; then
+  ok "gcloud active account: $acct"
 else
-    fail "make: not found"
-    FAILURES=$((FAILURES + 1))
+  warn "gcloud has no usable credential — set GCP_SA_KEY_JSON in the environment, rerun setup.sh"
 fi
+[ -f "$HOME/.config/gcloud/application_default_credentials.json" ] || [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ] \
+  && ok "application default credentials present" \
+  || warn "no ADC — Go clients (Firestore inbox, observatory) cannot authenticate"
 
-# Check gh
-if command -v gh &> /dev/null; then
-    success "gh: $(gh --version 2>/dev/null | head -1 | awk '{print $3}')"
-else
-    warn "gh: not found (optional for GitHub operations)"
-    WARNINGS=$((WARNINGS + 1))
+echo "== Environment"
+[ "${AILANG_STORAGE_MESSAGING:-}" = "gcp" ] && ok "AILANG_STORAGE_MESSAGING=gcp" \
+  || warn "AILANG_STORAGE_MESSAGING unset — 'ailang messages' reads an empty local store"
+[ "${AILANG_STORAGE:-}" = "gcp" ] && bad "AILANG_STORAGE=gcp moves ALL stores — use AILANG_STORAGE_MESSAGING"
+[ -n "${AILANG_MESSAGES_PROJECT:-}" ] && ok "AILANG_MESSAGES_PROJECT=$AILANG_MESSAGES_PROJECT" \
+  || warn "AILANG_MESSAGES_PROJECT unset (want ailang-multivac)"
+[ "${AILANG_AUTOPUSH:-1}" = "0" ] && ok "AILANG_AUTOPUSH=0 (Stop hook will not push dev)" \
+  || warn "Stop hook will rebase+push dev from this ephemeral clone — set AILANG_AUTOPUSH=0"
+for k in OPENROUTER_API_KEY AILANG_REGISTRY_API_KEY; do
+  [ -n "${!k:-}" ] && ok "$k set" || echo "  · $k not set (only needed for evals / publishing)"
+done
+
+echo "== Quick tests"
+go test ./internal/lexer/... ./internal/parser/... -count=1 >/tmp/ailang-cloud-verify.log 2>&1 \
+  && ok "lexer + parser tests" || bad "tests failed — see /tmp/ailang-cloud-verify.log"
+
+echo
+if [ "$FAILURES" -gt 0 ]; then
+  echo -e "${RED}$FAILURES failure(s), $WARNINGS warning(s).${NC} Run .claude/skills/cloud-setup/scripts/setup.sh"
+  exit 1
 fi
-
-# Check git
-if command -v git &> /dev/null; then
-    success "git: $(git --version 2>/dev/null | awk '{print $3}')"
-else
-    fail "git: not found"
-    FAILURES=$((FAILURES + 1))
-fi
-
-echo ""
-echo "Checking AILANG binary..."
-echo ""
-
-# Check AILANG binary exists
-if [[ -f "bin/ailang" ]]; then
-    success "bin/ailang exists"
-else
-    fail "bin/ailang not found (run: make build)"
-    FAILURES=$((FAILURES + 1))
-fi
-
-# Test AILANG runs
-if [[ -f "bin/ailang" ]]; then
-    OUTPUT=$(./bin/ailang run examples/runnable/hello.ail 2>&1 || true)
-    if echo "$OUTPUT" | grep -q "Hello, AILANG!"; then
-        success "AILANG executes correctly"
-    else
-        fail "AILANG execution failed"
-        echo "    Output: $OUTPUT"
-        FAILURES=$((FAILURES + 1))
-    fi
-fi
-
-echo ""
-echo "Checking environment variables..."
-echo ""
-
-# Check GOTOOLCHAIN
-if [[ "${GOTOOLCHAIN:-}" == "local" ]]; then
-    success "GOTOOLCHAIN=local"
-else
-    warn "GOTOOLCHAIN not set to 'local' (may cause auto-download issues)"
-    WARNINGS=$((WARNINGS + 1))
-fi
-
-# Check GOPROXY
-if [[ "${GOPROXY:-}" == "direct" ]]; then
-    success "GOPROXY=direct"
-else
-    warn "GOPROXY not set to 'direct' (may cause proxy issues)"
-    WARNINGS=$((WARNINGS + 1))
-fi
-
-echo ""
-echo "Checking network..."
-echo ""
-
-# Check network connectivity
-if curl -s --connect-timeout 5 -o /dev/null https://api.github.com 2>/dev/null; then
-    success "Network: GitHub API accessible"
-else
-    warn "Network: GitHub API not accessible"
-    WARNINGS=$((WARNINGS + 1))
-fi
-
-echo ""
-echo "Running quick tests..."
-echo ""
-
-# Run lexer tests
-if go test ./internal/lexer/... -count=1 > /tmp/verify_test.log 2>&1; then
-    success "Lexer tests pass"
-else
-    fail "Lexer tests fail - see /tmp/verify_test.log"
-    FAILURES=$((FAILURES + 1))
-fi
-
-# Run parser tests
-if go test ./internal/parser/... -count=1 >> /tmp/verify_test.log 2>&1; then
-    success "Parser tests pass"
-else
-    fail "Parser tests fail - see /tmp/verify_test.log"
-    FAILURES=$((FAILURES + 1))
-fi
-
-echo ""
-echo "=========================================="
-
-if [[ $FAILURES -eq 0 ]] && [[ $WARNINGS -eq 0 ]]; then
-    echo -e "${GREEN}✓ All checks passed!${NC}"
-    echo ""
-    echo "Environment is fully configured and ready."
-elif [[ $FAILURES -eq 0 ]]; then
-    echo -e "${YELLOW}⚠ Passed with $WARNINGS warning(s)${NC}"
-    echo ""
-    echo "Environment is usable but may have minor issues."
-    echo "Consider setting environment variables:"
-    echo "  export PATH=/usr/local/go/bin:\$PATH"
-    echo "  export GOTOOLCHAIN=local"
-    echo "  export GOPROXY=direct"
-else
-    echo -e "${RED}✗ $FAILURES check(s) failed${NC}"
-    echo ""
-    echo "Run setup script to fix:"
-    echo "  .claude/skills/cloud-setup/scripts/setup.sh"
-    exit 1
-fi
-echo "=========================================="
+echo -e "${GREEN}Ready${NC} ($WARNINGS warning(s))."

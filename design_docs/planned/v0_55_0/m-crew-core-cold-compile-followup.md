@@ -417,7 +417,7 @@ Negative-existence claims (V9) were greped at repo scope (`internal/`, `bench/`,
 - `internal/pipeline/scheme_constraint_growth_test.go` — the allocation guard this doc extends
 
 **Planned (check for overlap):**
-- [stapledon-v0-54-6-workarounds.md](../v0_54_7/stapledon-v0-54-6-workarounds.md) — the game's workaround register; this doc retires the warm-up workaround once ≥ v0.54.8 (distinct: that doc routes engine gaps W1–W4, not compile cost)
+- [stapledon-v0-54-6-workarounds.md](../../implemented/v0_54_7/stapledon-v0-54-6-workarounds.md) — the game's workaround register; this doc retires the warm-up workaround once ≥ v0.54.8 (distinct: that doc routes engine gaps W1–W4, not compile cost)
 - No existing planned or implemented doc covers #1811 or cold-compile cost (duplicate gate: SimHash + neural search both returned no matches at creation time)
 
 ## References

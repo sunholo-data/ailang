@@ -66,6 +66,46 @@ The fleet loop exists to do exactly the work above, so for it:
   (pushed, since every mission runs the pinned `origin/dev`), dry-run healthy **and** degraded,
   `make test-launchd-drivers` green. Resolve only after the fix is on `origin/dev`.
 
+### THE TRIAGE MISSION — the pick is an ITEM LIST, not one backlog row (`MISSION_NAME=triage`)
+
+The triage loop ([charter](../../../../design_docs/triage-mission.md)) works the fleet's output
+queue: approval cards, agent PRs and bot-filed issues on `sunholo-data/ailang`. Standing rule 1
+("one backlog item") does not apply. Its Gate 2 builds the **item list** that
+[`gate-3-triage.md`](gate-3-triage.md) verifies, and it never self-sources code work (the
+admissibility rule above still binds: it routes, never fixes).
+
+1. **Read the three queues** (bounded, `--limit 1000`; `gh` truncates silently at the limit):
+   ```bash
+   ailang coordinator approvals --remote gcp --json        # .pending[]: id, task_id, created_at, age_hours,
+                                                           #   diff_available, agent_actionable, handoff_targets
+   gh pr list -R "$MISSION_REPO" --state open --limit 1000 \
+     --json number,title,author,headRefName,headRefOid,isDraft,mergeable,mergeStateStatus,updatedAt,labels,closingIssuesReferences
+   gh issue list -R "$MISSION_REPO" --state open --limit 1000 --json number,title,author,labels,createdAt,updatedAt
+   ```
+   A failed read is not an empty queue. Stop and report it.
+2. **Join them into items.** A card, its PR and its issue are **one item**, not three. Card ↔ PR
+   via `task_id` = the PR's `coordinator/task-<id>` head branch. PR ↔ issue via
+   `closingIssuesReferences` (or a `Closes #N` in the body). Two kinds of item matter most:
+   - **Orphans**: a `coordinator/task-*` PR with no pending card (H2, approved-but-unmerged or
+     never-carded), or a card with no PR. Orphans always go in the digest.
+   - **Stalled chains**: a green, mergeable, `diff_available` card older than 48h (clause 2).
+3. **Exclude, but report**: the current bookkeeping thread (`~/.ailang/state/mission-triage-gh-issue`),
+   Dependabot PRs (majors and red ones are Mark's), and other missions' PRs (`fleet/*`, …).
+4. **Select** (the cap keeps one iteration to about three verifier batches):
+   - **every item that changed since the last digest**: a new PR head, a new card, an issue whose
+     `updatedAt` is after the last digest. Compare against the newest rows in
+     `~/.ailang/state/mission-triage-shadow-ledger.jsonl`;
+   - **every held verdict**: an item whose newest ledger row is a ⚖ verdict (`VERIFIED`,
+     `CLOSE-*`) with `"action":"none"`, i.e. one an earlier iteration found actionable but did
+     not act on (no judge, a guard such as T2, or a rule since amended). Re-verify it against the
+     current `origin/dev`; the old verdict is never acted on as is. Without this bucket a held item
+     is skipped forever unless it happens to change (D-TRIAGE-11);
+   - **then the oldest N never-verified or stale items** (no ledger verdict in 7 days, clause 1),
+     N = 20 by default, until the list holds about 60.
+   Record the selection rule and the counts (changed / stale / skipped) in the Gate-4 row.
+5. Gate 1 already read `dev` CI. If it is red, the item list still runs: Level 1 merges nothing.
+   Red `dev` leads the digest (gate-3-triage.md §6).
+
 **The one carve-out**: bookkeeping the gates themselves mandate (Gate 4's log/index/dashboard
 writes) is not "harness work" — it is the iteration's own record-keeping.
 
@@ -136,13 +176,63 @@ reality**: `git log --grep`, does the code/test already exist, does `make test` 
 **QUORUM-AT-PICK (Mark 2026-07-16 — "old docs may not be up to new standards"):** the creation-time
 quorum hook only covers NEW/REVISED docs, so most of the backlog is pre-quorum (iteration 32's
 auto_caps doc, Oct 2025, reached the planner with zero multi-provider eyes). At pick time, if the
-picked doc has NO quorum artifact (`ls .ailang/state/mission-quorum/<doc-id>-*.json`), run the text
+picked doc has NO quorum artifact (use the checked reader below), run the text
 quorum BEFORE routing: `ailang design-quorum <doc.md> --controller-verdict <your own pass|reject>`
 (cents, budget-capped, N−1 degrade). Any-reject → the objections go to the designer role for a
 revision pass first (Gate 3's design-doc-creator lane), then re-quorum ONCE; still-rejected →
 `needs-human-review`, park, next item. Skip only for: bookkeeping-only picks, ghost-closes, and
 mission-infra docs the quorum already reviewed. This is a pick-time gate, not a re-litigation —
 one round, bounded.
+Use this executable reader with the existing `<doc-id>` filename slug. It returns 0
+(REVIEWED), 1 (UNREVIEWED), or 2 (ERROR: stop and repair wiring/configuration).
+An active mission requires the exported absolute directory and driver helper. An
+attended reader enters its current git repo root; a standalone policy reader stays
+in sandbox CWD without git ascent. A supplied driver root must be valid in every mode.
+Both directories are consulted, export first then current reader repo local fallback;
+an error in either dominates any match. No other checkout or legacy evidence is scanned.
+
+```bash
+# --- QUORUM READER START ---
+mc_quorum_gate2() {
+  local root helper driver="${MISSION_DRIVER_ROOT:-}"
+  if [ "${MISSION_CONTROL_ACTIVE:-0}" = 1 ]; then
+    if [ -n "${AILANG_AGENT_POLICY:-}" ]; then
+      echo "quorum ERROR: policy marker present; local confinement: $(pwd -P)/.ailang/state/mission-quorum" >&2; return 2
+    fi
+    if [ -z "${MISSION_QUORUM_ARTIFACT_DIR:-}" ] || [ -z "$driver" ]; then
+      echo 'quorum ERROR: active reader requires artifact export and driver root' >&2; return 2
+    fi
+  fi
+  if [ -n "${AILANG_AGENT_POLICY:-}" ]; then
+    root=$(pwd -P) || return 2
+  else
+    root=$(git rev-parse --show-toplevel) || { echo 'quorum ERROR: cannot resolve reader repo root' >&2; return 2; }
+  fi
+  case "$root" in /*) ;; *) echo 'quorum ERROR: reader root must be absolute' >&2; return 2 ;; esac
+  if [ -n "$driver" ]; then
+    case "$driver" in /*) ;; *) echo 'quorum ERROR: driver root must be absolute' >&2; return 2 ;; esac
+    helper="$driver/tools/launchd/lib/quorum-artifacts.sh"
+  else
+    helper="$root/tools/launchd/lib/quorum-artifacts.sh"
+  fi
+  if [ ! -r "$helper" ]; then echo 'quorum ERROR: unreadable artifact helper' >&2; return 2; fi
+  if ! . "$helper"; then echo 'quorum ERROR: cannot source artifact helper' >&2; return 2; fi
+  cd "$root" || { echo 'quorum ERROR: cannot enter reader repo root' >&2; return 2; }
+  mc_quorum_reader_dirs "$root" || return 2
+  mc_quorum_lookup "$1"
+}
+# --- QUORUM READER END ---
+```
+
+Call `mc_quorum_gate2 "<doc-id>"` in a checked conditional. Only rc 1 means no
+artifact and triggers the text quorum; rc 2 stops the pick. On rc 0,
+`MC_QUORUM_MATCHES` holds quoted absolute paths: read each with `jq ... "$artifact"`
+using the nested schema below and apply the existing verdict/remedy policy.
+Run `ailang design-quorum <doc.md> ...` from that same resolved CWD and environment,
+with `--artifact-dir` omitted, so reader and writer use the same resolution.
+No-export attended readers stay local; reverse cross-mode visibility requires the
+attended reader to share the mission writer's explicit export.
+
 **NARROW-REFINEMENT CARVE-OUT (added iter-95, 2nd instance — iter-93 `m-pure-prng` `split` was the
 1st):** twice now the one-revision-one-requorum→park gate parked a doc whose design DIRECTION both
 reviewers accepted, blocking SOLELY on narrow, obviously-resolvable defects the reviewers themselves
@@ -182,12 +272,19 @@ sharper on cost: `m-named-test-body-check-semantics-2026-08-07T04-40-40Z` printe
 `gpt5-6-sol` absent for *"estimated cost $0.1048 (doc ~14818 input tok) exceeds cap $0.1000"* —
 refused over **$0.0048** — on a doc `blocked` in the immediately preceding round at `04:26:48Z`
 where `gpt5-6-sol` was the substantive rejecter.
-**Rule.** Before acting on any synthesis whose verdict is `proceed`, read `absent_reviewers`. If it
-is non-empty: re-run each absent reviewer alone with a raised cap
-(`ailang design-review --reviewer <m> --max-cost-usd <raised>`) and fold its verdict in — a metered
-re-run is cents against the $5 iteration ceiling and is the cheapest gate in this loop. If a
-reviewer genuinely cannot be restored, then everywhere the verdict is quoted downstream it reads
-"PROCEED at N−1, `<model>` absent (`<reason>`)" — never a bare "quorum passed".
+**Rule.** Before acting on any synthesis, read `.synthesis.absent_reviewers` and apply the
+remedy by reason:
+- `budget`: re-run that reviewer alone with a raised cap
+  (`ailang design-review --reviewer <m> --max-cost-usd <raised>`) and fold its verdict in.
+- `invalid` with `salvaged_verdict: reject`: synthesis is already blocked. Treat the recovered
+  objection as real and revise the doc; do not re-run the reviewer.
+- `invalid` with no `salvaged_verdict`: never raise the cap. At most one solo re-run at the
+  same cap; a second `invalid` is a durable named absence.
+- `salvaged_verdict: pass`: audit only, never a vote, external signal or present seat.
+
+Wherever synthesis allows a degraded proceed and a reviewer cannot be restored, quote it
+downstream as "PROCEED at N-1, `<model>` absent (`<reason>`)" (a second invalid:
+"PROCEED at N-1, `<model>` absent (invalid)") — never a bare "quorum passed".
 **The author's vendor sits out (Mark, attended 2026-09-25).** Always pass the designer lane that
 wrote the doc: `ailang design-quorum <doc> --author "<designer lane>" ...` (e.g.
 `claude:claude-opus-5-5`, `codex:gpt-6.1-sol`). Reviewers come from a POOL — `gpt6-1-sol`,
@@ -205,7 +302,7 @@ edit on it, and this iteration measured the writer). The rule above says *"read 
 and the neighbouring rule says the verdicts are the reviewers'. **Both are one level off**, and a
 controller who types the documented path gets a confident `null` — the vacuous pass this whole rule
 was written to close, reached by following the rule.
-Measured across **22 of 22** artifacts in `.ailang/state/mission-quorum/` (complete enumeration, not
+Historical local-path measurement: across **22 of 22** artifacts in `.ailang/state/mission-quorum/` (complete enumeration, not
 a sample; control — `has("synthesis")` = **22**): top-level `has("absent_reviewers")` = **0**, and
 `[.reviewers[] | select(has("verdict"))] | length` > 0 in **0**. The keys DO exist, one level down
 — `Synthesis.AbsentReviewers` at `internal/mission/quorum/quorum.go:51` and the reviewer verdict
@@ -226,19 +323,15 @@ generalisation is this file's own recurring shape aimed at itself: **a rule that
 QUERY is only as good as the query's path, and a wrong path returns `null` rather than an error.**
 Pair any documented `jq` read with a known-present sibling key in the same call (rule 3a aimed at a
 JSON path), so a `null` proves the key is absent rather than that you spelled it wrong.
-**And check `presentCount` has not been satisfied by YOU.** V1's artifacts carry three syntheses
-reading `proceed` with **zero of two** model reviewers present
+**The zero-signal guard is landed (#1767, `a5f9af982`).** Historical artifacts included
+three syntheses reading `proceed` with zero model reviewers present
 (`m-check-strict-fallbacks-2026-07-17T07-58-22Z`, `m-gemini-evaluator-diff-bridge-2026-07-16T23-03-39Z`,
-`m-gemini-exec-project-plumbing-2026-07-16T17-44-15Z`) — and in all three the absent reviewers had
-in fact said **reject**, recoverable from the captured raw text on disk. The zero-signal guard at
-`internal/mission/quorum/quorum.go:168` did not fire because the controller's own
-`--controller-verdict` increments the same `presentCount` it tests, and Gate 2 *mandates* that flag
-(measured: **86 of 87** artifacts carry one; control — the single artifact without one reads
-`blocked`). So the loop can pass a doc on its own self-assessment while the artifact says "quorum:
-proceed". Filed as `#651` for the code fix; until it lands, the count that matters is **present
-EXTERNAL reviewers**, and zero of them is a park, not a pass. The tell: you are about to route on a
-quorum and you have not read `absent_reviewers` — or you have read it, seen a name, and let the
-green verdict speak louder than the hole.
+`m-gemini-exec-project-plumbing-2026-07-16T17-44-15Z`), even though the absent reviewers had said
+reject in the retained raw text. `synthesize` in `internal/mission/quorum/quorum.go` now counts
+present EXTERNAL reviewers only: the controller's `--controller-verdict` cannot satisfy the guard,
+and zero external verdicts blocks. A salvaged reviewer is never counted as present: a recovered
+reject still vetoes, while a recovered pass contributes no signal. Read `.synthesis.absent_reviewers` before routing, and
+keep every named hole visible even when a reserve reviewer fills its seat.
 **AND WHEN A DOC BLOCKS ROUND AFTER ROUND, TRACK *WHICH SURFACE* EACH ROUND'S OBJECTIONS LAND ON —
 BECAUSE EVERY RULE ABOVE TELLS YOU HOW TO ANSWER A BLOCKED QUORUM AND NONE TELLS YOU WHEN TO STOP
 ANSWERING IT** (added 2026-08-23 V1 iteration 257; instance 1 is iteration 256, whose rounds 2 and 3

@@ -178,3 +178,27 @@ mc_skill_sync() {
   if [ "$pin_had" = x ]; then PIN_BOUNDED_OUT=$pin_saved; else unset PIN_BOUNDED_OUT; fi
   return 0
 }
+
+# mc_workdir_sync REPO — fetch, then the same safe ff-only sync on the MISSION WORKDIR clone.
+#
+# mc_skill_sync keeps the skills checkout current, but a mission's MISSION_WORKDIR is a
+# separate standalone clone that nothing fetched or advanced. Measured 2026-10-15: the
+# triage controller read its charter from ~/dev/sunholo-data/ailang-triage, 14 commits
+# behind, and enforced a T1 that D-TRIAGE-10 had already amended — 60 verdicts, zero
+# actions. Opt-in per mission (MISSION_WORKDIR_SYNC=1): other workdirs were hundreds of
+# commits behind on the same day, and turning this on for them is its own decision.
+# Reuses every _ss_run guard (dev only, nothing ahead, no operation in progress, no dirty
+# path the range touches); the only new step is the fetch, since a standalone clone does
+# not share the pin's refreshed refs.
+mc_workdir_sync() {
+  local repo="$1" rc=0
+  if ! type _pin_bounded >/dev/null 2>&1; then
+    _ss_verdict error:bounded-unavailable 'pin-root bounded primitive unavailable'; return 0
+  fi
+  _pin_bounded "${MISSION_WORKDIR_FETCH_TIMEOUT:-60}" git -C "$repo" fetch -q origin dev || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    _ss_verdict error:fetch-failed "git fetch origin dev failed (rc=$rc); workdir left as is"; return 0
+  fi
+  AILANG_SKILL_SYNC_CHECKOUT="$repo" mc_skill_sync apply
+  return 0
+}
