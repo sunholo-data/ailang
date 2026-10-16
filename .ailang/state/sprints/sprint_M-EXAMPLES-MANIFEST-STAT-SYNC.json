@@ -84,10 +84,10 @@
         "Temporary-fixture checks prove an unlisted file fails with its path, an allowlisted file passes, and the underscore scratch convention preserves the existing gate self-test.",
         "Update verify-examples comments and diagnostics for statistics/modules drift and missing entries; retain report generation and exit propagation."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "48 current omissions explicitly seeded (design baseline 47); shallow snapshot has no ancestry to identify the extra file. Isolated controls passed for nested missing path, allowlist, underscore scratch and bare legacy paths."
     },
     {
       "id": "M4",
