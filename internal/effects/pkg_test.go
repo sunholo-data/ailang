@@ -129,6 +129,9 @@ func TestPkgAssetPath_RejectsBadInputs(t *testing.T) {
 		rel  string
 	}{
 		{"single segment", "test", "foo.txt"},
+		{"parent vendor", "../pkg", "foo.txt"},
+		{"parent name", "test/..", "foo.txt"},
+		{"backslash vendor", `test\outside/pkg`, "foo.txt"},
 		{"empty rel", "test/pkg", ""},
 		{"absolute rel", "test/pkg", "/etc/passwd"},
 		{"parent traversal", "test/pkg", "../escape"},
