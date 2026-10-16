@@ -9,7 +9,7 @@ Resolve package assets from the running program's locked dependency targets. Whe
 **Duration:** 3 days; four implementation sessions of 60–90 minutes, plus review and integration buffer.
 **Estimated total:** 650 LOC: 270 implementation, 330 tests, 50 documentation.
 **Risk:** Medium — effect-context propagation and embed initialization order.
-**Status:** Implementation complete through M3; M4 validation in progress on `coordinator/task-d61964fa`. Execution was authorized by the coordinator handoff.
+**Status:** Implementation complete on `coordinator/task-d61964fa`; broad validation has recorded limitations below. Execution was authorized by the coordinator handoff.
 
 ## Current Status and Velocity
 
@@ -140,7 +140,16 @@ AILANG prompt version loaded: v0.16.7. The generated fixture checks successfully
 - Focused integration passes for pipeline, runner, batch, embed and API, including older locked bytes, repeated context replacements, engine isolation, missing locked data and malformed locks.
 - `make check-boundaries`, `make check-architecture-closure`, `make check-file-sizes`, `make check-changelog`, `make fmt-check`, `make verify-stdlib` (48 interfaces) and `make verify-examples` pass. The existing `examples/asset_path.ail` checks and runs with IO/FS, printing the documented missing-package result.
 - The first broad run exposed leaked AILANG_STDLIB_PATH from existing API tests; the shared fixture now clears that override. The serialized API package suite passes (69.985s).
-- `TestRuntimeNestedStopUsesRemainingDeadline` fails on both the implementation and untouched starting commit (baseline reproduced in a temporary detached worktree). This process-lifecycle failure is outside the asset-resolution change. Initial concurrent pipeline testing was also killed under memory pressure; serialized recheck is in progress.
-- Tooling friction: Go was installed off PATH; the startup script incorrectly reported success. All actual Go commands use `/usr/local/go/bin`. The first linter link was killed; retrying with GOGC=20 and GOMAXPROCS=2 installed the required tool. No repository tooling changes were needed.
+- `TestRuntimeNestedStopUsesRemainingDeadline` fails on both the implementation and untouched starting commit (baseline reproduced in a temporary detached worktree). This process-lifecycle failure is outside the asset-resolution change. Pipeline testing was killed under memory pressure on concurrent and serialized runs, including GOGC=20, GOMEMLIMIT=512MiB, GOFLAGS=-p=1 and -parallel=1. Focused pipeline regressions pass; broad pipeline success is not claimed.
+- Tooling friction: Go was installed off PATH; the startup script incorrectly reported success. All actual Go commands use `/usr/local/go/bin`. The first linter link was killed; retrying with GOGC=20 and GOMAXPROCS=2 installed the required tool. Runner PTY tests initially lacked ps; procps was downloaded/extracted outside the repository for the final run. No repository tooling changes were needed.
 
 The package resolver keeps its existing return signature; the module phase obtains asset targets from its concrete PackageLoader. Shared test fixtures live in `internal/testutil/pkgassets` to avoid duplicating registry/lock construction across four consumers. No package-global asset map was introduced.
+
+Repeated verification: `go test ./internal/effects -run 'TestPkgAssetPath|TestAssetVersionCompatibility' -count=20` passes, including invalid directory filtering and package-name traversal rejection. The bounded `make test-changed` run explicitly excludes only the process-lifecycle baseline failure; it does not establish an unfiltered green gate.
+
+### Final Gate Outcome
+
+- Final bounded changed-package run: API, builtins, effects (one baseline exclusion), embed, pkg and runner pass; pipeline is killed at 46.101s. The target exits nonzero, so no unfiltered or whole-sprint test success is claimed. CI must provide the broader verification.
+- Focused golangci-lint over all eight touched packages exits zero with `0 issues.` Full `make lint` reports `0 issues.` but times out (exit 4), so its gate remains incomplete.
+- Independent evaluation report: `.ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_1.json`. Review found no remaining runtime defect but withheld approval because broad validation is incomplete.
+- All implementation is committed. Sprint JSON retains `in_progress`, M4 `passes: false`, and `implementation_complete: true` to distinguish finished code from unmet validation criteria. Remaining unchecked acceptance boxes refer to those broad gates. No merge or publication performed.
