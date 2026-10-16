@@ -20,7 +20,8 @@ func TestOllamaEmbed(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	ctx := &effects.EffContext{}
+	ctx := effects.NewEffContext(nil)
+	ctx.Grant(effects.NewCapability("AI"))
 
 	args := []eval.Value{
 		&eval.StringValue{Value: "embeddinggemma"},
@@ -67,7 +68,7 @@ func TestOllamaMediaInput(t *testing.T) {
 }
 
 func TestOllamaEmbedMediaRejectsEmpty(t *testing.T) {
-	_, err := ollamaEmbedMediaImpl(&effects.EffContext{}, []eval.Value{
+	_, err := ollamaEmbedMediaImpl(liveEmbeddingContext(), []eval.Value{
 		&eval.StringValue{Value: "embeddinggemma-2"},
 		&eval.StringValue{Value: ""},
 		&eval.BytesValue{},
@@ -89,7 +90,7 @@ func TestOllamaEmbedMedia(t *testing.T) {
 	// A 1x1 PNG
 	png, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==")
 
-	result, err := ollamaEmbedMediaImpl(&effects.EffContext{}, []eval.Value{
+	result, err := ollamaEmbedMediaImpl(liveEmbeddingContext(), []eval.Value{
 		&eval.StringValue{Value: "embeddinggemma-2"},
 		&eval.StringValue{Value: ""},
 		&eval.BytesValue{Value: png},
@@ -107,4 +108,10 @@ func TestOllamaEmbedMedia(t *testing.T) {
 		t.Fatal("expected a non-empty embedding")
 	}
 	t.Logf("Got %d-dimensional image embedding", len(listVal.Elements))
+}
+
+func liveEmbeddingContext() *effects.EffContext {
+	ctx := effects.NewEffContext(nil)
+	ctx.Grant(effects.NewCapability("AI"))
+	return ctx
 }

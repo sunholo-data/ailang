@@ -1,0 +1,68 @@
+package embed
+
+import (
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"path/filepath"
+	"testing"
+)
+
+func TestEmbeddingEvaluatorBudget(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(root, "std"))
+	for _, fn := range []string{"text", "textResult", "media", "mediaResult"} {
+		for _, mode := range []string{"success", "no-cap", "budget", "operator"} {
+			t.Run(fn+"/"+mode, func(t *testing.T) {
+				engine := New(root)
+				defer engine.Close()
+				base := effects.NewEffContext(nil)
+				if mode != "no-cap" {
+					base.Grant(effects.NewCapability("AI"))
+				}
+				engine.runtime.GetEvaluator().SetEffContext(base)
+				var ctx *effects.EffContext
+				v, err := engine.CallPrepared(func(raw interface{}) {
+					ctx = raw.(*effects.EffContext)
+					if mode != "no-cap" {
+						ctx.Grant(effects.NewCapability("AI"))
+					}
+					ctx.AI = effects.NewAIContext(effects.NewStubAIHandler())
+					n := 1
+					if mode == "budget" {
+						n = 0
+					}
+					ctx.SetBudget(effects.NewBudgetContext(map[string]*int{"AI": &n}))
+					ceiling := 1
+					if mode == "operator" {
+						ceiling = 0
+					}
+					ctx.SetOperatorBudget(effects.NewOperatorBudget(map[string]int{"AI": ceiling}))
+				}, "internal/embed/testdata/embedding", fn)
+				if mode != "success" {
+					if err == nil {
+						t.Fatalf("denial became catchable value: %v", v)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if ctx.Budget.Used("AI") != 1 || ctx.OperatorBudgetUsage()["AI"] != 1 {
+					t.Fatal("incorrect charge", ctx.Budget.Used("AI"), ctx.OperatorBudgetUsage())
+				}
+				if tag, ok := v.(*eval.TaggedValue); ok {
+					if tag.CtorName != "Ok" {
+						t.Fatal(v)
+					}
+					v = tag.Fields[0]
+				}
+				if len(v.(*eval.ListValue).Elements) != 8 {
+					t.Fatal(v)
+				}
+			})
+		}
+	}
+}

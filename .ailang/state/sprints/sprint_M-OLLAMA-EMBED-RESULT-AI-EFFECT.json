@@ -107,10 +107,10 @@
         "End-to-end evaluator calls charge exactly one AI budget unit; capability and budget denial never become catchable Err.",
         "Direct effects.Call budget tests and normal evaluator/builtin-scope tests cover distinct paths; avoid assuming direct Impl calls create a charge scope."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T20:18:42.691536+00:00",
+      "completed": "2026-10-16T20:18:42.691536+00:00",
+      "notes": "Four AI signatures and std wrappers verified with runtime/evaluator calls. Result catches only marked embedding failures; capability, source-budget and operator-budget denial remain errors. One charge per evaluator call. AILANG prompt v0.16.7 loaded."
     },
     {
       "id": "M5",

@@ -12,6 +12,13 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
+// EmbeddingError marks provider, fixture and input failures that Result wrappers
+// may recover from. Authorization errors are raised before the operation runs.
+type EmbeddingError struct{ Err error }
+
+func (e *EmbeddingError) Error() string { return e.Err.Error() }
+func (e *EmbeddingError) Unwrap() error { return e.Err }
+
 // embeddingStub is deliberately private: real embedding calls always go to
 // Ollama, independently of the configured chat provider.
 type embeddingStub interface {
@@ -83,7 +90,7 @@ func aiEmbed(ctx *EffContext, args []eval.Value, media bool) (eval.Value, error)
 	vector, err := dispatchEmbed(ctx, name, model.Value, text.Value, media, image, audio, timeout)
 	if err != nil {
 		ctx.RecordAIEffect(op, traceArgs, "err:"+truncateForTrace(err.Error()), nil)
-		return nil, err
+		return nil, &EmbeddingError{Err: err}
 	}
 	ctx.RecordAIEffect(op, traceArgs, fmt.Sprintf("vector:%d dimensions", len(vector)), nil)
 	values := make([]eval.Value, len(vector))

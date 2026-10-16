@@ -80,10 +80,10 @@ Extend internal/effects/ai_stub_fixtures.go with embed entries; put embed-only p
 Update internal/builtins/ollama_embed.go for AI labeling and dispatch; add registrations and Result helpers in ollama_embed_result.go and focused tests in ollama_embed_result_test.go. Add four public wrappers to std/embedding.ail. Use existing ADT construction patterns. Capability/budget errors remain runtime errors; only provider/fixture failures become string Err values.
 
 **Acceptance criteria:**
-- [ ] All four builtin registrations and type signatures require AI; wrappers type-check.
-- [ ] Text and media Result success yields Ok([float]); provider failure yields Err(string) with specified prefix; non-Result failures still abort.
-- [ ] End-to-end evaluator calls charge exactly one AI budget unit; capability and budget denial never become catchable Err.
-- [ ] Direct effects.Call budget tests and normal evaluator/builtin-scope tests cover distinct paths; avoid assuming direct Impl calls create a charge scope.
+- [x] All four builtin registrations and type signatures require AI; wrappers type-check.
+- [x] Text and media Result success yields Ok([float]); provider failure yields Err(string) with specified prefix; non-Result failures still abort.
+- [x] End-to-end evaluator calls charge exactly one AI budget unit; capability and budget denial never become catchable Err.
+- [x] Direct effects.Call budget tests and normal evaluator/builtin-scope tests cover distinct paths; avoid assuming direct Impl calls create a charge scope.
 
 **Example coverage:** M5 supplies the runnable fallback and migrated text/media callers; earlier milestones use offline Go tests until wrappers land.
 

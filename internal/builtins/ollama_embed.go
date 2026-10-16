@@ -2,9 +2,7 @@ package builtins
 
 import (
 	"fmt"
-	"time"
 
-	ollama "github.com/sunholo-data/ailang/internal/ai/ollama/embed"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -24,8 +22,8 @@ func registerOllamaEmbed() {
 		Module:  "std/ai",
 		Name:    "_ollama_embed",
 		NumArgs: 2,
-		IsPure:  false, // Has IO effect (network call)
-		Effect:  "IO",
+		IsPure:  false, // Has AI effect (network call)
+		Effect:  "AI",
 		Type:    makeOllamaEmbedType,
 		Impl:    ollamaEmbedImpl,
 
@@ -53,28 +51,18 @@ func registerOllamaEmbed() {
 }
 
 // makeOllamaEmbedType builds the type signature for _ollama_embed
-// Type: (string, string) -> list[float] ! {IO}
+// Type: (string, string) -> list[float] ! {AI}
 func makeOllamaEmbedType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
 		T.String(), // model
 		T.String(), // text
-	).Returns(T.List(T.Float())).Effects("IO")
+	).Returns(T.List(T.Float())).Effects("AI")
 }
 
 // ollamaEmbedImpl is the implementation for _ollama_embed
 func ollamaEmbedImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	modelVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("_ollama_embed: expected String model, got %T", args[0])
-	}
-
-	textVal, ok := args[1].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("_ollama_embed: expected String text, got %T", args[1])
-	}
-
-	return ollamaEmbedRequest("_ollama_embed", modelVal.Value, textVal.Value, 30*time.Second)
+	return effects.Call(ctx, "AI", "embedOllama", args)
 }
 
 // registerOllamaEmbedMedia registers the _ollama_embed_media builtin
@@ -83,8 +71,8 @@ func registerOllamaEmbedMedia() {
 		Module:  "std/ai",
 		Name:    "_ollama_embed_media",
 		NumArgs: 4,
-		IsPure:  false, // Has IO effect (network call)
-		Effect:  "IO",
+		IsPure:  false, // Has AI effect (network call)
+		Effect:  "AI",
 		Type:    makeOllamaEmbedMediaType,
 		Impl:    ollamaEmbedMediaImpl,
 
@@ -119,7 +107,7 @@ func registerOllamaEmbedMedia() {
 }
 
 // makeOllamaEmbedMediaType builds the type signature for _ollama_embed_media
-// Type: (string, string, bytes, bytes) -> list[float] ! {IO}
+// Type: (string, string, bytes, bytes) -> list[float] ! {AI}
 func makeOllamaEmbedMediaType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
@@ -127,45 +115,10 @@ func makeOllamaEmbedMediaType() types.Type {
 		T.String(), // text
 		T.Bytes(),  // image
 		T.Bytes(),  // audio
-	).Returns(T.List(T.Float())).Effects("IO")
+	).Returns(T.List(T.Float())).Effects("AI")
 }
 
 // ollamaEmbedMediaImpl is the implementation for _ollama_embed_media
 func ollamaEmbedMediaImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	modelVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("_ollama_embed_media: expected String model, got %T", args[0])
-	}
-	textVal, ok := args[1].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("_ollama_embed_media: expected String text, got %T", args[1])
-	}
-	imageVal, ok := args[2].(*eval.BytesValue)
-	if !ok {
-		return nil, fmt.Errorf("_ollama_embed_media: expected Bytes image, got %T", args[2])
-	}
-	audioVal, ok := args[3].(*eval.BytesValue)
-	if !ok {
-		return nil, fmt.Errorf("_ollama_embed_media: expected Bytes audio, got %T", args[3])
-	}
-
-	input := ollama.MediaInput(textVal.Value, imageVal.Value, audioVal.Value)
-	if len(input) == 0 {
-		return nil, fmt.Errorf("_ollama_embed_media: text, image and audio are all empty")
-	}
-
-	// Media inputs are larger and vision/audio models load slower than text-only ones
-	return ollamaEmbedRequest("_ollama_embed_media", modelVal.Value, input, 120*time.Second)
-}
-
-func ollamaEmbedRequest(name, model string, input any, timeout time.Duration) (eval.Value, error) {
-	vector, err := ollama.EmbedRequest(name, model, input, timeout)
-	if err != nil {
-		return nil, err
-	}
-	elements := make([]eval.Value, len(vector))
-	for i, v := range vector {
-		elements[i] = &eval.FloatValue{Value: v}
-	}
-	return &eval.ListValue{Elements: elements}, nil
+	return effects.Call(ctx, "AI", "embedOllamaMedia", args)
 }
