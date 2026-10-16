@@ -65,10 +65,10 @@
         "Add make sync-examples-manifest and retain backfill-manifest-modules as an alias; --check detects modules or statistics drift without writing.",
         "On a clean valid manifest sync produces byte-identical output; repeated sync is idempotent. A stale temporary manifest is repaired, then passes --check."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "Baseline --check and byte-identical sync passed; no-op returns before serialization to preserve existing formatting."
     },
     {
       "id": "M3",

@@ -4,7 +4,7 @@
 
 .PHONY: verify-examples verify-examples-toplevel verify-examples-all verify-examples-trace verify-cli-examples examples-status
 .PHONY: update-readme update-trace-baselines flag-broken freeze-stdlib verify-stdlib verify-stdlib-selftest
-.PHONY: compile-examples-go verify-examples-gate-selftest backfill-manifest-modules validate-manifest-selftest
+.PHONY: compile-examples-go verify-examples-gate-selftest backfill-manifest-modules sync-examples-manifest validate-manifest-selftest
 
 # Example verification (parallel by default, ~8s vs ~3min sequential)
 #
@@ -50,7 +50,9 @@ verify-examples-gate-selftest: build ## Prove the verify-examples gate fails (an
 	echo "✅ gate self-test passed: broken example -> non-zero exit AND artifacts written"
 
 # Regenerate the manifest `modules` field (parser-backed). Commit the result.
-backfill-manifest-modules: ## Backfill examples/manifest.json `modules` field from actual imports
+backfill-manifest-modules: sync-examples-manifest ## Alias for sync-examples-manifest
+
+sync-examples-manifest: ## Sync derived modules and statistics in examples/manifest.json
 	@go run ./scripts/backfill_manifest_modules.go
 
 # Drift-lint self-test: prove validate_manifest --ci turns non-zero when a
