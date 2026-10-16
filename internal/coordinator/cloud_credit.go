@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"net/http"
 	"net/url"
+	"testing"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,7 +61,21 @@ func ValidateCloudCreditLane(p DispatchParams) error {
 	}
 	return nil
 }
+
+// ErrCreditGatewayFromTest refuses a real gateway identity inside a test binary.
+//
+// A cloud agent's environment carries its live task capability and gateway
+// URL, and agents run `go test` there. On 2026-10-12 the evaluator ran
+// `go test ./cmd/ailang/...` in its own job; a test calling
+// coordinatorExecuteJob reached the deferred lease release with that live
+// capability, the gateway released the task mid-run, and the evaluator's next
+// request was refused (402, task-f257f24d). Tests pass a stub token instead.
+var ErrCreditGatewayFromTest = errors.New("credit gateway: refusing a real identity token from a test binary")
+
 func CloudCreditIdentityToken(ctx context.Context, audience string) (string, error) {
+	if testing.Testing() {
+		return "", ErrCreditGatewayFromTest
+	}
 	s, e := idtoken.NewTokenSource(ctx, audience)
 	if e != nil {
 		return "", e

@@ -1,12 +1,23 @@
 # M-EXECUTOR-UID-SPLIT: Running the Agent CLI Under Its Own UID (Audit H-6)
 
-**Status**: Planned — **awaiting approval** (design only; no implementation). The recommendation is gated on a spike, see [Verdict](#verdict-value-vs-effort).
+**Status**: In progress: **Phase 0 code landed 2026-10-16** (Mark, attended: "yes do h-6"; see [Progress](#progress-2026-10-16)). The spike (Phase 1) is next; Phases 2–4 still wait on its result and a human go/no-go.
 **Target**: Phase 0 in the next security release after v0.49.0. Phases 2–4 have no target: they wait on the spike result and a human go/no-go.
 **Priority**: P1 for Phase 0, which includes a live credential leak found while writing this doc ([F-H6-1](#f-h6-1-claude-oauth-credentials-are-persisted-to-the-shared-artifacts-bucket)). P2 / conditional for the full UID split.
 **Estimated**: Phase 0 ~1.5 days · spike ~1 day · full split ~10–14 engineering days if the spike says go.
 **Dependencies**: composes with [M-EXECUTOR-ENV-HARDENING](https://github.com/sunholo-data/ailang/pull/1417) (H-4, PR #1417, planned). Uses the M-SEC2 lane split (multivac `internal-docs/M-SEC2-cloud-executor-hardening.md`, Phase 1 landed) and the egress lock (B1, dev only).
 **Source**: ailang-multivac `internal-docs/SECURITY-AUDIT-2026-10-01-ailang-executor-escape-hardening.md` §4 Phase C, H-6. Mark approved turning this item into a design doc on 2026-10-01.
 **Created / updated**: 2026-10-01
+
+## Progress 2026-10-16
+
+Attended session, Mark: "yes do h-6".
+
+- **F-H6-1 residue (D1): the leaked objects are gone.** `gcloud storage ls 'gs://<proj>-ailang-artifacts/tasks/*/claude/.credentials.json'` (names only) returns **0** in dev, test and prod. Positive control: the same glob without the file name lists prod task dirs (e.g. `tasks/codex-oauth-smoke-codex-20261009T171525Z/claude/projects/`), so the empty result is real. **Not established:** whether the exposed refresh tokens were rotated. Cloud now runs on a setup-token (`claude_auth.go` writes no credentials file in that mode). Rotation stays a D1 decision.
+- **P0.2** `proctree.DisableDump()` (Linux: raw `prctl` syscall, `PR_SET_DUMPABLE 0` read back via `PR_GET_DUMPABLE`, stdlib-only because proctree is a leaf; elsewhere `ErrDumpProtectionUnsupported`, never a silent no-op). `execute-job` calls it before any child exists and fails the task loudly (`publishCompletion`) on error.
+- **P0.3** `/plugins` and the pre-baked `/plugins/ailang_bootstrap` stay root-owned (`chmod -R go-w`). Only `/plugins/tasks` is chowned to `ailang`. The runtime clone moves to `/plugins/tasks/<taskID>/ailang_bootstrap` (`runtimePluginRoot`). `TestAgentBaseKeepsPluginsRootOwned` and `TestRuntimePluginRootMatchesImage` pin the image and the code together (both mutation-checked: re-adding `/plugins` to the chown, or dropping `/plugins/tasks`, fails).
+- **P0.4** probe test: the test binary re-executes as a parent holding a sentinel secret, which spawns a same-UID child through `Configure` (the executor spawn path). The child must get `environ=denied` and `mem=denied`. A control run without `DisableDump` must report `environ=LEAKED`, so a probe that cannot see a leak fails rather than passes. The control is also the no-op mutant. Skips as root (`CAP_SYS_PTRACE` bypasses dump protection; the executor is non-root). Runs on Linux CI only: there is no Linux VM on the rig, and dev Cloud Build runs as the default compute SA, which is off limits.
+- **Still open for Phase 0:** AC1(iii) and P0.5(c), one dev claude-lane probe task on the new image before the release tag (also confirms `prctl` works on Cloud Run gen2; since the call is fatal, a gen2 refusal would fail every cloud task, so this check gates the promote).
+- **Spike S6 (Mac) answered: YES, same-UID environment reads work.** On macOS 26.6, `ps -wwE -p <pid>` from uid 501 shows the full environment of a non-platform uid-501 process (`/opt/homebrew/bin/python3` with `H6PROBE=sentinel-x` → visible). Platform binaries (`/bin/sleep`) are hidden, but the agent CLIs (node, Go) are not platform binaries. So on the Mac any local agent can read the coordinator's environment, including the API key in its plist. This strengthens D6.
 
 ## Axiom Compliance
 
@@ -330,7 +341,7 @@ where data can go, and the rule removes the token that reads it.
 ### Implementation Plan
 
 **Phase 0: same-UID hardening (~1.5 days), independent of the verdict**
-- [ ] P0.1 (F-H6-1): `writeCredentialsFile` refuses to write into a `CLAUDE_CONFIG_DIR` under
+- [x] P0.1 (F-H6-1, landed f54500d88 / #1441): `writeCredentialsFile` refuses to write into a `CLAUDE_CONFIG_DIR` under
       `/artifacts` (named error). `execute-job` points `CLAUDE_CONFIG_DIR` at a **local** dir
       (credentials live there) and makes its `projects/` entry a **symlink** to
       `/artifacts/tasks/<id>/claude/projects/`. Claude then still appends the session JSONL
@@ -343,13 +354,13 @@ where data can go, and the rule removes the token that reads it.
       layout under `/artifacts` is byte-for-byte the same, so artifact readers need no change. Add
       a regression test that no credential file lands under the artifact root. Clean up the
       existing objects per D1 (multivac ops, out of repo)
-- [ ] P0.2: `prctl(PR_SET_DUMPABLE, 0)` at the start of `execute-job`. `DisableDump()` returns a
+- [x] P0.2 (2026-10-16): `prctl(PR_SET_DUMPABLE, 0)` at the start of `execute-job`. `DisableDump()` returns a
       typed error on failure **and** on unsupported platforms (`ErrDumpProtectionUnsupported`); it
       never pretends. `execute-job` (cloud, always Linux) treats any error as **fatal** before
       dispatching the CLI. The local coordinator path (darwin) does not call it in Phase 0. If it
       later does, it must log a named warning and record `parent_dump_protected=false` on `Result`,
       so the gap is visible in the data rather than silently assumed
-- [ ] P0.3: `Dockerfile.agent-base`: `/plugins` and the pre-baked `/plugins/ailang_bootstrap`
+- [x] P0.3 (2026-10-16): `Dockerfile.agent-base`: `/plugins` and the pre-baked `/plugins/ailang_bootstrap`
       stay root-owned (0755/0644). The build creates **one** writable subdirectory,
       `/plugins/tasks` (owner `ailang`), and the runtime per-task clone moves from
       `/plugins/<taskID>/ailang_bootstrap` to `/plugins/tasks/<taskID>/ailang_bootstrap`
@@ -359,7 +370,7 @@ where data can go, and the rule removes the token that reads it.
 - [ ] P0.5: positive-path tests: (a) a task with a runtime plugin repo still clones it and the CLI
       receives `--plugin-dir /plugins/tasks/<id>/…`; (b) the pre-baked fallback still resolves;
       (c) one dev probe task on the claude lane after the image change, before the tag
-- [ ] P0.4: adversarial probe test (Linux CI): spawn a child through the real executor spawn path,
+- [x] P0.4 (2026-10-16, `internal/proctree/dumpable_linux_test.go`): adversarial probe test (Linux CI): spawn a child through the real executor spawn path,
       and have it try `/proc/$PPID/environ`, `/proc/$PPID/mem` and a write under a root-owned dir.
       Each must be EACCES/EPERM
 

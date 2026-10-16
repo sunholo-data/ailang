@@ -88,9 +88,9 @@ func setupAIHandler(effCtx *effects.EffContext, cfg aiSetup, routingPolicy *ai.A
 		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr, 0, auth)
 	}
 
-	// Per-model OpenRouter host exclusions apply to every call this process
+	// Per-model OpenRouter routing options apply to every call this process
 	// makes, including models a program picks per call (std/ai step(model, …)).
-	openrouter.SetProviderIgnore(modelreg.GlobalModelsConfig.OpenRouterIgnoreByAPIName())
+	openrouter.SetProviderDefaults(modelreg.GlobalModelsConfig.OpenRouterProviderByAPIName())
 
 	// Look up model in config
 	model, err := modelreg.GlobalModelsConfig.GetModel(aiModel)

@@ -494,20 +494,24 @@ func pkgLockCommand(args []string) error {
 		return fmt.Errorf("no ailang.toml found in %s: %w\nRun 'ailang init package' first", cwd, err)
 	}
 
+	// Read before either write path: only a missing lock permits generation.
+	prevLF, err := loadPreviousLock(cwd)
+	if err != nil {
+		return err
+	}
+
 	if len(manifest.Dependencies) == 0 {
 		fmt.Printf("%s No dependencies to resolve\n", yellow("⚠"))
 		// Still create an empty lock file for consistency
 		lf := pkg.NewLockFile(nil, fmt.Sprintf("ailang lock %s", Version))
 		lf.AILANGVersion = Version
+		preserveLockGeneration(prevLF, lf)
 		if err := lf.Save(cwd); err != nil {
 			return fmt.Errorf("failed to write lock file: %w", err)
 		}
 		fmt.Printf("%s Generated %s (0 packages)\n", green("✓"), pkg.LockFileName)
 		return nil
 	}
-
-	// Load previous lockfile before overwriting, for ratchet detection.
-	prevLF, _ := pkg.LoadLockFile(cwd)
 
 	resolved, err := pkg.ResolveDependencies(manifest, cwd)
 	if err != nil {
@@ -516,6 +520,7 @@ func pkgLockCommand(args []string) error {
 
 	lf := pkg.NewLockFile(pkg.LockedFromResolved(resolved), fmt.Sprintf("ailang lock %s", Version))
 	lf.AILANGVersion = Version
+	preserveLockGeneration(prevLF, lf)
 	if err := lf.Save(cwd); err != nil {
 		return fmt.Errorf("failed to write lock file: %w", err)
 	}

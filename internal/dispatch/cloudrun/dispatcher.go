@@ -125,6 +125,7 @@ var providersForVariant = map[string][]string{
 // runnable in any image and must never be refused on image grounds.
 var binarylessProviders = map[string]bool{
 	"managed_agents": true,
+	"gemini_agents":  true, // Gemini Developer API; edits return as a patch over HTTP
 }
 
 // checkVariantProviderAgreement refuses a dispatch whose executor binary cannot

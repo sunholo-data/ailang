@@ -108,7 +108,7 @@ func RunClaudeSubscriptionReviewer(model, docPath, docBody string) *ReviewerOutc
 	}
 	if err := json.Unmarshal(raw, &env); err != nil {
 		out.AbsentReason = ReasonInvalid
-		out.Err = fmt.Sprintf("claude -p returned a non-JSON envelope: %v (raw: %.200q)", err, raw)
+		out.Err = fmt.Sprintf("claude -p returned a non-JSON envelope: %s", describeJSONError(err, raw))
 		return out
 	}
 	out.TokensIn = env.Usage.Input + env.Usage.CacheRead + env.Usage.CacheCreate
@@ -120,7 +120,7 @@ func RunClaudeSubscriptionReviewer(model, docPath, docBody string) *ReviewerOutc
 	}
 	result, perr := ParseReviewResult(env.Result)
 	if perr != nil {
-		out.AbsentReason = ReasonInvalid
+		recordInvalid(out, env.Result)
 		out.Err = perr.Error()
 		return out
 	}

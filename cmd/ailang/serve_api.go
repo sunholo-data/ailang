@@ -40,9 +40,12 @@ func serveAPICommand(args []string) error {
 	staticCacheFlag := fs.String("static-cache", "", "Cache-Control for --static files: 'immutable' (public, max-age=31536000, immutable) or a max-age in seconds")
 	noFeedbackToolFlag := fs.Bool("no-feedback-tool", false, "Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	oauthIssuerFlag := fs.String("oauth-issuer", "", "OAuth authorization server for @mcp_auth(\"oauth2\") tools on /mcp/connect/")
+	mcpConnectOnlyFlag := fs.Bool("mcp-connect-only", false, "Serve tools only on /mcp/connect/, each behind the OAuth Bearer gate: no /mcp/, and plain HTTP serves @nomcp routes only")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
 	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
+	processTimeoutFlag := fs.String("process-timeout", "", "Process exec timeout (e.g. 90s); default 30s. Needs --caps Process")
+	processAllowlistFlag := fs.String("process-allowlist", "", "Commands Process may exec (comma-separated, cmd or cmd:sub); default any on PATH. Needs --caps Process")
 	ws := registerServeAPIWSFlags(fs)
 
 	if err := fs.Parse(args); err != nil {
@@ -77,6 +80,9 @@ func serveAPICommand(args []string) error {
 	}
 	if staticCache != "" && *staticFlag == "" {
 		return fmt.Errorf("--static-cache needs --static")
+	}
+	if *mcpConnectOnlyFlag && *mcpFlag {
+		return fmt.Errorf("--mcp-connect-only is an HTTP mode; it cannot be combined with --mcp (stdio)")
 	}
 
 	if fs.NArg() < 1 {
@@ -146,6 +152,15 @@ func serveAPICommand(args []string) error {
 		}
 	}
 
+	// --process-* mirror `ailang run`: without them serve-api's Process cap
+	// ran any PATH binary under a fixed 30s timeout (M-AILANG-EXECUTOR-GE).
+	if !effCtx.HasCap("Process") && (*processTimeoutFlag != "" || *processAllowlistFlag != "") {
+		return fmt.Errorf("--process-timeout and --process-allowlist need --caps Process")
+	}
+	if err := runner.SetupProcessHandler(effCtx, *processTimeoutFlag, *processAllowlistFlag, 0); err != nil {
+		return err
+	}
+
 	if err := ws.apply(effCtx); err != nil {
 		return err
 	}
@@ -173,6 +188,7 @@ func serveAPICommand(args []string) error {
 		RoutesOnly:     *routesOnlyFlag,
 		NoFeedbackTool: *noFeedbackToolFlag,
 		OAuthIssuer:    *oauthIssuerFlag,
+		MCPConnectOnly: *mcpConnectOnlyFlag,
 		WS:             wsCfg,
 
 		NoIntrospection: *noIntrospectionFlag,
@@ -252,6 +268,9 @@ func printServeAPIHelp() {
 	fmt.Println("  --no-introspection   Serve no /api/_meta/* and no /api/_health (the paths stay reserved)")
 	fmt.Println("  --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	fmt.Println("  --oauth-issuer URL   OAuth authorization server for @mcp_auth(\"oauth2\") tools on /mcp/connect/")
+	fmt.Println("  --mcp-connect-only   Tools only on /mcp/connect/, all behind the Bearer gate (no /mcp/; HTTP serves @nomcp routes only)")
+	fmt.Println("  --process-timeout D  Process exec timeout (default 30s; needs --caps Process)")
+	fmt.Println("  --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)")
 	printServeAPIWSHelp()
 	fmt.Println("  --help               Show this help message")
 	fmt.Println()

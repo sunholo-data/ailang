@@ -117,9 +117,16 @@ RUN --mount=type=secret,id=github_token \
 ENV COORDINATOR_MODE=cloud
 
 # Non-root user — Claude Code refuses --dangerously-skip-permissions when running as root.
+# /plugins and the pre-baked /plugins/ailang_bootstrap stay ROOT-owned, so the agent CLI
+# (same UID as the executor) cannot rewrite the hooks it is given (audit H-6 P0.3,
+# M-EXECUTOR-UID-SPLIT). Only /plugins/tasks, where execute-job clones a per-task plugin
+# repo at runtime, belongs to ailang; that runtime copy stays same-UID writable until
+# the UID split.
 RUN useradd -m -s /bin/bash ailang \
-    && mkdir -p /workspace /plugins \
-    && chown -R ailang:ailang /workspace /plugins
+    && mkdir -p /workspace /plugins/tasks \
+    && chown -R ailang:ailang /workspace /plugins/tasks \
+    && chmod -R go-w /plugins/ailang_bootstrap \
+    && chmod 0755 /plugins
 
 USER ailang
 WORKDIR /workspace

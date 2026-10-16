@@ -5,6 +5,21 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/process_spawn_result.ail",
+      "status": "working",
+      "tags": [
+        "process",
+        "effects",
+        "result"
+      ],
+      "description": "Recover from an unavailable optional worker with typed spawn errors.",
+      "modules": [
+        "std/io",
+        "std/process",
+        "std/result"
+      ]
+    },
+    {
       "path": "runnable/ai_offline_cli.ail",
       "status": "working",
       "tags": [
@@ -2303,6 +2318,20 @@
       ]
     },
     {
+      "path": "runnable/map_strict_parity.ail",
+      "status": "working",
+      "tags": [
+        "map",
+        "bytecode",
+        "parity"
+      ],
+      "description": "All ten map operations with strict-bytecode parity, immutable updates and canonical iteration.",
+      "modules": [
+        "std/map",
+        "std/option"
+      ]
+    },
+    {
       "path": "runnable/mcp_tools.ail",
       "status": "broken",
       "tags": [
@@ -3437,11 +3466,11 @@
     }
   ],
   "statistics": {
-    "total": 234,
-    "working": 226,
+    "total": 236,
+    "working": 228,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9658119658119658,
+    "coverage": 0.9661016949152542,
     "experimental": 0
   },
   "milestones": {

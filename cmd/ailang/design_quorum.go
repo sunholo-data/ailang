@@ -20,7 +20,7 @@ import (
 // controller's own review is IN-SESSION (not an API call) and can be folded in
 // via flags.
 //
-// Reviewer POOL (Mark, attended 2026-09-25; OpenAI seat -> gpt6-1-sol 2026-09-30): gpt6-1-sol (OpenAI), gemini-3-1-pro
+// Reviewer POOL (Mark, attended 2026-09-25; OpenAI seat -> gpt6-1-sol 2026-09-30; Google seat -> gemini-4-argon 2026-10-13): gpt6-1-sol (OpenAI), gemini-4-argon
 // (Google), oc-glm-5-3 (Z-AI), oc-kimi-k3 (Moonshot) and claude-sonnet-5@claude-p
 // (Anthropic, subscription); three seats per doc, rotated per doc, distinct
 // vendors preferred, absent seats replaced from the pool. The AUTHOR'S vendor
@@ -141,7 +141,7 @@ USAGE:
   ailang design-quorum --author codex:gpt-6.1-sol < doc.md
 
 FLAGS:
-  --reviewers <csv>          reviewer POOL (default gpt6-1-sol,gemini-3-1-pro,oc-glm-5-3,
+  --reviewers <csv>          reviewer POOL (default gpt6-1-sol,gemini-4-argon,oc-glm-5-3,
                              oc-kimi-k3,claude-sonnet-5@claude-p)
   --seats <n>                reviewers per doc, drawn from the pool (default 3)
   --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.30)
@@ -180,7 +180,7 @@ SEE ALSO:
 
 // defaultQuorumPool is the reviewer pool, one model per vendor. --seats of them
 // review each doc; the author's vendor sits out. Extend the pool here.
-const defaultQuorumPool = "gpt6-1-sol,gemini-3-1-pro,oc-glm-5-3,oc-kimi-k3," + quorum.ClaudeReviewerID
+const defaultQuorumPool = "gpt6-1-sol,gemini-4-argon,oc-glm-5-3,oc-kimi-k3," + quorum.ClaudeReviewerID
 
 // quorumSeatRunner runs one seat: the Anthropic seat over the subscription (unless
 // the Anthropic bucket is over its mission ration — the ration is what keeps

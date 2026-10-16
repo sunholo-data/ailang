@@ -1,0 +1,16 @@
+cmd/ailang/pkg_commands.go
+design_docs/implemented/v0_54_7/stapledon-v0-54-6-workarounds.md (moved from design_docs/planned/v0_54_7/stapledon-v0-54-6-workarounds.md)
+design_docs/planned/v0_54_8/m-cross-run-content-library.md
+design_docs/planned/v0_55_0/m-crew-core-cold-compile-followup.md
+docs/docs/guides/packages.md
+examples/manifest.json
+internal/bytecode/builtin_adapt.go
+internal/bytecode/builtin_names.go
+internal/bytecode/compiler/pure_unported_test.go
+internal/bytecode/value.go
+internal/types/typechecker_functions.go
+internal/vm/builtin_coverage_test.go
+internal/vm/builtins.go
+internal/vm/builtins_list.go
+internal/vm/convert.go
+internal/vm/vm.go

@@ -224,6 +224,9 @@ func TestRunReviewerWith_TruncatedOutputFailsLoudly(t *testing.T) {
 	if !strings.Contains(got.Err, "truncated") || !strings.Contains(got.Err, "finish_reason=length") {
 		t.Errorf("truncation must be surfaced explicitly; got err = %q", got.Err)
 	}
+	if got.Salvaged == nil || got.Salvaged.Verdict != VerdictReject {
+		t.Errorf("truncated reject must be salvaged; got %+v", got.Salvaged)
+	}
 }
 
 func TestRunReviewerWith_UnreachableProvider(t *testing.T) {

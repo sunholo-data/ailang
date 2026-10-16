@@ -53,6 +53,7 @@ func (c *ModelsConfig) Validate() error {
 	}
 
 	problems = append(problems, c.validateAliases()...)
+	problems = append(problems, c.validateOpenRouterProvider(names)...)
 
 	// Roles must name models the registry actually has. A chain pointing at a
 	// deleted row is exactly the publish this validator exists to stop: it
@@ -86,4 +87,30 @@ func (c *ModelsConfig) Validate() error {
 			len(problems), strings.Join(problems, "\n  - "))
 	}
 	return nil
+}
+
+// validateOpenRouterProvider: an openrouter_provider block applies to every row
+// that shares its api_name, so two rows declaring different blocks would make
+// routing depend on map iteration order. Only openrouter rows may carry one.
+func (c *ModelsConfig) validateOpenRouterProvider(names []string) []string {
+	var problems []string
+	seen := map[string]string{} // api_name -> row that set it
+	for _, name := range names {
+		m := c.Models[name]
+		if len(m.OpenRouterProvider) == 0 {
+			continue
+		}
+		if m.Provider != "openrouter" {
+			problems = append(problems, fmt.Sprintf("model %q sets openrouter_provider but its provider is %q", name, m.Provider))
+			continue
+		}
+		if prev, ok := seen[m.APIName]; ok {
+			if fmt.Sprint(c.Models[prev].OpenRouterProvider) != fmt.Sprint(m.OpenRouterProvider) {
+				problems = append(problems, fmt.Sprintf("models %q and %q both set openrouter_provider for api_name %q with different values — set it on one row", prev, name, m.APIName))
+			}
+			continue
+		}
+		seen[m.APIName] = name
+	}
+	return problems
 }

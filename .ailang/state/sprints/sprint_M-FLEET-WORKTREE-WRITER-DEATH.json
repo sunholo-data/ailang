@@ -1,0 +1,49 @@
+{
+  "sprint_id": "M-FLEET-WORKTREE-WRITER-DEATH",
+  "status": "planned",
+  "created": "2026-10-16T00:00:00Z",
+  "verified_at": "04496274e36d301b721886fb56ab1146ad4080e7",
+  "design_doc": null,
+  "sprint_plan": "design_docs/planned/sprint-plan-mission-worktree-writer-death.md",
+  "ticket": "worktree:native-background-terminal-marker-missing",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": "tools/launchd mission-worktree helper, existing scratch suite and ps birth-time convention",
+      "action": "none",
+      "reason": "No package-like capability is introduced, so registry search is inapplicable. Reuse the existing helper, cleanup sequence, slow git shim/post-checkout hook fixtures and repository ps lstart identity convention; no new package or caller mechanism."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 1200,
+    "estimated_total_loc": 300,
+    "estimated_days": 0.25
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Detach mission-worktree.sh's background writer from the caller's process group and record writer ownership so wait detects death, re-reads terminal state before cleanup, removes abandoned worktree/branch and returns failed:writer_died/1. Add scratch-only lifecycle, detachment, identity, completion-race and fallback regressions plus mutations; preserve five existing scenario groups and add the specified changelog fragment. Executor touches only tools/launchd/mission-worktree.sh, tools/launchd/test_mission_worktree.sh and changelogs/unreleased/2026-10-16-mission-worktree-writer-death.md. No routing, quota, threshold, billing or caller-policy changes.",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Premises are verified against HEAD 04496274e36d301b721886fb56ab1146ad4080e7 with file:line for helper, suite, make/test.mk:89, BOTH Gate-3 resource call sites at :624-627, CI OS/bash/dependency coverage and fleet Guardrails. CI invokes test-launchd-drivers only on macOS with bash major 3 guard; do not claim a Linux shell-target matrix or guaranteed Perl/setsid installation.",
+        "Pending ownership records writer PID, normalized ps lstart birth time, per-launch argv token, original repo and branch, published atomically before add returns PATH. A bounded registration rendezvous prevents successful add from returning unowned pending; failed launch is terminalizable. Metadata is parsed as data; terminal consumption removes ownership records. PID reuse is rejected by birth and token comparison; unrelated replacement PIDs are never signaled. Inconclusive inspection of an existing PID never authorizes cleanup.",
+        "A matching running writer always retains its tree, branch and pending status; wait MAX expiration returns exactly pending/75. Dead or zombie original writer triggers one terminal-status re-read, respecting ready/failed produced between reads. Only still-pending state for that owner invokes the shared worktree remove --force, rm -rf, prune, branch -D cleanup sequence and returns exactly failed:writer_died/1. Owned checkout descendants are quiesced before cleanup so they cannot recreate the path; no caller or unrelated process is killed.",
+        "Writer launch uses capability-probed Perl POSIX::setsid with checked result and exec preserving writer PID, falling back to bash set -m job-control detachment when Perl/POSIX is missing. Confirm caller/writer PGIDs differ before returning. Unsupported detachment emits a stderr diagnostic and retains identity-monitored nohup as a safety net; no silent dependency assumption. All code and process-group fixtures work on macOS bash 3.2 and Linux bash 5 without Linux-only setsid, /proc, GNU timeout or Bash 4 syntax.",
+        "Named arm 'writer killed mid-checkout => failed:writer_died rc=1 and cleanup' proves exact stdout/rc, path and branch removal, pruned registration, consumed state and no late recreation, including writer-only death with an owned checkout child. Named arm 'caller group TERM after add => ready rc=0' kills only an isolated verified caller group immediately after synchronized add return and proves the detached writer completes cleanly.",
+        "Named arm 'live slow writer => pending rc=75 without cleanup' proves live identity, untouched path/branch/state and later ready/0. Named arm 'completion between pending read and dead check => ready rc=0' forces the race with a scratch ps shim and proves no cleanup; companion terminal failure preserves its original reason/1.",
+        "Named arms 'reused PID with different birth => writer_died without signaling replacement', 'same-second PID identity needs launch token', 'missing Perl => detached bash fallback reaches ready' and 'add publication => owner recorded before returned PATH' pass, including bounded startup failure recovery. Each test uses scratch-only repos, hooks, shims, HOME/config if needed, logs and MISSION_WORKTREE_STATE; never real ~/.ailang/state or live process groups. Every background fixture is bounded and reaped.",
+        "All five existing scenario groups remain green with every assertion retained: immediate add/clean ready, /tmp refusal, timeout_3s with path/branch removal, dirty-tree rejection/removal, unknown-worktree failure. Linux runs use approved non-/tmp scratch and actual arm counts; a /tmp skip is not coverage. Stdout/rc contract remains ready/0, failed:<why>/1, pending/75; usage header adds failed:writer_died.",
+        "Each of the ten mutation-table mutants is killed by its specified named arm, with pristine green control and actual failing assertion/output/rc recorded. Mutations touch scratch copies only; dropping liveness, dropping re-read, dropping detachment, dropping fallback, cleaning while alive, omitting birth/token checks, omitting cleanup, late ownership publication and orphan recreation are all discriminated.",
+        "Changelog fragment changelogs/unreleased/2026-10-16-mission-worktree-writer-death.md begins exactly '### Fixed — mission-worktree.sh reports a dead writer'. No Gate-3 resource, routing policy or CI workflow is modified. Estimate is 110 added implementation LOC + 180 test LOC + 10 fragment LOC = 300, one M1, 0.25 day; capacity equivalent is not claimed as measured velocity.",
+        "Focused validation: /bin/bash -n both shell files, targeted worktree suite on real macOS bash 3.2 and Linux bash 5 with actual counts, shellcheck if available with inherited findings/unavailability recorded, make check-changelog and make check-file-sizes. No full make test gate. Independent sprint-evaluator reviews M1, races, ownership, detachment/fallback and mutation evidence; no self-approval.",
+        "CONTROLLER ONLY outside sandbox: env -i HOME=$HOME PATH=$PATH TMPDIR=<non-/tmp scratch parent> make test-launchd-drivers, actual rc 0 and suite counts; confirm actual running surface and committed/pushed pinned origin/dev reach; run healthy/degraded dry-runs with AILANG_DRIVER_PINNED at landed SHA under a recorded idle armed sibling, both rc 0, lanes=ok / lanes=DEGRADED respectively, no disabled/overlap early yield and no pidfile write. Use charter synthetic-HOME fallback if no sibling qualifies; reload nothing mid-iteration. Keep ticket open until evaluation, host gates, landing/reach and both dry-runs are evidenced. Socket-touching or process-killing sandbox checks are UNINFORMATIVE UNDER SANDBOX, never pass/fail. Planner does not attempt these checks or wait on background work."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

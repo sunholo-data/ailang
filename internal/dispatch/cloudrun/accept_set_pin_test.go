@@ -73,8 +73,12 @@ func TestVariantProviderAgreement_AcceptSetIsPinned(t *testing.T) {
 	// managed_agents} and {eval, eval-go} x gemini — every one of them failed
 	// in the container with `unknown executor: gemini` (or ran an image whose
 	// job no longer exists). managed_agents remains accepted on every variant.
-	const wantCells = 77
-	const wantAccepted = 41
+	// 2026-10-13: 77 -> 88 cells and 41 -> 52 accepted. gemini_agents (the
+	// Gemini Developer API sibling of managed_agents) joined the provider set
+	// (7 -> 8). Like managed_agents it shells out to nothing — edits come back
+	// as a patch over HTTP — so it is binaryless and accepted on all 11 variants.
+	const wantCells = 88
+	const wantAccepted = 52
 
 	if cells != wantCells {
 		t.Errorf("cells = %d, want %d (variants=%d providers=%d).\n"+
