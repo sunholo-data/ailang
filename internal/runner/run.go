@@ -294,6 +294,15 @@ func Run(ctx context.Context, opts Options) int {
 		} else if code := runSingle(ctx, result, opts, programArgs, caps); code >= 0 {
 			return code
 		}
+	} else if isModuleFile && result.Interface != nil {
+		if msg := noExportsEntryError(&result, entry); msg != "" {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", red("Error"), msg)
+			return 1
+		}
+		// Not gated on --quiet (the default): this path runs no program, so
+		// there is no program stderr to keep clean, and silence is the bug.
+		fmt.Fprintf(os.Stderr, "note: module %s exports no functions, so there is no entrypoint '%s' to run\n",
+			result.Interface.Module, entry)
 	} else {
 		// Non-module mode - print result if evaluated by pipeline (ModeEval)
 		PrintNonModuleResult(result.Value, opts.Print, opts.NoPrint)
