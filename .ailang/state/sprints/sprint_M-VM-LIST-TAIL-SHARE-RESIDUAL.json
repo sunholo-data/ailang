@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-VM-LIST-TAIL-SHARE-RESIDUAL",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-16T10:17:06.150882+00:00",
   "design_doc": "design_docs/planned/v0_53_0/m-vm-list-tail-share.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-vm-list-tail-share-sprint-plan.md",
@@ -42,10 +42,10 @@
         "AC-R1: strict-alone fails loudly on an evaluator-only entry and succeeds on a VM entry",
         "Paired strict, plain bytecode, evaluator and test strict behavior preserved; help updated"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T15:38:28.425576+00:00",
+      "completed": "2026-10-16T15:40:24.790127+00:00",
+      "notes": "Failing tests confirmed before edit; focused CLI bytecode/strict regressions pass (60.471s). Help updated; shared run config ORs flags."
     },
     {
       "id": "M2",
@@ -151,5 +151,5 @@
       "expected": 159999
     }
   ],
-  "execution_approval": "pending coordinator plan approval"
+  "execution_approval": "User approved continuation and explicitly invoked sprint-executor"
 }
