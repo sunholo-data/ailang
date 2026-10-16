@@ -87,10 +87,10 @@
         "Missing locked target never reads newer cached data; no network fetch or change to FS capability checks.",
         "Focused runner/embed/apiserver tests, make test-changed and make check-architecture-closure pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T08:49:55.644065+00:00",
+      "completed": "2026-10-16T08:56:51.023303+00:00",
+      "notes": "Two-version fixtures pass in runner, batch, embed, API handler; engine isolation, context replacement, missing target and malformed lock tests pass. Targets snapshot at Engine.New; Load/Call surface errors. Independent evaluator started per executor handoff requirement."
     },
     {
       "id": "M4",
