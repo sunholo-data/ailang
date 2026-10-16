@@ -41,8 +41,9 @@ func TestPkgAssetPath_Resolves(t *testing.T) {
 	}
 }
 
-// TestPkgAssetPath_PicksLatestVersion verifies that when multiple versions are
-// installed, the lexically-highest version is selected.
+// TestPkgAssetPath_PicksLatestVersion verifies that with no lock the highest
+// installed version by semver is selected: 0.10.0, not the string-max 0.2.0
+// (#1772).
 func TestPkgAssetPath_PicksLatestVersion(t *testing.T) {
 	home := t.TempDir()
 	testutil.SetHomeDir(t, home)
@@ -66,9 +67,7 @@ func TestPkgAssetPath_PicksLatestVersion(t *testing.T) {
 	}
 	tagged := got.(*eval.TaggedValue)
 	gotPath := tagged.Fields[0].(*eval.StringValue).Value
-	// Lexical sort: "0.10.0" < "0.2.0" < "0.1.0"? No: "0.10.0" sorts before "0.2.0".
-	// We document "lexical sort" — that means "0.2.0" wins here.
-	want := filepath.Join(base, "0.2.0", AssetsDir, "v.txt")
+	want := filepath.Join(base, "0.10.0", AssetsDir, "v.txt")
 	if gotPath != want {
 		t.Errorf("expected %q, got %q", want, gotPath)
 	}
@@ -149,5 +148,45 @@ func TestPkgAssetPath_RejectsBadInputs(t *testing.T) {
 				t.Errorf("expected Err for %s, got %s", tc.name, tagged.CtorName)
 			}
 		})
+	}
+}
+
+// TestPkgAssetPath_UsesLockedDir verifies that a package pinned by the
+// program's lock reads the locked directory even when a newer version is
+// cached (#1772: the same program read different data on two machines).
+func TestPkgAssetPath_UsesLockedDir(t *testing.T) {
+	home := t.TempDir()
+	testutil.SetHomeDir(t, home)
+	base := filepath.Join(home, ".ailang", "cache", "registry", "test", "pkg")
+	for _, v := range []string{"0.3.0", "0.4.0"} {
+		dir := filepath.Join(base, v, AssetsDir)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("MkdirAll: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "v.txt"), []byte(v), 0644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+	}
+	ctx := NewEffContext(nil)
+	ctx.PkgDirs = map[string]string{"test/pkg": filepath.Join(base, "0.3.0")}
+	got, err := pkgAssetPath(ctx, []eval.Value{
+		&eval.StringValue{Value: "test/pkg"},
+		&eval.StringValue{Value: "v.txt"},
+	})
+	if err != nil {
+		t.Fatalf("pkgAssetPath: %v", err)
+	}
+	gotPath := got.(*eval.TaggedValue).Fields[0].(*eval.StringValue).Value
+	if want := filepath.Join(base, "0.3.0", AssetsDir, "v.txt"); gotPath != want {
+		t.Errorf("expected locked %q, got %q", want, gotPath)
+	}
+}
+
+func TestSemverLess(t *testing.T) {
+	ordered := []string{"junk", "0.9.0", "0.10.0-rc1", "0.10.0", "1.0.0"}
+	for i := 0; i+1 < len(ordered); i++ {
+		if !semverLess(ordered[i], ordered[i+1]) || semverLess(ordered[i+1], ordered[i]) {
+			t.Errorf("want %s < %s", ordered[i], ordered[i+1])
+		}
 	}
 }

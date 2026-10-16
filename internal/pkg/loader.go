@@ -327,3 +327,19 @@ func CheckEffectCeiling(pkgName string, functionEffects []string, maxEffects []s
 	}
 	return nil
 }
+
+// LockedPackageDirs maps every package in the lock file to the directory its
+// modules load from, using the same resolution as ResolveImport. Runtime
+// lookups that must agree with the compiled program (std/package.assetPath,
+// #1772) read it instead of guessing a version from the registry cache.
+// Packages whose directory cannot be resolved are left out.
+func (pl *PackageLoader) LockedPackageDirs() map[string]string {
+	dirs := make(map[string]string, len(pl.lockFile.Packages))
+	for i := range pl.lockFile.Packages {
+		locked := &pl.lockFile.Packages[i]
+		if dir, err := pl.packageDir(locked); err == nil {
+			dirs[locked.Name] = dir
+		}
+	}
+	return dirs
+}
