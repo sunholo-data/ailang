@@ -8,7 +8,8 @@ import (
 
 // #1797: a module whose main is declared but not exported used to exit 0 with
 // no output on both engines. It must fail and say to add `export`; a module
-// that exports nothing at all still exits 0 but says so on stderr.
+// that exports nothing at all runs nothing, so it fails too and points at
+// `ailang check`.
 func TestRunUnexportedEntryIsAnError(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()
@@ -28,7 +29,7 @@ func TestRunUnexportedEntryIsAnError(t *testing.T) {
 	helpers := filepath.Join(dir, "helpers.ail")
 	writeFile(t, helpers, "module helpers\npure func two() -> int = 2\n")
 	_, stderr, code := runWithStdin(t, bin, "", "run", "--relax-modules", helpers)
-	if code != 0 || !strings.Contains(stderr, "exports no functions") {
-		t.Errorf("export-less module: exit=%d stderr=%q; want exit 0 and an 'exports no functions' note", code, stderr)
+	if code == 0 || !strings.Contains(stderr, "exports no functions") || !strings.Contains(stderr, "ailang check") {
+		t.Errorf("export-less module: exit=%d stderr=%q; want exit 1 and an 'exports no functions' error naming 'ailang check'", code, stderr)
 	}
 }

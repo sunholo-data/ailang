@@ -1,6 +1,6 @@
 # M-RUN-ENTRY-NO-EXPORTS-FAIL-LOUD: `ailang run` on a module with no exports must fail loudly, not exit 0
 
-**Status**: Partially implemented in v0.54.13 (commit b6c9f592e, #1797). A declared-but-unexported entry is now an exit-1 error naming the fix (`internal/runner/entry_unexported.go`). A module with no exports and no such function still exits 0, but prints a `note:` on stderr instead of nothing, because `scripts/verify_examples.go` runs every example via `ailang run` and ~20 export-less example modules would flip to failing (V11 assumed they were only `ailang test` fixtures). Making that case exit 1 too is an open decision; `--batch`/`--caps auto` were not changed.
+**Status**: Implemented. v0.54.13 (b6c9f592e, #1797) made a declared-but-unexported entry an exit-1 error. The follow-up makes every zero-export module run exit 1 too, with a message naming `export func main()` or `ailang check` (`internal/runner/entry_unexported.go`). The ~10 export-less example modules are now type-checked by `scripts/verify_examples.go` (`checkExample`) instead of run, so verify-examples stays green. `--batch` takes the same branch and also exits 1; `--caps auto` is unchanged.
 **Target**: v0.54.8
 **Priority**: P1 (silent-success class — violates "NO SILENT FALLBACKS, FAIL LOUDLY"; second instance of the class fixed in v0.30.0)
 **Estimated**: ~0.5 day (guard change + fix-carrying message + tests)

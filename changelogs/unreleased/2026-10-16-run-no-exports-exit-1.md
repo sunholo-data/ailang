@@ -1,0 +1,3 @@
+### Changed — `ailang run` on a module that exports no functions now exits 1 (#1797)
+
+v0.54.13 printed a `note:` and exited 0 when a module exported nothing, so a run that executed nothing still read as success. It now exits 1 with `module X exports no functions, so there is no entrypoint 'main' to run; add 'export func main() ...', or use 'ailang check' to type-check a library module`. `--batch` behaves the same way. `scripts/verify_examples.go` now type-checks export-less example modules with `ailang check` instead of running them. Migration: add `export` to the entry function, or use `ailang check` for library modules. Design doc: `design_docs/implemented/v0_54_14/m-run-entry-no-exports-fail-loud.md`.
