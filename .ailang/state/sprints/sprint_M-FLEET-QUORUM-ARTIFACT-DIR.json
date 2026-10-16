@@ -1,0 +1,725 @@
+{
+  "sprint_id": "M-FLEET-QUORUM-ARTIFACT-DIR",
+  "status": "in_progress",
+  "created": "2026-10-14T00:00:00Z",
+  "mission": "fleet-mission",
+  "iteration": 38,
+  "role": "planner",
+  "verified_at": "58decf4f2f42bfc20eb267fc0b2368462cc32231",
+  "design_doc": "design_docs/planned/m-quorum-artifact-dir-stable.md",
+  "sprint_plan": "design_docs/planned/sprint-plan-quorum-artifact-dir.md",
+  "github_issues": [],
+  "tickets": [
+    "quorum:artifact-dir-cwd-relative"
+  ],
+  "changelog_fragment": "changelogs/unreleased/2026-10-14-quorum-artifact-dir.md",
+  "velocity": {
+    "target_loc_per_day": 533,
+    "estimated_total_loc": 800,
+    "estimated_days": 1.5,
+    "estimated_hours": 12,
+    "basis": "Conservative planning allowance, not measured throughput. Salvage M1/M2 added 268/222 lines on this stacked tree. Velocity script returned rc141 from head/pipefail. M1 4h and M2 8h include integration, independent evaluation and buffer; resume bounded sessions without adding a third milestone."
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "quorum/filesystem registry searches returned DNS errors (UNINFORMATIVE UNDER SANDBOX), not an empty registry. Private Go filesystem/config integration cannot depend on an AILANG package; reuse filepath, config Registry/get, JSON, exclusive-create writer and public policytool host."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Driver/skill integration is not a registry-package capability. Reuse mc_codex_env_args, taskFor/BuildEnvironment, suite-env.sh, git rev-parse, env-doc generator and six-skill sync; no dependency. Registry searches were unavailable under sandbox."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1",
+      "title": "Resolution and confinement in Go",
+      "description": "Register raw opt-in directory and raw policy presence in mission.go; resolve default writer before MkdirAll; prove inherited-env public policytool host/real-child confinement without forbidden-file edits.",
+      "estimated_loc": 300,
+      "estimated_hours": 4,
+      "dependencies": [],
+      "files": [
+        "internal/config/mission.go",
+        "internal/mission/quorum/artifact.go",
+        "internal/mission/quorum/artifact_dir_test.go",
+        "internal/mission/quorum/artifact_policy_test.go"
+      ],
+      "file_anchors": [
+        {
+          "file": "internal/config/mission.go",
+          "anchors": [
+            13,
+            35,
+            42,
+            65,
+            72
+          ]
+        },
+        {
+          "file": "internal/mission/quorum/artifact.go",
+          "anchors": [
+            14,
+            40,
+            44,
+            60,
+            97
+          ]
+        },
+        {
+          "file": "internal/mission/quorum/artifact_dir_test.go",
+          "new": true,
+          "anchor_context": "internal/mission/quorum/quorum_test.go:206,242"
+        },
+        {
+          "file": "internal/mission/quorum/artifact_policy_test.go",
+          "new": true,
+          "anchor_context": "internal/policytool/policytool.go:99,118,140 (read-only seam)"
+        }
+      ],
+      "acceptance_criteria": [
+        "AC1: Empty/sentinel with empty/unset env returns exact relative ArtifactDir; Registry default is empty and literal sentinel stays pinned by unchanged TestPolicyTool_QuorumArtifactDirInSync.",
+        "AC2: Valid absolute override with spaces receives exact real-writer bytes; distinct explicit absolute/relative arguments win even with invalid override or raw marker.",
+        "AC3: Relative, tilde, whitespace-only and pure-validator NUL fail; deterministic destination IO failures return error with zero local fallback writes.",
+        "AC4: Raw nonempty marker, including whitespace, suppresses valid/invalid override before validation. Diagnostic names absolute effective local path and reason, never policy contents; CWD failure errors.",
+        "AC4: External package quorum_test uses real public policytool.Open/SetBinary/Dispatch and actual childEnv/runAilang chain with writer helper; allowed artifacts stay sandbox-relative, external fixture absent; .ailang/** deny yields zero child launches. Existing policytool tests remain unedited.",
+        "AC10: New getter/Registry assertions live in quorum tests, no internal/config test changes. Exclusive-create collisions, schema, slug and stacked salvage rendering stay correct.",
+        "All new Go arms set HOME=t.TempDir(); child processes isolate CWD/stderr; reviewers stubbed; mutations use only allowed files in disposable copies and actual failure/restoration evidence is recorded.",
+        "Executor runs G1/G2/G3/G6/G10/G12, each measured base rc0. Named M1 tests and mutation controls pass; planning baseline does not mark milestone passes."
+      ],
+      "test_arms": [
+        {
+          "ac": "AC1",
+          "test": "TestResolveArtifactDir_Default/unset and /empty — artifact_dir_test.go",
+          "assertion": "Empty/sentinel args return EXACT relative sentinel; resolve creates nothing.",
+          "mutation": "Replace final `return ArtifactDir, nil` with `return filepath.Join(os.TempDir(), ArtifactDir), nil`."
+        },
+        {
+          "ac": "AC1",
+          "test": "TestResolveArtifactDir_ConstantPinned — artifact_dir_test.go; existing TestPolicyTool_QuorumArtifactDirInSync",
+          "assertion": "Literal constant unchanged; existing comparison still runs.",
+          "mutation": "Change ArtifactDir constant to `\".ailang/state/quorum\"`."
+        },
+        {
+          "ac": "AC2",
+          "test": "TestWriteJSONArtifact_OverrideSpaces — artifact_dir_test.go",
+          "assertion": "Actual absolute destination with spaces contains exact serialized bytes; local directory absent.",
+          "mutation": "Replace validated override return with `return ArtifactDir, nil`."
+        },
+        {
+          "ac": "AC2",
+          "test": "TestResolveArtifactDir_ExplicitWins/absolute and /relative — artifact_dir_test.go",
+          "assertion": "Distinct explicit paths win even with invalid override and marker set.",
+          "mutation": "Replace explicit-argument guard with `if false {`."
+        },
+        {
+          "ac": "AC3",
+          "test": "TestWriteJSONArtifact_InvalidOverride/relative,/tilde,/whitespace — artifact_dir_test.go",
+          "assertion": "Non-nil error, returned path empty, no local/host creation.",
+          "mutation": "Replace validation-error return with `return ArtifactDir, nil`."
+        },
+        {
+          "ac": "AC3",
+          "test": "TestValidateArtifactDir_NUL — artifact_dir_test.go",
+          "assertion": "Pure validator rejects an absolute string containing NUL (never put NUL in env).",
+          "mutation": "Delete/disable the NUL-check condition on its one line."
+        },
+        {
+          "ac": "AC3",
+          "test": "TestWriteJSONArtifact_DestinationError — artifact_dir_test.go",
+          "assertion": "File-as-parent yields error; no local fallback or artifact.",
+          "mutation": "Replace MkdirAll error return with `return \"\", nil`."
+        },
+        {
+          "ac": "AC4",
+          "test": "TestResolveArtifactDir_RawPolicyMarker/whitespace — artifact_dir_test.go",
+          "assertion": "Marker `\" \"` still suppresses valid AND invalid override; getter returns raw override.",
+          "mutation": "Change raw accessor to `return strings.TrimSpace(get(EnvAgentPolicy)) != \"\"`."
+        },
+        {
+          "ac": "AC4",
+          "test": "TestPolicyHostQuorumArtifacts/absolute and /invalid — artifact_policy_test.go",
+          "assertion": "Real Open → Dispatch(design_quorum) → SetBinary childEnv/runAilang → real writer; parent override inherited, host policy pinned, writes ONLY sandbox/sentinel, external fixture remains absent.",
+          "mutation": "Replace resolver suppression guard with `if false {`."
+        },
+        {
+          "ac": "AC4",
+          "test": "TestPolicyHostQuorumArtifacts/suppression_diagnostic — artifact_policy_test.go",
+          "assertion": "Stderr names absolute sandbox/sentinel and suppression for absolute/invalid overrides; no policy path/content leaked.",
+          "mutation": "Replace suppression fmt.Fprintf call with a comment."
+        },
+        {
+          "ac": "AC4",
+          "test": "TestPolicyHostQuorumArtifacts/deny_no_child — artifact_policy_test.go",
+          "assertion": "Policy denies .ailang/**: refusal contains fs_deny_write, child count zero, no local/external artifact. Pair with allowed positive arm above.",
+          "mutation": "Same one-line removal of writer suppression; combined host-chain test must fail its positive confinement assertion. Existing deny implementation is unchanged and already covered; do not mutate forbidden policytool code."
+        },
+        {
+          "ac": "AC4",
+          "test": "TestResolveArtifactDir_CWDUnavailable — artifact_dir_test.go",
+          "assertion": "Child deletes only its disposable current directory; suppression path resolution errors before any write/diagnostic with fabricated path.",
+          "mutation": "Replace filepath.Abs error return with `return ArtifactDir, nil`."
+        },
+        {
+          "ac": "AC10",
+          "test": "TestQuorumArtifactRegistry/raw_and_default — artifact_dir_test.go",
+          "assertion": "New Registry row has default \"\", AreaMission and docs; getter preserves leading/trailing spaces. Existing Registry scanner runs.",
+          "mutation": "Remove the single new missionVars row (or trim the raw getter for the raw-value arm)."
+        },
+        {
+          "ac": "AC10",
+          "test": "TestWriteJSONArtifact_OverrideNoClobber — artifact_dir_test.go + unchanged TestWriteJSONArtifact_NoClobberOnSameSecond",
+          "assertion": "Two same-timestamp writes in override dir have distinct names/bytes; old JSON/salvage rendering preserved.",
+          "mutation": "Replace OpenFile's `O_EXCL` with `O_TRUNC`."
+        }
+      ],
+      "gates": [
+        {
+          "id": "G1",
+          "command": "go test ./internal/mission/quorum/ ./internal/policytool/ -count=1",
+          "base_rc": 0,
+          "evidence": "ok  \tgithub.com/sunholo-data/ailang/internal/mission/quorum\t0.511s\nok  \tgithub.com/sunholo-data/ailang/internal/policytool\t0.839s"
+        },
+        {
+          "id": "G2",
+          "command": "go test ./internal/config -run 'TestEveryGetenvNameIsRegistered|TestNoLiteralGetenvInConfig|TestGetOrUsesRegistryDefault' -count=1",
+          "base_rc": 0,
+          "evidence": "ok  \tgithub.com/sunholo-data/ailang/internal/config\t0.659s"
+        },
+        {
+          "id": "G3",
+          "command": "go vet ./internal/mission/quorum/ ./internal/config/",
+          "base_rc": 0,
+          "evidence": ""
+        },
+        {
+          "id": "G6",
+          "command": "make check-boundaries",
+          "base_rc": 0,
+          "evidence": "Checking architecture boundaries (logical layers over internal/)...\n\nOK: no architecture boundary violations."
+        },
+        {
+          "id": "G10",
+          "command": "golangci-lint run ./internal/mission/quorum/... ./internal/mission/dispatch/... ./internal/config/...",
+          "base_rc": 0,
+          "evidence": "0 issues."
+        },
+        {
+          "id": "G12",
+          "command": "go test -race ./internal/mission/quorum/ -count=1",
+          "base_rc": 0,
+          "evidence": "ok  \tgithub.com/sunholo-data/ailang/internal/mission/quorum\t2.355s"
+        }
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-14T13:22:07.214171+00:00",
+      "notes": "Implementation, scoped gates and scratch-copy mutations complete. Independent evaluation and activation remain controller-owned; see .snap/REPORT.md."
+    },
+    {
+      "id": "M2",
+      "title": "Driver export, bash 3.2 helper and both Gate 2 readers",
+      "description": "Add pure namespace/reader helper, checked initialization after profiles/secrets before both driver launch paths, fixed-order fail-closed readers in both skill copies, shell-only make wiring, real-writer Go suite adapter, environment handoff tests and generated env docs.",
+      "estimated_loc": 500,
+      "estimated_hours": 8,
+      "dependencies": [
+        "M1"
+      ],
+      "files": [
+        "tools/launchd/lib/quorum-artifacts.sh",
+        "tools/launchd/mission-control.sh",
+        "tools/launchd/test_quorum_artifacts.sh",
+        "internal/mission/quorum/artifact_shell_test.go",
+        "internal/mission/dispatch/quorum_env_test.go",
+        ".claude/skills/mission-control/resources/gate-2-pick.md",
+        ".agents/skills/mission-control/resources/gate-2-pick.md",
+        "make/test.mk",
+        "docs/docs/reference/env-vars.md",
+        "changelogs/unreleased/2026-10-14-quorum-artifact-dir.md"
+      ],
+      "file_anchors": [
+        {
+          "file": "tools/launchd/lib/quorum-artifacts.sh",
+          "new": true,
+          "anchor_context": "tools/launchd/lib/codex-env-args.sh:35,40 (read-only reuse)"
+        },
+        {
+          "file": "tools/launchd/mission-control.sh",
+          "anchors": [
+            71,
+            81,
+            82,
+            119,
+            123,
+            2048,
+            2246,
+            2337,
+            2381,
+            2383
+          ]
+        },
+        {
+          "file": "tools/launchd/test_quorum_artifacts.sh",
+          "new": true,
+          "anchor_context": "tools/launchd/test_mission_registry_env.sh:20; test_codex_controller_env.sh:19"
+        },
+        {
+          "file": "internal/mission/quorum/artifact_shell_test.go",
+          "new": true,
+          "anchor_context": "internal/mission/quorum/artifact_policy_test.go (M1 helper)"
+        },
+        {
+          "file": "internal/mission/dispatch/quorum_env_test.go",
+          "new": true,
+          "anchor_context": "internal/mission/dispatch/run.go:199; run_test.go:350"
+        },
+        {
+          "file": ".claude/skills/mission-control/resources/gate-2-pick.md",
+          "anchors": [
+            139,
+            140,
+            199,
+            215,
+            224
+          ]
+        },
+        {
+          "file": ".agents/skills/mission-control/resources/gate-2-pick.md",
+          "anchors": [
+            139,
+            140,
+            199,
+            215,
+            224
+          ],
+          "generated_mirror": true
+        },
+        {
+          "file": "make/test.mk",
+          "anchors": [
+            68,
+            70,
+            105
+          ]
+        },
+        {
+          "file": "docs/docs/reference/env-vars.md",
+          "anchors": [
+            304,
+            316
+          ],
+          "generated": true
+        },
+        {
+          "file": "changelogs/unreleased/2026-10-14-quorum-artifact-dir.md",
+          "new": true,
+          "anchor_context": "changelogs/unreleased/ existing fragment convention"
+        }
+      ],
+      "acceptance_criteria": [
+        "AC5: Real fixture writer in A, deletion of fixture A only, and readers B/independent C prove path/byte agreement in exported durable namespace; no real checkout/home writes.",
+        "AC6: v1/docs/motoko/fleet share repo namespace, World/other repos isolate same slug; validate two safe owner/repo components and absolute HOME for defaults; nonempty valid absolute override wins without mkdir.",
+        "AC7: Actual executable blocks from BOTH Gate 2 copies are extracted non-vacuously. Active missing export/driver root, bad source/root/override, no needed repo root or marked lane are errors; absent dir/zero matches alone is UNREVIEWED.",
+        "AC8: Early source/init block is after mission-control.sh:119/123 and before credential/model work, binary branch :2048 and legacy spawns :2337/:2381/:2383. Explicit rc checks are required without set -e; export/log absolute directory; raw marked startup launches zero children.",
+        "AC8: Real Codex argv helper and extracted driver call site feed fake CLI; capture forwarded directory and inherited process marker presence separately. Real taskFor -> BuildEnvironment -> fake child retains raw directory, inherits marker and injects task policy; no provider/quota probes or production executor edits.",
+        "AC8: /bin/bash 3.2 only. Shell suite default runs without Go for bash CI; --writer mode from TestQuorumArtifactShellSuite uses the real writer child. Missing suite/helper/skill block fails; no passing skips.",
+        "AC9: Attended no-export process (all mission vars/marker unset) enters its own git root, sources local helper and agrees with real writer at same root. Standalone marked reader uses sandbox CWD without git ascent and emits equivalent suppression diagnostic.",
+        "AC11: Exported readers consult export FIRST then own repo-root ArtifactDir and log each. Check BOTH even on first match; error in either dominates. Attended-local -> exported-mission and mission-host -> attended WITH SAME EXPORT are byte-exact; absent in both is UNREVIEWED. No-export attended remains local-only.",
+        "AC10: Add exactly one existing LAUNCHD_SUITE recipe, test new recipe reach, regenerate env docs with existing generator, mirror only intended Gate 2 change through unchanged six-skill sync, and write ### Fixed changelog fragment.",
+        "Every fixture uses disposable HOME. Real-path manifests are observation-only; concurrent changes are reported as inconclusive and never restored. Independent evaluator records removed suppression/fallback/early-success mutants and restored controls.",
+        "Executor runs G1/G2/G4/G5/G6/G9/G10/G11/G13/G14, each measured base rc0. G1 must execute the new mandatory Go shell adapter. Missing-new-suite rc127 and full-config httptest rc1 are excluded baseline probes, not acceptance gates.",
+        "Controller completes independent evaluation and presence-only live lane/binary/path observations before activation; retains explicit flag workaround, preserves all evidence on rollback; legacy importer and deployment remain out of scope."
+      ],
+      "test_arms": [
+        {
+          "ac": "AC5",
+          "test": "cross_tree_durable (--writer)",
+          "assertion": "Real writer in fixture A writes exported dir; remove only fixture A, reader B and independent fixture clone C find same path/bytes.",
+          "mutation": "Replace helper exported-reader first entry with local repo/sentinel only."
+        },
+        {
+          "ac": "AC6",
+          "test": "repo_namespace_missions",
+          "assertion": "v1/docs/motoko/fleet share AILANG namespace without mkdir at init.",
+          "mutation": "Namespace using MISSION_NAME instead of MISSION_REPO on the selection line."
+        },
+        {
+          "ac": "AC6",
+          "test": "repo_namespace_isolation",
+          "assertion": "World and other owner/repo cannot match an AILANG same-slug fixture.",
+          "mutation": "Return AILANG's directory for every repo on one line."
+        },
+        {
+          "ac": "AC6",
+          "test": "invalid_repo_and_home",
+          "assertion": "Reject empty components, \".\"/\"..\", extra slashes/traversal and nonabsolute HOME when constructing defaults.",
+          "mutation": "Replace repo validation call with `:` (separate HOME mutant removes its absolute check)."
+        },
+        {
+          "ac": "AC6",
+          "test": "invalid_and_explicit_override",
+          "assertion": "Relative/tilde/whitespace overrides error; absolute-with-spaces wins; no init mkdir.",
+          "mutation": "Replace absolute override validation call with `:`."
+        },
+        {
+          "ac": "AC7",
+          "test": "gate2_extracted_active_matrix",
+          "assertion": "BOTH actual marked skill blocks: export absent or empty, driver root absent/relative/unreadable, missing helper, marked active (including whitespace) all ERROR; repo identity may be unset with valid export.",
+          "mutation": "Delete executable-block source failure return/exit on its one line."
+        },
+        {
+          "ac": "AC7",
+          "test": "lookup_error_matrix",
+          "assertion": "Directory absence/zero matches → UNREVIEWED; malformed JSON, non-directory, unreadable directory/file → ERROR, including broken git-root resolution.",
+          "mutation": "Replace lookup's error propagation line with `return 1` (reserved absence status)."
+        },
+        {
+          "ac": "AC7",
+          "test": "extraction_is_nonvacuous",
+          "assertion": "Exactly one executable block from EACH skill, actual helper required, source/mirror hashes equal.",
+          "mutation": "Delete one opening block marker from source skill."
+        },
+        {
+          "ac": "AC8",
+          "test": "driver_export_before_both_launches",
+          "assertion": "Extract actual after-profiles/secrets block under fixture HOME; inherited/profile/secrets overrides honored in order, child printenv sees exported path; corrupt config stops BEFORE fake binary/legacy launches; init logs no policy contents.",
+          "mutation": "Delete `export MISSION_QUORUM_ARTIFACT_DIR` line in initializer."
+        },
+        {
+          "ac": "AC8",
+          "test": "codex_actual_forwarding",
+          "assertion": "Real mc_codex_env_args + extracted actual legacy call site → fake codex captures .set.MISSION_QUORUM_ARTIFACT_DIR path including spaces. Parent raw marker presence captured separately; no new forwarding rule.",
+          "mutation": "In disposable driver call site replace mc_codex_env_args call with `MC_CODEX_ENV_ARGS=()`."
+        },
+        {
+          "ac": "AC8",
+          "test": "contaminated_host_startup",
+          "assertion": "Valid/invalid override + path/whitespace marker: startup and active reader fail, launch count zero, local confinement named.",
+          "mutation": "Disable driver initializer's marker refusal condition."
+        },
+        {
+          "ac": "AC8",
+          "test": "standalone_policy_reader",
+          "assertion": "sandbox CWD + whitespace/path marker suppresses absolute/invalid override with required stderr; never ascent or host read.",
+          "mutation": "Disable standalone reader marker branch."
+        },
+        {
+          "ac": "AC8",
+          "test": "TestQuorumEnvironmentHandoff/clean,/inherited_marker,/task_policy — internal/mission/dispatch/quorum_env_test.go",
+          "assertion": "Actual taskFor/BuildEnvironment result delivered to fake CLI: override raw bytes retained, inherited marker retained, task policy replaces marker. Test all used roles; print presence only for marker.",
+          "mutation": "Add `config.EnvMissionQuorumArtifactDir: \"\",` to taskFor ExtraEnv on one line in the disposable copy; it shadows inherited override and must kill the test."
+        },
+        {
+          "ac": "AC8",
+          "test": "bash32_and_suite_reach",
+          "assertion": "/bin/bash runs helper/blocks; make dry-run includes EXACT new suite recipe once through LAUNCHD_SUITE.",
+          "mutation": "Delete new make/test.mk recipe line. Bash4-syntax mutant: replace namespace assignment with `repo=${MISSION_REPO,,}`."
+        },
+        {
+          "ac": "AC9",
+          "test": "attended_no_exports (--writer)",
+          "assertion": "All mission exports + marker unset, nested fixture invocation enters repo root; real writer there is found byte-exact; unset MISSION_REPO/DRIVER_ROOT permitted.",
+          "mutation": "Replace attended reader repo-root directory with HOME default."
+        },
+        {
+          "ac": "AC9",
+          "test": "attended_absent_and_errors",
+          "assertion": "Same extracted blocks: missing directory/zero matches UNREVIEWED; unreadable config/files ERROR; missing repo root ERROR, explicit supplied bad driver root ERROR.",
+          "mutation": "Replace attended helper fallback with unconditional missing-driver-root error."
+        },
+        {
+          "ac": "AC11",
+          "test": "cross_mode_fixed_order (--writer)",
+          "assertion": "Attended local writer then active reader with empty exported namespace finds identical local bytes; mission host writer then attended reader WITH SAME EXPORT finds identical host bytes; both absent UNREVIEWED; diagnostics export then local.",
+          "mutation": "Delete local fallback array append line. Separate order mutant swaps first/second array assignment in one line."
+        },
+        {
+          "ac": "AC11",
+          "test": "cross_mode_errors_dominate",
+          "assertion": "Both matches fixture plus malformed/unreadable other directory still ERROR; export absence + local match passes; failures in first or second directory never swallowed.",
+          "mutation": "Return REVIEWED immediately on first match instead of after inspecting both."
+        },
+        {
+          "ac": "AC10",
+          "test": "generated_docs_and_mirror",
+          "assertion": "Registry row rendered by generator, BOTH blocks equal, no unrelated skill changes; existing six-skill --check passes.",
+          "mutation": "Delete new missionVars Registry row; source-only reader mutation makes sync fail."
+        },
+        {
+          "ac": "AC10",
+          "test": "fixture_home_and_observations",
+          "assertion": "Fixture operations restricted to disposable HOME; real-directory manifests are read-only observations before/after.",
+          "mutation": "Replace helper HOME prefix with fixed `\"/nonexistent/quorum-mutation-home\"`; fixture expected-path assertion must fail without touching real home."
+        }
+      ],
+      "gates": [
+        {
+          "id": "G1",
+          "command": "go test ./internal/mission/quorum/ ./internal/policytool/ -count=1",
+          "base_rc": 0,
+          "evidence": "ok  \tgithub.com/sunholo-data/ailang/internal/mission/quorum\t0.511s\nok  \tgithub.com/sunholo-data/ailang/internal/policytool\t0.839s"
+        },
+        {
+          "id": "G2",
+          "command": "go test ./internal/config -run 'TestEveryGetenvNameIsRegistered|TestNoLiteralGetenvInConfig|TestGetOrUsesRegistryDefault' -count=1",
+          "base_rc": 0,
+          "evidence": "ok  \tgithub.com/sunholo-data/ailang/internal/config\t0.659s"
+        },
+        {
+          "id": "G4",
+          "command": "go test ./internal/mission/dispatch/ -count=1",
+          "base_rc": 0,
+          "evidence": "ok  \tgithub.com/sunholo-data/ailang/internal/mission/dispatch\t1.159s"
+        },
+        {
+          "id": "G5",
+          "command": "/bin/bash tools/launchd/sync-agents-skills.sh --check",
+          "base_rc": 0,
+          "evidence": "agents skills in sync (mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator)"
+        },
+        {
+          "id": "G6",
+          "command": "make check-boundaries",
+          "base_rc": 0,
+          "evidence": "Checking architecture boundaries (logical layers over internal/)...\n\nOK: no architecture boundary violations."
+        },
+        {
+          "id": "G9",
+          "command": "go run ./tools/gen-env-docs \"$HOME/env-vars.md\" && cmp docs/docs/reference/env-vars.md \"$HOME/env-vars.md\"",
+          "base_rc": 0,
+          "evidence": "gen-env-docs: wrote /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.XKColTK2AU/env-vars.md (258 variables in 24 areas)"
+        },
+        {
+          "id": "G10",
+          "command": "golangci-lint run ./internal/mission/quorum/... ./internal/mission/dispatch/... ./internal/config/...",
+          "base_rc": 0,
+          "evidence": "0 issues."
+        },
+        {
+          "id": "G11",
+          "command": "for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n \"$f\" || exit 1; done",
+          "base_rc": 0,
+          "evidence": ""
+        },
+        {
+          "id": "G13",
+          "command": "cmp .claude/skills/mission-control/resources/gate-2-pick.md .agents/skills/mission-control/resources/gate-2-pick.md",
+          "base_rc": 0,
+          "evidence": ""
+        },
+        {
+          "id": "G14",
+          "command": "make -n test-launchd-drivers > \"$HOME/launchd-recipe.txt\" && test -s \"$HOME/launchd-recipe.txt\"",
+          "base_rc": 0,
+          "evidence": ""
+        }
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": "Blocked: sandbox denies sync tool writes to .agents. Source reader and other M2 implementation ready; mirror-dependent gates/mutations uninformative. Controller must synchronize and rerun; see .snap/REPORT.md."
+    }
+  ],
+  "controller_landing_steps": [
+    {
+      "id": "C1",
+      "title": "Independent evaluation and authority review",
+      "required": true,
+      "executor_task": false,
+      "acceptance_criteria": [
+        "Review all AC1-11 named test arms and actual one-line mutant failures/restored controls. No forbidden-file diff; stacked salvage code/tests preserved.",
+        "Review baseline-red exclusions honestly; run socket-dependent config suite on a permitting runner. Existing fleet D-FLEET-17 docs-build/git-exec issues remain controller-owned; generator byte equality does not prove docs-build."
+      ]
+    },
+    {
+      "id": "C2",
+      "title": "Live lane verification, commit, land and activate",
+      "required": true,
+      "executor_task": false,
+      "acceptance_criteria": [
+        "Controller owns all git writes and routing; handles PR #1824 stacking. Do not infer implementation approval from planner output.",
+        "Observe marker presence only at actual controller and every used role shell plus updated binary and matching writer/reader effective paths. Marked lane stops; never clear policy marker to activate.",
+        "Activate synchronized writer/export/readers together; retain explicit host-flag workaround until then. World rollout and legacy import remain separate; rollback preserves evidence."
+      ]
+    }
+  ],
+  "planner_verification": {
+    "gate_baselines": {
+      "G1": {
+        "command": "go test ./internal/mission/quorum/ ./internal/policytool/ -count=1",
+        "base_rc": 0,
+        "evidence": "ok  \tgithub.com/sunholo-data/ailang/internal/mission/quorum\t0.511s\nok  \tgithub.com/sunholo-data/ailang/internal/policytool\t0.839s"
+      },
+      "G2": {
+        "command": "go test ./internal/config -run 'TestEveryGetenvNameIsRegistered|TestNoLiteralGetenvInConfig|TestGetOrUsesRegistryDefault' -count=1",
+        "base_rc": 0,
+        "evidence": "ok  \tgithub.com/sunholo-data/ailang/internal/config\t0.659s"
+      },
+      "G3": {
+        "command": "go vet ./internal/mission/quorum/ ./internal/config/",
+        "base_rc": 0,
+        "evidence": ""
+      },
+      "G4": {
+        "command": "go test ./internal/mission/dispatch/ -count=1",
+        "base_rc": 0,
+        "evidence": "ok  \tgithub.com/sunholo-data/ailang/internal/mission/dispatch\t1.159s"
+      },
+      "G5": {
+        "command": "/bin/bash tools/launchd/sync-agents-skills.sh --check",
+        "base_rc": 0,
+        "evidence": "agents skills in sync (mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator)"
+      },
+      "G6": {
+        "command": "make check-boundaries",
+        "base_rc": 0,
+        "evidence": "Checking architecture boundaries (logical layers over internal/)...\n\nOK: no architecture boundary violations."
+      },
+      "G7": {
+        "command": "/bin/bash -n tools/launchd/mission-control.sh",
+        "base_rc": 0,
+        "evidence": ""
+      },
+      "G8": {
+        "command": "/bin/bash tools/launchd/test_mission_registry_env.sh",
+        "base_rc": 0,
+        "evidence": "PASS mission registry env: export arm, missing-root refusal, both branches wired, ordering"
+      },
+      "G9": {
+        "command": "go run ./tools/gen-env-docs \"$HOME/env-vars.md\" && cmp docs/docs/reference/env-vars.md \"$HOME/env-vars.md\"",
+        "base_rc": 0,
+        "evidence": "gen-env-docs: wrote /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.XKColTK2AU/env-vars.md (258 variables in 24 areas)"
+      },
+      "G10": {
+        "command": "golangci-lint run ./internal/mission/quorum/... ./internal/mission/dispatch/... ./internal/config/...",
+        "base_rc": 0,
+        "evidence": "0 issues."
+      },
+      "G11": {
+        "command": "for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n \"$f\" || exit 1; done",
+        "base_rc": 0,
+        "evidence": ""
+      },
+      "G12": {
+        "command": "go test -race ./internal/mission/quorum/ -count=1",
+        "base_rc": 0,
+        "evidence": "ok  \tgithub.com/sunholo-data/ailang/internal/mission/quorum\t2.355s"
+      },
+      "G13": {
+        "command": "cmp .claude/skills/mission-control/resources/gate-2-pick.md .agents/skills/mission-control/resources/gate-2-pick.md",
+        "base_rc": 0,
+        "evidence": ""
+      },
+      "G14": {
+        "command": "make -n test-launchd-drivers > \"$HOME/launchd-recipe.txt\" && test -s \"$HOME/launchd-recipe.txt\"",
+        "base_rc": 0,
+        "evidence": ""
+      }
+    },
+    "excluded_probes": [
+      {
+        "id": "B1",
+        "command": "/bin/bash tools/launchd/test_quorum_artifacts.sh",
+        "base_rc": 127,
+        "evidence": "/bin/bash: tools/launchd/test_quorum_artifacts.sh: No such file or directory",
+        "classification": "New shell test absent: rc127, excluded from acceptance gate lists. Future real execution is through mandatory TestQuorumArtifactShellSuite under G1."
+      },
+      {
+        "id": "B2",
+        "command": "go test ./internal/config/ -count=1",
+        "base_rc": 1,
+        "evidence": "--- FAIL: TestCloudProjectPrecedence (0.00s)\npanic: httptest: failed to listen on a port: listen tcp6 [::1]:0: bind: operation not permitted [recovered, repanicked]\n\ngoroutine 11 [running]:\ntesting.tRunner.func1.2({0x105323980, 0x6052c298710})\n\t/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.9.darwin-arm64/src/testing/testing.go:1974 +0x1a0\ntesting.tRunner.func1()\n\t/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.9.darwin-arm64/src/testing/testing.go:1977 +0x318\npanic({0x105323980?, 0x6052c298710?})\n\t/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.9.darwin-arm64/src/runtime/panic.go:860 +0x12c\nnet/http/httptest.newLocalListener()\n\t/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.9.darwin-arm64/src/net/http/httptest/server.go:72 +0xd4\nnet/http/httptest.NewUnstartedServer(...)\n\t/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.9.darwin-arm64/src/net/http/httptest/server.go:120\nnet/http/httptest.NewServer({0x1053b7cc0, 0x1053b3a70})\n\t/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.9.darwin-arm64/src/net/http/httptest/server.go:107 +0x28\ngithub.com/sunholo-data/ailang/internal/config.clearCloudEnv(0x6052c3b4fc8)\n\t/Users/voightkampff/.ailang-driver-pin/fleet-i38-artifact-dir/internal/config/cloud_test.go:29 +0x100\ngithub.com/sunholo-data/ailang/internal/config.TestCloudProjectPrecedence(0x6052c3b4fc8)\n\t/Users/voightkampff/.ailang-driver-pin/fleet-i38-artifact-dir/internal/config/cloud_test.go:40 +0x28\ntesting.tRunner(0x6052c3b4fc8, 0x1053b38b8)\n\t/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.9.darwin-arm64/src/testing/testing.go:2036 +0xc4\ncreated by testing.(*T).Run in goroutine 1\n\t/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.9.darwin-arm64/src/testing/testing.go:2101 +0x3a8\nFAIL\tgithub.com/sunholo-data/ailang/internal/config\t0.518s\nFAIL",
+        "classification": "UNINFORMATIVE UNDER SANDBOX: httptest IPv6 bind denied, not verified code regression."
+      },
+      {
+        "id": "R",
+        "command": "ailang pkg search quorum",
+        "base_rc": 1,
+        "evidence": "Error: search failed: failed to fetch registry index: Get \"https://storage.googleapis.com/ailang-registry/index.json?t=1791982866\": dial tcp: lookup storage.googleapis.com: no such host",
+        "classification": "UNINFORMATIVE UNDER SANDBOX: DNS unavailable; not empty registry."
+      },
+      {
+        "id": "R2",
+        "command": "ailang pkg search filesystem",
+        "base_rc": 1,
+        "evidence": "Error: search failed: failed to fetch registry index: Get \"https://storage.googleapis.com/ailang-registry/index.json?t=1791982917\": dial tcp: lookup storage.googleapis.com: no such host",
+        "classification": "UNINFORMATIVE UNDER SANDBOX: DNS unavailable; not empty registry."
+      },
+      {
+        "id": "V",
+        "command": "/bin/bash .agents/skills/sprint-planner/scripts/analyze_velocity.sh 7",
+        "base_rc": 141,
+        "evidence": "Analyzing velocity for last 7 days...\n\n=== Recent Changelog Entries ===\nchangelogs/v0.0-v0.2-foundation.md:#### M-R8: Block Expressions (HIGH PRIORITY, ~300 LOC) ← **NEW**\nchangelogs/v0.0-v0.2-foundation.md:#### M-R5: Records & Row Polymorphism (HIGH PRIORITY, ~500 LOC)\nchangelogs/v0.0-v0.2-foundation.md:#### M-R6: Extended Effects - Clock & Net (MEDIUM PRIORITY, ~700 LOC)\nchangelogs/v0.0-v0.2-foundation.md:#### M-R7: Modulo Operator Fix (MEDIUM PRIORITY, ~200 LOC)\nchangelogs/v0.0-v0.2-foundation.md:#### M-UX2: User Experience (LOW PRIORITY, ~300 LOC)\nchangelogs/v0.0-v0.2-foundation.md:**Implementation**: ~200 LOC across 3 strategic improvements\nchangelogs/v0.0-v0.2-foundation.md:1. **Auto-Entry Fallback** (`cmd/ailang/main.go`, ~50 LOC)\nchangelogs/v0.0-v0.2-foundation.md:2. **Audit Script Enhancement** (`tools/audit-examples.sh`, ~20 LOC)\nchangelogs/v0.0-v0.2-foundation.md:3. **TRecord Unification Support** (`internal/types/unification.go`, ~40 LOC)\nchangelogs/v0.0-v0.2-foundation.md:### 🎯 M-EVAL: AI Evaluation Framework (~600 LOC) ✅\nNo LOC metrics found\n\n=== Recent Commits (last 7 days) ===\n58decf4f2 design(quorum): M-QUORUM-ARTIFACT-DIR-STABLE revision 3 — apply quorum round 2 fix verbatim (two-directory reader fallback, AC11, A1→0; narrow-refinement carve-out)\n8abf38938 design(quorum): M-QUORUM-ARTIFACT-DIR-STABLE revision 2 — answer quorum round 1 (marker audit, reader decision table, pre-flight limits; importer deferred)\nd94759501 design(quorum): M-QUORUM-ARTIFACT-DIR-STABLE — repo-scoped quorum artifact dir via registered env, policy-marker confinement (fleet iter 38)\nb5ca4f6cf docs(fleet): iteration 37 record — no landing possible (dev required reds, owner disabled); #13 reproduction measured, judged PASS 88; D-FLEET-17/18 filed\nb8e6c92f9 docs(fleet): note the iteration-36 retro skill fix in the log\nc9f92fe6b skill(mission-control): the Bash tool's own ceiling beats the recipe's deadline — size timeout and poll deadlines to it\nd9ddfe4ef docs(fleet): iteration 36 record — #11 ghost-resolved, #12 built + judged PASS 88, PR blocked on inherited dev red\n6189802a0 docs(fleet): record the Tier-2 salvage follow-up as charter row 16 (AC10 precondition); clarify salvaged-absent wording\n5a5e7cc1c docs(mission-control): absent-reviewer remedy split by reason; zero-signal guard note marked landed (M-FLEET-QUORUM-SALVAGE M3)\n22bad5519 fix(quorum): a salvaged reject keeps its veto; a salvaged pass is audit only (M-FLEET-QUORUM-SALVAGE M2)\n23467c484 feat(quorum): strict verdict salvage + offset-centred JSON diagnostics (M-FLEET-QUORUM-SALVAGE M1)\n8dac0dc6b plan(quorum): M-FLEET-QUORUM-SALVAGE sprint plan — 3 milestones (scanner+diagnostics, veto wiring, skill remedy)\n4c5070c50 design(quorum): M-QUORUM-SALVAGE revision 3 — apply quorum round 2 fixes verbatim (narrow-refinement carve-out)\n7150677bd design(quorum): M-QUORUM-SALVAGE revision 2 — answer quorum round 1 (truncation path measured, Tier-2 scoped out, depth-tracked scan)\n72d4a639d design(quorum): re-ground M-QUORUM-SALVAGE on the #941 refresh — salvage the verdict, locate the break, drop retry\n42652c19e docs(modelreg): gemini-agents-antigravity agent smoke 23/23 PASS ($15.26, 280s/bench)\nce07d0e88 Add design doc m-test-strip-brace-literals: parser-recorded test block end positions (#1822)\nc43b6c0d9 docs(design): M-AGY-EXECUTOR — Antigravity CLI as a local-editing executor (Phase-0-gated)\nffef3402a feat(executor): gemini_agents — Gemini Developer API managed agents that edit the local workspace\n2b55d9a41 fix(security): suppress api-keys create output — gcloud echoes keyString",
+        "classification": "Velocity rc141 from head/pipefail; no measured throughput."
+      }
+    ],
+    "load_bearing_claims": "Verified Registry prefix allowance/raw get, trimmed AgentPolicy pitfall, unchanged constant pin, stacked artifact salvage anchors, actual profile/secrets/log order, binary and legacy launch branches, MISSION_* Codex forwarding, real task/environment inheritance, scope guard and generated docs. Corrections recorded in plan Premise check.",
+    "scope": "Exactly two planner artifact writes. No implementation or git writes; no message handoff. Executor implementation files listed; cmd/ailang/design_quorum.go, internal/policytool/**, internal/config/*_test.go and design-doc-creator skills forbidden even for evaluator mutation patches.",
+    "real_directory_observations": {
+      "method": "Read-only SHA256(sorted basename + NUL + exact bytes), counts and lines; both snapshots identical during planning, no fixture writes.",
+      "before": [
+        {
+          "path": "~/.ailang-driver-pin/fleet/.ailang/state/mission-quorum",
+          "files": 5,
+          "lines": 377,
+          "sha256": "7b09a996ce8b90221bace1ab092aa23e6de20667a18f806669b03b0a8f57f787"
+        },
+        {
+          "path": "~/dev/sunholo-data/ailang/.ailang/state/mission-quorum",
+          "files": 164,
+          "lines": 8190,
+          "sha256": "079f080899fbfc58fb9a1731a80a8a1c3f2105290ac130960ee70f96e3d33d60"
+        },
+        {
+          "path": "~/.ailang/state/mission-quorum",
+          "files": 15,
+          "lines": 1106,
+          "sha256": "86c70d2f6ce8886e53df80bcbd071ed648fc897694266aaa027db53229187bbb"
+        },
+        {
+          "path": "~/.ailang/state/mission-quorum-world",
+          "files": 2,
+          "lines": 154,
+          "sha256": "7da76b3a307c6d221d9fec386599891da5c2932980f797beef9b9025f941dc04"
+        }
+      ],
+      "after": [
+        {
+          "path": "~/.ailang-driver-pin/fleet/.ailang/state/mission-quorum",
+          "files": 5,
+          "lines": 377,
+          "sha256": "7b09a996ce8b90221bace1ab092aa23e6de20667a18f806669b03b0a8f57f787"
+        },
+        {
+          "path": "~/dev/sunholo-data/ailang/.ailang/state/mission-quorum",
+          "files": 164,
+          "lines": 8190,
+          "sha256": "079f080899fbfc58fb9a1731a80a8a1c3f2105290ac130960ee70f96e3d33d60"
+        },
+        {
+          "path": "~/.ailang/state/mission-quorum",
+          "files": 15,
+          "lines": 1106,
+          "sha256": "86c70d2f6ce8886e53df80bcbd071ed648fc897694266aaa027db53229187bbb"
+        },
+        {
+          "path": "~/.ailang/state/mission-quorum-world",
+          "files": 2,
+          "lines": 154,
+          "sha256": "7da76b3a307c6d221d9fec386599891da5c2932980f797beef9b9025f941dc04"
+        }
+      ]
+    },
+    "uninformative_under_sandbox": [
+      "Full config httptest socket listeners fail bind; controller must rerun outside sandbox.",
+      "Registry searches fail DNS; no candidates were inspectable.",
+      "Live role-shell marker propagation and deployed binary reach are unverified by synthetic tests.",
+      "Mirror copy mode may need authority-permitting controller; --check was measured rc0. Do not widen sync scope."
+    ],
+    "command_review": "Initial cleanup-trap wrapper was rejected before execution for rm -rf. Used non-destructive scoped-HOME wrapper thereafter; not counted as a gate rc.",
+    "artifact_validation": "PASS: jq -e . rc0; exactly two features, LOC sum 800, M2 depends on M1, all listed gates have base rc0. git status shows exactly the two requested new artifacts; no code edits or git write commands."
+  }
+}

@@ -1,11 +1,11 @@
 # Stapledon's Voyage v0.54.6 Bump: Workaround Register & Retirement Plan
 
-**Status**: Planned
+**Status**: Implemented upstream; downstream retirement pending
 **Target**: v0.54.7
 **Priority**: P1
 **Estimated**: ~1 week
 **Dependencies**: None for Phases 1–3. Full closure of workaround 4 depends on the B4
-unsafe-replay policy round ([m-bytecode-vm-parity-bugs.md](../v1_0_0/m-bytecode-vm-parity-bugs.md),
+unsafe-replay policy round ([m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md),
 parked pending A2) — that dependency is explicitly out of scope here.
 
 ## Problem Statement
@@ -37,6 +37,34 @@ claims "v0.54.6, commit 71f4cf6". Those cannot both be the binary that ran. W1/W
 re-verified here on the real v0.54.6 binary; W4 must be re-tested on a confirmed-fresh binary
 before concluding the in-ceiling fix did not cover the game's handler.
 
+## Execution and downstream bump checklist (2026-10-15)
+
+This sprint implements the upstream remedies. The original verification log below records
+v0.54.6 findings; it is historical evidence, not the status of the new implementation.
+No changes to sunholo-data/stapledons-godot are included in this repository sprint.
+
+| Workaround | Upstream status | Downstream retirement action |
+|---|---|---|
+| W1: array/list lookup tables | All ten map builtins now native; reporter and full-family fixture pass interpreter/strict VM engine tests | After upgrading to a release containing this sprint, re-run both engine commands and replace lookup builders where appropriate |
+| W2: blank line ends session | Existing `readLineOpt` API; game migration **pending** | Migrate `sim/ship.ail`; test `Some("")` for blank input, a final partial line, then sticky `None`; remove protocol's blank-line prohibition only after those tests pass |
+| W3: timestamp-ignore CI filter | Metadata preserved for unchanged resolutions; targeted CLI tests pass | After upgrading, replace the ignore/restore dance with `ailang lock --check` or `ailang lock` plus `git diff --exit-code -- ailang.lock` |
+| W4: doubling-built stub tones | Keep workaround; #1576 remains cross-tracked under [B4/A2](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) | Re-test the actual service handler on a confirmed source/version/commit binary; retain doubling in `ai/voice.ail` until #1576 closes; attach any still-failing handler evidence to that issue |
+
+Local source-built evidence: source stdlib version **v0.54.9**, code commit
+`0145da1aee83e10bc668820da0cce6f8d855aa90`, built 2026-10-15 09:16:22 UTC with
+`make build VERSION=v0.54.9` (local build label, not a release). Teaching prompt refreshed:
+**v0.16.7**. The exact reporter module prints `2` on both engines; the all-ten-operation
+fixture prints `true` under strict bytecode and its inline test passes. Consecutive CLI
+locks plus `--check` leave the generated file byte-identical; a malformed lock errors and
+is not overwritten. Unit regressions additionally cover path dependencies, changed
+resolutions, prior generator/version metadata and unreadable files. Native map tests run
+20 times against evaluator behavior, including duplicates and negative/integer key order.
+
+At each bump, record the actual `ailang version` and commit used by the test commands,
+then update all four cited game call sites. The v0.54.5 auto-attached metadata does not
+establish a v0.54.6 reproduction. `ailang doc` continues to suggest `docs` without adding
+an alias. Swapped map lookup arguments now name `lookup` in the application diagnostic.
+
 ## Verification Log
 
 Every language/tooling claim above carries live or code-level evidence, run against the v0.54.6
@@ -51,7 +79,7 @@ binary at commit `71f4cf6` (2026-10-12):
 | V5 | `ailang lock` rewrites `generated_at` on every run; no preservation path exists | `internal/pkg/lockfile.go:65` `GeneratedAt: time.Now().UTC()` in `NewLockFile`, called unconditionally by `ResolveLock` (lockcheck.go); `pkgLockCommand` flag set contains only `--help`/`--check` — no `--preserve*` flag (grep of cmd/ailang/pkg_commands.go) | Confirmed |
 | V6 | A resolution-only CI check already exists | `internal/pkg/lockcheck.go`: `CheckLock` "ignoring the generation metadata (timestamp, generator, ailang_version)"; `ailang lock --check` help: "exit 1 on drift", writes nothing | Confirmed — W3's git-diff workaround replaceable today |
 | V7 | On a clean machine `ailang lock`, not `install`, fills the cache for a committed manifest | `cmd/ailang/pkg_install.go` extracts to the registry cache only for the *named* package spec and appends it to ailang.toml; `pkgLockCommand` resolves *all* deps in the existing manifest (git deps via `pkg.NewGitCache`) | Confirmed at code level — record in the dependency-workflow docs |
-| V8 | #1576 still open; the silent-drop shape was in-ceiling | v0.53.1 changelog: frame limit 1,000 → 10,000, "Deep service handlers within that ceiling now finish … Refs #1576". `docs/docs/reference/limitations.md`: "it does not make replay safe (Refs #1576)". [m-bytecode-vm-parity-bugs.md](../v1_0_0/m-bytecode-vm-parity-bugs.md) addendum 2026-10-08 documents the exact reported shape (rc 0, stderr silent, `--verbose` reveals `bytecode path unavailable (vm: stack overflow); falling back to evaluator`) and files the residual as **B4 unsafe effect replay, P0, parked pending A2** | Confirmed — issue open, but the ~1100-frame repro is within the new ceiling; re-test before trusting the workaround is still load-bearing |
+| V8 | #1576 still open; the silent-drop shape was in-ceiling | v0.53.1 changelog: frame limit 1,000 → 10,000, "Deep service handlers within that ceiling now finish … Refs #1576". `docs/docs/reference/limitations.md`: "it does not make replay safe (Refs #1576)". [m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) addendum 2026-10-08 documents the exact reported shape (rc 0, stderr silent, `--verbose` reveals `bytecode path unavailable (vm: stack overflow); falling back to evaluator`) and files the residual as **B4 unsafe effect replay, P0, parked pending A2** | Confirmed — issue open, but the ~1100-frame repro is within the new ceiling; re-test before trusting the workaround is still load-bearing |
 | V9 | `ailang doc` is gone | Live: `Error: unknown command 'doc'` + `Did you mean 'docs'?` (suggestCommand already handles it, cmd/ailang/commands.go:286) | Confirmed — suggestion works as designed |
 | V10 | Unification errors for argument-order mistakes do not name the function | Live: `lookup("b", m)` → `type unification failed at [function application at lo.ail:5:9]: failed to unify parameter 0: cannot unify Map[α7, α8] with string` — no mention of `lookup` or std/map. Source: `internal/types/unification_types.go:53` wraps the parameter error without callee context | Confirmed |
 | V11 | `std/map.lookup` argument order is map-first | `std/map.ail:42`: `lookup[k, v](m: Map[k, v], key: k) -> Option[v]` | Confirmed |
@@ -114,8 +142,8 @@ another doc — so the v0.55 bump has an empty (or #1576-only) re-check list.
 
 Before implementation begins, these must be resolved:
 
-- [ ] D2 (lock metadata preservation semantics) — needs human approval; it is a CI contract
-- [ ] D4 (`doc` alias rejection) — recorded ruling; flip only if downstream shows real cost
+- [x] D2 (lock metadata preservation semantics) — approved in the user handoff; preserve all generation metadata on unchanged resolution
+- [x] D4 (`doc` alias rejection) — approved in the user handoff; no alias added
 
 ## Conflict Surface Analysis
 
@@ -240,23 +268,23 @@ current wording); the adjacent M-ARITY-STYLE diagnostic must not change.
 ### Implementation Plan
 
 **Phase 1: VM Map value + std/map port** (~3 days)
-- [ ] VM Map value type mirroring `eval.MapValue` (encoding, COW insert, sorted iteration)
-- [ ] Native implementations for the ten `__map_*` builtins in the VM
-- [ ] Shrink the `unportedPure` ratchet; add strict-bytecode parity tests (build/lookup/remove/iterate)
-- [ ] Acceptance: the reporter's `fl.ail` prints `2` under `--strict-bytecode`
+- [x] VM Map value type mirroring `eval.MapValue` (encoding, COW insert, sorted iteration)
+- [x] Native implementations for the ten `__map_*` builtins in the VM
+- [x] Shrink the `unportedPure` ratchet; add strict-bytecode parity tests (build/lookup/remove/iterate)
+- [x] Acceptance: the reporter's `fl.ail` prints `2` under `--strict-bytecode`
 
 **Phase 2: Lock determinism** (~0.5 day)
-- [ ] Preserve generation metadata on drift-free re-lock in `pkgLockCommand`
-- [ ] Tests: unchanged re-lock is byte-identical; drifted re-lock restamps; `--check` still never writes
-- [ ] Docs: `lock --check` as the CI gate; clean-machine cache behavior (V7)
+- [x] Preserve generation metadata on drift-free re-lock in `pkgLockCommand`
+- [x] Tests: unchanged re-lock is byte-identical; drifted re-lock restamps; `--check` still never writes
+- [x] Docs: `lock --check` as the CI gate; clean-machine cache behavior (V7)
 
 **Phase 3: Callee-named unification errors** (~1 day)
-- [ ] Thread the callee name into the application unification error at the application site
-- [ ] Update affected goldens; add a regression test using a swapped-args `std/map.lookup`
-- [ ] Verify the M-ARITY-STYLE diagnostic is unchanged
+- [x] Thread the callee name into the application unification error at the application site
+- [x] Update affected goldens; add a regression test using a swapped-args `std/map.lookup`
+- [x] Verify the M-ARITY-STYLE diagnostic is unchanged
 
 **Phase 4: Register, migrate, cross-track** (~0.5 day)
-- [ ] Doc note: bump re-check register with retirement statuses (W1 fixed, W2 retireable, W3 fixed, W4 pending #1576/B4)
+- [x] Doc note: bump re-check register with retirement statuses (W1 fixed, W2 retireable, W3 fixed, W4 pending #1576/B4)
 - [ ] Downstream (stapledons-godot, their repo): migrate `readLineOpt`; re-test #1576 handler; delete the git-diff laundering once Phase 2 ships
 
 ### Files to Modify/Create
@@ -314,12 +342,12 @@ lo.ail:5:9]: failed to unify parameter 0 of `lookup`: cannot unify Map[α7, α8]
 
 ## Success Criteria
 
-- [ ] `fl.ail` (reporter's exact repro) prints `2` on both engines, including `--strict-bytecode` (acceptance: run both, diff)
-- [ ] A strict-bytecode `std/xml` or `takeMap` program still fails with the evaluator-only error naming the builtin (ratchet parity)
-- [ ] Two consecutive `ailang lock` runs with no manifest change produce byte-identical files (`git diff --exit-code` clean)
-- [ ] Drifted resolution still restamps `generated_at`; `ailang lock --check` behavior unchanged (exit codes 0/1, never writes)
-- [ ] Swapped-args `lookup` error names `lookup`; arity-mismatch diagnostic unchanged (golden diff review)
-- [ ] All tests passing (`make test`); docs updated; bump re-check register written
+- [x] `fl.ail` (reporter's exact repro) prints `2` on both engines, including `--strict-bytecode` (acceptance: run both, diff)
+- [x] A strict-bytecode `std/xml` or `takeMap` program still fails with the evaluator-only error naming the builtin (ratchet parity)
+- [x] Two consecutive `ailang lock` runs with no manifest change produce byte-identical files (`git diff --exit-code` clean)
+- [x] Drifted resolution still restamps `generated_at`; `ailang lock --check` behavior unchanged (exit codes 0/1, never writes)
+- [x] Swapped-args `lookup` error names `lookup`; arity-mismatch diagnostic unchanged (golden diff review)
+- [x] Focused tests passing (`make test-changed`; full suite remains CI); docs updated; bump re-check register written
 - [ ] Downstream: stapledons-godot W2 migration merged; W4 re-test result recorded on #1576
 
 ## Testing Strategy
@@ -350,7 +378,7 @@ lo.ail:5:9]: failed to unify parameter 0 of `lookup`: cannot unify Map[α7, α8]
 ## Non-Goals
 
 - **The B4 unsafe-replay policy** — the residual open half of #1576. Tracked in
-  [m-bytecode-vm-parity-bugs.md](../v1_0_0/m-bytecode-vm-parity-bugs.md) (P0, parked
+  [m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) (P0, parked
   pending A2). This doc does not touch `internal/runner/entrypoint.go` fallback behavior.
 - **Porting the other unported builtin families** (`__html_*`, `__xml_*`, headers, closure
   HOFs) — same mechanism, separate ratchet shrink, not what the bump reported.
@@ -379,11 +407,11 @@ lo.ail:5:9]: failed to unify parameter 0 of `lookup`: cannot unify Map[α7, α8]
 
 ## Related Documents
 
-- [m-bytecode-vm-parity-bugs.md](../v1_0_0/m-bytecode-vm-parity-bugs.md) — B4 unsafe replay
+- [m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) — B4 unsafe replay
   (the open half of #1576) and the 2026-10-08 #1576 addendum
 - [m-vm-stack-limit-parity.md](../../implemented/v1_0_0/m-vm-stack-limit-parity.md) — the
   v0.53.1 frame-limit alignment that fixed the in-ceiling #1576 shape
-- [ailang-core-backlog.md](../ailang-core-backlog.md) — lock portability history
+- [ailang-core-backlog.md](../../planned/ailang-core-backlog.md) — lock portability history
   (path-dep relativity, `ailang#1498`)
 - [#1447 ratchet] `internal/vm/builtin_coverage_test.go` — unported-pure-builtin policy
 - [docs/docs/reference/limitations.md](../../../docs/docs/reference/limitations.md) —
@@ -405,4 +433,4 @@ lo.ail:5:9]: failed to unify parameter 0 of `lookup`: cannot unify Map[α7, α8]
 ---
 
 **Document created**: 2026-10-12
-**Last updated**: 2026-10-12
+**Last updated**: 2026-10-15

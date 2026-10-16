@@ -1,0 +1,78 @@
+{
+  "doc": "design_docs/planned/m-quorum-salvage-retry.md",
+  "iso_ts": "2026-10-13T23:03:58Z",
+  "reviewers": [
+    {
+      "model": "oc-glm-5-3",
+      "cost_usd": 0.09476720000000001,
+      "tokens_in": 6314,
+      "tokens_out": 19529,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "Goal G1 ('no reviewer-emitted reject can be dropped on the way to the synthesis') is stated as universal, but the one path the doc itself marks UNMEASURED — the finish_reason=length truncation branch (run.go:170) — is the shape of 4 of the 7 salvaged-reject candidates (V17: the 'unexpected end' rows predate guard 885725f06, so it is unknown whether HEAD still records them as ReasonInvalid or diverts them). D4 asserts a single recordInvalid call at run.go:161 covers 'each ReasonInvalid parse branch', yet no verification row shows the branch structure of run.go:159-174 or that a HEAD truncation flows through that site, and no acceptance criterion exercises a truncated reject end-to-end: T6/T7 use F2 (mid-string break) only, T3 covers F3 solely at the salvageVerdict unit level, and T8 keeps TestRunReviewerWith_TruncatedOutputFailsLoudly unedited with no assertion on Salvaged. If the truncation branch bypasses the salvage hook at HEAD, a truncated reject — the #941 failure class — is still silently discarded and can vacuously proceed at N-1, and the Retry-dropped justification ('all 7 already end blocked after D2') silently assumes those 4 rows remain ReasonInvalid at HEAD. G1's universality is therefore an unverified premise at exactly the motivating seam.",
+        "catch": "Two verification-integrity items to flag: (1) V3's documented regex over .error (verdict-quote-colon-quote-reject, as printed) cannot match the Go-quoted error bytes that V2 establishes (the %.200q window stores the quotes as backslash-escaped sequences); either the 7 artifacts predate the %.200q error format or the actual command differed from the one logged — state which so the central 7/7 premise is reproducible as written. (2) The gate-2-pick.md:233-238 stale citation of quorum.go:168 is asserted in D5 but absent from the V-log (V12 only greps 'raised cap' at :186), and the body cites design_review.go:131 while V11 records :130 — pick one.",
+        "proposed_fix": "Add verification row V18: sed -n '150,180p' internal/mission/quorum/run.go with the observed control flow, proving the finish_reason=length case enters the same ReasonInvalid block as the run.go:161 recordInvalid site — or, if it does not, wire a second recordInvalid there and add it to D4 and the Files list. Add acceptance arm T6b: a runner stub returning F3 with finish_reason=length yields Salvaged.Verdict=='reject' and Present==false, with the truncation loud-message test additionally asserting o.Salvaged is set; name mutant M8b ('recordInvalid placed only on the non-truncation twig') and kill it with T6b. Amend the Retry-dropped justification to read: 'all 7 measured invalid rows end blocked after D2, conditional on V18 confirming the 4 unexpected-end rows still record ReasonInvalid at HEAD.' Add a note to V3 stating which artifact-writing versions produced the 7 rows (or re-run the premise with escape-aware matching against the %q-escaped text) so the logged command reproduces the logged observation."
+      },
+      "landed": null
+    },
+    {
+      "model": "oc-kimi-k3",
+      "cost_usd": 0.15640500000000002,
+      "tokens_in": 6355,
+      "tokens_out": 9156,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The Tier-2 wing of the design is asserted, never verified. D2 and the Files list claim foldAbsent is wired into an 'absent branch' at tier2.go:82 and AC7 (T7) asserts SynthesizeWithTier2 will return `blocked` with a `[tier2] ` prefix — yet no verification-log row (V1–V17) touches tier2.go at all: not the line number, not the existence of an absent branch, not the current verdict space of SynthesizeWithTier2, and not who consumes its returned Synthesis. This collides with the doc's own non-goal 'No change to ShouldEscalate': the doc never identifies whether ShouldEscalate (or any other consumer) reads SynthesizeWithTier2's verdict, so flipping Tier-2 absent-invalid outcomes to `blocked` may alter escalation behavior that is explicitly declared untouched. V4 measured 0 Tier-2 invalid absences and 0 G2-shape instances, so the entire Tier-2 acceptance arm tests a path with no measurement and no verified premise — exactly what gate 1 rejects.",
+        "catch": "Add the missing Tier-2 evidence before landing the tier2.go edit: (a) verify tier2.go:82 is actually the absent-reviewer branch and what verdicts SynthesizeWithTier2 can emit at HEAD (same sed-n + probe methodology as V7/V9); (b) trace consumers of SynthesizeWithTier2's Synthesis — in particular ShouldEscalate and anything in cmd/ailang — to prove a new `blocked` verdict doesn't change escalation, or drop the 'No change to ShouldEscalate' non-goal; (c) state explicitly that Tier-2 invalid absences are unmeasured (echoing the V17 honesty style) and justify folding there anyway, or scope it out.",
+        "proposed_fix": "Add two rows to the Verification Log and scope accordingly. V18: `sed -n 60,110p internal/mission/quorum/tier2.go` plus a probe test calling SynthesizeWithTier2 with an absent-invalid Tier-2 reviewer carrying a salvaged reject at HEAD, recording the observed HEAD verdict (analogous to V7's G3 probe). V19: `grep -rn 'SynthesizeWithTier2\\|ShouldEscalate' --include=*.go .` enumerating every consumer of the Tier-2 Synthesis verdict, with a sentence confirming none branch on `blocked`. If V18/V19 show the fold is safe, T7's Tier-2 arm is grounded; if they show any consumer reacts to `blocked`, either revise the non-goal 'No change to ShouldEscalate' with justification or move the tier2.go edit and T7's Tier-2 arm to a follow-up doc, keeping D1–D4/D5 scoped to `synthesize` where all V3/V4/V7 measurements were taken."
+      },
+      "landed": null
+    },
+    {
+      "model": "gpt6-1-sol",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "unreachable",
+      "error": "openai error (429): You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.",
+      "landed": null
+    },
+    {
+      "model": "gemini-4-argon",
+      "cost_usd": 0.01624,
+      "tokens_in": 7010,
+      "tokens_out": 222,
+      "present": true,
+      "result": {
+        "verdict": "pass",
+        "strongest_objection": "In D1, stopping the top-level token scan immediately upon encountering a nested `{` or `[` means that if a reviewer emits an unexpected array or object field before the `verdict` key, a valid top-level `\"verdict\":\"reject\"` emitted after that nested structure but before a later syntax break would fail to be salvaged.",
+        "catch": "Verify whether `salvageVerdict` should skip over balanced nested `{}`/`[]` structures using depth tracking rather than halting the scan at the first nested delimiter, or confirm that schema-compliant reviewer prompts always place `verdict` as the first key in practice.",
+        "proposed_fix": "In D1, clarify that the token scan tracks brace/bracket depth (incrementing on `{`/`[`, decrementing on `}`/`]`) and only records `verdict` and `strongest_objection` at depth 1, rather than stopping the scan completely on a depth-2 opener."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Controller (opus, in-session): premise re-grounded on #941 with commands; salvage is read-only token scan; salvaged pass never counts; salvaged reject blocks; scope in fleet allowlist; mechanical (no routing/quota/billing). V14 measured by controller via ailang mission ticket open."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "oc-glm-5-3: Goal G1 ('no reviewer-emitted reject can be dropped on the way to the synthesis') is stated as universal, but the one path the doc itself marks UNMEASURED — the finish_reason=length truncation branch (run.go:170) — is the shape of 4 of the 7 salvaged-reject candidates (V17: the 'unexpected end' rows predate guard 885725f06, so it is unknown whether HEAD still records them as ReasonInvalid or diverts them). D4 asserts a single recordInvalid call at run.go:161 covers 'each ReasonInvalid parse branch', yet no verification row shows the branch structure of run.go:159-174 or that a HEAD truncation flows through that site, and no acceptance criterion exercises a truncated reject end-to-end: T6/T7 use F2 (mid-string break) only, T3 covers F3 solely at the salvageVerdict unit level, and T8 keeps TestRunReviewerWith_TruncatedOutputFailsLoudly unedited with no assertion on Salvaged. If the truncation branch bypasses the salvage hook at HEAD, a truncated reject — the #941 failure class — is still silently discarded and can vacuously proceed at N-1, and the Retry-dropped justification ('all 7 already end blocked after D2') silently assumes those 4 rows remain ReasonInvalid at HEAD. G1's universality is therefore an unverified premise at exactly the motivating seam.",
+      "oc-kimi-k3: The Tier-2 wing of the design is asserted, never verified. D2 and the Files list claim foldAbsent is wired into an 'absent branch' at tier2.go:82 and AC7 (T7) asserts SynthesizeWithTier2 will return `blocked` with a `[tier2] ` prefix — yet no verification-log row (V1–V17) touches tier2.go at all: not the line number, not the existence of an absent branch, not the current verdict space of SynthesizeWithTier2, and not who consumes its returned Synthesis. This collides with the doc's own non-goal 'No change to ShouldEscalate': the doc never identifies whether ShouldEscalate (or any other consumer) reads SynthesizeWithTier2's verdict, so flipping Tier-2 absent-invalid outcomes to `blocked` may alter escalation behavior that is explicitly declared untouched. V4 measured 0 Tier-2 invalid absences and 0 G2-shape instances, so the entire Tier-2 acceptance arm tests a path with no measurement and no verified premise — exactly what gate 1 rejects."
+    ],
+    "absent_reviewers": [
+      {
+        "model": "gpt6-1-sol",
+        "reason": "unreachable"
+      }
+    ],
+    "total_cost_usd": 0.2674122,
+    "total_tokens_in": 19679,
+    "total_tokens_out": 28907
+  }
+}

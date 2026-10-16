@@ -1,0 +1,23 @@
+# The Triage mission — every approval card, agent PR and bot-filed issue reaches a decision
+# (M-TRIAGE-MISSION Part B; charter ratified attended by Mark 2026-10-15, D-TRIAGE-1).
+#
+# Level 1 (D-TRIAGE-7): it verifies, labels, attests and closes under T1–T4, and NEVER
+# approves, rejects or merges — approving is the coordinator's job (Part A). Its own clone,
+# like fleet: two loops in one working tree is the concurrent-agent hazard, and the clone is
+# only launchd's working directory (the loop runs from the origin/dev pin). The driver exits
+# before any probe when the queue fingerprint equals the last digested one (TRIAGE IDLE
+# PRE-CHECK), so the interval is a polling period, not a spend rate.
+name    = "triage"
+repo    = "sunholo-data/ailang"
+workdir = "/Users/voightkampff/dev/sunholo-data/ailang-triage"
+doc     = "design_docs/triage-mission.md"
+
+
+# ── SCHEDULE ─────────────────────────────────────────────────────────────────
+# 12h interval: the queue moves on the coordinator's cadence (cards, PRs, imports), and a
+# digest twice a day is what the charter asks for. boot_offset 2520 = the next 420s slot
+# after stapledon (2100), so the seven missions never stampede a boot together.
+[schedule]
+mode             = "interval"
+interval_seconds = 43200
+boot_offset      = 2520

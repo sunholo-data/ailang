@@ -1,0 +1,259 @@
+-- executor_tools/executor.ail — hosted AILANG code executor (M-AILANG-EXECUTOR-GE P1).
+--
+-- The hosted twin of ailang_bootstrap's local stdio MCP (mcp-server/server.js):
+-- same tool names, but the caller sends CODE, not a file path, and never picks
+-- capabilities. Every run goes through `ailang run --policy`, the boundary the
+-- ailang_only executor lane uses: the policy file (EXECUTOR_POLICY) fixes caps,
+-- timeout and output limits, and the supervisor enforces them.
+--
+-- Each request gets its own directory under EXECUTOR_WORK_DIR (which must be
+-- the policy's fs_sandbox), holding one file, main.ail, removed afterwards.
+--
+-- Every call logs one JSON line (event "executor_call") through Debug.log,
+-- which serve-api writes to stderr as-is, so Cloud Logging indexes it as
+-- jsonPayload: tool, outcome, duration, code size, a short code hash (repeats
+-- show a caller retrying the same code) and the first error, with the request
+-- directory stripped. The code itself is never logged.
+module executor_tools/executor
+import std/bytes (toString)
+import std/clock (now)
+import std/crypto (sha256Hex)
+import std/debug (log)
+import std/env (getEnvOr)
+import std/fs (mkdirAllResult, writeFileResult, removeFileResult, removeDirResult)
+import std/json (Json, jo, kv, js, jb, jnum, jint, encode, decode, get, getString, getBool, getInt, getArray)
+import std/list (filter, length as listLength)
+import std/option (Option, Some, None)
+import std/process (exec, ProcessOutput, ProcessError, NotAllowed, NotFound, PermissionDenied, Timeout, OutputLimitExceeded, SpawnFailed, AbnormalExit)
+import std/rand (uuid4)
+import std/result (Result, Ok, Err)
+import std/string (concat, contains, join, length, split, toLower, substring, replace, startsWith, trim)
+
+type Field = { key: string, value: Json }
+
+-- Source larger than this is refused before anything touches disk.
+pure func maxCodeBytes() -> int = 65536
+
+-- Longest error excerpt a log line carries.
+pure func maxErrorChars() -> int = 300
+
+func workRoot() -> string ! {Env} = getEnvOr("EXECUTOR_WORK_DIR", "/tmp/ailang-exec")
+
+func policyPath() -> string ! {Env} = getEnvOr("EXECUTOR_POLICY", "/srv/executor-policy.toml")
+
+func ailangBin() -> string ! {Env} = getEnvOr("EXECUTOR_AILANG_BIN", "ailang")
+
+pure func clip(s: string, n: int) -> string = if length(s) > n then substring(s, 0, n) else s
+
+pure func errorJson(code: string, message: string) -> Json =
+  jo([kv("ok", jb(false)), kv("error", js(code)), kv("message", js(message))])
+
+pure func processErrorText(e: ProcessError) -> string = match e {
+  NotAllowed(c) => "not allowed: ${c}",
+  NotFound(c) => "ailang binary not found: ${c}",
+  PermissionDenied(c) => "permission denied: ${c}",
+  Timeout(ms) => "timed out after ${show(ms)}ms",
+  OutputLimitExceeded(n) => "output exceeded ${show(n)} bytes",
+  SpawnFailed(m) => "spawn failed: ${m}",
+  AbnormalExit(_, name) => "killed by signal ${name}"
+}
+
+-- The result shape every exec-backed tool returns.
+pure func outputJson(out: ProcessOutput) -> Json =
+  jo([kv("ok", jb(out.exitCode == 0)), kv("exit_code", jnum(intToFloat(out.exitCode))), kv("stdout", js(toString(out.stdout))), kv("stderr", js(toString(out.stderr))), kv("truncated", jb(out.truncated))])
+
+-- First non-blank line of s, without the request directory and a leading
+-- "Error: ", clipped. Error text names <dir>/main.ail in several spellings.
+pure func firstLine(s: string, dir: string) -> string {
+  -- "policy:" is the supervisor's echo of the policy it applied, never the error.
+  let lines = filter(\l. trim(l) != "" && !startsWith(l, "policy:"), split(s, "\n"));
+  match lines {
+    [] => "",
+    [l, ..._] => {
+      let noDir = replace(replace(l, "${dir}/", ""), "${substring(dir, 1, length(dir))}/", "");
+      clip(trim(replace(noDir, "Error: ", "")), maxErrorChars())
+    }
+  }
+}
+
+pure func outcomeFields(outcome: string, err: string) -> [Field] =
+  if err == "" then [kv("outcome", js(outcome))] else [kv("outcome", js(outcome)), kv("error", js(err))]
+
+-- Classify an `ailang run --policy` result. The supervisor prints a decision
+-- JSON on stdout when it refuses a program (error_kind: typecheck_failed,
+-- policy_violation, ...); timeouts and limits come as a policy-result line on
+-- stderr, runtime errors (RTxxx) as an Error: line.
+pure func runOutcome(out: ProcessOutput, dir: string) -> [Field] {
+  let stdout = toString(out.stdout);
+  let stderr = toString(out.stderr);
+  if out.exitCode == 0 then outcomeFields("ok", "") else match decode(stdout) {
+    Ok(j) => match get(j, "decision") {
+      Some(d) => match getBool(d, "ok") {
+        Some(false) => {
+          let kind = match getString(d, "error_kind") { Some(k) => k, None => "refused" };
+          let msg = match getString(d, "message") { Some(m) => m, None => "" };
+          outcomeFields(kind, firstLine(msg, dir))
+        },
+        _ => runtimeOutcome(stderr, dir)
+      },
+      None => runtimeOutcome(stderr, dir)
+    },
+    Err(_) => runtimeOutcome(stderr, dir)
+  }
+}
+
+-- The supervisor's verdict on a run that started: a "policy-result: {json}"
+-- line on stderr whose reason (timeout, output_limit, ...) is authoritative.
+pure func policyResult(stderr: string) -> Option[Json] =
+  match filter(\l. startsWith(l, "policy-result: "), split(stderr, "\n")) {
+    [] => None,
+    [l, ..._] => match decode(substring(l, length("policy-result: "), length(l))) {
+      Ok(j) => Some(j),
+      Err(_) => None
+    }
+  }
+
+pure func runtimeOutcome(stderr: string, dir: string) -> [Field] = match policyResult(stderr) {
+  Some(pr) => match getString(pr, "reason") {
+    Some(reason) => outcomeFields(reason, match getString(pr, "message") { Some(m) => clip(m, maxErrorChars()), None => "" }),
+    None => runtimeOrFailed(stderr, dir)
+  },
+  None => runtimeOrFailed(stderr, dir)
+}
+
+pure func runtimeOrFailed(stderr: string, dir: string) -> [Field] =
+  if contains(stderr, "RT0") then outcomeFields("runtime_error", firstLine(stderr, dir)) else outcomeFields("failed", firstLine(stderr, dir))
+
+-- Classify an ai-check report: check.passed, the error count, the first error,
+-- and any Z3 counterexamples.
+pure func checkOutcome(out: ProcessOutput, dir: string) -> [Field] = match decode(toString(out.stdout)) {
+  Err(_) => outcomeFields("failed", firstLine(toString(out.stderr), dir)),
+  Ok(j) => {
+    let chk = match get(j, "check") { Some(c) => c, None => j };
+    let passed = match getBool(chk, "passed") { Some(b) => b, None => false };
+    let count = match getInt(chk, "error_count") { Some(n) => n, None => 0 };
+    let first = match getArray(chk, "errors") {
+      Some([e, ..._]) => match getString(e, "message") { Some(m) => firstLine(m, dir), None => "" },
+      _ => ""
+    };
+    let cex = match get(j, "verify") {
+      Some(v) => match getInt(v, "counterexample") { Some(n) => n, None => 0 },
+      None => 0
+    };
+    outcomeFields(if passed then "ok" else "check_failed", first) ++ [kv("error_count", jint(count)), kv("counterexamples", jint(cex))]
+  }
+}
+
+-- Run `ailang <args>`, returning the tool result and its log fields.
+func execAilang(args: [string], classify: ProcessOutput -> [Field]) -> (Json, [Field]) ! {Env, Process} =
+  match exec(ailangBin(), args) {
+    Ok(out) => (outputJson(out), classify(out) ++ [kv("exit_code", jint(out.exitCode)), kv("truncated", jb(out.truncated))]),
+    Err(e) => (errorJson("exec_failed", processErrorText(e)), outcomeFields("exec_failed", processErrorText(e)))
+  }
+
+-- Write `source` to <root>/<uuid>/main.ail, run `f` on that directory, clean up.
+func withRequestFile(source: string, f: string -> (Json, [Field]) ! {Env, Process}) -> (Json, [Field]) ! {Env, FS, Process, Rand} =
+  if length(source) > maxCodeBytes() then (errorJson("code_too_large", "code must be <= ${show(maxCodeBytes())} bytes"), outcomeFields("code_too_large", "")) else {
+    let dir = "${workRoot()}/${uuid4()}";
+    let file = "${dir}/main.ail";
+    match mkdirAllResult(dir) {
+      Err(m) => (errorJson("workdir_failed", m), outcomeFields("workdir_failed", m)),
+      Ok(_) => match writeFileResult(file, source) {
+        Err(m) => (errorJson("write_failed", m), outcomeFields("write_failed", m)),
+        Ok(_) => {
+          let result = f(dir);
+          let _ = removeFileResult(file);
+          -- ai-check leaves an empty compile-cache tree, and removeDirResult
+          -- is never recursive: take it down bottom-up.
+          let _ = removeDirResult("${dir}/.ailang/cache/compile");
+          let _ = removeDirResult("${dir}/.ailang/cache");
+          let _ = removeDirResult("${dir}/.ailang");
+          let _ = removeDirResult(dir);
+          result
+        }
+      }
+    }
+  }
+
+-- Emit the one executor_call line for a finished call and return its result.
+func logged(tool: string, startMs: int, extra: [Field], r: (Json, [Field])) -> Json ! {Clock, Debug} = match r {
+  (result, fields) => {
+    log(encode(jo([kv("event", js("executor_call")), kv("tool", js(tool)), kv("duration_ms", jint(now() - startMs))] ++ extra ++ fields)));
+    result
+  }
+}
+
+pure func codeFields(code: string) -> [Field] =
+  [kv("code_bytes", jint(length(code))), kv("code_sha", js(substring(sha256Hex(code), 0, 12)))]
+
+func runCode(tool: string, code: string, source: string) -> Json ! {Clock, Debug, Env, FS, Process, Rand} {
+  let t0 = now();
+  logged(tool, t0, codeFields(code), withRequestFile(source, \dir. execAilang(["run", "--policy", policyPath(), "--chdir", dir, "main.ail"], \out. runOutcome(out, dir))))
+}
+
+-- Call this FIRST: the AILANG teaching prompt (syntax rules, templates,
+-- stdlib map). AILANG is not in your training data the way Python is; code
+-- written without this prompt rarely type-checks.
+@route("POST", "/api/executor/ailang_prompt")
+@mcp_name("ailang_prompt")
+@mcp_title("AILANG syntax prompt")
+@mcp_hints("readOnly", "idempotent")
+export func ailangPrompt() -> Json ! {Clock, Debug, Env, Process} {
+  let t0 = now();
+  logged("ailang_prompt", t0, [], execAilang(["prompt"], \out. outcomeFields(if out.exitCode == 0 then "ok" else "failed", "")))
+}
+
+-- Type-check AILANG source and verify its contracts (requires/ensures) with Z3
+-- where available. `code` is a whole module; the module line may be omitted or
+-- be `module main`. Returns the ai-check JSON report on stdout: check.passed,
+-- check.errors (with locations and fixes), verify.results.
+@route("POST", "/api/executor/ailang_check")
+@mcp_name("ailang_check")
+@mcp_title("Check AILANG code")
+@mcp_hints("readOnly", "idempotent")
+export func ailangCheck(code: string) -> Json ! {Clock, Debug, Env, FS, Process, Rand} {
+  let t0 = now();
+  logged("ailang_check", t0, codeFields(code), withRequestFile(code, \dir. execAilang(["ai-check", "-relax-modules", "${dir}/main.ail"], \out. checkOutcome(out, dir))))
+}
+
+-- Run AILANG source in the hosted sandbox. Entry point is `main`, with no
+-- arguments. Only the IO capability is granted (println works; FS, Net,
+-- Process, Env and AI are refused by name before the program starts), and the
+-- run is killed at the policy timeout. stdout is the program's output; stderr
+-- carries the policy decision JSON.
+@route("POST", "/api/executor/ailang_run")
+@mcp_name("ailang_run")
+@mcp_title("Run AILANG code (sandboxed)")
+@mcp_hints("readOnly", "idempotent")
+export func ailangRun(code: string) -> Json ! {Clock, Debug, Env, FS, Process, Rand} = runCode("ailang_run", code, code)
+
+-- Evaluate one pure AILANG expression and print it with show(). Builtins are
+-- in scope; for stdlib functions (map, filter, ...) use ailang_run with
+-- explicit imports.
+@route("POST", "/api/executor/ailang_eval")
+@mcp_name("ailang_eval")
+@mcp_title("Evaluate an AILANG expression")
+@mcp_hints("readOnly", "idempotent")
+export func ailangEval(expression: string) -> Json ! {Clock, Debug, Env, FS, Process, Rand} =
+  runCode("ailang_eval", expression, concat(["module main\nimport std/io (println)\nexport func main() -> () ! {IO} = println(show(\n", expression, "\n))\n"]))
+
+-- List AILANG builtin functions with documentation, grouped by module.
+-- `search` filters lines case-insensitively; empty returns everything.
+@route("POST", "/api/executor/ailang_builtins")
+@mcp_name("ailang_builtins")
+@mcp_title("AILANG builtins")
+@mcp_hints("readOnly", "idempotent")
+export func ailangBuiltins(search: string) -> Json ! {Clock, Debug, Env, Process} {
+  let t0 = now();
+  let r = match exec(ailangBin(), ["builtins", "list", "--verbose", "--by-module"]) {
+    Err(e) => (errorJson("exec_failed", processErrorText(e)), outcomeFields("exec_failed", processErrorText(e))),
+    -- The listing lands on stdout or stderr depending on how the CLI is
+    -- launched; read both.
+    Ok(out) => if search == "" then (jo([kv("ok", jb(true)), kv("stdout", js("${toString(out.stdout)}${toString(out.stderr)}"))]), outcomeFields("ok", "")) else {
+      let q = toLower(search);
+      let hits = filter(\l. contains(toLower(l), q), split("${toString(out.stdout)}${toString(out.stderr)}", "\n"));
+      (jo([kv("ok", jb(true)), kv("stdout", js(if hits == [] then "No matches found" else join("\n", hits)))]), outcomeFields(if hits == [] then "no_match" else "ok", "") ++ [kv("hits", jint(listLength(hits)))])
+    }
+  };
+  logged("ailang_builtins", t0, [kv("search", js(clip(search, 80)))], r)
+}

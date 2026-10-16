@@ -35,10 +35,19 @@ type interactionRequest struct {
 	Background        bool            `json:"background"`
 	Store             bool            `json:"store"`
 	Agent             string          `json:"agent"`
+	AgentConfig       *agentConfig    `json:"agent_config,omitempty"`
 	Environment       json.RawMessage `json:"environment"`
 	Input             []inputBlock    `json:"input"`
 	SystemInstruction string          `json:"system_instruction,omitempty"`
 	Interaction       string          `json:"interaction,omitempty"` // For multi-turn resume
+}
+
+// agentConfig pins the model behind an agent (Developer API; type
+// "antigravity"). The server echoes it but does not verify it — see
+// splitAgentModel.
+type agentConfig struct {
+	Type  string `json:"type"`
+	Model string `json:"model,omitempty"`
 }
 
 // inputBlock is one element of the Input array.

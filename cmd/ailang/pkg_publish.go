@@ -299,6 +299,10 @@ func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, in
 		return fmt.Errorf("validation failed:\n%s", string(body))
 	case http.StatusForbidden:
 		return fmt.Errorf("not authorized to publish to this namespace")
+	case http.StatusUnprocessableEntity:
+		return fmt.Errorf("registry validator stopped the check:\n%s", string(body))
+	case http.StatusServiceUnavailable, http.StatusBadGateway:
+		return fmt.Errorf("publish failed (HTTP %d): %s\nThe validator instance went away mid-request, which usually means it ran out of memory or crashed; nothing was published. Retry once; if it repeats, report it to AILANG core with the package and version", resp.StatusCode, string(body))
 	default:
 		return fmt.Errorf("publish failed (HTTP %d): %s", resp.StatusCode, string(body))
 	}

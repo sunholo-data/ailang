@@ -264,8 +264,10 @@ func (h *Handler) Step(model string, messages []Message, tools []ToolSchema) (*R
 //
 // v1 provider support:
 //   - Anthropic + OpenAI + OpenRouter: full SSE streaming
-//   - Gemini + Ollama + configdriven: NO-OP fallback (call Step + fire one
-//     synthetic ContentDelta + Usage from the final response)
+//   - Ollama: full SSE streaming with AILANG_OLLAMA_V1_STREAM=1 on the /v1
+//     tool path; otherwise the same synthetic chunks as the fallback below
+//   - configdriven: NO-OP fallback (call Step + fire one synthetic
+//     ContentDelta + Usage from the final response)
 func (h *Handler) StepWithStream(model string, messages []Message, tools []ToolSchema, cacheBreakpoints []CacheBreakpoint, onChunk func(StreamChunk)) (*Response, error) {
 	chosenModel := model
 	if chosenModel == "" {

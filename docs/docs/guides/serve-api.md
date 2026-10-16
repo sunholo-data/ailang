@@ -474,6 +474,20 @@ mounts a second MCP endpoint:
 | `@mcp_secret("apiKey")` | The param is dropped from `/mcp/connect/` and binds its zero value even if a client sends it. It must also be `@optional`. |
 | `@mcp_agent_only` | The tool is on `/mcp/` only (for example, device-code sign-in tools). |
 
+**A public service whose tools all need a token: `--mcp-connect-only`.** `/mcp/` is ungated, and
+any tool with an `@route` (or every export, without `--routes-only`) is also a plain HTTP endpoint,
+so on a public service an `@mcp_auth("oauth2")` tool can still be reached without a token. AILANG
+Parse is safe because its tools also need an API key. A service whose tools must never run for an
+anonymous caller runs with `--mcp-connect-only`:
+
+- `/mcp/` is not mounted;
+- every tool on `/mcp/connect/` is `@mcp_auth("oauth2")` unless it explicitly says `@mcp_auth("noauth")`;
+- plain HTTP (dispatch, `@route`, OpenAPI, `_meta`) serves `@nomcp` exports only, which are the OAuth and sign-in routes.
+
+`tools/list` stays open, because directory clients list tools before signing in. Startup fails
+without `--mcp-http`, without `--oauth-issuer`, without an `@mcp_token_verifier`, or with `--a2a`.
+The hosted AILANG executor's public service uses it (`executor_oauth/`).
+
 **Fail-closed verification.** A verifier error, a panic, more than **5 s**, or more than 32
 verifications in flight gives **HTTP 503 + `Retry-After`**, and the tool never runs. The 5 s
 deadline is set on the verifier's own effect context, so a hung `Net` call inside it is
@@ -719,6 +733,9 @@ Flags:
   --ws-pass-header H   Give @route("WS") handlers this request header in req.headers (repeatable)
   --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)
   --oauth-issuer URL   OAuth authorization server for @mcp_auth("oauth2") tools on /mcp/connect/
+  --mcp-connect-only   Tools only on /mcp/connect/, all behind the Bearer gate (no /mcp/; HTTP serves @nomcp routes only)
+  --process-timeout D  Process exec timeout (default 30s; needs --caps Process)
+  --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)
 
 Arguments:
   <path...>            One or more .ail files or directories
