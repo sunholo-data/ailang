@@ -1,5 +1,13 @@
 # M-VM-LIST-TAIL-SHARE: O(1) list-tail binding on the bytecode VM (cons-pattern walks are O(n²))
 
+**Execution update 2026-10-16:** Residual implementation is complete on
+`coordinator/task-1cee992e`; independent sprint evaluation pending. Strict-alone
+now selects the VM, checked `bench/vm_tail_walk/` fixtures are committed, and
+retention documentation preserves D-19's parked construction scope. The historical
+planning and verification entries below are retained. Current execution evidence:
+[residual sprint report](../../../docs/sprint-retros/M-VM-LIST-TAIL-SHARE-RESIDUAL-retro.md).
+
+
 **Status**: Planned — quorum attempted 2026-10-09 (`task-006b0353`): **all three external reviewers absent** (`gemini-3-1-pro` unreachable; `oc-kimi-k3` unreachable; `gpt6-1-sol` auth), recorded by name in `.ailang/state/mission-quorum/m-vm-list-tail-share-2026-10-09T11-00-54Z.json`; controller verdict **pass** — degraded to controller-only, **not quorum-cleared**. The 26-row first-party Verification Log is the load-bearing evidence; re-run quorum when a reviewer route is available (same convention as [m-bytecode-nested-pattern-lowering](../../implemented/v0_52_0/m-bytecode-nested-pattern-lowering.md)).
 **Re-reported 2026-10-13** (`task-a0ee29fa`, v0.54.6 `71f4cf6`, md5 `81bacda6…`): a **second, independent consumer report** (sunholo lane — see Bug report) confirms the defect at v0.54.6 with new real-workload evidence (pprof, R2-CREW deadline). **The fix is still unimplemented at v0.54.8** — first-party re-derivation that session (V27–V29); all three copy sites then lived in this tree. **Superseded 2026-10-15: landed as #1827 / v0.54.10 (V41).** Target lapsed (v0.53.0 → v0.54.8 shipped without it); the residual re-targets at sprint-planner time.
 **Phase 1 LANDED 2026-10-15** (attended, #1827, **shipped v0.54.10**, V41): `_list_tail`/`__list_take`/`__list_drop` return capacity-capped subslices (`elems[n:len:len]`); `internal/vm/list_tail_share_test.go` (identity + clamp + cap tests, append-isolation, mutation-checked — V42). Reporter repro 6.77 s → 1.05 s on dev; the `std/list.ail` cost sentence (V14) was rewritten in the same release (V43).
@@ -325,16 +333,16 @@ Three small phases, independently shippable, smallest-first:
 - [x] Go unit tests: `internal/vm/list_tail_share_test.go` — pointer identity (not allocation counts: "a copy is one make"), clamp parity, cap==len, append isolation (V42)
 - [x] Baselines re-derived in the landing sprint; reporter repro 6.77 s → 1.05 s; this session's independent re-measure: V33–V35
 
-**Phase 2 (strict flag) — OPEN (AC-R1):**
-- [ ] `cmd/ailang/main_run_exec.go:128`: `BytecodeMode: bytecodeMode` → `bytecodeMode || strictBytecode` (flags already reach `runFile` via `main_run.go:301`; `StrictBytecode` at line 129 unchanged)
-- [ ] `cmd/ailang/main_run.go:142`: flag help gains "Implies --bytecode"
-- [ ] Test: `ailang run --strict-bytecode` alone on an evaluator-only entry *fails loudly* (exit ≠ 0, `bytecode execution failed: …`) instead of silently evaluating (today: V36); `--bytecode --strict-bytecode`, plain `--bytecode`, no-flag, and `ailang test --strict-bytecode` byte-unchanged
+**Phase 2 (strict flag) — IMPLEMENTED (AC-R1):**
+- [x] `cmd/ailang/main_run_exec.go:128`: `BytecodeMode: bytecodeMode` → `bytecodeMode || strictBytecode` (flags already reach `runFile` via `main_run.go:301`; `StrictBytecode` at line 129 unchanged)
+- [x] `cmd/ailang/main_run.go:142`: flag help gains "Implies --bytecode"
+- [x] Test: `ailang run --strict-bytecode` alone on an evaluator-only entry *fails loudly* (exit ≠ 0, `bytecode execution failed: …`) instead of silently evaluating (today: V36); `--bytecode --strict-bytecode`, plain `--bytecode`, no-flag, and `ailang test --strict-bytecode` byte-unchanged
 
-**Phase 3 (docs + bench) — `std/list.ail` half landed; remainder OPEN (AC-R2/AC-R3):**
+**Phase 3 (docs + bench) — `std/list.ail` half landed; remainder IMPLEMENTED (AC-R2/AC-R3):**
 - [x] `std/list.ail:9-11` header rewrite (#1827, V43) — no further edit
-- [ ] `docs/LIMITATIONS.md` retention row **+ canonical entry** in `docs/docs/reference/limitations.md`; rows 41–42 untouched (D-19 pending, V40)
-- [ ] `bench/vm_tail_walk/{walk.ail,build.ail,foldl.ail,run.sh}` committed — equivalent inputs (`range`-built), **checked outputs** (expected value asserted per (program, n, engine) + VM↔interpreter diff), min-of-N, both engines; before/after tables in the sprint report (before: V6/V28; after: re-derive V33–V37 on the implementer's build)
-- [ ] Changelog fragment `changelogs/unreleased/` with the strict-flag behavior note
+- [x] `docs/LIMITATIONS.md` retention row **+ canonical entry** in `docs/docs/reference/limitations.md`; rows 41–42 untouched (D-19 pending, V40)
+- [x] `bench/vm_tail_walk/{walk.ail,build.ail,foldl.ail,run.sh}` committed — equivalent inputs (`range`-built), **checked outputs** (expected value asserted per (program, n, engine) + VM↔interpreter diff), min-of-N, both engines; before/after tables in the sprint report (before: V6/V28; after: re-derive V33–V37 on the implementer's build)
+- [x] Changelog fragment `changelogs/unreleased/` with the strict-flag behavior note
 
 **Files to modify/create (residual):** `cmd/ailang/main_run_exec.go` (+1/−1), `cmd/ailang/main_run.go` (flag help, ~1 line), a strict-flag test (new or extended, ~40 LOC), `docs/LIMITATIONS.md` (+1 row) + `docs/docs/reference/limitations.md` (canonical entry), `bench/vm_tail_walk/{walk.ail,build.ail,foldl.ail,run.sh}` (new, ~80 LOC), `changelogs/unreleased/` fragment. **Not re-touched:** `internal/vm/builtins.go`, `internal/vm/builtins_list_poly.go`, `internal/vm/list_tail_share_test.go`, `std/list.ail` — all landed in #1827, re-verified only (AC-R4).
 

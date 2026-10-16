@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-VM-LIST-TAIL-SHARE-RESIDUAL",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-16T10:17:06.150882+00:00",
   "design_doc": "design_docs/planned/v0_53_0/m-vm-list-tail-share.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-vm-list-tail-share-sprint-plan.md",
@@ -42,10 +42,11 @@
         "AC-R1: strict-alone fails loudly on an evaluator-only entry and succeeds on a VM entry",
         "Paired strict, plain bytecode, evaluator and test strict behavior preserved; help updated"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T15:38:28.425576+00:00",
+      "completed": "2026-10-16T15:40:24.790127+00:00",
+      "notes": "Failing tests confirmed before edit; focused CLI bytecode/strict regressions pass (60.471s). Help updated; shared run config ORs flags.",
+      "actual_loc": 42
     },
     {
       "id": "M2",
@@ -59,10 +60,11 @@
         "Runner rejects incorrect output and nonzero exit; min-of-3 and fresh binary provenance recorded",
         "Existing Phase 1 identity/cap/isolation tests pass without edits"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T15:30:00+00:00",
+      "completed": "2026-10-16T15:43:06.908156+00:00",
+      "notes": "All modules checked; min-of-3 complete on both engines, every output checked including 0/1/2 and strict-alone smokes. Fake wrong output and nonzero exit rejected with expected diagnostics. Raw measurements in execution report.",
+      "actual_loc": 105
     },
     {
       "id": "M3",
@@ -77,10 +79,10 @@
         "AC-R4: no diff in protected Phase 1 files",
         "AC-R5: targeted tests, test-changed, file sizes, changelog and example checks pass or evidenced baseline failures reported; release fragment added"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T15:30:00+00:00",
+      "completed": "2026-10-16T15:50:21.751217+00:00",
+      "notes": "Retention row/canonical entry and release fragment complete. Protected Phase 1 files unchanged. Focused tests, benchmark, lint, formatting and doc gates pass. Broader test/example gates have evidenced baseline/environment failures; see execution report. Deep recursion retry passed."
     }
   ],
   "baseline_measurements": [
@@ -151,5 +153,9 @@
       "expected": 159999
     }
   ],
-  "execution_approval": "pending coordinator plan approval"
+  "execution_approval": "User approved continuation and explicitly invoked sprint-executor",
+  "completed": "2026-10-16T15:50:21.751217+00:00",
+  "last_checkpoint": "M3 complete; independent evaluation pending; broad baseline failures disclosed",
+  "evaluation_status": "pending: handoff refused because sprint-evaluator is not registered on this machine; coordinator must dispatch evaluation",
+  "execution_report": "docs/sprint-retros/M-VM-LIST-TAIL-SHARE-RESIDUAL-retro.md"
 }

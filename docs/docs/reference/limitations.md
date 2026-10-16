@@ -305,6 +305,19 @@ Single-expression branches don't need braces.
 
 ## Language Feature Gaps
 
+### VM list views retain backing storage
+
+Since v0.54.10 (#1827), bytecode list tail bindings and builtin-backed `take`/`drop`
+share capacity-capped subslices. A small live suffix or prefix of a large list can
+retain the whole source backing allocation until all views referencing it become
+unreachable. Capacity caps prevent append writes into the source; they do not
+release the backing allocation. Avoid keeping small views of large temporary lists
+alive longer than needed.
+
+This improves list consumption; quadratic `::`/`++` construction remains parked
+on D-19. The checked [tail-walk benchmark](https://github.com/sunholo-data/ailang/tree/dev/bench/vm_tail_walk)
+compares equivalent range inputs and includes a separate construction contrast.
+
 ### Prepending with `::` is quadratic; evaluator recursion is capped at 10,000 frames
 
 **Status**: Known runtime limitations; the list fix is a multi-week representation change now in progress, not yet shipped
