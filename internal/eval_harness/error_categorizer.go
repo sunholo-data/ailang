@@ -56,6 +56,10 @@ func CategorizeAgentError(err error, finishReason string) string {
 		return ErrorCategoryStepExhausted
 	case "timeout":
 		return ErrorCategoryTimeout
+	// Our idle watchdog killed it. Still a timeout in the taxonomy; the row is
+	// marked invalid by the caller, so it never counts as a model failure.
+	case "idle_killed":
+		return ErrorCategoryTimeout
 	case "thrash_aborted":
 		return ErrorCategoryThrashAborted // M-EVAL-OS-LONGITUDINAL Phase 1
 	case "wire_drift":

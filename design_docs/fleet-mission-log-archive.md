@@ -493,3 +493,86 @@ The tree sum equals the parent sum within 0.04 in every window. Separately, 21 l
 
 **Retro lane**: none for the skill. One observation: the GitHub `changes` path-filter job is a single point of failure. When it cannot get a runner, every path-gated leg is SKIPPED, which renders as neutral rather than red. A rollup that counts only failures reads that as clean.
 **Next**: land #1593 when Actions recovers (resume predicate in the queue row), resolve the ticket and reply to world. Then the Phase 3a skill-resolution directive. The D-FLEET-12 pair is planner-ready; D-FLEET-13/14 await Mark.
+
+## 21 — 2026-10-06 — pi-runner pre-dirty fix LANDED: #1593 `c2bf04af3`, re-judged PASS 100 after the Actions incident cleared; ticket resolved [HARNESS]
+
+**Pick**: resume of P1 #5 `pi-runner:verdict-blind-to-commits-and-predirty` (pre-dirty half). It was iteration 20's PARKED-ON-CLOCK item, and its predicate was met at Gate 2.
+- Gate 0: kill switch armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; 0 directives on #1584 since `2026-10-05T12:33:09Z` (2 comments, both public). Rotation-week catch: #1380 also had 0 directives since the watermark. 39 open tickets.
+- Gate 1:
+  - Pin = origin/dev `a12a319b5`.
+  - Running skill: `SKILL.md` + 5 resources match origin; 7 gate resources DIFFER. The resolved main checkout is 22 commits behind (the same #1578 stamp-form delta as iteration 20). This fire followed the resolved copy and used the absolute stamp form. This is open ticket P1 #6, measured live.
+  - Dev `CI` at `a12a319b5` was `failure`: iteration 20's `workflow_dispatch`, where `changes` was cancelled with no runner during the incident. Not a code verdict.
+  - Full check set: 14 checks; Sonar red (inherited); `changes` cancelled.
+- Gate 2: predicate re-run as commands, not transcribed.
+  - githubstatus: Actions `operational`; "Incident with Actions" resolved 2026-10-05T22:49:42Z.
+  - #1593 head `2e49cc9ac`: required `test`/`lint`/`build`/`docs-gate` green, plus `launchd drivers` and `test-windows` (CI attempt 2).
+  - `UI build gate` red: 0 steps, empty runner, cancelled at 15 min. An outage casualty; re-run → success (attempt 2, post-incident).
+  - Base still `a12a319b5`, so the judged bytes = the PR head.
+
+**Did**:
+- **Re-judged before merge.** Every PR green had run during the incident, which licenses a code inference only (Gate 3b).
+  - Resolver: `reroute pi:openrouter/minimax/minimax-m3 generator-equals-judge`. openrouter was not over ration this fire.
+  - The judge ran via `scripts/mission_pi_run.sh` in the isolated worktree `fleet-iter21-evaluator` at `2e49cc9ac`; session handshake acked (5× `acked:true` in its NDJSON).
+  - **PASS 100**, 0 blocking.
+- Squash-merged #1593 `--match-head-commit 2e49cc9ac` → `c2bf04af3`.
+- Merged iteration 20's record #1594 → `eb2850427`.
+- Resolved the ticket with sha `c2bf04af3`; world replied.
+- Handed two dev reds to V1 (owner), message `inbox_1791263210185`; body verified via list.
+
+**Gate 3b**:
+- `CI` on `c2bf04af3` = **success** (run 37414632276, 04:38–05:05Z, after the incident). All 10 jobs green, including `launchd drivers (bash 3.2)` and `test-windows`.
+- Full check set (17), not-green on `c2bf04af3`:
+  - **Sonar**: inherited.
+  - **`ailang-core-dev` Cloud Build failure**: step 7 `build-agent-base`, `node v22.23.3 != pinned v22.23.2`. NodeSource's `setup_22.x` moved; the pin is in `docker/Dockerfile.agent-base`, outside fleet Authority. It fails on `eb2850427` too; the last success was `58dd06d` (10-05 13:43Z).
+  - **`Build macos-latest`**: `TestMemprobeDebugLogDoesNotAccumulate`, the known flake (iteration 19). It passed on #1593's PR head.
+  - **2 `cancelled`**: fail-fast siblings.
+- `CI` on `eb2850427` (docs-only) = failure: `test-windows` `cmd/ailang` hang guard (TestStdNumeric*, TestTailCallTrace*: "this PACKAGE has outgrown its go test -timeout budget"). It passed on the parent `c2bf04af3`. Second instance after `d273ea1cd`. V1's lane: recorded and handed over.
+
+**Progress**: 1 ticket resolved (39 → 38 open).
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET: this ticket took ≈9.6 days from filing (2026-09-26) to resolve.
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved: judged twice, and dev CI green on the merge SHA after the incident.
+
+**Routing evidence**: base-gate1=a12a319b5eb9b208f4d8f5df21b6a892033b08e7@2026-10-06T03:50:59Z; base=eb28504275ce09ec57a62b21e9a964cdc30e9422@2026-10-06T04:48:03Z (gate4). `MISSION_ROUTING_NOTE`: codex over daily ration → planner opus, executor `claude:claude-sonnet-5-5` (neither spawned).
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer / Planner / Executor**: NOT SPAWNED. This was a resume of work iteration 20 had already planned, built and judged; there was nothing to design, plan or execute. The operator's standing request to use the Agent tool for roles was honoured where a role ran.
+- **Evaluator**: the resolver said `reroute pi:openrouter/minimax/minimax-m3`, a `recipe` lane, so the Agent tool is not the specified path. Ran via `mission_pi_run.sh`: pi_rc 0, 2094 s, 112 tool executions, 113 turns, 7,415,860 tok gross, $0.5452.
+  - The runner verdict was rc 10 `empty_worktree`. Cause: the CONTROLLER's directive put the report under `.ailang/state/` (gitignored, `.gitignore:105`), so the porcelain check could not see it.
+  - The report existed and was fresh: mtime 06:37 local, after the 06:02 start.
+  - So this was an instrument artifact of the directive, not a lane failure. The verdict was taken from the report.
+  - Judge ≠ generator: minimax vs sonnet-5-5 (executor) and opus (controller/planner).
+- **Metered**: $0.5452. **Ration**: codex and ollama over; openrouter and Anthropic OK.
+
+**Verification** (judge, first-party, in its worktree):
+- `scripts/test_mission_pi_run.sh` 36/36; pi_run suites commits 9/9, sandbox 13/13, provider_quota 29/29; `bash -n` rc0 on both scripts; `check-changelog` rc0; shellcheck: no new findings.
+- Mutations, each restored by `cp` + `cmp` rc0:
+  - M-a (`ok` = porcelain only): 4 red, including 8.1;
+  - M-b (untracked hashes dropped): 4 red, including 8.6;
+  - M-c (post fp = pre fp): 12 red.
+- Hand repro in a scratch repo:
+  - A: mutated (old) code, pre-dirty, no-op pi → `ok` (the bug);
+  - B: fixed code, same input → rc 10;
+  - C: fixed code with a further edit → `ok`.
+- Its `make test-launchd-drivers` gave rc 2 inside the pi sandbox, with the SAME 68 failures at the base `a12a319b5`. It is a sandbox artifact (`mktemp` denied under `DARWIN_USER_TEMP_DIR`, so the judge shimmed `mktemp`). The CI `launchd drivers (bash 3.2)` leg is green on both the PR head and `c2bf04af3`.
+
+**Done-gate**:
+- Surface ✓ (`scripts/mission_pi_run.sh`).
+- Reach ✓ (`c2bf04af3` is an ancestor of origin/dev).
+- `make test-launchd-drivers` ✓ (CI leg green on the merge SHA).
+- 0 driver bytes, so no dry-run.
+- Nothing reloaded ✓.
+
+**Ruled out**:
+- Merging on the incident-time greens alone (re-judged, and the merge SHA got its own post-incident CI).
+- Fixing the node pin or the Windows test budget (outside Authority; handed to V1).
+- Ticketing the judges' non-blocking follow-ups (no product loop has hit them; ticket-driven only).
+- Reading or acking `mission-fleet`.
+- Re-asking D-FLEET-13/14.
+
+**Retro lane**: none for the skill. Two observations, one occurrence each:
+- (1) A directive that sends a pi evaluator's report to a gitignored path makes `mission_pi_run.sh` read `empty_worktree` even when the judge did its work. The fix is the directive's path (a tracked scratch path, or check `check-ignore` before choosing one). Not yet ≥2 frictions.
+- (2) The minimax judge ran `git stash` / `git stash pop` around a baseline run. The shared stash stack was empty (verified before the pop), so nothing was lost. A non-empty stack would have popped another session's entry.
+
+**Next**: P1 #6 `skill-surface:main-checkout-not-synced-to-dev`. Measured live this fire: 22 behind, 7 gate resources differ. It feeds the Phase 3a skill-resolution directive. The D-FLEET-12 pair is pre-authorized; D-FLEET-13/14 await Mark.
