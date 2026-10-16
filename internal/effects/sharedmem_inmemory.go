@@ -4,6 +4,7 @@ package effects
 
 import (
 	"bytes"
+	"sort"
 	"sync"
 )
 
@@ -145,6 +146,9 @@ func (c *InMemorySharedCache) Keys() []string {
 	for k := range c.store {
 		keys = append(keys, k)
 	}
+	// Sorted: map order is randomised and these keys reach programs as
+	// _sharedmem_keys output (#1795, same defect class as bounded scans).
+	sort.Strings(keys)
 	return keys
 }
 

@@ -20,6 +20,8 @@ import std/result (Result, Ok, Err)
 -- pkg_name must be the canonical vendor/name (e.g. "sunholo/motoko_ext_mcp").
 -- rel_path is relative to the package's assets/ subdirectory.
 -- Returns Ok(absolute path) when the asset exists, Err(message) otherwise.
+-- Under an ailang.lock the locked version is used; otherwise the highest
+-- installed version by semver.
 --
 -- @requires FS capability
 -- @example
