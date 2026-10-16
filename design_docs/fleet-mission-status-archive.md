@@ -2,6 +2,8 @@
 
 Older STATUS stamps rotated out of [fleet-mission.md](fleet-mission.md) (newest 3 stay there). Append-only.
 
+## STATUS 2026-10-15 — ITERATION 40: stack recovery rechecked; PARKED on D-FLEET-17, independent fresh-context Sol judge PASS 95 for disposition only [ADMIN]
+
 ## STATUS 2026-10-14 — ITERATION 39: P2 #15 slot verdict UNCLASSIFIED made reachable — built and judged PASS 91 by sonnet (round 2); stacked on #1825, BLOCKED on dev's required reds; Gate 1 skill fix for records stranded on blocked PR branches [HARNESS]
 
 The driver's SLOT VERDICT `case` ended in an unconditional `*:*) CRASHED` arm. As a result, a slot that exited **0** with a heartbeat label outside the stamp writer's closed set was reported as crashed, and the design's `UNCLASSIFIED` verdict was unreachable (`grep -c` = 0). The fix has three parts:
