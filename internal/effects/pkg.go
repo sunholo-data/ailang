@@ -19,9 +19,9 @@ func init() {
 //
 // Resolves to the absolute filesystem path of an asset shipped inside an
 // installed AILANG package's assets/ subdirectory. The package must be
-// vendor/name format and present under ~/.ailang/cache/registry/. The most
-// recent installed version is selected using package compatibility semver
-// ordering when no locked dependency target is available.
+// vendor/name format. Locked dependency targets take precedence, including
+// path and git sources. Without a lock entry, the compatibility-semver maximum
+// installed under ~/.ailang/cache/registry/ is selected.
 //
 // Returns:
 //   - Ok(absolutePath) when the asset exists

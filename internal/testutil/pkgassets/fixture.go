@@ -33,6 +33,8 @@ func New(t *testing.T) (root, locked string) {
 	t.Helper()
 	testutil.SetHomeDir(t, t.TempDir())
 	t.Setenv("AILANG_PACKAGE_ROOT", "")
+	// Other suites exercise invalid overrides; this fixture uses normal discovery.
+	t.Setenv("AILANG_STDLIB_PATH", "")
 	root = t.TempDir()
 	write := func(path, content string) {
 		t.Helper()

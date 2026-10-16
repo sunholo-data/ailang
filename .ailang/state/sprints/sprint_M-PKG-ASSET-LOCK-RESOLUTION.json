@@ -107,9 +107,9 @@
         "make verify-stdlib and make verify-examples pass; gofmt applied to changed Go files and focused lint checks are clean."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-16T09:02:22.240963+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Docs, stdlib header, builtin metadata and changelog updated. Architecture, sizes, fmt, changelog, stdlib interfaces, examples passed. Full test-changed exposed inherited stdlib env leakage; shared fixture fixed, full API package passes. Baseline process-lifecycle failure confirmed at 3af754c4. Final memory-bounded test-changed excluding only that baseline failure is running; full lint pending."
     }
   ],
   "last_session": "2026-10-16T08:49:55.644065+00:00"
