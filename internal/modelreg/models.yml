@@ -5426,8 +5426,15 @@ models:
     # Experiments: AILANG_OPENROUTER_PROVIDER='{"sort":"throughput"}' layers on
     # top (measured host speeds 2026-10-13: crusoe 1.2 s/115 tok/s, parasail 1.7 s,
     # together 2.4 s, friendli 2.7 s; open-inference 25.7 s/10 tok/s; morph 5 tok/s).
+    # open-inference and morph are OUT (2026-10-16): they are the two cheapest of
+    # the 13, so price weighting inside `only` sent motoko 62 of 72 calls to
+    # open-inference (16.4 s median) and 10 to morph, while pi — in the same A/B,
+    # same prompts — reached neither in 100 calls (Together, CoreWeave, Decart,
+    # Parasail; 2.0 s median). Per call the two harnesses produced the same
+    # ~155 output tokens; motoko's 9-minute median run against pi's 30 s was the
+    # host, not the harness (OpenRouter Broadcast spans, glm-5.3-flash A/B).
     openrouter_provider:
-      only: ["open-inference", "morph", "inceptron", "gmicloud", "decart", "near-ai", "modal", "crusoe", "coreweave", "fireworks", "friendli", "together", "parasail"]
+      only: ["inceptron", "gmicloud", "decart", "near-ai", "modal", "crusoe", "coreweave", "fireworks", "friendli", "together", "parasail"]
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
       output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)

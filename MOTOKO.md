@@ -1,7 +1,7 @@
 # motoko_agent on this machine — the map
 
 **One-line answer (since 2026-10-15):** evals run `/Users/voightkampff/dev/mk-20261015`, branch
-`sunholo/main-dst-20261015` @ `d5aa3e31` (§11) — upstream `main` 340fae14 + our commits, the
+`sunholo/main-dst-20261015` @ `965f2ec5` (§11) — upstream `main` 340fae14 + our commits, the
 commit the cloud image pins. 2026-10-08..10-15: `mk-20261002` / `sunholo/main-dst-20261002` (§10),
 now the rollback. Before that (2026-09-28..10-07):
 `/Users/voightkampff/dev/mk-main`, branch `sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
@@ -231,7 +231,7 @@ the rollback — repoint the shim's exec line to go back). The cloud image (`doc
 branch since 2026-10-02: the dev plane builds it from `dev`; test/prod get it only via a release +
 promote. Until the rig switches, rig and cloud run different motoko commits.
 
-## 11. Canonical since 2026-10-15: `sunholo/main-dst-20261015` (rig and cloud on `d5aa3e31`)
+## 11. Canonical since 2026-10-15: `sunholo/main-dst-20261015` (rig and cloud on `965f2ec5`)
 
 Worktree `~/dev/mk-20261015`, fork branch `sunholo/main-dst-20261015`: §10's branch rebased onto
 upstream `main` `340fae14` (2026-10-14), 346 upstream commits newer than `4023bf08` (about 300
@@ -254,6 +254,15 @@ bite our profiles — `cloud`, `ollama`, `ollama_microrag` and `ailang_only` all
 
 Verified: `make check_core` passes in full on macOS (59/59 core files, 192 `OK` checks, no FAIL).
 Not yet verified at switch time: a live eval trial on the new commit (local or cloud).
+
+2026-10-16: fast-forwarded to `965f2ec5` — the TUI's child-env allowlist now forwards
+`AILANG_OLLAMA_V1_STREAM`, `AILANG_OLLAMA_IDLE_TIMEOUT_SEC` and `AILANG_OLLAMA_TTFT_TIMEOUT_SEC`
+to the runtime (upstream as arniwesth/motoko_agent#266). Before it, the executor's streaming flag
+for `ollama/*` models never reached the runtime, every local turn ran buffered, and the idle
+watchdog killed long generations (9 of 39 v0.54.9 qwen3.8 rows). Only the env differs; requests
+without the flag are byte-identical. Smokes on `d5aa3e31` (the same tree minus this commit):
+local qwen3.8 fizzbuzz / json_parse / glob_match_spec, cloud Sol 6.1 and OpenRouter deepseek-v4-flash
+fizzbuzz / json_parse, all passed (2026-10-15/16).
 
 **Rollback:** repoint `~/go/bin/motoko`'s exec line to `~/dev/mk-20261002` and the Dockerfile's
 `MOTOKO_COMMIT` to `b1ffa339`. Results banked before 2026-10-15 13:00 (including the v0.54.9 OS

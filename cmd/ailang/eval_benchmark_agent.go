@@ -196,13 +196,12 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 			Condition:      condition,
 			Trial:          trial, // M-EVAL-OS-LONGITUDINAL Phase 3
 		}
-		// Killed by our own idle watchdog: charge it to the harness (invalid,
-		// retried by --skip-existing) and record what it actually spent.
-		if eval_harness.MarkIdleKilled(apiErrorMetrics, result) {
-			if onCost != nil {
-				onCost(apiErrorMetrics.CostUSD)
-			}
+		// Record what the failed run actually spent, and charge an idle-watchdog
+		// kill to the harness (invalid, retried by --skip-existing).
+		if eval_harness.CarryFailedRunSpend(apiErrorMetrics, result) && onCost != nil {
+			onCost(apiErrorMetrics.CostUSD)
 		}
+		eval_harness.MarkIdleKilled(apiErrorMetrics, result)
 		_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
 
 		// M-EVAL-CHAINS: Record failure in chain stage

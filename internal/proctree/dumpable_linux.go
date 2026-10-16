@@ -4,8 +4,14 @@ package proctree
 
 import (
 	"fmt"
+	"syscall"
+)
 
-	"golang.org/x/sys/unix"
+// prctl options (linux/prctl.h). Raw syscall, not golang.org/x/sys/unix:
+// proctree is a stdlib-only leaf (TestProctreeIsALeaf).
+const (
+	prGetDumpable = 3
+	prSetDumpable = 4
 )
 
 // DisableDump marks the calling process non-dumpable (prctl PR_SET_DUMPABLE 0).
@@ -20,12 +26,12 @@ import (
 //
 // It reads the flag back rather than trusting the prctl return value.
 func DisableDump() error {
-	if err := unix.Prctl(unix.PR_SET_DUMPABLE, 0, 0, 0, 0); err != nil {
-		return fmt.Errorf("prctl(PR_SET_DUMPABLE, 0): %w", err)
+	if _, _, errno := syscall.RawSyscall(syscall.SYS_PRCTL, prSetDumpable, 0, 0); errno != 0 {
+		return fmt.Errorf("prctl(PR_SET_DUMPABLE, 0): %w", errno)
 	}
-	got, err := unix.PrctlRetInt(unix.PR_GET_DUMPABLE, 0, 0, 0, 0)
-	if err != nil {
-		return fmt.Errorf("prctl(PR_GET_DUMPABLE): %w", err)
+	got, _, errno := syscall.RawSyscall(syscall.SYS_PRCTL, prGetDumpable, 0, 0)
+	if errno != 0 {
+		return fmt.Errorf("prctl(PR_GET_DUMPABLE): %w", errno)
 	}
 	if got != 0 {
 		return fmt.Errorf("prctl(PR_SET_DUMPABLE, 0) did not take: PR_GET_DUMPABLE = %d", got)

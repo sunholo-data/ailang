@@ -10,7 +10,7 @@
 # subscription OAuth from anything but Claude Code (429, measured 2026-10-02).
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=d5aa3e31b7e939a8fb7e73f0deb0f3e3a42e4508
+ARG MOTOKO_COMMIT=965f2ec558e0d4746ef20fdbf749bc06d6d98626
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -36,7 +36,8 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
 
 # Check out motoko_agent at the pinned commit: branch sunholo/main-dst-20261015
 # of sunholo-voight-kampff/motoko_agent = Arni's upstream main 340fae14
-# (2026-10-14) with our commits rebased on top (2026-10-15; MOTOKO.md §11).
+# (2026-10-14) with our commits rebased on top (2026-10-15; MOTOKO.md §11), plus
+# the ollama streaming env forwarding (965f2ec5, 2026-10-16; upstream #266).
 # Upstream now carries the tool-schema dedupe (#220), repetition_guard's
 # tool_call_id fix (#260) and the byte-stable compaction summary (#262), so
 # those are upstream's. The rest are ours, as on the previous branch
@@ -54,7 +55,7 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
 # that prices prompt-cache tokens (d668e630; its env forwarding 84fde7b7), and
 # the session identity passed as OPENROUTER_SESSION_ID (aa23bbd1), and a
 # byte-stable compaction summary that keeps the prompt cache warm (b1ffa339).
-# MOTOKO.md §10. Previous pins: b1ffa339 (sunholo/main-dst-20261002), aa23bbd1, 84fde7b7, d668e630, 6de44ada, a1ece42e, b3347a96, e3fa68ec, de68fddf, 4d4917cd (sunholo/main-dst). Fetch-by-SHA pins the exact commit whatever the
+# MOTOKO.md §10. Previous pins: d5aa3e31 (sunholo/main-dst-20261015), b1ffa339 (sunholo/main-dst-20261002), aa23bbd1, 84fde7b7, d668e630, 6de44ada, a1ece42e, b3347a96, e3fa68ec, de68fddf, 4d4917cd (sunholo/main-dst). Fetch-by-SHA pins the exact commit whatever the
 # branch does next.
 #
 # The fetch authenticates when the build passes a `github_token` secret

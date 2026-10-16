@@ -1,0 +1,165 @@
+{
+  "sprint_id": "M-TEST-PACKAGE-SOURCE-CHECK",
+  "status": "not_started",
+  "created": "2026-10-16T09:15:44Z",
+  "design_doc": "design_docs/planned/v0_54_13/m-test-package-source-check.md",
+  "sprint_plan": "design_docs/planned/v0_54_13/m-test-package-source-check-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_SOURCE_CHECK",
+      "package": null,
+      "action": "none",
+      "reason": "Registry search testing returned sunholo/testing_utils@0.1.1; pkg info/docs show pure assertion helpers, not compiler/CLI/reporting integration. Reuse internal/check and existing Go test/report helpers."
+    },
+    {
+      "milestone": "M2_REPORTING",
+      "package": null,
+      "action": "none",
+      "reason": "Registry search testing returned sunholo/testing_utils@0.1.1; pkg info/docs show pure assertion helpers, not compiler/CLI/reporting integration. Reuse internal/check and existing Go test/report helpers."
+    },
+    {
+      "milestone": "M3_QUALITY",
+      "package": null,
+      "action": "none",
+      "reason": "Registry search testing returned sunholo/testing_utils@0.1.1; pkg info/docs show pure assertion helpers, not compiler/CLI/reporting integration. Reuse internal/check and existing Go test/report helpers."
+    },
+    {
+      "milestone": "M4_REGRESSIONS",
+      "package": null,
+      "action": "none",
+      "reason": "Registry search testing returned sunholo/testing_utils@0.1.1; pkg info/docs show pure assertion helpers, not compiler/CLI/reporting integration. Reuse internal/check and existing Go test/report helpers."
+    },
+    {
+      "milestone": "M5_DOCUMENTATION",
+      "package": null,
+      "action": "none",
+      "reason": "Registry search testing returned sunholo/testing_utils@0.1.1; pkg info/docs show pure assertion helpers, not compiler/CLI/reporting integration. Reuse internal/check and existing Go test/report helpers."
+    },
+    {
+      "milestone": "M6_MEASURE_VALIDATE",
+      "package": null,
+      "action": "none",
+      "reason": "Registry search testing returned sunholo/testing_utils@0.1.1; pkg info/docs show pure assertion helpers, not compiler/CLI/reporting integration. Reuse internal/check and existing Go test/report helpers."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 333,
+    "estimated_total_loc": 500,
+    "estimated_days": 1.5
+  },
+  "features": [
+    {
+      "id": "M1_SOURCE_CHECK",
+      "description": "Source-check pre-pass and opt-out",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Broken unimported module fails by default (exit 1); opt-out executes the passing test and exits 0.",
+        "Broken package with no tests fails; green package with no tests retains warning and exit 0.",
+        "Fail-fast path never executes test bodies; source failures are not waived by `--allow-skips`.",
+        "Targeted real-binary tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_REPORTING",
+      "description": "Human and JSON reporting contracts",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1_SOURCE_CHECK"
+      ],
+      "acceptance_criteria": [
+        "Human failure names the bad file and reports package-check failure without a passing-tests claim.",
+        "Both `--json` and `--format json` produce exactly one JSON document on pre-pass success and failure, including zero-test cases.",
+        "Failure JSON has `success:false`, source counts/errors, zero executed tests, and exit 1.",
+        "Reporter tests cover present/absent source_check and stable existing keys; existing JSON stdout tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_QUALITY",
+      "description": "Package quality consumer integration",
+      "estimated_loc": 45,
+      "dependencies": [
+        "M2_REPORTING"
+      ],
+      "acceptance_criteria": [
+        "Quality subprocess receives opt-out, retaining exactly one package-check pass in the quality workflow.",
+        "Quality JSON schema and deterministic report content remain unchanged.",
+        "Coordinator cascade remains unchanged and green fixture behavior still works."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_REGRESSIONS",
+      "description": "Discovery and flag regression matrix",
+      "estimated_loc": 105,
+      "dependencies": [
+        "M3_QUALITY"
+      ],
+      "acceptance_criteria": [
+        "Discovery coverage matches `check --package`, not merely export declarations.",
+        "StrictFallbacks and InterFunctionRefs failures prevent all tests and exit 1.",
+        "Existing JSON/multi-path/check strict-fallback tests pass without weakened assertions.",
+        "`examples/intra_package_imports` stays green with zero test files; file/dir behavior stays unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_DOCUMENTATION",
+      "description": "Documentation, CLI help and templates",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M4_REGRESSIONS"
+      ],
+      "acceptance_criteria": [
+        "CLI help and all listed docs/templates describe the same behavior.",
+        "Changelog calls out intentional 0-to-1 exits for broken packages and external JSON key addition.",
+        "Generated extension checklist no longer requires duplicate package check/test steps.",
+        "No unrelated cascade or file/dir changes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_MEASURE_VALIDATE",
+      "description": "Cache measurements and focused final validation",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M5_DOCUMENTATION"
+      ],
+      "acceptance_criteria": [
+        "Report includes measured cache counts and timing for >=50 modules with methodology and limitations.",
+        "If cache reuse is poor, document it and escalate artifact-sharing work; do not expand this sprint or claim the reporter's time saving was reproduced.",
+        "`make test-changed` (touched packages plus core), `make lint`, `make check-boundaries`, `make check-file-sizes`, and `make check-changelog` pass.",
+        "Targeted binary regressions use the freshly built binary; report exact commands/results."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "handoff": {
+    "task_id": "task-e8ae18c6",
+    "next_agent": "sprint-executor",
+    "trigger": "coordinator plan approval/merge",
+    "estimated_hours": 10,
+    "risk_level": "medium"
+  }
+}
