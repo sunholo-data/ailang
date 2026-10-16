@@ -11,6 +11,11 @@
 -- At publish time, every file listed in [assets].files must exist under the
 -- package's assets/ directory or publish is rejected.
 --
+-- Resolution: locked dependency directory first (registry, path, or git).
+-- Missing locked targets return Err; they never select another cached version.
+-- Without a lock entry, use compatibility-semver max in the HOME registry cache.
+-- The REPL has no lock context; fallback ignores AILANG_PACKAGE_ROOT.
+-- Root-package assets still require a cache install.
 -- Requires: FS capability (--caps FS)
 
 module std/package

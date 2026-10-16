@@ -9,7 +9,7 @@ Resolve package assets from the running program's locked dependency targets. Whe
 **Duration:** 3 days; four implementation sessions of 60–90 minutes, plus review and integration buffer.
 **Estimated total:** 650 LOC: 270 implementation, 330 tests, 50 documentation.
 **Risk:** Medium — effect-context propagation and embed initialization order.
-**Status:** Ready for sprint-plan review; implementation starts after coordinator approval and executor handoff.
+**Status:** Implementation complete on `coordinator/task-d61964fa`; broad validation has recorded limitations below. Execution was authorized by the coordinator handoff.
 
 ## Current Status and Velocity
 
@@ -36,10 +36,10 @@ Add PkgAssetTarget {Dir, Version} and immutable PkgAssets map; explicitly preser
 
 **Acceptance criteria:**
 
-- [ ] Older locked version wins over newer installed versions; missing locked directory returns Err naming package/version and install guidance, never fallback.
-- [ ] Nil context and packages absent from the map retain fallback; 0.10.0 beats 0.9.0 and 0.2.0.
-- [ ] Invalid directory names are skipped; exclusively invalid versions fail with a structured Err; compatibility edge cases mirror pkg.ParseSemver.
-- [ ] Path/git target directories resolve assets; sandbox, invalid package names, absolute paths and traversal still fail before lookup.
+- [x] Older locked version wins over newer installed versions; missing locked directory returns Err naming package/version and install guidance, never fallback.
+- [x] Nil context and packages absent from the map retain fallback; 0.10.0 beats 0.9.0 and 0.2.0.
+- [x] Invalid directory names are skipped; exclusively invalid versions fail with a structured Err; compatibility edge cases mirror pkg.ParseSemver.
+- [x] Path/git target directories resolve assets; sandbox, invalid package names, absolute paths and traversal still fail before lookup.
 - [ ] WithBudget and Clone preserve targets without mutating the shared map; focused effects tests and make test-changed pass.
 
 **Risk:** Comparator duplication drifts; mitigate with mirrored edge-case tables. This is compatibility ordering as specified by the design, not a new strict SemVer prerelease policy.
@@ -55,10 +55,10 @@ Add AssetTarget and LockedPackageNames using existing packageDir. Build maps fro
 
 **Acceptance criteria:**
 
-- [ ] Accessors cover registry, relative path, git and missing directories; absent lock entries are distinguishable from unresolved locked entries.
-- [ ] Result.PkgAssets contains all locked dependency targets, including a pinned older version despite a newer cached version.
-- [ ] AssetTargetsFor returns nil,nil for no manifest or absent lock; malformed existing manifest/lock returns error, never silent fallback.
-- [ ] Discovery remains anchored to the entry source or explicit PackageDir; bare/self-only resolution keeps existing behavior.
+- [x] Accessors cover registry, relative path, git and missing directories; absent lock entries are distinguishable from unresolved locked entries.
+- [x] Result.PkgAssets contains all locked dependency targets, including a pinned older version despite a newer cached version.
+- [x] AssetTargetsFor returns nil,nil for no manifest or absent lock; malformed existing manifest/lock returns error, never silent fallback.
+- [x] Discovery remains anchored to the entry source or explicit PackageDir; bare/self-only resolution keeps existing behavior.
 - [ ] Focused pkg/pipeline tests, make test-changed and make check-boundaries pass.
 
 **Risk:** Existing lock validation may reject missing installs before execution. Test the runtime Err separately and permit compile-time failure where existing import validation already requires an installed package; never weaken hash validation to force the fixture through.
@@ -74,10 +74,10 @@ Assign Result.PkgAssets before runner and batch evaluation. Resolve engine-scope
 
 **Acceptance criteria:**
 
-- [ ] Runner and batch fixtures with two cached versions read the locked version's distinct asset contents.
-- [ ] Embed evaluation and an in-process API handler resolve locked assets on the first call and subsequent context clones.
-- [ ] Two engines with different locks do not share targets; malformed lock errors surface before evaluation.
-- [ ] Missing locked target never reads newer cached data; no network fetch or change to FS capability checks.
+- [x] Runner and batch fixtures with two cached versions read the locked version's distinct asset contents.
+- [x] Embed evaluation and an in-process API handler resolve locked assets on the first call and subsequent context clones.
+- [x] Two engines with different locks do not share targets; malformed lock errors surface before evaluation.
+- [x] Missing locked target never reads newer cached data; no network fetch or change to FS capability checks.
 - [ ] Focused runner/embed/apiserver tests, make test-changed and make check-architecture-closure pass.
 
 **Risk:** SetEffContext accepts interface{} and cannot return errors. Resolve through an error-returning engine boundary rather than swallowing errors or changing the public API without review. Keep new runner helpers outside run.go.
@@ -94,9 +94,9 @@ Correct lexical-equivalence claims and describe lock-first selection, per-packag
 
 **Acceptance criteria:**
 
-- [ ] Reference docs, builtin LongDesc and stdlib header agree on lock-first and compatibility-semver fallback behavior.
-- [ ] Documentation states REPL has no lock context, absent lock entries use fallback, fallback ignores AILANG_PACKAGE_ROOT, and root-package assets are outside this change.
-- [ ] Existing asset_path example checks/runs with FS and its documented no-install behavior; generated integration fixtures demonstrably select older locked bytes.
+- [x] Reference docs, builtin LongDesc and stdlib header agree on lock-first and compatibility-semver fallback behavior.
+- [x] Documentation states REPL has no lock context, absent lock entries use fallback, fallback ignores AILANG_PACKAGE_ROOT, and root-package assets are outside this change.
+- [x] Existing asset_path example checks/runs with FS and its documented no-install behavior; generated integration fixtures demonstrably select older locked bytes.
 - [ ] make test-changed, make check-boundaries, make check-architecture-closure, make check-file-sizes and make check-changelog pass.
 - [ ] make verify-stdlib and make verify-examples pass; gofmt applied to changed Go files and focused lint checks are clean.
 
@@ -129,3 +129,27 @@ No external package dependency. Approval applies to the supplied design; this ne
 GitHub #1774 is the verified design-document PR, not a verified originating bug issue. Leave github_issues empty rather than auto-linking unrelated keyword matches. Executor can link an originating issue when the coordinator supplies it.
 
 No blocking design questions remain. Assignment location inside embed is an implementation choice bounded by the initialization-order and error-propagation criteria above.
+
+## Execution Verification (2026-10-16)
+
+Implemented against checkout v0.54.12 (starting commit `3af754c4`), retaining the approved v0.54.7 design scope. Actual work branch: `coordinator/task-d61964fa` (the coordinator allocated a new task branch for execution).
+
+AILANG prompt version loaded: v0.16.7. The generated fixture checks successfully; its `read` function declares FS and its assertion entry uses FS/IO (`exit(23)` on wrong bytes). Contracts and inline tests are intentionally omitted for controlled filesystem fixtures; Go tests assert the external data.
+
+- Regression-first evidence: the original fallback selected 0.9.0 when 0.10.0 was cached; the original embed call read newer bytes and swallowed malformed-lock errors. New loader/context tests initially failed on missing APIs.
+- Focused integration passes for pipeline, runner, batch, embed and API, including older locked bytes, repeated context replacements, engine isolation, missing locked data and malformed locks.
+- `make check-boundaries`, `make check-architecture-closure`, `make check-file-sizes`, `make check-changelog`, `make fmt-check`, `make verify-stdlib` (48 interfaces) and `make verify-examples` pass. The existing `examples/asset_path.ail` checks and runs with IO/FS, printing the documented missing-package result.
+- The first broad run exposed leaked AILANG_STDLIB_PATH from existing API tests; the shared fixture now clears that override. The serialized API package suite passes (69.985s).
+- `TestRuntimeNestedStopUsesRemainingDeadline` fails on both the implementation and untouched starting commit (baseline reproduced in a temporary detached worktree). This process-lifecycle failure is outside the asset-resolution change. Pipeline testing was killed under memory pressure on concurrent and serialized runs, including GOGC=20, GOMEMLIMIT=512MiB, GOFLAGS=-p=1 and -parallel=1. Focused pipeline regressions pass; broad pipeline success is not claimed.
+- Tooling friction: Go was installed off PATH; the startup script incorrectly reported success. All actual Go commands use `/usr/local/go/bin`. The first linter link was killed; retrying with GOGC=20 and GOMAXPROCS=2 installed the required tool. Runner PTY tests initially lacked ps; procps was downloaded/extracted outside the repository for the final run. No repository tooling changes were needed.
+
+The package resolver keeps its existing return signature; the module phase obtains asset targets from its concrete PackageLoader. Shared test fixtures live in `internal/testutil/pkgassets` to avoid duplicating registry/lock construction across four consumers. No package-global asset map was introduced.
+
+Repeated verification: `go test ./internal/effects -run 'TestPkgAssetPath|TestAssetVersionCompatibility' -count=20` passes, including invalid directory filtering and package-name traversal rejection. The bounded `make test-changed` run explicitly excludes only the process-lifecycle baseline failure; it does not establish an unfiltered green gate.
+
+### Final Gate Outcome
+
+- Final bounded changed-package run: API, builtins, effects (one baseline exclusion), embed, pkg and runner pass; pipeline is killed at 46.101s. The target exits nonzero, so no unfiltered or whole-sprint test success is claimed. CI must provide the broader verification.
+- Focused golangci-lint over all eight touched packages exits zero with `0 issues.` Full `make lint` reports `0 issues.` but times out (exit 4), so its gate remains incomplete.
+- Independent evaluation report: `.ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_1.json`. Review found no remaining runtime defect but withheld approval because broad validation is incomplete.
+- All implementation is committed. Sprint JSON retains `in_progress`, M4 `passes: false`, and `implementation_complete: true` to distinguish finished code from unmet validation criteria. Remaining unchecked acceptance boxes refer to those broad gates. No merge or publication performed.

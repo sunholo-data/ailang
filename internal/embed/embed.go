@@ -45,6 +45,7 @@ func embedGoroutineID() int {
 // Engine manages AILANG module compilation and execution.
 // It caches compiled modules for efficient repeated calls.
 type Engine struct {
+	pkgAssets    enginePackageAssets
 	mu           sync.RWMutex
 	runtime      *runtime.ModuleRuntime
 	basePath     string
@@ -68,9 +69,10 @@ func New(basePath string) *Engine {
 	}
 
 	return &Engine{
-		basePath: absBasePath,
-		runtime:  runtime.NewModuleRuntime(absBasePath),
-		compiled: make(map[string]bool),
+		basePath:  absBasePath,
+		pkgAssets: newPackageAssets(absBasePath),
+		runtime:   runtime.NewModuleRuntime(absBasePath),
+		compiled:  make(map[string]bool),
 	}
 }
 
@@ -108,6 +110,10 @@ func (e *Engine) Load(modulePath string) error {
 
 	if e.closed.Load() {
 		return fmt.Errorf("engine is closed")
+	}
+
+	if e.pkgAssets.err != nil {
+		return e.pkgAssets.err
 	}
 
 	if e.runtime.HasInstance(modulePath) {
@@ -193,6 +199,9 @@ func (e *Engine) Call(modulePath, funcName string, args ...interface{}) (eval.Va
 // (see runtime.CallEntrypointPrepared). serve-api's WebSocket routes use it
 // to give each connection a fresh StreamContext.
 func (e *Engine) CallPrepared(prepare func(effCtx interface{}), modulePath, funcName string, args ...interface{}) (eval.Value, error) {
+	if e.pkgAssets.err != nil {
+		return nil, e.pkgAssets.err
+	}
 	// Fast path: check if module is already loaded (read lock only)
 	e.mu.RLock()
 	if e.closed.Load() {
@@ -443,6 +452,7 @@ func (e *Engine) SetEffContext(ctx interface{}) {
 	if binder, ok := ctx.(interface{ BindWorkerScope() }); ok {
 		binder.BindWorkerScope()
 	}
+	e.applyPackageAssets(ctx)
 	e.runtime.GetEvaluator().SetEffContext(ctx)
 	e.lifecycleMu.Unlock()
 	e.mu.Unlock()
