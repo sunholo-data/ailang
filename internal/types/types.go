@@ -180,6 +180,8 @@ type TRecord struct {
 	Fields   map[string]Type
 	Row      Type   // Row variable for extensibility
 	TypeName string // M-CROSS-MODULE: Nominal type name (e.g., "ArrivalState") when unified with TCon
+
+	groundMemo uint32 // #1787: cached isGroundType answer; see ground.go
 }
 
 func (t *TRecord) String() string {

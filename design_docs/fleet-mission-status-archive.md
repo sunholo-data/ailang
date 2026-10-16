@@ -2,6 +2,103 @@
 
 Older STATUS stamps rotated out of [fleet-mission.md](fleet-mission.md) (newest 3 stay there). Append-only.
 
+## STATUS 2026-10-14 — ITERATION 39: P2 #15 slot verdict UNCLASSIFIED made reachable — built and judged PASS 91 by sonnet (round 2); stacked on #1825, BLOCKED on dev's required reds; Gate 1 skill fix for records stranded on blocked PR branches [HARNESS]
+
+The driver's SLOT VERDICT `case` ended in an unconditional `*:*) CRASHED` arm. As a result, a slot that exited **0** with a heartbeat label outside the stamp writer's closed set was reported as crashed, and the design's `UNCLASSIFIED` verdict was unreachable (`grep -c` = 0). The fix has three parts:
+- `REAPED` now matches only the writer's gate labels (`gate-0`..`gate-5`, `gate-3b`).
+- Any other rc=0 label reads `UNCLASSIFIED at=<label>` and goes through the existing episode-gated phase-2 notice.
+- Non-zero `CRASHED`/`KILLED` and the `PAUSED-NO-CAPACITY` override are unchanged.
+
+Built by codex (plan `cf055fd1a`, fix `81df7d609`): 11 new heartbeat arms (6 red before the fix) and 10 planned mutants killed. The sonnet judge ran 10 drills of its own and scored **PASS 86**. One of its drills survived: an empty last label at rc=0 had no covering arm. The controller added that arm (`e9783fae6`; it is the drill's sole killer) and fixed the Q4 table wording. Round 2 scored **PASS 91**, 0 blocking.
+
+Done-gate at `b081a39a4`:
+- `make test-launchd-drivers` passed under `env -i` (controller-capacity 15/0, heartbeat 37 arms).
+- World dry-runs: healthy `lanes=ok` and degraded `lanes=DEGRADED(1)`, both rc 0, with no pidfile written.
+- Real heartbeat, episode and verdict files are sha-identical before and after.
+
+Not LANDED: dev `474995629` is still red on `test` (`check-git-exec`, `devapi_workspace.go`) and on `docs-gate`, so this waits behind #1824 and #1825 (D-FLEET-17).
+
+Gate 5 skill fix (`b081a39a4`, both copies): Gate 1 now reads the newest record from the mission's own open PR branches, because iterations 37, 38 and 39 each booted on a charter that was stale by up to three iterations. This iteration also re-quorum'd #12's already-built doc for about $0.10 before noticing.
+
+Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is green; #12, #14 and #15 are ready); **3** MET (50 open); **4** prior evidence only; **5** preserved (nothing shipped). Next: when D-FLEET-17's predicate holds, land #1824, then #1825, then this PR, re-running the done-gate at each merge, and resolve 4 tickets.
+
+## STATUS 2026-10-14 — ITERATION 38: P2 #14 quorum artifact dir designed, quorum'd, built and judged PASS 90 by sonnet — stacked PR on #1824, BLOCKED on the same dev required reds [HARNESS]
+
+`ailang design-quorum` wrote its artifacts to a CWD-relative `.ailang/state/mission-quorum`, so under pin and sprint worktrees a reviewed doc read as unreviewed at Gate 2 (measured: 5 artifacts in the fleet pin, 164 in the main checkout, 15 in the hand-used `~/.ailang/state/mission-quorum`). Now the driver exports a repo-scoped `MISSION_QUORUM_ARTIFACT_DIR` (registered in `internal/config/mission.go`), the quorum writer uses it when the flag is left at its default, and Gate 2's new executable reader block consults the export first, then `<repo-root>/.ailang/state/mission-quorum`. A raw policy marker keeps every default write inside the ailang_only sandbox, and a real policytool host/child test proves it. Out of scope: the legacy importer, and the CLI pre-flight (`cmd/ailang/design_quorum.go` is outside fleet authority).
+
+How it was built: the codex designer (rotation turn `codex:gpt-6.1-sol`) wrote the doc. Quorum round 1 BLOCKED (glm, kimi). The designer revised it. Round 2: 2 pass and 1 reject (kimi). The controller applied kimi's verbatim `proposed_fix` under the narrow-refinement carve-out: a fixed-order two-directory reader, AC11, and A1 downgraded to 0. The codex planner corrected 9 premises. The codex executor built M1 (16/16 mutants killed) and M2; the sandbox refused the `.agents` mirror sync, so the controller ran it. The controller also scrubbed every inherited `MISSION_*` in the new shell suite: `MISSION_NAME` from a controller env had reddened an arm. The independent sonnet judge scored **PASS 90**, 0 blocking, and 9 of its own mutants went red. Non-blocking: a failed driver init exits 2 before `_mc_notify` exists, so it logs but does not notify.
+
+Done-gate at `b151064db`: `make test-launchd-drivers` rc 0 under `env -i`. World dry-runs (`AILANG_DRIVER_PINNED` set): healthy `lanes=ok`, degraded `lanes=DEGRADED(1)`, both rc 0, and both print `quorum artifact directory: …/mission-quorum-world`. No pidfile was written. Not LANDED: dev `d15217d24` is still red on `test` (`check-git-exec`) and `docs-gate`, so #1824 and this stacked PR wait on D-FLEET-17. The ticket stays open.
+
+Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is green; #12 and #14 are both ready); **3** MET (51 open); **4** prior evidence only; **5** preserved (nothing shipped). Next: when D-FLEET-17's predicate holds, land #1824, then this PR, run the done-gate at each merge, and resolve 3 tickets. Then P2 #15.
+
+## STATUS 2026-10-14 — ITERATION 36: P2 #11 ghost-resolved (`08ce76f30`); P2 #12 quorum salvage built and judged PASS 88 by sonnet — PR #1824 BLOCKED on an inherited required red on dev [HARNESS]
+
+**#11** `weekly-report:unknown-mission` was already fixed on origin/dev by `08ce76f30` (attended, 2026-10-06). It was re-verified for all 6 registry missions and judged PASS by sonnet. Resolved (51 open).
+
+**#12** (`quorum:invalid-absent-on-quoted-literals` + `quorum:reviewer-invalid-json-discarded`, #941). The design was re-grounded on the #941 refresh and passed the quorum in three steps: round 1 blocked, round 2 had one reject, and a carve-out revision applied the reviewers' verbatim fixes. It was built by codex and judged **PASS 88** (sonnet, 0 blocking, 10/10 own mutants killed).
+- A reviewer recorded `invalid` whose raw text holds a complete depth-1 `reject` now blocks the quorum. A salvaged pass is audit only.
+- JSON errors carry the byte offset and a centred window.
+- The skill's absent-reviewer remedy is split by reason.
+- Tier-2 is scoped out to queue row 16.
+
+**Why it did not land**: PR #1824's only failures are dev HEAD `42652c19e`'s own reds, two of them required:
+- `test`: `check-git-exec` flags `internal/executor/managed_agents/devapi_workspace.go` from `ffef3402a`.
+- `docs-gate`: an MDX compile error in `env-vars.md`.
+
+Both are outside fleet authority. V1 owns repo reds, but its kill switch is set. Resume predicate: `test` and `docs-gate` green on origin/dev; then merge, run the done-gate, and resolve both tickets.
+
+Clause map: **1** UNMEASURED; **2** UNMET (#11 ≈16 d; #12 blocked); **3** MET (51 open + row 16); **4** prior evidence only; **5** preserved. Next: land #1824, then P2 #13.
+
+## STATUS 2026-10-13 — ITERATION 35: P2 #10 Gate 0 ledger provenance LANDED — #1815 `130486515`, judged PASS 92 by sonnet (round 2); ticket resolved [HARNESS]
+
+Gate 0 rule 6(b) used to check provenance with `git log -1 -S'| D-nn |'`. That pickaxe returns a row's CREATION commit, so every attended ruling read as fleet self-resolution. It now runs `scripts/mission_ledger_provenance.sh --id D-nn --file <charter>`. The instrument reports the LATEST OPEN→RESOLVED transition, with the creation commit as the control, and its verdict is one of: `attended`, `fleet`, `undetermined:squash-merge`, `never-resolved`, or rc 2. Only a fleet-authored flip that is not a squash merge counts as SELF-RESOLUTION. A flip committed by GitHub is reported and never re-opened, because a squash merge's author is the PR author, not the person who ruled. That applies to every ledger flip in this repo, including D-FLEET-1/13/14/15. Both skill copies are byte-identical. The 115-assertion bash-3.2 suite runs in `make test-launchd-drivers`, and CI runs it.
+
+How it was built: the codex planner wrote a 2-milestone plan with 13 test arms and corrected one controller measurement (D-FLEET-1 was created `RULED`). The codex executor built M1 and M2 across two runs. Its first run was reaped by my own 10-minute background default, after M1 was done. The sonnet judge scored round 1 **PASS 88**. Its finding N1 was that a reopen followed by a fleet re-resolve read `attended`. I reproduced it in a fixture and fixed it with latest-transition selection plus arm A14; the earliest-selection mutant turns A14 and A3 red. Round 2 scored **PASS 92**, 0 blocking.
+
+CI: 26/26 green on head `8350e1c6c` after two reruns of unrelated signal-timing flakes (`internal/effects` on macOS, `internal/runner` sigint). `test` was also red on dev at `a71193a2f`. Done-gate: the local `make test-launchd-drivers` passed with rc 0, and the healthy and degraded dry-runs (world profile, at the merge) passed. The ticket is resolved (52 open).
+
+Clause map: **1** UNMEASURED; **2** UNMET (this ticket ≈15.5 d); **3** MET (52 open); **4** prior evidence only; **5** preserved. Next: P2 #11 `weekly-report:unknown-mission`.
+
+## STATUS 2026-10-13 — ITERATION 34: Phase 3a skill-resolution spike MEASURED — P1–P3 answered with controlled marker skills, judged PASS 88 by sonnet; Phase 3b mechanism parked for Mark as D-FLEET-16 [HARNESS]
+
+Landed as PR #1793 → `3a972e34a` (26 checks, 0 failures on head `d112f7b26`).
+
+Mark's "after P1, before P2" directive was the pick; it is measurement only. The codex planner wrote the protocol (`sprint-plan-phase3a-skill-resolution-spike.md`), the codex executor built `skill_resolution_spike.sh`, and the controller ran it outside any sandbox. The controller first repaired 11 instrument defects that only live runs could expose; each is recorded in `fleet-mission-evidence/iteration34/findings.md`. Each run used per-run random tokens with before/after explicit-path and negative controls: claude 51/51 controls, pi 44/45, codex 32/43, with every codex miss a named provider-capacity error or scorer limit.
+
+Findings:
+- **claude** discovers project `.claude/skills` from cwd, but a user-level same-name copy wins over every project copy and over `--add-dir`. A fresh `CLAUDE_CONFIG_DIR` keeps subscription auth under the loops' env token, and its `skills/` wins.
+- **codex** discovers `.agents/skills` and `$CODEX_HOME/skills` (the latter wins a collision), never `.claude/skills`. A fresh `CODEX_HOME` returns 401 without `auth.json`.
+- **pi** discovers nothing in `--print`. `--skill <abs>` loads a skill that is reachable only by `/skill:<name>`.
+
+The independent sonnet judge (own worktree) scored **PASS 88**, 0 blocking, and replicated C1–C3 with its own method. Its N2 finding (the concurrency audit could mask a foreign deletion) was fixed and mutation-drilled both ways. Every provider is pinnable for skills: codex only through the `.agents` mirror, pi only explicitly. Phase 3b's mechanism (A retire the user symlinks / B per-fire config dirs / C no change) is **D-FLEET-16, OPEN for Mark**.
+
+Clause map: **1** UNMEASURED; **2** UNMET (no ticket resolved; the directive is not a ticket); **3** MET (52 open); **4** prior evidence only; **5** preserved (no harness code shipped). Next: P2 #10 `skill:gate0-ledger-provenance-S`.
+
+## STATUS 2026-10-12 — ITERATION 33: P1 #9 exit-path notices bounded and store-scoped LANDED — #1791 `e7dd6c127`, judged PASS 90 by sonnet; ticket resolved; P1 tier exhausted [HARNESS]
+
+The three remaining unbounded exit-path notice pairs in `tools/launchd/mission-control.sh` (the refusal, late-kill and rc-fail notices) now go through `_mc_exit_notice`. It makes one `_mc_bounded "$NOTIFY_TIMEOUT"` attempt per channel and always returns 0; a failure is logged as a WARNING with its reason, and a duplicate title is logged as already in the inbox. All three, plus the slot-verdict send, are now store-scoped (`env AILANG_STORAGE_MESSAGING=gcp …`). Before this, they wrote to the rig's local SQLite inbox. Titles, bodies, exit codes and the gate-0 F8 literal are byte-identical.
+
+The opus planner chose the helper over `_mc_notify` (no title change, and no retry that would stretch the exit path). The haiku executor (`claude-sub`) added hang, preservation and source-guard arms: 11 red before the fix, 115/0 after. The sonnet judge, in its own worktree, scored **PASS 90** with 0 blocking and M1–M5 mutants killed (M6 unmeasured). The judge's 2 red routing-note arms also failed on base and came from the controller's exported env; under `env -i` the suite is 115/0 (addendum banked).
+
+PR #1791 head `986def325`: 25 checks, 0 failures. Squash-merged → `e7dd6c127`. `make test-launchd-drivers` at the merge: rc 0 under `env -i`, 590 s. Healthy and degraded dry-runs under the idle stapledon profile: both `DRY RUN ok`, rc 0. Ticket resolved. Follow-ups, not ticketed: undated exit-notice titles, and unbounded sends in nightly-eval and other rig scripts.
+
+Clause map: **1** UNMEASURED; **2** UNMET (this ticket ≈16.5 d); **3** MET (53 open); **4** prior evidence only; **5** preserved. Next: the Phase 3a skill-resolution spike (P1 is now exhausted; directive "after P1, before P2").
+
+## STATUS 2026-10-12 — ITERATION 32: P1 #8 quorum zero-signal guard LANDED — #1767 `a5f9af982`, judged PASS 95 by sonnet; ticket resolved; orphans 30/31 credited [HARNESS]
+
+Resumed iteration 28's PARKED-ON-LANE item. The predicate held this fire: Anthropic was available, and the evaluator resolved to `agent-tool sonnet`, which spawned. Two unrecorded slots had already carried the item:
+- **Iteration 30** (10-09, glm controller): quorum rounds 1–2 BLOCKED, then revision 3 with the reviewers' verbatim fixes under the narrow-refinement carve-out.
+- **Iteration 31** (10-12 01:08Z): replayed the revisions onto `0a2202ad6` and left an untracked plan.
+
+Both are credited in the log. The opus planner adopted the plan with 10 corrections, two of which prevented vacuous tests: call `SynthesizeWithTier2` directly, and use non-zero absent costs. The haiku executor (`claude-sub`) produced the fix (`externalPresentCount`, no controller increment, guard text unchanged) and a matrix, seated and Tier-2 regression set; the new tests were red before the fix. The sonnet judge, in its own worktree, scored **PASS 95** with 0 blocking and 6 of 6 mutants killed; the controller re-ran MU1 independently (3 tests red, restore `cmp`-identical).
+
+PR #1767 head `c55bc9a39`: 26 checks, 0 failures. Squash-merged → `a5f9af982`. Dev CI on `a5f9af982`: `test`, `lint`, `launchd drivers (bash 3.2)`, govulncheck, `test-windows` and all `Build` legs success (21 checks; release `build` still running at record time). `make test-launchd-drivers` at `a5f9af982`: rc 0 unpiped, 558 s. The pending record #1710 (iterations 28–29) also landed (`6d0e5fd76`) after a TempDir-race flake was re-run. Ticket resolved; #651 closed with a verdict.
+
+Reach caveat: loops run `design-quorum` through the PATH binary, which carries the fix only after its next rebuild or release. Weekly sweep: 60 open issues enumerated, 53 with zero mentions, 0 harness-shaped, so no new queue items.
+
+Clause map: **1** UNMEASURED; **2** UNMET (this ticket took ≈16 d, mostly a capacity park); **3** MET; **4** prior evidence only; **5** preserved.
+
 ## STATUS 2026-10-09 — ITERATION 29: native evaluator unavailable → PARKED-ON-LANE (external native capability); documented independent fallback, no runtime fix [HARNESS]
 
 Only `blocking=all` ticket `agent-tool:sonnet-unavailable` selected (47 open, 8 occurrence records; latest successful workaround is blocking=none, not proof of eight terminal losses). Native host supports OpenAI models only; evaluator `minimax/minimax-m3` rejected Unknown model. Native Sol designer/planner confirmed the repository cannot install host runtime models/tools. Existing user authorization permits documented fallback; declared Minimax recipe probe rc0. Independent Minimax bookkeeping review PASS95/100, 0 blocking; verbatim report and controller correction addendum banked under `design_docs/fleet-mission-evidence/iteration29/`; no verdict, implementation or ticket resolution. Ticket remains OPEN/PARKED-ON-LANE (external native capability) until native capability is proven on the affected controller; existing declared CLI recipes remain workaround. Iteration28 record inherited verbatim from PR #1662, candidate unreviewed and unapproved; original PR/worktree unchanged. P1 #8 candidate then #9 next. No new human decision, policy or skill edit. Clause map: **1** UNMEASURED; **2** UNMET; **3** MET (47 open); **4** prior evidence only; **5** preserved (no fix shipped). 0 resolved; goal unmoved.
@@ -182,3 +279,21 @@ Gate 2 took the `blocking=all` ticket `agent-tool:mission-role-pins-unavailable`
 ## STATUS 2026-10-08 — ITERATION 26: P1 #7 gate0 self-notice read LANDED — #1604 `59c3e6a55`, re-judged PASS 96 on the merged head (minimax); ticket resolved; record #1636 landed [HARNESS]
 
 Resume of iteration 22's PARKED-ON-CLOCK item. Predicate re-measured as a command: dev required `test` green at `0ceb1db01` (check set: only `test-windows`/`Build windows-latest`/Sonar red, macOS a fail-fast cancel). #1604's own `test` red on `2e0f92672` was the inherited `TestValidateModulePath_SingleFileInsidePackage` (job 112275244977, 132 KB log, one `--- FAIL`). No `blocking=all` ticket open (43). PR files vs 46 dev commits since its base: one non-overlapping `make/test.mk` line each side, `merge-tree` clean. `gh pr update-branch` → `f4de90745`. The base moved by a merge, so the work was re-judged. Resolver `agent-tool sonnet declared:alias-pin`; sonnet = executor family (`claude-sonnet-5-5`), so the judge took the first declared evaluator fallback `pi:openrouter/minimax/minimax-m3` (openrouter $0.10 of $2.33, probe rc 0) via `mission_pi_run.sh` in the isolated worktree `fleet-iter26-evaluator`. Handshake acked (4× `acked:true`). Runner verdict `ok` rc 0, 1190 s, 93 tools, 0 commits. **PASS 96**, 0 blocking. Suite 108/0; AC table 18 PASS, 2 PARTIAL (6a block 16 lines vs ≤15; `make test-launchd-drivers` rc 2 in-sandbox on the untouched `test_mission_lane_check.sh` `mktemp` denial). 6 mutations red, restores sha-identical. Controller reproduced first-party, outside the sandbox: suite 108/0 rc 0; prev-issue-drop mutant 103/5 rc 1; restore `cmp`-identical. PR CI on `f4de90745`: `test`, `lint`, `docs-gate`, `UI build gate`, `launchd drivers (bash 3.2)` green; `test-windows` the same 5 tests as dev `0ceb1db01`. Squash-merged `--match-head-commit f4de90745` → `59c3e6a55`. Dev CI on `59c3e6a55`: `test`, `lint`, `build`, `launchd drivers (bash 3.2)`, govulncheck success; `test-windows` the identical 5 (inherited, V1); Sonar red as on the parent. Ticket `gate0:driver-crash-notices-invisible` resolved (v1 notified); #1160 verdict comment (count 1→2), closed. Also landed pending record #1636 → `752ee765a`, and closed superseded #1611/#1612. **Reach caveat:** the script reaches every pinned mission through `MISSION_DRIVER_ROOT`, but step 6a's TEXT reaches no running skill until the main checkout is fast-forwarded. Measured: `~/.claude/skills/mission-control` → `~/dev/sunholo-data/ailang`, `0 36` ahead/behind, `grep -c "6a. SECOND"` = 0 there and 1 at origin. This is D-FLEET-15's case, live. Done-gate: surface ✓ (`scripts/mission_gate0_self_notices.sh` + both `gate-0-preflight.md`); reach ✓ origin/dev, running skill pending D-FLEET-15; `make test-launchd-drivers` ✓ (CI leg on `59c3e6a55`); 0 driver bytes, so no dry-run; nothing reloaded ✓. Clause map: **1** UNMEASURED; **2** UNMET (this ticket ≈12 d filed 2026-09-26 → resolved); **3** MET (42 open signatures); **4** prior evidence only; **5** preserved (judged on the merged head; required CI green on the PR head and on the merge SHA).
+
+## STATUS 2026-10-14 — ITERATION 37: no landing possible — #12 still BLOCKED on dev's required reds (owner V1 disabled); #13 reproduction measured (B gone, A + an untracked timer flake live in `tools/eval/`, outside fleet scope), judged PASS 88 by sonnet; D-FLEET-17/18 filed [HARNESS]
+
+Dev HEAD `42652c19e` is unchanged since iteration 36, and the required `test` and `docs-gate` checks are still red:
+- `check-git-exec` fails on `internal/executor/managed_agents/devapi_workspace.go:237,259`, from `ffef3402a`.
+- `docs-gate` fails on an MDX `{"sort":"throughput"}` literal. It sits in `env-vars.md`, generated from `internal/config/ai.go:43`.
+- `Build windows-latest` is also red in the same package.
+
+Every fix is outside fleet scope. V1 owns repo reds, and its kill switch has been set since 09-14, so no PR to dev can merge. That includes PR #1824 (#12, judged PASS 88). Resume predicate: `test` and `docs-gate` green on origin/dev. **D-FLEET-17** asks how to unblock it.
+
+With landing impossible, the iteration took P2 #13's mandated first step, reproduction, which is measurement only. The window was ≥ 09-28 13:08Z, covering 21 failed `launchd drivers` jobs with controls:
+- **B** (gh hang, `tools/launchd`): last FAIL 09-28 13:15Z, before filing; 0 since.
+- **A** (OpenRouter peer): last 10-02.
+- An untracked flake, `bound measurement refuses an unsuccessfully terminated timer`, failed 4× on dev between 10-07 and 10-12.
+
+A and the timer flake both live in `tools/eval/*motoko_connection_probe*`. The guard refuses that path for the fleet, yet it runs inside the fleet's own done-gate (`make test-launchd-drivers`), so **D-FLEET-18** asks about the authority. #13 stays OPEN. The independent sonnet judge re-measured all three claims with its own commands: **PASS 88**. Its corrections are adopted: `docs/` is in scope but generated, the Windows red is noted, and the 13:08–17:01Z slice is covered. Evidence: `fleet-mission-evidence/iteration37/findings.md`.
+
+Clause map: **1** UNMEASURED; **2** UNMET (no landing is possible until dev is green; #12 is ready); **3** MET (51 open); **4** prior evidence only; **5** preserved (nothing shipped). Next: when D-FLEET-17's predicate holds, land #1824 and resolve both #12 tickets. Then P2 #14 (`quorum:artifact-dir-cwd-relative`), or #13 if D-FLEET-18 = A.

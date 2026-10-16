@@ -132,3 +132,38 @@ func TestRunAgentBenchmarkWithExecutor_CostUnion(t *testing.T) {
 		})
 	}
 }
+
+// A run the executor reports as failed — here stopped at its wall-clock bound —
+// comes back as a diagnostics row carrying what it spent, with the error. The
+// 2026-10-16 glm-5.3-flash motoko row that streamed for 60 minutes banked
+// 0 ms and $0, because only idle kills carried spend.
+func TestRunAgentBenchmarkWithExecutor_FailedRunCarriesSpend(t *testing.T) {
+	saved := modelreg.GlobalModelsConfig
+	t.Cleanup(func() { modelreg.GlobalModelsConfig = saved })
+	modelreg.GlobalModelsConfig = &ModelsConfig{Models: map[string]ModelConfig{
+		"priced-model": {Pricing: modelreg.Pricing{InputPer1K: 1, OutputPer1K: 2}},
+	}}
+
+	fake := &costFakeExecutor{name: "failed-spend-fake", result: executor.Result{
+		Error:          "motoko exceeded its wall-clock bound (1h0m0s): timeout — [motoko process: signal: killed]",
+		DurationMS:     3600000,
+		NumTurns:       41,
+		InputTokens:    1000,
+		OutputTokens:   500,
+		CostProvenance: executor.CostMetered,
+	}}
+	executor.GlobalFactory().Register(fake.name, func(*executor.Config) (executor.Executor, error) {
+		return fake, nil
+	})
+	cfg := MultiExecutorConfig{ExecutorName: fake.name, ModelName: "priced-model"}
+	cfg.WorkspaceDir = t.TempDir()
+
+	out, err := RunAgentBenchmarkWithExecutor(&BenchmarkSpec{ID: "failed_spend"}, cfg, "ailang")
+	if err == nil || out == nil {
+		t.Fatalf("want a diagnostics row and an error, got %v, %v", out, err)
+	}
+	if out.DurationMS != 3600000 || out.NumTurns != 41 || math.Abs(out.Cost-2.0) > 1e-9 ||
+		out.CostProvenance != string(executor.CostMetered) {
+		t.Fatalf("spend not carried: dur=%d turns=%d cost=%v prov=%q", out.DurationMS, out.NumTurns, out.Cost, out.CostProvenance)
+	}
+}

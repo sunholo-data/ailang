@@ -399,6 +399,20 @@ data from the A2-instrumented harness, implementation cost at the `run_helpers.g
 site) and records the decision. Same discipline as B1: investigation first, no speculative
 implementation before the written policy decision.
 
+**B4 DECIDED and LANDED — option (b), Mark attended 2026-10-16 (Refs #1576).** Fallback is allowed
+only when no effect was attempted during the VM run. Two counters together cover it:
+`vm.EffectCalls` (native dispatch, added 2026-10-10 with the terminal IO work) and
+`EffContext.EffectAttempts()` (every capability check, which is what evaluator-only callees reached
+through the bridge hit — shared across budget views). `internal/runner/vm.go` reports the run as
+attempted when either moved, so the VM error surfaces instead of a replay. Measured before the
+second counter: a `@limit` helper printing `START` before a 12,000-deep recursion printed `START`
+twice under `--bytecode` (regression: `TestBridgedEffectIsNotReplayed`). Parity corpus (213 files)
+before → after: `html_parser` unchanged (MATCH); `stream_sse`/`stream_websocket` MATCH → loud
+failure, because their "match" was a second network connect after the bridge could not convert the
+stream builtins' untyped `Result`/`StreamConn` values — that conversion stays M-BYTECODE-2E scope.
+Still open from B4: the fallback warning remains suppressed under the default `--quiet` for the
+(now only pre-effect, harmless) fallbacks.
+
 ## Milestones & Acceptance Criteria
 
 Each AC belongs to exactly ONE milestone and names the file that can fail it. Milestones A and B

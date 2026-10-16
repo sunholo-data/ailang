@@ -185,7 +185,7 @@ func (s *Server) buildOpenAPISpec() map[string]any {
 			if export.Arity < 0 {
 				continue
 			}
-			if !loadedExportMember(s.routesOnly, export) {
+			if !s.isExposed(export) {
 				continue
 			}
 

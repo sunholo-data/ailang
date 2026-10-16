@@ -322,11 +322,14 @@ func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
 |----------|------|-------------|
 | `exec` | `(string, [string]) -> Result[ProcessOutput, ProcessError] ! {Process}` | Execute command with arguments |
 | `spawnProcess` | `(string, [string]) -> ProcessHandle ! {Process}` | Spawn subprocess with writable stdin pipe |
+| `spawnProcessResult` | `(string, [string]) -> Result[ProcessHandle, ProcessError] ! {Process}` | Spawn with recoverable authorization/startup errors |
 | `writeProcessStdin` | `(ProcessHandle, bytes) -> Result[(), string] ! {Process}` | Write bytes to subprocess stdin |
 | `closeProcessStdin` | `(ProcessHandle) -> () ! {Process}` | Signal EOF after accepted writes drain; retain worker ownership |
 | `cancelProcess` | `(ProcessHandle) -> Result[(), WorkerCancelError] ! {Process}` | Stop the owned worker and join its runtime tasks |
 
-**ProcessHandle:** Opaque ADT `ProcessHandle(int)` — returned by `spawnProcess`, used with `writeProcessStdin` and `closeProcessStdin`.
+`spawnProcessResult` returns `Ok(handle)` or `Err(NotFound(detail))`, `Err(NotAllowed(detail))` (including confined Process), or `Err(SpawnFailed(reason))` for OS/admission failures. Missing Process capability remains a run policy error. A failed admission may start a child before stopping and reaping it; no usable handle is returned. Legacy `spawnProcess` still aborts on failure.
+
+**ProcessHandle:** Opaque ADT `ProcessHandle(int)` — returned by `spawnProcess` or `Ok(handle)` from `spawnProcessResult`, used with `writeProcessStdin` and `closeProcessStdin`.
 
 **Completion Semantics (important):**
 - **`Ok`** = process completed (even with non-zero exit code) — check `out.exitCode`
@@ -334,7 +337,7 @@ func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
 
 **Worker lifetime and cancellation:** CLI runs, batch items, embedded calls, and REPL sessions own their workers. Returning from the owner stops and joins workers; closing stdin keeps a live worker tracked. Cancellation resolves a handle in the current owner's registry and may discard pending writes. `Ok(())` means the direct child has been reaped and owned IO tasks have joined. When a managed or async child invokes `run` on the same runtime executable (including a symlink to it), cancellation also requires acknowledgement that the child has cleaned up its owned workers. This covers separately grouped policy workers; a missing acknowledgement returns `WorkerCancelFailed` or `WorkerCancelTimedOut`. Copies or older/different runtimes retain the ordinary process-group boundary.
 
-`WorkerCancelError` has `WorkerHandleInvalid(string)`, `WorkerCancelUnsupported(string)`, `WorkerCancelTimedOut(int)` (milliseconds), and `WorkerCancelFailed(string)`. Released, fabricated, and foreign handles are invalid. Cancellation of a stdin or connection source is unsupported. Both Process and Stream capabilities and budgets apply to `cancelProcessSource`; mandatory host cleanup runs independently of user budgets.
+`WorkerCancelError` has `WorkerHandleInvalid(string)`, `WorkerCancelUnsupported(string)`, `WorkerCancelTimedOut(int)` (milliseconds), and `WorkerCancelFailed(string)`. Released, fabricated, and foreign handles are invalid. An already-exited worker is automatically reaped, so `cancelProcess` returning `WorkerHandleInvalid` afterward is the normal reaped case. Cancellation of a stdin or connection source is unsupported. Both Process and Stream capabilities and budgets apply to `cancelProcessSource`; mandatory host cleanup runs independently of user budgets.
 
 macOS/Linux cancellation stops the worker's process group, including non-detached descendants. Shutdown has one two-second total deadline, with up to 250 ms for workers already draining closed stdin. Windows explicit cancellation returns unsupported; host shutdown attempts direct-child cleanup. JS/WASM returns typed unsupported cancellation. This operation stops a local OS worker; it does not promise remote AI inference or billing cancellation. SIGINT/SIGTERM restore terminal state before worker cleanup and retain exit codes 130/143. Abrupt host SIGKILL and detached descendants are outside this guarantee.
 
@@ -355,7 +358,7 @@ Go hosts supplying an effect context retain ownership of that base context. `Eng
 | Flag | Meaning |
 |------|---------|
 | `--caps Process` | Grant the effect. Without it every `exec` fails with a capability error. |
-| `--process-allowlist <bins>` | Comma-separated binaries the program may exec. Each entry is resolved via `PATH` **once, at startup**, and pinned to that absolute path — a same-named binary placed earlier in `PATH` later cannot satisfy it. Anything not listed fails with `NotAllowed`. This is the flag that turns "the tool has Process, so it is effectively a shell" into "the tool may run these five binaries". Enforced identically by `exec`, `spawnProcess` and `asyncExecProcess`. Allowlisting a shell *script* does not grant its interpreter. |
+| `--process-allowlist <bins>` | Comma-separated binaries the program may exec. Entries match the command string exactly as written: allowlisting `name` does not authorize `/abs/path/name`, or vice versa. Each entry is resolved via `PATH` **once, at startup**, and pinned to that absolute path — a same-named binary placed earlier in `PATH` later cannot satisfy it. Anything not listed fails with `NotAllowed`. This is the flag that turns "the tool has Process, so it is effectively a shell" into "the tool may run these five binaries". Enforced identically by `exec`, `spawnProcess` and `asyncExecProcess`. Allowlisting a shell *script* does not grant its interpreter. |
 | `--process-allowlist cmd:sub[:sub…]` | **Subcommand narrowing.** `git:status,git:commit,gh:pr:list` allows `git status …`, `git commit …` and `gh pr list …` and refuses every other invocation of `git`/`gh` with `NotAllowed("git push")` — the refusal names the subcommand that was tried. Rules: a chain must match **positionally from the first argument**, so `git -C /x status` is refused under `git:status` (fail closed; put global options after the subcommand or add a wrapper); arguments *after* the chain are unrestricted (`git:commit` allows `git commit --amend` — narrowing is per subcommand, not per flag); a bare `git` or `git:*` in the same list is the broadest grant and wins; an empty segment (`git:`, `git::status`) is a startup error, never a wider allow. |
 | `--process-timeout <dur>` | Per-exec wall-clock limit (default 30s) → `Timeout`. |
 | `--process-max-output <bytes>` | Combined stdout+stderr cap (default 10MB) → `OutputLimitExceeded`, `truncated: true`. |

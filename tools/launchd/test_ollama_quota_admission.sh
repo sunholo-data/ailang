@@ -9,7 +9,7 @@ PROBES=0
 MC_OVER_RATION=ollama
 _mc_load_ration(){ :; }
 _mc_bounded(){ PROBES=$((PROBES+1));MC_BOUNDED_OUT=ok;return 0; }
-for fn in _mc_rung_bucket _mc_is_over_ration _mc_probe_pi; do
+for fn in _mc_rung_bucket _mc_is_over_ration _mc_ration_reason _mc_ration_unreadable _mc_ration_refuses _mc_probe_pi; do
  body=$(awk -v f="$fn" '$0 == f "() {" {on=1} on {print} on && /^}$/ {exit}' "$DRIVER" "$HERE/lib/lane-probe.sh")
  [ -n "$body" ] || { echo "FAIL extraction $fn";exit 1; }
  eval "$body"

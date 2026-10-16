@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" class="af-hidden">
+<head>
+<meta charset="UTF-8">
+<!-- Anti-clickjacking: hidden until antiframe.js confirms we are not framed. -->
+<style>html.af-hidden { display: none !important; }</style>
+<script src="antiframe.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- The URL carries a one-time sign-in handle: never send it on as a Referer. -->
+<meta name="referrer" content="no-referrer">
+<title>Connect an app — AILANG executor</title>
+<meta name="description" content="Sign in to connect an AI app (Claude, ChatGPT) to the hosted AILANG code executor.">
+<style>
+:root {
+  --bg: #f6f7f9; --card: #ffffff; --text: #16181d; --muted: #5f6672; --border: #dde1e7;
+  --panel: #f1f3f6; --accent: #2457d6; --accent-text: #ffffff; --error: #c62828; --ok: #1b7f3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111317; --card: #1a1d23; --text: #e8eaee; --muted: #9aa1ad; --border: #2c313a;
+    --panel: #20242b; --accent: #6b93ff; --accent-text: #0b0d10; --error: #ff6b6b; --ok: #4cc27a;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111317; --card: #1a1d23; --text: #e8eaee; --muted: #9aa1ad; --border: #2c313a;
+  --panel: #20242b; --accent: #6b93ff; --accent-text: #0b0d10; --error: #ff6b6b; --ok: #4cc27a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.page { padding: 40px 16px 60px; }
+.brand { text-align: center; font-weight: 700; letter-spacing: 0.2px; }
+.brand code { font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
+.card { max-width: 520px; margin: 20px auto 0; background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 32px 28px; text-align: center; }
+h1 { font-size: 21px; margin: 0 0 8px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px;
+  margin: 18px 0; text-align: left; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.panel-title { text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; font-size: 11px; }
+.row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px dashed var(--border); }
+.row:last-child { border-bottom: none; }
+.row .label { color: var(--muted); flex-shrink: 0; }
+.row .value { text-align: right; word-break: break-all; }
+.btn { font: inherit; font-weight: 600; border-radius: 8px; padding: 10px 18px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--card); color: var(--text); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+.signed-in-as, .switch, .info { font-size: 12px; color: var(--muted); }
+.switch { margin-top: 12px; }
+.switch a, .info a { color: var(--accent); cursor: pointer; }
+.status { display: none; margin-top: 18px; padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+.status.visible { display: block; }
+.status.error { color: var(--error); border: 1px solid var(--error); }
+.status.success { color: var(--ok); border: 1px solid var(--ok); }
+.info { margin-top: 22px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="brand">AILANG <code>executor</code></div>
+  <div class="card">
+    <h1>Connect an app</h1>
+    <p id="consent-text">Loading the request…</p>
+
+    <div id="trust-panel" class="panel" style="display:none">
+      <div class="panel-title">Request details</div>
+      <div id="trust-rows"></div>
+    </div>
+
+    <div id="signin-prompt" style="display:none">
+      <p>Sign in with Google to continue.</p>
+      <button id="signin-btn" class="btn primary" type="button">Sign in with Google</button>
+    </div>
+
+    <div id="approve-form" style="display:none">
+      <div class="signed-in-as" id="signed-in-as"></div>
+      <div class="actions">
+        <button id="allow-btn" class="btn primary" type="button">Allow</button>
+        <button id="cancel-btn" class="btn" type="button">Cancel</button>
+      </div>
+      <div class="switch">Wrong account? <a id="switch-user">Sign in with a different account</a></div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="info">
+      OAuth 2.1 with PKCE. The app gets a token that can only run AILANG code in the sandbox: it has no
+      file, network or environment access, and every run is time-limited. Your Google credentials are
+      never shared with the app. The token lasts an hour and the app renews it while you stay connected.
+    </div>
+  </div>
+</div>
+
+<!-- The browser submits this as a top-level POST, so the server's 302 takes it
+     straight back to the app with the authorization code. -->
+<form id="complete-form" method="POST" style="display:none">
+  <input type="hidden" name="handle" id="f-handle">
+  <input type="hidden" name="id_token" id="f-id-token">
+</form>
+
+<script src="vendor/firebase/firebase-app-compat.js"></script>
+<script src="vendor/firebase/firebase-auth-compat.js"></script>
+<script src="oauth-login.js"></script>
+</body>
+</html>

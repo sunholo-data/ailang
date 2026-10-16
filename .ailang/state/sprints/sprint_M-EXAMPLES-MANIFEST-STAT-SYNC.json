@@ -1,0 +1,112 @@
+{
+  "sprint_id": "M-EXAMPLES-MANIFEST-STAT-SYNC",
+  "status": "not_started",
+  "created": "2026-10-15T23:39:55.578171+00:00",
+  "design_doc": "design_docs/planned/v0_54_12/examples-manifest-stat-sync.md",
+  "sprint_plan": "design_docs/planned/v0_54_12/examples-manifest-stat-sync-sprint-plan.md",
+  "github_issues": [
+    1835
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search manifest returned sunholo/registry_validator; pkg info/docs show an AILANG package-publication validator, not the Go examples JSON pipeline. Reuse existing internal/manifest and scripts/internal/importextract; no new package dependency."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search manifest returned sunholo/registry_validator; pkg info/docs show an AILANG package-publication validator, not the Go examples JSON pipeline. Reuse existing internal/manifest and scripts/internal/importextract; no new package dependency."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search manifest returned sunholo/registry_validator; pkg info/docs show an AILANG package-publication validator, not the Go examples JSON pipeline. Reuse existing internal/manifest and scripts/internal/importextract; no new package dependency."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search manifest returned sunholo/registry_validator; pkg info/docs show an AILANG package-publication validator, not the Go examples JSON pipeline. Reuse existing internal/manifest and scripts/internal/importextract; no new package dependency."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 320,
+    "estimated_total_loc": 320,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Complete statistics validation",
+      "estimated_loc": 45,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Add Aspirational to internal/manifest.Statistics and count StatusAspirational without changing schema v1.",
+        "Unit tests prove all status counters, empty-manifest coverage, and rejection of a mismatched aspirational count; go test ./internal/manifest passes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Sync all derived manifest fields",
+      "estimated_loc": 85,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Extend the existing mirror-doc writer to recompute all six statistics fields, including zero-total coverage; preserve authored fields, timestamps, generator, and key order.",
+        "Add make sync-examples-manifest and retain backfill-manifest-modules as an alias; --check detects modules or statistics drift without writing.",
+        "On a clean valid manifest sync produces byte-identical output; repeated sync is idempotent. A stale temporary manifest is repaired, then passes --check."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Gate unlisted runnable examples",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Append make sync-examples-manifest remediation to load errors and use the same command for modules drift.",
+        "Walk only examples/runnable recursively, normalize resolved paths through importextract.ResolvePath, skip underscore-prefixed scratch files, and fail --ci for files absent from both manifest and explicit allowlist.",
+        "Seed an embedded reason-bearing allowlist with the measured existing omissions (design baseline 47); remeasure before editing and explain any discrepancy rather than silently admitting new files.",
+        "Temporary-fixture checks prove an unlisted file fails with its path, an allowlisted file passes, and the underscore scratch convention preserves the existing gate self-test.",
+        "Update verify-examples comments and diagnostics for statistics/modules drift and missing entries; retain report generation and exit propagation."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Prove gates and document contribution workflow",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Extend validate-manifest-selftest using isolated temporary manifests and example directories with trap cleanup; remove its current real-manifest rewrite.",
+        "Keep the existing modules-drift negative control; add stale-statistics and unlisted-runnable controls that assert the expected diagnostic as well as failure, plus a valid positive control.",
+        "Document add file + authored entry + make sync-examples-manifest + commit in docs/docs/guides/development-workflow.md and the sprint-executor example checklist.",
+        "Add changelogs/unreleased/2026-10-15-examples-manifest-stat-sync.md opening with ###; record the allowlist disposition backlog in the existing #1835 digest for follow-up without closing that umbrella issue.",
+        "make test-changed, make validate-manifest-selftest, make verify-examples-gate-selftest, make verify-examples, make check-file-sizes, and make check-changelog pass; restore generated report artifacts unrelated to the change without discarding other work."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

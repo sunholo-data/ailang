@@ -148,7 +148,12 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      (outside the worktree), and it CANNOT be run foreground (the wall-clock cap is 30 min but the
      `Bash` tool caps at 10 min). Write the directive to a file (avoid shell-escaping), then run the
      bounded wrapper via **`Bash` with `run_in_background: true`** — it stays bounded by the wrapper's
-     own `date +%s` deadline (Standing rule 6) and notifies you on exit:
+     own `date +%s` deadline (Standing rule 6) and notifies you on exit. **The `Bash` tool has its OWN ceiling and it wins over
+     yours** (fleet iterations 35 and 36): a `run_in_background` call with no `timeout` is reaped at
+     10 min, killing a 30-min wrapper's child mid-run, so pass `timeout` ≥ the wrapper's cap plus a
+     margin (e.g. 2000000 ms for 1800 s); and a FOREGROUND bounded poll must end before the
+     600 s foreground cap, so set `deadline ≤ timeout − one sleep interval − margin` (a 580 s
+     deadline with a 30 s sleep overran 600 s and was moved to the background):
      ```bash
      # /tmp/codex_run.sh — launch with Bash run_in_background:true (30-min cap > the 10-min fg limit)
      WT=<sprint worktree path>; DIRECTIVE=/tmp/codex_directive.txt

@@ -15,7 +15,7 @@ func TestWatchIdle_SilenceFiresOnce(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		watchIdle(context.Background(), 30*time.Millisecond, 5*time.Millisecond,
-			func() int64 { return 42 }, func() { fired.Add(1) })
+			func() int64 { return 42 }, nil, 0, func() { fired.Add(1) })
 		close(done)
 	}()
 	select {
@@ -35,7 +35,7 @@ func TestWatchIdle_ActivityKeepsAlive(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	watchIdle(ctx, 30*time.Millisecond, 5*time.Millisecond,
-		func() int64 { return n.Add(1) }, func() { fired.Store(true) })
+		func() int64 { return n.Add(1) }, nil, 0, func() { fired.Store(true) })
 	if fired.Load() {
 		t.Fatal("onIdle fired although the activity counter kept growing")
 	}
@@ -48,7 +48,7 @@ func TestStartIdleWatch(t *testing.T) {
 	idlePollInterval = 5 * time.Millisecond
 	defer func() { idlePollInterval = saved }()
 	runCtx, cancelRun := context.WithCancel(context.Background())
-	stop := startIdleWatch(runCtx, 30*time.Millisecond, func() int64 { return 0 }, cancelRun)
+	stop := startIdleWatch(runCtx, 30*time.Millisecond, func() int64 { return 0 }, nil, 0, cancelRun)
 	select {
 	case <-runCtx.Done():
 	case <-time.After(2 * time.Second):
@@ -60,7 +60,7 @@ func TestStartIdleWatch(t *testing.T) {
 
 	quiet, cancelQuiet := context.WithCancel(context.Background())
 	defer cancelQuiet()
-	if note := startIdleWatch(quiet, time.Hour, func() int64 { return 0 }, cancelQuiet)(); note != "" {
+	if note := startIdleWatch(quiet, time.Hour, func() int64 { return 0 }, nil, 0, cancelQuiet)(); note != "" {
 		t.Fatalf("a run stopped before idling reported %q", note)
 	}
 }

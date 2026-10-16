@@ -1,0 +1,192 @@
+{
+  "sprint_id": "M-AILANG-LANE-EXECUTOR-SHADOW",
+  "status": "not_started",
+  "created": "2026-10-13T12:10:48Z",
+  "design_doc": "design_docs/planned/v0_55_0/m-ailang-lane-executor-shadow.md",
+  "sprint_plan": "design_docs/planned/v0_55_0/m-ailang-lane-executor-shadow-sprint-plan.md",
+  "github_issues": [
+    135,
+    1772,
+    1773,
+    1778,
+    1783,
+    1784,
+    1795,
+    1796,
+    1797,
+    1798,
+    1811
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_SHADOW_CONFIG_IDENTITY",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M2_SHADOW_DISPATCH",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M3_JOB_NO_SIDE_EFFECTS",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M4_FINALIZE_STORAGE",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M5_GRADE_JOB_MECHANICAL",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M6_MERGED_FIX_REVIEWER",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M7_REPORT_DEV_ENABLE",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 260,
+    "estimated_total_loc": 1620,
+    "estimated_days": 6
+  },
+  "features": [
+    {
+      "id": "M1_SHADOW_CONFIG_IDENTITY",
+      "description": "ShadowConfig in new shadow_config.go + validation in ValidateAgentProviders; ShadowOf on Task/TaskRecord/SQLite/Firestore",
+      "estimated_loc": 220,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Table test: wrong lane / same provider / variant mismatch / bad sample_rate rejected",
+        "ShadowOf round-trips SQLite and Firestore",
+        "make test-changed and make check-file-sizes pass (agent_registry.go stays <800)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_SHADOW_DISPATCH",
+      "description": "Cloud dispatch hook: deterministic sampling, child <id>-shadow with ShadowOf and no StageID/ChainID, DispatchParams.Shadow; AILANG_TASK_SHADOW registry var + docs-env",
+      "estimated_loc": 240,
+      "dependencies": [
+        "M1_SHADOW_CONFIG_IDENTITY"
+      ],
+      "acceptance_criteria": [
+        "Eligible task -> 2 dispatches; ineligible/sample-miss -> 1",
+        "Non-shadow dispatch params byte-identical to before",
+        "Sampling stable per task ID"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_JOB_NO_SIDE_EFFECTS",
+      "description": "executeCloudTask skips write preflight, push, PR when shadow; keeps evidence+artifacts; childGitCredential withheld",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M2_SHADOW_DISPATCH"
+      ],
+      "acceptance_criteria": [
+        "Shadow run: evidence produced, no push/PR call",
+        "Negative: agent git push with write key present reaches no remote",
+        "Non-shadow run still pushes + opens PR",
+        "Each guard mutation-tested"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_FINALIZE_STORAGE",
+      "description": "wantsApproval/wantsHandoff false for ShadowOf; shadow result on child; ShadowComparison record (verdict enum, base_drift)",
+      "estimated_loc": 230,
+      "dependencies": [
+        "M1_SHADOW_CONFIG_IDENTITY"
+      ],
+      "acceptance_criteria": [
+        "Shadow completion: no card, no handoff, RecomputeChainAggregates not called",
+        "Non-shadow completion unchanged",
+        "ShadowComparison CRUD round-trip",
+        "base_drift set on differing BaseCommit"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_GRADE_JOB_MECHANICAL",
+      "description": "Grade Cloud Run Job: clone at BaseCommit, apply diffs, policy-confined ailang check/test with 300s per-gate and 900s job bounds; daemon only dispatches",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M3_JOB_NO_SIDE_EFFECTS",
+        "M4_FINALIZE_STORAGE"
+      ],
+      "acceptance_criteria": [
+        "Fixture pass/fail diffs graded correctly",
+        "Hanging test -> ungraded(timeout) within bound",
+        "Unappliable diff -> ungraded(apply_failed)",
+        "No grading code runs in the daemon; no make targets invoked"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_MERGED_FIX_REVIEWER",
+      "description": "On parent PR settle: merged diff by PR number, overlap + merged-test replay; circular flag; off-Anthropic reviewer only on disagree/tie",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M5_GRADE_JOB_MECHANICAL"
+      ],
+      "acceptance_criteria": [
+        "Settled-PR fixture updates comparison",
+        "Circular case flagged",
+        "Reviewer only on disagree/tie; unreachable -> ungraded(reviewer_unavailable)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M7_REPORT_DEV_ENABLE",
+      "description": "ailang coordinator shadow report [--since][--json] + weekly post to user inbox + docs + changelog; enable on 2 agents on the dev plane with the shadow key",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M6_MERGED_FIX_REVIEWER"
+      ],
+      "acceptance_criteria": [
+        "Golden report test incl. a disagreement row with links",
+        "Dev-plane smoke: primary PR + completed shadow, no -shadow PR/branch, ShadowComparison written",
+        "Shadow spend only on the shadow key"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

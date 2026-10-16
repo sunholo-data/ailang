@@ -1,0 +1,20 @@
+module examples/runnable/process_spawn_result
+import std/io (println)
+import std/process (spawnProcessResult, cancelProcess, NotFound, NotAllowed, SpawnFailed)
+import std/result (Ok, Err)
+
+-- Run with --caps IO,Process --process-allowlist crew-nonexistent-worker
+-- A missing optional worker is recoverable without probing PATH first.
+export func main() -> () ! {IO, Process} {
+  println("started")
+  match spawnProcessResult("crew-nonexistent-worker", ["x"]) {
+    Ok(handle) => match cancelProcess(handle) {
+      _ => ()
+    },
+    Err(NotFound(_)) => println("worker unavailable; using fallback"),
+    Err(NotAllowed(_)) => println("worker denied; using fallback"),
+    Err(SpawnFailed(_)) => println("worker failed to start; using fallback"),
+    Err(_) => println("worker error; using fallback")
+  }
+  println("after")
+}

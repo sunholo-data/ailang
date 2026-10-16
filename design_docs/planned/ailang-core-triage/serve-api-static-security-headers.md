@@ -12,7 +12,7 @@ no `X-Frame-Options`, `Content-Security-Policy`, `Referrer-Policy`, or `X-Conten
 in the static path. `cmd/ailang/serve_api.go` offers no header flag. The report's prod repro
 (docparse.ailang.sunholo.com serving `oauth-login.html` bare) matches this code, and RFC 9700 §4.16
 makes an framable consent page a hard MUST-violation for adopters steered to this hosting (per
-`design_docs/planned/v0_52_0/m-mcp-oauth-package.md`).
+`design_docs/implemented/v0_52_0/m-mcp-oauth-package.md`).
 
 Why design-doc, not direct-fix (rubric rows 3/4/5):
 
@@ -35,5 +35,5 @@ Scope note for the designer: the mechanical part is small — `internal/apiserve
 a doc are (a) defaults on/off, (b) override shape, (c) the `mcp check` framing probe, and (d) whether
 the workaround in the report (serve consent HTML from an `@raw` route with `_headers`) is documented
 as the sanctioned interim. Related, not conflicting:
-`design_docs/planned/v0_52_0/m-mcp-oauth-package.md` (owns the OAuth surface; this is a transport/
+`design_docs/implemented/v0_52_0/m-mcp-oauth-package.md` (owns the OAuth surface; this is a transport/
 hosting fix that belongs to the serve-api lane).

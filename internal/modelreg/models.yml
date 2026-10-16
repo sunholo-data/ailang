@@ -1629,6 +1629,76 @@ models:
       Also available: gemini-3.1-pro-preview-customtools (better at custom tool prioritization).
       Agent eval support: ✅ Fully supported via Gemini CLI.
 
+  # Google Gemini 4 Argon (GA October 13, 2026) — Google's new flagship.
+  gemini-4-argon:
+    api_name: "gemini-4-argon"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 4 Argon - Oct 2026 Google flagship; introductory $2/$10 until 2026-11-30, then $4/$20"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    # 32768, NOT the 1M the model card advertises. Vertex docs (fetched 2026-10-13):
+    # "A single synchronous request generates up to 65,536 thinking and output
+    # tokens, or 32,768 for non-streaming direct HTTP requests." Standard eval goes
+    # through non-streaming generateContent (internal/ai/gemini/generate.go), so
+    # 32768 is OUR ceiling. Vertex does NOT reject larger values (65537 / 131073 /
+    # 1,000,000 all returned 200 STOP, probed 2026-10-13) — it clamps silently, so
+    # the API will never tell you this number is wrong. Thinking shares the cap.
+    # The 32768 cut-off itself is DOCS-SOURCED, NOT MEASURED: two long-output probes
+    # (maxOutputTokens 200000) both ended finish=STOP early — 790/738 and 1805/4807
+    # tokens (non-stream/stream) — Argon self-terminates bulk output before any cap.
+    # The advertised 1M output is the context-window budget, not a per-request limit.
+    max_output_tokens: 32768
+    model_family: "gemini-4"
+    pricing:
+      # ⚠️  INTRODUCTORY PRICING — EXPIRES 2026-11-30; rates DOUBLE on 2026-12-01.
+      input_per_1k: 0.002          # $2.00 per 1M through 2026-11-30 → $4.00 from 2026-12-01
+      output_per_1k: 0.01          # $10.00 per 1M (incl. thinking) → $20.00 from 2026-12-01
+      cache_read_per_1k: 0.0001    # $0.10 per 1M (implicit caching only) → $0.20
+      expires: "2026-11-30"        # enforced by TestModels_PricingScheduleIsHonoured
+      next:
+        input_per_1k: 0.004
+        output_per_1k: 0.02
+        cache_read_per_1k: 0.0002
+    notes: |
+      GA 2026-10-13 (previously restricted to the Fairwind cyber-defender program).
+      1,048,576-token context window shared by input, thinking and output.
+
+      Pricing quoted from ai.google.dev/gemini-api/docs/pricing on 2026-10-13
+      (Google first-party), Standard paid tier, no >200k tier: input "$2.00 through
+      November 30, 2026 ... $4.00 starting December 1, 2026"; output incl. thinking
+      $10.00 → $20.00; cached input $0.10 → $0.20, "Implicit caching only (explicit
+      caching is not supported)". Batch/Flex are half; Priority is 1.8x.
+      vs gemini-3-1-pro ($2/$12, $4/$18 >200k): cheaper output during the intro
+      window, 1.67x the output price after it.
+
+      ⚠️  THINKING — ADAPTIVE, default level MEDIUM (LOW/MEDIUM/HIGH). The docs say
+      thinking_budget and thinkingLevel=MINIMAL are rejected with HTTP 400. Our
+      Gemini client emits thinkingConfig.thinkingBudget only when a reasoning
+      effort/budget is requested (applyReasoning), so default runs are safe, but
+      DO NOT set reasoning_effort / reasoning_max_tokens on this row: it would 400.
+      Probes 2026-10-13 with no reasoning params (Vertex global, ailang-dev):
+        "prove infinitely many primes" -> thoughtsTokenCount absent, 390 out, STOP
+        CSV-parser coding prompt       -> thoughtsTokenCount absent, 1110 out, STOP
+        strawberry + includeThoughts   -> 293 thoughts / 65 out
+        strawberry + thinkingLevel=HIGH -> 524 thoughts / 106 out (accepted)
+      So it often decides not to think at all; budget with output+thoughts anyway.
+
+      Vertex access VERIFIED 2026-10-13: generateContent returns 200, modelVersion
+      "gemini-4-argon"; negative control gemini-4-argon-zzz -> 404.
+
+      GATES 2026-10-13 (standard, candidate alone, --tier smoke,core,frontier):
+      49/49 PASS — smoke 23/23 plus every core and frontier benchmark, incl.
+      csv_to_json_converter. ZERO thinking on all 49 (total == in + out on every
+      row; Vertex's total includes thoughts) — adaptive MEDIUM chose not to think.
+      avg 31.8K in / 0.4K out per run, $0.0676/run, $3.31 total, 1m28s wall at
+      parallel 4. Implicit cache hits only 82K of ~1.56M input (~5%).
+      Anchored ELO 2778.2 (banked) is a FLOOR — a perfect run has no upper bound,
+      same as claude-opus-5-5's 29/29 → 2871.9. Not a ranking between the two.
+      Still opt-in, in NO suite: promotion is a separate call.
+      Agent mode: ❌ NOT wired (no agent_cli declared).
+
   # Google Gemini 3.5 Flash (released May 19, 2026 at Google I/O 2026)
   # ⚠️  EXCLUDED FROM STANDARD EVAL ROTATION (v0.22.0, 2026-05-20).
   # The Vertex Managed Agents API path is cost-prohibitive due to a documented
@@ -1950,6 +2020,67 @@ models:
       billed as fresh input, overstating cost by 42.9% / 84.3% on those probes.
 
       GATE: cost + pass-rate measurement PENDING at registration. In NO suite.
+
+  # Gemini DEVELOPER API Managed Agents — the EDITING sibling of the row above (2026-10-13)
+  gemini-agents-antigravity:
+    api_name: "antigravity-preview-09-2026"
+    provider: "google"
+    default_thinking: "unknown"   # model behind the agent is unverifiable; see notes
+    description: "Gemini Developer API Managed Agents (antigravity 09-2026) — edits the local workspace via repo mount + patch export; version-free"
+    env_var: "GEMINI_AGENTS_API_KEY"  # SA-bound, generativelanguage-only key; scripts/security/setup_gemini_agents_project.sh
+    agent_cli: "gemini_agents"
+    agent_model_name: "antigravity-preview-09-2026"
+    max_output_tokens: 65536
+    pricing:
+      # BILLED rates, from the GCP billing export (2026-10-14): the 10-13 smoke
+      # gate on project ailang-gemini-agents billed as SKU "gemini 3.8 flash
+      # text" — 2.53M input $1.90, 40.1M cached $3.01, 193.6K output $0.73
+      # ($5.69 total vs $15.26 at the old 3.1-Pro proxy). Implied per-1M:
+      # $0.75 / $0.075 / ~$3.75. Billed output was ~3x the 65K our usage
+      # parse recorded — thought tokens are likely missing from the parse.
+      input_per_1k: 0.00075       # $0.75 per 1M fresh input
+      output_per_1k: 0.00375      # ~$3.75 per 1M (thought tokens bill here too)
+      cache_read_per_1k: 0.000075 # $0.075 per 1M
+    budgets:
+      max_cost_usd: 2.00
+      hard_timeout_secs: 900
+    notes: |
+      WHY A SECOND ROW: Vertex (row above) cannot get edits out of the sandbox;
+      the Developer API can. Live-probed 2026-10-13 on project ailang-gemini-agents:
+      sources accept gcs|inline|repository|skill_registry (Vertex: gcs|skill_registry);
+      agent antigravity-preview-09-2026 is listed (Vertex: 404); the files API
+      GET environments/{id}/files/{path}?alt=media returns 200 (Vertex: 404).
+      E2E: repository mount of ailang -> agent created a file -> patch downloaded
+      -> `git apply --check` CLEAN locally. 21.7K in (11.6K cached) / 314 out, ~50s.
+
+      EXECUTOR (agent_cli gemini_agents): mounts the workspace's GitHub origin at
+      the merge-base with the remote, ships unpushed + uncommitted + untracked
+      changes as one inline patch, has the agent export a diff at the end,
+      applies it locally and deletes the sandbox. Non-git workspaces (eval
+      benchmarks) go up as inline files (1 MB/file, 2 MB total).
+
+      MODEL (billing evidence, 2026-10-14): the agent runs on Gemini 3.8 Flash —
+      every token of the 23-bench smoke billed under that SKU; the self-report
+      "Gemini 3.1 Pro" was wrong. The gemini-4-argon pin probe billed ~10K input
+      under an Argon SKU, so a pin may route SOME calls. Previously:
+      MODEL IS UNKNOWN, as with the Vertex row. agent_config.model is a recognised
+      field ("Unknown parameter" fires for others) and is echoed back, but a bogus
+      model is not rejected, and a run pinned to gemini-4-argon self-reported
+      "Gemini 3.1 Pro" (with zero thought tokens, which fits Argon). So this row
+      pins nothing; `<agent>/<model>` in agent_model_name sends a pin REQUEST,
+      recorded in ProviderData as managed_agents_requested_model.
+
+      AUTH: API key only — the Developer API refuses SA OAuth tokens (403
+      "restricted with service accounts. Use authorization keys instead").
+      Hard stop: AI Studio Project Spend Cap ($100/month, set 2026-10-13).
+
+      GATE (2026-10-13): agent smoke tier 23/23 PASS, zero api_error/harness
+      failures (/tmp/smoke_gemini_agents, chain a00c3961). Cost $15.26 at the
+      proxy rates = $0.66/benchmark; avg 280s and ~83 turns per benchmark; 42.5M
+      input of which 40.1M cached (94%), 65K output. Expensive and slow next to
+      the CLI lanes, cheap per token because of the cache. The eval-suite dry-run
+      estimated $0.45 for the whole tier (no history) — 34x low; quote ~$0.70 x N.
+      Core/frontier placement not yet run. In NO suite, in NO role chain.
 
   gemini-3-8-flash:
     api_name: "gemini-3.8-flash"
@@ -2658,8 +2789,10 @@ models:
       input_per_1k: 0.00119
       output_per_1k: 0.00374
     notes: |
-      Third design-quorum reviewer, alongside gpt5-6-sol (OpenAI) and
-      gemini-3-1-pro (Google). Three vendors, three independent priors.
+      Was the third design-quorum reviewer, alongside gpt5-6-sol (OpenAI) and
+      gemini-3-1-pro (Google). Three vendors, three independent priors. The
+      current pool is defaultQuorumPool in cmd/ailang/design_quorum.go (Google
+      seat: gemini-4-argon since 2026-10-13; Z-AI seat: oc-glm-5-3).
 
       Why GLM-5.2 is the right model for THIS role specifically: its known
       weakness is OUTPUT headroom (max_completion 262,144 on OpenRouter — the
@@ -5280,12 +5413,28 @@ models:
                               # first-party max_completion=131072, others 131072–1179648.
                               # 65536 is the fleet target, within every provider's ceiling.
     model_family: "glm-5"
-    # Applies to every row with this api_name (pi, motoko, opencode). Measured
-    # 2026-10-12, same task, same hour: inference-net/fp4 (4-bit weights) cached 8%
-    # of input (Friendli 91-97%) and its tool calls contradicted the model's own
-    # reasoning — {"op":"tree","module":"x"} for 25+ steps while the reasoning said
-    # "use path". 102 of motoko's 141 calls landed there; pi's never did.
-    openrouter_ignore: ["inference-net"]
+    # OpenRouter routing for every AILANG caller of this api_name (motoko, std/ai).
+    # VALUE = pi's effective pool, so motoko and pi compare on equal hosts: pi sends
+    # max_completion_tokens 943717 (its built-in catalogue; no models.json entry
+    # overrides it on the rig or in the cloud image), which OpenRouter can only
+    # serve on hosts whose max output is >= that. Those are the 13 below (from
+    # /api/v1/models/z-ai/glm-5.3-flash/endpoints, 2026-10-13); within them the
+    # default price-weighted balancing applies, as it does for pi. AILANG sends
+    # max_tokens 32000, which every one of the 32 hosts accepts, so without this
+    # motoko drew from the full pool: inference-net/fp4 (19% cache, tool calls
+    # contradicting the model's reasoning) and others that pi never reaches.
+    # Experiments: AILANG_OPENROUTER_PROVIDER='{"sort":"throughput"}' layers on
+    # top (measured host speeds 2026-10-13: crusoe 1.2 s/115 tok/s, parasail 1.7 s,
+    # together 2.4 s, friendli 2.7 s; open-inference 25.7 s/10 tok/s; morph 5 tok/s).
+    # open-inference and morph are OUT (2026-10-16): they are the two cheapest of
+    # the 13, so price weighting inside `only` sent motoko 62 of 72 calls to
+    # open-inference (16.4 s median) and 10 to morph, while pi — in the same A/B,
+    # same prompts — reached neither in 100 calls (Together, CoreWeave, Decart,
+    # Parasail; 2.0 s median). Per call the two harnesses produced the same
+    # ~155 output tokens; motoko's 9-minute median run against pi's 30 s was the
+    # host, not the harness (OpenRouter Broadcast spans, glm-5.3-flash A/B).
+    openrouter_provider:
+      only: ["inceptron", "gmicloud", "decart", "near-ai", "modal", "crusoe", "coreweave", "fireworks", "friendli", "together", "parasail"]
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
       output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
@@ -5950,7 +6099,11 @@ benchmark_suite:
     # reliability gap, not a single-capability gap. Cost is a wash: $13.35 vs $13.59 per N=3
     # sweep, i.e. Opus 5 is marginally CHEAPER despite 1.9x the output tokens, because input
     # tokens (~816K, identical) dominate at core-tier prompt sizes.
-  - "gemini-3-1-pro"   # Google flagship (Feb 2026)
+  - "gemini-4-argon"    # Google flagship (Oct 2026) — REPLACED gemini-3-1-pro 2026-10-13 (Mark).
+    # Gate: standard smoke+core+frontier 49/49 run ALONE (3.1 Pro 25/26 on the overlapping
+    # dashboard set), $0.068/run vs $0.117, zero thinking tokens. Intro $2/$10 → $4/$20 from
+    # 2026-12-01; at that price input-dominated runs cost ~$0.135, Opus-5.5 parity.
+    # gemini-3-1-pro stays opt-in as the longitudinal comparison point.
   - "or-glm-5-3"       # z.ai flagship (Aug 2026, 753B) — added 2026-08-31 (Mark): smoke PASSED
     # 23/23 first pass (zero finish=length at 65536, whole tier $1.38). Lineage core
     # gate vs or-glm-5-2 PENDING (2026-09-01 post-budget-reset; per the row notes,
@@ -6026,7 +6179,8 @@ extended_suite:
     # sonnet-4-6's 23/26 (88.5%), ~35% higher cost/bench (new tokenizer + adaptive thinking default).
     # Narrow N=1 win — kept sonnet-4-6 alongside as the longitudinal anchor, not a replacement.
   - "claude-sonnet-4-6" # Anthropic previous-gen, kept as longitudinal anchor (Feb 2026)
-  - "gemini-3-1-pro"    # Google flagship (Feb 2026)
+  - "gemini-4-argon"     # Google flagship (Oct 2026) — REPLACED gemini-3-1-pro 2026-10-13 (Mark);
+    # gate record on the benchmark_suite entry. 3.1 Pro kept opt-in for longitudinal compare.
   - "gemini-3-7-flash"  # Google newest Flash (Aug 2026) — REPLACED gemini-3-6-flash 2026-08-13
     # (per Mark), three weeks after 3.6 took the same slot from 3.5. Matched head-to-head, same
     # command, same day, thinking-inclusive, N=1 unless noted:
