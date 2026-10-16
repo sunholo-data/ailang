@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-OLLAMA-EMBED-RESULT-AI-EFFECT",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-16T14:36:14.123897+00:00",
   "design_doc": "design_docs/planned/v0_54_8/m-ollama-embed-result-ai-effect.md",
   "sprint_plan": "design_docs/planned/v0_54_8/m-ollama-embed-result-ai-effect-sprint-plan.md",
@@ -53,10 +53,10 @@
         "Existing live dimensionality tests retain skip behavior when Ollama is unavailable.",
         "go test ./internal/ai/ollama ./internal/builtins passes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T20:14:49.701191+00:00",
+      "completed": "2026-10-16T20:14:49.701191+00:00",
+      "notes": "Offline HTTP payload, errors, empty response and float conversion verified; go test ./internal/ai/ollama ./internal/builtins passed. Live daemon tests skip when unavailable."
     },
     {
       "id": "M2",

@@ -1,12 +1,10 @@
 package builtins
 
 import (
-	"context"
-	"encoding/base64"
 	"fmt"
 	"time"
 
-	"github.com/ollama/ollama/api"
+	"github.com/sunholo-data/ailang/internal/ai/ollama"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -151,7 +149,7 @@ func ollamaEmbedMediaImpl(ctx *effects.EffContext, args []eval.Value) (eval.Valu
 		return nil, fmt.Errorf("_ollama_embed_media: expected Bytes audio, got %T", args[3])
 	}
 
-	input := ollamaMediaInput(textVal.Value, imageVal.Value, audioVal.Value)
+	input := ollama.MediaInput(textVal.Value, imageVal.Value, audioVal.Value)
 	if len(input) == 0 {
 		return nil, fmt.Errorf("_ollama_embed_media: text, image and audio are all empty")
 	}
@@ -160,49 +158,14 @@ func ollamaEmbedMediaImpl(ctx *effects.EffContext, args []eval.Value) (eval.Valu
 	return ollamaEmbedRequest("_ollama_embed_media", modelVal.Value, input, 120*time.Second)
 }
 
-// ollamaMediaInput builds Ollama's multimodal embed input object, omitting empty parts
-func ollamaMediaInput(text string, image, audio []byte) map[string]string {
-	input := map[string]string{}
-	if text != "" {
-		input["text"] = text
-	}
-	if len(image) > 0 {
-		input["image"] = base64.StdEncoding.EncodeToString(image)
-	}
-	if len(audio) > 0 {
-		input["audio"] = base64.StdEncoding.EncodeToString(audio)
-	}
-	return input
-}
-
-// ollamaEmbedRequest calls Ollama's embed API with one input and returns its vector
 func ollamaEmbedRequest(name, model string, input any, timeout time.Duration) (eval.Value, error) {
-	client, err := api.ClientFromEnvironment()
+	vector, err := ollama.EmbedRequest(name, model, input, timeout)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to create Ollama client: %w", name, err)
+		return nil, err
 	}
-
-	goCtx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	resp, err := client.Embed(goCtx, &api.EmbedRequest{
-		Model: model,
-		Input: input,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("%s: Ollama embed failed: %w", name, err)
+	elements := make([]eval.Value, len(vector))
+	for i, v := range vector {
+		elements[i] = &eval.FloatValue{Value: v}
 	}
-
-	if len(resp.Embeddings) == 0 {
-		return nil, fmt.Errorf("%s: no embeddings returned", name)
-	}
-
-	// Convert float32 to float64 and wrap in ListValue
-	embedding := resp.Embeddings[0]
-	elements := make([]eval.Value, len(embedding))
-	for i, v := range embedding {
-		elements[i] = &eval.FloatValue{Value: float64(v)}
-	}
-
 	return &eval.ListValue{Elements: elements}, nil
 }

@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"encoding/base64"
+	"github.com/sunholo-data/ailang/internal/ai/ollama"
 	"net/http"
 	"testing"
 	"time"
@@ -50,17 +51,17 @@ func TestOllamaEmbed(t *testing.T) {
 }
 
 func TestOllamaMediaInput(t *testing.T) {
-	in := ollamaMediaInput("", []byte{0x89, 'P', 'N', 'G'}, nil)
+	in := ollama.MediaInput("", []byte{0x89, 'P', 'N', 'G'}, nil)
 	if len(in) != 1 || in["image"] != "iVBORw==" {
 		t.Errorf("image-only input = %v, want only image base64", in)
 	}
 
-	in = ollamaMediaInput("caption", []byte{1}, []byte{2})
+	in = ollama.MediaInput("caption", []byte{1}, []byte{2})
 	if in["text"] != "caption" || in["image"] != "AQ==" || in["audio"] != "Ag==" {
 		t.Errorf("all-parts input = %v", in)
 	}
 
-	if in := ollamaMediaInput("", nil, []byte{}); len(in) != 0 {
+	if in := ollama.MediaInput("", nil, []byte{}); len(in) != 0 {
 		t.Errorf("empty parts should be omitted, got %v", in)
 	}
 }

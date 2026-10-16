@@ -31,9 +31,9 @@ Ran ailang pkg search embedding and ailang pkg search ollama; inspected pkg info
 Move request and media encoding to internal/ai/ollama/embed.go returning []float64; preserve environment endpoint, 30/120 second timeouts and existing error prefixes. Move helper tests into internal/ai/ollama/embed_test.go; adapt existing live tests without requiring a live daemon.
 
 **Acceptance criteria:**
-- [ ] HTTP test server verifies text/media payloads, empty input, empty response, server errors and float conversion offline.
-- [ ] Existing live dimensionality tests retain skip behavior when Ollama is unavailable.
-- [ ] go test ./internal/ai/ollama ./internal/builtins passes.
+- [x] HTTP test server verifies text/media payloads, empty input, empty response, server errors and float conversion offline.
+- [x] Existing live dimensionality tests retain skip behavior when Ollama is unavailable.
+- [x] go test ./internal/ai/ollama ./internal/builtins passes.
 
 **Example coverage:** M5 supplies the runnable fallback and migrated text/media callers; earlier milestones use offline Go tests until wrappers land.
 
