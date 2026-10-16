@@ -104,9 +104,9 @@
         "make test-changed, make validate-manifest-selftest, make verify-examples-gate-selftest, make verify-examples, make check-file-sizes, and make check-changelog pass; restore generated report artifacts unrelated to the change without discarding other work."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-16T09:59:31.004434+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Implementation and isolated self-tests complete; broad gates running. #1835 post blocked by unauthenticated gh. Evaluator CLI handoff refused: inbox has no serving agent."
     }
   ]
 }

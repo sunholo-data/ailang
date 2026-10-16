@@ -15,10 +15,10 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/buger/jsonparser"
 	"github.com/sunholo-data/ailang/internal/manifest"
 	"os"
 	"reflect"
@@ -27,8 +27,8 @@ import (
 	"github.com/sunholo-data/ailang/scripts/internal/importextract"
 )
 
-// entry mirrors every field present in examples/manifest.json so a round-trip
-// loses nothing. Field order here defines the serialized key order.
+// entry reads the fields used by synchronization. Writes patch the original JSON
+// so authored fields, formatting, and key order remain untouched.
 type entry struct {
 	Path        string          `json:"path"`
 	Status      string          `json:"status"`
@@ -43,7 +43,7 @@ type entry struct {
 	SkipReason  string          `json:"skip_reason,omitempty"`
 }
 
-// doc mirrors the top-level manifest, preserving unknown blocks verbatim.
+// doc reads known fields; writes patch only derived values in the original JSON.
 type doc struct {
 	Schema        json.RawMessage `json:"schema,omitempty"`
 	SchemaVersion json.RawMessage `json:"schema_version,omitempty"`
@@ -73,6 +73,7 @@ func main() {
 	}
 
 	changed, skipped := 0, 0
+	output := append([]byte(nil), raw...)
 	for i := range d.Examples {
 		e := &d.Examples[i]
 		full, ok := importextract.ResolvePath(*examplesDir, e.Path)
@@ -91,6 +92,16 @@ func main() {
 		sort.Strings(mods)
 		if !importextract.Equal(e.Modules, mods) {
 			changed++
+			value, err := json.Marshal(mods)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			output, err = jsonparser.Set(output, value, "examples", fmt.Sprintf("[%d]", i), "modules")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
 		}
 		if len(mods) == 0 {
 			e.Modules = nil // omitempty: keep entries without std imports clean
@@ -117,18 +128,22 @@ func main() {
 		"coverage": model.Statistics.Coverage, "experimental": float64(model.Statistics.Experimental),
 	}
 	statsDrift := !reflect.DeepEqual(recorded, stats)
-	// Retain the committed statistics key order.
-	d.Statistics, err = json.Marshal(struct {
-		Total        int     `json:"total"`
-		Working      int     `json:"working"`
-		Aspirational int     `json:"aspirational"`
-		Broken       int     `json:"broken"`
-		Coverage     float64 `json:"coverage"`
-		Experimental int     `json:"experimental"`
-	}{model.Statistics.Total, model.Statistics.Working, model.Statistics.Aspirational, model.Statistics.Broken, model.Statistics.Coverage, model.Statistics.Experimental})
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	// Update values in place, preserving key order, provenance and authored fields.
+	// This reuses the repo's JSON editor rather than round-tripping through a
+	// narrower mirror that could erase fields added by future schema revisions.
+	if statsDrift {
+		for _, key := range []string{"total", "working", "aspirational", "broken", "coverage", "experimental"} {
+			value, err := json.Marshal(stats[key])
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			output, err = jsonparser.Set(output, value, "statistics", key)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
 	}
 
 	if *checkOnly {
@@ -146,15 +161,7 @@ func main() {
 		return
 	}
 
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(&d); err != nil {
-		fmt.Fprintf(os.Stderr, "encode manifest: %v\n", err)
-		os.Exit(1)
-	}
-	if err := os.WriteFile(*manifestPath, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(*manifestPath, output, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "write manifest: %v\n", err)
 		os.Exit(1)
 	}

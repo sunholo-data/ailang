@@ -353,7 +353,12 @@ runners and do not derive from Go's package-level test deadline.
 ### Documentation
 
 - Update CHANGELOG.md at each milestone
-- Create example files for new features
+- Create example files for new features. For runnable examples, add the file and an
+  authored entry (path, status, tags, description, and any run settings) to
+  `examples/manifest.json`, run `make sync-examples-manifest`, and commit both.
+  The sync command derives statistics and imported modules; `make verify-examples`
+  rejects stale derived fields and unlisted runnable files. Existing omissions
+  are explicitly grandfathered pending disposition in #1835; new examples need entries.
 - Keep design docs in sync with reality
 - Run `make fmt-check-ail` before opening a PR to catch canonical-form drift in
   `examples/` and `stdlib/`, and consider the opt-in post-edit formatter hook —
