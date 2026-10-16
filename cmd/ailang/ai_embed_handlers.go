@@ -143,6 +143,22 @@ func prepareRunEmbeddingPlan(cfg aiSetup, bound string) (*runEmbeddingPlan, erro
 	default:
 		return nil, fmt.Errorf("unsupported embedding provider %q", ecfg.Provider)
 	}
+	// Explicit embedding configuration follows the existing model-default policy.
+	// Resolve it before lazy construction so strict mode and the model are frozen.
+	if explicit && ecfg.Provider == "openai" && ecfg.OpenAI.Model == "" {
+		model, err := config.DeprecatedDefault(config.EnvEmbedOpenAIModel, "text-embedding-3-small")
+		if err != nil {
+			return nil, err
+		}
+		ecfg.OpenAI.Model = model
+	}
+	if explicit && ecfg.Provider == "gemini" && ecfg.Gemini.Model == "" {
+		model, err := config.DeprecatedDefault(config.EnvEmbedGeminiModel, "text-embedding-004")
+		if err != nil {
+			return nil, err
+		}
+		ecfg.Gemini.Model = model
+	}
 	keyFile := ""
 	if !explicit && (ecfg.Provider == "openai" || ecfg.Provider == "gemini") {
 		keyFile = cfg.KeyFile
@@ -164,13 +180,6 @@ func (p *runEmbeddingPlan) open() (effects.Embedder, error) {
 		} else {
 			ecfg.Gemini.APIKey = key
 		}
-	}
-	// Freeze missing model defaults too: deferred setup must not re-read model env.
-	if ecfg.Provider == "openai" && ecfg.OpenAI.Model == "" {
-		ecfg.OpenAI.Model = "text-embedding-3-small"
-	}
-	if ecfg.Provider == "gemini" && ecfg.Gemini.Model == "" {
-		ecfg.Gemini.Model = "text-embedding-004"
 	}
 	e, err := messaging.NewEmbedderFromConfig(ecfg)
 	if err != nil {

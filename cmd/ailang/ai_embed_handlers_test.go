@@ -205,3 +205,26 @@ func TestEmbeddingConfigurationDoesNotAffectRunsWithoutAI(t *testing.T) {
 		t.Fatal("AI run silently accepted invalid config")
 	}
 }
+
+func TestExplicitEmbeddingModelHonorsStrictConfiguration(t *testing.T) {
+	testutil.SetHomeDir(t, t.TempDir())
+	t.Setenv("AILANG_CONFIG", filepath.Join(t.TempDir(), "absent.yaml"))
+	t.Setenv("AILANG_STRICT_CONFIG", "1")
+	t.Setenv("AILANG_EMBED_OPENAI_MODEL", "")
+	t.Setenv("AILANG_EMBED_GEMINI_MODEL", "")
+	for _, provider := range []string{"openai", "gemini"} {
+		t.Setenv("AILANG_EMBED_PROVIDER", provider)
+		if _, err := prepareRunEmbeddingPlan(aiSetup{}, "openrouter"); err == nil {
+			t.Fatalf("%s missing explicit model bypassed strict config", provider)
+		}
+	}
+	t.Setenv("AILANG_EMBED_PROVIDER", "")
+	if _, err := prepareRunEmbeddingPlan(aiSetup{}, "openai"); err != nil {
+		t.Fatalf("documented derived model rejected: %v", err)
+	}
+	t.Setenv("AILANG_EMBED_PROVIDER", "openai")
+	t.Setenv("AILANG_EMBED_OPENAI_MODEL", "text-embedding-3-small")
+	if _, err := prepareRunEmbeddingPlan(aiSetup{}, "openrouter"); err != nil {
+		t.Fatalf("explicit pinned model rejected: %v", err)
+	}
+}

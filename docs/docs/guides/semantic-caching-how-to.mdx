@@ -506,6 +506,9 @@ export AILANG_EMBED_PROVIDER=gemini
 export AILANG_EMBED_GEMINI_MODEL=text-embedding-004
 ```
 
+Explicit cloud providers without a model use the existing deprecated-default warning;
+`AILANG_STRICT_CONFIG=1` requires the model to be pinned.
+
 Pin the embedding model for the lifetime of a namespace. Changing models can
 change vector dimensions and geometry; use a new namespace/file or re-embed the
 whole library. Configured embedders cache successful `(model, SHA256(text))`
