@@ -3,11 +3,14 @@
 //
 //  1. Schema: the manifest loads under internal/manifest (valid statuses, no
 //     duplicate paths, .ail extensions, consistent statistics).
+//
 //  2. Modules drift: every entry's committed `modules` field matches the actual
 //     std/* imports discovered by the SHARED parser-backed extractor
 //     (scripts/internal/importextract) — the same function the backfill uses, so
 //     the CI authority cannot disagree with the language. A stale/missing
 //     `modules` entry fails with the exact regeneration command.
+//
+//  3. Coverage: runnable files must be listed or explicitly grandfathered.
 //
 // It deliberately does NOT re-run each example (verify_examples.go owns actual
 // program output). Files listed in the manifest but absent on disk are reported
@@ -25,6 +28,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/sunholo-data/ailang/internal/manifest"
@@ -38,7 +43,60 @@ var (
 	bold   = color.New(color.Bold).SprintFunc()
 )
 
-const regenCmd = "go run ./scripts/backfill_manifest_modules.go"
+const regenCmd = "make sync-examples-manifest"
+
+// Baseline omissions measured at 482a9a4e (48; design measured 47).
+// Disposition each as a documented example, helper, or removal; tracked in #1835.
+var unmanifestedRunnable = map[string]string{
+	"runnable/ai_call_result.ail":                    "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/ai_image_generation.ail":               "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/ai_tool_loop.ail":                      "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/batch_processing.ail":                  "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/contracts/cross_module_types.ail":      "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/contracts/cross_module_types_lib.ail":  "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/contracts/ensures_violation_demo.ail":  "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/contracts/inbox_injection.ail":         "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/contracts/inbox_injection_v2.ail":      "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/contracts/record_discovery_verify.ail": "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/contracts/recursive_verify.ail":        "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/crypto_hashing.ail":                    "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/demos/adt_pipeline.ail":                "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/demos/hello_io.ail":                    "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/directory_listing.ail":                 "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/directory_ops.ail":                     "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/json_array_extraction.ail":             "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/json_bool_encoding.ail":                "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/json_helpers.ail":                      "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/jwt_decode.ail":                        "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/list_extremes.ail":                     "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/list_helpers.ail":                      "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/list_safe_indexing.ail":                "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/module_let_helpers.ail":                "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/reserved_keyword_names.ail":            "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/secrets/gated_secret.ail":              "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/secrets/leak_attempt.ail":              "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/secrets/secret_demo.ail":               "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/serve_api_mcp_app.ail":                 "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/serve_api_mcp_file.ail":                "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/serve_api_mcp_header_auth.ail":         "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/serve_api_mcp_hints.ail":               "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/serve_api_mcp_oauth.ail":               "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/serve_api_named_params.ail":            "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/set_operations.ail":                    "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/split_argument_order.ail":              "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/stream_sse.ail":                        "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/stream_websocket.ail":                  "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/string_chars.ail":                      "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/string_interp_nested.ail":              "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/string_interpolation.ail":              "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/string_repeat.ail":                     "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/syntax_ai_forgiving.ail":               "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/uuid.ail":                              "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/xml_build.ail":                         "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/xml_escape.ail":                        "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/xml_lenient.ail":                       "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+	"runnable/xml_zip_roundtrip.ail":                 "pre-existing unmanifested at 482a9a4e; disposition pending #1835",
+}
 
 func main() {
 	var (
@@ -58,6 +116,7 @@ func main() {
 	m, err := manifest.Load(*manifestPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s manifest failed schema validation: %v\n", red("✗"), err)
+		fmt.Fprintf(os.Stderr, "Regenerate with: %s\n", regenCmd)
 		os.Exit(1)
 	}
 
@@ -91,6 +150,49 @@ func main() {
 		} else if *verbose {
 			fmt.Printf("%s %s %v\n", green("✓"), ex.Path, actual)
 		}
+	}
+
+	// Match physical paths so legacy bare names and runnable/ names agree.
+	listed := make(map[string]bool)
+	for _, ex := range m.Examples {
+		if full, ok := importextract.ResolvePath(*examplesDir, ex.Path); ok {
+			abs, err := filepath.Abs(full)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			listed[filepath.ToSlash(filepath.Clean(abs))] = true
+		}
+	}
+	unlisted := 0
+	err = filepath.WalkDir(filepath.Join(*examplesDir, "runnable"), func(path string, item os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if item.IsDir() || filepath.Ext(path) != ".ail" || strings.HasPrefix(item.Name(), "_") {
+			return nil
+		}
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(*examplesDir, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		if !listed[filepath.ToSlash(filepath.Clean(abs))] && unmanifestedRunnable[rel] == "" {
+			unlisted++
+			fmt.Printf("unlisted runnable example: %s (add an authored manifest entry, then run %s)\n", rel, regenCmd)
+		}
+		return nil
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "enumerate runnable examples: %v\n", err)
+		os.Exit(1)
+	}
+	if unlisted > 0 && *ciMode {
+		os.Exit(1)
 	}
 
 	fmt.Printf("\n%s modules checked, %s drift, %s missing-on-disk\n",
