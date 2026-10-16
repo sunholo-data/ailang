@@ -1,0 +1,63 @@
+{
+  "sprint_id": "M-RUN-ENTRY-NO-EXPORTS-FAIL-LOUD",
+  "status": "not_started",
+  "created": "2026-10-16T14:40:53.265782+00:00",
+  "design_doc": "design_docs/planned/v0_54_8/m-run-entry-no-exports-fail-loud.md",
+  "sprint_plan": "design_docs/planned/v0_54_8/m-run-entry-no-exports-fail-loud-sprint-plan.md",
+  "github_issues": [
+    1797
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search: ailang pkg search entrypoint returned no packages; Go runner policy, CLI tests and repository documentation require local changes."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search: ailang pkg search entrypoint returned no packages; Go runner policy, CLI tests and repository documentation require local changes."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 360,
+    "estimated_total_loc": 180,
+    "estimated_days": 0.5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Complete module dispatch and entry diagnostics",
+      "estimated_loc": 80,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "All zero-export modules fail with exit 1 and module/entry/export repair anchors, including absent and private entries.",
+        "Single, batch including zero inputs, and caps auto cannot silently succeed.",
+        "Exported-entry auto-selection remains unchanged; focused runner tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "CLI regression matrix and user documentation",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "CLI regression matrix covers zero-export entries, batch, caps auto, exported main, scripts, check and inline tests.",
+        "Modules reference and unreleased changelog document the export repair.",
+        "make test-changed, make check-file-sizes and make check-changelog pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
