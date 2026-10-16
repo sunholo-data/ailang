@@ -149,6 +149,12 @@ export pure func decodeF64LE(b: bytes) -> Result[[float], string] = _vec_decode_
 -- semantic meaning. Use --ai-stub-fixtures for realistic vectors or failures.
 -- The local Ollama endpoint is independent of the --ai chat provider.
 export func ollamaEmbed(model: string, text: string) -> [float] ! {AI} = _ollama_embed(model, text)
-export func ollamaEmbedResult(model: string, text: string) -> Result[[float], string] ! {AI} = _ollama_embed_result(model, text)
-export func ollamaEmbedMedia(model: string, text: string, image: bytes, audio: bytes) -> [float] ! {AI} = _ollama_embed_media(model, text, image, audio)
-export func ollamaEmbedMediaResult(model: string, text: string, image: bytes, audio: bytes) -> Result[[float], string] ! {AI} = _ollama_embed_media_result(model, text, image, audio)
+
+export func ollamaEmbedResult(model: string, text: string) -> Result[[float], string] ! {AI} =
+  _ollama_embed_result(model, text)
+
+export func ollamaEmbedMedia(model: string, text: string, image: bytes, audio: bytes) -> [float] ! {AI} =
+  _ollama_embed_media(model, text, image, audio)
+
+export func ollamaEmbedMediaResult(model: string, text: string, image: bytes, audio: bytes) -> Result[[float], string] ! {AI} =
+  _ollama_embed_media_result(model, text, image, audio)

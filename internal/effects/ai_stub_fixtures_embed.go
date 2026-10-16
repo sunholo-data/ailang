@@ -9,6 +9,28 @@ import (
 	"strings"
 )
 
+// fixtureVector rejects null coordinates: encoding/json otherwise silently
+// turns a JSON null into float64 zero, hiding malformed fixture data.
+type fixtureVector []float64
+
+func (v *fixtureVector) UnmarshalJSON(data []byte) error {
+	var raw []json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	values := make([]float64, len(raw))
+	for i, coordinate := range raw {
+		if bytes.Equal(bytes.TrimSpace(coordinate), []byte("null")) {
+			return fmt.Errorf("embed vector coordinate %d must be numeric", i)
+		}
+		if err := json.Unmarshal(coordinate, &values[i]); err != nil {
+			return err
+		}
+	}
+	*v = values
+	return nil
+}
+
 // EmbedFixtureCanonical keys text and media separately. Media includes explicit
 // presence flags, never raw image/audio data. Compact sorted JSON, no HTML escaping.
 func EmbedFixtureCanonical(model, text string, media, image, audio bool) string {

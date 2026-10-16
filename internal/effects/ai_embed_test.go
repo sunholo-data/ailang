@@ -91,6 +91,10 @@ func TestEmbedStubAndLazy(t *testing.T) {
 			t.Fatal("not input dependent")
 		}
 	}
+	ctx.AI = NewAIContext(&routingStubHandler{response: "unrelated chat"})
+	if v, err := Call(ctx, "AI", "embedOllama", embedArgs(false)); err != nil || len(v.(*eval.ListValue).Elements) != 2 {
+		t.Fatal("chat handler rerouted embedding", v, err)
+	}
 	ctx.AI = NewLazyAIContext(func() (*AIContext, error) { t.Fatal("embedding initialized chat provider"); return nil, ErrNoAIHandler })
 	if _, err := Call(ctx, "AI", "embedOllama", embedArgs(false)); err != nil {
 		t.Fatal(err)
@@ -140,5 +144,31 @@ func TestEmbedTrace(t *testing.T) {
 			}
 		}
 		server.Close()
+	}
+}
+
+func TestEmbedEmptyMediaAcrossModes(t *testing.T) {
+	for _, stub := range []bool{false, true} {
+		ctx := NewEffContext(nil)
+		ctx.Grant(NewCapability("AI"))
+		if stub {
+			ctx.AI = NewAIContext(NewStubAIHandler())
+		}
+		a := []eval.Value{&eval.StringValue{Value: "m"}, &eval.StringValue{}, &eval.BytesValue{}, &eval.BytesValue{}}
+		if _, err := Call(ctx, "AI", "embedOllamaMedia", a); err == nil || !strings.Contains(err.Error(), "all empty") {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestStubEmbedInputIdentity(t *testing.T) {
+	base := StubEmbed("m", "hello", true, nil, nil)
+	if !reflect.DeepEqual(base, StubEmbed("m", "hello", true, []byte{}, []byte{})) {
+		t.Fatal("absent bytes changed stub")
+	}
+	for _, other := range [][]float64{StubEmbed("different", "hello", true, nil, nil), StubEmbed("m", "hello", true, []byte{1}, nil), StubEmbed("m", "hello", true, nil, []byte{1})} {
+		if reflect.DeepEqual(base, other) {
+			t.Fatal("distinct request reused stub")
+		}
 	}
 }

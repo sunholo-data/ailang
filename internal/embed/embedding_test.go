@@ -3,7 +3,9 @@ package embed
 import (
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -13,8 +15,18 @@ func TestEmbeddingEvaluatorBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(root, "std"))
+	fixturePath := filepath.Join(t.TempDir(), "embedding.json")
+	if err := os.WriteFile(fixturePath, []byte(`{"version":1,"fixtures":[
+ {"kind":"embed","request":{"model":"m","text":"hi"},"error":{"message":"fixture offline"}},
+ {"kind":"embed","request":{"model":"m","text":"hi","image":false,"audio":false},"error":{"message":"fixture offline"}}]}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	fixtures, err := effects.LoadStubFixtures(fixturePath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, fn := range []string{"text", "textResult", "media", "mediaResult"} {
-		for _, mode := range []string{"success", "no-cap", "budget", "operator"} {
+		for _, mode := range []string{"success", "provider", "no-cap", "budget", "operator"} {
 			t.Run(fn+"/"+mode, func(t *testing.T) {
 				engine := New(root)
 				defer engine.Close()
@@ -30,6 +42,9 @@ func TestEmbeddingEvaluatorBudget(t *testing.T) {
 						ctx.Grant(effects.NewCapability("AI"))
 					}
 					ctx.AI = effects.NewAIContext(effects.NewStubAIHandler())
+					if mode == "provider" {
+						ctx.AI = effects.NewAIContext(effects.NewFixtureAIHandler(fixtures))
+					}
 					n := 1
 					if mode == "budget" {
 						n = 0
@@ -41,6 +56,23 @@ func TestEmbeddingEvaluatorBudget(t *testing.T) {
 					}
 					ctx.SetOperatorBudget(effects.NewOperatorBudget(map[string]int{"AI": ceiling}))
 				}, "internal/embed/testdata/embedding", fn)
+				if mode == "provider" {
+					if ctx.Budget.Used("AI") != 1 || ctx.OperatorBudgetUsage()["AI"] != 1 {
+						t.Fatal("failure charge", ctx.Budget.Used("AI"), ctx.OperatorBudgetUsage())
+					}
+					if strings.HasSuffix(fn, "Result") {
+						if err != nil {
+							t.Fatal(err)
+						}
+						tag := v.(*eval.TaggedValue)
+						if tag.CtorName != "Err" || tag.Fields[0].(*eval.StringValue).Value != "fixture offline" {
+							t.Fatal(v)
+						}
+					} else if err == nil || !strings.Contains(err.Error(), "fixture offline") {
+						t.Fatal(v, err)
+					}
+					return
+				}
 				if mode != "success" {
 					if err == nil {
 						t.Fatalf("denial became catchable value: %v", v)

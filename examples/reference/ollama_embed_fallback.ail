@@ -1,0 +1,29 @@
+-- Offline: ailang run --caps AI,IO --ai-stub --ai-stub-fixtures examples/reference/ollama_embed_fallback_fixtures.json --entry main examples/reference/ollama_embed_fallback.ail
+-- Live: OLLAMA_HOST=http://127.0.0.1:1 ailang run --caps AI,IO --entry main examples/reference/ollama_embed_fallback.ail
+module examples/reference/ollama_embed_fallback
+import std/embedding (ollamaEmbedResult)
+import std/result (Result, Ok, Err)
+import std/io (println)
+
+-- Pure branch selection has inline tests; provider effects use fixture replay.
+-- Contracts skipped: inference depends on the external provider.
+export pure func status(result: Result[[float], string]) -> string {
+  match result {
+    Ok(vector) => "embedding available",
+    Err(message) => "fallback: ${message}"
+  }
+}
+
+-- Exercise the formatter with both Result branches.
+pure func statusCase(success: bool) -> string
+  tests [
+    (true, "embedding available"),
+    (false, "fallback: offline")
+  ] {
+  status(if success then Ok([1.0]) else Err("offline"))
+}
+
+export func main() -> unit ! {AI, IO} {
+  println(status(ollamaEmbedResult("embeddinggemma-2", "hello")))
+  println(status(ollamaEmbedResult("no-such-model", "hello")))
+}

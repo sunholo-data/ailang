@@ -76,11 +76,11 @@ type fixtureToolCall struct {
 }
 
 type fixtureEntry struct {
-	Vector []float64 `json:"vector,omitempty"`
-	Kind   string    `json:"kind"`
-	SHA256 string    `json:"sha256,omitempty"`
-	Prompt *string   `json:"prompt,omitempty"`
-	// speech: the literal request, instead of "sha256"
+	Vector fixtureVector `json:"vector,omitempty"`
+	Kind   string        `json:"kind"`
+	SHA256 string        `json:"sha256,omitempty"`
+	Prompt *string       `json:"prompt,omitempty"`
+	// speech/embed: the literal request, instead of "sha256"
 	Request *SpeechFixtureRequest `json:"request,omitempty"`
 
 	// text
@@ -97,7 +97,9 @@ type fixtureEntry struct {
 	decoded []byte // image or PCM bytes, decoded at load
 }
 
-// SpeechFixtureRequest is a callSpeech request as a fixture names it.
+// SpeechFixtureRequest names a literal speech or embedding request. Embedding
+// requests use Model and optional explicit Image/Audio presence flags; speech
+// requests use Voice/Style. Keeping one JSON shape preserves version-1 decoding.
 type SpeechFixtureRequest struct {
 	Model *string `json:"model,omitempty"`
 	Image *bool   `json:"image,omitempty"`

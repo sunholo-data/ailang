@@ -1,7 +1,7 @@
 # Sprint Plan: M-OLLAMA-EMBED-RESULT-AI-EFFECT
 
 **Design:** [m-ollama-embed-result-ai-effect.md](m-ollama-embed-result-ai-effect.md)
-**Status:** Planned; implementation awaits coordinator plan approval.
+**Status:** Implementation complete; final validation in progress.
 **Duration:** 3 engineering days, approximately 8 hours including 25% integration buffer.
 **Risk:** Medium — effect relabel and runtime budget/error boundaries.
 
@@ -132,3 +132,14 @@ Error fixture payloads carry string messages; preserve supplied fixture messages
 Sprint JSON dependencies use exact milestone IDs. All passes/started/completed values begin null. Executor updates progress incrementally and finishes through sprint-evaluator. No additional package, provider abstraction, parser change, batch API or messaging embedder consolidation is in scope.
 
 Execution deviation: the transport helper lives in `internal/ai/ollama/embed` to avoid the existing parent-package dependency through OpenAI and telemetry back to effects. No provider-layer refactor was needed.
+
+## Execution notes
+
+- AILANG prompt version loaded: v0.16.7. New fallback module has pure formatter inline tests (both Result branches), explicit AI/IO effects, and fixture-driven inference; contracts remain inapplicable to provider-dependent output. Existing integration examples skip inline tests because HTTP/fixture and evaluator tests cover provider behavior.
+- Migrated reference examples also needed canonical module paths, exported entrypoints and string interpolation to run with the current compiler.
+- Intentionally updated `.stdlib-golden/embedding.{json,sha256}` for the four approved public wrappers and `internal/pipeline/testdata/builtin_types.golden` for the two new Result signatures plus IO→AI changes.
+- Fixture numeric validation rejects null coordinates; zero-length media representations yield identical stub vectors.
+- CLI smoke: all four wrappers work with AI alone, no chat provider, against a fake endpoint; IO-only grants and legacy IO rows are rejected; auto caps, fixture success/error, stub semantic search and controlled unreachable-loopback recovery pass.
+- `make verify-stdlib` (48 interfaces), `make verify-examples`, boundary/size/changelog gates, touched Go/AIl formatting, focused Go vet, two inline tests and focused embedding/AI fixture/speech regressions pass.
+- Starting-commit baseline (`9c30ac23`) reproduces `TestRuntimeNestedStopUsesRemainingDeadline` and `TestProcessExec_TimeoutKillsGrandchildren` failures. Repository fmt-check also flags untouched `internal/eval_harness/pi_models_config_test.go`, including in the baseline checkout.
+- Core pipeline stress test `TestCoreTIDAG_SharedSubtreesCollapse` was killed under memory pressure; a bounded diagnostic run was stopped at its 10k-entry expansion. The remaining pipeline suite passes (66s). These unrelated tests are left unchanged.

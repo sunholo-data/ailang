@@ -52,6 +52,17 @@ func processData() -> Data ! {IO, FS} {
 - **Testing**: Mock effects for deterministic testing
 - **AI-Friendly**: Models can verify effect safety statically
 
+## Ollama embedding authority
+
+`std/embedding.ollamaEmbed` and `ollamaEmbedMedia` require `! {AI}`, including
+when called through the underscore builtins. IO alone cannot authorize them.
+`ollamaEmbedResult` and `ollamaEmbedMediaResult` return `Result[[float], string]`
+for provider failures. Missing capability and exhausted AI budgets still abort.
+Each call consumes one AI budget unit and respects the operator ceiling.
+Embedding-only programs use `--caps AI` without a chat `--ai` model. `--ai-stub`
+and `--ai-stub-fixtures` cover embeddings offline; see the
+[embedding fixture example](/docs/guides/semantic-search#recovering-from-unavailable-embeddings).
+
 ## Available Effects
 
 ### IO Effect

@@ -132,9 +132,10 @@ curl http://localhost:11434/api/embed -d '{
 Or test with AILANG:
 ```ailang
 module test_embedding
+import std/embedding (ollamaEmbed)
 
-func main() -> string ! {IO} {
-  let emb = _ollama_embed("embeddinggemma", "Hello world")
+func main() -> string ! {AI, IO} {
+  let emb = ollamaEmbed("embeddinggemma", "Hello world")
   in "Got ${intToStr(_array_length(emb))}-dimensional embedding"
 }
 ```
@@ -147,23 +148,24 @@ Full example using embeddings for semantic search:
 
 ```ailang
 module examples/neural_search
+import std/embedding (ollamaEmbed)
 
 import std/string (floatToStr, intToStr)
 
 -- Store a belief with its embedding
-func store_belief(ns: string, key: string, text: string, ver: int, ts: int) -> unit ! {IO, SharedIndex} {
-  let embedding = _ollama_embed("embeddinggemma", text)
+func store_belief(ns: string, key: string, text: string, ver: int, ts: int) -> unit ! {AI, IO, SharedIndex} {
+  let embedding = ollamaEmbed("embeddinggemma", text)
   in let simhash = _simhash(text)
   in _sharedindex_upsert_emb(ns, key, simhash, embedding, ver, ts)
 }
 
 -- Search by semantic similarity
-func search(ns: string, query: string, top_k: int) -> list[{key: string, score: float, version: int, timestamp: int}] ! {IO, SharedIndex} {
-  let query_emb = _ollama_embed("embeddinggemma", query)
+func search(ns: string, query: string, top_k: int) -> list[{key: string, score: float, version: int, timestamp: int}] ! {AI, IO, SharedIndex} {
+  let query_emb = ollamaEmbed("embeddinggemma", query)
   in _sharedindex_find_by_embedding(ns, query_emb, top_k, 100, true)
 }
 
-func main() -> string ! {IO, SharedIndex} {
+func main() -> string ! {AI, IO, SharedIndex} {
   -- Store beliefs
   let _ = store_belief("beliefs", "b1", "The sky is blue during daytime", 1, 1000)
   in let _ = store_belief("beliefs", "b2", "Stars are visible at night", 1, 2000)
@@ -190,7 +192,7 @@ func print_results(results: list[{key: string, score: float, version: int, times
 
 Run:
 ```bash
-ailang run --caps IO,SharedIndex --entry main examples/neural_search.ail
+ailang run --caps AI,IO,SharedIndex --entry main examples/neural_search.ail
 ```
 
 ---
@@ -221,8 +223,13 @@ ollama pull nomic-embed-text
 ollama pull mxbai-embed-large
 ollama pull all-minilm
 
-# Use in AILANG
-let emb = _ollama_embed("nomic-embed-text", "Hello world")
+```
+
+Use in AILANG:
+
+```ailang
+import std/embedding (ollamaEmbed)
+let emb = ollamaEmbed("nomic-embed-text", "Hello world")
 ```
 
 ---
@@ -261,7 +268,7 @@ embeddings:
 
 ### Timeout Configuration
 
-The `_ollama_embed` builtin uses a 30-second timeout by default. For large batches or slow networks, ensure Ollama is running locally.
+The `ollamaEmbed` wrapper uses a 30-second timeout by default. For large batches or slow networks, ensure Ollama is running locally.
 
 ---
 
@@ -291,9 +298,10 @@ This means a 50KB design document will be split into ~8 chunks, each embedded se
 Generate embeddings once at insert time, not at query time:
 
 ```ailang
+import std/embedding (ollamaEmbed)
 -- GOOD: Store embedding with data
-func store_item(text: string) -> unit ! {IO, SharedIndex} {
-  let emb = _ollama_embed("embeddinggemma", text)
+func store_item(text: string) -> unit ! {AI, IO, SharedIndex} {
+  let emb = ollamaEmbed("embeddinggemma", text)
   in _sharedindex_upsert_emb("items", key, _simhash(text), emb, 1, now())
 }
 ```
@@ -361,12 +369,13 @@ let results = _sharedindex_find_by_embedding("items", query_emb, 10, 500, true)
 Combine both tiers for best results:
 
 ```ailang
-func hybrid_search(ns: string, query: string, top_k: int) -> list[search_result] ! {IO, SharedIndex} {
+import std/embedding (ollamaEmbed)
+func hybrid_search(ns: string, query: string, top_k: int) -> list[search_result] ! {AI, IO, SharedIndex} {
   -- Tier 1: Fast SimHash pre-filter (get top 100 candidates)
   let simhash_results = _sharedindex_find_simhash(ns, _simhash(query), 100, 1000, true)
 
   -- Tier 2: Re-rank with embeddings (slower, more accurate)
-  in let query_emb = _ollama_embed("embeddinggemma", query)
+  in let query_emb = ollamaEmbed("embeddinggemma", query)
   in let emb_results = _sharedindex_find_by_embedding(ns, query_emb, top_k, 100, true)
 
   in emb_results  -- Return embedding-ranked results
@@ -437,8 +446,9 @@ _sharedindex_find_simhash(ns: string, query_hash: int, top_k: int, max_scan: int
 ### Embedding Builtins
 
 ```ailang
+import std/embedding (ollamaEmbed)
 -- Generate embedding vector (requires Ollama)
-_ollama_embed(model: string, text: string) -> list[float] ! {IO}
+ollamaEmbed(model: string, text: string) -> list[float] ! {AI, IO}
 
 -- Store with SimHash + embedding
 _sharedindex_upsert_emb(ns: string, key: string, simhash: int, embedding: list[float], ver: int, ts: int)
@@ -549,3 +559,42 @@ See [Agent Messaging - Semantic Search](/docs/guides/agent-messaging#semantic-se
 - [Agent Messaging](/docs/guides/agent-messaging) - Building multi-agent systems (includes semantic search)
 - [Examples](/docs/examples) - More working examples
 
+## Recovering from unavailable embeddings
+
+Import `ollamaEmbedResult` from `std/embedding` to receive
+`Result[[float], string]`. Match `Ok(vector)` to use neural retrieval and
+`Err(message)` to use SimHash or skip retrieval. The media equivalent is
+`ollamaEmbedMediaResult(model, text, image, audio)`; empty media bytes mean absent
+parts, and at least one text/image/audio part must be present.
+
+All four wrappers require `! {AI}` and `--caps AI`, consume one AI budget unit,
+and respect operator ceilings. Capability and budget denials remain runtime errors.
+Existing IO-only embedding signatures must add AI. The Ollama endpoint and per-call
+model are independent of the `--ai` chat provider; embedding-only programs need no
+`--ai` flag. Text and media timeouts remain 30 and 120 seconds.
+
+Run both success and recovery paths offline:
+
+```bash
+ailang run --caps AI,IO --ai-stub --ai-stub-fixtures examples/reference/ollama_embed_fallback_fixtures.json --entry main examples/reference/ollama_embed_fallback.ail
+```
+
+Without fixtures, `--ai-stub` produces deterministic eight-dimensional unit vectors
+that test wiring, without semantic meaning. Fixtures supply realistic vectors or
+errors. A missing fixture fails explicitly (a Result call returns that failure as Err).
+
+Version-1 fixture entries use kind `embed`, with `vector: [1.0, 0.0]` or
+`error: {"message": "Ollama unavailable"}`. The request can be literal or its
+lowercase SHA-256 key:
+
+```json
+{"kind":"embed","request":{"model":"embeddinggemma-2","text":"hello"},"vector":[1.0,0.0]}
+```
+
+Canonical text bytes are compact sorted JSON `{"model":M,"text":T}` with no HTML
+escaping. Media bytes are `{"audio":A,"image":I,"model":M,"text":T}`, where A/I
+are booleans indicating part presence. Media fixture requests must include both
+booleans, even when false; they never fall back to text keys. Replace `request`
+with `sha256` to use the hash. Media contents are excluded from fixture keys and
+traces; fixture error messages replay verbatim. Real transport errors retain the
+`_ollama_embed: Ollama embed failed:` or `_ollama_embed_media:` prefix.

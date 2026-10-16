@@ -442,7 +442,7 @@ func registerSharedIndexUpsertWithEmbedding() {
 			},
 			Returns: "unit",
 			Examples: []Example{
-				{Code: `let emb = _ollama_embed("embeddinggemma", text) in _sharedindex_upsert_emb("beliefs", "b1", hash, emb, 1, ts)`, Description: "Store belief with embedding"},
+				{Code: `let emb = ollamaEmbed("embeddinggemma", text) in _sharedindex_upsert_emb("beliefs", "b1", hash, emb, 1, ts)`, Description: "Store belief with embedding"},
 			},
 			SeeAlso:   []string{"_sharedindex_find_by_embedding", "_ollama_embed"},
 			Since:     "v0.5.11",
@@ -554,7 +554,7 @@ func registerSharedIndexFindByEmbedding() {
 			},
 			Returns: "list[{key: string, score: float, version: int, timestamp: int}]",
 			Examples: []Example{
-				{Code: `let qemb = _ollama_embed("embeddinggemma", query) in _sharedindex_find_by_embedding("beliefs", qemb, 5, 100, true)`, Description: "Find top 5 semantically similar beliefs"},
+				{Code: `let qemb = ollamaEmbed("embeddinggemma", query) in _sharedindex_find_by_embedding("beliefs", qemb, 5, 100, true)`, Description: "Find top 5 semantically similar beliefs"},
 			},
 			SeeAlso:   []string{"_sharedindex_upsert_emb", "_ollama_embed", "_sharedindex_find_simhash"},
 			Since:     "v0.5.11",

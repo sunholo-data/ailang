@@ -28,6 +28,12 @@ type embeddingStub interface {
 // StubEmbed produces eight input-dependent unit coordinates. These vectors prove
 // wiring and format only; they have no semantic meaning. Use fixtures for realism.
 func StubEmbed(model, text string, media bool, image, audio []byte) []float64 {
+	if len(image) == 0 {
+		image = nil
+	}
+	if len(audio) == 0 {
+		audio = nil
+	}
 	canonical, _ := json.Marshal([]any{model, text, media, image, audio})
 	sum := sha256.Sum256(canonical)
 	vector := make([]float64, 8)

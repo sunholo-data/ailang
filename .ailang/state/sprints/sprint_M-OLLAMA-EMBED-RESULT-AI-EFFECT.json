@@ -127,9 +127,9 @@
         "Format touched Go/AIl files and run focused lint for touched packages; existing std/ai Result and speech stub regressions remain green."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-16T20:27:29.395901+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Examples, fixture demo, docs, changelog and intentional interface/type snapshots updated. CLI smoke and focused tests pass. Baseline process lifecycle failures and existing Go format drift verified; final broader gates in progress."
     }
   ]
 }

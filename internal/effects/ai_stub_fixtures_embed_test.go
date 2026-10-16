@@ -2,6 +2,7 @@ package effects
 
 import (
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/eval"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -49,6 +50,7 @@ func TestEmbedFixturesValidation(t *testing.T) {
 	for _, entry := range []string{
 		`{"request":{"model":"m","text":"t"},"vector":[]}`,
 		`{"request":{"model":"m","text":"t"},"vector":["bad"]}`,
+		`{"request":{"model":"m","text":"t"},"vector":[null]}`,
 		`{"request":{"model":"m","text":"t","image":true},"vector":[1]}`,
 		`{"request":{"model":"m","text":"t"},"vector":[1],"error":{"message":"oops"}}`,
 		`{"prompt":"t","vector":[1]}`,
@@ -58,5 +60,36 @@ func TestEmbedFixturesValidation(t *testing.T) {
 		if _, err := loadEmbedFixture(t, `{"kind":"embed",`+strings.TrimPrefix(entry, "{")); err == nil {
 			t.Errorf("accepted %s", entry)
 		}
+	}
+}
+
+func TestEmbedFixtureDispatch(t *testing.T) {
+	f, err := loadEmbedFixture(t, `{"kind":"embed","request":{"model":"test-model","text":"hello"},"vector":[1,2]},
+ {"kind":"embed","request":{"model":"test-model","text":"hello","image":true,"audio":false},"vector":[3,4]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := NewEffContext(nil)
+	ctx.Grant(NewCapability("AI"))
+	ctx.AI = NewAIContext(NewFixtureAIHandler(f))
+	for _, media := range []bool{false, true} {
+		op := "embedOllama"
+		want := 1.0
+		if media {
+			op = "embedOllamaMedia"
+			want = 3
+		}
+		v, err := Call(ctx, "AI", op, embedArgs(media))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v.(*eval.ListValue).Elements[0].(*eval.FloatValue).Value != want {
+			t.Fatal(v)
+		}
+	}
+	a := embedArgs(false)
+	a[1] = &eval.StringValue{Value: "missing"}
+	if _, err := Call(ctx, "AI", "embedOllama", a); err == nil || !strings.Contains(err.Error(), "E_AI_STUB_FIXTURE_MISS") {
+		t.Fatal(err)
 	}
 }
