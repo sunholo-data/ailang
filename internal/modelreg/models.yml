@@ -2565,9 +2565,8 @@ models:
     motoko_profile: "cloud"                            # .motoko/config/cloud — matches the other cloud-routed motoko rows
     agent_model_name: "openrouter/z-ai/glm-5.3-flash"
     model_family: "glm-5"
-    max_output_tokens: 32000 # = pi's wire budget (2026-10-08). At 65536 GLM-Flash reasoned to the cap on hard benchmarks (gauntlet_10: 3 of 4 steps, 197k output tokens) and each runaway step cost twice pi's; the 10-02 lane A/B tied 55/69 but motoko cost $6.86 vs pi $4.20
-                              # (at 32768 its thinking phase hit OUR cap: 6 finish=length, 3 with
-                              # ZERO content). Within every provider's declared ceiling (131072+).
+    max_output_tokens: 131072  # ONE wire config for this api_name across every harness (Mark, 2026-10-16: option A). Rows sharing an api_name must agree (TestModels_SameAPINameSameWireBudget). The hosts' declared ceiling; on 10-16 motoko hit 32000 27x on the hard set (finish=length) while pi, whose installed config never carried the model, sent ~943k — every glm-flash pi-vs-motoko A/B before then compared two different requests.
+    reasoning_effort: "high"   # = what pi sent on 10-16 (pi 26/27 vs motoko-at-32k 20/27); unset left motoko at the vendor default. Reaches motoko through the OpenRouter client's per-api_name default, pi through --thinking.
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
       output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
@@ -2596,7 +2595,8 @@ models:
     motoko_profile: "ailang_only"                      # .motoko/config/ailang_only — ailang_policy first, strict, hybrid off
     agent_model_name: "openrouter/z-ai/glm-5.3-flash"
     model_family: "glm-5"
-    max_output_tokens: 32000 # = pi's wire budget (2026-10-08). At 65536 GLM-Flash reasoned to the cap on hard benchmarks (gauntlet_10: 3 of 4 steps, 197k output tokens) and each runaway step cost twice pi's; the 10-02 lane A/B tied 55/69 but motoko cost $6.86 vs pi $4.20
+    max_output_tokens: 131072  # ONE wire config for this api_name across every harness (Mark, 2026-10-16: option A). Rows sharing an api_name must agree (TestModels_SameAPINameSameWireBudget). The hosts' declared ceiling; on 10-16 motoko hit 32000 27x on the hard set (finish=length) while pi, whose installed config never carried the model, sent ~943k — every glm-flash pi-vs-motoko A/B before then compared two different requests.
+    reasoning_effort: "high"   # = what pi sent on 10-16 (pi 26/27 vs motoko-at-32k 20/27); unset left motoko at the vendor default. Reaches motoko through the OpenRouter client's per-api_name default, pi through --thinking.
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
       output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
@@ -2621,7 +2621,8 @@ models:
     agent_cli: "pi"
     agent_model_name: "openrouter/z-ai/glm-5.3-flash"
     model_family: "glm-5"
-    max_output_tokens: 32000  # pi's wire budget (tools/pi-extensions/models.mission.json maxTokens); the motoko arm declares 65536 — a known A/B asymmetry, check finish_reason=length on pi rows
+    max_output_tokens: 131072  # ONE wire config for this api_name across every harness (Mark, 2026-10-16: option A). Rows sharing an api_name must agree (TestModels_SameAPINameSameWireBudget). The hosts' declared ceiling; on 10-16 motoko hit 32000 27x on the hard set (finish=length) while pi, whose installed config never carried the model, sent ~943k — every glm-flash pi-vs-motoko A/B before then compared two different requests.
+    reasoning_effort: "high"   # = what pi sent on 10-16 (pi 26/27 vs motoko-at-32k 20/27); unset left motoko at the vendor default. Reaches motoko through the OpenRouter client's per-api_name default, pi through --thinking.
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
       output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
@@ -2917,7 +2918,8 @@ models:
     agent_cli: "opencode"
     agent_model_name: "openrouter/z-ai/glm-5.3-flash"
     model_family: "glm-5"
-    max_output_tokens: 65536  # always-thinking model — headroom, per the GLM-5.2 truncation lesson
+    max_output_tokens: 131072  # ONE wire config for this api_name across every harness (Mark, 2026-10-16: option A). Rows sharing an api_name must agree (TestModels_SameAPINameSameWireBudget). The hosts' declared ceiling; on 10-16 motoko hit 32000 27x on the hard set (finish=length) while pi, whose installed config never carried the model, sent ~943k — every glm-flash pi-vs-motoko A/B before then compared two different requests.
+    reasoning_effort: "high"   # = what pi sent on 10-16 (pi 26/27 vs motoko-at-32k 20/27); unset left motoko at the vendor default. Reaches motoko through the OpenRouter client's per-api_name default, pi through --thinking.
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
       output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
@@ -5408,10 +5410,8 @@ models:
                                    # finish=stop (provider GMICloud).
     description: "GLM-5.3-Flash via OpenRouter (standard mode) — z.ai 320B-A18B MIT release 2026-08-26 (previewed as Ox Alpha), natively multimodal, 1M ctx. Smoke + core PASSED 2026-08-27 (core ties or-glm-5-2 after N=3 de-flake, at ~1/13 cost); suite promotion awaits ratification."
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 65536  # always-thinking model — headroom, per the GLM-5.2 truncation
-                              # lesson. Declared ceilings 2026-08-27 (/endpoints): Z.AI
-                              # first-party max_completion=131072, others 131072–1179648.
-                              # 65536 is the fleet target, within every provider's ceiling.
+    max_output_tokens: 131072  # ONE wire config for this api_name across every harness (Mark, 2026-10-16: option A). Rows sharing an api_name must agree (TestModels_SameAPINameSameWireBudget). The hosts' declared ceiling; on 10-16 motoko hit 32000 27x on the hard set (finish=length) while pi, whose installed config never carried the model, sent ~943k — every glm-flash pi-vs-motoko A/B before then compared two different requests.
+    reasoning_effort: "high"   # = what pi sent on 10-16 (pi 26/27 vs motoko-at-32k 20/27); unset left motoko at the vendor default. Reaches motoko through the OpenRouter client's per-api_name default, pi through --thinking.
     model_family: "glm-5"
     # OpenRouter routing for every AILANG caller of this api_name (motoko, std/ai).
     # VALUE = pi's effective pool, so motoko and pi compare on equal hosts: pi sends
@@ -5437,6 +5437,11 @@ models:
     # ~700 s for an 8k-token reasoning call vs ~38 s on coreweave), so every
     # OpenRouter request now defaults to provider.sort "throughput"
     # (internal/ai/openrouter/routing.go). This list still applies on top.
+    # pi never received any of this until 2026-10-16: it calls OpenRouter with its
+    # own client, so it sent no provider block at all. It now gets the same block
+    # (plus sort "throughput") as compat.openRouterRouting in
+    # tools/pi-extensions/models.mission.json, held equal by
+    # TestPiModelsConfigMatchesRegistry.
     openrouter_provider:
       only: ["inceptron", "gmicloud", "decart", "near-ai", "modal", "crusoe", "coreweave", "fireworks", "friendli", "together", "parasail"]
     pricing:

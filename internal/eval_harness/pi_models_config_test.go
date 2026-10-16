@@ -21,6 +21,9 @@ type piModelsConfig struct {
 			ContextWindow    int                `json:"contextWindow"`
 			Reasoning        *bool              `json:"reasoning"`
 			ThinkingLevelMap map[string]*string `json:"thinkingLevelMap"`
+			Compat           struct {
+				OpenRouterRouting map[string]any `json:"openRouterRouting"`
+			} `json:"compat"`
 		} `json:"models"`
 	} `json:"providers"`
 }
@@ -75,6 +78,7 @@ func TestPiModelsConfigMatchesRegistry(t *testing.T) {
 	type entry struct {
 		key    string
 		budget int
+		effort string
 	}
 	// (provider, api_name) -> every registry row that names it.
 	declared := map[string]map[string][]entry{}
@@ -89,7 +93,7 @@ func TestPiModelsConfigMatchesRegistry(t *testing.T) {
 		if declared[m.Provider] == nil {
 			declared[m.Provider] = map[string][]entry{}
 		}
-		declared[m.Provider][m.APIName] = append(declared[m.Provider][m.APIName], entry{name, m.MaxOutputTokens})
+		declared[m.Provider][m.APIName] = append(declared[m.Provider][m.APIName], entry{name, m.MaxOutputTokens, m.ReasoningEffort})
 	}
 
 	// Per-provider rules. OpenRouter ids carry routing suffixes (":floor",
@@ -178,6 +182,30 @@ func TestPiModelsConfigMatchesRegistry(t *testing.T) {
 					t.Errorf("pi model %q must map thinkingLevelMap.off to null; got %v — a non-null \"off\" is what pi sends when no --thinking level is passed", m.ID, off)
 				}
 			}
+			// ONE WIRE CONFIG PER MODEL (2026-10-16). pi calls OpenRouter with its
+			// own client, so neither the registry's routing nor its effort reaches
+			// pi unless this file carries them. Broadcast showed pi sending no
+			// provider block and an effort nobody declared, while motoko sent the
+			// registry's — the A/Bs compared two requests.
+			if prov.name == "openrouter" {
+				for _, e := range entries {
+					if e.effort == "" {
+						continue
+					}
+					if lvl, ok := m.ThinkingLevelMap[e.effort]; !ok || lvl == nil {
+						t.Errorf("models.yml %q declares reasoning_effort %q, but pi model %q maps thinkingLevelMap.%s to null — pi's --thinking %s then sends no effort at all",
+							e.key, e.effort, m.ID, e.effort, e.effort)
+					}
+				}
+				if want := c.EffectiveOpenRouterProvider(slug); want != nil {
+					gotJSON, _ := json.Marshal(m.Compat.OpenRouterRouting)
+					wantJSON, _ := json.Marshal(want)
+					if string(gotJSON) != string(wantJSON) {
+						t.Errorf("pi model %q compat.openRouterRouting = %s, but every AILANG caller of %q sends provider %s — pi must route the same way",
+							m.ID, gotJSON, slug, wantJSON)
+					}
+				}
+			}
 		}
 
 		if checked == 0 {
@@ -251,3 +279,4 @@ func TestLocalEvalRowsRequireLeasedProvider(t *testing.T) {
 		t.Fatal("mutation back to ollama was not detected")
 	}
 }
+

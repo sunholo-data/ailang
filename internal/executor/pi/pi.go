@@ -169,6 +169,9 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 	if err != nil {
 		return nil, err
 	}
+	if err := checkInstalledModelConfig(e.getModel(task), task, piModelsPath(env)); err != nil {
+		return nil, err
+	}
 	// D6: bank the child env's NAME set on every result shape.
 	envNames := executor.EnvNamesDigest(env)
 	defer func() {

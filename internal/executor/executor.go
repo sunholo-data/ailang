@@ -213,6 +213,13 @@ type Task struct {
 	// not reach the wire.
 	ReasoningEffort string
 
+	// OpenRouterProvider is the provider routing block every AILANG caller of
+	// this model sends (registry openrouter_provider plus the client's default
+	// sort), for executors whose harness calls OpenRouter with its own client
+	// and so must carry the same block in its own config (pi). Nil = none
+	// declared.
+	OpenRouterProvider map[string]any
+
 	// RequiresEgress (M-GEMINI-REPO-MOUNT Phase 2) opts the task into an
 	// egress-enabled sandbox so the hosted agent can reach the public network
 	// (e.g. `git clone` the public AILANG repo at a target revision, then run

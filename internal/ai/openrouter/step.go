@@ -52,7 +52,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	// building/marshaling. OpenRouter routes reasoning through its own
 	// reasoning{} block (see reasoningExtra), NOT OpenAI's native
 	// reasoning_effort field, so we pass ReasoningNone to the shared builder.
-	reasoning, rErr := ai.ResolveReasoning(req, "openrouter", req.Model)
+	reasoning, rErr := resolveReasoning(req)
 	if rErr != nil {
 		ai.RecordSpanError(span, rErr)
 		return nil, rErr

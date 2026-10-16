@@ -114,10 +114,6 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// Re-verify with scripts/check_pi_wire_budget.sh.
 		"pi-gpt5-4": 32000, "pi-gemini-3-flash-preview": 32000,
 		"pi-or-deepseek-v4-flash": 32000,
-		// pi's wire budget for z-ai/glm-5.3-flash is maxTokens 32000
-		// (tools/pi-extensions/models.mission.json; TestPiModelsConfigMatchesRegistry
-		// pins the row to it). The provider allows more; pi sends 32000.
-		"pi-or-glm-5-3-flash": 32000,
 		// Same pi harness clamp; bare-id A/B control for the evaluator route (2026-09-08).
 		"pi-or-deepseek-v4-flash-bare": 32000,
 		// Same pi harness clamp, for the binary mission path's evaluator lane, which has
@@ -144,15 +140,19 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// (deepseek-v4.1-flash replaced 0731). Same openai-compat lane as pi-or-deepseek-v4-flash.
 		"pi-or-deepseek-v4-1-flash": 32000,
 
-		// DELIBERATE COST CAP, not a provider or harness ceiling — the one entry class
-		// here that is a policy choice, so it is named as one. motoko has no pi-style
-		// clamp and would send 65536, but on hard benchmarks GLM-Flash reasoned to that
-		// cap (gauntlet_10: 3 of 4 steps, 197k output tokens) and the 2026-10-02 lane
-		// A/B tied pi at 55/69 while costing $6.86 vs $4.20. 69ddedd29 (2026-10-08) set
-		// both motoko GLM-Flash rows to 32000 to match pi-or-glm-5-3-flash's wire budget,
-		// so the two lanes compare like for like. Lift both rows and drop these entries
-		// together if the A/B is re-run at parity and motoko no longer runs away.
-		"motoko-or-glm-5-3-flash": 32000, "motoko-lane-or-glm-5-3-flash": 32000,
+		// ONE WIRE CONFIG PER MODEL (Mark, 2026-10-16: option A). Every
+		// z-ai/glm-5.3-flash row, whatever the harness, declares the hosts' 131072
+		// ceiling with reasoning_effort "high". Before this the motoko rows were held
+		// at 32000 "to match pi's wire budget" — but OpenRouter Broadcast showed pi
+		// sending max_completion_tokens ~943k (pi 0.85.1 does NOT apply the
+		// min(maxTokens, 32000) clamp described above for these rows: its installed
+		// models.json lacked the model, so it used its catalogue's 943717 uncapped).
+		// The 32k "parity" was itself the confound: motoko hit it 27x on the hard
+		// set (finish=length) and pi never did. The clamp claim for the other pi
+		// rows above is therefore unverified on 0.85.1 — re-run
+		// scripts/check_pi_wire_budget.sh before relying on it.
+		"motoko-or-glm-5-3-flash": 131072, "motoko-lane-or-glm-5-3-flash": 131072,
+		"pi-or-glm-5-3-flash": 131072, "opencode-or-glm-5-3-flash": 131072, "or-glm-5-3-flash": 131072,
 	}
 
 	c, err := LoadModelsConfig("../modelreg/models.yml")

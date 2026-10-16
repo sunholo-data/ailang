@@ -312,6 +312,9 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			// never left the registry. Empty stays empty: no reasoning control
 			// is sent and the model thinks at its provider default.
 			task.ReasoningEffort = cfg.ReasoningEffort
+			if cfg.Provider == "openrouter" && modelreg.GlobalModelsConfig != nil {
+				task.OpenRouterProvider = modelreg.GlobalModelsConfig.EffectiveOpenRouterProvider(cfg.APIName)
+			}
 			if cfg.GCPProject != "" {
 				task.GCPProject = cfg.GCPProject
 			}
