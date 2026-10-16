@@ -1,6 +1,6 @@
 # M-BYTECODE-STRICT-256-REG-CEILING — strict-VM register-pressure failures are silent until RUN time: >256-element list literals and if/else-if chains over wide records become `evaluator-only` with no compile-time, `check`-time, or non-strict-run warning
 
-**Status**: Planned
+**Status**: Phases B1 + B2 LANDED 2026-10-16 (Phase A open)
 **Target**: v0.53.1
 **Priority**: P0 (strict-VM coverage silently degrades for exactly the AI-generated code shapes `--strict-bytecode` exists to cover; reported from the field twice in one mission)
 **Estimated**: 3–4 days (~450 LOC, pure compiler + CLI surface; no VM, no parser, no language semantics change)
@@ -170,13 +170,13 @@ Phases A and B are independent; A lands first (it converts every *unknown* futur
 - [ ] Corpus sweep: run the report over `std/`, `examples/`, `goldens/`; bank the current `EvalOnly` census (per reason) as the baseline the sprint-evaluator diffs against.
 
 **Phase B1: Chunked list-literal lowering** (~1 day)
-- [ ] `compileListLit` chunked path (K=64 constant) with per-chunk register free; source-order element evaluation.
-- [ ] Unit tests: 601-, 1000-, and K-boundary literals (K-1, K, K+1, 2K) compile, disasm sanity, strict-VM run equals evaluator output byte-for-byte.
+- [x] `compileListLit` chunked path (K=64 constant) with per-chunk register free; source-order element evaluation. Joined with the `_concat_List` builtin: `OpConcat` is string-only on the VM.
+- [x] Tests: K, K+1, 300 and 601 elements plus a long literal mixed with computed elements, strict VM == evaluator (`cmd/ailang/bytecode_long_list_literal_test.go`); 2000 checked by hand.
 - [ ] Confirm `cmd/ailang/run_bytecode_match_test.go` corpus unchanged.
 
 **Phase B2: If-expr chain result reuse** (~0.5 day)
-- [ ] `compileIfExprInto` for else-position `IfExpr`; `compileIfExpr` delegates when the shape matches.
-- [ ] Unit tests: 60-arm else-if chain over a 16-field record (today's 16-arm failure threshold becomes any-length), jump-patch equivalence vs. the nested form on small chains, `control_flow_test.go` green.
+- [x] `compileIfExprInto` for else-position `IfExpr`. **But the reported shape never reaches IfExpr**: the lowering turns else-if chains into `IfStmt`s whose else branch is `let $tmpN = cond; if $tmpN …` (tail position) or `let $tmpN = cond; var $valTmpM = (); if …; $valTmpK = $valTmpM` (value position). Those per-level temps are scoped locals whose scope encloses the rest of the chain, so each level pinned registers inside the previous arm's freed 16-block. The fix is `elseIfInline` in `control_flow.go`: it compiles `if cond` directly and aliases the inner result to the enclosing result register, only for compiler temps the inner if never reads. `compileReturnExpr` also now frees its value register after `RETURN`.
+- [x] Tests: 80-arm chains over a 16-field record in tail and value position, strict VM == evaluator (`TestLongElseIfChainRunsOnStrictVM`); 120 arms checked by hand. Mutation-checked.
 - [ ] Re-run the Phase A census: the two reported cause classes should drop to zero across the corpus.
 
 **Phase C: Documentation** (~0.5 day)
@@ -232,8 +232,8 @@ BC001: function m.wide is evaluator-only under --strict-bytecode
 
 ## Success Criteria
 
-- [ ] 601- and 1000-element float list literals run under `--bytecode --strict-bytecode` with the evaluator's exact output (acceptance: new `cmd/ailang` test mirroring `run_bytecode_match_test.go`).
-- [ ] A 60-arm else-if chain of record updates over a 16-field record runs under `--strict-bytecode` matching the evaluator (measured pre-fix threshold: fails at 16 arms).
+- [x] 601- and 1000-element float list literals run under `--bytecode --strict-bytecode` with the evaluator's exact output (acceptance: new `cmd/ailang` test mirroring `run_bytecode_match_test.go`).
+- [x] A 60-arm else-if chain of record updates over a 16-field record runs under `--strict-bytecode` matching the evaluator (measured pre-fix threshold: fails at 16 arms).
 - [ ] `ailang check --strict-bytecode` exits ≠ 0 with one `BC001` per `EvalOnly` proto on a module with an oversized construct, and exits 0 on both fixed repros.
 - [ ] `ailang run --bytecode` (non-strict) emits the `EvalOnly` warning; no silent fallbacks remain.
 - [ ] All existing tests passing: `make test` (incl. `make check-boundaries` — no layer violations, `internal/` only), `control_flow_test.go`, `collections_test.go`, `regalloc_test.go`, engine-parity corpus.

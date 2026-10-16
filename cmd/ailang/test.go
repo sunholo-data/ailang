@@ -291,6 +291,13 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 	// Exit with appropriate code.
 	// --allow-skips: treat an all-skipped suite as success (exit 0).
 	succeeded := aggregateResults.Success() || (allowSkips && aggregateResults.SuccessAllowingSkips())
+	absDir, absErr := filepath.Abs(dir)
+	if absErr != nil {
+		absDir = dir
+	}
+	if !checkUntestedSources(absDir, manifest) {
+		succeeded = false
+	}
 	if !succeeded {
 		os.Exit(1)
 	}

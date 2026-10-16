@@ -47,6 +47,7 @@ type EffContext struct {
 	EnvSnapshot    map[string]string     // Env effect: immutable snapshot of environment variables
 	EnvAllowlist   []string              // Env effect: allowed variable names (nil = allow all)
 	Args           []string              // CLI arguments passed to the program (excluding program name)
+	PkgDirs        map[string]string     // package name -> dir from the program's ailang.lock (#1772); nil = no lock
 	Trace          *trace.Collector      // Semantic trace collector (--emit-trace flag, M-TRACE-EXPORT)
 	IOWriter       io.Writer             // Override for IO effect output (nil = os.Stdout)
 	IOReader       io.Reader             // Override for IO effect input (nil = os.Stdin)
