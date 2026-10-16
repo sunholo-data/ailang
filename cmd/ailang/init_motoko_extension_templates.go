@@ -316,7 +316,7 @@ Experimental — generated from template. Replace the no-op hook implementations
 
 ` + "```bash" + `
 ailang lock                  # resolve registry deps
-ailang check --package .     # type-check every module in this package
+ailang test --package .      # check every module, then run package tests
 ` + "```" + `
 
 The package's ` + "`_smoke.ail`" + ` runs in the publish sandbox at ` + "`ailang publish`" + ` time and blocks publish on a panic. Edit it to assert anything that's load-bearing for your extension; drop the ` + "`-- optional`" + ` sections that don't apply.
@@ -375,7 +375,7 @@ Tool names advertised via ` + "`provided_tools`" + ` (and the ` + "`name`" + ` f
 ### Publish checklist
 
 - [ ] Bump ` + "`[package].version`" + ` in ` + "`ailang.toml`" + ` (semver: patch for fixes, minor for new tools, major for ExtensionHooks-breaking changes)
-- [ ] ` + "`ailang check --package .`" + ` passes
+- [ ] ` + "`ailang test --package .`" + ` passes
 - [ ] ` + "`ailang publish --dry-run`" + ` succeeds (smoke runs in sandbox)
 - [ ] ` + "`ailang publish`" + ` (real upload — irreversible)
 - [ ] Bump the host's pin: ` + "`\"{{.Name}}\" = \"<new-version>\"`" + ` + matching ` + "`[extensions].packages`" + ` entry

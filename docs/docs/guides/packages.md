@@ -22,11 +22,14 @@ ailang add --path ../shared-utils
 # Resolve dependencies and generate lock file
 ailang lock
 
-# Validate package (cross-module type checking)
+# Validate package without running tests (cross-module type checking)
 ailang check --package .
 
-# Run tests
+# Check every source module, then run tests (one CI command)
 ailang test --package .
+
+# Skip source checking only when a separate package check already ran
+ailang test --package . --no-source-check
 
 # View dependency tree
 ailang tree

@@ -8,7 +8,7 @@ Make `ailang test --package` run the full existing package check before executin
 **Duration:** 1.5 working days (~8 hours work + 2 hours contingency).
 **Estimated total:** 500 LOC (implementation, tests, fixtures, documentation).
 **Risk:** Medium: default exit-code change, JSON compatibility, cache reuse uncertainty.
-**Status:** Planning complete; implementation awaits coordinator plan approval/handoff.
+**Status:** M1–M5 implemented; final gates and measurements being recorded for coordinator evaluation.
 
 ## Current status and evidence
 
@@ -26,7 +26,7 @@ Ran `ailang pkg search testing`; result: `sunholo/testing_utils@0.1.1`. Inspecte
 
 ## Milestones
 
-### M1: Source-check pre-pass and opt-out (~100 LOC)
+### ✅ M1: Source-check pre-pass and opt-out (~100 LOC)
 
 **Budget:** 90 minutes; ~55 implementation + 45 test/fixture LOC.
 **Dependencies:** None.
@@ -34,12 +34,12 @@ Ran `ailang pkg search testing`; result: `sunholo/testing_utils@0.1.1`. Inspecte
 
 Resolve the package root once, use `DiscoverPackageSources` and `CheckPackageFiles` with existing default options (including InterFunctionRefs and StrictFallbacks). Run before the zero-test return. Thread `--no-source-check` through dispatch; keep file/dir behavior unchanged. Reuse the current test-file discovery for execution; do not replace check discovery with suffix filtering.
 
-- [ ] Broken unimported module fails by default (exit 1); opt-out executes the passing test and exits 0.
-- [ ] Broken package with no tests fails; green package with no tests retains warning and exit 0.
-- [ ] Fail-fast path never executes test bodies; source failures are not waived by `--allow-skips`.
-- [ ] Targeted real-binary tests pass.
+- [x] Broken unimported module fails by default (exit 1); opt-out executes the passing test and exits 0.
+- [x] Broken package with no tests fails; green package with no tests retains warning and exit 0.
+- [x] Fail-fast path never executes test bodies; source failures are not waived by `--allow-skips`.
+- [x] Targeted real-binary tests pass.
 
-### M2: Human and JSON reporting contracts (~110 LOC)
+### ✅ M2: Human and JSON reporting contracts (~110 LOC)
 
 **Budget:** 90 minutes; ~55 implementation + 55 tests.
 **Dependencies:** M1.
@@ -47,12 +47,12 @@ Resolve the package root once, use `DiscoverPackageSources` and `CheckPackageFil
 
 Add optional source-check result with passed/failed counts and error/warning string arrays. Explicitly emit `source_check` in reporter's JSON map when checked; omit when disabled or outside package mode. Ensure failure success predicates cannot be overridden by skips. Keep per-file human progress and warnings off JSON stdout. Preserve seeded replay metadata and existing suite keys. For zero-test package JSON, emit one valid suite document; preserve legacy empty-suite success field semantics and exit 0 on a green pre-pass rather than changing generic empty-suite rules.
 
-- [ ] Human failure names the bad file and reports package-check failure without a passing-tests claim.
-- [ ] Both `--json` and `--format json` produce exactly one JSON document on pre-pass success and failure, including zero-test cases.
-- [ ] Failure JSON has `success:false`, source counts/errors, zero executed tests, and exit 1.
-- [ ] Reporter tests cover present/absent source_check and stable existing keys; existing JSON stdout tests pass.
+- [x] Human failure names the bad file and reports package-check failure without a passing-tests claim.
+- [x] Both `--json` and `--format json` produce exactly one JSON document on pre-pass success and failure, including zero-test cases.
+- [x] Failure JSON has `success:false`, source counts/errors, zero executed tests, and exit 1.
+- [x] Reporter tests cover present/absent source_check and stable existing keys; existing JSON stdout tests pass.
 
-### M3: Package quality consumer integration (~45 LOC)
+### ✅ M3: Package quality consumer integration (~45 LOC)
 
 **Budget:** 60 minutes; ~5 implementation + 40 tests.
 **Dependencies:** M2.
@@ -60,11 +60,11 @@ Add optional source-check result with passed/failed counts and error/warning str
 
 Pass `--no-source-check` to the subprocess because quality already checks in-process. Use an existing subprocess seam or a test executable to assert argument forwarding, without adding production dependency injection solely for tests. Compare stable report fields; exclude duration or other variable fields from equality assertions.
 
-- [ ] Quality subprocess receives opt-out, retaining exactly one package-check pass in the quality workflow.
-- [ ] Quality JSON schema and deterministic report content remain unchanged.
-- [ ] Coordinator cascade remains unchanged and green fixture behavior still works.
+- [x] Quality subprocess receives opt-out, retaining exactly one package-check pass in the quality workflow.
+- [x] Quality JSON schema and deterministic report content remain unchanged.
+- [x] Coordinator cascade remains unchanged and green fixture behavior still works.
 
-### M4: Discovery and flag regression matrix (~105 LOC)
+### ✅ M4: Discovery and flag regression matrix (~105 LOC)
 
 **Budget:** 90 minutes; ~105 test/fixture LOC.
 **Dependencies:** M3.
@@ -72,12 +72,12 @@ Pass `--no-source-check` to the subprocess because quality already checks in-pro
 
 Cover non-exported broken modules, declared test modules, module-less orphans, hidden directories and named-test debris according to check discovery. Exercise strict-fallback rejection and inter-function-reference rejection using existing valid fixtures; compare diagnostic category with check. Confirm `--allow-skips` cannot bypass failure, multi-package paths remain usage exit 2, and opt-out/non-package output omit source_check. Smoke existing bytecode engine flags on a green fixture.
 
-- [ ] Discovery coverage matches `check --package`, not merely export declarations.
-- [ ] StrictFallbacks and InterFunctionRefs failures prevent all tests and exit 1.
-- [ ] Existing JSON/multi-path/check strict-fallback tests pass without weakened assertions.
-- [ ] `examples/intra_package_imports` stays green with zero test files; file/dir behavior stays unchanged.
+- [x] Discovery coverage matches `check --package`, not merely export declarations.
+- [x] StrictFallbacks and InterFunctionRefs failures prevent all tests and exit 1.
+- [x] Existing JSON/multi-path/check strict-fallback tests pass without weakened assertions.
+- [x] `examples/intra_package_imports` stays green with zero test files; file/dir behavior stays unchanged.
 
-### M5: Documentation, CLI help and templates (~100 LOC)
+### ✅ M5: Documentation, CLI help and templates (~100 LOC)
 
 **Budget:** 60 minutes; ~100 documentation/template LOC.
 **Dependencies:** M4.
@@ -85,12 +85,12 @@ Cover non-exported broken modules, declared test modules, module-less orphans, h
 
 Explain default full checking, fail-fast behavior, additive JSON key, opt-out, and `--allow-skips` limitations. Simplify generated package CI instructions to the test command; keep standalone check documented. Describe cache reuse as measured evidence only, never promise a single compiler invocation.
 
-- [ ] CLI help and all listed docs/templates describe the same behavior.
-- [ ] Changelog calls out intentional 0-to-1 exits for broken packages and external JSON key addition.
-- [ ] Generated extension checklist no longer requires duplicate package check/test steps.
-- [ ] No unrelated cascade or file/dir changes.
+- [x] CLI help and all listed docs/templates describe the same behavior.
+- [x] Changelog calls out intentional 0-to-1 exits for broken packages and external JSON key addition.
+- [x] Generated extension checklist no longer requires duplicate package check/test steps.
+- [x] No unrelated cascade or file/dir changes.
 
-### M6: Cache measurements and focused final validation (~40 LOC)
+### ✅ M6: Cache measurements and focused final validation (~40 LOC)
 
 **Budget:** 90 minutes; ~40 report LOC.
 **Dependencies:** M5.
@@ -98,10 +98,10 @@ Explain default full checking, fail-fast behavior, additive JSON key, opt-out, a
 
 Build repository binary. Generate a >=50-module temporary package with shared imports and a runnable test. Use an isolated task-owned cache directory via the supported cache setting (inspect CLI help first). Record module count, CPU/runner shape, binary identity, cache setting, cache stats before/after each run, wall time, cold and warm `test --package`, and separate `check --package` plus opt-out test baseline. Do not clear a shared user cache. If stats cannot attribute hits across phases, say so and collect supported tracing; do not infer dedup from timing alone.
 
-- [ ] Report includes measured cache counts and timing for >=50 modules with methodology and limitations.
-- [ ] If cache reuse is poor, document it and escalate artifact-sharing work; do not expand this sprint or claim the reporter's time saving was reproduced.
-- [ ] `make test-changed` (touched packages plus core), `make lint`, `make check-boundaries`, `make check-file-sizes`, and `make check-changelog` pass.
-- [ ] Targeted binary regressions use the freshly built binary; report exact commands/results.
+- [x] Report includes measured cache counts and timing for >=50 modules with methodology and limitations.
+- [x] If cache reuse is poor, document it and escalate artifact-sharing work; do not expand this sprint or claim the reporter's time saving was reproduced.
+- [x] `make test-changed` (touched packages plus core), `make lint`, `make check-boundaries`, `make check-file-sizes`, and `make check-changelog` pass.
+- [x] Targeted binary regressions use the freshly built binary; report exact commands/results.
 
 ## Schedule, validation and scope
 

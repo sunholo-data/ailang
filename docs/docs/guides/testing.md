@@ -306,12 +306,31 @@ ailang test --json .
 # Disable colored output
 ailang test --no-color .
 
-# Package mode: run every *_test.ail found via ailang.toml
+# Package mode: check every module, then run every *_test.ail
 ailang test --package .
 
 # Show all flags
 ailang test --help
 ```
+
+Package mode runs the full `ailang check --package` validation before executing tests,
+including inter-function references and strict fallbacks. It checks all discovered
+module-declaration files, including non-exported modules and test modules. Module-less
+orphans, hidden directories, `node_modules`, `_vendor`, and leftover named-test body
+files are excluded from the source check, matching standalone package checking.
+
+A source-check failure exits 1 without executing tests; `--allow-skips` cannot waive
+it. Checking also runs when there are no test files: a valid package retains the
+no-tests warning and exits 0. File and directory test modes retain their existing
+behavior. `--no-source-check` skips this pre-pass in package mode when another step
+already checked the package. Standalone `ailang check --package .` remains available.
+
+Both `--json` and `--format json` emit one suite document, including for packages
+without tests. Checked package reports add `source_check` with `passed`, `failed`,
+`errors`, and `warnings`; failures have `success: false` and zero executed tests.
+The key is absent with `--no-source-check` and outside package mode. A green empty
+suite retains `success: false` even though the command exits 0, as before.
+The existing disk cache is reused; this does not promise a single compiler invocation.
 
 ### Output Formats
 

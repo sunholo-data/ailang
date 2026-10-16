@@ -73,6 +73,7 @@ user-defined local `jo` is a different symbol and is **never** flagged.
 | Command | Behaviour |
 |---------|-----------|
 | `ailang check file.ail` | **Warning**, exits **0** — advisory during development. |
+| `ailang test --package dir/` | **Hard error**, exits **1** before any tests run; `--allow-skips` cannot waive it. `--no-source-check` skips package validation when it already ran separately. |
 | `ailang check --package dir/` | **Hard error**, exits **1** — the publish boundary fails loudly. |
 
 Development stays unblocked; publishing a package with an unannotated violation
