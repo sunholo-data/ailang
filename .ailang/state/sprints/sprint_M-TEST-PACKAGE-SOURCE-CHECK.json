@@ -113,10 +113,10 @@
         "Existing JSON/multi-path/check strict-fallback tests pass without weakened assertions.",
         "`examples/intra_package_imports` stays green with zero test files; file/dir behavior stays unchanged."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T14:01:45.983935+00:00",
+      "completed": "2026-10-16T14:01:45.983935+00:00",
+      "notes": "Targeted regressions pass against fresh binary: discovery parity, exported/non-exported/test modules, strict-fallback fail-fast, bytecode and file modes, green zero-test example. InterFunctionRefs is reused unchanged; report records lack of independently reproducible post-compilation interref-error fixture."
     },
     {
       "id": "M5_DOCUMENTATION",

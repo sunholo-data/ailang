@@ -40,6 +40,11 @@ func TestPackageSourceCheckFailFast(t *testing.T) {
 	bin := buildAilang(t)
 	for _, tests := range []bool{false, true} {
 		dir := sourceCheckPackage(t, tests)
+		manifest, err := os.ReadFile(filepath.Join(dir, "ailang.toml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeSourceCheckFile(t, dir, "ailang.toml", strings.Replace(string(manifest), `["probe/p/good"]`, `["probe/p/good", "probe/p/bad"]`, 1))
 		writeSourceCheckFile(t, dir, "bad.ail", "module probe/p/bad\nexport pure func oops() -> int = \"not an int\"\n")
 		out, stderr, exit := runAilangBin(t, bin, "test", "--package", dir, "--allow-skips", "--no-color")
 		if exit != 1 || !strings.Contains(out+stderr, "bad.ail") || !strings.Contains(out, "Package source check failed") || strings.Contains(out, "All tests passed") {
