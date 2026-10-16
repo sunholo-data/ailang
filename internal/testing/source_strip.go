@@ -86,23 +86,25 @@ func isEffectivelyPure(f *ast.FuncDecl) bool {
 	return f.IsPure || (f.Effects != nil && len(f.Effects) == 0)
 }
 
-// testAndPropertySkipRanges finds each test/property block's closing line by
-// matching LBRACE/RBRACE tokens from the real lexer, so a brace inside a string
-// literal, an interpolation or a comment is not counted (#1821: a raw rune scan
-// saw `"{a"` as an opening brace, stopped short, and left the block's tail in
-// the stripped source as a parse error).
+// testAndPropertySkipRanges trusts parser-recorded closing positions. The lexer
+// scan is retained only for manually built ASTs with an unset End, preserving
+// compatibility with existing callers without re-lexing parser-created nodes.
 func testAndPropertySkipRanges(sourceLines []string, file *ast.File) []sourceLineRange {
 	var braces []lexer.Token
 	collected := false
 	var ranges []sourceLineRange
 	for _, decl := range file.Decls {
-		var startLine int
+		var startLine, endLine int
 		switch d := decl.(type) {
 		case *ast.TestDecl:
-			startLine = d.Pos.Line
+			startLine, endLine = d.Pos.Line, d.End.Line
 		case *ast.PropertyDecl:
-			startLine = d.Pos.Line
+			startLine, endLine = d.Pos.Line, d.End.Line
 		default:
+			continue
+		}
+		if endLine != 0 {
+			ranges = append(ranges, sourceLineRange{start: startLine, end: endLine})
 			continue
 		}
 		if !collected {

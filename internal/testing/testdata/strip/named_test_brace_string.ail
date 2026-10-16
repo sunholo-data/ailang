@@ -1,0 +1,5 @@
+module named_test_brace_string
+import std/string (contains)
+test "literal" {
+  contains("{a", "{")
+}

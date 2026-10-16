@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-TEST-STRIP-BRACE-LITERALS",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-13T20:37:55Z",
   "design_doc": "design_docs/planned/v0_54_10/m-test-strip-brace-literals.md",
   "sprint_plan": "design_docs/planned/v0_54_10/m-test-strip-brace-literals-sprint-plan.md",
@@ -42,10 +42,10 @@
         "Existing parser tests pass; focused `go test ./internal/ast ./internal/parser` and `make test-changed` pass.",
         "Go formatting is clean and parser token advancement/grammar remain unchanged."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-16T16:00:55.076945+00:00",
+      "notes": "AST/parser package tests pass; closing token positions recorded without advancing. Initial tests failed with zero End. Work branch is coordinator/task-ae1f0398 (assigned checkout)."
     },
     {
       "id": "M2_AST_STRIP_RANGES",
@@ -64,7 +64,7 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "Checkout already contains #1821 lexer-based fix, so retain that safer zero-End compatibility fallback rather than restoring obsolete raw scanning. New recorded-end test failed before implementation."
     },
     {
       "id": "M3_CLI_REGRESSION",
@@ -86,5 +86,6 @@
       "completed": null,
       "notes": null
     }
-  ]
+  ],
+  "last_session": "2026-10-16T16:00:55.076945+00:00"
 }
