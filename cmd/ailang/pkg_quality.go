@@ -184,7 +184,7 @@ func runAttestedChecks(absDir string, manifest *pkg.PackageManifest) *pkg.Attest
 	testFiles, _ := filepath.Glob(filepath.Join(absDir, "*_test.ail"))
 	tests.Files = len(testFiles)
 	if tests.Files > 0 {
-		cmd := exec.Command(bin, "test", "--package", "--format", "json", ".")
+		cmd := exec.Command(bin, "test", "--package", "--no-source-check", "--format", "json", ".")
 		cmd.Dir = absDir
 		cmd.Env = append(os.Environ(), "AILANG_QUIET_WARNINGS=1")
 		out, _ := cmd.Output() // exit 1 on failures still prints the report

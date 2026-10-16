@@ -95,10 +95,10 @@
         "Quality JSON schema and deterministic report content remain unchanged.",
         "Coordinator cascade remains unchanged and green fixture behavior still works."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T13:58:30.960991+00:00",
+      "completed": "2026-10-16T13:58:30.960991+00:00",
+      "notes": "Subprocess-helper regression failed without opt-out, passes with --no-source-check; existing quality summary fields preserved. Cascade unchanged."
     },
     {
       "id": "M4_REGRESSIONS",
