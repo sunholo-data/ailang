@@ -19,7 +19,7 @@ func init() {
 			}
 			return effects.Call(ctx, "AI", "embed", args)
 		},
-		Metadata: &BuiltinMetadata{Description: "Embed text using the configured provider", Params: []ParamDoc{{Name: "text", Description: "Text to embed"}}, Returns: "Result[[float], AIError]", Since: "v0.54.14", Stability: StabilityExperimental, Category: "ai", Tags: []string{"ai", "embedding"}},
+		Metadata: &BuiltinMetadata{Description: "Embed text using the configured provider", LongDesc: "Returns typed AI errors. Uses the configured Gemini, OpenAI or Ollama embedding provider and content-hash caching. Explicit --ai-stub uses a stable 32-dimensional SHA256 vector (ailang/stub-sha256-v1) for keyless tests; use a real embedding provider for semantic similarity. Pin the embedding model for each index namespace.", Params: []ParamDoc{{Name: "text", Description: "Text to embed"}}, Returns: "Result[[float], AIError]", Since: "v0.54.14", Stability: StabilityExperimental, Category: "ai", Tags: []string{"ai", "embedding"}},
 	}); err != nil {
 		panic(err)
 	}
