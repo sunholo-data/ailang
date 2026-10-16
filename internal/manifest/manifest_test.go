@@ -415,3 +415,21 @@ func TestEnvironmentDefaults(t *testing.T) {
 		t.Errorf("Timezone = %s, want America/New_York", ex.Environment.Timezone)
 	}
 }
+
+func TestAllStatusStatistics(t *testing.T) {
+	m := New()
+	for i, status := range []Status{StatusWorking, StatusBroken, StatusExperimental, StatusAspirational} {
+		m.Examples = append(m.Examples, Example{Path: []string{"w.ail", "b.ail", "e.ail", "a.ail"}[i], Status: status})
+	}
+	m.UpdateStatistics()
+	if m.Statistics.Total != 4 || m.Statistics.Working != 1 || m.Statistics.Broken != 1 || m.Statistics.Experimental != 1 || m.Statistics.Aspirational != 1 || m.Statistics.Coverage != 0.25 {
+		t.Fatalf("statistics: %+v", m.Statistics)
+	}
+	m.Statistics.Aspirational = 0
+	if err := m.Validate(); err == nil || !strings.Contains(err.Error(), "statistics mismatch") {
+		t.Fatalf("expected statistics mismatch, got %v", err)
+	}
+	if stats := New().calculateStatistics(); stats != (Statistics{}) {
+		t.Fatalf("empty statistics: %+v", stats)
+	}
+}

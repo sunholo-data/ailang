@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-EXAMPLES-MANIFEST-STAT-SYNC",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-15T23:39:55.578171+00:00",
   "design_doc": "design_docs/planned/v0_54_12/examples-manifest-stat-sync.md",
   "sprint_plan": "design_docs/planned/v0_54_12/examples-manifest-stat-sync-sprint-plan.md",
@@ -48,10 +48,10 @@
         "Add Aspirational to internal/manifest.Statistics and count StatusAspirational without changing schema v1.",
         "Unit tests prove all status counters, empty-manifest coverage, and rejection of a mismatched aspirational count; go test ./internal/manifest passes."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-16T09:54:58.900336+00:00",
+      "notes": "go test ./internal/manifest passed; all four statuses and empty coverage covered."
     },
     {
       "id": "M2",
