@@ -116,6 +116,7 @@ func TestUnsupportedEmbedDoesNotInitializeCompletion(t *testing.T) {
 	t.Setenv("AILANG_EMBED_PROVIDER", "")
 	initialized := false
 	ctx := effects.NewEffContext(nil)
+	ctx.Grant(effects.NewCapability("AI"))
 	ctx.AI = effects.NewLazyAIContext(func() (*effects.AIContext, error) {
 		initialized = true
 		return nil, fmt.Errorf("completion credentials unavailable")
@@ -136,6 +137,7 @@ func TestLazyEmbeddingFreezesCredentialsAndDefersKeyFile(t *testing.T) {
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("AILANG_AI_KEY_FILE", "")
 	ctx := effects.NewEffContext(nil)
+	ctx.Grant(effects.NewCapability("AI"))
 	ctx.AI = effects.NewAIContext(effects.NewStubAIHandler())
 	if err := setupRunEmbedder(ctx, aiSetup{KeyFile: filepath.Join(t.TempDir(), "missing.key")}, "openai", true); err != nil {
 		t.Fatalf("eager credential access: %v", err)
@@ -144,6 +146,7 @@ func TestLazyEmbeddingFreezesCredentialsAndDefersKeyFile(t *testing.T) {
 		t.Fatal("missing key file ignored")
 	}
 	frozen := effects.NewEffContext(nil)
+	frozen.Grant(effects.NewCapability("AI"))
 	frozen.AI = effects.NewAIContext(effects.NewStubAIHandler())
 	if err := setupRunEmbedder(frozen, aiSetup{}, "openai", true); err != nil {
 		t.Fatal(err)
