@@ -8,7 +8,7 @@ Make `ailang test --package` run the full existing package check before executin
 **Duration:** 1.5 working days (~8 hours work + 2 hours contingency).
 **Estimated total:** 500 LOC (implementation, tests, fixtures, documentation).
 **Risk:** Medium: default exit-code change, JSON compatibility, cache reuse uncertainty.
-**Status:** M1–M5 implemented; final gates and measurements being recorded for coordinator evaluation.
+**Status:** Implementation complete; M1–M5 pass. M6 measurements complete, validation fails on reproduced baseline/container issues; see implementation report. Awaiting independent evaluation.
 
 ## Current status and evidence
 
@@ -90,7 +90,7 @@ Explain default full checking, fail-fast behavior, additive JSON key, opt-out, a
 - [x] Generated extension checklist no longer requires duplicate package check/test steps.
 - [x] No unrelated cascade or file/dir changes.
 
-### ✅ M6: Cache measurements and focused final validation (~40 LOC)
+### M6 (completed with validation failures): Cache measurements and focused final validation (~40 LOC)
 
 **Budget:** 90 minutes; ~40 report LOC.
 **Dependencies:** M5.
@@ -100,7 +100,7 @@ Build repository binary. Generate a >=50-module temporary package with shared im
 
 - [x] Report includes measured cache counts and timing for >=50 modules with methodology and limitations.
 - [x] If cache reuse is poor, document it and escalate artifact-sharing work; do not expand this sprint or claim the reporter's time saving was reproduced.
-- [x] `make test-changed` (touched packages plus core), `make lint`, `make check-boundaries`, `make check-file-sizes`, and `make check-changelog` pass.
+- [ ] `make test-changed` (touched packages plus core), `make lint`, `make check-boundaries`, `make check-file-sizes`, and `make check-changelog` pass.
 - [x] Targeted binary regressions use the freshly built binary; report exact commands/results.
 
 ## Schedule, validation and scope
@@ -126,3 +126,10 @@ No permanent public `.ail` example is required for this CLI behavior; use the ex
 No new design decisions require resolution. Preserve current cascade's explicit check; removal remains future human-reviewed work. Green zero-test package JSON remains a valid report with the established empty-suite success value, while CLI exit stays 0; this avoids redefining generic suite semantics. `--no-source-check` is meaningful in package mode; elsewhere it leaves existing behavior unchanged. No performance threshold is promised before measurements.
 
 Coordinator handoff artifacts are this plan and `.ailang/state/sprints/sprint_M-TEST-PACKAGE-SOURCE-CHECK.json`. The coordinator advances to sprint-executor after plan approval/merge; do not start implementation during planning. The approved design references #1275/#1572 only as cache prior art; they are not issues to close for this sprint.
+
+
+## Executor outcome (2026-10-16)
+
+Implementation and measurements: [implementation report](m-test-package-source-check-implementation-report.md).
+M1–M5 pass. M6 ran every requested gate; the all-green gate criterion above stays unchecked.
+New regressions and lint pass. The full touched-package/core gates fail on policy/process-lifetime tests and a killed pipeline process, all reproduced at baseline b799aa60. No test assertions were weakened. Independent coordinator evaluation remains required.
