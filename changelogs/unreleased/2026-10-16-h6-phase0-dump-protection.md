@@ -7,4 +7,4 @@
 - `Dockerfile.agent-base` keeps `/plugins` and the pre-baked `ailang_bootstrap` hooks root-owned. Only
   `/plugins/tasks` is writable by the agent user, and the per-task runtime plugin clone moved there.
 - New Linux probe test spawns a same-UID child through the executor spawn path and asserts both reads are
-  denied, with a control run that must leak. Design: `design_docs/planned/v0_49_1/m-executor-uid-split.md`.
+  denied, with a control run that must leak. `TestProctreeIsALeaf` now checks the linux, darwin and windows builds (a Linux-only import used to pass on a Mac). Design: `design_docs/planned/v0_49_1/m-executor-uid-split.md`.

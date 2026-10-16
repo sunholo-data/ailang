@@ -4,6 +4,7 @@ package proctree
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -44,7 +45,8 @@ func h6Parent() int {
 			return 2
 		}
 	}
-	child := exec.Command(os.Args[0])
+	// CommandContext, as every executor does: Configure installs a Cancel.
+	child := exec.CommandContext(context.Background(), os.Args[0])
 	child.Env = []string{h6RoleEnv + "=child"} // the child is NOT given the secret
 	Configure(child)
 	out, err := child.CombinedOutput()

@@ -26,8 +26,10 @@ func TestOpenRouterProvider(t *testing.T) {
 	}
 }
 
-// The shipped registry routes GLM-5.3-Flash over pi's effective host pool
-// (hosts accepting max output >= 943717), which excludes inference-net.
+// The shipped registry routes GLM-5.3-Flash over the hosts pi actually reaches:
+// those accepting max output >= 943717 (so not inference-net), minus the two
+// slow cheapest ones (open-inference, morph) that price weighting inside `only`
+// sent motoko to and pi never reached (glm-5.3-flash A/B, 2026-10-16).
 func TestShippedGLMFlashRouting(t *testing.T) {
 	shipped, err := LoadModelsConfigBytes(embeddedModelsYAML)
 	if err != nil {
@@ -48,7 +50,8 @@ func TestShippedGLMFlashRouting(t *testing.T) {
 	for _, h := range only {
 		hosts = append(hosts, h.(string))
 	}
-	if !slices.Contains(hosts, "crusoe") || slices.Contains(hosts, "inference-net") || len(hosts) != 13 {
-		t.Fatalf("glm-5.3-flash only = %v, want pi's 13-host pool without inference-net", hosts)
+	if !slices.Contains(hosts, "crusoe") || len(hosts) != 11 ||
+		slices.Contains(hosts, "inference-net") || slices.Contains(hosts, "open-inference") || slices.Contains(hosts, "morph") {
+		t.Fatalf("glm-5.3-flash only = %v, want the 11 hosts pi reaches (no inference-net, open-inference, morph)", hosts)
 	}
 }

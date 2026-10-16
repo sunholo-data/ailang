@@ -101,6 +101,9 @@ type streamMetrics struct {
 	// delta.reasoning_content (streamstep.go:281,284); this is the only seam
 	// that recovers reasoning without editing the shared parser.
 	reasoning strings.Builder
+	// forward is the StreamStep caller's callback (nil from Step), called
+	// outside the lock with every chunk.
+	forward func(ai.StreamChunk)
 }
 
 // observe records a non-empty read: TTFT on the first one, the running maximum
@@ -123,6 +126,13 @@ func (m *streamMetrics) observe(n int) {
 // uses to recover Response.Reasoning without touching the shared SSE parser.
 // In M2 it only counts deltas for the debug log.
 func (m *streamMetrics) onChunk(chunk ai.StreamChunk) {
+	m.count(chunk)
+	if m.forward != nil {
+		m.forward(chunk)
+	}
+}
+
+func (m *streamMetrics) count(chunk ai.StreamChunk) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	switch d := chunk.(type) {
@@ -229,7 +239,7 @@ func (c *Client) stepV1Stream(outerCtx context.Context, req *ai.Request) (*ai.Re
 	}
 	defer cancel()
 
-	metrics := &streamMetrics{start: time.Now()}
+	metrics := &streamMetrics{start: time.Now(), forward: chunkSinkFrom(outerCtx)}
 	// cancel is the watchdog's escape hatch: a blocked Read cannot interrupt
 	// itself, so the watchdog cancels the request context and the transport
 	// fails the pending Read.
