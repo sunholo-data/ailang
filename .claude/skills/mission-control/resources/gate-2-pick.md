@@ -95,6 +95,11 @@ admissibility rule above still binds: it routes, never fixes).
    - **every item that changed since the last digest**: a new PR head, a new card, an issue whose
      `updatedAt` is after the last digest. Compare against the newest rows in
      `~/.ailang/state/mission-triage-shadow-ledger.jsonl`;
+   - **every held verdict**: an item whose newest ledger row is a ⚖ verdict (`VERIFIED`,
+     `CLOSE-*`) with `"action":"none"`, i.e. one an earlier iteration found actionable but did
+     not act on (no judge, a guard such as T2, or a rule since amended). Re-verify it against the
+     current `origin/dev`; the old verdict is never acted on as is. Without this bucket a held item
+     is skipped forever unless it happens to change (D-TRIAGE-11);
    - **then the oldest N never-verified or stale items** (no ledger verdict in 7 days, clause 1),
      N = 20 by default, until the list holds about 60.
    Record the selection rule and the counts (changed / stale / skipped) in the Gate-4 row.
