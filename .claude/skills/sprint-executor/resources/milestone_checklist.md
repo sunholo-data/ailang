@@ -131,3 +131,11 @@ load the prompt rather than writing from memory.
   checklist and report each disposition with the implemented signature detail or
   `skip: <one-line reason>`.
 - A skip without a recorded reason is a milestone failure; justified skips remain permitted.
+
+## Runnable example checklist
+
+When adding a runnable example, add its file and authored entry to
+`examples/manifest.json`, run `make sync-examples-manifest`, then commit both.
+Do not hand-edit statistics or imported modules. Run `make verify-examples` to
+check execution, derived fields, and missing entries. The legacy allowlist in
+`validate_manifest.go` is a disposition backlog (#1835), not the default for additions.

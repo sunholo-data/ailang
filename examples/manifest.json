@@ -1041,17 +1041,6 @@
       ]
     },
     {
-      "path": "lambda_expressions.ail",
-      "status": "working",
-      "tags": [
-        "lambda",
-        "functional",
-        "closures",
-        "higher-order"
-      ],
-      "description": "Comprehensive lambda examples: currying, closures, composition"
-    },
-    {
       "path": "lambdas.ail",
       "status": "working",
       "tags": [
@@ -3466,11 +3455,11 @@
     }
   ],
   "statistics": {
-    "total": 236,
-    "working": 228,
+    "total": 235,
+    "working": 227,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9661016949152542,
+    "coverage": 0.9659574468085106,
     "experimental": 0
   },
   "milestones": {

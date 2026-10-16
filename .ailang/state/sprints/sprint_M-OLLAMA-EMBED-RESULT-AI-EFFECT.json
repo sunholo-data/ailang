@@ -1,0 +1,135 @@
+{
+  "sprint_id": "M-OLLAMA-EMBED-RESULT-AI-EFFECT",
+  "status": "not_started",
+  "created": "2026-10-16T14:36:14.123897+00:00",
+  "design_doc": "design_docs/planned/v0_54_8/m-ollama-embed-result-ai-effect.md",
+  "sprint_plan": "design_docs/planned/v0_54_8/m-ollama-embed-result-ai-effect-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched embedding/ollama; inspected sunholo/email@0.9.0 and sunholo/ollama_stream@0.1.0. Archive querying and chat streaming cannot supply core AI authority, embedding dispatch or runtime fixture semantics."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched embedding/ollama; inspected sunholo/email@0.9.0 and sunholo/ollama_stream@0.1.0. Archive querying and chat streaming cannot supply core AI authority, embedding dispatch or runtime fixture semantics."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched embedding/ollama; inspected sunholo/email@0.9.0 and sunholo/ollama_stream@0.1.0. Archive querying and chat streaming cannot supply core AI authority, embedding dispatch or runtime fixture semantics."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched embedding/ollama; inspected sunholo/email@0.9.0 and sunholo/ollama_stream@0.1.0. Archive querying and chat streaming cannot supply core AI authority, embedding dispatch or runtime fixture semantics."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Searched embedding/ollama; inspected sunholo/email@0.9.0 and sunholo/ollama_stream@0.1.0. Archive querying and chat streaming cannot supply core AI authority, embedding dispatch or runtime fixture semantics."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 334,
+    "estimated_total_loc": 1000,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Extract the Ollama request helper",
+      "estimated_loc": 220,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "HTTP test server verifies text/media payloads, empty input, empty response, server errors and float conversion offline.",
+        "Existing live dimensionality tests retain skip behavior when Ollama is unavailable.",
+        "go test ./internal/ai/ollama ./internal/builtins passes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Implement AI embedding ops and deterministic stubs",
+      "estimated_loc": 290,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "effects.Call denies absent AI capability and zero budget before network access.",
+        "With AI and no chat handler, a fake Ollama server receives the call; an unrelated chat provider does not reroute it.",
+        "Stub vectors are repeatable, distinct across representative inputs, unit magnitude, and perform no network requests.",
+        "Text/media successes and failures emit bounded trace arguments without raw media bytes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Add embedding fixture replay",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Embed success and error fixtures replay offline; missing fixture fails loudly.",
+        "Literal and sha256 lookup agree; text/media keys and empty media behavior are tested.",
+        "Existing text/image/speech fixture tests continue passing without format-version changes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Expose Result builtins and standard wrappers",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "All four builtin registrations and type signatures require AI; wrappers type-check.",
+        "Text and media Result success yields Ok([float]); provider failure yields Err(string) with specified prefix; non-Result failures still abort.",
+        "End-to-end evaluator calls charge exactly one AI budget unit; capability and budget denial never become catchable Err.",
+        "Direct effects.Call budget tests and normal evaluator/builtin-scope tests cover distinct paths; avoid assuming direct Impl calls create a charge scope."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Migrate examples and document graceful degradation",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Fallback example exits zero and demonstrates both success and Err branches using checked-in fixtures and --caps AI,IO --ai-stub.",
+        "Legacy IO-only embedding row is rejected, IO-only capability cannot authorize AI entry, --caps auto follows the migrated row.",
+        "CLI smoke verifies AI-only embedding works without --ai against a fake endpoint; live-down recovery uses a controlled unreachable loopback endpoint, not external service availability.",
+        "make test-changed, make check-boundaries, make check-file-sizes, make check-changelog, make verify-stdlib and make verify-examples pass; report pre-existing failures separately.",
+        "Format touched Go/AIl files and run focused lint for touched packages; existing std/ai Result and speech stub regressions remain green."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
