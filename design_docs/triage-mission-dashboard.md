@@ -18,4 +18,5 @@ Routing: OpenAI gpt-6-luna verifiers through Agent tool; Anthropic Sonnet 5.5 ju
 Agent-tool judge failed: unsupported sonnet model. CLI fallback completed independent review.
 Quota: subscription buckets only; per-role token detail in iteration log.
 Main checkout has unrelated uncommitted work; left untouched.
+Reporting: user Pub/Sub recovered; Daneel normal+urgent use polled controlplane; registry gap filed to fleet.
 Historical gap: iterations 1/2 exist in issue/ledger, but their repo logs/index were never committed.
