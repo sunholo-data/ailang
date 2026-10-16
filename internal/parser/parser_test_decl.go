@@ -67,6 +67,7 @@ func (p *Parser) parseTestDecl() *ast.TestDecl {
 	return &ast.TestDecl{
 		Name: name,
 		Body: body,
+		End:  p.curPos(),
 		Pos:  pos,
 	}
 }
@@ -113,6 +114,7 @@ func (p *Parser) parsePropertyDecl() *ast.PropertyDecl {
 	return &ast.PropertyDecl{
 		Name:     name,
 		Property: property,
+		End:      p.curPos(),
 		Pos:      pos,
 	}
 }

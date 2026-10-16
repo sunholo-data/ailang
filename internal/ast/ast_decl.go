@@ -145,6 +145,7 @@ func (f *FuncDecl) stmtNode()     {}
 type TestDecl struct {
 	Name string
 	Body []Expr // Test body (assertions, expressions)
+	End  Pos    // Position of the closing brace
 	Pos  Pos
 }
 
@@ -156,6 +157,7 @@ func (t *TestDecl) stmtNode()      {}
 type PropertyDecl struct {
 	Name     string
 	Property *Property // The property specification
+	End      Pos       // Position of the closing brace
 	Pos      Pos
 }
 

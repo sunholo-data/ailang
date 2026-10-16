@@ -360,3 +360,39 @@ func TestParseAssertStmt_ComplexCondition(t *testing.T) {
 		t.Error("expected condition, got nil")
 	}
 }
+
+func TestDeclarationEndPositions(t *testing.T) {
+	for _, tc := range []struct {
+		source       string
+		line, column int
+	}{
+		{`test "one" { "{" == "{" }`, 1, 25},
+		{`test "many" {
+ "}" == "}" -- {
+  }`, 3, 3},
+		{`property "one" { forall(n: int) => "{" == "{" }`, 1, 47},
+		{`property "many" {
+ forall(n: int) => "}" == "}" -- {
+  }`, 3, 3},
+	} {
+		t.Run(tc.source, func(t *testing.T) {
+			p := New(lexer.New(tc.source, "end.ail"))
+			file := p.ParseFile()
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parse: %v", p.Errors())
+			}
+			var end ast.Pos
+			switch d := file.Decls[0].(type) {
+			case *ast.TestDecl:
+				end = d.End
+			case *ast.PropertyDecl:
+				end = d.End
+			default:
+				t.Fatalf("unexpected declaration %T", d)
+			}
+			if end.Line != tc.line || end.Column != tc.column {
+				t.Fatalf("End = %v, want line %d column %d", end, tc.line, tc.column)
+			}
+		})
+	}
+}
