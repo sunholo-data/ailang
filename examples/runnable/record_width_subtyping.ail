@@ -53,7 +53,7 @@ pure func getHost(config: { host: string, port: int, ... }) -> string = config.h
 -- MAIN
 -- =======================
 
-func main() -> unit ! {IO} = {
+export func main() -> unit ! {IO} = {
   println("=== Record Width Subtyping Demo ===")
   println("")
   -- Exact record: only accepts {name: string}
