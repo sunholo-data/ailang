@@ -72,13 +72,14 @@ func (fc *funcCompiler) compileLambda(lam stmt.Lambda) (uint8, error) {
 	}
 
 	// Lower body + return.
-	for _, s := range lam.Body {
+	body, ret := inlineBodyCtorTemps(lam.Body, lam.Return)
+	for _, s := range body {
 		if err := inner.compileStmt(s); err != nil {
 			return 0, fmt.Errorf("lambda body: %w", err)
 		}
 	}
-	if lam.Return != nil {
-		if err := inner.compileReturnExpr(lam.Return); err != nil {
+	if ret != nil {
+		if err := inner.compileReturnExpr(ret); err != nil {
 			return 0, err
 		}
 	} else {
@@ -120,7 +121,7 @@ func freeVarsLambda(lam stmt.Lambda) []string {
 		bound[p.Name] = true
 	}
 	v := &freeVarVisitor{bound: bound, seen: map[string]bool{}}
-	for _, s := range lam.Body {
+	for _, s := range inlineCtorTemps(lam.Body) {
 		v.visitStmt(s)
 	}
 	if lam.Return != nil {
@@ -130,12 +131,16 @@ func freeVarsLambda(lam stmt.Lambda) []string {
 }
 
 type freeVarVisitor struct {
-	bound map[string]bool
-	seen  map[string]bool
-	order []string
+	bound  map[string]bool
+	seen   map[string]bool
+	order  []string
+	counts map[string]int // when non-nil, every read of every name, bound or not
 }
 
 func (v *freeVarVisitor) recordFree(name string) {
+	if v.counts != nil {
+		v.counts[name]++
+	}
 	if v.bound[name] || v.seen[name] {
 		return
 	}
@@ -236,7 +241,7 @@ func (v *freeVarVisitor) visitExpr(e stmt.Expr) {
 	case stmt.Lambda:
 		// Inner lambda: anything it references that ISN'T its own params and
 		// ISN'T already in our bound set is free *to us*.
-		inner := &freeVarVisitor{bound: copyMap(v.bound), seen: map[string]bool{}}
+		inner := &freeVarVisitor{bound: copyMap(v.bound), seen: map[string]bool{}, counts: v.counts}
 		for _, p := range e.Params {
 			inner.bound[p.Name] = true
 		}

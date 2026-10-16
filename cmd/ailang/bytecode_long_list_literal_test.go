@@ -89,3 +89,65 @@ export pure func main() -> [int] {
 		t.Errorf("interpreter=%s strict VM=%s, want %s", outs[0], outs[1], want)
 	}
 }
+
+// #1865: elaboration binds every non-atomic list element (a call, a negated
+// literal, a record) to a $tmp local first, so only constant lists were
+// covered by the chunked MAKE_LIST: 128 calls pinned 128 locals and the
+// function went evaluator-only again. Those temps are now compiled straight
+// into their slots. Values must match the interpreter, and so must the order
+// effects in elements run in.
+func TestLongComputedListLiteralRunsOnStrictVM(t *testing.T) {
+	bin := buildAilang(t)
+	n := 300
+	calls, negs, says := make([]string, n), make([]string, n), make([]string, n)
+	for i := 0; i < n; i++ {
+		calls[i] = fmt.Sprintf("g(%d)", i)
+		negs[i] = fmt.Sprintf("-%d.5", i)
+		says[i] = fmt.Sprintf("say(%d)", i)
+	}
+	recs := make([]string, 16)
+	for i := range recs {
+		strs := make([]string, 16)
+		for j := range strs {
+			strs[j] = fmt.Sprintf(`"s%d_%d"`, i, j)
+		}
+		recs[i] = fmt.Sprintf(`{ r: "x%d", g: [%s], n: g(%d) }`, i, strings.Join(strs, ", "), i)
+	}
+	src := filepath.Join(t.TempDir(), "computed.ail")
+	writeFile(t, src, fmt.Sprintf(`module computed
+import std/io (println)
+import std/list (length)
+pure func g(i: int) -> int = i * 3 + 1
+func say(i: int) -> int ! {IO} {
+  println("e${show(i)}");
+  i
+}
+pure func calls() -> [int] = [%s]
+pure func negs() -> [float] = [%s]
+pure func regions() -> [{ r: string, g: [string], n: int }] = [%s]
+export func main() -> () ! {IO} {
+  let s = [%s];
+  println(show(calls()));
+  println(show(negs()));
+  println(show(regions()));
+  println(show(length(s)))
+}
+`, strings.Join(calls, ", "), strings.Join(negs, ", "), strings.Join(recs, ", "), strings.Join(says, ", ")))
+	var outs []string
+	for _, args := range [][]string{
+		{"run", "--relax-modules", "--quiet", "--caps", "IO", "--entry", "main", src},
+		{"run", "--relax-modules", "--quiet", "--bytecode", "--strict-bytecode", "--caps", "IO", "--entry", "main", src},
+	} {
+		out, stderr, code := runWithStdin(t, bin, "", args...)
+		if code != 0 {
+			t.Fatalf("%v: exit=%d stderr=%s", args, code, stderr)
+		}
+		outs = append(outs, out)
+	}
+	if outs[0] != outs[1] {
+		t.Errorf("interpreter and strict VM differ:\n%.400s\n---\n%.400s", outs[0], outs[1])
+	}
+	if !strings.HasPrefix(outs[1], "e0\ne1\ne2\n") || !strings.Contains(outs[1], "e299\n[1, 4, 7") {
+		t.Errorf("effects out of order or values missing: %.200s", outs[1])
+	}
+}

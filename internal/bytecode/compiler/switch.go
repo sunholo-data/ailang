@@ -90,7 +90,7 @@ func (fc *funcCompiler) compileSwitch(s stmt.SwitchStmt) error {
 			fc.locals.bindScoped(b.Name, bindReg)
 		}
 		// Compile the case body.
-		for _, bs := range c.Body {
+		for _, bs := range inlineCtorTemps(c.Body) {
 			if err := fc.compileStmt(bs); err != nil {
 				fc.locals.pop()
 				return err
@@ -108,7 +108,7 @@ func (fc *funcCompiler) compileSwitch(s stmt.SwitchStmt) error {
 	// Default branch.
 	if len(s.Default) > 0 {
 		fc.locals.push()
-		for _, ds := range s.Default {
+		for _, ds := range inlineCtorTemps(s.Default) {
 			if err := fc.compileStmt(ds); err != nil {
 				fc.locals.pop()
 				return err

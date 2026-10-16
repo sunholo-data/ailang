@@ -268,7 +268,8 @@ func (fc *funcCompiler) compile(fd *stmt.FuncDecl) error {
 	}
 
 	// Body statements.
-	for _, s := range fd.Body {
+	body, ret := inlineBodyCtorTemps(fd.Body, fd.Return)
+	for _, s := range body {
 		if err := fc.compileStmt(s); err != nil {
 			return err
 		}
@@ -277,8 +278,8 @@ func (fc *funcCompiler) compile(fd *stmt.FuncDecl) error {
 	// Trailing return expression. The Statement IR convention is that every
 	// FuncDecl has a Return expression (which may be nil only for void/Unit
 	// returning functions).
-	if fd.Return != nil {
-		if err := fc.compileReturnExpr(fd.Return); err != nil {
+	if ret != nil {
+		if err := fc.compileReturnExpr(ret); err != nil {
 			return err
 		}
 	} else {

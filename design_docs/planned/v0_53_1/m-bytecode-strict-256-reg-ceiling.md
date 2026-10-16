@@ -1,6 +1,6 @@
 # M-BYTECODE-STRICT-256-REG-CEILING — strict-VM register-pressure failures are silent until RUN time: >256-element list literals and if/else-if chains over wide records become `evaluator-only` with no compile-time, `check`-time, or non-strict-run warning
 
-**Status**: Phases B1 + B2 LANDED 2026-10-16 (Phase A open)
+**Status**: Phases B1 + B2 LANDED 2026-10-16 (Phase A open). B1 as first shipped in v0.54.13 covered only atomic elements: elaboration binds every non-atomic element (call, negation, record) to a pinned `$tmp` local, so computed lists still overflowed (#1865). Fixed by `inlineCtorTemps` (`internal/bytecode/compiler/ctor_temps.go`), which compiles single-use temps straight into constructor slots when evaluation order is unchanged.
 **Target**: v0.53.1
 **Priority**: P0 (strict-VM coverage silently degrades for exactly the AI-generated code shapes `--strict-bytecode` exists to cover; reported from the field twice in one mission)
 **Estimated**: 3–4 days (~450 LOC, pure compiler + CLI surface; no VM, no parser, no language semantics change)
