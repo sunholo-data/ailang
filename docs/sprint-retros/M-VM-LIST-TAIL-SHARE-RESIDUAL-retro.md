@@ -103,7 +103,43 @@ VM/interpreter=2.0619
 
 ### Final checks
 
-Pending combined validation completion.
+Passed: focused CLI bytecode/strict tests; existing sharing and builtin-error
+regressions; required three example stdout comparisons; benchmark module checks,
+Bash syntax, all actual runner checks and fake-binary failure diagnostics;
+file-size/changelog gates. New Go tests use filepath and do not assert rendered
+paths, require external executables, or compare platform-dependent golden text.
+
+`make verify-examples`: 243 passed, 5 failed, 9 skipped. All five failures are
+unchanged programs with unexported main. Reproduced on a baseline binary built
+using a Go overlay restoring BOTH modified production files from 078ba98b:
+
+```text
+examples/runnable/adt_list_fields.ail baseline exit 1 : main not exported
+examples/runnable/if_else_chain.ail baseline exit 1 : main not exported
+examples/runnable/poly_adt_result_type.ail baseline exit 1 : main not exported
+examples/runnable/record_in_match.ail baseline exit 1 : main not exported
+examples/runnable/record_width_subtyping.ail baseline exit 1 : main not exported
+Baseline binary uses Go overlay restoring BOTH modified production files from 078ba98b; all other production sources unchanged.
+```
+
+Manifest import drift: 0; one stale missing lambda_expressions.ail entry is a
+warning. The anticipated manifest-statistics mismatch did not occur here.
+
+`make lint` retry passed: 0 issues (GOMEMLIMIT=768MiB, GOGC=25, GOMAXPROCS=2).
+`make test-changed`: failed in cmd/ailang (372.235s): deep recursion
+through-map/over-limit subprocesses exited -1 under concurrent validation;
+policy deadline test could not find `ps`; supervisor-death test reported surviving
+worker subprocesses. A baseline-source retry (GOFLAGS overlay inherited by the
+CLI helper's build, restoring both production files from 078ba98b) reproduced
+both policy failures; all deep-recursion cases passed in that lower-contention
+baseline retry. Final changed-source deep-recursion retry passed (25.857s), matching the
+baseline retry and resolving the resource-sensitive recursion failures.
+
+Separate `make test-core` (GOMAXPROCS=2, GOFLAGS=-p=1, GOMEMLIMIT=1GiB):
+effects nested-stop failure and pipeline signal-killed recur exactly as before
+CLI edits. Other core packages passed, including evaluator, VM-related focused
+checks, parser/types/loader/runtime/format. These unrelated failures are left
+for CI/environment follow-up; this sprint does not claim an all-green gate.
 
 ## Friction
 
@@ -111,3 +147,37 @@ The toolchain was present at /usr/local/go/bin but absent from PATH; commands
 explicitly include it. First builds compiled uncached Go dependencies.
 Session startup's velocity display required missing `bc`; sprint validation
 itself passed with three real milestones. No new workflow scripts were added.
+
+The initial baseline core run (before CLI edits) failed
+`TestRuntimeNestedStopUsesRemainingDeadline` (nested fixture survived bounded
+stop) and killed the pipeline test process. Initial repository lint exited 137,
+and the first baseline-overlay linker was killed under memory pressure. The
+baseline-overlay rebuild succeeded on retry with GOGC=50. Final checks use lower
+Go concurrency / memory limits; these infrastructure observations are recorded
+separately from semantic test results.
+
+### Baseline CLI gate reproduction
+
+```text
+--- FAIL: TestRunPolicy_DeadlineStopsExecutionWithoutProtocolGrace (0.00s)
+    run_policy_deadline_test.go:58: policy fixture inventory: exec: "ps": executable file not found in $PATH
+--- FAIL: TestRunPolicy_SupervisorDeathStopsWorker (2.64s)
+    run_policy_lifetime_test.go:96: policy worker/subprocess survived lost supervisor: [16565 16575]
+FAIL
+FAIL	github.com/sunholo-data/ailang/cmd/ailang	29.085s
+FAIL
+```
+
+## Completion and handoff
+
+All three implementation milestones are complete. Independent evaluation is
+requested with broader red gates explicitly disclosed. No merge or release was
+performed. Active work took approximately 23 minutes (including cold builds and
+validation); the plan budgeted about four active hours plus review buffer.
+Production routing/help changed by two lines; 38 Go test lines and 105 benchmark/
+README lines were added. Remaining additions are limitation/release documentation,
+progress records and this evidence report. No representation or Phase 1 edits.
+
+The initial overlapping validation jobs caused avoidable memory pressure. Run
+large lint/link/benchmark jobs sequentially on this 8 GiB executor in future;
+GOMEMLIMIT=768MiB allowed lint to finish with zero issues.

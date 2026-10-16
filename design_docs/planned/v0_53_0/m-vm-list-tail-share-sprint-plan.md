@@ -1,6 +1,6 @@
 # M-VM-LIST-TAIL-SHARE — residual sprint plan
 
-Date: 2026-10-16. Status: planned, awaiting sprint execution approval.
+Date: 2026-10-16. Status: implementation executed 2026-10-16; validation recorded; independent evaluation pending.
 Design: [m-vm-list-tail-share.md](m-vm-list-tail-share.md).
 Source: #1740 (stapledons_godot); D-TRIAGE-14; design handoff task-585cec8d.
 Target: next release after current dev v0.54.12; the v0.53.0 directory is historical.
@@ -161,3 +161,16 @@ Three milestones total 230 LOC. No parallel agents are needed.
 This planning task changes documents and sprint state only. Coordinator approval/merge of
 the plan is the execution handoff; execution then uses sprint-executor and sprint-evaluator.
 Do not start implementation or self-approve this newly produced plan during planning.
+
+## Executor progress (2026-10-16)
+
+- [x] M1: strict-alone VM routing, help and regression tests (9af0b310).
+- [x] M2: checked benchmarks, boundary/strict smokes, fresh measurements (162719a9).
+- [x] M3: retention docs, release fragment and final validation report complete.
+  Focused checks/lint pass; baseline environment failures in broader gates are
+  documented in the report for independent evaluation.
+
+Execution evidence and raw measurements:
+[residual sprint report](../../../docs/sprint-retros/M-VM-LIST-TAIL-SHARE-RESIDUAL-retro.md).
+The final 160k walk VM/interpreter ratio is 0.0824 (12.14x faster); no residual
+walk slowdown. Construction remains quadratic and D-19 remains parked.
