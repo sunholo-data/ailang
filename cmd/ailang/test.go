@@ -197,7 +197,13 @@ func runTestFile(filename string, cfg ailangTesting.TestConfig) *ailangTesting.S
 // runPackageTests discovers and runs *_test.ail files in a package directory.
 // It reads ailang.toml for package metadata, finds test files by convention,
 // and runs them using the existing test framework.
-func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips bool, cfg ailangTesting.TestConfig) {
+func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips bool, cfg ailangTesting.TestConfig, noSourceCheck bool) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: cannot resolve package path: %v\n", err)
+		os.Exit(1)
+	}
+	dir = absDir
 	// Load package manifest
 	manifest, err := pkg.LoadManifest(dir)
 	if err != nil {
@@ -245,16 +251,23 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 		cyan(fmt.Sprintf("%d", len(sourceFiles))),
 		cyan(fmt.Sprintf("%d", len(testFiles))))
 
-	if len(testFiles) == 0 {
-		fmt.Printf("%s No *_test.ail files found in package %s\n", yellow("⚠"), manifest.Package.Name)
-		os.Exit(0)
-	}
-
-	fmt.Fprintln(preambleWriter)
-
-	// Aggregate results across all test files
 	aggregateResults := ailangTesting.NewSuiteResult(manifest.Package.Name)
 	aggregateResults.SetSeedMetadata(cfg)
+	if !noSourceCheck {
+		aggregateResults.SourceCheck = checkTestPackage(dir, manifest, preambleWriter)
+	}
+	if aggregateResults.SourceCheckFailed() {
+		reportPackageTestSuite(aggregateResults, formatStr, colorEnabled)
+		os.Exit(1)
+	}
+	if len(testFiles) == 0 {
+		fmt.Fprintf(preambleWriter, "%s No *_test.ail files found in package %s\n", yellow("⚠"), manifest.Package.Name)
+		if formatStr == "json" {
+			reportPackageTestSuite(aggregateResults, formatStr, colorEnabled)
+		}
+		return
+	}
+	fmt.Fprintln(preambleWriter)
 
 	for _, file := range testFiles {
 		fileResult := runTestFile(file, cfg)
@@ -273,20 +286,7 @@ func runPackageTests(dir string, formatStr string, colorEnabled bool, allowSkips
 	}
 	reportTestEngine(aggregateResults, cfg)
 
-	// Convert format string to OutputFormat
-	var format ailangTesting.OutputFormat
-	if formatStr == "json" {
-		format = ailangTesting.FormatJSON
-	} else {
-		format = ailangTesting.FormatHuman
-	}
-
-	// Report results
-	reporter := ailangTesting.NewReporter(format, os.Stdout, colorEnabled)
-	if err := reporter.Report(aggregateResults); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: Failed to generate report: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
+	reportPackageTestSuite(aggregateResults, formatStr, colorEnabled)
 
 	// Exit with appropriate code.
 	// --allow-skips: treat an all-skipped suite as success (exit 0).
@@ -323,8 +323,9 @@ func printTestHelp() {
 	fmt.Println("  --json             Machine-readable JSON output")
 	fmt.Println("  --format <format>  Output format: human (default), json (legacy spelling of --json)")
 	fmt.Println("  --no-color         Disable colored output")
-	fmt.Println("  --package          Package mode: discover *_test.ail files via ailang.toml")
-	fmt.Println("  --allow-skips      Exit 0 even if all tests were skipped (default: exit 1)")
+	fmt.Println("  --package          Check all package modules, then run *_test.ail files")
+	fmt.Println("  --no-source-check  Skip package validation when it already ran separately")
+	fmt.Println("  --allow-skips      Permit all-skipped tests; source-check failures still exit 1")
 	fmt.Println("  --seed N           Master seed for property generation (signed int64; replayable)")
 	fmt.Println("  --random-seed      Read one master seed from crypto/rand and report it for replay")
 	fmt.Println("  --max-recursion-depth N  Evaluator call-depth limit for test bodies (default 10000, as ailang run)")
@@ -338,7 +339,7 @@ func printTestHelp() {
 	fmt.Println("  ailang test file.ail           # Run tests in specific file")
 	fmt.Println("  ailang test a.ail b.ail        # Run tests in several files (one summary)")
 	fmt.Println("  ailang test --json .           # JSON output for CI")
-	fmt.Println("  ailang test --package .        # Run all *_test.ail in package")
+	fmt.Println("  ailang test --package .        # Check all modules and run package tests")
 	fmt.Println("  ailang test --package ../lib   # Run tests in another package")
 	fmt.Println()
 	fmt.Println("Test Syntax:")

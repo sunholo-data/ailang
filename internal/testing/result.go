@@ -44,8 +44,18 @@ type PropertyResult struct {
 	Seed            int64         // Derived seed used for this property's RNG stream
 }
 
+// SourceCheckResult records the package validation performed before tests.
+// A nil SuiteResult.SourceCheck means validation was not requested.
+type SourceCheckResult struct {
+	Passed   int      `json:"passed"`
+	Failed   int      `json:"failed"`
+	Errors   []string `json:"errors"`
+	Warnings []string `json:"warnings"`
+}
+
 // SuiteResult aggregates results from all tests in a test suite.
 type SuiteResult struct {
+	SourceCheck    *SourceCheckResult
 	ModulePath     string           // Module path
 	ReplayTarget   string           // Shell-safe CLI arg tail that reproduces this run (empty = unknown)
 	Tests          []TestResult     // All test results
@@ -129,7 +139,12 @@ func (sr *SuiteResult) AddPropertyResult(result PropertyResult) {
 // An all-skipped suite (run==0, skipped>0) is NOT success — it exits non-zero.
 func (sr *SuiteResult) Success() bool {
 	ran := sr.PassedTests + sr.FailedTests
-	return ran > 0 && sr.FailedTests == 0 && sr.VacuousSkips == 0
+	return !sr.SourceCheckFailed() && ran > 0 && sr.FailedTests == 0 && sr.VacuousSkips == 0
+}
+
+// SourceCheckFailed reports a failed package validation independently of test counts.
+func (sr *SuiteResult) SourceCheckFailed() bool {
+	return sr.SourceCheck != nil && (sr.SourceCheck.Failed > 0 || len(sr.SourceCheck.Errors) > 0)
 }
 
 // AllSkipped returns true when every recorded test was skipped and at least
@@ -141,7 +156,7 @@ func (sr *SuiteResult) AllSkipped() bool {
 // SuccessAllowingSkips returns true when there are no failures, even if all
 // tests were skipped. Used when --allow-skips is passed.
 func (sr *SuiteResult) SuccessAllowingSkips() bool {
-	return sr.FailedTests == 0
+	return !sr.SourceCheckFailed() && sr.FailedTests == 0
 }
 
 // Summary returns a human-readable summary of the results.

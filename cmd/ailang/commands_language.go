@@ -234,8 +234,9 @@ func runTestCommand(args []string) error {
 	jsonFlag := registerJSONFlag(testFlags, "Machine-readable JSON output (canonical spelling of --format json)")
 	formatFlag := testFlags.String("format", "human", "Output format: human or json (legacy spelling of --json)")
 	noColorFlag := testFlags.Bool("no-color", false, "Disable colored output")
-	packageFlag := testFlags.Bool("package", false, "Run tests in package mode (discovers *_test.ail via ailang.toml)")
-	allowSkipsFlag := testFlags.Bool("allow-skips", false, "Exit 0 even when all tests are skipped (default: skipped-only suites exit 1)")
+	packageFlag := testFlags.Bool("package", false, "Check all package modules, then run *_test.ail files")
+	noSourceCheckFlag := testFlags.Bool("no-source-check", false, "Skip package source validation when it already ran separately")
+	allowSkipsFlag := testFlags.Bool("allow-skips", false, "Permit all-skipped tests; source-check failures still exit 1")
 	seedFlag := testFlags.Int64("seed", 0, "Master seed for property generation (signed int64)")
 	randomSeedFlag := testFlags.Bool("random-seed", false, "Read one master seed from crypto/rand and report it")
 	maxRecursionDepthFlag := testFlags.Int("max-recursion-depth", 10000, "Maximum evaluator recursion depth for test bodies (same as ailang run)")
@@ -312,13 +313,16 @@ func runTestCommand(args []string) error {
 	}
 	if *packageFlag {
 		cfg.ReplayTarget = "--package " + quoted[0]
+		if *noSourceCheckFlag {
+			cfg.ReplayTarget += " --no-source-check"
+		}
 	} else {
 		cfg.ReplayTarget = strings.Join(quoted, " ")
 	}
 
 	format := resolveTestFormat(*jsonFlag, *formatFlag)
 	if *packageFlag {
-		runPackageTests(paths[0], format, !*noColorFlag, *allowSkipsFlag, cfg)
+		runPackageTests(paths[0], format, !*noColorFlag, *allowSkipsFlag, cfg, *noSourceCheckFlag)
 	} else {
 		runTestsV2(paths, format, !*noColorFlag, *allowSkipsFlag, cfg)
 	}

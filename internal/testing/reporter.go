@@ -63,6 +63,10 @@ func (r *Reporter) reportJSON(result *SuiteResult) error {
 		"seed_derivation": result.SeedDerivation,
 	}
 
+	if result.SourceCheck != nil {
+		output["source_check"] = result.SourceCheck
+	}
+
 	if len(result.NamedBatchFailures) > 0 {
 		output["named_test_batch_failures"] = result.NamedBatchFailures
 	}
@@ -139,6 +143,17 @@ func (r *Reporter) reportHuman(result *SuiteResult) error {
 	// Header
 	fmt.Fprintf(r.writer, "\n%s\n", r.color(colorBold, "Test Results"))
 	fmt.Fprintf(r.writer, "Module: %s\n\n", result.ModulePath)
+
+	if result.SourceCheck != nil {
+		sc := result.SourceCheck
+		fmt.Fprintf(r.writer, "Package source check: %d passed, %d failed\n", sc.Passed, sc.Failed)
+		for _, message := range sc.Errors {
+			fmt.Fprintf(r.writer, "  %s\n", message)
+		}
+		for _, message := range sc.Warnings {
+			fmt.Fprintf(r.writer, "  Warning: %s\n", message)
+		}
+	}
 
 	// Test results
 	if len(result.Tests) > 0 {
@@ -243,6 +258,8 @@ func (r *Reporter) reportSummaryHuman(result *SuiteResult) {
 	fmt.Fprintf(r.writer, "%s\n", strings.Repeat("─", 50))
 
 	switch {
+	case result.SourceCheckFailed():
+		fmt.Fprintln(r.writer, r.color(colorRed, "Package source check failed; tests were not run"))
 	case result.AllSkipped():
 		// run==0, skipped>0: nothing actually executed — this is a hard failure
 		fmt.Fprintf(r.writer, "%s %s\n",
@@ -254,6 +271,8 @@ func (r *Reporter) reportSummaryHuman(result *SuiteResult) {
 			r.color(colorBold, fmt.Sprintf(
 				"%d properties never ran (no generator) — use --allow-skips to permit",
 				result.VacuousSkips)))
+	case result.SourceCheck != nil && result.TotalTests == 0:
+		fmt.Fprintln(r.writer, "No tests found")
 	case result.Success():
 		// ran>0 && failed==0 (may include skips)
 		fmt.Fprintf(r.writer, "%s %s\n",

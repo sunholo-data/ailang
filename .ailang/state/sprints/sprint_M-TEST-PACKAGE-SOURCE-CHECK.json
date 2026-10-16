@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-TEST-PACKAGE-SOURCE-CHECK",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-16T09:15:44Z",
   "design_doc": "design_docs/planned/v0_54_13/m-test-package-source-check.md",
   "sprint_plan": "design_docs/planned/v0_54_13/m-test-package-source-check-sprint-plan.md",
@@ -60,10 +60,10 @@
         "Fail-fast path never executes test bodies; source failures are not waived by `--allow-skips`.",
         "Targeted real-binary tests pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T13:57:40.151804+00:00",
+      "completed": "2026-10-16T13:57:40.151804+00:00",
+      "notes": "Red/green real-binary regressions and reporter tests pass. Full checker runs before zero-test return; JSON remains one document, source failures defeat allow-skips."
     },
     {
       "id": "M2_REPORTING",
@@ -78,10 +78,10 @@
         "Failure JSON has `success:false`, source counts/errors, zero executed tests, and exit 1.",
         "Reporter tests cover present/absent source_check and stable existing keys; existing JSON stdout tests pass."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T13:57:40.151804+00:00",
+      "completed": "2026-10-16T13:57:40.151804+00:00",
+      "notes": "Red/green real-binary regressions and reporter tests pass. Full checker runs before zero-test return; JSON remains one document, source failures defeat allow-skips."
     },
     {
       "id": "M3_QUALITY",
@@ -161,5 +161,6 @@
     "trigger": "coordinator plan approval/merge",
     "estimated_hours": 10,
     "risk_level": "medium"
-  }
+  },
+  "last_session": "2026-10-16T13:57:40.151804+00:00"
 }
