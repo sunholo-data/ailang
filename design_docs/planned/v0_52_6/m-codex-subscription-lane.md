@@ -399,7 +399,8 @@ All rows verified by code reads / greps in this checkout (`c3bfb1c0`, shallow de
 
 ## Operational addendum: three OAuth profiles on one account (2026-10-09)
 
-**Status:** Approved by Mark on 2026-10-09; implementation and validation in progress.
+**Status:** Operational addendum implemented and validated in v0.53.1 on 2026-10-09; independent evaluation passed (97/100). The parent provider migration remains planned.
+**Rollout evidence:** [completed operational sprint](m-codex-oauth-profiles-sprint-plan.md#execution-evidence-2026-10-09).
 **Priority:** P1. **Estimated:** 2–4 days including cloud rollout and fault tests.
 **Scope:** Credential ownership for interactive use, local missions, and cloud
 executions. This closes the fleet-auth follow-up explicitly deferred by Phase 1;
@@ -495,21 +496,22 @@ from an obsolete seed. No change to the OAuth wire flow: Codex owns refresh.
 
 ### Acceptance criteria and validation commands
 
-- [ ] `bash tools/attended/check_codex_oauth_profiles.sh` reports same account and
+- [x] `bash tools/attended/check_codex_oauth_profiles.sh` reports same account and
   workspace, distinct credentials, subscription mode, and file permissions.
-  This command is proposed, not currently implemented.
-- [ ] New `tools/launchd/test_codex_auth_profiles.sh` exercises all mission profiles,
+  Implemented and passed before cloud handoff; the staging seed was intentionally
+  retired after durable publication and rotation.
+- [x] New `tools/launchd/test_codex_auth_profiles.sh` exercises all mission profiles,
   probes, nested roles and quota reads, including missing-auth refusal.
-- [ ] A focused executor/mission test proves concurrent local requests use one
+- [x] A focused executor/mission test proves concurrent local requests use one
   refresh owner and a simulated rotation yields one refresh and valid later calls.
-- [ ] Cloud credential lease tests exercise codex versus codex-go overlap,
+- [x] Cloud credential lease tests exercise codex versus codex-go overlap,
   preflight refresh, cancellation, process termination, lease loss, crash recovery,
   failed persistence, stale writer rejection and release after durable write-back.
-- [ ] `go test ./internal/executor/... ./internal/mission/... ./cmd/ailang/...`
+- [x] `go test ./internal/executor/... ./internal/mission/... ./cmd/ailang/...`
   and `make check-boundaries` pass. Add lease/storage tests in the owning package.
-- [ ] Deployment smoke evidence records the profile labels and success outcomes
+- [x] Deployment smoke evidence records the profile labels and success outcomes
   without token values; cloud version metadata advances after a forced test refresh.
-- [ ] Documentation explains one account/shared subscription limits and three
+- [x] Documentation explains one account/shared subscription limits and three
   independent authorizations. Authentication failures remain explicit.
 
 ### Axiom compliance for this operational extension
@@ -547,8 +549,9 @@ implementation evidence.
   `internal/executor/envpolicy.go` (CODEX_ inheritance),
   `internal/ai/chatgpt/auth.go` (read-only consumer).
 - The previous cloud-login comment says a dedicated token family is intended;
-  we have not compared its identity with the interactive credential. Independent
-  provisioning and the profile check establish the desired state at rollout.
+  the historical seed identity was not established and that seed has been replaced.
+  Fresh independent cloud and mission authorizations passed the same-account and
+  workspace provisioning checker before handoff.
 - Explicit account-policy authorization remains Mark's reported OpenAI guidance;
   this proposal does not claim three isolated logins grant extra quota or guarantee
   permanent sessions. User participation is required for the new browser/device

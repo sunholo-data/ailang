@@ -55,6 +55,36 @@ advances origin/dev without touching the local ref, so the working-tree copies a
 pull/reset the shared main tree (Critical Principle 0 — it may hold a sibling's uncommitted work);
 treat origin as truth, and if you need the code, branch a worktree from `origin/dev`.
 
+**⚠ AND ORIGIN/DEV IS NOT THE NEWEST RECORD WHILE ONE OF YOUR OWN PRs IS BLOCKED — AN ITERATION
+WHOSE LANDING PR CANNOT MERGE COMMITS ITS RECORD TO THAT PR'S BRANCH, SO THE CHARTER AND LOG ON
+`origin/dev` READ ONE OR MORE ITERATIONS STALE AND THE QUEUE HEAD THEY NAME MAY ALREADY BE BUILT**
+(added 2026-10-14 fleet iteration 39; instance 1 is fleet iteration 37, instance 2 is iteration 38,
+both of which caught it only from a leftover worktree, instance 3 is iteration 39, which did not
+catch it until Gate 3 and re-ran a pick-time quorum, about $0.10, on a doc that iteration 36 had
+already revised, built and had judged PASS 88). The sync rule above makes `origin/dev` ground truth,
+and it is, for anything that has MERGED. A record waiting behind a required red has not. Every
+later fire then reads a log ending at the last landing, picks the queue head that log names, and
+finds no orphan trace for it, because the orphan is a pushed branch with an open PR rather than a
+dead worktree. Measured at iteration 39: `origin/dev` charter and log ended at iteration 35 while
+iterations 36, 37 and 38 sat on `fleet/i36-quorum-salvage` (#1824) and the stacked
+`fleet/i38-quorum-artifact-dir` (#1825), both BLOCKED on dev's required reds.
+**Rule.** In the same breath as the sync, list your account's open PRs and read the record from
+the newest one when it carries a later iteration than origin/dev:
+```bash
+gh pr list --repo "${MISSION_REPO:-sunholo-data/ailang}" --author @me --state open \
+  --json number,headRefName,updatedAt --jq '.[] | "\(.number) \(.headRefName) \(.updatedAt)"'
+# for each branch: newest log heading there vs on origin/dev
+git fetch -q origin <branch> && git show "origin/<branch>:design_docs/${MISSION_NAME}-mission-log.md" | grep '^## ' | tail -1
+git show "origin/dev:design_docs/${MISSION_NAME}-mission-log.md" | grep '^## ' | tail -1
+```
+If a branch is ahead, its charter, log, ledger and **Next** are this iteration's Gate-1 input, and
+its PR's blocker becomes the first thing Gate 2 re-measures. Stack this iteration's record (and any
+build that shares files) on that branch rather than branching a fresh one from `origin/dev`, so the
+records stay one linear chain and the next fire finds them in one place. Filter the PR list to your
+own mission's branches (`<mission>/…` or the record's own file) before trusting it: on a shared repo
+`--author @me` is the whole fleet's account. The tell: the last log entry on `origin/dev` names a
+**Next** that a branch in `git worktree list` or `gh pr list --author @me` has already started.
+
 **⚠ AND THE RUNNING-SKILL DRIFT CHECK NAMES *ONE* PATH WHILE THREE COPIES EXIST, SO IT GREENS ON A
 FILE THE CONTROLLER NEVER OPENED — AND IT COMPARES ONLY `SKILL.md`, WHICH IS A 560-LINE INDEX OF
 STUBS WHOSE ACTUAL RULES ALL LIVE IN `resources/`** (added 2026-09-07 motoko iteration 39; instance

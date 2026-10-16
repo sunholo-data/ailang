@@ -263,6 +263,11 @@ act on. Skipping the read is how a gate's rules silently stop applying.
 
 Route and execute: designer -> planner -> executor -> evaluator, with the routing policy and the cross-provider spawn recipes.
 
+**Triage mission (`MISSION_NAME=triage`): read `.claude/skills/mission-control/resources/gate-3-triage.md`
+INSTEAD.** That loop runs no inner loop. It runs read-only verifiers, a different-vendor judge,
+attestations and the shadow ledger, and it never approves, rejects or merges. Its Gate 2 is the
+triage branch in `gate-2-pick.md`.
+
 **⚠ THE FULL RULES FOR THIS GATE ARE NOT IN THIS FILE.** Read
 `.claude/skills/mission-control/resources/gate-3-route.md` **NOW**, before doing anything in
 Gate 3. It is the authoritative text; this stub is an index entry, not a summary you may

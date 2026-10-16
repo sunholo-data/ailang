@@ -72,6 +72,9 @@ type ReviewerOutcome struct {
 	// Result is the parsed verdict when Present is true; nil otherwise.
 	Result *ReviewResult `json:"result,omitempty"`
 
+	// Salvaged is audit plus a possible veto, never a present verdict.
+	Salvaged *SalvagedVerdict `json:"salvaged,omitempty"`
+
 	// Landed seeds the catch-rate hook (design doc's "drop a reviewer whose
 	// objections never land"): the doc author/evaluator later flips this to
 	// true/false once they act (or don't) on the objection. null = not yet
@@ -158,7 +161,7 @@ func runReviewerWith(caller JSONCaller, mc *eval_harness.ModelConfig, out *Revie
 
 	result, perr := ParseReviewResult(raw)
 	if perr != nil {
-		out.AbsentReason = ReasonInvalid
+		recordInvalid(out, raw)
 		// Fail LOUDLY on a max_tokens truncation: a reasoning model whose
 		// thinking exhausted the output cap returns a valid-but-cut-off body
 		// that ParseReviewResult rejects as malformed JSON. Surfacing the

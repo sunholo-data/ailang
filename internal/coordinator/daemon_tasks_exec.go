@@ -115,6 +115,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 		return nil
 	}
 
+	claimedLanes := map[string]string{}
 	for _, task := range tasks {
 		// CLAIM the task. This is the only thing standing between a task and
 		// two Cloud Run executions of it: the listing above is not exclusive, so
@@ -162,6 +163,23 @@ func (d *Daemon) dispatchTasksCloud() error {
 		// Two of those are the middle stages of the four-stage pipeline, so the
 		// pipeline could not have completed even once, whatever else was fixed.
 		provider := resolveDispatchProvider(d.agentRegistry, task.AgentID, d.coordConfig)
+
+		// One rotating credential, one job at a time (credential_lane.go). A
+		// second codex job would lose the lease and be banked as failed.
+		if lane := credentialLane(inputAgent, provider); lane != "" {
+			holder, err := d.credentialLaneHolder(d.ctx, lane, task.ID, claimedLanes)
+			if err != nil {
+				d.logger.Printf("Task %s: cannot check credential lane %s, leaving it pending: %v", task.ID, lane, err)
+				_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+				continue
+			}
+			if holder != "" {
+				d.logger.Printf("Task %s: credential lane %s is held by %s; leaving it pending", task.ID, lane, holder)
+				_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+				continue
+			}
+			claimedLanes[lane] = task.ID
+		}
 
 		// Publish task to Pub/Sub for audit trail / event streaming.
 		if err := d.pubsubPublisher.PublishTask(d.ctx, task.ID, task.AgentID, task.Workspace, provider); err != nil {

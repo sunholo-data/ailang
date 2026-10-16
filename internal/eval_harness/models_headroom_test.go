@@ -85,6 +85,12 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// unreachable — and with a single route there is no provider order to
 		// pin that would raise it.
 		"or-hy4-preview": 64000,
+		// Gemini 4 Argon (2026-10-13): Vertex docs cap a single request at
+		// 65,536 thinking+output tokens, "or 32,768 for non-streaming direct
+		// HTTP requests" — and standard eval uses non-streaming generateContent.
+		// Vertex clamps silently (1,000,000 returns 200), so the API cannot
+		// confirm this; it is docs-sourced, see the models.yml row.
+		"gemini-4-argon": 32768,
 		// TypeSafe Jev is a text->decisions model (M-AI-DECIDE-SYSTEM-ONE M2):
 		// it never generates a completion, so output headroom is meaningless.
 		// 28800 is the value /endpoints reports (2026-09-17 endpoint); the row

@@ -29,10 +29,15 @@ awk '/^_mc_demote\(\) /' "$DRIVER" >> "$TMP/fn_help.sh"
 awk '/^_mc_is_demoted\(\) \{/,/^\}$/' "$DRIVER" >> "$TMP/fn_help.sh"
 awk '/^_mc_rung_bucket\(\) \{/,/^\}$/' "$HERE/lib/lane-probe.sh" >> "$TMP/fn_help.sh"
 awk '/^_mc_is_over_ration\(\) \{/,/^\}$/' "$HERE/lib/lane-probe.sh" >> "$TMP/fn_help.sh"
+# select_model gates through _mc_ration_refuses (2026-10-15), which excuses an UNREADABLE
+# Anthropic quota via these two.
+for _f in _mc_ration_reason _mc_ration_unreadable _mc_ration_refuses; do
+  awk -v f="$_f" '$0 == f "() {" {on=1} on {print} on && /^}$/ {exit}' "$HERE/lib/lane-probe.sh" >> "$TMP/fn_help.sh"
+done
 # Guard the extraction itself: an empty extract would make every test vacuously fail
 # in confusing ways — fail loudly at the seam instead.
 [ -s "$TMP/fn_set.sh" ] && [ -s "$TMP/fn_sel.sh" ] \
-  && [ "$(/usr/bin/grep -c '^_mc_[a-z_]*()' "$TMP/fn_help.sh")" -eq 5 ] \
+  && [ "$(/usr/bin/grep -c '^_mc_[a-z_]*()' "$TMP/fn_help.sh")" -eq 8 ] \
   || { echo "FAIL extraction: function boundaries not found in $DRIVER"; exit 1; }
 
 log(){ :; }

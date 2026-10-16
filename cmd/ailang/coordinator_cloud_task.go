@@ -14,6 +14,12 @@ import (
 	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
+// runtimePluginRoot is where execute-job clones a per-task plugin repo. It must
+// be the ONE directory Dockerfile.agent-base chowns to ailang under /plugins:
+// /plugins itself and the pre-baked hooks stay root-owned (audit H-6 P0.3).
+// TestRuntimePluginRootMatchesImage pins the two together.
+const runtimePluginRoot = "/plugins/tasks"
+
 // executeCloudTask runs the AI executor in a cloned repository.
 // Returns the branch name with changes, executor result with metrics, or error.
 //
@@ -69,7 +75,9 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// Step 0: Resolve shared skills plugin directory (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 	pluginDir := ""
 	if pluginRepo != "" {
-		pluginDir = filepath.Join("/plugins", taskID, "ailang_bootstrap")
+		// Under /plugins/tasks, the one ailang-owned subdirectory: /plugins itself
+		// is root-owned so the pre-baked hooks cannot be rewritten (audit H-6 P0.3).
+		pluginDir = filepath.Join(runtimePluginRoot, taskID, "ailang_bootstrap")
 		fmt.Printf("execute-job: cloning plugin repo %s\n", pluginRepo)
 		pluginCloneCmd := gitexec.CommandContext(ctx, "clone", "--depth", "1", pluginRepo, pluginDir)
 		pluginCloneCmd.Stdout = os.Stdout

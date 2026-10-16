@@ -8,6 +8,36 @@ deprecation on 2026-06-18.
 Sprint: [M-MANAGED-AGENTS](../../../design_docs/planned/v0_22_0/m-antigravity-cli-migration.md)
 (target v0.22.0).
 
+## Sibling executor: `gemini_agents` (Gemini Developer API, edits locally)
+
+The same package registers a second executor, `gemini_agents`
+(`devapi.go`, `devapi_workspace.go`). It speaks the same interactions contract to
+`generativelanguage.googleapis.com/v1beta` instead of Vertex, because only the
+Developer API can get edits OUT of the sandbox (live-probed 2026-10-13):
+
+| | Vertex (`managed_agents`) | Developer API (`gemini_agents`) |
+|---|---|---|
+| sources | `gcs`, `skill_registry` | + `repository`, `inline` |
+| agent | `antigravity-preview-05-2026` | + `antigravity-preview-09-2026` |
+| files API | 404 | `GET environments/{id}/files/{path}?alt=media` |
+| edits | stay in sandbox (`CapRemoteSandbox`) | patch applied to the local workspace |
+| auth | ADC | API key `GEMINI_AGENTS_API_KEY` (SA OAuth is refused) |
+
+Round trip: mount the workspace's GitHub origin at the merge-base with the
+remote, ship unpushed/uncommitted/untracked changes as one inline patch (built in
+a throwaway index), tell the agent to export `git diff` at the end, download it,
+`git apply` it locally, delete the sandbox. A missing setup marker or an
+unappliable patch FAILS the task (the patch is kept, path in ProviderData).
+Non-git workspaces go up as inline files (1 MB/file, 2 MB total).
+
+```bash
+ailang exec gemini_agents --workspace . "your directive"
+```
+
+The key comes from the locked project set up by
+`scripts/security/setup_gemini_agents_project.sh`. The model behind the agent is
+not verifiable — see the `gemini-agents-antigravity` row in models.yml.
+
 ## What this executor does
 
 POSTs a single HTTP request to the Vertex AI Managed Agents endpoint, reads

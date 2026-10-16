@@ -15,6 +15,7 @@ import (
 	// Import to trigger init() registration — same as local coordinator (provider_executor.go)
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
 	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
+	"github.com/sunholo-data/ailang/internal/proctree"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
@@ -169,6 +170,15 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 	if projErr != nil {
 		publishCompletion("failed", projErr.Error(), "", nil, gitEvidence{}, "")
 		return projErr
+	}
+	// Audit H-6 P0.2 (M-EXECUTOR-UID-SPLIT): the agent CLI runs as this UID, so
+	// unless this process is non-dumpable the child reads every secret the job
+	// started with from /proc/1/environ. Fatal, before any child exists: running
+	// the agent without it is the exposure this guards.
+	if err := proctree.DisableDump(); err != nil {
+		msg := fmt.Sprintf("parent dump protection (audit H-6): %v", err)
+		publishCompletion("failed", msg, "", nil, gitEvidence{}, "")
+		return fmt.Errorf("%s", msg)
 	}
 	var dirErr error
 	directive, dirErr = resolveJobDirective(ctx, config.DirectiveSource(), taskID, openDirectiveStore(projectID))

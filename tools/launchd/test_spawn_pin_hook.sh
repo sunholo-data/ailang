@@ -38,6 +38,30 @@ else
 fi
 ARM1_REASON="$REASON"
 
+# --- Arm 1b: claude: pin + same-family alias -> allow (same model, other spelling) ---
+payload1b=$(jq -nc '{hook_event_name:"PreToolUse",tool_name:"Agent",tool_input:{model:"haiku",subagent_type:"general-purpose",prompt:"MISSION-ROLE: executor\nVerify items",description:"Verify batch"}}')
+run_hook "$payload1b" MISSION_CONTROL_ACTIVE=1 MISSION_EXECUTOR_MODEL=claude:claude-haiku-5-5
+if [ "$DEC" = "allow" ] && contains "$REASON" "allow:same-model-alias"; then
+  ok "arm1b allow claude: pin through its own alias"
+else
+  bad "arm1b allow claude: pin through its own alias" "dec=$DEC reason=$REASON"
+fi
+# A different family under the same claude: pin stays a provider-pin deny.
+run_hook "$payload1" MISSION_CONTROL_ACTIVE=1 MISSION_EXECUTOR_MODEL=claude:claude-haiku-5-5
+if [ "$DEC" = "deny" ] && contains "$REASON" "deny:provider-pin"; then
+  ok "arm1b deny claude: pin through another alias"
+else
+  bad "arm1b deny claude: pin through another alias" "dec=$DEC reason=$REASON"
+fi
+# fable has no Agent alias, so a claude-fable pin never matches one.
+payload1c=$(jq -nc '{hook_event_name:"PreToolUse",tool_name:"Agent",tool_input:{model:"opus",subagent_type:"general-purpose",prompt:"MISSION-ROLE: executor\nVerify items",description:"Verify batch"}}')
+run_hook "$payload1c" MISSION_CONTROL_ACTIVE=1 MISSION_EXECUTOR_MODEL=claude:claude-fable-5-1
+if [ "$DEC" = "deny" ] && contains "$REASON" "deny:provider-pin"; then
+  ok "arm1b deny claude-fable pin through opus"
+else
+  bad "arm1b deny claude-fable pin through opus" "dec=$DEC reason=$REASON"
+fi
+
 # --- Arm 2: identical to arm 1 but model=opus -> byte-identical deny reason ----
 payload2=$(jq -nc '{hook_event_name:"PreToolUse",tool_name:"Agent",tool_input:{model:"opus",subagent_type:"general-purpose",prompt:"MISSION-ROLE: executor\nInvoke the sprint-executor skill",description:"Execute sprint M1"}}')
 run_hook "$payload2" MISSION_CONTROL_ACTIVE=1 MISSION_EXECUTOR_MODEL=codex:gpt-5.6-luna
