@@ -88,10 +88,10 @@
         "Literal and sha256 lookup agree; text/media keys and empty media behavior are tested.",
         "Existing text/image/speech fixture tests continue passing without format-version changes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T20:16:58.058048+00:00",
+      "completed": "2026-10-16T20:16:58.058048+00:00",
+      "notes": "Embedding fixtures replay vectors and verbatim error messages; strict text/media canonical keys, literal/hash equivalence, validation and existing fixture/speech tests pass."
     },
     {
       "id": "M4",

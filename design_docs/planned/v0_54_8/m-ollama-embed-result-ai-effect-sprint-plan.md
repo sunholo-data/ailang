@@ -64,9 +64,9 @@ Create internal/effects/ai_embed.go and ai_embed_test.go. Register embedOllama/e
 Extend internal/effects/ai_stub_fixtures.go with embed entries; put embed-only parsing/key/replay helpers in ai_stub_fixtures_embed.go and tests in ai_stub_fixtures_embed_test.go. Canonical compact sorted JSON uses model/text for text and audio/image presence booleans plus model/text for media. Require explicit media keys; no cross-op fallback. Validate numeric vectors and document the key and error format.
 
 **Acceptance criteria:**
-- [ ] Embed success and error fixtures replay offline; missing fixture fails loudly.
-- [ ] Literal and sha256 lookup agree; text/media keys and empty media behavior are tested.
-- [ ] Existing text/image/speech fixture tests continue passing without format-version changes.
+- [x] Embed success and error fixtures replay offline; missing fixture fails loudly.
+- [x] Literal and sha256 lookup agree; text/media keys and empty media behavior are tested.
+- [x] Existing text/image/speech fixture tests continue passing without format-version changes.
 
 **Example coverage:** M5 supplies the runnable fallback and migrated text/media callers; earlier milestones use offline Go tests until wrappers land.
 
