@@ -65,6 +65,9 @@ func prepareRunAIHandler(effCtx *effects.EffContext, cfg aiSetup, routing *ai.AI
 	}
 	prepared := preparedRunAI{binding: binding, path: path, noADC: cfg.NoADC, frozen: frozen, opts: opts}
 	effCtx.AI = effects.NewLazyAIContext(prepared.initialize)
+	if err := setupRunEmbedder(effCtx, cfg, binding.provider, true); err != nil {
+		return err
+	}
 	effCtx.WithProviderLookup(snapshotNamedProviders())
 	return nil
 }

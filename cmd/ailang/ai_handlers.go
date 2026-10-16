@@ -29,7 +29,21 @@ import (
 // the first call. If aiModel is empty (no AI configured) and the caller
 // passed a non-nil routingPolicy, we treat that as a configuration mistake
 // and warn — there is no handler to attach the policy to.
-func setupAIHandler(effCtx *effects.EffContext, cfg aiSetup, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) error {
+func setupAIHandler(effCtx *effects.EffContext, cfg aiSetup, routingPolicy *ai.AIRoutingPolicy, attr *ai.Attribution) (setupErr error) {
+	defer func() {
+		if setupErr == nil {
+			bound := ""
+			if cfg.Model != "" && !cfg.Stub {
+				b, err := prepareRunAIBinding(cfg.Model)
+				if err != nil {
+					setupErr = err
+					return
+				}
+				bound = b.provider
+			}
+			setupErr = setupRunEmbedder(effCtx, cfg, bound)
+		}
+	}()
 	aiStub, aiModel := cfg.Stub, cfg.Model
 	// M-AI-PROVIDER-CONFIG: harvest [[ai_provider]] blocks from the project's
 	// ailang.toml + dependency manifests before consulting the registry in

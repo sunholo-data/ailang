@@ -11,6 +11,8 @@ import (
 // aiSetup is everything the AI flags of `ailang run` / `serve-api` say about
 // the handler, bundled so a new flag does not widen runFile's parameter list.
 type aiSetup struct {
+	// EmbedCacheDB is the optional durable embedding cache path.
+	EmbedCacheDB string
 	// Stub selects the built-in deterministic stub handler (--ai-stub).
 	Stub bool
 	// StubFixtures is the --ai-stub-fixtures file: the stub replays its

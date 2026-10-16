@@ -5,6 +5,9 @@ package config
 // deprecated default served through DeprecatedDefault — the model FIXES the
 // vector dimension, so a silent default corrupts search.
 const (
+	EnvSharedMemDB      = "AILANG_SHAREDMEM_DB"
+	EnvSharedIndexDB    = "AILANG_SHAREDINDEX_DB"
+	EnvEmbedCacheDB     = "AILANG_EMBED_CACHE_DB"
 	EnvEmbedProvider    = "AILANG_EMBED_PROVIDER"
 	EnvEmbedOllamaModel = "AILANG_OLLAMA_MODEL"
 	EnvEmbedOllamaURL   = "AILANG_OLLAMA_ENDPOINT"
@@ -13,6 +16,9 @@ const (
 )
 
 var embedVars = []Var{
+	{EnvSharedMemDB, "", AreaCompiler, "Optional SQLite SharedMem database; --sharedmem-db overrides this path. Requires SharedMem capability."},
+	{EnvSharedIndexDB, "", AreaCompiler, "Optional SQLite SharedIndex database; --sharedindex-db overrides this path. Requires SharedIndex capability."},
+	{EnvEmbedCacheDB, "", AreaEmbed, "Optional SQLite database for AI embedding cache; --embed-cache-db overrides this path."},
 	{EnvEmbedProvider, "", AreaEmbed, "Embedding provider (ollama, openai, gemini, none) over the config file's embeddings.provider."},
 	{EnvEmbedOllamaModel, "", AreaEmbed, "Ollama embedding model over the config file's embeddings.ollama.model."},
 	{EnvEmbedOllamaURL, "", AreaEmbed, "Ollama endpoint the embedder uses over the config file's embeddings.ollama.endpoint; set, it is exported as OLLAMA_HOST for the ollama client library."},
@@ -34,3 +40,12 @@ func EmbedOpenAIModel() string { return get(EnvEmbedOpenAIModel) }
 
 // EmbedGeminiModel returns AILANG_EMBED_GEMINI_MODEL, "" when unset.
 func EmbedGeminiModel() string { return get(EnvEmbedGeminiModel) }
+
+// EmbedCacheDB returns the opt-in durable embedding cache path.
+func EmbedCacheDB() string { return get(EnvEmbedCacheDB) }
+
+// SharedMemDB returns the opt-in durable SharedMem path.
+func SharedMemDB() string { return get(EnvSharedMemDB) }
+
+// SharedIndexDB returns the opt-in durable SharedIndex path.
+func SharedIndexDB() string { return get(EnvSharedIndexDB) }

@@ -27,6 +27,13 @@ var _ effects.BrainCache = (*SQLiteSharedCache)(nil)
 func Register() {
 	effects.RegisterSharedCacheOpener(Open)
 	effects.RegisterSharedIndexOpener(OpenSharedIndex)
+	effects.RegisterEmbeddingCacheOpener(func(path string) (effects.EmbeddingCache, error) {
+		cache, err := OpenEmbeddingCache(path)
+		if err != nil {
+			return nil, err
+		}
+		return cache, nil
+	})
 }
 
 // Open is the effects.SharedCacheOpener for SQLite. A nil *SQLiteSharedCache
