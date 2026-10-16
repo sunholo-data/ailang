@@ -639,7 +639,16 @@ func TestRouteFor_Layers(t *testing.T) {
 		t.Fatal("a malformed override must fail loudly")
 	}
 	t.Setenv("AILANG_OPENROUTER_PROVIDER", "")
-	if pf, _ := routeFor(&ai.Request{Model: "deepseek/deepseek-v4-flash"}); pf != nil {
-		t.Fatalf("another model must carry no provider block, got %v", pf)
+	if pf, _ := routeFor(&ai.Request{Model: "deepseek/deepseek-v4-flash"}); len(pf) != 1 || pf["sort"] != "throughput" {
+		t.Fatalf("a model with no routing must get only the fastest-host default, got %v", pf)
+	}
+	// A layer that chose a sort or an explicit order keeps it.
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", `{"sort":"price"}`)
+	if pf, _ := routeFor(&ai.Request{Model: "deepseek/deepseek-v4-flash"}); pf["sort"] != "price" {
+		t.Fatalf("an explicit sort must win over the default, got %v", pf)
+	}
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", `{"order":["crusoe"]}`)
+	if pf, _ := routeFor(&ai.Request{Model: "deepseek/deepseek-v4-flash"}); pf["sort"] != nil {
+		t.Fatalf("an explicit host order must not get a sort added, got %v", pf)
 	}
 }
