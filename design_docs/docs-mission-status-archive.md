@@ -1,3 +1,14 @@
+# Docs Mission — STATUS archive
+
+Older STATUS stamps rotated out of [docs-mission.md](docs-mission.md) (newest 3 stay there). Append-only.
+New stamps go directly BELOW this preamble, above the newest `## STATUS` stamp — never above the title.
+
+## (Charter sections — moved back 2026-10-01)
+
+CURRENT GOAL, The bar, Guardrails and Routing policy sat here from 2026-09-02 (rotated out by
+mistake at iteration 4). They live in `docs-mission.md` again; the original wording, including
+clause 7's 2026-08-28 verification transcript, is in git history (`git show 5d39a5c75:design_docs/docs-mission-status-archive.md`).
+
 ## STATUS 2026-09-07 — ITERATION 14: retry of `m-anthropic-sandbox`; Astra Agent lane timed out again, parked-on-lane [HARNESS]
 
 Gate 0/1: armed; GitHub account `sunholo-voight-kampff`; canonical inbox triaged with no docs
@@ -459,12 +470,6 @@ Iteration 0's real yield is kept and was never the ratification: two corrections
 human-authored charter (the CI path-filter citation, the fail-closed framing), a refuted
 "silent fallback" claim, and one **fleet-wide** skill fix (`0e341cc57`) — the shared Gate-0
 Current-State block had been reading V1's kill switch, queue and log for *every* non-V1 mission.
-
-## (Charter sections — moved back 2026-10-01)
-
-CURRENT GOAL, The bar, Guardrails and Routing policy sat here from 2026-09-02 (rotated out by
-mistake at iteration 4). They live in `docs-mission.md` again; the original wording, including
-clause 7's 2026-08-28 verification transcript, is in git history (`git show 5d39a5c75:design_docs/docs-mission-status-archive.md`).
 
 ## STATUS 2026-08-28 — ITERATION 0: RUN: quorum BLOCKED 3x across 2 revisions (1 human-directed mid-flight), **still not ratified** — parked for Mark
 
