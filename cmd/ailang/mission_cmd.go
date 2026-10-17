@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/config"
@@ -135,10 +134,11 @@ func printMissionHelp() {
                                    fleet-wide subscription spend per (bucket, window):
                                    Codex/Anthropic against the weekday pace (20% per
                                    weekday, weekends spend the slack), others 10%/day
-  ailang mission rotate-log <name> [--keep N] [--stream log|status]
+  ailang mission rotate-log <name> [--keep N | --index-only] [--stream log|status]
                                    trim the live log, archive the rest, and regenerate
                                    the COMPLETE one-line index (default keep 20)
-                                   --stream status rotates the STATUS-stamp archive instead
+                                   --index-only writes only the index from live + archive
+                                   --stream status selects the STATUS-stamp archive instead
   ailang mission normalize [<name>] [--apply]
                                    rewrite mission-doc headings to the ONE canonical shape
                                    (dry run by default; reports what it will not convert)
@@ -331,85 +331,6 @@ func missionApply(args []string) error {
 		}
 	}
 	return err
-}
-
-func missionRotateLog(args []string) error {
-	keep := 20
-	var name, stream string
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--status":
-			return fmt.Errorf("--status was retired (D-FLEET-9, ruled 2026-10-01): it rotated the STATUS archive and was never a report. Use: ailang mission rotate-log <name> --stream status")
-		case "--stream":
-			if i+1 >= len(args) {
-				return fmt.Errorf("--stream needs a value (log|status)")
-			}
-			stream = args[i+1]
-			if stream != "log" && stream != "status" {
-				return fmt.Errorf("--stream %q unknown (want: log|status)", stream)
-			}
-			i++
-		case "--keep":
-			if i+1 >= len(args) {
-				return fmt.Errorf("--keep needs a number")
-			}
-			n, err := strconv.Atoi(args[i+1])
-			if err != nil {
-				return fmt.Errorf("--keep %q is not a number", args[i+1])
-			}
-			keep = n
-			i++
-		default:
-			if strings.HasPrefix(args[i], "-") {
-				return fmt.Errorf("unknown flag %q (want: --keep N, --stream log|status)", args[i])
-			}
-			name = args[i]
-		}
-	}
-	if name == "" {
-		return fmt.Errorf("usage: ailang mission rotate-log <name> [--keep N] [--stream log|status]")
-	}
-	reg, err := loadMissionRegistry()
-	if err != nil {
-		return err
-	}
-	m, ok := reg.Get(name)
-	if !ok {
-		return fmt.Errorf("no mission %q (have: %s)", name, strings.Join(reg.Names(), ", "))
-	}
-	// ROTATE WHERE THE FILE IS CANONICAL, NOT WHERE THE MISSION WORKS.
-	//
-	// docs and motoko work in CLONES of sunholo-data/ailang — ailang-docs and
-	// ailang-motoko — which are hundreds of commits behind and are never pushed from
-	// (they re-exec from the driver pin, so their working trees are irrelevant). Writing
-	// a rotated log there would be thrown away by the next fetch, silently.
-	//
-	// Caught by doing exactly that to motoko's clone. The canonical copy for any mission
-	// on the shared repo is the checkout this registry lives in.
-	logDir := m.Workdir
-	if m.Repo == sharedRepoSlug {
-		root := m.Root()
-		if root == "" {
-			return fmt.Errorf("mission %q: shared-repo mission loaded without registry origin (Path %q) — refusing to guess a target root", m.Name, m.Path)
-		}
-		logDir = root
-	}
-	logPath := filepath.Join(logDir, "design_docs", m.Name+"-mission-log.md")
-	if stream == "status" {
-		// The STATUS-stamp archive is append-only and unbounded exactly like the log —
-		// v1's reached 1.69 MB / ~423k tokens across 295 entries — so it rotates the same
-		// way, into its own archive and its own index.
-		logPath = filepath.Join(logDir, "design_docs", m.Name+"-mission-status-archive.md")
-	}
-	res, err := mission.RotateLog(logPath, keep)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("live log   %s\n  %d -> %d bytes (~%dk -> ~%dk tokens), %d of %d entries kept\n",
-		res.LogPath, res.LogBefore, res.LogAfter, res.LogBefore/4000, res.LogAfter/4000, res.Kept, res.Total)
-	fmt.Printf("archive    %s\n  %d entries rotated out (full bodies retained)\n", res.ArchivePath, res.Archived)
-	fmt.Printf("INDEX      %s\n  %d iterations, complete history — grep this before picking work\n", res.IndexPath, res.IndexEntries)
-	return nil
 }
 
 // sharedRepoSlug is the repo whose checkout holds the registry and the canonical
