@@ -1,6 +1,8 @@
 package policytool
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -38,7 +40,11 @@ func (h *Host) read(req Request) Response {
 	if req.Path == "" {
 		return refuse("read: path is required (use \".\" to list the sandbox root)")
 	}
+	ranged := req.Offset != nil || req.Limit != nil
 	if fi, err := h.root.Stat(req.Path); err == nil && fi.IsDir() {
+		if ranged {
+			return refuse("read %s: offset/limit apply to files, not a directory listing", req.Path)
+		}
 		return h.listDir(req.Path)
 	}
 	f, err := h.root.Open(req.Path)
@@ -46,6 +52,9 @@ func (h *Host) read(req Request) Response {
 		return refuse("read %s: %v", req.Path, err)
 	}
 	defer f.Close()
+	if ranged {
+		return h.readLines(req, f)
+	}
 	cap := h.maxTransfer()
 	data, err := io.ReadAll(io.LimitReader(f, cap+1))
 	if err != nil {
@@ -55,6 +64,88 @@ func (h *Host) read(req Request) Response {
 		return refuse("read %s: file exceeds the %d-byte transfer cap", req.Path, cap)
 	}
 	return Response{OK: true, Content: string(data)}
+}
+
+// maxReadLines caps one ranged read's window; a larger limit is served as
+// this many lines, and the response's limit says so.
+const maxReadLines = 2000
+
+// readLines answers a ranged read: lines [offset, offset+limit) of the file,
+// 1-based, each with its own line ending so consecutive windows concatenate
+// to the file. Only the window is held in memory, so a file over the
+// transfer cap can still be paged; the window itself stays under the cap
+// (cut at a whole line, reported in limit). The whole file is scanned for
+// total_lines. Measured 2026-10-16 (#1872): with whole-file reads only, a
+// World docs episode made 73 ailang-run calls, most of them a throwaway
+// line-reader the agent wrote to page large files.
+func (h *Host) readLines(req Request, r io.Reader) Response {
+	offset, limit := 1, maxReadLines
+	if req.Offset != nil {
+		if *req.Offset < 1 {
+			return refuse("read %s: offset is 1-based and must be >= 1 (got %d)", req.Path, *req.Offset)
+		}
+		offset = *req.Offset
+	}
+	if req.Limit != nil {
+		if *req.Limit < 1 {
+			return refuse("read %s: limit must be >= 1 (got %d)", req.Path, *req.Limit)
+		}
+		limit = min(*req.Limit, maxReadLines)
+	}
+	budget := h.maxTransfer()
+	br := bufio.NewReader(r)
+	var b strings.Builder
+	total, served := 0, 0
+	full := false
+	for {
+		keep := int64(-1) // past or before the window: count, do not hold
+		if !full && total+1 >= offset {
+			keep = budget - int64(b.Len())
+		}
+		line, n, over, err := readLine(br, keep)
+		if err != nil && !errors.Is(err, io.EOF) {
+			return refuse("read %s: %v", req.Path, err)
+		}
+		if n == 0 {
+			break // EOF with nothing after the last "\n"
+		}
+		total++
+		switch {
+		case over && served == 0:
+			return refuse("read %s: line %d exceeds the %d-byte transfer cap", req.Path, total, budget)
+		case over:
+			full = true // window cut at a whole line; limit reports it
+		case keep >= 0:
+			b.Write(line)
+			served++
+			full = served == limit
+		}
+		if err != nil {
+			break
+		}
+	}
+	return Response{OK: true, Content: b.String(), TotalLines: &total, Offset: &offset, Limit: &served}
+}
+
+// readLine consumes one line including its "\n" and reports how many bytes
+// it was. With keep >= 0 the line is returned unless it is longer than keep
+// bytes (over); with keep < 0 it is only counted. Either way the line is
+// fully consumed and never held beyond keep bytes.
+func readLine(br *bufio.Reader, keep int64) (line []byte, n int, over bool, err error) {
+	for {
+		chunk, err := br.ReadSlice('\n')
+		n += len(chunk)
+		if keep >= 0 && !over {
+			if int64(len(line)+len(chunk)) > keep {
+				over, line = true, nil
+			} else {
+				line = append(line, chunk...)
+			}
+		}
+		if !errors.Is(err, bufio.ErrBufferFull) {
+			return line, n, over, err
+		}
+	}
 }
 
 // maxListEntries bounds one directory listing.

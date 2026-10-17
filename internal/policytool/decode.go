@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -20,6 +21,7 @@ import (
 func DecodeRequest(raw []byte) (Request, error) {
 	var req Request
 	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber() // integer fields arrive as json.Number, never float64
 	if err := expectDelim(dec, '{'); err != nil {
 		return req, err
 	}
@@ -32,6 +34,8 @@ func DecodeRequest(raw []byte) (Request, error) {
 		"old_text": &req.OldText, "new_text": &req.NewText, "module": &req.Module,
 		"query": &req.Query, "package": &req.Package,
 	}
+	// The integer fields: a JSON integer, not a string and not a fraction.
+	ints := map[string]**int{"offset": &req.Offset, "limit": &req.Limit}
 	for dec.More() {
 		key, err := objectKey(dec)
 		if err != nil {
@@ -49,9 +53,17 @@ func DecodeRequest(raw []byte) (Request, error) {
 			req.Flags = flags
 			continue
 		}
+		if dst, ok := ints[key]; ok {
+			n, err := decodeInt(dec)
+			if err != nil {
+				return req, fmt.Errorf("request key %q: %w", key, err)
+			}
+			*dst = &n
+			continue
+		}
 		dst, ok := fields[key]
 		if !ok {
-			return req, fmt.Errorf("unknown request key %q (keys are exact and case-sensitive: flags, %s)", key, strings.Join(sortedKeys(fields), ", "))
+			return req, fmt.Errorf("unknown request key %q (keys are exact and case-sensitive: flags, limit, offset, %s)", key, strings.Join(sortedKeys(fields), ", "))
 		}
 		if err := dec.Decode(dst); err != nil {
 			return req, fmt.Errorf("request key %q: value must be a string: %w", key, err)
@@ -90,6 +102,23 @@ func decodeFlags(dec *json.Decoder) (map[string]string, error) {
 		return nil, fmt.Errorf("flags: %w", err)
 	}
 	return out, nil
+}
+
+// decodeInt reads one JSON integer value.
+func decodeInt(dec *json.Decoder) (int, error) {
+	tok, err := dec.Token()
+	if err != nil {
+		return 0, err
+	}
+	num, ok := tok.(json.Number)
+	if !ok {
+		return 0, fmt.Errorf("value must be a JSON integer, got %#v", tok)
+	}
+	n, err := strconv.Atoi(num.String())
+	if err != nil {
+		return 0, fmt.Errorf("value must be an integer, got %s", num)
+	}
+	return n, nil
 }
 
 func expectDelim(dec *json.Decoder, want json.Delim) error {

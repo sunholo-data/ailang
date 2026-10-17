@@ -36,6 +36,10 @@ type Request struct {
 	Op string `json:"op"`
 	// read / write / edit / check / fmt / tree / policy_check / design_quorum
 	Path string `json:"path,omitempty"`
+	// read: an optional 1-based line window. Both absent reads the whole
+	// file (same bytes as before); either present makes a ranged read.
+	Offset *int `json:"offset,omitempty"`
+	Limit  *int `json:"limit,omitempty"`
 	// write
 	Content string `json:"content,omitempty"`
 	// edit: OldText must occur exactly once
@@ -58,6 +62,11 @@ type Response struct {
 	Refused string `json:"refused,omitempty"`
 	// read
 	Content string `json:"content,omitempty"`
+	// ranged read only: the file's line count and the window actually
+	// served (Limit is the number of lines returned, 0 past the end).
+	TotalLines *int `json:"total_lines,omitempty"`
+	Offset     *int `json:"offset,omitempty"`
+	Limit      *int `json:"limit,omitempty"`
 	// CLI ops
 	Argv     []string `json:"argv,omitempty"`
 	ExitCode int      `json:"exit_code,omitempty"`
