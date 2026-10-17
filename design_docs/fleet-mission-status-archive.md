@@ -2,6 +2,12 @@
 
 Older STATUS stamps rotated out of [fleet-mission.md](fleet-mission.md) (newest 3 stay there). Append-only.
 
+## STATUS 2026-10-16 — ITERATION 42: `worktree:native-background-terminal-marker-missing` LANDED — #1843 → `51f9ecb29`, judged PASS 86 by sonnet (round 2, after FAIL 66); ticket resolved [HARNESS]
+
+`mission-worktree.sh` backgrounded its writer under `nohup`, so a tool host that tore down the caller's process group killed the writer, and `wait` returned `pending` forever. The controller reproduced this first-party before any change. The fix detaches the writer (Perl `POSIX::setsid`, with a bash `set -m` fallback) and publishes its identity (pid, `lstart`, launch token) before `add` returns. `wait` proves death by identity and re-reads the status, then cleans up only the owned tree and branch and reports `failed:writer_died`. Round 1 FAILED 66: a caller killed before the owner record was published still left `pending` forever. Round 2 makes every registration failure terminal (`failed:owner_never_published`) and resolves ownerless and legacy pending by identity or status age, with no cleanup. Controller edits made the bounds wall-clock and fixed the GNU `stat` order. Host suite 194/0; 19 of 20 mutants killed (the survivor is a Linux-only `stat` order). `make test-launchd-drivers` rc 0. World dry-runs: healthy and degraded both rc 0. Linux bash 5 is UNMEASURED.
+
+Out of scope, parked as D-FLEET-19: `messaging:pubsub-notify-wrong-project`. The rig's ADC credential has `quota_project_id=sunholo-gemini-enterprise`, and the code is in `cmd/ailang/messages_*`. Clause map: **1** UNMEASURED; **2** UNMET (this ticket took about 22 h, which is under 48 h, but the median is still dominated by older tickets); **3** MET; **4** prior evidence only; **5** preserved. Next: #16 is not live; then tickets by `slots_lost`.
+
 ## STATUS 2026-10-15 — ITERATION 41: the blocked stack LANDED — #1824 → `514ca3bc3`, #1839 (ex-#1825) → `10cb2fae0`, #1840 (ex-#1828) → `7c10ce00d`; 4 tickets resolved [HARNESS]
 
 D-FLEET-17's two causes had been fixed outside the fleet: `check-git-exec` passes, and the docs red was MDX, fixed by `95106ba27`, plus manifest statistics, fixed by `35a49b851`. Dev's remaining `test` red was an `internal/runner` PTY/signal flake, and a `--failed` rerun on `3342b46ce` came back green. So the stack was landed in order, with a fresh judge, CI and done-gate at each merge.
