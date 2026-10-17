@@ -155,5 +155,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 4. [NEXT] Re-verify changed/held items against origin/dev; D-TRIAGE-12/13/14 are RESOLVED (attended 2026-10-16), never re-ask them. D-TRIAGE-15/16 await Mark. Preserve #1262 shadow collection OFF.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
+6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; no triage harness repair.
+
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.

@@ -21,5 +21,6 @@ Routing degradation: direct Minimax Agent model unavailable; Ollama weekly quota
 Actual judge: 64,097 tokens, plus 2,104 probe; verifier/controller tokens not reported.
 Record: iteration-4 PR record preserved on rebased stack; iteration-5 missing repo log credited.
 Next: operator decisions, process-result design routing, changed/held verification; no policy autoapproval.
-Reporting: bookkeeping + user + Daneel (controlplane fallback if registry still lacks daneel-reports).
+Reporting: bookkeeping + user delivered; Daneel normal+one urgent delivered via declared controlplane fallback; repeated registry refusal ticketed.
 Unrelated main-checkout modifications remain parked and untouched.
+Harness share: 1/3 records, escalation-only this iteration; zero harness repairs.
