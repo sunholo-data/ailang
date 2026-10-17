@@ -141,27 +141,9 @@ type RotateResult struct {
 	LogPath, ArchivePath  string
 	IndexPath             string
 	IndexEntries          int
+	OrphanNumbers         []int // unique preserved iteration numbers, ascending
+	IgnoredHeadings       int   // index-only structural headings across both sources
 	LogBefore, LogAfter   int
-}
-
-// indexLine renders one iteration as a single index row. Deliberately fixed-shape and
-// short: the index only earns its place if the whole thing can be read at once.
-func indexLine(e LogEntry) string {
-	t := e.Title
-	// Titles carry a trailing [TAG]; keep it, it is the cheapest filter the index has.
-	//
-	// TRUNCATE BY RUNES, NOT BYTES. `t[:147]` slices bytes, and these titles are full of
-	// em-dashes (0xe2 0x80 0x94) — the first real run produced an index that was not valid
-	// UTF-8 because a dash was cut in half. Every reader of the index then fails on it,
-	// which is a worse outcome than a long line.
-	if r := []rune(t); len(r) > 150 {
-		t = string(r[:147]) + "..."
-	}
-	num := strconv.Itoa(e.Num)
-	if e.Num < 0 {
-		num = "—"
-	}
-	return fmt.Sprintf("| %s | %s | %s |", num, e.Date, strings.ReplaceAll(t, "|", "\\|"))
 }
 
 // RotateLog trims the live log to the newest keep entries, appends the rest to the
@@ -201,24 +183,16 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 			"holds records only", logPath, len(stray), stray[0])
 	}
 
-	dir, base := filepath.Dir(logPath), filepath.Base(logPath)
-	stem := strings.TrimSuffix(base, ".md")
-	archivePath := filepath.Join(dir, stem+"-archive.md")
-	// Index name drops a trailing "-log" or "-status-archive", so v1-mission-log.md and
-	// v1-mission-status-archive.md produce v1-mission-index.md and
-	// v1-mission-status-index.md rather than colliding or growing silly suffixes.
-	base2 := strings.TrimSuffix(stem, "-log")
-	if strings.HasSuffix(stem, "-status-archive") {
-		base2 = strings.TrimSuffix(stem, "-archive") // -> "<name>-mission-status"
-		archivePath = filepath.Join(dir, stem+"-old.md")
+	stem, archivePath, indexPath := indexPaths(logPath)
+	archiveRaw, err := readOptionalIndexInput(archivePath)
+	if err != nil {
+		return nil, err
 	}
-	indexPath := filepath.Join(dir, base2+"-index.md")
-
-	// Entries already archived stay in the index — the index is the COMPLETE history or
-	// it does not do its job.
-	var archived []LogEntry
-	if ab, aerr := os.ReadFile(archivePath); aerr == nil { //nolint:gosec // derived path
-		_, archived = parseLog(string(ab))
+	_, archived := parseLog(string(archiveRaw))
+	// Prepare preservation data before either source can be mutated.
+	prepared, err := prepareIndex(stem, indexPath, append(append([]LogEntry{}, archived...), entries...))
+	if err != nil {
+		return nil, err
 	}
 
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Num < entries[j].Num })
@@ -242,8 +216,7 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 				"loop; it exists so a rotated entry can still be read in full when something needs it.\n" +
 				"The one-line history of EVERY iteration, including these, is in the index beside it.\n")
 		} else {
-			ab, _ := os.ReadFile(archivePath) //nolint:gosec // derived path
-			b.WriteString(strings.TrimRight(string(ab), "\n"))
+			b.WriteString(strings.TrimRight(string(archiveRaw), "\n"))
 		}
 		for _, e := range toArchive {
 			b.WriteString("\n\n" + strings.TrimRight(e.Body, "\n"))
@@ -270,44 +243,8 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 	}
 	res.LogAfter = lb.Len()
 
-	// The index: EVERY entry, archived and live, regenerated from scratch.
-	all := append(append([]LogEntry{}, archived...), entries...)
-	seen := map[string]bool{}
-	var uniq []LogEntry
-	sort.Slice(all, func(i, j int) bool {
-		if all[i].Num != all[j].Num {
-			return all[i].Num > all[j].Num
-		}
-		return all[i].Date > all[j].Date
-	})
-	for _, e := range all {
-		// Numbered entries dedupe by number; notes (Num -1) by date+title, since several
-		// can share the sentinel.
-		k := strconv.Itoa(e.Num)
-		if e.Num < 0 {
-			k = e.Date + "|" + e.Title
-		}
-		if !seen[k] {
-			seen[k] = true
-			uniq = append(uniq, e)
-		}
-	}
-	var ib strings.Builder
-	ib.WriteString("# " + strings.TrimSuffix(stem, "-log") + " — ITERATION INDEX\n\n" +
-		"One line per iteration, newest first, covering the live log AND the archive.\n\n" +
-		"**GREP THIS BEFORE PICKING WORK.** It is the cheapest way to find out whether\n" +
-		"something has already been tried, and it is small enough to read in full — which the\n" +
-		"log (2.8 MB, ~715k tokens) has not been for a long time.\n\n" +
-		"Regenerated wholesale by `ailang mission rotate-log`, never appended to: an\n" +
-		"append-only index drifts the moment an entry is edited, and an index that answers\n" +
-		"confidently and wrongly is worse than none.\n\n" +
-		"| # | date | what happened |\n|---|---|---|\n")
-	for _, e := range uniq {
-		ib.WriteString(indexLine(e) + "\n")
-	}
-	res.IndexEntries = len(uniq)
-	if werr := writeAtomic(indexPath, []byte(ib.String()), 0o644); werr != nil { //nolint:gosec // a doc
-		return nil, werr
+	if err := writeIndex(indexPath, prepared, res); err != nil {
+		return nil, err
 	}
 	return res, nil
 }

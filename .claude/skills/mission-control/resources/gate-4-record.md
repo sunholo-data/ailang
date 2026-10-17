@@ -55,6 +55,19 @@ Then check that both printed paths (`archive`, `INDEX`) are under your record wo
 `git -C "$MISSION_WORKDIR" status --porcelain` is empty. The tell: the paths it prints are not the
 directory you are standing in.
 
+To rebuild an index without rotating or rewriting either source, point the registry at the
+intended record checkout explicitly (use `--stream status` for the status index):
+
+```bash
+AILANG_MISSION_REGISTRY="/path/to/record-checkout/missions" ailang mission rotate-log ${MISSION_NAME} --index-only
+```
+
+Do not combine `--index-only` with `--keep`. It reads live + archive even when the live
+file has no entries, ignores structural headings and reports their count. Both modes retain
+numbered orphan rows verbatim (and print their numbers) and preserve hand-written blockquote
+notes above the index table. Source-backed rows regenerate from their headings. Confirm the
+printed `INDEX` path belongs to the intended record checkout.
+
 **`ailang` here is the FLEET CLI on PATH — never the mission's `$AILANG_BIN`.** A mission may
 pin an OLDER compiler for reproducibility, and that pin is a *compiler*, not the mission CLI:
 two different jobs wearing one name. The older binary may not carry the `mission` command
