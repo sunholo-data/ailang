@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
-| 4 | 2026-10-16 | 10 verdicts, 1 unsigned attestation (PR #1863), red dev led digest, 2 decisions [ADMIN] |
+| 6 | 2026-10-17 | independent cross-vendor review refreshes all cards and three process defects [ADMIN] |
+| 4 | 2026-10-16 | one attestation, four evidence comments, two decisions held [ADMIN] |
 | 3 | 2026-10-16 | independent judge parks four unsafe/incomplete cleanup verdicts [ADMIN] |
 | 0 | 2026-10-15 | charter RATIFIED (attended); D-TRIAGE rulings recorded; loop bootstrapped, NOT armed |
