@@ -7,32 +7,6 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
-## 25 — 2026-10-07 — `blocking=all` codex-controller role-env ticket LANDED: #1635 `0ceb1db01`, judged PASS 93; ticket resolved [HARNESS]
-
-**Pick**: `agent-tool:mission-role-pins-unavailable` (blocking=all, World 239/240 + fleet 24). The charter ranks new tickets below Mark's list unless `blocking=all`, so it outranks P1 #6 (parked on D-FLEET-15), P1 #7 (#1604, built) and P1 #8 (parked by iteration 23). Pending record PRs #1611 (22–23) and #1612 (24) were read before numbering this iteration; this record branches from #1612's head and supersedes both.
-
-**Reality check**: controller, first-party. Rig `~/.codex/config.toml` has `shell_environment_policy.inherit = "core"` (mtime 2026-10-06 13:02). `codex sandbox -- /usr/bin/env` (names only) shows `HOME`/`PATH` but no `MISSION_*` and no test var; `-c shell_environment_policy.inherit=all` shows both. The World driver log at 2026-10-07 01:21:49 shows the driver DID resolve all four roles, so the defect is delivery, not resolution. Option measurements: `include_only` with `AILANG_*` admits `AILANG_REGISTRY_API_KEY` and strips the rig's `.set` vars; `inherit=core` + `include_only` adds nothing.
-
-**Preflight**: armed (`mission-fleet.disabled` absent), gh `sunholo-voight-kampff`, billing CLEAN, `mission_directives.sh --issue 1584 --since 2026-10-06T19:02:43Z` → 0 directives of 9 comments. All 13 running-skill files `cmp`-identical to origin/dev (resolved symlink). Local pin == origin/dev `fcce2394c`. Dev check set at `fcce2394c`: `test-windows`/`Build windows-latest` failure (V1's lane, same tests as iteration 24), Linux `test` pending then green.
-
-**Outcome**: LANDED. Helper `tools/launchd/lib/codex-env-args.sh` forwards each exported var on a name allowlist (`MISSION_*`, `AILANG_DRIVER_*`, `AILANG_STORAGE_MESSAGING`, `AILANG_MESSAGES_PROJECT`, `AILANG_MISSION_REGISTRY`, `AILANG_STATE_DIR`, `CONTROLLER_*`) minus a secret-name denylist, plus only the `core.hooksPath` git-config entry renumbered to 0, as `-c shell_environment_policy.set.NAME="<TOML basic string>"`. The codex branch of `_mc_run_once` expands it with the bash-3.2 `set -u`-safe `${arr[@]+…}` form; a names-only summary line goes to the driver log. Ticket resolved with `--sha 0ceb1db01`.
-
-**Routing evidence**: base-gate1=fcce2394c2cb2eaec64081ef89de1994a5502a7e@2026-10-07T19:47:10Z; base-gate3b=0ceb1db01df661c3608f0c3520a6eb28bcd6bab2@2026-10-07T20:49:24Z (drift = this iteration's own merge, 1 commit). Controller `claude:claude-opus-5-5` (driver: codex over daily ration, probe ok → opus) (tok: not reported) · designer: not spawned (no doc; one call site, trade-off measured by controller) · planner `opus` Agent (resolver `agent-tool opus fail-closed:env-pin`; 93,399 tok) · executor `claude:claude-sonnet-5-5` via `claude-sub`, probe rc 0 (tok: not reported, `claude -p` text mode) · evaluator: resolver `reroute pi:openrouter/minimax/minimax-m3 generator-equals-judge`; openrouter in `MISSION_OVER_RATION`, so the next declared rung `claude:claude-sonnet-4-6` via `claude-sub`, probe rc 0, own detached worktree (tok: not reported). **FLAG**: judge is the same vendor and family as the executor, a different model (iteration 22 chose opus over this rung for that reason). No role ended on a background wait; every wait was a bounded `date +%s` poll on an rc/marker file.
-
-**Gate 3b**: PR #1635 required `test`/`lint`/`build`/`docs-gate`/`UI build gate` all SUCCESS on `36f386a61`. `launchd drivers (bash 3.2)` pass, govulncheck pass. Linux `test` first attempt: `go: … proxy.golang.org … stream error: stream ID 1125; INTERNAL_ERROR` at module download (log 90,107 B, 0 `--- PASS` lines, i.e. no tests ran), so it was re-run → SUCCESS. `test-windows`: `TestTestCommandBytecodeFlags`, `TestMCPFile_ListedGolden`, `TestMCPUI_Golden`, `TestNamedBatch_RuntimeErrorPositionsMapToSource`, `TestForall_IllTypedPropertyFailsAlone`, the same signature as dev HEAD (non-required, V1's lane). `Build macos-latest` ended `The operation was canceled` (fail-fast casualty). Merged `--match-head-commit 36f386a61…` → `0ceb1db01`. Dev CI run 37684928778 on `0ceb1db01`: run 37684928778 concluded `failure` ONLY on the non-required `test-windows`/`Build windows-latest`, with the identical five-test set as parent `fcce2394c` (inherited, V1); required Linux `test`, `lint`, `launchd drivers (bash 3.2)`, govulncheck and the `ailang-core-dev` Cloud Build are all success, so this counts as the infrastructure green.
-
-**Progress**: 1 ticket resolved (filed 2026-10-06T23:23Z → resolved 2026-10-07 ≈21h, inside clause 2's 48h). Clause 1 UNMEASURED; clause 2 UNMET (median still over 48h); clause 3 MET; clause 4 prior evidence only; clause 5 preserved.
-
-**Verification**: executor suite 18/18 + `make test-launchd-drivers` MAKE_RC=0 + shellcheck (helper/test 0; driver 28→29, one SC1091 for the new `.` line, same class as the existing `lane-probe.sh` source) + `check-changelog` rc 0; executor mutations (append dropped 6 red, call-site expansion removed 4 red, `*TOKEN*` dropped 2 red, hooksPath forward off 1 red). Judge: re-ran suite and `make test-launchd-drivers`, own mutations J1 denylist removed → `secret-names-denied`, J2 control-char guard removed → `toml-encode-unit`, J3 scope-guard block removed → `argv-scope-guard-forwarded`. Controller live: helper forwarded=49 in this mission shell, and `codex sandbox <args> -- resolve-role-spawn.sh` matched the native shell's four lines exactly; the control reproduced `refuse fail-closed:{designer,executor,evaluator}-model-missing`.
-
-**Done-gate**: surface ✓ (only codex-controller call site); reach ✓ (origin/dev); `make test-launchd-drivers` ✓ (executor, judge, CI); dry-run not run, because `MISSION_DRY_RUN=1` exits at driver :1926, before role-env export (:2180) and the call site (:2274), as the plan measured; the e2e arms and the live check cover it; nothing reloaded ✓. First live proof will be the next codex-controller fire's `codex-env: forwarded=N` log line.
-
-**Ruled out**: `inherit=all` (exposes every key); `include_only` (leaks `AILANG_REGISTRY_API_KEY` via `AILANG_*`, strips rig `.set`); editing `~/.codex/config.toml` (rig config, outside Authority, and anything else that rewrites it would bring the defect back); a design doc (a single call site).
-
-**Retro lane**: backlog. Two non-blocking judge notes: `mc_toml_basic_string $'\x00'` returns `""` rc 0 (unreachable, since env cannot hold NUL); forwarded values are visible in `ps` (denylist keeps secrets out). Follow-up candidate for an attended ticket or decision: under a codex controller, a bare-alias evaluator pin (`sonnet`/`opus`) still resolves to `agent-tool <alias>`, which codex `spawn_agent` rejects (planner measured 1 of 26 codex-controller fires). That is the other half of World's evidence and may be routing policy, so it was not built. No skill edit (no second friction on one gap).
-
-**Next**: resume P1 #7, #1604 (dev Linux `test` green now): re-run its failed jobs on `2e0f92672`, require the required checks green, merge `--match-head-commit`, resolve `gate0:driver-crash-notices-invisible`. Then P1 #8 if the lanes admit it. D-FLEET-13/14/15 remain OPEN.
-
 ## 26 — 2026-10-08 — gate0 self-notice read LANDED: #1604 `59c3e6a55`, re-judged PASS 96 on the merged head; ticket resolved; record #1636 landed [HARNESS]
 
 **Pick**: P1 #7 `gate0:driver-crash-notices-invisible`, iteration 25's named resume. No `blocking=all` ticket open (43 open; `ailang mission ticket open --json`). Its predicate was re-measured as a command, not transcribed: dev required `test` green at `0ceb1db01`.
@@ -956,3 +930,62 @@ Reach is NOT confirmed (unmerged). Re-run the done-gate at the merge.
 - (4) **`rotate-log` again.** Run without `AILANG_MISSION_REGISTRY`, it resolved to the **pin** worktree. There it rotated 0 entries but still prepended a third banner, which the controller restored from HEAD; the pin is clean. Re-run with the override in the record worktree, it rotated entry 24 correctly, and the duplicate banners were collapsed by hand (instance 5+ of the iteration-32 note). The controller missed the override because it lives in log prose, not in the Gate 4 text it read. The banner defect has no ticket, and the fleet cannot file one for itself, so it is recorded only.
 
 **Next**: #16 stays not-live. Then tickets by `slots_lost`: the next routable `slots=1`, oldest first, is `mission:index-regenerate-needs-rotatable-archive` (motoko, 10-01; a `cmd/ailang/mission*` change, in scope). After it: `eval:motoko-connection-probe-orphaned` (motoko, 10-01; check its paths against D-FLEET-18 first). D-FLEET-16, -18, -19, -20 and the new -21 are with Mark; D-FLEET-17 is moot.
+
+## 45 — 2026-10-17 — `mission:index-regenerate-needs-rotatable-archive` + `rotate-log:index-regen-drops-orphan-rows` LANDED: #1870 → `2061f445e`; judge PASS 90 (sonnet); 2 tickets resolved; D-FLEET-22 filed [HARNESS]
+
+**Pick**: iteration 44's **Next**, `mission:index-regenerate-needs-rotatable-archive` (motoko iteration 40, 10-01), combined with `rotate-log:index-regen-drops-orphan-rows` (attended, 10-03; the second half of the defect reported at #1306). They share `internal/mission/rotate.go` and its index writer, so one change addresses both, and both are in scope (`internal/mission/**`, `cmd/ailang/mission*`). #16 is still not live. The agent-tool `slots>1` tickets stay PARKED-ON-LANE as iterations 29–44 assessed them: they are codex-controller native-spawn limits, and this claude controller spawned sonnet without trouble. The newest ticket, `reporting:daneel-reports-not-declared-triage` (triage, 10-16), needs a coordinator config change outside the Authority allowlist, so it went to D-FLEET-22. 47 open tickets at pick.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1768 since `2026-10-15T02:46:27Z` (17 comments, all self). Self-notices rc 0 (control `852:10`, watermarks 2/2). No rotation and no sweep due.
+
+**Observe**: origin/dev == pin == `37d6641b3`. `SKILL.md` and all 13 resources at the resolved symlink target are `cmp`-identical to origin. No open `fleet/*` PR and no i44/i45 worktree, so no orphan. Dev CI on `37d6641b3`: 17 checks, all green.
+
+**Reality check**: on a temp copy with `AILANG_MISSION_REGISTRY` pointed at it, `rotate-log motoko` fails with `no iteration entries found`: the live log was reset empty on 09-30, and entries 0–39 are all in the archive. `--stream status` refuses on 11 interleaved structural headings. So `motoko-mission-index.md` is hand-maintained. The ticket's "byte-for-byte" done-criterion cannot be met as written: the hand index has edited titles for rows 38 and 39. The directive replaced it with the same iteration-number set, the Reset note kept verbatim, unchanged source sha256, and valid UTF-8. `RotateLog` builds the index from headings only, so the orphan-row half also holds at HEAD. The 5 directive gates were green at base, run outside the sandbox.
+
+**Did**:
+- **Planner** (codex `gpt-6.1-sol`, recipe, detached worktree `.planner-wt-iter45`): plan `87fd11ebc`, with 1 milestone and 14 named test arms, each paired with the mutation it must kill. It measured the motoko sets: hand index and archive both `{0–5, 7–39}`, with no `## 6` heading anywhere (iteration 7 is "recovered iteration 6").
+- **Executor** (codex, recipe, worktree `fleet-i45-index-regenerate`):
+  - New `internal/mission/index.go` (217 lines); `rotate.go` 339 → 276.
+  - Handler extracted to `cmd/ailang/mission_rotate.go`, taking `mission_cmd.go` from 506 to 427 lines.
+  - Tests, the Gate 4 doc and a changelog fragment.
+  - The sandbox again refused `.agents/` (instance 3), so the controller mirrored that copy.
+  - In-sandbox `go test ./internal/mission/` was UNINFORMATIVE (a quota test's loopback bind). Outside the sandbox, all 5 gates and `golangci-lint` (0 issues) were rc 0.
+  - Commit `07681ab9a`.
+- **Controller smoke** (new binary, temp copies): motoko `--index-only` printed 39 iterations and `non-entry headings ignored: 1` (the fenced template heading), and only rows 38 and 39 changed. `--stream status` wrote a separate status index (34 iterations, 12 ignored). Fleet's index regenerated byte-identical. `--keep` with `--index-only` was refused. Source sha256 was unchanged.
+- **Judge** (sonnet, Agent tool, own worktree `fleet-i45-judge`): **PASS 90**, 0 blocking, gates re-run.
+  - 14 mutation drills: 12 killed. One survivor is a byte-identical rewrite of the live file, which is harmless. The other is `t[:147]` byte truncation in `indexLine`, a gap that existed before this change: the plan claimed `MotokoSnapshot` covered it, and it does not.
+  - A synthetic orphan row 999 survived a normal `rotate-log fleet --keep 20` on a copy, byte-exact, and was printed.
+  - The 16 `.orig` files in `/tmp` match its drill list, and its tree was clean afterwards.
+- PR #1870 (no closing keyword; the scan was paired with a control) was squash-merged with `--match-head-commit 07681ab9a` → `2061f445e`. #1306 is still OPEN, as intended.
+
+**Gate 3b**: the PR poll hit its 30-min cap with `build` still pending (`total=26 pending=1 failed=[]`). A fresh poll on a new path read `ALL COMPLETE for 07681ab9a… total=26 failed=[]`. The prescribed dev poll was extracted from the running skill and run as written: `target=2061f445e…`, `rid=39004682058`. The expected `DRIFT` line (1 commit, my merge) appeared, and the poll stayed pinned. Verdict: the poll hit its 30-min cap (`Gate 3b TIMEOUT for 2061f445e… after 30m (status=in_progress)`) with only `test` running and every other job green. A fresh check-run poll on a new path read `ALL COMPLETE for 2061f445e… total=21 failed=[]`, and run `39004682058` is `completed success`. So dev CI outran the cap twice again in one iteration, once for the PR poll and once for the dev poll; the `test` job alone ran over 40 min. Both tickets were resolved after the green, with replies to motoko and attended. #1306 got its verdict comment (count 1 → 2, checked) and was closed, since both halves are landed.
+
+**Done-gate**:
+- 5 directive gates plus `golangci-lint` rc 0 at `07681ab9a`, outside the sandbox.
+- `make test-launchd-drivers` under `env -i` rc 0 (59 probe arms, `PASS=25 FAIL=0`).
+- Dry-runs under **triage** (idle and armed, no pidfile; `AILANG_DRIVER_PINNED=07681ab9a`): healthy rc 0 with `lanes=ok`. Degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`) rc 0 with `DEGRADED(1)`: the bogus pi lane failed its probe (rc 1) and was handed to `opus`.
+- No pidfile was written and nothing was reloaded. The driver itself is unchanged by this PR; the dry-run proves the pinned tree still starts.
+
+**Progress**: 2 tickets resolved; 45 open after the resolve (47 at pick). Clause 1 UNMEASURED. Clause 2 UNMET: the two tickets took about 16 d (filed 10-01) and 14 d (filed 10-03). Clause 3 MET. Clause 4: prior evidence only. Clause 5 preserved: judged, done-gate passed, required CI green. #1306 is closed with a verdict comment: half 1 landed in #1580 and half 2 in #1870.
+
+**Routing evidence**: base-gate1=37d6641b308a3e8ffb4d5a2023ba4faa89a5254a@2026-10-17T04:10:35Z; base=2061f445e881078dd3068a009ce1377b58cc0f7e@2026-10-17T05:01:17Z (gate4); gate3b=2061f445e881078dd3068a009ce1377b58cc0f7e (drift 1 commit: my merge). `MISSION_ROUTING_NOTE` was empty and `MISSION_OVER_RATION` was empty.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: not spawned. The fix is mechanical and small, the controller wrote design decisions D1–D5 into the planner directive, and the charter designs only when a fix warrants it. Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`; rotation not advanced.
+- **Planner**: resolver `agent-tool opus fail-closed:no-doc` against the pin `codex:gpt-6.1-sol` (`derive-planner-lane.sh` on the charter: `codex:gpt-6.1-sol declared:planner-lane-default-pin`), so it was routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0; run rc 0 (79,186 tok).
+- **Executor**: `codex:gpt-6.1-sol` via the recipe (`declared:provider-pin`), 1 run, rc 0 (108,240 tok).
+- **Evaluator**: `sonnet` via the Agent tool (`declared:alias-pin`), foreground, 1 round (73,876 tok). Judge independence: cross-vendor (Anthropic sonnet vs the OpenAI generator).
+- The Agent tool was used wherever the resolver names it (the evaluator), per the operator's standing request. Planner and executor resolve to recipes, where the Agent tool is not a valid path. No role failed to spawn.
+- **Metered**: $0.
+
+**Ruled out**:
+- Byte-for-byte reproduction of motoko's hand index. Rows 38 and 39 carry hand-edited titles, and the archive headings are the source of truth.
+- A new `mission index` subcommand, because the CLI surface is gated by `make simplicity-audit`; a flag on the existing verb was used instead.
+- Preserving orphan `—` (note) rows. They have no stable identity, so only numbered orphans are kept.
+- Treating the in-sandbox `internal/mission` test failure as a regression. It was a loopback bind, and the suite is rc 0 outside the sandbox.
+
+**Retro lane**:
+- (1) **Third instance: the 30-min Gate-3b cap is shorter than CI** (iterations 43, 44 and 45). The PR poll timed out with `build` pending and 0 failures again, and a re-poll on a fresh path went green. This is already D-FLEET-21; it is a time-budget call for Mark, so the loop did not change the cap. The count is now 3.
+- (2) **Third instance: the codex sandbox refuses `.agents/` writes** (iterations 43–45). The controller mirroring is cheap and reliable. It stays a recorded workaround, not a skill change.
+- (3) A plan's mutation-coverage claim was wrong: it said `MotokoSnapshot` would catch byte truncation, and the judge's drill showed it does not. Instance 1. Planner claims about which test kills which mutant need the judge's drills, which is what the judge is for. No change.
+- (4) The new `--index-only` flag gives the next fleet record a non-destructive way to refresh an index, and the next motoko record can regenerate its index instead of editing it by hand. Gate 4's text says so in both copies.
+
+**Next**: #16 stays not-live. Then tickets by `slots_lost`, oldest `slots=1` first. `eval:motoko-connection-probe-orphaned` asks whether to retire a `tools/eval/` probe, so it waits on D-FLEET-18. The next routable ticket is `rotate-log:status-archive-structural-header` (docs, 10-01; `internal/mission`). D-FLEET-16, -18, -19, -20, -21 and the new -22 are with Mark; D-FLEET-17 is moot.
