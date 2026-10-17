@@ -193,18 +193,28 @@ func (h *Host) listDir(path string) Response {
 // operator's paths. Both are case- and normalization-folded (#1559).
 // It returns a refusal reason, or "" when the write may proceed.
 func (h *Host) protected(op, p string) string {
-	rel, err := h.root.Rel(p)
-	if err != nil {
-		// An escaping path is refused by the root handle anyway; check the
-		// lexical spelling so the refusal still names a protected component.
-		rel = p
+	return h.protection(op, p, false)
+}
+
+// protection is protected with the rename/remove variant selectable (move:
+// ancestors of protected paths count, and a symlink entry is judged by its
+// own name, not its target's). The check runs through the root, so an
+// in-root symlink or hard link to a protected file is refused like the file.
+func (h *Host) protection(op, p string, move bool) string {
+	v := h.root.CheckPath(fileguard.Protection{GitDir: true, DenyWrite: h.res.DenyWrite}, p, move)
+	via := ""
+	if v.Via != "" {
+		via = fmt.Sprintf(" (resolves to %s)", v.Via)
 	}
-	v := fileguard.Protection{GitDir: true, DenyWrite: h.res.DenyWrite}.Check(rel)
 	switch {
 	case v.GitDir:
-		return fmt.Sprintf("%s %s: .git/ is read-only to the lane's tools", op, p)
+		return fmt.Sprintf("%s %s%s: .git/ is read-only to the lane's tools", op, p, via)
+	case v.HardLink:
+		return fmt.Sprintf("%s %s: the file has more than one hard link, so another of its names may be protected — refused under this policy", op, p)
+	case v.Ancestor:
+		return fmt.Sprintf("%s %s%s: contains paths protected by fs_deny_write %q — read-only under this policy", op, p, via, v.Pattern)
 	case v.Pattern != "":
-		return fmt.Sprintf("%s %s: matches fs_deny_write %q — read-only under this policy", op, p, v.Pattern)
+		return fmt.Sprintf("%s %s%s: matches fs_deny_write %q — read-only under this policy", op, p, via, v.Pattern)
 	}
 	return ""
 }
@@ -275,6 +285,36 @@ func (h *Host) edit(req Request) Response {
 	next := strings.Replace(cur.Content, req.OldText, req.NewText, 1)
 	if w := h.write(Request{Path: req.Path, Content: next}); !w.OK {
 		return w
+	}
+	return Response{OK: true}
+}
+
+// remove deletes one file (or a symlink entry, never its target) inside the
+// root. Directories are refused: there is no recursive delete. The gate is
+// the rename/remove variant of the write protection, so a protected file,
+// a directory holding protected paths, and anything under .git/ stay put.
+// Without it an agent confined to these tools could not remove a helper it
+// had created (AILANG World tps-c, 2026-10-17: it rewrote a test file to
+// undo one).
+func (h *Host) remove(req Request) Response {
+	if r := h.needRoot(); r != nil {
+		return *r
+	}
+	if req.Path == "" {
+		return refuse("delete: path is required")
+	}
+	if why := h.protection("delete", req.Path, true); why != "" {
+		return refuse("%s", why)
+	}
+	fi, err := h.root.Lstat(req.Path)
+	if err != nil {
+		return refuse("delete %s: %v", req.Path, err)
+	}
+	if fi.IsDir() {
+		return refuse("delete %s: is a directory — delete removes one file at a time", req.Path)
+	}
+	if err := h.root.Remove(req.Path); err != nil {
+		return refuse("delete %s: %v", req.Path, err)
 	}
 	return Response{OK: true}
 }
