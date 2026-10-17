@@ -147,3 +147,44 @@ func TestNonCanonicalHeadingsAreLineEndingIndependent(t *testing.T) {
 		t.Fatalf("offenders = %q, want the one genuinely irregular STATUS heading", gotLF)
 	}
 }
+
+// knownStrayHeadings is a RATCHET over the files rotate-log treats as LIVE (*-mission-log.md,
+// *-mission-status-archive.md): "## " headings interleaved with entries, which make RotateLog
+// refuse. 11 are motoko's status-archive structure (deliberately unrotated), 1 is docs-log's
+// irregular "## ITERATION 3 — died mid-flight…" record. Archives are excluded: never rotated as live.
+// May FALL (lower it), never rise: a new one should fail CI where it is added, not at a later rotation.
+const knownStrayHeadings = 12
+
+func TestCanonicalRecordStreamsStrayHeadingsRatchet(t *testing.T) {
+	var live []string
+	for _, d := range missionDocs(t) {
+		b := filepath.Base(d)
+		if strings.HasSuffix(b, "-mission-log.md") || strings.HasSuffix(b, "-mission-status-archive.md") {
+			live = append(live, d)
+		}
+	}
+	if len(live) == 0 {
+		t.Skip("no mission record streams on this machine")
+	}
+	var stray []string
+	for _, d := range live {
+		raw, err := os.ReadFile(d) //nolint:gosec // repo-relative doc
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := strings.ReplaceAll(string(raw), "\r\n", "\n") // Windows checkout (F11)
+		_, entries := parseLog(body)
+		for _, h := range strayHeadings(body, entries) {
+			stray = append(stray, filepath.Base(d)+": "+h)
+		}
+	}
+	switch {
+	case len(stray) > knownStrayHeadings:
+		t.Errorf("interleaved structural headings ROSE to %d (limit %d) — rotate-log will refuse these files. "+
+			"Move the section above the first entry; do not raise the constant.\n  %s",
+			len(stray), knownStrayHeadings, strings.Join(stray, "\n  "))
+	case len(stray) < knownStrayHeadings:
+		t.Errorf("interleaved structural headings FELL to %d — good. Lower knownStrayHeadings to %d.\n  %s",
+			len(stray), len(stray), strings.Join(stray, "\n  "))
+	}
+}
