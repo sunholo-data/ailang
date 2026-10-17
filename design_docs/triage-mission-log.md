@@ -48,3 +48,15 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [triage-mis
 **Routing evidence**: executor role resolved `claude:claude-haiku-5-5 declared:provider-pin`, evaluator `agent-tool sonnet declared:alias-pin`; controller claude-sonnet-5-5. Tokens not reported by the harness.
 **Delivery**: digest https://github.com/sunholo-data/ailang/issues/1835#issuecomment-6224297806; `user` inbox sent (inbox_1792183316343_38ef0217). Both `daneel-reports` sends refused (no serving agent; same as iteration 3), not forced. The digest comment contains one stray sentence ("Issue is already labelled needs-decision? (no label change made)"); disregard it.
 **Next**: Mark approves or declines #1863; rule on #1711 and #1783/#1833; stall of cards apr-002d8bc0/apr-c0bf79fb needs rebase, not approval.
+
+## 5 — 2026-10-17 — three fixed ailang-world issues closed; #1783 close downgraded by judge [ADMIN]
+
+**Picked**: 13 items. 3 new issues (#1873, #1874, #1875), 4 held CLOSE-FIXED re-checks (#1535, #1783, #1784, #1812), #1711 (prior dissent), 8 PRs (#1759, #1771, #1789, #1790, #1849, #1862, #1863, #1867) re-verified against the moved `dev`. #1535, #1784, #1812 were already closed, so they got no row.
+**Reality check**: origin/dev f9ca9fe5ee5a55a65cdbfee42c56468b86135b6d (v0.54.15). No directives (7 comments, 0 from the allowlist). A verifier saw `test-windows` red on dev; per-workflow dev CI was not polled this run.
+**Shipped**: closed #1873, #1874, #1875 (fix db9719bb7, judge CONCUR, comment landed on each, count 0->1). Labelled #1783 `needs-decision`. Evidence comment on #1867. Posted a second, identical attestation for #1863 (iteration 4 had already attested the same head; I did not check first).
+**Judge**: sonnet (Agent tool) over haiku verifiers (Agent tool). 12 CONCUR / 1 DISSENT (#1783: the "OK to close" line was our bot's, not the reporter's). Judge did not read #1863's plan against the card's decision points.
+**Ruled out**: closing #1783; trusting the verifier's quote of the reporter.
+**Shadow**: 13 rows appended (iteration 5). No settled-outcome rows written this run, so no agree/total score.
+**Routing evidence**: executor role haiku and evaluator sonnet, both via the Agent tool with MISSION-ROLE tokens (the hook rejects role-less spawns); controller claude-sonnet-5-5. Codex lanes over ration (probe rc=75), as the routing note said.
+**Delivery**: digest https://github.com/sunholo-data/ailang/issues/1835#issuecomment-6231937265; `user` inbox sent. `daneel-reports` refused (no serving agent), not forced.
+**Next**: Mark rules on #1783 and #1863; #1789/#1790/#1862/#1759/#1771 need a rebase, not approval; #1867 needs a fix. Check the dedupe of attestations before posting. Record PR stacked on #1868.
