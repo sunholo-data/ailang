@@ -1,0 +1,11 @@
+module internal/embed/testdata/embedding
+import std/embedding (ollamaEmbed, ollamaEmbedResult, ollamaEmbedMedia, ollamaEmbedMediaResult)
+
+export func text() -> [float] ! {AI} = ollamaEmbed("m", "hi")
+
+export func textResult() -> Result[[float], string] ! {AI} = ollamaEmbedResult("m", "hi")
+
+export func media() -> [float] ! {AI} = ollamaEmbedMedia("m", "hi", _bytes_from_string(""), _bytes_from_string(""))
+
+export func mediaResult() -> Result[[float], string] ! {AI} =
+  ollamaEmbedMediaResult("m", "hi", _bytes_from_string(""), _bytes_from_string(""))

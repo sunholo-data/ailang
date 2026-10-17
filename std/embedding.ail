@@ -13,8 +13,9 @@
 --   let sim = cosine([1.0, 0.0], [0.707, 0.707])  -- ~0.707
 --
 -- See also:
---   _ollama_embed(model, text) -> list[float]
---   _ollama_embed_media(model, text, image, audio) -> list[float]   (multimodal models)
+--   ollamaEmbed(model, text) -> [float] ! {AI}
+--   ollamaEmbedMedia(model, text, image, audio) -> [float] ! {AI}
+--   ollamaEmbedResult / ollamaEmbedMediaResult -> Result[[float], string] ! {AI}
 --   _embedding_encode(floats) -> bytes
 --   _embedding_decode(bytes) -> Option[list[float]]
 
@@ -142,3 +143,18 @@ export pure func encodeF64LE(v: [float]) -> bytes = _vec_encode_f64le(v)
 
 -- decodeF64LE: inverse of encodeF64LE.
 export pure func decodeF64LE(b: bytes) -> Result[[float], string] = _vec_decode_f64le(b)
+
+-- Ollama embeddings require AI authority and charge one AI budget unit per call.
+-- --ai-stub supplies deterministic unit vectors for wiring tests only, without
+-- semantic meaning. Use --ai-stub-fixtures for realistic vectors or failures.
+-- The local Ollama endpoint is independent of the --ai chat provider.
+export func ollamaEmbed(model: string, text: string) -> [float] ! {AI} = _ollama_embed(model, text)
+
+export func ollamaEmbedResult(model: string, text: string) -> Result[[float], string] ! {AI} =
+  _ollama_embed_result(model, text)
+
+export func ollamaEmbedMedia(model: string, text: string, image: bytes, audio: bytes) -> [float] ! {AI} =
+  _ollama_embed_media(model, text, image, audio)
+
+export func ollamaEmbedMediaResult(model: string, text: string, image: bytes, audio: bytes) -> Result[[float], string] ! {AI} =
+  _ollama_embed_media_result(model, text, image, audio)

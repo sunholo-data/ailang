@@ -75,6 +75,38 @@
       "pure": true
     },
     {
+      "name": "ollamaEmbed",
+      "type": "(string,string)-\u003elist[float]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "ollamaEmbedMedia",
+      "type": "(string,string,bytes,bytes)-\u003elist[float]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "ollamaEmbedMediaResult",
+      "type": "(string,string,bytes,bytes)-\u003eResult[list[float],string]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
+      "name": "ollamaEmbedResult",
+      "type": "(string,string)-\u003eResult[list[float],string]!{AI}",
+      "effects": [
+        "AI"
+      ],
+      "pure": true
+    },
+    {
       "name": "scale",
       "type": "(float,list[float])-\u003elist[float]",
       "effects": [],
