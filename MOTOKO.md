@@ -1,9 +1,9 @@
 # motoko_agent on this machine — the map
 
-**One-line answer (since 2026-10-15):** evals run `/Users/voightkampff/dev/mk-20261015`, branch
-`sunholo/main-dst-20261015` @ `965f2ec5` (§11) — upstream `main` 340fae14 + our commits, the
-commit the cloud image pins. 2026-10-08..10-15: `mk-20261002` / `sunholo/main-dst-20261002` (§10),
-now the rollback. Before that (2026-09-28..10-07):
+**One-line answer (since 2026-10-19):** evals run `/Users/voightkampff/dev/mk-20261019`, branch
+`sunholo/main-dst-20261019` @ `907dd78e` (§12) — upstream `main` a94204aa + our commits, the
+commit the cloud image pins. 2026-10-15..10-19: `mk-20261015` / `sunholo/main-dst-20261015` @
+`965f2ec5` (§11), now the rollback. 2026-10-08..10-15: `mk-20261002` (§10). Before that (2026-09-28..10-07):
 `/Users/voightkampff/dev/mk-main`, branch `sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
 (`cloud` and `ollama_microrag` profiles, `motoko_ext_ailang_tools`, rig-lease forwarding).
 Its extensions are the in-repo `packages/` copies. The ABI 2.2 fork (`sunholo/eval-canonical`)
@@ -267,3 +267,24 @@ fizzbuzz / json_parse, all passed (2026-10-15/16).
 **Rollback:** repoint `~/go/bin/motoko`'s exec line to `~/dev/mk-20261002` and the Dockerfile's
 `MOTOKO_COMMIT` to `b1ffa339`. Results banked before 2026-10-15 13:00 (including the v0.54.9 OS
 rotation) ran `b1ffa339`; do not pool them with later motoko rows as one build.
+
+## 12. Canonical since 2026-10-19: `sunholo/main-dst-20261019` (rig and cloud on `907dd78e`)
+
+Worktree `~/dev/mk-20261019`, fork branch `sunholo/main-dst-20261019`: §11's 20 commits rebased onto
+upstream `main` `a94204aa` (2026-10-18), 93 upstream commits newer than `340fae14`. Most of them are
+ADR 034 Phase 0 (#277: a tool fault carries a `ToolFault` saying whether its effect may have
+happened; `Search` is read-only), the Phase 0b deadline-wrapper probe and its withdrawal (#279),
+herdr `DelegateCheck` fixes (#275, #278: park instead of polling, bounded waits) and
+`progress_contract_guard` taking its contract from the operator, not a tool result (#270).
+
+The only conflict was `ailang.lock`; it was taken from upstream and relocked (`a241b15d`, whose
+message still says "340fae14": it is the same relock step, re-run on the new base). No absolute paths.
+
+Verified 2026-10-19: `make check_core` exit 0 (60/60 core files, 9/9 extensions boot); eval smoke
+through a scratch shim, Sol 6.1 on the ChatGPT subscription, fizzbuzz and json_parse both pass, with
+the sessions in `mk-20261019/.motoko/logfile/`. Not yet verified: a cloud image build on this commit,
+and a local ollama or OpenRouter run.
+
+**Rollback:** repoint `~/go/bin/motoko`'s exec line to `~/dev/mk-20261015` and the Dockerfile's
+`MOTOKO_COMMIT` to `965f2ec5`. Results banked before 2026-10-19 ran `965f2ec5` or earlier; do not pool
+them with later motoko rows as one build.
