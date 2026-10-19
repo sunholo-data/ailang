@@ -71,3 +71,29 @@ func TestStageForCommit_ExcludesScratch(t *testing.T) {
 		t.Fatalf("staged %q, want a.txt,pkg/hello.ail (no scratch)", got)
 	}
 }
+
+// motoko's run state (a profile copy, exit manifests, a model catalog) never
+// rides the commit, but an edit to a .motoko file the repo already tracks does
+// (motoko_agent commits its own .motoko/config).
+func TestStageForCommit_HarnessState(t *testing.T) {
+	ctx := context.Background()
+	dir := gitRepo(t)
+	write(t, dir, ".motoko/config/ailang_only/tracked.json", "{}\n")
+	exec.Command("git", "-C", dir, "add", "-A").Run()
+	exec.Command("git", "-C", dir, "commit", "-q", "-m", "track one").Run()
+
+	write(t, dir, ".motoko/exit/manifest-1.json", "{}\n")
+	write(t, dir, ".motoko/model-catalog.json", "{}\n")
+	if ok, err := stageForCommit(ctx, dir); err != nil || ok {
+		t.Fatalf("run state alone must stage nothing: staged=%v err=%v files=%v", ok, err, staged(t, dir))
+	}
+
+	write(t, dir, ".motoko/config/ailang_only/tracked.json", "{\"edited\":true}\n")
+	write(t, dir, "lane-reports/x/REPORT.md", "r\n")
+	if ok, err := stageForCommit(ctx, dir); err != nil || !ok {
+		t.Fatalf("real change must stage: staged=%v err=%v", ok, err)
+	}
+	if got := strings.Join(staged(t, dir), ","); got != ".motoko/config/ailang_only/tracked.json,lane-reports/x/REPORT.md" {
+		t.Fatalf("staged %q, want the tracked .motoko edit and the report only", got)
+	}
+}

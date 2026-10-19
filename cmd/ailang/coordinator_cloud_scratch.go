@@ -26,6 +26,11 @@ const ScratchDir = coordinator.ScratchDirName
 // stageForCommit stages every change under workDir except ScratchDir and
 // reports whether anything is actually staged. A tree whose only changes are
 // scratch files stages nothing, so the caller must not attempt a commit.
+// harnessStateDir is where motoko writes its run state inside the workspace
+// (a profile copy, exit manifests, a model catalog). Measured 2026-10-19: a
+// motoko lane task's PR (#1894) carried four such files beside its report.
+const harnessStateDir = ".motoko"
+
 func stageForCommit(ctx context.Context, workDir string) (bool, error) {
 	status, err := gitexec.CommandContext(ctx, "-C", workDir, "status", "--porcelain").Output()
 	if err != nil {
@@ -35,9 +40,19 @@ func stageForCommit(ctx context.Context, workDir string) (bool, error) {
 		return false, nil
 	}
 	add := gitexec.CommandContext(ctx, "-C", workDir, "add", "-A", "--", ".",
-		":(exclude)"+ScratchDir, ":(exclude)**/"+ScratchDir+"/**")
+		":(exclude)"+ScratchDir, ":(exclude)**/"+ScratchDir+"/**",
+		":(exclude)"+harnessStateDir, ":(exclude)"+harnessStateDir+"/**")
 	if err := add.Run(); err != nil {
 		return false, fmt.Errorf("git add failed: %w", err)
+	}
+	// Changes to harness-state files the repo already tracks are real edits
+	// (motoko_agent commits its own .motoko/config); only NEW files there are
+	// the harness's run state.
+	// (`git add -u` on a path that matches nothing is an error, so ask first.)
+	if tracked, _ := gitexec.CommandContext(ctx, "-C", workDir, "ls-files", "--", harnessStateDir).Output(); strings.TrimSpace(string(tracked)) != "" {
+		if err := gitexec.CommandContext(ctx, "-C", workDir, "add", "-u", "--", harnessStateDir).Run(); err != nil {
+			return false, fmt.Errorf("git add -u %s failed: %w", harnessStateDir, err)
+		}
 	}
 	// exit 1 = differences staged; 0 = nothing staged (only scratch changed)
 	if err := gitexec.CommandContext(ctx, "-C", workDir, "diff", "--cached", "--quiet").Run(); err != nil {
