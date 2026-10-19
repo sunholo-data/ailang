@@ -88,7 +88,9 @@ func (f *gradeFixture) diff(t *testing.T, id string, edits map[string]string) co
 	}
 	runGit(t, dir, "add", ".")
 	return coordinator.ShadowRunResult{TaskID: id, Status: "completed", BaseCommit: f.base,
-		ChangedFiles: files, Diff: runGit(t, dir, "diff", "--cached", f.base) + "\n"}
+		// runGit trims, exactly as the job's evidence collector does: the
+		// stored patch has no final newline.
+		ChangedFiles: files, Diff: runGit(t, dir, "diff", "--cached", f.base)}
 }
 
 // seed records both sides and puts the comparison where the coordinator's

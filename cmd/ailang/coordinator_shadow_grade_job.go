@@ -384,6 +384,13 @@ func applyDiff(ctx context.Context, dir, diff string) error {
 		return err
 	}
 	defer os.Remove(f.Name())
+	// The job's evidence trims git's output (collectGitEvidence), so a stored
+	// patch has lost its final newline, and git apply calls that a corrupt
+	// patch. Measured 2026-10-19: the first real primary diff graded
+	// apply_failed for exactly this.
+	if !strings.HasSuffix(diff, "\n") {
+		diff += "\n"
+	}
 	if _, err := f.WriteString(diff); err != nil {
 		f.Close()
 		return err

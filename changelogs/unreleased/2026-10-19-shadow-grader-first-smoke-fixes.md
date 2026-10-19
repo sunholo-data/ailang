@@ -8,3 +8,10 @@ vacuous, not a failure. And a run that failed before its agent's first turn with
 dispatch failure, as both motoko runs of that smoke were) is now `ungraded(did_not_start)` rather than scored
 as the harness losing. The opt-in Firestore live test also deleted its documents after closing its client, which
 silently failed and left five test comparisons on the dev plane; it now deletes first.
+
+### Fixed — the shadow grader applies real patches (2026-10-19)
+
+The job's evidence collector trims git's output, so a stored diff loses its final newline and `git apply` rejects
+it as a corrupt patch: the first real primary diff (ailang-parse#105's) graded `apply_failed`. The grader now
+restores the newline. Its test fixture had appended one itself, which is why the suite never saw it; the fixture
+now trims exactly as the collector does.
