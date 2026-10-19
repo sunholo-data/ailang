@@ -63,8 +63,67 @@ type ShadowComparison struct {
 	BaseDrift      bool          `json:"base_drift,omitempty"`
 	Verdict        ShadowVerdict `json:"verdict,omitempty"`
 	UngradedReason string        `json:"ungraded_reason,omitempty"`
-	CreatedAt      time.Time     `json:"created_at"`
-	UpdatedAt      time.Time     `json:"updated_at"`
+	// GradeState tracks the mechanical grade job (M5): "" until both sides are
+	// in and a job is dispatched, then "dispatched", then "graded".
+	GradeState        string                 `json:"grade_state,omitempty"`
+	GradeDispatchedAt time.Time              `json:"grade_dispatched_at,omitempty"`
+	Mechanical        *ShadowMechanicalGrade `json:"mechanical,omitempty"`
+	CreatedAt         time.Time              `json:"created_at"`
+	UpdatedAt         time.Time              `json:"updated_at"`
+}
+
+// Grade states.
+const (
+	ShadowGradeNone       = ""
+	ShadowGradeDispatched = "dispatched"
+	ShadowGradeGraded     = "graded"
+)
+
+// ShadowGateResult is one AILANG gate run on one side's diff.
+type ShadowGateResult struct {
+	Op       string `json:"op"` // "check" or "test"
+	Path     string `json:"path,omitempty"`
+	Package  string `json:"package,omitempty"`
+	OK       bool   `json:"ok"`
+	ExitCode int    `json:"exit_code,omitempty"`
+	Refused  string `json:"refused,omitempty"`
+	Output   string `json:"output,omitempty"` // tail of stderr/stdout, capped
+}
+
+// ShadowSideGrade is the mechanical layer for one side. Ungraded carries the
+// reason when the gates could not be run at all (clone_failed, apply_failed,
+// timeout, no_ail_changes); that is never counted as either harness failing.
+type ShadowSideGrade struct {
+	Pass     bool               `json:"pass"`
+	Ungraded string             `json:"ungraded,omitempty"`
+	Gates    []ShadowGateResult `json:"gates,omitempty"`
+}
+
+// ShadowMechanicalGrade is the grade job's output (design layer 1).
+type ShadowMechanicalGrade struct {
+	Primary  ShadowSideGrade `json:"primary"`
+	Shadow   ShadowSideGrade `json:"shadow"`
+	GradedAt time.Time       `json:"graded_at"`
+}
+
+// ShadowVerdictFromMechanical maps the mechanical layer to a verdict. An
+// ungraded side makes the whole comparison ungraded: the report must not count
+// "we could not run the gates" as a harness losing.
+func ShadowVerdictFromMechanical(m ShadowMechanicalGrade) (ShadowVerdict, string) {
+	switch {
+	case m.Primary.Ungraded != "":
+		return ShadowVerdictUngraded, "primary: " + m.Primary.Ungraded
+	case m.Shadow.Ungraded != "":
+		return ShadowVerdictUngraded, "shadow: " + m.Shadow.Ungraded
+	case m.Primary.Pass && m.Shadow.Pass:
+		return ShadowVerdictEquivalent, ""
+	case m.Primary.Pass:
+		return ShadowVerdictPrimaryBetter, ""
+	case m.Shadow.Pass:
+		return ShadowVerdictShadowBetter, ""
+	default:
+		return ShadowVerdictBothFailed, ""
+	}
 }
 
 // Complete reports whether both sides have landed.
@@ -103,4 +162,10 @@ type ShadowComparisonStore interface {
 	// different coordinator instances.
 	RecordShadowRun(ctx context.Context, parentID, side string, run ShadowRunResult) (*ShadowComparison, error)
 	GetShadowComparison(ctx context.Context, parentID string) (*ShadowComparison, error)
+	// ListShadowComparisonsByGradeState returns complete comparisons in one
+	// grade state, oldest first, at most limit.
+	ListShadowComparisonsByGradeState(ctx context.Context, state string, limit int) ([]*ShadowComparison, error)
+	// UpdateShadowComparison applies fn to the stored comparison atomically. fn
+	// returns false to leave it unchanged (a lost compare-and-set).
+	UpdateShadowComparison(ctx context.Context, parentID string, fn func(*ShadowComparison) bool) (bool, error)
 }

@@ -72,6 +72,16 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 		}
 	}
 
+	// AILANG_JOB_MODE picks what this job is. A shadow grade runs no agent and
+	// publishes no task completion: it writes its grade to the comparison.
+	switch mode := config.JobMode(); mode {
+	case "":
+	case config.JobModeShadowGrade:
+		return runShadowGradeJob()
+	default:
+		return fmt.Errorf("execute-job: unknown %s %q", config.EnvJobMode, mode)
+	}
+
 	defer releaseJobCreditAttempt()
 	// Read ALL environment variables upfront (before any early returns).
 	taskID := config.TaskID()

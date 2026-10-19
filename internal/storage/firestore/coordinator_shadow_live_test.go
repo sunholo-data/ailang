@@ -47,4 +47,37 @@ func TestShadowComparisonRoundTrip_Live(t *testing.T) {
 	if !c.Complete() || !c.BaseDrift || c.Shadow.CostUSD != 0.2 || c.Primary.TaskID != parent {
 		t.Fatalf("round trip: %+v", c)
 	}
+
+	// The grade sweep's query and claim (M5).
+	listed := func(state string) bool {
+		list, err := s.ListShadowComparisonsByGradeState(ctx, state, 50)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, x := range list {
+			if x.ParentID == parent {
+				return true
+			}
+		}
+		return false
+	}
+	if !listed(coordinator.ShadowGradeNone) {
+		t.Fatal("complete, ungraded comparison not listed for grading")
+	}
+	claim := func(cur *coordinator.ShadowComparison) bool {
+		if cur.GradeState != coordinator.ShadowGradeNone {
+			return false
+		}
+		cur.GradeState = coordinator.ShadowGradeDispatched
+		return true
+	}
+	if won, err := s.UpdateShadowComparison(ctx, parent, claim); err != nil || !won {
+		t.Fatalf("first claim: won=%v err=%v", won, err)
+	}
+	if won, err := s.UpdateShadowComparison(ctx, parent, claim); err != nil || won {
+		t.Fatalf("second claim: won=%v err=%v, want lost", won, err)
+	}
+	if listed(coordinator.ShadowGradeNone) || !listed(coordinator.ShadowGradeDispatched) {
+		t.Fatal("claimed comparison listed in the wrong grade state")
+	}
 }

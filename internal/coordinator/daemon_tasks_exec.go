@@ -33,7 +33,9 @@ var coordinatorTracer = telemetry.Tracer("coordinator")
 func (d *Daemon) executeTaskQueue() error {
 	// Cloud mode: dispatch via Pub/Sub (Eventarc triggers Cloud Run Job)
 	if d.pubsubPublisher != nil && d.cloudInboxAdapter != nil {
-		return d.dispatchTasksCloud()
+		err := d.dispatchTasksCloud()
+		d.dispatchShadowGrades()
+		return err
 	}
 
 	// Local mode: execute tasks directly

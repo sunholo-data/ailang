@@ -77,19 +77,19 @@ Every sampled real `ailang_only`-lane coordinator task also runs on the other ha
   - [x] the `ShadowComparison` CRUD round-trip works;
   - [x] `base_drift` is set when the primary's and shadow's `BaseCommit` differ.
 
-### M5: The grade job, mechanical layer (~300 LOC: 200 + 100)
-- New `cmd/ailang/coordinator_shadow_grade_job.go`, a Cloud Run Job entry on the agent executor image, with no git credential. It:
+### M5: The grade job, mechanical layer ✅ (~300 LOC: 200 + 100)
+- New `cmd/ailang/coordinator_shadow_grade_job.go`, a Cloud Run Job entry on the agent executor image (**as built: a mode of the existing executor job, `AILANG_JOB_MODE=shadow_grade`; Mark 2026-10-19**), with no git credential. It:
   1. clones at each run's `BaseCommit` (`git fetch --depth 1 origin <sha>`);
   2. applies each diff;
   3. runs `ailang check` on changed modules and `ailang test --package` on changed packages **through `ailang policy-tool` under the agent's restricted policy**, each with a hard timeout (300 s default), within a 900 s job bound;
   4. reports per-diff pass/fail, or `ungraded(timeout|apply_failed)`.
 - New `internal/coordinator/shadow_grade.go` dispatches the grade job when the shadow child completes and its parent has a completion, and writes the mechanical layer to `ShadowComparison`.
 - **Acceptance:**
-  - [ ] fixture repos where diff A passes and diff B fails `ailang check` grade correctly;
-  - [ ] a hanging test gives `ungraded(timeout)` within the bound;
-  - [ ] an unappliable diff gives `ungraded(apply_failed)`;
-  - [ ] **no grading code runs in the daemon process** (test asserts the daemon only dispatches);
-  - [ ] `make` targets are never invoked.
+  - [x] fixture repos where diff A passes and diff B fails `ailang check` grade correctly;
+  - [x] a hanging test gives `ungraded(timeout)` within the bound;
+  - [x] an unappliable diff gives `ungraded(apply_failed)`;
+  - [x] **no grading code runs in the daemon process** (test asserts the daemon only dispatches);
+  - [x] `make` targets are never invoked.
 
 ### M6: Merged-fix comparison and reviewer (~250 LOC: 170 + 80)
 - When the parent's PR settles (`settledPRLookup` on `BranchForTask(parent)`), fetch the merged diff by PR number (`pulls/{n}/files`, because `LandedPR` has no SHA, V21). Record:

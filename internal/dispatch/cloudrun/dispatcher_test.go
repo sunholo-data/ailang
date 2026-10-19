@@ -574,3 +574,22 @@ func TestDispatchShadowEnvVar(t *testing.T) {
 	}
 	t.Fatal("AILANG_TASK_SHADOW not sent")
 }
+
+// A grade dispatch carries its mode and parent; an ordinary one sends neither,
+// so an older job image never sees a mode it would misread.
+func TestDispatchJobModeEnvVars(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "proj-1", "us-central1", "test")
+	if err := d.Dispatch(context.Background(), coordinator.DispatchParams{
+		TaskID: "task-p-grade", Provider: "pi", ExecutorVariant: "pi", JobMode: "shadow_grade", ShadowParent: "task-p",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, env := range mock.lastReq.Overrides.ContainerOverrides[0].Env {
+		got[env.Name] = env.Values.(*runpb.EnvVar_Value).Value
+	}
+	if got["AILANG_JOB_MODE"] != "shadow_grade" || got["AILANG_SHADOW_PARENT"] != "task-p" {
+		t.Fatalf("mode env = %q / %q", got["AILANG_JOB_MODE"], got["AILANG_SHADOW_PARENT"])
+	}
+}

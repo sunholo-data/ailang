@@ -149,10 +149,10 @@
         "Unappliable diff -> ungraded(apply_failed)",
         "No grading code runs in the daemon; no make targets invoked"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-19T08:58:35+00:00",
+      "completed": "2026-10-19T08:58:35+00:00",
+      "notes": "Mark approved 10-19: grade = mode of the existing agent executor job (AILANG_JOB_MODE=shadow_grade), not a new Cloud Run job. Coordinator sweep dispatchShadowGrades (claim CAS, stale -> grade_timeout, dispatch failure -> ungraded). Job: fetch base SHA, git apply, policy-tool check+test per module with sandbox = package dir; test --package . only where *_test.ail exist. Live smoke found two things the fake runner hid: (1) modules inside a package only resolve with the package dir as root -> per-package sandbox; (2) test --package runs only *_test.ail and exits 0 otherwise -> inline tests run per file. Also found+fixed: write-back used the expired job ctx after a timeout. Per-gate bound is policytool's 120s (tighter than the design's 300s). Deploy-key (SSH) clones not supported in grade mode yet: such repos grade as clone_failed. 19 mutants killed. Firestore list/claim verified live on dev; real-binary end-to-end opt-in test passes."
     },
     {
       "id": "M6_MERGED_FIX_REVIEWER",

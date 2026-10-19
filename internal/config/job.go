@@ -34,6 +34,8 @@ const (
 	EnvIdleTimeout             = "AILANG_IDLE_TIMEOUT"
 	EnvAcknowledgeOnly         = "AILANG_ACKNOWLEDGE_ONLY"
 	EnvTaskShadow              = "AILANG_TASK_SHADOW"
+	EnvJobMode                 = "AILANG_JOB_MODE"
+	EnvShadowParent            = "AILANG_SHADOW_PARENT"
 	EnvSubdirectory            = "AILANG_SUBDIRECTORY"
 	EnvGitMode                 = "AILANG_GIT_MODE"
 	EnvTaskInputs              = "AILANG_TASK_INPUTS"
@@ -87,6 +89,8 @@ var jobVars = []Var{
 	{EnvTimeout, "", AreaJob, "Executor wall-clock as a Go duration; unset means the coordinator's default task timeout (2h)."},
 	{EnvIdleTimeout, "", AreaJob, "Max silence BETWEEN executor output events as a Go duration, distinct from the wall-clock ceiling; unset means the executor default (3m). Set by the dispatcher from the agent's idle_timeout — before 2026-09-22 it did not travel, so every cloud task ran at 3m whatever the registry declared."},
 	{EnvAcknowledgeOnly, "false", AreaJob, "Exactly true declares the task acknowledge-only (no file changes expected); anything else means changes were expected, so an older dispatcher fails loud rather than lenient."},
+	{EnvJobMode, "", AreaJob, "What execute-job does: unset runs the agent on the task; shadow_grade runs the mechanical grade of a shadow comparison (AILANG gates only, under the agent's policy, no agent, no push) and writes the result to Firestore."},
+	{EnvShadowParent, "", AreaJob, "The primary task whose shadow comparison a shadow_grade job grades."},
 	{EnvTaskShadow, "false", AreaJob, "Exactly true marks a shadow run (M-AILANG-LANE-EXECUTOR-SHADOW): the job keeps its diff and artifacts but skips the deploy-key preflight, the push and the PR, and gives the agent no git credential."},
 	{EnvSubdirectory, "", AreaJob, "Monorepo subdirectory the executor is scoped to, relative to the clone."},
 	{EnvGitMode, "", AreaJob, "Git mode the executor's children run under; unset, the job exports guardrails before starting the executor."},
@@ -144,6 +148,15 @@ func IdleTimeout() string { return get(EnvIdleTimeout) }
 
 // AcknowledgeOnly reports AILANG_ACKNOWLEDGE_ONLY=true exactly.
 func AcknowledgeOnly() bool { return get(EnvAcknowledgeOnly) == "true" }
+
+// JobModeShadowGrade is the AILANG_JOB_MODE that grades a shadow comparison.
+const JobModeShadowGrade = "shadow_grade"
+
+// JobMode returns AILANG_JOB_MODE, "" when unset (run the agent).
+func JobMode() string { return get(EnvJobMode) }
+
+// ShadowParent returns AILANG_SHADOW_PARENT, "" when unset.
+func ShadowParent() string { return get(EnvShadowParent) }
 
 // TaskShadow reports AILANG_TASK_SHADOW=true exactly: a shadow run, which must
 // write nothing outside its run directory.

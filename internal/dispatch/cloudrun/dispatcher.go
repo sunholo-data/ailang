@@ -278,6 +278,13 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		{Name: "AILANG_ACKNOWLEDGE_ONLY", Values: &runpb.EnvVar_Value{Value: strconv.FormatBool(params.AcknowledgeOnly)}},
 		// Always sent, so a shadow's flag is never left to an image default.
 		{Name: config.EnvTaskShadow, Values: &runpb.EnvVar_Value{Value: strconv.FormatBool(params.Shadow)}},
+	}
+	if params.JobMode != "" {
+		envOverrides = append(envOverrides,
+			&runpb.EnvVar{Name: config.EnvJobMode, Values: &runpb.EnvVar_Value{Value: params.JobMode}},
+			&runpb.EnvVar{Name: config.EnvShadowParent, Values: &runpb.EnvVar_Value{Value: params.ShadowParent}})
+	}
+	envOverrides = append(envOverrides, []*runpb.EnvVar{
 		{Name: "AILANG_PROVIDER", Values: &runpb.EnvVar_Value{Value: params.Provider}},
 		{Name: config.EnvDirectiveSource, Values: &runpb.EnvVar_Value{Value: config.DirectiveSourceFirestore}},
 		// The human description, so the job need not reverse-engineer one from a
@@ -285,7 +292,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		{Name: "AILANG_TASK_TITLE", Values: &runpb.EnvVar_Value{Value: params.TaskTitle}},
 		{Name: "AILANG_REPO_URL", Values: &runpb.EnvVar_Value{Value: params.RepoURL}},
 		{Name: "AILANG_BRANCH", Values: &runpb.EnvVar_Value{Value: params.Branch}},
-	}
+	}...)
 	if err := messaging.ValidateTaskInputs(params.Inputs); err != nil {
 		return fmt.Errorf("%w: %v", coordinator.ErrDispatchPermanent, err)
 	}
