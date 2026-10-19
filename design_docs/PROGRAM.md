@@ -142,7 +142,8 @@ has not started: its cloud sprint task `task-60e90d30` was killed at 42 min on 1
 (byte-stable compaction summary); #234 (path guard) and #266 (TUI ollama flag) are open, as are issues
 #259 (cost meter ignores cache tokens) and #263 (extension `ai_step` is sent the full tool list).
 Upstream main has moved 93 commits past our pin base, mostly ADR 034 (tool faults disclose whether their
-effect may have happened) and herdr delegation fixes. Our 20 commits are not yet rebased onto it.
+effect may have happened) and herdr delegation fixes. Our 20 commits were rebased onto it on 10-19
+(pin `907dd78e`, MOTOKO.md §12).
 
 **Prior art:** Harness² (Google Research) automates harness editing per task with an LLM judge. We do
 not adopt it; the verifier-judged offline variant is noted in
