@@ -135,8 +135,10 @@ rather than with tools.
 **Real-task evidence is zero.** `ailang-only-executor` and `motoko` are registered on the cloud plane
 but no task has been dispatched to either (listing back to 09-14). The instrument that would produce it,
 [M-AILANG-LANE-EXECUTOR-SHADOW](planned/v0_55_0/m-ailang-lane-executor-shadow.md) (ratified 10-13),
-has not started: its cloud sprint task `task-60e90d30` was killed at 42 min on 10-13
-(`codex task failed: signal: killed`) and pushed nothing. M7 also needs the capped shadow key.
+was built attended on 10-19 after its cloud sprint task `task-60e90d30` was killed at 42 min on 10-13
+and pushed nothing. M1–M6 and M7's code are on `dev`; it stays inert until the capped
+`OPENROUTER_API_KEY_SHADOW` exists, is mounted on the pi and motoko jobs, and two agents are enabled
+on the dev plane (M7). Real-task evidence starts then; the weekly report lands in the `user` inbox.
 
 **Upstream:** Arni merged our #258 (direct-Anthropic docs), #260 (repetition guard) and #262
 (byte-stable compaction summary); #234 (path guard) and #266 (TUI ollama flag) are open, as are issues
