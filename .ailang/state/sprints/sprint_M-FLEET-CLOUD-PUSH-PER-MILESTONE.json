@@ -1,0 +1,55 @@
+{
+  "sprint_id": "M-FLEET-CLOUD-PUSH-PER-MILESTONE",
+  "created": "2026-10-20T00:00:00Z",
+  "estimated_duration_days": 1,
+  "correlation_id": "sprint_M-FLEET-CLOUD-PUSH-PER-MILESTONE_fleet49_20261020",
+  "design_doc": "design_docs/planned/sprint-plan-sprint-executor-cloud-push.md",
+  "markdown_plan": "design_docs/planned/sprint-plan-sprint-executor-cloud-push.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_CLOUD_BRANCH_SYNC",
+      "package": null,
+      "action": "none",
+      "reason": "Bash/Git skill workflow only; no package-like AILANG capability or .ail module. Registry search and pkg info/docs are not applicable. Reuse existing LAUNCHD_SUITE, unattended resource link, mirror check and portable bounded-command patterns; no package dependency."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_CLOUD_BRANCH_SYNC",
+      "description": "Implement the exact-task-branch cloud start/push protocol, hermetic wrapper-hazard and retry regression tests, unattended no-toolchain and push-per-milestone guidance, byte-identical skill mirrors, Make wiring and changelog fragment.",
+      "estimated_loc": 1190,
+      "actual_loc": null,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "cloud_branch_sync.sh supports exactly start/push under Bash 3.2 with set -u; every Git call is bounded or naturally finite, network calls are noninteractive, all verdicts name branch/SHA, ordinary outcomes including failed:* return 0, and usage errors alone return 2.",
+        "Both commands mutate Git or contact origin only when nonempty AILANG_TASK_ID exactly matches current coordinator/<taskID>; attended, mission, wrong-task, live/direct-push, unset/empty-ID and detached cases skip without changing local state/config or any remote ref. Never force-push or push any other branch.",
+        "Both commands idempotently ensure +refs/heads/<branch>:refs/remotes/origin/<branch> before network work while preserving the base fetch entry; successful push leaves the exact remote ref and tracking ref equal to HEAD and verifies equality with ls-remote.",
+        "start distinguishes absent rc 2 from lookup errors, prints fresh without changing local work when absent, or fetches and reset --keep resumes the remote task SHA with untracked wrapper files intact; fetch/reset refusal preserves HEAD, index and working files and reports failed:*.",
+        "The same faithful Step 5b wrapper simulation after push plus a later local commit detects unpushed work with the helper refspec; the no-refspec shallow-clone control reproduces M2 with log rc 128, ls-remote rc 0, newBranch=false and unpushed=false while remote remains at the earlier commit.",
+        "Crash/retry from a fresh --depth 1 --branch file:// clone restores the prior milestone and sprint JSON before milestone selection, keeps an untracked wrapper file, then fast-forward pushes the next commit. Rejected or divergent pushes return failed:* with rc 0 without changing local work or overwriting remote history.",
+        "All 22 named arm-to-mutation pairs A01-A22 in the plan have recorded test/mutation evidence, including actual all-remote-ref observations for skipped live branches, config idempotence in both commands, usage, probe/fetch/reset/config failure, verified-SHA mismatch, bounded calls and repeat push.",
+        "unattended_runs.md explains start once before milestone selection, read restored JSON and resume first unfinished milestone, commit then push every milestone, the SIGBUS ticket and one-sentence M2 hazard, non-fatal failed verdict recording in JSON notes, and no compiler/sysroot/C/CGO/system-package/Go/z3 installs; missing tools cause recorded focused-test skips left to CI. Preserve already-shipped make test-changed and commit-per-milestone behavior.",
+        "Helper, test and resource are byte-identical in .claude and .agents; existing SKILL.md stays unchanged. make/test.mk invokes the test beside test_ci_gate.sh through LAUNCHD_SUITE and syntax-checks both scripts. changelogs/unreleased/2026-10-20-sprint-executor-cloud-push-per-milestone.md exists and opens with ### Changed — Sprint executor cloud milestone durability.",
+        "Record focused test_cloud_branch_sync.sh, /bin/bash -n on both scripts, test_agents_skills_sync.sh, make check-changelog and added integration gate make test-launchd-drivers results. Any socket-touching sandbox result is UNINFORMATIVE UNDER SANDBOX. Never run full make test or install a missing tool; record skipped gates/tools in sprint JSON notes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Planner scope only: ticket crash:sprint-executor:sigbus-ram-tmp-full-make-test; controller measurements M1-M5 and fixed design D1-D8 are in the plan. One cohesive milestone is explicitly required; resource schema permits one. Measured planner validation: validate_sprint_json.sh ran, rc 1, exactly one error: Only 1 milestone(s) defined (minimum: 2); syntax, placeholders, reuse audit and custom values passed. Independent jq schema/initial-state/estimate/link checks returned true with rc 0. Neither command used sockets; this is a validator policy conflict, not a sandbox limitation. Do not add dummy milestones or change the validator. Implementation gates not run by planner. Estimate includes mirrors: 150+400+40 source LOC, the same 590 mirror LOC, 4 Make LOC and 6 changelog LOC = 1190. No wrapper, infrastructure or failure-reporting changes."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 1190,
+    "actual_loc_per_day": 0,
+    "target_milestones_per_week": 1,
+    "actual_milestones_per_week": 0,
+    "estimated_total_loc": 1190,
+    "actual_total_loc": 0,
+    "estimated_days": 1,
+    "actual_days": null
+  },
+  "last_session": "2026-10-20T00:00:00Z",
+  "last_checkpoint": null,
+  "status": "not_started"
+}
