@@ -43,17 +43,17 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-19 — ITERATION 48: `skill:design-scaffold-hardcodes-owning-repo` + `sprint-skill:estimated-loc-zero-is-placeholder-sentinel` resolved as GHOSTS — already fixed by #1542 (`b51353bcd`) and #1695 (`2a47d1e65`); judged PASS 88 and PASS 93 by sonnet; 2 tickets resolved [HARNESS]
+
+Both tickets were fixed on dev after they were filed, and nobody resolved them. `create_planned_doc.sh` and `move_to_implemented.sh` have taken the project root from the CWD's git worktree since `b51353bcd` (10-03; ticket 10-01). Measured first-party: the pre-fix copy writes the placeholder into its own owning checkout, and HEAD writes into the target repo. `validate_sprint_json.sh` has refused only `estimated_loc == null` since `2a47d1e65` (10-09; ticket 10-03). Base refuses 0, and head accepts 0 and refuses null. A fresh sonnet judge re-ran both reproductions, killed one mutant per ticket, and noted a residue: the `.agents/skills/design-doc-creator` copy is still script-relative. That copy is correct when invoked inside its own checkout, and no configured path invokes it from another repo. It belongs to the open ticket `skills:agents-copies-stale-non-mission`. No code changed.
+
+Clause map: **1** UNMEASURED; **2** UNMET (these tickets took about 18 d and 16 d, though the fixes took 2 d and 6 d, so the turnaround was resolution lag, not build time); **3** MET (42 open after resolve); **4** prior evidence only; **5** preserved (the judge re-ran each fix's behaviour; nothing shipped). Next: `crash:sprint-executor:sigbus-ram-tmp-full-make-test` (attended, 10-08, `blocking=item`; ask 1 is in the sprint-executor skill).
+
 ## STATUS 2026-10-19 — ITERATION 47: `rotate-log:status-archive-structural-header` LANDED — orphaned iteration 46's #1877 verified and merged → `f048d6fa9`, judged PASS 93 by sonnet; ticket resolved [HARNESS]
 
 Iteration 46 (10-17 14:12) built the whole fix, opened #1877 and died at Gate 3 when the Anthropic weekly limit hit (driver slot-verdict `CRASHED at=gate-3 rc=1`; crash notice on #1768). It wrote no record. #1877 was red only on `internal/runner` `TestWorkerTerminalPTYLifecycle/eval/exit` (1 of 11 subtests, ubuntu; the macOS and Windows legs were fail-fast casualties), in a package the PR does not touch. This iteration rebased it onto `38525b06b` and reproduced the fix first-party on temp copies: base `rotate-log docs --stream status` rc 1 (refuses on `## (Charter sections — moved back 2026-10-01)`), head rc 0 with `--keep 1000` and `--keep 3`, and the tombstone kept in the preamble. A fresh sonnet judge scored **PASS 93**, 0 blocking: the archive change is byte-preserving, and 5 of 6 mutants were killed (the survivor, a `###` demotion, is a legal state). All 26 PR checks were green, and the PR was squash-merged at the judged head.
 
 Clause map: **1** UNMEASURED; **2** UNMET (this ticket took about 18 d, filed 10-01); **3** MET (44 open after resolve); **4** prior evidence only; **5** preserved. Next: `skill:design-scaffold-hardcodes-owning-repo` (world, 10-01). `eval:motoko-connection-probe-orphaned` still waits on D-FLEET-18.
-
-## STATUS 2026-10-17 — ITERATION 45: `mission:index-regenerate-needs-rotatable-archive` + `rotate-log:index-regen-drops-orphan-rows` LANDED — #1870 → `2061f445e`, judged PASS 90 by sonnet; 2 tickets resolved; D-FLEET-22 filed [HARNESS]
-
-`ailang mission rotate-log <name> --index-only [--stream log|status]` rebuilds only the index from the live file and its archive. It works when the live log is empty (motoko since its 09-30 reset), ignores structural headings and counts them, and leaves both sources byte-identical. `--keep` with `--index-only` is a usage error. One shared index writer serves rotation and `--index-only`. It keeps numbered orphan rows verbatim and prints their numbers, which is the half of #1306 still open. It also keeps hand-written blockquote notes above the table. Normal rotation still refuses interleaved structural headings. Both `gate-4-record.md` copies document the flag. Codex planned and executed it, and the controller mirrored `.agents`, which the sandbox refuses. Sonnet judged PASS 90 with 0 blocking: 12 of 14 mutants were killed. One survivor is a pre-existing byte-truncation gap; the other is a byte-identical rewrite. Smoke run on temp copies: motoko's iteration set (0–5, 7–39) and Reset note are kept, and only rows 38 and 39 are retitled from their headings. Fleet's index regenerates byte-identical.
-
-Clause map: **1** UNMEASURED; **2** UNMET (these tickets took about 16 d and 14 d); **3** MET (45 open after resolve); **4** prior evidence only; **5** preserved. Next: `rotate-log:status-archive-structural-header` (docs, 10-01; `internal/mission`, next to today's change). `eval:motoko-connection-probe-orphaned` is a retire-or-own decision on `tools/eval/`, so it waits on D-FLEET-18. New ask D-FLEET-22: `reporting:daneel-reports-not-declared-triage` needs a coordinator config change outside fleet scope.
 
 ## STATUS 2026-10-16 — ITERATION 44: `skill:gate4-status-stamp-shape-unprescribed` LANDED — #1866 → `91d5d6390`, judged PASS 94 then PASS 97 by sonnet; ticket resolved; D-FLEET-21 filed [HARNESS]
 
@@ -241,6 +241,10 @@ overnight: harness faults read as model faults)
     `rotate-log --index-only [--stream log|status]` and one shared index writer that keeps numbered orphan rows and hand blockquote notes. Both tickets resolved; #1306 closed with a verdict comment (both halves are landed).
     Follow-ups from the judge, not ticketed: the byte-truncation mutant in `indexLine` survives (pre-existing gap); `TestMissionMotokoSnapshot` reads the real motoko docs; a hand-written combined row (`321 & 322`) with no source entry is dropped without a diagnostic.
 24. [PARKED · D-FLEET-22] `reporting:daneel-reports-not-declared-triage` (triage, 10-16): the fix is a `triage_only_inboxes` entry in the prod coordinator config (multivac repo), outside fleet scope.
+25. [LANDED · iteration 48, ghost] `skill:design-scaffold-hardcodes-owning-repo` (world, 10-01): already fixed by #1542 → `b51353bcd` (10-03). The design-doc-creator scripts take the root from the CWD's git worktree. Judged PASS 88 by sonnet. Ticket resolved.
+    Residue, not ticketed separately: `.agents/skills/design-doc-creator` is still script-relative and outside fleet scope; it belongs to `skills:agents-copies-stale-non-mission`.
+26. [LANDED · iteration 48, ghost] `sprint-skill:estimated-loc-zero-is-placeholder-sentinel` (attended, 10-03; reported at #563, closed): already fixed by #1695 → `2a47d1e65` (10-09). The placeholder is `null`, and 0 validates. Judged PASS 93 by sonnet. Ticket resolved.
+    Follow-up from the judge, not ticketed: the validator has no shipped regression test; only the mutation drill holds the contract.
 
 **Weekly external-issue sweep 2026-10-05 (iteration 19; 0 new queue items).** 59 open issues enumerated (count checked against the listing); 57 had zero mentions in the charter, log, archive and dashboard. Controls: the positive one hit `#1380` 2 times, and the negative one fired. Most of the 57 are language, stdlib or product reports, which are V1's lane and outside this charter's Authority. The harness-shaped ones already have open fleet tickets, matched by title:
 - `#981` → `gate0:watermark-advanced-by-dying-fire`
@@ -254,6 +258,9 @@ overnight: harness faults read as model faults)
 `#1306` was half fixed by #1580 and got a verdict comment; it stays open for the orphan-row half.
 
 **Landed (history)**
+- `skill:design-scaffold-hardcodes-owning-repo`: ghost, fixed by #1542 `b51353bcd`; resolved iteration 48.
+- `sprint-skill:estimated-loc-zero-is-placeholder-sentinel`: ghost, fixed by #1695 `2a47d1e65`; resolved iteration 48.
+- `rotate-log:status-archive-structural-header`: #1877 `f048d6fa9` (built iteration 46, landed iteration 47).
 - `mission:index-regenerate-needs-rotatable-archive` + `rotate-log:index-regen-drops-orphan-rows`: #1870 `2061f445e` (iteration 45).
 - `skill:gate4-status-stamp-shape-unprescribed`: #1866 `91d5d6390` (iteration 44).
 - `skill:gate3b-ci-poll-exceeds-foreground-bash`: #1853 `a8042fa3f` (iteration 43).

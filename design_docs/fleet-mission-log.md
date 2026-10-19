@@ -1058,3 +1058,58 @@ Reach is NOT confirmed (unmerged). Re-run the done-gate at the merge.
 - (3) **The spawn-pin hook needs `MISSION-ROLE: <role>` alone on line 1.** Instance 1 here; the hook's message says "FIRST line", which is accurate. No change.
 
 **Next**: `skill:design-scaffold-hardcodes-owning-repo` (world, 10-01). `eval:motoko-connection-probe-orphaned` waits on D-FLEET-18. D-FLEET-16, -18, -19, -20, -21 and -22 are with Mark; D-FLEET-17 is moot.
+
+## 48 — 2026-10-19 — `skill:design-scaffold-hardcodes-owning-repo` + `sprint-skill:estimated-loc-zero-is-placeholder-sentinel` resolved as GHOSTS (#1542 `b51353bcd`, #1695 `2a47d1e65`); judge PASS 88 / PASS 93 (sonnet); 2 tickets resolved [HARNESS]
+
+**Pick**: iteration 47's **Next**, `skill:design-scaffold-hardcodes-owning-repo` (world iteration 215, 10-01). 44 open tickets at pick. The only `blocking=all` ticket, `agent-tool:sonnet-unavailable` (12 slots; latest occurrence `blocking=none` with a working subscription-CLI workaround), stays PARKED-ON-LANE as in iterations 29 and 32–47. Its resume predicate is native capability on non-Claude controllers, which a claude controller cannot prove. The reality check showed the pick was already fixed, which made it a bookkeeping pick. Standing rule 1 then allowed a second: `sprint-skill:estimated-loc-zero-is-placeholder-sentinel` (attended, 10-03, `blocking=item`, the higher of the two `blocking=item` tickets by age). That one also proved already fixed. Index grep: no prior attempt on either.
+
+**Orphans credited**: none new. Gate 0 step 6a returned rc 1 for the crash notice at 2026-10-17T12:48:13Z (https://github.com/sunholo-data/ailang/issues/1768#issuecomment-6234067020). That is iteration 46's death, already credited by iteration 47 (log entry 47, "Orphans credited"); this line records its URL. Traces: no open `fleet/*` PR; `fleet-i46-*` and `fleet-i47-*` worktrees are clean leftovers of landed work.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1891 since `2026-10-15T02:46:27Z` (4 comments, all self). Self-notices rc 1 as above (control `852:10`, watermarks 2/2). Ledger valid, 22 rows; OPEN: D-FLEET-16 through D-FLEET-22. No rotation and no sweep due.
+
+**Observe**: origin/dev == pin == `07d23f464`. `SKILL.md` and all 13 resources at the resolved symlink target are `cmp`-identical to origin. Dev CI on `07d23f464` was still running at Gate 1: 16 checks, 6 pending, 0 failed. No open fleet PR, so origin/dev's record is the newest.
+
+**Reality check**:
+- **Scaffold ticket.** `create_planned_doc.sh` and `move_to_implemented.sh` have derived `PROJECT_ROOT` from `git rev-parse --show-toplevel` since `b51353bcd` (#1542, 10-03). Outside a worktree they refuse with "Run this skill from the target Git worktree." The running copies under `~/.claude/skills/design-doc-creator` (a symlink to the main checkout) are byte-identical to origin.
+  - HEAD run from a temp repo's subdirectory through the symlinked path: rc 0, and the doc landed in the temp repo. Nothing appeared in the main checkout.
+  - Base (`b51353bcd^`) copy in a fake owning checkout: it resolved `DOC_PATH` to `<owner>/design_docs/planned/…`, failing at line 209 only because that directory did not exist. That is the reported defect.
+  - `test_project_root.sh` rc 0.
+- **estimated_loc ticket.** Since `2a47d1e65` (#1695, 10-09), `create_sprint_json.sh` emits `None`, and `validate_sprint_json.sh:125` refuses `estimated_loc == null`. On a copy of `sprint_M-AILANG-LANE-EXECUTOR-SHADOW.json` with `features[0].estimated_loc` set: base gave ZERO rc 1, NULL rc 0, REAL rc 0; head gave ZERO rc 0, NULL rc 1, REAL rc 0. The `.agents` copy and the running copies are identical to origin. #563 is already closed.
+- Out of scope, noted: `tools/launchd/githooks/pre-push` refuses `.claude/skills/design-doc-creator/**` for the fleet (it is neither `_scope_is_harness` nor `_scope_is_fleet_support`). So if the scaffold fix had NOT existed, this ticket would have parked for an authority ruling. The open ticket `skill:design-doc-creator-grep-portability` has the same exposure.
+
+**Did**:
+- **Judge** (sonnet, Agent tool, foreground, own detached worktree `fleet-i48-judge` at `07d23f464`):
+  - **Scaffold: PASS 88**, 0 blocking. Base arm, with the owner dir present and `ailang` stubbed, wrote the doc into the OWNER repo (rc 0); head wrote it into the target. `move_to_implemented.sh` at head resolves the target too. Mutation (script-relative root restored) killed by `test_project_root.sh`.
+  - **estimated_loc: PASS 93**, 0 blocking. It added an end-to-end arm through `create_sprint_json.sh`: at head the generated placeholder is `null` and is refused, while a filled 0 is accepted; base generated 0 and refused it. Mutation (`== null` → `== 0`) killed.
+  - Residue (judge): `.agents/skills/design-doc-creator/scripts/*` are still script-relative and `sync-agents-skills.sh` excludes that skill on purpose. The world and stapledon pins are ailang clones carrying that stale copy, which corrects my claim that World has no `.agents` directory. A relative invocation inside its own checkout is self-consistent, and no configured path (`~/.agents/skills`, `~/.codex/skills`, `~/.claude/skills`) invokes it against another repo. So the reported path is closed, and the latent copy belongs to `skills:agents-copies-stale-non-mission`.
+  - The judge's tree was clean afterwards, with nothing new under the main checkout's `design_docs/planned/`.
+- Resolved both tickets with full SHAs: `skill:design-scaffold-hardcodes-owning-repo` → `b51353bcd…` (replied to world); `sprint-skill:estimated-loc-zero-is-placeholder-sentinel` → `2a47d1e65…` (replied to attended). 44 → 42 open.
+
+**Gate 3b**: no code landed this iteration; the fix commits are long on origin/dev. Their check sets: `b51353bcd` 17 checks, all green; `2a47d1e65` 17 checks, 1 not green: `govulncheck (vuln gate)`. That is a time-based advisory gate on a commit that changed only shell scripts, superseded by later green dev runs. The record PR's own CI is polled before merge.
+
+**Done-gate**: not applicable to a ghost. Nothing in the harness changed, so there was no dry-run and no `make test-launchd-drivers`. The behavioural re-measurement of each fix (controller and judge, base vs head) stands in for "the right surface was edited". Reach is confirmed by the running copies being byte-identical to origin.
+
+**Progress**: 2 tickets resolved; 42 open.
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET: about 18 d and 16 d filed→resolved, although the fixes landed 2 d and 6 d after filing. Some of clause 2's miss is resolution lag: fixes landed by other lanes (attended, coordinator agents) never resolve the fleet ticket.
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved.
+
+**Routing evidence**: base-gate1=07d23f4641911cd61be28b98c55be490dae93b66@2026-10-19T15:27:49Z; base=07d23f4641911cd61be28b98c55be490dae93b66@2026-10-19T15:33:15Z (gate4). `MISSION_ROUTING_NOTE` empty; `MISSION_OVER_RATION` empty.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**, **planner** and **executor**: not spawned. Both picks were ghosts with no design, plan or code to produce.
+- **Evaluator**: `sonnet` via the Agent tool (`agent-tool sonnet declared:alias-pin`), foreground, 1 round (69,515 tok, 16 tool calls). Independent of the fix authors (#1542 and #1695 were coordinator/attended work) and of this controller (opus).
+- The Agent tool was used for the only role this iteration needed, per the operator's standing request. No role failed to spawn.
+- **Metered**: $0.
+
+**Ruled out**:
+- Re-implementing either fix. Both are on origin/dev, unreverted (`git log <sha>..origin/dev -- <files>` shows no touch of the changed lines), and running.
+- Taking `agent-tool:sonnet-unavailable` ahead. It is parked on lane; see Pick.
+- Treating the `.agents` design-doc-creator copy as keeping the scaffold ticket alive. No live invocation path reaches it cross-repo; it is the separate ticket's class and outside fleet scope.
+
+**Retro lane**:
+- (1) **Resolution lag hides fixed tickets.** Both tickets were fixed by non-fleet lanes within 2–6 days and sat open for another 10–16. Iteration 36's `weekly-report:unknown-mission` was the same shape (instance 1), so this is instances 2 and 3. It inflates clause 2's median and costs a fleet fire per ghost. A cheap sweep (`git log --since=<first_seen>` over each ticket's evidence paths) would surface candidates. Self-sourced audits are barred by the charter, though, so this is a question for Mark, not a change: proposed in the report, not filed as a decision.
+- (2) **The fleet's write scope excludes `design-doc-creator`**, a skill that two open tickets name (`skill:design-doc-creator-grep-portability`, and the scaffold residue). Instance 1; noted for the next pick of either ticket.
+
+**Next**: `crash:sprint-executor:sigbus-ram-tmp-full-make-test` (attended, 10-08, `blocking=item`). Ask 1 (scope local verification, no toolchain installs, push per milestone) sits in `.claude/skills/sprint-executor/**`, which is in scope. Asks 2 and 3 (Cloud Run scratch volume, coordinator failure marking) are outside scope and park. D-FLEET-16, -18, -19, -20, -21 and -22 are with Mark; D-FLEET-17 is moot.
