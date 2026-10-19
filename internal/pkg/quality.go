@@ -29,6 +29,11 @@ const QualitySchema = "ailang.package-quality/v1"
 // attested block alongside the tarball.
 const AttestedFormField = "attested"
 
+// PublisherVersionHeader carries the publisher's ailang version next to its
+// v2 identity, so a PUB005 refusal can say whether the two sides even ran
+// different versions.
+const PublisherVersionHeader = "X-Ailang-Version"
+
 // Provenance labels a report section.
 const (
 	SourceServer   = "server"
