@@ -4333,10 +4333,10 @@ models:
     model_family: "deepseek-v4-flash"
     max_output_tokens: 32000  # PI_WIRE_CLAMP — pi sends min(declared, 32000) on every provider
     pricing:
-      # PROVISIONAL, imputed from the OpenRouter twin (or-deepseek-v4-1-flash). Ollama Cloud
-      # is flat-rate; not 0/0, which maps to the false `free-local` provenance.
-      input_per_1k: 0.0003
-      output_per_1k: 0.0012
+      # PROVISIONAL, imputed from the OpenRouter twin (or-deepseek-v4-1-flash; re-imputed
+      # 2026-10-19). Ollama Cloud is flat-rate; not 0/0, which maps to the false `free-local` provenance.
+      input_per_1k: 0.0000328
+      output_per_1k: 0.00008
     budgets:
       max_cost_usd: 1.00
       hard_timeout_secs: 3600
@@ -4359,14 +4359,42 @@ models:
     model_family: "deepseek-v4"
     max_output_tokens: 32000  # PI_WIRE_CLAMP
     pricing:
-      input_per_1k: 0.0003    # $0.30 per 1M (OpenRouter API, read 2026-09-25) — must match or-deepseek-v4-1-flash
-      output_per_1k: 0.0012   # $1.20 per 1M
+      input_per_1k: 0.0000328   # $0.0328 per 1M (OpenRouter API, read 2026-10-19) — must match or-deepseek-v4-1-flash
+      output_per_1k: 0.00008    # $0.08 per 1M
+      cache_read_per_1k: 0.0000016  # $0.0016 per 1M
     budgets:
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
     notes: |
       Replaces pi-or-deepseek-v4-flash (0731) in MISSION_EXECUTOR_FALLBACK; gate record on
       pi-cloud-deepseek-v4-1-flash.
+
+  pi-or-deepseek-v4-1-flash-1017:
+    api_name: "deepseek/deepseek-v4.1-flash-1017"
+    provider: "openrouter"
+    default_thinking: "on"  # VERIFIED 2026-10-19 on or-deepseek-v4-1-flash-1017 (same slug)
+    description: "DeepSeek V4.1 Flash 1017 snapshot via pi on OpenRouter — agent-mode placement vs the 0910 executor lane"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/deepseek/deepseek-v4.1-flash-1017"  # BARE, like pi-or-deepseek-v4-1-flash
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536  # = or-deepseek-v4-1-flash-1017 (one model, one wire budget; pi 0.85.1 no longer clamps to 32000)
+    pricing:
+      input_per_1k: 0.00015      # must match or-deepseek-v4-1-flash-1017
+      output_per_1k: 0.0006
+      cache_read_per_1k: 0.000003
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      Registered 2026-10-19 for an agent-mode comparison against pi-or-deepseek-v4-1-flash
+      (0910, the live MISSION_EXECUTOR_FALLBACK OpenRouter rung) and pi-or-deepseek-v4-flash
+      (0731). Standard-mode verdict on or-deepseek-v4-1-flash-1017.
+
+      AGENT 2026-10-19, contract_rle_roundtrip x3 (standard: 1017 0/3, 0731 1/3):
+        1017 3/3, ~8.3 turns, billed $0.016 (Relace) | 0910 3/3, ~17 turns, billed $0.045
+        (InferenceNet) | 0731 0/3 — NOT capability: twice pi replied "What would you like me
+        to work on?" (task lost), once signal: killed. ONE benchmark; not yet a lane verdict.
 
   pi-cloud-deepseek-v4-flash:
     api_name: "deepseek-v4-flash:0731-cloud"           # tagged model -> `-cloud` on the TAG
@@ -4634,8 +4662,11 @@ models:
     model_family: "deepseek-v4"
     max_output_tokens: 65536  # same headroom as 0731 (reasoning-stall class); provider ceiling 393216
     pricing:
-      input_per_1k: 0.0003    # $0.30 per 1M (OpenRouter API, read 2026-09-25)
-      output_per_1k: 0.0012   # $1.20 per 1M (OpenRouter API, read 2026-09-25)
+      input_per_1k: 0.0000328   # $0.0328 per 1M (OpenRouter API, read 2026-10-19; was $0.30 on 09-25)
+      output_per_1k: 0.00008    # $0.08 per 1M (OpenRouter API, read 2026-10-19; was $1.20 on 09-25)
+      cache_read_per_1k: 0.0000016  # $0.0016 per 1M (OpenRouter API, read 2026-10-19)
+      # Cross-check 2026-10-19: an agent run billed $0.045 on InferenceNet where the old
+      # $0.30/$1.20 rates banked $0.73 for the same tokens.
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
@@ -4674,7 +4705,9 @@ models:
         smoke+frontier, N=1:  1017 25/26 ELO 2225 | 0731 25/26 ELO 2228 — saturated, no signal
         long-frontier+stretch+frontier, 31 benchmarks x N=3:
                               1017 80/93 ELO 2042 $0.87 | 0731 84/93 ELO 2128 $0.55
-      Verdict: does NOT replace 0731 — lower on the hard set at ~1.6x cost. 0 finish=length
+      ($ = BANKED list price. OpenRouter BILLED per call: 1017 $0.0077 on Together vs 0731
+      $0.0082 on Wafer, 94% cached input both — real cost is a TIE.)
+      Verdict: does NOT replace 0731 in standard mode — lower on the hard set at equal cost. 0 finish=length
       failures either side (1017 thinks ~3x less: 6.7k vs 20.4k avg reasoning tokens).
       1017 loses on the contract_* family (matrix_determinant 1/3, sorted_merge 1/3,
       rle_roundtrip 0/3) and wins commonmark_emphasis, glob_match_spec, legal_obligation_engine.
