@@ -165,13 +165,17 @@ func TestShadowGradeVerdicts(t *testing.T) {
 		{"both pass", good, map[string]string{"loose.ail": "module loose\n-- ok\n"}, coordinator.ShadowVerdictEquivalent, ""},
 		{"shadow produced nothing", good, nil, coordinator.ShadowVerdictPrimaryBetter, ""},
 		{"no AILANG changed", good, map[string]string{"README.md": "x\n"}, coordinator.ShadowVerdictUngraded, "shadow: no_ail_changes"},
+		{"shadow refused for want of its key", good, map[string]string{}, coordinator.ShadowVerdictUngraded, "shadow: shadow_key_missing"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newGradeFixture(t)
 			shadow := coordinator.ShadowRunResult{TaskID: "task-p-shadow", Status: "failed", BaseCommit: f.base}
-			if tc.shadow != nil {
+			if tc.shadow != nil && len(tc.shadow) > 0 {
 				shadow = f.diff(t, "task-p-shadow", tc.shadow)
+			}
+			if tc.shadow != nil && len(tc.shadow) == 0 {
+				shadow.ErrorMsg = "executor failed: " + shadowKeyRefusal + ": OPENROUTER_API_KEY_SHADOW is not set"
 			}
 			f.seed(t, f.diff(t, "task-p", tc.primary), shadow)
 			c := f.grade(t, time.Minute)

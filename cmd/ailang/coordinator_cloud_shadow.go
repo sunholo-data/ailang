@@ -40,13 +40,17 @@ func disableShadowPush(ctx context.Context, workDir string) error {
 	return nil
 }
 
+// shadowKeyRefusal starts the error a shadow run fails with when its plane has
+// no shadow key; the grader reads it to tell "not run" from "ran and failed".
+const shadowKeyRefusal = "shadow run refused"
+
 // useShadowKey points the run at the shadow key (design D7): shadows have
 // their own capped OpenRouter key so they can never drain the fleet's. With no
 // shadow key the run is refused, never quietly billed to the fleet key.
 func useShadowKey() error {
 	key := config.OpenRouterKeyShadow()
 	if key == "" {
-		return fmt.Errorf("shadow run refused: %s is not set, and a shadow never spends the fleet key", config.EnvOpenRouterKeyShadow)
+		return fmt.Errorf("%s: %s is not set, and a shadow never spends the fleet key", shadowKeyRefusal, config.EnvOpenRouterKeyShadow)
 	}
 	if err := os.Setenv(config.EnvOpenRouterAPIKey, key); err != nil {
 		return fmt.Errorf("shadow run: %w", err)

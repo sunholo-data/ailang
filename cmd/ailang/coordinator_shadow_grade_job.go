@@ -163,6 +163,10 @@ func gradeShadowSide(ctx context.Context, dir string, r *coordinator.ShadowRunRe
 // done=true returns the side's grade without running gates.
 func prepareShadowSide(ctx context.Context, dir string, r *coordinator.ShadowRunResult, repoURL string) (coordinator.ShadowSideGrade, bool) {
 	switch {
+	case r != nil && strings.Contains(r.ErrorMsg, shadowKeyRefusal):
+		// Refused before the agent started (no shadow key on this plane): the
+		// harness never ran, so this is not a harness failing.
+		return coordinator.ShadowSideGrade{Ungraded: "shadow_key_missing"}, true
 	case r == nil || strings.TrimSpace(r.Diff) == "":
 		return coordinator.ShadowSideGrade{Pass: false}, true
 	case ctx.Err() != nil:
