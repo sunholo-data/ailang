@@ -27,4 +27,5 @@ Record preserves unmerged #1893 history, rebased onto reviewed base.
 Main-checkout dirty files left parked; triage pin clean.
 Bookkeeping #1892, predecessor #1835; 12h cadence.
 Next: operator D22/23; card-owner updates; changed/held verification.
-Reporting: final delivery details in log; fingerprint only after all reports.
+Reporting: user/controlplane Pub/Sub + exact payloads verified; Daneel refused, fallback ticketed.
+Record PR: https://github.com/sunholo-data/ailang/pull/1904

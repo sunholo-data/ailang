@@ -162,7 +162,9 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 4. [NEXT] Re-verify changed/held items against origin/dev; preserve pending chains under T2. D-TRIAGE-22/23 need operator disposition. D17–21 remain OPEN: retain the bot-authored attended-answer summary on #1892 as evidence, await authoritative ledger/directive recording before dependent work, and do not repeat the substantive questions. D15/16 retain OPEN status with externally moot outcomes; no obsolete approval ask.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
-6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; no triage harness repair.
+6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085. No triage harness repair.
+
+7. [HARNESS] [NONBLOCKING] ticket:probe:pi-duplicate-extension-discovery — prescribed evaluator probe rc1 in iterations6/8 from duplicate global/repo extension registration; isolated no-extension MiniMax judge completed. Fleet occurrence inbox_1792446067799_00f63bae; no config/code repair by triage.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.
