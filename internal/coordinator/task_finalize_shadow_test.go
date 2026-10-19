@@ -113,6 +113,9 @@ func TestFinalizeShadowedPrimaryUnchanged(t *testing.T) {
 	if err != nil || c.Primary == nil || c.Primary.Diff == "" || c.Shadow != nil {
 		t.Fatalf("primary side not recorded: %+v, %v", c, err)
 	}
+	if c.Primary.Provider == "" {
+		t.Error("primary side recorded without its harness; the report groups by it")
+	}
 }
 
 // Both sides land under the primary's ID, with every metric the report needs,

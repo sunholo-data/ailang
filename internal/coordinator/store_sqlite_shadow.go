@@ -111,8 +111,17 @@ func (s *SQLiteStore) ListShadowComparisonsByGradeState(ctx context.Context, sta
 	if limit <= 0 {
 		limit = 20
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT data FROM shadow_comparisons WHERE complete = 1 AND grade_state = ?
+	return s.queryShadow(ctx, `SELECT data FROM shadow_comparisons WHERE complete = 1 AND grade_state = ?
 		ORDER BY updated_at ASC LIMIT ?`, state, limit)
+}
+
+// ListShadowComparisonsSince lists every comparison updated at or after since.
+func (s *SQLiteStore) ListShadowComparisonsSince(ctx context.Context, since time.Time) ([]*ShadowComparison, error) {
+	return s.queryShadow(ctx, `SELECT data FROM shadow_comparisons WHERE updated_at >= ? ORDER BY updated_at ASC`, since.UTC())
+}
+
+func (s *SQLiteStore) queryShadow(ctx context.Context, query string, args ...any) ([]*ShadowComparison, error) {
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

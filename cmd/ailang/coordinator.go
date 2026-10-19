@@ -50,6 +50,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorAgentCheck(subargs)
 	case "approvals":
 		return coordinatorApprovalsCommand(subargs)
+	case "shadow":
+		return coordinatorShadow(subargs)
 	case "list":
 		return coordinatorList(subargs)
 	case "approve":
@@ -105,6 +107,7 @@ func printCoordinatorHelp() {
 	fmt.Println("                 --landed: resolve pending cards whose PR already merged [--fire-handoffs]")
 	fmt.Println("  agent-set      Change one field on one agent and deploy it (dev->test->prod)")
 	fmt.Println("  list           List all tasks (with filters)")
+	fmt.Println("  shadow report  How the two lane harnesses compare on shadowed tasks (--since 7d, --json, --post)")
 	fmt.Println("  pending        List tasks awaiting approval (interactive)")
 	fmt.Println("  diff           Show changes made by a task (git diff)")
 	fmt.Println("  logs           Show streaming logs/events for a task")

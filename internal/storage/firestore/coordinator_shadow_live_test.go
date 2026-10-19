@@ -80,4 +80,17 @@ func TestShadowComparisonRoundTrip_Live(t *testing.T) {
 	if listed(coordinator.ShadowGradeNone) || !listed(coordinator.ShadowGradeDispatched) {
 		t.Fatal("claimed comparison listed in the wrong grade state")
 	}
+
+	// The report's window query (M7): one range filter and order on updated_at.
+	recent, err := s.ListShadowComparisonsSince(ctx, time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, x := range recent {
+		found = found || x.ParentID == parent
+	}
+	if !found {
+		t.Fatal("comparison updated just now is missing from the last hour's report window")
+	}
 }

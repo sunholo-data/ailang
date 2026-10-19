@@ -40,6 +40,12 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	if err != nil {
 		return "", nil, gitEvidence{}, fmt.Errorf("AILANG_TASK_INPUTS: %w", err)
 	}
+	// Before anything is cloned or spent.
+	if shadowRun() {
+		if err := useShadowKey(); err != nil {
+			return "", nil, gitEvidence{}, err
+		}
+	}
 	var inputProvenance []taskInputProvenance
 	// Preserve provenance on every later return, including executor/push failures.
 	defer func() { outEvidence.Inputs = inputProvenance }()

@@ -81,6 +81,14 @@ func (f *shadowJobFixture) remoteRefs(t *testing.T) string {
 func TestShadowRunKeepsEvidenceAndPublishesNothing(t *testing.T) {
 	f := newShadowJobFixture(t)
 	t.Setenv(config.EnvTaskShadow, "true")
+	t.Setenv(config.EnvOpenRouterAPIKey, "fleet-key")
+	t.Setenv(config.EnvOpenRouterKeyShadow, "shadow-key")
+	var keyDuringRun string
+	inner := runExecutorFn
+	runExecutorFn = func(ctx context.Context, workDir, a, b, c, d, e, g, h string) (*executor.Result, error) {
+		keyDuringRun = os.Getenv(config.EnvOpenRouterAPIKey)
+		return inner(ctx, workDir, a, b, c, d, e, g, h)
+	}
 
 	_, result, ev, err := executeCloudTask(context.Background(), "task-p-shadow", "pkg-x", f.repoURL, "dev", "fix it", "motoko", "", "m", "1m")
 	if err != nil {
@@ -97,6 +105,29 @@ func TestShadowRunKeepsEvidenceAndPublishesNothing(t *testing.T) {
 	}
 	if f.prCalls != 0 {
 		t.Fatalf("PR opened %d times for a shadow run", f.prCalls)
+	}
+	if keyDuringRun != "shadow-key" {
+		t.Fatalf("agent ran with OPENROUTER_API_KEY=%q, want the shadow key", keyDuringRun)
+	}
+}
+
+// No shadow key: the run is refused before anything is cloned or spent.
+func TestShadowRunWithoutShadowKeyRefused(t *testing.T) {
+	f := newShadowJobFixture(t)
+	t.Setenv(config.EnvTaskShadow, "true")
+	t.Setenv(config.EnvOpenRouterAPIKey, "fleet-key")
+	t.Setenv(config.EnvOpenRouterKeyShadow, "")
+	ran := false
+	runExecutorFn = func(context.Context, string, string, string, string, string, string, string, string) (*executor.Result, error) {
+		ran = true
+		return &executor.Result{}, nil
+	}
+	_, _, _, err := executeCloudTask(context.Background(), "task-p-shadow", "pkg-x", f.repoURL, "dev", "fix", "motoko", "", "m", "1m")
+	if err == nil || !strings.Contains(err.Error(), "OPENROUTER_API_KEY_SHADOW") || ran {
+		t.Fatalf("err=%v ran=%v; want a refusal naming the shadow key and no run", err, ran)
+	}
+	if os.Getenv(config.EnvOpenRouterAPIKey) != "fleet-key" {
+		t.Fatal("the fleet key was changed by a refused shadow run")
 	}
 }
 

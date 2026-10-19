@@ -152,4 +152,24 @@ func (s *CoordinatorStore) ListShadowComparisonsByGradeState(ctx context.Context
 	return out, nil
 }
 
+// ListShadowComparisonsSince lists every comparison updated at or after since.
+// One range filter on one field: no composite index needed.
+func (s *CoordinatorStore) ListShadowComparisonsSince(ctx context.Context, since time.Time) ([]*coordinator.ShadowComparison, error) {
+	docs, err := s.client.Collection(collShadowComparisons).
+		Where("updated_at", ">=", since.UTC()).OrderBy("updated_at", firestore.Asc).
+		Documents(ctx).GetAll()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*coordinator.ShadowComparison, 0, len(docs))
+	for _, d := range docs {
+		c, err := decodeShadow(d.Data(), d.Ref.ID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, &c)
+	}
+	return out, nil
+}
+
 var _ coordinator.ShadowComparisonStore = (*CoordinatorStore)(nil)

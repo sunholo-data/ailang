@@ -98,6 +98,8 @@ type Daemon struct {
 	lastLandedCardSweep time.Time
 	// lastShadowMergedSweep throttles the shadow PR-settled sweep (shadow_merged.go).
 	lastShadowMergedSweep time.Time
+	// lastShadowReportCheck throttles the weekly shadow report check (shadow_weekly.go).
+	lastShadowReportCheck time.Time
 
 	// approvalDedup suppresses duplicate Pub/Sub push deliveries of secret
 	// approvals (at-least-once). Lazily initialised on first push.

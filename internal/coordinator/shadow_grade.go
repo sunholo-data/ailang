@@ -62,6 +62,7 @@ func (d *Daemon) dispatchShadowGrades() {
 	}
 	now := time.Now().UTC()
 	d.sweepShadowMerged(store, now)
+	d.postWeeklyShadowReport(store, now)
 	for _, ph := range shadowPhases {
 		if stale, err := store.ListShadowComparisonsByGradeState(d.ctx, ph.inFlight, shadowGradeBatch); err == nil {
 			for _, c := range stale {

@@ -205,6 +205,9 @@ type ShadowComparisonStore interface {
 	// ListShadowComparisonsByGradeState returns complete comparisons in one
 	// grade state, oldest first, at most limit.
 	ListShadowComparisonsByGradeState(ctx context.Context, state string, limit int) ([]*ShadowComparison, error)
+	// ListShadowComparisonsSince returns every comparison updated at or after
+	// since, oldest first (the report).
+	ListShadowComparisonsSince(ctx context.Context, since time.Time) ([]*ShadowComparison, error)
 	// UpdateShadowComparison applies fn to the stored comparison atomically. fn
 	// returns false to leave it unchanged (a lost compare-and-set).
 	UpdateShadowComparison(ctx context.Context, parentID string, fn func(*ShadowComparison) bool) (bool, error)

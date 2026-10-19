@@ -184,9 +184,9 @@
         "Shadow spend only on the shadow key"
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-19T09:23:42+00:00",
       "completed": null,
-      "notes": null
+      "notes": "CODE DONE 10-19: report (golden), CLI shadow report (--since/--json/--post/--remote; ran read-only against prod: empty, query OK), weekly post in the cloud tick (Monday>=09:00 UTC, PutMessageIfAbsent by ISO-week ID; found+fixed message_type 'report' rejected by the SQLite CHECK that Firestore would have accepted), D7 shadow-key swap with refusal, docs. 7 mutants killed. BLOCKED on Mark: OPENROUTER_API_KEY_SHADOW (capped) in Secret Manager -> terraform env on the pi + motoko executor jobs -> config.cloud.yaml dev-branch enable (ailang-only-executor: motoko primary/pi shadow; pkg-sunholo-ailang-parse: pi primary/motoko shadow) -> release so the job image carries M3-M7 -> dev smoke (one task each: primary PR + completed -shadow child, no -shadow branch/PR, a ShadowComparison, spend on the shadow key)."
     }
   ]
 }

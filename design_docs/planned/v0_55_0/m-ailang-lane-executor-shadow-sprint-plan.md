@@ -103,12 +103,12 @@ Every sampled real `ailang_only`-lane coordinator task also runs on the other ha
   - [x] the circular case is flagged;
   - [x] the reviewer is invoked only on disagree or tie, and an unreachable reviewer gives `ungraded(reviewer_unavailable)`, never a silent verdict.
 
-### M7: The report and the dev-plane enable (~200 LOC: 140 + 60, plus config)
+### M7: The report and the dev-plane enable (code ✅ 2026-10-19; enable + smoke blocked on the shadow key) (~200 LOC: 140 + 60, plus config)
 - `ailang coordinator shadow report [--since 7d] [--json]` gives per-agent and per-harness pass rates, cost, wall time and turns; **every disagreement** with `ailang chains chat` links and both diffs; and running totals.
 - A weekly scheduled run posts to the `user` inbox. Docs: `docs/docs/guides/coordinator.md` section. Changelog fragment.
 - ailang-multivac `config/config.cloud.yaml` (**dev branch only**): enable on `ailang-only-executor` (motoko primary, pi shadow) and `pkg-sunholo-ailang-parse` (pi primary, motoko shadow), `sample_rate: 1.0`; the shadow key wired from Secret Manager.
 - **Acceptance:**
-  - [ ] the report is golden-tested on fixture comparisons, including a disagreement row with links;
+  - [x] the report is golden-tested on fixture comparisons, including a disagreement row with links;
   - [ ] dev-plane smoke: one real task on each enabled agent gives a primary PR plus a completed shadow child, **no** PR or branch for `-shadow`, and a `ShadowComparison` record;
   - [ ] shadow spend appears only on the shadow key.
 

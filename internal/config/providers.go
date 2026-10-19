@@ -13,6 +13,7 @@ const (
 	EnvClaudeCodeOAuthToken = "CLAUDE_CODE_OAUTH_TOKEN"
 	EnvOpenAIAPIKey         = "OPENAI_API_KEY"
 	EnvOpenRouterAPIKey     = "OPENROUTER_API_KEY"
+	EnvOpenRouterKeyShadow  = "OPENROUTER_API_KEY_SHADOW"
 	EnvTypeSafeAPIKey       = "TYPESAFE_API_KEY"
 	EnvOllamaAPIKey         = "OLLAMA_API_KEY"
 	EnvGeminiAPIKey         = "GEMINI_API_KEY"
@@ -30,6 +31,7 @@ var providerVars = []Var{
 	{EnvOpenAIAPIKey, "", AreaProviders, "OpenAI API key (METERED); a cloud codex job bootstraps an api-key auth.json from it ONLY under AILANG_AUTH_MODE=apikey."},
 	{EnvCodexAuthSecret, "", AreaProviders, "Secret Manager secret holding a ChatGPT-subscription codex auth.json. Cloud codex jobs install it as ~/.codex/auth.json (subscription billing) and write refreshed tokens back as a new version; without it and without AILANG_AUTH_MODE=apikey the job fails loudly."},
 	{EnvOpenRouterAPIKey, "", AreaProviders, "OpenRouter API key; required by motoko smoke runs and the OpenRouter quota observer."},
+	{EnvOpenRouterKeyShadow, "", AreaProviders, "OpenRouter key for shadow runs only (M-AILANG-LANE-EXECUTOR-SHADOW D7), with its own monthly cap: a shadow job puts it in OPENROUTER_API_KEY before the agent starts, and refuses to run without it rather than spend the fleet's key."},
 	{EnvTypeSafeAPIKey, "", AreaProviders, "TypeSafe direct API key (System One decision model, Jev): read by the sunholo/decisions package's TypeSafeDirect transport via std/env; the OpenRouter transport uses OPENROUTER_API_KEY instead. No Go code reads it — the row exists so the variable is documented and gated like every other provider key."},
 	{EnvOllamaAPIKey, "", AreaProviders, "Ollama Cloud API key; the mission admission policy observes quota with it."},
 	{EnvGeminiAPIKey, "", AreaProviders, "Gemini API key the factory falls back to when GOOGLE_API_KEY is unset, Vertex ADC is unavailable and no key was given."},
@@ -71,6 +73,9 @@ func OpenAIAPIKey() string { return get(EnvOpenAIAPIKey) }
 
 // OpenRouterAPIKey returns OPENROUTER_API_KEY, "" when unset.
 func OpenRouterAPIKey() string { return get(EnvOpenRouterAPIKey) }
+
+// OpenRouterKeyShadow returns OPENROUTER_API_KEY_SHADOW, "" when unset.
+func OpenRouterKeyShadow() string { return get(EnvOpenRouterKeyShadow) }
 
 // TypeSafeAPIKey returns TYPESAFE_API_KEY, "" when unset.
 func TypeSafeAPIKey() string { return get(EnvTypeSafeAPIKey) }

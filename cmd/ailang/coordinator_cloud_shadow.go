@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/gitexec"
@@ -36,6 +37,21 @@ func disableShadowPush(ctx context.Context, workDir string) error {
 		return fmt.Errorf("shadow run: could not disable pushes to origin: %w: %s", err, out)
 	}
 	fmt.Println("execute-job: shadow run — origin push URL disabled; no push, PR or git credential")
+	return nil
+}
+
+// useShadowKey points the run at the shadow key (design D7): shadows have
+// their own capped OpenRouter key so they can never drain the fleet's. With no
+// shadow key the run is refused, never quietly billed to the fleet key.
+func useShadowKey() error {
+	key := config.OpenRouterKeyShadow()
+	if key == "" {
+		return fmt.Errorf("shadow run refused: %s is not set, and a shadow never spends the fleet key", config.EnvOpenRouterKeyShadow)
+	}
+	if err := os.Setenv(config.EnvOpenRouterAPIKey, key); err != nil {
+		return fmt.Errorf("shadow run: %w", err)
+	}
+	fmt.Printf("execute-job: shadow run — OpenRouter calls bill the shadow key (%s)\n", config.EnvOpenRouterKeyShadow)
 	return nil
 }
 

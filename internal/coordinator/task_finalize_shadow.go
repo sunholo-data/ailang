@@ -54,6 +54,13 @@ func (f *finalizer) applyShadowRecord(ctx context.Context) (FinalizationState, e
 		SessionID: c.SessionID, ArtifactGCSPath: c.ArtifactGCSPath, ErrorMsg: c.ErrorMsg,
 		CompletedAt: time.Now().UTC(),
 	}
+	// The report groups by harness. A primary's record may not carry the
+	// provider it ran under; its agent's image decides it (dispatch_provider.go).
+	if run.Provider == "" && f.deps.AgentRegistry != nil {
+		if agent := f.deps.AgentRegistry.GetAgentByID(f.in.Task.AgentID); agent != nil {
+			run.Provider = ResolveDispatchProvider(agent, "")
+		}
+	}
 	if _, err := store.RecordShadowRun(ctx, parentID, side, run); err != nil {
 		return FinalizationPending, err
 	}
