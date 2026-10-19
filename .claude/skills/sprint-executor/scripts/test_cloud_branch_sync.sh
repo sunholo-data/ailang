@@ -153,7 +153,7 @@ skip_case() {
 }
 A01() { skip_case dev set && skip_case main set; }
 A02() { skip_case mission/iteration-49 set; }
-A03() { skip_case coordinator/task-other set; }
+A03() { skip_case coordinator/task-other set && skip_case coordinator/task-x-other set && skip_case coordinator/task-xy set; }
 A04() { skip_case "$B" unset && skip_case "$B" empty; }
 A05() { skip_case detached set; }
 A06() {
