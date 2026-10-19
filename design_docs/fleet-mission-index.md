@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 47 | 2026-10-19 | `rotate-log:status-archive-structural-header` LANDED: orphaned iteration 46's #1877 verified and merged → `f048d6fa9`; judge PASS 93 (sonnet); tick... |
 | 45 | 2026-10-17 | `mission:index-regenerate-needs-rotatable-archive` + `rotate-log:index-regen-drops-orphan-rows` LANDED: #1870 → `2061f445e`; judge PASS 90 (sonnet)... |
 | 44 | 2026-10-16 | `skill:gate4-status-stamp-shape-unprescribed` LANDED: #1866 → `91d5d6390`; judge PASS 94 then PASS 97 (sonnet); ticket resolved [HARNESS] |
 | 43 | 2026-10-16 | `skill:gate3b-ci-poll-exceeds-foreground-bash` LANDED: #1853 → `a8042fa3f`; judge PASS 74 (blocker) then PASS 90 (sonnet); D-FLEET-20 filed [HARNESS] |
