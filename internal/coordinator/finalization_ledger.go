@@ -71,6 +71,7 @@ const (
 	EffectStageError      = "stage_error"
 	EffectGitHubStage     = "github_stage"
 	EffectWorktreeCleanup = "worktree_cleanup"
+	EffectShadowRecord    = "shadow_record" // M-AILANG-LANE-EXECUTOR-SHADOW M4
 )
 
 // FinalizationEntry is one effect's ledger row.

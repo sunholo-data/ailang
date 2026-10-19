@@ -167,6 +167,7 @@ func FinalizeTaskCompletion(ctx context.Context, deps *FinalizeDeps, in Finalize
 	f.run(EffectChainStatus, in.Task.ChainID != "", f.applyChainStatus)
 	f.run(EffectApproval, f.wantsApproval(), f.applyApproval)
 	f.run(EffectHandoff, f.wantsHandoff(), f.applyHandoff)
+	f.run(EffectShadowRecord, f.wantsShadowRecord(ctx), f.applyShadowRecord)
 
 	f.report.Ledger = f.ledger
 	if err := deps.TaskStore.SetTaskFinalization(ctx, in.Task.ID, f.ledger); err != nil {
@@ -249,7 +250,9 @@ func (f *finalizer) nextTaskStatus() TaskStatus {
 		// D5 (Mark, attended 2026-09-03): terminal, and nothing follows.
 		return TaskStatusNoChanges
 	default:
-		if f.in.SkipApproval {
+		// A shadow has nothing to approve, and PendingApproval would put it in
+		// the approval queue and the landed-card sweep (both list by status).
+		if f.in.SkipApproval || f.in.Task.ShadowOf != "" {
 			return TaskStatusCompleted
 		}
 		return TaskStatusPendingApproval
@@ -372,7 +375,7 @@ func (f *finalizer) applyChainStatus(ctx context.Context) (FinalizationState, er
 // completion. Never for a failure, never for no_changes (there is nothing to
 // approve), and never when the agent skips approval.
 func (f *finalizer) wantsApproval() bool {
-	return f.in.Outcome == OutcomeCompleted && !f.in.SkipApproval
+	return f.in.Outcome == OutcomeCompleted && !f.in.SkipApproval && f.in.Task.ShadowOf == ""
 }
 
 // wantsHandoff is matrix row 5.
@@ -386,7 +389,8 @@ func (f *finalizer) wantsApproval() bool {
 //
 // Never for a failure: the next agent would build on an error.
 func (f *finalizer) wantsHandoff() bool {
-	if f.in.Outcome != OutcomeCompleted {
+	// A shadow's work is evidence for a comparison; nothing builds on it.
+	if f.in.Outcome != OutcomeCompleted || f.in.Task.ShadowOf != "" {
 		return false
 	}
 	return len(f.autoHandoffTargets()) > 0

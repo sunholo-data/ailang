@@ -83,6 +83,12 @@ func (d *Daemon) executeTaskQueue() error {
 			d.logger.Printf("Skipping task %s: agent %q is not served by this coordinator (left pending for its owner)", task.ID, task.AgentID)
 			continue
 		}
+		// Shadows are cloud-only in v1 and dispatched with their primary; a local
+		// worker running one would run it with full side effects.
+		if task.ShadowOf != "" {
+			d.logger.Printf("Skipping task %s: a shadow of %s is never run locally", task.ID, task.ShadowOf)
+			continue
+		}
 		if err := d.executeTask(task); err != nil {
 			d.logger.Printf("Failed to execute task %s: %v", task.ID, err)
 			// Mark task as failed

@@ -67,15 +67,15 @@ Every sampled real `ailang_only`-lane coordinator task also runs on the other ha
   - [x] **regression:** a non-shadow run still pushes and opens a PR;
   - [x] each guard is mutation-tested (revert it and watch its test fail).
 
-### M4: Finalization and storage (~230 LOC: 140 + 90)
+### M4: Finalization and storage ✅ (~230 LOC: 140 + 90)
 - `wantsApproval` and `wantsHandoff` return false when `ShadowOf != ""`. `applyMetrics` needs no change, because shadows have no `StageID`/`ChainID` (V18); a test pins that.
 - Persist the shadow result (diff, cost, tokens, turns, finish reason, session ID, artifact path, `BaseCommit`) on the child record.
 - New `ShadowComparison` record keyed by the parent ID: verdict enum (`primary_better | shadow_better | equivalent | both_failed | ungraded(reason)`), `base_drift`, and per-layer grades. Stored in SQLite and Firestore.
 - **Acceptance:**
-  - [ ] a shadow completion creates no approval card or handoff, and leaves chain aggregates unchanged (test asserts `RecomputeChainAggregates` isn't called);
-  - [ ] a non-shadow completion behaves exactly as before (card and handoff);
-  - [ ] the `ShadowComparison` CRUD round-trip works;
-  - [ ] `base_drift` is set when the primary's and shadow's `BaseCommit` differ.
+  - [x] a shadow completion creates no approval card or handoff, and leaves chain aggregates unchanged (test asserts `RecomputeChainAggregates` isn't called);
+  - [x] a non-shadow completion behaves exactly as before (card and handoff);
+  - [x] the `ShadowComparison` CRUD round-trip works;
+  - [x] `base_drift` is set when the primary's and shadow's `BaseCommit` differ.
 
 ### M5: The grade job, mechanical layer (~300 LOC: 200 + 100)
 - New `cmd/ailang/coordinator_shadow_grade_job.go`, a Cloud Run Job entry on the agent executor image, with no git credential. It:

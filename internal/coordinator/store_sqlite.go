@@ -231,6 +231,9 @@ func (s *SQLiteStore) migrate() error {
 	if err := s.migrateMissionWorkItems(); err != nil {
 		return err
 	}
+	if err := s.migrateShadowComparisons(); err != nil {
+		return err
+	}
 	return s.migrateData(time.Now())
 }
 

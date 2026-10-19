@@ -130,10 +130,10 @@
         "ShadowComparison CRUD round-trip",
         "base_drift set on differing BaseCommit"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-19T08:40:48+00:00",
+      "completed": "2026-10-19T08:40:48+00:00",
+      "notes": "Design premise V12 was wrong: nextTaskStatus set PendingApproval regardless of wantsApproval, which would have queued shadows for approval and the landed-card sweep; fixed (shadow -> Completed). Cloud path keeps run metrics only on observatory stages, so the shadow result is stored in a new ShadowComparison doc (JSON, SQLite table + Firestore collection, transactional merge) written by a ledgered finalizer effect shadow_record from BOTH sides (primary records when a <id>-shadow child with ShadowOf exists). Completion inbox notice skipped for shadows; local worker skips shadows. Firestore twin verified LIVE against ailang-multivac-dev. 10 mutants killed; one test was first vacuous (empty task status -> completion rejected) and was fixed with an explicit processed-check."
     },
     {
       "id": "M5_GRADE_JOB_MECHANICAL",
