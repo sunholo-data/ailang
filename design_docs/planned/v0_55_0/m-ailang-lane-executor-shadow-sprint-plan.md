@@ -31,7 +31,7 @@ Every sampled real `ailang_only`-lane coordinator task also runs on the other ha
 
 ## Proposed Milestones
 
-### M1: Shadow config and task identity (~220 LOC: 140 implementation + 80 tests)
+### M1: Shadow config and task identity ✅ (~220 LOC: 140 implementation + 80 tests)
 - **New file** `internal/coordinator/shadow_config.go`: `ShadowConfig{Enabled, Provider, ExecutorVariant, Model, SampleRate, MaxCostUSD, OfferAlternative}`, plus the YAML field on `AgentConfig`. **Companion file required:** `agent_registry.go` is at 771/800 lines, so only the one-line field goes there.
 - Validation in `ValidateAgentProviders` (`dispatch_provider.go:123`), as the design specifies:
   - `ailang_only` only;
@@ -40,9 +40,9 @@ Every sampled real `ailang_only`-lane coordinator task also runs on the other ha
   - `sample_rate` in [0, 1].
 - Add `ShadowOf string` to `Task` (`provider.go`), `TaskRecord` (`store.go`), and the SQLite and Firestore task stores (`internal/storage/firestore/coordinator_tasks.go`), with a SQLite migration.
 - **Acceptance:**
-  - [ ] a table test of valid and invalid configs (wrong lane, same provider, mismatched variant, out-of-range rate) returns the expected errors;
-  - [ ] `ShadowOf` round-trips through SQLite and Firestore (Firestore via the existing fake or emulator test pattern);
-  - [ ] `make test-changed` and `make check-file-sizes` pass.
+  - [x] a table test of valid and invalid configs (wrong lane, same provider, mismatched variant, out-of-range rate) returns the expected errors;
+  - [x] `ShadowOf` round-trips through SQLite and Firestore (Firestore via the existing fake or emulator test pattern);
+  - [x] `make test-changed` and `make check-file-sizes` pass.
 
 ### M2: Cloud dispatch of the shadow child (~240 LOC: 150 + 90)
 - New `internal/coordinator/shadow_dispatch.go`. After the primary's `MarkTaskQueued` in `dispatchTasksCloud`:

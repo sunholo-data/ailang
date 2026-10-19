@@ -33,7 +33,8 @@ func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
 		"inputs":         string(inputsJSON),
 		"type":           string(t.Type),
 		"kind":           t.Kind,
-		"source":         t.Source, // M-PKG-AUTONOMOUS-CASCADE-SAFE M1: Pub/Sub topic origin
+		"source":         t.Source,   // M-PKG-AUTONOMOUS-CASCADE-SAFE M1: Pub/Sub topic origin
+		"shadow_of":      t.ShadowOf, // M-AILANG-LANE-EXECUTOR-SHADOW M1
 		"priority":       t.Priority,
 		"status":         string(t.Status),
 		"provider":       t.Provider,
@@ -117,7 +118,8 @@ func mapToTask(data map[string]interface{}) (*coordinator.TaskRecord, error) {
 		Content:        mapval.String(data, "content"),
 		Type:           coordinator.TaskType(mapval.String(data, "type")),
 		Kind:           mapval.String(data, "kind"),
-		Source:         mapval.String(data, "source"), // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
+		Source:         mapval.String(data, "source"),    // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
+		ShadowOf:       mapval.String(data, "shadow_of"), // M-AILANG-LANE-EXECUTOR-SHADOW M1
 		Priority:       mapval.Int(data, "priority"),
 		Status:         coordinator.TaskStatus(mapval.String(data, "status")),
 		Provider:       mapval.String(data, "provider"),

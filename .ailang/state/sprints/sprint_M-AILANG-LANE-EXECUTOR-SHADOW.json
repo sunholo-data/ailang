@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-AILANG-LANE-EXECUTOR-SHADOW",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-13T12:10:48Z",
   "design_doc": "design_docs/planned/v0_55_0/m-ailang-lane-executor-shadow.md",
   "sprint_plan": "design_docs/planned/v0_55_0/m-ailang-lane-executor-shadow-sprint-plan.md",
@@ -77,10 +77,10 @@
         "ShadowOf round-trips SQLite and Firestore",
         "make test-changed and make check-file-sizes pass (agent_registry.go stays <800)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-19T08:16:53+00:00",
+      "completed": "2026-10-19T08:16:53+00:00",
+      "notes": "Attended run (cloud task-60e90d30 was killed 10-13 with nothing pushed). shadow_config.go + validation in ValidateAgentProviders; ShadowOf on TaskRecord, SQLite (shadow_of column, both scanners, insert) and Firestore converter. Task (provider.go) NOT extended: finalization reads TaskRecord, so a field there would be dead until M2 needs it. 8 mutants, all killed."
     },
     {
       "id": "M2_SHADOW_DISPATCH",
