@@ -124,6 +124,19 @@ RUN cd /opt/motoko_agent \
     && rm -f /tmp/motoko-warm.log \
     && chmod -R a+rX /opt/motoko_agent
 
+# motoko keeps run state under its own repo, not the task workspace: the session
+# journal (upstream ADR-003, src/tui/src/session-journal.ts) at
+# .motoko/sessions/<id>/ and logs at .motoko/logfile/. The repo is root-owned,
+# so the runtime user gets that one directory. Without it every motoko task died
+# at startup with `mkdir ... EACCES` in SessionJournal (dev plane, 2026-10-19,
+# first image on the a94204aa base).
+RUN mkdir -p /opt/motoko_agent/.motoko/sessions /opt/motoko_agent/.motoko/logfile \
+    && chown -R ailang:ailang /opt/motoko_agent/.motoko \
+    && su ailang -s /bin/sh -c 'mkdir -p /opt/motoko_agent/.motoko/sessions/build-probe \
+         && rmdir /opt/motoko_agent/.motoko/sessions/build-probe \
+         && touch /opt/motoko_agent/.motoko/logfile/.probe && rm /opt/motoko_agent/.motoko/logfile/.probe' \
+    || { echo "the runtime user cannot write motoko's run state"; exit 1; }
+
 # Prove the runtime user can do what the ailang_only lane check does at task
 # start (internal/executor/motoko/lane.go checkLaneProfile): resolve the lane
 # profile through motoko's own resolver. Root passing the warm-up above says
