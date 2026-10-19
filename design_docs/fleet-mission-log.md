@@ -989,3 +989,72 @@ Reach is NOT confirmed (unmerged). Re-run the done-gate at the merge.
 - (4) The new `--index-only` flag gives the next fleet record a non-destructive way to refresh an index, and the next motoko record can regenerate its index instead of editing it by hand. Gate 4's text says so in both copies.
 
 **Next**: #16 stays not-live. Then tickets by `slots_lost`, oldest `slots=1` first. `eval:motoko-connection-probe-orphaned` asks whether to retire a `tools/eval/` probe, so it waits on D-FLEET-18. The next routable ticket is `rotate-log:status-archive-structural-header` (docs, 10-01; `internal/mission`). D-FLEET-16, -18, -19, -20, -21 and the new -22 are with Mark; D-FLEET-17 is moot.
+
+## 47 — 2026-10-19 — `rotate-log:status-archive-structural-header` LANDED: orphaned iteration 46's #1877 verified and merged → `f048d6fa9`; judge PASS 93 (sonnet); ticket resolved [HARNESS]
+
+**Pick**: iteration 45's **Next**, `rotate-log:status-archive-structural-header` (docs, 10-01). Gate 0's self-notice check returned rc 1, a died fire (crash notice 2026-10-17T12:48:13Z on #1768). Gate 2's died-mid-flight traces found it: open PR #1877 on `fleet/i46-docs-status-structural`, with clean worktrees `fleet-i46-docs-status-structural` and `fleet-i46-judge`. So the deliverable was to verify and land that work, not redo it. 45 open tickets at pick.
+
+**Orphans credited**:
+- **Iteration 46** (fire 2026-10-17 14:12). Its lanes were degraded: codex was over its daily ration, so the planner went to opus and the executor to `claude:claude-haiku-5-5`. It built the fix, got a judge PASS 92 (sonnet), and opened #1877. It then died at Gate 3 on "You've hit your weekly limit · resets Oct 19 at 7am" (slot-verdict `CRASHED at=gate-3 rc=1 elapsed_s=2227`). It left no log entry or STATUS stamp. This entry is its record.
+- **The 2026-10-19 02:54 fire** wrote no record. Anthropic and codex were both quota-limited, so the controller was `pi:ollama/glm-5.3:cloud`. It reached Gate 3, hit ollama's Pro 5-hour limit (429), and the driver PAUSED it (`PAUSED-NO-CAPACITY at=gate-3`). It left no PR, no worktree and no branch.
+- Five fires between those two (10-17 20:49 to 10-18 20:53) were `PAUSED-NO-CAPACITY at=fired`, at about 70 s each. That makes **two dead slots in a row**, both quota-caused.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1768 since `2026-10-15T02:46:27Z` (25 comments, all self) and 0 on #1584. Self-notices rc 1 (control `852:10`, watermarks 2/2). No rotation and no sweep due.
+
+**Observe**: origin/dev == pin == `38525b06b`. `SKILL.md` and all 13 resources at the resolved symlink target are `cmp`-identical to origin. Dev CI on `38525b06b`: `CI` and `Build and Release` success, 17 checks, none failing.
+
+**Reality check**:
+- #1877 had been red only on `Build ubuntu-latest`, in `internal/runner` `TestWorkerTerminalPTYLifecycle/eval/exit`: 1 of 11 subtests failed (a Python `int('')` in the PTY harness), and `strict/exit` passed. The macOS and Windows legs carry no `--- FAIL`; they are fail-fast casualties. The PR touches no runner code, so this is a flake, not this change.
+- Rebased onto `38525b06b`; the 2 new dev commits are design docs only, and the rebase was clean. `go test ./internal/mission/` rc 0 at the new head `2f51ae8df`.
+- On temp copies, with `AILANG_MISSION_REGISTRY` and the files under the registry's parent:
+  - Base: `rotate-log docs --stream status` rc 1 at both `--keep 1000` and `--keep 3`, refusing on `## (Charter sections — moved back 2026-10-01)`.
+  - Head: rc 0 at both, with the tombstone still present (count 1).
+  - The first attempt put the files under `wd/` and got `no such file`. That was an instrument failure, not a verdict, and was re-run.
+
+**Did**:
+- Force-pushed the rebased branch with lease on the old head `95d1e15e1`.
+- **Judge** (sonnet, Agent tool, foreground, own detached worktree `fleet-i47-judge` at `2f51ae8df`): **PASS 93**, 0 blocking.
+  - Byte check: removing the tombstone from base and the preamble from head gives identical files under `cmp`.
+  - Rotation at head: rc 0, and the set of STATUS headings across live plus old equals base's.
+  - Mutation drills, 5 of 6 killed:
+    - Killed: revert the archive move; pin the count to 11; pin it to 13; make `strayHeadings` return nil (also killed by `TestRotateLog_RefusesAFileWithInterleavedStructure`); append `## Backlog`.
+    - Survived: demoting the tombstone heading to `###`, which is a legal state.
+  - Gates rc 0: `go test`, `go vet`, `gofmt -l`, `make check-changelog`. Its tree was clean afterwards.
+- PR #1877: all 26 checks complete with 0 failures, MERGEABLE/CLEAN. The closing-keyword scan found nothing, with its control firing. Squash-merged with `--match-head-commit 2f51ae8df` → `f048d6fa9`.
+
+**Gate 3b**: the prescribed dev poll ran verbatim. It pinned `target=f048d6fa9c2df95f272e34264955b8628d4da589` (`rid=39221988856`), with the expected `DRIFT` of 2 commits (the base moved from Gate 1 because of my merge). Verdict: the poll hit its 30-min cap (`Gate 3b TIMEOUT for f048d6fa9… after 30m (status=in_progress)`) with only `test` running and nothing failed. A fresh poll on a new path read `CI for f048d6fa9…: completed success`, and the check set is 21 checks, 0 pending, 0 not-green. That is the **fourth** instance of D-FLEET-21. The ticket was resolved only after that green (`replied to docs`).
+
+**Done-gate**:
+- `make test-launchd-drivers` under `env -i`, in the judge worktree at `2f51ae8df`: rc 0 (`PASS: 59 probe self-test arms ran`, `PASS=25 FAIL=0`).
+- Dry-runs under **triage** (idle and armed, no pidfile; `AILANG_DRIVER_PINNED=2f51ae8df`):
+  - Healthy: rc 0, `lanes=ok`.
+  - Degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`): rc 0, `DEGRADED(1)`, with the executor handed to `opus`.
+- No triage pidfile was written and nothing was reloaded. The driver itself is unchanged by this PR.
+
+**Progress**: 1 ticket resolved; 44 open after the resolve.
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET: this ticket took about 18 d.
+- Clause 3 MET.
+- Clause 4: prior evidence only. The paused fires cost about 70 s of driver time, and none spent controller tokens before the pause.
+- Clause 5 preserved: judged, done-gate passed, CI green before the resolve.
+
+**Routing evidence**: base-gate1=38525b06ba63f3316e7f67df36982acdada9e668@2026-10-19T07:41:46Z; base=f048d6fa9c2df95f272e34264955b8628d4da589@2026-10-19T08:20:52Z (gate4); gate3b=f048d6fa9c2df95f272e34264955b8628d4da589 (drift 2 commits, from my merge). `MISSION_ROUTING_NOTE`=`controller pi:ollama/glm-5.3:cloud → claude:claude-opus-5-5 (probe ok)`; `MISSION_OVER_RATION` empty.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**, **planner** and **executor**: not spawned. The orphan's fix was complete and is credited to iteration 46: planner opus, executor `claude:claude-haiku-5-5`, both from its degraded routing.
+- **Evaluator**: `sonnet` via the Agent tool (`declared:alias-pin`), foreground, 1 round (51,800 tok). Judge independence: a fresh judge, independent of both the iteration-46 generator (haiku) and this controller (opus).
+  - The first spawn was refused by the spawn-pin hook (`fail-closed:role-missing`), because the `MISSION-ROLE:` line carried trailing text. Re-spawned with the token alone on line 1.
+- The Agent tool was used for the only role spawned, per the operator's standing request. No role failed to spawn.
+- **Metered**: $0.
+
+**Ruled out**:
+- Redoing iteration 46's work. It was complete and reviewed; only verification and landing were owed.
+- Attributing the #1877 red to the change. It was a single flaky subtest in an untouched package.
+- My own PR-check background poller. It piped `gh api` JSON through `echo`, which mangled control characters, and jq parse-errored on every round. It was an instrument failure, not a verdict: I stopped it and replaced it with a direct `check-runs` read (26 total, 0 pending, 0 failing).
+
+**Retro lane**:
+- (1) **Two dead slots in a row, both quota-caused**: an Anthropic weekly limit (iteration 46) and an ollama Pro 5-hour limit (10-19 02:54), plus five ~70 s capacity pauses. Under the routing chain, a quota exhaustion mid-iteration kills the slot after the work is done but before the landing. This is a pattern for Mark, not a skill change. The capacity-pause path worked as designed on the five short fires.
+- (1b) **Fourth instance: the 30-min Gate-3b cap is shorter than dev CI** (iterations 43–45 and 47). This is still D-FLEET-21, Mark's call.
+- (2) **`TestWorkerTerminalPTYLifecycle/eval/exit` flaked on ubuntu.** That is V1's territory (`internal/runner`), outside fleet scope, so it is reported here only: 1 instance.
+- (3) **The spawn-pin hook needs `MISSION-ROLE: <role>` alone on line 1.** Instance 1 here; the hook's message says "FIRST line", which is accurate. No change.
+
+**Next**: `skill:design-scaffold-hardcodes-owning-repo` (world, 10-01). `eval:motoko-connection-probe-orphaned` waits on D-FLEET-18. D-FLEET-16, -18, -19, -20, -21 and -22 are with Mark; D-FLEET-17 is moot.
