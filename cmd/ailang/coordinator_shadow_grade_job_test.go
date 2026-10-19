@@ -29,6 +29,7 @@ func newGradeFixture(t *testing.T) *gradeFixture {
 	t.Helper()
 	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv(config.EnvRelaxModules, "") // restored after; the grade sets it
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
@@ -166,16 +167,22 @@ func TestShadowGradeVerdicts(t *testing.T) {
 		{"shadow produced nothing", good, nil, coordinator.ShadowVerdictPrimaryBetter, ""},
 		{"no AILANG changed", good, map[string]string{"README.md": "x\n"}, coordinator.ShadowVerdictUngraded, "shadow: no_ail_changes"},
 		{"shadow refused for want of its key", good, map[string]string{}, coordinator.ShadowVerdictUngraded, "shadow: shadow_key_missing"},
+		{"shadow never started", good, map[string]string{"": ""}, coordinator.ShadowVerdictUngraded, "shadow: did_not_start"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newGradeFixture(t)
-			shadow := coordinator.ShadowRunResult{TaskID: "task-p-shadow", Status: "failed", BaseCommit: f.base}
-			if tc.shadow != nil && len(tc.shadow) > 0 {
+			// An agent that worked (turns) and produced nothing: a real failure.
+			shadow := coordinator.ShadowRunResult{TaskID: "task-p-shadow", Status: "failed", BaseCommit: f.base, NumTurns: 12}
+			if _, never := tc.shadow[""]; !never && len(tc.shadow) > 0 {
 				shadow = f.diff(t, "task-p-shadow", tc.shadow)
 			}
 			if tc.shadow != nil && len(tc.shadow) == 0 {
 				shadow.ErrorMsg = "executor failed: " + shadowKeyRefusal + ": OPENROUTER_API_KEY_SHADOW is not set"
+			}
+			if _, never := tc.shadow[""]; never {
+				shadow = coordinator.ShadowRunResult{TaskID: "task-p-shadow", Status: "failed", BaseCommit: f.base,
+					ErrorMsg: "executor failed: motoko execution failed: could not resolve motoko profile"}
 			}
 			f.seed(t, f.diff(t, "task-p", tc.primary), shadow)
 			c := f.grade(t, time.Minute)
@@ -329,5 +336,65 @@ entry = "main"
 					c.Mechanical.Primary.Gates, c.Mechanical.Shadow.Gates)
 			}
 		})
+	}
+	// A lane-report program: a loose file whose module name does not mirror its
+	// path, with no tests. Both conditions are fine in the lane, so it passes.
+	t.Run("loose lane program, no tests", func(t *testing.T) {
+		f := newGradeFixture(t)
+		prog := "module scan\n\nexport func main() -> () ! {IO} {\n  println(\"ok\")\n}\n"
+		f.seed(t, f.diff(t, "task-p", map[string]string{"lane-reports/x/scan.ail": prog}),
+			f.diff(t, "task-p-shadow", map[string]string{"lane-reports/x/scan.ail": prog}))
+		ctx := context.Background()
+		if err := gradeShadowComparison(ctx, f.store, "task-p", f.url, policy, t.TempDir(), policyToolGateRunnerWith(bin)); err != nil {
+			t.Fatal(err)
+		}
+		c, _ := f.store.GetShadowComparison(ctx, "task-p")
+		if c.Verdict != coordinator.ShadowVerdictEquivalent {
+			t.Fatalf("verdict = %q (%s)\nprimary gates: %+v", c.Verdict, c.UngradedReason, c.Mechanical.Primary.Gates)
+		}
+	})
+}
+
+// gatePassed: a test run that found no tests is vacuous, not failing; any
+// other non-zero exit fails; a refusal never passes.
+func TestGatePassed(t *testing.T) {
+	test := testRequest("m.ail", "")
+	cases := []struct {
+		name string
+		req  policytool.Request
+		resp policytool.Response
+		want bool
+	}{
+		{"clean exit", test, policytool.Response{OK: true}, true},
+		{"no tests found", test, policytool.Response{ExitCode: 1, Stdout: `{"total_tests":0,"failed_tests":0}`}, true},
+		{"a failing test", test, policytool.Response{ExitCode: 1, Stdout: `{"total_tests":2,"failed_tests":1}`}, false},
+		{"unparseable test output", test, policytool.Response{ExitCode: 1, Stdout: "boom"}, false},
+		{"check failure is never vacuous", policytool.Request{Op: "check"}, policytool.Response{ExitCode: 1, Stdout: `{"total_tests":0}`}, false},
+		{"refused", test, policytool.Response{OK: true, Refused: "outside"}, false},
+	}
+	for _, c := range cases {
+		if got := gatePassed(c.req, c.resp); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
+	}
+	if _, ok := test.Flags["json"]; !ok {
+		t.Error("test gates must ask for --json, which gatePassed reads")
+	}
+}
+
+// Grading runs with relaxed module names, as the lane does.
+func TestShadowGradeRelaxesModuleNames(t *testing.T) {
+	f := newGradeFixture(t)
+	f.seed(t, f.diff(t, "task-p", map[string]string{"pkg/m.ail": "ok\n"}), f.diff(t, "task-p-shadow", map[string]string{"pkg/m.ail": "ok\n"}))
+	var during string
+	run := func(string, string, policytool.Request) policytool.Response {
+		during = os.Getenv(config.EnvRelaxModules)
+		return policytool.Response{OK: true}
+	}
+	if err := gradeShadowComparison(context.Background(), f.store, "task-p", f.url, gradeTestPolicy, t.TempDir(), run); err != nil {
+		t.Fatal(err)
+	}
+	if during != "1" {
+		t.Fatalf("%s = %q during the gates, want 1", config.EnvRelaxModules, during)
 	}
 }

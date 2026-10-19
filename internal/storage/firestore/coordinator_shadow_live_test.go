@@ -25,11 +25,18 @@ func TestShadowComparisonRoundTrip_Live(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
 	s := NewCoordinatorStore(client)
 
 	parent := fmt.Sprintf("task-liveshadow-%d", time.Now().UnixNano())
-	t.Cleanup(func() { _, _ = client.Doc(collShadowComparisons, parent).Delete(context.Background()) })
+	// Delete, THEN close: a deferred Close ran before t.Cleanup, so the delete
+	// failed silently and five test comparisons were left on the dev plane,
+	// where the grade sweep picked them up as real (2026-10-19).
+	t.Cleanup(func() {
+		if _, err := client.Doc(collShadowComparisons, parent).Delete(context.Background()); err != nil {
+			t.Errorf("cleanup: deleting %s: %v", parent, err)
+		}
+		client.Close()
+	})
 
 	if _, err := s.GetShadowComparison(ctx, parent); !errors.Is(err, coordinator.ErrShadowComparisonNotFound) {
 		t.Fatalf("unknown parent: err = %v, want ErrShadowComparisonNotFound", err)

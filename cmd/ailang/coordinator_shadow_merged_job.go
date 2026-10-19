@@ -11,7 +11,6 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/gitexec"
-	"github.com/sunholo-data/ailang/internal/policytool"
 )
 
 // The merged_tests phase (M-AILANG-LANE-EXECUTOR-SHADOW M6, design layer 2):
@@ -20,6 +19,9 @@ import (
 // laid over it from the merge commit and run. Only test files are overlaid —
 // never modules, which would overwrite the candidate's own fix.
 func gradeShadowMergedTests(ctx context.Context, store coordinator.ShadowComparisonStore, parent, repoURL, policyTOML, root string, run gateRunner) error {
+	if err := relaxModuleNames(); err != nil {
+		return err
+	}
 	c, err := store.GetShadowComparison(ctx, parent)
 	if err != nil {
 		return fmt.Errorf("shadow merged tests: %w", err)
@@ -91,7 +93,7 @@ func mergedTestPlan(dir string, tests []string) []gateGroup {
 	for _, r := range roots {
 		g := gateGroup{root: r}
 		for _, t := range byRoot[r] {
-			g.reqs = append(g.reqs, policytool.Request{Op: "test", Path: t})
+			g.reqs = append(g.reqs, testRequest(t, ""))
 		}
 		plan = append(plan, g)
 	}

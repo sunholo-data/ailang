@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -81,6 +82,7 @@ func runShadowGradeJob() error {
 	if config.GitHubToken() != "" {
 		_ = gitexec.CommandContext(ctx, "config", "--global", "credential.helper", envTokenCredentialHelper).Run()
 	}
+
 	store := fsstore.NewCoordinatorStore(client)
 	root := filepath.Join(cloudWorkspaceRoot, parent+"-"+config.ShadowPhase())
 	switch phase := config.ShadowPhase(); phase {
@@ -97,6 +99,18 @@ func runShadowGradeJob() error {
 	default:
 		return fmt.Errorf("shadow grade: unknown %s %q", config.EnvShadowPhase, phase)
 	}
+}
+
+// relaxModuleNames grades what the gates are for — does it type-check, do its
+// tests pass — not the module-path naming rule: lane programs are loose files
+// whose module names need not mirror their path, and the lane does not enforce
+// it. The policy tool's ailang child inherits the variable. Measured 2026-10-19:
+// the first dev comparison failed a correct lane program on MOD010.
+func relaxModuleNames() error {
+	if err := os.Setenv(config.EnvRelaxModules, "1"); err != nil {
+		return fmt.Errorf("shadow grade: %w", err)
+	}
+	return nil
 }
 
 // writeShadowPhase lands a phase's result, only while the comparison is still
@@ -125,6 +139,9 @@ func writeShadowPhase(ctx context.Context, store coordinator.ShadowComparisonSto
 // already gave up on this job (grade_timeout), the late grade is dropped rather
 // than overwriting a settled verdict.
 func gradeShadowComparison(ctx context.Context, store coordinator.ShadowComparisonStore, parent, repoURL, policyTOML, root string, run gateRunner) error {
+	if err := relaxModuleNames(); err != nil {
+		return err
+	}
 	c, err := store.GetShadowComparison(ctx, parent)
 	if err != nil {
 		return fmt.Errorf("shadow grade: %w", err)
@@ -167,6 +184,13 @@ func prepareShadowSide(ctx context.Context, dir string, r *coordinator.ShadowRun
 		// Refused before the agent started (no shadow key on this plane): the
 		// harness never ran, so this is not a harness failing.
 		return coordinator.ShadowSideGrade{Ungraded: "shadow_key_missing"}, true
+	case r != nil && r.Status == "failed" && r.NumTurns == 0 && strings.TrimSpace(r.Diff) == "":
+		// Failed before the agent's first turn: the image, the lane check or
+		// the dispatch, not the code the harness writes. Kept visible in the
+		// ungraded tally, never scored as the harness losing (measured
+		// 2026-10-19: both motoko runs of the first dev smoke died on an image
+		// defect and would have read as motoko writing worse AILANG).
+		return coordinator.ShadowSideGrade{Ungraded: "did_not_start"}, true
 	case r == nil || strings.TrimSpace(r.Diff) == "":
 		return coordinator.ShadowSideGrade{Pass: false}, true
 	case ctx.Err() != nil:
@@ -203,7 +227,7 @@ func runGatePlan(ctx context.Context, dir, policyTOML string, plan []gateGroup, 
 				return coordinator.ShadowSideGrade{Ungraded: "timeout", Gates: g.Gates}
 			}
 			gate := coordinator.ShadowGateResult{Op: req.Op, Path: path.Join(grp.root, req.Path), Package: req.Flags["package"],
-				OK: resp.OK && resp.Refused == "" && resp.ExitCode == 0, ExitCode: resp.ExitCode,
+				OK: gatePassed(req, resp), ExitCode: resp.ExitCode,
 				Refused: resp.Refused, Output: tailString(resp.Stderr+resp.Stdout, 2000)}
 			if gate.Package != "" {
 				gate.Package = grp.root
@@ -218,6 +242,29 @@ func runGatePlan(ctx context.Context, dir, policyTOML string, plan []gateGroup, 
 		}
 	}
 	return g
+}
+
+// gatePassed reads a gate's response. A `test` of a module with no tests exits
+// 1 ("No tests found"), which is not a failing test: with --json the counts
+// say which it was, and zero tests run with zero failed is vacuous, so it passes.
+func gatePassed(req policytool.Request, resp policytool.Response) bool {
+	if resp.Refused != "" {
+		return false
+	}
+	if resp.ExitCode == 0 && resp.OK {
+		return true
+	}
+	if req.Op != "test" {
+		return false
+	}
+	var counts struct {
+		Total  *int `json:"total_tests"`
+		Failed int  `json:"failed_tests"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(resp.Stdout)), &counts) != nil || counts.Total == nil {
+		return false
+	}
+	return *counts.Total == 0 && counts.Failed == 0
 }
 
 // gateGroup is the gates for the modules under one sandbox root (a package
@@ -253,14 +300,23 @@ func shadowGatePlan(dir string, modules []string) []gateGroup {
 	for _, r := range roots {
 		g := gateGroup{root: r}
 		for _, m := range byRoot[r] {
-			g.reqs = append(g.reqs, policytool.Request{Op: "check", Path: m}, policytool.Request{Op: "test", Path: m})
+			g.reqs = append(g.reqs, policytool.Request{Op: "check", Path: m}, testRequest(m, ""))
 		}
 		if r != "." && hasTestFiles(filepath.Join(dir, filepath.FromSlash(r))) {
-			g.reqs = append(g.reqs, policytool.Request{Op: "test", Flags: map[string]string{"package": "."}})
+			g.reqs = append(g.reqs, testRequest("", "."))
 		}
 		plan = append(plan, g)
 	}
 	return plan
+}
+
+// testRequest is a `test` gate with --json, which gatePassed reads.
+func testRequest(path, pkg string) policytool.Request {
+	flags := map[string]string{"json": ""}
+	if pkg != "" {
+		flags["package"] = pkg
+	}
+	return policytool.Request{Op: "test", Path: path, Flags: flags}
 }
 
 func hasTestFiles(pkgDir string) bool {
