@@ -41,7 +41,7 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
-## STATUS 2026-10-19 — ITERATION 7: 52 independently judged; 8 PR comments, 7 safe label updates, issue #1717 closed with fix evidence; CI SUCCESS but Sonar red; shadow 12/12. D-TRIAGE-17/18/19/20/21 OPEN; Sonar dissent parked; no attestations or dispatch.
+## STATUS 2026-10-19 — ITERATION 7: 52 independently judged; 8 PR comments, 7 safe label updates, issue #1717 closed with fix evidence; reviewed CI SUCCESS/Sonar red; latest HEAD unverified; shadow 12/12. D-TRIAGE-17/18/19/20/21 OPEN; Sonar dissent parked; no attestations or dispatch.
 
 ## STATUS 2026-10-17 — ITERATION 6: 10 independently judged; one unsigned attestation, four PR comments, four safe labels; dev green; 7 orphan PRs; shadow 11/11 under explicit rubric. D-TRIAGE-15/16 OPEN; record PR awaits operator.
 
