@@ -92,6 +92,7 @@ type DispatchParams struct {
 	// grades the shadow comparison of ShadowParent (dispatchShadowGrades).
 	JobMode      string
 	ShadowParent string
+	ShadowPhase  string
 
 	// AutoMerge asks the wrapper to enable GitHub's NATIVE auto-merge on the PR
 	// it opens, so GitHub merges it once the required checks pass.

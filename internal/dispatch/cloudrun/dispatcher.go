@@ -282,7 +282,8 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	if params.JobMode != "" {
 		envOverrides = append(envOverrides,
 			&runpb.EnvVar{Name: config.EnvJobMode, Values: &runpb.EnvVar_Value{Value: params.JobMode}},
-			&runpb.EnvVar{Name: config.EnvShadowParent, Values: &runpb.EnvVar_Value{Value: params.ShadowParent}})
+			&runpb.EnvVar{Name: config.EnvShadowParent, Values: &runpb.EnvVar_Value{Value: params.ShadowParent}},
+			&runpb.EnvVar{Name: config.EnvShadowPhase, Values: &runpb.EnvVar_Value{Value: params.ShadowPhase}})
 	}
 	envOverrides = append(envOverrides, []*runpb.EnvVar{
 		{Name: "AILANG_PROVIDER", Values: &runpb.EnvVar_Value{Value: params.Provider}},

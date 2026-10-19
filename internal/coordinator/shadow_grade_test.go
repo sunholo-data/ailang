@@ -54,7 +54,7 @@ func TestShadowGradeSweepDispatchesOnce(t *testing.T) {
 		t.Fatalf("grade dispatches = %d, want 1", len(rec.calls))
 	}
 	p := rec.calls[0]
-	if p.JobMode != config.JobModeShadowGrade || p.ShadowParent != "task-a" || p.TaskID != "task-a-grade" {
+	if p.JobMode != config.JobModeShadowGrade || p.ShadowParent != "task-a" || p.TaskID != "task-a-mechanical" || p.ShadowPhase != config.ShadowPhaseMechanical {
 		t.Errorf("grade identity wrong: %+v", p)
 	}
 	if p.PolicyTOML == "" || p.ToolPolicy != "ailang_only" || p.Model != "" || p.Shadow || p.PushBranch != "" {
@@ -105,7 +105,7 @@ func TestShadowGradeSweepSettlesWhatItCannotGrade(t *testing.T) {
 		}
 		d.dispatchShadowGrades()
 		c, _ := s.GetShadowComparison(context.Background(), "task-a")
-		if c.UngradedReason != "grade_timeout" || len(rec.calls) != 0 {
+		if c.UngradedReason != "mechanical_timeout" || len(rec.calls) != 0 {
 			t.Fatalf("reason=%q calls=%d", c.UngradedReason, len(rec.calls))
 		}
 	})
@@ -137,9 +137,27 @@ func TestShadowGradeClaimRace(t *testing.T) {
 	d, s := gradeSweepDaemon(t, rec)
 	seedComparison(t, s, "task-a", ShadowSidePrimary, ShadowSideShadow)
 	snapshot, _ := s.GetShadowComparison(context.Background(), "task-a")
-	d.dispatchShadowGrade(s, snapshot, time.Now())
-	d.dispatchShadowGrade(s, snapshot, time.Now()) // the other instance, same stale view
+	d.dispatchShadowPhase(s, snapshot, shadowPhases[0], time.Now())
+	d.dispatchShadowPhase(s, snapshot, shadowPhases[0], time.Now()) // the other instance, same stale view
 	if len(rec.calls) != 1 {
 		t.Fatalf("grade dispatches = %d, want 1", len(rec.calls))
+	}
+}
+
+// A job that reports between the sweep's listing and its settle wins: the
+// settle sees the stage has moved and leaves the result alone.
+func TestSettleShadowNeverOverwritesALandedResult(t *testing.T) {
+	d, s := gradeSweepDaemon(t, &shadowRecordingDispatcher{})
+	seedComparison(t, s, "task-a", ShadowSidePrimary, ShadowSideShadow)
+	if _, err := s.UpdateShadowComparison(context.Background(), "task-a", func(c *ShadowComparison) bool {
+		c.GradeState, c.Verdict = ShadowGradeGraded, ShadowVerdictPrimaryBetter // the job's result
+		return true
+	}); err != nil {
+		t.Fatal(err)
+	}
+	d.settleShadow(s, "task-a", ShadowGradeDispatched, "mechanical_timeout", shadowPhases[0].onAbandon)
+	c, _ := s.GetShadowComparison(context.Background(), "task-a")
+	if c.Verdict != ShadowVerdictPrimaryBetter || c.UngradedReason != "" {
+		t.Fatalf("a late settle overwrote the job's result: verdict=%q reason=%q", c.Verdict, c.UngradedReason)
 	}
 }

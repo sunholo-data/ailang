@@ -91,17 +91,17 @@ Every sampled real `ailang_only`-lane coordinator task also runs on the other ha
   - [x] **no grading code runs in the daemon process** (test asserts the daemon only dispatches);
   - [x] `make` targets are never invoked.
 
-### M6: Merged-fix comparison and reviewer (~250 LOC: 170 + 80)
+### M6: Merged-fix comparison and reviewer ✅ (~250 LOC: 170 + 80)
 - When the parent's PR settles (`settledPRLookup` on `BranchForTask(parent)`), fetch the merged diff by PR number (`pulls/{n}/files`, because `LandedPR` has no SHA, V21). Record:
-  - file and function overlap for each candidate;
+  - file and function overlap for each candidate (**as built: file overlap only**; AILANG diff hunks carry no function context);
   - whether the merged PR's new or changed `.ail` tests pass on each candidate (grade job, M5 path).
 
   Mark the comparison `circular` when the merged PR is the primary's own.
 - Reviewer: only when the layers disagree or tie. An off-Anthropic reviewer via the existing design-review machinery (reject-by-default; must name a winner, its strongest objection and a confidence), cost-capped and counted against the shadow budget.
 - **Acceptance:**
-  - [ ] a settled-PR fixture updates the comparison;
-  - [ ] the circular case is flagged;
-  - [ ] the reviewer is invoked only on disagree or tie, and an unreachable reviewer gives `ungraded(reviewer_unavailable)`, never a silent verdict.
+  - [x] a settled-PR fixture updates the comparison;
+  - [x] the circular case is flagged;
+  - [x] the reviewer is invoked only on disagree or tie, and an unreachable reviewer gives `ungraded(reviewer_unavailable)`, never a silent verdict.
 
 ### M7: The report and the dev-plane enable (~200 LOC: 140 + 60, plus config)
 - `ailang coordinator shadow report [--since 7d] [--json]` gives per-agent and per-harness pass rates, cost, wall time and turns; **every disagreement** with `ailang chains chat` links and both diffs; and running totals.

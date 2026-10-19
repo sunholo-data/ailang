@@ -166,10 +166,10 @@
         "Circular case flagged",
         "Reviewer only on disagree/tie; unreachable -> ungraded(reviewer_unavailable)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-19T09:12:46+00:00",
+      "completed": "2026-10-19T09:12:46+00:00",
+      "notes": "One stage field (grade_state) drives mechanical -> graded(wait PR) -> merged_tests -> review -> done; every job phase is a mode of the executor job (AILANG_SHADOW_PHASE). Merged-fix layer = GitHub reads in the coordinator (settledPRLookup + pulls/{n} + files), circular = merged head == primary HeadCommit, file-level Jaccard overlap (function-level overlap NOT done: AILANG hunks carry no function context). merged_tests overlays only *_test.ail from the merge commit. Reviewer reuses quorum.ResolveCaller (openai/google/ollama only; a cloud job may lack those credentials -> reviewer_unavailable, surfaces in the M7 smoke), A/B order hashed per comparison, cost via token counts x registry pricing, pre-flight cap. Verified live: gemini-4-argon picked the correct fix ($0.0019). 21 mutants killed (3 first survived and got tests: circular case, decisive-with-reviewer, settle guard)."
     },
     {
       "id": "M7_REPORT_DEV_ENABLE",

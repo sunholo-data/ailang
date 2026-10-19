@@ -62,6 +62,12 @@ func TestValidateShadowConfig(t *testing.T) {
 		{"negative cost cap", laneAgent(&ShadowConfig{
 			Enabled: true, Provider: "motoko", ExecutorVariant: "motoko", SampleRate: 1, MaxCostUSD: -1,
 		}), "max_cost_usd"},
+		{"anthropic reviewer", laneAgent(&ShadowConfig{
+			Enabled: true, Provider: "motoko", ExecutorVariant: "motoko", SampleRate: 1, ReviewerModel: "claude-opus-5-5",
+		}), "off-Anthropic"},
+		{"negative reviewer cap", laneAgent(&ShadowConfig{
+			Enabled: true, Provider: "motoko", ExecutorVariant: "motoko", SampleRate: 1, ReviewerMaxCostUSD: -1,
+		}), "reviewer_max_cost_usd"},
 		// A disabled block is validated too: it must not be switchable on broken.
 		{"disabled but broken", laneAgent(&ShadowConfig{
 			Provider: "pi", ExecutorVariant: "pi", SampleRate: 1,

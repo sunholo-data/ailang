@@ -63,21 +63,61 @@ type ShadowComparison struct {
 	BaseDrift      bool          `json:"base_drift,omitempty"`
 	Verdict        ShadowVerdict `json:"verdict,omitempty"`
 	UngradedReason string        `json:"ungraded_reason,omitempty"`
-	// GradeState tracks the mechanical grade job (M5): "" until both sides are
-	// in and a job is dispatched, then "dispatched", then "graded".
+	// GradeState is the comparison's stage in the grading pipeline, and the one
+	// field the sweeps query (see the ShadowGrade* constants for the order).
 	GradeState        string                 `json:"grade_state,omitempty"`
 	GradeDispatchedAt time.Time              `json:"grade_dispatched_at,omitempty"`
 	Mechanical        *ShadowMechanicalGrade `json:"mechanical,omitempty"`
-	CreatedAt         time.Time              `json:"created_at"`
-	UpdatedAt         time.Time              `json:"updated_at"`
+	// Merged is how the primary's PR ended (M6, design layer 2).
+	Merged *ShadowMergedFix `json:"merged,omitempty"`
+	// MergedTests runs the merged PR's *_test.ail files against each side.
+	MergedTests *ShadowMechanicalGrade `json:"merged_tests,omitempty"`
+	// Review is the off-Anthropic reviewer (design layer 3), run only when
+	// the layers above tie or disagree.
+	Review    *ShadowReview `json:"review,omitempty"`
+	CreatedAt time.Time     `json:"created_at"`
+	UpdatedAt time.Time     `json:"updated_at"`
 }
 
-// Grade states.
+// Grade stages, in order. "" waits for both sides; each *ing stage is a job in
+// flight, claimed by compare-and-set; graded waits for the primary's PR.
 const (
-	ShadowGradeNone       = ""
-	ShadowGradeDispatched = "dispatched"
-	ShadowGradeGraded     = "graded"
+	ShadowGradeNone          = ""             // mechanical grade to dispatch
+	ShadowGradeDispatched    = "dispatched"   // mechanical grade running
+	ShadowGradeGraded        = "graded"       // waiting for the primary's PR to settle
+	ShadowGradeMergedTests   = "merged_tests" // merged PR's tests to run on each side
+	ShadowGradeMergedTesting = "merged_testing"
+	ShadowGradeReview        = "review" // reviewer to dispatch
+	ShadowGradeReviewing     = "reviewing"
+	ShadowGradeDone          = "done"
 )
+
+// ShadowMergedFix is how the primary's PR ended. Circular means GitHub merged
+// exactly the primary's head commit: the merged tests are then the primary's
+// own, and cannot judge it against the shadow.
+type ShadowMergedFix struct {
+	State       string   `json:"state"` // merged, closed (primary rejected), unsettled (gave up waiting)
+	Number      int      `json:"number,omitempty"`
+	HeadSHA     string   `json:"head_sha,omitempty"`
+	MergeCommit string   `json:"merge_commit,omitempty"`
+	Files       []string `json:"files,omitempty"`
+	TestFiles   []string `json:"test_files,omitempty"` // the *_test.ail files it added or changed
+	Circular    bool     `json:"circular,omitempty"`
+	// File overlap with the merged PR (Jaccard over changed paths), per side.
+	PrimaryOverlap float64 `json:"primary_overlap"`
+	ShadowOverlap  float64 `json:"shadow_overlap"`
+}
+
+// ShadowReview is the reviewer's call. Ungraded names why there is none
+// (reviewer_unavailable, reviewer_over_budget, reviewer_invalid).
+type ShadowReview struct {
+	Model              string  `json:"model,omitempty"`
+	Winner             string  `json:"winner,omitempty"` // primary, shadow, equivalent
+	StrongestObjection string  `json:"strongest_objection,omitempty"`
+	Confidence         float64 `json:"confidence,omitempty"`
+	CostUSD            float64 `json:"cost_usd,omitempty"`
+	Ungraded           string  `json:"ungraded,omitempty"`
+}
 
 // ShadowGateResult is one AILANG gate run on one side's diff.
 type ShadowGateResult struct {
@@ -168,4 +208,55 @@ type ShadowComparisonStore interface {
 	// UpdateShadowComparison applies fn to the stored comparison atomically. fn
 	// returns false to leave it unchanged (a lost compare-and-set).
 	UpdateShadowComparison(ctx context.Context, parentID string, fn func(*ShadowComparison) bool) (bool, error)
+}
+
+// decisive reports whether a layer's verdict names a winner.
+func decisive(v ShadowVerdict) bool {
+	return v == ShadowVerdictPrimaryBetter || v == ShadowVerdictShadowBetter
+}
+
+// LayeredShadowVerdict combines the mechanical and merged-test layers, and says
+// whether the reviewer is needed: when the layers tie (equivalent, both failed)
+// or name different winners. The merged tests outrank the mechanical gates —
+// they are the accepted fix's own tests — unless the merge was circular.
+func LayeredShadowVerdict(c *ShadowComparison) (verdict ShadowVerdict, reason string, needsReview bool) {
+	if c.Mechanical == nil {
+		return ShadowVerdictUngraded, "no mechanical grade", false
+	}
+	verdict, reason = ShadowVerdictFromMechanical(*c.Mechanical)
+	if c.MergedTests != nil && (c.Merged == nil || !c.Merged.Circular) {
+		mv, mr := ShadowVerdictFromMechanical(*c.MergedTests)
+		switch {
+		case decisive(mv) && decisive(verdict) && mv != verdict:
+			return mv, "merged tests disagree with the mechanical gates", true
+		case mv != ShadowVerdictUngraded:
+			verdict, reason = mv, mr
+		}
+	}
+	tie := verdict == ShadowVerdictEquivalent || verdict == ShadowVerdictBothFailed
+	return verdict, reason, tie
+}
+
+// FinalShadowVerdict applies the reviewer to the layered verdict. A reviewer
+// that was needed and gave no call makes the comparison ungraded: a tie or a
+// disagreement is never resolved silently.
+func FinalShadowVerdict(c *ShadowComparison) (ShadowVerdict, string) {
+	v, reason, needs := LayeredShadowVerdict(c)
+	if !needs || c.Review == nil {
+		return v, reason
+	}
+	if c.Review.Ungraded != "" {
+		return ShadowVerdictUngraded, c.Review.Ungraded
+	}
+	switch c.Review.Winner {
+	case ShadowSidePrimary:
+		return ShadowVerdictPrimaryBetter, "reviewer"
+	case ShadowSideShadow:
+		return ShadowVerdictShadowBetter, "reviewer"
+	default:
+		if v == ShadowVerdictBothFailed {
+			return v, "reviewer"
+		}
+		return ShadowVerdictEquivalent, "reviewer"
+	}
 }

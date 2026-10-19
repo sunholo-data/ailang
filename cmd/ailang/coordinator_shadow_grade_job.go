@@ -81,8 +81,43 @@ func runShadowGradeJob() error {
 	if config.GitHubToken() != "" {
 		_ = gitexec.CommandContext(ctx, "config", "--global", "credential.helper", envTokenCredentialHelper).Run()
 	}
-	return gradeShadowComparison(ctx, fsstore.NewCoordinatorStore(client), parent, config.RepoURL(),
-		config.AgentPolicyTOML(), filepath.Join(cloudWorkspaceRoot, parent+"-grade"), policyToolGateRunner)
+	store := fsstore.NewCoordinatorStore(client)
+	root := filepath.Join(cloudWorkspaceRoot, parent+"-"+config.ShadowPhase())
+	switch phase := config.ShadowPhase(); phase {
+	case config.ShadowPhaseMechanical:
+		return gradeShadowComparison(ctx, store, parent, config.RepoURL(), config.AgentPolicyTOML(), root, policyToolGateRunner)
+	case config.ShadowPhaseMergedTests:
+		return gradeShadowMergedTests(ctx, store, parent, config.RepoURL(), config.AgentPolicyTOML(), root, policyToolGateRunner)
+	case config.ShadowPhaseReview:
+		directive, err := resolveJobDirective(ctx, config.DirectiveSource(), config.TaskID(), openDirectiveStore(project))
+		if err != nil {
+			directive = "" // the reviewer still compares the diffs; the prompt says the task is unknown
+		}
+		return reviewShadowComparison(ctx, store, parent, directive, config.Model(), config.MaxCostUSD(), resolveShadowReviewer)
+	default:
+		return fmt.Errorf("shadow grade: unknown %s %q", config.EnvShadowPhase, phase)
+	}
+}
+
+// writeShadowPhase lands a phase's result, only while the comparison is still
+// in the stage this job was dispatched for: if the coordinator already gave up
+// on the job, the late result is dropped rather than overwriting a settled one.
+// The write gets its own deadline, because a timeout is a result too.
+func writeShadowPhase(ctx context.Context, store coordinator.ShadowComparisonStore, parent, inFlight string, fn func(*coordinator.ShadowComparison)) error {
+	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	defer cancel()
+	wrote, err := store.UpdateShadowComparison(wctx, parent, func(cur *coordinator.ShadowComparison) bool {
+		if cur.GradeState != inFlight {
+			return false
+		}
+		fn(cur)
+		return true
+	})
+	if err != nil {
+		return fmt.Errorf("shadow grade: writing %s: %w", parent, err)
+	}
+	fmt.Printf("execute-job: shadow %s %s written=%v\n", config.ShadowPhase(), parent, wrote)
+	return nil
 }
 
 // gradeShadowComparison grades both sides and writes the result back. The write
@@ -103,53 +138,53 @@ func gradeShadowComparison(ctx context.Context, store coordinator.ShadowComparis
 	}
 	m.GradedAt = time.Now().UTC()
 	verdict, reason := coordinator.ShadowVerdictFromMechanical(m)
-	// The grade must land even when the job's bound is what ended it: a
-	// timeout is a result. So the write gets its own short deadline.
-	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
-	defer cancel()
-	wrote, err := store.UpdateShadowComparison(wctx, parent, func(cur *coordinator.ShadowComparison) bool {
-		if cur.GradeState != coordinator.ShadowGradeDispatched {
-			return false
-		}
+	fmt.Printf("execute-job: shadow grade %s: verdict=%s %s\n", parent, verdict, reason)
+	return writeShadowPhase(ctx, store, parent, coordinator.ShadowGradeDispatched, func(cur *coordinator.ShadowComparison) {
 		cur.Mechanical, cur.Verdict, cur.UngradedReason = &m, verdict, reason
 		cur.GradeState = coordinator.ShadowGradeGraded
-		return true
 	})
-	if err != nil {
-		return fmt.Errorf("shadow grade: writing %s: %w", parent, err)
-	}
-	fmt.Printf("execute-job: shadow grade %s: verdict=%s %s (written=%v)\n", parent, verdict, reason, wrote)
-	return nil
 }
 
 // gradeShadowSide runs the gates for one side. A run that produced no diff
 // failed its task, which is a real result; a diff we could not set up to test
 // is ungraded, which is not.
 func gradeShadowSide(ctx context.Context, dir string, r *coordinator.ShadowRunResult, repoURL, policyTOML string, run gateRunner) coordinator.ShadowSideGrade {
-	if r == nil || strings.TrimSpace(r.Diff) == "" {
-		return coordinator.ShadowSideGrade{Pass: false}
-	}
-	if ctx.Err() != nil {
-		return coordinator.ShadowSideGrade{Ungraded: "timeout"}
-	}
-	if r.BaseCommit == "" {
-		return coordinator.ShadowSideGrade{Ungraded: "no_base_commit"}
-	}
-	if err := checkoutCommit(ctx, dir, repoURL, r.BaseCommit); err != nil {
-		return coordinator.ShadowSideGrade{Ungraded: "clone_failed"}
-	}
-	if err := applyDiff(ctx, dir, r.Diff); err != nil {
-		return coordinator.ShadowSideGrade{Ungraded: "apply_failed"}
+	if g, done := prepareShadowSide(ctx, dir, r, repoURL); done {
+		return g
 	}
 	modules := changedAILModules(dir, r.ChangedFiles)
 	if len(modules) == 0 {
 		return coordinator.ShadowSideGrade{Ungraded: "no_ail_changes"}
 	}
+	return runGatePlan(ctx, dir, policyTOML, shadowGatePlan(dir, modules), run)
+}
+
+// prepareShadowSide checks out the run's base commit and applies its diff.
+// done=true returns the side's grade without running gates.
+func prepareShadowSide(ctx context.Context, dir string, r *coordinator.ShadowRunResult, repoURL string) (coordinator.ShadowSideGrade, bool) {
+	switch {
+	case r == nil || strings.TrimSpace(r.Diff) == "":
+		return coordinator.ShadowSideGrade{Pass: false}, true
+	case ctx.Err() != nil:
+		return coordinator.ShadowSideGrade{Ungraded: "timeout"}, true
+	case r.BaseCommit == "":
+		return coordinator.ShadowSideGrade{Ungraded: "no_base_commit"}, true
+	}
+	if err := checkoutCommit(ctx, dir, repoURL, r.BaseCommit); err != nil {
+		return coordinator.ShadowSideGrade{Ungraded: "clone_failed"}, true
+	}
+	if err := applyDiff(ctx, dir, r.Diff); err != nil {
+		return coordinator.ShadowSideGrade{Ungraded: "apply_failed"}, true
+	}
+	return coordinator.ShadowSideGrade{}, false
+}
+
+// runGatePlan runs every group's gates with that group's package directory as
+// the policy sandbox: the agent's own view (the lane scopes the sandbox to the
+// package), and the only root a module inside a package resolves from.
+func runGatePlan(ctx context.Context, dir, policyTOML string, plan []gateGroup, run gateRunner) coordinator.ShadowSideGrade {
 	g := coordinator.ShadowSideGrade{Pass: true}
-	for _, grp := range shadowGatePlan(dir, modules) {
-		// Each group runs with its package directory as the policy sandbox:
-		// that is the agent's own view (the lane scopes the sandbox to the
-		// package), and a module inside a package only resolves from there.
+	for _, grp := range plan {
 		sandbox := filepath.Join(dir, filepath.FromSlash(grp.root))
 		policyPath, err := executor.MaterializeAgentPolicy(policyTOML, sandbox)
 		if err != nil || policyPath == "" {

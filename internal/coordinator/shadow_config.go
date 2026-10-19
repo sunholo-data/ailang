@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/executor"
 )
@@ -33,6 +34,25 @@ type ShadowConfig struct {
 	// OfferAlternative opts the agent in to a draft PR when the shadow wins and
 	// the primary failed (D5). Off by default: report only.
 	OfferAlternative bool `yaml:"offer_alternative" json:"offer_alternative,omitempty"`
+	// ReviewerModel is the off-Anthropic model (a models.yml id on an openai,
+	// google or ollama lane, as design-quorum admits) that breaks ties and
+	// disagreements between the grade layers. Empty disables the reviewer: the
+	// layered verdict stands.
+	ReviewerModel string `yaml:"reviewer_model" json:"reviewer_model,omitempty"`
+	// ReviewerMaxCostUSD caps one review, checked before the call. Zero means
+	// the default, defaultShadowReviewerMaxCostUSD.
+	ReviewerMaxCostUSD float64 `yaml:"reviewer_max_cost_usd" json:"reviewer_max_cost_usd,omitempty"`
+}
+
+// defaultShadowReviewerMaxCostUSD caps a review when the agent sets none.
+const defaultShadowReviewerMaxCostUSD = 0.25
+
+// reviewerBudget is the per-review cap in force.
+func (s *ShadowConfig) reviewerBudget() float64 {
+	if s.ReviewerMaxCostUSD > 0 {
+		return s.ReviewerMaxCostUSD
+	}
+	return defaultShadowReviewerMaxCostUSD
 }
 
 // validateShadowConfig returns the config errors in an agent's shadow block,
@@ -58,6 +78,12 @@ func validateShadowConfig(agent *AgentConfig) []error {
 	}
 	if s.MaxCostUSD < 0 {
 		errs = append(errs, fail("max_cost_usd %v is negative", s.MaxCostUSD))
+	}
+	if s.ReviewerMaxCostUSD < 0 {
+		errs = append(errs, fail("reviewer_max_cost_usd %v is negative", s.ReviewerMaxCostUSD))
+	}
+	if m := strings.ToLower(s.ReviewerModel); strings.Contains(m, "claude") || strings.Contains(m, "anthropic") {
+		errs = append(errs, fail("reviewer_model %q is an Anthropic model; the reviewer must be off-Anthropic", s.ReviewerModel))
 	}
 	if s.Provider == "" || s.ExecutorVariant == "" {
 		return append(errs, fail("provider and executor_variant are both required"))
