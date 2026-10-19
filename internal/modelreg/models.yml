@@ -4678,6 +4678,13 @@ models:
       failures either side (1017 thinks ~3x less: 6.7k vs 20.4k avg reasoning tokens).
       1017 loses on the contract_* family (matrix_determinant 1/3, sorted_merge 1/3,
       rle_roundtrip 0/3) and wins commonmark_emphasis, glob_match_spec, legal_obligation_engine.
+      HOBBLING CHECK (2026-10-19, the GLM-5.2 lesson): no reasoning param is sent (not in
+      reasoningCapabilities), sort=throughput routed 1017→Together, 0731→Wafer (nvfp4). Replayed
+      the contract_matrix_determinant prompt 14x: Together vs DeepSeek first-party x
+      default/high/xhigh effort — reasoning tokens 0.5k-4.7k in every arm (effort does not move
+      it; 0731 on Wafer 4.6k-10.6k), and 1017 failed 7/8 non-xhigh + 1/2 xhigh the SAME way:
+      declares the contract's `-> bool` proof functions as `-> int` and prints the determinant.
+      0731 passed 2/2. Spec-following, not host, effort or budget.
 
   or-deepseek-v4-pro:
     api_name: "deepseek/deepseek-v4-pro-0813"
