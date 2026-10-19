@@ -56,16 +56,16 @@ Every sampled real `ailang_only`-lane coordinator task also runs on the other ha
   - [x] **regression:** a non-shadow agent's dispatch parameters are byte-identical to before;
   - [x] the sampling decision is stable for a given task ID.
 
-### M3: The job enforces no side effects (~180 LOC: 90 + 90)
+### M3: The job enforces no side effects ✅ (~180 LOC: 90 + 90)
 - In `executeCloudTask` (`cmd/ailang/coordinator_cloud_task.go`), when `config.TaskShadow()` is set:
   - skip `verifyDeployKeyWrite`, the push step and `openCascadePullRequest`;
   - keep `collectGitEvidence` and `writeTaskArtifacts`.
 - In `coordinator_cloud_executor.go`, `childGitCredential` returns no credential for shadow tasks.
 - **Acceptance:**
-  - [ ] a unit or integration test with a fake git remote shows a shadow run produces evidence (diff, artifacts) and **no** push or PR call;
-  - [ ] **negative test:** with a write key present and the agent attempting `git push`, nothing reaches the remote;
-  - [ ] **regression:** a non-shadow run still pushes and opens a PR;
-  - [ ] each guard is mutation-tested (revert it and watch its test fail).
+  - [x] a unit or integration test with a fake git remote shows a shadow run produces evidence (diff, artifacts) and **no** push or PR call;
+  - [x] **negative test:** with a write key present and the agent attempting `git push`, nothing reaches the remote;
+  - [x] **regression:** a non-shadow run still pushes and opens a PR;
+  - [x] each guard is mutation-tested (revert it and watch its test fail).
 
 ### M4: Finalization and storage (~230 LOC: 140 + 90)
 - `wantsApproval` and `wantsHandoff` return false when `ShadowOf != ""`. `applyMetrics` needs no change, because shadows have no `StageID`/`ChainID` (V18); a test pins that.

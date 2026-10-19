@@ -20,6 +20,15 @@ import (
 // TestRuntimePluginRootMatchesImage pins the two together.
 const runtimePluginRoot = "/plugins/tasks"
 
+// Test seams: the job's workspace root, its executor and its PR opener. Tests
+// point them at a temp dir and fakes so the whole job can run against a local
+// bare repository.
+var (
+	cloudWorkspaceRoot = "/workspace"
+	runExecutorFn      = runExecutor
+	openPullRequestFn  = openCascadePullRequest
+)
+
 // executeCloudTask runs the AI executor in a cloned repository.
 // Returns the branch name with changes, executor result with metrics, or error.
 //
@@ -34,7 +43,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	var inputProvenance []taskInputProvenance
 	// Preserve provenance on every later return, including executor/push failures.
 	defer func() { outEvidence.Inputs = inputProvenance }()
-	workDir := fmt.Sprintf("/workspace/%s", taskID)
+	workDir := filepath.Join(cloudWorkspaceRoot, taskID)
 	pushBranch := config.PushBranch()
 
 	// When push branch is set, clone that branch instead of baseBranch.
@@ -144,9 +153,14 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	// repository, and still before the agent does any work — which is what a
 	// pre-flight is for. Fatal: an agent that cannot push should not spend a run
 	// discovering that at the end.
-	if deployKeyRepo != "" {
+	if needsDeployKeyWriteCheck(deployKeyRepo) {
 		if vErr := verifyDeployKeyWrite(ctx, workDir, deployKeyRepo); vErr != nil {
 			return "", nil, gitEvidence{}, vErr
+		}
+	}
+	if shadowRun() {
+		if err := disableShadowPush(ctx, workDir); err != nil {
+			return "", nil, gitEvidence{}, err
 		}
 	}
 
@@ -269,7 +283,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		}
 
 		fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
-		execResult, execErr = runExecutor(ctx, execWorkDir, provider, directive, taskID, pluginDir, model, timeoutStr, repoURL)
+		execResult, execErr = runExecutorFn(ctx, execWorkDir, provider, directive, taskID, pluginDir, model, timeoutStr, repoURL)
 		if execErr != nil {
 			return branchName, execResult, gitEvidence{}, fmt.Errorf("executor failed: %w", execErr)
 		}
@@ -378,6 +392,13 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		return branchName, execResult, gitEvidence{BaseCommit: clonePoint, ChangedFiles: discoverChangedFilesFromCommit(workDir, clonePoint)}, nil
 	}
 
+	// A shadow run stops here: its commit stays local, and the diff against the
+	// clone point is its whole output.
+	if shadowRun() {
+		fmt.Println("execute-job: shadow run — work kept as evidence; not pushing or opening a PR")
+		return branchName, execResult, collectGitEvidence(ctx, workDir, clonePoint), nil
+	}
+
 	unpushed := branchNeedsPush(newBranch, string(logOutput))
 
 	// Step 5c: Push all commits, if any are still local.
@@ -445,7 +466,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		if !branchWantsPR(branchName, baseBranch) {
 			fmt.Printf("execute-job: %s IS the base branch (direct-push agent) — no PR to open\n", branchName)
 		} else {
-			if prErr := openCascadePullRequest(ctx, workDir, branchName, taskID, agentID, baseBranch, directive); prErr != nil {
+			if prErr := openPullRequestFn(ctx, workDir, branchName, taskID, agentID, baseBranch, directive); prErr != nil {
 				return branchName, execResult, gitEvidence{}, prErr
 			}
 		}

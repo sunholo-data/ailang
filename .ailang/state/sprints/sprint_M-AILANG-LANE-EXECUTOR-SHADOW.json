@@ -112,10 +112,10 @@
         "Non-shadow run still pushes + opens PR",
         "Each guard mutation-tested"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-19T08:31:17+00:00",
+      "completed": "2026-10-19T08:31:17+00:00",
+      "notes": "Three gates, not two: added origin push-URL disable after clone (covers the SSH deploy-key path, whose alias sits in the job HOME and is not governed by childGitCredential). Job returns before push/PR after evidence; childGitCredential returns none; deploy-key write preflight skipped (predicate needsDeployKeyWriteCheck). End-to-end tests against a local bare remote: shadow keeps diff + pushes nothing incl. the agent's own push attempt; non-shadow still pushes + opens PR. 6 mutants killed (one first survived: deploy-key skip untestable inline, extracted to a predicate)."
     },
     {
       "id": "M4_FINALIZE_STORAGE",

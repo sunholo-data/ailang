@@ -416,6 +416,10 @@ func resolveIdleTimeout(raw string) time.Duration {
 // nothing — this process still clones, pushes and opens the PR. An unknown
 // mode is an error, not a guess.
 func childGitCredential(task *executor.Task, repoURL string) (func(), error) {
+	// A shadow run's agent gets nothing it could push with.
+	if shadowRun() {
+		return noChildCredential, nil
+	}
 	mode, err := config.ChildGitCredentials()
 	if err != nil {
 		return noChildCredential, err
