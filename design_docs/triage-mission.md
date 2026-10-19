@@ -41,11 +41,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-10-19 — ITERATION 8: 8 joined items / 11 component verdicts independently judged; 1 duplicate close, 4 PR comments, 6 safe labels; CI green / Sonar dissent held; shadow 13/13; D22/23 OPEN; no attestations or dispatch.
+
 ## STATUS 2026-10-19 — ITERATION 7: 52 independently judged; 8 PR comments, 7 safe label updates, issue #1717 closed with fix evidence; reviewed CI SUCCESS/Sonar red; latest HEAD unverified; shadow 12/12. D-TRIAGE-17/18/19/20/21 OPEN; Sonar dissent parked; no attestations or dispatch.
 
 ## STATUS 2026-10-17 — ITERATION 6: 10 independently judged; one unsigned attestation, four PR comments, four safe labels; dev green; 7 orphan PRs; shadow 11/11 under explicit rubric. D-TRIAGE-15/16 OPEN; record PR awaits operator.
-
-## STATUS 2026-10-16 — ITERATION 4: 10 selected; haiku→sonnet; 1 VERIFIED (PR #1863) attested unsigned; 4 evidence comments; #1783 held by T2; #1711 judge DISSENT; dev CI red; ledger 9/9 settled. No closes/approvals. daneel-reports refused (no serving agent).
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
@@ -148,6 +148,8 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 | D-TRIAGE-19 | OPEN | Issue #1738 has an external-package repro from v0.52.0. Choose (a) request a current package/compiler repro and keep open; (b) retire it only after the reporter confirms it is stale. Recommend (a). Default: keep open; this loop does not infer a fix from missing local fixtures. | Iteration 7 verifier/judge NEEDS-DECISION; external package commit 599a77d is the old repro; evidence in #1892. |
 | D-TRIAGE-20 | OPEN | Issue #1276 still stores unknown message-send flags as body text. Choose (a) scope a minimal unknown-flag rejection; (b) also add file input and a store-level body guard, expanding the change. Recommend (a), with file input considered separately. Default: keep open and park implementation until scope is ruled. | Iteration 7 verifier/judge NEEDS-DECISION; cmd/ailang/messages_send.go:498-540 and existing planned triage note; evidence in #1892. |
 | D-TRIAGE-21 | OPEN | Sonar is red on go:S1764 in the sampling stability test. The verifier recommends product design routing; the independent judge dissents (intentional determinism-test idiom, no demonstrated production bug). Choose (a) an attended test restructure preserving the assertion, followed by fresh analysis; (b) a reviewed Sonar false-positive disposition; (c) investigate product behavior before choosing. Recommendation: keep the disputed classification parked until an attended disposition; (a) is the judge's proposed small fix, not a controller verdict. Default: HOLD, no code or Sonar mutation and no disputed design/fleet route. | Iteration 7 supplemental OpenAI verifier versus Anthropic Sonnet DISSENT; internal/coordinator/shadow_dispatch_test.go:214, introducing d880640cd9b652b0e1a3bce03de3975b03d10637; evidence in #1892. |
+| D-TRIAGE-22 | OPEN | Orphan PR #1894 has no pending card/chain, failed CI and report-contract/scope gaps. Choose (a) HOLD for operator card reconciliation and a corrected report; (b) retire it attended. Recommend (a); default HOLD, no coordinator-PR close by this loop. | Iteration 8 OpenAI verifier / MiniMax judge CONCUR NEEDS-DECISION; head 3cdfea641ea556af0a1a9597711c2701a943d84a; https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6277948518. |
+| D-TRIAGE-23 | OPEN | PR #1887/card task-b0744e8f adds a placeholder design already covered by duplicate-func-binding-silent.md on dev. Choose (a) retire the duplicate planning card attended; (b) request a justified scope delta. Recommend (a); default HOLD, no reject/close by this loop. | Iteration 8 OpenAI verifier / MiniMax judge CONCUR SUPERSEDED; head bca3ff382143d9e2ef25901a1f408bef56b8787e; https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6277948518. |
 <!-- decision-ledger:end -->
 
 ## Queue
@@ -157,7 +159,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
 3. [RECORDED iterations 1–3] Level 1 queue verification; iteration 3 records independent review and the prior record gap. Clauses 1–3.
-4. [NEXT] Re-verify changed/held items and weekly zero-mention issues against origin/dev; preserve pending coordinator chains under T2. Current asks are D-TRIAGE-17/18/19/20/21. D-TRIAGE-15/16 retain OPEN status with external outcomes noted; do not repeat their obsolete approval/disposition asks.
+4. [NEXT] Re-verify changed/held items against origin/dev; preserve pending chains under T2. D-TRIAGE-22/23 need operator disposition. D17–21 remain OPEN: retain the bot-authored attended-answer summary on #1892 as evidence, await authoritative ledger/directive recording before dependent work, and do not repeat the substantive questions. D15/16 retain OPEN status with externally moot outcomes; no obsolete approval ask.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
 6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; no triage harness repair.
