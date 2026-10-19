@@ -276,6 +276,8 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		// content-derived task type. Only an explicit "true" suppresses the
 		// no_changes outcome, so an unset value stays loud.
 		{Name: "AILANG_ACKNOWLEDGE_ONLY", Values: &runpb.EnvVar_Value{Value: strconv.FormatBool(params.AcknowledgeOnly)}},
+		// Always sent, so a shadow's flag is never left to an image default.
+		{Name: config.EnvTaskShadow, Values: &runpb.EnvVar_Value{Value: strconv.FormatBool(params.Shadow)}},
 		{Name: "AILANG_PROVIDER", Values: &runpb.EnvVar_Value{Value: params.Provider}},
 		{Name: config.EnvDirectiveSource, Values: &runpb.EnvVar_Value{Value: config.DirectiveSourceFirestore}},
 		// The human description, so the job need not reverse-engineer one from a

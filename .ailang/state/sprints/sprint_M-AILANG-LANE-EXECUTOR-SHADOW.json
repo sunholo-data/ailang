@@ -94,10 +94,10 @@
         "Non-shadow dispatch params byte-identical to before",
         "Sampling stable per task ID"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-19T08:24:37+00:00",
+      "completed": "2026-10-19T08:24:37+00:00",
+      "notes": "shadow_dispatch.go: dispatchShadow runs AFTER the primary's Dispatch succeeds (plan said after MarkTaskQueued; after-success avoids a shadow for a primary that goes back to pending). Child created then claimed; orphan guard in dispatchTasksCloud fails any pending ShadowOf task. Push/PR fields and user API key cleared at dispatch. Sampling = FNV-64a(task ID) < rate, recomputable, not stored. Explicit existence check (Firestore CreateTask is Set). Credential-lane providers skipped. 11 mutants killed (one first survived under SQLite PK; test now models Firestore upsert). Not tested end-to-end through dispatchTasksCloud's publish step: the Pub/Sub publisher is a concrete type."
     },
     {
       "id": "M3_JOB_NO_SIDE_EFFECTS",

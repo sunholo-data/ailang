@@ -134,6 +134,15 @@ func (d *Daemon) dispatchTasksCloud() error {
 			continue
 		}
 
+		// A shadow child is dispatched by dispatchShadow in the same tick as its
+		// primary, never from this list. One found pending was orphaned between
+		// its creation and its claim, and dispatching it here would run it as an
+		// ordinary task: push, PR and all.
+		if task.ShadowOf != "" {
+			d.failShadow(task.ID, fmt.Errorf("orphaned shadow of %s: not dispatched alongside its primary", task.ShadowOf))
+			continue
+		}
+
 		var inputAgent *AgentConfig
 		if d.agentRegistry != nil {
 			inputAgent = d.agentRegistry.GetAgentByID(task.AgentID)
@@ -402,6 +411,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 				continue
 			}
 			d.logger.Printf("Cloud dispatch: task %s → Cloud Run Job (agent: %s, provider: %s)", task.ID, task.AgentID, provider)
+			d.dispatchShadow(task, agentCfg, params)
 		} else {
 			d.logger.Printf("Cloud dispatch: published task %s to Pub/Sub only (no dispatcher, agent: %s, provider: %s)", task.ID, task.AgentID, provider)
 		}

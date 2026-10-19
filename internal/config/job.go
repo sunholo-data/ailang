@@ -33,6 +33,7 @@ const (
 	EnvTimeout                 = "AILANG_TIMEOUT"
 	EnvIdleTimeout             = "AILANG_IDLE_TIMEOUT"
 	EnvAcknowledgeOnly         = "AILANG_ACKNOWLEDGE_ONLY"
+	EnvTaskShadow              = "AILANG_TASK_SHADOW"
 	EnvSubdirectory            = "AILANG_SUBDIRECTORY"
 	EnvGitMode                 = "AILANG_GIT_MODE"
 	EnvTaskInputs              = "AILANG_TASK_INPUTS"
@@ -86,6 +87,7 @@ var jobVars = []Var{
 	{EnvTimeout, "", AreaJob, "Executor wall-clock as a Go duration; unset means the coordinator's default task timeout (2h)."},
 	{EnvIdleTimeout, "", AreaJob, "Max silence BETWEEN executor output events as a Go duration, distinct from the wall-clock ceiling; unset means the executor default (3m). Set by the dispatcher from the agent's idle_timeout — before 2026-09-22 it did not travel, so every cloud task ran at 3m whatever the registry declared."},
 	{EnvAcknowledgeOnly, "false", AreaJob, "Exactly true declares the task acknowledge-only (no file changes expected); anything else means changes were expected, so an older dispatcher fails loud rather than lenient."},
+	{EnvTaskShadow, "false", AreaJob, "Exactly true marks a shadow run (M-AILANG-LANE-EXECUTOR-SHADOW): the job keeps its diff and artifacts but skips the deploy-key preflight, the push and the PR, and gives the agent no git credential."},
 	{EnvSubdirectory, "", AreaJob, "Monorepo subdirectory the executor is scoped to, relative to the clone."},
 	{EnvGitMode, "", AreaJob, "Git mode the executor's children run under; unset, the job exports guardrails before starting the executor."},
 	{EnvSiteSlug, "", AreaJob, "Site slug that turns the job's commit into a structured Build: <slug> message."},
@@ -142,6 +144,10 @@ func IdleTimeout() string { return get(EnvIdleTimeout) }
 
 // AcknowledgeOnly reports AILANG_ACKNOWLEDGE_ONLY=true exactly.
 func AcknowledgeOnly() bool { return get(EnvAcknowledgeOnly) == "true" }
+
+// TaskShadow reports AILANG_TASK_SHADOW=true exactly: a shadow run, which must
+// write nothing outside its run directory.
+func TaskShadow() bool { return get(EnvTaskShadow) == "true" }
 
 // Subdirectory returns AILANG_SUBDIRECTORY, "" when unset.
 func Subdirectory() string { return get(EnvSubdirectory) }

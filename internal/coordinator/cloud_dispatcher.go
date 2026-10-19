@@ -83,6 +83,11 @@ type DispatchParams struct {
 	// behaviour this milestone exists to remove.
 	AcknowledgeOnly bool
 
+	// Shadow marks a shadow run of another task (M-AILANG-LANE-EXECUTOR-SHADOW):
+	// the job keeps its diff and artifacts and pushes nothing, opens no PR, and
+	// gives the agent no git credential. Set only by dispatchShadow.
+	Shadow bool
+
 	// AutoMerge asks the wrapper to enable GitHub's NATIVE auto-merge on the PR
 	// it opens, so GitHub merges it once the required checks pass.
 	//

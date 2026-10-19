@@ -91,7 +91,7 @@ func TestDispatchEnvVarOverrides(t *testing.T) {
 	for _, name := range []string{
 		"AILANG_TASK_ID", "AILANG_AGENT_ID", "AILANG_WORKSPACE", "AILANG_PROVIDER",
 		"AILANG_DIRECTIVE", "AILANG_DIRECTIVE_SOURCE", "AILANG_REPO_URL", "AILANG_BRANCH", "AILANG_WORK_TIER",
-		"AILANG_ACKNOWLEDGE_ONLY",
+		"AILANG_ACKNOWLEDGE_ONLY", "AILANG_TASK_SHADOW",
 	} {
 		if !hasEnvVar(envVars, name) {
 			t.Errorf("base env var %s not set", name)
@@ -116,6 +116,8 @@ func TestDispatchEnvVarOverrides(t *testing.T) {
 		// false on a bare DispatchParams — the Go zero value IS the loud
 		// direction, which is why the field is named acknowledge-only.
 		"AILANG_ACKNOWLEDGE_ONLY": "false",
+		// An ordinary dispatch says so explicitly, so the job never infers it.
+		"AILANG_TASK_SHADOW": "false",
 		// Empty on a bare DispatchParams: the job then falls back to deriving a
 		// subject from the directive, which is the pre-2026-09-14 behaviour and
 		// still correct for a dispatcher that sends no title.
@@ -550,4 +552,25 @@ func hasEnvVar(envVars []*runpb.EnvVar, name string) bool {
 		}
 	}
 	return false
+}
+
+// A shadow dispatch reaches the job as AILANG_TASK_SHADOW=true, the one flag
+// the job's no-side-effects gates read (M-AILANG-LANE-EXECUTOR-SHADOW).
+func TestDispatchShadowEnvVar(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "proj-1", "us-central1", "test")
+	if err := d.Dispatch(context.Background(), coordinator.DispatchParams{
+		TaskID: "task-p-shadow", Provider: "motoko", ExecutorVariant: "motoko", Shadow: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, env := range mock.lastReq.Overrides.ContainerOverrides[0].Env {
+		if env.Name == "AILANG_TASK_SHADOW" {
+			if v := env.Values.(*runpb.EnvVar_Value).Value; v != "true" {
+				t.Fatalf("AILANG_TASK_SHADOW = %q, want true", v)
+			}
+			return
+		}
+	}
+	t.Fatal("AILANG_TASK_SHADOW not sent")
 }

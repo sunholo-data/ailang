@@ -44,17 +44,17 @@ Every sampled real `ailang_only`-lane coordinator task also runs on the other ha
   - [x] `ShadowOf` round-trips through SQLite and Firestore (Firestore via the existing fake or emulator test pattern);
   - [x] `make test-changed` and `make check-file-sizes` pass.
 
-### M2: Cloud dispatch of the shadow child (~240 LOC: 150 + 90)
+### M2: Cloud dispatch of the shadow child ✅ (~240 LOC: 150 + 90)
 - New `internal/coordinator/shadow_dispatch.go`. After the primary's `MarkTaskQueued` in `dispatchTasksCloud`:
   1. make a deterministic sampling decision, a hash of the task ID against `sample_rate`, recorded on the child (A1 replayability);
   2. create the child `<id>-shadow` with `ShadowOf`, **no `StageID`/`ChainID`**, the same directive, tool policy and policy path;
   3. dispatch with the shadow provider, variant and model, plus `DispatchParams.Shadow=true`.
 - Register `AILANG_TASK_SHADOW` in the `internal/config` registry (`job.go`, next to `AcknowledgeOnly`, V6), plus `make docs-env`.
 - **Acceptance:**
-  - [ ] with a fake dispatcher, an eligible task gives two dispatches (primary unchanged; shadow with `Shadow=true` and the shadow provider);
-  - [ ] an ineligible agent, or a sample miss, gives exactly one dispatch;
-  - [ ] **regression:** a non-shadow agent's dispatch parameters are byte-identical to before;
-  - [ ] the sampling decision is stable for a given task ID.
+  - [x] with a fake dispatcher, an eligible task gives two dispatches (primary unchanged; shadow with `Shadow=true` and the shadow provider);
+  - [x] an ineligible agent, or a sample miss, gives exactly one dispatch;
+  - [x] **regression:** a non-shadow agent's dispatch parameters are byte-identical to before;
+  - [x] the sampling decision is stable for a given task ID.
 
 ### M3: The job enforces no side effects (~180 LOC: 90 + 90)
 - In `executeCloudTask` (`cmd/ailang/coordinator_cloud_task.go`), when `config.TaskShadow()` is set:
