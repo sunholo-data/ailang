@@ -11,6 +11,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/policytool"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 const gradeTestPolicy = "fs_sandbox = \"${WORKSPACE}\"\n"
@@ -31,8 +32,7 @@ func newGradeFixture(t *testing.T) *gradeFixture {
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	t.Setenv(config.EnvRelaxModules, "") // restored after; the grade sets it
 	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	testutil.SetHomeDir(t, home)
 	// The materialised policy is read-only by design; let TempDir remove it.
 	t.Cleanup(func() {
 		pol := filepath.Join(home, ".ailang", "agent-policy")
