@@ -4647,6 +4647,28 @@ models:
       OpenRouter; the Ollama route is flat-rate. Lanes move only after this row passes
       the smoke gate.
 
+  or-deepseek-v4-1-flash-1017:
+    api_name: "deepseek/deepseek-v4.1-flash-1017"
+    provider: "openrouter"
+    default_thinking: "on"  # VERIFIED 2026-10-19: bare probe returned reasoning_tokens=173 of 338 completion
+    description: "DeepSeek V4.1 Flash 1017 snapshot (2026-10-17) via OpenRouter (standard)"
+    env_var: "OPENROUTER_API_KEY"
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536  # fleet thinking-model headroom; first-party DeepSeek endpoint declares 393216
+    pricing:
+      input_per_1k: 0.00015      # $0.15 per 1M (OpenRouter API, read 2026-10-19)
+      output_per_1k: 0.0006      # $0.60 per 1M (OpenRouter API, read 2026-10-19)
+      cache_read_per_1k: 0.000003  # $0.003 per 1M (OpenRouter API, read 2026-10-19)
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Registered 2026-10-19 (Mark, attended). A distinct dated snapshot
+      (canonical deepseek/deepseek-v4.1-flash-20261017), NOT what the unpinned
+      deepseek/deepseek-v4.1-flash slug resolves to (that is still 20260910), so it
+      gets its own row rather than repointing or-deepseek-v4-1-flash.
+      Also on Ollama Cloud as deepseek-v4.1-flash:1017.
+
   or-deepseek-v4-pro:
     api_name: "deepseek/deepseek-v4-pro-0813"
     provider: "openrouter"
