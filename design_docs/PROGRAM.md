@@ -114,10 +114,39 @@ provisional (never a bogus #1), deltas are intersection-only. The standing disci
 [m-eval-validity-discipline.md](planned/m-eval-validity-discipline.md); every run has surfaced a new face
 of the same bug (comparing things measured differently), and that doc is the fix that stops the cycle.
 
-## 8. Where we are now (2026-06-28)
-On the cusp of the extension era. The core floor is being frozen (PR #75 compaction fix verifying via
-docx N=5). Once green: declare the core minimal+frozen, settle #73, and stand up the **first extension**
-(compaction strategy). From there the loop runs on the benchmark ladder and routes by §4.
+## 8. Where we are now (2026-10-19)
+
+**Fleet switch rule (Mark, 2026-10-02):** motoko replaces codex/pi as a fleet executor only once it
+writes *better* AILANG than codex, judged on real tasks over time (design-doc sprints), not benchmarks.
+
+**Evidence so far, all benchmark or bench-of-real-tasks — none from the fleet yet:**
+
+| Date | Set | Model | Result |
+|---|---|---|---|
+| 10-02 | 8 frontier benches × 1 | Sol 6.1 (subscription) | motoko 7/8, codex 7/8: tie, motoko ~1.5× input tokens |
+| 10-12 | 5 valid real AILANG tasks (acceptance-checked) | Haiku 5.5 | pi 5/5, motoko 5/5; $0.26 vs $0.28; motoko ~+100 s cold start |
+| 10-16 | 9 hard benches × 3 | GLM-5.3-Flash | pi 26/27, motoko 20/27 at a 32k cap; lifted cap on motoko's 5 fails: 12/15 vs pi 14/15, ~15× slower |
+
+The October gaps were all harness plumbing, now fixed (system role on direct Anthropic/Gemini,
+repetition guard, cache-token pricing, compaction cache-busting, OpenRouter host pool and output cap).
+The open GLM gap is behavioural: motoko reasons ~9× more per call than pi and verifies in thought
+rather than with tools.
+
+**Real-task evidence is zero.** `ailang-only-executor` and `motoko` are registered on the cloud plane
+but no task has been dispatched to either (listing back to 09-14). The instrument that would produce it,
+[M-AILANG-LANE-EXECUTOR-SHADOW](planned/v0_55_0/m-ailang-lane-executor-shadow.md) (ratified 10-13),
+has not started: its cloud sprint task `task-60e90d30` was killed at 42 min on 10-13
+(`codex task failed: signal: killed`) and pushed nothing. M7 also needs the capped shadow key.
+
+**Upstream:** Arni merged our #258 (direct-Anthropic docs), #260 (repetition guard) and #262
+(byte-stable compaction summary); #234 (path guard) and #266 (TUI ollama flag) are open, as are issues
+#259 (cost meter ignores cache tokens) and #263 (extension `ai_step` is sent the full tool list).
+Upstream main has moved 93 commits past our pin base, mostly ADR 034 (tool faults disclose whether their
+effect may have happened) and herdr delegation fixes. Our 20 commits are not yet rebased onto it.
+
+**Prior art:** Harness² (Google Research) automates harness editing per task with an LLM judge. We do
+not adopt it; the verifier-judged offline variant is noted in
+[m-harness-propose-probe-offline.md](planned/m-harness-propose-probe-offline.md), gated on shadow data.
 
 ---
 *This is a draft to react to — the vision is the operator's; this captures it so it can spawn the work.*
