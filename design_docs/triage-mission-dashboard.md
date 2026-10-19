@@ -3,7 +3,8 @@
 Level 1: verify/report only; no inner loop, approval, rejection or merge.
 CLI: v0.54.15-dirty at 0384450a6; code evidence read from origin/dev.
 Base: 269e54616e16252f233273e3ddf8e91c63331784.
-Health: CI run 39224529659 SUCCESS; Sonar failure, reliability 3 > 1.
+Reviewed base: CI run 39224529659 SUCCESS; Sonar failure, reliability 3 > 1.
+Latest head: ae004a1a02f93e9740928d1c0a3838b54291b9a4; CI UNVERIFIED.
 Sonar: go:S1764 in sampling stability test; independent DISSENT, D21 HOLD.
 Evidence: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6263799720
 Sonar: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6263906088
@@ -27,3 +28,5 @@ Harness share: 2/4 available records, escalation-only; no repairs.
 Record preserves unmerged iterations 4/6; PR only, never auto-merged.
 Bookkeeping: #1892, predecessor #1835; cadence 12h, fingerprint after reports.
 Next: operator rulings, card-owner repairs, changed/held verification.
+Reporting: user/controlplane published and verified; direct Daneel refused, fallback ticketed.
+Record PR: https://github.com/sunholo-data/ailang/pull/1893
