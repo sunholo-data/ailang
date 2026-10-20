@@ -1,21 +1,21 @@
-# Fleet mission — iteration 48, 2026-10-19
+# Fleet mission — iteration 49, 2026-10-20
 
-- Latest released binary: v0.54.15. dev: `07d23f464` (no code landed this fire).
-- RESOLVED this fire, both as ghosts (already fixed on dev by other lanes, never resolved):
-  - `skill:design-scaffold-hardcodes-owning-repo` (world, 10-01) by #1542 → `b51353bcd` (10-03). Judge PASS 88.
-  - `sprint-skill:estimated-loc-zero-is-placeholder-sentinel` (attended, 10-03) by #1695 → `2a47d1e65` (10-09). Judge PASS 93.
-- Judge (sonnet, Agent tool, own worktree): base-vs-head reproductions re-run, 1 mutant killed per ticket.
-  - Residue: the `.agents` design-doc-creator copy is still script-relative. No live path reaches it; it belongs to `skills:agents-copies-stale-non-mission`.
-- Pattern: three ghosts so far (iterations 36 and 48), fixed in 2–6 d and left open 10–16 d. That lag inflates clause 2.
-- Scope note: `.claude/skills/design-doc-creator/**` is outside the fleet's push guard.
-- Next (banked): `crash:sprint-executor:sigbus-ram-tmp-full-make-test` (attended, 10-08, `blocking=item`; ask 1 in scope, asks 2–3 park). `agent-tool:*-unavailable` stays PARKED-ON-LANE.
+- Latest released binary: v0.54.16. dev: `3f9a0c092` (#1905, this fire).
+- LANDED, ask 1 of `crash:sprint-executor:sigbus-ram-tmp-full-make-test` (attended, 10-08):
+  - `sprint-executor/scripts/cloud_branch_sync.sh start|push`: cloud executors push every milestone and resume a retry from the pushed branch. Only `coordinator/$AILANG_TASK_ID` is touched; there is no force push.
+  - `resources/unattended_runs.md`: the start/push sequence, plus "never install toolchains".
+  - Judge PASS 86, then PASS 87 (sonnet). 22 arms; 21 of 22 helper mutations killed (A09 is the control). Dev CI green.
+- Measured wrapper defect (outside scope): `coordinator_cloud_task.go` Step 5b skips later commits after an agent's own push (no tracking ref in the single-branch clone). The helper prevents it; any other agent that pushes itself is still exposed. → D-FLEET-23.
+- The ticket stays OPEN: asks 2 (scratch volume) and 3 (late failure marking) are out of scope (D-FLEET-23).
+- Next (banked): `probe:pi-duplicate-extension-discovery` (triage, 10-19). Reality-check it first; it may park under D-FLEET-3. `agent-tool:*-unavailable` stays PARKED-ON-LANE.
 - Parked on Mark:
   - D-FLEET-16: skill source (A recommended / C default).
   - D-FLEET-18: `tools/eval` scope (A / C).
   - D-FLEET-19: ADC quota project (A / C).
   - D-FLEET-20: quorum OpenAI seat billing (A / B / C).
-  - D-FLEET-21: Gate 3b's 30-min CI cap (A: 3600 s / B: auto re-poll / C default).
+  - D-FLEET-21: Gate 3b's 30-min CI cap (A: 3600 s / B: auto re-poll / C default). Hit twice more this fire (PR and dev), 5 instances in total.
   - D-FLEET-22: declare `daneel-reports` as `triage_only` (A / B / C default).
+  - D-FLEET-23 (NEW): wrapper Step 5b + asks 2–3 (A: attended fix / B: narrow fleet authority / C default).
   - D-FLEET-17 is moot.
 - Cadence: fleet 6h, ticket-driven. Thread #1891; no new human directive. Nothing reloaded.
-- Clauses: 1 unmeasured, 2 unmet (about 18 d and 16 d filed→resolved), 3 met (42 open), 4 prior evidence, 5 preserved.
+- Clauses: 1 unmeasured, 2 unmet (no ticket resolved), 3 met (43 open), 4 prior evidence, 5 preserved.
