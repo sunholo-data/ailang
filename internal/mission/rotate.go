@@ -77,7 +77,9 @@ var legacyEntryRe = regexp.MustCompile(`^## (\d{4}-\d{2}-\d{2})(?:\s*\(([^)]*)\)
 var legacyNoteRe = regexp.MustCompile(`^## (\d{4}-\d{2}-\d{2})(?:\s*\(([^)]*)\))?:\s+(.+)$`)
 
 // An unparsed record before the first entry must not silently become preamble.
-var preambleRecordRe = regexp.MustCompile(`^## (?:\d{4}-\d{2}-\d{2}|\d)|(?i:\biteration\s+\d+)`)
+// Require a known record skeleton: a full date, a numbered em-dash entry, or
+// a STATUS date prefix. Prose mentioning iterations and numbered sections is safe.
+var preambleRecordRe = regexp.MustCompile(`^## (?:\d{4}-\d{2}-\d{2}|(?i:iteration\s+)?\d+(?:\s*&\s*\d+)?\s+—|STATUS\s+\d{4}-)`)
 
 func legacyTitle(qualifier, title string) string {
 	if qualifier != "" {
@@ -293,11 +295,12 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 		// The live log: preamble + the newest entries.
 		var lb strings.Builder
 		lb.WriteString(strings.TrimRight(stripArchiveNotices(pre), "\n"))
-		lb.WriteString("\n\n> **Older entries are ARCHIVED.** This file holds the newest " +
+		prefixes := archiveNoticePrefixes()
+		lb.WriteString("\n\n" + prefixes[0] +
 			strconv.Itoa(keep) + ". The full record of every\n" +
-			"> iteration is in `" + filepath.Base(archivePath) + "`, and a one-line index of ALL of them —\n" +
-			"> the thing to grep before picking work, so the loop never repeats itself — is in\n" +
-			"> `" + filepath.Base(indexPath) + "`.\n")
+			prefixes[1] + filepath.Base(archivePath) + "`, and a one-line index of ALL of them —\n" +
+			prefixes[2] + "\n" +
+			prefixes[3] + filepath.Base(indexPath) + "`.\n")
 		for _, e := range toKeep {
 			lb.WriteString("\n" + strings.TrimRight(e.Body, "\n") + "\n")
 		}
@@ -341,14 +344,25 @@ func strayHeadings(body string, entries []LogEntry) []string {
 	return out
 }
 
+// archiveNoticePrefixes is shared by the writer and stripper so their format agrees.
+func archiveNoticePrefixes() [4]string {
+	return [4]string{
+		"> **Older entries are ARCHIVED.** This file holds the newest ",
+		"> iteration is in `",
+		"> the thing to grep before picking work, so the loop never repeats itself — is in",
+		"> `",
+	}
+}
+
 // stripArchiveNotices removes only complete generated four-line blockquotes.
 // SplitAfter retains every surrounding byte, including handwritten quoted prose.
 func stripArchiveNotices(pre string) string {
 	lines := strings.SplitAfter(pre, "\n")
+	prefixes := archiveNoticePrefixes()
 	var out strings.Builder
 	for i := 0; i < len(lines); {
-		if strings.HasPrefix(lines[i], "> **Older entries are ARCHIVED.**") && i+3 < len(lines) &&
-			strings.HasPrefix(lines[i+1], "> ") && strings.HasPrefix(lines[i+2], "> ") && strings.HasPrefix(lines[i+3], "> ") {
+		if strings.HasPrefix(lines[i], prefixes[0]) && i+3 < len(lines) &&
+			strings.HasPrefix(lines[i+1], prefixes[1]) && strings.HasPrefix(lines[i+2], prefixes[2]) && strings.HasPrefix(lines[i+3], prefixes[3]) {
 			i += 4
 			continue
 		}

@@ -204,8 +204,8 @@ func TestRotateLegacyPreambleGuard(t *testing.T) {
 	for _, bad := range []string{
 		"## 2026-10-01 — iteration 9 the dash form",
 		"## 2026-10-01 broken dated record",
-		"## 123 broken numbered record",
-		"## Lost ITERATION 9 record",
+		"## 123 — broken numbered record",
+		"## ITERATION 9 — missing date",
 	} {
 		for _, withEntry := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/entry=%t", bad, withEntry), func(t *testing.T) {
