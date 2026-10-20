@@ -43,6 +43,12 @@ mission.
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
 
+## STATUS 2026-10-20 — ITERATION 50: `probe:pi-duplicate-extension-discovery` LANDED — #1907 → `e5ab9f84f`, judged PASS 90 then PASS 91 by sonnet; ticket resolved [HARNESS]
+
+The mission-control skill's pi recipe now matches the driver. In both copies of `resources/gate-3-route.md`, the prescribed probe adds `--no-extensions` (as `_mc_probe_pi` already did), and the raw sandboxed invocation splices `_mc_pi_ext_args "$WT"` the way `scripts/mission_pi_run.sh` does. Without them, any checkout carrying `.pi/extensions` loads the global and repo copies of each extension, and pi exits rc 1 (`Tool … conflicts`): measured rc 1 from the repo CWD and rc 0 from `/tmp`. `tools/launchd/test_pi_ext_args.sh` grows from 8 to 14 arms, including a per-launch-line sweep over both skill copies and a launch-count instrument control. Codex planned and executed it; the controller mirrored `.agents`, which the sandbox refuses. Sonnet judged PASS 90; round 2 killed survivors S4 and S9 and was re-judged PASS 91. `test-launchd-drivers` and dry-runs green.
+
+Clause map: **1** UNMEASURED; **2** UNMET (this ticket took about 13 h, but the median stays far above 48 h); **3** MET (43 open after resolve); **4** prior evidence only; **5** preserved. Next: `rotate-log:legacy-heading-format` (stapledon, 10-20).
+
 ## STATUS 2026-10-20 — ITERATION 49: `crash:sprint-executor:sigbus-ram-tmp-full-make-test` ask 1 LANDED — #1905 → `3f9a0c092`, judged PASS 86 then PASS 87 by sonnet; ticket stays open, asks 2–3 and a measured wrapper defect parked on D-FLEET-23 [HARNESS]
 
 Cloud sprint executors now publish every milestone. `sprint-executor/scripts/cloud_branch_sync.sh` acts only on `coordinator/$AILANG_TASK_ID`: `start` resumes a retry with `reset --keep`, and `push` pushes without force and verifies the remote and tracking refs. `resources/unattended_runs.md` adds the start/push sequence and a never-install-toolchains rule. Measured on the way: in the wrapper's single-branch clone, an agent's own push leaves no tracking ref, so `cmd/ailang/coordinator_cloud_task.go` Step 5b silently skips later commits. The helper installs the refspec that prevents this, and arm A09 reproduces the loss. 22 arms, 21 of 22 helper mutations killed (A09 is the control); `test-launchd-drivers` and dry-runs green.
@@ -54,12 +60,6 @@ Clause map: **1** UNMEASURED; **2** UNMET (no ticket resolved; ask 1 landed 12 d
 Both tickets were fixed on dev after they were filed, and nobody resolved them. `create_planned_doc.sh` and `move_to_implemented.sh` have taken the project root from the CWD's git worktree since `b51353bcd` (10-03; ticket 10-01). Measured first-party: the pre-fix copy writes the placeholder into its own owning checkout, and HEAD writes into the target repo. `validate_sprint_json.sh` has refused only `estimated_loc == null` since `2a47d1e65` (10-09; ticket 10-03). Base refuses 0, and head accepts 0 and refuses null. A fresh sonnet judge re-ran both reproductions, killed one mutant per ticket, and noted a residue: the `.agents/skills/design-doc-creator` copy is still script-relative. That copy is correct when invoked inside its own checkout, and no configured path invokes it from another repo. It belongs to the open ticket `skills:agents-copies-stale-non-mission`. No code changed.
 
 Clause map: **1** UNMEASURED; **2** UNMET (these tickets took about 18 d and 16 d, though the fixes took 2 d and 6 d, so the turnaround was resolution lag, not build time); **3** MET (42 open after resolve); **4** prior evidence only; **5** preserved (the judge re-ran each fix's behaviour; nothing shipped). Next: `crash:sprint-executor:sigbus-ram-tmp-full-make-test` (attended, 10-08, `blocking=item`; ask 1 is in the sprint-executor skill).
-
-## STATUS 2026-10-19 — ITERATION 47: `rotate-log:status-archive-structural-header` LANDED — orphaned iteration 46's #1877 verified and merged → `f048d6fa9`, judged PASS 93 by sonnet; ticket resolved [HARNESS]
-
-Iteration 46 (10-17 14:12) built the whole fix, opened #1877 and died at Gate 3 when the Anthropic weekly limit hit (driver slot-verdict `CRASHED at=gate-3 rc=1`; crash notice on #1768). It wrote no record. #1877 was red only on `internal/runner` `TestWorkerTerminalPTYLifecycle/eval/exit` (1 of 11 subtests, ubuntu; the macOS and Windows legs were fail-fast casualties), in a package the PR does not touch. This iteration rebased it onto `38525b06b` and reproduced the fix first-party on temp copies: base `rotate-log docs --stream status` rc 1 (refuses on `## (Charter sections — moved back 2026-10-01)`), head rc 0 with `--keep 1000` and `--keep 3`, and the tombstone kept in the preamble. A fresh sonnet judge scored **PASS 93**, 0 blocking: the archive change is byte-preserving, and 5 of 6 mutants were killed (the survivor, a `###` demotion, is a legal state). All 26 PR checks were green, and the PR was squash-merged at the judged head.
-
-Clause map: **1** UNMEASURED; **2** UNMET (this ticket took about 18 d, filed 10-01); **3** MET (44 open after resolve); **4** prior evidence only; **5** preserved. Next: `skill:design-scaffold-hardcodes-owning-repo` (world, 10-01). `eval:motoko-connection-probe-orphaned` still waits on D-FLEET-18.
 
 ## CURRENT GOAL
 
@@ -250,6 +250,10 @@ overnight: harness faults read as model faults)
     `sprint-executor/scripts/cloud_branch_sync.sh start|push` publishes each cloud milestone and resumes retries; the resource forbids toolchain installs. Ticket stays OPEN: asks 2 (scratch volume) and 3 (late failure marking) and the measured Step 5b defect are outside fleet scope (D-FLEET-23).
     Follow-ups from the judge, not ticketed: survivors `--force-with-lease`, an extra push refspec, the tracking-ref check, `set -m`, the KILL escalation; `start` rerun after local commits would move HEAD (the doc forbids it, the helper does not).
 
+28. [LANDED · iteration 50] `probe:pi-duplicate-extension-discovery` (triage, 10-19): #1907 → `e5ab9f84f` (judged PASS 90, then PASS 91 by sonnet after a sweep hardening).
+    Both copies of `mission-control/resources/gate-3-route.md`: the pi probe adds `--no-extensions` and the raw invocation splices `_mc_pi_ext_args`, matching the driver. `test_pi_ext_args.sh` sweeps both skill copies (8 → 14 arms). Ticket resolved.
+    Follow-ups from the judge, not ticketed: a line-continued launch (`pi \` then `--mode json`) is not seen; a prose line carrying the splice literal, or `--no-extensions` in a trailing comment, passes the sweep.
+
 **Weekly external-issue sweep 2026-10-05 (iteration 19; 0 new queue items).** 59 open issues enumerated (count checked against the listing); 57 had zero mentions in the charter, log, archive and dashboard. Controls: the positive one hit `#1380` 2 times, and the negative one fired. Most of the 57 are language, stdlib or product reports, which are V1's lane and outside this charter's Authority. The harness-shaped ones already have open fleet tickets, matched by title:
 - `#981` → `gate0:watermark-advanced-by-dying-fire`
 - `#1160` → `gate0:driver-crash-notices-invisible`
@@ -262,6 +266,7 @@ overnight: harness faults read as model faults)
 `#1306` was half fixed by #1580 and got a verdict comment; it stays open for the orphan-row half.
 
 **Landed (history)**
+- `probe:pi-duplicate-extension-discovery`: #1907 `e5ab9f84f` (iteration 50).
 - `crash:sprint-executor:sigbus-ram-tmp-full-make-test`, ask 1: #1905 `3f9a0c092` (iteration 49); asks 2–3 parked on D-FLEET-23.
 - `skill:design-scaffold-hardcodes-owning-repo`: ghost, fixed by #1542 `b51353bcd`; resolved iteration 48.
 - `sprint-skill:estimated-loc-zero-is-placeholder-sentinel`: ghost, fixed by #1695 `2a47d1e65`; resolved iteration 48.

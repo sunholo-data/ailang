@@ -1,21 +1,19 @@
-# Fleet mission — iteration 49, 2026-10-20
+# Fleet mission — iteration 50, 2026-10-20
 
-- Latest released binary: v0.54.16. dev: `3f9a0c092` (#1905, this fire).
-- LANDED, ask 1 of `crash:sprint-executor:sigbus-ram-tmp-full-make-test` (attended, 10-08):
-  - `sprint-executor/scripts/cloud_branch_sync.sh start|push`: cloud executors push every milestone and resume a retry from the pushed branch. Only `coordinator/$AILANG_TASK_ID` is touched; there is no force push.
-  - `resources/unattended_runs.md`: the start/push sequence, plus "never install toolchains".
-  - Judge PASS 86, then PASS 87 (sonnet). 22 arms; 21 of 22 helper mutations killed (A09 is the control). Dev CI green.
-- Measured wrapper defect (outside scope): `coordinator_cloud_task.go` Step 5b skips later commits after an agent's own push (no tracking ref in the single-branch clone). The helper prevents it; any other agent that pushes itself is still exposed. → D-FLEET-23.
-- The ticket stays OPEN: asks 2 (scratch volume) and 3 (late failure marking) are out of scope (D-FLEET-23).
-- Next (banked): `probe:pi-duplicate-extension-discovery` (triage, 10-19). Reality-check it first; it may park under D-FLEET-3. `agent-tool:*-unavailable` stays PARKED-ON-LANE.
+- Latest released binary: v0.54.16. dev: `e5ab9f84f` (#1907, this fire).
+- LANDED and RESOLVED: `probe:pi-duplicate-extension-discovery` (triage, 10-19):
+  - The skill's prescribed pi probe (`mission-control/resources/gate-3-route.md`, both copies) now passes `--no-extensions`. Before, it was rc 1 from any checkout with `.pi/extensions`: the global and repo copies of each tool conflict. The driver was already fixed; the skill was not.
+  - The raw sandboxed pi invocation splices `_mc_pi_ext_args`, as `mission_pi_run.sh` does.
+  - `test_pi_ext_args.sh` goes from 8 to 14 arms and sweeps both skill copies. Judge PASS 90, then PASS 91 (sonnet) after a sweep hardening. Dev CI green.
+- Next (banked): `rotate-log:legacy-heading-format` (stapledon, 10-20). rotate-log ignores legacy headings, so stapledon's 289 KB log never rotates, and a no-op run writes a false "ARCHIVED" notice. In scope; reality-check it first. `agent-tool:*-unavailable` stays PARKED-ON-LANE.
 - Parked on Mark:
   - D-FLEET-16: skill source (A recommended / C default).
   - D-FLEET-18: `tools/eval` scope (A / C).
   - D-FLEET-19: ADC quota project (A / C).
   - D-FLEET-20: quorum OpenAI seat billing (A / B / C).
-  - D-FLEET-21: Gate 3b's 30-min CI cap (A: 3600 s / B: auto re-poll / C default). Hit twice more this fire (PR and dev), 5 instances in total.
+  - D-FLEET-21: Gate 3b's 30-min CI cap (A: 3600 s / B: auto re-poll / C default). Hit again on the dev poll this fire, 6 instances in total.
   - D-FLEET-22: declare `daneel-reports` as `triage_only` (A / B / C default).
-  - D-FLEET-23 (NEW): wrapper Step 5b + asks 2–3 (A: attended fix / B: narrow fleet authority / C default).
+  - D-FLEET-23: wrapper Step 5b + asks 2–3 (A: attended fix / B: narrow fleet authority / C default).
   - D-FLEET-17 is moot.
 - Cadence: fleet 6h, ticket-driven. Thread #1891; no new human directive. Nothing reloaded.
-- Clauses: 1 unmeasured, 2 unmet (no ticket resolved), 3 met (43 open), 4 prior evidence, 5 preserved.
+- Clauses: 1 unmeasured, 2 unmet (this ticket took about 13 h; the median is still above 48 h), 3 met (43 open), 4 prior evidence, 5 preserved.

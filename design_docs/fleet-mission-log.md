@@ -1175,3 +1175,62 @@ Reach is NOT confirmed (unmerged). Re-run the done-gate at the merge.
 - (4) `validate_sprint_json.sh` refuses a 1-milestone sprint that `json_progress_schema.md` allows. Instance 1; noted, not ticketed (the fleet cannot file tickets).
 
 **Next**: tickets by `slots_lost` among the routable ones. `probe:pi-duplicate-extension-discovery` (triage, 10-19) touches pi's extension discovery (`.pi/extensions/**` or the probe args), which parks under D-FLEET-3 if the fix is in `.pi/extensions`; reality-check it first. D-FLEET-16, -18, -19, -20, -21, -22 and the new -23 are with Mark; D-FLEET-17 is moot.
+
+## 50 — 2026-10-20 — `probe:pi-duplicate-extension-discovery` LANDED: #1907 → `e5ab9f84f`; judge PASS 90 then PASS 91 (sonnet); ticket resolved [HARNESS]
+
+**Pick**: iteration 49's **Next**, `probe:pi-duplicate-extension-discovery` (triage, 10-19, `blocking=none`, 1 slot). 44 open tickets at pick; new since iteration 49: `rotate-log:legacy-heading-format` (stapledon, 10-20, 1 slot). `agent-tool:sonnet-unavailable` (`blocking=all`) stays PARKED-ON-LANE as in iterations 29 and 32–49. Index grep: no prior attempt.
+
+**Orphans credited**: none new. Gate 0 step 6a returned rc 1 for the same crash notice (2026-10-17T12:48:13Z, #1768): iteration 46's death, credited at iteration 47 (`issuecomment-6234067020` already in this log). No open `fleet/*` PR at pick.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1891 since `2026-10-15T02:46:27Z` (7 comments, all self). Self-notices rc 1 as above (control `852:10`, watermarks 2/2). No rotation and no sweep due (#1891 created 2026-10-19T08:54Z, after Monday's 07:00 local boundary).
+
+**Observe**: origin/dev == pin == `4c0ce261f`. `SKILL.md` and all 13 resources at the resolved symlink target are `cmp`-identical to origin. Dev CI on `4c0ce261f` was in progress; its parent `90b04a502` was green.
+
+**Reality check**: real, and narrower than the ticket's framing. The driver was already fixed (`tools/launchd/lib/lane-probe.sh` `_mc_probe_pi` passes `--no-extensions`; `lib/pi-ext-args.sh` serves `mission_pi_run.sh` and the pi controller). The skill was not: `resources/gate-3-route.md:334` (both copies) still prescribed the probe without `--no-extensions`, and the raw sandboxed invocation at :347 had no extension-args splice. Measured: from the repo CWD the prescribed probe returns rc 1 with `Tool "ailang_run" conflicts with …/.pi/extensions/ailang-exec.ts` (8 tools); the same command from `/tmp` returns rc 0. The fix sits in `.claude/skills/mission-*/**`, not `.pi/extensions/**`, so D-FLEET-3 does not apply.
+
+**Did**:
+- **Designer**: not spawned. The controller wrote decisions D1–D6 into the planner directive (precedent: iterations 45 and 49).
+- **Planner** (codex `gpt-6.1-sol`, recipe, detached `.planner-wt-iter50`): plan `827f1adfe`, 1 milestone, 14 arms and 6 disposable mutation/control drills. The validator's minimum-2-milestones refusal reproduced; kept at 1.
+- **Executor** (codex, recipe, worktree `.wt-fleet-iter50-pi-probe`): probe gains `--no-extensions`; the raw snippet sources `pi-ext-args.sh` and splices `PI_EXT_ARGS` as `mission_pi_run.sh:288` does; `test_pi_ext_args.sh` 8 → 14 arms (per-copy probe and snippet arms, a sweep over both skill copies with `PI_EXT_ARGS_SKILL_ROOTS`, a launch-count instrument control); changelog fragment. TDD red first (9/5). The sandbox refused the `.agents` write (instance 5); the controller mirrored it byte-identically. Commit `ad04204f0`.
+- **Controller, outside the sandbox**: 14/0; sync, `bash -n` and changelog rc 0. Live from a worktree with `.pi/extensions`: the new probe and the spliced form both reply `ok` with 0 conflict lines; the old form in the same CWD prints 8. (pi lingered past a 150 s cap after `agent_settled`, so exit rc is unmeasured; the NDJSON `stopReason: stop` is the reading.) One controller mutation (probe flag deleted) → 12/2.
+- **Judge** (sonnet, Agent tool, foreground, own worktree `.wt-fleet-iter50-judge`): **PASS 90**, 0 blocking. All 6 plan drills killed by the intended arm; it added 10 more mutants. Survivors: S4 (a splice anywhere in the same bash fence admitted an unrelated launch), S8 (a line-continued launch), S9 (doubled spaces). The controller re-ran the judge's drill script and reproduced every row.
+- **Round 2** (`a2b71770f`): the sweep checks each launch LINE for `--no-extensions` or the splice literal, and matches `pi[[:space:]]+--mode[[:space:]]+json`. S4 and S9: rc 0 on the round-1 test, rc 1 on round 2. S8 accepted as a known limit. Re-judged **PASS 91**, 0 blocking; two new contrived survivors (prose carrying the splice literal; `--no-extensions` in a trailing comment).
+- PR #1907 (no closing keyword; scan paired with a control) squash-merged with `--match-head-commit a2b71770f` → `e5ab9f84f`.
+
+**Gate 3b**: PR checks read directly at the head: 26 total, 0 not green. My background PR poller never wrote a verdict: zsh `echo "$j"` expanded `\n` inside the JSON, so every `jq` read failed (instrument failure, stopped). An earlier poller I launched with a 3000 s cap was also stopped, because the prescribed cap is 1800 s (D-FLEET-21 unruled). Dev poll ran as prescribed: `target=e5ab9f84f…`, `rid=39393223789`, 2-commit `DRIFT` (an unrelated triage doc + my merge). Verdict: the first dev poll hit its 30-min cap (`Gate 3b TIMEOUT for e5ab9f84f… (status=in_progress)`, only `build` running, every other job green). A fresh poll on a new path read `CI for e5ab9f84f…: completed success`, and the full check set on the merge reads 17 checks, all green. That is D-FLEET-21's 6th instance.
+
+**Done-gate**:
+- Surface: `resources/gate-3-route.md` is what controllers read for the pi recipe (both copies byte-identical; `test_agents_skills_sync.sh` rc 0).
+- Reach: pushed and merged to `origin/dev`.
+- `make test-launchd-drivers` under `env -i` at `a2b71770f`: rc 0, the two new sweep arms present in the log. The inherited `spawn-pin-hook.sh: … cat: command not found` line appears once, as at iteration 49.
+- Dry-runs under **stapledon** (armed, no pidfile; `AILANG_DRIVER_PINNED=a2b71770f`): healthy rc 0 `lanes=ok`; degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`) rc 0 `DEGRADED(1)`, handed to opus. No pidfile written; nothing reloaded.
+
+**Progress**: 1 ticket resolved (`ailang mission ticket resolve … --sha e5ab9f84f`, replied to triage); 43 open. Goal unmoved on clause 1.
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET (this ticket: filed 10-19 21:41Z, resolved 10-20, about 13 h; the median stays far above 48 h).
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved (judged, done-gate passed, required CI green).
+
+**Routing evidence**: base-gate1=4c0ce261f5ca657327acb888fbf0612936fae53d@2026-10-20T07:35:58Z; worktree base c93a26f6a (1-commit drift, unrelated triage doc); gate3b=e5ab9f84f7d7b2a769bcc902bf6f227e8e45ac35 (drift 2 commits). `MISSION_ROUTING_NOTE` empty; `MISSION_OVER_RATION` empty.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: not spawned (controller decisions D1–D6 in the planner directive). Rotation not advanced.
+- **Planner**: resolver `agent-tool opus fail-closed:no-doc` against the pin `codex:gpt-6.1-sol`, so routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0; run rc 0 (66,177 tok).
+- **Executor**: `codex:gpt-6.1-sol` via the recipe (`declared:provider-pin`), 1 run, rc 0 (73,191 tok).
+- **Evaluator**: `sonnet` via the Agent tool (`declared:alias-pin`), foreground then resumed by `SendMessage`, 2 rounds (58,904 + 63,864 tok). Judge independence: cross-vendor (Anthropic sonnet vs the OpenAI generator).
+- The Agent tool was used wherever the resolver names it (the evaluator), per the operator's standing request. The planner and executor resolve to recipes. No role failed to spawn.
+- **Metered**: $0.
+
+**Ruled out**:
+- Parking under D-FLEET-3. The fix is skill text, not `.pi/extensions/**`.
+- Editing `~/.pi/agent/extensions` or `ailang pi install`. The global copy is intended; the driver already handles duplicate discovery, and only the skill text lagged.
+- Taking `rotate-log:legacy-heading-format` in the same iteration (standing rule 1).
+- Closing S8 (line-continued launch). It needs a multi-line parser for a shape no skill uses.
+
+**Retro lane**:
+- (1) **zsh `echo` on JSON is an instrument hazard**: the poller I wrote by hand read `\n` escapes as newlines and never completed. It is the same class as iteration 49's zsh frictions. The prescribed Gate 3b snippet (`gh … --jq`) is immune; the hand-rolled one was not. Instance count only; no skill change.
+- (2) **The codex sandbox refused `.agents/` writes for the 5th time** (iterations 43–45, 49, 50). Controller mirroring remains the workaround.
+- (3) **Guard the helper, miss the call site, again**: `test_pi_ext_args.sh` claimed "every pi launch site uses it" while checking only code. The new sweep covers the skill copies; the generalisation (skill text as a call site) is already in this skill's own vocabulary.
+- (4) I launched a PR poll with a 3000 s cap, above the prescribed 1800 s, and stopped it once I noticed. D-FLEET-21 is the ruling that would make that legal.
+
+**Next**: `rotate-log:legacy-heading-format` (stapledon, 10-20, 1 slot). `ailang mission rotate-log` sees only canonical headings, so a log with legacy headings never rotates, and the no-op run still prepends a false "Older entries are ARCHIVED" notice and rewrites the index. It is in `cmd/ailang/mission*` / `internal/mission`, in scope and mechanical; reality-check at HEAD first. D-FLEET-16 and -18 through -23 are with Mark; D-FLEET-17 is moot.
