@@ -97,6 +97,9 @@ func missionRotateLog(args []string) error {
 		fmt.Printf("live log   %s\n  %d -> %d bytes (~%dk -> ~%dk tokens), %d of %d entries kept\n",
 			res.LogPath, res.LogBefore, res.LogAfter, res.LogBefore/4000, res.LogAfter/4000, res.Kept, res.Total)
 		fmt.Printf("archive    %s\n  %d entries rotated out (full bodies retained)\n", res.ArchivePath, res.Archived)
+		if res.Archived == 0 {
+			fmt.Println("live log was not modified (no entries archived)")
+		}
 	}
 	fmt.Printf("INDEX      %s\n  %d iterations, complete history — grep this before picking work\n", res.IndexPath, res.IndexEntries)
 	if len(res.OrphanNumbers) > 0 {
