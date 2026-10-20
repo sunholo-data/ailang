@@ -30,12 +30,16 @@ import (
 
 // entryHeadingRe matches a log entry heading.
 //
-// THE FLEET USES THREE FORMATS, and a parser that knows only one silently rotates nothing
+// THE FLEET USES MULTIPLE FORMATS, and a parser that knows only one silently rotates nothing
 // (or, worse, mis-parses). Measured 2026-09-06 across the four live logs:
 //
 //	v1      ## 337 — 2026-09-06 — Title [TAG]
 //	docs    ## ITERATION 11 — 2026-09-06T06:00Z (optional note)
 //	world   ## Iteration 0 — 2026-07-23 — title
+//	stapledon ## 2026-09-27 (night): iteration 0, title
+//	stapledon ## 2026-09-27: pre-iteration 0 (attended bootstrap)
+//
+// Date-first legacy records use the separate numbered/note patterns below.
 //
 // Plus the awkward real cases a strict pattern dropped from v1's index: a date RANGE
 // ("2026-07-10/11") and a combined entry ("321 & 322"). Deliberately tolerant, because
@@ -45,12 +49,13 @@ var entryHeadingRe = regexp.MustCompile(
 	`^## (?i:iteration\s+)?(\d+)(?:\s*&\s*\d+)?\s+—\s+(\d{4}-\d{2}-\d{2})(?:T[0-9:]+Z?)?(?:/\d{1,2})?\s*(?:—\s*)?(.*)$`)
 
 // statusHeadingRe matches a STATUS-stamp archive entry. These put the DATE first and the
-// iteration number second, and the fleet writes FOUR variants of them:
+// iteration number second, and the fleet writes FIVE variants of them:
 //
 //	## STATUS 2026-09-06 — ITERATION 333: **headline**            (v1, current)
 //	## STATUS 2026-09-02 — ITERATION 33 COMPLETE: **headline**    (motoko)
 //	## STATUS 2026-07-14 (midday) — ITERATION 29: headline        (v1, early — 23 of these)
 //	## STATUS 2026-07-12 (morning) — v1.0 SCOPE SET ...           (no iteration number)
+//	## STATUS 2026-09-03 (iteration 152) — **headline**           (world; statusParenIterRe)
 //
 // Given its own patterns rather than contorted into entryHeadingRe: the field ORDER is
 // inverted, and a regex trying to accept both orders accepts nonsense in between.
@@ -59,12 +64,29 @@ var statusHeadingRe = regexp.MustCompile(
 
 // statusNoteRe is the fallback for a STATUS stamp carrying no iteration number — a scope
 // decision, a controller-model change. They are real records and belong in the index; they
-// sort by date, like any other note.
+// stay with their preceding numbered neighbour during rotation.
 var statusNoteRe = regexp.MustCompile(`^## STATUS\s+(\d{4}-\d{2}-\d{2})(?:\s*\([^)]*\))?\s+—\s+(.*)$`)
 
 // noteHeadingRe matches a non-iteration record that still belongs in the index, e.g. an
-// attended note. These carry no iteration number, so they sort by date.
+// attended note. These carry no iteration number and retain their preceding neighbour.
 var noteHeadingRe = regexp.MustCompile(`^## ([A-Z][A-Z ]+)\s+—\s+(\d{4}-\d{2}-\d{2})\s*(.*)$`)
+
+// Date-first legacy headings include both numbered iterations and attended notes.
+// Test the numbered pattern first: pre-iteration 0 deliberately falls through to a note.
+var legacyEntryRe = regexp.MustCompile(`^## (\d{4}-\d{2}-\d{2})(?:\s*\(([^)]*)\))?:\s+(?i:iteration)\s+(\d+)\b[,:]?\s*(.*)$`)
+var legacyNoteRe = regexp.MustCompile(`^## (\d{4}-\d{2}-\d{2})(?:\s*\(([^)]*)\))?:\s+(.+)$`)
+
+// An unparsed record before the first entry must not silently become preamble.
+// Require a known record skeleton: a full date, a numbered em-dash entry, or
+// a STATUS date prefix. Prose mentioning iterations and numbered sections is safe.
+var preambleRecordRe = regexp.MustCompile(`^## (?:\d{4}-\d{2}-\d{2}|(?i:iteration\s+)?\d+(?:\s*&\s*\d+)?\s+—|STATUS\s+\d{4}-)`)
+
+func legacyTitle(qualifier, title string) string {
+	if qualifier != "" {
+		return "(" + qualifier + ") " + strings.TrimSpace(title)
+	}
+	return strings.TrimSpace(title)
+}
 
 // LogEntry is one iteration record.
 type LogEntry struct {
@@ -105,7 +127,27 @@ func parseLog(body string) (preamble string, entries []LogEntry) {
 			buf = []string{l}
 			continue
 		}
+		if m := legacyEntryRe.FindStringSubmatch(l); m != nil {
+			flush()
+			n, _ := strconv.Atoi(m[3])
+			cur = &LogEntry{Num: n, Date: m[1], Title: legacyTitle(m[2], m[4])}
+			buf = []string{l}
+			continue
+		}
+		if m := legacyNoteRe.FindStringSubmatch(l); m != nil {
+			flush()
+			cur = &LogEntry{Num: -1, Date: m[1], Title: legacyTitle(m[2], m[3])}
+			buf = []string{l}
+			continue
+		}
 		if m := statusHeadingRe.FindStringSubmatch(l); m != nil {
+			flush()
+			n, _ := strconv.Atoi(m[2])
+			cur = &LogEntry{Num: n, Date: m[1], Title: strings.TrimSpace(m[3])}
+			buf = []string{l}
+			continue
+		}
+		if m := statusParenIterRe.FindStringSubmatch(l); m != nil {
 			flush()
 			n, _ := strconv.Atoi(m[2])
 			cur = &LogEntry{Num: n, Date: m[1], Title: strings.TrimSpace(m[3])}
@@ -162,6 +204,11 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 		return nil, fmt.Errorf("failed to read %s: %w", logPath, err)
 	}
 	pre, entries := parseLog(string(raw))
+	for _, line := range strings.Split(pre, "\n") {
+		if strings.HasPrefix(line, "## ") && preambleRecordRe.MatchString(line) {
+			return nil, fmt.Errorf("%s: unparsed record-like preamble heading %q — refusing rotation", logPath, line)
+		}
+	}
 	if len(entries) == 0 {
 		return nil, fmt.Errorf("%s: no iteration entries found (expected headings like '## 337 — 2026-09-06 — ...')", logPath)
 	}
@@ -195,7 +242,24 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 		return nil, err
 	}
 
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Num < entries[j].Num })
+	// Decorate in file order, so notes stay with their preceding numbered entry.
+	// Comparator indices are transient; deriving note keys there would reorder history.
+	type keyedEntry struct {
+		entry LogEntry
+		key   int
+	}
+	ordered := make([]keyedEntry, len(entries))
+	key := -1
+	for i, e := range entries {
+		if e.Num >= 0 {
+			key = e.Num
+		}
+		ordered[i] = keyedEntry{entry: e, key: key}
+	}
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].key < ordered[j].key })
+	for i, e := range ordered {
+		entries[i] = e.entry
+	}
 	cut := len(entries) - keep
 	if cut < 0 {
 		cut = 0
@@ -205,7 +269,7 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 	res := &RotateResult{
 		Total: len(entries), Kept: len(toKeep), Archived: len(toArchive),
 		LogPath: logPath, ArchivePath: archivePath, IndexPath: indexPath,
-		LogBefore: len(raw),
+		LogBefore: len(raw), LogAfter: len(raw),
 	}
 
 	if len(toArchive) > 0 {
@@ -227,21 +291,24 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 		}
 	}
 
-	// The live log: preamble + the newest entries.
-	var lb strings.Builder
-	lb.WriteString(strings.TrimRight(pre, "\n"))
-	lb.WriteString("\n\n> **Older entries are ARCHIVED.** This file holds the newest " +
-		strconv.Itoa(keep) + ". The full record of every\n" +
-		"> iteration is in `" + filepath.Base(archivePath) + "`, and a one-line index of ALL of them —\n" +
-		"> the thing to grep before picking work, so the loop never repeats itself — is in\n" +
-		"> `" + filepath.Base(indexPath) + "`.\n")
-	for _, e := range toKeep {
-		lb.WriteString("\n" + strings.TrimRight(e.Body, "\n") + "\n")
+	if cut > 0 {
+		// The live log: preamble + the newest entries.
+		var lb strings.Builder
+		lb.WriteString(strings.TrimRight(stripArchiveNotices(pre), "\n"))
+		prefixes := archiveNoticePrefixes()
+		lb.WriteString("\n\n" + prefixes[0] +
+			strconv.Itoa(keep) + ". The full record of every\n" +
+			prefixes[1] + filepath.Base(archivePath) + "`, and a one-line index of ALL of them —\n" +
+			prefixes[2] + "\n" +
+			prefixes[3] + filepath.Base(indexPath) + "`.\n")
+		for _, e := range toKeep {
+			lb.WriteString("\n" + strings.TrimRight(e.Body, "\n") + "\n")
+		}
+		if werr := writeAtomic(logPath, []byte(lb.String()), 0o644); werr != nil { //nolint:gosec // a doc
+			return nil, werr
+		}
+		res.LogAfter = lb.Len()
 	}
-	if werr := writeAtomic(logPath, []byte(lb.String()), 0o644); werr != nil { //nolint:gosec // a doc
-		return nil, werr
-	}
-	res.LogAfter = lb.Len()
 
 	if err := writeIndex(indexPath, prepared, res); err != nil {
 		return nil, err
@@ -267,10 +334,40 @@ func strayHeadings(body string, entries []LogEntry) []string {
 			continue
 		}
 		if entryHeadingRe.MatchString(l) || statusHeadingRe.MatchString(l) ||
-			statusNoteRe.MatchString(l) || noteHeadingRe.MatchString(l) {
+			statusParenIterRe.MatchString(l) ||
+			statusNoteRe.MatchString(l) || noteHeadingRe.MatchString(l) ||
+			legacyEntryRe.MatchString(l) || legacyNoteRe.MatchString(l) {
 			continue
 		}
 		out = append(out, strings.TrimSpace(l))
 	}
 	return out
+}
+
+// archiveNoticePrefixes is shared by the writer and stripper so their format agrees.
+func archiveNoticePrefixes() [4]string {
+	return [4]string{
+		"> **Older entries are ARCHIVED.** This file holds the newest ",
+		"> iteration is in `",
+		"> the thing to grep before picking work, so the loop never repeats itself — is in",
+		"> `",
+	}
+}
+
+// stripArchiveNotices removes only complete generated four-line blockquotes.
+// SplitAfter retains every surrounding byte, including handwritten quoted prose.
+func stripArchiveNotices(pre string) string {
+	lines := strings.SplitAfter(pre, "\n")
+	prefixes := archiveNoticePrefixes()
+	var out strings.Builder
+	for i := 0; i < len(lines); {
+		if strings.HasPrefix(lines[i], prefixes[0]) && i+3 < len(lines) &&
+			strings.HasPrefix(lines[i+1], prefixes[1]) && strings.HasPrefix(lines[i+2], prefixes[2]) && strings.HasPrefix(lines[i+3], prefixes[3]) {
+			i += 4
+			continue
+		}
+		out.WriteString(lines[i])
+		i++
+	}
+	return out.String()
 }
