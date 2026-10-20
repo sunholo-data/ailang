@@ -331,11 +331,13 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
   `pi:openrouter/deepseek/deepseek-v4-flash-0731`. The OpenRouter key rides the
   `~/.pi/agent/models.json` custom-provider block, NOT env — headless-safe. The models.yml twin
   is `pi-or-deepseek-v4-flash` (rate card + gate record live there).
-  1. **Probe (bounded, ~1 reply-token):** `pi --mode json --no-session --no-tools --model "$MODEL"
+  1. **Probe (bounded, ~1 reply-token):** `pi --mode json --no-session --no-tools --no-extensions --model "$MODEL"
      -p 'reply with exactly: ok'` under the same `date +%s` deadline shape as codex; rc=0 or fall
      back. The driver pre-probes `pi:*` pins the same way it probes codex, so an exported pi pin
      has already passed one probe this fire — re-probe anyway (the codex #486 lesson: the exported
      env and the effective lane must both be proven). Live-verified 2026-08-06.
+     This matches `_mc_probe_pi` in `tools/launchd/lib/lane-probe.sh`.
+     Without `--no-extensions`, a checkout carrying `.pi/extensions` discovers both the repo copy and the global `~/.pi/agent/extensions` copy installed by `ailang pi install`, exits rc 1 with `Tool ... conflicts`, and reports a working model as dead (`probe:pi-duplicate-extension-discovery`).
   2. **Real executor run — reuse the codex recipe's guards BY REFERENCE** (per-iteration directive
      file + the `exit 64` delivery asserts, `< /dev/null` stdin, backgrounded bounded 30-min
      `date +%s` cap, output captured, NO git write operations in the directive, per-milestone
@@ -344,12 +346,15 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        ```bash
        mkdir -p /tmp/claude   # sandbox-runtime pins TMPDIR here; absent ⇒ `go build` dies
                               # with "creating work dir". Measured, not theoretical.
-       cd "$WT" && PI_FENCE_ROOT="$WT" pi --mode json --no-session \
+       source "$REPO/tools/launchd/lib/pi-ext-args.sh"
+       PI_EXT_ARGS=(); while IFS= read -r _l; do PI_EXT_ARGS+=("$_l"); done < <(_mc_pi_ext_args "$WT")
+       cd "$WT" && PI_FENCE_ROOT="$WT" pi --mode json --no-session ${PI_EXT_ARGS[@]+"${PI_EXT_ARGS[@]}"} \
          -e "$REPO/tools/pi-extensions/sandbox/index.ts" \
          -e "$REPO/tools/pi-extensions/worktree-fence.ts" \
          --model "$MODEL" -p "$PROMPT" \
          > /tmp/pi_run_iter<N>.ndjson 2> /tmp/pi_run_iter<N>.stderr
        ```
+       `scripts/mission_pi_run.sh` already supplies these arguments and remains the preferred route.
        `--mode json` is MANDATORY: the NDJSON is both the transcript and the billing record;
        plain print mode loses both. `$REPO` is the mission's checkout — pass an ABSOLUTE path,
        since `-e` resolves relative to the process cwd, which is `$WT`, not the repo.
