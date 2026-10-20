@@ -81,33 +81,16 @@ while IFS= read -r skill_root || [ -n "$skill_root" ]; do
   if [ "$inputs_ok" -eq 0 ]; then sweep_ok=0; instrument_ok=0; fi
   launches=0
   if [ "${#files[@]}" -gt 0 ]; then
-    launches=$(awk 'index($0, "pi --mode json") { n++ } END { print n+0 }' ${files[@]+"${files[@]}"})
+    # A launch is `pi`, any run of blanks, `--mode`, blanks, `json`. Each launch LINE must itself
+    # disable discovery or carry the PI_EXT_ARGS splice; a splice elsewhere in the fence does not count.
+    launches=$(awk '/pi[[:space:]]+--mode[[:space:]]+json/ { n++ } END { print n+0 }' ${files[@]+"${files[@]}"})
     if ! awk '
-      function flush(    i) {
-        for (i=1; i<=n; i++) {
-          if (!index(lines[i], "--no-extensions") && !(bash_block && splice)) {
-            printf "%s:%d: %s\n", name, numbers[i], lines[i]
-            unsafe=1
-          }
-          delete lines[i]; delete numbers[i]
-        }
-        n=0; splice=0
+      /pi[[:space:]]+--mode[[:space:]]+json/ &&
+        !index($0, "--no-extensions") && !index($0, "${PI_EXT_ARGS[@]+\"${PI_EXT_ARGS[@]}\"}") {
+        printf "%s:%d: %s\n", FILENAME, FNR, $0
+        unsafe=1
       }
-      FNR==1 { flush(); in_block=0; bash_block=0; name=FILENAME }
-      /^[[:space:]]*```/ {
-        flush()
-        bash_block=(!in_block && $0 ~ /^[[:space:]]*```bash[[:space:]]*$/)
-        in_block=!in_block
-        next
-      }
-      {
-        if (bash_block && index($0, "${PI_EXT_ARGS[@]+\"${PI_EXT_ARGS[@]}\"}")) splice=1
-        if (index($0, "pi --mode json")) {
-          lines[++n]=$0; numbers[n]=FNR
-          if (!in_block) flush()
-        }
-      }
-      END { flush(); exit unsafe }
+      END { exit unsafe }
     ' ${files[@]+"${files[@]}"}; then sweep_ok=0; fi
   fi
   echo "LAUNCH COUNT: $skill_root: $launches launch lines"
