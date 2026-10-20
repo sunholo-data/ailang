@@ -1113,3 +1113,65 @@ Reach is NOT confirmed (unmerged). Re-run the done-gate at the merge.
 - (2) **The fleet's write scope excludes `design-doc-creator`**, a skill that two open tickets name (`skill:design-doc-creator-grep-portability`, and the scaffold residue). Instance 1; noted for the next pick of either ticket.
 
 **Next**: `crash:sprint-executor:sigbus-ram-tmp-full-make-test` (attended, 10-08, `blocking=item`). Ask 1 (scope local verification, no toolchain installs, push per milestone) sits in `.claude/skills/sprint-executor/**`, which is in scope. Asks 2 and 3 (Cloud Run scratch volume, coordinator failure marking) are outside scope and park. D-FLEET-16, -18, -19, -20, -21 and -22 are with Mark; D-FLEET-17 is moot.
+
+## 49 — 2026-10-20 — `crash:sprint-executor:sigbus-ram-tmp-full-make-test` ask 1 LANDED: #1905 → `3f9a0c092`; judge PASS 86 then PASS 87 (sonnet); ticket stays open, asks 2–3 + a measured wrapper defect parked on D-FLEET-23 [HARNESS]
+
+**Pick**: iteration 48's **Next**, `crash:sprint-executor:sigbus-ram-tmp-full-make-test` (attended, 10-08, `blocking=item`). 43 open tickets at pick; the one new ticket since iteration 48 is `probe:pi-duplicate-extension-discovery` (triage, 10-19, `blocking=none`). `agent-tool:sonnet-unavailable` (`blocking=all`) stays PARKED-ON-LANE, as in iterations 29 and 32–48. Index grep: no prior attempt.
+
+**Orphans credited**: none new. Gate 0 step 6a returned rc 1 for the same crash notice (2026-10-17T12:48:13Z, #1768), which is iteration 46's death, already credited at iteration 47. Traces: no open `fleet/*` PR; the leftover `fleet-i46-*`/`fleet-i47-*`/`fleet-i48-*` worktrees are landed work.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1891 since `2026-10-15T02:46:27Z` (6 comments, all self). Self-notices rc 1 as above (control `852:10`, watermarks 2/2). No rotation and no sweep due (#1891 was created after this Monday's 07:00 boundary).
+
+**Observe**: origin/dev == pin == `4cc0f6a3e`. `SKILL.md` and all 13 resources at the resolved symlink target are `cmp`-identical to origin. Dev CI on `4cc0f6a3e`: `CI` and `Build and Release` green; 34 checks, 1 not green: `SonarCloud Code Analysis` (non-required, a GitHub App; V1's repo, so recorded, not picked).
+
+**Reality check**: ask 1 was partly a ghost. #1770 (`dbe4b26a3`, 10-12) moved the skill to `make test-changed`, and #1688 (`face88a3f`) added "commit after each milestone". Two parts had no coverage: never install toolchains (no `toolchain`/`cgo`/`cc` rule anywhere in the skill) and push per milestone (the resource said "the coordinator pushes your branch when you finish"). The controller then measured the wrapper, in scratch repos:
+- `cmd/ailang/coordinator_cloud_task.go:151` clones `--branch <base> --depth 1`, which is single-branch (fetch refspec = base only). An agent's own `git push origin HEAD:refs/heads/coordinator/task-x` creates **no** `refs/remotes/origin/coordinator/task-x`. After one more commit, Step 5b's `git log origin/<b>..HEAD` is rc 128, the `ls-remote` fallback is rc 0, so `newBranch=false`, `unpushed=false`, and the later commit is **silently not pushed** (no `assertRemoteMatchesHead` on that path). A naive "push per milestone" rule would therefore have *caused* work loss.
+- With `+refs/heads/B:refs/remotes/origin/B` added before the first push, the tracking ref exists and the wrapper sees the later commit (log rc 0). A retry (fresh clone, same task id) resumes with `fetch` + `reset --keep origin/B`, keeping untracked wrapper files, and its next push is a fast-forward.
+- Two instrument failures of my own, both caught: zsh read `$B:refs` as the `:r` modifier (refspec mangled), and a zsh "no matches found" on an `rm` glob aborted an `&&` chain, so a suite "rc=1" measured the `rm`. Both re-run under `/bin/bash`.
+
+**Did**:
+- **Designer**: not spawned. The controller wrote decisions D1–D8 into the planner directive (precedent: iteration 45); the change is skill text plus one helper script.
+- **Planner** (codex `gpt-6.1-sol`, recipe, detached `.planner-wt-iter49`): plan `90a3d7c49` with 1 milestone and 22 arms (A01–A22), each paired with a mutation. A09 is the negative control that reproduces the wrapper loss. `validate_sprint_json.sh` hard-requires ≥2 milestones while the schema allows 1; kept at 1 (splitting would expose a push-only intermediate state).
+- **Executor** (codex, recipe, worktree `fleet-i49-cloud-branch-sync`): `scripts/cloud_branch_sync.sh` (105 lines), its 22-arm hermetic test (390), `resources/unattended_runs.md` (+45/−1), `make/test.mk` wiring into `test-launchd-drivers`, and a changelog fragment. 22/22 arms pass; 21/22 helper mutations killed (A09 survives by design). The sandbox refused the `.agents/` writes (instance 4); the controller mirrored them byte-identically. Commit `f1a6fe966`.
+- **Controller, outside the sandbox**: the 5 directive gates were all rc 0, and the caller's `~/.gitconfig`, the repo config and all refs were sha-identical before and after the test (observed, not seeded).
+- **Judge** (sonnet, Agent tool, foreground, own worktree `fleet-i49-judge`): **PASS 86**, 0 blocking. It confirmed the wrapper hazard independently, from the Go source and empirically, and found the A08/A09 simulation a faithful transliteration of Step 5b + `branchNeedsPush`. Survivors it found: a glob gate `coordinator/${ID}*`, `--force-with-lease`, an extra push refspec, the tracking-ref check removed, `set -m` removed, the KILL escalation removed, `GIT_TERMINAL_PROMPT` removed.
+- **Round 2**: the glob gate is the D2 class the plan rates highest-impact, so A03 now also skips `coordinator/task-x-other` and `coordinator/task-xy` (`d4d713c79`). Proven: the old A03 passes the glob mutant, the new one kills it, and the real helper passes. Re-judged **PASS 87** (glob mutant killed; worktree clean).
+- PR #1905 (no closing keyword; scan paired with a control) squash-merged with `--match-head-commit d4d713c79` → `3f9a0c092`.
+
+**Gate 3b**: the PR poll hit its 30-min cap with only `test` pending and 0 failures (`TIMEOUT … total=26 pending=1 failed=[]`). A fresh poll on a new path read `ALL COMPLETE for d4d713c79… total=26 failed=[]`. The dev poll ran as written from the running skill: `target=3f9a0c092…`, `rid=39347730823`, with the expected 1-commit `DRIFT` (my merge). Verdict: the first dev poll also hit its 30-min cap (`Gate 3b TIMEOUT for 3f9a0c092… (status=in_progress)`). A fresh poll on a new path read `CI for 3f9a0c092…: completed success`, and the full check set on the merge reads 17 checks, all green.
+
+**Done-gate**:
+- Surface: the sprint-executor skill is what cloud and mission executors read (`.claude` + `.agents`, byte-identical; `test_agents_skills_sync.sh` rc 0).
+- Reach: pushed and merged to `origin/dev`.
+- `make test-launchd-drivers` under `env -i`: rc 0 at base `4cc0f6a3e` and rc 0 at `d4d713c79`, which includes the new 22-arm suite. A stray `spawn-pin-hook.sh: line 11: cat: command not found` line appears once in both logs, so it is inherited.
+- Dry-runs under **stapledon** (armed, idle, no pidfile; `AILANG_DRIVER_PINNED=d4d713c79`): healthy rc 0 `lanes=ok`; degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`) rc 0 `DEGRADED(1)`, with the bogus lane handed to opus. Triage was tried first and exited at its idle gate before probing any lane, so it measured nothing for the degraded arm. No pidfile was written and nothing was reloaded.
+
+**Progress**: 0 tickets resolved; 43 open. The ticket stays open because asks 2 and 3 are outside fleet scope; they are D-FLEET-23 with the wrapper defect.
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET (unchanged; ask 1 landed 12 d after filing).
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved (judged, done-gate passed, required CI green).
+
+**Routing evidence**: base-gate1=4cc0f6a3e97d6838f212b21ae36bb2202bd1dcea@2026-10-19T23:05:42Z; base=3f9a0c092a1e955c4ef060bf18d7bf28ff017809@2026-10-20T00:27:58Z (gate4); gate3b=3f9a0c092a1e955c4ef060bf18d7bf28ff017809 (drift 1 commit: my merge). `MISSION_ROUTING_NOTE` empty; `MISSION_OVER_RATION` empty.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: not spawned (controller decisions D1–D8 in the planner directive). Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`; rotation not advanced.
+- **Planner**: resolver `agent-tool opus fail-closed:no-doc` against the pin `codex:gpt-6.1-sol`, so routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0; run rc 0 (102,370 tok).
+- **Executor**: `codex:gpt-6.1-sol` via the recipe (`declared:provider-pin`), 1 run, rc 0 (101,966 tok).
+- **Evaluator**: `sonnet` via the Agent tool (`declared:alias-pin`), foreground, 2 rounds (84,209 + 87,194 tok cumulative). Judge independence: cross-vendor (Anthropic sonnet vs the OpenAI generator).
+- The Agent tool was used wherever the resolver names it (the evaluator), per the operator's standing request. The planner and executor resolve to recipes, where the Agent tool is not a valid path. No role failed to spawn.
+- **Metered**: $0.
+
+**Ruled out**:
+- A naive "push after each milestone" sentence in the skill. It triggers the wrapper's Step 5b skip (measured), so the helper installs the tracking refspec first.
+- Fixing Step 5b in the wrapper. `cmd/ailang/**` is outside fleet scope; parked as D-FLEET-23.
+- Resolving the ticket. Asks 2 and 3 are undone and out of scope; resolving would drop them from the one queue (clause 3).
+- A second dummy milestone to satisfy `validate_sprint_json.sh`.
+
+**Retro lane**:
+- (1) **The codex sandbox refused `.agents/` writes for the 4th time** (iterations 43–45, 49). Controller mirroring stays cheap and reliable; a recorded workaround, not a skill change.
+- (2) **Gate 3b's 30-min PR poll timed out with only `test` pending for the 4th time** (iterations 43–45, 49). This is already D-FLEET-21; it is a time-budget call for Mark. Count now 4.
+- (3) **zsh is the controller's own instrument hazard**: two failures this iteration (`$B:r` modifier, `no matches found` aborting a chain). Both are already-known classes (`$VAR:` mangling is in memory; `/bin/bash` is the prescribed shell for gates). Instance count for this iteration only; no skill change.
+- (4) `validate_sprint_json.sh` refuses a 1-milestone sprint that `json_progress_schema.md` allows. Instance 1; noted, not ticketed (the fleet cannot file tickets).
+
+**Next**: tickets by `slots_lost` among the routable ones. `probe:pi-duplicate-extension-discovery` (triage, 10-19) touches pi's extension discovery (`.pi/extensions/**` or the probe args), which parks under D-FLEET-3 if the fix is in `.pi/extensions`; reality-check it first. D-FLEET-16, -18, -19, -20, -21, -22 and the new -23 are with Mark; D-FLEET-17 is moot.

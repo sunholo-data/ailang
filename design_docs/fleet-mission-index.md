@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 49 | 2026-10-20 | `crash:sprint-executor:sigbus-ram-tmp-full-make-test` ask 1 LANDED: #1905 → `3f9a0c092`; judge PASS 86 then PASS 87 (sonnet); ticket stays open, as... |
 | 48 | 2026-10-19 | `skill:design-scaffold-hardcodes-owning-repo` + `sprint-skill:estimated-loc-zero-is-placeholder-sentinel` resolved as GHOSTS (#1542 `b51353bcd`, #1... |
 | 47 | 2026-10-19 | `rotate-log:status-archive-structural-header` LANDED: orphaned iteration 46's #1877 verified and merged → `f048d6fa9`; judge PASS 93 (sonnet); tick... |
 | 45 | 2026-10-17 | `mission:index-regenerate-needs-rotatable-archive` + `rotate-log:index-regen-drops-orphan-rows` LANDED: #1870 → `2061f445e`; judge PASS 90 (sonnet)... |
