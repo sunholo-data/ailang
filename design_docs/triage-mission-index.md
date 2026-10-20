@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 10 | 2026-10-21 | independent review holds mislinked parser plan and newly orphaned JSON Schema plan [HARNESS] [ADMIN] |
 | 8 | 2026-10-19 | independent queue cleanup; Sonar dissent and two dispositions held [HARNESS] [ADMIN] |
 | 7 | 2026-10-19 | 52 queue verdicts; Sonar-only red parked after independent dissent [HARNESS] [ADMIN] |
 | 6 | 2026-10-17 | independent cross-vendor review refreshes all cards and three process defects; reporting escalation [HARNESS] [ADMIN] |

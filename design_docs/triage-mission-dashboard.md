@@ -1,31 +1,26 @@
-# Triage mission — iteration 8 (2026-10-19)
+# Triage mission dashboard — iteration 10 (2026-10-21)
 
-Level 1; no inner loop, approval, rejection, merge, code work or handoff.
-Runtime CLI v0.54.16-dirty/128371f; source evidence from named origin/dev.
-Base: 4cc0f6a3e97d6838f212b21ae36bb2202bd1dcea.
-CI39300896377 SUCCESS; Sonar FAILURE, go:S1764/new-code reliability.
-MiniMax DISSENT preserves Sonar D21 HOLD; no test/Sonar/design mutation.
-Evidence: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6277948518
-Entry: 8 cards / 26 PRs / 59 issues; 11 PRs excluded.
-Review: 8 joined items, 11 component verdicts; all queue CONCUR.
-Actions: duplicate #1903 closed for #1902; 4 PR comments; 6 safe labels.
-No VERIFIED/attestation. Ready-to-approve list empty.
-D22: orphan #1894 report/card reconciliation; default HOLD.
-D23: duplicate planning card #1887; recommend retire attended, default HOLD.
-D17–21 OPEN; attended-answer summary retained, not authoritative ledger recording.
-D15/16 externally moot; no self-resolution or repeat obsolete approval ask.
-Orphans: #1894/#1849/#1833/#1832/#1771/#1759/#1571.
-8 pending cards retained; zero qualifying green stalled cards at entry.
-Shadow: 13/13 settled; 11 verdict + 1 outcome rows appended; 325 rows.
-Only 4 days of data; Part A's fourteen-day evidence gate remains unmet.
-Requested verifiers: Agent-tool gpt-6-luna x2; model/token telemetry absent.
-Judge sonnet Agent pin rejected unknown model; declared MiniMax fallback used.
-Actual judge ollama/minimax-m3:cloud (MiniMax), 13,895 review +568 probe tokens.
-Transport Agent authored no verdict; other token counts unreported.
-Metered $0; Codex/Ollama buckets; $1 ceiling. No model-policy change.
-Record preserves unmerged #1893 history, rebased onto reviewed base.
-Main-checkout dirty files left parked; triage pin clean.
-Bookkeeping #1892, predecessor #1835; 12h cadence.
-Next: operator D22/23; card-owner updates; changed/held verification.
-Reporting: user/controlplane Pub/Sub + exact payloads verified; Daneel refused, fallback ticketed.
-Record PR: https://github.com/sunholo-data/ailang/pull/1904
+- Level 1; never approve/reject/merge or implement. Latest release v0.54.16.
+- Reviewed dev: 1579ef50ce4d57b185de7c3ff749928204d66570; CI and all 17 commit checks green.
+- Queue: 6 pending cards, 26 PRs, 59 issues; 8 uncarded coordinator PRs.
+- Selected: 2 changed joined items / 3 component verdicts; 0 held/stale additions.
+- #1914 KEEP: added priority:P1 + area:test-runner; T2 retains issue.
+- #1916 NEEDS-FIX: issue links identify merged design PR1915 instead of bug1914; correction comment posted.
+- #1889 NEEDS-DECISION: historical card missing; needs-decision added; D-TRIAGE-24 HOLD.
+- Ready for Mark to approve: none newly attested.
+- Five >48h cards: three conflicting, two head-red; zero green AND mergeable stalls.
+- Landed sweep 0/7; no apply or handoffs.
+- Shadow: 14/14 settled predictions agree; 7 rows appended, 333 total; no older row rewritten.
+- Open operator decisions: D15/16/17/18/19/20/21/22/23/24. No obsolete substantive re-asks.
+- D15/16/21/23 external predicates changed; observations do not self-resolve decisions.
+- D12/13/14 remain resolved; collection remains OFF.
+- Routing: OpenAI gpt-6-luna Agent verifiers → MiniMax minimax-m3 judge (3 CONCUR + audit CONCUR).
+- Native sonnet Agent spawn unavailable; declared pi:ollama/minimax-m3:cloud fallback, actual vendor verified.
+- Judge two completed calls131,105 tokens + probe2,018; both CONCUR; reported metered $0.
+- No designer/planner/code-executor roles. Gate3b inapplicable.
+- Harness share 4/6 available scheduled record entries, escalation-only; zero harness repairs.
+- Cadence 12h when fingerprint changes. Metered ceiling $1; Codex/Ollama buckets.
+- Reports: [bookkeeping #1892](https://github.com/sunholo-data/ailang/issues/1892).
+- [Independent evidence](https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6302642340).
+- Record continues existing [PR1904](https://github.com/sunholo-data/ailang/pull/1904), unmerged for operator.
+- Next: plan owner corrects1916; operator reconciles1889; next fire re-verifies changed/held items.
