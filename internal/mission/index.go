@@ -68,6 +68,7 @@ func ignoredIndexHeadings(body string) int {
 	count := 0
 	for _, line := range strings.Split(body, "\n") {
 		if strings.HasPrefix(line, "## ") && !entryHeadingRe.MatchString(line) &&
+			!statusParenIterRe.MatchString(line) &&
 			!statusHeadingRe.MatchString(line) && !statusNoteRe.MatchString(line) && !noteHeadingRe.MatchString(line) &&
 			!legacyEntryRe.MatchString(line) && !legacyNoteRe.MatchString(line) {
 			count++

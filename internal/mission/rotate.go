@@ -49,12 +49,13 @@ var entryHeadingRe = regexp.MustCompile(
 	`^## (?i:iteration\s+)?(\d+)(?:\s*&\s*\d+)?\s+—\s+(\d{4}-\d{2}-\d{2})(?:T[0-9:]+Z?)?(?:/\d{1,2})?\s*(?:—\s*)?(.*)$`)
 
 // statusHeadingRe matches a STATUS-stamp archive entry. These put the DATE first and the
-// iteration number second, and the fleet writes FOUR variants of them:
+// iteration number second, and the fleet writes FIVE variants of them:
 //
 //	## STATUS 2026-09-06 — ITERATION 333: **headline**            (v1, current)
 //	## STATUS 2026-09-02 — ITERATION 33 COMPLETE: **headline**    (motoko)
 //	## STATUS 2026-07-14 (midday) — ITERATION 29: headline        (v1, early — 23 of these)
 //	## STATUS 2026-07-12 (morning) — v1.0 SCOPE SET ...           (no iteration number)
+//	## STATUS 2026-09-03 (iteration 152) — **headline**           (world; statusParenIterRe)
 //
 // Given its own patterns rather than contorted into entryHeadingRe: the field ORDER is
 // inverted, and a regex trying to accept both orders accepts nonsense in between.
@@ -138,6 +139,13 @@ func parseLog(body string) (preamble string, entries []LogEntry) {
 			continue
 		}
 		if m := statusHeadingRe.FindStringSubmatch(l); m != nil {
+			flush()
+			n, _ := strconv.Atoi(m[2])
+			cur = &LogEntry{Num: n, Date: m[1], Title: strings.TrimSpace(m[3])}
+			buf = []string{l}
+			continue
+		}
+		if m := statusParenIterRe.FindStringSubmatch(l); m != nil {
 			flush()
 			n, _ := strconv.Atoi(m[2])
 			cur = &LogEntry{Num: n, Date: m[1], Title: strings.TrimSpace(m[3])}
@@ -323,6 +331,7 @@ func strayHeadings(body string, entries []LogEntry) []string {
 			continue
 		}
 		if entryHeadingRe.MatchString(l) || statusHeadingRe.MatchString(l) ||
+			statusParenIterRe.MatchString(l) ||
 			statusNoteRe.MatchString(l) || noteHeadingRe.MatchString(l) ||
 			legacyEntryRe.MatchString(l) || legacyNoteRe.MatchString(l) {
 			continue
