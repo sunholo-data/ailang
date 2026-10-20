@@ -1,0 +1,139 @@
+module probe_clock
+import std/process (exec, ProcessError)
+import std/bytes (toString)
+import std/io (println)
+
+func showOut(label: string, r: Result[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}, ProcessError]) -> () ! {IO} {
+  match r {
+    Ok(out) => println("[${label}] exit=${show(out.exitCode)} out=${toString(out.stdout)} err=${toString(out.stderr)}"),
+    Err(e) => println("[${label}] error=${show(e)}")
+  }
+}
+
+export func main() -> () ! {IO, Process} {
+  -- HEAD commit T = 2026-10-20 10:24:51 +02:00.
+  -- --until=R keeps T iff T < now-R  =>  now > T+R  (LOWER bound on now)
+  -- --since=R keeps T iff T > now-R  =>  now < T+R  (UPPER bound on now)
+  showOut("until now", exec("git", ["log", "--until=now", "--oneline"]));
+  showOut("since 1d ago", exec("git", ["log", "--since=1.day.ago", "--oneline"]));
+  showOut("since 9h ago", exec("git", ["log", "--since=9.hours.ago", "--oneline"]));
+  showOut("since 8h ago", exec("git", ["log", "--since=8.hours.ago", "--oneline"]));
+  showOut("since 7h ago", exec("git", ["log", "--since=7.hours.ago", "--oneline"]));
+  showOut("since 6h ago", exec("git", ["log", "--since=6.hours.ago", "--oneline"]));
+  showOut("since 5h ago", exec("git", ["log", "--since=5.hours.ago", "--oneline"]));
+  showOut("since 4h ago", exec("git", ["log", "--since=4.hours.ago", "--oneline"]));
+  showOut("since 3h ago", exec("git", ["log", "--since=3.hours.ago", "--oneline"]));
+  showOut("since 2h ago", exec("git", ["log", "--since=2.hours.ago", "--oneline"]));
+  showOut("since 1h ago", exec("git", ["log", "--since=1.hour.ago", "--oneline"]));
+  showOut("since 30m ago", exec("git", ["log", "--since=30.minutes.ago", "--oneline"]));
+  showOut("since 29m ago", exec("git", ["log", "--since=29.minutes.ago", "--oneline"]));
+  showOut("since 28m ago", exec("git", ["log", "--since=28.minutes.ago", "--oneline"]));
+  showOut("since 27m ago", exec("git", ["log", "--since=27.minutes.ago", "--oneline"]));
+  showOut("since 26m ago", exec("git", ["log", "--since=26.minutes.ago", "--oneline"]));
+  showOut("since 25m ago", exec("git", ["log", "--since=25.minutes.ago", "--oneline"]));
+  showOut("since 24m ago", exec("git", ["log", "--since=24.minutes.ago", "--oneline"]));
+  showOut("since 23m ago", exec("git", ["log", "--since=23.minutes.ago", "--oneline"]));
+  showOut("since 22m ago", exec("git", ["log", "--since=22.minutes.ago", "--oneline"]));
+  showOut("since 21m ago", exec("git", ["log", "--since=21.minutes.ago", "--oneline"]));
+  showOut("since 20m ago", exec("git", ["log", "--since=20.minutes.ago", "--oneline"]));
+  showOut("since 20m30s", exec("git", ["log", "--since=20.minutes.30.seconds.ago", "--oneline"]));
+  showOut("since 20m45s", exec("git", ["log", "--since=20.minutes.45.seconds.ago", "--oneline"]));
+  showOut("since 21m15s", exec("git", ["log", "--since=21.minutes.15.seconds.ago", "--oneline"]));
+  showOut("since 21m30s", exec("git", ["log", "--since=21.minutes.30.seconds.ago", "--oneline"]));
+  showOut("since 21m45s", exec("git", ["log", "--since=21.minutes.45.seconds.ago", "--oneline"]));
+  showOut("since 21m50s", exec("git", ["log", "--since=21.minutes.50.seconds.ago", "--oneline"]));
+  showOut("since 21m55s", exec("git", ["log", "--since=21.minutes.55.seconds.ago", "--oneline"]));
+  showOut("since 21m58s", exec("git", ["log", "--since=21.minutes.58.seconds.ago", "--oneline"]));
+  showOut("since 21m59s", exec("git", ["log", "--since=21.minutes.59.seconds.ago", "--oneline"]));
+  showOut("since 21m59s30", exec("git", ["log", "--since=21.minutes.59.30.seconds.ago", "--oneline"]));
+  showOut("since 21m59s45", exec("git", ["log", "--since=21.minutes.59.45.seconds.ago", "--oneline"]));
+  showOut("since 22m0s15", exec("git", ["log", "--since=22.minutes.0.15.seconds.ago", "--oneline"]));
+  showOut("since 22m0s45", exec("git", ["log", "--since=22.minutes.0.45.seconds.ago", "--oneline"]));
+  showOut("since 22m1s", exec("git", ["log", "--since=22.minutes.1.second.ago", "--oneline"]));
+  showOut("since 22m2s", exec("git", ["log", "--since=22.minutes.2.seconds.ago", "--oneline"]));
+  showOut("since 22m3s", exec("git", ["log", "--since=22.minutes.3.seconds.ago", "--oneline"]));
+  showOut("since 22m4s", exec("git", ["log", "--since=22.minutes.4.seconds.ago", "--oneline"]));
+  showOut("since 22m5s", exec("git", ["log", "--since=22.minutes.5.seconds.ago", "--oneline"]));
+  showOut("since 22m6s", exec("git", ["log", "--since=22.minutes.6.seconds.ago", "--oneline"]));
+  showOut("since 22m7s", exec("git", ["log", "--since=22.minutes.7.seconds.ago", "--oneline"]));
+  showOut("since 22m8s", exec("git", ["log", "--since=22.minutes.8.seconds.ago", "--oneline"]));
+  showOut("since 22m9s", exec("git", ["log", "--since=22.minutes.9.seconds.ago", "--oneline"]));
+  showOut("since 22m10s", exec("git", ["log", "--since=22.minutes.10.seconds.ago", "--oneline"]));
+  showOut("since 22m11s", exec("git", ["log", "--since=22.minutes.11.seconds.ago", "--oneline"]));
+  showOut("since 22m12s", exec("git", ["log", "--since=22.minutes.12.seconds.ago", "--oneline"]));
+  showOut("since 22m13s", exec("git", ["log", "--since=22.minutes.13.seconds.ago", "--oneline"]));
+  showOut("since 22m14s", exec("git", ["log", "--since=22.minutes.14.seconds.ago", "--oneline"]));
+  showOut("since 22m15s", exec("git", ["log", "--since=22.minutes.15.seconds.ago", "--oneline"]));
+  showOut("since 22m16s", exec("git", ["log", "--since=22.minutes.16.seconds.ago", "--oneline"]));
+  showOut("since 22m17s", exec("git", ["log", "--since=22.minutes.17.seconds.ago", "--oneline"]));
+  showOut("since 22m18s", exec("git", ["log", "--since=22.minutes.18.seconds.ago", "--oneline"]));
+  showOut("since 22m19s", exec("git", ["log", "--since=22.minutes.19.seconds.ago", "--oneline"]));
+  showOut("since 22m20s", exec("git", ["log", "--since=22.minutes.20.seconds.ago", "--oneline"]));
+  showOut("since 22m21s", exec("git", ["log", "--since=22.minutes.21.seconds.ago", "--oneline"]));
+  showOut("since 22m22s", exec("git", ["log", "--since=22.minutes.22.seconds.ago", "--oneline"]));
+  showOut("since 22m23s", exec("git", ["log", "--since=22.minutes.23.seconds.ago", "--oneline"]));
+  showOut("since 22m24s", exec("git", ["log", "--since=22.minutes.24.seconds.ago", "--oneline"]));
+  showOut("since 22m25s", exec("git", ["log", "--since=22.minutes.25.seconds.ago", "--oneline"]));
+  showOut("since 22m26s", exec("git", ["log", "--since=22.minutes.26.seconds.ago", "--oneline"]));
+  showOut("since 22m27s", exec("git", ["log", "--since=22.minutes.27.seconds.ago", "--oneline"]));
+  showOut("since 22m28s", exec("git", ["log", "--since=22.minutes.28.seconds.ago", "--oneline"]));
+  showOut("since 22m29s", exec("git", ["log", "--since=22.minutes.29.seconds.ago", "--oneline"]));
+  showOut("since 22m30s", exec("git", ["log", "--since=22.minutes.30.seconds.ago", "--oneline"]));
+  showOut("since 22m31s", exec("git", ["log", "--since=22.minutes.31.seconds.ago", "--oneline"]));
+  showOut("since 22m32s", exec("git", ["log", "--since=22.minutes.32.seconds.ago", "--oneline"]));
+  showOut("since 22m33s", exec("git", ["log", "--since=22.minutes.33.seconds.ago", "--oneline"]));
+  showOut("since 22m34s", exec("git", ["log", "--since=22.minutes.34.seconds.ago", "--oneline"]));
+  showOut("since 22m35s", exec("git", ["log", "--since=22.minutes.35.seconds.ago", "--oneline"]));
+  showOut("since 22m36s", exec("git", ["log", "--since=22.minutes.36.seconds.ago", "--oneline"]));
+  showOut("since 22m37s", exec("git", ["log", "--since=22.minutes.37.seconds.ago", "--oneline"]));
+  showOut("since 22m38s", exec("git", ["log", "--since=22.minutes.38.seconds.ago", "--oneline"]));
+  showOut("since 22m39s", exec("git", ["log", "--since=22.minutes.39.seconds.ago", "--oneline"]));
+  showOut("since 22m40s", exec("git", ["log", "--since=22.minutes.40.seconds.ago", "--oneline"]));
+  showOut("since 22m41s", exec("git", ["log", "--since=22.minutes.41.seconds.ago", "--oneline"]));
+  showOut("since 22m42s", exec("git", ["log", "--since=22.minutes.42.seconds.ago", "--oneline"]));
+  showOut("since 22m43s", exec("git", ["log", "--since=22.minutes.43.seconds.ago", "--oneline"]));
+  showOut("since 22m44s", exec("git", ["log", "--since=22.minutes.44.seconds.ago", "--oneline"]));
+  showOut("since 22m45s", exec("git", ["log", "--since=22.minutes.45.seconds.ago", "--oneline"]));
+  showOut("since 22m46s", exec("git", ["log", "--since=22.minutes.46.seconds.ago", "--oneline"]));
+  showOut("since 22m47s", exec("git", ["log", "--since=22.minutes.47.seconds.ago", "--oneline"]));
+  showOut("since 22m48s", exec("git", ["log", "--since=22.minutes.48.seconds.ago", "--oneline"]));
+  showOut("since 22m49s", exec("git", ["log", "--since=22.minutes.49.seconds.ago", "--oneline"]));
+  showOut("since 22m50s", exec("git", ["log", "--since=22.minutes.50.seconds.ago", "--oneline"]));
+  showOut("since 22m51s", exec("git", ["log", "--since=22.minutes.51.seconds.ago", "--oneline"]));
+  showOut("since 22m52s", exec("git", ["log", "--since=22.minutes.52.seconds.ago", "--oneline"]));
+  showOut("since 22m53s", exec("git", ["log", "--since=22.minutes.53.seconds.ago", "--oneline"]));
+  showOut("since 22m54s", exec("git", ["log", "--since=22.minutes.54.seconds.ago", "--oneline"]));
+  showOut("since 22m55s", exec("git", ["log", "--since=22.minutes.55.seconds.ago", "--oneline"]));
+  showOut("since 22m56s", exec("git", ["log", "--since=22.minutes.56.seconds.ago", "--oneline"]));
+  showOut("since 22m57s", exec("git", ["log", "--since=22.minutes.57.seconds.ago", "--oneline"]));
+  showOut("since 22m58s", exec("git", ["log", "--since=22.minutes.58.seconds.ago", "--oneline"]));
+  showOut("since 22m59s", exec("git", ["log", "--since=22.minutes.59.seconds.ago", "--oneline"]));
+  showOut("since 23m0s", exec("git", ["log", "--since=23.minutes.0.seconds.ago", "--oneline"]));
+  showOut("since 23m1s", exec("git", ["log", "--since=23.minutes.1.second.ago", "--oneline"]));
+  showOut("since 23m2s", exec("git", ["log", "--since=23.minutes.2.seconds.ago", "--oneline"]));
+  showOut("since 23m3s", exec("git", ["log", "--since=23.minutes.3.seconds.ago", "--oneline"]));
+  showOut("since 23m4s", exec("git", ["log", "--since=23.minutes.4.seconds.ago", "--oneline"]));
+  showOut("since 23m5s", exec("git", ["log", "--since=23.minutes.5.seconds.ago", "--oneline"]));
+  showOut("since 23m6s", exec("git", ["log", "--since=23.minutes.6.seconds.ago", "--oneline"]));
+  showOut("since 23m7s", exec("git", ["log", "--since=23.minutes.7.seconds.ago", "--oneline"]));
+  showOut("since 23m8s", exec("git", ["log", "--since=23.minutes.8.seconds.ago", "--oneline"]));
+  showOut("since 23m9s", exec("git", ["log", "--since=23.minutes.9.seconds.ago", "--oneline"]));
+  showOut("since 23m10s", exec("git", ["log", "--since=23.minutes.10.seconds.ago", "--oneline"]));
+  showOut("since 23m15s", exec("git", ["log", "--since=23.minutes.15.seconds.ago", "--oneline"]));
+  showOut("since 23m20s", exec("git", ["log", "--since=23.minutes.20.seconds.ago", "--oneline"]));
+  showOut("since 23m25s", exec("git", ["log", "--since=23.minutes.25.seconds.ago", "--oneline"]));
+  showOut("since 23m30s", exec("git", ["log", "--since=23.minutes.30.seconds.ago", "--oneline"]));
+  showOut("since 23m35s", exec("git", ["log", "--since=23.minutes.35.seconds.ago", "--oneline"]));
+  showOut("since 23m40s", exec("git", ["log", "--since=23.minutes.40.seconds.ago", "--oneline"]));
+  showOut("since 23m45s", exec("git", ["log", "--since=23.minutes.45.seconds.ago", "--oneline"]));
+  showOut("since 23m50s", exec("git", ["log", "--since=23.minutes.50.seconds.ago", "--oneline"]));
+  showOut("since 23m55s", exec("git", ["log", "--since=23.minutes.55.seconds.ago", "--oneline"]));
+  showOut("since 23m59s", exec("git", ["log", "--since=23.minutes.59.seconds.ago", "--oneline"]));
+  showOut("since 23m59s30", exec("git", ["log", "--since=23.minutes.59.30.seconds.ago", "--oneline"]));
+  showOut("since 23m59s45", exec("git", ["log", "--since=23.minutes.59.45.seconds.ago", "--oneline"]));
+  showOut("since 23m59s52", exec("git", ["log", "--since=23.minutes.59.52.seconds.ago", "--oneline"]));
+  showOut("since 23m59s55", exec("git", ["log", "--since=23.minutes.59.55.seconds.ago", "--oneline"]));
+  showOut("since 23m59s57", exec("git", ["log", "--since=23.minutes.59.57.seconds.ago", "--oneline"]));
+  showOut("since 23m59s59", exec("git", ["log", "--since=23.minutes.59.59.seconds.ago", "--oneline"]));
+  showOut("since 24m0s1", exec("git", ["log", "--since=24.minutes.0.10.seconds.ago", "--oneline"]))
+}

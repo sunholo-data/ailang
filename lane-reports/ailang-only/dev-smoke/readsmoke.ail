@@ -1,0 +1,10 @@
+module readsmoke
+import std/fs (readFile, fileExists)
+import std/io (println)
+
+export func main() -> () ! {IO, FS} {
+  println("--- executor_tools/smoke.sh ---");
+  println(readFile("executor_tools/smoke.sh"));
+  println("--- executor_tools/usage.sh ---");
+  println(readFile("executor_tools/usage.sh"))
+}

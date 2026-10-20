@@ -1,0 +1,18 @@
+module probe_status
+import std/process (exec, ProcessError)
+import std/bytes (toString)
+import std/io (println)
+
+func showOut(label: string, r: Result[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}, ProcessError]) -> () ! {IO} {
+  match r {
+    Ok(out) => println("[${label}] exit=${show(out.exitCode)} out=${toString(out.stdout)} err=${toString(out.stderr)}"),
+    Err(e) => println("[${label}] error=${show(e)}")
+  }
+}
+
+export func main() -> () ! {IO, Process} {
+  showOut("status long", exec("git", ["status"]));
+  showOut("log oneline", exec("git", ["log", "--oneline"]));
+  showOut("diff HEAD", exec("git", ["diff", "HEAD"]));
+  showOut("diff dev", exec("git", ["diff", "dev"]))
+}

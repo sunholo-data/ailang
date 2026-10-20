@@ -1,0 +1,13 @@
+module smoke_check
+import std/fs (readFile, writeFile, fileExists, listDir)
+import std/io (println)
+
+export func main() -> () ! {IO, FS} {
+  let target = "lane-reports/ailang-only/dev-smoke.md";
+  let today = "2026-05-21";
+  let line = "dev smoke ${today}: ailang-only-executor";
+  let found = fileExists(target);
+  writeFile(target, "${line}\n");
+  println("wrote ${target} (existed before: ${show(found)})");
+  println(readFile(target))
+}

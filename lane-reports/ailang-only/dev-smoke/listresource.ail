@@ -1,0 +1,30 @@
+module listresource
+import std/fs (listDir, isDir, fileExists)
+import std/io (println)
+import std/string (join)
+
+func showEntries(prefix: string, xs: [string]) -> () ! {IO, FS} {
+  if xs == [] then println("[${prefix}] (empty)")
+  else {
+    let tagged = mapTag(prefix, xs);
+    println(join("\n", tagged))
+  }
+}
+
+func mapTag(prefix: string, xs: [string]) -> [string] ! {FS} =
+  match xs {
+    [] => [],
+    x :: rest => {
+      let tag = if isDir("${prefix}/${x}") then "d" else "f";
+      ("${tag} ${x}") :: mapTag(prefix, rest)
+    }
+  }
+
+export func main() -> () ! {IO, FS} {
+  println("resources exists: ${show(fileExists("resources"))}");
+  if fileExists("resources") then showEntries("resources", listDir("resources")) else println("no resources dir");
+  println("executor_tools:");
+  showEntries("executor_tools", listDir("executor_tools"));
+  println("scripts:");
+  showEntries("scripts", listDir("scripts"))
+}

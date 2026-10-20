@@ -1,0 +1,20 @@
+module probe_git
+import std/process (exec, ProcessError)
+import std/bytes (toString)
+import std/io (println)
+
+func showOut(label: string, r: Result[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}, ProcessError]) -> () ! {IO} {
+  match r {
+    Ok(out) => println("[${label}] exit=${show(out.exitCode)} out=${toString(out.stdout)} err=${toString(out.stderr)}"),
+    Err(e) => println("[${label}] error=${show(e)}")
+  }
+}
+
+export func main() -> () ! {IO, Process} {
+  showOut("git version", exec("git", ["--version"]));
+  showOut("gh version", exec("gh", ["--version"]));
+  showOut("git status", exec("git", ["status", "--porcelain"]));
+  showOut("git branch", exec("git", ["branch", "--show-current"]));
+  showOut("git log", exec("git", ["log", "--oneline", "-3"]));
+  showOut("git remote", exec("git", ["remote", "-v"]))
+}

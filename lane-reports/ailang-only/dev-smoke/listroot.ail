@@ -1,0 +1,9 @@
+module listroot
+import std/fs (listDir)
+import std/io (println)
+import std/string (join)
+
+export func main() -> () ! {IO, FS} {
+  let entries = listDir(".");
+  println(join("\n", entries))
+}

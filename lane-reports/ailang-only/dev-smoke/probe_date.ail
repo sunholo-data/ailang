@@ -1,0 +1,19 @@
+module probe_date
+import std/process (exec, ProcessError)
+import std/bytes (toString)
+import std/io (println)
+
+func showOut(label: string, r: Result[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}, ProcessError]) -> () ! {IO} {
+  match r {
+    Ok(out) => println("[${label}] exit=${show(out.exitCode)} out=${toString(out.stdout)} err=${toString(out.stderr)}"),
+    Err(e) => println("[${label}] error=${show(e)}")
+  }
+}
+
+export func main() -> () ! {IO, Process} {
+  showOut("log cd 5", exec("git", ["log", "--format=%cd", "--max-count", "5"]));
+  showOut("log author", exec("git", ["log", "--author=.", "--format=%cd", "-n", "3"]));
+  showOut("log since20", exec("git", ["log", "--since=2026-10-20T00:00:00", "--format=%cd"]));
+  showOut("log since22", exec("git", ["log", "--since=2026-10-22T00:00:00", "--format=%cd"]));
+  showOut("log stat", exec("git", ["log", "--stat", "-n", "2"]))
+}
