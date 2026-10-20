@@ -1234,3 +1234,63 @@ Reach is NOT confirmed (unmerged). Re-run the done-gate at the merge.
 - (4) I launched a PR poll with a 3000 s cap, above the prescribed 1800 s, and stopped it once I noticed. D-FLEET-21 is the ruling that would make that legal.
 
 **Next**: `rotate-log:legacy-heading-format` (stapledon, 10-20, 1 slot). `ailang mission rotate-log` sees only canonical headings, so a log with legacy headings never rotates, and the no-op run still prepends a false "Older entries are ARCHIVED" notice and rewrites the index. It is in `cmd/ailang/mission*` / `internal/mission`, in scope and mechanical; reality-check at HEAD first. D-FLEET-16 and -18 through -23 are with Mark; D-FLEET-17 is moot.
+
+## 51 — 2026-10-20 — `rotate-log:legacy-heading-format` LANDED: #1912 → `3b4d11759`; judge PASS 82 then PASS 90 (sonnet); ticket resolved [HARNESS]
+
+**Pick**: iteration 50's **Next**, `rotate-log:legacy-heading-format` (stapledon, 10-20, `blocking=none`, 1 slot). 43 open tickets at pick; none new since iteration 50. `agent-tool:sonnet-unavailable` (`blocking=all`) stays PARKED-ON-LANE as in iterations 29 and 32–50. Index grep: no prior attempt.
+
+**Orphans credited**: none new. Gate 0 step 6a returned rc 1 for the same crash notice (2026-10-17T12:48:13Z, #1768), already credited at iteration 47 (`issuecomment-6234067020`). No open `fleet/*` PR; the leftover `fleet-*`/`.wt-fleet-*` worktrees all belong to landed iterations.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1891 and 0 on #1768 since `2026-10-15T02:46:27Z` (8 and 26 comments, none allowlisted). No rotation or sweep due (#1891 created 2026-10-19T08:54Z).
+
+**Observe**: origin/dev == pin == `f0f7df204`. `SKILL.md` and all 13 resources at the resolved symlink target are `cmp`-identical to origin. Dev CI green on `f0f7df204`: 22 check runs, 0 not green.
+
+**Reality check**: real, and wider than filed. A scratch copy of stapledon's log (`stapledons-godot` origin/main `50d8d5ba`, 41 headings) rotated by a HEAD-built binary printed "5 of 5 entries kept", and spliced the "Older entries are ARCHIVED" notice in at line ~1572, below all 36 legacy entries that had been swallowed into the preamble. The same code path adds one more notice on every rotation: v1's log carries 8 copies, and this log records hand-collapsing them 7 times (instances logged at iterations 28 and 31–35, plus later ones). The notice is the ticket's own named side effect, so fixing it is in-ticket, not self-sourced. In scope (`internal/mission`), mechanical, no D-FLEET row applies.
+
+**Did**:
+- **Designer**: not spawned. The controller wrote measurements M1–M6 and decisions D1–D8 into the planner directive (precedent: iterations 45, 49 and 50).
+- **Planner** (codex `gpt-6.1-sol`, recipe, detached `.planner-wt-iter51`): plan `88199ec6a`. 1 milestone, 8 arm/mutation pairs, and a fixture generated from stapledon by command. The validator's minimum-2-milestones refusal reproduced; kept at 1.
+- **Executor round 1** (codex, worktree `.wt-fleet-iter51-rotate-legacy`), commit `a1a5b7278`: date-first numbered and note parsing; a stable decorated sort; no-op leaves the live log byte-identical; one notice; a preamble guard; `rotate_legacy_test.go`; the 41-line fixture (`cmp`-identical to its generator). TDD red first; all 9 mutation rows red.
+- **Controller corpus gate** (outside the sandbox): `/tmp/fleet-iter/corpus51.sh`, HEAD binary vs new binary, `rotate-log --keep 20` on log and status streams for v1, fleet, docs, triage, motoko, world and stapledon. An A-vs-A control read SAME on all 14 arms. It found world's STATUS archive keeping a different, still-wrong 20: 100 `## STATUS <date> (iteration N) — …` stamps parse as notes, and the file is in mixed order. HEAD was already wrong here (kept 149–158 and 277–286).
+- **Executor round 2** (`09f9d0917`): `parseLog` reuses `statusParenIterRe`. Fixture = a generated, classification-preserving prefix of `ailang-world` `17c28324` (281/281 lines classify the same as the full headings; the full headings are 1.47 MB). Kept set is 267..286.
+- **Judge** (sonnet, Agent tool, foreground, own worktree `.wt-fleet-iter51-judge`): **PASS 82**, 0 blocking. Non-blocking: the guard refused `## 1. Purpose`, `## How to run iteration 5` and `## 2026 roadmap` (HEAD rotated them), and the notice stripper could eat hand-written quoted prose. Survivors: m1 (Slice for SliceStable), m2 (`Num > 0`), m4 (bounds), m8 (`\b`).
+- **Executor round 3** (`c2e295de7`): the guard needs a record skeleton (full date, numbered em-dash entry, or STATUS date). The writer and stripper share four exact prefixes. `rotate_guard_test.go` adds tests that kill m1, m2, m4 and m8. Re-judged **PASS 90**, 0 blocking. The judge did not byte-diff the notice; the controller did, and HEAD's freshly written notice is byte-identical to the final one on fleet, world and stapledon.
+- PR #1912 (no closing keyword; the scan was paired with a control) squash-merged with `--match-head-commit 0189f1e41` → `3b4d11759`.
+
+**Gate 3b**: PR checks at head `0189f1e41`: 26 total, 0 not green (per-invocation poller under `/bin/bash`, SHA in the verdict). Dev poll ran as prescribed: `target=3b4d11759…`, `rid=39462439669`, a 1-commit `DRIFT` (my merge). Verdict: `CI for 3b4d11759…: completed success` on the first poll; the full check set on the merge reads 21 checks, 0 not green. Ticket resolved with `--sha 3b4d11759` (replied to stapledon).
+
+**Done-gate**:
+- Surface: `internal/mission/rotate.go` is what `ailang mission rotate-log` runs.
+- Reach: merged to `origin/dev`. The PATH binary picks it up on its next rebuild or release (iteration 32 precedent).
+- `make test-launchd-drivers` under `env -i` at `c2e295de7`: rc 0. An earlier run at `09f9d0917` was stopped because round 3 superseded it.
+- Dry-runs under **stapledon** (armed, no pidfile; `AILANG_DRIVER_PINNED=c2e295de7`): healthy rc 0 `lanes=ok`; degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`) rc 0 `DEGRADED(1)`, handed to opus. No pidfile written; nothing reloaded.
+- Outside-sandbox gates at `c2e295de7`: `go test ./internal/mission/` ok, cmd/ailang rotate tests ok, gofmt and vet clean, `check-changelog` ok, `check-file-sizes` ok. The corpus round-2 vs round-3 binary read SAME on all 14 arms; HEAD vs final shows 7 differences, all explained, 0 unexplained.
+
+**Progress**: 1 ticket resolved; 42 open. Goal unmoved on clause 1.
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET (this ticket took about 15 h; the median stays far above 48 h).
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved.
+
+**Routing evidence**: base-gate1=f0f7df2046a730dff350680fe558dcd4a288c69a@2026-10-20T15:39:05Z; worktree base f0f7df204 (no drift at creation); gate3b=3b4d1175919eccfda8c034b49d0b6633c415817a (drift 1 commit, my merge). `MISSION_ROUTING_NOTE` empty; `MISSION_OVER_RATION` empty.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: not spawned (controller decisions D1–D8 in the planner directive). Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. Rotation not advanced (`codex:gpt-6.1-sol` stays last-used).
+- **Planner**: resolver `agent-tool opus fail-closed:no-doc` against the pin `codex:gpt-6.1-sol`, so routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0; run rc 0 (67,598 tok).
+- **Executor**: `codex:gpt-6.1-sol` via the recipe (`declared:provider-pin`), 3 runs, all rc 0 (100,905 + 65,796 + 80,979 tok).
+- **Evaluator**: `sonnet` via the Agent tool (`declared:alias-pin`), foreground, then resumed by `SendMessage` for round 3 (56,838 + 62,327 tok). Judge independence: cross-vendor (Anthropic sonnet vs the OpenAI generator).
+- The Agent tool was used wherever the resolver names it (the evaluator), per the operator's standing request. The planner and executor resolve to recipes. No role failed to spawn.
+- **Metered**: $0.
+
+**Ruled out**:
+- Widening `ailang mission normalize` instead of the rotation parser. Stapledon's log lives in another repo, and the parser already carries a "deliberately tolerant" multi-format contract. Normalize is unchanged.
+- Making a no-op rotation skip the index. `TestRotateLog_UnderThresholdStillWritesTheIndex` pins that as a deliberate contract.
+- Keying notes by date. With `(iteration N)` parsed as numbered, file order is correct on every real file measured.
+- Editing any real mission log, `.gitattributes`, or stapledon's repo.
+
+**Retro lane**:
+- (1) **A corpus gate across every mission's real logs caught what both executor runs and every unit test missed.** World's status-archive regression was invisible to the stapledon fixture by construction. The plan prescribed the gate because the controller asked for it in the planner directive. This is one instance, so no skill edit; noting the shape for parser changes: run the old and new binaries over every real input the parser consumes.
+- (2) **zsh again**: `ls /tmp/x_*.verdict` inside a poll loop prints `no matches found` on every pass under zsh. The loop worked but spammed 30 lines; re-run under `/bin/bash -c`. With iteration 50's (1), that makes 5 frictions in 3 iterations from one gap (Bash-tool commands run under zsh). The skill edit ("wrap hand-written polls in `/bin/bash -c`") still waits for a slot of its own, and it remains a charter-tracked follow-up because the fleet cannot file tickets.
+- (3) I printed the environment with `env | grep -v -i key` at Gate 0, and that filter does not catch `*_TOKEN` variables, so the session's OAuth token went into this transcript. It did not reach any repo, message or issue. Use `env | cut -d= -f1` for name-only reads.
+
+**Next**: by `slots_lost`, `agent-tool:sonnet-unavailable` stays PARKED-ON-LANE and `reporting:daneel-reports-not-declared-triage` is parked on D-FLEET-22, so the head is `agent-tool-glm-designer-unavailable` (world, 10-02, 3 slots) with its siblings `agent-tool-sonnet-unavailable` and `agent-tool-opus-planner-unavailable` (hyphenated duplicates of colon-form tickets). Reality-check whether they are one routing-policy class (a D-FLEET park) before building. D-FLEET-16 and -18 through -23 are with Mark; D-FLEET-17 is moot.
