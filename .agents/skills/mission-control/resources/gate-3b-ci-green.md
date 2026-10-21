@@ -19,6 +19,12 @@ Follow [`gate-3-route.md`](gate-3-route.md) codex recipe step 2 and [`SKILL.md`]
 Bash poll call: run_in_background: true, timeout: 2000000 (ms).
 These are **Bash tool arguments**, not shell variables or GNU timeout; keep timeout at least 2000000 ms (cap plus margin).
 Run the loop foreground inside that background call, with no extra shell `&`, so notification means work completion.
+**Run every poll or gate loop YOU write under `/bin/bash`, never in the Bash tool's own shell.**
+That shell is zsh, and every snippet in this skill assumes bash. Under zsh, an unquoted `$var` does
+not word-split (`set -- $out` gives one field, so every count reads non-numeric). An unmatched glob
+aborts the command with `no matches found`. `echo` expands `\n` inside JSON, and `$VAR:r` is a
+modifier. Seven pollers or gates broke this way in fleet iterations 49–54, and one never wrote its
+verdict. Write the loop to a file and run `/bin/bash <file>`, or wrap it in `/bin/bash -c '…'`.
 
 ```bash
 # PIN THE POLL TARGET TO THE SHA YOU PUSHED — never `--limit 1` (see the war story below).
