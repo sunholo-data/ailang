@@ -1,22 +1,25 @@
-# Triage mission dashboard — iteration 11, 2026-10-21
+# Triage mission dashboard — iteration 12, 2026-10-21
 
-- Release: operational CLI v0.54.16-dirty/128371f; source reviewed at d75ef77f59cf4c3c3151fef4840335d269963b8d.
-- Level1. No approval, rejection, merge, sprint execution or card handoff.
-- Dev RED: govulncheck GO-2026-6809; current run39582396242 still in progress.
-- Parent run39544923639 at d3d389ef also failed on empty-PID PTY fixture.
-- Both findings routed as product design requests; triage changes no code or pins.
-- New D-TRIAGE-25: property coverage policy; current semantics retained pending ruling.
-- D24 retains uncarded PR1889; D22 retains orphan1894; D17 holds1883 executor handoff.
-- Entry queue:6 cards/26 PRs/60 issues; final7 cards/28 PRs/60 issues.
-- 5 component verdicts including2 late design PRs;2 labels and1 comment; no closes or attestations.
-- 5 cards>48h, none green AND mergeable; 9 uncarded PRs(including1923)+1 missing approval record.
-- Settled shadow15/15, corrected for CLOSE-DUPLICATE1903; no disagreements.
-- Read-only verifiers: native Agent-tool gpt-6-luna; judge actual MiniMax via declared Ollama fallback.
-- Native sonnet spawn rejected; existing fleet D-FLEET-24 owns routing policy.
-- Metered$0; judge+probe36,205 tokens; other role telemetry not reported.
-- Cadence12h, queue fingerprint idle pre-check. Fingerprint only after all reports.
-- Existing OPEN decisions stay OPEN; no bot summary used as human authority.
-- Main dirty files parked; no skill/config/policy edits.
-- Next: operator rules D25; product owners design CI repairs; card owners repair/reconcile.
-- Evidence: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6313645488
-- Record PR: https://github.com/sunholo-data/ailang/pull/1904 (unmerged).
+- Operational CLI v0.54.16-dirty/128371f; reviewed dev d25d9b8d0dde10ee7c14986fe21b94fd2cb500cd.
+- Level1; no approve/reject/merge/sprint execution/handoff.
+- Dev RED: new managed-agent pricing identity collision; inherited GO-2026-6809.
+- Pricing first red d25; parent267cf2fdf Linux+Windows passed. Design-only request inbox_1792622656896_0027a408.
+- Argon effective billing SKU/rates remain UNMEASURED; preserve real alias drift detection.
+- Existing advisory/PTY designs1923/1924 merged externally; no duplicate dispatch or authority inference.
+- Masked/skipped gates: Linux58,Windows3,vuln1,releaseMac8;3cancelled release legs UNMEASURED.
+- New OPEN D26 holds PTY planner1926 until green checks+explicit execution authorization.
+- D25 coverage semantics unchanged; existing OPEN D15–25 retained, resolvedD12–14 not re-asked.
+- Snapshot7cards/28PRs/60issues;2joined items/3component verdicts;9/9independent review CONCUR.
+- One PR evidence comment; no closes,labels,attestations,coordinator state changes or code edits.
+- Five cards>48h;none green+mergeable. Eight uncarded PRs+1missing approval record.
+- Shadow corrected14/14;1783 superseded prediction excluded;2merged unscored outcomes.
+- Ledger338→343,old prefix unchanged;under14days collection,PartA not enabled.
+- Two read-only Agent verifiers(OpenAI;model/tokunreported).
+- Native Sonnet selection unavailable(schema no model/vendoroverride); declared independent MiniMax fallback.
+- Judge actual ollama/minimax-m3:cloud,responseModelminimax-m3;8137tokens,reported metered$0.
+- Agent transport authored no verdict; no designer/planner/code executor.
+- Cadence12h,queuefingerprint idle pre-check;fingerprint after all reports.
+- Capability/reporting friction escalated only;no skill/config/routing changes.
+- Main dirty paths parked;record chain preserved;PR1904 remains unmerged.
+- Evidence: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6328218334
+- Record: https://github.com/sunholo-data/ailang/pull/1904
