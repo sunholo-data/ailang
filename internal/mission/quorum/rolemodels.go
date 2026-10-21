@@ -37,7 +37,7 @@ func IsOpenAIModel(id string) bool {
 	return strings.HasPrefix(CanonicalModelKey(id), "gpt") || strings.Contains(raw, "astra") || strings.HasPrefix(raw, "codex:")
 }
 
-// Allowed leaves other vendors unchanged and admits only allowlisted OpenAI ids.
+// ModelAllowed leaves other vendors unchanged and admits only allowlisted OpenAI ids.
 func ModelAllowed(id string) bool {
 	if !IsOpenAIModel(id) {
 		return true
