@@ -1,0 +1,61 @@
+{
+  "sprint_id": "M-FLEET-QUOTA-OPENCODE-NOT-A-POOL",
+  "created": "2026-10-21T00:00:00Z",
+  "estimated_duration_days": 1,
+  "correlation_id": "sprint_M-FLEET-QUOTA-OPENCODE-NOT-A-POOL_fleet52_20261021",
+  "design_doc": "design_docs/planned/sprint-plan-quota-opencode-not-a-pool.md",
+  "markdown_plan": "design_docs/planned/sprint-plan-quota-opencode-not-a-pool.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_QUOTA_OPENCODE_NOT_A_POOL",
+      "package": null,
+      "action": "none",
+      "reason": "Reuse existing Go mission ledger/admission and CLI infrastructure. No package-like AILANG capability or .ail module; registry package search is inapplicable. No new package, script or dependency."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_QUOTA_OPENCODE_NOT_A_POOL",
+      "description": "Stop treating the opencode harness as a quota pool: map qualified spend to backend, reject unmappable writes/CLI selections, remove historical harness cache rows and fold journal backends, with guarded capacity preservation and the dead shell alternation removed.",
+      "estimated_loc": 300,
+      "actual_loc": null,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "D1: QuotaBucketFor returns backend for case-insensitive opencode:<backend> and opencode/<backend> beginning with anthropic/codex/ollama/openrouter; bare or unsupported-backend opencode returns \"opencode is a harness, not a quota bucket; record the backend bucket instead\"; every non-opencode raw value is unchanged. One named four-bucket list is reused by the checks/mapping and mirrored by the shell alternation.",
+        "D2: AppendSpend maps qualified opencode spend before journal writes, and unmappable harness values return the diagnostic without creating/changing the journal. Existing chains_post stderr-and-continue behavior is reused without editing that file.",
+        "D3: rebuild drops all cached opencode harness rows, maps qualified journal entries under backend, skips unmappable ones and increments existing skipped count. No other cached-row pruning; preserve real bucket rows, capacity and provider-reset fields.",
+        "D4: --bucket opencode and every qualified/case variant, even mappable harness values, fail with the same harness diagnostic before reporting. Help retains the four advertised buckets; TestMissionQuotaAdvertisedBucketsAreAllSelectable and its historical opencode comment remain unchanged and green.",
+        "D5-D6: admission uses the named four-bucket list and rejects directly constructed Transport opencode with unsupported quota bucket; preserve earlier codex/ollama switch arms and anthropic/openrouter behavior. Only remove |opencode from lane-probe.sh awk alternation; bash 3.2/BSD awk compatibility retained, no other driver edits.",
+        "D7 helper table covers opencode/OpenCode errors, opencode:openrouter/z-ai/glm-5.3 -> openrouter, opencode/ollama/glm-5.3:cloud -> ollama, opencode:anthropic/claude-sonnet-5-5 -> anthropic, opencode:openai/gpt-5.5 error, anthropic/codex/unlabeled unchanged; qualified case and codex coverage included.",
+        "D7 ledger arms in separate t.TempDir homes: (a) generated M1 cache keeps anthropic 5h/long and capacity-only zero-token row, removes opencode zero-token/zero-window rows; (b) bare opencode journal skipped exactly once, no harness row; (c) opencode:openrouter/x 7 tokens yields backend 5h/long 7 each; (d) bare AppendSpend errors, absent journal stays absent or pre-existing SHA unchanged; (e) opencode:ollama/m:cloud 3 tokens journals ollama. Fixed live-window time, no real ~/.ailang reads/writes.",
+        "D7 CLI arms assert bare/qualified/case harness diagnostics and M1-generated text report has no opencode substring. Neutralize credentials, CODEX_HOME and executable PATH using existing test patterns. Inject admission observers to reach ledger branch without provider probes.",
+        "Mutation evidence: baseline/restored green and each intended assertion red under bare helper returning opencode,nil; missing slash mapping; no cache drop (a); fold unmappable (b); skip mapped (c); write before helper (d); no CLI check; revert both D3 halves for text; restore opencode acceptance for admission. Use cp to mktemp disposable copies and cp restore or Go overlay, never git checkout. Compile errors do not count; record rc/assertion.",
+        "Independent capacity-survives assertion in (a) stays GREEN under D3 mutations and turns RED when every zero-token cache row is dropped: over-pruning guard. No new shell arm; unchanged env-i suites remain green because opencode alternation is dead per M6.",
+        "go test ./internal/mission/ -> rc 0 ok; go test ./cmd/ailang/ -run 'MissionQuota|Quota' -count=1 -> rc 0 ok; gofmt -l internal/mission cmd/ailang -> rc 0 empty; make check-changelog -> rc 0; make check-file-sizes -> rc 0.",
+        "env -i HOME=$HOME PATH=$PATH USER=$USER TMPDIR=$TMPDIR /bin/bash tools/launchd/test_mission_routing.sh -> rc 0; same prefix for test_anthropic_quota_admission.sh, test_codex_quota_admission.sh, test_ollama_quota_admission.sh -> each rc 0. Existing suites unchanged. Do not leak MISSION_PLANNER_ALLOWLIST.",
+        "D8: changelogs/unreleased/2026-10-21-quota-opencode-not-a-pool.md is 2-5 lines with exact first line: ### Fixed — mission quota no longer reports the opencode harness as a quota pool; opencode-routed spend counts under its backend bucket",
+        "D9: only listed milestone files are implementation scope; quota_ledger_opencode_test.go is the companion avoiding growth of quota_ledger_test.go, quota_ledger.go stays below 800 lines. Exclude internal/observatory/**, chains_post.go, internal/modelreg/**, real state, mission-control.sh and every skill. Follow-up not ticketed: CanonicalQuotaBucket still passes opencode unchanged, owned by V1.",
+        "Controller alone outside sandbox runs env -i HOME=$HOME PATH=$PATH USER=$USER TMPDIR=$TMPDIR make test-launchd-drivers plus HEAD-vs-new mission quota and mission quota --over comparisons on separate scratch copies of rig ledger.json and journal segments in temp HOMEs. Compare stdout/stderr/rc under matching provider environment; only vanished opencode lines allowed. Label every socket-touching result UNINFORMATIVE UNDER SANDBOX. Foreground only; no full-suite or broad-build gates."
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": "Planner only; D-FLEET-12 item 2 pre-authorized and D1-D9 fixed by controller. M1-M8 are established outside-sandbox measurements at origin/dev 1579ef50c. Validation: jq -e . .ailang/state/sprints/sprint_M-FLEET-QUOTA-OPENCODE-NOT-A-POOL.json -> rc 0, valid JSON. Requested .claude/skills/sprint-planner/scripts/validate_sprint_json.sh is absent; ran the existing /bin/bash .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-FLEET-QUOTA-OPENCODE-NOT-A-POOL -> rc 1, sole error: Only 1 milestone(s) defined (minimum: 2); JSON syntax, custom milestone values, populated registry reuse and no-placeholder checks passed. Intentional one-milestone exception authorized by user; no dummy milestone added. Plan is 99 lines. No socket-touching commands were run; implementation/test gates were not rerun by planner. Only the two requested planning artifacts were written; no implementation, git write operations, inbox operations, background work or handoff dispatch. Controller commits artifacts and owns outside-sandbox integration verification.",
+      "status": "not_started"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 300,
+    "actual_loc_per_day": 0,
+    "target_milestones_per_week": 1,
+    "actual_milestones_per_week": 0,
+    "estimated_total_loc": 300,
+    "actual_total_loc": 0,
+    "estimated_days": 1,
+    "actual_days": 0
+  },
+  "last_session": null,
+  "last_checkpoint": null,
+  "status": "not_started"
+}
