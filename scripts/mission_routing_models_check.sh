@@ -40,14 +40,15 @@ BEGIN {
 /^## [0-9]+ — / {
   active = (wanted == "" || $2 == wanted)
   if (active) {
-    seenEntry = 1; seenBlock = 0; inBlock = 0; findings = ""; count = 0
+    seenEntry = 1; seenBlock = 0; inBlock = 0; bulleted = 0; findings = ""; count = 0
   }
   next
 }
 active {
-  if (!seenBlock && /^\*\*Routing evidence\*\*/) {
-    seenBlock = 1; inBlock = 1
-  } else if (/^\*\*/) {
+  if (!seenBlock && /^(- )?\*\*Routing evidence[^*]*\*\*/) {
+    seenBlock = 1; inBlock = 1; bulleted = /^- /
+  # Bulleted routing headers also end at column-0 sibling fields.
+  } else if (/^\*\*/ || (bulleted && /^- \*\*/)) {
     inBlock = 0
   }
   if (!inBlock) next
@@ -58,6 +59,11 @@ active {
     sub(/[-.]+$/, "", token)
     key = canonical(token)
     if (!(key in allow)) {
+      # Allow hyphenated compounds with an allowlisted model prefix.
+      for (j = 1; j <= length(token); j++) {
+        if (substr(token, j, 1) == "-" && (canonical(substr(token, 1, j - 1)) in allow)) break
+      }
+      if (j <= length(token)) continue
       findings = findings FILENAME ":" FNR ": " token "\n"
       count++
     }
