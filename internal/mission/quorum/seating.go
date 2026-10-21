@@ -20,8 +20,6 @@ import (
 	"hash/fnv"
 	"strings"
 	"sync"
-
-	"github.com/sunholo-data/ailang/internal/mission/rolemodels"
 )
 
 // DefaultSeats is how many independent reviewers a quorum aims for.
@@ -76,7 +74,7 @@ func SelectReviewers(pool []string, author, docKey string, seats int) Selection 
 	av := VendorOf(author)
 	var eligible []string
 	for _, m := range pool {
-		if !rolemodels.Allowed(m) {
+		if !ModelAllowed(m) {
 			sel.Refused = append(sel.Refused, m)
 			continue
 		}

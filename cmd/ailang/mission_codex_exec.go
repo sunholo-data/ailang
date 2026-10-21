@@ -14,7 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/executor/codex"
-	"github.com/sunholo-data/ailang/internal/mission/rolemodels"
+	"github.com/sunholo-data/ailang/internal/mission/quorum"
 )
 
 // missionCodexExec uses one managed auth owner. It deliberately never falls back
@@ -22,7 +22,7 @@ import (
 func missionCodexExec(args []string) error {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			fmt.Println("ailang mission codex-exec --model MODEL [-C DIR] [-c KEY=TOML] [--json] [--sandbox MODE] [--dangerously-bypass-approvals-and-sandbox] PROMPT\nUses the managed daemon for CODEX_HOME; never starts an independent auth runtime.\nOpenAI mission-role allowlist (D-FLEET-12): " + strings.Join(rolemodels.AllowedOpenAI, ", "))
+			fmt.Println("ailang mission codex-exec --model MODEL [-C DIR] [-c KEY=TOML] [--json] [--sandbox MODE] [--dangerously-bypass-approvals-and-sandbox] PROMPT\nUses the managed daemon for CODEX_HOME; never starts an independent auth runtime.\nOpenAI mission-role allowlist (D-FLEET-12): " + strings.Join(quorum.AllowedOpenAIModels, ", "))
 			return nil
 		}
 	}
@@ -52,7 +52,7 @@ func missionCodexExec(args []string) error {
 
 func parseMissionCodexExecArgs(args []string) (codex.DaemonExecOptions, bool, error) {
 	opts := codex.DaemonExecOptions{Sandbox: "read-only", ApprovalPolicy: "never", Config: map[string]any{}}
-	opts.Config[rolemodels.SpawnOverrideKey] = false
+	opts.Config[quorum.SpawnOverrideKey] = false
 	jsonOutput := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -110,7 +110,7 @@ func parseMissionCodexExecArgs(args []string) (codex.DaemonExecOptions, bool, er
 			if _, e := toml.Decode("value="+raw, &decoded); e != nil {
 				return opts, false, fmt.Errorf("invalid TOML for config key %s", key)
 			}
-			if key == rolemodels.SpawnOverrideKey {
+			if key == quorum.SpawnOverrideKey {
 				if v, ok := decoded["value"].(bool); !ok || v {
 					return opts, false, fmt.Errorf("D-FLEET-12: config %s must be boolean false", key)
 				}
@@ -142,8 +142,8 @@ func parseMissionCodexExecArgs(args []string) (codex.DaemonExecOptions, bool, er
 	if opts.Model == "" || opts.Directive == "" {
 		return opts, false, fmt.Errorf("--model and a prompt are required")
 	}
-	if !rolemodels.Allowed(opts.Model) {
-		return opts, false, fmt.Errorf("D-FLEET-12: mission model %q is not allowlisted; allowed OpenAI models: %s", opts.Model, strings.Join(rolemodels.AllowedOpenAI, ", "))
+	if !quorum.ModelAllowed(opts.Model) {
+		return opts, false, fmt.Errorf("D-FLEET-12: mission model %q is not allowlisted; allowed OpenAI models: %s", opts.Model, strings.Join(quorum.AllowedOpenAIModels, ", "))
 	}
 	switch opts.Sandbox {
 	case "read-only", "workspace-write", "danger-full-access":

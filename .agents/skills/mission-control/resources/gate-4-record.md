@@ -125,7 +125,7 @@ value fields: evidence drives routing-policy changes; ruled-out stops re-chasing
 mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
 
 Before the record commit, check your own entry for OpenAI models outside the D-FLEET-12 allowlist
-(today `gpt-6.1-sol` and `gpt-6-luna`; the list lives in `internal/mission/rolemodels`):
+(today `gpt-6.1-sol` and `gpt-6-luna`; the list is `AllowedOpenAIModels` in `internal/mission/quorum/rolemodels.go`):
 
 ```bash
 /bin/bash "$MISSION_DRIVER_ROOT/scripts/mission_routing_models_check.sh" \

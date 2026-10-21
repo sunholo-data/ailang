@@ -1,4 +1,4 @@
-package rolemodels
+package quorum
 
 import (
 	"os"
@@ -22,12 +22,12 @@ func TestRoutingScriptAllowlistParity(t *testing.T) {
 	keys := func(ids []string) []string {
 		out := make([]string, len(ids))
 		for i, id := range ids {
-			out[i] = CanonicalKey(id)
+			out[i] = CanonicalModelKey(id)
 		}
 		sort.Strings(out)
 		return out
 	}
-	got, want := keys(strings.Fields(match[1])), keys(AllowedOpenAI)
+	got, want := keys(strings.Fields(match[1])), keys(AllowedOpenAIModels)
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("shell allowlist drift: canonical shell %v != Go %v", got, want)
 	}

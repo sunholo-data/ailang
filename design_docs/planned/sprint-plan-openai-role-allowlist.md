@@ -100,3 +100,8 @@ Shipping the literal list would have demoted an armed mission's ratified verifie
 Retired models stay refused: `gpt-6-astra`, `gpt-6-sol`, and every `gpt-5.6-*`.
 Tests that used luna as the refused example now use `gpt-5.6-luna`, which also exercises the `.` canonicalization (`gpt56luna` vs `gpt6luna`).
 The charter files the confirmation as D-FLEET-27.
+
+## Amendment 2 (controller, after PR CI) — no new package
+PR #1922's required `test` job failed `make check-architecture-closure`. The new `internal/mission/rolemodels` package raised the binary's linked-package count from 136 to 137, which made the generated closure section of `ARCHITECTURE.md` stale.
+`ARCHITECTURE.md` is outside the fleet's write scope, so the policy moved into `internal/mission/quorum/rolemodels.go` instead. `cmd/ailang` already links that package, so the closure count is unchanged.
+Identifiers were renamed for the larger package: `AllowedOpenAIModels`, `CanonicalModelKey`, `IsOpenAIModel` and `ModelAllowed`. `SpawnOverrideKey` keeps its name. The tests moved with the code, and behaviour is unchanged.
