@@ -1202,3 +1202,73 @@ The driver sets the flag to 0 for every codex or pi controller (`mission-control
 - (3) The executor reported that `test_mission_routing.sh` prints `_mc_canon_id: command not found` (and two siblings) while still exiting rc 0. The same lines appear in the controller's base log at `1579ef50c`, so it is pre-existing and not this diff. Not ticketed (the fleet does not self-source).
 
 **Next**: reality-check `policy:fleet-rulings-not-propagated-to-charters-and-skill` (attended, 10-01; an ask for Mark, probably a park), then `codex:server-capacity-error-crashes-finished-iteration` (attended, 10-02), then `routing:retired-codex-models-still-spawnable-natively` (D-FLEET-12 item 1, pre-authorized). D-FLEET-16, -18 through -24 are with Mark; D-FLEET-17 is moot.
+
+## 53 — 2026-10-21 — `routing:retired-codex-models-still-spawnable-natively` LANDED: #1922 → `d75ef77f5`; judge PASS 85, round 2 PASS 85 (sonnet); ticket resolved; D-FLEET-25, -26, -27 filed [HARNESS]
+
+**Pick**: iteration 52's **Next** listed three tickets in order. First, `policy:fleet-rulings-not-propagated-to-charters-and-skill`: its ask is a mechanism for Mark, so it is parked on **D-FLEET-25**. Second, `codex:server-capacity-error-crashes-finished-iteration`: classifying `Selected model is at capacity` is the D-FLEET-11/13 runtime-classification class, and that class parked last time, so it is parked on **D-FLEET-26**. That made this a bookkeeping pick, so standing rule 1 allowed a second: `routing:retired-codex-models-still-spawnable-natively` (attended, 10-02), which D-FLEET-12 item 1 pre-authorizes. I also reality-checked the newest ticket, `quorum:oc-glm-5-3-output-cap-invalid` (stapledon, 10-21), because a fast resolution would move clause 2. Its fix is `internal/modelreg/models.yml` or the quorum's seating policy, both outside fleet scope, and its "$0.63 metered waste" is imputed: Ollama Cloud is flat-rate. It stays open, ranked by slots. 42 open tickets at pick; index grep found no prior attempt at any of the four.
+
+**Orphans credited**: none new. Gate 0 step 6a returned rc 1 for the same crash notice (2026-10-17T12:48:13Z, #1768), already credited at iteration 47 (`issuecomment-6234067020`). No open `fleet/*` PR at pick; the leftover `fleet-*`/`.wt-fleet-*` worktrees all belong to landed iterations.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1891 since `2026-10-15T02:46:27Z` (10 comments, none allowlisted). No rotation or sweep due (#1891 created 2026-10-19).
+
+**Observe**: origin/dev == pin == `d3d389efe`. `SKILL.md` and all 13 resources are `cmp`-identical to origin at the resolved symlink target, and the pin copies equal the resolved ones. **Dev CI is RED on `d3d389efe`, from causes outside fleet scope.** V1 owns the repo and is disabled; D-FLEET-17 is the standing question. (1) `govulncheck` (not required) went red at `7ab609a6a` (iteration 52's docs-only record) on a newly published, function-reaching advisory **GO-2026-6809**, not allowlisted; it is time-based, not from a commit. (2) The required `test` failed on `TestWorkerTerminalPTYLifecycle/eval/sigint` (`internal/runner`, a Python `ValueError: invalid literal for int()` inside the PTY harness). Of the last 5 failed `test` jobs on dev and PRs, 3 carry this failure (10-20 07:36, 10-20 08:58, 10-21 04:36), so it is an intermittent flake. It did not recur on #1922's head.
+
+**Reality check, `routing:retired-codex-models-still-spawnable-natively`**: real. All measurements are on the rig with codex-cli 0.162.0.
+- (M1) Paired probe asking the model to list its `spawn_agent` parameters. Control: `model` with `gpt-6.1-sol, gpt-6-astra, gpt-6-sol, gpt-6-luna, gpt-5.6-sol`. With `-c features.multi_agent_v2.expose_spawn_agent_model_overrides=false` (key found in the binary's config struct): no model parameter.
+- (M2) The same pair through `ailang mission codex-exec`, the daemon path every driver launch uses: identical.
+- (M3) A real `spawn_agent` call under the flag produced a child rollout (`source.subagent.thread_spawn`) with every `model` field `gpt-6.1-sol`: children inherit the parent.
+- (M4) Every driver codex launch goes through `mc_codex_command`.
+- (M6) `SelectReviewers` would seat `gpt6-astra` from an explicit pool.
+- (M7) **wrong as first written**: the plan said only disabled docs pins a non-Sol codex model.
+
+**Did**:
+- **Designer**: not spawned. The controller's measurements M1–M8 and decisions D1–D9 went into the planner directive (precedent: iterations 45 and 49–52).
+- **Planner** (codex `gpt-6.1-sol`, recipe, `.planner-wt-iter53`, run under the new flag): plan `377f10704`, 2 milestones, a 13-row arm/mutation table, and the controller-only steps named.
+- **Executor M1** (codex, 50-min cap; the milestone is plan-sized with a mutation drill), committed by the controller as `87cd10aa6`. New leaf package with the allowlist; `codex-exec` refusal before any daemon contact, forced flag, refusal of any caller value other than false; `mc_codex_command` flag; both `gate-3-route.md` copies (the controller mirrored `.agents`, which the sandbox refuses, and reworded one sentence); `tools/launchd/test_codex_spawn_override.sh` with an array check, a two-root sweep and an instrument control. TDD red first; 9/9 plan mutations red.
+- **Executor M2** (codex), committed as `a53afdccf`: `Selection.Refused` before benching; `ReasonNotAllowlisted`; `scripts/mission_routing_models_check.sh` plus 20 fixture assertions; a Go parity test; both `gate-4-record.md` copies. The controller mirrored `.agents` and changed the script path to `$MISSION_DRIVER_ROOT/...`, since World's log lives in another repo. 10 plan mutations red; the default-pool control stayed green under both filter mutants.
+- **Controller integration over the real logs refuted M7.** `triage-mission-log.md:31` routes verifiers to `codex:gpt-6-luna`. `mission-triage.env:24,33` pins it, triage is armed, and its charter (ratified 2026-10-15, later than D-FLEET-12) names luna. By gate-0 rule 6(g) the later statement wins on luna only, so the allowlist became `gpt-6.1-sol` + `gpt-6-luna`, recorded as plan Amendment 1 and **D-FLEET-27**. Mutation-tested: dropping luna from the Go list alone reddens `TestModelAllowed` and the parity test.
+- **Live, new binary at `87cd10aa6`**: `--model gpt-6-astra` refused with rc 1 and 0 new rollout files (never reached the daemon). A caller `=true` was refused. `--model gpt-6.1-sol` with **no** `-c` reported no model parameter, where the PATH binary's control listed five.
+- **Judge round 1** (sonnet, Agent tool, foreground, worktree `.wt-fleet-iter53-judge`): **PASS 85**, 0 blocking. 38 mutations: 34 killed; 4 survived, 2 of them equivalent. It ruled the luna deviation sound and found the prefixed-OpenAI-id gap in `IsOpenAI` non-blocking.
+- **PR CI, first head `9b81a276e`**: the required `test` failed `make check-architecture-closure`. The new package raised the binary closure from 136 to 137, and `ARCHITECTURE.md` (outside fleet scope) went stale. The controller moved the code into `internal/mission/quorum/rolemodels.go` (`a32188128`): renamed identifiers, behaviour unchanged, and `check-architecture-closure` current locally. The same run's `Build macos-latest` failed `TestMemWatchdogKillsAllocator` (`internal/eval_harness`, untouched; green on dev's last 8 macOS jobs and on the next head), and Windows was cancelled by fail-fast.
+- **Judge round 2** (sonnet): **PASS 85**, 0 blocking. The move is character-identical apart from renames and comments, and 4 mutations against the moved code were all killed. Its two cosmetic items were fixed in `abb75b597` (doc comment, sprint JSON text).
+- PR #1922 (no closing keyword; the scan was paired with a control) squash-merged with `--match-head-commit abb75b597` → `d75ef77f5`. Head checks: 26 total, one red, `govulncheck`, inherited from dev and not required.
+
+**Gate 3b**: dev poll as prescribed: `target=d75ef77f59cf4c3c3151fef4840335d269963b8d`, `rid=39582396242`, a 1-commit `DRIFT` (my merge). The first poll timed out at its 1800 s cap with only `build` still running and nothing failed except `govulncheck`, the D-FLEET-21 shape. A fresh-path re-poll (default C) read `CI for d75ef77f59cf4c3c3151fef4840335d269963b8d: completed failure`. The full check set on the merge reads 21 checks with one not green, `govulncheck (vuln gate)`, red on both parents (`d3d389efe`, `7ab609a6a`) for GO-2026-6809, inherited and not required. `test`, `build` and `launchd drivers (bash 3.2)` are green, and `Build and Release` succeeded on `d75ef77f5`. LANDED.
+
+**Done-gate**:
+- Surface: `tools/launchd/lib/codex-auth-profile.sh` (sourced by the driver; `_mc_probe_codex` and the codex controller launch use it); `cmd/ailang/mission_codex_exec.go`; `internal/mission/quorum`; both copies of the skill resources.
+- Reach: merged to `origin/dev`. The shell flag rides the next pinned fire; the Go refusal and quorum guard ride the next rig rebuild or release.
+- `make test-launchd-drivers` under `env -i`: rc 0 at the branch head, and rc 0 at pristine base `d3d389efe` in its own worktree. An earlier base run read 27 failures in the gate-0 self-notices suite while codex runs loaded the machine; that suite alone passed 108/0.
+- Dry-runs under **stapledon** (armed, no pidfile; `AILANG_DRIVER_PINNED=9b81a276e`): healthy rc 0 `lanes=ok`; the codex probe went through the patched `mc_codex_command` on the current PATH binary, which proves the old binary accepts the flag. Degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`) rc 0 `DEGRADED(1)`, handed to opus. No pidfile written; nothing reloaded.
+
+**Progress**: 1 ticket resolved; 41 open; 2 parked on new asks. Goal unmoved on clause 1.
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET (this ticket: filed 10-02, resolved 10-21, about 19 d).
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved.
+
+**Routing evidence**: base=d75ef77f59cf4c3c3151fef4840335d269963b8d-10-21T10:09:08Z; base-gate1=d3d389efeba794013e72f861ad3a5317a2880dab@2026-10-21T08:04:25Z; sprint worktree base d3d389efe; gate3b=d75ef77f59cf4c3c3151fef4840335d269963b8d (drift 1 commit, my merge). `MISSION_ROUTING_NOTE` empty; `MISSION_OVER_RATION` empty.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: not spawned (controller decisions in the planner directive). Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. Rotation not advanced.
+- **Planner**: resolver `agent-tool opus fail-closed:no-doc` against the pin `codex:gpt-6.1-sol`, so routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0; run rc 0 (93,067 tok).
+- **Executor**: `codex:gpt-6.1-sol` via the recipe (`declared:provider-pin`), 2 runs: M1 rc 0 (100,762 tok), M2 rc 0 (196,466 tok).
+- **Evaluator**: `sonnet` via the Agent tool (`declared:alias-pin`), foreground, 2 rounds (114,438 + 58,270 tok). Judge independence: cross-vendor (Anthropic sonnet vs the OpenAI generator).
+- The Agent tool was used where the resolver names it (the evaluator), per the operator's standing request. The planner and executor resolve to recipes. No role failed to spawn.
+- Every codex run this iteration carried the new spawn-override flag.
+- **Metered**: $0.
+
+**Ruled out**:
+- The literal `gpt-6.1-sol`-only allowlist. Armed triage's ratified verifier lane would have demoted at the next binary rebuild; a later ruling (triage charter) covers luna, and D-FLEET-27 asks for confirmation.
+- Regenerating `ARCHITECTURE.md` to keep the new package. That is outside fleet scope; it would park for Mark or need a scope-guard PR shipped alone first.
+- Fixing `IsOpenAIModel` for prefixed ids by substring matching inside this sprint. Substring matching would refuse allowed prefixed ids such as `motoko-chatgpt-gpt-6-1-sol`, because the canonical key keeps the prefix. It needs its own design, and no pool carries such ids today.
+- Building D-FLEET-25 or D-FLEET-26 without a ruling.
+- Reading `pgrep` silence as "the superseded poller stopped". The first `kill` failed on a zsh word-splitting error; a second, per-PID kill was confirmed by an empty `pgrep` and by the task's own completion notice.
+
+**Retro lane**:
+- (1) **Make-gate contamination from a shared worktree, twice this iteration.** I ran `make test-launchd-drivers` in the sprint worktree while an executor was editing it (the `.agents` parity arm read a half-applied edit), and later while I edited it myself. Both readings were void, and a pristine baseline needed its own worktree. The skill tells you to baseline on a pristine tree (rule 3e) but not that a background gate in a worktree you are still editing is not a reading of either version. One iteration, two instances. That meets the two-friction bar, but the one skill edit this iteration went to the older banked item in (4). Banked as the next skill edit.
+- (2) **A plan measurement was refuted only by running the new instrument on real data.** M7 was a controller claim from a grep over env files, and it was wrong: the grep's `uniq -c` showed 2 for the luna lines, and I read that as one file. The routing check's first real-log run found it. Rule 3a's "an empty search is a claim" has a sibling: a count you summarised instead of listing is one too.
+- (3) **A new Go package is a gate the fleet cannot pass.** `check-architecture-closure` regenerates a doc outside fleet scope, so any fleet sprint that adds a package to the binary's closure fails the required `test` job by construction. A planner hint belongs in the fleet charter's guardrails: prefer an existing linked package. One instance.
+- (4) **Skill edit (Gate 5, the one allowed): the banked names-only environment rule.** It is now in both copies of `resources/gate-0-preflight.md`: read the environment by name (`env | cut -d= -f1 | grep -E '^(MISSION_|AILANG_)'`), print only the specific non-secret values, and test a secret with `[ -n "$VAR" ]`. The frictions were iteration 51 retro (3) and iteration 52 retro (2); each printed `CLAUDE_CODE_OAUTH_TOKEN`. This iteration's own Gate-0 read was prefix-restricted (`^(MISSION_|AILANG_|CLAUDE_CODE_PRINT)`) and printed no token.
+
+**Next**: reality-check `quota:admission-has-no-headroom-margin-and-flaps` (attended, 10-02). It is probably a ghost, already fixed attended by #1524 `71eec62b6` ("admit a quota bucket only with headroom for one run"): verify and resolve. Then `pi:unowned-dirty-absolute-vs-relative-paths`. D-FLEET-16 and D-FLEET-18 through -27 are with Mark.

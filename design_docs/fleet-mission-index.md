@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 53 | 2026-10-21 | `routing:retired-codex-models-still-spawnable-natively` LANDED: #1922 → `d75ef77f5`; judge PASS 85, round 2 PASS 85 (sonnet); ticket resolved; D-FL... |
 | 52 | 2026-10-21 | `quota:opencode-reported-as-a-pool` LANDED: #1917 → `9aebccf9b`; judge PASS 93 (sonnet); ticket resolved; six `agent-tool` tickets parked on D-FLEE... |
 | 51 | 2026-10-20 | `rotate-log:legacy-heading-format` LANDED: #1912 → `3b4d11759`; judge PASS 82 then PASS 90 (sonnet); ticket resolved [HARNESS] |
 | 50 | 2026-10-20 | `probe:pi-duplicate-extension-discovery` LANDED: #1907 → `e5ab9f84f`; judge PASS 90 then PASS 91 (sonnet); ticket resolved [HARNESS] |
