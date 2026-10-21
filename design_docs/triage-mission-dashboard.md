@@ -7,13 +7,13 @@
 - Both findings routed as product design requests; triage changes no code or pins.
 - New D-TRIAGE-25: property coverage policy; current semantics retained pending ruling.
 - D24 retains uncarded PR1889; D22 retains orphan1894; D17 holds1883 executor handoff.
-- Raw queue:6 pending cards /26 open PRs /60 open issues.
-- 3 component verdicts; 2 labels and1 issue comment; no closes or attestations.
-- 5 cards>48h, none green AND mergeable; 8 uncarded PRs+1 missing approval record.
+- Entry queue:6 cards/26 PRs/60 issues; final7 cards/28 PRs/60 issues.
+- 5 component verdicts including2 late design PRs;2 labels and1 comment; no closes or attestations.
+- 5 cards>48h, none green AND mergeable; 9 uncarded PRs(including1923)+1 missing approval record.
 - Settled shadow15/15, corrected for CLOSE-DUPLICATE1903; no disagreements.
 - Read-only verifiers: native Agent-tool gpt-6-luna; judge actual MiniMax via declared Ollama fallback.
 - Native sonnet spawn rejected; existing fleet D-FLEET-24 owns routing policy.
-- Metered$0; judge+probe30,151 tokens; other role telemetry not reported.
+- Metered$0; judge+probe36,205 tokens; other role telemetry not reported.
 - Cadence12h, queue fingerprint idle pre-check. Fingerprint only after all reports.
 - Existing OPEN decisions stay OPEN; no bot summary used as human authority.
 - Main dirty files parked; no skill/config/policy edits.

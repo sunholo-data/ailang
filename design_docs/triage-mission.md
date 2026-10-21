@@ -41,7 +41,7 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
-## STATUS 2026-10-21 — ITERATION 11: dev govulncheck red and parent PTY fixture failure independently routed; #1921 semantics held D25; 3 queue CONCUR; shadow15/15 corrected; 2 safe labels+1 evidence comment; no attestation/approval/handoff.
+## STATUS 2026-10-21 — ITERATION 11: dev vulnerability and parent PTY findings routed; #1921 semantics held D25; 5 queue verdicts independently concurred, including 2 late design PRs held; shadow15/15; no attestation/approval/handoff.
 
 ## STATUS 2026-10-21 — ITERATION 10: 3 cross-vendor CONCUR verdicts; #1916 correction requested, #1914 safely labelled, new orphan #1889 held D24; dev checks17/17 green; shadow14/14; no attestations or dispatch.
 
@@ -169,6 +169,8 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 7. [HARNESS] [NONBLOCKING] ticket:probe:pi-duplicate-extension-discovery — prescribed evaluator probe rc1 in iterations6/8 from duplicate global/repo extension registration; isolated no-extension MiniMax judge completed. Fleet occurrence inbox_1792446067799_00f63bae; no config/code repair by triage.
 
 8. [HARNESS] [NONBLOCKING] ticket:agent-tool:sonnet-unavailable — iteration10 native evaluator Agent spawn rejected; declared MiniMax fallback returned independent judgment. Occurrence inbox_1792533445478_38a2bbe1; iteration11 occurrence inbox_1792578234571_689cc027, existing fleet D-FLEET-24 owns policy; no routing/harness repair.
+
+9. [OBSERVED iteration11] Routed design PRs #1923/#1924 independently verified and held pending checks; #1923 has no card in the final snapshot, #1924 card apr-f8dcc10e targets sprint-planner. No handoff or new ruling inferred. Final snapshot7cards/28PRs/60issues; next changed/held pass covers them.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.
