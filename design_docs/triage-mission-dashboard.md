@@ -1,22 +1,32 @@
-# Triage mission — iteration 3 (2026-10-16)
+# Triage mission — iteration 7 (2026-10-19)
 
-Release: repository v0.54.11; local fleet CLI v0.54.10-dirty (read-only remote APIs only).
-Level 1: no approve, reject or merge. No code work or inner loop.
-Current dev: 793957a93f6aad30d5b9188f611d223b392fde8f; CI still queued/running.
-Evidence: https://github.com/sunholo-data/ailang/issues/1835#issuecomment-6211326086
-Coverage: 24 selected (2 changed, 7 held, 15 never verified); 22 issue verdicts + 2 merged outcomes.
-Results: KEEP 14; NEEDS-DECISION 5; CLOSE-FIXED 3 held by T2; merged OUTCOME 2.
-Judge: 20 concur / 4 dissent. No closes or attestations. Added only priority:P1 on #1845.
-Shadow settled score: 5/5 agreed; pending outcomes do not count as success.
-Parked on Mark: D-TRIAGE-12 (four disagreements); D-TRIAGE-13 (shadow collection); D-TRIAGE-14 (three stalled cards).
-Stalled green cards: #1750 (164h), #1818 (64h), #1819 (62h); old verdict NEEDS-DECISION, no approval signal.
-Orphans: 3 cards without PRs; 5 coordinator PRs without pending cards.
-Landed-card dry run: 0/17; no apply and no handoffs.
-Next: re-verify held/changed items; preserve #1436 docs live bookkeeping channel.
-Cadence: 12h, idle fingerprint pre-check; $1 metered ceiling.
-Routing: OpenAI gpt-6-luna verifiers through Agent tool; Anthropic Sonnet 5.5 judge through subscription CLI.
-Agent-tool judge failed: unsupported sonnet model. CLI fallback completed independent review.
-Quota: subscription buckets only; per-role token detail in iteration log.
-Main checkout has unrelated uncommitted work; left untouched.
-Reporting: user Pub/Sub recovered; Daneel normal+urgent use polled controlplane; registry gap filed to fleet.
-Historical gap: iterations 1/2 exist in issue/ledger, but their repo logs/index were never committed.
+Level 1: verify/report only; no inner loop, approval, rejection or merge.
+CLI: v0.54.15-dirty at 0384450a6; code evidence read from origin/dev.
+Base: 269e54616e16252f233273e3ddf8e91c63331784.
+Reviewed base: CI run 39224529659 SUCCESS; Sonar failure, reliability 3 > 1.
+Latest head: ae004a1a02f93e9740928d1c0a3838b54291b9a4; CI UNVERIFIED.
+Sonar: go:S1764 in sampling stability test; independent DISSENT, D21 HOLD.
+Evidence: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6263799720
+Sonar: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6263906088
+Entry queue: 8 cards / 22 PRs / 57 issues; 8 PRs excluded.
+Review: 52 queue CONCUR; 1 Sonar DISSENT; OpenAI → Anthropic.
+Actions: 8 PR comments, 7 label updates, 1 issue close (#1717).
+No VERIFIED PR, attestation, code work, landed-card apply or handoff.
+Needs fix: #1889, #1887, #1886, #1883, #1867.
+Needs rebase: #1862, #1790, #1789.
+PR #1883 handoff HOLD: execution_authorized=false despite executor target.
+New decisions: D17 handoff; D18 ownership; D19 repro; D20 flags; D21 Sonar.
+D15/16 remain OPEN with external outcomes noted; no repeat obsolete ask.
+Orphans: #1849, #1833, #1832, #1771, #1759, #1571; no attestation.
+Shadow: 12/12 settled predictions; 52 verdict + 6 outcome rows appended.
+Data: 313 rows in namespaced ledger; fewer than 14 days collected.
+Routing: 3 Agent-tool gpt-6-luna verifiers; native sonnet rejected.
+Actual judge: firstParty Anthropic Sonnet via subscription-only claude-sub.
+Judge tokens: 229,952 incl cache/probe/supplement; other tokens unreported.
+Metered: $0; Codex and Anthropic subscriptions; $1 ceiling.
+Harness share: 2/4 available records, escalation-only; no repairs.
+Record preserves unmerged iterations 4/6; PR only, never auto-merged.
+Bookkeeping: #1892, predecessor #1835; cadence 12h, fingerprint after reports.
+Next: operator rulings, card-owner repairs, changed/held verification.
+Reporting: user/controlplane published and verified; direct Daneel refused, fallback ticketed.
+Record PR: https://github.com/sunholo-data/ailang/pull/1893
