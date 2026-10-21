@@ -64,8 +64,8 @@ func setupAIHandler(effCtx *effects.EffContext, cfg aiSetup, routingPolicy *ai.A
 	if aiModel == "" {
 		// No AI handler configured - warn early if AI capability was granted
 		if effCtx.HasCap("AI") {
-			fmt.Fprintf(os.Stderr, "Warning: --caps AI requires --ai <model> flag.\n"+
-				"  No AI model configured. Programs using AI.call will fail.\n"+
+			fmt.Fprintf(os.Stderr, "Warning: no AI chat model configured.\n"+
+				"  AI.call requires --ai <model>; Ollama embeddings work without it.\n"+
 				"  Fix: ailang run --caps AI --ai gemini-2-5-flash ...\n"+
 				"  Or for testing: ailang run --caps AI --ai-stub ...\n")
 		}

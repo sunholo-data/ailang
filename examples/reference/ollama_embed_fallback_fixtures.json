@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "fixtures": [
+    {"kind": "embed", "request": {"model": "embeddinggemma-2", "text": "hello"}, "vector": [1.0, 0.0]},
+    {"kind": "embed", "request": {"model": "no-such-model", "text": "hello"}, "error": {"message": "model not pulled; using SimHash"}}
+  ]
+}

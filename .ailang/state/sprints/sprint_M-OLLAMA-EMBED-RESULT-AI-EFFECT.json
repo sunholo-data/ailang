@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-OLLAMA-EMBED-RESULT-AI-EFFECT",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-16T14:36:14.123897+00:00",
   "design_doc": "design_docs/planned/v0_54_8/m-ollama-embed-result-ai-effect.md",
   "sprint_plan": "design_docs/planned/v0_54_8/m-ollama-embed-result-ai-effect-sprint-plan.md",
@@ -40,7 +40,8 @@
   "velocity": {
     "target_loc_per_day": 334,
     "estimated_total_loc": 1000,
-    "estimated_days": 3
+    "estimated_days": 3,
+    "actual_total_loc": 1458
   },
   "features": [
     {
@@ -53,10 +54,11 @@
         "Existing live dimensionality tests retain skip behavior when Ollama is unavailable.",
         "go test ./internal/ai/ollama ./internal/builtins passes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T20:14:49.701191+00:00",
+      "completed": "2026-10-16T20:14:49.701191+00:00",
+      "notes": "Offline HTTP payload, errors, empty response and float conversion verified; go test ./internal/ai/ollama ./internal/builtins passed. Live daemon tests skip when unavailable.",
+      "actual_loc": 209
     },
     {
       "id": "M2",
@@ -71,10 +73,11 @@
         "Stub vectors are repeatable, distinct across representative inputs, unit magnitude, and perform no network requests.",
         "Text/media successes and failures emit bounded trace arguments without raw media bytes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T20:16:16.579210+00:00",
+      "completed": "2026-10-16T20:16:16.579210+00:00",
+      "notes": "Authority, budgets, deterministic unit stubs, lazy-provider independence and bounded media-free traces pass. Helper moved into ai/ollama/embed because parent imports telemetry -> effects, causing a cycle.",
+      "actual_loc": 296
     },
     {
       "id": "M3",
@@ -88,10 +91,11 @@
         "Literal and sha256 lookup agree; text/media keys and empty media behavior are tested.",
         "Existing text/image/speech fixture tests continue passing without format-version changes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T20:16:58.058048+00:00",
+      "completed": "2026-10-16T20:16:58.058048+00:00",
+      "notes": "Embedding fixtures replay vectors and verbatim error messages; strict text/media canonical keys, literal/hash equivalence, validation and existing fixture/speech tests pass.",
+      "actual_loc": 198
     },
     {
       "id": "M4",
@@ -107,10 +111,11 @@
         "End-to-end evaluator calls charge exactly one AI budget unit; capability and budget denial never become catchable Err.",
         "Direct effects.Call budget tests and normal evaluator/builtin-scope tests cover distinct paths; avoid assuming direct Impl calls create a charge scope."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T20:18:42.691536+00:00",
+      "completed": "2026-10-16T20:18:42.691536+00:00",
+      "notes": "Four AI signatures and std wrappers verified with runtime/evaluator calls. Result catches only marked embedding failures; capability, source-budget and operator-budget denial remain errors. One charge per evaluator call. AILANG prompt v0.16.7 loaded.",
+      "actual_loc": 353
     },
     {
       "id": "M5",
@@ -126,10 +131,18 @@
         "make test-changed, make check-boundaries, make check-file-sizes, make check-changelog, make verify-stdlib and make verify-examples pass; report pre-existing failures separately.",
         "Format touched Go/AIl files and run focused lint for touched packages; existing std/ai Result and speech stub regressions remain green."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-16T20:27:29.395901+00:00",
+      "completed": "2026-10-16T20:31:38.917476+00:00",
+      "notes": "All feature tests, offline CLI smoke, demo inline tests, stdlib/examples, static gates pass. Bounded core passes excluding two baseline process tests and an unchanged memory stress test. Full test-changed fails only baseline-reproduced process supervision tests / missing ps. Repository fmt-check has pre-existing drift. Bounded focused lint and repository-wide make lint pass (zero issues).",
+      "actual_loc": 411
     }
-  ]
+  ],
+  "last_checkpoint": "All five milestones complete; ready for independent evaluation",
+  "completed": "2026-10-16T20:32:54.807045+00:00",
+  "evaluation_handoff": {
+    "status": "pending_coordinator",
+    "reason": "messages send refused: no agent serves sprint-evaluator. Live machine registry contains only coordinator, with no registered inboxes. No forced send or duplicate task created.",
+    "evaluation_round": 1
+  }
 }

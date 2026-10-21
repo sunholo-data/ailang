@@ -51,6 +51,7 @@ import (
 
 // Fixture kinds.
 const (
+	fixtureKindEmbed  = "embed"
 	fixtureKindText   = "text"
 	fixtureKindImage  = "image"
 	fixtureKindSpeech = "speech"
@@ -75,10 +76,11 @@ type fixtureToolCall struct {
 }
 
 type fixtureEntry struct {
-	Kind   string  `json:"kind"`
-	SHA256 string  `json:"sha256,omitempty"`
-	Prompt *string `json:"prompt,omitempty"`
-	// speech: the literal request, instead of "sha256"
+	Vector fixtureVector `json:"vector,omitempty"`
+	Kind   string        `json:"kind"`
+	SHA256 string        `json:"sha256,omitempty"`
+	Prompt *string       `json:"prompt,omitempty"`
+	// speech/embed: the literal request, instead of "sha256"
 	Request *SpeechFixtureRequest `json:"request,omitempty"`
 
 	// text
@@ -95,11 +97,16 @@ type fixtureEntry struct {
 	decoded []byte // image or PCM bytes, decoded at load
 }
 
-// SpeechFixtureRequest is a callSpeech request as a fixture names it.
+// SpeechFixtureRequest names a literal speech or embedding request. Embedding
+// requests use Model and optional explicit Image/Audio presence flags; speech
+// requests use Voice/Style. Keeping one JSON shape preserves version-1 decoding.
 type SpeechFixtureRequest struct {
-	Text  string `json:"text"`
-	Voice string `json:"voice"`
-	Style string `json:"style"`
+	Model *string `json:"model,omitempty"`
+	Image *bool   `json:"image,omitempty"`
+	Audio *bool   `json:"audio,omitempty"`
+	Text  string  `json:"text"`
+	Voice string  `json:"voice"`
+	Style string  `json:"style"`
 }
 
 // SpeechFixtureCanonical is the canonical request string for a callSpeech:
@@ -166,6 +173,12 @@ func (sf *StubFixtures) validate(e *fixtureEntry) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if e.Kind == fixtureKindEmbed {
+		return key, e.validateEmbed()
+	}
+	if e.Vector != nil {
+		return "", fmt.Errorf("vector is only for embed fixtures")
+	}
 	if e.Error != nil {
 		if strings.TrimSpace(e.Error.Code) == "" {
 			return "", fmt.Errorf("\"error\" needs a non-empty \"code\"")
@@ -211,7 +224,7 @@ func (sf *StubFixtures) validate(e *fixtureEntry) (string, error) {
 		}
 		e.decoded = b
 	default:
-		return "", fmt.Errorf("unknown \"kind\" %q (want text, image or speech)", e.Kind)
+		return "", fmt.Errorf("unknown \"kind\" %q (want text, image, speech or embed)", e.Kind)
 	}
 	return key, nil
 }
@@ -219,6 +232,9 @@ func (sf *StubFixtures) validate(e *fixtureEntry) (string, error) {
 // key resolves the entry's sha256: given directly, or computed from the
 // literal request.
 func (e *fixtureEntry) key() (string, error) {
+	if e.Kind == fixtureKindEmbed && (e.Request != nil || e.SHA256 == "" || e.Prompt != nil) {
+		return e.embedKey()
+	}
 	hasSHA := e.SHA256 != ""
 	hasPrompt := e.Prompt != nil
 	if e.Request != nil {
@@ -227,6 +243,9 @@ func (e *fixtureEntry) key() (string, error) {
 		}
 		if hasSHA || hasPrompt {
 			return "", fmt.Errorf("give exactly one of \"sha256\" or \"request\"")
+		}
+		if e.Request.Model != nil || e.Request.Image != nil || e.Request.Audio != nil {
+			return "", fmt.Errorf("speech request cannot carry embedding fields")
 		}
 		return FixtureKey(SpeechFixtureCanonical(e.Request.Text, e.Request.Voice, e.Request.Style)), nil
 	}

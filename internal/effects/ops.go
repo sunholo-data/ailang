@@ -119,7 +119,15 @@ func Call(ctx *EffContext, effectName, opName string, args []eval.Value) (eval.V
 		// effect site did not.
 		argStrs := make([]string, len(args))
 		for i, a := range args {
-			argStrs[i] = ctx.RenderTraceValue(a)
+			if effectName == "AI" && (opName == "embedOllama" || opName == "embedOllamaMedia") {
+				if b, ok := a.(*eval.BytesValue); ok {
+					argStrs[i] = fmt.Sprintf("bytes:%d", len(b.Value))
+				} else {
+					argStrs[i] = truncateForTrace(ctx.RenderTraceValue(a))
+				}
+			} else {
+				argStrs[i] = ctx.RenderTraceValue(a)
+			}
 		}
 		resultStr := ctx.RenderTraceValue(result)
 		// M-SECRET-EFFECT: a resolved secret value must never enter the trace.

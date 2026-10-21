@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"encoding/base64"
+	ollama "github.com/sunholo-data/ailang/internal/ai/ollama/embed"
 	"net/http"
 	"testing"
 	"time"
@@ -19,7 +20,8 @@ func TestOllamaEmbed(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	ctx := &effects.EffContext{}
+	ctx := effects.NewEffContext(nil)
+	ctx.Grant(effects.NewCapability("AI"))
 
 	args := []eval.Value{
 		&eval.StringValue{Value: "embeddinggemma"},
@@ -50,23 +52,23 @@ func TestOllamaEmbed(t *testing.T) {
 }
 
 func TestOllamaMediaInput(t *testing.T) {
-	in := ollamaMediaInput("", []byte{0x89, 'P', 'N', 'G'}, nil)
+	in := ollama.MediaInput("", []byte{0x89, 'P', 'N', 'G'}, nil)
 	if len(in) != 1 || in["image"] != "iVBORw==" {
 		t.Errorf("image-only input = %v, want only image base64", in)
 	}
 
-	in = ollamaMediaInput("caption", []byte{1}, []byte{2})
+	in = ollama.MediaInput("caption", []byte{1}, []byte{2})
 	if in["text"] != "caption" || in["image"] != "AQ==" || in["audio"] != "Ag==" {
 		t.Errorf("all-parts input = %v", in)
 	}
 
-	if in := ollamaMediaInput("", nil, []byte{}); len(in) != 0 {
+	if in := ollama.MediaInput("", nil, []byte{}); len(in) != 0 {
 		t.Errorf("empty parts should be omitted, got %v", in)
 	}
 }
 
 func TestOllamaEmbedMediaRejectsEmpty(t *testing.T) {
-	_, err := ollamaEmbedMediaImpl(&effects.EffContext{}, []eval.Value{
+	_, err := ollamaEmbedMediaImpl(liveEmbeddingContext(), []eval.Value{
 		&eval.StringValue{Value: "embeddinggemma-2"},
 		&eval.StringValue{Value: ""},
 		&eval.BytesValue{},
@@ -88,7 +90,7 @@ func TestOllamaEmbedMedia(t *testing.T) {
 	// A 1x1 PNG
 	png, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==")
 
-	result, err := ollamaEmbedMediaImpl(&effects.EffContext{}, []eval.Value{
+	result, err := ollamaEmbedMediaImpl(liveEmbeddingContext(), []eval.Value{
 		&eval.StringValue{Value: "embeddinggemma-2"},
 		&eval.StringValue{Value: ""},
 		&eval.BytesValue{Value: png},
@@ -106,4 +108,10 @@ func TestOllamaEmbedMedia(t *testing.T) {
 		t.Fatal("expected a non-empty embedding")
 	}
 	t.Logf("Got %d-dimensional image embedding", len(listVal.Elements))
+}
+
+func liveEmbeddingContext() *effects.EffContext {
+	ctx := effects.NewEffContext(nil)
+	ctx.Grant(effects.NewCapability("AI"))
+	return ctx
 }

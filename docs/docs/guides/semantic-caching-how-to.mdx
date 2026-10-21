@@ -234,12 +234,13 @@ let frame = make_frame_at(
 ### How to Store with Embeddings
 
 ```ailang
+import std/embedding (ollamaEmbed)
 import std/sem (make_frame_at, store_frame, with_embedding)
 
 func store_with_embedding(ns: string, key: string, content: string, payload: bytes, ts: int)
-  -> unit ! {SharedMem, SharedIndex, IO} {
+  -> unit ! {AI, SharedMem, SharedIndex, IO} {
   -- Compute embedding once at store time
-  let emb_floats = _ollama_embed("embeddinggemma", content);
+  let emb_floats = ollamaEmbed("embeddinggemma", content);
   let emb_bytes = _embedding_encode(emb_floats);
 
   -- Build frame with embedding
@@ -267,8 +268,9 @@ This gives you:
 - **Stable traces** - Same query = same results
 
 ```ailang
+import std/embedding (ollamaEmbed)
 func resolve_best_match_hybrid(ns: string, query: string, top_k: int, max_scan: int)
-  -> Option[sem_frame] ! {SharedMem, SharedIndex, IO} {
+  -> Option[sem_frame] ! {AI, SharedMem, SharedIndex, IO} {
 
   -- 1) SimHash candidates (deterministic, bounded)
   let hash = _simhash(query);
@@ -278,7 +280,7 @@ func resolve_best_match_hybrid(ns: string, query: string, top_k: int, max_scan: 
     [] => None,
     _ => {
       -- 2) Embed query once
-      let qemb = _ollama_embed("embeddinggemma", query);
+      let qemb = ollamaEmbed("embeddinggemma", query);
 
       -- 3) Rerank with embedding search
       let results = _sharedindex_find_by_embedding(ns, qemb, 1, 100, true);
@@ -398,8 +400,9 @@ func add_evidence(belief_id: string, new_evidence: string) -> Belief ! {SharedMe
 
 ```ailang
 module example/debug_retrieval
+import std/embedding (ollamaEmbed)
 
-func traced_search(query: string) -> [string] ! {IO, SharedMem, SharedIndex} {
+func traced_search(query: string) -> [string] ! {AI, IO, SharedMem, SharedIndex} {
   -- Log query
   let _ = print("SEARCH: ${query}");
 
@@ -412,7 +415,7 @@ func traced_search(query: string) -> [string] ! {IO, SharedMem, SharedIndex} {
 
   -- Tier 2: Neural (if Tier 1 sparse)
   if length(tier1) < 3 then {
-    let emb = _ollama_embed("embeddinggemma", query);
+    let emb = ollamaEmbed("embeddinggemma", query);
     let _ = print("Falling back to neural search");
     let tier2 = _sharedindex_find_by_embedding("docs", emb, 10, 100, true);
     let _ = print("Tier2 results: ${show(length(tier2))}");
@@ -435,7 +438,7 @@ ailang run --caps IO,SharedMem,SharedIndex --entry main examples/semantic_retrie
 # Neural semantic search (requires Ollama)
 ollama serve &
 ollama pull embeddinggemma
-ailang run --caps IO,SharedMem,SharedIndex --entry main examples/neural_semantic_search.ail
+ailang run --caps AI,IO,SharedMem,SharedIndex --entry main examples/reference/neural_semantic_search.ail
 ```
 
 ## Summary
@@ -457,3 +460,12 @@ ailang run --caps IO,SharedMem,SharedIndex --entry main examples/neural_semantic
 - [Design Status](https://github.com/sunholo-data/ailang/blob/main/design_docs/implemented/v0_5_11/semantic-caching-complete.md) - Implementation details
 - [Future Work](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_6_0/semantic-caching-future.md) - Redis, Firestore, hybrid search
 - [Agent Messaging - Semantic Search](/docs/guides/agent-messaging#semantic-search) - Search CLI messages with SimHash and neural embeddings
+
+### Graceful embedding fallback
+
+Use `std/embedding.ollamaEmbedResult` (or `ollamaEmbedMediaResult`) and match
+`Err(message)` to keep SimHash retrieval available when Ollama is stopped or a
+model is missing. Embeddings now require AI in both the effect row and `--caps`;
+IO alone does not grant embedding access. Calls consume one AI budget unit.
+`--ai-stub` supports offline wiring checks, and embedding fixtures replay success
+and failure paths. See [recovering from unavailable embeddings](/docs/guides/semantic-search#recovering-from-unavailable-embeddings).
