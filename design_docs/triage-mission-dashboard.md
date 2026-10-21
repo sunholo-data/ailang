@@ -23,3 +23,4 @@
 - Main dirty paths parked;record chain preserved;PR1904 remains unmerged.
 - Evidence: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6328218334
 - Record: https://github.com/sunholo-data/ailang/pull/1904
+- Digest: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6328267364; delivery via user + normal/one urgent controlplane fallback, exact peek-verified.
