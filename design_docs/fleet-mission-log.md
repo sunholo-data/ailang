@@ -7,165 +7,6 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
-## 26 — 2026-10-08 — gate0 self-notice read LANDED: #1604 `59c3e6a55`, re-judged PASS 96 on the merged head; ticket resolved; record #1636 landed [HARNESS]
-
-**Pick**: P1 #7 `gate0:driver-crash-notices-invisible`, iteration 25's named resume. No `blocking=all` ticket open (43 open; `ailang mission ticket open --json`). Its predicate was re-measured as a command, not transcribed: dev required `test` green at `0ceb1db01`.
-
-**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; `mission_directives.sh --issue 1584 --since 2026-10-06T19:02:43Z` → 0 directives of 10 comments. Not a sweep week (iteration 19 swept), and no rotation: #1584 was created after Monday 07:00 local. Running skill: `SKILL.md` and all 12 resources `cmp`-identical to origin/dev at the resolved symlink. Pin == origin/dev `0ceb1db01`.
-
-**Observe**: record PR #1636 (iterations 22–25) open and UNSTABLE: required checks green, Windows red inherited. Dev check set at `0ceb1db01`: 17 checks; NOT-GREEN = Sonar, `test-windows`, `Build windows-latest` (5 tests), and `Build macos-latest` cancelled. `mission-lane-check.sh fleet`: READY, every role has a usable rung (ollama rungs skipped as over ration; openrouter $0.10 of $2.33).
-
-**Did**:
-- Landed #1636 → `752ee765a` (closing-keyword scan empty, `--match-head-commit 3a94d3df8`), and closed superseded #1611 and #1612 with a comment.
-- #1604: its `test` red on `2e0f92672` = inherited `TestValidateModulePath_SingleFileInsidePackage` (job 112275244977; 132,286 B log; one `--- FAIL`). 46 dev commits since its base `e68a264fb`. The only overlap with PR files is `make/test.mk`, where each side added a different line; `git merge-tree` clean. `gh pr update-branch` → `f4de90745`.
-- Re-judged, because the bytes under review changed (a merge). Evaluator below. PASS 96, 0 blocking. Report banked at `design_docs/fleet-mission-evidence/iteration26/judge-report.md`.
-- Controller reproduction, first-party, outside the sandbox, in the judge's worktree: suite `108 passed, 0 failed` rc 0. Mutant `: emit_for "$PREV_ISSUE"` → `103 passed, 5 failed` rc 1. Restore `cmp`-identical to `HEAD`; worktree porcelain = the report only.
-- PR CI on `f4de90745`: `test` SUCCESS (the job that was red), `lint`, `docs-gate`, `UI build gate`, `launchd drivers (bash 3.2)`, govulncheck, CodeQL green. `test-windows` failed tests `diff`-identical to dev `0ceb1db01`'s (5; logs 527,124 B vs 528,078 B). Squash-merged `--match-head-commit f4de90745` → `59c3e6a55`.
-- Resolved `gate0:driver-crash-notices-invisible` (`--sha 59c3e6a55`, "replied to v1"). Commented the verdict on #1160 via `--body-file` (comments 1 → 2, verified), then closed it.
-
-**Gate 3b**: run 37724543642 on `59c3e6a55` (full SHA, via `mission-base.sh record gate3b`; drift from Gate 1 = #1636 + #1604, this iteration's own merges). `test` success, `lint` success, `build` success, `launchd drivers (bash 3.2)` success, govulncheck and float determinism success. `test-windows` failures `diff`-identical to the parent's 5 (528,733 B log). Sonar failure, also on parent `0ceb1db01`. Required set green → LANDED.
-
-**Done-gate**: surface ✓ (`scripts/mission_gate0_self_notices.sh`, which every mission's Gate 0 runs via `MISSION_DRIVER_ROOT`, and both `gate-0-preflight.md` copies). Reach ✓ on origin/dev. **Running-skill reach PENDING**: `~/.claude/skills/mission-control` resolves to `~/dev/sunholo-data/ailang` (branch `dev`, `0 36` ahead/behind), where `grep -c "6a. SECOND, NO-AUTHORITY READ"` = 0, against 1 on origin. So no loop reads step 6a until that checkout is fast-forwarded (D-FLEET-15; not reconciled here, because Gate 1 reserves the standing authorisation to Mark). `make test-launchd-drivers` ✓ (CI leg on the merge SHA; the judge's in-sandbox rc 2 is the `mktemp` denial in the untouched `test_mission_lane_check.sh`). 0 driver bytes, so no dry-run. Nothing reloaded.
-
-**Progress**: 1 ticket resolved (filed 2026-09-26 → resolved 2026-10-08, ≈12 d). Clause 1 UNMEASURED; clause 2 UNMET; clause 3 MET (42 open); clause 4 prior evidence only; clause 5 preserved.
-
-**Routing evidence**: base-gate1=0ceb1db01df661c3608f0c3520a6eb28bcd6bab2@2026-10-08T03:20:14Z; base-gate3b=59c3e6a55bc58bb7202c0e9741fe46fc52547c61@2026-10-08T03:49:39Z; base=59c3e6a55bc58bb7202c0e9741fe46fc52547c61@2026-10-08T04:17:41Z (gate4). `MISSION_ROUTING_NOTE`: empty (as configured).
-- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
-- **Designer / Planner / Executor**: NOT SPAWNED. This was a resume of work iteration 22 had already planned, built (executor `claude:claude-sonnet-5-5`) and judged. The operator's standing request to use the Agent tool for roles applies where a role runs; the evaluator's lane is a `recipe`, so the Agent tool was not its specified path.
-- **Evaluator**: resolver `agent-tool sonnet declared:alias-pin`. `sonnet` is the executor's family (`claude-sonnet-5-5`), so the generator ≠ judge guard re-routed to the first declared fallback `pi:openrouter/minimax/minimax-m3`. Probe rc 0 (`ok`); openrouter within ration. Ran via `scripts/mission_pi_run.sh --max-seconds 3600` in `fleet-iter26-evaluator` (detached at `f4de90745`). Handshake acked (4× `"acked":true`). Verdict `ok` rc 0, 1190 s, 93 tool executions, 94 turns. 4,912,033 tok (407,371 in / 41,686 out / 4,462,976 cache-read), $0.4400 (provider-reported `usage.cost`). Judge ≠ generator: minimax vs sonnet-5-5 (executor) and opus (controller).
-- **Metered**: $0.44. **Ration**: ollama over; codex 3.0% of 7.3%; Anthropic 5h 9%, week 51% of 58.7%; openrouter $0.10 of $2.33 before the judge.
-
-**Ruled out**:
-- Re-running the failed jobs on the old head `2e0f92672`, as iteration 22's predicate wrote. Its base predates dev's `test` fix, so it would have re-run the inherited red; updating the branch was the cheaper, correct form.
-- Merging on iteration 22's PASS 93 alone: the merged bytes are new, and the operator requires a judge each landing.
-- Fast-forwarding the main checkout to make step 6a live: that is D-FLEET-15, still OPEN.
-- Fixing the Windows five or Sonar: V1's lane, outside Authority.
-
-**Retro lane**: no skill edit (no gap reached ≥2 frictions this fire). Observations, one each:
-- (1) A resume predicate written as "re-run failed jobs on head X" goes stale when dev moves under an unmerged PR. The robust form is "update the branch, then require green on the new head".
-- (2) The landed rule text is not live for any loop until the shared main checkout syncs. This is the first measured instance of a fleet fix landing on origin and not reaching the running skill; it is evidence for D-FLEET-15, not a new ask.
-
-**Next**: P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict` (ailang#651). Its PARKED-ON-LANE predicate held at this fire's Gate 3 (`mission-lane-check.sh fleet` READY; minimax judge lane ≠ executor), so re-measure it and take it. Then P1 #9 `driver:exit-path-notices-unbounded`. D-FLEET-13/14/15 remain OPEN.
-
-## 27 — 2026-10-08 — main-checkout ff-only auto-sync LANDED: #1647 `15d47b5dc` (D-FLEET-15 = A), judged PASS 91; ticket resolved [HARNESS]
-
-**Pick**: P1 #6 `skill-surface:main-checkout-not-synced-to-dev`. Mark's attended ruling D-FLEET-15 = A (2026-10-08) unparked it ("treat it as HD-2a-authorised; plan it as the next P1"), so it ranks above P1 #8. No `blocking=all` ticket was open (42 open).
-
-**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; `mission_directives.sh --issue 1584 --since 2026-10-06T19:02:43Z` → 0 directives of 11 comments. Ledger valid (15 rows, 0 OPEN). Self-notices (step 6a) rc 1: the newest crash is the 2026-10-04 rc=143 kill, which iteration 22 already attributed to iteration 18's Gate-5 stall. Died-mid-flight traces: no open fleet PR, and the old `fleet-i1x` worktrees are all landed iterations. Running skill: `SKILL.md` and all 12 resources `cmp`-identical to origin/dev at the resolved symlink. Not a sweep or rotation week (#1584 was created after Monday 07:00 local).
-
-**Observe**: origin/dev `c92739681`. Required `test` RED on `TestModels_CloudHeadroomEqualised` (job 113225065559): the motoko GLM-5.3-Flash rows were capped at 32000 by `69ddedd29`, in modelreg. Parent `f34214657` was green. Fleet does not own this red (Gate 1), so it went to `mission-v1` and `mission-motoko` with the repro. `382a8445d` (#1645) fixed it 25 minutes later. `test-windows` red as before (V1's lane).
-
-**Did**:
-- The planner (codex) wrote `design_docs/planned/sprint-plan-main-checkout-ff-sync.md` and the sprint JSON (`64a1bcab5`). Its premises section quotes the driver's file:line for every seam.
-- The executor (codex) delivered M1 `d852c8969`: `tools/launchd/lib/skill-sync.sh` (`mc_skill_sync apply|report`) and `tools/launchd/test_skill_sync.sh`.
-  - The helper uses bounded git calls through `_pin_bounded`, with a 5 s cap per call.
-  - It merges only when the checkout is on `dev`, 0 ahead, has no op markers and no `index.lock`, and no dirty path intersects the incoming range (NUL-safe, both rename sides, directory prefixes).
-  - It re-checks just before the one `merge --ff-only` and verifies HEAD and the count afterwards.
-  - It always returns 0.
-- The executor delivered M2 `4fe2da1f8`: a 10-line driver seam after the kill switch (:1625) and pidfile yield (:1908). Dry-run calls `report` and appends `skill-sync=` to the DRY RUN line; a real fire calls `apply` once before the boot stagger. Also: a `make/test.mk` line and a changelog fragment.
-- The controller rebuilt both commits from the executor's `.snap/M1` and `.snap/M2`. `shasum -c` matched its final tree, and the suite was green at both boundaries.
-- PR #1647. Every required check green on `4fe2da1f8`; the run included #1645, so `test` was green. Squash-merged `--match-head-commit` → `15d47b5dc`. Ticket resolved, with a reply to the attended filer.
-
-**Gate 3b**: CI on `15d47b5dc` (full SHA; `mission-base.sh record gate3b` → `c114a1299`, i.e. dev moved past it with others' merges): `test`, `lint`, `build`, `launchd drivers (bash 3.2)` and govulncheck all success, out of 17 checks. NOT-GREEN = `test-windows` and `Build windows-latest` (inherited, as on parent `c92739681` and the PR head) plus a fail-fast `Build macos-latest` cancel.
-
-**Done-gate**:
-- Surface ✓.
-- Reach ✓ on origin/dev.
-- Dry-run ✓ healthy (`lanes=ok | pin=pinned | skill-sync=synced:4`) and ✓ degraded (`MISSION_EXECUTOR_MODEL=codex:bogus` → `lanes=DEGRADED(1)`). Both ran with `AILANG_DRIVER_PINNED=4fe2da1f8`, `MISSION_PROFILE=fleet`, `HOME=/tmp/fleet_it27_dryhome`: real config symlinked in, `.ailang/state` empty. That is how a fleet fire dry-runs its own profile past its own overlap guard. World and stapledon were mid-fire, and v1, docs and motoko were disabled, so no sibling was available.
-- The real main checkout's HEAD and `.git/index` sha were identical before and after both dry-runs and both suite runs.
-- `make test-launchd-drivers` ✓ (rc 0 unpiped; also the CI leg).
-- Nothing reloaded ✓.
-
-**Progress**: 1 ticket resolved (filed 2026-09-29 → 2026-10-08, ≈9 d, about 2 d of it parked on D-FLEET-15). Clause 1 UNMEASURED; clause 2 UNMET; clause 3 MET (41 open); clause 4 prior evidence only; clause 5 preserved.
-
-**Routing evidence**: base-gate1=c92739681f50d33cf575a4e3a81b76aef360ea71@2026-10-08T08:55:31Z; base-gate3b=c114a1299bde5bbbad6d5f7c972afa3ecb6401b0@2026-10-08T11:01:39Z (drift: #1645, #1639 and this iteration's #1647). `MISSION_ROUTING_NOTE`: empty (as configured).
-- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
-- **Designer**: not spawned. Resolver said `recipe claude:claude-opus-5-5 declared:provider-pin`, but there was no doc to write: one helper plus a seam inside an attended ruling's exact scope (the same basis as iteration 25).
-- **Planner**: resolver `agent-tool opus fail-closed:no-doc`, while `MISSION_PLANNER_MODEL=codex:gpt-6.1-sol`. Per role-spawn-routing rule (a), the pin was followed under the codex recipe (probe rc 0), in a detached worktree `fleet-iter27-planner`. (93,606 tok)
-- **Executor**: `codex:gpt-6.1-sol` (`recipe … declared:provider-pin`) in `fleet-iter27-exec`, rc 0 in 17 min. (126,669 tok)
-- **Evaluator**: `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, foreground, own detached worktree at `4fe2da1f8`. judge-independence: cross-vendor (Anthropic judge, OpenAI generator). PASS 91. Report banked at `design_docs/fleet-mission-evidence/iteration27/judge-report.md`. (57,043 tok)
-- The operator's standing request to use the Agent tool was honoured for the one role whose resolved path is the Agent tool (the evaluator). Planner and executor resolve to `recipe codex:…`, a path the routing table says is NOT the Agent tool; the spawn-pin hook would deny an alias there. No role failed to spawn.
-- **Metered**: $0 this fire (codex and Anthropic subscription buckets; no openrouter or pi role).
-
-**Ruled out**:
-- Opus planner via the Agent tool, the resolver's literal answer: the role carries a provider pin, so the hook would deny it (rule (a)/(c)).
-- Waiting for an idle sibling to dry-run: none was idle, and the synthetic-HOME dry-run of the fleet's own profile exercises the same patched driver.
-- Fixing `TestModels_CloudHeadroomEqualised`: modelreg is outside fleet scope; it was handed off, and the owner fixed it in #1645.
-- Raising the 5 s merge cap now: measured 0.66 s for an 804-file ff and 0.05 s for status on the real tree. Kept as a judge follow-up.
-
-**Retro lane**: process fix, charter Guardrails: the done-gate now names the synthetic-HOME recipe for when no sibling is idle. Frictions: iterations 9 and 15 recorded "the fleet cannot dry-run itself", and this iteration measured a way around it. No skill edit. Observations, one each:
-- (1) `tools/launchd/mission-lane-check.sh fleet` did not return within 10 min and was killed by the harness cap. The resolver lines in the same command had already printed, so nothing was lost; this is the first measured hang. Not ticketed: fleet does not self-source.
-- (2) The controller's own zsh loops twice failed to word-split `$g`/`$FILES`, producing rc 127. These were instrument failures that were re-run under `/bin/bash`, not verdicts.
-- (3) Judge follow-ups for a later ticket: an arm pinning `GIT_OPTIONAL_LOCKS=0`; the dry-run field prints `synced:N` for a would-sync verdict.
-
-**Next**: P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict` (ailang#651); re-measure its premise at HEAD. Then P1 #9 `driver:exit-path-notices-unbounded`. Also check the first post-merge fire's driver log for `skill-sync=synced:` (running-skill reach).
-
-## 28 — 2026-10-08 — P1 #8 candidate designed; independent evaluator unavailable → PARKED-ON-LANE, no implementation [HARNESS]
-
-**Pick**: P1 #8 `quorum:zero-signal-guard-vacuous-with-controller-verdict`, charter head after iteration 27. 42 open tickets, none `blocking=all`. Index checked: iteration 23 capacity park, no prior implementation. Ambient docs sprint is unrelated.
-
-**Preflight**: armed; gh `sunholo-voight-kampff`; billing CLEAN. 0 directives on #1584 since 2026-10-08T11:03:31Z. Ledger valid, 15 RESOLVED, 0 OPEN. No rotation/sweep due (#1584 created 2026-10-05T12:32:44Z, 12 comments). Main checkout's seven dirty paths untouched. Self-notices rc1 identified the October 4 rc143 death already credited by iteration 22. Died-mid-flight PR/worktree/uncommitted-state traces found no unmerged fleet implementation for this item; coordinator/product PRs left alone.
-
-**Observe**: origin/dev `3e032cf4f13682a455129274d99097842c56e5ae`; CI run 37810475758 success, all 21 SHA-addressed checks success. All 13 mission-control files match origin in both resolved symlink and pin copies. Shared main checkout already at current origin; no driver-sync inference from transcript quotes.
-
-**Did**: native pinned designer created `design_docs/planned/m-quorum-external-zero-signal-guard.md`, explicitly candidate only. Controller independently read source: reviewer increment at quorum.go:156, controller increment at :165, guard at :176. Candidate preserves vetoes, partial-present degradation, seating and Tier-2 blocking. Designer baseline `go test ./internal/mission/quorum` passed (0.767s); inherited baseline evidence, not new regression or judge verdict. No production/test implementation changed.
-
-**Gate 3 / capacity**: operator requires native Agent roles. Designer succeeded as gpt-6.1-sol. Preferred evaluator native `sonnet` returned `Unknown model sonnet`; last declared fallback native `opus` returned `Unknown model opus`. Tool advertises OpenAI models only. No undeclared/same-model substitution. Existing probes outside a role sandbox, using fresh scratch CLI and `tools/launchd/lib/lane-probe.sh`: `_mc_probe_pi openrouter/minimax/minimax-m3` rc75; `_mc_probe claude-sonnet-4-6` rc75; `_mc_probe claude-opus-5-5` rc75. Admission refused before inference: `anthropic openrouter` blocked; OpenRouter $13.16/day vs $2.33 ration. No fallback judge admitted. Quorum/approval pending; planner and executor not dispatched through unmet gates.
-
-**Bookkeeping verification**: ledger valid (15 rows); fresh-PATH canonical-heading/repo-local mission tests rc0 (0.354s); diff whitespace clean; last20 index 16/20 HARNESS; rotated iteration8 retained beside iteration7 control; full iteration25 STATUS archived; queue and decision markers retained. Pin clean after restoring only this invocation added notice.
-
-**Gate 3b / done-gate**: ticket not LANDED: no implementation pushed, no judge verdict, no full launchd suite/dry-run/reload/ticket resolution. Bookkeeping checks are separate and cannot accept the candidate.
-
-**Progress**: clauses 1 unmeasured, 2 unmet, 3 met (42 open), 4 prior evidence only, 5 preserved; 0 tickets resolved, goal unmoved. Last three ticket landings (25/26/27) drained clause-2 backlog; no regroom. Last-20 fleet harness share reported in digest, expected under inverted admissibility.
-
-**Routing evidence**: base-gate1=3e032cf4f13682a455129274d99097842c56e5ae@2026-10-08T17:30:24Z; base=3e032cf4f13682a455129274d99097842c56e5ae@2026-10-08T17:33:42Z (gate4). Controller `codex:gpt-6.1-sol` (tok: not reported). Designer native `gpt-6.1-sol`, configured `codex:gpt-6.1-sol`, fresh context (tok: not reported): user explicitly requested native Agent, overriding provider-recipe transport. Planner/executor NOT SPAWNED: approval prerequisites unmet, not spawn failure (tok: not reported). Evaluator native sonnet/opus failed as above (tok: not reported); recipe fallback probes rc75, no verdict or score. Scratch CLI built with ldflags at exact base; shared PATH CLI stale `c92739681`, not overwritten. Metered role cost $0. Driver routing note is included verbatim in the two-channel digest.
-
-**Ruled out**: controller acceptance; same-model fresh-context judge without authority; dormant Astra/retired OpenAI models outside D-FLEET-12; spending known over-ration buckets; planner/executor before quorum/approval; ticket resolution on source confirmation; repurposing ambient docs sprint; capacity filed as needs-human-review.
-
-**Retro lane**: backlog observation, no policy/skill change. Native alias refusal recurs (iterations 11/24/28); World tickets corroborate unsupported Sonnet. Routing-policy signal, not permission to widen the chain. The initial STATUS matcher included the rotation heading and aborted before writing. The first rotate-log invocation followed exported MISSION_WORKDIR to the pin and added only a duplicate archive notice; those exact added bytes were restored (pin clean), then worktree overrides were used. Existing STATUS stamps have paragraph bodies, so rotation used bounded structural sections and byte-preserved the complete iteration25 block in the archive.
-
-**Next**: re-probe declared evaluator chain; rc0 on a judge distinct from gpt-6.1-sol enables fresh design quorum with `--author codex:gpt-6.1-sol`, then approved-plan/execute/evaluate. P1 #9 exit notices follows; Phase 3a spike after P1. Human decisions: none.
-
-## 29 — 2026-10-09 — native evaluator capability confirmed absent → PARKED-ON-LANE (external native capability); no runtime fix [HARNESS]
-
-**Pick**: `agent-tool:sonnet-unavailable`, the only `blocking=all` ticket, ahead of P1 #8. 47 open signatures; 8 occurrence records. The latest occurrence is `blocking=none` with a successful workaround; the aggregate retains earlier blocking occurrences. Eight records do not establish eight terminal slot losses.
-
-**Preflight**: armed; gh `sunholo-voight-kampff`; billing CLEAN; 0 directives of 14 comments since 2026-10-08T11:03:31Z. Decision ledger 15 RESOLVED, 0 OPEN. Full lane-check returned READY with every role ok. Self-notices rc1 identified the October4 rc143 death already credited by iteration22; no new orphan implementation. Died-mid-flight PR/worktree/dirty-state traces recovered the unmerged iteration28 record, not implementation.
-
-**Observe**: origin/dev `48f4b5ef929532cc6bf89d32034435ec616f80e7`; CI workflow success, 17 checks with only `ailang-core-dev` deployment failure (outside fleet scope), not all-green. SKILL.md and all 12 resources match origin in both pin and resolved symlink. Worktree starts from this base plus cherry-picked iteration28 record `0932ac757` from clean PR #1662 head `4f173d9206d4d3f635f315ec76c594b6f609cdb3`. The original PR/worktree remain unchanged; inherited iteration28 is preserved verbatim, including its explicitly unreviewed candidate.
-
-**Did**: native Sol designer and planner supplied read-only assessment. The repository cannot add missing models or tools to the hosting runtime. Native evaluator request `minimax/minimax-m3` was rejected `Unknown model`; the host advertised only `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`, and `gpt-5.6-sol`. No runtime, policy, skill or product change is justified. Ticket remains OPEN/PARKED-ON-LANE (external native capability).
-
-**Gate 3 / capacity**: structural native capability failure, distinguished from exhausted quota. Current role transport recovered through the admitted recipe; the open host-capability ticket park does not block this fire’s independent judge or bookkeeping completion. User authorizes documented fallback after role spawn failure. Existing gate3 lines243–254 also permit fresh-context Sol fallback when no cross-vendor quota, FLAGGED; no new human ruling needed. Declared Minimax probe `_mc_probe_pi openrouter/minimax/minimax-m3` rc0 this fire. Independent evaluator uses documented pi runner cross-vendor fallback after native rejection; independent Minimax bookkeeping review PASS95/100, 0 blocking; report at `design_docs/fleet-mission-evidence/iteration29/judge-report.md` (verbatim), controller corrections in adjacent `controller-addendum.md`. No verdict or score fabricated.
-
-**Bookkeeping verification**: controller fresh-PATH `go test ./internal/mission -run 'Canonical|RepoLocal' -count=1` rc0 (0.353s), ledger valid15rows, whitespace clean, and iteration28 body byte-identical. Independent Minimax bookkeeping review PASS95/100, 0 blocking; report at `design_docs/fleet-mission-evidence/iteration29/judge-report.md` (verbatim), controller corrections in adjacent `controller-addendum.md`. STATUS rotation preserves complete iteration26 in the archive; iteration27/28 retained live. Queue and decision ledger retained. Last20 index share 16/20 HARNESS, expected under fleet inverted admissibility, not a product-loop cap breach. Last three ticket landings25/26/27 moved clause2.
-
-**Gate 3b / done-gate**: not LANDED; no runtime diff, implementation, product landing, ticket resolution, reload, suite or dry-run claimed. Record review is separate from accepting P1 #8's candidate.
-
-**Progress**: clause1 UNMEASURED; clause2 UNMET; clause3 MET (47 open); clause4 prior evidence only; clause5 preserved (no fix shipped). 0 tickets resolved; goal unmoved.
-
-**Routing evidence**: base-gate1=48f4b5ef929532cc6bf89d32034435ec616f80e7@2026-10-09T05:44:26Z; base=48f4b5ef929532cc6bf89d32034435ec616f80e7@2026-10-09T05:52:47Z (gate4). Controller native `gpt-6.1-sol` (tok: not reported); designer native `gpt-6.1-sol` (tok: not reported); planner native `gpt-6.1-sol` (tok: not reported); executor native `gpt-6.1-sol`, resolver `recipe codex:gpt-6.1-sol declared:provider-pin` (tok: not reported). User overrides transport only; declared Sol model pin retained. Evaluator native `minimax/minimax-m3` rejected (tok: not reported), then declared `pi:openrouter/minimax/minimax-m3` (2,547,205 provider tokens incl. cache; evaluator metered $0.206700). Known evaluator metered=$0.206700; model probes cost not reported separately; subscription role costs do not measure quota. Configured routing unchanged.
-
-**Resolver evidence**: designer `recipe codex:gpt-6.1-sol declared:provider-pin`; planner `recipe codex:gpt-6.1-sol anthropic-fallback:fail-closed:no-doc`; executor `recipe codex:gpt-6.1-sol declared:provider-pin`; evaluator `recipe pi:openrouter/minimax/minimax-m3 declared:provider-pin`. Designer/planner/executor native transport is the operator override; evaluator native rejection is recorded above and actual recipe transport is recovered. `MISSION_ROUTING_NOTE`: controller pi:ollama/glm-5.3:cloud → codex:gpt-6.1-sol (probe ok); lanes degraded: ; `designer`: **anthropic** lane `claude-opus-5-5` unusable (probe rc=`75` — over daily ration) → handed to `codex:gpt-6.1-sol`; `evaluator`: **anthropic** lane `sonnet` unusable (probe rc=`75` — over daily ration) → handed to `pi:openrouter/minimax/minimax-m3`
-
-**Ruled out**: treating native host model absence as quota; adding models/tools from repository code; undeclared native model substitution; controller acceptance; closing the aggregate ticket on one successful workaround; counting occurrences as terminal losses; adopting or approving iteration28's design by banking its orphan record; self-sourced fleet ticket or policy repair.
-
-**Retro lane**: observation only, no mandatory skill edit or routing-policy change. The pi judge's live read-only ticket query stalled for >2min; controller terminated only that verified child PID35584, so the judge used the canonical ticket snapshot. Runner ended ok rc0 in448s,86tools, served model confirmed `openrouter/minimax/minimax-m3`. Its report contains incorrect SHA-equivalence/banner-attribution sentences and a mental-only drill; controller re-measured and documented those limitations separately without rewriting the verdict. Iteration28 conflated native transport capability with recipe quota capacity; this fire records them separately and uses the existing authorized fallback. No new decision needed; ledger unchanged.
-
-**Next**: resume selected ticket only when native capability is proven on the affected controller; workaround remains existing declared CLI recipes. P1 #8 candidate next, then P1 #9 exit notices. Candidate requires independent review, quorum/approval and approved-plan execution gates; no approval claimed. Human decisions: none.
-
-## 30 — 2026-10-09 — ORPHAN (no record written): P1 #8 quorum rounds 1–2 BLOCKED, revisions 2–3 under the carve-out; slot PAUSED-NO-CAPACITY at gate-2 [HARNESS]
-
-Credited by iteration 32 from died-mid-flight traces. The slot ran 2026-10-09T12:41Z on the `pi:ollama/glm-5.3:cloud` controller and ended `PAUSED-NO-CAPACITY at=gate-2` after 2266 s. It ran quorum round 1 (`.ailang/state/mission-quorum/m-quorum-external-zero-signal-guard-2026-10-09T12-15-52Z.json`: BLOCKED; oc-glm-5-3 and oc-kimi-k3 rejected, gemini-3-1-pro passed, claude-sonnet-5 absent for quota). It wrote revision 2, then ran round 2 (`…T12-30-09Z.json`: BLOCKED; kimi and gemini rejected, glm passed, sonnet absent for quota). Revision 3 applied the reviewers' verbatim `proposed_fix` text under the narrow-refinement carve-out: both blocking rejects carried a concrete fix, and neither disputed the direction. The branches `fleet/i30-quorum-guard-revision` (`21c8073b1`) and `fleet/i30-quorum-signal-plan` were never pushed.
-
-**Next**: re-apply revisions 2–3 onto a fresh base, then plan.
-
-## 31 — 2026-10-12 — ORPHAN (no record written): P1 #8 revisions replayed onto `0a2202ad6`, plan left untracked; slot PAUSED-NO-CAPACITY at gate-3 [HARNESS]
-
-Credited by iteration 32 from died-mid-flight traces. The slot ran 2026-10-12T01:08Z on the glm controller and ended `PAUSED-NO-CAPACITY at=gate-3` after 1325 s. It replayed revisions 2–3 as `c4c0f5515` and `8d0d3de0e` on `fleet/i31-quorum-signal-plan` (not pushed). It also left an untracked `design_docs/planned/sprint-plan-quorum-zero-signal-guard.md` in `fleet-i31-planner`, and an unpushed commit `5a0035113` on `fleet/i29-record-land` (archive retirement of iteration 9). Iteration 32 adopted the plan through its planner and did not adopt `5a0035113`.
-
-**Next**: verify the plan, execute, evaluate.
-
 ## 32 — 2026-10-12 — P1 #8 quorum zero-signal guard BUILT and judged PASS 95 (sonnet), PR #1767; orphan iterations 30/31 credited [HARNESS]
 
 **Orphans**: iterations 30 and 31 (entries above) carried this item with no record; credited here once.
@@ -1294,3 +1135,70 @@ Reach is NOT confirmed (unmerged). Re-run the done-gate at the merge.
 - (3) I printed the environment with `env | grep -v -i key` at Gate 0, and that filter does not catch `*_TOKEN` variables, so the session's OAuth token went into this transcript. It did not reach any repo, message or issue. Use `env | cut -d= -f1` for name-only reads.
 
 **Next**: by `slots_lost`, `agent-tool:sonnet-unavailable` stays PARKED-ON-LANE and `reporting:daneel-reports-not-declared-triage` is parked on D-FLEET-22, so the head is `agent-tool-glm-designer-unavailable` (world, 10-02, 3 slots) with its siblings `agent-tool-sonnet-unavailable` and `agent-tool-opus-planner-unavailable` (hyphenated duplicates of colon-form tickets). Reality-check whether they are one routing-policy class (a D-FLEET park) before building. D-FLEET-16 and -18 through -23 are with Mark; D-FLEET-17 is moot.
+
+## 52 — 2026-10-21 — `quota:opencode-reported-as-a-pool` LANDED: #1917 → `9aebccf9b`; judge PASS 93 (sonnet); ticket resolved; six `agent-tool` tickets parked on D-FLEET-24 [HARNESS]
+
+**Pick**: iteration 51's **Next** was to reality-check the `agent-tool` tickets at the head (`agent-tool-glm-designer-unavailable` 3 slots, and its siblings) before building. That check made this a bookkeeping pick (one routing class, parked on new D-FLEET-24), so standing rule 1 allowed a second: `quota:opencode-reported-as-a-pool` (attended, 10-01, `blocking=none`), pre-authorized by D-FLEET-12 item 2. Rank: of the 1-slot tickets above it, `eval:motoko-connection-probe-orphaned` is `tools/eval` (D-FLEET-18 class) and `policy:fleet-rulings-not-propagated-to-charters-and-skill` is an ask for Mark that needs its own reality check. I took the pre-authorized, mechanical one and banked the policy one as **Next**. 42 open tickets at pick; none new since iteration 51. Index grep: no prior attempt at either.
+
+**Orphans credited**: none new. Gate 0 step 6a returned rc 1 for the same crash notice (2026-10-17T12:48:13Z, #1768), already credited at iteration 47 (`issuecomment-6234067020`; 3 mentions in this log). No open `fleet/*` PR at pick; the leftover `fleet-*`/`.wt-fleet-*` worktrees all belong to landed iterations.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1891 and 0 on #1768 since `2026-10-15T02:46:27Z` (9 and 26 comments, none allowlisted). No rotation or sweep due (#1891 created 2026-10-19T08:54Z, after Monday 07:00 local).
+
+**Observe**: origin/dev == pin == `1579ef50c`. `SKILL.md` and all 13 resources at the resolved symlink target are `cmp`-identical to origin. Dev CI green on `1579ef50c`: `CI` and `Build and Release` success, 17 check runs, 0 not green.
+
+**Reality check, the six `agent-tool` tickets**: one class, and a routing one. All six evidence blocks are a non-Claude controller whose native `spawn_agent` rejects a non-OpenAI model (`Unknown model sonnet|opus|glm-5.3`; enum `gpt-6.1-sol, gpt-6-astra, gpt-6-sol, gpt-6-luna, gpt-5.6-sol`). Resolver readings at `1579ef50c`, with `MISSION_EXECUTOR_RESOLVED=codex:gpt-6.1-sol`:
+
+| `MISSION_ANTHROPIC_AVAILABLE` | evaluator `sonnet` / `opus` / `fable` | designer `fable` | planner, no doc (control) |
+|---|---|---|---|
+| 1 | `agent-tool <alias> declared:alias-pin` | `agent-tool fable declared:alias-pin` | `agent-tool opus fail-closed:no-doc` |
+| 0 | `agent-tool <alias> declared:alias-pin` | `agent-tool fable declared:alias-pin` | `recipe codex:gpt-6.1-sol anthropic-fallback:fail-closed:no-doc` |
+
+The driver sets the flag to 0 for every codex or pi controller (`mission-control.sh:978-979`). Only `derive-planner-lane.sh` reads it. Iteration 25's plan named this gap and routed it to policy review, and `mission-control.sh:1605-1608` records alias-vs-pin dispatch as deliberate. So it is HD-2a: filed as **D-FLEET-24** (A: reroute to the first provider-pinned declared fallback under `MISSION_ANTHROPIC_AVAILABLE=0`, recommended; B: map the alias to its `claude:` pin; C: no change). Exposed today: triage and docs (codex-first controllers with a `sonnet` evaluator), and any world or stapledon fire that falls to codex.
+
+**Reality check, `quota:opencode-reported-as-a-pool`**: real. Measured with a HEAD-built binary on scratch homes. (M1) A copy of the rig's real `quota-ledger.json` prints `opencode 5h`/`long` rows with 0 tokens and four `quota: opencode/…` stderr lines. (M2) An empty home prints none. (M3) `rebuild()` keeps every cached row and only zeroes `WindowStart`, so the stale rows live forever. (M4) One journal line `opencode 5` creates a 5-token pool. The only production writer is `chains_post.go` → `AppendSpend`, and `observatory.CanonicalQuotaBucket` passes `opencode` through unchanged. Both are outside fleet scope. (M5) 0 registry rows have `provider: opencode`, so admission's `opencode` arm is unreachable. (M6) `lane-probe.sh`'s `opencode` alternation is dead.
+
+**Did**:
+- **Designer**: not spawned. The controller wrote measurements M1–M8 and decisions D1–D9 into the planner directive (precedent: iterations 45 and 49–51).
+- **Planner** (codex `gpt-6.1-sol`, recipe, `.planner-wt-iter52`): plan `27ac23a6a`, 1 milestone, a 10-row arm/mutation table, and the corpus step named. The validator's minimum-2-milestones refusal reproduced; kept at 1.
+- **Executor** (codex, worktree `.wt-fleet-iter52-quota-opencode`), committed by the controller as `5b136c011`: `quota_bucket.go` (`QuotaBucketFor`, one four-bucket list), the `AppendSpend` refusal before any write, the `rebuild()` cache drop and journal map-or-skip, the `--bucket` refusal, the admission and `lane-probe.sh` arms, 3 new test files plus 2 extended. TDD red on 9 tests first. All 10 plan mutations went red at their named assertions; the capacity control stayed green under every D3 mutation and went red only when the drop was widened to every zero-token row. The sandboxed `go test ./internal/mission/` was rc 1 only on an existing httptest bind, which the executor labelled UNINFORMATIVE.
+- **Controller gates** (outside the sandbox, at `5b136c011`): `go test ./internal/mission/` ok; `go test ./cmd/ailang/ -run 'MissionQuota|Quota'` ok (32 targeted subtests PASS); gofmt, `go vet` and `golangci-lint` (0 issues) clean; `check-changelog` and `check-file-sizes` rc 0.
+- **Controller corpus gate**: `/tmp/fleet-iter52/corpus52.sh`, HEAD vs new binary, `mission quota` and `mission quota --over`, each on its own scratch copy of the rig's real ledger and all journal segments. After normalising temp paths, HEAD-vs-HEAD controls read SAME on all four streams. HEAD vs new: the report lost exactly 2 stdout and 4 stderr lines, all naming `opencode`, with 0 other differing lines; `--over` was identical. The real ledger plus journal sha was unchanged (`11dee62e83d4` before and after).
+- **Judge** (sonnet, Agent tool, foreground, own worktree `.wt-fleet-iter52-judge`): **PASS 93**, 0 blocking. It ran 10 plan mutations and 5 of its own; one survivor, `err != nil ||` in the CLI check, is an equivalent mutant (N1). N2: the cache drop is uncounted. N3: the backend must equal a bucket exactly, which is stricter than D1's "begins with". The controller re-ran the judge's own mutant 12 (drop only on error) through a Go overlay: red at `quota_ledger_opencode_test.go:64`, as reported.
+- PR #1917 (no closing keyword; the scan was paired with a control) squash-merged with `--match-head-commit 5b136c011` → `9aebccf9b`.
+
+**Gate 3b**: PR checks at head `5b136c011`: 26 total, 0 not green (per-invocation poller under `/bin/bash`, SHA in the verdict). Dev poll ran as prescribed: `target=9aebccf9b…`, `rid=39525459551`, a 1-commit `DRIFT` (my merge). Verdict: `CI for 9aebccf9b…: completed success`. The full check set on the merge reads 24 checks with one not green, `Dependabot: failure`. That is Dependabot's own `dynamic` security-update job (run 39525585138, `npm_and_yarn in /internal/executor/opencode/plugins, /tools/pi-extensions/sandbox`), which reported `security_update_not_found` for `node-forge` 1.4.0 and is stamped with whatever HEAD was current at 01:08Z. It is not a CI workflow, this diff touches no npm file, and its two sibling Dependabot jobs on the same SHA succeeded. Ticket resolved with `--sha 9aebccf9b` (replied to the attended filer).
+
+**Done-gate**:
+- Surface: `internal/mission/quota_ledger.go` and `quota_bucket.go` are what `ailang mission quota` and every `AppendSpend` run; `tools/launchd/lib/lane-probe.sh` is what the driver sources.
+- Reach: merged to `origin/dev`. The driver picks up `lane-probe.sh` on the next pinned fire. The PATH binary picks up the Go change on its next rebuild or release (iteration 32 precedent).
+- `make test-launchd-drivers` under `env -i` at `5b136c011`: rc 0 (59 probe arms; bash 3.2 syntax OK).
+- Dry-runs under **stapledon** (armed, no pidfile; `AILANG_DRIVER_PINNED=5b136c011`): healthy rc 0 `lanes=ok`, and the patched awk still parsed the live ration line (`blocked buckets … anthropic`). Degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`) rc 0 `DEGRADED(1)`, handed to opus. No pidfile written; nothing reloaded.
+
+**Progress**: 1 ticket resolved; 41 open; 6 tickets parked on D-FLEET-24. Goal unmoved on clause 1.
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET (this ticket: filed 10-01 15:52Z, resolved 10-21, about 19.4 d; the median stays far above 48 h).
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved.
+
+**Routing evidence**: base-gate1=1579ef50ce4d57b185de7c3ff749928204d66570@2026-10-21T00:04:58Z; sprint worktree base 1579ef50c (no drift at creation, 00:17:27Z); gate3b=9aebccf9bf8737a4d92ecdfdc285a1b1ee387522 (drift 1 commit, my merge). `MISSION_ROUTING_NOTE` empty; `MISSION_OVER_RATION` empty.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: not spawned (controller decisions D1–D9 in the planner directive). Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. Rotation not advanced.
+- **Planner**: resolver `agent-tool opus fail-closed:no-doc` against the pin `codex:gpt-6.1-sol`, so routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0; run rc 0 (67,287 tok).
+- **Executor**: `codex:gpt-6.1-sol` via the recipe (`declared:provider-pin`), 1 run, rc 0 (122,274 tok).
+- **Evaluator**: `sonnet` via the Agent tool (`declared:alias-pin`), foreground (69,103 tok). Judge independence: cross-vendor (Anthropic sonnet vs the OpenAI generator).
+- The Agent tool was used where the resolver names it (the evaluator), per the operator's standing request. The planner and executor resolve to recipes. No role failed to spawn.
+- **Metered**: $0.
+
+**Ruled out**:
+- Building the D-FLEET-24 fix. Iteration 25 and `mission-control.sh:1605-1608` both place alias-vs-pin dispatch under policy, and D-FLEET-2 rules on the hook's chain walk, not the resolver's. An inferred extension of a ruling is the thing the recording contract forbids.
+- Closing the hyphenated `agent-tool-*` tickets as duplicates of the colon-form ones. The ticket CLI has no merge, and `resolve` replies to the filer as if fixed. They park with the class.
+- Mapping `opencode` inside `observatory.CanonicalQuotaBucket` (outside fleet scope), or by registry lookup inside the ledger (a model-registry load on every `LoadLedger` for a writer nobody runs).
+- Pruning every zero-token cached row. Capacity and provider-reset rows are zero-token by construction; the capacity control proves the drop is harness-only.
+
+**Retro lane**:
+- (1) **A shell-env leak made a baseline gate read red.** `test_mission_routing.sh` was rc 1 from the mission shell (the planner arm read `fail-closed:unparsable-path-entry`, because `MISSION_PLANNER_ALLOWLIST` leaked in) and rc 0 under `env -i`. The charter's done-gate already prescribes `env -i` for `test-launchd-drivers`, but nothing says the same for a single `tools/launchd/test_*.sh` run by hand. The directive carried it, so both roles ran clean. One instance; no skill edit.
+- (2) **The token leak again (instance 2).** I printed the environment at Gate 0 with `env | grep -E '^(MISSION|AILANG|CLAUDE_CODE)' | grep -v -i key`, and `CLAUDE_CODE_OAUTH_TOKEN` went into the transcript. This is the identical defect iteration 51's retro (3) recorded, with the identical filter. It reached no repo, message or issue. Two frictions on one gap now meet Gate 5's skill-edit bar. The edit, a names-only `env | cut -d= -f1` rule in the Gate 0 preamble, is banked as the next skill edit rather than made here, because this iteration's slot went to the record. It remains a charter-tracked follow-up, because the fleet cannot file tickets.
+- (3) The executor reported that `test_mission_routing.sh` prints `_mc_canon_id: command not found` (and two siblings) while still exiting rc 0. The same lines appear in the controller's base log at `1579ef50c`, so it is pre-existing and not this diff. Not ticketed (the fleet does not self-source).
+
+**Next**: reality-check `policy:fleet-rulings-not-propagated-to-charters-and-skill` (attended, 10-01; an ask for Mark, probably a park), then `codex:server-capacity-error-crashes-finished-iteration` (attended, 10-02), then `routing:retired-codex-models-still-spawnable-natively` (D-FLEET-12 item 1, pre-authorized). D-FLEET-16, -18 through -24 are with Mark; D-FLEET-17 is moot.
