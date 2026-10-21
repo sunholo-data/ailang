@@ -191,7 +191,7 @@ _mc_load_ration() {
   # HTTP reads; it runs once per fire.
   _mc_bounded "${MISSION_QUOTA_TIMEOUT:-60}" ailang mission quota --over; _rc=$?
   _raw="$MC_BOUNDED_OUT"
-  MC_OVER_RATION=$(printf '%s\n' "$_raw" | awk '/^(codex|ollama|anthropic|openrouter|opencode)$/' | tr '\n' ' ')
+  MC_OVER_RATION=$(printf '%s\n' "$_raw" | awk '/^(codex|ollama|anthropic|openrouter)$/' | tr '\n' ' ')
   # Keep the REASONS, not just the verdict. `--over` emits a bare bucket name as the
   # machine-readable block list and a `quota: <bucket> <state>: …` line as the human
   # one, and the driver used to read the first and discard the second — so a bucket
