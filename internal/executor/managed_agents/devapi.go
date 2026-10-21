@@ -70,10 +70,11 @@ func NewDevAPI(cfg *executor.Config) (*Executor, error) {
 // splitAgentModel splits a registry agent_model_name of the form
 // "<agent>/<model>" into the agent name and an optional pinned model.
 //
-// The pin travels as agent_config {type: antigravity, model: <model>}. The API
-// echoes it back but does NOT reject an unknown model at validation (probed
-// 2026-10-13), and the agent self-reported a different model on a pinned run —
-// so a pin is a REQUEST, not a verified fact. ProviderData records it as such.
+// The pin travels as agent_config {type: antigravity, model: <model>}. Since
+// 2026-10-21 the Developer API rejects an unknown model (404; on 10-13 it was
+// accepted), so an accepted pin names a real model — but only the billing SKU
+// proves it served the run. ProviderData records it as a request. Vertex
+// ignores the field entirely, so Execute refuses a pin there.
 func splitAgentModel(s string) (agent, model string) {
 	if i := strings.Index(s, "/"); i >= 0 {
 		return s[:i], s[i+1:]

@@ -1697,7 +1697,8 @@ models:
       Anchored ELO 2778.2 (banked) is a FLOOR — a perfect run has no upper bound,
       same as claude-opus-5-5's 29/29 → 2871.9. Not a ranking between the two.
       Still opt-in, in NO suite: promotion is a separate call.
-      Agent mode: ❌ NOT wired (no agent_cli declared).
+      Agent mode: via the gemini-agents-argon row (gemini_agents executor, pinned
+      through agent_config on the Developer API; Vertex cannot pin, 2026-10-21).
 
   # Google Gemini 3.5 Flash (released May 19, 2026 at Google I/O 2026)
   # ⚠️  EXCLUDED FROM STANDARD EVAL ROTATION (v0.22.0, 2026-05-20).
@@ -2081,6 +2082,51 @@ models:
       the CLI lanes, cheap per token because of the cache. The eval-suite dry-run
       estimated $0.45 for the whole tier (no history) — 34x low; quote ~$0.70 x N.
       Core/frontier placement not yet run. In NO suite, in NO role chain.
+
+  # Same gemini_agents executor, pinned to Gemini 4 Argon via agent_config (2026-10-21)
+  gemini-agents-argon:
+    api_name: "antigravity-preview-09-2026"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini Developer API Managed Agents (antigravity 09-2026) pinned to gemini-4-argon — edits the local workspace via repo mount + patch export"
+    env_var: "GEMINI_AGENTS_API_KEY"  # SA-bound, generativelanguage-only key; scripts/security/setup_gemini_agents_project.sh
+    agent_cli: "gemini_agents"
+    agent_model_name: "antigravity-preview-09-2026/gemini-4-argon"
+    max_output_tokens: 65536
+    model_family: "gemini-4"
+    pricing:
+      # Argon list rates (see the gemini-4-argon row), NOT the 3.8 Flash rates the
+      # unpinned agent bills at. To confirm: billing export SKU for
+      # ailang-gemini-agents on the day of the first run.
+      input_per_1k: 0.002          # $2.00 per 1M through 2026-11-30 → $4.00 from 2026-12-01
+      output_per_1k: 0.01          # $10.00 per 1M (incl. thinking) → $20.00 from 2026-12-01
+      cache_read_per_1k: 0.0001    # $0.10 per 1M → $0.20
+      expires: "2026-11-30"
+      next:
+        input_per_1k: 0.004
+        output_per_1k: 0.02
+        cache_read_per_1k: 0.0002
+    budgets:
+      max_cost_usd: 4.00
+      hard_timeout_secs: 900
+    notes: |
+      WHY: the only route that pins Argon inside a managed agent. TestLiveArgonPin
+      (2026-10-21) found:
+        Vertex: agent 09-2026 -> 404; on 05-2026, argon AND a bogus model both
+          run to completion -> Vertex ignores agent_config.model.
+        Developer API: argon accepted and echoed; bogus model -> 404 "Requested
+          entity was not found" (on 10-13 it was accepted). So the pin is now
+          validated on this surface.
+      Acceptance is not billing: the first run's SKU in the billing export is the
+      proof that Argon served it. Executor, auth and spend cap: see the
+      gemini-agents-antigravity row above.
+
+      FIRST RUN 2026-10-21 (agent, ailang, adt_option + balanced_parens): 2/2 PASS,
+      17 turns each, 94s/170s, $0.29 total at Argon rates (~355K in, 84% cached,
+      ~700 out per run). The unpinned agent averaged ~83 turns / 280s on smoke.
+      Billing SKU check for 2026-10-21 PENDING.
+
+      GATE: full smoke tier PENDING. In NO suite, in NO role chain.
 
   gemini-3-8-flash:
     api_name: "gemini-3.8-flash"

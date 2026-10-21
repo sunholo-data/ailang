@@ -194,6 +194,14 @@ func (e *Executor) ExecuteStreaming(
 	if agent == "" {
 		agent = e.agent
 	}
+	if pinnedModel != "" && !e.devapi {
+		// Vertex runs any agent_config.model, bogus included (TestLiveArgonPin,
+		// 2026-10-21), so a pin there would silently run the default model.
+		err := fmt.Errorf("%s: model pin %q is not honoured on Vertex; use agent_cli %s", e.name, pinnedModel, DevAPIExecutorName)
+		span.SetStatus(codes.Error, err.Error())
+		handler.OnError(err)
+		return &executor.Result{Success: false, Error: err.Error(), FinishReason: "error"}, err
+	}
 
 	// Build the interaction body. We do a fresh sandbox every call here — see
 	// the design doc M2.5 for the multi-turn / sandbox-reuse follow-up.
