@@ -41,11 +41,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-10-21 — ITERATION 11: dev govulncheck red and parent PTY fixture failure independently routed; #1921 semantics held D25; 3 queue CONCUR; shadow15/15 corrected; 2 safe labels+1 evidence comment; no attestation/approval/handoff.
+
 ## STATUS 2026-10-21 — ITERATION 10: 3 cross-vendor CONCUR verdicts; #1916 correction requested, #1914 safely labelled, new orphan #1889 held D24; dev checks17/17 green; shadow14/14; no attestations or dispatch.
 
 ## STATUS 2026-10-19 — ITERATION 8: 8 joined items / 11 component verdicts independently judged; 1 duplicate close, 4 PR comments, 6 safe labels; CI green / Sonar dissent held; shadow 13/13; D22/23 OPEN; no attestations or dispatch.
-
-## STATUS 2026-10-19 — ITERATION 7: 52 independently judged; 8 PR comments, 7 safe label updates, issue #1717 closed with fix evidence; reviewed CI SUCCESS/Sonar red; latest HEAD unverified; shadow 12/12. D-TRIAGE-17/18/19/20/21 OPEN; Sonar dissent parked; no attestations or dispatch.
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
@@ -151,6 +151,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 | D-TRIAGE-22 | OPEN | Orphan PR #1894 has no pending card/chain, failed CI and report-contract/scope gaps. Choose (a) HOLD for operator card reconciliation and a corrected report; (b) retire it attended. Recommend (a); default HOLD, no coordinator-PR close by this loop. | Iteration 8 OpenAI verifier / MiniMax judge CONCUR NEEDS-DECISION; head 3cdfea641ea556af0a1a9597711c2701a943d84a; https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6277948518. |
 | D-TRIAGE-23 | OPEN | PR #1887/card task-b0744e8f adds a placeholder design already covered by duplicate-func-binding-silent.md on dev. Choose (a) retire the duplicate planning card attended; (b) request a justified scope delta. Recommend (a); default HOLD, no reject/close by this loop. | Iteration 8 OpenAI verifier / MiniMax judge CONCUR SUPERSEDED; head bca3ff382143d9e2ef25901a1f408bef56b8787e; https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6277948518. |
 | D-TRIAGE-24 | OPEN | New orphan PR #1889 lost its pending card while its head remains unchanged. Choose (a) reconcile/reattach the authoritative task/card and retain the wanted plan; (b) retire it attended. Recommend (a), then address inherited rebase/check failures before any attended approval. Default: HOLD; no close, reject or dispatch by this loop. | Iteration 10 OpenAI verifier / MiniMax judge CONCUR NEEDS-DECISION; historical apr-38d566eb absent from pending snapshot, PR OPEN at 95588037cd28d54aadf594a3b2c7f8aa2f38a812. https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6302642340 |
+| D-TRIAGE-25 | OPEN | Issue #1921: choose (A) minimum executed-case/maximum discard-rate coverage policy, making near-empty properties non-green; (B) zero accepted inputs only becomes vacuous; (C) retain current documented behavior. Recommend A, with thresholds/exit contract reviewed in a design. Default C/current semantics until an operator ruling; no implementation or design dispatch before ruling. | Implemented m-property-generator-coverage.md AC-A4 and F1:758–763 reserve this semantic policy for a human; current result.go corroborates counting, external package counts are reporter-provided. OpenAI verifier and independent MiniMax CONCUR; https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6313645488. |
 <!-- decision-ledger:end -->
 
 ## Queue
@@ -160,14 +161,14 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
 3. [RECORDED iterations 1–3] Level 1 queue verification; iteration 3 records independent review and the prior record gap. Clauses 1–3.
-4. [NEXT] Re-verify changed/held items against origin/dev. #1916 needs tracking references corrected to issue1914; D-TRIAGE-24 parks newly uncarded #1889 for operator reconciliation, and D22 retains orphan #1894. D17–20 await authoritative recording of prior attended-summary evidence before dependent work. D15/16/21/23 retain OPEN status with changed/moot external predicates, without obsolete substantive re-asks. Never approve, reject, merge or fire handoffs.
+4. [NEXT] Re-verify changed/held items against origin/dev. D-TRIAGE-25 parks issue #1921 coverage semantics; two independently judged current/parent CI findings were routed for product design in iteration11, not repaired. #1916 needs tracking references corrected to issue1914; D-TRIAGE-24 parks newly uncarded #1889 for operator reconciliation, and D22 retains orphan #1894. D17–20 await authoritative recording of prior attended-summary evidence before dependent work. D15/16/21/23 retain OPEN status with changed/moot external predicates, without obsolete substantive re-asks. Never approve, reject, merge or fire handoffs.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
-6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085; iteration10 recurrence inbox_1792533879605_18a7bcf5. No triage harness repair.
+6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085; iteration10 recurrence inbox_1792533879605_18a7bcf5. Iteration11 recurrence inbox_1792578499678_b8495de1; direct send refused rc1, existing controlplane consumer retained. No triage harness repair.
 
 7. [HARNESS] [NONBLOCKING] ticket:probe:pi-duplicate-extension-discovery — prescribed evaluator probe rc1 in iterations6/8 from duplicate global/repo extension registration; isolated no-extension MiniMax judge completed. Fleet occurrence inbox_1792446067799_00f63bae; no config/code repair by triage.
 
-8. [HARNESS] [NONBLOCKING] ticket:agent-tool:sonnet-unavailable — iteration10 native evaluator Agent spawn rejected; declared MiniMax fallback returned independent judgment. Occurrence inbox_1792533445478_38a2bbe1; no routing/harness repair.
+8. [HARNESS] [NONBLOCKING] ticket:agent-tool:sonnet-unavailable — iteration10 native evaluator Agent spawn rejected; declared MiniMax fallback returned independent judgment. Occurrence inbox_1792533445478_38a2bbe1; iteration11 occurrence inbox_1792578234571_689cc027, existing fleet D-FLEET-24 owns policy; no routing/harness repair.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.

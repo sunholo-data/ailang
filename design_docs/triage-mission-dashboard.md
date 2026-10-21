@@ -1,26 +1,22 @@
-# Triage mission dashboard — iteration 10 (2026-10-21)
+# Triage mission dashboard — iteration 11, 2026-10-21
 
-- Level 1; never approve/reject/merge or implement. Latest release v0.54.16.
-- Reviewed dev: 1579ef50ce4d57b185de7c3ff749928204d66570; CI and all 17 commit checks green.
-- Queue: 6 pending cards, 26 PRs, 59 issues; 8 uncarded coordinator PRs.
-- Selected: 2 changed joined items / 3 component verdicts; 0 held/stale additions.
-- #1914 KEEP: added priority:P1 + area:test-runner; T2 retains issue.
-- #1916 NEEDS-FIX: issue links identify merged design PR1915 instead of bug1914; correction comment posted.
-- #1889 NEEDS-DECISION: historical card missing; needs-decision added; D-TRIAGE-24 HOLD.
-- Ready for Mark to approve: none newly attested.
-- Five >48h cards: three conflicting, two head-red; zero green AND mergeable stalls.
-- Landed sweep 0/7; no apply or handoffs.
-- Shadow: 14/14 settled predictions agree; 7 rows appended, 333 total; no older row rewritten.
-- Open operator decisions: D15/16/17/18/19/20/21/22/23/24. No obsolete substantive re-asks.
-- D15/16/21/23 external predicates changed; observations do not self-resolve decisions.
-- D12/13/14 remain resolved; collection remains OFF.
-- Routing: OpenAI gpt-6-luna Agent verifiers → MiniMax minimax-m3 judge (3 CONCUR + audit CONCUR).
-- Native sonnet Agent spawn unavailable; declared pi:ollama/minimax-m3:cloud fallback, actual vendor verified.
-- Judge two completed calls131,105 tokens + probe2,018; both CONCUR; reported metered $0.
-- No designer/planner/code-executor roles. Gate3b inapplicable.
-- Harness share 4/6 available scheduled record entries, escalation-only; zero harness repairs.
-- Cadence 12h when fingerprint changes. Metered ceiling $1; Codex/Ollama buckets.
-- Reports: [bookkeeping #1892](https://github.com/sunholo-data/ailang/issues/1892).
-- [Independent evidence](https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6302642340).
-- Record continues existing [PR1904](https://github.com/sunholo-data/ailang/pull/1904), unmerged for operator.
-- Next: plan owner corrects1916; operator reconciles1889; next fire re-verifies changed/held items.
+- Release: operational CLI v0.54.16-dirty/128371f; source reviewed at d75ef77f59cf4c3c3151fef4840335d269963b8d.
+- Level1. No approval, rejection, merge, sprint execution or card handoff.
+- Dev RED: govulncheck GO-2026-6809; current run39582396242 still in progress.
+- Parent run39544923639 at d3d389ef also failed on empty-PID PTY fixture.
+- Both findings routed as product design requests; triage changes no code or pins.
+- New D-TRIAGE-25: property coverage policy; current semantics retained pending ruling.
+- D24 retains uncarded PR1889; D22 retains orphan1894; D17 holds1883 executor handoff.
+- Raw queue:6 pending cards /26 open PRs /60 open issues.
+- 3 component verdicts; 2 labels and1 issue comment; no closes or attestations.
+- 5 cards>48h, none green AND mergeable; 8 uncarded PRs+1 missing approval record.
+- Settled shadow15/15, corrected for CLOSE-DUPLICATE1903; no disagreements.
+- Read-only verifiers: native Agent-tool gpt-6-luna; judge actual MiniMax via declared Ollama fallback.
+- Native sonnet spawn rejected; existing fleet D-FLEET-24 owns routing policy.
+- Metered$0; judge+probe30,151 tokens; other role telemetry not reported.
+- Cadence12h, queue fingerprint idle pre-check. Fingerprint only after all reports.
+- Existing OPEN decisions stay OPEN; no bot summary used as human authority.
+- Main dirty files parked; no skill/config/policy edits.
+- Next: operator rules D25; product owners design CI repairs; card owners repair/reconcile.
+- Evidence: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6313645488
+- Record PR: https://github.com/sunholo-data/ailang/pull/1904 (unmerged).

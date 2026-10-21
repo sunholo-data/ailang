@@ -6,3 +6,4 @@
 ## STATUS 2026-10-16 — ITERATION 4: 10 selected; haiku→sonnet; 1 VERIFIED (PR #1863) attested unsigned; 4 evidence comments; #1783 held by T2; #1711 judge DISSENT; dev CI red; ledger 9/9 settled. No closes/approvals. daneel-reports refused (no serving agent).
 
 ## STATUS 2026-10-17 — ITERATION 6: 10 independently judged; one unsigned attestation, four PR comments, four safe labels; dev green; 7 orphan PRs; shadow 11/11 under explicit rubric. D-TRIAGE-15/16 OPEN; record PR awaits operator.
+## STATUS 2026-10-19 — ITERATION 7: 52 independently judged; 8 PR comments, 7 safe label updates, issue #1717 closed with fix evidence; reviewed CI SUCCESS/Sonar red; latest HEAD unverified; shadow 12/12. D-TRIAGE-17/18/19/20/21 OPEN; Sonar dissent parked; no attestations or dispatch.

@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 11 | 2026-10-21 | red dev routed; property coverage semantics parked; shadow denominator corrected [HARNESS] [ADMIN] |
 | 10 | 2026-10-21 | independent review holds mislinked parser plan and newly orphaned JSON Schema plan [HARNESS] [ADMIN] |
 | 8 | 2026-10-19 | independent queue cleanup; Sonar dissent and two dispositions held [HARNESS] [ADMIN] |
 | 7 | 2026-10-19 | 52 queue verdicts; Sonar-only red parked after independent dissent [HARNESS] [ADMIN] |
