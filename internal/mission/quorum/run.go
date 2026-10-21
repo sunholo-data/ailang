@@ -63,8 +63,8 @@ type ReviewerOutcome struct {
 	// Present is true iff the reviewer ran and returned a valid verdict.
 	Present bool `json:"present"`
 	// AbsentReason is populated iff Present is false: one of "unreachable",
-	// "budget", "auth", "unknown-model", "invalid" (malformed/gate-violating
-	// response).
+	// "budget", "auth", "unknown-model", "not-allowlisted", "invalid"
+	// (malformed/gate-violating response).
 	AbsentReason string `json:"absent_reason,omitempty"`
 	// Err carries the underlying error text for an absent reviewer (audit).
 	Err string `json:"error,omitempty"`
@@ -94,11 +94,12 @@ const TierAgentic = "tier2"
 
 // AbsentReason values.
 const (
-	ReasonUnreachable  = "unreachable"
-	ReasonBudget       = "budget"
-	ReasonAuth         = "auth"
-	ReasonUnknownModel = "unknown-model"
-	ReasonInvalid      = "invalid"
+	ReasonUnreachable    = "unreachable"
+	ReasonBudget         = "budget"
+	ReasonAuth           = "auth"
+	ReasonUnknownModel   = "unknown-model"
+	ReasonInvalid        = "invalid"
+	ReasonNotAllowlisted = "not-allowlisted"
 )
 
 // RunReviewer runs one reviewer end-to-end with a budget cap. It NEVER returns

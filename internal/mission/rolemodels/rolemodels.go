@@ -6,9 +6,13 @@ import (
 	"strings"
 )
 
-// AllowedOpenAI implements D-FLEET-12 item 1. Other OpenAI models remain
-// registered but dormant; registration does not authorize a mission role.
-var AllowedOpenAI = []string{"gpt-6.1-sol"}
+// AllowedOpenAI implements D-FLEET-12 item 1 (Mark, attended 2026-10-02: Sol 6.1
+// is the OpenAI rung; gpt-6-astra stays registered but dormant). gpt-6-luna is
+// here because a LATER attended ruling uses it: the triage charter, ratified
+// 2026-10-15, routes its read-only verifiers to codex:gpt-6-luna (the docs
+// mission pinned it 2026-09-30). The conflict is D-FLEET-27, for Mark to confirm.
+// Registration does not authorize a mission role.
+var AllowedOpenAI = []string{"gpt-6.1-sol", "gpt-6-luna"}
 
 // SpawnOverrideKey hides native child-model overrides so children inherit the parent.
 const SpawnOverrideKey = "features.multi_agent_v2.expose_spawn_agent_model_overrides"

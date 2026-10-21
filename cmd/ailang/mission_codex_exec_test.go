@@ -52,7 +52,7 @@ func TestMissionCodexTextWriter(t *testing.T) {
 
 // These tests call only the parser: no environment setup, daemon, or socket.
 func TestMissionCodexExecRoleRefusal(t *testing.T) {
-	for _, model := range []string{"gpt-6-astra", "gpt6-astra", "codex:gpt-6-sol", "gpt-6-luna", "gpt-5.6-sol"} {
+	for _, model := range []string{"gpt-6-astra", "gpt6-astra", "codex:gpt-6-sol", "gpt-5.6-luna", "gpt-5.6-sol"} {
 		t.Run(model, func(t *testing.T) {
 			_, _, err := parseMissionCodexExecArgs([]string{"--model", model, "prompt"})
 			if err == nil {

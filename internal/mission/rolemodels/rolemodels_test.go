@@ -20,12 +20,12 @@ func TestCanonicalKey(t *testing.T) {
 }
 
 func TestAllowed(t *testing.T) {
-	for _, id := range []string{"gpt-6.1-sol", "gpt6-1-sol", "codex:gpt-6.1-sol", "openai/gpt-6.1-sol", "claude-opus-5-5", "kimi-k3", "glm-5.3", "gemini-4-argon"} {
+	for _, id := range []string{"gpt-6.1-sol", "gpt6-1-sol", "codex:gpt-6.1-sol", "openai/gpt-6.1-sol", "gpt-6-luna", "codex:gpt-6-luna", "gpt6-luna", "claude-opus-5-5", "kimi-k3", "glm-5.3", "gemini-4-argon"} {
 		if !Allowed(id) {
 			t.Errorf("allowed model %q refused", id)
 		}
 	}
-	for _, id := range []string{"gpt-6-astra", "gpt6-astra", "codex:gpt-6-sol", "gpt-6-luna", "gpt-5.6-sol"} {
+	for _, id := range []string{"gpt-6-astra", "gpt6-astra", "codex:gpt-6-sol", "gpt-5.6-luna", "gpt5-6-luna", "gpt-5.6-sol"} {
 		if Allowed(id) {
 			t.Errorf("retired OpenAI model %q allowed", id)
 		}

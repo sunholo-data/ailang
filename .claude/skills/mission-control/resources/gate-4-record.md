@@ -124,6 +124,17 @@ Append an entry to `design_docs/v1-mission-log.md` using its fixed template — 
 value fields: evidence drives routing-policy changes; ruled-out stops re-chasing. Update the
 mission doc's queue tags ([LANDED], [PARKED], etc.) and STATUS stamp.
 
+Before the record commit, check your own entry for OpenAI models outside the D-FLEET-12 allowlist
+(today `gpt-6.1-sol` and `gpt-6-luna`; the list lives in `internal/mission/rolemodels`):
+
+```bash
+/bin/bash "$MISSION_DRIVER_ROOT/scripts/mission_routing_models_check.sh" \
+  --file "design_docs/${MISSION_NAME}-mission-log.md" --entry <own-N>
+```
+
+Exit 1: FLAG the routing finding in the report; it never blocks the record commit.
+Exit 2: report an instrument failure, never a clean result. Exit 0: no finding in this entry.
+
 **Shared canonical record headings (all missions).**
 For every mission, write `## STATUS <YYYY-MM-DD> — ITERATION <n>: <headline>`.
 Source of truth: `internal/mission/normalize.go` `canonicalStatusRe`; the code regex wins over prose.

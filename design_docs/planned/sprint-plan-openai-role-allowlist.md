@@ -86,3 +86,17 @@ At each milestone run applicable focused gates in foreground; M2 repeats M1 beha
 - `cmd/ailang/design_quorum.go` default pool literal is outside fleet scope; leave it untouched. Registry dormancy stays intact; no pricing/model rows changed.
 - Raw skill launches mechanically hide child overrides but do not themselves validate arbitrary `$MODEL`; Go wrapper provides durable refusal on managed path, evidence check detects reporting violations. Non-OpenAI vendors retain existing behavior; changing native Codex itself is outside this harness fix.
 - Protected `.agents` mirrors may require controller application if executor sandbox refuses writes; report exact missing mirror, do not claim D4/D7 complete until both match. Controller owns approval, two-run dispatch, commits, outside-sandbox integration and final evaluation.
+
+## Amendment (controller, after M2) — M7 was wrong, and the allowlist is `gpt-6.1-sol` + `gpt-6-luna`
+
+The controller's integration run of `scripts/mission_routing_models_check.sh` over the real logs refuted M7.
+`triage-mission-log.md:31` routes its executor/verifiers to `codex:gpt-6-luna`, and
+`~/.config/ailang/mission-triage.env:24,33` pins it (controller fallback and executor). Triage is ARMED.
+Its charter (`design_docs/triage-mission.md` § Routing policy, drafted attended 2026-10-15 and ratified with Mark at iteration 0)
+names `codex:gpt-6-luna` for verifiers. That is a later human statement than D-FLEET-12 (2026-10-02).
+Under the skill's two-statements rule (gate-0 rule 6(g)), the later statement wins on the point of conflict, and the conflict goes to Mark as a new decision.
+So `AllowedOpenAI` is `gpt-6.1-sol, gpt-6-luna`, and D9's "never add luna" is reversed.
+Shipping the literal list would have demoted an armed mission's ratified verifier lane at the next binary rebuild.
+Retired models stay refused: `gpt-6-astra`, `gpt-6-sol`, and every `gpt-5.6-*`.
+Tests that used luna as the refused example now use `gpt-5.6-luna`, which also exercises the `.` canonicalization (`gpt56luna` vs `gpt6luna`).
+The charter files the confirmation as D-FLEET-27.
