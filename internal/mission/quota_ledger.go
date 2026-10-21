@@ -410,6 +410,11 @@ const lockGrace = 5 * time.Minute
 // Both windows are recorded from the one event: the same tokens count against the 5-hour
 // window and the long cap simultaneously, because both providers enforce both.
 func AppendSpend(p Paths, bucket string, tokens int64, stages int, at time.Time) error {
+	var err error
+	bucket, err = QuotaBucketFor(bucket)
+	if err != nil {
+		return err
+	}
 	if bucket == "" {
 		return fmt.Errorf("quota ledger: bucket is required")
 	}
@@ -536,9 +541,16 @@ func rebuild(p Paths, now time.Time) (*Ledger, int, error) {
 	// journal's own first entry rather than inherited from the cache. Zeroing the
 	// counters here as well would be redundant — and untestable, since removing it
 	// changes nothing.
-	for i := range l.Usage {
-		l.Usage[i].WindowStart = time.Time{}
+	usage := l.Usage[:0]
+	for _, u := range l.Usage {
+		// Drop every cached harness row; only the journal may attribute spend.
+		if bucket, err := QuotaBucketFor(u.Bucket); err != nil || bucket != u.Bucket {
+			continue
+		}
+		u.WindowStart = time.Time{}
+		usage = append(usage, u)
 	}
+	l.Usage = usage
 	files, err := journalFiles(p)
 	if err != nil {
 		return nil, 0, err
@@ -548,8 +560,13 @@ func rebuild(p Paths, now time.Time) (*Ledger, int, error) {
 		return nil, skipped, err
 	}
 	for _, e := range entries {
-		l.add(e.Bucket, WindowShort, e.Tokens, e.Stages, e.At)
-		l.add(e.Bucket, WindowLong, e.Tokens, e.Stages, e.At)
+		bucket, err := QuotaBucketFor(e.Bucket)
+		if err != nil {
+			skipped++
+			continue
+		}
+		l.add(bucket, WindowShort, e.Tokens, e.Stages, e.At)
+		l.add(bucket, WindowLong, e.Tokens, e.Stages, e.At)
 	}
 	l.expire(now)
 	l.sortUsage()

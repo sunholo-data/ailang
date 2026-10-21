@@ -74,7 +74,7 @@ func (p *AdmissionPolicy) Check(ctx context.Context, c dispatch.Candidate) (disp
 		if c.Executor == "claude" {
 			bucket = "anthropic"
 		}
-		if bucket != "anthropic" && bucket != "openrouter" && bucket != "opencode" {
+		if !isQuotaBucket(bucket) {
 			return o, fmt.Errorf("unsupported quota bucket %q", bucket)
 		}
 		ledger, err := p.Ledger(now)
