@@ -1,22 +1,27 @@
-# Fleet mission — iteration 52, 2026-10-21
+# Fleet mission — iteration 53, 2026-10-21
 
-- Latest released binary: v0.54.16. dev: `9aebccf9b` (#1917, this fire).
-- LANDED and RESOLVED: `quota:opencode-reported-as-a-pool` (attended, 10-01; D-FLEET-12 item 2):
-  - `ailang mission quota` no longer prints the opencode harness as a pool. The stale 0-token rows the cached ledger had carried forever are dropped on rebuild.
-  - `opencode:<backend>` spend counts under its backend bucket. A bare `opencode` is refused before any journal write, and `--bucket opencode` refuses too.
-  - Corpus gate on scratch copies of the rig's real ledger: only the 6 `opencode` lines vanish, and `--over` is identical. Judged PASS 93 (sonnet). Dev CI green (the one red check on the merge is an unrelated Dependabot security-update job).
-  - Reaches the rig binary on its next rebuild or release.
-- NEW ask D-FLEET-24: the six `agent-tool` tickets (13 + 3 + 2 + 2 + 1 + 1 slots) are one routing class. Under a codex or pi controller, the resolver still hands `sonnet`/`opus`/`fable` roles to the Agent tool, which cannot spawn them. A: reroute to the first provider-pinned declared fallback (recommended). B: map to the `claude:` pin. C: no change (the default).
-- Next (banked): `policy:fleet-rulings-not-propagated-to-charters-and-skill` (reality-check; probably a park), `codex:server-capacity-error-crashes-finished-iteration`, then `routing:retired-codex-models-still-spawnable-natively` (D-FLEET-12 item 1).
+- Latest released binary: v0.54.16. dev: `d75ef77f5` (#1922, this fire).
+- LANDED and RESOLVED: `routing:retired-codex-models-still-spawnable-natively` (attended, 10-02; D-FLEET-12 item 1):
+  - Codex launches hide `spawn_agent`'s model choice (`-c features.multi_agent_v2.expose_spawn_agent_model_overrides=false`). Children then inherit the parent's model, measured on codex-cli 0.162.0. This rides the next pinned fire.
+  - `ailang mission codex-exec` refuses a retired OpenAI model before any daemon call. Quorum seating refuses one too, and `scripts/mission_routing_models_check.sh` flags one in Routing evidence (Gate 4 runs it). The Go half reaches the rig on its next rebuild or release.
+  - Allowlist: `gpt-6.1-sol` + `gpt-6-luna`. Armed triage's ratified charter (10-15) uses luna, and D-FLEET-27 asks you to confirm.
+  - Judged PASS 85 twice (sonnet). A new package broke the required `check-architecture-closure`, so the code moved into `internal/mission/quorum`.
+- NEW asks: D-FLEET-25 (fleet-wide rulings ledger + doctor check; A / B / C default), D-FLEET-26 (codex "Selected model is at capacity" → `TRANSIENT_SIG`; A / B / C default), D-FLEET-27 (luna stays allowed; A as shipped / B).
+- **Dev is red, outside fleet scope; V1 owns it and is disabled.**
+  - `govulncheck`: GO-2026-6809 is a new, function-reaching advisory that is not allowlisted. Not a required check.
+  - `test`: `TestWorkerTerminalPTYLifecycle/eval/sigint` flakes in 3 of the last 5 failed jobs.
+  - D-FLEET-17 still asks who fixes dev reds.
+- Next (banked): `quota:admission-has-no-headroom-margin-and-flaps` (probably a ghost of #1524), then `pi:unowned-dirty-absolute-vs-relative-paths`.
 - Parked on Mark:
-  - D-FLEET-24: agent-tool routing class (A / B / C default). New this fire.
-  - D-FLEET-16: skill source (A recommended / C default).
-  - D-FLEET-18: `tools/eval` scope (A / C).
-  - D-FLEET-19: ADC quota project (A / C).
-  - D-FLEET-20: quorum OpenAI seat billing (A / B / C).
-  - D-FLEET-21: Gate 3b's 30-min CI cap (A: 3600 s / B: auto re-poll / C default).
-  - D-FLEET-22: declare `daneel-reports` as `triage_only` (A / B / C default).
-  - D-FLEET-23: wrapper Step 5b + asks 2–3 (A: attended fix / B: narrow fleet authority / C default).
-  - D-FLEET-17 is moot.
+  - D-FLEET-25, -26, -27 (new this fire).
+  - D-FLEET-24 (agent-tool routing class).
+  - D-FLEET-16 (skill source).
+  - D-FLEET-17 (dev reds).
+  - D-FLEET-18 (`tools/eval` scope).
+  - D-FLEET-19 (ADC quota project).
+  - D-FLEET-20 (quorum OpenAI seat billing).
+  - D-FLEET-21 (Gate 3b CI cap).
+  - D-FLEET-22 (`daneel-reports`).
+  - D-FLEET-23 (wrapper Step 5b).
 - Cadence: fleet 6h, ticket-driven. Thread #1891; no new human directive. Nothing reloaded.
-- Clauses: 1 unmeasured, 2 unmet (this ticket took about 19.4 d; the median is still above 48 h), 3 met (41 open), 4 prior evidence, 5 preserved.
+- Clauses: 1 unmeasured, 2 unmet (this ticket took about 19 d), 3 met (41 open), 4 prior evidence, 5 preserved.
