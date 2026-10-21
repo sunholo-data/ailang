@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-var pool = []string{"gpt6-astra", "gemini-3-1-pro", "oc-glm-5-3", "oc-kimi-k3", ClaudeReviewerID}
+var pool = []string{"gpt6-1-sol", "gemini-3-1-pro", "oc-glm-5-3", "oc-kimi-k3", ClaudeReviewerID}
 
 func TestSelectReviewers_AuthorsVendorNeverSeated(t *testing.T) {
 	cases := []struct {
@@ -17,7 +17,7 @@ func TestSelectReviewers_AuthorsVendorNeverSeated(t *testing.T) {
 	}{
 		{"claude:claude-opus-5-5", []string{ClaudeReviewerID}},
 		{"opus", []string{ClaudeReviewerID}},
-		{"codex:gpt-6-astra", []string{"gpt6-astra"}},
+		{"codex:gpt-6.1-sol", []string{"gpt6-1-sol"}},
 		{"pi:ollama/glm-5.3:cloud", []string{"oc-glm-5-3"}},
 		{"pi:openrouter/moonshotai/kimi-k3", []string{"oc-kimi-k3"}},
 		{"pi:ollama/deepseek-v4-flash:0731-cloud", nil},
@@ -64,7 +64,7 @@ func TestSelectReviewers_StablePerDocAndRotatesAcrossDocs(t *testing.T) {
 }
 
 func TestSelectReviewers_PrefersDistinctVendors(t *testing.T) {
-	p := []string{"gpt6-astra", "gpt5-6-sol", "gemini-3-1-pro", "oc-glm-5-3"}
+	p := []string{"gpt6-1-sol", "codex:gpt-6.1-sol", "gemini-3-1-pro", "oc-glm-5-3"}
 	for i := 0; i < 20; i++ {
 		sel := SelectReviewers(p, "opus", fmt.Sprintf("d%d.md", i), 3)
 		vendors := map[string]bool{}
