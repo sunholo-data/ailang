@@ -131,7 +131,7 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      probe with a bounded deadline (Standing rule 6 — never unbounded), and only proceed if it exits 0:
      ```bash
      deadline=$(( $(date +%s) + 120 ))
-     out=$( codex exec --model "$MODEL" 'reply with exactly: ok' < /dev/null 2>&1 & pid=$!
+     out=$( codex exec --model "$MODEL" -c features.multi_agent_v2.expose_spawn_agent_model_overrides=false 'reply with exactly: ok' < /dev/null 2>&1 & pid=$!
             while kill -0 "$pid" 2>/dev/null; do
               [ "$(date +%s)" -ge "$deadline" ] && { kill "$pid" 2>/dev/null; break; }
               sleep 2; done
@@ -166,7 +166,7 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      PROMPT="$(cat "$DIRECTIVE")"; [ -n "$PROMPT" ] || { echo "FATAL: empty prompt" >&2; exit 64; }
      deadline=$(( $(date +%s) + 1800 ))   # 30-min hard cap
      GOCACHE=$(go env GOCACHE); GOMODCACHE=$(go env GOMODCACHE)
-     ( exec codex exec --model "$MODEL" \
+     ( exec codex exec --model "$MODEL" -c features.multi_agent_v2.expose_spawn_agent_model_overrides=false \
          --sandbox workspace-write \
          --add-dir "$GOCACHE" --add-dir "$GOMODCACHE" \
          -C "$WT" -o /tmp/codex_last.txt \
@@ -254,8 +254,10 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      same-model-fresh-context`). **Never spawn `gpt-6-astra`** in any role or quorum seat, natively or
      via `codex exec` (Mark, attended 2026-10-02: "remove astra - sol 6.1"). It is retired since
      2026-09-30 and kept in the registry, dormant, for a later release. No GPT-6.x Terra exists yet
-     (Codex catalog 2026-10-02), so Sol 6.1 is the only OpenAI rung. **No step blocks a
-     landing.** The same holds for every role and quorum seat: an unavailable preferred or rotation
+     (Codex catalog 2026-10-02), so Sol 6.1 is the only OpenAI rung. The `-c features.multi_agent_v2.expose_spawn_agent_model_overrides=false` flag on
+     every codex launch removes spawn_agent's model parameter, so a child inherits its allowlisted
+     parent (measured fleet iteration 53: `design_docs/planned/sprint-plan-openai-role-allowlist.md`
+     M1–M3). **No step blocks a landing.** The same holds for every role and quorum seat: an unavailable preferred or rotation
      lane hands off to the next lane WITH QUOTA, flagged; a missing quorum seat is flagged, not a
      block. Park for lack of a lane only when NO lane has quota at all.
   4. **Fallback (never wedge the loop) — follow the RATIFIED CHAIN, never a straight drop to

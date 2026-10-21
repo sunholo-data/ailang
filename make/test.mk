@@ -70,6 +70,7 @@ LAUNCHD_SUITE := /bin/bash tools/launchd/lib/suite-env.sh
 test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices + hook stdout, bash 3.2)
 	@$(LAUNCHD_SUITE) tools/launchd/test_quorum_artifacts.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_codex_auth_profiles.sh
+	@$(LAUNCHD_SUITE) tools/launchd/test_codex_spawn_override.sh
 	@$(LAUNCHD_SUITE) tools/attended/test_codex_oauth_profiles.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_suite_env.sh
 	@$(LAUNCHD_SUITE) tools/launchd/test_pin_root.sh
