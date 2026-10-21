@@ -201,6 +201,16 @@ EOF
 EOF
       expect 'q allowed dotted model in compound' 0 --file "$SCRATCH/log.md"
       findings 'q clean dotted findings'
+      local token
+      for token in gpt-6.1-sol-gpt-5 gpt-6-luna-gpt-5.6-sol gpt-6-lunatic; do
+        cat > "$SCRATCH/log.md" <<EOF
+## 44 — 2026-10-21 — Rejected compound
+- **Routing evidence:**
+  - Executor: $token
+EOF
+        expect "q reject $token" 1 --file "$SCRATCH/log.md"
+        findings "q original $token line/token" "$SCRATCH/log.md:3: $token"
+      done
       ;;
     *) echo "unknown arm: $1" >&2; exit 2 ;;
   esac
