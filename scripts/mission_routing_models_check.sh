@@ -59,9 +59,10 @@ active {
     sub(/[-.]+$/, "", token)
     key = canonical(token)
     if (!(key in allow)) {
-      # Allow hyphenated compounds with an allowlisted model prefix.
+      # Allow hyphenated compounds with an allowlisted prefix and no further gpt.
       for (j = 1; j <= length(token); j++) {
-        if (substr(token, j, 1) == "-" && (canonical(substr(token, 1, j - 1)) in allow)) break
+        if (index(tolower(substr(token, j + 1)), "gpt") == 0 &&
+            substr(token, j, 1) == "-" && (canonical(substr(token, 1, j - 1)) in allow)) break
       }
       if (j <= length(token)) continue
       findings = findings FILENAME ":" FNR ": " token "\n"
