@@ -1,27 +1,27 @@
-# Fleet mission — iteration 53, 2026-10-21
+# Fleet mission — iteration 54, 2026-10-21
 
-- Latest released binary: v0.54.16. dev: `d75ef77f5` (#1922, this fire).
-- LANDED and RESOLVED: `routing:retired-codex-models-still-spawnable-natively` (attended, 10-02; D-FLEET-12 item 1):
-  - Codex launches hide `spawn_agent`'s model choice (`-c features.multi_agent_v2.expose_spawn_agent_model_overrides=false`). Children then inherit the parent's model, measured on codex-cli 0.162.0. This rides the next pinned fire.
-  - `ailang mission codex-exec` refuses a retired OpenAI model before any daemon call. Quorum seating refuses one too, and `scripts/mission_routing_models_check.sh` flags one in Routing evidence (Gate 4 runs it). The Go half reaches the rig on its next rebuild or release.
-  - Allowlist: `gpt-6.1-sol` + `gpt-6-luna`. Armed triage's ratified charter (10-15) uses luna, and D-FLEET-27 asks you to confirm.
-  - Judged PASS 85 twice (sonnet). A new package broke the required `check-architecture-closure`, so the code moved into `internal/mission/quorum`.
-- NEW asks: D-FLEET-25 (fleet-wide rulings ledger + doctor check; A / B / C default), D-FLEET-26 (codex "Selected model is at capacity" → `TRANSIENT_SIG`; A / B / C default), D-FLEET-27 (luna stays allowed; A as shipped / B).
-- **Dev is red, outside fleet scope; V1 owns it and is disabled.**
-  - `govulncheck`: GO-2026-6809 is a new, function-reaching advisory that is not allowlisted. Not a required check.
-  - `test`: `TestWorkerTerminalPTYLifecycle/eval/sigint` flakes in 3 of the last 5 failed jobs.
-  - D-FLEET-17 still asks who fixes dev reds.
-- Next (banked): `quota:admission-has-no-headroom-margin-and-flaps` (probably a ghost of #1524), then `pi:unowned-dirty-absolute-vs-relative-paths`.
-- Parked on Mark:
-  - D-FLEET-25, -26, -27 (new this fire).
+- Latest released binary: v0.54.16. dev: `d25d9b8d0`, which is RED (see below).
+- BUILT, merge BLOCKED: `routing-models-check:bold-colon-heading` (world, 10-21), PR #1927, head `ec9e54a1e`.
+  - Gate 4's routing-evidence check read rc 2 on every World, Stapledon and V1 entry, because it knew only `**Routing evidence**`. It now reads all four real heading shapes, ends a bulleted block at its sibling field, and ignores quoted ticket signatures.
+  - Judged PASS 80, then PASS 88 by sonnet after hardening. The corpus gate over 7 real logs explains every rc change.
+  - Ticket stays OPEN until the fix is on origin/dev.
+- Skill edit (Gate 5): hand-written poll and gate loops run under `/bin/bash`, not the Bash tool's zsh (7 frictions, iterations 49–54). It rides #1927.
+- **Dev is red from an attended commit, outside fleet scope.**
+  - Required `test` (and `test-windows`, macOS) fail only on `TestModels_PricingIsSlugConsistent`. `d25d9b8d0` (gemini-agents-argon) gave `google|antigravity-preview-09-2026` a second price.
+  - Fix: make the `gemini-agents-antigravity` and `gemini-agents-argon` rows agree on the live rate (`make verify-model-pricing`).
+  - `govulncheck` is still GO-2026-6809 (not required).
+  - D-FLEET-17 (who fixes dev reds) is still open. This is its third blocked landing.
+- Next (banked): land #1927 once dev's `test` is green; then `rotate-log:heading-parse-stapledon` (stapledon, 10-21, fresh); then `quota:admission-has-no-headroom-margin-and-flaps` (probably a ghost of #1524).
+- Parked on Mark (no new asks this fire):
+  - D-FLEET-27 (luna), D-FLEET-26 (codex capacity), D-FLEET-25 (rulings ledger).
   - D-FLEET-24 (agent-tool routing class).
-  - D-FLEET-16 (skill source).
-  - D-FLEET-17 (dev reds).
-  - D-FLEET-18 (`tools/eval` scope).
-  - D-FLEET-19 (ADC quota project).
-  - D-FLEET-20 (quorum OpenAI seat billing).
-  - D-FLEET-21 (Gate 3b CI cap).
-  - D-FLEET-22 (`daneel-reports`).
   - D-FLEET-23 (wrapper Step 5b).
+  - D-FLEET-22 (`daneel-reports`).
+  - D-FLEET-21 (Gate 3b CI cap).
+  - D-FLEET-20 (quorum OpenAI seat billing).
+  - D-FLEET-19 (ADC quota project).
+  - D-FLEET-18 (`tools/eval` scope).
+  - D-FLEET-17 (dev reds).
+  - D-FLEET-16 (skill source).
 - Cadence: fleet 6h, ticket-driven. Thread #1891; no new human directive. Nothing reloaded.
-- Clauses: 1 unmeasured, 2 unmet (this ticket took about 19 d), 3 met (41 open), 4 prior evidence, 5 preserved.
+- Clauses: 1 unmeasured; 2 unmet (this ticket moves it only if it lands before 10-23 12:29Z); 3 met (43 open); 4 prior evidence; 5 preserved.
