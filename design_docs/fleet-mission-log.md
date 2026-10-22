@@ -1364,3 +1364,79 @@ The ticket's own suggestion (accept both colon placements) would have missed Sta
 - (4) **D-FLEET-17 recurs**: an attended commit reddened dev's required `test` while the fleet was mid-iteration, and a judged PASS cannot land. This is the third iteration it has blocked (37, 38, 54).
 
 **Next**: when dev's `test` is green, re-run #1927's checks (rebase only if needed: `git diff --stat d25d9b8d0 origin/dev -- scripts/mission_routing_models_check.sh scripts/test_mission_routing_models_check.sh` empty means no conflict), then merge with `--match-head-commit`, resolve `routing-models-check:bold-colon-heading` with the merge SHA, and reply to world. Then `rotate-log:heading-parse-stapledon` (stapledon, 10-21; fresh; a defect in iteration 51's parser), then `quota:admission-has-no-headroom-margin-and-flaps` (ghost-check against #1524 `71eec62b6`).
+
+## 55 — 2026-10-22 — `stall:watchdog:foreground-agent-and-wrong-transcript` BUILT: #1929 head `9d131c76a`; judge PASS 91, round 2 PASS 91 (sonnet); merge PARKED on dev's inherited required red (D-FLEET-17); ticket open [HARNESS]
+
+**Pick**: iteration 54's **Next** was to land #1927, then `rotate-log:heading-parse-stapledon`. #1927 cannot land: dev is still red on the same SHA, `d25d9b8d0`. Gate 2's clause map ranked a fresher ticket above the rotate-log one. `stall:watchdog:foreground-agent-and-wrong-transcript` (world, 10-21 23:27Z, `blocking=item`) cost World two whole slots (iterations 296 and 297, both killed mid-judge; 297's slot verdict reads `KILLED_at=gate-3 rc=143 … elapsed_s=3075`). That loss is clause 1, product share, directly. It is also a defect in fleet-owned code (`tools/launchd/mission-control.sh`), and the fleet's own foreground judges are exposed to it. The rotate-log ticket is `blocking=none`. The third fresh ticket, `quorum:claude-p-ration-usage-429` (stapledon, 10-21 22:57Z), sits in the ration and usage reader, which is HD-2a territory; it is not measured yet.
+
+**Orphans credited**: none new. Gate 0 step 6a returned rc 1 for the 2026-10-17T12:48:13Z crash notice on #1768, already credited at iteration 47 (`issuecomment-6234067020`). The only open `fleet/*` PR at pick was #1927 (iteration 54, built and blocked). Its record is the Gate-1 input, and this record is stacked on its branch.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1891 (12 comments) since `2026-10-15T02:46:27Z`. No rotation or sweep due (#1891 created Monday 2026-10-19).
+
+**Observe**: origin/dev == pin == `d25d9b8d0`, base recorded `2026-10-22T00:33:58Z`. `SKILL.md` and all 13 resources are `cmp`-identical to origin, both at the resolved symlink target and at the pin. Dev CI is still RED on `d25d9b8d0`: `test`, `test-windows`, `Build macos-latest` and `govulncheck` fail; the ubuntu and windows builds were cancelled by fail-fast. This is the same red iteration 54 attributed.
+
+**Reality check (real at HEAD)**:
+- C1. `_mc_progress_bytes`'s claude arm is `ls -t "$dir"/*.jsonl | head -1` over `~/.claude/projects/<$PWD slug>/`, a directory shared by every session with that cwd.
+- C2. The World kill lines are real (`/tmp/ailang-mission-world.log:14970`, `:14989`). The second reads `prog=318821268`, which is another session's file.
+- C3. The claude launch passes no session id. claude 2.1.307 has `--session-id <uuid>`. Probed from `/tmp`: rc 0. The file was written as `~/.claude/projects/-private-tmp-…/<UUID>.jsonl`, with the id's case kept and the slug taken from the PHYSICAL cwd. So the fix has to find the file by id, not recompute the slug.
+- C4. Sub-agent transcripts sit at `<id>/subagents/agent-*.jsonl` (40 sessions in the fleet project dir have one).
+- C5. `_mc_progress_bytes` is the only reader of `~/.claude/projects` in the harness.
+- C6. Base `test_mission_stall.sh` is 35/0. The pi arm has the same newest-file defect.
+
+**Did**:
+- **Designer**: not spawned. The fix is mechanical and the controller's C1–C7/D1–D7 went into the planner directive (precedent: iterations 45, 49–54).
+- **Planner** (codex `gpt-6.1-sol`, recipe, `.planner-wt-iter55`): plan + sprint JSON, one milestone, seven named-mutation arms. Committed `a7e2b6784`. The planner post-step `ailang messages import-github` was **skipped** (prod store; unrelated to a fleet ticket), as at iteration 54.
+- **Executor round 1** (codex): each claude attempt gets a fresh `--session-id`. The arm sums `<id>.jsonl` plus `<id>/subagents/*.jsonl` found by id across `~/.claude/projects/*`. With no id the arm fails open. pi keys on `*_${MC_PI_SESSION_ID}.jsonl`. Arms a1–a7.
+  - Controller edit: replaced the new comment's plan labels (`C1`/`C3`/`C4`) with a self-contained WHY.
+  - Committed `22b56880b`. Suite 45/0 outside the sandbox. Inside the sandbox, one pre-existing arm fails because `/bin/ps` is denied there (`UNINFORMATIVE UNDER SANDBOX`).
+- **Judge round 1** (sonnet, Agent tool, foreground, `.wt-fleet-iter55-judge`): **PASS 91**, 0 blocking.
+  - 18 mutants: 11 killed, 6 survived, 1 equivalent. a7 was grep-only, so the provider gate (M10, M17), id reuse (M11), the unguarded empty-array expansion (M9), the parent+subagent sum (M13) and the log line (M14) all survived.
+  - The judge ran a stub-claude `_mc_run_once` and confirmed two attempts get two ids.
+  - Controller reproduced M17 surviving (45/0 against the mutant).
+- **Executor round 2** (codex): the id block moves into `_mc_claude_session_prepare` with an `_mc_uuid` seam. Behavioural arms a7a–a7d and a sum arm a2b. All six survivors killed; the controller re-killed M10 (a7a/b/d) and M13 (a2b) itself. Committed `9d131c76a`. Suite 50/0.
+- **Judge round 2** (sonnet, fresh, `.wt-fleet-iter55-judge2`): **PASS 91**, 0 blocking. 28 mutants anchored to the diff: 22 killed, 6 survived, all equivalent or theoretical:
+  - prefix-loose globs; for pi, an id `mission-X-<epoch>-<pid>` could in principle prefix another fire's;
+  - removing the `-f` guard (masked while the driver log exists);
+  - lower-casing the id (equivalent);
+  - dropping the python fallback (untested path).
+- **Live check** (controller, this session's own id): the extracted arm read 2,331,887 B. That is this transcript (1,829,455) plus the round-1 judge's `subagents/agent-aac1078f2eabb1505.jsonl` (502,432). The old arm could never have counted the second file.
+- **PR #1929** (no closing keyword; scan paired with a control). 25 checks on `9d131c76a`. `launchd drivers (bash 3.2)` (Linux CI, the gate that runs this diff), `lint`, `docs-gate` and `docs-changes` are green. Not green, all inherited from dev on the same SHA: `test` and `Build macos-latest` fail only `TestModels_PricingIsSlugConsistent` (raw job logs, ANSI stripped, `ok` package counts 162 and 161 as the control); `govulncheck`; the ubuntu, windows and second macOS builds were cancelled by fail-fast; `test-windows` was still running at record time and is red on dev. `mergeStateStatus` BLOCKED. **Gate 3b**: not reached; nothing merged.
+
+**Done-gate**:
+- Surface: `tools/launchd/mission-control.sh` (`_mc_progress_bytes`, `_mc_claude_session_prepare`, `_mc_run_once`), which the pin executes.
+- Reach: pushed, not merged; it reaches every mission's next pinned fire once #1929 merges.
+- `make test-launchd-drivers` under `env -i`: rc 0 at `22b56880b` and at `9d131c76a` (stall suite 45/0, then 50/0).
+- Dry-runs under **triage** (armed, idle, no pidfile; `AILANG_DRIVER_PINNED=9d131c76a`): healthy rc 0 `lanes=ok`; degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`) rc 0 `DEGRADED(1)` → opus. No pidfile was written and nothing was reloaded. A dry-run exits before `_mc_run_once`, so the live check and the judge's stub run are what exercised the new code.
+
+**Progress**: 0 tickets resolved (2 built, both merges blocked by the same inherited red); 44 open. Goal unmoved on clause 1 until #1929 lands.
+- Clause 1 UNMEASURED; this ticket is its direct cost (2 World slots).
+- Clause 2 UNMET. This ticket counts toward the median only if it lands before 2026-10-23 23:27Z; #1927's window closes 2026-10-23 12:29Z.
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved (nothing merged).
+
+**Routing evidence**: base=d25d9b8d0dde10ee7c14986fe21b94fd2cb500cd@2026-10-22T00:33:58Z (gate 1); sprint worktree base `d25d9b8d0`. `MISSION_ROUTING_NOTE` empty; `MISSION_OVER_RATION` empty.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: not spawned. Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`; rotation not advanced.
+- **Planner**: resolver `agent-tool opus fail-closed:no-doc` against the pin `codex:gpt-6.1-sol`, so routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0; run rc 0 (61,922 tok).
+- **Executor**: `codex:gpt-6.1-sol` via the recipe (`declared:provider-pin`), 2 runs, both rc 0: 109,768 and 81,334 tok.
+- **Evaluator**: `sonnet` via the Agent tool (`declared:alias-pin`), foreground, 2 fresh spawns (81,325 + 72,344 tok). Judge independence: cross-vendor (Anthropic sonnet vs the OpenAI generator).
+- The Agent tool was used where the resolver names it (the evaluator), per the operator's standing request. Planner and executor resolve to recipes. No role failed to spawn.
+- Every codex run carried the spawn-override flag. A one-off `claude-sub … --model haiku` probe measured C3.
+- **Metered**: $0.
+
+**Ruled out**:
+- Recomputing the claude slug from `pwd -P`: it still cannot separate sessions that share a cwd, and finding the file by id makes the slug irrelevant.
+- Counting every `*/subagents/*.jsonl` in the project dir: another session's sub-agent would hold a wedged controller alive (arm a3).
+- Falling back to the newest file when the id is missing: that fallback is the bug (arm a5). Failing open costs only the early kill; HARD_TIMEOUT still bounds the slot.
+- Changing any threshold or sample count: policy (HD-2a), and not needed.
+- Fixing `TestModels_PricingIsSlugConsistent` from the fleet: `internal/modelreg` is outside the Authority allowlist.
+
+**Retro lane**:
+- (1) **No skill edit.** No friction reached two recorded instances on a gap the fleet should close.
+- (2) **Banked, 2 instances (54, 55): the planner recipe's step (5) `ailang messages import-github` is a V1-shaped step.** It writes the prod store and has nothing to do with a fleet ticket, so the controller has to decide to skip it every time. A third instance makes it a skill edit: scope the step to missions whose queue is GitHub issues.
+- (3) **Banked, 1 instance: Gate 1's stacking rule says to put the record on the blocked PR's branch, but not that the previous iteration's worktree may still hold that branch.** `git worktree add -B` failed rc 128, and the fix was to reuse the clean leftover worktree.
+- (4) **The judge's grep-only arm was the weak point, again.** Round 1's a7 checked wiring by text, and three mutants on the heart of the fix survived. Round 2's behavioural arms killed them. This is iteration 54's lesson (mutation-test the arm, not the suite) applied one level up: a static arm proves the text, not the behaviour.
+- (5) **D-FLEET-17 recurs: the fourth landing it has blocked (37, 38, 54, 55).** Two judged PASS fixes (#1927, #1929) now wait on one attended commit's red. Both fixes are fresh enough to move clause 2 only if dev is green by 2026-10-23. The ledger row's evidence is updated with the current cause.
+
+**Next**: when dev's `test` is green, re-run #1927's and #1929's checks (rebase only if `git diff --stat d25d9b8d0 origin/dev -- <each PR's files>` is non-empty), merge each with `--match-head-commit`, resolve both tickets with the merge SHAs, and reply to world. Then `rotate-log:heading-parse-stapledon` (stapledon, 10-21), then `quorum:claude-p-ration-usage-429` (stapledon, 10-21, `blocking=item`; measure first whether the fix is mechanical or a ration and billing change, which is HD-2a).
