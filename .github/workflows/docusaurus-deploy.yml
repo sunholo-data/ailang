@@ -194,14 +194,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22.23.4'
           cache: 'npm'
           cache-dependency-path: './docs/package-lock.json'
 
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26.9'
+          go-version: '1.26.10'
 
       - name: Install jq for stats generation
         timeout-minutes: 5
