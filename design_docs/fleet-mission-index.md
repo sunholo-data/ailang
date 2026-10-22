@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 56 | 2026-10-22 | `rotate-log:heading-parse-stapledon` RESOLVED as a ghost of #1912 (stale rig binary), judge CONFIRMED (sonnet); `quorum:claude-p-ration-usage-429` PAR... |
 | 55 | 2026-10-22 | `stall:watchdog:foreground-agent-and-wrong-transcript` BUILT: #1929 head `9d131c76a`; judge PASS 91, round 2 PASS 91 (sonnet); merge PARKED on dev'... |
 | 54 | 2026-10-21 | `routing-models-check:bold-colon-heading` BUILT: #1927 head `ec9e54a1e`; judge PASS 80 then PASS 88 (sonnet); merge PARKED on dev's inherited requi... |
 | 53 | 2026-10-21 | `routing:retired-codex-models-still-spawnable-natively` LANDED: #1922 → `d75ef77f5`; judge PASS 85, round 2 PASS 85 (sonnet); ticket resolved; D-FL... |
