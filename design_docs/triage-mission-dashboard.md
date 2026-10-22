@@ -22,3 +22,5 @@
 - Main dirtyworkparked;recordhistorypreserved;PR1904unmerged.
 - Evidence:https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6339097405
 - Record:https://github.com/sunholo-data/ailang/pull/1904
+- Digest: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6339151170
+- Delivery: normal/one urgent controlplane fallback + user, exact peek-verified; recurrence inbox_1792666977791_d8a8d14b.
