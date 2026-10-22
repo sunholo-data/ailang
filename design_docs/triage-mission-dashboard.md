@@ -1,22 +1,26 @@
-# Triage mission — iteration 3 (2026-10-16)
+# Triage mission dashboard — iteration 13, 2026-10-22
 
-Release: repository v0.54.11; local fleet CLI v0.54.10-dirty (read-only remote APIs only).
-Level 1: no approve, reject or merge. No code work or inner loop.
-Current dev: 793957a93f6aad30d5b9188f611d223b392fde8f; CI still queued/running.
-Evidence: https://github.com/sunholo-data/ailang/issues/1835#issuecomment-6211326086
-Coverage: 24 selected (2 changed, 7 held, 15 never verified); 22 issue verdicts + 2 merged outcomes.
-Results: KEEP 14; NEEDS-DECISION 5; CLOSE-FIXED 3 held by T2; merged OUTCOME 2.
-Judge: 20 concur / 4 dissent. No closes or attestations. Added only priority:P1 on #1845.
-Shadow settled score: 5/5 agreed; pending outcomes do not count as success.
-Parked on Mark: D-TRIAGE-12 (four disagreements); D-TRIAGE-13 (shadow collection); D-TRIAGE-14 (three stalled cards).
-Stalled green cards: #1750 (164h), #1818 (64h), #1819 (62h); old verdict NEEDS-DECISION, no approval signal.
-Orphans: 3 cards without PRs; 5 coordinator PRs without pending cards.
-Landed-card dry run: 0/17; no apply and no handoffs.
-Next: re-verify held/changed items; preserve #1436 docs live bookkeeping channel.
-Cadence: 12h, idle fingerprint pre-check; $1 metered ceiling.
-Routing: OpenAI gpt-6-luna verifiers through Agent tool; Anthropic Sonnet 5.5 judge through subscription CLI.
-Agent-tool judge failed: unsupported sonnet model. CLI fallback completed independent review.
-Quota: subscription buckets only; per-role token detail in iteration log.
-Main checkout has unrelated uncommitted work; left untouched.
-Reporting: user Pub/Sub recovered; Daneel normal+urgent use polled controlplane; registry gap filed to fleet.
-Historical gap: iterations 1/2 exist in issue/ledger, but their repo logs/index were never committed.
+- Level1; no approve/reject/merge/sprint execution/handoff.
+- Operational CLI v0.54.16-dirty/128371f; reviewed dev d25d9b8d0dde10ee7c14986fe21b94fd2cb500cd.
+- Dev RED: pricing identity collision and inherited GO-2026-6809; existing routes retained, no duplicate dispatch.
+- Pricing designPR1928 satisfies request; exact-head inherited CI reds block VERIFIED.
+- DesignPR1931 needs negative-decimal parity, overflow-safe bounds, precision-claim correction.
+- Issue1930 KEEP/P2, issue1891 KEEP;2PRcomments and1safelabel.
+- New cards1928/1931 hand off to planner,not executor; no new execution-authorization hold.
+- Snapshot9cards/31PRs/61issues;3joined items/4verdict rows,80retainedcomponents<7days.
+- 8uncarded coordinatorPRs+1unidentified missing approval record;5agedcards,0qualifiedstalls.
+- Shadow14/14 settled,0disagreements;ledger343→347,oldprefixpreserved.
+- Twelve existing OPEN decisions unchanged;D25coverage,D26executionauthorizationparked.
+- ResolvedD12–14 remainresolved;shadowcollectionOFF;noPartApromotion.
+- Two native OpenAI read-only Agent verifiers;model/tokensnotreported.
+- Native Sonnet model selection unavailable:spawn schema has no model/providerfield.
+- Agent-tool transport ran same configured Sonnet through subscription-only claude-sub.
+- Actual judge Anthropic/claude-sonnet-5-5(firstParty),8/8CONCUR;20380tokens,metered$0.
+- No designer/planner/codeexecutor;allroleagentsandactualjudgecallscomplete.
+- Cadence12h;queuefingerprintidleprecheck;fingerprintafterfinalreports.
+- Harness share7/9available records,escalationonly;zero triageharnessrepairs.
+- Main dirtyworkparked;recordhistorypreserved;PR1904unmerged.
+- Evidence:https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6339097405
+- Record:https://github.com/sunholo-data/ailang/pull/1904
+- Digest: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6339151170
+- Delivery: normal/one urgent controlplane fallback + user, exact peek-verified; recurrence inbox_1792666977791_d8a8d14b.
