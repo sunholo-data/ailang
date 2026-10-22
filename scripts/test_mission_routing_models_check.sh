@@ -44,6 +44,21 @@ Prose mentions gpt-6-luna outside evidence.
 EOF
 }
 
+findings() {
+  local name="$1"
+  shift
+  if [ "$#" -gt 0 ]; then
+    printf '%s\n' "$@" > "$SCRATCH/expected"
+  else
+    : > "$SCRATCH/expected"
+  fi
+  if cmp -s "$SCRATCH/expected" "$SCRATCH/out"; then
+    echo "PASS $name"; pass=$((pass + 1))
+  else
+    echo "FAIL $name"; cat "$SCRATCH/out"; fail=$((fail + 1))
+  fi
+}
+
 run_arm() {
   case "$1" in
     a)
@@ -101,16 +116,112 @@ run_arm() {
         echo 'FAIL original token case'; fail=$((fail + 1))
       fi
       ;;
+    w)
+      cat > "$SCRATCH/log.md" <<'EOF'
+## 1 — 2026-10-21 — World routing
+**Routing evidence:**
+Controller: gpt-6.1-sol
+EOF
+      expect 'w world allowed routing' 0 --file "$SCRATCH/log.md"
+      findings 'w clean findings'
+      sed 's/gpt-6.1-sol/gpt-6-astra/' "$SCRATCH/log.md" > "$SCRATCH/retired.md"
+      expect 'w world retired routing' 1 --file "$SCRATCH/retired.md"
+      findings 'w original line/token' "$SCRATCH/retired.md:3: gpt-6-astra"
+      ;;
+    s)
+      cat > "$SCRATCH/log.md" <<'EOF'
+## 44 — 2026-10-21 — Stapledon routing
+- **Routing evidence:**
+  - Controller: gpt-6.1-sol
+  - Designer: gpt-6-astra
+- **Ruled out:** historical prose
+EOF
+      expect 's indented retired routing' 1 --file "$SCRATCH/log.md" --entry 44
+      findings 's original line/token' "$SCRATCH/log.md:4: gpt-6-astra"
+      cat > "$SCRATCH/log.md" <<'EOF'
+## 44 — 2026-10-21 — Stapledon sibling boundary
+- **Routing evidence:**
+  - Controller: gpt-6.1-sol
+  - Designer: gpt-6-luna
+- **Ruled out:** gpt-6-astra
+EOF
+      expect 's sibling-only retired token excluded' 0 --file "$SCRATCH/log.md" --entry 44
+      findings 's clean sibling findings'
+      ;;
+    v)
+      cat > "$SCRATCH/log.md" <<'EOF'
+## 1 — 2026-10-21 — V1 routing
+**Routing evidence.** Controller gpt-6.1-sol completed planning.
+Executor gpt-6-astra completed execution.
+EOF
+      expect 'v continuation retired routing' 1 --file "$SCRATCH/log.md"
+      findings 'v original line/token' "$SCRATCH/log.md:3: gpt-6-astra"
+      ;;
+    p)
+      cat > "$SCRATCH/log.md" <<'EOF'
+## 1 — 2026-10-21 — Docs routing
+**Routing evidence (from the orphaned fire's PR body, re-verified rather than transcribed)**:
+| Role | Model |
+| --- | --- |
+| Executor | gpt-6-astra |
+EOF
+      expect 'p parenthetical heading table routing' 1 --file "$SCRATCH/log.md"
+      findings 'p original line/token' "$SCRATCH/log.md:5: gpt-6-astra"
+      ;;
+    f)
+      cat > "$SCRATCH/log.md" <<'EOF'
+## 1 — 2026-10-21 — Fleet routing
+**Routing evidence**:
+- **Controller**: gpt-6.1-sol
+- **Executor**: gpt-6-astra
+EOF
+      expect 'f bold-label bullets retained' 1 --file "$SCRATCH/log.md"
+      findings 'f original line/token' "$SCRATCH/log.md:4: gpt-6-astra"
+      ;;
+    q)
+      cat > "$SCRATCH/log.md" <<'EOF'
+## 44 — 2026-10-21 — Quoted fleet ticket
+- **Routing evidence:**
+  - Controller: gpt-6.1-sol
+  - Ticket: `quorum:gpt6-1-sol-openai-api-credits-exhausted`
+EOF
+      expect 'q allowed model in ticket compound' 0 --file "$SCRATCH/log.md"
+      findings 'q clean ticket findings'
+      cat > "$SCRATCH/log.md" <<'EOF'
+## 44 — 2026-10-21 — Retired compound
+- **Routing evidence:**
+  - Executor: gpt-6-astra-unavailable
+EOF
+      expect 'q retired model in compound' 1 --file "$SCRATCH/log.md"
+      findings 'q original compound line/token' "$SCRATCH/log.md:3: gpt-6-astra-unavailable"
+      cat > "$SCRATCH/log.md" <<'EOF'
+## 44 — 2026-10-21 — Dotted allowed compound
+- **Routing evidence:**
+  - Executor: gpt-6.1-sol-high
+EOF
+      expect 'q allowed dotted model in compound' 0 --file "$SCRATCH/log.md"
+      findings 'q clean dotted findings'
+      local token
+      for token in gpt-6.1-sol-gpt-5 gpt-6-luna-gpt-5.6-sol gpt-6-lunatic; do
+        cat > "$SCRATCH/log.md" <<EOF
+## 44 — 2026-10-21 — Rejected compound
+- **Routing evidence:**
+  - Executor: $token
+EOF
+        expect "q reject $token" 1 --file "$SCRATCH/log.md"
+        findings "q original $token line/token" "$SCRATCH/log.md:3: $token"
+      done
+      ;;
     *) echo "unknown arm: $1" >&2; exit 2 ;;
   esac
 }
 
 if [ "$#" -eq 0 ]; then
-  for arm in a b c d e instruments boundaries; do run_arm "$arm"; done
+  for arm in a b c d e instruments boundaries w s v p f q; do run_arm "$arm"; done
 elif [ "$#" -eq 2 ] && [ "$1" = --only ]; then
   run_arm "$2"
 else
-  echo "usage: $0 [--only a|b|c|d|e|instruments|boundaries]" >&2
+  echo "usage: $0 [--only a|b|c|d|e|instruments|boundaries|w|s|v|p|f|q]" >&2
   exit 2
 fi
 echo "$pass passed, $fail failed"

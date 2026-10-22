@@ -1,27 +1,34 @@
-# Fleet mission — iteration 53, 2026-10-21
+# Fleet mission — iteration 57, 2026-10-22
 
-- Latest released binary: v0.54.16. dev: `d75ef77f5` (#1922, this fire).
-- LANDED and RESOLVED: `routing:retired-codex-models-still-spawnable-natively` (attended, 10-02; D-FLEET-12 item 1):
-  - Codex launches hide `spawn_agent`'s model choice (`-c features.multi_agent_v2.expose_spawn_agent_model_overrides=false`). Children then inherit the parent's model, measured on codex-cli 0.162.0. This rides the next pinned fire.
-  - `ailang mission codex-exec` refuses a retired OpenAI model before any daemon call. Quorum seating refuses one too, and `scripts/mission_routing_models_check.sh` flags one in Routing evidence (Gate 4 runs it). The Go half reaches the rig on its next rebuild or release.
-  - Allowlist: `gpt-6.1-sol` + `gpt-6-luna`. Armed triage's ratified charter (10-15) uses luna, and D-FLEET-27 asks you to confirm.
-  - Judged PASS 85 twice (sonnet). A new package broke the required `check-architecture-closure`, so the code moved into `internal/mission/quorum`.
-- NEW asks: D-FLEET-25 (fleet-wide rulings ledger + doctor check; A / B / C default), D-FLEET-26 (codex "Selected model is at capacity" → `TRANSIENT_SIG`; A / B / C default), D-FLEET-27 (luna stays allowed; A as shipped / B).
-- **Dev is red, outside fleet scope; V1 owns it and is disabled.**
-  - `govulncheck`: GO-2026-6809 is a new, function-reaching advisory that is not allowlisted. Not a required check.
-  - `test`: `TestWorkerTerminalPTYLifecycle/eval/sigint` flakes in 3 of the last 5 failed jobs.
-  - D-FLEET-17 still asks who fixes dev reds.
-- Next (banked): `quota:admission-has-no-headroom-margin-and-flaps` (probably a ghost of #1524), then `pi:unowned-dirty-absolute-vs-relative-paths`.
+- Latest released binary: v0.54.16. dev: `d25d9b8d0`, which is still RED (see below).
+- BUILT, merge BLOCKED on dev's red: #1932 `quorum-reader:zsh-nomatch` (stapledon, 10-22).
+  - The quorum reader and the pi-ext helper no longer abort in the controller's zsh shell when an artifact dir is empty. Before, a false UNREVIEWED triggered a paid quorum.
+  - Judged PASS 94 by sonnet. `launchd drivers (bash 3.2)` is green on the PR.
+- Also BUILT and BLOCKED: #1927 (`routing-models-check:bold-colon-heading`) and #1929 (`stall:watchdog:foreground-agent-and-wrong-transcript`).
+  - #1927 also carries the records of iterations 55–57 and the iteration-57 skill edit.
+  - Clause-2 windows close 2026-10-23 12:29Z (#1927), 10-23 23:27Z (#1929) and 10-24 11:50Z (#1932).
+- **Dev is red from an attended commit, outside fleet scope.**
+  - The required `test`, `test-windows` and macOS jobs fail only on `TestModels_PricingIsSlugConsistent`. `d25d9b8d0` (gemini-agents-argon) priced `google|antigravity-preview-09-2026` twice.
+  - `govulncheck` (GO-2026-6809) is not required.
+  - D-FLEET-17 is open; this is its fifth blocked landing.
+- Skill edit: the codex planner's `import-github` post-step now runs only for missions fed by GitHub issues (`269242b96`, on #1927).
+- Next: land #1927, #1929 and #1932 once dev's `test` is green; then reality-check `quorum:oc-glm-5-3-output-cap-invalid` (stapledon, 10-21).
 - Parked on Mark:
-  - D-FLEET-25, -26, -27 (new this fire).
+  - D-FLEET-17 (dev reds; blocks 3 judged fixes).
+  - D-FLEET-29 (binary reach) and D-FLEET-28 (quorum Anthropic seat).
+  - D-FLEET-27 (luna), D-FLEET-26 (codex capacity), D-FLEET-25 (rulings ledger).
   - D-FLEET-24 (agent-tool routing class).
-  - D-FLEET-16 (skill source).
-  - D-FLEET-17 (dev reds).
-  - D-FLEET-18 (`tools/eval` scope).
-  - D-FLEET-19 (ADC quota project).
-  - D-FLEET-20 (quorum OpenAI seat billing).
-  - D-FLEET-21 (Gate 3b CI cap).
-  - D-FLEET-22 (`daneel-reports`).
   - D-FLEET-23 (wrapper Step 5b).
-- Cadence: fleet 6h, ticket-driven. Thread #1891; no new human directive. Nothing reloaded.
-- Clauses: 1 unmeasured, 2 unmet (this ticket took about 19 d), 3 met (41 open), 4 prior evidence, 5 preserved.
+  - D-FLEET-22 (`daneel-reports`).
+  - D-FLEET-21 (Gate 3b CI cap).
+  - D-FLEET-20 (quorum OpenAI seat billing).
+  - D-FLEET-19 (ADC quota project).
+  - D-FLEET-18 (`tools/eval` scope).
+  - D-FLEET-16 (skill source).
+- Cadence: fleet runs every 6 h when tickets are open. Thread #1891; no new human directive. Nothing reloaded or installed.
+- Clauses:
+  - 1 unmeasured.
+  - 2 unmet.
+  - 3 met (45 open).
+  - 4 prior evidence.
+  - 5 preserved.
