@@ -1,0 +1,58 @@
+{
+  "sprint_id": "M-FLEET-STALL-OWN-TRANSCRIPT",
+  "created": "2026-10-22T00:00:00Z",
+  "estimated_duration_days": 1,
+  "correlation_id": "sprint_M-FLEET-STALL-OWN-TRANSCRIPT_fleet55_20261022",
+  "design_doc": "design_docs/planned/sprint-plan-stall-own-session-transcript.md",
+  "markdown_plan": "design_docs/planned/sprint-plan-stall-own-session-transcript.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_STALL_OWN_TRANSCRIPT",
+      "package": null,
+      "action": "none",
+      "reason": "Internal shell watchdog instrumentation reusing existing driver helpers and extracted-function test harness; no package-like AILANG capability, external dependency or .ail code, so registry search is inapplicable."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_STALL_OWN_TRANSCRIPT",
+      "description": "D1-D7: per-attempt Claude session id, own transcript plus foreground subagents, own pi transcript, fail-open guard, seven regression arms and scoped changelog.",
+      "estimated_loc": 120,
+      "actual_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "D1: For CONTROLLER_PROVIDER=claude only, MC_CLAUDE_SESSION_ID is freshly assigned inside _mc_run_once on every attempt, before launch and watchdog forks. Try /usr/bin/uuidgen then python3 uuid.uuid4(); if both fail clear the id and continue without --session-id. Preserve UUID case, log one line naming the id/unavailable state, and use a Bash 3.2-safe optional argument array or conditional. No reuse across Claude retries; pi remains per fire.",
+        "D2: Claude progress sums the single $HOME/.claude/projects/*/<sid>.jsonl match and every $HOME/.claude/projects/*/<sid>/subagents/*.jsonl for its exact MC_CLAUDE_SESSION_ID, ignoring missing/unmatched files and .meta.json. Discover across project directories by id, never by PWD slug or newest file; a file not yet written contributes nothing.",
+        "D3: With MC_CLAUDE_SESSION_ID unset OR empty, the transcript arm contributes nothing and _mc_progress_bytes returns non-zero EVEN WHEN LOG exists. The unchanged driver-log arm alone must not yield rc0 for this Claude case. Existing _mc_stalled no-progress-instrument fail-open path reports live, warns once and disables early kill; HARD_TIMEOUT still applies. Never fall back to newest transcript.",
+        "D4: pi sums only existing files matching \"$dir\"/*_\"$MC_PI_SESSION_ID\".jsonl under its existing session directory; unset/empty id contributes no transcript bytes. Preserve pi driver-log contribution and return-code semantics. No ls -t/newest discovery in either provider arm.",
+        "D5: Comment block above _mc_progress_bytes explains C1 shared-session contamination, C3 physical-cwd slug and verbatim UUID case, C4 foreground subagent progress. Driver-log arm, thresholds, sample counts, STALL_* variables, rusage, tree-write and heartbeat arms unchanged.",
+        "D6 harness: preserve the intent of all 35 established arms; existing Claude fixture is the own MC_CLAUDE_SESSION_ID.jsonl and existing pi fixture sets MC_PI_SESSION_ID. Extract real production functions, reset provider/id/progress state between arms and deterministically order newer decoys. Each new arm names its killed mutation; at least 42 passing arms, zero failures.",
+        "a1 wrong-transcript: own flat, different newer same-project JSONL grows -> stalled; kills reverting Claude to ls -t | head -1. a2 own subagent grows while parent flat -> live; kills dropping subagents. a3 different session subagent grows while own flat -> stalled; kills subagent glob not anchored on sid.",
+        "a4 physical-path slug: own JSONL under a project slug differing from PWD grows -> live; kills PWD-derived directory. a5 unset AND empty Claude id with existing driver log: _mc_progress_bytes non-zero; _mc_stalled live with no-progress-instrument and warning once; kills newest fallback and LOG-alone rc0.",
+        "a6 pi: different newer file grows while *_${MC_PI_SESSION_ID}.jsonl flat -> no transcript progress; kills pi newest-file. Unset/empty pi id adds nothing and keeps existing LOG rc semantics. a7 static: extract _mc_run_once using existing awk function-boundary pattern, guard non-empty extraction, grep within it for assignment of MC_CLAUDE_SESSION_ID and --session-id wiring specifically on the Claude launch; kills removing either, without accepting pi flag as evidence.",
+        "Observation: all test-created files remain under the suite own $TMP, including fake HOME and PI_CODING_AGENT_DIR/AILANG_STATE_DIR fixtures. No test reads or writes real ~/.claude or ~/.ailang/state; no seeded writes to real paths are used as evidence.",
+        "D7 controller acceptance outside sandbox: /bin/bash tools/launchd/test_mission_stall.sh passes >=42 arms with zero failures; bash -n tools/launchd/mission-control.sh rc0; /bin/bash -n tools/launchd/test_mission_stall.sh rc0; make test-launchd-drivers fleet done-gate rc0, outside sandbox only. Any socket- or HOME-touching in-sandbox result is UNINFORMATIVE UNDER SANDBOX, never gate evidence.",
+        "Scope only tools/launchd/mission-control.sh, tools/launchd/test_mission_stall.sh, changelogs/unreleased/2026-10-22-stall-watchdog-own-transcript.md and the two plan artifacts. Fragment starts with ### Fixed. No internal/, cmd/, .pi/, CI or make wiring changes. No new .ail/examples. Controller owns commits and outside-sandbox validation; planner does not implement or dispatch."
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": "Planning only. Fixed controller measurements C1-C7 accepted as established at d25d9b8d0; no probes or driver gates repeated. Implementation and acceptance remain for executor/controller.",
+      "status": "not_started"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 120,
+    "actual_loc_per_day": 0,
+    "target_milestones_per_week": 1,
+    "actual_milestones_per_week": 0,
+    "estimated_total_loc": 120,
+    "actual_total_loc": 0,
+    "estimated_days": 1,
+    "actual_days": 0
+  },
+  "last_session": "Fleet iteration 55 planner: planning artifacts only; controller commits and runs acceptance outside sandbox.",
+  "last_checkpoint": null,
+  "status": "planned"
+}
