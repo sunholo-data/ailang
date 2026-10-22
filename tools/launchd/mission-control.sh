@@ -482,19 +482,29 @@ _mc_pi_session_exists() {
   ls "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions/--${slug}--/"*_"$1".jsonl >/dev/null 2>&1
 }
 
+# WHY THE TRANSCRIPT ARM KEYS ON THE SESSION ID (fleet iteration 55, ticket
+# stall:watchdog:foreground-agent-and-wrong-transcript). The projects directory is
+# shared by every claude session with the same cwd, so "newest *.jsonl" measured
+# whichever session was touched last: World iter-297 was killed reading
+# prog=318821268, a 318 MB file from another session, while its own was ~1 MB.
+# The driver now launches claude with --session-id, and claude names the file
+# with that id verbatim (case kept) under a slug of the PHYSICAL cwd (/tmp is
+# /private/tmp), so it is found by id across project dirs, not by a $PWD slug.
+# A foreground Agent-tool sub-agent writes <id>/subagents/agent-*.jsonl while
+# the parent transcript stays flat for the whole run (World iters 296 and 297
+# were killed mid-judge), so those count too. pi keys on MC_PI_SESSION_ID.
 _mc_progress_bytes() {
-  local dir newest total=0 got=0 sz
+  local dir f total=0 got=0 sz
   case "${CONTROLLER_PROVIDER:-claude}" in
     claude)
-      # `claude -p` appends to ~/.claude/projects/<cwd, / and . mapped to ->/<uuid>.jsonl
-      dir="$HOME/.claude/projects/$(printf '%s' "$PWD" | tr '/.' '--')"
-      if [ -d "$dir" ]; then
-        newest=$(ls -t "$dir"/*.jsonl 2>/dev/null | head -1)
-        if [ -n "$newest" ] && [ -f "$newest" ]; then
-          sz=$(wc -c < "$newest" 2>/dev/null | tr -d ' ')
-          total=$((total + ${sz:-0})); got=1
-        fi
-      fi
+      # Without an id, even an existing LOG cannot safely arm the early kill.
+      [ -n "${MC_CLAUDE_SESSION_ID:-}" ] || return 1
+      for f in "$HOME"/.claude/projects/*/"$MC_CLAUDE_SESSION_ID".jsonl \
+               "$HOME"/.claude/projects/*/"$MC_CLAUDE_SESSION_ID"/subagents/*.jsonl; do
+        [ -f "$f" ] || continue
+        sz=$(wc -c < "$f" 2>/dev/null | tr -d ' ')
+        total=$((total + ${sz:-0})); got=1
+      done
       ;;
     pi)
       # `pi -p` BUFFERS to the end exactly like `claude -p`, so the driver log below
@@ -505,12 +515,12 @@ _mc_progress_bytes() {
       # (pi's own safePath rule; unlike claude's slug, dots are KEPT).
       local slug="${PWD#/}"; slug=$(printf '%s' "$slug" | tr '/\\:' '---')
       dir="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions/--${slug}--"
-      if [ -d "$dir" ]; then
-        newest=$(ls -t "$dir"/*.jsonl 2>/dev/null | head -1)
-        if [ -n "$newest" ] && [ -f "$newest" ]; then
-          sz=$(wc -c < "$newest" 2>/dev/null | tr -d ' ')
+      if [ -n "${MC_PI_SESSION_ID:-}" ]; then
+        for f in "$dir"/*_"$MC_PI_SESSION_ID".jsonl; do
+          [ -f "$f" ] || continue
+          sz=$(wc -c < "$f" 2>/dev/null | tr -d ' ')
           total=$((total + ${sz:-0})); got=1
-        fi
+        done
       fi
       ;;
   esac
@@ -2392,6 +2402,15 @@ _mc_run_once() {
   rmdir "$_mc_hard_trigger" "$_mc_stall_trigger" 2>/dev/null || true
   printf '%s\t%s\tfired\t%s\t\n' "$(date +%s)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$MISSION_ATTEMPT" > "$_mc_heartbeat"
   # --- ATTEMPT HEARTBEAT END ---
+  local MC_CLAUDE_SESSION_ARGS=()
+  if [ "$CONTROLLER_PROVIDER" = "claude" ]; then
+    # Claude retries start fresh; set the id before launch and watchdog forks.
+    MC_CLAUDE_SESSION_ID=$(/usr/bin/uuidgen 2>/dev/null) ||
+      MC_CLAUDE_SESSION_ID=$(python3 -c 'import uuid; print(uuid.uuid4())' 2>/dev/null) ||
+      MC_CLAUDE_SESSION_ID=""
+    log "Claude session id: ${MC_CLAUDE_SESSION_ID:-unavailable (early stall kill disabled)}"
+    [ -z "$MC_CLAUDE_SESSION_ID" ] || MC_CLAUDE_SESSION_ARGS=(--session-id "$MC_CLAUDE_SESSION_ID")
+  fi
   # --- CODEX CONTROLLER EXEC START ---
   if [ "$CONTROLLER_PROVIDER" = "codex" ]; then
     # codex's shell_environment_policy (inherit=core on the rig) strips the driver's exports from
@@ -2445,6 +2464,7 @@ _mc_run_once() {
     ( cd "$REPO" && pi --model "$MODEL" ${_mc_pi_ext[@]+"${_mc_pi_ext[@]}"} -e "$MC_DRIVER_ROOT/tools/pi-extensions/controller-bash-cap.ts" --session-id "$MC_PI_SESSION_ID" -p "$_mc_pi_prompt" < /dev/null ) >>"$LOG" 2>&1 &
   else
     claude -p "$PROMPT" \
+      ${MC_CLAUDE_SESSION_ARGS[@]+"${MC_CLAUDE_SESSION_ARGS[@]}"} \
       --model "$MODEL" \
       --permission-mode bypassPermissions \
       >>"$LOG" 2>&1 &

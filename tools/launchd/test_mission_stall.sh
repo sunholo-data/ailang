@@ -20,7 +20,7 @@
 # driver.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
-DRIVER="$HERE/mission-control.sh"
+DRIVER="${DRIVER:-$HERE/mission-control.sh}"
 
 TMP="${TMPDIR:-/tmp}/mc-stall-$$"
 mkdir -p "$TMP"
@@ -33,6 +33,7 @@ awk '/^_mc_stalled\(\) \{/,/^\}$/'        "$DRIVER" > "$TMP/fn_stalled.sh"
 awk '/^_mc_etime_secs\(\) \{/,/^\}$/'     "$DRIVER" > "$TMP/fn_etime.sh"
 awk '/^_mc_tree_write_bytes\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_treew.sh"
 awk '/^_mc_rusage_snapshot\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_rusage.sh"
+awk '/^_mc_run_once\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_run_once.sh"
 # Guard the extraction: an empty extract would make every arm vacuously pass.
 [ -s "$TMP/fn_prog.sh" ] && [ -s "$TMP/fn_stalled.sh" ] && [ -s "$TMP/fn_etime.sh" ] && [ -s "$TMP/fn_treew.sh" ] && [ -s "$TMP/fn_rusage.sh" ] \
   || { echo "FAIL extraction: function boundaries not found in $DRIVER"; exit 1; }
@@ -99,16 +100,18 @@ STALL_CHILD_AGE=2400
 STALL_CPU_PCT=2
 CONTROLLER_PROVIDER=claude
 
-# A fake HOME + cwd so _mc_progress_bytes resolves a transcript the way the real
-# driver does: ~/.claude/projects/<cwd with / and . mapped to ->/<uuid>.jsonl
+# Own-session fixtures under a fake HOME; inherited state roots cannot escape TMP.
 export HOME="$TMP/home"
+export AILANG_STATE_DIR="$TMP/state" PI_CODING_AGENT_DIR="$TMP/home/.pi/agent"
+MC_CLAUDE_SESSION_ID="F0EF90F8-18DF-459C-8561-06D7B1040255"
+MC_PI_SESSION_ID="01a0d1e3"
 WORK="$TMP/work/.pin-v1"
 mkdir -p "$WORK"
 cd "$WORK" || exit 1
 SLUG=$(printf '%s' "$PWD" | tr '/.' '--')
 PROJ="$HOME/.claude/projects/$SLUG"
 mkdir -p "$PROJ"
-TRANSCRIPT="$PROJ/f0ef90f8-18df-459c-8561-06d7b1040255.jsonl"
+TRANSCRIPT="$PROJ/$MC_CLAUDE_SESSION_ID.jsonl"
 : > "$TRANSCRIPT"
 
 LOG="$TMP/driver.log"; : > "$LOG"
@@ -200,16 +203,14 @@ esac
 LOG="$SAVED_LOG"; CONTROLLER_PROVIDER="$SAVED_PROV"
 
 # ---------------------------------------------------------------------------
-# 8. The transcript path rule itself. The slug maps BOTH '/' and '.' to '-'
-#    (/Users/u/.pin/v1 → -Users-u--pin-v1); getting it wrong silently disarms
-#    arm 1, which is the failure that would put us back where we started.
+# 8. Own-session discovery must find the controller's transcript and its growth.
 # ---------------------------------------------------------------------------
 reset_state
 before=$(_mc_progress_bytes)
 grow "another turn" "$TRANSCRIPT"
 after=$(_mc_progress_bytes)
 if [ -n "$before" ] && [ -n "$after" ] && [ "$after" -gt "$before" ]; then
-  ok "_mc_progress_bytes finds the transcript by cwd-slug and sees it grow"
+  ok "_mc_progress_bytes finds the own-session transcript and sees it grow"
 else
   bad "_mc_progress_bytes did not track the transcript (before=$before after=$after slug=$SLUG)"
 fi
@@ -278,8 +279,8 @@ reset_state
 CONTROLLER_PROVIDER=pi
 PI_SLUG="--$(printf '%s' "${PWD#/}" | tr '/' '-')--"
 case "$PI_SLUG" in *.pin-v1--) ok "pi slug keeps dots ($PI_SLUG)" ;; *) bad "pi slug should keep dots, got $PI_SLUG" ;; esac
-PI_DIR="$HOME/.pi/agent/sessions/$PI_SLUG"; mkdir -p "$PI_DIR"
-PI_T="$PI_DIR/2026-09-24T05-29-00-416Z_01a0d1e3.jsonl"; : > "$PI_T"
+PI_DIR="$PI_CODING_AGENT_DIR/sessions/$PI_SLUG"; mkdir -p "$PI_DIR"
+PI_T="$PI_DIR/2026-09-24T05-29-00-416Z_${MC_PI_SESSION_ID}.jsonl"; : > "$PI_T"
 verdict
 grow '{"type":"message","message":{"role":"toolResult"}}' "$PI_T"
 verdict
@@ -288,6 +289,106 @@ verdict
 verdict
 check "a pi controller with a flat transcript and nothing else moving is stalled" "$V" "stalled"
 CONTROLLER_PROVIDER=claude
+
+# a1 wrong-transcript. Kills mutation: revert Claude to `ls -t | head -1`.
+reset_state
+DECOY="$PROJ/other-session.jsonl"; : > "$DECOY"
+touch -t 202001010000 "$TRANSCRIPT"; touch -t 203001010000 "$DECOY"
+verdict
+grow "unrelated parent" "$DECOY"; touch -t 203001010000 "$DECOY"
+verdict
+check "a1 wrong-transcript: newer unrelated parent cannot keep own session live" "$V" "stalled"
+rm "$DECOY"
+
+# a2 subagent progress. Kills mutation: drop the own-session subagent fold.
+reset_state
+SUBDIR="$PROJ/$MC_CLAUDE_SESSION_ID/subagents"; mkdir -p "$SUBDIR"
+SUBAGENT="$SUBDIR/agent-x.jsonl"; : > "$SUBAGENT"
+verdict
+grow "foreground Agent tool result" "$SUBAGENT"
+verdict
+check "a2 subagent progress: own parent flat but own subagent grows" "$V" "live"
+
+# a3 other session's subagent. Kills mutation: unanchored `*/subagents` glob.
+reset_state
+OTHER_SUB="$PROJ/other-session/subagents"; mkdir -p "$OTHER_SUB"
+: > "$OTHER_SUB/agent-y.jsonl"
+verdict
+grow "unrelated subagent" "$OTHER_SUB/agent-y.jsonl"
+grow "metadata is not transcript progress" "$SUBDIR/agent-x.meta.json"
+verdict
+check "a3 other subagent: unrelated session and metadata cannot count" "$V" "stalled"
+rm -r "$PROJ/other-session" "$PROJ/$MC_CLAUDE_SESSION_ID"
+
+# a4 physical-path slug. Kills mutation: re-derive Claude directory from PWD.
+reset_state
+PHYSICAL_PROJ="$HOME/.claude/projects/-private-different-physical-slug"
+mkdir -p "$PHYSICAL_PROJ"
+mv "$TRANSCRIPT" "$PHYSICAL_PROJ/"
+verdict
+grow "own physical-path turn" "$PHYSICAL_PROJ/$MC_CLAUDE_SESSION_ID.jsonl"
+verdict
+check "a4 physical-path slug: exact case session id across project slugs" "$V" "live"
+mv "$PHYSICAL_PROJ/$MC_CLAUDE_SESSION_ID.jsonl" "$TRANSCRIPT"
+rmdir "$PHYSICAL_PROJ"
+
+# a5 unset/empty Claude id. Kills mutations: newest fallback OR LOG-alone rc0.
+SAVED_CLAUDE_ID="$MC_CLAUDE_SESSION_ID"
+for mode in unset empty; do
+  reset_state
+  if [ "$mode" = unset ]; then unset MC_CLAUDE_SESSION_ID; else MC_CLAUDE_SESSION_ID=""; fi
+  instrument_rc=0; ( _mc_progress_bytes ) > "$TMP/no-id-bytes" || instrument_rc=$?
+  verdict; verdict
+  warnings=$(printf '%s' "$LOGGED" | grep -c 'NO progress instrument')
+  if [ "$instrument_rc" -ne 0 ] && [ ! -s "$TMP/no-id-bytes" ] &&
+     [ "$V" = live ] && [ "$_MC_STALL_WHY" = no-progress-instrument ] && [ "$warnings" -eq 1 ]; then
+    ok "a5 $mode Claude id: existing LOG cannot arm kill; warns once"
+  else
+    bad "a5 $mode Claude id: rc=$instrument_rc verdict=$V why=$_MC_STALL_WHY warnings=$warnings"
+  fi
+done
+MC_CLAUDE_SESSION_ID="$SAVED_CLAUDE_ID"
+
+# a6 pi wrong-transcript. Kills mutation: restore pi `ls -t | head -1`.
+reset_state
+CONTROLLER_PROVIDER=pi
+DECOY="$PI_DIR/2030-01-01T00-00-00_other-pi-session.jsonl"; : > "$DECOY"
+touch -t 202001010000 "$PI_T"; touch -t 203001010000 "$DECOY"
+before=$(_mc_progress_bytes)
+grow "unrelated pi turn" "$DECOY"; touch -t 203001010000 "$DECOY"
+after=$(_mc_progress_bytes)
+check "a6 pi wrong-transcript: newer unrelated file adds no bytes" "$after" "$before"
+SAVED_PI_ID="$MC_PI_SESSION_ID"; SAVED_LOG="$LOG"
+for mode in unset empty; do
+  reset_state
+  if [ "$mode" = unset ]; then unset MC_PI_SESSION_ID; else MC_PI_SESSION_ID=""; fi
+  instrument_rc=0; bytes=$(_mc_progress_bytes) || instrument_rc=$?
+  log_bytes=$(wc -c < "$LOG" | tr -d ' ')
+  LOG=""; no_log_rc=0; _mc_progress_bytes > "$TMP/no-pi-id-bytes" || no_log_rc=$?
+  LOG="$SAVED_LOG"
+  if [ "$instrument_rc" -eq 0 ] && [ "$bytes" = "$log_bytes" ] &&
+     [ "$no_log_rc" -ne 0 ] && [ ! -s "$TMP/no-pi-id-bytes" ]; then
+    ok "a6 $mode pi id: only LOG bytes count with existing rc semantics"
+  else
+    bad "a6 $mode pi id: rc=$instrument_rc bytes=$bytes log=$log_bytes no_log_rc=$no_log_rc"
+  fi
+done
+MC_PI_SESSION_ID="$SAVED_PI_ID"; CONTROLLER_PROVIDER=claude
+rm "$DECOY"
+
+# a7 launch wiring. Kills mutations: remove Claude flag OR per-attempt assignment.
+# Limit the launch extract to Claude's continued command, so pi's flag cannot pass.
+sed -n '/^    claude -p /,/^  fi/p' "$TMP/fn_run_once.sh" > "$TMP/claude_launch.sh"
+assignment_line=$(grep -n 'MC_CLAUDE_SESSION_ID=' "$TMP/fn_run_once.sh" | head -1 | cut -d: -f1)
+launch_line=$(grep -n '^    claude -p ' "$TMP/fn_run_once.sh" | head -1 | cut -d: -f1)
+if [ -s "$TMP/fn_run_once.sh" ] && [ -n "$assignment_line" ] && [ -n "$launch_line" ] &&
+   [ "$assignment_line" -lt "$launch_line" ] &&
+   grep -q -- '--session-id "$MC_CLAUDE_SESSION_ID"' "$TMP/fn_run_once.sh" &&
+   grep -q 'MC_CLAUDE_SESSION_ARGS' "$TMP/claude_launch.sh"; then
+  ok "a7 launch wiring: per-attempt id and Claude session flag"
+else
+  bad "a7 launch wiring: missing per-attempt assignment or Claude session flag"
+fi
 
 # 12. D-FLEET-7: the 04:45 mutation drill was measured at >=62.54 CPU-s
 # per 120-s window. The transcript, heartbeat, open-file bytes, and sampled
