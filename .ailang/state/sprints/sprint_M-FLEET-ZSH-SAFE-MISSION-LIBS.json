@@ -1,0 +1,47 @@
+{
+  "id": "M-FLEET-ZSH-SAFE-MISSION-LIBS",
+  "title": "Make mission helper glob loops safe when sourced into zsh",
+  "design_doc": "design_docs/planned/sprint-plan-zsh-safe-mission-libs.md",
+  "status": "pending",
+  "ticket": "quorum-reader:zsh-nomatch",
+  "registry_reuse": [
+    {
+      "milestone": "M1_ZSH_SAFE_MISSION_LIBS",
+      "package": null,
+      "action": "none",
+      "reason": "Repair existing repository shell helpers and regression tests; no package-like capability or registry dependency is introduced."
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 220,
+    "estimated_days": 0.5,
+    "target_loc_per_day": 440
+  },
+  "milestones": [
+    {
+      "id": "M1_ZSH_SAFE_MISSION_LIBS",
+      "title": "Scope zsh null glob options inside both helpers and prove real caller behavior",
+      "acceptance_criteria": [
+        "At base, run /bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_quorum_artifacts.sh, then /bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_pi_ext_args.sh, then make test-launchd-drivers: expected rc 0 for each (controller baseline quorum all PASS, pi 14 passed 0 failed). Report any red AT BASE without a workaround; socket-touching results under sandbox are UNINFORMATIVE UNDER SANDBOX and require controller rerun outside it.",
+        "/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_quorum_artifacts.sh --arm zsh_quorum_export_only exits 0 and prints PASS zsh_quorum_export_only after checking helper rc 0, exactly one export artifact despite an existing empty local directory, and AFTER_CALL from the same /bin/zsh -f child.",
+        "/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_quorum_artifacts.sh --arm zsh_quorum_local_only exits 0 and prints PASS zsh_quorum_local_only after checking helper rc 0, exactly one local artifact despite an empty export directory, and AFTER_CALL.",
+        "/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_quorum_artifacts.sh --arm zsh_quorum_absent exits 0 and prints PASS zsh_quorum_absent after checking helper rc 1, zero matches, and AFTER_CALL when both directories exist empty.",
+        "/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_quorum_artifacts.sh --arm zsh_gate2_export_only exits 0 and prints PASS zsh_gate2_export_only after extracting each real Gate-2 skill block and invoking mc_quorum_gate2 under /bin/zsh -f with MISSION_CONTROL_ACTIVE=1: function rc 0, exactly one export match, empty existing local directory, AFTER_CALL present.",
+        "/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_quorum_artifacts.sh --arm zsh_quorum_options exits 0 and prints PASS zsh_quorum_options after same-process calls preserve [[ -o nomatch && ! -o null_glob ]], including the absence return.",
+        "/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_pi_ext_args.sh exits 0, prints PASS: zsh_pi_empty, PASS: zsh_pi_two_ts and PASS: zsh_pi_options, and reports 0 failed: empty extensions produce exactly --no-extensions with function rc 0 and AFTER_CALL; two .ts plus README produce exactly two -e entries with the expected paths and no README; same-process option assertions preserve NOMATCH on and NULL_GLOB off.",
+        "Run both focused suite commands on separate scratch mutants of each helper/test: dropped setopt, dropped local_options, BASH_VERSION guard replacement and inverted ZSH_VERSION guard must yield nonzero failing relevant arms; null_glob -> nullglob must be run and recorded as an equivalent survivor if rc 0; removing marker validation must fail the missing-marker negative control, and removing the marker echo must fail positive marker validation. Record command, rc, killed/survived and diagnostic for every mutant in execution notes; rerun both clean focused suites with rc 0 afterwards.",
+        "Run both default focused suite commands on a host lacking /bin/zsh: on non-Darwin each zsh arm prints SKIP (no /bin/zsh): <arm>; on Darwin the missing interpreter yields FAIL and nonzero suite exit. On the Darwin rig with /bin/zsh present, every zsh arm executes and passes without a skip.",
+        "make test-launchd-drivers exits 0 outside the sandbox with all existing bash 3.2 arms and new behavioral zsh arms green; make check-changelog exits 0 with changelogs/unreleased/2026-10-22-zsh-safe-mission-libs.md opening ### Fixed —; git diff --check exits 0 with no output."
+      ],
+      "files": [
+        "tools/launchd/lib/quorum-artifacts.sh",
+        "tools/launchd/lib/pi-ext-args.sh",
+        "tools/launchd/test_quorum_artifacts.sh",
+        "tools/launchd/test_pi_ext_args.sh",
+        "changelogs/unreleased/2026-10-22-zsh-safe-mission-libs.md"
+      ],
+      "estimated_loc": 220,
+      "status": "pending"
+    }
+  ]
+}
