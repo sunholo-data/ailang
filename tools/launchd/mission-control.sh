@@ -2388,6 +2388,23 @@ check their output files first. The original instructions are earlier in this se
 _mc_slot_state="${AILANG_STATE_DIR:-$STATE_DIR}"
 # --- HEARTBEAT STATE DIR END ---
 
+_mc_uuid() {
+  /usr/bin/uuidgen 2>/dev/null ||
+    python3 -c 'import uuid; print(uuid.uuid4())' 2>/dev/null
+}
+
+_mc_claude_session_prepare() {
+  MC_CLAUDE_SESSION_ARGS=()
+  if [ "$CONTROLLER_PROVIDER" = "claude" ]; then
+    # Claude retries start fresh; set the id before launch and watchdog forks.
+    MC_CLAUDE_SESSION_ID=$(_mc_uuid) || MC_CLAUDE_SESSION_ID=""
+    log "Claude session id: ${MC_CLAUDE_SESSION_ID:-unavailable (early stall kill disabled)}"
+    [ -z "$MC_CLAUDE_SESSION_ID" ] || MC_CLAUDE_SESSION_ARGS=(--session-id "$MC_CLAUDE_SESSION_ID")
+  else
+    MC_CLAUDE_SESSION_ID=""
+  fi
+}
+
 # _mc_run_once → runs the selected provider with BOTH watchdogs, waits, sets global RC.
 # Watchdogs are per-attempt (fresh PIDs each retry).
 _mc_run_once() {
@@ -2402,15 +2419,7 @@ _mc_run_once() {
   rmdir "$_mc_hard_trigger" "$_mc_stall_trigger" 2>/dev/null || true
   printf '%s\t%s\tfired\t%s\t\n' "$(date +%s)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$MISSION_ATTEMPT" > "$_mc_heartbeat"
   # --- ATTEMPT HEARTBEAT END ---
-  local MC_CLAUDE_SESSION_ARGS=()
-  if [ "$CONTROLLER_PROVIDER" = "claude" ]; then
-    # Claude retries start fresh; set the id before launch and watchdog forks.
-    MC_CLAUDE_SESSION_ID=$(/usr/bin/uuidgen 2>/dev/null) ||
-      MC_CLAUDE_SESSION_ID=$(python3 -c 'import uuid; print(uuid.uuid4())' 2>/dev/null) ||
-      MC_CLAUDE_SESSION_ID=""
-    log "Claude session id: ${MC_CLAUDE_SESSION_ID:-unavailable (early stall kill disabled)}"
-    [ -z "$MC_CLAUDE_SESSION_ID" ] || MC_CLAUDE_SESSION_ARGS=(--session-id "$MC_CLAUDE_SESSION_ID")
-  fi
+  _mc_claude_session_prepare
   # --- CODEX CONTROLLER EXEC START ---
   if [ "$CONTROLLER_PROVIDER" = "codex" ]; then
     # codex's shell_environment_policy (inherit=core on the rig) strips the driver's exports from
