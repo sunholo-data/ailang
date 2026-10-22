@@ -1,34 +1,19 @@
-# Fleet mission — iteration 57, 2026-10-22
+# Fleet mission — iteration 58, 2026-10-22 (UTC start)
 
-- Latest released binary: v0.54.16. dev: `d25d9b8d0`, which is still RED (see below).
-- BUILT, merge BLOCKED on dev's red: #1932 `quorum-reader:zsh-nomatch` (stapledon, 10-22).
-  - The quorum reader and the pi-ext helper no longer abort in the controller's zsh shell when an artifact dir is empty. Before, a false UNREVIEWED triggered a paid quorum.
-  - Judged PASS 94 by sonnet. `launchd drivers (bash 3.2)` is green on the PR.
-- Also BUILT and BLOCKED: #1927 (`routing-models-check:bold-colon-heading`) and #1929 (`stall:watchdog:foreground-agent-and-wrong-transcript`).
-  - #1927 also carries the records of iterations 55–57 and the iteration-57 skill edit.
-  - Clause-2 windows close 2026-10-23 12:29Z (#1927), 10-23 23:27Z (#1929) and 10-24 11:50Z (#1932).
-- **Dev is red from an attended commit, outside fleet scope.**
-  - The required `test`, `test-windows` and macOS jobs fail only on `TestModels_PricingIsSlugConsistent`. `d25d9b8d0` (gemini-agents-argon) priced `google|antigravity-preview-09-2026` twice.
-  - `govulncheck` (GO-2026-6809) is not required.
-  - D-FLEET-17 is open; this is its fifth blocked landing.
-- Skill edit: the codex planner's `import-github` post-step now runs only for missions fed by GitHub issues (`269242b96`, on #1927).
-- Next: land #1927, #1929 and #1932 once dev's `test` is green; then reality-check `quorum:oc-glm-5-3-output-cap-invalid` (stapledon, 10-21).
-- Parked on Mark:
-  - D-FLEET-17 (dev reds; blocks 3 judged fixes).
-  - D-FLEET-29 (binary reach) and D-FLEET-28 (quorum Anthropic seat).
-  - D-FLEET-27 (luna), D-FLEET-26 (codex capacity), D-FLEET-25 (rulings ledger).
-  - D-FLEET-24 (agent-tool routing class).
-  - D-FLEET-23 (wrapper Step 5b).
-  - D-FLEET-22 (`daneel-reports`).
-  - D-FLEET-21 (Gate 3b CI cap).
-  - D-FLEET-20 (quorum OpenAI seat billing).
-  - D-FLEET-19 (ADC quota project).
-  - D-FLEET-18 (`tools/eval` scope).
-  - D-FLEET-16 (skill source).
-- Cadence: fleet runs every 6 h when tickets are open. Thread #1891; no new human directive. Nothing reloaded or installed.
-- Clauses:
-  - 1 unmeasured.
-  - 2 unmet.
-  - 3 met (45 open).
-  - 4 prior evidence.
-  - 5 preserved.
+- Latest release: v0.54.17 (published 2026-10-22). Work is unreleased on dev.
+- LANDED: #1935 → `2debbb027` — `routing-models-check:bold-colon-heading`; old #1927 superseded and closed.
+- Independent judge: MiniMax M3, PASS 93/100, no blockers. All four Agent roles spawned through pinned provider recipes.
+- Exact candidate PR CI and exact merge CI green; 46/46 focused assertions, full launchd suite, healthy/degraded dry-runs pass.
+- Corpus: 116 entries / 7 log snapshots, no clean result regressed; original review and corrections in `fleet-mission-evidence/iteration58/`.
+- Ticket resolved in about 34h; 44 open. Only this ticket taken this iteration.
+- NEXT banked: #1929 stall watchdog; then #1932 zsh-safe quorum/pi helper. Refresh each base and review/CI before landing.
+- Then reality-check `quorum:oc-glm-5-3-output-cap-invalid` (likely outside authority).
+- Dev's inherited pricing red was repaired upstream; D-FLEET-17 ledger remains OPEN pending Mark, not a controller ruling.
+- Parked decisions: D-FLEET-16 through -29 (14 OPEN, unchanged; 29 ledger rows). No new human ask.
+- Nine unrelated remote approvals untouched. No shared binary/config installed; no live mission reloaded.
+- Cadence: every 6h when tickets exist. Live thread #1891. No new directives or watermark advance.
+- Routing: controller/designer/planner/executor Codex Sol; independent evaluator OpenRouter MiniMax M3.
+- Quota: recorded Codex role probes+runs 265,178 tokens; controller/carriers/interrupted attempt unreported. Later probes refused rc75 daily ration.
+- Recorded metered judge+probe $0.18019188; small driver probes not individually itemized.
+- Bar: clause1 UNMEASURED, goal unmoved; clause2 UNMET, fresh <48h closure improves it; clause3 MET; clause4 prior evidence; clause5 preserved.
+- Fleet share: last20 19/20 HARNESS, expected by fleet remit; not a product-share measurement.

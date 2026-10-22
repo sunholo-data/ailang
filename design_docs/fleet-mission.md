@@ -18,7 +18,7 @@ mission.
 **Scheduling**: launchd `dev.ailang.mission-fleet`, registry entry [`missions/fleet.toml`](../missions/fleet.toml)
 (interval 6h, boot offset 1680s). Billing guard as for every mission.
 **Log**: [fleet-mission-log.md](fleet-mission-log.md), append-only, one entry per iteration.
-**Human-facing reporting**: GitHub issue #1768 (rotated 2026-10-12 from #1584; live number in
+**Human-facing reporting**: GitHub issue #1891 (rotated 2026-10-19 from #1768; live number in
 `~/.ailang/state/mission-fleet-gh-issue`).
 
 ## Repo Profile (M-MISSION-PORTABILITY M2 — the per-mission values mission-control reads)
@@ -31,7 +31,7 @@ mission.
   this way (v1, docs, motoko; `pin-root.sh` `_set_pin_workdir`). The clone
   `~/dev/sunholo-data/ailang-fleet` is only launchd's working directory, as `ailang-docs` is for docs.
   Land changes through a branch or PR, never by editing the pin worktree in place.
-- **Bookkeeping issue**: `#1768` (from `#1584`), rotates weekly; live number in `~/.ailang/state/mission-fleet-gh-issue`
+- **Bookkeeping issue**: `#1891` (from `#1768`), rotates weekly; live number in `~/.ailang/state/mission-fleet-gh-issue`
 - **CI workflows Gate 3b / Gate 1 poll**: `CI` (runs on every push; no push paths filter).
 - **Verify profile**: `go-compiler`, plus the mission-loop-change pre-flight as the done-gate
   (below). Harness changes live in `tools/launchd/` (bash 3.2), `internal/mission/` and
@@ -42,6 +42,12 @@ mission.
 ## STATUS (rotation rule)
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
+
+## STATUS 2026-10-22 — ITERATION 58: `routing-models-check:bold-colon-heading` LANDED — #1935 → `2debbb027`, independently judged PASS 93 by MiniMax; ticket resolved [HARNESS]
+
+The first banked fix can land now that upstream repaired dev’s inherited red. All nine refreshed patches and 14 source-path contents are preserved; active scope-guard refusal of an old-branch force-with-lease was handled with replacement #1935 at the same candidate, without disabling the guard. All four Agent roles ran through their pinned provider recipes. Fresh independent MiniMax review returned CODE ACCEPT 93/100, no blockers; focused 46/46, full outside-sandbox launchd suite and healthy/degraded dry-runs passed. PR CI and exact merge CI are green. The 116-entry, seven-log snapshot corpus has no clean-to-finding/error regression. Original judge evidence and separate controller corrections are banked in [iteration58](fleet-mission-evidence/iteration58/evaluation.md). Records 54–57 and their two separately authorized Gate-5 edits survive this landing. Sprint D7 is complete only after the observed CI and ticket resolution; effort remains unmeasured.
+
+Clause map: **1** UNMEASURED (goal unmoved); **2** UNMET overall, one fresh ticket resolved in about 34h (<48h); **3** MET (45→44 open); **4** prior evidence only; **5** preserved. Next: refresh banked #1929, then #1932, one per iteration, with fresh independent review and exact-head/exact-merge CI. D-FLEET-16 through -29 remain OPEN; no new decision. Live thread #1891.
 
 ## STATUS 2026-10-22 — ITERATION 57: `quorum-reader:zsh-nomatch` BUILT, merge PARKED on dev's inherited required red (D-FLEET-17) — #1932 head `6268fb0b8`, judged PASS 94 by sonnet; ticket stays open; Gate-5 skill edit [HARNESS]
 
@@ -54,12 +60,6 @@ Clause map: **1** UNMEASURED; **2** UNMET (filed 10-22 11:50Z, built the same da
 No code this fire: dev is still red on `d25d9b8d0`, so #1927 and #1929 stay parked (D-FLEET-17). **`rotate-log:heading-parse-stapledon` was already fixed** by #1912 (`3b4d11759`, 10-20). Stapledon's fire ran `~/go/bin/ailang`, which every loop runs first on PATH (`mission-control.sh:68`). That binary was built 10-19 from `128371f`, before the fix. On scratch copies of Stapledon's current log (45 headings), the 10-19 binary reproduces the symptom: 9 of 9 kept, 0 rotated. A HEAD build keeps the newest 20, archives 25, keeps all 45 headings and the 4 orphan index rows, and writes a true notice. The ticket is resolved with that evidence and a workaround. **The same staleness means #1912, #1917 and #1922's Go halves reach no loop**, so it is filed as D-FLEET-29. **`quorum:claude-p-ration-usage-429` cannot be fixed inside fleet scope.** The usage endpoint returns HTTP 429. Claude Code 2.1.308 answers `claude -p /usage` with a cost summary only, so the CLI fallback can never parse. The seat gate in `cmd/ailang/design_quorum.go` refuses on `unknown`, which contradicts the driver's tested rule that an unreadable quota is probed, not refused. That file is outside fleet scope, and changing `Blocked()` is HD-2a. It is parked as D-FLEET-28. A fresh sonnet judge reproduced both verdicts first-party and returned PASS. Both of its objections are in the actions: the resolution names the rebuild, and D-FLEET-28 offers the `AILANG_ANTHROPIC_RATION=0` route.
 
 Clause map: **1** UNMEASURED (D-FLEET-28 blocks Stapledon's Kerr re-quorum); **2** UNMET (this ticket was filed 10-21 15:24Z and resolved after about 19 h, which pulls the median down; #1927's window closes 10-23 12:29Z, #1929's 10-23 23:27Z); **3** MET (44 open); **4** prior evidence only; **5** preserved (nothing merged). Next: once dev's `test` is green, land #1927 and #1929 with `--match-head-commit` and resolve both tickets. Then, by `slots_lost` and freshness, reality-check `quorum:oc-glm-5-3-output-cap-invalid` (stapledon, 10-21).
-
-## STATUS 2026-10-22 — ITERATION 55: `stall:watchdog:foreground-agent-and-wrong-transcript` BUILT, merge PARKED on dev's inherited required red (D-FLEET-17) — #1929 head `9d131c76a`, judged PASS 91 twice by sonnet; ticket stays open [HARNESS]
-
-The stall watchdog's claude progress arm read the NEWEST `*.jsonl` in a projects directory shared by every session with the same cwd, and counted no sub-agent transcript. So World iterations 296 and 297 were killed mid-judge while it measured another session's 318 MB file. Each claude attempt now gets a fresh `--session-id` (`_mc_claude_session_prepare`). The arm sums `<id>.jsonl` plus `<id>/subagents/*.jsonl`, found by id across `~/.claude/projects/*` because claude slugs the physical cwd. With no id it fails open. pi keys on `MC_PI_SESSION_ID`. Thresholds are unchanged. Suite 35 → 50 arms. `make test-launchd-drivers` rc 0. Dry-runs under triage are healthy and degraded as expected. The live check read this controller's transcript plus its judge's sub-agent file. Round 1 left six survivors on the wiring; round 2 killed all six.
-
-Clause map: **1** UNMEASURED (this ticket cost World 2 slots); **2** UNMET (filed 10-21 23:27Z; it moves the median only if it lands before 10-23 23:27Z; #1927's window closes 10-23 12:29Z); **3** MET (44 open); **4** prior evidence only; **5** preserved (nothing merged). Next: once dev's `test` is green, land #1927 and #1929 with `--match-head-commit` and resolve both tickets; then `rotate-log:heading-parse-stapledon`, then `quorum:claude-p-ration-usage-429` (measure first: it may be HD-2a).
 
 ## CURRENT GOAL
 
@@ -272,13 +272,13 @@ overnight: harness faults read as model faults)
     Follow-ups from the judges, not ticketed: `IsOpenAIModel` misses prefixed OpenAI ids (`or-gpt-6-sol`, `opencode-gpt5-5`, `pi-gpt5-4`, `codex-mini-latest`); none is in any pool today, but an explicit `--reviewers` could seat one. The surviving mutants are the `-c` key `TrimSpace` and the min-launch threshold. Quoted "available models" error text in the docs and triage logs reads as findings. Reach: the shell flag is live from the next pinned fire, the Go refusal from the next rig rebuild or release.
 33. [PARKED · D-FLEET-25] `policy:fleet-rulings-not-propagated-to-charters-and-skill` (attended, 10-01): the ask is a mechanism (one fleet-wide rulings ledger plus a doctor check). The two contradictions it cites are hand-fixed; `missions/world.toml` still calls World a fork.
 34. [PARKED · D-FLEET-26] `codex:server-capacity-error-crashes-finished-iteration` (attended, 10-02): classifying `Selected model is at capacity` changes runtime classification (the D-FLEET-11/13 class). One occurrence; none since.
-35. [BUILT · iteration 54 · merge PARKED on D-FLEET-17] `routing-models-check:bold-colon-heading` (world, 10-21): #1927, head `ec9e54a1e`, judged PASS 80 then PASS 88 by sonnet.
-    The checker reads every real heading shape: `**Routing evidence:**`, `- **Routing evidence:**`, `**Routing evidence.**` and the parenthetical form. A bulleted block ends at its next sibling field. A quoted compound such as `quorum:gpt6-1-sol-…` is not a finding unless a further `gpt` follows. The corpus gate over 7 real logs explained every rc change. The merge is BLOCKED by dev's required `test` red (`TestModels_PricingIsSlugConsistent`, attended `d25d9b8d0`, `internal/modelreg`). The ticket stays OPEN until the fix is on origin/dev.
-    Follow-ups from the judge, not ticketed: the `[^*]*` → `.*` and the dropped `!seenBlock` mutants survive (harmless); an allowlisted prefix followed by a non-`gpt` suffix (`gpt-6.1-sol-mini`) passes by design.
-36. [BUILT · iteration 55 · merge PARKED on D-FLEET-17] `stall:watchdog:foreground-agent-and-wrong-transcript` (world, 10-21): #1929, head `9d131c76a`, judged PASS 91 twice by sonnet.
+35. [LANDED · iteration 58; built 54] `routing-models-check:bold-colon-heading` (world, 10-21): replacement #1935 → `2debbb027` (fresh independent MiniMax PASS 93; original sonnet PASS 80→88).
+    The checker recognises colon-inside, period-inside, parenthetical and bulleted routing labels while preserving form-dependent block boundaries. Candidate `0be2c1957` retained all 9 original patches and 14 path contents after base refresh. PR CI and exact merge CI green; 46/46 focused checks, full launchd suite, healthy/degraded dry-runs and 116-entry corpus pass. Ticket resolved in about 34h; old #1927 closed separately with an evidence comment.
+    Follow-ups from the judge, not ticketed: deliberately open-ended heading suffixes and an allowed prefix followed by a non-`gpt` suffix remain accepted by this advisory checker; runtime allowlist unchanged. Original review and controller clarifications are banked in `fleet-mission-evidence/iteration58/`.
+36. [BUILT · iteration 55 · NEXT refresh/landing; inherited base red repaired] `stall:watchdog:foreground-agent-and-wrong-transcript` (world, 10-21): #1929, head `9d131c76a`, judged PASS 91 twice by sonnet.
     Each claude attempt gets a fresh `--session-id`; the progress arm sums `<id>.jsonl` plus `<id>/subagents/*.jsonl`, found by id across project dirs; no id means fail open; pi keys on `MC_PI_SESSION_ID`. Ticket stays open until the fix is on origin/dev.
     Follow-ups from the judge, not ticketed: prefix-loose glob mutants survive (equivalent for fixed-length UUIDs; theoretical for pi ids); the claude arm's `-f` guard is untested while the driver log exists; the python uuid fallback is untested.
-37. [BUILT · iteration 57 · merge PARKED on D-FLEET-17] `quorum-reader:zsh-nomatch` (stapledon, 10-22): #1932, head `6268fb0b8`, judged PASS 94 by sonnet.
+37. [BUILT · iteration 57 · banked refresh/landing; inherited base red repaired] `quorum-reader:zsh-nomatch` (stapledon, 10-22): #1932, head `6268fb0b8`, judged PASS 94 by sonnet.
     `mc_quorum_lookup` (`tools/launchd/lib/quorum-artifacts.sh`) and `_mc_pi_ext_args` (`lib/pi-ext-args.sh`) open with `setopt local_options null_glob` under zsh only, so an empty artifact or extensions dir no longer aborts the controller's zsh tool shell. 8 behavioural zsh arms; `launchd drivers (bash 3.2)` green on macos-latest. Ticket stays open until the fix is on origin/dev.
     Follow-ups from the judge, not ticketed: no arm checks the zsh options after an rc 2 return (unreachable under `local_options`); no arm asserts the guard is silent under bash.
 

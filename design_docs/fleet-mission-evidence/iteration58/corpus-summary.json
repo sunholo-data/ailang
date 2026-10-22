@@ -1,0 +1,75 @@
+[
+  {
+    "log": "docs-mission-log.md",
+    "source": "/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter54-routing-heading/design_docs/docs-mission-log.md",
+    "sha256": "9c1daed06a6f72f4ba85bc789c846e7a51aeb73da748bdf4c7406908b802288e",
+    "entries": 17,
+    "transitions": {
+      "(1, 1)": 7,
+      "(2, 1)": 1,
+      "(2, 2)": 7,
+      "(0, 0)": 2
+    }
+  },
+  {
+    "log": "fleet-mission-log.md",
+    "source": "/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter54-routing-heading/design_docs/fleet-mission-log.md",
+    "sha256": "5d96af49ada9208b594026cb91df7eb26a56e6e0131288fc3938fd0f3ed3b193",
+    "entries": 25,
+    "transitions": {
+      "(0, 0)": 20,
+      "(1, 1)": 5
+    }
+  },
+  {
+    "log": "triage-mission-log.md",
+    "source": "/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter54-routing-heading/design_docs/triage-mission-log.md",
+    "sha256": "98294bfc6faf15c1d625f742f35688d17a6b80a9bf600a9538f20aa451d597ed",
+    "entries": 2,
+    "transitions": {
+      "(2, 2)": 1,
+      "(1, 1)": 1
+    }
+  },
+  {
+    "log": "v1-mission-log.md",
+    "source": "/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter54-routing-heading/design_docs/v1-mission-log.md",
+    "sha256": "dc4741ea7f747e651c94122f88bce9abbc553448cbb20d329bdce7b76880c551",
+    "entries": 20,
+    "transitions": {
+      "(2, 1)": 15,
+      "(2, 0)": 5
+    }
+  },
+  {
+    "log": "motoko-mission-log.md",
+    "source": "/Users/voightkampff/dev/sunholo-data/ailang-motoko/design_docs/motoko-mission-log.md",
+    "sha256": "db526492081e8aac6ee61c0a4849783e83abe9d6f2d536abd5528b73e7164f54",
+    "entries": 22,
+    "transitions": {
+      "(2, 2)": 4,
+      "(2, 1)": 6,
+      "(0, 0)": 4,
+      "(1, 1)": 5,
+      "(2, 0)": 3
+    }
+  },
+  {
+    "log": "world-mission-log.md",
+    "source": "/Users/voightkampff/dev/sunholo-data/ailang-world/design_docs/world-mission-log.md",
+    "sha256": "98731ba76df91d5154278c0f3c3ef6674b80e9c4a8c6c83d3ab4ffab682691e3",
+    "entries": 20,
+    "transitions": {
+      "(2, 0)": 20
+    }
+  },
+  {
+    "log": "stapledon-mission-log.md",
+    "source": "/Users/voightkampff/dev/sunholo-data/stapledons-godot@405727f0f992c1313932fda7234dbda270799e68:design_docs/stapledon-mission-log.md",
+    "sha256": "27967b5d8e934f775aa766a5ea8307f8bb48234ebf31809757746e62da61680b",
+    "entries": 10,
+    "transitions": {
+      "(2, 0)": 10
+    }
+  }
+]
