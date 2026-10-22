@@ -1506,3 +1506,97 @@ The ticket's own suggestion (accept both colon placements) would have missed Sta
 - (4) **D-FLEET-17 holds two judged fixes.** #1927's clause-2 window closes 2026-10-23 12:29Z.
 
 **Next**: when dev's `test` is green, re-run #1927's and #1929's checks (rebase only if `git diff --stat d25d9b8d0 origin/dev -- <each PR's files>` is non-empty), merge each with `--match-head-commit`, resolve both tickets with the merge SHAs, and reply to world. Then reality-check `quorum:oc-glm-5-3-output-cap-invalid` (stapledon, 10-21).
+
+## 57 — 2026-10-22 — `quorum-reader:zsh-nomatch` BUILT: #1932 head `6268fb0b8`; judge PASS 94 (sonnet); merge PARKED on dev's inherited required red (D-FLEET-17); ticket open; Gate-5 skill edit [HARNESS]
+
+**Pick**: iteration 56's **Next** was to land #1927 and #1929 once dev's `test` is green, then reality-check `quorum:oc-glm-5-3-output-cap-invalid`. Dev is still red on the same SHA, `d25d9b8d0`, so neither PR can land. One ticket was filed after iteration 56: `quorum-reader:zsh-nomatch` (stapledon iteration 46, 10-22 11:50Z). Gate 2's clause map ranks it first:
+- Clause 2 (turnaround) is UNMET, and only a fresh ticket can still resolve inside 48 h.
+- It is a defect in fleet-owned code (the Gate-2 quorum reader and `tools/launchd/lib/quorum-artifacts.sh`), and it is mechanical.
+- Its failure costs money: a false UNREVIEWED triggers a paid quorum.
+
+`quorum:oc-glm-5-3-output-cap-invalid` is 10-21, and its fix is a seat output cap in `cmd/ailang/design_quorum.go`, outside the Authority allowlist. It stays the next reality-check.
+
+**Orphans credited**: none new. Gate 0 step 6a returned rc 1 for the 2026-10-17T12:48:13Z crash notice on #1768, already credited at iteration 47 (`issuecomment-6234067020`). The open `fleet/*` PRs at pick were #1927 (iteration 54, carrying the records of 55 and 56) and #1929 (iteration 55). This record is stacked on #1927's branch.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1891 (14 comments) since `2026-10-15T02:46:27Z`. Environment read by name. No rotation or sweep is due (#1891 was created Monday 2026-10-19).
+
+**Observe**: origin/dev == pin == `d25d9b8d0`; base recorded `2026-10-22T14:07:53Z`. `SKILL.md` and all 13 resources are `cmp`-identical to origin, both at the resolved symlink target and at the pin. Dev CI on `d25d9b8d0` is unchanged: of 24 checks, `test`, `test-windows`, `Build macos-latest` and `govulncheck` fail, and three builds were cancelled by fail-fast.
+
+**Reality check (real at HEAD)**:
+- Z1. `quorum-artifacts.sh:68` `for file in "$dir/$slug-"*.json`. The scratch fixture: an export dir holding `doc-x-2026.json` and an existing empty local dir, with the real Gate-2 reader block extracted.
+  - `/bin/bash -c`: rc 0, 1 match.
+  - `/bin/zsh -c`: `mc_quorum_lookup:11: no matches found`; the trailing `echo` never runs; exit 1.
+  - The mirror (empty export dir, local match) fails the same way.
+  - Control: an ABSENT local dir is skipped by line 63, giving rc 0.
+- Z2. Same class, second site: `pi-ext-args.sh` `_mc_pi_ext_args`, `for f in "$dir"/.pi/extensions/*.ts`. The gate-3 pi recipe sources it into the controller shell. With an empty `.pi/extensions`, zsh prints `--no-extensions`, then `no matches found`, exit 1; bash gives rc 0. No other `for … in <glob>` exists in `tools/launchd/lib/*.sh`.
+- Z3. The controller hit the same class itself during this check: `grep -r --include=*.sh` under the Bash tool's zsh failed with `no matches found: --include=*.sh` and returned nothing.
+- Z4. The CI job that runs both suites (`launchd drivers (bash 3.2)`) runs on `macos-latest`, which ships `/bin/zsh`, so zsh arms do execute in CI.
+
+**Did**:
+- **Designer**: not spawned. The fix is mechanical, so the controller's Z1–Z4 measurements and its D1–D6 design went into the planner directive (precedent: iterations 45 and 49–55).
+- **Planner** (codex `gpt-6.1-sol`, recipe, `.planner-wt-iter57`): plan and sprint JSON, one milestone. Committed `b92b42818`.
+  - It refuted two of the controller's design points first-party, and the controller reproduced both. `setopt nullglob` is an accepted zsh alias of `null_glob`, so that "mutant" is equivalent. An options arm that checks only NOMATCH cannot kill a dropped `local_options`, because NULL_GLOB leaks while NOMATCH stays on.
+  - The post-step `ailang messages import-github` was **skipped** (prod store, not a GitHub-fed queue). This is the third instance; see Retro.
+- **Executor** (codex, 1 run): the first statement of `mc_quorum_lookup` and `_mc_pi_ext_args` is now `if [ -n "${ZSH_VERSION:-}" ]; then setopt local_options null_glob; fi`, and both headers carry a one-line WHY.
+  - Eight behavioural zsh arms: 5 quorum, including `zsh_gate2_export_only` over both skill copies, and 3 pi. Each runs the real helper under `/bin/zsh -f` with an AFTER_CALL marker and a missing-marker negative control, and the options arms assert NOMATCH on and NULL_GLOB off.
+  - Missing zsh is a FAIL on Darwin.
+  - TDD red: all 5 quorum arms and 2 of 3 pi arms (`zsh_pi_two_ts` is a positive control).
+  - Changelog fragment added. Committed `6268fb0b8`.
+  - In-sandbox `make test-launchd-drivers` was rc 2 at base and at head, labelled UNINFORMATIVE UNDER SANDBOX (the descendant-CPU check needs `ps`).
+- **Controller gates, outside the sandbox, `env -i`, at `6268fb0b8`**: quorum suite rc 0 (21 PASS lines); pi suite 17/0; `make test-launchd-drivers` rc 0; `make check-changelog` rc 0; `git diff --check` rc 0.
+  - Shellcheck over the four files warns only on pre-existing lines (94, 211, 212, 251).
+  - The controller's own drill on a scratch copy: dropping the quorum setopt failed `zsh_quorum_export_only` and `zsh_gate2_export_only`, and a global `setopt null_glob` in pi failed `zsh_pi_options`. The unmutated control passed the same arms in the same layout.
+- **Judge** (sonnet, Agent tool, foreground, fresh, `.wt-fleet-iter57-judge`): **PASS 94**, 0 blocking.
+  - It reproduced the base failure for both helpers under `/bin/zsh -f`.
+  - Bash 3.2.57 output, stderr and rc were IDENTICAL from base to head over 9 fixture cases (absent, unreadable, bad JSON, duplicate dir, invalid slug, and three pi shapes).
+  - 15 mutants: 10 killed, including setopt moved after the first glob, setopt at source time, and a broken `.agents` or `.claude` snippet copy.
+  - 5 survived, none of them reachable or meaningful:
+    - `-z BASH_VERSION` (same as shipped in zsh and bash);
+    - `no_nomatch` (equivalent);
+    - setopt after the slug check;
+    - a global-setopt leak on the rc 2 return, unreachable under `local_options`;
+    - an unconditional setopt that prints a bash error, because no arm asserts bash stays silent.
+  - It found no writes outside fixture dirs and no other unguarded lib glob.
+- **PR #1932** (no closing keyword; the scan was paired with a positive control). 25 checks on `6268fb0b8`, all complete:
+  - Green: `launchd drivers (bash 3.2)` (macos-latest, the job that runs both zsh-arm suites), `lint`, `docs-gate`, `CodeQL`, `float determinism (arm64)`.
+  - Not green, all inherited from dev on the same SHA: `test`, `test-windows` and `Build macos-latest` each fail exactly one test, `TestModels_PricingIsSlugConsistent` (raw job logs with ANSI stripped; the control is 162, 162 and 161 `ok` package lines). `govulncheck` also fails, and three builds were cancelled by fail-fast.
+  - `mergeStateStatus` BLOCKED.
+  - **Gate 3b**: not reached; nothing merged. The poll was pinned to the head SHA, with a SHA-named verdict file.
+
+**Done-gate**:
+- Surface: `tools/launchd/lib/quorum-artifacts.sh` and `lib/pi-ext-args.sh`, read from `$MISSION_DRIVER_ROOT` (the pin) by the Gate-2 reader and the gate-3 pi recipe, and sourced by the driver.
+- Reach: pushed, not merged. It reaches every mission's next pinned fire once #1932 merges. Shell only, so D-FLEET-29 does not apply.
+- `make test-launchd-drivers` under `env -i`: rc 0 at `6268fb0b8`.
+- Dry-runs under **stapledon** (armed, idle, no pidfile; `AILANG_DRIVER_PINNED=6268fb0b8`): healthy rc 0 `lanes=ok`; degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`) rc 0 `DEGRADED(1)` → opus. No pidfile was written and nothing was reloaded.
+
+**Progress**: 0 tickets resolved (3 built, all three merges blocked by the same inherited red); 45 open. Goal unmoved.
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET. This ticket counts toward the median only if it lands before 2026-10-24 11:50Z; #1927's window closes 10-23 12:29Z and #1929's 10-23 23:27Z.
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved (nothing merged).
+
+**Routing evidence**: base=d25d9b8d0dde10ee7c14986fe21b94fd2cb500cd@2026-10-22T14:07:53Z (gate 1); sprint worktree base `d25d9b8d0`. `MISSION_ROUTING_NOTE` empty; `MISSION_OVER_RATION` empty. Anthropic quota reads `unknown` (HTTP 429, D-FLEET-28); the lanes were probed, not refused.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: not spawned. Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`; rotation not advanced.
+- **Planner**: resolver `agent-tool opus fail-closed:no-doc` against the pin `codex:gpt-6.1-sol`, so routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0; run rc 0 (51,570 tok). Post-step `import-github` skipped.
+- **Executor**: `codex:gpt-6.1-sol` via the recipe (`declared:provider-pin`), 1 run, rc 0 (141,091 tok).
+- **Evaluator**: `sonnet` via the Agent tool (`agent-tool sonnet declared:alias-pin`), foreground, 1 fresh spawn (73,499 tok). Judge independence: cross-vendor (Anthropic sonnet vs the OpenAI generator).
+- The Agent tool was used for the role the resolver names (the evaluator), per the operator's standing request. The planner and executor resolve to recipes. No role failed to spawn.
+- Every codex run carried the spawn-override flag.
+- **Metered**: $0.
+
+**Ruled out**:
+- Wrapping the Gate-2 snippet in `bash -c`: the caller reads `MC_QUORUM_MATCHES` in its own shell, and fixing the helper from inside fixes every caller (snippet, driver, tests) at once.
+- A global `setopt null_glob`: it leaks into the controller's shell for the rest of the session (arm `zsh_*_options`).
+- Counting the `nullglob` and `no_nomatch` spelling survivors as test gaps: both are equivalent (measured).
+- Fixing `quorum:oc-glm-5-3-output-cap-invalid` from the fleet: the seat cap lives in `cmd/ailang/design_quorum.go`, outside the Authority allowlist.
+- Fixing `TestModels_PricingIsSlugConsistent` from the fleet: `internal/modelreg` is outside scope (D-FLEET-17).
+
+**Retro lane**:
+- (1) **Skill edit (Gate 5, the one allowed): the codex planner recipe's post-step (5) `import-github` now runs only for missions whose queue is fed by GitHub issues.** Both copies of `resources/gate-3-route.md` were edited identically (`269242b96`). Frictions: iterations 54, 55 and 57, each a hand skip; iteration 55 set three instances as the bar. `test_codex_spawn_override`, `test_pi_ext_args` (skill sweep), `test_mission_heartbeat` and `check-context-docs` are green.
+- (2) **Banked, 1 instance: a Gate-3b poll for a PR that cannot merge has no prescribed shape.** The snippet polls dev's merge CI; the fleet has now polled PR-head check-runs by hand at iterations 54, 55 and 57. That is a stable workaround, not yet a defect.
+- (3) **zsh again, in the controller's own hands (Z3).** The ticket's class bit the controller during the reality check. Iteration 54's skill edit covers hand-written polls; a one-off `grep --include=*.sh` is not a poll. Banked rather than widened: the cheaper habit is to quote globs, and the libs are now safe.
+- (4) **D-FLEET-17 holds three judged fixes** (#1927, #1929, #1932). Fifth blocked landing (37, 38, 54, 55, 57). The first clause-2 window closes 2026-10-23 12:29Z.
+
+**Next**: when dev's `test` is green, re-run the checks for #1927, #1929 and #1932 (rebase only if `git diff --stat d25d9b8d0 origin/dev -- <each PR's files>` is non-empty), merge each with `--match-head-commit`, resolve the three tickets with the merge SHAs, and reply to world and stapledon. Then reality-check `quorum:oc-glm-5-3-output-cap-invalid` (stapledon, 10-21; likely a D-row, since `design_quorum.go` is out of scope).

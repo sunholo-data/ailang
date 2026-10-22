@@ -1,23 +1,21 @@
-# Fleet mission — iteration 56, 2026-10-22
+# Fleet mission — iteration 57, 2026-10-22
 
 - Latest released binary: v0.54.16. dev: `d25d9b8d0`, which is still RED (see below).
-- RESOLVED (ghost): `rotate-log:heading-parse-stapledon` (stapledon, 10-21).
-  - The bug was already fixed on dev by #1912 (`3b4d11759`, 10-20). Stapledon ran the rig's `~/go/bin/ailang`, which was built 10-19, before that fix.
-  - A sonnet judge confirmed this with both binaries on scratch copies.
-- PARKED: `quorum:claude-p-ration-usage-429` (stapledon, `blocking=item`) → **D-FLEET-28**.
-  - The quorum's Anthropic seat refuses when usage is unreadable. Usage is unreadable because the endpoint returns 429 and `claude -p /usage` no longer prints the usage windows (2.1.308).
-  - The gate is in `cmd/ailang/design_quorum.go`, which is outside fleet scope.
-- NEW ASK **D-FLEET-29**: nothing rebuilds the rig binary, so the Go halves of #1912, #1917 and #1922 reach no loop. Recommended: an attended `make quick-install` now.
-- BUILT, merge BLOCKED on dev's red: #1927 (`routing-models-check:bold-colon-heading`) and #1929 (`stall:watchdog:foreground-agent-and-wrong-transcript`).
-  - #1927 now also carries the iteration 55 and 56 records.
-  - Their clause-2 windows close 2026-10-23 12:29Z and 23:27Z.
+- BUILT, merge BLOCKED on dev's red: #1932 `quorum-reader:zsh-nomatch` (stapledon, 10-22).
+  - The quorum reader and the pi-ext helper no longer abort in the controller's zsh shell when an artifact dir is empty. Before, a false UNREVIEWED triggered a paid quorum.
+  - Judged PASS 94 by sonnet. `launchd drivers (bash 3.2)` is green on the PR.
+- Also BUILT and BLOCKED: #1927 (`routing-models-check:bold-colon-heading`) and #1929 (`stall:watchdog:foreground-agent-and-wrong-transcript`).
+  - #1927 also carries the records of iterations 55–57 and the iteration-57 skill edit.
+  - Clause-2 windows close 2026-10-23 12:29Z (#1927), 10-23 23:27Z (#1929) and 10-24 11:50Z (#1932).
 - **Dev is red from an attended commit, outside fleet scope.**
   - The required `test`, `test-windows` and macOS jobs fail only on `TestModels_PricingIsSlugConsistent`. `d25d9b8d0` (gemini-agents-argon) priced `google|antigravity-preview-09-2026` twice.
   - `govulncheck` (GO-2026-6809) is not required.
-  - D-FLEET-17 is open.
-- Next: land #1927 and #1929 once dev's `test` is green; then `quorum:oc-glm-5-3-output-cap-invalid` (stapledon, 10-21).
+  - D-FLEET-17 is open; this is its fifth blocked landing.
+- Skill edit: the codex planner's `import-github` post-step now runs only for missions fed by GitHub issues (`269242b96`, on #1927).
+- Next: land #1927, #1929 and #1932 once dev's `test` is green; then reality-check `quorum:oc-glm-5-3-output-cap-invalid` (stapledon, 10-21).
 - Parked on Mark:
-  - D-FLEET-29 (binary reach, new) and D-FLEET-28 (quorum Anthropic seat, new).
+  - D-FLEET-17 (dev reds; blocks 3 judged fixes).
+  - D-FLEET-29 (binary reach) and D-FLEET-28 (quorum Anthropic seat).
   - D-FLEET-27 (luna), D-FLEET-26 (codex capacity), D-FLEET-25 (rulings ledger).
   - D-FLEET-24 (agent-tool routing class).
   - D-FLEET-23 (wrapper Step 5b).
@@ -26,12 +24,11 @@
   - D-FLEET-20 (quorum OpenAI seat billing).
   - D-FLEET-19 (ADC quota project).
   - D-FLEET-18 (`tools/eval` scope).
-  - D-FLEET-17 (dev reds).
   - D-FLEET-16 (skill source).
 - Cadence: fleet runs every 6 h when tickets are open. Thread #1891; no new human directive. Nothing reloaded or installed.
 - Clauses:
-  - 1 unmeasured (D-FLEET-28 blocks Stapledon's Kerr re-quorum).
-  - 2 unmet (this resolve took about 19 h).
-  - 3 met (44 open).
+  - 1 unmeasured.
+  - 2 unmet.
+  - 3 met (45 open).
   - 4 prior evidence.
   - 5 preserved.
