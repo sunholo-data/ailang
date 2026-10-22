@@ -41,11 +41,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-10-22 — ITERATION 13: 4 queue verdicts independently concurred; 2 evidence comments and priority:P2; 9 cards/31PRs/61issues; dev RED retains existing routes; shadow14/14; no attestation/approval/handoff.
+
 ## STATUS 2026-10-21 — ITERATION 12: 3 queue verdicts independently concurred; PTY plan held D26; new pricing red routed for design only; shadow corrected14/14; 5 append-only rows; no attestation/approval/handoff.
 
 ## STATUS 2026-10-21 — ITERATION 11: dev vulnerability and parent PTY findings routed; #1921 semantics held D25; 5 queue verdicts independently concurred, including 2 late design PRs held; shadow15/15; no attestation/approval/handoff.
-
-## STATUS 2026-10-21 — ITERATION 10: 3 cross-vendor CONCUR verdicts; #1916 correction requested, #1914 safely labelled, new orphan #1889 held D24; dev checks17/17 green; shadow14/14; no attestations or dispatch.
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
@@ -162,7 +162,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
 3. [RECORDED iterations 1–3] Level 1 queue verification; iteration 3 records independent review and the prior record gap. Clauses 1–3.
-4. [NEXT] Re-verify changed/held items against origin/dev. D-TRIAGE-26 holds PTY plan #1926 pending green checks and explicit execution authorization; D25 holds #1921 coverage semantics; D24/22 retain orphan reconciliation. New managed-agent pricing identity red routed for design only in iteration12; advisory/PTY designs1923/1924 merged externally, implementation remains future. Existing OPEN decisions retain their ledger state; no authority inferred from bot summaries or external merges. Never approve, reject, merge or fire handoffs.
+4. [NEXT] Re-verify changed/held items against origin/dev. Design PR1931 needs sketch parity/bounds corrections; PR1928 covers the already-routed pricing red and both heads await green checks. D-TRIAGE-26 holds PTY plan1926 pending execution authorization; D25 holds1921 coverage semantics; D24/22 retain orphan reconciliation. New design cards1928/1931 hand off to planner, not executor; no new D26 hold inferred. Existing OPEN ledger rows remain unchanged; never approve, reject, merge or fire handoffs.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
 6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085; iteration10 recurrence inbox_1792533879605_18a7bcf5. Iteration11 recurrence inbox_1792578499678_b8495de1; direct send refused rc1, existing controlplane consumer retained. Iteration12 recurrence inbox_1792622923766_6056562b: direct send rc1; existing normal+one urgent controlplane consumer delivered. No triage harness repair.

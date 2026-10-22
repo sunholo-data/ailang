@@ -1,26 +1,24 @@
-# Triage mission dashboard — iteration 12, 2026-10-21
+# Triage mission dashboard — iteration 13, 2026-10-22
 
-- Operational CLI v0.54.16-dirty/128371f; reviewed dev d25d9b8d0dde10ee7c14986fe21b94fd2cb500cd.
 - Level1; no approve/reject/merge/sprint execution/handoff.
-- Dev RED: new managed-agent pricing identity collision; inherited GO-2026-6809.
-- Pricing first red d25; parent267cf2fdf Linux+Windows passed. Design-only request inbox_1792622656896_0027a408.
-- Argon effective billing SKU/rates remain UNMEASURED; preserve real alias drift detection.
-- Existing advisory/PTY designs1923/1924 merged externally; no duplicate dispatch or authority inference.
-- Masked/skipped gates: Linux58,Windows3,vuln1,releaseMac8;3cancelled release legs UNMEASURED.
-- New OPEN D26 holds PTY planner1926 until green checks+explicit execution authorization.
-- D25 coverage semantics unchanged; existing OPEN D15–25 retained, resolvedD12–14 not re-asked.
-- Snapshot7cards/28PRs/60issues;2joined items/3component verdicts;9/9independent review CONCUR.
-- One PR evidence comment; no closes,labels,attestations,coordinator state changes or code edits.
-- Five cards>48h;none green+mergeable. Eight uncarded PRs+1missing approval record.
-- Shadow corrected14/14;1783 superseded prediction excluded;2merged unscored outcomes.
-- Ledger338→343,old prefix unchanged;under14days collection,PartA not enabled.
-- Two read-only Agent verifiers(OpenAI;model/tokunreported).
-- Native Sonnet selection unavailable(schema no model/vendoroverride); declared independent MiniMax fallback.
-- Judge actual ollama/minimax-m3:cloud,responseModelminimax-m3;8137tokens,reported metered$0.
-- Agent transport authored no verdict; no designer/planner/code executor.
-- Cadence12h,queuefingerprint idle pre-check;fingerprint after all reports.
-- Capability/reporting friction escalated only;no skill/config/routing changes.
-- Main dirty paths parked;record chain preserved;PR1904 remains unmerged.
-- Evidence: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6328218334
-- Record: https://github.com/sunholo-data/ailang/pull/1904
-- Digest: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6328267364; delivery via user + normal/one urgent controlplane fallback, exact peek-verified.
+- Operational CLI v0.54.16-dirty/128371f; reviewed dev d25d9b8d0dde10ee7c14986fe21b94fd2cb500cd.
+- Dev RED: pricing identity collision and inherited GO-2026-6809; existing routes retained, no duplicate dispatch.
+- Pricing designPR1928 satisfies request; exact-head inherited CI reds block VERIFIED.
+- DesignPR1931 needs negative-decimal parity, overflow-safe bounds, precision-claim correction.
+- Issue1930 KEEP/P2, issue1891 KEEP;2PRcomments and1safelabel.
+- New cards1928/1931 hand off to planner,not executor; no new execution-authorization hold.
+- Snapshot9cards/31PRs/61issues;3joined items/4verdict rows,80retainedcomponents<7days.
+- 8uncarded coordinatorPRs+1unidentified missing approval record;5agedcards,0qualifiedstalls.
+- Shadow14/14 settled,0disagreements;ledger343→347,oldprefixpreserved.
+- Twelve existing OPEN decisions unchanged;D25coverage,D26executionauthorizationparked.
+- ResolvedD12–14 remainresolved;shadowcollectionOFF;noPartApromotion.
+- Two native OpenAI read-only Agent verifiers;model/tokensnotreported.
+- Native Sonnet model selection unavailable:spawn schema has no model/providerfield.
+- Agent-tool transport ran same configured Sonnet through subscription-only claude-sub.
+- Actual judge Anthropic/claude-sonnet-5-5(firstParty),8/8CONCUR;20380tokens,metered$0.
+- No designer/planner/codeexecutor;allroleagentsandactualjudgecallscomplete.
+- Cadence12h;queuefingerprintidleprecheck;fingerprintafterfinalreports.
+- Harness share7/9available records,escalationonly;zero triageharnessrepairs.
+- Main dirtyworkparked;recordhistorypreserved;PR1904unmerged.
+- Evidence:https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6339097405
+- Record:https://github.com/sunholo-data/ailang/pull/1904
