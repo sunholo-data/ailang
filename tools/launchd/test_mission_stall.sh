@@ -34,8 +34,11 @@ awk '/^_mc_etime_secs\(\) \{/,/^\}$/'     "$DRIVER" > "$TMP/fn_etime.sh"
 awk '/^_mc_tree_write_bytes\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_treew.sh"
 awk '/^_mc_rusage_snapshot\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_rusage.sh"
 awk '/^_mc_run_once\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_run_once.sh"
+awk '/^_mc_claude_session_prepare\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_session_prepare.sh"
+awk '/^_mc_uuid\(\) \{/,/^\}$/' "$DRIVER" > "$TMP/fn_uuid.sh"
 # Guard the extraction: an empty extract would make every arm vacuously pass.
-[ -s "$TMP/fn_prog.sh" ] && [ -s "$TMP/fn_stalled.sh" ] && [ -s "$TMP/fn_etime.sh" ] && [ -s "$TMP/fn_treew.sh" ] && [ -s "$TMP/fn_rusage.sh" ] \
+[ -s "$TMP/fn_prog.sh" ] && [ -s "$TMP/fn_stalled.sh" ] && [ -s "$TMP/fn_etime.sh" ] && [ -s "$TMP/fn_treew.sh" ] && [ -s "$TMP/fn_rusage.sh" ] && \
+  [ -s "$TMP/fn_run_once.sh" ] && [ -s "$TMP/fn_session_prepare.sh" ] && [ -s "$TMP/fn_uuid.sh" ] \
   || { echo "FAIL extraction: function boundaries not found in $DRIVER"; exit 1; }
 # And guard that we extracted the REAL predicate, not a stub with the same name.
 grep -q '_MC_PROG_PREV' "$TMP/fn_stalled.sh" \
@@ -50,6 +53,8 @@ grep -q '_MC_PROG_PREV' "$TMP/fn_stalled.sh" \
 # shellcheck source=/dev/null
 . "$TMP/fn_treew.sh"
 . "$TMP/fn_rusage.sh"
+. "$TMP/fn_uuid.sh"
+. "$TMP/fn_session_prepare.sh"
 
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); echo "ok - $1"; }
@@ -309,6 +314,21 @@ grow "foreground Agent tool result" "$SUBAGENT"
 verdict
 check "a2 subagent progress: own parent flat but own subagent grows" "$V" "live"
 
+# a2b exact sum. Kills M13: last-file-wins instead of parent + subagent bytes.
+if (
+  printf 'parent' > "$TRANSCRIPT"
+  printf 'child' > "$SUBAGENT"
+  for mode in empty unset; do
+    if [ "$mode" = empty ]; then LOG=""; else unset LOG; fi
+    bytes=$(_mc_progress_bytes) || exit 1
+    [ "$bytes" = 11 ] || exit 1
+  done
+); then
+  ok "a2b exact sum: parent + own subagent bytes with empty/unset LOG"
+else
+  bad "a2b exact sum: parent + own subagent bytes with empty/unset LOG"
+fi
+
 # a3 other session's subagent. Kills mutation: unanchored `*/subagents` glob.
 reset_state
 OTHER_SUB="$PROJ/other-session/subagents"; mkdir -p "$OTHER_SUB"
@@ -376,18 +396,88 @@ done
 MC_PI_SESSION_ID="$SAVED_PI_ID"; CONTROLLER_PROVIDER=claude
 rm "$DECOY"
 
-# a7 launch wiring. Kills mutations: remove Claude flag OR per-attempt assignment.
-# Limit the launch extract to Claude's continued command, so pi's flag cannot pass.
-sed -n '/^    claude -p /,/^  fi/p' "$TMP/fn_run_once.sh" > "$TMP/claude_launch.sh"
-assignment_line=$(grep -n 'MC_CLAUDE_SESSION_ID=' "$TMP/fn_run_once.sh" | head -1 | cut -d: -f1)
-launch_line=$(grep -n '^    claude -p ' "$TMP/fn_run_once.sh" | head -1 | cut -d: -f1)
-if [ -s "$TMP/fn_run_once.sh" ] && [ -n "$assignment_line" ] && [ -n "$launch_line" ] &&
-   [ "$assignment_line" -lt "$launch_line" ] &&
-   grep -q -- '--session-id "$MC_CLAUDE_SESSION_ID"' "$TMP/fn_run_once.sh" &&
-   grep -q 'MC_CLAUDE_SESSION_ARGS' "$TMP/claude_launch.sh"; then
-  ok "a7 launch wiring: per-attempt id and Claude session flag"
+# a7a fresh attempts. Kills M10/M11/M17: wrong/no provider or reused id.
+if (
+  _mc_uuid() { printf '%s\n' "$NEXT_UUID"; }
+  CONTROLLER_PROVIDER=claude
+  MC_CLAUDE_SESSION_ID=""
+  for NEXT_UUID in F0EF90F8-18DF-459C-8561-06D7B1040255 A1EF90F8-18DF-459C-8561-06D7B1040255; do
+    previous="$MC_CLAUDE_SESSION_ID"
+    _mc_claude_session_prepare
+    [ -n "$MC_CLAUDE_SESSION_ID" ] && [ "$MC_CLAUDE_SESSION_ID" != "$previous" ] || exit 1
+    [ "$MC_CLAUDE_SESSION_ID" = "$NEXT_UUID" ] || exit 1
+    [ "${#MC_CLAUDE_SESSION_ARGS[@]}" -eq 2 ] &&
+      [ "${MC_CLAUDE_SESSION_ARGS[0]}" = --session-id ] &&
+      [ "${MC_CLAUDE_SESSION_ARGS[1]}" = "$MC_CLAUDE_SESSION_ID" ] || exit 1
+  done
+); then
+  ok "a7a fresh attempts: distinct Claude ids and exact session args"
 else
-  bad "a7 launch wiring: missing per-attempt assignment or Claude session flag"
+  bad "a7a fresh attempts: distinct Claude ids and exact session args"
+fi
+
+# a7b provider re-walk. Kills M10/M17 and mutations leaving stale id/args.
+if (
+  _mc_uuid() { printf '%s\n' F0EF90F8-18DF-459C-8561-06D7B1040255; }
+  for provider in pi codex; do
+    CONTROLLER_PROVIDER=claude
+    _mc_claude_session_prepare
+    [ -n "$MC_CLAUDE_SESSION_ID" ] && [ "${#MC_CLAUDE_SESSION_ARGS[@]}" -eq 2 ] || exit 1
+    CONTROLLER_PROVIDER="$provider"
+    _mc_claude_session_prepare
+    [ -z "$MC_CLAUDE_SESSION_ID" ] && [ "${#MC_CLAUDE_SESSION_ARGS[@]}" -eq 0 ] || exit 1
+  done
+); then
+  ok "a7b provider re-walk: pi and codex clear Claude id and args"
+else
+  bad "a7b provider re-walk: pi and codex clear Claude id and args"
+fi
+
+# a7c unavailable generators + launch wiring. Kills M9 and moved/removed prepare.
+# Use a fresh /bin/bash with nounset to exercise the rig's empty-array semantics.
+if /bin/bash -u -c '
+  . "$1"
+  . "$2"
+  _mc_uuid() { return 1; }
+  log() { :; }
+  CONTROLLER_PROVIDER=claude
+  MC_CLAUDE_SESSION_ID=stale
+  MC_CLAUDE_SESSION_ARGS=(--session-id stale)
+  _mc_claude_session_prepare
+  [ -z "$MC_CLAUDE_SESSION_ID" ] && [ "${#MC_CLAUDE_SESSION_ARGS[@]}" -eq 0 ] || exit 1
+  set -- ${MC_CLAUDE_SESSION_ARGS[@]+"${MC_CLAUDE_SESSION_ARGS[@]}"}
+  [ "$#" -eq 0 ]
+' bash "$TMP/fn_uuid.sh" "$TMP/fn_session_prepare.sh"; then
+  ok "a7c unavailable generators: empty id/args expand to zero words under set -u"
+else
+  bad "a7c unavailable generators: empty id/args expand to zero words under set -u"
+fi
+# Limit to Claude's continued command, so pi's session flag cannot pass.
+sed -n '/^    claude -p /,/^  fi/p' "$TMP/fn_run_once.sh" > "$TMP/claude_launch.sh"
+prepare_line=$(grep -n '^[[:space:]]*_mc_claude_session_prepare[[:space:]]*$' "$TMP/fn_run_once.sh" | head -1 | cut -d: -f1)
+launch_line=$(grep -n '^    claude -p ' "$TMP/fn_run_once.sh" | head -1 | cut -d: -f1)
+if [ -n "$prepare_line" ] && [ -n "$launch_line" ] && [ "$prepare_line" -lt "$launch_line" ] &&
+   grep -Fq '${MC_CLAUDE_SESSION_ARGS[@]+' "$TMP/claude_launch.sh"; then
+  ok "a7c launch wiring: prepare precedes Claude launch with guarded args"
+else
+  bad "a7c launch wiring: prepare precedes Claude launch with guarded args"
+fi
+
+# a7d observable id. Kills M14: removed per-attempt Claude session log line.
+if (
+  _mc_uuid() { printf '%s\n' "$NEXT_UUID"; }
+  CONTROLLER_PROVIDER=claude
+  LOGGED=""
+  expected=""
+  for NEXT_UUID in F0EF90F8-18DF-459C-8561-06D7B1040255 A1EF90F8-18DF-459C-8561-06D7B1040255; do
+    _mc_claude_session_prepare
+    expected="${expected}Claude session id: $NEXT_UUID"$'\n'
+    [ "$LOGGED" = "$expected" ] || exit 1
+  done
+); then
+  ok "a7d session log: emitted exactly once per Claude call"
+else
+  bad "a7d session log: emitted exactly once per Claude call"
 fi
 
 # 12. D-FLEET-7: the 04:45 mutation drill was measured at >=62.54 CPU-s
