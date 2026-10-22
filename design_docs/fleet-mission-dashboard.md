@@ -1,18 +1,17 @@
-# Fleet mission — iteration 54, 2026-10-21
+# Fleet mission — iteration 55, 2026-10-22
 
 - Latest released binary: v0.54.16. dev: `d25d9b8d0`, which is RED (see below).
-- BUILT, merge BLOCKED: `routing-models-check:bold-colon-heading` (world, 10-21), PR #1927, head `ec9e54a1e`.
-  - Gate 4's routing-evidence check read rc 2 on every World, Stapledon and V1 entry, because it knew only `**Routing evidence**`. It now reads all four real heading shapes, ends a bulleted block at its sibling field, and ignores quoted ticket signatures.
-  - Judged PASS 80, then PASS 88 by sonnet after hardening. The corpus gate over 7 real logs explains every rc change.
-  - Ticket stays OPEN until the fix is on origin/dev.
-- Skill edit (Gate 5): hand-written poll and gate loops run under `/bin/bash`, not the Bash tool's zsh (7 frictions, iterations 49–54). It rides #1927.
+- BUILT, merge BLOCKED: `stall:watchdog:foreground-agent-and-wrong-transcript` (world, 10-21), PR #1929, head `9d131c76a`.
+  - The stall watchdog read the newest transcript in a directory every session shares, and counted no sub-agent transcript, so it killed World 296 and 297 mid-judge. Each claude attempt now gets its own `--session-id`, and the arm counts that session plus its sub-agents.
+  - Judged PASS 91, then PASS 91 by a fresh sonnet after the wiring arms were made behavioural. Ticket stays OPEN until the fix is on origin/dev.
+- BUILT, merge BLOCKED (iteration 54): `routing-models-check:bold-colon-heading`, PR #1927 (now also carries the iteration 55 record).
 - **Dev is red from an attended commit, outside fleet scope.**
   - Required `test` (and `test-windows`, macOS) fail only on `TestModels_PricingIsSlugConsistent`. `d25d9b8d0` (gemini-agents-argon) gave `google|antigravity-preview-09-2026` a second price.
   - Fix: make the `gemini-agents-antigravity` and `gemini-agents-argon` rows agree on the live rate (`make verify-model-pricing`).
   - `govulncheck` is still GO-2026-6809 (not required).
-  - D-FLEET-17 (who fixes dev reds) is still open. This is its third blocked landing.
-- Next (banked): land #1927 once dev's `test` is green; then `rotate-log:heading-parse-stapledon` (stapledon, 10-21, fresh); then `quota:admission-has-no-headroom-margin-and-flaps` (probably a ghost of #1524).
-- Parked on Mark (no new asks this fire):
+  - D-FLEET-17 (who fixes dev reds) is still open. This is its fourth blocked landing; two judged fixes wait on it, and both clause-2 windows close 2026-10-23.
+- Next (banked): land #1927 and #1929 once dev's `test` is green; then `rotate-log:heading-parse-stapledon` (stapledon, 10-21); then `quorum:claude-p-ration-usage-429` (stapledon, 10-21, `blocking=item`; measure whether it is HD-2a first).
+- Parked on Mark (no new asks this fire; D-FLEET-17 evidence updated):
   - D-FLEET-27 (luna), D-FLEET-26 (codex capacity), D-FLEET-25 (rulings ledger).
   - D-FLEET-24 (agent-tool routing class).
   - D-FLEET-23 (wrapper Step 5b).
@@ -24,4 +23,4 @@
   - D-FLEET-17 (dev reds).
   - D-FLEET-16 (skill source).
 - Cadence: fleet 6h, ticket-driven. Thread #1891; no new human directive. Nothing reloaded.
-- Clauses: 1 unmeasured; 2 unmet (this ticket moves it only if it lands before 10-23 12:29Z); 3 met (43 open); 4 prior evidence; 5 preserved.
+- Clauses: 1 unmeasured (this ticket cost World 2 slots); 2 unmet; 3 met (44 open); 4 prior evidence; 5 preserved.
