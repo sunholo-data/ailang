@@ -610,7 +610,11 @@ jobs:
       # no longer fits windows-latest: cmd/ailang measured 331s, 389s, then hit
       # the hang guard at 399s of 416s (2026-10-07/08, right-censored). Windows
       # budget = 399s observed x 1.34x safety factor = 535s, rounded up to 600s
-      # for the censoring. The real fix is a faster cmd/ailang package.
+      # for the censoring. On 2026-10-22, run 39814053800 reached 579s
+      # and refused its last 13 tests at the cleanup reserve. This is another
+      # right-censored sample: 579s x 1.34 = 776s, rounded up to 900s.
+      # Individual operation caps and the WARN-ONLY headroom report stay in place.
+      # The durable fix is a faster cmd/ailang package.
       # (The previous "5min (vs 60s on Linux)" note was stale: Linux has used the
       # same 300s since M-DX11.)
       # If a test is genuinely Windows-incompatible (not just slow), fix it or
@@ -627,10 +631,10 @@ jobs:
         if ($env:GOPROXY -ne 'off') { Write-Error "GOPROXY is not disabled"; exit 1 }
         $ErrorActionPreference = 'Continue'
         $PSNativeCommandUseErrorActionPreference = $false
-        go test -timeout 600s ./... *> go_test_headroom.log
+        go test -timeout 900s ./... *> go_test_headroom.log
         $go_rc = $LASTEXITCODE
         Get-Content go_test_headroom.log
-        & "$env:RUNNER_TEMP/headroom.exe" go_test_headroom.log 600
+        & "$env:RUNNER_TEMP/headroom.exe" go_test_headroom.log 900
         $hr_rc = $LASTEXITCODE
         if ($go_rc -ne 0) { exit $go_rc }
         exit $hr_rc
