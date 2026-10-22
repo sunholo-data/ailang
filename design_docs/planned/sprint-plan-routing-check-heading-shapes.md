@@ -1,5 +1,7 @@
 # Sprint Plan: Routing evidence heading shapes
 
+**Status**: Implemented on dev (unreleased), iteration 58; merge `2debbb0278cc08e018be2d0a1e75befcbda55454`.
+
 ## Summary
 
 Ticket: `routing-models-check:bold-colon-heading` (mission world, 2026-10-21); fleet iteration 54; sprint `M-FLEET-ROUTING-CHECK-HEADINGS`.
@@ -54,12 +56,12 @@ Each new arm must pass on the fix and fail under its named one-line checker muta
 
 ## Accept
 
-- [ ] Preserve the base 20/20 checks and all existing arm selections, including inline token at EOF and entry-boundary coverage.
-- [ ] Every new arm (`w s v p f`) is green on the fix and red under its named mutation; `s` kills both header and sibling-boundary mutations. Record baseline, mutant red and restored green with the failed assertion, not just process failure.
-- [ ] `bash -n scripts/mission_routing_models_check.sh scripts/test_mission_routing_models_check.sh` is clean; `/bin/bash` syntax validation is also clean on the rig's Bash 3.2.
-- [ ] `/bin/bash scripts/test_mission_routing_models_check.sh` returns rc 0 outside the sandbox; findings retain original line numbers and tokens.
-- [ ] Fragment is 2–4 lines, opens `### Fixed — `; `make check-changelog` and `make check-file-sizes` pass. Existing make wiring stays unchanged.
-- [ ] Only scoped files change; no full Go suite/build required for this shell-only fix. Success is behavioural coverage above, not a coverage percentage.
+- [x] Preserve the base 20/20 checks and all existing arm selections, including inline token at EOF and entry-boundary coverage.
+- [x] Every new arm (`w s v p f`) is green on the fix and red under its named mutation; `s` kills both header and sibling-boundary mutations. Record baseline, mutant red and restored green with the failed assertion, not just process failure.
+- [x] `bash -n scripts/mission_routing_models_check.sh scripts/test_mission_routing_models_check.sh` is clean; `/bin/bash` syntax validation is also clean on the rig's Bash 3.2.
+- [x] `/bin/bash scripts/test_mission_routing_models_check.sh` returns rc 0 outside the sandbox; findings retain original line numbers and tokens.
+- [x] Fragment is 2–4 lines, opens `### Fixed — `; `make check-changelog` and `make check-file-sizes` pass. Existing make wiring stays unchanged.
+- [x] Only scoped files change; no full Go suite/build required for this shell-only fix. Success is behavioural coverage above, not a coverage percentage.
 
 ## Controller-only Integration and Completion
 
@@ -71,3 +73,13 @@ Sandbox socket-touching results are **UNINFORMATIVE UNDER SANDBOX**; this sprint
 
 D6 scope is exactly the two scripts, the named fragment, this plan and `.ailang/state/sprints/sprint_M-FLEET-ROUTING-CHECK-HEADINGS.json`. No skill edits, make wiring edits, allowlist edits, entry-heading changes, other repo access, `~/.ailang/state` or `~/.config` changes.
 Main risk: the conventions conflict at column-0 bold-label bullets; `s` and `f` independently protect both boundary rules. Header broadening intentionally accepts all D1 suffixes; first-block-only and existing entry boundaries prevent widening the scan beyond the selected routing block.
+
+## Landing record — iteration 58
+
+D1–D7 complete: fresh independent MiniMax CODE ACCEPT 93/100, 46 focused assertions; original mutation controls and baseline red verified. The refreshed 116-entry / seven-log snapshot corpus has no clean-to-finding/error change. PR #1935 and its exact merge CI passed before ticket resolution. Evidence: [independent evaluation](../fleet-mission-evidence/iteration58/evaluation.md), [controller corrections](../fleet-mission-evidence/iteration58/controller-review-notes.md), and [iteration 58](../fleet-mission-log.md). Original #1927 is superseded; records 54–57 are preserved.
+
+D6 governs executor implementation scope. The landing also contains separately authorized Gate-5 skill changes from iterations 54 and 57, plus required mission bookkeeping. These are not new implementation work in iteration 58. No new policy or source behaviour was added during landing.
+
+Measured implementation diff against base42: checker +11/-4, tests +113/-2, fragment +3/-0: **133 changed lines (additions plus deletions)**. Original implementation effort was not measured; actual days and velocity are unknown, not zero. The historical estimates remain estimates. D7 includes the controller’s PR, exact merge CI and ticket resolution; metadata was deliberately left incomplete until these succeeded.
+
+This stable plan path remains available to existing links and the sprint JSON. The change is unreleased on dev, so no release version or implemented-release archive is invented; release archival can happen with the release that contains it.

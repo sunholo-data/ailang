@@ -1,0 +1,9 @@
+# Fleet iteration58 evidence
+
+The independent evaluation is preserved verbatim. Controller corrections, role reports, raw exact-head/final merge CI readings, per-entry corpus results and gate excerpts are separate. Bulk NDJSON and full launchd output remain scratch artifacts, not claimed as durable repo evidence. Recorded metered usage is $0.18019188 including the 2,017-token evaluator probe (input55/cache1920/output42). Native controller/carrier and the interrupted initial designer attempt have unreported token counts; measured Codex role probes+runs total265178. No shared credentials are banked.
+
+Exact merge `2debbb0278cc08e018be2d0a1e75befcbda55454`: [CI 39861258501](https://github.com/sunholo-data/ailang/actions/runs/39861258501) and [Build and Release 39861258599](https://github.com/sunholo-data/ailang/actions/runs/39861258599), both attempt1/push/dev, completed SUCCESS before the 30-minute deadline. Fresh direct verification at 22:26Z required all 15 expected successful jobs and found all 17 checks terminal with no failure. The SHA-bearing pollers both ended completed success; no background watcher remains.
+
+`mission ticket resolve routing-models-check:bold-colon-heading --sha 2debbb0278cc08e018be2d0a1e75befcbda55454` resolved 1 occurrence and replied to world; open count45→44. Completion observed 2026-10-22T22:27:24Z (about34h after filing, <48h). OldPR1927 received [a separate evidence comment](https://github.com/sunholo-data/ailang/pull/1927#issuecomment-6352671795), comment count0→1 verified, then stateCLOSED verified. No unrelated ticket or approval was acknowledged.
+
+Harness share is **19/20** (iteration40 is ADMIN). It was measured from the newest20 index identifiers joined to full source headings, since index truncation hides trailing class tags. This replaces the unverified draft estimate; no published report claimed20/20.
