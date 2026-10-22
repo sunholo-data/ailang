@@ -242,8 +242,11 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        well-formed (`jq -e . sprint_<id>.json`; plan non-empty and names the design doc); (2) reject
        placeholder vacuous-passes (`MILESTONE_ID` or `auto-parse failed`); (3) copy both artifacts
        to their main-checkout paths, refusing to overwrite unexpected existing files; (4) remove
-       the planner worktree; (5) run
-       `ailang messages import-github --labels bug,feature,ailang-message` outside the sandbox;
+       the planner worktree; (5) **only when the mission's queue is fed by GitHub issues** (V1),
+       run `ailang messages import-github --labels bug,feature,ailang-message` outside the
+       sandbox. A ticket-queue mission (fleet, triage) skips it and says so in the routing row: the
+       import writes the shared prod message store and has nothing to do with a ticket
+       (scoped 2026-10-22, fleet iteration 57; skipped by hand at iterations 54, 55 and 57);
        (6) commit with `Co-Authored-By: codex <model>`.
   3. **generator≠judge — a PREFERENCE, never a blocker (V1 `D-62`/`D-63` 2026-09-08; restated by
      Mark, attended 2026-10-01: "its a nice to have, not to wet our pants if we dont have different
