@@ -1,6 +1,7 @@
 # shellcheck shell=bash
-# Pure bash 3.2 functions. Nothing runs at source time. rc 1 is absence;
+# Bash 3.2 and zsh functions. Nothing runs at source time. rc 1 is absence;
 # rc 2 is a configuration/read error, never permission to skip quorum.
+# Skill snippets source this into the controller's zsh tool shell, where NOMATCH aborts unmatched loops.
 mc_quorum_error() { printf 'quorum ERROR: %s\n' "$*" >&2; return 2; }
 
 mc_quorum_absolute() {
@@ -55,6 +56,7 @@ mc_quorum_reader_dirs() {
 # Inspect every directory before returning any matches. Do not select a winner
 # or change freshness/verdict policy: the caller reads the existing nested schema.
 mc_quorum_lookup() {
+  if [ -n "${ZSH_VERSION:-}" ]; then setopt local_options null_glob; fi
   local slug="$1" dir file bad=0
   MC_QUORUM_MATCHES=()
   case "$slug" in ''|*[!a-z0-9-]*) mc_quorum_error 'invalid doc-id slug'; return 2 ;; esac

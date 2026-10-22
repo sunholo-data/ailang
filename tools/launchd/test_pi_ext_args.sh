@@ -105,5 +105,57 @@ if [ "$root_count" -eq 0 ]; then
 fi
 [ "$sweep_ok" -eq 1 ] && ok "skill launch sweep safety" || bad "skill launch sweep safety"
 [ "$instrument_ok" -eq 1 ] && ok "skill launch count instrument" || bad "skill launch count instrument"
+# Match exact helper bytes and rc separately from the child completion marker.
+zsh_pi_result_ok() {
+  local child_rc="$1" out="$2" expected="$3"
+  [ "$child_rc" = 0 ] || return 1
+  [ "$(grep -cx 'AFTER_CALL' "$out" || true)" = 1 ] || return 1
+  sed '/^AFTER_CALL$/d' "$out" | cmp -s "$expected" -
+}
+zsh_pi_arm() {
+  local arm="$1" dir="$T/$1 with spaces" child_rc=0 name
+  if [ ! -x /bin/zsh ]; then
+    if [ "$(uname -s)" = Darwin ]; then bad "$arm (no /bin/zsh)"; else echo "SKIP (no /bin/zsh): $arm"; fi
+    return
+  fi
+  mkdir -p "$dir/.pi/extensions"
+  if [ "$arm" = zsh_pi_two_ts ]; then
+    : > "$dir/.pi/extensions/a.ts"; : > "$dir/.pi/extensions/b.ts"; : > "$dir/.pi/extensions/README.md"
+  fi
+  (
+    unset AILANG_AGENT_POLICY
+    for name in $(compgen -e | grep '^MISSION_' || true); do unset "$name"; done
+    /bin/zsh -f -c '
+      setopt nomatch; unsetopt null_glob
+      . "$1" || exit 80
+      _mc_pi_ext_args "$2" > "$3"
+      fn_rc=$?
+      printf "%s\n" AFTER_CALL
+      if [ "$4" = zsh_pi_options ]; then
+        [[ -o nomatch && ! -o null_glob ]] || { print -u2 OPTIONS_LEAKED; exit 81; }
+      fi
+      cat "$3"
+      printf "RC=%s\n" "$fn_rc"
+    ' zsh "$HERE/lib/pi-ext-args.sh" "$dir" "$dir/helper-out" "$arm"
+  ) > "$dir/zsh-out" 2> "$dir/zsh-err" || child_rc=$?
+  {
+    printf '%s\n' --no-extensions
+    if [ "$arm" = zsh_pi_two_ts ]; then printf '%s\n' -e "$dir/.pi/extensions/a.ts" -e "$dir/.pi/extensions/b.ts"; fi
+    printf 'RC=0\n'
+  } > "$dir/expected"
+  if ! zsh_pi_result_ok "$child_rc" "$dir/zsh-out" "$dir/expected"; then
+    bad "$arm: child rc=$child_rc, result/AFTER_CALL mismatch: $(cat "$dir/zsh-out" "$dir/zsh-err")"
+    return
+  fi
+  # Feed actual successful output without ONLY its marker into the same checker.
+  sed '/^AFTER_CALL$/d' "$dir/zsh-out" > "$dir/no-marker"
+  if zsh_pi_result_ok "$child_rc" "$dir/no-marker" "$dir/expected"; then
+    bad "$arm: missing-marker negative control accepted"
+    return
+  fi
+  ok "$arm"
+}
+for arm in zsh_pi_empty zsh_pi_two_ts zsh_pi_options; do zsh_pi_arm "$arm"; done
+
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
