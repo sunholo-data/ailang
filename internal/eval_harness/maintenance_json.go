@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"reflect"
+	"strings"
 )
 
 // encoding/json otherwise accepts duplicate keys (including in nested objects),
@@ -17,6 +19,16 @@ func maintenanceStrictJSON(raw []byte, target any) error {
 	}
 	if _, err := scan.Token(); err != io.EOF {
 		return fmt.Errorf("trailing JSON data")
+	}
+
+	var value any
+	fields := json.NewDecoder(bytes.NewReader(raw))
+	fields.UseNumber()
+	if err := fields.Decode(&value); err != nil {
+		return err
+	}
+	if err := maintenanceExactJSONFields(value, reflect.TypeOf(target)); err != nil {
+		return err
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
@@ -59,4 +71,53 @@ func maintenanceJSONValue(d *json.Decoder) error {
 	}
 	_, err = d.Token()
 	return err
+}
+
+// DisallowUnknownFields alone accepts case-insensitive aliases of JSON tags.
+// Exact schema names are required so JSON Schema, native analysis and Go bind
+// the same contract (including nested trajectory and stage objects).
+func maintenanceExactJSONFields(value any, typ reflect.Type) error {
+	for typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+	switch actual := value.(type) {
+	case map[string]any:
+		if typ.Kind() != reflect.Struct {
+			return nil
+		}
+		fields := map[string]reflect.Type{}
+		for i := 0; i < typ.NumField(); i++ {
+			field := typ.Field(i)
+			if field.PkgPath != "" {
+				continue
+			}
+			name := strings.Split(field.Tag.Get("json"), ",")[0]
+			if name == "-" {
+				continue
+			}
+			if name == "" {
+				name = field.Name
+			}
+			fields[name] = field.Type
+		}
+		for name, child := range actual {
+			childType, ok := fields[name]
+			if !ok {
+				return fmt.Errorf("unknown exact JSON field %q", name)
+			}
+			if err := maintenanceExactJSONFields(child, childType); err != nil {
+				return err
+			}
+		}
+	case []any:
+		if typ.Kind() != reflect.Slice && typ.Kind() != reflect.Array {
+			return nil
+		}
+		for _, child := range actual {
+			if err := maintenanceExactJSONFields(child, typ.Elem()); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
