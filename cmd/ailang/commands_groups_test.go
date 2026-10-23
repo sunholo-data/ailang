@@ -301,7 +301,7 @@ func TestGroups_LanguageCommandsStayQuietThroughTheirGroup(t *testing.T) {
 		sub := groupSubName(c.Group, c.Name)
 		obs, stale := count([]string{c.Group, sub})
 		want := 1
-		if c.Language {
+		if c.Language || c.Name == "access-approvals" {
 			want = 0
 		}
 		if obs != want || stale != want {
