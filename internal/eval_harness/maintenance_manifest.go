@@ -306,8 +306,9 @@ func (e *MaintenanceExecution) validateBinding(t *MaintenanceTrajectoryPlan, b *
 				}
 			}
 		}
-		if bs.Oracle.Files[0].SHA256 != s.OracleDigest {
-			return fmt.Errorf("oracle driver identity differs for %s/%s", t.ID, s.ID)
+		pipeline, err := maintenanceOracleDigest(bs.Oracle.Files)
+		if err != nil || pipeline != s.OracleDigest {
+			return fmt.Errorf("oracle pipeline identity differs for %s/%s", t.ID, s.ID)
 		}
 	}
 	return nil
@@ -409,4 +410,27 @@ func maintenanceRegularPath(p string, directory bool) error {
 		}
 	}
 	return nil
+}
+
+// maintenanceOracleDigest binds the entire ordered grading source inventory.
+// A wrapper file alone does not identify its imported oracle/expected fixtures.
+// Paths and native-language argv are excluded so counterpart arms share one
+// pipeline identity across movable source checkouts.
+func maintenanceOracleDigest(files []MaintenanceFileRef) (string, error) {
+	if len(files) == 0 {
+		return "", fmt.Errorf("empty oracle pipeline")
+	}
+	hashes := make([]string, len(files))
+	for i, file := range files {
+		if !maintenanceSHA(file.SHA256) {
+			return "", fmt.Errorf("invalid oracle dependency digest")
+		}
+		hashes[i] = file.SHA256
+	}
+	raw, err := json.Marshal(hashes)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:]), nil
 }

@@ -31,6 +31,10 @@ func maintenanceManifestFixture(t *testing.T) (string, MaintenanceExecutionManif
 	request := file("request.md", "repair real retained source")
 	check := file("check.py", "trusted public check")
 	oracle := file("oracle.py", "trusted external oracle")
+	oraclePipeline, err := maintenanceOracleDigest([]MaintenanceFileRef{oracle})
+	if err != nil {
+		t.Fatal(err)
+	}
 	assets := []MaintenanceAsset{{Path: starter.Path, Destination: "main.py", SHA256: starter.SHA256}}
 	starterDigest, err := maintenanceStarterDigest(assets)
 	if err != nil {
@@ -42,7 +46,7 @@ func maintenanceManifestFixture(t *testing.T) (string, MaintenanceExecutionManif
 		stages := []MaintenanceStagePlan{}
 		bindings := []MaintenanceStageBinding{}
 		for _, id := range []string{"S1", "S2", "S3"} {
-			stages = append(stages, MaintenanceStagePlan{ID: id, RequirementDigest: request.SHA256, OracleDigest: oracle.SHA256})
+			stages = append(stages, MaintenanceStagePlan{ID: id, RequirementDigest: request.SHA256, OracleDigest: oraclePipeline})
 			bindings = append(bindings, MaintenanceStageBinding{ID: id, Request: request, PublicCheck: MaintenanceCommandBinding{Command: []string{"fixture-check"}, Files: []MaintenanceFileRef{check}}, Oracle: MaintenanceCommandBinding{Command: []string{"fixture-oracle"}, Files: []MaintenanceFileRef{oracle}}})
 		}
 		plan.Trajectories = append(plan.Trajectories, MaintenanceTrajectoryPlan{ID: lang, Family: "real-family", Variant: "development", Repeat: 1, Language: lang, StarterDigest: starterDigest, NativeToolDigest: tool.SHA256, Stages: stages})
@@ -140,5 +144,48 @@ func TestMaintenanceManifestStrictJSONAndSymlink(t *testing.T) {
 	writeMaintenanceManifest(t, path, m)
 	if _, err := LoadMaintenanceExecutionManifest(path); err == nil {
 		t.Fatal("accepted symlink source")
+	}
+}
+
+func TestMaintenanceManifestRejectsUnboundOracleDependency(t *testing.T) {
+	path, m := maintenanceManifestFixture(t)
+	helper := filepath.Join(filepath.Dir(path), "grading-helper.py")
+	if err := os.WriteFile(helper, []byte("changed oracle dependency"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	hash, err := maintenanceFileSHA(helper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range m.Trajectories {
+		for j := range m.Trajectories[i].Stages {
+			stage := &m.Trajectories[i].Stages[j]
+			stage.Oracle.Files = append(stage.Oracle.Files, MaintenanceFileRef{Path: helper, SHA256: hash})
+		}
+	}
+	writeMaintenanceManifest(t, path, m)
+	if _, err = LoadMaintenanceExecutionManifest(path); err == nil {
+		t.Fatal("unchanged wrapper identity admitted a changed oracle pipeline")
+	}
+}
+
+func TestMaintenanceOraclePipelineIdentityCoversEveryOrderedDependency(t *testing.T) {
+	a, b := strings.Repeat("a", 64), strings.Repeat("b", 64)
+	original, err := maintenanceOracleDigest([]MaintenanceFileRef{{Path: "wrapper", SHA256: a}, {Path: "helper", SHA256: b}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, files := range [][]MaintenanceFileRef{{{Path: "wrapper", SHA256: a}}, {{Path: "helper", SHA256: b}, {Path: "wrapper", SHA256: a}}, {{Path: "wrapper", SHA256: a}, {Path: "helper", SHA256: a}}} {
+		changed, err := maintenanceOracleDigest(files)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if changed == original {
+			t.Fatal("oracle dependency loss/order/change kept identity")
+		}
+	}
+	moved, err := maintenanceOracleDigest([]MaintenanceFileRef{{Path: "/moved/wrapper", SHA256: a}, {Path: "/moved/helper", SHA256: b}})
+	if err != nil || moved != original {
+		t.Fatal("moving identical oracle files changed pipeline")
 	}
 }

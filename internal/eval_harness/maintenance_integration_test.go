@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -211,7 +212,7 @@ func TestMaintenanceCheckpointDigestMatchesPython(t *testing.T) {
 	if packageRoot == "" {
 		t.Skip("set AILANG_MAINTENANCE_PACKAGE_ROOT for cross-language digest check")
 	}
-	if strings.Contains(os.Getenv("OS"), "Windows") {
+	if runtime.GOOS == "windows" {
 		t.Skip("HTML punctuation fixture filename is not representable on Windows")
 	}
 	if _, err := exec.LookPath("python3"); err != nil {

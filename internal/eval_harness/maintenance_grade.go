@@ -167,7 +167,8 @@ func maintenanceGradeBinding(e *MaintenanceExecution, tr MaintenanceTrajectoryPl
 		}
 		for _, s := range binding.Stages {
 			if s.ID == stage.ID {
-				if len(s.Oracle.Files) == 0 || s.Oracle.Files[0].SHA256 != stage.OracleDigest {
+				pipeline, err := maintenanceOracleDigest(s.Oracle.Files)
+				if err != nil || pipeline != stage.OracleDigest {
 					return s, fmt.Errorf("oracle identity is not frozen stage binding")
 				}
 				return s, nil
@@ -288,11 +289,9 @@ func maintenanceGradeVerdict(r maintenanceGradeProtocol, tr MaintenanceTrajector
 	if r.Status == "invalid_setup" {
 		return g, fmt.Errorf("native grading setup invalid: %s", r.Failure)
 	}
-	kind := "parser"
-	if tr.Language == "ailang" {
-		kind = "type"
-	}
-	g.CheckKinds = []string{kind}
+	// These are native check outcomes. No language-derived parser/type/effect
+	// phase is asserted without actual diagnostic code evidence.
+	g.CheckKinds = []string{"public"}
 	if r.Status == "artifact_failure" {
 		g.Visible = "fail"
 		g.Oracle = "not_run"
@@ -343,7 +342,6 @@ func maintenanceGradeVerdict(r maintenanceGradeProtocol, tr MaintenanceTrajector
 	}
 	g.Visible = "pass"
 	if r.PublicCheckPassed != nil {
-		g.CheckKinds = append(g.CheckKinds, "public")
 		if !*r.PublicCheckPassed {
 			g.Visible = "fail"
 		}

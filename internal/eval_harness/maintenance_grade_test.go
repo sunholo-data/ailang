@@ -46,3 +46,19 @@ func TestMaintenanceGradeRejectsImplicitZeroOrMissingEvidence(t *testing.T) {
 		}
 	}
 }
+
+func TestMaintenanceGradeNeverInfersFailurePhaseFromLanguage(t *testing.T) {
+	h := strings.Repeat("a", 64)
+	for _, language := range []string{"ailang", "python"} {
+		for _, reason := range []string{"native_compile_failed", "candidate_timeout", "candidate_process_failed", "invalid_candidate_output"} {
+			r := maintenanceGradeProtocol{Schema: "maintenance.candidate-grade/1", Family: "text-fidelity", Language: language, Stage: 1, Status: "artifact_failure", SourceDigest: h, Failure: reason}
+			got, err := maintenanceGradeVerdict(r, MaintenanceTrajectoryPlan{Family: "text-fidelity", Language: language}, MaintenanceStagePlan{ID: "S1", OracleDigest: h}, MaintenanceCheckpoint{Digest: h})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got.CheckKinds) != 1 || got.CheckKinds[0] != "public" {
+				t.Fatalf("%s/%s fabricated diagnostic phase: %v", language, reason, got.CheckKinds)
+			}
+		}
+	}
+}
