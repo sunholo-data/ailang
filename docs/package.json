@@ -10,6 +10,7 @@
     "sync-all": "npm run sync-prompt && npm run sync-design-docs && npm run check-stdlib-index",
     "start": "npm run sync-all && docusaurus start",
     "build": "npm run sync-all && docusaurus build",
+    "test:benchmarks": "node --test src/lib/benchmarkEvidence.test.mjs src/lib/benchmarkHistory.test.mjs src/components/BenchmarkPerformance/render.test.cjs",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",
