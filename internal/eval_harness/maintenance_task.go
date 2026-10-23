@@ -74,7 +74,7 @@ func NewMaintenanceTaskBuilder(e *MaintenanceExecution, prepare func(*executor.T
 	}
 	seen := map[string]bool{}
 	for _, tool := range settings.AllowedTools {
-		if tool != "Read" && tool != "Write" && tool != "Edit" && tool != "Bash" && tool != "Grep" && tool != "Find" && tool != "LS" {
+		if tool != "Read" && tool != "Write" && tool != "Edit" && tool != "Bash" && tool != "Grep" && tool != "Find" && tool != "Ls" {
 			return nil, fmt.Errorf("unqualified maintenance tool %q", tool)
 		}
 		if seen[tool] {
@@ -110,6 +110,11 @@ func NewMaintenanceTaskBuilder(e *MaintenanceExecution, prepare func(*executor.T
 			return nil, fmt.Errorf("%s teaching prompt: %w", language, err)
 		}
 		settings.SystemPrompts[language] = ref
+	}
+	for _, tr := range e.Plan.Trajectories {
+		if _, ok := settings.SystemPrompts[tr.Language]; !ok {
+			return nil, fmt.Errorf("missing frozen %s system prompt before dispatch", tr.Language)
+		}
 	}
 	return func(tr MaintenanceTrajectoryPlan, stage MaintenanceStagePlan, workspace, request string) (*executor.Task, error) {
 		model, err := check()

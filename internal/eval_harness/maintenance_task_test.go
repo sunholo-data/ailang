@@ -50,6 +50,11 @@ func TestMaintenanceTaskBuilderFreezesRegistryAndPrompt(t *testing.T) {
 	if prepared != 1 || task.Directive != "current request" || task.SystemPrompt != string(prompt) || !task.IsolateFromAmbientContext || !task.IsolateFromProjectExtensions || task.Iteration != 1 || task.ResumeSessionID != "" || task.MaxTokensPerBench != 100 {
 		t.Fatalf("task drift: %+v", task)
 	}
+	e.Plan.Trajectories = []MaintenanceTrajectoryPlan{{Language: "ailang"}, {Language: "python"}}
+	if _, err = NewMaintenanceTaskBuilder(e, func(*executor.Task) error { return nil }); err == nil {
+		t.Fatal("missing counterpart teaching prompt discovered after partial dispatch")
+	}
+	e.Plan.Trajectories = nil
 	changed := modelreg.GlobalModelsConfig.Models["fixture"]
 	changed.MaxOutputTokens = 987
 	modelreg.GlobalModelsConfig.Models["fixture"] = changed
