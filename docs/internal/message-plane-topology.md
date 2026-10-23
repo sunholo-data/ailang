@@ -172,6 +172,36 @@ Two failure modes this replaced, both of which looked like success:
   package agents (`pkg-sunholo-auth` watches `pkg:sunholo/auth`), so replies went to an
   inbox nothing watched.
 
+### Cascade envelope routes (M-CASCADE-ENVELOPE-HYDRATION)
+
+A cascade bump carries its envelope (root package, change class, version and
+interface-hash deltas) in three durable places, and every route into a task must
+read at least one of them. Before this was pinned, two routes silently dropped
+the envelope and dispatched a task whose `pkg-update.md` rendered blank — 173
+`[bug] cascade routing: EMPTY dispatch` reports between 2026-09-02 and
+2026-09-27, each one a paid agent run concluding "nothing to repair".
+
+| Route | Envelope source | Policy |
+|---|---|---|
+| Pub/Sub push, embedded-envelope data | `CascadeMessageData.Envelope` (full fidelity) | dispatches |
+| Pub/Sub push, legacy-shaped data (message id only) | stored `InboxMessage.Payload` parsed as `PackageMessageEnvelope` (attributes fill the rest) | dispatches |
+| Backstop sweep recovery | stored payload only | envelope hydrated, but `Source` stays unset — `InboxMessage` persists no source, so cascade authority cannot be verified on this route |
+
+Two guards close the family:
+
+- **Adapter:** a cascade-topic assertion with no envelope and no hydratable
+  payload is acked with a loud log (redelivery cannot grow an envelope;
+  NACKing forever starves the subscription the way the EMPTY-dispatch flood
+  starved triage).
+- **Dispatch gate** (`dispatchTasksCloud`): a task of Kind
+  `upgrade-available`/`interface-change-notice` whose `Source != "cascade"` or
+  whose `root_package`/`to_version` is empty is marked `blocked` with a
+  structured error naming the message id — no Cloud Run job, no agent run.
+
+`Source = "cascade"` is stamped ONLY from the cascade topic's own attribute
+assertion, never from payload shape — a wrong stamp makes the `pkg-update.md`
+misroute guard lie, which is worse than an empty one.
+
 ### Inbox naming
 
 The registry spells packages with **underscores**; repo directories use **hyphens**:

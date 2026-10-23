@@ -7,6 +7,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
 // BackstopSweepMode selects what the sweep does with what it finds.
@@ -194,7 +195,7 @@ func (s *BackstopSweep) SweepOnce(_ context.Context) {
 		//   Inputs    — recovery can precede Pub/Sub hydration. Losing inputs here
 		//               creates a task without its files; the later notification
 		//               is deduplicated and cannot restore them (#1757).
-		s.adapter.Enqueue(&Message{
+		recovered := &Message{
 			ID:        m.ID,
 			Inputs:    append([]TaskInput(nil), m.Inputs...),
 			From:      m.FromAgent,
@@ -204,7 +205,21 @@ func (s *BackstopSweep) SweepOnce(_ context.Context) {
 			Type:      m.Category,
 			Kind:      m.MessageType,
 			CreatedAt: m.CreatedAt,
-		})
+		}
+		// M-CASCADE-ENVELOPE-HYDRATION: recover the cascade envelope from the
+		// durable payload the way the push path hydrates its legacy-shaped
+		// messages, so a swept bump does not become an EMPTY-dispatch task.
+		// There are no Pub/Sub attributes on this route and InboxMessage does
+		// not persist Source, so cascade AUTHORITY (Source) cannot be verified
+		// here and is deliberately left unset — the dispatch gate then refuses
+		// the task loudly instead of spending a run on a directive the
+		// pkg-update template would order the agent to file a bug about.
+		recovered = hydrateCascadeFields(recovered, pubsub.MessageAttributes{}, nil, recovered.Content, s.logger)
+		if recovered.RootPackage != "" {
+			s.logger.Printf("backstop sweep: recovered message %s carries a package bump envelope (%s → %s) but no verifiable cascade source; the dispatch gate will refuse it for triage",
+				recovered.ID, recovered.FromVersion, recovered.ToVersion)
+		}
+		s.adapter.Enqueue(recovered)
 		s.logger.Printf("backstop sweep: recovered %s (inbox=%s) into the normal drain", m.ID, m.ToInbox)
 	}
 }

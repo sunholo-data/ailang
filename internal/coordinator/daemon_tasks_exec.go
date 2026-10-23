@@ -151,6 +151,20 @@ func (d *Daemon) dispatchTasksCloud() error {
 			continue
 		}
 
+		// M-CASCADE-ENVELOPE-HYDRATION: dispatch-time hard gate. A cascade-shaped
+		// task (Kind upgrade-available / interface-change-notice) with anything
+		// other than a verified cascade source and a usable envelope used to be
+		// dispatched anyway: the job rendered pkg-update.md with blank fields, the
+		// template's misroute guard fired, and the agent burned a full run filing
+		// a `[bug] cascade routing: EMPTY dispatch` report. Defense-in-depth
+		// cannot live only in the template text inside the agent's context
+		// window — refuse HERE, before any job is created, loudly, naming the
+		// message id.
+		if isCascadeDirectiveKind(task.Kind) && !cascadeDispatchAuthorised(task) {
+			d.refuseUnauthorisedCascade(task)
+			continue
+		}
+
 		var inputAgent *AgentConfig
 		if d.agentRegistry != nil {
 			inputAgent = d.agentRegistry.GetAgentByID(task.AgentID)
@@ -426,6 +440,25 @@ func (d *Daemon) dispatchTasksCloud() error {
 	}
 
 	return nil
+}
+
+// refuseUnauthorisedCascade marks a cascade-shaped task BLOCKED instead of
+// dispatching it (M-CASCADE-ENVELOPE-HYDRATION). The error names the source
+// message id so the forensics trail reaches the task record and the dashboard,
+// not just the coordinator log. No completion notice is posted: no agent ran,
+// and the requester's next signal should come from triage, not from a fake
+// completion of work nobody did.
+func (d *Daemon) refuseUnauthorisedCascade(task *TaskRecord) {
+	reason := fmt.Sprintf(
+		"cascade directive refused at dispatch: Kind %q requires source=cascade with a populated envelope (root_package, to_version); got source=%q root_package=%q to_version=%q (message %s) — recovered without cascade authority; withheld for triage",
+		task.Kind, task.Source, task.RootPackage, task.ToVersion, task.MessageID)
+	d.logger.Printf("Task %s: %s", task.ID, reason)
+	task.Status = TaskStatusBlocked
+	task.Error = reason
+	if err := d.taskStore.UpdateTask(d.ctx, task); err != nil {
+		d.logger.Printf("Task %s: could not record the cascade refusal: %v", task.ID, err)
+		_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+	}
 }
 
 // handleDispatchError settles a task whose cloud dispatch failed. A transient

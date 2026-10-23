@@ -213,6 +213,20 @@ func (d *Daemon) pollAndProcessTasks() error {
 			EstimatedCost: analyzed.EstimatedCost, // M-DEPRECATE-AILANG-AGENT
 			SiteSlug:      siteSlug,               // M-HARNESS-COMMIT-CONTRACT
 			BriefID:       briefID,                // M-HARNESS-COMMIT-CONTRACT
+			// M-CASCADE-ENVELOPE-HYDRATION: parity with the cloud site below —
+			// a fully hydrated Message losing its envelope here re-created the
+			// EMPTY dispatch on the local drain path.
+			RootPackage:       msg.RootPackage,
+			RootChangeClass:   msg.RootChangeClass,
+			FromVersion:       msg.FromVersion,
+			ToVersion:         msg.ToVersion,
+			FromInterfaceHash: msg.FromInterfaceHash,
+			ToInterfaceHash:   msg.ToInterfaceHash,
+			FromContentHash:   msg.FromContentHash,
+			ToContentHash:     msg.ToContentHash,
+			EffectsWidened:    msg.EffectsWidened,
+			PrevEffectCeiling: msg.PrevEffectCeiling,
+			NewEffectCeiling:  msg.NewEffectCeiling,
 		}
 
 		// Check for duplicates
