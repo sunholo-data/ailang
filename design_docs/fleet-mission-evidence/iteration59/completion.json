@@ -1,0 +1,25 @@
+{
+  "completed_at": "2026-10-23T18:59:04Z",
+  "independent_snapshot_score": 84,
+  "score_projection_only": 94,
+  "open_decision_ids": [
+    "D-FLEET-16",
+    "D-FLEET-17",
+    "D-FLEET-18",
+    "D-FLEET-19",
+    "D-FLEET-20",
+    "D-FLEET-21",
+    "D-FLEET-22",
+    "D-FLEET-23",
+    "D-FLEET-24",
+    "D-FLEET-25",
+    "D-FLEET-26",
+    "D-FLEET-27",
+    "D-FLEET-28",
+    "D-FLEET-29"
+  ],
+  "ledger_sha256": "ab7fa9ceede3f087c1424594190c7c4b710ef90daee1eab6954731144b303a29",
+  "source_merge": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+  "root_precondition_passed": true,
+  "source_changes": 0
+}

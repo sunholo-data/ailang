@@ -1,0 +1,1746 @@
+PASS repo_namespace_missions
+PASS repo_namespace_isolation
+PASS invalid_repo_and_home
+PASS invalid_and_explicit_override
+PASS gate2_extracted_active_matrix
+PASS lookup_error_matrix
+PASS extraction_is_nonvacuous
+quorum artifact directory: /private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.ajXUxVqFxF/driver_export_before_both_launches/inherited path
+quorum artifact directory: /private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.ajXUxVqFxF/driver_export_before_both_launches/profile path
+quorum artifact directory: /private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.ajXUxVqFxF/driver_export_before_both_launches/secrets path
+PASS driver_export_before_both_launches
+PASS codex_actual_forwarding
+PASS contaminated_host_startup
+PASS standalone_policy_reader
+PASS bash32_and_suite_reach
+PASS attended_absent_and_errors
+PASS cross_mode_errors_dominate
+agents skills in sync (mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator)
+PASS generated_docs_and_mirror
+PASS fixture_home_and_observations
+codex profile: interactive home refused
+codex profile: CODEX_HOME must be absolute
+codex profile: symlink home refused
+codex profile: missions require the managed daemon
+codex profile: unsupported runtime; no exec fallback
+PASS mission OAuth home, daemon routing, and fail-loud isolation
+LAUNCH COUNT: /Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/.claude/skills/mission-control: 2
+LAUNCH COUNT: /Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/.agents/skills/mission-control: 2
+codex spawn override: 0 failures
+PASS test: distinct
+PASS test: copied_refresh
+PASS test: different_account
+PASS test: different_workspace
+PASS test: api_key_mode
+PASS test: file_permissions
+PASS test: home_permissions
+PASS test: symlink_home
+PASS test: symlink_auth
+PASS test: malformed_json
+PASS test: identity_mismatch
+PASS test: missing_refresh
+PASS test: alias_home
+PASS missions-prepare
+PASS missions-login
+PASS missions-login
+PASS interactive
+PASS missions
+PASS cloud
+PASS account-workspace-subscription-isolation
+PASS cloud-publish
+PASS missions-prepare
+PASS test: attended-provisioning-and-publish-gate
+  PASS: A poisoned variables are removed
+  PASS: B HOME/PATH exact and LC_ALL unset
+  PASS: C exit codes propagate
+  PASS: D arguments and stdin pass through
+  PASS: E direct poisoned control reproduces
+  PASS: E cleaned routing suite passes
+  PASS: F all suite recipe lines use launcher
+==== 7 passed, 0 failed ====
+== 1. happy path: stale clone re-execs into committed origin/dev ==
+  PASS: status is pinned
+  PASS: drift measured as 1
+  PASS: ROOT moved to the pin worktree
+  PASS: reads FRESH content, not stale
+  PASS: stale content is NOT read
+  PASS: args survive the re-exec
+  PASS: age is exactly 0 at the origin/dev tip
+  PASS: baseline SHA is origin/dev's full commit
+  PASS: note carries the pinned-age clause
+  PASS: second consecutive fire pins
+  PASS: and still reads FRESH content
+== 2. control: the clone really was stale (instrument check) ==
+  PASS: opt-out reports disabled
+  PASS: opt-out reads STALE content
+  PASS: opt-out root stays in the clone
+== 3. no recursion: second pass returns without re-exec ==
+  PASS: already-pinned short-circuits
+  PASS: carries drift across the exec
+  PASS: carries age across the exec
+  PASS: carries the age baseline across the exec
+  PASS: missing age carries as ?, never zero
+== 4. fetch failure is STALE + loud, never silent-ok ==
+  PASS: status STALE
+  PASS: reason names the fetch
+  PASS: driver still ran (fail-open)
+  PASS: never reports pinned
+== 5. driver absent FROM THE REF => refuse to exec into nothing ==
+  PASS: guard fires, not bash
+  PASS: status STALE
+  PASS: did NOT exec into nothing
+== 6. non-repo source => STALE, not a crash ==
+  PASS: non-repo is STALE
+  PASS: reason names the repo problem
+== 7. un-onboarded pin target => REFUSE, do not exec into a probe-hang ==
+  PASS: refuses to pin
+  PASS: names the onboarding cause
+  PASS: gives the exact human fix
+  PASS: fire still runs, unpinned
+  PASS: never reports pinned
+== 8. current trust flag satisfies the onboarding gate ==
+  PASS: trust flag alone DOES satisfy
+  PASS: legacy onboarding flag DOES satisfy
+== 8b. SOURCE-clone onboarding satisfies it — the case the first cut got WRONG ==
+  PASS: source onboarding is enough
+  PASS: and it really pinned
+== 8c. SOURCE-clone trust satisfies it — the exact live rig shape ==
+  PASS: fetched gate overrides stale local predicate
+  PASS: and source trust really pinned
+== 8d. NEITHER onboarded => still refuse (the motoko shape) ==
+  PASS: neither path onboarded => STALE
+  PASS: message names BOTH paths
+  PASS: refreshed gate does not delete refusal
+== 8e. schema drift is distinct from ordinary un-onboarded refusal ==
+  PASS: schema drift => STALE
+  PASS: reason names schema drift
+  PASS: reason names legacy key
+  PASS: reason names current key
+  PASS: not ordinary onboarding refusal
+  PASS: not the unreadable diagnosis
+== 8f. an UNREADABLE ~/.claude.json is NOT schema drift — three refusals, three sentences ==
+  PASS: invalid JSON => STALE
+  PASS: names the unreadable cause
+  PASS: not called schema drift
+  PASS: not ordinary onboarding refusal
+  PASS: never reports pinned
+  PASS: non-object .projects => STALE
+  PASS: also names the unreadable cause
+  PASS: also not called schema drift
+  PASS: missing file => STALE
+  PASS: missing file names it unreadable
+== 9. undeterminable (no jq) fails SAFE, not open ==
+  PASS: no jq => STALE, not pinned
+  PASS: says it could not verify
+== 10. repository identity is independent of clone/worktree identity ==
+  PASS: SSH and HTTPS same-origin separate clones
+  PASS: SSH scheme and HTTPS origins are equivalent
+  PASS: repository path case remains significant
+  PASS: inferred same repository workdir
+  PASS: inferred foreign repository workdir
+  PASS: flag 0 overrides OPPOSITE inference
+  PASS: flag 1 overrides OPPOSITE inference
+  PASS: invalid flag '' fails without changing path
+  PASS: invalid flag 'yes' fails without changing path
+  PASS: invalid flag '2' fails without changing path
+  PASS: unknown missing retains caller STALE and path
+  PASS: unknown missing emits reason
+  PASS: unknown absent retains caller STALE and path
+  PASS: unknown absent emits reason
+  PASS: unknown driver origin retains path
+  PASS: indeterminate origin '' fails closed
+  PASS: indeterminate origin 'not-an-origin' fails closed
+  PASS: indeterminate origin 'ssh://git@github.com:2222/team/Repo.git' fails closed
+  PASS: ambiguous multiple origins fail closed
+  PASS: absent incoming workdir defaults to driver source
+  PASS: foreign work repo survives real pinned re-exec
+  PASS: foreign work repo remains selected
+  PASS: foreign charter content remains selected
+  PASS: unknown origin production call stays STALE
+  PASS: unknown origin production path unchanged
+  PASS: unknown origin never exports pinned success
+  PASS: production call is in current shell
+== 11. AC-B: pin to a SHA; origin/dev is exactly 3 ahead ==
+  PASS: lab control: origin/dev is exactly 3 ahead of A
+  PASS: sha pin reports pinned
+  PASS: sha pin has exact line AGE=3
+  PASS: sha pin still has exact line DRIFT=0
+  PASS: sha pin note names age 3 and the baseline SHA
+== 12. AC-C2: real re-exec exports AILANG_DRIVER_AGE=9 to the driver ==
+  PASS: lab control: origin/dev is exactly 9 ahead of A
+  PASS: real exec exports AILANG_DRIVER_AGE=9 to the driver
+  PASS: pinned pass reads back exact line AGE=9
+  PASS: exported baseline equals origin/dev's full commit
+== 13. AC-D: old helper (lacks PIN_AGE) gets a pre-handoff compat warning ==
+  PASS: old-helper pin still reports pinned
+  PASS: pre-handoff compatibility warning fires
+  PASS: no fabricated AGE=0 under an old helper
+  PASS: inherited bogus AGE is not carried into the target
+  PASS: extracted new-consumer age decision logs unknown for unset PIN_AGE
+== 14. AC-N: failed age rev-list / failed baseline resolution stay loud, never zero ==
+  PASS: failed age rev-list yields AGE=?
+  PASS: failed age rev-list fabricates no zero
+  PASS: pin still reports pinned when age fails
+  PASS: drift control still succeeds during age failure
+  PASS: failed baseline resolution keeps AGE and baseline ?
+  PASS: failed baseline resolution keeps AGE and baseline ? (2)
+  PASS: failed baseline resolution is loud on stderr
+== 15. AC-P: origin/dev moves under the fire; age stays anchored to captured baseline B ==
+  PASS: baseline shim fired exactly once
+  PASS: moved origin/dev differs from captured baseline B
+  PASS: reported age is B's count, not the moved ref's
+  PASS: exported baseline SHA equals captured B
+  PASS: note baseline equals captured B
+== 16. AC-Q: origin/feature ref is 26 behind origin/dev; AGE=26 ==
+  PASS: lab control: origin/feature is exactly 26 behind origin/dev
+  PASS: feature-ref pin reports pinned
+  PASS: feature-ref pin has exact line AGE=26
+  PASS: driver sees exported AILANG_DRIVER_REF=origin/feature
+
+==== 117 passed, 0 failed ====
+PASS happy (status=synced:2; merge=1; caller survived)
+PASS current (status=current; merge=0; caller survived)
+PASS not-dev (status=skip:not-dev; merge=0; caller survived)
+PASS ahead (status=skip:ahead; merge=0; caller survived)
+PASS rebase (status=skip:operation-in-progress; merge=0; caller survived)
+PASS merge (status=skip:operation-in-progress; merge=0; caller survived)
+PASS am (status=skip:operation-in-progress; merge=0; caller survived)
+PASS cherry (status=skip:operation-in-progress; merge=0; caller survived)
+PASS revert (status=skip:operation-in-progress; merge=0; caller survived)
+PASS sequencer (status=skip:operation-in-progress; merge=0; caller survived)
+PASS bisect-log (status=skip:operation-in-progress; merge=0; caller survived)
+PASS bisect-start (status=skip:operation-in-progress; merge=0; caller survived)
+PASS modified (status=skip:dirty-range; merge=0; caller survived)
+PASS staged (status=skip:dirty-range; merge=0; caller survived)
+PASS outside (status=synced:2; merge=1; caller survived)
+PASS untracked (status=skip:dirty-range; merge=0; caller survived)
+PASS dirty-source (status=skip:dirty-range; merge=0; caller survived)
+PASS dirty-destination (status=skip:dirty-range; merge=0; caller survived)
+PASS incoming-source (status=skip:dirty-range; merge=0; caller survived)
+PASS incoming-destination (status=skip:dirty-range; merge=0; caller survived)
+PASS whitespace (status=skip:dirty-range; merge=0; caller survived)
+PASS duplicate (status=skip:dirty-range; merge=0; caller survived)
+PASS directory (status=skip:dirty-range; merge=0; caller survived)
+PASS locked (status=skip:index-locked; merge=0; caller survived)
+PASS late-lock (status=skip:index-locked; merge=1; caller survived)
+PASS report (status=synced:2; merge=0; caller survived)
+PASS disabled (status=skip:disabled; merge=0; caller survived)
+PASS absent (status=skip:symlink-absent; merge=0; caller survived)
+PASS symlink (status=synced:2; merge=1; caller survived)
+PASS non-git (status=skip:not-worktree; merge=0; caller survived)
+PASS self (status=skip:self-target; merge=0; caller survived)
+PASS missing-ref (status=error:ref-unavailable; merge=0; caller survived)
+tools/launchd/test_skill_sync.sh: line 268: 36730 Terminated: 15          ( exec "$@" ) > "$out_f" 2>&1
+PASS timeout (status=error:git-timeout; merge=0; caller survived)
+PASS missing-bounded (status=error:bounded-unavailable; merge=0; caller survived)
+PASS changed (status=skip:state-changed; merge=0; caller survived)
+PASS invalid (status=error:invalid-mode; merge=0; caller survived)
+PASS survival (status=skip:disabled; merge=0; caller survived)
+PASS broken (status=skip:symlink-broken; merge=0; caller survived)
+PASS standalone (status=skip:self-target; merge=0; caller survived)
+PASS linked-lock (status=skip:index-locked; merge=0; caller survived)
+PASS late-ref (status=skip:git-refused; merge=1; caller survived)
+PASS driver-disabled (isolated production seam)
+PASS driver-overlap (isolated production seam)
+PASS driver-dry (isolated production seam)
+PASS driver-field (isolated production seam)
+PASS driver-real (isolated production seam)
+PASS driver-missing (isolated production seam)
+All pristine arms passed
+PASS: A
+PASS: B
+PASS: C
+PASS: D
+PASS: E
+PASS: F (amend counted as a commit)
+PASS: H
+PASS: I
+PASS: G (JSON heads and commit counts)
+passed=9 failed=0
+PASS: happy verdict and readiness
+PASS: two staged absolute extensions
+PASS: worktree cwd and fence root
+PASS: explicit policy has caches and narrow git metadata
+PASS: missing dependency refuses launch
+PASS: missing policy refuses launch
+PASS: malformed policy refuses launch
+PASS: disabled policy refuses launch
+PASS: missing readiness defeats dirty tree
+PASS: nonzero pi status survives filter
+PASS: linked worktree commit counts as work
+PASS: temp bootstrap uses test root
+PASS: temp bootstrap failure refuses launch
+passed=13 failed=0
+PASS: fixture quota-429-ollama-session-limit has a message_end line
+PASS: fixture quota-then-success-spliced has a message_end line
+PASS: fixture error-401-openrouter-bogus-key has a message_end line
+PASS: fixture error-423-ollama-rig-lease has a message_end line
+PASS: fixture success-openrouter-probe has a message_end line
+PASS: A verdict provider_quota rc 19
+PASS: A provider_errors == 4
+PASS: A provider_error is the LAST 429 usage-limit text
+PASS: A worktree_changed_files == 0
+PASS: B dirty tree still provider_quota rc 19
+PASS: B worktree_changed_files >= 1
+PASS: C recovered run is empty_worktree rc 10
+PASS: C provider_errors == 1
+PASS: C provider_error still recorded
+PASS: D 401 stays empty_worktree rc 10
+PASS: D provider_errors == 1
+PASS: D provider_error starts 401:
+PASS: E 423 rig lease stays rc 10
+PASS: E provider_errors == 1
+PASS: F success rc 10 (no diff)
+PASS: F fields present and zero
+PASS: F2 preflight launch_failed rc 14 with zeroed fields
+PASS: G ticket weekly-limit text is provider_quota rc 19
+PASS: G provider_error contains weekly usage limit
+PASS: H truncated last line still provider_quota rc 19
+PASS: H provider_errors == 3
+PASS: I unparsed error is rc 10 not quota
+PASS: I provider_errors == 1 and (unparsed provider error)
+PASS: I stderr carries WARNING
+passed=29 failed=0
+TEST 1: happy path -> ok (rc 0)
+  PASS: happy path (rc=0 verdict=ok)
+TEST 2: pi succeeds but changes nothing -> empty_worktree (rc 10)
+  PASS: empty worktree (rc=10 verdict=empty_worktree)
+TEST 3: reasoning-only stream -> reasoning_stall (rc 11)
+  PASS: reasoning stall (rc=11 verdict=reasoning_stall)
+  PASS: message_update filtered (banked=0B) and snapshot bounded (30 line)
+TEST 4: silent stream -> stream_dead (rc 12)
+  PASS: stream dead (rc=12 verdict=stream_dead)
+TEST 4b: silent while a tool call is OPEN -> tool_hang (rc 18), not stream_dead
+  PASS: tool hang (rc=18 verdict=tool_hang)
+  PASS: verdict names the hung command
+TEST 5: progress keeps the clock alive past the stall bound (no false positive)
+  PASS: slow-but-working run survives (rc=0 verdict=ok)
+TEST 5b: pi children run as an unattended mission stage
+  PASS: pi child sees AILANG_MISSION_STAGE=1
+TEST 6: pi runs INSIDE --workdir, not the caller's cwd
+  PASS: pi ran in the worktree (/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.l16pTFalwQ/wt7)
+  PASS: worktree write is seen by the verdict (rc=0 verdict=ok)
+TEST 7: bad arguments -> launch_failed (rc 14)
+  PASS: missing directive rejected
+TEST 8.1: pre-dirty + no-op pi -> empty_worktree (rc 10)
+  PASS: pre-dirty no-op (rc=10 verdict=empty_worktree)
+  PASS: pre-dirty no-op predirty_files (predirty_files=1)
+  PASS: pre-dirty no-op changed_since_start (worktree_changed_since_start=false)
+TEST 8.2: pre-dirty + new untracked file -> ok
+  PASS: pre-dirty new file (rc=0 verdict=ok)
+  PASS: pre-dirty new file changed_since_start (worktree_changed_since_start=true)
+TEST 8.3: pre-dirty + further edit to the already-dirty file -> ok
+  PASS: pre-dirty further edit (rc=0 verdict=ok)
+  PASS: J: arm 1 predirty_files (predirty_files=1)
+  PASS: J: arm 3 predirty_files (predirty_files=1)
+  PASS: J: arm 3 changed_since_start (worktree_changed_since_start=true)
+TEST 8.4: clean + no-op pi (control) -> empty_worktree
+  PASS: clean no-op (rc=10 verdict=empty_worktree)
+  PASS: clean no-op predirty_files (predirty_files=0)
+TEST 8.5: clean + committing pi (control) -> ok via commits
+  PASS: clean commit (rc=0 verdict=ok)
+  PASS: clean commit commits_since_start (commits_since_start=1)
+  PASS: clean commit changed_since_start (worktree_changed_since_start=false)
+TEST 8.6: pre-dirty untracked file edited in place -> ok
+  PASS: untracked edit (rc=0 verdict=ok)
+TEST 8.7: pre-dirty + pi reverts the dirty edit -> ok (decision: the tree did change)
+  PASS: revert of pre-dirty edit (rc=0 verdict=ok)
+  PASS: revert worktree_changed_files (worktree_changed_files=0)
+  PASS: revert predirty_files (predirty_files=1)
+TEST 8.8: unhashable untracked entry + in-place edit of a later untracked file -> ok
+  PASS: unhashable symlink + edit (rc=0 verdict=ok)
+  PASS: unhashable symlink changed_since_start (worktree_changed_since_start=true)
+TEST 8.9: unhashable untracked entry + no-op pi (control) -> empty_worktree
+  PASS: unhashable symlink no-op (rc=10 verdict=empty_worktree)
+  PASS: unhashable symlink no-op changed_since_start (worktree_changed_since_start=false)
+TEST 8.10: nested repo entry + in-place edit of a later untracked file -> ok
+  PASS: nested repo + edit (rc=0 verdict=ok)
+TEST 8.11: nested repo entry + no-op pi (control) -> empty_worktree
+  PASS: nested repo no-op (rc=10 verdict=empty_worktree)
+
+passed=36 failed=0
+ok anchored-signature exits 1
+ok anchored-signature two crash lines
+ok anchored-signature has 09-01 (i)
+ok anchored-signature has 09-02 (ii)
+ok anchored-signature no (iii)
+ok anchored-signature no (iv)
+ok anchored-signature no (v)
+ok rc-extract exits 1
+ok rc-extract T1 rc=143
+ok rc-extract T2 rc=1
+ok rc-extract T1 rc=1 absent
+ok rc-extract T2 rc=143 absent
+ok since-window exits A1 B0
+ok since-window A T1 no
+ok since-window A T2 no
+ok since-window A T3 yes
+ok since-window B all no
+ok since-window crash count 3 both
+ok self-filter exits 1
+ok self-filter one crash line
+ok self-filter carries Ta
+ok self-filter no foreign author
+ok self-filter self=1 token
+ok self-filter other=0 token (self-crash, not comments-crash)
+ok prev-issue run A miss rc=0
+ok prev-issue run A no 107 crash
+ok prev-issue run B hit rc=1
+ok prev-issue run B exactly one line
+ok prev-issue run C (prev != control) hit rc=1
+ok prev-issue run C exactly one 107 line
+ok prev-issue run D unreadable prev rc=2 named floor
+ok no-bodies sentinel absent
+ok no-bodies url present
+ok usage (a) neither
+ok usage (b) both
+ok usage (c) empty issue
+ok usage (d) empty prev-issue
+ok usage (d) empty argv
+ok gh-missing unreachable rc2
+ok gh-timeout timed out rc2
+ok gh-failed rc7 rc2
+ok malformed F4 rc2
+ok truncated F5 rc2
+ok control-required F6 rc2
+ok control-mismatch F7 rc2
+ok control-mismatch table first (2 crash)
+ok signature-source A ok
+ok signature-source B F8 rc2
+ok signature-source B empty argv
+ok signature-source C unchecked
+ok report A rc0 exact
+ok report B rc1 exact
+ok report C watermarks 2/2
+ok report B no forbidden words
+ok snapshot-107 rc0
+ok snapshot-107 four crash lines
+ok snapshot-107 line 12:02
+ok snapshot-107 line 15:21
+ok snapshot-107 line 19:27
+ok snapshot-107 line 02:47
+ok snapshot-107 no 09-03 correction
+ok snapshot-107 issue line
+ok snapshot-107 control ok
+ok snapshot-107 two stub calls
+ok snapshot-107 argv issue-view exact
+ok snapshot-107 argv api-issue exact
+ok snapshot-129 rc0
+ok snapshot-129 issue line
+ok snapshot-129 no 129 crash
+ok watermark-older wm_a ok
+ok watermark-older wm_b ok
+ok watermark-older since
+ok watermark-degraded ABSENT
+ok watermark-degraded since
+ok watermark-unavailable F9 rc2
+ok watermark-unavailable empty argv
+ok watermark-invalid empty
+ok watermark-invalid not-ISO8601
+ok watermark-invalid unreadable
+ok watermark-invalid --since
+ok watermark-strict feb30 prefix rc2
+ok watermark-strict feb30 empty argv
+ok watermark-strict 99-99 rc2
+ok watermark-strict 99-99 empty argv
+ok watermark-strict future rc2
+ok watermark-strict future empty argv
+ok watermark-strict ctl1 ok rc0
+ok watermark-strict ctl1 argv non-empty
+ok watermark-strict ctl2 now-60 ok
+ok watermark-strict ctl2 argv non-empty
+ok watermark-parser-control D7a-ctl rc2
+ok watermark-parser-control empty argv
+ok watermark-parser-control no 'watermark invalid'
+ok driver-literal instrument accepts driver
+ok driver-literal driver prefix == SIG_TEXT
+ok single-literal control classifies
+ok single-literal mutated SIG_TEXT classifies 0
+ok control-auto ailang 852:10
+ok control-auto world 107:4
+ok control-auto unknown repo F6 rc2
+ok control-auto unknown repo empty argv
+ok snapshot-1380 rc1
+ok snapshot-1380 three crash lines
+ok snapshot-1380 line 10-02 02:18
+ok snapshot-1380 line 10-02 21:56
+ok snapshot-1380 line 10-04 04:28
+ok snapshot-1380 issue line
+ok snapshot-1380 control ok
+---
+108 passed, 0 failed
+PASS a canonical allowed aliases rc=0
+PASS b retired routing rc=1
+PASS b original lines and every token
+PASS c ignore prose outside routing rc=0
+PASS d missing entry is instrument failure rc=2
+PASS e last entry in file order rc=0
+PASS e explicit non-last entry rc=1
+PASS e file order over numeric order rc=0
+PASS missing file rc=2
+PASS missing block rc=2
+PASS missing arguments rc=2
+PASS unknown argument rc=2
+PASS missing file value rc=2
+PASS invalid entry rc=2
+PASS missing entry value rc=2
+PASS duplicate file rc=2
+PASS case and punctuation rc=0
+PASS entry boundary without next field rc=0
+PASS inline token at EOF rc=1
+PASS original token case
+PASS w world allowed routing rc=0
+PASS w clean findings
+PASS w world retired routing rc=1
+PASS w original line/token
+PASS s indented retired routing rc=1
+PASS s original line/token
+PASS s sibling-only retired token excluded rc=0
+PASS s clean sibling findings
+PASS v continuation retired routing rc=1
+PASS v original line/token
+PASS p parenthetical heading table routing rc=1
+PASS p original line/token
+PASS f bold-label bullets retained rc=1
+PASS f original line/token
+PASS q allowed model in ticket compound rc=0
+PASS q clean ticket findings
+PASS q retired model in compound rc=1
+PASS q original compound line/token
+PASS q allowed dotted model in compound rc=0
+PASS q clean dotted findings
+PASS q reject gpt-6.1-sol-gpt-5 rc=1
+PASS q original gpt-6.1-sol-gpt-5 line/token
+PASS q reject gpt-6-luna-gpt-5.6-sol rc=1
+PASS q original gpt-6-luna-gpt-5.6-sol line/token
+PASS q reject gpt-6-lunatic rc=1
+PASS q original gpt-6-lunatic line/token
+46 passed, 0 failed
+ok A1 old pickaxe selects creation
+ok A1 attended rc=0 SHA controls
+ok A1 no identity leakage
+ok A1 empty stderr
+ok A2 fleet rc=0 SHA controls
+ok A2 no identity leakage
+ok A2 empty stderr
+ok A3 undetermined:squash-merge rc=0 SHA controls
+ok A3 no identity leakage
+ok A3 empty stderr
+ok A3 undetermined:squash-merge rc=0 SHA controls
+ok A3 no identity leakage
+ok A3 empty stderr
+ok A3 undetermined:squash-merge rc=0 SHA controls
+ok A3 no identity leakage
+ok A3 empty stderr
+ok A3 undetermined:squash-merge rc=0 SHA controls
+ok A3 no identity leakage
+ok A3 empty stderr
+ok A3 undetermined:squash-merge rc=0 SHA controls
+ok A3 no identity leakage
+ok A3 empty stderr
+ok A4 attended rc=0 SHA controls
+ok A4 no identity leakage
+ok A4 empty stderr
+ok A4 attended rc=0 SHA controls
+ok A4 no identity leakage
+ok A4 empty stderr
+ok A14 fleet rc=0 SHA controls
+ok A14 no identity leakage
+ok A14 empty stderr
+ok A5 attended rc=0 SHA controls
+ok A5 no identity leakage
+ok A5 empty stderr
+ok A5 attended rc=0 SHA controls
+ok A5 no identity leakage
+ok A5 empty stderr
+ok A6 never-resolved rc=0 SHA controls
+ok A6 no identity leakage
+ok A6 empty stderr
+ok A7 instrument-failure rc=2 SHA controls
+ok A7 no identity leakage
+ok A7 failure diagnostic
+ok A8 instrument-failure rc=2 SHA controls
+ok A8 no identity leakage
+ok A8 failure diagnostic
+ok A8 instrument-failure rc=2 SHA controls
+ok A8 no identity leakage
+ok A8 failure diagnostic
+ok A8 instrument-failure rc=2 SHA controls
+ok A8 no identity leakage
+ok A8 failure diagnostic
+ok A9 attended rc=0 SHA controls
+ok A9 no identity leakage
+ok A9 empty stderr
+ok A10 never-resolved rc=0 SHA controls
+ok A10 no identity leakage
+ok A10 empty stderr
+ok A10 attended rc=0 SHA controls
+ok A10 no identity leakage
+ok A10 empty stderr
+ok A10 never-resolved rc=0 SHA controls
+ok A10 no identity leakage
+ok A10 empty stderr
+ok A11 fleet rc=0 SHA controls
+ok A11 no identity leakage
+ok A11 empty stderr
+ok A11 instrument-failure rc=2 SHA controls
+ok A11 no identity leakage
+ok A11 failure diagnostic
+ok A11 instrument-failure rc=2 SHA controls
+ok A11 no identity leakage
+ok A11 failure diagnostic
+ok A11 attended rc=0 SHA controls
+ok A11 no identity leakage
+ok A11 empty stderr
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A12 instrument-failure rc=2 SHA controls
+ok A12 no identity leakage
+ok A12 failure diagnostic
+ok A13 attended rc=0 SHA controls
+ok A13 no identity leakage
+ok A13 empty stderr
+ledger provenance: 115 passed, 0 failed
+extracted: notify=      74 pin-decision=     109 pin=      23 pin-drift=      14 pin-age=      11 lane=      30 state-paths=      34 bounded=      33 drain=      62 lines
+== pin notice ==
+  PASS: fires on both channels (ailang)
+  PASS: posts to the bookkeeping issue
+  PASS: titled as UNPINNED
+  PASS: names the tracking issue
+  PASS: positive control: unified medium shows genuine AILANG fire (checkno would FAIL)
+== pin notice: SILENT when healthy (the control) ==
+  PASS: no ailang call
+  PASS: no gh call
+== failed post is LOUD, and never aborts ==
+  PASS: warns on send failure
+  PASS: block still exits 0
+  PASS: retry: attempts recorded across subshells (file counter)
+  PASS: warns on issue failure
+  PASS: block still exits 0
+== unset issue warns rather than silently skipping ==
+  PASS: warns on unset issue
+  PASS: no gh call attempted
+== REGRESSION: lane block still works through the extracted _mc_notify ==
+  PASS: lane fires on ailang
+  PASS: lane does NOT comment on the issue (digest carries it)
+  PASS: lane sets the digest routing note
+  PASS: lane keeps its own title
+  PASS: lane logs its summary
+  PASS: lane SILENT when healthy
+  PASS: no routing note when healthy
+== EPISODE GATING: suppression + recovery reset (#978) ==
+  PASS: lane ep: first fire announces
+  PASS: lane ep: second identical fire suppressed
+  PASS: lane ep: changed reason re-announces
+  PASS: lane ep: heal clears the marker
+  PASS: lane ep: heal announces nothing
+  PASS: lane ep: moving rc (digit strip) does not re-announce
+  PASS: pin ep: first fire announces
+  PASS: pin ep: second identical fire suppressed
+  PASS: pin ep: changed reason re-announces
+  PASS: pin ep: heal clears the marker
+== RC capture: not masked by printf (G2) ==
+  PASS: RC capture: block failure visible, not masked by printf
+  PASS: RC capture: run() itself surfaces a failing block, not printf's status
+== held pin source-clone drift ==
+  PASS: drift-a: first threshold notice reaches both channels with path/count
+  PASS: drift-b: equal state dedupes
+  PASS: drift-c: doubling notifies
+  PASS: drift-d: below threshold is silent and re-arms
+  PASS: drift-e: disabled pin is silent
+  PASS: drift-f: unknown drift is log-only
+  PASS: drift-g: STALE keeps original notice only
+  PASS: drift-h: notice names the source clone, not the pin worktree
+  PASS: drift-i: a non-positive threshold is floored, not obeyed
+  PASS: drift-j: unset PIN_DRIFT is log-only, not a set -u abort
+== age state paths ==
+  PASS: age-paths-v1: v1 resolves mission-control.pin-age
+  PASS: age-paths-v1: age path is distinct from the drift path
+  PASS: age-paths-mission: motoko resolves mission-motoko.pin-age
+  PASS: age-paths-mission: age path is distinct from the drift path
+== age notification arms ==
+  PASS: age-a: first threshold age notice reaches both channels with count
+  PASS: age-a: notice carries pinned ref, target SHA and baseline SHA
+  PASS: age-a: notice carries the executing-old-code wording
+  PASS: age-a: notice carries the not-in-effect and repeat-on-doubling sentences
+  PASS: age-a: age state stores 25
+  PASS: age-b: equal age dedupes, state unchanged, no sends
+  PASS: age-b: dedupe is logged positively with the previous count
+  PASS: age-c: doubling notifies both channels and stores 340
+  PASS: age-c2: one below doubling (339) dedupes
+  PASS: age-d: below threshold re-arms and removes age state
+  PASS: age-d-followup: threshold age emits again after re-arm
+  PASS: age-f: unknown age is log-only and preserves state
+  PASS: age-f2: malformed age is log-only and preserves state
+  PASS: age-i1: zero warn is floored loudly to 25
+  PASS: age-i2: negative warn is floored loudly to 25
+  PASS: age-i3: malformed warn is floored loudly to 25
+  PASS: age-i4: unset warn defaults quietly (no floor log)
+  PASS: age-i5: positive override below 25 stays valid (2 emits at age 3)
+  PASS: age-j: unset PIN_AGE under set -u is log-only, not an abort
+  PASS: age-m1: STALE skips age with no pin-age send, state untouched
+  PASS: age-m2: the original pin-failure notice still works
+  PASS: age-m3: disabled skips age silently with state untouched
+== age-independent (AC-L) ==
+  PASS: age-independent-1: drift 170 + age 30 emits both notices
+  PASS: age-independent-2: age 60 emits age only, drift state stays 170
+  PASS: age-independent-3: drift 340 emits drift only, age state stays 60
+  PASS: age-independent-4: age 3 removes age state only, drift state stays 340
+== age-q: ref binding ==
+  PASS: age-q: notice sends on both channels and names origin/feature, never a hardcoded origin/dev ref
+  PASS: age-q: baseline SHA is printed and age state stores 26
+  PASS: production: hanging direct send is cut off at the bound
+  PASS: production: direct send retries 3x then spools on timeout
+  PASS: synthesised timeout diagnostic
+  PASS: production: hanging drain send is cut off and row retained
+  PASS: drain: whole drain returns within aggregate budget and preserves unattempted rows
+  PASS: drain: deferred-drain diagnostic names deferred row count
+  PASS: drain: a duplicate-title rejection DROPS the row (retry cannot clear it)
+  PASS: drain: the dropped row is reported as recorded, NOT as a failed send
+  PASS: drain: the send title is stamped with the ROW's date, so a retry is idempotent
+  PASS: drain: a NON-duplicate failure is still kept for the next fire
+  PASS: drain: the failure diagnostic shows the TAIL, past the registry banner
+  PASS: production: hanging gh comment is cut off and warns
+  PASS: direct send reaches child with store=gcp
+  PASS: wiring: exactly one preflight drain call
+  PASS: wiring: preflight drain runs BELOW the kill switch (a paused mission sends nothing)
+  PASS: drain: a failed send logs rc and the captured cause
+  PASS: wiring: pi controller spawn closes stdin (< /dev/null)
+  PASS: ration gate: unreadable / stale / over are reported as DIFFERENT states
+  PASS: ration gate: the anthropic lane notice uses the real reason, not a fixed phrase
+  PASS: wiring: pi controller loads controller-bash-cap.ts, and the file exists
+  PASS: wiring: pi retry resumes one session per fire, and only once that session exists
+  PASS: retry: Provider finish_reason: error matches TRANSIENT_SIG
+  PASS: prompt: skill path is resolved to an absolute MC_SKILL_PATH
+== exit-path notices: E0 helper present ==
+  PASS: E0: _mc_exit_notice is defined in the driver
+== exit-path notices: hang arms (E1-E3) ==
+  PASS: E1: refusal path returns inside the bound with both channels hung
+  PASS: E2: late-kill path returns inside the bound with both channels hung
+  PASS: E3: rc-fail path returns inside the bound with both channels hung
+== exit-path notices: normal arms (E4-E6, preservation) ==
+  PASS: E4: refusal sends title + GH body, exits 1, arms the episode marker
+  PASS: E5: late-kill title + GH body, exit 143, rc-fail episode cleared
+  PASS: E6: rc-fail title + F8 GH body, exit 1, episode recorded
+== exit-path notices: store scoping + reason (E7) ==
+  PASS: E7a: refusal send is store-scoped to gcp and its failure reason is logged
+  PASS: E7b: late-kill send is store-scoped to gcp and its failure reason is logged
+  PASS: E7c: rc-fail send is store-scoped to gcp and its failure reason is logged
+== exit-path notices: episode gates (E8) ==
+  PASS: E8a: second identical refusal is silent, logged, exit 1
+  PASS: E8b: second identical rc-fail is silent, logged, exit 1
+== exit-path notices: duplicate title is not a failure (E9) ==
+  PASS: E9: same-day duplicate is logged as already in the inbox, not a WARNING
+== exit-path notices: source guards (G1-G3) ==
+  PASS: G1: every ailang-send / gh-comment is bounded (selected 7, need >=6)
+  PASS: G2: every ailang-send is store-scoped (env AILANG_STORAGE_MESSAGING=gcp)
+  PASS: G3a: F8 literal present exactly once in the driver
+  PASS: G3b: the F8 literal is the GH body of an _mc_exit_notice call
+
+==== 115 passed, 0 failed ====
+  PASS: no .pi/extensions -> no flags (discovery unchanged: world, stapledon)
+  PASS: repo extensions -> discovery off
+  PASS: one -e per .ts
+  PASS: README not loaded
+  PASS: empty dir -> discovery off, nothing named
+  PASS: probe disables discovery
+  PASS: pi controller wired
+  PASS: role runner wired
+  PASS: /Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/.claude/skills/mission-control: probe disables discovery
+  PASS: /Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/.claude/skills/mission-control: raw sandbox snippet wired
+LAUNCH COUNT: /Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/.claude/skills/mission-control: 2 launch lines
+  PASS: /Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/.agents/skills/mission-control: probe disables discovery
+  PASS: /Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/.agents/skills/mission-control: raw sandbox snippet wired
+LAUNCH COUNT: /Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/.agents/skills/mission-control: 2 launch lines
+  PASS: skill launch sweep safety
+  PASS: skill launch count instrument
+==== 14 passed, 0 failed ====
+  PASS: no pull request falls back to local gates
+  PASS: all finished checks green passes
+  PASS: a failed or cancelled check fails, naming it
+  PASS: every check skipped fails (conflicting PR)
+  PASS: still running at the per-call deadline reports pending, not pass
+  PASS: pending then green within one call passes
+  PASS: no checks on a fresh PR is pending
+  PASS: no checks on a PR older than the no-checks window falls back
+  PASS: an unparseable PR age is treated as zero, not a crash
+  PASS: gh failing to list PRs is an error, never 'no pull request'
+  PASS: REST: green check-runs pass
+  PASS: REST: a failed commit status fails, naming it
+  PASS: REST: a running check is pending
+  PASS: REST: a timed-out check fails
+  PASS: REST: no PR for the branch is none
+  PASS: REST: an HTTP error is an error, never 'no pull request'
+
+==== 16 passed, 0 failed ====
+A01 PASS
+A02 PASS
+A03 PASS
+A04 PASS
+A05 PASS
+A06 PASS
+A07 PASS
+WRAPPER logRC=0 lsRC=not-run newBranch=false unpushed=true HEAD=1959e72321d52f5c9716cd461d6c27eb1bf79f65 tracking=542fe37e983d93a0cc077b6f2279a4887a1988fb remote=542fe37e983d93a0cc077b6f2279a4887a1988fb
+A08 PASS
+WRAPPER logRC=128 lsRC=0 newBranch=false unpushed=false HEAD=4795edd94e61928ecd87c2cfc572e365836770e9 tracking=absent remote=ef520cc44b3d4b995ce0e2fab5509d1d22526ea6
+A09 PASS
+A10 PASS
+A11 PASS
+A12 PASS
+A13 PASS
+A14 PASS
+From file:///var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//cloud-branch-sync.DQEjlF/A15/origin
+ * [new branch]      coordinator/task-x -> origin/coordinator/task-x
+A15 PASS
+A16 PASS
+A17 PASS
+A18 PASS
+A19 PASS
+A20 PASS
+A21 PASS
+A22 PASS
+Arms: 22 PASS, 0 FAIL
+== healthy
+  PASS: healthy → READY
+  PASS: exit 0
+  PASS: config row from ailang mission doctor
+  PASS: clone row
+== iteration 17: sonnet judge from a codex controller + dead pi judges
+  PASS: sonnet unreachable from codex controller
+  PASS: pi judge dead with the runner's verdict
+  PASS: evaluator dead
+  PASS: NOT READY
+  PASS: exit 1
+== claude controller: the sonnet judge is reachable
+  PASS: claude controller
+  PASS: sonnet judge ok
+== quota-gated rungs are untested, not dead
+  PASS: gated role is warn
+  PASS: gated role is not dead
+  PASS: gated controller is warn
+  PASS: still READY
+  PASS: a gated rung is never called
+== a broken rung with a working fallback is ok
+  PASS: planner falls to pi
+  PASS: dead rung recorded
+== cache: one probe per distinct rung
+  PASS: codex:sol probed once for controller+designer+planner+executor
+== retry: one no-op finish is noise, two are a lane problem
+  PASS: flaky judge ok after retry
+  PASS: runner called twice
+  PASS: persistent no-op is dead
+== the pi task's worktree carries CLAUDE.md (session-protocol gate)
+  PASS: cone includes CLAUDE.md
+  PASS: task worktrees removed
+== failure modes of the check itself
+  PASS: no print-config → config dead
+  PASS: exit 1
+  PASS: config drift → dead
+== mission-arm.sh: the one arming surface
+  PASS: --check reports NOT READY
+  PASS: --check leaves the pause file
+  PASS: NOT READY refuses to arm
+  PASS: pause file kept on refusal
+  PASS: --force without --reason is refused
+  PASS: forced arm
+  PASS: pause file removed
+  PASS: force reason recorded in the kept note
+  PASS: original pause note kept
+  PASS: READY arms
+  PASS: exit 0
+  PASS: pause file removed on READY
+== one copy of the probes
+  PASS: driver sources lib/lane-probe.sh
+  PASS: driver defines none of the probe/ration functions
+  PASS: driver has print-config
+==== 42 passed, 0 failed ====
+== happy path: add returns at once, wait reports ready, tree is clean
+  PASS: ready
+  PASS: checked out and clean
+== /tmp is refused
+  PASS: /tmp refused
+== timeout: a checkout that outlives the bound is removed, branch included
+  PASS: timeout reported
+  PASS: partial worktree removed
+  PASS: branch removed
+== a tree that is not clean after checkout is rejected
+  PASS: dirty tree rejected
+  PASS: dirty worktree removed
+== wait on an unknown path fails rather than hanging
+  PASS: unknown worktree
+== add killed before owner publication => terminal, never pending forever
+  PASS: owner absent at pause
+  PASS: paused caller is add
+  PASS: live started writer stays pending stdout/rc
+  PASS: writer rendezvous failure stdout/rc
+  PASS: writer exited before final absence checks
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: started consumed
+  PASS: checkout never started
+  PASS: owner absent at pause
+  PASS: paused caller is add
+  PASS: live started writer stays pending stdout/rc
+  PASS: dead started identity stdout/rc
+  PASS: writer exited before final absence checks
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: started consumed
+  PASS: checkout never started
+== add killed before writer registration => terminal
+  PASS: started absent at pause
+  PASS: owner absent before registration
+tools/launchd/test_mission_worktree.sh: line 315: 69037 Killed: 9               ( cd "$R" && exec env PATH="$F/bin:$PATH" /bin/bash "$MW" add "$BRANCH" "$SHA" "$WT" ) > "$F/add.out" 2> "$F/add.err"
+  PASS: no registered writer terminalized stdout/rc
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: no checkout after caller death
+== legacy bare pending without owner => terminal after age bound, no cleanup
+  PASS: young bare pending stdout/rc
+  PASS: aged bare pending stdout/rc
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: unrelated path preserved
+  PASS: unrelated branch preserved
+  PASS: test age override stdout/rc
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: dead started without owner stdout/rc
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: dead started consumed
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+== writer registration/rendezvous failure => terminal
+  PASS: registration failure exits nonzero
+  PASS: register failure terminalized stdout/rc
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: registration failure exits nonzero
+  PASS: rendezvous failure terminalized stdout/rc
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: registration failure exits nonzero
+  PASS: invalid-owner failure terminalized stdout/rc
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: registration failure exits nonzero
+  PASS: terminal status preserved stdout/rc
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+== checkout group changed after identity check => pending without signaling
+  PASS: changed group refuses cleanup stdout/rc
+  PASS: child survives group mismatch
+  PASS: path retained on group mismatch
+  PASS: branch retained on group mismatch
+  PASS: state retained on group mismatch
+  PASS: verified group recovery stdout/rc
+  PASS: partial path removed
+tools/launchd/test_mission_worktree.sh: line 127: 69501 Killed: 9               /bin/bash -c 'n=0; while [ "$n" -lt 200 ]; do sleep .1; n=$((n+1)); done' child-group-token
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+== writer killed mid-checkout => failed:writer_died rc=1 and cleanup
+  PASS: partial checkout exists
+  PASS: branch exists during checkout
+  PASS: writer death stdout/rc
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: owned checkout quiesced
+  PASS: no late hook recreation
+  PASS: path stays removed
+  PASS: branch stays removed
+  PASS: partial checkout exists
+  PASS: branch exists during checkout
+  PASS: writer death stdout/rc
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: owned checkout quiesced
+  PASS: no late hook recreation
+  PASS: path stays removed
+  PASS: branch stays removed
+== caller group TERM after add => ready rc=0
+  PASS: add PATH/rc before caller teardown
+  PASS: writer detached from caller PGID
+  PASS: recorded writer PGID matches
+  launcher: Perl POSIX::setsid
+  PASS: caller teardown stdout/rc
+  PASS: clean complete tree
+  PASS: tree preserved
+  PASS: branch preserved
+  PASS: terminal status consumed
+  PASS: owner consumed
+== live slow writer => pending rc=75 without cleanup
+  PASS: live pending stdout/rc
+  PASS: pending state retained
+  PASS: live path retained
+  PASS: owner still alive
+  PASS: live branch retained
+  PASS: released writer stdout/rc
+  PASS: terminal status consumed
+  PASS: owner consumed
+== completion between pending read and dead check => ready rc=0
+  PASS: completion re-read stdout/rc
+  PASS: race tree preserved
+  PASS: race branch preserved
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: failure re-read stdout/rc
+  PASS: race tree preserved
+  PASS: race branch preserved
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: completion re-read stdout/rc
+  PASS: race tree preserved
+  PASS: race branch preserved
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: failure re-read stdout/rc
+  PASS: race tree preserved
+  PASS: race branch preserved
+  PASS: terminal status consumed
+  PASS: owner consumed
+== reused PID with different birth => writer_died without signaling replacement
+  PASS: identity mismatch stdout/rc
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: replacement sentinel survives
+== same-second PID identity needs launch token
+  PASS: identity mismatch stdout/rc
+  PASS: partial path removed
+  PASS: branch removed
+  PASS: registration pruned
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: replacement sentinel survives
+== missing Perl => detached bash fallback reaches ready
+  PASS: add PATH/rc before caller teardown
+  PASS: writer detached from caller PGID
+  PASS: recorded writer PGID matches
+  launcher: bash set -m
+  PASS: caller teardown stdout/rc
+  PASS: clean complete tree
+  PASS: tree preserved
+  PASS: branch preserved
+  PASS: terminal status consumed
+  PASS: owner consumed
+== add publication => owner recorded before returned PATH
+  PASS: no PATH before owner publication
+  launcher selected on host: Perl POSIX::setsid
+  PASS: metadata repo
+  PASS: metadata branch
+  PASS: metadata PID
+  PASS: metadata token
+  PASS: metadata birth
+  PASS: published live identity
+  PASS: published writer completes stdout/rc
+  PASS: terminal status consumed
+  PASS: owner consumed
+  PASS: startup failure terminalized stdout/rc
+  PASS: terminal status consumed
+  PASS: owner consumed
+==== 194 passed, 0 failed, 0 UNINFORMATIVE UNDER SANDBOX ====
+  PASS: planner remains fail-closed to Opus while Anthropic is available
+  PASS: planner falls back to Codex Sol when Anthropic is unavailable
+  PASS: planner Anthropic fallback is configurable
+  PASS: executor primary is Codex Sol 6.1 (since 2026-09-30)
+  PASS: planner primary is Codex Sol 6.1 (since 2026-09-30)
+  PASS: executor fallback head is a probed pi lane
+  PASS: planner fallback head is a probed pi lane
+  PASS: executor chain is ollama -> openrouter twin
+  PASS: planner chain is ollama -> openrouter twin
+  PASS: pi planner pin reaches its lane, not a silent opus
+  PASS: pi planner still fails closed outside the allowlist
+  PASS: codex planner lane keeps its model (luna)
+  PASS: codex planner lane keeps its model (sol)
+  PASS: driver EXPORTS the planner allowlist (bare assignment never reaches the child)
+  PASS: allowlist export comes AFTER the mission env file is sourced (line 1439 > 81)
+  PASS: docs paths fail closed under the DEFAULT allowlist
+  PASS: docs paths reach the cheap lane under a widened allowlist
+  PASS: widened allowlist still denies compiler paths
+  PASS: traversal cannot escape an allowlisted prefix
+  PASS: allowlist globs are patterns, not repo-cwd pathname expansions
+  PASS: docs mission env profile exists
+  PASS: D-FLEET-1 missing field defaults to the codex pin
+  PASS: D-FLEET-1 missing field defaults to the pi pin
+  PASS: D-FLEET-1 explicit opus-required still wins
+  PASS: D-FLEET-1 invalid field still fails closed
+  PASS: D-FLEET-1 bare pin still fails closed at env-pin
+  PASS: D-FLEET-1 resolver maps the default pin to a recipe
+  PASS: docs planner pin is a vetted non-opus lane (not a bare alias)
+  PASS: docs mission widens the planner allowlist
+  PASS: docs executor chain is flat-rate -> metered twin (same weights)
+  PASS: docs planner chain is flat-rate -> metered twin (same weights)
+  PASS: docs evaluator chain is vendor-disjoint from the executor
+  PASS: docs evaluator never shares an executor-chain vendor
+  PASS: executor fallback is never price-pinned (:floor)
+  PASS: controller ladder excludes opus-4.8
+  PASS: controller ladder uses fable-5-1, not bare fable-5
+  PASS: opus-4.8 stays removed
+  PASS: codex is the evaluator's LAST rung
+  PASS: anthropic lanes get a role pre-flight
+  PASS: anthropic pre-flight has no implicit opus tail
+  PASS: all three provider loops cover all four roles
+  PASS: pinned designer has a codex rung
+  PASS: astra is NOT a controller rung
+  PASS: controller ladder is opus-5-5 -> gpt-6.1-sol (retiered 2026-09-30)
+  PASS: controller fallback starts at pi (sol de-duplicated 2026-09-22)
+  PASS: controller fallback has no metered OpenRouter rung
+  PASS: designer keeps its codex rung (gpt-6.1-sol)
+  PASS: driver has the chain walker
+  PASS: evaluator vendor is distinct from planner/executor
+  PASS: controller fallback carries NO codex rung (it lives in prefs)
+  PASS: decision ledger validates
+  PASS: resolved routing decision is not re-asked
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.Zr7Lek/select.sh: line 71: _mc_canon_id: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.Zr7Lek/select.sh: line 71: _mc_is_demoted: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.Zr7Lek/select.sh: line 75: _mc_ration_refuses: command not found
+_: line 71: _mc_canon_id: command not found
+_: line 71: _mc_is_demoted: command not found
+_: line 75: _mc_ration_refuses: command not found
+_: line 109: _mc_canon_id: command not found
+_: line 109: _mc_is_demoted: command not found
+_: line 113: _mc_ration_refuses: command not found
+  PASS: controller selector traverses Anthropic to Codex
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.Zr7Lek/select.sh: line 71: _mc_canon_id: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.Zr7Lek/select.sh: line 71: _mc_is_demoted: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-routing.Zr7Lek/select.sh: line 75: _mc_ration_refuses: command not found
+  PASS: controller pin is exported to child processes (#696)
+  PASS: R1 provider pin resolves to a recipe
+  PASS: R2 bare alias resolves to an agent-tool
+  PASS: R3 evaluator alias with distinct executor stays an agent-tool
+  PASS: R4 evaluator collision reroutes to the fallback head
+  PASS: R4c alias vs full-id of the same family is a collision
+  PASS: R4b evaluator collision with no fallback fails closed
+  PASS: R5 planner provider lane maps to a recipe
+  PASS: R6 planner opus lane maps to agent-tool opus
+  PASS: R7 unknown role fails closed
+  PASS: R8 no ration signal leaves the recipe alone
+  PASS: R9 over-ration recipe reroutes to the driver's resolved lane
+  PASS: R10 over-ration recipe with an over-ration resolved lane is refused
+  PASS: R11 a local model maps to no bucket and is never gated
+  PASS: R12 planner codex lane over ration reroutes to the resolved planner
+  PASS: R13 resolver, spawn-pin hook and driver agree on every rung's ration bucket
+  PASS: R14 driver exports MISSION_OVER_RATION with the resolved plan
+  PASS: spawn-pin hook suite is wired into make/test.mk
+  PASS: D1 resolved-role exports come AFTER lane degradation (line 2289 > 1921)
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-layer3.CJB5Yz/layer3.sh: line 16: _mc_export_mission_registry: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T//mission-layer3.CJB5Yz/layer3.sh: line 19: _mc_spawn_over_ration: command not found
+  PASS: D2 resolved role plan is exported to child processes
+  PASS: arm12 docs allowlist admits top-level scripts
+  PASS: arm12 pre-widening allowlist still denies top-level scripts
+  PASS: S1 mission-control skill invokes resolver and requires role tokens
+  PASS: S2 fable capability paragraph survives the spawn-pattern edit
+  PASS: S3 designer rotation is opus-5-5 -> sol-6.1 -> glm-5.3 -> kimi-k3 (four vendors)
+  PASS: S3b designer fallback chain follows the rotation (sol-6.1 -> glm-5.3 -> kimi-k3)
+  PASS: S4 designer seed is the Anthropic slot (opus-5-5), not astra
+  PASS: S5 skill passes the designer to design-quorum as --author
+
+  PASS: Gate 4 requires per-role token cost in the routing-evidence row
+  PASS: an unreported lane must be stated, not omitted
+  PASS: controller skill is within the context budget (54321 B <= 60000)
+  PASS: every gate stub points at a resource that exists
+  PASS: all seven gate stubs are present (7)
+  PASS: volatile Current State stays in the last 10% (cacheable prefix preserved)
+  PASS: registry entry docs parses
+  PASS: docs schedule mode is renderable (interval)
+  PASS: docs declares no [roles] block
+  PASS: registry entry fleet parses
+  PASS: fleet schedule mode is renderable (interval)
+  PASS: fleet declares no [roles] block
+  PASS: registry entry motoko parses
+  PASS: motoko schedule mode is renderable (interval)
+  PASS: motoko declares no [roles] block
+  PASS: registry entry stapledon parses
+  PASS: stapledon schedule mode is renderable (interval)
+  PASS: stapledon declares no [roles] block
+  PASS: registry entry triage parses
+  PASS: triage schedule mode is renderable (interval)
+  PASS: triage declares no [roles] block
+  PASS: registry entry v1 parses
+  PASS: v1 schedule mode is renderable (keepalive)
+  PASS: v1 declares no [roles] block
+  PASS: registry entry world parses
+  PASS: world schedule mode is renderable (keepalive)
+  PASS: world declares no [roles] block
+==== 108 passed, 0 failed ====
+  PASS: arm1 deny provider-pin
+  PASS: arm1b allow claude: pin through its own alias
+  PASS: arm1b deny claude: pin through another alias
+  PASS: arm1b deny claude-fable pin through opus
+  PASS: arm2 deny reason byte-identical to arm1 (no silent retry through another alias)
+  PASS: arm3 deny executor-model-missing
+  PASS: arm4 deny generator-equals-judge
+  PASS: arm5 allow alias-pin
+  PASS: arm6 deny role-missing (no prose-based role inference)
+  PASS: arm7 deny role-missing
+  PASS: arm7ctl marker-absent emits NO decision (attended-session status quo), logged as passthrough
+  PASS: armNS not-a-spawn emits NO decision, logged as passthrough
+  PASS: arm8p deny payload-unparsable (malformed JSON), exit 0
+  PASS: arm8e deny payload-unparsable (empty stdin), exit 0
+  PASS: arm8n deny payload-unparsable (bare null literal), exit 0
+  PASS: arm7a allow explore-readonly
+  PASS: arm7b deny role-unknown
+/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/tools/launchd/spawn-pin-hook.sh: line 11: cat: command not found
+/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/tools/launchd/spawn-pin-hook.sh: line 14: dirname: command not found
+/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/tools/launchd/spawn-pin-hook.sh: line 19: date: command not found
+/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery/tools/launchd/spawn-pin-hook.sh: line 19: /var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.mkZiagpxxQ/.ailang/state/mission-test-spawn-hook.log: No such file or directory
+  PASS: arm8j deny jq-missing, exit 0
+  PASS: armL decision log: 2 lines x 7 fields, every field asserted
+  PASS: arm7c settings.json wires coordinator first + spawn-pin hook beside it
+  PASS: fb1 live pin still denies the fallback alias
+  PASS: fb1b a LIVE pin denies even when every earlier chain entry is unavailable
+  PASS: fb2 dead pin but a LIVE earlier chain entry still denies (in order)
+  PASS: fb3 dead pin + over-ration earlier entry allows the next declared alias
+  PASS: fb4 dead pin + dead earlier entry allows the next declared alias
+  PASS: fb5 an UNDECLARED alias is still denied
+  PASS: fb6 a new fire starts clean (other fire's ledger ignored)
+  PASS: fb7 no MISSION_FIRE_ID fails closed
+  PASS: fb8 helper refuses an undeclared lane (rc 2)
+  PASS: fb9 helper refuses empty evidence (rc 2)
+
+==== 30 passed, 0 failed ====
+  PASS: mission-*/sprint-* .agents copies equal .claude
+  PASS: negative control: a drifted copy is detected
+  PASS: no skill description is an unquoted scalar containing ': '
+
+==== 3 passed, 0 failed ====
+hook stdout containment:
+  ok   — enumerated 15 hook script(s)
+  ok   — control: stubbed warmup is genuinely slow (10s) — timing arm is meaningful
+  ok   — control: the hook reached the background-warmup line — timing arm is testing the right code
+  ok   — capturing session_start.sh stdout returned in 1s with a 10s background warmup still running
+  ok   — hook still emits its context banner (2446 bytes)
+hook stdout containment: OK
+PASS codex-first-when-usable -> rc=0 id=codex:gpt-5.6-sol
+PASS flat-rate-rung-when-codex-dry -> rc=0 id=pi:ollama/glm-5.3:cloud
+PASS openrouter-final-rung -> rc=0 id=pi:openrouter/z-ai/glm-5.3
+PASS all-rungs-dry-refuses -> rc=1 id=none
+PASS unsupported-entry-skipped -> rc=0 id=pi:ollama/glm-5.3:cloud
+PASS pi-rung-sets-provider-pi
+PASS all-blocked-no-controller -> rc=1 id=none
+PASS all-blocked-no-controller-zero-probes
+PASS openrouter-blocked-reaches-next -> rc=0 id=pi:ollama/glm-5.3:cloud
+PASS openrouter-blocked-reaches-next-no-probe (probed: ollama/glm-5.3:cloud)
+PASS demoted-rung-skipped -> rc=0 id=pi:ollama/glm-5.3:cloud
+PASS demoted-rung-skipped-no-probe
+PASS no-command-not-found-on-stderr
+PASS hermetic-path
+PASS 402-rewalk-then-complete
+PASS 402-all-rungs-pause
+PASS 402-rewalk-bound
+PASS prior-402-no-poison
+PASS prose-402-not-capacity
+PASS generic-crash-once
+PASS generic-crash-mcpaused-unset
+PASS 429-unchanged
+PASS usage-limit-unchanged
+PASS session-limit-is-capacity
+PASS transient-unchanged
+PASS rc0-old-402-normal
+PASS landed-record-precedence
+PASS watchdog-kill-stays-killed
+controller-capacity: 15 cases passed, fail=0
+ok 1 - valid stamp records label and attempt
+PASS: valid stamp records label and attempt
+ok 2 - MISSION_NAME unset writes no file
+PASS: MISSION_NAME unset writes no file
+ok 3 - v1 and world stamps land in distinct files
+PASS: v1 and world stamps land in distinct files
+ok 4 - sigkill mid-gate-1 leaves last label gate-1
+PASS: sigkill mid-gate-1 leaves last label gate-1
+ok 5 - S-1 driver and helper resolve AILANG_STATE_DIR identically
+PASS: S-1 driver and helper resolve AILANG_STATE_DIR identically
+ok 6 - deleted artifact => HEARTBEAT-MISSING
+PASS: deleted artifact => HEARTBEAT-MISSING
+ok 7 - empty-stamps => DIED-PRE-GATE-0
+PASS: empty-stamps => DIED-PRE-GATE-0
+ok 8 - rc=0 last=gate-5 => REAPED at=gate-5
+PASS: rc=0 last=gate-5 => REAPED at=gate-5
+ok 9 - sigkill mid-gate-1 => REAPED at=gate-1
+PASS: sigkill mid-gate-1 => REAPED at=gate-1
+ok 10 - rc=0 last=abort => ABORTED
+PASS: rc=0 last=abort => ABORTED
+ok 11 - unquoted multi-word abort reason fills complete note column
+PASS: unquoted multi-word abort reason fills complete note column
+ok 12 - rc=0 last=complete => COMPLETED from consolidated state dir
+PASS: rc=0 last=complete => COMPLETED from consolidated state dir
+ok 13 - rc=143 last=gate-3 => KILLED
+PASS: rc=143 last=gate-3 => KILLED
+ok 14 - rc=1 last=gate-2 => CRASHED
+PASS: rc=1 last=gate-2 => CRASHED
+ok 15 - rc=0 empty last label => DIED-PRE-GATE-0
+PASS: rc=0 empty last label => DIED-PRE-GATE-0
+ok 16 - rc=0 last=bogus => UNCLASSIFIED at=bogus
+PASS: rc=0 last=bogus => UNCLASSIFIED at=bogus
+ok 17 - rc=1 last=bogus => CRASHED at=bogus
+PASS: rc=1 last=bogus => CRASHED at=bogus
+ok 18 - rc=143 and rc=137 last=bogus => KILLED at=bogus
+PASS: rc=143 and rc=137 last=bogus => KILLED at=bogus
+ok 19 - paused rc=0 last=bogus => PAUSED-NO-CAPACITY at=bogus
+PASS: paused rc=0 last=bogus => PAUSED-NO-CAPACITY at=bogus
+ok 20 - rc=0 last=gate-3 => REAPED at=gate-3
+PASS: rc=0 last=gate-3 => REAPED at=gate-3
+ok 21 - rc=0 last=gate-bogus => UNCLASSIFIED at=gate-bogus
+PASS: rc=0 last=gate-bogus => UNCLASSIFIED at=gate-bogus
+ok 22 - rc=0 last=gate-3b => REAPED at=gate-3b
+PASS: rc=0 last=gate-3b => REAPED at=gate-3b
+ok 23 - UNCLASSIFIED history verdict stays one whitespace-free token
+PASS: UNCLASSIFIED history verdict stays one whitespace-free token
+ok 24 - 250 appends leave exactly 200 lines
+PASS: 250 appends leave exactly 200 lines
+ok 25 - superseded attempt appends runtime RETRIED history row
+PASS: superseded attempt appends runtime RETRIED history row
+ok 26 - attempt consumers use consolidated state dir
+PASS: attempt consumers use consolidated state dir
+ok 27 - attempt 2 pre-gate-0 => DIED-PRE-GATE-0 attempt=2
+PASS: attempt 2 pre-gate-0 => DIED-PRE-GATE-0 attempt=2
+ok 28 - slot verdict completes before PIDFILE guard release
+PASS: slot verdict completes before PIDFILE guard release
+ok 29 - slot verdict starts after _mc_run_once retry call
+PASS: slot verdict starts after _mc_run_once retry call
+ok 30 - phase-2 notices use _mc_bounded and dedupe verdict episodes
+PASS: phase-2 notices use _mc_bounded and dedupe verdict episodes
+ok 31 - phase-2 notifies DIED-PRE-GATE-0 through _mc_bounded
+PASS: phase-2 notifies DIED-PRE-GATE-0 through _mc_bounded
+ok 32 - phase-2 notifies HEARTBEAT-MISSING through _mc_bounded
+PASS: phase-2 notifies HEARTBEAT-MISSING through _mc_bounded
+ok 33 - phase-2 notifies UNCLASSIFIED once through _mc_bounded
+PASS: phase-2 notifies UNCLASSIFIED once through _mc_bounded
+ok 34 - phase-2 dedupes repeated UNCLASSIFIED verdict
+PASS: phase-2 dedupes repeated UNCLASSIFIED verdict
+ok 35 - phase-2 COMPLETED resets UNCLASSIFIED episode
+PASS: phase-2 COMPLETED resets UNCLASSIFIED episode
+ok 36 - every gate section carries its own stamp instruction (8/8)
+PASS: every gate section carries its own stamp instruction (8/8)
+ok 37 - driver assigns every bare variable its extracted blocks read
+PASS: driver assigns every bare variable its extracted blocks read
+PASS: 37 heartbeat arms ran
+ok - a session under the CPU floor whose transcript GROWS is live
+ok - long child + flat transcript + flat heartbeat + idle CPU is stalled
+ok - a gate heartbeat stamp counts as progress
+ok - CPU above the floor is live even with flat progress
+ok - no descendant past STALL_CHILD_AGE is never stalled
+ok - the first sample seeds the baseline and reports live
+ok - no progress instrument → never killed
+ok - no progress instrument → warns loudly
+ok - _mc_progress_bytes finds the own-session transcript and sees it grow
+ok - _mc_progress_bytes tracks the driver log for a streaming provider
+ok - the heartbeat path is derived from MISSION_NAME when unset
+ok - a child streaming into a file it holds open for write is live
+ok - an open-for-write file that stays flat is still stalled
+ok - pi slug keeps dots (--var-folders-kr-h0wr2sj94vd6ljtmsxv8jkt00000gn-T-mc-stall-84414-work-.pin-v1--)
+ok - a pi controller whose session transcript grows is live
+ok - a pi controller with a flat transcript and nothing else moving is stalled
+ok - a1 wrong-transcript: newer unrelated parent cannot keep own session live
+ok - a2 subagent progress: own parent flat but own subagent grows
+ok - a2b exact sum: parent + own subagent bytes with empty/unset LOG
+ok - a3 other subagent: unrelated session and metadata cannot count
+ok - a4 physical-path slug: exact case session id across project slugs
+ok - a5 unset Claude id: existing LOG cannot arm kill; warns once
+ok - a5 empty Claude id: existing LOG cannot arm kill; warns once
+ok - a6 pi wrong-transcript: newer unrelated file adds no bytes
+ok - a6 unset pi id: only LOG bytes count with existing rc semantics
+ok - a6 empty pi id: only LOG bytes count with existing rc semantics
+ok - a7a fresh attempts: distinct Claude ids and exact session args
+ok - a7b provider re-walk: pi and codex clear Claude id and args
+ok - a7c unavailable generators: empty id/args expand to zero words under set -u
+ok - a7c launch wiring: prepare precedes Claude launch with guarded args
+ok - a7d session log: emitted exactly once per Claude call
+ok - 04:45 positive: measured drill descendant CPU keeps flat signals live
+ok - W1 negative: short failed polls below 10 CPU-s are stalled
+ok - W2 negative: blocked read with zero descendant CPU is stalled
+ok - root-own exclusion: busy controller alone leaves wedge stalled
+ok - root-reaped inclusion: vanished direct child keeps drill live
+ok - unavailable rusage fails open instead of fabricating zero CPU
+ok - unavailable rusage identifies the instrument failure
+ok - vanished non-root rusage row still permits a stalled verdict
+ok - vanished non-root birth time still permits a stalled verdict
+ok - unavailable root birth time still fails open
+ok - PID identity change invalidates the sample pair
+ok - vanished non-root child: reaped CPU keeps drill live
+ok - mutation: disabling rusage turns 04:45 positive red
+ok - mutation: any CPU growth turns W1 negative red
+ok - mutation: dropping reaped CPU turns vanished-child positive red
+ok - mutation: adding root-own CPU turns root-own exclusion red
+ok - mutation: dropping root-reaped CPU turns root-reaped inclusion red
+ok - live rusage sees a reaped busy child after a trivial child
+ok - live extracted snapshot sees reaped descendant CPU grow
+---
+stall watchdog: 50 passed, 0 failed
+ok - both watchdog sites call the helper with 60/30
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/root.sh: line 6: 86854 Terminated: 15          sleep 1
+Terminated: 15
+tools/launchd/test_mission_kill_tree.sh: line 71: 86847 Terminated: 15          sh "$TMP/root.sh" "$TMP"
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/child.sh: line 10: 86996 Killed: 9               sleep 1
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/grand.sh: line 4: 86997 Killed: 9               sleep 1
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/grand.sh: line 4: 86978 Killed: 9               sleep 1
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/child.sh: line 10: 86979 Killed: 9               sleep 1
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/grand.sh: line 4: 86976 Killed: 9               sleep 1
+ok - root and children dead
+ok - TERM-resistant descendants dead after KILL
+ok - grace-born descendant dead
+ok - unrelated sibling alive
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/run_once.sh: line 13: _mc_claude_session_prepare: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/run_once.sh: line 108: 87241 Terminated: 15          claude -p "$PROMPT" ${MC_CLAUDE_SESSION_ARGS[@]+"${MC_CLAUDE_SESSION_ARGS[@]}"} --model "$MODEL" --permission-mode bypassPermissions >> "$LOG" 2>&1
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/run_once.sh: line 120: 87244 Terminated: 15          ( sleep "$STALL_GRACE"; hits=0; while kill -0 "$CONTROLLER_PID" 2> /dev/null; do
+    if _mc_stalled "$CONTROLLER_PID"; then
+        hits=$((hits + 1));
+    else
+        hits=0;
+    fi; if [ "$hits" -ge "$STALL_SAMPLES" ]; then
+        mkdir "$_mc_stall_trigger" 2> /dev/null || exit 0; echo "[$(date '+%F %H:%M:%S')] STALL: $CONTROLLER_PROVIDER $CONTROLLER_PID made NO PROGRESS across $STALL_SAMPLES samples ($((STALL_SAMPLES * STALL_INTERVAL))s) with a descendant alive ≥${STALL_CHILD_AGE}s — killing early [${_MC_STALL_WHY:-unknown}]" >> "$LOG"; _mc_kill_tree "$CONTROLLER_PID" 30; break;
+    fi; sleep "$STALL_INTERVAL";
+done )
+ok - triggered watchdog finishes reap before return
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/run_once.sh: line 13: _mc_claude_session_prepare: command not found
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/run_once.sh: line 1: 87433 Terminated: 15          ( sleep "$HARD_TIMEOUT"; if kill -0 "$CONTROLLER_PID" 2> /dev/null; then
+    mkdir "$_mc_hard_trigger" 2> /dev/null || exit 0; echo "[$(date '+%F %H:%M:%S')] HARD TIMEOUT ${HARD_TIMEOUT}s — killing $CONTROLLER_PID" >> "$LOG"; _mc_kill_tree "$CONTROLLER_PID" 60;
+fi )
+/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.7Q5inbjkTX/run_once.sh: line 1: 87435 Terminated: 15          ( sleep "$STALL_GRACE"; hits=0; while kill -0 "$CONTROLLER_PID" 2> /dev/null; do
+    if _mc_stalled "$CONTROLLER_PID"; then
+        hits=$((hits + 1));
+    else
+        hits=0;
+    fi; if [ "$hits" -ge "$STALL_SAMPLES" ]; then
+        mkdir "$_mc_stall_trigger" 2> /dev/null || exit 0; echo "[$(date '+%F %H:%M:%S')] STALL: $CONTROLLER_PROVIDER $CONTROLLER_PID made NO PROGRESS across $STALL_SAMPLES samples ($((STALL_SAMPLES * STALL_INTERVAL))s) with a descendant alive ≥${STALL_CHILD_AGE}s — killing early [${_MC_STALL_WHY:-unknown}]" >> "$LOG"; _mc_kill_tree "$CONTROLLER_PID" 30; break;
+    fi; sleep "$STALL_INTERVAL";
+done )
+ok - normal completion cancels watchdogs promptly
+kill tree fixtures: root=1 child=2 grandchild=2 late=1 sibling=1; 7 passed, 0 failed
+tools/launchd/test_mission_kill_tree.sh: line 18: 86848 Killed: 9               sh "$TMP/sibling.sh" "$TMP"
+ok - uptime parses sec, not usec
+ok - uptime inside the boot window
+ok - large usec does not leak into the answer
+ok - missing kern.boottime must rc=1
+ok - v1 is not delayed
+ok - world offset
+ok - docs offset
+ok - motoko offset
+ok - unknown mission does not borrow a slot
+ok - empty mission name is safe
+ok - every mission has a distinct offset
+ok - offset spacing (420s) clears the startup preamble
+ok - healthy snapshot
+ok - OOM-event snapshot
+ok - available is not free alone (7974MB vs 62MB free)
+ok - unreadable vm_stat must rc=1
+ok - garbage vm_stat must rc=1
+ok - healthy box starts an iteration
+ok - OOM-event box must be refused
+ok - deep-paging box must be refused on the compressor arm
+ok - avail exactly at the floor passes
+ok - one MB under the floor must refuse
+ok - compressor exactly at the ceiling passes
+ok - one MB over the ceiling must refuse
+
+ok - driver puts /usr/sbin on PATH so sysctl (and the boot stagger) resolve
+PASS=25 FAIL=0
+PASS binary iteration: foreign project, one call, no legacy probes/retry, waiting code, kill switch
+PASS mission registry env: export arm, missing-root refusal, both branches wired, ordering
+harness live (a kick is observable)
+arm 1: healthy launchd — a counter that moves is NEVER kicked
+  ok — 5 healthy intervals, 0 kicks
+arm 2: wedged launchd — a frozen counter past its interval IS kicked
+  ok — counter stuck at 5 past its interval — kicked once
+arm 3: first sight is never kicked
+  ok — no state file — recorded, not kicked
+arm 4: a RUNNING job is never kicked, however old its counter
+  ok — running job left alone
+arm 5: a job with no run interval is skipped, not guessed at
+  ok — no interval — skipped
+arm 6: an unknown label is skipped without error
+  ok — absent job — exit 0, no kick
+arm 7: a failed kick retries on the job's cadence, not every minute
+  ok — 1 attempt, then backs off for a full interval
+arm 8: mission labels come from the registry
+  ok — v1, fleet and stapledon labels derived correctly
+arm 9: unreadable registry falls back and logs once
+  ok — fallback includes all missions; one log across 3 runs
+arm 10: absent Aqua domain reports and notifies once
+  ok — one outage report, one notification, no labels or kicks
+arm 11: restoration resets overdue clocks
+  ok — restored once, first pass observed without kicking
+arm 12: healthy domain has no session alert
+  ok — healthy domain stays quiet
+arm 13: failed or hung notifier is fail-soft and bounded
+  ok — send failure and timeout keep kicker at rc 0
+
+PASS — all arms
+ok 1 - snap-format prints 40-hex-sha<TAB>ISO8601-UTC and exits 0
+PASS: snap-format prints 40-hex-sha<TAB>ISO8601-UTC and exits 0
+ok 2 - record-last-roundtrip appends one base-gate1 row and last returns the SHA
+PASS: record-last-roundtrip appends one base-gate1 row and last returns the SHA
+ok 3 - heartbeat-untouched leaves mission-test-heartbeat absent
+PASS: heartbeat-untouched leaves mission-test-heartbeat absent
+ok 4 - nonvacuity-drift-fires exits 1 and prints DRIFT A -> B
+PASS: nonvacuity-drift-fires exits 1 and prints DRIFT A -> B
+ok 5 - steady-control exits 0 with base gate1 steady
+PASS: steady-control exits 0 with base gate1 steady
+ok 6 - no-record-absent-file exits 2 with no base-gate1 record yet
+PASS: no-record-absent-file exits 2 with no base-gate1 record yet
+ok 7 - no-record-missing-label exits 2 with no base-gate1 record yet (never false DRIFT)
+PASS: no-record-missing-label exits 2 with no base-gate1 record yet (never false DRIFT)
+ok 8 - positive grep control: last returns a known-matching record
+PASS: positive grep control: last returns a known-matching record
+ok 9 - derived-main-record snaps and records origin/main's SHA and last returns it
+PASS: derived-main-record snaps and records origin/main's SHA and last returns it
+ok 10 - override-beats-origin-head records the override ref's SHA, not origin/HEAD's
+PASS: override-beats-origin-head records the override ref's SHA, not origin/HEAD's
+ok 11 - no-origin-head-fails-loudly exits 1 naming MISSION_BASE_REF and set-head, writes no state
+PASS: no-origin-head-fails-loudly exits 1 naming MISSION_BASE_REF and set-head, writes no state
+ok 12 - drift-uses-derived-ref exits 1 with DRIFT base gate1 and the new origin/main SHA
+PASS: drift-uses-derived-ref exits 1 with DRIFT base gate1 and the new origin/main SHA
+ok 13 - last-needs-no-ref exits 0 and prints the row's SHA with no origin/HEAD
+PASS: last-needs-no-ref exits 0 and prints the row's SHA with no origin/HEAD
+PASS: 13 mission-base arms ran
+PASS Codex admission: blocked probe spends zero; planner and executor fall back; usable positive control calls provider
+PASS reset credits in reserve are lifted into the notice, and absent when none are held
+PASS opus-before-pi + executor rung 2: haiku-5-5 takes a dry executor, opus the planner; Anthropic dry walks pi; rung and knob off unchanged
+PASS log() is defined before its first caller
+PASS scope verdicts: product loops refused on harness paths (incl. the fleet charter), fleet held to its allowlist, attended unaffected
+PASS end-to-end: env-only core.hooksPath runs the guard; v1 refused, fleet and attended pass, control unguarded
+PASS driver wires the scope guard
+  PASS: call-site markers found in the real driver
+  PASS: argv-carries-mission-vars
+  PASS: -c pairs sit between exec and the prompt positional
+  PASS: argv-scope-guard-forwarded (renumbered to index 0)
+  PASS: other GIT_CONFIG entries (credential-bearing) stay behind
+  PASS: secret-names-denied: no secret name or value in argv
+  PASS: summary lists denied MISSION_* names
+  PASS: summary is names-only
+  PASS: empty-env-set-u-safe (stub invoked, rc 0)
+  PASS: toml-encode-unit
+  PASS: control-char var lands under skipped=
+  PASS: include_only tripwire warns
+  PASS: roundtrip-codex-e2e: hostile value byte-exact through codex
+  PASS: forwarded names visible inside the sandbox env
+  PASS: resolver-e2e: with forwarding -> recipe claude:claude-opus-5-5
+  PASS: resolver-e2e: without forwarding -> fail-closed (the ticket's symptom)
+  PASS: mutation-drop-forwarding: helper mutant goes red
+  PASS: mutation-drop-forwarding: call-site mutant goes red
+==== passed=18 failed=0 skipped=0 ====
+PASS fleet idle pre-check: 0 → idle exit, N → proceeds, unreadable → loud yield, other missions skip
+PASS placement: after the kill switch, before the drain and every probe; boot offset set
+PASS triage idle pre-check: unchanged → idle exit, changed/unrecorded → proceeds, unreadable → loud yield, other missions skip
+PASS placement: after the kill switch, before the drain and every probe; boot offset set; reader/writer share one path
+PASS helper: sorted, bookkeeping thread excluded, PR head / card / issue update each move the hash
+PASS helper: failed or unparseable reads exit non-zero and print no fingerprint
+PASS helper: --record writes exactly what it prints, and never on a failed read
+PASS behind clean workdir is fetched and fast-forwarded
+PASS current workdir is left alone
+PASS workdir with local commits is never moved
+PASS a failed fetch is reported and changes nothing
+PASS driver gates the sync on MISSION_WORKDIR_SYNC and triage opts in
+PASS prompt: v1/docs/fleet/world/motoko/stapledon byte-identical to the pre-split golden
+PASS prompt: triage gets verifiers + different-vendor judge, keeps generator!=judge, no inner-loop roles
+PASS Ollama cloud admission spends zero; local Ollama and OpenRouter remain reachable; role loop uses shared gate
+PASS actual planner/executor fallbacks and quota-command outage admission
+PASS controller pins and deferred one-shot override respect admission
+PASS Anthropic admission spends zero when over ration, and still probes when not
+PASS role loop yields Anthropic lanes to their chains and reports the ration as the cause
+PASS an UNREADABLE Anthropic quota PROBES the lane (2 call(s)) instead of refusing it
+PASS controller selection probes an UNREADABLE Anthropic quota and still refuses an OVER one
+PASS spawn export drops an UNREADABLE Anthropic bucket, keeps an OVER one, and the resolver emits the recipe
+PASS kill switch (line 1675) precedes the role probes (line 1988)
+PASS: brain_on_prompt.sh — 873 bytes normally, 0 inside a mission stage or a coordinator task
+PASS: session_start.sh — 3417 bytes normally, 0 inside a mission stage or a coordinator task
+PASS: CLAUDE.md exempts unattended runs from its inbox rule
+PASS: AGENTS.md exempts unattended runs from its inbox rule
+  PASS docs-only change skips gate
+  PASS std/ change needs gate
+  PASS internal/types change needs gate
+  PASS unrelated Go change skips gate
+  PASS golden change needs gate
+  PASS gate script change needs gate
+  PASS range spanning a std/ commit needs gate
+  PASS unknown base with no origin/dev fails closed
+  PASS push to a non-dev branch passes
+  PASS deleting dev passes
+  PASS docs-only push to dev passes
+  PASS std/ push to dev with unbuildable tree is refused
+  PASS refusal names the fix
+  PASS gate worktree cleaned up
+  PASS design doc skips ci-quick
+  PASS state file skips ci-quick
+  PASS docs-only change skips ci-quick
+  PASS std/ .ail change alone skips ci-quick
+  PASS Go change needs ci-quick
+  PASS examples change needs ci-quick
+  PASS changelog change needs ci-quick
+  PASS cli reference change needs ci-quick
+  PASS unknown base with no origin/dev fails closed (ci-quick)
+  PASS Go push to dev with unbuildable tree is refused
+  PASS ci-quick refusal names make ci-quick
+  PASS ci-quick refusal does not blame the stdlib
+  PASS ci-quick gate worktree cleaned up
+  PASS design-doc push to dev passes
+pre-push: 28 passed, 0 failed
+git health:
+  ok   — healthy: silent, exit 0
+  ok   — first session: sweep launched in background
+  ok   — within 6h: sweep not relaunched
+  ok   — main checkout mid-rebase: reported from a worktree session
+  ok   — this worktree mid-merge: reported
+  ok   — diverged dev: reported with counts
+  ok   — mission stage: silent
+  ok   — coordinator task: silent
+  ok   — AILANG_WORKTREE_SWEEP=0: no sweep
+  ---- 9 passed, 0 failed
+worktree sweep:
+branch 'old-landed' set up to track 'origin/dev'.
+  ok   — dry run removes nothing
+  ok   — dry run: landed detached -> REMOVE
+  ok   — lsof failure: exit 2, nothing removed
+  ok   — landed + idle + clean -> removed
+  ok   — unpushed commit -> kept
+  ok   — squash-merged PR at HEAD -> removed, branch deleted
+  ok   — untracked file -> kept
+  ok   — process inside -> kept
+  ok   — protected mission pin -> kept
+  ok   — created just now -> kept
+  ok   — user lock -> kept
+  ok   — stale agent lock -> removed
+  ok   — landed local branch without worktree -> deleted
+  ok   — unlanded branch and dev never deleted
+  ok   — every removal logged with its sha
+  ---- 15 passed, 0 failed
+ok (needs global workspace-trust.ts): pi:openrouter/minimax/minimax-m3
+ok (no precondition): claude:claude-sonnet-4-6
+ok (no precondition): opus
+ok: tail 'opus' needs no machine precondition
+ok: primary sonnet
+PASS evaluator chain keeps a precondition-free skill-capable lane
+# bound derivation: r=693/s r_real=557/s p_obs=1.24 reference=400/s scale=1 arm_cap=120s node_ceiling=11088 floor=enforced
+ok 1 - classification partitions loopback, OpenRouter, and other peers
+ok 2 - positive treatment requires the synthetic localhost:11434 peer
+ok 3 - negative/control arm detects a peer in OR_IPS
+ok 4 - anti-vacuity rejects an empty peer set
+ok 5 - treatment rejects missing localhost connection
+ok 6 - treatment rejects an OpenRouter peer
+ok 7 - control must demonstrate OpenRouter visibility
+ok 8 - treatment rejects an OpenRouter peer reached over IPv6
+ok 9 - live usage rejects wrong arity
+ok 10 - classify usage rejects wrong arity
+ok 11 - nonempty usage rejects wrong arity
+ok 12 - treatment usage rejects wrong arity
+ok 13 - control usage rejects wrong arity
+ok 14 - timeout rejects non-positive values
+ok 15 - timeout rejects non-integer values
+ok 16 - platform gate rejects non-darwin arm64
+ok 17 - dependency gate rejects missing dig
+ok 18 - dependency gate rejects missing lsof
+ok 19 - dependency gate rejects missing pgrep
+ok 20 - dependency gate rejects missing jq
+ok 21 - dependency gate rejects missing ailang-stub
+ok 22 - empty dig result refuses the live verdict
+ok 23 - temporary-directory creation failure refuses
+ok 24 - empty pid scope fails loudly instead of widening lsof
+ok 25 - descendant discovery deadline refuses at the caller
+ok 26 - lane sampling deadline refuses
+ok 27 - bounded termination deadline refuses
+ok 28 - hermetic live success path completes
+ok 29 - success path retains both lanes driver logs and lsof captures
+ok 30 - refusing live path refuses with the control-void message
+ok 31 - refusal path retains both lanes driver logs and lsof captures
+ok 32 - JSON artifact write failure refuses
+UNINFORMATIVE UNDER SANDBOX: loopback socket sampling yielded no peer; fixture arm remains authoritative
+ok 33 - descendant discovery refuses on the real wall-clock deadline
+# discovery walk marker_count=2 node_ceiling=11088
+ok 34 - arm cap terminates a hung command and reports it
+ok 35 - arm cap kills a wrapper grandchild
+# run_lane evidence ready=yes wrapper_pid=97292 child_pid=97297 cwd=/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/test-motoko-connection-probe.Uwjrwj/run-lane-fixture-2861 pre_timeout_child_live=yes timeout=yes outer_cap_fired=no outer_cap_rc=0 survivors=0 cleanup=0 probe_rc=1 markers=yes real_lsof=/usr/sbin/lsof
+ok 36 - production run_lane timeout kills wrapper grandchild
+ok 37 - arm cap reports a hung arm by name with its captured output
+ok 38 - arm cap override rejects invalid values
+ok 39 - tree node ceiling rejects invalid values
+ok 40 - tree discovery deadline rejects invalid values
+ok 41 - descendant discovery refuses on the node-count ceiling
+ok 42 - descendant discovery stub refusal carries its own message
+# run_lane evidence ready=yes wrapper_pid=97634 child_pid=97639 cwd=/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/test-motoko-connection-probe.Uwjrwj/run-lane-fixture-2863 pre_timeout_child_live=yes timeout=yes outer_cap_fired=no outer_cap_rc=0 survivors=0 cleanup=0 probe_rc=1 markers=yes real_lsof=/usr/sbin/lsof
+ok 43 - production run_lane SIGKILL escalation kills a TERM-immune wrapper grandchild
+ok 44 - REAL_LSOF containment refuses an ambient lsof ahead of getconf PATH
+ok 45 - REAL_LSOF containment accepts a leading directory without an lsof
+ok 46 - bound derivation responds to a slowed stimulus
+ok 47 - bound derivation rejects a nonnumeric fork rate
+ok 48 - bound derivation rejects a zero fork rate
+ok 49 - bound derivation rejects an empty fork rate
+ok 50 - bound floor disabled is loud, not silent
+ok 51 - bound floor enforced refuses under the floor and accepts its boundary
+ok 52 - bound floor flag rejects values other than zero or one
+ok 53 - observed proxy spread refuses above 4.70 and accepts below it
+ok 54 - bound drift classifier is loud only when the end rate needs a higher scale
+# measurement failure evidence mode=exit1 rc=72 refusal_count=1 derived_count=0
+ok 55 - bound measurement refuses a stimulus that exits nonzero
+# measurement failure evidence mode=nonexec rc=71 refusal_count=1 derived_count=0
+ok 56 - bound measurement refuses a non-executable stimulus
+# measurement failure evidence mode=timer rc=73 refusal_count=1 derived_count=0
+ok 57 - bound measurement refuses an unsuccessfully terminated timer
+ok 58 - refusal-branch count still matches the set this suite covers (28)
+ok 59 - wall-clock literal census preserves fixed timeout/node pins and scaled capacity bounds
+# bound drift: end-of-suite fork rate 708/s scale_end=1 scale_used=1 drift=none
+PASS: 59 probe self-test arms ran
+launchd drivers: tests + bash 3.2 syntax OK

@@ -1,19 +1,19 @@
-# Fleet mission — iteration 58, 2026-10-22 (UTC start)
+# Fleet mission — iteration59 recovery, 2026-10-23
 
-- Latest release: v0.54.17 (published 2026-10-22). Work is unreleased on dev.
-- LANDED: #1935 → `2debbb027` — `routing-models-check:bold-colon-heading`; old #1927 superseded and closed.
-- Independent judge: MiniMax M3, PASS 93/100, no blockers. All four Agent roles spawned through pinned provider recipes.
-- Exact candidate PR CI and exact merge CI green; 46/46 focused assertions, full launchd suite, healthy/degraded dry-runs pass.
-- Corpus: 116 entries / 7 log snapshots, no clean result regressed; original review and corrections in `fleet-mission-evidence/iteration58/`.
-- Ticket resolved in about 34h; 44 open. Only this ticket taken this iteration.
-- NEXT banked: #1929 stall watchdog; then #1932 zsh-safe quorum/pi helper. Refresh each base and review/CI before landing.
-- Then reality-check `quorum:oc-glm-5-3-output-cap-invalid` (likely outside authority).
-- Dev's inherited pricing red was repaired upstream; D-FLEET-17 ledger remains OPEN pending Mark, not a controller ruling.
-- Parked decisions: D-FLEET-16 through -29 (14 OPEN, unchanged; 29 ledger rows). No new human ask.
-- Nine unrelated remote approvals untouched. No shared binary/config installed; no live mission reloaded.
-- Cadence: every 6h when tickets exist. Live thread #1891. No new directives or watermark advance.
-- Routing: controller/designer/planner/executor Codex Sol; independent evaluator OpenRouter MiniMax M3.
-- Quota: recorded Codex role probes+runs 265,178 tokens; controller/carriers/interrupted attempt unreported. Later probes refused rc75 daily ration.
-- Recorded metered judge+probe $0.18019188; small driver probes not individually itemized.
-- Bar: clause1 UNMEASURED, goal unmoved; clause2 UNMET, fresh <48h closure improves it; clause3 MET; clause4 prior evidence; clause5 preserved.
-- Fleet share: last20 19/20 HARNESS, expected by fleet remit; not a product-share measurement.
+- Latest release: v0.54.18; watchdog fix is included.
+- LANDED source: PR1937 → `6c16b4ce8`; prior PR1929 superseded and CLOSED.
+- Independent MiniMax: CODE_ACCEPT84 at pre-completion snapshot; final RECOVERY_ACCEPT94/100 after applied conditions.
+- All four Agent roles ran provider-pinned recipes; no controller self-judgment.
+- Current outside-sandbox stall50/0; full launchd suite rc0; healthy/degraded dry-runs and exact-head/exact-merge CI green.
+- Recovered original fire's post-merge capacity stop; original reports immutable, corrections separate.
+- Ticket resolved with reply to world;44→43 open, about43.60h turnaround (<48h).
+- Completed sprint metadata at actual2026-10-23T18:59:04Z; historical effort/start unmeasured.
+- NEXT: banked PR1932 zsh-safe quorum/pi helper; refresh, judge, CI, done-gate before resolving.
+- Then reality-check existing oc-glm output-cap ticket; policy/outside-authority work parks.
+-29 decision rows;14 OPEN unchanged, no new operator ask. Nine unrelated approvals untouched.
+- Cadence6h when tickets exist; thread1891; no new directive/watermark advance.
+- Recorded original+recovery metered$1.63233558; recovery Codex quota417,035 tokens, controller/carriers unreported.
+- No shared binary/config installed, source edited, or mission reloaded during recovery.
+- Bar: clause1 UNMEASURED, goal unmoved; clause2 UNMET overall, qualifying <48h closure; clause3 MET; clause4 prior evidence; clause5 preserved.
+- Fleet newest20:19/20 HARNESS (40 ADMIN); not a product-loop14-day share measurement.
+- Evidence: `fleet-mission-evidence/iteration59/`; original and fresh reviews/confirmation retained.
