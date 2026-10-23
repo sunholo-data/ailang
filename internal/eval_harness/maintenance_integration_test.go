@@ -2,6 +2,8 @@ package eval_harness
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -102,13 +104,22 @@ func TestMaintenanceRetainedNativeEightByThree(t *testing.T) {
 				return nil, err
 			}
 		}
-		return &executor.Result{Success: true, FinishReason: executor.FinishStop}, nil
+		// SYNTHETIC typed parser evidence exercises export/joins. These are not
+		// measured provider tokens, prices or model outcomes.
+		rawUsage, _ := json.Marshal(map[string]string{"role": "SYNTHETIC_INSTRUMENT_CONTROL", "attempt": task.ID})
+		sum := sha256.Sum256(rawUsage)
+		eventHash := hex.EncodeToString(sum[:])
+		provider, model, request := "SCRIPTED-CONTROL", e.Plan.Model, task.ID+"/synthetic-request"
+		input, output, zero := 1, 1, 0
+		evidence := &executor.UsageEvidence{Source: "SCRIPTED-INSTRUMENT", Version: "synthetic/1", StreamDigest: eventHash, Settled: true, CoverageComplete: false, UnavailableReasons: []string{"synthetic control; actual provider coverage unmeasured"}, Observations: []executor.UsageObservation{{ImportID: "synthetic-leaf", EventDigest: eventHash, RequestID: &request, Provider: &provider, Model: &model, Input: &input, Output: &output, CacheRead: &zero, CacheWrite: &zero, Reasoning: &zero, Contract: "exclusive/1", OutputScheme: "combined", CostBasis: "unknown", RawUsage: rawUsage}}}
+		return &executor.Result{Success: true, FinishReason: executor.FinishStop, ExecutorVersion: e.Plan.Harness, UsageEvidence: evidence}, nil
 	}
 	builder := func(tr MaintenanceTrajectoryPlan, stage MaintenanceStagePlan, workspace, request string) (*executor.Task, error) {
 		return &executor.Task{Workspace: workspace, Directive: request, Model: e.Plan.Model, Timeout: time.Second, Metadata: map[string]string{"family": tr.Family, "language": tr.Language, "stage": stage.ID, "trajectory": tr.ID}}, nil
 	}
+	collector := NewMaintenanceUsageCollector(e)
 	runRoot := filepath.Join(controller, "stages")
-	report, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{Execution: e, Root: runRoot, Executor: scripted, BuildTask: builder, Grade: grader, BeforeDispatch: maintenanceAdmission})
+	report, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{Execution: e, Root: runRoot, Executor: scripted, BuildTask: builder, Grade: grader, BeforeDispatch: maintenanceAdmission, DevelopmentInstrument: true, CollectAttempt: collector.CollectAttempt})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,8 +148,29 @@ func TestMaintenanceRetainedNativeEightByThree(t *testing.T) {
 		t.Fatalf("artifact/semantic failures conflated: %+v %+v", broken, regression)
 	}
 	usage := filepath.Join(controller, "usage.json")
-	if err = os.WriteFile(usage, []byte(`{"schema":"maintenance.usage/2","receipts":[]}`), 0600); err != nil {
+	if err = collector.WriteNew(usage); err != nil {
 		t.Fatal(err)
+	}
+	leaves, summaries := 0, 0
+	for _, receipt := range collector.Bundle().Receipts {
+		if receipt.Identity.Source != "SCRIPTED-INSTRUMENT" {
+			t.Fatalf("synthetic usage lost source role: %+v", receipt)
+		}
+		if receipt.Role == "leaf" {
+			leaves++
+			if receipt.Identity.Provider == nil || *receipt.Identity.Provider != "SCRIPTED-CONTROL" {
+				t.Fatal("synthetic usage relabelled as provider measurement")
+			}
+		}
+		if receipt.Role == "summary" {
+			summaries++
+			if receipt.ChildrenComplete {
+				t.Fatal("unmeasured provider coverage became complete")
+			}
+		}
+	}
+	if leaves != 24 || summaries != 24 {
+		t.Fatalf("attempt usage lost: %d leaves %d summaries", leaves, summaries)
 	}
 	output := filepath.Join(controller, "native-analysis.json")
 	_, err = RunMaintenanceNativeAnalysis(context.Background(), MaintenanceAnalysisInput{Binary: "ailang", PackageRoot: packageRoot, PlanPath: e.Manifest.Plan.Path, RunsPath: filepath.Join(runRoot, "runs.json"), UsagePath: usage, OutputPath: output})
