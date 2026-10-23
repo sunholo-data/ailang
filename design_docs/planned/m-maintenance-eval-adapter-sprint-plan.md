@@ -1,6 +1,6 @@
 # Sprint Plan: M-MAINTENANCE-EVAL-ADAPTER
 
-**Status:** Proposed after Mark requested “merge in and proceed” on 2026-10-23; foundation merged, concrete adapter plan awaiting execution approval.
+**Status:** In progress; Mark authorized execution with “execute” on 2026-10-23. Foundation is merged; adapter implementation uses isolated core/package branches.
 **Goal:** Connect the real maintenance taskpacks to existing executors, preserving owned artifacts and emitting native evidence, with a qualified isolation boundary before live admission.
 **Duration:** 6–8 engineering days including qualification/review buffer; planning envelope, not measured productive-day velocity.
 **Scope:** 12 bounded milestones, ~3,130 implementation/test/config lines. Medium/high risk: tool containment and truthful leaf/accounting completeness.
@@ -57,9 +57,9 @@ Core paths and package paths are distinguished below. Each coding slice should f
 
 Add a versioned maintenance.execution/1 envelope referencing the merged ledger trajectory plan and digest-bound native starters, stage requests, public checks, oracle drivers, source roots and toolchain identities. Keep controller-only paths out of the agent payload.
 
-- [ ] Validate the finite 8/24 pilot and general bounded schedule, unique arms/IDs, stage requirements/oracles, native counterpart responsibilities, exact hashes and explicit model/harness/settings identities.
-- [ ] Reject traversal/absolute carried-artifact paths, symlinks/device files, duplicate JSON keys and conflicting ordinary-suite selection. Unmatched or altered stage contracts cannot silently compare.
-- [ ] Pin package source a4163559a2e20dddc1a1bb0869a06e42372994a1 and ledger v2. Registry0.1 lacks these APIs; never substitute it for unpublished 0.2.
+- [x] Validate the finite 8/24 pilot and general bounded schedule, unique arms/IDs, stage requirements/oracles, native counterpart responsibilities, exact hashes and explicit model/harness/settings identities.
+- [x] Reject traversal/absolute carried-artifact paths, symlinks/device files, duplicate JSON keys and conflicting ordinary-suite selection. Unmatched or altered stage contracts cannot silently compare.
+- [x] Pin package source a4163559a2e20dddc1a1bb0869a06e42372994a1 and ledger v2. Registry0.1 lacks these APIs; never substitute it for unpublished 0.2.
 
 ### M2: Opt-in CLI routing and zero-dispatch dry run (~220 LOC)
 
@@ -69,9 +69,9 @@ Add a versioned maintenance.execution/1 envelope referencing the merged ledger t
 
 Implement the already proposed --maintenance-manifest flag through a small companion, routing before benchmark discovery, suite/canary/queue work. Use fs.Visit to distinguish explicit conflicting flags from defaults.
 
-- [ ] --agent is required. --dry-run prints the complete resolved finite schedule, source/analysis identities and budget/isolation availability without creating executors, requesting credentials or calling a model/canary.
-- [ ] Reject ordinary benchmark/tier/lang/trial/condition/queue/browser/cohort flags when they would override the manifest; document the exact allowed common flags. Existing invocations preserve behavior.
-- [ ] Keep eval_suite.go below 800 lines by extracting one cohesive existing helper, not shaving comments. CLI help describes only implemented behavior and an executable dry-run example.
+- [x] --agent is required. --dry-run prints the complete resolved finite schedule, source/analysis identities and budget/isolation availability without creating executors, requesting credentials or calling a model/canary.
+- [x] Reject ordinary benchmark/tier/lang/trial/condition/queue/browser/cohort flags when they would override the manifest; document the exact allowed common flags. Existing invocations preserve behavior.
+- [x] Keep eval_suite.go below 800 lines by extracting one cohesive existing helper, not shaving comments. CLI help describes only implemented behavior and an executable dry-run example.
 
 ### M3: Owned checkpoints and controlled workspace lifecycle (~300 LOC)
 
@@ -81,9 +81,9 @@ Implement the already proposed --maintenance-manifest flag through a small compa
 
 Materialize native starters once and new stage workspaces from each trajectory's own source/locks/public app files/handover. Hash and retain failed snapshots. Keep controller evidence, future prompts, references, transcripts and hidden expected values in separate roots.
 
-- [ ] A broken S1 is the exact source basis for S2; no reference/gold restoration. Missing required app files remain a model artifact failure, not a silently healed starter.
-- [ ] Carry only declared regular files; explicit tests cover symlink traversal, rename/delete, excluded logs/caches and create-only immutable output. Record actual copied manifests/hashes.
-- [ ] Reap child processes before grading/checkpoint finalization and on all error exits; preserve result artifacts and spent work while isolating build/runtime outputs per source identity.
+- [x] A broken S1 is the exact source basis for S2; no reference/gold restoration. Missing required app files remain a model artifact failure, not a silently healed starter.
+- [x] Carry only declared regular files; explicit tests cover symlink traversal, rename/delete, excluded logs/caches and create-only immutable output. Record actual copied manifests/hashes.
+- [x] Reap child processes before grading/checkpoint finalization and on all error exits; preserve result artifacts and spent work while isolating build/runtime outputs per source identity.
 
 ### M4: Three-stage orchestration over executor interface (~300 LOC)
 
@@ -93,9 +93,9 @@ Materialize native starters once and new stage workspaces from each trajectory's
 
 Run a finite declared stage list with injected executor.Executor for tests and the existing factory for admitted live backends. Every stage starts a fresh session; retention is files/notes, never ResumeSessionID or old conversations.
 
-- [ ] Scripted execution accounts for every scheduled stage after failure, timeout, cancellation, invalid setup, budget stop and never-started dispatch. Stage schedule is fixed and failed spend never disappears.
-- [ ] Only the current requirement/public diagnostics reach the model. Controller oracle verdicts are withheld during the primary trajectory; future-stage source is not seeded early.
-- [ ] Write native-ledger-compatible rows with prior/candidate/check/oracle/attempt identities; blocked continuation keeps the last actual owned checkpoint. Do not add a generic workflow engine.
+- [x] Scripted execution accounts for every scheduled stage after failure, timeout, cancellation, invalid setup, budget stop and never-started dispatch. Stage schedule is fixed and failed spend never disappears.
+- [x] Only the current requirement/public diagnostics reach the model. Controller oracle verdicts are withheld during the primary trajectory; future-stage source is not seeded early.
+- [x] Write native-ledger-compatible rows with prior/candidate/check/oracle/attempt identities; blocked continuation keeps the last actual owned checkpoint. Do not add a generic workflow engine.
 
 ### M5: Grade arbitrary retained candidates with trusted task drivers (~250 LOC)
 
@@ -233,6 +233,6 @@ Native package gates remain its Makefile verify/integration/ledger-integration/q
 
 ## Approval and progress state
 
-State schema is populated at `.ailang/state/sprints/sprint_M-MAINTENANCE-EVAL-ADAPTER.json` in this planning checkout, status not_started and execution_authorized=false. Every milestone has concrete criteria, estimates, dependencies and reuse decision. The core active sprint is untouched. Standard creator imports/reads unrelated messages; the documented schema is written directly, as for the foundation sprint, and validated with the existing validator.
+State schema is populated at `.ailang/state/sprints/sprint_M-MAINTENANCE-EVAL-ADAPTER.json` in this planning checkout, status in_progress and execution_authorized=true. Every milestone has concrete criteria, estimates, dependencies and reuse decision. The core active sprint is untouched. Standard creator imports/reads unrelated messages; the documented schema is written directly, as for the foundation sprint, and validated with the existing validator.
 
 The foundation merge was explicitly authorized and completed. This concrete new cross-repo adapter/containment plan is ready for review under AGENTS.md's `sprint-planner → user says "execute sprint" → sprint-executor → sprint-evaluator` gate. No new implementation, remote dispatch or paid call starts merely because this plan exists. After execution approval, use clean isolated source checkouts, load sprint-executor and complete code/checks before requesting any merge/publication decision.

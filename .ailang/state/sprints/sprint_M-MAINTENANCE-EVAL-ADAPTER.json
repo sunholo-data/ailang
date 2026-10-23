@@ -113,10 +113,10 @@
         "Reject traversal/absolute carried-artifact paths, symlinks/device files, duplicate JSON keys and conflicting ordinary-suite selection. Unmatched or altered stage contracts cannot silently compare.",
         "Pin package source a4163559a2e20dddc1a1bb0869a06e42372994a1 and ledger v2. Registry0.1 lacks these APIs; never substitute it for unpublished0.2."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-23T15:47:39.205097+00:00",
+      "notes": "Strict manifest/duplicates/hash/native-counterpart tests passed; integrated59c97c481. Actual source-bound8/24 package development manifest543930f."
     },
     {
       "id": "M2_CLI_MODE",
@@ -130,10 +130,10 @@
         "Reject ordinary benchmark/tier/lang/trial/condition/queue/browser/cohort flags when they would override the manifest; document the exact allowed common flags. Existing invocations preserve behavior.",
         "Keep eval_suite.go below800 lines by extracting one cohesive existing helper, not shaving comments. CLI help describes only implemented behavior and an executable dry-run example."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-23T15:47:39.205097+00:00",
+      "notes": "Zero-dispatch actual CLI subprocess test and shipped8/24 dry-run passed;210501516. No telemetry/credentials/standing eval discovery."
     },
     {
       "id": "M3_CHECKPOINTS",
@@ -147,10 +147,10 @@
         "Carry only declared regular files; explicit tests cover symlink traversal, rename/delete, excluded logs/caches and create-only immutable output. Record actual copied manifests/hashes.",
         "Reap child processes before grading/checkpoint finalization and on all error exits; preserve result artifacts and spent work while isolating build/runtime outputs per source identity."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-23T15:47:39.205097+00:00",
+      "notes": "Immutable actual-source snapshots, deletion/symlink/device/path/tamper/create-only tests passed;abe2dad3e + cleanupfollowup."
     },
     {
       "id": "M4_FINITE_STAGES",
@@ -164,10 +164,10 @@
         "Only the current requirement/public diagnostics reach the model. Controller oracle verdicts are withheld during the primary trajectory; future-stage source is not seeded early.",
         "Write native-ledger-compatible rows with prior/candidate/check/oracle/attempt identities; blocked continuation keeps the last actual owned checkpoint. Do not add a generic workflow engine."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-23T15:47:39.205097+00:00",
+      "notes": "Scripted8/24 runner and failurematrix tests passed;0e4c68d37 + cb1cf3c3c cleanupinvalid/nativeexception. No model calls."
     },
     {
       "id": "M5_ORACLE_BRIDGE",
@@ -182,9 +182,9 @@
         "Grade in a clean runtime against all retained obligations. Candidate code cannot read or rewrite oracle expected values/controller data during execution; test that boundary rather than assuming the host oracle being outside the workspace is sufficient."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-23T15:47:39.205097+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
     },
     {
       "id": "M6_SHARED_TASK_SEAM",
@@ -200,9 +200,9 @@
         "Do not grow agent_runner_multi.go(781) or motoko.go(770) past800 lines or change Motoko core. Register protected-mode support only on an actually qualified backend."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-23T15:47:39.205097+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
     },
     {
       "id": "M7_NATIVE_READ_FENCE",
@@ -218,9 +218,9 @@
         "First-backend selection is a proposal for this sprint, not a claim existing pi or Motoko is already qualified. Record effective tool/policy digest and refuse unmeasured boundaries."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-23T15:47:39.205097+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
     },
     {
       "id": "M8_OS_CONTAINMENT",
@@ -236,9 +236,9 @@
         "Declare the protected-root threat boundary and require all known source/reference copies and Git stores in it. If existing primitives cannot meet it, keep live admission closed and raise a scoped extension design rather than launching weaker comparative trials. Ordinary executor paths remain unchanged."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-23T15:47:39.205097+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
     },
     {
       "id": "M9_USAGE_EVIDENCE",
@@ -253,9 +253,9 @@
         "Preserve raw decimal cost text when available. Never round float CostUSD to six decimals to fabricate exact money; unsupported precision remains explicit under current0.2 rules. Do not relabel registry estimates/subscription equivalents as metered invoices."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-23T15:47:39.205097+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
     },
     {
       "id": "M10_NATIVE_ANALYSIS",
@@ -271,9 +271,9 @@
         "Unknown/missing usage and invalid outcomes produce unavailable economic claims while valid correctness remains visible. Emit reference-linked reproduction cards/draft investigation material without approving roadmap code or claiming a language win."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-23T15:47:39.205097+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
     },
     {
       "id": "M11_END_TO_END",
@@ -290,9 +290,9 @@
         "No paid canary/provider/model call is allowed in normal tests or dry-run. If platform containment is unavailable, report the admission gap explicitly and do not mark its criterion passed with a skip."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-23T15:47:39.205097+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
     },
     {
       "id": "M12_DELIVERY",
@@ -313,5 +313,6 @@
     }
   ],
   "execution_authorized_by": "Mark: execute",
-  "started": "2026-10-23T15:32:12.227917+00:00"
+  "started": "2026-10-23T15:32:12.227917+00:00",
+  "last_updated": "2026-10-23T15:47:39.205097+00:00"
 }
