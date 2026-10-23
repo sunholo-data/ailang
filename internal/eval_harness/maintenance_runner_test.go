@@ -238,7 +238,7 @@ func TestMaintenanceRunnerRejectsUnqualifiedDispatchAndResume(t *testing.T) {
 }
 
 func TestMaintenanceRunnerRejectsAlteredPrivateEvidenceAndUncompiledIsFailure(t *testing.T) {
-	for _, kind := range []string{"oracle_digest", "candidate_digest", "uncompiled", "unmeasured_oracle", "reap_failure", "receipt_error", "missing_request", "pre_budget"} {
+	for _, kind := range []string{"oracle_digest", "candidate_digest", "uncompiled", "unmeasured_oracle", "reap_failure", "receipt_error", "missing_request", "pre_budget", "final_reap_failure"} {
 		t.Run(kind, func(t *testing.T) {
 			e, root := maintenanceRunnerFixture(t, 1)
 			if kind == "missing_request" {
@@ -275,8 +275,10 @@ func TestMaintenanceRunnerRejectsAlteredPrivateEvidenceAndUncompiledIsFailure(t 
 					return &MaintenanceDispatchStop{Reason: "budget exhausted before dispatch", NeverStarted: true}
 				}
 			}
+			reapCalls := 0
 			reaper := func(string) ([]int, error) {
-				if kind == "reap_failure" {
+				reapCalls++
+				if kind == "reap_failure" || kind == "final_reap_failure" && reapCalls == 2 {
 					return nil, errors.New("process boundary unavailable")
 				}
 				return nil, nil

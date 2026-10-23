@@ -12,8 +12,8 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
-func maintenanceRunStage(ctx context.Context, o MaintenanceRunOptions, report *MaintenanceRunReport, tr MaintenanceTrajectoryPlan, stage MaintenanceStagePlan, binding MaintenanceStageBinding, carry []string, root string, index int, prior MaintenanceCheckpoint) (MaintenanceStageRun, *MaintenanceCheckpoint, string) {
-	row := maintenanceUnstarted(stage.ID, "blocked", &prior.Digest, "stage setup not completed")
+func maintenanceRunStage(ctx context.Context, o MaintenanceRunOptions, report *MaintenanceRunReport, tr MaintenanceTrajectoryPlan, stage MaintenanceStagePlan, binding MaintenanceStageBinding, carry []string, root string, index int, prior MaintenanceCheckpoint) (row MaintenanceStageRun, next *MaintenanceCheckpoint, stop string) {
+	row = maintenanceUnstarted(stage.ID, "blocked", &prior.Digest, "stage setup not completed")
 	workspace := filepath.Join(root, "workspaces", fmt.Sprintf("stage-%03d", index))
 	if err := RestoreMaintenanceCheckpoint(prior, workspace); err != nil {
 		row.Provenance = "restore failed: " + err.Error()
@@ -21,7 +21,30 @@ func maintenanceRunStage(ctx context.Context, o MaintenanceRunOptions, report *M
 	}
 	// The deferred reap covers setup failures too. The explicit reap below runs
 	// before capture/grading; the second reap catches anything grading left behind.
-	defer func() { _, _ = o.Reap(workspace) }()
+	defer func() {
+		if _, err := o.Reap(workspace); err != nil {
+			reason := "final workspace reap failed: " + err.Error()
+			row.State = "blocked"
+			if len(row.Attempts) > 0 {
+				row.State = "invalid"
+				row.Visible = "unknown"
+				if row.ArtifactDigest == nil {
+					row.Visible = "not_run"
+				}
+			}
+			row.Oracle = "not_run"
+			row.OracleDigest = nil
+			row.OracleArtifact = nil
+			row.CheckKinds = []string{"infrastructure"}
+			row.Provenance = maintenanceJoinError(row.Provenance, reason)
+			stop = reason
+			for i := range report.Attempts {
+				if report.Attempts[i].Workspace == workspace {
+					report.Attempts[i].EvidenceError = maintenanceJoinError(report.Attempts[i].EvidenceError, reason)
+				}
+			}
+		}
+	}()
 	request, err := maintenanceReadBoundFile(binding.Request)
 	if err != nil {
 		row.Provenance = "requirement changed: " + err.Error()
@@ -59,7 +82,7 @@ func maintenanceRunStage(ctx context.Context, o MaintenanceRunOptions, report *M
 		observed.ExecutionError = callContextErr.Error()
 	}
 	row.State = "invalid"
-	row.Visible = "unknown"
+	row.Visible = "not_run"
 	row.Oracle = "not_run"
 	row.CheckKinds = []string{"infrastructure"}
 	attempt := MaintenanceAttempt{ID: attemptID, ReceiptIDs: []string{}}
@@ -91,8 +114,9 @@ func maintenanceRunStage(ctx context.Context, o MaintenanceRunOptions, report *M
 		return row, nil, "candidate checkpoint failed; retain last actual checkpoint"
 	}
 	row.ArtifactDigest = &cp.Digest
+	row.Visible = "unknown"
 	observed.Checkpoint = &cp
-	stop := ""
+	stop = ""
 	switch {
 	case result != nil && (result.CostKilledAt > 0 || result.ThrashKilledAt > 0 || result.FinishReason == executor.FinishCostExhausted || result.FinishReason == executor.FinishThrashAborted || result.FinishReason == executor.FinishStepExhausted):
 		row.State = "budget_stopped"
