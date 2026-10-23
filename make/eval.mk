@@ -182,3 +182,12 @@ bench-workloads: ## Capture latency-budget baseline (5 runs each, all workloads)
 
 bench-workloads-quick: ## Quick latency-budget smoke test (3 runs, no file write)
 	@./tools/bench_workloads.sh --runs 3 --no-write
+
+.PHONY: maintenance-adapter-check
+maintenance-adapter-check: ## No-model retained-source/native-analysis controls; does not admit protected model runs
+	@test -n "$(MAINTENANCE_PACKAGE_REPO)" -a -d "$(MAINTENANCE_PACKAGE_REPO)/packages/maintenance-bench" || { echo 'Set MAINTENANCE_PACKAGE_REPO to the explicit companion source checkout'; exit 1; }
+	@test -n "$(MAINTENANCE_PI_SDK)" -a -f "$(MAINTENANCE_PI_SDK)" || { echo 'Set MAINTENANCE_PI_SDK to the pinned pi 0.85.1 dist/index.js'; exit 1; }
+	AILANG_MAINTENANCE_PACKAGE_ROOT="$(abspath $(MAINTENANCE_PACKAGE_REPO))/packages/maintenance-bench" go test ./internal/eval_harness -run TestMaintenance -count=1
+	go test ./internal/executor ./internal/executor/pi -run 'Test.*(Containment|PiEvidence)' -count=1
+	MAINTENANCE_PI_SDK="$(MAINTENANCE_PI_SDK)" node --experimental-strip-types --test tools/pi-extensions/maintenance-fence.test.ts tools/pi-extensions/maintenance-sandbox.test.mjs
+	@$(MAKE) --no-print-directory verify-pi-assets check-file-sizes check-boundaries

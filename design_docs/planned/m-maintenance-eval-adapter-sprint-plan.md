@@ -1,6 +1,6 @@
 # Sprint Plan: M-MAINTENANCE-EVAL-ADAPTER
 
-**Status:** In progress; Mark authorized execution with “execute” on 2026-10-23. Foundation is merged; adapter implementation uses isolated core/package branches.
+**Status:** Partially implemented; protected admission blocked. Mark authorized execution on 2026-10-23. Seven milestones pass; five remain incomplete or partially delivered.
 **Goal:** Connect the real maintenance taskpacks to existing executors, preserving owned artifacts and emitting native evidence, with a qualified isolation boundary before live admission.
 **Duration:** 6–8 engineering days including qualification/review buffer; planning envelope, not measured productive-day velocity.
 **Scope:** 12 bounded milestones, ~3,130 implementation/test/config lines. Medium/high risk: tool containment and truthful leaf/accounting completeness.
@@ -81,9 +81,9 @@ Implement the already proposed --maintenance-manifest flag through a small compa
 
 Materialize native starters once and new stage workspaces from each trajectory's own source/locks/public app files/handover. Hash and retain failed snapshots. Keep controller evidence, future prompts, references, transcripts and hidden expected values in separate roots.
 
-- [x] A broken S1 is the exact source basis for S2; no reference/gold restoration. Missing required app files remain a model artifact failure, not a silently healed starter.
-- [x] Carry only declared regular files; explicit tests cover symlink traversal, rename/delete, excluded logs/caches and create-only immutable output. Record actual copied manifests/hashes.
-- [x] Reap child processes before grading/checkpoint finalization and on all error exits; preserve result artifacts and spent work while isolating build/runtime outputs per source identity.
+- [ ] A broken S1 is the exact source basis for S2; no reference/gold restoration. Missing required app files remain a model artifact failure, not a silently healed starter.
+- [ ] Carry only declared regular files; explicit tests cover symlink traversal, rename/delete, excluded logs/caches and create-only immutable output. Record actual copied manifests/hashes.
+- [ ] Reap child processes before grading/checkpoint finalization and on all error exits; preserve result artifacts and spent work while isolating build/runtime outputs per source identity.
 
 ### M4: Three-stage orchestration over executor interface (~300 LOC)
 
@@ -117,9 +117,9 @@ Factor existing oracle/candidate launch logic so a controller can grade an arbit
 
 Extract the reusable task assembly below workspace creation/cleanup; ordinary one-shot execution remains its caller. Reuse model resolution, pricing/preflight, capability validation, rig admission, timeouts, effective tool policy and parser/event handling.
 
-- [ ] Task construction parity tests pin ordinary prompts/metadata/model/timeouts/pricing/env/tool behavior; no DEBUG_AGENT environment hack to preserve workspaces.
-- [ ] New stages use explicit isolated ambient-context/extensions requests and frozen prompt/profile/settings digests. Unsupported executor capabilities fail before model dispatch.
-- [ ] Do not grow agent_runner_multi.go(781) or motoko.go(770) past800 lines or change Motoko core. Register protected-mode support only on an actually qualified backend.
+- [x] Task construction parity tests pin ordinary prompts/metadata/model/timeouts/pricing/env/tool behavior; no DEBUG_AGENT environment hack to preserve workspaces.
+- [x] New stages use explicit isolated ambient-context/extensions requests and frozen prompt/profile/settings digests. Unsupported executor capabilities fail before model dispatch.
+- [x] Do not grow agent_runner_multi.go(781) or motoko.go(770) past800 lines or change Motoko core. Register protected-mode support only on an actually qualified backend.
 
 ### M7: Trusted per-eval native tool fence (~220 LOC)
 
@@ -129,9 +129,9 @@ Extract the reusable task assembly below workspace creation/cleanup; ordinary on
 
 Propose pi as the first local backend to qualify because existing tool filtering and bash sandbox integration are reusable. Add a narrowly scoped trusted read/write/search/list guard; mission write fencing alone is not oracle isolation.
 
-- [ ] No-model tests cover real native read/write/edit/grep/find/ls surfaces, relative cwd != root, prefix confusion, symlink ancestors, unknown path shapes and protected developer files. Allowed native app work remains possible for both languages.
-- [ ] Only the declared canonical tool set and trusted extensions load; no ambient/global extension or context-file discovery. Protect policy/extension assets and controller/source-bank roots, including shared Git object stores and other trajectory workspaces.
-- [ ] First-backend selection is a proposal for this sprint, not a claim existing pi or Motoko is already qualified. Record effective tool/policy digest and refuse unmeasured boundaries.
+- [x] No-model tests cover real native read/write/edit/grep/find/ls surfaces, relative cwd != root, prefix confusion, symlink ancestors, unknown path shapes and protected developer files. Allowed native app work remains possible for both languages.
+- [x] Only the declared canonical tool set and trusted extensions load; no ambient/global extension or context-file discovery. Protect policy/extension assets and controller/source-bank roots, including shared Git object stores and other trajectory workspaces.
+- [x] First-backend selection is a proposal for this sprint, not a claim existing pi or Motoko is already qualified. Record effective tool/policy digest and refuse unmeasured boundaries.
 
 ### M8: Reuse bash sandbox and qualify the actual boundary (~260 LOC)
 
@@ -153,9 +153,9 @@ Add an optional explicit eval-containment task contract, leaving nil/default pay
 
 Capture typed usage evidence at the existing parser, preserving request/import identity, original field presence, source version/event digest, cumulative-versus-leaf semantics, retries/compaction coverage and cost provenance. Export neutral receipts accepted by the AILANG package.
 
-- [ ] Fixtures cover absent versus explicit zero, inclusive/exclusive input, combined reasoning, incomplete streams, retries, compaction and summary/leaf reconciliation; no second provider-log parser in Go adapter or AILANG package.
-- [ ] Aggregate Result integers alone do not establish reported cache/reasoning zero or per-request completeness. Untraceable calls/overlap keep affected economics unavailable; retain original reported totals as source evidence.
-- [ ] Preserve raw decimal cost text when available. Never round float CostUSD to six decimals to fabricate exact money; unsupported precision remains explicit under current0.2 rules. Do not relabel registry estimates/subscription equivalents as metered invoices.
+- [x] Fixtures cover absent versus explicit zero, inclusive/exclusive input, combined reasoning, incomplete streams, retries, compaction and summary/leaf reconciliation; no second provider-log parser in Go adapter or AILANG package.
+- [x] Aggregate Result integers alone do not establish reported cache/reasoning zero or per-request completeness. Untraceable calls/overlap keep affected economics unavailable; retain original reported totals as source evidence.
+- [x] Preserve raw decimal cost text when available. Never round float CostUSD to six decimals to fabricate exact money; unsupported precision remains explicit under current0.2 rules. Do not relabel registry estimates/subscription equivalents as metered invoices.
 
 ### M10: Use native package analysis for runner outputs (~210 LOC)
 
@@ -165,9 +165,9 @@ Capture typed usage evidence at the existing parser, preserving request/import i
 
 Write the existing trajectory/runs/usage v2 files and invoke the pinned native maintenance-ledger analysis. Do not port cohort, monetary or paired metrics into the Go runner.
 
-- [ ] A clean source-path consumer uses merged0.2 code explicitly until registry publication is authorized. Verify actual compiler/source/lock/tool identities and store external provenance; reportId remains declared, not self-attesting.
-- [ ] Independent known fixture reproduces185-test foundation expectations:8/24 coverage, cost delta-22500micros, fresh-input diagnostic-550, fresh+generated headline-540; all are labelled instrument controls.
-- [ ] Unknown/missing usage and invalid outcomes produce unavailable economic claims while valid correctness remains visible. Emit reference-linked reproduction cards/draft investigation material without approving roadmap code or claiming a language win.
+- [x] A clean source-path consumer uses merged0.2 code explicitly until registry publication is authorized. Verify actual compiler/source/lock/tool identities and store external provenance; reportId remains declared, not self-attesting.
+- [x] Independent known fixture reproduces185-test foundation expectations:8/24 coverage, cost delta-22500micros, fresh-input diagnostic-550, fresh+generated headline-540; all are labelled instrument controls.
+- [x] Unknown/missing usage and invalid outcomes produce unavailable economic claims while valid correctness remains visible. Emit reference-linked reproduction cards/draft investigation material without approving roadmap code or claiming a language win.
 
 ### M11: Bounded no-model integration and failure matrix (~280 LOC)
 
@@ -236,3 +236,13 @@ Native package gates remain its Makefile verify/integration/ledger-integration/q
 State schema is populated at `.ailang/state/sprints/sprint_M-MAINTENANCE-EVAL-ADAPTER.json` in this planning checkout, status in_progress and execution_authorized=true. Every milestone has concrete criteria, estimates, dependencies and reuse decision. The core active sprint is untouched. Standard creator imports/reads unrelated messages; the documented schema is written directly, as for the foundation sprint, and validated with the existing validator.
 
 The foundation merge was explicitly authorized and completed. This concrete new cross-repo adapter/containment plan is ready for review under AGENTS.md's `sprint-planner → user says "execute sprint" → sprint-executor → sprint-evaluator` gate. No new implementation, remote dispatch or paid call starts merely because this plan exists. After execution approval, use clean isolated source checkouts, load sprint-executor and complete code/checks before requesting any merge/publication decision.
+
+## Execution checkpoint — 2026-10-23
+
+Seven milestones pass (M1/M2/M4/M6/M7/M9/M10). M3/M5 are partially implemented but process-lifetime/output bounds are unqualified; M8 is blocked by the measured macOS nested-sandbox failure; protected end-to-end M11 and full-delivery M12 therefore remain incomplete. Unchecked boxes above are deliberate. Status stays in_progress with a named blocking condition, not completed or user-paused.
+
+Actual instrument controls passed: native 8 trajectories/24 stages, both failed S1 sources retained into S2,6 successful/2 known-failed trajectories and1 visible-green semantic regression;24 synthetic usage leaves/24 unchecked summaries keep economics unavailable. Package195 tests/500 property cases,25 grading controls, four normal/four malicious protected native cases;14 actual native-tool/OS tests with no skips. One OS test asserts admission CLOSED after nested sandbox_apply failure. These controls are not provider/model/language-quality measurements.
+
+Independent review corrected unsuccessful-executor grading, observed model/harness drift, language-inferred diagnostic phases, transitive oracle identity, frozen executable/version checks, missing counterpart prompts and controller path confinement. No real provider usage, paid call, registry0.2 publication or core release occurred. Strict package quality remains PUB011-only (75 uncontracted exports);3/20 SMT verified,17 unsupported.
+
+Current confinement evidence is the create-only r2 record under core design_docs/validation/maintenance-containment. The original record is historical and does not attest the current wrapper. Follow-up [broker/lifetime design](https://github.com/sunholo-data/ailang/blob/sprint/maintenance-eval-adapter/design_docs/planned/m-maintenance-eval-broker.md) is proposed, not implemented. The approved M8 contingency requires this design rather than silently substituting a new architecture. User design approval and a concrete follow-up sprint are required before that implementation; a priced model campaign remains a separate launch decision.

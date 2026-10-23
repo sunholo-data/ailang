@@ -100,7 +100,8 @@
       8
     ],
     "actual_loc_per_day": null,
-    "basis": "Planning envelope with qualification buffer; prior attended-agent elapsed time is not productive engineering-day velocity."
+    "basis": "Planning envelope with qualification buffer; prior attended-agent elapsed time is not productive engineering-day velocity.",
+    "measurement_note": "Initial estimate 3130 implementation/test/config LOC. Actual diff is larger after independent measurement/security review; no human productive-day velocity inferred from attended agent elapsed time."
   },
   "features": [
     {
@@ -114,9 +115,9 @@
         "Pin package source a4163559a2e20dddc1a1bb0869a06e42372994a1 and ledger v2. Registry0.1 lacks these APIs; never substitute it for unpublished0.2."
       ],
       "passes": true,
-      "started": null,
-      "completed": "2026-10-23T15:47:39.205097+00:00",
-      "notes": "Strict manifest/duplicates/hash/native-counterpart tests passed; integrated59c97c481. Actual source-bound8/24 package development manifest543930f."
+      "started": "2026-10-23T15:32:12.227917+00:00",
+      "completed": "2026-10-23T16:24:53.474038+00:00",
+      "notes": "Passed strict finite manifest/hash/native-arm checks, exact JSON field names, composite oracle pipeline binding and executable/version evidence validation."
     },
     {
       "id": "M2_CLI_MODE",
@@ -131,9 +132,9 @@
         "Keep eval_suite.go below800 lines by extracting one cohesive existing helper, not shaving comments. CLI help describes only implemented behavior and an executable dry-run example."
       ],
       "passes": true,
-      "started": null,
-      "completed": "2026-10-23T15:47:39.205097+00:00",
-      "notes": "Zero-dispatch actual CLI subprocess test and shipped8/24 dry-run passed;210501516. No telemetry/credentials/standing eval discovery."
+      "started": "2026-10-23T15:32:12.227917+00:00",
+      "completed": "2026-10-23T16:24:53.474038+00:00",
+      "notes": "Passed actual zero-dispatch CLI tests and shipped 8/24 dry run before telemetry, credentials, generation-eval discovery, rig or executor setup."
     },
     {
       "id": "M3_CHECKPOINTS",
@@ -147,10 +148,10 @@
         "Carry only declared regular files; explicit tests cover symlink traversal, rename/delete, excluded logs/caches and create-only immutable output. Record actual copied manifests/hashes.",
         "Reap child processes before grading/checkpoint finalization and on all error exits; preserve result artifacts and spent work while isolating build/runtime outputs per source identity."
       ],
-      "passes": true,
-      "started": null,
-      "completed": "2026-10-23T15:47:39.205097+00:00",
-      "notes": "Immutable actual-source snapshots, deletion/symlink/device/path/tamper/create-only tests passed;abe2dad3e + cleanupfollowup."
+      "passes": false,
+      "started": "2026-10-23T15:32:12.227917+00:00",
+      "completed": null,
+      "notes": "Immutable owned-source/deletion/path/tamper/race controls pass; controller reads now use os.Root/SameFile. Escaped setsid+cwd descendants are not proven reaped; no full live lifecycle qualification."
     },
     {
       "id": "M4_FINITE_STAGES",
@@ -165,9 +166,9 @@
         "Write native-ledger-compatible rows with prior/candidate/check/oracle/attempt identities; blocked continuation keeps the last actual owned checkpoint. Do not add a generic workflow engine."
       ],
       "passes": true,
-      "started": null,
-      "completed": "2026-10-23T15:47:39.205097+00:00",
-      "notes": "Scripted8/24 runner and failurematrix tests passed;0e4c68d37 + cb1cf3c3c cleanupinvalid/nativeexception. No model calls."
+      "started": "2026-10-23T15:32:12.227917+00:00",
+      "completed": "2026-10-23T16:24:53.474038+00:00",
+      "notes": "Passed fixed 24-state failure matrix, fresh-session/source retention, model and observed-harness drift guards, unsuccessful executor handling and explicit no-model control gate."
     },
     {
       "id": "M5_ORACLE_BRIDGE",
@@ -181,10 +182,10 @@
         "Trusted check/oracle source hashes cannot be weakened by agent edits. Reject mismatched input/output/source hashes, skipped assertions, stale builds, malformed typed output and overwritten evidence.",
         "Grade in a clean runtime against all retained obligations. Candidate code cannot read or rewrite oracle expected values/controller data during execution; test that boundary rather than assuming the host oracle being outside the workspace is sufficient."
       ],
-      "passes": null,
+      "passes": false,
       "started": "2026-10-23T15:47:39.205097+00:00",
       "completed": null,
-      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
+      "notes": "25 candidate controls and four normal/four malicious protected native probes pass; full oracle/runtime hashes and neutral diagnostic attribution enforced. Escaped grading descendants and unbounded candidate output remain admission gaps."
     },
     {
       "id": "M6_SHARED_TASK_SEAM",
@@ -199,10 +200,10 @@
         "New stages use explicit isolated ambient-context/extensions requests and frozen prompt/profile/settings digests. Unsupported executor capabilities fail before model dispatch.",
         "Do not grow agent_runner_multi.go(781) or motoko.go(770) past800 lines or change Motoko core. Register protected-mode support only on an actually qualified backend."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-23T15:47:39.205097+00:00",
-      "completed": null,
-      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
+      "completed": "2026-10-23T16:24:53.474038+00:00",
+      "notes": "Shared ordinary task controls; frozen registry/pricing/route digest and all language prompts preflighted. Unsupported protected execution refuses before inference."
     },
     {
       "id": "M7_NATIVE_READ_FENCE",
@@ -217,10 +218,10 @@
         "Only the declared canonical tool set and trusted extensions load; no ambient/global extension or context-file discovery. Protect policy/extension assets and controller/source-bank roots, including shared Git object stores and other trajectory workspaces.",
         "First-backend selection is a proposal for this sprint, not a claim existing pi or Motoko is already qualified. Record effective tool/policy digest and refuse unmeasured boundaries."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-23T15:47:39.205097+00:00",
-      "completed": null,
-      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
+      "completed": "2026-10-23T16:24:53.474038+00:00",
+      "notes": "Six actual pi SDK tests pass; native paths/search/write guards and strict tool set verified. Guard alone is explicitly not kernel/live-backend qualification."
     },
     {
       "id": "M8_OS_CONTAINMENT",
@@ -235,10 +236,10 @@
         "Tool subprocess network cannot fetch reference solutions; inference stays in the existing executor. Qualify exact platform/tool versions and policy, fail closed if sandbox initialization/support is absent, and never infer universal host/holdout protection from a few checks.",
         "Declare the protected-root threat boundary and require all known source/reference copies and Git stores in it. If existing primitives cannot meet it, keep live admission closed and raise a scoped extension design rather than launching weaker comparative trials. Ordinary executor paths remain unchanged."
       ],
-      "passes": null,
+      "passes": false,
       "started": "2026-10-23T15:47:39.205097+00:00",
       "completed": null,
-      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
+      "notes": "Blocked: actual macOS nested SDK launch exits 71 sandbox_apply Operation not permitted. Eight OS tests include an expected CLOSED admission assertion, not protected-backend success. All non-nil pi containment requests refuse before model resolution/probe/start."
     },
     {
       "id": "M9_USAGE_EVIDENCE",
@@ -252,10 +253,10 @@
         "Aggregate Result integers alone do not establish reported cache/reasoning zero or per-request completeness. Untraceable calls/overlap keep affected economics unavailable; retain original reported totals as source evidence.",
         "Preserve raw decimal cost text when available. Never round float CostUSD to six decimals to fabricate exact money; unsupported precision remains explicit under current0.2 rules. Do not relabel registry estimates/subscription equivalents as metered invoices."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-23T15:47:39.205097+00:00",
-      "completed": null,
-      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
+      "completed": "2026-10-23T16:24:53.474038+00:00",
+      "notes": "Existing pi parser preserves presence/exact source decimals. Exported 24 explicitly synthetic leaves plus 24 unchecked summaries through native analysis; real provider coverage remains unavailable."
     },
     {
       "id": "M10_NATIVE_ANALYSIS",
@@ -270,10 +271,10 @@
         "Independent known fixture reproduces185-test foundation expectations:8/24 coverage, cost delta-22500micros, fresh-input diagnostic-550, fresh+generated headline-540; all are labelled instrument controls.",
         "Unknown/missing usage and invalid outcomes produce unavailable economic claims while valid correctness remains visible. Emit reference-linked reproduction cards/draft investigation material without approving roadmap code or claiming a language win."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-23T15:47:39.205097+00:00",
-      "completed": null,
-      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
+      "completed": "2026-10-23T16:24:53.474038+00:00",
+      "notes": "Native source consumer and observed compiler/source/input/output provenance passed. Independent control -22500 USD micros/-550 fresh input/-540 fresh+generated reproduced; no language results."
     },
     {
       "id": "M11_END_TO_END",
@@ -289,10 +290,10 @@
         "All24 rows and retained snapshots survive partial failure, and the model receives no private oracle feedback. Pipeline/source/receipt digests bind each actual artifact.",
         "No paid canary/provider/model call is allowed in normal tests or dry-run. If platform containment is unavailable, report the admission gap explicitly and do not mark its criterion passed with a skip."
       ],
-      "passes": null,
+      "passes": false,
       "started": "2026-10-23T15:47:39.205097+00:00",
       "completed": null,
-      "notes": "Implementation/integration underway; final qualification and acceptance not yet complete."
+      "notes": "Actual native 8/24 scripted control, failures carried to S2, 24 synthetic leaves/unchecked parents and native analysis pass; full protected agent chain is not qualified because M3/M5/M8 gaps remain."
     },
     {
       "id": "M12_DELIVERY",
@@ -306,13 +307,25 @@
         "Native package tests/properties/examples/quality/dry-run remain green without new warning allowlists or formatter exclusions; original frozen studies are unchanged.",
         "Publish reviewable source PRs only after concrete checks, then independent sprint-evaluator review; complete all state/plan criteria in the same trees. Exact model/provider/rates/enforceable bounds and actual launch authorization remain a later explicit decision."
       ],
-      "passes": null,
-      "started": null,
+      "passes": false,
+      "started": "2026-10-23T15:32:12.227917+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Reviewable source/docs/CI and validation records prepared. Full sprint acceptance remains incomplete; independent evaluation must fail/record blockers rather than mark completion. No registry publication/core release/model campaign."
     }
   ],
   "execution_authorized_by": "Mark: execute",
   "started": "2026-10-23T15:32:12.227917+00:00",
-  "last_updated": "2026-10-23T15:47:39.205097+00:00"
+  "last_updated": "2026-10-23T16:24:53.474038+00:00",
+  "execution_state": "blocked_pending_followup_design_approval",
+  "full_sprint_complete": false,
+  "blocked_on": [
+    "macOS nested sandbox launch",
+    "escaped descendant cleanup qualification",
+    "candidate/controller output and artifact byte bounds"
+  ],
+  "followup_design": "design_docs/planned/m-maintenance-eval-broker.md",
+  "implementation_code_revision": "bfe68ca93ac931c20eb8df751b9c63d727230119",
+  "package_code_revision": "ded01f16dcd41ef09a4ac1e33bf89305088a07f7",
+  "validation_directory": "design_docs/validation/maintenance-adapter/2026-10-23",
+  "package_pr": "https://github.com/sunholo-data/ailang-packages/pull/162"
 }

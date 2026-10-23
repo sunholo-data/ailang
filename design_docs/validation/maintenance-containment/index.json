@@ -1,0 +1,9 @@
+{
+  "schema": "maintenance.containment-index/1",
+  "current": "2026-10-23-macos-r2.json",
+  "historical": [
+    "2026-10-23-macos.json"
+  ],
+  "currentWrapperSHA256": "f1f3dee69eb4286bac389c8bca737929b403b040c575cc4c86ac81969059bc12",
+  "backendAdmitted": false
+}

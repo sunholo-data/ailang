@@ -1,6 +1,8 @@
 # Maintenance containment: measured primitives, backend admission CLOSED
 
-The 2026-10-23 macOS record is an actual no-model run on Darwin25.6.0,
+Current evidence: [r2](2026-10-23-macos-r2.json), selected by [index](index.json). The [original record](2026-10-23-macos.json) is historical and does not attest current wrapper bytes.
+
+The 2026-10-23 macOS r2 record is an actual no-model run on Darwin25.6.0,
 Node26.12.1, installed pi SDK0.85.1 and the existing locked
 `@anthropic-ai/sandbox-runtime`0.0.71. It is a scoped development qualification
 record, not a universal host-security or protected-holdout claim.
