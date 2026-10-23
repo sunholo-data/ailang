@@ -212,14 +212,28 @@ func maintenanceNativeExecution(t *testing.T, taskpacks string) *MaintenanceExec
 	if err != nil {
 		t.Fatal(err)
 	}
-	script := `import importlib.util,json,sys
+	script := `import importlib.util,json,sys,shutil,subprocess
 from pathlib import Path
 folder=Path(sys.argv[1]);dest=Path(sys.argv[2]);spec=importlib.util.spec_from_file_location('freeze',folder/'execution/write_development_manifest.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 p,e=m.build(folder/'execution/development.ailang-toolchain.json',folder/'execution/development.python-toolchain.json')
 def absolute(ref):ref['path']=str((m.HERE/ref['path']).resolve())
 for key in ('settings','analysis'):absolute(e[key])
 e['packageRoot']=str((m.HERE/e['packageRoot']).resolve());e['protectedRoots']=[str((m.HERE/x).resolve()) for x in e['protectedRoots']]+[str(dest)]
-for tool in e['toolchains']:absolute(tool['evidence'])
+# This is a NEW no-model instrument cohort on this host, not a rewrite of
+# the checked-in historical freeze. Observe actual binaries before dispatch.
+observed={}
+for tool in e['toolchains']:
+ command=tool['command']
+ query=command+(['version'] if tool['language']=='ailang' else ['--version'])
+ result=subprocess.run(query,capture_output=True,text=True,check=True,timeout=30)
+ binary=Path(shutil.which(command[0])).resolve(strict=True)
+ value={'schema':'maintenance.toolchain/1','command':command,'versionCommand':query,'version':(result.stdout+result.stderr).strip(),'binarySHA256':m.sha(binary.read_bytes())}
+ evidence=dest/('observed-'+tool['language']+'-toolchain.json')
+ m.write_new(evidence,value)
+ tool['command']=value['command'];tool['version']=value['version']
+ tool['evidence']={'path':str(evidence),'sha256':m.sha(evidence.read_bytes())}
+ observed[tool['language']]=tool['evidence']['sha256']
+for trajectory in p['trajectories']:trajectory['nativeToolDigest']=observed[trajectory['language']]
 for trajectory in e['trajectories']:
  for asset in trajectory['starter']:absolute(asset)
  for stage in trajectory['stages']:
@@ -274,6 +288,54 @@ func TestMaintenanceCheckpointDigestMatchesPython(t *testing.T) {
 		}
 		if strings.TrimSpace(string(output)) != cp.Digest {
 			t.Fatalf("cross-language digest mismatch mode%o: Go%s Python%s", mode, cp.Digest, output)
+		}
+	}
+}
+
+func TestMaintenanceNativeExecutionFreezesCurrentHost(t *testing.T) {
+	packageRoot := os.Getenv("AILANG_MAINTENANCE_PACKAGE_ROOT")
+	if packageRoot == "" {
+		t.Skip("set AILANG_MAINTENANCE_PACKAGE_ROOT for current-host instrument freeze")
+	}
+	taskpacks := filepath.Join(filepath.Dir(filepath.Dir(packageRoot)), "research", "real-world-maintenance", "taskpacks", "v1")
+	historic := map[string]string{}
+	for _, language := range []string{"ailang", "python"} {
+		path := filepath.Join(taskpacks, "execution", "development."+language+"-toolchain.json")
+		hash, err := maintenanceFileSHA(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		historic[path] = hash
+	}
+	e := maintenanceNativeExecution(t, taskpacks)
+	for _, tc := range e.Manifest.Toolchains {
+		frozen, err := maintenanceReadToolchainEvidence(tc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		binary, err := exec.LookPath(tc.Command[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		binary, err = filepath.EvalSymlinks(binary)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actual, err := maintenanceFileSHA(binary)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if frozen.BinarySHA256 != actual {
+			t.Fatalf("%s current binary was not frozen: frozen%s actual%s", tc.Language, frozen.BinarySHA256, actual)
+		}
+		if !maintenancePathWithin(e.Root, tc.Evidence.Path) {
+			t.Fatalf("host evidence was not newly created in instrument root: %s", tc.Evidence.Path)
+		}
+	}
+	for path, before := range historic {
+		after, err := maintenanceFileSHA(path)
+		if err != nil || before != after {
+			t.Fatal("historical toolchain evidence was modified")
 		}
 	}
 }
