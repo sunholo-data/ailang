@@ -84,6 +84,6 @@ async function main() {
  if(process.argv[index++]!=="--")throw new Error("Containment child argv delimiter required");
  options.argv=process.argv.slice(index);process.exitCode=await runSandboxed(options);
 }
-if(process.argv[1] && pathToFileURL(resolve(process.argv[1])).href===import.meta.url){
+if(process.argv[1] && pathToFileURL(realpathSync(process.argv[1])).href===import.meta.url){
  main().catch(error=>{console.error(`maintenance-sandbox: ${error.message}`);process.exitCode=125;});
 }

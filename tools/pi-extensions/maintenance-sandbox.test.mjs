@@ -124,3 +124,14 @@ test.after(()=>{
   writeFileSync(process.env.MAINTENANCE_CONTAINMENT_REPORT,JSON.stringify(report,null,2)+"\n",{flag:"wx"});
  }
 });
+
+test("wrapper entry through a symlink path must actually execute its child",async()=>{
+ const f=fixture();try{
+  const alias=join(f.root,"wrapper-alias.mjs");symlinkSync(wrapper,alias);
+  const result=await new Promise((yes,no)=>{
+   const child=spawn(process.execPath,[alias,"--policy",f.file,"--digest",f.digest,"--network","tools","--","/bin/cat",join(f.app,"owned.txt")],{cwd:f.app,stdio:["ignore","pipe","pipe"]});
+   let stdout="",stderr="";child.stdout.on("data",x=>stdout+=x);child.stderr.on("data",x=>stderr+=x);child.once("error",no);child.once("close",code=>yes({code,stdout,stderr}));
+  });
+  assert.equal(result.code,0,result.stderr);assert.match(result.stdout,/OWNED_PUBLIC_CONTROL/,"zero exit with empty output is not execution");
+ }finally{f.cleanup();}
+});

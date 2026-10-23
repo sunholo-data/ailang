@@ -5,7 +5,7 @@ Node26.12.1, installed pi SDK0.85.1 and the existing locked
 `@anthropic-ai/sandbox-runtime`0.0.71. It is a scoped development qualification
 record, not a universal host-security or protected-holdout claim.
 
-Seven tests pass with no skips. One is deliberately a **negative admission test**:
+Eight tests pass with no skips in the r2 record. One is deliberately a **negative admission test**:
 the outer pi kernel read/write boundary rejects native SDK canonical-check/use
 symlink races, but a second sandbox launched inside it fails with exit71 and
 `sandbox-exec: sandbox_apply: Operation not permitted`. A green test therefore
@@ -49,7 +49,7 @@ MAINTENANCE_PI_SDK=/absolute/pinned/pi/dist/index.js \
 These actual OS qualification tests require the pinned SDKs, macOS and the AILANG
 runtime. Missing support must be recorded as an admission gap, not silently skipped.
 To bank a new create-only record, set `MAINTENANCE_CONTAINMENT_REPORT` to a new
-absolute JSON path. The checked-in JSON records `status: blocked`, actual blocker
+absolute JSON path. The create-only r2 record also verifies that a symlinked materialized wrapper path actually starts its child (zero exit with empty output is refused). The checked-in JSON records `status: blocked`, actual blocker
 stderr, runtime-lock and wrapper digests. Primitive protections and blocked backend
 readiness are distinct facts. A host-side tool bridge outside the outer sandbox is
 a scoped follow-up design, requiring its own concrete approval and qualification.

@@ -56,6 +56,10 @@ func EvalContainmentPrefix(c *executor.EvalContainment, workspace string) ([]str
 	if err != nil {
 		return nil, err
 	}
+	dir, err = filepath.EvalSymlinks(dir)
+	if err != nil {
+		return nil, err
+	}
 	node, err := exec.LookPath("node")
 	if err != nil {
 		return nil, fmt.Errorf("pi containment requires node: %w", err)
@@ -100,6 +104,10 @@ func evalContainmentCommand(task *executor.Task, piPath string, args []string) (
 	argv := append(prefix, "--", path)
 	argv = append(argv, args...)
 	dir, err := materializeProfileAssets()
+	if err != nil {
+		return nil, nil, err
+	}
+	dir, err = filepath.EvalSymlinks(dir)
 	if err != nil {
 		return nil, nil, err
 	}
