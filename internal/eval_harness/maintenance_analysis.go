@@ -60,6 +60,13 @@ func maintenanceAnalysisSourceSHA(root string) (string, error) {
 		if d.Type()&os.ModeSymlink != 0 {
 			return fmt.Errorf("symlink in analysis source: %s", path)
 		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("non-regular analysis source: %s", path)
+		}
 		rel, err := filepath.Rel(root, path)
 		if err != nil {
 			return err
@@ -187,6 +194,22 @@ func RunMaintenanceNativeAnalysis(ctx context.Context, in MaintenanceAnalysisInp
 	}
 	if after != source {
 		return nil, fmt.Errorf("analysis source changed during evaluation")
+	}
+	for key, path := range map[string]string{"plan": in.PlanPath, "runs": in.RunsPath, "usage": in.UsagePath} {
+		observed, err := maintenanceFileSHA(path)
+		if err != nil {
+			return nil, err
+		}
+		if observed != p.Inputs[key] {
+			return nil, fmt.Errorf("analysis %s input changed during evaluation", key)
+		}
+	}
+	compilerAfter, err := maintenanceFileSHA(bin)
+	if err != nil {
+		return nil, err
+	}
+	if compilerAfter != compiler {
+		return nil, fmt.Errorf("compiler changed during evaluation")
 	}
 	p.OutputSHA256, err = maintenanceFileSHA(in.OutputPath)
 	if err != nil {
