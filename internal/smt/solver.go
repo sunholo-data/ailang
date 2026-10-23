@@ -13,6 +13,7 @@ import (
 
 	ailangconfig "github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/proctree"
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 const (
@@ -54,12 +55,13 @@ type ModelBinding struct {
 
 // SolverResult holds the result of running Z3 on an SMT-LIB program.
 type SolverResult struct {
-	Status    SolverStatus
-	Model     []ModelBinding // Populated when Status == StatusCounterexample
-	Duration  time.Duration
-	SMTLib    string // The input SMT-LIB program (for --verbose)
-	RawOutput string // Raw Z3 stdout
-	Error     string // Error message if Status == StatusError
+	ReasonCode verification.ReasonCode
+	Status     SolverStatus
+	Model      []ModelBinding // Populated when Status == StatusCounterexample
+	Duration   time.Duration
+	SMTLib     string // The input SMT-LIB program (for --verbose)
+	RawOutput  string // Raw Z3 stdout
+	Error      string // Error message if Status == StatusError
 }
 
 // SolverConfig holds configuration for the Z3 solver.
@@ -123,6 +125,7 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 		var err error
 		z3Path, err = FindZ3()
 		if err != nil {
+			result.ReasonCode = verification.VerifierError
 			result.Status = StatusError
 			result.Error = err.Error()
 			result.Duration = time.Since(start)
@@ -174,6 +177,7 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		result.Status = StatusUnknown
 		result.Error = "solver timeout"
+		result.ReasonCode = verification.SolverTimeout
 		return result, nil
 	}
 
@@ -193,6 +197,7 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 	}
 
 	if strings.HasPrefix(outputStr, "unknown") {
+		result.ReasonCode = verification.SolverUnknown
 		result.Status = StatusUnknown
 		return result, nil
 	}
@@ -201,16 +206,19 @@ func Solve(smtlib string, config SolverConfig) (*SolverResult, error) {
 	if strings.Contains(outputStr, "timeout") {
 		result.Status = StatusUnknown
 		result.Error = "solver timeout"
+		result.ReasonCode = verification.SolverTimeout
 		return result, nil
 	}
 
 	// Other error
 	if err != nil {
+		result.ReasonCode = verification.VerifierError
 		result.Status = StatusError
 		result.Error = fmt.Sprintf("Z3 error (exit %v): %s", err, outputStr)
 		return result, nil
 	}
 
+	result.ReasonCode = verification.VerifierError
 	result.Status = StatusError
 	result.Error = fmt.Sprintf("unexpected Z3 output: %s", outputStr)
 	return result, nil

@@ -20,15 +20,17 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 // UnresolvedTypeVerifyResult is the neutral "skipped" result for a function whose
 // SMT declaration closure could not resolve a required sort.
 func UnresolvedTypeVerifyResult(funcName string, err error) VerifyResult {
 	return VerifyResult{
-		Function: funcName,
-		Status:   "skipped",
-		Reason:   fmt.Sprintf("SMT declaration closure could not resolve a required sort (%v)", err),
+		Function:   funcName,
+		Status:     "skipped",
+		ReasonCode: verification.UnsupportedEncoding,
+		Reason:     fmt.Sprintf("SMT declaration closure could not resolve a required sort (%v)", err),
 		Rejections: []SMTRejectionReason{{
 			Code:    RejectUnencodable,
 			Message: err.Error(),

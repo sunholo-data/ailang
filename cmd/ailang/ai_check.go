@@ -10,6 +10,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/smt"
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 // aiCheckOutput is the unified JSON output for ai-check
@@ -28,6 +29,7 @@ type aiCheckSection struct {
 
 // aiVerifySection is the contract verification portion of ai-check output
 type aiVerifySection struct {
+	verification.Evidence
 	Available      bool               `json:"available"`
 	Verified       int                `json:"verified"`
 	Counterexample int                `json:"counterexample"`
@@ -236,6 +238,7 @@ func aiCheckVerifyOptions(timeout time.Duration, recursiveDepth int) smt.VerifyO
 // value to a machine contract is a change to announce, not to slip in.
 func aiVerifySectionFromReport(report *smt.VerifyReport) aiVerifySection {
 	section := aiVerifySection{
+		Evidence:       report.Evidence,
 		Available:      true,
 		Verified:       report.Verified,
 		Counterexample: report.Counterexample,

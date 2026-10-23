@@ -14,6 +14,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/check"
 	"github.com/sunholo-data/ailang/internal/pkg"
 	"github.com/sunholo-data/ailang/internal/smt"
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 // M-PKG-QUALITY-LADDER M3 — `ailang pkg quality [--json] [--strict] [--no-run] <dir>`.
@@ -234,6 +235,11 @@ func printQualityHuman(r *pkg.QualityReport) {
 	} else {
 		fmt.Printf("  contracts: %s %d/%d verified, %d refuted, %d uncontracted exports (%.1fs)\n", tick(r.Contracts.Counterexample == 0), r.Contracts.Verified, r.Contracts.Total, r.Contracts.Counterexample, r.Contracts.UncontractedExports, r.Contracts.WallSeconds)
 	}
+	fmt.Printf("  proof scope: verifier reported verified under the encoded model; %s\n", r.Contracts.Evidence.Summary())
+	fmt.Printf("    function reasons: %s\n", verification.ReasonSummary(r.Contracts.ReasonCounts))
+	for _, issue := range r.Contracts.ModuleIssues {
+		fmt.Printf("    module %s [%s]: %s\n", issue.Module, issue.ReasonCode, issue.Reason)
+	}
 	if r.Interface.Error != "" {
 		fmt.Printf("  interface: %s v2 not built — %s\n", yellow("⚠"), r.Interface.Error)
 	} else {
@@ -244,7 +250,7 @@ func printQualityHuman(r *pkg.QualityReport) {
 	fmt.Printf("  docs:      AGENT.md %v  ai_summary %v\n", r.Docs.AgentMD, r.Docs.AISummary)
 	fmt.Printf("  style:     %d exported funcs, %d pure (%.0f%%)\n", r.Style.ExportedFuncs, r.Style.PureExports, r.Style.PureRatio*100)
 	if r.Tests != nil {
-		fmt.Printf("  tests:     [attested] %d files, %d passed, %d failed%s\n", r.Tests.Files, r.Tests.Passed, r.Tests.Failed, noteSuffix(r.Tests.Notes))
+		fmt.Printf("  tests:     [attested] %d files, %d passed, %d failed, %d skipped%s\n", r.Tests.Files, r.Tests.Passed, r.Tests.Failed, r.Tests.Skipped, noteSuffix(r.Tests.Notes))
 	}
 	if r.Smoke != nil {
 		if r.Smoke.NotRun {

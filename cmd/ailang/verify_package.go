@@ -11,6 +11,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/pkg"
 	"github.com/sunholo-data/ailang/internal/smt"
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 // M-PKG-QUALITY-LADDER M1 — `ailang verify --package <dir>`.
@@ -44,10 +45,11 @@ func verifyPackage(dir string, opts verifyPackageOptions) (*pkg.PackageVerifyRep
 	}
 
 	report := &pkg.PackageVerifyReport{
-		Schema:  pkg.PackageVerifySchema,
-		Package: manifest.Package.Name,
-		Version: manifest.Package.Version,
-		Modules: []pkg.ModuleVerifyReport{},
+		Evidence: verification.EncodedEvidence(),
+		Schema:   pkg.PackageVerifySchema,
+		Package:  manifest.Package.Name,
+		Version:  manifest.Package.Version,
+		Modules:  []pkg.ModuleVerifyReport{},
 	}
 
 	modules := append([]string(nil), manifest.Exports.Modules...)
@@ -56,8 +58,7 @@ func verifyPackage(dir string, opts verifyPackageOptions) (*pkg.PackageVerifyRep
 	for _, modulePath := range modules {
 		if opts.WallCap > 0 && time.Since(start) > opts.WallCap {
 			report.WallCapHit = true
-			report.Add(pkg.ModuleVerifyReport{Module: modulePath, Skipped: 1,
-				CompileError: fmt.Sprintf("skipped: package wall cap %s exceeded", opts.WallCap)})
+			report.Add(moduleBudgetReport(modulePath, opts.WallCap))
 			continue
 		}
 		report.Add(verifyOneModule(absDir, manifest, modulePath, opts))
@@ -67,11 +68,12 @@ func verifyPackage(dir string, opts verifyPackageOptions) (*pkg.PackageVerifyRep
 }
 
 func verifyOneModule(absDir string, manifest *pkg.PackageManifest, modulePath string, opts verifyPackageOptions) pkg.ModuleVerifyReport {
-	mr := pkg.ModuleVerifyReport{Module: modulePath}
+	mr := pkg.ModuleVerifyReport{Module: modulePath, ReasonCounts: make(map[verification.ReasonCode]int)}
 	file := pkg.ResolveModuleToFile(absDir, manifest.Package.Name, modulePath)
 	if file == "" {
 		mr.Errors = 1
 		mr.CompileError = "exported module has no source file"
+		mr.Issues = moduleVerifyIssues(modulePath, verification.MissingSource, mr.CompileError)
 		return mr
 	}
 	rel, _ := filepath.Rel(absDir, file)
@@ -81,6 +83,7 @@ func verifyOneModule(absDir string, manifest *pkg.PackageManifest, modulePath st
 	if err != nil {
 		mr.Errors = 1
 		mr.CompileError = err.Error()
+		mr.Issues = moduleVerifyIssues(modulePath, verification.ReadError, mr.CompileError)
 		return mr
 	}
 	cfg := pipeline.Config{
@@ -92,11 +95,13 @@ func verifyOneModule(absDir string, manifest *pkg.PackageManifest, modulePath st
 	if err != nil {
 		mr.Errors = 1
 		mr.CompileError = err.Error()
+		mr.Issues = moduleVerifyIssues(modulePath, verification.CompileError, mr.CompileError)
 		return mr
 	}
 	if len(result.Errors) > 0 {
 		mr.Errors = 1
 		mr.CompileError = fmt.Sprintf("%v", result.Errors[0])
+		mr.Issues = moduleVerifyIssues(modulePath, verification.CompileError, mr.CompileError)
 		return mr
 	}
 	if result.Artifacts.Core == nil || result.Artifacts.Core.Meta == nil {
@@ -110,7 +115,10 @@ func verifyOneModule(absDir string, manifest *pkg.PackageManifest, modulePath st
 	mr.Verified, mr.Counterexample, mr.Skipped, mr.Errors, mr.Uncontracted =
 		vr.Verified, vr.Counterexample, vr.Skipped, vr.Errors, vr.Uncontracted
 	for _, r := range vr.Results {
-		mr.Results = append(mr.Results, pkg.FunctionVerifyItem{Function: r.Function, Status: r.Status, Reason: r.Reason})
+		mr.Results = append(mr.Results, packageVerifyItem(r))
+		if r.ReasonCode != "" {
+			mr.ReasonCounts[r.ReasonCode]++
+		}
 	}
 	return mr
 }
@@ -125,17 +133,37 @@ func printPackageVerifyJSON(report *pkg.PackageVerifyReport) {
 }
 
 func printPackageVerifyHuman(report *pkg.PackageVerifyReport) {
-	fmt.Printf("%s Verifying package %s@%s (%d exported modules)\n\n", cyan("→"), report.Package, report.Version, len(report.Modules))
+	fmt.Printf("%s Verifying package %s@%s (%d exported modules)\n", cyan("→"), report.Package, report.Version, len(report.Modules))
+	fmt.Printf("  Scope: verifier reported verified under the encoded model; %s\n\n", report.Evidence.Summary())
+	fmt.Printf("  Function reasons: %s\n", verification.ReasonSummary(report.ReasonCounts))
 	for _, m := range report.Modules {
 		switch {
 		case m.CompileError != "":
 			fmt.Printf("  %s %s — %s\n", red("✗"), m.Module, m.CompileError)
 		case m.Counterexample > 0:
 			fmt.Printf("  %s %s — %d verified, %d counterexample\n", red("✗"), m.Module, m.Verified, m.Counterexample)
-		case m.Verified == 0 && m.Uncontracted > 0:
+		case m.Verified == 0 && m.Skipped == 0 && m.Errors == 0 && m.Uncontracted > 0:
 			fmt.Printf("  %s %s — no contracts (%d exported)\n", yellow("·"), m.Module, m.Uncontracted)
 		default:
 			fmt.Printf("  %s %s — %d/%d verified\n", green("✓"), m.Module, m.Verified, m.Verified+m.Counterexample+m.Skipped+m.Errors)
+		}
+		for _, r := range m.Results {
+			if r.ReasonCode != "" || r.BoundedDepth > 0 {
+				fmt.Printf("    %s: %s", r.Function, r.Status)
+				if r.ReasonCode != "" {
+					fmt.Printf(" [%s]", r.ReasonCode)
+				}
+				if r.BoundedDepth > 0 {
+					fmt.Printf(" (bounded: depth %d)", r.BoundedDepth)
+				}
+				if r.Reason != "" {
+					fmt.Printf(" — %s", r.Reason)
+				}
+				fmt.Println()
+			}
+		}
+		for _, issue := range m.Issues {
+			fmt.Printf("    module issue [%s]: %s\n", issue.ReasonCode, issue.Reason)
 		}
 	}
 	fmt.Printf("\n%d verified, %d counterexample, %d skipped, %d errors, %d uncontracted (%.1fs)\n",
@@ -143,4 +171,21 @@ func printPackageVerifyHuman(report *pkg.PackageVerifyReport) {
 	if report.WallCapHit {
 		fmt.Printf("%s package wall cap hit — remaining modules skipped\n", yellow("⚠"))
 	}
+}
+
+func moduleVerifyIssues(module string, code verification.ReasonCode, reason string) []verification.ModuleIssue {
+	return []verification.ModuleIssue{{Scope: "module", Module: module, ReasonCode: code, Reason: reason}}
+}
+
+func packageVerifyItem(r smt.VerifyResult) pkg.FunctionVerifyItem {
+	item := pkg.FunctionVerifyItem{Function: r.Function, Status: r.Status, Reason: r.Reason, ReasonCode: r.ReasonCode, BoundedDepth: r.BoundedDepth}
+	for _, rej := range r.Rejections {
+		item.Rejections = append(item.Rejections, verification.Rejection{Code: string(rej.Code), Message: rej.Message, Hint: rej.Hint, Location: rej.Location})
+	}
+	return item
+}
+
+func moduleBudgetReport(module string, cap time.Duration) pkg.ModuleVerifyReport {
+	reason := fmt.Sprintf("package wall cap %s exceeded", cap)
+	return pkg.ModuleVerifyReport{Module: module, Skipped: 1, CompileError: "skipped: " + reason, Issues: moduleVerifyIssues(module, verification.ModuleBudgetExhausted, reason)}
 }

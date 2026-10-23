@@ -11,6 +11,13 @@ the original M1→M2→M3 order was writer-before-reader and lossy in the window
 revision applies both reviewers' fixes verbatim; see the
 [Quorum verification log](#quorum-verification-log) at the end.
 
+**Attended follow-up, 2026-10-23**: the original counter/status split remains
+parked under D-29/D-30 and its historical target is unchanged. A separately
+reviewable, additive package-evidence slice for candidate v0.54.18 is specified
+in [the audio addendum](#audio-follow-up-2026-10-23-additive-package-evidence).
+It does not authorize that split, change KPI predicates, or claim this design's
+previous quorum objections are resolved.
+
 ---
 
 ## Problem Statement
@@ -801,3 +808,205 @@ residual. That is judgment, so it goes to the human (standing rule 2).
 **pre-existing** property of HEAD. This split does not create it; it makes it
 consequential. `D-30` is worth a ruling whichever way `D-29` goes, and neither decision
 blocks the other.
+
+## Audio follow-up, 2026-10-23: additive package evidence
+
+**Status**: Planned — attended design review required; no implementation of this slice
+**Target**: v0.54.18 candidate
+**Priority**: P1
+**Estimated**: 2–3 engineering days including reader compatibility and evidence tests
+**Source**: `inbox_1792742862200_201d0d83`, from ailang-packages to user
+
+### Problem and overlap decision
+
+The audio package reports 2/12 verified, 10 skipped, 0 counterexamples, 0 errors,
+and 33 uncontracted. Its raw reasons divide the skips into five missing
+postconditions and five unsupported encodings. These are reporter measurements,
+not a package re-verification in this session. Local reproduction on a minimal
+requires-only function confirms the current verifier's no-ensures skip path.
+
+This existing design already owns skip classification; creating another design
+for that split would duplicate parked work. This addendum specifies only
+additional reason/scope evidence in package reports and quality output, retaining
+every existing status and aggregate counter. The small PUB016 wording fix in the
+attended session removes the incorrect assertion that all skips are encoding
+failures; it does not implement the structured evidence designed here.
+
+The audit found a second evidence-loss boundary: smt.VerifyResult carries
+BoundedDepth and Rejections, but verifyOneModule copies only Function, Status and
+Reason into pkg.FunctionVerifyItem. The package report therefore cannot carry
+the same recursion scope the single-file printer already exposes.
+
+### High-impact decisions and freeze
+
+| Decision | Why high impact | Chosen by | Deadline | Change cost |
+|---|---|---|---|---|
+| Keep all legacy statuses/counters/exit codes | Prevents old readers silently changing KPI values | human approval | design | high |
+| Add typed reason codes at emission, not prose parsing | Protects stable machine interpretation | agent | implementation | med |
+| Preserve mathematical-model and recursion scope through package projection | Prevents a model proof being presented as runtime equivalence | human approval | design | high |
+| Distinguish absent evidence from zero/false evidence | Older reports must not gain fictitious proofs | human approval | design | med |
+
+- [ ] Approve additive fields and unchanged legacy accounting.
+- [ ] Approve proof-scope wording and compatibility fixtures before implementation.
+- [ ] Review the D-29/D-30 separation; neither parked decision is resolved here.
+
+### Reason taxonomy and accounting
+
+Attach an optional reason_code to smt.VerifyResult and the package projection.
+Populate it where control flow determines the outcome, not by parsing English
+reason strings. Keep the original human reason and rejection details.
+
+| Existing branch | New evidence reason | Existing accounting retained |
+|---|---|---|
+| Contract without ensures | missing_postcondition | skipped |
+| Unsupported type/builtin/construct | unsupported_encoding | skipped, or error under the existing ai-check option |
+| Body missing from Core | missing_body | skipped |
+| Solver says unknown | solver_unknown | unknown, counted in errors |
+| Solver timeout | solver_timeout | unknown, counted in errors |
+| Encoding/solver infrastructure failure | verifier_error | error |
+| SAT refutation | counterexample | counterexample |
+| No annotations on export | uncontracted | uncontracted |
+
+Recognize solver_unknown versus timeout from solver-owned structured state;
+if necessary add a reason code to SolveResult at the timeout branches. Do not
+infer timeout from report prose in a downstream consumer. Never reclassify an
+unknown, timeout, missing postcondition or skipped property as a successful proof.
+
+Expose per-function reason counts as additive detail. Retain distinct module
+issues for missing sources, compile errors and package wall-cap exhaustion.
+Current wall-cap reports use a synthetic skipped=1 for an entire module: do not
+call that one skipped function. Emit scope=module for that issue and do not
+fabricate function identities or totals for work the verifier did not inspect.
+Reports from old producers with missing reason codes show detail unavailable;
+their legacy counters remain authoritative, not reconstructed from guessed codes.
+
+### Proof model and evidence classes
+
+Add versioned optional evidence metadata without changing the existing
+ailang.package-verify/v1 schema tag or removing any fields. Proposal:
+
+```json
+{
+  "evidence_schema": "ailang.verification-evidence/v1",
+  "numeric_model": {
+    "float_sort": "Real",
+    "int_sort": "Int",
+    "runtime_equivalence": "not_established"
+  }
+}
+```
+
+This describes the encoder's numeric sorts, not proof coverage for every
+arithmetic operation or equivalence with IEEE-754/machine integers. Human output
+must state this limitation wherever a package proof summary is shown. Preserve
+per-function bounded_depth and rejection codes through FunctionVerifyItem.
+Display recursion as bounded with its actual depth when available; missing or
+zero depth is not evidence of an inductive proof. The checker must not infer
+machine overflow safety, NaN/infinity safety, or cross-architecture byte equality
+from a Real/Int-model result.
+
+Static verification, runtime contracts and generated property tests are three
+separate evidence classes. A static report must not imply runtime contracts ran;
+those are opt-in through --verify-contracts. Package-quality output keeps test
+passed/failed/skipped counts, provenance and scope separate from solver counts.
+When no runtime-contract run is recorded, label it not measured. The reported
+onePole generator skip stays a skip; a passing unrelated property cannot cover it.
+Package authors own constrained generators and ordinary input guards.
+
+Existing reports of call-site precondition and proof/refutation asymmetry are
+separately queued in the related triage documents. This reporting slice neither
+repairs those semantics nor certifies that every current verifier result is sound.
+Use the wording "verifier reported verified under the encoded model"; a richer
+numeric-model label is not an independent verifier audit.
+
+### Implementation phases and compatibility boundary
+
+1. About 1 day: add optional evidence/reason fields and tolerant readers in
+   internal/pkg/verify_report.go and quality report projection; retain existing
+   schema acceptance and quality gates. Older input missing fields renders
+   unavailable, never zero reason counts advertised as measured. Test old and
+   new producer shapes before emitting the new fields.
+2. About 1 day: emit reason codes in internal/smt/verify.go and solver.go,
+   preserve metadata in cmd/ailang/verify_package.go, and render it in
+   verify_print.go/package human output and internal/pkg/quality.go. Share the
+   model description instead of hard-coding different claims in each printer.
+3. About 1 day: docs, fixture evidence, schema compatibility and all affected
+   tests. Inspect registry validator consumers of PackageVerifyReport and
+   ContractsSection so the new fields survive quality projection. Add only a
+   truthful implementation changelog fragment when the feature exists.
+
+This deliberately does not emit not_applicable, shrink skipped, alter
+VerifySkipped predicates, rewrite historical banks, change ai-check's special
+unsupported-construct error behavior, or expand SMT encodability. Old readers
+may ignore new details without losing any legacy counts: this is why the
+package-evidence slice can be reviewed independently of the blocked split.
+Any future request to change counts must return to D-29/D-30 and protocol review.
+
+### Acceptance and conflict surface
+
+- [ ] A fixture with missing ensures, unsupported encoding, timeout, unknown,
+      counterexample and infrastructure error has distinct reason codes and
+      unchanged legacy statuses/counters. Synthetic solver results make timeout
+      tests deterministic; one real solver smoke confirms projection wiring.
+- [ ] Package output preserves bounded_depth/rejections from the same underlying
+      result as single-file output. An old report displays scope unavailable.
+- [ ] Numeric metadata says Real/Int and not-established runtime equivalence;
+      neither human nor JSON output advertises an IEEE proof.
+- [ ] Quality output keeps module budget issues distinct from function counts,
+      and test skips distinct from static outcomes and runtime-contract evidence.
+- [ ] Old-reader/new-writer and new-reader/old-writer fixtures preserve every
+      legacy count and publish/strict/ai-check verdict. No implicit zero migration.
+- [ ] Documentation, required tests/lint and affected boundary gates pass.
+
+No parser/type syntax changes. The affected shared structures feed CLI, package
+quality, registry validation and ai-check. Regression anchors include
+cmd/ailang/ai_check_exit_test.go, cmd/ailang/verify_callee_sort_gate_e2e_test.go,
+internal/smt/solver_timeout_test.go, and internal/pkg/quality_test.go. Implementer
+may choose field/helper organization; semantic status changes are not delegated.
+
+### Verification log for the addendum (2026-10-23)
+
+| Premise | First-party evidence | Outcome |
+|---|---|---|
+| Missing postcondition is currently skipped | Scratch requiresOnly function, ailang check then verify --json | skipped, no ensures clause; 1 verified control and 1 uncontracted export |
+| Numeric mapping | Read internal/smt/types.go mapTCon | int -> Int, float -> Real |
+| Bounded metadata is lost in package projection | Read VerifyResult, FunctionVerifyItem, verifyOneModule | BoundedDepth/Rejections exist upstream but only name/status/reason copied |
+| Unknown currently counts as errors | Read switch solveResult.Status in internal/smt/verify.go | Preserved by this proposal |
+| Timeout has an owning emission path | Read internal/smt/solver.go and solver_timeout_test.go | Deadline and output-timeout branches return StatusUnknown |
+| Wall-cap skip is a module sentinel | Read verifyPackage module loop | Synthetic Skipped:1 plus compile_error text |
+| Test skips already have a field | Read TestsSection and cmd/ailang/pkg_quality.go | skipped_tests summary is copied; preserve it |
+| Historical split has a live design gate | Read this document including round-2 verdict | D-30 parked; additive detail must not silently implement split |
+
+Source HEAD `731fa1b`; installed binary `v0.54.17-dirty / 8f58117`. Audio package
+counts and its generator-skip observation remain explicitly attributed to the
+incoming report, not claimed as independently re-run here.
+
+### Axiom compliance for this slice
+
+| Axiom | Score | Reason |
+|---|---|---|
+| A1 Determinism | 0 | No solver semantics change |
+| A2 Replayability | +1 | Scope and reason survive projection |
+| A3 Effect legibility | +1 | Runtime assertions require their own evidence |
+| A4 Explicit authority | 0 | No new capabilities |
+| A5 Bounded verification | +1 | Unrolling scope visible |
+| A6 Safe concurrency | 0 | No concurrency change |
+| A7 Machines first | +1 | Typed reason/model metadata |
+| A8 Minimal syntax | 0 | No language syntax |
+| A9 Cost visibility | +1 | Module wall cap separated |
+| A10 Composability | +1 | Shared reports retain evidence |
+| A11 Structured failure | +1 | Unknown, timeout and gaps distinguished |
+| A12 System boundary | +1 | Package tests and static solver stay distinct |
+
+Net +8; no hard violations. Main risks: overclaiming proof soundness, changing
+legacy accounting, and silently treating absent fields as evidence. The explicit
+wording, skew fixtures and unavailable state are release criteria.
+
+### Related work
+
+- [Checked WAV writer and release handoff](v0_54_18/m-std-audio-wav-write-checked.md).
+- [Callee requires obligations](ailang-core-triage/verify-call-site-precondition-not-checked.md)
+  and [proof/refutation symmetry](ailang-core-triage/verify-ensures-verified-without-encodable-refutation.md):
+  separate semantic issues, not resolved by reporting.
+- [Bounded counterexample design](m-verify-bounded-unrolling-false-counterexample.md):
+  verdict changes remain outside this additive slice.

@@ -293,6 +293,8 @@ func ailangTypeToGo(t ast.Type) string {
 			return "float64"
 		case "string":
 			return "string"
+		case "bytes":
+			return "[]byte"
 		case "bool":
 			return "bool"
 		case "()":
@@ -318,6 +320,9 @@ func ailangTypeToGo(t ast.Type) string {
 		}
 		return "[]" + elemType
 	case *ast.ArrayType:
+		if element, ok := typ.Element.(*ast.SimpleType); ok && element.Name == "float" {
+			return "FloatArrayVal"
+		}
 		return "ArrayVal"
 	case *ast.RecordType:
 		return "map[string]interface{}"
@@ -357,6 +362,8 @@ func ailangTypeToGoWithValueRecords(t ast.Type, valueRecords map[string]bool) st
 			return "float64"
 		case "string":
 			return "string"
+		case "bytes":
+			return "[]byte"
 		case "bool":
 			return "bool"
 		case "()":
@@ -385,6 +392,9 @@ func ailangTypeToGoWithValueRecords(t ast.Type, valueRecords map[string]bool) st
 		}
 		return "[]" + elemType
 	case *ast.ArrayType:
+		if element, ok := typ.Element.(*ast.SimpleType); ok && element.Name == "float" {
+			return "FloatArrayVal"
+		}
 		return "ArrayVal"
 	case *ast.RecordType:
 		return "map[string]interface{}"

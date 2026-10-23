@@ -1,0 +1,136 @@
+{
+  "sprint_id": "M-AUDIO-RELEASE",
+  "status": "in_progress",
+  "created": "2026-10-23T08:39:40.482397+00:00",
+  "design_doc": "design_docs/planned/v0_54_18/m-std-audio-wav-write-checked.md",
+  "sprint_plan": "design_docs/planned/v0_54_18/m-audio-release-sprint-plan.md",
+  "github_issues": [
+    1930
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Registry audio/format searches performed; core format, formatter and verifier primitives cannot depend on downstream packages"
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Registry audio/format searches performed; core format, formatter and verifier primitives cannot depend on downstream packages"
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Registry audio/format searches performed; core format, formatter and verifier primitives cannot depend on downstream packages"
+    },
+    {
+      "milestone": "M4",
+      "package": "std/array",
+      "action": "depend",
+      "reason": "Reuse existing standard array/audio/string primitives in integration"
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Registry audio/format searches performed; core format, formatter and verifier primitives cannot depend on downstream packages"
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 2800,
+    "estimated_days": 10,
+    "target_loc_per_day": 280
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Checked WAV writing and metadata/packed PCM",
+      "estimated_loc": 1450,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Canonical padded WAV, checked and legacy failure behavior match design.",
+        "WAV metadata validates chunk extents/format/frame fields and limits.",
+        "Packed s16le conversion preserves channels and explicit quantization.",
+        "Failing tests observed first, then focused tests pass with -count=20."
+      ],
+      "passes": true,
+      "started": "2026-10-23T08:39:40.482397+00:00",
+      "completed": "2026-10-23T09:05:02.517874+00:00",
+      "notes": "Runtime checked WAV/RIFF corpus and packed conversion complete; native count20 and41 AILANG cases pass. Actual CLI corpus24 cases parity passed. Cross-engine packed array composition integration remains in M4."
+    },
+    {
+      "id": "M2",
+      "description": "Bounded formatFixed and generated-Go guard",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Precision 0..1000, long digits, ties, signed zero and nonfinite output match strconv.",
+        "Negative/excessive precision fails ordinarily on evaluator, strict VM and generated Go.",
+        "Existing formatter outputs remain unchanged; focused deterministic tests pass."
+      ],
+      "passes": true,
+      "started": "2026-10-23T08:39:40.482397+00:00",
+      "completed": "2026-10-23T09:05:02.517874+00:00",
+      "notes": "Guarded strconv formatter implemented; native count20, actual generatedGo tests and interpreter/strictVM examples pass."
+    },
+    {
+      "id": "M3",
+      "description": "Additive verification reason/model evidence",
+      "estimated_loc": 600,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Typed reason codes distinguish missing ensures, encoding, timeout/unknown and errors.",
+        "Package projection retains recursion/rejections/numeric model and module issues.",
+        "Old/new reports preserve counters, gate behavior and absent-evidence semantics.",
+        "Property-test skips remain separate from proof/runtime assertion evidence."
+      ],
+      "passes": true,
+      "started": "2026-10-23T08:39:40.482397+00:00",
+      "completed": "2026-10-23T09:05:02.517874+00:00",
+      "notes": "Additive evidence implemented with legacy counters/statuses/exit gates unchanged. Full SMT/leaf and focused CLI/pkg tests pass; mixed skipped+uncontracted summary regression fixed."
+    },
+    {
+      "id": "M4",
+      "description": "Engine integration, examples and release documentation",
+      "estimated_loc": 350,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Showcase examples check/run on interpreter and strict VM, and generated Go agrees.",
+        "Example contracts: include pure metadata/format invariants with requires/ensures where encodable; skip native byte/array solver claims with explicit reason.",
+        "Example effects: include named IO row on main; pure helpers remain effect-free.",
+        "Example inline tests: include format goldens and audio success/error predicates.",
+        "Input/result/memory benchmark evidence verifies packed path without boxed lists.",
+        "Docs and truthful release fragments match implemented APIs and compatibility changes."
+      ],
+      "passes": true,
+      "started": "2026-10-23T09:05:02.517874+00:00",
+      "completed": "2026-10-23T09:21:10.577874+00:00",
+      "notes": "Integrated checkpoint passed; new examples and manifest pass. Independent review findings corrected and real generatedGo test now covers24 metadata cases, packed set/exports/records/ADTs, first-class4args, local decode collision, recursion and top-level shadowing. New formatter roundtrip test and all package formatter tests pass."
+    },
+    {
+      "id": "M5",
+      "description": "Integrated gates and independent evaluation",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "make test-changed, lint, check-file-sizes, check-boundaries and changelog gates pass.",
+        "Example manifest/verification and generated-Go harness pass for new features.",
+        "Evaluator reports pass or concrete remaining failures; no self-awarded pass.",
+        "Sprint JSON and plan record measured progress; approved feature docs reflect actual implementation."
+      ],
+      "passes": null,
+      "started": "2026-10-23T09:21:10.577874+00:00",
+      "completed": null,
+      "notes": "Preparing task-only commit for clean-worktree full-suite independent evaluation. No release/tag/deploy."
+    }
+  ]
+}
