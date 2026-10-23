@@ -1,0 +1,317 @@
+{
+  "sprint_id": "M-MAINTENANCE-EVAL-ADAPTER",
+  "status": "in_progress",
+  "created": "2026-10-23T15:21:45.930211+00:00",
+  "design_doc": "design_docs/planned/m-maintenance-eval-taskpack.md",
+  "sprint_plan": "design_docs/planned/m-maintenance-eval-adapter-sprint-plan.md",
+  "github_issues": [],
+  "execution_authorized": true,
+  "planning_authorized_by": "Mark: great please merge in and proceed",
+  "execution_gate": "AGENTS.md concrete sprint approval / execute sprint before implementation; no automatic dispatch",
+  "target_repositories": [
+    "sunholo-data/ailang",
+    "sunholo-data/ailang-packages"
+  ],
+  "core_source_revision": "cd33d050b2276633c82624453309ebf7fcea9e2f",
+  "package_source_revision": "a4163559a2e20dddc1a1bb0869a06e42372994a1",
+  "foundation_merge": "https://github.com/sunholo-data/ailang-packages/pull/160",
+  "target_directory": "internal/eval_harness and companion package taskpack source",
+  "prompt_version_loaded": "v0.16.7",
+  "registry_reuse": [
+    {
+      "milestone": "M1_EXECUTION_MANIFEST",
+      "package": "sunholo/maintenance_bench",
+      "action": "contribute",
+      "reason": "Extend merged native ledger/taskpack assets and consumer; source a416355 explicitly required while registry0.2 is unpublished."
+    },
+    {
+      "milestone": "M2_CLI_MODE",
+      "package": null,
+      "action": "none",
+      "reason": "Registry maintenance/sandbox/executor searches and maintenance_bench docs reviewed; extend existing internal eval/executor/pi-extension seams, not a new runner/dependency."
+    },
+    {
+      "milestone": "M3_CHECKPOINTS",
+      "package": null,
+      "action": "none",
+      "reason": "Registry maintenance/sandbox/executor searches and maintenance_bench docs reviewed; extend existing internal eval/executor/pi-extension seams, not a new runner/dependency."
+    },
+    {
+      "milestone": "M4_FINITE_STAGES",
+      "package": null,
+      "action": "none",
+      "reason": "Registry maintenance/sandbox/executor searches and maintenance_bench docs reviewed; extend existing internal eval/executor/pi-extension seams, not a new runner/dependency."
+    },
+    {
+      "milestone": "M5_ORACLE_BRIDGE",
+      "package": "sunholo/maintenance_bench",
+      "action": "contribute",
+      "reason": "Extend merged native ledger/taskpack assets and consumer; source a416355 explicitly required while registry0.2 is unpublished."
+    },
+    {
+      "milestone": "M6_SHARED_TASK_SEAM",
+      "package": null,
+      "action": "none",
+      "reason": "Registry maintenance/sandbox/executor searches and maintenance_bench docs reviewed; extend existing internal eval/executor/pi-extension seams, not a new runner/dependency."
+    },
+    {
+      "milestone": "M7_NATIVE_READ_FENCE",
+      "package": null,
+      "action": "none",
+      "reason": "Registry maintenance/sandbox/executor searches and maintenance_bench docs reviewed; extend existing internal eval/executor/pi-extension seams, not a new runner/dependency."
+    },
+    {
+      "milestone": "M8_OS_CONTAINMENT",
+      "package": null,
+      "action": "none",
+      "reason": "Registry maintenance/sandbox/executor searches and maintenance_bench docs reviewed; extend existing internal eval/executor/pi-extension seams, not a new runner/dependency."
+    },
+    {
+      "milestone": "M9_USAGE_EVIDENCE",
+      "package": null,
+      "action": "none",
+      "reason": "Registry maintenance/sandbox/executor searches and maintenance_bench docs reviewed; extend existing internal eval/executor/pi-extension seams, not a new runner/dependency."
+    },
+    {
+      "milestone": "M10_NATIVE_ANALYSIS",
+      "package": "sunholo/maintenance_bench",
+      "action": "contribute",
+      "reason": "Extend merged native ledger/taskpack assets and consumer; source a416355 explicitly required while registry0.2 is unpublished."
+    },
+    {
+      "milestone": "M11_END_TO_END",
+      "package": "sunholo/maintenance_bench",
+      "action": "contribute",
+      "reason": "Extend merged native ledger/taskpack assets and consumer; source a416355 explicitly required while registry0.2 is unpublished."
+    },
+    {
+      "milestone": "M12_DELIVERY",
+      "package": "sunholo/maintenance_bench",
+      "action": "contribute",
+      "reason": "Extend merged native ledger/taskpack assets and consumer; source a416355 explicitly required while registry0.2 is unpublished."
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 3130,
+    "estimated_days": 8,
+    "target_loc_per_day": 391,
+    "range_days": [
+      6,
+      8
+    ],
+    "actual_loc_per_day": null,
+    "basis": "Planning envelope with qualification buffer; prior attended-agent elapsed time is not productive engineering-day velocity."
+  },
+  "features": [
+    {
+      "id": "M1_EXECUTION_MANIFEST",
+      "description": "Frozen execution bindings",
+      "estimated_loc": 320,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Validate the finite8/24 pilot and general bounded schedule, unique arms/IDs, stage requirements/oracles, native counterpart responsibilities, exact hashes and explicit model/harness/settings identities.",
+        "Reject traversal/absolute carried-artifact paths, symlinks/device files, duplicate JSON keys and conflicting ordinary-suite selection. Unmatched or altered stage contracts cannot silently compare.",
+        "Pin package source a4163559a2e20dddc1a1bb0869a06e42372994a1 and ledger v2. Registry0.1 lacks these APIs; never substitute it for unpublished0.2."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_CLI_MODE",
+      "description": "Opt-in CLI routing and zero-dispatch dry run",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M1_EXECUTION_MANIFEST"
+      ],
+      "acceptance_criteria": [
+        "--agent is required. --dry-run prints the complete resolved finite schedule, source/analysis identities and budget/isolation availability without creating executors, requesting credentials or calling a model/canary.",
+        "Reject ordinary benchmark/tier/lang/trial/condition/queue/browser/cohort flags when they would override the manifest; document the exact allowed common flags. Existing invocations preserve behavior.",
+        "Keep eval_suite.go below800 lines by extracting one cohesive existing helper, not shaving comments. CLI help describes only implemented behavior and an executable dry-run example."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_CHECKPOINTS",
+      "description": "Owned checkpoints and controlled workspace lifecycle",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1_EXECUTION_MANIFEST"
+      ],
+      "acceptance_criteria": [
+        "A broken S1 is the exact source basis for S2; no reference/gold restoration. Missing required app files remain a model artifact failure, not a silently healed starter.",
+        "Carry only declared regular files; explicit tests cover symlink traversal, rename/delete, excluded logs/caches and create-only immutable output. Record actual copied manifests/hashes.",
+        "Reap child processes before grading/checkpoint finalization and on all error exits; preserve result artifacts and spent work while isolating build/runtime outputs per source identity."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_FINITE_STAGES",
+      "description": "Three-stage orchestration over executor interface",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M3_CHECKPOINTS"
+      ],
+      "acceptance_criteria": [
+        "Scripted execution accounts for every scheduled stage after failure, timeout, cancellation, invalid setup, budget stop and never-started dispatch. Stage schedule is fixed and failed spend never disappears.",
+        "Only the current requirement/public diagnostics reach the model. Controller oracle verdicts are withheld during the primary trajectory; future-stage source is not seeded early.",
+        "Write native-ledger-compatible rows with prior/candidate/check/oracle/attempt identities; blocked continuation keeps the last actual owned checkpoint. Do not add a generic workflow engine."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_ORACLE_BRIDGE",
+      "description": "Grade arbitrary retained candidates with trusted task drivers",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M3_CHECKPOINTS"
+      ],
+      "acceptance_criteria": [
+        "Reference candidates pass and compiled semantic mutants fail on specific obligations. Deliberately uncompilable model source is an artifact/check failure; missing trusted tools/fixtures are invalid measurement setup, not model errors.",
+        "Trusted check/oracle source hashes cannot be weakened by agent edits. Reject mismatched input/output/source hashes, skipped assertions, stale builds, malformed typed output and overwritten evidence.",
+        "Grade in a clean runtime against all retained obligations. Candidate code cannot read or rewrite oracle expected values/controller data during execution; test that boundary rather than assuming the host oracle being outside the workspace is sufficient."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_SHARED_TASK_SEAM",
+      "description": "Reuse task construction and existing dispatch controls",
+      "estimated_loc": 270,
+      "dependencies": [
+        "M2_CLI_MODE",
+        "M4_FINITE_STAGES"
+      ],
+      "acceptance_criteria": [
+        "Task construction parity tests pin ordinary prompts/metadata/model/timeouts/pricing/env/tool behavior; no DEBUG_AGENT environment hack to preserve workspaces.",
+        "New stages use explicit isolated ambient-context/extensions requests and frozen prompt/profile/settings digests. Unsupported executor capabilities fail before model dispatch.",
+        "Do not grow agent_runner_multi.go(781) or motoko.go(770) past800 lines or change Motoko core. Register protected-mode support only on an actually qualified backend."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M7_NATIVE_READ_FENCE",
+      "description": "Trusted per-eval native tool fence",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M3_CHECKPOINTS",
+        "M6_SHARED_TASK_SEAM"
+      ],
+      "acceptance_criteria": [
+        "No-model tests cover real native read/write/edit/grep/find/ls surfaces, relative cwd != root, prefix confusion, symlink ancestors, unknown path shapes and protected developer files. Allowed native app work remains possible for both languages.",
+        "Only the declared canonical tool set and trusted extensions load; no ambient/global extension or context-file discovery. Protect policy/extension assets and controller/source-bank roots, including shared Git object stores and other trajectory workspaces.",
+        "First-backend selection is a proposal for this sprint, not a claim existing pi or Motoko is already qualified. Record effective tool/policy digest and refuse unmeasured boundaries."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M8_OS_CONTAINMENT",
+      "description": "Reuse bash sandbox and qualify the actual boundary",
+      "estimated_loc": 260,
+      "dependencies": [
+        "M7_NATIVE_READ_FENCE",
+        "M5_ORACLE_BRIDGE"
+      ],
+      "acceptance_criteria": [
+        "An actual no-model process canary must fail to read protected oracle/reference/controller roots via cat, Python open, AILANG FS, symlink traversal and native tools; it must also refuse modifying developer/oracle evidence while ordinary app builds run.",
+        "Tool subprocess network cannot fetch reference solutions; inference stays in the existing executor. Qualify exact platform/tool versions and policy, fail closed if sandbox initialization/support is absent, and never infer universal host/holdout protection from a few checks.",
+        "Declare the protected-root threat boundary and require all known source/reference copies and Git stores in it. If existing primitives cannot meet it, keep live admission closed and raise a scoped extension design rather than launching weaker comparative trials. Ordinary executor paths remain unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M9_USAGE_EVIDENCE",
+      "description": "Existing-parser leaf receipts and honest presence",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M6_SHARED_TASK_SEAM"
+      ],
+      "acceptance_criteria": [
+        "Fixtures cover absent versus explicit zero, inclusive/exclusive input, combined reasoning, incomplete streams, retries, compaction and summary/leaf reconciliation; no second provider-log parser in Go adapter or AILANG package.",
+        "Aggregate Result integers alone do not establish reported cache/reasoning zero or per-request completeness. Untraceable calls/overlap keep affected economics unavailable; retain original reported totals as source evidence.",
+        "Preserve raw decimal cost text when available. Never round float CostUSD to six decimals to fabricate exact money; unsupported precision remains explicit under current0.2 rules. Do not relabel registry estimates/subscription equivalents as metered invoices."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M10_NATIVE_ANALYSIS",
+      "description": "Use native package analysis for runner outputs",
+      "estimated_loc": 210,
+      "dependencies": [
+        "M4_FINITE_STAGES",
+        "M9_USAGE_EVIDENCE"
+      ],
+      "acceptance_criteria": [
+        "A clean source-path consumer uses merged0.2 code explicitly until registry publication is authorized. Verify actual compiler/source/lock/tool identities and store external provenance; reportId remains declared, not self-attesting.",
+        "Independent known fixture reproduces185-test foundation expectations:8/24 coverage, cost delta-22500micros, fresh-input diagnostic-550, fresh+generated headline-540; all are labelled instrument controls.",
+        "Unknown/missing usage and invalid outcomes produce unavailable economic claims while valid correctness remains visible. Emit reference-linked reproduction cards/draft investigation material without approving roadmap code or claiming a language win."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M11_END_TO_END",
+      "description": "Bounded no-model integration and failure matrix",
+      "estimated_loc": 280,
+      "dependencies": [
+        "M5_ORACLE_BRIDGE",
+        "M8_OS_CONTAINMENT",
+        "M10_NATIVE_ANALYSIS"
+      ],
+      "acceptance_criteria": [
+        "Plant broken early source, public-green semantic regressions, altered oracle, changed stage/provider/prompt identity, dropped costly retry, missing receipt, stale build, timeout and cancellation; each has an independent expected classification.",
+        "All24 rows and retained snapshots survive partial failure, and the model receives no private oracle feedback. Pipeline/source/receipt digests bind each actual artifact.",
+        "No paid canary/provider/model call is allowed in normal tests or dry-run. If platform containment is unavailable, report the admission gap explicitly and do not mark its criterion passed with a skip."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M12_DELIVERY",
+      "description": "Focused gates, help/docs and independent evaluation",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M11_END_TO_END"
+      ],
+      "acceptance_criteria": [
+        "Run focused Go/executor/CLI tests, make test-changed plus test-core, lint/file-size/boundary and pi-asset gates; TS guard tests and actual no-model OS checks are separate recorded outcomes. No full Go suite executor gate.",
+        "Native package tests/properties/examples/quality/dry-run remain green without new warning allowlists or formatter exclusions; original frozen studies are unchanged.",
+        "Publish reviewable source PRs only after concrete checks, then independent sprint-evaluator review; complete all state/plan criteria in the same trees. Exact model/provider/rates/enforceable bounds and actual launch authorization remain a later explicit decision."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "execution_authorized_by": "Mark: execute",
+  "started": "2026-10-23T15:32:12.227917+00:00"
+}
