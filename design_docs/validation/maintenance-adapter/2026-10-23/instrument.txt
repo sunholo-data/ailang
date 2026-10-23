@@ -1,0 +1,33 @@
+AILANG_MAINTENANCE_PACKAGE_ROOT="/private/tmp/ailang-maintenance-adapter-plan/packages/maintenance-bench" go test ./internal/eval_harness -run TestMaintenance -count=1
+ok  	github.com/sunholo-data/ailang/internal/eval_harness	28.345s
+go test ./internal/executor ./internal/executor/pi -run 'Test.*(Containment|PiEvidence)' -count=1
+ok  	github.com/sunholo-data/ailang/internal/executor	0.444s
+ok  	github.com/sunholo-data/ailang/internal/executor/pi	0.200s
+MAINTENANCE_PI_SDK="/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.js" node --experimental-strip-types --test tools/pi-extensions/maintenance-fence.test.ts tools/pi-extensions/maintenance-sandbox.test.mjs
+✔ strict policy identity and explicit backend version (2.14975ms)
+✔ actual pi0.85.1 native read write edit grep find ls remain usable (59.142666ms)
+✔ actual native tools cannot read/search/list or mutate protected source (1.880084ms)
+✔ relative cwd, prefix confusion, unknown tool/path shapes fail closed (1.367417ms)
+✔ symlink leaf/ancestor and recursive search cannot expose another root (1.841583ms)
+✔ bash override executes only the trusted tools-network wrapper with abort/time bounds (105.866916ms)
+✔ OS sandbox admits normal app work, denies cat/Python and symlink/hardlink oracle access (896.32775ms)
+✔ actual AILANG compiler succeeds, FS execution cannot read protected oracle (352.377666ms)
+✔ outer pi kernel boundary closes native read/write canonical check-use races (471.056708ms)
+✔ tool subprocess network cannot reach an independently live local server (181.266458ms)
+✔ changed policy/runtime lock fails before child execution (51.854583ms)
+✔ known macOS nested SDK blocker keeps protected backend admission CLOSED (266.902959ms)
+✔ tool process cannot bypass network policy through an allowed outer Unix socket (140.256083ms)
+✔ wrapper entry through a symlink path must actually execute its child (116.530375ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2552.18025
+Checking for files >800 lines...
+[0;32m✓ All files within 800 line limit[0m
+Checking architecture boundaries (logical layers over internal/)...
+
+OK: no architecture boundary violations.

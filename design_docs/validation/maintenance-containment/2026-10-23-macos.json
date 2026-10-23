@@ -1,0 +1,33 @@
+{
+  "schema": "maintenance.containment-qualification/1",
+  "status": "blocked",
+  "backendAdmitted": false,
+  "platform": "darwin",
+  "kernel": "25.6.0",
+  "node": "v26.12.1",
+  "piPackage": "@earendil-works/pi-coding-agent",
+  "piVersion": "0.85.1",
+  "runtimePackage": "@anthropic-ai/sandbox-runtime",
+  "runtimeVersion": "0.0.71",
+  "runtimeLockDigest": "b9db22624c0b6caf888b16173a9db4c1d48e0d80ec053f7ce6691977ff3bd669",
+  "wrapperDigest": "95a8233364d2c9b6661e1a0af1b89a9b73d5ac802a315acc0cce9b064dd62564",
+  "primitiveChecks": [
+    "owned-app-build",
+    "cat-python-read-denial",
+    "static-symlink-hardlink-denial",
+    "protected-write-denial",
+    "compiled-ailang-fs-denial",
+    "actual-native-sdk-read-write-races",
+    "tcp-reference-denial",
+    "unix-reference-denial",
+    "changed-policy-denial"
+  ],
+  "nestedBlocker": {
+    "code": 71,
+    "stdout": "",
+    "stderr": "sandbox-exec: sandbox_apply: Operation not permitted\n"
+  },
+  "sourceBoundary": "temporary declared controller/oracle root; full known-source-copy and Git-store inventory remains a separate live-admission requirement",
+  "qualifiedClaims": "direct host candidate primitives only; protected pi backend NOT qualified",
+  "modelCalls": 0
+}

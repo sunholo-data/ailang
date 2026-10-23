@@ -66,6 +66,12 @@ func buildPiArgs(model string, task *executor.Task, directive string) ([]string,
 	}
 	args = append(args, guardArgs...)
 
+	containmentArgs, err := evalContainmentArgs(task)
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, containmentArgs...)
+
 	args = append(args, directive)
 	return args, nil
 }

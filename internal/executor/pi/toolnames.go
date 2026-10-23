@@ -31,6 +31,9 @@ var canonicalToPi = map[string]string{
 	"Write":       "write",
 	"Edit":        "edit",
 	"Bash":        "bash",
+	"Grep":        "grep",
+	"Find":        "find",
+	"Ls":          "ls",
 	"AilangCheck": "ailang_check",
 	"AilangRun":   "ailang_run",
 	// Extension tools that already exist in the embedded suite, exposed so a
