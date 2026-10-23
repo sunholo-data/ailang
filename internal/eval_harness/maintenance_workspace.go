@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -203,10 +204,17 @@ func maintenanceReadRegular(root, name string) ([]byte, os.FileMode, error) {
 	if err := maintenanceOwnedPath(name); err != nil {
 		return nil, 0, err
 	}
-	current := root
+	// Descriptor-relative operations prevent a surviving child from making the
+	// unsandboxed controller follow a raced ancestor outside its owned app.
+	confined, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer confined.Close()
+	current := ""
 	for i, part := range strings.Split(name, "/") {
 		current = filepath.Join(current, part)
-		info, err := os.Lstat(current)
+		info, err := confined.Lstat(current)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -221,8 +229,20 @@ func maintenanceReadRegular(root, name string) ([]byte, os.FileMode, error) {
 			if !info.Mode().IsRegular() {
 				return nil, 0, fmt.Errorf("non-regular owned file: %s", name)
 			}
-			data, err := os.ReadFile(current)
-			return data, info.Mode(), err
+			file, err := confined.Open(current)
+			if err != nil {
+				return nil, 0, err
+			}
+			defer file.Close()
+			opened, err := file.Stat()
+			if err != nil {
+				return nil, 0, err
+			}
+			if !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
+				return nil, 0, fmt.Errorf("owned file changed during open: %s", name)
+			}
+			data, err := io.ReadAll(file)
+			return data, opened.Mode(), err
 		}
 	}
 	return nil, 0, fmt.Errorf("empty owned path")
