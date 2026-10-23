@@ -61,11 +61,16 @@ type MaintenanceDispatchStop struct {
 func (e *MaintenanceDispatchStop) Error() string { return e.Reason }
 
 type MaintenanceRunOptions struct {
-	Execution *MaintenanceExecution
-	Root      string
-	Executor  executor.Executor
-	BuildTask MaintenanceTaskBuilder
-	Grade     MaintenanceGrader
+	// DevelopmentInstrument permits an unreported executor version only for an
+	// explicitly labelled no-model control: role instrument_control, model
+	// scripted-control and executor identity scripted-control. A reported version
+	// mismatch is always invalid, including for these controls.
+	DevelopmentInstrument bool
+	Execution             *MaintenanceExecution
+	Root                  string
+	Executor              executor.Executor
+	BuildTask             MaintenanceTaskBuilder
+	Grade                 MaintenanceGrader
 	// BeforeDispatch is mandatory. The production adapter qualifies containment
 	// here; scripted instrument controls pass an explicit no-model admission hook.
 	BeforeDispatch func(context.Context, MaintenanceTrajectoryPlan, MaintenanceStagePlan) error

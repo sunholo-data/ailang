@@ -44,7 +44,7 @@ func maintenanceRunnerFixture(t *testing.T, count int) (*MaintenanceExecution, s
 	if err := os.Mkdir(inputs, 0700); err != nil {
 		t.Fatal(err)
 	}
-	e := &MaintenanceExecution{Plan: MaintenanceRunPlan{Schema: "maintenance.trajectory/2", ProtocolID: "scripted-test", Role: "instrument_control", Model: "scripted-model", Harness: "scripted-control", SettingsDigest: strings.Repeat("a", 64)}}
+	e := &MaintenanceExecution{Plan: MaintenanceRunPlan{Schema: "maintenance.trajectory/2", ProtocolID: "scripted-test", Role: "instrument_control", Model: "scripted-control", Harness: "scripted-control", SettingsDigest: strings.Repeat("a", 64)}}
 	for i := 0; i < count; i++ {
 		id := fmt.Sprintf("trajectory-%d", i)
 		starter := fmt.Sprintf("%s-starter.txt", id)
@@ -71,7 +71,7 @@ func maintenanceRunnerFixture(t *testing.T, count int) (*MaintenanceExecution, s
 	return e, filepath.Join(root, "run")
 }
 func maintenanceTask(_ MaintenanceTrajectoryPlan, _ MaintenanceStagePlan, workspace, directive string) (*executor.Task, error) {
-	return &executor.Task{Workspace: workspace, Directive: directive, Model: "scripted-model", Timeout: time.Second}, nil
+	return &executor.Task{Workspace: workspace, Directive: directive, Model: "scripted-control", Timeout: time.Second}, nil
 }
 func maintenanceAdmission(context.Context, MaintenanceTrajectoryPlan, MaintenanceStagePlan) error {
 	return nil
@@ -108,7 +108,7 @@ func TestMaintenanceRunnerRetainsFailedSourceFreshSessionAndFixedSchedule(t *tes
 		return &executor.Result{Success: true, CostUSD: 0.125, SessionID: "old-provider-session", Transcript: "private old conversation"}, nil
 	}
 	grades := 0
-	report, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{Execution: e, Root: root, Executor: s, BuildTask: maintenanceTask, BeforeDispatch: maintenanceAdmission, Reap: func(p string) ([]int, error) { reaped[p]++; return nil, nil }, Grade: func(ctx context.Context, tr MaintenanceTrajectoryPlan, stage MaintenanceStagePlan, cp MaintenanceCheckpoint) (MaintenanceGrade, error) {
+	report, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{DevelopmentInstrument: true, Execution: e, Root: root, Executor: s, BuildTask: maintenanceTask, BeforeDispatch: maintenanceAdmission, Reap: func(p string) ([]int, error) { reaped[p]++; return nil, nil }, Grade: func(ctx context.Context, tr MaintenanceTrajectoryPlan, stage MaintenanceStagePlan, cp MaintenanceCheckpoint) (MaintenanceGrade, error) {
 		grades++
 		if reaped[filepath.Join(root, fmt.Sprintf("trajectory-%03d", (grades-1)/3), "workspaces", fmt.Sprintf("stage-%03d", (grades-1)%3))] == 0 {
 			t.Fatal("grade before reap")
@@ -181,7 +181,7 @@ func TestMaintenanceRunnerAccountsBudgetCancellationAndSetup(t *testing.T) {
 					return MaintenanceGrade{}, errors.New("oracle infrastructure failed")
 				}
 			}
-			report, err := RunMaintenanceStages(ctx, MaintenanceRunOptions{Execution: e, Root: root, Executor: s, BuildTask: builder, Grade: grade, BeforeDispatch: maintenanceAdmission, Reap: func(string) ([]int, error) { reaps++; return nil, nil }})
+			report, err := RunMaintenanceStages(ctx, MaintenanceRunOptions{DevelopmentInstrument: true, Execution: e, Root: root, Executor: s, BuildTask: builder, Grade: grade, BeforeDispatch: maintenanceAdmission, Reap: func(string) ([]int, error) { reaps++; return nil, nil }})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -220,11 +220,11 @@ func TestMaintenanceRunnerRejectsUnqualifiedDispatchAndResume(t *testing.T) {
 		t.Fatal("should not dispatch")
 		return nil, nil
 	}}
-	if _, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{Execution: e, Root: root, Executor: s, BuildTask: maintenanceTask, Grade: maintenanceGoodGrade}); err == nil {
+	if _, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{DevelopmentInstrument: true, Execution: e, Root: root, Executor: s, BuildTask: maintenanceTask, Grade: maintenanceGoodGrade}); err == nil {
 		t.Fatal("missing admission guard accepted")
 	}
 	e, root = maintenanceRunnerFixture(t, 1)
-	report, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{Execution: e, Root: root, Executor: s, BuildTask: func(tr MaintenanceTrajectoryPlan, stage MaintenanceStagePlan, ws, prompt string) (*executor.Task, error) {
+	report, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{DevelopmentInstrument: true, Execution: e, Root: root, Executor: s, BuildTask: func(tr MaintenanceTrajectoryPlan, stage MaintenanceStagePlan, ws, prompt string) (*executor.Task, error) {
 		task, _ := maintenanceTask(tr, stage, ws, prompt)
 		task.ResumeSessionID = "old"
 		return task, nil
@@ -289,7 +289,7 @@ func TestMaintenanceRunnerRejectsAlteredPrivateEvidenceAndUncompiledIsFailure(t 
 				}
 				return MaintenanceAttempt{ID: id, ReceiptIDs: []string{}}, nil
 			}
-			report, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{Execution: e, Root: root, Executor: s, BuildTask: maintenanceTask, Grade: grade, BeforeDispatch: admission, Reap: reaper, CollectAttempt: collector})
+			report, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{DevelopmentInstrument: true, Execution: e, Root: root, Executor: s, BuildTask: maintenanceTask, Grade: grade, BeforeDispatch: admission, Reap: reaper, CollectAttempt: collector})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -314,6 +314,121 @@ func TestMaintenanceRunnerRejectsAlteredPrivateEvidenceAndUncompiledIsFailure(t 
 			default:
 				if stage.State != "invalid" || stage.OracleDigest != nil {
 					t.Fatalf("invalid evidence accepted: %+v", stage)
+				}
+			}
+		})
+	}
+}
+
+func TestMaintenanceRunnerRejectsObservedMeasurementDrift(t *testing.T) {
+	for _, kind := range []string{"false_success_empty_finish", "false_success_unknown_finish", "task_model", "harness_version", "missing_version"} {
+		t.Run(kind, func(t *testing.T) {
+			e, root := maintenanceRunnerFixture(t, 1)
+			e.Plan.Role = "model_run"
+			gradeCalls := 0
+			s := &maintenanceScriptedExecutor{run: func(_ context.Context, task *executor.Task) (*executor.Result, error) {
+				maintenanceWrite(t, task.Workspace, "main.txt", "actual candidate after charged call")
+				result := &executor.Result{Success: true, CostUSD: 0.75, ExecutorVersion: e.Plan.Harness}
+				switch kind {
+				case "false_success_empty_finish":
+					result.Success = false
+				case "false_success_unknown_finish":
+					result.Success = false
+					result.FinishReason = "new_unrecognized_failure"
+				case "harness_version":
+					result.ExecutorVersion = "scripted-control@different"
+				case "missing_version":
+					result.ExecutorVersion = ""
+				}
+				return result, nil
+			}}
+			builder := func(tr MaintenanceTrajectoryPlan, stage MaintenanceStagePlan, ws, prompt string) (*executor.Task, error) {
+				task, _ := maintenanceTask(tr, stage, ws, prompt)
+				if kind == "task_model" {
+					task.Model = "different-model"
+				}
+				return task, nil
+			}
+			report, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{Execution: e, Root: root, Executor: s, BuildTask: builder, Grade: func(ctx context.Context, tr MaintenanceTrajectoryPlan, stage MaintenanceStagePlan, cp MaintenanceCheckpoint) (MaintenanceGrade, error) {
+				gradeCalls++
+				return maintenanceGoodGrade(ctx, tr, stage, cp)
+			}, BeforeDispatch: maintenanceAdmission, Reap: func(string) ([]int, error) { return nil, nil }})
+			if err != nil {
+				t.Fatal(err)
+			}
+			stage := report.Runs.Trajectories[0].Stages[0]
+			if gradeCalls != 0 {
+				t.Fatalf("%s reached correctness grading despite invalid measurement", kind)
+			}
+			if kind == "task_model" {
+				if stage.State != "blocked" || len(s.calls) != 0 || len(report.Attempts) != 0 {
+					t.Fatalf("wrong model dispatched: %+v", stage)
+				}
+			} else {
+				if stage.State != "invalid" || stage.ArtifactDigest == nil || len(stage.Attempts) != 1 {
+					t.Fatalf("invalid measurement accepted: %+v", stage)
+				}
+				if report.Attempts[0].Result.CostUSD != 0.75 || report.Attempts[0].Checkpoint == nil {
+					t.Fatal("actual charged source/spend lost")
+				}
+			}
+		})
+	}
+}
+
+type maintenanceNamedExecutor struct {
+	*maintenanceScriptedExecutor
+	name string
+}
+
+func (s *maintenanceNamedExecutor) Name() string { return s.name }
+
+func TestMaintenanceRunnerInstrumentExceptionIsExplicitAndNarrow(t *testing.T) {
+	for _, kind := range []string{"explicit_control", "implicit_control", "wrong_role", "wrong_model", "wrong_executor", "reported_mismatch", "budget_version_drift"} {
+		t.Run(kind, func(t *testing.T) {
+			e, root := maintenanceRunnerFixture(t, 1)
+			if kind == "wrong_role" {
+				e.Plan.Role = "model_run"
+			}
+			if kind == "wrong_model" {
+				e.Plan.Model = "paid-real-model"
+			}
+			name := "scripted-control"
+			if kind == "wrong_executor" {
+				name = "pi"
+			}
+			s := &maintenanceNamedExecutor{name: name, maintenanceScriptedExecutor: &maintenanceScriptedExecutor{run: func(context.Context, *executor.Task) (*executor.Result, error) {
+				result := &executor.Result{Success: true, CostUSD: 0.55}
+				if kind == "reported_mismatch" || kind == "budget_version_drift" {
+					result.ExecutorVersion = "changed-harness"
+				}
+				if kind == "budget_version_drift" {
+					result.Success = false
+					result.FinishReason = executor.FinishCostExhausted
+					result.CostKilledAt = 0.5
+				}
+				return result, nil
+			}}}
+			report, err := RunMaintenanceStages(context.Background(), MaintenanceRunOptions{DevelopmentInstrument: kind != "implicit_control", Execution: e, Root: root, Executor: s, BuildTask: maintenanceTask, Grade: maintenanceGoodGrade, BeforeDispatch: maintenanceAdmission, Reap: func(string) ([]int, error) { return nil, nil }})
+			switch kind {
+			case "wrong_role", "wrong_model", "wrong_executor":
+				if err == nil || len(s.calls) != 0 {
+					t.Fatalf("invalid instrument bypass accepted: %v", err)
+				}
+			default:
+				if err != nil {
+					t.Fatal(err)
+				}
+				stage := report.Runs.Trajectories[0].Stages[0]
+				want := "invalid"
+				if kind == "explicit_control" {
+					want = "completed"
+				}
+				if stage.State != want {
+					t.Fatalf("%s state=%s want=%s", kind, stage.State, want)
+				}
+				if kind == "budget_version_drift" && report.Attempts[0].Result.CostUSD != 0.55 {
+					t.Fatal("budget identity drift lost actual spend")
 				}
 			}
 		})

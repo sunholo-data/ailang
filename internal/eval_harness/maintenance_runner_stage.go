@@ -59,8 +59,8 @@ func maintenanceRunStage(ctx context.Context, o MaintenanceRunOptions, report *M
 		row.Provenance = "task setup failed: " + err.Error()
 		return row, nil, "task setup failed"
 	}
-	if task == nil || task.ResumeSessionID != "" || task.Iteration > 1 || filepath.Clean(task.Workspace) != filepath.Clean(workspace) || task.Directive != string(request) {
-		row.Provenance = "task violates fresh-session/current-request/workspace contract"
+	if task == nil || task.ResumeSessionID != "" || task.Iteration > 1 || task.Model != o.Execution.Plan.Model || filepath.Clean(task.Workspace) != filepath.Clean(workspace) || task.Directive != string(request) {
+		row.Provenance = "task violates frozen-model/fresh-session/current-request/workspace contract"
 		return row, nil, "task identity failed"
 	}
 	attemptID := fmt.Sprintf("%s/%s/%s/attempt-1", o.Execution.Plan.ProtocolID, tr.ID, stage.ID)
@@ -118,12 +118,18 @@ func maintenanceRunStage(ctx context.Context, o MaintenanceRunOptions, report *M
 	observed.Checkpoint = &cp
 	stop = ""
 	switch {
+	case result != nil && (result.ExecutorVersion == "" && !o.DevelopmentInstrument || result.ExecutorVersion != "" && result.ExecutorVersion != o.Execution.Plan.Harness):
+		row.Provenance = fmt.Sprintf("executor version missing or differs from frozen harness: observed %q, expected %q", result.ExecutorVersion, o.Execution.Plan.Harness)
+		observed.ExecutionError = maintenanceJoinError(observed.ExecutionError, row.Provenance)
 	case result != nil && (result.CostKilledAt > 0 || result.ThrashKilledAt > 0 || result.FinishReason == executor.FinishCostExhausted || result.FinishReason == executor.FinishThrashAborted || result.FinishReason == executor.FinishStepExhausted):
 		row.State = "budget_stopped"
 		row.Provenance = "in-flight budget stopped; spent attempt retained"
 		stop = "trajectory budget stopped"
 	case executeErr != nil || callContextErr != nil || ctx.Err() != nil || result == nil:
 		row.Provenance = "executor did not complete a valid measured stage: " + observed.ExecutionError
+	case !result.Success:
+		row.Provenance = "executor reported unsuccessful execution; candidate and charged attempt retained"
+		observed.ExecutionError = maintenanceJoinError(observed.ExecutionError, row.Provenance)
 	case result.FinishReason == executor.FinishTimeout || result.FinishReason == executor.FinishIdleKilled || result.FinishReason == executor.FinishError || result.FinishReason == executor.FinishWireDrift || result.FinishReason == executor.FinishContentFilter:
 		row.Provenance = "executor terminal signal prevents a valid measured stage: " + result.FinishReason
 		observed.ExecutionError = maintenanceJoinError(observed.ExecutionError, row.Provenance)

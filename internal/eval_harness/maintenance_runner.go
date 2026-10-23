@@ -19,6 +19,9 @@ func RunMaintenanceStages(ctx context.Context, options MaintenanceRunOptions) (*
 		return nil, fmt.Errorf("maintenance execution, executor, builder, grader and admission guard required")
 	}
 	e := options.Execution
+	if options.DevelopmentInstrument && (e.Plan.Role != "instrument_control" || e.Plan.Model != "scripted-control" || options.Executor.Name() != "scripted-control") {
+		return nil, fmt.Errorf("development instrument requires instrument_control role, scripted-control model and scripted-control executor")
+	}
 	if len(e.Plan.Trajectories) == 0 || len(e.Plan.Trajectories) != len(e.Manifest.Trajectories) {
 		return nil, fmt.Errorf("maintenance schedule/binding mismatch")
 	}
