@@ -39,6 +39,8 @@ jobs:
           node-version: '26.12.1'
       - name: Build native runtime and install explicit tool dependencies
         run: |
+          brew install ripgrep
+          rg --version
           make build
           echo "$PWD/bin" >> "$GITHUB_PATH"
           npm ci --prefix tools/pi-extensions/sandbox --ignore-scripts --no-audit --no-fund
