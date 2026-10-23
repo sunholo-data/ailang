@@ -19,7 +19,7 @@
       "id": "M1_STALL_OWN_TRANSCRIPT",
       "description": "D1-D7: per-attempt Claude session id, own transcript plus foreground subagents, own pi transcript, fail-open guard, seven regression arms and scoped changelog.",
       "estimated_loc": 120,
-      "actual_loc": 0,
+      "actual_loc": 272,
       "dependencies": [],
       "acceptance_criteria": [
         "D1: For CONTROLLER_PROVIDER=claude only, MC_CLAUDE_SESSION_ID is freshly assigned inside _mc_run_once on every attempt, before launch and watchdog forks. Try /usr/bin/uuidgen then python3 uuid.uuid4(); if both fail clear the id and continue without --session-id. Preserve UUID case, log one line naming the id/unavailable state, and use a Bash 3.2-safe optional argument array or conditional. No reuse across Claude retries; pi remains per fire.",
@@ -35,24 +35,24 @@
         "D7 controller acceptance outside sandbox: /bin/bash tools/launchd/test_mission_stall.sh passes >=42 arms with zero failures; bash -n tools/launchd/mission-control.sh rc0; /bin/bash -n tools/launchd/test_mission_stall.sh rc0; make test-launchd-drivers fleet done-gate rc0, outside sandbox only. Any socket- or HOME-touching in-sandbox result is UNINFORMATIVE UNDER SANDBOX, never gate evidence.",
         "Scope only tools/launchd/mission-control.sh, tools/launchd/test_mission_stall.sh, changelogs/unreleased/2026-10-22-stall-watchdog-own-transcript.md and the two plan artifacts. Fragment starts with ### Fixed. No internal/, cmd/, .pi/, CI or make wiring changes. No new .ail/examples. Controller owns commits and outside-sandbox validation; planner does not implement or dispatch."
       ],
-      "passes": false,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": "Planning only. Fixed controller measurements C1-C7 accepted as established at d25d9b8d0; no probes or driver gates repeated. Implementation and acceptance remain for executor/controller.",
-      "status": "not_started"
+      "completed": "2026-10-23T18:59:04Z",
+      "notes": "Implementation already merged through PR #1937: reviewed head da3726052d3a6eb34e6245baffdb99ac49eb6810, merge 6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f; recovery source verified at 13092528c8ae406c78054f58846b00572edceeae. actual_loc=272 counts original driver+test additions and deletions (44+15+202+11) over 763d336f18208035b78595f53e0c0dac0491c7b6..da3726052d3a6eb34e6245baffdb99ac49eb6810; all-PR churn=417 (391 added/26 deleted), net=365. Recovery metadata/evidence excluded. Historical started and measured effort/velocity are unreported and remain null. Release v0.54.18 (329c9808fee16fca9846eaaea0f569ebb5af4469) consolidated the original fragment; no duplicate changelog. Original history: design_docs/fleet-mission-evidence/iteration59/original-evaluation.md; independent recovery acceptance belongs in design_docs/fleet-mission-evidence/iteration59/recovery-evaluation.md. Completion fields may be applied only after fresh independent acceptance and terminal controller done-gate; completion time is controller-captured recovery time, not merge time. Independent acceptance: MiniMax CODE_ACCEPT,84/100 at review, conditions C1-C7 applied in design_docs/fleet-mission-evidence/iteration59/acceptance-closure.md. Historical interrupted-fire usage: design_docs/fleet-mission-evidence/iteration59/original-usage.json ($1.27709784), not fresh acceptance. All14 OPEN operator decisions unchanged. Fresh judge confirms a7 substance with documented wording deviation and two surviving coverage mutants.",
+      "status": "completed"
     }
   ],
   "velocity": {
     "target_loc_per_day": 120,
-    "actual_loc_per_day": 0,
+    "actual_loc_per_day": null,
     "target_milestones_per_week": 1,
-    "actual_milestones_per_week": 0,
+    "actual_milestones_per_week": null,
     "estimated_total_loc": 120,
-    "actual_total_loc": 0,
+    "actual_total_loc": 272,
     "estimated_days": 1,
-    "actual_days": 0
+    "actual_days": null
   },
-  "last_session": "Fleet iteration 55 planner: planning artifacts only; controller commits and runs acceptance outside sandbox.",
-  "last_checkpoint": null,
-  "status": "planned"
+  "last_session": "Fleet iteration 59 recovery reconciles already-merged PR #1937 without implementation replay. Controller owns terminal outside-sandbox make test-launchd-drivers evidence, independent acceptance, and actual recovery-completion UTC timestamp. Preserve the original plan and acceptance contract; see design_docs/planned/sprint-plan-stall-own-session-transcript.md recovery addendum and design_docs/fleet-mission-evidence/iteration59/recovery-evaluation.md. Historical start, effort and velocity are unmeasured.",
+  "last_checkpoint": "2026-10-23T18:59:04Z",
+  "status": "completed"
 }

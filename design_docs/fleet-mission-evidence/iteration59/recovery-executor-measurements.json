@@ -1,0 +1,95 @@
+{
+  "commits": {
+    "base": "763d336f18208035b78595f53e0c0dac0491c7b6 2debbb0278cc08e018be2d0a1e75befcbda55454 05c816bd8ba09eda27ce0b63a532bf386ffba931 2026-10-23T00:59:05+02:00 Merge pull request #1936 from sunholo-data/fleet/i58-record",
+    "reviewed_head": "da3726052d3a6eb34e6245baffdb99ac49eb6810 6bb562bd8973f72f5862dedab1843385c2e8665d 2026-10-23T07:46:03+02:00 test(mission): stall watchdog session-id wiring is tested by behaviour, not grep (fleet iteration 55, judge round 1)",
+    "merge": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f 763d336f18208035b78595f53e0c0dac0491c7b6 da3726052d3a6eb34e6245baffdb99ac49eb6810 2026-10-23T08:33:05+02:00 Merge pull request #1937 from sunholo-data/fleet/i59-stall-own-transcript-refresh",
+    "recovery": "13092528c8ae406c78054f58846b00572edceeae cd33d050b2276633c82624453309ebf7fcea9e2f 2026-10-23T18:06:19+02:00 data(benchmarks): publish saved Gemini Argon evaluation results",
+    "release": "329c9808fee16fca9846eaaea0f569ebb5af4469 7c59b00835f85d1ed8a287448e2199bc192169ba 2026-10-23T12:54:30+02:00 Release v0.54.18"
+  },
+  "head_equals_recovery": true,
+  "merge_parents_verified": true,
+  "merge_is_ancestor_rc": 0,
+  "specific_blob_identity": {
+    "tools/launchd/mission-control.sh": {
+      "reviewed_head": "d3192cd8ad1791921d868973edb6cd51e647287a",
+      "merge": "d3192cd8ad1791921d868973edb6cd51e647287a",
+      "recovery": "d3192cd8ad1791921d868973edb6cd51e647287a",
+      "working_sha256": "c135b04bdae0219e591c9624a55afd61a5738d506b18b9bd98459fdcf8862e1c",
+      "lines": 2691
+    },
+    "tools/launchd/test_mission_stall.sh": {
+      "reviewed_head": "002d576beadd7d18c7641bf28ede311a41acae2d",
+      "merge": "002d576beadd7d18c7641bf28ede311a41acae2d",
+      "recovery": "002d576beadd7d18c7641bf28ede311a41acae2d",
+      "working_sha256": "7cdbcd9f6c5c7a9ff39bc748061d65ef3e43220d7b68111b81cdc08c16b9ab74",
+      "lines": 641
+    },
+    "design_docs/planned/sprint-plan-stall-own-session-transcript.md": {
+      "reviewed_head": "6551e81df257829843d83467240a1a65aaa55d5d",
+      "merge": "6551e81df257829843d83467240a1a65aaa55d5d",
+      "recovery": "6551e81df257829843d83467240a1a65aaa55d5d",
+      "working_sha256": "9e677f0f92397184b45ab78f68e1532d9046e72948ae2506edf0fd556d3a1029",
+      "lines": 82
+    },
+    ".ailang/state/sprints/sprint_M-FLEET-STALL-OWN-TRANSCRIPT.json": {
+      "reviewed_head": "44920b780284c9b6265dd9708ecee451c77c74aa",
+      "merge": "44920b780284c9b6265dd9708ecee451c77c74aa",
+      "recovery": "44920b780284c9b6265dd9708ecee451c77c74aa",
+      "working_sha256": "c294bc6fdcd498878368bc9bc344db44b81c48d778ecb2149c566d972273d83a",
+      "lines": 58
+    }
+  },
+  "original_numstat": [
+    {
+      "path": ".ailang/state/sprints/sprint_M-FLEET-STALL-OWN-TRANSCRIPT.json",
+      "added": 58,
+      "deleted": 0
+    },
+    {
+      "path": "changelogs/unreleased/2026-10-22-stall-watchdog-own-transcript.md",
+      "added": 5,
+      "deleted": 0
+    },
+    {
+      "path": "design_docs/planned/sprint-plan-stall-own-session-transcript.md",
+      "added": 82,
+      "deleted": 0
+    },
+    {
+      "path": "tools/launchd/mission-control.sh",
+      "added": 44,
+      "deleted": 15
+    },
+    {
+      "path": "tools/launchd/test_mission_stall.sh",
+      "added": 202,
+      "deleted": 11
+    }
+  ],
+  "totals": {
+    "added": 391,
+    "deleted": 26,
+    "all_pr_churn": 417,
+    "all_pr_net": 365,
+    "driver_test_churn": 272
+  },
+  "json_parse": {
+    "feature_count": 1,
+    "acceptance_criteria_count": 12,
+    "status": "planned",
+    "feature_status": "not_started",
+    "passes": false,
+    "created": "2026-10-22T00:00:00Z",
+    "started": null,
+    "completed": null,
+    "registry_action": "none"
+  },
+  "unchanged_functions": {
+    "_mc_stalled": true,
+    "_mc_tree_write_bytes": true,
+    "_mc_rusage_snapshot": true
+  },
+  "driver_log_arm_unchanged": true,
+  "release_fragment_deleted": true,
+  "original_report_sha256": "2ecd4c2d1a293805bd65b7558a4718ff995f217139b22f2b26039bf5549174ab"
+}

@@ -3,7 +3,7 @@
 ## Summary
 Fix `stall:watchdog:foreground-agent-and-wrong-transcript`: measure the controller's own session and its foreground Agent-tool subagents, preventing false gate-3 STALL kills.
 Fleet iteration 55; base `origin/dev` d25d9b8d0; ticket from world iteration 298 (2026-10-21), after iterations 296/297 lost slots.
-**Status:** planned; planning only. This plan is also the design artifact; no separate design doc.
+**Status:** completed; implementation merged in PR1937 and released in v0.54.18; recovery acceptance closed 2026-10-23T18:59:04Z. This plan is also the design artifact; no separate design doc. Historical planning analysis follows; completion evidence is appended below.
 **Duration:** one short executor run, 60–90 minutes within one day. **Risk:** low, with Bash 3.2 and fail-open semantics requiring care.
 **Dependencies:** existing watchdog helpers/test extraction only; controller owns commits and outside-sandbox acceptance runs.
 
@@ -57,12 +57,12 @@ No changes under `internal/`, `cmd/`, `.pi/`, CI workflows, make wiring or other
 Use fixtures only under the suite's own `$TMP`, including fake HOME and any `PI_CODING_AGENT_DIR`/`AILANG_STATE_DIR`; retain extraction of real driver functions rather than duplicating them. Static a7 must associate the flag with the Claude launch, not accept pi's existing flag.
 
 **Acceptance Criteria:**
-- [ ] D1–D5 behavior above is present; fresh per-attempt Claude id precedes launch/watchdog forks, optional flag is Bash 3.2-safe, generation failure clears the id and fails open.
-- [ ] Only own parent/subagent JSONL bytes count for Claude, across project slugs and with verbatim UUID case; missing files add nothing. Claude unset/empty id returns non-zero despite an existing driver log; pi preserves its log/rc semantics.
-- [ ] All 35 established arms remain meaningful; a1–a7 pass, named with mutation targets; total ≥42 passing arms, zero failures.
-- [ ] Observation: all test-created files are under the suite's `$TMP`; no test reads or writes the real `~/.claude` or `~/.ailang/state`, and no seeded writes to real paths are used as evidence.
-- [ ] Driver-log arm and all D5 policy/other progress arms unchanged; scoped changelog opens with `### Fixed`; only the five allowed paths changed.
-- [ ] All four controller acceptance commands below pass outside the sandbox.
+- [x] D1–D5 behavior above is present; fresh per-attempt Claude id precedes launch/watchdog forks, optional flag is Bash 3.2-safe, generation failure clears the id and fails open.
+- [x] Only own parent/subagent JSONL bytes count for Claude, across project slugs and with verbatim UUID case; missing files add nothing. Claude unset/empty id returns non-zero despite an existing driver log; pi preserves its log/rc semantics.
+- [x] All 35 established arms remain meaningful; a1–a7 pass, named with mutation targets; total ≥42 passing arms, zero failures.
+- [x] Observation: all test-created files are under the suite's `$TMP`; no test reads or writes the real `~/.claude` or `~/.ailang/state`, and no seeded writes to real paths are used as evidence.
+- [x] Driver-log arm and all D5 policy/other progress arms unchanged; scoped changelog opens with `### Fixed`; only the five allowed paths changed.
+- [x] All four controller acceptance commands below pass outside the sandbox.
 
 **Risks/mitigation:** Bash 3.2 empty-array/set-u behavior → guarded expansion/conditional; unmatched globs → per-file existence checks; fixture contamination → reset ids/provider/signals and isolate decoys. Duplicate Claude parent matches violate the established single-match expectation; do not broaden discovery to unrelated sessions.
 
@@ -80,3 +80,12 @@ Planning validation: `jq -e .` parses the JSON; its key sets match the reference
 
 ## Dependencies and Open Questions
 No open design questions: D1–D7 are fixed. Controller handles artifact commits and subsequent execution; this planning stage performs no implementation, git writes or executor dispatch.
+
+
+## Iteration 59 acceptance closure — 2026-10-23T18:59:04Z
+
+Implementation merged2026-10-23T06:33:06Z as `6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f` (PR1937), reviewed candidate `da3726052d3a6eb34e6245baffdb99ac49eb6810`. Recovery source13092528c preserves the source blobs. The existing plan path is retained for released-changelog and sprint-JSON links.
+
+D1–D7 accepted: controller outside-sandbox stall50/0, both syntax checks rc0, full launchd suite rc0, healthy lanes=ok and forced invalid-executor DEGRADED1, exact-head and exact-merge CI green. Independent MiniMax CODE_ACCEPT84/100 at the pre-completion snapshot; its conditional recording requirements are applied in [acceptance-closure.md](../fleet-mission-evidence/iteration59/acceptance-closure.md), and its original report is preserved at [recovery-evaluation.md](../fleet-mission-evidence/iteration59/recovery-evaluation.md). Its projected94 is not claimed as a newly observed score. The a7 helper-based assignment/wiring test meets the stated purpose with a documented deviation from literal grep wording; acceptance criteria are preserved.
+
+Original driver/test churn272 (44+15+202+11), excluding recovery/docs; historical active start, effort and velocity are unmeasured/null. Completion time above is actual recovery acceptance time, not backdated merge time. The interrupted original fire's recorded metered$1.27709784 is banked in [original-usage.json](../fleet-mission-evidence/iteration59/original-usage.json), historical evidence rather than fresh acceptance. All14 OPEN operator decision rows remain unchanged. Prefix-loose exact-session and per-file -f mutants survive as coverage limits; the shipped guards remain correct. Original review corrections stay separate; no source, policy, config or changelog was changed or reloaded during recovery.
