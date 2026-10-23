@@ -1,0 +1,240 @@
+{
+  "sprint_id": "M-AUDIO-RELEASE",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-23T09:28:51.595215+00:00",
+  "source_commit": "a8bc30fc9c8646dd324b974ae05e90b75f0eed3a",
+  "baseline_commit": "731fa1b958bc8268889ede0ae90e6165cf1897fc",
+  "design_doc": "design_docs/implemented/v0_54_18/m-std-audio-wav-write-checked.md",
+  "sprint_plan": "design_docs/implemented/v0_54_18/m-audio-release-sprint-plan.md",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "evaluation_scope": "Independent source and runtime review of checked WAV/packed PCM, bounded formatFixed, additive verification evidence and required integration corrections only. Resampler M3 and the original coverage status/KPI split remain deferred/parked.",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "code_quality_notes": "Capped five-point deduction for long implementation/test functions, especially the explicit lexical-reference visitor and emitted-helper/corpus setup. No TODO-based fallback or known unresolved functional blocker remains.",
+  "hard_fails": [],
+  "automated_checks": {
+    "gate_source": "local exact clean worktree; parent ran gates once, reviewer inspected preserved output; no duplicate full run",
+    "worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/audio-release-eval",
+    "worktree_clean_after_gates": true,
+    "full_test_command": "make test",
+    "tests_pass": true,
+    "tests_log": "/tmp/ailang-audio-clean-tests.log",
+    "passing_package_summaries": 163,
+    "top_level_pass": 11035,
+    "top_level_skip": 105,
+    "failure_markers": 0,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "full_gate_log": "/tmp/ailang-audio-full-evaluation.log",
+    "examples_pass": true,
+    "examples_log": "/tmp/ailang-audio-clean-examples.log",
+    "example_modules_checked": 232,
+    "manifest_drift": 0,
+    "boundaries_ok": true,
+    "boundaries_log": "/tmp/ailang-audio-clean-boundaries.log",
+    "changelog_ok": true,
+    "changelog_log": "/tmp/ailang-audio-clean-changelog.log",
+    "wasm_build_pass": true,
+    "wasm_evidence": "Parent reports exact clean-tree WASM compilation passed; no generated artifacts remained in worktree.",
+    "coverage_pct": "not collected (opt-in second full run unnecessary)",
+    "is_performance_sprint": false,
+    "evaluator_harness_limit": "The stock evaluator trailer has invalid JSON from existing TODO_COUNT grep-c/echo0 behavior (0 newline0). This report uses independently inspected human gate summaries and the complete preserved tests log, not that malformed trailer."
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Canonical padded WAV, checked and legacy failure behavior match design.",
+      "met": true,
+      "evidence": "Native TestAudio(Wav|PCM) repeated20x, 41 interpreter/strict-VM cases, 24-fixture actual CLI/Go corpus; checked bounds, pad, malformed chunks, all-s16 channel round-trip and nonfinite tests. Exact clean full make test passes."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "WAV metadata validates chunk extents/format/frame fields and limits.",
+      "met": true,
+      "evidence": "Native TestAudio(Wav|PCM) repeated20x, 41 interpreter/strict-VM cases, 24-fixture actual CLI/Go corpus; checked bounds, pad, malformed chunks, all-s16 channel round-trip and nonfinite tests. Exact clean full make test passes."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Packed s16le conversion preserves channels and explicit quantization.",
+      "met": true,
+      "evidence": "Native TestAudio(Wav|PCM) repeated20x, 41 interpreter/strict-VM cases, 24-fixture actual CLI/Go corpus; checked bounds, pad, malformed chunks, all-s16 channel round-trip and nonfinite tests. Exact clean full make test passes."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Failing tests observed first, then focused tests pass with -count=20.",
+      "met": true,
+      "evidence": "Native TestAudio(Wav|PCM) repeated20x, 41 interpreter/strict-VM cases, 24-fixture actual CLI/Go corpus; checked bounds, pad, malformed chunks, all-s16 channel round-trip and nonfinite tests. Exact clean full make test passes."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Precision 0..1000, long digits, ties, signed zero and nonfinite output match strconv.",
+      "met": true,
+      "evidence": "TestFormatFixed* repeated20x and TestFormatFixedGeneratedGo; actual interpreter/strict-VM/compiled Go value and invalid precision checks. strconv tie/long-precision/negative-zero/nonfinite behavior pinned."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Negative/excessive precision fails ordinarily on evaluator, strict VM and generated Go.",
+      "met": true,
+      "evidence": "TestFormatFixed* repeated20x and TestFormatFixedGeneratedGo; actual interpreter/strict-VM/compiled Go value and invalid precision checks. strconv tie/long-precision/negative-zero/nonfinite behavior pinned."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Existing formatter outputs remain unchanged; focused deterministic tests pass.",
+      "met": true,
+      "evidence": "TestFormatFixed* repeated20x and TestFormatFixedGeneratedGo; actual interpreter/strict-VM/compiled Go value and invalid precision checks. strconv tie/long-precision/negative-zero/nonfinite behavior pinned."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Typed reason codes distinguish missing ensures, encoding, timeout/unknown and errors.",
+      "met": true,
+      "evidence": "SMT/pkg/CLI compatibility and guarded real-Z3 smoke; legacy statuses/counters/schema preserved. Package projection and human output keep reasons, bounded depth, rejections and module issues separate from tests/runtime evidence."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Package projection retains recursion/rejections/numeric model and module issues.",
+      "met": true,
+      "evidence": "SMT/pkg/CLI compatibility and guarded real-Z3 smoke; legacy statuses/counters/schema preserved. Package projection and human output keep reasons, bounded depth, rejections and module issues separate from tests/runtime evidence."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Old/new reports preserve counters, gate behavior and absent-evidence semantics.",
+      "met": true,
+      "evidence": "SMT/pkg/CLI compatibility and guarded real-Z3 smoke; legacy statuses/counters/schema preserved. Package projection and human output keep reasons, bounded depth, rejections and module issues separate from tests/runtime evidence."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Property-test skips remain separate from proof/runtime assertion evidence.",
+      "met": true,
+      "evidence": "SMT/pkg/CLI compatibility and guarded real-Z3 smoke; legacy statuses/counters/schema preserved. Package projection and human output keep reasons, bounded depth, rejections and module issues separate from tests/runtime evidence."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Showcase examples check/run on interpreter and strict VM, and generated Go agrees.",
+      "met": true,
+      "evidence": "New runnable examples, manifest modules/statistics and docs/changelog inspected; clean verify-examples passes232 modules with0drift. Packed10MiB benchmark records41943208B/op,5allocs. Independent generated-Go adversarial probes pass after corrections."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Example contracts: include pure metadata/format invariants with requires/ensures where encodable; skip native byte/array solver claims with explicit reason.",
+      "met": true,
+      "evidence": "New runnable examples, manifest modules/statistics and docs/changelog inspected; clean verify-examples passes232 modules with0drift. Packed10MiB benchmark records41943208B/op,5allocs. Independent generated-Go adversarial probes pass after corrections."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Example effects: include named IO row on main; pure helpers remain effect-free.",
+      "met": true,
+      "evidence": "New runnable examples, manifest modules/statistics and docs/changelog inspected; clean verify-examples passes232 modules with0drift. Packed10MiB benchmark records41943208B/op,5allocs. Independent generated-Go adversarial probes pass after corrections."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Example inline tests: include format goldens and audio success/error predicates.",
+      "met": true,
+      "evidence": "New runnable examples, manifest modules/statistics and docs/changelog inspected; clean verify-examples passes232 modules with0drift. Packed10MiB benchmark records41943208B/op,5allocs. Independent generated-Go adversarial probes pass after corrections."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Input/result/memory benchmark evidence verifies packed path without boxed lists.",
+      "met": true,
+      "evidence": "New runnable examples, manifest modules/statistics and docs/changelog inspected; clean verify-examples passes232 modules with0drift. Packed10MiB benchmark records41943208B/op,5allocs. Independent generated-Go adversarial probes pass after corrections."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Docs and truthful release fragments match implemented APIs and compatibility changes.",
+      "met": true,
+      "evidence": "New runnable examples, manifest modules/statistics and docs/changelog inspected; clean verify-examples passes232 modules with0drift. Packed10MiB benchmark records41943208B/op,5allocs. Independent generated-Go adversarial probes pass after corrections."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "make test-changed, lint, check-file-sizes, check-boundaries and changelog gates pass.",
+      "met": true,
+      "evidence": "Exact task-only commit a8bc30fc9 in clean non-TMPDIR worktree passed full make test, lint, file sizes, runnable example/manifest, boundary and changelog gates. This independent verdict authorizes post-evaluation artifact finalization; root must then markM5/completed and move implementation docs."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Example manifest/verification and generated-Go harness pass for new features.",
+      "met": true,
+      "evidence": "Exact task-only commit a8bc30fc9 in clean non-TMPDIR worktree passed full make test, lint, file sizes, runnable example/manifest, boundary and changelog gates. This independent verdict authorizes post-evaluation artifact finalization; root must then markM5/completed and move implementation docs."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Evaluator reports pass or concrete remaining failures; no self-awarded pass.",
+      "met": true,
+      "evidence": "Exact task-only commit a8bc30fc9 in clean non-TMPDIR worktree passed full make test, lint, file sizes, runnable example/manifest, boundary and changelog gates. This independent verdict authorizes post-evaluation artifact finalization; root must then markM5/completed and move implementation docs."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Sprint JSON and plan record measured progress; approved feature docs reflect actual implementation.",
+      "met": true,
+      "evidence": "Exact task-only commit a8bc30fc9 in clean non-TMPDIR worktree passed full make test, lint, file sizes, runnable example/manifest, boundary and changelog gates. This independent verdict authorizes post-evaluation artifact finalization; root must then markM5/completed and move implementation docs."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Implemented, unreleased; three feature designs and companion sprint plan moved together to implemented/v0_54_18; only additive coverage slice marked implemented, original split remains planned/parked",
+    "contract_scope_documented": true
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Approved binary width/frame/padding rules, packed conversion/channel policy, precision bound and proof-evidence separation are implemented. Required byte/codegen/enum/lexical-body corrections restore source semantics, with durable actual generated-program tests. No native resampler or KPI/counter-policy change was slipped into scope."
+  },
+  "conditional_gates": {
+    "regression_surface": {
+      "passed": true,
+      "evidence": "Expanded conflict-surface notes plus existing array/list/tuple/type/format fixtures, fresh actual generated-Go corpus and independent probes. All clean runnable examples and full regression suite passed."
+    },
+    "performance": {
+      "required": false,
+      "evidence": "Allocation-shape benchmark is recorded; no DSP or end-to-end speedup claim is made."
+    }
+  },
+  "independent_findings_resolved": [
+    {
+      "severity": "P1",
+      "issue": "Generated FloatArrayVal rejected by std/array.set",
+      "resolution": "Immutable packed Set branch added; independent /tmp/review-audio-array generated program now passes."
+    },
+    {
+      "severity": "P1",
+      "issue": "Exported Array[float] return asserted ArrayVal and panicked on packed result",
+      "resolution": "Concrete float-array mappings and checked ConvertToFloatArray pass through packed storage; independent /tmp/review-audio-array-return test passes. Additional literal/decoded ADT payload test /tmp/review-audio-array-adt passes."
+    },
+    {
+      "severity": "P1",
+      "issue": "First-class four-argument checked audio helper was unsupported by CallFunc",
+      "resolution": "Four-argument adapter and durable first-class fixtures added; independent /tmp/review-audio-function-value test passes."
+    },
+    {
+      "severity": "P1",
+      "issue": "First lexical-reference fix mislabeled top-level recursion as a local name",
+      "resolution": "Top-level declaration values now scan without binding global names lexically; actual regenerated Sum(5)==15 at /tmp/review-audio-lexical-recursion passes."
+    },
+    {
+      "severity": "P2",
+      "issue": "Human package summary called mixed skipped/uncontracted module no contracts",
+      "resolution": "Branch tightened; existing/new reporting fixture now shows0/N verified without changing counters."
+    }
+  ],
+  "known_limitations": [
+    "Lexical binding repair is deliberately body-only. Existing local alias/lambda name resolution in contract expressions under --verify-contracts is unchanged and outside this release slice; this is not a claim of complete compiler-pass unification. Native audio/format input guards do not depend on contract flags.",
+    "Native AILANG/interpreter and generated-Go WAV metadata paths have separate implementations; the shared acceptance corpus is a drift guard, not a formal equivalence proof.",
+    "Real/Int encoder results do not establish IEEE-754, overflow, whole DSP pipeline correctness, runtime contract execution or cross-architecture equality. Generated-property skips remain skips.",
+    "No release tag, deployment, existing coordinator approval or pending design PR1931 was acted on."
+  ],
+  "post_evaluation_finalization": {
+    "pending": false,
+    "audited_at": "2026-10-23T09:32:13.340512+00:00",
+    "result": "pass",
+    "evidence": "Independent working-tree audit: no post-a8bc30fc9 Go/AILANG source changes; all five milestones true with notes/completed timestamps and sprint status completed; feature designs and companion plan moved to implemented/v0_54_18 with implementation reports and body-only lexical caveat. Original coverage split remains parked. Local links validated. Metadata-only commit is the remaining root action."
+  },
+  "feedback": [],
+  "notes": "PASS95/100, no unresolved blocking findings. Implementation source is the exact clean-tested a8bc30fc9 snapshot. Independent post-pass artifact audit also passed; only root metadata-only commit remains. No review production edits or duplicate whole-repository test run."
+}

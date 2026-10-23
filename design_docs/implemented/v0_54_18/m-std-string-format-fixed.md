@@ -1,6 +1,6 @@
 # M-STD-STRING-FORMAT-FIXED: bounded fixed-decimal reporting
 
-**Status**: Approved — implementation and integration in progress (Mark, 2026-10-23)
+**Status**: Implemented — unreleased v0.54.18 candidate; evaluated 2026-10-23
 **Target**: v0.54.18 candidate
 **Priority**: P1
 **Estimated**: 1–2 engineering days including all-engine error parity
@@ -133,8 +133,32 @@ are display evidence, not validation of DSP inputs.
 ## Related documents
 
 - [WAV/PCM reader](m-std-audio-wav-read.md), the other half of #1930.
-- [Verification coverage](../m-contract-verification-coverage.md): separately
+- [Verification coverage](../../planned/m-contract-verification-coverage.md): separately
   scoped reporting; no formatter dependency.
 - [Design axioms](../../../docs/docs/references/axioms.mdx).
 
 **Created**: 2026-10-22 (PR #1931). **Revised**: 2026-10-23.
+
+## Implementation report (2026-10-23)
+
+The approved scope above is implemented in a8bc30fc9 and independently evaluated
+PASS 95/100. The earlier verification log records pre-fix premises; the current
+public reference and runnable examples describe the implemented behavior. Full
+clean-tree make test, lint, size, architecture, example/manifest and changelog
+gates passed. Native pure boundaries were repeated 20 times; actual generated-Go
+programs check behavior rather than compilation alone.
+
+Code lives in std/audio.ail, std/string.ail, internal/builtins/audio_wav.go,
+audio_pcm.go/string_format.go, their registry codegen counterparts and the
+verification evidence projection. Tests include the 41-case audio stdlib suite,
+24-fixture real CLI/VM/Go corpus, formatter precision/error parity, packed
+updates/export/record/ADT marshalling, first-class calls and lexical controls.
+
+Integration corrections preserve bytes slice and packed-array identity in
+generated Go and preserve single-constructor sum syntax in the formatter. The
+lexical repair is body-only; pre-existing contract-expression local-alias lookup
+is unchanged. Static Real/Int-model results do not establish IEEE or runtime
+overflow equivalence. No resampling implementation or release tag is included.
+
+See [the completed sprint plan](m-audio-release-sprint-plan.md) and
+[the independent evaluation](../../../.ailang/state/evaluations/eval_M-AUDIO-RELEASE_round_1.json).

@@ -811,7 +811,7 @@ blocks the other.
 
 ## Audio follow-up, 2026-10-23: additive package evidence
 
-**Status**: Planned — attended design review required; no implementation of this slice
+**Status**: Implemented — additive evidence slice in a8bc30fc9, independently evaluated PASS 95/100; original split remains parked
 **Target**: v0.54.18 candidate
 **Priority**: P1
 **Estimated**: 2–3 engineering days including reader compatibility and evidence tests
@@ -846,9 +846,9 @@ the same recursion scope the single-file printer already exposes.
 | Preserve mathematical-model and recursion scope through package projection | Prevents a model proof being presented as runtime equivalence | human approval | design | high |
 | Distinguish absent evidence from zero/false evidence | Older reports must not gain fictitious proofs | human approval | design | med |
 
-- [ ] Approve additive fields and unchanged legacy accounting.
-- [ ] Approve proof-scope wording and compatibility fixtures before implementation.
-- [ ] Review the D-29/D-30 separation; neither parked decision is resolved here.
+- [x] Approve additive fields and unchanged legacy accounting.
+- [x] Approve proof-scope wording and compatibility fixtures before implementation.
+- [x] Review the D-29/D-30 separation; neither parked decision is resolved here.
 
 ### Reason taxonomy and accounting
 
@@ -1004,9 +1004,14 @@ wording, skew fixtures and unavailable state are release criteria.
 
 ### Related work
 
-- [Checked WAV writer and release handoff](v0_54_18/m-std-audio-wav-write-checked.md).
+- [Checked WAV writer and release handoff](../implemented/v0_54_18/m-std-audio-wav-write-checked.md).
 - [Callee requires obligations](ailang-core-triage/verify-call-site-precondition-not-checked.md)
   and [proof/refutation symmetry](ailang-core-triage/verify-ensures-verified-without-encodable-refutation.md):
   separate semantic issues, not resolved by reporting.
 - [Bounded counterexample design](m-verify-bounded-unrolling-false-counterexample.md):
   verdict changes remain outside this additive slice.
+
+**Addendum implementation record,2026-10-23:** typed reasons/model scope,
+package recursion/rejection projection, module issues and mixed-module human
+summary regression are implemented. Original r2 and D-29/D-30 remain parked.
+Full clean-tree tests and independent evaluation passed at a8bc30fc9.

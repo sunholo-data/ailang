@@ -1,6 +1,6 @@
 # M-AUDIO-RELEASE: audio boundaries and trustworthy reports
 
-**Status**: In progress; design approval and execution authorized by Mark on 2026-10-23
+**Status**: Completed — independently evaluated PASS 95/100 on 2026-10-23
 **Target**: v0.54.18 candidate; no tag/deploy in this sprint
 **Baseline**: 731fa1b958bc8268889ede0ae90e6165cf1897fc; unrelated local work parked
 **Estimated**: 7–10 engineering days, approximately 2800 implementation/test/docs LOC;
@@ -13,9 +13,9 @@ User approved the revised WAV-read, WAV-write, formatFixed designs and additive
 package-evidence addendum, then explicitly requested planning and execution.
 All freeze items in those slices are approved by that instruction. The old
 coverage status split and D-29/D-30 remain parked; resampling is deferred.
-Design paths: ../v0_54_17/m-std-audio-wav-read.md,
-../v0_54_17/m-std-string-format-fixed.md,
-m-std-audio-wav-write-checked.md, ../m-contract-verification-coverage.md (audio addendum only).
+Design paths: m-std-audio-wav-read.md,
+m-std-string-format-fixed.md,
+m-std-audio-wav-write-checked.md, ../../planned/m-contract-verification-coverage.md (audio addendum only).
 
 ## Registry audit and velocity
 
@@ -86,10 +86,10 @@ changelog fragments. Resolve adapter/codegen gaps with scoped worker follow-up.
 **Dependencies**: M4
 Root integrates, independent evaluator reviews diff/design/criteria without modifying implementation.
 
-- [ ] make test-changed, lint, check-file-sizes, check-boundaries and changelog gates pass.
-- [ ] Example manifest/verification and generated-Go harness pass for new features.
-- [ ] Evaluator reports pass or concrete remaining failures; no self-awarded pass.
-- [ ] Sprint JSON and plan record measured progress; approved feature docs reflect actual implementation.
+- [x] make test-changed, lint, check-file-sizes, check-boundaries and changelog gates pass.
+- [x] Example manifest/verification and generated-Go harness pass for new features.
+- [x] Evaluator reports pass or concrete remaining failures; no self-awarded pass.
+- [x] Sprint JSON and plan record measured progress; approved feature docs reflect actual implementation.
 
 ## Schedule and execution
 
@@ -123,3 +123,18 @@ The audio demo currently reports 5 passing tests and 1 generator skip (requires
 random-input filtering); the skip is retained as a skip, not advertised as proof
 or a pass. The formatter demo has 9 passing tests. Both integer example invariants
 report verified under the explicitly labeled Real/Int model.
+
+## Completion record
+
+Implementation commit a8bc30fc9 was tested in a clean detached worktree. Full
+make test passed (163 package summaries;11,035 top-level passing tests and 105
+skips), plus lint, file sizes, runnable examples (232 modules,zero manifest
+drift), architecture boundaries, changelog and WASM compilation. Independent
+evaluator scored95/100 with no blockers. Full coverage was not collected; skips
+remain skips. Resampler and original verification status/KPI split remain deferred.
+
+The lexical lookup correction covers function bodies. Existing local-alias
+resolution inside contract predicates is unchanged; no general compiler-pass
+unification or additional proof soundness is claimed. Native input guards work
+without contract flags. No release tag, deployment, inbox acknowledgement or
+coordinator approval was performed. External design PR1931 remains untouched.
