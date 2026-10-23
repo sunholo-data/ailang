@@ -141,7 +141,7 @@ Before implementation begins, these must be resolved:
 - [x] Hydration source = payload-derived `PackageMessageEnvelope` (no new persisted fields)
 - [x] `Source` stamping policy: verified evidence only
 - [x] Dispatch gate refuses cascade tasks with empty `Source`/envelope (fail loud)
-- [ ] Adapter NACK-vs-ack policy for unpopulated cascade envelopes — **needs operator input** (proposed: NACK with bounded retries via existing Pub/Sub retry policy, then ack + loud structured log; matches the existing "fetch nil → ack and say so loudly" pattern at `pubsub_adapter.go:229-234`)
+- [x] Adapter NACK-vs-ack policy for unpopulated cascade envelopes — **RESOLVED during execution (task-a56a99a7, 2026-10): ACK + loud structured log.** Rationale: the data is permanently unactionable (redelivery cannot grow an envelope), so NACK loops against the subscription until a dead-letter exists, starving the inbox exactly the way the EMPTY-dispatch flood starved triage; this matches the same function's existing "fetch nil → ack and say so loudly" precedent. Dead-letter mechanics remain an operator concern.
 - [x] Sweep fix routed through the shared helper (no separate mechanism)
 
 ## Solution Design
@@ -413,7 +413,36 @@ coordinator plumbing; it asserts no AILANG syntax/semantics support claims.
 - Automated routing audit: registry-level check that every `pkg:<name>` inbox an actual publish names resolves to a derived or hand-written agent (kills the docparse misroute class)
 - Un-drift `pkg-update.md`: parameterize the hardcoded `sunholo-data/ailang-packages` repo claim (task-d3f4bd97 item 3)
 
+## Execution Notes (task-a56a99a7, 2026-10)
+
+Implemented per this design doc, with three deviations the implementation had to make:
+
+1. **`InboxMessage` does NOT persist `Source`** — the Verification Log's V-claim
+   read `internal/coordinator/store.go:27` (the TaskRecord), not the messaging
+   inbox row. There is therefore no persisted source to recover on the sweep
+   route, so sweep hydration populates the envelope fields from the payload and
+   deliberately leaves `Source` unset (the never-guess rule); the dispatch gate
+   then refuses those tasks loudly into `blocked` for triage. This is the
+   stricter-authority reading the Risks table already accepted.
+2. **Refusal status is `blocked`, not a new enum value** — TaskStatusBlocked
+   already exists and means exactly "a precondition was unmet and nobody
+   attempted the work".
+3. **Correlation threading (item 7) verified already-correct** —
+   `postCompletionNotification` and the stale detector both set
+   `CorrelationID: task.MessageID`, and `publishDedupCompletion` carries
+   `correlation_id`, `original_task_id` and `original_task_status` in its
+   payload. The measured 2026-09 confusion (task-9d0b57b3's completion read as a
+   dedup completion) is explained by both writers using the same request
+   message id, which is the intended correlation, not a bug; the residual
+   ambiguity lives in consumers, and no failing case survives to fix. Left
+   unchanged rather than churn completion binding blind.
+
+Environment note: the executor workspace had no Go toolchain, so `make test`/
+`make lint` could not run in-session — the change ships with unit + route tests
+(`cascade_hydration_test.go`, `cascade_routes_test.go`) and must clear CI before merge
+(the PR carries `needs-merge-approval`).
+
 ---
 
 **Document created**: 2026-09-27
-**Last updated**: 2026-09-27
+**Last updated**: 2026-10 (execution notes added)
