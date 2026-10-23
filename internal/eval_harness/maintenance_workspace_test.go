@@ -8,6 +8,16 @@ import (
 	"testing"
 )
 
+func TestMaintenanceOwnedPathsRejectInvalidUTF8(t *testing.T) {
+	bad := string([]byte{'x', 0xff})
+	if maintenanceOwnedPath(bad) == nil || maintenanceArtifactPath(bad) {
+		t.Fatal("invalid UTF-8 could collide under JSON replacement encoding")
+	}
+	if err := maintenanceOwnedPath("notes/emoji-🧪-&.txt"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func maintenanceWrite(t *testing.T, root, name, body string) {
 	t.Helper()
 	p := filepath.Join(root, filepath.FromSlash(name))

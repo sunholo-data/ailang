@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 const MaintenancePackageSourceRevision = "a4163559a2e20dddc1a1bb0869a06e42372994a1"
@@ -389,7 +390,7 @@ func maintenanceCommand(cmd []string) bool {
 	return true
 }
 func maintenanceArtifactPath(s string) bool {
-	return s != "" && s != "." && !filepath.IsAbs(s) && !strings.ContainsAny(s, "\\:\x00") && !strings.HasPrefix(s, "/") && filepath.ToSlash(filepath.Clean(s)) == s && s != ".." && !strings.HasPrefix(s, "../")
+	return utf8.ValidString(s) && s != "" && s != "." && !filepath.IsAbs(s) && !strings.ContainsAny(s, "\\:\x00") && !strings.HasPrefix(s, "/") && filepath.ToSlash(filepath.Clean(s)) == s && s != ".." && !strings.HasPrefix(s, "../")
 }
 func maintenanceRegularPath(p string, directory bool) error {
 	for current := p; ; current = filepath.Dir(current) {
