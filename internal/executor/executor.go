@@ -111,6 +111,10 @@ type Task struct {
 	// workspace on exit.
 	EvalShellGuard bool
 
+	// EvalContainment requests a mandatory trusted OS/native-tool boundary.
+	// Nil preserves the existing executor payload.
+	EvalContainment *EvalContainment
+
 	Model    string            // Model to use (provider-specific)
 	Metadata map[string]string // Provider-specific options
 
@@ -465,6 +469,9 @@ const (
 func ValidateTaskCapabilities(task *Task, exec Executor) error {
 	if task == nil || exec == nil {
 		return nil
+	}
+	if task.EvalContainment != nil && exec.Name() != "pi" {
+		return fmt.Errorf("executor %q cannot honor mandatory eval containment", exec.Name())
 	}
 	if task.RequiresEgress && !hasCapability(exec.Capabilities(), CapNetworkEgress) {
 		return fmt.Errorf(
