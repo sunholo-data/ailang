@@ -155,7 +155,7 @@ func RestoreMaintenanceCheckpoint(cp MaintenanceCheckpoint, destination string) 
 }
 
 func maintenanceOwnedPath(p string) error {
-	if p == "" || p == "." || path.Clean(p) != p || strings.Contains(p, "\\") || strings.Contains(p, ":") || strings.HasPrefix(p, "/") || p == ".." || strings.HasPrefix(p, "../") {
+	if p == "" || p == "." || path.Clean(p) != p || strings.Contains(p, "\\") || strings.ContainsRune(p, 0) || strings.Contains(p, ":") || strings.HasPrefix(p, "/") || p == ".." || strings.HasPrefix(p, "../") {
 		return fmt.Errorf("unsafe owned path: %q", p)
 	}
 	return nil

@@ -156,3 +156,27 @@ func TestMaintenanceCheckpointRejectsSymlinkAndTampering(t *testing.T) {
 		t.Fatal("restored tampered source")
 	}
 }
+
+func TestMaintenanceCheckpointRejectsDirectoryAndSourceRootLink(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "source")
+	if err := os.Mkdir(src, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(src, "owned"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CaptureMaintenanceCheckpoint(src, filepath.Join(root, "directory"), []string{"owned"}); err == nil {
+		t.Fatal("directory accepted as source file")
+	}
+	if runtime.GOOS == "windows" {
+		return
+	}
+	linked := filepath.Join(root, "linked")
+	if err := os.Symlink(src, linked); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := CaptureMaintenanceCheckpoint(linked, filepath.Join(root, "root-link"), []string{}); err == nil {
+		t.Fatal("symlink source root accepted")
+	}
+}
