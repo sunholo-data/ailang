@@ -108,6 +108,7 @@ Reachable as `ailang ops <command>` and, unchanged, as `ailang <command>`.
 
 | Command | Top-level spelling | What it does |
 |---|---|---|
+| `ailang ops access-approvals` | `ailang access-approvals` | Durable local access approvals: JSON request, decide, claim and execute (dummy only) |
 | `ailang ops access-control` | `ailang access-control` | Access control management |
 | `ailang ops budget` | `ailang budget` | Budget monitoring |
 | `ailang ops chains` | `ailang chains` | Execution chains, traces, observatory and dashboard queries |
