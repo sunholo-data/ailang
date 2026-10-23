@@ -169,7 +169,9 @@ func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int
 		surfaceAST := result.Artifacts.AST
 
 		if coreProg != nil && coreProg.Meta != nil && surfaceAST != nil {
-			report := smt.Verify(coreProg, surfaceAST, verifyModulesFromPipeline(result), aiCheckVerifyOptions(timeout, recursiveDepth))
+			opts := aiCheckVerifyOptions(timeout, recursiveDepth)
+			opts.CoreTI = result.Artifacts.CoreTI
+			report := smt.Verify(coreProg, surfaceAST, verifyModulesFromPipeline(result), opts)
 			verifySection = aiVerifySectionFromReport(report)
 		}
 	}

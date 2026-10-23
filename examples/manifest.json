@@ -5,6 +5,17 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/contracts/result_error_guard.ail",
+      "status": "working",
+      "tags": ["contracts", "smt-verification", "result", "parametric-adts"],
+      "description": "Verified size guard with typed ResourceLimit errors and inline negative, zero and positive cases.",
+      "modules": ["std/result", "std/io"],
+      "expected": {
+        "stdout": "negative: rejected\nzero: accepted\npositive: accepted\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/audio_checked.ail",
       "status": "working",
       "tags": [
@@ -3489,11 +3500,11 @@
     }
   ],
   "statistics": {
-    "total": 237,
-    "working": 229,
+    "total": 238,
+    "working": 230,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9662447257383966,
+    "coverage": 0.9663865546218487,
     "experimental": 0
   },
   "milestones": {

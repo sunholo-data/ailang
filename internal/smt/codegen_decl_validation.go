@@ -5,8 +5,7 @@ import (
 	"strings"
 )
 
-var pluralSortPattern = regexp.MustCompile(`\(([A-Za-z_][A-Za-z_0-9]*)\s+0\)`)
-var pluralConstructorPattern = regexp.MustCompile(`\(\(?([A-Z][A-Za-z_0-9]*)(?:\s|\))`)
+var pluralSortPattern = regexp.MustCompile(`\(([A-Za-z_][A-Za-z_0-9]*)\s+[0-9]+\)`)
 
 func pluralDatatypeSortNames(decl string) []string {
 	if !strings.HasPrefix(decl, "(declare-datatypes (") {
@@ -20,14 +19,6 @@ func pluralDatatypeSortNames(decl string) []string {
 	names := make([]string, 0, len(matches))
 	for _, match := range matches {
 		names = append(names, match[1])
-	}
-	return names
-}
-
-func pluralConstructorNames(decl string) map[string]bool {
-	names := make(map[string]bool)
-	for _, match := range pluralConstructorPattern.FindAllStringSubmatch(decl, -1) {
-		names[match[1]] = true
 	}
 	return names
 }
@@ -70,12 +61,5 @@ func constantDeclarationHeader(decl string) (name, sortStr string, ok bool) {
 }
 
 func firstUnresolvedSort(sortStr string, declared map[string]bool) string {
-	sortStr = strings.TrimSpace(sortStr)
-	if strings.HasPrefix(sortStr, "(Seq ") && strings.HasSuffix(sortStr, ")") {
-		return firstUnresolvedSort(sortStr[5:len(sortStr)-1], declared)
-	}
-	if primitiveSorts[sortStr] || declared[sortStr] {
-		return ""
-	}
-	return sortStr
+	return validateSortApplication(sortStr, declared)
 }

@@ -20,6 +20,7 @@ import StringVerifyExample from '!!raw-loader!@site/../examples/runnable/contrac
 import ListVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/list_verify.ail';
 import InvoiceExample from '!!raw-loader!@site/../examples/runnable/contracts/invoice.ail';
 import RecursiveVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/recursive_verify.ail';
+import ResultErrorGuardExample from '!!raw-loader!@site/../examples/runnable/contracts/result_error_guard.ail';
 
 # Contracts & Verification
 
@@ -597,6 +598,7 @@ Bounded verification is **sound but incomplete**: a VERIFIED result is a genuine
 
 **Currently supported:**
 - `int`, `bool`, `string`, list, and enum/ADT parameters and return types
+- Concrete parametric ADTs such as `Result[int, AudioError]` and nested `Option[int]`
 - Arithmetic: `+`, `-`, `*`, `/`
 - Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=`
 - Logical: `&&`, `||`, `!`
@@ -620,6 +622,7 @@ Bounded verification is **sound but incomplete**: a VERIFIED result is a genuine
 | Higher-order functions (unknown lambda) | `map(f, xs)` where `f` is a parameter | Requires whole-program analysis |
 | Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
 | Nested quantifiers | `forall i: ... => forall j: ...` | Future — single-level only for now |
+| Open or unsupported ADT payloads | Unresolved type variables, unit and function-valued fields have no encoding here | Requires additional type encodings |
 
 Functions outside the fragment are skipped with clear messages explaining why and what to change:
 
@@ -628,6 +631,33 @@ Functions outside the fragment are skipped with clear messages explaining why an
     Reason: Function "effectfulFunc" has effects
     Hint: Remove effect annotations or use ! {} for pure
 ```
+
+### Typed error payloads
+
+A guard can return a successful value or a structured error and state its
+postcondition by matching the result:
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/result_error_guard.ail">
+  {ResultErrorGuardExample}
+</CodeBlock>
+
+```bash
+ailang verify --verbose examples/runnable/contracts/result_error_guard.ail
+ailang test examples/runnable/contracts/result_error_guard.ail
+ailang run --caps IO --entry main examples/runnable/contracts/result_error_guard.ail
+```
+
+The verifier preserves `Result`'s two type parameters. For this guard it declares
+`AudioError`, including `ResourceLimit(string)`, and uses the concrete SMT sort
+`(Result Int AudioError)`. Constructor applications use their own checked types,
+including nested ADTs and different instances in one function. Dependencies
+used only in `requires` or `ensures` are included too.
+
+Changing the successful branch to `Ok(-1)` produces a counterexample. An
+unsupported payload or ambiguous constructor ownership instead reports an
+unsupported encoding; it does not receive an assumed `Int` payload. Calls to
+helpers still use the existing conservative callee-signature gate, so this does
+not make every helper accepting or returning a generic ADT verifiable.
 
 ### Per-Function Recursion Depth
 

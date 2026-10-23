@@ -9,6 +9,7 @@ package smt
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -35,12 +36,14 @@ type VerifyResult struct {
 // AST (for type declarations and signatures) and its Core program (for
 // cross-module callee inlining). Either may be nil.
 type VerifyModule struct {
-	File *ast.File
-	Core *core.Program
+	CoreTI types.CoreTypeInfo
+	File   *ast.File
+	Core   *core.Program
 }
 
 // VerifyOptions configures one Verify run.
 type VerifyOptions struct {
+	CoreTI types.CoreTypeInfo
 	// Timeout is the per-function Z3 timeout.
 	Timeout time.Duration
 	// RecursiveDepth is the global bounded-recursion unrolling depth
@@ -83,6 +86,16 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	// Extract ADT types, record type aliases, and inline record types from the Surface AST.
 	adtResult := ExtractADTTypesWithRecords(surfaceAST)
 	adtTypes := adtResult.ADTTypes
+	adtParams := adtResult.TypeParams
+	ambiguous := make(map[string]bool)
+	typeOwner := make(map[string]string)
+	owner := surfaceAST.Path
+	if surfaceAST.Module != nil {
+		owner = surfaceAST.Module.Path
+	}
+	for name := range adtTypes {
+		typeOwner[name] = owner
+	}
 	adtRecordDecls := adtResult.RecordDecls
 	recordAliases := adtResult.RecordAliases
 	// Also extract from imported modules so cross-module types
@@ -90,9 +103,24 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	for _, mod := range modules {
 		if mod.File != nil {
 			modResult := ExtractADTTypesWithRecords(mod.File)
+			modOwner := mod.File.Path
+			if mod.File.Module != nil {
+				modOwner = mod.File.Module.Path
+			}
 			for name, variants := range modResult.ADTTypes {
+				if previous, exists := typeOwner[name]; exists && previous != modOwner {
+					ambiguous[name] = true
+					for _, v := range variants {
+						ambiguous[v.Name] = true
+					}
+					for _, v := range adtTypes[name] {
+						ambiguous[v.Name] = true
+					}
+				}
 				if _, exists := adtTypes[name]; !exists {
+					typeOwner[name] = modOwner
 					adtTypes[name] = variants
+					adtParams[name] = modResult.TypeParams[name]
 				}
 			}
 			adtRecordDecls = append(adtRecordDecls, modResult.RecordDecls...)
@@ -169,7 +197,14 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		}
 	}
 
+	importedTI := make(map[string]types.CoreTypeInfo)
+	for path, mod := range modules {
+		importedTI[path] = mod.CoreTI
+	}
 	encOpts := EncodeFunctionOpts{
+		CoreTI:             opts.CoreTI,
+		ImportedCoreTI:     importedTI,
+		ADTTypeParams:      adtParams,
 		Program:            coreProg,
 		SurfaceParams:      allSurfaceParams,
 		SurfaceReturnSorts: allSurfaceReturnSorts,
@@ -257,6 +292,16 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 
 		// Check if function is in the decidable SMT fragment
 		encodable, rejections := IsSMTEncodable(funcName, meta, body)
+		if opts.CoreTI != nil {
+			filtered := rejections[:0]
+			for _, r := range rejections {
+				if r.Code != RejectDeepPatterns {
+					filtered = append(filtered, r)
+				}
+			}
+			rejections = filtered
+			encodable = len(rejections) == 0
+		}
 		// Callee-sort gate: reject cleanly if a cross-function callee has an
 		// unencodable signature type (e.g. Option[float]) rather than leaking an
 		// undeclared sort into the SMT script and crashing Z3. See M-SMT-CALLEE-SORT-GATE.
@@ -310,6 +355,27 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			returnType = ConvertASTTypeToType(fd.ReturnType)
 		}
 
+		// Refuse unsupported/open signature sorts before body encoding or Z3.
+		var signatureErr error
+		for _, p := range params {
+			if _, err := MapType(p.Type); err != nil {
+				signatureErr = err
+				break
+			}
+		}
+		if returnType != nil {
+			if sort, err := MapType(returnType); err != nil {
+				signatureErr = err
+			} else {
+				returnSort = sort
+			}
+		}
+		if signatureErr != nil {
+			report.Results = append(report.Results, UnresolvedTypeVerifyResult(funcName, signatureErr))
+			report.Skipped++
+			continue
+		}
+
 		// Build per-function encode options (return type, body, contracts for record discovery)
 		funcEncOpts := encOpts
 		funcEncOpts.ReturnType = returnType
@@ -321,8 +387,39 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		// references via its params, return type, or body. This prevents cascade failures
 		// where unrelated cross-module types (e.g., Json) poison functions that only use
 		// primitive types (e.g., int → int).
+		extraRoots := make([]core.CoreExpr, 0, len(meta.Contracts))
+		for _, c := range meta.Contracts {
+			if c != nil {
+				extraRoots = append(extraRoots, c.Expr)
+			}
+		}
+		allRoots := append([]core.CoreExpr{innerBody}, extraRoots...)
+		for _, root := range allRoots {
+			for _, callee := range CollectCalleeNames(root, funcName, coreProg, importedPrograms) {
+				calleeBody, _ := findFuncBodyInAnyProg(callee, coreProg, importedPrograms)
+				extraRoots = append(extraRoots, calleeBody)
+			}
+		}
+		seeds := buildNeededSortSet(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls, extraRoots...)
+		var ambiguousName string
+		ambiguousKeys := make([]string, 0, len(ambiguous))
+		for name := range ambiguous {
+			ambiguousKeys = append(ambiguousKeys, name)
+		}
+		sort.Strings(ambiguousKeys)
+		for _, name := range ambiguousKeys {
+			if seeds[name] {
+				ambiguousName = name
+				break
+			}
+		}
+		if ambiguousName != "" {
+			report.Results = append(report.Results, UnresolvedTypeVerifyResult(funcName, fmt.Errorf("ambiguous imported ADT identity %s", ambiguousName)))
+			report.Skipped++
+			continue
+		}
 		funcADTTypes, funcAliases, funcExtraDecls :=
-			FilterSMTInputsForFunction(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls)
+			FilterSMTInputsForFunction(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls, extraRoots...)
 		funcEncOpts.RecordTypeAliases = funcAliases
 		funcEncOpts.ExtraDeclarations = funcExtraDecls
 

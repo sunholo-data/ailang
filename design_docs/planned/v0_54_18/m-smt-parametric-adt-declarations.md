@@ -1,6 +1,6 @@
 # M-SMT-PARAMETRIC-ADT-DECLARATIONS: retain concrete error payload types
 
-**Status**: Planned — needs design approval before implementation
+**Status**: Approved — implementation in progress (Mark, 2026-10-23)
 **Target**: v0.54.18 candidate, separate from completed M-AUDIO-RELEASE
 **Priority**: P1 (verifier correctness)
 **Estimated**: 2–4 engineering days, including refutation and declaration-corpus tests
@@ -81,9 +81,9 @@ must be skipped with a typed unsupported_encoding reason before invoking Z3.
 
 ### Design freeze
 
-- [ ] Approve the typed parametric encoding and conservative unsupported boundary.
-- [ ] Approve constructor type-context plumbing and unchanged callee gate.
-- [ ] Approve refutation, nested-instance and declaration-closure release gates.
+- [x] Approve the typed parametric encoding and conservative unsupported boundary.
+- [x] Approve constructor type-context plumbing and unchanged callee gate.
+- [x] Approve refutation, nested-instance and declaration-closure release gates.
 
 ## Solution design
 

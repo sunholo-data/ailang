@@ -108,6 +108,7 @@ func verifyOneModule(absDir string, manifest *pkg.PackageManifest, modulePath st
 		return mr
 	}
 	vr := smt.Verify(result.Artifacts.Core, result.Artifacts.AST, verifyModulesFromPipeline(result), smt.VerifyOptions{
+		CoreTI:         result.Artifacts.CoreTI,
 		Timeout:        opts.Timeout,
 		RecursiveDepth: opts.RecursiveDepth,
 		Verbose:        opts.Verbose,

@@ -55,6 +55,7 @@ func buildNeededSortSet(
 	adtTypes map[string][]ADTVariant,
 	aliases map[string]*types.TRecord,
 	extraDecls []string,
+	extraRoots ...core.CoreExpr,
 ) map[string]bool {
 	// Index extra decls by their sort name for O(1) lookup during the walk.
 	declBySort := make(map[string]string, len(extraDecls))
@@ -65,6 +66,16 @@ func buildNeededSortSet(
 	}
 
 	seeds := collectSortSeeds(params, returnSort, body)
+	for _, root := range extraRoots {
+		collectSortsFromBody(root, seeds)
+	}
+	for name, variants := range adtTypes {
+		for _, v := range variants {
+			if seeds[v.Name] {
+				seeds[name] = true
+			}
+		}
+	}
 	needed := make(map[string]bool)
 	queue := make([]string, 0, len(seeds))
 	for s := range seeds {
@@ -81,9 +92,10 @@ func buildNeededSortSet(
 		if variants, ok := adtTypes[sort]; ok {
 			for _, v := range variants {
 				for _, f := range v.Fields {
-					dep := extractBaseSortName(f.Sort)
-					if !needed[dep] && !isPrimitiveSMTSort(dep) {
-						queue = append(queue, dep)
+					for _, dep := range sortSymbols(f.Sort) {
+						if !needed[dep] && !isPrimitiveSMTSort(dep) {
+							queue = append(queue, dep)
+						}
 					}
 				}
 			}
@@ -195,9 +207,10 @@ func filterRecordAliasesForFunction(
 		if variants, ok := adtTypes[sort]; ok {
 			for _, v := range variants {
 				for _, f := range v.Fields {
-					dep := extractBaseSortName(f.Sort)
-					if !needed[dep] && !isPrimitiveSMTSort(dep) {
-						queue = append(queue, dep)
+					for _, dep := range sortSymbols(f.Sort) {
+						if !needed[dep] && !isPrimitiveSMTSort(dep) {
+							queue = append(queue, dep)
+						}
 					}
 				}
 			}
@@ -251,8 +264,9 @@ func FilterSMTInputsForFunction(
 	allADTTypes map[string][]ADTVariant,
 	allAliases map[string]*types.TRecord,
 	allExtraDecls []string,
+	extraRoots ...core.CoreExpr,
 ) (map[string][]ADTVariant, map[string]*types.TRecord, []string) {
-	needed := buildNeededSortSet(params, returnSort, body, allADTTypes, allAliases, allExtraDecls)
+	needed := buildNeededSortSet(params, returnSort, body, allADTTypes, allAliases, allExtraDecls, extraRoots...)
 	adts := make(map[string][]ADTVariant)
 	for name, variants := range allADTTypes {
 		if needed[name] {
@@ -278,9 +292,10 @@ func collectSortSeeds(params []FunctionParam, returnSort string, body core.CoreE
 	}
 
 	// From return sort
-	base := extractBaseSortName(returnSort)
-	if !isPrimitiveSMTSort(base) {
-		seeds[base] = true
+	for _, name := range sortSymbols(returnSort) {
+		if !isPrimitiveSMTSort(name) {
+			seeds[name] = true
+		}
 	}
 
 	// From body: walk for constructor patterns and ADT constructor applications
@@ -330,15 +345,20 @@ func collectSortsFromBody(expr core.CoreExpr, sorts map[string]bool) {
 		return
 	}
 	switch e := expr.(type) {
+	case *core.VarGlobal:
+		if e.Ref.Module == "$adt" || strings.HasPrefix(e.Ref.Name, "make_") {
+			sorts[stripConstructorPrefix(e.Ref.Name)] = true
+		}
+	case *core.DictApp:
+		collectSortsFromBody(e.Dict, sorts)
+		for _, arg := range e.Args {
+			collectSortsFromBody(arg, sorts)
+		}
 	case *core.Match:
 		collectSortsFromBody(e.Scrutinee, sorts)
 		for _, arm := range e.Arms {
-			if cp, ok := arm.Pattern.(*core.ConstructorPattern); ok {
-				// Constructor name might be the ADT type or variant name;
-				// the ADT type is what we need. We add the constructor name
-				// and let the transitive closure resolve it.
-				sorts[cp.Name] = true
-			}
+			collectPatternSortSeeds(arm.Pattern, sorts)
+			collectSortsFromBody(arm.Guard, sorts)
 			collectSortsFromBody(arm.Body, sorts)
 		}
 	case *core.App:
@@ -391,29 +411,6 @@ func collectSortsFromBody(expr core.CoreExpr, sorts map[string]bool) {
 	}
 }
 
-// extractBaseSortName extracts the base sort name from an SMT sort string.
-// e.g., "(Seq Int)" → "Int", "Int" → "Int", "(Seq Block)" → "Block"
-func extractBaseSortName(sort string) string {
-	sort = strings.TrimSpace(sort)
-	if strings.HasPrefix(sort, "(") {
-		// Parametric sort like (Seq Block) — extract inner sorts
-		inner := strings.TrimPrefix(sort, "(")
-		inner = strings.TrimSuffix(inner, ")")
-		parts := strings.Fields(inner)
-		// Return the last non-keyword part (the element type)
-		for i := len(parts) - 1; i >= 0; i-- {
-			if !isPrimitiveSMTSort(parts[i]) && parts[i] != "Seq" && parts[i] != "Array" {
-				return parts[i]
-			}
-		}
-		if len(parts) > 1 {
-			return parts[len(parts)-1]
-		}
-		return sort
-	}
-	return sort
-}
-
 // isPrimitiveSMTSort returns true for Z3 built-in sorts.
 func isPrimitiveSMTSort(sort string) bool {
 	switch sort {
@@ -430,4 +427,18 @@ func isPrimitiveTypeName(name string) bool {
 		return true
 	}
 	return false
+}
+
+func collectPatternSortSeeds(p core.CorePattern, sorts map[string]bool) {
+	switch pat := p.(type) {
+	case *core.ConstructorPattern:
+		sorts[pat.Name] = true
+		for _, arg := range pat.Args {
+			collectPatternSortSeeds(arg, sorts)
+		}
+	case *core.RecordPattern:
+		for _, field := range pat.Fields {
+			collectPatternSortSeeds(field, sorts)
+		}
+	}
 }

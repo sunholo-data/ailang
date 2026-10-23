@@ -1,0 +1,156 @@
+{
+  "sprint_id": "M-SMT-PARAMETRIC-ADT",
+  "status": "in_progress",
+  "created": "2026-10-23T09:53:50.654861+00:00",
+  "design_doc": "design_docs/planned/v0_54_18/m-smt-parametric-adt-declarations.md",
+  "sprint_plan": "design_docs/planned/v0_54_18/m-smt-parametric-adt-declarations-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "verification registry search found downstream consumers only; core SMT declarations must reuse internal/smt and pipeline typed artifacts"
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "verification registry search found downstream consumers only; core SMT declarations must reuse internal/smt and pipeline typed artifacts"
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "verification registry search found downstream consumers only; core SMT declarations must reuse internal/smt and pipeline typed artifacts"
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "verification registry search found downstream consumers only; core SMT declarations must reuse internal/smt and pipeline typed artifacts"
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 1800,
+    "estimated_days": 4,
+    "target_loc_per_day": 450
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Typed ADT declarations and dependency closure",
+      "estimated_loc": 650,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Generic declarations retain formal binders and concrete Result/Option arguments.",
+        "Reachable imported ADTs and contract-only/nested constructor dependencies are retained.",
+        "Unknown/open/ambiguous sorts fail with typed unsupported evidence instead of Int defaults.",
+        "Unrelated aliases and deterministic recursive declaration groups retain existing behavior."
+      ],
+      "passes": true,
+      "started": "2026-10-23T09:53:50.654861+00:00",
+      "completed": "2026-10-23T10:12:42.123742+00:00",
+      "notes": "Native par binders, full concrete sorts, reachable contract/body/field closure, deterministic SCCs, ambiguity skips and unsupported malformed sort assertions pass. Backend count20 passed; independent generic mutual SCC proof/refutation and 8 repeated scripts pass."
+    },
+    {
+      "id": "M2",
+      "description": "Checked constructor context and shared verification",
+      "estimated_loc": 650,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Exact imported ResourceLimit guard verifies with Err payload AudioError and Ok payload Int.",
+        "Deliberately broken success value produces a genuine counterexample.",
+        "Nested/two generic instances and requires/ensures roots use their own concrete context.",
+        "Existing unsupported callee signatures and unit/higher-order boundaries remain honest skips."
+      ],
+      "passes": true,
+      "started": "2026-10-23T09:53:50.654861+00:00",
+      "completed": "2026-10-23T10:12:42.123742+00:00",
+      "notes": "Full internal/smt passes (8.404s); imported ResourceLimit valid/refuted, missing-CoreTI skip, nested/two-instance typing and unchanged callee gate pass. Independent review caught and confirmed fix for parameter capture: lexical pattern/let scopes now have genuine counterexample regressions."
+    },
+    {
+      "id": "M3",
+      "description": "CLI regression corpus, example and release docs",
+      "estimated_loc": 400,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Real CLI single-file/package/ai-check paths agree on valid/refuted/unsupported cases.",
+        "New runnable contracts/result_error_guard.ail checks/runs with inline result tests.",
+        "Showcase contracts: include checkSize ensures matching Ok/Err; verify actual script.",
+        "Showcase effects: include IO on main; checkSize and result predicates remain pure.",
+        "Showcase inline tests: include negative,zero and positive size cases.",
+        "Public docs/changelog describe actual supported sorts and retained limitations."
+      ],
+      "passes": true,
+      "started": "2026-10-23T09:53:50.654861+00:00",
+      "completed": "2026-10-23T10:12:42.123742+00:00",
+      "notes": "CLI corpus passes after scope fix (10.986s); six top-level groups cover imported/package/ai-check parity, nested refutations, unsupported shapes, ambiguity and three shadowing controls. New example checks, runs with runtime contracts, passes3 inline tests plus100-case property and verifies1 contract. Manifest233 modules0drift; docs/release fragment ready."
+    },
+    {
+      "id": "M4",
+      "description": "Integrated gates and independent evaluation",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Focused SMT/CLI suite and deterministic count20 declaration tests pass; Z3 availability guarded.",
+        "Milestone checkpoint, lint, boundaries, sizes, examples/manifest and changelog gates pass.",
+        "Exact clean implementation snapshot passes full evaluator make test and independent review.",
+        "Completed JSON, implemented design/companion plan and release evidence are committed."
+      ],
+      "passes": null,
+      "started": "2026-10-23T10:12:42.123742+00:00",
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "integration_evidence": {
+    "changed_tests": {
+      "status": "pass",
+      "log": "/tmp/ailang-smt-changed-tests.log",
+      "packages": 7,
+      "cli_seconds": 150.267,
+      "smt_seconds": 9.837,
+      "core_tests": "pass"
+    },
+    "checkpoint": {
+      "log": "/tmp/ailang-smt-checkpoint.log",
+      "initial_result": "lint failed: four superseded unused helpers",
+      "resolution": "Removed dead helpers only; focused SMT tests pass0.408s, lint0issues and size gate pass. Reused passing changed-package tests; full exact snapshot evaluation follows."
+    },
+    "lint": {
+      "status": "pass",
+      "log": "/tmp/ailang-smt-lint-final.log"
+    },
+    "examples_manifest": {
+      "status": "pass",
+      "log": "/tmp/ailang-smt-examples.log",
+      "modules_checked": 233,
+      "drift": 0
+    },
+    "boundaries_changelog_sizes_wasm": {
+      "status": "pass",
+      "log": "/tmp/ailang-smt-integration-gates.log"
+    },
+    "windows_compile": {
+      "status": "pass",
+      "command": "GOOS=windows GOARCH=amd64 go test -c ./cmd/ailang"
+    },
+    "pure_determinism": {
+      "status": "pass",
+      "repetitions": 20
+    },
+    "example": {
+      "verified": 1,
+      "errors": 0,
+      "inline_tests": 3,
+      "generated_property_cases": 100
+    }
+  }
+}

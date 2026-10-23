@@ -113,7 +113,7 @@ func encodeApp(app *core.App) (string, error) {
 		}
 		// ADT constructor application
 		name := stripConstructorPrefix(vg.Ref.Name)
-		return encodeConstructorApp(name, app.Args)
+		return encodeCheckedConstructor(app, name, app.Args)
 	}
 
 	// Plain variable application — check if it's a resolved callee (same-module function call)
@@ -134,9 +134,9 @@ func encodeApp(app *core.App) (string, error) {
 		// Otherwise treat as constructor reference
 		name := stripConstructorPrefix(v.Name)
 		if len(app.Args) == 0 {
-			return name, nil
+			return encodeCheckedConstructor(app, name, nil)
 		}
-		return encodeConstructorApp(name, app.Args)
+		return encodeCheckedConstructor(app, name, app.Args)
 	}
 
 	return "", fmt.Errorf("unsupported application: %s", app.String())
