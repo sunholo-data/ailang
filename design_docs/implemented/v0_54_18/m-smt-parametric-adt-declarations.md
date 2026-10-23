@@ -1,6 +1,6 @@
 # M-SMT-PARAMETRIC-ADT-DECLARATIONS: retain concrete error payload types
 
-**Status**: Approved — implementation in progress (Mark, 2026-10-23)
+**Status**: Implemented — independently evaluated 2026-10-23
 **Target**: v0.54.18 candidate, separate from completed M-AUDIO-RELEASE
 **Priority**: P1 (verifier correctness)
 **Estimated**: 2–4 engineering days, including refutation and declaration-corpus tests
@@ -12,9 +12,9 @@
 Canonical report `inbox_1792745981583_2823c9cc` from ailang-packages describes
 `checkSize` in sunholo/audio clips: `Result[int, AudioError]`, with an imported
 `ResourceLimit(string)` error constructor. The contract accepts all Err values
-and requires successful counts to be nonnegative. Current AILANG emits no
-AudioError declaration and declares Result's Err field as Int. Z3 rejects the
-ResourceLimit application, then result; the function remains unproved.
+and requires successful counts to be nonnegative. At the reproduced baseline, AILANG emitted no
+AudioError declaration and declared Result's Err field as Int. Z3 rejected the
+ResourceLimit application, then result; the function remained unproved.
 
 This was reproduced on the completed audio implementation, not inferred from
 an older report. `ailang check` succeeds; `verify --verbose --json` reports
@@ -110,8 +110,8 @@ Z3 accepts this directly; the following declaration/constructor form was tested:
 ```
 
 A standalone Z3 script with the valid guard returns unsat for the negated
-postcondition. Replacing the successful value with -1 returns sat. This validates
-the proposed logical form; it is not a claim that AILANG already emits it.
+postcondition. Replacing the successful value with -1 returns sat. This validated
+the proposed logical form at design time; implementation evidence follows below.
 
 ### Dependency closure
 
@@ -161,19 +161,19 @@ with per-function ad-hoc Int special cases is not delegated.
 
 ## Acceptance criteria and conflict surface
 
-- [ ] The exact imported ResourceLimit count-guard repro is verified with no
+- [x] The exact imported ResourceLimit count-guard repro is verified with no
       unknown constants, missing sorts, unsupported substitutions or solver errors.
-- [ ] Replacing valid successful n with -1 produces a genuine counterexample;
+- [x] Replacing valid successful n with -1 produces a genuine counterexample;
       a broken contract cannot be skipped on a path the valid one proves.
-- [ ] Err's payload is AudioError and Ok's payload is Int in the actual script;
+- [x] Err's payload is AudioError and Ok's payload is Int in the actual script;
       preserving only one of these properties fails the test.
-- [ ] Requires/ensures-only ADT references, nested patterns, imported declarations,
+- [x] Requires/ensures-only ADT references, nested patterns, imported declarations,
       and nested/two distinct generic instances retain correct field sorts.
-- [ ] Unsupported unit/higher-order/open-type cases skip honestly; callee gate,
+- [x] Unsupported unit/higher-order/open-type cases skip honestly; callee gate,
       legacy status/exit policies and numeric-model labels stay explicit.
-- [ ] Unrelated imported declaration failures stay isolated; repeated encodings
+- [x] Unrelated imported declaration failures stay isolated; repeated encodings
       are byte-identical, including mutual dependency groups.
-- [ ] Focused SMT/CLI tests and required integrated tests/lint/boundaries pass;
+- [x] Focused SMT/CLI tests and required integrated tests/lint/boundaries pass;
       Z3-dependent tests guard availability on Windows.
 
 No language syntax, runtime evaluation or new error API. The conflict surface is
@@ -190,7 +190,7 @@ The contract roots are mandatory inputs; this must not repeat a body-only traver
 |---|---|---|
 | Report reaches core | Canonical message list JSON, no ack/read side effect | Full self-contained upstream report and correlation ID |
 | Source is valid AILANG | Exact scratch package source above; bin/ailang check | Pass |
-| Current failure | bin/ailang verify --verbose --json | 0 verified/1 error; ResourceLimit undeclared |
+| Baseline failure | bin/ailang verify --verbose --json | 0 verified/1 error; ResourceLimit undeclared |
 | Generic arguments erased | Read ASTTypeToSMTSort TypeApp branch | Returns constructor name alone except list |
 | Generic fields flattened | Read ExtractADTTypesWithRecords and ASTTypeToSMTSort fallback | Extracted Result has both fields Int in actual script |
 | Filter omits necessary ownership | Read collectSortsFromBody and buildNeededSortSet | No Var/VarGlobal constructor-owner lookup; signature args already erased |
@@ -224,5 +224,27 @@ proofs; typed node context, bounded rejection and negative-control tests are gat
 
 - [Callee-sort gate](../../implemented/v0_30_0/m-smt-callee-sort-gate.md).
 - [Completed audio sprint](../../implemented/v0_54_18/m-audio-release-sprint-plan.md).
-- [Verification coverage addendum](../m-contract-verification-coverage.md#audio-follow-up-2026-10-23-additive-package-evidence): reporting only, not this encoding fix.
+- [Verification coverage addendum](../../planned/m-contract-verification-coverage.md#audio-follow-up-2026-10-23-additive-package-evidence): reporting only, not this encoding fix.
 - [Design axioms](../../../docs/docs/references/axioms.mdx).
+
+## Implementation evidence
+
+Frozen production commit ef7bdc8e0 preserves native parametric declarations,
+checked constructor context, module-specific callee types, full dependency
+closure and deterministic ambiguity skips. Nested matches use ordered typed
+tests and bounded exhaustiveness checks. Review caught parameter capture in a
+shadowing pattern; scoped pattern/let renaming and counterexample regressions
+resolved it before the source freeze.
+
+The exact clean commit passed full make test (163 tested packages, 11,049
+top-level PASS, 105 SKIP, zero failures), lint, sizes, runnable examples/manifest
+(233 modules, zero drift), architecture/changelog checks, WASM build and Windows
+CLI test compilation. Independent proof/refutation review passed 20 fixtures
+with 27 function outcomes. The valid ResourceLimit count guard verifies; broken
+successful results are genuine counterexamples across verify/package/ai-check.
+
+Unit payloads, open/higher-order shapes and the existing conservative callee
+signature gate remain explicit unsupported boundaries. Numeric evidence still
+does not establish runtime equivalence. No version bump, tag, push or deployment
+was performed. Independent verdict and finalization are recorded in
+.ailang/state/evaluations/eval_M-SMT-PARAMETRIC-ADT_round_1.json.

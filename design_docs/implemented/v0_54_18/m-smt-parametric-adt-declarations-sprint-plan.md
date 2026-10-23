@@ -1,6 +1,6 @@
 # M-SMT-PARAMETRIC-ADT: typed error payload verification
 
-**Status**: In progress — Mark approved design and implementation on 2026-10-23
+**Status**: Completed — implementation and independent evaluation passed on 2026-10-23
 **Target**: v0.54.18 candidate; no tag/deploy
 **Baseline**: 2a02b25ae; production source is the audio sprint's tested a8bc30fc9
 **Estimate**: 2–4 engineering days, about1800 implementation/test/docs LOC
@@ -68,10 +68,10 @@ manifest, public guide and changelog. Worker must record existing failure first.
 Root integrates; independent evaluator audits code and adversarial proof/refutation
 cases without authoring implementation. No task approvals/messages or release actions.
 
-- [ ] Focused SMT/CLI suite and deterministic count20 declaration tests pass; Z3 availability guarded.
-- [ ] Milestone checkpoint, lint, boundaries, sizes, examples/manifest and changelog gates pass.
-- [ ] Exact clean implementation snapshot passes full evaluator make test and independent review.
-- [ ] Completed JSON, implemented design/companion plan and release evidence are committed.
+- [x] Focused SMT/CLI suite and deterministic count20 declaration tests pass; Z3 availability guarded.
+- [x] Milestone checkpoint, lint, boundaries, sizes, examples/manifest and changelog gates pass.
+- [x] Exact clean implementation snapshot passes full evaluator make test and independent review.
+- [x] Completed JSON, implemented design/companion plan and release evidence are committed.
 
 ## Schedule and execution
 
@@ -81,3 +81,25 @@ full gates, with bounded independent review. This is an estimate, not a delay
 before execution: all work is authorized now. Shared checkout uses explicit
 file ownership; workers do not switch branches, stage unrelated files or commit.
 Root commits exact task paths and evaluates a clean non-TMPDIR worktree.
+
+## Implementation evidence
+
+Frozen production commit ef7bdc8e0 preserves native parametric declarations,
+checked constructor context, module-specific callee types, full dependency
+closure and deterministic ambiguity skips. Nested matches use ordered typed
+tests and bounded exhaustiveness checks. Review caught parameter capture in a
+shadowing pattern; scoped pattern/let renaming and counterexample regressions
+resolved it before the source freeze.
+
+The exact clean commit passed full make test (163 tested packages, 11,049
+top-level PASS, 105 SKIP, zero failures), lint, sizes, runnable examples/manifest
+(233 modules, zero drift), architecture/changelog checks, WASM build and Windows
+CLI test compilation. Independent proof/refutation review passed 20 fixtures
+with 27 function outcomes. The valid ResourceLimit count guard verifies; broken
+successful results are genuine counterexamples across verify/package/ai-check.
+
+Unit payloads, open/higher-order shapes and the existing conservative callee
+signature gate remain explicit unsupported boundaries. Numeric evidence still
+does not establish runtime equivalence. No version bump, tag, push or deployment
+was performed. Independent verdict and finalization are recorded in
+.ailang/state/evaluations/eval_M-SMT-PARAMETRIC-ADT_round_1.json.

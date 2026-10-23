@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-SMT-PARAMETRIC-ADT",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-23T09:53:50.654861+00:00",
-  "design_doc": "design_docs/planned/v0_54_18/m-smt-parametric-adt-declarations.md",
-  "sprint_plan": "design_docs/planned/v0_54_18/m-smt-parametric-adt-declarations-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_54_18/m-smt-parametric-adt-declarations.md",
+  "sprint_plan": "design_docs/implemented/v0_54_18/m-smt-parametric-adt-declarations-sprint-plan.md",
   "github_issues": [],
   "registry_reuse": [
     {
@@ -34,7 +34,12 @@
   "velocity": {
     "estimated_total_loc": 1800,
     "estimated_days": 4,
-    "target_loc_per_day": 450
+    "target_loc_per_day": 450,
+    "observed_added_loc": 1910,
+    "observed_deleted_loc": 198,
+    "observed_changed_files": 33,
+    "observed_elapsed_minutes": 28.12,
+    "measurement": "Implementation commit 2a02b25ae..ef7bdc8e0; includes Go, tests, docs and JSON artifacts. Attended elapsed time includes concurrent workers and clean gates; not a sustainable engineering throughput estimate."
   },
   "features": [
     {
@@ -104,10 +109,10 @@
         "Exact clean implementation snapshot passes full evaluator make test and independent review.",
         "Completed JSON, implemented design/companion plan and release evidence are committed."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-23T10:12:42.123742+00:00",
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-23T10:21:58.067548+00:00",
+      "notes": "Exact clean ef7bdc8e0 full evaluator passed163testedpackages/11049PASS/105SKIP/0failures plus lint/sizes. Clean examples233modules0drift, boundaries/changelog/WASM and Windows testcompile pass. Independent20fixtures27outcomes pass; report and implemented docs finalized in metadata-only follow-up commit."
     }
   ],
   "integration_evidence": {
@@ -151,6 +156,24 @@
       "errors": 0,
       "inline_tests": 3,
       "generated_property_cases": 100
+    },
+    "clean_full_evaluation": {
+      "status": "pass",
+      "source_commit": "ef7bdc8e0f2c87c075350df59eb45fa6fe85887a",
+      "log": "/tmp/ailang-smt-full-evaluation.log",
+      "full_tests_log": "/tmp/ailang-smt-clean-tests.log",
+      "tested_packages": 163,
+      "top_level_pass": 11049,
+      "top_level_skip": 105,
+      "failures": 0,
+      "lint": "pass",
+      "sizes": "pass",
+      "script_json_trailer": "invalid existing TODO count formatting; independent strict report records observed gates"
     }
-  }
+  },
+  "completed": "2026-10-23T10:21:58.067548+00:00",
+  "evaluation_report": ".ailang/state/evaluations/eval_M-SMT-PARAMETRIC-ADT_round_1.json",
+  "evaluated_source_commit": "ef7bdc8e0f2c87c075350df59eb45fa6fe85887a",
+  "evaluation_result": "pass",
+  "evaluation_score": 95
 }
