@@ -26,7 +26,7 @@ func maintenanceManifestFixture(t *testing.T) (string, MaintenanceExecutionManif
 	}
 	settings := file("settings.json", `{"temperature":0}`)
 	analysis := file("analysis.ail", "native analysis fixture")
-	tool := file("tool.json", `{"version":"fixture-only"}`)
+	tool := file("tool.json", `{"schema":"maintenance.toolchain/1","command":["fixture"],"versionCommand":["fixture","--version"],"version":"fixture-only","binarySHA256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`)
 	starter := file("main.py", "broken initial source")
 	request := file("request.md", "repair real retained source")
 	check := file("check.py", "trusted public check")
@@ -109,6 +109,8 @@ func TestMaintenanceManifestRejectsAlterations(t *testing.T) {
 		{"empty command", func(m *MaintenanceExecutionManifest) { m.Trajectories[0].Stages[0].PublicCheck.Command = nil }},
 		{"no oracle evidence", func(m *MaintenanceExecutionManifest) { m.Trajectories[0].Stages[0].Oracle.Files = nil }},
 		{"settings mismatch", func(m *MaintenanceExecutionManifest) { m.Settings = m.Analysis }},
+		{"tool version declaration drift", func(m *MaintenanceExecutionManifest) { m.Toolchains[0].Version = "not-frozen" }},
+		{"tool command declaration drift", func(m *MaintenanceExecutionManifest) { m.Toolchains[0].Command = []string{"different-tool"} }},
 		{"unknown protection", func(m *MaintenanceExecutionManifest) { m.ProtectedRoots = nil }},
 	}
 	for _, tc := range cases {

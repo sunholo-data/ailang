@@ -99,6 +99,10 @@ func maintenanceInvokeGrade(ctx context.Context, e *MaintenanceExecution, o Main
 	if err = maintenanceVerifyGradeBinding(binding); err != nil {
 		return empty, err
 	}
+	expectedRuntime, err := verifyMaintenanceToolchain(ctx, e, tr)
+	if err != nil {
+		return empty, fmt.Errorf("native runtime preflight: %w", err)
+	}
 	if err = os.MkdirAll(o.EvidenceRoot, 0700); err != nil {
 		return empty, err
 	}
@@ -153,6 +157,13 @@ func maintenanceInvokeGrade(ctx context.Context, e *MaintenanceExecution, o Main
 	}
 	if commandErr != nil && report.Status != "invalid_setup" {
 		return empty, fmt.Errorf("candidate controller process failed: %w", commandErr)
+	}
+	afterRuntime, err := verifyMaintenanceToolchain(ctx, e, tr)
+	if err != nil || afterRuntime != expectedRuntime {
+		return empty, fmt.Errorf("native runtime postflight mismatch: %v", err)
+	}
+	if report.Status != "invalid_setup" && report.RuntimeDigest != expectedRuntime {
+		return empty, fmt.Errorf("candidate used a different native runtime")
 	}
 	if err = maintenanceGradeReceipts(report, binding, o); err != nil {
 		return empty, err

@@ -203,6 +203,9 @@ func (e *MaintenanceExecution) validate() error {
 		if err = e.bind(&tool.Evidence); err != nil {
 			return err
 		}
+		if err = maintenanceValidateToolchainEvidence(*tool); err != nil {
+			return err
+		}
 		tools[tool.Language] = tool.Evidence.SHA256
 	}
 	arms := map[string]map[string]bool{}

@@ -88,11 +88,17 @@ func maintenanceCLIManifestFixture(t *testing.T) (string, eval_harness.Maintenan
 	}
 	settings := file("settings.json", `{"temperature":0}`)
 	analysis := file("analysis.ail", "native analysis fixture")
-	tool := file("tool.json", `{"version":"fixture-only"}`)
+	tool := file("tool.json", `{"schema":"maintenance.toolchain/1","command":["fixture"],"versionCommand":["fixture","--version"],"version":"fixture-only","binarySHA256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`)
 	starter := file("main.py", "broken initial source")
 	request := file("request.md", "repair real retained source")
 	check := file("check.py", "trusted public check")
 	oracle := file("oracle.py", "trusted external oracle")
+	pipelineBytes, err := json.Marshal([]string{oracle.SHA256})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipelineSum := sha256.Sum256(pipelineBytes)
+	oraclePipeline := hex.EncodeToString(pipelineSum[:])
 	assets := []eval_harness.MaintenanceAsset{{Path: starter.Path, Destination: "main.py", SHA256: starter.SHA256}}
 	starterDigest, err := maintenanceCLIStarterDigest(assets)
 	if err != nil {
@@ -104,7 +110,7 @@ func maintenanceCLIManifestFixture(t *testing.T) (string, eval_harness.Maintenan
 		stages := []eval_harness.MaintenanceStagePlan{}
 		bindings := []eval_harness.MaintenanceStageBinding{}
 		for _, id := range []string{"S1", "S2", "S3"} {
-			stages = append(stages, eval_harness.MaintenanceStagePlan{ID: id, RequirementDigest: request.SHA256, OracleDigest: oracle.SHA256})
+			stages = append(stages, eval_harness.MaintenanceStagePlan{ID: id, RequirementDigest: request.SHA256, OracleDigest: oraclePipeline})
 			bindings = append(bindings, eval_harness.MaintenanceStageBinding{ID: id, Request: request, PublicCheck: eval_harness.MaintenanceCommandBinding{Command: []string{"fixture-check"}, Files: []eval_harness.MaintenanceFileRef{check}}, Oracle: eval_harness.MaintenanceCommandBinding{Command: []string{"fixture-oracle"}, Files: []eval_harness.MaintenanceFileRef{oracle}}})
 		}
 		plan.Trajectories = append(plan.Trajectories, eval_harness.MaintenanceTrajectoryPlan{ID: lang, Family: "real-family", Variant: "development", Repeat: 1, Language: lang, StarterDigest: starterDigest, NativeToolDigest: tool.SHA256, Stages: stages})
