@@ -115,6 +115,12 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 }
 
 func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
+	usageCapture := newPiUsageCapture()
+	defer func() {
+		if out != nil {
+			out.UsageEvidence = usageCapture.snapshot()
+		}
+	}()
 	ctx, span := telemetry.StartSpan(ctx, piTracer, "pi.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "pi"),
@@ -288,6 +294,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 			}
 
 			ev, err := parsePiEvent(line)
+			usageCapture.observe(line, ev)
 			if err != nil {
 				// Non-JSON preamble (a provider warning, a deprecation notice) is
 				// tolerated but COUNTED — banked as pi_unparsed_lines so a stream

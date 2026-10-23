@@ -251,9 +251,11 @@ type PluginsConfig struct {
 
 // Result is the normalized execution result
 type Result struct {
-	Success bool   // Overall success
-	Output  string // Final text output from agent
-	Error   string // Error message if failed
+	// UsageEvidence is source-preserving parser evidence; nil means unavailable.
+	UsageEvidence *UsageEvidence
+	Success       bool   // Overall success
+	Output        string // Final text output from agent
+	Error         string // Error message if failed
 
 	// Metrics
 	DurationMS    int // Total execution time in milliseconds
