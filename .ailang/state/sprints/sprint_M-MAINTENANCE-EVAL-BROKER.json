@@ -12,7 +12,7 @@
     "sunholo-data/ailang",
     "sunholo-data/ailang-packages"
   ],
-  "core_source_revision": "40fbb90d5",
+  "core_source_revision": "40fbb90d53d42108eec604b2293102c11500937b",
   "adapter_merge_revision": "d8e47684cb0b8bb0d72392d10d801fb2df0a30dc",
   "package_source_revision": "9ac50f6a25d587fc3a6a935a87991bbaecdd0fc1",
   "registry_reuse": [
@@ -88,10 +88,12 @@
         "Record host/OS/architecture, Node/pi/SDK/runtime identities, wrapper/policy/source hashes, exact commands and exit evidence. No skipped control can qualify a platform.",
         "On any failed property, write `qualified:false` with the named blocker and leave M2–M7 unstarted; no general reaper rewrite or host platform expansion."
       ],
-      "passes": null,
+      "passes": false,
       "started": "2026-10-26T13:53:32.437848+00:00",
       "completed": null,
-      "notes": null
+      "notes": "STOP supported by independent artifact review. Owned Python/AILANG and cwd reaper positive controls pass; 3 escaped children remain live Ss after current cleanup, then test emergency cleanup is verified. Strict lifetime gate exits 1. Socket/full pi chain not run; M2-M7 unstarted. This is not a completed milestone or a general macOS impossibility result.",
+      "attempt_finished": "2026-10-26T14:06:36.768490+00:00",
+      "actual_loc": 233
     },
     {
       "id": "M2_STRICT_PROTOCOL",
@@ -208,5 +210,11 @@
     }
   ],
   "execution_authorized_by": "Mark, 2026-10-26: execute sprint",
-  "prompt_version_loaded": "v0.16.7"
+  "prompt_version_loaded": "v0.16.7",
+  "blocked": true,
+  "blocked_reason": "M1: actual escaped descendants survive process-group kill plus ReapWorkspace after normal exit, timeout and fixture owner death.",
+  "last_checkpoint": "M1_STOP_HOST_OWNERSHIP_UNQUALIFIED",
+  "last_session": "2026-10-26T14:06:36.768490+00:00",
+  "qualification_report": "design_docs/validation/maintenance-broker/2026-10-26/strict-lifetime.json",
+  "independent_review": "design_docs/validation/maintenance-broker/2026-10-26/independent-review.json"
 }

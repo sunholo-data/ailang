@@ -1,7 +1,8 @@
 # Sprint: M-MAINTENANCE-EVAL-BROKER
 
 **Status:** In progress; execution approved by Mark on 2026-10-26 (“execute sprint”).
-M1 host feasibility is the active stop gate.
+M1 host feasibility failed its lifetime condition; the sprint is blocked.
+M2–M7 remain unstarted; live dispatch remains closed.
 **Design:** [host-side confined tools](m-maintenance-eval-broker.md).
 **Planning request:** Mark, 2026-10-26: “ok lets try to continue”.
 **Base:** `40fbb90d5` on `origin/dev`, including merged core PR 1940
@@ -120,7 +121,20 @@ fixtures; no new `.ail` modules in this planning slice.
 - [ ] Positive controls build/run the existing owned AILANG and Python fixtures. Protected file/network controls fail; a nearby ungranted socket is unreachable.
 - [ ] A controlled descendant attempts `setsid`, changes cwd, closes inherited stdio and outlives its leader. Prove mechanical escape prevention or a concrete ownership mechanism that still terminates and awaits it on normal exit, timeout and controller death. Protect an unrelated bystander process.
 - [ ] Record host/OS/architecture, Node/pi/SDK/runtime identities, wrapper/policy/source hashes, exact commands and exit evidence. No skipped control can qualify a platform.
-- [ ] On any failed property, write `qualified:false` with the named blocker and leave M2–M7 unstarted; no general reaper rewrite or host platform expansion.
+- [x] On any failed property, write `qualified:false` with the named blocker and leave M2–M7 unstarted; no general reaper rewrite or host platform expansion.
+
+**M1 execution result, 2026-10-26: BLOCKED.** The last criterion (stop and
+record the failed property) was followed. The first two criteria remain unrun or
+partial because lifetime was tested first. The third criterion fails: a live
+`Ss` descendant with matching start identity survives normal exit, timeout and
+fixture owner death even after external group kill plus actual cwd reaping.
+The fourth criterion is partial: exact lifetime-test host/source/policy/runtime
+identities are recorded; pi/socket/full-chain qualification was not attempted.
+Owned Python and AILANG programs pass, the retained-cwd child is reaped, and an
+unrelated bystander survives. All fixture processes are subsequently cleaned up.
+See [banked evidence](../validation/maintenance-broker/2026-10-26/README.md).
+Independent artifact review supports this precise stop; no independent process
+rerun or full-sprint approval is claimed. **0/7 milestones passed.**
 
 ### M2: Strict stage protocol (~270 LOC)
 
