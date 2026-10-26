@@ -3477,6 +3477,46 @@
       }
     },
     {
+      "path": "runnable/secrets/sink_function_value_ok.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "higher-order",
+        "m-ifc-function-value-sinks"
+      ],
+      "description": "A {not email} sink used as a value: alias, HOF, map and record field, with clean or declassified data",
+      "modules": ["std/io","std/list","std/string"],
+      "run_flags": [
+        "--caps",
+        "IO,Declassify",
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "sent:hello\nsent:status ok\nsent:a,sent:b\nsent:[redacted]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/secrets/sink_function_value.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "higher-order",
+        "expected-fail",
+        "m-ifc-function-value-sinks"
+      ],
+      "description": "EXPECTED TO FAIL ailang check: <email> reaching a {not email} sink through an alias, a HOF and a wrapper lambda (#1719)",
+      "modules": [],
+      "expected": {
+        "exit_code": 1,
+        "error_pattern": "information-flow violation"
+      },
+      "skip_reason": "intentionally fails `ailang check`; asserted in TestSecretExamples_IFC"
+    },
+    {
       "path": "runnable/effect_row_var_pure_caller.ail",
       "status": "working",
       "tags": [
@@ -3500,11 +3540,11 @@
     }
   ],
   "statistics": {
-    "total": 238,
-    "working": 230,
+    "total": 240,
+    "working": 232,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9663865546218487,
+    "coverage": 0.9666666666666667,
     "experimental": 0
   },
   "milestones": {

@@ -204,6 +204,9 @@ func TestSecretExamples_IFC(t *testing.T) {
 		{"../../examples/runnable/secrets/gated_secret.ail", 0},
 		{"../../examples/runnable/secrets/leak_attempt.ail", 1},
 		{"../../examples/runnable/secrets/secret_demo.ail", 0},
+		// #1719: alias, higher-order and wrapper-lambda leaks, one each.
+		{"../../examples/runnable/secrets/sink_function_value.ail", 3},
+		{"../../examples/runnable/secrets/sink_function_value_ok.ail", 0},
 	}
 	for _, tc := range cases {
 		src, err := os.ReadFile(tc.path)
@@ -214,8 +217,10 @@ func TestSecretExamples_IFC(t *testing.T) {
 		if len(errs) != tc.wantErrs {
 			t.Errorf("%s: expected %d IFC violation(s), got %d: %v", tc.path, tc.wantErrs, len(errs), errs)
 		}
-		if tc.wantErrs == 1 && len(errs) == 1 && errs[0].Kind != types.SinkRefinementError {
-			t.Errorf("%s: expected SinkRefinementError, got %q", tc.path, errs[0].Kind)
+		for _, e := range errs {
+			if e.Kind != types.SinkRefinementError {
+				t.Errorf("%s: expected SinkRefinementError, got %q", tc.path, e.Kind)
+			}
 		}
 	}
 }
