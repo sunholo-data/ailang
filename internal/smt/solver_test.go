@@ -8,6 +8,26 @@ import (
 
 // --- Mock tests (no Z3 needed) ---
 
+// TestParseModel_SkipsFunctionDefinitions: a contract-only callee is an
+// uninterpreted function (#1961), and Z3 prints its interpretation in the model.
+// That is not an input binding and must not surface as a junk counterexample line.
+func TestParseModel_SkipsFunctionDefinitions(t *testing.T) {
+	output := `sat
+(
+  (define-fun $p_a () Int
+    0)
+  (define-fun total__spec ((x!0 Int)) Int
+    (ite (= x!0 1) 1
+      0))
+  (define-fun $p_b () Int
+    (- 3))
+)`
+	bindings := parseModel(output)
+	if len(bindings) != 2 || bindings[0].Name != "$p_a" || bindings[1].Name != "$p_b" || bindings[1].Value != "(- 3)" {
+		t.Fatalf("want only the two nullary bindings, got %+v", bindings)
+	}
+}
+
 func TestParseModel_SatOutput(t *testing.T) {
 	output := `sat
 (

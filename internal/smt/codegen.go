@@ -52,11 +52,11 @@ var activeRecordTypes map[string]*RecordTypeInfo
 // enabling record construction lookup by field names.
 var activeFieldSetToSort map[string]string
 
-// activeContractCallees maps callee function names to their result constant names
-// when the callee is encoded via contract-as-spec (declare-const + assert) rather
-// than a define-fun. When encodeApp encounters a VarGlobal call to one of these,
-// it substitutes the result constant instead of emitting a function application.
-var activeContractCallees map[string]string
+// activeContractCallees maps callee function names to their spec function when the
+// callee is encoded via contract-as-spec (an uninterpreted <f>__spec function plus
+// its contract axiom) rather than a define-fun. encodeApp encodes each call to one
+// of these as `(<f>__spec args…)`, so every call site gets its own result (#1961).
+var activeContractCallees map[string]contractCalleeRef
 
 // activeParamRenames maps an AILANG parameter name to its prefixed Z3 form.
 // We prefix every parameter declare-const with `$p_` so the symbol cannot
@@ -205,11 +205,11 @@ func EncodeFunction(
 	}
 
 	// Populate contract callee substitutions
-	activeContractCallees = make(map[string]string)
+	activeContractCallees = make(map[string]contractCalleeRef)
 	defer func() { activeContractCallees = nil }()
 	for _, def := range calleeDefs {
-		if def.IsContract && def.ResultConst != "" {
-			activeContractCallees[def.Name] = def.ResultConst
+		if def.IsContract && def.SpecFun != "" {
+			activeContractCallees[def.Name] = contractCalleeRef{SpecFun: def.SpecFun, Arity: def.Arity}
 		}
 	}
 

@@ -263,7 +263,13 @@ func parseDefineFun(firstLine string, scanner *bufio.Scanner) *ModelBinding {
 	}
 
 	name := parts[0]
-	// parts[1] should be "()"
+	// Only nullary definitions are input/result bindings. A function's
+	// interpretation (e.g. a contract callee's <f>__spec, #1961) has a parameter
+	// list here and is not a counterexample value; its body lines that follow do
+	// not start with "(define-fun " and are skipped by parseModel.
+	if parts[1] != "()" {
+		return nil
+	}
 	sort := parts[2]
 
 	// Check if value is on the same line

@@ -25,60 +25,147 @@ type ContractSpec struct {
 type ContractCalleeDecl struct {
 	// Name is the callee function name.
 	Name string
-	// ResultConst is the fresh constant name for the call result (e.g. $xmod_result_double_0).
-	ResultConst string
-	// SMTLib is the full SMT-LIB fragment to prepend before the caller body encoding.
-	// It declares the result constant and asserts the callee's contracts.
+	// SpecFun is the uninterpreted function standing for the callee (`<f>__spec`).
+	// Each call site encodes as `(<f>__spec args…)`.
+	SpecFun string
+	// Arity is the number of SpecFun arguments (the callee's surface parameters).
+	Arity int
+	// SMTLib declares SpecFun and asserts the callee's contract axiom. It is
+	// prepended to the caller's SMT-LIB program.
 	SMTLib string
 }
 
-// EncodeCalleeByContract emits a declare-const for the callee result and asserts
-// the callee's requires/ensures contracts as axioms. This is the fallback path
-// when the callee body cannot be inlined (too deep, recursive, or unencodable).
+// contractCalleeRef is what encodeApp needs to encode a call to a contract callee.
+type contractCalleeRef struct {
+	SpecFun string
+	Arity   int
+}
+
+// contractSpecFunName names the uninterpreted function for a contract callee.
+func contractSpecFunName(funcName string) string { return funcName + "__spec" }
+
+// EncodeCalleeContract encodes a callee that is seen only through its contract
+// (too deep, recursive, or otherwise not inlinable) as one uninterpreted function
+// plus one axiom:
 //
-// callSiteIdx disambiguates multiple calls to the same callee within one function.
+//	(declare-fun f__spec (S1 … Sn) R)
+//	(assert (forall ((q1 S1) … (qn Sn))
+//	  (! (=> requires[q] ensures[q, result := (f__spec q…)]) :pattern ((f__spec q…)))))
 //
-// The returned ContractCalleeDecl.SMTLib can be prepended to the caller's SMT-LIB
-// program. The ResultConst field gives the name to substitute wherever the callee
-// call appears in the encoded caller body.
-func EncodeCalleeByContract(spec ContractSpec, args []core.CoreExpr, callSiteIdx int) (*ContractCalleeDecl, error) {
-	resultConst := fmt.Sprintf("$xmod_result_%s_%d", spec.FuncName, callSiteIdx)
+// The pattern makes Z3 instantiate the axiom once per distinct call term, with
+// that call's arguments. So each call has its own result, and two calls with the
+// same arguments share one (functional consistency). It replaces a single shared
+// result constant that made `f(a) - f(a + 1)` provably 0 (#1961).
+//
+// requires GUARDS the ensures: the callee only guarantees its ensures when its
+// requires holds, so a call outside the requires gets an unconstrained result.
+// If a requires clause cannot be encoded, the guard cannot be formed and no
+// ensures is assumed (weaker, sound). Discharging requires as a call-site proof
+// obligation is a separate decision (verify-call-site-precondition-not-checked.md).
+// An ensures clause that cannot be encoded is dropped, which is also weaker.
+func EncodeCalleeContract(spec ContractSpec) (*ContractCalleeDecl, error) {
+	specFun := contractSpecFunName(spec.FuncName)
+	bound := make([]string, len(spec.Params))
+	binders := make([]string, len(spec.Params))
+	sorts := make([]string, len(spec.Params))
+	renames := make(map[string]string, len(spec.Params)+1)
+	subs := make(map[string]string, len(spec.Params))
+	for i, p := range spec.Params {
+		sort, err := MapType(p.Type)
+		if err != nil {
+			return nil, fmt.Errorf("%w: contract callee %q parameter %q: %v", ErrUnresolvableTypes, spec.FuncName, p.Name, err)
+		}
+		bound[i] = fmt.Sprintf("$q_%s_%s", spec.FuncName, p.Name)
+		binders[i] = fmt.Sprintf("(%s %s)", bound[i], sort)
+		sorts[i] = sort
+		renames[p.Name] = bound[i]
+		subs[p.Name] = bound[i]
+	}
+	specTerm := specFun
+	if len(bound) > 0 {
+		specTerm = fmt.Sprintf("(%s %s)", specFun, strings.Join(bound, " "))
+	}
+	renames["result"] = specTerm
 
 	var sb strings.Builder
+	fmt.Fprintf(&sb, "(declare-fun %s (%s) %s)\n", specFun, strings.Join(sorts, " "), spec.ReturnSort)
 
-	// Declare a fresh constant for the callee's return value.
-	sb.WriteString(fmt.Sprintf("(declare-const %s %s)\n", resultConst, spec.ReturnSort))
-
-	// Build param→arg substitution for encoding contracts.
-	// contracts reference param names; we substitute actual call args.
-	paramSubs, err := buildParamSubstitution(spec.Params, args)
-	if err != nil {
-		return nil, fmt.Errorf("callee contract param substitution: %w", err)
-	}
-
-	// Assert requires (preconditions) — these hold at the call site.
-	for _, req := range spec.Requires {
-		encoded, err := encodeContractExprWithSubs(req.Expr, paramSubs, resultConst)
-		if err != nil {
-			continue // skip unencodable preconditions rather than failing
+	axiom, ok := encodeContractAxiom(spec, renames, subs, specTerm)
+	if ok {
+		if len(bound) == 0 {
+			fmt.Fprintf(&sb, "(assert %s) ; %s contract\n", axiom, spec.FuncName)
+		} else {
+			fmt.Fprintf(&sb, "(assert (forall (%s) (! %s :pattern (%s)))) ; %s contract\n",
+				strings.Join(binders, " "), axiom, specTerm, spec.FuncName)
 		}
-		sb.WriteString(fmt.Sprintf("(assert %s) ; %s requires\n", encoded, spec.FuncName))
 	}
+	return &ContractCalleeDecl{Name: spec.FuncName, SpecFun: specFun, Arity: len(bound), SMTLib: sb.String()}, nil
+}
 
-	// Assert ensures (postconditions) — these bind the result constant.
-	for _, ens := range spec.Ensures {
-		encoded, err := encodeContractExprWithSubs(ens.Expr, paramSubs, resultConst)
-		if err != nil {
-			continue // skip unencodable postconditions
+// encodeContractAxiom encodes `requires => ensures` over the quantifier's bound
+// names. The callee's parameters and `result` are bound through the parameter
+// rename table, which the scoped let/match encoders already keep lexical, so the
+// caller's own `$p_` renames can neither capture nor leak into the axiom. ok is
+// false when there is nothing sound to assert.
+func encodeContractAxiom(spec ContractSpec, renames, subs map[string]string, specTerm string) (string, bool) {
+	previous := activeParamRenames
+	activeParamRenames = renames
+	defer func() { activeParamRenames = previous }()
+
+	encodeAll := func(contracts []*core.Contract, dropOnError bool) ([]string, bool) {
+		var out []string
+		for _, c := range contracts {
+			if c == nil || c.Expr == nil {
+				continue
+			}
+			enc, err := EncodeExpr(substituteContractExpr(c.Expr, subs, specTerm))
+			if err != nil {
+				if dropOnError {
+					continue
+				}
+				return nil, false
+			}
+			out = append(out, enc)
 		}
-		sb.WriteString(fmt.Sprintf("(assert %s) ; %s ensures\n", encoded, spec.FuncName))
+		return out, true
 	}
+	reqs, ok := encodeAll(spec.Requires, false)
+	if !ok {
+		return "", false // no guard → no ensures may be assumed
+	}
+	ens, _ := encodeAll(spec.Ensures, true)
+	if len(ens) == 0 {
+		return "", false
+	}
+	body := conjoin(ens)
+	if len(reqs) > 0 {
+		body = fmt.Sprintf("(=> %s %s)", conjoin(reqs), body)
+	}
+	return body, true
+}
 
-	return &ContractCalleeDecl{
-		Name:        spec.FuncName,
-		ResultConst: resultConst,
-		SMTLib:      sb.String(),
-	}, nil
+// conjoin renders a conjunction, without a wrapper for a single term.
+func conjoin(terms []string) string {
+	if len(terms) == 1 {
+		return terms[0]
+	}
+	return fmt.Sprintf("(and %s)", strings.Join(terms, " "))
+}
+
+// encodeContractCalleeCall encodes one call to a contract callee as an
+// application of its spec function to this call's arguments.
+func encodeContractCalleeCall(name string, ref contractCalleeRef, args []core.CoreExpr) (string, error) {
+	nonUnit := 0
+	for _, a := range args {
+		if !isUnitLiteral(a) {
+			nonUnit++
+		}
+	}
+	if nonUnit != ref.Arity {
+		return "", fmt.Errorf("%w: call to contract callee %q has %d arguments, its contract has %d parameters",
+			ErrUnresolvableTypes, name, nonUnit, ref.Arity)
+	}
+	return encodeUserFunctionCall(ref.SpecFun, args)
 }
 
 // BuildContractSpec builds a ContractSpec for a callee from its core.DeclMeta
@@ -110,31 +197,11 @@ func BuildContractSpec(
 	}
 }
 
-// buildParamSubstitution maps parameter names to their encoded call-site arguments.
-func buildParamSubstitution(params []FunctionParam, args []core.CoreExpr) (map[string]string, error) {
-	subs := make(map[string]string)
-	for i, p := range params {
-		if i >= len(args) {
-			break
-		}
-		encoded, err := EncodeExpr(args[i])
-		if err != nil {
-			return nil, fmt.Errorf("encoding arg %d for param %q: %w", i, p.Name, err)
-		}
-		subs[p.Name] = encoded
-	}
-	return subs, nil
-}
-
-// encodeContractExprWithSubs encodes a contract expression, substituting param
-// names with their call-site encodings and "result" with the result constant.
-func encodeContractExprWithSubs(expr core.CoreExpr, paramSubs map[string]string, resultConst string) (string, error) {
-	substituted := substituteContractExpr(expr, paramSubs, resultConst)
-	return EncodeExpr(substituted)
-}
-
-// substituteContractExpr walks a contract expression and replaces Var references
-// to parameter names with their substituted values, and "result" with resultConst.
+// substituteContractExpr walks a contract expression and replaces "result" with
+// resultConst, and VarGlobal references to parameter names with their substituted
+// values. A plain Var parameter is NOT substituted here: EncodeCalleeContract binds
+// those through the parameter rename table, whose let/match handling is lexical,
+// so a let that shadows a parameter name is not captured.
 func substituteContractExpr(expr core.CoreExpr, subs map[string]string, resultConst string) core.CoreExpr {
 	if expr == nil {
 		return nil
@@ -143,11 +210,6 @@ func substituteContractExpr(expr core.CoreExpr, subs map[string]string, resultCo
 	case *core.Var:
 		if e.Name == "result" {
 			return &core.VarGlobal{Ref: core.GlobalRef{Module: "$const", Name: resultConst}}
-		}
-		if replacement, ok := subs[e.Name]; ok {
-			// Return a pre-encoded sentinel that EncodeExpr will pass through.
-			// We use a VarGlobal with Module="$encoded" to signal pre-encoded text.
-			return &core.VarGlobal{Ref: core.GlobalRef{Module: "$encoded", Name: replacement}}
 		}
 		return e
 	case *core.VarGlobal:

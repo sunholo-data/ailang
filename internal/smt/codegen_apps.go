@@ -97,11 +97,9 @@ func encodeApp(app *core.App) (string, error) {
 		if activeResolvedCallees != nil && activeResolvedCallees[vg.Ref.Name] {
 			return encodeUserFunctionCall(vg.Ref.Name, app.Args)
 		}
-		// Contract-based callee: substitute result constant (call site collapses to the constant)
-		if activeContractCallees != nil {
-			if resultConst, ok := activeContractCallees[vg.Ref.Name]; ok {
-				return resultConst, nil
-			}
+		// Contract-based callee: apply its spec function to this call's arguments.
+		if ref, ok := activeContractCallees[vg.Ref.Name]; ok {
+			return encodeContractCalleeCall(vg.Ref.Name, ref, app.Args)
 		}
 		// Leak guard: an unresolved call to a KNOWN user function (as opposed to an
 		// ADT constructor) would emit a raw uninterpreted symbol and make Z3
@@ -121,10 +119,8 @@ func encodeApp(app *core.App) (string, error) {
 		if activeResolvedCallees != nil && activeResolvedCallees[v.Name] {
 			return encodeUserFunctionCall(v.Name, app.Args)
 		}
-		if activeContractCallees != nil {
-			if resultConst, ok := activeContractCallees[v.Name]; ok {
-				return resultConst, nil
-			}
+		if ref, ok := activeContractCallees[v.Name]; ok {
+			return encodeContractCalleeCall(v.Name, ref, app.Args)
 		}
 		// Leak guard (see VarGlobal branch above): unresolved call to a known user
 		// function → skip gracefully rather than leak a raw "unknown constant".

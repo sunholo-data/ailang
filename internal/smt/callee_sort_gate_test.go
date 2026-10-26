@@ -91,7 +91,7 @@ func TestLeakGuard_UnresolvedUserFunctionErrors(t *testing.T) {
 	// NOT resolved (empty resolved/contract maps).
 	activeUserFunctions = map[string]bool{"canon": true}
 	activeResolvedCallees = map[string]bool{}
-	activeContractCallees = map[string]string{}
+	activeContractCallees = map[string]contractCalleeRef{}
 	defer func() {
 		activeUserFunctions = nil
 		activeResolvedCallees = nil
@@ -116,7 +116,7 @@ func TestLeakGuard_UnresolvedUserFunctionErrors(t *testing.T) {
 func TestLeakGuard_RealConstructorStillEncodes(t *testing.T) {
 	activeUserFunctions = map[string]bool{"someUserFunc": true}
 	activeResolvedCallees = map[string]bool{}
-	activeContractCallees = map[string]string{}
+	activeContractCallees = map[string]contractCalleeRef{}
 	defer func() {
 		activeUserFunctions = nil
 		activeResolvedCallees = nil
