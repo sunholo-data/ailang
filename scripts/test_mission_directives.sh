@@ -136,12 +136,13 @@ EOF
 	cat > "$d/5.json" <<'EOF'
 {"comments": [
  {"id":"IC_a","author":{"login":"MarkEdmondson1234"},"createdAt":"2026-09-01T00:00:00Z","body":"first"},
- {"id":"IC_late","author":{"login":"MarkEdmondson1234"},"createdAt":"2026-09-01T00:05:00Z","body":"arrived mid-iteration"}
+ {"id":"IC_late","author":{"login":"MarkEdmondson1234"},"createdAt":"2026-09-01T00:05:00Z","body":"arrived mid-iteration"},
+ {"id":"IC_late2","author":{"login":"MarkEdmondson1234"},"createdAt":"2026-09-01T00:06:00Z","body":"and a follow-up"}
 ]}
 EOF
 	md --issue 5 --watermark-file "$wm" --mark IC_a >/dev/null 2>&1      # marks what it routed
 	out="$(md --issue 5 --watermark-file "$wm" 2>/dev/null | new_ids | tr '\n' ' ')"
-	if [ "$out" = "IC_late " ]; then ok "3 late-arrival: directive posted mid-iteration is presented next fire"; else notok "3 late-arrival: expected 'IC_late', got '$out'"; fi
+	if [ "$out" = "IC_late IC_late2 " ]; then ok "3 late-arrival: directives posted mid-iteration are presented next fire"; else notok "3 late-arrival: expected 'IC_late IC_late2', got '$out'"; fi
 	unset MD_FIXDIR
 }
 
