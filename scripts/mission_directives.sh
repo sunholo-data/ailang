@@ -30,7 +30,11 @@
 # Usage:
 #   scripts/mission_directives.sh --issue 635 --watermark-file <path>              # read
 #   scripts/mission_directives.sh --issue 635 --watermark-file <path> --mark <id>  # after routing
-#   scripts/mission_directives.sh --issue 635 [--repo owner/name] [--since ISO8601]  # raw read
+#   scripts/mission_directives.sh --issue 635 [--repo owner/name] [--since ISO8601]  # DEPRECATED raw
+#     read: exclusive (>), no ids, output unchanged since before #981 (the world fork still uses it)
+# --mark holds <path>.lock (mkdir; a dead holder's lock is broken) across its read-modify-write.
+# A comment edited after it was marked is NOT re-presented (identity is the id, not the text);
+# a comment deleted before --mark makes --mark exit 1 with the file unchanged.
 #   MISSION_DIRECTIVE_AUTHORS="a,b" scripts/mission_directives.sh --issue 635 ...
 #
 # Exit codes: 0 = ran (zero or more directives on stdout), 1 = refused/error.
@@ -45,7 +49,7 @@ warn() { echo -e "${YELLOW}⚠ mission_directives: $*${RESET}" >&2; }
 ISSUE=""; REPO="${MISSION_REPO:-sunholo-data/ailang}"; SINCE=""; SINCE_SET=0; WMFILE=""; MARK=""
 while [ $# -gt 0 ]; do
 	case "$1" in
-		-h|--help) sed -n '2,36p' "$0"; exit 0 ;;
+		-h|--help) sed -n '2,40p' "$0"; exit 0 ;;
 		--issue|--repo|--since|--watermark-file|--mark)
 			# bash 3.2: `shift 2` with one arg left fails WITHOUT shifting — an infinite loop.
 			[ $# -ge 2 ] || die "$1 needs a value" ;;
@@ -101,31 +105,84 @@ if [ -n "$SELF" ]; then
 	IFS="$OLD_IFS"
 fi
 
-# ── the watermark record ─────────────────────────────────────────────────────────
-# The read is a STRING compare on GitHub's fixed-width UTC form, so anything else on line 1
-# is refused loudly rather than silently compared.
-is_iso() { printf '%s\n' "$1" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'; }
-EPOCH="1970-01-01T00:00:00Z"
-WM_STATE="none"; PROCESSED_JSON='[]'
-if [ -n "$WMFILE" ]; then
-	if [ ! -e "$WMFILE" ]; then
-		WM_STATE="absent"; SINCE="$EPOCH"
-	else
-		[ -r "$WMFILE" ] || die "watermark file unreadable: $WMFILE"
-		SINCE=$(head -1 "$WMFILE" | tr -d '[:space:]')
-		[ -n "$SINCE" ] || die "watermark file has an empty line 1: $WMFILE"
-		if grep -q '^# mission-directives watermark v2' "$WMFILE"; then WM_STATE="v2"; else WM_STATE="legacy"; fi
-		PROCESSED_JSON=$(awk '$1 == "processed" && NF >= 3 { print $2 }' "$WMFILE" | jq -R -s 'split("\n") | map(select(length > 0))') \
-			|| die "could not parse processed ids in $WMFILE"
-	fi
-fi
-SINCE="${SINCE:-$EPOCH}"
-is_iso "$SINCE" || die "since/watermark is not a UTC ISO8601 timestamp (YYYY-MM-DDTHH:MM:SSZ): '$SINCE'"
-
 # Build a jq allowlist array from the comma-separated env value, so the author
 # comparison is data rather than an interpolated fragment of jq program text.
 AUTHORS_JSON=$(printf '%s' "$AUTHORS" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";"")) | map(select(length > 0))')
 [ "$(printf '%s' "$AUTHORS_JSON" | jq 'length')" -gt 0 ] || die "allowlist resolved to zero authors"
+
+# ── RAW MODE (no --watermark-file): UNCHANGED, stdout byte for byte ─────────────────
+# Exclusive `>` and no ids, exactly as before #981. Callers that hand-write their own
+# watermark (the world fork's Gate 0 runs this script by absolute path with --since) rely on
+# the exclusive read: making it inclusive with no processed-id memory would re-present their
+# last directive on every fire. Only the --watermark-file path is inclusive and id-aware.
+if [ -z "$WMFILE" ]; then
+	echo -e "${YELLOW}mission_directives: --since mode is deprecated (exclusive read, no crash safety — #981); use --watermark-file <path> to read and --mark <id> after routing${RESET}" >&2
+	SINCE="${SINCE:-1970-01-01T00:00:00Z}"
+	raw=$(gh issue view "$ISSUE" --repo "$REPO" --json comments 2>/dev/null) \
+		|| die "could not read issue #$ISSUE on $REPO (auth? issue exists?)"
+	# ascii_downcase both sides: GitHub logins are case-insensitive, so a
+	# case-sensitive compare would drop a real directive from "markedmondson1234".
+	printf '%s' "$raw" | jq -r \
+		--argjson allow "$AUTHORS_JSON" \
+		--arg since "$SINCE" '
+		($allow | map(ascii_downcase)) as $a
+		| [ .comments[]
+		    | select(.author.login != null)
+		    | select(.author.login | ascii_downcase | IN($a[]))
+		    | select(.createdAt > $since) ]
+		| .[] | "\(.author.login) @ \(.createdAt):\n\(.body)\n---"
+		'
+	total=$(printf '%s' "$raw" | jq '.comments | length')
+	kept=$(printf '%s' "$raw" | jq -r --argjson allow "$AUTHORS_JSON" --arg since "$SINCE" '
+		($allow | map(ascii_downcase)) as $a
+		| [ .comments[] | select(.author.login != null)
+		    | select(.author.login | ascii_downcase | IN($a[]))
+		    | select(.createdAt > $since) ] | length')
+	echo -e "${YELLOW}mission_directives: #$ISSUE — $kept directive(s) from [$AUTHORS] since $SINCE (of $total comments; the rest are public feedback, never directives)${RESET}" >&2
+	exit 0
+fi
+
+# ── the watermark record ─────────────────────────────────────────────────────────
+# --mark is a read-modify-write of this file, so it holds a lock from before the read until
+# after the rename. mkdir is atomic and bash 3.2 has no flock. Two overlapping marks without
+# it each rewrite the file from the same old copy and one processed id is dropped.
+LOCKDIR=""
+release_lock() { if [ -n "$LOCKDIR" ]; then rm -rf "$LOCKDIR"; LOCKDIR=""; fi; }
+acquire_lock() {
+	local d="$WMFILE.lock" tries=0 holder
+	mkdir -p "$(dirname "$WMFILE")" || die "cannot create $(dirname "$WMFILE")"
+	while ! mkdir "$d" 2>/dev/null; do
+		tries=$((tries+1))
+		holder=$(cat "$d/pid" 2>/dev/null || true)
+		# Stale: the holder's pid is gone, or no pid was ever written (it died between mkdir
+		# and the pid write) and 2s have passed.
+		if { [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; } || { [ -z "$holder" ] && [ "$tries" -gt 20 ]; }; then
+			warn "breaking a stale watermark lock $d (holder pid '${holder:-none}' is gone)"
+			rm -rf "$d"; continue
+		fi
+		[ "$tries" -le 300 ] || die "watermark lock $d held by pid $holder for 30s — refusing (watermark unchanged)"
+		sleep 0.1
+	done
+	LOCKDIR="$d"
+	trap release_lock EXIT
+	echo "$$" > "$d/pid" || die "cannot write $d/pid"
+}
+[ -z "$MARK" ] || acquire_lock
+
+# The read is a STRING compare on GitHub's fixed-width UTC form, so anything else on line 1
+# is refused loudly rather than silently compared.
+is_iso() { printf '%s\n' "$1" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'; }
+EPOCH="1970-01-01T00:00:00Z"
+WM_STATE="absent"; PROCESSED_JSON='[]'; SINCE="$EPOCH"
+if [ -e "$WMFILE" ]; then
+	[ -r "$WMFILE" ] || die "watermark file unreadable: $WMFILE"
+	SINCE=$(head -1 "$WMFILE" | tr -d '[:space:]')
+	[ -n "$SINCE" ] || die "watermark file has an empty line 1: $WMFILE"
+	if grep -q '^# mission-directives watermark v2' "$WMFILE"; then WM_STATE="v2"; else WM_STATE="legacy"; fi
+	PROCESSED_JSON=$(awk '$1 == "processed" && NF >= 3 { print $2 }' "$WMFILE" | jq -R -s 'split("\n") | map(select(length > 0))') \
+		|| die "could not parse processed ids in $WMFILE"
+fi
+is_iso "$SINCE" || die "watermark line 1 is not a UTC ISO8601 timestamp (YYYY-MM-DDTHH:MM:SSZ): '$SINCE'"
 
 raw=$(gh issue view "$ISSUE" --repo "$REPO" --json comments 2>/dev/null) \
 	|| die "could not read issue #$ISSUE on $REPO (auth? issue exists?)"
@@ -187,9 +244,11 @@ $(jqd "$JQ_PRELUDE"' | [ ($win | length), ([ $win[] | select((.id | IN($seen[]))
 EOF
 case "$WM_STATE" in
 	absent) warn "watermark file $WMFILE is absent — reading every allowlisted comment on #$ISSUE; the first --mark creates it" ;;
-	legacy) warn "LEGACY watermark file $WMFILE (bare timestamp, no processed ids) — the boundary comment is re-presented; check the ledger by comment id before routing; the first --mark upgrades it" ;;
+	legacy) warn "LEGACY watermark file $WMFILE (bare timestamp, no processed ids, written before #981) — the first --mark upgrades it" ;;
 esac
-if [ -n "$WMFILE" ] && [ "$SINCE" != "$EPOCH" ] && [ "${boundary:-0}" -gt 0 ]; then
-	warn "BOUNDARY: $boundary directive(s) sit exactly at the watermark $SINCE and are NOT recorded as processed — a prior fire moved or held the watermark without marking them (the #981 signature). They are presented as NEW; if the ledger already cites the id, a fire died after routing: --mark it and route nothing."
+if [ "$SINCE" != "$EPOCH" ] && [ "${boundary:-0}" -gt 0 ]; then
+	warn "BOUNDARY: $boundary directive(s) sit exactly at the watermark $SINCE and are NOT recorded as processed (the #981 signature: a fire moved the watermark without processing them, or a legacy file). They are presented as NEW. Rule: search the mission ledger + log for each one's CONTENT (decision id such as D-50, or a quoted phrase). Found -> it was handled: --mark <id> and route nothing. Not found -> route it, then --mark <id> (a duplicate is recoverable; a lost answer is not):"
+	jqd "$JQ_PRELUDE"' | $win[] | select(.createdAt == $since) | select((.id | IN($seen[])) | not)
+		| "  boundary: \(.createdAt) id=\(.id) first-line=\"\(.body | split("\n")[0] | .[0:160])\""' >&2
 fi
 echo -e "${YELLOW}mission_directives: #$ISSUE — $kept directive(s) from [$AUTHORS] since $SINCE inclusive, ${new:-0} new, $(( ${kept:-0} - ${new:-0} )) already processed (of $total comments; the rest are public feedback, never directives)${RESET}" >&2

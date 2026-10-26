@@ -27,7 +27,8 @@ cat > "$SCRATCH/bin/gh" <<'EOF'
 #!/bin/bash
 case "$1 $2" in
   "api user") echo "sunholo-voight-kampff" ;;
-  "issue view") f="$MD_FIXDIR/$3.json"; [ -f "$f" ] || { echo "stub gh: no fixture $f" >&2; exit 1; }; cat "$f" ;;
+  "issue view") f="$MD_FIXDIR/$3.json"; [ -f "$f" ] || { echo "stub gh: no fixture $f" >&2; exit 1; }
+                [ -z "${MD_GH_DELAY:-}" ] || sleep "$MD_GH_DELAY"; cat "$f" ;;
   *) echo "stub gh: unexpected: $*" >&2; exit 1 ;;
 esac
 EOF
@@ -82,13 +83,40 @@ arm_boundary() {
  {"id":"IC_kwDOP3Mz2c8AAAABReRotQ","author":{"login":"MarkEdmondson1234"},"createdAt":"2026-08-30T08:11:12Z","body":"D50 - approve / D49 - A"}
 ]}
 EOF
-	out="$(MD_FIXDIR="$d" md --issue 852 --since 2026-08-30T08:11:12Z 2>/dev/null)"
-	if printf '%s\n' "$out" | grep -q 'D50 - approve' && printf '%s\n' "$out" | grep -q 'id=IC_kwDOP3Mz2c8AAAABReRotQ'; then
+	# The #852 state: a bare-timestamp watermark equal to the lost comment's createdAt.
+	printf '2026-08-30T08:11:12Z\n' > "$d/wm"
+	out="$(MD_FIXDIR="$d" md --issue 852 --watermark-file "$d/wm" 2>"$d/err")"
+	if printf '%s\n' "$out" | grep -q 'D50 - approve' && printf '%s\n' "$out" | grep -q 'id=IC_kwDOP3Mz2c8AAAABReRotQ:$'; then
 		ok "1 boundary: comment at exactly the watermark is returned, with its id"
 	else
 		notok "1 boundary: comment at exactly the watermark was skipped — got: $out"
 	fi
 	if printf '%s\n' "$out" | grep -q 'D-49: A$'; then notok "1 boundary: comment BEFORE the watermark leaked"; else ok "1 boundary: older comment stays below the watermark"; fi
+	# The warning names the comment by time, id and first line, so a controller can search the
+	# ledger for its CONTENT (legacy rows carry no ids).
+	if grep -qF 'boundary: 2026-08-30T08:11:12Z id=IC_kwDOP3Mz2c8AAAABReRotQ first-line="D50 - approve / D49 - A"' "$d/err"; then
+		ok "1 boundary: BOUNDARY warning prints createdAt, id and first body line"
+	else
+		notok "1 boundary: BOUNDARY warning lacks createdAt/id/first line — $(cat "$d/err")"
+	fi
+}
+
+# ── arm 1b: raw --since mode is UNCHANGED (world fork depends on it) ────────────────────────
+# Exclusive at the boundary, no ids, stdout byte-for-byte as before #981, one deprecation line.
+arm_raw_since_unchanged() {
+	local d="$SCRATCH/a1b" out want
+	two_directives "$d"; export MD_FIXDIR="$d"
+	out="$(md --issue 5 --since 2026-08-30T08:11:12Z 2>"$d/err")"
+	if [ -z "$out" ]; then ok "1b raw --since: comment AT the boundary is NOT returned (exclusive, as before)"; else notok "1b raw --since: boundary comment returned — got: $out"; fi
+	out="$(md --issue 5 --since 2026-08-29T09:06:45Z 2>/dev/null)"
+	want="$(printf 'MarkEdmondson1234 @ 2026-08-30T08:11:12Z:\nD50 - approve / D49 - A\n---')"
+	if [ "$out" = "$want" ]; then ok "1b raw --since: stdout byte-identical to the pre-#981 format (no id=)"; else notok "1b raw --since: stdout changed — got: $out"; fi
+	if grep -q 'deprecated' "$d/err" && grep -q '0 directive(s) from \[MarkEdmondson1234\] since 2026-08-30T08:11:12Z (of 4 comments' "$d/err"; then
+		ok "1b raw --since: deprecation hint + the old summary line on stderr"
+	else
+		notok "1b raw --since: stderr — $(cat "$d/err")"
+	fi
+	unset MD_FIXDIR
 }
 
 # ── arm 2: kill at every step — next clean fire loses nothing and routes nothing twice ──────
@@ -239,7 +267,12 @@ arm_control_old_protocol() {
 	local d="$SCRATCH/a8" wm ledger out newest
 	two_directives "$d"; wm="$d/wm"; ledger="$d/ledger"; : > "$ledger"; export MD_FIXDIR="$d"
 	out="$(md --issue 5 --since 1970-01-01T00:00:00Z 2>/dev/null)"
-	newest="$(printf '%s\n' "$out" | grep -E '^[^ ]+ @ ' | sed -E 's/^[^ ]+ @ ([^ :]+Z).*$/\1/' | sort | tail -1)"
+	newest="$(printf '%s\n' "$out" | grep -E '^[^ ]+ @ ' | sed -E 's/^[^ ]+ @ ([^ ]+Z):$/\1/' | sort | tail -1)"
+	# Non-vacuity: the control must have read both directives and written a real timestamp, or a
+	# "loss" below would only mean the read was broken.
+	if [ "$newest" != 2026-08-30T08:11:12Z ]; then
+		notok "8 control: setup broken — newest createdAt parsed as '$newest'"; unset MD_FIXDIR; return
+	fi
 	printf '%s\n' "$newest" > "$wm"                         # mark-before-route ... then the fire dies
 	out="$(md --issue 5 --since "$(head -1 "$wm")" 2>/dev/null)"
 	if printf '%s\n' "$out" | grep -q 'D-49: A$'; then
@@ -250,7 +283,66 @@ arm_control_old_protocol() {
 	unset MD_FIXDIR
 }
 
+# ── arm 9: concurrent --mark is serialised by the lock; a dead holder's lock is broken ──────
+arm_concurrent_mark() {
+	local d="$SCRATCH/a9" wm out p1 p2 dead
+	two_directives "$d"; wm="$d/wm"; export MD_FIXDIR="$d"
+	# The stub's delay sits between each mark's read of the file and its rename, so without a
+	# lock both rewrite the same old copy and one processed id is dropped.
+	MD_GH_DELAY=0.5 md --issue 5 --watermark-file "$wm" --mark IC_old >/dev/null 2>&1 & p1=$!
+	MD_GH_DELAY=0.5 md --issue 5 --watermark-file "$wm" --mark IC_new >/dev/null 2>&1 & p2=$!
+	wait "$p1"; wait "$p2"
+	out="$(md --issue 5 --watermark-file "$wm" 2>/dev/null | new_ids | tr '\n' ' ')"
+	if [ -z "$out" ] && [ ! -e "$wm.lock" ]; then ok "9 concurrent: two overlapping marks both stick, lock released"; else notok "9 concurrent: re-presented after two marks: '$out' (lock left: $([ -e "$wm.lock" ] && echo yes || echo no))"; fi
+
+	d="$SCRATCH/a9b"; two_directives "$d"; wm="$d/wm"; export MD_FIXDIR="$d"
+	/bin/bash -c 'exit 0' & dead=$!; wait "$dead"
+	mkdir "$wm.lock"; echo "$dead" > "$wm.lock/pid"
+	if md --issue 5 --watermark-file "$wm" --mark IC_old >/dev/null 2>&1 && [ ! -e "$wm.lock" ] &&
+		[ "$(md --issue 5 --watermark-file "$wm" 2>/dev/null | new_ids | tr '\n' ' ')" = "IC_new " ]; then
+		ok "9 stale lock: a dead holder's lock is broken and the mark lands"
+	else
+		notok "9 stale lock: mark blocked or lock left behind"
+	fi
+	unset MD_FIXDIR
+}
+
+# ── arm 10: same-instant directives — sequential marks accumulate (no id is forgotten) ──────
+arm_same_instant() {
+	local d="$SCRATCH/a10" wm out
+	mkdir -p "$d"; wm="$d/wm"; export MD_FIXDIR="$d"
+	cat > "$d/5.json" <<'EOF'
+{"comments": [
+ {"id":"IC_a","author":{"login":"MarkEdmondson1234"},"createdAt":"2026-09-03T00:00:00Z","body":"one"},
+ {"id":"IC_b","author":{"login":"MarkEdmondson1234"},"createdAt":"2026-09-03T00:00:00Z","body":"two"},
+ {"id":"IC_c","author":{"login":"MarkEdmondson1234"},"createdAt":"2026-09-03T00:00:00Z","body":"three"}
+]}
+EOF
+	md --issue 5 --watermark-file "$wm" --mark IC_a >/dev/null 2>&1
+	md --issue 5 --watermark-file "$wm" --mark IC_b >/dev/null 2>&1
+	out="$(md --issue 5 --watermark-file "$wm" 2>/dev/null | new_ids | tr '\n' ' ')"
+	if [ "$out" = "IC_c " ]; then ok "10 same-instant: after marking a then b, only c is NEW"; else notok "10 same-instant: expected 'IC_c', got '$out'"; fi
+	unset MD_FIXDIR
+}
+
+# ── arm 11: edited and deleted comments (identity is the id) ─────────────────────────────────
+arm_edit_delete() {
+	local d="$SCRATCH/a11" wm out rc
+	two_directives "$d"; wm="$d/wm"; export MD_FIXDIR="$d"
+	md --issue 5 --watermark-file "$wm" --mark IC_old >/dev/null 2>&1
+	md --issue 5 --watermark-file "$wm" --mark IC_new >/dev/null 2>&1
+	sed 's/D50 - approve/D50 - REJECT (edited)/' "$d/5.json" > "$d/5.e" && mv "$d/5.e" "$d/5.json"
+	out="$(md --issue 5 --watermark-file "$wm" 2>/dev/null | new_ids | tr '\n' ' ')"
+	if [ -z "$out" ]; then ok "11 edited: a comment edited after it was marked is NOT re-presented (documented)"; else notok "11 edited: re-presented '$out'"; fi
+	two_directives "$d"; rm -f "$wm"
+	grep -v IC_old "$d/5.json" > "$d/5.d" && mv "$d/5.d" "$d/5.json"   # IC_old deleted on GitHub
+	md --issue 5 --watermark-file "$wm" --mark IC_old >/dev/null 2>&1; rc=$?
+	if [ "$rc" = 1 ] && [ ! -e "$wm" ]; then ok "11 deleted: --mark of a deleted comment exits 1, nothing written"; else notok "11 deleted: rc=$rc, file exists: $([ -e "$wm" ] && echo yes || echo no)"; fi
+	unset MD_FIXDIR
+}
+
 arm_boundary
+arm_raw_since_unchanged
 arm_kill_points
 arm_out_of_order
 arm_dedupe
@@ -258,6 +350,9 @@ arm_legacy
 arm_multi_mission
 arm_refusals
 arm_control_old_protocol
+arm_concurrent_mark
+arm_same_instant
+arm_edit_delete
 
 echo "mission_directives: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]
