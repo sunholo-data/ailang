@@ -3,7 +3,7 @@
 Refs #476
 
 **Design:** [Approved design](m-skill-feature-discoverability-gate.md)
-**Status:** Implementation completed; pending independent sprint evaluation
+**Status:** Implemented in v0.53.1 (03263525c; closes #476). Prior status: Implementation completed; pending independent sprint evaluation.
 **Target:** v0.52.6
 **Duration:** 0.5 day (4 hours); subsequent showcase observations are external follow-up
 **Sprint ID:** M-SKILL-FEATURE-DISCOVERABILITY-GATE
