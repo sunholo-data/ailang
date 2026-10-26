@@ -45,6 +45,11 @@ the actual native candidate graders and native AILANG analysis. The normal
 one-shot runner and retained-stage runner share `BuildEvalExecutorTask`; retained
 execution owns its workspace lifecycle and does not use `DEBUG_AGENT` for retention.
 
+The real pi native-tool controls require `rg` and `fd` on PATH, along with the
+explicit SDK/runtime dependencies. `make maintenance-adapter-check` checks both
+tools before running; CI installs them with a bounded dependency step so offline
+tests do not rely on SDK downloads.
+
 Candidate snapshots use the same canonical path/content/executable manifest as
 the taskpack bridge. A new runtime copy is compiled and graded against retained
 obligations. Uncompilable model source is an artifact failure. Missing trusted

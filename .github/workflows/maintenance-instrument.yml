@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: sunholo-data/ailang-packages
-          ref: ded01f16dcd41ef09a4ac1e33bf89305088a07f7
+          ref: 9ac50f6a25d587fc3a6a935a87991bbaecdd0fc1
           path: package-source
       - uses: actions/setup-go@v7
         with:
@@ -38,13 +38,17 @@ jobs:
         with:
           node-version: '26.12.1'
       - name: Build native runtime and install explicit tool dependencies
+        timeout-minutes: 10
         run: |
-          brew install ripgrep
+          brew install ripgrep fd
           rg --version
+          fd --version
           make build
           echo "$PWD/bin" >> "$GITHUB_PATH"
           npm ci --prefix tools/pi-extensions/sandbox --ignore-scripts --no-audit --no-fund
           npm install --prefix "$RUNNER_TEMP/maintenance-pi" --ignore-scripts --no-audit --no-fund --save-exact @earendil-works/pi-coding-agent@0.85.1
+      - name: Verify embedded maintenance assets
+        run: make verify-maintenance-assets
       - name: Actual retained-source, grading, receipt and kernel controls
         run: |
           make maintenance-adapter-check \

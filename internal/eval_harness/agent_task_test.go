@@ -17,7 +17,7 @@ func TestBuildEvalExecutorTaskKeepsOrdinaryControls(t *testing.T) {
 	if x.Timeout != 17*time.Second || x.Workspace != workspace || x.Model != "fixture-model" || x.MaxTokensPerBench != 345 || !x.EvalShellGuard {
 		t.Fatalf("lost task controls: %+v", x)
 	}
-	if x.ExtraEnv["TASK_FIXTURE"] != filepath.Join(workspace, "input") || x.Metadata["chain_id"] != "chain" || x.Metadata["stage_id"] != "stage" {
+	if filepath.Clean(x.ExtraEnv["TASK_FIXTURE"]) != filepath.Join(workspace, "input") || x.Metadata["chain_id"] != "chain" || x.Metadata["stage_id"] != "stage" {
 		t.Fatalf("lost env/provenance: %+v", x)
 	}
 	if x.SystemPrompt != "system" || x.Directive != "directive" || x.ResumeSessionID != "" {
