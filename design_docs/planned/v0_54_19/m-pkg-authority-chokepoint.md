@@ -2,7 +2,7 @@
 
 Tracks: #1720
 
-**Status**: Planned
+**Status**: Implemented on `p0/pkg-authority-chokepoint` (awaiting independent sprint evaluation); sprint record in [m-pkg-authority-chokepoint-sprint-plan.md](m-pkg-authority-chokepoint-sprint-plan.md)
 **Target**: v0.54.19
 **Priority**: P0. This is a security/soundness bug: a confined agent gets network egress and a persistent write outside its sandbox, and later checks resolve against that write.
 **Estimated**: 4 days (2× a naive 2-day estimate, per house convention)

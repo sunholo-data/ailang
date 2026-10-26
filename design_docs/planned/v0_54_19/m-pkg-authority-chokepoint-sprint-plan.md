@@ -42,7 +42,7 @@ with `ailang check` by the tests themselves.
 
 ## Milestones
 
-### M1 — Authority chokepoint (~260 LOC: 150 impl + 110 tests)
+### M1 — ✅ Authority chokepoint (~260 LOC: 150 impl + 110 tests)
 
 - `internal/pkg/authority.go`: `Authority` (`AuthNetwork`, `AuthHomeWrite`),
   `Require(a, what, remedy...)`, `HTTPClient(what, timeout)` with a gating
@@ -57,7 +57,7 @@ with `ailang check` by the tests themselves.
 **Acceptance**: `go test ./internal/pkg -run 'Authority|Confinement'` green; pinned
 registry text byte-identical.
 
-### M2 — Git path closed (rows 9–16, 19, 36) + D2 + D3 (~330 LOC: 190 impl + 140 tests)
+### M2 — ✅ Git path closed (rows 9–16, 19, 36) + D2 + D3 (~330 LOC: 190 impl + 140 tests)
 
 - `gitcache.go`: base from `UserDir("cache/git")`, `NewGitCache` creates nothing;
   `EnsureUserDir` only inside `ensureClone`; every git call through `pkg.Git`, `--`
@@ -81,7 +81,7 @@ registry text byte-identical.
 `file://` git dep write nothing under `HOME`; existing `TestGitCache_*`, lock and
 install tests green (tests asserting `NewGitCache` creates its dir are rewritten).
 
-### M3 — HTTP, shims, messaging, Pub/Sub (rows 17, 18, 20, 22, 24, 26, 28–33) (~180 LOC: 110 impl + 70 tests)
+### M3 — ✅ HTTP, shims, messaging, Pub/Sub (rows 17, 18, 20, 22, 24, 26, 28–33) (~180 LOC: 110 impl + 70 tests)
 
 - `RegistryClient.httpClient`, `registryAPIGet`, `pkgHistoryCommand`,
   `uploadTarball`, `pkgUnpublishCommand`, `registryAdminRequest` → `pkg.HTTPClient`.
@@ -95,7 +95,7 @@ install tests green (tests asserting `NewGitCache` creates its dir are rewritten
 **Acceptance**: confined `pkg info/versions/stats/history` make 0 requests; no
 `collaboration.db` appears for confined `lock` with a prior lock.
 
-### M4 — Command-table authority (D5) (~110 LOC: 60 impl + 50 tests)
+### M4 — ✅ Command-table authority (D5) (~110 LOC: 60 impl + 50 tests)
 
 - `Command.Authority []pkg.Authority`; operator verbs (`publish`, `unpublish`, `key`,
   `install`, `add`, `notify-upgrade`, `bin`, `cascade`) declare it; `pkgGroupCommand`
@@ -108,7 +108,7 @@ install tests green (tests asserting `NewGitCache` creates its dir are rewritten
 
 **Acceptance**: confined `ailang add …`/`ailang pkg add …` both refuse before any work.
 
-### M5 — Git trust (T1/T2, D4) (~120 LOC: 50 impl + 70 tests)
+### M5 — ✅ Git trust (T1/T2, D4) (~120 LOC: 50 impl + 70 tests)
 
 - `ValidateContentHashesFrom` gains a git branch via `gitPackageDir`; mismatch or a
   missing dir returns a `RegistryContentError`-class (fatal) error naming the package
@@ -117,7 +117,7 @@ install tests green (tests asserting `NewGitCache` creates its dir are rewritten
 **Acceptance**: a tampered `.ail` in a provisioned git dep, and a different tag checked
 out in the shared clone, both make `ailang check` exit ≠ 0 with a drift message (AC5).
 
-### M6 — Proof, docs, changelog (~450 LOC tests + ~60 docs)
+### M6 — ✅ Proof, docs, changelog (~450 LOC tests + ~60 docs)
 
 - `internal/pkg/authority_boundary_test.go` (AC3): AST scan of `internal/pkg` +
   the `cmd/ailang` files that define a `pkgSubcommands()` `Run` or the
@@ -149,3 +149,46 @@ to register. Tests never touch the real `$HOME` or the network.
 | D4 breaks unconfined users who share one git URL at two tags | Error names the package and says `run 'ailang lock'`; changelog calls it out |
 | Matrix is slow (binary build + git) | Reuse `buildAilang`; file-local git; bounded per-row timeouts |
 | AST test too strict | Allowlist with a reason string per entry |
+
+## Execution record (2026-10-26)
+
+All six milestones landed on `p0/pkg-authority-chokepoint` (≈2,050 Go lines added incl. tests).
+
+**Guarded-site count after:** all 36 audit rows guarded (22 previously unguarded rows closed);
+`TestPkgAuthorityBoundary` reports zero raw network/git/home/messaging/Pub/Sub primitives in
+the package surface outside `internal/pkg/authority.go`.
+
+**Acceptance**
+
+- [x] AC1 matrix — 28 confined rows generated from `pkgSubcommands()` + loader entry points; all 0 requests / 0 network git / byte-identical HOME, canary, sandbox.
+- [x] AC2a unconfined control — 7 rows each light the recorder or the git shim.
+- [x] AC2b mutation — table below.
+- [x] AC2c / AC5 / AC6 provisioned control — confined check/lock/lock --check/tree exit 0 from a read-only `AILANG_PACKAGE_ROOT`; tamper and missing package fail loudly.
+- [x] AC3 AST boundary test (+ a probe proving it detects all 7 construct kinds).
+- [x] AC4 policy-tool `lock` route refuses, no writes.
+- [x] AC7 unconfined unchanged — existing pkg/lock/install/publish/gitcache tests green; the one test asserting "git deps are skipped by hash validation" was replaced per the testing policy (D4).
+- [x] AC8 repro re-run (`scratchpad/dd3/repro*_after.out`): confined arms 0 HOME entries, 0 requests; unconfined control still 1 request.
+- [x] AC9 pinned text; AC10 `--` before URLs + manifest rejects leading `-`.
+
+**Mutation evidence (AC2b)** — each applied to a scratchpad copy of the repo, never `git checkout`:
+
+| Mutation | Red tests |
+|---|---|
+| A: `Require` removed from `pkg.Git` network branch + `ensureClone` pre-check | `TestGitConfinedRefusals` (matrix stays green: D2 carry-forward and the home-write gate still hold — layering) |
+| B: A + home-write gates + D2 bypass (`gitFromProvisionedOnly` ignores `Confined()`) | `TestGitConfinedRefusals`, `TestGitCacheConfinedResolve`, `TestResolveGitConfined_CarryForwardMatrix`, matrix `lock`/`pkg lock`/`pkg lock --check`, `TestPkgConfinementPolicyToolLock` |
+| C: `HTTPClient` transport gate removed | `TestHTTPClientTransportGate`, matrix `pkg info`/`versions`/`stats`/`history` |
+| D: `MkdirAll` re-added to `NewGitCache` | `TestLoaderGitCaseCreatesNothing`, `TestGitCacheConfinedResolve`, matrix `check`/`ai-check`/`run`/`lock`/`pkg lock`/`lock --check`/`quality`, policy-tool lock |
+| E: raw `http.Get` inserted in `pkg_info.go` | `TestPkgAuthorityBoundary` |
+| F: git hash check removed (D4) | `TestValidateGitContentHashes`, `TestPkgConfinementMatrix_ProvisionedControl` |
+| G: `warnSilentRatchet` calls `messaging.OpenStore` directly | `TestPkgAuthorityBoundary` |
+| H: a verb's matrix row deleted | `TestPkgConfinementMatrix` ("has no confinement matrix row") |
+| I: `add` drops its `Authority` declaration | `TestPkgVerbAuthorityComplete`, `TestPkgOperatorVerbsRefusedAtDispatch` |
+
+**Gates:** `make lint` 0 issues · `make test-imports` ✓ · `make check-file-sizes` ✓ · `make check-boundaries` ✓ ·
+`make check-changelog` ✓ · `make test-changed`: `internal/pkg` ok, `internal/config` ok, `cmd/ailang` one failure
+`TestMemprobeDebugLogDoesNotAccumulate` (peak-RSS test, run while the mutation job loaded the machine; passes
+alone: delta 13 MB ≤ 30 MB) — unrelated to this change.
+
+**Deferred (agent-resolvable, per design):** `config.Confined()` shared with `examples_corpus.go` (one concept, two
+definitions remains); extending the `Command.Authority` column and matrix to non-pkg top-level commands; T3
+(read confinement of lock-supplied paths) and a rev-keyed git cache remain Future Work.
