@@ -426,6 +426,16 @@ in-repo corpus.
 
 ### M0: Soundness first (S1, S2). About 1 day.
 
+> **Status: implemented 2026-10-26** on branch `p0/smt-unsound-encodings`
+> (sprint plan `m-smt-well-sorted-preflight-m0-sprint-plan.md`). It differs from the text below in two ways:
+>
+> - S1 inlines the truncating form as a `let`-bound `ite` at each use. It does not emit `ail_idiv`/`ail_imod` helper
+>   `define-fun`s, so no script-assembly path needs a preamble.
+> - S2 uses one quantified axiom per callee, `forall params. requires => ensures[result := f__spec(params)]`, with the
+>   call term as its E-matching pattern. Z3 then instantiates it once per call term. It does not assert explicitly at
+>   each call site, which would leave a let- or match-bound argument out of scope at top level. `requires` *guards*
+>   the axiom. It is neither left out nor asserted. If a `requires` cannot be encoded, the `ensures` is dropped.
+
 **S1.** Route `div_Int`/`mod_Int`, `OpDiv`/`OpMod`, BinOp `/`/`%` and DictApp `div`/`mod` on an Int dictionary
 through two helper `define-fun`s, emitted once per script only when used:
 

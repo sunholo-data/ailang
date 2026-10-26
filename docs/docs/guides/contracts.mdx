@@ -75,6 +75,12 @@ not establish IEEE-754 rounding, NaN/infinity behavior, machine-overflow safety 
 cross-architecture byte equality. Bounded recursion results carry their actual
 `bounded_depth`; a missing depth is not an inductive proof.
 
+Integer `/` and `%` are encoded with AILANG's runtime semantics, which truncate
+toward zero as Go does: `-7 / 2 == -3` and `-7 % 2 == -1`. They are not SMT-LIB's
+Euclidean `div`/`mod`, so `ensures { result >= 0 }` on `x % 2` is a counterexample
+at a negative `x`. Division by zero stays unconstrained. The runtime raises
+`RT001` there, so the function returns no value to check.
+
 `ailang verify --package . --json` retains its existing schema and counts while
 adding `evidence_schema`, `numeric_model`, typed `reason_code` values, function
 `reason_counts`, rejection details, bounded depth and module-scoped issues.
@@ -378,6 +384,7 @@ $ ailang verify examples/runnable/contracts/cross_function.ail
 **Limitations:**
 - Callees must also be in the decidable fragment (pure, encodable types)
 - Recursive callees are supported via bounded unrolling when `--verify-recursive-depth N` is used (see [Bounded Recursion](#bounded-recursion-verification) above)
+- A callee that cannot be inlined, such as a recursive one, is used through its contract. It becomes one uninterpreted function, and its `ensures` is assumed **at each call's own arguments**, and only where the callee's `requires` holds for those arguments. So `total(a) - total(a + 1)` is not provably 0, while `total(a) - total(a)` is. The callee's `requires` is not checked as an obligation at the call site.
 - Very deep call chains may slow down Z3 (each inlined definition increases formula size)
 
 ### Record Verification
@@ -599,7 +606,7 @@ Bounded verification is **sound but incomplete**: a VERIFIED result is a genuine
 **Currently supported:**
 - `int`, `bool`, `string`, list, and enum/ADT parameters and return types
 - Concrete parametric ADTs such as `Result[int, AudioError]` and nested `Option[int]`
-- Arithmetic: `+`, `-`, `*`, `/`
+- Arithmetic: `+`, `-`, `*`, `/`, `%` (integer `/` and `%` truncate toward zero, matching the runtime)
 - Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=`
 - Logical: `&&`, `||`, `!`
 - String operations: `++` (concat), `length`, `find`, `substring`, `startsWith`, `endsWith` from `std/string`, string comparisons
