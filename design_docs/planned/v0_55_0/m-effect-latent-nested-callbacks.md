@@ -220,7 +220,7 @@ Observable leak on base: `std/list.map` takes a closed-pure callback, so `map(\d
 
 - [x] Charge at hand-off, nested positions included. This extends the parent doc's frozen ruling; no new principle.
 - [x] Concrete annotations stay L1-open; only reads are normalised.
-- [ ] **Human:** confirm the breaking posture (minor bump to v0.55.0, CHANGELOG "Breaking — soundness", no opt-out). Confirm that three flips are intended: (i) the `map(\d. g(d), xs)` flip (a concrete `! {IO}` callback through closed-pure `std/list.map`, accepted today only via U1), with migration to `mapE`; (ii) store-only nested hand-off (`keepAll([logIt])`); (iii) a non-generic ADT constructor with a nested-arrow payload (`Reg([logIt])`) charging at construction, as `Box(logIt)` already does. Recommendation: accept all three.
+- [x] **Human** (**Ruled 2026-10-26 (Mark, attended): accepted as recommended.**): confirm the breaking posture (minor bump to v0.55.0, CHANGELOG "Breaking — soundness", no opt-out). Confirm that three flips are intended: (i) the `map(\d. g(d), xs)` flip (a concrete `! {IO}` callback through closed-pure `std/list.map`, accepted today only via U1), with migration to `mapE`; (ii) store-only nested hand-off (`keepAll([logIt])`); (iii) a non-generic ADT constructor with a nested-arrow payload (`Reg([logIt])`) charging at construction, as `Box(logIt)` already does. Recommendation: accept all three.
 
 ## Solution Design
 

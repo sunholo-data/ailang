@@ -177,13 +177,13 @@ value came from in the module.
 
 ### Design Freeze
 
-- [ ] **F1** — Requirements live in the IFC domain, not in HM types (Alternative A rejected; see
+- [x] **F1** (**Ruled 2026-10-26 (Mark, attended): accepted as recommended.**) — Requirements live in the IFC domain, not in HM types (Alternative A rejected; see
   below).
-- [ ] **F2** — HOF rule = applied-at summary for callees that have a summary, and the conservative
+- [x] **F2** (**Ruled 2026-10-26 (Mark, attended): accepted as recommended.**) — HOF rule = applied-at summary for callees that have a summary, and the conservative
   arg-join for callees that do not.
-- [ ] **F3** — Wrapper inference (M2b) ships in the same release as M1. If it slips, M1 does
+- [x] **F3** (**Ruled 2026-10-26 (Mark, attended): accepted as recommended.**) — Wrapper inference (M2b) ships in the same release as M1. If it slips, M1 does
   **not** ship alone: the issue would close while R13 stays open.
-- [ ] **F4** — Ask on #1771 (before it merges): `IFCParam.Forbidden` becomes a sorted `[]string`
+- [x] **F4** (**Ruled 2026-10-26 (Mark, attended): accepted as recommended.**) — Ask on #1771 (before it merges): `IFCParam.Forbidden` becomes a sorted `[]string`
   and `IFCParam` reserves `applied` (an `IFCLabel`, the applied-at summary for function-typed
   params). Both fields go in the v2 schema #1771 introduces, so no second bump is needed.
 

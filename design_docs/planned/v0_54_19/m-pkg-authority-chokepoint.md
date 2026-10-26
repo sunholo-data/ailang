@@ -197,9 +197,9 @@ There is no `pkg update` verb (V12). "Policy-tool reach" means **default** (in `
 
 Before implementation begins, these must be resolved:
 
-- [ ] D2: is a confined `lock` with git dependencies a pure refusal, or does it carry forward entries already pinned and provisioned? (Recommendation: carry forward, because it is write-free and network-free by construction and keeps `lock` useful.)
-- [ ] D3: do git dependencies resolve exclusively from `AILANG_PACKAGE_ROOT` when it is set, using the `<vendor>/<name>/<version>` layout? (Recommendation: yes, consistent with the #1704 D3 ruling of 2026-10-08.)
-- [ ] D4: is a git `content_hash` mismatch at `check` a hard failure now, or a warning during a deprecation window? (Recommendation: hard-fail now, consistent with the #1704 D5 ruling.)
+- [x] D2 (**Ruled 2026-10-26 (Mark, attended): accepted as recommended.**): is a confined `lock` with git dependencies a pure refusal, or does it carry forward entries already pinned and provisioned? (Recommendation: carry forward, because it is write-free and network-free by construction and keeps `lock` useful.)
+- [x] D3 (**Ruled 2026-10-26 (Mark, attended): accepted as recommended.**): do git dependencies resolve exclusively from `AILANG_PACKAGE_ROOT` when it is set, using the `<vendor>/<name>/<version>` layout? (Recommendation: yes, consistent with the #1704 D3 ruling of 2026-10-08.)
+- [x] D4 (**Ruled 2026-10-26 (Mark, attended): accepted as recommended.**): is a git `content_hash` mismatch at `check` a hard failure now, or a warning during a deprecation window? (Recommendation: hard-fail now, consistent with the #1704 D5 ruling.)
 
 ## Solution Design
 
