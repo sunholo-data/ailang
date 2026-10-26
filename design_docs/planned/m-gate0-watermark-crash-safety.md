@@ -1,6 +1,6 @@
 # Gate-0 Watermark Crash Safety
 
-**Status**: Planned
+**Status**: Implemented on branch `p0/gate0-watermark-crash-safety` (sprint plan: [sprint-plan-gate0-watermark-crash-safety.md](sprint-plan-gate0-watermark-crash-safety.md)); move to `implemented/` after merge
 **Target**: v0.38.x (loop-protocol change — no compiler/runtime surface)
 **Priority**: P0 (silent loss of a human answer; observed twice)
 **Estimated**: 1–2 days
@@ -86,7 +86,7 @@ The watermark file's format gains a small, versioned extension (e.g., first line
 
 ### Verification arm in the driver test suite
 
-The driver test suite gains `tools/tests/test_gate0_watermark.sh` (alongside the existing `scripts/test_mission_answer.sh` pattern — mutation-proven arms, same conventions):
+The driver test suite gains `tools/tests/test_gate0_watermark.sh` (as built: `scripts/test_mission_directives.sh` — `tools/tests/` does not exist and the fleet scope guard admits `scripts/test_mission_*`) (alongside the existing `scripts/test_mission_answer.sh` pattern — mutation-proven arms, same conventions):
 
 1. **Kill-at-each-step arm.** Drive a stubbed Gate-0 directive cycle (fixture issue JSON with two allowlisted comments; stub `gh`) and abort the sequence at each step — after fetch, after triage, after routing directive 1 but before mark, mid-mark. For every kill point, run the *next* fire against the state: exactly the unprocessed directives surface, processed ones are no-ops, no directive is ever lost, and no ledger action fires twice.
 2. **Dedupe arm.** Present the same comment twice (stale watermark, clock-skewed `createdAt`, issue-rotation overlap): the second presentation takes no routing action.

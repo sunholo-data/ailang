@@ -91,6 +91,15 @@ Arms:
 **Acceptance:** `make test-changed`, `make check-changelog`, `make check-context-docs`,
 `tools/launchd/sync-agents-skills.sh --check` all exit 0.
 
+## Result (2026-10-26): M1 ✅ M2 ✅ M3 ✅
+
+- Suite: 24/24 under `/bin/bash` 3.2; `make test-launchd-drivers`, `make test-changed`,
+  `make check-changelog`, `make check-context-docs`, `sync-agents-skills.sh --check` all exit 0.
+- Mutations (scratchpad copies via `MD_SCRIPT_UT`): early write on read → 2 arms fail;
+  watermark = newest → 2; exclusive `>` → 9; no `id=` → 13. None survives.
+- Live read-only check on #852 with a scratch legacy watermark `2026-08-30T08:11:12Z`: the lost
+  D50/D49 comment `IC_kwDOP3Mz2c8AAAABReRotQ` is returned with BOUNDARY + LEGACY warnings.
+
 ## Rollout
 
 The loops run Gate 0 from the pinned clones (`~/.ailang-driver-pin/*`), refreshed from `origin/dev`, so
