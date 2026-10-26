@@ -66,17 +66,6 @@ open effect row must propagate that row; omitting it is rejected before executio
 This also applies to repeated callback invocations. Runtime capabilities remain
 required for concrete effects.
 
-### Effectful Callbacks Nested in Data Arguments Are Not Yet Charged
-
-**Status**: Open, tracked in [#1718](https://github.com/sunholo-data/ailang/issues/1718)
-**Verified at**: v0.53.0 implementation, 2026-10-08
-
-Latent effects are charged for a callback passed directly to a HOF or stored in a
-record field, but not for one nested inside a list, tuple or ADT argument. With an
-effectful `logIt`, a pure caller still checks for `applyHead([logIt], x)`,
-`applyFst((logIt, x))` and `applyOpt(Some(logIt), x)`. Declare the callback's effects
-on the caller explicitly until #1718 lands.
-
 
 ### Y-Combinator and Recursive Lambdas (By Design)
 
@@ -530,7 +519,22 @@ string-function check on the captured group replaces the backreference/lookaroun
 ## Recently Resolved
 
 These limitations existed in earlier versions and are now fully resolved.
-Listed for users following older docs. All re-verified at v0.33.1, 2026-08-17.
+Listed for users following older docs. All re-verified at v0.33.1, 2026-08-17, except
+where an entry gives its own date.
+
+- **Effectful callbacks nested in data arguments** — Fixed for v0.55.0
+  ([#1718](https://github.com/sunholo-data/ailang/issues/1718), design
+  M-EFFECT-LATENT-NESTED-CALLBACKS, verified 2026-10-26). A function value inside a list,
+  tuple, `Option`/ADT payload or record argument is now charged to the caller like a
+  top-level callback: with an effectful `logIt`, a pure caller of `applyHead([logIt], x)`,
+  `applyFst((logIt, x))` or `applyOpt(Some(logIt), x)` is rejected with
+  `Missing effects: IO`; declare `! {IO}` on the caller. The same release closes a
+  concrete annotation's compatibility tail at every read
+  ([#1826](https://github.com/sunholo-data/ailang/issues/1826)), so an `! {IO}` callback
+  passed through `mapE` no longer fails with `Unresolved effect tail`. **Migration:** a
+  concrete `! {IO}` callback mapped with closed-pure `std/list.map`
+  (`map(\d. g(d), xs)`) is now a type error, exactly like `map(\d. println(d), xs)`;
+  use `mapE`.
 
 - **Polymorphic arithmetic in lambdas** — Fixed in v0.7.0
   ([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-poly-arithmetic-fix.md)).

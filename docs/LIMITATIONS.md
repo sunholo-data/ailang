@@ -23,7 +23,6 @@ workarounds. Verified open at v0.33.1 (2026-08-17):
 | Limitation | Kind | Verified-at repro |
 |---|---|---|
 | **Concrete function-effect annotation upper bounds** | Deferred Phase 3 | Verified 2026-10-08 on the v0.53.0 implementation: storing an `! {IO, Env}` function in an `! {IO}` field still checks; see the canonical page and existing #573/#1326. |
-| **Effectful callbacks nested in list/tuple/ADT arguments** | Not yet charged | `applyHead([logIt], x)`, `applyFst((logIt, x))`, `applyOpt(Some(logIt), x)` check in a pure caller although `logIt` performs IO; tracked in [#1718](https://github.com/sunholo-data/ailang/issues/1718). |
 | **Y-combinator / recursive lambdas** | Design constraint (Hindley-Milner occurs-check) | `let Y = \f. (\x. f(x(x)))(\x. f(x(x)))` → `occurs check failed`. Use named `func` recursion. |
 | **If-else multi-statement branches need braces** | Design constraint (no layout-sensitive parsing) | bare `let` in an `else` → "if-else branches require explicit braces". Wrap in `{ … }`. |
 | **Duplicate record types with identical fields** | Go-codegen only (interpreter unaffected) | `--emit-go` may pick the first structurally-matching struct. `ailang run` returns the correct value. |
@@ -88,6 +87,12 @@ is outside it and is stated rather than papered over.
 | **Allowed endpoints are not vetted** | Public-only denial does not make data sent to an allowlisted host safe | `net_allow` is the operator's judgement. |
 
 ## Resolved (were documented as broken; re-verified working at v0.33.1)
+
+- **Effectful callbacks nested in list/tuple/ADT arguments** (fixed for v0.55.0, verified
+  2026-10-26, [#1718](https://github.com/sunholo-data/ailang/issues/1718)) — a pure caller of
+  `applyHead([logIt], x)`, `applyFst((logIt, x))` or `applyOpt(Some(logIt), x)` is now
+  rejected with `Missing effects: IO`. Migration for the companion #1826 fix: a concrete
+  `! {IO}` callback mapped with closed-pure `std/list.map` is a type error; use `mapE`.
 
 - **Polymorphic arithmetic lambdas** — `let add = \x. \y. x + y in add(3.14)(2.71)` → `5.85`
   (fixed v0.7.0, [m-poly-arithmetic-fix](design_docs/implemented/v0_7_0/m-poly-arithmetic-fix.md)).

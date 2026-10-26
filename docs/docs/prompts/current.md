@@ -445,7 +445,8 @@ func twice(f: int -> int, x: int) -> int = f(f(x))
 
 Calling a function-valued record field performs its annotated effects. Passing a
 function to a higher-order function with an unannotated or effect-polymorphic
-callback parameter also requires the caller to declare the callback’s effects.
+callback parameter also requires the caller to declare the callback’s effects,
+including a function stored in a list, tuple, Option or record argument.
 Constructing a record that stores a callback does not perform those effects.
 
 ```ailang
