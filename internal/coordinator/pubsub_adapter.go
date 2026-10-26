@@ -253,6 +253,25 @@ func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]st
 	msg.Type = fullMsg.Category
 	msg.Inbox = fullMsg.ToInbox
 
+	// M-CASCADE-ENVELOPE-HYDRATION: the embedded-envelope decode above is only
+	// one of the routes a cascade message takes. Legacy-shaped data on the
+	// cascade topic (envelope nil) used to proceed with ALL cascade fields
+	// empty — the EMPTY dispatch. The message's durable payload carries the
+	// full PackageMessageEnvelope, so hydrate from whatever evidence exists:
+	// embedded envelope (already set on msg) > attributes > payload.
+	msg = hydrateCascadeFields(msg, msgAttrs, attrs, fullMsg.Payload, a.logger)
+
+	// A cascade-topic assertion with NO envelope behind it is permanently
+	// unactionable — the payload cannot grow one on retry, so redelivery
+	// cannot fix it. Ack (not NACK: an unbounded redelivery loop against bad
+	// data starves the subscription the same way the EMPTY-dispatch flood did)
+	// and say so loudly. Same policy as the missing-message case above.
+	if msgAttrs.Source == pubsub.SourceCascade && msg.RootPackage == "" {
+		a.logger.Printf("PubSubInboxAdapter: cascade message %s asserts source=cascade but carries no envelope and no hydratable payload (title=%q) — refusing to dispatch an EMPTY cascade task",
+			notification.MessageID, msg.Title)
+		return nil
+	}
+
 	// Belt and braces: hydration succeeded but produced nothing to act on. A
 	// task whose content is empty or is merely its own id is not work, and the
 	// agent would be asked to invent the request.
