@@ -1,0 +1,3 @@
+### Fixed — Gemini 4 Argon priced at the rates actually billed ($4 / $20 / $0.20 per 1M)
+
+`gemini-4-argon` and `gemini-agents-argon` carried the docs' "introductory $2/$10 through 2026-11-30" schedule. The billing export shows that schedule was never billed: every Argon SKU line since 2026-10-13, on Vertex and the Developer API across four projects, is exactly $4.00 input / $20.00 output / $0.20 cached per 1M. Every banked Argon cost (evals, design-quorum seats) was half the real spend. The same export confirms the `gemini-agents-argon` pin: on 2026-10-21 all pinned traffic billed as Argon, and the only Flash line was the unpinned control probe.
