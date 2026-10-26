@@ -68,6 +68,9 @@ An acquisition error is not a successful blocker reproduction.
 - `checks.txt`: focused Go/core tests, lint, source syntax and repository gates.
 - `index.json`: artifact digests and qualification status.
 
+Test log trailing whitespace is normalized for repository hygiene; substantive
+output is preserved. The index hashes the committed forms.
+
 Reports bind wrapper, canary, test, lock, thin reaper helper, production proctree
 sources and compiler bytes. Each row includes the exact temporary policy and
 its digest. Temporary source/policy paths are destroyed after the fixture joins;

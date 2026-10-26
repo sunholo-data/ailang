@@ -17,9 +17,9 @@
 test at tools/pi-extensions/maintenance-broker-feasibility.test.mjs:80:1
 ✖ M1 records the lifetime blocker; passing this control does not qualify ownership (2709.843958ms)
   AssertionError [ERR_ASSERTION]: M1 STOP: detached cwd-changing child survives current host cleanup
-  
+
   true !== false
-  
+
       at TestContext.<anonymous> (file:///private/tmp/ailang-maintenance-eval-broker-plan/tools/pi-extensions/maintenance-broker-feasibility.test.mjs:147:11)
       at async Test.run (node:internal/test_runner/test:1409:7)
       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
