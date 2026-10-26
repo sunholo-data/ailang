@@ -162,7 +162,7 @@ func encodeBuiltinOp(smtOp string, args []core.CoreExpr) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("(%s %s %s)", smtOp, left, right), nil
+		return applyBinaryOp(smtOp, left, right), nil
 	}
 	return "", fmt.Errorf("builtin %q with unexpected arity %d", smtOp, len(args))
 }

@@ -219,8 +219,8 @@ func TestBuiltinToSMTOp_Values(t *testing.T) {
 		{"add_Int", "+"},
 		{"sub_Int", "-"},
 		{"mul_Int", "*"},
-		{"div_Int", "div"},
-		{"mod_Int", "mod"},
+		{"div_Int", smtIntDivTrunc}, // truncating, see int_divmod_test.go (#1960)
+		{"mod_Int", smtIntModTrunc},
 		{"eq_Int", "="},
 		{"ne_Int", "distinct"},
 		{"lt_Int", "<"},

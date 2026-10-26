@@ -18,8 +18,6 @@ func TestEncodeExpr_AllBuiltinOps(t *testing.T) {
 		{"add_Int", "(+ x y)"},
 		{"sub_Int", "(- x y)"},
 		{"mul_Int", "(* x y)"},
-		{"div_Int", "(div x y)"},
-		{"mod_Int", "(mod x y)"},
 		{"eq_Int", "(= x y)"},
 		{"ne_Int", "(distinct x y)"},
 		{"lt_Int", "(< x y)"},

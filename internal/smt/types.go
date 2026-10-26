@@ -266,9 +266,9 @@ var BuiltinToSMTOp = map[string]string{
 	"sub_Float": "-",
 	"mul_Int":   "*",
 	"mul_Float": "*",
-	"div_Int":   "div",
+	"div_Int":   smtIntDivTrunc,
 	"div_Float": "/",
-	"mod_Int":   "mod",
+	"mod_Int":   smtIntModTrunc,
 	"mod_Float": "mod",
 
 	// Comparison
