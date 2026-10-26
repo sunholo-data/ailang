@@ -1,0 +1,44 @@
+-- A function stored in a tuple, list, Option or record argument is charged to the
+-- caller exactly like one passed directly: declare its effects on the caller.
+-- (A `pure` caller of applyFst((logIt, x)) is rejected with `Missing effects: IO`.)
+module examples/runnable/effect_latent_nested_callbacks
+import std/io (println)
+import std/list (mapE)
+import std/option (Option, Some, None)
+
+func logIt(x: int) -> int ! {IO} = {
+  println("logged ${show(x)}")
+  x
+}
+
+func applyFst(p: (int -> int, int)) -> int = match p {
+  (f, x) => f(x)
+}
+
+func applyHead(fs: [int -> int], x: int) -> int = match fs {
+  [] => x,
+  [f, ..._] => f(x)
+}
+
+func applyOpt(o: Option[int -> int], x: int) -> int = match o {
+  Some(f) => f(x),
+  None => x
+}
+
+-- The caller declares the IO its nested callbacks perform.
+func viaContainers(x: int) -> int ! {IO} =
+  applyFst((logIt, x)) + applyHead([logIt], x + 1) + applyOpt(Some(logIt), x + 2)
+
+-- A concrete `! {IO}` callback composes with the effect-polymorphic mapE.
+func viaMapE(g: string -> bool ! {IO}, xs: [string]) -> [bool] ! {IO} = mapE(\d. g(d), xs)
+
+func shout(s: string) -> bool ! {IO} = {
+  println("item ${s}");
+  true
+}
+
+export func main() -> () ! {IO} {
+  println("total ${show(viaContainers(1))}")
+  let flags = viaMapE(shout, ["a", "b"])
+  println("mapped ${show(flags)}")
+}
