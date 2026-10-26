@@ -653,7 +653,13 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 	// 2. The function's effect row (effectRow, after unification with function type)
 	// DO NOT include getEffectRow(funcNode) - function values themselves are pure!
 	// The effectRow variable has been resolved by the local solver above.
-	appEffects := append(argEffects, effectRow)
+	// #1826: a concrete-contract callee costs its published callRow (compatibility
+	// tail closed); the unified effectRow would leak ε_annot into enclosing rows.
+	calleeRow := effectRow
+	if fn, ok := tc.effectAliasHead(getType(funcNode)).(*TFunc2); ok && fn.ConcreteEffectContract {
+		calleeRow = callRow
+	}
+	appEffects := append(argEffects, calleeRow)
 
 	// M-EFFECT-ROW-SHOW-INTERP (#386) distinct-tail invariant (AC5/AC6): after
 	// the application-local solve, the effect-determining operands must reduce to
