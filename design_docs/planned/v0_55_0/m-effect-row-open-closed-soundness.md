@@ -200,9 +200,9 @@ Record rows reach `RowUnifier` only through `RowEq` constraints (`internal/types
 
 ### Design Freeze
 
-- [ ] **F1 (human):** accept D2, the row-polymorphic `std/ai` signature, over the concrete `! {AI, IO}` (alternative D). Recommendation: accept. The concrete form over-charges pure callers, contradicts the documented "not required", and **cannot land before #1826**: in the prototype it fails in `std/ai` itself with `Unresolved effect tail: ε_annot1` (V18).
-- [ ] **F2 (human):** accept D3. Ship the P0 with the width class (RC4) rejected, and re-pin the two subtests to spellings that pass under the strict rule: a named hook declaring the slot's rows (`func one(c: string) -> int ! {Stream, Process} = 1`), or an annotated lambda (`func(c: string) -> int ! {Stream, Process} { 1 }`). Both are verified (V19). The subtests still guard what they exist for, the ceiling not charging own types. Phase 2 restores the original spelling. Recommendation: accept, since 0 corpus files are in the class.
-- [ ] **F3 (human):** confirm D4.
+- [x] **F1 (human) — Ruled 2026-10-26 (Mark, attended): accepted as recommended.** accept D2, the row-polymorphic `std/ai` signature, over the concrete `! {AI, IO}` (alternative D). Recommendation: accept. The concrete form over-charges pure callers, contradicts the documented "not required", and **cannot land before #1826**: in the prototype it fails in `std/ai` itself with `Unresolved effect tail: ε_annot1` (V18).
+- [x] **F2 (human) — Ruled 2026-10-26 (Mark, attended): accepted as recommended.** accept D3. Ship the P0 with the width class (RC4) rejected, and re-pin the two subtests to spellings that pass under the strict rule: a named hook declaring the slot's rows (`func one(c: string) -> int ! {Stream, Process} = 1`), or an annotated lambda (`func(c: string) -> int ! {Stream, Process} { 1 }`). Both are verified (V19). The subtests still guard what they exist for, the ceiling not charging own types. Phase 2 restores the original spelling. Recommendation: accept, since 0 corpus files are in the class.
+- [x] **F3 (human) — Ruled 2026-10-26 (Mark, attended): accepted as recommended.** confirm D4.
 
 ## Solution Design
 
