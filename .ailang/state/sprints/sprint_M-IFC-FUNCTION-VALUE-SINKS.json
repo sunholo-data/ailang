@@ -1,0 +1,83 @@
+{
+  "sprint_id": "M-IFC-FUNCTION-VALUE-SINKS",
+  "status": "in_progress",
+  "created": "2026-10-26T00:00:00Z",
+  "design_doc": "design_docs/planned/m-ifc-function-value-sinks.md",
+  "sprint_plan": "design_docs/planned/m-ifc-function-value-sinks-sprint-plan.md",
+  "github_issues": [1719],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 1150,
+    "estimated_days": 3
+  },
+  "registry_reuse": [
+    {"milestone": "M1", "package": null, "action": "none", "reason": "compiler-internal IFC pass"},
+    {"milestone": "M2", "package": null, "action": "none", "reason": "compiler-internal IFC pass"},
+    {"milestone": "M3", "package": null, "action": "none", "reason": "evidence only"},
+    {"milestone": "M4", "package": null, "action": "none", "reason": "docs/example"}
+  ],
+  "features": [
+    {
+      "id": "M1_CALLABLE_VALUES",
+      "description": "ifcVal{label,fn}; callables travel through every binding form; Checks A/C at every application on the callee value; direct-call messages unchanged",
+      "estimated_loc": 500,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "R0,R1,R3-R9,R14,C0,C1 rejected with the expected kind; N1,N4-N6 clean",
+        "existing TestIFC* unchanged and green",
+        "make test-changed green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_SUMMARIES_APPLIED_AT_AND_INFERENCE",
+      "description": "rho-seeded summaries: deferred applications (applied-at M2a + inferred demands M2b), substitution/replay, fixed point, opaque arg-join fallback, rho erasure",
+      "estimated_loc": 450,
+      "dependencies": ["M1_CALLABLE_VALUES"],
+      "acceptance_criteria": [
+        "R2,R10-R13,C2 rejected; N2,N3 clean",
+        "mutual recursion converges",
+        "no labelVar in diagnostics or effectiveBodyLabel",
+        "all 25 repro files give the design's exit codes via fresh-file CLI check",
+        "REPL gate parity pinned"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_MUTATION_AND_CORPUS_DELTA",
+      "description": "mutation-test each mechanism via scratch copies; base vs branch binary diagnostic diff over this repo and sibling repos",
+      "estimated_loc": 0,
+      "dependencies": ["M2_SUMMARIES_APPLIED_AT_AND_INFERENCE"],
+      "acceptance_criteria": [
+        "each mutation makes its row subset fail",
+        "zero new diagnostics in modules without refinement/positive param labels",
+        "every new diagnostic triaged in the PR"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_EXAMPLE_CHANGELOG",
+      "description": "expected-fail + passing examples with manifest entries, ifc-labels.mdx Sinks as values, changelog fragment",
+      "estimated_loc": 200,
+      "dependencies": ["M2_SUMMARIES_APPLIED_AT_AND_INFERENCE"],
+      "acceptance_criteria": [
+        "make verify-examples green",
+        "make test-imports green",
+        "make lint, check-file-sizes, check-changelog green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
