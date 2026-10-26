@@ -18,7 +18,7 @@ mission.
 **Scheduling**: launchd `dev.ailang.mission-fleet`, registry entry [`missions/fleet.toml`](../missions/fleet.toml)
 (interval 6h, boot offset 1680s). Billing guard as for every mission.
 **Log**: [fleet-mission-log.md](fleet-mission-log.md), append-only, one entry per iteration.
-**Human-facing reporting**: GitHub issue #1891 (rotated 2026-10-19 from #1768; live number in
+**Human-facing reporting**: GitHub issue #1945 (rotated 2026-10-26 from #1891; live number in
 `~/.ailang/state/mission-fleet-gh-issue`).
 
 ## Repo Profile (M-MISSION-PORTABILITY M2 — the per-mission values mission-control reads)
@@ -31,7 +31,7 @@ mission.
   this way (v1, docs, motoko; `pin-root.sh` `_set_pin_workdir`). The clone
   `~/dev/sunholo-data/ailang-fleet` is only launchd's working directory, as `ailang-docs` is for docs.
   Land changes through a branch or PR, never by editing the pin worktree in place.
-- **Bookkeeping issue**: `#1891` (from `#1768`), rotates weekly; live number in `~/.ailang/state/mission-fleet-gh-issue`
+- **Bookkeeping issue**: `#1945` (from `#1891`), rotates weekly; live number in `~/.ailang/state/mission-fleet-gh-issue`
 - **CI workflows Gate 3b / Gate 1 poll**: `CI` (runs on every push; no push paths filter).
 - **Verify profile**: `go-compiler`, plus the mission-loop-change pre-flight as the done-gate
   (below). Harness changes live in `tools/launchd/` (bash 3.2), `internal/mission/` and
@@ -42,6 +42,12 @@ mission.
 ## STATUS (rotation rule)
 
 Newest **3** STATUS stamps live here; older ones move to `fleet-mission-status-archive.md`.
+
+## STATUS 2026-10-26 — ITERATION 61: `quorum-reader:zsh-nomatch` LANDED — #1944 → `b7dd07599`, judged CODE ACCEPT 94 by an independent sonnet evaluator; ticket resolved; orphan iteration 60 credited [HARNESS]
+
+Iteration 60 (fire 03:13–03:57 local) refreshed the iteration-57 build as #1942 and banked a full landing package: independent MiniMax CODE ACCEPT 93 and a green done-gate. It parked when #1942's required `test` failed: on the new ubuntu-26.04 image, uv could not download Python 3.12 through CI's poison proxy. The fire then stopped on capacity before committing its record, so its STATUS stamp and its two drafted decision rows (D-FLEET-30, -31) never landed. Its diagnosis was correct at the time. #1940 (`d8e47684c`, merged 07:56Z) later added a `uv python install 3.12` prefetch upstream, which makes D-FLEET-30 moot. This iteration cherry-picked both commits onto `c8e348d08` as replacement #1944: range-diff `=`, all 7 blobs identical. All four roles ran. Designer (`claude-opus-5-5`): CONFIRMED. Planner (opus): ADDENDUM OK. Executor (`claude-haiku-5-5`): PASS. A fresh sonnet evaluator gave CODE ACCEPT 94, with 4/4 mutants killed and 0 blocking findings. Gates: out-of-sandbox `make test-launchd-drivers` rc 0; dry-runs healthy (`lanes=ok`) and degraded (named fallback); exact-head checks 26/26 green; exact-merge CI and Build and Release green. Dev HEAD `c8e348d08` was auto-merged and got no push run; a CI dispatch verified it (40296349998, all jobs green). Weekly issue sweep: 61 issues enumerated, 0 new queue items.
+
+Clause map: **1** UNMEASURED, goal unmoved; **2** UNMET overall, and this ticket (filed 10-22 11:50Z) closed in about 94h, outside 48h; **3** MET (43→42 open); **4** prior evidence only; **5** preserved. Next: re-verify iteration 60's unrecorded `quorum:oc-glm-5-3-output-cap-invalid` reality check, and file its decision row if it is REAL. The 14 OPEN decisions are unchanged; no new ask. Evidence: [iteration61](fleet-mission-evidence/iteration61/), [iteration60](fleet-mission-evidence/iteration60/).
 
 ## STATUS 2026-10-23 — ITERATION 59: watchdog fix #1937 recovered and ticket resolved; independent MiniMax RECOVERY_ACCEPT94/100;43 open [HARNESS]
 
@@ -54,12 +60,6 @@ Clause map: **1** UNMEASURED, goal unmoved; **2** UNMET overall, this qualifying
 The first banked fix can land now that upstream repaired dev’s inherited red. All nine refreshed patches and 14 source-path contents are preserved; active scope-guard refusal of an old-branch force-with-lease was handled with replacement #1935 at the same candidate, without disabling the guard. All four Agent roles ran through their pinned provider recipes. Fresh independent MiniMax review returned CODE ACCEPT 93/100, no blockers; focused 46/46, full outside-sandbox launchd suite and healthy/degraded dry-runs passed. PR CI and exact merge CI are green. The 116-entry, seven-log snapshot corpus has no clean-to-finding/error regression. Original judge evidence and separate controller corrections are banked in [iteration58](fleet-mission-evidence/iteration58/evaluation.md). Records 54–57 and their two separately authorized Gate-5 edits survive this landing. Sprint D7 is complete only after the observed CI and ticket resolution; effort remains unmeasured.
 
 Clause map: **1** UNMEASURED (goal unmoved); **2** UNMET overall, one fresh ticket resolved in about 34h (<48h); **3** MET (45→44 open); **4** prior evidence only; **5** preserved. Next: refresh banked #1929, then #1932, one per iteration, with fresh independent review and exact-head/exact-merge CI. D-FLEET-16 through -29 remain OPEN; no new decision. Live thread #1891.
-
-## STATUS 2026-10-22 — ITERATION 57: `quorum-reader:zsh-nomatch` BUILT, merge PARKED on dev's inherited required red (D-FLEET-17) — #1932 head `6268fb0b8`, judged PASS 94 by sonnet; ticket stays open; Gate-5 skill edit [HARNESS]
-
-The Gate-2 quorum reader sources `tools/launchd/lib/quorum-artifacts.sh` into the controller's tool shell, which is zsh on the rig. Under NOMATCH, an empty artifact directory aborted `mc_quorum_lookup`, so a reviewed doc read UNREVIEWED (rc 1, a paid quorum) or the whole `zsh -c` died. The same class sat in `lib/pi-ext-args.sh`, which the gate-3 pi recipe sources. Both globbing functions now open with `setopt local_options null_glob` under zsh only. The judge measured bash 3.2 output, stderr and rc as byte-identical over 9 fixture cases. Eight behavioural zsh arms run the real helpers, including the real Gate-2 reader from both skill copies, under `/bin/zsh -f`, with completion markers, missing-marker negative controls and caller-option restoration. Codex planned and built it in one run each; the planner refuted two of the controller's mutation assumptions, and both refutations reproduced. Controller gates outside the sandbox are green, including `make test-launchd-drivers`, and so are the dry-runs under stapledon (healthy and degraded). Sonnet judged PASS 94 with 0 blocking: 15 mutants, every reachable non-equivalent one killed. On #1932, `launchd drivers (bash 3.2)` is green on macos-latest. The required `test` fails only on the inherited `TestModels_PricingIsSlugConsistent`, so the merge is BLOCKED (D-FLEET-17). Gate-5 skill edit: the codex planner's `import-github` post-step now runs only for missions fed by GitHub issues (`269242b96`; three hand skips, at iterations 54, 55 and 57).
-
-Clause map: **1** UNMEASURED; **2** UNMET (filed 10-22 11:50Z, built the same day; it moves the median only if it lands before 10-24 11:50Z; #1927's window closes 10-23 12:29Z, #1929's 10-23 23:27Z); **3** MET (45 open); **4** prior evidence only; **5** preserved (nothing merged). Next: once dev's `test` is green, land #1927, #1929 and #1932 with `--match-head-commit` and resolve the three tickets; then reality-check `quorum:oc-glm-5-3-output-cap-invalid` (stapledon, 10-21; likely a D-row).
 
 ## CURRENT GOAL
 
@@ -278,9 +278,11 @@ overnight: harness faults read as model faults)
 36. [LANDED · iteration59; built55] `stall:watchdog:foreground-agent-and-wrong-transcript` (world,10-21): #1937 → `6c16b4ce8`; fresh independent MiniMax RECOVERY_ACCEPT94/100; ticket resolved; old #1929 superseded and CLOSED.
     Driver counts its own session and foreground subagents; source unchanged by recovery and included in v0.54.18. Current stall50/0, full launchd rc0, healthy/degraded dry-runs, exact-head/exact-merge CI green. Interrupted fire credited, metadata completed with honest recovery timestamp; original reports/corrections in `fleet-mission-evidence/iteration59/`.
     Coverage limits: prefix-loose exact-session and Claude per-file -f mutants survive; shipped guard/globs remain correct. Python UUID fallback now measured by fresh judge; a7 helper-based coverage accepted with a documented wording deviation.
-37. [BUILT · iteration 57 · banked refresh/landing; inherited base red repaired] `quorum-reader:zsh-nomatch` (stapledon, 10-22): #1932, head `6268fb0b8`, judged PASS 94 by sonnet.
-    `mc_quorum_lookup` (`tools/launchd/lib/quorum-artifacts.sh`) and `_mc_pi_ext_args` (`lib/pi-ext-args.sh`) open with `setopt local_options null_glob` under zsh only, so an empty artifact or extensions dir no longer aborts the controller's zsh tool shell. 8 behavioural zsh arms; `launchd drivers (bash 3.2)` green on macos-latest. Ticket stays open until the fix is on origin/dev.
+37. [LANDED · iteration 61] `quorum-reader:zsh-nomatch` (stapledon, 10-22): #1944 → `b7dd07599` (replaces #1942/#1932; built iteration 57, PASS 94 sonnet; refreshed iteration 60, CODE ACCEPT 93 MiniMax; re-judged iteration 61, CODE ACCEPT 94 sonnet). Ticket resolved.
+    `mc_quorum_lookup` (`tools/launchd/lib/quorum-artifacts.sh`) and `_mc_pi_ext_args` (`lib/pi-ext-args.sh`) open with `setopt local_options null_glob` under zsh only, so an empty artifact or extensions dir no longer aborts the controller's zsh tool shell. 8 behavioural zsh arms; `launchd drivers (bash 3.2)` green on macos-latest. Iteration 60 parked #1942 on a runner-image `test` red that #1940 then repaired upstream.
     Follow-ups from the judge, not ticketed: no arm checks the zsh options after an rc 2 return (unreachable under `local_options`); no arm asserts the guard is silent under bash.
+
+**Weekly external-issue sweep 2026-10-26 (iteration 61; 0 new queue items).** 61 open issues enumerated (matches the search total of 61). 57 have zero mentions in the charter, log, archive, status archive and dashboard. Controls: the positive one hit `#1306` 11 times, and the negative one fired. The 25 opened since the last sweep are language, stdlib, product, Daneel and docs reports, which belong to V1 or another repo and are outside this charter's Authority. None is harness-shaped. Per-issue table: [iteration61/issue-sweep.tsv](fleet-mission-evidence/iteration61/issue-sweep.tsv).
 
 **Weekly external-issue sweep 2026-10-05 (iteration 19; 0 new queue items).** 59 open issues enumerated (count checked against the listing); 57 had zero mentions in the charter, log, archive and dashboard. Controls: the positive one hit `#1380` 2 times, and the negative one fired. Most of the 57 are language, stdlib or product reports, which are V1's lane and outside this charter's Authority. The harness-shaped ones already have open fleet tickets, matched by title:
 - `#981` → `gate0:watermark-advanced-by-dying-fire`

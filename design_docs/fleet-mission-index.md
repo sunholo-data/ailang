@@ -12,6 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 61 | 2026-10-26 | `quorum-reader:zsh-nomatch` LANDED through replacement #1944 → `b7dd07599`; independent sonnet CODE ACCEPT 94; ticket resolved; orphan iteration 60... |
+| 60 | 2026-10-26 | ORPHAN (no record written): #1942 refresh of the zsh-safe helper fix judged CODE ACCEPT 93 (MiniMax); merge parked on a runner-image `test` red later fixed by #1940; slot PAUSED-NO-CAPACITY at gate-3; credited in 61 [HARNESS] |
 | 59 | 2026-10-23 | watchdog fix #1937 recovered after the post-merge capacity stop; independent MiniMax PASS94/100; ticket resolved [HARNESS] |
 | 58 | 2026-10-22 | `routing-models-check:bold-colon-heading` LANDED through replacement #1935; independent MiniMax PASS 93; ticket resolved [HARNESS] |
 | 57 | 2026-10-22 | `quorum-reader:zsh-nomatch` BUILT: #1932 head `6268fb0b8`; judge PASS 94 (sonnet); merge PARKED on dev's inherited required red (D-FLEET-17); ticke... |

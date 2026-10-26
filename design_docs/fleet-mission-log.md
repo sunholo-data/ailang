@@ -1697,3 +1697,84 @@ controller pi:ollama/glm-5.3:cloud → codex:gpt-6.1-sol (probe ok); lanes degra
 **Retro lane**: backlog observation only, no new skill edit or self-sourced ticket. Existing orphan/gate rules caught the post-merge capacity stop and incomplete records. The pi empty-worktree validator is unsuitable evidence for a read-only role; fresh provider reports avoid laundering those rc10s into success. The independent-report arithmetic/CI attribution issues are corrected separately. Latest new sprint retrospective (SMT parametric ADTs) reinforces inspecting actual emitted evidence and separate independent review; no fleet change follows from it. Last3 code landings: iteration53 none of the UNMET clauses; iteration58 clause2 <48h; iteration59 clause2 <48h. No all-none drift alarm. No routing-policy change and no new human ask.
 
 **Next**: refresh banked PR1932 `quorum-reader:zsh-nomatch` against current dev, independent review, exact-head/exact-merge CI and done-gate, then resolve it. Afterward reality-check existing ticket `quorum:oc-glm-5-3-output-cap-invalid`; any outside-authority or policy fix parks for Mark. Keep ledger OPEN decisions pending the operator.
+
+## 61 — 2026-10-26 — `quorum-reader:zsh-nomatch` LANDED through replacement #1944 → `b7dd07599`; independent sonnet CODE ACCEPT 94; ticket resolved; orphan iteration 60 credited [HARNESS]
+
+**Pick**: land the banked `quorum-reader:zsh-nomatch` (charter queue #37; iteration 59's **Next**). Gate 2's died-mid-flight traces showed iteration 60 had started it: PR #1942, five `.wt-fleet-iter60-*` worktrees and an uncommitted record. That changed the pick from "refresh" to "verify and land". The routable UNMET clause is 2; no other routable row moves it faster.
+
+**Orphans credited**: **iteration 60** (fire 2026-10-26 03:13→03:57 local, slot verdict `PAUSED-NO-CAPACITY at=gate-3`).
+- It refreshed the iteration-57 build onto `bf22f4943` as #1942 (`dcab63a3c`; range-diff `=`, blobs identical).
+- Its roles ran on pi recipes: designer glm-5.3 CONFIRMED, planner kimi-k3 ADDENDUM OK, executor deepseek-v4.1-flash PASS, evaluator MiniMax CODE ACCEPT 93.
+- Done-gate: green.
+- It parked on #1942's required `test` red. Four eval_harness Python tests could not download uv's Python 3.12 through CI's poison proxy on the new ubuntu-26.04 image.
+- It died before committing. Its STATUS stamp, D-FLEET-30 (that CI red) and D-FLEET-31 (`quorum:oc-glm-5-3-output-cap-invalid`, reality-checked REAL) exist only in its uncommitted worktree. They are now banked verbatim in [iteration60](fleet-mission-evidence/iteration60/), including `uncommitted-status-stamp.diff`.
+- Its CI diagnosis was right when it was made. #1940 (`d8e47684c`, 07:56Z) fixed the cause upstream with a `uv python install 3.12` prefetch, so D-FLEET-30 is moot and was not filed.
+- D-FLEET-31 is an unverified orphan claim with no evidence file. It is carried to **Next** rather than filed on its author's word.
+- The 2026-10-17 crash notice was already credited at iteration 47.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp.
+- Directives: 0 on #1891 since `2026-10-22T23:29:08Z` (28 comments, none allowlisted). No watermark advance.
+- Self-notices rc 1: the single 10-17 notice, already credited.
+- Running skill and all 13 resource files `cmp`-identical to origin/dev; the pin and the resolved copy are the same file.
+- Gate-1 base `c8e348d08736e6b273efb73175ae706ce82eef62@2026-10-26T08:58:55Z`.
+- Dev CI: the last `CI` run, at `d8e47684c`, was red only on non-required `test-windows` (`TestShadowGradeHangIsUngradedTimeout`). HEAD `c8e348d08` had **0** runs: it was a Dependabot auto-merge by `github-actions`, and pushes made with that token trigger no workflows. Gate 1's true-zero rule applied: dispatch [40296349998](https://github.com/sunholo-data/ailang/actions/runs/40296349998) came back all green, including `test-windows`, so that red reads as a flake. This fleet does not own the repo; it is recorded, not acted on.
+- Ledger: 29 rows, 14 OPEN, unchanged. Nine unrelated approvals untouched.
+
+**Reality check**:
+- Iteration 60's park premise was re-measured. Dev's `test` job 121459024865 at `d8e47684c` ran on `Image: ubuntu-26.04`. It shows `Installed Python 3.12.15` and PASS for `TestPythonRunner` and all three `TestRunPythonSolution_*` tests. So the red that parked #1942 is gone, by #1940's prefetch, not by a flake. Branch protection requires `test, lint, build, docs-gate, UI build gate`, with strict=false.
+- No file overlap: zero files are shared between dev's two new commits and the 7 branch paths (planner and designer each measured it, with a positive control).
+- Trial merge: 0 conflicts.
+
+**Did** (all four roles spawned; generator ≠ judge):
+- Designer `claude:claude-opus-5-5` via the `claude-sub` recipe (resolver `recipe … declared:provider-pin`). The Agent tool is not valid for a provider pin, and the spawn hook denies the alias. Verdict CONFIRMED: no new design, and the contract holds at `c8e348d08`. Rotation pointer not advanced, since no doc was authored.
+- Planner, Agent tool `opus` (resolver `agent-tool opus fail-closed:env-pin`). Verdict ADDENDUM OK, with an ordered landing plan. It independently re-verified #1940's prefetch in `ci.yml` (`test`, `test-windows`) and in `build.yml`.
+- Executor `claude:claude-haiku-5-5` via `claude-sub`. Cherry-picked `bd9a41cf3` and `dcab63a3c` onto `c8e348d08` as `fleet/i61-zsh-libs-land` (`cd717c328`, `b2c9ff5b0`).
+  - range-diff `=`/`=`; all 7 blobs IDENTICAL to `dcab63a3c`.
+  - `test_quorum_artifacts.sh` rc 0, with all 5 zsh arms passing.
+  - `test_pi_ext_args.sh` 17/0.
+  - `check-changelog` and `diff --check` rc 0. Pushed by the controller, not the executor.
+- Evaluator, Agent tool `sonnet`: **CODE ACCEPT 94/100**, 0 blocking findings.
+  - 4/4 mutants killed: setopt removed (quorum, pi) and `local_options` dropped (quorum, pi).
+  - A direct `/bin/zsh -f` check: rc 1 with no `no matches found`, and caller options preserved.
+  - The return was suspiciously fast (32 s, 6 tool calls), so it was checked against disk before acceptance. The mutant outputs exist, show the real kills (`mc_quorum_lookup:11: no matches found`, `OPTIONS_LEAKED` rc 81), and the judge tree is clean.
+- Controller done-gate at `b2c9ff5b0`:
+  - Outside-sandbox `env -i … make test-launchd-drivers`: rc 0, 1063 PASS lines, 0 FAIL, final `launchd drivers: tests + bash 3.2 syntax OK`.
+  - Dry-runs under idle, armed stapledon with `AILANG_DRIVER_PINNED=b2c9ff5b0` (no pidfile before or after). The first "healthy" arm read `DEGRADED(2)` only because the codex bucket is over its daily ration (the same fact as this fire's own routing note), so it is not claimed healthy. With planner and executor pinned off codex the healthy arm read `lanes=ok`, and the degraded arm (`codex:bogus`) read a named `DEGRADED` with in-order fallback to haiku.
+- Opened [#1944](https://github.com/sunholo-data/ailang/pull/1944), which replaces #1942 and #1932. The closing-keyword scan of its title and body found 0 (control fired). Merged with `--merge --match-head-commit b2c9ff5b0` → `b7dd0759969ff47b5776524a31487a91c5dc8bd8`.
+- Weekly external-issue sweep (rotation Monday): 61 issues enumerated, matching the search total. 57 have zero fleet mentions; positive control `#1306`=11; negative control fired. 25 are new since 10-05, all outside Authority. 0 queue items. Table: [issue-sweep.tsv](fleet-mission-evidence/iteration61/issue-sweep.tsv). The first pass was an instrument failure (zsh did not word-split the file list, so every count read 0); the positive control caught it, and the sweep was redone under `/bin/bash`.
+
+- Weekly thread rotation (Monday, after 07:00 local; #1891 was created 10-19): opened [#1945](https://github.com/sunholo-data/ailang/issues/1945) and posted the weekly report (comment count 0→1). Posted the pointer on #1891 (28→29) and CLOSED it. `mission-fleet-gh-issue`=1945, `-prev`=1891.
+
+**Gate 3b**:
+- Exact PR head `b2c9ff5b0`: 26/26 checks terminal, 0 non-green, all 5 required green; MERGEABLE/CLEAN at merge time.
+- Exact merge `b7dd07599`: CI [40302410292](https://github.com/sunholo-data/ailang/actions/runs/40302410292) and Build and Release [40302410031](https://github.com/sunholo-data/ailang/actions/runs/40302410031) — both push/dev attempt 1, completed SUCCESS. The 17-row check set is terminal. The one non-green row is `SonarCloud Code Analysis`, which is not required and is inherited: it is red on `d8e47684c` (#1940) and green on `bf22f4943` and on this PR head. Ticket resolved after this, replying to stapledon (43→42 open). #1942 and #1932 each received a comment (0→1, verified) and were then CLOSED; their branches are retained.
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET overall. This ticket, filed `2026-10-22T11:50:43Z`, closed in about 94h: outside 48h, because two landing attempts were blocked by required reds outside fleet authority. Clause 3 MET, 43→42 open. Clause 4 prior evidence only. Clause 5 preserved: judged, done-gate green, exact-merge CI green.
+
+**Routing evidence**: Gate-1 base `c8e348d08736e6b273efb73175ae706ce82eef62@2026-10-26T08:58:55Z`; Gate-4 base `b7dd0759969ff47b5776524a31487a91c5dc8bd8@2026-10-26T10:12:49Z`. Literal driver note:
+controller pi:ollama/glm-5.3:cloud → claude:claude-opus-5-5 (probe ok); lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — over daily ration) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — over daily ration) → handed to `claude:claude-haiku-5-5`
+- Controller `claude:claude-opus-5-5` (tok: not reported).
+- Designer `claude:claude-opus-5-5`, `claude-sub` recipe: probe rc 0, then a run of 6 turns / 70 s. Tokens: in 12, cache-create 60,763, cache-read 311,997, out 6,041. Subscription; metered $0; the CLI's reported $0.67 is list-price imputation, not billing.
+- Planner `opus`, Agent tool: 90,287 subagent tokens, 25 tool uses, 197 s.
+- Executor `claude:claude-haiku-5-5`, `claude-sub` recipe: probe rc 0, then a run of 8 turns / 30 s. Tokens: in 16, cache-create 45,670, cache-read 392,594, out 4,528. Subscription; metered $0.
+- Evaluator `sonnet`, Agent tool: 51,721 subagent tokens, 6 tool uses, 33 s.
+- Metered spend this iteration: $0. No lane thresholds changed; no lane recorded dead.
+
+**Ruled out**:
+- Rerunning #1942's failed jobs: a rerun reuses the old merge ref, which predates #1940.
+- Force-pushing the old branch: iteration 58's scope-guard precedent.
+- Re-judging on iteration 60's MiniMax verdict alone: the head changed, so a fresh judge was required.
+- Filing D-FLEET-30: moot. Filing D-FLEET-31 on the orphan's word: unverified, carried to Next.
+- Claiming the codex-rationed dry-run as healthy.
+- Acting on the dev `test-windows` red: not owned, not required, and green on dispatch.
+
+**Retro lane**: backlog observation only; no skill edit, because no gap has two recorded frictions this iteration. Observations, not tickets (the fleet does not self-source):
+- (a) The driver's dry-run reports `lanes=ok` for a bogus pi executor model (`pi:ollama/bogus-nonexistent-model:cloud`), so the degraded arm can only be shown through a codex lane. The driver is unchanged by this patch.
+- (b) A bare Dependabot auto-merge leaves dev HEAD with no CI run by construction (`github-actions` token). Gate 1's dispatch rule handled it.
+- (c) This controller's zsh tool shell broke a hand-written loop twice: an unsplit `$F`, and an unsplit env-prefix variable (rc 127). Both were caught by controls; standing memory already says to run hand-written loops under `/bin/bash`.
+Last 3 code landings: iteration 58 clause 2 (<48h); iteration 59 clause 2 (<48h); iteration 61 clause 2 (outside 48h). No all-none drift alarm.
+
+**Next**:
+1. Re-verify iteration 60's `quorum:oc-glm-5-3-output-cap-invalid` reality check first-party (its claim: both stapledon artifacts show the `oc-glm-5-3` seat at exactly 65,536 output tokens with no verdict, and the fix is a `models.yml` quota/routing change outside fleet authority). If it is REAL, file it as a decision row with a recommendation.
+2. Then take the next ticket by `slots_lost`.

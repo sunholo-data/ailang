@@ -1,19 +1,17 @@
-# Fleet mission — iteration59 recovery, 2026-10-23
+# Fleet mission — iteration 61, 2026-10-26
 
-- Latest release: v0.54.18; watchdog fix is included.
-- LANDED source: PR1937 → `6c16b4ce8`; prior PR1929 superseded and CLOSED.
-- Independent MiniMax: CODE_ACCEPT84 at pre-completion snapshot; final RECOVERY_ACCEPT94/100 after applied conditions.
-- All four Agent roles ran provider-pinned recipes; no controller self-judgment.
-- Current outside-sandbox stall50/0; full launchd suite rc0; healthy/degraded dry-runs and exact-head/exact-merge CI green.
-- Recovered original fire's post-merge capacity stop; original reports immutable, corrections separate.
-- Ticket resolved with reply to world;44→43 open, about43.60h turnaround (<48h).
-- Completed sprint metadata at actual2026-10-23T18:59:04Z; historical effort/start unmeasured.
-- NEXT: banked PR1932 zsh-safe quorum/pi helper; refresh, judge, CI, done-gate before resolving.
-- Then reality-check existing oc-glm output-cap ticket; policy/outside-authority work parks.
--29 decision rows;14 OPEN unchanged, no new operator ask. Nine unrelated approvals untouched.
-- Cadence6h when tickets exist; thread1891; no new directive/watermark advance.
-- Recorded original+recovery metered$1.63233558; recovery Codex quota417,035 tokens, controller/carriers unreported.
-- No shared binary/config installed, source edited, or mission reloaded during recovery.
-- Bar: clause1 UNMEASURED, goal unmoved; clause2 UNMET overall, qualifying <48h closure; clause3 MET; clause4 prior evidence; clause5 preserved.
-- Fleet newest20:19/20 HARNESS (40 ADMIN); not a product-loop14-day share measurement.
-- Evidence: `fleet-mission-evidence/iteration59/`; original and fresh reviews/confirmation retained.
+- Latest release: v0.54.18. The zsh-safe helper fix is on dev (`b7dd07599`) and has not been released.
+- LANDED: `quorum-reader:zsh-nomatch` → #1944 `b7dd07599`; it replaces #1942 and #1932, both closed.
+- Independent sonnet judge: CODE ACCEPT 94/100, 4/4 mutants killed, 0 blocking.
+- All four roles spawned: designer opus-5.5 (claude-sub), planner opus (Agent), executor haiku-5.5 (claude-sub), evaluator sonnet (Agent).
+- Done-gate: launchd suite rc 0 (1063 PASS); dry-runs healthy `lanes=ok` and degraded with a named fallback; exact-head and exact-merge CI green.
+- Orphan iteration 60 credited. Its #1942 park (a runner-image Python red) was fixed upstream by #1940; its record is banked under `fleet-mission-evidence/iteration60/`.
+- Dev HEAD `c8e348d08` (a Dependabot auto-merge) had no CI run; a dispatch verified it green.
+- NEXT: re-verify iteration 60's unrecorded `quorum:oc-glm-5-3-output-cap-invalid` check; file a decision row if it is REAL.
+- Then the next ticket by slots_lost; 42 open.
+- Decisions: 29 rows, 14 OPEN (D-FLEET-16 to -29) unchanged; no new ask. Nine unrelated approvals untouched.
+- Cadence: 6h while tickets are open. Bookkeeping thread rotated today (see the gh-issue state file).
+- Quota: codex over its daily ration today. Planner went to opus and executor to haiku; metered $0 this iteration.
+- Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (this ticket took about 94h); clause 3 MET; clause 4 prior evidence; clause 5 preserved.
+- Weekly issue sweep: 61 issues enumerated, 0 new queue items.
+- Evidence: `fleet-mission-evidence/iteration61/`.

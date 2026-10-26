@@ -2,7 +2,9 @@
   "id": "M-FLEET-ZSH-SAFE-MISSION-LIBS",
   "title": "Make mission helper glob loops safe when sourced into zsh",
   "design_doc": "design_docs/planned/sprint-plan-zsh-safe-mission-libs.md",
-  "status": "pending",
+  "status": "completed",
+  "completed_at": "2026-10-26T09:48:24Z",
+  "landed": {"pr": 1944, "merge_commit": "b7dd0759969ff47b5776524a31487a91c5dc8bd8", "iteration": 61, "note": "Built iteration 57; refreshed as #1942 (iteration 60) and #1944 (iteration 61). completed_at is the merge time; historical effort unmeasured."},
   "ticket": "quorum-reader:zsh-nomatch",
   "registry_reuse": [
     {
