@@ -89,6 +89,9 @@ func (e *PiExecutor) Name() string {
 
 // Execute runs a task and returns the result.
 func (e *PiExecutor) Execute(ctx context.Context, task *executor.Task) (*executor.Result, error) {
+	if task != nil && task.EvalContainment != nil {
+		return nil, executor.ErrEvalContainmentAdmissionClosed
+	}
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
@@ -98,6 +101,9 @@ func (e *PiExecutor) Execute(ctx context.Context, task *executor.Task) (*executo
 // ExecuteStreaming runs a task with real-time event callbacks, parsing the
 // pi NDJSON stream into normalized executor events.
 func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+	if task != nil && task.EvalContainment != nil {
+		return nil, executor.ErrEvalContainmentAdmissionClosed
+	}
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
@@ -115,6 +121,12 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 }
 
 func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
+	usageCapture := newPiUsageCapture()
+	defer func() {
+		if out != nil {
+			out.UsageEvidence = usageCapture.snapshot()
+		}
+	}()
 	ctx, span := telemetry.StartSpan(ctx, piTracer, "pi.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "pi"),
@@ -146,7 +158,11 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 	}
 	piPath := e.piPath
 
-	cmd := exec.CommandContext(ctx, piPath, args...)
+	command, containmentEnv, err := evalContainmentCommand(task, piPath, args)
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 	proctree.Configure(cmd)
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
@@ -159,6 +175,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 
 	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
+		ExecutorEnv: containmentEnv,
 		SessionID:   ourTaskID,
 		Executor:    "pi",
 		Model:       e.getModel(task),
@@ -288,6 +305,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 			}
 
 			ev, err := parsePiEvent(line)
+			usageCapture.observe(line, ev)
 			if err != nil {
 				// Non-JSON preamble (a provider warning, a deprecation notice) is
 				// tolerated but COUNTED — banked as pi_unparsed_lines so a stream
