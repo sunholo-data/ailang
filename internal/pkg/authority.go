@@ -211,6 +211,18 @@ func underUserDir(dir string) bool {
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
+// ensureDir creates dir, requiring AuthHomeWrite when it lies under ~/.ailang.
+// A directory elsewhere (a test's temp cache, an operator's --bin-dir) is not
+// home authority.
+func ensureDir(dir, what, remedy string) error {
+	if underUserDir(dir) {
+		if err := Require(AuthHomeWrite, what, remedy); err != nil {
+			return err
+		}
+	}
+	return os.MkdirAll(dir, 0755)
+}
+
 // EnsureRegistryCacheDir creates the writable HOME registry cache for operators.
 // Package reads must use RegistryCacheDir, which does not create anything.
 func EnsureRegistryCacheDir() (string, error) {

@@ -41,6 +41,32 @@ func (lf *LockFile) validateRegistryContentHashes() error {
 	return nil
 }
 
+// validateGitContentHashes is #1720 T1/T2 (D4): a git dependency's content is
+// verified against the lock exactly like a registry one, and a mismatch is
+// fatal. The URL-keyed clone is shared by every project that names the URL,
+// so a different revision checked out by another project, or an edit in the
+// cache, used to compile silently; it is now drift.
+func (lf *LockFile) validateGitContentHashes() error {
+	for i := range lf.Packages {
+		p := &lf.Packages[i]
+		if p.Source != "git" {
+			continue
+		}
+		dir, err := lockedGitDir(p)
+		if err != nil {
+			return &RegistryContentError{err}
+		}
+		hash, err := ContentHash(dir)
+		if err != nil {
+			return &RegistryContentError{fmt.Errorf("failed to hash git dependency %s at %s: %w", p.Name, dir, err)}
+		}
+		if hash != p.ContentHash {
+			return &RegistryContentError{contentHashDrift(p.Name, p.ContentHash, hash)}
+		}
+	}
+	return nil
+}
+
 func contentHashDrift(name, locked, current string) error {
 	return fmt.Errorf("dependency %s content changed (locked: %s, current: %s)\nRun 'ailang lock' to update", name, locked, current)
 }
