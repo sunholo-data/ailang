@@ -1,0 +1,212 @@
+{
+  "sprint_id": "M-MAINTENANCE-EVAL-BROKER",
+  "status": "in_progress",
+  "created": "2026-10-26T13:48:19.888748+00:00",
+  "design_doc": "design_docs/planned/m-maintenance-eval-broker.md",
+  "sprint_plan": "design_docs/planned/m-maintenance-eval-broker-sprint-plan.md",
+  "github_issues": [],
+  "planning_authorized_by": "Mark, 2026-10-26: ok lets try to continue",
+  "execution_authorized": true,
+  "execution_gate": "Approve concrete broker sprint before implementation; no coordinator handoff or model campaign authorized.",
+  "target_repositories": [
+    "sunholo-data/ailang",
+    "sunholo-data/ailang-packages"
+  ],
+  "core_source_revision": "40fbb90d5",
+  "adapter_merge_revision": "d8e47684cb0b8bb0d72392d10d801fb2df0a30dc",
+  "package_source_revision": "9ac50f6a25d587fc3a6a935a87991bbaecdd0fc1",
+  "registry_reuse": [
+    {
+      "milestone": "M1_HOST_FEASIBILITY",
+      "package": null,
+      "action": "none",
+      "reason": "Searches maintenance/sandbox/executor/process and info/docs for maintenance_bench, external_backend and duckdb reviewed. Node/Go host ownership and trusted stage transport extend existing pi/SDK/proctree seams; registry process adapters do not implement this boundary."
+    },
+    {
+      "milestone": "M2_STRICT_PROTOCOL",
+      "package": null,
+      "action": "none",
+      "reason": "Searches maintenance/sandbox/executor/process and info/docs for maintenance_bench, external_backend and duckdb reviewed. Node/Go host ownership and trusted stage transport extend existing pi/SDK/proctree seams; registry process adapters do not implement this boundary."
+    },
+    {
+      "milestone": "M3_COMMAND_OWNER",
+      "package": null,
+      "action": "none",
+      "reason": "Searches maintenance/sandbox/executor/process and info/docs for maintenance_bench, external_backend and duckdb reviewed. Node/Go host ownership and trusted stage transport extend existing pi/SDK/proctree seams; registry process adapters do not implement this boundary."
+    },
+    {
+      "milestone": "M4_PI_TRANSPORT",
+      "package": null,
+      "action": "none",
+      "reason": "Searches maintenance/sandbox/executor/process and info/docs for maintenance_bench, external_backend and duckdb reviewed. Node/Go host ownership and trusted stage transport extend existing pi/SDK/proctree seams; registry process adapters do not implement this boundary."
+    },
+    {
+      "milestone": "M5_EVIDENCE_BOUNDS",
+      "package": null,
+      "action": "none",
+      "reason": "Searches maintenance/sandbox/executor/process and info/docs for maintenance_bench, external_backend and duckdb reviewed. Node/Go host ownership and trusted stage transport extend existing pi/SDK/proctree seams; registry process adapters do not implement this boundary."
+    },
+    {
+      "milestone": "M6_FULL_CHAIN",
+      "package": "sunholo/maintenance_bench",
+      "action": "contribute",
+      "reason": "Searches maintenance/sandbox/executor/process and info/docs for maintenance_bench, external_backend and duckdb reviewed. Extend existing companion research controls and native ledger; pin merged source while registry remains 0.1.0."
+    },
+    {
+      "milestone": "M7_DELIVERY_REVIEW",
+      "package": null,
+      "action": "none",
+      "reason": "Searches maintenance/sandbox/executor/process and info/docs for maintenance_bench, external_backend and duckdb reviewed. Node/Go host ownership and trusted stage transport extend existing pi/SDK/proctree seams; registry process adapters do not implement this boundary."
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 1850,
+    "estimated_days": 5,
+    "range_days": [
+      3,
+      5
+    ],
+    "target_loc_per_day": 370,
+    "actual_loc_per_day": null,
+    "basis": "Change-size planning envelope with qualification buffer; velocity helper exited 141 and provided no usable observed rate."
+  },
+  "stop_gate": {
+    "milestone": "M1_HOST_FEASIBILITY",
+    "on_failure": "Record qualified:false and blocker; leave downstream milestones unstarted, keep protected dispatch closed; obtain revised scope before changing host platform."
+  },
+  "live_dispatch_admitted": false,
+  "features": [
+    {
+      "id": "M1_HOST_FEASIBILITY",
+      "description": "Actual host feasibility and stop gate",
+      "estimated_loc": 280,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Run an actual credential-free outer process using pi SDK 0.85.1 and the locked kernel wrapper; exchange a bounded request over the single intended socket and execute a sibling no-network SDK child.",
+        "Positive controls build/run the existing owned AILANG and Python fixtures. Protected file/network controls fail; a nearby ungranted socket is unreachable.",
+        "A controlled descendant attempts `setsid`, changes cwd, closes inherited stdio and outlives its leader. Prove mechanical escape prevention or a concrete ownership mechanism that still terminates and awaits it on normal exit, timeout and controller death. Protect an unrelated bystander process.",
+        "Record host/OS/architecture, Node/pi/SDK/runtime identities, wrapper/policy/source hashes, exact commands and exit evidence. No skipped control can qualify a platform.",
+        "On any failed property, write `qualified:false` with the named blocker and leave M2–M7 unstarted; no general reaper rewrite or host platform expansion."
+      ],
+      "passes": null,
+      "started": "2026-10-26T13:53:32.437848+00:00",
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_STRICT_PROTOCOL",
+      "description": "Strict stage protocol",
+      "estimated_loc": 270,
+      "dependencies": [
+        "M1_HOST_FEASIBILITY"
+      ],
+      "acceptance_criteria": [
+        "Bind schema/version, stage ID, policy/workspace identities and random stage capability; all controller values are immutable after startup.",
+        "Reject duplicate JSON keys, unknown fields, invalid UTF-8, oversized/incomplete frames, replay, cross-stage IDs, wrong capabilities and non-monotonic/duplicate request IDs before starting a child.",
+        "Only `bash` is supported; requests cannot choose cwd, environment, policy/runtime paths, executable transport or network authority.",
+        "Apply the frozen request/connection/rejection limits and typed exit/timeout/cancel/overflow/transport results. Boundary and fragmentation tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_COMMAND_OWNER",
+      "description": "Bounded host command owner",
+      "estimated_loc": 320,
+      "dependencies": [
+        "M1_HOST_FEASIBILITY",
+        "M2_STRICT_PROTOCOL"
+      ],
+      "acceptance_criteria": [
+        "Use the exact lifetime mechanism qualified in M1. A serial command uses the immutable stage cwd and existing tools-mode SDK policy as a sibling of outer pi.",
+        "Enforce command time/output bounds during streaming; kill, join and observe owned execution before another request or socket cleanup.",
+        "Tool/candidate environment is explicitly allowlisted; no provider credential, loader hook, capability or controller proxy setting is inherited.",
+        "Parent death, leader exit, broken client, broker loss, malformed transport, overflow and cancellation produce named outcomes without surviving owned children or affecting the bystander."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_PI_TRANSPORT",
+      "description": "Trusted pi transport and stage lifecycle",
+      "estimated_loc": 260,
+      "dependencies": [
+        "M2_STRICT_PROTOCOL",
+        "M3_COMMAND_OWNER"
+      ],
+      "acceptance_criteria": [
+        "Real SDK bash uses the authenticated broker transport; native read/write/edit/search guards and the outer kernel boundary stay active.",
+        "Ready/version/policy handshake occurs before the no-model outer SDK process starts. The capability is absent from model-visible tool results, candidate files, child environment and process argv.",
+        "The socket/policy directory cannot be replaced by candidate code; tool/candidate processes cannot use the broker socket or inference proxy. Check actual SDK-generated socket grants.",
+        "Nil-containment executor behavior remains unchanged, and both Execute paths still reject live containment before model resolution, CLI probing or inference."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_EVIDENCE_BOUNDS",
+      "description": "Bounded grading and retained evidence",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1_HOST_FEASIBILITY",
+        "M3_COMMAND_OWNER"
+      ],
+      "acceptance_criteria": [
+        "Bound controller subprocess output while reading, grade JSON before allocation/parsing, and source snapshots by file/count/total budget; include growth and symlink-race cases.",
+        "Both native candidate languages run under the qualified owner. Their entire owned execution is joined before scratch deletion or snapshot finalization.",
+        "Output/report/snapshot overflow stays distinguishable from candidate compile/test failure. Partial diagnostic output is labeled, and spent attempts remain visible.",
+        "Carry actual failed source into the next fresh session; never restore a gold starter after a grading or execution failure."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_FULL_CHAIN",
+      "description": "Real full-chain no-model qualification",
+      "estimated_loc": 240,
+      "dependencies": [
+        "M4_PI_TRANSPORT",
+        "M5_EVIDENCE_BOUNDS"
+      ],
+      "acceptance_criteria": [
+        "Actual outer SDK/native tools → broker → sibling tool/candidate chain passes normal application, protected oracle, native path-race, hardlink, recursive-search and live reference-server controls.",
+        "Try credential/process-metadata reads, other-stage sockets, broker replay, inference-proxy reuse and all failure/cancellation paths with independent positive controls.",
+        "Run both families/languages and the existing eight-trajectory/24-stage retained-source control under the qualified no-model chain. Compare identities/verdicts with the native AILANG ledger; provider usage/economics remain explicitly unavailable.",
+        "Bind every qualification to the exact executed inventory, including known reference copies/Git stores, runtime exceptions, policy, tool sources and compiler. A missing or drifted item fails qualification."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M7_DELIVERY_REVIEW",
+      "description": "Evidence, coverage and independent review",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M6_FULL_CHAIN"
+      ],
+      "acceptance_criteria": [
+        "Import actual native Go and JS/TS coverage into the appropriate reports, preserving source/embedded-asset identity. Report measured coverage and exclusions accurately; do not weaken the 80% advisory target or change branch protection.",
+        "Focused touched-package tests, core tests, lint, embedded asset drift, boundaries, file-size/changelog gates and no-model instrument controls pass. All supported-platform required PR checks pass.",
+        "Independent sprint evaluation checks the actual ownership and authority contract; a score cannot override a failed containment control. Record unavailable review rather than inventing a pass.",
+        "Reassess the original adapter M3/M5/M8/M11 criteria individually with linked evidence. Leave any unmet criterion incomplete; qualification never automatically opens inference.",
+        "Deliver source/review artifacts and a proposed next-launch checklist: actual model/provider, held-out cases, independent usage completeness, finite cost/request/token bounds and explicit launch approval. No campaign runs in this sprint."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "execution_authorized_by": "Mark, 2026-10-26: execute sprint",
+  "prompt_version_loaded": "v0.16.7"
+}
