@@ -118,6 +118,12 @@ jobs:
     - name: Set up uv
       uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
 
+    # Prepare the eval runner's pin before tests poison network access.
+    # Keep this request in sync with PinnedPythonVersion in python.go.
+    - name: Prefetch Python for offline eval-harness tests
+      timeout-minutes: 5
+      run: uv python install 3.12
+
     - name: Install dependencies
       run: make deps
 
@@ -556,6 +562,12 @@ jobs:
 
     - name: Set up uv (provides Python for eval-harness Python runner tests)
       uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+    # Prepare the eval runner's pin before tests poison network access.
+    # Keep this request in sync with PinnedPythonVersion in python.go.
+    - name: Prefetch Python for offline eval-harness tests
+      timeout-minutes: 5
+      run: uv python install 3.12
 
     # Same ordering constraint as the Linux leg: prefetch BEFORE the binary is
     # installed, because `go mod download all` touches the tracked go.sum and the
