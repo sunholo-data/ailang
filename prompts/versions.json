@@ -1024,14 +1024,14 @@
     },
     "v0.16.7": {
       "file": "prompts/v0.16.7.md",
-      "hash": "214ca761650bf8ba9f05a8e037a791a65496313ae8e846ff389decfd85786ab6",
+      "hash": "de682fcd6c2dad6086a643dab63ee31d0cfdb78196622ac6d0661c591207c5a3",
       "description": "Teach exact EOF line input and scoped native terminal IO",
       "created": "2026-10-10",
       "tags": [
         "production",
         "latest"
       ],
-      "notes": "Teach exact EOF line input and scoped native terminal IO"
+      "notes": "Teach exact EOF line input and scoped native terminal IO. M-EFFECT-LATENT-NESTED-CALLBACKS (#1718, 2026-10-26) amends this unfrozen head in place: the latent-callback sentence now says the caller also declares the effects of a function stored in a list, tuple, Option or record argument."
     }
   },
   "active": "v0.16.7",
