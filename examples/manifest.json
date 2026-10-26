@@ -3437,6 +3437,25 @@
       }
     },
     {
+      "path": "runnable/effect_latent_nested_callbacks.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "higher-order",
+        "regression"
+      ],
+      "description": "Effects of callbacks nested in tuple/list/Option arguments are declared on the caller; concrete ! {IO} callback through mapE (#1718, #1826)",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/option"
+      ],
+      "expected": {
+        "stdout": "logged 1\nlogged 2\nlogged 3\ntotal 6\nitem a\nitem b\nmapped [true, true]\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/secrets/scoped_declassify.ail",
       "status": "working",
       "tags": [
@@ -3500,11 +3519,11 @@
     }
   ],
   "statistics": {
-    "total": 238,
-    "working": 230,
+    "total": 239,
+    "working": 231,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9663865546218487,
+    "coverage": 0.9665271966527197,
     "experimental": 0
   },
   "milestones": {
