@@ -93,6 +93,21 @@ Showcase module `examples/runnable/effect_latent_nested_callbacks.ail`:
 `typechecker_core.go` is exactly 800 lines — not touched. `typechecker_functions.go` 756 → ≤765.
 `typechecker_app_effects.go` 374 → ~400. New code goes in `typechecker_latent_data.go`.
 
+## Progress (2026-10-26, single executor session)
+
+- [x] **M1** walker + concrete-tail normalisation — `typechecker_latent_data.go`, site (d), site (b) top-level. S1–S5 green.
+- [x] **M2** nested hand-off — sites (a), (b) nested + re-zonk, (c). AC1, AC2, AC4, AC5 green; two-engine run test green.
+  (M1 and M2 landed as two commits — walker, then all four sites — because sites (b)/(c) share one file.)
+- [x] **M3** erase ⊆ charge — `typechecker_latent_invariant_test.go`, exhaustive over generated parameter shapes
+  (agent's choice per Deferred Decisions: a test-only check, not a runtime invariant).
+- [x] **M4** corpus + docs — examples/std sweep 515 files: 432/83 on base and fix, **0 flips, byte-identical
+  diagnostics**, 0 `internal invariant`; 45 `ailang-packages` roots + `ailang-parse`: 44/2 both, 0 flips;
+  `sunholo/mcp_oauth` 0.1.0/0.1.1 invariant → all passed (0.1.2 passes both). LIMITATIONS entries resolved,
+  prompt sentence, example + manifest, changelog fragment.
+- Gates: `make test-changed`, `make lint`, `make verify-examples`, `make test-imports`, `make check-file-sizes`,
+  `make check-changelog`, `make check-boundaries` all exit 0 (run unpiped).
+- Design doc left in `planned/` — the sprint-evaluator owns the move to `implemented/`.
+
 ## Mutation plan (recorded in the PR)
 
 Per design table: revert (a) → AC1 red; (b-nested) → AC1 red with invariant; (c) → AC2 red;
