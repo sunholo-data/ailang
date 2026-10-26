@@ -100,6 +100,18 @@ Arms:
 - Live read-only check on #852 with a scratch legacy watermark `2026-08-30T08:11:12Z`: the lost
   D50/D49 comment `IC_kwDOP3Mz2c8AAAABReRotQ` is returned with BOUNDARY + LEGACY warnings.
 
+### Evaluator round 1 (PASS 78/100) — defects fixed on the same branch
+
+- D1: raw `--since` restored to the pre-#981 behaviour byte for byte (exclusive, no ids), plus a
+  deprecation hint. The world fork calls it by absolute path with a hand-written watermark. Arm 1b.
+- D2: BOUNDARY warning prints `createdAt`, id and first body line. Gate 0 step 6 has one rule for
+  re-presented directives: found by content in the ledger/log → `--mark` without routing; not
+  found → route, then mark.
+- D3: `mkdir` lock with dead-holder breaking around `--mark`. Arm 9: concurrent marks and a stale lock.
+- D4: arm 10, three same-instant directives; kills the `([$mark])` mutant.
+- D5: the edit and delete semantics are documented in the script header and step 6. Arm 11.
+- Suite 33/33. All 7 mutants are killed (table in the PR).
+
 ## Rollout
 
 The loops run Gate 0 from the pinned clones (`~/.ailang-driver-pin/*`), refreshed from `origin/dev`, so
