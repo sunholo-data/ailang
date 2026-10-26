@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // DefaultValidatorURL is the default AILANG registry validator (Cloud Run service).
@@ -22,7 +23,7 @@ func registryValidatorURL() string {
 
 func registryAPIGet(path string) ([]byte, error) {
 	url := registryValidatorURL() + path
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := pkg.HTTPClient("querying the registry API", 15*time.Second)
 	resp, err := client.Get(url) //nolint:gosec // URL from trusted source
 	if err != nil {
 		return nil, fmt.Errorf("registry API unavailable: %w", err)

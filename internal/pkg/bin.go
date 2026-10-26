@@ -135,13 +135,8 @@ func EnsureLock(pkgDir, generator, ailangVersion string) (locked int, wrote bool
 }
 
 // DefaultBinDir is where shims go: ~/.ailang/bin, beside the package cache.
-func DefaultBinDir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".ailang", "bin"), nil
-}
+// It is pure; WriteShim and RemoveShim are the gated writers.
+func DefaultBinDir() (string, error) { return UserDir("bin") }
 
 // ShimPath is the file a bin installs to; Windows shims are .cmd files.
 func ShimPath(binDir, name string) string { return shimPath(runtime.GOOS, binDir, name) }
@@ -167,7 +162,13 @@ type Shim struct {
 // file execs the installing ailang binary with the package as program root;
 // everything it needs is in its own header, so `bin list`/`bin uninstall`
 // read the file rather than a registry.
+//
+// A shim is a command on the operator's PATH, wherever binDir is, so writing
+// one is home-write authority under confinement (#1720 row 17).
 func WriteShim(binDir, ailangBin, pkgDir string, manifest *PackageManifest, name string, spec BinSpec) (string, error) {
+	if err := Require(AuthHomeWrite, "installing package command shims", OperatorRemedy); err != nil {
+		return "", err
+	}
 	file, err := ResolveBinFile(pkgDir, manifest, name, spec)
 	if err != nil {
 		return "", err
@@ -312,6 +313,9 @@ func ListShims(binDir string) ([]Shim, error) {
 // RemoveShim deletes the shim for name, refusing to delete a file in binDir
 // that is not an ailang shim.
 func RemoveShim(binDir, name string) (*Shim, error) {
+	if err := Require(AuthHomeWrite, "removing a package command shim", OperatorRemedy); err != nil {
+		return nil, err
+	}
 	path := ShimPath(binDir, name)
 	s, err := ReadShim(path)
 	if errors.Is(err, os.ErrNotExist) {
