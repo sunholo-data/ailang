@@ -1,0 +1,54 @@
+{
+  "sprint_id": "M-SMT-PREFLIGHT-M0",
+  "plan_path": "design_docs/planned/m-smt-well-sorted-preflight-m0-sprint-plan.md",
+  "design_doc": "design_docs/planned/m-smt-well-sorted-preflight.md",
+  "github_issues": [1960, 1961],
+  "created": "2026-10-26",
+  "status": "in_progress",
+  "registry_reuse": [
+    {"milestone": "M0a", "package": null, "action": "none", "reason": "internal SMT encoder change"},
+    {"milestone": "M0b", "package": null, "action": "none", "reason": "internal SMT encoder change"}
+  ],
+  "velocity": {
+    "target_loc_per_day": 350,
+    "estimated_total_loc": 350,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M0a_TRUNCATING_INT_DIVMOD",
+      "description": "Encode Int / and % with Go truncating semantics on every emitter (div_Int, mod_Int, OpDiv/OpMod, BinOp / %, DictApp div)",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "parity (x % 2, ensures result >= 0) gives a counterexample with negative x",
+        "halfDown (x / 2, ensures result * 2 <= x) gives a counterexample with negative x",
+        "halfNonNeg and a bounded-parity true control still VERIFY",
+        "No emitter in internal/smt produces bare SMT div/mod for Int",
+        "Mutation: reverting the encoding makes the new tests fail"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M0b_PER_CALL_SITE_CONTRACT_CALLEE",
+      "description": "Contract-as-spec callees become an uninterpreted <f>__spec function with a requires-guarded, call-triggered ensures axiom, instead of one shared result constant",
+      "estimated_loc": 200,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "gap (total(a) - total(a + 1), ensures result == 0) gives a counterexample with a >= 0",
+        "A callee ensures that mentions its own parameter is instantiated with the call argument (atLeast VERIFIES)",
+        "f(a) - f(a) == 0 still VERIFIES (functional consistency)",
+        "Callee requires guards its ensures (no requires asserted as an axiom)",
+        "Counterexample model lists no junk lines for UF definitions",
+        "Mutation: reverting to a shared constant makes the new tests fail"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
