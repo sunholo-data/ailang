@@ -137,6 +137,8 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 			Cost:            completion.CostUSD,
 			Duration:        time.Duration(completion.DurationMS) * time.Millisecond,
 			ArtifactGCSPath: completion.ArtifactGCSPath,
+			// The transcript tail: an evaluator's verdict line is read from it.
+			Output: completion.Summary,
 		}
 		if completion.ErrorMsg != "" {
 			execResult.Error = completion.ErrorMsg
