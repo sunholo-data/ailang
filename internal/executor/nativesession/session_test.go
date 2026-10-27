@@ -55,7 +55,14 @@ func TestFindThroughProjectsSymlink(t *testing.T) {
 	if err := os.Symlink(projects, link); err != nil {
 		t.Skipf("symlink unavailable: %v", err)
 	}
-	if got := Find(link, "claude", "id", false); got != path {
-		t.Fatalf("symlink lookup = %q, want %q", got, path)
+	// The result stays under the caller's root, so it compares equal to paths the
+	// caller built (on macOS the resolved root is /private/var, not /var).
+	want := filepath.Join(link, "id.jsonl")
+	got := Find(link, "claude", "id", false)
+	if got != want {
+		t.Fatalf("symlink lookup = %q, want %q", got, want)
+	}
+	if data, err := os.ReadFile(got); err != nil || string(data) != "native" {
+		t.Fatalf("read through returned path: %q, %v", data, err)
 	}
 }

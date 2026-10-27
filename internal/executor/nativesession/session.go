@@ -18,12 +18,25 @@ func Find(root, provider, id string, newest bool) string {
 	if root == "" {
 		return ""
 	}
+	// Walk the resolved root (WalkDir does not follow a symlinked root) but hand
+	// back paths under the caller's root: on macOS /var -> /private/var, and a
+	// resolved prefix would not match the path the caller passed or expects.
+	walkRoot := root
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {
-		root = resolved
+		walkRoot = resolved
+	}
+	callerPath := func(p string) string {
+		if p == "" {
+			return ""
+		}
+		if rel, err := filepath.Rel(walkRoot, p); err == nil {
+			return filepath.Join(root, rel)
+		}
+		return p
 	}
 	var match, fallback string
 	var latest time.Time
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir(walkRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil
 		}
@@ -35,8 +48,11 @@ func Find(root, provider, id string, newest bool) string {
 			return nil
 		}
 		exact := id != "" && (provider == "claude" && name == id+".jsonl" || provider == "pi" && strings.HasSuffix(name, "_"+id+".jsonl") || provider == "codex" && strings.HasSuffix(name, "-"+id+".jsonl"))
-		if exact && match == "" {
+		if exact {
+			// An identity match always wins; stop instead of walking a whole
+			// local ~/.claude/projects tree.
 			match = path
+			return filepath.SkipAll
 		}
 		if newest && provider != "claude" {
 			if info, err := d.Info(); err == nil && (fallback == "" || info.ModTime().After(latest)) {
@@ -46,9 +62,9 @@ func Find(root, provider, id string, newest bool) string {
 		return nil
 	})
 	if match != "" {
-		return match
+		return callerPath(match)
 	}
-	return fallback
+	return callerPath(fallback)
 }
 
 // PiDir is task scoped; the same path is used for argv and artifact discovery.
