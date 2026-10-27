@@ -1,0 +1,45 @@
+{
+  "sprint_id": "M-CONTROLPLANE-ASSERT-PEEK",
+  "title": "Preserve unread controlplane digests during Gate-5 artifact assertion",
+  "design_doc": "design_docs/planned/sprint-plan-controlplane-assert-peek.md",
+  "status": "planned",
+  "ticket": "gate5:controlplane-assert-marks-read",
+  "registry_reuse": [
+    {
+      "milestone": "M1_ASSERT_PEEK",
+      "package": null,
+      "action": "none",
+      "reason": "Existing instruction and repository-file observation only; no package-like capability or registry search is applicable."
+    }
+  ],
+  "velocity": {
+    "estimated_total_loc": 40,
+    "estimated_days": 0.125,
+    "target_loc_per_day": 320
+  },
+  "milestones": [
+    {
+      "id": "M1_ASSERT_PEEK",
+      "title": "Use peek before the id, regenerate the mirror, and guard the instruction",
+      "files": [
+        ".claude/skills/mission-control/resources/gate-5-retro.md",
+        ".agents/skills/mission-control/resources/gate-5-retro.md",
+        "tools/launchd/test_agents_skills_sync.sh",
+        "changelogs/unreleased/2026-10-28-controlplane-assert-peek.md"
+      ],
+      "estimated_loc": 40,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Only rule 3(c) changes to prescribe ailang messages read --peek --json <id>, retain body verification, explain unread preservation for Daneel and explain why every flag precedes the id under Go flag parsing.",
+        "Regenerate the .agents mirror only with bash tools/launchd/sync-agents-skills.sh; no unrelated mirror or skill changes.",
+        "Add one observation arm to tools/launchd/test_agents_skills_sync.sh that reads only repository files, extracts clause (c), and requires its sole inline messages read command to equal ailang messages read --peek --json <id>. Missing clause or command and additional read commands fail. No store, HOME, external path, temporary write, network or socket access by the new arm.",
+        "Existing LAUNCHD_SUITES wiring in make/test.mk runs the guard through make test-launchd-drivers; no Makefile change or separate test script.",
+        "bash tools/launchd/sync-agents-skills.sh --check; bash tools/launchd/test_agents_skills_sync.sh; make check-changelog; bash scripts/check_context_docs.sh; bash -n tools/launchd/test_agents_skills_sync.sh return rc 0 on the corrected tree with inherited temporary writes confined inside the worktree.",
+        "make test-launchd-drivers executes the new arm through existing wiring; socket/network-dependent sandbox results are UNINFORMATIVE UNDER SANDBOX, requiring controller validation outside the sandbox. Gates that cannot respect worktree-only writes are recorded as not run, never passing.",
+        "Mutation 1 removes --peek from the rule's command; mutation 2 independently moves --peek after <id>. For each, regenerate the mirror and prove the new observation and focused suite fail nonzero while the sync check passes; restore canonical text without git writes, regenerate, and prove both checks green again.",
+        "Add changelogs/unreleased/2026-10-28-controlplane-assert-peek.md opening with ### Fixed and linking the plan; record command results and mutation diagnostics. No ailang messages calls, git write operations, writes outside the worktree, or language-core changes."
+      ],
+      "status": "pending"
+    }
+  ]
+}
