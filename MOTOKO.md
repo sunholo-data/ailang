@@ -1,10 +1,10 @@
 # motoko_agent on this machine — the map
 
-**One-line answer (2026-10-27):** the cloud image pins `835c738b` (§13, worktree `~/dev/mk-20261027`,
-branch `sunholo/main-dst-20261027`) — upstream `main` 97244396 + our commits. The rig shim still execs
-`/Users/voightkampff/dev/mk-20261019` (`sunholo/main-dst-20261019` @ `907dd78e`, §12) until a local
-ollama smoke passes on `835c738b`. 2026-10-15..10-19: `mk-20261015` / `sunholo/main-dst-20261015` @
-`965f2ec5` (§11), now the rollback. 2026-10-08..10-15: `mk-20261002` (§10). Before that (2026-09-28..10-07):
+**One-line answer (since 2026-10-27):** evals run `/Users/voightkampff/dev/mk-20261027`, branch
+`sunholo/main-dst-20261027` @ `835c738b` (§13) — upstream `main` 97244396 + our commits, the commit the
+cloud image pins. 2026-10-19..10-27: `mk-20261019` / `sunholo/main-dst-20261019` @ `907dd78e` (§12), now
+the rollback. 2026-10-15..10-19: `mk-20261015` / `sunholo/main-dst-20261015` @
+`965f2ec5` (§11). 2026-10-08..10-15: `mk-20261002` (§10). Before that (2026-09-28..10-07):
 `/Users/voightkampff/dev/mk-main`, branch `sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
 (`cloud` and `ollama_microrag` profiles, `motoko_ext_ailang_tools`, rig-lease forwarding).
 Its extensions are the in-repo `packages/` copies. The ABI 2.2 fork (`sunholo/eval-canonical`)
@@ -290,7 +290,7 @@ and a local ollama or OpenRouter run.
 `MOTOKO_COMMIT` to `965f2ec5`. Results banked before 2026-10-19 ran `965f2ec5` or earlier; do not pool
 them with later motoko rows as one build.
 
-## 13. Cloud image on `sunholo/main-dst-20261027` (`835c738b`) since 2026-10-27; rig shim pending
+## 13. Canonical since 2026-10-27: `sunholo/main-dst-20261027` (rig and cloud on `835c738b`)
 
 Worktree `~/dev/mk-20261027`: §12's commits rebased onto upstream `main` `97244396` (2026-10-25),
 31 upstream commits newer than `a94204aa`. Most are ADR 034 Phases 1–3 (DST world/fault catalogue,
@@ -314,9 +314,15 @@ OK incl. the newline link, each new check mutation-tested); `tsc` clean; TUI jes
 to pristine upstream `main` (20 suites / 1 test, environmental); `ailang_only` resolves through
 motoko's resolver and passes every `checkLaneProfile` property; eval smoke via a scratch shim, Sol 6.1
 on the ChatGPT subscription, fizzbuzz + json_parse pass (sessions in `mk-20261027/.motoko/logfile/`).
-**Not yet verified:** a local ollama run (the rig lock was orphaned on 2026-10-27 — `rig.lock.d` with
-no `holder` file — so it waits), and a cloud run on the rebuilt image.
+Local ollama smoke 2026-10-27 12:39 (`motoko-local-qwen3-8-27b-microrag`, fizzbuzz) passes in 6 turns,
+230 s, with 272 reasoning and 421 thinking deltas journalled during the calls. The rig shim was switched to
+`mk-20261027` at 12:43 (atomic `mv`). **Not yet verified:** a cloud run on the rebuilt image.
 
-**Rig switch, when the local smoke passes:** repoint `~/go/bin/motoko`'s exec line to
-`~/dev/mk-20261027` (atomic `mv`). **Rollback (cloud):** `MOTOKO_COMMIT` back to `907dd78e`.
+The rig lock was orphaned 09:18–12:38 that day (`rig.lock.d` holding only a stale `children` file, no
+`holder`): `holderAlive` treats a missing holder as alive, so nothing could take it until the 6 h
+staleness window, and the rotation yielded every slot. Cleared by hand; cause not found.
+
+**Rollback (rig):** repoint `~/go/bin/motoko`'s exec line to `~/dev/mk-20261019`. Results banked before
+2026-10-27 12:43 ran `907dd78e` or earlier; do not pool them with later motoko rows as one build.
+**Rollback (cloud):** `MOTOKO_COMMIT` back to `907dd78e`.
 
