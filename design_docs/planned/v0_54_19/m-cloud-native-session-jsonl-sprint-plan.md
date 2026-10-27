@@ -78,9 +78,9 @@ Every milestone has action `none` in registry_reuse. Search results for session 
 **Acceptance:**
 
 - [ ] make test-changed, make check-file-sizes, make check-changelog and make lint pass; make check-boundaries verifies touched imports.
-- [ ] Add changelogs/unreleased/2026-10-27-cloud-native-session-jsonl.md opening with a ### heading.
-- [ ] Plan documents post-merge canaries for pi, codex, claude and motoko plus pi-go/codex-go routing verification, with task IDs, artifact byte counts and log evidence recorded when executed.
-- [ ] No live deployment or canary is claimed by offline tests; blocked cloud access is recorded as pending operational validation.
+- [x] Add changelogs/unreleased/2026-10-27-cloud-native-session-jsonl.md opening with a ### heading.
+- [x] Plan documents post-merge canaries for pi, codex, claude and motoko plus pi-go/codex-go routing verification, with task IDs, artifact byte counts and log evidence recorded when executed.
+- [x] No live deployment or canary is claimed by offline tests; blocked cloud access is recorded as pending operational validation.
 
 ## Day-by-day execution
 
@@ -127,6 +127,8 @@ For each task inspect `tasks/{taskID}/session.jsonl` and `metrics.json` in the a
 
 - PASS: focused native-session fixtures across `cmd/ailang`, `internal/executor/pi`, `internal/executor/codex`, `internal/executor/claude`, and `internal/executor/nativesession`.
 - PASS: `make check-file-sizes`, `make check-changelog`, `make check-boundaries`, formatting and `git diff --check`.
-- `make test-changed TEST_CHANGED_BASE=b7b7093e4abcbfce6fa8b0f7e58d8294978e0a4d` was run; see final checkpoint for broad-gate results. No full `make test` was run.
+- `make test-changed TEST_CHANGED_BASE=b7b7093e4abcbfce6fa8b0f7e58d8294978e0a4d` failed in unchanged process-policy fixtures and Codex process-group fixtures. `TestRunPolicy_DeadlineStopsExecutionWithoutProtocolGrace` requires the absent `ps` executable; `TestRunPolicy_TimeoutKillsDescendants` and `TestRunPolicy_SupervisorDeathStopsWorker` report surviving subprocesses. The two Codex failures were independently reproduced on baseline. Claude, pi and shared lookup packages passed their full changed-package runs. No full `make test` was run.
 - `make test-core` is not green: `TestRuntimeNestedStopUsesRemainingDeadline` and `TestProcessExec_TimeoutKillsGrandchildren` fail identically on the unchanged baseline. The pipeline test process was killed (`signal: killed`) during resource-intensive verification; pipeline verification remains for CI.
 - Lint remains unverified because `golangci-lint` is absent. Independent sprint evaluation is the coordinator's next stage; no self-evaluation score or merge approval is asserted.
+
+Final checkpoint: implementation and fixture milestones M1–M4 pass. M5 documentation, formatting, file-size, changelog and boundary work is complete, but its all-green test/lint acceptance remains unchecked for the explicit environment/baseline failures above. The sprint record preserves `M5.passes=false`; implementation completion does not assert gate approval. All changes are committed for coordinator evaluation, and no deployment or canary was attempted.

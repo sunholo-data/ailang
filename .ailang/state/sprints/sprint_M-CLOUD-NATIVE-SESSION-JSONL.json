@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-CLOUD-NATIVE-SESSION-JSONL",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-27T10:15:05.492342+00:00",
   "design_doc": "design_docs/planned/v0_54_19/m-cloud-native-session-jsonl.md",
   "sprint_plan": "design_docs/planned/v0_54_19/m-cloud-native-session-jsonl-sprint-plan.md",
@@ -126,12 +126,12 @@
         "Plan documents post-merge canaries for pi, codex, claude and motoko plus pi-go/codex-go routing verification, with task IDs, artifact byte counts and log evidence recorded when executed.",
         "No live deployment or canary is claimed by offline tests; blocked cloud access is recorded as pending operational validation."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": false,
+      "started": "2026-10-27T11:17:27.644743+00:00",
+      "completed": "2026-10-27T11:17:27.644743+00:00",
+      "notes": "Implementation/docs work completed; all-green verification acceptance is NOT met. PASS: final native-session tests in all five touched packages, gofmt, diff check, file sizes, changelog and boundaries. make test-changed fails: missing ps in TestRunPolicy_DeadlineStopsExecutionWithoutProtocolGrace, surviving descendants in TestRunPolicy_TimeoutKillsDescendants and TestRunPolicy_SupervisorDeathStopsWorker, plus two baseline-reproduced Codex cancellation tests. make test-core fails two baseline-reproduced effects cleanup tests; pipeline process was killed. make lint cannot run: golangci-lint absent. No tools installed. No full make test, deployment, canaries or independent self-evaluation claimed. Cloud sync reports skipped:no-task-id; actual branch coordinator/task-53b8873a. Operational table and evaluator handoff remain in sprint plan."
     }
   ],
-  "last_session": "2026-10-27T11:02:37.385854+00:00",
-  "last_checkpoint": "M4: provider artifact landing and metrics fixture matrix passes"
+  "last_session": "2026-10-27T11:17:27.644743+00:00",
+  "last_checkpoint": "Implementation delivered; M1\u2013M4 pass, M5 verification acceptance false with baseline/environment exceptions documented; ready for independent coordinator evaluation"
 }
