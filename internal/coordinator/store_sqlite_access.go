@@ -55,33 +55,44 @@ func (s *SQLiteStore) CompareAndSwapAccessApproval(ctx context.Context, id, befo
 	return n == 1, err
 }
 
-// ListAccessApprovalContexts scopes and bounds in SQL. The effective decision
-// incorporates expiry for accurate pending/history counts before page records
-// are durably reconciled. No unbounded history is loaded into the CLI process.
-func (s *SQLiteStore) ListAccessApprovalContexts(ctx context.Context, owner, worker, status string, now int64, limit, offset int) ([]string, int, error) {
-	effective := `(CASE WHEN json_extract(context_json,'$.decision')='pending' AND json_extract(context_json,'$.expires_at')<=? THEN 'expired'
+// The effective decision incorporates expiry for accurate pending/history
+// counts before page records are durably reconciled. Every list query is a
+// compile-time constant; callers choose one and supply only bound values.
+const (
+	accessScope     = `type=? AND json_valid(context_json) AND json_extract(context_json,'$.owner')=? AND (?='' OR json_extract(context_json,'$.worker')=?)`
+	accessEffective = `(CASE WHEN json_extract(context_json,'$.decision')='pending' AND json_extract(context_json,'$.expires_at')<=? THEN 'expired'
  WHEN json_extract(context_json,'$.decision')='approved' AND json_extract(context_json,'$.execution.state')='unclaimed' AND json_extract(context_json,'$.claim_until')<=? THEN 'expired'
  ELSE json_extract(context_json,'$.decision') END)`
-	predicate := `type=? AND json_valid(context_json) AND json_extract(context_json,'$.owner')=? AND (?='' OR json_extract(context_json,'$.worker')=?)`
+	accessPendingScope = accessScope + " AND " + accessEffective + "='pending'"
+	accessHistoryScope = accessScope + " AND " + accessEffective + "<>'pending'"
+
+	accessCountAll     = "SELECT COUNT(*) FROM approval_requests WHERE " + accessScope
+	accessCountPending = "SELECT COUNT(*) FROM approval_requests WHERE " + accessPendingScope
+	accessCountHistory = "SELECT COUNT(*) FROM approval_requests WHERE " + accessHistoryScope
+	accessPageAll      = "SELECT context_json FROM approval_requests WHERE " + accessScope + " ORDER BY created_at DESC,id LIMIT ? OFFSET ?"
+	accessPagePending  = "SELECT context_json FROM approval_requests WHERE " + accessPendingScope + " ORDER BY created_at ASC,id LIMIT ? OFFSET ?"
+	accessPageHistory  = "SELECT context_json FROM approval_requests WHERE " + accessHistoryScope + " ORDER BY created_at DESC,id LIMIT ? OFFSET ?"
+)
+
+// ListAccessApprovalContexts scopes and bounds in SQL. No unbounded history is
+// loaded into the CLI process.
+func (s *SQLiteStore) ListAccessApprovalContexts(ctx context.Context, owner, worker, status string, now int64, limit, offset int) ([]string, int, error) {
 	args := []any{DurableAccessApprovalType, owner, worker, worker}
-	if status == "pending" {
-		predicate += " AND " + effective + "='pending'"
+	count, page := accessCountAll, accessPageAll
+	switch status {
+	case "pending":
+		count, page = accessCountPending, accessPagePending
 		args = append(args, now, now)
-	}
-	if status == "history" {
-		predicate += " AND " + effective + "<>'pending'"
+	case "history":
+		count, page = accessCountHistory, accessPageHistory
 		args = append(args, now, now)
 	}
 	var total int
-	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM approval_requests WHERE "+predicate, args...).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, count, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	args = append(args, limit, offset)
-	order := "created_at DESC,id"
-	if status == "pending" {
-		order = "created_at ASC,id"
-	}
-	rows, err := s.db.QueryContext(ctx, "SELECT context_json FROM approval_requests WHERE "+predicate+" ORDER BY "+order+" LIMIT ? OFFSET ?", args...)
+	rows, err := s.db.QueryContext(ctx, page, args...)
 	if err != nil {
 		return nil, 0, err
 	}
