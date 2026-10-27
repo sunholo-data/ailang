@@ -18,3 +18,10 @@
   a package stops producing a test binary, so the scan cannot shrink silently.
   Mutation-checked: an unwrapped product in `mathx.expmulti` is still caught,
   same output as before.
+- **`checks` is a required status check on dev; `build` runs alongside again.**
+  With `checks` required, `build` no longer has to wait on it to gate merges, so
+  it goes back to `needs: [changes]` and runs in parallel with everything else.
+- **z3 comes from a pinned GitHub release, not apt.** `apt-get update && apt-get
+  install z3` took 161-248s on 3 of the 12 dev runs before this change (6-19s on
+  the rest). `tools/ci/install_z3.sh` downloads z3 4.13.3, the same version Ubuntu
+  ships, checks it against a pinned sha256, and refuses any other version on PATH.
