@@ -1,0 +1,30 @@
+{
+  "desktop": {
+    "theme": "light",
+    "width": 1440,
+    "scroll": 1425,
+    "plots": 9,
+    "heading": "Models, measured."
+  },
+  "mobile": {
+    "width": 390,
+    "scroll": 390,
+    "plots": 9
+  },
+  "argon": "Gemini 4 Argon\nDirect API\n\tUndefeated\nNo losses to calibrate ELO\n\t100.0%\n49 / 49 runs\n\t—\nNot measured\n\t$0.068\nBilling provenance unknown\n\t43 ms\nRecorded execution duration\n49 timing samples\n\t2026-10-13\nv0.54.8",
+  "astra": "GPT 6 Astra\nDirect API\nProvisional · undefeated\n3 runs · 0/23 Core tasks\n\tUndefeated\nNo losses to calibrate ELO\n\t100.0%\n3 / 3 runs\n\t100.0%\n15 / 15 runs\n\t$0.481\nBilling provenance unknown\n\t250 ms\nRecorded execution duration\n3 timing samples\n\t2026-09-22\nv0.41.0",
+  "checks": [
+    "rendered plots",
+    "Argon 49/49; missing Python",
+    "Astra provisional 0/23 Core",
+    "48/49 first pass detail",
+    "cost sort",
+    "empty search",
+    "agent 2/2",
+    "Core filter",
+    "history inspector",
+    "light/dark desktop/mobile",
+    "real static fallback"
+  ],
+  "runtimeErrors": []
+}

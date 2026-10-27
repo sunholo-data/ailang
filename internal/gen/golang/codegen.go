@@ -147,6 +147,7 @@ type Generator struct {
 	// When a variable is bound from an ADT field extraction (e.g., s := _adt.Foo.Bar),
 	// the variable has a concrete type (bool, int64, etc.) not interface{}.
 	typedLocalVars map[string]string
+	lexicalVarRefs map[*core.Var]bool // lexical identity takes precedence over builtin names
 
 	// currentFuncDeclaredReturn stores the declared return type name for the current function
 	// M-CROSS-MODULE: Used to resolve record literal types when CoreTypeInfo has structural types
@@ -491,7 +492,8 @@ func (g *Generator) Generate(prog *core.Program) ([]byte, error) {
 	g.buf.Reset()
 	g.errors = nil
 	g.indent = 0
-	g.prog = prog                // Store for DeclMeta access
+	g.prog = prog // Store for DeclMeta access
+	g.lexicalVarRefs = localReferences(prog)
 	g.needsMathImport = false    // Reset for each generation
 	g.needsStrconvImport = false // Reset for each generation
 	g.needsStringsImport = false // Reset for each generation
@@ -563,6 +565,7 @@ func (g *Generator) writePackageHeader() {
 		g.writef(")\n\n")
 		g.writef("type Tuple []interface{}\n\n")
 		g.writef("type ArrayVal []interface{}\n\n")
+		g.writef("type FloatArrayVal []float64\n\n")
 		g.writeRuntimeHelpers()
 	} else if g.needsMathImport || g.needsStrconvImport || g.needsStringsImport || g.needsSortImport {
 		// M-CODEGEN-SUSTAINABILITY: Even when skipping runtime helpers,
@@ -676,6 +679,8 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 	g.writef("type Tuple []interface{}\n\n")
 	g.writef("// ArrayVal preserves array identity for canonical Show output.\n")
 	g.writef("type ArrayVal []interface{}\n\n")
+	g.writef("// FloatArrayVal preserves packed float storage and array identity.\n")
+	g.writef("type FloatArrayVal []float64\n\n")
 
 	// Write the pre-generated helpers (already generated above for import detection)
 	g.buf.WriteString(helpersCode)
@@ -728,6 +733,8 @@ func (g *Generator) formatOutput() ([]byte, error) {
 // M-CODEGEN-UNIFIED-SLICE: Checks all type registries (primitives, ADTs, records).
 func (g *Generator) getSliceConversion(goType string) string {
 	switch goType {
+	case "FloatArrayVal":
+		return "ConvertToFloatArray"
 	case "[]int64":
 		return "ConvertToInt64Slice"
 	case "[]float64":

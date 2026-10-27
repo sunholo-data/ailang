@@ -359,6 +359,7 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("func UnsafeGet(arr interface{}, idx interface{}) interface{} {\n")
 	g.indent++
 	g.writef("i := toInt64(idx)\n")
+	g.writef("if slice, ok := arr.(FloatArrayVal); ok { return slice[i] }\n")
 	g.writef("if slice, ok := arr.(ArrayVal); ok {\n")
 	g.indent++
 	g.writef("return slice[i]\n")
@@ -378,6 +379,23 @@ func (g *Generator) writeArrayRuntimeFunctions() {
 	g.writef("func Set(arr interface{}, idx interface{}, val interface{}) interface{} {\n")
 	g.indent++
 	g.writef("i := toInt64(idx)\n")
+	g.writef("if slice, ok := arr.(FloatArrayVal); ok {\n")
+	g.indent++
+	g.writef("if i < 0 || i >= int64(len(slice)) { panic(fmt.Sprintf(\"array index out of bounds: %%d (length %%d)\", i, len(slice))) }\n")
+	g.writef("if f, ok := val.(float64); ok {\n")
+	g.indent++
+	g.writef("result := make(FloatArrayVal, len(slice))\n")
+	g.writef("copy(result, slice)\n")
+	g.writef("result[i] = f\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("result := make(ArrayVal, len(slice))\n")
+	g.writef("for j, x := range slice { result[j] = x }\n")
+	g.writef("result[i] = val\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n")
 	g.writef("if slice, ok := arr.(ArrayVal); ok {\n")
 	g.indent++
 	g.writef("if i < 0 || i >= int64(len(slice)) {\n")

@@ -94,8 +94,8 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-MCPHTTP-TYPED-HOST-ERRORS: a host can return a typed JSON-RPC error from Invoke (#1602)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-mcphttp-typed-host-errors.md)
 - [Sprint Plan: M-PKG-REGISTRY-CONFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-pkg-registry-confinement-sprint-plan.md)
 - [M-PKG-REGISTRY-CONFINEMENT: a policy-confined agent cannot fetch from the registry, write the registry cache, or have its planted copy trusted — and hosts get a read-only package root](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-pkg-registry-confinement.md)
-- [Sprint Plan: M-SKILL-FEATURE-DISCOVERABILITY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-skill-feature-discoverability-gate-sprint-plan.md)
-- [M-SKILL-FEATURE-DISCOVERABILITY-GATE: a mandatory prompt-load step before agents write .ail](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-skill-feature-discoverability-gate.md)
+- [Sprint Plan: M-SKILL-FEATURE-DISCOVERABILITY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-skill-feature-discoverability-gate-sprint-plan.md)
+- [M-SKILL-FEATURE-DISCOVERABILITY-GATE: a mandatory prompt-load step before agents write .ail](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-skill-feature-discoverability-gate.md)
 - [Sprint Plan: M-SPRINT-LOC-NULL-SENTINEL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/m-sprint-loc-null-sentinel-sprint-plan.md)
 - [Sprint Plan: Restricted worker compile-cache isolation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_52_6/run-policy-worker-cache-dir-sprint-plan.md)
 

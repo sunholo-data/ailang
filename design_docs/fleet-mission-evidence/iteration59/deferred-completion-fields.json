@@ -1,0 +1,31 @@
+{
+  "artifact_type": "deferred_fields_template_not_json_patch",
+  "apply_policy": "Do not apply the conditional patch by itself. Only after fresh independent acceptance and terminal full done-gate, controller must capture actual UTC recovery completion and supply both time fields in the same final update. Root test prevents overwriting concurrent metadata. No gate result, verdict or timestamp is supplied by this executor.",
+  "completion_utc": {
+    "state": "DEFERRED_TO_CONTROLLER_AFTER_INDEPENDENT_ACCEPTANCE",
+    "json_pointers": [
+      "/features/0/completed",
+      "/last_checkpoint"
+    ],
+    "required_value": "One identical actual ISO-8601 UTC recovery-completion timestamp captured after mandatory terminal done-gate and independent acceptance; never the historical merge time."
+  },
+  "full_launchd_suite": {
+    "state": "DEFERRED_MANDATORY_TERMINAL_RESULT",
+    "command": "make test-launchd-drivers",
+    "terminal_exit_code": null,
+    "complete_log": "/tmp/fleet-i59-recovery-full-launchd.log",
+    "observation_time_utc": null,
+    "banked_evidence_path": null
+  },
+  "independent_acceptance": {
+    "state": "DEFERRED_FRESH_INDEPENDENT_REVIEW",
+    "proposed_evidence_path": "design_docs/fleet-mission-evidence/iteration59/recovery-evaluation.md",
+    "verdict": null,
+    "reviewer_actual_model": null,
+    "reviewer_actual_provider": null,
+    "reviewed_commit_and_blobs": null,
+    "review_time_utc": null,
+    "usage": "not reported until reviewer supplies it"
+  },
+  "contract_preservation_validation": "In-memory simulation only: original IDs, created, all estimates, dependencies, registry_reuse, all 12 acceptance strings, both plan paths and other untouched fields equal original parsed sprint. No repository file changed."
+}

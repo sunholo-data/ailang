@@ -118,6 +118,12 @@ jobs:
     - name: Set up uv
       uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
 
+    # Prepare the eval runner's pin before tests poison network access.
+    # Keep this request in sync with PinnedPythonVersion in python.go.
+    - name: Prefetch Python for offline eval-harness tests
+      timeout-minutes: 5
+      run: uv python install 3.12
+
     - name: Install dependencies
       run: make deps
 
@@ -190,6 +196,12 @@ jobs:
     # The old 300s sat INSIDE the measured noise band (172.5 x 1.80 = 310.5s > 300s).
     # Still catches genuine hangs (M-DX11's intent); DRIFT is caught by the headroom
     # instrument (tools/ci/headroom), not by this value.
+    # The same pass writes the coverage profile (the gate below reads it, so the
+    # suite runs once). -covermode=set: it gives the same statement-coverage % as
+    # the atomic mode the old second run used, and is the cheapest mode. That run
+    # made internal/format 2-7x slower on these runners (56.6s -> 401s, run
+    # 40345773507), past this budget at worst; atomic was NOT slower on arm64 (59s
+    # vs 68s), so watch internal/format in the headroom report below.
     - name: Run tests with timeout (M-DX11)
       env:
         HTTP_PROXY: http://127.0.0.1:9
@@ -203,7 +215,8 @@ jobs:
         [[ "$GOPROXY" == "off" ]] || { echo "::error::GOPROXY is not disabled"; exit 1; }
         go_rc=0
         hr_rc=0
-        go test -timeout 416s ./... > go_test_headroom.log 2>&1 || go_rc=$?
+        mkdir -p coverage
+        go test -timeout 416s ./... -coverprofile=coverage/raw.out -covermode=set > go_test_headroom.log 2>&1 || go_rc=$?
         cat go_test_headroom.log                      # panic and FAIL/ok lines stay visible
         "$RUNNER_TEMP/headroom" go_test_headroom.log 416 || hr_rc=$?
         if [ $go_rc -ne 0 ]; then exit $go_rc; fi     # a failing suite still fails the job
@@ -378,8 +391,13 @@ jobs:
     - name: Check the CLI reference matches the dispatch table
       run: make check-cli-docs
 
+    # Reads the profile the test step above wrote — `make test-coverage-gate`
+    # re-ran the whole suite here (~8.5 min/run, the job's largest step).
+    - name: Derive coverage profile from the test pass (M-P2)
+      run: make coverage-from-profile
+
     - name: Check coverage gate (M-P2)
-      run: make test-coverage-gate
+      run: make check-coverage-threshold
 
     - name: Check golden drift protection (M-P2)
       run: make check-golden-drift
@@ -556,6 +574,12 @@ jobs:
 
     - name: Set up uv (provides Python for eval-harness Python runner tests)
       uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+    # Prepare the eval runner's pin before tests poison network access.
+    # Keep this request in sync with PinnedPythonVersion in python.go.
+    - name: Prefetch Python for offline eval-harness tests
+      timeout-minutes: 5
+      run: uv python install 3.12
 
     # Same ordering constraint as the Linux leg: prefetch BEFORE the binary is
     # installed, because `go mod download all` touches the tracked go.sum and the

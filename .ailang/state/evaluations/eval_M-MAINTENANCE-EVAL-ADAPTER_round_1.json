@@ -1,0 +1,352 @@
+{
+  "sprint_id": "M-MAINTENANCE-EVAL-ADAPTER",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-23T16:28:55.933132+00:00",
+  "design_doc": "design_docs/planned/m-maintenance-eval-taskpack.md",
+  "sprint_plan": "design_docs/planned/m-maintenance-eval-adapter-sprint-plan.md",
+  "reviewed_core_head": "7530824e29b2cb385c2e8668c4afc75bad3e5417",
+  "reviewed_package_head": "aca696c4b34f9859a08a2887464d47d3499cbddd",
+  "total_score": 81,
+  "pass_threshold": 70,
+  "result": "fail",
+  "disposition": "blocked_pending_scoped_design_approval_and_qualification",
+  "scope": "Full approved adapter sprint. The implemented no-model instrument subset is separately reviewable; this is not a complete protected benchmark or a model/language result.",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 18,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 8
+  },
+  "score_calculation": {
+    "criteria_met": 21,
+    "criteria_total": 36,
+    "completed_milestones": 7,
+    "total_milestones": 12,
+    "acceptance_points_unrounded": 17.5,
+    "rounding": "Acceptance points rounded to nearest whole point. The numerical score cannot override mandatory protected-backend acceptance."
+  },
+  "hard_fails": [
+    {
+      "condition": "protected_agent_backend_not_qualified",
+      "details": "The actual macOS outer-pi to inner-bash SDK launch fails with exit71: sandbox-exec: sandbox_apply: Operation not permitted. M8 and full-chain M11 remain explicitly false. A passing negative test proves CLOSED admission, not usability."
+    },
+    {
+      "condition": "untrusted_candidate_lifetime_and_output_bounds_unqualified",
+      "details": "M3/M5 remain false: escaped setsid/chdir descendants are not proven reaped across separate grading roots, and subprocess output capture lacks a byte bound. The follow-up broker design names these admission requirements."
+    }
+  ],
+  "automated_checks": {
+    "gate_source": "local_focused",
+    "tests_pass": true,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "architecture_boundaries_ok": true,
+    "pi_asset_drift_ok": true,
+    "full_ci_status": "not assessed in this report; draft PR CI is separate",
+    "tests_evidence": [
+      "/private/tmp/maintenance-adapter-final-go.log",
+      "/private/tmp/maintenance-adapter-final-instrument.log"
+    ],
+    "lint_evidence": "/private/tmp/maintenance-adapter-final-lint.log",
+    "scope_detail": "make test-changed covers four touched Go packages plus test-core. maintenance-adapter-check covers native 8/24 controls, typed receipt export/native analysis, actual pi SDK guards and OS primitives; 14 Node tests passed, 0 skipped. Full make test was not run, per sprint instructions.",
+    "package_validation": "packages/maintenance-bench/validation/adapter-2026-10-23/summary.json",
+    "native_package_tests": 195,
+    "native_property_cases": 500,
+    "candidate_controls": 25,
+    "smt": {
+      "verified": 3,
+      "total": 20,
+      "unsupported_encoding": 17,
+      "uncontracted_exports": 75,
+      "strict_gate": "PUB011 only; strict quality is not reported as a pass"
+    },
+    "coverage_pct": "not measured"
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1_EXECUTION_MANIFEST",
+      "criterion": "Validate the finite8/24 pilot and general bounded schedule, unique arms/IDs, stage requirements/oracles, native counterpart responsibilities, exact hashes and explicit model/harness/settings identities.",
+      "met": true,
+      "evidence": "Passed strict finite manifest/hash/native-arm checks, exact JSON field names, composite oracle pipeline binding and executable/version evidence validation."
+    },
+    {
+      "feature_id": "M1_EXECUTION_MANIFEST",
+      "criterion": "Reject traversal/absolute carried-artifact paths, symlinks/device files, duplicate JSON keys and conflicting ordinary-suite selection. Unmatched or altered stage contracts cannot silently compare.",
+      "met": true,
+      "evidence": "Passed strict finite manifest/hash/native-arm checks, exact JSON field names, composite oracle pipeline binding and executable/version evidence validation."
+    },
+    {
+      "feature_id": "M1_EXECUTION_MANIFEST",
+      "criterion": "Pin package source a4163559a2e20dddc1a1bb0869a06e42372994a1 and ledger v2. Registry0.1 lacks these APIs; never substitute it for unpublished0.2.",
+      "met": true,
+      "evidence": "Passed strict finite manifest/hash/native-arm checks, exact JSON field names, composite oracle pipeline binding and executable/version evidence validation."
+    },
+    {
+      "feature_id": "M2_CLI_MODE",
+      "criterion": "--agent is required. --dry-run prints the complete resolved finite schedule, source/analysis identities and budget/isolation availability without creating executors, requesting credentials or calling a model/canary.",
+      "met": true,
+      "evidence": "Passed actual zero-dispatch CLI tests and shipped 8/24 dry run before telemetry, credentials, generation-eval discovery, rig or executor setup."
+    },
+    {
+      "feature_id": "M2_CLI_MODE",
+      "criterion": "Reject ordinary benchmark/tier/lang/trial/condition/queue/browser/cohort flags when they would override the manifest; document the exact allowed common flags. Existing invocations preserve behavior.",
+      "met": true,
+      "evidence": "Passed actual zero-dispatch CLI tests and shipped 8/24 dry run before telemetry, credentials, generation-eval discovery, rig or executor setup."
+    },
+    {
+      "feature_id": "M2_CLI_MODE",
+      "criterion": "Keep eval_suite.go below800 lines by extracting one cohesive existing helper, not shaving comments. CLI help describes only implemented behavior and an executable dry-run example.",
+      "met": true,
+      "evidence": "Passed actual zero-dispatch CLI tests and shipped 8/24 dry run before telemetry, credentials, generation-eval discovery, rig or executor setup."
+    },
+    {
+      "feature_id": "M3_CHECKPOINTS",
+      "criterion": "A broken S1 is the exact source basis for S2; no reference/gold restoration. Missing required app files remain a model artifact failure, not a silently healed starter.",
+      "met": false,
+      "evidence": "Immutable owned-source/deletion/path/tamper/race controls pass; controller reads now use os.Root/SameFile. Escaped setsid+cwd descendants are not proven reaped; no full live lifecycle qualification."
+    },
+    {
+      "feature_id": "M3_CHECKPOINTS",
+      "criterion": "Carry only declared regular files; explicit tests cover symlink traversal, rename/delete, excluded logs/caches and create-only immutable output. Record actual copied manifests/hashes.",
+      "met": false,
+      "evidence": "Immutable owned-source/deletion/path/tamper/race controls pass; controller reads now use os.Root/SameFile. Escaped setsid+cwd descendants are not proven reaped; no full live lifecycle qualification."
+    },
+    {
+      "feature_id": "M3_CHECKPOINTS",
+      "criterion": "Reap child processes before grading/checkpoint finalization and on all error exits; preserve result artifacts and spent work while isolating build/runtime outputs per source identity.",
+      "met": false,
+      "evidence": "Immutable owned-source/deletion/path/tamper/race controls pass; controller reads now use os.Root/SameFile. Escaped setsid+cwd descendants are not proven reaped; no full live lifecycle qualification."
+    },
+    {
+      "feature_id": "M4_FINITE_STAGES",
+      "criterion": "Scripted execution accounts for every scheduled stage after failure, timeout, cancellation, invalid setup, budget stop and never-started dispatch. Stage schedule is fixed and failed spend never disappears.",
+      "met": true,
+      "evidence": "Passed fixed 24-state failure matrix, fresh-session/source retention, model and observed-harness drift guards, unsuccessful executor handling and explicit no-model control gate."
+    },
+    {
+      "feature_id": "M4_FINITE_STAGES",
+      "criterion": "Only the current requirement/public diagnostics reach the model. Controller oracle verdicts are withheld during the primary trajectory; future-stage source is not seeded early.",
+      "met": true,
+      "evidence": "Passed fixed 24-state failure matrix, fresh-session/source retention, model and observed-harness drift guards, unsuccessful executor handling and explicit no-model control gate."
+    },
+    {
+      "feature_id": "M4_FINITE_STAGES",
+      "criterion": "Write native-ledger-compatible rows with prior/candidate/check/oracle/attempt identities; blocked continuation keeps the last actual owned checkpoint. Do not add a generic workflow engine.",
+      "met": true,
+      "evidence": "Passed fixed 24-state failure matrix, fresh-session/source retention, model and observed-harness drift guards, unsuccessful executor handling and explicit no-model control gate."
+    },
+    {
+      "feature_id": "M5_ORACLE_BRIDGE",
+      "criterion": "Reference candidates pass and compiled semantic mutants fail on specific obligations. Deliberately uncompilable model source is an artifact/check failure; missing trusted tools/fixtures are invalid measurement setup, not model errors.",
+      "met": false,
+      "evidence": "25 candidate controls and four normal/four malicious protected native probes pass; full oracle/runtime hashes and neutral diagnostic attribution enforced. Escaped grading descendants and unbounded candidate output remain admission gaps."
+    },
+    {
+      "feature_id": "M5_ORACLE_BRIDGE",
+      "criterion": "Trusted check/oracle source hashes cannot be weakened by agent edits. Reject mismatched input/output/source hashes, skipped assertions, stale builds, malformed typed output and overwritten evidence.",
+      "met": false,
+      "evidence": "25 candidate controls and four normal/four malicious protected native probes pass; full oracle/runtime hashes and neutral diagnostic attribution enforced. Escaped grading descendants and unbounded candidate output remain admission gaps."
+    },
+    {
+      "feature_id": "M5_ORACLE_BRIDGE",
+      "criterion": "Grade in a clean runtime against all retained obligations. Candidate code cannot read or rewrite oracle expected values/controller data during execution; test that boundary rather than assuming the host oracle being outside the workspace is sufficient.",
+      "met": false,
+      "evidence": "25 candidate controls and four normal/four malicious protected native probes pass; full oracle/runtime hashes and neutral diagnostic attribution enforced. Escaped grading descendants and unbounded candidate output remain admission gaps."
+    },
+    {
+      "feature_id": "M6_SHARED_TASK_SEAM",
+      "criterion": "Task construction parity tests pin ordinary prompts/metadata/model/timeouts/pricing/env/tool behavior; no DEBUG_AGENT environment hack to preserve workspaces.",
+      "met": true,
+      "evidence": "Shared ordinary task controls; frozen registry/pricing/route digest and all language prompts preflighted. Unsupported protected execution refuses before inference."
+    },
+    {
+      "feature_id": "M6_SHARED_TASK_SEAM",
+      "criterion": "New stages use explicit isolated ambient-context/extensions requests and frozen prompt/profile/settings digests. Unsupported executor capabilities fail before model dispatch.",
+      "met": true,
+      "evidence": "Shared ordinary task controls; frozen registry/pricing/route digest and all language prompts preflighted. Unsupported protected execution refuses before inference."
+    },
+    {
+      "feature_id": "M6_SHARED_TASK_SEAM",
+      "criterion": "Do not grow agent_runner_multi.go(781) or motoko.go(770) past800 lines or change Motoko core. Register protected-mode support only on an actually qualified backend.",
+      "met": true,
+      "evidence": "Shared ordinary task controls; frozen registry/pricing/route digest and all language prompts preflighted. Unsupported protected execution refuses before inference."
+    },
+    {
+      "feature_id": "M7_NATIVE_READ_FENCE",
+      "criterion": "No-model tests cover real native read/write/edit/grep/find/ls surfaces, relative cwd != root, prefix confusion, symlink ancestors, unknown path shapes and protected developer files. Allowed native app work remains possible for both languages.",
+      "met": true,
+      "evidence": "Six actual pi SDK tests pass; native paths/search/write guards and strict tool set verified. Guard alone is explicitly not kernel/live-backend qualification."
+    },
+    {
+      "feature_id": "M7_NATIVE_READ_FENCE",
+      "criterion": "Only the declared canonical tool set and trusted extensions load; no ambient/global extension or context-file discovery. Protect policy/extension assets and controller/source-bank roots, including shared Git object stores and other trajectory workspaces.",
+      "met": true,
+      "evidence": "Six actual pi SDK tests pass; native paths/search/write guards and strict tool set verified. Guard alone is explicitly not kernel/live-backend qualification."
+    },
+    {
+      "feature_id": "M7_NATIVE_READ_FENCE",
+      "criterion": "First-backend selection is a proposal for this sprint, not a claim existing pi or Motoko is already qualified. Record effective tool/policy digest and refuse unmeasured boundaries.",
+      "met": true,
+      "evidence": "Six actual pi SDK tests pass; native paths/search/write guards and strict tool set verified. Guard alone is explicitly not kernel/live-backend qualification."
+    },
+    {
+      "feature_id": "M8_OS_CONTAINMENT",
+      "criterion": "An actual no-model process canary must fail to read protected oracle/reference/controller roots via cat, Python open, AILANG FS, symlink traversal and native tools; it must also refuse modifying developer/oracle evidence while ordinary app builds run.",
+      "met": false,
+      "evidence": "Blocked: actual macOS nested SDK launch exits 71 sandbox_apply Operation not permitted. Eight OS tests include an expected CLOSED admission assertion, not protected-backend success. All non-nil pi containment requests refuse before model resolution/probe/start."
+    },
+    {
+      "feature_id": "M8_OS_CONTAINMENT",
+      "criterion": "Tool subprocess network cannot fetch reference solutions; inference stays in the existing executor. Qualify exact platform/tool versions and policy, fail closed if sandbox initialization/support is absent, and never infer universal host/holdout protection from a few checks.",
+      "met": false,
+      "evidence": "Blocked: actual macOS nested SDK launch exits 71 sandbox_apply Operation not permitted. Eight OS tests include an expected CLOSED admission assertion, not protected-backend success. All non-nil pi containment requests refuse before model resolution/probe/start."
+    },
+    {
+      "feature_id": "M8_OS_CONTAINMENT",
+      "criterion": "Declare the protected-root threat boundary and require all known source/reference copies and Git stores in it. If existing primitives cannot meet it, keep live admission closed and raise a scoped extension design rather than launching weaker comparative trials. Ordinary executor paths remain unchanged.",
+      "met": false,
+      "evidence": "Blocked: actual macOS nested SDK launch exits 71 sandbox_apply Operation not permitted. Eight OS tests include an expected CLOSED admission assertion, not protected-backend success. All non-nil pi containment requests refuse before model resolution/probe/start."
+    },
+    {
+      "feature_id": "M9_USAGE_EVIDENCE",
+      "criterion": "Fixtures cover absent versus explicit zero, inclusive/exclusive input, combined reasoning, incomplete streams, retries, compaction and summary/leaf reconciliation; no second provider-log parser in Go adapter or AILANG package.",
+      "met": true,
+      "evidence": "Existing pi parser preserves presence/exact source decimals. Exported 24 explicitly synthetic leaves plus 24 unchecked summaries through native analysis; real provider coverage remains unavailable."
+    },
+    {
+      "feature_id": "M9_USAGE_EVIDENCE",
+      "criterion": "Aggregate Result integers alone do not establish reported cache/reasoning zero or per-request completeness. Untraceable calls/overlap keep affected economics unavailable; retain original reported totals as source evidence.",
+      "met": true,
+      "evidence": "Existing pi parser preserves presence/exact source decimals. Exported 24 explicitly synthetic leaves plus 24 unchecked summaries through native analysis; real provider coverage remains unavailable."
+    },
+    {
+      "feature_id": "M9_USAGE_EVIDENCE",
+      "criterion": "Preserve raw decimal cost text when available. Never round float CostUSD to six decimals to fabricate exact money; unsupported precision remains explicit under current0.2 rules. Do not relabel registry estimates/subscription equivalents as metered invoices.",
+      "met": true,
+      "evidence": "Existing pi parser preserves presence/exact source decimals. Exported 24 explicitly synthetic leaves plus 24 unchecked summaries through native analysis; real provider coverage remains unavailable."
+    },
+    {
+      "feature_id": "M10_NATIVE_ANALYSIS",
+      "criterion": "A clean source-path consumer uses merged0.2 code explicitly until registry publication is authorized. Verify actual compiler/source/lock/tool identities and store external provenance; reportId remains declared, not self-attesting.",
+      "met": true,
+      "evidence": "Native source consumer and observed compiler/source/input/output provenance passed. Independent control -22500 USD micros/-550 fresh input/-540 fresh+generated reproduced; no language results."
+    },
+    {
+      "feature_id": "M10_NATIVE_ANALYSIS",
+      "criterion": "Independent known fixture reproduces185-test foundation expectations:8/24 coverage, cost delta-22500micros, fresh-input diagnostic-550, fresh+generated headline-540; all are labelled instrument controls.",
+      "met": true,
+      "evidence": "Native source consumer and observed compiler/source/input/output provenance passed. Independent control -22500 USD micros/-550 fresh input/-540 fresh+generated reproduced; no language results."
+    },
+    {
+      "feature_id": "M10_NATIVE_ANALYSIS",
+      "criterion": "Unknown/missing usage and invalid outcomes produce unavailable economic claims while valid correctness remains visible. Emit reference-linked reproduction cards/draft investigation material without approving roadmap code or claiming a language win.",
+      "met": true,
+      "evidence": "Native source consumer and observed compiler/source/input/output provenance passed. Independent control -22500 USD micros/-550 fresh input/-540 fresh+generated reproduced; no language results."
+    },
+    {
+      "feature_id": "M11_END_TO_END",
+      "criterion": "Plant broken early source, public-green semantic regressions, altered oracle, changed stage/provider/prompt identity, dropped costly retry, missing receipt, stale build, timeout and cancellation; each has an independent expected classification.",
+      "met": false,
+      "evidence": "Actual native 8/24 scripted control, failures carried to S2, 24 synthetic leaves/unchecked parents and native analysis pass; full protected agent chain is not qualified because M3/M5/M8 gaps remain."
+    },
+    {
+      "feature_id": "M11_END_TO_END",
+      "criterion": "All24 rows and retained snapshots survive partial failure, and the model receives no private oracle feedback. Pipeline/source/receipt digests bind each actual artifact.",
+      "met": false,
+      "evidence": "Actual native 8/24 scripted control, failures carried to S2, 24 synthetic leaves/unchecked parents and native analysis pass; full protected agent chain is not qualified because M3/M5/M8 gaps remain."
+    },
+    {
+      "feature_id": "M11_END_TO_END",
+      "criterion": "No paid canary/provider/model call is allowed in normal tests or dry-run. If platform containment is unavailable, report the admission gap explicitly and do not mark its criterion passed with a skip.",
+      "met": false,
+      "evidence": "Actual native 8/24 scripted control, failures carried to S2, 24 synthetic leaves/unchecked parents and native analysis pass; full protected agent chain is not qualified because M3/M5/M8 gaps remain."
+    },
+    {
+      "feature_id": "M12_DELIVERY",
+      "criterion": "Run focused Go/executor/CLI tests, make test-changed plus test-core, lint/file-size/boundary and pi-asset gates; TS guard tests and actual no-model OS checks are separate recorded outcomes. No full Go suite executor gate.",
+      "met": false,
+      "evidence": "Reviewable source/docs/CI and validation records prepared. Full sprint acceptance remains incomplete; independent evaluation must fail/record blockers rather than mark completion. No registry publication/core release/model campaign."
+    },
+    {
+      "feature_id": "M12_DELIVERY",
+      "criterion": "Native package tests/properties/examples/quality/dry-run remain green without new warning allowlists or formatter exclusions; original frozen studies are unchanged.",
+      "met": false,
+      "evidence": "Reviewable source/docs/CI and validation records prepared. Full sprint acceptance remains incomplete; independent evaluation must fail/record blockers rather than mark completion. No registry publication/core release/model campaign."
+    },
+    {
+      "feature_id": "M12_DELIVERY",
+      "criterion": "Publish reviewable source PRs only after concrete checks, then independent sprint-evaluator review; complete all state/plan criteria in the same trees. Exact model/provider/rates/enforceable bounds and actual launch authorization remain a later explicit decision.",
+      "met": false,
+      "evidence": "Reviewable source/docs/CI and validation records prepared. Full sprint acceptance remains incomplete; independent evaluation must fail/record blockers rather than mark completion. No registry publication/core release/model campaign."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Explicitly partial/in_progress; uncompleted milestones annotated rather than promoted to implemented",
+    "followup_design": "design_docs/planned/m-maintenance-eval-broker.md",
+    "qualification_index": "design_docs/validation/maintenance-containment/index.json"
+  },
+  "design_fidelity": {
+    "score": 8,
+    "notes": "Reuses existing executor task construction, pi parser, locked sandbox SDK, native graders and AILANG ledger. Finite retained source is preserved without gold resets. The approved failure contingency is followed: live admission stays closed and a scoped extension is proposed. Full protected chain and lifecycle/output requirements remain unmet."
+  },
+  "review_findings_resolved": [
+    {
+      "issue": "Unsuccessful executor outcomes and model/harness drift could reach correctness grading.",
+      "resolution": "Explicit model/fresh-session guards and unsuccessful/missing/mismatched observed-version invalidation, with narrow labelled scripted-control exception; aa3720e0e."
+    },
+    {
+      "issue": "Language alone was used to label all artifact failures as parser/type catches.",
+      "resolution": "Native check attribution is neutral public/oracle until diagnostic phase evidence exists; 4bc1241ce."
+    },
+    {
+      "issue": "Only wrapper source had identified the oracle and native runtime had not been compared to frozen evidence.",
+      "resolution": "Ordered full oracle pipeline digest plus static toolchain evidence and actual pre/post binary/version checks; 4bc1241ce, bef3d24ea, 349a07445."
+    },
+    {
+      "issue": "Frozen teaching prompts could be missing for a later arm.",
+      "resolution": "All planned language prompts are checked at builder construction; bf223fab6."
+    },
+    {
+      "issue": "Controller snapshot Lstat/read sequence could follow raced paths outside the app.",
+      "resolution": "Descriptor-relative os.Root reads and SameFile checks; e74100ab6. Concurrency control passed before and after, so this is not represented as a reproduced exploit."
+    },
+    {
+      "issue": "Receipt helpers initially had no end-to-end runner export control.",
+      "resolution": "24 explicitly synthetic leaves and 24 unchecked coverage summaries now flow through collector/native analysis without creating available economics; 218d2e42a, 2bfa97a41."
+    },
+    {
+      "issue": "Immutable historical development toolchain evidence would not match newly built CI binaries.",
+      "resolution": "Tests create a new host-observed instrument freeze, leave historical records unchanged and continue enforcing binary/version identities; bfe68ca93."
+    },
+    {
+      "issue": "The current qualification record was ambiguous beside an older immutable wrapper record.",
+      "resolution": "The index explicitly selects r2, whose wrapper SHA f1f3dee69eb4286bac389c8bca737929b403b040c575cc4c86ac81969059bc12 matches current source; historical r1 remains separate."
+    }
+  ],
+  "feedback": [
+    {
+      "file": "design_docs/planned/m-maintenance-eval-broker.md",
+      "category": "acceptance_criteria",
+      "severity": "high",
+      "issue": "Protected agent execution cannot combine the outer kernel native-tool boundary with nested no-network bash under the tested macOS SDK configuration.",
+      "suggestion": "Review/approve the scoped host-side tool transport, then sprint-plan and qualify an actual complete no-model chain before changing admission."
+    },
+    {
+      "file": "research/real-world-maintenance/taskpacks/v1/candidate_grade.py",
+      "category": "acceptance_criteria",
+      "severity": "high",
+      "issue": "Separate grading roots and detached-session descendants lack demonstrated lifetime ownership; captured subprocess output is not byte-bounded.",
+      "suggestion": "Qualify escaped-child cleanup and named output-cap failures for both agent tools and direct candidate grading. Keep M3/M5/M11 incomplete until those controls pass."
+    }
+  ],
+  "conditional_categories": {
+    "regression_surface": "Not triggered: no parser/typechecker/evaluator/VM/effect or compilation-entry semantic change.",
+    "performance_verification": "Not a runtime performance optimization sprint; no speedup is claimed. Instrument controls and token/cost source semantics are the subject, so CPU before/after profiling is not applicable."
+  },
+  "implemented_subset_assessment": "Reviewable as a draft no-model maintenance instrument and failure reproduction, with live admission unconditionally CLOSED. No remaining audited issue justifies interpreting controls as actual language-quality results. Full sprint completion and protected campaign readiness are rejected.",
+  "notes": "Independent review was read-only for implementation. Existing user work and original checkouts were not modified. No provider/model call, registry publication, core release, external message, or full local Go test suite was performed by the reviewer. Draft PR CI must still be checked at its exact head; a local gate is not CI."
+}

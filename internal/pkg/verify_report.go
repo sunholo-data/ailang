@@ -3,6 +3,8 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 // PackageVerifyReport is the JSON `ailang verify --package --json` emits and
@@ -11,38 +13,45 @@ import (
 // previous validator decoded a bare array while verify printed an object, and
 // no contract was ever counted (0/373 published versions, measured 2026-09-17).
 type PackageVerifyReport struct {
-	Schema         string               `json:"schema"`
-	Package        string               `json:"package"`
-	Version        string               `json:"version"`
-	Verified       int                  `json:"verified"`
-	Total          int                  `json:"total"`
-	Counterexample int                  `json:"counterexample"`
-	Skipped        int                  `json:"skipped"`
-	Errors         int                  `json:"errors"`
-	Uncontracted   int                  `json:"uncontracted"`
-	WallSeconds    float64              `json:"wall_seconds"`
-	WallCapHit     bool                 `json:"wall_cap_hit,omitempty"`
-	Modules        []ModuleVerifyReport `json:"modules"`
+	verification.Evidence
+	ReasonCounts   map[verification.ReasonCode]int `json:"reason_counts"`
+	Schema         string                          `json:"schema"`
+	Package        string                          `json:"package"`
+	Version        string                          `json:"version"`
+	Verified       int                             `json:"verified"`
+	Total          int                             `json:"total"`
+	Counterexample int                             `json:"counterexample"`
+	Skipped        int                             `json:"skipped"`
+	Errors         int                             `json:"errors"`
+	Uncontracted   int                             `json:"uncontracted"`
+	WallSeconds    float64                         `json:"wall_seconds"`
+	WallCapHit     bool                            `json:"wall_cap_hit,omitempty"`
+	Modules        []ModuleVerifyReport            `json:"modules"`
 }
 
 // ModuleVerifyReport is one exported module's verification outcome.
 type ModuleVerifyReport struct {
-	Module         string               `json:"module"`
-	File           string               `json:"file"`
-	Verified       int                  `json:"verified"`
-	Counterexample int                  `json:"counterexample"`
-	Skipped        int                  `json:"skipped"`
-	Errors         int                  `json:"errors"`
-	Uncontracted   int                  `json:"uncontracted"`
-	CompileError   string               `json:"compile_error,omitempty"`
-	Results        []FunctionVerifyItem `json:"results,omitempty"`
+	ReasonCounts   map[verification.ReasonCode]int `json:"reason_counts"`
+	Issues         []verification.ModuleIssue      `json:"issues,omitempty"`
+	Module         string                          `json:"module"`
+	File           string                          `json:"file"`
+	Verified       int                             `json:"verified"`
+	Counterexample int                             `json:"counterexample"`
+	Skipped        int                             `json:"skipped"`
+	Errors         int                             `json:"errors"`
+	Uncontracted   int                             `json:"uncontracted"`
+	CompileError   string                          `json:"compile_error,omitempty"`
+	Results        []FunctionVerifyItem            `json:"results,omitempty"`
 }
 
 // FunctionVerifyItem is the per-function status the verifier reports.
 type FunctionVerifyItem struct {
-	Function string `json:"function"`
-	Status   string `json:"status"`
-	Reason   string `json:"reason,omitempty"`
+	ReasonCode   verification.ReasonCode  `json:"reason_code,omitempty"`
+	BoundedDepth int                      `json:"bounded_depth,omitempty"`
+	Rejections   []verification.Rejection `json:"rejections,omitempty"`
+	Function     string                   `json:"function"`
+	Status       string                   `json:"status"`
+	Reason       string                   `json:"reason,omitempty"`
 }
 
 // PackageVerifySchema is the schema tag on PackageVerifyReport.
@@ -65,6 +74,14 @@ func DecodePackageVerifyReport(data []byte) (*PackageVerifyReport, error) {
 // Add folds one module's counts into the package totals.
 func (r *PackageVerifyReport) Add(m ModuleVerifyReport) {
 	r.Modules = append(r.Modules, m)
+	if m.ReasonCounts != nil {
+		if r.ReasonCounts == nil {
+			r.ReasonCounts = make(map[verification.ReasonCode]int)
+		}
+		for code, n := range m.ReasonCounts {
+			r.ReasonCounts[code] += n
+		}
+	}
 	r.Verified += m.Verified
 	r.Counterexample += m.Counterexample
 	r.Skipped += m.Skipped

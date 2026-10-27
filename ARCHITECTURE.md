@@ -156,18 +156,18 @@ behavioral dependency on the evaluator. If `embed` ever re-exports its own
 `Value` alias, `eval` should be added back to the deny-list.
 
 <!-- BEGIN GENERATED: language closure (scripts/gen_architecture_closure.sh) -->
-### Language closure (generated 2026-10-11 @ fc62f7c4c)
+### Language closure (generated 2026-10-27 @ 9a5e25858)
 
 What `ailang run / check / fmt / prompt / repl` link, measured with `go list -deps`
-over the language roots. **50** of the internal packages are in the closure; the
-full binary links **136**. The gate is `internal/diag/closure_test.go`; the numbers
+over the language roots. **51** of the internal packages are in the closure; the
+full binary links **138**. The gate is `internal/diag/closure_test.go`; the numbers
 are banked by `make simplicity-metrics`. Regenerate this section with
 `scripts/gen_architecture_closure.sh` (CI runs it with `--check`).
 
 **Language roots** (`tools/simplicity_metrics.sh` LANGUAGE_ROOTS):
 `internal/pipeline` `internal/eval` `internal/effects` `internal/builtins` `internal/format` `internal/repl` `internal/prompt` `internal/loader` `internal/link` `internal/lsp` `internal/vm` `internal/gen/golang` `internal/smt` 
 
-**In the closure** (50 packages):
+**In the closure** (51 packages):
 
 - `internal/ai`
 - `internal/ast`
@@ -217,6 +217,7 @@ are banked by `make simplicity-metrics`. Regenerate this section with
 - `internal/typedast`
 - `internal/types`
 - `internal/types/traverse`
+- `internal/verification`
 - `internal/version`
 - `internal/vm`
 

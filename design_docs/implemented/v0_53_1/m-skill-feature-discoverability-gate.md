@@ -2,7 +2,7 @@
 
 Refs #476
 
-**Status**: Planned
+**Status**: Implemented in v0.53.1 (03263525c; closes #476). Prior status: Planned.
 **Target**: v0.52.6
 **Priority**: P3 (matches `priority:P3` on the issue)
 **Estimated**: 0.5 day (skill markdown edits + one measurement pass on the next showcase)
@@ -87,7 +87,7 @@ include-or-justify decision per showcase module.
 | Option | Cost | Reach | Verdict |
 |---|---|---|---|
 | **Skill gate step** (adopted) | ~26 lines of markdown across 2 skills (×2 mirrored trees, see Implementation) | Every harness that runs the `ailang` binary — which is every mission repo | **Adopted** — cheapest per unit of reach |
-| Wire ailang-docs MCP via `.mcp.json` / mission bootstrap | One config file | Only MCP-wired harnesses; measured fact from [m-eval-slim-prompt-self-discovery](../v0_29_0/m-eval-slim-prompt-self-discovery.md): opencode (a real mission harness) does not use the AILANG MCP as a tool source, so `prompt_get` plumbing was "never the path taken". ailang-world already made this fix locally (issue body). | Deferred Non-Goal — owned by the mission/charter template per the issue |
+| Wire ailang-docs MCP via `.mcp.json` / mission bootstrap | One config file | Only MCP-wired harnesses; measured fact from [m-eval-slim-prompt-self-discovery](../../planned/v0_29_0/m-eval-slim-prompt-self-discovery.md): opencode (a real mission harness) does not use the AILANG MCP as a tool source, so `prompt_get` plumbing was "never the path taken". ailang-world already made this fix locally (issue body). | Deferred Non-Goal — owned by the mission/charter template per the issue |
 | Add a section to the teaching prompt | Prompt changes are corpus-evidenced; only the one mutable head may be amended, with evidence per feature | Same reach as today (nothing forces loading it) | Rejected — the prompt already teaches all three families (V5); the gap is loading, not content |
 | CI anti-vacuity feature-use gate (≥1 contract/test/effect per showcase module) | Script + workflow wiring per showcase repo | Only repos with showcase CI (ailang-world, not this repo) | Deferred — the issue marks it optional; enforce after the advisory step is measured |
 
@@ -293,7 +293,7 @@ only single-arg examples and multi-arg test pairs are `((arg1, arg2), expected)`
 ## Related Documents
 
 - [Issue #476 — AILANG feature discoverability gap](https://github.com/sunholo-data/ailang/issues/476) (source of the defect report and the baseline)
-- [m-eval-slim-prompt-self-discovery](../v0_29_0/m-eval-slim-prompt-self-discovery.md) — RULED OUT doc; records that opencode never used the MCP as a tool source — the negative result that forces the CLI-first gate design
+- [m-eval-slim-prompt-self-discovery](../../planned/v0_29_0/m-eval-slim-prompt-self-discovery.md) — RULED OUT doc; records that opencode never used the MCP as a tool source — the negative result that forces the CLI-first gate design
 - [m-agent-mcp-onboarding](../../implemented/v0_15_0/m-agent-mcp-onboarding.md) — the MCP server's onboarding lane (the reach this doc deliberately does not rely on)
 - [m-dx-pi-harness](../../implemented/v0_35_0/m-dx-pi-harness.md) — the harness/extension doctrine this repo's agent surfaces ride
 - [AGENTS.md](../../AGENTS.md) — work-routing gates; "advisory text gets skipped" measured trap

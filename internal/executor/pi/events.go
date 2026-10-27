@@ -27,18 +27,33 @@ type piUsageCost struct {
 // disjoint from OutputTokens, so the executor banks output − reasoning (D5).
 // Absent on 0.73.1 (zero) — "not reported", never negative.
 type piUsage struct {
-	Input       int         `json:"input"`
-	Output      int         `json:"output"`
-	CacheRead   int         `json:"cacheRead"`
-	CacheWrite  int         `json:"cacheWrite"`
-	Reasoning   int         `json:"reasoning"`
-	TotalTokens int         `json:"totalTokens"`
-	Cost        piUsageCost `json:"cost"`
+	Raw         json.RawMessage `json:"-"`
+	Input       int             `json:"input"`
+	Output      int             `json:"output"`
+	CacheRead   int             `json:"cacheRead"`
+	CacheWrite  int             `json:"cacheWrite"`
+	Reasoning   int             `json:"reasoning"`
+	TotalTokens int             `json:"totalTokens"`
+	Cost        piUsageCost     `json:"cost"`
+}
+
+func (u *piUsage) UnmarshalJSON(data []byte) error {
+	type wire piUsage
+	var v wire
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	*u = piUsage(v)
+	u.Raw = append(json.RawMessage(nil), data...)
+	return nil
 }
 
 // piMessage captures the per-message envelope.
 type piMessage struct {
-	Role string `json:"role"`
+	RequestID *string `json:"requestId,omitempty"`
+	Provider  *string `json:"provider,omitempty"`
+	Model     *string `json:"model,omitempty"`
+	Role      string  `json:"role"`
 	// StopReason is pi's per-message stop signal, present on message_start /
 	// message_end / turn_end (and mirrored on assistantMessageEvent.partial).
 	// Observed values: "stop", "toolUse" (fixtures, pi 0.70.2). A tool-calling

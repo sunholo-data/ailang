@@ -26,7 +26,9 @@ This page is the map. Each view answers a different question.
 ## The views
 
 ### [Model Leaderboard](/docs/benchmarks/performance)
-The headline: per-model AILANG-vs-Python pass rates, the success-rate trend over releases, a sortable comparison table (with a highlighted **on-device "Local GPU agent"** row so you can see the free option against the frontier), and a failure-mode breakdown that separates real capability failures from budget limits, provider noise, and safety refusals.
+The main comparison: ELO/status, AILANG and optional Python results, scoped cost per solved task, timing boundaries, and original measurement versions. Undefeated models remain visible at the top; smaller samples are marked provisional. Overall pass-rate and model-ELO plots show saved history, while each model opens its recorded outcomes and provenance. Direct-model and coding-agent modes stay separate.
+
+The default is **latest saved evidence**, rather than a new full baseline for each release. Publication dates and measured language versions are different: a snapshot may reuse runs from several earlier versions. Existing snapshots remain inspectable and downloadable. Changing model/task mixes are labeled as descriptive trends; a fixed-panel comparison is needed to isolate language improvement.
 
 ### [ELO &amp; Difficulty](/docs/benchmarks/elo)
 Two ratings, both *derived* from head-to-head results rather than hand-assigned: a **capability** rating per model and a **difficulty** rating per benchmark. Split by mode (standard vs agent); the on-device GPU agents are ranked and highlighted here in agent mode. Click any benchmark to jump straight to its spec sheet in the Gallery.

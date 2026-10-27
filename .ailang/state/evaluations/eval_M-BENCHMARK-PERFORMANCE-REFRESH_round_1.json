@@ -1,0 +1,222 @@
+{
+  "sprint_id": "M-BENCHMARK-PERFORMANCE-REFRESH",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-23T20:59:28.104594+00:00",
+  "design_doc": "design_docs/implemented/v0_54_18/m-benchmark-performance-refresh.md",
+  "sprint_plan": "design_docs/implemented/v0_54_18/m-benchmark-performance-refresh-sprint-plan.md",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "verdict_scope": "Local implementation ready for concrete user review/publication decision. Full Go CI remains pending; this is not a claim that CI or production deployment has run.",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "gate_source": "local-focused-per-approved-plan",
+    "tests_pass": true,
+    "tests_output": "make test-changed; full internal/eval_analysis package after token fix; npm --prefix docs run test:benchmarks (11 passing). Executor plan reserves full Go suite for CI.",
+    "full_go_ci": "pending, not run locally",
+    "lint_clean": true,
+    "lint_output": "/tmp/benchmark-sprint-lint-final.log: 0 issues",
+    "file_sizes_ok": true,
+    "changelog_ok": true,
+    "boundaries_ok": true,
+    "production_docs_build": true,
+    "build_log": "/tmp/benchmark-docs-build.log",
+    "rendered_browser_report": "/tmp/benchmark-ui-report.json",
+    "browser_runtime_errors": 0,
+    "provider_eval_calls": 0
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Optional versioned benchmarkEvidence preserves mode/harness/language/tier, exact task IDs and Core-set coverage, pass/first-attempt/repair/outcomes, reported versions and measurement dates.",
+      "met": true,
+      "evidence": "Scoped Go export/types and Evidence tests; independent comparison confirms all pre-existing latest.json fields and 61 history entries are unchanged after removing the additive block; new block has 39 rows."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Cost categories and timing boundary are explicit; unknown billing data and absent timing do not become metered dollars or instantaneous latency.",
+      "met": true,
+      "evidence": "Scoped Go export/types and Evidence tests; independent comparison confirms all pre-existing latest.json fields and 61 history entries are unchanged after removing the additive block; new block has 39 rows."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Existing schema keys and history round-trip unchanged; offline export over a saved fixture produces the new block without inference or bank mutation.",
+      "met": true,
+      "evidence": "Scoped Go export/types and Evidence tests; independent comparison confirms all pre-existing latest.json fields and 61 history entries are unchanged after removing the additive block; new block has 39 rows."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Tests cover 49/49 Argon, 3/3 Astra, duplicate trials, mixed versions, unknown cost, explicit free-local zero and missing versus measured zero.",
+      "met": true,
+      "evidence": "Scoped Go export/types and Evidence tests; independent comparison confirms all pre-existing latest.json fields and 61 history entries are unchanged after removing the additive block; new block has 39 rows."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "One fetched snapshot powers the page; mode, language, scope, search and sort preserve identity and never manufacture a Python score.",
+      "met": true,
+      "evidence": "Pure helper tests and actual production React render tests; browser report proves Argon 49/49, Astra 3/3 provisional with 0/23 Core, missing Python, independent cost sort, empty filter, agent mode and Core filter. Legacy mixed-mode Core leak fixed and regression tested."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Unrated undefeated group first; complete Core coverage before provisional samples, numeric ELO next. Astra's three AILANG runs are not 23 Core results.",
+      "met": true,
+      "evidence": "Pure helper tests and actual production React render tests; browser report proves Argon 49/49, Astra 3/3 provisional with 0/23 Core, missing Python, independent cost sort, empty filter, agent mode and Core filter. Legacy mixed-mode Core leak fixed and regression tested."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Cost and name sorts remain independent of capability grouping. Rated agent models keep their numeric-ELO ordering even if undefeated.",
+      "met": true,
+      "evidence": "Pure helper tests and actual production React render tests; browser report proves Argon 49/49, Astra 3/3 provisional with 0/23 Core, missing Python, independent cost sort, empty filter, agent mode and Core filter. Legacy mixed-mode Core leak fixed and regression tested."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Empty/missing/zero states and legacy evidence adapter have targeted tests.",
+      "met": true,
+      "evidence": "Pure helper tests and actual production React render tests; browser report proves Argon 49/49, Astra 3/3 provisional with 0/23 Core, missing Python, independent cost sort, empty filter, agent mode and Core filter. Legacy mixed-mode Core leak fixed and regression tested."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Main page shows pass-rate and model-ELO plots, full/recent history, independent clearly labeled scope and a shared keyboard snapshot inspector.",
+      "met": true,
+      "evidence": "historyPoints/eloSeries tests cover semantic order, null vs zero, anchor/missing gaps and scoped suite events; real screenshots show both plot families and browser assertions verify the inspector."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Missing values break paths, measured zeros remain, and changing model identities or anchors are not silently connected.",
+      "met": true,
+      "evidence": "historyPoints/eloSeries tests cover semantic order, null vs zero, anchor/missing gaps and scoped suite events; real screenshots show both plot families and browser assertions verify the inspector."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Cohort counts/events and snapshot publication versus measurement meaning are visible. An absent fixed-panel index is unavailable, not invented.",
+      "met": true,
+      "evidence": "historyPoints/eloSeries tests cover semantic order, null vs zero, anchor/missing gaps and scoped suite events; real screenshots show both plot families and browser assertions verify the inspector."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Saved history is preserved across a publication without new eval runs.",
+      "met": true,
+      "evidence": "historyPoints/eloSeries tests cover semantic order, null vs zero, anchor/missing gaps and scoped suite events; real screenshots show both plot families and browser assertions verify the inspector."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "First/final pass, repair, tokens, outcome categories, cost provenance, reported versions and timing boundaries remain reachable from each row.",
+      "met": true,
+      "evidence": "Independent view of actual Argon detail screenshot shows 49 final / 48 first-pass, 23/23 Core, versions, tokens, scoped cost and timing labels; original 61 snapshots preserved and full download wired. Missing token telemetry now has sample coverage and unavailable/partial labels."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Whole-model detail does not pretend to inherit a tier or language filter; each metric uses its actual declared scope.",
+      "met": true,
+      "evidence": "Independent view of actual Argon detail screenshot shows 49 final / 48 first-pass, 23/23 Core, versions, tokens, scoped cost and timing labels; original 61 snapshots preserved and full download wired. Missing token telemetry now has sample coverage and unavailable/partial labels."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "All saved version snapshots and original published fields remain inspectable/downloadable; existing Tasks/ELO/Value/Explorer pages stay linked.",
+      "met": true,
+      "evidence": "Independent view of actual Argon detail screenshot shows 49 final / 48 first-pass, 23/23 Core, versions, tokens, scoped cost and timing labels; original 61 snapshots preserved and full download wired. Missing token telemetry now has sample coverage and unavailable/partial labels."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Performance route mounts the new page; removes duplicate radar/chart/KPI composition from this route without deleting evidence or breaking other views.",
+      "met": true,
+      "evidence": "Production Docusaurus build SUCCESS; actual light desktop and light/dark mobile screenshots inspected independently; current docs typography/palette/logo reused. Static fallback screenshot displays explicit copy badge."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Inter/Montserrat, docs palette, focus states and light/dark behavior match the reviewed AILANG direction. No marketing-only global CSS is copied in.",
+      "met": true,
+      "evidence": "Production Docusaurus build SUCCESS; actual light desktop and light/dark mobile screenshots inspected independently; current docs typography/palette/logo reused. Static fallback screenshot displays explicit copy badge."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Latest publication and per-row measured version labels remain distinct; a visible static-copy fallback does not automatically imply stale data.",
+      "met": true,
+      "evidence": "Production Docusaurus build SUCCESS; actual light desktop and light/dark mobile screenshots inspected independently; current docs typography/palette/logo reused. Static fallback screenshot displays explicit copy badge."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Documentation describes rolling evidence reuse and has no full-baseline or every-release eval requirement.",
+      "met": true,
+      "evidence": "Production Docusaurus build SUCCESS; actual light desktop and light/dark mobile screenshots inspected independently; current docs typography/palette/logo reused. Static fallback screenshot displays explicit copy badge."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Targeted tests, relevant repository gates and production docs build pass.",
+      "met": true,
+      "evidence": "Focused Go/frontend tests, lint and file-size/changelog/boundary gates pass. Production build and real 1440/390 browser matrix pass with 0 runtime exceptions. Independent evaluation completed; no production publication. Parent will finalize completion timestamps/notes and design status as the final administrative handoff."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Verify actual rendered desktop/mobile and light/dark states, Argon/Astra, missing Python, cost sort, empty filters, model detail, historical plots and static fallback. Record browser-tool limits rather than claiming JSON is UI QA.",
+      "met": true,
+      "evidence": "Focused Go/frontend tests, lint and file-size/changelog/boundary gates pass. Production build and real 1440/390 browser matrix pass with 0 runtime exceptions. Independent evaluation completed; no production publication. Parent will finalize completion timestamps/notes and design status as the final administrative handoff."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Independent sprint-evaluator scores against the design and resolves blocking findings before production publication.",
+      "met": true,
+      "evidence": "Focused Go/frontend tests, lint and file-size/changelog/boundary gates pass. Production build and real 1440/390 browser matrix pass with 0 runtime exceptions. Independent evaluation completed; no production publication. Parent will finalize completion timestamps/notes and design status as the final administrative handoff."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Prepare the concrete final diff, preview and validation report for the final publication decision. Do not publish the new UI under a prior data-only deployment instruction.",
+      "met": true,
+      "evidence": "Focused Go/frontend tests, lint and file-size/changelog/boundary gates pass. Production build and real 1440/390 browser matrix pass with 0 runtime exceptions. Independent evaluation completed; no production publication. Parent will finalize completion timestamps/notes and design status as the final administrative handoff."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": "Not applicable to AILANG programs; Go/Node/render fixtures supplied for this UI/export change.",
+    "design_doc_status": "Implementation complete; parent to record final evaluated status and move companion plan together."
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Reviewed A structure with main-page trends, grouped undefeated samples, precise scoped evidence, conservative legacy adapter and retained history. No compiler/runtime or benchmark inference change. Full data remains downloadable."
+  },
+  "resolved_findings": [
+    {
+      "file": "docs/src/lib/benchmarkEvidence.mjs",
+      "issue": "Legacy pooled gallery Core coverage leaked agent evidence into the direct Astra row.",
+      "resolution": "Mixed-mode legacy model coverage is unknown/provisional; regression test and real tracked legacy artifact check confirm three standard runs cannot become 23 Core IDs."
+    },
+    {
+      "file": "internal/eval_analysis/evidence_export.go",
+      "issue": "Missing integer token telemetry became a plain recorded zero.",
+      "resolution": "Positive token telemetry sample counts exported; detail labels unavailable/partial telemetry; focused Go test added."
+    },
+    {
+      "file": "docs/src/components/BenchmarkPerformance/index.jsx",
+      "issue": "Executor browser validation found loose Babel Set-spread crash.",
+      "resolution": "Array.from used in both Set projections; SSR regression harness includes the bundle-compatible loose spread transform; final production browser run has no exceptions."
+    }
+  ],
+  "feedback": [],
+  "non_blocking_notes": [
+    "Several builder/component functions exceed 50 lines, resulting in the rubric maximum 5-point quality deduction; files remain modular and below 800 lines.",
+    "Mobile table uses internal horizontal scrolling; page-wide overflow is absent at 390px.",
+    "Full CI and production publication remain future steps. Existing unrelated broken-anchor build warnings are outside this change.",
+    "M6 final timestamp/notes and design status must be finalized by the executor after this verdict; these are the handoff bookkeeping, not an unverified implementation gate."
+  ],
+  "visual_evidence_inspected": [
+    "/tmp/benchmark-desktop-light.png",
+    "/tmp/benchmark-table-desktop.png",
+    "/tmp/benchmark-table-mobile-light.png",
+    "/tmp/benchmark-table-mobile-dark.png",
+    "/tmp/benchmark-argon-detail.png",
+    "/tmp/benchmark-fallback.png"
+  ],
+  "conditional_categories": {
+    "regression_surface": "Not triggered: compiler/runtime semantics untouched.",
+    "performance_profiling": "Not triggered: this is a benchmark website/evidence sprint, with no runtime speed/performance goal."
+  },
+  "artifact_finalization": "Parent completed M6 and moved design/plan together after independent PASS."
+}

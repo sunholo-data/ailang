@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AILANG benchmark design review</title>
+  <link rel="stylesheet" href="style.css?rev=3">
+  <link rel="stylesheet" href="brand.css?rev=3">
+  <script defer src="data.js?rev=3"></script>
+  <script defer src="trends.js?rev=3"></script>
+  <script defer src="app.js?rev=3"></script>
+</head>
+<body>
+  <div class="reviewbar"><span>Benchmark page design review</span><nav aria-label="Candidate designs"><a href="?view=table">A · Evidence table</a><a href="?view=studio">B · Model studio</a><a href="?view=atlas">C · Benchmark atlas</a></nav><button id="theme" type="button">Light / dark</button></div>
+  <header class="sitebar"><a class="brand" href="?view=table"><img class="brand-logo" src="ailang-logo.svg" width="36" height="36" alt=""> AILANG</a><nav aria-label="Documentation"><span>Learn</span><strong>Benchmarks</strong><a href="https://github.com/sunholo-data/ailang">GitHub</a></nav><span class="previewtag">Design preview</span></header>
+  <div class="page">
+    <aside class="sidebar"><span>Evaluate AILANG</span><a class="active" href="#models">Compare models</a><a href="#progress" data-page="progress">Progress over time</a><a href="#tasks" data-page="tasks">Benchmark tasks</a><a href="#method" data-page="method">How we measure</a><div class="side-note">Saved evidence.<br>Updated as runs complete.<br>No release-wide rerun required.</div></aside>
+    <main>
+      <div class="breadcrumb">Documentation <span>/</span> Benchmarks</div>
+      <div class="heading"><div><h1 id="title">Models, measured.</h1><p id="intro">Compare how well AI writes AILANG, with the evidence behind every result.</p></div><span id="candidate-name"></span></div>
+      <div class="provenance"><span class="saved-dot"></span><strong>Latest available evidence</strong><span>Snapshot published 23 Oct 2026</span><span>Each row retains its original run date and version</span></div>
+      <nav class="sections" aria-label="Benchmark views"><button type="button" data-section="models" aria-pressed="true">Model comparison</button><button type="button" data-section="progress">Progress</button><button type="button" data-section="tasks">Tasks</button><button type="button" data-section="method">Method & data</button></nav>
+      <section id="models-panel">
+        <div id="overview-trends" hidden></div>
+        <div class="controls">
+          <div class="mode-controls" role="group" aria-label="Evaluation mode"><button type="button" data-mode="standard" aria-pressed="true">Direct model</button><button type="button" data-mode="agent">Coding agent</button></div>
+          <label>Language<select id="language"><option value="ailang">AILANG + Python reference</option><option value="python">Python</option></select></label>
+          <label>Tasks<select id="scope"><option value="all">All measured tasks</option><option value="core">Core · everyday tasks</option><option value="stretch">Stretch · harder tasks</option><option value="frontier">Frontier · toughest tasks</option><option value="smoke">Smoke · basic checks</option></select></label>
+        </div>
+        <p class="scope-description" id="mode-description"></p>
+        <div class="table-tools"><div><h2 id="results-title">Compare models</h2><span id="result-count"></span></div><div class="tools-right"><label class="searchlabel"><span class="sr-only">Find a model</span><input id="search" placeholder="Find a model…" type="search"></label><label class="sortlabel">Order by<select id="sort"><option value="elo">ELO, undefeated first</option><option value="rate">Pass rate</option><option value="cost">Cost per solved task</option><option value="name">Model name</option></select></label></div></div>
+        <div class="scope-note" id="scope-note"></div>
+        <div id="results" aria-live="polite"></div>
+        <div id="detail" hidden></div>
+        <div class="reading-notes"><span><b>—</b> Not measured or not retained; never a zero.</span><span><b>Undefeated</b> All recorded tasks passed. Shown first; smaller samples remain provisional.</span><span><b>Limited sample</b> Fewer than 10 recorded runs.</span></div>
+        <details class="method-short"><summary>What do these numbers mean?</summary><p>ELO estimates model capability from task difficulty. Pass rate is the share of saved runs that passed. Cost per solved task includes the cost of failed attempts. Measured versions differ because saved evidence is reused. Different task sets are not a controlled AILANG-versus-Python comparison.</p></details>
+      </section>
+      <section id="progress-panel" hidden></section>
+      <section id="tasks-panel" hidden></section>
+      <section id="method-panel" hidden></section>
+      <footer>AILANG benchmarks <span>Published results, including the gaps.</span><a href="https://ailang.sunholo.com/docs/benchmarks/performance">Current public page</a></footer>
+    </main>
+  </div>
+</body>
+</html>

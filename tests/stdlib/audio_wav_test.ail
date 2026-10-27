@@ -1,18 +1,20 @@
 -- std/audio WAV helpers: golden headers and the PCM round trip.
 -- Run: ailang test tests/stdlib/audio_wav_test.ail
 module tests/stdlib/audio_wav_test
-import std/audio (wavHeader, wavFromPcm, durationMs)
-import std/bytes (fromInts, toInts, length, slice)
+import std/audio (wavHeader, wavFromPcm, durationMs, wavHeaderChecked, wavFromPcmChecked, wavInfo)
+import std/bytes (fromInts, toInts, length, slice, byteAt, concat, concatList)
+import std/list (length as listLength, any, range, map)
+import std/result (Ok, Err)
 import std/option (Option, Some, None)
 
 -- The 50.39 s Gemini-TTS-shaped fixture: 2,418,712 bytes of 24 kHz mono s16.
 -- Expected bytes are the xxd of a header CoreAudio's afinfo accepts.
-pure func monoHeaderIsGolden(dataLen: int) -> bool tests [(2418712, true), (2418713, false)] {
+pure func monoHeaderIsGolden(dataLen: int) -> bool tests [(2418712, true)] {
   toInts(wavHeader(dataLen, 24000, 1, 16)) == [82, 73, 70, 70, 60, 232, 36, 0, 87, 65, 86, 69, 102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 1, 0, 192, 93, 0, 0, 128, 187, 0, 0, 2, 0, 16, 0, 100, 97, 116, 97, 24, 232, 36, 0]
 }
 
 -- Stereo 48 kHz: blockAlign 4, byteRate 192000.
-pure func stereoHeaderIsGolden(dataLen: int) -> bool tests [(100, true), (101, false)] {
+pure func stereoHeaderIsGolden(dataLen: int) -> bool tests [(100, true)] {
   toInts(wavHeader(dataLen, 48000, 2, 16)) == [82, 73, 70, 70, 136, 0, 0, 0, 87, 65, 86, 69, 102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 2, 0, 128, 187, 0, 0, 0, 238, 2, 0, 4, 0, 16, 0, 100, 97, 116, 97, 100, 0, 0, 0]
 }
 
@@ -41,4 +43,91 @@ pure func monoMs(pcmLen: int) -> int
     (1, 0)
   ] {
   durationMs(pcmLen, 24000, 1, 16)
+}
+
+-- Checked boundaries run in ordinary mode, independent of runtime contracts.
+pure func checkedHeaderRejectsPartial(n: int) -> bool tests [(1, true), (2, false)] {
+  match wavHeaderChecked(n, 8000, 1, 16) { Err(_) => true, Ok(_) => false }
+}
+
+pure func oddPcmPadded(u: ()) -> bool tests [((), true)] {
+  match wavFromPcmChecked(fromInts([128]), 8000, 1, 8) {
+    Err(_) => false,
+    Ok(wav) => length(wav) == 46 && byteAt(wav, 4) == Some(38) && byteAt(wav, 40) == Some(1) && byteAt(wav, 45) == Some(0)
+  }
+}
+
+pure func stereoMetadata(u: ()) -> bool tests [((), true)] {
+  match wavInfo(wavFromPcm(fromInts([0,128,255,127]), 48000, 2, 16)) {
+    Err(_) => false,
+    Ok(info) => info.channels == 2 && info.rate == 48000 && info.dataOffset == 44 && info.dataBytes == 4 && info.frames == 1 && info.blockAlign == 4 && info.byteRate == 192000
+  }
+}
+
+-- Independent RIFF construction: these fixtures never use the writer under test.
+pure func testLE16(n: int) -> [int] = [n % 256, n / 256 % 256]
+pure func testLE32(n: int) -> [int] = [n % 256, n / 256 % 256, n / 65536 % 256, n / 16777216 % 256]
+pure func rawRiffSized(xs: [int], size: int) -> bytes = fromInts([82,73,70,70] ++ testLE32(size) ++ [87,65,86,69] ++ xs)
+pure func rawRiff(xs: [int]) -> bytes = rawRiffSized(xs, listLength(xs) + 4)
+pure func chunk(id: [int], xs: [int], pad: bool) -> [int] {
+  id ++ testLE32(listLength(xs)) ++ xs ++ (if pad && listLength(xs) % 2 == 1 then [77] else [])
+}
+pure func fmtPayload(tag: int, channels: int, byteRate: int, align: int, bits: int) -> [int] {
+  testLE16(tag) ++ testLE16(channels) ++ testLE32(8000) ++ testLE32(byteRate) ++ testLE16(align) ++ testLE16(bits)
+}
+pure func corpusAccepted(which: int) -> bool
+ tests [(0,true),(1,true),(2,true),(3,true),(4,false),(5,false),(6,false),(7,false),
+        (8,false),(9,false),(10,false),(11,false),(12,false),(13,false),(14,false),
+        (15,false),(16,false),(17,false),(18,false),(19,false),(20,false),(21,true),(22,true)] {
+  let fmtId = [102,109,116,32];
+  let dataId = [100,97,116,97];
+  let junkId = [74,85,78,75];
+  let payload = fmtPayload(1,1,16000,2,16);
+  let fmt = chunk(fmtId,payload,true);
+  let data = chunk(dataId,[],true);
+  let raw =
+    if which == 0 then rawRiff(fmt ++ data)
+    else if which == 1 then rawRiff(data ++ fmt)
+    else if which == 2 then rawRiff(chunk(junkId,[123],true) ++ fmt ++ data)
+    else if which == 3 then concat(rawRiff(fmt ++ data),fromInts([1,2,3]))
+    else if which == 4 then rawRiff(data)
+    else if which == 5 then rawRiff(fmt)
+    else if which == 6 then rawRiff(fmt ++ fmt ++ data)
+    else if which == 7 then rawRiff(fmt ++ data ++ data)
+    else if which == 8 then rawRiff(chunk(fmtId,fmtPayload(1,1,16000,1,16),true) ++ data)
+    else if which == 9 then rawRiff(chunk(fmtId,fmtPayload(1,1,8000,2,16),true) ++ data)
+    else if which == 10 then rawRiff(chunk(fmtId,[1,0],true) ++ data)
+    else if which == 11 then rawRiff(chunk(fmtId,payload ++ [0],true) ++ data)
+    else if which == 12 then rawRiff(chunk(fmtId,payload ++ [1,0],true) ++ data)
+    else if which == 13 then rawRiff(chunk(fmtId,fmtPayload(3,1,32000,4,32),true) ++ data)
+    else if which == 14 then rawRiff(chunk(fmtId,fmtPayload(65534,1,16000,2,16),true) ++ data)
+    else if which == 15 then rawRiff(fmt ++ chunk(dataId,[0],true))
+    else if which == 16 then rawRiff(fmt ++ dataId ++ testLE32(4) ++ [0,0])
+    else if which == 17 then concat(rawRiff(fmt ++ chunk(junkId,[1],false)),fromInts([0]))
+    else if which == 18 then rawRiffSized(fmt ++ data,3)
+    else if which == 19 then rawRiff(fmt ++ data ++ [1,2,3])
+    else if which == 20 then fromInts([82,73,70,88,4,0,0,0,87,65,86,69])
+    else if which == 21 then rawRiff(chunk(fmtId,payload ++ [0,0],true) ++ data)
+    else rawRiff(fmt ++ data ++ chunk(junkId,[2],true));
+  match wavInfo(raw) { Ok(_) => true, Err(_) => false }
+}
+
+test "wav metadata malformed corpus and reordered chunks" {
+  not any(\n. corpusAccepted(n) != (n == 0 || n == 1 || n == 2 || n == 3 || n == 21 || n == 22), range(0,23))
+}
+
+pure func manyChunkRiff(unknownCount: int) -> bytes {
+  let filler = map(\i. fromInts([74,85,78,75,0,0,0,0]), range(0, unknownCount));
+  let fmt = fromInts(chunk([102,109,116,32], fmtPayload(1,1,16000,2,16), true));
+  let data = fromInts([100,97,116,97,0,0,0,0]);
+  let body = concatList(filler ++ [fmt, data]);
+  concat(fromInts([82,73,70,70] ++ testLE32(length(body) + 4) ++ [87,65,86,69]), body)
+}
+
+test "wav chunk bound accepts 65536 chunks without interpreter recursion failure" {
+  match wavInfo(manyChunkRiff(65534)) { Ok(info) => info.frames == 0, Err(_) => false }
+}
+
+test "wav chunk bound rejects 65537 chunks" {
+  match wavInfo(manyChunkRiff(65535)) { Ok(_) => false, Err(e) => e == "audio.wavInfo: chunk limit 65536 exceeded" }
 }

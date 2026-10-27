@@ -230,6 +230,9 @@ jobs:
       - name: Install dependencies
         run: make docs-install
 
+      - name: Test benchmark evidence views
+        run: npm --prefix docs run test:benchmarks
+
       - name: Generate version constants
         run: bash docs/scripts/generate-version-constants.sh
 

@@ -63,7 +63,18 @@ func MapType(t types.Type) (string, error) {
 				}
 				return fmt.Sprintf("(Seq %s)", elemSort), nil
 			}
-			return con.Name, nil
+			args := make([]string, len(ty.Args))
+			for i, arg := range ty.Args {
+				sort, err := MapType(arg)
+				if err != nil {
+					return "", err
+				}
+				args[i] = sort
+			}
+			if len(args) == 0 {
+				return con.Name, nil
+			}
+			return "(" + con.Name + " " + strings.Join(args, " ") + ")", nil
 		}
 		return "", fmt.Errorf("parameterized type %v cannot be encoded in SMT-LIB", ty)
 	default:

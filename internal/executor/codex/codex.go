@@ -109,6 +109,7 @@ func startTurn(
 // ExecuteStreaming runs a task with real-time event callbacks, parsing the
 // Codex NDJSON stream into normalized executor events.
 func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
+	defer func() { bankNativeSession(out) }()
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}

@@ -165,6 +165,7 @@ func (g *Generator) writeRuntimeSliceConverters() {
 	g.indent--
 	g.writef("}\n")
 	g.writef("// Passthrough if already []float64\n")
+	g.writef("if fs, ok := v.(FloatArrayVal); ok { return []float64(fs) }\n")
 	g.writef("if fs, ok := v.([]float64); ok {\n")
 	g.indent++
 	g.writef("return fs\n")
@@ -196,6 +197,33 @@ func (g *Generator) writeRuntimeSliceConverters() {
 	g.indent--
 	g.writef("}\n")
 	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Keep concrete float arrays packed at the public Go boundary. Existing
+	// packed storage passes through without boxing or an unnecessary copy.
+	g.writef("func ConvertToFloatArray(v interface{}) FloatArrayVal {\n")
+	g.indent++
+	g.writef("if v == nil { return nil }\n")
+	g.writef("switch xs := v.(type) {\n")
+	g.writef("case FloatArrayVal: return xs\n")
+	g.writef("case []float64: return FloatArrayVal(xs)\n")
+	g.writef("}\n")
+	g.writef("var xs []interface{}\n")
+	g.writef("switch x := v.(type) {\n")
+	g.writef("case ArrayVal: xs = []interface{}(x)\n")
+	g.writef("case []interface{}: xs = x\n")
+	g.writef("default: panic(fmt.Sprintf(\"ConvertToFloatArray: expected float array, got %%T\", v))\n")
+	g.writef("}\n")
+	g.writef("out := make(FloatArrayVal, len(xs))\n")
+	g.writef("for i, x := range xs {\n")
+	g.indent++
+	g.writef("f, ok := x.(float64)\n")
+	g.writef("if !ok { panic(fmt.Sprintf(\"ConvertToFloatArray: element %%d is %%T, want float64\", i, x)) }\n")
+	g.writef("out[i] = f\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return out\n")
 	g.indent--
 	g.writef("}\n\n")
 }

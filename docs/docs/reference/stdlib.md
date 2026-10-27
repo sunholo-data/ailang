@@ -22,10 +22,22 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | `std/list` | Functional list operations: map, filter, fold, take, drop | — |
 | `std/array` | O(1) indexed arrays (vs lists, which are O(n) indexed). `Array[float]` is stored unboxed (8 B/element) with native kernels `dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax` (equal lengths required); `updateMany`/`scatterAdd` batch many writes into one copy; `encodeF64LE`/`decodeF64LE` (exact) and `encodeF32LE`/`decodeF32LE` (lossy) binary codecs. `get`/`set` out of bounds are errors | — |
 | `std/map` | O(1) key-value lookup backed by Go hashmaps | — |
-| `std/string` | Length, substring, trim, split, replace, case | — |
+| `std/string` | Length, substring, trim, split, replace, case; `formatFixed(x, decimals)` for bounded fixed-decimal reports | — |
 | `std/regex` | Linear-time (RE2) regex: match, find, replace, split | — |
 | `std/bytes` | UTF-8 encoding, base64, byte-level operations | — |
 | `std/iter` | `FoldStep` and bounded folds for early exit | — |
+
+### Fixed-decimal reports
+
+`std/string.formatFixed(x, decimals)` returns a string with exactly the requested
+decimal places for finite values. Precision must be 0..1000; values outside that
+range fail in ordinary execution and generated Go, without requiring contract
+flags. It follows Go strconv float64 formatting, including nearest-even ties,
+signed zero and visible `NaN`/`+Inf`/`-Inf`. More digits can expose binary-float
+representation: `formatFixed(0.1, 20)` is `"0.10000000000000000555"`. This is
+formatting, not decimal arithmetic; existing `floatToStr` output is unchanged.
+
+See [the runnable formatter example](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/string_format_fixed.ail).
 
 ## Algebraic Data Types
 

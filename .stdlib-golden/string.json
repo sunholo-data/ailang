@@ -87,6 +87,12 @@
       "pure": true
     },
     {
+      "name": "formatFixed",
+      "type": "(float,int)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "intToStr",
       "type": "(int)-\u003estring",
       "effects": [],

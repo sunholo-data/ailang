@@ -5,6 +5,51 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/contracts/result_error_guard.ail",
+      "status": "working",
+      "tags": ["contracts", "smt-verification", "result", "parametric-adts"],
+      "description": "Verified size guard with typed ResourceLimit errors and inline negative, zero and positive cases.",
+      "modules": ["std/result", "std/io"],
+      "expected": {
+        "stdout": "negative: rejected\nzero: accepted\npositive: accepted\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/audio_checked.ail",
+      "status": "working",
+      "tags": [
+        "audio",
+        "bytes",
+        "array",
+        "result"
+      ],
+      "description": "Checked WAV metadata and packed s16le stereo conversion, with invalid-frame rejection.",
+      "modules": ["std/array","std/audio","std/bytes","std/io","std/option","std/result"],
+      "expected": {
+        "stdout": "true\ntrue\n4\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/string_format_fixed.ail",
+      "status": "working",
+      "tags": [
+        "string",
+        "format",
+        "pure"
+      ],
+      "description": "Bounded fixed-decimal reporting, tie rounding and long binary-float digits.",
+      "modules": [
+        "std/string",
+        "std/io"
+      ],
+      "expected": {
+        "stdout": "42.00\n0.12\n0.10000000000000000555\nfalse\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/process_spawn_result.ail",
       "status": "working",
       "tags": [
@@ -3455,11 +3500,11 @@
     }
   ],
   "statistics": {
-    "total": 235,
-    "working": 227,
+    "total": 238,
+    "working": 230,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9659574468085106,
+    "coverage": 0.9663865546218487,
     "experimental": 0
   },
   "milestones": {

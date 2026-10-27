@@ -24,6 +24,9 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 		if renamed, ok := activeParamRenames[e.Name]; ok {
 			return renamed, nil
 		}
+		if activeADTContext != nil {
+			return constructorSymbol(e, e.Name)
+		}
 		return e.Name, nil
 
 	case *core.VarGlobal:
@@ -36,7 +39,7 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 			return e.Ref.Name, nil
 		}
 		// For ADT constructors, strip make_Type_ prefix
-		return stripConstructorPrefix(e.Ref.Name), nil
+		return constructorSymbol(e, stripConstructorPrefix(e.Ref.Name))
 
 	case *core.App:
 		return encodeApp(e)

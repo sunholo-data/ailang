@@ -9,6 +9,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/smt"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // verifyCommand implements the `ailang verify` CLI command: parse flags,
@@ -121,6 +122,7 @@ func verifyCommand() {
 	}
 
 	report := smt.Verify(coreProg, surfaceAST, verifyModulesFromPipeline(result), smt.VerifyOptions{
+		CoreTI:         result.Artifacts.CoreTI,
 		Timeout:        *timeoutFlag,
 		RecursiveDepth: *recursiveDepthFlag,
 		Verbose:        *verboseFlag,
@@ -148,7 +150,7 @@ func verifyCommand() {
 }
 
 // verifyModulesFromPipeline projects the pipeline's loaded modules onto the
-// (File, Core) pair the verifier consumes, so internal/smt does not depend on
+// syntax, Core and checked types the verifier consumes, so internal/smt does not depend on
 // internal/loader.
 func verifyModulesFromPipeline(result pipeline.Result) map[string]smt.VerifyModule {
 	if result.Modules == nil {
@@ -159,7 +161,8 @@ func verifyModulesFromPipeline(result pipeline.Result) map[string]smt.VerifyModu
 		if mod == nil {
 			continue
 		}
-		mods[path] = smt.VerifyModule{File: mod.File, Core: mod.Core}
+		coreTI, _ := mod.CoreTI.(types.CoreTypeInfo)
+		mods[path] = smt.VerifyModule{File: mod.File, Core: mod.Core, CoreTI: coreTI}
 	}
 	return mods
 }

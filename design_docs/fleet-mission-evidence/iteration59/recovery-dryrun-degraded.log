@@ -1,0 +1,10 @@
+[2026-10-23 20:42:57] quorum artifact directory: /Users/voightkampff/.ailang/state/mission-quorum-repos/sunholo-data/stapledons-godot
+[2026-10-23 20:42:57] anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (the loops' own token) for inference; the quota reader reads usage with the login credential first
+[2026-10-23 20:42:57] driver pin: running committed origin/dev @ 13092528c8ae406c78054f58846b00572edceeae with mission work repository /Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery (source clone ? was ? behind); pinned target ? behind origin/dev (baseline ?)
+[2026-10-23 20:42:57] driver pin drift: unknown (?); notice suppressed
+[2026-10-23 20:42:57] driver pin age: unknown (?); notice suppressed
+[2026-10-23 20:43:02] ration gate: blocked buckets (over ration or unknown quota):codex anthropic 
+[2026-10-23 20:43:08] pi model 'bogus/no-such-model' unusable: probe failed (rc=1)
+[2026-10-23 20:43:08] pi probe output: Error: Model "bogus/no-such-model" not found. Use --list-models to see available models.
+[2026-10-23 20:43:08] pi executor lane -> falling back to opus for this fire (model 'bogus/no-such-model')
+[2026-10-23 20:43:27] DRY RUN ok: mission=stapledon repo-slug=sunholo-data/stapledons-godot doc=design_docs/stapledon-mission.md workdir=/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery pidfile=/Users/voightkampff/.ailang/state/mission-stapledon.pid prefs=pi:ollama/glm-5.3:cloud timeout=21600s | roles: designer=pi:ollama/glm-5.3:cloud planner=pi:ollama/kimi-k3:cloud executor=opus evaluator=pi:ollama/minimax-m3:cloud | lanes=DEGRADED(1) - `executor`: **pi** lane `bogus/no-such-model` unusable (probe rc=`1`) → handed to `opus` (end of chain) | pin=pinned(? behind) | skill-sync=current

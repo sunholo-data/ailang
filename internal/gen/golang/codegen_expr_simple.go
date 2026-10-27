@@ -57,6 +57,10 @@ func (g *Generator) generateLit(lit *core.Lit) error {
 
 // generateVar generates code for a Var expression (local variable reference).
 func (g *Generator) generateVar(v *core.Var) error {
+	if g.lexicalVarRefs[v] {
+		g.write(ToGoVarName(v.Name))
+		return nil
+	}
 	if err := unsupportedHostSurface("", v.Name); err != nil {
 		return err
 	}

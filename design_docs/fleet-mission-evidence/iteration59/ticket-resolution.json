@@ -1,0 +1,8 @@
+{
+  "observed_at": "2026-10-23T19:03:24Z",
+  "before": 44,
+  "after": 43,
+  "signature": "stall:watchdog:foreground-agent-and-wrong-transcript",
+  "merge": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+  "remaining_other_signatures_preserved": true
+}

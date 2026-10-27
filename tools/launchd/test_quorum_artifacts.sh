@@ -254,7 +254,9 @@ bash32_and_suite_reach() {
   fi
   /bin/bash -n "$ROOT/tools/launchd/lib/quorum-artifacts.sh" || fail syntax
   make -C "$ROOT" -n test-launchd-drivers > "$HOME/recipes"
-  [ "$(grep -cF '/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_quorum_artifacts.sh' "$HOME/recipes")" = 1 ] || fail reach
+  # Reached = exactly one argument of the run-suites.sh line (which launches every
+  # suite through suite-env.sh — test_suite_env.sh arm F pins that).
+  [ "$(awk '/\/bin\/bash tools\/launchd\/lib\/run-suites\.sh / { for (i = 1; i <= NF; i++) if ($i == "tools/launchd/test_quorum_artifacts.sh") n++ } END { print n + 0 }' "$HOME/recipes")" = 1 ] || fail reach
 }
 attended_absent_and_errors() {
   local copy
@@ -349,13 +351,86 @@ cross_mode_fixed_order() {
   rm "$MISSION_QUORUM_ARTIFACT_DIR"/*.json
   expect_rc 1 mc_quorum_gate2 doc
 }
+# These are child-process behavior checks, including an oracle negative control:
+# removing only AFTER_CALL from a real success must make the same checker reject it.
+zsh_quorum_result_ok() {
+  local child_rc="$1" out="$2" expected="$3"
+  [ "$child_rc" = 0 ] || return 1
+  [ "$(grep -cx 'AFTER_CALL' "$out" || true)" = 1 ] || return 1
+  sed '/^AFTER_CALL$/d' "$out" | cmp -s "$expected" -
+}
+zsh_quorum_case() {
+  local mode="$1" entry="${2:-lookup}" options="${3:-ignore}" copy="${4:-.claude}"
+  local artifact want_rc=0 child_rc=0
+  export MISSION_QUORUM_ARTIFACT_DIR="$HOME/export with spaces"
+  mkdir -p "$MISSION_QUORUM_ARTIFACT_DIR" "$(local_dir)"
+  artifact="$MISSION_QUORUM_ARTIFACT_DIR/doc-x-2026.json"
+  case "$mode" in
+    local) artifact="$(local_dir)/doc-x-2026.json" ;;
+    absent) artifact=''; want_rc=1 ;;
+  esac
+  if [ -n "$artifact" ]; then
+    printf '{"doc":"doc-x.md","synthesis":{"verdict":"pass"},"reviewers":[]}\n' > "$artifact"
+  fi
+  if [ "$entry" = gate2 ]; then
+    extract "$ROOT/$copy/skills/mission-control/resources/gate-2-pick.md" 'QUORUM READER' "$HOME/reader.sh"
+    export MISSION_CONTROL_ACTIVE=1
+  fi
+  /bin/zsh -f -c '
+    setopt nomatch; unsetopt null_glob
+    if [ "$2" = gate2 ]; then
+      . "$3" || exit 80
+      mc_quorum_gate2 doc-x
+    else
+      . "$1" || exit 80
+      mc_quorum_reader_dirs "$MISSION_DRIVER_ROOT" || exit 80
+      mc_quorum_lookup doc-x
+    fi
+    fn_rc=$?
+    printf "%s\n" AFTER_CALL
+    if [ "$4" = check ]; then
+      [[ -o nomatch && ! -o null_glob ]] || { print -u2 OPTIONS_LEAKED; exit 81; }
+    fi
+    printf "RC=%s\nCOUNT=%s\n" "$fn_rc" "${#MC_QUORUM_MATCHES[@]}"
+    for match in "${MC_QUORUM_MATCHES[@]}"; do printf "MATCH=%s\n" "$match"; done
+  ' zsh "$ROOT/tools/launchd/lib/quorum-artifacts.sh" "$entry" "$HOME/reader.sh" "$options" > "$HOME/zsh-out" 2> "$HOME/zsh-err" || child_rc=$?
+  {
+    printf 'RC=%s\n' "$want_rc"
+    if [ -n "$artifact" ]; then printf 'COUNT=1\nMATCH=%s\n' "$artifact"; else printf 'COUNT=0\n'; fi
+  } > "$HOME/zsh-expected"
+  zsh_quorum_result_ok "$child_rc" "$HOME/zsh-out" "$HOME/zsh-expected" || fail "child rc=$child_rc, result/AFTER_CALL mismatch: $(cat "$HOME/zsh-out" "$HOME/zsh-err")"
+  sed '/^AFTER_CALL$/d' "$HOME/zsh-out" > "$HOME/zsh-no-marker"
+  if zsh_quorum_result_ok "$child_rc" "$HOME/zsh-no-marker" "$HOME/zsh-expected"; then
+    fail 'missing-marker negative control accepted'
+  fi
+}
+zsh_quorum_export_only() { zsh_quorum_case export; }
+zsh_quorum_local_only() { zsh_quorum_case local; }
+zsh_quorum_absent() { zsh_quorum_case absent; }
+zsh_quorum_options() {
+  zsh_quorum_case export lookup check
+  rm "$MISSION_QUORUM_ARTIFACT_DIR/doc-x-2026.json"
+  zsh_quorum_case absent lookup check
+}
+zsh_gate2_export_only() {
+  local copy
+  for copy in .claude .agents; do zsh_quorum_case export gate2 ignore "$copy"; done
+}
+
 run_arm() {
   CURRENT_ARM="$1"
+  case "$1" in
+    zsh_*)
+      if [ ! -x /bin/zsh ]; then
+        [ "$(uname -s)" != Darwin ] || fail 'no /bin/zsh on Darwin'
+        echo "SKIP (no /bin/zsh): $1"; return 0
+      fi ;;
+  esac
   ( export HOME="$fixture/$1"; mkdir -p "$HOME"; setup || exit 1; "$1" ) || fail "$1"
   echo "PASS $1"
 }
 if [ -n "$ARM" ]; then run_arm "$ARM"; exit; fi
-for arm in repo_namespace_missions repo_namespace_isolation invalid_repo_and_home invalid_and_explicit_override gate2_extracted_active_matrix lookup_error_matrix extraction_is_nonvacuous driver_export_before_both_launches codex_actual_forwarding contaminated_host_startup standalone_policy_reader bash32_and_suite_reach attended_absent_and_errors cross_mode_errors_dominate generated_docs_and_mirror fixture_home_and_observations; do run_arm "$arm"; done
+for arm in zsh_quorum_export_only zsh_quorum_local_only zsh_quorum_absent zsh_quorum_options zsh_gate2_export_only repo_namespace_missions repo_namespace_isolation invalid_repo_and_home invalid_and_explicit_override gate2_extracted_active_matrix lookup_error_matrix extraction_is_nonvacuous driver_export_before_both_launches codex_actual_forwarding contaminated_host_startup standalone_policy_reader bash32_and_suite_reach attended_absent_and_errors cross_mode_errors_dominate generated_docs_and_mirror fixture_home_and_observations; do run_arm "$arm"; done
 if [ -n "$WRITER" ]; then
   for arm in cross_tree_durable attended_no_exports cross_mode_fixed_order; do run_arm "$arm"; done
 fi

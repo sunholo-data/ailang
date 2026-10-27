@@ -1,0 +1,27 @@
+{
+  "observed_at": "2026-10-23T18:49:03.732629+00:00",
+  "blobs": {
+    "tools/launchd/mission-control.sh": {
+      "da3726052d3a6eb34e6245baffdb99ac49eb6810": "d3192cd8ad1791921d868973edb6cd51e647287a",
+      "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f": "d3192cd8ad1791921d868973edb6cd51e647287a",
+      "13092528c8ae406c78054f58846b00572edceeae": "d3192cd8ad1791921d868973edb6cd51e647287a"
+    },
+    "tools/launchd/test_mission_stall.sh": {
+      "da3726052d3a6eb34e6245baffdb99ac49eb6810": "002d576beadd7d18c7641bf28ede311a41acae2d",
+      "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f": "002d576beadd7d18c7641bf28ede311a41acae2d",
+      "13092528c8ae406c78054f58846b00572edceeae": "002d576beadd7d18c7641bf28ede311a41acae2d"
+    },
+    "design_docs/planned/sprint-plan-stall-own-session-transcript.md": {
+      "da3726052d3a6eb34e6245baffdb99ac49eb6810": "6551e81df257829843d83467240a1a65aaa55d5d",
+      "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f": "6551e81df257829843d83467240a1a65aaa55d5d",
+      "13092528c8ae406c78054f58846b00572edceeae": "6551e81df257829843d83467240a1a65aaa55d5d"
+    },
+    ".ailang/state/sprints/sprint_M-FLEET-STALL-OWN-TRANSCRIPT.json": {
+      "da3726052d3a6eb34e6245baffdb99ac49eb6810": "44920b780284c9b6265dd9708ecee451c77c74aa",
+      "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f": "44920b780284c9b6265dd9708ecee451c77c74aa",
+      "13092528c8ae406c78054f58846b00572edceeae": "44920b780284c9b6265dd9708ecee451c77c74aa"
+    }
+  },
+  "all_four_paths_identical": true,
+  "changelog": "Fragment consolidated by release329c9808f into changelogs/v0.32-current.md"
+}
