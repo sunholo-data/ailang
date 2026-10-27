@@ -3,7 +3,10 @@ package pi
 import (
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor/nativesession"
 )
 
 // buildPiArgs assembles the pi CLI argument vector.
@@ -27,12 +30,22 @@ import (
 // copy: tools/pi-extensions/models.mission.json, drift-tested against
 // models.yml by TestPiModelsConfigMatchesRegistry.
 func buildPiArgs(model string, task *executor.Task, directive string) ([]string, error) {
+	return buildPiArgsWithSession(model, task, directive, uuid.NewString())
+}
+
+func buildPiArgsWithSession(model string, task *executor.Task, directive, sessionID string) ([]string, error) {
 	args := []string{
 		"--mode", "json",
 		"--model", model,
-		"--no-session",
-		"-p",
 	}
+
+	if config.CloudRunExecution() != "" {
+		args = append(args, "--session-dir", nativesession.PiDir(task.ID), "--session-id", sessionID)
+	} else {
+		args = append(args, "--no-session")
+	}
+
+	args = append(args, "-p")
 
 	// Empty = send no dial at all; provider default thinking. Validated here
 	// rather than passed through, because pi rejects an unknown level with a
