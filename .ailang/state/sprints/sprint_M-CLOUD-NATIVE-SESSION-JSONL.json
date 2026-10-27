@@ -70,10 +70,10 @@
         "Claude resolves the actual session ID under CLAUDE_CONFIG_DIR or the default ~/.claude/projects.",
         "All post-launch return paths with results bank native paths without dropping existing ProviderData; fixtures cover match, fallback and missing files."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-27T11:03:35.878440+00:00",
+      "completed": "2026-10-27T11:03:35.878440+00:00",
+      "notes": "Claude/Codex banking tests pass, covering successful and failed results, preserved ProviderData and missing files. Named-return defers cover all result branches. Shared lookup fixtures cover identity preference and isolated newest fallback. Baseline b7b7093e independently reproduces both Codex process-group cancellation failures."
     },
     {
       "id": "M3",

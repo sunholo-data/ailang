@@ -105,6 +105,7 @@ func (e *ClaudeExecutor) Execute(ctx context.Context, task *executor.Task) (*exe
 
 // ExecuteStreaming runs a task with real-time event callbacks
 func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
+	defer func() { bankNativeSession(out) }()
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
