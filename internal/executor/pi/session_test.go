@@ -3,6 +3,7 @@ package pi
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 
@@ -34,6 +35,9 @@ func TestNativeSessionArgs(t *testing.T) {
 }
 
 func TestNativeSessionBankedOnSuccessAndFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip(skipWindows)
+	}
 	t.Setenv("CLOUD_RUN_EXECUTION", "job")
 	t.Setenv("TMPDIR", t.TempDir())
 	dir := nativesession.PiDir("d")

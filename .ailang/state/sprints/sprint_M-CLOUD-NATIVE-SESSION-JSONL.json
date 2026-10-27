@@ -90,10 +90,10 @@
         "Reads retry up to three total attempts at two-second intervals; success emits the exact written byte-count log, exhausted failure names provider, session and searched paths.",
         "Deterministic-bump skips session handling; nil result and transcript behavior remain valid."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-27T11:12:18.708354+00:00",
+      "completed": "2026-10-27T11:12:18.708354+00:00",
+      "notes": "Focused cmd/ailang native-session and Claude setup fixtures pass. Shared lookup resolves symlink roots; ProviderData precedes provider fallbacks; retries are bounded at three total attempts, two seconds apart. Copy uses os.WriteFile and reports exact bytes or searched paths. Nil/deterministic runs are covered. Follow-up fixes Claude resume/reported identity and home lookup error handling."
     },
     {
       "id": "M4",
@@ -132,5 +132,6 @@
       "notes": null
     }
   ],
-  "last_session": "2026-10-27T11:02:37.385854+00:00"
+  "last_session": "2026-10-27T11:02:37.385854+00:00",
+  "last_checkpoint": "M3: native artifacts copied and focused fixture gate passes"
 }

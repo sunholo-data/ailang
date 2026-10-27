@@ -40,3 +40,22 @@ func TestFind(t *testing.T) {
 		})
 	}
 }
+
+func TestFindThroughProjectsSymlink(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "real-projects")
+	if err := os.MkdirAll(projects, 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(projects, "id.jsonl")
+	if err := os.WriteFile(path, []byte("native"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "projects")
+	if err := os.Symlink(projects, link); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if got := Find(link, "claude", "id", false); got != path {
+		t.Fatalf("symlink lookup = %q, want %q", got, path)
+	}
+}

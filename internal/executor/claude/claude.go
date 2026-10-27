@@ -138,6 +138,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		// Generate a UUID for Claude's session, but keep task.ID for hierarchy tracking
 		sessionID = uuid.New().String()
 	}
+	sessionID = nativeSessionID(sessionID, resumedSessionID(task))
 	span.SetAttributes(attribute.String("session.id", sessionID))
 	span.SetAttributes(attribute.Int("task.iteration", task.Iteration))
 
@@ -729,7 +730,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			OutputTokens:             finalResult.Usage.OutputTokens,
 			CacheReadInputTokens:     finalResult.Usage.CacheReadInputTokens,
 			CacheCreationInputTokens: finalResult.Usage.CacheCreationInputTokens,
-			SessionID:                sessionID,
+			SessionID:                nativeSessionID(sessionID, finalResult.SessionID),
 			Transcript:               transcriptBuf.String(),
 			CostKilledAt:             task.Budget.KilledAt(),
 			ThrashKilledAt:           guard.thrashKilledAt,

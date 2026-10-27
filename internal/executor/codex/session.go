@@ -1,11 +1,12 @@
 package codex
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/executor/nativesession"
-	"os"
-	"path/filepath"
 )
 
 func bankNativeSession(result *executor.Result) {
@@ -14,7 +15,11 @@ func bankNativeSession(result *executor.Result) {
 	}
 	root := config.CodexHome()
 	if root == "" {
-		root, _ = os.UserHomeDir()
+		var err error
+		root, err = os.UserHomeDir()
+		if err != nil {
+			return
+		}
 		root = filepath.Join(root, ".codex")
 	}
 	path := nativesession.Find(filepath.Join(root, "sessions"), "codex", result.SessionID, config.CloudRunExecution() != "" && config.CodexHome() != "")

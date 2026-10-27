@@ -8,6 +8,7 @@ import (
 )
 
 func TestBankNativeSession(t *testing.T) {
+	t.Setenv("CLOUD_RUN_EXECUTION", "")
 	root := t.TempDir()
 	t.Setenv("CODEX_HOME", root)
 	path := filepath.Join(root, filepath.FromSlash("sessions/2026/10/27/rollout-stamp-id.jsonl"))
@@ -27,6 +28,11 @@ func TestBankNativeSession(t *testing.T) {
 	result := &executor.Result{SessionID: "missing"}
 	bankNativeSession(result)
 	if len(result.ProviderData) != 0 {
+		t.Fatal(result.ProviderData)
+	}
+	t.Setenv("CLOUD_RUN_EXECUTION", "execution")
+	bankNativeSession(result)
+	if result.ProviderData["codex_session_jsonl"] != path {
 		t.Fatal(result.ProviderData)
 	}
 	bankNativeSession(nil)

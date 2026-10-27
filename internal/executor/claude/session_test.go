@@ -31,3 +31,20 @@ func TestBankNativeSession(t *testing.T) {
 	}
 	bankNativeSession(nil)
 }
+
+func TestNativeSessionIdentity(t *testing.T) {
+	if got := nativeSessionID("generated", "actual"); got != "actual" {
+		t.Fatal(got)
+	}
+	if got := nativeSessionID("generated", ""); got != "generated" {
+		t.Fatal(got)
+	}
+	task := &executor.Task{Iteration: 2, ResumeSessionID: "resumed"}
+	if got := nativeSessionID("generated", resumedSessionID(task)); got != "resumed" {
+		t.Fatal(got)
+	}
+	task.Iteration = 1
+	if got := resumedSessionID(task); got != "" {
+		t.Fatal(got)
+	}
+}
