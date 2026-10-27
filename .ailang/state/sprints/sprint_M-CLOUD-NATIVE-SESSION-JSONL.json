@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-CLOUD-NATIVE-SESSION-JSONL",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-27T10:15:05.492342+00:00",
   "design_doc": "design_docs/planned/v0_54_19/m-cloud-native-session-jsonl.md",
   "sprint_plan": "design_docs/planned/v0_54_19/m-cloud-native-session-jsonl-sprint-plan.md",
@@ -55,10 +55,10 @@
         "Suffix match precedes newest-file fallback in the task-scoped directory; missing files do not invent a path.",
         "Completed and failed post-launch results preserve existing ProviderData and bank pi_session_jsonl when available."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-27T11:02:37.385854+00:00",
+      "completed": "2026-10-27T11:02:37.385854+00:00",
+      "notes": "Pi provider suite and cloud argv/result banking tests pass. Shared nativesession companion centralizes lookup for all providers; no .ail changes. Cloud sync skipped:no-task-id on actual branch coordinator/task-53b8873a; preserve current branch."
     },
     {
       "id": "M2",
@@ -131,5 +131,6 @@
       "completed": null,
       "notes": null
     }
-  ]
+  ],
+  "last_session": "2026-10-27T11:02:37.385854+00:00"
 }
