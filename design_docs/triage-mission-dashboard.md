@@ -1,26 +1,27 @@
-# Triage mission dashboard — iteration 13, 2026-10-22
+# Triage mission dashboard
 
-- Level1; no approve/reject/merge/sprint execution/handoff.
-- Operational CLI v0.54.16-dirty/128371f; reviewed dev d25d9b8d0dde10ee7c14986fe21b94fd2cb500cd.
-- Dev RED: pricing identity collision and inherited GO-2026-6809; existing routes retained, no duplicate dispatch.
-- Pricing designPR1928 satisfies request; exact-head inherited CI reds block VERIFIED.
-- DesignPR1931 needs negative-decimal parity, overflow-safe bounds, precision-claim correction.
-- Issue1930 KEEP/P2, issue1891 KEEP;2PRcomments and1safelabel.
-- New cards1928/1931 hand off to planner,not executor; no new execution-authorization hold.
-- Snapshot9cards/31PRs/61issues;3joined items/4verdict rows,80retainedcomponents<7days.
-- 8uncarded coordinatorPRs+1unidentified missing approval record;5agedcards,0qualifiedstalls.
-- Shadow14/14 settled,0disagreements;ledger343→347,oldprefixpreserved.
-- Twelve existing OPEN decisions unchanged;D25coverage,D26executionauthorizationparked.
-- ResolvedD12–14 remainresolved;shadowcollectionOFF;noPartApromotion.
-- Two native OpenAI read-only Agent verifiers;model/tokensnotreported.
-- Native Sonnet model selection unavailable:spawn schema has no model/providerfield.
-- Agent-tool transport ran same configured Sonnet through subscription-only claude-sub.
-- Actual judge Anthropic/claude-sonnet-5-5(firstParty),8/8CONCUR;20380tokens,metered$0.
-- No designer/planner/codeexecutor;allroleagentsandactualjudgecallscomplete.
-- Cadence12h;queuefingerprintidleprecheck;fingerprintafterfinalreports.
-- Harness share7/9available records,escalationonly;zero triageharnessrepairs.
-- Main dirtyworkparked;recordhistorypreserved;PR1904unmerged.
-- Evidence:https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6339097405
-- Record:https://github.com/sunholo-data/ailang/pull/1904
-- Digest: https://github.com/sunholo-data/ailang/issues/1892#issuecomment-6339151170
-- Delivery: normal/one urgent controlplane fallback + user, exact peek-verified; recurrence inbox_1792666977791_d8a8d14b.
+Updated2026-10-27, iteration15. Level1; latest operational CLIv0.54.19-1-g379a9e20e-dirty.
+Reviewed dev9646caebd: CI40551944965/all18commit checks SUCCESS.
+Queues9cards/31PRs/65issues;63components in56joined groups reviewed.
+35KEEP,13NEEDS-DECISION,6NEEDS-FIX,5SUPERSEDED,4NEEDS-REBASE.
+OpenAI Agent-tool verifiers → actual Anthropic Sonnet independent judge:62CONCUR/1DISSENT.
+PR1963 depth17 callback charge invariant FAIL;depth16 control PASS. Evidence posted.
+PR1849 disputed broader scope: HOLD, no tie-break or mutation.
+15PR evidence comments;8needs-decision labels; no attestation/product close/task decision/merge.
+19OPEN decisions:12inherited plusD27–33; all remain operator-owned.
+D27SMT freeze,D28runtime parity freeze,D29proxy resume/drop,D30migration evidence.
+D31draft1957 readiness,D32five superseded PRs,D33disputed1849.
+ExistingD25coverage/D26execution and orphan reconciliation stay parked.
+All9cards>48h;1916green historical rollup but currentlyBLOCKED/mislinked;1862conflicts.
+10uncarded coordinator PRs plus1remote missing-approval-record count; no clear/apply/handoffs.
+Coverage69/83components current;14stale deferred among20skipped, so clause1UNMET.
+Shadow14/14settled;417append-only rows; sample excludes unknown/still-open.
+Clause2exposes oldcards;clause3faithful ledger;clause4scope preserved;clause5fingerprint last.
+Harness-share8/10available records are escalation-tagged;zero loop-authored repairs.
+No product landings for drift test. Goal unmoved by product work(ADMIN).
+Cadence12h;queue-fingerprint idle precheck. Metered$0;judge1,945,169reported tokens.
+Native model selectors unavailable;Agent judge transport used guarded subscription Sonnet CLI.
+Bookkeeping[#1974](https://github.com/sunholo-data/ailang/issues/1974);[evidence](https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6452570174).
+Record chain[PR1904](https://github.com/sunholo-data/ailang/pull/1904) remains unmerged.
+Main3benchmark edits untouched;pin clean. Prior failed fire/crash and iteration14credited in log.
+Next:14stale components first, then changed/held;operator rules design freezes/dispositions.

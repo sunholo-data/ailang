@@ -11,3 +11,5 @@
 ## STATUS 2026-10-19 — ITERATION 8: 8 joined items / 11 component verdicts independently judged; 1 duplicate close, 4 PR comments, 6 safe labels; CI green / Sonar dissent held; shadow 13/13; D22/23 OPEN; no attestations or dispatch.
 
 ## STATUS 2026-10-21 — ITERATION 10: 3 cross-vendor CONCUR verdicts; #1916 correction requested, #1914 safely labelled, new orphan #1889 held D24; dev checks17/17 green; shadow14/14; no attestations or dispatch.
+
+## STATUS 2026-10-21 — ITERATION 11: dev vulnerability and parent PTY findings routed; #1921 semantics held D25; 5 queue verdicts independently concurred, including 2 late design PRs held; shadow15/15; no attestation/approval/handoff.
