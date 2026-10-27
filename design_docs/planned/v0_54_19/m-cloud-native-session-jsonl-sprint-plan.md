@@ -1,6 +1,6 @@
 # M-CLOUD-NATIVE-SESSION-JSONL Sprint Plan
 
-**Status:** Planned; awaiting sprint-plan approval through coordinator merge. Implementation has not started.
+**Status:** Implementation delivered on coordinator/task-53b8873a; focused provider/artifact verification passes; broad-gate limitations recorded below. Independent coordinator evaluation and post-deployment canaries remain pending.
 **Design:** [Approved design](m-cloud-native-session-jsonl.md) · **Issue:** #1967 · **Target:** v0.54.19
 **Duration:** 2 working days, approximately 11 hours including 3.5 hours of integration/operational buffer.
 **Risk:** Medium (session identity, early returns, gcsfuse visibility).
@@ -9,7 +9,7 @@
 
 Persist the native Claude, pi, Codex and motoko session at the existing flat task artifact path, preserving every byte and exposing misses. Keep pi persistence cloud-only. No Terraform, registry dependency, artifact layout or language semantics changes.
 
-Code inspection confirms pi disables persistence, cloud artifact writing searches only Claude paths, and motoko already banks a path that cloud ignores. No implementation milestones are complete. The approved design audits all four active provider paths and supplies a unified ProviderData resolution contract.
+Code inspection confirms pi disables persistence, cloud artifact writing searches only Claude paths, and motoko already banks a path that cloud ignores. Provider persistence/banking and cloud copy/metrics implementation are complete. The approved design audits all four active provider paths and supplies a unified ProviderData resolution contract.
 
 ## Estimate basis
 
@@ -30,9 +30,9 @@ Every milestone has action `none` in registry_reuse. Search results for session 
 **Approach and risk mitigation:** Generate UUID once before launch and pass the same identity through argv and resolution; use companion helpers to keep pi.go below 800 lines.
 **Acceptance:**
 
-- [ ] Cloud args use a generated UUID with --session-dir and --session-id; local/eval args retain --no-session.
-- [ ] Suffix match precedes newest-file fallback in the task-scoped directory; missing files do not invent a path.
-- [ ] Completed and failed post-launch results preserve existing ProviderData and bank pi_session_jsonl when available.
+- [x] Cloud args use a generated UUID with --session-dir and --session-id; local/eval args retain --no-session.
+- [x] Suffix match precedes newest-file fallback in the task-scoped directory; missing files do not invent a path.
+- [x] Completed and failed post-launch results preserve existing ProviderData and bank pi_session_jsonl when available.
 
 ### M2: Bank Codex and Claude native session paths (~210 LOC)
 **Estimate:** 100 implementation/docs + 110 tests; up to 90 minutes.
@@ -41,9 +41,9 @@ Every milestone has action `none` in registry_reuse. Search results for session 
 **Approach and risk mitigation:** Keep new logic in session.go companions: codex.go is 782 lines and claude.go is 798. Avoid duplicating banking across five result-return branches; use a finalization helper or deferred result enrichment.
 **Acceptance:**
 
-- [ ] Codex matches session UUID in rollout filenames before newest fallback under isolated CODEX_HOME/sessions.
-- [ ] Claude resolves the actual session ID under CLAUDE_CONFIG_DIR or the default ~/.claude/projects.
-- [ ] All post-launch return paths with results bank native paths without dropping existing ProviderData; fixtures cover match, fallback and missing files.
+- [x] Codex matches session UUID in rollout filenames before newest fallback under isolated CODEX_HOME/sessions.
+- [x] Claude resolves the actual session ID under CLAUDE_CONFIG_DIR or the default ~/.claude/projects.
+- [x] All post-launch return paths with results bank native paths without dropping existing ProviderData; fixtures cover match, fallback and missing files.
 
 ### M3: Resolve and copy provider sessions in cloud artifacts (~220 LOC)
 **Estimate:** 120 implementation/docs + 100 tests; up to 90 minutes.
@@ -52,11 +52,11 @@ Every milestone has action `none` in registry_reuse. Search results for session 
 **Approach and risk mitigation:** Extract session resolution/copy out of the 797-line github file, moving findSessionJSONL if useful. Inject read/sleep behavior for retry tests; keep production retries bounded.
 **Acceptance:**
 
-- [ ] writeTaskArtifacts takes the canonical provider name and its call sites compile.
-- [ ] ProviderData is primary; failed or empty candidates permit provider-specific fallback; Claude searches bucket, config and default roots, pi its task dir, Codex its isolated home, motoko its banked path.
-- [ ] Native bytes are copied unchanged with os.WriteFile to tasks/{taskID}/session.jsonl, with no size cap.
-- [ ] Reads retry up to three total attempts at two-second intervals; success emits the exact written byte-count log, exhausted failure names provider, session and searched paths.
-- [ ] Deterministic-bump skips session handling; nil result and transcript behavior remain valid.
+- [x] writeTaskArtifacts takes the canonical provider name and its call sites compile.
+- [x] ProviderData is primary; failed or empty candidates permit provider-specific fallback; Claude searches bucket, config and default roots, pi its task dir, Codex its isolated home, motoko its banked path.
+- [x] Native bytes are copied unchanged with os.WriteFile to tasks/{taskID}/session.jsonl, with no size cap.
+- [x] Reads retry up to three total attempts at two-second intervals; success emits the exact written byte-count log, exhausted failure names provider, session and searched paths.
+- [x] Deterministic-bump skips session handling; nil result and transcript behavior remain valid.
 
 ### M4: Verify artifact landing and metrics for every provider (~165 LOC)
 **Estimate:** 25 implementation/docs + 140 tests; up to 90 minutes.
@@ -65,10 +65,10 @@ Every milestone has action `none` in registry_reuse. Search results for session 
 **Approach and risk mitigation:** Compute copy outcome before serializing metrics. Use temp directories and isolated environment; avoid real GCS and provider credentials.
 **Acceptance:**
 
-- [ ] Fixture tests for claude, pi, codex and motoko each assert byte-identical session.jsonl at the task artifact destination.
-- [ ] metrics.json includes session_provider and session_jsonl_bytes matching the successful copy; missing sessions report zero bytes.
-- [ ] Tests capture success and warning output, including searched paths, unreadable/empty files, retry exhaustion, write failure and deterministic-bump silence.
-- [ ] A payload larger than the existing log truncation threshold retains full tool-result content; unrelated transcript and metrics fields survive.
+- [x] Fixture tests for claude, pi, codex and motoko each assert byte-identical session.jsonl at the task artifact destination.
+- [x] metrics.json includes session_provider and session_jsonl_bytes matching the successful copy; missing sessions report zero bytes.
+- [x] Tests capture success and warning output, including searched paths, unreadable/empty files, retry exhaustion, write failure and deterministic-bump silence.
+- [x] A payload larger than the existing log truncation threshold retains full tool-result content; unrelated transcript and metrics fields survive.
 
 ### M5: Run focused gates and document cloud canaries (~30 LOC)
 **Estimate:** 20 implementation/docs + 10 tests; up to 90 minutes.
@@ -100,3 +100,33 @@ Post-merge operational check: dispatch one canary for each active provider, insp
 No external dependency blocks implementation. Reuse config.CloudRunExecution and config.CodexHome; do not add environment variables. Keep newest fallback restricted to task-scoped pi storage and isolated cloud Codex storage. Preserve motoko’s existing key. Reuse existing UUID tooling. Return actual write byte counts; never substitute reconstructed transcript content for a missing native session.
 
 This plan and its populated JSON are the coordinator handoff artifacts. Per sprint-planner/resources/coordinator.md, merging the sprint-plan PR approves the plan and triggers sprint-executor. Do not self-merge or start implementation during planning. Sprint-evaluator follows execution. Live canary evidence remains pending until deployment.
+
+## Execution record — 2026-10-27
+
+- Actual work branch: `coordinator/task-53b8873a` (the execution checkout differs from the planner handoff branch). Branch-sync helper reports `skipped:no-task-id`; no branch switch, merge, deployment or remote publication is claimed.
+- Implementation uses `internal/executor/nativesession` as a shared companion for identity lookup and evidence banking, avoiding duplicated traversal across providers. Newest fallback remains restricted to task-scoped pi storage and explicitly isolated cloud Codex homes. Claude projects-root symlinks are resolved before walking.
+- Claude banking uses the resumed identity and the CLI-reported final identity rather than a generated task UUID. Result finalizers preserve provider evidence on failed runs.
+- Fixtures cover all four native artifact destinations, full tool-result bytes, metrics, retries, searched-path warnings, empty/unreadable/missing sessions, write errors, provider fallback and deterministic-run silence. No `.ail` edits or runnable-language examples are involved.
+- `make lint` cannot run: `golangci-lint` is absent. No toolchain installation was attempted under the unattended-run policy.
+- Baseline `b7b7093e` reproduces `TestCodexCancellationKillsMCPProcessGroup` and `TestCodexExitedLeaderStillStopsOwnedChildBeforeReturn`; these process-group failures predate this sprint.
+
+### Operational validation after deployment
+
+| Route | Task ID | Artifact bytes | Success/miss log | Status |
+|---|---|---|---|---|
+| pi | pending | pending | pending | Await deployment and dispatch |
+| codex | pending | pending | pending | Await deployment and dispatch |
+| claude | pending | pending | pending | Await deployment and dispatch |
+| motoko | pending | pending | pending | Await deployment and dispatch |
+| pi-go → pi | pending | pending | pending | Verify canonical provider routing |
+| codex-go → codex | pending | pending | pending | Verify canonical provider routing |
+
+For each task inspect `tasks/{taskID}/session.jsonl` and `metrics.json` in the artifacts bucket, reconcile the object size with `session_jsonl_bytes`, and record exactly one session success/miss outcome from Cloud Logging. Confirm the next Holosun nightly mirror counts these sessions. These are operational follow-ups, not claims made by local fixtures.
+
+### Offline validation results
+
+- PASS: focused native-session fixtures across `cmd/ailang`, `internal/executor/pi`, `internal/executor/codex`, `internal/executor/claude`, and `internal/executor/nativesession`.
+- PASS: `make check-file-sizes`, `make check-changelog`, `make check-boundaries`, formatting and `git diff --check`.
+- `make test-changed TEST_CHANGED_BASE=b7b7093e4abcbfce6fa8b0f7e58d8294978e0a4d` was run; see final checkpoint for broad-gate results. No full `make test` was run.
+- `make test-core` is not green: `TestRuntimeNestedStopUsesRemainingDeadline` and `TestProcessExec_TimeoutKillsGrandchildren` fail identically on the unchanged baseline. The pipeline test process was killed (`signal: killed`) during resource-intensive verification; pipeline verification remains for CI.
+- Lint remains unverified because `golangci-lint` is absent. Independent sprint evaluation is the coordinator's next stage; no self-evaluation score or merge approval is asserted.

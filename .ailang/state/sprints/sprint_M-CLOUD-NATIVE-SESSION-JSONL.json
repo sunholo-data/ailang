@@ -108,10 +108,10 @@
         "Tests capture success and warning output, including searched paths, unreadable/empty files, retry exhaustion, write failure and deterministic-bump silence.",
         "A payload larger than the existing log truncation threshold retains full tool-result content; unrelated transcript and metrics fields survive."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-27T11:12:34.947071+00:00",
+      "completed": "2026-10-27T11:12:34.947071+00:00",
+      "notes": "All four byte-identical artifact landing fixtures pass, including >4.7 KB tool results; metrics preserve existing fields and report actual bytes/zero on misses. Success/warning logging, fallback, late flush, empty/unreadable/missing files, write failure, nil/deterministic silence pass. Windows temp roots and symlink availability are guarded."
     },
     {
       "id": "M5",
@@ -133,5 +133,5 @@
     }
   ],
   "last_session": "2026-10-27T11:02:37.385854+00:00",
-  "last_checkpoint": "M3: native artifacts copied and focused fixture gate passes"
+  "last_checkpoint": "M4: provider artifact landing and metrics fixture matrix passes"
 }
