@@ -34,7 +34,7 @@ jobs:
         with:
           go-version: '1.26.10'
           cache-dependency-path: core/go.sum
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '26.12.1'
       - name: Build native runtime and install explicit tool dependencies
