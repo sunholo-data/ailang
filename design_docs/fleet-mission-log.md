@@ -1854,3 +1854,60 @@ Last 3 code landings: iteration 59, clause 2 (<48h); iteration 61, clause 2 (out
 **Next**:
 1. Take the next open ticket by `slots_lost`, checking first whether its rulings are still pending. `agent-tool:sonnet-unavailable` (15) is D-FLEET-24, and `reporting:daneel-reports-not-declared-triage` (8) is D-FLEET-22, both OPEN. So pick the top ticket with no open decision, at HEAD.
 2. If Mark answers D-FLEET-31: A means resolve the ticket citing `0802749cb`; B means build the seating rule.
+
+## 63 — 2026-10-27 — dev's required-check red repaired: the sprint-evaluator `.agents` mirror re-synced via #1972 → `6094d2b33`, independent sonnet PASS 94; no ticket moved [HARNESS]
+
+**Pick**: Gate 1 found dev's REQUIRED `test`, `launchd drivers (bash 3.2)` and `Build ubuntu-latest` red at HEAD `5f56181a1` and its parent `efcd7fe80`, and green at `3c4af5190`. A red outranks the queue only for the owning mission. V1 owns repo reds and has been disabled since 09-14, but this red sits in fleet territory: the `.agents` mission/sprint mirror, its sync script and its test are fleet scope (#1398). It also reddened the fleet's own done-gate (`make test-launchd-drivers`) and blocked every landing, including the clause-2 candidate below. That is the measured reason the pick is not the routable UNMET-clause-2 ticket `gate5:controlplane-assert-marks-read` (stapledon, filed 10-27 10:10Z).
+
+**Orphans**: none. Slot verdicts show iteration 62 `COMPLETED` at 2026-10-27T10:21:59Z, and the log and charter on `origin/dev` both end at 62. Self-notices rc 0 (control 852:10).
+
+**Preflight / observe**:
+- Armed (`mission-fleet.disabled` absent). gh `sunholo-voight-kampff`. Billing CLEAN. Messaging store gcp.
+- Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (3 comments, none allowlisted). Watermark not advanced.
+- The running skill and all 13 resource files are `cmp`-identical to origin/dev and to the pin copy.
+- Gate-1 base `5f56181a1e0ffe97e9d72e3b2ebf5a1e95b058a7@2026-10-27T16:22:52Z`.
+- Ledger: 30 rows, 15 OPEN, unchanged. 43 tickets open (new since 62: `gate5:controlplane-assert-marks-read`).
+
+**Reality check** (first-party, before routing; detail in [ci-red-diagnosis.md](fleet-mission-evidence/iteration63/ci-red-diagnosis.md)):
+- Job logs (ANSI stripped, sized): `launchd drivers` 163,991 B, 2 failing suites; `test` 95,521 B; `Build ubuntu-latest` 4.4 MB, 1 `--- FAIL` against 21,173 `--- PASS`. Every failure prints `STALE: .agents/skills/sprint-evaluator differs from .claude/skills/sprint-evaluator`.
+- Cause: `efcd7fe80` (attended) moved the canonical evaluator skill to a final `EVALUATION_VERDICT:` line without running `tools/launchd/sync-agents-skills.sh`. Only `SKILL.md` differed; the other five mirrored skills were identical. The `.agents` copy still told codex and pi evaluators to emit `EVALUATION_RESULT`, which the coordinator parser does not read.
+- Reproduced at base outside the sandbox: four acceptance commands rc 1 on the STALE line; `make check-changelog` rc 0. No open PR touched the file.
+
+**Did** (designer skipped; planner, executor and evaluator spawned; generator ≠ judge):
+- **Designer**: not spawned. The fix is a deterministic regeneration with no design surface (charter CURRENT GOAL: "design only when the fix warrants one").
+- **Planner**: the resolver said `agent-tool opus fail-closed:no-doc`, and the spawn-pin hook DENIED the opus Agent spawn (`deny:provider-pin — planner is pinned to codex:gpt-6.1-sol`), as `gate-3-route.md` §1b warns. It was re-routed to the pin under the codex recipe. Probe rc 0. Detached sibling worktree `.planner-wt-iter63`, since removed. It wrote [the sprint plan](planned/sprint-plan-agents-mirror-sync-red.md): all six mirrors diffed, four acceptance commands baselined red, one mutation. Skipped `messages import-github` (ticket-queue mission).
+- **Executor**, `codex:gpt-6.1-sol`. Run 1: codex-cli 0.164.0 `workspace-write` treats `<wt>/.agents/**` as read-only (`rsync … Operation not permitted`). The executor labelled it UNINFORMATIVE UNDER SANDBOX and stopped without a workaround, which was correct. Run 2 (same lane, plus `--add-dir <wt>/.agents`) synced the one file, wrote the changelog fragment, and killed the mutation (`--check` rc 1, suite rc 1; `cp` restore, `cmp` 0). No git writes. The controller committed `bfd312a8a`.
+- **Evaluator**, Agent tool `sonnet`: **PASS 94/100**, 0 blocking ([evaluation.md](fleet-mission-evidence/iteration63/evaluation.md)). It read the three CI logs itself, confirmed the diff is byte-identical to the canonical file with no `.agents`-only content clobbered, and killed 2 mutants of its own (mirror reverted to base; a different mirrored skill drifted). It returned in 138 s with 7 tool uses, so the controller verified on disk: the report exists, the judge tree is clean, and mutant 1 replayed reddens `test_agents_skills_sync.sh` (rc 1, restored, `cmp` 0).
+- **Done-gate**, outside the sandbox at `bfd312a8a` ([done-gate.md](fleet-mission-evidence/iteration63/done-gate.md)): `env -i … make test-launchd-drivers` rc 0, 1113 PASS lines, 0 FAIL, 49 suites. Dry-runs under the idle, armed `triage` profile (no pidfile before or after): healthy `lanes=ok`; degraded (`codex:bogus-model-i63`) `lanes=DEGRADED(1)`, with a named fallback to haiku.
+- **PR** [#1972](https://github.com/sunholo-data/ailang/pull/1972). The closing-keyword scan found 0; the control fired.
+
+**Gate 3b**:
+- Exact PR head `bfd312a8a`: 27/27 checks terminal, 0 non-green; MERGEABLE/CLEAN; dev unmoved since Gate 1. Merged with `--merge --match-head-commit` → `6094d2b3318fa6a4cfdac1c5fd10eec2ca383f27`.
+- Exact merge: Build and Release [40545301470](https://github.com/sunholo-data/ailang/actions/runs/40545301470) completed SUCCESS (attempt 1). CI [40545301442](https://github.com/sunholo-data/ailang/actions/runs/40545301442) attempt 1 failed only in the non-required `test-windows` job (`TestShadowGradeHangIsUngradedTimeout`, `verdict="ungraded" reason="primary: clone_failed"`, 22.35 s; job 122334401696, log 157 KB; `cmd/ailang` shadow-grade, the active `M-AILANG-LANE-EXECUTOR-SHADOW` sprint's code, not this diff). Negative control: the merge tree `b8cad3ab9` is identical to PR head `bfd312a8a`'s, whose `test-windows` passed, as did `5f56181a1`, `efcd7fe80` and `3c4af5190`. Re-running only the failed job: attempt 2 (job 122342514449) completed SUCCESS. The 18-row check set reads 0 non-green; required contexts (`test, lint, build, docs-gate, UI build gate, checks`) green. Recorded as a one-off Windows timing flake, not filed (outside fleet scope; the fleet does not self-source).
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET; nothing closed (`gate5:controlplane-assert-marks-read`, filed 10-27 10:10Z, is the open in-window candidate). Clause 3 MET (43 open). Clause 4: prior evidence only. Clause 5 preserved and restored: the done-gate suite was red on dev before this landing.
+
+**Routing evidence**: Gate-1 base `5f56181a1e0ffe97e9d72e3b2ebf5a1e95b058a7@2026-10-27T16:22:52Z`; Gate-3b base `6094d2b3318fa6a4cfdac1c5fd10eec2ca383f27@2026-10-27T16:53:29Z`. Driver note: empty (`MISSION_ROUTING_NOTE=`); `MISSION_OVER_RATION` empty.
+- Controller `claude:claude-opus-5-5` (tok: not reported).
+- Designer: not spawned (mechanical; no doc).
+- Planner `codex:gpt-6.1-sol`: 46,122 tok. The resolver said `agent-tool opus fail-closed:no-doc` and the hook said `deny:provider-pin`; the pin was followed.
+- Executor `codex:gpt-6.1-sol`: run 1 44,972 tok (sandbox-refused), run 2 42,105 tok.
+- Evaluator `sonnet`, Agent tool: 50,879 subagent tokens, 7 tool uses, 138 s. Judge independence: cross-vendor.
+- Quorum: none (no design doc). Metered spend this iteration: $0. No lane thresholds changed; no lane recorded dead (the run-1 refusal is a path capability limit, not a dead lane).
+
+**Ruled out**:
+- Handing the red to V1: V1 is disabled, and the surface is fleet scope.
+- A hand edit of the `.agents` file: the sync script is the only sanctioned writer.
+- Falling to the pi executor rung after run 1: codex worked and refused only one path, so one bounded retry with `--add-dir` measured whether the protection is overridable. It is.
+- A prevention hook (pre-commit sync): self-sourced; listed below as an observation.
+- Resolving any ticket: none was filed for this red.
+
+**Retro lane**: backlog observation only; no skill edit (no gap has two recorded frictions this iteration). Observations, not tickets (the fleet does not self-source):
+- (a) codex-cli 0.164.0 `workspace-write` protects `<wt>/.agents/**`, so any codex executor directive whose diff includes an `.agents` mirror needs `--add-dir <wt>/.agents`. Not yet measured: whether the protection also covers `.codex`.
+- (b) An attended `.claude/skills/{mission,sprint}-*` edit without the sync reddens three required checks. Nothing local catches it before push.
+
+Last 3 code landings: iteration 61, clause 2 (outside 48h); iteration 62, none (diagnosis only); iteration 63, none (a dev red, not a ticket; it restored clause 5's done-gate). No drift alarm: the in-window clause-2 row was blocked by this red until the merge.
+
+**Next**:
+1. `gate5:controlplane-assert-marks-read` (stapledon, filed 2026-10-27T10:10Z, 1 slot): its 48h window closes 2026-10-29T10:10Z. The fix is in `gate-5-retro.md` rule 3(c), both copies (a non-mutating `list --json` read, or `unack` after the read). This iteration's own Gate 5 used a non-mutating read.
+2. Otherwise, the top ticket by `slots_lost` that no OPEN decision gates.

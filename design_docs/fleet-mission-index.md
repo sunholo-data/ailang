@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 63 | 2026-10-27 | dev's required-check red repaired: the sprint-evaluator `.agents` mirror re-synced via #1972 → `6094d2b33`, independent sonnet PASS 94; no ticket m... |
 | 62 | 2026-10-27 | `quorum:oc-glm-5-3-output-cap-invalid`: diagnosis half LANDED via #1966 → `0802749cb`, independent sonnet PASS 93; policy half filed as D-FLEET-31;... |
 | 61 | 2026-10-26 | `quorum-reader:zsh-nomatch` LANDED through replacement #1944 → `b7dd07599`; independent sonnet CODE ACCEPT 94; ticket resolved; orphan iteration 60... |
 | 60 | 2026-10-26 | ORPHAN (no record written): #1942 refresh of the zsh-safe helper fix judged CODE ACCEPT 93 (MiniMax); merge parked on a runner-image `test` red later fixed by #1940; slot PAUSED-NO-CAPACITY at gate-3; credited in 61 [HARNESS] |
