@@ -14,6 +14,33 @@ bad() { FAIL=$((FAIL+1)); echo "  FAIL: $1 ($2)"; }
 out=$(/bin/bash "$ROOT/tools/launchd/sync-agents-skills.sh" --check 2>&1)
 if [ $? -eq 0 ]; then ok "mission-*/sprint-* .agents copies equal .claude"; else bad "mission-*/sprint-* .agents copies equal .claude" "$out — run tools/launchd/sync-agents-skills.sh"; fi
 
+# Check canonical rule 3(c); the equality check above covers the generated mirror.
+# Collect wrapped prose, then inspect only inline commands between (c) and (d).
+if awk '
+  { text = text $0 "\n" }
+  END {
+    start = index(text, "**(c)**")
+    if (!start) exit 1
+    clause = substr(text, start + length("**(c)**"))
+    stop = index(clause, "**(d)**")
+    if (!stop) exit 1
+    clause = substr(clause, 1, stop - 1)
+    n = split(clause, spans, "`")
+    count = 0; valid = 1
+    for (i = 2; i <= n; i += 2) {
+      if (spans[i] ~ /^ailang messages read([[:space:]]|$)/) {
+        count++
+        if (spans[i] != "ailang messages read --peek --json <id>") valid = 0
+      }
+    }
+    exit !(count == 1 && valid)
+  }
+' "$ROOT/.claude/skills/mission-control/resources/gate-5-retro.md"; then
+  ok "Gate-5 rule 3(c) preserves unread status with flags before id"
+else
+  bad "Gate-5 rule 3(c) preserves unread status with flags before id" "expected sole inline command: ailang messages read --peek --json <id>; --peek preserves unread status and all flags must precede id"
+fi
+
 # Negative control: the check must SEE a drifted copy.
 tmp=$(mktemp -d); mkdir -p "$tmp/tools/launchd" "$tmp/.claude/skills" "$tmp/.agents/skills"
 cp "$ROOT/tools/launchd/sync-agents-skills.sh" "$tmp/tools/launchd/"

@@ -2,7 +2,7 @@
   "sprint_id": "M-CONTROLPLANE-ASSERT-PEEK",
   "title": "Preserve unread controlplane digests during Gate-5 artifact assertion",
   "design_doc": "design_docs/planned/sprint-plan-controlplane-assert-peek.md",
-  "status": "planned",
+  "status": "completed",
   "ticket": "gate5:controlplane-assert-marks-read",
   "registry_reuse": [
     {
@@ -39,7 +39,10 @@
         "Mutation 1 removes --peek from the rule's command; mutation 2 independently moves --peek after <id>. For each, regenerate the mirror and prove the new observation and focused suite fail nonzero while the sync check passes; restore canonical text without git writes, regenerate, and prove both checks green again.",
         "Add changelogs/unreleased/2026-10-28-controlplane-assert-peek.md opening with ### Fixed and linking the plan; record command results and mutation diagnostics. No ailang messages calls, git write operations, writes outside the worktree, or language-core changes."
       ],
-      "status": "pending"
+      "status": "completed",
+      "passes": true,
+      "completed": "2026-10-27T23:46:18Z",
+      "notes": "All five requested gates rc 0 on macOS Bash 3.2.57. M-a and M-b each rc 1 with the rule 3(c) unread/flags-before-id diagnostic while sync remained rc 0; after each cp restore, focused test, sync check, and cmp returned rc 0. Full aggregate reserved for controller."
     }
   ]
 }
