@@ -25,6 +25,8 @@ if awk '
     stop = index(clause, "**(d)**")
     if (!stop) exit 1
     clause = substr(clause, 1, stop - 1)
+    # BSD awk split() also breaks on newline, which would flip the inline-code parity.
+    gsub(/\n/, " ", clause)
     n = split(clause, spans, "`")
     count = 0; valid = 1
     for (i = 2; i <= n; i += 2) {
