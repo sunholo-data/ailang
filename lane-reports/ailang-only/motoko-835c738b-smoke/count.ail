@@ -1,0 +1,27 @@
+module count
+
+import std/fs (listDir, isFile, readFile)
+import std/string (endsWith, compare, split)
+import std/list (sortBy, filter, foldl, length, mapE, forEachE)
+import std/io (println)
+
+-- Count lines: newline-terminated lines plus a final unterminated line (if any).
+func countLines(content: string) -> int =
+  let parts = split(content, "\n");
+  if endsWith(content, "\n") then length(parts) - 1 else length(parts)
+
+func countMd(dir: string, name: string) -> int ! {FS} =
+  if isFile("${dir}/${name}") then countLines(readFile("${dir}/${name}")) else 0
+
+export func main() -> () ! {FS, IO} {
+  let dir = "design_docs/planned/v0_55_0";
+  let entries = listDir(dir);
+  -- keep only .md files directly in the directory (listDir returns names only)
+  let mdNames = filter(func(n: string) -> bool { endsWith(n, ".md") }, entries);
+  let sorted = sortBy(func(a: string, b: string) -> int { compare(a, b) }, mdNames);
+  let counts = mapE(func(n: string) -> (string, int) ! {FS} { (n, countMd(dir, n)) }, sorted);
+  let total = foldl(func(acc: int, p: (string, int)) -> int { acc + match p { (a, b) => b } }, 0, counts);
+  forEachE(func(p: (string, int)) -> () ! {IO} { match p { (name, cnt) => println("| ${name} | ${show(cnt)} |") } }, counts);
+  println("");
+  println("Total: ${show(total)} lines across ${show(length(counts))} files")
+}
