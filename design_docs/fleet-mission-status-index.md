@@ -12,6 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 58 | 2026-10-22 | `routing-models-check:bold-colon-heading` LANDED — #1935 → `2debbb027`, independently judged PASS 93 by MiniMax; ticket resolved [HARNESS] |
+| 57 | 2026-10-22 | `quorum-reader:zsh-nomatch` BUILT, merge PARKED on dev's inherited required red (D-FLEET-17) — #1932 head `6268fb0b8`, judged PASS 94 by sonnet; ti... |
 | 56 | 2026-10-22 | `rotate-log:heading-parse-stapledon` RESOLVED as a ghost of #1912 (the rig binary is stale), judged CONFIRMED by sonnet; `quorum:claude-p-ration-us... |
 | 55 | 2026-10-22 | `stall:watchdog:foreground-agent-and-wrong-transcript` BUILT, merge PARKED on dev's inherited required red (D-FLEET-17) — #1929 head `9d131c76a`, j... |
 | 54 | 2026-10-21 | `routing-models-check:bold-colon-heading` BUILT, merge PARKED on dev's inherited required red (D-FLEET-17) — #1927 head `ec9e54a1e`, judged PASS 80... |
