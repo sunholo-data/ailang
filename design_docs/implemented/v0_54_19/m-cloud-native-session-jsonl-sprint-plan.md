@@ -73,7 +73,7 @@ Every milestone has action `none` in registry_reuse. Search results for session 
 ### M5: Run focused gates and document cloud canaries (~30 LOC)
 **Estimate:** 20 implementation/docs + 10 tests; up to 90 minutes.
 **Dependencies:** M4
-**Files:** changelogs/unreleased/2026-10-27-cloud-native-session-jsonl.md; design_docs/planned/v0_54_19/m-cloud-native-session-jsonl-sprint-plan.md
+**Files:** changelogs/unreleased/2026-10-27-cloud-native-session-jsonl.md; design_docs/implemented/v0_54_19/m-cloud-native-session-jsonl-sprint-plan.md
 **Approach and risk mitigation:** Run gofmt on touched Go files. CI owns the full suite. No .ail code or runnable language example is needed for this Go artifact plumbing change.
 **Acceptance:**
 

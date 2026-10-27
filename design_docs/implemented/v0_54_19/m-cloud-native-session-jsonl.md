@@ -1,6 +1,6 @@
 # Cloud Executors: Persist Every Provider's Native Session JSONL
 
-**Status**: Planned
+**Status**: Implemented (v0.54.19; live canaries pending deploy)
 **Target**: v0.54.19
 **Priority**: P0 (High)
 **Estimated**: 2 days (4h executor banking + 3h writeTaskArtifacts + 4h tests + 3h cloud validation/buffer)

@@ -2,8 +2,8 @@
   "sprint_id": "M-CLOUD-NATIVE-SESSION-JSONL",
   "status": "completed",
   "created": "2026-10-27T10:15:05.492342+00:00",
-  "design_doc": "design_docs/planned/v0_54_19/m-cloud-native-session-jsonl.md",
-  "sprint_plan": "design_docs/planned/v0_54_19/m-cloud-native-session-jsonl-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_54_19/m-cloud-native-session-jsonl.md",
+  "sprint_plan": "design_docs/implemented/v0_54_19/m-cloud-native-session-jsonl-sprint-plan.md",
   "github_issues": [
     1967
   ],
