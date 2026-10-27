@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 func TestNativeSessionArtifactLanding(t *testing.T) {
@@ -191,8 +192,7 @@ func TestNativeSessionProviderFallbacks(t *testing.T) {
 		t.Run(provider, func(t *testing.T) {
 			root := t.TempDir()
 			home := t.TempDir()
-			t.Setenv("HOME", home)
-			t.Setenv("USERPROFILE", home)
+			testutil.SetHomeDir(t, home)
 			tmp := t.TempDir()
 			t.Setenv("TMPDIR", tmp)
 			t.Setenv("TMP", tmp)
