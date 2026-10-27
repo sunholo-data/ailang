@@ -79,17 +79,42 @@ fi
 clean_rc=$?
 if [ "$clean_rc" -eq 0 ]; then ok "E cleaned routing suite passes"; else bad "E cleaned routing suite passes" "rc=$clean_rc"; fi
 
-# F (kills a new/raw suite recipe line): every test_*.sh invocation uses launcher.
+# F (kills a new/raw suite recipe line): suites run only via run-suites.sh, which
+# launches each one through suite-env.sh; the target runs no test_*.sh itself.
 awk '
+  /^LAUNCHD_SUITES :=/ { in_list=1; next }
+  in_list { if ($0 ~ /test_[^[:space:]]*\.sh/) listed++; if ($0 !~ /\\$/) in_list=0 }
   /^test-launchd-drivers:/ { in_target=1; next }
   in_target && /^[^#[:space:].][^:]*:/ { exit }
-  in_target && /test_[^[:space:]]*\.sh/ && !/\/bin\/bash -n/ {
-    count++
-    if ($0 !~ /^[[:space:]]*@\$\(LAUNCHD_SUITE\)[[:space:]]/) bad++
-  }
-  END { if (count == 0 || bad != 0) exit 1 }
+  in_target && /test_[^[:space:]]*\.sh/ && !/\/bin\/bash -n/ { raw++ }
+  in_target && /run-suites\.sh \$\(LAUNCHD_JOBS\) \$\(LAUNCHD_SUITES\) --serial \$\(LAUNCHD_SERIAL_SUITES\)/ { runner++ }
+  END { if (listed < 40 || raw != 0 || runner != 1) exit 1 }
 ' "$ROOT/make/test.mk"
-if [ "$?" -eq 0 ]; then ok "F all suite recipe lines use launcher"; else bad "F all suite recipe lines use launcher" "raw or missing suite execution"; fi
+if [ "$?" -eq 0 ] && grep -Fq '"$here/suite-env.sh" "$suite"' "$ROOT/tools/launchd/lib/run-suites.sh"; then
+  ok "F all suites run via run-suites.sh through the launcher"
+else
+  bad "F all suites run via run-suites.sh through the launcher" "raw suite line, missing runner call, or runner bypasses suite-env.sh"
+fi
+
+# G (kills a runner that drops a failure, a silent worker, or the clean env):
+# MISSION_NAME=poison is still exported from A.
+RUNNER="$ROOT/tools/launchd/lib/run-suites.sh"
+printf 'echo "MISSION_NAME=<${MISSION_NAME-}>"\nsleep 2\n' > "$T/g_pass1.sh"
+printf 'sleep 2\necho g2 done\n' > "$T/g_pass2.sh"
+printf 'echo g_fail says no\nexit 3\n' > "$T/g_fail.sh"
+start=$(date +%s)
+/bin/bash "$RUNNER" 2 "$T/g_pass1.sh" "$T/g_pass2.sh" > "$T/g_ok.out" 2>&1; g_ok=$?
+g_wall=$(( $(date +%s) - start ))   # overlapped ~2s; one after another >= 4s
+/bin/bash "$RUNNER" 2 "$T/g_pass2.sh" --serial "$T/g_fail.sh" > "$T/g_bad.out" 2>&1; g_bad=$?
+/bin/bash "$RUNNER" 2 "$T/g_pass2.sh" "$T/no_such_suite.sh" > /dev/null 2>&1; g_missing=$?
+if [ "$g_ok" -eq 0 ] && grep -Fq 'all 2 suites passed' "$T/g_ok.out" \
+   && grep -Fqx 'MISSION_NAME=<>' "$T/g_ok.out" && [ "$g_wall" -le 3 ] \
+   && [ "$g_bad" -eq 1 ] && grep -Fq 'g_fail.sh (rc=3)' "$T/g_bad.out" && grep -Fq 'g_fail says no' "$T/g_bad.out" \
+   && [ "$g_missing" -eq 2 ]; then
+  ok "G runner: failures and missing suites refuse, env is clean, suites overlap (wall ${g_wall}s)"
+else
+  bad "G runner: failures and missing suites refuse, env is clean, suites overlap" "ok=$g_ok bad=$g_bad missing=$g_missing wall=${g_wall}s"
+fi
 
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
