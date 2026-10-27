@@ -1,0 +1,48 @@
+{
+  "sprint_id": "M-QUORUM-REVIEWER-CAP-HIT-LOUD",
+  "design_doc": "design_docs/planned/m-quorum-reviewer-cap-hit-loud.md",
+  "status": "planned",
+  "milestones": [
+    {
+      "id": "M1_CAP_HIT_LOUD",
+      "title": "Explain reviewer output-cap failures without changing vote or salvage semantics",
+      "acceptance_criteria": [
+        "Implement capHit and capLimitClause in internal/mission/quorum/run.go per design Decisions 1–3; cap detection runs only after ParseReviewResult fails, preserves recordInvalid, and names out.Model rather than the provider API name.",
+        "Row a: empty raw/reason at 65536 of 65536 is absent invalid with nil salvage and error containing truncated, inferred, 65536, quoted oc-glm-5-3, and max_output_tokens; kill deletion of the inferred disjunct.",
+        "Row a2: empty raw/reason at 65537 of 65536 reports truncated at 65537; kill replacement of >= with ==.",
+        "Row b: cut-off reject with length at 65536 of 65536 reports finish_reason=length, reported by provider, consumed the declared max_output_tokens (65536), and salvages reject; separately kill deletion of the length disjunct and a hardcoded inferred label.",
+        "Row b2: cut-off reject with length at 40000 of 65536 reports below the declared max_output_tokens (65536) and provider-side or context-window limit, excludes consumed, and salvages reject; kill dropping capLimitClause's n >= budget check.",
+        "Row b3: cut-off reject with length at 16384 and cheapModel cap 0 reports declares no max_output_tokens and excludes consumed/below the declared; kill deletion of the consumed-clause budget > 0 conjunct.",
+        "Row c: malformed verdict prefix with stop at 65536 of 65536 retains the exact ParseReviewResult error and excludes truncated; kill deletion of FinishReason == empty from inference.",
+        "Row d: malformed verdict prefix with empty reason at 65535 of 65536 excludes truncated; kill deletion of the OutputTokens >= budget comparison.",
+        "Row f: malformed verdict prefix with empty reason at 20 and cheapModel cap 0 excludes truncated; kill deletion of the inference budget > 0 guard.",
+        "Row e: valid pass JSON with empty reason at 65536 of 65536 stays present with empty absence/error and Result.Verdict pass; kill moving cap rejection ahead of parsing.",
+        "All nine rows reside in new internal/mission/quorum/cap_hit_test.go, use stubCaller and outcome model oc-glm-5-3, and use cappedModel derived from cheapModel with MaxOutputTokens 65536 except explicit zero-cap rows.",
+        "Demonstrate every listed mutation fails its matching row in a scratch source copy; restore between mutants and remove scratch files before final validation.",
+        "Existing TestRunReviewerWith_TruncatedOutputFailsLoudly and TestSalvageProduction pass unmodified; AbsentReason remains invalid and salvage behavior is preserved.",
+        "Create changelogs/unreleased/2026-10-27-quorum-reviewer-cap-hit-loud.md beginning with a ### Fixed — section describing the diagnostic fix without recommending a budget change.",
+        "go test ./internal/mission/quorum/... passes.",
+        "go vet ./internal/mission/quorum/... passes.",
+        "gofmt -l internal/mission/quorum/ prints nothing.",
+        "make check-changelog passes with the new fragment.",
+        "Premise (g): run grep -c 'FinishReason' internal/ai/ollama/client.go and record its count; base prints 0 with expected grep exit 1; inspect and document any changed premise without editing providers.",
+        "Premise (h): run grep -n 'Model:' internal/mission/quorum/call.go and grep -n 'out := &ReviewerOutcome' internal/mission/quorum/run.go; confirm request c.handler.Model() and outcome Model: modelID.",
+        "Label socket-bind or outside-worktree-write failures UNINFORMATIVE UNDER SANDBOX with evidence rather than assigning a pass/fail verdict.",
+        "No internal/ai/** edits, no models.yml edits, no call.go budget/thinking changes, and no seating or mission gate policy changes."
+      ],
+      "files": [
+        "internal/mission/quorum/run.go",
+        "internal/mission/quorum/cap_hit_test.go",
+        "changelogs/unreleased/2026-10-27-quorum-reviewer-cap-hit-loud.md"
+      ],
+      "status": "pending"
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_CAP_HIT_LOUD",
+      "action": "none",
+      "reason": "Local Go reviewer diagnostic fix using existing quorum code and test helpers; no package-like AILANG capability, registry search, or dependency is applicable."
+    }
+  ]
+}
