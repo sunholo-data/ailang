@@ -35,7 +35,8 @@
         "internal/mission/quorum/cap_hit_test.go",
         "changelogs/unreleased/2026-10-27-quorum-reviewer-cap-hit-loud.md"
       ],
-      "status": "pending"
+      "status": "completed",
+      "evidence": "All nine cap-hit rows and existing truncation/salvage tests pass; all 10 specified mutants fail their matching assertions (exit 1), with cmp-verified restoration after each. Final go test, go vet, gofmt -l (empty), and make check-changelog exit 0 (5 valid fragments). Premise (g): FinishReason count 0, expected grep exit 1. Premise (h): call.go:44 uses c.handler.Model(); run.go:113 retains Model: modelID. Decision 1 uses hit = because hit is a named return variable."
     }
   ],
   "registry_reuse": [
