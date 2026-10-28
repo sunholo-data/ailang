@@ -41,7 +41,7 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
-## STATUS 2026-10-28 — ITERATION 17: five independently judged items; three comments/labels; two red-dev routes; D36 OPEN; 22 holds; shadow449/score14of14; no approvals or merges. [ADMIN]
+## STATUS 2026-10-28 — ITERATION 17: six independently judged items; four comments/three labels; two red-dev routes; D36 OPEN; 22 holds; shadow450/score14of14; no approvals or merges. [ADMIN]
 
 ## STATUS 2026-10-28 — ITERATION 16: 25 independently judged verdicts; red dev routed; D34/D35 OPEN; 21 holds; shadow14/14; external1981merge stopped late actions. [ADMIN]
 
