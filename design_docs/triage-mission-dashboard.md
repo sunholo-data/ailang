@@ -1,27 +1,16 @@
-# Triage mission dashboard
+# Triage mission — iteration 16, 2026-10-28
 
-Updated2026-10-27, iteration15. Level1; latest operational CLIv0.54.19-1-g379a9e20e-dirty.
-Reviewed dev9646caebd: CI40551944965/all18commit checks SUCCESS.
-Queues9cards/31PRs/65issues;63components in56joined groups reviewed.
-35KEEP,13NEEDS-DECISION,6NEEDS-FIX,5SUPERSEDED,4NEEDS-REBASE.
-OpenAI Agent-tool verifiers → actual Anthropic Sonnet independent judge:62CONCUR/1DISSENT.
-PR1963 depth17 callback charge invariant FAIL;depth16 control PASS. Evidence posted.
-PR1849 disputed broader scope: HOLD, no tie-break or mutation.
-15PR evidence comments;8needs-decision labels; no attestation/product close/task decision/merge.
-19OPEN decisions:12inherited plusD27–33; all remain operator-owned.
-D27SMT freeze,D28runtime parity freeze,D29proxy resume/drop,D30migration evidence.
-D31draft1957 readiness,D32five superseded PRs,D33disputed1849.
-ExistingD25coverage/D26execution and orphan reconciliation stay parked.
-All9cards>48h;1916green historical rollup but currentlyBLOCKED/mislinked;1862conflicts.
-10uncarded coordinator PRs plus1remote missing-approval-record count; no clear/apply/handoffs.
-Coverage69/83components current;14stale deferred among20skipped, so clause1UNMET.
-Shadow14/14settled;417append-only rows; sample excludes unknown/still-open.
-Clause2exposes oldcards;clause3faithful ledger;clause4scope preserved;clause5fingerprint last.
-Harness-share8/10available records are escalation-tagged;zero loop-authored repairs.
-No product landings for drift test. Goal unmoved by product work(ADMIN).
-Cadence12h;queue-fingerprint idle precheck. Metered$0;judge1,945,169reported tokens.
-Native model selectors unavailable;Agent judge transport used guarded subscription Sonnet CLI.
-Bookkeeping[#1974](https://github.com/sunholo-data/ailang/issues/1974);[evidence](https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6452570174).
-Record chain[PR1904](https://github.com/sunholo-data/ailang/pull/1904) remains unmerged.
-Main3benchmark edits untouched;pin clean. Prior failed fire/crash and iteration14credited in log.
-Next:14stale components first, then changed/held;operator rules design freezes/dispositions.
+- Level 1: tidy and attest; never approve, reject or merge.
+- Operational CLI: v0.54.19; reviewed dev: 51b00832.
+- RED dev: GO-2026-6860, CI 40655808264; dependency design requested.
+- Snapshot: 10 cards / 32 PRs / 66 issues; 22 verdicts independently judged.
+- Coverage: 89/89 eligible components under 7 days; no fresh VERIFIED.
+- Actions: correction comment on 1978, P1/language labels on 1980, two design requests.
+- Pending: 19 inherited OPEN decisions; top priorities D27 SMT / D28 runtime / D26 PTY.
+- Orphans: 10 uncarded coordinator PRs and one unidentified missing approval record.
+- Shadow: 439 append-only rows; 14/14 settled; terminal-state-only, small sample.
+- Routing: two OpenAI Agent verifiers, Anthropic Sonnet judge via guarded Agent transport.
+- Spend: metered $0; judge 429,420 subscription tokens; other roles unreported.
+- Cadence: 12 hours, queue fingerprint; no code inner loop.
+- Record: PR 1904 preserves history, unmerged. Evidence: https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6464556966
+- Next: authors/design owners follow their gates; next changed/held/stale refresh.

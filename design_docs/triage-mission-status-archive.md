@@ -13,3 +13,5 @@
 ## STATUS 2026-10-21 — ITERATION 10: 3 cross-vendor CONCUR verdicts; #1916 correction requested, #1914 safely labelled, new orphan #1889 held D24; dev checks17/17 green; shadow14/14; no attestations or dispatch.
 
 ## STATUS 2026-10-21 — ITERATION 11: dev vulnerability and parent PTY findings routed; #1921 semantics held D25; 5 queue verdicts independently concurred, including 2 late design PRs held; shadow15/15; no attestation/approval/handoff.
+
+## STATUS 2026-10-21 — ITERATION 12: 3 queue verdicts independently concurred; PTY plan held D26; new pricing red routed for design only; shadow corrected14/14; 5 append-only rows; no attestation/approval/handoff.

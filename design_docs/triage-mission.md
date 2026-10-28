@@ -41,11 +41,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-10-28 — ITERATION 16: 22 verdicts independently concurred; coverage89/89; red-dev advisory and import collision routed design-only; one comment/two labels;19 inherited holds; shadow14/14. [ADMIN]
+
 ## STATUS 2026-10-27 — ITERATION 15: 63components/56groups;62CONCUR/1DISSENT;15comments/8labels;D27–33parked;devGREEN;coverage69/83,14stale deferred;shadow14/14. [ADMIN]
 
 ## STATUS 2026-10-22 — ITERATION 13: 4 queue verdicts independently concurred; 2 evidence comments and priority:P2; 9 cards/31PRs/61issues; dev RED retains existing routes; shadow14/14; no attestation/approval/handoff.
-
-## STATUS 2026-10-21 — ITERATION 12: 3 queue verdicts independently concurred; PTY plan held D26; new pricing red routed for design only; shadow corrected14/14; 5 append-only rows; no attestation/approval/handoff.
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
@@ -169,7 +169,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
 3. [RECORDED iterations 1–3] Level 1 queue verification; iteration 3 records independent review and the prior record gap. Clauses 1–3.
-4. [NEXT] Refresh the14stale deferred components, then changed/held items against origin/dev. PR1963 owner repairs depth-cap charge gap;1964 owner repairs baseline/Windows gates. D27SMT/D28runtime human freezes and D25coverage/D26executor authorization stay parked. D32holds five superseded coordinator PRs;D33preserves1849dissent. Current dev is GREEN; pricing1928/audio-string1931 original requests are superseded. Never approve, reject, merge or fire handoffs.
+4. [NEXT] Verify changed, held and stale items against origin/dev; all 89 eligible components are fresh after iteration 16. Red dev GO-2026-6860 (inbox_1793176897838_40f6144f) and import collision #1980 (inbox_1793176895602_d88fcdc9) are routed for design only. PR #1978 needs its related-design search corrected; #1963/#1964 retain prior repair requests. All 19 OPEN operator decisions remain parked. Never approve, reject, merge, implement or fire handoffs in this loop.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
 6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085; iteration10 recurrence inbox_1792533879605_18a7bcf5. Iteration11 recurrence inbox_1792578499678_b8495de1; direct send refused rc1, existing controlplane consumer retained. Iteration12 recurrence inbox_1792622923766_6056562b: direct send rc1; existing normal+one urgent controlplane consumer delivered. Iteration13 recurrence inbox_1792666977791_d8a8d14b: direct send rc1; existing controlplane normal/one urgent fallback delivered. No triage harness repair.
