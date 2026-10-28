@@ -20,8 +20,9 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 | Module | Purpose | Capability |
 |---|---|---|
 | `std/list` | Functional list operations: map, filter, fold, take, drop | — |
-| `std/array` | O(1) indexed arrays (vs lists, which are O(n) indexed). `Array[float]` is stored unboxed (8 B/element) with native kernels `dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax` (equal lengths required); `updateMany`/`scatterAdd` batch many writes into one copy; `encodeF64LE`/`decodeF64LE` (exact) and `encodeF32LE`/`decodeF32LE` (lossy) binary codecs. `get`/`set` out of bounds are errors | — |
-| `std/map` | O(1) key-value lookup backed by Go hashmaps | — |
+| `std/array` | O(1) indexed arrays (vs lists, which are O(n) indexed). `Array[float]` is stored unboxed (8 B/element) with native kernels `dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax` (equal lengths required); `updateMany`/`scatterAdd`/`accumulate(arr, writes, combine)` batch many writes into one copy; `encodeF64LE`/`decodeF64LE` (exact) and `encodeF32LE`/`decodeF32LE` (lossy) binary codecs. `get`/`set` out of bounds are errors | — |
+| `std/map` | O(1) key-value lookup backed by Go hashmaps. Keys: int, string, bool, float, unit, and tuples/records/ADT constructors of those; `insert`/`remove` copy (O(n)) | — |
+| `std/set` | Immutable sets (`Set[a]`): `member` O(1), `insert`/`remove` O(n) copy today, `union`/`intersect`/`difference` in one bulk build. Elements take every Map key kind, e.g. a visited `Set[(int, int, Dir)]` | — |
 | `std/string` | Length, substring, trim, split, replace, case; `formatFixed(x, decimals)` for bounded fixed-decimal reports | — |
 | `std/regex` | Linear-time (RE2) regex: match, find, replace, split | — |
 | `std/bytes` | UTF-8 encoding, base64, byte-level operations | — |

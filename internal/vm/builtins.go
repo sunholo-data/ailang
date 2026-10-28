@@ -61,6 +61,7 @@ var HOFBuiltinTable = []HOFBuiltinFunc{
 	hofBuiltinListFindIndex,    // __list_findIndex (#1518)
 	hofBuiltinListFoldr,        // __list_foldr
 	hofBuiltinListMapAccumL,    // __list_mapAccumL (#1501)
+	hofBuiltinArrayAccumulate,  // __array_accumulate (M-PERSISTENT-COLLECTIONS 1c)
 }
 
 // BuiltinTable is the VM-side dispatch table for OpBuiltinCall. The order

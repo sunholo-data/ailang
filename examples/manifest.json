@@ -2366,6 +2366,23 @@
       ]
     },
     {
+      "path": "runnable/persistent_collections.ail",
+      "status": "working",
+      "tags": [
+        "set",
+        "map",
+        "array",
+        "structured-keys",
+        "algorithms"
+      ],
+      "description": "A visited Set over (row, col, dir) states, a difference array via accumulate, and tuple/record Map keys.",
+      "modules": ["std/array", "std/io", "std/map", "std/set"],
+      "expected": {
+        "stdout": "moves before a repeated state: 8\ncoverage: [1, 1, 2, 1, 2, 1, 0]\ndist to (1, 1): Some(2)\nkeys in canonical order: [(0, 0), (0, 1), (1, 1)]\nrecord key: Some(lead)\nunion: [1, 2, 3]\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/mcp_tools.ail",
       "status": "broken",
       "tags": [

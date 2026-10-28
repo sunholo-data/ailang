@@ -28,3 +28,13 @@ runtime, so `insert` and `remove` are still O(n) per call (20,000 sequential ins
 [m-persistent-collections](design_docs/planned/v0_55_0/m-persistent-collections.md) changes the
 cost without changing the API. Import the functions qualified (`import std/set as S`) and the type
 by name (`import std/set (Set)`); `S.Set[...]` is not valid type syntax.
+
+### Added — `std/array.accumulate`: combine many writes into an array with one copy (2026-10-28)
+
+`accumulate(arr, writes, combine)` copies `arr` once and, for each `(i, x)` in `writes` in list
+order, sets `out[i] = combine(out[i], x)`. It is O(n + k) and pure, works for any element type, and
+an out-of-bounds index is an error naming the index and length. It is the generic form of the
+float-only `scatterAdd` (which stays as the packed-float fast path): a difference array is
+`accumulate(make(n + 1, 0), corners, \a b. a + b)`. Native in both the evaluator and the VM.
+`examples/runnable/persistent_collections.ail` shows a visited set, a difference array and
+tuple/record Map keys together.
