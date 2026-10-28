@@ -113,54 +113,6 @@ func (vm *VM) Run(proto *bytecode.FuncPrototype, args []bytecode.Value) (bytecod
 	return vm.run(frame)
 }
 
-// CallClosure invokes a closure value with the given arguments and returns
-// the result. Used by HOF builtins to call their function arguments.
-// This pushes a new frame onto the VM stack, runs it, and returns.
-func (vm *VM) CallClosure(closure bytecode.Value, args []bytecode.Value) (bytecode.Value, error) {
-	if closure.Tag != bytecode.TagClosure {
-		return bytecode.Value{}, fmt.Errorf("CallClosure: expected closure, got %s", closure.Tag)
-	}
-	c := closure.AsClosure()
-	proto, ok := c.Proto.(*bytecode.FuncPrototype)
-	if !ok {
-		return bytecode.Value{}, fmt.Errorf("CallClosure: non-FuncPrototype")
-	}
-	if int(proto.NumParams) != len(args) {
-		return bytecode.Value{}, fmt.Errorf("CallClosure: %s expects %d args, got %d",
-			proto.Name, proto.NumParams, len(args))
-	}
-	if proto.EvalOnly {
-		if vm.Interop == nil {
-			return bytecode.Value{}, fmt.Errorf("CallClosure: %s is evaluator-only (%s) but no interop bridge",
-				proto.Name, proto.EvalReason)
-		}
-		return vm.Interop.CallEvalFunc(proto.Name, args)
-	}
-	if len(vm.Stack) >= vm.MaxStack {
-		return bytecode.Value{}, ErrStackOverflow
-	}
-	// Push frame with Caller=nil so OpReturn returns the value directly
-	// to vm.run, which returns it to us. The frame comes from the free list
-	// and goes back to it on RETURN: a HOF builtin calls this once per
-	// element, so it must not allocate (#1501).
-	base := len(vm.Stack)
-	frame := vm.acquireFrame(proto, 0, nil)
-	copy(frame.Regs, args)
-	for i, cap := range c.Captures {
-		frame.Regs[int(proto.NumParams)+i] = cap
-	}
-	vm.Stack = append(vm.Stack, frame)
-	result, err := vm.run(frame)
-	if err != nil {
-		// A fault unwinds with its frames still pushed; drop them so the
-		// caller's stack depth is what it was before this call. They are
-		// not recycled (releaseFrame is only for frames RETURN popped).
-		clear(vm.Stack[base:])
-		vm.Stack = vm.Stack[:base]
-	}
-	return result, err
-}
-
 // run is the dispatch loop. It executes from the given frame until a
 // top-level RETURN unwinds the stack to nothing, then returns the result.
 func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
@@ -319,6 +271,15 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				return bytecode.Value{}, vm.errAt(frame, "CALL on closure with non-FuncPrototype", inst)
 			}
 			argCount := int(inst.B())
+			if argCount > int(calleeProto.NumParams) {
+				result, err := vm.overApply(callee, frameArgs(frame, inst.A(), argCount))
+				if err != nil {
+					return bytecode.Value{}, vm.errWrap(frame, "CALL: ", err, inst)
+				}
+				frame.Regs[inst.A()] = result
+				frame.IP++
+				continue
+			}
 			if int(calleeProto.NumParams) != argCount {
 				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("CALL: %s expects %d args, got %d", calleeProto.Name, calleeProto.NumParams, argCount), inst)
 			}
@@ -370,6 +331,25 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				return bytecode.Value{}, vm.errAt(frame, "TAIL_CALL on closure with non-FuncPrototype", inst)
 			}
 			argCount := int(inst.B())
+			if argCount > int(calleeProto.NumParams) {
+				// Not a frame-reusing tail call: run it nested, then return
+				// its result from this frame exactly as OpReturn does.
+				result, err := vm.overApply(callee, frameArgs(frame, inst.A(), argCount))
+				if err != nil {
+					return bytecode.Value{}, vm.errWrap(frame, "TAIL_CALL: ", err, inst)
+				}
+				vm.Stack = vm.Stack[:len(vm.Stack)-1]
+				caller := frame.Caller
+				if caller != nil {
+					caller.Regs[frame.ReturnReg] = result
+				}
+				vm.releaseFrame(frame)
+				if caller == nil {
+					return result, nil
+				}
+				frame = caller
+				continue
+			}
 			if int(calleeProto.NumParams) != argCount {
 				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("TAIL_CALL: %s expects %d args, got %d", calleeProto.Name, calleeProto.NumParams, argCount), inst)
 			}

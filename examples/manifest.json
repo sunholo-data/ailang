@@ -1154,6 +1154,17 @@
       }
     },
     {
+      "path": "runnable/local_letrec_loop.ail",
+      "status": "working",
+      "tags": ["letrec", "recursion", "tail-call", "accumulator", "bytecode", "performance"],
+      "description": "A loop as a local letrec with accumulators over 1..1,000,000: a tail call, constant stack, runs natively under --strict-bytecode.",
+      "modules": [],
+      "expected": {
+        "stdout": "multiples of 3 up to 1000000: 166666833333\n1..1000000: 500000 odd numbers, sum 250000000000\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "list_pattern_cons.ail",
       "status": "working",
       "tags": [
@@ -3583,11 +3594,11 @@
     }
   ],
   "statistics": {
-    "total": 245,
-    "working": 237,
+    "total": 246,
+    "working": 238,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9673469387755103,
+    "coverage": 0.967479674796748,
     "experimental": 0
   },
   "milestones": {
