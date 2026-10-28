@@ -183,13 +183,20 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// Note: We do NOT pass --settings here. Claude Code will load project's
 	// .claude/settings.json naturally, which has the telemetry hooks configured.
 	// This ensures coordinator worktree sessions use the same hooks as interactive sessions.
-	args := []string{
-		"-p", task.Directive,
+	//
+	// The prompts never go on argv (prompt_delivery.go): a sibling agent's
+	// `pkill -f "ailang run"` matched every eval agent whose argv carried them.
+	prompt, err := deliverPrompt(task)
+	if err != nil {
+		return nil, err
+	}
+	defer prompt.cleanup()
+	args := append(prompt.args,
 		"--output-format", "stream-json",
 		"--include-partial-messages",
 		"--verbose",
 		"--model", e.getModel(task),
-	}
+	)
 
 	// Permission handling: Cloud environments may have restrictive settings.json files
 	// with permission.allow lists that override --permission-mode. For cloud tasks,
@@ -212,10 +219,6 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		span.SetAttributes(attribute.Bool("session.resumed", true))
 	} else {
 		args = append(args, "--session-id", sessionID)
-	}
-
-	if task.SystemPrompt != "" {
-		args = append([]string{"--system-prompt", task.SystemPrompt}, args...)
 	}
 
 	if task.Workspace != "" {
@@ -250,12 +253,14 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 
 	cmd := exec.CommandContext(ctx, e.claudePath, args...)
 	proctree.Configure(cmd)
+	cmd.Stdin = prompt.stdin
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
 	}
 
 	// Log the full command for debugging (helps diagnose cloud executor issues)
-	fmt.Fprintf(os.Stderr, "claude-executor: %s %s\n", e.claudePath, strings.Join(args, " "))
+	fmt.Fprintf(os.Stderr, "claude-executor: %s %s (directive on stdin: %d bytes; system prompt: %d bytes)\n",
+		e.claudePath, strings.Join(args, " "), len(task.Directive), len(task.SystemPrompt))
 
 	// Set up environment using shared builder (M-UNIFIED-AI-CONTROL-PLANE)
 	// A setup-token is the one credential the claude child must receive in its
