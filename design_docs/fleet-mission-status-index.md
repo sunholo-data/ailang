@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 64 | 2026-10-28 | `gate5:controlplane-assert-marks-read` LANDED — #1975 → `8f8294c4e`, judged PASS 91 (round 2) by an independent sonnet evaluator; ticket resolved i... |
 | 63 | 2026-10-27 | dev's required-check red repaired — the sprint-evaluator `.agents` mirror re-synced, #1972 → `6094d2b33`, judged PASS 94 by an independent sonnet e... |
 | 62 | 2026-10-27 | `quorum:oc-glm-5-3-output-cap-invalid` diagnosis half LANDED — #1966 → `0802749cb`, judged PASS 93 by an independent sonnet evaluator; policy half ... |
 | 61 | 2026-10-26 | `quorum-reader:zsh-nomatch` LANDED — #1944 → `b7dd07599`, judged CODE ACCEPT 94 by an independent sonnet evaluator; ticket resolved; orphan iterati... |
