@@ -30,9 +30,11 @@ if awk '
     n = split(clause, spans, "`")
     count = 0; valid = 1
     for (i = 2; i <= n; i += 2) {
-      if (spans[i] ~ /^ailang messages read([[:space:]]|$)/) {
+      # The store scope prefix is checked by the scope arm below; strip it here.
+      s = spans[i]; sub(/^env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac /, "", s)
+      if (s ~ /^ailang messages read([[:space:]]|$)/) {
         count++
-        if (spans[i] != "ailang messages read --peek --json <id>") valid = 0
+        if (s != "ailang messages read --peek --json <id>") valid = 0
       }
     }
     exit !(count == 1 && valid)
@@ -41,6 +43,25 @@ if awk '
   ok "Gate-5 rule 3(c) preserves unread status with flags before id"
 else
   bad "Gate-5 rule 3(c) preserves unread status with flags before id" "expected sole inline command: ailang messages read --peek --json <id>; --peek preserves unread status and all flags must precede id"
+fi
+
+# Prescribed message commands must name the prod store: the local store refuses `controlplane`,
+# and only a user dotfile made the sends work. The positive control proves the grep sees the sites.
+cmds=$(grep -rnE 'ailang messages (send|read|ack|unack) ' "$ROOT/.claude/skills/mission-control" | grep -vE 'ailang messages (send|read|ack|unack) (--help|-h)')
+unscoped=$(printf '%s\n' "$cmds" | grep -vE 'AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages|\$MSG ailang messages')
+msg_bad=""
+for f in $(grep -rlF '$MSG ailang messages' "$ROOT/.claude/skills/mission-control"); do
+  grep -qF 'MSG="env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac"' "$f" || msg_bad="$msg_bad ${f#$ROOT/}"
+done
+if ! printf '%s\n' "$cmds" | grep -qE 'gate-5-retro\.md:.*send controlplane' || ! printf '%s\n' "$cmds" | grep -qE 'gate-3-route\.md:.*send approvals'; then
+  bad "mission-control prescribed message commands are store-scoped" "positive control failed: grep no longer sees the controlplane or approvals send sites"
+elif [ -n "$unscoped" ] || [ -n "$msg_bad" ]; then
+  where=""
+  while IFS= read -r l; do [ -n "$l" ] && where="$where $(printf '%s\n' "$l" | cut -d: -f1,2)"; done <<< "$unscoped"
+  where=$(for w in $where; do printf '%s ' "${w#$ROOT/}"; done)
+  bad "mission-control prescribed message commands are store-scoped" "unscoped: $where; \$MSG not defined in: $msg_bad"
+else
+  ok "mission-control prescribed message commands are store-scoped"
 fi
 
 # Negative control: the check must SEE a drifted copy.
