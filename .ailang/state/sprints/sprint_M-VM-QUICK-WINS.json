@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-VM-QUICK-WINS",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-28T15:11:01Z",
   "design_doc": "design_docs/planned/v0_55_0/m-vm-quick-wins.md",
   "sprint_plan": "design_docs/planned/v0_55_0/m-vm-quick-wins-sprint-plan.md",
@@ -54,10 +54,10 @@
         "perf snapshot banked under .ailang/state/perf/",
         "parity baseline banked; tools/vm_parity_diff.sh exits 0 against itself and 1 on a positive control"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-28T15:18:26Z",
+      "completed": "2026-10-28T15:18:26Z",
+      "notes": "BenchmarkVMFib25/TailLoop1M/MapFold200K in internal/runner/vm_bench_test.go (compile once, fresh VM per op, results asserted) + TestVMBenchWorkloadsRunNatively; six vm_* metrics in tools/perf_sweep.sh; baseline .ailang/state/perf/2026-10-28-vm-quick-wins-baseline.json (fib25 18.3ms 11.66MB 242,847 allocs; tailloop1m 125ms 176MB 2,000,014 allocs; mapfold200k 16.1ms 20.8MB). verify_bytecode_parity.go gains --bin/--strict; tools/vm_parity_diff.sh banks 442 outcomes (bytecode MATCH=187, strict MATCH=121, VM_COMPILE=68); self-diff rc 0, positive control rc 1. Load avg 8-13/16 cores during measurement: ns/op noisy, B/op is the gate."
     },
     {
       "id": "M2_W1_W2_ALLOC",
