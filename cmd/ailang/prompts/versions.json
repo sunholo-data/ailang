@@ -1031,10 +1031,29 @@
         "production",
         "latest"
       ],
-      "notes": "Teach exact EOF line input and scoped native terminal IO"
+      "notes": "Teach exact EOF line input and scoped native terminal IO",
+      "frozen": {
+        "at": "2026-10-28",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
+    },
+    "v0.16.8": {
+      "file": "prompts/v0.16.8.md",
+      "hash": "47e59bfe6ddd992f7a1de791ae76bc5477fbc21c5fd600d84bbde5e0296420dc",
+      "description": "Cost model for list/array/map, std/regex, range(start, end) arity",
+      "created": "2026-10-28",
+      "tags": [
+        "production",
+        "latest",
+        "stdlib-discoverability",
+        "cost-model"
+      ],
+      "notes": "Cut from v0.16.7 rather than amending it in place, because a baseline eval was running on a binary that embeds v0.16.7 bytes: amending would have left two byte-different prompts under one version id. v0.16.7 is frozen as legacy (no banked corpus evidence, so `ailang prompt freeze` refuses; same transition as v0.16.6 in 2f807c563). M-PROMPT-CP-COST-MODEL (2026-10-28), from the AetherCode competitive-programming spike: (1) a \"Cost Model\" section replaces the 9-line \"Arrays (O(1) indexed access)\" section. It tables list/std/array/std/map costs (nth/length/match O(1); :: and ++ copy; A.set/A.append and M.insert/M.remove copy, O(n); updateMany/fromList O(n + k)), states that one insert/set/append per loop step is O(n^2) with the measured number (20,000 M.insert = 5.25 s, x4 per doubling; A.set 20k/40k/80k = 0.53/1.59/6.14 s), and gives the build-once alternatives plus a one-line Floyd cycle-detection hint. Spike census: std/array in 1 of 17 model solutions, std/map in 0 of 17. (2) The std/map section states that insert copies, that fromList keeps the last duplicate, that keys must be int/string/bool (a tuple key type-checks and fails at runtime), and that int keys iterate lexically ([10, 2, 9]). (3) A std/regex section and import line; std/regex was absent from the prompt (Python used re 27 times in a SlopCodeBench run, AILANG 0). It records that \"\\d\" is a parse error and \"\\\\d\" is required. (4) range(start, end) arity: range(n) recurred in the spike (10 single-arg calls; one banked TC_ARITY_001 compile failure on cp_60159). Rows added to the import block, the list-function list and the What-AILANG-Does-NOT-Have table. (5) mapAccumL, the linear list builder, was never mentioned; now in the import line, the list-function list and the cost section. Cuts: the hand-rolled recursive map example (it shadowed std/list map and conses per step) and a duplicate fromBase64URL bullet. Every new snippet passed ailang check and ailang run with the worktree binary. FOLLOW-UP when m-persistent-collections Phase 1 lands: teach std/set and structured keys in the Cost Model section, and delete the int/string/bool key sentence in the std/map section."
     }
   },
-  "active": "v0.16.7",
+  "active": "v0.16.8",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
