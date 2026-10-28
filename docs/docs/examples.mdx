@@ -20,6 +20,7 @@ import EffectsFsIoExample from '!!raw-loader!@site/../examples/runnable/effects_
 import JsonParsingExample from '!!raw-loader!@site/../examples/runnable/json_parsing.ail';
 import HttpSimpleExample from '!!raw-loader!@site/../examples/runnable/http_simple.ail';
 import MutualRecursionExample from '!!raw-loader!@site/../examples/runnable/recursion_mutual.ail';
+import LocalLetrecLoopExample from '!!raw-loader!@site/../examples/runnable/local_letrec_loop.ail';
 import ZipReaderExample from '!!raw-loader!@site/../examples/runnable/zip_reader.ail';
 import XmlParserExample from '!!raw-loader!@site/../examples/runnable/xml_parser.ail';
 import PropertyDifferentialExample from '!!raw-loader!@site/../examples/runnable/property_differential_testing.ail';
@@ -497,6 +498,29 @@ ailang run --caps IO examples/runnable/recursion_mutual.ail
 - <CheckIcon inline /> `pure func` declares functions without side effects
 - <CheckIcon inline /> Functions can reference each other (mutual recursion)
 - <CheckIcon inline /> Built-in tests verify correctness: `tests [(0, true), (1, false), ...]`
+
+---
+
+### Loops with a Local `letrec`
+
+A loop is a local recursive lambda with accumulator parameters. The recursive call is a tail call, so a million iterations run in constant stack:
+
+<CodeBlock language="typescript" title="examples/runnable/local_letrec_loop.ail">
+  {LocalLetrecLoopExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/local_letrec_loop.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/local_letrec_loop.ail
+ailang run --caps IO --strict-bytecode examples/runnable/local_letrec_loop.ail   # same output, on the bytecode VM
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `letrec loop = \i acc. ...` names a lambda that can call itself
+- <CheckIcon inline /> A call in tail position (the whole result of a branch) reuses the frame
+- <CheckIcon inline /> Local `letrec` and prelude `println` without an import both run natively under `--bytecode` / `--strict-bytecode`
 
 ---
 
