@@ -1,10 +1,8 @@
 package claude
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -45,20 +43,12 @@ func deliverPrompt(task *executor.Task) (*promptDelivery, error) {
 	if task.SystemPrompt == "" {
 		return d, nil
 	}
-	f, err := os.CreateTemp("", "ailang-claude-system-*.md")
+	// Shared with the quorum's claude seat (internal/mission/quorum).
+	path, cleanup, err := executor.WritePromptFile("ailang-claude-system-*.md", task.SystemPrompt)
 	if err != nil {
 		return nil, fmt.Errorf("claude: system prompt file: %w", err)
 	}
-	path := f.Name()
-	// Closed before the child starts — Windows will not let a second process
-	// open a file this one still holds for writing — and removed only after the
-	// child has exited (cleanup).
-	_, werr := f.WriteString(task.SystemPrompt)
-	if err := errors.Join(werr, f.Close()); err != nil {
-		_ = os.Remove(path)
-		return nil, fmt.Errorf("claude: write system prompt file: %w", err)
-	}
 	d.args = append(d.args, "--system-prompt-file", path)
-	d.cleanup = func() { _ = os.Remove(path) }
+	d.cleanup = cleanup
 	return d, nil
 }

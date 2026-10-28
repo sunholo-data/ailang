@@ -88,10 +88,15 @@ func findExamplesDir() (string, bool) {
 	}
 
 	// 3. ~/.ailang/examples (populated by `ailang examples download`) —
-	// never when confined.
+	// never when confined, and never when it is older than the corpus built
+	// into this binary (examples_staleness.go).
 	if dl, err := defaultExamplesDownloadDir(); err == nil {
 		if d, ok := isDir(dl); ok {
-			return d, true
+			if missing := examplesLaggingEmbedded(d); missing > 0 {
+				noteStaleDownload(d, missing)
+			} else {
+				return d, true
+			}
 		}
 	}
 

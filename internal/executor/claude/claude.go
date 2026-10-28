@@ -616,6 +616,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				attribute.Bool("task.success", false),
 			)
 			errMsg := err.Error()
+			// A SIGTERM death the harness did not send (it only ever SIGKILLs).
+			// The cost/thrash gates below outrank it: they killed the run first.
+			exitReason := executor.FinishError
+			if executor.IsExternalTermination(err) {
+				exitReason = executor.FinishExternalKill
+				errMsg = "external kill: terminated by a signal the harness did not send — " + errMsg
+			}
 			if guard.costKilled {
 				errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
 			}
@@ -638,7 +645,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				CacheReadInputTokens:     guard.cacheReadTokens(),
 				CostKilledAt:             task.Budget.KilledAt(),
 				ThrashKilledAt:           guard.thrashKilledAt,
-				FinishReason:             killFinishReason(guard.thrashKilled, guard.costKilled, executor.FinishError),
+				FinishReason:             killFinishReason(guard.thrashKilled, guard.costKilled, exitReason),
 				FirstAttemptMs:           firstAttemptMs,
 				SuccessAtMs:              -1,
 			}, nil

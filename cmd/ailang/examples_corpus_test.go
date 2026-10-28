@@ -129,7 +129,11 @@ func TestExamplesCorpus_ConfinedIgnoresHomeExamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeTestFile(t, filepath.Join(dl, "manifest.json"), plantedManifest)
+	// A download at least as new as the binary: an older one is skipped
+	// regardless of confinement (examples_staleness.go).
+	writeTestFile(t, filepath.Join(dl, "manifest.json"), embeddedManifestVariant(t, func(m *ExampleManifest) {
+		m.Examples = append(m.Examples, ExampleEntry{Path: "planted.ail", Status: "working", Tags: []string{"planted"}, Description: "PLANTED corpus"})
+	}))
 	writeTestFile(t, filepath.Join(dl, "runnable", "planted.ail"), "-- planted\n")
 
 	c, err := openExamplesCorpus()
