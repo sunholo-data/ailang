@@ -41,11 +41,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-10-28 — ITERATION 17: five independently judged items; three comments/labels; two red-dev routes; D36 OPEN; 22 holds; shadow449/score14of14; no approvals or merges. [ADMIN]
+
 ## STATUS 2026-10-28 — ITERATION 16: 25 independently judged verdicts; red dev routed; D34/D35 OPEN; 21 holds; shadow14/14; external1981merge stopped late actions. [ADMIN]
 
 ## STATUS 2026-10-27 — ITERATION 15: 63components/56groups;62CONCUR/1DISSENT;15comments/8labels;D27–33parked;devGREEN;coverage69/83,14stale deferred;shadow14/14. [ADMIN]
-
-## STATUS 2026-10-22 — ITERATION 13: 4 queue verdicts independently concurred; 2 evidence comments and priority:P2; 9 cards/31PRs/61issues; dev RED retains existing routes; shadow14/14; no attestation/approval/handoff.
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
@@ -162,6 +162,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 | D-TRIAGE-33 | OPEN | Disputed PR1849: choose A, compare its remaining embed/pipeline changes with dev before any disposition; or B, retire it attended with the broader scope explicitly dropped. Recommend A. Default HOLD; verifier SUPERSEDED and judge DISSENT are both retained, with no controller tie-break or mutation. | Iteration15 independent OpenAI verifier / Anthropic Sonnet DISSENT; Independent judge1849 DISSENT; https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6452570174 |
 | D-TRIAGE-34 | OPEN | Import-collision scope after external merge #1981, with competing draft #1982 still open: choose A, obtain a recorded human scope/freeze ruling, consolidate MOD015/MOD016, namespace/phase/span/export-identity choices through the owner, and require seated independent review before further planning; or B, request a targeted revision to the landed design. Recommend A. Default HOLD on this loop and on any new approval request; neither draft is selected, cancelled, rejected or merged by triage. #1981 was merged externally while reporting; its card previously named sprint-planner, but actual handoff delivery is unmeasured. The original request and triage follow-up overlapped before either draft was visible. | Iteration16 independent OpenAI / Anthropic Sonnet CONCUR; https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6464855193 |
 | D-TRIAGE-35 | OPEN | Dependency-remediation design #1983: choose A, review the x/net 0.62.0 upgrade approach after correcting the allowlist census (9 total entries, 8 function-reaching), recording D1-D4 human freeze, independent review and green current-head checks; or B, request a specific remediation revision. Recommend A; no blind advisory allowlist exception. Default HOLD: no planner dispatch, dependency/allowlist patch or deployment by this loop. | Iteration16 independent OpenAI / Anthropic Sonnet CONCUR; https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6464855193 |
+| D-TRIAGE-36 | OPEN | Environment-output credential incident, rotation needed. A (recommended): operator revokes/rotates the exposed credential; B: defer pending incident review. Default: OPEN; no unattended credential or configuration change. | Iteration17 independent judge CONCUR; https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6480894865 |
 <!-- decision-ledger:end -->
 
 ## Queue
@@ -171,7 +172,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
 3. [RECORDED iterations 1–3] Level 1 queue verification; iteration 3 records independent review and the prior record gap. Clauses 1–3.
-4. [NEXT] Review changed, held and stale items. D34 holds import-design consolidation after external #1981 merge with competing #1982; D35 holds vulnerability design #1983 freeze. PR #1978 needs related-design search corrected. Nineteen inherited OPEN holds remain. Red govulncheck persists on f67e6149. Never approve, reject, merge, implement or fire handoffs in this loop.
+4. [NEXT] Refresh changed/held/stale items; preserve 21 inherited OPEN holds plus D36 incident rotation. D34 still holds consolidation after both competing designs1981/1982 externally merged; executor plans1984/1985 are held. D35 dependency freeze remains OPEN. Red-dev coverage design request and ticket ci:distinct-build-test-failures are routed, causes not presumed. Never approve, reject, merge, implement or fire handoffs in this loop.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
 6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085; iteration10 recurrence inbox_1792533879605_18a7bcf5. Iteration11 recurrence inbox_1792578499678_b8495de1; direct send refused rc1, existing controlplane consumer retained. Iteration12 recurrence inbox_1792622923766_6056562b: direct send rc1; existing normal+one urgent controlplane consumer delivered. Iteration13 recurrence inbox_1792666977791_d8a8d14b: direct send rc1; existing controlplane normal/one urgent fallback delivered. No triage harness repair. Iteration16 recurrence inbox_1793178174531_2005f28f: direct send rc1; normal/one urgent controlplane pointers and user message peek-verified.

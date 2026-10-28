@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 17 | 2026-10-28 | independent review holds competing executor plans and routes distinct dev reds [HARNESS] [ADMIN] |
 | 16 | 2026-10-28 | independent stale coverage refresh; vulnerability and import collision routed for design [HARNESS] [ADMIN] |
 | 15 | 2026-10-27 | independent review exposes deep callback charge gap; one dissent and design freezes held [HARNESS] [ADMIN] |
 | 13 | 2026-10-22 | design sketch gaps held; inherited red routes preserved; independent Sonnet review [HARNESS] [ADMIN] |

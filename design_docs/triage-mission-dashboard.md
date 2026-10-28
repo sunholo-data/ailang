@@ -1,17 +1,18 @@
-# Triage mission — iteration 16, 2026-10-28
+# Triage mission — iteration 17, 2026-10-28
 
-- Level 1: tidy and attest; never approve, reject or merge.
-- Operational CLI: v0.54.19; reviewed dev: 51b00832; current f67e6149 adds the externally merged design.
-- RED dev: GO-2026-6860, CI 40655808264; dependency design requested.
-- Snapshot: 12 cards / 34 PRs / 66 issues; 25 verdicts independently judged.
-- Coverage: 91/91 fresh-verdict components; source bound to 51b00832; under 7 days; no fresh VERIFIED.
-- Actions: correction comment on 1978, P1/language labels on 1980, two design requests.
-- Pending: 21 OPEN decisions: new D34 import-design consolidation / D35 dependency freeze, plus 19 inherited.
-- Orphans: 10 uncarded coordinator PRs and one unidentified missing approval record.
-- Shadow: 443 append-only rows; 14/14 settled; terminal-state-only, small sample.
-- Routing: two OpenAI Agent verifiers, Anthropic Sonnet judge via guarded Agent transport.
-- Spend: metered $0; judge 882,250 subscription tokens; other roles unreported.
-- Cadence: 12 hours, queue fingerprint; no code inner loop.
-- Record: PR 1904 preserves history, unmerged. Evidence: https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6464556966
-- Next: authors/design owners follow their gates; next changed/held/stale refresh.
-- External #1981 merge stopped late actions; #1982/#1983 remain held. No human ruling inferred.
+- Level 1: verify/tidy/attest; never approve, reject, merge or implement.
+- Reviewed dev: 07ce4a8dc; operational CLI v0.54.19-dirty, not compiler evidence.
+- RED dev: GO-2026-6860 inherited/D35; coverage 74.8%<80%; two distinct Build test failures, causes UNKNOWN.
+- Queue: 13 cards / 36 PRs / 66 issues. Five independently judged verdicts, all CONCUR.
+- Fresh verdict coverage: 93/93 under seven days, counted against actual ledger; each source tied to its review SHA.
+- Actions: three comments and needs-decision labels on #1984/#1985/#1992; no attestation, close or handoff.
+- Holds: 21 inherited OPEN decisions plus new D36, environment-output credential incident, rotation needed.
+- D34: both designs #1981/#1982 merged externally; competing executor plans #1984/#1985 held.
+- Orphans: ten uncarded coordinator PRs and one unidentified missing approval record; nine cards exceed 48h.
+- Routes: fleet ticket ci:distinct-build-test-failures; Sonar coverage DESIGN-ONLY request 9843bd9f; no fixes.
+- Shadow: 449 append-only rows; 14/14 settled, 15 unmeasured. Terminal state only; no Part A promotion.
+- Roles: two native OpenAI verifiers; actual Anthropic Sonnet judgment through guarded Agent transport.
+- Spend: metered $0; evaluator 444,257 subscription tokens; other role counts unreported.
+- Cadence: 12 hours, queue fingerprint last; no code inner loop or capacity park.
+- Record: continuing unmerged PR #1904. Evidence: https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6480894865
+- Next: operator incident/rulings, owner repairs and consolidation, next changed/held/stale refresh.
