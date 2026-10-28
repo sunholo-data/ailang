@@ -165,3 +165,39 @@ func TestExamplesCorpus_EnvBeatsEmbedded(t *testing.T) {
 		t.Fatalf("AILANG_EXAMPLES corpus not used: %+v %v", res, err)
 	}
 }
+
+// Manifest entries spelled "runnable/x.ail" (about half the real manifest)
+// must be found by tag and description, not only by file content. Search used
+// to key the manifest by the raw path and look files up by base name, so those
+// entries never matched their metadata.
+func TestExamplesSearch_RunnablePrefixedManifestPaths(t *testing.T) {
+	isolateExamplesResolution(t)
+	dir := t.TempDir()
+	writeTestFile(t, filepath.Join(dir, "manifest.json"), `{"schema":"ailang.manifest/v1","examples":[`+
+		`{"path":"runnable/prefixed.ail","status":"working","tags":["zebratag"],"description":"QUOKKA description"},`+
+		`{"path":"runnable/sub/nested.ail","status":"working","tags":[],"description":"WOMBAT nested"},`+
+		`{"path":"bare.ail","status":"working","tags":[],"description":"PLATYPUS bare"}]}`)
+	writeTestFile(t, filepath.Join(dir, "runnable", "prefixed.ail"), "-- no metadata words here\n")
+	writeTestFile(t, filepath.Join(dir, "runnable", "sub", "nested.ail"), "-- nor here\n")
+	writeTestFile(t, filepath.Join(dir, "runnable", "bare.ail"), "-- nor here\n")
+	t.Setenv(config.EnvExamples, dir)
+	c, err := openExamplesCorpus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for query, want := range map[string]string{
+		"quokka": "prefixed.ail", "zebratag": "prefixed.ail", "wombat": "sub/nested.ail", "platypus": "bare.ail",
+	} {
+		res, meta, err := searchExamples(c, query, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(res) != 1 || res[0].path != want || res[0].matchSource == "content" {
+			t.Errorf("search %q = %+v, want one metadata hit on %s", query, res, want)
+			continue
+		}
+		if meta[res[0].path].Description == "" {
+			t.Errorf("search %q: no manifest entry for result path %q (rendering would drop description/tags)", query, res[0].path)
+		}
+	}
+}

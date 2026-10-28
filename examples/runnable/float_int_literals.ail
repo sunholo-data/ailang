@@ -1,0 +1,41 @@
+-- Int literals used as floats: a numeric literal like 0 or 2 takes the type it
+-- is used at, so `f >= 0`, `2 * f`, `-> float { 0 }`, `[1, f, 3]` and
+-- `make(3, 0)` for an Array[float] are all float values (0.0, 2.0, ...).
+-- A let-bound int literal picks ONE numeric type from its uses; mixing int and
+-- float for the same binding is a type error, so annotate it or use intToFloat.
+module examples/runnable/float_int_literals
+import std/array (make, scatterAdd)
+import std/math (intToFloat)
+
+pure func isNonNeg(f: float) -> bool = f >= 0
+
+pure func double(f: float) -> float = 2 * f
+
+pure func zero() -> float = 0
+
+pure func around(f: float) -> [float] = [1, f, 3]
+
+-- Histogram on an Array[float]: the 0 and the 1, 2, 5 literals are floats.
+pure func histogram() -> Array[float] = scatterAdd(make(3, 0), [0, 0, 2], [1, 2, 5])
+
+-- `w` is used in a float division, so the int literal 70 is the float 70.0.
+pure func bmi(h: float) -> float {
+  let w = 70
+  w / (h * h)
+}
+
+-- An annotated int stays an int; convert explicitly when mixing int and float.
+pure func average(total: float) -> float {
+  let n: int = 4
+  total / intToFloat(n)
+}
+
+export func main() -> () ! {IO} {
+  println("isNonNeg(2.5) = ${show(isNonNeg(2.5))}")
+  println("double(1.5) = ${show(double(1.5))}")
+  println("zero() = ${show(zero())}")
+  println("around(2.5) = ${show(around(2.5))}")
+  println("histogram = ${show(histogram())}")
+  println("bmi(2.0) = ${show(bmi(2.0))}")
+  println("average(10.0) = ${show(average(10.0))}")
+}
