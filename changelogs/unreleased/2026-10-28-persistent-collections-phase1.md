@@ -38,3 +38,8 @@ float-only `scatterAdd` (which stays as the packed-float fast path): a differenc
 `accumulate(make(n + 1, 0), corners, \a b. a + b)`. Native in both the evaluator and the VM.
 `examples/runnable/persistent_collections.ail` shows a visited set, a difference array and
 tuple/record Map keys together.
+
+New AILANG references in `benchmarks/frontier_refs/`: `cp_60159_set.ail` (visited `Set[(int, int, int)]`)
+passes all 17 repo hidden tests on both engines (max 3.7s evaluator, 0.55s `--strict-bytecode`),
+and `cp_60164.ail` (difference array via `accumulate`) passes all 8 (15KB tests: 9.3s evaluator,
+0.52s `--strict-bytecode`; the brute-force baseline timed out above 60s).
