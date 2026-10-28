@@ -1,0 +1,137 @@
+{
+  "sprint_id": "M-VM-QUICK-WINS",
+  "status": "not_started",
+  "created": "2026-10-28T15:11:01Z",
+  "design_doc": "design_docs/planned/v0_55_0/m-vm-quick-wins.md",
+  "sprint_plan": "design_docs/planned/v0_55_0/m-vm-quick-wins-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_BASELINE_AND_GATE",
+      "package": null,
+      "action": "none",
+      "reason": "VM-internal runtime work (internal/vm, internal/runner benches, tools/perf_sweep.sh); no package-shaped capability exists or applies"
+    },
+    {
+      "milestone": "M2_W1_W2_ALLOC",
+      "package": null,
+      "action": "none",
+      "reason": "VM-internal runtime work (internal/vm, internal/runner benches, tools/perf_sweep.sh); no package-shaped capability exists or applies"
+    },
+    {
+      "milestone": "M3_W3_INT_FASTPATH",
+      "package": null,
+      "action": "none",
+      "reason": "VM-internal runtime work (internal/vm, internal/runner benches, tools/perf_sweep.sh); no package-shaped capability exists or applies"
+    },
+    {
+      "milestone": "M4_W4_FRAME_RESET",
+      "package": null,
+      "action": "none",
+      "reason": "VM-internal runtime work (internal/vm, internal/runner benches, tools/perf_sweep.sh); no package-shaped capability exists or applies"
+    },
+    {
+      "milestone": "M5_MEASURE_AND_REPORT",
+      "package": null,
+      "action": "none",
+      "reason": "VM-internal runtime work (internal/vm, internal/runner benches, tools/perf_sweep.sh); no package-shaped capability exists or applies"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 270,
+    "estimated_total_loc": 530,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_BASELINE_AND_GATE",
+      "description": "VM Go benchmarks (fib25, tail loop 1M, map+fold 200K) in internal/runner, six vm_* metrics in tools/perf_sweep.sh, banked perf snapshot, banked strict/bytecode parity baseline + tools/vm_parity_diff.sh",
+      "estimated_loc": 120,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "BenchmarkVMFib25/TailLoop1M/MapFold200K pass, assert results, report allocs",
+        "tools/perf_sweep.sh emits vm_*_ns_op and vm_*_b_op metrics",
+        "perf snapshot banked under .ailang/state/perf/",
+        "parity baseline banked; tools/vm_parity_diff.sh exits 0 against itself and 1 on a positive control"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_W1_W2_ALLOC",
+      "description": "W1 shared zero-capture closures in OpClosure; W2 VM-owned scratch slice for TAIL_CALL args",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1_BASELINE_AND_GATE"
+      ],
+      "acceptance_criteria": [
+        "Zero-capture OpClosure yields one shared ClosureObj; capturing closures stay distinct (test)",
+        "Tail-loop allocations O(1) in step count via testing.AllocsPerRun (1k vs 10k)",
+        "Re-entrant tail call with HOF-sourced args correct (test)",
+        "Mutation check: reverting each fix fails its allocation test",
+        "fib25 and tail-loop B/op drop >= 90%; parity diff empty; make test-changed green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_W3_INT_FASTPATH",
+      "description": "Inline int x int fast path for ADD/SUB/MUL and LT/LE/EQ in the dispatch loop; DIV/MOD keep CheckIntDivisor",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2_W1_W2_ALLOC"
+      ],
+      "acceptance_criteria": [
+        "Table test: fast path == arith()/comparison helper for every op x tag pair incl. mismatches, minInt, zero divisors (value or error text)",
+        "vm_divzero_test.go unchanged and green",
+        "Parity diff empty",
+        "Keep rule applied: >=5% on a VM benchmark or reverted and recorded as dropped"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_W4_FRAME_RESET",
+      "description": "Prove no prototype reads a non-param/non-capture register before writing it; if so, reuseFor zeroes only the non-argument registers",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M2_W1_W2_ALLOC"
+      ],
+      "acceptance_criteria": [
+        "Read-before-write invariant test over images compiled from examples/runnable (or W4 recorded as dropped with the counterexample)",
+        "Parity diff empty",
+        "Keep rule applied"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_MEASURE_AND_REPORT",
+      "description": "Final CLI timings + allocations, perf_sweep diff vs M1 snapshot, Phase 3 GC measurement (recommendation only), LIMITATIONS numbers, changelog fragment, design doc implementation report",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M3_W3_INT_FASTPATH",
+        "M4_W4_FRAME_RESET"
+      ],
+      "acceptance_criteria": [
+        "fib(32) <= 0.35s and 10M tail loop <= 0.65s best of 3, or shortfall reported with numbers",
+        "fib(32) < 10 MB and tail loop < 50 MB allocated",
+        "tools/perf_sweep.sh vs M1 snapshot exits 0",
+        "GC recommendation written (no default changed)",
+        "make check-changelog check-file-sizes green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
