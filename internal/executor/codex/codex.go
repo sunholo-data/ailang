@@ -148,7 +148,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	//   --skip-git-repo-check         allow non-git workspaces
 	//   --dangerously-bypass-approvals-and-sandbox  permission bypass
 	//   --model <name>                model selection
-	args, err := buildCodexArgs(task, e.getModel(task), directive)
+	args, err := buildCodexArgs(task, e.getModel(task))
 	if err != nil {
 		return nil, err
 	}
@@ -210,6 +210,8 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 		if runtime := config.CodexRuntime(); runtime != "" && runtime != "cli" {
 			return nil, fmt.Errorf("unsupported AILANG_CODEX_RUNTIME %q", runtime)
 		}
+		// The prompt goes on stdin, never argv (buildCodexArgs ends with "-").
+		cmd.Stdin = strings.NewReader(directive)
 		stdout, err = cmd.StdoutPipe()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
