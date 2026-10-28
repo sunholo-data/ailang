@@ -141,6 +141,7 @@ type CoreEvaluator struct {
 	segmentBase           int                // evalDepth at which the current goroutine's segment began
 	stackHopHook          StackHopHook       // Runs on each continuation goroutine (see SetStackHopHook)
 	coreTypeInfo          types.CoreTypeInfo // Type info for looking up effect budgets on closures
+	declLetRec            *core.LetRec       // the top-level declaration Eval/EvalCoreProgram is evaluating, if a LetRec (see evalCoreLetRec)
 }
 
 // Env returns the current environment (for module evaluation)
@@ -536,16 +537,20 @@ func (e *CoreEvaluator) SetResolver(resolver GlobalResolver) {
 }
 
 // Eval evaluates a single expression (simplified for REPL)
+//
+// expr is treated as a top-level declaration: if it is a LetRec, its
+// bindings stay visible in the evaluator's environment afterwards, so a
+// later Eval (the next REPL line, the next module declaration) can use them.
 func (e *CoreEvaluator) Eval(expr core.CoreExpr) (Value, error) {
-	return e.evalCore(expr)
+	return e.evalDecl(expr)
 }
 
-// EvalCoreProgram evaluates a Core program
+// EvalCoreProgram evaluates a Core program, each declaration as by Eval.
 func (e *CoreEvaluator) EvalCoreProgram(prog *core.Program) (Value, error) {
 	var lastResult Value = &UnitValue{}
 
 	for _, decl := range prog.Decls {
-		result, err := e.evalCore(decl)
+		result, err := e.evalDecl(decl)
 		if err != nil {
 			return nil, err
 		}
@@ -553,6 +558,17 @@ func (e *CoreEvaluator) EvalCoreProgram(prog *core.Program) (Value, error) {
 	}
 
 	return lastResult, nil
+}
+
+// evalDecl evaluates one top-level declaration. It marks a LetRec
+// declaration so evalCoreLetRec publishes its bindings to the enclosing
+// environment; a LetRec nested anywhere inside (a local `letrec` in a
+// function body) is a different node and stays lexically scoped.
+func (e *CoreEvaluator) evalDecl(decl core.CoreExpr) (Value, error) {
+	prev := e.declLetRec
+	e.declLetRec, _ = decl.(*core.LetRec)
+	defer func() { e.declLetRec = prev }()
+	return e.evalCore(decl)
 }
 
 // ContractChecker is an interface for checking contract violations via EffContext
