@@ -2644,6 +2644,23 @@
       }
     },
     {
+      "path": "runnable/float_int_literals.ail",
+      "status": "working",
+      "tags": [
+        "numeric",
+        "arithmetic",
+        "type-inference",
+        "std/array",
+        "pure"
+      ],
+      "description": "Int literals used as floats: f >= 0, 2 * f, a float function returning 0, [1, f, 3] and make(3, 0) for Array[float] are float values; a let-bound numeric literal picks one type, so mixing int and float needs intToFloat",
+      "modules": ["std/array","std/math"],
+      "expected": {
+        "stdout": "isNonNeg(2.5) = true\ndouble(1.5) = 3.0\nzero() = 0.0\naround(2.5) = [1.0, 2.5, 3.0]\nhistogram = #[3.0, 0.0, 5.0]\nbmi(2.0) = 17.5\naverage(10.0) = 2.5\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/stdlib_embedding.ail",
       "status": "working",
       "tags": [
@@ -3555,11 +3572,11 @@
     }
   ],
   "statistics": {
-    "total": 243,
-    "working": 235,
+    "total": 244,
+    "working": 236,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9670781893004116,
+    "coverage": 0.9672131147540983,
     "experimental": 0
   },
   "milestones": {

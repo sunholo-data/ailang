@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -135,7 +134,7 @@ func loadExamplesManifest() (*ExampleManifest, error) {
 
 // exampleSearchResult is one hit of searchExamples.
 type exampleSearchResult struct {
-	path        string // file name under runnable/
+	path        string // path under runnable/ (e.g. "x.ail", "contracts/x.ail")
 	score       float64
 	matchSource string // "tag", "description", "content"
 }
@@ -148,9 +147,13 @@ func searchExamples(c *examplesCorpus, query string, limit int) ([]exampleSearch
 	if err != nil {
 		return nil, nil, err
 	}
+	// Manifest paths come in two spellings — "runnable/x.ail" (newer entries)
+	// and a bare "x.ail" — both relative to the corpus. Key by the path under
+	// runnable/ so either spelling finds its file; keying by the raw path made
+	// every "runnable/..." entry invisible to tag and description search.
 	meta := make(map[string]ExampleEntry, len(m.Examples))
 	for _, ex := range m.Examples {
-		meta[ex.Path] = ex
+		meta[strings.TrimPrefix(ex.Path, "runnable/")] = ex
 	}
 
 	query = strings.ToLower(query)
@@ -160,7 +163,7 @@ func searchExamples(c *examplesCorpus, query string, limit int) ([]exampleSearch
 		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".ail") {
 			return nil
 		}
-		filename := path.Base(p)
+		filename := strings.TrimPrefix(p, "runnable/")
 		ex, hasMeta := meta[filename]
 		var score float64
 		var source string

@@ -32,3 +32,17 @@ received an int and a float: an integer literal inside a generic function or a m
 was used at type float ...`, with the fix to apply, in place of `expected float arguments`.
 Tracking: the integer-literal restriction for module declarations needs per-declaration defaulting
 of the exported scheme.
+
+### Added — example `examples/runnable/float_int_literals.ail` (2026-10-28)
+
+Shows int literals used at float type (`f >= 0`, `2 * f`, a float function returning `0`,
+`[1, f, 3]`, `scatterAdd(make(3, 0), ...)`), a let-bound numeric literal picking one type, and
+`intToFloat` for mixing int and float. It is listed in `examples/manifest.json` and in the Type
+System section of the website's Examples page.
+
+### Fixed — `ailang examples search` ignored tags and descriptions of `runnable/...` manifest entries (2026-10-28)
+
+Search keyed the manifest by its raw path but looked files up by base name. Every entry spelled
+`runnable/x.ail`, about half the manifest, could therefore only be found by file content, and
+was shown without its description or tags. Both spellings now resolve to the path under
+`runnable/`.
