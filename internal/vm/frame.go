@@ -72,7 +72,7 @@ func (vm *VM) acquireFrame(proto *bytecode.FuncPrototype, returnReg uint8, calle
 // Registers are cleared here rather than on acquire so a pooled frame never
 // pins a value (a large list in a dead register would otherwise stay live).
 // The whole capacity is cleared, not just len(Regs): a TAIL_CALL to a smaller
-// callee (reuseFor) shortens the slab and leaves the old values past len.
+// callee (resetForTailCall) shortens the slab and leaves the old values past len.
 // The pool never holds more frames than MaxStack, the most that can be live.
 func (vm *VM) releaseFrame(f *Frame) {
 	clear(f.Regs[:cap(f.Regs)])
@@ -94,21 +94,29 @@ func newFrame(proto *bytecode.FuncPrototype, returnReg uint8, caller *Frame) *Fr
 	}
 }
 
-// reuseFor reconfigures this frame to execute proto, resizing Regs if needed.
-// Used by TAIL_CALL — the caller's IP/ReturnReg/Caller are preserved on
-// purpose so the tail-called function returns directly to the original caller.
-func (f *Frame) reuseFor(proto *bytecode.FuncPrototype) {
+// resetForTailCall reconfigures this frame to run proto for TAIL_CALL. The
+// argc arguments at Regs[argStart:] move to the front (copy is overlap-safe),
+// every other register up to NumRegs is zeroed, and the captures follow the
+// parameters. The caller's IP/ReturnReg/Caller are preserved on purpose so
+// the tail-called function returns directly to the original caller.
+//
+// The end state is exactly that of zeroing the whole slab and then writing
+// the arguments and captures, without stashing the arguments elsewhere or
+// zeroing their registers twice (M-VM-QUICK-WINS W4).
+func (f *Frame) resetForTailCall(proto *bytecode.FuncPrototype, argStart, argc int, caps []bytecode.Value) {
+	n := int(proto.NumRegs)
+	if n > cap(f.Regs) {
+		regs := make([]bytecode.Value, n)
+		copy(regs, f.Regs[argStart:argStart+argc])
+		f.Regs = regs
+	} else {
+		copy(f.Regs[:argc], f.Regs[argStart:argStart+argc])
+		f.Regs = f.Regs[:n]
+		clear(f.Regs[argc:])
+	}
 	f.Proto = proto
 	f.IP = 0
-	if int(proto.NumRegs) > cap(f.Regs) {
-		f.Regs = make([]bytecode.Value, proto.NumRegs)
-	} else {
-		f.Regs = f.Regs[:proto.NumRegs]
-		// Zero the slab so a tail call doesn't observe stale values from the
-		// previous activation. (Argument registers are written by the caller
-		// before the jump, so we zero everything first then expect arg writes.)
-		for i := range f.Regs {
-			f.Regs[i] = bytecode.Value{}
-		}
+	for i, c := range caps {
+		f.Regs[int(proto.NumParams)+i] = c
 	}
 }

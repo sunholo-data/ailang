@@ -83,11 +83,6 @@ type VM struct {
 	// value per VM replaces an allocation per call (M-VM-QUICK-WINS W1).
 	// Per VM, not per image: an image is shared across goroutines.
 	zeroCapClosures []bytecode.Value
-
-	// tailArgs is TAIL_CALL's scratch for stashing arguments while the
-	// frame's register slab is reset. Nothing can re-enter the VM between
-	// the stash and the copy back, so one slice per VM is safe (W2).
-	tailArgs []bytecode.Value
 }
 
 // NewVM constructs a VM bound to an image. The image is not validated here;
@@ -407,22 +402,9 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				frame = caller
 				continue
 			}
-			// Stash args BEFORE we resize the register slab — they live in
-			// the current frame's registers and will be overwritten by reuseFor.
-			if cap(vm.tailArgs) < argCount {
-				vm.tailArgs = make([]bytecode.Value, argCount)
-			}
-			args := vm.tailArgs[:argCount]
-			for i := 0; i < argCount; i++ {
-				args[i] = frame.Regs[int(inst.A())+1+i]
-			}
-			caps := closure.Captures // captures are heap, no copy needed
-			frame.reuseFor(calleeProto)
-			copy(frame.Regs, args)
-			clear(args) // the scratch must not pin the previous step's values
-			for i, c := range caps {
-				frame.Regs[int(calleeProto.NumParams)+i] = c
-			}
+			// The arguments live in this frame's registers; resetForTailCall
+			// moves them to the front and zeroes the rest (frame.go).
+			frame.resetForTailCall(calleeProto, int(inst.A())+1, argCount, closure.Captures)
 			// Frame stack depth does NOT grow — that's the whole point.
 
 		case bytecode.OpReturn:

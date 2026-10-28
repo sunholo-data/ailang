@@ -108,10 +108,10 @@
         "Parity diff empty",
         "Keep rule applied"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-28T15:36:24Z",
+      "completed": "2026-10-28T15:36:24Z",
+      "notes": "DEVIATION from plan (safer): instead of zeroing only non-argument registers on a read-before-write invariant (needs a def-use pass over 35 opcodes), Frame.resetForTailCall moves the args to the front in place (overlap-safe copy), zeroes the rest and writes captures: the end state is identical to the old zero-all-then-write, so no invariant is needed. It also deletes W2 scratch slice, its VM field and the clear. reuseFor removed (no other caller). Upper bound measured first: reuseFor zeroing = 7.96% of tail-loop CPU. Test frame_tailcall_test.go: 5000 random slabs (shrink/grow/realloc/overlap) compared to the reference over full capacity; it caught its own append-capacity bug. Mutations (no zeroing; reversed args) both fail it. Interleaved A/B, 6 rounds each, M3 vs W4 test binaries: tail loop mean 57.4->54.5ms (-5.1%), min 56.9->54.1 (-4.9%); fib (control, no tail calls) 11.1->11.0ms. Borderline on the 5% keep rule; kept because it also removes code. Parity unchanged; -race green."
     },
     {
       "id": "M5_MEASURE_AND_REPORT",
