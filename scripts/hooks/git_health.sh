@@ -7,6 +7,8 @@
 # local dev both ahead of and behind origin. Every session that started in that time was told
 # nothing, and the pile of 30 worktrees made the real problem hard to see. This hook makes
 # both visible at the moment a session starts, where the next decision is made.
+# On 2026-10-28 a synthetic-HOME dry-run deleted three live mission pins; protect
+# account-home prefixes regardless of HOME, and skip sweeping if lookup fails.
 #
 #   - a rebase/merge/cherry-pick/bisect in progress in the main checkout OR this worktree
 #   - main-checkout dev diverged from last-known origin/dev (the Stop hook will try to rebase)
@@ -51,9 +53,13 @@ if [ "${AILANG_WORKTREE_SWEEP:-1}" != "0" ] && [ -x "$ROOT/scripts/worktree_swee
 	STAMP="$HOME/.ailang/state/worktree-sweep.stamp"
 	mkdir -p "$(dirname "$STAMP")" 2>/dev/null
 	if [ ! -e "$STAMP" ] || perl -e 'exit((time - (stat shift)[9]) > 6*3600 ? 0 : 1)' "$STAMP" 2>/dev/null; then
-		touch "$STAMP"
-		( cd "$ROOT" && nohup /bin/bash scripts/worktree_sweep.sh --apply --quiet \
-			>> "$HOME/.ailang/state/worktree-sweep.log" 2>&1 & ) >/dev/null 2>&1
+		if ACCT=$(perl -e 'print((getpwuid($<))[7])' 2>/dev/null) && [ -n "$ACCT" ] && [ -d "$ACCT" ]; then
+			touch "$STAMP"
+			( cd "$ROOT" && \
+				AILANG_SWEEP_PROTECT="$ACCT/.ailang-driver-pin/:$ACCT/.ailang-ab/:$ACCT/.ailang-nightly/:$ACCT/.ailang/state/worktrees/${AILANG_SWEEP_PROTECT:+:$AILANG_SWEEP_PROTECT}" \
+				nohup /bin/bash scripts/worktree_sweep.sh --apply --quiet \
+				>> "$HOME/.ailang/state/worktree-sweep.log" 2>&1 & ) >/dev/null 2>&1
+		fi
 	fi
 fi
 exit 0
