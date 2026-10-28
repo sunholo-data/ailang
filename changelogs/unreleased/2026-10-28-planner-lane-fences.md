@@ -1,0 +1,3 @@
+### Fixed — Planner lane Files parsing respects code fences (2026-10-28)
+
+Both the Files-section count and path-extraction scans now ignore fenced code, including matching backtick/tilde closers and unterminated fences. This closes a fail-open shape where a fenced shell `#` comment stopped scanning before a real language-core path, incorrectly granting the Codex planner lane. It also prevents false denials from fenced example paths and Files headings. Routing policy, allowlists, and reason tokens are unchanged. Resolves [#581 items 1–2](https://github.com/sunholo-data/ailang/issues/581); see the [sprint plan](../../design_docs/planned/sprint-plan-planner-lane-fences.md).
