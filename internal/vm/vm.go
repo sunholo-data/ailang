@@ -209,6 +209,20 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 		case bytecode.OpAdd, bytecode.OpSub, bytecode.OpMul, bytecode.OpDiv, bytecode.OpMod:
 			lhs := frame.Regs[inst.B()]
 			rhs := frame.Regs[inst.C()]
+			// Int fast path (M-VM-QUICK-WINS W3), written inline because a
+			// helper is over Go's inlining budget. DIV and MOD go to arith,
+			// the one home of the zero-divisor check.
+			if lhs.Tag == bytecode.TagInt && rhs.Tag == bytecode.TagInt && op != bytecode.OpDiv && op != bytecode.OpMod {
+				n := lhs.Int * rhs.Int
+				if op == bytecode.OpAdd {
+					n = lhs.Int + rhs.Int
+				} else if op == bytecode.OpSub {
+					n = lhs.Int - rhs.Int
+				}
+				frame.Regs[inst.A()] = bytecode.NewInt(n)
+				frame.IP++
+				continue
+			}
 			res, err := arith(op, lhs, rhs)
 			if err != nil {
 				return bytecode.Value{}, vm.errWrap(frame, "", err, inst)
@@ -235,12 +249,26 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			// Value.Equal which is for dedup.
 			lhs := frame.Regs[inst.B()]
 			rhs := frame.Regs[inst.C()]
+			if lhs.Tag == bytecode.TagInt && rhs.Tag == bytecode.TagInt {
+				frame.Regs[inst.A()] = bytecode.NewBool(lhs.Int == rhs.Int)
+				frame.IP++
+				continue
+			}
 			frame.Regs[inst.A()] = bytecode.NewBool(runtimeEq(lhs, rhs))
 			frame.IP++
 
 		case bytecode.OpLt, bytecode.OpLe:
 			lhs := frame.Regs[inst.B()]
 			rhs := frame.Regs[inst.C()]
+			if lhs.Tag == bytecode.TagInt && rhs.Tag == bytecode.TagInt {
+				b := lhs.Int < rhs.Int
+				if op == bytecode.OpLe {
+					b = lhs.Int <= rhs.Int
+				}
+				frame.Regs[inst.A()] = bytecode.NewBool(b)
+				frame.IP++
+				continue
+			}
 			res, err := compare(op, lhs, rhs)
 			if err != nil {
 				return bytecode.Value{}, vm.errWrap(frame, "", err, inst)

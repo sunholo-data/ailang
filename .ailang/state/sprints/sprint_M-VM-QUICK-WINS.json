@@ -91,10 +91,10 @@
         "Parity diff empty",
         "Keep rule applied: >=5% on a VM benchmark or reverted and recorded as dropped"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-28T15:30:27Z",
+      "completed": "2026-10-28T15:30:27Z",
+      "notes": "Inline int x int fast path in the ADD/SUB/MUL, LT/LE and EQ dispatch cases; DIV/MOD always reach arith (one home for the zero-divisor check). A helper (cost 95) exceeded Go inline budget 80, so the code is inline in vm.go. Test internal/vm/vm_arith_fast_test.go: real dispatch vs arith/compare/runtimeEq over 8 ops x 12 values incl. int64 edges and mixed tags (error text carried); div/mod by zero still fail. Mutation: SUB->ADD and LT->LE each fail it. Bench vs M2 (load ~11/16): fib25 13.3->11.2ms (-16%), tailloop1m 78->57.6ms (-26%), mapfold200k 15.8->13.8ms (-13%). Parity gate unchanged."
     },
     {
       "id": "M4_W4_FRAME_RESET",
