@@ -16,6 +16,7 @@ import (
 // Strict bytecode proves the VM ran it rather than bridging to the evaluator.
 const numericLiteralSource = `module numeric_literal
 import std/array (make, scatterAdd)
+import std/map (empty, insert, lookup, member)
 
 export pure func cmpGe(f: float) -> bool = f >= 0
 export pure func litLeft(f: float) -> bool = 0 < f
@@ -28,6 +29,8 @@ export pure func letLit(h: float) -> float { let w = 70; w / (h * h) }
 export pure func letInc(f: float) -> float { let inc = \x. x + 1; inc(f) }
 export pure func scatter(f: float) -> Array[float] = scatterAdd(make(3, 0), [0, 0, 2], [1, 2, 5])
 export pure func intsStayInts(f: float) -> int { let n = 7; n / 2 }
+export pure func floatMapKey(f: float) -> string { let m: Map[float, string] = insert(empty(), 1, "x"); show(lookup(m, 1.0)) }
+export pure func tupleMapKey(f: float) -> bool { let m: Map[(float, int), string] = insert(empty(), (2, 3), "y"); member(m, (f, 3)) }
 `
 
 func TestNumericLiteralParityVMvsInterpreter(t *testing.T) {
@@ -48,6 +51,10 @@ func TestNumericLiteralParityVMvsInterpreter(t *testing.T) {
 		"letInc":       "3.0",
 		"scatter":      "#[3.0, 0.0, 5.0]",
 		"intsStayInts": "3",
+		// The int literal key is the float 1.0 / 2.0, so the map-key encoder
+		// (internal/pcoll) files it where a float lookup finds it.
+		"floatMapKey": "Some(x)",
+		"tupleMapKey": "true",
 	}
 	for entry, w := range want {
 		interp, ierr, icode := runAilangBin(t, bin, "run", "--quiet", "--entry", entry, "--args-json", "2.0", file)
