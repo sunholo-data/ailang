@@ -109,6 +109,15 @@ type VarDecl struct {
 	Type  ResolvedType // may be nil if type is inferred
 	Value Expr
 	Line  int // source line (0 = unknown)
+
+	// RecGroup is non-empty when this declaration is one binding of a local
+	// `letrec`. It lists every name bound by that letrec, in source order;
+	// the group's VarDecls are emitted consecutively. Every member's Value
+	// may reference every name in the group, so a consumer must bind the
+	// group names BEFORE it resolves any of the values. Resolving a group
+	// name inside a value to an outer or top-level binding of the same name
+	// is a miscompile (M-VM-COVERAGE G1b).
+	RecGroup []string
 }
 
 func (VarDecl) stmt() {}

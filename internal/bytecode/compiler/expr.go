@@ -92,6 +92,9 @@ func (fc *funcCompiler) compileExprToFresh(e stmt.Expr) (uint8, error) {
 	if vr, ok := e.(stmt.VarRef); ok {
 		src, ok := fc.locals.lookup(vr.Name)
 		if !ok {
+			if _, rec := fc.recMember(vr.Name); rec {
+				return fc.compileVarRef(vr) // always a fresh temp
+			}
 			return 0, fmt.Errorf("compiler: unbound variable %q", vr.Name)
 		}
 		dst, err := fc.regs.allocTemp()
@@ -185,6 +188,15 @@ func (fc *funcCompiler) compileLitUnit() (uint8, error) {
 func (fc *funcCompiler) compileVarRef(e stmt.VarRef) (uint8, error) {
 	if r, ok := fc.locals.lookup(e.Name); ok {
 		return r, nil
+	}
+	// A letrec group member used as a value (letrec.go); it shadows any
+	// top-level function of the same name.
+	if idx, ok := fc.recMember(e.Name); ok {
+		dst, err := fc.regs.allocTemp()
+		if err != nil {
+			return 0, err
+		}
+		return dst, fc.emitRecClosure(dst, idx)
 	}
 	// Fall back to a top-level function reference: materialize the closure.
 	// Try the current module first (multi-module image), then the bare

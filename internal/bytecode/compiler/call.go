@@ -66,6 +66,7 @@ type calleeKind int
 const (
 	calleeTopLevel calleeKind = iota // emit OpClosure with NestedProtos[idx]
 	calleeValue                      // emit MOVE from a register
+	calleeRec                        // rebuild a letrec member's closure (letrec.go)
 )
 
 // classifyCallee inspects the Call.Func expression and decides whether the
@@ -89,6 +90,12 @@ func (fc *funcCompiler) classifyCallee(e stmt.Expr) (calleeKind, string, error) 
 		// a parameter must NOT resolve to a top-level function of the same name.
 		if _, ok := fc.locals.lookup(ex.Name); ok {
 			return calleeValue, ex.Name, nil
+		}
+		// A member of the enclosing local letrec group is the next scope
+		// out. It must win over a top-level function of the same name
+		// (M-VM-COVERAGE G1b).
+		if _, ok := fc.recMember(ex.Name); ok {
+			return calleeRec, ex.Name, nil
 		}
 		// Try the current module first so intra-module calls in a
 		// multi-module image hit the right prototype even when another
@@ -122,6 +129,10 @@ func (fc *funcCompiler) classifyCallee(e stmt.Expr) (calleeKind, string, error) 
 // materializeCallee writes the function value into the callee slot of a
 // pre-allocated call frame.
 func (fc *funcCompiler) materializeCallee(slot uint8, kind calleeKind, name string, raw stmt.Expr) error {
+	if kind == calleeRec {
+		idx, _ := fc.recMember(name)
+		return fc.emitRecClosure(slot, idx)
+	}
 	if kind == calleeTopLevel {
 		// Look up (or register) the prototype index in the current function's
 		// NestedProtos table. The same top-level function may appear multiple

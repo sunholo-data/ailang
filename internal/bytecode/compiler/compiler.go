@@ -226,6 +226,14 @@ type funcCompiler struct {
 	// instruction it appends, so VM runtime errors can report a source
 	// location. Zero means "no line info available".
 	currentLine int
+
+	// recGroup is set when this prototype is a member of a local `letrec`
+	// group: member name → image prototype index. A reference to a member
+	// that no local shadows rebuilds that member's closure from this
+	// frame's own captures (recCapRegs), because every member of a group
+	// shares one capture list. See letrec.go.
+	recGroup   map[string]int
+	recCapRegs []uint8
 }
 
 // canonicalFuncName returns the funcIdx key for a function. Single-module
@@ -269,10 +277,8 @@ func (fc *funcCompiler) compile(fd *stmt.FuncDecl) error {
 
 	// Body statements.
 	body, ret := inlineBodyCtorTemps(fd.Body, fd.Return)
-	for _, s := range body {
-		if err := fc.compileStmt(s); err != nil {
-			return err
-		}
+	if err := fc.compileStmts(body); err != nil {
+		return err
 	}
 
 	// Trailing return expression. The Statement IR convention is that every

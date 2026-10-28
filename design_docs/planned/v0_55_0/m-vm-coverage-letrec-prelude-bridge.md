@@ -439,6 +439,22 @@ the session scratchpad; the repro sources are inlined in Examples or quoted belo
 | V23 | The synthetic Option import does not yield to a user definition | entry module with `func None() -> int = 7` | Type error: `cannot unify type application Option[α2] with () -> α3`. Confirmed: an existing hole, out of scope here |
 | V24 | VM TCO on top-level self tail calls with extra params (quorum objection, kimi) | `func loop(k, acc, n) = if n == 0 then acc else loop(k, acc + k, n - 1)` with n=1,000,000, plus a higher-order variant | `--strict-bytecode`: correct, 0.21s; evaluator 7.77s. Confirmed for top-level; closure-value tail calls unmeasured (Option C caveat) |
 
+### Implementation log (2026-10-28, Phase 1)
+
+Binaries: base = `57b0b8f20` built from `git archive HEAD`; new = the implementation branch, built
+into its worktree. Neither touched `~/go/bin/ailang`. Coverage scripts mirror V6 and V9 (same caps,
+stdin, timeouts and classification), parameterised by binary path.
+
+| # | Claim | Command / evidence | Result |
+|---|-------|--------------------|--------|
+| V25 | G1b fixed natively, not by refusal | `shadow.ail` under the three modes, new binary | `10` / `10` / `10`. Strict passes, so it runs natively |
+| V26 | Every lowering position of a local letrec is covered | letrec as a call argument, `if` branch, match arm, lambda body, param shadowing the name; each with a top-level decoy `go` | Base VM: `2014`, `1007`, `1007`, `1007` (wrong). New: evaluator-identical on all three engines. Pinned in `internal/runner/vm_letrec_test.go` |
+| V27 | Corpus A after Phase 1 | V6 method, base vs new | Base: NATIVE 31, SILENT_FALLBACK 6, BYTECODE_CRASH 4 (reproduces V6). New: **NATIVE 41/41** |
+| V28 | `examples/runnable` after Phase 1 | V9 method, base vs new, 260 files | Base: NATIVE 142, SILENT_FALLBACK 62, BYTECODE_CRASH 1, DIVERGE 0, EVAL_FAIL 55 (V9 said 61 / 1 DIVERGE; `xml_walk_perf.ail` prints timings, so it moves between the two). New: NATIVE 143 (`letrec_recursion.ail`), SILENT_FALLBACK 60, BYTECODE_CRASH 1, DIVERGE 1 (`xml_walk_perf.ail`, timing lines only). Prelude `println` is still 45 of the 60 |
+| V29 | Strategy actually used: neither Option L nor Option C | `internal/bytecode/compiler/letrec.go` | Each group member gets its own prototype; all members share one capture list, so a reference to a member rebuilds its closure from the frame's capture registers (no new opcode, no fixup). A self tail call is `OpTailCall` on a closure: the 1,000,000-iteration fixture loop runs under `--strict-bytecode`, which answers the Option C "closure-value tail call" question for this scheme |
+| V30 | **Doc premise wrong:** "Mutual local `letrec` works" is not expressible from source | `letrec a = …, b = …` is a parse error; the teaching prompt's two consecutive `letrec`s (`ailang prompt`, "Mutual recursion also works") fail `ailang check` with `undefined variable: isOdd` | Only the lowering can produce a multi-member group, so mutual groups are covered by a stmt-IR unit test (`TestLetRec_MutualGroup`). The teaching prompt's example is wrong and should be fixed separately |
+| V31 | **New divergence, evaluator side, pre-existing:** a local letrec leaks into closures made earlier in the same block | two consecutive local letrecs `isEven`/`isOdd` plus a top-level `func isOdd(n) = true`; `parity(7)` | Type checker resolves the first letrec's `isOdd` to the top-level function (lexical). VM (base and new) agrees: `true`. Evaluator prints `false`, because `evalCoreLetRec` "Phase 2.5" writes each local letrec binding into the parent environment that earlier closures captured. Not fixed here (evaluator semantics); needs its own report |
+
 ## Quorum Log
 
 **Round 0 (2026-10-28T09:30:23Z): BLOCKED**, $0.2203. Artifact:
