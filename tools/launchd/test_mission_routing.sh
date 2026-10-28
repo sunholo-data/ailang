@@ -90,10 +90,21 @@ out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol M
 want "w: unterminated fence hides all bullets" "$out" "opus fail-closed:unparsable-path-entry"
 # Round 2 (judge findings): CRLF closers, the unterminated direction, and one arm per
 # fence rule so each rule has a sole killer.
-out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/x-crlf-fence-then-core.md" 2>/dev/null)
+# x and y are stored LF (`* text=auto` in .gitattributes normalises CRLF on commit),
+# so a committed CRLF fixture would test nothing on a fresh checkout. Build the CRLF
+# copies at run time and prove the CR bytes exist before trusting either verdict.
+crlf_lab=$(mktemp -d "${TMPDIR:-/tmp}/mission-crlf.XXXXXX") || exit 1
+for f in x-crlf-fence-then-core.md y-crlf-fenced-example.md; do
+  awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }' "$ROOT/tools/launchd/testdata/planner-lane/$f" > "$crlf_lab/$f"
+done
+crlf_x=$(tr -cd '\r' < "$crlf_lab/x-crlf-fence-then-core.md" | wc -c | tr -d ' ')
+crlf_y=$(tr -cd '\r' < "$crlf_lab/y-crlf-fenced-example.md" | wc -c | tr -d ' ')
+[ "$crlf_x" -gt 0 ] && [ "$crlf_y" -gt 0 ] && ok "x/y CRLF copies carry CR bytes" || bad "x/y CRLF copies carry CR bytes" "x=$crlf_x y=$crlf_y"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$crlf_lab/x-crlf-fence-then-core.md" 2>/dev/null)
 want "x: CRLF closer closes, later core path checked" "$out" "opus fail-closed:path-not-in-codex-allowlist"
-out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/y-crlf-fenced-example.md" 2>/dev/null)
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$crlf_lab/y-crlf-fenced-example.md" 2>/dev/null)
 want "y: CRLF fenced example ignored" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+rm -rf "$crlf_lab"
 out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/z-closer-trailing-text.md" 2>/dev/null)
 want "z: closer with trailing text does not close" "$out" "codex:gpt-6.1-sol declared:codex-ok"
 out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/za-indent-four-not-fence.md" 2>/dev/null)
