@@ -1,0 +1,102 @@
+-- std/set - Immutable sets (the visited set, the seen-before test)
+--
+-- A Set[a] holds each element at most once and iterates in a deterministic
+-- order (A1): the canonical key order std/map uses. Elements may be anything a
+-- Map key may be: int, string, bool, float (not NaN), unit, and tuples,
+-- records and ADT constructors of those, nested. So a BFS visited set over
+-- grid states is written directly:
+--
+--   import std/set as S
+--   let seen = S.insert(S.empty(), (row, col, dir))
+--   if S.member(seen, (r, c, d)) then ... else ...
+--
+-- Any other element (a function, a list) is a runtime error on every
+-- operation, including member: never a silent false.
+--
+-- Usage: `import std/set as S` for the functions, plus `import std/set (Set)`
+-- to write the type in a signature (`Set[(int, int)]`; a qualified `S.Set`
+-- is not valid type syntax). The function names (empty, insert, member, ...)
+-- match std/map's, so import at least one of the two qualified.
+
+module std/set
+
+-- A Set is a Map from element to unit. The constructor is exported only so
+-- the type can be named; build sets with empty/fromList/insert.
+export type Set[a] = Set(Map[a, ()])
+
+-- COST MODEL (today: built over the copy-on-write Map runtime):
+--   empty()            O(1)
+--   insert(s, x)       O(n)        - copies the set; member/size stay O(1)
+--   remove(s, x)       O(n)        - copies the set
+--   member(s, x)       O(1)        - hash lookup on the canonical key
+--   size(s)            O(1)
+--   toList(s)          O(n log n)  - canonical order (A1)
+--   fromList(xs)       O(n)        - the bulk path; duplicates collapse
+--   union/intersect/difference     O((n + m) log(n + m)) - one bulk build
+--
+-- insert and remove are O(n) until the persistent-map phase of
+-- M-PERSISTENT-COLLECTIONS lands (it changes the cost, not the API). Inside
+-- a hot search loop that is O(n) per visited state, so a search over n
+-- states costs O(n^2); for a search over a few thousand states that is fine,
+-- for a million it is not. When the elements are known up front, build the
+-- set with fromList.
+
+-- The empty set. O(1).
+export pure func empty[a]() -> Set[a] {
+  Set(_map_empty())
+}
+
+-- A set holding the elements of xs, each once. O(n).
+export pure func fromList[a](xs: [a]) -> Set[a] {
+  Set(_map_from_list(_list_map(\x. (x, ()), xs)))
+}
+
+-- A new set that also holds x. O(n) copy today (see COST MODEL).
+export pure func insert[a](s: Set[a], x: a) -> Set[a] {
+  match s {
+    Set(m) => Set(_map_insert(m, x, ()))
+  }
+}
+
+-- A new set without x (unchanged if x is absent). O(n) copy today.
+export pure func remove[a](s: Set[a], x: a) -> Set[a] {
+  match s {
+    Set(m) => Set(_map_remove(m, x))
+  }
+}
+
+-- Whether x is in s. O(1).
+export pure func member[a](s: Set[a], x: a) -> bool {
+  match s {
+    Set(m) => _map_member(m, x)
+  }
+}
+
+-- The number of elements. O(1).
+export pure func size[a](s: Set[a]) -> int {
+  match s {
+    Set(m) => _map_size(m)
+  }
+}
+
+-- The elements in canonical order (deterministic, A1). O(n log n).
+export pure func toList[a](s: Set[a]) -> [a] {
+  match s {
+    Set(m) => _map_keys(m)
+  }
+}
+
+-- Elements in a or b. One bulk build.
+export pure func union[a](a: Set[a], b: Set[a]) -> Set[a] {
+  fromList(toList(a) ++ toList(b))
+}
+
+-- Elements in both a and b. One bulk build.
+export pure func intersect[a](a: Set[a], b: Set[a]) -> Set[a] {
+  fromList(_list_filter(\x. member(b, x), toList(a)))
+}
+
+-- Elements in a but not in b. One bulk build.
+export pure func difference[a](a: Set[a], b: Set[a]) -> Set[a] {
+  fromList(_list_filter(\x. not member(b, x), toList(a)))
+}

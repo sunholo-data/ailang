@@ -17,3 +17,14 @@ Called with a key that cannot be encoded (a function, a list), `std/map.lookup` 
 `member` returned `false` and `remove` returned the map unchanged, in both engines, with no error.
 `insert` already rejected such a key, so the answer never came from data. All four operations now
 fail with an error naming the type (`unsupported map key type: function`).
+
+### Added — `std/set`: an immutable set type (2026-10-28)
+
+`Set[a]` with `empty`, `fromList`, `insert`, `remove`, `member`, `size`, `toList` (canonical
+order), `union`, `intersect` and `difference`. Elements may be anything a Map key may be, so a
+visited set over grid states is `Set[(int, int, Dir)]`. It is built over today's copy-on-write Map
+runtime, so `insert` and `remove` are still O(n) per call (20,000 sequential inserts take about
+5.6 s); the module header says so, and the persistent-map phase of
+[m-persistent-collections](design_docs/planned/v0_55_0/m-persistent-collections.md) changes the
+cost without changing the API. Import the functions qualified (`import std/set as S`) and the type
+by name (`import std/set (Set)`); `S.Set[...]` is not valid type syntax.
