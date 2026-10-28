@@ -17,7 +17,7 @@
         "Disposable-copy mutation drills HOME_PREFIXES, DROP_CALLER_PROTECT, and LOOKUP_FAIL_OPEN each make their corresponding A/B/C arm FAIL with nonzero test rc; unmutated rerun returns 12 passed, 0 failed.",
         "OBSERVATIONS only, before and after isolated gates: account-home worktree-sweep.log SHA256/line-count and .ailang-driver-pin listing unchanged; report absent paths or concurrent activity without seeding or rewriting real state."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "M2_RECIPE_CHANGELOG",
