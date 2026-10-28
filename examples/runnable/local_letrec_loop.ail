@@ -7,28 +7,24 @@ module examples/runnable/local_letrec_loop
 
 -- Sum of the multiples of k in 1..n.
 func sumMultiples(k: int, n: int) -> int {
-  letrec loop = \i acc.
-    if i > n then acc
-    else loop(i + 1, if i % k == 0 then acc + i else acc);  -- tail call
+  -- The recursive call to loop is a tail call: nothing runs after it.
+  letrec loop = \i acc. if i > n then acc else loop(i + 1, if i % k == 0 then acc + i else acc)
   loop(1, 0)
 }
 
 -- Two accumulators at once: how many numbers in 1..n are odd, and their sum.
 func oddStats(n: int) -> (int, int) {
-  letrec loop = \i count total.
-    if i > n then (count, total)
-    else if i % 2 == 1 then loop(i + 1, count + 1, total + i)  -- tail call
-    else loop(i + 1, count, total);  -- tail call
+  -- Both recursive calls are tail calls.
+  letrec loop = \i count total. if i > n then (count, total) else if i % 2 == 1 then loop(i + 1, count + 1, total + i) else loop(i + 1, count, total)
   loop(1, 0, 0)
 }
 
-func describe(stats: (int, int)) -> string =
-  match stats {
-    (count, total) => "${show(count)} odd numbers, sum ${show(total)}"
-  }
+func describe(stats: (int, int)) -> string = match stats {
+  (count, total) => "${show(count)} odd numbers, sum ${show(total)}"
+}
 
 -- println is in the prelude of an entry module, so no import is needed.
 export func main() -> () ! {IO} {
-  println("multiples of 3 up to 1000000: ${show(sumMultiples(3, 1000000))}");
+  println("multiples of 3 up to 1000000: ${show(sumMultiples(3, 1000000))}")
   println("1..1000000: ${describe(oddStats(1000000))}")
 }
