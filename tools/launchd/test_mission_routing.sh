@@ -85,9 +85,23 @@ want "t: tilde fence ignores backtick closer" "$out" "codex:gpt-6.1-sol declared
 out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/u-long-backtick-fence.md" 2>/dev/null)
 want "u: shorter backtick fence cannot close" "$out" "codex:gpt-6.1-sol declared:codex-ok"
 out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/v-unterminated-after-bullet.md" 2>/dev/null)
-want "v: unterminated fence preserves earlier bullet" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+want "v: fence left open in Files fails closed" "$out" "opus fail-closed:unparsable-path-entry"
 out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/w-unterminated-before-bullet.md" 2>/dev/null)
 want "w: unterminated fence hides all bullets" "$out" "opus fail-closed:unparsable-path-entry"
+# Round 2 (judge findings): CRLF closers, the unterminated direction, and one arm per
+# fence rule so each rule has a sole killer.
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/x-crlf-fence-then-core.md" 2>/dev/null)
+want "x: CRLF closer closes, later core path checked" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/y-crlf-fenced-example.md" 2>/dev/null)
+want "y: CRLF fenced example ignored" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/z-closer-trailing-text.md" 2>/dev/null)
+want "z: closer with trailing text does not close" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/za-indent-four-not-fence.md" 2>/dev/null)
+want "za: four-space indent is not a fence" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/zb-backtick-info-string.md" 2>/dev/null)
+want "zb: backtick info string with a backtick is not a fence" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/zc-two-backticks-not-fence.md" 2>/dev/null)
+want "zc: two backticks are not a fence" "$out" "opus fail-closed:path-not-in-codex-allowlist"
 
 # --- DELIVERY MECHANISM, NOT JUST THE CONSUMER (docs iteration 1, 2026-08-28) ------
 # THE MISS THIS GUARDS, stated plainly because it defeated 34 passing tests: every

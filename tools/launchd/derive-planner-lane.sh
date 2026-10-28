@@ -106,31 +106,46 @@ fi
 
 # Step 4: locate exactly one Files section and extract the first backticked
 # token from every top-level bullet in it. Continuations and later tokens are
-# prose. Both scans ignore fenced content; unterminated fences consume the
-# remainder. The awk matcher is the portable ERE equivalent of Files\b.
-section_count=$(awk '
+# prose. The awk matcher is the portable ERE equivalent of Files\b.
+#
+# Both scans skip fenced code (ailang#581), through ONE shared awk function so the
+# two cannot drift. CommonMark rules: an opener is 0-3 spaces then 3+ backticks or
+# tildes, and a backtick opener's info string may not contain a backtick; only the
+# same character, at least as long, followed by nothing but whitespace, closes it.
+# Without this a fenced `# comment` matched the section terminator below, so a
+# later language-core bullet was never checked and the doc was granted the cheap
+# lane (fail-OPEN). Two directions are deliberately fail-closed rather than
+# CommonMark-faithful: a trailing CR is ignored, so a CRLF closer still closes, and
+# a fence still open at end of file inside the Files section emits an unparsable
+# entry, because a forgotten closer would otherwise hide every later bullet.
+FENCE_AWK='
+function fence_skip(raw,    indent, text, mark, run, tail) {
+  sub(/\r$/, "", raw)
+  match(raw, /^ */)
+  indent = RLENGTH
+  text = substr(raw, indent + 1)
+  mark = substr(text, 1, 1)
+  run = 0
+  if (indent <= 3 && (mark == "`" || mark == "~")) {
+    while (substr(text, run + 1, 1) == mark) run++
+  }
+  tail = substr(text, run + 1)
+  if (fenced) {
+    if (mark == fence_char && run >= fence_length && tail ~ /^[ \t]*$/) fenced = 0
+    return 1
+  }
+  if (run >= 3 && (mark == "~" || tail !~ /`/)) {
+    fenced = 1
+    fence_char = mark
+    fence_length = run
+    return 1
+  }
+  return 0
+}'
+section_count=$(awk "$FENCE_AWK"'
   BEGIN { count = 0 }
   {
-    # Track fences throughout the document, before interpreting any content.
-    match($0, /^ */)
-    fence_text = substr($0, RLENGTH + 1)
-    fence_mark = substr(fence_text, 1, 1)
-    fence_run = 0
-    if (RLENGTH <= 3 && (fence_mark == "`" || fence_mark == "~")) {
-      while (substr(fence_text, fence_run + 1, 1) == fence_mark) fence_run++
-    }
-    fence_tail = substr(fence_text, fence_run + 1)
-    if (fenced) {
-      if (fence_mark == fence_char && fence_run >= fence_length &&
-          fence_tail ~ /^[ \t]*$/) fenced = 0
-      next
-    }
-    if (fence_run >= 3 && (fence_mark == "~" || fence_tail !~ /`/)) {
-      fenced = 1
-      fence_char = fence_mark
-      fence_length = fence_run
-      next
-    }
+    if (fence_skip($0)) next
     line = tolower($0)
     if (line ~ /^#{2,4}[[:space:]]+files([^[:alnum:]_]|$)/) count++
   }
@@ -140,29 +155,10 @@ if [ "$section_count" -ne 1 ]; then
   emit "opus fail-closed:no-files-section"
 fi
 
-paths=$(awk '
+paths=$(awk "$FENCE_AWK"'
   BEGIN { in_files = 0 }
   {
-    # Track fences throughout the document, before interpreting any content.
-    match($0, /^ */)
-    fence_text = substr($0, RLENGTH + 1)
-    fence_mark = substr(fence_text, 1, 1)
-    fence_run = 0
-    if (RLENGTH <= 3 && (fence_mark == "`" || fence_mark == "~")) {
-      while (substr(fence_text, fence_run + 1, 1) == fence_mark) fence_run++
-    }
-    fence_tail = substr(fence_text, fence_run + 1)
-    if (fenced) {
-      if (fence_mark == fence_char && fence_run >= fence_length &&
-          fence_tail ~ /^[ \t]*$/) fenced = 0
-      next
-    }
-    if (fence_run >= 3 && (fence_mark == "~" || fence_tail !~ /`/)) {
-      fenced = 1
-      fence_char = fence_mark
-      fence_length = fence_run
-      next
-    }
+    if (fence_skip($0)) next
     line = tolower($0)
     if (!in_files && line ~ /^#{2,4}[[:space:]]+files([^[:alnum:]_]|$)/) {
       in_files = 1
@@ -174,6 +170,7 @@ paths=$(awk '
       else print "__UNPARSABLE_PATH_ENTRY__"
     }
   }
+  END { if (in_files && fenced) print "__UNPARSABLE_PATH_ENTRY__" }
 ' "$doc")
 
 if [ -z "$paths" ]; then
