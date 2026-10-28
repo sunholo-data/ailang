@@ -203,6 +203,8 @@ under 100KB, about 280KB for all four.
 | `cp_60159` | no cheap set: cycle detection needs a visited set, or the insight to use Floyd | 17 | 5/6 trials pass, max 0.06s | **written: example + 17/17 hidden, max 8.5s evaluator / 0.2s VM** (Floyd's algorithm, no set) |
 | `cp_60164` | no cheap accumulate: the fast path is a mutable 2D difference array | 8 | 0.12s (difference array); brute force 9.6s or TLE | none yet. **Tier `experimental`** until one exists |
 | `cp_60153` | algorithm downgrade (flood fill → wrong heuristic) | 22 | 1 trial passes (0.7s); 3 confirm trials 0/23 | none yet. **Tier `experimental`** |
+| `cp_60149` | unattributed: Haiku AILANG wrong on the same 6 of 33 small tests, 3 of 3 trials | 34 | 3/3 trials pass | **model-written (GLM 5.3 Flash): 34/34 hidden, 4.7s total.** Tier `stretch`; added 2026-10-28 after the first commit |
+| `cp_60197` | unattributed: Haiku AILANG timed out, 3 of 3 trials (the union-find diagnosis was retracted) | 40 | 3/3 trials pass | **model-written (GLM 5.3 Flash): 40/40 hidden, 7.5s total.** Tier `stretch` |
 
 `exec_timeout: 30` for all four. That leaves 3.5× headroom over the slowest AILANG reference on the
 evaluator (8.5s). On `cp_60164` it sits between the two brute-force Python solutions the spike
@@ -258,7 +260,7 @@ Haiku smoke in both modes.
 
 | Risk | Mitigation |
 |---|---|
-| Hidden runs multiply grading time | Inputs ≤64KB; stop at the first failure; at most 22 tests per benchmark. Measured: the slowest passing reference (cp_60159 AILANG, evaluator) grades all 17 in 14.2s |
+| Hidden runs multiply grading time | Inputs ≤64KB; stop at the first failure; at most 40 tests per benchmark. Measured: the slowest passing reference (cp_60159 AILANG, evaluator) grades all 17 in 14.2s |
 | Machine load flips borderline perf verdicts | `exec_timeout` chosen at ≥3× the slowest reference; `--trials 3` |
 | An agent reads `benchmarks/hidden_tests/` from disk | The agent workspace is a temp dir with no repo path; the leak test checks the workspace contents |
 | Dataset licence | CC-BY-4.0: attribution in `benchmarks/hidden_tests/AETHERCODE.md` and in each YAML's description |

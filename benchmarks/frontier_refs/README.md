@@ -73,5 +73,7 @@ that pass every hidden test in `benchmarks/hidden_tests/cp_<id>/`. `cp_60166.ail
 are solvable in AILANG today (`cp_60166` by saturating the product instead of BigInt,
 `cp_60159` by Floyd cycle detection instead of a visited set). `cp_60164` and
 `cp_60153` have no AILANG reference yet, which is why they sit in the `experimental`
-tier. These are graded by hidden tests, not by `expected_stdout`, so the loop above
+tier. `cp_60149.ail` and `cp_60197.ail` are model-written (GLM 5.3 Flash, same spike)
+and pass every hidden test; Haiku failed both in AILANG in 3 of 3 trials while passing
+in Python, for reasons not yet attributed, so they are tracked as stretch. These are graded by hidden tests, not by `expected_stdout`, so the loop above
 does not re-verify them: run each against its `hidden_tests/cp_<id>/*.in` instead.

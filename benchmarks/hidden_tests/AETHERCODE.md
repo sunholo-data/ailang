@@ -18,3 +18,5 @@ never rendered into a prompt or an agent workspace.
 | `cp_60159` | 17 | no cheap set: cycle detection (or Floyd's algorithm) |
 | `cp_60164` | 8 | no cheap int accumulate: 2D difference array |
 | `cp_60153` | 22 | algorithm downgrade under expensive updates |
+| `cp_60149` | 34 | unattributed: consistent AILANG wrong answers (6 of 33 small tests, 3 of 3 trials) |
+| `cp_60197` | 40 | unattributed: consistent AILANG timeouts (3 of 3 trials) |
