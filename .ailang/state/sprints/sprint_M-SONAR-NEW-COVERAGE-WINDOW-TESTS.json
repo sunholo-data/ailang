@@ -1,0 +1,227 @@
+{
+  "sprint_id": "M-SONAR-NEW-COVERAGE-WINDOW-TESTS",
+  "status": "not_started",
+  "created": "2026-10-28T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_55_0/m-sonar-new-coverage-window-tests.md",
+  "sprint_plan": "design_docs/planned/v0_55_0/m-sonar-new-coverage-window-tests-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: repository-internal Go tests and measurement evidence only; reuse existing Go test harnesses, pcoll, store API and coverage tooling. Registry search not applicable; no AILANG dependency or new package."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: repository-internal Go tests and measurement evidence only; reuse existing Go test harnesses, pcoll, store API and coverage tooling. Registry search not applicable; no AILANG dependency or new package."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: repository-internal Go tests and measurement evidence only; reuse existing Go test harnesses, pcoll, store API and coverage tooling. Registry search not applicable; no AILANG dependency or new package."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: repository-internal Go tests and measurement evidence only; reuse existing Go test harnesses, pcoll, store API and coverage tooling. Registry search not applicable; no AILANG dependency or new package."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: repository-internal Go tests and measurement evidence only; reuse existing Go test harnesses, pcoll, store API and coverage tooling. Registry search not applicable; no AILANG dependency or new package."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: repository-internal Go tests and measurement evidence only; reuse existing Go test harnesses, pcoll, store API and coverage tooling. Registry search not applicable; no AILANG dependency or new package."
+    },
+    {
+      "milestone": "M7",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: repository-internal Go tests and measurement evidence only; reuse existing Go test harnesses, pcoll, store API and coverage tooling. Registry search not applicable; no AILANG dependency or new package."
+    },
+    {
+      "milestone": "M8",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: repository-internal Go tests and measurement evidence only; reuse existing Go test harnesses, pcoll, store API and coverage tooling. Registry search not applicable; no AILANG dependency or new package."
+    },
+    {
+      "milestone": "M9",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: repository-internal Go tests and measurement evidence only; reuse existing Go test harnesses, pcoll, store API and coverage tooling. Registry search not applicable; no AILANG dependency or new package."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 177,
+    "estimated_total_loc": 530,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Measure profile completeness and window",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Record current dev SHA, Sonar analysis ID/date, previous-version baseline, new lines/uncovered counts and every gate condition; distinguish the pinned analysis from current measurements.",
+        "Capture before profiles for the five packages with per-package instrumentation and no -coverpkg; map zero-count blocks to actual proposed contracts.",
+        "Record current required line delta and deduplicate against tests merged since the design; stop for scope review if remaining approved contracts cannot plausibly close the gap."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Array accumulation order and persistence",
+      "estimated_loc": 65,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Assert histogram output and ordered repeated-index combines using a real FnCallerN callback.",
+        "Assert the source array remains unchanged and callback inputs observe the previous write.",
+        "Run go test ./internal/builtins -count=1."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Array accumulation structured failures",
+      "estimated_loc": 55,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Assert wrong array/list, malformed tuple, non-int index, nil context and unwired callback failures.",
+        "Assert negative and upper-bound indices name index and array length; callback failure identifies the failing write and retains the error cause as supported by callbackErr.",
+        "Run go test ./internal/builtins -count=1."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Lazy evaluator map keys",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Assert IndirectValue is forced before encoding and yields the forced value key.",
+        "Assert forcing failure propagates through KeyWriter.Fail; do not copy structured-key golden cases.",
+        "Run go test ./internal/eval -count=1."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Approval record and filesystem guards",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Assert unknown command reports invalid_command and valid command names; corrupt stored ContextJSON reports invalid_record using the existing store API.",
+        "Assert unsafe state directory permissions and non-0600 coordinator.db are rejected with isolated temp directories; no ambient home/state access.",
+        "Run go test ./internal/accessapproval -count=1."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "description": "Approval expiry and list validation",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "Assert past and beyond-seven-day expiry rejections with times safely away from boundaries.",
+        "Assert zero limit uses the default, limit above 50 and negative offset are rejected, and invalid status is rejected.",
+        "Run go test ./internal/accessapproval -count=1; leave CAS retry-exhaustion branch deferred without racing writers or adding a test seam."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M7",
+      "description": "Map object persistence and comparator contracts",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Assert Lookup on an unencodable key errors rather than silently missing.",
+        "Assert removing a missing key preserves MapObj identity and removing an existing key preserves the original map.",
+        "Assert Equal invokes the supplied comparator and AsMap on a non-map panics with the tag; run go test ./internal/bytecode -count=1."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M8",
+      "description": "Compiler prelude image contract",
+      "estimated_loc": 90,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Compile a bare println via the in-package stmt harness and assert exactly one synthetic $prelude.println prototype with arity one.",
+        "Assert its instructions dispatch to __io_println; repeated prelude resolution reuses the prototype, and an unknown name returns ok=false without modifying the image.",
+        "Run go test ./internal/bytecode/compiler -count=1; keep existing runner behavior tests as the end-to-end authority."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M9",
+      "description": "Reconcile coverage and publish evidence",
+      "estimated_loc": 30,
+      "dependencies": [
+        "M3",
+        "M4",
+        "M6",
+        "M7",
+        "M8"
+      ],
+      "acceptance_criteria": [
+        "Run make test-changed with an explicit available pre-sprint TEST_CHANGED_BASE plus make check-file-sizes and make check-changelog; format all new Go tests.",
+        "Compare before/after profiles using identical instrumentation and source mapping; itemize file, uncovered window line, asserted contract and test name without double counting overlapping blocks.",
+        "Obtain CI full-suite and overall 29% coverage gate results and a current Sonar analysis showing new_coverage >=80% and reliability rating 1; require next dev analysis after merge for final closure.",
+        "Verify zero production or coverage configuration changes and unchanged D-TRIAGE-21 HOLD; if the gate remains red, report exact residual counts and stop for a bounded follow-up design rather than expanding into tail files."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
