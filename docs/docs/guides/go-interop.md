@@ -300,7 +300,7 @@ Memory:       Runtime + cached ASTs
 **Compile-Time Codegen** (measured 2026-10-28, `fib(32)`):
 ```
 Generated Go:        0.030s  (every value boxed as interface{})
-Bytecode VM:         0.50s   (ailang run --strict-bytecode)
+Bytecode VM:         0.33s   (ailang run --strict-bytecode)
 Hand-written Go:     0.005s
 Tail-recursive loop: stack overflow at 10M steps (no tail-call elimination)
 ```

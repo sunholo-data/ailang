@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-VM-QUICK-WINS",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-28T15:11:01Z",
   "design_doc": "design_docs/planned/v0_55_0/m-vm-quick-wins.md",
   "sprint_plan": "design_docs/planned/v0_55_0/m-vm-quick-wins-sprint-plan.md",
@@ -128,10 +128,10 @@
         "GC recommendation written (no default changed)",
         "make check-changelog check-file-sizes green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-28T15:38:44Z",
+      "completed": "2026-10-28T15:38:44Z",
+      "notes": "CLI best of 3 (load ~7/16): fib(32) 0.51->0.33s (-35%, target <=0.35 met); 10M tail loop 1.10->0.55s (-50%, target <=0.65 met); map+fold 2M 0.18->0.16s. Process alloc: fib32 10.05MB total, all compile-time (VM ~13KB per bench), tail loop 16.3MB (<50 met). sweep.sh --against the baseline: rc 0, no regressions (vm_fib25 -40%, vm_tailloop1m -57%, B/op -100%). Phase 3: GC (madvise/mmap) gone from profiles; remaining memclr is releaseFrame clearing whole capacity, so no GC recommendation. LIMITATIONS (both), go-interop numbers, changelog fragment, design-doc implementation report, sprint plan status updated."
     }
   ]
 }

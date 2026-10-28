@@ -351,9 +351,10 @@ explicit recursion in code you compile to Go.
   `let`s. Use `--strict-bytecode` to fail instead of falling back. A local `letrec` that
   shares its name with a top-level function can call the top-level function under both
   flags, which gives a wrong answer.
-- **Speed:** the VM is about 40× faster than the evaluator on call-heavy code, but about
-  4× slower than CPython. Measured best of 3: `fib(32)` took 0.50 s on the VM and 0.14 s in
-  Python. A 10M-step tail-recursive loop took 1.07 s and 0.32 s.
+- **Speed:** the VM is about 40× faster than the evaluator on call-heavy code, but still
+  slower than CPython. Measured best of 3 after M-VM-QUICK-WINS (2026-10-28): `fib(32)` took
+  0.33 s on the VM and 0.14 s in Python (it was 0.50 s before). A 10M-step tail-recursive loop
+  took 0.55 s and 0.32 s (it was 1.07 s).
 
 ---
 

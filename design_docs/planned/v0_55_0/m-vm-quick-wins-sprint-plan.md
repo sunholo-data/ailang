@@ -9,6 +9,7 @@ and runs as part of M5.
 **Duration:** ~2 days, 5 milestones, each sized for one executor run of 60–90 minutes.
 **Risk:** low–medium. All changes are localized and reversible, with a keep/drop rule per win.
 **Mode:** attended, executed in-session, committed straight to `dev` (dev-workflow rule).
+**Status:** ✅ COMPLETE 2026-10-28. All five milestones pass. Results are in the design doc's Implementation Report; W4 deviated from the plan, to a safer design that needs no invariant.
 
 ## Pre-flight findings (2026-10-28)
 
@@ -42,7 +43,7 @@ and runs as part of M5.
 
 ## Milestones
 
-### M1_BASELINE_AND_GATE: VM benchmarks, perf-sweep metrics, parity baseline (~120 LOC)
+### M1_BASELINE_AND_GATE ✅: VM benchmarks, perf-sweep metrics, parity baseline (~120 LOC)
 
 - Add `internal/runner/vm_bench_test.go`. It compiles each workload once (pipeline →
   `CompileBytecodeFromResult`), then times only VM execution in `b.Loop()`, with
@@ -61,7 +62,7 @@ and runs as part of M5.
   the parity baseline is banked and `tools/vm_parity_diff.sh` against itself exits 0; a positive
   control (a deliberately broken outcome row) exits 1.
 
-### M2_W1_W2_ALLOC: shared zero-capture closures + tail-call scratch (~150 LOC)
+### M2_W1_W2_ALLOC ✅: shared zero-capture closures + tail-call scratch (~150 LOC)
 
 - W1 in `OpClosure`: when `NumCaptures == 0`, use a lazily built per-VM cache indexed by image
   prototype.
@@ -76,7 +77,7 @@ and runs as part of M5.
 - **Acceptance:** `BenchmarkVMFib25` and `BenchmarkVMTailLoop1M` B/op fall by at least 90%; the
   parity diff is empty; `make test-changed` passes; the keep rule is met and numbers are in the commit.
 
-### M3_W3_INT_FASTPATH: inline int arithmetic and comparison (~120 LOC)
+### M3_W3_INT_FASTPATH ✅: inline int arithmetic and comparison (~120 LOC)
 
 - In the dispatch cases for `OpAdd/OpSub/OpMul` and `OpLt/OpLe/OpEq`, handle int×int inline.
   `Div`/`Mod` keep `CheckIntDivisor` (RT001).
@@ -86,7 +87,7 @@ and runs as part of M5.
   diff is empty; the keep rule is applied (≥ 5% on some VM benchmark, or the change is reverted and
   recorded as dropped).
 
-### M4_W4_FRAME_RESET: cheaper tail-call register reset (~80 LOC)
+### M4_W4_FRAME_RESET ✅: cheaper tail-call register reset (~80 LOC)
 
 - First prove or refute the invariant: no compiled prototype reads a non-parameter, non-capture
   register before writing it. Add a test that walks every prototype in the images compiled from
@@ -97,7 +98,7 @@ and runs as part of M5.
 - **Acceptance:** the invariant test exists and passes (or W4 is recorded as dropped with the
   counterexample); the parity diff is empty; the keep rule is applied.
 
-### M5_MEASURE_AND_REPORT: final numbers, GC measurement, docs (~60 LOC docs)
+### M5_MEASURE_AND_REPORT ✅: final numbers, GC measurement, docs (~60 LOC docs)
 
 - Re-run the CLI timings (best of 3, `fib(32)`, 10M tail loop, map+fold 2M) and `--memprofile`
   allocations; run `tools/perf_sweep.sh` against M1's snapshot (exit 0 required: no metric over tolerance).

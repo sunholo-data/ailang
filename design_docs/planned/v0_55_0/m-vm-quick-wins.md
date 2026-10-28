@@ -1,6 +1,6 @@
 # M-VM-QUICK-WINS: Cheap bytecode-VM speedups, measured one at a time
 
-**Status**: Planned
+**Status**: Phases 0, 1 and 3 IMPLEMENTED (2026-10-28, sprint M-VM-QUICK-WINS); Phase 2 (W5–W7, compiler) planned, waiting for M-VM-COVERAGE Phase 1 (PR #1989). See the Implementation Report at the end.
 **Target**: v0.55.0
 **Priority**: P2. Performance follows correctness: M-VM-COVERAGE stays first.
 **Estimated**: 3–4 days. Phase 0 and Phase 1 (~2 days) can run now. Phase 2 (~1.5 days) waits for M-VM-COVERAGE Phase 1.
@@ -331,6 +331,51 @@ assertion fails.
 - **A native tier.** Typed Go generated from the Statement IR (not the boxed `--emit-go`, which has
   no tail calls), for hot pure modules such as a game simulation. Decide only if the VM, after
   tuning, is still the bottleneck for a real user.
+
+## Implementation Report: Phases 0, 1 and 3 (2026-10-28)
+
+Commits on `dev`: `7b3170880` (M1), `9546c255b` (M2), `bc2816371` (vm.go split), `d042d947b` (M3), `b95dd32ab` (M4).
+
+**End to end** (`ailang run --strict-bytecode`, best of 3, same machine, binary from the
+morning baseline vs HEAD, load about 7 on 16 cores):
+
+| Workload | Before | After | Target | CPython |
+|---|---|---|---|---|
+| `fib(32)` | 0.51 s | **0.33 s** (−35%) | ≤ 0.35 s ✓ | 0.14 s |
+| 10M tail loop | 1.10 s | **0.55 s** (−50%) | ≤ 0.65 s ✓ | 0.32 s |
+| map + fold 2M | 0.18 s | 0.16 s | no regression ✓ | 0.04 s |
+
+**VM allocations** (`go test -bench BenchmarkVM`): `fib(25)` went from 11.66 MB / 242,847 allocs
+to 12.7 KB / 65 allocs, and the 1M tail loop from 176 MB / 2,000,014 allocs to 3.8 KB / 8 allocs.
+The `fib(32)` process total under `--memprofile` is 10.05 MB, all of it compile-time (regexp,
+pipeline), so the "< 10 MB" criterion is met for the VM, not for the whole process. The tail
+loop's process total is 16.3 MB.
+
+**Per win** (each measured on its own; keep rule ≥ 5%):
+
+| Win | Result | Kept? |
+|---|---|---|
+| W1 shared zero-capture closures + W2 tail-call scratch | fib25 −27%, tail loop −37% | yes |
+| W3 inline int fast path (inline: a helper cost 95 against Go's inline budget of 80) | fib25 −16%, tail loop −26%, map+fold −13% | yes |
+| W4 tail-call frame reset | tail loop −5.1% mean in an interleaved A/B (control fib −1%) | yes, borderline. It also deletes W2's scratch |
+
+**Deviation (W4).** The plan was to zero only the non-argument registers, which depends on an
+unproven read-before-write invariant. Instead, `Frame.resetForTailCall` moves the arguments to
+the front in place and zeroes the rest. Its end state is identical to the old sequence, so no
+invariant is needed. A randomized equivalence test over 5000 slabs proves it.
+
+**Gates.** The parity gate (`tools/vm_parity_diff.sh`, 442 outcomes under `--bytecode` and
+`--strict-bytecode`) was unchanged after every win. `sweep.sh --against` the baseline exited 0
+with no regressions. Mutation checks: reverting W1 fails 3 tests; reverting W2 fails 1; SUB→ADD
+and LT→LE in W3 each fail; dropping the zeroing or reversing the arguments in W4 fails.
+
+**Phase 3 (GC).** After Phase 1, `madvise`/`mmap` no longer appear in VM profiles. The
+remaining `memclr` (about 14% of `fib`) is the VM's own frame clearing (`releaseFrame` clears
+each frame's whole capacity on return), not GC. **No GC setting is recommended.** The next cheap
+candidate is clearing only the registers a frame actually used.
+
+**Not done (Phase 2):** W5 (`%` as an opcode; `builtinModInt` is 6% of tail-loop CPU), W6
+(direct known calls), and W7 (MOVE peephole). They wait for PR #1989.
 
 ---
 
