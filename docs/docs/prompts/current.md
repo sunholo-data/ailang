@@ -331,13 +331,12 @@ foldl(\acc x. acc + x, 0, xs)
 -- VERBOSE: inline func with explicit types (also works)
 foldl(func(acc: int, x: int) -> int { acc + x }, 0, xs)
 
--- AVOID: curried lambda. It type-checks and the interpreter runs it, but the bytecode VM
--- calls a callback with all its args at once and fails (`expects 1 args, got 2`)
+-- ALSO WORKS: curried lambda (longer; prefer the multi-param form)
 foldl(\acc. \x. acc + x, 0, xs)
 ```
 
-**Rule for callbacks passed to `foldl`, `sortBy`, `zipWith`, `foldlE`, etc.: write `\a b. body`**
-(one lambda, several params). It works on every engine.
+**For callbacks passed to `foldl`, `sortBy`, `zipWith`, `foldlE`, etc., write `\a b. body`**
+(one lambda, several params): it is the simplest form. Curried `\a. \b. body` also works.
 
 **Sorting with sortBy:**
 ```ailang
@@ -681,6 +680,8 @@ import std/json (filterStrings, filterNumbers, allStrings, allNumbers, getString
 import std/list (map, filter, foldl, length, concat, sortBy, take, drop, range, nth, last, any, findIndex, flatMap, zipWith, mapAccumL, mapE, filterE, foldlE, flatMapE, forEachE)
 -- range(start, end): TWO args, end exclusive. range(n) is an arity error.
 import std/map as M    -- O(1) lookup, O(n) insert: see "Cost Model"
+import std/set as S    -- Set[a], e.g. a visited Set[(int, int)]: empty, fromList, insert, remove, member, size, toList, union, intersect, difference
+import std/set (Set)   -- needed to WRITE the type Set[a] in a signature (`S.Set[...]` does not parse)
 import std/regex as R  -- compile, isMatch, findFirst, findAll, replaceAll, split (qualified: split clashes with std/string)
 -- [float] vector math, native loops (never foldl(zipWith(...)) for a dot product):
 import std/embedding (dot, cosine, magnitude, normalize, scale, add_vectors, axpy, euclidean_distance)
@@ -752,7 +753,7 @@ let checked = filterE(\x. { println("checking ${show(x)}"); x > 2 }, [1, 2, 3, 4
 let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc + x }, 0, [10, 20]);
 ```
 
-**Note on foldlE:** Write the callback as `\acc x. ...` or `func(acc: T, x: U) -> T ! {Effect} { ... }`, not curried `\acc. \x.`.
+**Note on foldlE:** Write the callback as `\acc x. ...` (or `func(acc: T, x: U) -> T ! {Effect} { ... }` when it needs annotations).
 
 **String functions** (std/string) — run `ailang docs std/string` for full list:
 - `length(s) -> int` - String length
@@ -2036,9 +2037,9 @@ the document is much larger than what you need.
 ## Maps (std/map, v0.10.1)
 
 `Map[k, v]` — immutable hash map: O(1) `lookup`/`member`, but `insert`/`remove` copy the whole map (O(n)).
-Build with `M.fromList` (O(n); a duplicate key keeps the LAST value). Keys must be int, string or bool:
-a tuple or record key type-checks, then fails at runtime (`unsupported map key type`). Encode a cell as
-`r * width + c` or `"${r},${c}"`.
+Build with `M.fromList` (O(n); a duplicate key keeps the LAST value). Keys: int, string, bool, float,
+unit, and tuples, records and ADT constructors of those, so `M.lookup(m, (r, c))` works (a function or
+list key is a runtime error). Example: `ailang examples show map_tuple_record_keys`.
 
 ```ailang
 import std/map as M
@@ -2134,7 +2135,7 @@ export func main() -> () ! {IO} {
 
 Telemetry/traces are flushed before the process exits.
 
-## Cost Model: Lists, Arrays (std/array), Maps (std/map)
+## Cost Model: Lists, Arrays (std/array), Maps (std/map), Sets (std/set)
 
 Values are immutable: an "update" returns a copy. Reads are cheap; growing one element at a time is not.
 
@@ -2145,20 +2146,26 @@ Values are immutable: an "update" returns a copy. Reads are cheap; growing one e
 | `map`, `filter`, `flatMap`, `zip`, `range`, `mapAccumL` / `sortBy` | O(n) / O(n log n) |
 | `A.get`, `A.getOpt` (None out of bounds), `A.length` | O(1) |
 | `A.set`, `A.append` | O(n): copies the array |
-| `A.make`, `A.fromList`, `A.updateMany(arr, [(i, v), ...])` | O(n + k), one copy |
-| `M.lookup`, `M.member`, `M.size` | O(1) |
-| `M.insert`, `M.remove` | O(n): copies the map |
-| `M.fromList(pairs)` / `M.keys`, `M.toList` | O(n) / O(n log n) |
+| `A.make`, `A.fromList`, `A.updateMany(arr, [(i, v), ...])`, `A.accumulate(arr, [(i, x), ...], combine)` | O(n + k), one copy |
+| `M.lookup`, `M.member`, `M.size`, `S.member`, `S.size` | O(1) |
+| `M.insert`, `M.remove`, `S.insert`, `S.remove` | O(n): copies the map / set |
+| `M.fromList`, `S.fromList` / `M.keys`, `M.toList`, `S.toList`, `S.union`, `S.intersect`, `S.difference` | O(n) / O(n log n) |
 
-**One `acc ++ [x]`, `x :: acc`, `A.set` or `M.insert` per loop step is O(n²) overall** (20,000
-`M.insert`s take ~5 s, ×4 per doubling): fine for a few thousand steps, too slow for 10^5. Instead:
+**One `acc ++ [x]`, `x :: acc`, `A.set`, `M.insert` or `S.insert` per loop step is O(n²) overall**
+(20,000 `M.insert`s or `S.insert`s take ~5 s, ×4 per doubling): fine for a few thousand steps, too
+slow for 10^5. Instead:
 - Build the whole list in one pass (`map`/`flatMap`/`range`; `mapAccumL` for running state), then
   convert ONCE: `A.fromList` for indexed access, `M.fromList` for lookup by key.
 - A 2D grid is one flat Array: cell `(r, c)` at `r * w + c`.
-- Many writes: collect `(index, value)` pairs, apply ONE `A.updateMany` (a later write wins).
-- A deterministic walk (state → next state) that may loop: find the cycle with Floyd's tortoise
-  and hare (one cursor steps once, the other twice, until they meet; O(1) memory) instead of
-  recording visited states.
+- Many writes: collect `(index, value)` pairs, apply ONE `A.updateMany` (a later write wins) or ONE
+  `A.accumulate(arr, writes, \a b. a + b)` to combine (difference array, histogram, counts).
+- Visited set: `S.member(seen, (r, c))` is O(1). For a few thousand states, `S.insert` per state is
+  fine; for more, add a whole BFS level at once with `S.union(seen, S.fromList(level))` (one copy
+  per level, not per state). A
+  deterministic walk (state → next state) that may loop needs no set: Floyd's tortoise and hare
+  (one cursor steps once, the other twice, until they meet) uses O(1) memory.
+- Worked examples: `ailang examples show visited_set_bfs` (also `cycle_detection_visited_set`,
+  `map_tuple_record_keys`, `difference_array_accumulate`).
 
 ```ailang
 module benchmark/solution
