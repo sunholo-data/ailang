@@ -47,8 +47,10 @@ fi
 
 # Prescribed message commands must name the prod store: the local store refuses `controlplane`,
 # and only a user dotfile made the sends work. The positive control proves the grep sees the sites.
-cmds=$(grep -rnE 'ailang messages (send|read|ack|unack) ' "$ROOT/.claude/skills/mission-control" | grep -vE 'ailang messages (send|read|ack|unack) (--help|-h)')
-unscoped=$(printf '%s\n' "$cmds" | grep -vE 'AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages|\$MSG ailang messages')
+# Per occurrence, not per line: the scope must PREFIX each command, and a command whose
+# arguments continue on the next line (`send` at end of line) is still a command.
+cmds=$(grep -rnE 'ailang messages (send|read|ack|unack)( |$)' "$ROOT/.claude/skills/mission-control" | grep -vE 'ailang messages (send|read|ack|unack) (--help|-h)')
+unscoped=$(printf '%s\n' "$cmds" | sed -E 's/(env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac |\$MSG )ailang messages/scoped-cmd/g' | grep -E 'ailang messages (send|read|ack|unack)( |$)')
 msg_bad=""
 for f in $(grep -rlF '$MSG ailang messages' "$ROOT/.claude/skills/mission-control"); do
   grep -qF 'MSG="env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac"' "$f" || msg_bad="$msg_bad ${f#$ROOT/}"
@@ -59,7 +61,7 @@ elif [ -n "$unscoped" ] || [ -n "$msg_bad" ]; then
   where=""
   while IFS= read -r l; do [ -n "$l" ] && where="$where $(printf '%s\n' "$l" | cut -d: -f1,2)"; done <<< "$unscoped"
   where=$(for w in $where; do printf '%s ' "${w#$ROOT/}"; done)
-  bad "mission-control prescribed message commands are store-scoped" "unscoped: $where; \$MSG not defined in: $msg_bad"
+  bad "mission-control prescribed message commands are store-scoped" "${where:+unscoped: $where}${msg_bad:+ \$MSG not defined in:$msg_bad}"
 else
   ok "mission-control prescribed message commands are store-scoped"
 fi
