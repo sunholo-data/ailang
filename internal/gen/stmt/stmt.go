@@ -82,6 +82,18 @@ type FuncDecl struct {
 	// evaluator at runtime. Body/Return may be empty or partial in this
 	// case — consumers should not traverse them.
 	LowerError string
+
+	// Value is true for a top-level value binding (`let base = 40 + 1`),
+	// which lowers as a nullary function. A reference to it means its
+	// value, not a function: the bytecode compiler calls it (M-VM-COVERAGE
+	// G3). Module-level bindings cannot carry effects, so evaluating the
+	// initialiser at each reference gives the evaluator's value.
+	Value bool
+
+	// StubSignature is true when Params/ReturnType are placeholders, as on
+	// a LowerError stub whose real types were never computed. Consumers
+	// that reason about the signature must treat it as unknown.
+	StubSignature bool
 }
 
 // Param is a function parameter.

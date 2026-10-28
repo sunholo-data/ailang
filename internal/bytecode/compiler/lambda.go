@@ -41,11 +41,7 @@ func (fc *funcCompiler) compileLambda(lam stmt.Lambda) (uint8, error) {
 	innerImageIdx := fc.img.AddPrototype(innerProto)
 
 	// 3. Compile the inner body in a fresh funcCompiler.
-	inner := newFuncCompiler(fc.img, innerProto, fc.funcIdx)
-	inner.recordTypes = fc.recordTypes
-	inner.adtTypes = fc.adtTypes
-	inner.adtOrder = fc.adtOrder
-	inner.currentModule = fc.currentModule
+	inner := fc.child(innerProto)
 	// Pin parameters to r[0..NumParams-1].
 	for _, p := range lam.Params {
 		r, err := inner.regs.allocPinned()

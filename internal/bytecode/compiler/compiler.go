@@ -89,6 +89,7 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 	// reachable module's functions into a single bytecode image without
 	// bare-name collisions (e.g. two modules that both define `helper`).
 	funcIdx := make(map[string]int, len(prog.FuncDecls))
+	decls := make(map[string]*stmt.FuncDecl, len(prog.FuncDecls))
 	for i := range prog.FuncDecls {
 		fd := &prog.FuncDecls[i]
 		canonical := canonicalFuncName(fd.Module, fd.Name)
@@ -98,7 +99,9 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		}
 		idx := img.AddPrototype(proto)
 		funcIdx[canonical] = idx
+		decls[canonical] = fd
 	}
+	edges := make(map[int]map[int]bool, len(prog.FuncDecls))
 
 	// Phase 2: compile each function body. Per M-BYTECODE-2D M3, a per-function
 	// compile failure does NOT abort the whole image — instead the prototype is
@@ -129,6 +132,8 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		fc.recordTypes = recordTypes
 		fc.adtTypes = adtTypes
 		fc.adtOrder = adtOrder
+		fc.decls = decls
+		fc.edges = map[int]bool{}
 		compileErr := fc.compile(fd)
 
 		// After a successful compile, run per-proto structural validation on
@@ -173,8 +178,14 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 			proto.NumCaptures = 0
 			proto.EvalOnly = true
 			proto.EvalReason = compileErr.Error()
+		} else {
+			edges[funcIdx[canonicalFuncName(fd.Module, fd.Name)]] = fc.edges
 		}
 	}
+
+	// Phase 2b: a native function must not reach an evaluator-only one with
+	// a value the bridge cannot carry (bridge_safety.go).
+	markBridgeUnsafeCallers(img, prog, funcIdx, edges, adtTypes)
 
 	// Phase 3: pick an entry point. Prefer the first exported function; fall
 	// back to the first function. Tests that don't care can ignore EntryPoint.
@@ -234,6 +245,28 @@ type funcCompiler struct {
 	// shares one capture list. See letrec.go.
 	recGroup   map[string]int
 	recCapRegs []uint8
+
+	// decls maps a funcIdx key to its FuncDecl (shared by the whole
+	// image). edges collects every image prototype this top-level function
+	// references through OpClosure, nested lambdas included; it feeds the
+	// bridge-safety pass (bridge_safety.go).
+	decls map[string]*stmt.FuncDecl
+	edges map[int]bool
+}
+
+// child returns a compiler for a prototype nested inside fc's function (a
+// lambda or a letrec member). It shares the image-wide tables, and edges,
+// so a reference made from a nested body counts for the enclosing function.
+func (fc *funcCompiler) child(proto *bytecode.FuncPrototype) *funcCompiler {
+	inner := newFuncCompiler(fc.img, proto, fc.funcIdx)
+	inner.recordTypes = fc.recordTypes
+	inner.adtTypes = fc.adtTypes
+	inner.adtOrder = fc.adtOrder
+	inner.currentModule = fc.currentModule
+	inner.currentLine = fc.currentLine
+	inner.decls = fc.decls
+	inner.edges = fc.edges
+	return inner
 }
 
 // canonicalFuncName returns the funcIdx key for a function. Single-module

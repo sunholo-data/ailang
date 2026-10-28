@@ -102,28 +102,38 @@ func (fc *funcCompiler) classifyCallee(e stmt.Expr) (calleeKind, string, error) 
 		// module has a function of the same bare name.
 		canonical := canonicalFuncName(fc.currentModule, ex.Name)
 		if _, ok := fc.funcIdx[canonical]; ok {
-			return calleeTopLevel, canonical, nil
+			return fc.topLevelCallee(canonical)
 		}
 		// Fall back to the bare name for single-module programs and for
 		// top-level helpers that were registered without a module prefix.
 		if _, ok := fc.funcIdx[ex.Name]; ok {
-			return calleeTopLevel, ex.Name, nil
+			return fc.topLevelCallee(ex.Name)
 		}
 		return 0, "", fmt.Errorf("compiler: call to unbound name %q", ex.Name)
 	case stmt.GlobalRef:
 		canonical := canonicalFuncName(ex.Module, ex.Name)
 		if _, ok := fc.funcIdx[canonical]; ok {
-			return calleeTopLevel, canonical, nil
+			return fc.topLevelCallee(canonical)
 		}
 		// Some same-package GlobalRefs may have been registered with a
 		// bare name (e.g. when lower pass omits Module). Try that too.
 		if _, ok := fc.funcIdx[ex.Name]; ok {
-			return calleeTopLevel, ex.Name, nil
+			return fc.topLevelCallee(ex.Name)
 		}
 		return 0, "", fmt.Errorf("compiler: call to unknown global %q", canonical)
 	}
 	// Lambda or other expressions: evaluate as a value.
 	return calleeValue, "", nil
+}
+
+// topLevelCallee classifies a call to top-level binding key. Calling a value
+// binding (`let f = compose(g, h)`, then `f(x)`) calls the function it holds,
+// so its value is computed first, like any first-class callee.
+func (fc *funcCompiler) topLevelCallee(key string) (calleeKind, string, error) {
+	if fc.isValueDecl(key) {
+		return calleeValue, key, nil
+	}
+	return calleeTopLevel, key, nil
 }
 
 // materializeCallee writes the function value into the callee slot of a
@@ -164,6 +174,9 @@ func (fc *funcCompiler) materializeCallee(slot uint8, kind calleeKind, name stri
 // NestedProtos table, appending if necessary. Returns the local index suitable
 // for an OpClosure Bx field.
 func (fc *funcCompiler) lookupNestedProto(imageProtoIdx int) (uint16, error) {
+	if fc.edges != nil {
+		fc.edges[imageProtoIdx] = true
+	}
 	for i, idx := range fc.proto.NestedProtos {
 		if idx == imageProtoIdx {
 			if i > 0xFFFF {

@@ -151,12 +151,7 @@ func (fc *funcCompiler) compileRecGroup(group []stmt.VarDecl) error {
 
 // compileRecMember compiles one letrec member body into proto.
 func (fc *funcCompiler) compileRecMember(proto *bytecode.FuncPrototype, lam stmt.Lambda, captures []string, members map[string]int) error {
-	inner := newFuncCompiler(fc.img, proto, fc.funcIdx)
-	inner.recordTypes = fc.recordTypes
-	inner.adtTypes = fc.adtTypes
-	inner.adtOrder = fc.adtOrder
-	inner.currentModule = fc.currentModule
-	inner.currentLine = fc.currentLine
+	inner := fc.child(proto)
 	inner.proto.File = fc.proto.File
 	inner.recGroup = members
 	for _, p := range lam.Params {
