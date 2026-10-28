@@ -105,8 +105,11 @@ None of these needs a green `dev`: they merge nothing.
 - **Discord** (`ailang messages send user`, prod store): one short post, **only** when there is a
   decision for Mark, an orphan, a red `dev`, or a level change. Counts, top 3, link.
 - **Daneel** (`ailang messages send daneel-reports`, prod store): digest as `[normal]` (morning
-  brief); `NEEDS-DECISION` / orphan / red-`dev` as `[urgent]` (one mail within the hour; Daneel caps
-  this at 5/day, so the loop sends at most one urgent per iteration, batched).
+  brief). `[urgent]` (one mail within the hour, capped by Daneel at 5/day) only for what is NEW:
+  a decision opened this iteration, a newly red `dev`, a level change. Its payload opens with the
+  bookkeeping issue's URL and gives each new decision's options and the reply to copy
+  (`gate-3-triage.md` §7). Inherited holds, a red already reported and orphans stay in the digest.
+  Mark, 28 Oct 2026: *"I dont know how to respond to them"*.
 
 ## Routing policy
 
