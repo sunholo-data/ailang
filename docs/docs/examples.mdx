@@ -21,6 +21,7 @@ import HttpSimpleExample from '!!raw-loader!@site/../examples/runnable/http_simp
 import MutualRecursionExample from '!!raw-loader!@site/../examples/runnable/recursion_mutual.ail';
 import ZipReaderExample from '!!raw-loader!@site/../examples/runnable/zip_reader.ail';
 import XmlParserExample from '!!raw-loader!@site/../examples/runnable/xml_parser.ail';
+import PropertyDifferentialExample from '!!raw-loader!@site/../examples/runnable/property_differential_testing.ail';
 
 # AILANG Examples
 
@@ -311,6 +312,31 @@ ailang run examples/runnable/xml_parser.ail
 - <CheckIcon inline /> `_xml_findAll` and `_xml_findFirst` query by tag name
 - <CheckIcon inline /> `_xml_getText`, `_xml_getAttr` extract content
 - <CheckIcon inline /> XmlNode ADT: `Element | Text | CData | Comment`
+
+---
+
+## <Icon name="target" /> Testing & Verification
+
+### Property-Based Differential Testing
+
+Check a fast algorithm against a slow, obviously-correct reference on generated inputs. `ailang test` runs each `property` on 100 generated cases and prints the failing input as a counterexample:
+
+<CodeBlock language="typescript" title="examples/runnable/property_differential_testing.ail">
+  {PropertyDifferentialExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/property_differential_testing.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/property_differential_testing.ail
+ailang test examples/runnable/property_differential_testing.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `forall(xs: [int]) => ...` generates lists, ints and other inputs for you
+- <CheckIcon inline /> A failing property prints its counterexample, replayable with `ailang test --seed N`
+- <CheckIcon inline /> Write the brute-force reference first, then let the property check the fast version before you trust it
 
 ---
 

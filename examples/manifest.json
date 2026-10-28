@@ -3497,14 +3497,25 @@
       "modules": [
         "std/io"
       ]
+    },
+    {
+      "path": "runnable/property_differential_testing.ail",
+      "status": "working",
+      "tags": ["testing", "property-testing", "algorithms"],
+      "description": "Property-based differential testing: a fast algorithm (Kadane) checked against a brute-force reference on generated lists; run `ailang test` for 100 cases and a replayable counterexample.",
+      "modules": ["std/io","std/list"],
+      "expected": {
+        "stdout": "maxSlice = 6\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 238,
-    "working": 230,
+    "total": 239,
+    "working": 231,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9663865546218487,
+    "coverage": 0.9665271966527197,
     "experimental": 0
   },
   "milestones": {
