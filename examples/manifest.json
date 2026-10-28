@@ -2366,6 +2366,50 @@
       ]
     },
     {
+      "path": "runnable/visited_set_bfs.ail",
+      "status": "working",
+      "tags": ["set", "std/set", "search", "algorithms", "data-structures", "tuples"],
+      "description": "Grid BFS shortest path with a visited Set[(int, int)] and a list frontier (Python's visited = set()).",
+      "modules": ["std/array", "std/io", "std/list", "std/set", "std/string"],
+      "expected": {
+        "stdout": "shortest path (0,0) -> (4,6): 10\ngoal is a wall: -1\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/cycle_detection_visited_set.ail",
+      "status": "working",
+      "tags": ["set", "std/set", "algorithms", "data-structures", "adt", "tuples"],
+      "description": "Cycle detection: count moves until a (row, col, Dir) state repeats, using Set[(int, int, Dir)].",
+      "modules": ["std/io", "std/set"],
+      "expected": {
+        "stdout": "moves before a repeated state: 8\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/map_tuple_record_keys.ail",
+      "status": "working",
+      "tags": ["map", "tuples", "records", "adt", "data-structures"],
+      "description": "Structured Map keys: tuple, record and ADT-constructor keys with lookup, member and canonical key order.",
+      "modules": ["std/io", "std/map"],
+      "expected": {
+        "stdout": "tuple key (1, 1): Some(2)\nmissing (5, 5): false\nkeys: [(0, 0), (0, 1), (1, 1)]\nrecord key: Some(lead)\nADT keys: [(Blue, 3), (Green, 2), (Red, 1)]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/difference_array_accumulate.ail",
+      "status": "working",
+      "tags": ["array", "std/array", "algorithms", "data-structures"],
+      "description": "Difference array, histogram and per-bucket max with std/array.accumulate (one copy, O(n + k)).",
+      "modules": ["std/array", "std/io", "std/list", "std/string"],
+      "expected": {
+        "stdout": "coverage: [1, 1, 2, 1, 2, 1, 0]\nhistogram a/b/c: #[3, 2, 1]\nmax per bucket: #[abcd, x]\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/mcp_tools.ail",
       "status": "broken",
       "tags": [
@@ -3511,11 +3555,11 @@
     }
   ],
   "statistics": {
-    "total": 239,
-    "working": 231,
+    "total": 243,
+    "working": 235,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9665271966527197,
+    "coverage": 0.9670781893004116,
     "experimental": 0
   },
   "milestones": {

@@ -1,6 +1,6 @@
 # M-PERSISTENT-COLLECTIONS: Collections That Are Cheap to Update (Set, structured keys, batch accumulate, persistent Map/Array)
 
-**Status**: Planned. Quorum round 1 was BLOCKED (3 rejects); all three objections are fixed in this revision; it has not been re-quorumed (see [Quorum log](#quorum-log)).
+**Status**: Phase 1a–1c implemented 2026-10-28 (see [Phase 1 implementation record](#phase-1-implementation-record-2026-10-28)); Phase 1d (prompt) follows; Phases 2–3 not started (D1, D3 undecided). Quorum round 1 was BLOCKED (3 rejects); all three objections are fixed in this revision; it has not been re-quorumed (see [Quorum log](#quorum-log)).
 **Target**: v0.55.0 (Phase 1); Phases 2–3 v0.56.0
 **Priority**: P1. This is the largest confirmed AILANG-vs-Python algorithmic delta in the 2026-10-28 external-benchmark spike.
 **Estimated**: Phase 1 is 3 days, Phase 2 is 4–5 days, Phase 3 is 4 days. That is about 11–12 days sequential, already doubled for honesty.
@@ -109,9 +109,9 @@ It also completes two deferrals that are already on record:
 ### Design Freeze
 
 - [ ] D1: persistent representation (recommended: **CHAMP**. It has canonical structure for equal maps, which keeps structural `==` cheap and deterministic.)
-- [ ] D2: iteration order (recommended: **preserve** the current canonical-string sort exactly, including lexical int order, and record a separate decision on whether to ever change it)
+- [x] D2: iteration order (recommended: **preserve** the current canonical-string sort exactly, including lexical int order, and record a separate decision on whether to ever change it). **Taken as the default on 2026-10-28 for the Phase 1 implementation, pending human confirmation.** Int/string/bool bytes are unchanged; the new kinds' encoding is in [Phase 1 implementation record](#phase-1-implementation-record-2026-10-28).
 - [ ] D3: float arrays (recommended: **stay flat**. Numeric code is bulk/kernel-shaped, and `updateMany`/`accumulate` cover its batch writes.)
-- [ ] D5: function keys (recommended: **loud runtime error on every operation**, with no new constraint in this doc)
+- [ ] D5: function keys (recommended: **loud runtime error on every operation**, with no new constraint in this doc). Phase 1 implements the recommendation (insert, lookup, member, remove all error); the box stays open for a human to confirm that no type-level constraint is wanted.
 
 ## Solution Design
 
@@ -157,7 +157,7 @@ A 32-way persistent vector with a tail buffer (Clojure-style) backs non-float `A
 - `internal/pcoll/champ.go` — CHAMP map (Phase 2, ~400 LOC)
 - `internal/pcoll/pvec.go` — persistent vector (Phase 3, ~350 LOC)
 - `std/set.ail` — Set API (Phase 1b, ~80 LOC)
-- `examples/persistent_collections.ail` — visited set, difference array, structured keys (~80 LOC)
+- `examples/persistent_collections.ail` — visited set, difference array, structured keys (~80 LOC). *Shipped instead as four concept-named examples in `examples/runnable/`: `visited_set_bfs.ail`, `cycle_detection_visited_set.ail`, `map_tuple_record_keys.ail`, `difference_array_accumulate.ail`.*
 
 **Modified files:**
 - `internal/eval/value.go` — `MapKey` delegates to `pcoll`; `MapValue`/`ArrayValue` wrap `pcoll` types (Phases 1–3)
@@ -244,13 +244,13 @@ let diff = A.accumulate(A.make(w * h, 0), cornerWrites(rects), \x y. x + y)
 
 ## Success Criteria
 
-- [ ] V7/V8 tuple and record keys round-trip through `insert`/`lookup`/`member` in **both** engines; lookup with a function key errors loudly (V9 inverted)
-- [ ] V10 ordering is unchanged (`[10, 2, 9]`) in both engines
-- [ ] `std/set` exists with the API in 1b; `examples/persistent_collections.ail` passes `ailang check` and `make verify-examples`
-- [ ] `accumulate` passes a difference-array golden test; the cp_60164 difference-array fixture passes its 15KB test in under 2s
+- [x] V7/V8 tuple and record keys round-trip through `insert`/`lookup`/`member` in **both** engines; lookup with a function key errors loudly (V9 inverted) — V23, V24
+- [x] V10 ordering is unchanged (`[10, 2, 9]`) in both engines — V23
+- [x] `std/set` exists with the API in 1b; the examples (`examples/runnable/visited_set_bfs.ail`, `cycle_detection_visited_set.ail`, `map_tuple_record_keys.ail`, `difference_array_accumulate.ail`; `runnable/` is where `verify-examples` looks) pass `ailang check` and `make verify-examples` — V26, V29
+- [~] `accumulate` passes a difference-array golden test (yes); the cp_60164 difference-array fixture passes its 15KB tests in 0.52s on `--strict-bytecode` but **9.3s on the evaluator** — V28. The 2s target is met on the VM only, and the evaluator time is the prefix-sum sweep, not `accumulate` (~0.1s)
 - [ ] Phase 2: V1 fixture under 0.2s; lookup microbenchmark within 1.5× of HEAD
 - [ ] Phase 3: V2 fixture under 1s; get microbenchmark within 1.5× of HEAD
-- [ ] The cp_60159 visited-set fixture passes 47/47 hidden tests at 20s each
+- [ ] The cp_60159 visited-set fixture passes 47/47 hidden tests at 20s each. The repo pack holds 17 of them (the ≤64KB selection, V27); the fixture passes **17/17** already in Phase 1 (V27), so the remaining 30 large tests are the Phase 2 evidence
 - [ ] Eval: the cp benchmarks from the companion eval-suite work show the AILANG pass rate moving, measured with `ailang eval-paired`
 - [ ] All tests passing; `make freeze-stdlib` for the std/ interface change; changelog fragment; LIMITATIONS updated
 
@@ -316,6 +316,40 @@ All rows were run first-party on 2026-10-28. Binary `AILANG v0.54.19-1-g379a9e20
 | V22 | Import directions allow a leaf `pcoll` only via inversion | `grep -h "sunholo-data/ailang/internal/" internal/bytecode/*.go \| grep -v _test`; same for `internal/eval/value.go` | bytecode: **no** internal imports; `eval/value.go`: `internal/builtins`, `internal/types` only |
 | V19 | `mapAccumL` exists (the D-19 doc's list-building primitive), so it is not re-proposed here | `grep mapAccumL std/list.ail` | `std/list.ail:76` |
 
+**Re-verified at implementation (2026-10-28, tree `57b0b8f20`, binary built in the worktree).** V1, V7, V8, V9 and V10 reproduce as written. **V22 is wrong as written:** the two halves are swapped. `internal/eval/value.go` imports no `internal/` package (only `fmt`, `sort`, `strings`), and `internal/bytecode` *does* import `internal/builtins` and `internal/types` (from `builtin_adapt.go`), so bytecode reaches eval transitively. The conclusion still holds: a leaf `pcoll` that imports neither engine is importable by both. **The "47 hidden tests" for cp_60159 (V11, metric 3) are the full AetherCode set; the repo pack `benchmarks/hidden_tests/cp_60159/` holds 17** (the ≤64KB selection, `AETHERCODE.md`).
+
+| # | Claim | Command | Observed |
+|---|---|---|---|
+| V23 | Structured keys work, identically, in both engines; legacy order unchanged | `go test ./internal/vm -run 'StructuredMapKeys\|TupleKeyAbsent'` (program under evaluator and `--strict-bytecode`, twice) | tuple, record, ADT, unit, float and nested keys round-trip; `keys(fromList([(9,…),(10,…),(2,…)]))` is still `[10, 2, 9]`; both engines byte-identical across runs; V9's `member(e(), (1, 2))` prints `false` in both, now because the key is absent |
+| V24 | Unencodable keys are loud on every operation | `go test ./internal/vm -run 'Unencodable\|NaNKey\|SetUnencodable'` | `insert`/`lookup`/`member`/`remove` with a function key fail in both engines with `unsupported map key type: function (supported: …)`; a NaN key fails naming NaN |
+| V25 | The two walkers agree byte for byte | `go test ./internal/vm -run MapKeyCrossEngine`; `go test ./internal/pcoll` | golden keys for every kind incl. nesting identical from `eval.MapKey` and `bytecode.MapKey`; an evaluator-built tuple-key map crosses the bridge and the VM recomputes the same keys. pcoll: legacy bytes frozen, injectivity on separator-collision shapes, element-wise tuple order, numeric float order |
+| V26 | `std/set` API in both engines | `go test ./internal/vm -run SetOperations` | all ten operations, identical output in both engines across two runs |
+| V27 | cp_60159 visited-set fixture (`benchmarks/frontier_refs/cp_60159_set.ail`, `Set[(int, int, int)]` per query) on the 17 repo hidden tests at 20s | ad-hoc runner (the shape of m-eval-hidden-tests V9's `alltests.py`): each `.in` → `ailang run [--strict-bytecode] --caps IO`, compare `.ans` line-wise, 20s cap | **17/17 on both engines.** Evaluator total 7.2–7.8s, max 3.6–3.7s (test 33: N=100, Q=1000, 53,576 inserts); `--strict-bytecode` total 1.3–1.8s, max 0.38–0.55s. The longest single path is 4,852 states (test 20: 0.63s eval, 0.38s VM, Σ L² = 23.5M entry copies). At these sizes the O(n) insert is not the bottleneck: evaluator per-step overhead is (test 33's ~68µs/step against the VM's ~5µs) |
+| V28 | cp_60164 difference array via `accumulate` (`benchmarks/frontier_refs/cp_60164.ail`) on the 8 repo hidden tests | same runner, 60s cap | **8/8 on both engines.** The four 15KB tests: 9.1–9.4s evaluator, 0.51–0.53s `--strict-bytecode` (baseline: >60s TLE on all engines, V12). Building the 1001×1001 difference array with `accumulate` alone takes 0.09s eval / 0.06s VM; the evaluator's time is the list-HOF prefix sweep (≈5M closure calls) |
+| V29 | Example and gates | `make verify-examples`, `make test-core`, `make check-file-sizes`, `make check-boundaries`, `make verify-stdlib`, `make check-architecture-closure` | all green; `make freeze-stdlib` adds `set` and changes only `array` |
+| V30 | Set insert cost today (D1 evidence) | `S.insert` of `(i/100, i%100)` n times | n=5k/10k/20k → 0.38/1.39/5.56s eval; 20k → 6.48s `--strict-bytecode` (×4 per doubling, same as V1's int-key Map) |
+| V31 | Mutation tests | scratch copies of each file, sed the mutation, run the tests, copy back | caught: VM ctor key by tag instead of name; evaluator and VM `Lookup` swallowing the key error; `i:` prefix change; NUL not escaped; `-0.0` not folded; `difference` without `not`; `member` always false; `accumulate` combine args swapped; missing negative-index bound |
+
+## Phase 1 implementation record (2026-10-28)
+
+**1a (structured keys).** `internal/pcoll/key.go` owns the grammar; `eval.MapKey` (`internal/eval/value_mapkey.go`) and `bytecode.MapKey` (`internal/bytecode/value_map.go`) are now ~40-line walkers that drive a `pcoll.KeyWriter` and no longer encode anything themselves. The names are kept because `builtins/map.go`, `builtins/xml_query.go` and `vm/builtins_map_bulk.go` call them; they are the per-engine walkers the plan describes, not wrappers around a second encoder.
+
+Grammar: legacy atoms byte-identical (`i:%d`, `s:` + raw, `b:true`/`b:false`). New: `u:` unit; `f:` + 16 hex of the order-preserving float transform (NaN rejected, `-0.0` folded into `0.0` because the two are `==`); `t:` tuple, `r:` record (fields name-sorted, name then value), `c:` constructor (name then fields), where each element is `escape(enc) + "\x00"` and `escape` maps NUL to `\x00\xff`. Injective, and composite keys sort element by element with each element ordered as it would be at top level. So int elements inside tuples stay lexical, consistent with D2.
+
+**Deviations from the planned `KeyWriter` API, with reasons:**
+- `BeginCtor(name)` instead of `BeginCtor(adt, tag, n)`. The VM's `ADTObj` carries no type or module name, and its `Tag` is a per-type ordinal the evaluator's `TaggedValue` does not have. The constructor name is the only identity both engines share. It is unique within one ADT, and a well-typed map holds one ADT type, so the key stays injective where it matters. Constructors therefore sort **by name**, not by declaration order.
+- `BeginTuple()` and `BeginRecord()` + `Field(name)` take no arity or name list: the terminated-element grammar is self-delimiting. `Field` rejects out-of-order names, so a walker that forgets to sort fails loudly instead of minting a second key.
+- `Float(float64)` instead of `Float(uint64 bits)`, so NaN rejection and `-0.0` folding live in `pcoll` rather than in both walkers.
+- `-0.0` folding is a refinement of "bit-exact": without it, `member(insert(empty(), 0.0), -0.0)` would be `false` although `0.0 == -0.0`.
+
+Still not keys (a loud error naming the type): lists, arrays, maps, bytes, functions. Lists are a natural next kind (`Set[[int]]`), but they were left out of scope here to stay clear of D-19's `ListValue` work.
+
+**1b (`std/set`).** `type Set[a] = Set(Map[a, ()])` in `std/set.ail`, calling the `_map_*` builtins directly. `union`, `intersect` and `difference` are one `fromList` bulk build, not repeated O(n) inserts. `insert`/`remove` are O(n) and the module header says so. Type syntax has no qualified names, so programs use `import std/set as S` plus `import std/set (Set)`. That is a teaching point for 1d.
+
+**1c (`accumulate`).** `_array_accumulate` is native in both engines: an evaluator builtin through `FnCallerN`, and a VM HOF builtin (`__array_accumulate`, appended to `HOFBuiltinNames`/`HOFBuiltinTable`). `scatterAdd` is unchanged.
+
+**For D1 (human):** at the repo pack's sizes, Phase 1 already passes cp_60159 (17/17) and cp_60164 (8/8). The O(n) insert does not decide those results (V27). The evidence for Phase 2 is therefore the V1/V30 microbenchmark (×4 per doubling) and the 30 large cp_60159 tests that are not in the repo. If Phase 2 is to be justified by a benchmark result rather than a microbenchmark, a ≥64KB cp_60159 test (or a synthetic large-N fixture) has to be added first.
+
 ### Unverified / needs measurement
 
 - CHAMP lookup constants in Go relative to the current single `map[string]` probe. These are **not measured**; they are the Phase 2 kill criterion.
@@ -367,4 +401,4 @@ All three objections were **accepted and fixed in this revision**, not argued:
 ---
 
 **Document created**: 2026-10-28
-**Last updated**: 2026-10-28
+**Last updated**: 2026-10-28 (Phase 1a–1c implemented)

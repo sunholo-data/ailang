@@ -1,0 +1,57 @@
+-- cp_60164 as a 2D difference array: 4 corner writes per rectangle folded with
+-- std/array.accumulate (one copy), then prefix sums (M-PERSISTENT-COLLECTIONS 1c).
+-- 2026-10-28, all 8 hidden tests pass: 15KB tests 9.3s evaluator, 0.52s
+-- --strict-bytecode. The accumulate itself is ~0.1s; the evaluator time is the
+-- list-HOF prefix sweep over the 1001x1001 grid.
+
+module benchmark/solution
+import std/io (println, readLine)
+import std/string (words, stringToInt)
+import std/list (map, range, mapAccumL, zipWith, foldl)
+import std/option (Some, None)
+import std/array as A
+
+func toI(s: string) -> int = match stringToInt(s) {
+  Some(n) => n,
+  None => 0
+}
+
+-- Read k rectangles as 2D difference-array corner writes on a w-wide grid.
+func readCorners(k: int, w: int, acc: [(int, int)]) -> [(int, int)] ! {IO} =
+  if k <= 0 then acc else match map(toI, words(readLine())) {
+    [x1, x2, y1, y2] => readCorners(k - 1, w, (x1 * w + y1, 1) :: (x2 * w + y1, -1) :: (x1 * w + y2, -1) :: (x2 * w + y2, 1) :: acc),
+    _ => readCorners(k - 1, w, acc)
+  }
+
+-- Running sums of a row (prefix along y).
+func prefixRow(xs: [int]) -> [int] = match mapAccumL(\s x. (s + x, s + x), 0, xs) {
+  (ys, _) => ys
+}
+
+-- Fold the rows top to bottom: each row's coverage is its y-prefix plus the
+-- previous row's coverage; tally every coverage value into the histogram.
+func sweep(diff: Array[int], w: int, x: int, prev: [int], hist: Array[int]) -> Array[int] = if x >= w then hist else {
+  let base = x * w
+  let row = prefixRow(map(\y. A.get(diff, base + y), range(0, w)))
+  let cov = zipWith(\a b. a + b, prev, row)
+  let hist2 = A.accumulate(hist, map(\v. (v, 1), cov), \a b. a + b)
+  sweep(diff, w, x + 1, cov, hist2)
+}
+
+func emit(hist: Array[int], m: int, c: int, n: int) -> () ! {IO} = if m * c > n then () else {
+  println(show(A.get(hist, m * c)))
+  emit(hist, m, c + 1, n)
+}
+
+export func main() -> () ! {IO} {
+  match map(toI, words(readLine())) {
+    [n, m] => {
+      let w = n + 1
+      let diff = A.accumulate(A.make(w * w, 0), readCorners(n, w, []), \a b. a + b)
+      let zeros = map(\y. 0, range(0, w))
+      let hist = sweep(diff, w, 0, zeros, A.make(n + 1, 0))
+      emit(hist, m, 1, n)
+    },
+    _ => ()
+  }
+}

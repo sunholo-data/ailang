@@ -334,7 +334,7 @@ func TestXmlGetAttrMap_AllAttrsPresent(t *testing.T) {
 	}
 	want := map[string]string{"src": "/a.png", "alt": "hi", "width": "100"}
 	for k, v := range want {
-		got, found := mv.Lookup(&eval.StringValue{Value: k})
+		got, found, _ := mv.Lookup(&eval.StringValue{Value: k})
 		if !found {
 			t.Errorf("expected key %q present", k)
 			continue
@@ -355,7 +355,7 @@ func TestXmlGetAttrMap_DuplicateNamesLastWriteWins(t *testing.T) {
 	if mv.Size() != 1 {
 		t.Errorf("expected 1 entry (collapsed), got %d", mv.Size())
 	}
-	got, _ := mv.Lookup(&eval.StringValue{Value: "a"})
+	got, _, _ := mv.Lookup(&eval.StringValue{Value: "a"})
 	if got.(*eval.StringValue).Value != "third" {
 		t.Errorf("expected last-write-wins ('third'), got %q", got.(*eval.StringValue).Value)
 	}
@@ -573,7 +573,7 @@ func BenchmarkAttr_AttrMap_7x100(b *testing.B) {
 			got, _ := xmlGetAttrMapImpl(nil, []eval.Value{node})
 			mv := got.(*eval.MapValue)
 			for _, name := range attrNames {
-				_, _ = mv.Lookup(&eval.StringValue{Value: name})
+				_, _, _ = mv.Lookup(&eval.StringValue{Value: name})
 			}
 		}
 	}
