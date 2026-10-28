@@ -386,6 +386,7 @@ RegisterEffectBuiltin(BuiltinSpec{
 - Always include "All tests passing"
 - Always include "Documentation updated"
 - Include performance/metric targets
+- Engine parity means the **evaluator and the strict VM** agree. Do not write "interpreter, strict VM and generated Go agree" or plan `GoCodegenSpec` / `registry_codegen_*.go` entries and emit-go parity tests: Go source emission (`ailang compile --emit-go`) is demoted to a diagnostic projection and emit-go-v2 is frozen (Mark, 2026-07-14; see `design_docs/v1-mission.md`). The only exception is a doc explicitly about fixing existing codegen.
 
 ### Conflict Surface (REQUIRED for parser/lexer/typechecker/codegen changes)
 

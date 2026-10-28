@@ -296,7 +296,7 @@ TREE the code was written in (i.e., the worktree, so it rides the same branch/PR
 - Use `DEBUG_PARSER=1` for token flow tracing
 - Use `make doc PKG=<package>` for API discovery
 - See [resources/parser_patterns.md](resources/parser_patterns.md) for parser/pattern matching
-- See [resources/codegen_patterns.md](resources/codegen_patterns.md) for Go code generation (builtins, expressions)
+- Generated Go (`--emit-go`) is NOT a requirement: parity means evaluator + strict VM. [resources/codegen_patterns.md](resources/codegen_patterns.md) is legacy, only for explicitly scoped codegen fixes
 - See [resources/api_patterns.md](resources/api_patterns.md) for common API patterns
 - See [resources/dx_improvement_patterns.md](resources/dx_improvement_patterns.md) for DX opportunities
 
@@ -680,7 +680,7 @@ Fixes #42"
 
 ### Development Tools
 - **Parser & Patterns**: [`resources/parser_patterns.md`](resources/parser_patterns.md) - Parser development + pattern matching pipeline
-- **Codegen Patterns**: [`resources/codegen_patterns.md`](resources/codegen_patterns.md) - Go code generation for new features/builtins
+- **Codegen Patterns**: [`resources/codegen_patterns.md`](resources/codegen_patterns.md) - Legacy Go source backend; not required for new features/builtins
 - **API Patterns**: [`resources/api_patterns.md`](resources/api_patterns.md) - Common constructor signatures and API gotchas
 - **Developer Tools**: [`resources/developer_tools.md`](resources/developer_tools.md) - Make targets, ailang commands, workflows
 - **DX Improvements**: [`resources/dx_improvement_patterns.md`](resources/dx_improvement_patterns.md) - Identifying and implementing DX wins
