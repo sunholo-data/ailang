@@ -71,8 +71,11 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
      assuming the `gh` flag vocabulary transfers. **(b)** For a long body, use a quoted command
      substitution — `ailang messages send controlplane "$(cat /tmp/body.txt)" -title "…" -from "…"`
      — which is safe for markdown: substituted output is not re-scanned, so backticks inside the
-     file stay data. **(c)** ASSERT THE ARTIFACT after sending: `ailang messages read <id>` and
-     confirm the body is your text, exactly as Gate 0 requires a comment count to grow. **(d)** A
+     file stay data. **(c)** ASSERT THE ARTIFACT after sending: `ailang messages read --peek --json <id>` and
+     confirm the body is your text, exactly as Gate 0 requires a comment count to grow. `--peek`
+     keeps the message unread so Daneel's hourly unread triage still sees it. Every flag must
+     come BEFORE the id because the CLI's Go flag parser stops at the first positional argument:
+     a trailing `--peek` is silently ignored and the message is marked read. **(d)** A
      re-send of the same title is refused as a duplicate — change the title or pass `-force`, and
      say in the re-send why. **(e)** When a message ARRIVES looking like this, the sender's content
      may still be on the rig at the named path; read it before replying, and tell the sender their
