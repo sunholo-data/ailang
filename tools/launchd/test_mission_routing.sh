@@ -73,6 +73,22 @@ want "codex planner lane keeps its model (luna)" "$out" "codex:gpt-5.6-luna decl
 out=$(MISSION_PLANNER_MODEL='codex:gpt-5.6-sol' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
 want "codex planner lane keeps its model (sol)" "$out" "codex:gpt-5.6-sol declared:codex-ok"
 
+# Both Files scans must ignore fenced examples, headings, and shell comments.
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/q-fenced-example.md" 2>/dev/null)
+want "q: fenced example ignored" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/r-fenced-comment-before-core.md" 2>/dev/null)
+want "r: fenced comment cannot hide core path" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/s-fenced-files-heading.md" 2>/dev/null)
+want "s: fenced Files heading not counted" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/t-tilde-fence.md" 2>/dev/null)
+want "t: tilde fence ignores backtick closer" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/u-long-backtick-fence.md" 2>/dev/null)
+want "u: shorter backtick fence cannot close" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/v-unterminated-after-bullet.md" 2>/dev/null)
+want "v: unterminated fence preserves earlier bullet" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/w-unterminated-before-bullet.md" 2>/dev/null)
+want "w: unterminated fence hides all bullets" "$out" "opus fail-closed:unparsable-path-entry"
+
 # --- DELIVERY MECHANISM, NOT JUST THE CONSUMER (docs iteration 1, 2026-08-28) ------
 # THE MISS THIS GUARDS, stated plainly because it defeated 34 passing tests: every
 # assertion above invokes the script as `MISSION_PLANNER_ALLOWLIST=... "$DERIVE" ...`,

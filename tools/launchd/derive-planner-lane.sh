@@ -106,10 +106,31 @@ fi
 
 # Step 4: locate exactly one Files section and extract the first backticked
 # token from every top-level bullet in it. Continuations and later tokens are
-# prose. The awk matcher is the portable ERE equivalent of Files\b.
+# prose. Both scans ignore fenced content; unterminated fences consume the
+# remainder. The awk matcher is the portable ERE equivalent of Files\b.
 section_count=$(awk '
   BEGIN { count = 0 }
   {
+    # Track fences throughout the document, before interpreting any content.
+    match($0, /^ */)
+    fence_text = substr($0, RLENGTH + 1)
+    fence_mark = substr(fence_text, 1, 1)
+    fence_run = 0
+    if (RLENGTH <= 3 && (fence_mark == "`" || fence_mark == "~")) {
+      while (substr(fence_text, fence_run + 1, 1) == fence_mark) fence_run++
+    }
+    fence_tail = substr(fence_text, fence_run + 1)
+    if (fenced) {
+      if (fence_mark == fence_char && fence_run >= fence_length &&
+          fence_tail ~ /^[ \t]*$/) fenced = 0
+      next
+    }
+    if (fence_run >= 3 && (fence_mark == "~" || fence_tail !~ /`/)) {
+      fenced = 1
+      fence_char = fence_mark
+      fence_length = fence_run
+      next
+    }
     line = tolower($0)
     if (line ~ /^#{2,4}[[:space:]]+files([^[:alnum:]_]|$)/) count++
   }
@@ -122,6 +143,26 @@ fi
 paths=$(awk '
   BEGIN { in_files = 0 }
   {
+    # Track fences throughout the document, before interpreting any content.
+    match($0, /^ */)
+    fence_text = substr($0, RLENGTH + 1)
+    fence_mark = substr(fence_text, 1, 1)
+    fence_run = 0
+    if (RLENGTH <= 3 && (fence_mark == "`" || fence_mark == "~")) {
+      while (substr(fence_text, fence_run + 1, 1) == fence_mark) fence_run++
+    }
+    fence_tail = substr(fence_text, fence_run + 1)
+    if (fenced) {
+      if (fence_mark == fence_char && fence_run >= fence_length &&
+          fence_tail ~ /^[ \t]*$/) fenced = 0
+      next
+    }
+    if (fence_run >= 3 && (fence_mark == "~" || fence_tail !~ /`/)) {
+      fenced = 1
+      fence_char = fence_mark
+      fence_length = fence_run
+      next
+    }
     line = tolower($0)
     if (!in_files && line ~ /^#{2,4}[[:space:]]+files([^[:alnum:]_]|$)/) {
       in_files = 1
