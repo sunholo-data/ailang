@@ -318,6 +318,45 @@ This improves list consumption; quadratic `::`/`++` construction remains parked
 on D-19. The checked [tail-walk benchmark](https://github.com/sunholo-data/ailang/tree/dev/bench/vm_tail_walk)
 compares equivalent range inputs and includes a separate construction contrast.
 
+### Go codegen has no tail-call elimination
+
+**Status**: Open
+**Verified at**: v0.54.19 (2026-10-28). `ailang compile --emit-go` on a tail-recursive
+`loop(i, n, acc)` produced Go that hit `fatal error: stack overflow` at 10,000,000 steps.
+`ailang run --strict-bytecode` ran the same function in 0.77–1.07 s at constant depth.
+**Affects**: `--emit-go` and `--emit-go-v2` output only. The evaluator and VM run tail calls at constant depth.
+
+The generated Go emits a self tail call as an ordinary Go call, so every iteration adds a
+Go stack frame. Long tail-recursive loops, which are idiomatic AILANG, overflow the
+goroutine stack. The generated code also boxes every value as `interface{}`. It is a typed
+Go API, not a speed path: `fib(32)` ran in 0.030 s as generated Go against 0.005 s for
+hand-written Go.
+
+**Workaround**: run the program with `ailang run --bytecode`, or use `foldl`/`map` instead of
+explicit recursion in code you compile to Go.
+
+---
+
+### `--bytecode` silently falls back to the evaluator; the VM is slower than CPython
+
+**Status**: Open. The fallback gaps are being closed in
+[M-VM-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_55_0/m-vm-coverage-letrec-prelude-bridge.md).
+**Verified at**: v0.54.19 (2026-10-28)
+**Affects**: `ailang run --bytecode`
+
+- **Fallback:** when the VM compiler cannot handle a function, `--bytecode` runs it on the
+  evaluator and prints no warning. Of the 205 `examples/runnable` files that pass on the
+  evaluator, 142 run fully on the VM and 61 fall back. The main causes are calling the
+  prelude `println` without `import std/io`, a local `letrec`, and module-level value
+  `let`s. Use `--strict-bytecode` to fail instead of falling back. A local `letrec` that
+  shares its name with a top-level function can call the top-level function under both
+  flags, which gives a wrong answer.
+- **Speed:** the VM is about 40× faster than the evaluator on call-heavy code, but about
+  4× slower than CPython. Measured best of 3: `fib(32)` took 0.50 s on the VM and 0.14 s in
+  Python. A 10M-step tail-recursive loop took 1.07 s and 0.32 s.
+
+---
+
 ### Prepending with `::` is quadratic; evaluator recursion is capped at 10,000 frames
 
 **Status**: Known runtime limitations; the list fix is a multi-week representation change now in progress, not yet shipped
