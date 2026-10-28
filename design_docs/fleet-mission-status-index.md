@@ -12,6 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 63 | 2026-10-27 | dev's required-check red repaired — the sprint-evaluator `.agents` mirror re-synced, #1972 → `6094d2b33`, judged PASS 94 by an independent sonnet e... |
+| 62 | 2026-10-27 | `quorum:oc-glm-5-3-output-cap-invalid` diagnosis half LANDED — #1966 → `0802749cb`, judged PASS 93 by an independent sonnet evaluator; policy half ... |
 | 61 | 2026-10-26 | `quorum-reader:zsh-nomatch` LANDED — #1944 → `b7dd07599`, judged CODE ACCEPT 94 by an independent sonnet evaluator; ticket resolved; orphan iterati... |
 | 59 | 2026-10-23 | watchdog fix #1937 recovered and ticket resolved; independent MiniMax RECOVERY_ACCEPT94/100;43 open [HARNESS] |
 | 58 | 2026-10-22 | `routing-models-check:bold-colon-heading` LANDED — #1935 → `2debbb027`, independently judged PASS 93 by MiniMax; ticket resolved [HARNESS] |
