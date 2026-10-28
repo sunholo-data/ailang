@@ -36,7 +36,9 @@ package eval_analysis
 // genuine provider noise.
 func ShouldExcludeFromCapability(category string) bool {
 	switch category {
-	case "quota_exhausted", "rate_limit", "api_error":
+	// external_kill: the agent CLI was SIGTERMed from outside the harness (a
+	// sibling agent's `pkill -f`) — the run measured nothing about the model.
+	case "quota_exhausted", "rate_limit", "api_error", "external_kill":
 		return true
 	default:
 		// NOTE: "refused" (safety-layer declines) deliberately stays INCLUDED

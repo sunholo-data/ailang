@@ -17,6 +17,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 // ClaudeReviewerID is the roster id of the Anthropic seat. It is not a
@@ -44,7 +46,13 @@ var claudeReviewCall = callClaudeReview
 func callClaudeReview(ctx context.Context, model, sysPrompt, userPrompt string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, claudeReviewTimeout)
 	defer cancel()
-	out, err := claudeReviewCmd(ctx, model, sysPrompt, userPrompt).Output()
+	// The system prompt goes in a file, never on argv (executor.WritePromptFile).
+	sysPath, cleanup, err := executor.WritePromptFile("ailang-quorum-system-*.md", sysPrompt)
+	if err != nil {
+		return nil, fmt.Errorf("claude -p: %w", err)
+	}
+	defer cleanup()
+	out, err := claudeReviewCmd(ctx, model, sysPath, userPrompt).Output()
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("claude -p: no reply within %s", claudeReviewTimeout)
@@ -56,12 +64,13 @@ func callClaudeReview(ctx context.Context, model, sysPrompt, userPrompt string) 
 
 // claudeReviewCmd builds the Anthropic seat's `claude -p` command. Split out so a test
 // can pin the call site itself: no API key (subscription only), no tools, no
-// settings, hooks or MCP servers.
-func claudeReviewCmd(ctx context.Context, model, sysPrompt, userPrompt string) *exec.Cmd {
+// settings, hooks or MCP servers, and no prompt text on argv — the system prompt
+// is read from sysPromptPath and the user prompt from stdin.
+func claudeReviewCmd(ctx context.Context, model, sysPromptPath, userPrompt string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "claude", "-p",
 		"--model", model,
 		"--output-format", "json",
-		"--system-prompt", sysPrompt,
+		"--system-prompt-file", sysPromptPath,
 		"--tools", "",
 		"--no-session-persistence",
 		"--setting-sources", "",

@@ -143,7 +143,9 @@ func (m *RunMetrics) applyValidityBackstop() {
 	if m.Validity != nil {
 		return
 	}
-	if m.ErrorCategory != ErrorCategoryAPI {
+	// external_kill joins api_error: a run terminated from outside the harness
+	// measured nothing about the model, so it is charged to us and retried.
+	if m.ErrorCategory != ErrorCategoryAPI && m.ErrorCategory != ErrorCategoryExternalKill {
 		return
 	}
 	v := MarkInvalid(ReasonHarnessError)
