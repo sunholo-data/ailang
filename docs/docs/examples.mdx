@@ -28,6 +28,8 @@ import VisitedSetBfsExample from '!!raw-loader!@site/../examples/runnable/visite
 import CycleDetectionExample from '!!raw-loader!@site/../examples/runnable/cycle_detection_visited_set.ail';
 import MapTupleRecordKeysExample from '!!raw-loader!@site/../examples/runnable/map_tuple_record_keys.ail';
 import DifferenceArrayExample from '!!raw-loader!@site/../examples/runnable/difference_array_accumulate.ail';
+import RegexBasicsExample from '!!raw-loader!@site/../examples/runnable/regex_basics.ail';
+import BulkBuildCostModelExample from '!!raw-loader!@site/../examples/runnable/bulk_build_cost_model.ail';
 
 # AILANG Examples
 
@@ -345,6 +347,29 @@ ailang run examples/runnable/xml_parser.ail
 
 ---
 
+### Regular Expressions
+
+Match, find, capture, replace and split with `std/regex`, which uses the linear-time RE2 engine. See the [standard library reference](/docs/reference/stdlib):
+
+<CodeBlock language="typescript" title="examples/runnable/regex_basics.ail">
+  {RegexBasicsExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/regex_basics.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/regex_basics.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `R.compile(pattern)` returns a `Result`. It is the only call that can fail; matching cannot
+- <CheckIcon inline /> Double the backslash in AILANG strings: `"\\d+"`. Writing `"\d"` is a parse error
+- <CheckIcon inline /> Import `std/regex as R`, because its `split` clashes with `std/string`'s
+- <CheckIcon inline /> `findFirst` returns `groups`: the whole match first, then each capture group. `replaceAll` refers to them as `$1`, `$2`
+
+---
+
 ## <Icon name="target" /> Testing & Verification
 
 ### Property-Based Differential Testing
@@ -451,6 +476,28 @@ ailang run --caps IO examples/runnable/difference_array_accumulate.ail
 **Key concepts:**
 - <CheckIcon inline /> `accumulate(arr, [(i, x)], combine)` sets `out[i] = combine(out[i], x)` in list order, O(n + k)
 - <CheckIcon inline /> Works for any element type; out-of-bounds indexes are errors
+
+---
+
+### Building Arrays and Maps (Cost Model)
+
+Values are immutable, so `A.set`, `A.append`, `M.insert` and `acc ++ [x]` each copy the whole structure. Doing one per loop step is quadratic. Build the structure once instead. See [Arrays](/docs/reference/arrays):
+
+<CodeBlock language="typescript" title="examples/runnable/bulk_build_cost_model.ail">
+  {BulkBuildCostModelExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/bulk_build_cost_model.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/bulk_build_cost_model.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> Lookups cost O(1): `A.get`, `M.lookup`, `M.member`, list `nth`
+- <CheckIcon inline /> Building in one pass costs O(n): `A.fromList`, `M.fromList`, `A.updateMany`, `mapAccumL`
+- <CheckIcon inline /> A 2D grid is one flat Array, with cell `(r, c)` at index `r * w + c`
 
 ---
 
