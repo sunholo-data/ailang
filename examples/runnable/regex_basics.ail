@@ -1,0 +1,30 @@
+-- regex_basics.ail - std/regex regular expressions: match, find all, capture groups, replace, split.
+-- Write regex escapes with a doubled backslash in AILANG strings: "\\d+" ("\d" is a parse error).
+-- Import std/regex qualified (`as R`): its split clashes with std/string's split.
+-- RE2 engine: linear time, no backreferences or lookaround; compile is the only fallible step.
+module examples/runnable/regex_basics
+import std/io (println)
+import std/list (map)
+import std/regex as R
+
+export func main() -> () ! {IO} {
+  match R.compile("([a-z]+)=(\\d+)") {
+    Err(e) => println("bad pattern: ${e}"),
+    Ok(re) => {
+      -- isMatch: does the pattern occur anywhere?
+      println(show(R.isMatch(re, "x=1")))
+      println(show(R.isMatch(re, "no pairs here")))
+      -- findAll: every non-overlapping match, left to right
+      println(show(map(\m. m.text, R.findAll(re, "a=1, bb=22"))))
+      -- findFirst: groups holds the whole match first, then each capture group
+      match R.findFirst(re, "key=42") {
+        Some(m) => println(show(map(\g. g.text, m.groups))),
+        None => println("no match")
+      }
+      -- replaceAll: refer to capture groups as $1, $2
+      println(R.replaceAll(re, "a=1 b=2", "$2:$1"))
+      -- split: the text between matches
+      println(show(R.split(re, "x a=1 y")))
+    }
+  }
+}
