@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -49,14 +50,13 @@ func deliverPrompt(task *executor.Task) (*promptDelivery, error) {
 		return nil, fmt.Errorf("claude: system prompt file: %w", err)
 	}
 	path := f.Name()
-	if _, err := f.WriteString(task.SystemPrompt); err != nil {
-		_ = f.Close()
+	// Closed before the child starts — Windows will not let a second process
+	// open a file this one still holds for writing — and removed only after the
+	// child has exited (cleanup).
+	_, werr := f.WriteString(task.SystemPrompt)
+	if err := errors.Join(werr, f.Close()); err != nil {
 		_ = os.Remove(path)
 		return nil, fmt.Errorf("claude: write system prompt file: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		_ = os.Remove(path)
-		return nil, fmt.Errorf("claude: close system prompt file: %w", err)
 	}
 	d.args = append(d.args, "--system-prompt-file", path)
 	d.cleanup = func() { _ = os.Remove(path) }

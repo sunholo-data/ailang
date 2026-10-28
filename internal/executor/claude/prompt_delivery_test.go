@@ -90,7 +90,8 @@ func TestDeliverPromptCleansUpSystemPromptFile(t *testing.T) {
 	path := d.args[2]
 	if info, err := os.Stat(path); err != nil {
 		t.Fatalf("system prompt file missing before cleanup: %v", err)
-	} else if perm := info.Mode().Perm(); perm&0o077 != 0 {
+	} else if perm := info.Mode().Perm(); runtime.GOOS != "windows" && perm&0o077 != 0 {
+		// Windows reports every writable file as 0666; its ACLs are not mode bits.
 		t.Errorf("system prompt file mode = %v, want owner-only", perm)
 	}
 	d.cleanup()
@@ -104,6 +105,30 @@ func TestDeliverPromptCleansUpSystemPromptFile(t *testing.T) {
 	}
 	if len(bare.args) != 1 || bare.args[0] != "-p" {
 		t.Errorf("args without a system prompt = %q, want [-p]", bare.args)
+	}
+}
+
+// An unwritable temp dir must fail the run loudly, before any child starts — not
+// fall back to putting the system prompt back on argv.
+func TestDeliverPromptFailsLoudlyWithoutATempDir(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "does-not-exist")
+	t.Setenv("TMPDIR", missing) // unix
+	t.Setenv("TMP", missing)    // windows
+	t.Setenv("TEMP", missing)
+	if _, err := deliverPrompt(&executor.Task{Directive: "d", SystemPrompt: "s"}); err == nil {
+		t.Fatal("deliverPrompt succeeded with no usable temp dir")
+	}
+	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
+	t.Setenv("AILANG_AUTH_MODE", "")
+	e, err := New(&executor.Config{ClaudePath: filepath.Join(missing, "claude"), ClaudeModel: "haiku"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := e.ExecuteStreaming(context.Background(), &executor.Task{
+		ID: "no-tmp", Directive: "d", SystemPrompt: "s", Workspace: t.TempDir(), Timeout: 10 * time.Second,
+	}, &MockEventHandler{})
+	if err == nil || !strings.Contains(err.Error(), "system prompt file") {
+		t.Fatalf("ExecuteStreaming = (%v, %v), want the system-prompt-file error", res, err)
 	}
 }
 
