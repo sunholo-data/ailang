@@ -339,18 +339,22 @@ explicit recursion in code you compile to Go.
 
 ### `--bytecode` silently falls back to the evaluator; the VM is slower than CPython
 
-**Status**: Open. The fallback gaps are being closed in
-[M-VM-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_55_0/m-vm-coverage-letrec-prelude-bridge.md).
-**Verified at**: v0.54.19 (2026-10-28)
+**Status**: Partly fixed. The main fallback causes were closed by
+[M-VM-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_55_0/m-vm-coverage-letrec-prelude-bridge.md)
+(#1989); the rest are open.
+**Verified at**: dev after #1989 (2026-10-28)
 **Affects**: `ailang run --bytecode`
 
 - **Fallback:** when the VM compiler cannot handle a function, `--bytecode` runs it on the
   evaluator and prints no warning. Of the 205 `examples/runnable` files that pass on the
-  evaluator, 142 run fully on the VM and 61 fall back. The main causes are calling the
-  prelude `println` without `import std/io`, a local `letrec`, and module-level value
-  `let`s. Use `--strict-bytecode` to fail instead of falling back. A local `letrec` that
-  shares its name with a top-level function can call the top-level function under both
-  flags, which gives a wrong answer.
+  evaluator, 186 run fully on the VM and 18 fall back (before #1989: 142 and 61). Prelude
+  `println` without an import, local `letrec` and module-level value `let`s now run
+  natively. The remaining causes are effectful builtins not yet wired into the VM (file
+  system, clock sleep, archives, game, debug log), ADTs from contract modules, and passing a
+  user ADT or a closure to a function that only the evaluator can run; that last case now
+  falls back before the program prints anything. Use `--strict-bytecode` to fail instead of
+  falling back. The wrong answer a local `letrec` used to give when it shared its name with a
+  top-level function is fixed.
 - **Speed:** the VM is about 40× faster than the evaluator on call-heavy code, but still
   slower than CPython. Measured best of 3 after M-VM-QUICK-WINS (2026-10-28): `fib(32)` took
   0.33 s on the VM and 0.14 s in Python (it was 0.50 s before). A 10M-step tail-recursive loop
