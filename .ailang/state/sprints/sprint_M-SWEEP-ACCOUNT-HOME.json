@@ -31,7 +31,7 @@
         "make test-launchd-drivers => rc 0, final launchd drivers: tests + bash 3.2 syntax OK; hook suite reports 12 passes; rerun all three M1 acceptance commands successfully.",
         "Retain the stated residual: any OTHER sweep removal under synthetic HOME still logs there; do not change scripts/worktree_sweep.sh or scripts/test_worktree_sweep.sh. Real-state acceptance remains read-only OBSERVATIONS."
       ],
-      "passes": false
+      "passes": true
     }
   ],
   "registry_reuse": [

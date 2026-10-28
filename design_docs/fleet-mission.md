@@ -110,14 +110,19 @@ Clause map: **1** UNMEASURED, goal unmoved; **2** UNMET overall, and this ticket
   **The fleet cannot dry-run itself mid-iteration** (its own overlap guard, driver :1895, yields
   before the dry-run exit at :1908; iterations 9 and 15). Dry-run the patched driver under an idle,
   armed sibling profile instead: `env -i HOME=$HOME PATH=$PATH USER=$USER TMPDIR=$TMPDIR
-  AILANG_DRIVER_PINNED=<sha> MISSION_PROFILE=<idle armed mission> MISSION_DRY_RUN=1 /bin/bash
+  AILANG_WORKTREE_SWEEP=0 AILANG_DRIVER_PINNED=<sha> MISSION_PROFILE=<idle armed mission>
+  MISSION_DRY_RUN=1 /bin/bash
   tools/launchd/mission-control.sh` (exits before notices and the pidfile write; check its kill switch
   and pidfile first). Record which profile ran.
   **When no sibling is idle and armed** (iteration 27: world and stapledon mid-fire, the rest disabled), dry-run
   `MISSION_PROFILE=fleet` under a synthetic HOME instead: symlink every `~/.ailang/*` entry except `state/`,
   plus `~/.config`, `~/.codex`, `~/.claude`, `~/.local`, `~/.pi` and `~/.gitconfig`, into a temp dir, and pass it as `HOME=` in the
-  `env -i` line. The kill switch and pidfile then resolve to the empty synthetic `state/`, the real lanes still probe,
+  `env -i` line: `env -i HOME=<synthetic-home> PATH=$PATH USER=$USER TMPDIR=$TMPDIR
+  AILANG_WORKTREE_SWEEP=0 AILANG_DRIVER_PINNED=<sha> MISSION_PROFILE=fleet MISSION_DRY_RUN=1
+  /bin/bash tools/launchd/mission-control.sh`.
+  The kill switch and pidfile then resolve to the empty synthetic `state/`, the real lanes still probe,
   and nothing under the real `~/.ailang/state` is written.
+  A dry-run must start no side jobs; the 2026-10-28 synthetic-HOME dry-run deleted three live pins.
 - **Every mission runs `origin/dev` until Phase 3b** (`harness-stable`). A fleet push reaches all
   loops on their next fire, so the done-gate is not optional.
 - **A fix that widens the scope guard ships ALONE, first** (iteration 16). The guard that judges a
