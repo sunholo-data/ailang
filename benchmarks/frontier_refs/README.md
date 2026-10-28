@@ -64,3 +64,14 @@ before touching the YAML files.
   parenthesized; record updates `{r | f: v}` are parenthesized after `then`).
   Models won't know to do this — which is part of what the AILANG side of the
   benchmark measures.
+
+## Competitive-programming pack (`cp_*`, M-EVAL-HIDDEN-TESTS)
+
+`cp_<id>.py` are model-written Python solutions (Claude Haiku 4.5, 2026-10-28 spike)
+that pass every hidden test in `benchmarks/hidden_tests/cp_<id>/`. `cp_60166.ail` and
+`cp_60159.ail` are hand-written AILANG solutions that do the same, proving those two
+are solvable in AILANG today (`cp_60166` by saturating the product instead of BigInt,
+`cp_60159` by Floyd cycle detection instead of a visited set). `cp_60164` and
+`cp_60153` have no AILANG reference yet, which is why they sit in the `experimental`
+tier. These are graded by hidden tests, not by `expected_stdout`, so the loop above
+does not re-verify them: run each against its `hidden_tests/cp_<id>/*.in` instead.

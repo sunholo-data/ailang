@@ -1,0 +1,78 @@
+module benchmark/solution
+
+import std/io (println, readLine)
+import std/string (split, stringToInt, trim, charAt)
+import std/array (fromList, get)
+import std/option (getOrElse)
+
+-- Directions: U=0 R=1 D=2 L=3. State = (r*n + c)*4 + d; -1 = exited, -2 = stuck.
+func dr(d: int) -> int = if d == 0 then -1 else if d == 2 then 1 else 0
+func dc(d: int) -> int = if d == 1 then 1 else if d == 3 then -1 else 0
+
+func dirOf(s: string) -> int =
+  if s == "U" then 0 else if s == "R" then 1 else if s == "D" then 2 else 3
+
+-- Try the relative order (right, straight, left, back) from heading d.
+func tryDirs(grid: Array[string], n: int, r: int, c: int, d: int, k: int) -> int =
+  if k == 4 then -2
+  else {
+    let nd = if k == 0 then (d + 1) % 4 else if k == 1 then d else if k == 2 then (d + 3) % 4 else (d + 2) % 4;
+    let nr = r + dr(nd);
+    let nc = c + dc(nd);
+    if nr < 0 || nr >= n || nc < 0 || nc >= n then -1
+    else if charAt(get(grid, nr), nc) == "." then (nr * n + nc) * 4 + nd
+    else tryDirs(grid, n, r, c, d, k + 1)
+  }
+
+func step(grid: Array[string], n: int, s: int) -> int =
+  tryDirs(grid, n, (s / 4) / n, (s / 4) % n, s % 4, 0)
+
+-- Floyd cycle detection: the hare takes two steps per round, the tortoise one.
+func race(grid: Array[string], n: int, t: int, h: int, moves: int) -> int {
+  let h1 = step(grid, n, h);
+  if h1 == -1 then moves + 1
+  else if h1 == -2 then -1
+  else {
+    let h2 = step(grid, n, h1);
+    if h2 == -1 then moves + 2
+    else if h2 == -2 then -1
+    else {
+      let t1 = step(grid, n, t);
+      if t1 == h2 then -1 else race(grid, n, t1, h2, moves + 2)
+    }
+  }
+}
+
+func ints(line: string) -> [string] = split(trim(line), " ")
+
+func toInt(s: string) -> int = getOrElse(stringToInt(s), 0)
+
+func readRows(k: int, acc: [string]) -> [string] ! {IO} =
+  if k == 0 then acc else readRows(k - 1, trim(readLine()) :: acc)
+
+func rev(xs: [string], acc: [string]) -> [string] =
+  match xs { [] => acc, x :: rest => rev(rest, x :: acc) }
+
+func queries(grid: Array[string], n: int, q: int) -> () ! {IO} =
+  if q == 0 then ()
+  else {
+    match ints(readLine()) {
+      [rs, cs, ds] => {
+        let s = ((toInt(rs) - 1) * n + (toInt(cs) - 1)) * 4 + dirOf(ds);
+        println(show(race(grid, n, s, s, 0)))
+      },
+      _ => ()
+    };
+    queries(grid, n, q - 1)
+  }
+
+export func main() -> () ! {IO} {
+  match ints(readLine()) {
+    [ns, qs] => {
+      let n = toInt(ns);
+      let grid = fromList(rev(readRows(n, []), []));
+      queries(grid, n, toInt(qs))
+    },
+    _ => ()
+  }
+}
