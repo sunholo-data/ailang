@@ -73,10 +73,10 @@
         "Mutation check: reverting each fix fails its allocation test",
         "fib25 and tail-loop B/op drop >= 90%; parity diff empty; make test-changed green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-28T15:23:23Z",
+      "completed": "2026-10-28T15:23:23Z",
+      "notes": "W1: OpClosure returns a per-VM cached closure when NumCaptures==0 (internal/vm/closure_cache.go); W2: TAIL_CALL stashes args in a per-VM scratch slice, cleared after copy. Tests internal/runner/vm_quickwins_test.go (4); mutation: reverting W1 fails 3 tests, reverting W2 fails the tail-call test. Bench (load ~10/16): fib25 18.3ms->13.3ms (-27%), 11.66MB->12.7KB, 242,847->65 allocs; tailloop1m 125ms->78ms (-37%), 176MB->3.9KB, 2,000,014->9 allocs; mapfold200k unchanged. Parity gate unchanged (442). -race concurrent-VM test green."
     },
     {
       "id": "M3_W3_INT_FASTPATH",

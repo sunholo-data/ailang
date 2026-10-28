@@ -77,6 +77,19 @@ type VM struct {
 	// framePool is the free list of frames popped by RETURN, reused by every
 	// frame push (acquireFrame/releaseFrame in frame.go, #1501).
 	framePool []*Frame
+
+	// zeroCapClosures caches one closure per image prototype that captures
+	// nothing, indexed by image prototype index. Every call to a known
+	// top-level function loads its closure, and a closure with no captures
+	// is immutable and compared structurally (Value.Equal), so one shared
+	// value per VM replaces an allocation per call (M-VM-QUICK-WINS W1).
+	// Per VM, not per image: an image is shared across goroutines.
+	zeroCapClosures []bytecode.Value
+
+	// tailArgs is TAIL_CALL's scratch for stashing arguments while the
+	// frame's register slab is reset. Nothing can re-enter the VM between
+	// the stash and the copy back, so one slice per VM is safe (W2).
+	tailArgs []bytecode.Value
 }
 
 // NewVM constructs a VM bound to an image. The image is not validated here;
@@ -370,13 +383,17 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			}
 			// Stash args BEFORE we resize the register slab — they live in
 			// the current frame's registers and will be overwritten by reuseFor.
-			args := make([]bytecode.Value, argCount)
+			if cap(vm.tailArgs) < argCount {
+				vm.tailArgs = make([]bytecode.Value, argCount)
+			}
+			args := vm.tailArgs[:argCount]
 			for i := 0; i < argCount; i++ {
 				args[i] = frame.Regs[int(inst.A())+1+i]
 			}
 			caps := closure.Captures // captures are heap, no copy needed
 			frame.reuseFor(calleeProto)
 			copy(frame.Regs, args)
+			clear(args) // the scratch must not pin the previous step's values
 			for i, c := range caps {
 				frame.Regs[int(calleeProto.NumParams)+i] = c
 			}
@@ -418,7 +435,11 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				}
 				caps[i] = frame.Regs[captureInst.B()]
 			}
-			frame.Regs[inst.A()] = bytecode.NewClosure(innerProto, caps)
+			if innerProto.NumCaptures == 0 {
+				frame.Regs[inst.A()] = vm.zeroCapClosure(imageIdx, innerProto)
+			} else {
+				frame.Regs[inst.A()] = bytecode.NewClosure(innerProto, caps)
+			}
 			frame.IP += 1 + int(innerProto.NumCaptures)
 
 		// --- Collections -------------------------------------------------
