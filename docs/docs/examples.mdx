@@ -22,6 +22,10 @@ import MutualRecursionExample from '!!raw-loader!@site/../examples/runnable/recu
 import ZipReaderExample from '!!raw-loader!@site/../examples/runnable/zip_reader.ail';
 import XmlParserExample from '!!raw-loader!@site/../examples/runnable/xml_parser.ail';
 import PropertyDifferentialExample from '!!raw-loader!@site/../examples/runnable/property_differential_testing.ail';
+import VisitedSetBfsExample from '!!raw-loader!@site/../examples/runnable/visited_set_bfs.ail';
+import CycleDetectionExample from '!!raw-loader!@site/../examples/runnable/cycle_detection_visited_set.ail';
+import MapTupleRecordKeysExample from '!!raw-loader!@site/../examples/runnable/map_tuple_record_keys.ail';
+import DifferenceArrayExample from '!!raw-loader!@site/../examples/runnable/difference_array_accumulate.ail';
 
 # AILANG Examples
 
@@ -337,6 +341,90 @@ ailang test examples/runnable/property_differential_testing.ail
 - <CheckIcon inline /> `forall(xs: [int]) => ...` generates lists, ints and other inputs for you
 - <CheckIcon inline /> A failing property prints its counterexample, replayable with `ailang test --seed N`
 - <CheckIcon inline /> Write the brute-force reference first, then let the property check the fast version before you trust it
+
+---
+
+## <Icon name="box" /> Collections: Sets, Structured Keys, Batch Updates
+
+The competitive-programming toolkit in pure AILANG: a visited set, tuple and record map keys, and a difference array. See the [Stdlib Index](/docs/reference/stdlib) for `std/set`, `std/map` and `std/array`.
+
+### Visited Set BFS
+
+Shortest path on a grid with a visited `Set[(int, int)]` and a list frontier:
+
+<CodeBlock language="typescript" title="examples/runnable/visited_set_bfs.ail">
+  {VisitedSetBfsExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/visited_set_bfs.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/visited_set_bfs.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `import std/set as S` for the functions, `import std/set (Set)` to write the type (`S.Set[...]` does not parse)
+- <CheckIcon inline /> Set elements can be tuples, records and ADT constructors
+- <CheckIcon inline /> `S.member` is O(1); `S.insert` copies the set (O(n)) until persistent maps land
+
+### Cycle Detection with a Visited Set
+
+Count moves until a `(row, col, Dir)` state repeats:
+
+<CodeBlock language="typescript" title="examples/runnable/cycle_detection_visited_set.ail">
+  {CycleDetectionExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/cycle_detection_visited_set.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/cycle_detection_visited_set.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `Set[(int, int, Dir)]`: an ADT constructor inside a tuple element
+- <CheckIcon inline /> The AILANG form of Python's `if state in seen: break`
+
+### Tuple and Record Map Keys
+
+Tuples, records and ADT constructors as `std/map` keys:
+
+<CodeBlock language="typescript" title="examples/runnable/map_tuple_record_keys.ail">
+  {MapTupleRecordKeysExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/map_tuple_record_keys.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/map_tuple_record_keys.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> Record keys ignore field order: `{team: 1, name: "alice"}` finds `{name: "alice", team: 1}`
+- <CheckIcon inline /> Keys iterate in a deterministic canonical order
+- <CheckIcon inline /> Function or list keys are a runtime error on every operation, never a silent `false`
+
+### Difference Array with accumulate
+
+Interval coverage, a histogram and a per-bucket max, each with one array copy:
+
+<CodeBlock language="typescript" title="examples/runnable/difference_array_accumulate.ail">
+  {DifferenceArrayExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/difference_array_accumulate.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/difference_array_accumulate.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `accumulate(arr, [(i, x)], combine)` sets `out[i] = combine(out[i], x)` in list order, O(n + k)
+- <CheckIcon inline /> Works for any element type; out-of-bounds indexes are errors
 
 ---
 

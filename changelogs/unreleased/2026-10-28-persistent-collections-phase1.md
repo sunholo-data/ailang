@@ -36,8 +36,10 @@ order, sets `out[i] = combine(out[i], x)`. It is O(n + k) and pure, works for an
 an out-of-bounds index is an error naming the index and length. It is the generic form of the
 float-only `scatterAdd` (which stays as the packed-float fast path): a difference array is
 `accumulate(make(n + 1, 0), corners, \a b. a + b)`. Native in both the evaluator and the VM.
-`examples/runnable/persistent_collections.ail` shows a visited set, a difference array and
-tuple/record Map keys together.
+Four concept-named examples in `examples/runnable/` show the new structures: `visited_set_bfs.ail`
+(grid BFS with a visited `Set[(int, int)]`), `cycle_detection_visited_set.ail` (repeated-state
+detection over `Set[(int, int, Dir)]`), `map_tuple_record_keys.ail` (tuple, record and ADT Map keys)
+and `difference_array_accumulate.ail` (difference array and histogram with `accumulate`).
 
 New AILANG references in `benchmarks/frontier_refs/`: `cp_60159_set.ail` (visited `Set[(int, int, int)]`)
 passes all 17 repo hidden tests on both engines (max 3.7s evaluator, 0.55s `--strict-bytecode`),

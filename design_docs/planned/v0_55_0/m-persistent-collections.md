@@ -157,7 +157,7 @@ A 32-way persistent vector with a tail buffer (Clojure-style) backs non-float `A
 - `internal/pcoll/champ.go` — CHAMP map (Phase 2, ~400 LOC)
 - `internal/pcoll/pvec.go` — persistent vector (Phase 3, ~350 LOC)
 - `std/set.ail` — Set API (Phase 1b, ~80 LOC)
-- `examples/persistent_collections.ail` — visited set, difference array, structured keys (~80 LOC)
+- `examples/persistent_collections.ail` — visited set, difference array, structured keys (~80 LOC). *Shipped instead as four concept-named examples in `examples/runnable/`: `visited_set_bfs.ail`, `cycle_detection_visited_set.ail`, `map_tuple_record_keys.ail`, `difference_array_accumulate.ail`.*
 
 **Modified files:**
 - `internal/eval/value.go` — `MapKey` delegates to `pcoll`; `MapValue`/`ArrayValue` wrap `pcoll` types (Phases 1–3)
@@ -246,7 +246,7 @@ let diff = A.accumulate(A.make(w * h, 0), cornerWrites(rects), \x y. x + y)
 
 - [x] V7/V8 tuple and record keys round-trip through `insert`/`lookup`/`member` in **both** engines; lookup with a function key errors loudly (V9 inverted) — V23, V24
 - [x] V10 ordering is unchanged (`[10, 2, 9]`) in both engines — V23
-- [x] `std/set` exists with the API in 1b; the example (at `examples/runnable/persistent_collections.ail`, where `verify-examples` looks) passes `ailang check` and `make verify-examples` — V26, V29
+- [x] `std/set` exists with the API in 1b; the examples (`examples/runnable/visited_set_bfs.ail`, `cycle_detection_visited_set.ail`, `map_tuple_record_keys.ail`, `difference_array_accumulate.ail`; `runnable/` is where `verify-examples` looks) pass `ailang check` and `make verify-examples` — V26, V29
 - [~] `accumulate` passes a difference-array golden test (yes); the cp_60164 difference-array fixture passes its 15KB tests in 0.52s on `--strict-bytecode` but **9.3s on the evaluator** — V28. The 2s target is met on the VM only, and the evaluator time is the prefix-sum sweep, not `accumulate` (~0.1s)
 - [ ] Phase 2: V1 fixture under 0.2s; lookup microbenchmark within 1.5× of HEAD
 - [ ] Phase 3: V2 fixture under 1s; get microbenchmark within 1.5× of HEAD
