@@ -364,11 +364,11 @@ exit 1. After the fix, both engines print `start` and `42`.
 
 ## Success Criteria
 
-- [ ] `shadow.ail` prints `10` under evaluator, `--bytecode` and `--strict-bytecode` (pinned regression test)
-- [ ] A local `letrec` 1,000,000-iteration tail loop runs natively without stack overflow; mutual local `letrec` passes
-- [ ] `examples/runnable/letrec_recursion.ail`, `module_let_helpers.ail`, `array_basic.ail` and `array_grid.ail` pass `--strict-bytecode` with evaluator-identical stdout
-- [ ] An entry module that uses prelude `println` with no import passes `--strict-bytecode`; the user-`func println` shadowing test still passes
-- [ ] A user ADT passed VM→evaluator→VM round-trips; any unbridgeable edge falls back *before* `main` runs (test asserts no stdout before the fallback)
+- [x] `shadow.ail` prints `10` under evaluator, `--bytecode` and `--strict-bytecode` (pinned regression test; V25)
+- [x] A local `letrec` 1,000,000-iteration tail loop runs natively without stack overflow; mutual local `letrec` passes (mutual only as a stmt-IR group: source cannot express one, V30)
+- [x] `examples/runnable/letrec_recursion.ail`, `module_let_helpers.ail`, `array_basic.ail` and `array_grid.ail` pass `--strict-bytecode` with evaluator-identical stdout (V28, V35)
+- [x] An entry module that uses prelude `println` with no import passes `--strict-bytecode`; the user-`func println` shadowing test still passes (V38)
+- [ ] A user ADT passed VM→evaluator→VM round-trips (not done: type identity on VM ADTs is still open); any unbridgeable edge falls back *before* `main` runs (**done**, V34: test asserts no stdout before the strict refusal)
 - [ ] `make vm-coverage` reports Corpus A ≥ 40/41 NATIVE and `examples/runnable` ≥ 195/205 NATIVE, with zero DIVERGE or BYTECODE_CRASH
 - [ ] cp_60212, cp_60198 and cp_60159 re-timed on both engines, with numbers recorded in the implementation report
 - [ ] `make test`, `make verify-examples` and `make parity` pass; changelog fragment; LIMITATIONS updated
@@ -439,7 +439,7 @@ the session scratchpad; the repro sources are inlined in Examples or quoted belo
 | V23 | The synthetic Option import does not yield to a user definition | entry module with `func None() -> int = 7` | Type error: `cannot unify type application Option[α2] with () -> α3`. Confirmed: an existing hole, out of scope here |
 | V24 | VM TCO on top-level self tail calls with extra params (quorum objection, kimi) | `func loop(k, acc, n) = if n == 0 then acc else loop(k, acc + k, n - 1)` with n=1,000,000, plus a higher-order variant | `--strict-bytecode`: correct, 0.21s; evaluator 7.77s. Confirmed for top-level; closure-value tail calls unmeasured (Option C caveat) |
 
-### Implementation log (2026-10-28, Phase 1)
+### Implementation log (2026-10-28)
 
 Binaries: base = `57b0b8f20` built from `git archive HEAD`; new = the implementation branch, built
 into its worktree. Neither touched `~/go/bin/ailang`. Coverage scripts mirror V6 and V9 (same caps,
@@ -458,6 +458,11 @@ stdin, timeouts and classification), parameterised by binary path.
 | V33 | G3 fixed by calling the initialiser, not by globals | `caf.ail` (Examples, extended with a dependent constant, a list and a module-level lambda); the coordinator's `let halfF = 2.0` read inside `func scale` | Base: `start`, then `Closure vs Int` / `Float vs Closure`. New: evaluator-identical on all three engines. Module-level `let` with an effect is rejected by the effect checker (`Missing effects: IO`), which the doc said to verify. Cost: the initialiser runs at every reference; once-only image globals remain the Phase 2b target |
 | V34 | G4 safety net | `adtbridge.ail` (V14 shape: `type Dir = U \| D`, an evaluator-only `step(d: Dir, n)` using `std/debug.log`, `main` prints `start` first) | Base `--bytecode`: `start`, `plain`, `8`, then `CALL via eval interop: arg 0: bridge: ADT values not yet supported`. New `--bytecode`: evaluator output in full; `--strict-bytecode`: refuses before printing anything, naming `parameter 1 (ADT Dir)` |
 | V35 | G3 + G4 net alone (before G2) | V9 method, 261 files (260 + the new fixture) | NATIVE 147, SILENT_FALLBACK 58, BYTECODE_CRASH 0, DIVERGE 1 (`xml_walk_perf.ail`, timing). Corpus A 41/41 |
+| V36 | **Doc premise wrong:** `InjectPreludeValues` does not exist | `grep -rn InjectPreludeValues` | Only a `TODO` comment in `internal/pipeline/prelude.go`. The evaluator's prelude `println` is a builtin registered in `registerBuiltins` (`internal/eval/eval_typed_helpers.go`), and it writes with `fmt.Print` straight to `os.Stdout`, bypassing the effect context's `IOWriter` (and so the `--json` redirect to stderr and the TTY line buffer). Nothing to retire |
+| V37 | G2 route chosen: compiler resolution, not loader injection | `internal/bytecode/compiler/prelude.go`, `bytecode.PreludeFuncs` | The loader rule in 2a (skip when any `std/io` import exists) would leave the V4 shape (`import std/io (readLine)` plus prelude `println`) on the evaluator, and injection would also switch the evaluator from its builtin to `std/io.println` for every entry module. The compiler consults the prelude last, after locals, letrec members and every top-level function. Not both |
+| V38 | G2 required tests | `internal/runner/vm_prelude_test.go`, three engines each | (1) prelude, no import: strict passes; (2) user `func println`: prints nothing on all engines (V21); (3) explicit import: no MOD015; (4) library module with bare `println`: still a type error; plus `println` as a value. Mutation: disabling the lookup fails (1) under strict; moving it ahead of top-level functions fails (2) |
+| V39 | V4 re-time | cp_60212 copy with `import std/io (readLine)` only, 516,837-byte test, base vs new | Base: evaluator 24.6 s, `--bytecode` 25.0 s, strict refuses. New: evaluator 24.6 s, `--bytecode` **1.15 s**, strict 1.14 s, all correct |
+| V40 | Coverage after G1 + G3 + G4 net + G2 | V9 method over the original 260 files; V6 method for Corpus A | `examples/runnable`: NATIVE **186** (base 142), SILENT_FALLBACK 18 (base 62), BYTECODE_CRASH **0** (base 1), DIVERGE 1 (`xml_walk_perf.ail`, timing lines only; it flips between DIVERGE and SILENT_FALLBACK with the timings). No base-NATIVE file regressed. Remaining fallbacks: 10 Phase-2E effectful builtins, 3 contract-module `unknown ADT type`, 2 bridge safety net (`xml_walk_perf`, `zip_xml_fold`: real G4), 1 `stmt.ArrayLit`, 1 `__html_parse`, 1 `bounded_take_flatmap` lint. 186/205 is short of the ≥195 goal; what remains is out of this change's scope. Corpus A: **41/41** (base 31) |
 
 ## Quorum Log
 

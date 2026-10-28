@@ -165,8 +165,12 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		}
 
 		if compileErr != nil {
-			// Roll back any orphan child lambdas the failed compile registered.
+			// Roll back any orphan child lambdas the failed compile registered,
+			// and any funcIdx key that pointed into the dropped range (the
+			// synthetic prelude prototypes, prelude.go): a later function
+			// would otherwise resolve that key to whatever reuses the index.
 			img.Prototypes = img.Prototypes[:protoCheckpoint]
+			dropFuncIdxFrom(funcIdx, protoCheckpoint)
 			// Reset any partial state on the failed prototype itself and tag
 			// it as an evaluator-only stub. Name, NumParams and File stay
 			// intact so the bridge can still resolve and call it.
@@ -212,6 +216,19 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 	}
 
 	return img, nil
+}
+
+// dropFuncIdxFrom deletes every funcIdx key whose prototype index is at or
+// past checkpoint, after a failed compile rolled those prototypes back. Only
+// the lazily compiled prelude prototypes (prelude.go) are registered in
+// funcIdx during a function's compile, so only their keys can dangle.
+func dropFuncIdxFrom(funcIdx map[string]int, checkpoint int) {
+	for _, name := range bytecode.PreludeNames() {
+		key := preludeKey(name)
+		if idx, ok := funcIdx[key]; ok && idx >= checkpoint {
+			delete(funcIdx, key)
+		}
+	}
 }
 
 // funcCompiler holds per-function state during a single function's lowering.

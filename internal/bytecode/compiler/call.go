@@ -109,6 +109,10 @@ func (fc *funcCompiler) classifyCallee(e stmt.Expr) (calleeKind, string, error) 
 		if _, ok := fc.funcIdx[ex.Name]; ok {
 			return fc.topLevelCallee(ex.Name)
 		}
+		// Last: the implicit prelude, which every binding above shadows.
+		if key, ok, err := fc.preludeFunc(ex.Name); err != nil || ok {
+			return calleeTopLevel, key, err
+		}
 		return 0, "", fmt.Errorf("compiler: call to unbound name %q", ex.Name)
 	case stmt.GlobalRef:
 		canonical := canonicalFuncName(ex.Module, ex.Name)

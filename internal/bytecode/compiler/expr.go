@@ -196,6 +196,14 @@ func (fc *funcCompiler) compileVarRef(e stmt.VarRef) (uint8, error) {
 	if fc.hasFunc(e.Name) {
 		return fc.compileTopLevelRef(e.Name)
 	}
+	// The implicit prelude (prelude.go), shadowed by everything above.
+	key, found, err := fc.preludeFunc(e.Name)
+	if err != nil {
+		return 0, err
+	}
+	if found {
+		return fc.compileTopLevelRef(key)
+	}
 	return 0, fmt.Errorf("compiler: unbound variable %q", e.Name)
 }
 
