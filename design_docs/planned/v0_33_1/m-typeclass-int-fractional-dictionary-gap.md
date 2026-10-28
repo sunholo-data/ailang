@@ -1,6 +1,13 @@
 # M-TYPECLASS-INT-FRACTIONAL-DICTIONARY-GAP: catch missing Fractional[Int] at compile time
 
-**Status**: Planned
+**Status**: Planned. The live repro is resolved differently by M-SOUND-NUMERIC-LITERALS (2026-10-28,
+changelog fragment `2026-10-28-sound-numeric-literals.md`). `let weight_kg = 70` is no longer
+generalized, because its type variable carries an integer literal's `Num` constraint. Its use at
+`/` makes it a float, so the BMI program now RUNS instead of crashing. Also using it as a hard `int`
+(`let k: int = weight_kg`) is now a compile-time error (`cannot unify int vs float`), the
+`ailang check`-time failure this doc asked for. What remains open: an integer literal
+inside a generic top-level function instantiated at float. That case now fails at runtime with a
+named cause (`received an int and a float`) rather than at `ailang check`.
 **Target**: v0.33.1
 **Priority**: P1 — live, reproducible compiler-completeness bug that violates semantic transparency
 **Estimated**: 2-4 days (root-cause investigation is Phase 1 and may extend this estimate)

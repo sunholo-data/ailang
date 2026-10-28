@@ -60,6 +60,18 @@ type DictElaborator struct {
 	freshVarNum int
 }
 
+// transformExprs transforms each expression of a slice, preserving nil-ness.
+func (de *DictElaborator) transformExprs(exprs []core.CoreExpr) []core.CoreExpr {
+	if exprs == nil {
+		return nil
+	}
+	out := make([]core.CoreExpr, len(exprs))
+	for i, x := range exprs {
+		out[i] = de.transformExpr(x)
+	}
+	return out
+}
+
 // transformExpr recursively transforms Core expressions
 func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 	if expr == nil {
@@ -304,8 +316,38 @@ func (de *DictElaborator) transformExpr(expr core.CoreExpr) core.CoreExpr {
 			Elements: newElements,
 		}
 
+	// M-SOUND-NUMERIC-LITERALS: these used to fall to `default` and be
+	// returned untransformed, so a literal (or operator) inside a tuple, array
+	// or record update was never elaborated — `(1, 2)` at (float, float)
+	// evaluated to (1, 2) of Ints.
+	case *core.Tuple:
+		return &core.Tuple{CoreNode: e.CoreNode, Elements: de.transformExprs(e.Elements)}
+
+	case *core.Array:
+		return &core.Array{CoreNode: e.CoreNode, Elements: de.transformExprs(e.Elements)}
+
+	case *core.RecordUpdate:
+		updates := make(map[string]core.CoreExpr, len(e.Updates))
+		for k, v := range e.Updates {
+			updates[k] = de.transformExpr(v)
+		}
+		return &core.RecordUpdate{CoreNode: e.CoreNode, Base: de.transformExpr(e.Base), Updates: updates}
+
+	case *core.Lit:
+		// M-SOUND-NUMERIC-LITERALS: an integer literal is `Num a => a`. When
+		// inference resolved its Num constraint at Float, the literal must
+		// evaluate to a float — this is the seam where the type checker and
+		// the runtime used to disagree (`f >= 0` with f: float type-checked,
+		// then the evaluator handed IntValue(0) to gte_Float).
+		if rc, ok := de.resolved[e.ID()]; ok && rc.Type != nil && types.NormalizeTypeName(rc.Type) == "Float" {
+			if fl, ok := core.IntLitAsFloat(e); ok {
+				return fl
+			}
+		}
+		return expr
+
 	// Atomic expressions - return as is
-	case *core.Var, *core.Lit, *core.DictRef:
+	case *core.Var, *core.DictRef:
 		return expr
 
 	// Already dictionary nodes - preserve
