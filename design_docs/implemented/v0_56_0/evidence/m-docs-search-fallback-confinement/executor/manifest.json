@@ -1,0 +1,28 @@
+{
+  "qualification": "Counterfactual binary built from current5a1 compiler with only these three backend/CLI production files restored to actual dev6d0d3a9da. New authority.go remains present but unused; not a claim of whole-old-binary equivalence. Tests run actual policy-tool and actual child; no mock runner.",
+  "files": [
+    {
+      "path": "internal/docsearch/github/github.go",
+      "source_commit": "6d0d3a9da2af2eadc504f7cb050aacde72cc3cca",
+      "bytes": 5540,
+      "sha256": "7fd8760f402a51e9f3e8039d649eb588c1849b44224f4c2203c745f14e0958b0",
+      "scratch": "/tmp/ailang-backlog-20261029/1965-counterfactual/github.go"
+    },
+    {
+      "path": "internal/docsearch/github/cache.go",
+      "source_commit": "6d0d3a9da2af2eadc504f7cb050aacde72cc3cca",
+      "bytes": 2258,
+      "sha256": "d492ffe51cbd3a05526c17ff1aba623a3df3d55e9133e4e7843d78e42dcf7943",
+      "scratch": "/tmp/ailang-backlog-20261029/1965-counterfactual/cache.go"
+    },
+    {
+      "path": "cmd/ailang/docs_search.go",
+      "source_commit": "6d0d3a9da2af2eadc504f7cb050aacde72cc3cca",
+      "bytes": 16554,
+      "sha256": "295bfdf8ef46cd2f37fc6f51cb6f605b9dd7d04382daf73efe011403ced61472",
+      "scratch": "/tmp/ailang-backlog-20261029/1965-counterfactual/docs_search.go"
+    }
+  ],
+  "binary_sha256": "a26c7c9bf68152adec3e2302f8dd1f67f2ba3f1133fcb41369e4ea114a449073",
+  "red_log": "/tmp/ailang-backlog-20261029/1965-M3-red.log"
+}

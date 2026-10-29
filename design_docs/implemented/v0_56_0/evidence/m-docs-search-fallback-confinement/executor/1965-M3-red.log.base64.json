@@ -1,0 +1,9 @@
+{
+  "format": "ailang-frozen-evidence/base64-v1",
+  "logical_filename": "1965-M3-red.log",
+  "logical_path": "executor/1965-M3-red.log",
+  "original_bytes": 463,
+  "original_sha256": "adf881768bcdc861f0bf99be6df6a27885934a9bc4da12fd441ece7bc4d8a665",
+  "encoding": "base64",
+  "payload": "LS0tIEZBSUw6IFRlc3REb2NzU2VhcmNoX0NvbmZpbmVtZW50QWN0dWFsUG9saWN5VG9vbCAoMS40MHMpCiAgICBkb2NzX3NlYXJjaF9wb2xpY3lfdG9vbF90ZXN0LmdvOjQxOiB3YW50IGNhbm9uaWNhbCBkb2NzIHJlZnVzYWw6IHtzdGRvdXQ6IHN0ZGVycjpFcnJvcjogbm8gbG9jYWwgZG9jcyBmb3VuZCwgYW5kIEdpdEh1YiBmYWxsYmFjayB1bmF2YWlsYWJsZTogR2l0SHViIHNlYXJjaCByZXF1aXJlcyBhdXRoZW50aWNhdGlvbjogc2V0IEdJVEhVQl9UT0tFTiBvciBydW4gYGdoIGF1dGggbG9naW5gCiAgICAgICAgCiAgICAgICAgSGludDogVXNlIC0tcGF0aCwgb3Igc2V0IEdJVEhVQl9UT0tFTiAvIHJ1biBgZ2ggYXV0aCBsb2dpbmAKICAgICAgICAgZXhpdENvZGU6MSB0aW1lZE91dDpmYWxzZX0KRkFJTApGQUlMCWdpdGh1Yi5jb20vc3VuaG9sby1kYXRhL2FpbGFuZy9jbWQvYWlsYW5nCTIuMTQ3cwpGQUlMCg=="
+}

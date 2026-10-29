@@ -1,0 +1,83 @@
+{
+  "sprint_id": "M-DOCS-SEARCH-FALLBACK-CONFINEMENT",
+  "round": 1,
+  "verdict": "PASS",
+  "score": 95,
+  "max_score": 100,
+  "hard_fail": false,
+  "evaluated_head": "50ca373aeacd6b74ffce573d1892cf2dd4211e32",
+  "pr": "https://github.com/sunholo-data/ailang/pull/2017",
+  "reviewer_independent": true,
+  "implementation_authored_by_reviewer": false,
+  "evaluated_at_utc": "2026-10-29T21:16:15.635993+00:00",
+  "gate_source": "exact-head PR CI",
+  "automated_evaluation": {
+    "sprint_id": "M-DOCS-SEARCH-FALLBACK-CONFINEMENT",
+    "branch": "docs/docs-search-confinement-1965",
+    "timestamp": "2026-10-29T21:15:14Z",
+    "gate_source": "ci",
+    "ci_result": "CI_GATE=pass PR #2017: 19 checks green",
+    "automated_checks": {
+      "tests_pass": true,
+      "lint_clean": true,
+      "file_sizes_ok": true,
+      "coverage_pct": "skipped (set EVAL_COVERAGE=1)",
+      "todo_hack_count": 0,
+      "is_perf_sprint": false,
+      "has_profile_data": false
+    },
+    "hard_fails": {
+      "tests_broken": false,
+      "perf_no_profile": false
+    }
+  },
+  "ci_snapshot": "pr2017-final.json",
+  "checks_count": 27,
+  "acceptance_criteria_met": 21,
+  "acceptance_criteria_total": 21,
+  "acceptance_matrix": "acceptance-matrix-final.json",
+  "scores": {
+    "tests": 20,
+    "lint": 10,
+    "acceptance": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "deductions": [
+    {
+      "points": 5,
+      "reason": "Literal physical FuncDecl lengths >50 lines including tests; -2 each capped -5",
+      "inventory": "functions-over50.json"
+    }
+  ],
+  "conditional_categories": {
+    "regression_surface": "Not triggered by documented path list: host docs boundary, no compiler/runtime entrypoint changes",
+    "performance": "Not performance scope; no bonus"
+  },
+  "documentation_qualification": "Host-Go authority fix uses actual CLI/library/policy-tool Go fixtures instead of inventing .ail examples; all required evidence present. Design accurately marks implementation awaiting this independent acceptance. Archive parent and companions after actual merge.",
+  "artifacts": {
+    "status": "completed",
+    "all_four_milestones_complete": true,
+    "plan_pending_implementation": false,
+    "pending_independent_and_ci_boxes": "Legitimate until this review; archive after acceptance",
+    "velocity_populated": true
+  },
+  "evidence_identity": {
+    "source_files": 18,
+    "raw_logs": 27,
+    "all_sha256_verified": true
+  },
+  "discussion": {
+    "top_level": 0,
+    "inline": 0,
+    "formal_reviews": 0
+  },
+  "findings": [],
+  "limitations": [
+    "Snapshots prove no writes; before-read refusal is established by direct guard order plus actual controls, not a cache-read spy",
+    "Explicit neural/embedding/cache-management not covered by GitHub fallback restriction",
+    "No real credential/provider call or full local test repetition"
+  ],
+  "recommendation": "PASS95 at exact50ca; normal merge permitted; root verifies actual merge/issue closure, then archive design and companion plans together"
+}

@@ -4,8 +4,8 @@
   "status": "completed",
   "created": "2026-10-29",
   "target_version": "v0.56.0",
-  "design_doc": "design_docs/planned/v0_56_0/m-docs-search-fallback-confinement.md",
-  "sprint_plan": "design_docs/planned/v0_56_0/m-docs-search-fallback-confinement-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_56_0/m-docs-search-fallback-confinement.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/m-docs-search-fallback-confinement-sprint-plan.md",
   "github_issues": [
     1965
   ],
@@ -25,7 +25,7 @@
   "plan_approved": true,
   "execution_authorized": true,
   "implementation_started": true,
-  "independent_evaluation": "required; executor handoff ready, no self-score or acceptance verdict",
+  "independent_evaluation": "Root independent PASS95/100 at50ca373aeacd6b74ffce573d1892cf2dd4211e32, actual27CI terminal20SUCCESS/7SKIPPED; implementation author did not self-evaluate",
   "velocity": {
     "target_loc_per_day": 300,
     "estimated_total_loc": 525,
@@ -226,12 +226,12 @@
     "Prove fake helpers and loopback instruments active; test-only deny-CONNECT proxy clears NO_PROXY/no_proxy and other bypasses, never forwards to GitHub",
     "Strip ambient cloud trace/OTLP project and endpoint environment; AILANG_TRACE=off is not an exporter kill switch; do not repair held #2009 here",
     "No full local make test or repeated whole-suite gates; exact PR CI later supplies broad gate",
-    "No #1926 execution/card action or #2013 retry/merge inferred from user word merged; root reported1926 plan-only merge93e4f2586 and2013 remains open0853",
+    "Historical planning observation: #1926 plan-only merge93e4f2586 and #2013 open0853 preceded the later root-authorized accepted dependency/2013 merges. This sprint does not execute cards or own runner behavior.",
     "No semantic decision remains OPEN inside the approved design; if truly new out-of-scope authority/API policy is required, STOP: commit current authorized execution work, report BLOCKED with exact design non-goal and end the run; no widening or silent fallback"
   ],
   "provenance": {
     "design_author_finished": true,
-    "current_owner": "Attended /root/pr_reconcile owns approved execution; isolated docs-search-confinement-1965 branch",
+    "current_owner": "Attended /root/pr_reconcile archives completed/accepted sprint; root independently evaluated and normally merged",
     "approval_record": "/tmp/ailang-backlog-20261029/three-design-approvals.json",
     "velocity_evidence": "/tmp/ailang-backlog-20261029/1965-planner-velocity.json",
     "velocity_script_log": "/tmp/ailang-backlog-20261029/1965-planner-velocity-script.log",
@@ -295,8 +295,8 @@
   "implementation_completed_at": "2026-10-29T20:40:39.335207+00:00",
   "execution_validation": {
     "local_result": "PASS",
-    "required_pr_ci": "pending",
-    "independent_acceptance": "pending",
+    "required_pr_ci": "PASS at50ca,27terminal20SUCCESS/7SKIPPED",
+    "independent_acceptance": "Root independent PASS95/100",
     "tested_behavior_source": "5a1a21267b0dda4e0695a4a8290a07002c4181d5",
     "corrected_reference_source": "804502687",
     "final_build_source": "e9889a284ac4955768ccbcfaea01eea52edcb36b",
@@ -307,8 +307,8 @@
     "source_preflight": "Independent platform M1-M3 no blocker, no final score/PASS; final acceptance remains root/CI"
   },
   "completed": "2026-10-29T20:40:39.335207+00:00",
-  "independent_acceptance": "pending",
-  "ci_status": "pending",
+  "independent_acceptance": "accepted",
+  "ci_status": "PASS",
   "status_history": [
     {
       "from": "in_progress",
@@ -317,5 +317,32 @@
       "implementation_completed_at": "2026-10-29T20:40:39.335207+00:00",
       "reason": "Metadata correction: completed denotes all implementation milestones passed. Independent acceptance and exact-head CI are separate pending fields; no score or merge."
     }
-  ]
+  ],
+  "release_status": "unreleased",
+  "acceptance": {
+    "authority": "Root independent final evaluation, not implementation author/archiver",
+    "status": "accepted",
+    "round": 1,
+    "score": 95,
+    "max_score": 100,
+    "verdict": "PASS",
+    "evaluated_head": "50ca373aeacd6b74ffce573d1892cf2dd4211e32",
+    "accepted_merge": "1cfaedbf2170e5c3260c5207c7c82823bd51032f",
+    "merged_at_utc": "2026-10-29T21:16:33Z",
+    "issue_closed_at_utc": "2026-10-29T21:16:34Z",
+    "release_status": "unreleased",
+    "report_json": "design_docs/implemented/v0_56_0/evidence/m-docs-search-fallback-confinement/independent/eval_M-DOCS-SEARCH-FALLBACK-CONFINEMENT_round_1.json",
+    "report_markdown": "design_docs/implemented/v0_56_0/evidence/m-docs-search-fallback-confinement/independent/eval_M-DOCS-SEARCH-FALLBACK-CONFINEMENT_round_1.md",
+    "evidence_manifest": "design_docs/implemented/v0_56_0/evidence/m-docs-search-fallback-confinement/manifest.json",
+    "ci": {
+      "status": "PASS",
+      "head": "50ca373aeacd6b74ffce573d1892cf2dd4211e32",
+      "completed": 27,
+      "success": 20,
+      "skipped": 7,
+      "failed": 0,
+      "cancelled": 0,
+      "pending": 0
+    }
+  }
 }

@@ -1,0 +1,272 @@
+{
+  "head": "50ca373aeacd6b74ffce573d1892cf2dd4211e32",
+  "worktree": "/private/tmp/ailang-backlog-20261029/docs-search-confinement-1965",
+  "branch": "docs/docs-search-confinement-1965",
+  "base": "565fc1b04",
+  "implementation_complete": true,
+  "executor_verdict": "No self-score or independent acceptance; local gates PASS, exact PR CI pending",
+  "files": [
+    {
+      "path": ".ailang/state/sprints/sprint_M-DOCS-SEARCH-FALLBACK-CONFINEMENT.json",
+      "bytes": 22837,
+      "sha256": "028a06c5d4a4d033813c74ab02a46a2192f2c5ea33ac5bc93ef055b7f3638bbc"
+    },
+    {
+      "path": "SECURITY.md",
+      "bytes": 10996,
+      "sha256": "504d6edeabe2e88922bb9f21977339c71115ea8c8cc0aebcc8d0fe73d1f96bf1"
+    },
+    {
+      "path": "changelogs/unreleased/2026-10-29-docs-search-confinement.md",
+      "bytes": 426,
+      "sha256": "188fe9b2e284978e19115adb1011fd972ff65ddf6d2a73dd1bb873a69f55b212"
+    },
+    {
+      "path": "cmd/ailang/cli_reference.go",
+      "bytes": 13715,
+      "sha256": "13880b4b1f70b4b3076fef3ba28ea326f4bd4de6731eac0837b340c2cb8d78b6"
+    },
+    {
+      "path": "cmd/ailang/docs_search.go",
+      "bytes": 16754,
+      "sha256": "45a773f123de047eaff2a0b18ae6ebf6b00f0bdd69b9b64bdcf846d840c48c51"
+    },
+    {
+      "path": "cmd/ailang/docs_search_confinement_fixture_test.go",
+      "bytes": 4575,
+      "sha256": "1c3aa422bed8cbac9578f35990b37c892b5c74b26bbbb7681c30e8bfcbbe75f5"
+    },
+    {
+      "path": "cmd/ailang/docs_search_confinement_test.go",
+      "bytes": 3373,
+      "sha256": "3bf458cfd6eb14614789501fb917cc2c152048742421b6b233a9c792adc6bf72"
+    },
+    {
+      "path": "cmd/ailang/docs_search_policy_tool_test.go",
+      "bytes": 2970,
+      "sha256": "3ccb195c7d566153e8851e1b461551d434cac887613730eeda9ab81c2e3350b9"
+    },
+    {
+      "path": "design_docs/planned/v0_56_0/m-docs-search-fallback-confinement-sprint-plan.md",
+      "bytes": 21366,
+      "sha256": "34ca51179899cdb31af17cb23f724cb23f3c5c333415b1814450afb6eef8d728"
+    },
+    {
+      "path": "design_docs/planned/v0_56_0/m-docs-search-fallback-confinement-validation.md",
+      "bytes": 8427,
+      "sha256": "34ed83bf6a9791d22c0cfc3cb6230f301933518c853e0ecc369e3d415e889a23"
+    },
+    {
+      "path": "design_docs/planned/v0_56_0/m-docs-search-fallback-confinement.md",
+      "bytes": 21943,
+      "sha256": "76eb0bcdb94fe998cef7ad0af9bfbac67a72a9d1ac2e2f584ba73e47a68aaba8"
+    },
+    {
+      "path": "docs/docs/guides/semantic-search.md",
+      "bytes": 15604,
+      "sha256": "eb2354cfbf54fdb3960efa0cdec3f0a2596956deb4ac5cf7e80c30b469131b45"
+    },
+    {
+      "path": "docs/docs/reference/cli.md",
+      "bytes": 13163,
+      "sha256": "01479b97575efeebe6ea4c49b52a271384cda02374cff3e816b10159d9d1ab5e"
+    },
+    {
+      "path": "internal/docsearch/github/authority.go",
+      "bytes": 520,
+      "sha256": "a1f2f61ef517705807d6096a7ee9e6de449abc3edf0cfccec7627ac2e9358ff9"
+    },
+    {
+      "path": "internal/docsearch/github/cache.go",
+      "bytes": 2319,
+      "sha256": "d22bd1f6b4ea0e2059be8d7004fbeb60f940d30530bca77aaae983d86bd923af"
+    },
+    {
+      "path": "internal/docsearch/github/confinement_test.go",
+      "bytes": 7150,
+      "sha256": "2994898273f39d47dcdcaf4a11225bf2c1f8c8e62c9e37ef12c33bdf40dae461"
+    },
+    {
+      "path": "internal/docsearch/github/github.go",
+      "bytes": 5855,
+      "sha256": "45da5171fc55055e86a4ea0f55d1ae0b8ce3d2f01296f9936c093b877e8e5e0d"
+    },
+    {
+      "path": "internal/docsearch/github/testdata/credentialhelper/main.go",
+      "bytes": 500,
+      "sha256": "fc002fb2d6830160f173da5c004d71d6b8f394761791bdabaa36fd5fa0fac40d"
+    }
+  ],
+  "logs": [
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M1-boundaries.log",
+      "bytes": 110,
+      "sha256": "fa3800ac30a4698ec15076037a27f0afc619cf4013b44af3222a50537c26a5a4"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M1-green.log",
+      "bytes": 69,
+      "sha256": "3debb65522c75ecba2d2db0ddaf015af8e265cd710ae658da8cf7747bf605d73"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M1-lint.log",
+      "bytes": 76,
+      "sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M1-red.log",
+      "bytes": 779,
+      "sha256": "eb31a4573005ab4b8038aab1be69b254a1c2c42bd23ec3b5911974a0c4db7f57"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M2-build.log",
+      "bytes": 362,
+      "sha256": "96a68dbb1560c5110c20d49276517dd3cdb284e9bd69b5420f5b4b96234fd14c"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M2-green.log",
+      "bytes": 506,
+      "sha256": "53bf4d644075dcf311735e7638b0d4a5d36a4254f4138d3d2e18bf36c564f071"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M2-red.log",
+      "bytes": 847,
+      "sha256": "de8062296f5eaf980686dfcd5142f42397210c9e0360fc9fe434c553190005da"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M2M3-green.log",
+      "bytes": 55,
+      "sha256": "c5c1a7846807b88b2b2c211eff09b783afc2735bb43b9ce79516eaffe125c6e0"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M3-compatibility.log",
+      "bytes": 63,
+      "sha256": "676c7d109c6513f3563e694bf4c4ed6add017bd19527c49a90a866539d0397b7"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M3-red.log",
+      "bytes": 463,
+      "sha256": "adf881768bcdc861f0bf99be6df6a27885934a9bc4da12fd441ece7bc4d8a665"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-build-final.log",
+      "bytes": 356,
+      "sha256": "baac653c92df8f2413c63815439a05acba556045c421ff02280dd6e269f8f844"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-build.log",
+      "bytes": 362,
+      "sha256": "2e31dba0b0a322a4bc1f0e6b7c0a7f98dd67215e208869c15be8dd8d42a75f23"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-counter-lint.log",
+      "bytes": 10,
+      "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-counter-sync.log",
+      "bytes": 69,
+      "sha256": "6ad572b76c438b29dd1130b607a5134777f50fd0a8ac224211836c4d32b582c0"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-docs-cli.log",
+      "bytes": 108,
+      "sha256": "052681c5a9a6775bd320c10b0663ecbfd342d8ce6d81ded323190dce0a265084"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-final-fmt.log",
+      "bytes": 72,
+      "sha256": "4108c1efe750dfd70696a91528d6d6cca51e9a9f053513621fa4a37c4989e67d"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-generator-structure.log",
+      "bytes": 228,
+      "sha256": "2a1c26bb97da710b43d1b0b5eba0dec7bb41cdfc41381d04acf110f1294e51a9"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-reference-green.log",
+      "bytes": 54,
+      "sha256": "a3dca53cd3ebd7a273f5550a88eabc78857029644d8fb49694bb606dfa9a5a95"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-state-validation.log",
+      "bytes": 1317,
+      "sha256": "9fa879b97ac93c9c65689878c5951cd85bdeacef884b1add740bfb93a253e88d"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-structure.log",
+      "bytes": 924,
+      "sha256": "6214ca5bac4820ef4e4227d5a471de8a59c2d2db37232cdf4a39169c10d9b3ef"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-test-changed-final.log",
+      "bytes": 1403,
+      "sha256": "677026c52ff52131056cf9724f43b018cdc7d7382ef6c0aa1d2ed95af6c98656"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-M4-test-changed.log",
+      "bytes": 77157,
+      "sha256": "95c54751f3b0ea6be22d189fce7d76e493f68b01955c0d426dd5b5ba217ca0a6"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-design-create-search.log",
+      "bytes": 2425,
+      "sha256": "0c2a830084a05408b3fa3bed3b7440ac969b0347272341ceb01d8c4a6dc9d879"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-dev-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-execution-start-validation.log",
+      "bytes": 1317,
+      "sha256": "9fa879b97ac93c9c65689878c5951cd85bdeacef884b1add740bfb93a253e88d"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-planner-validation.log",
+      "bytes": 1317,
+      "sha256": "9fa879b97ac93c9c65689878c5951cd85bdeacef884b1add740bfb93a253e88d"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1965-planner-velocity-script.log",
+      "bytes": 2718,
+      "sha256": "aed9d17fdac88c81590917dd9dd00f9b0740e86668e37d71e04a388abedee0e4"
+    }
+  ],
+  "checkpoints": {
+    "approval_bank": "a33ee6bf0",
+    "M1": "9eee44912",
+    "M2": "3630ec86c",
+    "M3": "5a1a21267",
+    "reference_docs": "804502687",
+    "integrated_build": "e9889a284ac4955768ccbcfaea01eea52edcb36b",
+    "final": "50ca373aeacd6b74ffce573d1892cf2dd4211e32",
+    "completion_metadata": "50ca373aeacd6b74ffce573d1892cf2dd4211e32"
+  },
+  "local_gates": {
+    "build": "1965-M4-build-final.log PASS; stamp e988; final production bytes equal",
+    "changed_core": "1965-M4-test-changed-final.log PASS; cmd203.543s/github3.890s/all20core",
+    "final_test_delta": "Atomic counter reads only;1965-M4-counter-sync.log backend3.373sPASS +counter-lint0/final-fmtPASS",
+    "compatibility": "1965-M3-compatibility.log PASS0.425s",
+    "structure": "1965-M4-structure.log PASS; generator change refreshed lint/fmt/sizes1965-M4-generator-structure.log",
+    "state": "1965-M4-state-validation.log PASS"
+  },
+  "provenance_limits": [
+    "Initial affected gate failed own generated-reference drift, corrected via existing generator; raw failure preserved",
+    "Pre-guard M3 counterfactual restores only three exact dev files, not whole-binary source equivalence",
+    "Final integration adds accepted runner test/design/state only; no runner gate claimed by executor",
+    "No product .ail edits, no full make test, no unrelated authority/policy/schema/timeout/source changes",
+    "No coordinator/card/message/import/ack/provider actions; root owns independent acceptance/merge/issue disposition"
+  ],
+  "pr": "https://github.com/sunholo-data/ailang/pull/2017",
+  "previous_source_handoff_head": "75dbd33466e3f76b89590d6620039f561ea821fe",
+  "completion_metadata": {
+    "status": "completed",
+    "completed_at": "2026-10-29T20:40:39.335207+00:00",
+    "independent_acceptance": "pending",
+    "ci_status": "pending",
+    "source_identity": "All Go/AIL/go.mod/go.sum byte-identical to75dbd33466e3f76b89590d6620039f561ea821fe. Diff exactly own sprint JSON + companion plan. No tests or full local suite rerun.",
+    "ci_qualification": "Previous75db checks are not final-head checks. New exact metadata head must complete actual required CI; initial snapshot1965-completion-metadata-ci.json."
+  }
+}

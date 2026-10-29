@@ -1,0 +1,45 @@
+[0;36m🔍 Searching for related design docs...[0m
+
+[1;33mImplemented docs matching "docs search fallback confinement":[0m
+  [0;36m[SimHash - instant][0m
+  1. design_docs/implemented/v0_9_2/m-debug-erasure-release-mode.md (1.00)
+  2. design_docs/implemented/v0_15_0/m-supply-chain-hardening-2-sprint-plan.md (0.95)
+  3. design_docs/implemented/v0_26_0/m-eval-os-continuous-rotation.md (0.90)
+  [0;36m[Neural - semantic matching][0m
+  1. design_docs/implemented/v0_26_0/m-embed-task-prefix.md (0.30)
+  2. design_docs/implemented/v0_24_0/m-eval-prompt-delivery.md (0.27)
+  3. design_docs/implemented/v0_31_0/m-eval-fmt-weakmodel-ab-M4-verdict.md (0.27)
+
+[1;33mPlanned docs matching "docs search fallback confinement":[0m
+  [0;36m[SimHash - instant][0m
+  1. design_docs/planned/docparse-billing/responsibility-multivac.md (1.00)
+  2. design_docs/planned/m-mission-heartbeat-driver-root-sprint-plan.md (0.95)
+  3. design_docs/planned/v1_1_0/m-agent-loop-architecture.md (0.90)
+  [0;36m[Neural - semantic matching][0m
+  1. design_docs/planned/m-mission-heartbeat-driver-root-sprint-plan.md (0.28)
+  2. design_docs/planned/m-mission-heartbeat-driver-root.md (0.27)
+  3. design_docs/planned/v1_0_0/m-mission-slot-heartbeat-sprint-plan.md (0.27)
+
+[0;36mℹ Related docs found above - review them after creation if needed.[0m
+
+[0;32m✓ Created design document:[0m
+  /private/tmp/ailang-backlog-20261029/docs-search-confinement-1965/design_docs/planned/v0_56_0/m-docs-search-fallback-confinement.md
+
+[0;36mVersion context:[0m
+  Current AILANG: v0.55.0
+  Next version:   v0_55_1
+  Doc target:     v0_56_0
+
+[0;32mNext steps:[0m
+  1. Edit /private/tmp/ailang-backlog-20261029/docs-search-confinement-1965/design_docs/planned/v0_56_0/m-docs-search-fallback-confinement.md to fill in the template
+  2. Replace [placeholders] with actual content
+  3. Commit when ready: git add /private/tmp/ailang-backlog-20261029/docs-search-confinement-1965/design_docs/planned/v0_56_0/m-docs-search-fallback-confinement.md
+
+[1;33mKey sections to fill:[0m
+  - High-Impact Decisions: name the actual choices, who decides, change cost
+  - Design Freeze: check off decisions before sprint-executor starts
+  - Deferred Decisions: grant agent latitude (separate from Non-Goals)
+  - Axiom Compliance: score all 12, net ≥ +2, no -1 on A1/A3/A4/A7
+
+---
+DESIGN_DOC_PATH: design_docs/planned/v0_56_0/m-docs-search-fallback-confinement.md

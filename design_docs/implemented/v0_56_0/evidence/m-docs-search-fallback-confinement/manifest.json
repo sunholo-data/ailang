@@ -1,0 +1,368 @@
+{
+  "sprint_id": "M-DOCS-SEARCH-FALLBACK-CONFINEMENT",
+  "accepted_merge": "1cfaedbf2170e5c3260c5207c7c82823bd51032f",
+  "evaluated_head": "50ca373aeacd6b74ffce573d1892cf2dd4211e32",
+  "evaluation_authority": "Root independent final evaluator, not implementation author/archiver",
+  "release_status": "unreleased",
+  "frozen_artifacts": [
+    {
+      "logical_path": "independent/acceptance-automated.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/acceptance-automated.log",
+      "bytes": 16903,
+      "sha256": "99c98e2b2500e1f9655dfcc024b5c35ae41cafc7577a277c07d413873fa51824",
+      "copied_verbatim": true,
+      "path": "independent/acceptance-automated.log"
+    },
+    {
+      "logical_path": "independent/acceptance-comment.md",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/acceptance-comment.md",
+      "bytes": 853,
+      "sha256": "080572b93f0919b96c8c778748b13f52eb67064922b791192adb288dd291c762",
+      "copied_verbatim": true,
+      "path": "independent/acceptance-comment.md"
+    },
+    {
+      "logical_path": "independent/acceptance-matrix-final.json",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/acceptance-matrix-final.json",
+      "bytes": 10712,
+      "sha256": "54f8266704fc6a74c0fb2eabb92faf7bc961d8f61f491644baa9e3817e5b845f",
+      "copied_verbatim": true,
+      "path": "independent/acceptance-matrix-final.json"
+    },
+    {
+      "logical_path": "independent/automated-evaluation.json",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/automated-evaluation.json",
+      "bytes": 545,
+      "sha256": "e18e5bf4b6ab18bacfafa2934ca7314ca5f827c4a9027546f135010b08912cf9",
+      "copied_verbatim": true,
+      "path": "independent/automated-evaluation.json"
+    },
+    {
+      "logical_path": "independent/automated-evaluation.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/automated-evaluation.log",
+      "bytes": 3006,
+      "sha256": "2dcc63fa80b53ba22421128ec95eac3725204e43d539e9df8c4f3193faf2802b",
+      "copied_verbatim": true,
+      "path": "independent/automated-evaluation.log"
+    },
+    {
+      "logical_path": "independent/eval_M-DOCS-SEARCH-FALLBACK-CONFINEMENT_round_1.json",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/eval_M-DOCS-SEARCH-FALLBACK-CONFINEMENT_round_1.json",
+      "bytes": 3048,
+      "sha256": "472a283014ac4f2ff64f5b4d3c754b43f3a7eafe81ac1e3085c11681be2a3d3c",
+      "copied_verbatim": true,
+      "path": "independent/eval_M-DOCS-SEARCH-FALLBACK-CONFINEMENT_round_1.json"
+    },
+    {
+      "logical_path": "independent/eval_M-DOCS-SEARCH-FALLBACK-CONFINEMENT_round_1.md",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/eval_M-DOCS-SEARCH-FALLBACK-CONFINEMENT_round_1.md",
+      "bytes": 1350,
+      "sha256": "601830b4d6a34b0a1c483fcc62c77817d0b760e9c144d492b67590fc9d562814",
+      "copied_verbatim": true,
+      "path": "independent/eval_M-DOCS-SEARCH-FALLBACK-CONFINEMENT_round_1.md"
+    },
+    {
+      "logical_path": "independent/functions-over50.json",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/functions-over50.json",
+      "bytes": 825,
+      "sha256": "2ae701cded1f17e4ffbfa4cd625d5d65e1266a32751c8a24ee1b970c0a2a256d",
+      "copied_verbatim": true,
+      "path": "independent/functions-over50.json"
+    },
+    {
+      "logical_path": "independent/inline-comments.json",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/inline-comments.json",
+      "bytes": 2,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "copied_verbatim": true,
+      "path": "independent/inline-comments.json"
+    },
+    {
+      "logical_path": "independent/issue-comments.json",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/issue-comments.json",
+      "bytes": 2,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "copied_verbatim": true,
+      "path": "independent/issue-comments.json"
+    },
+    {
+      "logical_path": "independent/pr2017-final.json",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/pr2017-final.json",
+      "bytes": 8278,
+      "sha256": "bd5406602360eea457200fce3c27a0c97385bd2a2abe58fc0a704e85bd3f481f",
+      "copied_verbatim": true,
+      "path": "independent/pr2017-final.json"
+    },
+    {
+      "logical_path": "independent/reviews.json",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-independent-final/reviews.json",
+      "bytes": 2,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "copied_verbatim": true,
+      "path": "independent/reviews.json"
+    },
+    {
+      "logical_path": "executor/1965-final-executor-handoff.json",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-final-executor-handoff.json",
+      "bytes": 10851,
+      "sha256": "c9d36f6ed091e7898953c290dabdc81a2837be0c16f876916ecc86d3ceba5a8b",
+      "copied_verbatim": true,
+      "path": "executor/1965-final-executor-handoff.json"
+    },
+    {
+      "logical_path": "executor/1965-M1-boundaries.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M1-boundaries.log",
+      "bytes": 110,
+      "sha256": "fa3800ac30a4698ec15076037a27f0afc619cf4013b44af3222a50537c26a5a4",
+      "copied_verbatim": true,
+      "path": "executor/1965-M1-boundaries.log"
+    },
+    {
+      "logical_path": "executor/1965-M1-green.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M1-green.log",
+      "bytes": 69,
+      "sha256": "3debb65522c75ecba2d2db0ddaf015af8e265cd710ae658da8cf7747bf605d73",
+      "copied_verbatim": true,
+      "path": "executor/1965-M1-green.log"
+    },
+    {
+      "logical_path": "executor/1965-M1-lint.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M1-lint.log",
+      "bytes": 76,
+      "sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f",
+      "copied_verbatim": true,
+      "path": "executor/1965-M1-lint.log"
+    },
+    {
+      "logical_path": "executor/1965-M1-red.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M1-red.log",
+      "bytes": 779,
+      "sha256": "eb31a4573005ab4b8038aab1be69b254a1c2c42bd23ec3b5911974a0c4db7f57",
+      "copied_verbatim": true,
+      "path": "executor/1965-M1-red.log"
+    },
+    {
+      "logical_path": "executor/1965-M2-build.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M2-build.log",
+      "bytes": 362,
+      "sha256": "96a68dbb1560c5110c20d49276517dd3cdb284e9bd69b5420f5b4b96234fd14c",
+      "copied_verbatim": true,
+      "path": "executor/1965-M2-build.log"
+    },
+    {
+      "logical_path": "executor/1965-M2-green.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M2-green.log",
+      "bytes": 506,
+      "sha256": "53bf4d644075dcf311735e7638b0d4a5d36a4254f4138d3d2e18bf36c564f071",
+      "copied_verbatim": true,
+      "path": "executor/1965-M2-green.log"
+    },
+    {
+      "logical_path": "executor/1965-M2-red.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M2-red.log",
+      "bytes": 847,
+      "sha256": "de8062296f5eaf980686dfcd5142f42397210c9e0360fc9fe434c553190005da",
+      "copied_verbatim": false,
+      "storage_encoding": "base64-json",
+      "stored_bytes": 1425,
+      "stored_sha256": "20b73418ab2b61b6a21b0e7a0bf16e99ab72615e5c66421d74b6bfb81d28bca6",
+      "path": "executor/1965-M2-red.log.base64.json"
+    },
+    {
+      "logical_path": "executor/1965-M2M3-green.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M2M3-green.log",
+      "bytes": 55,
+      "sha256": "c5c1a7846807b88b2b2c211eff09b783afc2735bb43b9ce79516eaffe125c6e0",
+      "copied_verbatim": true,
+      "path": "executor/1965-M2M3-green.log"
+    },
+    {
+      "logical_path": "executor/1965-M3-compatibility.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M3-compatibility.log",
+      "bytes": 63,
+      "sha256": "676c7d109c6513f3563e694bf4c4ed6add017bd19527c49a90a866539d0397b7",
+      "copied_verbatim": true,
+      "path": "executor/1965-M3-compatibility.log"
+    },
+    {
+      "logical_path": "executor/1965-M3-red.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M3-red.log",
+      "bytes": 463,
+      "sha256": "adf881768bcdc861f0bf99be6df6a27885934a9bc4da12fd441ece7bc4d8a665",
+      "copied_verbatim": false,
+      "storage_encoding": "base64-json",
+      "stored_bytes": 913,
+      "stored_sha256": "efeff871498336cdb6aede8ce83f7f9b165a5fb552ddd75d8feacb1d94559261",
+      "path": "executor/1965-M3-red.log.base64.json"
+    },
+    {
+      "logical_path": "executor/1965-M4-build-final.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-build-final.log",
+      "bytes": 356,
+      "sha256": "baac653c92df8f2413c63815439a05acba556045c421ff02280dd6e269f8f844",
+      "copied_verbatim": true,
+      "path": "executor/1965-M4-build-final.log"
+    },
+    {
+      "logical_path": "executor/1965-M4-build.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-build.log",
+      "bytes": 362,
+      "sha256": "2e31dba0b0a322a4bc1f0e6b7c0a7f98dd67215e208869c15be8dd8d42a75f23",
+      "copied_verbatim": true,
+      "path": "executor/1965-M4-build.log"
+    },
+    {
+      "logical_path": "executor/1965-M4-counter-lint.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-counter-lint.log",
+      "bytes": 10,
+      "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "copied_verbatim": true,
+      "path": "executor/1965-M4-counter-lint.log"
+    },
+    {
+      "logical_path": "executor/1965-M4-counter-sync.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-counter-sync.log",
+      "bytes": 69,
+      "sha256": "6ad572b76c438b29dd1130b607a5134777f50fd0a8ac224211836c4d32b582c0",
+      "copied_verbatim": true,
+      "path": "executor/1965-M4-counter-sync.log"
+    },
+    {
+      "logical_path": "executor/1965-M4-docs-cli.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-docs-cli.log",
+      "bytes": 108,
+      "sha256": "052681c5a9a6775bd320c10b0663ecbfd342d8ce6d81ded323190dce0a265084",
+      "copied_verbatim": true,
+      "path": "executor/1965-M4-docs-cli.log"
+    },
+    {
+      "logical_path": "executor/1965-M4-final-fmt.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-final-fmt.log",
+      "bytes": 72,
+      "sha256": "4108c1efe750dfd70696a91528d6d6cca51e9a9f053513621fa4a37c4989e67d",
+      "copied_verbatim": true,
+      "path": "executor/1965-M4-final-fmt.log"
+    },
+    {
+      "logical_path": "executor/1965-M4-generator-structure.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-generator-structure.log",
+      "bytes": 228,
+      "sha256": "2a1c26bb97da710b43d1b0b5eba0dec7bb41cdfc41381d04acf110f1294e51a9",
+      "copied_verbatim": true,
+      "path": "executor/1965-M4-generator-structure.log"
+    },
+    {
+      "logical_path": "executor/1965-M4-reference-green.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-reference-green.log",
+      "bytes": 54,
+      "sha256": "a3dca53cd3ebd7a273f5550a88eabc78857029644d8fb49694bb606dfa9a5a95",
+      "copied_verbatim": true,
+      "path": "executor/1965-M4-reference-green.log"
+    },
+    {
+      "logical_path": "executor/1965-M4-state-validation.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-state-validation.log",
+      "bytes": 1317,
+      "sha256": "9fa879b97ac93c9c65689878c5951cd85bdeacef884b1add740bfb93a253e88d",
+      "copied_verbatim": true,
+      "path": "executor/1965-M4-state-validation.log"
+    },
+    {
+      "logical_path": "executor/1965-M4-structure.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-structure.log",
+      "bytes": 924,
+      "sha256": "6214ca5bac4820ef4e4227d5a471de8a59c2d2db37232cdf4a39169c10d9b3ef",
+      "copied_verbatim": true,
+      "path": "executor/1965-M4-structure.log"
+    },
+    {
+      "logical_path": "executor/1965-M4-test-changed-final.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-test-changed-final.log",
+      "bytes": 1403,
+      "sha256": "677026c52ff52131056cf9724f43b018cdc7d7382ef6c0aa1d2ed95af6c98656",
+      "copied_verbatim": true,
+      "path": "executor/1965-M4-test-changed-final.log"
+    },
+    {
+      "logical_path": "executor/1965-M4-test-changed.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-M4-test-changed.log",
+      "bytes": 77157,
+      "sha256": "95c54751f3b0ea6be22d189fce7d76e493f68b01955c0d426dd5b5ba217ca0a6",
+      "copied_verbatim": false,
+      "storage_encoding": "base64-json",
+      "stored_bytes": 103189,
+      "stored_sha256": "5ec4aec7e42fb4d5189f9a7f1e8939b208b7a966033d18c183b450cc8c6493ea",
+      "path": "executor/1965-M4-test-changed.log.base64.json"
+    },
+    {
+      "logical_path": "executor/1965-design-create-search.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-design-create-search.log",
+      "bytes": 2425,
+      "sha256": "0c2a830084a05408b3fa3bed3b7440ac969b0347272341ceb01d8c4a6dc9d879",
+      "copied_verbatim": true,
+      "path": "executor/1965-design-create-search.log"
+    },
+    {
+      "logical_path": "executor/1965-dev-build.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-dev-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "copied_verbatim": true,
+      "path": "executor/1965-dev-build.log"
+    },
+    {
+      "logical_path": "executor/1965-execution-start-validation.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-execution-start-validation.log",
+      "bytes": 1317,
+      "sha256": "9fa879b97ac93c9c65689878c5951cd85bdeacef884b1add740bfb93a253e88d",
+      "copied_verbatim": true,
+      "path": "executor/1965-execution-start-validation.log"
+    },
+    {
+      "logical_path": "executor/1965-planner-validation.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-planner-validation.log",
+      "bytes": 1317,
+      "sha256": "9fa879b97ac93c9c65689878c5951cd85bdeacef884b1add740bfb93a253e88d",
+      "copied_verbatim": true,
+      "path": "executor/1965-planner-validation.log"
+    },
+    {
+      "logical_path": "executor/1965-planner-velocity-script.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-planner-velocity-script.log",
+      "bytes": 2718,
+      "sha256": "aed9d17fdac88c81590917dd9dd00f9b0740e86668e37d71e04a388abedee0e4",
+      "copied_verbatim": true,
+      "path": "executor/1965-planner-velocity-script.log"
+    },
+    {
+      "logical_path": "executor/manifest.json",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-counterfactual/manifest.json",
+      "bytes": 1422,
+      "sha256": "22a5e3e72922f88e97eaa10c1ffcf5a0d9b8416af132445e839df66e7a9fe8ab",
+      "copied_verbatim": true,
+      "path": "executor/manifest.json"
+    },
+    {
+      "logical_path": "executor/overlay.json",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-counterfactual/overlay.json",
+      "bytes": 528,
+      "sha256": "4e41010f344a0a983eff98b296d4ea3f8ca96397bd509875f0f971479f8b67b2",
+      "copied_verbatim": true,
+      "path": "executor/overlay.json"
+    },
+    {
+      "logical_path": "executor/1965-completion-metadata-validation.log",
+      "original_path": "/tmp/ailang-backlog-20261029/1965-completion-metadata-validation.log",
+      "bytes": 1317,
+      "sha256": "9fa879b97ac93c9c65689878c5951cd85bdeacef884b1add740bfb93a253e88d",
+      "copied_verbatim": true,
+      "path": "executor/1965-completion-metadata-validation.log"
+    }
+  ],
+  "storage_summary": {
+    "logical_artifacts": 43,
+    "verbatim": 40,
+    "lossless_base64_json": 3
+  },
+  "qualification": "Root independent report pair and all frozen originals retain exact logical bytes. Any raw log with original whitespace uses a transparent lossless base64 JSON wrapper; no data normalization or whitespace policy change. Absolute local paths and original planned/gate wording in frozen records are historical to recorded source/head, not current archive layout."
+}

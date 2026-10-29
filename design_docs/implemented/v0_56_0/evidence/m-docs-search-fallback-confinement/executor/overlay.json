@@ -1,0 +1,7 @@
+{
+  "Replace": {
+    "/private/tmp/ailang-backlog-20261029/docs-search-confinement-1965/internal/docsearch/github/github.go": "/tmp/ailang-backlog-20261029/1965-counterfactual/github.go",
+    "/private/tmp/ailang-backlog-20261029/docs-search-confinement-1965/internal/docsearch/github/cache.go": "/tmp/ailang-backlog-20261029/1965-counterfactual/cache.go",
+    "/private/tmp/ailang-backlog-20261029/docs-search-confinement-1965/cmd/ailang/docs_search.go": "/tmp/ailang-backlog-20261029/1965-counterfactual/docs_search.go"
+  }
+}

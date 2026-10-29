@@ -1,0 +1,149 @@
+[
+  {
+    "feature": "M1_GITHUB_AUTHORITY_BOUNDARIES",
+    "criterion_index": 1,
+    "criterion": "Failing-first direct constructor controls with absent and dummy-present token return pkg.ConfinedError/AuthNetwork before config/helper/repository work; positive fake gh/git instruments are observed safely unconfined",
+    "status": "verified-met",
+    "evidence": "TestDocsConfinementConstructorBeforeHelpers and source Require before config/gh/git; active unconfined fake helpers, typed absent/dummy-token refusals"
+  },
+  {
+    "feature": "M1_GITHUB_AUTHORITY_BOUNDARIES",
+    "criterion_index": 2,
+    "criterion": "Direct Search on preconstructed, test-constructor and manually populated Backend refuses before token/repo validation or cache access, including a previously proved valid cache hit; no success/empty fallback or nil-client panic",
+    "status": "verified-met",
+    "evidence": "TestDocsConfinementSearchAndCache proves valid prior cache hit then preconstructed/empty/nil-client/test backend typed refusal; guard order before cache verified directly"
+  },
+  {
+    "feature": "M1_GITHUB_AUTHORITY_BOUNDARIES",
+    "criterion_index": 3,
+    "criterion": "Counted loopback HTTP/pagination succeeds unconfined; changing policy after page1 prevents page2 at the actual HTTP boundary with typed refusal and zero second request",
+    "status": "verified-met",
+    "evidence": "TestDocsConfinementHTTPAndWriteTransitions pagination: first allowed request installs policy, exactly one request and typed network refusal"
+  },
+  {
+    "feature": "M1_GITHUB_AUTHORITY_BOUNDARIES",
+    "criterion_index": 4,
+    "criterion": "Direct writeCache returns typed AuthHomeWrite before HOME resolution/directory/temp/rename; unconfined write/read succeeds, then full private HOME/XDG snapshots remain unchanged confined",
+    "status": "verified-met",
+    "evidence": "TestDocsConfinementSearchAndCache direct write including empty HOME: typed HomeWrite before path; complete private state hash snapshot unchanged"
+  },
+  {
+    "feature": "M1_GITHUB_AUTHORITY_BOUNDARIES",
+    "criterion_index": 5,
+    "criterion": "Late policy change after allowed HTTP but before cache persistence propagates typed home-write refusal from Search; ordinary unconfined cache write failure remains best-effort",
+    "status": "verified-met",
+    "evidence": "HTTPAndWriteTransitions cache-write gives typed refusal; ordinary-write-error keeps successful response and state unchanged"
+  },
+  {
+    "feature": "M1_GITHUB_AUTHORITY_BOUNDARIES",
+    "criterion_index": 6,
+    "criterion": "Existing authenticated request/pagination, repo-default/refusal, token-safe error and cache hit/expiry/isolation tests pass; internal/pkg authority semantics and local SimHash/neural sources remain zero-diff; focused package tests/lint/boundaries pass",
+    "status": "verified-met",
+    "evidence": "Exact-head Linux/Windows test/build green; unchanged pkg authority/local SimHash/neural/policytool diff independently checked"
+  },
+  {
+    "feature": "M2_ACTUAL_CLI_AND_SAFE_HINTS",
+    "criterion_index": 1,
+    "criterion": "Fresh make-built real CLI outside all corpus discovery paths fails with canonical confinement refusal for token-absent and dummy-token-present arms; fake gh/git counters and loopback request counters remain zero",
+    "status": "verified-met",
+    "evidence": "TestDocsSearch_ConfinementActualCLI actual built CLI absent/dummy-token canonical refusal and unchanged helper/proxy/state counters"
+  },
+  {
+    "feature": "M2_ACTUAL_CLI_AND_SAFE_HINTS",
+    "criterion_index": 2,
+    "criterion": "Unconfined helper positives and a deny-CONNECT loopback proxy are proved active before negative assertions; clear both cases of NO_PROXY/proxy-bypass variables and strip ambient trace/export project/endpoints so no real GitHub or Cloud Trace call occurs",
+    "status": "verified-met",
+    "evidence": "proveInstruments active fake gh/git and deny CONNECT proxy; fixture clears proxy aliases/bypasses and Google/OTEL export environment"
+  },
+  {
+    "feature": "M2_ACTUAL_CLI_AND_SAFE_HINTS",
+    "criterion_index": 3,
+    "criterion": "Explicit and auto-discovered local SimHash searches succeed under confinement with parseable existing JSON and unchanged result path/title/order semantics, corpus and full private HOME/XDG state; zero helper/request counts",
+    "status": "verified-met",
+    "evidence": "ConfinementLocalAndDisabled actual explicit/discovered local result equality (title/path/score), complete snapshots and original StillDesignDocSimHash pass"
+  },
+  {
+    "feature": "M2_ACTUAL_CLI_AND_SAFE_HINTS",
+    "criterion_index": 4,
+    "criterion": "Invalid explicit path remains a local path error; --no-github and AILANG_NO_GITHUB_SEARCH preserve local failure and safe local/operator remedy; confined failures never suggest GITHUB_TOKEN, gh auth login or unsetting disable controls",
+    "status": "verified-met",
+    "evidence": "ActualCLI/LocalAndDisabled asserts safe refusal hints, invalid explicit path and both disable modes; source keeps ordinary unconfined auth hints"
+  },
+  {
+    "feature": "M2_ACTUAL_CLI_AND_SAFE_HINTS",
+    "criterion_index": 5,
+    "criterion": "Unconfined authentication hints and existing TestDocsSearch_StillDesignDocSimHash remain valid; no production transport/config/flag/error-envelope change or explicit neural/cache-management claim",
+    "status": "verified-met",
+    "evidence": "Zero production policytool/local search/neural/config/transport diff; only GitHub authority and CLI hint paths"
+  },
+  {
+    "feature": "M2_ACTUAL_CLI_AND_SAFE_HINTS",
+    "criterion_index": 6,
+    "criterion": "Portable Go helper executables use filepath/.exe and existing bounded build/CLI utilities; all new authority assertions run on Windows with no POSIX-only blanket skip; focused CLI tests and lint pass",
+    "status": "verified-met",
+    "evidence": "Portable Go helper .exe/filepath; no new Windows skip, actual test-windows and all build jobs green"
+  },
+  {
+    "feature": "M3_REAL_POLICY_TOOL_CHILD",
+    "criterion_index": 1,
+    "criterion": "Actual policy-tool --policy/--request-file invokes its actual ailang child for docs_search with parent policy environment absent; no mocked runner; missing-corpus refusal proves child received pinned policy with zero helper/proxy side effects",
+    "status": "verified-met",
+    "evidence": "ConfinementActualPolicyTool calls actual binary with --policy/--request-file, parent marker empty; real child refused with unchanged private state and helpers/proxy"
+  },
+  {
+    "feature": "M3_REAL_POLICY_TOOL_CHILD",
+    "criterion_index": 2,
+    "criterion": "Preserve process/child distinction: policy-tool process exits0 with a valid response, OK=false/child exit nonzero and canonical stderr on refusal; allowed local SimHash response is OK=true/child exit0 with parseable existing stdout JSON",
+    "status": "verified-met",
+    "evidence": "Actual tool process exit0 parses existing response JSON; child OK=false/nonzero versus local OK=true/zero parsed local stdout"
+  },
+  {
+    "feature": "M3_REAL_POLICY_TOOL_CHILD",
+    "criterion_index": 3,
+    "criterion": "Existing exact-one-child-policy unit contract, docs_search json/limit allow-list, unknown/neural flag rejection and output caps remain unchanged; no new credential admission or production policytool edits",
+    "status": "verified-met",
+    "evidence": "Actual policytool json/limit response and unknown/neural/path rejection; preserved compatibility log0.425s and zero production policytool diff"
+  },
+  {
+    "feature": "M3_REAL_POLICY_TOOL_CHILD",
+    "criterion_index": 4,
+    "criterion": "Use minimal TOML policy and ordinary directories without symlinks; do not call Windows-skipping writePolicyFixture or policytool.newFixture. Real local success/refusal and complete private HOME/XDG/corpus snapshots execute on Linux/macOS/Windows; focused tool/CLI tests pass",
+    "status": "verified-met",
+    "evidence": "Ordinary TOML/directories avoid old Windows-skip fixtures; real Windows test job passed"
+  },
+  {
+    "feature": "M4_DOCS_GATES_AND_HANDOFF",
+    "criterion_index": 1,
+    "criterion": "CLI reference, semantic-search guide, SECURITY.md and correctly headed unreleased fragment describe GitHub backend refusal before credentials/cache/HTTP, local/operator remedy and preserved local SimHash; explicit neural/cache management remain separately scoped",
+    "status": "verified-met",
+    "evidence": "Reviewed SECURITY/semantic guide/reference generator and regenerated page/unreleased fragment accurately scope GitHub denial and local/operator remedy"
+  },
+  {
+    "feature": "M4_DOCS_GATES_AND_HANDOFF",
+    "criterion_index": 2,
+    "criterion": "One consolidated make build then make test-changed plus required focused policy-tool compatibility tests passes; lint/boundaries/home-isolation/file-size/fmt/changelog checks pass with unchanged deadlines and thresholds, no full local make test",
+    "status": "verified-met",
+    "evidence": "Verified hashes of build/affected+20core/lint/boundaries/home/sizes/fmt/changelog logs; actual all27 CI green/skipped; no full local evaluator suite repeated"
+  },
+  {
+    "feature": "M4_DOCS_GATES_AND_HANDOFF",
+    "criterion_index": 3,
+    "criterion": "Authority/source-order evidence maps design AC1-AC7 to real tests and counted positive/negative instruments; no live GitHub/token/auth-store use, no silent fallback, no new .ail product/examples or package authority/#1773 edits",
+    "status": "verified-met",
+    "evidence": "Independently read all four guard sites plus actual process/library fixtures; no .ail product edits or source policy/package semantics delta"
+  },
+  {
+    "feature": "M4_DOCS_GATES_AND_HANDOFF",
+    "criterion_index": 4,
+    "criterion": "Final clean immutable source/local gate logs handed to an independent evaluator; separately authorized exact-head PR CI supplies broad Linux/Windows gates; no executor self-score or claim that unexecuted/queued/failed checks passed",
+    "status": "verified-met",
+    "evidence": "18 source and27 raw evidence hashes independently verified; source exact50ca, clean completed JSON and four completed milestones, separate judge"
+  },
+  {
+    "feature": "M4_DOCS_GATES_AND_HANDOFF",
+    "criterion_index": 5,
+    "criterion": "Any unchanged external #1926/#2013 CI blocker is reported with actual evidence, not repaired, retried or bypassed by this scope; preserve operator ownership and root issue/merge disposition",
+    "status": "verified-met",
+    "evidence": "Accepted565 source integrated normally; old generated-reference failure preserved and generator repaired; no own runner edits or coordinator/card operations"
+  }
+]
