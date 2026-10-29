@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.8) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.9) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.8.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.9.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.8.md -->
-<!-- Active Version: v0.16.8 -->
+<!-- Source: prompts/v0.16.9.md -->
+<!-- Active Version: v0.16.9 -->
 
-# AILANG v0.16.8 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.9 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -448,6 +448,7 @@ func twice(f: int -> int, x: int) -> int = f(f(x))
 Calling a function-valued record field performs its annotated effects. Passing a
 function to a higher-order function with an unannotated or effect-polymorphic
 callback parameter also requires the caller to declare the callback’s effects.
+This includes a function stored in a list, tuple, Option or record argument.
 Constructing a record that stores a callback does not perform those effects.
 
 ```ailang

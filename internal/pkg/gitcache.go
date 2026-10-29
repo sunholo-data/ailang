@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -16,15 +15,14 @@ type GitCache struct {
 	baseDir string
 }
 
-// NewGitCache creates a cache rooted at ~/.ailang/cache/git/.
+// NewGitCache returns the cache rooted at ~/.ailang/cache/git/. It creates
+// nothing (#1720): readers such as the loader must not write under HOME, so
+// the directory is only made by ensureClone, behind AuthHomeWrite — the same
+// split #1704 made for the registry cache.
 func NewGitCache() (*GitCache, error) {
-	home, err := os.UserHomeDir()
+	dir, err := UserDir("cache/git")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get home directory: %w", err)
-	}
-	dir := filepath.Join(home, ".ailang", "cache", "git")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create git cache dir: %w", err)
+		return nil, err
 	}
 	return &GitCache{baseDir: dir}, nil
 }
@@ -79,22 +77,31 @@ func (gc *GitCache) CacheDir(gitURL string) string {
 }
 
 // ensureClone clones the repo if not cached, or fetches updates if cached.
+// Both are network operations: pkg.Git refuses them under confinement before
+// anything is created.
 func (gc *GitCache) ensureClone(gitURL, cacheDir, branch string) error {
 	if _, err := os.Stat(filepath.Join(cacheDir, ".git")); err == nil {
 		// Already cloned — fetch updates
 		return gc.fetch(cacheDir, branch)
 	}
+	if err := Require(AuthNetwork, "cloning git dependency "+gitURL, GitRemedy); err != nil {
+		return err
+	}
+	if err := ensureDir(gc.baseDir, "creating the git cache", GitRemedy); err != nil {
+		return err
+	}
 
-	// Fresh clone
+	// Fresh clone; `--` keeps a URL from ever being read as an option.
 	args := []string{"clone"}
 	if branch != "" {
 		args = append(args, "--branch", branch, "--depth", "1")
 	}
-	args = append(args, gitURL, cacheDir)
+	args = append(args, "--", gitURL, cacheDir)
 
-	cmd := exec.Command("git", args...)
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	if _, err := Git("", args...); err != nil {
+		if IsConfinedError(err) {
+			return err
+		}
 		return fmt.Errorf("git clone failed for %s: %w", gitURL, err)
 	}
 	return nil
@@ -104,15 +111,12 @@ func (gc *GitCache) ensureClone(gitURL, cacheDir, branch string) error {
 func (gc *GitCache) fetch(cacheDir, branch string) error {
 	if branch != "" {
 		// Fetch the specific tag/branch and checkout
-		cmd := exec.Command("git", "fetch", "--depth", "1", "origin", "tag", branch, "--force")
-		cmd.Dir = cacheDir
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		if _, err := Git(cacheDir, "fetch", "--depth", "1", "origin", "tag", branch, "--force"); err != nil {
+			if IsConfinedError(err) {
+				return err
+			}
 			// Tag fetch failed — try as branch
-			cmd2 := exec.Command("git", "fetch", "--depth", "1", "origin", branch)
-			cmd2.Dir = cacheDir
-			cmd2.Stderr = os.Stderr
-			if err2 := cmd2.Run(); err2 != nil {
+			if _, err2 := Git(cacheDir, "fetch", "--depth", "1", "origin", branch); err2 != nil {
 				return fmt.Errorf("git fetch failed for %s: %w", branch, err)
 			}
 		}
@@ -123,10 +127,10 @@ func (gc *GitCache) fetch(cacheDir, branch string) error {
 
 // checkout checks out a specific ref.
 func (gc *GitCache) checkout(cacheDir, ref string) error {
-	cmd := exec.Command("git", "checkout", ref)
-	cmd.Dir = cacheDir
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	if _, err := Git(cacheDir, "checkout", ref); err != nil {
+		if IsConfinedError(err) {
+			return err
+		}
 		return fmt.Errorf("git checkout %s failed: %w", ref, err)
 	}
 	return nil
@@ -134,9 +138,7 @@ func (gc *GitCache) checkout(cacheDir, ref string) error {
 
 // revParse returns the current HEAD commit hash.
 func (gc *GitCache) revParse(cacheDir string) (string, error) {
-	cmd := exec.Command("git", "rev-parse", "HEAD")
-	cmd.Dir = cacheDir
-	out, err := cmd.Output()
+	out, err := Git(cacheDir, "rev-parse", "HEAD")
 	if err != nil {
 		return "", fmt.Errorf("git rev-parse HEAD failed: %w", err)
 	}

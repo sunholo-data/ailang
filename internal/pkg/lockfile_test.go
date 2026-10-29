@@ -216,21 +216,6 @@ func TestLockFile_ValidateContentHashes_Detect_Change(t *testing.T) {
 	}
 }
 
-func TestLockFile_ValidateContentHashes_SkipsGit(t *testing.T) {
-	lf := &LockFile{
-		Schema:  LockFileSchema,
-		Version: "1.0.0",
-		Packages: []LockedPackage{
-			{Name: "test/lib", ContentHash: "sha256:fake", Source: "git"},
-		},
-	}
-
-	// Git dependencies retain their existing validation behavior.
-	if err := lf.ValidateContentHashes(); err != nil {
-		t.Errorf("should skip git deps: %v", err)
-	}
-}
-
 // A committed ailang.lock must work on another machine: path dependencies are
 // stored relative to the lock's directory, and content-hash validation and the
 // loader resolve them against it. Kills: reverting portablePathDep to the

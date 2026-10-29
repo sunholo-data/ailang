@@ -50,6 +50,7 @@ type ResolvedPackage struct {
 	Path          string // absolute path for path/git deps
 	GitURL        string // git repo URL (git deps only)
 	GitRev        string // resolved commit hash (git deps only)
+	GitTag        string // manifest tag the rev was resolved from (git deps pinned by tag)
 	GitSubdir     string // path within repo (git deps only)
 	Effects       []string
 	Exports       []string
@@ -59,6 +60,13 @@ type ResolvedPackage struct {
 // rootDir is the directory containing the manifest.
 // Returns resolved packages in topological order.
 func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedPackage, error) {
+	return ResolveDependenciesFrom(manifest, rootDir, nil)
+}
+
+// ResolveDependenciesFrom is ResolveDependencies given the previous lock
+// file (nil when there is none). Under confinement or AILANG_PACKAGE_ROOT a
+// git dependency resolves only by carrying its prev entry forward (#1720 D2).
+func ResolveDependenciesFrom(manifest *PackageManifest, rootDir string, prev *LockFile) ([]ResolvedPackage, error) {
 	rootDir, err := filepath.Abs(rootDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve root dir: %w", err)
@@ -188,14 +196,11 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 					resolvedSet[depName] = depManifest.Package.Version
 				}
 			} else if dep.Git != "" {
-				// Git dependency — clone/fetch to cache, resolve to local path
-				cache, err := NewGitCache()
+				// Git dependency — clone/fetch to cache, or (confined / package
+				// root) carry the provisioned copy forward with no git at all.
+				localPath, resolvedRev, err := resolveGitSource(depName, dep, prev)
 				if err != nil {
-					return fmt.Errorf("failed to init git cache: %w", err)
-				}
-				localPath, resolvedRev, err := cache.Resolve(dep.Git, dep.Tag, dep.Rev, dep.Subdir)
-				if err != nil {
-					return fmt.Errorf("failed to resolve git dep %s: %w", depName, err)
+					return err
 				}
 
 				depManifest, err := LoadManifest(localPath)
@@ -238,6 +243,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						// Path omitted — resolved at runtime from GitURL (portable lock file)
 						GitURL:    dep.Git,
 						GitRev:    resolvedRev,
+						GitTag:    gitTag(dep),
 						GitSubdir: dep.Subdir,
 						Effects:   depManifest.Effects.Max,
 						Exports:   depManifest.Exports.Modules,

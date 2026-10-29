@@ -81,5 +81,13 @@ func (tc *CoreTypeChecker) resolvedCallbackMask(typ Type) []bool {
 	for i, p := range fn.Params {
 		resolved.Params[i] = tc.effectAliasHead(p)
 	}
-	return callbackMask(&resolved)
+	mask := callbackMask(&resolved)
+	// #1718: a parameter that nests an open arrow in a data position (list,
+	// tuple, Option, record, alias) is a hand-off just like a top-level one.
+	for i, p := range resolved.Params {
+		if !mask[i] && tc.nestedLatentMask(p) {
+			mask[i] = true
+		}
+	}
+	return mask
 }

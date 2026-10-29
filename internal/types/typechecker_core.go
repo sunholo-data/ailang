@@ -435,7 +435,7 @@ func (tc *CoreTypeChecker) SetLetTypeAnnotations(annots map[uint64]Type) {
 
 // InferWithConstraints infers type with constraints for a Core expression
 // Returns: typed expression, updated env, qualified type, constraints, error
-func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, *TypeEnv, Type, []Constraint, error) {
+func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, *TypeEnv, Type, []Constraint, error) {
 	// M-BUGFIX: Create unifier with alias environment for type alias expansion
 	var unifier *Unifier
 	if len(tc.aliasEnv) > 0 || len(tc.aliasCaptures) > 0 {
@@ -585,7 +585,7 @@ func (tc *CoreTypeChecker) CheckCoreProgram(prog *core.Program) (*typedast.Typed
 }
 
 // CheckCoreExpr type checks a Core expression (exported for testing)
-func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, *TypeEnv, error) {
+func (tc *CoreTypeChecker) checkCoreExpr(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, *TypeEnv, error) {
 	ctx := NewInferenceContext()
 	ctx.env = env
 	ctx.freshCounter = tc.inferFreshCounter // M-TVAR-COLLISION-FIX: Use persistent counter

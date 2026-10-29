@@ -121,7 +121,7 @@ The `examples/asset_path.ail` shipped with this release uses a non-existent pack
 - [`std/extension.requireWorkdirFile`](./std-extension) — companion helper for extensions whose assets live in the consumer's workdir rather than the package itself.
 - [v0.19.0 changelog entry](https://github.com/sunholo-data/ailang/blob/dev/changelogs/v0.18-v0.25-eval-harness.md) — full v0.19.0 release notes.
 
-## Registry module resolution and confinement
+## Registry and git module resolution and confinement
 
 For `import pkg/...` module resolution and `ailang pkg-docs`, hosts can set
 `AILANG_PACKAGE_ROOT` to a read-only registry snapshot containing
@@ -149,3 +149,28 @@ selected root or HOME cache. A mismatch makes `ailang check` exit non-zero in
 this release, with no deprecation window; missing registry content also fails.
 Path dependency drift continues to warn. Operators should regenerate a lock
 only after verifying and provisioning the intended package content.
+
+### Git dependencies
+
+A git dependency's directory is resolved in this order:
+
+1. `AILANG_PACKAGE_ROOT` set: `<root>/<vendor>/<name>/<version>` only (the
+   registry layout), with no HOME fallback. Provision it by copying the
+   operator's clone (without `.git`) there.
+2. Otherwise: the URL-keyed clone `~/.ailang/cache/git/<sha256(url)[:16]>`,
+   plus `subdir`.
+3. Otherwise (locks from older releases): the lock's recorded `path`.
+
+Git `.ail` content is verified against the lock's `content_hash` exactly like
+registry content, and a mismatch or a missing clone is fatal at `ailang check`.
+The clone is shared by every project that names the same URL, so two projects
+pinning different tags of one repository now report drift ("run 'ailang lock'")
+instead of compiling against whichever tag was checked out last.
+
+Under `AILANG_AGENT_POLICY`, `ailang lock` never runs git: an entry already
+pinned in `ailang.lock` (same `git_url`, `git_tag` or `git_rev`, `git_subdir`)
+whose provisioned copy still matches its hashes is carried forward; anything
+else is refused. Locks now record `git_tag` for tag-pinned dependencies; a lock
+written before this release must be regenerated once outside the sandbox before
+a confined `lock` can carry its git entries forward. Manifest `git`, `tag`,
+`rev` and `subdir` values may not begin with `-`.
