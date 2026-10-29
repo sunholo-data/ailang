@@ -1,0 +1,90 @@
+{
+  "sprint_id": "M-WORKER-PTY-PIDFILE-ACK",
+  "status": "not_started",
+  "created": "2026-10-21T11:14:41.570243+00:00",
+  "design_doc": "design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack.md",
+  "sprint_plan": "design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack-sprint-plan.md",
+  "github_issues": [
+    1892
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Not package-like: existing embedded Python PTY fixture and verification only; registry search not applicable, no dependency introduced."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Not package-like: existing embedded Python PTY fixture and verification only; registry search not applicable, no dependency introduced."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Not package-like: existing embedded Python PTY fixture and verification only; registry search not applicable, no dependency introduced."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 40,
+    "estimated_total_loc": 40,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Refresh current-source race baseline and deduplicate",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Record current revision and deduplication before editing",
+        "Reproduce empty-PID failure with >=200 sequential and >=200 eight-way-concurrent baseline pairs; label controlled scheduling separately if needed",
+        "Stop repair if diagnosis contradicts current source"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Implement and stress complete-PID acknowledgement",
+      "estimated_loc": 25,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Atomic same-directory complete write, close and os.replace publication",
+        "Bounded content reader, PID >1 and exact-PID liveness; unchanged deadlines",
+        "Zero failures over >=200 sequential and >=200 eight-way-concurrent fixed-protocol pairs",
+        "All lifecycle assertions byte-identical; implementation only in internal/runner/worker_terminal_pty_test.go"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Validate PTY lifecycle and record revision-matched evidence",
+      "estimated_loc": 15,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "All 11 PTY cells and eval/sigint count=20 pass without skips",
+        "Sibling terminal and worker-exit lifecycle checks pass unchanged",
+        "make test-changed, lint, fmt-check, check-file-sizes and check-changelog pass; scope conflict reported if fragment required",
+        "Design Verification Log records actual commands, counts, revision and environment",
+        "Exact-fix CI coverage gate measured; status of 18 downstream steps recorded, independent govulncheck attributed separately"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "execution_authorized": false
+}
