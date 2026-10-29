@@ -340,3 +340,13 @@ packages. Lint0, boundaries, home isolation, sizes, changelog and fmt PASS.
 logs and limitations. Exact PR broad Linux/Windows CI and independent evaluation
 remain pending; no executor score or release claim. Checkboxes record local
 acceptance and portability review, not a Windows run before CI.
+
+### Normal accepted-PID integration checkpoint
+
+Actual dev565fc1b (operator PR2016 accepted source2ce) normally merged atcc2c09ca.
+No #1773 product file changed: all21 own Go/AIL files remain byte-identical to
+0853. Fresh selective package/CLI/worker11cell checks pass; see committed
+validation map and session1773-normal-integration-2016 evidence. Prior0853
+independent FAIL75 remains unchanged; new exact-head CI and independent review
+are pending. Root retains merge/issue disposition; no executor score or old CI
+retry. #1900 remains dependent on actual accepted merge of this PR.

@@ -94,3 +94,35 @@ and evidence records. Production scope remains the approved shared rewrite,
 stage assembly, diagnostic propagation and warning. File-set divergence was
 documented; tarball policy, authority, resolution order, JSON schema, timeout
 policy and language semantics remain unchanged.
+
+## Accepted dependency integration (2026-10-29)
+
+Root confirmed operator PR2016 normally merged at
+`565fc1b0461f1408d930df3029a72beef60f7ff1` (20:30:35UTC), accepting
+fixture source2ce4b2f7d. Normal merge into this PR is
+`cc2c09ca808f43d5eabbb8206c83775590fc9e60`, with no conflict. All33 previous
+owned files were byte-identical immediately after merge, including all21 own
+Go/AIL files, and the own-delta path set against accepted dev remained equal.
+Incoming Go diff is only internal/runner/worker_terminal_pty_test.go; fleet
+driver/docs are preserved. Subsequent edits record this evidence only.
+
+Fresh make build stamped fullcc2 source; selective combined-head checks passed:
+internal/pkg10.222s, cmd/ailang10.820s, internal/runner19.027s. Command:
+
+```sh
+GOFLAGS=-p=1 go test ./internal/pkg ./cmd/ailang ./internal/runner \
+  -run '^(TestSmokeStage_|TestPkgSmokeStaging_|TestPkgSmokeDiagnostics_|TestPkgLockShadowWarning_|TestWorkerTerminalPTYLifecycle$)' \
+  -count=1
+```
+
+Logs and identity proof are retained in session
+1773-normal-integration-2016/{build.log,focused.log,identity.json}. No full suite,
+count20/sibling rerun, new product repair, CI rerun, policy change or self-score.
+Separate immutable2ce native11cell/count20/47sibling PASS remains in
+1926-native-validation/report.json. New exact-head broad CI is authoritative
+and independent evaluation remains required.
+
+The prior independent **FAIL75** at0853 from two actual unchanged #1926
+PID-readiness failures remains historical and unmodified. Passing package tests
+did not waive that gate. The new accepted fixture and fresh-head CI must clear
+the blocker; this integration does not retroactively rewrite those failures.
