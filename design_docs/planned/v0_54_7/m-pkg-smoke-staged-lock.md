@@ -1,13 +1,45 @@
 # M-PKG-SMOKE-STAGED-LOCK: stage the *published* view (manifest + lock) for the temp-dir smoke
 
-**Status**: Planned
-**Target**: v0.54.7
-**Priority**: P1 (any monorepo package with a path dependency and a `_smoke.ail` cannot publish — the publish gate is structurally broken for the path-dep workflow the CLI itself promotes)
-**Estimated**: ~1.5–2 days (~450 LOC incl. tests)
-**Dependencies**: None
+**Status**: Design approved (2026-10-29); companion sprint planning authorized; implementation awaits explicit execute instruction
+**Target**: v0.56.0 (unreleased); original target v0.54.7 retained as history
+**Priority**: P1 (a smoke importing a dependency through a portable relative path lock fails isolated staging, blocking the documented monorepo publishing workflow)
+**Estimated**: Historical ~1.5–2 days (~450 LOC incl. tests); re-estimate only during approved sprint planning
+**Dependencies**: Preserve landed package-authority D2 (#1720/#1964) and locked asset snapshots (#1849)
 **Author**: design-doc-creator session (task-98f9f628), from the v0.54.5 user report (macOS arm64, commit 296231d)
 
 ---
+
+## Current-dev Refresh and Ownership (2026-10-29)
+
+Reviewed against actual dev `80793dbcf42423027be4bab1a0088da54e2323d8`.
+The attended user explicitly approved this refreshed design, relayed by root on
+2026-10-29 (approval recorded at11:57:17UTC). The approval covers existing D2
+compatibility, staged asset consistency and diagnostic propagation as preservation
+of approved policies; no new authority or precedence choice was introduced.
+Companion sprint planning is authorized. Implementation, publication, coordinator
+approval/actions and execution handoff remain unauthorized until the user gives
+an explicit execute instruction. This record does not revive the historical
+coordinator task or infer execution approval from the old merged design PR.
+
+The original design was delivered by task `task-98f9f628` through merged
+[design-only PR #1775](https://github.com/sunholo-data/ailang/pull/1775), commit
+`4c89ce659e20f2458516546892142445ba352399` (2026-10-12). The current production
+record for that task says **failed**, despite the merged artifact; its PR body's
+claimed planner trigger is not evidence of a current implementation owner.
+Live issue #1773, current open-PR title/body searches, and all 16 currently active
+production tasks (pending/queued/running/pending_approval) show no staging owner.
+A separate latest-1000-task historical page finds that original design task;
+this is a bounded search, not a claim that no task ever existed. The generic
+#1773 reference in M-AILANG-LANE-EXECUTOR-SHADOW concerns coordinator execution,
+not package-staging implementation.
+
+The original high-impact choices remain: smoke tests the **published registry
+view**, and root-path shadowing is **warning-only**. Passing a validated previous
+git pin to the existing resolver preserves already-approved D2; it introduces no
+new resolution or authority policy. Bounded staging/error diagnostics complete
+the original PUB015 goal. Any authority bypass, precedence change, live
+publication, validator rewrite-to-latest fix or expanded published file set would
+be new scope and is not proposed.
 
 ## Axiom Compliance
 
@@ -28,7 +60,7 @@
 | A11: Structured Failure | +1 | PUB015 carries the smoke's failing output; `ailang lock` warns instead of silently ignoring a declared path dep |
 | A12: System Boundary | 0 | No boundary changes |
 
-**Net Score: +4** → **Decision: Move forward**
+**Net Score: +5** → **Decision: Move forward**
 
 ### Hard Violation Check
 
@@ -73,8 +105,10 @@ two-package monorepo `a` (path dep `../b`, `_smoke.ail` importing `pkg/sunholo/b
    bare string `"_smoke.ail failed"` (`internal/pkg/quality.go`).
 
 So the bug hits **both** `ailang publish` and `ailang pkg quality` (which runs the same
-`RunSmokeInTempDir`): any package with a path dependency and a `_smoke.ail` gets a PUB015
-gate with no diagnostic, and cannot publish at all. The in-tree workaround is to pin the
+`RunSmokeInTempDir`): when the smoke imports the dependency through the generated
+relative path lock, staging raises PUB015 without its diagnostic and blocks publish.
+A smoke that never uses the dependency, or a legacy absolute-path lock still able
+to reach author files, is not evidence of a correct published-view stage. The in-tree workaround is to pin the
 sibling from the registry instead of a path (`sunholo/crew_core` pins
 `sunholo/social_dynamics = "0.3.0"`, whose content hash matches local source) — i.e. the
 path-dep workflow is currently unusable for publishing, silently pushing monorepos onto
@@ -94,6 +128,30 @@ already true and the `resolvedSet` version check passes when versions match, so 
 branch is skipped without a word). The consumer's local edits to B are then silently
 ignored. This deserves at least a warning.
 
+### Actual-dev offline verification (2026-10-29)
+
+The defect remains present on dev 80793, including the reporter's secondary
+shadowing case. The current embedded teaching prompt v0.16.11 was loaded before
+writing scratch AILANG. A two-package fixture uses different source and asset
+markers for same-version local B versus provisioned registry B:
+
+| Instrument | Observed result |
+|------------|-----------------|
+| Local A path-lock + smoke | exit 0, `LOCAL_SOURCE` and `LOCAL_SOURCE_ASSET` |
+| Actual `pkg quality --json` on A | compile=true; exit 2; PUB015 is the sole gate; smoke passed=false and no notes |
+| Isolated stage with copied relative path lock | exit 1, dependency directory `<stage>/../b` missing |
+| Rewritten staged manifest + regenerated registry lock | exit 0; lock source=registry; smoke prints `REGISTRY_SOURCE` and `REGISTRY_SOURCE_ASSET` |
+| Root path B shadowed by A's same-version registry B | exit 0; B remains registry-sourced; no stderr warning |
+| `pkg quality --no-run` | exit 0; smoke present=true/not_run=true; no PUB015 failure |
+
+`AILANG_PACKAGE_ROOT` points to scratch provisioned bytes. `AILANG_REGISTRY`
+points only to an unavailable loopback endpoint; no external registry or live
+publish is involved. Its unrelated export-overlap badge records that unavailable
+endpoint; the sole quality gate is the reproduced smoke defect. Session evidence
+is `1773-readonly-repro/{results.json,extra-results.json,*.log}` under
+`/tmp/ailang-backlog-20261029`, with the harness beside it. This is a source-read
+and scratch verification, not an implemented product fix.
+
 ## Goals
 
 **Primary Goal:** the temp-dir smoke runs against the *published* view — the rewritten
@@ -104,7 +162,7 @@ carries the smoke's output when it fails.
 1. The repro above (`a` with path dep `../b` + `_smoke.ail`) publishes (dry-run) and reports
    `smoke: present true passed true`, with the smoke resolving B from the registry.
 2. A *failing* smoke reports PUB015 with the smoke's captured output (human and `--json`).
-3. `ailang lock` prints a warning when a root path dep was shadowed by a registry resolution.
+3. `ailang lock` prints a warning when a root path dep was shadowed by a non-path resolution, naming its actual source; resolution and exit codes stay unchanged.
 4. `sunholo/crew_core`-style registry pins are no longer required to publish from a monorepo.
 
 ## High-Impact Decisions
@@ -112,14 +170,19 @@ carries the smoke's output when it fails.
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
 | The staged smoke resolves deps from the **registry** (published view), not from staged sibling copies of path deps | Defines what the portability gate *means*: it must test what a consumer installs | human | design | high |
-| Re-lock the staged copy (regenerate the lock against the rewritten staged manifest) rather than rewriting path entries inside the developer's lock | Lock entries carry content hashes that must match the registry copy, not local source; re-lock reuses one well-tested code path (`ResolveLock`) | agent | design | med |
+| Re-lock the staged copy (regenerate the lock against the rewritten staged manifest) rather than rewriting path entries inside the developer's lock | Lock entries carry content hashes that must match the registry copy, not local source; re-lock reuses the current code path (`ResolveLockFrom` with validated previous git metadata; regenerated registry entries) | agent | design | med |
 | `pkg quality`'s smoke uses the same published view as `publish` | One staging semantics; today `pkg quality` path-dep packages fail PUB015 anyway (verified), so this is a message improvement, not a behavior regression | agent | design | med |
 | PUB015 surfaces the smoke output via the existing `SmokeSection.Notes` field (bounded excerpt) instead of a new JSON field | The smoke section is uploaded as the attested block and banked by the validator; a bounded reuse keeps the schema stable | agent | design | low |
 | The registry-shadowing fix is a **warning** in `ailang lock`, not a resolution-precedence change | Changing precedence (root path wins over transitive registry pin) alters lock output for existing monorepos; warning first, semantics later | human | design | med |
 
 ### Design Freeze
 
-Before implementation begins, these must be resolved:
+The selected alternatives below are retained from the original design. They were
+ratified with the 2026-10-29 compatibility refresh. Design approval authorizes
+planning only; it does not authorize execution. No human semantic decision
+remains open inside this approved scope.
+
+Approved rulings (retain them during planning and execution):
 
 - [x] Registry-view staging (Decision 1) — chosen per the reporter's expectation ("the smoke
   resolves B from the registry, as the manifest rewrite does") and the gate's charter
@@ -139,11 +202,18 @@ published view** in the temp dir, then run:
    `cmd/ailang/pkg_publish.go:rewritePathDepsForPublish`, generalized and moved to
    `internal/pkg`). Idempotent: a manifest with no path deps is untouched, so the publish
    flow (which already rewrote the cwd manifest before calling in) is unaffected.
-3. **Re-lock the staged dir**: drop the copied `ailang.lock` and regenerate it with
-   `ResolveLock(stagedManifest, stagedDir, ...)` — exactly what the reporter validated by
-   hand ("passes in the staged dir after switching the dep to `0.3.0` and running
-   `ailang lock`"). This fetches missing registry deps into the local package cache, the
-   same code path `ailang lock` uses (honoring `AILANG_REGISTRY`).
+3. **Re-lock the staged dir without losing D2 provenance**: read and validate any
+   copied previous `ailang.lock` **before removing it**; only a genuinely missing
+   lock is treated as no previous lock. Regenerate via
+   `ResolveLockFrom(stagedManifest, stagedDir, generator, validatedPrevious)` and
+   save the returned new lock before launching smoke. The previous lock supplies
+   only the resolver's existing unchanged-git carry-forward under confinement or
+   `AILANG_PACKAGE_ROOT`; it does not supply copied path entries or registry
+   hashes. Path-to-registry dependencies are freshly resolved from the rewritten
+   manifest, as `ailang lock` does. Malformed prior locks and changed/tampered git
+   pins fail closed. Missing registry downloads still honor `AILANG_REGISTRY`
+   through the existing authority chokepoint; no new HTTP/git/home-write path or
+   fallback is introduced.
 4. Run the smoke (as today).
 
 Separately: **surface the output** (PUB015) and **warn on shadowing** (`ailang lock`).
@@ -152,8 +222,11 @@ Separately: **surface the output** (PUB015) and **warn on shadowing** (`ailang l
 
 **A. Stage the published view: rewrite staged manifest + re-lock the staged dir (CHOSEN).**
 The smoke tests exactly what a consumer gets. If the path dep's local version is not
-published, the re-lock fails with `failed to download <dep>@<version> from registry` —
-which is the correct pre-publish signal (the tarball would be uninstallable), and for
+published and downloading is permitted, re-lock fails with
+`failed to download <dep>@<version> from registry`. Under an exclusive package root
+or confinement, the existing missing-provision/operator-authority refusal is the
+correct result instead; these contexts must not bypass their authority controls.
+Each is the correct pre-publish signal (the tarball would be uninstallable), and for
 `pkg quality` it replaces today's cryptic `package directory not found: <tmp>/../b` with
 the honest reason. If local source has drifted from the published version, the smoke tests
 the *published* content while the compile check in the real dir still tests local source —
@@ -164,7 +237,7 @@ Converting `source:"path"` entries to `source:"registry"` in place keeps the loc
 hash, which (a) does not match the registry copy's hash when source has drifted →
 hash-mismatch warnings, wrong view; and (b) still needs a download when the exact version
 isn't in the local cache — converging on A's fetch while doing it worse. A is the same work
-with correct hashes (`ResolveLock` computes them from the registry copy).
+with correct hashes (`ResolveLockFrom` computes them from the registry copy).
 
 **C. Stage path-dep siblings into the temp tree so relative lock paths resolve (REJECTED).**
 The staged manifest would keep path deps, so the smoke would pass on local sources while
@@ -184,26 +257,48 @@ created precisely because smoke-in-authors-workdir hid consumer breakage).
    keeps calling the same logic for its cwd rewrite (tarball creation still needs the
    rewritten manifest on disk in cwd — unchanged).
 
-2. **`RunSmokeInTempDir`** — after `copyPackageContents`: call `RewritePathDeps(tmpDir,
-   packageDir)`; on error return it as an infrastructure error (the smoke cannot be
-   staged, mirroring "cannot read dependency … at publish time"). Then remove the staged
-   `ailang.lock` and `ResolveLock` in `tmpDir`. On re-lock error: do **not** silently
-   proceed — write the staged lock *without* it the run would produce today's confusing
-   failure, so return the resolve error via a failing `SmokeResult` (Passed=false, Output
-   carrying the resolve error), so the author sees the real cause under PUB015.
+2. **`RunSmokeInTempDir`** — after `copyPackageContents`, assemble one published
+   staging view. Call `RewritePathDeps(tmpDir, packageDir)`, validate the copied
+   previous lock, remove it, load the rewritten staged manifest, invoke
+   `ResolveLockFrom(..., validatedPrevious)`, then save only the regenerated lock
+   in `tmpDir`. A previous lock's path entries must never be the execution lock.
+   `ResolveDependenciesFrom` currently consults previous metadata only for git
+   resolution, so unchanged D2 pins remain usable without git while registry
+   content/interface hashes are recomputed. Re-lock failure returns a failed
+   `SmokeResult` with its cause; staging infrastructure errors may remain `rErr`,
+   provided the caller reports them as failing PUB015 with Notes. Smoke must
+   never run with the discarded lock or without the required new lock.
 
-3. **Output surfacing** — `runAttestedChecks` (`cmd/ailang/pkg_quality.go`): on
-   `!res.Passed`, set `smoke.Notes` to a bounded excerpt (≤ 2 KiB, e.g. first line +
-   last N bytes of `res.Output`, plus `timed out after Xs` when `res.TimedOut`).
-   `BuildQualityReport` (`internal/pkg/quality.go`): the PUB015 finding message becomes
-   `"_smoke.ail failed: " + firstLine(s.Notes)`. No new JSON field; the attested upload
-   stays schema-stable. `SmokeSection.NotRun` semantics are untouched (Notes is already
-   used verbatim by the not-run badge).
+   Existing #1849 discovery derives per-compilation asset targets from this
+   staged manifest/lock: self assets point to the stage, dependency module and
+   asset bytes to the same resolved registry directory. Retain missing-target
+   tombstones, malformed-file errors and exclusive `AILANG_PACKAGE_ROOT`; do not
+   add an independent asset resolver, reuse author directories or choose a newer
+   cached fallback. No effect/runtime semantics change is needed.
+
+3. **Output surfacing** — `runAttestedChecks` currently discards **both** `rErr`
+   and `res.Output`; it must report either kind of failure in existing
+   `SmokeSection.Notes`. Stage/rewrite/lock failures stay failed smoke/PUB015,
+   without a new error code, schema field or exit-policy change. Notes is bounded
+   to **2048 bytes**, preserving the first meaningful error diagnostic plus a
+   bounded tail/context and a timeout marker when appropriate. Preserve that
+   diagnostic **before** the existing `truncateOutput` tail-only 8 KiB truncation
+   can erase it; merely taking the first line of an already-truncated string
+   cannot satisfy the output goal. Long/Unicode output must remain within the
+   byte bound and serializable; if the first diagnostic alone exceeds the cap,
+   retain its bounded prefix with a truncation marker. `BuildQualityReport` uses the same bounded first
+   diagnostic in the PUB015 finding, e.g.
+   `"_smoke.ail failed: " + firstDiagnostic(s.Notes)`, so human and JSON reports
+   agree. `SmokeSection.NotRun`, absent-smoke behavior and `--no-run` remain
+   unchanged. Staging resolution remains outside the existing smoke subprocess
+   timeout; timeout semantics are not silently broadened.
 
 4. **Lock shadowing warning** — `pkgLockCommand` (`cmd/ailang/pkg_commands.go`), after
-   `ResolveDependencies`: for each root manifest dep with `Path != ""`, if the resolved
+   `ResolveDependenciesFrom`: for each root manifest dep with `Path != ""`, if the resolved
    entry's `Source != "path"`, print a yellow stderr warning:
-   `dependency <name> is declared as a path dep but was resolved from the registry (already pinned via a transitive dependency); your local <name> source is NOT in this lock`.
+   `dependency <name> is declared as a path dep but was resolved from <actual source> (already pinned via a transitive dependency); your local <name> source is NOT in this lock`.
+   Use the resolved source label: do not call a git resolution "registry".
+   Do not change resolver visitation, precedence, versions, ordering or exit codes.
    Style: mirror `warnSilentRatchet` (best-effort, stderr, non-fatal). Same check in
    `pkgLockCheck` (`lock --check`) as drift-style output is optional latitude.
 
@@ -223,29 +318,51 @@ keep working:
    the tarball ships them).
 4. **Registry smoke runs inside the pipeline/validator** — the validator never executes
    smoke (attested-only, by design); unchanged.
-5. **Intentional change**: `pkg quality` / `publish` on a package whose path dep is *not
-   published at the local version* now fails PUB015 with `failed to download <dep>@<ver>
-   from registry` instead of `package directory not found: <tmp>/../<dep>`. This is the
-   gate becoming honest, and is called out in the changelog.
+5. **Intentional change**: `pkg quality` / `publish` on a path dependency not
+   available as the published exact version fails PUB015 with the actual
+   registry/provisioning/authority cause, rather than a copied-path staging
+   failure. An operator-enabled download error can say `failed to download`;
+   confined/root-exclusive errors retain their current remedy. Call this out in
+   the changelog without promising one universal diagnostic string.
+6. **Already-approved git confinement**: valid unchanged git pins carry forward
+   from validated previous metadata without git or home writes. Missing or
+   changed URL/tag/rev/subdir/hash/interface still refuses. Existing fixtures:
+   `TestResolveGitConfined_CarryForwardMatrix`, `TestResolveGitConfined_RevPin`,
+   `TestGitPackageRoot` in `internal/pkg/resolver_git_test.go` (bodies reviewed).
+7. **Locked asset snapshots**: keep `TestPackageLoaderAssetTargets`,
+   `TestAssetTargetsForDiscovery`, `TestPipelineLockedAssetTargets` and
+   `TestPkgAssetPath_LockedTargets` behavior: staged self/root targets, exact
+   dependency version, missing locked-target failure and no newer-cache fallback.
+   No parser, typechecker or runtime surface is extended.
 
 ### Implementation Plan
+
+These are retained design phases, not a new or approved sprint plan. Planning
+and execution remain gated separately after explicit approval of this refresh.
 
 **Phase 1: staged published view** (~0.5 day)
 - [ ] Extract `RewritePathDeps` to `internal/pkg/publish_rewrite.go` (generalized over
       target dir / resolution dir); `pkg_publish.go` calls it (behavior identical).
-- [ ] `RunSmokeInTempDir`: staged-manifest rewrite + drop staged lock + `ResolveLock` +
-      failing-SmokeResult-on-resolve-error.
+- [ ] `RunSmokeInTempDir`: staged rewrite; validate previous lock before removal;
+      `ResolveLockFrom` with existing git carry-forward; save regenerated registry
+      lock; failing result/Notes on staging or resolution error, with no fallback.
 - [ ] Test: the two-package repro (path dep + `_smoke.ail` importing `pkg/<dep>/...`)
       against an `httptest` registry (pattern: `internal/pkg/resolver_test.go:282`,
       `AILANG_REGISTRY` env) — smoke passes, lock in temp dir is registry-sourced.
-- [ ] Test: dep not published at local version → PUB015 with `failed to download` in the
-      message.
+- [ ] Test: unavailable exact registry version → bounded PUB015 cause; permitted
+      download and confined/root-exclusive errors retain their respective remedies.
+- [ ] Test: local and registry same-version source **and asset** bytes differ;
+      stage uses registry markers, root assets remain staged, author inputs unchanged.
+- [ ] Test: valid confined/root git pin passes without git/HTTP/home writes;
+      absent/changed/tampered/malformed prior metadata refuses as today.
 
 **Phase 2: PUB015 output surfacing** (~0.25 day)
-- [ ] `runAttestedChecks`: bounded Notes excerpt + timeout marker.
-- [ ] `quality.go`: PUB015 message includes `firstLine(notes)`.
-- [ ] Test: failing smoke (existing `TestRunSmokeInTempDir_Fail` fixture) → report's
-      smoke section carries the crash line; `--json` includes it via `notes`.
+- [ ] `runAttestedChecks`: bound Notes for `rErr` and failed process output;
+      retain first diagnostic before lossy truncation, plus timeout marker.
+- [ ] `quality.go`: PUB015 message includes the same bounded first diagnostic.
+- [ ] Test: failing smoke (existing `TestRunSmokeInTempDir_Fail` fixture), staging
+      infrastructure error, timeout, leading noise and >8 KiB output → human/JSON
+      Notes retains first error within 2048 bytes; `--no-run` remains not-run.
 
 **Phase 3: lock shadowing warning** (~0.25 day)
 - [ ] `pkgLockCommand` post-resolution comparison; stderr warning.
@@ -321,8 +438,16 @@ $ ailang lock                    # consumer with path deps on A and B; A pins B@
       run the repro end-to-end with a local `AILANG_REGISTRY` mirror)
 - [ ] Failing smoke → PUB015 message contains the smoke's first error line, in human
       output and in `--json` via `smoke.notes` (acceptance test, Phase 2)
-- [ ] Unpublished path dep → PUB015 names `failed to download <dep>@<version>`, not
-      `package directory not found` (acceptance test, Phase 1)
+- [ ] Unavailable published path-dep version → PUB015 names the real download,
+      provisioning or authority cause and remedy, not a copied staging path;
+      no confinement/package-root bypass (acceptance test, Phase 1)
+- [ ] Valid previous git pins carry forward in confined and PACKAGE_ROOT cases;
+      mismatched/missing/tampered/malformed metadata fails closed without git,
+      network or home writes; rewritten path entries are not carried forward
+- [ ] Distinct local/registry module and asset markers prove the published view;
+      staged root assets and #1849 missing-target/no-newer-fallback controls pass
+- [ ] Stage `rErr`, timeout and long/Unicode output preserve the first meaningful
+      error within 2048-byte Notes, including after >8 KiB output; no schema change
 - [ ] Shadowed path dep → warning on stderr, exit code unchanged (acceptance test, Phase 3)
 - [ ] Existing suite green: `go test ./internal/pkg/... ./cmd/ailang/...` (incl.
       `TestRunSmokeInTempDir_Pass/_Fail/_Timeout/_Isolation`), `make check-boundaries`
@@ -349,8 +474,11 @@ $ ailang lock                    # consumer with path deps on A and B; A pins B@
 
 ## Verification Log
 
-Every load-bearing claim above, checked against code or a live binary (v0.54.5, commit
-296231d — the reported build):
+### Historical verification (2026-10-12)
+
+The original observations below were checked against code or the reported
+v0.54.5 commit 296231d. They are historical; the current-dev refresh rows follow.
+Line numbers and "no overlap" claims describe that earlier snapshot:
 
 | # | Claim | Evidence |
 |---|-------|----------|
@@ -367,19 +495,38 @@ Every load-bearing claim above, checked against code or a live binary (v0.54.5, 
 | V11 | Three parallel path-dep→registry rewrite sites exist (systemic pattern) | `cmd/ailang/pkg_publish.go` (dep's **local** version), `cmd/registry-validator/validate.go` (registry **latest**, string-replace), `internal/pkg/resolver.go` (registry latest for transitive path deps) — noted as future work; this doc unifies the client side only |
 | V12 | Staged file set and tarball file set have drifted (CHANGELOG.md) | `internal/pkg/tarball.go` includes `rel == ChangelogFile`; `shouldStageFile` does not |
 
-Language-construct verification gate: not applicable — no AILANG-language claims are made;
-all verification above is code-read or live-repro against the reported binary.
+### Current-dev refresh verification (2026-10-29)
+
+| ID | Claim | Evidence on actual dev 80793 |
+|----|-------|---------------------------|
+| C1 | Copied path-lock bug and missing PUB015 Notes remain | Offline A/B fixture: local source+asset pass; actual quality compile=true/PUB015-only gate with no Notes; copied stage fails missing sibling |
+| C2 | Regenerated registry lock selects correct source and assets | Rewritten stage + `ailang lock`, using preprovisioned PACKAGE_ROOT, prints distinct registry module and asset markers |
+| C3 | Nil previous metadata breaks confined/root git carry-forward | `lockcheck.go` ResolveLock delegates nil; `resolver_git.go` provisionedGitDep explicitly refuses nil; existing CarryForwardMatrix and GitPackageRoot tests pass (10.555s), with valid pin/no git and nil/mismatch refusal controls |
+| C4 | Existing resolver can preserve authority without global loader mutation | ResolveLockFrom → ResolveDependenciesFrom uses per-call graph/client state; previous metadata consulted for git only; HTTP/git/HOME I/O stays behind authority.go; no pipeline loader-global writes |
+| C5 | Infrastructure errors are discarded too; first error can be truncated | `pkg_quality.go` runAttestedChecks only handles rErr==nil; `publish_validator.go` truncateOutput keeps only final 8 KiB; `quality.go` PUB015 is a fixed bare message |
+| C6 | Existing snapshot behavior fits staged manifest+new lock | pipeline/package_assets.go → PackageLoader.AssetTarget; self/root retained, missing target tombstone retained, PACKAGE_ROOT exclusive; actual fixture proves exact dependency source+asset bytes |
+| C7 | Shadowing remains silent and no-run semantics must remain | Same-version root path B/transitive registry B fixture: B remains registry, exit 0/stderr empty. `quality --no-run`: present/not_run true, exit 0 |
+| C8 | Original task/artifact exists, no current staging owner found | Original task 98f9 failed; PR 1775 merged 4c89. Current open PR search and 16 active prod tasks have no match; latest 1000 historic rows bounded as described above |
+| C9 | No test in current smoke suite covers dependent staging | Read all six RunSmokeInTempDir tests; writeMinimalPackage is self-contained with no dependency or lock. Authority and asset fixtures named above exist and their assertion bodies were reviewed |
+| C10 | PUB015/Notes already allocated; no new code/schema needed | internal/pkg/quality.go defines SmokeSection.Notes and PUB015; current quality JSON fixture confirms absence is a propagation gap, not a missing JSON field |
+
+No new language feature or limitation is asserted. Scratch AILANG follows the
+loaded v0.16.11 prompt and successfully runs in its valid local and registry
+views; all new mechanism claims are tied to source reads or recorded controls.
 
 ## Deferred Decisions
 
 The following are intentionally left open for the implementer:
 
-- Exact Notes excerpt format (first line vs first+last lines, 1–2 KiB bound) — agent may
-  choose, provided it is bounded and includes the first error line.
+- Exact Notes presentation (first diagnostic plus optional final context) — agent
+  may choose within the 2048-byte bound, preserving the first meaningful error
+  before lossy truncation and retaining timeout context. This is not latitude to
+  discard staging `rErr` or treat a failed assembly as `NotRun`.
 - Whether `lock --check` also reports shadowing as drift — agent may choose (default: yes,
   as informational output, not exit-code-affecting).
-- Phase 4 file-set unification: extract a shared predicate vs. document the divergence —
-  agent may choose based on how far the refactor ripples.
+- Phase 4 file-set unification: document the current divergence by default, or
+  extract a predicate only while preserving the existing tarball file set and
+  intentional staging differences. No additional published file class is approved.
 - Whether the staged re-lock uses `AILANG_QUIET_WARNINGS` and what generator string the
   staged lock records (it is discarded with the temp dir; suggest
   `"ailang publish smoke stage"` for debuggability).
@@ -413,10 +560,10 @@ The following are intentionally left open for the implementer:
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| Smoke staging now needs the registry (network or cache) where it used to be offline | Med | Same requirement `ailang lock` already imposes on consumers; `AILANG_REGISTRY` mirrors and the local package cache cover offline CI; deps cached during the author's own `ailang lock` are reused |
+| Smoke staging may need resolution authority even when author smoke was offline | Med | Exact provisioned registry entries can resolve offline. Missing entries and legacy registry transitive path/index lookups retain canonical refusal under confinement; do not bypass authority or promise all cached graphs are network-free. Carry unchanged git pins via validated previous metadata. |
 | Path dep not yet published at the local version now fails PUB015 with a *different* error | Low | It already fails PUB015 today with a strictly worse message; changelog calls the new error out as intentional |
-| Re-lock adds wall time to `publish`/`quality` (registry fetches) | Low | Fetch happens outside the smoke's 30s timeout, only for uncached versions; cached case is one hash pass |
-| `ResolveLock` in-process inside `RunSmokeInTempDir` mutates global resolver/loader state | Med | Verify `internal/pipeline` loader globals are not set by `ResolveLock` (it is pure resolution); if they are, shell out to `ailang lock` in the staged dir instead — implementer verifies with `make check-boundaries` + full test run |
+| Re-lock adds wall time to `publish`/`quality` (registry fetches) | Low | Fetch happens outside the smoke's 30s timeout, for missing registry metadata/bytes as permitted by authority; fully provisioned exact registry manifests avoid downloads |
+| Staging accidentally discards the previous git pin or uses unguarded I/O | Med | Current ResolveLockFrom has per-call graph/client state and no pipeline loader-global mutation (C4); reuse it in-process with validated previous metadata. Missing/mismatched pins fail closed. Existing authority/boundary tests enforce HTTP/git/HOME chokepoints; do not shell out as a bypass. |
 | Publish flow double-rewrite (cwd + staged) diverges over time | Low | Both call the one `internal/pkg.RewritePathDeps`; the staged call is idempotent on an already-rewritten manifest |
 
 ## Related Documents
@@ -427,8 +574,13 @@ The following are intentionally left open for the implementer:
 - [m-pkg-quality-ladder](../../implemented/v0_40_0/m-pkg-quality-ladder-sprint-plan.md) — the PUB-report machinery this doc extends (PUB015 output surfacing)
 - [m-pkg-transitive-lock-fix](../../implemented/v0_10_0/m-pkg-transitive-lock-fix.md) — resolver/lock history context
 
-**Planned (check for overlap):**
-- None (auto-search + manual review; see Verification Log V10)
+**Current compatibility references (landed code, documents may still await archival):**
+- [m-pkg-authority-chokepoint](../v0_54_19/m-pkg-authority-chokepoint.md) — #1964 landed the single authority boundary; preserve D2 previous-pin carry-forward, exclusive package root and canonical refusal. This design adds staging, not authority.
+- [m-pkg-asset-lock-resolution](m-pkg-asset-lock-resolution.md) — #1849 landed per-compilation/root/locked dependency asset targets and missing-target tombstones. Staging supplies a valid new lock to that existing mechanism.
+
+**Overlap search:** the original V10 "None" was historical. The current ownership
+search is bounded in Current-dev Refresh above; no competing staging implementation
+was found. Preserve this same document rather than create another design carrier.
 
 ## References
 
@@ -447,4 +599,4 @@ The following are intentionally left open for the implementer:
 ---
 
 **Document created**: 2026-10-12
-**Last updated**: 2026-10-12
+**Last updated**: 2026-10-29 (current-dev compatibility refresh; design approval recorded; planning authorized; execution still gated)
