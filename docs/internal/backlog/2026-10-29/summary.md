@@ -1,6 +1,6 @@
 # Attended backlog sweep — 2026-10-29
 
-Status at12:32UTC: **17 AILANG PRs merged,6 redundant PRs retired,9 issues closed**. Every issue in the initial66-item inventory was checked against source/history/designs;57 remain open. The initial issue evidence below is a historical snapshot, not a claim that subsequently repaired issues remain broken. All GitHub access used `gh`. The [initial per-issue verification](initial-issue-verification.md) preserves its original source baselines; the [operator ownership review](operator-pending-review.md) records the existing cards and cross-plane holds.
+Status at12:45UTC: **17 AILANG PRs merged,6 redundant PRs retired,9 issues closed**. Every issue in the initial66-item inventory was checked against source/history/designs;57 remain open. The initial issue evidence below is a historical snapshot, not a claim that subsequently repaired issues remain broken. All GitHub access used `gh`. The [initial per-issue verification](initial-issue-verification.md) preserves its original source baselines; the [operator ownership review](operator-pending-review.md) records the existing cards and cross-plane holds.
 
 ## Accepted PRs
 
@@ -35,7 +35,7 @@ Closed issues: [981](https://github.com/sunholo-data/ailang/issues/981), [1711](
 
 ## PRs deliberately retained
 
-Seventeen PRs have existing pending operator approval ownership across prod/test/dev: **1789,1790,1862,1867,1883,1894,1916,1926,1928,1931,1934,1939,1978,1983,1984,1985,1998**. No controller identity was set; no card was approved/rejected, no orphan was cleared, and no PR was merged as a bypass. The prod inventory has15 records, including one without an open PR. Existing ownership was checked before assigning agents.
+Nineteen PRs have existing pending operator approval ownership across prod/test/dev: **1789,1790,1862,1867,1883,1894,1916,1926,1928,1931,1934,1939,1978,1983,1984,1985,1998,2009,2010**. No controller identity was set; no card was approved/rejected, no orphan was cleared, and no PR was merged as a bypass. The starting prod inventory had15 records, including one without an open PR; two new prod merge cards arrived during this sweep. Existing ownership was checked before assigning agents.
 
 Important retained findings:
 
@@ -46,7 +46,9 @@ Important retained findings:
 - 1939/1934 and failed1759 retain cascade evidence. The ACK-versus-NACK human ruling remains open; useful failed-task source is not disposable.
 - 1894 belongs to an existing dev-plane experiment; scope review is still needed.
 
-Three other held PRs: **1759** (cascade human ruling/source consolidation), **1726** (flagship design/quorum and human decisions), **1898** (ESLint10 incompatible with current React-plugin peer range; reproduced npm ERESOLVE, no peer-check bypass).
+The [new-arrival review](new-arrivals-review.md) records #2009/task-80a1ffa8 and #2010/task-789e5f9f. Both cards explicitly disallow agent action. #2009 needs its tier-off/root-span source claim corrected by its owner; #2010 should consolidate the earlier duplicate triage instead of launching competing scanner fixes.
+
+Together with these19 approval-owned PRs, three other held PRs make22 total: **1759** (cascade human ruling/source consolidation), **1726** (flagship design/quorum and human decisions), **1898** (ESLint10 incompatible with current React-plugin peer range; reproduced npm ERESOLVE, no peer-check bypass).
 
 ## Remaining issue work
 
@@ -60,6 +62,6 @@ The shared checkout's three dirty benchmark JSON files were preserved. No destru
 
 ## Dependency alerts observed during the sweep
 
-Six alerts were open at the security snapshot. User approved exact lockfile-only re2js2.8.6→2.8.7 (including Node>=20; actual UI builder22.23.4) and serialize-javascript7.1.2→7.1.3; implementation and CI are separate from this review-only audit. Current Zod3→first-patched4.6.6 is a major migration outside its parent range; deepmerge4.3.1 has no first-patched version in the advisory. Neither is silently overridden or dismissed.
+Six alerts were open at the security snapshot. User approved exact lockfile-only re2js2.8.6→2.8.7 (including Node>=20; actual UI builder22.23.4) and serialize-javascript7.1.2→7.1.3; [PR2011](https://github.com/sunholo-data/ailang/pull/2011) contains the exact approved patch; UI/docs builds and158 existing tests pass, CI remains separate from this review-only audit. Current Zod3→first-patched4.6.6 is a major migration outside its parent range; deepmerge4.3.1 has no first-patched version in the advisory. Neither is silently overridden or dismissed.
 
 The two Go/Ollama alerts list ranges below actual source go.modv0.40.13, while GitHub SBOM still reportsv0.13.4. A tolerated dependency-submission action failure prevents fresh submission: duplicate namespace/name assertion, despite its successful job wrapper. The main/dev trigger is already correct. An official upstream fix is merged but unreleased and carries a larger Node24/default/input upgrade; it is future gated work, not part of the two npm patch approval. No action/quality policy or alert disposition was changed, and no statement about a live Ollama server is inferred.

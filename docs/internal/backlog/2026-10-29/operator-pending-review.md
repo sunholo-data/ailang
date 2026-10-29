@@ -50,3 +50,10 @@ AILANG_CLOUD_PROJECT=ailang-multivac-dev AILANG_STORAGE_OBSERVATORY=gcp \
 ```
 
 Full review, exact heads, provenance, preservation matrix, policy discrepancies and evidence limits: `cascade-consolidation-review.md` beside this file. Snapshots: `cascade-test-tasks.json` (3,000-row limit reached; not exhaustive), `cascade-dev-tasks.json` (956), `cascade-local-tasks.json` (1), exact chain JSON. No new coordinator work was dispatched.
+
+## New merge cards during the sweep
+
+- [2009](https://github.com/sunholo-data/ailang/pull/2009): PROD task-80a1ffa8 / apr-80a1ffa8, pending_approval, agent_actionable:false. Source correction required: tier-off still leaves root span name/file.path eligible for export; do not limit the future design to fs.path.
+- [2010](https://github.com/sunholo-data/ailang/pull/2010): PROD task-789e5f9f / apr-789e5f9f, pending_approval, agent_actionable:false. Consolidate existing duplicate scanner triage before design/execution.
+
+[Detailed read-only review](new-arrivals-review.md). The current held count is22 PRs:19 approval-owned across planes plus1759/1726/1898. No card or PR action was taken.
