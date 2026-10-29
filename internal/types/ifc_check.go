@@ -136,14 +136,15 @@ type ifcVar struct {
 type ifcEnv map[string]ifcVar
 
 type ifcChecker struct {
-	imports   map[string]*ImportedIFCSig
-	types     *ifcTypes // module-local type declarations (ifc_static_type.go)
-	sigs      map[string]*ifcSig
-	errs      []*TypeCheckError
-	errSeen   map[string]bool  // position+message, so a replay cannot repeat a diagnostic
-	effLabel  map[string]Label // memoised effective body label per local func
-	computing map[string]bool  // cycle guard for the effLabel fixpoint
-	silent    bool             // suppress sink diagnostics during effLabel and summary walks
+	exportSummaries bool // resolve local producer results for the M1 summary API; caller policy stays unchanged
+	imports         map[string]*ImportedIFCSig
+	types           *ifcTypes // module-local type declarations (ifc_static_type.go)
+	sigs            map[string]*ifcSig
+	errs            []*TypeCheckError
+	errSeen         map[string]bool  // position+message, so a replay cannot repeat a diagnostic
+	effLabel        map[string]Label // memoised effective body label per local func
+	computing       map[string]bool  // cycle guard for the effLabel fixpoint
+	silent          bool             // suppress sink diagnostics during effLabel and summary walks
 
 	summaries         map[string]*ifcSummary // module fixed point (ifc_summary_local.go)
 	owners            []*ifcSummary          // active summaries, innermost last
@@ -470,12 +471,19 @@ func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) ifcVal {
 	// part from the parameter type, so a type-matched argument passes only its
 	// flow label — see handOff).
 	argLabels := make([]Label, len(call.Args))
+	var flowLabels []Label
+	if c.exportSummaries {
+		flowLabels = make([]Label, len(call.Args))
+	}
 	passed := make([]Label, len(call.Args))
 	args := make([]ifcVal, len(call.Args))
 	for i, a := range call.Args {
 		v := c.flowVal(a, env)
 		st := c.staticType(a, env)
 		argLabels[i] = LabelJoin(v.label, c.types.deepLabel(st))
+		if flowLabels != nil {
+			flowLabels[i] = v.label
+		}
 		passed[i] = argLabels[i]
 		if isLocal && i < len(sig.params) && sameType(st, sig.params[i].typ) {
 			passed[i] = v.label
@@ -494,7 +502,7 @@ func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) ifcVal {
 	if isLocal {
 		return ifcVal{label: c.calleeResultLabel(sig, passed, argLabels), fn: fn}
 	}
-	if label, known := importedCallableResult(callee.fn, argLabels, callee.label); known {
+	if label, known := c.producerCallableResult(callee.fn, argLabels, flowLabels, callee.label, call, env); known {
 		return ifcVal{label: label, fn: fn}
 	}
 	if src, ok := ifcBuiltinSourceLabels[name]; ok {

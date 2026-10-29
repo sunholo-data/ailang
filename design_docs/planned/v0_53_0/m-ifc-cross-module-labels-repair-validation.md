@@ -12,7 +12,7 @@ Existing PR branch `coordinator/task-a87f9332` retains all original commits: M1 
 |---|---|
 | M1 explicit clean/function/nonfunction/synthetic summaries | TestIFCSummaries, TestIFCSyntheticSummary, TestIFCSummaryBuilder |
 | M1 constant/variable/positive/forbidden/declared/intrinsic/authority data | TestIFCSummaries, TestIFCSummaryNestedDeclaredResult, TestIFCSummaryF4CanonicalShape, codec fixtures with joined labels/multiple forbidden labels |
-| M1 recursive intrinsic + supplied imported producer | TestIFCSummaries and TestIFCExportImportedValueLookup (alias/join/lexical shadow); import facts enter identVal once, remain opaque to imported-demand enforcement |
+| M1 recursive intrinsic + supplied imported producer | TestIFCSummaries, TestIFCExportImportedValueLookup (alias/join/container/lexical shadow) and TestIFCExportLocalProducerValues (direct/alias/join/returned factory/shadow/storage/typed handoff); facts enter identVal once, remain opaque to imported-demand enforcement |
 | M1 no partial/crashing summary on defensive limit; no private rho publication | TestIFCExportAnalysisLimitIsDiagnostic, TestIFCExportSummaryRejectsMissingImportFacts, TestIFCExportSummaryDoesNotPublishRho; ordinary error propagates through iface/minimal runtime builders |
 | M1 deterministic digest/security fields | TestIFCSummaryDigestAndCodecs; hash-projection field mutations include applied and multiple forbidden labels; repeated -count=20 tests |
 | M1 retain package identity | Attended dba22e04e pins hashProjectionSchema to v1 and omits only validated unlabelled summaries; TestHashProjection_UnlabelledSummaryKeepsPreSummaryIdentity proves byte equality. The historical eml 559080a1 observation is retained as prior attended evidence, not claimed as a fresh measurement of today's changed external package. |
@@ -50,3 +50,10 @@ Dedicated unchanged binary: cold 3.606s, warm 0.176s; warm 30 hits/0 misses and 
 ## Remaining integration
 
 Normal-merge newer dev including #1849 and the effect-row/explicit-empty work only after it actually lands; retain its conversion helper move/digest fixes, regenerate v2 goldens, rerun affected exact-source gates and original Motoko measurement. Then push the existing PR branch after account verification and request independent evaluation. M3/M4 remain pending.
+
+
+## Independent M1 producer-value correction
+
+Root's independent RED test at 4d25ee178 found a local producer alias whose intrinsic was falsely bottom. M1 now resolves known local callable alternatives at application only in export analysis, applying the same per-target typed handoff and declared/declassifying result policy as direct local calls. Ordinary CheckModuleIFC caller policy is unchanged; no pipeline/REPL import enforcement is enabled. A separate RED test showed returned factories also need the existing callable-result fixed point. Export analysis reuses that fixed point only when its own/supplied source or declared return facts are nonbottom, then recomputes intrinsic convergence. Unlabelled modules retain the label-only walk without symbolic probe summaries.
+
+New controls keep unapplied function storage and safe typed-record projections at bottom, preserve lexical/local precedence and unknown alternatives, and retain both labels of joined producers. The source, alias and returned-factory RED logs are banked (`1771-review-local-source-alias.log`, `1771-local-producer-red.log`, `1771-local-returned-producer-red.log`). Repaired focused tests, full types/iface/pipeline/runtime/link packages and lint pass (`1771-local-returned-producer-green.log`, `1771-local-producer-packages.log`, `1771-local-producer-lint.log`). Final integrated source/interface/corpus gates remain the next checkpoint after effect/explicit-empty lands.

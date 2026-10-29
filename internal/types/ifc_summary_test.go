@@ -176,3 +176,39 @@ func TestIFCExportImportedValueLookup(t *testing.T) {
 		t.Fatal("lexical shadow used imported producer facts")
 	}
 }
+
+func TestIFCExportLocalProducerValues(t *testing.T) {
+	file := parseIFC(t, `module test/local_producer_summary
+ type Tagged = {secret: string<secret>, safe: string}
+ pure func source() -> string<secret> { "secret" }
+ pure func other() -> string<email> { "email" }
+ pure func direct() -> string { source() }
+ export pure func alias() -> string { let f = direct in f() }
+ pure func joined(n: int) -> string { let f = if n == 0 then direct else other in f() }
+ pure func mixed(n: int) -> string { let f = if n == 0 then direct else unknown in f() }
+ pure func shadow() -> string { let direct = \u. "clean" in direct(()) }
+ pure func stored() -> () -> string { direct }
+ pure func returned() -> string { let f = stored() in f() }
+ pure func take(t: Tagged) -> string { t.safe }
+ pure func handoff(t: Tagged) -> string { let f = take in f(t) }
+ `)
+	supplied := types.EmptyIFCSummary()
+	supplied.Intrinsic = types.EncodeIFCLabel(types.LabelConst("other"))
+	sigs, err := types.AnalyzeModuleIFC(file, map[string]*types.ImportedIFCSig{"direct": supplied})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"direct", "alias", "joined", "mixed", "returned"} {
+		if !types.LabelSubsumes(sigs[name].Intrinsic.Decode(), types.LabelConst("secret")) {
+			t.Fatalf("%s lost local producer intrinsic: %+v", name, sigs[name])
+		}
+	}
+	if !types.LabelSubsumes(sigs["joined"].Intrinsic.Decode(), types.LabelConst("email")) {
+		t.Fatal("local producer join dropped an alternative")
+	}
+	for _, name := range []string{"shadow", "stored", "take", "handoff"} {
+		if !types.LabelEqual(sigs[name].Intrinsic.Decode(), types.LabelBottom()) {
+			t.Fatalf("%s gained an unrelated intrinsic label: %+v", name, sigs[name])
+		}
+	}
+}

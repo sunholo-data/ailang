@@ -168,26 +168,16 @@ func AnalyzeModuleIFC(file *ast.File, imports map[string]*ImportedIFCSig) (out m
 	}
 	c := newIFCChecker(file)
 	c.imports = imports
-	// Iterate in source order to a fixed point. Keep previous approximations for
-	// recursive edges and recompute all bodies; a DFS memo alone is order-dependent.
-	for {
-		c.analysisStep()
-		changed := false
-		for _, fn := range file.Funcs {
-			if fn == nil {
-				continue
-			}
-			old := c.effLabel[fn.Name]
-			delete(c.effLabel, fn.Name)
-			next := c.effectiveBodyLabel(fn.Name)
-			if old == nil || !LabelEqual(old, next) {
-				changed = true
-			}
-		}
-		if !changed {
-			break
-		}
+	c.exportSummaries = true
+	c.convergeExportIntrinsics(file)
+	// Returned producer values need the existing module callable-result fixed
+	// point. Without any source facts the intrinsic is bottom; avoid expensive
+	// symbolic summaries for ordinary unlabelled modules (e.g. std/fs).
+	if c.hasExportProducerFacts(file) {
+		c.summariseModule(file)
+		c.convergeExportIntrinsics(file)
 	}
+
 	for _, fn := range file.Funcs {
 		if fn == nil {
 			continue
@@ -243,25 +233,82 @@ func (s *ImportedIFCSig) GobDecode(data []byte) error {
 	return json.Unmarshal(data, s)
 }
 
-// importedCallableResult reads supplied producer facts from the same resolved
-// callable value used by the local checker. Bindings and joins retain them;
-// lexical/local/constructor precedence is decided once by identVal. Unknown
-// alternatives keep the ordinary conservative join. Imported demands are M3.
-func importedCallableResult(fn *ifcCallable, args []Label, callee Label) (Label, bool) {
+// producerCallableResult resolves producer facts at the application of a
+// callable value. The export API additionally follows local fnTop alternatives;
+// ordinary caller checking retains its existing result policy until M3. Bare
+// function storage does not acquire the label of an unapplied producer.
+func (c *ifcChecker) producerCallableResult(fn *ifcCallable, args, flows []Label, callee Label, at *ast.FuncCall, env ifcEnv) (Label, bool) {
 	if fn == nil {
 		return nil, false
 	}
-	// A container-held/labelled callable already carries information, even when
-	// its supplied producer summary returns bottom. Preserve that flow label.
+	// Container-held/labelled callables already carry information, even when
+	// their producer summary returns bottom. Preserve that flow label.
 	result := callee
 	known := false
 	for _, alt := range fn.alts {
-		if alt.imported != nil {
+		switch {
+		case alt.imported != nil:
 			known = true
 			result = LabelJoin(result, importedIFCResult(alt.imported, args))
-		} else {
-			result = LabelJoin(result, LabelJoin(callee, joinLabels(args)))
+		case c.exportSummaries && alt.kind == fnTop && c.sigs[alt.name] != nil:
+			known = true
+			sig := c.sigs[alt.name]
+			passed := append([]Label(nil), args...)
+			for i, p := range sig.params {
+				if i >= len(args) {
+					break
+				}
+				if sameType(c.staticType(at.Args[i], env), p.typ) {
+					passed[i] = flows[i]
+				}
+			}
+			result = LabelJoin(result, c.calleeResultLabel(sig, passed, args))
+		default:
+			// Unknown alternatives retain the conservative argument join.
+			result = LabelJoin(result, joinLabels(args))
 		}
 	}
 	return result, known
+}
+
+func (c *ifcChecker) convergeExportIntrinsics(file *ast.File) {
+	// Iterate in source order to a fixed point. Keep previous approximations for
+	// recursive edges and recompute all bodies; a DFS memo alone is order-dependent.
+	for {
+		c.analysisStep()
+		changed := false
+		for _, fn := range file.Funcs {
+			if fn == nil {
+				continue
+			}
+			old := c.effLabel[fn.Name]
+			delete(c.effLabel, fn.Name)
+			next := c.effectiveBodyLabel(fn.Name)
+			if old == nil || !LabelEqual(old, next) {
+				changed = true
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+}
+
+func (c *ifcChecker) hasExportProducerFacts(file *ast.File) bool {
+	for _, fn := range file.Funcs {
+		if fn == nil {
+			continue
+		}
+		if !LabelEqual(c.effLabel[fn.Name], LabelBottom()) ||
+			!LabelEqual(c.sigs[fn.Name].returnLabel, LabelBottom()) ||
+			!LabelEqual(c.types.deepLabel(fn.ReturnType), LabelBottom()) {
+			return true
+		}
+	}
+	for _, imported := range c.imports {
+		if !imported.Intrinsic.isBottom() || !imported.Return.isBottom() {
+			return true
+		}
+	}
+	return false
 }
