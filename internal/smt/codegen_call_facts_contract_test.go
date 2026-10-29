@@ -64,3 +64,9 @@ func TestContractCall_NullaryUnitErasure(t *testing.T) {
 		t.Fatal(d)
 	}
 }
+
+func TestFiniteFacts_ActualCallIdentity(t *testing.T) {
+	withFiniteSpec(t, finiteSpec())
+	checkFiniteGoal(t, builtinApp("eq_Int", specCall(intLit(1)), specCall(intLit(1))), StatusVerified)
+	checkFiniteGoal(t, builtinApp("eq_Int", specCall(intLit(1)), specCall(intLit(2))), StatusCounterexample)
+}

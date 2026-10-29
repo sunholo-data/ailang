@@ -12,6 +12,10 @@ func encodedCore(value string) core.CoreExpr {
 // boundary. Guard facts belong to the first reachable matching pattern, even
 // when that guard is false; body facts belong only to the selected arm.
 func encodeFactMatch(m *core.Match) (string, error) {
+	forceIte := needsIteMatch(m)
+	input := *m
+	input.Arms = reachableFactMatchArms(m)
+	m = &input
 	scrutinee, err := EncodeExpr(m.Scrutinee)
 	if err != nil {
 		return "", err
@@ -56,12 +60,12 @@ func encodeFactMatch(m *core.Match) (string, error) {
 		}
 		guards = append(guards, reachedFacts)
 	}
-	value, err := encodeMatch(&values)
+	value, err := encodeFactMatchMirror(&values, scrutinee, forceIte)
 	if err != nil {
 		return "", err
 	}
 	if anyBodyFacts {
-		selectedFacts, err := encodeFactMatchMirror(&facts, scrutinee, needsIteMatch(m))
+		selectedFacts, err := encodeFactMatchMirror(&facts, scrutinee, forceIte)
 		if err != nil {
 			return "", err
 		}
@@ -83,4 +87,35 @@ func encodeFactMatchMirror(m *core.Match, scrutinee string, forceIte bool) (stri
 		return encodeMatchAsIte(scrutinee, m.Arms)
 	}
 	return encodeMatch(m)
+}
+
+// Follow the value encoder's structural first-match stopping rule. Later arms
+// must not introduce facts OR new unsupported-callee failures when unreachable.
+func reachableFactMatchArms(m *core.Match) []core.MatchArm {
+	if !needsIteMatch(m) {
+		return m.Arms
+	}
+	for _, arm := range m.Arms {
+		if hasNestedConstructorPattern(arm.Pattern) {
+			return m.Arms
+		}
+	}
+	seenBool := make(map[bool]bool)
+	for i, arm := range m.Arms {
+		if arm.Guard != nil {
+			continue
+		}
+		switch p := arm.Pattern.(type) {
+		case *core.WildcardPattern, *core.VarPattern:
+			return m.Arms[:i+1]
+		case *core.LitPattern:
+			if b, ok := p.Value.(bool); ok {
+				if seenBool[!b] {
+					return m.Arms[:i+1]
+				}
+				seenBool[b] = true
+			}
+		}
+	}
+	return m.Arms
 }

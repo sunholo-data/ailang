@@ -36,3 +36,10 @@ ensures { result == 123 } { 1 / 0 }
 
 export pure func zeroSkipped() -> int
 ensures { result == 1 } { if true then 1 else 1 / 0 }
+
+pure func opaque(n: int) -> int { opaque(n) }
+
+export pure func unreachableOpaque() -> int
+ensures { result == 0 } {
+  match 0 { _ => 0, _ if true => opaque(1) }
+}

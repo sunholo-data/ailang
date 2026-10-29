@@ -146,3 +146,14 @@ func TestFiniteFacts_NestedQuantifierFreshness(t *testing.T) {
 		}
 	}
 }
+
+func TestFiniteFacts_UnreachableMatchArmStaysUnencoded(t *testing.T) {
+	old := activeUserFunctions
+	activeUserFunctions = map[string]bool{"opaque": true}
+	defer func() { activeUserFunctions = old }()
+	body := &core.Match{Scrutinee: intLit(0), Arms: []core.MatchArm{{Pattern: &core.WildcardPattern{}, Body: boolLit(true)}, {Pattern: &core.WildcardPattern{}, Guard: boolLit(true), Body: &core.App{Func: &core.Var{Name: "opaque"}, Args: []core.CoreExpr{intLit(1)}}}}}
+	value, facts, err := captureCallFacts(func() (string, error) { return EncodeExpr(body) })
+	if err != nil || value != "true" || facts != "true" {
+		t.Fatalf("unreachable arm evaluated: value%s facts%s err%v", value, facts, err)
+	}
+}
