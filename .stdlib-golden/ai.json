@@ -165,7 +165,7 @@
     },
     {
       "name": "stepWithStream",
-      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e()!{IO})-\u003eResult[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]!{AI}",
+      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e())-\u003eResult[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]!{AI}",
       "effects": [
         "AI"
       ],
@@ -173,7 +173,7 @@
     },
     {
       "name": "stepWithStreamRecorded",
-      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e()!{IO})-\u003e{chunks: list[StreamChunk], outcome: Result[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]}!{AI}",
+      "type": "(string,list[Message],list[ToolSchema],list[CacheBreakpoint],(StreamChunk)-\u003e())-\u003e{chunks: list[StreamChunk], outcome: Result[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]},{code: string, message: string, retryable: bool}]}!{AI}",
       "effects": [
         "AI"
       ],

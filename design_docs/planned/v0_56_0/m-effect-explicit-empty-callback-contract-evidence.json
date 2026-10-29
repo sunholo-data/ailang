@@ -1,0 +1,248 @@
+{
+  "status": "observed_only_no_implementation",
+  "matrix": [
+    {
+      "arm": "base",
+      "compiler": "c04a44780f32b6af98905a46191c104b1d5b32ce",
+      "case": "mixed",
+      "rc": 0,
+      "output": "\u2192 Type checking mixed.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-base-source/std\n"
+    },
+    {
+      "arm": "base",
+      "compiler": "c04a44780f32b6af98905a46191c104b1d5b32ce",
+      "case": "concrete",
+      "rc": 0,
+      "output": "\u2192 Type checking concrete.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-base-source/std\n"
+    },
+    {
+      "arm": "base",
+      "compiler": "c04a44780f32b6af98905a46191c104b1d5b32ce",
+      "case": "literal",
+      "rc": 0,
+      "output": "\u2192 Type checking literal.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-base-source/std\n"
+    },
+    {
+      "arm": "base",
+      "compiler": "c04a44780f32b6af98905a46191c104b1d5b32ce",
+      "case": "implicit",
+      "rc": 0,
+      "output": "\u2192 Type checking implicit.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-base-source/std\n"
+    },
+    {
+      "arm": "row_only",
+      "compiler": "752cebf3cf09202c01ec74d6ce1172a9c39b2294",
+      "case": "mixed",
+      "rc": 0,
+      "output": "\u2192 Type checking mixed.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-only-source/std\n"
+    },
+    {
+      "arm": "row_only",
+      "compiler": "752cebf3cf09202c01ec74d6ce1172a9c39b2294",
+      "case": "concrete",
+      "rc": 0,
+      "output": "\u2192 Type checking concrete.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-only-source/std\n"
+    },
+    {
+      "arm": "row_only",
+      "compiler": "752cebf3cf09202c01ec74d6ce1172a9c39b2294",
+      "case": "literal",
+      "rc": 0,
+      "output": "\u2192 Type checking literal.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-only-source/std\n"
+    },
+    {
+      "arm": "row_only",
+      "compiler": "752cebf3cf09202c01ec74d6ce1172a9c39b2294",
+      "case": "implicit",
+      "rc": 0,
+      "output": "\u2192 Type checking implicit.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-only-source/std\n"
+    },
+    {
+      "arm": "nested_only",
+      "compiler": "87f846980c8b6fc601173be427b1364968559488",
+      "case": "mixed",
+      "rc": 1,
+      "output": "\u2192 Type checking mixed.ail...\n\u2192 Effect checking...\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1963-only-source/std\nError: effect checking failed in mixed: Effect checking failed for function 'factory'\n  Function uses effects not declared in signature\n\n  Missing effects: IO\n\n  Current signature: func factory(...) -> T\n  Suggested fix:     func factory(...) -> T ! {IO}\n\n"
+    },
+    {
+      "arm": "nested_only",
+      "compiler": "87f846980c8b6fc601173be427b1364968559488",
+      "case": "concrete",
+      "rc": 1,
+      "output": "\u2192 Type checking concrete.ail...\n\u2192 Effect checking...\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1963-only-source/std\nError: effect checking failed in concrete: Effect checking failed for function 'factory'\n  Function uses effects not declared in signature\n\n  Missing effects: IO\n\n  Current signature: func factory(...) -> T\n  Suggested fix:     func factory(...) -> T ! {IO}\n\n"
+    },
+    {
+      "arm": "nested_only",
+      "compiler": "87f846980c8b6fc601173be427b1364968559488",
+      "case": "literal",
+      "rc": 0,
+      "output": "\u2192 Type checking literal.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1963-only-source/std\n"
+    },
+    {
+      "arm": "nested_only",
+      "compiler": "87f846980c8b6fc601173be427b1364968559488",
+      "case": "implicit",
+      "rc": 1,
+      "output": "\u2192 Type checking implicit.ail...\n\u2192 Effect checking...\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1963-only-source/std\nError: effect checking failed in implicit: Effect checking failed for function 'factory'\n  Function uses effects not declared in signature\n\n  Missing effects: IO\n\n  Current signature: func factory(...) -> T\n  Suggested fix:     func factory(...) -> T ! {IO}\n\n"
+    },
+    {
+      "arm": "combined",
+      "compiler": "970a4669470566163cba09892a351e639b6de60c",
+      "case": "mixed",
+      "rc": 1,
+      "output": "\u2192 Type checking mixed.ail...\n\u2192 Effect checking...\nError: effect checking failed in mixed: Effect checking failed for function 'factory'\n  Function uses effects not declared in signature\n\n  Missing effects: IO\n\n  Current signature: func factory(...) -> T\n  Suggested fix:     func factory(...) -> T ! {IO}\n\n"
+    },
+    {
+      "arm": "combined",
+      "compiler": "970a4669470566163cba09892a351e639b6de60c",
+      "case": "concrete",
+      "rc": 1,
+      "output": "\u2192 Type checking concrete.ail...\n\u2192 Effect checking...\nError: effect checking failed in concrete: Effect checking failed for function 'factory'\n  Function uses effects not declared in signature\n\n  Missing effects: IO\n\n  Current signature: func factory(...) -> T\n  Suggested fix:     func factory(...) -> T ! {IO}\n\n"
+    },
+    {
+      "arm": "combined",
+      "compiler": "970a4669470566163cba09892a351e639b6de60c",
+      "case": "literal",
+      "rc": 0,
+      "output": "\u2192 Type checking literal.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n"
+    },
+    {
+      "arm": "combined",
+      "compiler": "970a4669470566163cba09892a351e639b6de60c",
+      "case": "implicit",
+      "rc": 1,
+      "output": "\u2192 Type checking implicit.ail...\n\u2192 Effect checking...\nError: effect checking failed in implicit: Effect checking failed for function 'factory'\n  Function uses effects not declared in signature\n\n  Missing effects: IO\n\n  Current signature: func factory(...) -> T\n  Suggested fix:     func factory(...) -> T ! {IO}\n\n"
+    }
+  ],
+  "actual_fixture": [
+    {
+      "arm": "base",
+      "compiler": "c04a44780f32b6af98905a46191c104b1d5b32ce",
+      "rc": 0,
+      "output": "\u2192 Type checking src/core/test/ext_fixture.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-base-source/std\n"
+    },
+    {
+      "arm": "row_only",
+      "compiler": "752cebf3cf09202c01ec74d6ce1172a9c39b2294",
+      "rc": 0,
+      "output": "\u2192 Type checking src/core/test/ext_fixture.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-only-source/std\n"
+    },
+    {
+      "arm": "nested_only",
+      "compiler": "87f846980c8b6fc601173be427b1364968559488",
+      "rc": 1,
+      "output": "\u2192 Type checking src/core/test/ext_fixture.ail...\n\u2192 Effect checking...\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1963-only-source/std\nError: effect checking failed in src/core/test/ext_fixture: Effect checking failed for function 'fixture_rt'\n  Function uses effects not declared in signature\n\n  Missing effects: AI, Clock, Env, FS, IO, Net, Process, Rand, SharedMem, Stream, Trace\n\n  Current signature: func fixture_rt(...) -> T\n  Suggested fix:     func fixture_rt(...) -> T ! {AI[mode=fixed], Clock, Env, FS, IO, Net, Process, Rand[mode=os], SharedMem, Stream, Trace}\n\n"
+    },
+    {
+      "arm": "combined",
+      "compiler": "970a4669470566163cba09892a351e639b6de60c",
+      "rc": 1,
+      "output": "\u2192 Type checking src/core/test/ext_fixture.ail...\n\u2192 Effect checking...\nWARNING VER001 (toolchain-skew): ailang.lock was generated by ailang v0.54.18, but this binary is v0.55.0.\n  A type error such as \"cannot unify type constructors: string vs NetError\" may be stdlib version skew, not your code.\n  Fix: regenerate the lock with `ailang lock` (accept the newer stdlib), or install the v0.54.18 toolchain to match.\nError: effect checking failed in src/core/test/ext_fixture: Effect checking failed for function 'fixture_rt'\n  Function uses effects not declared in signature\n\n  Missing effects: AI, Clock, Env, FS, IO, Net, Process, Rand, SharedMem, Stream, Trace\n\n  Current signature: func fixture_rt(...) -> T\n  Suggested fix:     func fixture_rt(...) -> T ! {AI[mode=fixed], Clock, Env, FS, IO, Net, Process, Rand[mode=os], SharedMem, Stream, Trace}\n\n"
+    }
+  ],
+  "failed_four_pure_and_concrete_controls": [
+    {
+      "arm": "base",
+      "case": "single_concrete",
+      "rc": 0,
+      "output": "\u2192 Type checking single_concrete.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-base-source/std\n"
+    },
+    {
+      "arm": "base",
+      "case": "all_io",
+      "rc": 0,
+      "output": "\u2192 Type checking all_io.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-base-source/std\n"
+    },
+    {
+      "arm": "base",
+      "case": "actual_four_pure",
+      "rc": 0,
+      "output": "\u2192 Type checking src/core/test/ext_fixture.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-base-source/std\n"
+    },
+    {
+      "arm": "row_only",
+      "case": "single_concrete",
+      "rc": 0,
+      "output": "\u2192 Type checking single_concrete.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-only-source/std\n"
+    },
+    {
+      "arm": "row_only",
+      "case": "all_io",
+      "rc": 0,
+      "output": "\u2192 Type checking all_io.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-only-source/std\n"
+    },
+    {
+      "arm": "row_only",
+      "case": "actual_four_pure",
+      "rc": 0,
+      "output": "\u2192 Type checking src/core/test/ext_fixture.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-only-source/std\n"
+    },
+    {
+      "arm": "nested_only",
+      "case": "single_concrete",
+      "rc": 0,
+      "output": "\u2192 Type checking single_concrete.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1963-only-source/std\n"
+    },
+    {
+      "arm": "nested_only",
+      "case": "all_io",
+      "rc": 0,
+      "output": "\u2192 Type checking all_io.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1963-only-source/std\n"
+    },
+    {
+      "arm": "nested_only",
+      "case": "actual_four_pure",
+      "rc": 1,
+      "output": "\u2192 Type checking src/core/test/ext_fixture.ail...\n\u2192 Effect checking...\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1963-only-source/std\nError: effect checking failed in src/core/test/ext_fixture: Effect checking failed for function 'fixture_rt'\n  Function uses effects not declared in signature\n\n  Missing effects: AI, Clock, Env, FS, IO, Net, Process, Rand, SharedMem, Stream, Trace\n\n  Current signature: func fixture_rt(...) -> T\n  Suggested fix:     func fixture_rt(...) -> T ! {AI[mode=fixed], Clock, Env, FS, IO, Net, Process, Rand[mode=os], SharedMem, Stream, Trace}\n\n"
+    },
+    {
+      "arm": "combined",
+      "case": "single_concrete",
+      "rc": 0,
+      "output": "\u2192 Type checking single_concrete.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n"
+    },
+    {
+      "arm": "combined",
+      "case": "all_io",
+      "rc": 0,
+      "output": "\u2192 Type checking all_io.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n"
+    },
+    {
+      "arm": "combined",
+      "case": "actual_four_pure",
+      "rc": 1,
+      "output": "\u2192 Type checking src/core/test/ext_fixture.ail...\n\u2192 Effect checking...\nWARNING VER001 (toolchain-skew): ailang.lock was generated by ailang v0.54.18, but this binary is v0.55.0.\n  A type error such as \"cannot unify type constructors: string vs NetError\" may be stdlib version skew, not your code.\n  Fix: regenerate the lock with `ailang lock` (accept the newer stdlib), or install the v0.54.18 toolchain to match.\nError: effect checking failed in src/core/test/ext_fixture: Effect checking failed for function 'fixture_rt'\n  Function uses effects not declared in signature\n\n  Missing effects: AI, Clock, Env, FS, IO, Net, Process, Rand, SharedMem, Stream, Trace\n\n  Current signature: func fixture_rt(...) -> T\n  Suggested fix:     func fixture_rt(...) -> T ! {AI[mode=fixed], Clock, Env, FS, IO, Net, Process, Rand[mode=os], SharedMem, Stream, Trace}\n\n"
+    }
+  ],
+  "explicit_empty_io_slot": [
+    {
+      "arm": "base",
+      "rc": 0,
+      "output": "\u2192 Type checking empty_slot_io.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-base-source/std\n"
+    },
+    {
+      "arm": "row_only",
+      "rc": 0,
+      "output": "\u2192 Type checking empty_slot_io.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1958-only-source/std\n"
+    },
+    {
+      "arm": "nested_only",
+      "rc": 0,
+      "output": "\u2192 Type checking empty_slot_io.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/1963-only-source/std\n"
+    },
+    {
+      "arm": "combined",
+      "rc": 0,
+      "output": "\u2192 Type checking empty_slot_io.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n"
+    }
+  ],
+  "sources": {
+    "mixed.ail": "module mixed\nimport std/io (println)\npure func inc(x: int) -> int = x + 1\nfunc noisy(x: int) -> int ! {IO} = { println(\"called\"); x }\ntype Hooks = { describe: (int) -> int, provide: (int) -> int ! {IO} }\npure func keep(h: Hooks) -> Hooks = h\npure func factory() -> Hooks = keep({describe: inc, provide: noisy})\n",
+    "implicit.ail": "module implicit\nimport std/io (println)\npure func inc(x: int) -> int = x + 1\nfunc noisy(x: int) -> int ! {IO} = { println(\"called\"); x }\ntype Hooks = { describe: (int) -> int, provide: (int) -> int }\npure func keep(h: Hooks) -> Hooks = h\npure func factory() -> Hooks = keep({describe: inc, provide: noisy})\n",
+    "empty_slot_io.ail": "module empty_slot_io\nimport std/io (println)\nfunc noisy(x: int) -> int ! {IO} = { println(\"called\"); x }\nfunc apply(f: (int) -> int ! {}, x: int) -> int = f(x)\nfunc caller() -> int ! {IO} = apply(noisy, 0)\n",
+    "literal.ail": "module literal\nimport std/io (println)\npure func inc(x: int) -> int = x + 1\nfunc noisy(x: int) -> int ! {IO} = { println(\"called\"); x }\ntype Hooks = { describe: (int) -> int, provide: (int) -> int ! {IO} }\npure func keep(h: Hooks) -> Hooks = h\npure func factory() -> Hooks = {describe: inc, provide: noisy}\n",
+    "single_concrete.ail": "module single_concrete\nimport std/io (println)\nfunc noisy(x: int) -> int ! {IO} = { println(\"called\"); x }\ntype Hooks = { provide: (int) -> int ! {IO} }\npure func keep(h: Hooks) -> Hooks = h\npure func factory() -> Hooks = keep({provide: noisy})\n",
+    "concrete.ail": "module concrete\nimport std/io (println)\npure func inc(x: int) -> int = x + 1\nfunc noisy(x: int) -> int ! {IO} = { println(\"called\"); x }\ntype Hooks = { describe: (int) -> int ! {}, provide: (int) -> int ! {IO} }\npure func keep(h: Hooks) -> Hooks = h\npure func factory() -> Hooks = keep({describe: inc, provide: noisy})\n",
+    "all_io.ail": "module all_io\nimport std/io (println)\nfunc noisy(x: int) -> int ! {IO} = { println(\"called\"); x }\ntype Hooks = { describe: (int) -> int ! {IO}, provide: (int) -> int ! {IO} }\npure func keep(h: Hooks) -> Hooks = h\npure func factory() -> Hooks = keep({describe: noisy, provide: noisy})\n"
+  }
+}

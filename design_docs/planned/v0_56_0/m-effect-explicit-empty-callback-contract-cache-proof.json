@@ -1,0 +1,32 @@
+{
+  "old_compiler_commit": "752cebf3cf09202c01ec74d6ce1172a9c39b2294",
+  "fixed_source_base": "e4bee03c9c88210360dbe2b7967d57c650708e0e",
+  "fixed_uncommitted_scope": "approved M2 AST/iface/internal identity changes",
+  "old_main_cache_key": "c6e65f5976ec01723f9738a64ea544bfba20ae37c9fecc68d631402ad99c5e8f",
+  "cache_files": 16,
+  "old_warm_changed_files": [
+    "compile/manifest.json"
+  ],
+  "results": [
+    {
+      "stage": "old_cold",
+      "rc": 0,
+      "output": "\u2192 Type checking main.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n"
+    },
+    {
+      "stage": "old_warm",
+      "rc": 0,
+      "output": "\u2192 Type checking main.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n"
+    },
+    {
+      "stage": "fixed_same_cache",
+      "rc": 1,
+      "output": "\u2192 Type checking main.ail...\n\u2192 Effect checking...\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/effect-row-1958/std\nError: type error in main (decl 2): type unification failed at [function application of apply at main.ail:5:36]: failed to unify parameter 0: failed to unify effect rows: incompatible closed rows: r1 has extra labels [], r2 has extra labels [IO]\n"
+    },
+    {
+      "stage": "fixed_no_cache",
+      "rc": 1,
+      "output": "\u2192 Type checking main.ail...\n\u2192 Effect checking...\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/effect-row-1958/std\nError: type error in main (decl 2): type unification failed at [function application of apply at main.ail:5:36]: failed to unify parameter 0: failed to unify effect rows: incompatible closed rows: r1 has extra labels [], r2 has extra labels [IO]\n"
+    }
+  ]
+}

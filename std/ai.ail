@@ -294,13 +294,14 @@ export type StreamChunk = ContentDelta(string) | ThinkingDelta(string) | Usage({
 -- a tag-aware splitter on the consumer side if you want to separate
 -- them.
 --
--- The callback's effect row is open (`\!{IO}` is typical but not required).
+-- The callback's effects propagate to the caller: a pure callback needs only AI;
+-- an IO renderer needs AI and IO. Any callback row e is supported.
 -- Errors thrown from the callback are recorded as trace events but do NOT
 -- abort the SSE drain — the caller still receives a complete StepResult.
 --
 -- For providers without native streaming, the callback fires exactly twice:
 -- once with ContentDelta(full_text) then once with Usage(...).
-export func stepWithStream(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {IO}) -> Result[StepResult, AIError] ! {AI} =
+export func stepWithStream(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {e}) -> Result[StepResult, AIError] ! {AI, e} =
   _ai_step_with_stream(model, messages, tools, cache_breakpoints, on_chunk)
 
 -- RecordedStream is what stepWithStreamRecorded returns: the exact ordered
@@ -316,7 +317,7 @@ export type RecordedStream = { chunks: [StreamChunk], outcome: Result[StepResult
 -- rendering is unchanged. The returned `chunks` is an exact, non-duplicating
 -- record of the same sequence, which lets a caller record a live exchange and
 -- replay it deterministically without widening the callback's effect row.
-export func stepWithStreamRecorded(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {IO}) -> RecordedStream ! {AI} =
+export func stepWithStreamRecorded(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {e}) -> RecordedStream ! {AI, e} =
   _ai_step_with_stream_recorded(model, messages, tools, cache_breakpoints, on_chunk)
 
 -- runTools: convenience loop driver for multi-turn tool dispatch.

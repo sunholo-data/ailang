@@ -441,6 +441,24 @@ func add(x: int, y: int) -> int { x + y }
 pure func factorial(n: int) -> int { ... }
 ```
 
+### Callback Function Types
+
+In callback types, omission and an explicit empty row have different meanings:
+
+| Type | Contract |
+|---|---|
+| `T -> U` | Implicit open callback effects, charged at hand-off |
+| `T -> U ! {}` | Closed pure callback; effectful values are rejected even in effectful callers |
+| `T -> U ! {IO}` | Concrete IO contract; the callee pays IO when invoking it |
+| `T -> U ! {e}` | Explicit effect polymorphism shared with the enclosing row |
+
+This applies inside aliases, records, tuples, lists and generic containers.
+A helper that only stores a mixed callback record can use explicit empty rows on
+pure fields and concrete rows on effectful fields. Direct literal construction
+still stores callbacks without performing their effects. See the runnable
+`explicit_empty_callback_contracts.ail` example. Explicit-empty callback contracts
+are a breaking soundness correction targeting v0.56.0.
+
 ### Combining Effects
 
 Effects from called functions are combined:

@@ -81,12 +81,13 @@ export func bye(c: StreamConn) -> unit ! {Stream} = disconnect(c)
 // Precision controls: effects that only appear in the TYPES of the package's
 // own functions or of caller-supplied callbacks are not reached authority.
 // This is the motoko-ext hook shape: a hook must carry the ABI's fixed row
-// even when its body uses less.
+// even when its body uses less. The annotated lambda explicitly declares that row:
+// implicit width subsumption is deferred to #1958 Phase 2 (F2 ruling).
 func TestEffectCeiling_OwnTypesAndCallbacksNotCharged(t *testing.T) {
 	cases := map[string]string{
 		"hook typed wider than its body": `module m
 
-export func mk() -> (string) -> int ! {Stream, Process} = \c. 1
+export func mk() -> (string) -> int ! {Stream, Process} = func(c: string) -> int ! {Stream, Process} { 1 }
 `,
 		"caller-supplied callback stored, never called": `module m
 
@@ -111,7 +112,7 @@ export func keep(f: (string) -> int ! {Process}) -> Box = { run: f }
 		err := checkCeilingPkg(t, map[string]string{
 			"hooks.ail": `module t/a/hooks
 
-export func mkHook() -> (string) -> int ! {Stream, Process} = \c. 1
+export func mkHook() -> (string) -> int ! {Stream, Process} = func(c: string) -> int ! {Stream, Process} { 1 }
 `,
 			"m.ail": `module t/a/m
 
