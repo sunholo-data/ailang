@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 68 | 2026-10-29 | `sprint-planner:template-make-test-changelog-filesize` LANDED via #2001 → `e29a42482`, independent sonnet PASS ~88–90; `quorum:zero-signal-guard-va... |
 | 67 | 2026-10-28 | `pin-root:worktree-removed-mid-fire` LANDED via #1999 → `17ec65d68`, independent sonnet PASS 88; root cause was fleet iteration 66's own synthetic-... |
 | 66 | 2026-10-28 | `gate5:controlplane-send-refused-local-store` LANDED via #1994 → `d95ead6af`, independent sonnet PASS 91 (round 2); `pi:unowned-dirty-absolute-vs-r... |
 | 65 | 2026-10-28 | planner-lane fence parsing LANDED via #1977 → `7c5cc5d33`, independent sonnet PASS 90 (round 2), two duplicate tickets resolved; `quota:admission-h... |

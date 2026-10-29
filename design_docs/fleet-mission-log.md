@@ -2190,3 +2190,83 @@ Last 3 code landings: iteration 64, clause 2 (under 48h); iteration 65, none (ol
 Last 3 code landings: iteration 65, none (about 25 d); iteration 66, none (about 23 d); iteration 67, clause 2 (under 48h). No drift alarm.
 
 **Next**: `ci:distinct-build-test-failures` (triage, 10-28 21:18Z; the 48h window closes 10-30 21:18Z). It asks for a diagnosis of `internal/runner` and daemon test failures, so the reality check must first decide whether the fix lies inside fleet scope. Then `skills:showcase-feature-discoverability` and the 1-slot tier.
+
+## 68 — 2026-10-29 — `sprint-planner:template-make-test-changelog-filesize` LANDED via #2001 → `e29a42482`, independent sonnet PASS ~88–90; `quorum:zero-signal-guard-vacuous-with-controller` resolved as a ghost; `ci:distinct-build-test-failures` measured out of scope [HARNESS]
+
+**Pick**: iteration 67's **Next** was `ci:distinct-build-test-failures` (triage, 10-28 21:18Z), the only ticket inside the 48h window. Its scope check failed: all three failing tests live outside fleet authority (`internal/runner/worker_terminal_pty_test.go`, `internal/daemon/daemon_test.go`, `cmd/ailang/run_policy_owned_test.go`), so it is parked on the D-FLEET-17 class (re-measured below). The pick moved to the oldest in-scope, ungated ticket, `sprint-planner:template-make-test-changelog-filesize` (attended, 10-09). The bookkeeping second item was the ghost `quorum:zero-signal-guard-vacuous-with-controller` (attended, 10-08).
+
+**Orphans**: none. No `fleet/i68*` branch, worktree or PR existed. Self-notices rc 0 (control 852:10). The log and charter on `origin/dev` ended at 67.
+
+**Preflight / observe**:
+- Armed. gh `sunholo-voight-kampff`. Billing CLEAN. Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (8 comments, none allowlisted).
+- Skill drift: SKILL.md and all 13 resource files `cmp`-identical to origin/dev at the resolved symlink target.
+- Gate-1 base `4e6ea7b25091e2a50c8de64c68257c024e54a331@2026-10-29T05:14:02Z`.
+- Dev CI on `4e6ea7b25`: Build and Release red in `Build ubuntu-latest`, `internal/runner` `TestWorkerTerminalPTYLifecycle/eval/normal`. The required `test` passed. `govulncheck` (GO-2026-6860, inherited) and SonarCloud are red as on the parents.
+- Ledger valid, 32 rows, 17 OPEN. 40 tickets open. Codex in ration (`MISSION_OVER_RATION` empty).
+
+**Reality check** (first-party, before routing):
+- `ci:distinct-build-test-failures`: the last 10 dev Build and Release runs failed 3 times, each on a different test: `07ce4a8dc` `TestRunPolicy_OwnedCancellation/managed/sigterm`, `6643f7ca2` `TestDaemon_TaskDedupSuppressesRepeats`, and `4e6ea7b25` `TestWorkerTerminalPTYLifecycle/eval/normal`. The third is new since the ticket was filed. The first two are the ticket's own pair. All three files are outside the fleet allowlist, and instrumenting them is the ticket's ask. Triage PR #1926 and `planned/v0_54_17/m-worker-pty-pidfile-ack.md` already cover the PTY test. The ticket stays open.
+- `sprint-planner:template-make-test-changelog-filesize`: asks 1–3 were already landed by attended #1770 (`dbe4b26a3`, 10-12), and ask 6 by `b2d21a070` (jq in `docker/Dockerfile.agent-base`, 10-09).
+  - Ask 4 was still open. The skill had no rule against putting a plan in `design_docs/planned/ailang-core-triage/`. Two plans had landed there before (`17254535d`, `a65e6c12b`), and `internal/coordinator/triage_rubric_test.go:108` checks every file in that directory.
+  - Ask 5 was still open too: the skill had no rule on how a plan may stop for a human decision.
+  - Constraint found at pick time: `scripts/context_docs_baseline.txt:24` caps the planner SKILL.md at 597 lines (596 at base). That file is outside fleet scope.
+- `quorum:zero-signal-guard-vacuous-with-controller`: `quorum.go` at HEAD counts present external reviewers only (`a5f9af982`, #1767). The queue's P1 #8 had resolved the `...-controller-verdict` signature, so this re-filed spelling was left open. #651 is CLOSED.
+
+**Did** (designer skipped; planner, executor and one evaluator round spawned; generator ≠ judge):
+- **Designer**: not spawned. Mechanical skill fix; the rotation pointer was not advanced.
+- **Planner**, `codex:gpt-6.1-sol`. The resolver said `agent-tool opus fail-closed:no-doc` against the codex pin, so the planner went straight to the pin (rule (a), as at iterations 64 and 67). Probe rc 0; run rc 0. It wrote [the plan](planned/sprint-plan-planner-placement-stop-gates.md):
+  - M1: the two rules in one SKILL.md line, in `resources/coordinator.md`, and in `resources/sprint_plan_template.md`.
+  - M2: a guard in `create_sprint_json.sh` plus `test_create_sprint_json.sh`, wired into `test-launchd-drivers`.
+  - M3: a changelog fragment.
+  - Rejected: exempting `*-sprint-plan.md` in the rubric test (`internal/` is out of scope, and an exemption would let a misplaced row escape the rubric); a prose-only fix.
+- **Executor**, `codex:gpt-6.1-sol`, rc 0.
+  - It built M1–M3 with snapshots, and all 10 of its mutants went red.
+  - Inside the sandbox it reported `make test-launchd-drivers` `4 of 50 suites FAILED` (kill-tree, stall, stage-isolation, codex-controller-env). All four pass outside the sandbox, so they were sandbox denials.
+  - The controller rebuilt one commit per milestone from the snapshots (`29b945e55`, `0ea4dd233`, `249ee0d94`), running the new test at each boundary. `shasum -c` matched 11 of 13 files. The 2 that differ are the SKILL.md copies, where the controller moved one blank line so the new bullet sits inside the checklist. Then `298faf903` set M2 `passes: true`.
+- **Evaluator**, Agent tool `sonnet`, fresh judge worktree at `249ee0d94`: **PASS ~88–90**, 0 blocking.
+  - Its own guard drills all behaved as designed. Refused: `./`, `..`, absolute, `../../` from a subdirectory, symlinked dir, `//`. Accepted: the sibling `ailang-core-triage-extra/`, and a triage design doc as the third argument. With python3 missing the script exits 127 before any side effect.
+  - Test mutations: deleting the guard fails 30 of 49 arms; moving it below the import fails 27.
+  - It confirmed C1, C2 and C7. C7 included a mutation of the zero-signal guard, which reddened 4 quorum tests.
+  - Non-blocking: on case-insensitive APFS, `AILANG-core-triage/` passes the guard; python3 is an undocumented prerequisite; "decision-ledger row ID" is not defined in SKILL.md.
+  - Strongest objection: the guard is a case-sensitive backstop, and the prose rule is the real control. Report: [evaluation.md](fleet-mission-evidence/iteration68/evaluation.md).
+- **Done-gate** ([done-gate.md](fleet-mission-evidence/iteration68/done-gate.md)):
+  - `make test-launchd-drivers` rc 0 at base (49 suites) and head (50).
+  - `check-context-docs`, `check-skills`, `check-changelog`, `check-file-sizes` and shellcheck all rc 0.
+  - World dry-runs (idle and armed; real HOME; `AILANG_WORKTREE_SWEEP=0`; `AILANG_DRIVER_PINNED=249ee0d94`): healthy `lanes=ok`; degraded `lanes=DEGRADED(1)`, executor handed to `claude:claude-haiku-5-5`.
+  - The sweep log (`87fe4fc2a0c40067`, 173 lines), the pin listing and the world pidfile were unchanged.
+- **PR** [#2001](https://github.com/sunholo-data/ailang/pull/2001). The closing-keyword scan found 0 matches; the control fired.
+
+**Gate 3b**:
+- PR head `298faf903`: 27 checks terminal, 26 green. The one red is `govulncheck (vuln gate)`, with `1 unallowlisted finding(s): GO-2026-6860` (inherited). MERGEABLE/UNSTABLE.
+- Merged with `--merge --match-head-commit` → `e29a42482a3e39293b64403b1e4c0036334af7cf`.
+- Exact merge: Build and Release 40827874474 SUCCESS. CI 40827874480 failed only in `govulncheck`. SonarCloud `Quality Gate failed`, as on the parent `4e6ea7b25`.
+- The same govulncheck log lists `8 expired allowlist entr(ies)` (GO-2025-3557/3558/3559/3582 …), all dated `expired 2026-10-29`. This is outside fleet scope (`.govulncheck-allow.yml`).
+
+**Resolved**:
+- `sprint-planner:template-make-test-changelog-filesize` `--sha e29a42482…`. Turnaround about 20 d (10-09 06:22Z → 10-29 about 07:35Z).
+- `quorum:zero-signal-guard-vacuous-with-controller` `--sha a5f9af982`, as a ghost. Open for about 21 d; it had been fixed since 10-12.
+- Both replies went to attended. 40 → 38 open.
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET: both closures took about 20 d, and the only in-window ticket is outside fleet authority. Clause 3 MET (38 open). Clause 4: prior evidence only. Clause 5 preserved.
+
+**Routing evidence**: Gate-1 base `4e6ea7b25091e2a50c8de64c68257c024e54a331@2026-10-29T05:14:02Z`; merge `e29a42482`. Routing note: as configured (codex in ration).
+- Controller `claude:claude-opus-5-5` (tok: not reported).
+- Designer: not spawned (mechanical; no doc).
+- Planner `codex:gpt-6.1-sol` (60,214 tok). Resolver `agent-tool opus fail-closed:no-doc`; routed to the codex pin.
+- Executor `codex:gpt-6.1-sol` (131,595 tok), rc 0.
+- Evaluator `sonnet`, Agent tool (76,193 subagent tokens / 10 tool uses / 170 s). Judge independence: cross-vendor (Anthropic vs OpenAI).
+- Quorum: none (no design doc). Metered spend: $0. No lane recorded dead.
+
+**Ruled out**:
+- Working `ci:distinct-build-test-failures` in fleet scope: all three test files are outside the allowlist.
+- Editing `scripts/context_docs_baseline.txt` so SKILL.md could grow: outside scope; the detail went to `resources/` instead.
+- Exempting plan files in the triage rubric test: `internal/` is out of scope, and an exemption weakens the rubric.
+
+**Retro lane**: none filed. No skill edit; nothing in this iteration's friction recurs twice. Observations, not tickets:
+- (a) A codex executor's in-sandbox `make test-launchd-drivers` reads 4 suites red that pass outside. This is false-green (3) as documented, and the out-of-sandbox re-run settled it.
+- (b) A ticket that keeps the same defect under two signatures (`...-controller` vs `...-controller-verdict`) stayed open about 16 d after its fix landed. Resolving one spelling does not close the other.
+- (c) The govulncheck allowlist carries 8 entries that expire today. Whether that changes the gate is V1's or Mark's to read.
+
+Last 3 code landings: iteration 66, none (about 23 d); iteration 67, clause 2 (under 48h); iteration 68, none (about 20 d). No drift alarm.
+
+**Next**: no ticket is inside the 48h window except `ci:distinct-build-test-failures` (out of scope; window closes 10-30 21:18Z). Next in-scope ungated candidates, scope check first: `gate0:session-protocol-deadlock:agent-policy-unset` (stapledon, 10-07; does the driver export `AILANG_AGENT_POLICY` for pi controllers?), `pi:provider-error:no-retry` (stapledon, 10-07), then `skills:showcase-feature-discoverability`.
