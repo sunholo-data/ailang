@@ -9,3 +9,5 @@
 - Imported aliases, interfaces and warm compilation retain the contract. The
   `explicit_empty_callback_contracts` example stores a pure probe and IO renderer
   through a pure helper without invoking the renderer during construction.
+
+- [Implemented design](../../design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract.md) and companion evidence are archived after independent acceptance; v0.56.0 remains unreleased.

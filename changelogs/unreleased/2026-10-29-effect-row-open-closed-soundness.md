@@ -21,3 +21,5 @@
 - Release target: v0.56.0 (next minor); this breaking guard is not a v0.55.x patch.
 - The pinned motoko consumer narrows its `play_chunks` callback slot to `IO`,
   matching Ports while preserving the helper's outer `IO, Trace` effects.
+
+- [Implemented design](../../design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md) and companion evidence are archived after independent acceptance; v0.56.0 remains unreleased.

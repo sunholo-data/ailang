@@ -1,7 +1,7 @@
 # M-PKG-ASSET-LOCK-RESOLUTION: lockfile-driven, semver-correct asset resolution for std/package.assetPath
 
-**Status**: Planned
-**Target**: v0.54.7
+**Status**: Implemented — unreleased
+**Target**: v0.56.0 (unreleased backlog batch; original v0.54.7 target is historical)
 **Priority**: P1 (determinism/correctness bug; workaround exists — pin by installing only one version, or pass data as values like sunholo/crew_core does)
 **Estimated**: 3 days
 **Dependencies**: None
@@ -124,7 +124,7 @@ The resolution order inside `pkgAssetPath` becomes:
 3. **Pipeline plumbing** (`internal/pipeline`):
    - `tryLoadPackageResolver` additionally builds the targets map from the lockfile it already loads and returns it (no new package-global; it already returns the resolver).
    - `modulePipelineState.loadModules` stores the map on a new `Result.PkgAssets` field.
-   - A helper `AssetTargetsFor(dir string) (map[string]effects.PkgAssetTarget, error)` (walks `pkg.FindManifest` → `pkg.LoadLockFile` → `PackageLoader`) for call sites that configure the effect context *before* a compile exists (embed engine, serve-api) and for one-line wiring anywhere. It returns `nil, nil` for bare directories (no manifest/lock) — that is a legitimate "no lock context", not a failure. `pipeline` already imports `eval`, which imports `effects`; importing `effects` for the map type adds no edge to a cycle (verified — `effects` imports none of `pipeline`/`eval`/`pkg`).
+   - A helper `AssetTargetsFor(dir string) (map[string]effects.PkgAssetTarget, error)` (walks `pkg.FindManifest` → `pkg.LoadLockFile` → `PackageLoader`) for call sites that configure the effect context *before* a compile exists (embed engine, serve-api) and for one-line wiring anywhere. It returns `nil, nil` for bare directories (neither manifest nor lock) — that is a legitimate "no lock context", not a failure. `pipeline` already imports `eval`, which imports `effects`; importing `effects` for the map type adds no edge to a cycle (verified — `effects` imports none of `pipeline`/`eval`/`pkg`).
 
 4. **Semver comparator in `effects`** (`internal/effects/pkg.go`): `parseSemver`/`compareSemver` local to the effect package, algorithmically identical to `pkg.ParseSemver` (`internal/pkg/version_compat.go:16`: strip `v` prefix, `major.minor[.patch]`, strip `-pre` suffix, tolerate `dev`/`unknown`). This is a deliberate keep-in-sync duplication — the third such (`AssetsDir`, `isAbsoluteCrossPlatform`) — because `effects` cannot import `internal/pkg` per the package's standing convention (see Verification Log for why the convention stays even though the original cycle claim is stale).
 
@@ -137,21 +137,21 @@ The resolution order inside `pkgAssetPath` becomes:
 ### Implementation Plan
 
 **Phase 1: runtime resolution** (~1 day)
-- [ ] Add `PkgAssetTarget` + `EffContext.PkgAssets` (nil-safe) in `internal/effects/context.go`
-- [ ] Add local semver comparator in `internal/effects/pkg.go`; rewrite version selection: lock-first, semver-max fallback, fail-loud on unparseable dirs
-- [ ] Update `TestPkgAssetPath_PicksLatestVersion` → `TestPkgAssetPath_PicksSemverMax` (expects `0.10.0`); add tests: locked-version-wins over newer cache, locked-but-not-installed `Err`, nil-ctx fallback, unparseable-dir `Err`, git/path-target resolution
-- [ ] Verify `fs_containment_test.go:209-211` (sandbox refusal) still passes unchanged
+- [x] Add `PkgAssetTarget` + `EffContext.PkgAssets` (nil-safe) in `internal/effects/context.go`
+- [x] Reuse the already-landed semver comparator in `internal/effects/pkg.go`; retain lock-first, semver-max fallback and an error when the cache contains only unparseable version directories
+- [x] Update `TestPkgAssetPath_PicksLatestVersion` → `TestPkgAssetPath_PicksSemverMax` (expects `0.10.0`); add tests: locked-version-wins over newer cache, locked-but-not-installed `Err`, nil-ctx fallback, invalid-only-cache `Err`, git/path-target resolution
+- [x] Verify `fs_containment_test.go:209-211` (sandbox refusal) still passes unchanged
 
 **Phase 2: lock graph plumbing** (~1 day)
-- [ ] `internal/pkg`: `PackageLoader.AssetTarget` + `LockedPackageNames` (reuse `packageDir`; unit tests per source kind)
-- [ ] `internal/pipeline`: build targets in `tryLoadPackageResolver`; `Result.PkgAssets`; `AssetTargetsFor(dir)`; tests with a fixture package whose lock pins the older of two cached versions
+- [x] `internal/pkg`: `PackageLoader.AssetTarget` + `LockedPackageNames` (reuse `packageDir`; unit tests per source kind)
+- [x] `internal/pipeline`: build targets in `tryLoadPackageResolver`; `Result.PkgAssets`; `AssetTargetsFor(dir)`; tests with a fixture package whose lock pins the older of two cached versions
 
 **Phase 3: wiring + docs** (~1 day)
-- [ ] `internal/runner`: run + batch assignment; end-to-end fixture test (two cached versions, lock pins older, run resolves older)
-- [ ] `internal/embed`: engine-scoped assignment via `AssetTargetsFor(basePath)`
-- [ ] Serve-api smoke test (served handler in a package with a lock)
-- [ ] Docs: `docs/docs/reference/std-package.md` (fix the false "Version selection" paragraph, describe lock-first + fallback + locked-but-not-installed error), builtin `LongDesc` in `internal/builtins/pkg.go` ("most recent installed version is selected" → lock-first description), `std/package.ail` header comment, changelog entry
-- [ ] `make fmt`, `make test`, `make check-boundaries`, `make check-architecture-closure`
+- [x] `internal/runner`: run + batch assignment; end-to-end fixture test (two cached versions, lock pins older, run resolves older)
+- [x] `internal/embed`: engine-scoped assignment via `AssetTargetsFor(basePath)`
+- [x] Serve-api smoke test (served handler in a package with a lock)
+- [x] Docs: `docs/docs/reference/std-package.md` (fix the false "Version selection" paragraph, describe lock-first + fallback + locked-but-not-installed error), builtin `LongDesc` in `internal/builtins/pkg.go` ("most recent installed version is selected" → lock-first description), `std/package.ail` header comment, changelog entry
+- [x] `make fmt`, `make test`, `make check-boundaries`, `make check-architecture-closure`
 
 ### Files to Modify/Create
 
@@ -288,13 +288,13 @@ Err("package not installed: sunholo/x@0.3.0 (locked by ailang.lock); run 'ailang
 
 ## Success Criteria
 
-- [ ] Program with lock pinning `sunholo/x 0.3.0`, with `0.3.0`+`0.4.0` cached, resolves the `0.3.0` asset (e2e test via `internal/runner` fixture)
-- [ ] Locked-but-not-installed returns `Err` naming the version and install command; no cache fallback (unit test)
-- [ ] Fallback with `{0.9.0, 0.10.0}` picks `0.10.0` (updated `TestPkgAssetPath_PicksSemverMax`)
-- [ ] `pkgAssetPath(nil, …)` tests and `examples/asset_path.ail` behavior unchanged (regression tests pass verbatim)
-- [ ] Sandboxed programs still refused before any resolution (`fs_containment_test.go` unchanged)
-- [ ] All tests passing (`make test`, `make test-core`)
-- [ ] Documentation updated (`std-package.md` false claim removed; builtin metadata; changelog)
+- [x] Program with lock pinning `sunholo/x 0.3.0`, with `0.3.0`+`0.4.0` cached, resolves the `0.3.0` asset (e2e test via `internal/runner` fixture)
+- [x] Locked-but-not-installed returns `Err` naming the version and install command; no cache fallback (unit test)
+- [x] Fallback with `{0.9.0, 0.10.0}` picks `0.10.0` (updated `TestPkgAssetPath_PicksSemverMax`)
+- [x] `pkgAssetPath(nil, …)` tests and `examples/asset_path.ail` behavior unchanged (regression tests pass verbatim)
+- [x] Sandboxed programs still refused before any resolution (`fs_containment_test.go` unchanged)
+- [x] All tests passing (`make test`, `make test-core`)
+- [x] Documentation updated (`std-package.md` false claim removed; builtin metadata; changelog)
 
 ## Testing Strategy
 
@@ -350,14 +350,14 @@ The following are intentionally left open for the implementer:
 ## Related Documents
 
 **Implemented (may inform design):**
-- [design_docs/implemented/v0_19_0/m-ext-portability-gate.md](../implemented/v0_19_0/m-ext-portability-gate.md) — introduced `std/package.assetPath`, assets bundling, and the "may need a way for assetPath to resolve to package-cache paths" note this doc finishes
-- [design_docs/implemented/v0_18_11/m-ext-portability-gate-sprint-plan.md](../implemented/v0_18_11/m-ext-portability-gate-sprint-plan.md) — same sprint's plan
+- [design_docs/implemented/v0_18_11/m-ext-portability-gate.md](../v0_18_11/m-ext-portability-gate.md) — introduced `std/package.assetPath`, assets bundling, and the "may need a way for assetPath to resolve to package-cache paths" note this doc finishes
+- [design_docs/implemented/v0_18_11/m-ext-portability-gate-sprint-plan.md](../v0_18_11/m-ext-portability-gate-sprint-plan.md) — same sprint's plan
 - M-EXECUTOR-POLICY-HARDENING — the sandbox-first refusal in `pkgAssetPath` that this design keeps as gate #1
 
 **Planned (check for overlap):**
-- [design_docs/planned/ailang-core-triage/compile-cache-path-dep-invalidation.md](ailang-core-triage/compile-cache-path-dep-invalidation.md) — path-dep cache invalidation; touches the same `PackageLoader.packageDir` path-source logic, no overlap in asset resolution
-- [design_docs/planned/ailang-core-triage/local-dep-replace-override.md](ailang-core-triage/local-dep-replace-override.md) — local dependency overrides; complementary lockfile work
-- [design_docs/planned/m-ext-registry-effect-row-ruling.md](m-ext-registry-effect-row-ruling.md) — registry/effect-row ruling for extension packages
+- [design_docs/planned/ailang-core-triage/compile-cache-path-dep-invalidation.md](../../planned/ailang-core-triage/compile-cache-path-dep-invalidation.md) — path-dep cache invalidation; touches the same `PackageLoader.packageDir` path-source logic, no overlap in asset resolution
+- [design_docs/planned/ailang-core-triage/local-dep-replace-override.md](../../planned/ailang-core-triage/local-dep-replace-override.md) — local dependency overrides; complementary lockfile work
+- [design_docs/planned/m-ext-registry-effect-row-ruling.md](../../planned/m-ext-registry-effect-row-ruling.md) — registry/effect-row ruling for extension packages
 
 ## References
 
@@ -376,7 +376,7 @@ The following are intentionally left open for the implementer:
 ---
 
 **Document created**: 2026-10-12
-**Last updated**: 2026-10-12
+**Last updated**: 2026-10-29
 
 ## Reconciliation against current dev (2026-10-29)
 
@@ -397,3 +397,18 @@ Runner/batch use compile-time targets; embed/API retain per-engine targets.
 The resolved snapshot includes the root package even during lock-free authoring.
 This remains the sole implementation carrier, PR #1849; no new feature task is
 created. The original round-1 evaluation is retained as historical evidence.
+
+
+## Implementation Report — 2026-10-29
+
+[PR #1849](https://github.com/sunholo-data/ailang/pull/1849) merged normally at `9dc6890919aa001deebee4361719456ee087440f`. Implementation is on dev and unreleased; this folder is a target placement, not a published tag. The basic lock/semver fix had already landed in03e53668c; this PR preserves that deployed behavior and completes immutable consuming-context snapshots, unavailable-target tombstones, loader/pipeline/runner/batch/embed/API propagation and package-name validation.
+
+Current registry-root override/root-package/no-lock behavior and mature release/prerelease ordering remain authoritative. Invalid version names cannot displace valid semver entries; an invalid-only cache returns a named Err. This preserves the later deployed fallback contract rather than reinstating the older comparator sketch above. Bare directories have no snapshot; a manifest without a lock still retains its root-package asset target.
+
+The real public CallPreserveFloats malformed-lock bypass found in independent round2 was repaired before acceptance; all module entry points now preserve the discovery error instead of reading newer fallback bytes. The isolated cold/warm/context-reset regression reads actual locked asset bytes. Budget scopes and cloned contexts retain their immutable snapshot.
+
+Independent round3 accepted exact `a24f2ca1c25e6dc03938515a1bc660815c26e247` at95/100, with no hard failures. Full native tests/lint/sizes passed on a clean exact head; all required remote Linux/Windows gates passed; Sonar measured94.9% new coverage against the unchanged80% threshold. Two hosted Mac builds remained queued at acceptance and are not reported green. The original five-point archival deduction is retained without self-rescoring. See [final evaluation](m-pkg-asset-lock-resolution-evaluation-round3.md), [round2 failure](m-pkg-asset-lock-resolution-evaluation-round2.md) and [machine report](../../../.ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_3.json). Original round1 FAIL51 and round2 FAIL68 remain immutable audit evidence.
+
+The Windows assertion repair checks named errors and configured-root exclusivity. The coverage repair relocates the same meaningful Engine regression into its helper package so the existing TestGoFiles-only report filter retains it; no exclusions, policy, threshold or production fallback changed. Required broad gates use no test exclusions.
+
+Actual new production helpers are in `internal/pkg/loader_assets.go`, `internal/pipeline/package_assets.go`, `internal/embed/package_assets.go` and `internal/effects/pkg_semver.go`, with focused and end-to-end regressions across all consumers. This completion report records final behavior; dated executor notes below/in the companion plan retain earlier failed gate attempts.

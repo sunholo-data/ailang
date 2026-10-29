@@ -1,0 +1,186 @@
+{
+  "sprint_id": "M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-29T11:19:45.563310+00:00",
+  "reviewer": "root (independent of executor)",
+  "evaluated_commit": "8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
+  "design_doc": "design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness-sprint-plan.md",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "gate_source": "local",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "conditional_scores": {
+    "regression_surface_coverage": 10,
+    "performance_verification": null
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "coverage_pct": "skipped (set EVAL_COVERAGE=1)",
+    "todo_hack_count": 0,
+    "is_perf_sprint": false,
+    "has_profile_data": false
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1_AI_ROW_POLY",
+      "criterion": "Both wrappers and builtin signatures share callback row e plus AI",
+      "met": true,
+      "evidence": "Failing-first pipeline/builtin tests green; both wrappers row-polymorphic; offline example check/run passes; test-changed/core, lint, sizes, verify-examples pass. Only ai stdlib golden changed."
+    },
+    {
+      "feature_id": "M1_AI_ROW_POLY",
+      "criterion": "Pure callback accepts AI-only caller; IO callback requires AI+IO",
+      "met": true,
+      "evidence": "Failing-first pipeline/builtin tests green; both wrappers row-polymorphic; offline example check/run passes; test-changed/core, lint, sizes, verify-examples pass. Only ai stdlib golden changed."
+    },
+    {
+      "feature_id": "M1_AI_ROW_POLY",
+      "criterion": "Builtin/stdlib goldens generated and focused tests pass",
+      "met": true,
+      "evidence": "Failing-first pipeline/builtin tests green; both wrappers row-polymorphic; offline example check/run passes; test-changed/core, lint, sizes, verify-examples pass. Only ai stdlib golden changed."
+    },
+    {
+      "feature_id": "M2_OPEN_CLOSED_GUARD",
+      "criterion": "Symmetric guards reject only1/only2 before tail binding",
+      "met": true,
+      "evidence": "Symmetric guards reject lost labels after substitution; unit matrix repeated x20; annotated callback regressions pass. Two F2 ceiling cases use approved annotated lambdas (named wider-row functions themselves correctly violate ceiling). test-changed/core, lint, sizes and verify-examples pass. In-repo 525-file base/fixed corpus: 0 status/first-diagnostic flips."
+    },
+    {
+      "feature_id": "M2_OPEN_CLOSED_GUARD",
+      "criterion": "Unit matrix and R1-R4 integration tests pass",
+      "met": true,
+      "evidence": "Symmetric guards reject lost labels after substitution; unit matrix repeated x20; annotated callback regressions pass. Two F2 ceiling cases use approved annotated lambdas (named wider-row functions themselves correctly violate ceiling). test-changed/core, lint, sizes and verify-examples pass. In-repo 525-file base/fixed corpus: 0 status/first-diagnostic flips."
+    },
+    {
+      "feature_id": "M2_OPEN_CLOSED_GUARD",
+      "criterion": "Exactly two ruled ceiling subtests use strict-compatible spellings",
+      "met": true,
+      "evidence": "Symmetric guards reject lost labels after substitution; unit matrix repeated x20; annotated callback regressions pass. Two F2 ceiling cases use approved annotated lambdas (named wider-row functions themselves correctly violate ceiling). test-changed/core, lint, sizes and verify-examples pass. In-repo 525-file base/fixed corpus: 0 status/first-diagnostic flips."
+    },
+    {
+      "feature_id": "M3_ENGINE_MUTATION",
+      "criterion": "R1-R5 fail before side-effect output on evaluator and bytecode",
+      "met": true,
+      "evidence": "Two-engine negative cases reject before side effects, positive mapE and pure AI streaming run. Guard removal kills unit/pipeline/CLI tests; migration removal kills both streaming APIs and builtin type tests. test-changed (including cmd/ailang 193.594s), core, lint and sizes pass."
+    },
+    {
+      "feature_id": "M3_ENGINE_MUTATION",
+      "criterion": "Positive declared-effect controls remain green",
+      "met": true,
+      "evidence": "Two-engine negative cases reject before side effects, positive mapE and pure AI streaming run. Guard removal kills unit/pipeline/CLI tests; migration removal kills both streaming APIs and builtin type tests. test-changed (including cmd/ailang 193.594s), core, lint and sizes pass."
+    },
+    {
+      "feature_id": "M3_ENGINE_MUTATION",
+      "criterion": "Removing guards or migration separately kills targeted tests",
+      "met": true,
+      "evidence": "Two-engine negative cases reject before side effects, positive mapE and pure AI streaming run. Guard removal kills unit/pipeline/CLI tests; migration removal kills both streaming APIs and builtin type tests. test-changed (including cmd/ailang 193.594s), core, lint and sizes pass."
+    },
+    {
+      "feature_id": "M4_CORPUS_RELEASE",
+      "criterion": "Base/fixed corpus comparisons recorded with exact source SHAs",
+      "met": true,
+      "evidence": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval."
+    },
+    {
+      "feature_id": "M4_CORPUS_RELEASE",
+      "criterion": "Combined #1790/#1963 tree goldens regenerated where applicable",
+      "met": true,
+      "evidence": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval."
+    },
+    {
+      "feature_id": "M4_CORPUS_RELEASE",
+      "criterion": "Focused required gates pass, changelog opens ###, sprint evaluator invoked",
+      "met": true,
+      "evidence": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Implementation complete; independent evaluation pending accurately reflects pre-evaluation state"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Ratified Phase0/1 row guard, streaming rows and separately authorized optionA explicit-empty amendment implemented. Deferred width subsumption remains deferred. Public alias hash exclusion retained; separate aliasDigest and actual warm-edit/cache tests establish persistence. Operator-held #1790 and #1771 v8 are not overwritten."
+  },
+  "feedback": [
+    {
+      "category": "code_quality",
+      "severity": "low",
+      "issue": "Original sprint JSON retains obsolete blocked_reason and compatibility_amendment_execution_authorized=false despite completed status and documented explicit authorization. Deduct3 for inconsistent sprint metadata; correct in completion audit preserving historical failure evidence.",
+      "suggestion": "Record the accepted limitation and archive metadata accurately without altering tested production source."
+    },
+    {
+      "category": "code_quality",
+      "severity": "low",
+      "issue": "TestRowUnification_OpenClosedOwnLabels is67lines (-2), plus the recorded obsolete authorization/block metadata (-3).",
+      "suggestion": "No source respin required; record the deduction without suppressing tests or altering policy."
+    }
+  ],
+  "evidence": {
+    "native_gate": "2005-native-gate.json",
+    "native_log": "2005-native-evaluation.log",
+    "native_head": "aa3a34a621a2ad3bfe9f6b14e74594e78a4ddf51",
+    "head_equivalence": "final candidate adds only145-line internal/iface/type_conversion_contract_test.go; all production/std/AIL/prompts/goldens/Docker byte-identical",
+    "supplemental_test": {
+      "test": "TestIfaceCallbackContractsThroughTypeContainers",
+      "actual_ran": true,
+      "result": "pass",
+      "seconds": 0.312,
+      "method": "exact final test via canonical Go overlay on immutable aa3 source",
+      "log": "2005-final-iface-test-independent.log"
+    },
+    "sonar": "2005-8de-sonar-gate.json",
+    "actual_new_coverage_pct": 93.5,
+    "consumer_commit": "083ef43726981099a0bad4fedda18fc72105d6fa",
+    "consumer_core": "60/60 actual gmake and fresh no-cache sweep;3 initial deadlines retained and serial retries passed",
+    "consumer_extensions": "9/9 boots plus runtime guards",
+    "corpus": "529 shared files445pass/84inherited rejects,0status/first-diagnostic changes; four external pinned sets0changes retaining errors/timeouts",
+    "interfaces": "49 regenerated and verified, no unintended golden delta",
+    "feedback_endpoints": "Issue comments, inline comments, reviews all empty at premerge check"
+  },
+  "notes": "Original sprint JSON retains obsolete blocked_reason and compatibility_amendment_execution_authorized=false despite completed status and documented explicit authorization. Deduct3 for inconsistent sprint metadata; correct in completion audit preserving historical failure evidence. One full independent native suite covers both sprints at aa3; exact8de only adds the independently rerun145line iface test. Exact8de remote Linux/Windows tests, lint, checks, CodeQL, docs and Sonar are green; one optional Mac build remains running. No profiling goal, version bump, upstream delivery or live rig deployment. Final documentation archive follows in a separate audit PR. Explicit post-acceptance rubric correction: TestRowUnification_OpenClosedOwnLabels is67lines (-2), plus the recorded obsolete authorization/block metadata (-3). Final95/100; initial score preserved separately. PASS unchanged.",
+  "archival_metadata": {
+    "release_status": "unreleased",
+    "target_version": "v0.56.0",
+    "merge_commit": "80793dbcf42423027be4bab1a0088da54e2323d8",
+    "original_evaluated_paths": {
+      "design_doc": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness.md",
+      "sprint_plan": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-sprint-plan.md"
+    },
+    "score_unchanged": true,
+    "note": "Independent root report copied after acceptance. Current artifact paths updated; original findings, evidence, timestamp and score are preserved. Metadata findings are corrected by this completion audit without rescoring."
+  },
+  "final_ci_followup": {
+    "observed_at": "2026-10-29T11:31:16Z",
+    "head": "8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
+    "result": "pass",
+    "checks_total": 27,
+    "checks_green": 20,
+    "checks_skipped": 7,
+    "pending": 0,
+    "source": "existing sprint-evaluator ci_gate.sh",
+    "log": "2005-final-ci-gate.log"
+  },
+  "rubric_correction": {
+    "initial_score": 97,
+    "final_score": 95,
+    "reason": "TestRowUnification_OpenClosedOwnLabels is67lines (-2), plus the recorded obsolete authorization/block metadata (-3).",
+    "source_unchanged": true,
+    "initial_report": "eval_M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS_round_1_initial.json",
+    "function_length_evidence": "2005-function-size-review.txt",
+    "includes_tests": true
+  }
+}

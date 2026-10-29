@@ -29,7 +29,7 @@ call-site mask, the per-argument callback rows, the callee-body implicit-ownersh
 App constraint row, so every tail a callee erases is charged at every call site (pinned by an
 exhaustive erase ⊆ charge test). A concrete contract's tail is closed at every read of a
 function value's row. No syntax changes. Design:
-`design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks.md`.
+`design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks.md`.
 
 **Intended rejections (migration).** Corpus sweep: 0 status flips over the 515
 `examples/**` + `std/**` files, the 45 `ailang-packages` roots and `ailang-parse`. Code outside

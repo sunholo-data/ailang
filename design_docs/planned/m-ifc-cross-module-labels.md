@@ -1,5 +1,7 @@
 # M-IFC-CROSS-MODULE — IFC Label Refinements Surviving Module Boundaries
 
+**Partial foundation acceptance (2026-10-29):** M1-M2 accepted95/100 and merged in PR1771 at65253e86e68be251eecd796d92327e4d4828c234. M3/M4 remain unstarted; overall planned/in-progress, issues1134/1132 open. Executor checkpoint statements below are historical; the independent M1-M2 report is authoritative for this partial acceptance.
+
 **Status**: Planned
 **Current target**: v0.56.0 (unreleased M1–M2 foundation; no version bump)
 **Original target**: v0.39.0, historical; the 2026-10-08 plan targeted v0.53.x

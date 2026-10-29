@@ -1,5 +1,7 @@
 # Sprint Plan: M-IFC-CROSS-MODULE
 
+**Partial foundation acceptance (2026-10-29):** M1-M2 accepted95/100 and merged in PR1771 at65253e86e68be251eecd796d92327e4d4828c234. M3/M4 remain unstarted; overall planned/in-progress, issues1134/1132 open. Executor checkpoint statements below are historical; the independent M1-M2 report is authoritative for this partial acceptance.
+
 > **Dependency met:** M-IFC-AUTHORITY-SCOPING (#1707) is on dev. This run executes M1–M2 only.
 
 **Current target:** v0.56.0 (unreleased M1–M2 repair; no version bump/deployment)

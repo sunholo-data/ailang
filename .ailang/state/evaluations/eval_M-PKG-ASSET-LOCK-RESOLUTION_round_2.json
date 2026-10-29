@@ -1,0 +1,28 @@
+{
+  "sprint_id": "M-PKG-ASSET-LOCK-RESOLUTION",
+  "evaluation_round": 2,
+  "timestamp": "2026-10-29T07:52:03.769108+00:00",
+  "reviewed_head": "217f229391896d6da70736d051c66dcd175ee3e4",
+  "result": "fail",
+  "total_score": 68,
+  "gate_source": "ci_pending_plus_independent_repro",
+  "hard_fails": [
+    {
+      "condition": "malformed_lock_fallback",
+      "file": "internal/embed/embed.go",
+      "line": 272,
+      "details": "CallPreserveFloats returns FALLBACK_NEWER bytes with nil error for malformed lock; Call rejects same fixture."
+    }
+  ],
+  "score_breakdown": {
+    "tests_pass": 0,
+    "lint_clean": 10,
+    "acceptance_criteria": 24,
+    "code_quality": 12,
+    "documentation": 15,
+    "design_fidelity": 7
+  },
+  "report": "/tmp/ailang-backlog-20261029/pr1849-evaluation-round2.md",
+  "historical_round1": "preserved FAIL51",
+  "worktree_mutated": false
+}

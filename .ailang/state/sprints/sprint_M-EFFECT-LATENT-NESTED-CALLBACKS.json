@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-EFFECT-LATENT-NESTED-CALLBACKS",
   "title": "Charge effectful callbacks nested in data args; close concrete-annotation tails",
-  "design_doc": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks.md",
-  "sprint_plan": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks-sprint-plan.md",
-  "target_version": "v0.55.0",
+  "design_doc": "design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks-sprint-plan.md",
+  "target_version": "v0.56.0",
   "status": "completed",
   "risk_level": "medium",
   "github_issues": [
@@ -140,7 +140,7 @@
       "passes": true,
       "started": "2026-10-29",
       "completed": "2026-10-29",
-      "notes": "Red/green ownership and forwarding regressions banked; local/imported generic alias and IO/FS caller controls pass. Full types/pipeline pass; full CLI initially failed only invoked-FS strict verification contract (existing Phase2E evaluator-only builtin); final affected CLI passes with strict negatives/IO/unused-FS and explicit normal-VM interop for invoked FS. Aborted core separately PASS; lint0, boundaries, sizes, changelog, JSON valid; paired528 corpus zero changes; original unmodified social_dynamics tasks now clean. R2 actual #2005 integration completed separately; independent follow-up evaluation remains pending."
+      "notes": "Historical implementation checkpoint:\nRed/green ownership and forwarding regressions banked; local/imported generic alias and IO/FS caller controls pass. Full types/pipeline pass; full CLI initially failed only invoked-FS strict verification contract (existing Phase2E evaluator-only builtin); final affected CLI passes with strict negatives/IO/unused-FS and explicit normal-VM interop for invoked FS. Aborted core separately PASS; lint0, boundaries, sizes, changelog, JSON valid; paired528 corpus zero changes; original unmodified social_dynamics tasks now clean. R2 actual #2005 integration completed separately; independent follow-up evaluation remains pending.\nCurrent acceptance: independent follow-up PASS95, round2, PR2008 merged749045717c484299b3103008023bf27a826df844; original parent PASS93 unchanged."
     },
     {
       "id": "R2_COMBINED_INTEGRATION",
@@ -158,7 +158,7 @@
       "passes": true,
       "started": "2026-10-29",
       "implementation_complete": true,
-      "notes": "Actual80793 merged normally at15afcc12. Deliveredconsumer083ef437 exact tree passes fresh-cache gmake check_core60/60+9/9+204 runtime OK lines. Both-feature focused tests and original social module PASS vs actual80793 failing. Paired530-file corpus446pass/84reject both, zero status/diagnostic changes/invariants. Source/evidence handed off for independent reviewer; no executor score.",
+      "notes": "Historical implementation checkpoint:\nActual80793 merged normally at15afcc12. Deliveredconsumer083ef437 exact tree passes fresh-cache gmake check_core60/60+9/9+204 runtime OK lines. Both-feature focused tests and original social module PASS vs actual80793 failing. Paired530-file corpus446pass/84reject both, zero status/diagnostic changes/invariants. Source/evidence handed off for independent reviewer; no executor score.\nCurrent acceptance: independent follow-up PASS95, round2, PR2008 merged749045717c484299b3103008023bf27a826df844; original parent PASS93 unchanged.",
       "completed": "2026-10-29"
     }
   ],
@@ -191,12 +191,36 @@
     },
     "independent_evaluation": "Historical PASS93 on exact86d3a5f8e946e12967c38b446e5fb854a884a42e, gate_source=local; unchanged by this follow-up"
   },
+  "integration": {
+    "pull_request": 1963,
+    "merge_commit": "87f846980c8b6fc601173be427b1364968559488",
+    "release_status": "unreleased",
+    "original_target_version": "v0.55.0",
+    "independent_evaluation": {
+      "result": "pass",
+      "score": 93,
+      "report": ".ailang/state/evaluations/eval_M-EFFECT-LATENT-NESTED-CALLBACKS_round_1.json"
+    },
+    "followups": [
+      {
+        "pull_request": 2008,
+        "merge_commit": "749045717c484299b3103008023bf27a826df844",
+        "evaluation_round": 2,
+        "score": 95,
+        "scope": "R1/R2 alias ownership",
+        "release_status": "unreleased"
+      }
+    ]
+  },
+  "independent_evaluation": "Original round1 PASS93 plus independently accepted R1/R2 follow-up round2 PASS95; original score unchanged.",
+  "execution_completed": "2026-10-29T11:32:15.293731+00:00",
+  "implementation_complete": true,
   "alias_ownership_review_repair": {
     "date": "2026-10-29",
     "approval": "Attended approval to repair existing AC6/shared-walker and accepted fwd_two semantics; no new charging semantics",
     "base": "9dc6890919aa001deebee4361719456ee087440f",
     "scope": "Alias-aware implicit binder ownership and publication anchoring, using existing checker alias resolver; preserve implicitOwned subset owned and fail-loud distinct declared tails",
-    "integration": "Pending normal integration of actual #2005 merge, then original social_dynamics and consumer60/9 combined proof; no PR dispatch before root scope review",
+    "integration": "Accepted normal integration of actual #2005 plus original social_dynamics/consumer60/9 proof; PR2008 merged749045717c484299b3103008023bf27a826df844 after independent PASS95 and all exact-head CI green/skipped.",
     "target_version": "v0.56.0 (unreleased)",
     "validation": {
       "red": "reproduced missing alias ownership, unresolved single-field tail and missing two-field callback row",
@@ -216,10 +240,20 @@
     "actual_dev_merge": "80793dbcf42423027be4bab1a0088da54e2323d8",
     "consumer_merge": "083ef43726981099a0bad4fedda18fc72105d6fa",
     "consumer_tree": "067e8990d698af8385431647f6c5cfff99a7e63a",
-    "independent_evaluation": "pending independent reviewer; original PASS93 is historical only",
-    "evidence": "design_docs/planned/v0_55_0/m-effect-latent-alias-ownership-evidence.json"
-  },
-  "implementation_complete": true,
-  "independent_evaluation": "pending alias ownership follow-up review; original PASS93 unchanged",
-  "execution_completed": "2026-10-29T11:32:15.293731+00:00"
+    "independent_evaluation": {
+      "result": "pass",
+      "score": 95,
+      "evaluation_round": 2,
+      "scope": "R1/R2 alias ownership only; original round1 PASS93 unchanged",
+      "report": ".ailang/state/evaluations/eval_M-EFFECT-LATENT-NESTED-CALLBACKS_round_2.json"
+    },
+    "evidence": "design_docs/implemented/v0_56_0/m-effect-latent-alias-ownership-evidence.json",
+    "historical_at_evaluated_head": {
+      "integration": "Pending normal integration of actual #2005 merge, then original social_dynamics and consumer60/9 combined proof; no PR dispatch before root scope review",
+      "independent_evaluation": "pending independent reviewer; original PASS93 is historical only"
+    },
+    "merge_commit": "749045717c484299b3103008023bf27a826df844",
+    "pull_request": 2008,
+    "validation_report": "design_docs/implemented/v0_56_0/m-effect-latent-alias-ownership-validation.md"
+  }
 }

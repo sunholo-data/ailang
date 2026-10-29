@@ -1,7 +1,7 @@
 # M-IFC-FUNCTION-VALUE-SINKS — Sink requirements travel with the function value
 
-**Status**: Implemented on fix/ifc-function-value-sinks; independent evaluation pending (2026-10-29)
-**Target**: Next release after v0.55.0 (P0 soundness; sprint placement v0_55_1, no release operation)
+**Status**: Implemented — unreleased
+**Target**: v0.56.0 unreleased backlog batch (P0 soundness; initial v0_55_1 planning placement was provisional, no release operation)
 **Priority**: P0 (High — a security control is bypassable in one `let`)
 **Tracks**: #1719
 **Estimated**: 5 days (M1 2d, M2 2d, M3 1d)
@@ -254,39 +254,39 @@ sites, or dropping them from `intrinsic`.
 ### Implementation Plan
 
 **M1: callable values (~2 days)**
-- [ ] `ifcCallable` and `ifcDemand` with join and check, plus unit tests on the join algebra
+- [x] `ifcCallable` and `ifcDemand` with join and check, plus unit tests on the join algebra
   (strictness monotone).
-- [ ] `ifcVar.fn`, propagated through every case `flowOf` already handles. Pattern variables
+- [x] `ifcVar.fn`, propagated through every case `flowOf` already handles. Pattern variables
   inherit it. The callable of a record access is the record's, conservatively.
-- [ ] Identifier-as-value resolves top-level funcs to `fromSig`. Function literals and annotated
+- [x] Identifier-as-value resolves top-level funcs to `fromSig`. Function literals and annotated
   function types give `fromFuncType`. `walkType` is unchanged: the callable is a separate
   projection, so labels and callables cannot contaminate each other.
-- [ ] `labelOfCall`: Checks A/C on the callee expression's callable for every application. Keep
+- [x] `labelOfCall`: Checks A/C on the callee expression's callable for every application. Keep
   the `isLocal` result-label logic.
-- [ ] Call-result callables: a local callee returns its summarised `resultCallable`. An unknown
+- [x] Call-result callables: a local callee returns its summarised `resultCallable`. An unknown
   callee returns the join of its argument callables.
-- [ ] Tests: R0–R9, R14, C0–C1, N1, N4–N6.
+- [x] Tests: R0–R9, R14, C0–C1, N1, N4–N6.
 
 **M2: summaries (~2 days)**
-- [ ] (a) The `ρ`-seeded silent pass computes `applied[i]` per function-typed or applied param.
+- [x] (a) The `ρ`-seeded silent pass computes `applied[i]` per function-typed or applied param.
   Call-site substitution. Arg-join fallback for callees without a summary. Tests: R2, R10, C2, N2,
   N3.
-- [ ] (b) Inferred demands for decls, lambdas and function literals. Fixed point over the call
+- [x] (b) Inferred demands for decls, lambdas and function literals. Fixed point over the call
   graph. Tests: R11–R13, plus mutual recursion converging, plus `TestIFC_TransparentPassthrough_NoError`
   unchanged.
-- [ ] Erase `ρ` everywhere it could escape. Assert no `labelVar` appears in any emitted diagnostic
+- [x] Erase `ρ` everywhere it could escape. Assert no `labelVar` appears in any emitted diagnostic
   or in `effectiveBodyLabel`.
 
 **M3: measurement, docs, examples (~1 day)**
-- [ ] Corpus delta (see [Breakage risk](#breakage-risk--how-to-measure-it)) attached to the PR.
-- [ ] `examples/runnable/secrets/sink_function_value.ail` (expected-fail, R1 + R2 + R13 shapes)
+- [x] Corpus delta (see [Breakage risk](#breakage-risk--how-to-measure-it)) attached to the PR.
+- [x] `examples/runnable/secrets/sink_function_value.ail` (expected-fail, R1 + R2 + R13 shapes)
   and its manifest entry. Add the N-rows as a passing companion in the same file or a sibling.
-- [ ] `docs/docs/guides/ifc-labels.mdx`: remove "flow through unannotated parameters" from
+- [x] `docs/docs/guides/ifc-labels.mdx`: remove "flow through unannotated parameters" from
   Limitations, and add a "Sinks as values" subsection that explains the conservative HOF fallback
   for imported callees until #1771.
-- [ ] Prompt: the IFC section's sink rule gets one line saying the rule holds through aliases and
+- [x] Prompt: the IFC section's sink rule gets one line saying the rule holds through aliases and
   higher-order functions (via prompt-manager, a new prompt version).
-- [ ] Changelog fragment `changelogs/unreleased/<date>-ifc-function-value-sinks.md`
+- [x] Changelog fragment `changelogs/unreleased/<date>-ifc-function-value-sinks.md`
   (`### Fixed`).
 
 ### Files to Modify/Create
@@ -458,23 +458,24 @@ annotation footprint (grep for `{not <ident>}` and for `name: T<label>` in `.ail
 
 ## Success Criteria
 
-- [ ] R1–R14 and C1–C2: `CheckModuleIFC` returns exactly the expected kind
+- [x] R1–R14 and C1–C2: `CheckModuleIFC` returns exactly the expected kind
   (`sink_refinement` for R*, `param_label_cover` for C*). The message names the callee and the path
   the value took (`via …`).
-- [ ] R0 and C0: unchanged (same kind, same position).
-- [ ] N1–N6: zero violations.
-- [ ] Every row is also a fresh-file CLI `ailang check` (exit codes as in the tables) in a
+- [x] R0 and C0: unchanged (same kind, same position).
+- [x] N1–N6: zero violations.
+- [x] Every row is also a fresh-file CLI `ailang check` (exit codes as in the tables) in a
   cache-cleared temp dir.
-- [ ] The REPL gate (`internal/repl/module_registry_load.go:35`) gives the same verdicts. It
+- [x] The REPL gate (`internal/repl/module_registry_load.go:35`) gives the same verdicts. It
   calls the same function, and one test pins this.
-- [ ] Mutation check: reverting the application-site check alone makes R1, R3–R9 and C1 pass again.
+- [x] Mutation check: reverting the application-site check alone makes R1, R3–R9 and C1 pass again.
   Reverting the applied-at logic alone makes R2, R10 and C2 pass again. Reverting inference alone
-  makes R11–R13 pass again. Each subset must fail, which shows that each test exercises its
-  mechanism.
-- [ ] No `labelVar` appears in any diagnostic or in any `effectiveBodyLabel` result (assertion test).
-- [ ] Corpus delta attached. `make test-core`, `make lint`, `make check-file-sizes` and
+  makes R12/R13 and the independent R11b written-HOF control pass again. R11 remains
+  redundantly protected by applied-at checking; R11b isolates inference. Each mechanism
+  subset fails for its missing rejection.
+- [x] No `labelVar` appears in any diagnostic or in any `effectiveBodyLabel` result (assertion test).
+- [x] Corpus delta attached. `make test-core`, `make lint`, `make check-file-sizes` and
   `make verify-examples` are green.
-- [ ] Guide, prompt line, example and changelog fragment updated.
+- [x] Guide, prompt line, example and changelog fragment updated.
 
 ## Testing Strategy
 
@@ -587,4 +588,15 @@ F1–F4) **fires**, so without a quorum a human must ratify F1–F4 before sprin
 ---
 
 **Document created**: 2026-10-26
-**Last updated**: 2026-10-26
+**Last updated**: 2026-10-29
+
+
+## Implementation Report — 2026-10-29
+
+[PR #2007](https://github.com/sunholo-data/ailang/pull/2007) merged at `2bfd61bf4446c7e7e7dcc925d34af4bdc793f4fc` and closed #1719. The next-release folder is an unreleased target, not a published tag. Callable propagation, applied-at summaries and wrapper inference shipped together on dev; no partial release was accepted.
+
+Independent review accepted exact source `8771ceae521f58cc5e0b0d65f7bb02f37df09731` at90/100, plus separately reported10/10 regression coverage. The full native test suite, lint and size gates passed on a clean worktree using the documented local evaluator path. Required remote CI passed after one retry for the independently owned #1926 PID-file fixture race; those original failures remain recorded. One hosted macOS build remained queued at merge. See [independent evaluation](m-ifc-function-value-sinks-evaluation.md), [machine report](../../../.ailang/state/evaluations/eval_M-IFC-FUNCTION-VALUE-SINKS_round_1.json), [validation](m-ifc-function-value-sinks-validation.md) and [corpus](m-ifc-function-value-sinks-corpus.json). Original archival/long-function deductions are retained; this completion report does not rescore itself.
+
+The preflight uppercase imported-function bypass was executed and repaired before acceptance: capitalized names are not constructor proof. Unknown imports use the ruled conservative fallback, with actual imported sink metadata still deferred to #1771/#1134. Silent historical depth cutoffs were replaced by convergence/cycle handling and ordinary fail-closed limits. All24 named matrix rows plus X1/R11b, CLI/REPL and evaluator/VM controls pass; independent mutations discriminate application, applied-at and inference mechanisms. Corpus2628 snapshots had only the three intended leaks in the added expected-failure fixture;18 required CLI consumers preserve their previous outcomes.
+
+Prompt v0.16.10 carries one same-module rule while preserving frozen v0.16.9 bytes. No HM/CoreTI/iface schema or runtime label representation changed. #1134 and #1132 remain open; #1771's later scope remains M1–M2 until separately authorized beyond it.

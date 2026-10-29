@@ -142,6 +142,10 @@ remain unchanged; the previous active .8 is marked frozen by the existing
 are regenerated with existing scripts. No completed independent evaluator
 verdict is claimed by this repair.
 
+
+## Independent acceptance and integration — 2026-10-29
+
+All milestones accepted by the independent evaluator (93/100 plus separately reported 10/10 regression coverage) at source `86d3a5f8e946e12967c38b446e5fb854a884a42e`. PR #1963 merged at `87f846980c8b6fc601173be427b1364968559488`. Design and companion plan are archived together as implemented/unreleased, target v0.56.0. The earlier statements above describe historical executor state before evaluation. See the adjacent evaluation report for preserved initial failures, successful native full gate and still-queued hosted Mac builds.
 ## Alias ownership review repair (2026-10-29)
 
 Attended authorization covers the existing AC6 alias-aware shared walker and
@@ -183,6 +187,6 @@ examples/std corpus: 446 pass/84 reject both, zero diagnostic/status changes or
 invariants. Full package/core suites were not duplicated after normal integration;
 exact PR CI and the independent evaluator own the final broad gate.
 
-Execution is complete; independent follow-up evaluation is pending. The original
+At source checkpoint d5f783585, execution was complete and independent review pending. The follow-up was subsequently accepted at95/100 and merged in PR2008 at749045717c484299b3103008023bf27a826df844; all26 exact-head checks completed19green/7skipped, actual Sonar100%. The original
 #1963 PASS 93 on 86d3a5f8 remains historical and unchanged. Compact provenance is
 in m-effect-latent-alias-ownership-evidence.json.

@@ -1,0 +1,135 @@
+{
+  "sprint_id": "M-EFFECT-LATENT-NESTED-CALLBACKS",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-29T08:51:04.556896+00:00",
+  "design_doc": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks.md",
+  "sprint_plan": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks-sprint-plan.md",
+  "reviewed_head": "86d3a5f8e946e12967c38b446e5fb854a884a42e",
+  "base_commit": "fcb95e0b1fa768e725870c6cfee9eabf35fbc92c",
+  "total_score": 93,
+  "pass_threshold": 70,
+  "result": "pass",
+  "gate_source": "local",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 13,
+    "documentation": 10,
+    "design_fidelity": 10
+  },
+  "conditional_checks": {
+    "regression_surface_coverage": {
+      "score": 10,
+      "passed": true,
+      "bonus_counted_in_base_score": false
+    },
+    "performance_verification": {
+      "applicable": false
+    }
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "tests_output": "1963-native-make-test-serial.log: complete GOFLAGS=-p=1 make test PASS, no exclusions; exact clean native head",
+    "lint_clean": true,
+    "lint_output": "initial native evaluator and exact-head remote lint passed",
+    "file_sizes_ok": true,
+    "coverage_pct": null,
+    "todo_hack_count": 0,
+    "remote_mac_builds": "two queued; no all-checks-success claim",
+    "remote_launchd": "success at exact reviewed head"
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "AC1",
+      "criterion": "Nested leak shapes rejected",
+      "met": true,
+      "evidence": "TestLatentNested_LeaksRejected: R1\u2013R9, cross-module record alias"
+    },
+    {
+      "feature_id": "AC2",
+      "criterion": "Generic containers accepted at definition and charged at use",
+      "met": true,
+      "evidence": "TestLatentNested_AnnotatedGenericContainers: R10/R11, pure and declared IO callers"
+    },
+    {
+      "feature_id": "AC3",
+      "criterion": "Concrete annotation compatibility tails cannot escape",
+      "met": true,
+      "evidence": "TestLatentNested_ConcreteTailsClosed S1\u2013S5; mcp_oauth package evidence"
+    },
+    {
+      "feature_id": "AC4",
+      "criterion": "Previously accepted controls preserved",
+      "met": true,
+      "evidence": "TestLatentNested_Controls and captured corpus differential"
+    },
+    {
+      "feature_id": "AC5",
+      "criterion": "Rejected controls and IO/FS union preserved",
+      "met": true,
+      "evidence": "Controls, mixed rows both orders, distinct declared tails fail loudly"
+    },
+    {
+      "feature_id": "AC6",
+      "criterion": "One cycle-safe complete data-position walker",
+      "met": true,
+      "evidence": "Inspected production sites; position/alias/cycle/depth tests"
+    },
+    {
+      "feature_id": "AC7",
+      "criterion": "Erase is a subset of charge",
+      "met": true,
+      "evidence": "TestLatentEraseWithinCharge, depths16/17/32/256, mutation evidence"
+    },
+    {
+      "feature_id": "AC8",
+      "criterion": "No unexplained corpus flips",
+      "met": true,
+      "evidence": "Approved Conflict Surface; recorded515 examples/std plus45 package roots and ailang-parse no unexplained flips; explicit mcp_oauth improvements"
+    },
+    {
+      "feature_id": "AC9",
+      "criterion": "Full test/lint and structural gates",
+      "met": true,
+      "evidence": "Exact clean native full serial make test PASS; exact-head remote tests/lint/checks PASS"
+    },
+    {
+      "feature_id": "AC10",
+      "criterion": "Example, limitations, teaching prompt and migration docs",
+      "met": true,
+      "evidence": "New runnable example/manifest, breaking changelog, resolved limitations, frozen .7/.8 and identical .9 copies"
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Planned; parent-owned completion-audit move/status update pending (-5)"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Approved shared traversal/charging architecture; cycle-safe complete finite traversal and fail-closed ordinary limit errors preserve erase-subset-charge. Prompt freeze repair retains historical versions."
+  },
+  "deductions": [
+    {
+      "category": "code_quality",
+      "points": 2,
+      "file": "internal/types/typechecker_latent_data.go",
+      "function": "dataArrowsWith",
+      "reason": "New function exceeds50 lines"
+    },
+    {
+      "category": "documentation",
+      "points": 5,
+      "file": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks.md",
+      "reason": "Design still Planned; parent will archive design and companion plan separately as Implemented\u2014unreleased"
+    }
+  ],
+  "preserved_initial_failures": {
+    "native_concurrent_full_tests": "Four deadline-sensitive process/solver tests failed; isolated serial and subsequent complete serial suite passed",
+    "native_launchd": "49/50, worker died without verdict; exact-head remote launchd later passed"
+  },
+  "feedback": [],
+  "notes": "Independent reviewer wrote no1963 implementation. No merge/coordinator actions. Explicit documented local-gate path selected by parent; remote macOS builds remain queued. Parent handles separate archival completion and ordinary source merge."
+}
