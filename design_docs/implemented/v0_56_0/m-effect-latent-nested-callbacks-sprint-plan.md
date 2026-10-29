@@ -141,3 +141,8 @@ remain unchanged; the previous active .8 is marked frozen by the existing
 `prompt freeze --migrate` command (the registry requires one mutable head); embedded/docs/llms mirrors
 are regenerated with existing scripts. No completed independent evaluator
 verdict is claimed by this repair.
+
+
+## Independent acceptance and integration — 2026-10-29
+
+All milestones accepted by the independent evaluator (93/100 plus separately reported 10/10 regression coverage) at source `86d3a5f8e946e12967c38b446e5fb854a884a42e`. PR #1963 merged at `87f846980c8b6fc601173be427b1364968559488`. Design and companion plan are archived together as implemented/unreleased, target v0.56.0. The earlier statements above describe historical executor state before evaluation. See the adjacent evaluation report for preserved initial failures, successful native full gate and still-queued hosted Mac builds.

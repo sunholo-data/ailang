@@ -1,7 +1,7 @@
 # M-EFFECT-LATENT-NESTED-CALLBACKS — Charge function values nested in data arguments, and close concrete-annotation tails wherever a function's row is read
 
-**Status**: Planned
-**Target**: v0.55.0 (next minor). This is a soundness fix that rejects programs which check today, so it gets a minor bump, the same posture Mark ruled for M-EFFECT-LATENT-FUNCTION-VALUES on 2026-10-08.
+**Status**: Implemented — unreleased
+**Target**: v0.56.0 (next minor; original v0.55.0 target was released before integration). This is a soundness fix that rejects programs which check today, so it gets a minor bump, the same posture Mark ruled for M-EFFECT-LATENT-FUNCTION-VALUES on 2026-10-08.
 **Priority**: P0 (High). A `pure` function can perform IO, `ailang check` reports it clean, and the side effect runs on both engines.
 **Tracks**: #1718, #1826
 **Refs**: #573, #1326 (L1/L2 rules this builds on), #616 (per-App publication record), #1443 / PR #1790 (ordering only, see "Ordering against PR #1790")
@@ -271,24 +271,24 @@ Site (e), the validator, needs **no** change: it already unions `CallbackRows[i]
 ### Implementation Plan
 
 **Phase 1 — walker and concrete-tail normalisation, #1826 (~1 day)**
-- [ ] `typechecker_latent_data.go`: `dataArrows`, `latentRow`, `nestedLatentRow`, with unit tests: nesting depth, alias expansion, cycle (recursive alias), arrow params *not* traversed.
-- [ ] Site (d) at `typechecker_functions.go:656` and site (b)'s top-level branch use `latentRow`.
-- [ ] Regression tests S1, S2, S3, S4, plus `mcp_oauth` `revokeFamily` reduced to a fixture. Mutation check: revert (d) → S1 is back to the invariant and S2 to `Unresolved effect tail`.
+- [x] `typechecker_latent_data.go`: `dataArrows`, `latentRow`, `nestedLatentRow`, with unit tests: nesting depth, alias expansion, cycle (recursive alias), arrow params *not* traversed.
+- [x] Site (d) at `typechecker_functions.go:656` and site (b)'s top-level branch use `latentRow`.
+- [x] Regression tests S1, S2, S3, S4, plus `mcp_oauth` `revokeFamily` reduced to a fixture. Mutation check: revert (d) → S1 is back to the invariant and S2 to `Unresolved effect tail`.
 
 **Phase 2 — nested hand-off, #1718 (~1 day)**
-- [ ] Site (a) in `resolvedCallbackMask`; site (b) nested branch plus the re-zonk in `substituteApplicationRows`.
-- [ ] Site (c) structural `implicitRowsAbove`.
-- [ ] Regression tests R1–R11 (reject or accept as specified in the Acceptance Criteria), plus every negative control. Mutation checks: revert (a) → R1–R9 accepted again; revert (c) → R10/R11 back to `Unresolved effect tail`.
+- [x] Site (a) in `resolvedCallbackMask`; site (b) nested branch plus the re-zonk in `substituteApplicationRows`.
+- [x] Site (c) structural `implicitRowsAbove`.
+- [x] Regression tests R1–R11 (reject or accept as specified in the Acceptance Criteria), plus every negative control. Mutation checks: revert (a) → R1–R9 accepted again; revert (c) → R10/R11 back to `Unresolved effect tail`.
 
 **Phase 3 — invariant hardening (~0.5 day)**
-- [ ] Add a test-only assertion that every tail erased as implicit inside a callee body (`ImplicitOwnedTail`/`ImplicitCallbacks`) is reachable through `dataArrows` of some parameter type of that callee. This pins RC1's soundness condition so the next shape cannot reopen it. Agent may choose whether this is a debug-build invariant or a corpus test.
+- [x] Add a test-only assertion that every tail erased as implicit inside a callee body (`ImplicitOwnedTail`/`ImplicitCallbacks`) is reachable through `dataArrows` of some parameter type of that callee. This pins RC1's soundness condition so the next shape cannot reopen it. Agent may choose whether this is a debug-build invariant or a corpus test.
 
 **Phase 4 — corpus, docs, examples (~0.5–1 day)**
-- [ ] Base-vs-fixed sweeps exactly as in "Risk of breaking". Record per-file status and diagnostics in the validation doc.
-- [ ] Remove the #1718 rows from `docs/LIMITATIONS.md:26` and `docs/docs/reference/limitations.md:69-78`. Add the `map` → `mapE` migration note.
-- [ ] Changelog fragment `changelogs/unreleased/<date>-effect-latent-nested-callbacks.md` (`### Fixed — …`, "Breaking — soundness").
-- [ ] `examples/runnable/effect_latent_nested_callbacks.ail` (accept arms only: the declared-`! {IO}` callers of R1/R2/R10, plus the S2 `mapE` form) with a manifest entry. Reject arms live in Go tests.
-- [ ] Teaching prompt: extend the existing sentence ("Passing a function to a higher-order function … requires the caller to declare the callback's effects") with "including a function stored in a list, tuple, Option or record argument". Verify the snippet with `ailang check`.
+- [x] Base-vs-fixed sweeps exactly as in "Risk of breaking". Record per-file status and diagnostics in the validation doc.
+- [x] Remove the #1718 rows from `docs/LIMITATIONS.md:26` and `docs/docs/reference/limitations.md:69-78`. Add the `map` → `mapE` migration note.
+- [x] Changelog fragment `changelogs/unreleased/<date>-effect-latent-nested-callbacks.md` (`### Fixed — …`, "Breaking — soundness").
+- [x] `examples/runnable/effect_latent_nested_callbacks.ail` (accept arms only: the declared-`! {IO}` callers of R1/R2/R10, plus the S2 `mapE` form) with a manifest entry. Reject arms live in Go tests.
+- [x] Teaching prompt: extend the existing sentence ("Passing a function to a higher-order function … requires the caller to declare the callback's effects") with "including a function stored in a list, tuple, Option or record argument". Verify the snippet with `ailang check`.
 
 ### Files to Modify/Create
 
@@ -340,16 +340,16 @@ Site (e), the validator, needs **no** change: it already unions `CallbackRows[i]
 
 Each criterion names its exact program. "Rejected" means `ailang check` exits non-zero with `Effect checking failed for function 'sneaky'` and `Missing effects: IO`, and `ailang run --caps IO --entry main` (tree-walk **and** `--bytecode`) fails before printing `side effect`. All runs use `AILANG_NO_CACHE=1`.
 
-- [ ] **AC1 — #1718 shapes rejected:** R1 (tuple), R2 (list), R3 (unannotated `Option` param), R4 (record param), R5 (record alias, cross-module `x/librec` + `x/mainrec`), R6 (let-bound tuple), R7 (returned list), R8 (`Reg([logIt])`), R9 (list of tuples).
-- [ ] **AC2 — annotated generic containers accepted at definition, charged at use:** R10 `applyOpt(o: Option[(int) -> int], …)` and R11 `applyHold(h: Holder[(int) -> int], …)` check clean as definitions. `pure func sneaky(x: int) -> int = applyOpt(Some(logIt), x)` (and the `Hold(logIt)` form) is rejected. The same callers declared `! {IO}` are accepted (`c/ok_declared`: `func ok(x: int) -> int ! {IO} = applyFst((logIt, x)) + applyHead([logIt], x) + applyOpt(Some(logIt), x)`).
-- [ ] **AC3 — #1826 fixed:** S1 (`viaField`) and S2 (`viaParam`) check clean. S3 (local `myMapE`) checks clean. S4 (`viaParamValue … ! {IO} = applyTo(g, x)`) checks clean, and its pure variant (`pure func viaParamValue(…) -> bool = applyTo(g, x)`) is rejected with `Missing effects: IO` and **no** `Unresolved effect tail` line. `sunholo/mcp_oauth` 0.1.0 and 0.1.1 (`check --package` on a copy of the registry cache) report "all passed". `grep -c "internal invariant"` over the whole sweep output = 0.
-- [ ] **AC4 — negative controls unchanged (accepted):** `ok_pure_cb` (pure callbacks in tuple/list incl. a lambda), `ok_storage` (record/list/tuple built and stored in pure code, `length([logIt, logIt])`), `ok_rowpoly` (`applyFstE[e](p: ((int) -> int ! {e}, int)) -> int ! {e}` called with `inc` from pure and with `logIt` from `! {IO}`), `fwd_two` (generic forwarding of two implicit callbacks through a tuple), `x/main_ok`, S2 with `ap`.
-- [ ] **AC5 — negative controls unchanged (rejected):** `control_direct` (#1326 `applyTo(logIt, x)`), `neg_rowpoly`, `neg_concrete_nested` (`applyFstIO(p: ((int) -> int ! {IO}, int)) -> int ! {IO}` from pure; blame stays on `sneaky`), `fwd_two_neg`, `leak_adt` (`Box(logIt)`), `ret_closure`, `leak_lambda_in_list`, `x/main`. Mixed rows: `func onlyIO(x: int) -> int ! {IO} = applyBoth((logIt, readIt), x)` is rejected naming **FS** (union of nested rows, not first-wins).
-- [ ] **AC6 — one walker:** sites (a)–(d) call the same `dataArrows`. A unit test proves that arrow params and returns are not traversed, that alias heads are expanded per level, and that a recursive alias terminates.
-- [ ] **AC7 — erase ⊆ charge:** the Phase 3 assertion holds over `internal/pipeline` tests and the corpus. Mutation check: reverting (a) while keeping (c) makes it fail.
-- [ ] **AC8 — corpus:** base-vs-fixed sweeps per "Risk of breaking" show zero unexplained flips. Every flip is listed by path in the changelog fragment with before/after and migration.
-- [ ] **AC9 — gates:** focused `go test ./internal/types/... ./internal/pipeline/... ./internal/elaborate/... ./internal/iface/... ./internal/eval/...`, `make test-core`, `make lint`, `make check-file-sizes`, `make check-boundaries`, `make check-changelog`, `make verify-examples` (run unpiped).
-- [ ] **AC10 — docs:** limitation entries removed; example plus manifest added; teaching-prompt sentence verified with `ailang check`.
+- [x] **AC1 — #1718 shapes rejected:** R1 (tuple), R2 (list), R3 (unannotated `Option` param), R4 (record param), R5 (record alias, cross-module `x/librec` + `x/mainrec`), R6 (let-bound tuple), R7 (returned list), R8 (`Reg([logIt])`), R9 (list of tuples).
+- [x] **AC2 — annotated generic containers accepted at definition, charged at use:** R10 `applyOpt(o: Option[(int) -> int], …)` and R11 `applyHold(h: Holder[(int) -> int], …)` check clean as definitions. `pure func sneaky(x: int) -> int = applyOpt(Some(logIt), x)` (and the `Hold(logIt)` form) is rejected. The same callers declared `! {IO}` are accepted (`c/ok_declared`: `func ok(x: int) -> int ! {IO} = applyFst((logIt, x)) + applyHead([logIt], x) + applyOpt(Some(logIt), x)`).
+- [x] **AC3 — #1826 fixed:** S1 (`viaField`) and S2 (`viaParam`) check clean. S3 (local `myMapE`) checks clean. S4 (`viaParamValue … ! {IO} = applyTo(g, x)`) checks clean, and its pure variant (`pure func viaParamValue(…) -> bool = applyTo(g, x)`) is rejected with `Missing effects: IO` and **no** `Unresolved effect tail` line. `sunholo/mcp_oauth` 0.1.0 and 0.1.1 (`check --package` on a copy of the registry cache) report "all passed". `grep -c "internal invariant"` over the whole sweep output = 0.
+- [x] **AC4 — negative controls unchanged (accepted):** `ok_pure_cb` (pure callbacks in tuple/list incl. a lambda), `ok_storage` (record/list/tuple built and stored in pure code, `length([logIt, logIt])`), `ok_rowpoly` (`applyFstE[e](p: ((int) -> int ! {e}, int)) -> int ! {e}` called with `inc` from pure and with `logIt` from `! {IO}`), `fwd_two` (generic forwarding of two implicit callbacks through a tuple), `x/main_ok`, S2 with `ap`.
+- [x] **AC5 — negative controls unchanged (rejected):** `control_direct` (#1326 `applyTo(logIt, x)`), `neg_rowpoly`, `neg_concrete_nested` (`applyFstIO(p: ((int) -> int ! {IO}, int)) -> int ! {IO}` from pure; blame stays on `sneaky`), `fwd_two_neg`, `leak_adt` (`Box(logIt)`), `ret_closure`, `leak_lambda_in_list`, `x/main`. Mixed rows: `func onlyIO(x: int) -> int ! {IO} = applyBoth((logIt, readIt), x)` is rejected naming **FS** (union of nested rows, not first-wins).
+- [x] **AC6 — one walker:** sites (a)–(d) call the same `dataArrows`. A unit test proves that arrow params and returns are not traversed, that alias heads are expanded per level, and that a recursive alias terminates.
+- [x] **AC7 — erase ⊆ charge:** the Phase 3 assertion holds over `internal/pipeline` tests and the corpus. Mutation check: reverting (a) while keeping (c) makes it fail.
+- [x] **AC8 — corpus:** base-vs-fixed sweeps per "Risk of breaking" show zero unexplained flips. Every flip is listed by path in the changelog fragment with before/after and migration.
+- [x] **AC9 — gates:** focused `go test ./internal/types/... ./internal/pipeline/... ./internal/elaborate/... ./internal/iface/... ./internal/eval/...`, `make test-core`, `make lint`, `make check-file-sizes`, `make check-boundaries`, `make check-changelog`, `make verify-examples` (run unpiped).
+- [x] **AC10 — docs:** limitation entries removed; example plus manifest added; teaching-prompt sentence verified with `ailang check`.
 
 ### Mutation checks (revert the fix, watch the test fail)
 
@@ -467,4 +467,15 @@ Each criterion names its exact program. "Rejected" means `ailang check` exits no
 ---
 
 **Document created**: 2026-10-26
-**Last updated**: 2026-10-26
+**Last updated**: 2026-10-29
+
+
+## Implementation Report — 2026-10-29
+
+Merged in [PR #1963](https://github.com/sunholo-data/ailang/pull/1963) at `87f846980c8b6fc601173be427b1364968559488`. This is implemented on dev and remains unreleased; the folder denotes the next-minor target, not a published tag.
+
+The shared data-position walker now accounts for nested callback effects at all four read sites. It traverses finite deep structures, handles aliases and cycles, and turns only its defensive traversal-limit marker into an ordinary type error. The repair closes the demonstrated depth-17 erase-without-charge gap. Arrow arguments and results remain outside the approved traversal.
+
+Independent evaluation accepted source `86d3a5f8e946e12967c38b446e5fb854a884a42e` at 93/100, with regression coverage 10/10 reported separately. The score preserves the original five-point archival deduction; this report does not rescore itself. See [evaluation](../../../.ailang/state/evaluations/eval_M-EFFECT-LATENT-NESTED-CALLBACKS_round_1.json) and [review report](m-effect-latent-nested-callbacks-evaluation.md).
+
+The full native test suite passed with serial package scheduling after four unchanged-package startup timeouts; initial failures and isolated successful rechecks are preserved in the review report. Exact-head remote Linux/Windows tests, lint, structural/example checks, CodeQL, SonarCloud and launchd passed. Two hosted macOS build jobs were still queued at acceptance; no all-checks-success claim is made. Corpus comparisons found zero unexplained changes, and both engines reject effectful pure callers before performing output. Teaching prompt v0.16.9 and mirrors carry the new rule while prior prompt bytes remain frozen.

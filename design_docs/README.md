@@ -1,5 +1,9 @@
 # AILANG Design Documentation
 
+## Implemented, awaiting next minor release
+
+- [Nested callback effect soundness](implemented/v0_56_0/m-effect-latent-nested-callbacks.md) — merged in #1963; design, sprint plan and independent evaluation are archived together. Target v0.56.0 is unreleased.
+
 ## Structure
 
 ```

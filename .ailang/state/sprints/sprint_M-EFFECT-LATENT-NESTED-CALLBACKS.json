@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-EFFECT-LATENT-NESTED-CALLBACKS",
   "title": "Charge effectful callbacks nested in data args; close concrete-annotation tails",
-  "design_doc": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks.md",
-  "sprint_plan": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks-sprint-plan.md",
-  "target_version": "v0.55.0",
+  "design_doc": "design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks-sprint-plan.md",
+  "target_version": "v0.56.0",
   "status": "completed",
   "risk_level": "medium",
   "github_issues": [
@@ -142,5 +142,16 @@
       "final_build": "passed; embedded CLI serves v0.16.9"
     },
     "independent_evaluation": "pending"
+  },
+  "integration": {
+    "pull_request": 1963,
+    "merge_commit": "87f846980c8b6fc601173be427b1364968559488",
+    "release_status": "unreleased",
+    "original_target_version": "v0.55.0",
+    "independent_evaluation": {
+      "result": "pass",
+      "score": 93,
+      "report": ".ailang/state/evaluations/eval_M-EFFECT-LATENT-NESTED-CALLBACKS_round_1.json"
+    }
   }
 }
