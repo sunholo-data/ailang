@@ -1,21 +1,18 @@
 # Code Generation Patterns
 
-**Quick reference for adding Go code generation support for new AILANG features.**
+**Legacy reference for the Go source backend. Not required for new work.**
 
-## When Codegen Support is Needed
+## Status: generated Go is not a requirement
 
-**Codegen support IS required when:**
-- Adding new Core AST expression types (e.g., new operators, new literals)
-- Adding effect builtins that need handler wiring (e.g., `_io_*`, `_fs_*`)
-- Adding pure builtins that map to Go stdlib (e.g., `_math_*`, `_str_*`)
-- Adding new ADT patterns or record operations
-- Adding new runtime helpers (e.g., list ops, type conversions)
+Go source emission (`ailang compile --emit-go`) is demoted to a diagnostic projection and emit-go-v2 is frozen (Mark, 2026-07-14; see `design_docs/v1-mission.md`).
 
-**Codegen support is NOT required when:**
-- Adding interpreter-only builtins (no Go compilation needed)
-- Modifying type inference (types package only)
-- Adding parser features that don't change Core AST
-- Adding CLI commands or tooling
+- New builtins, stdlib functions and language features do **not** need a `GoCodegenSpec`,
+  a `registry_codegen_*.go` entry, or a generated-Go parity test.
+- Engine parity means the **evaluator and the strict VM** agree. Do not add
+  "generated Go agrees" acceptance criteria to sprint plans, and do not build emit-go
+  harnesses to satisfy one.
+- Use this file only when the sprint explicitly scopes a fix to existing codegen
+  (`internal/gen/*`) or the contracts projection (`--verify-contracts`).
 
 ## File Organization
 

@@ -195,6 +195,8 @@ Apply scoring rubric (see [resources/scoring_rubric.md](resources/scoring_rubric
 | Performance Verification (conditional) | +10 | Yes if perf sprint with no profile |
 | **Total** | **100** (+20 conditional) | **Pass: 70+** |
 
+**Generated Go is out of scope by default**: do not deduct for missing `GoCodegenSpec`s or emit-go parity unless approved acceptance criteria explicitly scope existing codegen or the live contracts projection (`--verify-contracts`). Evaluate those criteria when scoped. Engine parity otherwise means evaluator + strict VM (emit-go demoted, emit-go-v2 frozen, Mark 2026-07-14).
+
 **Conditional categories**:
 - **Regression Surface Coverage** triggers when the sprint touches `internal/parser/`, `internal/lexer/`, `internal/ast/`, `internal/types/`, `internal/elaborate/`, `internal/iface/`, `internal/codegen/`, `internal/eval/`, `internal/vm/`, `internal/effects/`, or `cmd/ailang/exec.go`. Hard fail if triggered without a Conflict Surface analysis in the design doc and fixture tests for the named "Programs that MUST still work". Catches M-TAINT-TYPES-style silent regressions.
 - **Performance Verification** triggers on perf sprints (design doc keywords). Hard fail without before/after profiling data.
