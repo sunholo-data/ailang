@@ -30,13 +30,13 @@
         "make test-launchd-drivers includes both new syntax checks and the new test run; expected rc=0 ends with launchd drivers: tests + bash 3.2 syntax OK. Compare failures explicitly against the controller-supplied base result.",
         "After regenerating mirrors, /bin/bash tools/launchd/sync-agents-skills.sh --check and /bin/bash tools/launchd/test_agents_skills_sync.sh exit 0; touched scripts/resources remain below 800 lines."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "M3_CHANGELOG",
       "description": "Record the plan-location refusal and cited OPEN-decision terminal STOP behavior in the dated unreleased changelog fragment.",
       "acceptance_criteria": [
-        "head -1 changelogs/unreleased/2026-10-29-planner-plan-location-stop-gates.md starts with ### Fixed —; fragment describes both fixes and links the sprint plan.",
+        "head -1 changelogs/unreleased/2026-10-29-planner-plan-location-stop-gates.md starts with ### Fixed \u2014; fragment describes both fixes and links the sprint plan.",
         "make check-changelog exits 0; no entry is added to a v*-current.md file.",
         "Final bash scripts/check_context_docs.sh, make check-skills and /bin/bash tools/launchd/sync-agents-skills.sh --check exit 0; report source/mirror diff, prior gate results, mutant failures and read-only isolation observations."
       ],
