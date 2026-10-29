@@ -115,3 +115,34 @@ func TestFiniteFacts_QuantifierOuterBoundCapture(t *testing.T) {
 	// Empty range must not import the contradictory callee condition.
 	checkFiniteGoal(t, &core.Let{Name: "i", Value: intLit(1), Body: &core.If{Cond: q, Then: boolLit(false), Else: boolLit(true)}}, StatusCounterexample)
 }
+
+func TestFiniteFacts_NestedQuantifierFreshness(t *testing.T) {
+	if !Z3Available() {
+		t.Skip("Z3 not installed")
+	}
+	old := activeParamRenames
+	activeParamRenames = nil
+	defer func() { activeParamRenames = old }()
+	for _, test := range []struct {
+		op   string
+		want SolverStatus
+	}{{"eq_Int", StatusCounterexample}, {"lt_Int", StatusVerified}} {
+		i, j := &core.Var{Name: "i"}, &core.Var{Name: "j"}
+		inner := &core.Forall{Var: "j", Lo: j, Hi: builtinApp("add_Int", j, intLit(1)), Body: builtinApp(test.op, i, j)}
+		outer := &core.Forall{Var: "i", Lo: i, Hi: builtinApp("add_Int", i, intLit(1)), Body: inner}
+		value, facts, err := captureCallFacts(func() (string, error) {
+			return EncodeExpr(&core.Let{Name: "i", Value: intLit(1), Body: &core.Let{Name: "j", Value: intLit(2), Body: outer}})
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		script := "(set-logic ALL)\n(declare-const $p_i Int)\n(declare-const $p_j Int)\n(assert (= $p_i 1))\n(assert (= $p_j 2))\n(assert " + facts + ")\n(assert (not " + value + "))\n(check-sat)\n"
+		r, err := Solve(script, DefaultSolverConfig())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r.Status != test.want {
+			t.Fatalf("got%s want%s\n%s", r.Status, test.want, script)
+		}
+	}
+}

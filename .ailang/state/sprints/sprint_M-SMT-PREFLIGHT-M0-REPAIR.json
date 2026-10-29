@@ -103,8 +103,8 @@
       ],
       "passes": true,
       "started": "2026-10-29T20:37:28.370427+00:00",
-      "completed": "2026-10-29T20:37:28.370427+00:00",
-      "notes": "Dependency-ordered paired helper conditions reuse exact value helper parameters; argument values shared, diamond declarations unique, distinct environments proved with positive/refutation controls. Guard call dependencies included. Nonnullary UF model entries excluded. Full SMT suite and focused environment controls PASS. Actual CLI diamond ERROR\u2192VERIFIED and false counterpart ERROR\u2192CE; original recursive total CE retained. Quantifier bounds capture Core RED\u2192GREEN and actual source contract boundShadow CE\u2192VERIFIED; unsupported Forall-in-body probe retained outside final fixture, no inference widening."
+      "completed": "2026-10-29T20:42:48.247440+00:00",
+      "notes": "Repaired root-found nested fresh-binder capture by reserving existing lexical rename values in both fresh allocators. Core and actual M5 CLI RED preserved; repaired Core/helper/capture suite GREEN and actual CLI true/false nested predicates GREEN. Previous M5 checkpoint was reopened until this repair proof; no preliminary corpus treated as final."
     },
     {
       "id": "M6_CLI_MUTATION_CORPUS_HANDOFF",

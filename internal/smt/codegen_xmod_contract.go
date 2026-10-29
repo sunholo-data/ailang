@@ -171,6 +171,9 @@ func encodeContractExprWithSubs(expr core.CoreExpr, paramSubs map[string]string,
 	// Bind caller expressions OUTSIDE all callee-local binders. Parameter-map
 	// shadowing alone cannot stop textual SMT arguments from being captured.
 	occupied := expr.String() + resultConst
+	for _, reserved := range activeParamRenames {
+		occupied += reserved
+	}
 	for _, v := range paramSubs {
 		occupied += v
 	}

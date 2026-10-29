@@ -35,6 +35,9 @@ func encodeForall(f *core.Forall) (string, error) {
 	for _, token := range tokens {
 		if token == binder {
 			occupied := f.Body.String() + lo + hi
+			for _, reserved := range activeParamRenames {
+				occupied += reserved
+			}
 			for i := 0; ; i++ {
 				candidate := fmt.Sprintf("$forall_bound_%d", i)
 				if !strings.Contains(occupied, candidate) {

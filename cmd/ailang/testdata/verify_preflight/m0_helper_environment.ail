@@ -18,3 +18,9 @@ ensures { result == 0 } { left(a) + right(a) }
 
 export pure func boundShadow() -> int
 ensures { let i = 1 in forall i: i..i + 1 => i == 1 } { 0 }
+
+export pure func nestedBoundFalse() -> int
+ensures { let i = 1 in let j = 2 in forall i: i..i + 1 => forall j: j..j + 1 => i == j } { 0 }
+
+export pure func nestedBoundTrue() -> int
+ensures { let i = 1 in let j = 2 in forall i: i..i + 1 => forall j: j..j + 1 => i < j } { 0 }
