@@ -408,8 +408,8 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 
 	// Set up effect context with capability grants
 	effCtx := effects.NewEffContext(programArgs)
+	effCtx.PkgAssets = result.PkgAssets
 	effCtx.TerminalSignalExit = opts.TerminalSignalExit
-	effCtx.PkgDirs = lockedPackageDirs(opts.Filename, opts.PackageDir)
 	// This runner OWNS the sandbox root handle (M-EXECUTOR-POLICY-HARDENING
 	// M1): derived contexts share it, only the owner closes it, once.
 	defer effCtx.CloseFSRoot()

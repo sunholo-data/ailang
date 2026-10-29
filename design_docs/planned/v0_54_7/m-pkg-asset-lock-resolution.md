@@ -377,3 +377,23 @@ The following are intentionally left open for the implementer:
 
 **Document created**: 2026-10-12
 **Last updated**: 2026-10-12
+
+## Reconciliation against current dev (2026-10-29)
+
+The basic CLI lock-first/semver behavior shipped independently in `03e53668c`
+(v0.54.13). That implementation also deliberately supports `AILANG_PACKAGE_ROOT`
+fallback and root-package assets without a lock. Those shipped behaviors supersede
+this document's earlier fallback-root/root-cache assumptions and are preserved.
+
+The residual implementation keeps dev's `MAJOR.MINOR.PATCH` fallback ordering,
+including prerelease-before-release. It does not restore the old branch's
+compatibility parser, which treated `dev`/`unknown` as high synthetic versions and
+stripped prereleases. Invalid-only caches fail explicitly. No new version syntax
+or compatibility semantics are introduced in this reconciliation.
+
+`PkgAssets` carries immutable `{Dir, Version}` snapshots and missing-target
+entries. Existing `PkgDirs` callers remain supported, including budget contexts.
+Runner/batch use compile-time targets; embed/API retain per-engine targets.
+The resolved snapshot includes the root package even during lock-free authoring.
+This remains the sole implementation carrier, PR #1849; no new feature task is
+created. The original round-1 evaluation is retained as historical evidence.

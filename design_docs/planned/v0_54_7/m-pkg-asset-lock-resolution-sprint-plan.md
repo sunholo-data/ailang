@@ -9,7 +9,7 @@ Resolve package assets from the running program's locked dependency targets. Whe
 **Duration:** 3 days; four implementation sessions of 60–90 minutes, plus review and integration buffer.
 **Estimated total:** 650 LOC: 270 implementation, 330 tests, 50 documentation.
 **Risk:** Medium — effect-context propagation and embed initialization order.
-**Status:** Ready for sprint-plan review; implementation starts after coordinator approval and executor handoff.
+**Status:** Implementation complete on `coordinator/task-d61964fa`; broad validation has recorded limitations below. Execution was authorized by the coordinator handoff.
 
 ## Current Status and Velocity
 
@@ -36,11 +36,11 @@ Add PkgAssetTarget {Dir, Version} and immutable PkgAssets map; explicitly preser
 
 **Acceptance criteria:**
 
-- [ ] Older locked version wins over newer installed versions; missing locked directory returns Err naming package/version and install guidance, never fallback.
-- [ ] Nil context and packages absent from the map retain fallback; 0.10.0 beats 0.9.0 and 0.2.0.
-- [ ] Invalid directory names are skipped; exclusively invalid versions fail with a structured Err; compatibility edge cases mirror pkg.ParseSemver.
-- [ ] Path/git target directories resolve assets; sandbox, invalid package names, absolute paths and traversal still fail before lookup.
-- [ ] WithBudget and Clone preserve targets without mutating the shared map; focused effects tests and make test-changed pass.
+- [x] Older locked version wins over newer installed versions; missing locked directory returns Err naming package/version and install guidance, never fallback.
+- [x] Nil context and packages absent from the map retain fallback; 0.10.0 beats 0.9.0 and 0.2.0.
+- [x] Invalid directory names are skipped; exclusively invalid versions fail with a structured Err; compatibility edge cases mirror pkg.ParseSemver.
+- [x] Path/git target directories resolve assets; sandbox, invalid package names, absolute paths and traversal still fail before lookup.
+- [x] WithBudget and Clone preserve targets without mutating the shared map; focused effects tests and make test-changed pass.
 
 **Risk:** Comparator duplication drifts; mitigate with mirrored edge-case tables. This is compatibility ordering as specified by the design, not a new strict SemVer prerelease policy.
 
@@ -55,11 +55,11 @@ Add AssetTarget and LockedPackageNames using existing packageDir. Build maps fro
 
 **Acceptance criteria:**
 
-- [ ] Accessors cover registry, relative path, git and missing directories; absent lock entries are distinguishable from unresolved locked entries.
-- [ ] Result.PkgAssets contains all locked dependency targets, including a pinned older version despite a newer cached version.
-- [ ] AssetTargetsFor returns nil,nil for no manifest or absent lock; malformed existing manifest/lock returns error, never silent fallback.
-- [ ] Discovery remains anchored to the entry source or explicit PackageDir; bare/self-only resolution keeps existing behavior.
-- [ ] Focused pkg/pipeline tests, make test-changed and make check-boundaries pass.
+- [x] Accessors cover registry, relative path, git and missing directories; absent lock entries are distinguishable from unresolved locked entries.
+- [x] Result.PkgAssets contains all locked dependency targets, including a pinned older version despite a newer cached version.
+- [x] AssetTargetsFor returns nil,nil for no manifest or absent lock; malformed existing manifest/lock returns error, never silent fallback.
+- [x] Discovery remains anchored to the entry source or explicit PackageDir; bare/self-only resolution keeps existing behavior.
+- [x] Focused pkg/pipeline tests, make test-changed and make check-boundaries pass.
 
 **Risk:** Existing lock validation may reject missing installs before execution. Test the runtime Err separately and permit compile-time failure where existing import validation already requires an installed package; never weaken hash validation to force the fixture through.
 
@@ -74,11 +74,11 @@ Assign Result.PkgAssets before runner and batch evaluation. Resolve engine-scope
 
 **Acceptance criteria:**
 
-- [ ] Runner and batch fixtures with two cached versions read the locked version's distinct asset contents.
-- [ ] Embed evaluation and an in-process API handler resolve locked assets on the first call and subsequent context clones.
-- [ ] Two engines with different locks do not share targets; malformed lock errors surface before evaluation.
-- [ ] Missing locked target never reads newer cached data; no network fetch or change to FS capability checks.
-- [ ] Focused runner/embed/apiserver tests, make test-changed and make check-architecture-closure pass.
+- [x] Runner and batch fixtures with two cached versions read the locked version's distinct asset contents.
+- [x] Embed evaluation and an in-process API handler resolve locked assets on the first call and subsequent context clones.
+- [x] Two engines with different locks do not share targets; malformed lock errors surface before evaluation.
+- [x] Missing locked target never reads newer cached data; no network fetch or change to FS capability checks.
+- [x] Focused runner/embed/apiserver tests, make test-changed and make check-architecture-closure pass.
 
 **Risk:** SetEffContext accepts interface{} and cannot return errors. Resolve through an error-returning engine boundary rather than swallowing errors or changing the public API without review. Keep new runner helpers outside run.go.
 
@@ -94,11 +94,11 @@ Correct lexical-equivalence claims and describe lock-first selection, per-packag
 
 **Acceptance criteria:**
 
-- [ ] Reference docs, builtin LongDesc and stdlib header agree on lock-first and compatibility-semver fallback behavior.
-- [ ] Documentation states REPL has no lock context, absent lock entries use fallback, fallback ignores AILANG_PACKAGE_ROOT, and root-package assets are outside this change.
-- [ ] Existing asset_path example checks/runs with FS and its documented no-install behavior; generated integration fixtures demonstrably select older locked bytes.
-- [ ] make test-changed, make check-boundaries, make check-architecture-closure, make check-file-sizes and make check-changelog pass.
-- [ ] make verify-stdlib and make verify-examples pass; gofmt applied to changed Go files and focused lint checks are clean.
+- [x] Reference docs, builtin LongDesc and stdlib header agree on lock-first and deployed semver fallback behavior.
+- [x] Documentation states REPL has no lock context, absent lock entries use fallback, fallback honors AILANG_PACKAGE_ROOT, and root-package assets remain available without a lock (reconciled with v0.54.13).
+- [x] Existing asset_path example checks/runs with FS and its documented no-install behavior; generated integration fixtures demonstrably select older locked bytes.
+- [x] make test-changed, make check-boundaries, make check-architecture-closure, make check-file-sizes and make check-changelog pass.
+- [x] make verify-stdlib and make verify-examples pass; gofmt applied to changed Go files and focused lint checks are clean.
 
 ## Day-by-Day Work
 
@@ -129,3 +129,122 @@ No external package dependency. Approval applies to the supplied design; this ne
 GitHub #1774 is the verified design-document PR, not a verified originating bug issue. Leave github_issues empty rather than auto-linking unrelated keyword matches. Executor can link an originating issue when the coordinator supplies it.
 
 No blocking design questions remain. Assignment location inside embed is an implementation choice bounded by the initialization-order and error-propagation criteria above.
+
+## Execution Verification (2026-10-16)
+
+Implemented against checkout v0.54.12 (starting commit `3af754c4`), retaining the approved v0.54.7 design scope. Actual work branch: `coordinator/task-d61964fa` (the coordinator allocated a new task branch for execution).
+
+AILANG prompt version loaded: v0.16.7. The generated fixture checks successfully; its `read` function declares FS and its assertion entry uses FS/IO (`exit(23)` on wrong bytes). Contracts and inline tests are intentionally omitted for controlled filesystem fixtures; Go tests assert the external data.
+
+- Regression-first evidence: the original fallback selected 0.9.0 when 0.10.0 was cached; the original embed call read newer bytes and swallowed malformed-lock errors. New loader/context tests initially failed on missing APIs.
+- Focused integration passes for pipeline, runner, batch, embed and API, including older locked bytes, repeated context replacements, engine isolation, missing locked data and malformed locks.
+- `make check-boundaries`, `make check-architecture-closure`, `make check-file-sizes`, `make check-changelog`, `make fmt-check`, `make verify-stdlib` (48 interfaces) and `make verify-examples` pass. The existing `examples/asset_path.ail` checks and runs with IO/FS, printing the documented missing-package result.
+- The first broad run exposed leaked AILANG_STDLIB_PATH from existing API tests; the shared fixture now clears that override. The serialized API package suite passes (69.985s).
+- `TestRuntimeNestedStopUsesRemainingDeadline` fails on both the implementation and untouched starting commit (baseline reproduced in a temporary detached worktree). This process-lifecycle failure is outside the asset-resolution change. Pipeline testing was killed under memory pressure on concurrent and serialized runs, including GOGC=20, GOMEMLIMIT=512MiB, GOFLAGS=-p=1 and -parallel=1. Focused pipeline regressions pass; broad pipeline success is not claimed.
+- Tooling friction: Go was installed off PATH; the startup script incorrectly reported success. All actual Go commands use `/usr/local/go/bin`. The first linter link was killed; retrying with GOGC=20 and GOMAXPROCS=2 installed the required tool. Runner PTY tests initially lacked ps; procps was downloaded/extracted outside the repository for the final run. No repository tooling changes were needed.
+
+The package resolver keeps its existing return signature; the module phase obtains asset targets from its concrete PackageLoader. Shared test fixtures live in `internal/testutil/pkgassets` to avoid duplicating registry/lock construction across four consumers. No package-global asset map was introduced.
+
+Repeated verification: `go test ./internal/effects -run 'TestPkgAssetPath|TestAssetVersionCompatibility' -count=20` passes, including invalid directory filtering and package-name traversal rejection. The bounded `make test-changed` run explicitly excludes only the process-lifecycle baseline failure; it does not establish an unfiltered green gate.
+
+### Final Gate Outcome
+
+- Final bounded changed-package run: API, builtins, effects (one baseline exclusion), embed, pkg and runner pass; pipeline is killed at 46.101s. The target exits nonzero, so no unfiltered or whole-sprint test success is claimed. CI must provide the broader verification.
+- Focused golangci-lint over all eight touched packages exits zero with `0 issues.` Full `make lint` reports `0 issues.` but times out (exit 4), so its gate remains incomplete.
+- Independent evaluation report: `.ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_1.json`. Review found no remaining runtime defect but withheld approval because broad validation is incomplete.
+- All implementation is committed. Sprint JSON retains `in_progress`, M4 `passes: false`, and `implementation_complete: true` to distinguish finished code from unmet validation criteria. Remaining unchecked acceptance boxes refer to those broad gates. No merge or publication performed.
+
+## Attended CI/residual repair (2026-10-29)
+
+Reconciled with current dev without dropping its package-root fallback,
+root-package asset support, no-exports entry diagnostics, or release/prerelease
+ordering. The basic CLI fix was already released; this PR retains the remaining
+missing-target, budget-context, compile-source snapshot and per-engine behavior.
+
+AILANG prompt version loaded: v0.16.7 (current `ailang prompt` output).
+Regression-first run confirmed missing locked-target authority, local target
+resolution, invalid-only-cache errors, legacy budget propagation and root assets
+without a lock. The six-package focused asset suite now passes (effects, pkg,
+pipeline, embed, apiserver, runner); runner/batch additionally prove that an
+on-disk lock change after compilation cannot change selected asset bytes.
+
+- [x] Resolve stale code/doc conflicts while preserving current deployed behavior.
+- [x] Focused asset regressions pass across all six runtime/compiler consumers.
+- [x] Complete package-wide gates and stdlib/example verification.
+- [ ] Fresh independent evaluation (original FAIL51 preserved unchanged).
+
+Historical failures and unchecked original gates above remain recorded until the
+fresh checks complete. This note does not turn the original FAIL51 into a pass.
+
+### Fresh local validation (2026-10-29)
+
+All previously incomplete validation gates now pass without exclusions:
+
+- Full `go test -p 2` over effects/pkg/pipeline/embed/apiserver/runner passed
+  (38.372s/20.124s/17.976s/0.476s/28.881s/67.581s respectively).
+- `make test-changed` passed all eight changed packages and the complete core
+  loop, without skip regexes or memory workarounds. The formerly killed pipeline
+  suite passed twice (28.861s in changed packages, 16.577s in core).
+- Asset-resolution regressions passed with `-count=20` (0.862s).
+- `make lint` passed (0 issues); boundaries, architecture closure, file-size,
+  changelog and formatting gates passed.
+- `make verify-stdlib verify-examples` passed: 49 stable interfaces; runnable
+  examples and manifest validation passed (242 modules, zero drift/missing).
+- Fresh branch binary checked and ran `examples/asset_path.ail`, printing its
+  documented `not installed: package not installed: nonexistent/pkg` result.
+- `git diff <reviewed-dev-base> --check` is clean. A documentation-only dev
+  update was merged afterward; it changes no asset implementation or tests.
+
+The historical round-1 FAIL51 report remains unchanged. Code validation is now
+complete; independent review and exact-head CI remain the pre-merge gates for
+this attended repair. Reviewable commits are pushed to the existing PR; no merge
+or coordinator dispatch has been performed.
+
+### Independent-review repairs and authority integration (2026-10-29)
+
+- Corrected the reference's no-lock PACKAGE_ROOT fallback description and the
+  M2 criterion for manifest/no-lock root targets.
+- Added the missing CallPreserveFloats discovery-error guard after the reviewer
+  reproduced malformed-lock fallback to newer cached bytes. Regression was red
+  before the guard, then full embed/API suites passed.
+- Sonar reported 75.7% new coverage: 25 of 27 uncovered newlines were in the shared
+  fixture helper under per-package instrumentation. Relocated the existing
+  public float-preserving Engine locked-byte regression into external
+  pkgassets_test, preserving its cold/warm/context-replacement assertions.
+  Added a corrupt registry directory Err regression for the real uncovered
+  effects branch; no contrived race hook or coverage policy change.
+- Integrated dev/#1964 c2944389 cleanly. All seven covered suites pass:
+  effects 66.343s, pkg 111.791s, pipeline 127.209s, embed 8.367s,
+  apiserver 85.038s, runner 208.542s, testutil/pkgassets 2.205s. No exclusions.
+- Lint 0, file sizes, boundaries, changelog and git-exec AST gate pass.
+- Local coverage now covers 21 formerly uncovered measured newlines, projecting
+  105/111=94.6%. Exact-head remote Sonar remains authoritative and pending.
+  Fresh independent evaluation is still pending; no self-score or merge.
+
+### Portable cache-error assertion repair (2026-10-29)
+
+Exact-head af6dca29 CI exposed a Unix-only wording assertion in the new corrupt
+registry test: Windows returns a named missing-package Err for a non-directory
+path. The product contract is a named Err with configured-root exclusivity.
+The test now first proves its valid HOME cache resolves, then requires the corrupt
+configured root to return Err naming the package. It cannot pass by ignoring the
+override. Runtime semantics and coverage policy are unchanged; no platform skips.
+The focused regression passed 20 repetitions. Exact new-head CI remains required.
+
+The same Linux run failed only the known #1926 PTY PID-file readiness race
+(int on an existing empty file). Raw and stripped CI failures are preserved;
+that operator-pending work is not duplicated. One bounded CI retry is authorized
+if the identical isolated race recurs; no unrelated failure is waived.
+
+### Submitted-profile retention correction (2026-10-29)
+
+The next Linux full suite passed, but Sonar measured 76.6%, not the unfiltered
+local projection: the existing coverage package list includes TestGoFiles only.
+The external-only pkgassets_test regression populated XTestGoFiles, so the helper's
+measured 83.3% coverage was removed from coverage.out before submission.
+
+The same public Engine regression now runs as an in-package pkgassets test,
+with assertions unchanged. TestGoFiles includes engine_test.go. The unchanged
+make coverage-from-profile target retains the measured helper profile byte for
+byte (cmp passes). No threshold, baseline, exclusion or pipeline changes.
+Fresh helper coverage 83.3% passes; exact new-head Sonar remains authoritative.
