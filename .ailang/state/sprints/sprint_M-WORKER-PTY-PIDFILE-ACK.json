@@ -61,10 +61,10 @@
         "Zero failures over >=200 sequential and >=200 eight-way-concurrent fixed-protocol pairs",
         "All lifecycle assertions byte-identical; implementation only in internal/runner/worker_terminal_pty_test.go"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T14:53:36.205954+00:00",
+      "completed": "2026-10-29T14:53:36.205954+00:00",
+      "notes": "Atomic same-directory .pending write closed before os.replace; reader retries only missing/empty/unparseable content, requires PID >1 and exact-PID liveness. python3 /tmp/pty_ack_stress.py fixed: 200 sequential + 200 eight-way pairs, 400/400 exact live PID acks. python3 /tmp/pty_ack_timeout.py: absent/empty/malformed each failed with startup-ack diagnostic in 5.009\u20135.010s. Diff reviewed: only producer and reader changed; all lifecycle checks, cleanup and deadlines unchanged."
     },
     {
       "id": "M3",
