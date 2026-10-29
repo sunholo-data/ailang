@@ -1,12 +1,28 @@
 # M-DOCS-SEARCH-FALLBACK-CONFINEMENT
 
-**Status**: Proposed — awaiting attended design approval; no implementation or sprint authorization
+**Status**: Design approved for sprint planning; draft plan/execute approval pending; no implementation authorization
 **Target**: v0.56.0 (unreleased; no version/tag change)
 **Priority**: P1
 **Estimated**: 1–2 days, approximately 280–380 changed lines including tests/docs; planner must re-estimate after approval
 **Issue**: [#1965](https://github.com/sunholo-data/ailang/issues/1965)
 **Baseline**: actual dev `dba1c499ca6f76b40992fd521e3dd440d9277f49` (2026-10-29)
 **Dependencies**: reuse landed #1964 package authority refusal contract; preserve M-DX27 local/backend separation
+
+## Attended approval and current stage (2026-10-29)
+
+The user said “approve the three designs”. Root's binding record is
+`/tmp/ailang-backlog-20261029/three-design-approvals.json`, approving exactly design
+commit `096a808ac76e858143eee4e62854ceb56c0e2b74` for **sprint planning only**.
+Receipt observed at 2026-10-29T14:48:58Z is an assistant-recorded observation, not
+an independently supplied user send timestamp. The approved scope is whole
+GitHub backend refusal under confinement, preserving local SimHash and leaving
+explicit neural/cache-management separate. No third external review, plan/execute,
+implementation, operator-card action or #2013 CI bypass is inferred.
+
+A concrete [draft sprint plan](m-docs-search-fallback-confinement-sprint-plan.md)
+and `.ailang/state/sprints/sprint_M-DOCS-SEARCH-FALLBACK-CONFINEMENT.json` are
+prepared uncommitted for review. Plan acceptance and explicit execution remain
+pending. This record changes approval metadata, not the approved semantics.
 
 ## Problem statement
 
@@ -63,23 +79,24 @@ protection and Windows ACLs. It is not combined into this confinement design.
 5. Prove the boundary with actual CLI/policy-tool and direct-library controls
    using private HOME, fake processes and loopback transports only.
 
-## High-impact decisions requiring approval
+## Approved high-impact decisions
 
-| Decision | Proposed choice | Why it matters | Chosen by | Change cost |
+| Decision | Approved choice | Why it matters | Chosen by | Change cost |
 |---|---|---|---|---|
-| No local corpus under confinement | Fail with a canonical typed confinement refusal; require a local corpus or operator execution | Determines behavior for installed agent binaries, rather than silently returning an empty result | Human design approval pending | Medium |
-| Existing GitHub result cache under confinement | Refuse before reading it, including a fresh cache hit | Makes GitHub backend entirely operator-only and avoids credential resolution before a purported offline cache hit | Human design approval pending | Medium |
-| Scope | Gate only GitHub fallback/library cache; keep local search and explicit neural/cache-management policy separate | Avoids claiming a universal top-level confinement policy that this bounded change cannot prove | Human design approval pending | Medium |
-| Shared authority representation | Reuse `pkg.Require`/`pkg.ConfinedError` with a docs-specific remedy; do not create a second policy variable or refactor the authority package | Keeps confinement detection/error type consistent with #1964 | Agent proposal, subject to design approval | Low |
+| No local corpus under confinement | Fail with a canonical typed confinement refusal; require a local corpus or operator execution | Determines behavior for installed agent binaries, rather than silently returning an empty result | Attended user approval recorded above (planning only) | Medium |
+| Existing GitHub result cache under confinement | Refuse before reading it, including a fresh cache hit | Makes GitHub backend entirely operator-only and avoids credential resolution before a purported offline cache hit | Attended user approval recorded above (planning only) | Medium |
+| Scope | Gate only GitHub fallback/library cache; keep local search and explicit neural/cache-management policy separate | Avoids claiming a universal top-level confinement policy that this bounded change cannot prove | Attended user approval recorded above (planning only) | Medium |
+| Shared authority representation | Reuse `pkg.Require`/`pkg.ConfinedError` with a docs-specific remedy; do not create a second policy variable or refactor the authority package | Keeps confinement detection/error type consistent with #1964 | Approved narrow reuse; no authority-semantic change | Low |
 
 ### Design freeze
 
-- [ ] Attended user approves the proposed refusal/cache/scope choices above.
-- [ ] Sprint-planner records exact milestones/acceptance after design approval.
+- [x] Attended user approved the refusal/cache/scope choices above for planning.
+- [x] Sprint-planner prepared exact draft milestones/acceptance after design approval; plan approval is pending.
 - [ ] Attended user explicitly says execute sprint before product edits.
 
-No box is pre-approved by this document. The design-only request authorizes
-neither implementation nor an agent/coordinator handoff.
+Only the explicitly recorded design approval and draft planning are complete.
+No implementation or agent/coordinator handoff is authorized; the execute box
+remains open until the user explicitly approves execution of a concrete plan.
 
 ## Solution design
 
@@ -213,8 +230,8 @@ as the full effort.
   GitHub fallback, not a universal docs-mode confinement claim.
 
 Independent sprint evaluation follows implementation and real terminal gates;
-no executor self-score. Approval, planning, execution, PR and live publication
-are separate steps; none is performed by preparing this document.
+no executor self-score. Design approval and draft planning are recorded above;
+execution, PR and live publication remain separate unauthorized steps.
 
 ## Verification log
 
@@ -267,8 +284,8 @@ asserted by this design. No new diagnostic code is proposed.
 | A11 Structured failure | +1 | Reuses ConfinedError rather than silent results/auth confusion |
 | A12 System boundary | +1 | Enforces the credential/HTTP/cache boundary at its owning backend |
 
-**Net score: +6.** No negative A1/A3/A4/A7 score. Design approval remains pending;
-this arithmetic is not implementation authorization.
+**Net score: +6.** No negative A1/A3/A4/A7 score. Design approval covers planning
+only; this arithmetic is not implementation authorization.
 
 ## Related documents
 
