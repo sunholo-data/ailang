@@ -1,0 +1,8 @@
+[package]
+name = "test/b"
+version = "0.1.0"
+edition = "1"
+[exports]
+modules = ["test/b/model"]
+[assets]
+files = ["marker.txt"]

@@ -386,7 +386,11 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 			case s.Present && s.NotRun:
 				r.badge("PUB015", "info", SmokeFile+" present but "+orNotRun(s.Notes))
 			case s.Present && !s.Passed:
-				r.finding("PUB015", mode == ModePublisher, "warn", "_smoke.ail failed")
+				message := "_smoke.ail failed"
+				if first := strings.SplitN(strings.TrimSpace(s.Notes), "\n", 2)[0]; first != "" {
+					message += ": " + first
+				}
+				r.finding("PUB015", mode == ModePublisher, "warn", message)
 			}
 		}
 	}

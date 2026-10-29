@@ -1,0 +1,92 @@
+{
+  "sprint_id": "M-WORKER-PTY-PIDFILE-ACK",
+  "status": "in_progress",
+  "created": "2026-10-21T11:14:41.570243+00:00",
+  "design_doc": "design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack.md",
+  "sprint_plan": "design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack-sprint-plan.md",
+  "github_issues": [
+    1892
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Not package-like: existing embedded Python PTY fixture and verification only; registry search not applicable, no dependency introduced."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Not package-like: existing embedded Python PTY fixture and verification only; registry search not applicable, no dependency introduced."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Not package-like: existing embedded Python PTY fixture and verification only; registry search not applicable, no dependency introduced."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 40,
+    "estimated_total_loc": 40,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Refresh current-source race baseline and deduplicate",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Record current revision and deduplication before editing",
+        "Reproduce empty-PID failure with >=200 sequential and >=200 eight-way-concurrent baseline pairs; label controlled scheduling separately if needed",
+        "Stop repair if diagnosis contradicts current source"
+      ],
+      "passes": true,
+      "started": "2026-10-29T14:53:04.516548+00:00",
+      "completed": "2026-10-29T14:53:04.516548+00:00",
+      "notes": "HEAD 93e4f258; clean tree; local dedup only finds supplied design/plan/state. Remote PR dedup unavailable: gh lacks authentication. python3 /tmp/pty_ack_stress.py baseline: 200 sequential + 200 eight-way pairs, 0 natural failures. controlled: 1/1 empty-read ValueError with labelled 100ms open/write pause. Exact source strings extracted; exact child PID liveness checked; kill/wait teardown. Linux 6.9.12, Python 3.11.2. Go missing. cloud_branch_sync start skipped:no-task-id. User handoff authorizes execution superseding planning-only metadata."
+    },
+    {
+      "id": "M2",
+      "description": "Implement and stress complete-PID acknowledgement",
+      "estimated_loc": 25,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Atomic same-directory complete write, close and os.replace publication",
+        "Bounded content reader, PID >1 and exact-PID liveness; unchanged deadlines",
+        "Zero failures over >=200 sequential and >=200 eight-way-concurrent fixed-protocol pairs",
+        "All lifecycle assertions byte-identical; implementation only in internal/runner/worker_terminal_pty_test.go"
+      ],
+      "passes": true,
+      "started": "2026-10-29T14:53:36.205954+00:00",
+      "completed": "2026-10-29T14:53:36.205954+00:00",
+      "notes": "Atomic same-directory .pending write closed before os.replace; reader retries only missing/empty/unparseable content, requires PID >1 and exact-PID liveness. python3 /tmp/pty_ack_stress.py fixed: 200 sequential + 200 eight-way pairs, 400/400 exact live PID acks. python3 /tmp/pty_ack_timeout.py: absent/empty/malformed each failed with startup-ack diagnostic in 5.009\u20135.010s. Diff reviewed: only producer and reader changed; all lifecycle checks, cleanup and deadlines unchanged."
+    },
+    {
+      "id": "M3",
+      "description": "Validate PTY lifecycle and record revision-matched evidence",
+      "estimated_loc": 15,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "All 11 PTY cells and eval/sigint count=20 pass without skips",
+        "Sibling terminal and worker-exit lifecycle checks pass unchanged",
+        "make test-changed, lint, fmt-check, check-file-sizes and check-changelog pass; scope conflict reported if fragment required",
+        "Design Verification Log records actual commands, counts, revision and environment",
+        "Exact-fix CI coverage gate measured; status of 18 downstream steps recorded, independent govulncheck attributed separately"
+      ],
+      "passes": false,
+      "started": "2026-10-29T14:54:22.246979+00:00",
+      "completed": null,
+      "notes": "Partial: Python assembled harness compiles; file-size/changelog/diff gates pass. make test-changed cannot run: go missing; lint lacks golangci-lint; fmt-check lacks gofmt. All 11 lifecycle cells, sigint count=20, siblings, coverage and 18 downstream CI steps UNMEASURED. gh unauthenticated; remote dedup unavailable. No toolchain installation per executor policy. M3 requires CI/supported host; do not mark sprint complete. Fix revision 3124e0ff801cd8548299fe639abcdfe5f98b4dc1."
+    }
+  ],
+  "execution_authorized": true,
+  "last_session": "2026-10-29T14:53:04.516548+00:00",
+  "last_checkpoint": "M2 implemented; M3 local non-Go checks pass; Go and remote CI validation pending"
+}

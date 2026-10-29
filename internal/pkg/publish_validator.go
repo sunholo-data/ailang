@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sunholo-data/ailang/internal/proctree"
 )
@@ -42,9 +43,10 @@ type SmokeResult struct {
 }
 
 // RunSmokeInTempDir runs the package's _smoke.ail in an isolated temp
-// directory using the provided ailang binary. The package source is copied
-// (only the published file set: ailang.toml, *.ail, AGENT.md, assets/) so
-// the smoke test sees nothing inherited from the developer's workdir.
+// directory using the provided ailang binary. Package sources/assets are copied,
+// path dependencies rewritten to published versions, and a new execution lock
+// resolved. Valid previous metadata is retained only for existing D2 git-pin
+// carry-forward; the child never executes the copied author path lock.
 //
 // Returns:
 //   - (*SmokeResult, nil) when the smoke run completed (pass or fail).
@@ -72,7 +74,7 @@ func RunSmokeInTempDir(packageDir, ailangBin string, timeout time.Duration) (*Sm
 	}
 	defer os.RemoveAll(tmpDir)
 
-	if err := copyPackageContents(packageDir, tmpDir); err != nil {
+	if err := stagePublishedPackage(packageDir, tmpDir); err != nil {
 		return nil, fmt.Errorf("failed to stage smoke workspace: %w", err)
 	}
 
@@ -104,7 +106,12 @@ func RunSmokeInTempDir(packageDir, ailangBin string, timeout time.Duration) (*Sm
 	runErr := cmd.Run()
 	elapsed := time.Since(start)
 
-	out := truncateOutput(combined.String(), 8*1024)
+	output := combined.String()
+	var exitErr *exec.ExitError
+	if runErr != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) && (!errors.As(runErr, &exitErr) || exitErr.ExitCode() < 0) {
+		output = runErr.Error() + "\n" + output
+	}
+	out := truncateOutput(output, 8*1024)
 
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		// Belt-and-braces: CommandContext already kills the leader, but the
@@ -138,11 +145,12 @@ func RunSmokeInTempDir(packageDir, ailangBin string, timeout time.Duration) (*Sm
 	}, nil
 }
 
-// copyPackageContents mirrors the file set CreateTarball would publish into
-// destDir, so the smoke test sees the same view the registry will install.
-//
-// Includes: ailang.toml, *.ail (incl. _smoke.ail), AGENT.md, assets/**.
-// Excludes: .git, tests/, ailang.lock.
+// copyPackageContents copies the existing smoke source set into destDir.
+// Includes: ailang.toml, *.ail (except named test-body leftovers), AGENT.md,
+// assets/**, and previous lock metadata for stagePublishedPackage to validate
+// and replace. Tarballs never ship that lock; they additionally ship CHANGELOG.md,
+// which smoke does not need. Keep those intentional differences explicit rather
+// than broadening either file set. Both walks exclude .git and test/tests dirs.
 func copyPackageContents(srcDir, destDir string) error {
 	srcDir, err := filepath.Abs(srcDir)
 	if err != nil {
@@ -183,9 +191,8 @@ func shouldStageFile(rel string) bool {
 	case rel == ManifestFile:
 		return true
 	case rel == LockFileName:
-		// ailang.lock isn't published, but the smoke needs it to resolve deps
-		// from the developer's local registry cache. Without it, packages
-		// with [dependencies] cannot import even themselves through pkg/...
+		// Previous metadata is validated for D2 git carry-forward, then removed
+		// and regenerated. This copied file is never the smoke execution lock.
 		return true
 	case rel == "AGENT.md":
 		return true
@@ -221,11 +228,10 @@ func copyFile(src, dest string) error {
 }
 
 func truncateOutput(s string, maxBytes int) string {
-	if len(s) <= maxBytes {
+	if len(s) <= maxBytes && utf8.ValidString(s) {
 		return s
 	}
-	keep := s[len(s)-maxBytes:]
-	return "[output truncated; showing last " + fmt.Sprintf("%d", maxBytes) + " bytes]\n" + keep
+	return summarizeSmokeOutput(s, maxBytes, "")
 }
 
 // HasExtensionBlock reports whether the manifest declares an [extension] section.

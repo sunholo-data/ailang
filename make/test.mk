@@ -94,6 +94,7 @@ LAUNCHD_SUITES := \
 	scripts/test_mission_routing_models_check.sh \
 	scripts/test_mission_ledger_provenance.sh \
 	tools/launchd/test_pi_ext_args.sh \
+	tools/launchd/test_pi_controller_note.sh \
 	.claude/skills/sprint-evaluator/scripts/test_ci_gate.sh \
 	tools/launchd/test_mission_lane_check.sh \
 	tools/launchd/test_mission_routing.sh \

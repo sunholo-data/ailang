@@ -1,0 +1,3 @@
+### Fixed — pi mission controllers no longer deadlock on the session-protocol inbox step (2026-10-29)
+
+A pi-driven mission controller is now told, in both its system prompt and its first user message, that the session-protocol inbox step is satisfied only by one plain bash call `ailang messages list --unread`, and that `ailang_cli`/`ailang_run` are not granted in a controller session. Stapledon's 2026-09-29 fire died before Gate 0 after five `ailang_cli` attempts at the inbox. claude/codex controllers and pi role stages are unchanged. Ticket `gate0:session-protocol-deadlock:agent-policy-unset`.
