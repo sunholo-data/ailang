@@ -70,3 +70,34 @@ Clean overlays preserve source checkouts and are independently hashed. Euclidean
 - Existing #602 solver fixture warm-up, effect/explicit-empty/alias/IFCv2-v8 source, prompt bytes, runtime and parser/type policy remain preserved. No full executor `make test` was run.
 
 Raw directory: `/tmp/ailang-backlog-20261029/m0-execution`. Load-bearing files: `final-cli-{identity,raw}.json`, `corpus-source-manifest.json`, `corpus-final-{raw,summary}.json`, `mutation-final60-results.json`, `test-changed-final60.log`, `structure-final60.log`, `verify-examples.log`, `manifest.log`, `verify-stdlib.log`. The companion JSON binds stable raw artifacts by bytes and SHA256. Final CI and independent evaluation must actually pass before acceptance/merge.
+
+## Test-only coverage follow-up after the cb5 CI gate
+
+The actual cb5 Sonar gate was FAIL solely for new-code coverage77.7% against
+unchanged80% policy:385 new lines,86 uncovered. Exact-PR source-line hit data
+identified uncovered contract Match/Forall substitution and local result-binding
+paths. CI run40957956051 exposed no coverage artifact, so the actual Sonar
+per-line response was retained instead of inventing an artifact measurement.
+
+`codegen_contract_behavior_coverage_test.go` adds three behavior tests using real
+Z3 VERIFIED/COUNTEREXAMPLE pairs: pattern-bound parameter/result shadowing,
+bounded quantified postconditions with actual arguments and result binders,
+synthesized unit erasure, unknown postconditions and local result bindings.
+These tests assert logical entailment/non-entailment, not emitted text. The first
+new fixture used an unsupported bare primitive-variable Core match and produced
+an honest Z3 datatype-match error. The retained correction uses the existing
+literal-arm primitive route; no production encoding or outcome was changed.
+
+Focused full SMT package PASS11.031s (72.6% whole-package statement coverage),
+targeted lint0. The local profile hits26 previously uncovered Sonar new-code
+lines, projecting84.42% new coverage. That is an explicitly labelled projection;
+only the actual new-head Sonar run can establish its gate. Raw profile, original
+failure, actual Sonar line data and projection are retained under
+`/tmp/ailang-backlog-20261029/m0-coverage-repair/`.
+
+This follow-up changes only tests and this validation note. All production Go
+and all .ail bytes are identical to cb5/source60, so prior exact compiler corpus,
+mutation and CLI/core evidence remain applicable without duplicate execution.
+No production/gate/threshold/exclusion/workflow or semantic scope was changed.
+Historical independent FAIL and CI-retry records remain intact; root owns the
+formal verdict and actual gate acceptance.
