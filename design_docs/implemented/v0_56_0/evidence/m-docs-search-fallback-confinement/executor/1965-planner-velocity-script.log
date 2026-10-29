@@ -1,0 +1,36 @@
+Analyzing velocity for last 7 days...
+
+=== Recent Changelog Entries ===
+changelogs/v0.0-v0.2-foundation.md:#### M-R8: Block Expressions (HIGH PRIORITY, ~300 LOC) ← **NEW**
+changelogs/v0.0-v0.2-foundation.md:#### M-R5: Records & Row Polymorphism (HIGH PRIORITY, ~500 LOC)
+changelogs/v0.0-v0.2-foundation.md:#### M-R6: Extended Effects - Clock & Net (MEDIUM PRIORITY, ~700 LOC)
+changelogs/v0.0-v0.2-foundation.md:#### M-R7: Modulo Operator Fix (MEDIUM PRIORITY, ~200 LOC)
+changelogs/v0.0-v0.2-foundation.md:#### M-UX2: User Experience (LOW PRIORITY, ~300 LOC)
+changelogs/v0.0-v0.2-foundation.md:**Implementation**: ~200 LOC across 3 strategic improvements
+changelogs/v0.0-v0.2-foundation.md:1. **Auto-Entry Fallback** (`cmd/ailang/main.go`, ~50 LOC)
+changelogs/v0.0-v0.2-foundation.md:2. **Audit Script Enhancement** (`tools/audit-examples.sh`, ~20 LOC)
+changelogs/v0.0-v0.2-foundation.md:3. **TRecord Unification Support** (`internal/types/unification.go`, ~40 LOC)
+changelogs/v0.0-v0.2-foundation.md:### 🎯 M-EVAL: AI Evaluation Framework (~600 LOC) ✅
+No LOC metrics found
+
+=== Recent Commits (last 7 days) ===
+096a808ac docs: propose confined docs-search fallback boundary
+dba1c499c Merge pull request #2012 from sunholo-data/docs/backlog-completion-audit
+aca5a6ead Merge pull request #2011 from sunholo-data/fix/security-lock-patches
+b5cd4b5a3 docs(review): track newly arrived operator-owned triage PRs
+84428bf7a docs(review): record partial IFC acceptance and repair archive metadata
+6c56b2940 Merge remote-tracking branch 'origin/dev' into fix/security-lock-patches
+ed8def141 fix(security): patch re2js and serialize-javascript locks
+5f6087b86 Merge remote-tracking branch 'origin/dev' into docs/backlog-completion-audit
+65253e86e Merge pull request #1771 from sunholo-data/coordinator/task-a87f9332
+40a5ca9ea Record final combined M1-M2 cache and consumer proof (Refs #1134)
+4ca005968 docs(review): record alias follow-up acceptance and current audit links
+9c11bbdb4 docs(review): archive accepted alias ownership follow-up with original sprint
+817a4b9c0 Merge remote-tracking branch 'origin/dev' into docs/backlog-completion-audit
+749045717 Merge pull request #2008 from sunholo-data/fix/latent-alias-ownership
+a9971a364 Merge published alias ownership dependency #2008 (Refs #1134)
+da3e5d54c docs(review): preserve backlog evidence and correct evaluation rubric totals
+d5f783585 docs(types): bank actual consumer integration proof for alias repair
+91a2a32c6 docs: archive accepted row and explicit-empty soundness sprints
+8f6b11d0f Merge actual effect-row dev and regenerate IFC v2 interfaces (Refs #1134)
+15afcc12c Merge commit '80793dbcf42423027be4bab1a0088da54e2323d8' into fix/latent-alias-ownership

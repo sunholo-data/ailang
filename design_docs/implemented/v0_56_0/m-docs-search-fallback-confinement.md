@@ -1,6 +1,6 @@
 # M-DOCS-SEARCH-FALLBACK-CONFINEMENT
 
-**Status**: Design and sprint execution approved; implementation awaiting independent acceptance
+**Status**: Implemented and accepted — root independent PASS95/100; v0.56.0 UNRELEASED
 **Target**: v0.56.0 (unreleased; no version/tag change)
 **Priority**: P1
 **Estimated**: 1–2 days, approximately 280–380 changed lines including tests/docs; planner must re-estimate after approval
@@ -27,6 +27,23 @@ are authorized; independent evaluation and merge remain separate. The JSON is
 `.ailang/state/sprints/sprint_M-DOCS-SEARCH-FALLBACK-CONFINEMENT.json`; the
 [validation map](m-docs-search-fallback-confinement-validation.md) records proof.
 This update changes stage metadata, not the approved semantics.
+
+## Accepted implementation (2026-10-29)
+
+Root independently evaluated exact `50ca373aeacd6b74ffce573d1892cf2dd4211e32`
+**PASS95/100**, with all21criteria verified and actual27terminal CI contexts
+(20SUCCESS/7SKIPPED; zero failed/cancelled/pending). Root normally merged
+[PR2017](https://github.com/sunholo-data/ailang/pull/2017) as
+`1cfaedbf2170e5c3260c5207c7c82823bd51032f` at21:16:33UTC;
+issue1965 closed21:16:34UTC. Target v0.56.0 is **unreleased**; no tag/version bump.
+
+The [plan](m-docs-search-fallback-confinement-sprint-plan.md),
+[validation map](m-docs-search-fallback-confinement-validation.md) and
+[root's frozen evaluation/evidence](evidence/m-docs-search-fallback-confinement/README.md)
+are archived together. Earlier approval/execute/pending-gate text records its
+historical checkpoint; this section gives the final accepted disposition.
+The implementation author did not self-evaluate; the copied report is root's
+independent judgment and its original bytes are unchanged.
 
 ## Problem statement
 
@@ -95,8 +112,8 @@ protection and Windows ACLs. It is not combined into this confinement design.
 ### Design freeze
 
 - [x] Attended user approved the refusal/cache/scope choices above for planning.
-- [x] Sprint-planner prepared exact draft milestones/acceptance after design approval; plan approval is pending.
-- [ ] Attended user explicitly says execute sprint before product edits.
+- [x] Sprint-planner prepared exact draft milestones/acceptance after design approval; plan/execution subsequently approved, as recorded above.
+- [x] Attended user explicitly said execute sprint before product edits.
 
 Only the explicitly recorded design approval and draft planning are complete.
 No implementation or agent/coordinator handoff is authorized; the execute box
@@ -203,30 +220,30 @@ as the full effort.
 
 ## Acceptance criteria and verification strategy
 
-- [ ] **AC1 actual CLI:** outside corpus discovery, policy set, no token and fake
+- [x] **AC1 actual CLI:** outside corpus discovery, policy set, no token and fake
   gh/git child helpers: exit nonzero with canonical policy refusal, zero helper
   invocations, unchanged private HOME/XDG state. Helpers must first be proved
   active by an unconfined control; absence alone is not a valid instrument.
-- [ ] **AC2 token + direct library:** inherited dummy token, direct `NewBackend`
+- [x] **AC2 token + direct library:** inherited dummy token, direct `NewBackend`
   and injected `Backend.Search` via `NewBackendForTest` all refuse. A counted
   loopback HTTP server receives zero requests confined and a valid unconfined
   request. No real token, GitHub egress or auth-store access.
-- [ ] **AC3 cached/direct writer:** seed a valid cache unconfined, prove its hit,
+- [x] **AC3 cached/direct writer:** seed a valid cache unconfined, prove its hit,
   then confined Search refuses; direct writeCache returns typed home-write
   refusal before any mutation. Snapshot all private HOME/XDG bytes before/after,
   not just the currently known device-id/cache filenames.
-- [ ] **AC4 local compatibility:** actual CLI explicit and auto-discovered local
+- [x] **AC4 local compatibility:** actual CLI explicit and auto-discovered local
   SimHash search succeed under confinement with unchanged corpus/HOME and no
   helper/request. Include JSON parsing, invalid --path, --no-github and env
   disable controls. No auth/unset-controls hint on a confined failure.
-- [ ] **AC5 policy-tool:** exercise actual docs_search dispatch and its actual
+- [x] **AC5 policy-tool:** exercise actual docs_search dispatch and its actual
   child binary, not only a mocked runner. Prove pinned child policy still
   refuses the fallback; local SimHash remains allowed. Retain flag allow-list
   (json/limit) and existing output bounds. No new credential admission.
-- [ ] **AC6 unconfined compatibility:** existing authenticated pagination/request,
+- [x] **AC6 unconfined compatibility:** existing authenticated pagination/request,
   repo-default/repo-refusal, error-token-safety and cache expiry/isolation tests
   remain green. Tests use loopback and private HOME; no live GitHub search.
-- [ ] **AC7 gates/docs:** make build, focused affected tests, make test-changed,
+- [x] **AC7 gates/docs:** make build, focused affected tests, make test-changed,
   lint, boundaries, home isolation, sizes, fmt and changelog pass. No full local
   make test; exact-head PR CI supplies broad Linux/Windows gates. Use bounded
   portable Go child helpers rather than shell scripts; Windows must execute the
@@ -293,14 +310,14 @@ only; this arithmetic is not implementation authorization.
 
 ## Related documents
 
-- [M-DX27 fallback design](../v0_29_0/m-dx27-docs-search-github-fallback.md) and
-  [plan](../m-dx27-docs-search-github-fallback-sprint-plan.md): existing implemented
+- [M-DX27 fallback design](../../planned/v0_29_0/m-dx27-docs-search-github-fallback.md) and
+  [plan](../../planned/m-dx27-docs-search-github-fallback-sprint-plan.md): existing implemented
   source despite stale planned metadata; retain authenticated fallback/local
   separation, not duplicate implementation.
-- [Package authority chokepoint](../v0_54_19/m-pkg-authority-chokepoint.md): reuse
+- [Package authority chokepoint](../../planned/v0_54_19/m-pkg-authority-chokepoint.md): reuse
   its authority/refusal contract; this design closes one explicitly deferred
   non-package path rather than reopening package semantics.
-- [Registry confinement](../v0_52_6/m-pkg-registry-confinement.md): adjacent package
+- [Registry confinement](../../planned/v0_52_6/m-pkg-registry-confinement.md): adjacent package
   cache/network boundary, distinct from GitHub docs-search credentials/cache.
 - [SECURITY.md](../../../SECURITY.md): existing guarantee is package-specific;
   add the scoped docs fallback guarantee only after verified implementation.

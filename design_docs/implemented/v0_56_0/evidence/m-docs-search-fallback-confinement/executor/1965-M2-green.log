@@ -1,0 +1,5 @@
+--- FAIL: TestDocsSearch_ConfinementLocalAndDisabled (0.22s)
+    docs_search_confinement_test.go:69: explicit/auto results differ: [{/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestDocsSearch_ConfinementLocalAndDisabled1651530544/002/design_docs/needle.md Needle contracts 1}] [{/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestDocsSearch_ConfinementLocalAndDisabled1651530544/002/design_docs/needle.md Needle contracts 1}]
+FAIL
+FAIL	github.com/sunholo-data/ailang/cmd/ailang	17.321s
+FAIL

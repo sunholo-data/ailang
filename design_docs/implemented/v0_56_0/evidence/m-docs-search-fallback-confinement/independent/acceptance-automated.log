@@ -1,0 +1,114 @@
+═══════════════════════════════════════════════════════════════
+ Acceptance Criteria Check: M-DOCS-SEARCH-FALLBACK-CONFINEMENT  (independent verification)
+═══════════════════════════════════════════════════════════════
+
+Mode: evaluator does NOT trust sprint JSON 'passes' field
+
+Features in sprint: 4
+
+── Feature: M1_GITHUB_AUTHORITY_BOUNDARIES ─────────────────────────────────────
+   Description: Gate constructor, direct Search, each HTTP request and cache writer with existin
+   Criteria: 6   (JSON claims passes=true — ignored)
+
+     ✅ Failing-first direct constructor controls with absent and dummy-present token return pkg.ConfinedError/AuthNetwork before config/helper/repository work; positive fake gh/git instruments are observed safely unconfined
+        └─ symbols found: ConfinedError AuthNetwork
+     ⚠️  Direct Search on preconstructed, test-constructor and manually populated Backend refuses before token/repo validation or cache access, including a previously proved valid cache hit; no success/empty fallback or nil-client panic
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Counted loopback HTTP/pagination succeeds unconfined; changing policy after page1 prevents page2 at the actual HTTP boundary with typed refusal and zero second request
+        └─ no recognizable pattern (prose criterion)
+     ✅ Direct writeCache returns typed AuthHomeWrite before HOME resolution/directory/temp/rename; unconfined write/read succeeds, then full private HOME/XDG snapshots remain unchanged confined
+        └─ symbols found: writeCache AuthHomeWrite
+     ⚠️  Late policy change after allowed HTTP but before cache persistence propagates typed home-write refusal from Search; ordinary unconfined cache write failure remains best-effort
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Existing authenticated request/pagination, repo-default/refusal, token-safe error and cache hit/expiry/isolation tests pass; internal/pkg authority semantics and local SimHash/neural sources remain zero-diff; focused package tests/lint/boundaries pass
+        └─ no recognizable pattern (prose criterion)
+
+   Feature tally: ✅ 2  ❌ 0  ⚠️  4
+   Status: ⚠️  Partially verified — 4 prose criterion(s) need human review
+
+── Feature: M2_ACTUAL_CLI_AND_SAFE_HINTS ─────────────────────────────────────
+   Description: Prove actual CLI fallback refusal and preserved local SimHash with active portab
+   Criteria: 6   (JSON claims passes=true — ignored)
+
+     ⚠️  Fresh make-built real CLI outside all corpus discovery paths fails with canonical confinement refusal for token-absent and dummy-token-present arms; fake gh/git counters and loopback request counters remain zero
+        └─ no recognizable pattern (prose criterion)
+     ✅ Unconfined helper positives and a deny-CONNECT loopback proxy are proved active before negative assertions; clear both cases of NO_PROXY/proxy-bypass variables and strip ambient trace/export project/endpoints so no real GitHub or Cloud Trace call occurs
+        └─ symbols found: NO_PROXY GitHub
+     ⚠️  Explicit and auto-discovered local SimHash searches succeed under confinement with parseable existing JSON and unchanged result path/title/order semantics, corpus and full private HOME/XDG state; zero helper/request counts
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Invalid explicit path remains a local path error; --no-github and AILANG_NO_GITHUB_SEARCH preserve local failure and safe local/operator remedy; confined failures never suggest GITHUB_TOKEN, gh auth login or unsetting disable controls
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Unconfined authentication hints and existing TestDocsSearch_StillDesignDocSimHash remain valid; no production transport/config/flag/error-envelope change or explicit neural/cache-management claim
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Portable Go helper executables use filepath/.exe and existing bounded build/CLI utilities; all new authority assertions run on Windows with no POSIX-only blanket skip; focused CLI tests and lint pass
+        └─ no recognizable pattern (prose criterion)
+
+   Feature tally: ✅ 1  ❌ 0  ⚠️  5
+   Status: ⚠️  Partially verified — 5 prose criterion(s) need human review
+
+── Feature: M3_REAL_POLICY_TOOL_CHILD ─────────────────────────────────────
+   Description: Exercise real docs_search dispatch and its real child with pinned policy, unchan
+   Criteria: 4   (JSON claims passes=true — ignored)
+
+     ⚠️  Actual policy-tool --policy/--request-file invokes its actual ailang child for docs_search with parent policy environment absent; no mocked runner; missing-corpus refusal proves child received pinned policy with zero helper/proxy side effects
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Preserve process/child distinction: policy-tool process exits0 with a valid response, OK=false/child exit nonzero and canonical stderr on refusal; allowed local SimHash response is OK=true/child exit0 with parseable existing stdout JSON
+        └─ no recognizable pattern (prose criterion)
+     ✅ Existing exact-one-child-policy unit contract, docs_search json/limit allow-list, unknown/neural flag rejection and output caps remain unchanged; no new credential admission or production policytool edits
+        └─ symbols found: docs_search
+     ⚠️  Use minimal TOML policy and ordinary directories without symlinks; do not call Windows-skipping writePolicyFixture or policytool.newFixture. Real local success/refusal and complete private HOME/XDG/corpus snapshots execute on Linux/macOS/Windows; focused tool/CLI tests pass
+        └─ no recognizable pattern (prose criterion)
+
+   Feature tally: ✅ 1  ❌ 0  ⚠️  3
+   Status: ⚠️  Partially verified — 3 prose criterion(s) need human review
+
+── Feature: M4_DOCS_GATES_AND_HANDOFF ─────────────────────────────────────
+   Description: Document the precise GitHub-only confinement contract and collect one final affe
+   Criteria: 5   (JSON claims passes=true — ignored)
+
+     ⚠️  CLI reference, semantic-search guide, SECURITY.md and correctly headed unreleased fragment describe GitHub backend refusal before credentials/cache/HTTP, local/operator remedy and preserved local SimHash; explicit neural/cache management remain separately scoped
+        └─ no recognizable pattern (prose criterion)
+     ✅ One consolidated make build then make test-changed plus required focused policy-tool compatibility tests passes; lint/boundaries/home-isolation/file-size/fmt/changelog checks pass with unchanged deadlines and thresholds, no full local make test
+        └─ automated_checks.tests_pass=true
+     ⚠️  Authority/source-order evidence maps design AC1-AC7 to real tests and counted positive/negative instruments; no live GitHub/token/auth-store use, no silent fallback, no new .ail product/examples or package authority/#1773 edits
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Final clean immutable source/local gate logs handed to an independent evaluator; separately authorized exact-head PR CI supplies broad Linux/Windows gates; no executor self-score or claim that unexecuted/queued/failed checks passed
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Any unchanged external #1926/#2013 CI blocker is reported with actual evidence, not repaired, retried or bypassed by this scope; preserve operator ownership and root issue/merge disposition
+        └─ no recognizable pattern (prose criterion)
+
+   Feature tally: ✅ 1  ❌ 0  ⚠️  4
+   Status: ⚠️  Partially verified — 4 prose criterion(s) need human review
+
+═══════════════════════════════════════════════════════════════
+ Acceptance Criteria Summary  (independent verification)
+═══════════════════════════════════════════════════════════════
+
+  Features fully verified:  0 / 4
+  Criteria verified met:    5 / 21 (23%)
+  Criteria verified missing: 0
+  Criteria unverifiable:    16  (prose — need human judgment)
+  Score:                    7 / 30
+  Hard fail:                ❌ YES (<50% verified met)
+
+  Note: ⚠️  criteria count as NOT met — they require either:
+    1. Reworded to include a machine-checkable anchor, OR
+    2. Human review to mark them verified
+
+--- CRITERIA_JSON_START ---
+{
+  "sprint_id": "M-DOCS-SEARCH-FALLBACK-CONFINEMENT",
+  "timestamp": "2026-10-29T21:15:24Z",
+  "mode": "independent_verification",
+  "features_total": 4,
+  "features_fully_verified": 0,
+  "criteria_total": 21,
+  "criteria_verified_met": 5,
+  "criteria_verified_missing": 0,
+  "criteria_unverifiable": 16,
+  "criteria_pct": 23,
+  "criteria_score": 7,
+  "hard_fail": true,
+  "features": [{"id": "M1_GITHUB_AUTHORITY_BOUNDARIES", "criteria_total": 6, "verified_met": 2, "verified_missing": 0, "unverifiable": 4, "criteria": [{"criterion": "Failing-first direct constructor controls with absent and dummy-present token return pkg.ConfinedError/AuthNetwork before config/helper/repository work; positive fake gh/git instruments are observed safely unconfined", "status": "met", "evidence": "symbols found: ConfinedError AuthNetwork"},{"criterion": "Direct Search on preconstructed, test-constructor and manually populated Backend refuses before token/repo validation or cache access, including a previously proved valid cache hit; no success/empty fallback or nil-client panic", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Counted loopback HTTP/pagination succeeds unconfined; changing policy after page1 prevents page2 at the actual HTTP boundary with typed refusal and zero second request", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Direct writeCache returns typed AuthHomeWrite before HOME resolution/directory/temp/rename; unconfined write/read succeeds, then full private HOME/XDG snapshots remain unchanged confined", "status": "met", "evidence": "symbols found: writeCache AuthHomeWrite"},{"criterion": "Late policy change after allowed HTTP but before cache persistence propagates typed home-write refusal from Search; ordinary unconfined cache write failure remains best-effort", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Existing authenticated request/pagination, repo-default/refusal, token-safe error and cache hit/expiry/isolation tests pass; internal/pkg authority semantics and local SimHash/neural sources remain zero-diff; focused package tests/lint/boundaries pass", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"}]},{"id": "M2_ACTUAL_CLI_AND_SAFE_HINTS", "criteria_total": 6, "verified_met": 1, "verified_missing": 0, "unverifiable": 5, "criteria": [{"criterion": "Fresh make-built real CLI outside all corpus discovery paths fails with canonical confinement refusal for token-absent and dummy-token-present arms; fake gh/git counters and loopback request counters remain zero", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Unconfined helper positives and a deny-CONNECT loopback proxy are proved active before negative assertions; clear both cases of NO_PROXY/proxy-bypass variables and strip ambient trace/export project/endpoints so no real GitHub or Cloud Trace call occurs", "status": "met", "evidence": "symbols found: NO_PROXY GitHub"},{"criterion": "Explicit and auto-discovered local SimHash searches succeed under confinement with parseable existing JSON and unchanged result path/title/order semantics, corpus and full private HOME/XDG state; zero helper/request counts", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Invalid explicit path remains a local path error; --no-github and AILANG_NO_GITHUB_SEARCH preserve local failure and safe local/operator remedy; confined failures never suggest GITHUB_TOKEN, gh auth login or unsetting disable controls", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Unconfined authentication hints and existing TestDocsSearch_StillDesignDocSimHash remain valid; no production transport/config/flag/error-envelope change or explicit neural/cache-management claim", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Portable Go helper executables use filepath/.exe and existing bounded build/CLI utilities; all new authority assertions run on Windows with no POSIX-only blanket skip; focused CLI tests and lint pass", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"}]},{"id": "M3_REAL_POLICY_TOOL_CHILD", "criteria_total": 4, "verified_met": 1, "verified_missing": 0, "unverifiable": 3, "criteria": [{"criterion": "Actual policy-tool --policy/--request-file invokes its actual ailang child for docs_search with parent policy environment absent; no mocked runner; missing-corpus refusal proves child received pinned policy with zero helper/proxy side effects", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Preserve process/child distinction: policy-tool process exits0 with a valid response, OK=false/child exit nonzero and canonical stderr on refusal; allowed local SimHash response is OK=true/child exit0 with parseable existing stdout JSON", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Existing exact-one-child-policy unit contract, docs_search json/limit allow-list, unknown/neural flag rejection and output caps remain unchanged; no new credential admission or production policytool edits", "status": "met", "evidence": "symbols found: docs_search"},{"criterion": "Use minimal TOML policy and ordinary directories without symlinks; do not call Windows-skipping writePolicyFixture or policytool.newFixture. Real local success/refusal and complete private HOME/XDG/corpus snapshots execute on Linux/macOS/Windows; focused tool/CLI tests pass", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"}]},{"id": "M4_DOCS_GATES_AND_HANDOFF", "criteria_total": 5, "verified_met": 1, "verified_missing": 0, "unverifiable": 4, "criteria": [{"criterion": "CLI reference, semantic-search guide, SECURITY.md and correctly headed unreleased fragment describe GitHub backend refusal before credentials/cache/HTTP, local/operator remedy and preserved local SimHash; explicit neural/cache management remain separately scoped", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "One consolidated make build then make test-changed plus required focused policy-tool compatibility tests passes; lint/boundaries/home-isolation/file-size/fmt/changelog checks pass with unchanged deadlines and thresholds, no full local make test", "status": "met", "evidence": "automated_checks.tests_pass=true"},{"criterion": "Authority/source-order evidence maps design AC1-AC7 to real tests and counted positive/negative instruments; no live GitHub/token/auth-store use, no silent fallback, no new .ail product/examples or package authority/#1773 edits", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Final clean immutable source/local gate logs handed to an independent evaluator; separately authorized exact-head PR CI supplies broad Linux/Windows gates; no executor self-score or claim that unexecuted/queued/failed checks passed", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Any unchanged external #1926/#2013 CI blocker is reported with actual evidence, not repaired, retried or bypassed by this scope; preserve operator ownership and root issue/merge disposition", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"}]}]
+}
+--- CRITERIA_JSON_END ---

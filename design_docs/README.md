@@ -16,6 +16,8 @@
 
 - [Locked package asset snapshots](implemented/v0_56_0/m-pkg-asset-lock-resolution.md) — merged in #1849; source-context snapshots and fail-closed lock discovery cover runner and embedded/API paths. Target v0.56.0 is unreleased.
 
+- [Confined GitHub documentation fallback](implemented/v0_56_0/m-docs-search-fallback-confinement.md) — merged #2017, root independent PASS95/100; actual CLI/direct-library/policy-tool controls preserve local SimHash. Parent, plan, validation and frozen independent evidence are archived together; v0.56.0 is unreleased.
+
 ## Structure
 
 ```

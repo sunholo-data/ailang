@@ -1,0 +1,12 @@
+--- FAIL: TestDocsConfinementConstructorBeforeHelpers (4.80s)
+    confinement_test.go:119: want typed network docs refusal, got GitHub search requires authentication: set GITHUB_TOKEN or run `gh auth login`
+--- FAIL: TestDocsConfinementSearchAndCache (0.00s)
+    confinement_test.go:148: want typed network docs refusal, got <nil>
+--- FAIL: TestDocsConfinementHTTPAndWriteTransitions (0.01s)
+    --- FAIL: TestDocsConfinementHTTPAndWriteTransitions/pagination (0.00s)
+        confinement_test.go:199: want typed network docs refusal, got <nil>
+    --- FAIL: TestDocsConfinementHTTPAndWriteTransitions/cache-write (0.00s)
+        confinement_test.go:201: want typed home-write docs refusal, got <nil>
+FAIL
+FAIL	github.com/sunholo-data/ailang/internal/docsearch/github	5.188s
+FAIL

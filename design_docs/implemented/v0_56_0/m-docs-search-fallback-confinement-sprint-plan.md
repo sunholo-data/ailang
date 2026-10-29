@@ -1,9 +1,14 @@
 # Sprint Plan: M-DOCS-SEARCH-FALLBACK-CONFINEMENT
 
-**Status: COMPLETED — implementation; independent acceptance and exact-head CI pending.**
+**Status: COMPLETED AND ACCEPTED — root independent PASS95/100; v0.56.0 UNRELEASED.**
 Design [m-docs-search-fallback-confinement.md](m-docs-search-fallback-confinement.md), exact approved commit `096a808ac76e858143eee4e62854ceb56c0e2b74`; issue **#1965 only**. Target **v0.56.0 unreleased**, not a version/tag request.
 
 The user first approved the design for planning (receipt observed2026-10-29T14:48:58Z, assistant observation). The later instruction “exeute all three sprints”, observed2026-10-29T20:17:42Z, explicitly approves this reviewed plan and all four implementation milestones. Binding record `/tmp/ailang-backlog-20261029/three-sprint-execution-approval.json` identifies the reviewed plan SHA25636f65d30acc3c4253f2564221a12c7dba44ec7df46a3af656a689c9ce25b35fa and initial JSON3fd34ec5a3da1cd871c90c18a54c6c28fda3d38b6c188ede792fc2f91da4e6c9. No external/provider review, operator-card mutation or unrelated CI bypass is authorized. Independent evaluation and merge remain separate.
+
+Root independently accepted50ca373aeacd6b74ffce573d1892cf2dd4211e32 PASS95/100;
+all27CI contexts terminal20SUCCESS/7SKIPPED. Normal merge1cfaedbf2170e5c3260c5207c7c82823bd51032f
+at21:16:33UTC. [Frozen independent report/evidence](evidence/m-docs-search-fallback-confinement/README.md)
+records the acceptance; earlier pending-gate wording is historical. No self-evaluation.
 
 ## Summary and scope
 
@@ -158,7 +163,7 @@ also exposed existing macOS /var versus /private/var spelling; compare canonical
 files while preserving production path rendering. Both are workflow/test corrections,
 not changes to the approved confinement semantics.
 
-Final local build and affected/core/structure gates pass. Final backend counters use atomic handler/test synchronization, verified by a focused package rerun; production behavior is unchanged. All four implementation milestones are complete. JSON status is completed for implementation; independent acceptance and exact-head PR CI are separate pending fields. No self-score or merge is performed.
+Final local build and affected/core/structure gates pass. Final backend counters use atomic handler/test synchronization, verified by a focused package rerun; production behavior is unchanged. All four implementation milestones are complete. JSON status is completed for implementation; independent acceptance and exact-head PR CI are separate fields, now accepted/PASS by root. No self-score or merge is performed.
 
 ## Implementation completion checklist
 
@@ -166,9 +171,10 @@ Final local build and affected/core/structure gates pass. Final backend counters
 - [x] M2 actual CLI, local compatibility and safe-hint controls.
 - [x] M3 actual policy-tool child and unchanged envelope/compatibility controls.
 - [x] M4 scoped docs, local affected/core/structure gates and immutable handoff.
-- [ ] Independent acceptance by a separate evaluator.
-- [ ] Exact final-head PR CI completion.
+- [x] Independent acceptance by root, PASS95 at50ca; frozen report archived.
+- [x] Exact50ca PR CI completion:27terminal,20SUCCESS/7SKIPPED.
 
 Implementation completed2026-10-29T20:40:39.335207+00:00, as already recorded
 before this metadata correction. The prior in_progress status is retained in
-JSON history; changing it to completed does not assert acceptance or CI success.
+JSON history; changing it to completed did not itself assert acceptance or CI success. Root later
+provided both actual acceptance and terminal CI, recorded above.

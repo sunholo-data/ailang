@@ -1,5 +1,14 @@
 # M-DOCS-SEARCH-FALLBACK-CONFINEMENT — executor evidence
 
+**Final disposition: accepted and merged; v0.56.0 UNRELEASED.** Root's independent
+PASS95/100 at50ca373aeacd6b74ffce573d1892cf2dd4211e32 verifies all21criteria;
+actual27terminalCI contexts20SUCCESS/7SKIPPED. Normal merge1cfaedbf2170e5c3260c5207c7c82823bd51032f
+at21:16:33UTC. [Frozen root evaluation and evidence](evidence/m-docs-search-fallback-confinement/README.md)
+retain original reports, REDs and actual generated-reference failure losslessly.
+Earlier executor/pending-gate text below is historical; this archive adds no test
+execution or implementation-author self-evaluation.
+
+
 Issue #1965 only. Approved design and four-milestone plan are siblings of this file.
 This is an implementation handoff, not an independent score or acceptance verdict.
 

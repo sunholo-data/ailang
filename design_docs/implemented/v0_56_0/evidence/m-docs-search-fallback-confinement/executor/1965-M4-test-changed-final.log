@@ -1,0 +1,23 @@
+test-changed: 2 package(s) vs 6d0d3a9da2af2eadc504f7cb050aacde72cc3cca
+ok  	github.com/sunholo-data/ailang/cmd/ailang	203.543s
+ok  	github.com/sunholo-data/ailang/internal/docsearch/github	3.890s
+ok  	github.com/sunholo-data/ailang/internal/lexer	0.255s
+ok  	github.com/sunholo-data/ailang/internal/parser	0.334s
+ok  	github.com/sunholo-data/ailang/internal/ast	0.255s
+ok  	github.com/sunholo-data/ailang/internal/core	0.247s
+ok  	github.com/sunholo-data/ailang/internal/types	9.749s
+ok  	github.com/sunholo-data/ailang/internal/types/traverse	0.261s
+ok  	github.com/sunholo-data/ailang/internal/elaborate	0.517s
+ok  	github.com/sunholo-data/ailang/internal/typedast	0.264s
+ok  	github.com/sunholo-data/ailang/internal/eval	4.013s
+ok  	github.com/sunholo-data/ailang/internal/effects	35.000s
+ok  	github.com/sunholo-data/ailang/internal/effects/testctx	0.292s
+ok  	github.com/sunholo-data/ailang/internal/pipeline	23.047s
+ok  	github.com/sunholo-data/ailang/internal/link	0.334s
+ok  	github.com/sunholo-data/ailang/internal/loader	0.305s
+ok  	github.com/sunholo-data/ailang/internal/runtime	0.510s
+ok  	github.com/sunholo-data/ailang/internal/runtime/argdecode	0.263s
+ok  	github.com/sunholo-data/ailang/internal/iface	0.279s
+ok  	github.com/sunholo-data/ailang/internal/format	1.760s
+ok  	github.com/sunholo-data/ailang/internal/errors	0.253s
+ok  	github.com/sunholo-data/ailang/internal/stdlib	0.263s
