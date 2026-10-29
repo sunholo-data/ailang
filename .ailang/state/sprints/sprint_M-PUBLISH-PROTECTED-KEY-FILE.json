@@ -141,11 +141,11 @@
         "Frozen result survives path/env mutation after selection; parent env remains unchanged; nil/default key is never treated as successful credential selection.",
         "Authority/unsupported refusal precedes file opener; focused tests and lint pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-29T21:05:17.218273+00:00",
-      "completed": null,
-      "notes": null,
-      "status": "in_progress"
+      "completed": "2026-10-29T21:09:35.634899+00:00",
+      "notes": "M2 missing-API compile RED retained; isolated affected reader/format/selection GREEN pkg17.804s/cmd0.768s, targeted lint0. Complete source table covers ambiguity/explicit-empty/missing/default refusal, private relative file/unsupported platform, frozen env/file value and authority-first. Empty/multiline/header controls/size/trim tested. Outer package TestMain now receives private HOME+allowlisted build env with offline module/toolchain settings, not only in-test isolation. No file key exported or fallback lane.",
+      "status": "completed"
     },
     {
       "id": "M3_PUBLISH_COMMAND_WIRING",
@@ -166,10 +166,10 @@
         "Existing #1773 and authority-focused tests plus lint remain green."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-29T21:09:35.634899+00:00",
       "completed": null,
       "notes": null,
-      "status": "not_started"
+      "status": "in_progress"
     },
     {
       "id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
@@ -281,7 +281,7 @@
     "approved_artifact_commit": "c9698d88e390d21139507a81f6ff7f64fc4a519a",
     "scope": "Execute #1900 M0-M5 only with approved #2013 dependency sequencing; no new D1-D7 approval needed after legitimate dependency release"
   },
-  "last_checkpoint": "M1 protected reader passes focused/lint/structure; M2 selection/format begins",
+  "last_checkpoint": "M2 strict source/format selection passes isolated affected tests and lint; M3 command wiring begins",
   "execution_worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/publish-key-file-1900-exec",
   "execution_branch": "fix/publish-protected-key-file"
 }

@@ -348,3 +348,12 @@ existing CLI-build TestMain before reaching its3s bound, so the corrected
 control measures the reader directly with bounded unblock teardown. No
 production timer changed. Logs in session1900-execution/M1-*.log; no real
 key file or external registry was used. M2 follows under existing approval.
+
+### M2 checkpoint
+
+Strict source/format selection passes isolated affected tests (pkg17.804s,
+cmd0.768s), targeted lint0. Initial missing-API compile failure is retained
+as an API red, not a legacy exploit reproduction. All subsequent Go commands
+use a private outer HOME/allowlisted environment so package TestMain startup
+also cannot inherit operator credential/export configuration. No fallback,
+default probe, AI-reader change or environment mutation.
