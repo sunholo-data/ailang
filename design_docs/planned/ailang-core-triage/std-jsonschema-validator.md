@@ -12,10 +12,10 @@ The reporter hit this in production: the Holosun Decision Budget ships `decision
 ## Secondary item in the same report: `std/list` lacks `all`
 
 - **Class**: feature
-- **Recommend**: direct-fix
+- **Recommend**: design-doc
 - **Estimate**: ~3 lines in `std/list.ail`
 
-Verified: `std/list.ail:156` exports `any` (backed by builtin `_list_any`) and there is no `all` anywhere in `std/`. This does **not** need a new Go builtin: `all(p, xs) = !any(\x -> not(p x), xs)` is pure, O(n), and short-circuits identically (any stops at the first `!p` true, i.e. the first element failing `p`). One file, ~3 lines including the doc comment — passes the direct-fix gate. It can ride the same PR as the jsonschema work or land independently.
+Verified: `std/list.ail:156` exports `any` (backed by builtin `_list_any`) and there is no `all` anywhere in `std/`. This does **not** need a new Go builtin: `all(p, xs) = !any(\x -> not(p x), xs)` is pure, O(n), and short-circuits identically (any stops at the first `!p` true, i.e. the first element failing `p`). One file, ~3 lines including the doc comment — exceeds the rubric's two-line direct-fix limit, so this secondary request also requires design routing. It may share the jsonschema design or be scoped independently.
 
 ### Correction to the report
 
