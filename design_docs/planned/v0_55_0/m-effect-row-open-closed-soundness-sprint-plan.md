@@ -76,12 +76,12 @@ All four milestones use `action: none`: this is a compiler/stdlib soundness inva
 
 **Files:** `internal/types/row_unification.go`, companion `internal/types/row_unification_open_closed_test.go`, `internal/pipeline/effect_row_open_closed_test.go`, and `internal/pipeline/effect_ceiling_reachable_test.go`.
 
-- [ ] With r1 open/r2 closed, error on nonempty only1 before binding; symmetrically error on only2 with r1 closed/r2 open. Diagnostic names the disallowed labels and slot row.
-- [ ] Matrix covers both orientations and EffectRow/RecordRow kinds, mixed explicit row variables, permitted extra closed labels, ordinary closed/closed, unchanged open/open, and previously valid stdlib regression cases.
-- [ ] R1–R4 reject annotated callback parameter, record field, filter/foldl/any, and mixed `{IO,e}` rows through pure slots.
-- [ ] Re-pin exactly the two approved width-class ceiling subtests using a named hook with explicit slot effects or an annotated lambda; preserve `max=[Stream]` and the assertion that own stored/callback types do not reach Process.
-- [ ] Ordinary pure map and effectful mapE row-polymorphic callers remain accepted; directly invoking IO from pure remains rejected.
-- [ ] Focused types/pipeline tests plus `make test-changed` pass; commit M2.
+- [x] With r1 open/r2 closed, error on nonempty only1 before binding; symmetrically error on only2 with r1 closed/r2 open. Diagnostic names the disallowed labels and slot row.
+- [x] Matrix covers both orientations and EffectRow/RecordRow kinds, mixed explicit row variables, permitted extra closed labels, ordinary closed/closed, unchanged open/open, and previously valid stdlib regression cases.
+- [x] R1–R4 reject annotated callback parameter, record field, filter/foldl/any, and mixed `{IO,e}` rows through pure slots.
+- [x] Re-pin exactly the two approved width-class ceiling subtests using a named hook with explicit slot effects or an annotated lambda; preserve `max=[Stream]` and the assertion that own stored/callback types do not reach Process.
+- [x] Ordinary pure map and effectful mapE row-polymorphic callers remain accepted; directly invoking IO from pure remains rejected.
+- [x] Focused types/pipeline tests plus `make test-changed` pass; commit M2.
 
 ### M3: Pin two-engine rejection and mutation evidence (~140 LOC)
 

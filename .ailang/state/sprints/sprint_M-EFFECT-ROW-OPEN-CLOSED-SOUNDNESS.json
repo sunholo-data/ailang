@@ -41,10 +41,10 @@
         "Unit matrix and R1-R4 integration tests pass",
         "Exactly two ruled ceiling subtests use strict-compatible spellings"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T07:28:29.607465+00:00",
+      "notes": "Symmetric guards reject lost labels after substitution; unit matrix repeated x20; annotated callback regressions pass. Two F2 ceiling cases use approved annotated lambdas (named wider-row functions themselves correctly violate ceiling). test-changed/core, lint, sizes and verify-examples pass. In-repo 525-file base/fixed corpus: 0 status/first-diagnostic flips."
     },
     {
       "id": "M3_ENGINE_MUTATION",
