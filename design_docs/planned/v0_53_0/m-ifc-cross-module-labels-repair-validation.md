@@ -26,10 +26,10 @@ F4 failing-first evidence: old decoder rejected the valid forbidden array and ac
 
 ## Local gates at the M2 checkpoint
 
-- Full types/iface/pipeline/link/runtime packages passed. Full cmd package had only the intentional F4 stdout golden mismatch; repaired fixture and focused interface/cache/IFC command tests pass. Final integrated package gate is pending the independent effect/empty dev integration.
-- Focused current IFC/fresh-CLI regression suites pass; no parser/HM/effect semantics changed here. `make test-core` passed on macOS with GOFLAGS=-p=1.
+- Official `make test-changed` passes on clean 8f6b11d0f: all six changed packages, including full cmd 238.520s and pipeline 22.815s, then the entire language-core loop. This includes the corrected F4 stdout golden.
+- Current IFC/fresh-CLI regressions and core pass on macOS with GOFLAGS=-p=1. No parser/HM/effect semantics are implemented by this IFC repair; independently owned effect changes are integrated unchanged.
 - `make lint`: zero issues. Size, boundaries and changelog gates pass.
-- `make verify-examples`: 245 modules, zero drift/missing entries, manifest valid; all 49 stdlib interfaces stable after intentional F4 regeneration.
+- `make verify-examples`: 245 modules, zero drift/missing entries, actual manifest: 252 total / 244 working / 4 broken / 4 aspirational valid; all 49 stdlib interfaces stable after intentional F4 regeneration.
 - 18 fresh CLI consumer comparisons against a freshly built actual dev `9dc6890919aa001deebee4361719456ee087440f`: zero status flips, zero first-diagnostic changes. Includes local IFC/leak lab controls, original inbox/secret examples and Gmail package check. This is a bounded differential, not a claim that every external corpus is clean.
 - All new assertions are data/diagnostic based, with no native path separator assumptions or unguarded external solvers.
 - No full `make test`, no coordinator dispatch/approval, no self-evaluation or merge.
@@ -47,10 +47,17 @@ A passing representative is Stapledon's 438-line navigation entry at the same pi
 
 Dedicated unchanged binary: cold 3.606s, warm 0.176s; warm 30 hits/0 misses and every artifact stamp hash/mtime unchanged. All artifacts total 6,988,878 bytes; IFC summaries 127,534 bytes. Maximum blob 937,929 bytes (1.40% of 64 MiB); maximum module 957,751 bytes (0.714% of 128 MiB). Navigation's own iface is 128,663 bytes, CoreTI DAG 30,193 bytes, full artifact set 548,709 bytes. These are real encoded current artifacts, not extrapolations of the pre-DAG plain-gob representation. They establish bounded metadata overhead for this representative; they do not replace the blocked original Motoko retry.
 
-## Remaining integration
+## Final combined integration
 
-Normal-merge newer dev including #1849 and the effect-row/explicit-empty work only after it actually lands; retain its conversion helper move/digest fixes, regenerate v2 goldens, rerun affected exact-source gates and original Motoko measurement. Then push the existing PR branch after account verification and request independent evaluation. M3/M4 remain pending.
+Normal dev merge 8f6b11d0f incorporates actual #2005/80793, preserving its moved iface converter, explicit-empty flags/rendering and std/ai callback rows. All 49 v2 interfaces were regenerated; stripping only IFC/schema gives zero type/effect signature differences against actual 80793. No old prompt bytes or registry entries were changed by this repair. Example manifest counts are parsed from the actual combined tree rather than copied from older checkpoints.
 
+The original delivered Motoko gate now passes on exact clean 8f6b11d0f and consumer 083ef437: `gmake check_core` reports 60/60 core, 9/9 extension boots and runtime prerequisites. Its 5,824-line session checks cold 43.982s (143 misses) and warm 1.610s (143 hits/0 misses), with every stamp hash/mtime unchanged. The full 143-module graph is 58,174 source lines, 186,493 CoreTI entries, 19,296 distinct DAG nodes summed per module and 1,365 exports. Actual total artifacts 52,171,074 bytes, IFC payload 473,459 bytes; maximum blob 3,100,965 bytes < 64 MiB / maximum module 3,400,869 bytes < 128 MiB. Session itself has 256,531-byte DAG, 1,555,276-byte Core and 361,513-byte iface; no ceiling bypass. Source hashes and exact per-module sizes are retained in the companion artifact JSON.
+
+Published alias dependency #2008 head d5f783585 was normally merged into this existing PR at a9971a364, with no competing implementation. Root later merged #2008 normally at 749045717; ancestry-only respinning is unnecessary because the identical tested source is already contained. Affected alias/IFC/cache/interface/CLI tests pass on the combined a997 source, including generic aliases and declared-tail controls. All 49 accepted v2 interfaces remain stable after that integration.
+
+Original Stapledon 81494c923 / social_dynamics 0.4.0 proof now passes on a997: direct dependency NoCache 2.250s; protocol cold 18.678s (97 misses), warm 1.332s (97 hits/0 misses), unchanged stamp hashes/mtimes. Maximum blob 3,606,290 bytes / maximum module 4,664,163 bytes, below unchanged ceilings. The original actual-dev80793 failure and source SHA remain preserved as counterfactual evidence. This focused post-alias proof is separate from the full 8f Motoko/native proof; no duplicate full core/Motoko run is claimed for the alias integration.
+
+Final PR publication uses the required bot account and existing branch, without force. Root owns independent final acceptance/CI and merge. Overall sprint stays in_progress; M3/M4 remain null/unstarted; Refs #1134 and Refs #1132, no issue closure or completion archival.
 
 ## Independent M1 producer-value correction
 
@@ -72,4 +79,4 @@ The established IFC corpus harness was reused through read-only Go overlays agai
 
 Two duplicate 27-line extern-only world stubs hit the original intrinsic-convergence work guard because absent bodies were never memoized. Root approved the narrow original M1 extern/synthetic fix: bodyless declarations now converge using only trusted declared facts, without a fabricated body. Existing declared parameter/return/refinement/authority metadata is preserved. The two baseline errors disappear (2→0); all other corpus metadata is unchanged. `TestIFCExportBodylessDeclarations` covers multiple externs alongside a normal labelled function; its old-source RED is `1771-extern-multi-red.log`.
 
-Final integrated compiler/interface/consumer gates follow the actual effect-row/explicit-empty dev merge. The frozen metadata comparison is a focused M1 analysis comparison, not a claim that every program type-checks or that deferred imported-call enforcement has shipped.
+Final integrated compiler/interface/consumer gates are recorded above after the actual effect-row/explicit-empty dev merge. The frozen metadata comparison is a focused M1 analysis comparison, not a claim that every program type-checks or that deferred imported-call enforcement has shipped.
