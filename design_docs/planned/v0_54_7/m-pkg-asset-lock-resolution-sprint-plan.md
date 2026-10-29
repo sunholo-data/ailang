@@ -235,3 +235,16 @@ The same Linux run failed only the known #1926 PTY PID-file readiness race
 (int on an existing empty file). Raw and stripped CI failures are preserved;
 that operator-pending work is not duplicated. One bounded CI retry is authorized
 if the identical isolated race recurs; no unrelated failure is waived.
+
+### Submitted-profile retention correction (2026-10-29)
+
+The next Linux full suite passed, but Sonar measured 76.6%, not the unfiltered
+local projection: the existing coverage package list includes TestGoFiles only.
+The external-only pkgassets_test regression populated XTestGoFiles, so the helper's
+measured 83.3% coverage was removed from coverage.out before submission.
+
+The same public Engine regression now runs as an in-package pkgassets test,
+with assertions unchanged. TestGoFiles includes engine_test.go. The unchanged
+make coverage-from-profile target retains the measured helper profile byte for
+byte (cmp passes). No threshold, baseline, exclusion or pipeline changes.
+Fresh helper coverage 83.3% passes; exact new-head Sonar remains authoritative.
