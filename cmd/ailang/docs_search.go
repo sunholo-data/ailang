@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/docsearch"
 	githubsearch "github.com/sunholo-data/ailang/internal/docsearch/github"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // docsSearchCommand implements `ailang docs search` subcommand
@@ -138,13 +139,17 @@ func docsSearchCommand(args []string) {
 	if localDocsErr != nil {
 		if *noGitHubFlag || config.NoGitHubSearch() {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), localDocsErr)
-			fmt.Fprintln(os.Stderr, "\nHint: Use --path, or unset --no-github and AILANG_NO_GITHUB_SEARCH")
+			fmt.Fprintln(os.Stderr, "\nHint: Use --path with a local documentation corpus, or ask the operator to provision local docs")
 			os.Exit(1)
 		}
 		gh, ghErr := githubsearch.NewBackend(ctx)
 		if ghErr != nil {
 			fmt.Fprintf(os.Stderr, "%s: no local docs found, and GitHub fallback unavailable: %v\n", red("Error"), ghErr)
-			fmt.Fprintln(os.Stderr, "\nHint: Use --path, or set GITHUB_TOKEN / run `gh auth login`")
+			if pkg.IsConfinedError(ghErr) {
+				fmt.Fprintln(os.Stderr, "\nHint: "+githubsearch.ConfinementRemedy)
+			} else {
+				fmt.Fprintln(os.Stderr, "\nHint: Use --path, or set GITHUB_TOKEN / run `gh auth login`")
+			}
 			os.Exit(1)
 		}
 		backend = gh

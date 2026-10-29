@@ -215,3 +215,15 @@ authority — <remedy>`. The gate lives in `internal/pkg/authority.go`; a Go AST
 test fails CI if package code reaches the network, git, the home directory, the
 messaging store or Pub/Sub any other way, and an end-to-end matrix runs every
 `ailang pkg` verb confined and fails when a verb has no row.
+
+
+### GitHub documentation search
+
+With `AILANG_AGENT_POLICY` set, the whole GitHub docs-search backend is refused
+using the canonical typed confinement error before credential/helper discovery,
+cache access, HTTP requests and cache writes. This also applies to direct or reused
+Go backends and actual policy-tool children; valid cached GitHub results are not
+agent authority. Supply a local documentation corpus for default SimHash search,
+or have the operator perform GitHub fallback outside the sandbox. Explicit neural,
+embedding and cache-management operations are separately scoped; this is not a
+claim that every documentation mode is confined.

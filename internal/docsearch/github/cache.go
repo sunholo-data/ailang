@@ -50,6 +50,9 @@ func readCache(repo, query, subdir string, limit int, now time.Time) ([]docsearc
 }
 
 func writeCache(repo, query, subdir string, limit int, results []docsearch.SearchResult, stats docsearch.SearchStats, now time.Time) error {
+	if err := requireCacheWrite(); err != nil {
+		return err
+	}
 	path, err := cachePath(repo, query, subdir, limit)
 	if err != nil {
 		return err

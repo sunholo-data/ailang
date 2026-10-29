@@ -1,0 +1,321 @@
+{
+  "sprint_id": "M-DOCS-SEARCH-FALLBACK-CONFINEMENT",
+  "title": "Confine the whole GitHub docs backend before credentials, cache, HTTP and writes; preserve local SimHash",
+  "status": "completed",
+  "created": "2026-10-29",
+  "target_version": "v0.56.0",
+  "design_doc": "design_docs/planned/v0_56_0/m-docs-search-fallback-confinement.md",
+  "sprint_plan": "design_docs/planned/v0_56_0/m-docs-search-fallback-confinement-sprint-plan.md",
+  "github_issues": [
+    1965
+  ],
+  "risk_level": "medium",
+  "planning_worktree_head": "096a808ac76e858143eee4e62854ceb56c0e2b74",
+  "design_baseline": "dba1c499ca6f76b40992fd521e3dd440d9277f49",
+  "design_approved": true,
+  "design_approval": {
+    "user_message": "approve the three designs",
+    "approved_design_commit": "096a808ac76e858143eee4e62854ceb56c0e2b74",
+    "scope": "Whole GitHub docs backend refusal under confinement, local SimHash preserved; explicit neural/cache-management separate.",
+    "authorized_stage": "sprint-planning only",
+    "observed_at_utc": "2026-10-29T14:48:58Z",
+    "timestamp_qualification": "Time recorded by the assistant after receiving the user message; not an independently supplied message send time.",
+    "source": "/tmp/ailang-backlog-20261029/three-design-approvals.json"
+  },
+  "plan_approved": true,
+  "execution_authorized": true,
+  "implementation_started": true,
+  "independent_evaluation": "required; executor handoff ready, no self-score or acceptance verdict",
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 525,
+    "estimated_days": 2,
+    "base_estimate_loc": 420,
+    "uncertainty_buffer_percent": 25,
+    "basis": "Conservative planning assumption, not measured single-agent throughput. Recent host-package/tooling checkpoints M1/M2/M3 (#1773) add1083/delete63 lines across scoped cmd/ailang+internal/pkg; fixture-heavy attended/multi-agent work and incomplete broad gate are not a daily-rate benchmark. Raw counts in1965-planner-velocity.json. Existing analyze_velocity exits141 in its head pipeline and samples old changelog metrics, so no valid daily rate was inferred.",
+    "session_budget": "Four bounded60-90minute milestones across two attended days; CI/independent review waiting separate",
+    "actual_total_loc": 671,
+    "actual_scope": "47 production-file lines incl7 docs prose,589 test/helper,35 user docs/changelog; plan/design/state/validation metadata excluded. Sequential attended session, no daily-velocity inference."
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M1_GITHUB_AUTHORITY_BOUNDARIES",
+      "package": "none",
+      "action": "none",
+      "search_terms": [],
+      "search_applicability": "Not a package-like capability: enforcement/test/docs of an existing host-Go backend and CLI, not a new AILANG runtime package",
+      "inspected_sources": [
+        "internal/pkg/authority.go",
+        "internal/docsearch/github",
+        "internal/policytool/cli_ops.go",
+        "design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md"
+      ],
+      "reason": "Reuse canonical pkg.Require/ConfinedError, existing GitHub backend and existing bounded Go test/process tools. A registry dependency cannot interpose before host credentials/cache/HTTP or enforce direct Go callers; no registry package, contribution, publish or external search is needed."
+    },
+    {
+      "milestone": "M2_ACTUAL_CLI_AND_SAFE_HINTS",
+      "package": "none",
+      "action": "none",
+      "search_terms": [],
+      "search_applicability": "Not a package-like capability: enforcement/test/docs of an existing host-Go backend and CLI, not a new AILANG runtime package",
+      "inspected_sources": [
+        "internal/pkg/authority.go",
+        "internal/docsearch/github",
+        "internal/policytool/cli_ops.go",
+        "design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md"
+      ],
+      "reason": "Reuse canonical pkg.Require/ConfinedError, existing GitHub backend and existing bounded Go test/process tools. A registry dependency cannot interpose before host credentials/cache/HTTP or enforce direct Go callers; no registry package, contribution, publish or external search is needed."
+    },
+    {
+      "milestone": "M3_REAL_POLICY_TOOL_CHILD",
+      "package": "none",
+      "action": "none",
+      "search_terms": [],
+      "search_applicability": "Not a package-like capability: enforcement/test/docs of an existing host-Go backend and CLI, not a new AILANG runtime package",
+      "inspected_sources": [
+        "internal/pkg/authority.go",
+        "internal/docsearch/github",
+        "internal/policytool/cli_ops.go",
+        "design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md"
+      ],
+      "reason": "Reuse canonical pkg.Require/ConfinedError, existing GitHub backend and existing bounded Go test/process tools. A registry dependency cannot interpose before host credentials/cache/HTTP or enforce direct Go callers; no registry package, contribution, publish or external search is needed."
+    },
+    {
+      "milestone": "M4_DOCS_GATES_AND_HANDOFF",
+      "package": "none",
+      "action": "none",
+      "search_terms": [],
+      "search_applicability": "Not a package-like capability: enforcement/test/docs of an existing host-Go backend and CLI, not a new AILANG runtime package",
+      "inspected_sources": [
+        "internal/pkg/authority.go",
+        "internal/docsearch/github",
+        "internal/policytool/cli_ops.go",
+        "design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md"
+      ],
+      "reason": "Reuse canonical pkg.Require/ConfinedError, existing GitHub backend and existing bounded Go test/process tools. A registry dependency cannot interpose before host credentials/cache/HTTP or enforce direct Go callers; no registry package, contribution, publish or external search is needed."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_GITHUB_AUTHORITY_BOUNDARIES",
+      "description": "Gate constructor, direct Search, each HTTP request and cache writer with existing typed authority before credentials/cache/I/O; preserve unconfined behavior",
+      "estimated_loc": 205,
+      "estimated_implementation_loc": 65,
+      "estimated_test_loc": 140,
+      "estimated_docs_loc": 0,
+      "estimated_minutes": [
+        75,
+        90
+      ],
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Failing-first direct constructor controls with absent and dummy-present token return pkg.ConfinedError/AuthNetwork before config/helper/repository work; positive fake gh/git instruments are observed safely unconfined",
+        "Direct Search on preconstructed, test-constructor and manually populated Backend refuses before token/repo validation or cache access, including a previously proved valid cache hit; no success/empty fallback or nil-client panic",
+        "Counted loopback HTTP/pagination succeeds unconfined; changing policy after page1 prevents page2 at the actual HTTP boundary with typed refusal and zero second request",
+        "Direct writeCache returns typed AuthHomeWrite before HOME resolution/directory/temp/rename; unconfined write/read succeeds, then full private HOME/XDG snapshots remain unchanged confined",
+        "Late policy change after allowed HTTP but before cache persistence propagates typed home-write refusal from Search; ordinary unconfined cache write failure remains best-effort",
+        "Existing authenticated request/pagination, repo-default/refusal, token-safe error and cache hit/expiry/isolation tests pass; internal/pkg authority semantics and local SimHash/neural sources remain zero-diff; focused package tests/lint/boundaries pass"
+      ],
+      "passes": true,
+      "started": "2026-10-29T20:17:42Z",
+      "completed": "2026-10-29T20:23:11.492069+00:00",
+      "notes": "RED1965-M1-red.log: constructor/helper, cache-hit, pagination and late write accepted before guards. GREEN full github package; canonical pkg.Require unchanged. Full positive unconfined pagination and optional cache failure preserved.",
+      "actual_loc": 295
+    },
+    {
+      "id": "M2_ACTUAL_CLI_AND_SAFE_HINTS",
+      "description": "Prove actual CLI fallback refusal and preserved local SimHash with active portable helper/proxy instruments, full private-state snapshots and safe diagnostics",
+      "estimated_loc": 150,
+      "estimated_implementation_loc": 25,
+      "estimated_test_loc": 125,
+      "estimated_docs_loc": 0,
+      "estimated_minutes": [
+        60,
+        90
+      ],
+      "dependencies": [
+        "M1_GITHUB_AUTHORITY_BOUNDARIES"
+      ],
+      "acceptance_criteria": [
+        "Fresh make-built real CLI outside all corpus discovery paths fails with canonical confinement refusal for token-absent and dummy-token-present arms; fake gh/git counters and loopback request counters remain zero",
+        "Unconfined helper positives and a deny-CONNECT loopback proxy are proved active before negative assertions; clear both cases of NO_PROXY/proxy-bypass variables and strip ambient trace/export project/endpoints so no real GitHub or Cloud Trace call occurs",
+        "Explicit and auto-discovered local SimHash searches succeed under confinement with parseable existing JSON and unchanged result path/title/order semantics, corpus and full private HOME/XDG state; zero helper/request counts",
+        "Invalid explicit path remains a local path error; --no-github and AILANG_NO_GITHUB_SEARCH preserve local failure and safe local/operator remedy; confined failures never suggest GITHUB_TOKEN, gh auth login or unsetting disable controls",
+        "Unconfined authentication hints and existing TestDocsSearch_StillDesignDocSimHash remain valid; no production transport/config/flag/error-envelope change or explicit neural/cache-management claim",
+        "Portable Go helper executables use filepath/.exe and existing bounded build/CLI utilities; all new authority assertions run on Windows with no POSIX-only blanket skip; focused CLI tests and lint pass"
+      ],
+      "passes": true,
+      "started": "2026-10-29T20:24:00Z",
+      "completed": "2026-10-29T20:27:41.188197+00:00",
+      "notes": "Real CLI RED1965-M2-red.log captured unsafe auth/unset hints. GREEN1965-M2M3-green.log11.128s includes actual CLI, explicit/auto local SimHash, disabled fallback and existing design-doc guard. Proxy/helper positives active, token arms refused with no counter/state changes; canonical real-path comparison preserves existing /var spelling difference.",
+      "actual_loc": 255
+    },
+    {
+      "id": "M3_REAL_POLICY_TOOL_CHILD",
+      "description": "Exercise real docs_search dispatch and its real child with pinned policy, unchanged response/allow-list/output contract and portable minimal policy fixtures",
+      "estimated_loc": 100,
+      "estimated_implementation_loc": 0,
+      "estimated_test_loc": 100,
+      "estimated_docs_loc": 0,
+      "estimated_minutes": [
+        60,
+        75
+      ],
+      "dependencies": [
+        "M2_ACTUAL_CLI_AND_SAFE_HINTS"
+      ],
+      "acceptance_criteria": [
+        "Actual policy-tool --policy/--request-file invokes its actual ailang child for docs_search with parent policy environment absent; no mocked runner; missing-corpus refusal proves child received pinned policy with zero helper/proxy side effects",
+        "Preserve process/child distinction: policy-tool process exits0 with a valid response, OK=false/child exit nonzero and canonical stderr on refusal; allowed local SimHash response is OK=true/child exit0 with parseable existing stdout JSON",
+        "Existing exact-one-child-policy unit contract, docs_search json/limit allow-list, unknown/neural flag rejection and output caps remain unchanged; no new credential admission or production policytool edits",
+        "Use minimal TOML policy and ordinary directories without symlinks; do not call Windows-skipping writePolicyFixture or policytool.newFixture. Real local success/refusal and complete private HOME/XDG/corpus snapshots execute on Linux/macOS/Windows; focused tool/CLI tests pass"
+      ],
+      "passes": true,
+      "started": "2026-10-29T20:27:41.188197+00:00",
+      "completed": "2026-10-29T20:28:11.627870+00:00",
+      "notes": "Actual policy-tool\u2192actual child with parent policy marker absent refuses both token arms, valid existing JSON process0/childnonzero; local child succeeds. Strict neural/path flags refused unchanged. Counterfactual pre-guard overlay fails canonical refusal1965-M3-red.log; current combined11.128sGREEN plus focused existing policytool contracts PASS. No policytool production edits or Windows blanket skip.",
+      "actual_loc": 78
+    },
+    {
+      "id": "M4_DOCS_GATES_AND_HANDOFF",
+      "description": "Document the precise GitHub-only confinement contract and collect one final affected/core/structure gate with exact-source independent/CI handoff",
+      "estimated_loc": 70,
+      "estimated_implementation_loc": 0,
+      "estimated_test_loc": 20,
+      "estimated_docs_loc": 50,
+      "estimated_minutes": [
+        60,
+        90
+      ],
+      "dependencies": [
+        "M3_REAL_POLICY_TOOL_CHILD"
+      ],
+      "acceptance_criteria": [
+        "CLI reference, semantic-search guide, SECURITY.md and correctly headed unreleased fragment describe GitHub backend refusal before credentials/cache/HTTP, local/operator remedy and preserved local SimHash; explicit neural/cache management remain separately scoped",
+        "One consolidated make build then make test-changed plus required focused policy-tool compatibility tests passes; lint/boundaries/home-isolation/file-size/fmt/changelog checks pass with unchanged deadlines and thresholds, no full local make test",
+        "Authority/source-order evidence maps design AC1-AC7 to real tests and counted positive/negative instruments; no live GitHub/token/auth-store use, no silent fallback, no new .ail product/examples or package authority/#1773 edits",
+        "Final clean immutable source/local gate logs handed to an independent evaluator; separately authorized exact-head PR CI supplies broad Linux/Windows gates; no executor self-score or claim that unexecuted/queued/failed checks passed",
+        "Any unchanged external #1926/#2013 CI blocker is reported with actual evidence, not repaired, retried or bypassed by this scope; preserve operator ownership and root issue/merge disposition"
+      ],
+      "passes": true,
+      "started": "2026-10-29T20:28:11.627870+00:00",
+      "completed": "2026-10-29T20:40:39.335207+00:00",
+      "notes": "Final make build PASS; corrected affected/core gate PASS(cmd203.543s/github3.890s/all20core packages); lint0/boundaries/home/sizes/changelog/fmt PASS. Initial own generated-reference drift preserved1965-M4-test-changed.log, fixed authoritative prose+make docs-cli, focused reference0.652sGREEN. Final test-only atomic counters verified backend3.373s; no production delta. Accepted runner owner dev565 normally integrated; independent acceptance and exact-head CI remain pending, not claimed passed.",
+      "actual_loc": 43
+    }
+  ],
+  "accepted_rulings": {
+    "missing_local_corpus": "Typed GitHub fallback refusal under confinement before credential/helper/cache/HTTP; disabled fallback retains local failure with safe hint",
+    "cached_github_results": "Whole backend operator-only, including valid cache hits",
+    "authority_representation": "Reuse pkg.Require and ConfinedError with docs-specific remedy, no authority extraction or semantic change",
+    "scope": "Local SimHash unchanged; explicit neural/cache-management and broad command authority migration excluded"
+  },
+  "human_decision_gates": [],
+  "syntax_gate": {
+    "applicable": false,
+    "reason": "No .ail source or language example is planned. Go tests drive existing host CLI/tool with Markdown corpus and TOML/JSON requests; contracts/effects/inline AIL tests are not applicable."
+  },
+  "constraints": [
+    "User approved reviewed plan and execution on2026-10-29; execute all four serial milestones, no routine approval pauses; independent evaluation and merge remain separate",
+    "Do not run create_sprint_json.sh: it imports/reads messages; use manual exact issue[1965] and existing read-only validator",
+    "No coordinator/card/message/import/ack/provider/external-review actions",
+    "Preserve internal/pkg/authority.go/#1964 semantics and #1773 source/carrier; no direct neural/cache-management/local SimHash algorithm changes",
+    "No new environment variable, flag, schema, token precedence, repo restriction, cache layout/TTL, transport, unauthenticated retry or generic authority migration",
+    "Typed confinement cache-write failure propagates; ordinary unconfined optional-cache failure remains best-effort",
+    "Use private HOME/USERPROFILE/XDG state via existing helpers; all new authority assertions execute on Windows, without old fixture blanket skips",
+    "Prove fake helpers and loopback instruments active; test-only deny-CONNECT proxy clears NO_PROXY/no_proxy and other bypasses, never forwards to GitHub",
+    "Strip ambient cloud trace/OTLP project and endpoint environment; AILANG_TRACE=off is not an exporter kill switch; do not repair held #2009 here",
+    "No full local make test or repeated whole-suite gates; exact PR CI later supplies broad gate",
+    "No #1926 execution/card action or #2013 retry/merge inferred from user word merged; root reported1926 plan-only merge93e4f2586 and2013 remains open0853",
+    "No semantic decision remains OPEN inside the approved design; if truly new out-of-scope authority/API policy is required, STOP: commit current authorized execution work, report BLOCKED with exact design non-goal and end the run; no widening or silent fallback"
+  ],
+  "provenance": {
+    "design_author_finished": true,
+    "current_owner": "Attended /root/pr_reconcile owns approved execution; isolated docs-search-confinement-1965 branch",
+    "approval_record": "/tmp/ailang-backlog-20261029/three-design-approvals.json",
+    "velocity_evidence": "/tmp/ailang-backlog-20261029/1965-planner-velocity.json",
+    "velocity_script_log": "/tmp/ailang-backlog-20261029/1965-planner-velocity-script.log",
+    "existing_offline_probe": "/tmp/ailang-backlog-20261029/1965-probe/results.json; historical design evidence, not new tests run by planner",
+    "owner_refresh_before_future_execution": "Use bounded current PR/task ownership review of this seam, no new dispatch/approval; preserve parked work"
+  },
+  "planning_validation": {
+    "scope": "JSON schema, sums, IDs/dependency DAG, exact issue, pending state and document links only; product tests not run",
+    "execution_ready": true
+  },
+  "execution_approval": {
+    "user_message": "exeute all three sprints",
+    "observed_at_utc": "2026-10-29T20:17:42Z",
+    "timestamp_qualification": "Assistant observation after receiving user message, not an independently supplied message send time.",
+    "authorized_stage": "Approve reviewed plans and execute all three with the presented sequencing",
+    "approved_review_manifest": "/tmp/ailang-backlog-20261029/three-sprint-plans-reviewed.json",
+    "approved_plans": [
+      {
+        "scope": "M0",
+        "plan": "/tmp/ailang-backlog-20261029/smt-m0-repair-design/design_docs/planned/v0_56_0/sprint-plan-m-smt-preflight-m0-repair.md",
+        "json": "/tmp/ailang-backlog-20261029/smt-m0-repair-design/.ailang/state/sprints/sprint_M-SMT-PREFLIGHT-M0-REPAIR.json",
+        "plan_sha256": "08f856cda1d13e08cfaa0d84c96a67abb67e3f084b9a2009ad555251be81a452",
+        "json_sha256": "765c9647639cef2c98cfbd29bec7ddca9060db4726e13d400b8c50f0d8c261fc",
+        "milestones": 6,
+        "estimated_loc": 1540,
+        "estimated_days": 3,
+        "root_review": "No blocking plan finding; user execute instruction still pending."
+      },
+      {
+        "scope": "1965",
+        "plan": "/tmp/ailang-backlog-20261029/docs-search-confinement-1965/design_docs/planned/v0_56_0/m-docs-search-fallback-confinement-sprint-plan.md",
+        "json": "/tmp/ailang-backlog-20261029/docs-search-confinement-1965/.ailang/state/sprints/sprint_M-DOCS-SEARCH-FALLBACK-CONFINEMENT.json",
+        "plan_sha256": "36f65d30acc3c4253f2564221a12c7dba44ec7df46a3af656a689c9ce25b35fa",
+        "json_sha256": "3fd34ec5a3da1cd871c90c18a54c6c28fda3d38b6c188ede792fc2f91da4e6c9",
+        "milestones": 4,
+        "estimated_loc": 525,
+        "estimated_days": 2,
+        "root_review": "No blocking plan finding; user execute instruction still pending."
+      },
+      {
+        "scope": "1900",
+        "plan": "/tmp/ailang-backlog-20261029/publish-key-file-1900/design_docs/planned/v0_56_0/m-publish-protected-key-file-sprint-plan.md",
+        "json": "/tmp/ailang-backlog-20261029/publish-key-file-1900/.ailang/state/sprints/sprint_M-PUBLISH-PROTECTED-KEY-FILE.json",
+        "plan_sha256": "1190cc269d0865e069cce1ba802928f0275381c752432b56078d41bbaaee1145",
+        "json_sha256": "3f06bbf28d2236c6e583da4b1a139b4e626dbd0c0dad1f0dd52aa4748b9eed9e",
+        "milestones": 6,
+        "estimated_loc": 650,
+        "estimated_days": 3,
+        "root_review": "No blocking plan finding; user execute instruction still pending."
+      }
+    ],
+    "sequence": "M0 and1965 independent;1900 product work only after legitimate accepted2013 merge.",
+    "not_authorized": [
+      "additional external reviewer/provider calls",
+      "operator-owned2016/card merge or controller identity",
+      "bypass of2013 failed gate",
+      "out-of-scope semantics or deferred roadmap work"
+    ]
+  },
+  "implementation_complete": true,
+  "implementation_completed_at": "2026-10-29T20:40:39.335207+00:00",
+  "execution_validation": {
+    "local_result": "PASS",
+    "required_pr_ci": "pending",
+    "independent_acceptance": "pending",
+    "tested_behavior_source": "5a1a21267b0dda4e0695a4a8290a07002c4181d5",
+    "corrected_reference_source": "804502687",
+    "final_build_source": "e9889a284ac4955768ccbcfaea01eea52edcb36b",
+    "normally_integrated_dev": "565fc1b04",
+    "late_delta": "Test-only atomic counter synchronization, focused backend test/lint/fmt after full affected/core; final metadata only otherwise",
+    "logs_prefix": "/tmp/ailang-backlog-20261029/1965-",
+    "full_local_make_test_run": false,
+    "source_preflight": "Independent platform M1-M3 no blocker, no final score/PASS; final acceptance remains root/CI"
+  },
+  "completed": "2026-10-29T20:40:39.335207+00:00",
+  "independent_acceptance": "pending",
+  "ci_status": "pending",
+  "status_history": [
+    {
+      "from": "in_progress",
+      "to": "completed",
+      "recorded_at": "2026-10-29T20:43:59.695035+00:00",
+      "implementation_completed_at": "2026-10-29T20:40:39.335207+00:00",
+      "reason": "Metadata correction: completed denotes all implementation milestones passed. Independent acceptance and exact-head CI are separate pending fields; no score or merge."
+    }
+  ]
+}

@@ -16,6 +16,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/docsearch"
 	"github.com/sunholo-data/ailang/internal/gitutil"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 const defaultAPI = "https://api.github.com"
@@ -32,6 +33,9 @@ type Backend struct {
 
 // NewBackend resolves a token and the current repository.
 func NewBackend(ctx context.Context) (*Backend, error) {
+	if err := requireNetwork(); err != nil {
+		return nil, err
+	}
 	token := config.GitHubToken()
 	if token == "" {
 		cmd := exec.CommandContext(ctx, "gh", "auth", "token")
@@ -66,6 +70,9 @@ func NewBackendForTest(apiURL, repo, token string, client *http.Client) *Backend
 
 func (b *Backend) Search(ctx context.Context, opts docsearch.SearchOptions) ([]docsearch.SearchResult, docsearch.SearchStats, error) {
 	stats := docsearch.SearchStats{}
+	if err := requireNetwork(); err != nil {
+		return nil, stats, err
+	}
 	if strings.TrimSpace(b.Token) == "" {
 		return nil, stats, fmt.Errorf("GitHub search requires an authentication token")
 	}
@@ -99,6 +106,9 @@ func (b *Backend) Search(ctx context.Context, opts docsearch.SearchOptions) ([]d
 		req.Header.Set("Authorization", "Bearer "+b.Token)
 		req.Header.Set("Accept", "application/vnd.github+json")
 		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+		if err := requireNetwork(); err != nil {
+			return nil, stats, err
+		}
 		resp, err := b.client.Do(req)
 		if err != nil {
 			return nil, stats, fmt.Errorf("GitHub search request failed: %w", err)
@@ -135,7 +145,9 @@ func (b *Backend) Search(ctx context.Context, opts docsearch.SearchOptions) ([]d
 		page++
 	}
 	stats.SearchTimeMs = 0
-	_ = writeCache(b.Repo, opts.Query, opts.Subdir, limit, results, stats, time.Now())
+	if err := writeCache(b.Repo, opts.Query, opts.Subdir, limit, results, stats, time.Now()); pkg.IsConfinedError(err) {
+		return nil, stats, err
+	}
 	return results, stats, nil
 }
 
