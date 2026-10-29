@@ -8,7 +8,7 @@ independent evaluation; no evaluator verdict is claimed here.
 
 Base: `9dc6890919aa001deebee4361719456ee087440f` (actual origin/dev).
 The unmodified registry module `sunholo/social_dynamics/0.4.0/tasks.ail`
-failed at accept→acceptReady (application1070, argument1). Its captured source
+failed at accept→acceptReady (application 1070, argument 1). Its captured source
 SHA256 is `261faeb15fa083aed19e7f94dbe5af5e9b21273134c41ef2f90147fdaf92797a`.
 
 Reduced local/imported aliases with one callback failed with an unresolved
@@ -68,4 +68,37 @@ previous standalone run, or self-scored evaluation replaces this final gate.
 Final R1 gates: separately invoked `make test-core` PASS, final `make lint` PASS
 with 0 issues, boundaries/file sizes PASS, corrected changelog PASS, sprint JSON
 validation PASS, and `git diff --check` PASS. R1 source/test milestone is complete;
-R2 combined integration and independent evaluation are pending.
+R2 completed below; independent follow-up evaluation remains pending.
+
+## R2 actual integration and consumer acceptance
+
+R1 commit `34009a084a75d0dc13657672f5d1e17582211ee4` normally merges actual
+#2005 dev `80793dbcf42423027be4bab1a0088da54e2323d8` at clean source checkpoint
+`15afcc12cec28900afe3e312a9356884f8b07b06`. Repository `make build` stamps that
+full commit. Later handoff commits change alias status/evidence metadata only.
+
+Exact delivered consumer merge `083ef43726981099a0bad4fedda18fc72105d6fa`, tree
+`067e8990d698af8385431647f6c5cfff99a7e63a`, was archived into a scratch directory
+without source edits. With this compiler, matching stdlib and a new empty isolated
+cache, actual `gmake check_core` exits 0: 60 core modules pass, nine extensions boot
+and 204 default runtime guard assertions print OK. The in-pane Herdr leg retains
+its normal conditional skip because this is outside a Herdr pane. No live rig,
+upstream source, gate policy, model/compile flags or consumer annotations changed.
+
+Combined focused types/pipeline/CLI controls pass (0.416s/8.796s/28.258s), including
+alias ownership and generic forwarding, original nested/declared-tail controls,
+explicit-empty callback/cache contracts, row guard, effect ceilings and both
+engines. Lint 0, boundaries, file sizes and changelog gates pass. Full local suites
+are not repeated; exact new PR CI supplies the broad gate for independent review.
+
+The original unchanged social_dynamics tasks source (SHA above) checks clean
+NoCache with the combined compiler. An immutable build of actual dev 80793 still
+fails at the same application 1070, argument 1, proving this is the alias repair.
+Paired actual-dev 80793 versus combined examples/std corpus: 530 files, 446 pass and
+84 reject in each arm, zero status flips, zero diagnostic changes, zero invariants.
+
+Raw `alias-ownership-R2-*` logs preserve build, focused, structure, consumer-check-core,
+original-social, original-social-base and corpus evidence in the session directory.
+Compact results/provenance are committed in m-effect-latent-alias-ownership-evidence.json.
+R1/R2 implementation is complete. Independent evaluation remains pending; the
+original #1963 PASS 93 on 86d3a5f8 is historical, unchanged and not a score for this fix.

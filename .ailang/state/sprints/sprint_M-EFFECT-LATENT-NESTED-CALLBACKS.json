@@ -4,7 +4,7 @@
   "design_doc": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks.md",
   "sprint_plan": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks-sprint-plan.md",
   "target_version": "v0.55.0",
-  "status": "in_progress",
+  "status": "completed",
   "risk_level": "medium",
   "github_issues": [
     1718,
@@ -140,7 +140,7 @@
       "passes": true,
       "started": "2026-10-29",
       "completed": "2026-10-29",
-      "notes": "Red/green ownership and forwarding regressions banked; local/imported generic alias and IO/FS caller controls pass. Full types/pipeline pass; full CLI initially failed only invoked-FS strict verification contract (existing Phase2E evaluator-only builtin); final affected CLI passes with strict negatives/IO/unused-FS and explicit normal-VM interop for invoked FS. Aborted core separately PASS; lint0, boundaries, sizes, changelog, JSON valid; paired528 corpus zero changes; original unmodified social_dynamics tasks now clean. R2 actual #2005 integration and independent evaluation remain pending."
+      "notes": "Red/green ownership and forwarding regressions banked; local/imported generic alias and IO/FS caller controls pass. Full types/pipeline pass; full CLI initially failed only invoked-FS strict verification contract (existing Phase2E evaluator-only builtin); final affected CLI passes with strict negatives/IO/unused-FS and explicit normal-VM interop for invoked FS. Aborted core separately PASS; lint0, boundaries, sizes, changelog, JSON valid; paired528 corpus zero changes; original unmodified social_dynamics tasks now clean. R2 actual #2005 integration completed separately; independent follow-up evaluation remains pending."
     },
     {
       "id": "R2_COMBINED_INTEGRATION",
@@ -153,9 +153,13 @@
         "Normal integrate actual merged #2005 source and consumer pin",
         "Original cached social_dynamics tasks checks clean",
         "Actual consumer core60/60 and extensions9/9; corpus comparison has zero unexplained flips",
-        "Independent evaluation by root, no self-score"
+        "Source and evidence handed off for independent evaluation, without executor self-scoring"
       ],
-      "passes": false
+      "passes": true,
+      "started": "2026-10-29",
+      "implementation_complete": true,
+      "notes": "Actual80793 merged normally at15afcc12. Deliveredconsumer083ef437 exact tree passes fresh-cache gmake check_core60/60+9/9+204 runtime OK lines. Both-feature focused tests and original social module PASS vs actual80793 failing. Paired530-file corpus446pass/84reject both, zero status/diagnostic changes/invariants. Source/evidence handed off for independent reviewer; no executor score.",
+      "completed": "2026-10-29"
     }
   ],
   "review_repair": {
@@ -185,7 +189,7 @@
       "prompt_freeze_registry_tests": "passed",
       "final_build": "passed; embedded CLI serves v0.16.9"
     },
-    "independent_evaluation": "pending"
+    "independent_evaluation": "Historical PASS93 on exact86d3a5f8e946e12967c38b446e5fb854a884a42e, gate_source=local; unchanged by this follow-up"
   },
   "alias_ownership_review_repair": {
     "date": "2026-10-29",
@@ -205,7 +209,17 @@
       "boundaries_sizes_changelog_json": "PASS",
       "corpus": "528 files;444/84 each arm; zero status or diagnostic changes; zero invariants",
       "original_social_dynamics": "PASS unchanged source SHA261faeb15fa083aed19e7f94dbe5af5e9b21273134c41ef2f90147fdaf92797a",
-      "combined_integration": "pending actual #2005 merge and real consumer60/9"
-    }
-  }
+      "combined_integration": "PASS exact actual dev80793 normal merge; deliveredconsumer083ef4 core60/60+extensions9/9+all default runtime prerequisites on fresh isolated cache; focused both-feature tests and lint/structure PASS; originalsocial PASS vs actual80793 FAIL",
+      "combined_corpus": "530 files;446pass/84reject both arms; zero status or diagnostic changes; zero invariants"
+    },
+    "integration_commit": "15afcc12cec28900afe3e312a9356884f8b07b06",
+    "actual_dev_merge": "80793dbcf42423027be4bab1a0088da54e2323d8",
+    "consumer_merge": "083ef43726981099a0bad4fedda18fc72105d6fa",
+    "consumer_tree": "067e8990d698af8385431647f6c5cfff99a7e63a",
+    "independent_evaluation": "pending independent reviewer; original PASS93 is historical only",
+    "evidence": "design_docs/planned/v0_55_0/m-effect-latent-alias-ownership-evidence.json"
+  },
+  "implementation_complete": true,
+  "independent_evaluation": "pending alias ownership follow-up review; original PASS93 unchanged",
+  "execution_completed": "2026-10-29T11:32:15.293731+00:00"
 }
