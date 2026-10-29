@@ -1,0 +1,119 @@
+{
+  "review_scope": "encoded artifacts/size/cold-warm evidence only; no build/test/source review or acceptance verdict",
+  "head": "40a5ca9eac5b4175a366fc441c451f4dfb0f12aa",
+  "checks": {
+    "motoko": {
+      "measured_modules": 143,
+      "current_cache_entries": 192,
+      "artifact_file_count": 715,
+      "sha256_authenticated_blobs": 572,
+      "artifact_bytes": 52171074,
+      "maximum_blob_bytes": 3100965,
+      "maximum_module_bytes": 3400869,
+      "blob_limit": 67108864,
+      "module_limit": 134217728,
+      "compact_ifc_payload_bytes": 473459,
+      "exports": 1365,
+      "wire_dag_formats": [
+        1
+      ],
+      "wire_dag_nodes_total": 19296,
+      "recorded_cold_warm_manifest_stamps_equal": true,
+      "current_manifest_hash_mtime_match": true,
+      "blob_files_newer_than_stamp": [],
+      "cold_warm_seconds": [
+        43.982,
+        1.61
+      ],
+      "cache_counts": [
+        {
+          "hits": 0,
+          "misses": 143
+        },
+        {
+          "hits": 143,
+          "misses": 0
+        }
+      ],
+      "compiler_binary_sha256": "ae819bd2acb221d38f7c094b65426099647f64f5801ddbb04a8dbd13040e7295",
+      "compiler_commit": "8f6b11d0febe49a81807aa6f84f6700fa9795e0b",
+      "separate_cache_index_bytes": 2505223
+    },
+    "social_protocol": {
+      "measured_modules": 97,
+      "current_cache_entries": 97,
+      "artifact_file_count": 485,
+      "sha256_authenticated_blobs": 388,
+      "artifact_bytes": 48230073,
+      "maximum_blob_bytes": 3606290,
+      "maximum_module_bytes": 4664163,
+      "blob_limit": 67108864,
+      "module_limit": 134217728,
+      "compact_ifc_payload_bytes": 417677,
+      "exports": 1223,
+      "wire_dag_formats": [
+        1
+      ],
+      "wire_dag_nodes_total": 14552,
+      "recorded_cold_warm_manifest_stamps_equal": true,
+      "current_manifest_hash_mtime_match": true,
+      "blob_files_newer_than_stamp": [],
+      "cold_warm_seconds": [
+        18.678,
+        1.332
+      ],
+      "cache_counts": [
+        {
+          "hits": 0,
+          "misses": 97
+        },
+        {
+          "hits": 97,
+          "misses": 0
+        }
+      ],
+      "compiler_binary_sha256": "0d95f20eda766a23572abaeda56ef1cc1db314ae838e4533e07cfb9b9e1d88d7",
+      "compiler_commit": "a9971a364e5986499007405ed2cbe0acbbcf477f",
+      "separate_cache_index_bytes": 1611767
+    }
+  },
+  "source_footprint": {
+    "module_source_hashes_matched": 143,
+    "source_lines_sum_per_compiled_module": 58174,
+    "entry_lines": 5824,
+    "entry_sha256": "547ba104253b67bd6458f40c88b683e861ec94e11cdde3edbf46bb047d891fe2",
+    "all_143_sources_match_pinned_git_consumer_or_std": true
+  },
+  "qualifications": [
+    "The recorded cold/warm stamps cover per-module artifacts.json manifests (143 and97), not independent historical mtime snapshots of every individual blob. Actual authenticated blob hashes all match those unchanged manifests.",
+    "IFC payload473459 is compact JSON size of extracted ifc objects; total52171074 is the actual sum of encoded on-disk artifact files. No incremental v1-versus-v2 overhead claim is inferred.",
+    "Motoko cache now has extra modules from later gmake; all sums are restricted to the exact143-module original session measurement.",
+    "Cold/warm wall times are recorded measurements cross-checked against successful raw logs and cache hit counts; no measurement was rerun.",
+    "Motoko session proof is clean8f6 before alias; later a997 proof is separate original social/protocol evidence. M3/M4 enforcement and issue1134/1132 closure remain outside M1/M2."
+  ],
+  "coreti_codec_git_blob_unchanged_from_actual_dev": "8c3bc788180608fb926f83f95b88fa361a950c2e",
+  "scope_boundary": {
+    "M1": true,
+    "M2": true,
+    "M3": null,
+    "M4": null,
+    "overall_status": "in_progress",
+    "issue_closure_supported_by_this_audit": false
+  },
+  "recorded_phase_totals_ms": {
+    "1771-final-session-cold.log": [
+      "42411"
+    ],
+    "1771-final-session-warm.log": [
+      "1563"
+    ],
+    "1771-final-social-protocol_cold.log": [
+      "18646"
+    ],
+    "1771-final-social-protocol_warm.log": [
+      "1295"
+    ]
+  },
+  "no_material_data_discrepancy_found": true,
+  "formal_sprint_verdict": "not issued; root owns formal M1/M2 evaluation and exact-head CI"
+}

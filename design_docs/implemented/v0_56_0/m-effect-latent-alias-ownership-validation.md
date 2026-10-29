@@ -1,5 +1,7 @@
 # Alias ownership review repair validation
 
+**Archive status:** R1/R2 accepted at95/100, [PR2008](https://github.com/sunholo-data/ailang/pull/2008) merged749045717c484299b3103008023bf27a826df844. Implemented/unreleased, target0.56.0. The executor checkpoint statements below are retained as history; [independent evaluation](m-effect-latent-alias-ownership-evaluation.md) is authoritative for acceptance.
+
 This is a repair of M-EFFECT-LATENT-NESTED-CALLBACKS AC6 and its accepted
 `fwd_two` controls. It does not introduce a new effect handoff model. Root owns
 independent evaluation; no evaluator verdict is claimed here.
@@ -102,3 +104,7 @@ original-social, original-social-base and corpus evidence in the session directo
 Compact results/provenance are committed in m-effect-latent-alias-ownership-evidence.json.
 R1/R2 implementation is complete. Independent evaluation remains pending; the
 original #1963 PASS 93 on 86d3a5f8 is historical, unchanged and not a score for this fix.
+
+## Independent acceptance
+
+All9 follow-up criteria met. Exactd5f final26 checks completed19success/7skipped, no retries; Sonar100% at unchanged80 threshold. Independent95/100 includes the85line test and stale integration-field deductions. Original source statuses, strict-FS failed attempts and qualified normal-VM interop remain preserved. Original parent PASS93 is unchanged. No deployment or version bump.

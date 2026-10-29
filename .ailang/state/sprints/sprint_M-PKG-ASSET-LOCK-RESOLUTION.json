@@ -2,8 +2,8 @@
   "sprint_id": "M-PKG-ASSET-LOCK-RESOLUTION",
   "status": "completed",
   "created": "2026-10-12T13:14:04Z",
-  "design_doc": "design_docs/planned/v0_54_7/m-pkg-asset-lock-resolution.md",
-  "sprint_plan": "design_docs/planned/v0_54_7/m-pkg-asset-lock-resolution-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_56_0/m-pkg-asset-lock-resolution.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/m-pkg-asset-lock-resolution-sprint-plan.md",
   "github_issues": [],
   "registry_reuse": [
     {
@@ -116,8 +116,8 @@
   "last_session": "2026-10-29T08:20:03.286824+00:00",
   "implementation_complete": true,
   "validation_status": "pass",
-  "last_checkpoint": "2026-10-29: portable configured-root regression banked; current Linux tests pass. Sonar external-only test-package filtering diagnosed and test ownership corrected without policy change. Exact new-head remote Sonar/platform gates and independent evaluation pending.",
-  "evaluation_report": ".ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_1.json",
+  "last_checkpoint": "Accepted round3 PASS95 at exacta24f2ca1c25e6dc03938515a1bc660815c26e247; full native tests/lint/sizes and required Linux/Windows/Sonar94.9 pass. PR1849 merged9dc6890919aa001deebee4361719456ee087440f. Earlier FAIL51/68 and pending repair checkpoints preserved as history.",
+  "evaluation_report": ".ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_3.json",
   "verification": {
     "focused_integration": "pass: six packages",
     "effects_regressions_count_20": "pass",
@@ -125,7 +125,7 @@
     "full_lint": "pass:0 issues",
     "test_changed": "pass:8 packages plus full core loop, no exclusions",
     "other_gates": "pass: boundaries, architecture closure, file sizes, changelog, fmt, verify-stdlib49, verify-examples, asset_path demo",
-    "independent_evaluation": "pending fresh review; round1 FAIL51 retained unchanged",
+    "independent_evaluation": "PASS95 round3; historical round1 FAIL51 and round2 FAIL68 retained unchanged.",
     "combined_authority_integration": "pass: effects/pkg/pipeline/embed/apiserver/runner/testutil-pkgassets, full suites with coverage, no exclusions; dev c2944389 integrated"
   },
   "review_coverage_repair": {
@@ -153,5 +153,26 @@
     "repair": "Run the identical public Engine regression as an in-package pkgassets test; remove self-import and call New directly. Assertions and production behavior unchanged. No threshold, baseline, exclusion or coverage-pipeline change.",
     "verification": "go test helper PASS83.3%; TestGoFiles now engine_test.go; unchanged make coverage-from-profile output byte-identical to raw helper profile; lint0 passed before push.",
     "remote_gate": "pending exact new-head CI after push"
-  }
+  },
+  "target_version": "v0.56.0",
+  "integration": {
+    "pull_request": 1849,
+    "merge_commit": "9dc6890919aa001deebee4361719456ee087440f",
+    "release_status": "unreleased",
+    "original_target_version": "v0.54.7",
+    "independent_evaluation": {
+      "result": "pass",
+      "score": 95,
+      "round": 3,
+      "report": ".ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_3.json"
+    },
+    "release_target_note": "Aligned with the unreleased batch containing approved breaking effect changes; no version/tag operation"
+  },
+  "historical_completion_fields": {
+    "last_checkpoint": "2026-10-29: portable configured-root regression banked; current Linux tests pass. Sonar external-only test-package filtering diagnosed and test ownership corrected without policy change. Exact new-head remote Sonar/platform gates and independent evaluation pending.",
+    "evaluation_report": ".ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_1.json",
+    "verification_independent_evaluation": "pending fresh review; round1 FAIL51 retained unchanged"
+  },
+  "review_checkpoint_objects_are_historical": true,
+  "completion_audit_at": "2026-10-29T12:39:27.078192+00:00"
 }

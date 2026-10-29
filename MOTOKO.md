@@ -356,7 +356,7 @@ source tree is byte-identical to tested migration head `c3f4c85eec681d8d5d4787da
 CI's core/extensions gate passed, then its skills fixture failed on an inherited
 v0.52.5 pricing-record mismatch. The same error reproduces unchanged on the pinned
 base and migrated head; [the PR records the evidence](https://github.com/sunholo-voight-kampff/motoko_agent/pull/4#issuecomment-6491761805).
-The broader CI is not claimed green. #1958's final integrated independent gate remains pending. See `design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-validation.md`
+The broader CI is not claimed green. #1958's final integrated implementation was subsequently accepted in PR #2005; see §15. See `design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness-validation.md`
 for preserved original failures and final delivery/integration status.
 
 
@@ -383,9 +383,9 @@ The fork's old v0.52.5 CI compiler reproduces the same inherited skills pricing
 record 2-versus-4-field failure on both `af1d5651` and the four-field candidate.
 Relevant actual-compiler gates and root's independent exact-diff review passed;
 normal merge used no admin override. Pending/baseline fork CI is not claimed green.
-See `design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract-validation.md`
+See `design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract-validation.md`
 and its compatibility JSON for exact pins, corpus/control results and final gates.
 
 This is the v0.56.0 compiler-compatible **source pin**, not a built/deployed image.
 The live rig/shim remain at §13's `835c738b`; upstream `arniwesth/motoko_agent` was
-not modified. Final AILANG independent evaluation and exact-head CI remain pending.
+not modified. AILANG PR #2005 is accepted and merged at `80793dbcf42423027be4bab1a0088da54e2323d8`: root PASS 95/100 for row soundness and 95/100 for explicit-empty contracts. Target v0.56.0 remains unreleased; this does not imply a deployment.

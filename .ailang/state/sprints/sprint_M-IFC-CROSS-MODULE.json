@@ -141,7 +141,7 @@
     ],
     "handoff_contract": "Summary declassify is a label list: [] none, [\"*\"] bare, sorted unique labels otherwise (one element in v1 per 2026-10-08 single-label ruling); summary carries positive param labels; imported callees reuse local Check A/C and scoped result policy."
   },
-  "last_checkpoint": "M1-M2 repaired; actual80793 and published2008 dependency normally integrated. Native changed/core, all49interfaces, examples and exact-source large consumer proofs passed; final CI/independent acceptance pending. M3/M4 remain null.",
+  "last_checkpoint": "M1-M2 independently accepted95/100, all26 exact-head CI checks terminal19green/7skipped; PR1771 merged65253e86e68be251eecd796d92327e4d4828c234. M3/M4 remain null/unstarted; overall in_progress,1134/1132 open.",
   "last_session": "2026-10-29T12:00:51.521106+00:00",
   "validation": {
     "focused_go_test": "official make test-changed PASS at8f: fullcmd,iface,link,pipeline,runtime,types; affected alias/IFC/CLI/cache/hash focus PASS at a997 after published2008 integration",
@@ -149,17 +149,34 @@
     "lint": "PASS,0 issues",
     "check_file_sizes": "PASS",
     "check_boundaries": "PASS",
-    "full_make_test": "not run, per task constraint; full final-head suite belongs to CI",
+    "full_make_test": "Not run locally per task scope; exact40a5 full Linux/Windows/CI gates PASS, CI_GATE=pass19green/7skipped.",
     "verify_stdlib": "PASS all49; v2 goldens preserve all non-IFC signatures versus80793 and remain stable after alias integration",
     "verify_examples": "PASS247modules,0drift; manifest252total/244working/4broken/4aspirational",
     "motoko": "actual083ef437 consumer60core/9extensions PASS; originalsession cold43.982/warm1.610s,143cachehits,unchanged stamps at8f",
     "social_protocol": "direct social0.4.0 NoCache and original81494 protocol cold18.678/warm1.332s,97cachehits,unchanged stamps at a997",
-    "independent_evaluation": "pending root final acceptance; independent producer regressions passed atfff; no self-score"
+    "independent_evaluation": "PASS95 root, M1-M2 only; .ailang/state/evaluations/eval_M-IFC-CROSS-MODULE_round_1.json"
   },
   "execution_scope": [
     "M1",
     "M2"
   ],
   "pr_reference": "Refs #1134; Refs #1132 (part 1 only). This partial PR does not complete imported contract enforcement.",
-  "original_target_release": "v0.53.x"
+  "original_target_release": "v0.53.x",
+  "historical_executor_handoff": {
+    "source_head": "40a5ca9eac5b4175a366fc441c451f4dfb0f12aa",
+    "last_checkpoint": "M1-M2 repaired; actual80793 and published2008 dependency normally integrated. Native changed/core, all49interfaces, examples and exact-source large consumer proofs passed; final CI/independent acceptance pending. M3/M4 remain null.",
+    "independent_evaluation": "pending root final acceptance; independent producer regressions passed atfff; no self-score"
+  },
+  "partial_integration": {
+    "pull_request": 1771,
+    "merge_commit": "65253e86e68be251eecd796d92327e4d4828c234",
+    "milestones": [
+      "M1",
+      "M2"
+    ],
+    "evaluation_score": 95,
+    "evaluation_report": ".ailang/state/evaluations/eval_M-IFC-CROSS-MODULE_round_1.json",
+    "release_status": "unreleased",
+    "target_version": "v0.56.0"
+  }
 }

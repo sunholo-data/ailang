@@ -1,8 +1,8 @@
 # Sprint Plan: M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS (#1958)
 
-**Status:** IMPLEMENTATION COMPLETE / INDEPENDENT EVALUATION PENDING — Mark authorized “Execute sprint #1958” on 2026-10-29.
-**Design:** `design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness.md`
-**Intended repository plan path:** `design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-sprint-plan.md`
+**Status:** IMPLEMENTED / INDEPENDENT PASS — UNRELEASED — Mark authorized “Execute sprint #1958” on 2026-10-29.
+**Design:** `design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md`
+**Intended repository plan path:** `design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness-sprint-plan.md`
 **Intended progress path:** `.ailang/state/sprints/sprint_M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS.json`
 **Measured base:** `origin/dev` `c04a44780` (2026-10-29).
 **Duration:** 2.5 engineering days, four resumable milestones of approximately 60–90 minutes of agent implementation/validation each, plus corpus verification and review allowance.
@@ -143,7 +143,7 @@ hand-off, independently reproduced on #1963-only. The exact attempted four pure
 `! {}` field annotations fail unchanged. This follows the ratified conservative
 parameter-wide architecture; changing it or adding explicit-empty callback contract
 semantics is outside this plan's existing approval. See the new focused amendment
-at `design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md`.
+at `design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract.md`.
 At that checkpoint all its human decisions remained OPEN. M4 was intentionally
 unpassed; no new compiler or consumer semantics had been implemented. Only three manifest aggregate fields were
 reconciled for the two independently added examples, with verify-examples green.
@@ -160,3 +160,8 @@ merged as fork PR #5 at `083ef43726981099a0bad4fedda18fc72105d6fa`. Docker and M
 pin that exact tested tree. Full changed/core and structural/interface/example
 checks pass. Original failure stages remain preserved in the companion reports.
 M4 implementation is complete; independent evaluator acceptance remains pending.
+
+
+## Accepted completion — 2026-10-29
+
+All four approved implementation milestones and independent evaluation are complete: root PASS 95/100, exact `8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af`, merged `80793dbcf42423027be4bab1a0088da54e2323d8`. Target v0.56.0 remains unreleased. [Evaluation](m-effect-row-open-closed-soundness-evaluation.md). Earlier pending/blocked checkpoints below their dated headings are retained as history; they are not the current acceptance state. Deferred width subsumption and separately owned follow-ups are not completed by this archival change.

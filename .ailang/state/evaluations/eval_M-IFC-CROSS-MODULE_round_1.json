@@ -1,0 +1,166 @@
+{
+  "sprint_id": "M-IFC-CROSS-MODULE",
+  "evaluation_scope": "Explicitly approved M1-M2 foundation only; M3/M4 unapproved and excluded from criterion denominator",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-29T12:31:30.790474+00:00",
+  "reviewer": "root, independent of executor pr_reconcile",
+  "evaluated_commit": "40a5ca9eac5b4175a366fc441c451f4dfb0f12aa",
+  "pull_request": 1771,
+  "design_doc": "design_docs/planned/m-ifc-cross-module-labels.md",
+  "sprint_plan": "design_docs/planned/v0_53_0/m-ifc-cross-module-labels-sprint-plan.md",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "gate_source": "ci",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "conditional_checks": {
+    "regression_surface_coverage": 10,
+    "performance_verification": null
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "coverage_pct": "skipped (set EVAL_COVERAGE=1)",
+    "todo_hack_count": 0,
+    "is_perf_sprint": false,
+    "has_profile_data": false
+  },
+  "ci_result": "CI_GATE=pass PR #1771: 19 checks green",
+  "ci_summary": "26 terminal checks,19green/7skipped,0pending; SonarSUCCESS exacthead",
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Every exported item has explicit IFC metadata; clean is distinguishable from missing.",
+      "met": true,
+      "evidence": "Explicit source/nonfunction/synthetic metadata: TestIFCSummaries, TestIFCSyntheticSummary, TestIFCSummaryBuilder."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Positive param labels, sink refinements, declared/intrinsic returns, and the Declassify label list (none [], bare [\"*\"], scoped [\"email\"]) survive summary construction; no bool-shaped declassify field exists in the schema.",
+      "met": true,
+      "evidence": "Canonical F4/labels/authority: TestIFCSummaryF4CanonicalShape and strict decoder/hash mutations; declared/forbidden/applied and all Declassify forms preserved."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Local recursion and a wrapper around an imported secret producer retain intrinsic taint.",
+      "met": true,
+      "evidence": "Recursive/imported/local/aliased/returned producer controls and independent root prior-RED replay PASS; export-only named/eta parity, no caller M3 wiring."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Each security-relevant summary field changes the digest; export map order does not.",
+      "met": true,
+      "evidence": "TestIFCSummaryDigestAndCodecs, hash-projection security-field mutations/map-order invariance, repeated determinism20x; validated unlabelled projection equality preserved."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "TLabelled erasure and CoreTI/codegen behavior remain unchanged.",
+      "met": true,
+      "evidence": "No HM/type-erasure/CoreTI encoding redesign. Existing shared-DAG v7 format retained beneath new v8 cache epoch; source/engine/corpus controls and exact-head CI pass."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Full cache JSON, compact/published JSON, and supported gob paths preserve every IFC summary field.",
+      "met": true,
+      "evidence": "Full/compact/gob roundtrips and explicit-empty arrays preserve every F4 summary field."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "cacheKeyVersion is bumped dev v7->v8 in internal/pipeline/cache_key.go with a history comment; a test shows a pre-bump cache entry misses.",
+      "met": true,
+      "evidence": "Functional valid prior v1-v7 cache-key misses plus dynamic current-key fixtures; actual v7->v8 comment preserves DAG boundary."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "A validly hashed v1 artifact cannot bypass IFC enforcement and causes recompilation.",
+      "met": true,
+      "evidence": "Authenticated legacy v1 forces CACHE_INVALID and source recompilation, including injected decoder validation."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "A v2 interface with absent or malformed metadata cannot be treated as clean.",
+      "met": true,
+      "evidence": "Missing/null/string-shaped/unsorted/duplicate/wildcard/malformed v2 metadata rejected; missing cannot become clean."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "A library-only refinement/intrinsic/return change invalidates dependent cached artifacts.",
+      "met": true,
+      "evidence": "TestCacheIFCLibraryEditsInvalidateCaller: refinement/intrinsic/declared-return-only edits invalidate dependent artifacts."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Cold and warm cache verdicts match, including a cached caller (audit whether IFC reruns on cache hits).",
+      "met": true,
+      "evidence": "TestCacheIFCColdWarmLocalVerdict plus real143/97-module cold/warm caches; no deferred cross-module enforcement claim."
+    }
+  ],
+  "criteria_met": 11,
+  "criteria_total": 11,
+  "full_sprint_completed": false,
+  "parent_sprint_status": "in_progress",
+  "completed_milestones": [
+    "M1",
+    "M2"
+  ],
+  "unstarted_milestones": [
+    "M3",
+    "M4"
+  ],
+  "issues_remain_open": [
+    1134,
+    1132
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": false,
+    "new_runnable_example_required": false,
+    "example_evidence": "Approved M1-M2 adds metadata/cache plumbing with concrete source/CLI/codec fixtures and existing inbox/secret runnable compatibility controls. No new runtime language behavior is exposed; showcase/enforcement guide work is explicitly deferred M4, not required or implemented in this partial delivery.",
+    "design_doc_status": "Partial M1-M2 completion documented; parent and companion plan remain planned for M3-M4."
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Preserves ratified F4 within v2, reserved applied-bottom generation, canonical nil-versus-clean semantics, labelled hashing and attended unlabelled identity repair. Supplied facts enter single value resolution; M1-only named/eta producer parity preserves existing conservative closure policy without contextual replay, new HM or imported caller/REPL enforcement. Valid prior cache epochs miss while current shared DAG remains. Only typed analysis-limit panic becomes ordinary fail-closed error; unrelated panics are rethrown."
+  },
+  "deductions": [
+    {
+      "category": "code_quality",
+      "points": 5,
+      "issue": "Go-AST measured AnalyzeModuleIFC56lines, TestIFCSummaryDigestAndCodecs76, TestCacheIFCLibraryEditsInvalidateCaller57; >50-line function deduction reaches rubric cap5, including new regression fixtures.",
+      "evidence": "1771-function-size-review.txt"
+    }
+  ],
+  "feedback": [],
+  "independent_evidence": {
+    "source_review": "Complete production/schema/cache/hash diff read; root own falsely-clean alias and callback REDs replay PASS at fff; final IFC production bytes unchanged from fff.",
+    "root_replay": "1771-fff-independent-review.log: actual named tests discovered/run, PASS0.401s using canonical Go overlay.",
+    "scope": "Original attended task explicitly M1-M2 ONLY; four final feedback comments read, all addressed; no coordinator pending approval bypass.",
+    "artifact_audit": "design_docs/planned/v0_53_0/m-ifc-cross-module-labels-artifact-audit.json",
+    "motoko": "Actual pinned083 at8f:60core/9extensions/runtimeguards;143module session cold43.982/warm1.610,143hits0misses;52,171,074measured bytes,maxblob3,100,965,maxmodule3,400,869.",
+    "post_alias": "Actual a997 afterpublished2008dependency: unchanged social NoCache and protocol cold18.678/warm1.332;97hits0misses,48,230,073bytes,maxblob3,606,290,maxmodule4,664,163.",
+    "qualifications": "143modules is measured session cohort, not all192 later cache modules; stamps are artifacts.json manifests with payload hashes, not an assertion about every payload mtime. IFC473459bytes is compact extracted payload, not incremental overhead. FullMotoko/native proof pre-alias8f, separatefocused/social proof a997.",
+    "corpus": "Frozen2628 metadata corpus23parserfailures retained;0analysiserrors after narrowextern fix, all2568previously all-bottom modules unchanged, no private rho.18freshCLIcompat cases zero verdict/first-diagnostic changes.",
+    "interfaces": "All49 v2 interfaces regenerated; stripping onlyIFC/schema shows zero nonIFC signatures againstactual80793.",
+    "native": "Executor official changed6packages+core, lint0/structures/examples at8f; affected alias/IFC/cache/CLI focus aftera997. Fullsamehead broad tests supplied by exact40a5CI; root does not repeat them.",
+    "final_ci_log": "1771-ci-evaluation.log",
+    "todo_explicit_net_diff": 0
+  },
+  "archive_policy": "Keep full parent/plan in planned because M3/M4 remain unstarted. Only independent partial evaluation/validation evidence added; no full completion archival or1134/1132closure.",
+  "notes": "All11 approved milestone criteria met. Exacthead allCIgreen/skipped. Original feedback on fixtures/packageidentity/large artifacts/F4/order addressed, initial failures preserved. Historical245vs247 example count is a nonblocking documentation typo retained for post-acceptance audit; actual final manifest252/244/4/4 and verification247 are authoritative. Source merge is authorized after this independent PASS; no admin bypass/version/deployment or deferred semantic expansion.",
+  "integration": {
+    "pull_request": 1771,
+    "merge_commit": "65253e86e68be251eecd796d92327e4d4828c234",
+    "merged_at": "2026-10-29T12:32:21Z",
+    "release_status": "unreleased",
+    "scope": "M1-M2 only"
+  }
+}

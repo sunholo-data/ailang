@@ -1,7 +1,7 @@
 # Sprint Plan: M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT
 
-**Status:** IMPLEMENTATION COMPLETE / INDEPENDENT EVALUATION PENDING — Mark explicitly authorized “Execute explicit-empty sprint” on 2026-10-29.
-**Design:** `design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md`.
+**Status:** IMPLEMENTED / INDEPENDENT PASS — UNRELEASED — Mark explicitly authorized “Execute explicit-empty sprint” on 2026-10-29.
+**Design:** `design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract.md`.
 **Progress:** `.ailang/state/sprints/sprint_M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT.json`.
 **Target:** v0.56.0 breaking minor; no release/version bump/deployment.
 **Measured dev:** `61716789ae8f5ebcea534b1a993ca00d1533ec04` (2026-10-29).
@@ -120,3 +120,8 @@ Day 1: M1 then M2, committing each. Day 2: M3, then M4 corpus/conditional consum
 Native structural/focused gates run once per meaningful change. Exact-head CI owns broad tests. Repeat only failed/affected checks when a new delta requires it. Preserve historical failed evidence and prior evaluator verdicts; no exclusions, threshold changes or fabricated pass.
 
 Execution is now explicitly approved. Invoke sprint-executor, bank plan/JSON, refresh base/overlap status and begin M1. Final independent sprint-evaluator is root. No coordinator sends/acks or automatic executor trigger is authorized by this planning task.
+
+
+## Accepted completion — 2026-10-29
+
+All four approved implementation milestones and independent evaluation are complete: root PASS 95/100, exact `8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af`, merged `80793dbcf42423027be4bab1a0088da54e2323d8`. Target v0.56.0 remains unreleased. [Evaluation](m-effect-explicit-empty-callback-contract-evaluation.md). Earlier pending/blocked checkpoints below their dated headings are retained as history; they are not the current acceptance state. Deferred width subsumption and separately owned follow-ups are not completed by this archival change.
