@@ -1901,5 +1901,15 @@
     "execution_authorized": false,
     "further_provider_calls_authorized": false,
     "source": "three-design-approvals.json local record forwarded by root"
+  },
+  "execution_checkpoint": {
+    "user_message": "exeute all three sprints",
+    "observed_at_utc": "2026-10-29T20:17:42Z",
+    "scope": "M-SMT-PREFLIGHT-M0-REPAIR all six reviewed milestones only",
+    "implementation_source": "60a7d7b5fce9c137835774750cac1cca063e6b00",
+    "implementation_validation": "v0_56_0/m-smt-preflight-m0-repair-validation.md",
+    "external_quorum": "both BLOCKED records unchanged",
+    "independent_evaluation": "pending; no executor score",
+    "historical_not_done_qualification": "not_done and design-stage acceptance claims above record the pre-execution snapshot; new actual base/fixed CLI proof is separately identified in implementation validation"
   }
 }

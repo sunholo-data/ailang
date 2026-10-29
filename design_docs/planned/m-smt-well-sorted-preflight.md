@@ -1,6 +1,10 @@
 # M-SMT-WELL-SORTED-PREFLIGHT: resolve operators and symbols by elaborated type, and check the SMT before Z3 sees it
 
-**Status**: M0 design/evidence human-ratified for planning only; sprint draft and execution unapproved; M1–M4 deferred.
+**Status**: approved M0 implementation complete; required CI/independent acceptance pending; parent M1–M4 deferred.
+
+## Current execution checkpoint (2026-10-29)
+
+The user separately approved all six reviewed M0 milestones with “exeute all three sprints”, observed 20:17:42UTC. Implementation source `60a7d7b5fce9c137835774750cac1cca063e6b00` and measured evidence are in [the validation report](v0_56_0/m-smt-preflight-m0-repair-validation.md). This authorizes scoped implementation, not deferred semantics or another provider call. The historical design-stage text below records its then-current planning disposition; the later explicit execution instruction supersedes those stage-only restrictions. Both external BLOCKED verdicts remain unchanged, with no external PROCEED or executor self-score claimed. Required CI/independent acceptance are pending.
 **Target**: next unreleased release after v0.55.0; original v0.54.19 target is historical, not a release request.
 **Priority**: P0 for M0 (#1960/#1961 false-VERIFIED); #1950/#1953 and the wider preflight roadmap remain later scope.
 **Estimated**: historical full roadmap about 6 engineering days; M0 estimate must be refreshed only after design approval.
@@ -17,11 +21,10 @@ or authorize further disclosure/review/execution. Full-roadmap M3 banking/F2/F5 
 this M0 evidence amendment and M0-F1/F4/Z for **planning only**. Approval record: local
 `three-design-approvals.json`, design commit 88ca9e1e974150fa783d19b15b8a93be1682e2f7. Observation time is the
 assistant's receipt record, not an independently supplied user send time. Both external BLOCKED records remain
-unchanged. No third provider review, plan approval or execution is inferred. The current sprint plan/JSON are
-uncommitted drafts pending review and explicit execute instruction.
+unchanged. No third provider review, plan approval or execution is inferred. The then-current planning drafts were subsequently reviewed and explicitly authorized for execution as recorded above.
 
 <!-- M0-REVIEW-BEGIN -->
-## Current decision packet: M0 only (2026-10-29)
+## Approved M0 proposal: design-stage snapshot (2026-10-29)
 
 **State:** two external scoped quorum runs remain BLOCKED. The user has now ratified the corrected evidence and
 M0-F1/F4/Z for planning only at the observed time above; no further disclosure/review, implementation, parked-work
@@ -267,30 +270,30 @@ the regression for review; do not guess at bindings, invent constraints or quiet
 The following must be demonstrated with actual old/current and fixed compiler binaries plus matching stdlib in a
 new isolated execution branch, not only raw Z3 or unvalidated parked logs:
 
-- [ ] **M0-A1:** both #1960/#1961 sources check on both builds; old parity/halfDown/gap rows falsely VERIFY, new rows
+- [x] **M0-A1:** both #1960/#1961 sources check on both builds; old parity/halfDown/gap rows falsely VERIFY, new rows
   are counterexamples (negative x for parity/halfDown, `a >= 0` for gap). Preserve the independent `total` bounded-
   unrolling row and aggregate exit evidence rather than hiding it.
-- [ ] **M0-A2:** all Int producer shapes and sign combinations agree with truncation for nonzero divisors, **and
+- [x] **M0-A2:** all Int producer shapes and sign combinations agree with truncation for nonzero divisors, **and
   actual interpreter/strict-VM CLI results for the same sign-pair fixtures equal the truncating table row-for-row**.
   Any executed runtime mismatch freezes M0-F1 for an amended contract, rather than silently choosing new semantics.
   Nested divisions and source/generated-name shadowing retain bindings. Nonnegative half, bounded parity, toward-zero and
   remainder-sign true controls remain VERIFIED. Z3-availability skips use existing platform conventions.
-- [ ] **M0-A3:** same-argument UF identity verifies; distinct-call false equality is refutable; parameter-dependent
+- [x] **M0-A3:** same-argument UF identity verifies; distinct-call false equality is refutable; parameter-dependent
   postconditions use the actual arguments; actual satisfying/violating requires and unencodable-requires controls
   demonstrate guarded/no-fact behavior without asserting a missing requires as true.
-- [ ] **M0-A4:** the checked `partial`/`wrong` fixture above is refutable through the fixed **CLI** with actual
+- [x] **M0-A4:** the checked `partial`/`wrong` fixture above is refutable through the fixed **CLI** with actual
   returning nonzero witness; normal runtime returns 0 and runtime contracts fail. A scratch mutation restoring the
   parked universal axiom must falsely verify that caller; retain the raw SAT/UNSAT discriminator separately.
-- [ ] **M0-A5:** nested let/shadowed/match-bound arguments, conditional/uninvoked divergent callees and a non-recursive
+- [x] **M0-A5:** nested let/shadowed/match-bound arguments, conditional/uninvoked divergent callees and a non-recursive
   helper forwarding into the contract-only callee preserve lexical facts. False contracts stay refutable; true
   selected-path controls verify. Include calls in body/requires/ensures, not only top-level direct calls, plus a
   diamond-helper control asserting unique declarations and preserved call facts at each selected invocation. Verify
   exact value/condition-helper parameter lists, including lifted environment variables, with distinct captured-
   environment controls. Gemini's concern is not considered implemented or proven by this design amendment.
-- [ ] **M0-A6:** `/0` and `%0` still check and fail runtime RT001; fixed verification follows M0-Z, with no nonzero
+- [x] **M0-A6:** `/0` and `%0` still check and fail runtime RT001; fixed verification follows M0-Z, with no nonzero
   assumption or new skip/error policy. Nonzero and unselected-zero controls stay consistent. No claim of totality,
   no proof of runtime-error freedom, no new width guarantee.
-- [ ] **M0-A7:** per-fix mutations on disposable copies fail the meaningful row/control tests. Before/after examples,
+- [x] **M0-A7:** per-fix mutations on disposable copies fail the meaningful row/control tests. Before/after examples,
   std and the same pinned package corpus explain every changed verdict. No new false VERIFIED or encoder ERROR is
   accepted; inherited ERROR rows are recorded without implementing M1–M4 or changing reason/exit policy.
 - [ ] **M0-A8:** focused changed/core tests, lint, structure/boundaries, changelog and verify examples pass; required
@@ -324,7 +327,7 @@ and coordinate before any later execution branch integration.
 
 ### Scoped quorum gate before planning
 
-**Current disposition:** the actual human ruling above permits this planning draft despite retained external
+**Design-stage disposition (historical):** the actual human ruling permitted the planning draft despite retained external
 BLOCKED records. The following packet/history describes the pre-ruling inspection; it supplies no new execution
 authority. Do not reopen the already-ratified F1/F4/Z or require another provider call at executor handoff.
 

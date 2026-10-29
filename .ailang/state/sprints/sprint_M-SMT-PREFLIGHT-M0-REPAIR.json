@@ -10,19 +10,19 @@
     1960,
     1961
   ],
-  "status": "in_progress",
+  "status": "completed",
   "plan_status": "approved",
-  "last_session": "2026-10-29T20:23:56.740513+00:00",
+  "last_session": "2026-10-29T21:18:45.909803+00:00",
   "last_session_kind": "execution",
-  "last_checkpoint": null,
+  "last_checkpoint": "M6 implementation evidence complete; acceptance gates pending",
   "started": "2026-10-29T20:23:56.740513+00:00",
-  "completed": null,
+  "completed": "2026-10-29T21:18:45.909803+00:00",
   "features": [
     {
       "id": "M1_BASELINES_TRUNCATION",
       "description": "Pin actual baselines and centralize truncating Int quotient/remainder",
       "estimated_loc": 260,
-      "actual_loc": null,
+      "actual_loc": 282,
       "dependencies": [],
       "acceptance_criteria": [
         "Actual current build/std/identity and complete historical/current rows recorded before source changes",
@@ -32,13 +32,18 @@
       "passes": true,
       "started": "2026-10-29T20:23:56.740513+00:00",
       "completed": "2026-10-29T20:23:56.740513+00:00",
-      "notes": "Actual base6d0d3a9 reproduced parity/halfDown false VERIFIED and gap false VERIFIED; inherited error/counterexample rows retained. Signed nine-emitter matrix RED before patch, full internal/smt GREEN after; actual current/fixed CLI and both runtime engines captured under /tmp/ailang-backlog-20261029/m0-execution. Prompt v0.16.11 loaded from exact baseline. Zero runtime RT001 preserved."
+      "notes": "Actual base6d0d3a9 reproduced parity/halfDown false VERIFIED and gap false VERIFIED; inherited error/counterexample rows retained. Signed nine-emitter matrix RED before patch, full internal/smt GREEN after; actual current/fixed CLI and both runtime engines captured under /tmp/ailang-backlog-20261029/m0-execution. Prompt v0.16.11 loaded from exact baseline. Zero runtime RT001 preserved.",
+      "actual_loc_basis": "Added Go/AIL lines in recorded milestone commits, including review repair churn; not net code size",
+      "actual_deleted_loc": 11,
+      "implementation_commits": [
+        "82ddb7030"
+      ]
     },
     {
       "id": "M2_FINITE_UF_SPECS",
       "description": "Build actual-call UF identity, arity and requires-guarded finite specification templates",
       "estimated_loc": 230,
-      "actual_loc": null,
+      "actual_loc": 143,
       "dependencies": [
         "M1_BASELINES_TRUNCATION"
       ],
@@ -50,13 +55,18 @@
       "passes": true,
       "started": "2026-10-29T20:26:45.411982+00:00",
       "completed": "2026-10-29T20:26:45.411982+00:00",
-      "notes": "Finite UF declaration/template replaces shared constant. Public call instantiation preserves functional identity, exact arity, requires guarding and fail-weak unknown requires. New tests RED on prior code, all SMT package GREEN. Scoped propagation into caller expressions remains M3\u2013M5, no integrated CLI acceptance claimed yet."
+      "notes": "Finite UF declaration/template replaces shared constant. Public call instantiation preserves functional identity, exact arity, requires guarding and fail-weak unknown requires. New tests RED on prior code, all SMT package GREEN. Scoped propagation into caller expressions remains M3\u2013M5, no integrated CLI acceptance claimed yet.",
+      "actual_loc_basis": "Added Go/AIL lines in recorded milestone commits, including review repair churn; not net code size",
+      "actual_deleted_loc": 72,
+      "implementation_commits": [
+        "fd6140dc0"
+      ]
     },
     {
       "id": "M3_LEXICAL_SELECTED_FACTS",
       "description": "Propagate value/finite facts through arguments, let bindings and selected if/short-circuit paths",
       "estimated_loc": 280,
-      "actual_loc": null,
+      "actual_loc": 225,
       "dependencies": [
         "M2_FINITE_UF_SPECS"
       ],
@@ -68,13 +78,18 @@
       "passes": true,
       "started": "2026-10-29T20:28:19.018204+00:00",
       "completed": "2026-10-29T20:28:19.018204+00:00",
-      "notes": "Finite facts captured for argument evaluation; let facts rebound within lexical scope and If facts selected by condition, including sort-hinted If. Lexical/shadow controls RED\u2192GREEN, unselected contradictory contract remains SAT; full SMT suite PASS. Added explicit outer $ail_n/$ail_d collision control for all nine Int emitters, PASS. Match/contract/helper propagation remains M4/M5."
+      "notes": "Finite facts captured for argument evaluation; let facts rebound within lexical scope and If facts selected by condition, including sort-hinted If. Lexical/shadow controls RED\u2192GREEN, unselected contradictory contract remains SAT; full SMT suite PASS. Added explicit outer $ail_n/$ail_d collision control for all nine Int emitters, PASS. Match/contract/helper propagation remains M4/M5.",
+      "actual_loc_basis": "Added Go/AIL lines in recorded milestone commits, including review repair churn; not net code size",
+      "actual_deleted_loc": 2,
+      "implementation_commits": [
+        "9eb2bb655"
+      ]
     },
     {
       "id": "M4_GUARDS_CONTRACT_PATHS",
       "description": "Preserve first-reached match guards and finite facts in body/requires/ensures predicates",
       "estimated_loc": 250,
-      "actual_loc": null,
+      "actual_loc": 349,
       "dependencies": [
         "M3_LEXICAL_SELECTED_FACTS"
       ],
@@ -86,13 +101,18 @@
       "passes": true,
       "started": "2026-10-29T20:33:12.807230+00:00",
       "completed": "2026-10-29T20:33:12.807230+00:00",
-      "notes": "Match body/guard facts retain pattern reach/first-selected semantics; predicate facts captured with guarded requires/ensures. Shadow substitution repaired and actual argument/result text bound to fresh outer parallel aliases. Core shadow/capture RED\u2192GREEN including adversarial generated aliases; bounded source Forall facts retain original binder/range. Full SMT suite PASS. Actual CLI lexical fixture true/false controls pass; old capture rows ERROR, not claimed old false VERIFIED. Existing unroll declarations isolated from root fact sink."
+      "notes": "Match body/guard facts retain pattern reach/first-selected semantics; predicate facts captured with guarded requires/ensures. Shadow substitution repaired and actual argument/result text bound to fresh outer parallel aliases. Core shadow/capture RED\u2192GREEN including adversarial generated aliases; bounded source Forall facts retain original binder/range. Full SMT suite PASS. Actual CLI lexical fixture true/false controls pass; old capture rows ERROR, not claimed old false VERIFIED. Existing unroll declarations isolated from root fact sink.",
+      "actual_loc_basis": "Added Go/AIL lines in recorded milestone commits, including review repair churn; not net code size",
+      "actual_deleted_loc": 13,
+      "implementation_commits": [
+        "a268d58da"
+      ]
     },
     {
       "id": "M5_HELPER_ENVIRONMENT_IDENTITY",
       "description": "Preserve value/condition helper parameters/environments, diamond sharing and model rendering",
       "estimated_loc": 300,
-      "actual_loc": null,
+      "actual_loc": 273,
       "dependencies": [
         "M4_GUARDS_CONTRACT_PATHS"
       ],
@@ -104,13 +124,19 @@
       "passes": true,
       "started": "2026-10-29T20:37:28.370427+00:00",
       "completed": "2026-10-29T20:42:48.247440+00:00",
-      "notes": "Repaired root-found nested fresh-binder capture by reserving existing lexical rename values in both fresh allocators. Core and actual M5 CLI RED preserved; repaired Core/helper/capture suite GREEN and actual CLI true/false nested predicates GREEN. Previous M5 checkpoint was reopened until this repair proof; no preliminary corpus treated as final."
+      "notes": "Repaired root-found nested fresh-binder capture by reserving existing lexical rename values in both fresh allocators. Core and actual M5 CLI RED preserved; repaired Core/helper/capture suite GREEN and actual CLI true/false nested predicates GREEN. Previous M5 checkpoint was reopened until this repair proof; no preliminary corpus treated as final.",
+      "actual_loc_basis": "Added Go/AIL lines in recorded milestone commits, including review repair churn; not net code size",
+      "actual_deleted_loc": 17,
+      "implementation_commits": [
+        "ac82ae5a1",
+        "d3666accf"
+      ]
     },
     {
       "id": "M6_CLI_MUTATION_CORPUS_HANDOFF",
       "description": "Complete actual fixed-head CLI, mutation and every-function corpus delta evidence with focused gates",
       "estimated_loc": 220,
-      "actual_loc": null,
+      "actual_loc": 356,
       "dependencies": [
         "M5_HELPER_ENVIRONMENT_IDENTITY"
       ],
@@ -121,10 +147,17 @@
         "Focused changed/core/SMT/CLI, lint/sizes/boundaries/changelog/relevant examples gates and actual required exact-head CI/Sonar pass",
         "Docs preserve ruled scope, both raw BLOCKED records and human ratification; separate independent evaluation required before acceptance"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T21:18:45.909803+00:00",
+      "completed": "2026-10-29T21:18:45.909803+00:00",
+      "notes": "Implementation proof complete on source60:72 actualCLI commands,3clean overlays each falselyVERIFIED target+focusedtestexit1,1051pinnedfiles/3036rows per arm; sole validEmbedERROR\u2192VERIFIED explained, all inherited error/CE/timeout rows retained. Local structure/examples/std green; final changed/core rerun and requiredCI/independent acceptance remain separately pending.",
+      "actual_loc_basis": "Added Go/AIL lines in recorded milestone commits, including review repair churn; not net code size",
+      "actual_deleted_loc": 40,
+      "implementation_commits": [
+        "50c1b77d5",
+        "427c49a5f",
+        "60a7d7b5f"
+      ]
     }
   ],
   "registry_reuse": [
@@ -179,17 +212,18 @@
   ],
   "velocity": {
     "target_loc_per_day": 515,
-    "actual_loc_per_day": 0,
+    "actual_loc_per_day": null,
     "target_milestones_per_week": 6,
-    "actual_milestones_per_week": 0,
+    "actual_milestones_per_week": null,
     "estimated_total_loc": 1540,
     "estimated_implementation_loc": 580,
     "estimated_test_loc": 900,
     "estimated_docs_loc": 60,
-    "actual_total_loc": 0,
+    "actual_total_loc": 1628,
     "estimated_days": 3,
     "actual_days": null,
-    "basis": "Itemized estimate with buffer; historical239/786line arithmetic/callee churn and offline velocity output, not an asserted measured throughput."
+    "basis": "Itemized estimate with buffer; historical239/786line arithmetic/callee churn and offline velocity output, not an asserted measured throughput.",
+    "actual_measurement_qualification": "Per-milestone Go/AIL added-line churn measured; attended active-time velocity not inferred from wall time or reused parked code."
   },
   "approval": {
     "user_message": "approve the three designs",
@@ -226,9 +260,17 @@
   },
   "prompt": {
     "loaded_version": "v0.16.11",
-    "source": "archived807 matching prompt command, active version confirmed; planning fixture edits not performed",
+    "source": "Actual fresh execution-base6d compiler prompt, v0.16.11; loaded before .ail fixtures",
     "installed_default_version": "v0.16.8",
-    "reload_matching_execution_prompt_required": true
+    "reload_matching_execution_prompt_required": false
   },
-  "sprint_plan": "design_docs/planned/v0_56_0/sprint-plan-m-smt-preflight-m0-repair.md"
+  "sprint_plan": "design_docs/planned/v0_56_0/sprint-plan-m-smt-preflight-m0-repair.md",
+  "completion_scope": "implementation only; required CI and independent evaluation pending",
+  "implementation_source": "60a7d7b5fce9c137835774750cac1cca063e6b00",
+  "validation_report": "design_docs/planned/v0_56_0/m-smt-preflight-m0-repair-validation.md",
+  "acceptance_gates": {
+    "local_final_changed_core": "in_progress at completion metadata checkpoint; raw m0-execution/test-changed-final60.log",
+    "required_ci": "pending PR publication",
+    "independent_evaluation": "pending; no self-score"
+  }
 }

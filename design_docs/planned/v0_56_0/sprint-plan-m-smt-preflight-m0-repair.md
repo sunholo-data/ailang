@@ -129,7 +129,7 @@ Use existing Z3 availability skips on unsupported CI platforms, OS-neutral paths
 - Day 2: M3–M5, serial shared-SMT work with focused checkpoints.
 - Day 3: M6 integration, mutation/corpus interpretation, docs and independent/CI handoff; wall-clock CI may extend.
 
-Success means every design M0 criterion measured, every status delta accounted for, no new false proof and required gates/independent evaluation accepted. LOC/coverage estimates are planning aids; retain existing repository coverage thresholds and meaningful branch tests. No implementation milestone is passed now.
+Success means every design M0 criterion measured, every status delta accounted for, no new false proof and required gates/independent evaluation accepted. LOC/coverage estimates are planning aids; retain existing repository coverage thresholds and meaningful branch tests. All six implementation checkpoints are measured; required exact-head CI and independent acceptance remain separate pending gates.
 
 ## Rulings, exclusions and terminal behavior
 
@@ -138,3 +138,13 @@ There are **no still-open human semantic choices within approved M0-F1/F4/Z**; d
 A genuinely different zero-domain, trust/totality, proof-vs-refutation, admission, width or outcome contract is outside this ruling. **STOP: commit only already-authorized coherent work in the isolated execution branch, report `BLOCKED: proposed change exceeds approved M0 scope`, and end the run.** Do not continue by inventing semantics or treating the historical quorum passes/rejections as new user authority. Routine current-base merge/hunk coordination preserving the ruled semantics is implementation work only after execute; do not merge anything into this planning draft.
 
 The parked historical plan/JSON remain untouched. This new repair sprint ID prevents its old completion claims being mistaken for current execution state. Neither the JSON validator's “ready for execution” text nor a plan merge substitutes for the explicit attended execute instruction. No coordinator message/import/ack/dispatch is part of this draft.
+
+## Execution completion checkpoint
+
+- [x] M1–M5 implementation, including reopened/repaired nested binder control.
+- [x] M6 actual CLI/runtime, three clean failing mutants, pinned1051-file/3036-row corpus comparison and source-blob join.
+- [x] Final-source focused tests and local structure/example/stdlib gates.
+- [ ] Final-source changed/core rerun terminal result (in progress at this metadata commit; see handoff).
+- [ ] Required exact-head CI/Sonar and independent evaluation.
+
+Source60 and all qualifications are in [the validation report](m-smt-preflight-m0-repair-validation.md). Initial planning-only paragraphs describe the historical draft stage; explicit execution at20:17:42UTC supersedes that stage gate. M0-Q remains externally BLOCKED; no third review or deferred M1–M4 authorization is inferred.
