@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.9) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.10) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.9.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.10.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.9.md -->
-<!-- Active Version: v0.16.9 -->
+<!-- Source: prompts/v0.16.10.md -->
+<!-- Active Version: v0.16.10 -->
 
-# AILANG v0.16.9 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.10 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -2639,7 +2639,7 @@ pure func sneakySanitize(raw: string<email>) -> string<sanitized> ! {}
 
 A function parameter typed `T{not LABEL}` REJECTS any argument carrying
 the `<LABEL>` annotation in its type. This is how you build sinks that
-provably refuse tainted input.
+provably refuse tainted input. Within one module, sink requirements follow function values through aliases, higher-order calls and wrappers.
 
 ```ailang
 -- A network sink that refuses anything carrying <email>

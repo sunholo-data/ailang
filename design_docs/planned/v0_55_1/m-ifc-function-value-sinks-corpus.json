@@ -1,0 +1,155 @@
+{
+  "baseline_compiler": "87f846980c8b6fc601173be427b1364968559488",
+  "fixed_implementation_checkpoint": "d81430352",
+  "initial_corpus": {
+    "files": 2625,
+    "diagnostics_baseline": 7,
+    "diagnostics_fixed": 7,
+    "changed_files": 0
+  },
+  "source_bytes_equal": true,
+  "source_rows": 2628,
+  "parse_failures": 23,
+  "baseline_diagnostics": 7,
+  "fixed_diagnostics": 10,
+  "changed_files": 1,
+  "unexpected_changes": 0,
+  "changes": [
+    {
+      "path": "root0/runnable/secrets/sink_function_value.ail",
+      "classification": "new expected-fail regression fixture: three actual R1/R2/R13 leaks",
+      "baseline": null,
+      "fixed": [
+        {
+          "Kind": "sink_refinement",
+          "Path": null,
+          "Position": "root0/runnable/secrets/sink_function_value.ail:38:27",
+          "Expected": null,
+          "Actual": null,
+          "Message": "information-flow violation: value labelled <email> reaches parameter \"body\" of deliver (via out) which forbids it (string{not email})",
+          "Suggestion": "declassify the value through a function declaring ! {Declassify} before it reaches deliver; the {not email} requirement holds through aliases, higher-order functions and wrappers"
+        },
+        {
+          "Kind": "sink_refinement",
+          "Path": null,
+          "Position": "root0/runnable/secrets/sink_function_value.ail:43:9",
+          "Expected": null,
+          "Actual": null,
+          "Message": "information-flow violation: value labelled <email> reaches parameter \"body\" of deliver (via apply1 \u2192 f) which forbids it (string{not email})",
+          "Suggestion": "declassify the value through a function declaring ! {Declassify} before it reaches deliver; the {not email} requirement holds through aliases, higher-order functions and wrappers"
+        },
+        {
+          "Kind": "sink_refinement",
+          "Path": null,
+          "Position": "root0/runnable/secrets/sink_function_value.ail:48:30",
+          "Expected": null,
+          "Actual": null,
+          "Message": "information-flow violation: value labelled <email> reaches parameter \"body\" of deliver (via w) which forbids it (string{not email})",
+          "Suggestion": "declassify the value through a function declaring ! {Declassify} before it reaches deliver; the {not email} requirement holds through aliases, higher-order functions and wrappers"
+        }
+      ]
+    }
+  ],
+  "roots": [
+    {
+      "root": "root0",
+      "source": "/private/tmp/ailang-backlog-20261029/ifc-1719/examples",
+      "source_repo_head": "c112067194690cf19b6984aab7b2012012047fe3",
+      "source_repo_has_edits": true,
+      "files": 477,
+      "parse_failures": 7,
+      "snapshot_index_sha256": "3e2dba63dc7fcf5f019946226b735eea22ef644c5fc53b60ba5394057a420128"
+    },
+    {
+      "root": "root1",
+      "source": "/private/tmp/ailang-backlog-20261029/ifc-1719/std",
+      "source_repo_head": "c112067194690cf19b6984aab7b2012012047fe3",
+      "source_repo_has_edits": true,
+      "files": 51,
+      "parse_failures": 0,
+      "snapshot_index_sha256": "bae2ddcfa2fe4d6f2d04292de04bc5019b08068b1dac18bc0190df27296ee6f3"
+    },
+    {
+      "root": "root2",
+      "source": "/private/tmp/ailang-backlog-20261029/ifc-1719/benchmarks",
+      "source_repo_head": "c112067194690cf19b6984aab7b2012012047fe3",
+      "source_repo_has_edits": true,
+      "files": 41,
+      "parse_failures": 0,
+      "snapshot_index_sha256": "6df4300e6e49c808893b8e94829236584390fd0babe004d5475680d481dbbc42"
+    },
+    {
+      "root": "root3",
+      "source": "/Users/voightkampff/dev/sunholo-data/ailang-packages",
+      "source_repo_head": "e998928e3dbab4661b47ae94e3e74c593f37e121",
+      "source_repo_has_edits": true,
+      "files": 163,
+      "parse_failures": 0,
+      "snapshot_index_sha256": "c69e57af81222717032cf5b402e0d6c0123ac30f9abeed9cfeb3021aab0e5e85"
+    },
+    {
+      "root": "root4",
+      "source": "/Users/voightkampff/dev/sunholo-data/ailang-motoko",
+      "source_repo_head": "91eb860a233fbf7d77c0907424d98585b4b62939",
+      "source_repo_has_edits": false,
+      "files": 691,
+      "parse_failures": 10,
+      "snapshot_index_sha256": "eced21b8375d24be3ad3041e7496dcbf00b3cf5235d9c5cd069ca84151e7bd46"
+    },
+    {
+      "root": "root5",
+      "source": "/Users/voightkampff/dev/sunholo-data/ailang-demos",
+      "source_repo_head": "0a93ddcb664ee6d9cb1c3b6c215a6e91dfaf234a",
+      "source_repo_has_edits": false,
+      "files": 290,
+      "parse_failures": 1,
+      "snapshot_index_sha256": "7d5d839540f0a16f61977907ad83c5487189315622e4325ef692ced7f2cd021f"
+    },
+    {
+      "root": "root6",
+      "source": "/Users/voightkampff/dev/sunholo-data/ailang-parse",
+      "source_repo_head": "0931946850e23a6897df783731ab74b0b1d43b88",
+      "source_repo_has_edits": false,
+      "files": 133,
+      "parse_failures": 0,
+      "snapshot_index_sha256": "588bee07abd3301de1ff162d90bd6f874ae82abad7abec2c339c38a5e28f13f2"
+    },
+    {
+      "root": "root7",
+      "source": "/Users/voightkampff/dev/sunholo-data/ailang-world",
+      "source_repo_head": "df5a0671dadd567ece879fe89afcc018c2deaa23",
+      "source_repo_has_edits": false,
+      "files": 39,
+      "parse_failures": 1,
+      "snapshot_index_sha256": "af5a7ae3d0c367834f37a6c603735de2f8e5d0cc061c56de440c3879cd6c228a"
+    },
+    {
+      "root": "root8",
+      "source": "/Users/voightkampff/dev/sunholo-data/stapledons-godot",
+      "source_repo_head": "b07c976356b58e3ca63e7b98f34fff9a0306e835",
+      "source_repo_has_edits": false,
+      "files": 162,
+      "parse_failures": 0,
+      "snapshot_index_sha256": "23358cc1d7775eda12a70ba5f9bf3e9b0078002c6f836a2135bf4b7ac4c9eb17"
+    },
+    {
+      "root": "root9",
+      "source": "/Users/voightkampff/dev/daneel",
+      "source_repo_head": "e5d751e21caaba88fe9571a2cd723320ef7fe306",
+      "source_repo_has_edits": false,
+      "files": 80,
+      "parse_failures": 0,
+      "snapshot_index_sha256": "3527efe4d5be21b0990890fd8b48e7639e292163cfabd5e89557c8c3b1a99b32"
+    },
+    {
+      "root": "root10",
+      "source": "/Users/voightkampff/dev/mk-20261027",
+      "source_repo_head": "835c738b8ca50ed38f36c117058847c816db32b8",
+      "source_repo_has_edits": false,
+      "files": 501,
+      "parse_failures": 4,
+      "snapshot_index_sha256": "8617d584b4067bb6c29fe12772b0fdf4706866728fbc0b111da5fb7cc0aa7814"
+    }
+  ],
+  "note": "The only new diagnostics are the three actual leaks in the intentionally added expected-fail fixture. All source hashes match between arms; parser failures are recorded, not counted clean."
+}

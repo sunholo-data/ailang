@@ -16,7 +16,7 @@ import (
 // expression where the surface AST alone determines it, and computes the
 // labels that type declares:
 //
-//	labelOf(e) = flowOf(e) ⊔ deepLabel(staticType(e))
+//	labelOf(e) = flowVal(e).label ⊔ deepLabel(staticType(e))
 //
 // Only module-local type declarations are resolved. An imported type name has
 // no declaration here, so its deep label is ⊥ — the cross-module hole tracked by

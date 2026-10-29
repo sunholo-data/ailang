@@ -9,6 +9,7 @@ import (
 // Compiler and runtime knobs (M-V1-SIMPLIFY-S4 M2). The DEBUG_* switches
 // stay where they are by rule; these are the operator-facing ones.
 const (
+	EnvIFCCorpus         = "AILANG_IFC_CORPUS"
 	EnvNoPrelude         = "AILANG_NO_PRELUDE"
 	EnvRecordsV2         = "AILANG_RECORDS_V2"
 	EnvDTree             = "AILANG_DTREE"
@@ -34,6 +35,7 @@ const (
 )
 
 var compilerVars = []Var{
+	{EnvIFCCorpus, "", AreaCompiler, "Path-list of source roots for the opt-in IFC function-value corpus diagnostic test; unset skips that test."},
 	{EnvNoPrelude, "0", AreaCompiler, "1 starts the type checker with an empty instance environment instead of auto-importing std/prelude's Eq, Ord, Num and Show instances."},
 	{EnvRecordsV2, "0", AreaCompiler, "1 enables the records-v2 type-checker path."},
 	{EnvDTree, "0", AreaCompiler, "1 compiles match expressions through the experimental decision-tree compiler (no guards, no list/record/tuple patterns)."},
@@ -157,3 +159,6 @@ func GOGC() string { return get(EnvGOGC) }
 // GOGCSet reports whether the operator set GOGC, in which case the CLI
 // leaves the GC percent alone.
 func GOGCSet() bool { return get(EnvGOGC) != "" }
+
+// IFCCorpus returns the source-root path list for opt-in IFC corpus verification.
+func IFCCorpus() string { return get(EnvIFCCorpus) }
