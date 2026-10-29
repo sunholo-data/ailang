@@ -52,10 +52,8 @@ var activeRecordTypes map[string]*RecordTypeInfo
 // enabling record construction lookup by field names.
 var activeFieldSetToSort map[string]string
 
-// activeContractCallees maps callee function names to their result constant names
-// when the callee is encoded via contract-as-spec (declare-const + assert) rather
-// than a define-fun. When encodeApp encounters a VarGlobal call to one of these,
-// it substitutes the result constant instead of emitting a function application.
+// activeContractCallees maps resolved contract-only callees to typed UF symbols.
+// Their guarded specifications are instantiated only at evaluated applications.
 var activeContractCallees map[string]string
 
 // activeParamRenames maps an AILANG parameter name to its prefixed Z3 form.
@@ -175,8 +173,7 @@ func EncodeFunction(
 			return nil, fmt.Errorf("resolving cross-function calls: %w", err)
 		}
 		// Register resolved callees so encodeApp can recognize them.
-		// Contract-based callees are NOT registered as function names — they're
-		// substituted as constants via activeContractCallees instead.
+		// Contract-based callees use the separate finite-spec application path.
 		for _, def := range calleeDefs {
 			if !def.IsContract {
 				ctx.ResolvedCallees[def.Name] = true

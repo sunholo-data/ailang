@@ -8,13 +8,14 @@ ensures { result == n } {
 pure func helper(environment: int, n: int) -> int { total(environment + n) }
 pure func left(n: int) -> int { helper(1, n) }
 pure func right(n: int) -> int { helper(7, n) }
+pure func combine(x: int, y: int) -> int { x + y }
 
 export pure func diamond(a: int) -> int
-ensures { result == 2 * a + 8 } { left(a) + right(a) }
+ensures { result == 2 * a + 8 } { combine(left(a), right(a)) }
 
 export pure func diamondFalse(a: int) -> int
 requires { a == 1 }
-ensures { result == 0 } { left(a) + right(a) }
+ensures { result == 0 } { combine(left(a), right(a)) }
 
 export pure func boundShadow() -> int
 ensures { let i = 1 in forall i: i..i + 1 => i == 1 } { 0 }
@@ -24,3 +25,14 @@ ensures { let i = 1 in let j = 2 in forall i: i..i + 1 => forall j: j..j + 1 => 
 
 export pure func nestedBoundTrue() -> int
 ensures { let i = 1 in let j = 2 in forall i: i..i + 1 => forall j: j..j + 1 => i < j } { 0 }
+
+export pure func nullary() -> int
+ensures { result == 0 } { if true then 0 else nullary() }
+
+export pure func nullaryCaller() -> int
+ensures { result == 0 } { nullary() }
+
+-- The callee's own bounded unit-recursion encoder has an inherited ERROR.
+-- Callers still use its declared contract; this sprint does not widen unrolling.
+export pure func nullaryFalse() -> int
+ensures { result == 1 } { nullary() }

@@ -27,10 +27,10 @@ type CalleeDef struct {
 	ConditionName string        // Paired Bool helper with exactly the value definition's parameters.
 	Contract      *ContractSpec // Finite actual-call template; never a global axiom.
 	Name          string
-	SMTLib        string // The (define-fun ...) or contract (declare-const + assert) declaration
+	SMTLib        string // Value/condition definitions or typed contract UF declaration
 	ADTDecl       string // Any ADT declarations needed (may be empty)
 	IsContract    bool   // True when using contract-as-spec fallback (not define-fun)
-	ResultConst   string // Non-empty when IsContract: the constant to substitute for call sites
+	ResultConst   string // Non-empty when IsContract: the UF symbol applied to actual arguments
 }
 
 // ResolveCallees finds all user-defined function calls in the body,

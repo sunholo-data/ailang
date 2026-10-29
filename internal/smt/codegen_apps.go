@@ -97,10 +97,9 @@ func encodeApp(app *core.App) (string, error) {
 		if activeResolvedCallees != nil && activeResolvedCallees[vg.Ref.Name] {
 			return encodeResolvedApplication(vg.Ref.Name, app.Args)
 		}
-		// Contract-based callee: substitute result constant (call site collapses to the constant)
+		// Contract-based callee: retain actual arguments and their finite facts.
 		if activeContractCallees != nil {
-			if resultConst, ok := activeContractCallees[vg.Ref.Name]; ok {
-				_ = resultConst
+			if _, ok := activeContractCallees[vg.Ref.Name]; ok {
 				return encodeContractApplication(vg.Ref.Name, app.Args)
 			}
 		}
@@ -123,8 +122,7 @@ func encodeApp(app *core.App) (string, error) {
 			return encodeResolvedApplication(v.Name, app.Args)
 		}
 		if activeContractCallees != nil {
-			if resultConst, ok := activeContractCallees[v.Name]; ok {
-				_ = resultConst
+			if _, ok := activeContractCallees[v.Name]; ok {
 				return encodeContractApplication(v.Name, app.Args)
 			}
 		}

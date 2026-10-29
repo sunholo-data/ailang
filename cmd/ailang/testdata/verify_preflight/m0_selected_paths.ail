@@ -3,20 +3,22 @@ module cmd/ailang/testdata/verify_preflight/m0_selected_paths
 pure func never(n: int) -> bool
 ensures { false } { never(n) }
 
+pure func helperNever(n: int) -> bool { never(n) }
+
 export pure func andSkipped() -> bool
-ensures { result == false } { false && never(0) }
+ensures { result == false } { false && helperNever(0) }
 
 export pure func orFalseGoal() -> bool
-ensures { result == false } { true || never(0) }
+ensures { result == false } { true || helperNever(0) }
 
 export pure func predicateSkipped() -> int
-ensures { true || never(0) } { 0 }
+ensures { true || helperNever(0) } { 0 }
 
 export pure func predicateFalse() -> int
-ensures { false && never(0) } { 0 }
+ensures { false && helperNever(0) } { 0 }
 
 export pure func requiresSkipped() -> int
-requires { true || never(0) }
+requires { true || helperNever(0) }
 ensures { result == 1 } { 0 }
 
 export pure func matchUnmatched() -> int

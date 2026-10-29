@@ -52,3 +52,15 @@ func TestContractCallArityAndUnknownRequires(t *testing.T) {
 		t.Fatalf("unknown requires must contribute no ensures: %s", d.SMTLib)
 	}
 }
+
+func TestContractCall_NullaryUnitErasure(t *testing.T) {
+	spec := ContractSpec{FuncName: "nullary", ReturnSort: "Int", Ensures: []*core.Contract{{Kind: core.EnsuresKind, Expr: builtinApp("eq_Int", &core.Var{Name: "result"}, intLit(0))}}}
+	unit := &core.Lit{Kind: core.UnitLit}
+	d, err := EncodeCalleeByContract(spec, []core.CoreExpr{unit}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.ResultConst != "$spec_nullary" || !strings.Contains(d.SMTLib, "(declare-fun $spec_nullary () Int)") {
+		t.Fatal(d)
+	}
+}

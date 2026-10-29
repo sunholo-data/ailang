@@ -75,6 +75,21 @@ not establish IEEE-754 rounding, NaN/infinity behavior, machine-overflow safety 
 cross-architecture byte equality. Bounded recursion results carry their actual
 `bounded_depth`; a missing depth is not an inductive proof.
 
+Int `/` and `%` use truncation toward zero for nonzero divisors, matching
+ordinary execution (for example, `-7 / 2` is `-3` and `-7 % 2` is `-1`).
+Division by zero still raises RT001 at runtime. The verifier's partial-correctness
+model totalizes zero division without assuming a nonzero divisor; a proof does
+not establish termination or freedom from runtime errors.
+
+When an eligible callee is represented through its contract, its value depends
+on its actual arguments: repeated equal arguments share a value, while distinct
+arguments remain distinct. Only the evaluated invocation contributes a finite
+`requires => ensures` fact, within its lexical bindings and selected branch.
+An unencodable precondition contributes no postcondition assumption. This does
+not prove the caller satisfies a callee's precondition, and does not add a global
+contract axiom for uncalled inputs. These facts retain the existing contract-trust
+and helper eligibility boundaries.
+
 `ailang verify --package . --json` retains its existing schema and counts while
 adding `evidence_schema`, `numeric_model`, typed `reason_code` values, function
 `reason_counts`, rejection details, bounded depth and module-scoped issues.

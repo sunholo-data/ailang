@@ -37,12 +37,11 @@ func encodeContractApplication(name string, args []core.CoreExpr) (string, error
 	}
 	// Reuse the already encoded operands, avoiding duplicate nested-call expansion.
 	var encodedArgs []core.CoreExpr
-	for i, p := range spec.Params {
-		if isUnitLiteral(args[i]) {
-			encodedArgs = append(encodedArgs, args[i])
+	for _, p := range spec.Params {
+		if isUnitFunctionParam(p) {
 			continue
 		}
-		encodedArgs = append(encodedArgs, &core.VarGlobal{Ref: core.GlobalRef{Module: "$encoded", Name: subs[p.Name]}})
+		encodedArgs = append(encodedArgs, encodedCore(subs[p.Name]))
 	}
 	value, err := encodeUserFunctionCall(contractSymbol(*spec), encodedArgs)
 	if err != nil {

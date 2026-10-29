@@ -26,10 +26,10 @@ type ContractSpec struct {
 type ContractCalleeDecl struct {
 	// Name is the callee function name.
 	Name string
-	// ResultConst is the fresh constant name for the call result (e.g. $xmod_result_double_0).
+	// ResultConst is the actual UF call term (legacy API field name).
 	ResultConst string
 	// SMTLib is the full SMT-LIB fragment to prepend before the caller body encoding.
-	// It declares the result constant and asserts the callee's contracts.
+	// It declares the UF and asserts this invocation's guarded fact.
 	SMTLib string
 }
 
@@ -62,7 +62,7 @@ func contractSymbol(spec ContractSpec) string { return "$spec_" + spec.FuncName 
 func declareContractFunction(spec ContractSpec) (string, error) {
 	var sorts []string
 	for _, p := range spec.Params {
-		if p.Type != nil && p.Type.String() == "()" {
+		if isUnitFunctionParam(p) {
 			continue
 		}
 		sort, err := MapType(p.Type)
@@ -144,20 +144,35 @@ func BuildContractSpec(
 }
 
 // buildParamSubstitution maps parameter names to their encoded call-site arguments.
+func isUnitFunctionParam(p FunctionParam) bool {
+	return p.Type != nil && (p.Type.String() == "()" || p.Type.String() == "unit")
+}
+
+// Nullary surface functions erase their synthesized unit parameter/argument.
+// Arity is checked after the same erasure used by value helper applications.
 func buildParamSubstitution(params []FunctionParam, args []core.CoreExpr) (map[string]string, error) {
-	if len(params) != len(args) {
-		return nil, fmt.Errorf("contract call expects %d arguments, got %d", len(params), len(args))
+	var nonunitParams []FunctionParam
+	var nonunitArgs []core.CoreExpr
+	for _, p := range params {
+		if !isUnitFunctionParam(p) {
+			nonunitParams = append(nonunitParams, p)
+		}
+	}
+	for _, arg := range args {
+		if !isUnitLiteral(arg) {
+			nonunitArgs = append(nonunitArgs, arg)
+		}
+	}
+	if len(nonunitParams) != len(nonunitArgs) {
+		return nil, fmt.Errorf("contract call expects %d arguments, got %d", len(nonunitParams), len(nonunitArgs))
 	}
 	subs := make(map[string]string)
-	for i, p := range params {
-		if p.Type != nil && p.Type.String() == "()" && isUnitLiteral(args[i]) {
-			continue
-		}
-		encoded, err := EncodeExpr(args[i])
+	for i, p := range nonunitParams {
+		value, err := EncodeExpr(nonunitArgs[i])
 		if err != nil {
-			return nil, fmt.Errorf("encoding arg %d for param %q: %w", i, p.Name, err)
+			return nil, fmt.Errorf("encoding argument %d for %q: %w", i, p.Name, err)
 		}
-		subs[p.Name] = encoded
+		subs[p.Name] = value
 	}
 	return subs, nil
 }
