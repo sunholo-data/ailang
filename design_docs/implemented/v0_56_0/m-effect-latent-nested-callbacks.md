@@ -446,11 +446,11 @@ Each criterion names its exact program. "Rejected" means `ailang check` exits no
 
 ## Related Documents
 
-- [M-EFFECT-LATENT-FUNCTION-VALUES](../v0_48_0/m-effect-latent-function-values.md): parent. Defines L1-open and L2; its Phase 3 (upper bounds) stays deferred and separate.
+- [M-EFFECT-LATENT-FUNCTION-VALUES](../../planned/v0_48_0/m-effect-latent-function-values.md): parent. Defines L1-open and L2; its Phase 3 (upper bounds) stays deferred and separate.
 - [M-EFFECT-ROW-VAR-UNIFICATION](../../implemented/v1_0_0/m-effect-row-var-unification.md): per-App `ApplicationEffects` record; explicitly excluded #1718 (line 648).
 - `design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-sprint-plan.md` (on PR #1790's branch): iface purity that assumes nested callbacks are caller-charged.
-- [stored-lambda-effects-charge-enclosing-fn](../ailang-core-triage/stored-lambda-effects-charge-enclosing-fn.md): the opposite over-approximation (lambda literal bodies charged at construction). Unchanged here; noted because Alternative A would generalise it.
-- [M-EFFECT-HANDLERS](../v1_1_0/m-effect-handlers.md) (0.43 similarity): unrelated mechanism, no overlap.
+- [stored-lambda-effects-charge-enclosing-fn](../../planned/ailang-core-triage/stored-lambda-effects-charge-enclosing-fn.md): the opposite over-approximation (lambda literal bodies charged at construction). Unchanged here; noted because Alternative A would generalise it.
+- [M-EFFECT-HANDLERS](../../planned/v1_1_0/m-effect-handlers.md) (0.43 similarity): unrelated mechanism, no overlap.
 
 ## References
 

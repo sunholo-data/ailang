@@ -1,0 +1,50 @@
+{
+  "sprint_id": "M-PKG-ASSET-LOCK-RESOLUTION",
+  "evaluation_round": 3,
+  "timestamp": "2026-10-29T09:50:56.548389+00:00",
+  "reviewed_head": "a24f2ca1c25e6dc03938515a1bc660815c26e247",
+  "result": "pass",
+  "total_score": 95,
+  "hard_fails": [],
+  "gate_source": "local",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 15,
+    "documentation": 10,
+    "design_fidelity": 10
+  },
+  "historical_verdicts": [
+    "round1 FAIL51 preserved",
+    "round2 FAIL68 preserved"
+  ],
+  "repaired_findings": [
+    "CallPreserveFloats malformed-lock fallback bypass",
+    "Two root/no-lock documentation inaccuracies",
+    "Portable configured-root corrupt-cache assertion",
+    "Meaningful helper coverage retained by existing submission filter"
+  ],
+  "native_evidence": {
+    "log": "/tmp/ailang-backlog-20261029/1849-native-evaluation.log",
+    "terminal_timestamp": "2026-10-29T09:45:16Z",
+    "exit_code": 0,
+    "tests_pass": true,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "todo_hack_count": 0
+  },
+  "sonar_new_coverage": 94.9,
+  "sonar_required": 80,
+  "required_remote_checks": "pass",
+  "optional_hosted_mac": "queued, not claimed green",
+  "report": "/tmp/ailang-backlog-20261029/pr1849-evaluation-round3.md",
+  "worktree_mutated": false,
+  "documentation_deduction": "-5: design remains Planned with unchecked boxes and companion plan pending independent evaluation until root post-PASS archival",
+  "exact_head_remote_evidence": {
+    "head": "a24f2ca1c25e6dc03938515a1bc660815c26e247",
+    "required_checks": "pass",
+    "sonar_new_coverage": 94.9,
+    "optional_hosted_mac": "queued, not claimed green"
+  }
+}

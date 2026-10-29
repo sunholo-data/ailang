@@ -5,11 +5,11 @@
 Resolve package assets from the running program's locked dependency targets. When a package has no lock entry, select the maximum installed version using the existing package semver compatibility rules. A missing locked target must return an actionable error without choosing another cached version.
 
 **Design:** [Approved design](m-pkg-asset-lock-resolution.md)
-**Target:** v0.54.7 (checkout std/VERSION: v0.54.6)
+**Target:** v0.55.1, unreleased (original v0.54.7 planning target retained in history)
 **Duration:** 3 days; four implementation sessions of 60–90 minutes, plus review and integration buffer.
 **Estimated total:** 650 LOC: 270 implementation, 330 tests, 50 documentation.
 **Risk:** Medium — effect-context propagation and embed initialization order.
-**Status:** Implementation complete on `coordinator/task-d61964fa`; broad validation has recorded limitations below. Execution was authorized by the coordinator handoff.
+**Status:** Completed and independently accepted95/100 in round3; merged #1849. Execution was authorized by the original coordinator handoff and attended backlog repair. Dated historical failures below remain preserved.
 
 ## Current Status and Velocity
 
@@ -171,7 +171,7 @@ on-disk lock change after compilation cannot change selected asset bytes.
 - [x] Resolve stale code/doc conflicts while preserving current deployed behavior.
 - [x] Focused asset regressions pass across all six runtime/compiler consumers.
 - [x] Complete package-wide gates and stdlib/example verification.
-- [ ] Fresh independent evaluation (original FAIL51 preserved unchanged).
+- [x] Fresh independent round3 PASS95; original FAIL51/FAIL68 preserved unchanged.
 
 Historical failures and unchecked original gates above remain recorded until the
 fresh checks complete. This note does not turn the original FAIL51 into a pass.
@@ -248,3 +248,8 @@ with assertions unchanged. TestGoFiles includes engine_test.go. The unchanged
 make coverage-from-profile target retains the measured helper profile byte for
 byte (cmp passes). No threshold, baseline, exclusion or pipeline changes.
 Fresh helper coverage 83.3% passes; exact new-head Sonar remains authoritative.
+
+
+## Final independent acceptance and integration — 2026-10-29
+
+Round3 accepted exacta24f2ca1 at95/100 after complete native make test/lint/sizes and required remote Linux/Windows gates passed, with actual Sonar94.9% new coverage (unchanged80% threshold). Two optional hosted Mac builds remained queued. PR1849 merged normally at9dc689091. Design and companion plan moved together as implemented/unreleased; original failed tests, projected coverage values and pending-state notes above are dated history, superseded by this measured final result. No historical FAIL artifact was overwritten.

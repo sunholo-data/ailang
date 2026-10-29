@@ -2,8 +2,8 @@
   "sprint_id": "M-PKG-ASSET-LOCK-RESOLUTION",
   "status": "completed",
   "created": "2026-10-12T13:14:04Z",
-  "design_doc": "design_docs/planned/v0_54_7/m-pkg-asset-lock-resolution.md",
-  "sprint_plan": "design_docs/planned/v0_54_7/m-pkg-asset-lock-resolution-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_55_1/m-pkg-asset-lock-resolution.md",
+  "sprint_plan": "design_docs/implemented/v0_55_1/m-pkg-asset-lock-resolution-sprint-plan.md",
   "github_issues": [],
   "registry_reuse": [
     {
@@ -153,5 +153,18 @@
     "repair": "Run the identical public Engine regression as an in-package pkgassets test; remove self-import and call New directly. Assertions and production behavior unchanged. No threshold, baseline, exclusion or coverage-pipeline change.",
     "verification": "go test helper PASS83.3%; TestGoFiles now engine_test.go; unchanged make coverage-from-profile output byte-identical to raw helper profile; lint0 passed before push.",
     "remote_gate": "pending exact new-head CI after push"
+  },
+  "target_version": "v0.55.1",
+  "integration": {
+    "pull_request": 1849,
+    "merge_commit": "9dc6890919aa001deebee4361719456ee087440f",
+    "release_status": "unreleased",
+    "original_target_version": "v0.54.7",
+    "independent_evaluation": {
+      "result": "pass",
+      "score": 95,
+      "round": 3,
+      "report": ".ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_3.json"
+    }
   }
 }
