@@ -1,0 +1,166 @@
+{
+  "sprint_id": "M-EFFECT-LATENT-NESTED-CALLBACKS",
+  "evaluation_round": 2,
+  "evaluation_scope": "R1/R2 alias-ownership follow-up only; original round1 PASS93 unchanged",
+  "provisional": false,
+  "timestamp": "2026-10-29T11:55:46.471012+00:00",
+  "reviewer": "issues_language (independent of source executor issues_platform)",
+  "evaluated_commit": "d5f783585084ff5eb791a7db34fc9de8899b2fc9",
+  "pull_request": 2008,
+  "design_doc": "design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks-sprint-plan.md",
+  "followup_validation": "design_docs/implemented/v0_56_0/m-effect-latent-alias-ownership-validation.md",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "gate_source": "ci",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "conditional_checks": {
+    "regression_surface_coverage": 10,
+    "performance_verification": null
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "focused_independent_types": true,
+    "independent_annotated_let_alias_controls": 8,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "todo_hack_count": 0,
+    "coverage_pct": 100.0,
+    "remote_terminal_checks": {
+      "success": 19,
+      "skipped": 7,
+      "pending": 0,
+      "failed": 0
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "R1_ALIAS_BINDER_OWNERSHIP",
+      "criterion": "Local/imported one/two-field and generic alias pure forwarding accepted",
+      "met": true,
+      "evidence": "New pipeline forwarding/generic tests; recorded combined pipeline gate PASS8.796s."
+    },
+    {
+      "feature_id": "R1_ALIAS_BINDER_OWNERSHIP",
+      "criterion": "Implicit alias tails owned and re-anchored across solver renaming",
+      "met": true,
+      "evidence": "Source scanner uses existing alias resolver; implicitOwned seeds owned before publication. New publication test plus independent focused types PASS0.355s."
+    },
+    {
+      "feature_id": "R1_ALIAS_BINDER_OWNERSHIP",
+      "criterion": "IO/FS callers rejected unless corresponding effects declared on both engines",
+      "met": true,
+      "evidence": "Pipeline pure/wrong-row/matching controls and actual CLI strict negatives/IO/unused-FS controls. Invoked-FS positive uses explicitly qualified normal VM interop. Independent annotated-let alias matrix8/8 matches caller contract."
+    },
+    {
+      "feature_id": "R1_ALIAS_BINDER_OWNERSHIP",
+      "criterion": "Unknown/distinct declared tails remain fail-loud; original guards unchanged",
+      "met": true,
+      "evidence": "Ownership filter requires ImplicitEffectContract. Declared-tail unit retains nil conflict; existing TestLatentNested_DistinctDeclaredTailsFailLoud and combined rowguard/explicit-empty/ceiling controls pass."
+    },
+    {
+      "feature_id": "R1_ALIAS_BINDER_OWNERSHIP",
+      "criterion": "Focused/core/lint/structural gates banked",
+      "met": true,
+      "evidence": "R1 core and affected package gates, R2 focused types/pipeline/CLI, lint0/boundaries/sizes/changelog logs inspected."
+    },
+    {
+      "feature_id": "R2_COMBINED_INTEGRATION",
+      "criterion": "Normal integration of actual #2005 and consumer pin",
+      "met": true,
+      "evidence": "Normal merge80793 at15afcc12; finald5f metadata-only and production/AIL/std/Docker/prompts/goldens byte-identical."
+    },
+    {
+      "feature_id": "R2_COMBINED_INTEGRATION",
+      "criterion": "Original cached social_dynamics tasks checks clean",
+      "met": true,
+      "evidence": "Unchanged source SHA261fae...; actual80793 baseline missing callback row app1070,arg1, repaired actual module checks clean with NO_CACHE and matching stdlib."
+    },
+    {
+      "feature_id": "R2_COMBINED_INTEGRATION",
+      "criterion": "Actual consumer60/60 and9/9 plus clean corpus differential",
+      "met": true,
+      "evidence": "Archived exact083ef437 consumer tree067e8990, fresh empty isolated cache gmake60core/9extensions/204 default runtime guards PASS. Actual80793 paired530file corpus446/84 each arm, zero flips/diagnostic changes/invariants."
+    },
+    {
+      "feature_id": "R2_COMBINED_INTEGRATION",
+      "criterion": "Independent handoff without executor scoring",
+      "met": true,
+      "evidence": "Clean PR2008 and structured final evidence delivered; executor claims no final evaluation verdict."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": false,
+    "design_doc_status": "Follow-up R1/R2 implementation completion and pending independent evaluation recorded; inherited original target/archive handled separately",
+    "new_runnable_example_required": false,
+    "example_evidence": "Existing runnable nested-callback example remains applicable; actual alias forwarding/IO/FS regression programs added in tests. This follow-up repairs the existing contract, with no new syntax/runtime feature requiring a showcase module."
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Only alias visibility in existing ownership walker and publication anchoring changed. Conservative parameter-wide charging, caller-pay implicit semantics, concrete/declared rows, checked union and pure/storage controls remain intact."
+  },
+  "deductions": [
+    {
+      "category": "code_quality",
+      "points": 2,
+      "file": "cmd/ailang/alias_ownership_cli_test.go",
+      "line": 13,
+      "function": "TestAliasOwnershipCLI",
+      "issue": "New Go function85lines exceeds50 under rubric, including tests; measured with existing Go-AST helper."
+    },
+    {
+      "category": "code_quality",
+      "points": 3,
+      "file": ".ailang/state/sprints/sprint_M-EFFECT-LATENT-NESTED-CALLBACKS.json",
+      "issue": "New alias_ownership_review_repair.integration still says pending #2005 merge despite completed R2/actual integration in same object. Nonblocking correction belongs in completion audit; preserve original snapshot."
+    }
+  ],
+  "feedback": [
+    {
+      "category": "code_quality",
+      "severity": "low",
+      "issue": "Stale follow-up integration field; current R2 source/consumer/corpus evidence itself is complete.",
+      "suggestion": "Normalize current integration status in post-acceptance completion audit while preserving historical data; no production respin needed."
+    }
+  ],
+  "strict_fs_qualification": "std/fs.readFile execution remains evaluator-only in strict VM (existing Phase2E interoperability limitation). Two initial strict-positive failures retained. Final invoked-FS positive uses normal bytecode interop and asserts VM dispatch/no top-level fallback. Strict missing-effect rejection, executed IO and unused-FS acceptance remain required. No strict executed-FS parity claim.",
+  "historical_original_evaluation": {
+    "evaluation_round": 1,
+    "score": 93,
+    "evaluated_commit": "86d3a5f8e946e12967c38b446e5fb854a884a42e",
+    "unchanged": true
+  },
+  "evidence": {
+    "source_checkpoint": "15afcc12cec28900afe3e312a9356884f8b07b06",
+    "actual_dev": "80793dbcf42423027be4bab1a0088da54e2323d8",
+    "ci_initial": "alias-ownership-independent-pr-initial.json",
+    "ci_gate": "pr2008-final-ci-gate.log",
+    "independent_types": "alias-ownership-independent-types.log",
+    "independent_let_aliases": "alias-ownership-independent-let-controls.json",
+    "function_sizes": "alias-ownership-independent-function-sizes.txt",
+    "executor_compact_evidence": "design_docs/implemented/v0_56_0/m-effect-latent-alias-ownership-evidence.json",
+    "final_pr": "pr2008-final-pr.json",
+    "final_checks": "pr2008-final-checks.json",
+    "final_full_ci_run": "pr2008-final-ci-run.json",
+    "final_sonar": "pr2008-final-sonar-gate.json",
+    "feedback_endpoints": "Issue comments, inline comments and reviews all empty at final exact-head observation"
+  },
+  "notes": "Final independent PASS95 for R1/R2 alias-ownership follow-up only. Exact PR2008 head d5f783585 has all26 checks terminal:19SUCCESS/7SKIPPED, full CI workflow completed success, documented CI_GATE=pass. Sonar new coverage100% at unchanged80 threshold; all conditionsOK. No source or audit changes, no GitHub mutations and no repeated broad local suite by reviewer. Original parent round1 PASS93 and initial strict-FS failure evidence preserved separately. Inherited original target/archive metadata is excluded from this follow-up score; root owns completion normalization. No merge performed by reviewer.",
+  "integration": {
+    "pull_request": 2008,
+    "merge_commit": "749045717c484299b3103008023bf27a826df844",
+    "merged_at": "2026-10-29T11:55:14Z",
+    "release_status": "unreleased",
+    "target": "v0.56.0"
+  }
+}
