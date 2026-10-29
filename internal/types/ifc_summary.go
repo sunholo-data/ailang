@@ -251,7 +251,9 @@ func importedCallableResult(fn *ifcCallable, args []Label, callee Label) (Label,
 	if fn == nil {
 		return nil, false
 	}
-	result := LabelBottom()
+	// A container-held/labelled callable already carries information, even when
+	// its supplied producer summary returns bottom. Preserve that flow label.
+	result := callee
 	known := false
 	for _, alt := range fn.alts {
 		if alt.imported != nil {

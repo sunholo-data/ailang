@@ -1,5 +1,5 @@
 {
-  "compiler_source": "907dcd372 plus recorded M2 v8 changes",
+  "compiler_source": "4a82fc2c5 (source-equivalent M2 checkpoint; built dirty on907dcd372)",
   "consumer_commit": "81494c923d19cb02b97430a984f7230aaef75b70",
   "entry": "sim/navigation.ail",
   "entry_lines": 438,

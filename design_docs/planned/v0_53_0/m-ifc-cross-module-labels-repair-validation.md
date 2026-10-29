@@ -18,11 +18,11 @@ Existing PR branch `coordinator/task-a87f9332` retains all original commits: M1 
 | M1 retain package identity | Attended dba22e04e pins hashProjectionSchema to v1 and omits only validated unlabelled summaries; TestHashProjection_UnlabelledSummaryKeepsPreSummaryIdentity proves byte equality. The historical eml 559080a1 observation is retained as prior attended evidence, not claimed as a fresh measurement of today's changed external package. |
 | M2 full/compact/gob persistence | TestCacheIFCRoundTrip, TestIFCSummaryDigestAndCodecs, TestIFCSummaryF4CanonicalShape; every parameter reserves canonical bottom applied, while fixtures prove nonbottom joined applied metadata is lossless |
 | M2 malformed/legacy fail closed | TestIFCSummaryF4RejectsMalformedParam, TestCacheIFCRejectsAuthenticatedBadSchema, TestCacheIFCInjectedMalformedF4Rejected, TestCacheIFCValidatesInjectedDecoder, TestHashProjectionRejectsMalformedIFC |
-| M2 cache migration | TestCacheIFCEpochFollowsSharedDAG, TestCacheIFCPreviousVersionKeyMisses, TestCacheArtifacts_Migration; v7→v8 preserves existing CoreTI shared-DAG codec |
+| M2 cache migration | TestCacheIFCPreviousVersionKeyMisses (all prior epochs v1–v7, permitting future migrations), TestCacheArtifacts_Migration; v7→v8 preserves existing CoreTI shared-DAG codec |
 | M2 dependency edits/cold-warm metadata verdicts | TestCacheIFCLibraryEditsInvalidateCaller, TestCacheIFCLegacySchemaRecompiles, TestCacheIFCColdWarmLocalVerdict; refinement/intrinsic/declared-return-only edits invalidate caller keys |
 | M2 published interfaces | All 49 interfaces regenerated; stripping IFC fields/schema from the comparison gives zero non-IFC type/effect signature changes versus dev. |
 
-F4 failing-first evidence: old decoder rejected the valid forbidden array and accepted the obsolete forbidden string. The supplied-producer alias test failed before removing the old name-keyed imported-result branch. v8 epoch assertion failed while the source still used v7. Raw logs are banked as `1771-f4-red.log`, `1771-m1-import-value-red.log`, `1771-m2-epoch-red.log` under `/tmp/ailang-backlog-20261029/`.
+F4 failing-first evidence: old decoder rejected the valid forbidden array and accepted the obsolete forbidden string. The supplied-producer alias test failed before removing the old name-keyed imported-result branch. A separate failing-first record-container test confirms the supplied producer retains the callee value's existing flow label. The final cache regression uses valid old keys for every v1–v7 epoch, without pinning future migrations to v8. Raw logs are banked as `1771-f4-red.log`, `1771-m1-import-value-red.log`, `1771-import-callee-label-red.log` under `/tmp/ailang-backlog-20261029/`.
 
 ## Local gates at the M2 checkpoint
 

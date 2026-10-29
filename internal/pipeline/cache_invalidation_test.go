@@ -336,11 +336,8 @@ func newWarmHitInstrumentedDeps(depCoreReads, warmEncodes *int) cacheDependencie
 }
 
 func TestCacheArtifacts_Migration(t *testing.T) {
-	if cacheKeyVersion != "v8" {
-		t.Fatalf("cache key version = %q, want v8 migration boundary", cacheKeyVersion)
-	}
 
-	t.Run("v7_manifest_forces_cold_v8_publication", func(t *testing.T) {
+	t.Run("v7_manifest_forces_current_publication", func(t *testing.T) {
 		previousManifestForcesColdPublication(t)
 	})
 	t.Run("current_manifest_with_legacy_unstamped_blobs_misses", func(t *testing.T) {
@@ -348,9 +345,9 @@ func TestCacheArtifacts_Migration(t *testing.T) {
 	})
 }
 
-// previousManifestForcesColdPublication seeds a v8 cache, rewrites the
+// previousManifestForcesColdPublication seeds a current cache, rewrites the
 // manifest to v7 (whose interfaces lacked the required IFC summaries), and asserts the
-// next run recompiles and re-publishes as a fresh v8 manifest and stamp (the
+// next run recompiles and re-publishes as a fresh current manifest and stamp (the
 // migration boundary).
 func previousManifestForcesColdPublication(t *testing.T) {
 	root := t.TempDir()
@@ -374,7 +371,7 @@ func previousManifestForcesColdPublication(t *testing.T) {
 	}
 	migrated := readCacheManifest(t, manifestPath)
 	if migrated.Version != cacheKeyVersion {
-		t.Fatalf("migrated manifest version = %q, want v8", migrated.Version)
+		t.Fatalf("migrated manifest version = %q, want %s", migrated.Version, cacheKeyVersion)
 	}
 	stamp := readArtifactStamp(t, filepath.Join(root, ".ailang", "cache", "compile", "modules", "answer", artifactStampName))
 	if stamp.Version != cacheKeyVersion || stamp.ModuleID != "answer" {

@@ -134,24 +134,22 @@ func TestCacheIFCValidatesInjectedDecoder(t *testing.T) {
 
 func TestCacheIFCPreviousVersionKeyMisses(t *testing.T) {
 	const source = "module lib\nexport func f() -> int { 42 }\n"
-	old := sha256.New()
-	fmt.Fprintln(old, "ailang-cache:v7:test-compiler")
-	fmt.Fprintf(old, "source:%x\n", sha256.Sum256([]byte(source)))
-	oldKey := hex.EncodeToString(old.Sum(nil))
 	current := ModuleCacheKey("test-compiler", source, nil)
-	cs := newArtifactTestStore(t)
-	cs.Store("lib", &CacheEntry{CacheKey: oldKey})
-	if _, hit := cs.Lookup("lib", oldKey); !hit {
-		t.Fatal("invalid old-key fixture")
-	}
-	if _, hit := cs.Lookup("lib", current); hit {
-		t.Fatal("pre-summary v7 key served under v8")
-	}
-}
-
-func TestCacheIFCEpochFollowsSharedDAG(t *testing.T) {
-	if cacheKeyVersion != "v8" {
-		t.Fatalf("IFC v2 metadata requires epoch v8 after the v7 shared-DAG migration, got %s", cacheKeyVersion)
+	for version := 1; version <= 7; version++ {
+		t.Run(fmt.Sprintf("v%d", version), func(t *testing.T) {
+			old := sha256.New()
+			fmt.Fprintf(old, "ailang-cache:v%d:test-compiler\n", version)
+			fmt.Fprintf(old, "source:%x\n", sha256.Sum256([]byte(source)))
+			oldKey := hex.EncodeToString(old.Sum(nil))
+			cs := newArtifactTestStore(t)
+			cs.Store("lib", &CacheEntry{CacheKey: oldKey})
+			if _, hit := cs.Lookup("lib", oldKey); !hit {
+				t.Fatal("invalid old-key fixture")
+			}
+			if _, hit := cs.Lookup("lib", current); hit {
+				t.Fatalf("pre-summary v%d key served under current epoch %s", version, cacheKeyVersion)
+			}
+		})
 	}
 }
 
