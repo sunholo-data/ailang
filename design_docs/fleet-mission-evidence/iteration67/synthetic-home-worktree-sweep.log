@@ -1,0 +1,4 @@
+[2026-10-28 15:52:00] [ailang] removed worktree /Users/voightkampff/.ailang-driver-pin/stapledon branch=none sha=5415c8c95c748f204da3d3a0634448a00cf0694e (on origin/dev)
+[2026-10-28 15:52:08] [ailang] removed worktree /Users/voightkampff/.ailang-driver-pin/triage branch=none sha=51b00832f7c4aec09ff5695a32bd27181b12c8e1 (on origin/dev)
+[2026-10-28 15:52:24] [ailang] removed worktree /Users/voightkampff/.ailang-driver-pin/world branch=none sha=5415c8c95c748f204da3d3a0634448a00cf0694e (on origin/dev)
+[2026-10-28 15:53:01] [ailang] deleted branch fix/agent-prompts-off-argv sha=cf73e7d82219ddae2330f83e38ac548260601513 (on origin/dev)

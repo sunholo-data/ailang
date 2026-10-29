@@ -31,6 +31,10 @@ RUN_UNMEASURED_CATEGORIES = INFRA_CATEGORIES | {
     # run-unmeasured, never a model outcome, and never api_error (whose cause
     # is unknown; this one is known and is ours).
     "wire_drift",
+    # The agent CLI was SIGTERMed by something other than the harness (on the
+    # rig, a sibling eval agent's `pkill -f "ailang run"`, 2026-10-27/28). The
+    # run measured nothing about the model; error_categorizer.go banks it invalid.
+    "external_kill",
 }
 MODEL_OUTCOME_CATEGORIES = {
     "compile_error", "runtime_error", "logic_error", "verify_error",

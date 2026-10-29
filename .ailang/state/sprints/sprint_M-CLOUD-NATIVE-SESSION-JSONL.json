@@ -1,0 +1,137 @@
+{
+  "sprint_id": "M-CLOUD-NATIVE-SESSION-JSONL",
+  "status": "completed",
+  "created": "2026-10-27T10:15:05.492342+00:00",
+  "design_doc": "design_docs/implemented/v0_54_19/m-cloud-native-session-jsonl.md",
+  "sprint_plan": "design_docs/implemented/v0_54_19/m-cloud-native-session-jsonl-sprint-plan.md",
+  "github_issues": [
+    1967
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches session and jsonl found no native CLI-session file banking/copy facility. sunholo/agui info/docs inspected: AILANG AG-UI codecs cannot preserve arbitrary native JSONL or implement Go executor filesystem plumbing. Reuse existing ProviderData, motoko banking, config accessors and Go os/filepath instead."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches session and jsonl found no native CLI-session file banking/copy facility. sunholo/agui info/docs inspected: AILANG AG-UI codecs cannot preserve arbitrary native JSONL or implement Go executor filesystem plumbing. Reuse existing ProviderData, motoko banking, config accessors and Go os/filepath instead."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches session and jsonl found no native CLI-session file banking/copy facility. sunholo/agui info/docs inspected: AILANG AG-UI codecs cannot preserve arbitrary native JSONL or implement Go executor filesystem plumbing. Reuse existing ProviderData, motoko banking, config accessors and Go os/filepath instead."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches session and jsonl found no native CLI-session file banking/copy facility. sunholo/agui info/docs inspected: AILANG AG-UI codecs cannot preserve arbitrary native JSONL or implement Go executor filesystem plumbing. Reuse existing ProviderData, motoko banking, config accessors and Go os/filepath instead."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches session and jsonl found no native CLI-session file banking/copy facility. sunholo/agui info/docs inspected: AILANG AG-UI codecs cannot preserve arbitrary native JSONL or implement Go executor filesystem plumbing. Reuse existing ProviderData, motoko banking, config accessors and Go os/filepath instead."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 417.5,
+    "estimated_total_loc": 835,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Persist and bank pi cloud sessions",
+      "estimated_loc": 210,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Cloud args use a generated UUID with --session-dir and --session-id; local/eval args retain --no-session.",
+        "Suffix match precedes newest-file fallback in the task-scoped directory; missing files do not invent a path.",
+        "Completed and failed post-launch results preserve existing ProviderData and bank pi_session_jsonl when available."
+      ],
+      "passes": true,
+      "started": "2026-10-27T11:02:37.385854+00:00",
+      "completed": "2026-10-27T11:02:37.385854+00:00",
+      "notes": "Pi provider suite and cloud argv/result banking tests pass. Shared nativesession companion centralizes lookup for all providers; no .ail changes. Cloud sync skipped:no-task-id on actual branch coordinator/task-53b8873a; preserve current branch."
+    },
+    {
+      "id": "M2",
+      "description": "Bank Codex and Claude native session paths",
+      "estimated_loc": 210,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Codex matches session UUID in rollout filenames before newest fallback under isolated CODEX_HOME/sessions.",
+        "Claude resolves the actual session ID under CLAUDE_CONFIG_DIR or the default ~/.claude/projects.",
+        "All post-launch return paths with results bank native paths without dropping existing ProviderData; fixtures cover match, fallback and missing files."
+      ],
+      "passes": true,
+      "started": "2026-10-27T11:03:35.878440+00:00",
+      "completed": "2026-10-27T11:03:35.878440+00:00",
+      "notes": "Claude/Codex banking tests pass, covering successful and failed results, preserved ProviderData and missing files. Named-return defers cover all result branches. Shared lookup fixtures cover identity preference and isolated newest fallback. Baseline b7b7093e independently reproduces both Codex process-group cancellation failures."
+    },
+    {
+      "id": "M3",
+      "description": "Resolve and copy provider sessions in cloud artifacts",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "writeTaskArtifacts takes the canonical provider name and its call sites compile.",
+        "ProviderData is primary; failed or empty candidates permit provider-specific fallback; Claude searches bucket, config and default roots, pi its task dir, Codex its isolated home, motoko its banked path.",
+        "Native bytes are copied unchanged with os.WriteFile to tasks/{taskID}/session.jsonl, with no size cap.",
+        "Reads retry up to three total attempts at two-second intervals; success emits the exact written byte-count log, exhausted failure names provider, session and searched paths.",
+        "Deterministic-bump skips session handling; nil result and transcript behavior remain valid."
+      ],
+      "passes": true,
+      "started": "2026-10-27T11:12:18.708354+00:00",
+      "completed": "2026-10-27T11:12:18.708354+00:00",
+      "notes": "Focused cmd/ailang native-session and Claude setup fixtures pass. Shared lookup resolves symlink roots; ProviderData precedes provider fallbacks; retries are bounded at three total attempts, two seconds apart. Copy uses os.WriteFile and reports exact bytes or searched paths. Nil/deterministic runs are covered. Follow-up fixes Claude resume/reported identity and home lookup error handling."
+    },
+    {
+      "id": "M4",
+      "description": "Verify artifact landing and metrics for every provider",
+      "estimated_loc": 165,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Fixture tests for claude, pi, codex and motoko each assert byte-identical session.jsonl at the task artifact destination.",
+        "metrics.json includes session_provider and session_jsonl_bytes matching the successful copy; missing sessions report zero bytes.",
+        "Tests capture success and warning output, including searched paths, unreadable/empty files, retry exhaustion, write failure and deterministic-bump silence.",
+        "A payload larger than the existing log truncation threshold retains full tool-result content; unrelated transcript and metrics fields survive."
+      ],
+      "passes": true,
+      "started": "2026-10-27T11:12:34.947071+00:00",
+      "completed": "2026-10-27T11:12:34.947071+00:00",
+      "notes": "All four byte-identical artifact landing fixtures pass, including >4.7 KB tool results; metrics preserve existing fields and report actual bytes/zero on misses. Success/warning logging, fallback, late flush, empty/unreadable/missing files, write failure, nil/deterministic silence pass. Windows temp roots and symlink availability are guarded."
+    },
+    {
+      "id": "M5",
+      "description": "Run focused gates and document cloud canaries",
+      "estimated_loc": 30,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "make test-changed, make check-file-sizes, make check-changelog and make lint pass; make check-boundaries verifies touched imports.",
+        "Add changelogs/unreleased/2026-10-27-cloud-native-session-jsonl.md opening with a ### heading.",
+        "Plan documents post-merge canaries for pi, codex, claude and motoko plus pi-go/codex-go routing verification, with task IDs, artifact byte counts and log evidence recorded when executed.",
+        "No live deployment or canary is claimed by offline tests; blocked cloud access is recorded as pending operational validation."
+      ],
+      "passes": false,
+      "started": "2026-10-27T11:17:27.644743+00:00",
+      "completed": "2026-10-27T11:17:27.644743+00:00",
+      "notes": "Implementation/docs work completed; all-green verification acceptance is NOT met. PASS: final native-session tests in all five touched packages, gofmt, diff check, file sizes, changelog and boundaries. make test-changed fails: missing ps in TestRunPolicy_DeadlineStopsExecutionWithoutProtocolGrace, surviving descendants in TestRunPolicy_TimeoutKillsDescendants and TestRunPolicy_SupervisorDeathStopsWorker, plus two baseline-reproduced Codex cancellation tests. make test-core fails two baseline-reproduced effects cleanup tests; pipeline process was killed. make lint cannot run: golangci-lint absent. No tools installed. No full make test, deployment, canaries or independent self-evaluation claimed. Cloud sync reports skipped:no-task-id; actual branch coordinator/task-53b8873a. Operational table and evaluator handoff remain in sprint plan."
+    }
+  ],
+  "last_session": "2026-10-27T11:17:27.644743+00:00",
+  "last_checkpoint": "Implementation delivered; M1\u2013M4 pass, M5 verification acceptance false with baseline/environment exceptions documented; ready for independent coordinator evaluation"
+}

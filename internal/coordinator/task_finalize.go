@@ -168,6 +168,7 @@ func FinalizeTaskCompletion(ctx context.Context, deps *FinalizeDeps, in Finalize
 	f.run(EffectApproval, f.wantsApproval(), f.applyApproval)
 	f.run(EffectHandoff, f.wantsHandoff(), f.applyHandoff)
 	f.run(EffectShadowRecord, f.wantsShadowRecord(ctx), f.applyShadowRecord)
+	f.run(EffectEvaluation, f.wantsEvaluation(), f.applyEvaluation)
 
 	f.report.Ledger = f.ledger
 	if err := deps.TaskStore.SetTaskFinalization(ctx, in.Task.ID, f.ledger); err != nil {

@@ -327,14 +327,21 @@ hard stop**).
 - [ ] **AC7** (corrected, pre-flip, zero probes):
       `/bin/bash -c '/bin/bash --version | head -1; MISSION_DRY_RUN=1 MISSION_NAME=acheck MISSION_EXECUTOR_MODEL=opus /bin/bash tools/launchd/mission-control.sh'`
       → shows `version 3.2` **and** the roles line, rc=0.
-- [ ] **AC9** (NEW, §0.2 — the rollback is exercised, not asserted): create
+- [ ] **AC9** (§0.2 — historical pre-flip, three-sided rollback check): create
       `~/.config/ailang/mission-acheck.env` containing
-      `MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-opus}"`, then
-      `MISSION_DRY_RUN=1 MISSION_NAME=acheck MISSION_EXECUTOR_MODEL=opus /bin/bash tools/launchd/mission-control.sh`
-      → roles line shows `planner=opus`, sourced **from the file** (delete the file, re-run,
-      confirm the value changes back — a one-sided test is a claim, not a fact). Then create the
+      `MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-SENTINEL-FROM-FILE}"`, then
+      `env -i HOME=$HOME PATH=$PATH USER=$USER TMPDIR=$TMPDIR MISSION_DRY_RUN=1 MISSION_NAME=acheck MISSION_EXECUTOR_MODEL=opus /bin/bash tools/launchd/mission-control.sh`
+      → roles line shows `planner=SENTINEL-FROM-FILE`, sourced **from the file**.
+      Delete the `acheck` file, then
+      `env -i HOME=$HOME PATH=$PATH USER=$USER TMPDIR=$TMPDIR MISSION_DRY_RUN=1 MISSION_NAME=acheck MISSION_EXECUTOR_MODEL=opus /bin/bash tools/launchd/mission-control.sh`
+      → `planner=opus`, the then built-in default. Recreate the sentinel file, then
+      `env -i HOME=$HOME PATH=$PATH USER=$USER TMPDIR=$TMPDIR MISSION_DRY_RUN=1 MISSION_NAME=acheck MISSION_EXECUTOR_MODEL=opus MISSION_PLANNER_MODEL=opus /bin/bash tools/launchd/mission-control.sh`
+      → `planner=opus` (explicit env-pin wins). These are historical pre-flip
+      expectations, not a current-default gate; do not execute these commands as part
+      of the fence-parsing sprint. Then create the
       real `~/.config/ailang/mission-v1.env` with the same `${VAR:-...}` line **commented out**,
       ready to uncomment as the D6 rollback. Remove the `acheck` fixture file afterwards.
+      2026-10-28: AC9 plan text corrected in fleet iteration 65 from the M2 commit message of cd76499c5.
 - [ ] `git diff` of the driver is **exactly** the probe-block replacement + the 2 rollback lines.
       No line-280 change. No reformatting.
 

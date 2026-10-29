@@ -21,7 +21,7 @@ func TestMapValueIdentityAndPersistence(t *testing.T) {
 	if !b.Equal(b) || b.Equal(a) {
 		t.Fatal("equality")
 	}
-	if _, err := a.AsMap().Insert(NewFloat(1), Unit()); err == nil {
-		t.Fatal("float key accepted")
+	if _, err := a.AsMap().Insert(NewList(nil), Unit()); err == nil {
+		t.Fatal("list key accepted")
 	}
 }

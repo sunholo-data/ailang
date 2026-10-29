@@ -65,65 +65,75 @@ test-shellcheck-autopush: ## Run mutation controls for the scoped ShellCheck gat
 # the rig runs 3.2.57, so a suite that only passes under a newer bash proves nothing about it.
 # The motoko connection probe's routing verdict is load-bearing; run its self-test here so CI
 # refuses when the instrument can no longer prove both treatment absence and control visibility.
-LAUNCHD_SUITE := /bin/bash tools/launchd/lib/suite-env.sh
+# Every suite runs through suite-env.sh (clean env) via run-suites.sh, LAUNCHD_JOBS at a
+# time: the suites are bound-/sleep-dominated, and one after another they took 803s of the
+# bash-3.2 CI job. LAUNCHD_SERIAL_SUITES run alone afterwards — the motoko probe's fork-rate
+# arm reads CPU contention as its signal. Wire a new suite by adding it to LAUNCHD_SUITES.
+# Slowest first (measured 2026-10-27; test_driver_notify alone is 194s): xargs starts
+# suites in list order, so a long one queued late becomes the whole job's tail.
+LAUNCHD_JOBS ?= 4
+LAUNCHD_SUITES := \
+	tools/launchd/test_driver_notify.sh \
+	tools/launchd/test_mission_workdir_sync.sh \
+	scripts/test_mission_pi_run.sh \
+	tools/launchd/test_pin_root.sh \
+	tools/launchd/test_mission_worktree.sh \
+	tools/launchd/test_skill_sync.sh \
+	.claude/skills/sprint-executor/scripts/test_cloud_branch_sync.sh \
+	.claude/skills/sprint-planner/scripts/test_create_sprint_json.sh \
+	tools/launchd/test_quorum_artifacts.sh \
+	tools/launchd/test_codex_auth_profiles.sh \
+	tools/launchd/test_codex_spawn_override.sh \
+	tools/attended/test_codex_oauth_profiles.sh \
+	tools/launchd/test_suite_env.sh \
+	tools/launchd/test_mission_pi_run_commits.sh \
+	tools/launchd/test_mission_pi_run_sandbox.sh \
+	tools/launchd/test_mission_pi_run_provider_quota.sh \
+	scripts/test_mission_gate0_self_notices.sh \
+	scripts/test_mission_routing_models_check.sh \
+	scripts/test_mission_ledger_provenance.sh \
+	tools/launchd/test_pi_ext_args.sh \
+	.claude/skills/sprint-evaluator/scripts/test_ci_gate.sh \
+	tools/launchd/test_mission_lane_check.sh \
+	tools/launchd/test_mission_routing.sh \
+	tools/launchd/test_spawn_pin_hook.sh \
+	tools/launchd/test_agents_skills_sync.sh \
+	tools/launchd/test_hook_stdout.sh \
+	tools/launchd/test_controller_chain.sh \
+	tools/launchd/test_controller_capacity.sh \
+	tools/launchd/test_mission_heartbeat.sh \
+	tools/launchd/test_mission_stall.sh \
+	tools/launchd/test_mission_kill_tree.sh \
+	tools/launchd/test_mission_memgate.sh \
+	tools/launchd/test_mission_iteration.sh \
+	tools/launchd/test_mission_registry_env.sh \
+	tools/launchd/test_cron_kicker.sh \
+	tools/launchd/test_mission_base.sh \
+	tools/launchd/test_codex_quota_admission.sh \
+	tools/launchd/test_mission_scope_guard.sh \
+	tools/launchd/test_codex_controller_env.sh \
+	tools/launchd/test_mission_fleet_idle.sh \
+	tools/launchd/test_mission_triage_idle.sh \
+	tools/launchd/test_mission_prompt_role.sh \
+	tools/launchd/test_ollama_quota_admission.sh \
+	tools/launchd/test_anthropic_quota_admission.sh \
+	scripts/hooks/test_stage_isolation.sh \
+	scripts/hooks/test_pre_push.sh \
+	scripts/hooks/test_git_health.sh \
+	scripts/test_worktree_sweep.sh \
+	tools/launchd/test_evaluator_skill_lane.sh
+LAUNCHD_SERIAL_SUITES := \
+	tools/eval/test_motoko_connection_probe.sh
 
 test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices + hook stdout, bash 3.2)
-	@$(LAUNCHD_SUITE) tools/launchd/test_quorum_artifacts.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_codex_auth_profiles.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_codex_spawn_override.sh
-	@$(LAUNCHD_SUITE) tools/attended/test_codex_oauth_profiles.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_suite_env.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_pin_root.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_skill_sync.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_commits.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_sandbox.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_pi_run_provider_quota.sh
-	@$(LAUNCHD_SUITE) scripts/test_mission_pi_run.sh
-	@$(LAUNCHD_SUITE) scripts/test_mission_gate0_self_notices.sh
-	@$(LAUNCHD_SUITE) scripts/test_mission_routing_models_check.sh
-	@$(LAUNCHD_SUITE) scripts/test_mission_ledger_provenance.sh
 	@/bin/bash -n scripts/mission_ledger_provenance.sh
 	@/bin/bash -n scripts/test_mission_ledger_provenance.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_driver_notify.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_pi_ext_args.sh
-	@$(LAUNCHD_SUITE) .claude/skills/sprint-evaluator/scripts/test_ci_gate.sh
-	@$(LAUNCHD_SUITE) .claude/skills/sprint-executor/scripts/test_cloud_branch_sync.sh
 	@/bin/bash -n .claude/skills/sprint-executor/scripts/cloud_branch_sync.sh
 	@/bin/bash -n .claude/skills/sprint-executor/scripts/test_cloud_branch_sync.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_lane_check.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_worktree.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_routing.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_spawn_pin_hook.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_agents_skills_sync.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_hook_stdout.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_controller_chain.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_controller_capacity.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_heartbeat.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_stall.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_kill_tree.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_memgate.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_iteration.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_registry_env.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_cron_kicker.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_base.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_codex_quota_admission.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_scope_guard.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_codex_controller_env.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_fleet_idle.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_triage_idle.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_workdir_sync.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_mission_prompt_role.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_ollama_quota_admission.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_anthropic_quota_admission.sh
-	@$(LAUNCHD_SUITE) scripts/hooks/test_stage_isolation.sh
-	@$(LAUNCHD_SUITE) scripts/hooks/test_pre_push.sh
-	@$(LAUNCHD_SUITE) scripts/hooks/test_git_health.sh
-	@$(LAUNCHD_SUITE) scripts/test_worktree_sweep.sh
+	@/bin/bash -n .claude/skills/sprint-planner/scripts/create_sprint_json.sh
+	@/bin/bash -n .claude/skills/sprint-planner/scripts/test_create_sprint_json.sh
 	@/bin/bash -n scripts/worktree_sweep.sh
 	@/bin/bash -n scripts/hooks/git_health.sh
-	@$(LAUNCHD_SUITE) tools/launchd/test_evaluator_skill_lane.sh
-# Keep this shell-only: the bash-3.2 CI job deliberately has no Go toolchain.
-	@$(LAUNCHD_SUITE) tools/eval/test_motoko_connection_probe.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
 	@/bin/bash -n tools/eval/motoko_connection_probe.sh
 	@/bin/bash -n tools/eval/test_motoko_connection_probe.sh
@@ -132,6 +142,8 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 # mission_answer.sh did not) — so an edit to the attended-ruling writer reached the
 # ledger with no syntax check anywhere in CI.
 	@/bin/bash -n scripts/mission_answer.sh
+# Keep this shell-only: the bash-3.2 CI job deliberately has no Go toolchain.
+	@/bin/bash tools/launchd/lib/run-suites.sh $(LAUNCHD_JOBS) $(LAUNCHD_SUITES) --serial $(LAUNCHD_SERIAL_SUITES)
 	@echo "launchd drivers: tests + bash 3.2 syntax OK"
 
 # `make check-changelog` is a refusal gate that shipped with no coverage of WHICH release-note

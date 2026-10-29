@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"testing"
 )
 
@@ -35,7 +36,8 @@ func TestHandleDispatchError(t *testing.T) {
 			if err := store.MarkTaskQueued(ctx, task.ID); err != nil {
 				t.Fatal(err)
 			}
-			d := &Daemon{taskStore: store, logger: log.New(io.Discard, "", 0), ctx: ctx}
+			msgs := &fakeGateStore{}
+			d := &Daemon{taskStore: store, msgStore: msgs, logger: log.New(io.Discard, "", 0), ctx: ctx}
 
 			d.handleDispatchError(task, tc.err)
 
@@ -45,6 +47,21 @@ func TestHandleDispatchError(t *testing.T) {
 			}
 			if got.Status != tc.want {
 				t.Errorf("status = %q, want %q", got.Status, tc.want)
+			}
+			// A refused task must surface as a failed completion in the agent's
+			// inbox: the executor never ran, so nothing else publishes one.
+			wantCompletions := 0
+			if tc.want == TaskStatusFailed {
+				wantCompletions = 1
+			}
+			if len(msgs.audits) != wantCompletions {
+				t.Fatalf("inbox completions = %d, want %d", len(msgs.audits), wantCompletions)
+			}
+			if wantCompletions == 1 {
+				m := msgs.audits[0]
+				if m.MessageType != "completion" || m.ToInbox != "a" || !strings.Contains(m.Payload, `"status":"failed"`) || !strings.Contains(m.Payload, "AILANG_DIRECTIVE") {
+					t.Errorf("completion = %+v", m)
+				}
 			}
 		})
 	}

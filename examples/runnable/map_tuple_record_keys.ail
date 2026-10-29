@@ -1,0 +1,19 @@
+-- Structured map keys: tuple keys, record keys and ADT keys in std/map (and std/set).
+-- Grid coordinates (r, c) as a Map key, a record as a key (field order does not
+-- matter), an ADT constructor as a key; keys iterate in a deterministic order.
+module examples/runnable/map_tuple_record_keys
+import std/io (println)
+import std/map as M
+
+type Color = Red | Green | Blue
+
+export func main() -> () ! {IO} {
+  let dist = M.fromList([((0, 0), 0), ((0, 1), 1), ((1, 1), 2)])
+  println("tuple key (1, 1): ${show(M.lookup(dist, (1, 1)))}")
+  println("missing (5, 5): ${show(M.member(dist, (5, 5)))}")
+  println("keys: ${show(M.keys(dist))}")
+  let roles = M.insert(M.empty(), { name: "alice", team: 1 }, "lead")
+  println("record key: ${show(M.lookup(roles, { team: 1, name: "alice" }))}")
+  let counts = M.fromList([(Blue, 3), (Red, 1), (Green, 2)])
+  println("ADT keys: ${show(M.toList(counts))}")
+}

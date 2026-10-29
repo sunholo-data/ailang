@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -502,8 +501,12 @@ func excludeFromGit(workDir, pattern string) error {
 //
 // Returns the GCS path prefix ("tasks/{taskID}") for linking from Firestore.
 // Failures are non-fatal and logged to stderr.
-func writeTaskArtifacts(taskID string, result *executor.Result) string {
-	artifactDir := filepath.Join(cloudArtifactRoot, "tasks", taskID)
+func writeTaskArtifacts(taskID, provider string, result *executor.Result) string {
+	return writeTaskArtifactsAt(cloudArtifactRoot, taskID, provider, result, time.Sleep)
+}
+
+func writeTaskArtifactsAt(root, taskID, provider string, result *executor.Result, sleep func(time.Duration)) string {
+	artifactDir := filepath.Join(root, "tasks", taskID)
 	if err := os.MkdirAll(artifactDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "execute-job: warning: could not create artifact dir %s: %v\n", artifactDir, err)
 		return ""
@@ -523,8 +526,12 @@ func writeTaskArtifacts(taskID string, result *executor.Result) string {
 		}
 	}
 
+	sessionBytes := copyNativeSession(root, taskID, provider, result, sleep)
+
 	// 2. Extended metrics (cache tokens, files — not in TaskCompletion message)
 	metrics := map[string]any{
+		"session_provider":      provider,
+		"session_jsonl_bytes":   sessionBytes,
 		"task_id":               taskID,
 		"session_id":            result.SessionID,
 		"num_turns":             result.NumTurns,
@@ -546,53 +553,8 @@ func writeTaskArtifacts(taskID string, result *executor.Result) string {
 		}
 	}
 
-	// 3. Copy Claude Code session JSONL to session.jsonl.
-	// Claude writes the JSONL to CLAUDE_CONFIG_DIR/projects/{path}/{sessionID}.jsonl, and
-	// CLAUDE_CONFIG_DIR/projects is a symlink to /artifacts/tasks/{taskID}/claude/projects
-	// (F-H6-1, coordinator_cloud_claudecfg.go). WalkDir does not follow a symlinked dir, so
-	// search the bucket path itself first; the config dir is the fallback for a run whose
-	// symlink setup failed. gcsfuse uses legacy staged writes for incrementally-appended
-	// files, which may not flush before the container exits. Re-writing via os.WriteFile
-	// guarantees the data reaches GCS.
-	if result.SessionID != "" {
-		jsonlPath := findSessionJSONL(taskClaudeArtifactDir(cloudArtifactRoot, taskID), result.SessionID)
-		if jsonlPath == "" {
-			if dir := config.ClaudeConfigDir(); dir != "" {
-				jsonlPath = findSessionJSONL(dir, result.SessionID)
-			}
-		}
-		if jsonlPath != "" {
-			if data, err := os.ReadFile(jsonlPath); err == nil && len(data) > 0 {
-				dst := filepath.Join(artifactDir, "session.jsonl")
-				if err := os.WriteFile(dst, data, 0644); err != nil {
-					fmt.Fprintf(os.Stderr, "execute-job: warning: failed to write session.jsonl: %v\n", err)
-				} else {
-					fmt.Printf("execute-job: session.jsonl written (%d bytes)\n", len(data))
-				}
-			}
-		}
-	}
-
 	fmt.Printf("execute-job: artifacts written to /artifacts/%s\n", prefix)
 	return prefix
-}
-
-// findSessionJSONL searches claudeConfigDir for a JSONL file matching sessionID.
-// Claude Code writes to: {claudeConfigDir}/projects/{encoded-path}/{sessionID}.jsonl
-func findSessionJSONL(claudeConfigDir, sessionID string) string {
-	target := sessionID + ".jsonl"
-	var found string
-	filepath.WalkDir(claudeConfigDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		if filepath.Base(path) == target {
-			found = path
-			return filepath.SkipAll
-		}
-		return nil
-	})
-	return found
 }
 
 func printExecuteJobHelp() {

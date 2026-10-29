@@ -43,3 +43,16 @@
 {"status":"formatted","file":"/tmp/captest.ail","exit_code":0,"id":"call_8db0g6w2","detail":""}
 {"status":"formatted","file":"/tmp/captest.ail","exit_code":0,"id":"call_9pd8327a","detail":""}
 {"status":"formatted","file":"/tmp/captest.ail","exit_code":0,"id":"call_6zo5f2ex","detail":""}
+{"status":"formatted","file":"/private/tmp/worker-followup-offline-probe/offline_probe.ail","exit_code":0,"id":"exec-db58512f-a1b7-440f-92b0-5a5c63506f27","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/.claude/worktrees/worker-policy-lifecycle/cmd/ailang/testdata/memprobe/debuglog.ail","exit_code":0,"id":"exec-d3bf8ea3-b846-474e-bd09-f9538bee9f4b","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/.claude/worktrees/worker-policy-lifecycle/cmd/ailang/testdata/memprobe/debuglog.ail","exit_code":0,"id":"exec-ca3700a1-ec23-4361-b7b8-57bdda865ac5","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/worker-policy-followup/.claude/worktrees/worker-policy-lifecycle/cmd/ailang/testdata/memprobe/debuglog.ail","exit_code":0,"id":"exec-474044ce-f634-4499-b389-fe2aacd64f8c","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/executor_tools/executor.ail","exit_code":0,"id":"toolu_01QP6WfyXpFFCNB9c5cK4sqR","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/executor_tools/executor.ail","exit_code":0,"id":"toolu_01C6BqLxJWriG3vUhPZdq8Cz","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/executor_tools/executor.ail","exit_code":0,"id":"toolu_014T7YNH3W6NDppD7FjLSXRW","detail":""}
+{"status":"formatted","file":"/private/tmp/claude-501/-Users-voightkampff-dev-sunholo-data-ailang/000d70d7-7f80-40df-98ff-807434c7b5b8/scratchpad/aap/internal/dashboard_transforms/auto_approval_policy.ail","exit_code":0,"id":"toolu_01XWAT7DqMYaLjFQcem8JYrP","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/std/string.ail","exit_code":0,"id":"exec-fdca8b59-0fd1-48c9-b44d-1b3b2d7cfd7c","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/examples/runnable/audio_checked.ail","exit_code":0,"id":"exec-4ea1bf9c-c35b-43e5-8916-d19eb50a7874","detail":""}
+{"status":"error","file":"/Users/voightkampff/dev/sunholo-data/ailang/std/audio.ail","exit_code":2,"id":"exec-edd69b6c-92b3-4e96-b74b-980b0278ebdd","detail":"Error: /Users/voightkampff/dev/sunholo-data/ailang/std/audio.ail: round-trip verification failed (formatter defect); AST changed"}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/examples/runnable/contracts/result_error_guard.ail","exit_code":0,"id":"exec-d3e52850-1dd5-4f0d-81ed-112c5497a90a","detail":""}
+{"status":"formatted","file":"/Users/voightkampff/dev/sunholo-data/ailang/examples/runnable/contracts/result_error_guard.ail","exit_code":0,"id":"exec-5f840517-c5df-469e-b29d-d9d11ad032e5","detail":""}

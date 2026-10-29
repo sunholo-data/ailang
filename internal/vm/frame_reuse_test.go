@@ -64,7 +64,7 @@ func newHOFFixture(t testing.TB) *hofFixture {
 	}
 	img.AddPrototype(nested)
 
-	// Fills r5..r7, then tail-calls the 3-register add: reuseFor shrinks the
+	// Fills r5..r7, then tail-calls the 3-register add: resetForTailCall shrinks the
 	// slab to 3 and leaves r5..r7 past len, which releaseFrame must clear.
 	tail := &bytecode.FuncPrototype{Name: "tail", NumParams: 2, NumRegs: 8, NestedProtos: []int{addIdx}}
 	addConstants(img, tail, bytecode.NewString("stale"))
