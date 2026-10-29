@@ -1,7 +1,7 @@
 # M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS — An open row must not lose its labels when it meets a closed row
 
-**Status**: Planned
-**Target**: v0.55.0 (next minor). This is a soundness fix that rejects programs which check today, so it takes a minor bump. That is the posture Mark ruled for M-EFFECT-LATENT-FUNCTION-VALUES on 2026-10-08.
+**Status**: Implementation complete on `fix/effect-row-open-closed-soundness`; M4 compatibility resolved by the approved explicit-empty amendment and exact fork migrations; independent evaluation pending (2026-10-29). See [validation](m-effect-row-open-closed-soundness-validation.md): preserved width/nested failures, delivered exact consumer migrations and final combined evidence.
+**Target**: v0.56.0 (next minor after the v0.55.0 tag). This is a soundness fix that rejects programs which check today, so it takes a minor bump. That is the posture Mark ruled for M-EFFECT-LATENT-FUNCTION-VALUES on 2026-10-08.
 **Priority**: P0 (High). A `pure` function performs IO, `ailang check` reports it clean, and the side effect runs on both engines.
 **Tracks**: #1958
 **Refs**: #1718 and #1826 (sibling doc, see "Ordering and non-overlap"), #573 and #1326 (the L1-open and L2 rules this builds on), #1443 / PR #1790 (ordering only)
@@ -326,11 +326,11 @@ Base: `incompatible closed rows … [IO]` (a pure callback is refused). Phase 0:
 
 ## Ordering and non-overlap
 
-**Against M-EFFECT-LATENT-NESTED-CALLBACKS (#1718/#1826, `design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks.md`):**
+**Against M-EFFECT-LATENT-NESTED-CALLBACKS (#1718/#1826, `design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks.md`):**
 - **Different defects, no shared files.** That doc fixes *who is charged* for function values nested in data, and the compatibility tail escaping into published or inferred call rows. It touches `typechecker_latent_mask.go`, `typechecker_app_effects.go`, `typechecker_functions.go` and a new walker. This doc fixes the *unifier* and `std/ai` (`row_unification.go`, `builtins/ai_step.go`, `std/ai.ail`). That doc already lists this defect as "U1, out of scope, must be filed separately" (its line 186-190).
 - **No fix subsumes the other.** The #1718 prototype binary still accepts R1, R2, R5 and `c_wide_slot` (V23). This doc's prototype still shows #1826's `Unresolved effect tail` on `mapE` with a concrete annotated parameter (V19).
 - **Interaction.** That doc's intended flip `map(\d. g(d), xs)` and this doc's `map(g, xs)` are the same user-facing rule reached through two paths. They share one migration message (`mapE`). Alternative D becomes possible only after #1826.
-- **Order:** either order works. Recommended: Phase 0 of this doc first (it is independent and fixes R5 by itself), then either doc, in the **same v0.55.0 release** so the breaking notes are combined. The executor of whichever lands second re-runs the corpus sweep on the combined tree. Phase 1 + #1718 together were **not measured** here.
+- **Order:** either order works. Recommended: Phase 0 of this doc first (it is independent and fixes R5 by itself), then either doc, with this breaking row guard targeting **v0.56.0**. If the nested-callback fix ships earlier, retain its breaking note and validate the combined tree. The executor of whichever lands second re-runs the corpus sweep on the combined tree. Phase 1 + #1718 together were **not measured** here.
 
 **Against PR #1790 (M-PURE-ROW-AND-IFACE-PURITY):** no code overlap with `row_unification.go`. #1790 touches `internal/iface/*`, `internal/smt/*`, `validate_effects.go` and **regenerates every `.stdlib-golden/*.json`, including `ai.json`**. Phase 0 also changes `ai.json`, so the second to land regenerates it with `make freeze-stdlib`; that is a textual conflict only. Semantically, #1790's iface `pure` flag trusts static rows, and R1–R4 make it publish `pure: true` for functions that perform IO. So this fix makes #1790's flag truthful, and it should land in the same release.
 
@@ -395,7 +395,7 @@ All rows were measured at base `7d29031ea` with binaries built from scratch copi
 
 - [M-EFFECT-LATENT-FUNCTION-VALUES](../v0_48_0/m-effect-latent-function-values.md): L1-open (the compatibility tail) and L2; the deferred Phase 3 "open on use" is this doc's Phase 2.
 - [M-EFFECT-ROW-VAR-UNIFICATION](../../implemented/v1_0_0/m-effect-row-var-unification.md): declared `! {e}` soundness that Phase 0 relies on.
-- [M-EFFECT-LATENT-NESTED-CALLBACKS](./m-effect-latent-nested-callbacks.md): #1718/#1826; first recorded this defect as U1.
+- [M-EFFECT-LATENT-NESTED-CALLBACKS](../../implemented/v0_56_0/m-effect-latent-nested-callbacks.md): #1718/#1826; first recorded this defect as U1.
 - [M-TYPE-EFFECT-ROW regression (v0.9.4)](../../implemented/v0_9_4/m-type-effect-row-regression.md): the earlier closed-row regression in this area.
 - `design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-sprint-plan.md`: PR #1790.
 

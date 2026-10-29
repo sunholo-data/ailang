@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.10) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.11) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.10.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.11.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.10.md -->
-<!-- Active Version: v0.16.10 -->
+<!-- Source: prompts/v0.16.11.md -->
+<!-- Active Version: v0.16.11 -->
 
-# AILANG v0.16.10 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.11 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
