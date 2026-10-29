@@ -34,3 +34,45 @@ func caller() -> int ! {IO} = apply(noisy, 0)`, false},
 		})
 	}
 }
+
+func TestExplicitEmptyCallbackContainers(t *testing.T) {
+	for _, tt := range []struct{ name, decl, call string }{
+		{"tuple", `func apply(p: ((int) -> int ! {}, int)) -> int = match p { (f,x) => f(x) }`, `apply((CALLBACK,1))`},
+		{"list", `func apply(fs: [(int) -> int ! {}]) -> int = match fs { [] => 0, [f,..._] => f(1) }`, `apply([CALLBACK])`},
+		{"option", `func apply(o: Option[(int) -> int ! {}]) -> int = match o { None => 0, Some(f) => f(1) }`, `apply(Some(CALLBACK))`},
+		{"record_alias", `type H = {run: (int) -> int ! {}}
+func apply(h: H) -> int = h.run(1)`, `apply({run: CALLBACK})`},
+		{"multiarg_record", `type H = {run: (int,int) -> int ! {}}
+func apply(h: H) -> int = h.run(1,2)`, `apply({run: CALLBACK})`},
+	} {
+		for _, io := range []bool{false, true} {
+			name := tt.name + "/pure"
+			cb := "inc"
+			if io {
+				name = tt.name + "/IO"
+				cb = "noisy"
+			}
+			if tt.name == "multiarg_record" {
+				cb += "2"
+			}
+			t.Run(name, func(t *testing.T) {
+				src := `module empty_container
+import std/io (println)
+import std/option (Option,Some,None)
+pure func inc(x:int)->int = x+1
+pure func inc2(x:int,y:int)->int = x+y
+func noisy(x:int)->int ! {IO} = { println("marker"); x }
+func noisy2(x:int,y:int)->int ! {IO} = { println("marker"); x+y }
+` + tt.decl + "\nfunc caller()->int ! {IO} = " + strings.ReplaceAll(tt.call, "CALLBACK", cb) + "\n"
+				err := checkModuleSource(t, "empty_container", src)
+				if io {
+					if err == nil || !strings.Contains(err.Error(), "IO") {
+						t.Fatalf("closed empty container accepted IO: %v", err)
+					}
+				} else if err != nil {
+					t.Fatal(err)
+				}
+			})
+		}
+	}
+}

@@ -1,0 +1,40 @@
+# Explicit-empty callback contract execution evidence
+
+Mark authorized “Execute explicit-empty sprint” on 2026-10-29. Root is the final independent evaluator. This report records execution, not a self-evaluation or release.
+
+## M1 — closed-empty conversion
+
+Checkpoint `e4bee03c9c88210360dbe2b7967d57c650708e0e`.
+Failing-first tests observed an open/implicit Core row for explicit emptiness, missing legacy concrete metadata, and acceptance of an IO value in an empty callback slot from an IO caller. After conversion changes, all three reject/identity discriminators pass; matching pure, omitted open, concrete nonempty and row-polymorphic controls retain behavior.
+
+Required `make test-changed`: five branch-touched packages plus full core loop pass. CLI 206.498s, builtins 16.267s, elaborate 5.018s, pipeline 21.236s, types 5.153s. Lint 0, size gate green. Independent read-only M1 review found no blocker (`explicit-empty-M1-independent-review.md` in the session evidence directory).
+
+## M2 — presence, identity and cache
+
+Failing-first AST String, iface conversion/restoration, normalized interface identity, internal type string and alias-digest tests failed for the intended lost-contract reasons. The fixed focused checks pass across AST/iface/types/pipeline. Additional tests cover tuple/list/Option/record aliases, multi-argument callback arrows, pure controls and IO rejection, valid closed-empty substitution/JSON and CoreTI-DAG persistence.
+
+The change preserves canonical formatter behavior and distinguishes FuncType empty presence in AST JSON. Existing iface conversion moved to a companion file to keep builder below 800 lines; other conversion cases remain intact. Normalized exported callback/return, constructor and alias signatures retain `!{}`; signature hash projections/sets and the existing alias dependency digest distinguish the new contract without a new schema, cache format or epoch. #1771 owns reserved epoch v8; this sprint reserves none.
+
+### Same-binary dependency edits
+
+Automated pipeline fixtures seed an accepted omitted-arrow program, prove a warm artifact was decoded, edit only a direct or transitive dependency's callback alias to explicit empty, and require IO rejection. Reversing the dependency edit restores acceptance. Exported callback signatures have the same forward/reverse verdict check.
+
+The existing row-guard baseline already rejects IO in an omitted constructor callback slot, so that fixture cannot honestly seed an IO acceptance cache. Its cache discriminator instead uses a pure argument accepted on both versions, verifies the dependency iface digest and unchanged importer's cache key BOTH change after the annotation edit, then separately requires the cached explicitly-empty constructor to reject an IO value. This preserves existing omitted-constructor semantics while proving signature identity is covered.
+
+### Real old-compiler acceptance cache
+
+Old compiler source `752cebf3cf09202c01ec74d6ce1172a9c39b2294`, built from a fresh archive with that exact commit identity, accepts `empty_slot_io.ail`. It populated 16 cache files; a second old run accepted and changed only manifest bookkeeping, leaving artifact files unchanged. The actual fixed binary then checked identical source against the SAME cache and rejected IO, exactly as its no-cache run did. The old cached acceptance was not reused.
+
+The companion cache-proof JSON preserves source-base identity, old main key, artifact count and all four command outcomes. Fixed binary was built from M1 plus this approved M2 delta; its dirty-build fingerprint participates in the existing compiler identity. Reproduce with the archived old source and current tree; never pretend fixed-only cold/warm runs prove cross-compiler invalidation.
+
+### Gates
+
+- Focused AST/iface/type identity tests: pass.
+- Same-binary alias/export/constructor warm-edit and valid CoreTI-DAG tests: pass.
+- Nested container/multi-argument acceptance/rejection matrix: pass.
+- Actual four-pure-field scratch motoko `ext_fixture.ail`: passes with the fixed compiler. This early check is NOT the required final 60/9 proof or delivery.
+- Lint 0, sizes and boundaries: pass.
+- `make freeze-stdlib` and all 49-interface verification: pass, zero golden diff.
+- Full changed/core gate: seven branch packages plus core pass. Later milestones are recorded as they complete.
+
+Raw logs under `/tmp/ailang-backlog-20261029/`: `explicit-empty-M1-{red,green,test-changed,lint}.log`, `explicit-empty-M2-{red,green,warm,containers,cross-compiler-cache,actual-fixture,test-changed,lint,freeze,stdlib}.log`. Original premise matrices and failed four-line hypothesis remain unchanged in the design's evidence JSON. No additional consumer patch has been delivered at this checkpoint.

@@ -346,7 +346,7 @@ func (t *TFunc2) String() string {
 	}
 
 	effectStr := ""
-	if t.EffectRow != nil && (len(t.EffectRow.Labels) > 0 || t.EffectRow.Tail != nil) {
+	if t.EffectRow != nil && (len(t.EffectRow.Labels) > 0 || t.EffectRow.Tail != nil || t.ConcreteEffectContract) {
 		effectStr = fmt.Sprintf(" ! %s", t.EffectRow.String())
 	}
 

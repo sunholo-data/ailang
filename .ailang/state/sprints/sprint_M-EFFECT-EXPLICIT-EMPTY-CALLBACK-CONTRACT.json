@@ -65,10 +65,10 @@
         "Old-compiler populated acceptance cache is rejected by fixed compiler identity",
         "Same-binary omitted-to-empty and reverse direct/transitive dependency edits invalidate aliases/ctor/export verdicts"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T09:48:52.668223+00:00",
+      "notes": "Failing-first AST/iface/string/alias-digest identity checks green; warm direct/transitive alias and export edits invalidate verdicts, ctor pure control changes dep/importer identities and rejects IO. Valid CoreTI-DAG/JSON flags survive. Real old752 compiler acceptance cache populated16files, oldwarm changesonlymanifest; fixedsamecache andnocache both reject. Full changed/core7packages, lint0/sizes/boundaries and49frozen interfaces green, no golden diff. No schema or epoch change; v8 reserved1771."
     },
     {
       "id": "M3_ENGINES_DOCS",
