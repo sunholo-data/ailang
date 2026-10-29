@@ -40,7 +40,7 @@ Add PkgAssetTarget {Dir, Version} and immutable PkgAssets map; explicitly preser
 - [x] Nil context and packages absent from the map retain fallback; 0.10.0 beats 0.9.0 and 0.2.0.
 - [x] Invalid directory names are skipped; exclusively invalid versions fail with a structured Err; compatibility edge cases mirror pkg.ParseSemver.
 - [x] Path/git target directories resolve assets; sandbox, invalid package names, absolute paths and traversal still fail before lookup.
-- [ ] WithBudget and Clone preserve targets without mutating the shared map; focused effects tests and make test-changed pass.
+- [x] WithBudget and Clone preserve targets without mutating the shared map; focused effects tests and make test-changed pass.
 
 **Risk:** Comparator duplication drifts; mitigate with mirrored edge-case tables. This is compatibility ordering as specified by the design, not a new strict SemVer prerelease policy.
 
