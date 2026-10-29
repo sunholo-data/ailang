@@ -1,6 +1,6 @@
 # Post-merge #1963 consumer classification — resolved by accepted explicit-empty contracts
 
-**Current status:** The original classification below is preserved as pre-amendment history. Consumer compatibility is resolved by accepted PR #2005; the separate alias-ownership invariant follow-up remains active.
+**Current status:** The original classification below is preserved as pre-amendment history. Consumer compatibility is resolved by accepted PR #2005; the separate alias-ownership invariant follow-up is accepted in PR2008.
 
 Independent read-only classification after language agent's pinned four-arm reduction. No compiler or consumer edits. Preserve the original source PASS/gate report and the broader consumer failure evidence; neither claims the original25-file production subset covered the full60-file core selection.
 
@@ -45,4 +45,4 @@ Evidence:1958-nested-mixed-matrix.json,1958-nested-four-pure-matrix.json,1958-fi
 
 Mark approved and executed the [explicit-empty callback amendment](m-effect-explicit-empty-callback-contract.md), independently accepted at 95/100 and merged in PR #2005 at `80793dbcf42423027be4bab1a0088da54e2323d8`. This supplies closed concrete pure callback contracts without weakening the conservative parameter-wide charging rule. The exact four pure fields were delivered on the pinned fork at `083ef43726981099a0bad4fedda18fc72105d6fa` after actual **60/60 core and 9/9 extension** proof, including fresh no-cache checks with initial deadlines and passing serial retries retained. See [final compatibility evidence](m-effect-explicit-empty-callback-contract-compatibility.json). The earlier 55/60 outcomes and failed four-field hypothesis above remain historical evidence, not erased failures or current blockers.
 
-This resolves the fixture compatibility follow-up only. The separately owned alias-hidden callback-tail ownership invariant repair remains active and is not completed by this amendment. Target v0.56.0 remains unreleased; no upstream or live rig deployment is implied.
+This resolves the fixture compatibility follow-up only. The separately owned alias-hidden callback-tail ownership repair was completed later in PR2008 at749045717c484299b3103008023bf27a826df844, independent95/100. It is not attributed to the explicit-empty amendment; see [follow-up evaluation](m-effect-latent-alias-ownership-evaluation.md). Target v0.56.0 remains unreleased; no upstream or live rig deployment is implied.

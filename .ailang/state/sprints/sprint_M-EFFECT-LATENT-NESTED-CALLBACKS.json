@@ -140,7 +140,7 @@
       "passes": true,
       "started": "2026-10-29",
       "completed": "2026-10-29",
-      "notes": "Red/green ownership and forwarding regressions banked; local/imported generic alias and IO/FS caller controls pass. Full types/pipeline pass; full CLI initially failed only invoked-FS strict verification contract (existing Phase2E evaluator-only builtin); final affected CLI passes with strict negatives/IO/unused-FS and explicit normal-VM interop for invoked FS. Aborted core separately PASS; lint0, boundaries, sizes, changelog, JSON valid; paired528 corpus zero changes; original unmodified social_dynamics tasks now clean. R2 actual #2005 integration completed separately; independent follow-up evaluation remains pending."
+      "notes": "Historical implementation checkpoint:\nRed/green ownership and forwarding regressions banked; local/imported generic alias and IO/FS caller controls pass. Full types/pipeline pass; full CLI initially failed only invoked-FS strict verification contract (existing Phase2E evaluator-only builtin); final affected CLI passes with strict negatives/IO/unused-FS and explicit normal-VM interop for invoked FS. Aborted core separately PASS; lint0, boundaries, sizes, changelog, JSON valid; paired528 corpus zero changes; original unmodified social_dynamics tasks now clean. R2 actual #2005 integration completed separately; independent follow-up evaluation remains pending.\nCurrent acceptance: independent follow-up PASS95, round2, PR2008 merged749045717c484299b3103008023bf27a826df844; original parent PASS93 unchanged."
     },
     {
       "id": "R2_COMBINED_INTEGRATION",
@@ -158,7 +158,7 @@
       "passes": true,
       "started": "2026-10-29",
       "implementation_complete": true,
-      "notes": "Actual80793 merged normally at15afcc12. Deliveredconsumer083ef437 exact tree passes fresh-cache gmake check_core60/60+9/9+204 runtime OK lines. Both-feature focused tests and original social module PASS vs actual80793 failing. Paired530-file corpus446pass/84reject both, zero status/diagnostic changes/invariants. Source/evidence handed off for independent reviewer; no executor score.",
+      "notes": "Historical implementation checkpoint:\nActual80793 merged normally at15afcc12. Deliveredconsumer083ef437 exact tree passes fresh-cache gmake check_core60/60+9/9+204 runtime OK lines. Both-feature focused tests and original social module PASS vs actual80793 failing. Paired530-file corpus446pass/84reject both, zero status/diagnostic changes/invariants. Source/evidence handed off for independent reviewer; no executor score.\nCurrent acceptance: independent follow-up PASS95, round2, PR2008 merged749045717c484299b3103008023bf27a826df844; original parent PASS93 unchanged.",
       "completed": "2026-10-29"
     }
   ],
