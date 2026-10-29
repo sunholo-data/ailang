@@ -21,9 +21,11 @@ DRV="${MC_CAPACITY_DRIVER:-$HERE/mission-control.sh}"
 PROBE_LIB="$HERE/lib/lane-probe.sh"
 
 unset AILANG_STORAGE_MESSAGING AILANG_MESSAGES_PROJECT MISSION_RUNTIME_QUOTA_SIG MISSION_GH_ISSUE \
-      MISSION_RUNTIME_QUOTA_REWALKS
+      MISSION_RUNTIME_QUOTA_REWALKS MISSION_TRANSIENT_RETRIES
 
-ROOT="${TMPDIR:-/tmp}/ctl-capacity-$$"
+# Canonical (pwd -P): on macOS $TMPDIR is a symlink to /private/var, and pi keys its session dir on
+# the PHYSICAL cwd, so a logical ROOT would make the resume lookup miss for a reason that is not the seam.
+ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)/ctl-capacity-$$"
 rm -rf "$ROOT"; mkdir -p "$ROOT/x"
 trap 'rm -rf "$ROOT"' EXIT
 
@@ -78,15 +80,29 @@ make_lab() {
   : > "$LAB/pi.argv"; : > "$LAB/sends"; : > "$LAB/ailang.argv"
   cat > "$LAB/bin/pi" <<'STUB'
 #!/bin/bash
-model=""; prev=""
-for a in "$@"; do [ "$prev" = "--model" ] && model="$a"; prev="$a"; done
+model=""; sid=""; prompt=""; prev=""
+for a in "$@"; do
+  case "$prev" in --model) model="$a" ;; --session-id) sid="$a" ;; -p) prompt="$a" ;; esac
+  prev="$a"
+done
 printf '%s\n' "$model" >> "$MC_LAB/pi.argv"
+inv=$(wc -l < "$MC_LAB/pi.argv" | tr -d ' ')
+printf '%s\n' "$sid" >> "$MC_LAB/pi.sid"; printf '%s' "$prompt" > "$MC_LAB/pi.p.$inv"
 key=$(printf '%s' "$model" | tr '/:' '__')
 n=$(grep -c "^${model}\$" "$MC_LAB/pi.argv")
 f="$MC_LAB/script/$key.$n"; [ -f "$f" ] || f="$MC_LAB/script/$key.default"
 [ -f "$f" ] || { echo "NOSCRIPT for $model attempt $n"; exit 99; }
 rc=$(sed -n 1p "$f"); stamp=$(sed -n 2p "$f")
-sed -n '3,$p' "$f"
+if [ -n "$sid" ]; then
+  [ -n "${PI_CODING_AGENT_DIR:-}" ] || { echo "FAKE pi: PI_CODING_AGENT_DIR unset" >&2; exit 98; }
+  cwd=$(pwd -P); slug=$(printf '%s' "${cwd#/}" | tr '/\\:' '---')
+  sdir="$PI_CODING_AGENT_DIR/sessions/--$slug--"; mkdir -p "$sdir"
+  set -- "$sdir"/*_"$sid".jsonl
+  if [ -f "$1" ]; then sf="$1"; else sf="$sdir/$(date -u +%Y-%m-%dT%H-%M-%S)-000Z_$sid.jsonl"; fi
+  printf '{"type":"message","inv":%s}\n' "$inv" >> "$sf"
+fi
+if [ -f "$f.stderr" ]; then sed -n '3,$p' "$f" >&2; s=stderr; else sed -n '3,$p' "$f"; s=stdout; fi
+printf '%s\n' "$s" >> "$MC_LAB/pi.stream"
 [ "$stamp" != "-" ] && printf '%s\t%s\t%s\t%s\t\n' "$(date +%s)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$stamp" "1" >> "$MC_HB"
 [ -f "$MC_LAB/landed" ] && printf '## Iteration landed\n' >> "$MC_LAB/mission-log.md"
 exit "$rc"
@@ -104,10 +120,12 @@ STUB
   chmod +x "$LAB/bin/"*
 }
 
-# script MODEL N RC STAMP TEXT — N may be `default`.
-script() { # model n rc stamp text
+# script MODEL N RC STAMP TEXT [stderr] — N may be `default`. A 6th arg `stderr` makes the fake
+# print TEXT to stderr (as pi does for a provider error) instead of stdout.
+script() { # model n rc stamp text [stderr]
   local key; key=$(printf '%s' "$1" | tr '/:' '__')
   printf '%s\n%s\n%s\n' "$3" "$4" "$5" > "$LAB/script/$key.$2"
+  if [ -n "${6:-}" ]; then : > "$LAB/script/$key.$2.stderr"; fi
 }
 
 # runcase NAME — runs the extracted blocks in a subshell. Inputs (globals): CHAIN, REWALKS,
@@ -122,7 +140,7 @@ runcase() {
   (
     set -uo pipefail
     export PATH="$LAB/bin:/usr/bin:/bin"
-    export MC_LAB="$LAB"
+    export MC_LAB="$LAB" PI_CODING_AGENT_DIR="$LAB/pi-agent"
     export MISSION_TIMEOUT=20 MISSION_STALL_GRACE=20 MISSION_TRANSIENT_BACKOFF=0 MISSION_NOTIFY_TIMEOUT=5
     export MISSION_STALL_INTERVAL=30
     [ -n "$REWALKS" ] && export MISSION_RUNTIME_QUOTA_REWALKS="$REWALKS"
@@ -309,6 +327,25 @@ runcase
 [ "$(pi_count openrouter/a)" -eq 2 ] && [ "$(pi_count openrouter/b)" -eq 0 ]; expect "same rung retried, no re-walk" $?
 state_has "demoted=[]"; expect "no demotion" $?
 has_log "slot-verdict: COMPLETED"; expect "COMPLETED" $?
+endcase
+
+begin provider-finish-reason-error-retries-and-resumes
+CHAIN="$CH3"
+script openrouter/a 1 1 - 'Provider finish_reason: error' stderr
+script openrouter/a 2 0 complete "done"
+runcase
+[ "$CASE_RC" -eq 0 ]; expect "process rc 0 (got $CASE_RC)" $?
+[ "$(pi_count openrouter/a)" -eq 2 ] && [ "$(pi_count openrouter/b)" -eq 0 ]; expect "same rung retried, no re-walk" $?
+state_has "demoted=[]"; expect "no demotion" $?
+has_log "transient API error (rc=1) attempt 1/3"; expect "retry log line" $?
+has_log 'Provider finish_reason: error'; expect "stderr text reached driver.log" $?
+[ "$(/usr/bin/grep -cF 'Provider finish_reason: error' "$LAB/err")" -eq 0 ]; expect "error text did not escape to stderr" $?
+[ "$(sed -n 1p "$LAB/pi.stream")" = stderr ]; expect "attempt 1 emitted the error on stderr, as real pi does" $?
+[ "$(/usr/bin/grep -cxF "cap-session-$$" "$LAB/pi.sid")" -eq 2 ] && [ "$(wc -l < "$LAB/pi.sid" | tr -d ' ')" -eq 2 ]
+expect "both attempts reuse the session id" $?
+[ "$(tail -n 1 "$LAB/pi.p.1")" = "fake prompt" ] && [ "$(tail -n 1 "$LAB/pi.p.2")" = "resume" ]
+expect "attempt 2 gets the RESUME prompt, attempt 1 the fresh one" $?
+has_log "slot-verdict: COMPLETED"; expect "verdict COMPLETED" $?
 endcase
 
 begin rc0-old-402-normal
