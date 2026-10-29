@@ -26,7 +26,7 @@ func firstSmokeDiagnostic(s string) string {
 	for _, line := range lines {
 		text := strings.TrimSpace(line)
 		lower := strings.ToLower(text)
-		for _, prefix := range []string{"error:", "panic:", "fatal error:", "fail:", "par_"} {
+		for _, prefix := range []string{"error:", "panic:", "fatal error:", "signal:", "fail:", "par_"} {
 			if strings.HasPrefix(lower, prefix) {
 				return text
 			}

@@ -169,7 +169,7 @@ lossy truncation; shared by 8KiB result and 2KiB Notes summarization):
    selected captured diagnostic. Timeout is never `NotRun`; keep current timer
    placement (resolution outside subprocess timeout) and proctree cleanup.
 4. Otherwise scan lines in order for a trimmed error diagnostic: case-insensitive
-   `Error:`, `panic:`, `fatal error:`, `FAIL:` or a line beginning a `PAR_` parser
+   `Error:`, `panic:`, `fatal error:`, `signal:`, `FAIL:` or a line beginning a `PAR_` parser
    diagnostic. Prefer these over earlier progress/warning/stdout noise. Stack
    frames (`at ...`, `goroutine ...`, indented Go file:line) are context, not the
    diagnostic. If none exists, select first nonblank non-warning/progress/
@@ -206,6 +206,11 @@ setup/start/parser/noise/trace/timeout cases and actual quality/no-run controls
 pass; lint0/boundaries/sizes/fmt pass. Actual merged #1771 dev652 was normally
 integrated before this milestone; its cache/IFC source was not edited. Raw
 `1773-M2-*` evidence retains the original failures.
+
+M2 independent D1 repair: an actual empty-output self-killed Go child exposed
+lost negative-exit signal text. RED is preserved; the repair retains its signal
+cause while timeout stays first. A real process regression and competing
+long-output control pass; Windows TerminateProcess remains explicitly qualified.
 
 ## M3_ROOT_PATH_SHADOW_WARNING — 105 lines, 45–60 minutes
 

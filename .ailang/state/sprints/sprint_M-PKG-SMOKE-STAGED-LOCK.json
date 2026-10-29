@@ -100,7 +100,7 @@
       "passes": true,
       "started": "2026-10-29T12:45:14.340495+00:00",
       "completed": "2026-10-29T12:53:39.433631+00:00",
-      "notes": "M2 red captured lost first diagnostic,8236-byte overflow/invalidUTF8 and discarded staging rErr/real child/timeout Notes. Green selects explicit diagnostics before noise/trace, preserves canonical setup/start errors, parser errors and timeout context; uses existing TruncateBytes with valid UTF8 and reserved prefixes/markers for8192-byte result/2048-byte Notes. Actual quality JSON/finding and no-run pass; targeted pkg38.114s/CLI34.741s, lint0/boundaries/sizes/fmt PASS. Existing timer/proctree/schema/authority behavior unchanged. Raw1773-M2-* logs retained."
+      "notes": "M2 red captured lost first diagnostic,8236-byte overflow/invalidUTF8 and discarded staging rErr/real child/timeout Notes. Green selects explicit diagnostics before noise/trace, preserves canonical setup/start errors, parser errors and timeout context; uses existing TruncateBytes with valid UTF8 and reserved prefixes/markers for8192-byte result/2048-byte Notes. Actual quality JSON/finding and no-run pass; targeted pkg38.114s/CLI34.741s, lint0/boundaries/sizes/fmt PASS. Existing timer/proctree/schema/authority behavior unchanged. Raw1773-M2-* logs retained. Independent preflight D1 found empty-output signal death lost actual ExitError text. Real self-killed Go child RED confirmed; repair retains negative-exit signal text (not timeout), treats signal: as a diagnostic, and passes actual process plus competing long-output tests. Windows explicitly qualifies TerminateProcess as ordinary exit semantics. Raw independent and1773-M2-signal RED/GREEN preserved."
     },
     {
       "id": "M3_ROOT_PATH_SHADOW_WARNING",

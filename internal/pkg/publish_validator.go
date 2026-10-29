@@ -107,7 +107,7 @@ func RunSmokeInTempDir(packageDir, ailangBin string, timeout time.Duration) (*Sm
 
 	output := combined.String()
 	var exitErr *exec.ExitError
-	if runErr != nil && !errors.As(runErr, &exitErr) && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+	if runErr != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) && (!errors.As(runErr, &exitErr) || exitErr.ExitCode() < 0) {
 		output = runErr.Error() + "\n" + output
 	}
 	out := truncateOutput(output, 8*1024)

@@ -2,7 +2,9 @@ package pkg
 
 import (
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/testutil"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +42,7 @@ func TestSmokeFailureNotes_SelectsCauseAndPreservesByteBudget(t *testing.T) {
 		{"osc", &SmokeResult{ExitCode: 23, Output: "\x1b]8;;https://example.invalid\x07\x1b]8;;\x07Error: LINK_CAUSE"}, nil, "Error: LINK_CAUSE"},
 		{"parser", &SmokeResult{ExitCode: 1, Output: "INFO: compiling\nPAR_UNEXPECTED_TOKEN at fixture.ail:3"}, nil, "PAR_UNEXPECTED_TOKEN"},
 		{"timeout", &SmokeResult{ExitCode: -1, TimedOut: true, Output: "Error: before deadline\n" + strings.Repeat("TRACE: tail\n", 500)}, nil, "timed out after 1s"},
+		{"signal_with_child_error", &SmokeResult{ExitCode: -1, Output: "signal: killed\nError: earlier child diagnostic\n" + strings.Repeat("TRACE: tail\n", 900)}, nil, "signal: killed"},
 		{"quiet_exit", &SmokeResult{ExitCode: 23}, nil, "smoke exited with code 23"},
 		{"only_noise", &SmokeResult{ExitCode: 23, Output: "INFO: starting\nWarning: harmless\n  at file.ail:2"}, nil, "smoke exited with code 23"},
 		{"plain_failure", &SmokeResult{ExitCode: 2, Output: "\noperation refused by fixture\n"}, nil, "operation refused"},
@@ -71,5 +74,27 @@ func TestSmokeFailureNotes_ChildStartError(t *testing.T) {
 	notes := SmokeFailureNotes(result, nil, time.Second)
 	if !strings.Contains(notes, "absent-smoke-binary") || len(notes) > 2048 {
 		t.Fatalf("child-start Notes: %s", notes)
+	}
+}
+
+func TestSmokeFailureNotes_ActualSignalCause(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows TerminateProcess reports an ordinary exit code; shared empty-exit and timeout controls still apply")
+	}
+	binary := filepath.Join(t.TempDir(), "signal-smoke")
+	out, errout, code := testutil.RunBounded(t, ".", 120*time.Second, "go", "build", "-o", binary, "./testdata/smoke_signal")
+	if code != 0 {
+		t.Fatalf("build signal fixture: code=%d %s %s", code, out, errout)
+	}
+	_, author := smokeStageFixture(t)
+	result, err := RunSmokeInTempDir(author, binary, 10*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Passed || result.TimedOut || result.ExitCode >= 0 {
+		t.Fatalf("expected actual signal death: %+v", result)
+	}
+	if notes := SmokeFailureNotes(result, nil, 10*time.Second); !strings.Contains(notes, "signal:") {
+		t.Fatalf("actual signal cause lost: %+v Notes=%q", result, notes)
 	}
 }
