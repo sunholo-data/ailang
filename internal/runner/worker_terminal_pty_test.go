@@ -38,15 +38,20 @@ func TestWorkerTerminalPTYLifecycle(t *testing.T) {
 source = source.replace('let result = withTerminal', 'let worker = spawnProcess(' + __import__('json').dumps(sys.executable) + ', ["worker.py"]); closeProcessStdin(worker); let result = withTerminal')
 with tempfile.TemporaryDirectory() as work:
  with open(os.path.join(work, 'worker.py'), 'w') as f:
-  f.write('import os,time\nopen("worker.pid","w").write(str(os.getpid()))\ntime.sleep(60)\n')`, 1)
+  f.write('import os,time\nwith open("worker.pid.pending","w") as pidfile: pidfile.write(str(os.getpid()))\nos.replace("worker.pid.pending","worker.pid")\ntime.sleep(60)\n')`, 1)
 	harness = strings.Replace(harness, "effects = '{IO @limit=3}' if scenario == 'budget' else '{IO}'", "effects = '{Process, IO @limit=3}' if scenario == 'budget' else '{Process, IO}'", 1)
 	harness = strings.Replace(harness, "'--caps', 'IO', '--entry'", "'--caps', 'IO,Process', '--process-allowlist', sys.executable, '--entry'", 1)
 	harness = strings.Replace(harness, "  until(b'READY')", `  until(b'READY')
   deadline = time.monotonic() + 5
   pidfile = os.path.join(work, 'worker.pid')
-  while not os.path.exists(pidfile) and time.monotonic() < deadline: time.sleep(.01)
-  assert os.path.exists(pidfile), 'worker never acknowledged startup'
-  worker_pid = int(open(pidfile).read())
+  worker_pid = None
+  while worker_pid is None and time.monotonic() < deadline:
+   try:
+    with open(pidfile) as f: text = f.read().strip()
+    if text: worker_pid = int(text)
+   except (FileNotFoundError, ValueError): pass
+   if worker_pid is None: time.sleep(.01)
+  assert worker_pid and worker_pid > 1, ('worker never acknowledged startup', pidfile, deadline)
   os.kill(worker_pid, 0)`, 1)
 	harness = strings.Replace(harness, "  after = termios.tcgetattr(slave)", `  probe = subprocess.run(['ps', '-o', 'stat=', '-p', str(worker_pid)], capture_output=True, text=True)
   assert probe.returncode in (0, 1), ('PID probe failed', probe.returncode, probe.stderr)
