@@ -1,0 +1,112 @@
+{
+  "sprint_id": "M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS",
+  "status": "in_progress",
+  "created": "2026-10-29T07:17:55.034627+00:00",
+  "design_doc": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness.md",
+  "sprint_plan": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-sprint-plan.md",
+  "github_issues": [
+    1958
+  ],
+  "base_commit": "c04a44780",
+  "velocity": {
+    "target_loc_per_day": 248,
+    "estimated_total_loc": 620,
+    "estimated_days": 2.5
+  },
+  "features": [
+    {
+      "id": "M1_AI_ROW_POLY",
+      "description": "Propagate std/ai streaming callback effects",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Both wrappers and builtin signatures share callback row e plus AI",
+        "Pure callback accepts AI-only caller; IO callback requires AI+IO",
+        "Builtin/stdlib goldens generated and focused tests pass"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-29T07:24:18.398327+00:00",
+      "notes": "Failing-first pipeline/builtin tests green; both wrappers row-polymorphic; offline example check/run passes; test-changed/core, lint, sizes, verify-examples pass. Only ai stdlib golden changed."
+    },
+    {
+      "id": "M2_OPEN_CLOSED_GUARD",
+      "description": "Reject open-side labels absent from a closed row",
+      "estimated_loc": 230,
+      "dependencies": [
+        "M1_AI_ROW_POLY"
+      ],
+      "acceptance_criteria": [
+        "Symmetric guards reject only1/only2 before tail binding",
+        "Unit matrix and R1-R4 integration tests pass",
+        "Exactly two ruled ceiling subtests use strict-compatible spellings"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_ENGINE_MUTATION",
+      "description": "Pin two-engine rejection and scratch mutation evidence",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M2_OPEN_CLOSED_GUARD"
+      ],
+      "acceptance_criteria": [
+        "R1-R5 fail before side-effect output on evaluator and bytecode",
+        "Positive declared-effect controls remain green",
+        "Removing guards or migration separately kills targeted tests"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_CORPUS_RELEASE",
+      "description": "Validate combined corpus, goldens and migration documentation",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M3_ENGINE_MUTATION"
+      ],
+      "acceptance_criteria": [
+        "Base/fixed corpus comparisons recorded with exact source SHAs",
+        "Combined #1790/#1963 tree goldens regenerated where applicable",
+        "Focused required gates pass, changelog opens ###, sprint evaluator invoked"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_AI_ROW_POLY",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches effect/streaming; inspected sunholo/ollama_stream 0.1.0 and sunholo/gemini_live 0.5.1 info/docs. Compiler row invariant and std/ai builtin signatures cannot be replaced by application packages."
+    },
+    {
+      "milestone": "M2_OPEN_CLOSED_GUARD",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches effect/streaming; inspected sunholo/ollama_stream 0.1.0 and sunholo/gemini_live 0.5.1 info/docs. Compiler row invariant and std/ai builtin signatures cannot be replaced by application packages."
+    },
+    {
+      "milestone": "M3_ENGINE_MUTATION",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches effect/streaming; inspected sunholo/ollama_stream 0.1.0 and sunholo/gemini_live 0.5.1 info/docs. Compiler row invariant and std/ai builtin signatures cannot be replaced by application packages."
+    },
+    {
+      "milestone": "M4_CORPUS_RELEASE",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches effect/streaming; inspected sunholo/ollama_stream 0.1.0 and sunholo/gemini_live 0.5.1 info/docs. Compiler row invariant and std/ai builtin signatures cannot be replaced by application packages."
+    }
+  ],
+  "approved_by": "Mark (attended)",
+  "approved_at": "2026-10-29T07:21:05.128797+00:00"
+}

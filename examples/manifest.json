@@ -5,6 +5,21 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/ai_streaming_effect_rows.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "streaming",
+        "row-polymorphism"
+      ],
+      "description": "Pure streaming callbacks require only AI; renderer effects propagate through both streaming APIs.",
+      "modules": [
+        "std/ai",
+        "std/io"
+      ]
+    },
+    {
       "path": "runnable/secrets/sink_function_value_ok.ail",
       "status": "working",
       "tags": [
@@ -3685,11 +3700,11 @@
     }
   ],
   "statistics": {
-    "total": 250,
-    "working": 242,
+    "total": 251,
+    "working": 243,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.968,
+    "coverage": 0.9681274900398407,
     "experimental": 0
   },
   "milestones": {
