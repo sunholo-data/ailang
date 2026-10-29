@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-WORKER-PTY-PIDFILE-ACK",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-10-21T11:14:41.570243+00:00",
   "design_doc": "design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack.md",
   "sprint_plan": "design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack-sprint-plan.md",
@@ -43,10 +43,10 @@
         "Reproduce empty-PID failure with >=200 sequential and >=200 eight-way-concurrent baseline pairs; label controlled scheduling separately if needed",
         "Stop repair if diagnosis contradicts current source"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T14:53:04.516548+00:00",
+      "completed": "2026-10-29T14:53:04.516548+00:00",
+      "notes": "HEAD 93e4f258; clean tree; local dedup only finds supplied design/plan/state. Remote PR dedup unavailable: gh lacks authentication. python3 /tmp/pty_ack_stress.py baseline: 200 sequential + 200 eight-way pairs, 0 natural failures. controlled: 1/1 empty-read ValueError with labelled 100ms open/write pause. Exact source strings extracted; exact child PID liveness checked; kill/wait teardown. Linux 6.9.12, Python 3.11.2. Go missing. cloud_branch_sync start skipped:no-task-id. User handoff authorizes execution superseding planning-only metadata."
     },
     {
       "id": "M2",
@@ -86,5 +86,6 @@
       "notes": null
     }
   ],
-  "execution_authorized": false
+  "execution_authorized": true,
+  "last_session": "2026-10-29T14:53:04.516548+00:00"
 }
