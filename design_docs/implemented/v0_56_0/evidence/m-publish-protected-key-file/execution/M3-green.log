@@ -1,0 +1,30 @@
+--- FAIL: TestPublishAuthCLI_HelpAndSelection (0.06s)
+    pkg_publish_keyfile_cli_test.go:27: Failed to build ailang: go build exited with code 1
+        open /Users/voightkampff/Library/Caches/go-build/d4/d46f51e81be3fc27dfcb42cd67bbc5ec987f1248726c77d21edc3f4350ba07ba-d: operation not permitted
+--- FAIL: TestPublishAuthCLI_EnvWarningAndAuthority (0.00s)
+    pkg_publish_keyfile_cli_test.go:52: Failed to build ailang: go build exited with code 1
+        open /Users/voightkampff/Library/Caches/go-build/d4/d46f51e81be3fc27dfcb42cd67bbc5ec987f1248726c77d21edc3f4350ba07ba-d: operation not permitted
+--- FAIL: TestPublishUpload_FrozenHeaderAndReflection (0.00s)
+panic: httptest: failed to listen on a port: listen tcp6 [::1]:0: bind: operation not permitted [recovered, repanicked]
+
+goroutine 80 [running]:
+testing.tRunner.func1.2({0x104612820, 0x7a74717fd440})
+	/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.darwin-arm64/src/testing/testing.go:1974 +0x1a0
+testing.tRunner.func1()
+	/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.darwin-arm64/src/testing/testing.go:1977 +0x318
+panic({0x104612820?, 0x7a74717fd440?})
+	/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.darwin-arm64/src/runtime/panic.go:860 +0x12c
+net/http/httptest.newLocalListener()
+	/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.darwin-arm64/src/net/http/httptest/server.go:72 +0xd4
+net/http/httptest.NewUnstartedServer(...)
+	/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.darwin-arm64/src/net/http/httptest/server.go:120
+net/http/httptest.NewServer({0x104cd9800, 0x7a7471453260})
+	/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.darwin-arm64/src/net/http/httptest/server.go:107 +0x28
+github.com/sunholo-data/ailang/cmd/ailang.TestPublishUpload_FrozenHeaderAndReflection(0x7a7471e4c908)
+	/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/publish-key-file-1900-exec/cmd/ailang/pkg_publish_upload_auth_test.go:20 +0xb0
+testing.tRunner(0x7a7471e4c908, 0x104cbb420)
+	/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.darwin-arm64/src/testing/testing.go:2036 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.darwin-arm64/src/testing/testing.go:2101 +0x3a8
+FAIL	github.com/sunholo-data/ailang/cmd/ailang	0.856s
+FAIL

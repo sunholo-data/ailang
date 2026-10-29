@@ -1,6 +1,14 @@
 # M-SMT-PREFLIGHT-M0-REPAIR implementation evidence
 
-**Release target:** v0.56.0, UNRELEASED. **Implementation:** complete; independent evaluation and required exact-head CI pending. This executor supplies no score or merge approval.
+**Release target:** v0.56.0, UNRELEASED. **M0 accepted:** root round 3 PASS 95 at 4fb; actual 27 CI: 20 success / 7 skipped and actual Sonar 84.4% pass. Normal merge 0db7902 at 22:19:32 UTC. This is independent acceptance, not an executor self-score.
+
+
+[Durable final and historical reports/raw identities](../../implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/README.md)
+include lossless 8.63 MB corpus, both FAIL 73 rounds, final PASS 95 and actual Sonar/CI.
+The parent/plan/validation remain planned for the multiphase exception; M1–M4,
+F2/F5/#1950/#1953 are deferred. The frozen review block/external BLOCKED records
+are not changed. Earlier pending/source-60a7d7b observations below are historical;
+accepted 4fb has unchanged production Go/all AIL plus a 69-line test-only repair.
 
 The user approved the scoped design/evidence on 2026-10-29 (“approve the three designs”) and explicitly approved execution at observed 20:17:42UTC (“exeute all three sprints”). Both external quorum rounds remain BLOCKED. Their frozen packets/reviewer records were not rewritten or resent. M0-F1/F4/Z are ruled; the parent roadmap M1–M4, F2/F5, #1950/#1953, #1790, runner work and held telemetry remain excluded.
 
@@ -9,7 +17,7 @@ The user approved the scoped design/evidence on 2026-10-29 (“approve the three
 ## Exact source and proof identities
 
 - Execution base: `6d0d3a9da2af2eadc504f7cb050aacde72cc3cca`.
-- Final compiler/test source: `60a7d7b5fce9c137835774750cac1cca063e6b00`. Later completion commits change documentation/state only; compare Go/AIL bytes against this source.
+- Historical local compiler/test source: `60a7d7b5fce9c137835774750cac1cca063e6b00`. The later accepted 4fb head preserves production Go/all AIL bytes but adds the 69-line SMT behavior regression; final CI is qualified to that accepted head. The original local evidence below remains pinned to this checkpoint.
 - Worktree: `.claude/worktrees/smt-m0-repair-exec`, branch `fix/smt-m0-soundness`. Parked `p0/smt-unsound-encodings` and its dirty artifacts were not modified or built.
 - Actual current baseline binary: `/tmp/ailang-backlog-20261029/m0-current-base`; fixed binary: `/tmp/ailang-backlog-20261029/m0-final-match-repaired`. Full binary SHA256, version/std tree, exact fixture SHA256 and environment qualification are in the companion JSON.
 - Historical archived807 execution remains historical. Named-path equality and its nonempty cache/front-half differences are preserved; no whole-compiler equivalence claim replaces the new actual baseline/fixed builds.
@@ -74,7 +82,7 @@ Raw directory: `/tmp/ailang-backlog-20261029/m0-execution`. Load-bearing files: 
 ## Test-only coverage follow-up after the cb5 CI gate
 
 The actual cb5 Sonar gate was FAIL solely for new-code coverage77.7% against
-unchanged80% policy:385 new lines,86 uncovered. Exact-PR source-line hit data
+unchanged 80% policy:385 new lines,86 uncovered. Exact-PR source-line hit data
 identified uncovered contract Match/Forall substitution and local result-binding
 paths. CI run40957956051 exposed no coverage artifact, so the actual Sonar
 per-line response was retained instead of inventing an artifact measurement.

@@ -1,0 +1,21 @@
+{
+  "evaluated_head": "cb5a60ffb63e4c39a7a5d7170db979f5d0dc6bbb",
+  "observed_at_utc": "2026-10-29T21:43:42.311667+00:00",
+  "original_round1_report_preserved": true,
+  "new_finding": "SonarCloud new-code coverage77.7 below existing80 threshold",
+  "failed_conditions": [
+    {
+      "status": "ERROR",
+      "metricKey": "new_coverage",
+      "comparator": "LT",
+      "periodIndex": 1,
+      "errorThreshold": "80",
+      "actualValue": "77.7"
+    }
+  ],
+  "source_reliability_security_maintainability_duplication_hotspot_conditions": "OK",
+  "required_repair": "Meaningful tests covering currently unexercised approvedM0 behavior; production/compiler bytes and thresholds/workflow unchanged",
+  "assigned_owner": "issues_platform test-onlyrepair; rootindependentjudge",
+  "other_ci": "OriginalmainLinux+Windows testsSUCCESS; checks solefailedjob duechecksumtransport, oneboundedretryissued. No gatewaiver.",
+  "acceptance": "HOLD; no PASS untilrepair/newexactheadallCIandSonarpass"
+}

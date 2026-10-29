@@ -1,0 +1,22 @@
+{
+  "head": "cb5a60ffb63e4c39a7a5d7170db979f5d0dc6bbb",
+  "run": 40957956051,
+  "original_attempt": 1,
+  "original_failed_jobs": [
+    123742908120
+  ],
+  "original_failed_check": "checks",
+  "original_linux_and_windows_tests": "SUCCESS",
+  "retry_command": [
+    "gh",
+    "run",
+    "rerun",
+    "40957956051",
+    "--failed"
+  ],
+  "issued_at_utc": "2026-10-29T21:40:29.121783+00:00",
+  "bounded_retry_used": 1,
+  "additional_retries_authorized": 0,
+  "source_or_config_mutation": false,
+  "original_fail_report": "eval_M-SMT-PREFLIGHT-M0-REPAIR_round_1.json"
+}

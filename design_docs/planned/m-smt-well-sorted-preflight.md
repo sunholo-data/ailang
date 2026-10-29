@@ -1,10 +1,10 @@
 # M-SMT-WELL-SORTED-PREFLIGHT: resolve operators and symbols by elaborated type, and check the SMT before Z3 sees it
 
-**Status**: approved M0 implementation complete; required CI/independent acceptance pending; parent M1–M4 deferred.
+**Status**: M0-F1/F4/Z accepted and merged — v0.56.0 UNRELEASED; parent M1–M4/F2/F5 remain deferred.
 
-## Current execution checkpoint (2026-10-29)
+## Execution approval and historical local checkpoint (2026-10-29)
 
-The user separately approved all six reviewed M0 milestones with “exeute all three sprints”, observed 20:17:42UTC. Implementation source `60a7d7b5fce9c137835774750cac1cca063e6b00` and measured evidence are in [the validation report](v0_56_0/m-smt-preflight-m0-repair-validation.md). This authorizes scoped implementation, not deferred semantics or another provider call. The historical design-stage text below records its then-current planning disposition; the later explicit execution instruction supersedes those stage-only restrictions. Both external BLOCKED verdicts remain unchanged, with no external PROCEED or executor self-score claimed. Required CI/independent acceptance are pending.
+The user separately approved all six reviewed M0 milestones with “exeute all three sprints”, observed 20:17:42UTC. Implementation source `60a7d7b5fce9c137835774750cac1cca063e6b00` and measured evidence are in [the validation report](v0_56_0/m-smt-preflight-m0-repair-validation.md). This authorizes scoped implementation, not deferred semantics or another provider call. The historical design-stage text below records its then-current planning disposition; the later explicit execution instruction supersedes those stage-only restrictions. Both external BLOCKED verdicts remain unchanged, with no external PROCEED or executor self-score claimed. Required exact-head CI and root independent acceptance subsequently passed, as recorded below.
 **Target**: next unreleased release after v0.55.0; original v0.54.19 target is historical, not a release request.
 **Priority**: P0 for M0 (#1960/#1961 false-VERIFIED); #1950/#1953 and the wider preflight roadmap remain later scope.
 **Estimated**: historical full roadmap about 6 engineering days; M0 estimate must be refreshed only after design approval.
@@ -22,6 +22,26 @@ this M0 evidence amendment and M0-F1/F4/Z for **planning only**. Approval record
 `three-design-approvals.json`, design commit 88ca9e1e974150fa783d19b15b8a93be1682e2f7. Observation time is the
 assistant's receipt record, not an independently supplied user send time. Both external BLOCKED records remain
 unchanged. No third provider review, plan approval or execution is inferred. The then-current planning drafts were subsequently reviewed and explicitly authorized for execution as recorded above.
+
+## Final accepted M0 repair (2026-10-29)
+
+Root independent round 3 **PASS 95/100** evaluated exact
+`4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314`; actual 27 CI contexts completed
+20 SUCCESS / 7 SKIPPED and actual Sonar new-code coverage 84.4% passed unchanged 80%.
+[PR #2019](https://github.com/sunholo-data/ailang/pull/2019) normally merged as
+`0db7902fd7430e408f3aa30ae811718f036cd5c1` at 22:19:32UTC;
+issues #1960/#1961 closed 22:19:33/22:19:34UTC. This is M0-only acceptance, unreleased.
+[Final and historical evaluation/evidence](../implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/README.md)
+preserve both FAIL 73 rounds, their Sonar corrigendum and actual failure identities.
+
+The multiphase parent, M0 repair plan and validation deliberately **stay planned**:
+parent M1–M4, F2/F5 and #1950/#1953 remain deferred, not silently implemented.
+The frozen M0-REVIEW section and complete external review evidence JSON remain
+byte-identical. Both external records still say BLOCKED; human ratification and
+later implementation acceptance do not become an external PROCEED. Earlier
+planning-stage text inside that frozen section is historical to its review.
+
+The companion `m-smt-well-sorted-preflight-m0-evidence.json` is a frozen design/execution snapshot. Its `current_authorization`, `execution_checkpoint` and earlier pending fields describe their dated capture, not current acceptance; the final state and reports above supersede those outer snapshot fields. The entire JSON, both raw reviews and the marker section remain unchanged.
 
 <!-- M0-REVIEW-BEGIN -->
 ## Approved M0 proposal: design-stage snapshot (2026-10-29)

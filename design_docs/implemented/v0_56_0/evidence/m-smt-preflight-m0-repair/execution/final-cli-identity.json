@@ -1,0 +1,31 @@
+{
+  "binaries": {
+    "current_base": {
+      "path": "/tmp/ailang-backlog-20261029/m0-current-base",
+      "sha256": "799c34ecf9451fcb777178092ce4da22125e4cf502e6879cfee933942da281c6"
+    },
+    "fixed": {
+      "path": "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "sha256": "0a67bc0d90144c3513e291ccc54f224def41dece0a9530906a779579ec5b76b2"
+    }
+  },
+  "fixtures": {
+    "cmd/ailang/testdata/verify_preflight/m0_callee_identity.ail": "603c93b380d260fb55d0477ecd03883c833e9a1bcab7ba5b923d64607f71f780",
+    "cmd/ailang/testdata/verify_preflight/m0_helper_environment.ail": "5807cfe995a6b1e7bc67ae62cac97f7fb3da40b77fb41c823290804a696e75d4",
+    "cmd/ailang/testdata/verify_preflight/m0_int_divmod.ail": "71beeb141f905620d83e3b7856c9230b0874c0315c9e1fa6f5eb88359413eaf9",
+    "cmd/ailang/testdata/verify_preflight/m0_lexical_facts.ail": "e18136b11057f425f8b211f77a4fe40dcd684917b770cd6b53866d815397b97b",
+    "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail": "971af31a40076abb1ac83a4135fcce202c6059914e7e205b58cc860127ee1903",
+    "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail": "0e15e60603681850227b203a0fb1740efd53d8818a61b0a19bd220c3e56d5dff",
+    "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail": "3ab468b289d75a0f4f19866657900d70c8018baa45244f78a13a8ebf78edeb0d"
+  },
+  "environment_keys_cleared": [
+    "OTEL_LOG_USER_PROMPTS"
+  ],
+  "explicit_environment": {
+    "AILANG_STDLIB_PATH": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std",
+    "AILANG_NO_CACHE": "1"
+  },
+  "source_base": "6d0d3a9da2af2eadc504f7cb050aacde72cc3cca",
+  "fixed_source": "60a7d7b5fce9c137835774750cac1cca063e6b00",
+  "stdlib_tree": "1cc110f4b021b7c6a3ecc4940aab6eaf483a68aa"
+}

@@ -1,0 +1,132 @@
+{
+  "baseline": "96d69f05b6e84bd6666e8fa91ff948f803b67d92",
+  "method": "added+deleted tracked diff lines plus new fragment; Go testdata helper counted as tests; excludes design/plan/state/validation metadata",
+  "counts": {
+    "production": 240,
+    "test": 717,
+    "user_doc": 60,
+    "total": 1017
+  },
+  "files": [
+    {
+      "path": "cmd/ailang/commands_pkg.go",
+      "added": 1,
+      "deleted": 1,
+      "category": "production"
+    },
+    {
+      "path": "cmd/ailang/help.go",
+      "added": 3,
+      "deleted": 2,
+      "category": "production"
+    },
+    {
+      "path": "cmd/ailang/pkg_publish.go",
+      "added": 29,
+      "deleted": 8,
+      "category": "production"
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_auth.go",
+      "added": 60,
+      "deleted": 0,
+      "category": "production"
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_auth_test.go",
+      "added": 111,
+      "deleted": 0,
+      "category": "test"
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_child_test.go",
+      "added": 174,
+      "deleted": 0,
+      "category": "test"
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_keyfile_cli_test.go",
+      "added": 71,
+      "deleted": 0,
+      "category": "test"
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_rejection_cli_test.go",
+      "added": 81,
+      "deleted": 0,
+      "category": "test"
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_upload_auth_test.go",
+      "added": 54,
+      "deleted": 0,
+      "category": "test"
+    },
+    {
+      "path": "cmd/ailang/testdata/publish_env_probe/main.go",
+      "added": 24,
+      "deleted": 0,
+      "category": "test"
+    },
+    {
+      "path": "docs/docs/guides/package-publishing.md",
+      "added": 42,
+      "deleted": 5,
+      "category": "user_doc"
+    },
+    {
+      "path": "docs/docs/reference/cli.md",
+      "added": 1,
+      "deleted": 1,
+      "category": "user_doc"
+    },
+    {
+      "path": "internal/pkg/publish_keyfile.go",
+      "added": 40,
+      "deleted": 0,
+      "category": "production"
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_format.go",
+      "added": 36,
+      "deleted": 0,
+      "category": "production"
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_format_test.go",
+      "added": 31,
+      "deleted": 0,
+      "category": "test"
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_other.go",
+      "added": 12,
+      "deleted": 0,
+      "category": "production"
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_test.go",
+      "added": 31,
+      "deleted": 0,
+      "category": "test"
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_unix.go",
+      "added": 48,
+      "deleted": 0,
+      "category": "production"
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_unix_test.go",
+      "added": 140,
+      "deleted": 0,
+      "category": "test"
+    },
+    {
+      "path": "changelogs/unreleased/2026-10-29-publish-protected-key-file.md",
+      "added": 11,
+      "deleted": 0,
+      "category": "user_doc"
+    }
+  ]
+}

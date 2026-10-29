@@ -1,0 +1,13 @@
+--- FAIL: TestFiniteFacts_NestedQuantifierFreshness (0.01s)
+    codegen_call_facts_guards_test.go:145: gotverified wantcounterexample
+        (set-logic ALL)
+        (declare-const $p_i Int)
+        (declare-const $p_j Int)
+        (assert (= $p_i 1))
+        (assert (= $p_j 2))
+        (assert true)
+        (assert (not (let ((i 1)) (let ((j 2)) (forall (($forall_bound_0 Int)) (=> (and (>= $forall_bound_0 i) (< $forall_bound_0 (+ i 1))) (forall (($forall_bound_0 Int)) (=> (and (>= $forall_bound_0 j) (< $forall_bound_0 (+ j 1))) (= $forall_bound_0 $forall_bound_0)))))))))
+        (check-sat)
+FAIL
+FAIL	github.com/sunholo-data/ailang/internal/smt	0.374s
+FAIL

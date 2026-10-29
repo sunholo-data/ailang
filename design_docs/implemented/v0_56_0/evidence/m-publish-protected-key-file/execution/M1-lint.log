@@ -1,0 +1,2 @@
+Error: parallel golangci-lint is running
+The command is terminated due to an error: parallel golangci-lint is running

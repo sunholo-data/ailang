@@ -1,0 +1,46 @@
+{
+  "schema": "ailang.external-evidence-references/v1",
+  "qualification": "References only, no claim that failure is resolved or gate accepted",
+  "logs": [
+    {
+      "local_source": "/tmp/ailang-backlog-20261029/m0-independent-final/checks-failure-raw.log",
+      "bytes": 103409,
+      "sha256": "1bb76f22c73ab632cce8ec53485b1cfc3d993b285d9d0a200143932e5ae4abd6",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/40957956051/job/123742908120",
+      "repository_payload_staged": false,
+      "reason": "Raw CI failure remains outside the staged repository payload; metadata/classification retained."
+    },
+    {
+      "local_source": "/tmp/ailang-backlog-20261029/m0-independent-final/test-4fb-failure-raw.log",
+      "bytes": 204116,
+      "sha256": "f26c5b91121babac4fe68465eaea7ebdd7044d7abe73ea1a35aeea9a78caea0b",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/40960748450/job/123752546418",
+      "repository_payload_staged": false,
+      "reason": "Raw CI failure remains external; exact classification is copied, no retry/status inference."
+    },
+    {
+      "local_source": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-failure.log",
+      "bytes": 4590430,
+      "sha256": "fda09a3970adb9537caf4e2adfd5bfd1782164bb646aa49c1faf974709915e08",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/40883138509/job/123479693310",
+      "repository_payload_staged": false,
+      "reason": "Historical1773 Build attempt1; existing archive owns it; 4.6MB payload deliberately excluded."
+    },
+    {
+      "local_source": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-attempt2-failure.log",
+      "bytes": 4594234,
+      "sha256": "5e5bd48a695725c52577d83463752c9de79563adc8388f855760844b443f9f60",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/40883138509/job/123488317858",
+      "repository_payload_staged": false,
+      "reason": "Historical1773 Build attempt2; existing archive owns it; 4.6MB payload deliberately excluded."
+    },
+    {
+      "local_source": "/tmp/ailang-backlog-20261029/1773-archive-pr-monitor/build-retry-windows-raw.log",
+      "bytes": 4997427,
+      "sha256": "aec4baf4a87272383b48e65adf24ea14c8d6bc62b33b59664a486701de828e08",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/40956177387/job/123741341465",
+      "repository_payload_staged": false,
+      "reason": "Historical1773 completion-audit optional Windows Build failure; existing owner/archive keeps its4.99MB payload external."
+    }
+  ]
+}

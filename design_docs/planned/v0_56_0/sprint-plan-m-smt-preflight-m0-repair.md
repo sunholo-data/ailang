@@ -2,7 +2,16 @@
 
 # Sprint plan: M-SMT-PREFLIGHT-M0-REPAIR
 
-**Status:** M0 implementation complete; final local changed/core and focused/structure/example gates passed. Required exact-head CI and independent acceptance remain pending. Parent M1–M4/F2/F5 remain planned.
+**Status:** M0 repair COMPLETED AND ACCEPTED; root round 3 PASS 95, actual 27 CI/84.4% Sonar, merged 0db7902. v0.56.0 UNRELEASED. Parent M1–M4/F2/F5 remain planned.
+
+
+Root accepted exact 4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314 and normally merged
+PR #2019 at 22:19:32 UTC. [Durable current/historical evidence](../../implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/README.md)
+preserves both FAIL 73 rounds and final PASS 95. This companion stays beside the
+multiphase parent in planned; sprint milestones M1–M6 do not authorize parent
+roadmap M1–M4. Original 60a7d7b source/runtime evidence below remains qualified to its
+checkpoint; accepted 4fb adds only a 69-line behavior tests/validation to unchanged
+production Go/all AIL, with actual final CI supplying current-head proof.
 
 **Design:** [canonical M0 design](../m-smt-well-sorted-preflight.md), current M0 decision section and M0-A1–A8 only. **Issues:** #1960/#1961. **Target:** unreleased v0.56.0; no version bump/release requested. **JSON:** `.ailang/state/sprints/sprint_M-SMT-PREFLIGHT-M0-REPAIR.json`.
 

@@ -1,0 +1,19 @@
+{
+  "prior_head": "796b93365eb66572c3b090133de58006258460e5",
+  "prior_actual_sonar": {
+    "new_lines": 60,
+    "covered": 47,
+    "coverage": 78.3
+  },
+  "newly_hit_public_wrapper_lines": [
+    11,
+    12,
+    13,
+    15,
+    16,
+    17,
+    19
+  ],
+  "projected_new_coverage": 90.0,
+  "qualification": "Actual prior Sonar missed lines joined to focused package Go coverage; actual new-head Sonar gate remains pending and authoritative"
+}

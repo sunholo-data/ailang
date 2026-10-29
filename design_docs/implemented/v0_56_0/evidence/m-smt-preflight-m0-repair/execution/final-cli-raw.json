@@ -1,0 +1,2216 @@
+[
+  {
+    "arm": "current_base",
+    "label": "version",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "version"
+    ],
+    "rc": 0,
+    "stdout": "AILANG dev\nCommit: 6d0d3a9\nFull:   6d0d3a9da2af2eadc504f7cb050aacde72cc3cca\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.094276+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "check:m0_callee_identity.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_callee_identity.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_callee_identity.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.133447+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "verify:m0_callee_identity.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_callee_identity.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_callee_identity.ail\",\n  \"verified\": 3,\n  \"counterexample\": 2,\n  \"skipped\": 0,\n  \"errors\": 2,\n  \"uncontracted\": 0,\n  \"total_exported\": 7,\n  \"results\": [\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"atLeastUnguarded\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 5 column 36: unknown constant n\\\")\\nsat\\n(\\n  (define-fun $xmod_result_lowBound_0 () Int\\n    (- 1))\\n  (define-fun $p_a () Int\\n    0)\\n  (define-fun result () Int\\n    $xmod_result_lowBound_0)\\n)\",\n      \"duration\": 6104667,\n      \"smtlib\": \"; Verification of atLeastUnguarded\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_lowBound_0 Int)\\n(assert (\\u003e= $xmod_result_lowBound_0 n)) ; lowBound ensures\\n\\n(declare-const $p_a Int)\\n(define-const result Int $xmod_result_lowBound_0)\\n\\n(assert (not (\\u003e= result $p_a)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"total\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"2\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(let ((a!1 (+ (- $p_n 1) (total_0 (- (- $p_n 1) 1))))\"\n        },\n        {\n          \"name\": \"total_0\",\n          \"sort\": \"Int))\",\n          \"value\": \"Int\"\n        }\n      ],\n      \"duration\": 5487291,\n      \"smtlib\": \"; Verification of total\\n(set-logic ALL)\\n\\n(declare-fun total_0 (Int) Int)\\n(define-fun total_1 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (let (($tmp3 (total_0 $tmp2))) (+ n $tmp3))))))\\n(define-fun total_2 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (let (($tmp3 (total_1 $tmp2))) (+ n $tmp3))))))\\n(declare-const $p_n Int)\\n(define-const result Int (total_2 $p_n))\\n\\n(assert (not (\\u003e= result 0)))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"function\": \"gap\",\n      \"status\": \"verified\",\n      \"duration\": 4792625,\n      \"smtlib\": \"; Verification of gap\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_total_0 Int)\\n(assert (\\u003e= $xmod_result_total_0 0)) ; total ensures\\n\\n(declare-const $p_a Int)\\n(define-const result Int (let (($tmp4 $xmod_result_total_0)) (let (($tmp5 (+ $p_a 1))) (let (($tmp6 $xmod_result_total_0)) (- $tmp4 $tmp6)))))\\n\\n(assert (\\u003e= $p_a 0))\\n(assert (not (= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"selfGap\",\n      \"status\": \"verified\",\n      \"duration\": 4818625,\n      \"smtlib\": \"; Verification of selfGap\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_total_0 Int)\\n(assert (\\u003e= $xmod_result_total_0 0)) ; total ensures\\n\\n(declare-const $p_a Int)\\n(define-const result Int (let (($tmp7 $xmod_result_total_0)) (let (($tmp8 $xmod_result_total_0)) (- $tmp7 $tmp8))))\\n\\n(assert (not (= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"sumBoth\",\n      \"status\": \"verified\",\n      \"duration\": 5022750,\n      \"smtlib\": \"; Verification of sumBoth\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_total_0 Int)\\n(assert (\\u003e= $xmod_result_total_0 0)) ; total ensures\\n\\n(declare-const $p_a Int)\\n(define-const result Int (let (($tmp9 $xmod_result_total_0)) (let (($tmp10 (+ $p_a 1))) (let (($tmp11 $xmod_result_total_0)) (+ $tmp9 $tmp11)))))\\n\\n(assert (not (\\u003e= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"lowBound\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"20539\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(let ((a!1 (+ 1 (lowBound_0 (- (- $p_n 1) 1))))\"\n        },\n        {\n          \"name\": \"lowBound_0\",\n          \"sort\": \"Int))\",\n          \"value\": \"Int\"\n        }\n      ],\n      \"duration\": 5550625,\n      \"smtlib\": \"; Verification of lowBound\\n(set-logic ALL)\\n\\n(declare-fun lowBound_0 (Int) Int)\\n(define-fun lowBound_1 ((n Int)) Int (let (($tmp12 (\\u003c= n 0))) (ite $tmp12 (* 2 n) (let (($tmp13 (- n 1))) (let (($tmp14 (lowBound_0 $tmp13))) (+ 1 $tmp14))))))\\n(define-fun lowBound_2 ((n Int)) Int (let (($tmp12 (\\u003c= n 0))) (ite $tmp12 (* 2 n) (let (($tmp13 (- n 1))) (let (($tmp14 (lowBound_1 $tmp13))) (+ 1 $tmp14))))))\\n(declare-const $p_n Int)\\n(define-const result Int (lowBound_2 $p_n))\\n\\n(assert (\\u003e= $p_n 0))\\n(assert (not (\\u003e= result $p_n)))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"atLeast\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 5 column 36: unknown constant n\\\")\\nsat\\n(\\n  (define-fun $xmod_result_lowBound_0 () Int\\n    (- 1))\\n  (define-fun $p_a () Int\\n    0)\\n  (define-fun result () Int\\n    $xmod_result_lowBound_0)\\n)\",\n      \"duration\": 5179041,\n      \"smtlib\": \"; Verification of atLeast\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_lowBound_0 Int)\\n(assert (\\u003e= $xmod_result_lowBound_0 n)) ; lowBound ensures\\n\\n(declare-const $p_a Int)\\n(define-const result Int $xmod_result_lowBound_0)\\n\\n(assert (\\u003e= $p_a 0))\\n(assert (not (\\u003e= result $p_a)))\\n\\n(check-sat)\\n(get-model)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.199497+00:00",
+    "results": [
+      {
+        "reason_code": "verifier_error",
+        "function": "atLeastUnguarded",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 5 column 36: unknown constant n\")\nsat\n(\n  (define-fun $xmod_result_lowBound_0 () Int\n    (- 1))\n  (define-fun $p_a () Int\n    0)\n  (define-fun result () Int\n    $xmod_result_lowBound_0)\n)",
+        "duration": 6104667,
+        "smtlib": "; Verification of atLeastUnguarded\n(set-logic ALL)\n\n(declare-const $xmod_result_lowBound_0 Int)\n(assert (>= $xmod_result_lowBound_0 n)) ; lowBound ensures\n\n(declare-const $p_a Int)\n(define-const result Int $xmod_result_lowBound_0)\n\n(assert (not (>= result $p_a)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "total",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "2"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(let ((a!1 (+ (- $p_n 1) (total_0 (- (- $p_n 1) 1))))"
+          },
+          {
+            "name": "total_0",
+            "sort": "Int))",
+            "value": "Int"
+          }
+        ],
+        "duration": 5487291,
+        "smtlib": "; Verification of total\n(set-logic ALL)\n\n(declare-fun total_0 (Int) Int)\n(define-fun total_1 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (let (($tmp3 (total_0 $tmp2))) (+ n $tmp3))))))\n(define-fun total_2 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (let (($tmp3 (total_1 $tmp2))) (+ n $tmp3))))))\n(declare-const $p_n Int)\n(define-const result Int (total_2 $p_n))\n\n(assert (not (>= result 0)))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "function": "gap",
+        "status": "verified",
+        "duration": 4792625,
+        "smtlib": "; Verification of gap\n(set-logic ALL)\n\n(declare-const $xmod_result_total_0 Int)\n(assert (>= $xmod_result_total_0 0)) ; total ensures\n\n(declare-const $p_a Int)\n(define-const result Int (let (($tmp4 $xmod_result_total_0)) (let (($tmp5 (+ $p_a 1))) (let (($tmp6 $xmod_result_total_0)) (- $tmp4 $tmp6)))))\n\n(assert (>= $p_a 0))\n(assert (not (= result 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "selfGap",
+        "status": "verified",
+        "duration": 4818625,
+        "smtlib": "; Verification of selfGap\n(set-logic ALL)\n\n(declare-const $xmod_result_total_0 Int)\n(assert (>= $xmod_result_total_0 0)) ; total ensures\n\n(declare-const $p_a Int)\n(define-const result Int (let (($tmp7 $xmod_result_total_0)) (let (($tmp8 $xmod_result_total_0)) (- $tmp7 $tmp8))))\n\n(assert (not (= result 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "sumBoth",
+        "status": "verified",
+        "duration": 5022750,
+        "smtlib": "; Verification of sumBoth\n(set-logic ALL)\n\n(declare-const $xmod_result_total_0 Int)\n(assert (>= $xmod_result_total_0 0)) ; total ensures\n\n(declare-const $p_a Int)\n(define-const result Int (let (($tmp9 $xmod_result_total_0)) (let (($tmp10 (+ $p_a 1))) (let (($tmp11 $xmod_result_total_0)) (+ $tmp9 $tmp11)))))\n\n(assert (not (>= result 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "lowBound",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "20539"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(let ((a!1 (+ 1 (lowBound_0 (- (- $p_n 1) 1))))"
+          },
+          {
+            "name": "lowBound_0",
+            "sort": "Int))",
+            "value": "Int"
+          }
+        ],
+        "duration": 5550625,
+        "smtlib": "; Verification of lowBound\n(set-logic ALL)\n\n(declare-fun lowBound_0 (Int) Int)\n(define-fun lowBound_1 ((n Int)) Int (let (($tmp12 (<= n 0))) (ite $tmp12 (* 2 n) (let (($tmp13 (- n 1))) (let (($tmp14 (lowBound_0 $tmp13))) (+ 1 $tmp14))))))\n(define-fun lowBound_2 ((n Int)) Int (let (($tmp12 (<= n 0))) (ite $tmp12 (* 2 n) (let (($tmp13 (- n 1))) (let (($tmp14 (lowBound_1 $tmp13))) (+ 1 $tmp14))))))\n(declare-const $p_n Int)\n(define-const result Int (lowBound_2 $p_n))\n\n(assert (>= $p_n 0))\n(assert (not (>= result $p_n)))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "atLeast",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 5 column 36: unknown constant n\")\nsat\n(\n  (define-fun $xmod_result_lowBound_0 () Int\n    (- 1))\n  (define-fun $p_a () Int\n    0)\n  (define-fun result () Int\n    $xmod_result_lowBound_0)\n)",
+        "duration": 5179041,
+        "smtlib": "; Verification of atLeast\n(set-logic ALL)\n\n(declare-const $xmod_result_lowBound_0 Int)\n(assert (>= $xmod_result_lowBound_0 n)) ; lowBound ensures\n\n(declare-const $p_a Int)\n(define-const result Int $xmod_result_lowBound_0)\n\n(assert (>= $p_a 0))\n(assert (not (>= result $p_a)))\n\n(check-sat)\n(get-model)"
+      }
+    ]
+  },
+  {
+    "arm": "current_base",
+    "label": "check:m0_helper_environment.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_helper_environment.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_helper_environment.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.224074+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "verify:m0_helper_environment.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_helper_environment.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_helper_environment.ail\",\n  \"verified\": 1,\n  \"counterexample\": 5,\n  \"skipped\": 0,\n  \"errors\": 3,\n  \"uncontracted\": 0,\n  \"total_exported\": 9,\n  \"results\": [\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"diamond\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 5 column 32: unknown constant n\\\")\\n(error \\\"line 7 column 96: unknown constant total (Int) \\\")\\n(error \\\"line 8 column 43: unknown constant helper (Int Int) \\\")\\n(error \\\"line 10 column 42: unknown constant helper (Int Int) \\\")\\n(error \\\"line 12 column 48: unknown constant left (Int) \\\")\\n(error \\\"line 14 column 69: unknown constant result\\\")\\nsat\\n(\\n  (define-fun $p_a () Int\\n    0)\\n  (define-fun $xmod_result_total_0 () Int\\n    0)\\n)\",\n      \"duration\": 5796625,\n      \"smtlib\": \"; Verification of diamond\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_total_0 Int)\\n(assert (= $xmod_result_total_0 n)) ; total ensures\\n\\n(define-fun helper ((environment Int) (n Int)) Int (let (($tmp4 (+ environment n))) (total $tmp4)))\\n(define-fun right ((n Int)) Int (helper 7 n))\\n(define-fun combine ((x Int) (y Int)) Int (+ x y))\\n(define-fun left ((n Int)) Int (helper 1 n))\\n(declare-const $p_a Int)\\n(define-const result Int (let (($tmp7 (left $p_a))) (let (($tmp8 (right $p_a))) (combine $tmp7 $tmp8))))\\n\\n(assert (not (let (($tmp5 (* 2 $p_a))) (let (($tmp6 (+ $tmp5 8))) (= result $tmp6)))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"nestedBoundFalse\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        }\n      ],\n      \"duration\": 5178750,\n      \"smtlib\": \"; Verification of nestedBoundFalse\\n(set-logic ALL)\\n\\n(define-const result Int 0)\\n\\n(assert (not (let ((i 1)) (let ((j 2)) (forall ((i Int)) (=\\u003e (and (\\u003e= i i) (\\u003c i (+ i 1))) (forall ((j Int)) (=\\u003e (and (\\u003e= j j) (\\u003c j (+ j 1))) (= i j)))))))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"nullary\",\n      \"status\": \"error\",\n      \"reason\": \"encoding error: unrolling recursive function: encoding unrolled body at depth 1: if else: constructor arg 0: unit literals cannot be encoded in SMT-LIB\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"nullaryFalse\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$xmod_result_nullary_0\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"$xmod_result_nullary_0\"\n        }\n      ],\n      \"duration\": 5786292,\n      \"smtlib\": \"; Verification of nullaryFalse\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_nullary_0 Int)\\n(assert (= $xmod_result_nullary_0 0)) ; nullary ensures\\n\\n(define-const result Int $xmod_result_nullary_0)\\n\\n(assert (not (= result 1)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"diamondFalse\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 5 column 32: unknown constant n\\\")\\n(error \\\"line 7 column 96: unknown constant total (Int) \\\")\\n(error \\\"line 8 column 42: unknown constant helper (Int Int) \\\")\\n(error \\\"line 9 column 43: unknown constant helper (Int Int) \\\")\\n(error \\\"line 12 column 48: unknown constant left (Int) \\\")\\n(error \\\"line 15 column 16: unknown constant result\\\")\\nsat\\n(\\n  (define-fun $p_a () Int\\n    1)\\n  (define-fun $xmod_result_total_0 () Int\\n    0)\\n)\",\n      \"duration\": 5578709,\n      \"smtlib\": \"; Verification of diamondFalse\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_total_0 Int)\\n(assert (= $xmod_result_total_0 n)) ; total ensures\\n\\n(define-fun helper ((environment Int) (n Int)) Int (let (($tmp4 (+ environment n))) (total $tmp4)))\\n(define-fun left ((n Int)) Int (helper 1 n))\\n(define-fun right ((n Int)) Int (helper 7 n))\\n(define-fun combine ((x Int) (y Int)) Int (+ x y))\\n(declare-const $p_a Int)\\n(define-const result Int (let (($tmp9 (left $p_a))) (let (($tmp10 (right $p_a))) (combine $tmp9 $tmp10))))\\n\\n(assert (= $p_a 1))\\n(assert (not (= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"boundShadow\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        }\n      ],\n      \"duration\": 5202666,\n      \"smtlib\": \"; Verification of boundShadow\\n(set-logic ALL)\\n\\n(define-const result Int 0)\\n\\n(assert (not (let ((i 1)) (forall ((i Int)) (=\\u003e (and (\\u003e= i i) (\\u003c i (+ i 1))) (= i 1))))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"total\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"2\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(let ((a!1 (+ (total_0 (- (- $p_n 1) 1)) 1))\"\n        },\n        {\n          \"name\": \"total_0\",\n          \"sort\": \"Int))\",\n          \"value\": \"Int\"\n        }\n      ],\n      \"duration\": 5790958,\n      \"smtlib\": \"; Verification of total\\n(set-logic ALL)\\n\\n(declare-fun total_0 (Int) Int)\\n(define-fun total_1 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 n (let (($tmp2 (- n 1))) (let (($tmp3 (total_0 $tmp2))) (+ $tmp3 1))))))\\n(define-fun total_2 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 n (let (($tmp2 (- n 1))) (let (($tmp3 (total_1 $tmp2))) (+ $tmp3 1))))))\\n(declare-const $p_n Int)\\n(define-const result Int (total_2 $p_n))\\n\\n(assert (not (= result $p_n)))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"nestedBoundTrue\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        }\n      ],\n      \"duration\": 5604167,\n      \"smtlib\": \"; Verification of nestedBoundTrue\\n(set-logic ALL)\\n\\n(define-const result Int 0)\\n\\n(assert (not (let ((i 1)) (let ((j 2)) (forall ((i Int)) (=\\u003e (and (\\u003e= i i) (\\u003c i (+ i 1))) (forall ((j Int)) (=\\u003e (and (\\u003e= j j) (\\u003c j (+ j 1))) (\\u003c i j)))))))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"nullaryCaller\",\n      \"status\": \"verified\",\n      \"duration\": 4760583,\n      \"smtlib\": \"; Verification of nullaryCaller\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_nullary_0 Int)\\n(assert (= $xmod_result_nullary_0 0)) ; nullary ensures\\n\\n(define-const result Int $xmod_result_nullary_0)\\n\\n(assert (not (= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.297300+00:00",
+    "results": [
+      {
+        "reason_code": "verifier_error",
+        "function": "diamond",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 5 column 32: unknown constant n\")\n(error \"line 7 column 96: unknown constant total (Int) \")\n(error \"line 8 column 43: unknown constant helper (Int Int) \")\n(error \"line 10 column 42: unknown constant helper (Int Int) \")\n(error \"line 12 column 48: unknown constant left (Int) \")\n(error \"line 14 column 69: unknown constant result\")\nsat\n(\n  (define-fun $p_a () Int\n    0)\n  (define-fun $xmod_result_total_0 () Int\n    0)\n)",
+        "duration": 5796625,
+        "smtlib": "; Verification of diamond\n(set-logic ALL)\n\n(declare-const $xmod_result_total_0 Int)\n(assert (= $xmod_result_total_0 n)) ; total ensures\n\n(define-fun helper ((environment Int) (n Int)) Int (let (($tmp4 (+ environment n))) (total $tmp4)))\n(define-fun right ((n Int)) Int (helper 7 n))\n(define-fun combine ((x Int) (y Int)) Int (+ x y))\n(define-fun left ((n Int)) Int (helper 1 n))\n(declare-const $p_a Int)\n(define-const result Int (let (($tmp7 (left $p_a))) (let (($tmp8 (right $p_a))) (combine $tmp7 $tmp8))))\n\n(assert (not (let (($tmp5 (* 2 $p_a))) (let (($tmp6 (+ $tmp5 8))) (= result $tmp6)))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "nestedBoundFalse",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "0"
+          }
+        ],
+        "duration": 5178750,
+        "smtlib": "; Verification of nestedBoundFalse\n(set-logic ALL)\n\n(define-const result Int 0)\n\n(assert (not (let ((i 1)) (let ((j 2)) (forall ((i Int)) (=> (and (>= i i) (< i (+ i 1))) (forall ((j Int)) (=> (and (>= j j) (< j (+ j 1))) (= i j)))))))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "nullary",
+        "status": "error",
+        "reason": "encoding error: unrolling recursive function: encoding unrolled body at depth 1: if else: constructor arg 0: unit literals cannot be encoded in SMT-LIB"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "nullaryFalse",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$xmod_result_nullary_0",
+            "sort": "Int",
+            "value": "0"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "$xmod_result_nullary_0"
+          }
+        ],
+        "duration": 5786292,
+        "smtlib": "; Verification of nullaryFalse\n(set-logic ALL)\n\n(declare-const $xmod_result_nullary_0 Int)\n(assert (= $xmod_result_nullary_0 0)) ; nullary ensures\n\n(define-const result Int $xmod_result_nullary_0)\n\n(assert (not (= result 1)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "diamondFalse",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 5 column 32: unknown constant n\")\n(error \"line 7 column 96: unknown constant total (Int) \")\n(error \"line 8 column 42: unknown constant helper (Int Int) \")\n(error \"line 9 column 43: unknown constant helper (Int Int) \")\n(error \"line 12 column 48: unknown constant left (Int) \")\n(error \"line 15 column 16: unknown constant result\")\nsat\n(\n  (define-fun $p_a () Int\n    1)\n  (define-fun $xmod_result_total_0 () Int\n    0)\n)",
+        "duration": 5578709,
+        "smtlib": "; Verification of diamondFalse\n(set-logic ALL)\n\n(declare-const $xmod_result_total_0 Int)\n(assert (= $xmod_result_total_0 n)) ; total ensures\n\n(define-fun helper ((environment Int) (n Int)) Int (let (($tmp4 (+ environment n))) (total $tmp4)))\n(define-fun left ((n Int)) Int (helper 1 n))\n(define-fun right ((n Int)) Int (helper 7 n))\n(define-fun combine ((x Int) (y Int)) Int (+ x y))\n(declare-const $p_a Int)\n(define-const result Int (let (($tmp9 (left $p_a))) (let (($tmp10 (right $p_a))) (combine $tmp9 $tmp10))))\n\n(assert (= $p_a 1))\n(assert (not (= result 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "boundShadow",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "0"
+          }
+        ],
+        "duration": 5202666,
+        "smtlib": "; Verification of boundShadow\n(set-logic ALL)\n\n(define-const result Int 0)\n\n(assert (not (let ((i 1)) (forall ((i Int)) (=> (and (>= i i) (< i (+ i 1))) (= i 1))))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "total",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "2"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(let ((a!1 (+ (total_0 (- (- $p_n 1) 1)) 1))"
+          },
+          {
+            "name": "total_0",
+            "sort": "Int))",
+            "value": "Int"
+          }
+        ],
+        "duration": 5790958,
+        "smtlib": "; Verification of total\n(set-logic ALL)\n\n(declare-fun total_0 (Int) Int)\n(define-fun total_1 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 n (let (($tmp2 (- n 1))) (let (($tmp3 (total_0 $tmp2))) (+ $tmp3 1))))))\n(define-fun total_2 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 n (let (($tmp2 (- n 1))) (let (($tmp3 (total_1 $tmp2))) (+ $tmp3 1))))))\n(declare-const $p_n Int)\n(define-const result Int (total_2 $p_n))\n\n(assert (not (= result $p_n)))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "nestedBoundTrue",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "0"
+          }
+        ],
+        "duration": 5604167,
+        "smtlib": "; Verification of nestedBoundTrue\n(set-logic ALL)\n\n(define-const result Int 0)\n\n(assert (not (let ((i 1)) (let ((j 2)) (forall ((i Int)) (=> (and (>= i i) (< i (+ i 1))) (forall ((j Int)) (=> (and (>= j j) (< j (+ j 1))) (< i j)))))))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "nullaryCaller",
+        "status": "verified",
+        "duration": 4760583,
+        "smtlib": "; Verification of nullaryCaller\n(set-logic ALL)\n\n(declare-const $xmod_result_nullary_0 Int)\n(assert (= $xmod_result_nullary_0 0)) ; nullary ensures\n\n(define-const result Int $xmod_result_nullary_0)\n\n(assert (not (= result 0)))\n\n(check-sat)\n(get-model)"
+      }
+    ]
+  },
+  {
+    "arm": "current_base",
+    "label": "check:m0_int_divmod.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_int_divmod.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_int_divmod.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.315645+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "verify:m0_int_divmod.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_int_divmod.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_int_divmod.ail\",\n  \"verified\": 5,\n  \"counterexample\": 1,\n  \"skipped\": 0,\n  \"errors\": 0,\n  \"uncontracted\": 0,\n  \"total_exported\": 6,\n  \"results\": [\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"halfTowardZero\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_x\",\n          \"sort\": \"Int\",\n          \"value\": \"(- 1)\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(div $p_x 2)\"\n        }\n      ],\n      \"duration\": 5601042,\n      \"smtlib\": \"; Verification of halfTowardZero\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (div $p_x 2))\\n\\n(assert (\\u003c $p_x 0))\\n(assert (not (let (($tmp6 (* result 2))) (\\u003e= $tmp6 $p_x))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"remSign\",\n      \"status\": \"verified\",\n      \"duration\": 5428333,\n      \"smtlib\": \"; Verification of remSign\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(declare-const $p_y Int)\\n(define-const result Int (mod $p_x $p_y))\\n\\n(assert (let (($tmp7 (\\u003e= $p_x 0))) (ite $tmp7 (\\u003c $p_y 0) false)))\\n(assert (not (let (($tmp8 (\\u003e= result 0))) (ite $tmp8 (let (($tmp9 (- 0 $p_y))) (\\u003c result $tmp9)) false))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"parity\",\n      \"status\": \"verified\",\n      \"duration\": 4539958,\n      \"smtlib\": \"; Verification of parity\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (mod $p_x 2))\\n\\n(assert (not (\\u003e= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"halfDown\",\n      \"status\": \"verified\",\n      \"duration\": 5730875,\n      \"smtlib\": \"; Verification of halfDown\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (div $p_x 2))\\n\\n(assert (not (let (($tmp1 (* result 2))) (\\u003c= $tmp1 $p_x))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"halfNonNeg\",\n      \"status\": \"verified\",\n      \"duration\": 5624625,\n      \"smtlib\": \"; Verification of halfNonNeg\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (div $p_x 2))\\n\\n(assert (\\u003e= $p_x 0))\\n(assert (not (let (($tmp2 (* result 2))) (let (($tmp3 (\\u003c= $tmp2 $p_x))) (ite $tmp3 (\\u003e= result 0) false)))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"parityBounded\",\n      \"status\": \"verified\",\n      \"duration\": 5786958,\n      \"smtlib\": \"; Verification of parityBounded\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (mod $p_x 2))\\n\\n(assert (not (let (($tmp4 (- 0 2))) (let (($tmp5 (\\u003e result $tmp4))) (ite $tmp5 (\\u003c result 2) false)))))\\n\\n(check-sat)\\n(get-model)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.369818+00:00",
+    "results": [
+      {
+        "reason_code": "counterexample",
+        "function": "halfTowardZero",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_x",
+            "sort": "Int",
+            "value": "(- 1)"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(div $p_x 2)"
+          }
+        ],
+        "duration": 5601042,
+        "smtlib": "; Verification of halfTowardZero\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (div $p_x 2))\n\n(assert (< $p_x 0))\n(assert (not (let (($tmp6 (* result 2))) (>= $tmp6 $p_x))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "remSign",
+        "status": "verified",
+        "duration": 5428333,
+        "smtlib": "; Verification of remSign\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(declare-const $p_y Int)\n(define-const result Int (mod $p_x $p_y))\n\n(assert (let (($tmp7 (>= $p_x 0))) (ite $tmp7 (< $p_y 0) false)))\n(assert (not (let (($tmp8 (>= result 0))) (ite $tmp8 (let (($tmp9 (- 0 $p_y))) (< result $tmp9)) false))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "parity",
+        "status": "verified",
+        "duration": 4539958,
+        "smtlib": "; Verification of parity\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (mod $p_x 2))\n\n(assert (not (>= result 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "halfDown",
+        "status": "verified",
+        "duration": 5730875,
+        "smtlib": "; Verification of halfDown\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (div $p_x 2))\n\n(assert (not (let (($tmp1 (* result 2))) (<= $tmp1 $p_x))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "halfNonNeg",
+        "status": "verified",
+        "duration": 5624625,
+        "smtlib": "; Verification of halfNonNeg\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (div $p_x 2))\n\n(assert (>= $p_x 0))\n(assert (not (let (($tmp2 (* result 2))) (let (($tmp3 (<= $tmp2 $p_x))) (ite $tmp3 (>= result 0) false)))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "parityBounded",
+        "status": "verified",
+        "duration": 5786958,
+        "smtlib": "; Verification of parityBounded\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (mod $p_x 2))\n\n(assert (not (let (($tmp4 (- 0 2))) (let (($tmp5 (> result $tmp4))) (ite $tmp5 (< result 2) false)))))\n\n(check-sat)\n(get-model)"
+      }
+    ]
+  },
+  {
+    "arm": "current_base",
+    "label": "check:m0_lexical_facts.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_lexical_facts.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_lexical_facts.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.394851+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "verify:m0_lexical_facts.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_lexical_facts.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_lexical_facts.ail\",\n  \"verified\": 1,\n  \"counterexample\": 3,\n  \"skipped\": 0,\n  \"errors\": 2,\n  \"uncontracted\": 0,\n  \"total_exported\": 6,\n  \"results\": [\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"shadow\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"2\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(let ((a!1 (ite (\\u003c= (- $p_n 1) 0) 0 (shadow_0 (- (- $p_n 1) 1))))\"\n        },\n        {\n          \"name\": \"shadow_0\",\n          \"sort\": \"Int))\",\n          \"value\": \"Int\"\n        }\n      ],\n      \"duration\": 5428250,\n      \"smtlib\": \"; Verification of shadow\\n(set-logic ALL)\\n\\n(declare-fun shadow_0 (Int) Int)\\n(define-fun shadow_1 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (shadow_0 $tmp2)))))\\n(define-fun shadow_2 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (shadow_1 $tmp2)))))\\n(declare-const $p_n Int)\\n(define-const result Int (shadow_2 $p_n))\\n\\n(assert (not (let ((n 0)) (= result n))))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"shadowFalse\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_a\",\n          \"sort\": \"Int\",\n          \"value\": \"1\"\n        },\n        {\n          \"name\": \"$xmod_result_shadow_0\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"$xmod_result_shadow_0\"\n        }\n      ],\n      \"duration\": 5487042,\n      \"smtlib\": \"; Verification of shadowFalse\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_shadow_0 Int)\\n(assert (let ((n 0)) (= $xmod_result_shadow_0 n))) ; shadow ensures\\n\\n(declare-const $p_a Int)\\n(define-const result Int $xmod_result_shadow_0)\\n\\n(assert (= $p_a 1))\\n(assert (not (= result 1)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"shadowTrue\",\n      \"status\": \"verified\",\n      \"duration\": 4799167,\n      \"smtlib\": \"; Verification of shadowTrue\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_shadow_0 Int)\\n(assert (let ((n 0)) (= $xmod_result_shadow_0 n))) ; shadow ensures\\n\\n(declare-const $p_a Int)\\n(define-const result Int $xmod_result_shadow_0)\\n\\n(assert (not (= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"captured\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"2\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(let ((a!1 (+ (captured_0 (- (- $p_n 1) 1)) 1))\"\n        },\n        {\n          \"name\": \"captured_0\",\n          \"sort\": \"Int))\",\n          \"value\": \"Int\"\n        }\n      ],\n      \"duration\": 5759083,\n      \"smtlib\": \"; Verification of captured\\n(set-logic ALL)\\n\\n(declare-fun captured_0 (Int) Int)\\n(define-fun captured_1 ((n Int)) Int (let (($tmp3 (\\u003c= n 0))) (ite $tmp3 n (let (($tmp4 (- n 1))) (let (($tmp5 (captured_0 $tmp4))) (+ $tmp5 1))))))\\n(define-fun captured_2 ((n Int)) Int (let (($tmp3 (\\u003c= n 0))) (ite $tmp3 n (let (($tmp4 (- n 1))) (let (($tmp5 (captured_1 $tmp4))) (+ $tmp5 1))))))\\n(declare-const $p_n Int)\\n(define-const result Int (captured_2 $p_n))\\n\\n(assert (not (let ((a 0)) (= result $p_n))))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"capturedTrue\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 5 column 48: unknown constant n\\\")\\nsat\\n(\\n  (define-fun $xmod_result_captured_0 () Int\\n    2)\\n  (define-fun $p_a () Int\\n    1)\\n  (define-fun result () Int\\n    $xmod_result_captured_0)\\n)\",\n      \"duration\": 5599208,\n      \"smtlib\": \"; Verification of capturedTrue\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_captured_0 Int)\\n(assert (let ((a 0)) (= $xmod_result_captured_0 n))) ; captured ensures\\n\\n(declare-const $p_a Int)\\n(define-const result Int $xmod_result_captured_0)\\n\\n(assert (= $p_a 1))\\n(assert (not (= result 1)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"capturedFalse\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 5 column 48: unknown constant n\\\")\\nsat\\n(\\n  (define-fun $xmod_result_captured_0 () Int\\n    1)\\n  (define-fun $p_a () Int\\n    1)\\n  (define-fun result () Int\\n    $xmod_result_captured_0)\\n)\",\n      \"duration\": 5740833,\n      \"smtlib\": \"; Verification of capturedFalse\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_captured_0 Int)\\n(assert (let ((a 0)) (= $xmod_result_captured_0 n))) ; captured ensures\\n\\n(declare-const $p_a Int)\\n(define-const result Int $xmod_result_captured_0)\\n\\n(assert (= $p_a 1))\\n(assert (not (= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.451526+00:00",
+    "results": [
+      {
+        "reason_code": "counterexample",
+        "function": "shadow",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "2"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(let ((a!1 (ite (<= (- $p_n 1) 0) 0 (shadow_0 (- (- $p_n 1) 1))))"
+          },
+          {
+            "name": "shadow_0",
+            "sort": "Int))",
+            "value": "Int"
+          }
+        ],
+        "duration": 5428250,
+        "smtlib": "; Verification of shadow\n(set-logic ALL)\n\n(declare-fun shadow_0 (Int) Int)\n(define-fun shadow_1 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (shadow_0 $tmp2)))))\n(define-fun shadow_2 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (shadow_1 $tmp2)))))\n(declare-const $p_n Int)\n(define-const result Int (shadow_2 $p_n))\n\n(assert (not (let ((n 0)) (= result n))))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "shadowFalse",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_a",
+            "sort": "Int",
+            "value": "1"
+          },
+          {
+            "name": "$xmod_result_shadow_0",
+            "sort": "Int",
+            "value": "0"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "$xmod_result_shadow_0"
+          }
+        ],
+        "duration": 5487042,
+        "smtlib": "; Verification of shadowFalse\n(set-logic ALL)\n\n(declare-const $xmod_result_shadow_0 Int)\n(assert (let ((n 0)) (= $xmod_result_shadow_0 n))) ; shadow ensures\n\n(declare-const $p_a Int)\n(define-const result Int $xmod_result_shadow_0)\n\n(assert (= $p_a 1))\n(assert (not (= result 1)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "shadowTrue",
+        "status": "verified",
+        "duration": 4799167,
+        "smtlib": "; Verification of shadowTrue\n(set-logic ALL)\n\n(declare-const $xmod_result_shadow_0 Int)\n(assert (let ((n 0)) (= $xmod_result_shadow_0 n))) ; shadow ensures\n\n(declare-const $p_a Int)\n(define-const result Int $xmod_result_shadow_0)\n\n(assert (not (= result 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "captured",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "2"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(let ((a!1 (+ (captured_0 (- (- $p_n 1) 1)) 1))"
+          },
+          {
+            "name": "captured_0",
+            "sort": "Int))",
+            "value": "Int"
+          }
+        ],
+        "duration": 5759083,
+        "smtlib": "; Verification of captured\n(set-logic ALL)\n\n(declare-fun captured_0 (Int) Int)\n(define-fun captured_1 ((n Int)) Int (let (($tmp3 (<= n 0))) (ite $tmp3 n (let (($tmp4 (- n 1))) (let (($tmp5 (captured_0 $tmp4))) (+ $tmp5 1))))))\n(define-fun captured_2 ((n Int)) Int (let (($tmp3 (<= n 0))) (ite $tmp3 n (let (($tmp4 (- n 1))) (let (($tmp5 (captured_1 $tmp4))) (+ $tmp5 1))))))\n(declare-const $p_n Int)\n(define-const result Int (captured_2 $p_n))\n\n(assert (not (let ((a 0)) (= result $p_n))))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "capturedTrue",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 5 column 48: unknown constant n\")\nsat\n(\n  (define-fun $xmod_result_captured_0 () Int\n    2)\n  (define-fun $p_a () Int\n    1)\n  (define-fun result () Int\n    $xmod_result_captured_0)\n)",
+        "duration": 5599208,
+        "smtlib": "; Verification of capturedTrue\n(set-logic ALL)\n\n(declare-const $xmod_result_captured_0 Int)\n(assert (let ((a 0)) (= $xmod_result_captured_0 n))) ; captured ensures\n\n(declare-const $p_a Int)\n(define-const result Int $xmod_result_captured_0)\n\n(assert (= $p_a 1))\n(assert (not (= result 1)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "capturedFalse",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 5 column 48: unknown constant n\")\nsat\n(\n  (define-fun $xmod_result_captured_0 () Int\n    1)\n  (define-fun $p_a () Int\n    1)\n  (define-fun result () Int\n    $xmod_result_captured_0)\n)",
+        "duration": 5740833,
+        "smtlib": "; Verification of capturedFalse\n(set-logic ALL)\n\n(declare-const $xmod_result_captured_0 Int)\n(assert (let ((a 0)) (= $xmod_result_captured_0 n))) ; captured ensures\n\n(declare-const $p_a Int)\n(define-const result Int $xmod_result_captured_0)\n\n(assert (= $p_a 1))\n(assert (not (= result 0)))\n\n(check-sat)\n(get-model)"
+      }
+    ]
+  },
+  {
+    "arm": "current_base",
+    "label": "check:m0_partial_vacuity.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:24.478473+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "verify:m0_partial_vacuity.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail\",\n  \"verified\": 0,\n  \"counterexample\": 1,\n  \"skipped\": 0,\n  \"errors\": 1,\n  \"uncontracted\": 1,\n  \"total_exported\": 3,\n  \"results\": [\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"partial\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(ite (= $p_n 0) (ite (= $p_n 0) (partial_0 $p_n) 0) 0)\"\n        },\n        {\n          \"name\": \"partial_0\",\n          \"sort\": \"Int))\",\n          \"value\": \"Int\"\n        }\n      ],\n      \"duration\": 5652583,\n      \"smtlib\": \"; Verification of partial\\n(set-logic ALL)\\n\\n(declare-fun partial_0 (Int) Int)\\n(define-fun partial_1 ((n Int)) Int (let (($tmp2 (= n 0))) (ite $tmp2 (partial_0 n) 0)))\\n(define-fun partial_2 ((n Int)) Int (let (($tmp2 (= n 0))) (ite $tmp2 (partial_1 n) 0)))\\n(declare-const $p_n Int)\\n(define-const result Int (partial_2 $p_n))\\n\\n(assert (not (let (($tmp1 (distinct $p_n 0))) (ite $tmp1 (= result 0) false))))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"wrong\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 5 column 31: unknown constant n\\\")\\nsat\\n(\\n  (define-fun $xmod_result_partial_0 () Int\\n    2)\\n  (define-fun $p_a () Int\\n    1)\\n  (define-fun result () Int\\n    $xmod_result_partial_0)\\n)\",\n      \"duration\": 5500125,\n      \"smtlib\": \"; Verification of wrong\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_partial_0 Int)\\n(assert (let (($tmp1 (distinct n 0))) (ite $tmp1 (= $xmod_result_partial_0 0) false))) ; partial ensures\\n\\n(declare-const $p_a Int)\\n(define-const result Int $xmod_result_partial_0)\\n\\n(assert (distinct $p_a 0))\\n(assert (not (= result 1)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"uncontracted\",\n      \"function\": \"main\",\n      \"status\": \"uncontracted\",\n      \"reason\": \"no contract annotations (not a verification candidate)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.520482+00:00",
+    "results": [
+      {
+        "reason_code": "counterexample",
+        "function": "partial",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "0"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(ite (= $p_n 0) (ite (= $p_n 0) (partial_0 $p_n) 0) 0)"
+          },
+          {
+            "name": "partial_0",
+            "sort": "Int))",
+            "value": "Int"
+          }
+        ],
+        "duration": 5652583,
+        "smtlib": "; Verification of partial\n(set-logic ALL)\n\n(declare-fun partial_0 (Int) Int)\n(define-fun partial_1 ((n Int)) Int (let (($tmp2 (= n 0))) (ite $tmp2 (partial_0 n) 0)))\n(define-fun partial_2 ((n Int)) Int (let (($tmp2 (= n 0))) (ite $tmp2 (partial_1 n) 0)))\n(declare-const $p_n Int)\n(define-const result Int (partial_2 $p_n))\n\n(assert (not (let (($tmp1 (distinct $p_n 0))) (ite $tmp1 (= result 0) false))))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "wrong",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 5 column 31: unknown constant n\")\nsat\n(\n  (define-fun $xmod_result_partial_0 () Int\n    2)\n  (define-fun $p_a () Int\n    1)\n  (define-fun result () Int\n    $xmod_result_partial_0)\n)",
+        "duration": 5500125,
+        "smtlib": "; Verification of wrong\n(set-logic ALL)\n\n(declare-const $xmod_result_partial_0 Int)\n(assert (let (($tmp1 (distinct n 0))) (ite $tmp1 (= $xmod_result_partial_0 0) false))) ; partial ensures\n\n(declare-const $p_a Int)\n(define-const result Int $xmod_result_partial_0)\n\n(assert (distinct $p_a 0))\n(assert (not (= result 1)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "uncontracted",
+        "function": "main",
+        "status": "uncontracted",
+        "reason": "no contract annotations (not a verification candidate)"
+      }
+    ]
+  },
+  {
+    "arm": "current_base",
+    "label": "check:m0_runtime_signs.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:24.556387+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "verify:m0_runtime_signs.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 0,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail\",\n  \"verified\": 0,\n  \"counterexample\": 0,\n  \"skipped\": 0,\n  \"errors\": 0,\n  \"uncontracted\": 3,\n  \"total_exported\": 3,\n  \"results\": [\n    {\n      \"reason_code\": \"uncontracted\",\n      \"function\": \"main\",\n      \"status\": \"uncontracted\",\n      \"reason\": \"no contract annotations (not a verification candidate)\"\n    },\n    {\n      \"reason_code\": \"uncontracted\",\n      \"function\": \"divZero\",\n      \"status\": \"uncontracted\",\n      \"reason\": \"no contract annotations (not a verification candidate)\"\n    },\n    {\n      \"reason_code\": \"uncontracted\",\n      \"function\": \"modZero\",\n      \"status\": \"uncontracted\",\n      \"reason\": \"no contract annotations (not a verification candidate)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.591544+00:00",
+    "results": [
+      {
+        "reason_code": "uncontracted",
+        "function": "main",
+        "status": "uncontracted",
+        "reason": "no contract annotations (not a verification candidate)"
+      },
+      {
+        "reason_code": "uncontracted",
+        "function": "divZero",
+        "status": "uncontracted",
+        "reason": "no contract annotations (not a verification candidate)"
+      },
+      {
+        "reason_code": "uncontracted",
+        "function": "modZero",
+        "status": "uncontracted",
+        "reason": "no contract annotations (not a verification candidate)"
+      }
+    ]
+  },
+  {
+    "arm": "current_base",
+    "label": "check:m0_selected_paths.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.617132+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "verify:m0_selected_paths.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail\",\n  \"verified\": 2,\n  \"counterexample\": 3,\n  \"skipped\": 1,\n  \"errors\": 5,\n  \"uncontracted\": 0,\n  \"total_exported\": 11,\n  \"results\": [\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"matchLater\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        }\n      ],\n      \"duration\": 5392042,\n      \"smtlib\": \"; Verification of matchLater\\n(set-logic ALL)\\n\\n(define-const result Int 0)\\n\\n(assert (not (= result 1)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"never\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Bool\",\n          \"value\": \"(never_0 $p_n)\"\n        },\n        {\n          \"name\": \"never_0\",\n          \"sort\": \"Int))\",\n          \"value\": \"Bool\"\n        }\n      ],\n      \"duration\": 4849958,\n      \"smtlib\": \"; Verification of never\\n(set-logic ALL)\\n\\n(declare-fun never_0 (Int) Bool)\\n(define-fun never_1 ((n Int)) Bool (never_0 n))\\n(define-fun never_2 ((n Int)) Bool (never_1 n))\\n(declare-const $p_n Int)\\n(define-const result Bool (never_2 $p_n))\\n\\n(assert (not false))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"orFalseGoal\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 7 column 47: unknown constant never (Int) \\\")\\n(error \\\"line 8 column 55: unknown constant helperNever (Int) \\\")\\n(error \\\"line 10 column 16: unknown constant result\\\")\\nunsat\\n(error \\\"line 13 column 10: model is not available\\\")\",\n      \"duration\": 4734792,\n      \"smtlib\": \"; Verification of orFalseGoal\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_never_0 Bool)\\n(assert false) ; never ensures\\n\\n(define-fun helperNever ((n Int)) Bool (never n))\\n(define-const result Bool (ite true true (helperNever 0)))\\n\\n(assert (not (= result false)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"predicateFalse\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 7 column 47: unknown constant never (Int) \\\")\\n(error \\\"line 10 column 38: unknown constant helperNever (Int) \\\")\\nunsat\\n(error \\\"line 13 column 10: model is not available\\\")\",\n      \"duration\": 4593375,\n      \"smtlib\": \"; Verification of predicateFalse\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_never_0 Bool)\\n(assert false) ; never ensures\\n\\n(define-fun helperNever ((n Int)) Bool (never n))\\n(define-const result Int 0)\\n\\n(assert (not (ite false (helperNever 0) false)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"unsupported_encoding\",\n      \"function\": \"matchUnmatched\",\n      \"status\": \"skipped\",\n      \"reason\": \"SMT declaration closure could not resolve a required sort (cannot encode function body: match guard: unresolvable SMT declaration types: calls user function \\\"never\\\" that is not SMT-encodable in this context)\",\n      \"rejections\": [\n        {\n          \"Code\": \"UNENCODABLE_TYPE\",\n          \"Message\": \"cannot encode function body: match guard: unresolvable SMT declaration types: calls user function \\\"never\\\" that is not SMT-encodable in this context\",\n          \"Location\": \"\",\n          \"Hint\": \"The function uses a type shape whose required SMT sorts cannot be declared\"\n        }\n      ]\n    },\n    {\n      \"function\": \"unreachableOpaque\",\n      \"status\": \"verified\",\n      \"duration\": 4439791,\n      \"smtlib\": \"; Verification of unreachableOpaque\\n(set-logic ALL)\\n\\n(define-const result Int 0)\\n\\n(assert (not (= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"zeroSkipped\",\n      \"status\": \"verified\",\n      \"duration\": 4574291,\n      \"smtlib\": \"; Verification of zeroSkipped\\n(set-logic ALL)\\n\\n(define-const result Int (ite true 1 (div 1 0)))\\n\\n(assert (not (= result 1)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"predicateSkipped\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 7 column 47: unknown constant never (Int) \\\")\\n(error \\\"line 10 column 42: unknown constant helperNever (Int) \\\")\\nunsat\\n(error \\\"line 13 column 10: model is not available\\\")\",\n      \"duration\": 5063334,\n      \"smtlib\": \"; Verification of predicateSkipped\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_never_0 Bool)\\n(assert false) ; never ensures\\n\\n(define-fun helperNever ((n Int)) Bool (never n))\\n(define-const result Int 0)\\n\\n(assert (not (ite true true (helperNever 0))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"requiresSkipped\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 7 column 47: unknown constant never (Int) \\\")\\n(error \\\"line 10 column 37: unknown constant helperNever (Int) \\\")\\nunsat\\n(error \\\"line 14 column 10: model is not available\\\")\",\n      \"duration\": 4831000,\n      \"smtlib\": \"; Verification of requiresSkipped\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_never_0 Bool)\\n(assert false) ; never ensures\\n\\n(define-fun helperNever ((n Int)) Bool (never n))\\n(define-const result Int 0)\\n\\n(assert (ite true true (helperNever 0)))\\n(assert (not (= result 1)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"andSkipped\",\n      \"status\": \"error\",\n      \"reason\": \"Z3 error (exit exit status 1): (error \\\"line 7 column 47: unknown constant never (Int) \\\")\\n(error \\\"line 8 column 51: unknown constant helperNever (Int) \\\")\\n(error \\\"line 10 column 16: unknown constant result\\\")\\nunsat\\n(error \\\"line 13 column 10: model is not available\\\")\",\n      \"duration\": 4605041,\n      \"smtlib\": \"; Verification of andSkipped\\n(set-logic ALL)\\n\\n(declare-const $xmod_result_never_0 Bool)\\n(assert false) ; never ensures\\n\\n(define-fun helperNever ((n Int)) Bool (never n))\\n(define-const result Bool (ite false (helperNever 0) false))\\n\\n(assert (not (= result false)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"zeroOnly\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(div 1 0)\"\n        },\n        {\n          \"name\": \"div0\",\n          \"sort\": \"Int)\",\n          \"value\": \"(x!1 Int)) Int\"\n        },\n        {\n          \"name\": \"mod0\",\n          \"sort\": \"Int)\",\n          \"value\": \"(x!1 Int)) Int\"\n        }\n      ],\n      \"duration\": 5280792,\n      \"smtlib\": \"; Verification of zeroOnly\\n(set-logic ALL)\\n\\n(define-const result Int (div 1 0))\\n\\n(assert (not (= result 123)))\\n\\n(check-sat)\\n(get-model)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.694680+00:00",
+    "results": [
+      {
+        "reason_code": "counterexample",
+        "function": "matchLater",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "0"
+          }
+        ],
+        "duration": 5392042,
+        "smtlib": "; Verification of matchLater\n(set-logic ALL)\n\n(define-const result Int 0)\n\n(assert (not (= result 1)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "never",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "0"
+          },
+          {
+            "name": "result",
+            "sort": "Bool",
+            "value": "(never_0 $p_n)"
+          },
+          {
+            "name": "never_0",
+            "sort": "Int))",
+            "value": "Bool"
+          }
+        ],
+        "duration": 4849958,
+        "smtlib": "; Verification of never\n(set-logic ALL)\n\n(declare-fun never_0 (Int) Bool)\n(define-fun never_1 ((n Int)) Bool (never_0 n))\n(define-fun never_2 ((n Int)) Bool (never_1 n))\n(declare-const $p_n Int)\n(define-const result Bool (never_2 $p_n))\n\n(assert (not false))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "orFalseGoal",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 7 column 47: unknown constant never (Int) \")\n(error \"line 8 column 55: unknown constant helperNever (Int) \")\n(error \"line 10 column 16: unknown constant result\")\nunsat\n(error \"line 13 column 10: model is not available\")",
+        "duration": 4734792,
+        "smtlib": "; Verification of orFalseGoal\n(set-logic ALL)\n\n(declare-const $xmod_result_never_0 Bool)\n(assert false) ; never ensures\n\n(define-fun helperNever ((n Int)) Bool (never n))\n(define-const result Bool (ite true true (helperNever 0)))\n\n(assert (not (= result false)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "predicateFalse",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 7 column 47: unknown constant never (Int) \")\n(error \"line 10 column 38: unknown constant helperNever (Int) \")\nunsat\n(error \"line 13 column 10: model is not available\")",
+        "duration": 4593375,
+        "smtlib": "; Verification of predicateFalse\n(set-logic ALL)\n\n(declare-const $xmod_result_never_0 Bool)\n(assert false) ; never ensures\n\n(define-fun helperNever ((n Int)) Bool (never n))\n(define-const result Int 0)\n\n(assert (not (ite false (helperNever 0) false)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "unsupported_encoding",
+        "function": "matchUnmatched",
+        "status": "skipped",
+        "reason": "SMT declaration closure could not resolve a required sort (cannot encode function body: match guard: unresolvable SMT declaration types: calls user function \"never\" that is not SMT-encodable in this context)",
+        "rejections": [
+          {
+            "Code": "UNENCODABLE_TYPE",
+            "Message": "cannot encode function body: match guard: unresolvable SMT declaration types: calls user function \"never\" that is not SMT-encodable in this context",
+            "Location": "",
+            "Hint": "The function uses a type shape whose required SMT sorts cannot be declared"
+          }
+        ]
+      },
+      {
+        "function": "unreachableOpaque",
+        "status": "verified",
+        "duration": 4439791,
+        "smtlib": "; Verification of unreachableOpaque\n(set-logic ALL)\n\n(define-const result Int 0)\n\n(assert (not (= result 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "zeroSkipped",
+        "status": "verified",
+        "duration": 4574291,
+        "smtlib": "; Verification of zeroSkipped\n(set-logic ALL)\n\n(define-const result Int (ite true 1 (div 1 0)))\n\n(assert (not (= result 1)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "predicateSkipped",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 7 column 47: unknown constant never (Int) \")\n(error \"line 10 column 42: unknown constant helperNever (Int) \")\nunsat\n(error \"line 13 column 10: model is not available\")",
+        "duration": 5063334,
+        "smtlib": "; Verification of predicateSkipped\n(set-logic ALL)\n\n(declare-const $xmod_result_never_0 Bool)\n(assert false) ; never ensures\n\n(define-fun helperNever ((n Int)) Bool (never n))\n(define-const result Int 0)\n\n(assert (not (ite true true (helperNever 0))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "requiresSkipped",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 7 column 47: unknown constant never (Int) \")\n(error \"line 10 column 37: unknown constant helperNever (Int) \")\nunsat\n(error \"line 14 column 10: model is not available\")",
+        "duration": 4831000,
+        "smtlib": "; Verification of requiresSkipped\n(set-logic ALL)\n\n(declare-const $xmod_result_never_0 Bool)\n(assert false) ; never ensures\n\n(define-fun helperNever ((n Int)) Bool (never n))\n(define-const result Int 0)\n\n(assert (ite true true (helperNever 0)))\n(assert (not (= result 1)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "andSkipped",
+        "status": "error",
+        "reason": "Z3 error (exit exit status 1): (error \"line 7 column 47: unknown constant never (Int) \")\n(error \"line 8 column 51: unknown constant helperNever (Int) \")\n(error \"line 10 column 16: unknown constant result\")\nunsat\n(error \"line 13 column 10: model is not available\")",
+        "duration": 4605041,
+        "smtlib": "; Verification of andSkipped\n(set-logic ALL)\n\n(declare-const $xmod_result_never_0 Bool)\n(assert false) ; never ensures\n\n(define-fun helperNever ((n Int)) Bool (never n))\n(define-const result Bool (ite false (helperNever 0) false))\n\n(assert (not (= result false)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "zeroOnly",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(div 1 0)"
+          },
+          {
+            "name": "div0",
+            "sort": "Int)",
+            "value": "(x!1 Int)) Int"
+          },
+          {
+            "name": "mod0",
+            "sort": "Int)",
+            "value": "(x!1 Int)) Int"
+          }
+        ],
+        "duration": 5280792,
+        "smtlib": "; Verification of zeroOnly\n(set-logic ALL)\n\n(define-const result Int (div 1 0))\n\n(assert (not (= result 123)))\n\n(check-sat)\n(get-model)"
+      }
+    ]
+  },
+  {
+    "arm": "current_base",
+    "label": "tree:m0_runtime_signs:main",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--entry",
+      "main",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 0,
+    "stdout": "[[3, -3, -3, 3, 0, 0, 0, 0, -2, 2, -2, -9223372036854775807], [1, -1, 1, -1, 0, 0, -1, 1, 0, 0, 0, 0]]\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:24.729107+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "tree:m0_runtime_signs:divZero",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--entry",
+      "divZero",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\nError: execution failed: RT001: integer division by zero at cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail:3:45\n",
+    "observed": "2026-10-29T21:12:24.763626+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "tree:m0_runtime_signs:modZero",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--entry",
+      "modZero",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\nError: execution failed: RT001: integer modulo by zero at cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail:4:48\n",
+    "observed": "2026-10-29T21:12:24.797737+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "tree:m0_partial_vacuity:main",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--entry",
+      "main",
+      "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:24.822117+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "tree:m0_selected_paths:andSkipped",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--entry",
+      "andSkipped",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "false\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.843644+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "tree:m0_selected_paths:orFalseGoal",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--entry",
+      "orFalseGoal",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "true\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.865274+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "tree:m0_selected_paths:matchUnmatched",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--entry",
+      "matchUnmatched",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.887858+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "tree:m0_selected_paths:matchLater",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--entry",
+      "matchLater",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.912525+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "tree:m0_selected_paths:unreachableOpaque",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--entry",
+      "unreachableOpaque",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.934964+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "tree:m0_selected_paths:zeroSkipped",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--entry",
+      "zeroSkipped",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "1\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:24.959169+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "strict_vm:m0_runtime_signs:main",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "main",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 0,
+    "stdout": "[[3, -3, -3, 3, 0, 0, 0, 0, -2, 2, -2, -9223372036854775807], [1, -1, 1, -1, 0, 0, -1, 1, 0, 0, 0, 0]]\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:24.994207+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "strict_vm:m0_runtime_signs:divZero",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "divZero",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\nError: bytecode execution failed: vm: vm: RT001: integer division by zero (in cmd/ailang/testdata/verify_preflight/m0_runtime_signs.divide at cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail:3, ip 0, op DIV)\n",
+    "observed": "2026-10-29T21:12:25.029265+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "strict_vm:m0_runtime_signs:modZero",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "modZero",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\nError: bytecode execution failed: vm: vm: BUILTIN_CALL: RT001: integer modulo by zero (in cmd/ailang/testdata/verify_preflight/m0_runtime_signs.remainder at cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail:4, ip 2, op BUILTIN_CALL)\n",
+    "observed": "2026-10-29T21:12:25.065203+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "strict_vm:m0_partial_vacuity:main",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "main",
+      "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:25.090206+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "strict_vm:m0_selected_paths:andSkipped",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "andSkipped",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "false\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.112572+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "strict_vm:m0_selected_paths:orFalseGoal",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "orFalseGoal",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "true\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.134308+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "strict_vm:m0_selected_paths:matchUnmatched",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "matchUnmatched",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.158886+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "strict_vm:m0_selected_paths:matchLater",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "matchLater",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.181764+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "strict_vm:m0_selected_paths:unreachableOpaque",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "unreachableOpaque",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.203192+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "strict_vm:m0_selected_paths:zeroSkipped",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "zeroSkipped",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "1\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.225642+00:00"
+  },
+  {
+    "arm": "current_base",
+    "label": "contract_failure",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-current-base",
+      "run",
+      "--verify-contracts",
+      "--entry",
+      "main",
+      "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\nError: execution failed: contract violation: ensures failed in  at cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail:10:11: (result == 1)\n",
+    "observed": "2026-10-29T21:12:25.250428+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "version",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "version"
+    ],
+    "rc": 0,
+    "stdout": "AILANG dev\nCommit: 60a7d7b\nFull:   60a7d7b5fce9c137835774750cac1cca063e6b00\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.265360+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "check:m0_callee_identity.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_callee_identity.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_callee_identity.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.290595+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "verify:m0_callee_identity.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_callee_identity.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_callee_identity.ail\",\n  \"verified\": 3,\n  \"counterexample\": 4,\n  \"skipped\": 0,\n  \"errors\": 0,\n  \"uncontracted\": 0,\n  \"total_exported\": 7,\n  \"results\": [\n    {\n      \"function\": \"selfGap\",\n      \"status\": \"verified\",\n      \"duration\": 8154291,\n      \"smtlib\": \"; Verification of selfGap\\n(set-logic ALL)\\n\\n(declare-fun $spec_total (Int) Int)\\n(declare-const $p_a Int)\\n(define-const result Int (let (($tmp7 ($spec_total $p_a))) (let (($tmp8 ($spec_total $p_a))) (- $tmp7 $tmp8))))\\n\\n(assert (not (= result 0)))\\n(assert (=\\u003e true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_total $p_a))) (\\u003e= $spec_sub_0_result 0))))\\n(assert (let (($tmp7 ($spec_total $p_a))) (=\\u003e true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_total $p_a))) (\\u003e= $spec_sub_0_result 0)))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"sumBoth\",\n      \"status\": \"verified\",\n      \"duration\": 5486917,\n      \"smtlib\": \"; Verification of sumBoth\\n(set-logic ALL)\\n\\n(declare-fun $spec_total (Int) Int)\\n(declare-const $p_a Int)\\n(define-const result Int (let (($tmp9 ($spec_total $p_a))) (let (($tmp10 (+ $p_a 1))) (let (($tmp11 ($spec_total $tmp10))) (+ $tmp9 $tmp11)))))\\n\\n(assert (not (\\u003e= result 0)))\\n(assert (=\\u003e true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_total $p_a))) (\\u003e= $spec_sub_0_result 0))))\\n(assert (let (($tmp9 ($spec_total $p_a))) (let (($tmp10 (+ $p_a 1))) (=\\u003e true (let (($spec_sub_0_0 $tmp10) ($spec_sub_0_result ($spec_total $tmp10))) (\\u003e= $spec_sub_0_result 0))))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"lowBound\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"20539\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(let ((a!1 (+ 1 (lowBound_0 (- (- $p_n 1) 1))))\"\n        }\n      ],\n      \"duration\": 5976500,\n      \"smtlib\": \"; Verification of lowBound\\n(set-logic ALL)\\n\\n(declare-fun lowBound_0 (Int) Int)\\n(define-fun lowBound_1 ((n Int)) Int (let (($tmp12 (\\u003c= n 0))) (ite $tmp12 (* 2 n) (let (($tmp13 (- n 1))) (let (($tmp14 (lowBound_0 $tmp13))) (+ 1 $tmp14))))))\\n(define-fun lowBound_2 ((n Int)) Int (let (($tmp12 (\\u003c= n 0))) (ite $tmp12 (* 2 n) (let (($tmp13 (- n 1))) (let (($tmp14 (lowBound_1 $tmp13))) (+ 1 $tmp14))))))\\n(declare-const $p_n Int)\\n(define-const result Int (lowBound_2 $p_n))\\n\\n(assert (\\u003e= $p_n 0))\\n(assert (not (\\u003e= result $p_n)))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"function\": \"atLeast\",\n      \"status\": \"verified\",\n      \"duration\": 5413125,\n      \"smtlib\": \"; Verification of atLeast\\n(set-logic ALL)\\n\\n(declare-fun $spec_lowBound (Int) Int)\\n(declare-const $p_a Int)\\n(define-const result Int ($spec_lowBound $p_a))\\n\\n(assert (\\u003e= $p_a 0))\\n(assert (not (\\u003e= result $p_a)))\\n(assert (=\\u003e (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_lowBound $p_a))) (\\u003e= $spec_sub_0_0 0)) (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_lowBound $p_a))) (\\u003e= $spec_sub_0_result $spec_sub_0_0))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"atLeastUnguarded\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_a\",\n          \"sort\": \"Int\",\n          \"value\": \"(- 1)\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"($spec_lowBound $p_a)\"\n        }\n      ],\n      \"duration\": 5423333,\n      \"smtlib\": \"; Verification of atLeastUnguarded\\n(set-logic ALL)\\n\\n(declare-fun $spec_lowBound (Int) Int)\\n(declare-const $p_a Int)\\n(define-const result Int ($spec_lowBound $p_a))\\n\\n(assert (not (\\u003e= result $p_a)))\\n(assert (=\\u003e (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_lowBound $p_a))) (\\u003e= $spec_sub_0_0 0)) (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_lowBound $p_a))) (\\u003e= $spec_sub_0_result $spec_sub_0_0))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"total\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"2\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(let ((a!1 (+ (- $p_n 1) (total_0 (- (- $p_n 1) 1))))\"\n        }\n      ],\n      \"duration\": 5891083,\n      \"smtlib\": \"; Verification of total\\n(set-logic ALL)\\n\\n(declare-fun total_0 (Int) Int)\\n(define-fun total_1 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (let (($tmp3 (total_0 $tmp2))) (+ n $tmp3))))))\\n(define-fun total_2 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (let (($tmp3 (total_1 $tmp2))) (+ n $tmp3))))))\\n(declare-const $p_n Int)\\n(define-const result Int (total_2 $p_n))\\n\\n(assert (not (\\u003e= result 0)))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"gap\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_a\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(- ($spec_total $p_a) ($spec_total (+ $p_a 1)))\"\n        }\n      ],\n      \"duration\": 5560083,\n      \"smtlib\": \"; Verification of gap\\n(set-logic ALL)\\n\\n(declare-fun $spec_total (Int) Int)\\n(declare-const $p_a Int)\\n(define-const result Int (let (($tmp4 ($spec_total $p_a))) (let (($tmp5 (+ $p_a 1))) (let (($tmp6 ($spec_total $tmp5))) (- $tmp4 $tmp6)))))\\n\\n(assert (\\u003e= $p_a 0))\\n(assert (not (= result 0)))\\n(assert (=\\u003e true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_total $p_a))) (\\u003e= $spec_sub_0_result 0))))\\n(assert (let (($tmp4 ($spec_total $p_a))) (let (($tmp5 (+ $p_a 1))) (=\\u003e true (let (($spec_sub_0_0 $tmp5) ($spec_sub_0_result ($spec_total $tmp5))) (\\u003e= $spec_sub_0_result 0))))))\\n\\n(check-sat)\\n(get-model)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.375227+00:00",
+    "results": [
+      {
+        "function": "selfGap",
+        "status": "verified",
+        "duration": 8154291,
+        "smtlib": "; Verification of selfGap\n(set-logic ALL)\n\n(declare-fun $spec_total (Int) Int)\n(declare-const $p_a Int)\n(define-const result Int (let (($tmp7 ($spec_total $p_a))) (let (($tmp8 ($spec_total $p_a))) (- $tmp7 $tmp8))))\n\n(assert (not (= result 0)))\n(assert (=> true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_total $p_a))) (>= $spec_sub_0_result 0))))\n(assert (let (($tmp7 ($spec_total $p_a))) (=> true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_total $p_a))) (>= $spec_sub_0_result 0)))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "sumBoth",
+        "status": "verified",
+        "duration": 5486917,
+        "smtlib": "; Verification of sumBoth\n(set-logic ALL)\n\n(declare-fun $spec_total (Int) Int)\n(declare-const $p_a Int)\n(define-const result Int (let (($tmp9 ($spec_total $p_a))) (let (($tmp10 (+ $p_a 1))) (let (($tmp11 ($spec_total $tmp10))) (+ $tmp9 $tmp11)))))\n\n(assert (not (>= result 0)))\n(assert (=> true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_total $p_a))) (>= $spec_sub_0_result 0))))\n(assert (let (($tmp9 ($spec_total $p_a))) (let (($tmp10 (+ $p_a 1))) (=> true (let (($spec_sub_0_0 $tmp10) ($spec_sub_0_result ($spec_total $tmp10))) (>= $spec_sub_0_result 0))))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "lowBound",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "20539"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(let ((a!1 (+ 1 (lowBound_0 (- (- $p_n 1) 1))))"
+          }
+        ],
+        "duration": 5976500,
+        "smtlib": "; Verification of lowBound\n(set-logic ALL)\n\n(declare-fun lowBound_0 (Int) Int)\n(define-fun lowBound_1 ((n Int)) Int (let (($tmp12 (<= n 0))) (ite $tmp12 (* 2 n) (let (($tmp13 (- n 1))) (let (($tmp14 (lowBound_0 $tmp13))) (+ 1 $tmp14))))))\n(define-fun lowBound_2 ((n Int)) Int (let (($tmp12 (<= n 0))) (ite $tmp12 (* 2 n) (let (($tmp13 (- n 1))) (let (($tmp14 (lowBound_1 $tmp13))) (+ 1 $tmp14))))))\n(declare-const $p_n Int)\n(define-const result Int (lowBound_2 $p_n))\n\n(assert (>= $p_n 0))\n(assert (not (>= result $p_n)))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "function": "atLeast",
+        "status": "verified",
+        "duration": 5413125,
+        "smtlib": "; Verification of atLeast\n(set-logic ALL)\n\n(declare-fun $spec_lowBound (Int) Int)\n(declare-const $p_a Int)\n(define-const result Int ($spec_lowBound $p_a))\n\n(assert (>= $p_a 0))\n(assert (not (>= result $p_a)))\n(assert (=> (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_lowBound $p_a))) (>= $spec_sub_0_0 0)) (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_lowBound $p_a))) (>= $spec_sub_0_result $spec_sub_0_0))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "atLeastUnguarded",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_a",
+            "sort": "Int",
+            "value": "(- 1)"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "($spec_lowBound $p_a)"
+          }
+        ],
+        "duration": 5423333,
+        "smtlib": "; Verification of atLeastUnguarded\n(set-logic ALL)\n\n(declare-fun $spec_lowBound (Int) Int)\n(declare-const $p_a Int)\n(define-const result Int ($spec_lowBound $p_a))\n\n(assert (not (>= result $p_a)))\n(assert (=> (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_lowBound $p_a))) (>= $spec_sub_0_0 0)) (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_lowBound $p_a))) (>= $spec_sub_0_result $spec_sub_0_0))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "total",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "2"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(let ((a!1 (+ (- $p_n 1) (total_0 (- (- $p_n 1) 1))))"
+          }
+        ],
+        "duration": 5891083,
+        "smtlib": "; Verification of total\n(set-logic ALL)\n\n(declare-fun total_0 (Int) Int)\n(define-fun total_1 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (let (($tmp3 (total_0 $tmp2))) (+ n $tmp3))))))\n(define-fun total_2 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (let (($tmp3 (total_1 $tmp2))) (+ n $tmp3))))))\n(declare-const $p_n Int)\n(define-const result Int (total_2 $p_n))\n\n(assert (not (>= result 0)))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "gap",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_a",
+            "sort": "Int",
+            "value": "0"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(- ($spec_total $p_a) ($spec_total (+ $p_a 1)))"
+          }
+        ],
+        "duration": 5560083,
+        "smtlib": "; Verification of gap\n(set-logic ALL)\n\n(declare-fun $spec_total (Int) Int)\n(declare-const $p_a Int)\n(define-const result Int (let (($tmp4 ($spec_total $p_a))) (let (($tmp5 (+ $p_a 1))) (let (($tmp6 ($spec_total $tmp5))) (- $tmp4 $tmp6)))))\n\n(assert (>= $p_a 0))\n(assert (not (= result 0)))\n(assert (=> true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_total $p_a))) (>= $spec_sub_0_result 0))))\n(assert (let (($tmp4 ($spec_total $p_a))) (let (($tmp5 (+ $p_a 1))) (=> true (let (($spec_sub_0_0 $tmp5) ($spec_sub_0_result ($spec_total $tmp5))) (>= $spec_sub_0_result 0))))))\n\n(check-sat)\n(get-model)"
+      }
+    ]
+  },
+  {
+    "arm": "fixed",
+    "label": "check:m0_helper_environment.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_helper_environment.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_helper_environment.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.399726+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "verify:m0_helper_environment.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_helper_environment.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_helper_environment.ail\",\n  \"verified\": 4,\n  \"counterexample\": 4,\n  \"skipped\": 0,\n  \"errors\": 1,\n  \"uncontracted\": 0,\n  \"total_exported\": 9,\n  \"results\": [\n    {\n      \"function\": \"diamond\",\n      \"status\": \"verified\",\n      \"duration\": 5985417,\n      \"smtlib\": \"; Verification of diamond\\n(set-logic ALL)\\n\\n(declare-fun $spec_total (Int) Int)\\n(define-fun helper ((environment Int) (n Int)) Int (let (($tmp4 (+ environment n))) ($spec_total $tmp4)))\\n(define-fun $facts_helper ((environment Int) (n Int)) Bool (let (($tmp4 (+ environment n))) (=\\u003e true (let (($spec_sub_0_0 $tmp4) ($spec_sub_0_result ($spec_total $tmp4))) (= $spec_sub_0_result $spec_sub_0_0)))))\\n(define-fun left ((n Int)) Int (helper 1 n))\\n(define-fun $facts_left ((n Int)) Bool ($facts_helper 1 n))\\n(define-fun right ((n Int)) Int (helper 7 n))\\n(define-fun $facts_right ((n Int)) Bool ($facts_helper 7 n))\\n(define-fun combine ((x Int) (y Int)) Int (+ x y))\\n(declare-const $p_a Int)\\n(define-const result Int (let (($tmp7 (left $p_a))) (let (($tmp8 (right $p_a))) (combine $tmp7 $tmp8))))\\n\\n(assert (not (let (($tmp5 (* 2 $p_a))) (let (($tmp6 (+ $tmp5 8))) (= result $tmp6)))))\\n(assert ($facts_left $p_a))\\n(assert (let (($tmp7 (left $p_a))) ($facts_right $p_a)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"nullaryCaller\",\n      \"status\": \"verified\",\n      \"duration\": 5585667,\n      \"smtlib\": \"; Verification of nullaryCaller\\n(set-logic ALL)\\n\\n(declare-fun $spec_nullary () Int)\\n(define-const result Int $spec_nullary)\\n\\n(assert (not (= result 0)))\\n(assert (=\\u003e true (let (($spec_sub_0_result $spec_nullary)) (= $spec_sub_0_result 0))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"total\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"2\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(let ((a!1 (+ (total_0 (- (- $p_n 1) 1)) 1))\"\n        }\n      ],\n      \"duration\": 6220958,\n      \"smtlib\": \"; Verification of total\\n(set-logic ALL)\\n\\n(declare-fun total_0 (Int) Int)\\n(define-fun total_1 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 n (let (($tmp2 (- n 1))) (let (($tmp3 (total_0 $tmp2))) (+ $tmp3 1))))))\\n(define-fun total_2 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 n (let (($tmp2 (- n 1))) (let (($tmp3 (total_1 $tmp2))) (+ $tmp3 1))))))\\n(declare-const $p_n Int)\\n(define-const result Int (total_2 $p_n))\\n\\n(assert (not (= result $p_n)))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"function\": \"nestedBoundTrue\",\n      \"status\": \"verified\",\n      \"duration\": 5832000,\n      \"smtlib\": \"; Verification of nestedBoundTrue\\n(set-logic ALL)\\n\\n(define-const result Int 0)\\n\\n(assert (not (let ((i 1)) (let ((j 2)) (forall (($forall_bound_0 Int)) (=\\u003e (and (\\u003e= $forall_bound_0 i) (\\u003c $forall_bound_0 (+ i 1))) (forall (($forall_bound_1 Int)) (=\\u003e (and (\\u003e= $forall_bound_1 j) (\\u003c $forall_bound_1 (+ j 1))) (\\u003c $forall_bound_0 $forall_bound_1)))))))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"verifier_error\",\n      \"function\": \"nullary\",\n      \"status\": \"error\",\n      \"reason\": \"encoding error: unrolling recursive function: encoding unrolled body at depth 1: if else: constructor arg 0: unit literals cannot be encoded in SMT-LIB\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"nestedBoundFalse\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        }\n      ],\n      \"duration\": 5672500,\n      \"smtlib\": \"; Verification of nestedBoundFalse\\n(set-logic ALL)\\n\\n(define-const result Int 0)\\n\\n(assert (not (let ((i 1)) (let ((j 2)) (forall (($forall_bound_0 Int)) (=\\u003e (and (\\u003e= $forall_bound_0 i) (\\u003c $forall_bound_0 (+ i 1))) (forall (($forall_bound_1 Int)) (=\\u003e (and (\\u003e= $forall_bound_1 j) (\\u003c $forall_bound_1 (+ j 1))) (= $forall_bound_0 $forall_bound_1)))))))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"diamondFalse\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(+ ($spec_total (+ 1 $p_a)) ($spec_total (+ 7 $p_a)))\"\n        },\n        {\n          \"name\": \"$p_a\",\n          \"sort\": \"Int\",\n          \"value\": \"1\"\n        }\n      ],\n      \"duration\": 5776250,\n      \"smtlib\": \"; Verification of diamondFalse\\n(set-logic ALL)\\n\\n(define-fun combine ((x Int) (y Int)) Int (+ x y))\\n(declare-fun $spec_total (Int) Int)\\n(define-fun helper ((environment Int) (n Int)) Int (let (($tmp4 (+ environment n))) ($spec_total $tmp4)))\\n(define-fun $facts_helper ((environment Int) (n Int)) Bool (let (($tmp4 (+ environment n))) (=\\u003e true (let (($spec_sub_0_0 $tmp4) ($spec_sub_0_result ($spec_total $tmp4))) (= $spec_sub_0_result $spec_sub_0_0)))))\\n(define-fun left ((n Int)) Int (helper 1 n))\\n(define-fun $facts_left ((n Int)) Bool ($facts_helper 1 n))\\n(define-fun right ((n Int)) Int (helper 7 n))\\n(define-fun $facts_right ((n Int)) Bool ($facts_helper 7 n))\\n(declare-const $p_a Int)\\n(define-const result Int (let (($tmp9 (left $p_a))) (let (($tmp10 (right $p_a))) (combine $tmp9 $tmp10))))\\n\\n(assert (= $p_a 1))\\n(assert (not (= result 0)))\\n(assert ($facts_left $p_a))\\n(assert (let (($tmp9 (left $p_a))) ($facts_right $p_a)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"nullaryFalse\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$spec_nullary\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"$spec_nullary\"\n        }\n      ],\n      \"duration\": 6098208,\n      \"smtlib\": \"; Verification of nullaryFalse\\n(set-logic ALL)\\n\\n(declare-fun $spec_nullary () Int)\\n(define-const result Int $spec_nullary)\\n\\n(assert (not (= result 1)))\\n(assert (=\\u003e true (let (($spec_sub_0_result $spec_nullary)) (= $spec_sub_0_result 0))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"boundShadow\",\n      \"status\": \"verified\",\n      \"duration\": 5520542,\n      \"smtlib\": \"; Verification of boundShadow\\n(set-logic ALL)\\n\\n(define-const result Int 0)\\n\\n(assert (not (let ((i 1)) (forall (($forall_bound_0 Int)) (=\\u003e (and (\\u003e= $forall_bound_0 i) (\\u003c $forall_bound_0 (+ i 1))) (= $forall_bound_0 1))))))\\n\\n(check-sat)\\n(get-model)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.476220+00:00",
+    "results": [
+      {
+        "function": "diamond",
+        "status": "verified",
+        "duration": 5985417,
+        "smtlib": "; Verification of diamond\n(set-logic ALL)\n\n(declare-fun $spec_total (Int) Int)\n(define-fun helper ((environment Int) (n Int)) Int (let (($tmp4 (+ environment n))) ($spec_total $tmp4)))\n(define-fun $facts_helper ((environment Int) (n Int)) Bool (let (($tmp4 (+ environment n))) (=> true (let (($spec_sub_0_0 $tmp4) ($spec_sub_0_result ($spec_total $tmp4))) (= $spec_sub_0_result $spec_sub_0_0)))))\n(define-fun left ((n Int)) Int (helper 1 n))\n(define-fun $facts_left ((n Int)) Bool ($facts_helper 1 n))\n(define-fun right ((n Int)) Int (helper 7 n))\n(define-fun $facts_right ((n Int)) Bool ($facts_helper 7 n))\n(define-fun combine ((x Int) (y Int)) Int (+ x y))\n(declare-const $p_a Int)\n(define-const result Int (let (($tmp7 (left $p_a))) (let (($tmp8 (right $p_a))) (combine $tmp7 $tmp8))))\n\n(assert (not (let (($tmp5 (* 2 $p_a))) (let (($tmp6 (+ $tmp5 8))) (= result $tmp6)))))\n(assert ($facts_left $p_a))\n(assert (let (($tmp7 (left $p_a))) ($facts_right $p_a)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "nullaryCaller",
+        "status": "verified",
+        "duration": 5585667,
+        "smtlib": "; Verification of nullaryCaller\n(set-logic ALL)\n\n(declare-fun $spec_nullary () Int)\n(define-const result Int $spec_nullary)\n\n(assert (not (= result 0)))\n(assert (=> true (let (($spec_sub_0_result $spec_nullary)) (= $spec_sub_0_result 0))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "total",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "2"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(let ((a!1 (+ (total_0 (- (- $p_n 1) 1)) 1))"
+          }
+        ],
+        "duration": 6220958,
+        "smtlib": "; Verification of total\n(set-logic ALL)\n\n(declare-fun total_0 (Int) Int)\n(define-fun total_1 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 n (let (($tmp2 (- n 1))) (let (($tmp3 (total_0 $tmp2))) (+ $tmp3 1))))))\n(define-fun total_2 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 n (let (($tmp2 (- n 1))) (let (($tmp3 (total_1 $tmp2))) (+ $tmp3 1))))))\n(declare-const $p_n Int)\n(define-const result Int (total_2 $p_n))\n\n(assert (not (= result $p_n)))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "function": "nestedBoundTrue",
+        "status": "verified",
+        "duration": 5832000,
+        "smtlib": "; Verification of nestedBoundTrue\n(set-logic ALL)\n\n(define-const result Int 0)\n\n(assert (not (let ((i 1)) (let ((j 2)) (forall (($forall_bound_0 Int)) (=> (and (>= $forall_bound_0 i) (< $forall_bound_0 (+ i 1))) (forall (($forall_bound_1 Int)) (=> (and (>= $forall_bound_1 j) (< $forall_bound_1 (+ j 1))) (< $forall_bound_0 $forall_bound_1)))))))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "verifier_error",
+        "function": "nullary",
+        "status": "error",
+        "reason": "encoding error: unrolling recursive function: encoding unrolled body at depth 1: if else: constructor arg 0: unit literals cannot be encoded in SMT-LIB"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "nestedBoundFalse",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "0"
+          }
+        ],
+        "duration": 5672500,
+        "smtlib": "; Verification of nestedBoundFalse\n(set-logic ALL)\n\n(define-const result Int 0)\n\n(assert (not (let ((i 1)) (let ((j 2)) (forall (($forall_bound_0 Int)) (=> (and (>= $forall_bound_0 i) (< $forall_bound_0 (+ i 1))) (forall (($forall_bound_1 Int)) (=> (and (>= $forall_bound_1 j) (< $forall_bound_1 (+ j 1))) (= $forall_bound_0 $forall_bound_1)))))))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "diamondFalse",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(+ ($spec_total (+ 1 $p_a)) ($spec_total (+ 7 $p_a)))"
+          },
+          {
+            "name": "$p_a",
+            "sort": "Int",
+            "value": "1"
+          }
+        ],
+        "duration": 5776250,
+        "smtlib": "; Verification of diamondFalse\n(set-logic ALL)\n\n(define-fun combine ((x Int) (y Int)) Int (+ x y))\n(declare-fun $spec_total (Int) Int)\n(define-fun helper ((environment Int) (n Int)) Int (let (($tmp4 (+ environment n))) ($spec_total $tmp4)))\n(define-fun $facts_helper ((environment Int) (n Int)) Bool (let (($tmp4 (+ environment n))) (=> true (let (($spec_sub_0_0 $tmp4) ($spec_sub_0_result ($spec_total $tmp4))) (= $spec_sub_0_result $spec_sub_0_0)))))\n(define-fun left ((n Int)) Int (helper 1 n))\n(define-fun $facts_left ((n Int)) Bool ($facts_helper 1 n))\n(define-fun right ((n Int)) Int (helper 7 n))\n(define-fun $facts_right ((n Int)) Bool ($facts_helper 7 n))\n(declare-const $p_a Int)\n(define-const result Int (let (($tmp9 (left $p_a))) (let (($tmp10 (right $p_a))) (combine $tmp9 $tmp10))))\n\n(assert (= $p_a 1))\n(assert (not (= result 0)))\n(assert ($facts_left $p_a))\n(assert (let (($tmp9 (left $p_a))) ($facts_right $p_a)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "nullaryFalse",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$spec_nullary",
+            "sort": "Int",
+            "value": "0"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "$spec_nullary"
+          }
+        ],
+        "duration": 6098208,
+        "smtlib": "; Verification of nullaryFalse\n(set-logic ALL)\n\n(declare-fun $spec_nullary () Int)\n(define-const result Int $spec_nullary)\n\n(assert (not (= result 1)))\n(assert (=> true (let (($spec_sub_0_result $spec_nullary)) (= $spec_sub_0_result 0))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "boundShadow",
+        "status": "verified",
+        "duration": 5520542,
+        "smtlib": "; Verification of boundShadow\n(set-logic ALL)\n\n(define-const result Int 0)\n\n(assert (not (let ((i 1)) (forall (($forall_bound_0 Int)) (=> (and (>= $forall_bound_0 i) (< $forall_bound_0 (+ i 1))) (= $forall_bound_0 1))))))\n\n(check-sat)\n(get-model)"
+      }
+    ]
+  },
+  {
+    "arm": "fixed",
+    "label": "check:m0_int_divmod.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_int_divmod.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_int_divmod.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.494870+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "verify:m0_int_divmod.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_int_divmod.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_int_divmod.ail\",\n  \"verified\": 4,\n  \"counterexample\": 2,\n  \"skipped\": 0,\n  \"errors\": 0,\n  \"uncontracted\": 0,\n  \"total_exported\": 6,\n  \"results\": [\n    {\n      \"function\": \"halfTowardZero\",\n      \"status\": \"verified\",\n      \"duration\": 5888750,\n      \"smtlib\": \"; Verification of halfTowardZero\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (let (($ail_n $p_x) ($ail_d 2)) (ite (= (\\u003e= $ail_n 0) (\\u003e= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))\\n\\n(assert (\\u003c $p_x 0))\\n(assert (not (let (($tmp6 (* result 2))) (\\u003e= $tmp6 $p_x))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"remSign\",\n      \"status\": \"verified\",\n      \"duration\": 6856000,\n      \"smtlib\": \"; Verification of remSign\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(declare-const $p_y Int)\\n(define-const result Int (let (($ail_n $p_x) ($ail_d $p_y)) (- $ail_n (* $ail_d (ite (= (\\u003e= $ail_n 0) (\\u003e= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))))\\n\\n(assert (let (($tmp7 (\\u003e= $p_x 0))) (ite $tmp7 (\\u003c $p_y 0) false)))\\n(assert (not (let (($tmp8 (\\u003e= result 0))) (ite $tmp8 (let (($tmp9 (- 0 $p_y))) (\\u003c result $tmp9)) false))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"parity\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_x\",\n          \"sort\": \"Int\",\n          \"value\": \"(- 1)\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(let ((a!1 (ite (= (\\u003e= $p_x 0) (\\u003e= 2 0)\"\n        }\n      ],\n      \"duration\": 6121167,\n      \"smtlib\": \"; Verification of parity\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (let (($ail_n $p_x) ($ail_d 2)) (- $ail_n (* $ail_d (ite (= (\\u003e= $ail_n 0) (\\u003e= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))))\\n\\n(assert (not (\\u003e= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"halfDown\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_x\",\n          \"sort\": \"Int\",\n          \"value\": \"(- 1)\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(ite (= (\\u003e= $p_x 0) (\\u003e= 2 0)\"\n        }\n      ],\n      \"duration\": 7185542,\n      \"smtlib\": \"; Verification of halfDown\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (let (($ail_n $p_x) ($ail_d 2)) (ite (= (\\u003e= $ail_n 0) (\\u003e= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))\\n\\n(assert (not (let (($tmp1 (* result 2))) (\\u003c= $tmp1 $p_x))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"halfNonNeg\",\n      \"status\": \"verified\",\n      \"duration\": 6897541,\n      \"smtlib\": \"; Verification of halfNonNeg\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (let (($ail_n $p_x) ($ail_d 2)) (ite (= (\\u003e= $ail_n 0) (\\u003e= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))\\n\\n(assert (\\u003e= $p_x 0))\\n(assert (not (let (($tmp2 (* result 2))) (let (($tmp3 (\\u003c= $tmp2 $p_x))) (ite $tmp3 (\\u003e= result 0) false)))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"parityBounded\",\n      \"status\": \"verified\",\n      \"duration\": 6031334,\n      \"smtlib\": \"; Verification of parityBounded\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (let (($ail_n $p_x) ($ail_d 2)) (- $ail_n (* $ail_d (ite (= (\\u003e= $ail_n 0) (\\u003e= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))))\\n\\n(assert (not (let (($tmp4 (- 0 2))) (let (($tmp5 (\\u003e result $tmp4))) (ite $tmp5 (\\u003c result 2) false)))))\\n\\n(check-sat)\\n(get-model)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.554152+00:00",
+    "results": [
+      {
+        "function": "halfTowardZero",
+        "status": "verified",
+        "duration": 5888750,
+        "smtlib": "; Verification of halfTowardZero\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (let (($ail_n $p_x) ($ail_d 2)) (ite (= (>= $ail_n 0) (>= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))\n\n(assert (< $p_x 0))\n(assert (not (let (($tmp6 (* result 2))) (>= $tmp6 $p_x))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "remSign",
+        "status": "verified",
+        "duration": 6856000,
+        "smtlib": "; Verification of remSign\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(declare-const $p_y Int)\n(define-const result Int (let (($ail_n $p_x) ($ail_d $p_y)) (- $ail_n (* $ail_d (ite (= (>= $ail_n 0) (>= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))))\n\n(assert (let (($tmp7 (>= $p_x 0))) (ite $tmp7 (< $p_y 0) false)))\n(assert (not (let (($tmp8 (>= result 0))) (ite $tmp8 (let (($tmp9 (- 0 $p_y))) (< result $tmp9)) false))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "parity",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_x",
+            "sort": "Int",
+            "value": "(- 1)"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(let ((a!1 (ite (= (>= $p_x 0) (>= 2 0)"
+          }
+        ],
+        "duration": 6121167,
+        "smtlib": "; Verification of parity\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (let (($ail_n $p_x) ($ail_d 2)) (- $ail_n (* $ail_d (ite (= (>= $ail_n 0) (>= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))))\n\n(assert (not (>= result 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "halfDown",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_x",
+            "sort": "Int",
+            "value": "(- 1)"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(ite (= (>= $p_x 0) (>= 2 0)"
+          }
+        ],
+        "duration": 7185542,
+        "smtlib": "; Verification of halfDown\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (let (($ail_n $p_x) ($ail_d 2)) (ite (= (>= $ail_n 0) (>= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))\n\n(assert (not (let (($tmp1 (* result 2))) (<= $tmp1 $p_x))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "halfNonNeg",
+        "status": "verified",
+        "duration": 6897541,
+        "smtlib": "; Verification of halfNonNeg\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (let (($ail_n $p_x) ($ail_d 2)) (ite (= (>= $ail_n 0) (>= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))\n\n(assert (>= $p_x 0))\n(assert (not (let (($tmp2 (* result 2))) (let (($tmp3 (<= $tmp2 $p_x))) (ite $tmp3 (>= result 0) false)))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "parityBounded",
+        "status": "verified",
+        "duration": 6031334,
+        "smtlib": "; Verification of parityBounded\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (let (($ail_n $p_x) ($ail_d 2)) (- $ail_n (* $ail_d (ite (= (>= $ail_n 0) (>= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))))\n\n(assert (not (let (($tmp4 (- 0 2))) (let (($tmp5 (> result $tmp4))) (ite $tmp5 (< result 2) false)))))\n\n(check-sat)\n(get-model)"
+      }
+    ]
+  },
+  {
+    "arm": "fixed",
+    "label": "check:m0_lexical_facts.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_lexical_facts.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_lexical_facts.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.576075+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "verify:m0_lexical_facts.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_lexical_facts.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_lexical_facts.ail\",\n  \"verified\": 2,\n  \"counterexample\": 4,\n  \"skipped\": 0,\n  \"errors\": 0,\n  \"uncontracted\": 0,\n  \"total_exported\": 6,\n  \"results\": [\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"captured\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"2\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(let ((a!1 (+ (captured_0 (- (- $p_n 1) 1)) 1))\"\n        }\n      ],\n      \"duration\": 5952833,\n      \"smtlib\": \"; Verification of captured\\n(set-logic ALL)\\n\\n(declare-fun captured_0 (Int) Int)\\n(define-fun captured_1 ((n Int)) Int (let (($tmp3 (\\u003c= n 0))) (ite $tmp3 n (let (($tmp4 (- n 1))) (let (($tmp5 (captured_0 $tmp4))) (+ $tmp5 1))))))\\n(define-fun captured_2 ((n Int)) Int (let (($tmp3 (\\u003c= n 0))) (ite $tmp3 n (let (($tmp4 (- n 1))) (let (($tmp5 (captured_1 $tmp4))) (+ $tmp5 1))))))\\n(declare-const $p_n Int)\\n(define-const result Int (captured_2 $p_n))\\n\\n(assert (not (let ((a 0)) (= result $p_n))))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"function\": \"capturedTrue\",\n      \"status\": \"verified\",\n      \"duration\": 5197417,\n      \"smtlib\": \"; Verification of capturedTrue\\n(set-logic ALL)\\n\\n(declare-fun $spec_captured (Int) Int)\\n(declare-const $p_a Int)\\n(define-const result Int ($spec_captured $p_a))\\n\\n(assert (= $p_a 1))\\n(assert (not (= result 1)))\\n(assert (=\\u003e true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_captured $p_a))) (let ((a 0)) (= $spec_sub_0_result $spec_sub_0_0)))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"capturedFalse\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"($spec_captured $p_a)\"\n        },\n        {\n          \"name\": \"$p_a\",\n          \"sort\": \"Int\",\n          \"value\": \"1\"\n        }\n      ],\n      \"duration\": 5551833,\n      \"smtlib\": \"; Verification of capturedFalse\\n(set-logic ALL)\\n\\n(declare-fun $spec_captured (Int) Int)\\n(declare-const $p_a Int)\\n(define-const result Int ($spec_captured $p_a))\\n\\n(assert (= $p_a 1))\\n(assert (not (= result 0)))\\n(assert (=\\u003e true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_captured $p_a))) (let ((a 0)) (= $spec_sub_0_result $spec_sub_0_0)))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"shadow\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"2\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(let ((a!1 (ite (\\u003c= (- $p_n 1) 0) 0 (shadow_0 (- (- $p_n 1) 1))))\"\n        }\n      ],\n      \"duration\": 5476750,\n      \"smtlib\": \"; Verification of shadow\\n(set-logic ALL)\\n\\n(declare-fun shadow_0 (Int) Int)\\n(define-fun shadow_1 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (shadow_0 $tmp2)))))\\n(define-fun shadow_2 ((n Int)) Int (let (($tmp1 (\\u003c= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (shadow_1 $tmp2)))))\\n(declare-const $p_n Int)\\n(define-const result Int (shadow_2 $p_n))\\n\\n(assert (not (let ((n 0)) (= result n))))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"shadowFalse\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"($spec_shadow $p_a)\"\n        },\n        {\n          \"name\": \"$p_a\",\n          \"sort\": \"Int\",\n          \"value\": \"1\"\n        }\n      ],\n      \"duration\": 5792042,\n      \"smtlib\": \"; Verification of shadowFalse\\n(set-logic ALL)\\n\\n(declare-fun $spec_shadow (Int) Int)\\n(declare-const $p_a Int)\\n(define-const result Int ($spec_shadow $p_a))\\n\\n(assert (= $p_a 1))\\n(assert (not (= result 1)))\\n(assert (=\\u003e true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_shadow $p_a))) (let ((n 0)) (= $spec_sub_0_result n)))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"shadowTrue\",\n      \"status\": \"verified\",\n      \"duration\": 5395292,\n      \"smtlib\": \"; Verification of shadowTrue\\n(set-logic ALL)\\n\\n(declare-fun $spec_shadow (Int) Int)\\n(declare-const $p_a Int)\\n(define-const result Int ($spec_shadow $p_a))\\n\\n(assert (not (= result 0)))\\n(assert (=\\u003e true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_shadow $p_a))) (let ((n 0)) (= $spec_sub_0_result n)))))\\n\\n(check-sat)\\n(get-model)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.633094+00:00",
+    "results": [
+      {
+        "reason_code": "counterexample",
+        "function": "captured",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "2"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(let ((a!1 (+ (captured_0 (- (- $p_n 1) 1)) 1))"
+          }
+        ],
+        "duration": 5952833,
+        "smtlib": "; Verification of captured\n(set-logic ALL)\n\n(declare-fun captured_0 (Int) Int)\n(define-fun captured_1 ((n Int)) Int (let (($tmp3 (<= n 0))) (ite $tmp3 n (let (($tmp4 (- n 1))) (let (($tmp5 (captured_0 $tmp4))) (+ $tmp5 1))))))\n(define-fun captured_2 ((n Int)) Int (let (($tmp3 (<= n 0))) (ite $tmp3 n (let (($tmp4 (- n 1))) (let (($tmp5 (captured_1 $tmp4))) (+ $tmp5 1))))))\n(declare-const $p_n Int)\n(define-const result Int (captured_2 $p_n))\n\n(assert (not (let ((a 0)) (= result $p_n))))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "function": "capturedTrue",
+        "status": "verified",
+        "duration": 5197417,
+        "smtlib": "; Verification of capturedTrue\n(set-logic ALL)\n\n(declare-fun $spec_captured (Int) Int)\n(declare-const $p_a Int)\n(define-const result Int ($spec_captured $p_a))\n\n(assert (= $p_a 1))\n(assert (not (= result 1)))\n(assert (=> true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_captured $p_a))) (let ((a 0)) (= $spec_sub_0_result $spec_sub_0_0)))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "capturedFalse",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "($spec_captured $p_a)"
+          },
+          {
+            "name": "$p_a",
+            "sort": "Int",
+            "value": "1"
+          }
+        ],
+        "duration": 5551833,
+        "smtlib": "; Verification of capturedFalse\n(set-logic ALL)\n\n(declare-fun $spec_captured (Int) Int)\n(declare-const $p_a Int)\n(define-const result Int ($spec_captured $p_a))\n\n(assert (= $p_a 1))\n(assert (not (= result 0)))\n(assert (=> true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_captured $p_a))) (let ((a 0)) (= $spec_sub_0_result $spec_sub_0_0)))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "shadow",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "2"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(let ((a!1 (ite (<= (- $p_n 1) 0) 0 (shadow_0 (- (- $p_n 1) 1))))"
+          }
+        ],
+        "duration": 5476750,
+        "smtlib": "; Verification of shadow\n(set-logic ALL)\n\n(declare-fun shadow_0 (Int) Int)\n(define-fun shadow_1 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (shadow_0 $tmp2)))))\n(define-fun shadow_2 ((n Int)) Int (let (($tmp1 (<= n 0))) (ite $tmp1 0 (let (($tmp2 (- n 1))) (shadow_1 $tmp2)))))\n(declare-const $p_n Int)\n(define-const result Int (shadow_2 $p_n))\n\n(assert (not (let ((n 0)) (= result n))))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "shadowFalse",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "($spec_shadow $p_a)"
+          },
+          {
+            "name": "$p_a",
+            "sort": "Int",
+            "value": "1"
+          }
+        ],
+        "duration": 5792042,
+        "smtlib": "; Verification of shadowFalse\n(set-logic ALL)\n\n(declare-fun $spec_shadow (Int) Int)\n(declare-const $p_a Int)\n(define-const result Int ($spec_shadow $p_a))\n\n(assert (= $p_a 1))\n(assert (not (= result 1)))\n(assert (=> true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_shadow $p_a))) (let ((n 0)) (= $spec_sub_0_result n)))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "shadowTrue",
+        "status": "verified",
+        "duration": 5395292,
+        "smtlib": "; Verification of shadowTrue\n(set-logic ALL)\n\n(declare-fun $spec_shadow (Int) Int)\n(declare-const $p_a Int)\n(define-const result Int ($spec_shadow $p_a))\n\n(assert (not (= result 0)))\n(assert (=> true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_shadow $p_a))) (let ((n 0)) (= $spec_sub_0_result n)))))\n\n(check-sat)\n(get-model)"
+      }
+    ]
+  },
+  {
+    "arm": "fixed",
+    "label": "check:m0_partial_vacuity.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:25.660233+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "verify:m0_partial_vacuity.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail\",\n  \"verified\": 0,\n  \"counterexample\": 2,\n  \"skipped\": 0,\n  \"errors\": 0,\n  \"uncontracted\": 1,\n  \"total_exported\": 3,\n  \"results\": [\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"wrong\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_a\",\n          \"sort\": \"Int\",\n          \"value\": \"1\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"($spec_partial $p_a)\"\n        }\n      ],\n      \"duration\": 6102875,\n      \"smtlib\": \"; Verification of wrong\\n(set-logic ALL)\\n\\n(declare-fun $spec_partial (Int) Int)\\n(declare-const $p_a Int)\\n(define-const result Int ($spec_partial $p_a))\\n\\n(assert (distinct $p_a 0))\\n(assert (not (= result 1)))\\n(assert (=\\u003e true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_partial $p_a))) (let (($tmp1 (distinct $spec_sub_0_0 0))) (ite $tmp1 (= $spec_sub_0_result 0) false)))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"partial\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(ite (= $p_n 0) (ite (= $p_n 0) (partial_0 $p_n) 0) 0)\"\n        }\n      ],\n      \"duration\": 5285541,\n      \"smtlib\": \"; Verification of partial\\n(set-logic ALL)\\n\\n(declare-fun partial_0 (Int) Int)\\n(define-fun partial_1 ((n Int)) Int (let (($tmp2 (= n 0))) (ite $tmp2 (partial_0 n) 0)))\\n(define-fun partial_2 ((n Int)) Int (let (($tmp2 (= n 0))) (ite $tmp2 (partial_1 n) 0)))\\n(declare-const $p_n Int)\\n(define-const result Int (partial_2 $p_n))\\n\\n(assert (not (let (($tmp1 (distinct $p_n 0))) (ite $tmp1 (= result 0) false))))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"reason_code\": \"uncontracted\",\n      \"function\": \"main\",\n      \"status\": \"uncontracted\",\n      \"reason\": \"no contract annotations (not a verification candidate)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.701641+00:00",
+    "results": [
+      {
+        "reason_code": "counterexample",
+        "function": "wrong",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_a",
+            "sort": "Int",
+            "value": "1"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "($spec_partial $p_a)"
+          }
+        ],
+        "duration": 6102875,
+        "smtlib": "; Verification of wrong\n(set-logic ALL)\n\n(declare-fun $spec_partial (Int) Int)\n(declare-const $p_a Int)\n(define-const result Int ($spec_partial $p_a))\n\n(assert (distinct $p_a 0))\n(assert (not (= result 1)))\n(assert (=> true (let (($spec_sub_0_0 $p_a) ($spec_sub_0_result ($spec_partial $p_a))) (let (($tmp1 (distinct $spec_sub_0_0 0))) (ite $tmp1 (= $spec_sub_0_result 0) false)))))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "partial",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "0"
+          },
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(ite (= $p_n 0) (ite (= $p_n 0) (partial_0 $p_n) 0) 0)"
+          }
+        ],
+        "duration": 5285541,
+        "smtlib": "; Verification of partial\n(set-logic ALL)\n\n(declare-fun partial_0 (Int) Int)\n(define-fun partial_1 ((n Int)) Int (let (($tmp2 (= n 0))) (ite $tmp2 (partial_0 n) 0)))\n(define-fun partial_2 ((n Int)) Int (let (($tmp2 (= n 0))) (ite $tmp2 (partial_1 n) 0)))\n(declare-const $p_n Int)\n(define-const result Int (partial_2 $p_n))\n\n(assert (not (let (($tmp1 (distinct $p_n 0))) (ite $tmp1 (= result 0) false))))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "reason_code": "uncontracted",
+        "function": "main",
+        "status": "uncontracted",
+        "reason": "no contract annotations (not a verification candidate)"
+      }
+    ]
+  },
+  {
+    "arm": "fixed",
+    "label": "check:m0_runtime_signs.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:25.735879+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "verify:m0_runtime_signs.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 0,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail\",\n  \"verified\": 0,\n  \"counterexample\": 0,\n  \"skipped\": 0,\n  \"errors\": 0,\n  \"uncontracted\": 3,\n  \"total_exported\": 3,\n  \"results\": [\n    {\n      \"reason_code\": \"uncontracted\",\n      \"function\": \"main\",\n      \"status\": \"uncontracted\",\n      \"reason\": \"no contract annotations (not a verification candidate)\"\n    },\n    {\n      \"reason_code\": \"uncontracted\",\n      \"function\": \"divZero\",\n      \"status\": \"uncontracted\",\n      \"reason\": \"no contract annotations (not a verification candidate)\"\n    },\n    {\n      \"reason_code\": \"uncontracted\",\n      \"function\": \"modZero\",\n      \"status\": \"uncontracted\",\n      \"reason\": \"no contract annotations (not a verification candidate)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.770385+00:00",
+    "results": [
+      {
+        "reason_code": "uncontracted",
+        "function": "main",
+        "status": "uncontracted",
+        "reason": "no contract annotations (not a verification candidate)"
+      },
+      {
+        "reason_code": "uncontracted",
+        "function": "divZero",
+        "status": "uncontracted",
+        "reason": "no contract annotations (not a verification candidate)"
+      },
+      {
+        "reason_code": "uncontracted",
+        "function": "modZero",
+        "status": "uncontracted",
+        "reason": "no contract annotations (not a verification candidate)"
+      }
+    ]
+  },
+  {
+    "arm": "fixed",
+    "label": "check:m0_selected_paths.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "check",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "\u2192 Type checking cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.794876+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "verify:m0_selected_paths.ail",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "verify",
+      "--json",
+      "--verbose",
+      "--timeout",
+      "3s",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 1,
+    "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail\",\n  \"verified\": 4,\n  \"counterexample\": 7,\n  \"skipped\": 0,\n  \"errors\": 0,\n  \"uncontracted\": 0,\n  \"total_exported\": 11,\n  \"results\": [\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"matchLater\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        }\n      ],\n      \"duration\": 5372209,\n      \"smtlib\": \"; Verification of matchLater\\n(set-logic ALL)\\n\\n(declare-fun $spec_never (Int) Bool)\\n(define-const result Int 0)\\n\\n(assert (not (= result 1)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"predicateSkipped\",\n      \"status\": \"verified\",\n      \"duration\": 4838667,\n      \"smtlib\": \"; Verification of predicateSkipped\\n(set-logic ALL)\\n\\n(declare-fun $spec_never (Int) Bool)\\n(define-fun helperNever ((n Int)) Bool ($spec_never n))\\n(define-fun $facts_helperNever ((n Int)) Bool (=\\u003e true (let (($spec_sub_0_0 n) ($spec_sub_0_result ($spec_never n))) false)))\\n(define-const result Int 0)\\n\\n(assert (not (ite true true (helperNever 0))))\\n(assert (ite true true ($facts_helperNever 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"zeroSkipped\",\n      \"status\": \"verified\",\n      \"duration\": 5134917,\n      \"smtlib\": \"; Verification of zeroSkipped\\n(set-logic ALL)\\n\\n(define-const result Int (ite true 1 (let (($ail_n 1) ($ail_d 0)) (ite (= (\\u003e= $ail_n 0) (\\u003e= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d)))))))\\n\\n(assert (not (= result 1)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"matchUnmatched\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(ite (and (= 0 1) ($spec_never 0)) 1 0)\"\n        }\n      ],\n      \"duration\": 5244333,\n      \"smtlib\": \"; Verification of matchUnmatched\\n(set-logic ALL)\\n\\n(declare-fun $spec_never (Int) Bool)\\n(define-const result Int (ite (and (= 0 1) ($spec_never 0)) 1 0))\\n\\n(assert (not (= result 1)))\\n(assert (ite (= 0 1) (=\\u003e true (let (($spec_sub_0_0 0) ($spec_sub_0_result ($spec_never 0))) false)) true))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"unreachableOpaque\",\n      \"status\": \"verified\",\n      \"duration\": 4921291,\n      \"smtlib\": \"; Verification of unreachableOpaque\\n(set-logic ALL)\\n\\n(define-const result Int 0)\\n\\n(assert (not (= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"orFalseGoal\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Bool\",\n          \"value\": \"(ite true true ($spec_never 0))\"\n        }\n      ],\n      \"duration\": 4725333,\n      \"smtlib\": \"; Verification of orFalseGoal\\n(set-logic ALL)\\n\\n(declare-fun $spec_never (Int) Bool)\\n(define-fun helperNever ((n Int)) Bool ($spec_never n))\\n(define-fun $facts_helperNever ((n Int)) Bool (=\\u003e true (let (($spec_sub_0_0 n) ($spec_sub_0_result ($spec_never n))) false)))\\n(define-const result Bool (ite true true (helperNever 0)))\\n\\n(assert (not (= result false)))\\n(assert (ite true true ($facts_helperNever 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"never\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_n\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Bool\",\n          \"value\": \"(never_0 $p_n)\"\n        }\n      ],\n      \"duration\": 5387250,\n      \"smtlib\": \"; Verification of never\\n(set-logic ALL)\\n\\n(declare-fun never_0 (Int) Bool)\\n(define-fun never_1 ((n Int)) Bool (never_0 n))\\n(define-fun never_2 ((n Int)) Bool (never_1 n))\\n(declare-const $p_n Int)\\n(define-const result Bool (never_2 $p_n))\\n\\n(assert (not false))\\n\\n(check-sat)\\n(get-model)\",\n      \"bounded_depth\": 2\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"requiresSkipped\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        }\n      ],\n      \"duration\": 4980375,\n      \"smtlib\": \"; Verification of requiresSkipped\\n(set-logic ALL)\\n\\n(declare-fun $spec_never (Int) Bool)\\n(define-fun helperNever ((n Int)) Bool ($spec_never n))\\n(define-fun $facts_helperNever ((n Int)) Bool (=\\u003e true (let (($spec_sub_0_0 n) ($spec_sub_0_result ($spec_never n))) false)))\\n(define-const result Int 0)\\n\\n(assert (ite true true (helperNever 0)))\\n(assert (not (= result 1)))\\n(assert (ite true true ($facts_helperNever 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"zeroOnly\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(ite (= (\\u003e= 1 0) (\\u003e= 0 0)) (div (abs 1) (abs 0)) (- (div (abs 1) (abs 0))))\"\n        }\n      ],\n      \"duration\": 5524458,\n      \"smtlib\": \"; Verification of zeroOnly\\n(set-logic ALL)\\n\\n(define-const result Int (let (($ail_n 1) ($ail_d 0)) (ite (= (\\u003e= $ail_n 0) (\\u003e= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))\\n\\n(assert (not (= result 123)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"predicateFalse\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"0\"\n        }\n      ],\n      \"duration\": 4832792,\n      \"smtlib\": \"; Verification of predicateFalse\\n(set-logic ALL)\\n\\n(declare-fun $spec_never (Int) Bool)\\n(define-fun helperNever ((n Int)) Bool ($spec_never n))\\n(define-fun $facts_helperNever ((n Int)) Bool (=\\u003e true (let (($spec_sub_0_0 n) ($spec_sub_0_result ($spec_never n))) false)))\\n(define-const result Int 0)\\n\\n(assert (not (ite false (helperNever 0) false)))\\n(assert (ite false ($facts_helperNever 0) true))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"andSkipped\",\n      \"status\": \"verified\",\n      \"duration\": 4917333,\n      \"smtlib\": \"; Verification of andSkipped\\n(set-logic ALL)\\n\\n(declare-fun $spec_never (Int) Bool)\\n(define-fun helperNever ((n Int)) Bool ($spec_never n))\\n(define-fun $facts_helperNever ((n Int)) Bool (=\\u003e true (let (($spec_sub_0_0 n) ($spec_sub_0_result ($spec_never n))) false)))\\n(define-const result Bool (ite false (helperNever 0) false))\\n\\n(assert (not (= result false)))\\n(assert (ite false ($facts_helperNever 0) true))\\n\\n(check-sat)\\n(get-model)\"\n    }\n  ]\n}\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:25.879283+00:00",
+    "results": [
+      {
+        "reason_code": "counterexample",
+        "function": "matchLater",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "0"
+          }
+        ],
+        "duration": 5372209,
+        "smtlib": "; Verification of matchLater\n(set-logic ALL)\n\n(declare-fun $spec_never (Int) Bool)\n(define-const result Int 0)\n\n(assert (not (= result 1)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "predicateSkipped",
+        "status": "verified",
+        "duration": 4838667,
+        "smtlib": "; Verification of predicateSkipped\n(set-logic ALL)\n\n(declare-fun $spec_never (Int) Bool)\n(define-fun helperNever ((n Int)) Bool ($spec_never n))\n(define-fun $facts_helperNever ((n Int)) Bool (=> true (let (($spec_sub_0_0 n) ($spec_sub_0_result ($spec_never n))) false)))\n(define-const result Int 0)\n\n(assert (not (ite true true (helperNever 0))))\n(assert (ite true true ($facts_helperNever 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "zeroSkipped",
+        "status": "verified",
+        "duration": 5134917,
+        "smtlib": "; Verification of zeroSkipped\n(set-logic ALL)\n\n(define-const result Int (ite true 1 (let (($ail_n 1) ($ail_d 0)) (ite (= (>= $ail_n 0) (>= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d)))))))\n\n(assert (not (= result 1)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "matchUnmatched",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(ite (and (= 0 1) ($spec_never 0)) 1 0)"
+          }
+        ],
+        "duration": 5244333,
+        "smtlib": "; Verification of matchUnmatched\n(set-logic ALL)\n\n(declare-fun $spec_never (Int) Bool)\n(define-const result Int (ite (and (= 0 1) ($spec_never 0)) 1 0))\n\n(assert (not (= result 1)))\n(assert (ite (= 0 1) (=> true (let (($spec_sub_0_0 0) ($spec_sub_0_result ($spec_never 0))) false)) true))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "unreachableOpaque",
+        "status": "verified",
+        "duration": 4921291,
+        "smtlib": "; Verification of unreachableOpaque\n(set-logic ALL)\n\n(define-const result Int 0)\n\n(assert (not (= result 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "orFalseGoal",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Bool",
+            "value": "(ite true true ($spec_never 0))"
+          }
+        ],
+        "duration": 4725333,
+        "smtlib": "; Verification of orFalseGoal\n(set-logic ALL)\n\n(declare-fun $spec_never (Int) Bool)\n(define-fun helperNever ((n Int)) Bool ($spec_never n))\n(define-fun $facts_helperNever ((n Int)) Bool (=> true (let (($spec_sub_0_0 n) ($spec_sub_0_result ($spec_never n))) false)))\n(define-const result Bool (ite true true (helperNever 0)))\n\n(assert (not (= result false)))\n(assert (ite true true ($facts_helperNever 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "never",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "$p_n",
+            "sort": "Int",
+            "value": "0"
+          },
+          {
+            "name": "result",
+            "sort": "Bool",
+            "value": "(never_0 $p_n)"
+          }
+        ],
+        "duration": 5387250,
+        "smtlib": "; Verification of never\n(set-logic ALL)\n\n(declare-fun never_0 (Int) Bool)\n(define-fun never_1 ((n Int)) Bool (never_0 n))\n(define-fun never_2 ((n Int)) Bool (never_1 n))\n(declare-const $p_n Int)\n(define-const result Bool (never_2 $p_n))\n\n(assert (not false))\n\n(check-sat)\n(get-model)",
+        "bounded_depth": 2
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "requiresSkipped",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "0"
+          }
+        ],
+        "duration": 4980375,
+        "smtlib": "; Verification of requiresSkipped\n(set-logic ALL)\n\n(declare-fun $spec_never (Int) Bool)\n(define-fun helperNever ((n Int)) Bool ($spec_never n))\n(define-fun $facts_helperNever ((n Int)) Bool (=> true (let (($spec_sub_0_0 n) ($spec_sub_0_result ($spec_never n))) false)))\n(define-const result Int 0)\n\n(assert (ite true true (helperNever 0)))\n(assert (not (= result 1)))\n(assert (ite true true ($facts_helperNever 0)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "zeroOnly",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "(ite (= (>= 1 0) (>= 0 0)) (div (abs 1) (abs 0)) (- (div (abs 1) (abs 0))))"
+          }
+        ],
+        "duration": 5524458,
+        "smtlib": "; Verification of zeroOnly\n(set-logic ALL)\n\n(define-const result Int (let (($ail_n 1) ($ail_d 0)) (ite (= (>= $ail_n 0) (>= $ail_d 0)) (div (abs $ail_n) (abs $ail_d)) (- (div (abs $ail_n) (abs $ail_d))))))\n\n(assert (not (= result 123)))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "reason_code": "counterexample",
+        "function": "predicateFalse",
+        "status": "counterexample",
+        "model": [
+          {
+            "name": "result",
+            "sort": "Int",
+            "value": "0"
+          }
+        ],
+        "duration": 4832792,
+        "smtlib": "; Verification of predicateFalse\n(set-logic ALL)\n\n(declare-fun $spec_never (Int) Bool)\n(define-fun helperNever ((n Int)) Bool ($spec_never n))\n(define-fun $facts_helperNever ((n Int)) Bool (=> true (let (($spec_sub_0_0 n) ($spec_sub_0_result ($spec_never n))) false)))\n(define-const result Int 0)\n\n(assert (not (ite false (helperNever 0) false)))\n(assert (ite false ($facts_helperNever 0) true))\n\n(check-sat)\n(get-model)"
+      },
+      {
+        "function": "andSkipped",
+        "status": "verified",
+        "duration": 4917333,
+        "smtlib": "; Verification of andSkipped\n(set-logic ALL)\n\n(declare-fun $spec_never (Int) Bool)\n(define-fun helperNever ((n Int)) Bool ($spec_never n))\n(define-fun $facts_helperNever ((n Int)) Bool (=> true (let (($spec_sub_0_0 n) ($spec_sub_0_result ($spec_never n))) false)))\n(define-const result Bool (ite false (helperNever 0) false))\n\n(assert (not (= result false)))\n(assert (ite false ($facts_helperNever 0) true))\n\n(check-sat)\n(get-model)"
+      }
+    ]
+  },
+  {
+    "arm": "fixed",
+    "label": "tree:m0_runtime_signs:main",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--entry",
+      "main",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 0,
+    "stdout": "[[3, -3, -3, 3, 0, 0, 0, 0, -2, 2, -2, -9223372036854775807], [1, -1, 1, -1, 0, 0, -1, 1, 0, 0, 0, 0]]\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:25.911919+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "tree:m0_runtime_signs:divZero",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--entry",
+      "divZero",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\nError: execution failed: RT001: integer division by zero at cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail:3:45\n",
+    "observed": "2026-10-29T21:12:25.947326+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "tree:m0_runtime_signs:modZero",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--entry",
+      "modZero",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\nError: execution failed: RT001: integer modulo by zero at cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail:4:48\n",
+    "observed": "2026-10-29T21:12:25.980148+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "tree:m0_partial_vacuity:main",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--entry",
+      "main",
+      "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:26.005700+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "tree:m0_selected_paths:andSkipped",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--entry",
+      "andSkipped",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "false\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.027859+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "tree:m0_selected_paths:orFalseGoal",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--entry",
+      "orFalseGoal",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "true\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.051520+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "tree:m0_selected_paths:matchUnmatched",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--entry",
+      "matchUnmatched",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.077081+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "tree:m0_selected_paths:matchLater",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--entry",
+      "matchLater",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.100126+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "tree:m0_selected_paths:unreachableOpaque",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--entry",
+      "unreachableOpaque",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.123308+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "tree:m0_selected_paths:zeroSkipped",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--entry",
+      "zeroSkipped",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "1\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.146097+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "strict_vm:m0_runtime_signs:main",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "main",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 0,
+    "stdout": "[[3, -3, -3, 3, 0, 0, 0, 0, -2, 2, -2, -9223372036854775807], [1, -1, 1, -1, 0, 0, -1, 1, 0, 0, 0, 0]]\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:26.181641+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "strict_vm:m0_runtime_signs:divZero",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "divZero",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\nError: bytecode execution failed: vm: vm: RT001: integer division by zero (in cmd/ailang/testdata/verify_preflight/m0_runtime_signs.divide at cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail:3, ip 0, op DIV)\n",
+    "observed": "2026-10-29T21:12:26.218111+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "strict_vm:m0_runtime_signs:modZero",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "modZero",
+      "cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\nError: bytecode execution failed: vm: vm: BUILTIN_CALL: RT001: integer modulo by zero (in cmd/ailang/testdata/verify_preflight/m0_runtime_signs.remainder at cmd/ailang/testdata/verify_preflight/m0_runtime_signs.ail:4, ip 2, op BUILTIN_CALL)\n",
+    "observed": "2026-10-29T21:12:26.253080+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "strict_vm:m0_partial_vacuity:main",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "main",
+      "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\n",
+    "observed": "2026-10-29T21:12:26.278807+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "strict_vm:m0_selected_paths:andSkipped",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "andSkipped",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "false\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.302759+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "strict_vm:m0_selected_paths:orFalseGoal",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "orFalseGoal",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "true\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.328403+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "strict_vm:m0_selected_paths:matchUnmatched",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "matchUnmatched",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.350840+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "strict_vm:m0_selected_paths:matchLater",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "matchLater",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.373915+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "strict_vm:m0_selected_paths:unreachableOpaque",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "unreachableOpaque",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "0\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.397069+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "strict_vm:m0_selected_paths:zeroSkipped",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--bytecode",
+      "--strict-bytecode",
+      "--entry",
+      "zeroSkipped",
+      "cmd/ailang/testdata/verify_preflight/m0_selected_paths.ail"
+    ],
+    "rc": 0,
+    "stdout": "1\n",
+    "stderr": "",
+    "observed": "2026-10-29T21:12:26.419982+00:00"
+  },
+  {
+    "arm": "fixed",
+    "label": "contract_failure",
+    "argv": [
+      "/tmp/ailang-backlog-20261029/m0-final-match-repaired",
+      "run",
+      "--verify-contracts",
+      "--entry",
+      "main",
+      "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-m0-repair-exec/std\nError: execution failed: contract violation: ensures failed in  at cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail:10:11: (result == 1)\n",
+    "observed": "2026-10-29T21:12:26.446595+00:00"
+  }
+]

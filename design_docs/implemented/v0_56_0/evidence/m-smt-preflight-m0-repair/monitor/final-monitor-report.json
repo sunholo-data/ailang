@@ -1,0 +1,54 @@
+{
+  "head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+  "pr": 2019,
+  "actual_ci": "PASS",
+  "workflow": 40960748450,
+  "actual_attempt": 2,
+  "actual_test_job": 123761057602,
+  "contexts": 27,
+  "counts": {
+    "SUCCESS": 20,
+    "SKIPPED": 7,
+    "NEUTRAL": 0
+  },
+  "pending": 0,
+  "failed": 0,
+  "cancelled": 0,
+  "sonar_actual_current_head": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T22:14:46Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://sonarcloud.io/dashboard?id=sunholo-data_ailang&pullRequest=2019",
+      "name": "SonarCloud Code Analysis",
+      "startedAt": "2026-10-29T22:13:39Z",
+      "status": "COMPLETED",
+      "workflowName": ""
+    }
+  ],
+  "sonar_numeric_coverage": "Not inferred from local84.4projection; root may query actual service",
+  "feedback_counts": {
+    "issue-comments": 2,
+    "inline-comments": 0,
+    "reviews": 0
+  },
+  "gate_log": "ci-gate-final.log",
+  "final_snapshot": "pr-final.json",
+  "test_success_raw": {
+    "path": "/tmp/ailang-backlog-20261029/m0-pr2019-monitor-4fb/test-attempt2-success-raw.log",
+    "bytes": 143131,
+    "sha256": "f4f9a665d9a050f3835cce4f21db09a619359a86a3414e138bee1b068727b12f",
+    "selected_package_outcomes": [
+      "2026-10-29T22:13:14.2388141Z ok  \tgithub.com/sunholo-data/ailang/cmd/ailang\t251.801s\tcoverage: 25.2% of statements",
+      "2026-10-29T22:13:14.2460407Z ok  \tgithub.com/sunholo-data/ailang/internal/smt\t10.770s\tcoverage: 72.6% of statements",
+      "2026-10-29T22:13:26.0760170Z ok  \tgithub.com/sunholo-data/ailang/cmd/ailang\t0.065s"
+    ]
+  },
+  "original_raw_classification_round2_FAIL73_preserved": true,
+  "one_authorized_retry_used": 1,
+  "further_retry_allowed": false,
+  "source_deadline_config_threshold_waiver_changes": false,
+  "formal_evaluation_or_score_by_monitor": false,
+  "merge_by_monitor": false,
+  "next": "Root owns formalround3(max3) and normalmerge after full source/evidence review"
+}

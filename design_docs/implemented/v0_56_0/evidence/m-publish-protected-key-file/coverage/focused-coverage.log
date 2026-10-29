@@ -1,0 +1,68 @@
+=== RUN   TestPublishKeyFile_Format
+=== RUN   TestPublishKeyFile_Format/trim
+=== RUN   TestPublishKeyFile_Format/empty
+=== RUN   TestPublishKeyFile_Format/multiline
+=== RUN   TestPublishKeyFile_Format/CR
+=== RUN   TestPublishKeyFile_Format/NUL
+=== RUN   TestPublishKeyFile_Format/TAB
+=== RUN   TestPublishKeyFile_Format/DEL
+=== RUN   TestPublishKeyFile_Format/limit
+=== RUN   TestPublishKeyFile_Format/too-large
+--- PASS: TestPublishKeyFile_Format (0.00s)
+    --- PASS: TestPublishKeyFile_Format/trim (0.00s)
+    --- PASS: TestPublishKeyFile_Format/empty (0.00s)
+    --- PASS: TestPublishKeyFile_Format/multiline (0.00s)
+    --- PASS: TestPublishKeyFile_Format/CR (0.00s)
+    --- PASS: TestPublishKeyFile_Format/NUL (0.00s)
+    --- PASS: TestPublishKeyFile_Format/TAB (0.00s)
+    --- PASS: TestPublishKeyFile_Format/DEL (0.00s)
+    --- PASS: TestPublishKeyFile_Format/limit (0.00s)
+    --- PASS: TestPublishKeyFile_Format/too-large (0.00s)
+=== RUN   TestPublishKeyFile_AuthorityBeforePath
+--- PASS: TestPublishKeyFile_AuthorityBeforePath (0.00s)
+=== RUN   TestPublishKeyFile_UnsupportedPlatform
+    publish_keyfile_test.go:24: protected Unix reader has separate executable controls
+--- SKIP: TestPublishKeyFile_UnsupportedPlatform (0.00s)
+=== RUN   TestPublishKeyFile_ProtectedModes
+=== RUN   TestPublishKeyFile_ProtectedModes/-r--------
+=== RUN   TestPublishKeyFile_ProtectedModes/-rw-------
+=== RUN   TestPublishKeyFile_ProtectedModes/-rw-r--r--
+=== RUN   TestPublishKeyFile_ProtectedModes/-rw-r-----
+=== RUN   TestPublishKeyFile_ProtectedModes/-rwx------
+=== RUN   TestPublishKeyFile_ProtectedModes/urw-------
+--- PASS: TestPublishKeyFile_ProtectedModes (0.00s)
+    --- PASS: TestPublishKeyFile_ProtectedModes/-r-------- (0.00s)
+    --- PASS: TestPublishKeyFile_ProtectedModes/-rw------- (0.00s)
+    --- PASS: TestPublishKeyFile_ProtectedModes/-rw-r--r-- (0.00s)
+    --- PASS: TestPublishKeyFile_ProtectedModes/-rw-r----- (0.00s)
+    --- PASS: TestPublishKeyFile_ProtectedModes/-rwx------ (0.00s)
+    --- PASS: TestPublishKeyFile_ProtectedModes/urw------- (0.00s)
+=== RUN   TestPublishKeyFile_RefusesSymlinkDirectoryAndOwner
+--- PASS: TestPublishKeyFile_RefusesSymlinkDirectoryAndOwner (0.00s)
+=== RUN   TestPublishKeyFile_SameValidatedHandle
+--- PASS: TestPublishKeyFile_SameValidatedHandle (0.00s)
+=== RUN   TestPublishKeyFile_BoundedStream
+--- PASS: TestPublishKeyFile_BoundedStream (0.00s)
+=== RUN   TestPublishKeyFile_FIFOIsBounded
+--- PASS: TestPublishKeyFile_FIFOIsBounded (0.00s)
+=== RUN   TestReadPublishKeyFile_PublicProtectedFiles
+=== RUN   TestReadPublishKeyFile_PublicProtectedFiles/readonly-trim
+=== RUN   TestReadPublishKeyFile_PublicProtectedFiles/readwrite-trim
+=== RUN   TestReadPublishKeyFile_PublicProtectedFiles/empty
+=== RUN   TestReadPublishKeyFile_PublicProtectedFiles/multiline
+=== RUN   TestReadPublishKeyFile_PublicProtectedFiles/control
+=== RUN   TestReadPublishKeyFile_PublicProtectedFiles/oversized
+=== RUN   TestReadPublishKeyFile_PublicProtectedFiles/public-mode
+--- PASS: TestReadPublishKeyFile_PublicProtectedFiles (0.00s)
+    --- PASS: TestReadPublishKeyFile_PublicProtectedFiles/readonly-trim (0.00s)
+    --- PASS: TestReadPublishKeyFile_PublicProtectedFiles/readwrite-trim (0.00s)
+    --- PASS: TestReadPublishKeyFile_PublicProtectedFiles/empty (0.00s)
+    --- PASS: TestReadPublishKeyFile_PublicProtectedFiles/multiline (0.00s)
+    --- PASS: TestReadPublishKeyFile_PublicProtectedFiles/control (0.00s)
+    --- PASS: TestReadPublishKeyFile_PublicProtectedFiles/oversized (0.00s)
+    --- PASS: TestReadPublishKeyFile_PublicProtectedFiles/public-mode (0.00s)
+=== RUN   TestReadPublishKeyFile_PublicMissingAndAuthority
+--- PASS: TestReadPublishKeyFile_PublicMissingAndAuthority (0.00s)
+PASS
+coverage: 2.7% of statements
+ok  	github.com/sunholo-data/ailang/internal/pkg	11.729s	coverage: 2.7% of statements

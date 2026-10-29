@@ -1,0 +1,15 @@
+{
+  "accepted_combined_dev": "b9c15d431ee25fb28c7bc2729f199cb80c8cdada",
+  "m0_owned_go_files_equal_head": 23,
+  "key_owned_go_ail_equal_head": 18,
+  "planned_parent_companion_paths_preserved": true,
+  "accepted_1965_archive_preserved": true,
+  "build_workflow_unapproved_proposal_not_applied": true,
+  "main_dirty": [
+    " M docs/static/benchmarks/latest.json",
+    " M docs/static/benchmarks/os/history.json",
+    " M docs/static/benchmarks/os/latest.json"
+  ],
+  "m0_all_owned_go_ail_equal_head": 31,
+  "m0_new_test_companion_equal_head": true
+}

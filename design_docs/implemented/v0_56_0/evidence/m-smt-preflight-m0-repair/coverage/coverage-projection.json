@@ -1,0 +1,40 @@
+{
+  "qualification": "Projection combining actual prior Sonar missed lines with focused full SMT Go profile; exact new-head Sonar gate remains authoritative",
+  "prior_head": "cb5a60ffb63e4c39a7a5d7170db979f5d0dc6bbb",
+  "prior_new_lines": 385.0,
+  "prior_uncovered_lines": 86.0,
+  "newly_hit_prior_missed_lines": {
+    "internal/smt/codegen_xmod_contract.go": [
+      66,
+      96,
+      272,
+      305,
+      306,
+      307,
+      308,
+      309,
+      310,
+      311,
+      312,
+      313,
+      314,
+      317,
+      318,
+      320,
+      348,
+      349,
+      350,
+      351,
+      352,
+      353,
+      355,
+      356
+    ],
+    "internal/smt/codegen_call_facts_control.go": [
+      48,
+      112
+    ]
+  },
+  "count": 26,
+  "projected_new_coverage": 84.41558441558442
+}

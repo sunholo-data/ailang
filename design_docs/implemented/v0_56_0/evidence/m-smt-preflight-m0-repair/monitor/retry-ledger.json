@@ -1,0 +1,14 @@
+{
+  "head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+  "workflow": 40960748450,
+  "original_attempt": 1,
+  "original_test_job": 123752546418,
+  "root_authorized_limit": 1,
+  "used": 1,
+  "preflight": "Workflow terminal, completebadjobsetonlytestbudget;32/32failureheaders haveexplicitguardnearby, SMT12.178sPASS, cmdGo/testsbyteequalcb5; no newlogic/Sonarfailurecontext",
+  "history_qualification": "Oldcb5retry belongs a different source/run, superseded history; not counted as this4fb retry.",
+  "forbidden": "No source/deadline/config/threshold/waiver, no additionalretry afterthisone; rootownsformalround3; actualcurrentSonarstillrequired.",
+  "command": "gh run rerun 40960748450 --repo sunholo-data/ailang --failed",
+  "requested_at_utc": "2026-10-29T22:06:12.552221+00:00",
+  "next_action": "Monitor actualattempt2 and currentSonar only; no additionalretry; rootownsformalround3."
+}

@@ -1,0 +1,13 @@
+{
+  "schema": "ailang.lossless-evidence/v1",
+  "logical_name": "m0/execution-extra/M4-quantifier-red.log",
+  "encoding": "gzip+base64",
+  "original_bytes": 435,
+  "original_sha256": "7f6fd63f25d3020e9f6c9435f8197b0ae8d9093f3ce12ae3a3793b1299a08183",
+  "compressed_bytes": 295,
+  "compressed_sha256": "68d50c9e4fb3b5734a3c18db736b067dec757e7131861f6fb77919235889e508",
+  "gzip_mtime": 0,
+  "gzip_filename": "",
+  "gzip_compresslevel": 9,
+  "payload": "H4sIAAAAAAAC/2VQwUoDMRA9t18xBw9ZJLtbFMRiC1UoFAoieF/SZDYNpklJJurnO1nFCs5hMvN4781kpJSw3ez2S3jFTFsXHOFWacrDS1GB3OgwPRfC9BhLME/qTCUhiL7tF7mZA4eOBi2GQSvvh3GS2qKSyQOxY2vjctHfL8FGYmoJbIWf6nT2CB88AN4x1SFm8qohMpL00ToNm/2+ueAGtVcJ5VgCXOUz6uFQd0IDYheogZoubJUzJgJKBf+jIvA2wiMn4WDRNCDGmPgDU1+NGFmtmR/Yfb0CB46RB37FNUyKSvipOC4T9BH1m8zqzy6/BaPzeuwpzayjYzm0Op66XMIx+iiNItUp51WwnaunCsp3+USzvr25u83f4i+s4+PGswEAAA=="
+}

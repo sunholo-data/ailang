@@ -1,12 +1,28 @@
 # M-PUBLISH-PROTECTED-KEY-FILE
 
-**Status**: Implementation/local gates complete — unreleased; independent evaluation and exact-head CI pending (retained planned until acceptance)
+**Status**: Implemented and accepted — independent round 2 PASS 95; v0.56.0 UNRELEASED.
 **Target**: v0.56.0, unreleased
 **Priority**: P1
 **Estimated**: 2–3 days, approximately 450–650 changed lines including portable tests/docs; re-estimate during approved planning
 **Issue**: [#1900](https://github.com/sunholo-data/ailang/issues/1900)
 **Baseline**: actual dev `dba1c499ca6f76b40992fd521e3dd440d9277f49` (2026-10-29)
 **Integration dependency**: Satisfied by accepted #2013/#1773 merge `96d69f05b6e84bd6666e8fa91ff948f803b67d92`; normally integrated before product edits
+
+## Accepted implementation (2026-10-29)
+
+Independent round 2 **PASS 95/100** evaluated exact
+`1f6c2ea68a5f45917f91935cdf2470e3833094e1`; actual 27 CI contexts completed
+20 SUCCESS / 7 SKIPPED, actual Sonar new coverage 90.0% passed unchanged 80%.
+[PR #2021](https://github.com/sunholo-data/ailang/pull/2021) normally merged as
+`b9c15d431ee25fb28c7bc2729f199cb80c8cdada` at 22:20:12 UTC;
+issue #1900 closed 22:20:13UTC. Target v0.56.0 remains unreleased, without tag/bump.
+The [plan](m-publish-protected-key-file-sprint-plan.md),
+[validation](m-publish-protected-key-file-validation.md) and
+[frozen evaluations/evidence](evidence/m-publish-protected-key-file/README.md)
+are archived together. Original FAIL 73 remains preserved. Final report schema
+uses `result=pass` and `total_score=95`; the root audit-script correction is
+retained without rewriting the independent report. Earlier pending/STOP text
+is historical to its dated checkpoint, not current authorization or acceptance.
 
 ## Problem statement and threat boundary
 
@@ -238,7 +254,7 @@ that this flag supplies credentials to key management.
 
 ## Integration with current work
 
-Current execution: root independently accepted #2013 PASS95/all27CI and normally
+Current execution: root independently accepted #2013 PASS 95/all27CI and normally
 merged it at `96d69f05b6e84bd6666e8fa91ff948f803b67d92` on2026-10-29
 20:53:24UTC. M0 normally integrated that actual source at `a9aa133133f9720898c3d7ebfa12627101549211` before any product edit. No Go/AIL
 delta existed against the accepted baseline at that checkpoint. The following
@@ -322,7 +338,7 @@ an ad-hoc shell publishing wrapper or a global default credential resolver.
 | V8 | Other env consumers exist and need explicit scope separation | Full repository RegistryAPIKey call search finds pkg_publish, pkg_unpublish and pkg_keys only, plus config definition |
 | V9 | Existing guide recommends shell export | Read package-publishing.md quickstart/API-key/maintainer sections and publish help source |
 | V10 | #2013 overlaps publishing and is not a safe assumed ancestor | Root's terminal independent gate classification; branch0853 source inspection versus dev; shared rewrite extraction/quality changes are owned and preserved |
-| V11 | Current owner/design coverage is bounded and no matching active owner found | Saved 24-open-PR/18-active-production-task inventory plus issue1900 body/comments; local scaffold neural maxima 0.33/0.28; manually read AI/UID/authority/explicit-host credential conventions |
+| V11 | Current owner/design coverage is bounded and no matching active owner found | Saved 24-open-PR/18-active-production-task inventory plus issue #1900 body/comments; local scaffold neural maxima 0.33/0.28; manually read AI/UID/authority/explicit-host credential conventions |
 | V12 | Existing raw validator responses can be returned in errors | Read uploadTarball status handling:300ff; new exact-selected-key redaction must cover reflection without replacing validation causes |
 
 No new language support/limitation, code allocation, live registry behavior or
@@ -362,11 +378,11 @@ remain separate; this score does not authorize product changes.
 
 ## Related documents
 
-- [Package authority chokepoint](../v0_54_19/m-pkg-authority-chokepoint.md): landed
+- [Package authority chokepoint](../../planned/v0_54_19/m-pkg-authority-chokepoint.md): landed
   guard ordering, transport and dispatch constraints, not a credential-file lane.
-- [Executor environment hardening](../v0_49_1/m-executor-env-hardening.md): separates
+- [Executor environment hardening](../../planned/v0_49_1/m-executor-env-hardening.md): separates
   child credentials; this proposal changes author CLI input, not fleet identity.
-- [macOS agent UID isolation](../v0_54_13/m-mac-agent-uid.md): explicit same-UID
+- [macOS agent UID isolation](../../planned/v0_54_13/m-mac-agent-uid.md): explicit same-UID
   threat limitation; no account/permission deployment is part of this feature.
 - [Worker policy and lazy AI](../../implemented/v0_54_5/m-worker-policy-and-lazy-ai.md):
   credentials are read when their operation is needed; do not change AI behavior.

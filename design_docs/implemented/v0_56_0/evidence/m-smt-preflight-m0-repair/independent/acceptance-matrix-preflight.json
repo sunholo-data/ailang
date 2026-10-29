@@ -1,0 +1,142 @@
+[
+  {
+    "feature": "M1_BASELINES_TRUNCATION",
+    "criterion_index": 1,
+    "criterion": "Actual current build/std/identity and complete historical/current rows recorded before source changes",
+    "status": "verified-preflight",
+    "evidence": "Approved evidence packet and current-base6d0 vs fixed60 source/version/stdlib fingerprints; historical807 and dirtyinstalled-e863 qualified, not conflated"
+  },
+  {
+    "feature": "M1_BASELINES_TRUNCATION",
+    "criterion_index": 2,
+    "criterion": "All Int producer/sign/nested-binding controls agree with executed interpreter and strict VM results",
+    "status": "verified-preflight",
+    "evidence": "int_divmod_test.go9 producer branches \u00d713pair grid plus nested/collision controls; actual72CLI includes12signedpairs in tree/strictVM bothbase/fixed"
+  },
+  {
+    "feature": "M1_BASELINES_TRUNCATION",
+    "criterion_index": 3,
+    "criterion": "False parity/halfDown refuted; true controls preserved; approved zero/width behavior retained",
+    "status": "verified-preflight",
+    "evidence": "Actual final CLI parity/halfDown CE and true halfTowardZero/remSign/nonnegative/bounded V; RT001 both engines/base/fixed; width/zero totality not expanded"
+  },
+  {
+    "feature": "M2_FINITE_UF_SPECS",
+    "criterion_index": 1,
+    "criterion": "Same argument tuple shares one UF value; distinct tuples do not collapse",
+    "status": "verified-preflight",
+    "evidence": "Typed $spec_<callee> UF actualargument application; selfGap V vs gap CE, shared_constant mutantfalseV caughtby Go regression"
+  },
+  {
+    "feature": "M2_FINITE_UF_SPECS",
+    "criterion_index": 2,
+    "criterion": "No global universal contract assertion; unencodable/recursive predicates terminate via existing unsupported/fail-weak classifications",
+    "status": "verified-preflight",
+    "evidence": "No forall contract axioms; finite templates with recursion expansion guard/failweak; universal_axiom mutant wrongfalseV andtestRED"
+  },
+  {
+    "feature": "M2_FINITE_UF_SPECS",
+    "criterion_index": 3,
+    "criterion": "Requires is a guard, not assumed truth or newly discharged obligation; raw partial-callee discriminator retained",
+    "status": "verified-preflight",
+    "evidence": "instantiateContract emits requires implication, unknownrequires discardsentirefact; atLeast V vs atLeastUnguarded CE, wrongpartial CE withruntime0/ensuresfailure"
+  },
+  {
+    "feature": "M3_LEXICAL_SELECTED_FACTS",
+    "criterion_index": 1,
+    "criterion": "No free or captured local at top level; nested and shadowed binders retain correct scope",
+    "status": "verified-preflight",
+    "evidence": "encodeFactLet binds value/facts in same scope; scope-aware substitution/outer fresh aliases; actual lexicalshadow/capture controls and Core captureRED\u2192GREEN"
+  },
+  {
+    "feature": "M3_LEXICAL_SELECTED_FACTS",
+    "criterion_index": 2,
+    "criterion": "Unselected if or &&/|| RHS contributes no contradictory facts",
+    "status": "verified-preflight",
+    "evidence": "encodeFactIf captures branch conditions; real selectedpath if/and/or tested withcontradictory unselectedcall; skippedpositive V and falsegoal CE"
+  },
+  {
+    "feature": "M3_LEXICAL_SELECTED_FACTS",
+    "criterion_index": 3,
+    "criterion": "Selected positive and false goal controls pass without new classification policy",
+    "status": "verified-preflight",
+    "evidence": "Source selector/eligibility zero policy change; final same1051-file3036row corpus has soleexplained ERROR\u2192V, no new skips/errors/timeouts"
+  },
+  {
+    "feature": "M4_GUARDS_CONTRACT_PATHS",
+    "criterion_index": 1,
+    "criterion": "Pattern/guard binders and first-match selection retain actual evaluation paths",
+    "status": "verified-preflight",
+    "evidence": "Guardfactmirror uses first reachable pattern plus guard whilebodyfactmirror selects actual arm; MatchBoundPositive/MatchGuardReach and actualCLI matchLater/matchUnmatched"
+  },
+  {
+    "feature": "M4_GUARDS_CONTRACT_PATHS",
+    "criterion_index": 2,
+    "criterion": "No unmatched/later-guard fact leaks; short-circuit predicates selective in all three expression positions",
+    "status": "verified-preflight",
+    "evidence": "Contractpredicate facts preserve selected if/and/or and binders; requiresSkipped/predicateSkipped/predicateFalse exact rows; quantifier bounds/nested freshnames regressions"
+  },
+  {
+    "feature": "M4_GUARDS_CONTRACT_PATHS",
+    "criterion_index": 3,
+    "criterion": "Recursive/unencodable predicate paths preserve existing unsupported/fail-weak behavior; proof-vs-refutation/admission redesign excluded",
+    "status": "verified-preflight",
+    "evidence": "expandingContractSpecs cuts self-recursive factexpansion; unknownrequires/ensures failweak Corecontrols; inherited nullaryrecursive ownERROR preserved; no admission/outcome redesign"
+  },
+  {
+    "feature": "M5_HELPER_ENVIRONMENT_IDENTITY",
+    "criterion_index": 1,
+    "criterion": "Condition helper has exact value-helper parameter list including lifted environment variables",
+    "status": "verified-preflight",
+    "evidence": "CalleeDef.ConditionName paired Bool buildDefineFun uses exact shared params; encodeResolvedApplication encodesoperands once forvalue/facts. Explicit Core/CLI environmentparams proof, no claim frontendclosurelift coverage"
+  },
+  {
+    "feature": "M5_HELPER_ENVIRONMENT_IDENTITY",
+    "criterion_index": 2,
+    "criterion": "Distinct captures remain distinct and diamond declarations deduplicate without dropping actual-call facts",
+    "status": "verified-preflight",
+    "evidence": "Six-definition diamond DAG reuse and distinctargumentenvironment controls; diamondV/diamondFalseCE; interleaved/helper contradictory-unselected focused tests"
+  },
+  {
+    "feature": "M5_HELPER_ENVIRONMENT_IDENTITY",
+    "criterion_index": 3,
+    "criterion": "No new closed-helper restriction or eligibility expansion; non-nullary UF model interpretations not displayed as input values",
+    "status": "verified-preflight",
+    "evidence": "No closed-helper restriction introduced; solver filters only nonnullary define-fun interpretations, retainingnullary input/result. Actual modelscontainno$spec functioninput"
+  },
+  {
+    "feature": "M6_CLI_MUTATION_CORPUS_HANDOFF",
+    "criterion_index": 1,
+    "criterion": "Actual fixed CLI refutes parity/halfDown/gap and partial-callee wrong with runtime/model witnesses; complete true controls and all aggregate exits retained",
+    "status": "verified-preflight",
+    "evidence": "72actualCLI rows: parity/halfDown/gap/wrong CE withsource/runtime/model witnesses; all14checks succeed, bothaggregate0/1 exitsand inheritedERROR explicit"
+  },
+  {
+    "feature": "M6_CLI_MUTATION_CORPUS_HANDOFF",
+    "criterion_index": 2,
+    "criterion": "Disposable Euclidean/shared-constant/universal-axiom mutations fail discriminating tests; parked/global work untouched",
+    "status": "verified-preflight",
+    "evidence": "Three overlays exactsource60andmutatedSHA independently verified; eachtargetfalseV plusregressiontestexit1; parkedbranch untouched"
+  },
+  {
+    "feature": "M6_CLI_MUTATION_CORPUS_HANDOFF",
+    "criterion_index": 3,
+    "criterion": "Every per-function corpus verdict change explained including inherited ERROR/COUNTEREXAMPLE/timeout rows; no all-zero preflight claim",
+    "status": "verified-preflight",
+    "evidence": "1051files/arm and3036rows, sole validEmbed ERROR\u2192V explained;27CE/627SKIP/2035uncontracted/1timeout unchanged,40\u219239ERROR;157diagnostic-only same statuses/reasoncodes retained"
+  },
+  {
+    "feature": "M6_CLI_MUTATION_CORPUS_HANDOFF",
+    "criterion_index": 4,
+    "criterion": "Focused changed/core/SMT/CLI, lint/sizes/boundaries/changelog/relevant examples gates and actual required exact-head CI/Sonar pass",
+    "status": "pending-exact-head-CI",
+    "evidence": "Localowner focused/changed20core/lint/structure/example/49stdinterfaces green; actual final-head PR CI still pending"
+  },
+  {
+    "feature": "M6_CLI_MUTATION_CORPUS_HANDOFF",
+    "criterion_index": 5,
+    "criterion": "Docs preserve ruled scope, both raw BLOCKED records and human ratification; separate independent evaluation required before acceptance",
+    "status": "verified-preflight",
+    "evidence": "Two externalBLOCKEDrecords and exacthumanratification remain preserved; approvedF1/F4/Z scope; parentfutureM1\u2013M4 stillunapproved/planned; separate rootindependentacceptance pending"
+  }
+]

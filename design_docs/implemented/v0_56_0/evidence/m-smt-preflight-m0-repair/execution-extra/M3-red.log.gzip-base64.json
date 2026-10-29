@@ -1,0 +1,13 @@
+{
+  "schema": "ailang.lossless-evidence/v1",
+  "logical_name": "m0/execution-extra/M3-red.log",
+  "encoding": "gzip+base64",
+  "original_bytes": 738,
+  "original_sha256": "7f806fe302839d2db728c723d4c967397de998d4b4bfb041fa805e325d86bb86",
+  "compressed_bytes": 304,
+  "compressed_sha256": "d957ae8add2da7940b5ef1913589dff232b093ef105b3adc6e9dd86d04b159f8",
+  "gzip_mtime": 0,
+  "gzip_filename": "",
+  "gzip_compresslevel": 9,
+  "payload": "H4sIAAAAAAAC/9WQwWrDMAyGz+1T6LCDc3CStaOwwga9BAqBDbp7UG01MXPsYitrH39ONtaNsUOP00EWsvTr55NSQrXZ1mt4ociVcYapQsWxqelsFNqN0zuypJg0iDIvb2M2hxTKa2rJNWnENodpQ3nHwduGk1Le+vXdag2t5zQ6OKZAZ+yPluCEjuGNgjkY0pPWGCISS+tbo2BT19mlr0lZDCQPg4ObeCTV7JOeHu1sHWcwpss0xkiBgcNAv7vCJTfCUkrC+uQcFlkG4vEBxE/l6TP7fFJclFRH6lVG/Hbzq0jdufyT565D7U+kn4bE4hkD9pSKa5mu7v8508V1PEeWU5q1hrthnyvfF3FwnbdeamQs0Fh0bWFGHA5tEXuelflytYwfy+89rw2C4gIAAA=="
+}
