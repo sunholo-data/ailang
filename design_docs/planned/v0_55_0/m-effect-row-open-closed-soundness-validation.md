@@ -90,8 +90,57 @@ Read-only live consumer check (2026-10-29): `/Users/voightkampff/dev/mk-20261027
 
 The isolated `/tmp/ailang-backlog-20261029/motoko-1958` worktree starts at the pinned fork SHA above. Commit `c3f4c85eec681d8d5d4787da4d9e56c22c0a2457`, PR `sunholo-voight-kampff/motoko_agent#4`, changes exactly one callback annotation line. Bot identity was verified as `sunholo-voight-kampff`; base is `sunholo/main-dst-20261027`. No upstream writes or live-checkout edits occurred. The upstream path overlap #21 changes imports and `on_pre_step`, not `play_chunks`; the fork had no other open PR.
 
-Fresh compiler `9eb1ebaed78a0ecf6b232b5b329633ed11438358` with matching stdlib passed full `gmake check_core`: **60/60 core files, 9/9 extension boots**, plus all prerequisite runtime guards. Log: `/tmp/ailang-backlog-20261029/1958-motoko-delivery-check-core.log`. A supplemental no-cache sweep passed 53 files and reached the 90-second deadline on seven large entries without a type diagnostic; all seven passed at concurrency two and a 180-second deadline (25–122 seconds). The combined fresh result is **60/60**. Original timeouts remain in `1958-motoko-delivery-core-fresh.json`; successful bounded retries are in `1958-motoko-delivery-core-retry.json`. Fork CI, final merge SHA, and combined-tree gate results remain pending.
+Fresh compiler `9eb1ebaed78a0ecf6b232b5b329633ed11438358` with matching stdlib passed full `gmake check_core`: **60/60 core files, 9/9 extension boots**, plus all prerequisite runtime guards. Log: `/tmp/ailang-backlog-20261029/1958-motoko-delivery-check-core.log`. A supplemental no-cache sweep passed 53 files and reached the 90-second deadline on seven large entries without a type diagnostic; all seven passed at concurrency two and a 180-second deadline (25–122 seconds). The combined fresh result is **60/60**. Original timeouts remain in `1958-motoko-delivery-core-fresh.json`; successful bounded retries are in `1958-motoko-delivery-core-retry.json`. Final fork delivery and combined-tree checkpoint results are recorded below.
 
-The Docker source pin and MOTOKO.md provenance now name immutable delivered fork commit `c3f4c85eec681d8d5d4787da4d9e56c22c0a2457`. Fetch-by-SHA selects this exact one-line source even before branch merge metadata exists. No cloud image build/deployment or rig switch was performed. M4 remains pending fork merge and combined #1963 gates.
+The Docker source pin and MOTOKO.md provenance now name fork merge `af1d56513d3ae314bd831fd149c7b6f2503a361c`, source-tree identical to tested migration commit `c3f4c85eec681d8d5d4787da4d9e56c22c0a2457`. PR #4 merged normally without an admin override or policy change. No cloud image build/deployment or rig switch was performed. M4 remains pending the final standalone branch rebase after #1963 and independent evaluation.
 
 Release posture F3 now targets **v0.56.0**, the next minor after v0.55.0 was tagged during execution. No version bump, release, or deployment is performed here. Historical planned paths remain stable.
+
+## Consumer CI baseline and normal delivery
+
+Fork CI independently passed core **60/60** and extensions **9/9** using its pinned
+AILANG `v0.52.5` (tag object `76a23634453f4dcf8c5fe9bb7766ffe089265569`, source commit
+`7200786dcd21a61437cb76382ac31f7fa4dbe11d`). Its later skills-refusal step reported
+47 fixture failures. A fresh no-cache build of that exact old compiler with its
+matching stdlib reproduces the **same** error on pristine motoko base `835c738b`
+and migrated head `c3f4c85e`: `scripts/verify_skills_startup.ail:121`,
+`HeaderEntry.boot.cost_rates`, expected two fields but got four including
+`cache_read_per_1m_millicents` and `cache_write_per_1m_millicents`. Both return exit 1.
+The affected skills startup cases all use this shared entry point. The migration
+changes none of its pricing code. Logs: `1958-motoko-ci-base-pricing.log`,
+`1958-motoko-ci-migrated-pricing.log`, `1958-motoko-fork-ci-core-failed.log`.
+
+CONTRIBUTING.md explicitly requires `make check_core`, passed with the intended
+compiler. Mark authorized normal fork-only delivery after this baseline proof;
+[PR #4 evidence](https://github.com/sunholo-voight-kampff/motoko_agent/pull/4#issuecomment-6491761805)
+records the inherited CI failure. No `--admin`, required-check bypass, CI/policy edit,
+pricing edit, or upstream write occurred. The broader CI is not claimed all green.
+The fork base now resolves to full merge SHA `af1d56513d3ae314bd831fd149c7b6f2503a361c`.
+
+## Current-dev and disposable combined-tree checks
+
+Own branch rebased cleanly onto `origin/dev` `c2944389afefe99b592ffba387aae37903044126`.
+Standalone checkpoint `05ce2e4f4d409100c77e60360a4bf1e9df7212ee` passed focused
+row/builtin/streaming/ceiling/two-engine tests across types, builtins, pipeline, CLI
+(0.541s / 0.872s / 6.623s / 12.615s), log `1958-currentdev-focused.log`.
+
+A **separate, unpushed** disposable branch/worktree combined that checkpoint with
+#1963 head `86d3a5f8e946e12967c38b446e5fb854a884a42e`, creating integration commit
+`4358f0542af404bd63d782059b15b5507a8ae1df`. No #1963 commits entered the standalone PR.
+The combined tree passed:
+
+- Row guard, streaming callback rows, ceiling authority, and evaluator/bytecode
+  rejection before side-effect output: types/builtins/pipeline/CLI green
+  (0.395s / 0.336s / 7.330s / 14.242s), `1958-combined-focused.log`.
+- Nested callbacks, publication, depth/cycle/union invariants and nested rejection
+  before output: types/pipeline green (0.280s / 6.463s), `1958-combined-nested.log`.
+- Fresh no-cache check of `examples/runnable/serve_api_mcp_oauth.ail`: green,
+  `1958-combined-mcp.log`.
+- `tools/verify-stdlib.sh`: all **49** interfaces stable; generated `std/ai` JSON
+  byte-identical to the committed golden; no golden diff. Logs
+  `1958-combined-stdlib.log` and `1958-combined-ai-iface.json`.
+
+This integration proof does not waive #1963's formal CI or merge requirements.
+After #1963 lands, rebase the actual standalone branch and repeat only checks
+materially affected by any new delta. The final integrated commit and independent
+review are pending; M4 remains unpassed at this checkpoint.

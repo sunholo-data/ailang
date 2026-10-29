@@ -2,7 +2,7 @@
 
 **Rig answer (since 2026-10-27):** evals run `/Users/voightkampff/dev/mk-20261027`, branch
 `sunholo/main-dst-20261027` @ `835c738b` (§13) — upstream `main` 97244396 + our commits. The Docker source pin
-is now `c3f4c85e` with the approved #1958 callback migration (§14); the live rig was not switched. 2026-10-19..10-27: `mk-20261019` / `sunholo/main-dst-20261019` @ `907dd78e` (§12), now
+is now `af1d5651` with the approved #1958 callback migration (§14); the live rig was not switched. 2026-10-19..10-27: `mk-20261019` / `sunholo/main-dst-20261019` @ `907dd78e` (§12), now
 the rollback. 2026-10-15..10-19: `mk-20261015` / `sunholo/main-dst-20261015` @
 `965f2ec5` (§11). 2026-10-08..10-15: `mk-20261002` (§10). Before that (2026-09-28..10-07):
 `/Users/voightkampff/dev/mk-main`, branch `sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
@@ -329,7 +329,7 @@ staleness window, and the rotation yielded every slot. Cleared by hand; cause no
 
 ## 14. Approved #1958 compiler compatibility migration (2026-10-29)
 
-`docker/Dockerfile.agent-motoko` now pins **`c3f4c85eec681d8d5d4787da4d9e56c22c0a2457`** from
+`docker/Dockerfile.agent-motoko` now pins **`af1d56513d3ae314bd831fd149c7b6f2503a361c`** from
 our fork `sunholo-voight-kampff/motoko_agent`, PR [#4](https://github.com/sunholo-voight-kampff/motoko_agent/pull/4).
 It is exactly one annotation line after `835c738b8ca50ed38f36c117058847c816db32b8`,
 targeting our `sunholo/main-dst-20261027` branch. `src/core/test/stub_step.ail`'s
@@ -351,6 +351,10 @@ checkout and shim remain on §13's `835c738b`; neither they nor upstream
 `arniwesth/motoko_agent` were modified. Do not infer cloud deployment or rig migration
 from this pin. #1958's breaking row guard targets **AILANG v0.56.0**, not a v0.55.x patch.
 
-The fork PR's full CI and #1958's combined-tree independent gate remain pending at
-this checkpoint. See `design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-validation.md`
+Fork PR #4 merged normally on 2026-10-29, without an admin override. Its merged
+source tree is byte-identical to tested migration head `c3f4c85eec681d8d5d4787da4d9e56c22c0a2457`.
+CI's core/extensions gate passed, then its skills fixture failed on an inherited
+v0.52.5 pricing-record mismatch. The same error reproduces unchanged on the pinned
+base and migrated head; [the PR records the evidence](https://github.com/sunholo-voight-kampff/motoko_agent/pull/4#issuecomment-6491761805).
+The broader CI is not claimed green. #1958's final integrated independent gate remains pending. See `design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-validation.md`
 for preserved original failures and final delivery/integration status.

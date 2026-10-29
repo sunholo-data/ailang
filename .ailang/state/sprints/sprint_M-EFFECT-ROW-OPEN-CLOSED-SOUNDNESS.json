@@ -78,7 +78,7 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": "Approved motoko consumer one-line migration committed/pushed as c3f4c85eec681d8d5d4787da4d9e56c22c0a2457 in fork PR4; Docker source pin and provenance updated. Full real consumer make gate60/60+9/9 and supplemental no-cache60/60 pass (seven90s timeouts retained, bounded lower-concurrency retries all pass). Original60/55 and scratch migrated60/60 evidence preserved. Fork CI/merge and current-dev+#1963 combined gates pending; M4 not yet passed."
+      "notes": "Approved one-line motoko migration normally merged as af1d56513d3ae314bd831fd149c7b6f2503a361c (PR4); Docker pin/provenance updated. Real consumer make60/60+9/9 and fresh no-cache60/60 green; original60/55 retained. Oldv0.52.5 CI skills pricing mismatch reproduced identically on base/head, documented without bypass. Current-dev standalone and separate unpushed combined 4358f0542af404bd63d782059b15b5507a8ae1df focused+nested+MCP+49interfaces/AIgolden green. Final actual branch rebase after1963 and independent evaluation remain pending; M4 not yet passed."
     }
   ],
   "registry_reuse": [
@@ -115,6 +115,20 @@
     "approved_date": "2026-10-29",
     "scope": "Exact play_chunks callback IO+Trace to IO migration on pinned motoko fork branch, plus AILANG Docker source pin and provenance; preserve original 60-to-55 evidence and live rig checkout.",
     "consumer_commit": "c3f4c85eec681d8d5d4787da4d9e56c22c0a2457",
-    "consumer_pr": "https://github.com/sunholo-voight-kampff/motoko_agent/pull/4"
+    "consumer_pr": "https://github.com/sunholo-voight-kampff/motoko_agent/pull/4",
+    "consumer_merge_sha": "af1d56513d3ae314bd831fd149c7b6f2503a361c",
+    "docker_source_pin": "af1d56513d3ae314bd831fd149c7b6f2503a361c"
+  },
+  "integration_checkpoint": {
+    "standalone_head": "05ce2e4f4d409100c77e60360a4bf1e9df7212ee",
+    "dev_base": "c2944389afefe99b592ffba387aae37903044126",
+    "nested_head": "86d3a5f8e946e12967c38b446e5fb854a884a42e",
+    "temporary_merge": "4358f0542af404bd63d782059b15b5507a8ae1df",
+    "pushed": false,
+    "focused_tests": "pass",
+    "nested_tests": "pass",
+    "mcp_oauth": "pass",
+    "stdlib_interfaces": 49,
+    "ai_golden_diff": false
   }
 }

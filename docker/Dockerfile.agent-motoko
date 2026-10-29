@@ -10,7 +10,7 @@
 # subscription OAuth from anything but Claude Code (429, measured 2026-10-02).
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=c3f4c85eec681d8d5d4787da4d9e56c22c0a2457
+ARG MOTOKO_COMMIT=af1d56513d3ae314bd831fd149c7b6f2503a361c
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -34,7 +34,7 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
     && mv /root/.bun/bin/bun /usr/local/bin/bun \
     && chmod +x /usr/local/bin/bun
 
-# Check out our pinned fork commit c3f4c85e (MOTOKO.md §14):
+# Check out our pinned fork merge af1d5651 (MOTOKO.md §14):
 # sunholo/main-dst-20261027 base 835c738b = upstream main 97244396
 # (2026-10-25) plus 21 carried commits, then the approved one-line #1958
 # play_chunks callback migration. The callback slot is IO-only, matching
