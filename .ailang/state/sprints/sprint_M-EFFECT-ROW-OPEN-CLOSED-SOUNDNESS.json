@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS",
-  "status": "in_progress",
+  "status": "blocked",
   "created": "2026-10-29T07:17:55.034627+00:00",
   "design_doc": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness.md",
   "sprint_plan": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-sprint-plan.md",
@@ -78,7 +78,7 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": "Approved one-line motoko migration normally merged as af1d56513d3ae314bd831fd149c7b6f2503a361c (PR4); Docker pin/provenance updated. Real consumer make60/60+9/9 and fresh no-cache60/60 green; original60/55 retained. Oldv0.52.5 CI skills pricing mismatch reproduced identically on base/head, documented without bypass. Current-dev standalone and separate unpushed combined 4358f0542af404bd63d782059b15b5507a8ae1df focused+nested+MCP+49interfaces/AIgolden green. Final actual branch rebase after1963 and independent evaluation remain pending; M4 not yet passed."
+      "notes": "Actual integration970a46694 onto merged1963 at87f84698 passes focused regressions/MCP/lint/sizes/boundaries/changelog, freeze+verify49 interfaces with zero golden diff, examples after exact3aggregate-field correction. BUT real consumer final no-cache55/60 at pure fixture_rt nested hand-off. Four-arm evidence isolates nested-only; four-pure-field !{} scratch hypothesis also fails. Proposed separate explicit-empty contract design has OPEN human freezes; M4 unpassed, no new semantics or further consumer delivery."
     }
   ],
   "registry_reuse": [
@@ -130,5 +130,21 @@
     "mcp_oauth": "pass",
     "stdlib_interfaces": 49,
     "ai_golden_diff": false
+  },
+  "blocked_reason": "Actual combined motoko core55/60 at fixture_rt nested hand-off; new explicit-empty callback contract design requires human decision. No semantic/consumer workaround authorized.",
+  "compatibility_amendment_proposal": "design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md",
+  "actual_integration": {
+    "source_checkpoint": "970a4669470566163cba09892a351e639b6de60c",
+    "dev_base": "87f846980c8b6fc601173be427b1364968559488",
+    "focused": "pass",
+    "stdlib": "pass49_no_diff",
+    "examples": "pass_after_aggregate_only_correction",
+    "motoko_core": {
+      "passed": 55,
+      "total": 60,
+      "failure": "fixture_rt nested hand-off",
+      "timed_out": 0
+    },
+    "acceptance": "blocked_pending_new_design_approval"
   }
 }

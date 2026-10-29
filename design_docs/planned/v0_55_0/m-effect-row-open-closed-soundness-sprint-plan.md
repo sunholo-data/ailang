@@ -133,3 +133,17 @@ The standard JSON generator imports/reads agent messages as a side effect; this 
 M1–M3 are implemented and pass local gates. The original M4 external compatibility requirement caught five previously accepted motoko core entries (60/60 base, 55/60 fixed), all the same already-approved F2 width class through `play_chunks`'s IO+Trace callback slot. The exact one-line migration in the companion patch narrows only that slot to IO and preserves the helper's outer IO+Trace row and Ports ABI. Fresh migrated checks restore 60/60 on both arms, zero flips. See the companion validation report for the original failure evidence, pinned SHA, delivery branch, and duplicate-work check.
 
 **Amendment approved by Mark, attended:** deliver the exact one-line consumer annotation migration on `sunholo-voight-kampff/motoko_agent`, base `sunholo/main-dst-20261027` at `835c738b8ca50ed38f36c117058847c816db32b8`, then update the AILANG Docker source pin and provenance. Preserve the live rig checkout. Do not mark M4 complete until actual fork delivery, source pin, and combined-tree gates are recorded, then hand off for independent evaluation. Do not weaken the compiler guard, implement width subsumption, or discard the original 60→55 measurement.
+
+## Final actual integration checkpoint: M4 pending new decision
+
+After #1963 merged, actual integration 970a46694 passed the focused regressions,
+MCP OAuth, unchanged 49 interface goldens, lint/structure and corrected combined
+manifest gate. The actual migrated motoko core is 55/60 through fixture_rt's nested
+hand-off, independently reproduced on #1963-only. The exact attempted four pure
+`! {}` field annotations fail unchanged. This follows the ratified conservative
+parameter-wide architecture; changing it or adding explicit-empty callback contract
+semantics is outside this plan's existing approval. See the new focused amendment
+at `design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md`.
+All its human decisions remain OPEN. M4 is intentionally not passed; no new compiler
+or consumer semantics were implemented. Only three manifest aggregate fields were
+reconciled for the two independently added examples, with verify-examples green.

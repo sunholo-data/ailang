@@ -144,3 +144,41 @@ This integration proof does not waive #1963's formal CI or merge requirements.
 After #1963 lands, rebase the actual standalone branch and repeat only checks
 materially affected by any new delta. The final integrated commit and independent
 review are pending; M4 remains unpassed at this checkpoint.
+
+## Actual combined integration: compatibility gate FAILED (2026-10-29)
+
+Actual branch rebased onto the normal #1963 merge `87f846980c8b6fc601173be427b1364968559488`,
+creating source checkpoint `970a4669470566163cba09892a351e639b6de60c`. Source diff versus
+temporary integration `4358f0542af404bd63d782059b15b5507a8ae1df` is empty across
+types, builtins, pipeline, CLI, std, examples and goldens. Focused actual tests pass
+(types 0.532s, builtins 0.628s, pipeline 4.530s, CLI 9.980s); MCP OAuth check, lint,
+sizes, boundaries and changelog pass. `make freeze-stdlib` regenerates 49 interfaces
+with zero golden diff; all 49 verify stable and std/ai JSON is byte-identical.
+
+The final actual no-cache motoko core sweep deliberately repeated the consumer
+compatibility gate with the combined compiler. **55/60**, five actual type failures,
+not timeouts. All five fail in the newly exercised `fixture_rt`/`fixture_hooks`
+pure factory hand-off in `src/core/test/ext_fixture.ail`, naming eleven callback
+effects. This is separate from the delivered `play_chunks` migration. The original
+60/55 width failure, successful migrated row-only 60/60, and new combined 55/60 remain
+distinct measurements. Log/JSON: `1958-final-motoko-core*`.
+
+Four-arm exact-source reductions prove base and row-only accept this factory;
+nested-only and combined reject. Direct literal storage stays accepted; implicit
+nested hand-off charging is explicitly ratified by #1963. Mixed record behavior
+matches that parameter-wide mask plus row-union architecture, so it is not being
+silently reclassified as an AC4 exemption. The proposed scratch four-line annotation
+of pure fields with `! {}` **still fails**. Both conversion/source inspection and
+measured IO-to-empty-slot acceptance show a separate explicit-empty function-type
+representation gap. No new compiler semantics or consumer adaptation was delivered.
+
+The focused [new design/amendment](../v0_56_0/m-effect-explicit-empty-callback-contract.md)
+and its evidence JSON preserve exact sources, pins, all outcomes, options and OPEN
+human decisions. **M4 remains unpassed.** No final sprint-evaluator PASS is asserted.
+
+Combined example entries also revealed stale aggregate metadata: recorded 248/240
+versus actual 249/241. Exactly total, working and coverage fields were corrected.
+The initial red gate is retained in `1958-final-examples.log`; the corrected
+`make verify-examples` passes, with 244 module entries checked and no drift/missing
+files (`1958-final-examples-fixed.log`). No example body or unrelated manifest
+entry changed in this correction.
