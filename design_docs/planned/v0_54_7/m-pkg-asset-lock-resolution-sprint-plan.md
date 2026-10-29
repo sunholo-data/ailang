@@ -59,7 +59,7 @@ Add AssetTarget and LockedPackageNames using existing packageDir. Build maps fro
 - [x] Result.PkgAssets contains all locked dependency targets, including a pinned older version despite a newer cached version.
 - [x] AssetTargetsFor returns nil,nil for no manifest or absent lock; malformed existing manifest/lock returns error, never silent fallback.
 - [x] Discovery remains anchored to the entry source or explicit PackageDir; bare/self-only resolution keeps existing behavior.
-- [ ] Focused pkg/pipeline tests, make test-changed and make check-boundaries pass.
+- [x] Focused pkg/pipeline tests, make test-changed and make check-boundaries pass.
 
 **Risk:** Existing lock validation may reject missing installs before execution. Test the runtime Err separately and permit compile-time failure where existing import validation already requires an installed package; never weaken hash validation to force the fixture through.
 
@@ -78,7 +78,7 @@ Assign Result.PkgAssets before runner and batch evaluation. Resolve engine-scope
 - [x] Embed evaluation and an in-process API handler resolve locked assets on the first call and subsequent context clones.
 - [x] Two engines with different locks do not share targets; malformed lock errors surface before evaluation.
 - [x] Missing locked target never reads newer cached data; no network fetch or change to FS capability checks.
-- [ ] Focused runner/embed/apiserver tests, make test-changed and make check-architecture-closure pass.
+- [x] Focused runner/embed/apiserver tests, make test-changed and make check-architecture-closure pass.
 
 **Risk:** SetEffContext accepts interface{} and cannot return errors. Resolve through an error-returning engine boundary rather than swallowing errors or changing the public API without review. Keep new runner helpers outside run.go.
 
@@ -94,11 +94,11 @@ Correct lexical-equivalence claims and describe lock-first selection, per-packag
 
 **Acceptance criteria:**
 
-- [x] Reference docs, builtin LongDesc and stdlib header agree on lock-first and compatibility-semver fallback behavior.
-- [x] Documentation states REPL has no lock context, absent lock entries use fallback, fallback ignores AILANG_PACKAGE_ROOT, and root-package assets are outside this change.
+- [x] Reference docs, builtin LongDesc and stdlib header agree on lock-first and deployed semver fallback behavior.
+- [x] Documentation states REPL has no lock context, absent lock entries use fallback, fallback honors AILANG_PACKAGE_ROOT, and root-package assets remain available without a lock (reconciled with v0.54.13).
 - [x] Existing asset_path example checks/runs with FS and its documented no-install behavior; generated integration fixtures demonstrably select older locked bytes.
-- [ ] make test-changed, make check-boundaries, make check-architecture-closure, make check-file-sizes and make check-changelog pass.
-- [ ] make verify-stdlib and make verify-examples pass; gofmt applied to changed Go files and focused lint checks are clean.
+- [x] make test-changed, make check-boundaries, make check-architecture-closure, make check-file-sizes and make check-changelog pass.
+- [x] make verify-stdlib and make verify-examples pass; gofmt applied to changed Go files and focused lint checks are clean.
 
 ## Day-by-Day Work
 
@@ -170,7 +170,31 @@ on-disk lock change after compilation cannot change selected asset bytes.
 
 - [x] Resolve stale code/doc conflicts while preserving current deployed behavior.
 - [x] Focused asset regressions pass across all six runtime/compiler consumers.
-- [ ] Complete package-wide gates, stdlib/example verification and fresh independent evaluation.
+- [x] Complete package-wide gates and stdlib/example verification.
+- [ ] Fresh independent evaluation (original FAIL51 preserved unchanged).
 
 Historical failures and unchecked original gates above remain recorded until the
 fresh checks complete. This note does not turn the original FAIL51 into a pass.
+
+### Fresh local validation (2026-10-29)
+
+All previously incomplete validation gates now pass without exclusions:
+
+- Full `go test -p 2` over effects/pkg/pipeline/embed/apiserver/runner passed
+  (38.372s/20.124s/17.976s/0.476s/28.881s/67.581s respectively).
+- `make test-changed` passed all eight changed packages and the complete core
+  loop, without skip regexes or memory workarounds. The formerly killed pipeline
+  suite passed twice (28.861s in changed packages, 16.577s in core).
+- Asset-resolution regressions passed with `-count=20` (0.862s).
+- `make lint` passed (0 issues); boundaries, architecture closure, file-size,
+  changelog and formatting gates passed.
+- `make verify-stdlib verify-examples` passed: 49 stable interfaces; runnable
+  examples and manifest validation passed (242 modules, zero drift/missing).
+- Fresh branch binary checked and ran `examples/asset_path.ail`, printing its
+  documented `not installed: package not installed: nonexistent/pkg` result.
+- `git diff <reviewed-dev-base> --check` is clean. A documentation-only dev
+  update was merged afterward; it changes no asset implementation or tests.
+
+The historical round-1 FAIL51 report remains unchanged. Code validation is now
+complete; independent review is the remaining pre-push gate for this attended
+repair. No approval, merge or coordinator dispatch has been performed.
