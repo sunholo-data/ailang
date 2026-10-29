@@ -1,0 +1,57 @@
+{
+  "sprint": "M-EFFECT-LATENT-NESTED-CALLBACKS alias ownership follow-up",
+  "r1_commit": "34009a084a75d0dc13657672f5d1e17582211ee4",
+  "source_checkpoint": "15afcc12cec28900afe3e312a9356884f8b07b06",
+  "actual_dev_merge": "80793dbcf42423027be4bab1a0088da54e2323d8",
+  "consumer_merge": "083ef43726981099a0bad4fedda18fc72105d6fa",
+  "consumer_tree": "067e8990d698af8385431647f6c5cfff99a7e63a",
+  "compiler_sha256": "8b64f08394540bccdd556fd1a9a36996921f8215913b141c2ce3e20816caf982",
+  "consumer": {
+    "source": "git archive of actual merged consumer, no source edits",
+    "profile": "default",
+    "cache": "new empty isolated compile cache",
+    "command": "gmake check_core",
+    "exit_code": 0,
+    "core_passed": 60,
+    "core_failed": 0,
+    "extensions_booted": 9,
+    "extensions_failed": 0,
+    "runtime_ok_lines": 204,
+    "runtime_fail_lines": 0
+  },
+  "original_social_dynamics": {
+    "source_sha256": "261faeb15fa083aed19e7f94dbe5af5e9b21273134c41ef2f90147fdaf92797a",
+    "actual_dev": "FAIL missing callback row app1070 argument1",
+    "combined_repair": "PASS no cache"
+  },
+  "corpus": {
+    "files": 530,
+    "base_pass": 446,
+    "fixed_pass": 446,
+    "status_flips": 0,
+    "diagnostic_changes": 0,
+    "changes": [],
+    "base_invariants": 0,
+    "fixed_invariants": 0
+  },
+  "focused": {
+    "types": "PASS0.416s",
+    "pipeline": "PASS8.796s",
+    "cli": "PASS28.258s",
+    "includes": "alias, nested/declared-tail, explicit-empty persistence/cache, row guard, effect ceiling, both engines"
+  },
+  "structure": {
+    "lint": "PASS0 issues",
+    "boundaries": "PASS",
+    "sizes": "PASS",
+    "changelog": "PASS"
+  },
+  "strict_fs_qualification": "Original strict executed-FS positive failure retained. Strict missing-effect negatives, executed IO and unused-FS acceptance retained. Invoked FS uses explicit normal-bytecode interop, asserting VM dispatch and no top-level evaluator fallback. No strict executed-FS parity claimed.",
+  "independent_evaluation": "pending independent reviewer; no executor self-score",
+  "historical_original_evaluation": {
+    "score": 93,
+    "head": "86d3a5f8e946e12967c38b446e5fb854a884a42e",
+    "gate_source": "local",
+    "unchanged": true
+  }
+}
