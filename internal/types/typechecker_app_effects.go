@@ -77,9 +77,14 @@ func (tc *CoreTypeChecker) substituteApplicationRows(sub Substitution) {
 		}
 		record.CallRow = zonkApplicationRow(safe, record.CallRow)
 		for i, row := range record.CallbackRows {
-			if row == nil && i < len(record.callbackTypes) {
-				if fn, ok := ApplySubstitution(sub, record.callbackTypes[i]).(*TFunc2); ok {
-					row = fn.EffectRow
+			if i < len(record.callbackTypes) {
+				argType := tc.effectAliasHead(ApplySubstitution(sub, record.callbackTypes[i]))
+				if fn, ok := argType.(*TFunc2); ok && row == nil {
+					row = latentRow(fn)
+				} else if !ok {
+					// Nested rows are usually unresolved at publish time: recompute.
+					zonk := func(r *Row) *Row { return zonkApplicationRow(safe, r) }
+					row = nestedLatentRow(tc.dataArrows(argType), zonk, record.implicitOwned)
 				}
 			}
 			record.CallbackRows[i] = zonkApplicationRow(safe, row)
@@ -201,9 +206,12 @@ func (tc *CoreTypeChecker) publishApplicationWithCallee(id uint64, mask []bool, 
 	record.ImplicitCallbacks = make([]bool, len(args))
 	for i, arg := range args {
 		record.callbackTypes[i] = getType(arg)
-		if fn, ok := tc.effectAliasHead(getType(arg)).(*TFunc2); ok {
-			record.CallbackRows[i] = cloneApplicationRow(fn.EffectRow)
+		argType := tc.effectAliasHead(getType(arg))
+		if fn, ok := argType.(*TFunc2); ok {
+			record.CallbackRows[i] = latentRow(fn)
 			record.ImplicitCallbacks[i] = fn.EffectRow != nil && fn.EffectRow.Tail != nil && record.implicitOwned[fn.EffectRow.Tail.Name]
+		} else {
+			record.CallbackRows[i] = nestedLatentRow(tc.dataArrows(argType), nil, record.implicitOwned)
 		}
 	}
 	tc.applicationEffects[id] = record
@@ -219,8 +227,17 @@ func (env *TypeEnv) implicitRowsAbove(base *TypeEnv) map[string]bool {
 	rows := make(map[string]bool)
 	for e := env; e != nil && e != base; e = e.parent {
 		for _, binding := range e.bindings {
-			if fn, ok := binding.(*TFunc2); ok && fn.ImplicitEffectContract && fn.EffectRow != nil && fn.EffectRow.Tail != nil {
-				rows[fn.EffectRow.Tail.Name] = true
+			typ, ok := binding.(Type)
+			if !ok {
+				continue
+			}
+			// #1718: a binder that only CONTAINS the callback (Option, tuple, record)
+			// owns its tail too. Soundness: the mask charges the same data arrows
+			// at every call site (nestedLatentMask), so erase ⊆ charge.
+			for _, fn := range dataArrowsWith(typ, nil) {
+				if fn.ImplicitEffectContract && fn.EffectRow != nil && fn.EffectRow.Tail != nil {
+					rows[fn.EffectRow.Tail.Name] = true
+				}
 			}
 		}
 	}
