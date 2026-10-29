@@ -56,8 +56,8 @@
       ],
       "passes": true,
       "started": "2026-10-12T09:33:53.726835+00:00",
-      "completed": "2026-10-12T09:39:15.617610+00:00",
-      "notes": "Complete: types-owned lossless IFC summaries; source-order recursive fixed point; resolved-import analysis API; explicit synthetic summaries; schema v2; canonical digest, compact JSON and gob coverage. Final focused types/iface/pipeline/link/runtime tests, test-core, lint, file sizes and boundaries pass. IFC determinism tests passed -count=20. Imported call-edge checking and pipeline/REPL import wiring remain M3.",
+      "completed": "2026-10-29T09:46:32.299606+00:00",
+      "notes": "Complete: types-owned lossless IFC summaries; source-order recursive fixed point; resolved-import analysis API; explicit synthetic summaries; schema v2; canonical digest, compact JSON and gob coverage. Final focused types/iface/pipeline/link/runtime tests, test-core, lint, file sizes and boundaries pass. IFC determinism tests passed -count=20. Imported call-edge checking and pipeline/REPL import wiring remain M3.\n2026-10-29 attended repair: preserved original commits, normally merged #1719 dev; canonical F4 Forbidden []string and reserved explicit-bottom Applied IFCLabel in v2, strict metadata/hash validation, guarded summary-limit diagnostic propagated through iface and minimal runtime. Failing-first schema test banked. Focused IFC/types/iface/pipeline/runtime tests and make lint (0 issues) pass; no M3 wiring.",
       "actual_loc": 615
     },
     {
@@ -137,8 +137,8 @@
     ],
     "handoff_contract": "Summary declassify is a label list: [] none, [\"*\"] bare, sorted unique labels otherwise (one element in v1 per 2026-10-08 single-label ruling); summary carries positive param labels; imported callees reuse local Check A/C and scoped result policy."
   },
-  "last_checkpoint": "M1 and M2 completed and committed locally; stop here. M3 and M4 remain not started for a separate run.",
-  "last_session": "2026-10-12T09:57:31.981147+00:00",
+  "last_checkpoint": "M1 repaired and validated; M2 cache/persistence repair follows. M3/M4 remain unstarted.",
+  "last_session": "2026-10-29T09:46:32.299606+00:00",
   "validation": {
     "focused_go_test": "passed: ./internal/types ./internal/iface ./internal/pipeline ./internal/link ./internal/runtime",
     "test_core": "passed with temporary Linux child-subreaper supervisor (container PID 1 leaves zombies)",

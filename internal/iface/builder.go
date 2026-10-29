@@ -354,7 +354,10 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 	funcDecls := map[string]*ast.FuncDecl{}
 	summaries := map[string]*types.ImportedIFCSig{}
 	if file, ok := astFile.(*ast.File); ok {
-		summaries = types.AnalyzeModuleIFC(file, b.imports)
+		summaries, err = types.AnalyzeModuleIFC(file, b.imports)
+		if err != nil {
+			return nil, fmt.Errorf("IFC export analysis: %w", err)
+		}
 		for _, fd := range file.Funcs {
 			funcDecls[fd.Name] = fd
 		}

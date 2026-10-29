@@ -70,7 +70,7 @@ Extend `IfaceItem` with a mandatory explicit IFC projection built at export time
 
 ```
 ifc: {
-  params: [{name: "input", label: {constants: [], variables: []}, forbidden: "email"}]
+  params: [{name: "input", label: {constants: [], variables: []}, forbidden: ["email"], applied: {constants: [], variables: []}}]
   return: {constants: ["secret"], variables: []}
   has_return_label: true
   intrinsic: {constants: [], variables: []}  // params' flow labels at bottom
@@ -78,6 +78,8 @@ ifc: {
 }
 ```
 
+> **F4 schema ruling (Mark, 2026-10-26; repaired 2026-10-29):** `forbidden` is a sorted unique label array (clean `[]`), and every parameter reserves an `applied` IFCLabel (currently explicit bottom). Both fields are mandatory inside schema v2; there is no v3. This M1–M2 repair does not publish inferred/applied cross-module enforcement.
+>
 > **Implementation schema note (2026-10-12):** Every export carries metadata,
 > including explicit empty arrays for clean exports. Labels preserve constant and
 > variable constituents separately, including joins; display strings are not the codec.

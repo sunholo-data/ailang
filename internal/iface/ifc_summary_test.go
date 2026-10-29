@@ -24,7 +24,7 @@ func TestIFCSummaryBuilder(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := got.Exports["gate"].IFC
-	if got.Schema != SchemaVersion || s.Params[0].Forbidden != "email" || !types.LabelSubsumes(s.Intrinsic.Decode(), types.LabelConst("secret")) {
+	if got.Schema != SchemaVersion || s.Params[0].Forbidden[0] != "email" || !types.LabelSubsumes(s.Intrinsic.Decode(), types.LabelConst("secret")) {
 		t.Fatalf("lost metadata: %+v", s)
 	}
 }
@@ -34,7 +34,8 @@ func TestIFCSummaryDigestAndCodecs(t *testing.T) {
 	base.AddExport("f", &types.Scheme{Type: &types.TFunc2{Params: []types.Type{types.TString}, Return: types.TString}}, true)
 	base.AddExport("clean", &types.Scheme{Type: types.TInt}, true)
 	s := base.Exports["f"].IFC
-	s.Params = []types.IFCParam{{Name: "x", Label: types.EncodeIFCLabel(types.LabelConst("email")), Forbidden: "secret"}}
+	s.Params = []types.IFCParam{{Applied: types.EncodeIFCLabel(types.LabelBottom()), Name: "x", Label: types.EncodeIFCLabel(types.LabelConst("email")), Forbidden: []string{"email", "secret"}}}
+	s.Params[0].Applied = types.EncodeIFCLabel(types.LabelJoin(types.LabelConst("arg"), types.LabelVar("L")))
 	s.Return = types.EncodeIFCLabel(types.LabelConst("clean"))
 	s.HasReturnLabel = true
 	s.Intrinsic = types.EncodeIFCLabel(types.LabelJoin(types.LabelConst("secret"), types.LabelVar("L")))
@@ -45,8 +46,9 @@ func TestIFCSummaryDigestAndCodecs(t *testing.T) {
 		t.Fatal(err)
 	}
 	mutations := []func(*types.ImportedIFCSig){
+		func(s *types.ImportedIFCSig) { s.Params[0].Applied = types.EncodeIFCLabel(types.LabelConst("email")) },
 		func(s *types.ImportedIFCSig) { s.Params[0].Name = "other" },
-		func(s *types.ImportedIFCSig) { s.Params[0].Forbidden = "other" },
+		func(s *types.ImportedIFCSig) { s.Params[0].Forbidden = []string{"other"} },
 		func(s *types.ImportedIFCSig) { s.Params[0].Label = types.EncodeIFCLabel(types.LabelConst("other")) },
 		func(s *types.ImportedIFCSig) { s.Return = types.EncodeIFCLabel(types.LabelConst("other")) },
 		func(s *types.ImportedIFCSig) { s.HasReturnLabel = false },
@@ -85,7 +87,7 @@ func TestIFCSummaryDigestAndCodecs(t *testing.T) {
 		t.Fatal("compact metadata lost")
 	}
 	projection, err := HashProjection(&compact)
-	if err != nil || !bytes.Contains(projection, []byte(`"forbidden":"secret"`)) {
+	if err != nil || !bytes.Contains(projection, []byte(`"forbidden":["email","secret"]`)) {
 		t.Fatalf("published hash metadata lost: %s %v", projection, err)
 	}
 	var buf bytes.Buffer

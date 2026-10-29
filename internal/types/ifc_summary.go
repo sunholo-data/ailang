@@ -45,7 +45,8 @@ func (l IFCLabel) Decode() Label {
 type IFCParam struct {
 	Name      string   `json:"name"`
 	Label     IFCLabel `json:"label"`
-	Forbidden string   `json:"forbidden"`
+	Forbidden []string `json:"forbidden"`
+	Applied   IFCLabel `json:"applied"` // reserved for future applied-label export semantics
 }
 
 // ImportedIFCSig is types-owned so the checker need not import iface.
@@ -67,14 +68,14 @@ func EmptyIFCSummary() *ImportedIFCSig {
 // names are not security information. A nil summary is missing metadata, not
 // unlabelled, so it reports false.
 func (s *ImportedIFCSig) IsUnlabelled() bool {
-	if s == nil || s.HasReturnLabel || len(s.Declassify) > 0 {
+	if s == nil || s.Validate() != nil || s.HasReturnLabel || len(s.Declassify) > 0 {
 		return false
 	}
 	if !s.Return.isBottom() || !s.Intrinsic.isBottom() {
 		return false
 	}
 	for _, p := range s.Params {
-		if p.Forbidden != "" || !p.Label.isBottom() {
+		if len(p.Forbidden) > 0 || !p.Label.isBottom() || !p.Applied.isBottom() {
 			return false
 		}
 	}
@@ -100,8 +101,14 @@ func (s *ImportedIFCSig) Validate() error {
 		if p.Name == "" {
 			return fmt.Errorf("missing IFC parameter name")
 		}
-		if p.Forbidden == "*" {
-			return fmt.Errorf("reserved IFC forbidden label")
+		if p.Forbidden == nil {
+			return fmt.Errorf("missing IFC forbidden label list")
+		}
+		if err := validateIFCNames(p.Forbidden); err != nil {
+			return err
+		}
+		if err := p.Applied.validate(); err != nil {
+			return err
 		}
 		if err := p.Label.validate(); err != nil {
 			return err
@@ -135,16 +142,36 @@ func validateIFCNames(names []string) error {
 // AnalyzeModuleIFC computes reusable summaries. Imported names must already be
 // resolved by the caller; lexical/local declarations take precedence. This API
 // does not enable imported call-edge checks (the pipeline wiring is separate).
-func AnalyzeModuleIFC(file *ast.File, imports map[string]*ImportedIFCSig) map[string]*ImportedIFCSig {
-	out := make(map[string]*ImportedIFCSig)
+func AnalyzeModuleIFC(file *ast.File, imports map[string]*ImportedIFCSig) (out map[string]*ImportedIFCSig, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			if limit, ok := p.(ifcAnalysisLimit); ok {
+				out, err = nil, limit.diagnostic()
+			} else {
+				panic(p)
+			}
+		}
+	}()
+	out = make(map[string]*ImportedIFCSig)
 	if file == nil {
-		return out
+		return out, nil
+	}
+	names := make([]string, 0, len(imports))
+	for name := range imports {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if err := imports[name].Validate(); err != nil {
+			return nil, fmt.Errorf("import %s: %w", name, err)
+		}
 	}
 	c := newIFCChecker(file)
 	c.imports = imports
 	// Iterate in source order to a fixed point. Keep previous approximations for
 	// recursive edges and recompute all bodies; a DFS memo alone is order-dependent.
 	for {
+		c.analysisStep()
 		changed := false
 		for _, fn := range file.Funcs {
 			if fn == nil {
@@ -168,7 +195,11 @@ func AnalyzeModuleIFC(file *ast.File, imports map[string]*ImportedIFCSig) map[st
 		sig := c.sigs[fn.Name]
 		s := EmptyIFCSummary()
 		for _, p := range sig.params {
-			s.Params = append(s.Params, IFCParam{Name: p.name, Label: EncodeIFCLabel(p.label), Forbidden: p.notLabel})
+			forbidden := []string{}
+			if p.hasNot {
+				forbidden = append(forbidden, p.notLabel)
+			}
+			s.Params = append(s.Params, IFCParam{Name: p.name, Label: EncodeIFCLabel(p.label), Forbidden: forbidden, Applied: EncodeIFCLabel(LabelBottom())})
 		}
 		s.Return = EncodeIFCLabel(sig.returnLabel)
 		s.HasReturnLabel = sig.hasReturnLabel
@@ -177,9 +208,12 @@ func AnalyzeModuleIFC(file *ast.File, imports map[string]*ImportedIFCSig) map[st
 		s.Intrinsic = EncodeIFCLabel(LabelJoin(c.effectiveBodyLabel(fn.Name), c.types.deepLabel(fn.ReturnType)))
 		s.Declassify = append(s.Declassify, sig.authorizedLabels...)
 		sort.Strings(s.Declassify)
+		if err := s.Validate(); err != nil {
+			return nil, fmt.Errorf("export %s: %w", fn.Name, err)
+		}
 		out[fn.Name] = s
 	}
-	return out
+	return out, nil
 }
 
 func importedIFCResult(s *ImportedIFCSig, args []Label) Label {
@@ -199,7 +233,12 @@ func importedIFCResult(s *ImportedIFCSig, args []Label) Label {
 }
 
 // GobEncode preserves empty arrays (gob ordinarily decodes them as nil).
-func (s *ImportedIFCSig) GobEncode() ([]byte, error) { return json.Marshal(s) }
+func (s *ImportedIFCSig) GobEncode() ([]byte, error) {
+	if err := s.Validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(s)
+}
 func (s *ImportedIFCSig) GobDecode(data []byte) error {
 	return json.Unmarshal(data, s)
 }

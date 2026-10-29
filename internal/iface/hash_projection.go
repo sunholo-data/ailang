@@ -54,6 +54,11 @@ func HashProjection(j *InterfaceJSON) ([]byte, error) {
 	})
 
 	for _, f := range j.Funcs {
+		if j.Schema == SchemaVersion || f.IFC != nil {
+			if err := f.IFC.Validate(); err != nil {
+				return nil, fmt.Errorf("export %s: %w", f.Name, err)
+			}
+		}
 		out := f
 		out.Effects = append([]string{}, f.Effects...)
 		sort.Strings(out.Effects)

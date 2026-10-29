@@ -18,7 +18,7 @@ func TestCacheIFCRoundTrip(t *testing.T) {
 	i := iface.NewIface("test/lib")
 	i.AddExport("f", &types.Scheme{Type: &types.TFunc2{Params: []types.Type{types.TString}, Return: types.TString}}, true)
 	s := i.Exports["f"].IFC
-	s.Params = []types.IFCParam{{Name: "input", Label: types.EncodeIFCLabel(types.LabelConst("email")), Forbidden: "secret"}}
+	s.Params = []types.IFCParam{{Applied: types.EncodeIFCLabel(types.LabelJoin(types.LabelConst("email"), types.LabelVar("A"))), Name: "input", Label: types.EncodeIFCLabel(types.LabelConst("email")), Forbidden: []string{"email", "secret"}}}
 	s.Return = types.EncodeIFCLabel(types.LabelConst("clean"))
 	s.HasReturnLabel = true
 	s.Intrinsic = types.EncodeIFCLabel(types.LabelJoin(types.LabelConst("secret"), types.LabelVar("L")))

@@ -3,6 +3,7 @@ package types_test
 import (
 	"github.com/sunholo-data/ailang/internal/types"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -17,9 +18,12 @@ func wrapper(n: int) -> string { imported(n) }
 `)
 	imported := types.EmptyIFCSummary()
 	imported.Intrinsic = types.EncodeIFCLabel(types.LabelJoin(types.LabelConst("secret"), types.LabelVar("L")))
-	sigs := types.AnalyzeModuleIFC(file, map[string]*types.ImportedIFCSig{"imported": imported})
+	sigs, err := types.AnalyzeModuleIFC(file, map[string]*types.ImportedIFCSig{"imported": imported})
+	if err != nil {
+		t.Fatal(err)
+	}
 	gate := sigs["gate"]
-	if gate.Params[0].Name != "x" || gate.Params[1].Forbidden != "secret" || !types.LabelEqual(gate.Params[0].Label.Decode(), types.LabelConst("email")) || !gate.HasReturnLabel {
+	if gate.Params[0].Name != "x" || gate.Params[1].Forbidden[0] != "secret" || !types.LabelEqual(gate.Params[0].Label.Decode(), types.LabelConst("email")) || !gate.HasReturnLabel {
 		t.Fatalf("gate: %+v", gate)
 	}
 	if !reflect.DeepEqual(sigs["reveal"].Declassify, []string{"email"}) || !reflect.DeepEqual(sigs["bare"].Declassify, []string{"*"}) || sigs["gate"].Declassify == nil {
@@ -49,7 +53,7 @@ func TestIFCSummaryValidation(t *testing.T) {
 		{"reserved source", func(s *types.ImportedIFCSig) { s.Intrinsic.Constants = []string{"*"} }},
 		{"undeclared return", func(s *types.ImportedIFCSig) { s.Return = types.EncodeIFCLabel(types.LabelConst("secret")) }},
 		{"param name missing", func(s *types.ImportedIFCSig) {
-			s.Params = []types.IFCParam{{Label: types.EncodeIFCLabel(types.LabelBottom())}}
+			s.Params = []types.IFCParam{{Applied: types.EncodeIFCLabel(types.LabelBottom()), Forbidden: []string{}, Label: types.EncodeIFCLabel(types.LabelBottom())}}
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -81,7 +85,10 @@ func shadow(x: string) -> string { let imported = \u. "clean" in imported(x) }
 `)
 	source := types.EmptyIFCSummary()
 	source.Intrinsic = types.EncodeIFCLabel(types.LabelConst("secret"))
-	sigs := types.AnalyzeModuleIFC(file, map[string]*types.ImportedIFCSig{"imported": source, "local": source})
+	sigs, err := types.AnalyzeModuleIFC(file, map[string]*types.ImportedIFCSig{"imported": source, "local": source})
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, name := range []string{"local", "forward", "shadow"} {
 		if !types.LabelEqual(sigs[name].Intrinsic.Decode(), types.LabelBottom()) {
 			t.Fatalf("%s should be bottom", name)
@@ -109,9 +116,34 @@ func TestIFCSummaryNestedDeclaredResult(t *testing.T) {
  type Result = { email: string<email>, token: string<secret> }
  func make(x: Result) -> Result { x }
  `)
-	sigs := types.AnalyzeModuleIFC(file, nil)
+	sigs, err := types.AnalyzeModuleIFC(file, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	intrinsic := sigs["make"].Intrinsic.Decode()
 	if !types.LabelSubsumes(intrinsic, types.LabelConst("email")) || !types.LabelSubsumes(intrinsic, types.LabelConst("secret")) {
 		t.Fatalf("declared result join lost: %s", intrinsic)
+	}
+}
+
+func TestIFCExportSummaryDoesNotPublishRho(t *testing.T) {
+	file := parseIFC(t, `module test/summary_rho
+ func sink(x: string{not email}) -> string { x }
+ func wrap(x: string) -> string { sink(x) }
+ func apply(f: string -> string, x: string) -> string { f(x) }
+ func captured(x: string<secret>) -> string -> string { \u. x }
+ `)
+	sigs, err := types.AnalyzeModuleIFC(file, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, s := range sigs {
+		for _, l := range []types.IFCLabel{s.Intrinsic, s.Return} {
+			for _, v := range l.Variables {
+				if strings.HasPrefix(v, "ρ") {
+					t.Fatalf("%s published private variable %s", name, v)
+				}
+			}
+		}
 	}
 }

@@ -19,7 +19,7 @@ func IFCSummaryFromScheme(scheme *Scheme) *ImportedIFCSig {
 		if lt, ok := typ.(*TLabelled); ok && lt.L != nil {
 			label = lt.L
 		}
-		s.Params = append(s.Params, IFCParam{Name: fmt.Sprintf("arg%d", i), Label: EncodeIFCLabel(label)})
+		s.Params = append(s.Params, IFCParam{Name: fmt.Sprintf("arg%d", i), Label: EncodeIFCLabel(label), Forbidden: []string{}, Applied: EncodeIFCLabel(LabelBottom())})
 	}
 	if lt, ok := fn.Return.(*TLabelled); ok && lt.L != nil {
 		s.Return = EncodeIFCLabel(lt.L)

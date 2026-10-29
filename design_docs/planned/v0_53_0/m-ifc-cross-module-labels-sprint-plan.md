@@ -3,7 +3,7 @@
 > **Dependency met:** M-IFC-AUTHORITY-SCOPING (#1707) is on dev. This run executes M1–M2 only.
 
 **Target:** v0.53.x (v0.54.0 if release sequencing requires it)
-**Status:** M1–M2 complete; M3–M4 pending (2026-10-12)
+**Status:** M1–M2 repair in progress (2026-10-29); M3–M4 pending
 **Date:** 2026-10-08
 **Issues:** Refs #1134; Refs #1132 (part 1 only)
 **Design:** `design_docs/planned/m-ifc-cross-module-labels.md` (merged df8bc23ca)
@@ -43,7 +43,7 @@ Ran `ailang pkg search ifc`: one result, `sunholo/linkedin@0.5.1`. `pkg info sun
 **Estimate:** 185 implementation + 125 tests; 1.5 days / 9 hours
 **Dependencies:** M-IFC-AUTHORITY-SCOPING implementation merged and this branch rebased on it
 
-Add types-owned ImportedIFCSig/summary data so internal/types never imports internal/iface. Export a reusable analysis result from the checker, computing intrinsic body labels with parameters at bottom and imported summaries available. The iface builder attaches a non-nil summary to every export, including clean/non-function exports with explicit empty metadata. Capture parameter name, positive (source) parameter label, forbidden label, declared return label, intrinsic label, and Declassify authority as a label list (`[]` / `["*"]` / sorted unique labels; one element for a scoped Declassify in v1), derived from the authority-scoping representation rather than re-parsed. Preserve the lattice's full effective label representation; do not collapse joined labels into a lossy string. Use the existing fixpoint/memoization semantics, including local recursion and wrappers over imported producers.
+Add types-owned ImportedIFCSig/summary data so internal/types never imports internal/iface. Export a reusable analysis result from the checker, computing intrinsic body labels with parameters at bottom and imported summaries available. The iface builder attaches a non-nil summary to every export, including clean/non-function exports with explicit empty metadata. Capture parameter name, positive (source) parameter label, sorted unique forbidden labels and reserved bottom applied IFCLabel, declared return label, intrinsic label, and Declassify authority as a label list (`[]` / `["*"]` / sorted unique labels; one element for a scoped Declassify in v1), derived from the authority-scoping representation rather than re-parsed. Preserve the lattice's full effective label representation; do not collapse joined labels into a lossy string. Use the existing fixpoint/memoization semantics, including local recursion and wrappers over imported producers.
 
 Files: `internal/types/ifc_check.go`, a small `internal/types/ifc_summary.go` if needed, `internal/iface/iface.go`, `internal/iface/builder.go`, associated summary/builder tests. All interface creation paths, including builtin/synthetic exports, need valid summaries. Extend canonical digest input and compact/published JSON; bump schema to `ailang.iface/v2`.
 
@@ -163,3 +163,11 @@ PID 1 leaves orphan zombies (the existing nested-process cleanup test fails with
 reaping). `make lint` passes with zero issues after bounding Go memory/concurrency
 and extending its runtime timeout. File-size and architecture-boundary checks pass.
 Full `make test` was not run, and no branch was pushed. PR reference: Refs #1134.
+
+## Attended M1–M2 repair, 2026-10-29
+
+Original execution scope remains M1–M2 only, Refs #1134 and Refs #1132. Preserve original commits 581526060, 182b47859, dba22e04e and 57084f55f. Current dev, including #1719/#2007, was normally merged at 3cf79f836. Historical dirty/untracked implementations are not recovered into this branch.
+
+M1 repair: ratified F4 stores canonical `forbidden: []string` and mandatory reserved `applied` IFCLabel (emitted bottom); validates both before treating a summary as unlabelled or hashing v2 package identity. No inferred applied semantics are exported. Reuses #1719's single checker initializer and callable domain; the summary analysis API returns an ordinary diagnostic for its narrow typed defensive limit, propagated through iface and minimal runtime builders. Intrinsic/recursive summaries retain finite fixed-point iteration with the current work budget. Failing-first F4 regression demonstrates the old string codec accepted obsolete metadata and rejected the approved list form. Repaired focused types/iface/pipeline/runtime tests pass, including unchanged fresh-CLI #1719 regressions. Final evaluator remains independent.
+
+M2 repair will take next unused cache epoch v8, preserving dev's v7 CoreTI shared-DAG codec. Exact F4 full/compact/gob metadata, malformed authenticated artifacts, dependency invalidation, stdlib interfaces and large-module encoded-size evidence are required. M3 and M4 remain unstarted; no imported-call enforcement or issue closure is claimed.

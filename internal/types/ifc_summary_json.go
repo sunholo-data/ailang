@@ -35,7 +35,7 @@ func (s *ImportedIFCSig) UnmarshalJSON(data []byte) error {
 }
 
 func (p *IFCParam) UnmarshalJSON(data []byte) error {
-	if err := requireIFCFields(data, "name", "label", "forbidden"); err != nil {
+	if err := requireIFCFields(data, "name", "label", "forbidden", "applied"); err != nil {
 		return err
 	}
 	type plain IFCParam

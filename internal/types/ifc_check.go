@@ -491,7 +491,8 @@ func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) ifcVal {
 	if isLocal {
 		return ifcVal{label: c.calleeResultLabel(sig, passed, argLabels), fn: fn}
 	}
-	if _, bound := env[name]; !bound {
+	_, constructor := c.types.ctors[name]
+	if _, bound := env[name]; !bound && !constructor {
 		if imported := c.imports[name]; imported != nil {
 			return ifcVal{label: importedIFCResult(imported, argLabels), fn: fn}
 		}

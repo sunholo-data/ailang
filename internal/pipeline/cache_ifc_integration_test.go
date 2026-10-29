@@ -109,7 +109,7 @@ func TestCacheIFCLegacySchemaRecompiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if repaired.Exports["provide"].IFC.Params[0].Forbidden != "email" {
+	if repaired.Exports["provide"].IFC.Params[0].Forbidden[0] != "email" {
 		t.Fatal("source recompilation lost refinement")
 	}
 	// The loader must fail with a source diagnostic when no valid interface/source
