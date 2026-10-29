@@ -110,7 +110,7 @@ All four milestones use `action: none`: this is a compiler/stdlib soundness inva
 - [x] Recheck #1790 and #1963 merge status; regenerate goldens and rerun affected tests on the actual combined tree if either landed. Do not copy old `.stdlib-golden/ai.json` over newer metadata.
 - [x] Changelog fragment opens `### ` and clearly states Breaking — soundness, mapE/row-polymorphic migration, stricter width-class limitation, and AI callback row behavior.
 - [x] Run `make test-changed`, `make lint`, `make check-file-sizes`, `make check-boundaries`, `make freeze-stdlib`, `make check-changelog`, `make verify-examples`, and `tools/verify-stdlib.sh` as required by the design; all commands run unpiped and results banked. CI runs the full suite; do not run `make test` in the executor.
-- [ ] Mark only measured milestones passed; invoke sprint-evaluator after implementation and report any remaining corpus/release limits.
+- [x] Mark only measured milestones passed; invoke sprint-evaluator after implementation and report any remaining corpus/release limits.
 
 ## File-size and scope controls
 

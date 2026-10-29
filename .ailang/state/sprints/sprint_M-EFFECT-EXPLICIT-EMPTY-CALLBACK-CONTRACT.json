@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-29T09:21:00.533478+00:00",
   "design_doc": "design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md",
   "sprint_plan": "design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract-sprint-plan.md",
@@ -103,10 +103,10 @@
         "Original failed/successful width/nested/four-line evidence remains separate",
         "Final focused/structural/interface/example gates and independent evaluator handoff complete"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. passes remains null until root independent evaluator accepts M4; no self-score.",
+      "completed": "2026-10-29T10:39:15.106253+00:00",
+      "notes": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval.",
       "implementation_completed_at": "2026-10-29T10:36:17.952211+00:00"
     }
   ],
@@ -156,5 +156,6 @@
   "execution_approved_at": "2026-10-29T09:25:09.896975+00:00",
   "implementation_complete": true,
   "independent_evaluation": "pending root",
-  "consumer_merge": "083ef43726981099a0bad4fedda18fc72105d6fa"
+  "consumer_merge": "083ef43726981099a0bad4fedda18fc72105d6fa",
+  "completed": "2026-10-29T10:39:15.106253+00:00"
 }

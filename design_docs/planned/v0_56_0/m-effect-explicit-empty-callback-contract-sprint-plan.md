@@ -111,7 +111,7 @@ The skill's JSON helper implicitly imports GitHub messages; this session require
 - [x] Only after proof, F4 authorizes delivery: recheck fork overlaps/auth, create isolated feature worktree from fresh pinned fork branch, commit/push exact four-line patch and open its fork-target PR via gh. Normal fork-only merge after relevant gates and review; never --admin or upstream writes. Inherited CI/compiler failures require measured base proof and disclosure, not a false all-green claim.
 - [x] Pin the exact full merged consumer SHA in Docker and MOTOKO.md; distinguish source pin from deployment and keep live rig checkout unchanged. Preserve original width60→55, delivered width60→60, combined nested55/60 and failed four-line-before-compiler evidence alongside the new proven result.
 - [x] Final gates: `make test-changed`, lint, sizes, boundaries/architecture closure, changelog, freeze/verify all interfaces, verify-examples. Do not run `make test`; exact-head CI supplies the full suite, subject to the evaluator's explicit gate policy.
-- [ ] Mark only measured milestones passed; bank #1958 M4 implementation evidence after actual proof/delivery and required gates, then hand root exact code/consumer SHAs, plan/JSON and logs for independent evaluation. Final acceptance requires that independent PASS; do not self-score or archive docs before it.
+- [x] Mark only measured milestones passed; bank #1958 M4 implementation evidence after actual proof/delivery and required gates, then hand root exact code/consumer SHAs, plan/JSON and logs for independent evaluation. Final acceptance requires that independent PASS; do not self-score or archive docs before it.
 
 ## Schedule, validation and handoff
 
