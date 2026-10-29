@@ -208,7 +208,7 @@ func EncodeFunction(
 	previousSpecs, previousFacts := activeContractSpecs, activeCallFacts
 	activeContractSpecs = make(map[string]*ContractSpec)
 	var callFacts []string
-	activeCallFacts = &callFacts
+	activeCallFacts = nil
 	defer func() { activeContractSpecs = previousSpecs; activeCallFacts = previousFacts }()
 	for _, def := range calleeDefs {
 		if def.Contract != nil {
@@ -431,6 +431,8 @@ func EncodeFunction(
 		result.Declarations = append(result.Declarations, unrollResult.Declarations...)
 		unrollTopName = unrollResult.TopLevelName
 	}
+
+	activeCallFacts = &callFacts
 
 	// Step 2: Declare symbolic variables for function parameters.
 	//

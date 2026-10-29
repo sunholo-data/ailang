@@ -69,6 +69,9 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 		return encodeLet(e)
 
 	case *core.Match:
+		if activeCallFacts != nil {
+			return encodeFactMatch(e)
+		}
 		return encodeMatch(e)
 
 	case *core.Intrinsic:

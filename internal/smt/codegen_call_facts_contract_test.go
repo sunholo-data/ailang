@@ -31,7 +31,7 @@ func TestContractCallIdentityAndGuard(t *testing.T) {
 	if a.ResultConst != same.ResultConst || a.ResultConst == other.ResultConst {
 		t.Fatalf("call identity: %q %q %q", a.ResultConst, same.ResultConst, other.ResultConst)
 	}
-	if !strings.Contains(a.SMTLib, "declare-fun") || strings.Contains(a.SMTLib, "forall") || !strings.Contains(a.SMTLib, "(=> (>= 1 0)") {
+	if !strings.Contains(a.SMTLib, "declare-fun") || strings.Contains(a.SMTLib, "forall") || !strings.Contains(a.SMTLib, "(=> (let ") {
 		t.Fatal(a.SMTLib)
 	}
 }

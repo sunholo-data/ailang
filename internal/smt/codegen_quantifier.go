@@ -26,9 +26,13 @@ func encodeForall(f *core.Forall) (string, error) {
 		return "", fmt.Errorf("forall upper bound: %w", err)
 	}
 
-	body, err := EncodeExpr(f.Body)
+	body, facts, err := captureCallFacts(func() (string, error) { return encodeLetScoped(f.Body, f.Var) })
 	if err != nil {
 		return "", fmt.Errorf("forall body: %w", err)
+	}
+
+	if facts != "true" {
+		addCallFact(fmt.Sprintf("(forall ((%s Int)) (=> (and (>= %s %s) (< %s %s)) %s))", f.Var, f.Var, lo, f.Var, hi, facts))
 	}
 
 	// (forall ((i Int)) (=> (and (>= i lo) (< i hi)) body))

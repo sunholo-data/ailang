@@ -83,10 +83,10 @@
         "No unmatched/later-guard fact leaks; short-circuit predicates selective in all three expression positions",
         "Recursive/unencodable predicate paths preserve existing unsupported/fail-weak behavior; proof-vs-refutation/admission redesign excluded"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T20:33:12.807230+00:00",
+      "completed": "2026-10-29T20:33:12.807230+00:00",
+      "notes": "Match body/guard facts retain pattern reach/first-selected semantics; predicate facts captured with guarded requires/ensures. Shadow substitution repaired and actual argument/result text bound to fresh outer parallel aliases. Core shadow/capture RED\u2192GREEN including adversarial generated aliases; bounded source Forall facts retain original binder/range. Full SMT suite PASS. Actual CLI lexical fixture true/false controls pass; old capture rows ERROR, not claimed old false VERIFIED. Existing unroll declarations isolated from root fact sink."
     },
     {
       "id": "M5_HELPER_ENVIRONMENT_IDENTITY",
