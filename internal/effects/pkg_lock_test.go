@@ -122,9 +122,23 @@ func TestPkgAssetPath_LegacyBudgetContext(t *testing.T) {
 	}
 }
 
-// A corrupt registry layout must surface an Err rather than look like an empty
-// cache or silently select a different root.
+// A corrupt configured registry must return a named Err and never select a
+// valid package from HOME. Windows classifies a non-directory path as missing;
+// Unix reports the directory-read failure. Both preserve root exclusivity.
 func TestPkgAssetPath_CorruptRegistryDirectory(t *testing.T) {
+	home := t.TempDir()
+	testutil.SetHomeDir(t, home)
+	ambient := filepath.Join(home, ".ailang", "cache", "registry", "test", "pkg", "0.4.0", AssetsDir)
+	if err := os.MkdirAll(ambient, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ambient, "data"), []byte("ambient fallback"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AILANG_PACKAGE_ROOT", "")
+	if tag, path := assetResult(t, nil, "test/pkg", "data"); tag != "Ok" || path != filepath.Join(ambient, "data") {
+		t.Fatalf("HOME control must be usable before the override: %s %s", tag, path)
+	}
 	root := t.TempDir()
 	t.Setenv("AILANG_PACKAGE_ROOT", root)
 	if err := os.Mkdir(filepath.Join(root, "test"), 0755); err != nil {
@@ -134,7 +148,7 @@ func TestPkgAssetPath_CorruptRegistryDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	tag, message := assetResult(t, nil, "test/pkg", "data")
-	if tag != "Err" || !strings.Contains(message, "cannot list installed versions: test/pkg:") {
-		t.Fatalf("corrupt registry directory: %s %s", tag, message)
+	if tag != "Err" || !strings.Contains(message, "test/pkg") {
+		t.Fatalf("corrupt registry must fail without HOME fallback: %s %s", tag, message)
 	}
 }

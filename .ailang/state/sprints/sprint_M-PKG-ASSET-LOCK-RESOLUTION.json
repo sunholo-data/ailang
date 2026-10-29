@@ -116,7 +116,7 @@
   "last_session": "2026-10-29T08:20:03.286824+00:00",
   "implementation_complete": true,
   "validation_status": "pass",
-  "last_checkpoint": "2026-10-29: independent review fixes complete; merged dev/#1964 c2944389, combined seven-package covered suites and lint/boundary/size/changelog/git-exec gates pass. Coverage regression repair projects94.6% on previously measured Sonar newlines; exact-head remote CI and fresh independent evaluation pending. Historical FAIL51 retained.",
+  "last_checkpoint": "2026-10-29: independent-review asset repairs and dev/#1964 integration banked. Coverage regression now asserts portable named Err and configured-root exclusivity with verified usable HOME control. Known #1926 Linux race preserved, not duplicated. Exact new-head CI and independent review pending.",
   "evaluation_report": ".ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_1.json",
   "verification": {
     "focused_integration": "pass: six packages",
@@ -137,5 +137,13 @@
     "combined_base": "c2944389afefe99b592ffba387aae37903044126",
     "remote_gate": "pending exact-head CI after push",
     "independent_evaluation": "pending; no self-score"
+  },
+  "review_portability_repair": {
+    "failed_head": "af6dca291664a39f20b6430f196780783c72a763",
+    "linux_failure": "Known #1926 PTY startup race: worker.pid exists but is empty; int(empty string). Preserved raw/stripped CI logs, no duplicate fixture repair.",
+    "windows_failure": "New corrupt-cache test asserted Unix-specific wording; actual Windows behavior is named Err package not installed: test/pkg.",
+    "repair": "Keep runtime unchanged. Prove a valid HOME cache resolves before override, then corrupt configured root must return Err naming test/pkg rather than read HOME. No platform skip or wording-specific assertion.",
+    "local_validation": "Focused regression count20 passed; lint0 and size/changelog gates passed before push.",
+    "remote_validation": "Pending exact new-head CI; parent authorizes one bounded retry only for identical isolated #1926 race."
   }
 }

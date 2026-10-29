@@ -220,3 +220,18 @@ or coordinator dispatch has been performed.
 - Local coverage now covers 21 formerly uncovered measured newlines, projecting
   105/111=94.6%. Exact-head remote Sonar remains authoritative and pending.
   Fresh independent evaluation is still pending; no self-score or merge.
+
+### Portable cache-error assertion repair (2026-10-29)
+
+Exact-head af6dca29 CI exposed a Unix-only wording assertion in the new corrupt
+registry test: Windows returns a named missing-package Err for a non-directory
+path. The product contract is a named Err with configured-root exclusivity.
+The test now first proves its valid HOME cache resolves, then requires the corrupt
+configured root to return Err naming the package. It cannot pass by ignoring the
+override. Runtime semantics and coverage policy are unchanged; no platform skips.
+The focused regression passed 20 repetitions. Exact new-head CI remains required.
+
+The same Linux run failed only the known #1926 PTY PID-file readiness race
+(int on an existing empty file). Raw and stripped CI failures are preserved;
+that operator-pending work is not duplicated. One bounded CI retry is authorized
+if the identical isolated race recurs; no unrelated failure is waived.
