@@ -1,9 +1,10 @@
 # Sprint Plan: M-IFC-CROSS-MODULE
 
-> **HOLD: do not approve until the M-IFC-AUTHORITY-SCOPING implementation PR has merged.**
+> **Dependency met:** M-IFC-AUTHORITY-SCOPING (#1707) is on dev. This run executes M1–M2 only.
 
-**Target:** v0.53.x (v0.54.0 if release sequencing requires it)
-**Status:** Planned; on HOLD until the M-IFC-AUTHORITY-SCOPING implementation has merged (merging this plan dispatches the executor)
+**Current target:** v0.56.0 (unreleased M1–M2 repair; no version bump/deployment)
+**Original target:** v0.53.x / v0.54.0, historical 2026-10-08 planning
+**Status:** M1–M2 repaired, independent evaluation pending (2026-10-29); M3–M4 pending
 **Date:** 2026-10-08
 **Issues:** Refs #1134; Refs #1132 (part 1 only)
 **Design:** `design_docs/planned/m-ifc-cross-module-labels.md` (merged df8bc23ca)
@@ -16,7 +17,7 @@
 
 Make imported sink refinements and return labels enforceable at compile time, using serializable per-export IFC summaries and the existing surface-AST checker. The same-module rejection must also occur when the sink moves to a library. Include intrinsic taint, scoped Declassify authority, positive parameter label coverage (Check C) for imported callees, CLI/REPL parity, and cache safety. Keep label erasure in unification and CoreTI/codegen unchanged.
 
-This implements #1134 and part 1 of #1132. Label-aware tracing, Z3 cross-module function contracts, and label-polymorphic inference remain separate work. Do not close #1132 after this sprint: its tracing half remains outstanding. No new issue is needed. The plan PR must use `Refs #1134` and `Refs #1132`; only the implementation PR may use `Closes #1134`, alongside `Refs #1132`.
+This implements #1134 and part 1 of #1132. Label-aware tracing, Z3 cross-module function contracts, and label-polymorphic inference remain separate work. Do not close #1132 after this sprint: its tracing half remains outstanding. No new issue is needed. The plan PR must use `Refs #1134` and `Refs #1132`; only the final implementation PR may use an issue-closing keyword for #1134, alongside `Refs #1132`.
 
 ## Dependency on M-IFC-AUTHORITY-SCOPING
 
@@ -38,40 +39,40 @@ Ran `ailang pkg search ifc`: one result, `sunholo/linkedin@0.5.1`. `pkg info sun
 
 ## Milestones
 
-### M1: Export IFC summaries and deterministic schema (~310 LOC)
+### M1: Export IFC summaries and deterministic schema (~310 LOC) — done 2026-10-12
 
 **Estimate:** 185 implementation + 125 tests; 1.5 days / 9 hours
 **Dependencies:** M-IFC-AUTHORITY-SCOPING implementation merged and this branch rebased on it
 
-Add types-owned ImportedIFCSig/summary data so internal/types never imports internal/iface. Export a reusable analysis result from the checker, computing intrinsic body labels with parameters at bottom and imported summaries available. The iface builder attaches a non-nil summary to every export, including clean/non-function exports with explicit empty metadata. Capture parameter name, positive (source) parameter label, forbidden label, declared return label, intrinsic label, and Declassify authority as a label list (`[]` / `["*"]` / sorted unique labels; one element for a scoped Declassify in v1), derived from the authority-scoping representation rather than re-parsed. Preserve the lattice's full effective label representation; do not collapse joined labels into a lossy string. Use the existing fixpoint/memoization semantics, including local recursion and wrappers over imported producers.
+Add types-owned ImportedIFCSig/summary data so internal/types never imports internal/iface. Export a reusable analysis result from the checker, computing intrinsic body labels with parameters at bottom and imported summaries available. The iface builder attaches a non-nil summary to every export, including clean/non-function exports with explicit empty metadata. Capture parameter name, positive (source) parameter label, sorted unique forbidden labels and reserved bottom applied IFCLabel, declared return label, intrinsic label, and Declassify authority as a label list (`[]` / `["*"]` / sorted unique labels; one element for a scoped Declassify in v1), derived from the authority-scoping representation rather than re-parsed. Preserve the lattice's full effective label representation; do not collapse joined labels into a lossy string. Use the existing fixpoint/memoization semantics, including local recursion and wrappers over imported producers.
 
 Files: `internal/types/ifc_check.go`, a small `internal/types/ifc_summary.go` if needed, `internal/iface/iface.go`, `internal/iface/builder.go`, associated summary/builder tests. All interface creation paths, including builtin/synthetic exports, need valid summaries. Extend canonical digest input and compact/published JSON; bump schema to `ailang.iface/v2`.
 
 Example coverage: summary tests use the lib functions later published under `examples/runnable/ifc_cross_module/lib.ail`; no new standalone language feature is introduced.
 
-- [ ] Every exported item has explicit IFC metadata; clean is distinguishable from missing.
-- [ ] Positive param labels, sink refinements, declared/intrinsic returns, and the Declassify label list (none `[]`, bare `["*"]`, scoped `["email"]`) survive summary construction; no bool-shaped declassify field exists in the schema.
-- [ ] Local recursion and a wrapper around an imported secret producer retain intrinsic taint.
-- [ ] Each security-relevant summary field changes the digest; export map order does not.
-- [ ] TLabelled erasure and CoreTI/codegen behavior remain unchanged.
+- [x] Every exported item has explicit IFC metadata; clean is distinguishable from missing.
+- [x] Positive param labels, sink refinements, declared/intrinsic returns, and the Declassify label list (none `[]`, bare `["*"]`, scoped `["email"]`) survive summary construction; no bool-shaped declassify field exists in the schema.
+- [x] Local recursion and a wrapper around an imported secret producer retain intrinsic taint.
+- [x] Each security-relevant summary field changes the digest; export map order does not.
+- [x] TLabelled erasure and CoreTI/codegen behavior remain unchanged.
 
 Risk: summary computation re-enters checking or introduces an import cycle. Keep the analysis reusable and data types in types; reuse the existing fixed-point rules.
 
-### M2: Persist summaries and reject incompatible caches (~220 LOC)
+### M2: Persist summaries and reject incompatible caches (~220 LOC) — done 2026-10-12
 
 **Estimate:** 100 implementation + 120 tests; 1 day / 6 hours
 **Dependencies:** M1
 
-Update full cache JSON DTOs and both marshal/unmarshal paths in `internal/pipeline/cache_store.go`, iface gob/JSON coverage, and validation in `internal/pipeline/cache_artifacts.go`. Audit cache keys and dependency digest propagation in `cache_dep_closure.go`. Existing artifact hashes authenticate stored bytes, but the current artifact reader does not explicitly reject a v1 IFC schema: do not assume a schema string bump alone forces recompilation. Add schema/summary validation and bump `cacheKeyVersion` from `v5` to `v6` in `internal/pipeline/cache_key.go` (mandatory, not conditional), with a v5→v6 entry in its comment history naming this sprint; if dev has moved past v5 by the time this rebases, take the next unused value. Old entries become an observable cache miss and recompile from source; if no source/valid interface is available, report an actionable error instead of accepting clean metadata. Malformed v2 metadata must be rejected too.
+Update full cache JSON DTOs and both marshal/unmarshal paths in `internal/pipeline/cache_store.go`, iface gob/JSON coverage, and validation in `internal/pipeline/cache_artifacts.go`. Audit cache keys and dependency digest propagation in `cache_dep_closure.go`. Existing artifact hashes authenticate stored bytes, but the current artifact reader does not explicitly reject a v1 IFC schema: do not assume a schema string bump alone forces recompilation. Add schema/summary validation and bump `cacheKeyVersion` from current dev `v7` to `v8` in `internal/pipeline/cache_key.go` (mandatory, not conditional), with a v7→v8 entry in its comment history naming this sprint; if dev has moved past v7 by the time this rebases, take the next unused value. Old entries become an observable cache miss and recompile from source; if no source/valid interface is available, report an actionable error instead of accepting clean metadata. Malformed v2 metadata must be rejected too.
 
 Files/tests: cache store/artifact tests, iface serialization tests, dependency invalidation integration tests. Example coverage uses M4's lib/app pair with cold and warm cache.
 
-- [ ] Full cache JSON, compact/published JSON, and supported gob paths preserve every IFC summary field.
-- [ ] `cacheKeyVersion` is bumped v5→v6 in internal/pipeline/cache_key.go with a history comment; a test shows a pre-bump cache entry misses.
-- [ ] A validly hashed v1 artifact cannot bypass IFC enforcement and causes recompilation.
-- [ ] A v2 interface with absent or malformed metadata cannot be treated as clean.
-- [ ] A library-only refinement/intrinsic/return change invalidates dependent cached artifacts.
-- [ ] Cold and warm cache verdicts match, including a cached caller (audit whether IFC reruns on cache hits).
+- [x] Full cache JSON, compact/published JSON, and supported gob paths preserve every IFC summary field.
+- [x] `cacheKeyVersion` is bumped dev v7→v8 in internal/pipeline/cache_key.go with a history comment; a test shows a pre-bump cache entry misses.
+- [x] A validly hashed v1 artifact cannot bypass IFC enforcement and causes recompilation.
+- [x] A v2 interface with absent or malformed metadata cannot be treated as clean.
+- [x] A library-only refinement/intrinsic/return change invalidates dependent cached artifacts.
+- [x] Cold and warm cache verdicts match, including a cached caller (audit whether IFC reruns on cache hits).
 
 Risk: cached caller bypasses the checker. Prove key/dependency invalidation and cold/warm verdict parity rather than relying on the design's unverified assertion that checking runs every compile.
 
@@ -145,4 +146,38 @@ The verdict matrix includes same/two-module sinks, imported positive-param Check
 
 Label lattice, TLabelled cache codec, closure-laundering fix and REPL gate already exist. The M-IFC-AUTHORITY-SCOPING implementation is a hard prerequisite (see HOLD); no other external package or new issue blocks work. The summary representation, REPL export storage, cache-hit behavior and all interface producers require execution-time audit; the tasks above explicitly cover those uncertainties.
 
-Machine progress: `.ailang/state/sprints/sprint_M-IFC-CROSS-MODULE.json`. All milestone passes begin null. This task creates planning artifacts only. Merging this plan PR dispatches the executor, which is why it is on HOLD until the M-IFC-AUTHORITY-SCOPING implementation PR has merged. The executor works on its own branch and opens a PR; it does not push to dev or merge. The implementation PR closes #1134 only after the entire acceptance matrix and docs update pass, and references #1132 for its partial delivery.
+Machine progress: `.ailang/state/sprints/sprint_M-IFC-CROSS-MODULE.json`. M1–M2 are complete in the 2026-10-12 partial run; M3–M4 remain pending. The dependency (#1707) is on dev. The executor commits locally on the coordinator branch; the coordinator opens the PR. The implementation PR completes #1134 only after the entire acceptance matrix and docs update pass, and references #1132 for its partial delivery.
+
+## Partial execution checkpoint — 2026-10-12
+
+M1–M2 only are implemented and locally committed. Dev was already at cache v6
+(M-ALIAS-BODY-CLOSURE), so this implementation uses v7. M3–M4 remain pending;
+imported call-edge enforcement and CLI/REPL import resolution are not yet delivered.
+The cache-hit audit confirmed that `serveFromCache` skips IFC checking. Summary
+changes therefore flow through dependency digests and invalidate cached callers.
+Cold/warm tests cover accepted callers and the existing local IFC rejection;
+imported-contract verdict parity remains part of M3.
+
+Focused Go tests for types, iface, pipeline, link and runtime pass. `make test-core`
+passes under a temporary Linux child-subreaper supervisor because this container's
+PID 1 leaves orphan zombies (the existing nested-process cleanup test fails without
+reaping). `make lint` passes with zero issues after bounding Go memory/concurrency
+and extending its runtime timeout. File-size and architecture-boundary checks pass.
+Full `make test` was not run, and no branch was pushed. PR reference: Refs #1134.
+
+## Attended M1–M2 repair, 2026-10-29
+
+Original execution scope remains M1–M2 only, Refs #1134 and Refs #1132. Preserve original commits 581526060, 182b47859, dba22e04e and 57084f55f. Current dev, including #1719/#2007, was normally merged at 3cf79f836. Historical dirty/untracked implementations are not recovered into this branch.
+
+M1 repair: ratified F4 stores canonical `forbidden: []string` and mandatory reserved `applied` IFCLabel (emitted bottom); validates both before treating a summary as unlabelled or hashing v2 package identity. No inferred applied semantics are exported. Reuses #1719's single checker initializer and callable domain; the summary analysis API returns an ordinary diagnostic for its narrow typed defensive limit, propagated through iface and minimal runtime builders. Intrinsic/recursive summaries retain finite fixed-point iteration with the current work budget. Failing-first F4 regression demonstrates the old string codec accepted obsolete metadata and rejected the approved list form. Repaired focused types/iface/pipeline/runtime tests pass, including unchanged fresh-CLI #1719 regressions. Final evaluator remains independent.
+
+M2 repair takes reserved cache epoch v8, preserving dev's v7 CoreTI shared-DAG codec. Exact F4 full/compact/gob metadata, malformed authenticated artifacts, dependency invalidation, stdlib interfaces and large-module encoded-size evidence are required. M3 and M4 remain unstarted; no imported-call enforcement or issue closure is claimed.
+
+
+M2 repair proof: valid v7 manifests/keys miss and republish v8; correctly rehashed legacy/malformed JSON and injected decoders cannot bypass complete F4 validation. Current shared-DAG tests pass. Full compact/gob/cache roundtrips preserve multiple forbidden labels and joined applied labels; emitted reserved applied labels remain bottom. All 49 regenerated interfaces preserve every non-IFC signature. Dedicated pinned Stapledon navigation artifact measurement accepts cold/warm, gives30hits/0misses warm with unchanged artifact stamps; details and blocked candidates are in `m-ifc-cross-module-labels-repair-validation.md`. The 18-case CLI differential versus actual dev9dc689091 has zero status/diagnostic flips. M3/M4 remain null/unstarted and the overall sprint stays in_progress. Independent evaluator owns acceptance.
+
+
+Independent M1 review correction: named local/supplied/known builtin producer references match existing conservative eta-closure labels in export analysis only, including applied/ignored/stored cases. No contextual/probe replay or new label-polymorphic inference is introduced. Per-target handoff and declared/scoped/bare result rules are preserved; ordinary caller/M3/REPL policy remains unchanged. Finite convergence also handles bodyless externs using trusted declared metadata only. The frozen 2,628-file metadata corpus has no changes to successful baseline summaries, all 2,568 all-bottom modules unchanged, and removes only two duplicate extern convergence errors. Paired parity/shadow/clean-producer/typed-projection/authority controls pass; final combined gates are recorded in the repair validation.
+
+
+Final integration: actual 80793 normally merged at8f6b11d0f; all six changed packages plus full core, lint/structural/all 49 interface gates and 247 example modules pass. Actual delivered Motoko 083ef437 passes 60 core / 9 extensions and original session 143-module cold/warm artifact proof. Published alias #2008/d5f783585 normally merged at a9971a364; affected alias/IFC/CLI checks and original social/protocol NoCache/cold/warm proof pass. #2008 later landed749045717 with identical source. All size ceilings unchanged. Full8f proof and focused post-alias a997 proof are qualified separately; final-head CI and independent acceptance belong to root. M3/M4 remain unstarted.

@@ -13,6 +13,44 @@
   ],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "region",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "patches",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "applyBatch",
       "type": "(string,list[DOMPatch])-\u003e{budget_remaining: int, node_ids: list[string]}!{DOM}",
       "effects": [
@@ -21,6 +59,44 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "region",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "patches",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "applyBatchResult",
       "type": "(string,list[DOMPatch])-\u003eResult[{budget_remaining: int, node_ids: list[string]},{code: string, message: string}]!{DOM}",
       "effects": [
@@ -29,6 +105,44 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "region",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "patch",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "applyPatch",
       "type": "(string,DOMPatch)-\u003e{budget_remaining: int, node_id: string}!{DOM}",
       "effects": [
@@ -37,6 +151,44 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "region",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "patch",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "applyPatchResult",
       "type": "(string,DOMPatch)-\u003eResult[{budget_remaining: int, node_id: string},{code: string, message: string}]!{DOM}",
       "effects": [
@@ -45,6 +197,56 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "region",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "eventTypes",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "callback",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "subscribe",
       "type": "(string,list[string],(DOMEvent)-\u003e()!{Cog,DOM})-\u003e()!{Cog,DOM}",
       "effects": [
@@ -54,5 +256,5 @@
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }

@@ -65,8 +65,8 @@ func TestAliasBodyClosure_CacheInvalidatedOnce(t *testing.T) {
 	if encodes != len(manifest.Entries) {
 		t.Fatalf("v6 cache should recompile all %d modules (including implicit imports), got %d", len(manifest.Entries), encodes)
 	}
-	if readCacheManifest(t, path).Version != "v7" {
-		t.Fatal("cache did not publish v7 manifest")
+	if readCacheManifest(t, path).Version != cacheKeyVersion {
+		t.Fatal("cache did not publish current-version manifest")
 	}
 	if got := executePipelineMain(t, cold); got != "1" {
 		t.Fatal(got)
@@ -77,7 +77,7 @@ func TestAliasBodyClosure_CacheInvalidatedOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	if encodes != 0 {
-		t.Fatalf("unchanged v6 modules recompiled: %d", encodes)
+		t.Fatalf("unchanged current-version modules recompiled: %d", encodes)
 	}
 	fresh, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck, NoCache: true}, source, cacheDependencies{newStore: NewCacheStore, stderr: io.Discard})
 	if err != nil {
