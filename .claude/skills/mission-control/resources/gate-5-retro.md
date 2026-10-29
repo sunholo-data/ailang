@@ -207,4 +207,5 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
    5. Post this iteration's report to the NEW issue.
    **Rotation-week catch:** on the first iteration after a rotation (the `-prev` file is fresh),
    Gate-0's Mark-comment read must ALSO check the predecessor issue — Mark may have replied to the
-   old thread over the boundary. Same allowlist + watermark.
+   old thread over the boundary. Same allowlist + watermark: `mission_directives.sh --issue <prev>
+   --watermark-file ~/.ailang/state/mission-<prev>-last-seen`, and `--mark` against that same file.

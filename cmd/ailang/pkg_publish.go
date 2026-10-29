@@ -258,7 +258,7 @@ func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, in
 		return err
 	}
 
-	client := &http.Client{Timeout: 5 * time.Minute}
+	client := pkg.HTTPClient("uploading to the registry", 5*time.Minute)
 	req, err := http.NewRequest("POST", url, &buf)
 	if err != nil {
 		return fmt.Errorf("failed to create upload request: %w", err)
@@ -312,7 +312,7 @@ func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, in
 // emitPublishMessages auto-emits package coordination messages after a successful publish.
 // This is best-effort — failures are logged but don't block the publish.
 func emitPublishMessages(manifest *pkg.PackageManifest, cwd, contentHash, interfaceHash string) {
-	store, err := openPkgMsgStore()
+	store, err := openPkgMsgStore(msgStoreWrite)
 	if err != nil {
 		return // No messaging store available
 	}
@@ -602,6 +602,12 @@ func exportsRemoved(oldExports, newExports []string) bool {
 // those cases. This keeps `ailang publish` working unchanged for local
 // laptop use.
 func newCascadePublisher() *pubsub.Publisher {
+	// #1720: Pub/Sub is network authority. The legacy inbox path is gated by
+	// openPkgMsgStore; this publisher must not dial out either.
+	if err := pkg.Require(pkg.AuthNetwork, "publishing cascade notifications", pkg.OperatorRemedy); err != nil {
+		fmt.Fprintf(os.Stderr, "note: cascade topic skipped: %v\n", err)
+		return nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	projectID, err := config.CloudProject(ctx)

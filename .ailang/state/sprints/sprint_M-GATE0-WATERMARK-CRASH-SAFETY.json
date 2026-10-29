@@ -1,0 +1,91 @@
+{
+  "sprint_id": "M-GATE0-WATERMARK-CRASH-SAFETY",
+  "status": "completed",
+  "created": "2026-10-26T00:00:00Z",
+  "design_doc": "design_docs/planned/m-gate0-watermark-crash-safety.md",
+  "sprint_plan": "design_docs/planned/sprint-plan-gate0-watermark-crash-safety.md",
+  "github_issues": [
+    981
+  ],
+  "approval": "Pre-approved by Mark for the attended P0 triage 2026-10-26 (no pause)",
+  "velocity": {
+    "target_loc_per_day": 1000,
+    "estimated_total_loc": 520,
+    "estimated_days": 0.5
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M1_DIRECTIVES_SCRIPT",
+      "package": null,
+      "action": "none",
+      "reason": "Repository-local bash instrumentation of the mission loop; not a package-like AILANG capability"
+    },
+    {
+      "milestone": "M2_TEST_SUITE",
+      "package": null,
+      "action": "none",
+      "reason": "Test suite for a repo-local script"
+    },
+    {
+      "milestone": "M3_PROTOCOL_TEXT",
+      "package": null,
+      "action": "none",
+      "reason": "Skill text, mirror sync, changelog"
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_DIRECTIVES_SCRIPT",
+      "description": "scripts/mission_directives.sh: emit id=<comment node id> per directive; inclusive >= since; --watermark-file read mode labelling already-processed ids and warning loudly on an unrecorded comment exactly at the watermark (the #981 signature) and on legacy bare-timestamp files; --mark <id> re-fetches, refuses unknown/non-allowlisted ids, records the id, sets line 1 to the oldest still-unprocessed allowlisted createdAt (or newest processed when none pending), prunes ids older than the watermark, writes atomically. Reading never writes the watermark. bash 3.2 / BSD tools.",
+      "estimated_loc": 170,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "/bin/bash -n and shellcheck clean",
+        "Default output unchanged except the id= token and the inclusive boundary",
+        "--mark of an unknown or non-allowlisted id exits 1 and leaves the watermark file byte-identical",
+        "Line 1 of the watermark file is always a bare ISO8601 timestamp (mission_gate0_self_notices.sh reads line 1 only)"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "Implemented as planned. Also fixed a latent bash-3.2 infinite loop (`shift 2` with a missing option value). Live check: legacy watermark 2026-08-30T08:11:12Z on #852 now returns IC_kwDOP3Mz2c8AAAABReRotQ (the lost D50/D49 comment) with BOUNDARY+LEGACY warnings; mission_gate0_self_notices.sh accepted the upgraded v2 file (scratch file only, no ~/.ailang state touched). shellcheck clean."
+    },
+    {
+      "id": "M2_TEST_SUITE",
+      "description": "scripts/test_mission_directives.sh with a stub gh on PATH: boundary (#852 literal fixture), kill-at-each-step simulated fire, out-of-order mark and late arrival, dedupe, legacy file upgrade, multi-mission, refusals, and a control arm proving the OLD mark-before-route protocol loses the directive. Wired into make test-launchd-drivers.",
+      "estimated_loc": 290,
+      "dependencies": [
+        "M1_DIRECTIVES_SCRIPT"
+      ],
+      "acceptance_criteria": [
+        "Every kill point: next clean fire routes each directive exactly once and loses none",
+        "Boundary arm returns the comment whose createdAt equals the watermark",
+        "Control arm shows the old protocol loses the directive (the suite can see a positive)",
+        "All arms pass under /bin/bash 3.2; make test-launchd-drivers exit 0"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "scripts/test_mission_directives.sh: 24 arms pass under /bin/bash 3.2 via suite-env.sh; wired into make test-launchd-drivers (full target exit 0). Includes a self-notices compatibility arm and a control arm proving the old mark-before-route order loses IC_old."
+    },
+    {
+      "id": "M3_PROTOCOL_TEXT",
+      "description": "gate-0-preflight.md process-then-mark ruling replacing 'before routing'; step 6 reads via --watermark-file and marks via --mark after routing lands; .agents mirror re-synced; mutation evidence from a scratchpad copy (early write on read, watermark=newest marked, exclusive >, no id emission) each failing a named arm; changelog fragment.",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M2_TEST_SUITE"
+      ],
+      "acceptance_criteria": [
+        "No 'before routing' watermark instruction remains in the Gate-0 source",
+        "tools/launchd/sync-agents-skills.sh --check exit 0",
+        "Each of the four mutations fails at least one named arm",
+        "make test-changed, make check-changelog, make check-context-docs exit 0"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "gate-0-preflight.md step 6 reads via --watermark-file; new step 8 PROCESS-THEN-MARK replaces the misplaced before-routing sentence in step 7; SKILL.md Gate 5 stub and gate-5-retro rotation catch updated; .agents mirror re-synced (--check ok). Mutations from scratchpad copies: (a) early write on read -> 2 arms fail (kill@after_fetch, read-only); (b) watermark=newest -> 2 fail (out-of-order, late-arrival); (c) exclusive > -> 9 fail incl. boundary; (d) no id emission -> 13 fail. make test-changed, check-changelog, check-context-docs exit 0."
+    }
+  ],
+  "completed": "2026-10-26"
+}

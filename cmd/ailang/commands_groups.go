@@ -302,11 +302,12 @@ func pkgLegacyCommands() []Command {
 			panic("ailang: pkgLegacyTopLevel names " + verb + ", which is not a pkg verb")
 		}
 		out = append(out, Command{
-			Name:    pkgLegacyTopLevel[verb],
-			Group:   groupPkg,
-			Hidden:  true,
-			Summary: sub.Summary,
-			Run:     sub.Run,
+			Name:      pkgLegacyTopLevel[verb],
+			Group:     groupPkg,
+			Hidden:    true,
+			Summary:   sub.Summary,
+			Run:       gatedRun(*sub),
+			Authority: sub.Authority,
 		})
 	}
 	return out

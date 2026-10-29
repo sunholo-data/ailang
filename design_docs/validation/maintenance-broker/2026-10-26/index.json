@@ -1,0 +1,26 @@
+{
+  "schema": "maintenance.broker-feasibility-index/1",
+  "created": "2026-10-26T14:09:24.179126+00:00",
+  "qualified": false,
+  "backendAdmitted": false,
+  "sprint": "M-MAINTENANCE-EVAL-BROKER",
+  "milestone": "M1_HOST_FEASIBILITY",
+  "milestone_passes": false,
+  "sprint_status": "in_progress_blocked",
+  "downstream_started": false,
+  "control_report": "blocker-control.json",
+  "strict_report": "strict-lifetime.json",
+  "strict_exit_code": 1,
+  "default_regression_exit_code": 0,
+  "full_chain_tested": false,
+  "scope": "Current process-group kill plus real cwd reaper, actual locked macOS sandbox fixture only; no model or language comparison.",
+  "artifacts": {
+    "README.md": "61bccf99b0b68713cd62f4a04b7890e4f8b960beb9c8ef444b90d60015737279",
+    "blocker-control.json": "526e90ca9907c435b380a9e5631a98c22ba3d1d250dd9ed978a80086244cd2a0",
+    "blocker-control.log": "5f6f00de98970ba388d6348a3da773d96068e2e30ecd0ae62e30db6fcde98666",
+    "checks.txt": "033103ec6249a64eeec9791b7c4da92fb26ea8ce0e49cece7c6d813e87452f1b",
+    "independent-review.json": "23a78914d634e65a3e072a106f696e955122d92f9d29120366cc3350c0234a23",
+    "strict-lifetime.json": "854e7c81e35f7db72859e9934d0b64426e43e14b96ee86bf488ba3e04e7e75f8",
+    "strict-lifetime.log": "d025aa290674af822abdf72ec72bb0c49b7b1c1a702458415d5c19724af0b05d"
+  }
+}

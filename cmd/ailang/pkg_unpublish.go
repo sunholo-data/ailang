@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 func pkgUnpublishCommand(args []string) error {
@@ -82,7 +83,7 @@ func pkgUnpublishCommand(args []string) error {
 	fmt.Printf("  Removing %s@%s from registry...\n", name, version)
 
 	url := fmt.Sprintf("%s/unpublish?name=%s&version=%s", validatorURL, name, version)
-	client := &http.Client{Timeout: 2 * time.Minute}
+	client := pkg.HTTPClient("unpublishing from the registry", 2*time.Minute)
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)

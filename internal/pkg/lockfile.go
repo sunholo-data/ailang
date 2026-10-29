@@ -39,6 +39,7 @@ type LockedPackage struct {
 	Path          string   `json:"path,omitempty"`
 	GitURL        string   `json:"git_url,omitempty"`
 	GitRev        string   `json:"git_rev,omitempty"`
+	GitTag        string   `json:"git_tag,omitempty"` // #1720 D2: what a confined lock may carry forward
 	GitSubdir     string   `json:"git_subdir,omitempty"`
 	Effects       []string `json:"effects"`
 	Exports       []string `json:"exports"`
@@ -146,7 +147,7 @@ func (lf *LockFile) FindPackage(name string) (*LockedPackage, bool) {
 	return nil, false
 }
 
-// ValidateContentHashes re-computes content hashes for registry and path dependencies
+// ValidateContentHashes re-computes content hashes for registry, git and path dependencies
 // and verifies they match the lock file. Returns an error if any dependency
 // has changed since the lock file was generated.
 func (lf *LockFile) ValidateContentHashes() error {
@@ -157,6 +158,9 @@ func (lf *LockFile) ValidateContentHashes() error {
 // dependencies resolved against rootDir (the lock file's directory).
 func (lf *LockFile) ValidateContentHashesFrom(rootDir string) error {
 	if err := lf.validateRegistryContentHashes(); err != nil {
+		return err
+	}
+	if err := lf.validateGitContentHashes(); err != nil {
 		return err
 	}
 	for _, p := range lf.Packages {

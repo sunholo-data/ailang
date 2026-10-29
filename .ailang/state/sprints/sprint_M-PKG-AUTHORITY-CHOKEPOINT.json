@@ -1,0 +1,160 @@
+{
+  "sprint_id": "M-PKG-AUTHORITY-CHOKEPOINT",
+  "status": "completed",
+  "created": "2026-10-26T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_54_19/m-pkg-authority-chokepoint.md",
+  "sprint_plan": "design_docs/planned/v0_54_19/m-pkg-authority-chokepoint-sprint-plan.md",
+  "github_issues": [
+    1720
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_AUTHORITY_CHOKEPOINT",
+      "package": "none",
+      "action": "none",
+      "reason": "Go host code in the ailang binary (package manager confinement); no AILANG package can implement it"
+    },
+    {
+      "milestone": "M2_GIT_PATH",
+      "package": "none",
+      "action": "none",
+      "reason": "Go resolver/loader internals"
+    },
+    {
+      "milestone": "M3_HTTP_SHIMS_MESSAGING",
+      "package": "none",
+      "action": "none",
+      "reason": "Go CLI internals"
+    },
+    {
+      "milestone": "M4_COMMAND_AUTHORITY",
+      "package": "none",
+      "action": "none",
+      "reason": "Go CLI dispatch table"
+    },
+    {
+      "milestone": "M5_GIT_TRUST",
+      "package": "none",
+      "action": "none",
+      "reason": "Go lockfile validation"
+    },
+    {
+      "milestone": "M6_PROOF_DOCS",
+      "package": "none",
+      "action": "none",
+      "reason": "Go tests + docs"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 360,
+    "estimated_total_loc": 1450,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_AUTHORITY_CHOKEPOINT",
+      "description": "internal/pkg/authority.go: Require, HTTPClient (gating RoundTripper), Git (hardened, classified), UserDir/EnsureUserDir; confinement.go folded to wrappers",
+      "estimated_loc": 260,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Require text pinned; RefuseIfConfined('writing the registry cache') text byte-identical (AC9)",
+        "Transport: confined 0 hits, unconfined 1 hit",
+        "Git: clone/fetch/ls-remote/pull/submodule refused confined; write in ~/.ailang refused confined",
+        "UserDir creates nothing; EnsureUserDir refuses confined"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "authority.go: Require/ConfinedError, gated HTTPClient transport, hardened classified Git, UserDir/EnsureUserDir, ensureDir; confinement.go folded in; registry text pinned unchanged."
+    },
+    {
+      "id": "M2_GIT_PATH",
+      "description": "gitcache purity + pkg.Git; resolver D2 carry-forward or refusal with previous lock threaded through ResolveLock/CheckLock/EnsureLock/lock; loader non-creating via shared gitPackageDir; D3 AILANG_PACKAGE_ROOT for git; manifest rejects leading-dash git URL",
+      "estimated_loc": 330,
+      "dependencies": [
+        "M1_AUTHORITY_CHOKEPOINT"
+      ],
+      "acceptance_criteria": [
+        "D2 matrix: match->carry; content/url/tag/subdir mismatch or no prior lock -> refusal",
+        "Confined lock/lock --check/install --path/check over file:// git dep write nothing under HOME",
+        "D3: git dep resolves from <root>/<vendor>/<name>/<version>; missing -> not provisioned",
+        "Existing gitcache/lock/install tests green"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "NewGitCache pure; all git via pkg.Git with --; D2 carry-forward (git_tag recorded in lock); ResolveDependenciesFrom/ResolveLockFrom; CheckLock passes committed lock; D3 root for git; loader via shared lockedGitDir; manifest rejects leading -."
+    },
+    {
+      "id": "M3_HTTP_SHIMS_MESSAGING",
+      "description": "Rows 17,18,20,22,24,26,28-33: pkg.HTTPClient everywhere, shim write/remove gated, openPkgMsgStore modes + D7 note, cascade publisher gated",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M1_AUTHORITY_CHOKEPOINT"
+      ],
+      "acceptance_criteria": [
+        "Confined pkg info/versions/stats/history: 0 requests",
+        "Confined lock with prior lock creates no collaboration.db",
+        "D7 note printed when skipped"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "registryAPIGet/history/upload/unpublish/key via pkg.HTTPClient; shims gated; openPkgMsgStore(mode) single opener; ratchet opens store only on change, D7 note under confinement; cascade publisher gated."
+    },
+    {
+      "id": "M4_COMMAND_AUTHORITY",
+      "description": "D5: Command.Authority column; operator pkg verbs refused at dispatch (group + legacy top-level); completeness test",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1_AUTHORITY_CHOKEPOINT"
+      ],
+      "acceptance_criteria": [
+        "Every pkgSubcommands() verb declared in the authority table",
+        "Confined `ailang add` and `ailang pkg add` refuse before any work"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "Command.Authority; gatedRun on pkg group + legacy rows; bin narrowed to uninstall; completeness test."
+    },
+    {
+      "id": "M5_GIT_TRUST",
+      "description": "D4: git content_hash verified in ValidateContentHashesFrom via gitPackageDir; fatal",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2_GIT_PATH"
+      ],
+      "acceptance_criteria": [
+        "Tampered provisioned git dep -> check exit != 0 naming package and both hashes",
+        "Different tag checked out in shared clone -> same"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "validateGitContentHashes fatal (RegistryContentError); SkipsGit test replaced."
+    },
+    {
+      "id": "M6_PROOF_DOCS",
+      "description": "AST boundary test (AC3), e2e confinement matrix generated from pkgSubcommands() with unconfined/positive controls and policy-tool route (AC1/2/4/6), mutation evidence, repro re-run, docs + changelog fragment",
+      "estimated_loc": 450,
+      "dependencies": [
+        "M2_GIT_PATH",
+        "M3_HTTP_SHIMS_MESSAGING",
+        "M4_COMMAND_AUTHORITY",
+        "M5_GIT_TRUST"
+      ],
+      "acceptance_criteria": [
+        "Matrix fails if a verb has no row",
+        "Unconfined arm sees >=1 request/clone (instrument not blind)",
+        "Each mutation in AC2b turns its test red",
+        "repro*.sh confined arms: 0 HOME entries, 0 requests",
+        "make test-changed, lint, test-imports green"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "Boundary AST test, 28-row confined matrix + unconfined/provisioned/policy-tool controls, 9 mutations all red, repro inverted, SECURITY.md/std-package/env docs + changelog fragment."
+    }
+  ]
+}

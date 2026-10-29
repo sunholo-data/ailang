@@ -223,7 +223,8 @@ match callSpeech("Well met, traveller.", "Kore", "Say it gruffly", "") {
   `"<style>: <text>"`; `""` sends the text alone.
 - **`options`**: JSON, `""` for none. `model` picks the TTS model; the default
   is the bound `--ai` model when its name contains `tts`, else
-  `gemini-2.5-flash-preview-tts`. `language_code` is an optional BCP-47 code.
+  `gemini-2.5-flash-tts` on Vertex or `gemini-2.5-flash-preview-tts` on AI Studio.
+  `language_code` is an optional BCP-47 code.
   Any other key is `Err(SchemaValidation)`.
 - **Providers:** Gemini (AI Studio and Vertex, through the same `--ai` handler,
   so `--ai-no-adc` and `--ai-key-file` apply). Every other provider returns

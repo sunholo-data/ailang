@@ -1,6 +1,7 @@
 # M-MAINTENANCE-EVAL-BROKER — host-side confined tools for maintenance trials
 
-**Status:** Proposed; implementation requires approval and a sprint plan.
+**Status:** Bounded feasibility sprint approved 2026-10-26; stopped at M1 on
+escaped-descendant ownership. Broker transport remains unimplemented.
 **Target:** v0.55.0 research adapter, proposed; no language semantics change.
 **Priority:** P1, blocks the first protected local maintenance campaign.
 **Estimated:** 3–5 engineering days including actual OS qualification and review;
@@ -218,3 +219,19 @@ scope. No claim about missing AILANG language or stdlib support is made here.
 Net proposed score: +10. A1/A3/A4/A7 have no hard negative. No language conflict
 surface is triggered: parser, types, compiler, evaluator and effects are untouched.
 This is a design assessment, not proof that the proposed transport already works.
+
+## 2026-10-26 feasibility result
+
+The approved [broker sprint](m-maintenance-eval-broker-sprint-plan.md) tested
+lifetime first and followed its stop rule. Actual sandboxed descendants that
+call `setsid`, change cwd and close descriptors 0–255 survive the existing
+group-kill plus cwd-reaper recipe. Post-cleanup `ps` reports live `Ss` processes
+with matching start identities in normal-exit, timeout and fixture-owner-death
+controls. The retained-cwd positive control is reaped; owned Python/AILANG work
+runs; emergency fixture cleanup and bystander joins are verified.
+
+[Evidence and independent artifact review](../validation/maintenance-broker/2026-10-26/README.md)
+support stopping M1. No socket/pi/full-chain prototype was built after this
+failed lifetime condition. This does not prove macOS ownership impossible; it
+identifies the ownership mechanism that must be designed and qualified before
+the remaining broker transport can proceed. Live dispatch stays closed.

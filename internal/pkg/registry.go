@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -53,7 +52,7 @@ func NewRegistryClient() *RegistryClient {
 	baseURL := config.RegistryURL()
 	return &RegistryClient{
 		BaseURL:    strings.TrimRight(baseURL, "/"),
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: HTTPClient("fetching from the registry", 30*time.Second),
 	}
 }
 
@@ -215,14 +214,8 @@ func (rc *RegistryClient) SearchPackages(query string, tagFilter string) ([]Inde
 }
 
 // RegistryCacheDir returns the local cache directory for registry packages.
-func RegistryCacheDir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	dir := fmt.Sprintf("%s/.ailang/cache/registry", home)
-	return dir, nil
-}
+// It is pure: nothing is created (EnsureRegistryCacheDir is the gated writer).
+func RegistryCacheDir() (string, error) { return UserDir("cache/registry") }
 
 // CachedPackagePath returns the cache path for a specific package version.
 func CachedPackagePath(name, version string) (string, error) {

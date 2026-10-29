@@ -18,7 +18,7 @@ const (
 	SpeechChannels      = 1
 	SpeechBitsPerSample = 16
 
-	// DefaultGeminiTTSModel is the TTS model used when neither the call's
+	// DefaultGeminiTTSModel is the AI Studio TTS model used when neither the call's
 	// options nor the bound --ai model name a TTS model (a name containing
 	// "tts"). The bound model is usually a text model, which cannot speak.
 	DefaultGeminiTTSModel = "gemini-2.5-flash-preview-tts"
