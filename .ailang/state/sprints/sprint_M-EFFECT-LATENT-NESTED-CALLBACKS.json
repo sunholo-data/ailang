@@ -4,7 +4,7 @@
   "design_doc": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks.md",
   "sprint_plan": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks-sprint-plan.md",
   "target_version": "v0.55.0",
-  "status": "completed",
+  "status": "in_progress",
   "risk_level": "medium",
   "github_issues": [
     1718,
@@ -40,6 +40,18 @@
       "package": "none",
       "action": "none",
       "reason": "Docs, example, changelog for a compiler fix"
+    },
+    {
+      "milestone": "R1_ALIAS_BINDER_OWNERSHIP",
+      "package": "none",
+      "action": "none",
+      "reason": "Existing compiler-internal ownership repair and integration evidence; no reusable package capability introduced"
+    },
+    {
+      "milestone": "R2_COMBINED_INTEGRATION",
+      "package": "none",
+      "action": "none",
+      "reason": "Existing compiler-internal ownership repair and integration evidence; no reusable package capability introduced"
     }
   ],
   "features": [
@@ -112,6 +124,38 @@
       "started": "2026-10-26",
       "completed": "2026-10-26",
       "notes": "DONE. Sweep examples+std 515 files base 432/83 vs fix 432/83, 0 flips, identical diagnostics, 0 internal invariant. ailang-packages 45 roots + ailang-parse: 44/2 both (pre-existing: motoko-ext-a2a deps, motoko-ext-typefix-agent manifest), 0 flips. mcp_oauth 0.1.0/0.1.1: invariant -> all passed. LIMITATIONS entries moved to Resolved; prompt v0.16.7 sentence + hash + mirrors; examples/runnable/effect_latent_nested_callbacks.ail + manifest; changelog fragment. Gates green: test-changed, lint, verify-examples, test-imports, check-file-sizes, check-changelog, check-boundaries."
+    },
+    {
+      "id": "R1_ALIAS_BINDER_OWNERSHIP",
+      "description": "Repair ownership traversal omitted alias expansion, with failing-first forwarding and caller charging controls",
+      "estimated_loc": 250,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Local/imported one/two-field and generic alias pure forwarding accepted",
+        "Implicit alias tails are owned and re-anchored across solver renaming",
+        "Actual IO/FS callback callers rejected unless corresponding effects declared; both engines",
+        "Unknown or distinct declared tails remain fail-loud; existing rowguard and explicit-empty contracts unchanged",
+        "Focused/core/lint/structural gates and evidence banked"
+      ],
+      "passes": true,
+      "started": "2026-10-29",
+      "completed": "2026-10-29",
+      "notes": "Red/green ownership and forwarding regressions banked; local/imported generic alias and IO/FS caller controls pass. Full types/pipeline pass; full CLI initially failed only invoked-FS strict verification contract (existing Phase2E evaluator-only builtin); final affected CLI passes with strict negatives/IO/unused-FS and explicit normal-VM interop for invoked FS. Aborted core separately PASS; lint0, boundaries, sizes, changelog, JSON valid; paired528 corpus zero changes; original unmodified social_dynamics tasks now clean. R2 actual #2005 integration and independent evaluation remain pending."
+    },
+    {
+      "id": "R2_COMBINED_INTEGRATION",
+      "description": "Integrate actual explicit-empty #2005 merge then verify original social_dynamics plus consumer corpus",
+      "estimated_loc": 40,
+      "dependencies": [
+        "R1_ALIAS_BINDER_OWNERSHIP"
+      ],
+      "acceptance_criteria": [
+        "Normal integrate actual merged #2005 source and consumer pin",
+        "Original cached social_dynamics tasks checks clean",
+        "Actual consumer core60/60 and extensions9/9; corpus comparison has zero unexplained flips",
+        "Independent evaluation by root, no self-score"
+      ],
+      "passes": false
     }
   ],
   "review_repair": {
@@ -142,5 +186,26 @@
       "final_build": "passed; embedded CLI serves v0.16.9"
     },
     "independent_evaluation": "pending"
+  },
+  "alias_ownership_review_repair": {
+    "date": "2026-10-29",
+    "approval": "Attended approval to repair existing AC6/shared-walker and accepted fwd_two semantics; no new charging semantics",
+    "base": "9dc6890919aa001deebee4361719456ee087440f",
+    "scope": "Alias-aware implicit binder ownership and publication anchoring, using existing checker alias resolver; preserve implicitOwned subset owned and fail-loud distinct declared tails",
+    "integration": "Pending normal integration of actual #2005 merge, then original social_dynamics and consumer60/9 combined proof; no PR dispatch before root scope review",
+    "target_version": "v0.56.0 (unreleased)",
+    "validation": {
+      "red": "reproduced missing alias ownership, unresolved single-field tail and missing two-field callback row",
+      "focused": "PASS",
+      "full_pipeline_types": "PASS",
+      "initial_full_cli": "FAIL only2 new invoked-FS strict positive assertions; preserved Phase2E limitation",
+      "final_affected_cli": "PASS23.766s; explicit bytecode VM dispatch/no fallback, strict controls retained",
+      "core": "PASS",
+      "lint": "PASS0 issues",
+      "boundaries_sizes_changelog_json": "PASS",
+      "corpus": "528 files;444/84 each arm; zero status or diagnostic changes; zero invariants",
+      "original_social_dynamics": "PASS unchanged source SHA261faeb15fa083aed19e7f94dbe5af5e9b21273134c41ef2f90147fdaf92797a",
+      "combined_integration": "pending actual #2005 merge and real consumer60/9"
+    }
   }
 }

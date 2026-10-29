@@ -141,3 +141,32 @@ remain unchanged; the previous active .8 is marked frozen by the existing
 `prompt freeze --migrate` command (the registry requires one mutable head); embedded/docs/llms mirrors
 are regenerated with existing scripts. No completed independent evaluator
 verdict is claimed by this repair.
+
+## Alias ownership review repair (2026-10-29)
+
+Attended authorization covers the existing AC6 alias-aware shared walker and
+accepted pure `fwd_two` semantics. Baseline dev9dc reproduces the original
+`sunholo/social_dynamics/0.4.0/tasks.ail` accept→acceptReady failure. A reduced
+one-field alias reports an unresolved tail; two fields fail the missing-row
+invariant even when the receiving function returns 0. Inline records pass.
+
+- [x] R1: expand aliases through the existing checker resolver in binder
+  ownership discovery, and put discovered implicit tails in general ownership
+  before publication so solver renaming preserves binder identities. Capture
+  failing-first local/imported one/two-field and generic alias controls, plus
+  IO/FS caller rejection and corresponding declared acceptance on both engines.
+  Preserve parameter-wide charging, explicit/unknown tails and fail-loud union.
+- [ ] R2: normal integrate the actual #2005 merge, then check the original
+  social_dynamics module and combined real consumer 60/60 + extensions 9/9, corpus,
+  and independent evaluation. This gate cannot be replaced by scratch proof.
+
+No compiler edits occur in the explicit-empty owner worktree. No full `make test`
+is duplicated locally. Root owns final evaluation and any PR dispatch. Original
+completed milestones and prior evaluation evidence remain historical records.
+
+R1 validation: focused and full types/pipeline PASS; affected CLI PASS after the
+preserved strict-FS verification mismatch; aborted core PASS; lint0, boundaries,
+file sizes, changelog and sprint JSON PASS. Paired528-file corpus has zero status
+or diagnostic changes and zero invariants. Original unmodified social_dynamics
+tasks now checks clean. See m-effect-latent-alias-ownership-validation.md for the
+exact VM interop distinction. R2 and independent evaluation remain pending.
