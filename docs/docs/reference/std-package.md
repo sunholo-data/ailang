@@ -133,8 +133,10 @@ For `import pkg/...` module resolution and `ailang pkg-docs`, hosts can set
 `<vendor>/<name>/<version>/ailang.toml` and package source files. The configured
 root is exclusive: a missing root, package, or docs guide is an error, with no
 HOME cache fallback or automatic root creation. Without this variable, registry
-modules and docs use `~/.ailang/cache/registry` as before. Locked `std/package.assetPath` targets follow this setting through the package
-loader; no-lock fallback asset lookup continues to use the HOME cache.
+modules and docs use `~/.ailang/cache/registry` as before. Locked
+`std/package.assetPath` targets follow this setting through the package loader.
+No-lock fallback asset lookup also honors `AILANG_PACKAGE_ROOT`; without it,
+fallback uses the HOME cache.
 
 Under `AILANG_AGENT_POLICY`, registry network fetches and cache writes refuse
 with a named confinement error. Pre-provisioned versioned dependencies can be

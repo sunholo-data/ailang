@@ -65,7 +65,7 @@
       "acceptance_criteria": [
         "Accessors cover registry, relative path, git and missing directories; absent lock entries are distinguishable from unresolved locked entries.",
         "Result.PkgAssets contains all locked dependency targets, including a pinned older version despite a newer cached version.",
-        "AssetTargetsFor returns nil,nil for no manifest or absent lock; malformed existing manifest/lock returns error, never silent fallback.",
+        "AssetTargetsFor returns nil,nil for no manifest; a manifest without a lock returns the root package target. Malformed existing manifest/lock returns error, never silent fallback.",
         "Discovery remains anchored to the entry source or explicit PackageDir; bare/self-only resolution keeps existing behavior.",
         "Focused pkg/pipeline tests, make test-changed and make check-boundaries pass."
       ],
