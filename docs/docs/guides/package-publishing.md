@@ -83,6 +83,45 @@ full copy of a test module. Delete them. The tarball, content hash and smoke sta
 them out anyway. `ailang init package` scaffolds a `.gitignore` entry so `git add -A` skips
 them too.
 
+### Portable smoke tests with local path dependencies
+
+The smoke run uses an isolated **published dependency view**. If A depends on
+`"myorg/b" = {path = "../b"}` and B declares version `0.2.0`, staging changes that
+entry to `"myorg/b" = "0.2.0"` and resolves a new temporary lock. It tests the
+registry copy of B, including its assets, even when your local B has different
+bytes at the same version. Your source manifest and author lock remain intact.
+
+Make that exact dependency version available before checking A. Offline builds
+can use a configured registry mirror or preprovisioned `AILANG_PACKAGE_ROOT`.
+If the version is unavailable, PUB015 reports the download/provisioning cause and
+operator remedy. A newer cached version does not substitute for the required
+one. Existing confined git pins can be reused only when their validated pin and
+provisioned content match; changing a pin still needs the existing operator
+workflow. Staging does not grant network, HOME-write or runtime capabilities.
+
+```bash
+ailang pkg quality --json .   # inspect smoke.passed and bounded smoke.notes
+ailang publish --dry-run     # the same smoke gate; no upload
+```
+
+PUB015 includes the first useful setup/process error or timeout context, with an
+excerpt bounded to 2048 bytes. JSON uses the existing `smoke.notes` field; human
+output includes the same first cause. Long output and trace frames do not hide
+the initial error. `--no-run` remains deliberate non-execution, not a failed smoke.
+
+Root package assets are read from the staged copy. Dependency code and assets
+use the same locked package directory. A missing locked installation or malformed
+lock fails explicitly rather than falling through to another cached version.
+The temporary execution lock is not shipped in the tarball; consumers generate
+their own lock. Tarballs include `CHANGELOG.md`; the smoke source copy does not
+need it. This does not change the published file set.
+
+`ailang lock` also warns when a transitive registry or git resolution has already
+selected a dependency that the root declared as a local path. That warning means
+your local dependency edits are absent from the generated lock. It reports the
+actual selected source and leaves dependency selection, versions and exit codes
+unchanged; it does not make root paths override transitive pins.
+
 ### Every version describes itself
 
 Two things are required from v0.41.0 (badges in v0.40.0):

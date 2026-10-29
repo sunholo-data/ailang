@@ -323,3 +323,15 @@ corrupting JSON; first diagnostic lost before summarizing; timeout/UTF-8 bounds;
 flaky shell fixtures on Windows. The explicit tests above instrument each risk.
 No parser/type/effect semantics, new registry service, tarball file policy,
 resolver precedence or broad cleanup is part of this sprint.
+
+### M4 implementation candidate (final gates pending)
+
+Strict actual CLI fixture rejects the author-local same-version source+asset pair
+with exit23, then passes quality and dry-run only with registry markers. Mock
+registry reads are observed; all writes/uploads are rejected and remain zero.
+No message/coordinator database opens occur; author input bytes remain unchanged.
+The fixture also passes with explicitly absent Z3, and unavailable exact version
+with newer cached bytes fails with the canonical provisioning remedy. Actual
+human/JSON failure causes agree; D1 signal cause is repaired with preserved red
+and actual process regression. No tarball predicate or runtime policy changed.
+One final changed/core/structural gate and independent evaluation remain.

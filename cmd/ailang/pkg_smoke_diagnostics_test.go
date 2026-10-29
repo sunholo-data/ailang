@@ -52,7 +52,8 @@ func TestPkgSmokeDiagnostics_RealQualityNotes(t *testing.T) {
 	t.Setenv("AILANG_STDLIB_PATH", std)
 	t.Setenv("AILANG_NO_CACHE", "1")
 	t.Setenv("AILANG_PACKAGE_ROOT", t.TempDir())
-	t.Setenv("AILANG_REGISTRY", "http://127.0.0.1:1")
+	registry, requests := smokeTestRegistry(t)
+	t.Setenv("AILANG_REGISTRY", registry)
 	cases := []struct{ name, source, want string }{
 		{"long_output", `module test/diag/_smoke
 import std/io (println, exit)
@@ -95,6 +96,28 @@ export func main() -> () ! {Clock} = sleep(5000)`, "timed out"},
 			if !found {
 				t.Fatalf("human/JSON finding lost same cause: %+v", report.Gates)
 			}
+			if tt.name == "long_output" {
+				human := runCLIIn(t, bin, home, dir, "pkg", "quality", ".")
+				if human.exitCode != 2 || !strings.Contains(human.stdout, "PUB015") || !strings.Contains(human.stdout, tt.want) {
+					t.Fatalf("human diagnostic differs: %+v", human)
+				}
+			}
+			var raw map[string]json.RawMessage
+			if err := json.Unmarshal([]byte(result.stdout), &raw); err != nil {
+				t.Fatal(err)
+			}
+			var smoke map[string]json.RawMessage
+			if err := json.Unmarshal(raw["smoke"], &smoke); err != nil {
+				t.Fatal(err)
+			}
+			if _, added := smoke["output"]; added {
+				t.Fatal("unexpected new output schema field")
+			}
+
 		})
 	}
+	if requests.writes.Load() != 0 || requests.reads.Load() == 0 {
+		t.Fatalf("registry instrumentation: reads=%d writes=%d", requests.reads.Load(), requests.writes.Load())
+	}
+
 }

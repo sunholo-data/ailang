@@ -146,9 +146,9 @@
         90
       ],
       "passes": false,
-      "started": null,
+      "started": "2026-10-29T13:13:30.988876+00:00",
       "completed": null,
-      "notes": null
+      "notes": "M4 real offline CLI proof passes: strict registry source+asset discriminator rejects actual local run with exit23, quality/dry-run pass only for registry bytes; missing exact version/newer cached fails canonically; no Z3 needed, reads instrument live, zero registry writes/uploads/message or coordinator DB opens, author input snapshots unchanged; actual human/JSON diagnostics agree. Final changed/core and structural gates pending. Security npm/docs ancestor aca5 normally integrated without Go-runtime edits."
     }
   ],
   "prompt": {
@@ -183,5 +183,6 @@
     "accepted_plan_commit": "0c3e8f406a8a1476efb4e921c0738f269dbb3e38",
     "scope": "All four approved milestones, sequential checkpoint commits; no live publication, coordinator actions or unapproved semantics"
   },
-  "execution_dev_merge": "65253e86e68be251eecd796d92327e4d4828c234"
+  "execution_dev_merge": "65253e86e68be251eecd796d92327e4d4828c234",
+  "execution_security_merge": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239"
 }
