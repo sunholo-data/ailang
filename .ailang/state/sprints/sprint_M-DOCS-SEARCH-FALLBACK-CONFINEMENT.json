@@ -166,10 +166,10 @@
         "Existing exact-one-child-policy unit contract, docs_search json/limit allow-list, unknown/neural flag rejection and output caps remain unchanged; no new credential admission or production policytool edits",
         "Use minimal TOML policy and ordinary directories without symlinks; do not call Windows-skipping writePolicyFixture or policytool.newFixture. Real local success/refusal and complete private HOME/XDG/corpus snapshots execute on Linux/macOS/Windows; focused tool/CLI tests pass"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-29T20:27:41.188197+00:00",
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T20:28:11.627870+00:00",
+      "notes": "Actual policy-tool\u2192actual child with parent policy marker absent refuses both token arms, valid existing JSON process0/childnonzero; local child succeeds. Strict neural/path flags refused unchanged. Counterfactual pre-guard overlay fails canonical refusal1965-M3-red.log; current combined11.128sGREEN plus focused existing policytool contracts PASS. No policytool production edits or Windows blanket skip."
     },
     {
       "id": "M4_DOCS_GATES_AND_HANDOFF",
@@ -193,7 +193,7 @@
         "Any unchanged external #1926/#2013 CI blocker is reported with actual evidence, not repaired, retried or bypassed by this scope; preserve operator ownership and root issue/merge disposition"
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-29T20:28:11.627870+00:00",
       "completed": null,
       "notes": null
     }
