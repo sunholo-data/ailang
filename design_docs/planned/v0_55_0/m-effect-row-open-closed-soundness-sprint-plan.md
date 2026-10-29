@@ -6,6 +6,7 @@
 **Intended progress path:** `.ailang/state/sprints/sprint_M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS.json`
 **Measured base:** `origin/dev` `c04a44780` (2026-10-29).
 **Duration:** 2.5 engineering days, four resumable milestones of approximately 60–90 minutes of agent implementation/validation each, plus corpus verification and review allowance.
+**Release target:** v0.56.0, the next minor after v0.55.0 was tagged during execution. No patch release, version bump, or deployment is authorized by this plan.
 **Priority:** P0. **Risk:** high (row-unification semantics); limited by approved migration and discriminator fixtures.
 **AILANG prompt version loaded:** v0.16.8 (`ailang prompt` loaded from the archived-source binary; active version confirmed).
 
@@ -127,8 +128,8 @@ R1–R5 fail before printing on both engines; positive controls still work. No u
 
 The standard JSON generator imports/reads agent messages as a side effect; this read-only subtask was explicitly forbidden to send/ack messages. Therefore this review-only scratch JSON was populated directly using its documented schema, with real milestones and registry decisions. No repository plan/JSON, progress checkpoint, coordinator message or execution was created. Move/recreate these artifacts in an isolated approved branch only after the parent obtains the session gate.
 
-## Execution amendment proposed 2026-10-29: motoko width-class migration
+## Execution amendment approved 2026-10-29: motoko width-class migration
 
 M1–M3 are implemented and pass local gates. The original M4 external compatibility requirement caught five previously accepted motoko core entries (60/60 base, 55/60 fixed), all the same already-approved F2 width class through `play_chunks`'s IO+Trace callback slot. The exact one-line migration in the companion patch narrows only that slot to IO and preserves the helper's outer IO+Trace row and Ports ABI. Fresh migrated checks restore 60/60 on both arms, zero flips. See the companion validation report for the original failure evidence, pinned SHA, delivery branch, and duplicate-work check.
 
-**Amendment pending operator approval:** deliver the exact consumer annotation migration before #1958 is merged/enabled for the pinned motoko checkout. Do not mark M4 complete until this approval/delivery is coordinated. Do not weaken the compiler guard, implement width subsumption, or discard the original 60→55 measurement.
+**Amendment approved by Mark, attended:** deliver the exact one-line consumer annotation migration on `sunholo-voight-kampff/motoko_agent`, base `sunholo/main-dst-20261027` at `835c738b8ca50ed38f36c117058847c816db32b8`, then update the AILANG Docker source pin and provenance. Preserve the live rig checkout. Do not mark M4 complete until actual fork delivery, source pin, and combined-tree gates are recorded, then hand off for independent evaluation. Do not weaken the compiler guard, implement width subsumption, or discard the original 60→55 measurement.

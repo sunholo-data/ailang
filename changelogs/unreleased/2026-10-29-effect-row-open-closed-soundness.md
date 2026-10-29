@@ -17,3 +17,7 @@
 - Implicit widening of a pure returned closure to a concretely wider callback
   row is rejected until width subsumption is implemented. Use an explicitly
   annotated lambda matching the callback slot.
+
+- Release target: v0.56.0 (next minor); this breaking guard is not a v0.55.x patch.
+- The pinned motoko consumer narrows its `play_chunks` callback slot to `IO`,
+  matching Ports while preserving the helper's outer `IO, Trace` effects.

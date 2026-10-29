@@ -78,7 +78,7 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": "Local compiler gates pass. Dedicated motoko core gate found F2 width-class 60 base / 55 fixed; exact scratch one-line play_chunks callback migration restores 60/60 on both arms, zero flips. Plan amendment/consumer delivery pending operator approval; M4 intentionally not marked passed."
+      "notes": "Approved motoko consumer one-line migration committed/pushed as c3f4c85eec681d8d5d4787da4d9e56c22c0a2457 in fork PR4; Docker source pin and provenance updated. Full real consumer make gate60/60+9/9 and supplemental no-cache60/60 pass (seven90s timeouts retained, bounded lower-concurrency retries all pass). Original60/55 and scratch migrated60/60 evidence preserved. Fork CI/merge and current-dev+#1963 combined gates pending; M4 not yet passed."
     }
   ],
   "registry_reuse": [
@@ -108,5 +108,13 @@
     }
   ],
   "approved_by": "Mark (attended)",
-  "approved_at": "2026-10-29T07:21:05.128797+00:00"
+  "approved_at": "2026-10-29T07:21:05.128797+00:00",
+  "release_target": "v0.56.0",
+  "amendment": {
+    "approved_by": "Mark (attended)",
+    "approved_date": "2026-10-29",
+    "scope": "Exact play_chunks callback IO+Trace to IO migration on pinned motoko fork branch, plus AILANG Docker source pin and provenance; preserve original 60-to-55 evidence and live rig checkout.",
+    "consumer_commit": "c3f4c85eec681d8d5d4787da4d9e56c22c0a2457",
+    "consumer_pr": "https://github.com/sunholo-voight-kampff/motoko_agent/pull/4"
+  }
 }

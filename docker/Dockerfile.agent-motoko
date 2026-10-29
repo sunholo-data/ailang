@@ -10,7 +10,7 @@
 # subscription OAuth from anything but Claude Code (429, measured 2026-10-02).
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=835c738b8ca50ed38f36c117058847c816db32b8
+ARG MOTOKO_COMMIT=c3f4c85eec681d8d5d4787da4d9e56c22c0a2457
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -34,11 +34,14 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
     && mv /root/.bun/bin/bun /usr/local/bin/bun \
     && chmod +x /usr/local/bin/bun
 
-# Check out motoko_agent at the pinned commit: branch sunholo/main-dst-20261019
-# of sunholo-voight-kampff/motoko_agent = Arni's upstream main a94204aa
-# (2026-10-18: ADR 034 tool-fault effect disclosure, herdr delegation fixes)
-# with our 20 commits rebased on top (2026-10-19; MOTOKO.md §12), including
-# the ollama streaming env forwarding (upstream #266).
+# Check out our pinned fork commit c3f4c85e (MOTOKO.md §14):
+# sunholo/main-dst-20261027 base 835c738b = upstream main 97244396
+# (2026-10-25) plus 21 carried commits, then the approved one-line #1958
+# play_chunks callback migration. The callback slot is IO-only, matching
+# Ports; the helper's outer IO+Trace row and the Ports ABI are unchanged.
+# Source: sunholo-voight-kampff/motoko_agent#4. The live rig remains at
+# 835c738b; this Docker source pin does not switch a shared checkout.
+# Historical carried features include the ollama stream env forwarding #266.
 # Upstream now carries the tool-schema dedupe (#220), repetition_guard's
 # tool_call_id fix (#260) and the byte-stable compaction summary (#262), so
 # those are upstream's. The rest are ours, as on the previous branch
