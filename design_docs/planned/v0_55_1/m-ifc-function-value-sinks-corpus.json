@@ -1,26 +1,69 @@
 {
-  "baseline_compiler": "1b70d59f16b1c1ddde93aaaa9dec7e2d9c8a1b14",
-  "fixed_implementation_checkpoint": "3484c6789",
+  "baseline_compiler": "87f846980c8b6fc601173be427b1364968559488",
+  "fixed_implementation_checkpoint": "d81430352",
+  "initial_corpus": {
+    "files": 2625,
+    "diagnostics_baseline": 7,
+    "diagnostics_fixed": 7,
+    "changed_files": 0
+  },
   "source_bytes_equal": true,
-  "source_rows": 2625,
+  "source_rows": 2628,
   "parse_failures": 23,
   "baseline_diagnostics": 7,
-  "fixed_diagnostics": 7,
-  "changed_files": 0,
+  "fixed_diagnostics": 10,
+  "changed_files": 1,
+  "unexpected_changes": 0,
+  "changes": [
+    {
+      "path": "root0/runnable/secrets/sink_function_value.ail",
+      "classification": "new expected-fail regression fixture: three actual R1/R2/R13 leaks",
+      "baseline": null,
+      "fixed": [
+        {
+          "Kind": "sink_refinement",
+          "Path": null,
+          "Position": "root0/runnable/secrets/sink_function_value.ail:38:27",
+          "Expected": null,
+          "Actual": null,
+          "Message": "information-flow violation: value labelled <email> reaches parameter \"body\" of deliver (via out) which forbids it (string{not email})",
+          "Suggestion": "declassify the value through a function declaring ! {Declassify} before it reaches deliver; the {not email} requirement holds through aliases, higher-order functions and wrappers"
+        },
+        {
+          "Kind": "sink_refinement",
+          "Path": null,
+          "Position": "root0/runnable/secrets/sink_function_value.ail:43:9",
+          "Expected": null,
+          "Actual": null,
+          "Message": "information-flow violation: value labelled <email> reaches parameter \"body\" of deliver (via apply1 \u2192 f) which forbids it (string{not email})",
+          "Suggestion": "declassify the value through a function declaring ! {Declassify} before it reaches deliver; the {not email} requirement holds through aliases, higher-order functions and wrappers"
+        },
+        {
+          "Kind": "sink_refinement",
+          "Path": null,
+          "Position": "root0/runnable/secrets/sink_function_value.ail:48:30",
+          "Expected": null,
+          "Actual": null,
+          "Message": "information-flow violation: value labelled <email> reaches parameter \"body\" of deliver (via w) which forbids it (string{not email})",
+          "Suggestion": "declassify the value through a function declaring ! {Declassify} before it reaches deliver; the {not email} requirement holds through aliases, higher-order functions and wrappers"
+        }
+      ]
+    }
+  ],
   "roots": [
     {
       "root": "root0",
       "source": "/private/tmp/ailang-backlog-20261029/ifc-1719/examples",
-      "source_repo_head": "cd0f9902478015494e7c59a8fdd4d3baffd10c6d",
+      "source_repo_head": "c112067194690cf19b6984aab7b2012012047fe3",
       "source_repo_has_edits": true,
-      "files": 474,
+      "files": 477,
       "parse_failures": 7,
-      "snapshot_index_sha256": "268f225e14f12a8fb69c77121c3bd2515a76880229c5ecf5947cbe910a2a190a"
+      "snapshot_index_sha256": "3e2dba63dc7fcf5f019946226b735eea22ef644c5fc53b60ba5394057a420128"
     },
     {
       "root": "root1",
       "source": "/private/tmp/ailang-backlog-20261029/ifc-1719/std",
-      "source_repo_head": "cd0f9902478015494e7c59a8fdd4d3baffd10c6d",
+      "source_repo_head": "c112067194690cf19b6984aab7b2012012047fe3",
       "source_repo_has_edits": true,
       "files": 51,
       "parse_failures": 0,
@@ -29,7 +72,7 @@
     {
       "root": "root2",
       "source": "/private/tmp/ailang-backlog-20261029/ifc-1719/benchmarks",
-      "source_repo_head": "cd0f9902478015494e7c59a8fdd4d3baffd10c6d",
+      "source_repo_head": "c112067194690cf19b6984aab7b2012012047fe3",
       "source_repo_has_edits": true,
       "files": 41,
       "parse_failures": 0,
@@ -108,5 +151,5 @@
       "snapshot_index_sha256": "8617d584b4067bb6c29fe12772b0fdf4706866728fbc0b111da5fb7cc0aa7814"
     }
   ],
-  "note": "Each arm used the exact same frozen filesystem snapshots; dirty source repositories are explicitly flagged and per-file hashes were checked identical between arms. Parse failures are recorded, not counted as clean checks."
+  "note": "The only new diagnostics are the three actual leaks in the intentionally added expected-fail fixture. All source hashes match between arms; parser failures are recorded, not counted clean."
 }

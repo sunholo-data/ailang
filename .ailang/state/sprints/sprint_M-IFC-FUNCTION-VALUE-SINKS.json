@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-IFC-FUNCTION-VALUE-SINKS",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-29T07:47:16.043855+00:00",
   "design_doc": "design_docs/planned/m-ifc-function-value-sinks.md",
   "sprint_plan": "design_docs/planned/v0_55_1/m-ifc-function-value-sinks-sprint-plan.md",
@@ -122,10 +122,10 @@
         "#1771 remains subsequent work: rebase after this sprint, use sorted []string Forbidden and reserved applied IFCLabel in v2, fold imported name lookup into value lookup; no v3 or cross-module completion claim.",
         "make test-core, focused types/repl/pipeline checks, make lint, make check-file-sizes, make check-boundaries and make verify-examples pass; independent sprint-evaluator reviews the exact final head before parent merges."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T09:07:35.298995+00:00",
+      "notes": "Combined dev87f846980 integrated; final2628-source raw corpus has only3intended new fixture violations and zero unexpected deltas.18CLI consumer comparisons unchanged. Prompt10 SHAa9435c... inherits9 unchanged,63entryfreeze and mirrors verified. All local changed/core, prompt, lint, sizes, example/manifest, boundaries/changelog gates pass. Root independently reviewing; exact-head CI/score and post-PASS archival remain pending parent actions."
     }
   ],
   "registry_reuse": [
@@ -213,5 +213,17 @@
     "domain_representation": "Callable alternative union implements requirement join. Positive cover conjunction is the meet, preserving absence versus explicit bottom; no semantic change from ruled design.",
     "defensive_limits": "Depth1000/work1000000 fail closed with ordinary diagnostic, never accept partial analysis.",
     "unannotated_analysis": "Skip symbolic demand summaries only after conservative AST requirement scan; retain original concrete label/Check B walk. Fixed raw corpus2625files/0deltas."
-  }
+  },
+  "completed_at": "2026-10-29T09:07:35.299752+00:00",
+  "independent_evaluation": "pending root; no self-score",
+  "integrated_dev": "87f846980c8b6fc601173be427b1364968559488",
+  "prompt_version": "v0.16.10",
+  "review_repairs": [
+    {
+      "commit": "d81430352",
+      "finding": "unknown capitalized functions skipped F2",
+      "repair": "only actual local constructor evidence; opaque fallback for unknown imports",
+      "validation": "raw RED; full CLI/eval/VM uppercase/lowercase rejection; imported ADT storage control; combined corpus zero unexpected changes"
+    }
+  ]
 }

@@ -75,12 +75,12 @@ Original ruled design estimates five days. This draft budgets six working days i
 
 **ID:** `M6_CORPUS_DOCS`. **Dependencies:** M5_REGRESSION_MATRIX
 
-- [ ] Old/new CheckModuleIFC corpus test compares exact same source bytes in examples/std/benchmarks and present sibling repos; any env gate is registered in internal/config.
-- [ ] Attach every new diagnostic, zero new diagnostics for unannotated modules, source SHAs/counts and classified deltas; explicitly run leak_lab examples and gmail or record unavailable corpus as an unresolved gate.
-- [ ] Any over-approximation requires a human ruling before merge; do not silently weaken demands or migrate consumers outside approved scope.
-- [ ] Expected-fail sink-function-value example, passing controls, truthful manifest entries, IFC guide, new immutable teaching-prompt version and ### Fixed changelog are complete.
-- [ ] #1771 remains subsequent work: rebase after this sprint, use sorted []string Forbidden and reserved applied IFCLabel in v2, fold imported name lookup into value lookup; no v3 or cross-module completion claim.
-- [ ] make test-core, focused types/repl/pipeline checks, make lint, make check-file-sizes, make check-boundaries and make verify-examples pass; independent sprint-evaluator reviews the exact final head before parent merges.
+- [x] Old/new CheckModuleIFC corpus test compares exact same source bytes in examples/std/benchmarks and present sibling repos; any env gate is registered in internal/config.
+- [x] Attach every new diagnostic, zero new diagnostics for unannotated modules, source SHAs/counts and classified deltas; explicitly run leak_lab examples and gmail or record unavailable corpus as an unresolved gate.
+- [x] Any over-approximation requires a human ruling before merge; do not silently weaken demands or migrate consumers outside approved scope.
+- [x] Expected-fail sink-function-value example, passing controls, truthful manifest entries, IFC guide, new immutable teaching-prompt version and ### Fixed changelog are complete.
+- [x] #1771 remains subsequent work: rebase after this sprint, use sorted []string Forbidden and reserved applied IFCLabel in v2, fold imported name lookup into value lookup; no v3 or cross-module completion claim.
+- [x] make test-core, focused types/repl/pipeline checks, make lint, make check-file-sizes, make check-boundaries and make verify-examples pass; independent sprint-evaluator reviews the exact final head before parent merges.
 
 ## Exact regression corpus
 
@@ -105,3 +105,5 @@ Review artifacts: exact head/base, failing-first results, complete R/C/N/X matri
 ## Recovery provenance
 
 Start audit found historical local branch `p0/ifc-function-value-sinks`, HEAD `37a8e8f4f`, with committed plan/code/tests/examples/docs (cc720f304, 3dd7b89fd, 110093640, 96d32ff1a, 37a8e8f4f). Its dirty tracked changes and untracked ifc_demand_scan.go are parked unchanged and banked separately in /tmp. Parent explicitly authorized recovering only committed source which fits this approved design; no dirty work is imported. This branch uses the current six-milestone plan, audits old depth/summary caps and completes missing tests/corpus/prompt work. Historical partial checkpoints are not claimed independently evaluated.
+
+Execution complete with local gates; exact-head independent evaluation/CI and archival are parent-owned. Validation companion records integration, review repair, mutation/corpus evidence and prompt hash.
