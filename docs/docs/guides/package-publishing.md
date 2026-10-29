@@ -28,14 +28,15 @@ cat ailang.toml
 # version = "0.1.0"
 # ...
 
-# 2. Set the API key (one-time per shell)
-export AILANG_REGISTRY_API_KEY=<key-issued-by-sunholo>
+# 2. Store the issued key privately outside the package (macOS/Linux).
+# Provision it through your secure channel; do not put it in shell startup files.
+# The existing file must be owned by you with mode 0400 or 0600.
 
 # 3. Dry-run first to see exactly what would upload (prints the full sha256 digests)
 ailang publish --dry-run
 
-# 4. Publish for real
-ailang publish
+# 4. Publish for real with an explicit protected file
+ailang publish --key-file /private/path/publisher.key
 
 # 5. Anyone (you, the host project, other contributors) can now depend on it
 #    Replace your local path = "../..." with a registry version:
@@ -173,7 +174,8 @@ served by nothing either — a typo stays visible. See the autonomous-package-up
 
 ### 1. An API key
 
-Publishing needs a key in `AILANG_REGISTRY_API_KEY`. There are two kinds:
+Publishing accepts an explicit `--key-file PATH` on macOS/Linux, or the legacy
+`AILANG_REGISTRY_API_KEY` environment variable. There are two kinds of key:
 
 | Kind | Who holds it | Can write |
 |---|---|---|
@@ -181,6 +183,41 @@ Publishing needs a key in `AILANG_REGISTRY_API_KEY`. There are two kinds:
 | **Superuser key** | the AILANG maintainers | every namespace, plus `unpublish` of anything, `rebuild-index`, and minting scoped keys |
 
 Ask [the AILANG maintainers](https://github.com/sunholo-data/ailang/issues) (or your existing channel) for a scoped key for your namespace. Reads never need a key — the registry bucket is public.
+
+For publishing, prefer `ailang publish --key-file /private/path/publisher.key`
+(or `ailang pkg publish --key-file ...`). There is no default key-file location
+and no file-path environment variable. A nonempty `AILANG_REGISTRY_API_KEY` plus
+`--key-file` is an error; unset the environment key before selecting a file.
+An empty, missing, unsafe or invalid selected file is an error with no fallback.
+Real publishing also refuses locally if neither source is supplied.
+
+The macOS/Linux file must be regular, not a symlink, owned by the effective user,
+and have exactly mode `0400` or `0600` without special bits. It is opened once
+without following its final symlink and without blocking on a FIFO. Ownership,
+mode and contents are checked through that same handle, then it is closed before
+package tests or smoke commands run. The limit is 16 KiB, including surrounding
+whitespace; after trimming, the key must be a nonempty single line without header
+control bytes. AILANG never repairs permissions or creates the file. Keep its
+parent directories protected too; this does not defend against malicious code
+running as your own user.
+
+The file lane is unsupported on Windows and fails before opening the path.
+Windows can use the existing environment lane. `publish --help` and
+`publish --dry-run` do not load or verify credentials, including a supplied file;
+a successful dry run therefore says nothing about key validity. The existing
+operator confinement policy still refuses publishing, including dry-run.
+
+The file key stays local to this invocation and is not exported into subprocess
+environments or arguments. The legacy environment lane emits one inheritance
+warning because package subprocesses receive that variable. If you use it,
+prefer a per-command assignment instead of a shell startup export:
+
+```bash
+AILANG_REGISTRY_API_KEY=<issued-key> ailang publish
+```
+
+Only `publish` accepts `--key-file`; `unpublish` and key-management commands retain
+their existing environment credential behavior.
 
 A maintainer mints one with:
 

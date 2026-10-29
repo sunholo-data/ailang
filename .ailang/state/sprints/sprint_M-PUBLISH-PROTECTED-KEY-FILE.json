@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-PUBLISH-PROTECTED-KEY-FILE",
   "title": "Explicit protected publisher key file with preserved authority and no inherited file-key environment",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-29",
   "design_doc": "design_docs/planned/v0_56_0/m-publish-protected-key-file.md",
   "sprint_plan": "design_docs/planned/v0_56_0/m-publish-protected-key-file-sprint-plan.md",
@@ -23,10 +23,10 @@
   "plan_approved": true,
   "execution_authorized": true,
   "implementation_started": true,
-  "implementation_complete": false,
+  "implementation_complete": true,
   "started": "2026-10-29T20:57:24.510013+00:00",
-  "completed": null,
-  "independent_evaluation": "not started; future executor must not self-score",
+  "completed": "2026-10-29T21:29:15.794142+00:00",
+  "independent_evaluation": "Pending root independent evaluation and actual exact-head CI; executor has not scored or approved implementation",
   "velocity": {
     "target_loc_per_day": 220,
     "estimated_total_loc": 650,
@@ -40,7 +40,14 @@
     "user_doc_loc": 80,
     "estimate_excludes": "planning/state/approval artifact lines; CI/review waiting is additional headroom",
     "basis": "7 scoped nonmerge commits,1443 insertions/171 deletions over24 file rows; parallel work is context not measured single-agent throughput; conservative220/day assumption",
-    "script_qualification": "velocity script exited141 at pipefail git-log/head; scoped read-only statistics used, no script repair"
+    "script_qualification": "velocity script exited141 at pipefail git-log/head; scoped read-only statistics used, no script repair",
+    "actual_changed_loc": {
+      "production": 240,
+      "test": 717,
+      "user_doc": 60,
+      "total": 1017
+    },
+    "variance_note": "650 estimated vs 1017 changed product/test/user-doc lines. Additional bounded owner/mode/FIFO/path-replacement/platform and actual raw-child/zero-upload/reflection controls account for test growth; no credential/semantics scope expansion. Metadata/evidence artifacts excluded."
   },
   "registry_reuse": [
     {
@@ -192,7 +199,7 @@
       "passes": true,
       "started": "2026-10-29T21:15:26.121737+00:00",
       "completed": "2026-10-29T21:18:01.557450+00:00",
-      "notes": "Actual built publisher smoke executes compiled Go raw os.LookupEnv probe: env lane PRESENT vs file lane literal ABSENT; positive active control and immutable-selected header pass counted loopback. Helper replaces dummy path before upload, original header remains; multipart/output excludes selected key, controlled400 is reflected/redacted and prevents messages/cascade. Missing/conflicting/unsafe source yields zero HTTP; dry-run ignores missing file and unused env and preserves author content. File unsupported arm executes refusal on Windows; legacy arm remains active. M4-green.log PASS10.808s (see log exact duration), lint0. One new assertion expected wrong generic read-error wording; corrected to actual publish flag prefix, no production change. Synthetic .ail generated only after full promptv0.16.11; process error/nonzero paths explicit. No showcase/example added; contract/showcase manifest checklist not applicable to temporary negative harness.",
+      "notes": "Actual built publisher smoke executes compiled Go raw os.LookupEnv probe: env lane PRESENT vs file lane literal ABSENT; positive active control and immutable-selected header pass counted loopback. Helper replaces dummy path before upload, original header remains; multipart/output excludes selected key, controlled400 is reflected/redacted and prevents messages/cascade. Missing/conflicting/unsafe source yields zero HTTP; dry-run ignores missing file and unused env and preserves author content. File unsupported arm executes refusal on Windows; legacy arm remains active. M4-green.log PASS12.179s, lint0. One new assertion expected wrong generic read-error wording; corrected to actual publish flag prefix, no production change. Synthetic .ail generated only after full promptv0.16.11; process error/nonzero paths explicit. No showcase/example added; contract/showcase manifest checklist not applicable to temporary negative harness.",
       "status": "completed"
     },
     {
@@ -212,21 +219,20 @@
         "Design AC1\u2013AC8 mapped to committed tests and actual logs; exact integrated source provenance, red/green and platform qualifications retained.",
         "Independent evaluation handoff uses terminal real gates; no self-approval, live publish, issue closure, coordinator action or release during execution."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-29T21:18:01.557450+00:00",
-      "completed": null,
-      "notes": null,
-      "status": "in_progress"
+      "completed": "2026-10-29T21:29:15.794142+00:00",
+      "notes": "All local final gates terminalPASS: isolated make test-changed exactly cmd/ailang478.983s+internal/pkg26.049s then full configured core set; build; lint0; boundaries/home/sizes/changelog/generated CLI/fmt. No full make test, deadline increase or hidden retry. M5 help/guide/dispatch/reference and fragment describe D1-D7. Validation companion maps AC1-AC8, raw failures and platform/source qualifications; Windows/broad exact-head CI and independent evaluation remain pending at handoff.",
+      "status": "completed"
     }
   ],
   "integration_gate": {
     "required": "Legitimate accepted #2013 source merge or explicitly root-reviewed combined integration scope",
     "status": "satisfied",
     "pr": 2013,
-    "known_unmerged_head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c",
     "1926_plan_only_merge": "93e4f2586b2b25e7b124cdbd43e8f2ed534239fd",
-    "qualification": "Plan-only merge is not runner fix or #2013 acceptance; no combined implementation scope currently approved",
-    "stop": "STOP before product edits; bank only approved work, report BLOCKED: #2013 publishing integration dependency is not legitimately met, end run",
+    "qualification": "Satisfied by actual accepted #2013 normal merge96d69f05; plan-only #1926 was not used as acceptance. Prior unmet state retained separately.",
+    "stop": "Historical precondition: STOP product edits while dependency is unmet. Actual accepted dependency is now satisfied and normal integration is recorded.",
     "checked_at_utc": "2026-10-29T20:57:24.510013+00:00",
     "product_changes_permitted": true,
     "accepted_pr2013_merge": "96d69f05b6e84bd6666e8fa91ff948f803b67d92",
@@ -250,7 +256,8 @@
         "state": "OPEN",
         "url": "https://github.com/sunholo-data/ailang/pull/2016"
       }
-    ]
+    ],
+    "historical_unmerged_head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c"
   },
   "prompt": {
     "loaded_version": "v0.16.11",
@@ -258,7 +265,7 @@
     "executor_must_reload": false
   },
   "constraints": [
-    "Approved plan/JSON banked at c9698d88e; explicit execute instruction received, but M0 external integration STOP remains binding",
+    "Approved plan/JSON banked at c9698d88e and execution explicitly authorized; actual accepted #2013 merge96d satisfied M0 before any product edit",
     "No credential access or external calls/message/coordinator mutation during planning",
     "D1-D7 are approved rulings, not new semantic decisions",
     "No default file, selected-error fallback or file+env ambiguity",
@@ -281,7 +288,23 @@
     "approved_artifact_commit": "c9698d88e390d21139507a81f6ff7f64fc4a519a",
     "scope": "Execute #1900 M0-M5 only with approved #2013 dependency sequencing; no new D1-D7 approval needed after legitimate dependency release"
   },
-  "last_checkpoint": "M4 real raw-child/frozen-upload/no-read/no-HTTP acceptance and lint pass; final docs/gates pending",
+  "last_checkpoint": "M0-M5 implementation/local acceptance complete; all required local gates pass; handoff to root independent evaluator and exact-head CI pending",
   "execution_worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/publish-key-file-1900-exec",
-  "execution_branch": "fix/publish-protected-key-file"
+  "execution_branch": "fix/publish-protected-key-file",
+  "local_gates": {
+    "source_checkpoint": "f9539a6025c1b6aa7381149d2d66d1ba2ddbe948 plus tested M5 help/dispatch/reference/guide/fragment; final-only metadata does not alter tested Go/AIL bytes",
+    "environment": "Darwin arm64 Go1.26.10; outer private HOME and allowlisted env, offline toolchain/modules, GOFLAGS=-p=1",
+    "logs": "/tmp/ailang-backlog-20261029/1900-execution",
+    "test_changed": true,
+    "build": true,
+    "lint": true,
+    "boundaries": true,
+    "home_isolation": true,
+    "file_sizes": true,
+    "changelog": true,
+    "cli_reference": true,
+    "fmt": true,
+    "full_local_suite_run": false,
+    "windows": "CI pending; fail-closed platform arm and legacy/env/help/dry-run run there"
+  }
 }

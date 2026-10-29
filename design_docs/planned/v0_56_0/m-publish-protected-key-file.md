@@ -1,12 +1,12 @@
 # M-PUBLISH-PROTECTED-KEY-FILE
 
-**Status**: Design/plan execution approved; M0 integration dependency unmet, implementation not started
+**Status**: Implementation/local gates complete — unreleased; independent evaluation and exact-head CI pending (retained planned until acceptance)
 **Target**: v0.56.0, unreleased
 **Priority**: P1
 **Estimated**: 2–3 days, approximately 450–650 changed lines including portable tests/docs; re-estimate during approved planning
 **Issue**: [#1900](https://github.com/sunholo-data/ailang/issues/1900)
 **Baseline**: actual dev `dba1c499ca6f76b40992fd521e3dd440d9277f49` (2026-10-29)
-**Integration dependency**: #2013/#1773 owns overlapping publish code and is not merged; see Integration below
+**Integration dependency**: Satisfied by accepted #2013/#1773 merge `96d69f05b6e84bd6666e8fa91ff948f803b67d92`; normally integrated before product edits
 
 ## Problem statement and threat boundary
 
@@ -234,6 +234,15 @@ that this flag supplies credentials to key management.
 
 ## Integration with current work
 
+Current execution: root independently accepted #2013 PASS95/all27CI and normally
+merged it at `96d69f05b6e84bd6666e8fa91ff948f803b67d92` on2026-10-29
+20:53:24UTC. M0 normally integrated that actual source at `a9aa133133f9720898c3d7ebfa12627101549211` before any product edit. No Go/AIL
+delta existed against the accepted baseline at that checkpoint. The following
+paragraphs preserve the original approval-time dependency snapshot and STOP rule;
+they are not current merge status.
+
+### Historical design-time snapshot
+
 PR [#2013](https://github.com/sunholo-data/ailang/pull/2013), exact head
 `0853c9fc15f3daf5f9e304e6e451e78c21fd899c`, owns staged published smoke, shared
 rewrite extraction and diagnostics in pkg_publish.go/package tests. It remains
@@ -382,3 +391,10 @@ Execution authorization was later received for the exact reviewed plan/JSON.
 M0 checked actual PR state and stopped with #2013/#2016 still open; see the
 companion plan execution checkpoint. No product implementation or secret access
 has begun. The approved source/authority/platform decisions remain unchanged.
+
+## Implementation handoff
+
+M0–M5 local implementation and configured local gates are complete. See
+[milestone acceptance and validation](m-publish-protected-key-file-validation.md).
+D1–D7 remain unchanged. Native Windows/broad exact-head CI and independent
+evaluation are pending; no executor score or release claim is made.

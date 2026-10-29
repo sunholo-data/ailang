@@ -1,6 +1,16 @@
 # Sprint plan: M-PUBLISH-PROTECTED-KEY-FILE
 
-## Summary and authorization
+## Current implementation status
+
+M0–M5 implementation and local gates complete; independent evaluation and
+exact-head CI pending. Actual accepted #2013 merge96d was normally integrated
+at a9aa13313 before product edits. Source milestones: M1 be066a2b1,
+M2 87fa35f90, M3 f7ff92f20, M4 f9539a602. See the
+[validation companion](m-publish-protected-key-file-validation.md) for actual
+acceptance evidence and platform qualifications. The original approval/blocked
+snapshot below is retained as history. No D1–D7 ruling changed.
+
+## Historical summary and authorization
 
 Implement approved #1900 D1–D7: explicit publisher key-file selection, validated
 private macOS/Linux handle, unsupported-platform refusal, no credential fallback,
@@ -25,7 +35,7 @@ no secret access for help/dry-run, and unchanged #1964 authority ordering.
   publish-key-file-1900, branch docs/publish-key-file-1900. Approved drafts are
   now banked cleanly; no new base is merged while the dependency remains unmet.
 
-## Current status and dependency
+## Historical approval-time status and dependency
 
 The original planning baseline had only design approval. Plan/execution approval
 is now recorded above; implementation has not started because M0 is unmet.
@@ -307,7 +317,7 @@ sentinels; never open actual ~/.config/ailang/registry.key or external auth stor
 The M4 test must distinguish raw absence from policy-redacted access and must not
 turn its Go probe into a credential printer or a generic command adapter.
 
-## Execution checkpoint: M0 dependency unmet
+## Historical execution checkpoint: M0 dependency unmet
 
 Explicit execution was authorized by the attended user at observed
 2026-10-29 20:17:42UTC, recorded in session three-sprint-execution-approval.json.
@@ -330,7 +340,7 @@ bypass remain outside this agent’s authority.
 
 ## Execution resumed: legitimate integration satisfied
 
-Root independently accepted #2013 PASS95 with all27CI terminal, then normally
+Root independently accepted #2013 PASS95 with all 27 CI terminal, then normally
 merged it at96d69f05b6e84bd6666e8fa91ff948f803b67d92 (20:53:24UTC);
 issue1773 closed20:53:25. The conditional execute instruction now permits
 M1–M5 without a new approval question. New native execution checkout
@@ -365,3 +375,14 @@ Actual built CLI functional RED for missing flag/warning is retained in `1900-ex
 ### M4 checkpoint — actual subprocess and mock-validator proof
 
 The real publisher executes a compiled Go `os.LookupEnv` probe through its staged AIL smoke. The environment arm measures literal presence; the file arm measures literal absence, replaces the dummy key pathname, then proves the mock validator still receives the original frozen header. Controlled HTTP400 exercises exact reflected-key redaction without successful publication/messages/cascade. Missing/conflicting/unsafe selections issue zero HTTP; a genuine dry-run with an unused missing file and environment key passes without loading credentials. Author content/lock and private messaging stores are checked. Native logs: `M4-raw-presence.log`, `M4-green.log`; targeted lint0. A wrong new test error-prefix assertion was corrected without production changes; raw failure remains. Windows executes the named file refusal and retains the environment/help/dry-run controls. Full promptv0.16.11 loaded before synthetic AIL fixtures.
+
+### M5 checkpoint — local gates and independent handoff
+
+All local gates are terminal PASS: touched CLI478.983s/pkg 26.049s plus configured
+core set, build, lint0, boundaries, home isolation, sizes, changelog, generated CLI
+reference and fmt. No full local suite or deadline change. Both old harness
+failures and sandbox-only failure remain documented. Native Windows/broad
+exact-head CI and root independent evaluation remain pending. The original
+650LOC estimate versus actual 1017 changed product/test/user-doc lines is
+recorded in state; the additional bounded security/real-child evidence accounts
+for the variance. Metadata/approval/validation lines are excluded from that sum.
