@@ -217,9 +217,9 @@ echo ""
 echo "── Checking for TODO/HACK/FIXME ─────────────────────────────"
 TODO_COUNT=0
 if [ -n "$BRANCH" ] && git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
-    TODO_COUNT=$(git diff dev..."$BRANCH" -- '*.go' | grep -c '^\+.*\(TODO\|HACK\|FIXME\)' 2>/dev/null || echo "0")
+    TODO_COUNT=$(git diff dev..."$BRANCH" -- '*.go' | grep -c '^\+.*\(TODO\|HACK\|FIXME\)' 2>/dev/null || true)
 else
-    TODO_COUNT=$(git diff --cached -- '*.go' | grep -c '^\+.*\(TODO\|HACK\|FIXME\)' 2>/dev/null || echo "0")
+    TODO_COUNT=$(git diff --cached -- '*.go' | grep -c '^\+.*\(TODO\|HACK\|FIXME\)' 2>/dev/null || true)
 fi
 echo "TODO/HACK/FIXME in new code: $TODO_COUNT"
 
