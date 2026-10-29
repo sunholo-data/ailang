@@ -2,8 +2,8 @@
   "sprint_id": "M-IFC-FUNCTION-VALUE-SINKS",
   "status": "completed",
   "created": "2026-10-29T07:47:16.043855+00:00",
-  "design_doc": "design_docs/implemented/v0_55_1/m-ifc-function-value-sinks.md",
-  "sprint_plan": "design_docs/implemented/v0_55_1/m-ifc-function-value-sinks-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_56_0/m-ifc-function-value-sinks.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/m-ifc-function-value-sinks-sprint-plan.md",
   "github_issues": [
     1719
   ],
@@ -226,7 +226,7 @@
       "validation": "raw RED; full CLI/eval/VM uppercase/lowercase rejection; imported ADT storage control; combined corpus zero unexpected changes"
     }
   ],
-  "target_version": "v0.55.1",
+  "target_version": "v0.56.0",
   "integration": {
     "pull_request": 2007,
     "merge_commit": "2bfd61bf4446c7e7e7dcc925d34af4bdc793f4fc",
@@ -235,6 +235,7 @@
       "result": "pass",
       "score": 90,
       "report": ".ailang/state/evaluations/eval_M-IFC-FUNCTION-VALUE-SINKS_round_1.json"
-    }
+    },
+    "release_target_note": "Aligned with the unreleased batch containing approved breaking effect changes; no version/tag operation"
   }
 }

@@ -5,7 +5,7 @@
 Resolve package assets from the running program's locked dependency targets. When a package has no lock entry, select the maximum installed version using the existing package semver compatibility rules. A missing locked target must return an actionable error without choosing another cached version.
 
 **Design:** [Approved design](m-pkg-asset-lock-resolution.md)
-**Target:** v0.55.1, unreleased (original v0.54.7 planning target retained in history)
+**Target:** v0.56.0, unreleased backlog batch (original v0.54.7 planning target retained in history)
 **Duration:** 3 days; four implementation sessions of 60–90 minutes, plus review and integration buffer.
 **Estimated total:** 650 LOC: 270 implementation, 330 tests, 50 documentation.
 **Risk:** Medium — effect-context propagation and embed initialization order.

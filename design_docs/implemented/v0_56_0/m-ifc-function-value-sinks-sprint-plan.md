@@ -4,9 +4,9 @@
 
 **Original planning snapshot**: approved for execution by Mark on2026-10-29 (“Execute sprint #1719”). The baseline/evidence sections below describe the preimplementation planning state.
 
-Design: `design_docs/implemented/v0_55_1/m-ifc-function-value-sinks.md`. F1-F4 were explicitly RULED by Mark on 2026-10-26; quorum was skipped at the requester's instruction. These decisions are closed, not additional approval questions. Mark explicitly approved this concrete sprint for execution on 2026-10-29. A genuinely new semantic choice is a terminal STOP for the affected work, with a concrete question; existing ruled choices are implemented as written.
+Design: `design_docs/implemented/v0_56_0/m-ifc-function-value-sinks.md`. F1-F4 were explicitly RULED by Mark on 2026-10-26; quorum was skipped at the requester's instruction. These decisions are closed, not additional approval questions. Mark explicitly approved this concrete sprint for execution on 2026-10-29. A genuinely new semantic choice is a terminal STOP for the affected work, with a concrete question; existing ruled choices are implemented as written.
 
-Intended plan location after approval: `design_docs/implemented/v0_55_1/m-ifc-function-value-sinks-sprint-plan.md`; machine state: `.ailang/state/sprints/sprint_M-IFC-FUNCTION-VALUE-SINKS.json`. Version folder is provisional next-release placement after current v0.55.0, not a release request. Do not place the sprint in `ailang-core-triage/`.
+Intended plan location after approval: `design_docs/implemented/v0_56_0/m-ifc-function-value-sinks-sprint-plan.md`; machine state: `.ailang/state/sprints/sprint_M-IFC-FUNCTION-VALUE-SINKS.json`. Version folder is provisional next-release placement after current v0.55.0, not a release request. Do not place the sprint in `ailang-core-triage/`.
 
 ## Evidence and non-duplication
 

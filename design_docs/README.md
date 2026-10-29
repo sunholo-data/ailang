@@ -4,9 +4,9 @@
 
 - [Nested callback effect soundness](implemented/v0_56_0/m-effect-latent-nested-callbacks.md) — merged in #1963; design, sprint plan and independent evaluation are archived together. Target v0.56.0 is unreleased.
 
-- [IFC sink requirements on function values](implemented/v0_55_1/m-ifc-function-value-sinks.md) — merged in #2007; aliases, HOF calls and wrappers are checked within a module. Target v0.55.1 is unreleased; cross-module follow-up remains separate.
+- [IFC sink requirements on function values](implemented/v0_56_0/m-ifc-function-value-sinks.md) — merged in #2007; aliases, HOF calls and wrappers are checked within a module. Target v0.56.0 is unreleased; cross-module follow-up remains separate.
 
-- [Locked package asset snapshots](implemented/v0_55_1/m-pkg-asset-lock-resolution.md) — merged in #1849; source-context snapshots and fail-closed lock discovery cover runner and embedded/API paths. Target v0.55.1 is unreleased.
+- [Locked package asset snapshots](implemented/v0_56_0/m-pkg-asset-lock-resolution.md) — merged in #1849; source-context snapshots and fail-closed lock discovery cover runner and embedded/API paths. Target v0.56.0 is unreleased.
 
 ## Structure
 

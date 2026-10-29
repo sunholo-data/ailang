@@ -1,7 +1,7 @@
 # M-PKG-ASSET-LOCK-RESOLUTION: lockfile-driven, semver-correct asset resolution for std/package.assetPath
 
 **Status**: Implemented — unreleased
-**Target**: v0.55.1 (unreleased; original v0.54.7 target is historical)
+**Target**: v0.56.0 (unreleased backlog batch; original v0.54.7 target is historical)
 **Priority**: P1 (determinism/correctness bug; workaround exists — pin by installing only one version, or pass data as values like sunholo/crew_core does)
 **Estimated**: 3 days
 **Dependencies**: None
