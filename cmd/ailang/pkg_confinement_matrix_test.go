@@ -8,6 +8,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/pkg"
 	"github.com/sunholo-data/ailang/internal/policytool"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // rowKind is what a confined row must do besides staying I/O-free.
@@ -218,8 +219,7 @@ func TestPkgConfinementPolicyToolLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	shimLog := filepath.Join(dir, "git.log")
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	testutil.SetHomeDir(t, home)
 	t.Setenv("PATH", f.shimDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("GIT_SHIM_LOG", shimLog)
 	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
