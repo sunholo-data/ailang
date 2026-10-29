@@ -205,12 +205,20 @@ func EncodeFunction(
 	}
 
 	// Finite facts are collected for evaluated expressions only.
-	previousSpecs, previousFacts := activeContractSpecs, activeCallFacts
+	previousSpecs, previousFacts, previousConditions := activeContractSpecs, activeCallFacts, activeHelperConditions
+	activeHelperConditions = make(map[string]string)
 	activeContractSpecs = make(map[string]*ContractSpec)
 	var callFacts []string
 	activeCallFacts = nil
-	defer func() { activeContractSpecs = previousSpecs; activeCallFacts = previousFacts }()
+	defer func() {
+		activeContractSpecs = previousSpecs
+		activeCallFacts = previousFacts
+		activeHelperConditions = previousConditions
+	}()
 	for _, def := range calleeDefs {
+		if def.ConditionName != "" {
+			activeHelperConditions[def.Name] = def.ConditionName
+		}
 		if def.Contract != nil {
 			activeContractSpecs[def.Name] = def.Contract
 		}

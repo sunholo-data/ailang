@@ -100,3 +100,18 @@ func TestFiniteFacts_QuantifierBinderAndEmptyRange(t *testing.T) {
 	empty := &core.Forall{Var: "n", Lo: intLit(0), Hi: intLit(0), Body: builtinApp("eq_Int", specCall(&core.Var{Name: "n"}), intLit(0))}
 	checkFiniteGoal(t, &core.If{Cond: empty, Then: boolLit(false), Else: boolLit(true)}, StatusCounterexample)
 }
+
+func TestFiniteFacts_QuantifierOuterBoundCapture(t *testing.T) {
+	withFiniteSpec(t, finiteSpec())
+	// Bounds refer to OUTER i=1; only the quantified body shadows it.
+	bound := &core.Var{Name: "i"}
+	q := &core.Forall{Var: "i", Lo: bound, Hi: builtinApp("add_Int", bound, intLit(1)), Body: builtinApp("eq_Int", bound, intLit(1))}
+	checkFiniteGoal(t, &core.Let{Name: "i", Value: intLit(1), Body: q}, StatusVerified)
+	spec := finiteSpec()
+	spec.Requires = nil
+	spec.Ensures[0].Expr = boolLit(false)
+	activeContractSpecs[spec.FuncName] = &spec
+	q = &core.Forall{Var: "i", Lo: bound, Hi: bound, Body: builtinApp("eq_Int", specCall(bound), intLit(0))}
+	// Empty range must not import the contradictory callee condition.
+	checkFiniteGoal(t, &core.Let{Name: "i", Value: intLit(1), Body: &core.If{Cond: q, Then: boolLit(false), Else: boolLit(true)}}, StatusCounterexample)
+}

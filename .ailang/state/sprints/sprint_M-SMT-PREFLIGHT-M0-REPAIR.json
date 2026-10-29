@@ -101,10 +101,10 @@
         "Distinct captures remain distinct and diamond declarations deduplicate without dropping actual-call facts",
         "No new closed-helper restriction or eligibility expansion; non-nullary UF model interpretations not displayed as input values"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T20:37:28.370427+00:00",
+      "completed": "2026-10-29T20:37:28.370427+00:00",
+      "notes": "Dependency-ordered paired helper conditions reuse exact value helper parameters; argument values shared, diamond declarations unique, distinct environments proved with positive/refutation controls. Guard call dependencies included. Nonnullary UF model entries excluded. Full SMT suite and focused environment controls PASS. Actual CLI diamond ERROR\u2192VERIFIED and false counterpart ERROR\u2192CE; original recursive total CE retained. Quantifier bounds capture Core RED\u2192GREEN and actual source contract boundShadow CE\u2192VERIFIED; unsupported Forall-in-body probe retained outside final fixture, no inference widening."
     },
     {
       "id": "M6_CLI_MUTATION_CORPUS_HANDOFF",

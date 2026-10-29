@@ -1,0 +1,20 @@
+module cmd/ailang/testdata/verify_preflight/m0_helper_environment
+
+export pure func total(n: int) -> int
+ensures { result == n } {
+  if n <= 0 then n else total(n - 1) + 1
+}
+
+pure func helper(environment: int, n: int) -> int { total(environment + n) }
+pure func left(n: int) -> int { helper(1, n) }
+pure func right(n: int) -> int { helper(7, n) }
+
+export pure func diamond(a: int) -> int
+ensures { result == 2 * a + 8 } { left(a) + right(a) }
+
+export pure func diamondFalse(a: int) -> int
+requires { a == 1 }
+ensures { result == 0 } { left(a) + right(a) }
+
+export pure func boundShadow() -> int
+ensures { let i = 1 in forall i: i..i + 1 => i == 1 } { 0 }

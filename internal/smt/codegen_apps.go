@@ -95,7 +95,7 @@ func encodeApp(app *core.App) (string, error) {
 	// where funcName has been resolved as a define-fun callee
 	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module != "$builtin" && vg.Ref.Module != "std/list" && vg.Ref.Module != "std/string" {
 		if activeResolvedCallees != nil && activeResolvedCallees[vg.Ref.Name] {
-			return encodeUserFunctionCall(vg.Ref.Name, app.Args)
+			return encodeResolvedApplication(vg.Ref.Name, app.Args)
 		}
 		// Contract-based callee: substitute result constant (call site collapses to the constant)
 		if activeContractCallees != nil {
@@ -120,7 +120,7 @@ func encodeApp(app *core.App) (string, error) {
 	// Plain variable application — check if it's a resolved callee (same-module function call)
 	if v, ok := app.Func.(*core.Var); ok {
 		if activeResolvedCallees != nil && activeResolvedCallees[v.Name] {
-			return encodeUserFunctionCall(v.Name, app.Args)
+			return encodeResolvedApplication(v.Name, app.Args)
 		}
 		if activeContractCallees != nil {
 			if resultConst, ok := activeContractCallees[v.Name]; ok {

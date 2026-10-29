@@ -263,7 +263,10 @@ func parseDefineFun(firstLine string, scanner *bufio.Scanner) *ModelBinding {
 	}
 
 	name := parts[0]
-	// parts[1] should be "()"
+	// Only nullary values describe counterexample inputs/results.
+	if parts[1] != "()" {
+		return nil
+	}
 	sort := parts[2]
 
 	// Check if value is on the same line

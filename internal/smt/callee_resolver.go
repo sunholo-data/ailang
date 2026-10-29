@@ -24,12 +24,13 @@ type CalleeInfo struct {
 
 // CalleeDef holds a ready-to-emit SMT-LIB define-fun for a callee.
 type CalleeDef struct {
-	Contract    *ContractSpec // Finite actual-call template; never a global axiom.
-	Name        string
-	SMTLib      string // The (define-fun ...) or contract (declare-const + assert) declaration
-	ADTDecl     string // Any ADT declarations needed (may be empty)
-	IsContract  bool   // True when using contract-as-spec fallback (not define-fun)
-	ResultConst string // Non-empty when IsContract: the constant to substitute for call sites
+	ConditionName string        // Paired Bool helper with exactly the value definition's parameters.
+	Contract      *ContractSpec // Finite actual-call template; never a global axiom.
+	Name          string
+	SMTLib        string // The (define-fun ...) or contract (declare-const + assert) declaration
+	ADTDecl       string // Any ADT declarations needed (may be empty)
+	IsContract    bool   // True when using contract-as-spec fallback (not define-fun)
+	ResultConst   string // Non-empty when IsContract: the constant to substitute for call sites
 }
 
 // ResolveCallees finds all user-defined function calls in the body,
@@ -86,6 +87,15 @@ func ResolveCalleesFromRoots(
 	// defined callee as it is emitted so a later callee's call to it encodes as a
 	// define-fun application (dropping unit args of nullary callees) rather than
 	// falling through to the constructor path. Restore the caller's view after.
+	previousSpecs, previousContractCallees, previousConditions := activeContractSpecs, activeContractCallees, activeHelperConditions
+	activeContractSpecs = make(map[string]*ContractSpec)
+	activeContractCallees = make(map[string]string)
+	activeHelperConditions = make(map[string]string)
+	defer func() {
+		activeContractSpecs = previousSpecs
+		activeContractCallees = previousContractCallees
+		activeHelperConditions = previousConditions
+	}()
 	prevResolved := activeResolvedCallees
 	resolvedSoFar := make(map[string]bool)
 	activeResolvedCallees = resolvedSoFar
@@ -133,6 +143,8 @@ func ResolveCalleesFromRoots(
 					return nil, err
 				}
 				defs = append(defs, CalleeDef{Name: calleeName, SMTLib: declaration, IsContract: true, ResultConst: contractSymbol(spec), Contract: &spec})
+				activeContractSpecs[calleeName] = &spec
+				activeContractCallees[calleeName] = contractSymbol(spec)
 			}
 			continue
 		}
@@ -143,7 +155,7 @@ func ResolveCalleesFromRoots(
 			previousTI = activeADTContext.ti
 			activeADTContext.ti = activeADTContext.programTI[calleeProg]
 		}
-		bodyExpr, err := EncodeExpr(innerBody)
+		bodyExpr, bodyFacts, err := captureCallFacts(func() (string, error) { return EncodeExpr(innerBody) })
 		if activeADTContext != nil {
 			activeADTContext.ti = previousTI
 		}
@@ -154,9 +166,16 @@ func ResolveCalleesFromRoots(
 
 		// Build define-fun
 		smtDef := buildDefineFun(calleeName, params, returnSort, bodyExpr)
+		conditionName := ""
+		if bodyFacts != "true" {
+			conditionName = "$facts_" + calleeName
+			smtDef += "\n" + buildDefineFun(conditionName, params, "Bool", bodyFacts)
+			activeHelperConditions[calleeName] = conditionName
+		}
 		defs = append(defs, CalleeDef{
-			Name:   calleeName,
-			SMTLib: smtDef,
+			Name:          calleeName,
+			SMTLib:        smtDef,
+			ConditionName: conditionName,
 		})
 		resolvedSoFar[calleeName] = true
 	}
@@ -285,6 +304,7 @@ func collectCalleeCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 		collectCalleeCallsInner(e.Scrutinee, selfName, prog, imported, seen, xmodDepth)
 		for _, arm := range e.Arms {
 			collectCalleeCallsInner(arm.Body, selfName, prog, imported, seen, xmodDepth)
+			collectCalleeCallsInner(arm.Guard, selfName, prog, imported, seen, xmodDepth)
 		}
 	case *core.BinOp:
 		collectCalleeCallsInner(e.Left, selfName, prog, imported, seen, xmodDepth)
@@ -421,6 +441,7 @@ func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 		collectDirectCallsInner(e.Scrutinee, selfName, prog, imported, seen)
 		for _, arm := range e.Arms {
 			collectDirectCallsInner(arm.Body, selfName, prog, imported, seen)
+			collectDirectCallsInner(arm.Guard, selfName, prog, imported, seen)
 		}
 	case *core.BinOp:
 		collectDirectCallsInner(e.Left, selfName, prog, imported, seen)
