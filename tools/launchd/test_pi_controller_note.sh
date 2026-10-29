@@ -241,6 +241,7 @@ LC_ALL=C /usr/bin/grep -q '[^ -~]' "$X/note.raw" && bad "T6: note is not pure AS
 for needle in 'tools are NOT granted in a controller session' \
               'as ONE plain bash call on its own' \
               'is refused if any part of it is not on the read-only list' \
+              'every call refuses' \
               'none of them counts toward the protocol' \
               'Run every ailang command through bash.'; do
   /usr/bin/grep -qF -- "$needle" "$X/note.raw" && ok "T6c: note says [$needle]" || bad "T6c: note no longer says [$needle]"
@@ -250,6 +251,13 @@ if /usr/bin/grep -qiE -- '(via|with|through|using|use) (the )?ailang_(cli|run)' 
 else
   ok "T6c: note never steers a step to ailang_cli/ailang_run"
 fi
+# Outside the one sentence that says they are NOT granted, the note must not name ailang_cli or
+# ailang_run at all (round-2 judge: "Prefer to call ailang_cli for the inbox." passed the regex).
+rest=$(perl -0pe 's/The ailang_cli and ailang_run tools are NOT granted in a controller session \(AILANG_AGENT_POLICY is unset on purpose\): every call refuses, and none of them counts toward the protocol\.//' "$X/note.raw")
+case "$rest" in
+  *ailang_cli*|*ailang_run*) bad "T6c: note names ailang_cli/ailang_run outside the NOT-granted sentence" ;;
+  *) ok "T6c: ailang_cli/ailang_run appear only in the NOT-granted sentence" ;;
+esac
 
 # --- T6b: positive control — the scratch rewording still satisfies T1-T3 -------------------------
 SNOTE=$(note_from "$SCR")
