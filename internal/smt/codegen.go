@@ -52,10 +52,8 @@ var activeRecordTypes map[string]*RecordTypeInfo
 // enabling record construction lookup by field names.
 var activeFieldSetToSort map[string]string
 
-// activeContractCallees maps callee function names to their result constant names
-// when the callee is encoded via contract-as-spec (declare-const + assert) rather
-// than a define-fun. When encodeApp encounters a VarGlobal call to one of these,
-// it substitutes the result constant instead of emitting a function application.
+// activeContractCallees maps resolved contract-only callees to typed UF symbols.
+// Their guarded specifications are instantiated only at evaluated applications.
 var activeContractCallees map[string]string
 
 // activeParamRenames maps an AILANG parameter name to its prefixed Z3 form.
@@ -175,8 +173,7 @@ func EncodeFunction(
 			return nil, fmt.Errorf("resolving cross-function calls: %w", err)
 		}
 		// Register resolved callees so encodeApp can recognize them.
-		// Contract-based callees are NOT registered as function names — they're
-		// substituted as constants via activeContractCallees instead.
+		// Contract-based callees use the separate finite-spec application path.
 		for _, def := range calleeDefs {
 			if !def.IsContract {
 				ctx.ResolvedCallees[def.Name] = true
@@ -201,6 +198,26 @@ func EncodeFunction(
 			for _, name := range collectFunctionNames(imp) {
 				activeUserFunctions[name] = true
 			}
+		}
+	}
+
+	// Finite facts are collected for evaluated expressions only.
+	previousSpecs, previousFacts, previousConditions := activeContractSpecs, activeCallFacts, activeHelperConditions
+	activeHelperConditions = make(map[string]string)
+	activeContractSpecs = make(map[string]*ContractSpec)
+	var callFacts []string
+	activeCallFacts = nil
+	defer func() {
+		activeContractSpecs = previousSpecs
+		activeCallFacts = previousFacts
+		activeHelperConditions = previousConditions
+	}()
+	for _, def := range calleeDefs {
+		if def.ConditionName != "" {
+			activeHelperConditions[def.Name] = def.ConditionName
+		}
+		if def.Contract != nil {
+			activeContractSpecs[def.Name] = def.Contract
 		}
 	}
 
@@ -420,6 +437,8 @@ func EncodeFunction(
 		unrollTopName = unrollResult.TopLevelName
 	}
 
+	activeCallFacts = &callFacts
+
 	// Step 2: Declare symbolic variables for function parameters.
 	//
 	// Parameter names are prefixed with `$p_` to avoid colliding with record
@@ -515,6 +534,10 @@ func EncodeFunction(
 	default:
 		conj := fmt.Sprintf("(and %s)", strings.Join(ensuresExprs, " "))
 		result.Assertions = append(result.Assertions, AssertNot(conj))
+	}
+
+	for _, fact := range callFacts {
+		result.Assertions = append(result.Assertions, Assert(fact))
 	}
 
 	// Step 5.5: Validate declarations — check for forward references to undeclared sorts.

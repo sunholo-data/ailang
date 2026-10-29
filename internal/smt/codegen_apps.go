@@ -95,12 +95,12 @@ func encodeApp(app *core.App) (string, error) {
 	// where funcName has been resolved as a define-fun callee
 	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module != "$builtin" && vg.Ref.Module != "std/list" && vg.Ref.Module != "std/string" {
 		if activeResolvedCallees != nil && activeResolvedCallees[vg.Ref.Name] {
-			return encodeUserFunctionCall(vg.Ref.Name, app.Args)
+			return encodeResolvedApplication(vg.Ref.Name, app.Args)
 		}
-		// Contract-based callee: substitute result constant (call site collapses to the constant)
+		// Contract-based callee: retain actual arguments and their finite facts.
 		if activeContractCallees != nil {
-			if resultConst, ok := activeContractCallees[vg.Ref.Name]; ok {
-				return resultConst, nil
+			if _, ok := activeContractCallees[vg.Ref.Name]; ok {
+				return encodeContractApplication(vg.Ref.Name, app.Args)
 			}
 		}
 		// Leak guard: an unresolved call to a KNOWN user function (as opposed to an
@@ -119,11 +119,11 @@ func encodeApp(app *core.App) (string, error) {
 	// Plain variable application — check if it's a resolved callee (same-module function call)
 	if v, ok := app.Func.(*core.Var); ok {
 		if activeResolvedCallees != nil && activeResolvedCallees[v.Name] {
-			return encodeUserFunctionCall(v.Name, app.Args)
+			return encodeResolvedApplication(v.Name, app.Args)
 		}
 		if activeContractCallees != nil {
-			if resultConst, ok := activeContractCallees[v.Name]; ok {
-				return resultConst, nil
+			if _, ok := activeContractCallees[v.Name]; ok {
+				return encodeContractApplication(v.Name, app.Args)
 			}
 		}
 		// Leak guard (see VarGlobal branch above): unresolved call to a known user
@@ -162,7 +162,7 @@ func encodeBuiltinOp(smtOp string, args []core.CoreExpr) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("(%s %s %s)", smtOp, left, right), nil
+		return applyBinaryOp(smtOp, left, right), nil
 	}
 	return "", fmt.Errorf("builtin %q with unexpected arity %d", smtOp, len(args))
 }

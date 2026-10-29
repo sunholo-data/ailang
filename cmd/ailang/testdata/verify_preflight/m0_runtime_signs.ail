@@ -1,0 +1,10 @@
+module cmd/ailang/testdata/verify_preflight/m0_runtime_signs
+
+pure func divide(n: int, d: int) -> int { n / d }
+pure func remainder(n: int, d: int) -> int { n % d }
+export pure func main() -> [[int]] { [
+  [divide(7, 2), divide(-7, 2), divide(7, -2), divide(-7, -2), divide(0, -5), divide(0, 5), divide(-1, 7), divide(1, -7), divide(-6, 3), divide(-6, -3), divide(6, -3), divide(9223372036854775807, -1)],
+  [remainder(7, 2), remainder(-7, 2), remainder(7, -2), remainder(-7, -2), remainder(0, -5), remainder(0, 5), remainder(-1, 7), remainder(1, -7), remainder(-6, 3), remainder(-6, -3), remainder(6, -3), remainder(9223372036854775807, -1)]
+] }
+export pure func divZero() -> int { divide(1, 0) }
+export pure func modZero() -> int { remainder(1, 0) }

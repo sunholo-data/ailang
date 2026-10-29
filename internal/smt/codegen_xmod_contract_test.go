@@ -39,10 +39,10 @@ func TestEncodeCalleeByContract_Basic(t *testing.T) {
 		t.Fatalf("EncodeCalleeByContract failed: %v", err)
 	}
 
-	if decl.ResultConst != "$xmod_result_nonneg_0" {
+	if decl.ResultConst != "($spec_nonneg 42)" {
 		t.Errorf("expected result const $xmod_result_nonneg_0, got %q", decl.ResultConst)
 	}
-	if !strings.Contains(decl.SMTLib, "declare-const") {
+	if !strings.Contains(decl.SMTLib, "declare-fun") {
 		t.Errorf("expected declare-const in SMTLib, got:\n%s", decl.SMTLib)
 	}
 	if !strings.Contains(decl.SMTLib, "assert") {
@@ -211,11 +211,11 @@ func TestResolveCallees_ContractFallback(t *testing.T) {
 	if d.ResultConst == "" {
 		t.Errorf("expected non-empty ResultConst for contract callee")
 	}
-	if !strings.Contains(d.SMTLib, "declare-const") {
+	if !strings.Contains(d.SMTLib, "declare-fun") {
 		t.Errorf("expected declare-const in SMTLib:\n%s", d.SMTLib)
 	}
-	if !strings.Contains(d.SMTLib, "assert") {
-		t.Errorf("expected assert in SMTLib:\n%s", d.SMTLib)
+	if strings.Contains(d.SMTLib, "assert") || d.Contract == nil {
+		t.Errorf("callee declaration must retain template without global facts: %s", d.SMTLib)
 	}
 }
 
@@ -279,7 +279,7 @@ func TestEncodeCalleeByContract_MutualRecursion(t *testing.T) {
 
 	// Both must declare their constants and assert ensures
 	for _, decl := range []*ContractCalleeDecl{declF, declG} {
-		if !strings.Contains(decl.SMTLib, "declare-const") {
+		if !strings.Contains(decl.SMTLib, "declare-fun") {
 			t.Errorf("%s: expected declare-const in SMTLib:\n%s", decl.Name, decl.SMTLib)
 		}
 		if !strings.Contains(decl.SMTLib, "assert") {

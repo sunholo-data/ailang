@@ -45,6 +45,9 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 		return encodeApp(e)
 
 	case *core.If:
+		if activeCallFacts != nil {
+			return encodeFactIf(e)
+		}
 		cond, err := EncodeExpr(e.Cond)
 		if err != nil {
 			return "", fmt.Errorf("if condition: %w", err)
@@ -60,9 +63,15 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 		return fmt.Sprintf("(ite %s %s %s)", cond, then, els), nil
 
 	case *core.Let:
+		if activeCallFacts != nil {
+			return encodeFactLet(e)
+		}
 		return encodeLet(e)
 
 	case *core.Match:
+		if activeCallFacts != nil {
+			return encodeFactMatch(e)
+		}
 		return encodeMatch(e)
 
 	case *core.Intrinsic:

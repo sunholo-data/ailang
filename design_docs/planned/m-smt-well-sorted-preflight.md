@@ -1,19 +1,388 @@
 # M-SMT-WELL-SORTED-PREFLIGHT: resolve operators and symbols by elaborated type, and check the SMT before Z3 sees it
 
-**Status**: Planned
-**Target**: v0.54.19
-**Priority**: P1. The caller's rule was P2 unless an ERROR→false-VERIFIED path turned up. None did: the solver's
-output classification still holds. But the audit found **two false-VERIFIED paths in the same encoder layer**
-(§4.2, S1 and S2), and fixing the ERRORs sends more functions into exactly that layer. That is the reason for P1.
-If the reviewer moves S1/S2 out to their own issue, this doc goes back to P2.
-**Estimated**: about 6 engineering days in 5 milestones. M0 (soundness) can ship alone.
-**Dependencies**: none. Builds on M-SMT-CALLEE-SORT-GATE (v0.30.0) and M-SMT-PARAMETRIC-ADT-DECLARATIONS (v0.54.18).
-**Tracks**: #1960 (P0, M0), #1961 (P0, M0), #1953, #1950; #1959 is fixed on dev (ef7bdc8e0, v0.54.18) and kept as a regression fixture only
-**Created**: 2026-10-26, attended triage. Measured at `origin/dev` 7d29031ea, Z3 4.16.0, macOS arm64.
-**Quorum**: trigger 3 fires, because M3 changes what `verify_errors`/`verify_skipped` bank in the eval harness. The
-quorum was skipped on this session's explicit instruction. **Run `ailang design-quorum` before sprint planning.**
+**Status**: approved M0 implementation complete; required CI/independent acceptance pending; parent M1–M4 deferred.
+
+## Current execution checkpoint (2026-10-29)
+
+The user separately approved all six reviewed M0 milestones with “exeute all three sprints”, observed 20:17:42UTC. Implementation source `60a7d7b5fce9c137835774750cac1cca063e6b00` and measured evidence are in [the validation report](v0_56_0/m-smt-preflight-m0-repair-validation.md). This authorizes scoped implementation, not deferred semantics or another provider call. The historical design-stage text below records its then-current planning disposition; the later explicit execution instruction supersedes those stage-only restrictions. Both external BLOCKED verdicts remain unchanged, with no external PROCEED or executor self-score claimed. Required CI/independent acceptance are pending.
+**Target**: next unreleased release after v0.55.0; original v0.54.19 target is historical, not a release request.
+**Priority**: P0 for M0 (#1960/#1961 false-VERIFIED); #1950/#1953 and the wider preflight roadmap remain later scope.
+**Estimated**: historical full roadmap about 6 engineering days; M0 estimate must be refreshed only after design approval.
+**Dependencies**: existing SMT callee/parametric gates; preserve actual dev effect/empty/IFC and #602 test fixes.
+**Tracks now**: #1960/#1961 only. **Future:** #1953/#1950; #1959 is fixed (ef7bdc8e0) and regression-only.
+**Created**: 2026-10-26. Original audit at 7d29031ea / Z3 4.16.0; current refresh base aca5a6ead, 2026-10-29.
+**Quorum**: two scoped runs remain **BLOCKED** (GLM/Kimi reject, Gemini pass in both). The later actual human
+ruling below ratifies corrected evidence and M0-F1/F4/Z for planning only; it does not rewrite either tool verdict
+or authorize further disclosure/review/execution. Full-roadmap M3 banking/F2/F5 remain deferred.
 
 ---
+
+**Human disposition (2026-10-29, observed 14:48:58 UTC):** user said “approve the three designs”, explicitly ratifying
+this M0 evidence amendment and M0-F1/F4/Z for **planning only**. Approval record: local
+`three-design-approvals.json`, design commit 88ca9e1e974150fa783d19b15b8a93be1682e2f7. Observation time is the
+assistant's receipt record, not an independently supplied user send time. Both external BLOCKED records remain
+unchanged. No third provider review, plan approval or execution is inferred. The then-current planning drafts were subsequently reviewed and explicitly authorized for execution as recorded above.
+
+<!-- M0-REVIEW-BEGIN -->
+## Approved M0 proposal: design-stage snapshot (2026-10-29)
+
+**State:** two external scoped quorum runs remain BLOCKED. The user has now ratified the corrected evidence and
+M0-F1/F4/Z for planning only at the observed time above; no further disclosure/review, implementation, parked-work
+recovery or merge is authorized. A new plan/JSON draft is not an execution instruction. This packet is the authoritative current M0 proposal;
+§§1–16 retain the original wider audit/roadmap and its historical measurements. M1–M4 are **not** part of the request.
+
+**Scope:** #1960 and #1961 only. Correct the Int operator and contract-only callee encodings that can report false
+VERIFIED. Reuse only the sound S1 expansion and selected S2 plumbing after current-head validation; **replace** the parked
+universal-axiom implementation. Nothing is recovered “as-is”; do not duplicate the topic under a new design. #1950/#1953,
+`encoder_gap`, new ERROR/SKIP rules, ai-check exit policy, caller-precondition proof obligations, width/BitVec and
+preflight belong to later decisions. Operator-held #1790's purity/admission card is untouched.
+
+**Source anchors:** proposal base `aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239` (dev when this proposal was refreshed, #2011 merged; not a latest-head claim);
+parked `p0/smt-unsound-encodings` at `a5f81711904452b432f850ba37f686fde79c895a`,
+merge-base `3996302744503d2a9ed06198c3190dc9d61911df` (literal command/output in evidence), plan `74cc3dba4`,
+S1 `981a7aee9`, S2 `5410d0b2f`. Recovery, if later approved, uses a **new isolated branch**. The parked worktree,
+its dirty sprint JSON/plan/fmt log and its completion claims must remain intact and are not accepted gate evidence.
+
+### Historical authority and present decisions
+
+The original primary human message, 2026-10-26T14:59:31.188Z, says:
+“can we fix the p0 issues via subagents with design doccs, sprint plans and excutes?”
+The selected primary record is retained only in the local audit artifact
+`smt-m0-readonly/historical-provenance.json`; private session records/identifiers are not published here. This is
+historical context only: this proposal grants no current authority from that private record, and human inspection
+of the present semantics/gates does not require the private session. Fresh scoped human choices were subsequently ruled above for planning only.
+It authorizes a broad P0 workflow historically. The more specific “required sound choice (F1)” wording appears in
+agent delegation and then the parked plan, **not** in a separately named human F1 ruling found in that session.
+The parked plan's attribution must not be reused as proof of an explicit named human decision. This proposal asks
+for fresh, bounded choices honestly; it does not amend the historical plan or its unvalidated completion metadata.
+
+| Current M0 choice | Proposed contract | Authority / state |
+|---|---|---|
+| M0-F1 (parent F1) | Match runtime truncating Int `/` and `%`, including negative operands; preserve the existing math-Int width disclaimer | human-approved for planning only, 2026-10-29 |
+| M0-F4 (bounded parent F4) | Same callee and same arguments share a UF value; only actual call instances contribute requires-guarded postcondition facts within their lexical/path scope; no global contract `forall` | human-approved scoped proof contract for planning only; private representation resolved during separately approved execution |
+| M0-Z | Preserve existing zero-domain/partial-correctness policy below; no new nonzero assumptions, error-freedom promise or special skip policy | human-ratified unchanged zero policy for planning only; different semantics still outside scope |
+| M0-Q | Scoped independent quorum on this packet before planning; then fresh design approval → sprint plan → explicit execute → independent evaluation | two external BLOCKED records preserved; human evidence ratification authorizes planning, not a fabricated external PASS |
+
+- [x] M0-F1 human-approved for the current M0 design/planning scope.
+- [x] M0-F4 human-approved, including partial-callee and lexical/path controls.
+- [x] M0-Z human-ratified with no zero-domain policy widening.
+- [ ] M0-Q external PROCEED is not achieved: both tool records stay BLOCKED. Separate explicit human evidence ratification is the planning disposition; this is not an unresolved request to re-ask M0-F1/F4/Z.
+
+Parent F2/F5 remain unruled and out of scope; parent F3 remains a later architecture decision. No M0 approval checks
+those later freeze boxes. There is no new diagnostic/reason code or schema/cache epoch in this packet.
+
+### M0 evidence and the rejected universal shortcut
+
+[Compact reproducible evidence](m-smt-well-sorted-preflight-m0-evidence.json) stores checked fixture source, raw
+compiler/runtime outputs, Z3 scripts/results, source anchors and primary-message provenance. The executable used was
+an archived 80793 compiler with its pinned stdlib. Its actual executions remain **807-only execution evidence**:
+no aca5, parked or fixed compiler was built/run for this design. `verify_source_equivalence` now captures the exact
+80793→aca5 named-path command, returncode 0 and empty stdout/stderr over `internal/smt`, `internal/verification`,
+`std`, `cmd/ailang/verify.go`, `cmd/ailang/ai_check.go`. `control_front_half_equivalence` and the CLI-prefix comparison
+also capture equality over elaborate/eval/VM/bytecode and the specified run/verify front halves. These are pinned
+source comparisons, **not whole-compiler equivalence or a fresh current-head run**. Version/temp-module warnings
+are retained. The broader `internal/pipeline` diff is nonempty and qualified below.
+
+On the executed 807 archive the #1960 and #1961 sources both `ailang check` successfully. Its `verify` reports VERIFIED `parity` (exit 0) and
+VERIFIED `gap` (aggregate exit 1 because the distinct known bounded-unrolling `total` row is a counterexample).
+Always inspect rows: aggregate nonzero does not mean the false gap proof is fixed.
+
+The parked S1 formula passed small direct-Z3 div/rem controls for 12 nonzero-divisor sign pairs and a nested
+parallel-let control. These are formula checks, not execution of every compiler emitter. Actual `/0` and `%0`
+controls type-check and then terminate with runtime RT001 / exit 1.
+
+The round-two local repair **executes runtime arithmetic**, independently of the SMT transcription: two pure
+parameterized fixtures return the same 12 sign-pair rows for `/` and `%` on the interpreter and strict VM
+(`run --bytecode --strict-bytecode`), all equal to the truncating table. Pairs include `(±7,±2)`, zero dividends,
+small quotients/remainders and `(9223372036854775807,-1)` within the existing width model. For example `-7/2=-3`,
+`7/-2=-3`, `-7%2=-1`, `7%-2=1`. Each source also checks successfully. Runtime source at aca5 uses Go integer `/`
+and `%` after zero checks: `internal/builtins/math_arithmetic.go:22–33`,
+`internal/eval/builtins_arithmetic.go:39–60`, `internal/vm/vm_arith.go:29–38` and
+`internal/vm/builtins_math.go:86–97`. The literal `runtime_source_equivalence` record captures equality of these files between 807 and aca5.
+The binary SHA256, actual version output, 807 source tree, matching std tree and all 54 actual std-file hashes are
+banked; every std file matches the pinned 807 source. Trace/export environment variables were removed for these
+pure local calls, avoiding the separately held ambient-export issue. Raw stdout/stderr and commands are retained.
+
+The original `int_divmod` fixture from the parked commit is now embedded whole, including `halfDown`, with its
+source hash, check 0 and full verbose JSON verify output. Old rows are parity/halfDown/halfNonNeg/parityBounded/
+remSign VERIFIED, halfTowardZero COUNTEREXAMPLE; aggregate exit 1 comes from that last row and is not a fix for
+halfDown. Fixed-branch CLI proof remains an execution acceptance gate; none is claimed by this design repair.
+
+
+The parked S2's global axiom is **not equivalent** to per-call instantiation. Consider this actual checked source:
+
+```ailang
+export pure func partial(n: int) -> int
+ensures { n != 0 && result == 0 } {
+  if n == 0 then partial(n) else 0
+}
+
+export pure func wrong(a: int) -> int
+requires { a != 0 }
+ensures { result == 1 } {
+  partial(a)
+}
+```
+
+`partial` satisfies its postcondition on all terminating executions; zero diverges. `main = wrong(1)` actually
+returns 0 and runtime contract checking fails `wrong`'s ensures. A global
+`forall n. n != 0 && f__spec(n) == 0` is nevertheless UNSAT at the **uncalled n=0**, so it could prove the false caller.
+At the actual nonzero call, instantiating only `a != 0 && f__spec(a) == 0` leaves the false ensures refutation SAT.
+A second raw solver control shows that adding `requires =>` does not cure an inconsistent/uninhabited spec at an
+uncalled input satisfying requires. E-matching patterns guide search; they do not restrict a universal axiom's
+logical scope. A false-requires guard control remains SAT, and same/distinct-call identity controls behave correctly.
+
+**Evidence limit:** this is checked AILANG/runtime plus a direct translation of inspected parked SMT, **not a parked
+branch CLI reproduction**. Execution acceptance below requires old/new compiler CLI and mutation evidence. Assuming
+every recursive contract admits a total return witness would be a new proof/trust semantics, rejected by this
+partial-correctness proposal. A bad spec may make the actually selected divergent path vacuous; it must not poison
+other input values or unselected branches.
+
+### Two terminal quorum runs and this UNSENT evidence amendment
+
+| Frozen run | Packet bytes | GLM | Kimi | Gemini | Synthesis | Registry-imputed USD |
+|---|---:|---|---|---|---|---:|
+| round1 |37,638|reject|reject|pass|BLOCKED|0.2283714|
+| round2 |111,807|reject|reject|pass|BLOCKED|0.536629|
+
+All 3 reviewers were present in each run; no absences, reserves or outside-pool fallback. Root's technical draft PASS
+was recorded separately and did not override either synthesis. Both exact packets, complete reviewer objections,
+proposed fixes, token/cost records and raw CLI diagnostics are preserved in evidence. These are registry-price
+calculations; Ollama Cloud values are flat-rate imputations, not independently measured invoices. Round 2 **was sent**
+under fresh exact-packet user consent and remains BLOCKED. This later amendment has **not** been sent.
+
+Round 1's missing runtime sign matrix, parked merge-base/diff, halfDown source, help and packet identity were repaired
+before round2. GLM's “reuse as-is” reading did not match the explicit original rejection of universal axioms; the
+clarification preserves selective S1/plumbing reuse and replaces `forall`, without changing the proposed semantics.
+
+Round 2's GLM/Kimi objections identified remaining evidence-binding gaps: the executed 807→aca5 named-path comparison
+and installed e863 identity/diff were asserted rather than included as literal records, and normalizer/front-half
+provenance was incomplete. The author ran some earlier checks but failed to bank those exact rows in the reviewed
+packet. The new local supplement now supplies them verbatim, plus the **nonempty** cache diff and source excerpts.
+This is an evidence-only amendment, not a claim that the rejected packet already contained that proof.
+
+Gemini's round2 concern remains an **unvalidated eventual acceptance obligation**, quoted verbatim:
+
+> During sprint planning and execution, verify that the paired helper-condition define-fun declarations in S2 properly thread all lexically captured variables (or restrict eligibility to closed top-level helpers) so that deduplicating declarations per resolved helper symbol does not drop or misbind outer scope variables across diamond call graphs.
+
+Its exact proposed fix is also retained:
+
+> In the sprint plan for S2, specify that paired helper-condition define-fun declarations take the exact same parameter list (including any lifted closure/environment parameters) as their corresponding value define-fun declarations.
+
+Under the existing same-callee/same-arguments contract, the proposed acceptance below must establish parameter and
+environment preservation. **No new closed-helper restriction is selected**, and no implementation validation is
+claimed. The complete raw Gemini review remains alongside the GLM/Kimi rejections, not replaced by this response.
+
+The attended two-run limit is exhausted. Design-doc-creator's “re-quorum-ONCE” reference is a case study, not a
+standalone universal cap; mission-control's pick-time rule and its conditional narrow-refinement carve-out are
+quoted in the supplement. This is not an invoked mission iteration and no carve-out is self-applied. A human must
+explicitly decide the evidence/gate disposition. After independent evidence-completeness checking, root may ask
+for direct human ratification of these evidence-only corrections and approval of scoped M0-F1/F4/Z, with both
+BLOCKED verdicts and limitations visible. **No third external review is presumed**. Any further disclosure/review
+would need its own explicit decision despite the attended cap. M0-Q is not marked satisfied; no design approval,
+planning or execution follows automatically from these added records.
+
+### Proposed S1: one truncating Int encoding
+
+Reuse the centralized S1 expansion and all-emitter inventory in `981a7aee9`:
+
+```smt2
+; n and d are hygienic, parallel-let-bound encoded operands.
+q = (ite (= (>= n 0) (>= d 0))
+         (div (abs n) (abs d)) (- (div (abs n) (abs d))))
+r = (- n (* d q))
+```
+
+All Int builtin/curried/intrinsic/binop/dictionary division and remainder producers must reach this semantic helper.
+Current aca5 inventory: builtin `div_Int`/`mod_Int` at `internal/smt/types.go:269,271`, direct and curried App
+routes at `codegen_apps.go:15,46,146`, Intrinsic at `codegen_operators.go:11–28`, BinOp at `:32–54`, DictApp `div`
+at `:75–95`. The DictApp method map has no `mod` entry; this inventory does not authorize adding unsupported methods.
+The non-test operator search/source snippets are recorded in evidence; re-enumerate against the actual execution base.
+
+Inline parallel lets are acceptable in place of the original preamble functions: both operands are encoded once and
+nested divisions cannot capture the outer operands. Do not add a second competing operator table. Type-directed
+Float/unknown-dictionary work remains M1; do not claim this makes Float division supported. Fixed-width overflow,
+including MinInt/-1, remains the original math-Int model limitation.
+
+**Zero policy (M0-Z):** runtime Int division and modulo by zero report RT001 and return no value. Retain the existing
+verification scope: undefined zero cases are represented by the emitted SMT totalization and do not establish a
+runtime return value, termination or absence of RT001. No new `d != 0` assumption is injected globally or into a
+caller's requires, and no zero-specific VERIFIED/SKIP/ERROR policy is added. In particular, do not change the accepted
+input domain silently to get a desired model. The existing `%0` totalization can reduce to the numerator; that is
+not a claim about a successful runtime return. Changing the totalization can change solver models on those
+non-returning inputs; retain and explain those rows rather than labeling them concrete runtime violations. Tests
+must distinguish zero-only paths, nonzero returning paths and
+unselected zero branches. If review demands nonzero-domain obligations, a runtime-error proof, a skip, or fresh
+arbitrary zero results instead, **freeze and request that different contract explicitly**.
+
+### Proposed S2: functional identity, finite lexical call facts
+
+Reuse S2's UF call-term/arity plumbing, requires fail-weak behavior and counterexample model cleanup, but replace
+`EncodeCalleeContract`'s global universal assertion. One UF represents each already-resolved contract-only callee;
+a call at arguments `a` yields `f__spec(a)`. Existing name-resolution eligibility is retained, not widened to new
+builtins or a module-identity overhaul. Repeated identical calls share that term; distinct arguments do not collapse.
+
+The encoder must carry **both a value term and its finite call-condition expression** through the relevant Core
+structure. For one actual invocation the fact is `requires(a) => ensures(a, result := f__spec(a))`. It is an assumed
+callee specification under the existing contract-as-spec trust boundary, **not** proof that the callee body or its
+requires has been verified. Caller requires remains an independent assumption and is not discharged as an obligation.
+
+- Encode/evaluate argument conditions first. Substitute actual arguments capture-free into the callee predicates.
+  Unknown/unencodable requires means no postcondition fact for that invocation; unencodable ensures contributes no
+  such ensures fact. Unexpected verifier faults retain existing loud behavior. Arity/type failures use existing
+  sentinels and their current classifications, without `encoder_gap` or ai-check policy changes.
+- For `let x = v in b`, the value is `let x = v in value(b)` and the condition is
+  `condition(v) && (let x = value(v) in condition(b))`, using hygienic binders. No raw `x` is asserted at top level.
+- For `if c then t else e`, require `condition(c)` and guard each branch condition by its selected Boolean value.
+  The unselected branch cannot contribute contradictory facts. Match/scrutinee/guard bindings must follow the
+  existing encoder's first-match and lexical rules, including nested patterns/shadowing.
+  **Short-circuit control:** `normalizeBinaryOp` → `normalizeShortCircuit`
+  (`internal/elaborate/expr_simple.go:120,205`) already lowers `&&`/`||` to Core `If`, keeping RHS lets lazy;
+  `TestShortCircuit_AndDesugarsToIf`/`OrDesugarsToIf` assert that shape. `elaborateContracts` in `file_funcs.go`
+  reaches the same normalizer; `patterns.go:normalizeArm` normalizes guards inside pattern scope, and
+  `OpLowerer.Lower`/`lowerExpr` preserve/lower contract predicates and match guards. Therefore call facts must never
+  come from an unselected short-circuit RHS, an unmatched arm's guard, or a guard after an earlier selected arm.
+  Add paired selected/unselected callee controls for `&&`/`||` in body and contract predicates, plus sequential
+  match guards, to M0-A5; false claims remain refutable and selected true controls verify. No new Boolean semantics.
+- A resolved non-recursive helper containing contract-callee calls must propagate the same condition to **its actual
+  caller**. A paired helper-condition `define-fun` over the helper parameters is acceptable, with that predicate
+  instantiated only at real calls; a definition alone is not an asserted universal contract. Never assert its body
+  for every parameter value, leave its formal names free, or silently drop those nested facts.
+  Emit each value/condition helper declaration once per already-resolved helper symbol and refer to it at calls;
+  do not recursively clone its condition body along every path through a diamond dependency graph. The condition
+  declaration must preserve the value helper's exact parameter/environment list, including any already-lifted
+  closure variables; declaration reuse cannot merge distinct captured environments. This is a future acceptance
+  obligation under the same-callee/same-arguments semantics, not an adopted closed-helper restriction or validated
+  implementation. A diamond
+  control must prove repeated calls reuse declarations and retain their selected/path facts. This is a declaration-
+  sharing invariant, not a new asymptotic runtime or solver-performance guarantee.
+- Calls in body and caller contract predicates use the same machinery and current admission/sort gates. Keep their
+  positive/negative controls separate so refutation is not weakened by an unconstrained or globally inconsistent
+  postcondition-only path. This is not authorization to implement the adjacent proof-vs-refutation design.
+
+The exact private data structure can be settled by the agent after these invariants are approved. A minimal scoped
+condition-carrying adapter is preferred to rewriting all SMT syntax producers or changing public evidence schemas.
+If a required existing Core form cannot preserve these invariants, use its **existing** unsupported path and document
+the regression for review; do not guess at bindings, invent constraints or quietly change global outcome policy.
+
+### M0 acceptance and compatibility boundary
+
+The following must be demonstrated with actual old/current and fixed compiler binaries plus matching stdlib in a
+new isolated execution branch, not only raw Z3 or unvalidated parked logs:
+
+- [x] **M0-A1:** both #1960/#1961 sources check on both builds; old parity/halfDown/gap rows falsely VERIFY, new rows
+  are counterexamples (negative x for parity/halfDown, `a >= 0` for gap). Preserve the independent `total` bounded-
+  unrolling row and aggregate exit evidence rather than hiding it.
+- [x] **M0-A2:** all Int producer shapes and sign combinations agree with truncation for nonzero divisors, **and
+  actual interpreter/strict-VM CLI results for the same sign-pair fixtures equal the truncating table row-for-row**.
+  Any executed runtime mismatch freezes M0-F1 for an amended contract, rather than silently choosing new semantics.
+  Nested divisions and source/generated-name shadowing retain bindings. Nonnegative half, bounded parity, toward-zero and
+  remainder-sign true controls remain VERIFIED. Z3-availability skips use existing platform conventions.
+- [x] **M0-A3:** same-argument UF identity verifies; distinct-call false equality is refutable; parameter-dependent
+  postconditions use the actual arguments; actual satisfying/violating requires and unencodable-requires controls
+  demonstrate guarded/no-fact behavior without asserting a missing requires as true.
+- [x] **M0-A4:** the checked `partial`/`wrong` fixture above is refutable through the fixed **CLI** with actual
+  returning nonzero witness; normal runtime returns 0 and runtime contracts fail. A scratch mutation restoring the
+  parked universal axiom must falsely verify that caller; retain the raw SAT/UNSAT discriminator separately.
+- [x] **M0-A5:** nested let/shadowed/match-bound arguments, conditional/uninvoked divergent callees and a non-recursive
+  helper forwarding into the contract-only callee preserve lexical facts. False contracts stay refutable; true
+  selected-path controls verify. Include calls in body/requires/ensures, not only top-level direct calls, plus a
+  diamond-helper control asserting unique declarations and preserved call facts at each selected invocation. Verify
+  exact value/condition-helper parameter lists, including lifted environment variables, with distinct captured-
+  environment controls. Gemini's concern is not considered implemented or proven by this design amendment.
+- [x] **M0-A6:** `/0` and `%0` still check and fail runtime RT001; fixed verification follows M0-Z, with no nonzero
+  assumption or new skip/error policy. Nonzero and unselected-zero controls stay consistent. No claim of totality,
+  no proof of runtime-error freedom, no new width guarantee.
+- [x] **M0-A7:** per-fix mutations on disposable copies fail the meaningful row/control tests. Before/after examples,
+  std and the same pinned package corpus explain every changed verdict. No new false VERIFIED or encoder ERROR is
+  accepted; inherited ERROR rows are recorded without implementing M1–M4 or changing reason/exit policy.
+- [ ] **M0-A8:** focused changed/core tests, lint, structure/boundaries, changelog and verify examples pass; required
+  exact-head CI and independent sprint evaluation pass. Preserve current #602 fake-solver warm-up and existing
+  effect/explicit-empty/IFCv2-v8 changes. No full executor `make test` rerun is mandated by this design refresh.
+
+**M0 axiom check:** A1/A2/A3/A4/A6/A8/A9/A12 =0 (runtime, authority, schemas and syntax unchanged); A5 +1 (removes
+false proofs), A7 +1 (honest per-function result), A10 +1 (one call-fact mechanism), A11 0 (existing outcome policy).
+Net +3, no claimed hard-axiom violation; this is the author's proposal, **not** an independent verdict.
+
+**Conflict surface:** same expression positions contain nested Int arithmetic, locals/pattern binders, conditionals,
+helper calls and user functions in contract predicates. Parse/typechecking syntax does not change. Verification
+changes intentionally for proofs resting on wrong Int operators or collapsed callee values; runtime programs and
+admission/purity rules do not. Existing `examples/runnable/contracts/{finance,cross_module_functions,
+nullary_constant_verify,result_error_guard,empty_list_sort_verify,string_verify}.ail` remain controls (existence checked
+at aca5; their historical statuses are not fresh execution evidence). The literal named-path comparison is
+`git diff 3996302744503d2a9ed06198c3190dc9d61911df aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239 -- internal/smt internal/verification std cmd/ailang/verify.go cmd/ailang/ai_check.go`.
+Over **SMT/verification/verify CLI**, only #602's test warm-up changes; SMT production remains byte-identical from
+that base. The broader named-path diff additionally includes `std/VERSION`, `std/ai.ail`, `std/array.ail`,
+`std/map.ail`, `std/package.ail` and `std/set.ail` (129 insertions/6 deletions across std). These landed changes
+must be preserved; “only #602” is **not** a claim that std stayed unchanged from the parked base. The complete
+literal 12,529-byte diff is in evidence. Separately, 80793→aca5 is empty over all those named paths (including std),
+which records named-path equality only; actual executions remain 807-only and do not validate an unbuilt aca5 or
+parked/fixed compiler. The broader `internal/pipeline` comparison is **nonempty**: four cache production files
+(`cache_artifacts.go`, `cache_dep_closure.go`, `cache_key.go`, `cache_store.go`) plus seven tests. The complete
+28,663-byte patch, name list and returncode 1 are embedded in the supplement. The actual harness set
+`AILANG_NO_CACHE=1`; the config/phase source handling is captured and identical 807→aca5. This qualifies the
+recorded controls but does not establish whole-compiler behavioral equivalence. #1790 is an operator-held scope
+instruction from root, not a freshly queried live status: leave its callee/codegen/admission semantics untouched
+and coordinate before any later execution branch integration.
+
+### Scoped quorum gate before planning
+
+**Design-stage disposition (historical):** the actual human ruling permitted the planning draft despite retained external
+BLOCKED records. The following packet/history describes the pre-ruling inspection; it supplies no new execution
+authority. Do not reopen the already-ratified F1/F4/Z or require another provider call at executor handoff.
+
+CLI/help and source were inspected at aca5: `cmd/ailang/design_quorum.go` declares no milestone/section/scope flag;
+`readDoc` in `cmd/ailang/design_review.go` accepts a file path or stdin (`-`/no positional path).
+`--seats` defaults 3. `--author` records author/vendor attribution for seating; it is not a controller identity.
+
+The UNSENT human-decision packet includes **the complete canonical Markdown and evidence JSON**, both complete
+reviewer results and needed literal supplement commands/outputs/source excerpts. Review instructions remain strictly
+**M0 current decision section only** (between the canonical M0-REVIEW markers); the full historical M1–M4 material
+is context, not a request to approve/review those deferred policies or supply evidence for their old audit counts.
+No required M0 evidence may depend on an unavailable external scratch file: provenance paths are navigation only.
+
+An in-packet identity record names the committed canonical/evidence blobs/SHA256, literal marker byte offsets and
+current-M0 section SHA256. The complete payload is concatenated once; JSON marker-like strings are never reparsed.
+The final packet's own SHA256 belongs only in the external manifest to avoid circular hashing. Installed CLI full
+version/hash/help and the literal e863→aca5 quorum-source diff are now included. **Its -dirty version stamp is not
+an independently attested clean source-to-binary build**; source reads, actual help and two recorded runs establish
+only their stated observations. No new binary build or actual aca5/fixed execution is claimed.
+
+For this author use **`--author codex`**, an honest product/vendor attribution: this runtime identifies the author
+as Codex/GPT-6-based but does not expose an exact API model alias. `fs.String` accepts the raw author label;
+`VendorOf` in `internal/mission/quorum/seating.go:50` matches the substring `codex` to `openai`, and
+`SelectReviewers` benches that vendor without looking the author up in the model registry. No model ID is invented.
+Bare `--author openai` is **not** recognized by the current matcher; it would warn and bench nobody. The existing
+reviewers still use configured real model IDs. A human decision is required before **any further invocation**.
+If separately authorized, it must retain the explicit three-destination pool and cap below; prior exact-packet
+consents do not authorize this UNSENT amendment or override the exhausted attended limit:
+
+```text
+ailang design-quorum /tmp/m-smt-well-sorted-preflight-M0-review.md \
+  --reviewers gemini-4-argon,oc-glm-5-3,oc-kimi-k3 \
+  --author codex --seats 3 --max-cost-usd 0.30 --json
+```
+
+File input is preferable to stdin for a stable named artifact; stdin is supported but is labelled `(stdin)` by the
+CLI. There is no native `--scope M0`. Reviewer prompt/input must explicitly say: **judge only this M0 contract;
+F2/F5 and M1–M4 remain unapproved, not omissions to fill during execution**. Any objection to M0 must be resolved;
+a scoped pass must never be reported as full-design approval. Record absent reviewers and any degraded seating
+honestly. Later controller flags may only record the actual reviewing controller's in-session judgment; this author
+does not set them, impersonate that identity or pre-fill a pass. A reviewer synthesis never supplies human approval.
+
+Both external rounds remain terminal BLOCKED and are preserved unchanged. The later human ruling above now
+authorizes this planning draft and ratifies the corrected M0 evidence/choices. It authorizes no provider call or
+implementation. The concrete sprint plan/state JSON remain uncommitted drafts, and a separate explicit execute
+instruction is still required. An unchecked external-PROCEED status is not a request to re-ask ratified M0 choices.
+<!-- M0-REVIEW-END -->
+
+---
+
+## Historical full roadmap (M1–M4 remain unapproved)
+
+The remainder retains the 2026-10-26 audit and wider proposal. “Today”, corpus counts and source line numbers below
+refer to that original snapshot unless a current packet/verification-log entry states otherwise. The current packet
+supersedes the old M0 wording and approval implications only; it does not ratify the wider roadmap.
 
 ## 0. Summary
 
@@ -54,7 +423,8 @@ quorum was skipped on this session's explicit instruction. **Run `ailang design-
 | A11: Structured Failure | +1 | `verifier_error` comes to mean "verifier bug". Unencodable programs get a typed reason code |
 | A12: System Boundary | 0 | — |
 
-**Net Score: +4 → Proceed.** Hard violations (−1 on A1/A3/A4/A7): none.
+**Historical author assessment: net +4.** This is not a quorum/controller verdict or current approval.
+Hard violations claimed by the original proposal (−1 on A1/A3/A4/A7): none.
 
 ---
 
@@ -375,14 +745,14 @@ The target encodings were checked directly in Z3:
 | `ailang-core-triage/smt-encode-dt-builtins.md` | **Not subsumed.** It adds *encodings* for `_dt_*` builtins. This doc guarantees that a builtin *without* an encoding becomes a named SKIP, including inside callee bodies (B1). Both are needed; they do not conflict |
 | `ailang-core-triage/verify-hof-inline-behind-callee-sort-gate.md` (#1375, #215) | **Partially subsumed.** Its "#215 masked" half has two mechanisms. The hard-coded `(Seq Int)`/`Int` element sort in `hof_inline.go:331-347` is RC1, and a wrong element sort is a sort error the M3 pre-flight catches (SKIP, never ERROR). Its accessor-shadowing `let` hygiene is **not** covered here. `let` names are still emitted under their source names (`codegen_control.go:21`); ef7bdc8e0's `codegen_scope.go` only stops a `$p_` rename from capturing a let. Shadowing produces well-sorted but wrongly-bound SMT, so it stays with that doc. The #1375 decision (exempt inlinable HOFs from the gate) stays with that doc, and M3 is the safety net that makes doing it safe |
 | `ailang-core-triage/verify-ensures-verified-without-encodable-refutation.md` | **Not subsumed; adjacent.** That is proof-vs-refutation asymmetry when `ensures` calls a user function. S2 here is a different false proof (call-site collapse). Both live in `callee_resolver.go`/`codegen_xmod_contract.go`, so the M0 S2 fix should be reviewed against that doc's option (a) "uninterpreted function + conjoined callee contract". M0 adopts that shape |
-| `ailang-core-triage/verify-call-site-precondition-not-checked.md` | **Not subsumed; shares S2's root.** Both stem from the missing call-site argument tracking ("deferred to M4", `callee_resolver.go:129`). M0 threads call-site arguments into `EncodeCalleeByContract`, which is the plumbing that doc needs. Discharging `requires` as an obligation remains that doc's decision |
+| `ailang-core-triage/verify-call-site-precondition-not-checked.md` | **Not subsumed; shares S2's root.** Both stem from the missing call-site argument tracking ("deferred to M4", `callee_resolver.go:129`). The current M0 packet carries actual-call arguments and guards postcondition facts; discharging `requires` as an obligation remains that doc's decision |
 | `ailang-core-triage/verify-int-width-mismatch-z3-int-vs-int64.md` | **Not subsumed.** That doc is about width/overflow. S1 is the *division operator*, which is wrong even over unbounded ℤ. If that doc chooses BitVec 64, S1's `bvsdiv`/`bvsrem` are truncating by definition, so the two fixes agree |
 | `m-contract-verification-coverage.md` (skipped vs not_applicable) | **Not subsumed; must compose.** That doc splits the *skip counter* by cause and is parked under D-29/D-30. M3 adds a new skip cause, `encoder_gap`, so that it stays separable from `unsupported_encoding` in any future split, and it does **not** change `isVerifiedSuccess` (`internal/observatory/cost_per_verified_success.go`). See Design Freeze F2 |
 | `v0_38_0/m-smt-string-casefold-charfold.md` | **Not subsumed.** It adds `toUpper`/`toLower`/`foldChars` encodings. This doc makes the existing string-ordering encodings reachable (A1). No overlap in files beyond `types.go` tables |
 | `implemented/v0_54_18/m-smt-parametric-adt-declarations.md` | **#1959's primary symptom is done there.** This doc generalises its point fix (B4) into the M2 resolver and M3 pre-flight, and pins the #1959 package repro as a regression fixture |
 
 **Subsumed outright:** #1953, #1950 and #1959 (the residual). The `%g` literal defect and the contract-side empty-list
-defect had no doc or issue. The two soundness findings S1 and S2 have no issue yet; see §11.
+defect had no doc or issue. The soundness findings S1 and S2 were subsequently filed as #1960/#1961; the current packet controls M0.
 
 ---
 
@@ -413,9 +783,12 @@ in-repo corpus.
 | F4: Fix S2 with an **uninterpreted function per contract-callee, with ensures instantiated per call site under argument substitution** (recommended), not fresh constants per call | Fresh constants are sound but lose functional consistency (`f(a) - f(a)` stops proving 0). UF keeps it | agent | design | med |
 | F5: Residual Z3 errors *after* a passing pre-flight stay **ERROR** (a verifier bug) and are CI-gated to 0 | Keeps ERROR meaningful instead of turning every surprise into a SKIP | human | design | low |
 
-### Design Freeze
+### Design Freeze — full roadmap (not approved by an M0-only decision)
 
-- [ ] F1: truncating Int `/`/`%` (S1)
+Current M0-F1/F4/Z are separately ratified above for planning only. Parent F1 is checked only for that M0 scope;
+F2/F3/F5 stay deferred. The authority is the actual 2026-10-29 user ruling, not the parked agent plan.
+
+- [x] F1: truncating Int `/`/`%` ratified for M0 planning only on 2026-10-29; later milestones remain deferred.
 - [ ] F2: `encoder_gap` SKIP in both verify and ai-check, plus a changelog bank-forward note
 - [ ] F3: post-hoc sort checker
 - [ ] F5: residual Z3 error stays ERROR
@@ -424,32 +797,13 @@ in-repo corpus.
 
 ## 8. Solution Design
 
-### M0: Soundness first (S1, S2). About 1 day.
+### M0: Soundness first (S1, S2), current proposal above
 
-**S1.** Route `div_Int`/`mod_Int`, `OpDiv`/`OpMod`, BinOp `/`/`%` and DictApp `div`/`mod` on an Int dictionary
-through two helper `define-fun`s, emitted once per script only when used:
-
-```
-(define-fun ail_idiv ((a Int) (b Int)) Int
-  (ite (= (>= a 0) (>= b 0)) (div (abs a) (abs b)) (- (div (abs a) (abs b)))))
-(define-fun ail_imod ((a Int) (b Int)) Int (- a (* b (ail_idiv a b))))
-```
-
-The checked variant (`parity_trunc.smt2` in this audit) gave `sat` with `x = -1`. Division by zero stays
-uninterpreted, as today; that is partial correctness and is tracked by `int-div-zero-go-panic.md`.
-
-**S2.** Change the contract-as-spec encoding:
-
-1. `(declare-fun <f>__spec (<param sorts>) <ret>)`.
-2. For **each call site**, substitute the encoded arguments into the callee's `ensures`, with `result` bound to
-   `(<f>__spec args…)`, and assert it. This uses the existing `buildParamSubstitution`; pass the real `args` and a
-   distinct `callSiteIdx` instead of `nil, 0` at `callee_resolver.go:144`.
-3. Encode each call as `(<f>__spec args…)` instead of the shared constant.
-
-The checked variant (`gap_percall.smt2`) gave `sat`. Requires stay unasserted, as today. Turning them into
-obligations is `verify-call-site-precondition-not-checked.md`'s decision.
-
-This also fixes bucket B3: no callee parameter name is left free.
+The authoritative current M0 algorithm, partial-correctness/zero policy, approval freezes and actual-CLI acceptance
+criteria are in the **Current decision packet** above. S1 may use centralized inline parallel lets instead of the
+original preamble helpers. S2 retains UF identity but requires finite, requires-guarded lexical/path facts; the
+parked universal-axiom alternative is rejected by the partial-callee discriminator. No M0 implementation is accepted
+or newly authorized by this document update.
 
 ### M1: Type-directed operator and literal resolution (RC1). About 1 day.
 
@@ -566,7 +920,7 @@ Add `EncoderGap ReasonCode = "encoder_gap"` to `internal/verification/evidence.g
 
 ---
 
-## 9. Acceptance Criteria (exact repros and negative controls)
+## 9. Historical full-roadmap acceptance (M0 packet controls current acceptance)
 
 All fixtures live under `cmd/ailang/testdata/verify_preflight/` with `module cmd/ailang/testdata/verify_preflight/<name>`,
 and run from the repo root. **Every fixture below was written and `ailang check`ed in a scratch mirror of that path at
@@ -621,7 +975,7 @@ Further criteria:
 
 ---
 
-## 10. Testing Strategy
+## 10. Historical full-roadmap testing strategy
 
 - **Unit (internal/smt).** Pre-flight per bucket; `resolveOperator` table (each method × Int/Float/String/Bool, and
   unknown → `encoder_gap`); float rendering round-trip (`strconv.ParseFloat(render(v)) == v` for 10k random finite
@@ -652,9 +1006,7 @@ Programs that must still work: `examples/runnable/contracts/result_error_guard.a
 `nullary_constant_verify.ail`, `cross_module_functions.ail`, `string_verify.ail`, `finance.ail` (uses Int `/` on
 non-negative values; must stay VERIFIED under truncating division). All exist at 7d29031ea.
 
-**New issues to file** (this session was told not to touch GitHub): S1 "verify: Int `/` and `%` use Euclidean SMT
-div/mod → false VERIFIED for negative operands", and S2 "verify: contract-as-spec callee collapses all call sites to
-one constant → false VERIFIED". Both should link here.
+**Historical issue-filing note resolved:** S1 is tracked by #1960 and S2 by #1961; do not create duplicates.
 
 ---
 
@@ -739,8 +1091,24 @@ M0 1d → M1 1d → M2 1.5d → M3 2d → M4 0.5d. That is about 6 days. M0 is i
 | V17 | No pre-flight checker exists | `codegen_decl_validation.go` only validates declaration headers; no application/symbol check in `internal/smt` (non-test grep for `unknown constant` finds only comments) |
 | V18 | ai-check exits 1 on these ERRORs | `ailang-od ai-check float_div.ail` → `rc=1`, `errors: 2` |
 | V19 | All §9 fixtures are valid AILANG | `ailang-od check` on each in a scratch mirror of `cmd/ailang/testdata/verify_preflight/`: "No errors found" ×11; the #1959 package probe was checked in its own package dir |
+| V20 | Archived 807 M0 rows falsely VERIFY; no actual aca5 run claimed | Actual 807 check/verify outputs plus new literal named-path equivalence records; broader cache changes and unbuilt-current qualification retained |
+| V21 | Partial-callee fixture is valid source and false caller actually returns | Actual check 0; wrong(1) runtime 0; runtime contract exit 1; exact source/std warnings retained in companion JSON |
+| V22 | Universal UF differs from finite call facts | Local Z3 4.16.0: universal partial-spec refutation UNSAT, actual-call control SAT; requires/identity controls and exact scripts in companion; not a parked branch CLI run |
+| V23 | Zero arithmetic does not return a runtime value | Archived 807 compiler check 0, run 1 / RT001 for both `/0` and `%0`; companion JSON |
+| V24 | Historical named-human-F1 claim is unproven | Primary user transcript message at 2026-10-26T14:59:31.188Z is a broad P0 workflow request; named “required sound choice” occurs in agent delegation/plan, not an explicit human F1 message |
+| V25 | No native scoped-quorum flag | Read aca5 `design_quorum.go` flags and actual CLI help; `design_review.go:111–127` accepts path/stdin; DefaultSeats 3; actual two authorized runs/CLI records retained separately |
+| V26 | Pinned integration and operator-held scope | Literal base/named-path diffs and real cache delta are embedded; no whole-compiler or fresh-live-ownership claim. Root instruction keeps #1790 held; no card/state change |
+| V27 | Short-circuit/contract/guard fact selection and author label | Read `expr_simple.go:normalizeShortCircuit`, shape tests, `file_funcs.go:elaborateContracts`, `patterns.go:normalizeArm`, op-lowering Meta/Guard traversal; `design_quorum.go` author string passes directly to `VendorOf`/`SelectReviewers`; `codex` recognized, bare `openai` unrecognized; no new tests/provider call |
+| V28 | Runtime signed Int premise, source/stdlib identity and full halfDown rows | Archived 807 CLI checks + tree/strict-VM 12-pair/operator matrix all match truncation; full original int_divmod check/verbose JSON verify, all 54 std hashes match 807; raw outputs and runtime snippets in companion |
+| V29 | Named-path base comparison and quorum-input identity are explicit | Actual merge-base 399630; full named-path diff includes #602 test plus 6 std paths; actual help 0; source excerpts and in-packet committed-source identity protocol; both terminal BLOCKED records retained |
+| V30 | Missing literal records now captured locally, without changing the reviewed inputs | Executed 807→aca5 verify/front-half diffs 0; stamped e863→aca5 quorum diff 0; full versions, blobs/source excerpts, real cache diff, cache-disable handling and frozen-packet hashes in local supplement now embedded |
+| V31 | Installed dirty build and scope remain limited | Actual installed version reports v0.55.0-dirty/e863 fullstamp; hash/source comparison do not attest clean built bytes. Archived 807 is not a new aca5/fixed build; no whole-compiler equivalence claim |
+| V32 | Gemini helper parameter/environment concern remains future acceptance | Round 2 exact catch/proposed_fix retained verbatim; M0-A5 must prove value/condition parameter/environment parity and distinct captures; no closed-helper restriction or validation assumed |
+
+
+
 
 ---
 
 **Document created**: 2026-10-26
-**Last updated**: 2026-10-26
+**Last updated**: 2026-10-29 — UNSENT M0 evidence amendment after two BLOCKED rounds; no planning/execution approval

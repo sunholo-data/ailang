@@ -11,7 +11,7 @@ import (
 func encodeIntrinsic(intr *core.Intrinsic) (string, error) {
 	opMap := map[core.IntrinsicOp]string{
 		core.OpAdd: "+", core.OpSub: "-", core.OpMul: "*",
-		core.OpDiv: "div", core.OpMod: "mod",
+		core.OpDiv: smtIntDivTrunc, core.OpMod: smtIntModTrunc,
 		core.OpEq: "=", core.OpNe: "distinct",
 		core.OpLt: "<", core.OpLe: "<=", core.OpGt: ">", core.OpGe: ">=",
 		core.OpAnd: "and", core.OpOr: "or", core.OpNot: "not",
@@ -31,7 +31,7 @@ func encodeIntrinsic(intr *core.Intrinsic) (string, error) {
 // encodeBinOp handles pre-lowered BinOp nodes.
 func encodeBinOp(bop *core.BinOp) (string, error) {
 	opMap := map[string]string{
-		"+": "+", "-": "-", "*": "*", "/": "div", "%": "mod",
+		"+": "+", "-": "-", "*": "*", "/": smtIntDivTrunc, "%": smtIntModTrunc,
 		"==": "=", "!=": "distinct",
 		"<": "<", "<=": "<=", ">": ">", ">=": ">=",
 		"&&": "and", "||": "or",
@@ -50,7 +50,45 @@ func encodeBinOp(bop *core.BinOp) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("(%s %s %s)", smtOp, left, right), nil
+	return applyBinaryOp(smtOp, left, right), nil
+}
+
+// smtIntDivTrunc and smtIntModTrunc stand for AILANG's Int `/` and `%`. They are
+// not SMT-LIB operators: applyBinaryOp expands them through encodeTruncDivMod.
+// SMT-LIB `div`/`mod` are Euclidean (-7 div 2 = -4, -7 mod 2 = 1), but AILANG
+// follows Go and truncates toward zero (-7 / 2 = -3, -7 % 2 = -1). Emitting the
+// SMT operators directly proved contracts that are false at runtime (#1960).
+const (
+	smtIntDivTrunc = "$ail.idiv"
+	smtIntModTrunc = "$ail.imod"
+)
+
+// applyBinaryOp renders `(op left right)`, expanding the truncating Int
+// division and remainder sentinels.
+func applyBinaryOp(smtOp, left, right string) string {
+	if smtOp == smtIntDivTrunc || smtOp == smtIntModTrunc {
+		return encodeTruncDivMod(smtOp == smtIntModTrunc, left, right)
+	}
+	return fmt.Sprintf("(%s %s %s)", smtOp, left, right)
+}
+
+// encodeTruncDivMod encodes Go-semantics Int division, or the remainder when isMod:
+//
+//	q = (ite (= (>= n 0) (>= d 0)) (div |n| |d|) (- (div |n| |d|)))   ; rounds toward zero
+//	r = (- n (* d q))                                                  ; sign follows n
+//
+// The operands are bound once by a parallel let, so a compound operand is encoded
+// once and cannot be captured by the let names of a nested division. Division by
+// zero stays uninterpreted, as before: the runtime raises RT001 there, so the
+// function returns nothing and any value is sound for partial correctness.
+func encodeTruncDivMod(isMod bool, left, right string) string {
+	const n, d = "$ail_n", "$ail_d"
+	q := fmt.Sprintf("(ite (= (>= %[1]s 0) (>= %[2]s 0)) (div (abs %[1]s) (abs %[2]s)) (- (div (abs %[1]s) (abs %[2]s))))", n, d)
+	body := q
+	if isMod {
+		body = fmt.Sprintf("(- %s (* %s %s))", n, d, q)
+	}
+	return fmt.Sprintf("(let ((%s %s) (%s %s)) %s)", n, left, d, right, body)
 }
 
 // encodeUnOp handles pre-lowered UnOp nodes.
@@ -76,7 +114,7 @@ func encodeDictApp(da *core.DictApp) (string, error) {
 	// Map type class method names to SMT-LIB operators
 	methodToSMT := map[string]string{
 		// Num class
-		"add": "+", "sub": "-", "mul": "*", "div": "div", "neg": "-",
+		"add": "+", "sub": "-", "mul": "*", "div": smtIntDivTrunc, "neg": "-",
 		// Eq class
 		"eq": "=", "neq": "distinct", "ne": "distinct",
 		// Ord class

@@ -61,6 +61,9 @@ func encodeExprWithSortHint(expr core.CoreExpr, expectedSort string) (string, er
 		return encodeListWithSortHint(e, expectedSort)
 
 	case *core.If:
+		if activeCallFacts != nil {
+			return encodeFactIfHint(e, expectedSort)
+		}
 		// Both branches produce the function's value, so both inherit the hint.
 		cond, err := EncodeExpr(e.Cond)
 		if err != nil {

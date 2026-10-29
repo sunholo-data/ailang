@@ -1,0 +1,51 @@
+module cmd/ailang/testdata/verify_preflight/m0_callee_identity
+
+-- #1961: a callee seen only through its contract (here: recursive) must give
+-- every call its own result, constrained by the callee's ensures at THAT
+-- call's arguments.
+
+export pure func total(n: int) -> int
+ensures { result >= 0 } {
+  if n <= 0 then 0 else n + total(n - 1)
+}
+
+-- FALSE: total(a) - total(a + 1) == -(a + 1) for a >= 0. Must NOT be VERIFIED.
+export pure func gap(a: int) -> int
+requires { a >= 0 }
+ensures { result == 0 } {
+  total(a) - total(a + 1)
+}
+
+-- TRUE: the same call twice is the same value (functional consistency). VERIFIED.
+export pure func selfGap(a: int) -> int
+ensures { result == 0 } {
+  total(a) - total(a)
+}
+
+-- TRUE: each call's ensures holds at its own argument. VERIFIED.
+export pure func sumBoth(a: int) -> int
+ensures { result >= 0 } {
+  total(a) + total(a + 1)
+}
+
+-- A callee whose ensures mentions its own parameter and holds only under its
+-- requires (lowBound(-1) = -2 at runtime).
+export pure func lowBound(n: int) -> int
+requires { n >= 0 }
+ensures { result >= n } {
+  if n <= 0 then 2 * n else 1 + lowBound(n - 1)
+}
+
+-- TRUE: the callee's parameter n is instantiated with the argument a. VERIFIED.
+export pure func atLeast(a: int) -> int
+requires { a >= 0 }
+ensures { result >= a } {
+  lowBound(a)
+}
+
+-- FALSE at a = -1 (lowBound(-1) = -2): the call does not meet the callee's
+-- requires, so its ensures may not be assumed. Must NOT be VERIFIED.
+export pure func atLeastUnguarded(a: int) -> int
+ensures { result >= a } {
+  lowBound(a)
+}

@@ -1,0 +1,46 @@
+module cmd/ailang/testdata/verify_preflight/m0_int_divmod
+
+-- #1960: AILANG Int `/` and `%` truncate toward zero (Go semantics), so the
+-- verifier must not prove contracts that hold only under SMT-LIB's Euclidean
+-- div/mod.
+
+-- FALSE at x = -7 (-7 % 2 == -1 at runtime). Must NOT be VERIFIED.
+export pure func parity(x: int) -> int
+ensures { result >= 0 } {
+  x % 2
+}
+
+-- FALSE at x = -7 (-7 / 2 == -3 at runtime, and -6 > -7). Must NOT be VERIFIED.
+export pure func halfDown(x: int) -> int
+ensures { result * 2 <= x } {
+  x / 2
+}
+
+-- TRUE for non-negative x under both semantics: VERIFIED.
+export pure func halfNonNeg(x: int) -> int
+requires { x >= 0 }
+ensures { result * 2 <= x && result >= 0 } {
+  x / 2
+}
+
+-- TRUE: a truncating remainder by 2 is -1, 0 or 1. VERIFIED.
+export pure func parityBounded(x: int) -> int
+ensures { result > 0 - 2 && result < 2 } {
+  x % 2
+}
+
+-- TRUE: truncation rounds toward zero, so |x / 2| * 2 <= |x|. Euclidean
+-- division would make this false at x = -7 (-4 * 2 = -8 < -7). VERIFIED.
+export pure func halfTowardZero(x: int) -> int
+requires { x < 0 }
+ensures { result * 2 >= x } {
+  x / 2
+}
+
+-- TRUE: the remainder takes the sign of the dividend, whatever the divisor's
+-- sign. VERIFIED.
+export pure func remSign(x: int, y: int) -> int
+requires { x >= 0 && y < 0 }
+ensures { result >= 0 && result < 0 - y } {
+  x % y
+}

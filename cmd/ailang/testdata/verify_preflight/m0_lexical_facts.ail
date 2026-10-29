@@ -1,0 +1,26 @@
+module cmd/ailang/testdata/verify_preflight/m0_lexical_facts
+
+export pure func shadow(n: int) -> int
+ensures { let n = 0 in result == n } {
+  if n <= 0 then 0 else shadow(n - 1)
+}
+
+export pure func shadowFalse(a: int) -> int
+requires { a == 1 }
+ensures { result == 1 } { shadow(a) }
+
+export pure func shadowTrue(a: int) -> int
+ensures { result == 0 } { shadow(a) }
+
+export pure func captured(n: int) -> int
+ensures { let a = 0 in result == n } {
+  if n <= 0 then n else captured(n - 1) + 1
+}
+
+export pure func capturedTrue(a: int) -> int
+requires { a == 1 }
+ensures { result == 1 } { captured(a) }
+
+export pure func capturedFalse(a: int) -> int
+requires { a == 1 }
+ensures { result == 0 } { captured(a) }
