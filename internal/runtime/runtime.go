@@ -181,7 +181,11 @@ func (rt *ModuleRuntime) LoadAndEvaluate(modulePath string) (*ModuleInstance, er
 	// 3c. Build minimal interface if not already done
 	// (Pipeline provides complete type-checked interface)
 	if loaded.Iface == nil {
-		loaded.Iface = rt.buildMinimalInterface(loaded)
+		minimal, err := rt.buildMinimalInterface(loaded)
+		if err != nil {
+			return nil, fmt.Errorf("IFC interface for %s: %w", modulePath, err)
+		}
+		loaded.Iface = minimal
 	}
 
 	// 4. Create module instance
@@ -485,11 +489,20 @@ func (rt *ModuleRuntime) ListInstances() []string {
 
 // buildMinimalInterface creates a minimal interface from loader exports
 // This is used when modules are loaded without full type checking (e.g., in tests)
-func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) *iface.Iface {
+func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) (*iface.Iface, error) {
 	exports := make(map[string]*iface.IfaceItem)
+	summaries, err := types.AnalyzeModuleIFC(loaded.File, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	for name := range loaded.Exports {
+		summary := summaries[name]
+		if summary == nil {
+			summary = types.EmptyIFCSummary()
+		}
 		exports[name] = &iface.IfaceItem{
+			IFC:    summary,
 			Name:   name,
 			Type:   nil, // No type info available without type checking
 			Purity: false,
@@ -559,11 +572,12 @@ func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) *ifa
 	}
 
 	return &iface.Iface{
+		Schema:       iface.SchemaVersion,
 		Module:       loaded.Path,
 		Exports:      exports,
 		Constructors: constructors,
 		Types:        make(map[string]*iface.TypeExport),
-	}
+	}, nil
 }
 
 // attachContracts attaches contract specifications to a FunctionValue

@@ -1,0 +1,6037 @@
+{
+  "compiler_source": "4a82fc2c5 (source-equivalent M2 checkpoint; built dirty on907dcd372)",
+  "consumer_commit": "81494c923d19cb02b97430a984f7230aaef75b70",
+  "entry": "sim/navigation.ail",
+  "entry_lines": 438,
+  "blob_limit": 67108864,
+  "module_limit": 134217728,
+  "warm_stamps_unchanged": true,
+  "runs": [
+    {
+      "arm": "cold",
+      "exit": 0,
+      "seconds": 3.606
+    },
+    {
+      "arm": "warm",
+      "exit": 0,
+      "seconds": 0.176
+    }
+  ],
+  "modules": [
+    {
+      "module_dir": "pkg__sunholo__celestial__stellar_ld",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 937929,
+        "iface.json": 1771,
+        "artifacts.json": 528,
+        "coretypeinfo.gob": 17521
+      },
+      "total_bytes": 957751,
+      "module": "pkg/sunholo/celestial/stellar_ld",
+      "dag": {
+        "core_node_types": 4218,
+        "distinct_type_nodes": 8,
+        "format": 1,
+        "roots": 4218
+      },
+      "exports": 1,
+      "exported_types": 1,
+      "aliases": 1,
+      "source": {
+        "relative": "pkg/sunholo/celestial/stellar_ld.ail",
+        "sha256": "3f04f3839dd1f2bfc376f101630cf2f34da3be7824394a6fb8b2fde9973f90bf",
+        "bytes": 34234,
+        "lines": 532
+      },
+      "ifc_summary_bytes": 248
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__data__sol",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 623007,
+        "iface.json": 29537,
+        "artifacts.json": 523,
+        "coretypeinfo.gob": 16309
+      },
+      "total_bytes": 669378,
+      "module": "pkg/stapledons/sim/data/sol",
+      "dag": {
+        "core_node_types": 2894,
+        "distinct_type_nodes": 82,
+        "format": 1,
+        "roots": 2894
+      },
+      "exports": 5,
+      "exported_types": 6,
+      "aliases": 6,
+      "source": {
+        "relative": "pkg/stapledons/sim/data/sol.ail",
+        "sha256": "66f4da7bb8e9612b80145dc81fc2f74b1e32ab0cbf9190b25b13ca54077f0c61",
+        "bytes": 21478,
+        "lines": 248
+      },
+      "ifc_summary_bytes": 1240
+    },
+    {
+      "module_dir": "sim__navigation",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 389341,
+        "iface.json": 128663,
+        "artifacts.json": 510,
+        "coretypeinfo.gob": 30193
+      },
+      "total_bytes": 548709,
+      "module": "sim/navigation",
+      "dag": {
+        "core_node_types": 4134,
+        "distinct_type_nodes": 261,
+        "format": 1,
+        "roots": 4134
+      },
+      "exports": 26,
+      "exported_types": 8,
+      "aliases": 8,
+      "source": {
+        "relative": "sim/navigation.ail",
+        "sha256": "35a12fa5c59400a81d8cae65ddc5fe8998ea515ce769c4e310f39bed7bab22e5",
+        "bytes": 31663,
+        "lines": 438
+      },
+      "ifc_summary_bytes": 8725
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__journey",
+      "bytes": {
+        "constructors.json": 379,
+        "core.gob": 379509,
+        "iface.json": 25268,
+        "artifacts.json": 526,
+        "coretypeinfo.gob": 7824
+      },
+      "total_bytes": 413506,
+      "module": "pkg/sunholo/relativity/journey",
+      "dag": {
+        "core_node_types": 1568,
+        "distinct_type_nodes": 28,
+        "format": 1,
+        "roots": 1568
+      },
+      "exports": 11,
+      "exported_types": 3,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/sunholo/relativity/journey.ail",
+        "sha256": "fa8c0d4c83eede8b524dd1e972157bcf58b3fcb0639370fbcd388d23b6e70961",
+        "bytes": 13879,
+        "lines": 326
+      },
+      "ifc_summary_bytes": 4722
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__kepler",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 321220,
+        "iface.json": 24623,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 6831
+      },
+      "total_bytes": 353200,
+      "module": "pkg/sunholo/celestial/kepler",
+      "dag": {
+        "core_node_types": 1409,
+        "distinct_type_nodes": 27,
+        "format": 1,
+        "roots": 1409
+      },
+      "exports": 19,
+      "exported_types": 4,
+      "aliases": 4,
+      "source": {
+        "relative": "pkg/sunholo/celestial/kepler.ail",
+        "sha256": "00fe1b625bff420295410d6565a1d9384f18448e2babe957ad6294d512fac7cf",
+        "bytes": 7711,
+        "lines": 197
+      },
+      "ifc_summary_bytes": 5828
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__ephemeris",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 299975,
+        "iface.json": 39638,
+        "artifacts.json": 527,
+        "coretypeinfo.gob": 7026
+      },
+      "total_bytes": 347168,
+      "module": "pkg/sunholo/celestial/ephemeris",
+      "dag": {
+        "core_node_types": 1258,
+        "distinct_type_nodes": 41,
+        "format": 1,
+        "roots": 1258
+      },
+      "exports": 14,
+      "exported_types": 5,
+      "aliases": 5,
+      "source": {
+        "relative": "pkg/sunholo/celestial/ephemeris.ail",
+        "sha256": "1bfda540b38341149a9be7eabc956dc138b4b21363398231416d485177d6cfe1",
+        "bytes": 10453,
+        "lines": 201
+      },
+      "ifc_summary_bytes": 5195
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__celestial",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 241449,
+        "iface.json": 74286,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 12786
+      },
+      "total_bytes": 329047,
+      "module": "pkg/stapledons/sim/celestial",
+      "dag": {
+        "core_node_types": 1153,
+        "distinct_type_nodes": 147,
+        "format": 1,
+        "roots": 1153
+      },
+      "exports": 8,
+      "exported_types": 4,
+      "aliases": 4,
+      "source": {
+        "relative": "pkg/stapledons/sim/celestial.ail",
+        "sha256": "2f35f2a2bb9e188ed3a51f5581e99df9b1fedb5c7119cb430c694293d58c77ca",
+        "bytes": 10414,
+        "lines": 155
+      },
+      "ifc_summary_bytes": 2558
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__photometry_table",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 307601,
+        "iface.json": 5885,
+        "artifacts.json": 535,
+        "coretypeinfo.gob": 5020
+      },
+      "total_bytes": 319043,
+      "module": "pkg/sunholo/relativity/photometry_table",
+      "dag": {
+        "core_node_types": 1147,
+        "distinct_type_nodes": 8,
+        "format": 1,
+        "roots": 1147
+      },
+      "exports": 8,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/sunholo/relativity/photometry_table.ail",
+        "sha256": "a96afab235863b350e9a6b40866da34be335d70970f596014944062b55092f86",
+        "bytes": 5669,
+        "lines": 113
+      },
+      "ifc_summary_bytes": 1984
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__stellar",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 206695,
+        "iface.json": 21057,
+        "artifacts.json": 525,
+        "coretypeinfo.gob": 6000
+      },
+      "total_bytes": 234279,
+      "module": "pkg/sunholo/celestial/stellar",
+      "dag": {
+        "core_node_types": 890,
+        "distinct_type_nodes": 58,
+        "format": 1,
+        "roots": 890
+      },
+      "exports": 27,
+      "exported_types": 1,
+      "aliases": 1,
+      "source": {
+        "relative": "pkg/sunholo/celestial/stellar.ail",
+        "sha256": "ef5d12ba89eb81fc9a4411d791e3cd7683fba5a6bdf5cd99eb1bc09a3b70e0c0",
+        "bytes": 11243,
+        "lines": 217
+      },
+      "ifc_summary_bytes": 7974
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__medium",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 178401,
+        "iface.json": 28143,
+        "artifacts.json": 525,
+        "coretypeinfo.gob": 3822
+      },
+      "total_bytes": 210893,
+      "module": "pkg/sunholo/relativity/medium",
+      "dag": {
+        "core_node_types": 749,
+        "distinct_type_nodes": 15,
+        "format": 1,
+        "roots": 749
+      },
+      "exports": 26,
+      "exported_types": 1,
+      "aliases": 1,
+      "source": {
+        "relative": "pkg/sunholo/relativity/medium.ail",
+        "sha256": "25e799e490685dcbc996125f7fb13e81e45f07a7e63042545a4a13228da6c81f",
+        "bytes": 12737,
+        "lines": 252
+      },
+      "ifc_summary_bytes": 11755
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__trappist1",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 178350,
+        "iface.json": 21272,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 6832
+      },
+      "total_bytes": 206980,
+      "module": "pkg/stapledons/sim/trappist1",
+      "dag": {
+        "core_node_types": 846,
+        "distinct_type_nodes": 91,
+        "format": 1,
+        "roots": 846
+      },
+      "exports": 15,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/stapledons/sim/trappist1.ail",
+        "sha256": "58567110981142f9cbd4f3ddd201eec050f475569544275ebef142ba6d2add47",
+        "bytes": 7188,
+        "lines": 109
+      },
+      "ifc_summary_bytes": 4294
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__alpha_centauri",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 183199,
+        "iface.json": 15942,
+        "artifacts.json": 529,
+        "coretypeinfo.gob": 7302
+      },
+      "total_bytes": 206974,
+      "module": "pkg/stapledons/sim/alpha_centauri",
+      "dag": {
+        "core_node_types": 808,
+        "distinct_type_nodes": 83,
+        "format": 1,
+        "roots": 808
+      },
+      "exports": 10,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/stapledons/sim/alpha_centauri.ail",
+        "sha256": "aef2759fbadacac730f628d7cd7583d255d92db9eac63c5dafd30c94aaf22f66",
+        "bytes": 4837,
+        "lines": 68
+      },
+      "ifc_summary_bytes": 2941
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__photometry",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 183306,
+        "iface.json": 13577,
+        "artifacts.json": 529,
+        "coretypeinfo.gob": 3469
+      },
+      "total_bytes": 200883,
+      "module": "pkg/sunholo/relativity/photometry",
+      "dag": {
+        "core_node_types": 719,
+        "distinct_type_nodes": 19,
+        "format": 1,
+        "roots": 719
+      },
+      "exports": 18,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/sunholo/relativity/photometry.ail",
+        "sha256": "51fa6240f95f8a12663d58d0ea906f3bb0b0746c8d7489644181ecbfacc2a667",
+        "bytes": 10126,
+        "lines": 221
+      },
+      "ifc_summary_bytes": 5169
+    },
+    {
+      "module_dir": "std__list",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 133022,
+        "iface.json": 47975,
+        "artifacts.json": 504,
+        "coretypeinfo.gob": 16353
+      },
+      "total_bytes": 197856,
+      "module": "std/list",
+      "dag": {
+        "core_node_types": 835,
+        "distinct_type_nodes": 399,
+        "format": 1,
+        "roots": 835
+      },
+      "exports": 43,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "std/list.ail",
+        "sha256": "0888aa2157388391506cde86301500d52a455ca5ec2f08dfa883359471867998",
+        "bytes": 15344,
+        "lines": 334
+      },
+      "ifc_summary_bytes": 15042
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__blackbody",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 174807,
+        "iface.json": 9830,
+        "artifacts.json": 528,
+        "coretypeinfo.gob": 3726
+      },
+      "total_bytes": 188893,
+      "module": "pkg/sunholo/relativity/blackbody",
+      "dag": {
+        "core_node_types": 700,
+        "distinct_type_nodes": 19,
+        "format": 1,
+        "roots": 700
+      },
+      "exports": 11,
+      "exported_types": 2,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/sunholo/relativity/blackbody.ail",
+        "sha256": "e54f414c3b9eb278b935b696c84a1e25308c09f0a525941da41c2e069c3e66a8",
+        "bytes": 7697,
+        "lines": 180
+      },
+      "ifc_summary_bytes": 3105
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__data__acen",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 174089,
+        "iface.json": 7144,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 4526
+      },
+      "total_bytes": 186285,
+      "module": "pkg/stapledons/sim/data/acen",
+      "dag": {
+        "core_node_types": 844,
+        "distinct_type_nodes": 21,
+        "format": 1,
+        "roots": 844
+      },
+      "exports": 3,
+      "exported_types": 3,
+      "aliases": 3,
+      "source": {
+        "relative": "pkg/stapledons/sim/data/acen.ail",
+        "sha256": "5af439e2902ffe7c0ccc9783fe014e292ab3d6997ca7b1485e8b09f308e6dd5d",
+        "bytes": 9055,
+        "lines": 101
+      },
+      "ifc_summary_bytes": 744
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__frames",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 159136,
+        "iface.json": 13870,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 3936
+      },
+      "total_bytes": 177468,
+      "module": "pkg/sunholo/celestial/frames",
+      "dag": {
+        "core_node_types": 696,
+        "distinct_type_nodes": 24,
+        "format": 1,
+        "roots": 696
+      },
+      "exports": 9,
+      "exported_types": 4,
+      "aliases": 4,
+      "source": {
+        "relative": "pkg/sunholo/celestial/frames.ail",
+        "sha256": "8ede45c88a864b68000e260b73b768979f33d912507dc9ae5bf0f67ff041371f",
+        "bytes": 4733,
+        "lines": 108
+      },
+      "ifc_summary_bytes": 2466
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__optics",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 151854,
+        "iface.json": 17269,
+        "artifacts.json": 525,
+        "coretypeinfo.gob": 3421
+      },
+      "total_bytes": 173071,
+      "module": "pkg/sunholo/relativity/optics",
+      "dag": {
+        "core_node_types": 621,
+        "distinct_type_nodes": 19,
+        "format": 1,
+        "roots": 621
+      },
+      "exports": 15,
+      "exported_types": 2,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/sunholo/relativity/optics.ail",
+        "sha256": "5a555a28a703986922346fd420a07f09e8a2d1f34aa9bb5427a7bdd4c70ea736",
+        "bytes": 6782,
+        "lines": 159
+      },
+      "ifc_summary_bytes": 5765
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__data__trappist1",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 153091,
+        "iface.json": 7432,
+        "artifacts.json": 529,
+        "coretypeinfo.gob": 3773
+      },
+      "total_bytes": 164827,
+      "module": "pkg/stapledons/sim/data/trappist1",
+      "dag": {
+        "core_node_types": 698,
+        "distinct_type_nodes": 26,
+        "format": 1,
+        "roots": 698
+      },
+      "exports": 5,
+      "exported_types": 2,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/stapledons/sim/data/trappist1.ail",
+        "sha256": "1b01b0cf4041ce14ff95a7a93718b5f27c67a4e72668f8aba1603e16c2a1e891",
+        "bytes": 8140,
+        "lines": 86
+      },
+      "ifc_summary_bytes": 1240
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__rings",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 140417,
+        "iface.json": 12237,
+        "artifacts.json": 523,
+        "coretypeinfo.gob": 3932
+      },
+      "total_bytes": 157111,
+      "module": "pkg/sunholo/celestial/rings",
+      "dag": {
+        "core_node_types": 595,
+        "distinct_type_nodes": 32,
+        "format": 1,
+        "roots": 595
+      },
+      "exports": 8,
+      "exported_types": 2,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/sunholo/celestial/rings.ail",
+        "sha256": "b2a415b2a66d73385ea17bf5433cd2d7d795931fec023d3628e4e29625f981eb",
+        "bytes": 6167,
+        "lines": 125
+      },
+      "ifc_summary_bytes": 4806
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__reflect",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 138418,
+        "iface.json": 10632,
+        "artifacts.json": 525,
+        "coretypeinfo.gob": 2837
+      },
+      "total_bytes": 152414,
+      "module": "pkg/sunholo/celestial/reflect",
+      "dag": {
+        "core_node_types": 571,
+        "distinct_type_nodes": 13,
+        "format": 1,
+        "roots": 571
+      },
+      "exports": 11,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/sunholo/celestial/reflect.ail",
+        "sha256": "b914720015035bf443acf951e1dfe746d0bbab846a7ddd38249a7b05121a4ec3",
+        "bytes": 6325,
+        "lines": 135
+      },
+      "ifc_summary_bytes": 4870
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__destination_stars",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 101839,
+        "iface.json": 16192,
+        "artifacts.json": 532,
+        "coretypeinfo.gob": 5063
+      },
+      "total_bytes": 123628,
+      "module": "pkg/stapledons/sim/destination_stars",
+      "dag": {
+        "core_node_types": 448,
+        "distinct_type_nodes": 78,
+        "format": 1,
+        "roots": 448
+      },
+      "exports": 12,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/stapledons/sim/destination_stars.ail",
+        "sha256": "cb6fbad8f5caa510322ddd87297323df6669c98df97e35c512384cfeb04ae50a",
+        "bytes": 4525,
+        "lines": 59
+      },
+      "ifc_summary_bytes": 3120
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__hyper",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 92687,
+        "iface.json": 6709,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 1912
+      },
+      "total_bytes": 101834,
+      "module": "pkg/sunholo/relativity/hyper",
+      "dag": {
+        "core_node_types": 374,
+        "distinct_type_nodes": 4,
+        "format": 1,
+        "roots": 374
+      },
+      "exports": 10,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/sunholo/relativity/hyper.ail",
+        "sha256": "ed3e0435b890bfd11e6f005f59290678c23ce862dcc0d3e8da890d3a9f74ffbe",
+        "bytes": 2711,
+        "lines": 97
+      },
+      "ifc_summary_bytes": 2480
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__kinematics",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 80180,
+        "iface.json": 9451,
+        "artifacts.json": 529,
+        "coretypeinfo.gob": 1942
+      },
+      "total_bytes": 92104,
+      "module": "pkg/sunholo/relativity/kinematics",
+      "dag": {
+        "core_node_types": 313,
+        "distinct_type_nodes": 12,
+        "format": 1,
+        "roots": 313
+      },
+      "exports": 10,
+      "exported_types": 1,
+      "aliases": 1,
+      "source": {
+        "relative": "pkg/sunholo/relativity/kinematics.ail",
+        "sha256": "2f0f7acbac0998c720bf902780d204b33c08843e3f3b2142d7485ae058bace88",
+        "bytes": 3032,
+        "lines": 90
+      },
+      "ifc_summary_bytes": 2822
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__stops",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 63385,
+        "iface.json": 13412,
+        "artifacts.json": 520,
+        "coretypeinfo.gob": 1700
+      },
+      "total_bytes": 79019,
+      "module": "pkg/stapledons/sim/stops",
+      "dag": {
+        "core_node_types": 302,
+        "distinct_type_nodes": 9,
+        "format": 1,
+        "roots": 302
+      },
+      "exports": 16,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/stapledons/sim/stops.ail",
+        "sha256": "553d2f71e96d964e3f53662c2225e6410e144c4df136d9022bc2451ea893024e",
+        "bytes": 4050,
+        "lines": 58
+      },
+      "ifc_summary_bytes": 5868
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__data__stars",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 61799,
+        "iface.json": 4341,
+        "artifacts.json": 525,
+        "coretypeinfo.gob": 2166
+      },
+      "total_bytes": 68833,
+      "module": "pkg/stapledons/sim/data/stars",
+      "dag": {
+        "core_node_types": 292,
+        "distinct_type_nodes": 18,
+        "format": 1,
+        "roots": 292
+      },
+      "exports": 2,
+      "exported_types": 2,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/stapledons/sim/data/stars.ail",
+        "sha256": "32bf514c5b0f79374f925f2bef707ab03f401ac20d0506ea321f0861696711e8",
+        "bytes": 3703,
+        "lines": 50
+      },
+      "ifc_summary_bytes": 496
+    },
+    {
+      "module_dir": "std__math",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 24888,
+        "iface.json": 15950,
+        "artifacts.json": 504,
+        "coretypeinfo.gob": 1295
+      },
+      "total_bytes": 42639,
+      "module": "std/math",
+      "dag": {
+        "core_node_types": 156,
+        "distinct_type_nodes": 20,
+        "format": 1,
+        "roots": 156
+      },
+      "exports": 24,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "std/math.ail",
+        "sha256": "9fee193587cbb4c1161443ec9e4b0194fd92c7726fda4dccc36cd588d5b132aa",
+        "bytes": 6301,
+        "lines": 145
+      },
+      "ifc_summary_bytes": 6392
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__lighttime",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 26323,
+        "iface.json": 7363,
+        "artifacts.json": 527,
+        "coretypeinfo.gob": 3093
+      },
+      "total_bytes": 37308,
+      "module": "pkg/sunholo/celestial/lighttime",
+      "dag": {
+        "core_node_types": 112,
+        "distinct_type_nodes": 40,
+        "format": 1,
+        "roots": 112
+      },
+      "exports": 5,
+      "exported_types": 1,
+      "aliases": 1,
+      "source": {
+        "relative": "pkg/sunholo/celestial/lighttime.ail",
+        "sha256": "d166824d2a58f0e6b1242d10de967de5201e575886760500ece13e4fd460c384",
+        "bytes": 2439,
+        "lines": 51
+      },
+      "ifc_summary_bytes": 1918
+    },
+    {
+      "module_dir": "std__result",
+      "bytes": {
+        "constructors.json": 361,
+        "core.gob": 11830,
+        "iface.json": 7993,
+        "artifacts.json": 506,
+        "coretypeinfo.gob": 4453
+      },
+      "total_bytes": 25143,
+      "module": "std/result",
+      "dag": {
+        "core_node_types": 64,
+        "distinct_type_nodes": 83,
+        "format": 1,
+        "roots": 64
+      },
+      "exports": 6,
+      "exported_types": 1,
+      "aliases": 0,
+      "source": {
+        "relative": "std/result.ail",
+        "sha256": "0e71af128072118c52f464a47fdbff6bc6ed49a0e50b5e752408504de2d17f80",
+        "bytes": 1198,
+        "lines": 54
+      },
+      "ifc_summary_bytes": 1818
+    },
+    {
+      "module_dir": "std__option",
+      "bytes": {
+        "constructors.json": 285,
+        "core.gob": 10847,
+        "iface.json": 7440,
+        "artifacts.json": 506,
+        "coretypeinfo.gob": 3556
+      },
+      "total_bytes": 22634,
+      "module": "std/option",
+      "dag": {
+        "core_node_types": 59,
+        "distinct_type_nodes": 65,
+        "format": 1,
+        "roots": 59
+      },
+      "exports": 6,
+      "exported_types": 1,
+      "aliases": 0,
+      "source": {
+        "relative": "std/option.ail",
+        "sha256": "83cdbe7706dbf18477018463cc5289d3c7afe3411a9aefce2024a5ef7f883f7c",
+        "bytes": 1083,
+        "lines": 53
+      },
+      "ifc_summary_bytes": 1949
+    }
+  ],
+  "footprint": {
+    "modules": 30,
+    "source_lines": 4962,
+    "source_bytes": 274917,
+    "core_node_types": 29473,
+    "distinct_type_nodes_sum_per_module": 1750,
+    "exports": 384,
+    "exported_types": 54,
+    "aliases": 51,
+    "artifact_bytes_total": 6988878,
+    "ifc_summary_bytes_total": 127534
+  },
+  "maximum_blob_bytes": 937929,
+  "maximum_module_bytes": 957751,
+  "blob_limit_fraction": 0.013976231217384338,
+  "module_limit_fraction": 0.007135801017284393,
+  "actual_motoko_083": {
+    "compiler_commit": "8f6b11d0febe49a81807aa6f84f6700fa9795e0b",
+    "binary_sha256": "ae819bd2acb221d38f7c094b65426099647f64f5801ddbb04a8dbd13040e7295",
+    "consumer_commit": "083ef43726981099a0bad4fedda18fc72105d6fa",
+    "entry": "src/core/session.ail",
+    "runs": [
+      {
+        "arm": "cold",
+        "exit": 0,
+        "seconds": 43.982
+      },
+      {
+        "arm": "warm",
+        "exit": 0,
+        "seconds": 1.61
+      }
+    ],
+    "modules": [
+      {
+        "module_dir": "src__core__journal",
+        "bytes": {
+          "constructors.json": 2214,
+          "core.gob": 3100965,
+          "iface.json": 191681,
+          "artifacts.json": 512,
+          "coretypeinfo.gob": 105497
+        },
+        "total_bytes": 3400869,
+        "module": "src/core/journal",
+        "dag": {
+          "core_node_types": 14865,
+          "distinct_type_nodes": 802,
+          "format": 1,
+          "roots": 14865
+        },
+        "exports": 54,
+        "exported_types": 23,
+        "aliases": 21,
+        "ifc_summary_bytes": 14701,
+        "source": {
+          "module": "src/core/journal",
+          "sha256": "77da205d412000eb70a31dad00ca6dc925fff39d84aaf2e666586b49d38e5ecf",
+          "bytes": 162756,
+          "lines": 3693
+        }
+      },
+      {
+        "module_dir": "src__core__test__stub_step",
+        "bytes": {
+          "constructors.json": 1172,
+          "core.gob": 317059,
+          "iface.json": 2980321,
+          "artifacts.json": 519,
+          "coretypeinfo.gob": 54148
+        },
+        "total_bytes": 3353219,
+        "module": "src/core/test/stub_step",
+        "dag": {
+          "core_node_types": 1442,
+          "distinct_type_nodes": 735,
+          "format": 1,
+          "roots": 1442
+        },
+        "exports": 22,
+        "exported_types": 2,
+        "aliases": 1,
+        "ifc_summary_bytes": 7483,
+        "source": {
+          "module": "src/core/test/stub_step",
+          "sha256": "5ef11a7f1289230ce37a1365eb51c18d565a6aacd97c975fd4897ce05da2ee97",
+          "bytes": 50468,
+          "lines": 936
+        }
+      },
+      {
+        "module_dir": "src__core__ports",
+        "bytes": {
+          "constructors.json": 4197,
+          "core.gob": 1061681,
+          "iface.json": 1897900,
+          "artifacts.json": 510,
+          "coretypeinfo.gob": 51791
+        },
+        "total_bytes": 3016079,
+        "module": "src/core/ports",
+        "dag": {
+          "core_node_types": 5194,
+          "distinct_type_nodes": 513,
+          "format": 1,
+          "roots": 5194
+        },
+        "exports": 53,
+        "exported_types": 28,
+        "aliases": 20,
+        "ifc_summary_bytes": 18668,
+        "source": {
+          "module": "src/core/ports",
+          "sha256": "63f977d7f820e2db5d4a95e6e5c6ab03ecc9637c3735e44ec57b41fb77c1aa51",
+          "bytes": 170942,
+          "lines": 3116
+        }
+      },
+      {
+        "module_dir": "src__core__phase_vocab",
+        "bytes": {
+          "constructors.json": 14006,
+          "core.gob": 2357180,
+          "iface.json": 163497,
+          "artifacts.json": 516,
+          "coretypeinfo.gob": 86031
+        },
+        "total_bytes": 2621230,
+        "module": "src/core/phase_vocab",
+        "dag": {
+          "core_node_types": 10969,
+          "distinct_type_nodes": 659,
+          "format": 1,
+          "roots": 10969
+        },
+        "exports": 60,
+        "exported_types": 63,
+        "aliases": 54,
+        "ifc_summary_bytes": 18819,
+        "source": {
+          "module": "src/core/phase_vocab",
+          "sha256": "21cb55d4399d5d451f714c43bed64e61506f4af785ef3ac809d9cf238e0326b5",
+          "bytes": 117515,
+          "lines": 2265
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_herdr__herdr",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 2416994,
+          "iface.json": 65397,
+          "artifacts.json": 530,
+          "coretypeinfo.gob": 82277
+        },
+        "total_bytes": 2565200,
+        "module": "pkg/sunholo/motoko_ext_herdr/herdr",
+        "dag": {
+          "core_node_types": 10465,
+          "distinct_type_nodes": 542,
+          "format": 1,
+          "roots": 10465
+        },
+        "exports": 21,
+        "exported_types": 1,
+        "aliases": 1,
+        "ifc_summary_bytes": 6488,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_herdr/herdr",
+          "sha256": "4a7361d616c1ad66cd6066ef5a0e86f85a4ae1d3768506a8506b83443f5ed9f1",
+          "bytes": 139149,
+          "lines": 2229
+        }
+      },
+      {
+        "module_dir": "src__core__ext__runtime",
+        "bytes": {
+          "constructors.json": 921,
+          "core.gob": 2002481,
+          "iface.json": 175063,
+          "artifacts.json": 516,
+          "coretypeinfo.gob": 107719
+        },
+        "total_bytes": 2286700,
+        "module": "src/core/ext/runtime",
+        "dag": {
+          "core_node_types": 9376,
+          "distinct_type_nodes": 1035,
+          "format": 1,
+          "roots": 9376
+        },
+        "exports": 18,
+        "exported_types": 8,
+        "aliases": 6,
+        "ifc_summary_bytes": 6984,
+        "source": {
+          "module": "src/core/ext/runtime",
+          "sha256": "df6c27cc70edd25155cc362cf16b91a54b8064ec925c608c55f16430586c8d2d",
+          "bytes": 103398,
+          "lines": 1973
+        }
+      },
+      {
+        "module_dir": "src__core__session",
+        "bytes": {
+          "constructors.json": 1543,
+          "core.gob": 1555276,
+          "iface.json": 361513,
+          "artifacts.json": 512,
+          "coretypeinfo.gob": 256531
+        },
+        "total_bytes": 2175375,
+        "module": "src/core/session",
+        "dag": {
+          "core_node_types": 15895,
+          "distinct_type_nodes": 2265,
+          "format": 1,
+          "roots": 15895
+        },
+        "exports": 15,
+        "exported_types": 2,
+        "aliases": 2,
+        "ifc_summary_bytes": 16426,
+        "source": {
+          "module": "src/core/session",
+          "sha256": "547ba104253b67bd6458f40c88b683e861ec94e11cdde3edbf46bb047d891fe2",
+          "bytes": 307115,
+          "lines": 5824
+        }
+      },
+      {
+        "module_dir": "src__core__ext_world",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 1398032,
+          "iface.json": 108306,
+          "artifacts.json": 514,
+          "coretypeinfo.gob": 46035
+        },
+        "total_bytes": 1552889,
+        "module": "src/core/ext_world",
+        "dag": {
+          "core_node_types": 6536,
+          "distinct_type_nodes": 403,
+          "format": 1,
+          "roots": 6536
+        },
+        "exports": 11,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 3318,
+        "source": {
+          "module": "src/core/ext_world",
+          "sha256": "2d28edc9c9d1c808977d80b048cd195115109bdc6bdc429462cbb80e642e1a4b",
+          "bytes": 74204,
+          "lines": 1551
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_skills__skills",
+        "bytes": {
+          "constructors.json": 3198,
+          "core.gob": 1425781,
+          "iface.json": 38629,
+          "artifacts.json": 532,
+          "coretypeinfo.gob": 31582
+        },
+        "total_bytes": 1499722,
+        "module": "pkg/sunholo/motoko_ext_skills/skills",
+        "dag": {
+          "core_node_types": 5706,
+          "distinct_type_nodes": 243,
+          "format": 1,
+          "roots": 5706
+        },
+        "exports": 38,
+        "exported_types": 8,
+        "aliases": 2,
+        "ifc_summary_bytes": 10724,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_skills/skills",
+          "sha256": "81ff968683d2b7b88f30960440841effc589c55e0f6e7cfb42c22ff3232c86b7",
+          "bytes": 55734,
+          "lines": 1237
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__compose",
+        "bytes": {
+          "constructors.json": 638,
+          "core.gob": 1378104,
+          "iface.json": 44199,
+          "artifacts.json": 534,
+          "coretypeinfo.gob": 62308
+        },
+        "total_bytes": 1485783,
+        "module": "pkg/sunholo/motoko_ext_compose/compose",
+        "dag": {
+          "core_node_types": 5841,
+          "distinct_type_nodes": 501,
+          "format": 1,
+          "roots": 5841
+        },
+        "exports": 8,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2832,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/compose",
+          "sha256": "d24292071916d516364aa4c84bf75663e742f4b622899df4f2ecc5205ae004d0",
+          "bytes": 63181,
+          "lines": 1171
+        }
+      },
+      {
+        "module_dir": "src__core__dst_generator",
+        "bytes": {
+          "constructors.json": 2430,
+          "core.gob": 1165421,
+          "iface.json": 92698,
+          "artifacts.json": 518,
+          "coretypeinfo.gob": 30959
+        },
+        "total_bytes": 1292026,
+        "module": "src/core/dst_generator",
+        "dag": {
+          "core_node_types": 5398,
+          "distinct_type_nodes": 167,
+          "format": 1,
+          "roots": 5398
+        },
+        "exports": 38,
+        "exported_types": 17,
+        "aliases": 14,
+        "ifc_summary_bytes": 13574,
+        "source": {
+          "module": "src/core/dst_generator",
+          "sha256": "097d49bfec2d9a39b7ad7acacb29a31a8fb1b6dcbef49ed72f83e81b27cc45aa",
+          "bytes": 92247,
+          "lines": 1775
+        }
+      },
+      {
+        "module_dir": "src__core__tool_phase",
+        "bytes": {
+          "constructors.json": 1843,
+          "core.gob": 515446,
+          "iface.json": 627365,
+          "artifacts.json": 515,
+          "coretypeinfo.gob": 37776
+        },
+        "total_bytes": 1182945,
+        "module": "src/core/tool_phase",
+        "dag": {
+          "core_node_types": 2386,
+          "distinct_type_nodes": 460,
+          "format": 1,
+          "roots": 2386
+        },
+        "exports": 15,
+        "exported_types": 3,
+        "aliases": 1,
+        "ifc_summary_bytes": 9551,
+        "source": {
+          "module": "src/core/tool_phase",
+          "sha256": "2d355fb3313bfd911a8cf2c5f6d720fcfbe0fcc9fdd01f0d929658cded2b4f44",
+          "bytes": 37365,
+          "lines": 806
+        }
+      },
+      {
+        "module_dir": "src__core__tool_runtime",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 1109560,
+          "iface.json": 9372,
+          "artifacts.json": 517,
+          "coretypeinfo.gob": 33835
+        },
+        "total_bytes": 1153286,
+        "module": "src/core/tool_runtime",
+        "dag": {
+          "core_node_types": 5144,
+          "distinct_type_nodes": 281,
+          "format": 1,
+          "roots": 5144
+        },
+        "exports": 8,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2693,
+        "source": {
+          "module": "src/core/tool_runtime",
+          "sha256": "17c725ba3008cccb0779a9e0ffd6a4a7710c96f168c774423cd1dd8548f89b88",
+          "bytes": 46568,
+          "lines": 1199
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_herdr__dagr",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 1039750,
+          "iface.json": 60820,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 23311
+        },
+        "total_bytes": 1124412,
+        "module": "pkg/sunholo/motoko_ext_herdr/dagr",
+        "dag": {
+          "core_node_types": 4528,
+          "distinct_type_nodes": 153,
+          "format": 1,
+          "roots": 4528
+        },
+        "exports": 59,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 28760,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_herdr/dagr",
+          "sha256": "e944d8c0f1bdc3aeb658734e85df02cc3f7a9901645546b7ed0263ee5244252a",
+          "bytes": 70611,
+          "lines": 1389
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compaction_ai__compaction_ai",
+        "bytes": {
+          "constructors.json": 382,
+          "core.gob": 1002362,
+          "iface.json": 25400,
+          "artifacts.json": 546,
+          "coretypeinfo.gob": 33661
+        },
+        "total_bytes": 1062351,
+        "module": "pkg/sunholo/motoko_ext_compaction_ai/compaction_ai",
+        "dag": {
+          "core_node_types": 3763,
+          "distinct_type_nodes": 316,
+          "format": 1,
+          "roots": 3763
+        },
+        "exports": 4,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2044,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compaction_ai/compaction_ai",
+          "sha256": "0b172f92f1f35b9ee5d2250ec5d0f4157e9702441a0f3a2608918265787ee9fd",
+          "bytes": 38246,
+          "lines": 891
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_skills__register",
+        "bytes": {
+          "constructors.json": 291,
+          "core.gob": 988039,
+          "iface.json": 2609,
+          "artifacts.json": 534,
+          "coretypeinfo.gob": 30728
+        },
+        "total_bytes": 1022201,
+        "module": "pkg/sunholo/motoko_ext_skills/register",
+        "dag": {
+          "core_node_types": 3934,
+          "distinct_type_nodes": 267,
+          "format": 1,
+          "roots": 3934
+        },
+        "exports": 2,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 624,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_skills/register",
+          "sha256": "644c57b8a06eb03986c0c3e3e68d958badb8ca29a330a02bc432639f11e7ee9a",
+          "bytes": 36075,
+          "lines": 770
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_herdr__types",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 883624,
+          "iface.json": 91213,
+          "artifacts.json": 530,
+          "coretypeinfo.gob": 17985
+        },
+        "total_bytes": 993354,
+        "module": "pkg/sunholo/motoko_ext_herdr/types",
+        "dag": {
+          "core_node_types": 3678,
+          "distinct_type_nodes": 119,
+          "format": 1,
+          "roots": 3678
+        },
+        "exports": 113,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 37094,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_herdr/types",
+          "sha256": "1816f00e57694e852b21336d4ceb72518dfcfdf5ddb72ee23ddf5ef294763c0c",
+          "bytes": 98606,
+          "lines": 2034
+        }
+      },
+      {
+        "module_dir": "src__core__ext__registry_normalize",
+        "bytes": {
+          "constructors.json": 1401,
+          "core.gob": 893852,
+          "iface.json": 19956,
+          "artifacts.json": 527,
+          "coretypeinfo.gob": 32402
+        },
+        "total_bytes": 948138,
+        "module": "src/core/ext/registry_normalize",
+        "dag": {
+          "core_node_types": 3709,
+          "distinct_type_nodes": 344,
+          "format": 1,
+          "roots": 3709
+        },
+        "exports": 18,
+        "exported_types": 3,
+        "aliases": 2,
+        "ifc_summary_bytes": 4825,
+        "source": {
+          "module": "src/core/ext/registry_normalize",
+          "sha256": "e747420597ac4d8f95eb85744048226a6331e3d9d3860372448b4930e46a25e3",
+          "bytes": 51997,
+          "lines": 1063
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__author_loop",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 825417,
+          "iface.json": 16799,
+          "artifacts.json": 538,
+          "coretypeinfo.gob": 23321
+        },
+        "total_bytes": 866077,
+        "module": "pkg/sunholo/motoko_ext_compose/author_loop",
+        "dag": {
+          "core_node_types": 3408,
+          "distinct_type_nodes": 166,
+          "format": 1,
+          "roots": 3408
+        },
+        "exports": 1,
+        "exported_types": 1,
+        "aliases": 1,
+        "ifc_summary_bytes": 2794,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/author_loop",
+          "sha256": "1aafcc4e4acc8f190928a98a001bed920b10f20b8ff046a90d53beebd043409f",
+          "bytes": 28524,
+          "lines": 534
+        }
+      },
+      {
+        "module_dir": "src__core__dst_fault_catalogue",
+        "bytes": {
+          "constructors.json": 3515,
+          "core.gob": 664227,
+          "iface.json": 34879,
+          "artifacts.json": 524,
+          "coretypeinfo.gob": 14832
+        },
+        "total_bytes": 717977,
+        "module": "src/core/dst_fault_catalogue",
+        "dag": {
+          "core_node_types": 2755,
+          "distinct_type_nodes": 108,
+          "format": 1,
+          "roots": 2755
+        },
+        "exports": 32,
+        "exported_types": 7,
+        "aliases": 2,
+        "ifc_summary_bytes": 8431,
+        "source": {
+          "module": "src/core/dst_fault_catalogue",
+          "sha256": "c7a3b1298e18a2ced86fd6e81479066fe010ca5d3caeeb7bd4336fd6fecd7ab0",
+          "bytes": 61606,
+          "lines": 1141
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__authoring__dispatcher",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 664532,
+          "iface.json": 24430,
+          "artifacts.json": 547,
+          "coretypeinfo.gob": 19166
+        },
+        "total_bytes": 708677,
+        "module": "pkg/sunholo/motoko_ext_compose/authoring/dispatcher",
+        "dag": {
+          "core_node_types": 2468,
+          "distinct_type_nodes": 187,
+          "format": 1,
+          "roots": 2468
+        },
+        "exports": 2,
+        "exported_types": 1,
+        "aliases": 1,
+        "ifc_summary_bytes": 850,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/authoring/dispatcher",
+          "sha256": "cb4aec6f9445cb1a9a483f963b1a1c2865345349df9145249ff8f6bc58e8c7bd",
+          "bytes": 21915,
+          "lines": 492
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_herdr__orchestrator",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 647819,
+          "iface.json": 32461,
+          "artifacts.json": 537,
+          "coretypeinfo.gob": 15019
+        },
+        "total_bytes": 695838,
+        "module": "pkg/sunholo/motoko_ext_herdr/orchestrator",
+        "dag": {
+          "core_node_types": 2646,
+          "distinct_type_nodes": 138,
+          "format": 1,
+          "roots": 2646
+        },
+        "exports": 27,
+        "exported_types": 2,
+        "aliases": 2,
+        "ifc_summary_bytes": 9519,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_herdr/orchestrator",
+          "sha256": "eed7ec78060ae074de0f3cd7e7b237eb858e4fc40bea7807c5caf122c5bea740",
+          "bytes": 31332,
+          "lines": 690
+        }
+      },
+      {
+        "module_dir": "src__core__config",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 546058,
+          "iface.json": 65514,
+          "artifacts.json": 511,
+          "coretypeinfo.gob": 20542
+        },
+        "total_bytes": 632627,
+        "module": "src/core/config",
+        "dag": {
+          "core_node_types": 2677,
+          "distinct_type_nodes": 160,
+          "format": 1,
+          "roots": 2677
+        },
+        "exports": 7,
+        "exported_types": 16,
+        "aliases": 16,
+        "ifc_summary_bytes": 1745,
+        "source": {
+          "module": "src/core/config",
+          "sha256": "ac6fe1922b2ff713793f01d96cabf5f3228a7af2beb248fe65f2a440c1445384",
+          "bytes": 23533,
+          "lines": 678
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_abi__types",
+        "bytes": {
+          "constructors.json": 17051,
+          "core.gob": 163437,
+          "iface.json": 420237,
+          "artifacts.json": 528,
+          "coretypeinfo.gob": 20052
+        },
+        "total_bytes": 621305,
+        "module": "pkg/sunholo/motoko_ext_abi/types",
+        "dag": {
+          "core_node_types": 700,
+          "distinct_type_nodes": 197,
+          "format": 1,
+          "roots": 700
+        },
+        "exports": 11,
+        "exported_types": 75,
+        "aliases": 57,
+        "ifc_summary_bytes": 3899,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_abi/types",
+          "sha256": "923213fc71dbe6c407e83985389f1b5f120354c14b1ec4e277c4d92c4a4aeac0",
+          "bytes": 101591,
+          "lines": 2042
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_progress_contract_guard__progress_contract_guard",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 550946,
+          "iface.json": 35094,
+          "artifacts.json": 566,
+          "coretypeinfo.gob": 13689
+        },
+        "total_bytes": 600297,
+        "module": "pkg/sunholo/motoko_ext_progress_contract_guard/progress_contract_guard",
+        "dag": {
+          "core_node_types": 1773,
+          "distinct_type_nodes": 129,
+          "format": 1,
+          "roots": 1773
+        },
+        "exports": 12,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 3486,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_progress_contract_guard/progress_contract_guard",
+          "sha256": "5dfa1a1164c00fafd1c2792e30329d7d63751ac5730755191698043c4e5b8fc1",
+          "bytes": 24597,
+          "lines": 601
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compaction_structural__compaction_structural",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 531260,
+          "iface.json": 21352,
+          "artifacts.json": 562,
+          "coretypeinfo.gob": 12035
+        },
+        "total_bytes": 565211,
+        "module": "pkg/sunholo/motoko_ext_compaction_structural/compaction_structural",
+        "dag": {
+          "core_node_types": 1755,
+          "distinct_type_nodes": 118,
+          "format": 1,
+          "roots": 1755
+        },
+        "exports": 14,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 4422,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compaction_structural/compaction_structural",
+          "sha256": "3b928ee8046da5bda07744b168e9f94ec481e5e754c6841c502abbea1d8583bc",
+          "bytes": 12888,
+          "lines": 347
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__validator",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 496922,
+          "iface.json": 5825,
+          "artifacts.json": 536,
+          "coretypeinfo.gob": 12305
+        },
+        "total_bytes": 515590,
+        "module": "pkg/sunholo/motoko_ext_compose/validator",
+        "dag": {
+          "core_node_types": 1957,
+          "distinct_type_nodes": 99,
+          "format": 1,
+          "roots": 1957
+        },
+        "exports": 2,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 993,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/validator",
+          "sha256": "089c17a502dfbb1425ef07fe9b03916d7a1f6c37240a21667f55eb03f9221d97",
+          "bytes": 16359,
+          "lines": 279
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__author_tools",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 454661,
+          "iface.json": 24940,
+          "artifacts.json": 539,
+          "coretypeinfo.gob": 14043
+        },
+        "total_bytes": 494185,
+        "module": "pkg/sunholo/motoko_ext_compose/author_tools",
+        "dag": {
+          "core_node_types": 1796,
+          "distinct_type_nodes": 138,
+          "format": 1,
+          "roots": 1796
+        },
+        "exports": 2,
+        "exported_types": 1,
+        "aliases": 1,
+        "ifc_summary_bytes": 1325,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/author_tools",
+          "sha256": "2507ed30305da4af1202e526c914b81f953f2a9929487e6029ccc9d52a3d76fc",
+          "bytes": 26489,
+          "lines": 571
+        }
+      },
+      {
+        "module_dir": "src__core__tool_dispatch_adapter",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 464495,
+          "iface.json": 6116,
+          "artifacts.json": 526,
+          "coretypeinfo.gob": 14081
+        },
+        "total_bytes": 485220,
+        "module": "src/core/tool_dispatch_adapter",
+        "dag": {
+          "core_node_types": 2048,
+          "distinct_type_nodes": 137,
+          "format": 1,
+          "roots": 2048
+        },
+        "exports": 6,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1735,
+        "source": {
+          "module": "src/core/tool_dispatch_adapter",
+          "sha256": "8ed42549320554c94fb1b8ad2fcd22498f4ccaf41b03e101100957c3146382f9",
+          "bytes": 23157,
+          "lines": 495
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_conformance__invariants",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 409197,
+          "iface.json": 53324,
+          "artifacts.json": 541,
+          "coretypeinfo.gob": 15886
+        },
+        "total_bytes": 478950,
+        "module": "pkg/sunholo/motoko_ext_conformance/invariants",
+        "dag": {
+          "core_node_types": 1562,
+          "distinct_type_nodes": 185,
+          "format": 1,
+          "roots": 1562
+        },
+        "exports": 19,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 6014,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_conformance/invariants",
+          "sha256": "1dad5d5d3757b14ed5c33cf97b8d3caead6d4ed3a409ee66778dad324c925cb1",
+          "bytes": 16285,
+          "lines": 393
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_ailang_policy__lane",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 442389,
+          "iface.json": 9211,
+          "artifacts.json": 537,
+          "coretypeinfo.gob": 9233
+        },
+        "total_bytes": 461372,
+        "module": "pkg/sunholo/motoko_ext_ailang_policy/lane",
+        "dag": {
+          "core_node_types": 1751,
+          "distinct_type_nodes": 78,
+          "format": 1,
+          "roots": 1751
+        },
+        "exports": 11,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 3220,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_ailang_policy/lane",
+          "sha256": "c25fb31ac257a163532bf1f08e93f8bf27f7ef6298c8ccc04bdbbb9fcf0ddd41",
+          "bytes": 16405,
+          "lines": 232
+        }
+      },
+      {
+        "module_dir": "src__core__step_machine",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 435786,
+          "iface.json": 3128,
+          "artifacts.json": 517,
+          "coretypeinfo.gob": 19152
+        },
+        "total_bytes": 458585,
+        "module": "src/core/step_machine",
+        "dag": {
+          "core_node_types": 1995,
+          "distinct_type_nodes": 227,
+          "format": 1,
+          "roots": 1995
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 360,
+        "source": {
+          "module": "src/core/step_machine",
+          "sha256": "12f2df1649eb37fc7121e8976dac0c9543a00e81287e0d07694efc66987c398f",
+          "bytes": 18967,
+          "lines": 564
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_context_mode__context_mode",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 303066,
+          "iface.json": 70470,
+          "artifacts.json": 544,
+          "coretypeinfo.gob": 10876
+        },
+        "total_bytes": 384958,
+        "module": "pkg/sunholo/motoko_ext_context_mode/context_mode",
+        "dag": {
+          "core_node_types": 1109,
+          "distinct_type_nodes": 128,
+          "format": 1,
+          "roots": 1109
+        },
+        "exports": 8,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2691,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_context_mode/context_mode",
+          "sha256": "58907344c71088550f243ca7808b6231176e5acfa1770c18d3b33bc8a51d4703",
+          "bytes": 9968,
+          "lines": 244
+        }
+      },
+      {
+        "module_dir": "src__core__dst_interaction",
+        "bytes": {
+          "constructors.json": 2503,
+          "core.gob": 330231,
+          "iface.json": 31532,
+          "artifacts.json": 520,
+          "coretypeinfo.gob": 9725
+        },
+        "total_bytes": 374511,
+        "module": "src/core/dst_interaction",
+        "dag": {
+          "core_node_types": 1393,
+          "distinct_type_nodes": 92,
+          "format": 1,
+          "roots": 1393
+        },
+        "exports": 20,
+        "exported_types": 6,
+        "aliases": 4,
+        "ifc_summary_bytes": 5670,
+        "source": {
+          "module": "src/core/dst_interaction",
+          "sha256": "3a7c80bdc8ff9cbf15cc15dec17cecffe1bfbdc4c26e703870de48b81edc4cea",
+          "bytes": 28063,
+          "lines": 577
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_ailang_policy__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 336561,
+          "iface.json": 1388,
+          "artifacts.json": 541,
+          "coretypeinfo.gob": 15370
+        },
+        "total_bytes": 353862,
+        "module": "pkg/sunholo/motoko_ext_ailang_policy/register",
+        "dag": {
+          "core_node_types": 1315,
+          "distinct_type_nodes": 203,
+          "format": 1,
+          "roots": 1315
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_ailang_policy/register",
+          "sha256": "ee5ad42d4f9292418ca07cfe4599f09f5f24dad1dfcefe31e6cc78e19626290f",
+          "bytes": 10918,
+          "lines": 248
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_ailang_tools__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 311328,
+          "iface.json": 2073,
+          "artifacts.json": 540,
+          "coretypeinfo.gob": 14306
+        },
+        "total_bytes": 328249,
+        "module": "pkg/sunholo/motoko_ext_ailang_tools/register",
+        "dag": {
+          "core_node_types": 1239,
+          "distinct_type_nodes": 186,
+          "format": 1,
+          "roots": 1239
+        },
+        "exports": 2,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 499,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_ailang_tools/register",
+          "sha256": "904a6dfc801a7c42f2105343ca91df88589caec6de57c63c8a7f8080050a06df",
+          "bytes": 13315,
+          "lines": 295
+        }
+      },
+      {
+        "module_dir": "src__core__context_usage",
+        "bytes": {
+          "constructors.json": 793,
+          "core.gob": 157166,
+          "iface.json": 145362,
+          "artifacts.json": 518,
+          "coretypeinfo.gob": 9482
+        },
+        "total_bytes": 313321,
+        "module": "src/core/context_usage",
+        "dag": {
+          "core_node_types": 705,
+          "distinct_type_nodes": 137,
+          "format": 1,
+          "roots": 705
+        },
+        "exports": 4,
+        "exported_types": 2,
+        "aliases": 2,
+        "ifc_summary_bytes": 1782,
+        "source": {
+          "module": "src/core/context_usage",
+          "sha256": "7b2abbad96f4dcafa4bd46d81f832254286e411f2c19fae527174b2b2b2528f8",
+          "bytes": 11973,
+          "lines": 258
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_agentcli__agentcli",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 245177,
+          "iface.json": 23489,
+          "artifacts.json": 536,
+          "coretypeinfo.gob": 13456
+        },
+        "total_bytes": 282660,
+        "module": "pkg/sunholo/motoko_ext_agentcli/agentcli",
+        "dag": {
+          "core_node_types": 986,
+          "distinct_type_nodes": 175,
+          "format": 1,
+          "roots": 986
+        },
+        "exports": 4,
+        "exported_types": 1,
+        "aliases": 1,
+        "ifc_summary_bytes": 1224,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_agentcli/agentcli",
+          "sha256": "c60bba88d0e67b38cc4ed5e4d4049fe2c4ce4205d9e544dc085c3bb78665821d",
+          "bytes": 12157,
+          "lines": 296
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__config",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 233139,
+          "iface.json": 35886,
+          "artifacts.json": 533,
+          "coretypeinfo.gob": 9363
+        },
+        "total_bytes": 278923,
+        "module": "pkg/sunholo/motoko_ext_compose/config",
+        "dag": {
+          "core_node_types": 969,
+          "distinct_type_nodes": 96,
+          "format": 1,
+          "roots": 969
+        },
+        "exports": 7,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1774,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/config",
+          "sha256": "ce7d20382c4624a6e1fe4c77d28abaa0280cdbe6cf7ada91527cd3ac758ca7a6",
+          "bytes": 8111,
+          "lines": 198
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_scratchpad__ws_loopback",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 245028,
+          "iface.json": 15676,
+          "artifacts.json": 541,
+          "coretypeinfo.gob": 12966
+        },
+        "total_bytes": 274213,
+        "module": "pkg/sunholo/motoko_ext_scratchpad/ws_loopback",
+        "dag": {
+          "core_node_types": 978,
+          "distinct_type_nodes": 177,
+          "format": 1,
+          "roots": 978
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 709,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_scratchpad/ws_loopback",
+          "sha256": "b82c00770632667f48affc223accb5a0173ce6223f3615ab0c978e37b42f7bae",
+          "bytes": 7939,
+          "lines": 238
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_repetition_guard__repetition_guard",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 214743,
+          "iface.json": 50712,
+          "artifacts.json": 552,
+          "coretypeinfo.gob": 5889
+        },
+        "total_bytes": 271898,
+        "module": "pkg/sunholo/motoko_ext_repetition_guard/repetition_guard",
+        "dag": {
+          "core_node_types": 767,
+          "distinct_type_nodes": 91,
+          "format": 1,
+          "roots": 767
+        },
+        "exports": 21,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 7321,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_repetition_guard/repetition_guard",
+          "sha256": "8e35c34f5b089dbfa0b367c021f88ce622d55b3f8bad12250621652310d79988",
+          "bytes": 16600,
+          "lines": 364
+        }
+      },
+      {
+        "module_dir": "src__core__tool_catalog",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 252741,
+          "iface.json": 2900,
+          "artifacts.json": 517,
+          "coretypeinfo.gob": 15628
+        },
+        "total_bytes": 271788,
+        "module": "src/core/tool_catalog",
+        "dag": {
+          "core_node_types": 1148,
+          "distinct_type_nodes": 203,
+          "format": 1,
+          "roots": 1148
+        },
+        "exports": 2,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 497,
+        "source": {
+          "module": "src/core/tool_catalog",
+          "sha256": "11530dc434f1dc7f09a67747386d3ca3a05fe89c951d665f23f75c94109ef2b0",
+          "bytes": 16438,
+          "lines": 362
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__prompts",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 258171,
+          "iface.json": 7062,
+          "artifacts.json": 534,
+          "coretypeinfo.gob": 6016
+        },
+        "total_bytes": 271785,
+        "module": "pkg/sunholo/motoko_ext_compose/prompts",
+        "dag": {
+          "core_node_types": 1110,
+          "distinct_type_nodes": 45,
+          "format": 1,
+          "roots": 1110
+        },
+        "exports": 4,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 3869,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/prompts",
+          "sha256": "94241671c2696f8dce11b3375214eba0f3fb32e0fbabe5bc3e86bff5916c1bac",
+          "bytes": 7774,
+          "lines": 165
+        }
+      },
+      {
+        "module_dir": "src__core__test__ext_fixture",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 86161,
+          "iface.json": 150664,
+          "artifacts.json": 521,
+          "coretypeinfo.gob": 17415
+        },
+        "total_bytes": 254763,
+        "module": "src/core/test/ext_fixture",
+        "dag": {
+          "core_node_types": 382,
+          "distinct_type_nodes": 265,
+          "format": 1,
+          "roots": 382
+        },
+        "exports": 3,
+        "exported_types": 2,
+        "aliases": 2,
+        "ifc_summary_bytes": 856,
+        "source": {
+          "module": "src/core/test/ext_fixture",
+          "sha256": "c9afabe647dfdd20e42061455d15c68f6375e8545e726ed8f810c70c3f3a8798",
+          "bytes": 8146,
+          "lines": 214
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__claimcheck",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 233389,
+          "iface.json": 4616,
+          "artifacts.json": 537,
+          "coretypeinfo.gob": 5955
+        },
+        "total_bytes": 244499,
+        "module": "pkg/sunholo/motoko_ext_compose/claimcheck",
+        "dag": {
+          "core_node_types": 974,
+          "distinct_type_nodes": 52,
+          "format": 1,
+          "roots": 974
+        },
+        "exports": 2,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2096,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/claimcheck",
+          "sha256": "7464e02e63501adc54450284f545349073f27d4373f3bf134f58119e349f5d75",
+          "bytes": 8354,
+          "lines": 177
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_mcp__mcp",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 203870,
+          "iface.json": 16394,
+          "artifacts.json": 526,
+          "coretypeinfo.gob": 7577
+        },
+        "total_bytes": 228369,
+        "module": "pkg/sunholo/motoko_ext_mcp/mcp",
+        "dag": {
+          "core_node_types": 883,
+          "distinct_type_nodes": 120,
+          "format": 1,
+          "roots": 883
+        },
+        "exports": 5,
+        "exported_types": 2,
+        "aliases": 2,
+        "ifc_summary_bytes": 1379,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_mcp/mcp",
+          "sha256": "232edfef5d5f8913a45dd5925daaba6a3b979b862e8f4bbec4b6a05ed069d7e6",
+          "bytes": 8780,
+          "lines": 279
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_omnigraph__normalize",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 217763,
+          "iface.json": 1554,
+          "artifacts.json": 538,
+          "coretypeinfo.gob": 4559
+        },
+        "total_bytes": 224416,
+        "module": "pkg/sunholo/motoko_ext_omnigraph/normalize",
+        "dag": {
+          "core_node_types": 825,
+          "distinct_type_nodes": 38,
+          "format": 1,
+          "roots": 825
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_omnigraph/normalize",
+          "sha256": "c63a8a833d745f1e62a6661919a1bbf87e7acacc8bf395deb12d8f8798eb1e7a",
+          "bytes": 5344,
+          "lines": 140
+        }
+      },
+      {
+        "module_dir": "src__core__tool_fault",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 186885,
+          "iface.json": 28859,
+          "artifacts.json": 515,
+          "coretypeinfo.gob": 3863
+        },
+        "total_bytes": 220124,
+        "module": "src/core/tool_fault",
+        "dag": {
+          "core_node_types": 759,
+          "distinct_type_nodes": 26,
+          "format": 1,
+          "roots": 759
+        },
+        "exports": 38,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 9458,
+        "source": {
+          "module": "src/core/tool_fault",
+          "sha256": "72bf92496ba8b726523c47a7c8ecf36c8b9e53746aab48fa50e43d0587c10407",
+          "bytes": 15055,
+          "lines": 355
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_mcp__exec",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 205429,
+          "iface.json": 8000,
+          "artifacts.json": 527,
+          "coretypeinfo.gob": 6092
+        },
+        "total_bytes": 220050,
+        "module": "pkg/sunholo/motoko_ext_mcp/exec",
+        "dag": {
+          "core_node_types": 897,
+          "distinct_type_nodes": 73,
+          "format": 1,
+          "roots": 897
+        },
+        "exports": 5,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2659,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_mcp/exec",
+          "sha256": "50e23cdd6c79e4471ecea53d8600471bf8edd19c41c3ad0da5ce1fb529324e34",
+          "bytes": 8459,
+          "lines": 217
+        }
+      },
+      {
+        "module_dir": "std__list",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 133022,
+          "iface.json": 47975,
+          "artifacts.json": 504,
+          "coretypeinfo.gob": 16353
+        },
+        "total_bytes": 197856,
+        "module": "std/list",
+        "dag": {
+          "core_node_types": 835,
+          "distinct_type_nodes": 399,
+          "format": 1,
+          "roots": 835
+        },
+        "exports": 43,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 15042,
+        "source": {
+          "module": "std/list",
+          "sha256": "0888aa2157388391506cde86301500d52a455ca5ec2f08dfa883359471867998",
+          "bytes": 15344,
+          "lines": 334
+        }
+      },
+      {
+        "module_dir": "src__core__ext__registry_generated",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 171248,
+          "iface.json": 14610,
+          "artifacts.json": 527,
+          "coretypeinfo.gob": 8043
+        },
+        "total_bytes": 194430,
+        "module": "src/core/ext/registry_generated",
+        "dag": {
+          "core_node_types": 715,
+          "distinct_type_nodes": 96,
+          "format": 1,
+          "roots": 715
+        },
+        "exports": 2,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 835,
+        "source": {
+          "module": "src/core/ext/registry_generated",
+          "sha256": "008ae859f55b2c1da9b449ed7f1ca3aa27186b4215f0a6f38518de4e7b6eb991",
+          "bytes": 9229,
+          "lines": 159
+        }
+      },
+      {
+        "module_dir": "std__sem",
+        "bytes": {
+          "constructors.json": 199,
+          "core.gob": 144797,
+          "iface.json": 34605,
+          "artifacts.json": 503,
+          "coretypeinfo.gob": 9378
+        },
+        "total_bytes": 189482,
+        "module": "std/sem",
+        "dag": {
+          "core_node_types": 912,
+          "distinct_type_nodes": 155,
+          "format": 1,
+          "roots": 912
+        },
+        "exports": 23,
+        "exported_types": 6,
+        "aliases": 5,
+        "ifc_summary_bytes": 8831,
+        "source": {
+          "module": "std/sem",
+          "sha256": "c6de16bd829309db4ee33f9619d6e278831dc66bfd74c21abd4ffe4a3ed1f85e",
+          "bytes": 20432,
+          "lines": 571
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_empty_stop_guard__empty_stop_guard",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 155407,
+          "iface.json": 19981,
+          "artifacts.json": 552,
+          "coretypeinfo.gob": 7655
+        },
+        "total_bytes": 183597,
+        "module": "pkg/sunholo/motoko_ext_empty_stop_guard/empty_stop_guard",
+        "dag": {
+          "core_node_types": 555,
+          "distinct_type_nodes": 97,
+          "format": 1,
+          "roots": 555
+        },
+        "exports": 9,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2601,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_empty_stop_guard/empty_stop_guard",
+          "sha256": "8f814c9becdb77f5b99b05e7c347c7ff09f6586adb7dddd0073ab05ae32a246f",
+          "bytes": 6381,
+          "lines": 174
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_omnigraph__omnigraph",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 139823,
+          "iface.json": 25138,
+          "artifacts.json": 538,
+          "coretypeinfo.gob": 4474
+        },
+        "total_bytes": 169975,
+        "module": "pkg/sunholo/motoko_ext_omnigraph/omnigraph",
+        "dag": {
+          "core_node_types": 540,
+          "distinct_type_nodes": 58,
+          "format": 1,
+          "roots": 540
+        },
+        "exports": 4,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1348,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_omnigraph/omnigraph",
+          "sha256": "e674e198c526ca1f3003c34c781b87665d935179d9f4d2bef71e66c5be3ce998",
+          "bytes": 5716,
+          "lines": 132
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_a2a__a2a",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 153539,
+          "iface.json": 4075,
+          "artifacts.json": 526,
+          "coretypeinfo.gob": 5056
+        },
+        "total_bytes": 163198,
+        "module": "pkg/sunholo/motoko_ext_a2a/a2a",
+        "dag": {
+          "core_node_types": 665,
+          "distinct_type_nodes": 72,
+          "format": 1,
+          "roots": 665
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 872,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_a2a/a2a",
+          "sha256": "268d1f5992511591d697f64c259e10ce764fee8fa22ced525cf56a9b348ea1cc",
+          "bytes": 7220,
+          "lines": 227
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_ailang_tools__edits",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 151867,
+          "iface.json": 3530,
+          "artifacts.json": 537,
+          "coretypeinfo.gob": 3355
+        },
+        "total_bytes": 159291,
+        "module": "pkg/sunholo/motoko_ext_ailang_tools/edits",
+        "dag": {
+          "core_node_types": 599,
+          "distinct_type_nodes": 39,
+          "format": 1,
+          "roots": 599
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1435,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_ailang_tools/edits",
+          "sha256": "5aeeccffb6a7328414ca5b58d0f98578fca2cf1ae9b884e423daca70a0e63aaf",
+          "bytes": 6251,
+          "lines": 147
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__ledger",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 133252,
+          "iface.json": 17778,
+          "artifacts.json": 533,
+          "coretypeinfo.gob": 3775
+        },
+        "total_bytes": 155340,
+        "module": "pkg/sunholo/motoko_ext_compose/ledger",
+        "dag": {
+          "core_node_types": 582,
+          "distinct_type_nodes": 47,
+          "format": 1,
+          "roots": 582
+        },
+        "exports": 8,
+        "exported_types": 3,
+        "aliases": 3,
+        "ifc_summary_bytes": 2474,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/ledger",
+          "sha256": "b9d4d9baf504d5d9692e605454be703287237bf9c2717cd7d103353f4a6e90e3",
+          "bytes": 3851,
+          "lines": 127
+        }
+      },
+      {
+        "module_dir": "src__core__world_ordinal",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 122716,
+          "iface.json": 14143,
+          "artifacts.json": 518,
+          "coretypeinfo.gob": 4996
+        },
+        "total_bytes": 142375,
+        "module": "src/core/world_ordinal",
+        "dag": {
+          "core_node_types": 529,
+          "distinct_type_nodes": 70,
+          "format": 1,
+          "roots": 529
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 855,
+        "source": {
+          "module": "src/core/world_ordinal",
+          "sha256": "4175e7fc7d484d30520aba79d7c425617f24edb0181ecb84a6663d5b4b674ae9",
+          "bytes": 6512,
+          "lines": 130
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__authoring__render",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 133702,
+          "iface.json": 2245,
+          "artifacts.json": 543,
+          "coretypeinfo.gob": 3173
+        },
+        "total_bytes": 139665,
+        "module": "pkg/sunholo/motoko_ext_compose/authoring/render",
+        "dag": {
+          "core_node_types": 551,
+          "distinct_type_nodes": 37,
+          "format": 1,
+          "roots": 551
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 249,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/authoring/render",
+          "sha256": "28f13b8fc0a6732fb291ec3355b301cba6caf79755c58f67f1c1cc3be99d1003",
+          "bytes": 2959,
+          "lines": 103
+        }
+      },
+      {
+        "module_dir": "src__core__context_limit",
+        "bytes": {
+          "constructors.json": 2589,
+          "core.gob": 118367,
+          "iface.json": 14680,
+          "artifacts.json": 518,
+          "coretypeinfo.gob": 3320
+        },
+        "total_bytes": 139474,
+        "module": "src/core/context_limit",
+        "dag": {
+          "core_node_types": 495,
+          "distinct_type_nodes": 40,
+          "format": 1,
+          "roots": 495
+        },
+        "exports": 15,
+        "exported_types": 6,
+        "aliases": 0,
+        "ifc_summary_bytes": 3878,
+        "source": {
+          "module": "src/core/context_limit",
+          "sha256": "39b55aa068bb5d9296df95d12909f5b85047f66e83b3ca914eb99b4ca9e2bebf",
+          "bytes": 10138,
+          "lines": 251
+        }
+      },
+      {
+        "module_dir": "src__core__tool_contract",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 122445,
+          "iface.json": 9983,
+          "artifacts.json": 518,
+          "coretypeinfo.gob": 3699
+        },
+        "total_bytes": 136647,
+        "module": "src/core/tool_contract",
+        "dag": {
+          "core_node_types": 552,
+          "distinct_type_nodes": 59,
+          "format": 1,
+          "roots": 552
+        },
+        "exports": 10,
+        "exported_types": 2,
+        "aliases": 2,
+        "ifc_summary_bytes": 3425,
+        "source": {
+          "module": "src/core/tool_contract",
+          "sha256": "5f883a2fc591237ee31d3631194ca54ac8cef78e605f05fe19e590d3019c5173",
+          "bytes": 4293,
+          "lines": 172
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_context_mode__exec",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 124097,
+          "iface.json": 6016,
+          "artifacts.json": 536,
+          "coretypeinfo.gob": 4021
+        },
+        "total_bytes": 134672,
+        "module": "pkg/sunholo/motoko_ext_context_mode/exec",
+        "dag": {
+          "core_node_types": 511,
+          "distinct_type_nodes": 56,
+          "format": 1,
+          "roots": 511
+        },
+        "exports": 4,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2381,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_context_mode/exec",
+          "sha256": "fd3bcd8a06eec89bc76573b343dfa68fb115b42648e17ac665a9f0824386b991",
+          "bytes": 4053,
+          "lines": 113
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_microrag__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 118658,
+          "iface.json": 1312,
+          "artifacts.json": 536,
+          "coretypeinfo.gob": 10300
+        },
+        "total_bytes": 130808,
+        "module": "pkg/sunholo/motoko_ext_microrag/register",
+        "dag": {
+          "core_node_types": 483,
+          "distinct_type_nodes": 151,
+          "format": 1,
+          "roots": 483
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_microrag/register",
+          "sha256": "9671c5ed9bb0bef5c5c765d23e73785a9261d280c6717c6fa79ed123108c508e",
+          "bytes": 7550,
+          "lines": 193
+        }
+      },
+      {
+        "module_dir": "src__core__cost_phase",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 120174,
+          "iface.json": 6273,
+          "artifacts.json": 515,
+          "coretypeinfo.gob": 3085
+        },
+        "total_bytes": 130049,
+        "module": "src/core/cost_phase",
+        "dag": {
+          "core_node_types": 520,
+          "distinct_type_nodes": 17,
+          "format": 1,
+          "roots": 520
+        },
+        "exports": 5,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2632,
+        "source": {
+          "module": "src/core/cost_phase",
+          "sha256": "e7fbafb61186bde4d7e15d4f4981970a00efc13a35ebdb5b180fdce38b40951c",
+          "bytes": 5575,
+          "lines": 122
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__authoring__state",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 94408,
+          "iface.json": 30943,
+          "artifacts.json": 542,
+          "coretypeinfo.gob": 4137
+        },
+        "total_bytes": 130032,
+        "module": "pkg/sunholo/motoko_ext_compose/authoring/state",
+        "dag": {
+          "core_node_types": 366,
+          "distinct_type_nodes": 59,
+          "format": 1,
+          "roots": 366
+        },
+        "exports": 6,
+        "exported_types": 3,
+        "aliases": 3,
+        "ifc_summary_bytes": 2292,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/authoring/state",
+          "sha256": "c2f3769747308e4047a75c909657a75fe0cadb5bee75eaffa196168971977bd3",
+          "bytes": 3288,
+          "lines": 110
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_scratchpad__scratchpad",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 95278,
+          "iface.json": 28469,
+          "artifacts.json": 540,
+          "coretypeinfo.gob": 4279
+        },
+        "total_bytes": 128568,
+        "module": "pkg/sunholo/motoko_ext_scratchpad/scratchpad",
+        "dag": {
+          "core_node_types": 369,
+          "distinct_type_nodes": 70,
+          "format": 1,
+          "roots": 369
+        },
+        "exports": 8,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2354,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_scratchpad/scratchpad",
+          "sha256": "e449282b1145c5f68903a8021c1e2371a06d7e68b51d5a2f6e2c2c1f5953ae41",
+          "bytes": 4428,
+          "lines": 109
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_ai_compat__ai_compat",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 112782,
+          "iface.json": 4133,
+          "artifacts.json": 538,
+          "coretypeinfo.gob": 5979
+        },
+        "total_bytes": 123434,
+        "module": "pkg/sunholo/motoko_ext_ai_compat/ai_compat",
+        "dag": {
+          "core_node_types": 440,
+          "distinct_type_nodes": 91,
+          "format": 1,
+          "roots": 440
+        },
+        "exports": 1,
+        "exported_types": 3,
+        "aliases": 3,
+        "ifc_summary_bytes": 601,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_ai_compat/ai_compat",
+          "sha256": "4c52985f549e73b13377cdb52bc9fe968a5db70570a57bb9189cb40b24e00116",
+          "bytes": 9010,
+          "lines": 229
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__guard",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 116193,
+          "iface.json": 3390,
+          "artifacts.json": 532,
+          "coretypeinfo.gob": 2790
+        },
+        "total_bytes": 122907,
+        "module": "pkg/sunholo/motoko_ext_compose/guard",
+        "dag": {
+          "core_node_types": 471,
+          "distinct_type_nodes": 24,
+          "format": 1,
+          "roots": 471
+        },
+        "exports": 4,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/guard",
+          "sha256": "f4b8f0763776d095a81a59ba5fc7f6edad9798bae72fb24ebe955a2dbe9fe08e",
+          "bytes": 3684,
+          "lines": 87
+        }
+      },
+      {
+        "module_dir": "std__json",
+        "bytes": {
+          "constructors.json": 1030,
+          "core.gob": 80541,
+          "iface.json": 33423,
+          "artifacts.json": 504,
+          "coretypeinfo.gob": 3967
+        },
+        "total_bytes": 119465,
+        "module": "std/json",
+        "dag": {
+          "core_node_types": 502,
+          "distinct_type_nodes": 108,
+          "format": 1,
+          "roots": 502
+        },
+        "exports": 39,
+        "exported_types": 1,
+        "aliases": 0,
+        "ifc_summary_bytes": 11621,
+        "source": {
+          "module": "std/json",
+          "sha256": "084ae6eeb63359866d83101c9ac4f0e45a5f000d9a0d762281884e73a112add8",
+          "bytes": 9917,
+          "lines": 327
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__store",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 81238,
+          "iface.json": 30959,
+          "artifacts.json": 532,
+          "coretypeinfo.gob": 4825
+        },
+        "total_bytes": 117556,
+        "module": "pkg/sunholo/motoko_ext_compose/store",
+        "dag": {
+          "core_node_types": 376,
+          "distinct_type_nodes": 54,
+          "format": 1,
+          "roots": 376
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2625,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/store",
+          "sha256": "35b70673c7b569112ca53c035dbc01fad4ecaa3deb145445261d914b0c8f6e1e",
+          "bytes": 4474,
+          "lines": 82
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_herdr__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 101364,
+          "iface.json": 5325,
+          "artifacts.json": 533,
+          "coretypeinfo.gob": 4625
+        },
+        "total_bytes": 111849,
+        "module": "pkg/sunholo/motoko_ext_herdr/register",
+        "dag": {
+          "core_node_types": 420,
+          "distinct_type_nodes": 61,
+          "format": 1,
+          "roots": 420
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1099,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_herdr/register",
+          "sha256": "22d5708061a7a0bbf2b7cb3a7982fc73ce30caf127d950ca8308c0e71585ccf1",
+          "bytes": 15015,
+          "lines": 245
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_exa_search__exa_search",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 79591,
+          "iface.json": 25960,
+          "artifacts.json": 540,
+          "coretypeinfo.gob": 4651
+        },
+        "total_bytes": 110744,
+        "module": "pkg/sunholo/motoko_ext_exa_search/exa_search",
+        "dag": {
+          "core_node_types": 299,
+          "distinct_type_nodes": 75,
+          "format": 1,
+          "roots": 299
+        },
+        "exports": 8,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2713,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_exa_search/exa_search",
+          "sha256": "5c713099b8559c45a6e2a0994ec55728a33ce1badacb243ac70d4b0f34c7d939",
+          "bytes": 4035,
+          "lines": 111
+        }
+      },
+      {
+        "module_dir": "src__core__ext__exit_manifest",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 80642,
+          "iface.json": 17425,
+          "artifacts.json": 522,
+          "coretypeinfo.gob": 8715
+        },
+        "total_bytes": 107306,
+        "module": "src/core/ext/exit_manifest",
+        "dag": {
+          "core_node_types": 354,
+          "distinct_type_nodes": 137,
+          "format": 1,
+          "roots": 354
+        },
+        "exports": 5,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1472,
+        "source": {
+          "module": "src/core/ext/exit_manifest",
+          "sha256": "ed29c64434f0b5ea4ac39c45d3072f7f71674e28fd365e215fb538f0c7f7b122",
+          "bytes": 10821,
+          "lines": 225
+        }
+      },
+      {
+        "module_dir": "src__core__env_client",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 97158,
+          "iface.json": 5212,
+          "artifacts.json": 515,
+          "coretypeinfo.gob": 3702
+        },
+        "total_bytes": 106589,
+        "module": "src/core/env_client",
+        "dag": {
+          "core_node_types": 463,
+          "distinct_type_nodes": 48,
+          "format": 1,
+          "roots": 463
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1912,
+        "source": {
+          "module": "src/core/env_client",
+          "sha256": "9f3d0ec299d6f76382cdcafeb2a821325ac068c27b3f29b9ccdb075376c0e9aa",
+          "bytes": 6017,
+          "lines": 147
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_a2a__config",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 96754,
+          "iface.json": 5209,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 3942
+        },
+        "total_bytes": 106436,
+        "module": "pkg/sunholo/motoko_ext_a2a/config",
+        "dag": {
+          "core_node_types": 408,
+          "distinct_type_nodes": 72,
+          "format": 1,
+          "roots": 408
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 759,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_a2a/config",
+          "sha256": "801176cc8dc71596a05da7e9c12722e331c7cebce8d267e701cbdbb12df36f92",
+          "bytes": 3606,
+          "lines": 122
+        }
+      },
+      {
+        "module_dir": "src__core__compaction",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 83350,
+          "iface.json": 10971,
+          "artifacts.json": 515,
+          "coretypeinfo.gob": 5232
+        },
+        "total_bytes": 100070,
+        "module": "src/core/compaction",
+        "dag": {
+          "core_node_types": 356,
+          "distinct_type_nodes": 80,
+          "format": 1,
+          "roots": 356
+        },
+        "exports": 9,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 3225,
+        "source": {
+          "module": "src/core/compaction",
+          "sha256": "7aa3997a70e23e90d6f8c8678b1a5ad3678b9764f5b0600ad2fb68dd961ca93e",
+          "bytes": 7157,
+          "lines": 162
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_omnigraph__exec",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 90462,
+          "iface.json": 4109,
+          "artifacts.json": 533,
+          "coretypeinfo.gob": 3277
+        },
+        "total_bytes": 98383,
+        "module": "pkg/sunholo/motoko_ext_omnigraph/exec",
+        "dag": {
+          "core_node_types": 387,
+          "distinct_type_nodes": 46,
+          "format": 1,
+          "roots": 387
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1445,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_omnigraph/exec",
+          "sha256": "173ef7ce04ceb3cc44babf6f2d864b584e1288035d6d1e049ee9e069aacc4b6b",
+          "bytes": 2775,
+          "lines": 82
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_ailang_docs__ailang_docs",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 71274,
+          "iface.json": 20406,
+          "artifacts.json": 542,
+          "coretypeinfo.gob": 4006
+        },
+        "total_bytes": 96230,
+        "module": "pkg/sunholo/motoko_ext_ailang_docs/ailang_docs",
+        "dag": {
+          "core_node_types": 269,
+          "distinct_type_nodes": 67,
+          "format": 1,
+          "roots": 269
+        },
+        "exports": 6,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2093,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_ailang_docs/ailang_docs",
+          "sha256": "1efc11017f34e39e81ffa90438ffb141501d29d7042a246e73879a7ba4592130",
+          "bytes": 3652,
+          "lines": 79
+        }
+      },
+      {
+        "module_dir": "src__core__model_phase",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 62220,
+          "iface.json": 24450,
+          "artifacts.json": 516,
+          "coretypeinfo.gob": 5507
+        },
+        "total_bytes": 92695,
+        "module": "src/core/model_phase",
+        "dag": {
+          "core_node_types": 276,
+          "distinct_type_nodes": 69,
+          "format": 1,
+          "roots": 276
+        },
+        "exports": 2,
+        "exported_types": 1,
+        "aliases": 1,
+        "ifc_summary_bytes": 1229,
+        "source": {
+          "module": "src/core/model_phase",
+          "sha256": "dbf1ca5f466af2814721db93cc181de1ade883f00332fe32ddeb85097bba8a5f",
+          "bytes": 2855,
+          "lines": 77
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_test_dummy__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 81520,
+          "iface.json": 3767,
+          "artifacts.json": 538,
+          "coretypeinfo.gob": 5810
+        },
+        "total_bytes": 91637,
+        "module": "pkg/sunholo/motoko_ext_test_dummy/register",
+        "dag": {
+          "core_node_types": 314,
+          "distinct_type_nodes": 101,
+          "format": 1,
+          "roots": 314
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 750,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_test_dummy/register",
+          "sha256": "ca8bb0fdccb01e7a41ca42c4bad4b84e3ddce71d8327f2a8468fd633e8746233",
+          "bytes": 4534,
+          "lines": 124
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compaction_ai__types",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 82941,
+          "iface.json": 5312,
+          "artifacts.json": 538,
+          "coretypeinfo.gob": 2702
+        },
+        "total_bytes": 91495,
+        "module": "pkg/sunholo/motoko_ext_compaction_ai/types",
+        "dag": {
+          "core_node_types": 323,
+          "distinct_type_nodes": 35,
+          "format": 1,
+          "roots": 323
+        },
+        "exports": 3,
+        "exported_types": 1,
+        "aliases": 1,
+        "ifc_summary_bytes": 747,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compaction_ai/types",
+          "sha256": "da0a803cb69deb2fec4974c267e82372bbc3c852ce2fc9e345a66a7d18049582",
+          "bytes": 3379,
+          "lines": 79
+        }
+      },
+      {
+        "module_dir": "std__ai",
+        "bytes": {
+          "constructors.json": 693,
+          "core.gob": 38503,
+          "iface.json": 41760,
+          "artifacts.json": 502,
+          "coretypeinfo.gob": 6422
+        },
+        "total_bytes": 87880,
+        "module": "std/ai",
+        "dag": {
+          "core_node_types": 238,
+          "distinct_type_nodes": 118,
+          "format": 1,
+          "roots": 238
+        },
+        "exports": 17,
+        "exported_types": 9,
+        "aliases": 8,
+        "ifc_summary_bytes": 7791,
+        "source": {
+          "module": "std/ai",
+          "sha256": "3f28c1f8018da1c5c7b17d230588cf5be8943c468e0d6dd5ff8a6e690aa394a5",
+          "bytes": 23050,
+          "lines": 427
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_decision_framework__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 75749,
+          "iface.json": 1332,
+          "artifacts.json": 546,
+          "coretypeinfo.gob": 3784
+        },
+        "total_bytes": 81413,
+        "module": "pkg/sunholo/motoko_ext_decision_framework/register",
+        "dag": {
+          "core_node_types": 270,
+          "distinct_type_nodes": 64,
+          "format": 1,
+          "roots": 270
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_decision_framework/register",
+          "sha256": "1d6b4cd1ea43fe0368de7ffd4876992e25fbdccbc7dc5a23106843758e25a58e",
+          "bytes": 6936,
+          "lines": 142
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_ailang_docs__prompts",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 74917,
+          "iface.json": 1331,
+          "artifacts.json": 538,
+          "coretypeinfo.gob": 2236
+        },
+        "total_bytes": 79024,
+        "module": "pkg/sunholo/motoko_ext_ailang_docs/prompts",
+        "dag": {
+          "core_node_types": 285,
+          "distinct_type_nodes": 21,
+          "format": 1,
+          "roots": 285
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_ailang_docs/prompts",
+          "sha256": "f5e61e210d0af8c26816caa80142079b0e60f065df31be1e6150a19a53e5536a",
+          "bytes": 4637,
+          "lines": 95
+        }
+      },
+      {
+        "module_dir": "std__string",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 45490,
+          "iface.json": 27563,
+          "artifacts.json": 506,
+          "coretypeinfo.gob": 2517
+        },
+        "total_bytes": 76078,
+        "module": "std/string",
+        "dag": {
+          "core_node_types": 279,
+          "distinct_type_nodes": 69,
+          "format": 1,
+          "roots": 279
+        },
+        "exports": 33,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 11256,
+        "source": {
+          "module": "std/string",
+          "sha256": "315d3bd7818d22c674ee0c8e239a953d5c3507c41150784148d86604437e0da1",
+          "bytes": 9238,
+          "lines": 217
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_ailang_docs__types",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 66581,
+          "iface.json": 4929,
+          "artifacts.json": 536,
+          "coretypeinfo.gob": 2376
+        },
+        "total_bytes": 74424,
+        "module": "pkg/sunholo/motoko_ext_ailang_docs/types",
+        "dag": {
+          "core_node_types": 250,
+          "distinct_type_nodes": 27,
+          "format": 1,
+          "roots": 250
+        },
+        "exports": 4,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1126,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_ailang_docs/types",
+          "sha256": "c1be6213b0068efce8ce4d81016d8b042f338b8a669f6a30962f8860d6dbaedc",
+          "bytes": 8225,
+          "lines": 104
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_context_mode__compress",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 67919,
+          "iface.json": 1060,
+          "artifacts.json": 540,
+          "coretypeinfo.gob": 2387
+        },
+        "total_bytes": 71908,
+        "module": "pkg/sunholo/motoko_ext_context_mode/compress",
+        "dag": {
+          "core_node_types": 263,
+          "distinct_type_nodes": 34,
+          "format": 1,
+          "roots": 263
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 369,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_context_mode/compress",
+          "sha256": "c7356e5aacfe270268f2d68d3e765b5358184334c93d2f7848a16e429aa4bbf0",
+          "bytes": 2084,
+          "lines": 74
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_mcp__compress",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 63185,
+          "iface.json": 1042,
+          "artifacts.json": 531,
+          "coretypeinfo.gob": 2387
+        },
+        "total_bytes": 67147,
+        "module": "pkg/sunholo/motoko_ext_mcp/compress",
+        "dag": {
+          "core_node_types": 263,
+          "distinct_type_nodes": 34,
+          "format": 1,
+          "roots": 263
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 369,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_mcp/compress",
+          "sha256": "7b78ce8c5c3898b77959f38cb9b9fb4d36aa38da42eacb6024f38add38aa5254",
+          "bytes": 2075,
+          "lines": 74
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_mcp__resolve",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 60003,
+          "iface.json": 2814,
+          "artifacts.json": 530,
+          "coretypeinfo.gob": 2425
+        },
+        "total_bytes": 65774,
+        "module": "pkg/sunholo/motoko_ext_mcp/resolve",
+        "dag": {
+          "core_node_types": 246,
+          "distinct_type_nodes": 32,
+          "format": 1,
+          "roots": 246
+        },
+        "exports": 2,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 622,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_mcp/resolve",
+          "sha256": "47163977d823c1dee596038a783e1c2a6eb8ac5a14ce805992d01abedc5fbd32",
+          "bytes": 2608,
+          "lines": 102
+        }
+      },
+      {
+        "module_dir": "src__core__tool_envelope_dispatch",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 39655,
+          "iface.json": 15543,
+          "artifacts.json": 527,
+          "coretypeinfo.gob": 7573
+        },
+        "total_bytes": 63300,
+        "module": "src/core/tool_envelope_dispatch",
+        "dag": {
+          "core_node_types": 165,
+          "distinct_type_nodes": 117,
+          "format": 1,
+          "roots": 165
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 474,
+        "source": {
+          "module": "src/core/tool_envelope_dispatch",
+          "sha256": "58f7125a64c0543cc43f6035dcba4b06801e5c6b785e04d0ec9e2faa327d6959",
+          "bytes": 2105,
+          "lines": 56
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_agentcli__providers",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 42905,
+          "iface.json": 16110,
+          "artifacts.json": 537,
+          "coretypeinfo.gob": 2308
+        },
+        "total_bytes": 61862,
+        "module": "pkg/sunholo/motoko_ext_agentcli/providers",
+        "dag": {
+          "core_node_types": 161,
+          "distinct_type_nodes": 30,
+          "format": 1,
+          "roots": 161
+        },
+        "exports": 7,
+        "exported_types": 1,
+        "aliases": 1,
+        "ifc_summary_bytes": 2304,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_agentcli/providers",
+          "sha256": "e1a20643629a947620fd65a376e9912ef2c1a5390af115fe6d77667ab3d61c68",
+          "bytes": 5399,
+          "lines": 126
+        }
+      },
+      {
+        "module_dir": "std__stream",
+        "bytes": {
+          "constructors.json": 3282,
+          "core.gob": 30100,
+          "iface.json": 24706,
+          "artifacts.json": 506,
+          "coretypeinfo.gob": 3037
+        },
+        "total_bytes": 61631,
+        "module": "std/stream",
+        "dag": {
+          "core_node_types": 182,
+          "distinct_type_nodes": 65,
+          "format": 1,
+          "roots": 182
+        },
+        "exports": 18,
+        "exported_types": 8,
+        "aliases": 2,
+        "ifc_summary_bytes": 6696,
+        "source": {
+          "module": "std/stream",
+          "sha256": "e8bda3f4eb4d90c033f34277b225ef5d8bee77f24ba0982abbe0a19cef6d1272",
+          "bytes": 11904,
+          "lines": 256
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_repetition_guard__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 53500,
+          "iface.json": 1378,
+          "artifacts.json": 544,
+          "coretypeinfo.gob": 5441
+        },
+        "total_bytes": 60865,
+        "module": "pkg/sunholo/motoko_ext_repetition_guard/register",
+        "dag": {
+          "core_node_types": 199,
+          "distinct_type_nodes": 76,
+          "format": 1,
+          "roots": 199
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_repetition_guard/register",
+          "sha256": "dd8ac07aaa73ea1f949ef2a9d32c8b4b7c3d43c08d3bff2dd35c9506226484bd",
+          "bytes": 3064,
+          "lines": 84
+        }
+      },
+      {
+        "module_dir": "src__core__fs_node",
+        "bytes": {
+          "constructors.json": 223,
+          "core.gob": 52953,
+          "iface.json": 4258,
+          "artifacts.json": 512,
+          "coretypeinfo.gob": 1809
+        },
+        "total_bytes": 59755,
+        "module": "src/core/fs_node",
+        "dag": {
+          "core_node_types": 240,
+          "distinct_type_nodes": 24,
+          "format": 1,
+          "roots": 240
+        },
+        "exports": 5,
+        "exported_types": 1,
+        "aliases": 0,
+        "ifc_summary_bytes": 1469,
+        "source": {
+          "module": "src/core/fs_node",
+          "sha256": "923523462260f675cf7e2d93c4c2de46594e8be7ca72d7510e1b92c23b341848",
+          "bytes": 8593,
+          "lines": 173
+        }
+      },
+      {
+        "module_dir": "std__fs",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 35426,
+          "iface.json": 20509,
+          "artifacts.json": 502,
+          "coretypeinfo.gob": 1835
+        },
+        "total_bytes": 58274,
+        "module": "std/fs",
+        "dag": {
+          "core_node_types": 235,
+          "distinct_type_nodes": 39,
+          "format": 1,
+          "roots": 235
+        },
+        "exports": 26,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 7682,
+        "source": {
+          "module": "std/fs",
+          "sha256": "d82702f29f396419b3114afb2bb0994e6c54b1673de30bc714ba694b59d8e2d5",
+          "bytes": 11399,
+          "lines": 222
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_context_mode__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 45019,
+          "iface.json": 1370,
+          "artifacts.json": 540,
+          "coretypeinfo.gob": 10669
+        },
+        "total_bytes": 57600,
+        "module": "pkg/sunholo/motoko_ext_context_mode/register",
+        "dag": {
+          "core_node_types": 171,
+          "distinct_type_nodes": 144,
+          "format": 1,
+          "roots": 171
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_context_mode/register",
+          "sha256": "9c47bf1d082b335c55d0960f48744b8bcc7f7f021d8cb039870649878e1c3967",
+          "bytes": 2779,
+          "lines": 72
+        }
+      },
+      {
+        "module_dir": "std__datetime",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 37851,
+          "iface.json": 16213,
+          "artifacts.json": 508,
+          "coretypeinfo.gob": 1705
+        },
+        "total_bytes": 56279,
+        "module": "std/datetime",
+        "dag": {
+          "core_node_types": 230,
+          "distinct_type_nodes": 20,
+          "format": 1,
+          "roots": 230
+        },
+        "exports": 22,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 6696,
+        "source": {
+          "module": "std/datetime",
+          "sha256": "2f556772afe563b26f760ef4e08e4a1a6099a480fbec2431f9167337312a96f9",
+          "bytes": 5271,
+          "lines": 146
+        }
+      },
+      {
+        "module_dir": "src__core__ext__ctx_defaults",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 26666,
+          "iface.json": 24120,
+          "artifacts.json": 521,
+          "coretypeinfo.gob": 4652
+        },
+        "total_bytes": 55961,
+        "module": "src/core/ext/ctx_defaults",
+        "dag": {
+          "core_node_types": 111,
+          "distinct_type_nodes": 69,
+          "format": 1,
+          "roots": 111
+        },
+        "exports": 4,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 992,
+        "source": {
+          "module": "src/core/ext/ctx_defaults",
+          "sha256": "0fd33012de54c5aafcff06acf44815be3843cc93a24a512c2d2877ce9ce881af",
+          "bytes": 6323,
+          "lines": 127
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_agentcli__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 41250,
+          "iface.json": 1321,
+          "artifacts.json": 536,
+          "coretypeinfo.gob": 8479
+        },
+        "total_bytes": 51588,
+        "module": "pkg/sunholo/motoko_ext_agentcli/register",
+        "dag": {
+          "core_node_types": 163,
+          "distinct_type_nodes": 127,
+          "format": 1,
+          "roots": 163
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_agentcli/register",
+          "sha256": "6be0fd1e0eb4e318ed65ee32a3ac110946339c395556c401059d6a16846c59af",
+          "bytes": 3584,
+          "lines": 90
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__proc",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 42059,
+          "iface.json": 3888,
+          "artifacts.json": 531,
+          "coretypeinfo.gob": 1888
+        },
+        "total_bytes": 48368,
+        "module": "pkg/sunholo/motoko_ext_compose/proc",
+        "dag": {
+          "core_node_types": 168,
+          "distinct_type_nodes": 40,
+          "format": 1,
+          "roots": 168
+        },
+        "exports": 4,
+        "exported_types": 1,
+        "aliases": 1,
+        "ifc_summary_bytes": 1117,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/proc",
+          "sha256": "331ba7d58ee0c4c2efadee1d6ebd667011628129f25af8a7b843af69a78afc22",
+          "bytes": 9786,
+          "lines": 199
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_context_mode__types",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 37612,
+          "iface.json": 5022,
+          "artifacts.json": 537,
+          "coretypeinfo.gob": 1760
+        },
+        "total_bytes": 44933,
+        "module": "pkg/sunholo/motoko_ext_context_mode/types",
+        "dag": {
+          "core_node_types": 146,
+          "distinct_type_nodes": 27,
+          "format": 1,
+          "roots": 146
+        },
+        "exports": 4,
+        "exported_types": 2,
+        "aliases": 2,
+        "ifc_summary_bytes": 1116,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_context_mode/types",
+          "sha256": "58ba06fc2e90d0aee02795e9b47a7eedb0124d4976082a1ca71a4df7e213adbd",
+          "bytes": 1799,
+          "lines": 54
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compaction_structural__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 36809,
+          "iface.json": 1388,
+          "artifacts.json": 549,
+          "coretypeinfo.gob": 5564
+        },
+        "total_bytes": 44312,
+        "module": "pkg/sunholo/motoko_ext_compaction_structural/register",
+        "dag": {
+          "core_node_types": 133,
+          "distinct_type_nodes": 77,
+          "format": 1,
+          "roots": 133
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compaction_structural/register",
+          "sha256": "3fb8e364376a8ca8b62237b92ac2a03a108eba572b933aa16b78485d50af3f8c",
+          "bytes": 1859,
+          "lines": 59
+        }
+      },
+      {
+        "module_dir": "std__math",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 24888,
+          "iface.json": 15950,
+          "artifacts.json": 504,
+          "coretypeinfo.gob": 1295
+        },
+        "total_bytes": 42639,
+        "module": "std/math",
+        "dag": {
+          "core_node_types": 156,
+          "distinct_type_nodes": 20,
+          "format": 1,
+          "roots": 156
+        },
+        "exports": 24,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 6392,
+        "source": {
+          "module": "std/math",
+          "sha256": "9fee193587cbb4c1161443ec9e4b0194fd92c7726fda4dccc36cd588d5b132aa",
+          "bytes": 6301,
+          "lines": 145
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_ailang_docs__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 30939,
+          "iface.json": 1368,
+          "artifacts.json": 539,
+          "coretypeinfo.gob": 8892
+        },
+        "total_bytes": 41740,
+        "module": "pkg/sunholo/motoko_ext_ailang_docs/register",
+        "dag": {
+          "core_node_types": 116,
+          "distinct_type_nodes": 129,
+          "format": 1,
+          "roots": 116
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_ailang_docs/register",
+          "sha256": "7295eef52f0baed65472f91780d2ebac0575098d26f2f2e56dd2ee8a5ad7b6e8",
+          "bytes": 2751,
+          "lines": 64
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_exa_search__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 30273,
+          "iface.json": 1366,
+          "artifacts.json": 538,
+          "coretypeinfo.gob": 8599
+        },
+        "total_bytes": 40778,
+        "module": "pkg/sunholo/motoko_ext_exa_search/register",
+        "dag": {
+          "core_node_types": 115,
+          "distinct_type_nodes": 123,
+          "format": 1,
+          "roots": 115
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_exa_search/register",
+          "sha256": "1ab1464f2bdd7303f26180db7cc596bd2252f0192977318fd43d6f1cafb7a150",
+          "bytes": 2142,
+          "lines": 50
+        }
+      },
+      {
+        "module_dir": "std__net",
+        "bytes": {
+          "constructors.json": 617,
+          "core.gob": 21533,
+          "iface.json": 10915,
+          "artifacts.json": 503,
+          "coretypeinfo.gob": 2102
+        },
+        "total_bytes": 35670,
+        "module": "std/net",
+        "dag": {
+          "core_node_types": 143,
+          "distinct_type_nodes": 41,
+          "format": 1,
+          "roots": 143
+        },
+        "exports": 8,
+        "exported_types": 3,
+        "aliases": 2,
+        "ifc_summary_bytes": 2798,
+        "source": {
+          "module": "std/net",
+          "sha256": "a867ba1e3d4a81dd45754bb61d8508c8fe873ef1e8a608030daa81cbf972f35d",
+          "bytes": 11206,
+          "lines": 280
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_omnigraph__prompts",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 27601,
+          "iface.json": 3450,
+          "artifacts.json": 536,
+          "coretypeinfo.gob": 1887
+        },
+        "total_bytes": 33476,
+        "module": "pkg/sunholo/motoko_ext_omnigraph/prompts",
+        "dag": {
+          "core_node_types": 112,
+          "distinct_type_nodes": 33,
+          "format": 1,
+          "roots": 112
+        },
+        "exports": 4,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1020,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_omnigraph/prompts",
+          "sha256": "2f42d01c32f548266ecd9061d693b29bbe87ae8352bcba13d180568c5c52f967",
+          "bytes": 1334,
+          "lines": 35
+        }
+      },
+      {
+        "module_dir": "src__core__types",
+        "bytes": {
+          "constructors.json": 9346,
+          "core.gob": 1606,
+          "iface.json": 21143,
+          "artifacts.json": 510,
+          "coretypeinfo.gob": 784
+        },
+        "total_bytes": 33389,
+        "module": "src/core/types",
+        "dag": {
+          "core_node_types": 4,
+          "distinct_type_nodes": 4,
+          "format": 1,
+          "roots": 4
+        },
+        "exports": 1,
+        "exported_types": 19,
+        "aliases": 11,
+        "ifc_summary_bytes": 248,
+        "source": {
+          "module": "src/core/types",
+          "sha256": "88ef975bc462c253b391fa22ce4b15f3d0d6a22e6d65ae35ae5cb72f626a41b1",
+          "bytes": 6687,
+          "lines": 232
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_omnigraph__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 21792,
+          "iface.json": 1485,
+          "artifacts.json": 537,
+          "coretypeinfo.gob": 7846
+        },
+        "total_bytes": 31662,
+        "module": "pkg/sunholo/motoko_ext_omnigraph/register",
+        "dag": {
+          "core_node_types": 81,
+          "distinct_type_nodes": 116,
+          "format": 1,
+          "roots": 81
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_omnigraph/register",
+          "sha256": "39a3873df5704554bb1bf01056c86efbfe3a98ea7e387be21d5c5ba8ea8c7559",
+          "bytes": 2565,
+          "lines": 61
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_scratchpad__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 20347,
+          "iface.json": 1325,
+          "artifacts.json": 538,
+          "coretypeinfo.gob": 7861
+        },
+        "total_bytes": 30073,
+        "module": "pkg/sunholo/motoko_ext_scratchpad/register",
+        "dag": {
+          "core_node_types": 77,
+          "distinct_type_nodes": 119,
+          "format": 1,
+          "roots": 77
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_scratchpad/register",
+          "sha256": "b77406c77249b1b2c50ae849e97fd774a431525c444bcf2ec76c4de50ef7deec",
+          "bytes": 1890,
+          "lines": 45
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_a2a__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 19048,
+          "iface.json": 1352,
+          "artifacts.json": 531,
+          "coretypeinfo.gob": 7953
+        },
+        "total_bytes": 28886,
+        "module": "pkg/sunholo/motoko_ext_a2a/register",
+        "dag": {
+          "core_node_types": 76,
+          "distinct_type_nodes": 118,
+          "format": 1,
+          "roots": 76
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_a2a/register",
+          "sha256": "5a7b64103934a7255ea52af37af861c953007def2a370fa9d14a889c67f5f482",
+          "bytes": 1785,
+          "lines": 40
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_context_mode__prompts",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 24044,
+          "iface.json": 2215,
+          "artifacts.json": 539,
+          "coretypeinfo.gob": 1639
+        },
+        "total_bytes": 28439,
+        "module": "pkg/sunholo/motoko_ext_context_mode/prompts",
+        "dag": {
+          "core_node_types": 95,
+          "distinct_type_nodes": 21,
+          "format": 1,
+          "roots": 95
+        },
+        "exports": 2,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 627,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_context_mode/prompts",
+          "sha256": "2c330be6e04e8a427be43e5a8a93023a38179482ba6eea6760ea396fc07ab2f1",
+          "bytes": 831,
+          "lines": 18
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compaction_ai__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 21628,
+          "iface.json": 1372,
+          "artifacts.json": 541,
+          "coretypeinfo.gob": 4721
+        },
+        "total_bytes": 28264,
+        "module": "pkg/sunholo/motoko_ext_compaction_ai/register",
+        "dag": {
+          "core_node_types": 80,
+          "distinct_type_nodes": 79,
+          "format": 1,
+          "roots": 80
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compaction_ai/register",
+          "sha256": "3362c01118d5a3d6bb052317705af0384cbbefb9873a2f50eb124271d2ac56d6",
+          "bytes": 2999,
+          "lines": 67
+        }
+      },
+      {
+        "module_dir": "std__result",
+        "bytes": {
+          "constructors.json": 361,
+          "core.gob": 11830,
+          "iface.json": 7993,
+          "artifacts.json": 506,
+          "coretypeinfo.gob": 4453
+        },
+        "total_bytes": 25143,
+        "module": "std/result",
+        "dag": {
+          "core_node_types": 64,
+          "distinct_type_nodes": 83,
+          "format": 1,
+          "roots": 64
+        },
+        "exports": 6,
+        "exported_types": 1,
+        "aliases": 0,
+        "ifc_summary_bytes": 1818,
+        "source": {
+          "module": "std/result",
+          "sha256": "0e71af128072118c52f464a47fdbff6bc6ed49a0e50b5e752408504de2d17f80",
+          "bytes": 1198,
+          "lines": 54
+        }
+      },
+      {
+        "module_dir": "std__bytes",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 13381,
+          "iface.json": 9733,
+          "artifacts.json": 505,
+          "coretypeinfo.gob": 1221
+        },
+        "total_bytes": 24842,
+        "module": "std/bytes",
+        "dag": {
+          "core_node_types": 82,
+          "distinct_type_nodes": 30,
+          "format": 1,
+          "roots": 82
+        },
+        "exports": 13,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 3672,
+        "source": {
+          "module": "std/bytes",
+          "sha256": "04b8a17604e9895b6c0d2d58cc8f795e2dd0bef0d7a4300a44346648e21adad3",
+          "bytes": 4288,
+          "lines": 113
+        }
+      },
+      {
+        "module_dir": "std__option",
+        "bytes": {
+          "constructors.json": 285,
+          "core.gob": 10847,
+          "iface.json": 7440,
+          "artifacts.json": 506,
+          "coretypeinfo.gob": 3556
+        },
+        "total_bytes": 22634,
+        "module": "std/option",
+        "dag": {
+          "core_node_types": 59,
+          "distinct_type_nodes": 65,
+          "format": 1,
+          "roots": 59
+        },
+        "exports": 6,
+        "exported_types": 1,
+        "aliases": 0,
+        "ifc_summary_bytes": 1949,
+        "source": {
+          "module": "std/option",
+          "sha256": "83cdbe7706dbf18477018463cc5289d3c7afe3411a9aefce2024a5ef7f883f7c",
+          "bytes": 1083,
+          "lines": 53
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_mcp__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 12439,
+          "iface.json": 1352,
+          "artifacts.json": 531,
+          "coretypeinfo.gob": 7853
+        },
+        "total_bytes": 22177,
+        "module": "pkg/sunholo/motoko_ext_mcp/register",
+        "dag": {
+          "core_node_types": 48,
+          "distinct_type_nodes": 112,
+          "format": 1,
+          "roots": 48
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_mcp/register",
+          "sha256": "9b774c02e5f32af7523f31ce86c46ba439fadd41e689a59ef36f3acdb8c38a19",
+          "bytes": 1792,
+          "lines": 37
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_omnigraph__guardrail",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 19350,
+          "iface.json": 1180,
+          "artifacts.json": 538,
+          "coretypeinfo.gob": 1005
+        },
+        "total_bytes": 22075,
+        "module": "pkg/sunholo/motoko_ext_omnigraph/guardrail",
+        "dag": {
+          "core_node_types": 70,
+          "distinct_type_nodes": 11,
+          "format": 1,
+          "roots": 70
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_omnigraph/guardrail",
+          "sha256": "0f5100707e3a3c6dc4c2aa304a58c19985f31179abfe3f48934efbad791da170",
+          "bytes": 827,
+          "lines": 19
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_exa_search__prompts",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 16196,
+          "iface.json": 2052,
+          "artifacts.json": 537,
+          "coretypeinfo.gob": 1505
+        },
+        "total_bytes": 20292,
+        "module": "pkg/sunholo/motoko_ext_exa_search/prompts",
+        "dag": {
+          "core_node_types": 64,
+          "distinct_type_nodes": 19,
+          "format": 1,
+          "roots": 64
+        },
+        "exports": 2,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 510,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_exa_search/prompts",
+          "sha256": "ed17b85935e87de37d781cc4927c847ac7f4152d82dfb3fc032a624e879f8594",
+          "bytes": 684,
+          "lines": 17
+        }
+      },
+      {
+        "module_dir": "std__process",
+        "bytes": {
+          "constructors.json": 2007,
+          "core.gob": 7373,
+          "iface.json": 9107,
+          "artifacts.json": 507,
+          "coretypeinfo.gob": 1268
+        },
+        "total_bytes": 20262,
+        "module": "std/process",
+        "dag": {
+          "core_node_types": 40,
+          "distinct_type_nodes": 24,
+          "format": 1,
+          "roots": 40
+        },
+        "exports": 6,
+        "exported_types": 4,
+        "aliases": 1,
+        "ifc_summary_bytes": 1961,
+        "source": {
+          "module": "std/process",
+          "sha256": "eba45860bd476a415e7cabf5f043dfca76f7b02f561edbf5950a81f3cadb32e0",
+          "bytes": 5216,
+          "lines": 144
+        }
+      },
+      {
+        "module_dir": "src__core__recovery",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 16989,
+          "iface.json": 1209,
+          "artifacts.json": 513,
+          "coretypeinfo.gob": 942
+        },
+        "total_bytes": 19655,
+        "module": "src/core/recovery",
+        "dag": {
+          "core_node_types": 72,
+          "distinct_type_nodes": 6,
+          "format": 1,
+          "roots": 72
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 508,
+        "source": {
+          "module": "src/core/recovery",
+          "sha256": "34477419d43d5d034856bfdcc3912b16f156e5f20f846a4ae70139472c6096cd",
+          "bytes": 1558,
+          "lines": 34
+        }
+      },
+      {
+        "module_dir": "std__sharedmem",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 11337,
+          "iface.json": 6441,
+          "artifacts.json": 509,
+          "coretypeinfo.gob": 1046
+        },
+        "total_bytes": 19335,
+        "module": "std/sharedmem",
+        "dag": {
+          "core_node_types": 63,
+          "distinct_type_nodes": 17,
+          "format": 1,
+          "roots": 63
+        },
+        "exports": 8,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2566,
+        "source": {
+          "module": "std/sharedmem",
+          "sha256": "37f2f199424c1314ad9a2d102ca824b3d969d04f6e3b00dd17c2c6f92cfa4d01",
+          "bytes": 2096,
+          "lines": 67
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_exa_search__types",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 13441,
+          "iface.json": 3790,
+          "artifacts.json": 535,
+          "coretypeinfo.gob": 1495
+        },
+        "total_bytes": 19263,
+        "module": "pkg/sunholo/motoko_ext_exa_search/types",
+        "dag": {
+          "core_node_types": 51,
+          "distinct_type_nodes": 14,
+          "format": 1,
+          "roots": 51
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 878,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_exa_search/types",
+          "sha256": "a9a756b252ecd18c00cd639a4ea99eaefff5178db27539cf9ba72c63a0439602",
+          "bytes": 1345,
+          "lines": 45
+        }
+      },
+      {
+        "module_dir": "std__io",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 8726,
+          "iface.json": 6044,
+          "artifacts.json": 502,
+          "coretypeinfo.gob": 977
+        },
+        "total_bytes": 16251,
+        "module": "std/io",
+        "dag": {
+          "core_node_types": 54,
+          "distinct_type_nodes": 13,
+          "format": 1,
+          "roots": 54
+        },
+        "exports": 9,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 2238,
+        "source": {
+          "module": "std/io",
+          "sha256": "2fb83743e57adb7b08982ce513d09473635488658350118190c5acdbbf8c87a9",
+          "bytes": 1885,
+          "lines": 45
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__types",
+        "bytes": {
+          "constructors.json": 2226,
+          "core.gob": 456,
+          "iface.json": 11691,
+          "artifacts.json": 532,
+          "coretypeinfo.gob": 568
+        },
+        "total_bytes": 15473,
+        "module": "pkg/sunholo/motoko_ext_compose/types",
+        "dag": {
+          "core_node_types": 0,
+          "distinct_type_nodes": 0,
+          "format": 1,
+          "roots": 0
+        },
+        "exports": 0,
+        "exported_types": 11,
+        "aliases": 8,
+        "ifc_summary_bytes": 0,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/types",
+          "sha256": "8a6e61d6f4e7e5ed72362e2303e58c6e5e14c8135517e5afb6020c8ef1bf758d",
+          "bytes": 2718,
+          "lines": 122
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_progress_contract_guard__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 10132,
+          "iface.json": 1392,
+          "artifacts.json": 551,
+          "coretypeinfo.gob": 3067
+        },
+        "total_bytes": 15144,
+        "module": "pkg/sunholo/motoko_ext_progress_contract_guard/register",
+        "dag": {
+          "core_node_types": 33,
+          "distinct_type_nodes": 53,
+          "format": 1,
+          "roots": 33
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_progress_contract_guard/register",
+          "sha256": "155ec364f6a6b84d2daf4b492e090bdb0db81a3ef39dd247d725ce7b12c1897f",
+          "bytes": 881,
+          "lines": 27
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_empty_stop_guard__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 9654,
+          "iface.json": 1378,
+          "artifacts.json": 544,
+          "coretypeinfo.gob": 3067
+        },
+        "total_bytes": 14645,
+        "module": "pkg/sunholo/motoko_ext_empty_stop_guard/register",
+        "dag": {
+          "core_node_types": 33,
+          "distinct_type_nodes": 53,
+          "format": 1,
+          "roots": 33
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_empty_stop_guard/register",
+          "sha256": "40307633747b9487e73746de871945ff93ff9c2c5d59dbbba0dc0515ce1f1826",
+          "bytes": 863,
+          "lines": 27
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_compose__register",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 6731,
+          "iface.json": 1629,
+          "artifacts.json": 535,
+          "coretypeinfo.gob": 3733
+        },
+        "total_bytes": 12630,
+        "module": "pkg/sunholo/motoko_ext_compose/register",
+        "dag": {
+          "core_node_types": 23,
+          "distinct_type_nodes": 35,
+          "format": 1,
+          "roots": 23
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 251,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_compose/register",
+          "sha256": "44cb6da05bcf66b29196787ff8e708a214100c08e8a007e129649ae40f341d92",
+          "bytes": 845,
+          "lines": 16
+        }
+      },
+      {
+        "module_dir": "std__env",
+        "bytes": {
+          "constructors.json": 297,
+          "core.gob": 6488,
+          "iface.json": 4205,
+          "artifacts.json": 503,
+          "coretypeinfo.gob": 961
+        },
+        "total_bytes": 12454,
+        "module": "std/env",
+        "dag": {
+          "core_node_types": 35,
+          "distinct_type_nodes": 15,
+          "format": 1,
+          "roots": 35
+        },
+        "exports": 5,
+        "exported_types": 1,
+        "aliases": 0,
+        "ifc_summary_bytes": 1370,
+        "source": {
+          "module": "std/env",
+          "sha256": "8428a065900cfc95841a142eff7691fbfc8b3fe981b5fbda17b3e8bf384f07be",
+          "bytes": 3219,
+          "lines": 79
+        }
+      },
+      {
+        "module_dir": "std__crypto",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 6322,
+          "iface.json": 4230,
+          "artifacts.json": 506,
+          "coretypeinfo.gob": 984
+        },
+        "total_bytes": 12044,
+        "module": "std/crypto",
+        "dag": {
+          "core_node_types": 34,
+          "distinct_type_nodes": 16,
+          "format": 1,
+          "roots": 34
+        },
+        "exports": 5,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1721,
+        "source": {
+          "module": "std/crypto",
+          "sha256": "315b615ca79322ededd05068bb6ad76a21115816588ad7984217046c43fad3d7",
+          "bytes": 2936,
+          "lines": 87
+        }
+      },
+      {
+        "module_dir": "std__rand",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 5704,
+          "iface.json": 3880,
+          "artifacts.json": 504,
+          "coretypeinfo.gob": 1113
+        },
+        "total_bytes": 11203,
+        "module": "std/rand",
+        "dag": {
+          "core_node_types": 32,
+          "distinct_type_nodes": 17,
+          "format": 1,
+          "roots": 32
+        },
+        "exports": 5,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 1471,
+        "source": {
+          "module": "std/rand",
+          "sha256": "bbd6ed84ae756d3175e65859b1e7508460edec9df1a428b92d6f9560070e9197",
+          "bytes": 1175,
+          "lines": 28
+        }
+      },
+      {
+        "module_dir": "src__core__hook_phase",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 8215,
+          "iface.json": 1177,
+          "artifacts.json": 515,
+          "coretypeinfo.gob": 1224
+        },
+        "total_bytes": 11133,
+        "module": "src/core/hook_phase",
+        "dag": {
+          "core_node_types": 31,
+          "distinct_type_nodes": 17,
+          "format": 1,
+          "roots": 31
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 365,
+        "source": {
+          "module": "src/core/hook_phase",
+          "sha256": "c17f8c58f299dcdfd836aff431c3e9738647ea8af5b61da7e6d8d29c52803b86",
+          "bytes": 732,
+          "lines": 23
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_scratchpad__prompts",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 7805,
+          "iface.json": 1330,
+          "artifacts.json": 537,
+          "coretypeinfo.gob": 1099
+        },
+        "total_bytes": 10773,
+        "module": "pkg/sunholo/motoko_ext_scratchpad/prompts",
+        "dag": {
+          "core_node_types": 15,
+          "distinct_type_nodes": 9,
+          "format": 1,
+          "roots": 15
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 248,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_scratchpad/prompts",
+          "sha256": "60e3ef30f175451e6f91ea69933a71a68fd7107219609f0ef5ea319c75656cc1",
+          "bytes": 3578,
+          "lines": 16
+        }
+      },
+      {
+        "module_dir": "std__extension",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 6692,
+          "iface.json": 1138,
+          "artifacts.json": 509,
+          "coretypeinfo.gob": 1063
+        },
+        "total_bytes": 9404,
+        "module": "std/extension",
+        "dag": {
+          "core_node_types": 42,
+          "distinct_type_nodes": 13,
+          "format": 1,
+          "roots": 42
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 366,
+        "source": {
+          "module": "std/extension",
+          "sha256": "e5304622749a19550d927b91221acd4e665ac54c2f89d9c2395e43276068f78d",
+          "bytes": 1280,
+          "lines": 28
+        }
+      },
+      {
+        "module_dir": "std__yaml",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 5268,
+          "iface.json": 2468,
+          "artifacts.json": 504,
+          "coretypeinfo.gob": 914
+        },
+        "total_bytes": 9156,
+        "module": "std/yaml",
+        "dag": {
+          "core_node_types": 27,
+          "distinct_type_nodes": 12,
+          "format": 1,
+          "roots": 27
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 744,
+        "source": {
+          "module": "std/yaml",
+          "sha256": "034d0d302ade76b9973c0ae02e07d9d88b4a8e814427e88dccf1422b314262fe",
+          "bytes": 1461,
+          "lines": 32
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_omnigraph__args",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 5827,
+          "iface.json": 1183,
+          "artifacts.json": 533,
+          "coretypeinfo.gob": 872
+        },
+        "total_bytes": 8417,
+        "module": "pkg/sunholo/motoko_ext_omnigraph/args",
+        "dag": {
+          "core_node_types": 19,
+          "distinct_type_nodes": 9,
+          "format": 1,
+          "roots": 19
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 480,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_omnigraph/args",
+          "sha256": "8151f5bb58c0ac4cefed46c70724701a9dc7e28d6bc75560c96a950ce60f9c03",
+          "bytes": 296,
+          "lines": 13
+        }
+      },
+      {
+        "module_dir": "std__trace",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 3790,
+          "iface.json": 2275,
+          "artifacts.json": 505,
+          "coretypeinfo.gob": 833
+        },
+        "total_bytes": 7405,
+        "module": "std/trace",
+        "dag": {
+          "core_node_types": 19,
+          "distinct_type_nodes": 5,
+          "format": 1,
+          "roots": 19
+        },
+        "exports": 3,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 866,
+        "source": {
+          "module": "std/trace",
+          "sha256": "1a5f137e208dc85e48d7eb1ecdf4f16d8b670d312c136755c7fbffdbb48bf971",
+          "bytes": 1138,
+          "lines": 31
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_scratchpad__types",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 4521,
+          "iface.json": 1550,
+          "artifacts.json": 535,
+          "coretypeinfo.gob": 792
+        },
+        "total_bytes": 7400,
+        "module": "pkg/sunholo/motoko_ext_scratchpad/types",
+        "dag": {
+          "core_node_types": 8,
+          "distinct_type_nodes": 4,
+          "format": 1,
+          "roots": 8
+        },
+        "exports": 2,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 496,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_scratchpad/types",
+          "sha256": "4dc66a2ca7e91ae1928d43ffd7e4538593320ef00c83d1bdf419ee9cfdbde2d0",
+          "bytes": 2117,
+          "lines": 7
+        }
+      },
+      {
+        "module_dir": "std__clock",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 2726,
+          "iface.json": 1441,
+          "artifacts.json": 505,
+          "coretypeinfo.gob": 815
+        },
+        "total_bytes": 5489,
+        "module": "std/clock",
+        "dag": {
+          "core_node_types": 12,
+          "distinct_type_nodes": 5,
+          "format": 1,
+          "roots": 12
+        },
+        "exports": 2,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 497,
+        "source": {
+          "module": "std/clock",
+          "sha256": "faccc19c2bc872fb730e6274b201f71c51461526a66ed9abf6fc4ae01d17afce",
+          "bytes": 941,
+          "lines": 22
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_mcp__assets",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 2617,
+          "iface.json": 999,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 827
+        },
+        "total_bytes": 4974,
+        "module": "pkg/sunholo/motoko_ext_mcp/assets",
+        "dag": {
+          "core_node_types": 7,
+          "distinct_type_nodes": 7,
+          "format": 1,
+          "roots": 7
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 248,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_mcp/assets",
+          "sha256": "6a5498fd3bed644d2d8dcfaad0416061c74a80c4a326046509ecfc632950b3a2",
+          "bytes": 1030,
+          "lines": 21
+        }
+      },
+      {
+        "module_dir": "std__package",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 2012,
+          "iface.json": 1117,
+          "artifacts.json": 507,
+          "coretypeinfo.gob": 816
+        },
+        "total_bytes": 4454,
+        "module": "std/package",
+        "dag": {
+          "core_node_types": 7,
+          "distinct_type_nodes": 6,
+          "format": 1,
+          "roots": 7
+        },
+        "exports": 1,
+        "exported_types": 0,
+        "aliases": 0,
+        "ifc_summary_bytes": 372,
+        "source": {
+          "module": "std/package",
+          "sha256": "421f282aa0347e0fb76f9a349a6afc38b75e89a2812429032cdea6721a5b35e0",
+          "bytes": 1647,
+          "lines": 38
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_mcp__types",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 456,
+          "iface.json": 1126,
+          "artifacts.json": 528,
+          "coretypeinfo.gob": 568
+        },
+        "total_bytes": 2680,
+        "module": "pkg/sunholo/motoko_ext_mcp/types",
+        "dag": {
+          "core_node_types": 0,
+          "distinct_type_nodes": 0,
+          "format": 1,
+          "roots": 0
+        },
+        "exports": 0,
+        "exported_types": 2,
+        "aliases": 2,
+        "ifc_summary_bytes": 0,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_mcp/types",
+          "sha256": "6e3ec738b24168577445a89c30d14229fe7f8a37827ce9e141657ec645f96d2f",
+          "bytes": 300,
+          "lines": 16
+        }
+      },
+      {
+        "module_dir": "pkg__sunholo__motoko_ext_a2a__types",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 456,
+          "iface.json": 987,
+          "artifacts.json": 528,
+          "coretypeinfo.gob": 568
+        },
+        "total_bytes": 2541,
+        "module": "pkg/sunholo/motoko_ext_a2a/types",
+        "dag": {
+          "core_node_types": 0,
+          "distinct_type_nodes": 0,
+          "format": 1,
+          "roots": 0
+        },
+        "exports": 0,
+        "exported_types": 2,
+        "aliases": 2,
+        "ifc_summary_bytes": 0,
+        "source": {
+          "module": "pkg/sunholo/motoko_ext_a2a/types",
+          "sha256": "f3133f61c6f7f3964b6f81b1793904e36f66bcfd40a272126ba7b95bacd40a15",
+          "bytes": 567,
+          "lines": 17
+        }
+      }
+    ],
+    "warm_stamps_unchanged": true,
+    "blob_limit_bytes": 67108864,
+    "module_limit_bytes": 134217728,
+    "entry_lines": 5824,
+    "maximum_blob_bytes": 3100965,
+    "maximum_module_bytes": 3400869,
+    "footprint": {
+      "modules": 143,
+      "source_lines": 58174,
+      "source_bytes": 2774275,
+      "core_node_types": 186493,
+      "distinct_type_nodes_sum_per_module": 19296,
+      "exports": 1365,
+      "exported_types": 366,
+      "aliases": 273,
+      "artifact_bytes_total": 52171074,
+      "ifc_summary_bytes_total": 473459
+    }
+  },
+  "final_social_after_alias": {
+    "compiler_commit": "a9971a364e5986499007405ed2cbe0acbbcf477f",
+    "dependency_pr": 2008,
+    "dependency_head": "d5f783585084ff5eb791a7db34fc9de8899b2fc9",
+    "binary_sha256": "0d95f20eda766a23572abaeda56ef1cc1db314ae838e4533e07cfb9b9e1d88d7",
+    "consumer_commit": "81494c923d19cb02b97430a984f7230aaef75b70",
+    "package_source_sha256": "261faeb15fa083aed19e7f94dbe5af5e9b21273134c41ef2f90147fdaf92797a",
+    "runs": [
+      {
+        "case": "tasks_no_cache",
+        "args": [
+          "check",
+          "<registry>/sunholo/social_dynamics/0.4.0/tasks.ail"
+        ],
+        "exit": 0,
+        "seconds": 2.25
+      },
+      {
+        "case": "protocol_cold",
+        "args": [
+          "check",
+          "--debug-compile",
+          "sim/protocol_test.ail"
+        ],
+        "exit": 0,
+        "seconds": 18.678
+      },
+      {
+        "case": "protocol_warm",
+        "args": [
+          "check",
+          "--debug-compile",
+          "sim/protocol_test.ail"
+        ],
+        "exit": 0,
+        "seconds": 1.332
+      }
+    ],
+    "warm_stamps_unchanged": true,
+    "modules": [
+      {
+        "module_dir": "pkg__sunholo__crew_core__session",
+        "bytes": {
+          "constructors.json": 310,
+          "core.gob": 3250883,
+          "iface.json": 1310839,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 101606
+        },
+        "total_bytes": 4664163
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__protocol",
+        "bytes": {
+          "constructors.json": 1358,
+          "core.gob": 3606290,
+          "iface.json": 695455,
+          "artifacts.json": 523,
+          "coretypeinfo.gob": 141748
+        },
+        "total_bytes": 4445374
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__core",
+        "bytes": {
+          "constructors.json": 3176,
+          "core.gob": 1813658,
+          "iface.json": 1596019,
+          "artifacts.json": 519,
+          "coretypeinfo.gob": 89358
+        },
+        "total_bytes": 3502730
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__data__ism",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 2827795,
+          "iface.json": 25365,
+          "artifacts.json": 523,
+          "coretypeinfo.gob": 49495
+        },
+        "total_bytes": 2903180
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__crew",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 588696,
+          "iface.json": 1400119,
+          "artifacts.json": 519,
+          "coretypeinfo.gob": 30507
+        },
+        "total_bytes": 2019843
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__auto",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 1340646,
+          "iface.json": 282868,
+          "artifacts.json": 522,
+          "coretypeinfo.gob": 46500
+        },
+        "total_bytes": 1670538
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__cohorts",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 1366109,
+          "iface.json": 69119,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 37677
+        },
+        "total_bytes": 1473432
+      },
+      {
+        "module_dir": "sim__protocol_test",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 1260691,
+          "iface.json": 3505,
+          "artifacts.json": 513,
+          "coretypeinfo.gob": 101982
+        },
+        "total_bytes": 1366693
+      },
+      {
+        "module_dir": "pkg__sunholo__social_dynamics__wire",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 1103290,
+          "iface.json": 16631,
+          "artifacts.json": 528,
+          "coretypeinfo.gob": 25446
+        },
+        "total_bytes": 1145897
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__ism",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 1016474,
+          "iface.json": 71779,
+          "artifacts.json": 518,
+          "coretypeinfo.gob": 30098
+        },
+        "total_bytes": 1118871
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__navigation",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 892324,
+          "iface.json": 129068,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 30193
+        },
+        "total_bytes": 1052112
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__scenario",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 871552,
+          "iface.json": 91791,
+          "artifacts.json": 526,
+          "coretypeinfo.gob": 34708
+        },
+        "total_bytes": 998579
+      },
+      {
+        "module_dir": "pkg__sunholo__decisions__decide",
+        "bytes": {
+          "constructors.json": 5070,
+          "core.gob": 874573,
+          "iface.json": 55544,
+          "artifacts.json": 524,
+          "coretypeinfo.gob": 29659
+        },
+        "total_bytes": 965370
+      },
+      {
+        "module_dir": "pkg__sunholo__celestial__stellar_ld",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 937929,
+          "iface.json": 1771,
+          "artifacts.json": 528,
+          "coretypeinfo.gob": 17521
+        },
+        "total_bytes": 957751
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__protocol_crew",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 743398,
+          "iface.json": 177619,
+          "artifacts.json": 528,
+          "coretypeinfo.gob": 23335
+        },
+        "total_bytes": 944882
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__cruise_digest",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 605641,
+          "iface.json": 218648,
+          "artifacts.json": 528,
+          "coretypeinfo.gob": 24156
+        },
+        "total_bytes": 848975
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__policy",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 751282,
+          "iface.json": 22420,
+          "artifacts.json": 524,
+          "coretypeinfo.gob": 22132
+        },
+        "total_bytes": 796360
+      },
+      {
+        "module_dir": "pkg__sunholo__social_dynamics__indicators",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 689020,
+          "iface.json": 52067,
+          "artifacts.json": 534,
+          "coretypeinfo.gob": 18096
+        },
+        "total_bytes": 759719
+      },
+      {
+        "module_dir": "pkg__sunholo__celestial__ism",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 684657,
+          "iface.json": 34522,
+          "artifacts.json": 521,
+          "coretypeinfo.gob": 15577
+        },
+        "total_bytes": 735279
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__data__sol",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 623007,
+          "iface.json": 29537,
+          "artifacts.json": 523,
+          "coretypeinfo.gob": 16309
+        },
+        "total_bytes": 669378
+      },
+      {
+        "module_dir": "pkg__sunholo__social_dynamics__tasks",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 470259,
+          "iface.json": 124632,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 13602
+        },
+        "total_bytes": 609024
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__ai",
+        "bytes": {
+          "constructors.json": 1573,
+          "core.gob": 452183,
+          "iface.json": 78514,
+          "artifacts.json": 517,
+          "coretypeinfo.gob": 18861
+        },
+        "total_bytes": 551648
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__gr",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 444057,
+          "iface.json": 80052,
+          "artifacts.json": 517,
+          "coretypeinfo.gob": 12436
+        },
+        "total_bytes": 537064
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__crew_auto",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 185497,
+          "iface.json": 292982,
+          "artifacts.json": 524,
+          "coretypeinfo.gob": 14295
+        },
+        "total_bytes": 493300
+      },
+      {
+        "module_dir": "pkg__sunholo__content_library__library",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 447363,
+          "iface.json": 16529,
+          "artifacts.json": 531,
+          "coretypeinfo.gob": 11668
+        },
+        "total_bytes": 476093
+      },
+      {
+        "module_dir": "pkg__sunholo__social_dynamics__proposals",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 410581,
+          "iface.json": 32965,
+          "artifacts.json": 533,
+          "coretypeinfo.gob": 15234
+        },
+        "total_bytes": 459315
+      },
+      {
+        "module_dir": "pkg__sunholo__social_dynamics__personality",
+        "bytes": {
+          "constructors.json": 994,
+          "core.gob": 414163,
+          "iface.json": 21215,
+          "artifacts.json": 535,
+          "coretypeinfo.gob": 9776
+        },
+        "total_bytes": 446683
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__protocol_interlude",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 350440,
+          "iface.json": 74533,
+          "artifacts.json": 533,
+          "coretypeinfo.gob": 16173
+        },
+        "total_bytes": 441681
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__solar_departure",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 182201,
+          "iface.json": 235654,
+          "artifacts.json": 530,
+          "coretypeinfo.gob": 15853
+        },
+        "total_bytes": 434240
+      },
+      {
+        "module_dir": "pkg__sunholo__relativity__journey",
+        "bytes": {
+          "constructors.json": 379,
+          "core.gob": 379509,
+          "iface.json": 25268,
+          "artifacts.json": 526,
+          "coretypeinfo.gob": 7824
+        },
+        "total_bytes": 413506
+      },
+      {
+        "module_dir": "pkg__sunholo__social_dynamics__conditions",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 326390,
+          "iface.json": 50524,
+          "artifacts.json": 534,
+          "coretypeinfo.gob": 10187
+        },
+        "total_bytes": 387637
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__conversations",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 343246,
+          "iface.json": 26973,
+          "artifacts.json": 531,
+          "coretypeinfo.gob": 9388
+        },
+        "total_bytes": 380140
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__stellar_surface",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 351750,
+          "iface.json": 18080,
+          "artifacts.json": 530,
+          "coretypeinfo.gob": 8826
+        },
+        "total_bytes": 379188
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__personality_host",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 309877,
+          "iface.json": 55890,
+          "artifacts.json": 534,
+          "coretypeinfo.gob": 11154
+        },
+        "total_bytes": 377457
+      },
+      {
+        "module_dir": "pkg__sunholo__celestial__kepler",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 321220,
+          "iface.json": 24623,
+          "artifacts.json": 524,
+          "coretypeinfo.gob": 6831
+        },
+        "total_bytes": 353200
+      },
+      {
+        "module_dir": "pkg__sunholo__celestial__ephemeris",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 299975,
+          "iface.json": 39638,
+          "artifacts.json": 527,
+          "coretypeinfo.gob": 7026
+        },
+        "total_bytes": 347168
+      },
+      {
+        "module_dir": "stapledons__sim__data__crew_names",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 324995,
+          "iface.json": 4184,
+          "artifacts.json": 526,
+          "coretypeinfo.gob": 6884
+        },
+        "total_bytes": 336591
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__celestial",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 241449,
+          "iface.json": 74286,
+          "artifacts.json": 524,
+          "coretypeinfo.gob": 12786
+        },
+        "total_bytes": 329047
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__actor_policy",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 306215,
+          "iface.json": 9103,
+          "artifacts.json": 530,
+          "coretypeinfo.gob": 10036
+        },
+        "total_bytes": 325886
+      },
+      {
+        "module_dir": "pkg__sunholo__relativity__photometry_table",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 307601,
+          "iface.json": 5885,
+          "artifacts.json": 535,
+          "coretypeinfo.gob": 5020
+        },
+        "total_bytes": 319043
+      },
+      {
+        "module_dir": "pkg__sunholo__social_dynamics__relationships",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 264318,
+          "iface.json": 43312,
+          "artifacts.json": 537,
+          "coretypeinfo.gob": 9856
+        },
+        "total_bytes": 318025
+      },
+      {
+        "module_dir": "pkg__sunholo__social_dynamics__engine",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 227905,
+          "iface.json": 74978,
+          "artifacts.json": 530,
+          "coretypeinfo.gob": 9609
+        },
+        "total_bytes": 313024
+      },
+      {
+        "module_dir": "pkg__sunholo__relativity__schwarzschild",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 251605,
+          "iface.json": 22401,
+          "artifacts.json": 532,
+          "coretypeinfo.gob": 4200
+        },
+        "total_bytes": 278740
+      },
+      {
+        "module_dir": "pkg__sunholo__celestial__stellar",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 206695,
+          "iface.json": 21057,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 6000
+        },
+        "total_bytes": 234279
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__units",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 201673,
+          "iface.json": 23196,
+          "artifacts.json": 523,
+          "coretypeinfo.gob": 7860
+        },
+        "total_bytes": 233254
+      },
+      {
+        "module_dir": "pkg__sunholo__social_dynamics__model",
+        "bytes": {
+          "constructors.json": 10705,
+          "core.gob": 111669,
+          "iface.json": 100413,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 4188
+        },
+        "total_bytes": 227504
+      },
+      {
+        "module_dir": "pkg__sunholo__relativity__medium",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 178401,
+          "iface.json": 28143,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 3822
+        },
+        "total_bytes": 210893
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__trappist1",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 178350,
+          "iface.json": 21272,
+          "artifacts.json": 524,
+          "coretypeinfo.gob": 6832
+        },
+        "total_bytes": 206980
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__alpha_centauri",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 183199,
+          "iface.json": 15942,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 7302
+        },
+        "total_bytes": 206974
+      },
+      {
+        "module_dir": "pkg__sunholo__relativity__photometry",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 183306,
+          "iface.json": 13577,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 3469
+        },
+        "total_bytes": 200883
+      },
+      {
+        "module_dir": "std__list",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 133022,
+          "iface.json": 47975,
+          "artifacts.json": 504,
+          "coretypeinfo.gob": 16353
+        },
+        "total_bytes": 197856
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__codec",
+        "bytes": {
+          "constructors.json": 827,
+          "core.gob": 178341,
+          "iface.json": 9190,
+          "artifacts.json": 523,
+          "coretypeinfo.gob": 4290
+        },
+        "total_bytes": 193171
+      },
+      {
+        "module_dir": "pkg__sunholo__relativity__blackbody",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 174807,
+          "iface.json": 9830,
+          "artifacts.json": 528,
+          "coretypeinfo.gob": 3726
+        },
+        "total_bytes": 188893
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__data__acen",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 174089,
+          "iface.json": 7144,
+          "artifacts.json": 524,
+          "coretypeinfo.gob": 4526
+        },
+        "total_bytes": 186285
+      },
+      {
+        "module_dir": "pkg__sunholo__celestial__frames",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 159136,
+          "iface.json": 13870,
+          "artifacts.json": 524,
+          "coretypeinfo.gob": 3936
+        },
+        "total_bytes": 177468
+      },
+      {
+        "module_dir": "pkg__sunholo__relativity__optics",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 151854,
+          "iface.json": 17269,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 3421
+        },
+        "total_bytes": 173071
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__consequence",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 127045,
+          "iface.json": 39333,
+          "artifacts.json": 526,
+          "coretypeinfo.gob": 5597
+        },
+        "total_bytes": 172503
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__data__trappist1",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 153091,
+          "iface.json": 7432,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 3773
+        },
+        "total_bytes": 164827
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__similar",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 137932,
+          "iface.json": 17916,
+          "artifacts.json": 522,
+          "coretypeinfo.gob": 7450
+        },
+        "total_bytes": 163822
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__home_tiers",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 148282,
+          "iface.json": 7186,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 3325
+        },
+        "total_bytes": 159320
+      },
+      {
+        "module_dir": "pkg__sunholo__celestial__rings",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 140417,
+          "iface.json": 12237,
+          "artifacts.json": 523,
+          "coretypeinfo.gob": 3932
+        },
+        "total_bytes": 157111
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__markers",
+        "bytes": {
+          "constructors.json": 271,
+          "core.gob": 139650,
+          "iface.json": 7162,
+          "artifacts.json": 522,
+          "coretypeinfo.gob": 6195
+        },
+        "total_bytes": 153800
+      },
+      {
+        "module_dir": "pkg__sunholo__celestial__reflect",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 138418,
+          "iface.json": 10632,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 2837
+        },
+        "total_bytes": 152414
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__crew_names",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 133454,
+          "iface.json": 7842,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 6738
+        },
+        "total_bytes": 148561
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__destination_stars",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 101839,
+          "iface.json": 16192,
+          "artifacts.json": 532,
+          "coretypeinfo.gob": 5063
+        },
+        "total_bytes": 123628
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__inferred_stars",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 94851,
+          "iface.json": 23500,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 4490
+        },
+        "total_bytes": 123372
+      },
+      {
+        "module_dir": "pkg__sunholo__relativity__dust",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 107637,
+          "iface.json": 9731,
+          "artifacts.json": 523,
+          "coretypeinfo.gob": 2495
+        },
+        "total_bytes": 120388
+      },
+      {
+        "module_dir": "std__json",
+        "bytes": {
+          "constructors.json": 1030,
+          "core.gob": 80541,
+          "iface.json": 33423,
+          "artifacts.json": 504,
+          "coretypeinfo.gob": 3967
+        },
+        "total_bytes": 119465
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__flows",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 100833,
+          "iface.json": 6856,
+          "artifacts.json": 523,
+          "coretypeinfo.gob": 4455
+        },
+        "total_bytes": 112669
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__host_policy",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 79529,
+          "iface.json": 25665,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 2800
+        },
+        "total_bytes": 108525
+      },
+      {
+        "module_dir": "pkg__sunholo__relativity__hyper",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 92687,
+          "iface.json": 6709,
+          "artifacts.json": 524,
+          "coretypeinfo.gob": 1912
+        },
+        "total_bytes": 101834
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__sync_orbit",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 90416,
+          "iface.json": 3662,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 4340
+        },
+        "total_bytes": 98945
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__rng",
+        "bytes": {
+          "constructors.json": 503,
+          "core.gob": 74309,
+          "iface.json": 14515,
+          "artifacts.json": 518,
+          "coretypeinfo.gob": 2523
+        },
+        "total_bytes": 92368
+      },
+      {
+        "module_dir": "pkg__sunholo__relativity__kinematics",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 80180,
+          "iface.json": 9451,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 1942
+        },
+        "total_bytes": 92104
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__crew_events",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 68934,
+          "iface.json": 9262,
+          "artifacts.json": 526,
+          "coretypeinfo.gob": 3056
+        },
+        "total_bytes": 81780
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__stops",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 63385,
+          "iface.json": 13412,
+          "artifacts.json": 520,
+          "coretypeinfo.gob": 1700
+        },
+        "total_bytes": 79019
+      },
+      {
+        "module_dir": "std__string",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 45490,
+          "iface.json": 27563,
+          "artifacts.json": 506,
+          "coretypeinfo.gob": 2517
+        },
+        "total_bytes": 76078
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__data__stars",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 61799,
+          "iface.json": 4341,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 2166
+        },
+        "total_bytes": 68833
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__crew_resources",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 39215,
+          "iface.json": 19345,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 3645
+        },
+        "total_bytes": 62736
+      },
+      {
+        "module_dir": "std__array",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 30593,
+          "iface.json": 22300,
+          "artifacts.json": 505,
+          "coretypeinfo.gob": 3439
+        },
+        "total_bytes": 56839
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__data__stellar_activity",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 41631,
+          "iface.json": 6201,
+          "artifacts.json": 536,
+          "coretypeinfo.gob": 1918
+        },
+        "total_bytes": 50288
+      },
+      {
+        "module_dir": "std__math",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 24888,
+          "iface.json": 15950,
+          "artifacts.json": 504,
+          "coretypeinfo.gob": 1295
+        },
+        "total_bytes": 42639
+      },
+      {
+        "module_dir": "std__embedding",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 28102,
+          "iface.json": 11869,
+          "artifacts.json": 509,
+          "coretypeinfo.gob": 1427
+        },
+        "total_bytes": 41909
+      },
+      {
+        "module_dir": "stapledons__sim__data__crew_faces",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 31903,
+          "iface.json": 3258,
+          "artifacts.json": 526,
+          "coretypeinfo.gob": 1771
+        },
+        "total_bytes": 37460
+      },
+      {
+        "module_dir": "pkg__sunholo__celestial__lighttime",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 26323,
+          "iface.json": 7363,
+          "artifacts.json": 527,
+          "coretypeinfo.gob": 3093
+        },
+        "total_bytes": 37308
+      },
+      {
+        "module_dir": "std__net",
+        "bytes": {
+          "constructors.json": 617,
+          "core.gob": 21533,
+          "iface.json": 10915,
+          "artifacts.json": 503,
+          "coretypeinfo.gob": 2102
+        },
+        "total_bytes": 35670
+      },
+      {
+        "module_dir": "stapledons__sim__data__crew_pack",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 26109,
+          "iface.json": 4326,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 921
+        },
+        "total_bytes": 31883
+      },
+      {
+        "module_dir": "pkg__sunholo__crew_core__example",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 11047,
+          "iface.json": 15977,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 2727
+        },
+        "total_bytes": 30278
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__archive_health",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 23430,
+          "iface.json": 3420,
+          "artifacts.json": 529,
+          "coretypeinfo.gob": 1276
+        },
+        "total_bytes": 28657
+      },
+      {
+        "module_dir": "std__result",
+        "bytes": {
+          "constructors.json": 361,
+          "core.gob": 11830,
+          "iface.json": 7993,
+          "artifacts.json": 506,
+          "coretypeinfo.gob": 4453
+        },
+        "total_bytes": 25143
+      },
+      {
+        "module_dir": "std__option",
+        "bytes": {
+          "constructors.json": 285,
+          "core.gob": 10847,
+          "iface.json": 7440,
+          "artifacts.json": 506,
+          "coretypeinfo.gob": 3556
+        },
+        "total_bytes": 22634
+      },
+      {
+        "module_dir": "stapledons__sim__data__crew_ship",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 12557,
+          "iface.json": 1694,
+          "artifacts.json": 525,
+          "coretypeinfo.gob": 1110
+        },
+        "total_bytes": 15888
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__data__similar",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 8448,
+          "iface.json": 3552,
+          "artifacts.json": 527,
+          "coretypeinfo.gob": 1093
+        },
+        "total_bytes": 13622
+      },
+      {
+        "module_dir": "std__env",
+        "bytes": {
+          "constructors.json": 297,
+          "core.gob": 6488,
+          "iface.json": 4205,
+          "artifacts.json": 503,
+          "coretypeinfo.gob": 961
+        },
+        "total_bytes": 12454
+      },
+      {
+        "module_dir": "std__crypto",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 6322,
+          "iface.json": 4230,
+          "artifacts.json": 506,
+          "coretypeinfo.gob": 984
+        },
+        "total_bytes": 12044
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__tripphase",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 5894,
+          "iface.json": 1946,
+          "artifacts.json": 524,
+          "coretypeinfo.gob": 1089
+        },
+        "total_bytes": 9455
+      },
+      {
+        "module_dir": "pkg__stapledons__sim__data__home_variants",
+        "bytes": {
+          "constructors.json": 2,
+          "core.gob": 5199,
+          "iface.json": 910,
+          "artifacts.json": 533,
+          "coretypeinfo.gob": 819
+        },
+        "total_bytes": 7463
+      }
+    ],
+    "blob_limit_bytes": 67108864,
+    "module_limit_bytes": 134217728,
+    "compiler_tree_note": "Only owned evidence JSON was dirty at build; production Go/std source equals compiler_commit. The published dependency was normally merged; no implementation was duplicated.",
+    "maximum_blob_bytes": 3606290,
+    "maximum_module_bytes": 4664163,
+    "artifact_bytes_total": 48230073,
+    "consumer_entry_lines": 725
+  }
+}

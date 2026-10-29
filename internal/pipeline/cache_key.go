@@ -33,7 +33,10 @@ import (
 // constructor types are closed in their defining module. Open v5 bodies must miss.
 // v6 -> v7 (M-CORETI-SHARED-ENCODING): coretypeinfo.gob is a hash-consed DAG
 // (cache_coreti_dag.go), not a plain gob map. A v6 blob must never reach the new decoder.
-const cacheKeyVersion = "v7"
+// v7 -> v8 (M-IFC-CROSS-MODULE): iface v2 requires complete IFC summaries,
+// including canonical forbidden arrays and reserved applied labels; pre-IFC
+// verdicts must miss. Preserve the v7 CoreTI shared-DAG codec.
+const cacheKeyVersion = "v8"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:
