@@ -150,7 +150,7 @@
       "passes": true,
       "started": "2026-10-29T21:18:45.909803+00:00",
       "completed": "2026-10-29T21:18:45.909803+00:00",
-      "notes": "Implementation proof complete on source60:72 actualCLI commands,3clean overlays each falselyVERIFIED target+focusedtestexit1,1051pinnedfiles/3036rows per arm; sole validEmbedERROR\u2192VERIFIED explained, all inherited error/CE/timeout rows retained. Local structure/examples/std green; final changed/core rerun and requiredCI/independent acceptance remain separately pending.",
+      "notes": "Implementation proof complete on source60:72 actualCLI commands,3clean overlays each falselyVERIFIED target+focusedtestexit1,1051pinnedfiles/3036rows per arm; sole validEmbedERROR\u2192VERIFIED explained, all inherited error/CE/timeout rows retained. Local structure/examples/std green; final changed/core rerun exit0; requiredCI/independent acceptance remain separately pending.",
       "actual_loc_basis": "Added Go/AIL lines in recorded milestone commits, including review repair churn; not net code size",
       "actual_deleted_loc": 40,
       "implementation_commits": [
@@ -269,8 +269,8 @@
   "implementation_source": "60a7d7b5fce9c137835774750cac1cca063e6b00",
   "validation_report": "design_docs/planned/v0_56_0/m-smt-preflight-m0-repair-validation.md",
   "acceptance_gates": {
-    "local_final_changed_core": "in_progress at completion metadata checkpoint; raw m0-execution/test-changed-final60.log",
-    "required_ci": "pending PR publication",
+    "local_final_changed_core": "passed; terminal exit0 m0-execution/test-changed-final60.log",
+    "required_ci": "pending exact final PR head",
     "independent_evaluation": "pending; no self-score"
   }
 }

@@ -39,7 +39,7 @@ The M4 fact prepass initially visited a later unreachable opaque callee: baselin
 - **A5:** lexical/shadow/capture, bounded quantifier scopes, match-bound arguments, body/requires/ensures short-circuit and unselected helper contradictions pass. Interleaved user-helper arguments and diamond declarations retain distinct explicit environments. Value/condition helpers use the exact same parameter list, including explicit/already-lifted Core environment parameters. Arbitrary front-end closure lifting is neither newly supported nor claimed.
 - **A6:** `/0` and `%0` check and raise RT001 in both runtime engines. Zero-only/unselected-zero verification retains M0-Z totalization; no nonzero assumption, totality/runtime-error-freedom claim or new status rule was added.
 - **A7:** all three clean final-source Go-overlay mutations build, falsely VERIFY their target, and fail the focused meaningful Go test (exit1). Full corpus comparison below accounts for all changed verdicts and inherited failures.
-- **A8 local:** changed/core tests passed on the pre-final source; final-source focused repairs, lint0, sizes, boundaries/changelog, runnable examples/manifest and stdlib interfaces pass. A final-source changed/core rerun is in progress at documentation commit; required PR CI and independent acceptance remain pending. See the final handoff for its terminal state rather than inferring it from this checkpoint.
+- **A8 local:** the justified final-source changed/core rerun completed with exit0, as did focused repairs, lint0, sizes, boundaries/changelog, runnable examples/manifest and stdlib interfaces. Required PR CI and independent acceptance remain pending.
 
 ## Corpus accounting
 

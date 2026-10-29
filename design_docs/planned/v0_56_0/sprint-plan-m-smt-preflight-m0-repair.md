@@ -1,12 +1,12 @@
 > Execution approved: user “exeute all three sprints”, observed 2026-10-29T20:17:42Z. All six reviewed M0 milestones authorized; historical quorum records remain BLOCKED and unchanged.
 
-# Draft sprint plan: M-SMT-PREFLIGHT-M0-REPAIR
+# Sprint plan: M-SMT-PREFLIGHT-M0-REPAIR
 
-**Status:** DRAFT for review; authorized planning only. Leave this plan, progress JSON and approval annotations uncommitted until approved. No implementation, provider review, PR/push, coordinator dispatch or parked-work recovery is authorized.
+**Status:** M0 implementation complete; final local changed/core and focused/structure/example gates passed. Required exact-head CI and independent acceptance remain pending. Parent M1–M4/F2/F5 remain planned.
 
 **Design:** [canonical M0 design](../m-smt-well-sorted-preflight.md), current M0 decision section and M0-A1–A8 only. **Issues:** #1960/#1961. **Target:** unreleased v0.56.0; no version bump/release requested. **JSON:** `.ailang/state/sprints/sprint_M-SMT-PREFLIGHT-M0-REPAIR.json`.
 
-The user said **“approve the three designs”**, observed at **2026-10-29T14:48:58Z**. That ruling ratifies corrected evidence and M0-F1/F4/Z at approved design commit `88ca9e1e974150fa783d19b15b8a93be1682e2f7`, for planning only. Observation time is the assistant receipt record, not an independent send timestamp. Root's local `three-design-approvals.json` is the source. Both external BLOCKED records remain unchanged; human ratification is separate and never reported as external PROCEED. M0-F1/F4/Z are rulings, not questions to reopen. Plan approval and explicit **execute sprint** remain pending.
+The user said **“approve the three designs”**, observed at **2026-10-29T14:48:58Z**. That ruling ratifies corrected evidence and M0-F1/F4/Z at approved design commit `88ca9e1e974150fa783d19b15b8a93be1682e2f7`, for planning only. Observation time is the assistant receipt record, not an independent send timestamp. Root's local `three-design-approvals.json` is the source. Both external BLOCKED records remain unchanged; human ratification is separate and never reported as external PROCEED. M0-F1/F4/Z are rulings, not questions to reopen. The reviewed plan was subsequently approved for implementation by “exeute all three sprints”, observed20:17:42UTC; all six M0 milestones are executed. That later explicit instruction is separate from the design-stage planning ruling.
 
 ## Goal and scope
 
@@ -17,7 +17,9 @@ No external consumer repository or source-pin, prompt-version, dependency or rel
 
 The zero policy is ruled: runtime RT001 remains; verification retains its partial-correctness totalization, without injected nonzero assumptions, a runtime-error-freedom guarantee or new skip/error rules. Call-site requires proof obligations, proof-versus-refutation/admission redesign, width/BitVec, new encodings, F2/F5/encoder_gap and parent-design M1–M4/#1950/#1953 are excluded. Operator-held #1790 and runner work (#1926/#2013) remain other owners' scope.
 
-## Current status, evidence and ownership
+## Execution identity and historical planning baseline
+
+Actual execution used fresh base `6d0d3a9da2af2eadc504f7cb050aacde72cc3cca` in isolated branch `fix/smt-m0-soundness`. Final source is `60a7d7b5fce9c137835774750cac1cca063e6b00`; subsequent completion commits are metadata-only. The following paragraph is retained as the original planning baseline/integration instruction, not a current prohibition on approved execution.
 
 Planning checkout is the docs branch at `88ca9e1e9`, source base `aca5a6ead`. Do not merge a new base into these dirty drafts. After explicit execution approval, use a **new isolated execution worktree/branch** from actual fresh `origin/dev`, recheck PR/task ownership read-only through gh and existing read-only coordination tools, then carry only the approved design/plan/state artifacts. Completed-doc archive moves landed after aca5; git can misinfer a directory rename. Bank approved draft artifacts first, integrate actual dev cleanly, and explicitly keep this NEW M0 plan/JSON in `planned/v0_56_0`/state while retaining accepted archives. Inspect rename conflicts rather than accepting inferred moves to implemented. Do not switch, build in or edit the parked `p0/smt-unsound-encodings` worktree or its dirty plan/JSON/fmt log.
 
@@ -31,7 +33,7 @@ Evidence has three distinct compiler states:
 
 Literal807→aca5 named-path/front-half source comparisons are empty, but four pipeline cache files/seven tests differ. The installed quorum binary is stamped e863/dirty, not clean-build-attested. These qualifications remain; prior raw Z3 controls are **not** parked/fixed CLI proof. Both external reviews and full Gemini concern stay visible in [evidence](../m-smt-well-sorted-preflight-m0-evidence.json).
 
-Owned implementation surface, only after execute: `internal/smt` arithmetic maps, call-contract/callee encoding and necessary narrow integration; `cmd/ailang` companion e2e tests/testdata; verifier guide/changelog/evidence. No parser/type/effect/iface/runtime semantics or schema/epoch change. Shared near-size files stay bounded: `codegen.go` 666 lines, `callee_resolver.go` 586, `codegen_apps.go` 407 at planning base. Prefer companions `codegen_call_facts.go`, `codegen_call_facts_control.go`, `codegen_call_facts_helpers.go` and matching focused test files, rather than growing an existing file past 800. Keep new tests split by semantic surface as well. Candidate companions include `codegen_call_facts_contract_test.go`, `codegen_call_facts_control_test.go`, `codegen_call_facts_helpers_test.go` and separate `verify_soundness_m0_{arithmetic,lexical,helpers}_e2e_test.go`; do not add large blocks to shared CLI main_test.go.
+Executed authorized implementation surface: `internal/smt` arithmetic maps, call-contract/callee encoding and necessary narrow integration; `cmd/ailang` companion e2e tests/testdata; verifier guide/changelog/evidence. No parser/type/effect/iface/runtime semantics or schema/epoch change. Shared near-size files stay bounded: `codegen.go` 666 lines, `callee_resolver.go` 586, `codegen_apps.go` 407 at planning base. Prefer companions `codegen_call_facts.go`, `codegen_call_facts_control.go`, `codegen_call_facts_helpers.go` and matching focused test files, rather than growing an existing file past 800. Keep new tests split by semantic surface as well. Candidate companions include `codegen_call_facts_contract_test.go`, `codegen_call_facts_control_test.go`, `codegen_call_facts_helpers_test.go` and separate `verify_soundness_m0_{arithmetic,lexical,helpers}_e2e_test.go`; do not add large blocks to shared CLI main_test.go.
 
 ## Estimates and sequencing
 
@@ -71,7 +73,7 @@ All planned `.ail` modules below are verifier regression fixtures, not showcase 
 - Unsupported/unencodable requires means no ensures fact for that invocation; unencodable ensures contributes no such clause. Recursive/cyclic predicate expansion must terminate via existing unsupported/fail-weak handling: retain an unconstrained result or existing unsupported outcome as applicable, never an infinite expansion, invented axiom or new generic ERROR→SKIP rule. Keep unexpected faults loud.
 - Pin distinct vs same arguments, parameter-dependent contracts, arity mismatch, unencodable/recursive predicate paths and model shape. These unit templates do not claim full CLI integration before later milestones.
 
-**Acceptance:** same-call identity holds, distinct-call false equality is refutable, only guarded instantiations constrain results; no global contract `forall`. Recursive/unencodable paths have the expected existing reason/status or fail-weak absence of facts, with no false proof from a missing requires. Partial-callee raw solver discriminator retained separately from pending final CLI proof.
+**Acceptance:** same-call identity holds, distinct-call false equality is refutable, only guarded instantiations constrain results; no global contract `forall`. Recursive/unencodable paths have the expected existing reason/status or fail-weak absence of facts, with no false proof from a missing requires. Partial-callee raw solver discriminator is retained separately from the now-measured final CLI proof.
 
 ## M3 — value/fact propagation through calls, lets and selected branches
 
@@ -133,18 +135,18 @@ Success means every design M0 criterion measured, every status delta accounted f
 
 ## Rulings, exclusions and terminal behavior
 
-There are **no still-open human semantic choices within approved M0-F1/F4/Z**; do not ask again. Deferred F2/F5/parent-design M1–M4/#1790 are exclusions, not prerequisites to silently implement. Plan approval/execution instruction remains the stage gate.
+There are **no still-open human semantic choices within approved M0-F1/F4/Z**; do not ask again. Deferred F2/F5/parent-design M1–M4/#1790 are exclusions, not prerequisites to silently implement. Plan approval and execution instruction were received; CI and independent acceptance remain the current stage gates.
 
-A genuinely different zero-domain, trust/totality, proof-vs-refutation, admission, width or outcome contract is outside this ruling. **STOP: commit only already-authorized coherent work in the isolated execution branch, report `BLOCKED: proposed change exceeds approved M0 scope`, and end the run.** Do not continue by inventing semantics or treating the historical quorum passes/rejections as new user authority. Routine current-base merge/hunk coordination preserving the ruled semantics is implementation work only after execute; do not merge anything into this planning draft.
+A genuinely different zero-domain, trust/totality, proof-vs-refutation, admission, width or outcome contract is outside this ruling. **STOP: commit only already-authorized coherent work in the isolated execution branch, report `BLOCKED: proposed change exceeds approved M0 scope`, and end the run.** Do not continue by inventing semantics or treating the historical quorum passes/rejections as new user authority. The original no-merge instruction applied to the dirty planning checkout. Approved execution used a new fresh-dev worktree; the parked checkout remains untouched.
 
-The parked historical plan/JSON remain untouched. This new repair sprint ID prevents its old completion claims being mistaken for current execution state. Neither the JSON validator's “ready for execution” text nor a plan merge substitutes for the explicit attended execute instruction. No coordinator message/import/ack/dispatch is part of this draft.
+The parked historical plan/JSON remain untouched. This new repair sprint ID prevents its old completion claims being mistaken for current execution state. Neither the JSON validator's “ready for execution” text nor a plan merge substitutes for the explicit attended execute instruction. No coordinator message/import/ack/dispatch occurred as part of this sprint.
 
 ## Execution completion checkpoint
 
 - [x] M1–M5 implementation, including reopened/repaired nested binder control.
 - [x] M6 actual CLI/runtime, three clean failing mutants, pinned1051-file/3036-row corpus comparison and source-blob join.
 - [x] Final-source focused tests and local structure/example/stdlib gates.
-- [ ] Final-source changed/core rerun terminal result (in progress at this metadata commit; see handoff).
+- [x] Final-source changed/core rerun terminal exit0; `m0-execution/test-changed-final60.log`.
 - [ ] Required exact-head CI/Sonar and independent evaluation.
 
 Source60 and all qualifications are in [the validation report](m-smt-preflight-m0-repair-validation.md). Initial planning-only paragraphs describe the historical draft stage; explicit execution at20:17:42UTC supersedes that stage gate. M0-Q remains externally BLOCKED; no third review or deferred M1–M4 authorization is inferred.
