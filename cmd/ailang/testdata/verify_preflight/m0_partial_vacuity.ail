@@ -1,0 +1,14 @@
+module cmd/ailang/testdata/verify_preflight/m0_partial_vacuity
+
+export pure func partial(n: int) -> int
+ensures { n != 0 && result == 0 } {
+  if n == 0 then partial(n) else 0
+}
+
+export pure func wrong(a: int) -> int
+requires { a != 0 }
+ensures { result == 1 } {
+  partial(a)
+}
+
+export pure func main() -> int { wrong(1) }
