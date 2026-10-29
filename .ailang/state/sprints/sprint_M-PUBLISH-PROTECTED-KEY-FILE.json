@@ -189,11 +189,11 @@
         "Portable helper uses bounded Go subprocess support; Windows actually tests file-lane unsupported and existing env/help/dry-run, not a blanket skip.",
         "Focused real CLI/authority/#1773 regressions and lint pass, raw reds retained."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-29T21:15:26.121737+00:00",
-      "completed": null,
-      "notes": null,
-      "status": "in_progress"
+      "completed": "2026-10-29T21:18:01.557450+00:00",
+      "notes": "Actual built publisher smoke executes compiled Go raw os.LookupEnv probe: env lane PRESENT vs file lane literal ABSENT; positive active control and immutable-selected header pass counted loopback. Helper replaces dummy path before upload, original header remains; multipart/output excludes selected key, controlled400 is reflected/redacted and prevents messages/cascade. Missing/conflicting/unsafe source yields zero HTTP; dry-run ignores missing file and unused env and preserves author content. File unsupported arm executes refusal on Windows; legacy arm remains active. M4-green.log PASS10.808s (see log exact duration), lint0. One new assertion expected wrong generic read-error wording; corrected to actual publish flag prefix, no production change. Synthetic .ail generated only after full promptv0.16.11; process error/nonzero paths explicit. No showcase/example added; contract/showcase manifest checklist not applicable to temporary negative harness.",
+      "status": "completed"
     },
     {
       "id": "M5_DOCS_GATES_AND_HANDOFF",
@@ -213,10 +213,10 @@
         "Independent evaluation handoff uses terminal real gates; no self-approval, live publish, issue closure, coordinator action or release during execution."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-29T21:18:01.557450+00:00",
       "completed": null,
       "notes": null,
-      "status": "not_started"
+      "status": "in_progress"
     }
   ],
   "integration_gate": {
@@ -281,7 +281,7 @@
     "approved_artifact_commit": "c9698d88e390d21139507a81f6ff7f64fc4a519a",
     "scope": "Execute #1900 M0-M5 only with approved #2013 dependency sequencing; no new D1-D7 approval needed after legitimate dependency release"
   },
-  "last_checkpoint": "M3 real command/header/error-boundary acceptance and lint pass; M4 raw child proof in progress",
+  "last_checkpoint": "M4 real raw-child/frozen-upload/no-read/no-HTTP acceptance and lint pass; final docs/gates pending",
   "execution_worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/publish-key-file-1900-exec",
   "execution_branch": "fix/publish-protected-key-file"
 }
