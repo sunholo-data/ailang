@@ -141,3 +141,48 @@ remain unchanged; the previous active .8 is marked frozen by the existing
 `prompt freeze --migrate` command (the registry requires one mutable head); embedded/docs/llms mirrors
 are regenerated with existing scripts. No completed independent evaluator
 verdict is claimed by this repair.
+
+## Alias ownership review repair (2026-10-29)
+
+Attended authorization covers the existing AC6 alias-aware shared walker and
+accepted pure `fwd_two` semantics. Baseline dev9dc reproduces the original
+`sunholo/social_dynamics/0.4.0/tasks.ail` accept→acceptReady failure. A reduced
+one-field alias reports an unresolved tail; two fields fail the missing-row
+invariant even when the receiving function returns 0. Inline records pass.
+
+- [x] R1: expand aliases through the existing checker resolver in binder
+  ownership discovery, and put discovered implicit tails in general ownership
+  before publication so solver renaming preserves binder identities. Capture
+  failing-first local/imported one/two-field and generic alias controls, plus
+  IO/FS caller rejection and corresponding declared acceptance on both engines.
+  Preserve parameter-wide charging, explicit/unknown tails and fail-loud union.
+- [x] R2: normal integrate the actual #2005 merge, then check the original
+  social_dynamics module and combined real consumer 60/60 + extensions 9/9, corpus,
+  and independent evaluation. This gate cannot be replaced by scratch proof.
+
+No compiler edits occur in the explicit-empty owner worktree. No full `make test`
+is duplicated locally. Root owns final evaluation and any PR dispatch. Original
+completed milestones and prior evaluation evidence remain historical records.
+
+R1 validation: focused and full types/pipeline PASS; affected CLI PASS after the
+preserved strict-FS verification mismatch; aborted core PASS; lint 0, boundaries,
+file sizes, changelog and sprint JSON PASS. Paired528-file corpus has zero status
+or diagnostic changes and zero invariants. Original unmodified social_dynamics
+tasks now checks clean. See m-effect-latent-alias-ownership-validation.md for the
+exact VM interop distinction. R2 completed separately below; independent follow-up evaluation remains pending.
+
+### R2 completed integration
+
+Actual #2005 merge 80793 was normally integrated at 15afcc12, retaining R1 commit
+34009. The exact delivered consumer 083ef437 (tree 067e8990), archived without
+source edits, passes fresh-cache `gmake check_core`: 60/60 core, 9/9 extension
+boots and 204 runtime OK lines. Original social_dynamics tasks now checks clean
+without cache, while actual80793 still fails at application 1070 argument 1.
+Combined focused types/pipeline/CLI tests and lint/structure pass. Paired 530-file
+examples/std corpus: 446 pass/84 reject both, zero diagnostic/status changes or
+invariants. Full package/core suites were not duplicated after normal integration;
+exact PR CI and the independent evaluator own the final broad gate.
+
+Execution is complete; independent follow-up evaluation is pending. The original
+#1963 PASS 93 on 86d3a5f8 remains historical and unchanged. Compact provenance is
+in m-effect-latent-alias-ownership-evidence.json.
