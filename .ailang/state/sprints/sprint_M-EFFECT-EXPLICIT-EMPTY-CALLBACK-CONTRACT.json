@@ -106,7 +106,7 @@
       "passes": true,
       "started": null,
       "completed": "2026-10-29T10:39:15.106253+00:00",
-      "notes": "All M4 implementation and independent acceptance gates completed. Root PASS 98/100 on exact 8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af; merged PR #2005 at 80793dbcf42423027be4bab1a0088da54e2323d8. Actual consumer 083ef43726981099a0bad4fedda18fc72105d6fa passes 60 core and 9 extension checks, with initial no-cache deadlines and serial retries preserved as history. All 49 interfaces stable; actual final Sonar 93.5% above unchanged 80% gate. Target v0.56.0 is unreleased. Deferred width subsumption, operator-held #1790, IFC/cache-v8 and separately owned alias-ownership follow-up remain outside this completion.",
+      "notes": "All M4 implementation and independent acceptance gates completed. Root PASS 95/100 on exact 8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af; merged PR #2005 at 80793dbcf42423027be4bab1a0088da54e2323d8. Actual consumer 083ef43726981099a0bad4fedda18fc72105d6fa passes 60 core and 9 extension checks, with initial no-cache deadlines and serial retries preserved as history. All 49 interfaces stable; actual final Sonar 93.5% above unchanged 80% gate. Target v0.56.0 is unreleased. Deferred width subsumption, operator-held #1790, IFC/cache-v8 and separately owned alias-ownership follow-up remain outside this completion.",
       "implementation_completed_at": "2026-10-29T10:36:17.952211+00:00",
       "historical_execution_notes": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval."
     }
@@ -161,7 +161,7 @@
   "execution_approval_quote": "Execute explicit-empty sprint",
   "execution_approved_at": "2026-10-29T09:25:09.896975+00:00",
   "implementation_complete": true,
-  "independent_evaluation": "PASS 98/100 by root, round 1, exact 8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
+  "independent_evaluation": "PASS 95/100 by root, round 1, exact 8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
   "consumer_merge": "083ef43726981099a0bad4fedda18fc72105d6fa",
   "completed": "2026-10-29T10:39:15.106253+00:00",
   "target_version": "v0.56.0",
@@ -175,8 +175,15 @@
     "release_status": "unreleased",
     "independent_evaluation": {
       "result": "pass",
-      "score": 98,
+      "score": 95,
       "report": ".ailang/state/evaluations/eval_M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT_round_1.json"
     }
+  },
+  "evaluation_rubric_correction": {
+    "initial_score": 98,
+    "final_score": 95,
+    "reason": "New functions exceed50lines: TestIfaceCallbackContractsThroughTypeContainers130, TestExplicitEmptyCacheDependencyEdits61, TestExplicitEmptyCacheExportAndConstructorEdits84, TestExplicitEmptyIfaceContractIdentity55, and moved/modified astTypeToInternalType111. Apply the rubric cap of-5, including test fixtures.",
+    "report": ".ailang/state/evaluations/eval_M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT_round_1.json",
+    "source_unchanged": true
   }
 }

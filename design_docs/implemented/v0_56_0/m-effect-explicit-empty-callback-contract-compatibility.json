@@ -191,15 +191,20 @@
     "examples": "PASS manifest247modules",
     "freeze_stdlib": "PASS49 zero golden diff",
     "verify_stdlib": "PASS49",
-    "independent_evaluation": "PASS root98/100, evaluated8de735cd9, merged PR2005"
+    "independent_evaluation": "PASS root95/100, evaluated8de735cd9, merged PR2005"
   },
   "known_baseline": "social_dynamics0.4.0/tasks.ail app1070 argument1 missing callback row reproduces on actual dev and amendment; separate repair owner",
   "independent_acceptance": {
     "result": "pass",
-    "score": 98,
+    "score": 95,
     "evaluated_commit": "8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
     "merge_commit": "80793dbcf42423027be4bab1a0088da54e2323d8",
     "actual_new_coverage_pct": 93.5,
     "release_status": "unreleased"
+  },
+  "evaluation_rubric_correction": {
+    "initial_score": 98,
+    "final_score": 95,
+    "source_unchanged": true
   }
 }

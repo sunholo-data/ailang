@@ -388,4 +388,4 @@ and its compatibility JSON for exact pins, corpus/control results and final gate
 
 This is the v0.56.0 compiler-compatible **source pin**, not a built/deployed image.
 The live rig/shim remain at §13's `835c738b`; upstream `arniwesth/motoko_agent` was
-not modified. AILANG PR #2005 is accepted and merged at `80793dbcf42423027be4bab1a0088da54e2323d8`: root PASS 97/100 for row soundness and 98/100 for explicit-empty contracts. Target v0.56.0 remains unreleased; this does not imply a deployment.
+not modified. AILANG PR #2005 is accepted and merged at `80793dbcf42423027be4bab1a0088da54e2323d8`: root PASS 95/100 for row soundness and 95/100 for explicit-empty contracts. Target v0.56.0 remains unreleased; this does not imply a deployment.

@@ -6,7 +6,7 @@
   "evaluated_commit": "8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
   "design_doc": "design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md",
   "sprint_plan": "design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness-sprint-plan.md",
-  "total_score": 97,
+  "total_score": 95,
   "pass_threshold": 70,
   "result": "pass",
   "gate_source": "local",
@@ -14,7 +14,7 @@
     "tests_pass": 20,
     "lint_clean": 10,
     "acceptance_criteria": 30,
-    "code_quality": 12,
+    "code_quality": 10,
     "documentation": 15,
     "design_fidelity": 10
   },
@@ -121,6 +121,12 @@
       "severity": "low",
       "issue": "Original sprint JSON retains obsolete blocked_reason and compatibility_amendment_execution_authorized=false despite completed status and documented explicit authorization. Deduct3 for inconsistent sprint metadata; correct in completion audit preserving historical failure evidence.",
       "suggestion": "Record the accepted limitation and archive metadata accurately without altering tested production source."
+    },
+    {
+      "category": "code_quality",
+      "severity": "low",
+      "issue": "TestRowUnification_OpenClosedOwnLabels is67lines (-2), plus the recorded obsolete authorization/block metadata (-3).",
+      "suggestion": "No source respin required; record the deduction without suppressing tests or altering policy."
     }
   ],
   "evidence": {
@@ -145,7 +151,7 @@
     "interfaces": "49 regenerated and verified, no unintended golden delta",
     "feedback_endpoints": "Issue comments, inline comments, reviews all empty at premerge check"
   },
-  "notes": "Original sprint JSON retains obsolete blocked_reason and compatibility_amendment_execution_authorized=false despite completed status and documented explicit authorization. Deduct3 for inconsistent sprint metadata; correct in completion audit preserving historical failure evidence. One full independent native suite covers both sprints at aa3; exact8de only adds the independently rerun145line iface test. Exact8de remote Linux/Windows tests, lint, checks, CodeQL, docs and Sonar are green; one optional Mac build remains running. No profiling goal, version bump, upstream delivery or live rig deployment. Final documentation archive follows in a separate audit PR.",
+  "notes": "Original sprint JSON retains obsolete blocked_reason and compatibility_amendment_execution_authorized=false despite completed status and documented explicit authorization. Deduct3 for inconsistent sprint metadata; correct in completion audit preserving historical failure evidence. One full independent native suite covers both sprints at aa3; exact8de only adds the independently rerun145line iface test. Exact8de remote Linux/Windows tests, lint, checks, CodeQL, docs and Sonar are green; one optional Mac build remains running. No profiling goal, version bump, upstream delivery or live rig deployment. Final documentation archive follows in a separate audit PR. Explicit post-acceptance rubric correction: TestRowUnification_OpenClosedOwnLabels is67lines (-2), plus the recorded obsolete authorization/block metadata (-3). Final95/100; initial score preserved separately. PASS unchanged.",
   "archival_metadata": {
     "release_status": "unreleased",
     "target_version": "v0.56.0",
@@ -156,5 +162,25 @@
     },
     "score_unchanged": true,
     "note": "Independent root report copied after acceptance. Current artifact paths updated; original findings, evidence, timestamp and score are preserved. Metadata findings are corrected by this completion audit without rescoring."
+  },
+  "final_ci_followup": {
+    "observed_at": "2026-10-29T11:31:16Z",
+    "head": "8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
+    "result": "pass",
+    "checks_total": 27,
+    "checks_green": 20,
+    "checks_skipped": 7,
+    "pending": 0,
+    "source": "existing sprint-evaluator ci_gate.sh",
+    "log": "2005-final-ci-gate.log"
+  },
+  "rubric_correction": {
+    "initial_score": 97,
+    "final_score": 95,
+    "reason": "TestRowUnification_OpenClosedOwnLabels is67lines (-2), plus the recorded obsolete authorization/block metadata (-3).",
+    "source_unchanged": true,
+    "initial_report": "eval_M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS_round_1_initial.json",
+    "function_length_evidence": "2005-function-size-review.txt",
+    "includes_tests": true
   }
 }

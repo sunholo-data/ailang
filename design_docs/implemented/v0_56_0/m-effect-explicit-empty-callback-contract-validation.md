@@ -1,6 +1,6 @@
 # Explicit-empty callback contract execution evidence
 
-**Archive status:** Accepted, implemented and **unreleased**, target v0.56.0. Root PASS 98/100 on `8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af`; merged `80793dbcf42423027be4bab1a0088da54e2323d8`. [Independent report](m-effect-explicit-empty-callback-contract-evaluation.md).
+**Archive status:** Accepted, implemented and **unreleased**, target v0.56.0. Root PASS 95/100 on `8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af`; merged `80793dbcf42423027be4bab1a0088da54e2323d8`. [Independent report](m-effect-explicit-empty-callback-contract-evaluation.md).
 
 **Historical record:** The chronological execution text below is preserved, including its failed 55/60 measurements, failed four-field hypothesis and then-pending gates. Those statements describe their measured checkpoints, not the current accepted state.
 
@@ -145,4 +145,4 @@ independent sprint-evaluator and exact-head CI. No self-evaluation is asserted.
 
 ## Final independent acceptance — 2026-10-29
 
-Root accepted this sprint at **98/100**; the original report and deductions are archived unchanged. The final test-only review repair raises actual Sonar new coverage from 64.8% to 93.5% without threshold/exclusion/policy changes. Actual consumer merge `083ef43726981099a0bad4fedda18fc72105d6fa` passes 60 core files and 9 extension boots; all original failures and deadline retries remain separate historical measurements. [Machine evaluation](../../../.ailang/state/evaluations/eval_M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT_round_1.json). No release/deployment or completion of deferred Phase 2 is claimed.
+Root accepted this sprint at **95/100**; the initial acceptance score and deductions are preserved in the companion initial report; the current report includes the explicit function-length rubric correction. The final test-only review repair raises actual Sonar new coverage from 64.8% to 93.5% without threshold/exclusion/policy changes. Actual consumer merge `083ef43726981099a0bad4fedda18fc72105d6fa` passes 60 core files and 9 extension boots; all original failures and deadline retries remain separate historical measurements. [Machine evaluation](../../../.ailang/state/evaluations/eval_M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT_round_1.json). No release/deployment or completion of deferred Phase 2 is claimed.

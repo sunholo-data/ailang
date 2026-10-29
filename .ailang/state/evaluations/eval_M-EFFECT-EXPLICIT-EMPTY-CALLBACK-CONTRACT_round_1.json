@@ -6,7 +6,7 @@
   "evaluated_commit": "8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
   "design_doc": "design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract.md",
   "sprint_plan": "design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract-sprint-plan.md",
-  "total_score": 98,
+  "total_score": 95,
   "pass_threshold": 70,
   "result": "pass",
   "gate_source": "local",
@@ -14,7 +14,7 @@
     "tests_pass": 20,
     "lint_clean": 10,
     "acceptance_criteria": 30,
-    "code_quality": 13,
+    "code_quality": 10,
     "documentation": 15,
     "design_fidelity": 10
   },
@@ -175,6 +175,12 @@
       "severity": "low",
       "issue": "The moved and modified iface astTypeToInternalType helper remains111lines (>50); deduct2 under the rubric. Its file remains121lines, under800. No function-size suppression or semantic workaround.",
       "suggestion": "Record the accepted limitation and archive metadata accurately without altering tested production source."
+    },
+    {
+      "category": "code_quality",
+      "severity": "low",
+      "issue": "New functions exceed50lines: TestIfaceCallbackContractsThroughTypeContainers130, TestExplicitEmptyCacheDependencyEdits61, TestExplicitEmptyCacheExportAndConstructorEdits84, TestExplicitEmptyIfaceContractIdentity55, and moved/modified astTypeToInternalType111. Apply the rubric cap of-5, including test fixtures.",
+      "suggestion": "No source respin required; record the deduction without suppressing tests or altering policy."
     }
   ],
   "evidence": {
@@ -199,7 +205,7 @@
     "interfaces": "49 regenerated and verified, no unintended golden delta",
     "feedback_endpoints": "Issue comments, inline comments, reviews all empty at premerge check"
   },
-  "notes": "The moved and modified iface astTypeToInternalType helper remains111lines (>50); deduct2 under the rubric. Its file remains121lines, under800. No function-size suppression or semantic workaround. One full independent native suite covers both sprints at aa3; exact8de only adds the independently rerun145line iface test. Exact8de remote Linux/Windows tests, lint, checks, CodeQL, docs and Sonar are green; one optional Mac build remains running. No profiling goal, version bump, upstream delivery or live rig deployment. Final documentation archive follows in a separate audit PR.",
+  "notes": "The moved and modified iface astTypeToInternalType helper remains111lines (>50); deduct2 under the rubric. Its file remains121lines, under800. No function-size suppression or semantic workaround. One full independent native suite covers both sprints at aa3; exact8de only adds the independently rerun145line iface test. Exact8de remote Linux/Windows tests, lint, checks, CodeQL, docs and Sonar are green; one optional Mac build remains running. No profiling goal, version bump, upstream delivery or live rig deployment. Final documentation archive follows in a separate audit PR. Explicit post-acceptance rubric correction: New functions exceed50lines: TestIfaceCallbackContractsThroughTypeContainers130, TestExplicitEmptyCacheDependencyEdits61, TestExplicitEmptyCacheExportAndConstructorEdits84, TestExplicitEmptyIfaceContractIdentity55, and moved/modified astTypeToInternalType111. Apply the rubric cap of-5, including test fixtures. Final95/100; initial score preserved separately. PASS unchanged.",
   "archival_metadata": {
     "release_status": "unreleased",
     "target_version": "v0.56.0",
@@ -210,5 +216,25 @@
     },
     "score_unchanged": true,
     "note": "Independent root report copied after acceptance. Current artifact paths updated; original findings, evidence, timestamp and score are preserved. Metadata findings are corrected by this completion audit without rescoring."
+  },
+  "final_ci_followup": {
+    "observed_at": "2026-10-29T11:31:16Z",
+    "head": "8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
+    "result": "pass",
+    "checks_total": 27,
+    "checks_green": 20,
+    "checks_skipped": 7,
+    "pending": 0,
+    "source": "existing sprint-evaluator ci_gate.sh",
+    "log": "2005-final-ci-gate.log"
+  },
+  "rubric_correction": {
+    "initial_score": 98,
+    "final_score": 95,
+    "reason": "New functions exceed50lines: TestIfaceCallbackContractsThroughTypeContainers130, TestExplicitEmptyCacheDependencyEdits61, TestExplicitEmptyCacheExportAndConstructorEdits84, TestExplicitEmptyIfaceContractIdentity55, and moved/modified astTypeToInternalType111. Apply the rubric cap of-5, including test fixtures.",
+    "source_unchanged": true,
+    "initial_report": "eval_M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT_round_1_initial.json",
+    "function_length_evidence": "2005-function-size-review.txt",
+    "includes_tests": true
   }
 }

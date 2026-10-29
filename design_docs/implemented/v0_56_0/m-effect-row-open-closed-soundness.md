@@ -418,7 +418,7 @@ Merged in [PR #2005](https://github.com/sunholo-data/ailang/pull/2005) at `80793
 
 Only approved Phase 0 (streaming row propagation) and Phase 1 (open/closed row side condition) are implemented here. **Phase 2 width subsumption remains deferred**; no open-on-use or upper-bound semantics are claimed complete.
 
-Independent root evaluation: **PASS 97/100**, with regression coverage 10/10 reported separately. The historical score and deductions are unchanged by metadata cleanup. See [review report](m-effect-row-open-closed-soundness-evaluation.md), [machine report](../../../.ailang/state/evaluations/eval_M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS_round_1.json), [plan](m-effect-row-open-closed-soundness-sprint-plan.md) and [validation](m-effect-row-open-closed-soundness-validation.md).
+Independent root evaluation: **PASS 95/100**, with regression coverage 10/10 reported separately. This final score includes an explicit function-length rubric correction; the initial acceptance report is preserved separately. See [review report](m-effect-row-open-closed-soundness-evaluation.md), [machine report](../../../.ailang/state/evaluations/eval_M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS_round_1.json), [plan](m-effect-row-open-closed-soundness-sprint-plan.md) and [validation](m-effect-row-open-closed-soundness-validation.md).
 
 The native full production snapshot at aa3 passed; the final source differs only by an independently exercised interface publication test. Exact-head Linux/Windows, checks and Sonar passed; new-code coverage is 93.5% against the unchanged 80% threshold. One optional Mac job was still running at acceptance, so all remote jobs are not claimed green. All 49 interfaces regenerate and verify stable.
 
