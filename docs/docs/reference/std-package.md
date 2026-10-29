@@ -56,17 +56,22 @@ func bridge_path() -> Result[string, string] ! {FS} =
 - `relPath` — path relative to the package's `assets/` subdirectory. Must not be absolute or contain `..`.
 
 **Returns**:
-- `Ok(absolutePath)` — the package is installed and the asset exists. Absolute path under `~/.ailang/cache/registry/<vendor>/<name>/<version>/assets/<rel>`.
+- `Ok(absolutePath)` — the package is installed and the asset exists. The path is under the locked dependency directory (registry, path, or git source), or the fallback registry cache.
 - `Err("invalid package name: ...")` — `pkgName` is not in `vendor/name` form.
 - `Err("invalid relative path: ...")` — `relPath` is absolute or contains `..`.
-- `Err("package not installed: ...")` — no version of `pkgName` is in the registry cache.
+- `Err("package not installed: ...")` — no version is cached, or the locked dependency is unavailable. A missing locked target names the package/version and install command; it never selects another version.
+- `Err("no valid installed versions: ...")` — fallback found only unparseable version directories.
 - `Err("asset not found: ...")` — the package is installed but the asset is absent (file was renamed, deleted, or never bundled).
 
-**Version selection**: when the program runs under an `ailang.lock`, `assetPath` reads the locked package directory, the same one its modules were compiled from (registry, git or path dependency, and the root package itself). Without a lock, or for a package the lock does not list, it picks the highest installed version by semantic version (`0.10.0` beats `0.2.0`) under the registry cache (`~/.ailang/cache/registry`, or `AILANG_PACKAGE_ROOT` when set).
+**Version selection**: the running program's resolved package graph selects the same directory its modules were compiled from (registry, git or path dependency, and the root package itself). A pinned `0.3.0` wins even when `0.4.0` is also cached. Missing locked targets return `Err` naming the pinned version and install command, without fallback or network fetch; existing import validation may reject a missing dependency before evaluation.
+
+For packages absent from the lock, or when there is no lock context (bare programs and the REPL), lookup chooses the highest installed semantic version (`0.10.0` beats `0.9.0` and `0.2.0`) under `~/.ailang/cache/registry`, or `AILANG_PACKAGE_ROOT` when set. Prereleases sort before their release. Unparseable directory names are skipped; a cache containing only invalid versions returns `Err`.
+
+Engine targets are scoped to that engine and retained across calls and context replacements. The root package's own assets resolve directly from its source directory, including during authoring before a lockfile exists.
 
 **Security**:
 - Requires the `FS` effect — invocations need `--caps FS` at the CLI.
-- Path validation in two layers: surface check (`assetPath` rejects bad inputs before calling the builtin) plus the underlying `_pkg_asset_path` builtin re-validates so a malicious caller bypassing the wrapper can't escape `assets/`.
+- The `_pkg_asset_path` builtin validates package names and relative paths before lookup. Sandboxed contexts are refused before any lookup because package assets are outside the FS sandbox.
 - The resolved path is verified to exist via `os.Stat` before return — a missing file produces `Err`, not a dangling path.
 
 ## Examples
@@ -128,8 +133,10 @@ For `import pkg/...` module resolution and `ailang pkg-docs`, hosts can set
 `<vendor>/<name>/<version>/ailang.toml` and package source files. The configured
 root is exclusive: a missing root, package, or docs guide is an error, with no
 HOME cache fallback or automatic root creation. Without this variable, registry
-modules and docs use `~/.ailang/cache/registry` as before. This setting does not
-change `std/package.assetPath`'s runtime asset lookup.
+modules and docs use `~/.ailang/cache/registry` as before. Locked
+`std/package.assetPath` targets follow this setting through the package loader.
+No-lock fallback asset lookup also honors `AILANG_PACKAGE_ROOT`; without it,
+fallback uses the HOME cache.
 
 Under `AILANG_AGENT_POLICY`, registry network fetches and cache writes refuse
 with a named confinement error. Pre-provisioned versioned dependencies can be

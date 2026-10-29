@@ -14,6 +14,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/link"
 	"github.com/sunholo-data/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/pkg"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 	"github.com/sunholo-data/ailang/internal/types"
 	"go.opentelemetry.io/otel/attribute"
@@ -169,6 +170,9 @@ func (st *modulePipelineState) loadModules() error {
 	}
 	if pkgResolver == nil {
 		pkgResolver = tryLoadSelfOnlyPackageResolver(pkgSearchDir)
+	}
+	if pl, ok := pkgResolver.(*pkg.PackageLoader); ok {
+		st.result.PkgAssets = lockedAssetTargets(pl)
 	}
 	if pkgResolver == nil {
 		modLoader.SetPackageResolverAbsentReason(packageResolverAbsentReason(pkgSearchDir))

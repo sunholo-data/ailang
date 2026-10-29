@@ -48,7 +48,7 @@ func TestPkgAssetPath_PicksLatestVersion(t *testing.T) {
 	home := t.TempDir()
 	testutil.SetHomeDir(t, home)
 	base := filepath.Join(home, ".ailang", "cache", "registry", "test", "pkg")
-	for _, v := range []string{"0.1.0", "0.2.0", "0.10.0"} {
+	for _, v := range []string{"0.1.0", "0.2.0", "0.9.0", "0.10.0", "garbage"} {
 		dir := filepath.Join(base, v, AssetsDir)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatalf("MkdirAll: %v", err)
@@ -130,6 +130,11 @@ func TestPkgAssetPath_RejectsBadInputs(t *testing.T) {
 		rel  string
 	}{
 		{"single segment", "test", "foo.txt"},
+		{"parent vendor", "../pkg", "foo.txt"},
+		{"parent name", "test/..", "foo.txt"},
+		{"backslash vendor", `test\outside/pkg`, "foo.txt"},
+		{"colon name", "test/pkg:drive", "foo.txt"},
+		{"backslash traversal", "test/pkg", `nested\..\..\escape`},
 		{"empty rel", "test/pkg", ""},
 		{"absolute rel", "test/pkg", "/etc/passwd"},
 		{"parent traversal", "test/pkg", "../escape"},

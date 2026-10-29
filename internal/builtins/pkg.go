@@ -49,8 +49,14 @@ func registerPkg() {
 				},
 			},
 			LongDesc: `Resolves the absolute path of a file shipped under the package's
-assets/ subdirectory. The package must be installed under ~/.ailang/cache/registry/
-(usually via ailang install). The most recent installed version is selected.
+assets/ subdirectory. A dependency in the running program's ailang.lock uses its
+resolved directory (registry, path, or git). Missing locked targets return Err
+with the locked version and install guidance, never another cached version.
+Without a lock entry, selects the highest semantic version installed under
+~/.ailang/cache/registry/ or AILANG_PACKAGE_ROOT (0.10.0 beats 0.9.0).
+Invalid versions are skipped, and prereleases sort before their release.
+The REPL has no lock context. The root package resolves its own source assets;
+engine targets stay fixed across calls and context replacements.
 
 Use this builtin via the std/package.assetPath wrapper rather than calling it
 directly. Returns Err when the package is not installed, the path is unsafe

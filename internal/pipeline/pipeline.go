@@ -32,6 +32,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/iface"
@@ -132,6 +133,8 @@ type Artifacts struct {
 
 // Result contains pipeline output
 type Result struct {
+	PkgAssets map[string]effects.PkgAssetTarget // Immutable locked dependency asset targets.
+
 	Value          eval.Value
 	Type           types.Type
 	Constraints    []types.Constraint
