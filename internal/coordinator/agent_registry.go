@@ -629,7 +629,8 @@ func DefaultOutputMarkers(agentID string) []string {
 	case "sprint-executor":
 		return []string{"IMPLEMENTATION_COMPLETE:", "BRANCH_NAME:", "FILES_CREATED:", "FILES_MODIFIED:"}
 	case "sprint-evaluator":
-		return []string{"EVALUATION_RESULT:", "EVALUATION_SCORE:", "EVALUATION_ROUND:", "EVALUATION_REPORT_PATH:", "FEEDBACK_SUMMARY:"}
+		// EVALUATION_VERDICT: is the one the coordinator parses (evaluation_verdict.go).
+		return []string{"EVALUATION_SCORE:", "EVALUATION_ROUND:", "EVALUATION_REPORT_PATH:", "FEEDBACK_SUMMARY:", EvaluationVerdictMarker}
 	default:
 		return nil
 	}

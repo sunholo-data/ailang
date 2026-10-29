@@ -106,9 +106,11 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 	// legal_obligation_engine (frontier) and commonmark_emphasis (stretch) moved
 	// out — 38-83% of their local agent runs hit the 1h timeout; attended-only.
 	// stretch 25->24, frontier 8->5, long-frontier 0->4.
+	// M-EVAL-HIDDEN-TESTS CP pack (2026-10-28): cp_60166, cp_60159, cp_60149,
+	// cp_60197 added to stretch, graded by hidden tests. stretch 24->28.
 	checkTierCount(t, "smoke", len(smoke), 23, 3)
 	checkTierCount(t, "core", len(core), 23, 3)
-	checkTierCount(t, "stretch", len(stretch), 24, 3)
+	checkTierCount(t, "stretch", len(stretch), 28, 3)
 	checkTierCount(t, "frontier", len(frontier), 5, 3)
 	checkTierCount(t, "long-frontier", len(longFrontier), 4, 3)
 	checkTierCount(t, "vision", len(vision), 9, 3)

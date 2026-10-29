@@ -203,12 +203,18 @@ func makeStub(name string, value core.CoreExpr, reason string) stmt.FuncDecl {
 	for i, p := range params {
 		stubParams[i] = stmt.Param{Name: p, Type: placeholderType}
 	}
+	_, isLambda := value.(*core.Lambda)
+	if da, ok := value.(*core.DictAbs); ok {
+		_, isLambda = da.Body.(*core.Lambda)
+	}
 	return stmt.FuncDecl{
-		Name:       name,
-		Params:     stubParams,
-		ReturnType: placeholderType,
-		Exported:   true,
-		LowerError: reason,
+		Name:          name,
+		Params:        stubParams,
+		ReturnType:    placeholderType,
+		Exported:      true,
+		LowerError:    reason,
+		Value:         !isLambda,
+		StubSignature: true,
 	}
 }
 
@@ -303,6 +309,7 @@ func bindingToFuncDecl(
 			Exported:   exported,
 			File:       file,
 			Line:       line,
+			Value:      true,
 		}
 	}
 
@@ -313,6 +320,11 @@ func bindingToFuncDecl(
 	if reason := lambdaFrameModeReason(lam, cti); reason != "" {
 		stub := makeStub(name, lam, reason)
 		stub.Exported = exported
+		// The lambda lowered fine up to here, so its real signature is
+		// known: callers can still be checked against the VM bridge.
+		stub.Params = lowerParams(lam, cti)
+		stub.ReturnType = resolveReturnType(lam, cti)
+		stub.StubSignature = false
 		return &stub
 	}
 

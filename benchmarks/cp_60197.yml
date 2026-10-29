@@ -1,0 +1,55 @@
+# M-EVAL-HIDDEN-TESTS pack (design_docs/planned/v0_55_0/m-eval-hidden-tests.md).
+# Generated from AetherCode v1_2024; regenerate rather than hand-edit the prompt.
+id: cp_60197
+description: 'AetherCode v1_2024 problem 60197 (The 2024 ICPC Asia Hangzhou Regional Contest, Easy; CC-BY-4.0, see benchmarks/hidden_tests/AETHERCODE.md). Tracks: unattributed speed: Haiku AILANG timed out in 3 of 3 trials (30 of 35 small); Python passed 3 of 3.'
+languages:
+- python
+- ailang
+entrypoint: main
+caps:
+- IO
+difficulty: hard
+expected_gain: low
+timeout: 600
+exec_timeout: 30
+tier: stretch
+tags:
+- algorithmic
+task_prompt: "Solve the following competitive programming problem in <LANG>.\nWrite a complete program that reads the input from standard input and writes the answer to standard output.\nBesides the example below, it is judged against 40 hidden tests (inputs up to 64KB), each with a 30 second time limit, so the algorithm must be efficient enough. Ignore the time limit stated in the problem.\n\n--- PROBLEM ---\nInput file: standard input  \nOutput file: standard output  \nTime limit: 1 second  \nMemory limit: 1024 megabytes  \n  \nPigeland University will host the 2224 Animal Collegiate Programming Contest (ACPC 2224). Unlike previous years, where teams from the host institution were marked as unofficial, Pigeland will send official teams to compete in the contest with three workstations for each team. Nevertheless, Pig - head, the coach of Pigeland University, remains uncertain about his teams' chances of securing gold medals. As a result, he decides to acquire the contest problems in advance from the AUS problem - setting group, using the excuse of needing to upload data to the online judge.  \nTo prevent cheating, AUS attempts to encrypt the problems using a special cipher. Specifically, problems are represented by strings consisting of lowercase English letters. AUS wants to design a cipher function $f(x)$ that maps lowercase English letters to lowercase English letters. For a problem $S = s_1s_2\\ldots s_n$, the encrypted version of the problem is another string given by $F(S)=f(s_1)f(s_2)\\ldots f(s_n)$. For example, when $S = abcabc$ and $f(a)=a, f(b)=k, f(c)=a$, the encrypted version is $F(S)=akaaka$.  \nAs a member of AUS, your task is to design the cipher function $f$. The leader of AUS believes that the function is strong if and only if there exists at least one problem that can be encrypted into the same encrypted version as another, while not all problems produce the same encrypted output. To validate this, he will give you three problems $S_1, S_2, S_3$, and you need to find a cipher function $f$ such that $F(S_1) = F(S_2)$ and $F(S_1)\\neq F(S_3)$. Since AUS has several experienced members, your task is simply to determine whether such a cipher function exists.  \nInput  \nThere are multiple test cases. The first line contains an integer $T$ $(1 \\leq T \\leq 10^4)$ indicating the number of test cases. For each test case:  \nThe first line contains a string $S_1$ $(1 \\leq |S_1| \\leq 10^3)$ consisting of only lowercase English letters.  \nThe second line contains a string $S_2$ $(1 \\leq |S_2| \\leq 10^3)$ consisting of only lowercase English letters.  \nThe third line contains a string $S_3$ $(1 \\leq |S_3| \\leq 10^3)$ consisting of only lowercase English letters.  \nIt is guaranteed that the sum of $|S_1| + |S_2| + |S_3|$ of all test cases does not exceed $3 \\times 10^4$.  \nOutput  \nFor each test case, if such cipher function exists, output YES in one line. Otherwise, output NO instead.  \n  \nExample  \nstandard input  \n4  \nabab  \ncdcd  \nabce  \nabab  \ncdcd  \nabcd  \nabab  \ncdcd  \nabc  \nx  \nyz  \ndef  \nstandard output  \nYES  \nNO  \nYES  \nNO  \n  \nNote  \nFor the first and third sample test cases, one valid cipher function can be $f(a) = f(b) = f(c) = f(d) = a$ and $f(e) = b$.\n--- END PROBLEM ---\n\nOutput only the code, no explanations.\n"
+stdin: '4
+
+  abab
+
+  cdcd
+
+  abce
+
+  abab
+
+  cdcd
+
+  abcd
+
+  abab
+
+  cdcd
+
+  abc
+
+  x
+
+  yz
+
+  def
+
+  '
+expected_stdout: 'YES
+
+  NO
+
+  YES
+
+  NO
+
+  '
+hidden_tests_dir: hidden_tests/cp_60197

@@ -120,9 +120,10 @@ var (
 // returns the stale-binary probe for main to run at its own point in the
 // sequence (after the --version and --help short circuits, where it has always
 // been). args is the positional tail: an empty one, or a language command,
-// gets neither probe.
+// gets neither probe. The access-approvals machine protocol is also quiet to
+// keep its JSON/error contract independent of unrelated local services.
 func platformStartup(args []string) (runStaleProbe func()) {
-	if len(args) == 0 || invocationIsLanguage(args) {
+	if len(args) == 0 || invocationIsLanguage(args) || isAccessApprovalsInvocation(args) {
 		return func() {}
 	}
 	probeObservatoryHealth()

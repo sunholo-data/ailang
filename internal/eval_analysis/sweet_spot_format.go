@@ -133,6 +133,7 @@ func FormatSweetSpotCSV(report SweetSpotReport) (string, error) {
 		"median_tts_ms", "median_tokens_per_sec", "p90_cost_per_success", "speed_efficiency",
 		"fast_pass", "slow_pass", "budget_blocked", "capability_blocked", "provider_blocked",
 		"cost_killed", "step_exhausted", "timeout", "quota_exhausted", "rate_limit", "api_error",
+		"external_kill",
 	}
 	if err := w.Write(header); err != nil {
 		return "", err
@@ -145,6 +146,7 @@ func FormatSweetSpotCSV(report SweetSpotReport) (string, error) {
 			itoa(r.Buckets.CapabilityBlocked), itoa(r.Buckets.ProviderBlocked),
 			itoa(r.CostKilledCount), itoa(r.StepExhaustedCount), itoa(r.TimeoutCount),
 			itoa(r.QuotaCount), itoa(r.RateLimitCount), itoa(r.APIErrorCount),
+			itoa(r.ExternalKillCount),
 		}); err != nil {
 			return "", err
 		}
@@ -354,7 +356,7 @@ func FormatSweetSpotMDX(report SweetSpotReport) string {
 	sb.WriteString("- **slow_pass** — passes but takes longer than the threshold\n")
 	sb.WriteString("- **budget_blocked** — failed due to `cost_killed` or `step_exhausted` (more budget could help)\n")
 	sb.WriteString("- **capability_blocked** — `compile_error` / `runtime_error` / `logic_error` / `timeout`\n")
-	sb.WriteString("- **provider_blocked** — `quota_exhausted` / `rate_limit` / `api_error` (excluded from pass rate)\n\n")
+	sb.WriteString("- **provider_blocked** — `quota_exhausted` / `rate_limit` / `api_error` / `external_kill` (excluded from pass rate)\n\n")
 
 	if len(report.Rows) == 0 {
 		sb.WriteString("_No data._\n")

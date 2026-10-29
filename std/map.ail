@@ -1,7 +1,9 @@
 -- std/map - Hash maps with O(1) lookup
 --
 -- Maps provide O(1) key-value lookup backed by Go hashmaps.
--- Keys must be comparable types (int, string, bool).
+-- Keys: int, string, bool, float (not NaN), unit, and tuples, records and
+-- ADT constructors of those. Any other key (a function, a list) is a runtime
+-- error on every operation, including lookup and member.
 -- All operations are pure and return new maps (immutable).
 --
 -- USAGE PATTERN: Build once with fromList, then many lookups.

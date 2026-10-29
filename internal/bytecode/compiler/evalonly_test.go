@@ -113,6 +113,10 @@ func TestCompile_EvalOnly_VM_Trap_NoBridge(t *testing.T) {
 			{
 				Name:     "bad",
 				Exported: false,
+				// A typed, bridge-safe signature: with no ReturnType the
+				// bridge-safety pass (bridge_safety.go) would rightly make
+				// caller evaluator-only too, and there would be no trap.
+				ReturnType: stmt.PrimitiveType{Kind: stmt.PrimInt},
 				Return: stmt.BuiltinCall{
 					Name: "_dict_foo",
 					Args: nil,

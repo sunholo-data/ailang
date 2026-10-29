@@ -29,7 +29,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-FORALL-PROPERTIES: Direct-Core Evaluation for `properties [forall(...) => ...]` Blocks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-forall-properties-direct-core-eval.md)
 - [M-GAME-ENGINE-EFFECTS: the game engine as typed effects — Stapledon's Voyage revived as v1.1's flagship](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-game-engine-effects.md)
 - [M-ORACLE-ADEQUACY: Convergence Oracles and Evidence Bundles for the Eval Harness](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-oracle-adequacy.md)
-- [M-PERF4: Bytecode Interpreter (Stretch Goal)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-perf4-bytecode-interpreter.md)
 - [M-PIPE-OPERATOR: Pipe operator and Option chaining](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-pipe-operator.md)
 - [M-PKG-INFLIGHT: Package-in-Flight Tracking for Registry Workflows](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-pkg-inflight.md)
 - [M-PROCESS-MODES: Replay-Contract Modes for the Process Effect](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-process-modes.md)

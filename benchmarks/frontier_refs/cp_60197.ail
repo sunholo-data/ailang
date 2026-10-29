@@ -1,0 +1,75 @@
+module benchmark/solution
+
+import std/io (println, readLine)
+import std/string (chars, charCode, trim, stringToInt)
+import std/list (map, zip, foldl, any, length, nth, take, drop)
+import std/option (Some, None)
+
+pure func iota(n: int) -> [int] =
+  if n <= 0 then [] else iota(n - 1) ++ [n - 1]
+
+pure func find(p: [int], x: int) -> int =
+  match nth(p, x) {
+    Some(px) => if px == x then x else find(p, px),
+    None => x
+  }
+
+pure func setIdx(xs: [int], i: int, v: int) -> [int] =
+  take(i, xs) ++ (v :: drop(i + 1, xs))
+
+pure func unite(p: [int], a: int, b: int) -> [int] =
+  let ra = find(p, a) in
+  let rb = find(p, b) in
+  if ra == rb then p else setIdx(p, ra, rb)
+
+pure func unitePair(p: [int], pr: (int, int)) -> [int] =
+  match pr {
+    (a, b) => unite(p, a, b)
+  }
+
+pure func toIdx(s: string) -> [int] =
+  map(\ch. charCode(ch) - 97, chars(s))
+
+pure func solveCase(s1: string, s2: string, s3: string) -> string {
+  let a = toIdx(s1);
+  let b = toIdx(s2);
+  let c = toIdx(s3);
+  if length(a) != length(b) then "NO"
+  else if length(a) != length(c) then "YES"
+  else {
+    let p = foldl(unitePair, iota(26), zip(a, b));
+    if any(\pr. match pr { (x, y) => find(p, x) != find(p, y) }, zip(a, c)) then "YES" else "NO"
+  }
+}
+
+func processOne() -> () ! {IO} {
+  let s1 = trim(readLine());
+  let s2 = trim(readLine());
+  let s3 = trim(readLine());
+  println(solveCase(s1, s2, s3))
+}
+
+func processChunk(t: int) -> () ! {IO} {
+  if t <= 0 then ()
+  else {
+    processOne();
+    processChunk(t - 1)
+  }
+}
+
+func outer(t: int) -> () ! {IO} {
+  if t <= 0 then ()
+  else {
+    let chunk = if t < 50 then t else 50;
+    processChunk(chunk);
+    outer(t - chunk)
+  }
+}
+
+export func main() -> () ! {IO} {
+  let t = match stringToInt(trim(readLine())) {
+    Some(n) => n,
+    None => 0
+  };
+  outer(t)
+}

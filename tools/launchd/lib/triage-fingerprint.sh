@@ -15,6 +15,14 @@
 #   issue  <number>:<updatedAt>         every open issue EXCEPT the current bookkeeping thread
 #                                        (the digest comments on it every iteration, so
 #                                        including it would make every fire look changed)
+#   directive <comment id>:<updatedAt>  a comment ON the bookkeeping thread by a directive
+#                                        author (MISSION_DIRECTIVE_AUTHORS, the same default
+#                                        as scripts/mission_directives.sh). Without it Mark's
+#                                        answer to a D-row woke nothing: the thread is excluded
+#                                        above, so a reply sat unread until some unrelated PR
+#                                        moved (Mark, 28 Oct 2026, answering by email). The
+#                                        loop's own digest comments are never an author's, so
+#                                        they still do not move the hash.
 #
 # Output (stdout, ONE line, last line): "<sha256> prs=N cards=N issues=N".
 # Any read that fails or returns something unparseable exits non-zero with the reason on
@@ -58,6 +66,17 @@ jq -r --arg bk "$bk" 'if type=="array" then .[] | select((.number|tostring) != $
     | "issue \(.number):\(.updatedAt)" else error("not an array") end' \
   "$tmp/issues.json" >"$tmp/issues" 2>"$tmp/err" || die "gh issue list output unparseable: $(tail -1 "$tmp/err")"
 
+: >"$tmp/directives"
+if [ -n "$bk" ]; then
+  authors="${MISSION_DIRECTIVE_AUTHORS:-MarkEdmondson1234}"
+  gh api --paginate "repos/$repo/issues/$bk/comments?per_page=100" \
+    >"$tmp/comments.json" 2>"$tmp/err" || die "gh api comments on #$bk failed: $(tail -1 "$tmp/err")"
+  jq -rs --arg a "$authors" '($a | split(",") | map(gsub("^ +| +$"; ""))) as $who
+      | if all(type=="array") then add // [] | .[] | select(.user.login as $l | $who | index($l))
+      | "directive \(.id):\(.updated_at)" else error("not an array") end' \
+    "$tmp/comments.json" >"$tmp/directives" 2>"$tmp/err" || die "comments on #$bk unparseable: $(tail -1 "$tmp/err")"
+fi
+
 # stdout only: the binary prints staleness and MOD010 warnings on stderr.
 ailang coordinator approvals --remote gcp --json >"$tmp/cards.json" 2>"$tmp/err" \
   || die "coordinator approvals failed: $(grep -v '^ *$' "$tmp/err" | tail -1)"
@@ -68,7 +87,7 @@ n_pr=$(grep -c . "$tmp/prs"); n_is=$(grep -c . "$tmp/issues"); n_cd=$(grep -c . 
 raw_pr=$(jq length "$tmp/prs.json"); raw_is=$(jq length "$tmp/issues.json")
 [ "$raw_pr" -lt "$LIMIT" ] && [ "$raw_is" -lt "$LIMIT" ] || die "a list hit --limit $LIMIT (gh truncates silently)"
 
-hash=$(LC_ALL=C sort "$tmp/prs" "$tmp/cards" "$tmp/issues" | shasum -a 256 | awk '{print $1}')
+hash=$(LC_ALL=C sort "$tmp/prs" "$tmp/cards" "$tmp/issues" "$tmp/directives" | shasum -a 256 | awk '{print $1}')
 printf '%s' "$hash" | grep -Eq '^[0-9a-f]{64}$' || die "hash failed"
 line="$hash prs=$n_pr cards=$n_cd issues=$n_is"
 

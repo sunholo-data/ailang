@@ -826,7 +826,7 @@ handed — those zeros came from this skill. So:
   and `ailang coordinator pending` unions it):
 
   ```bash
-  ailang messages send approvals \
+  env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages send approvals \
     "<one-paragraph: what is waiting, what deciding it unblocks, where the artifact lives>" \
     --title "Approval Required: <mission>/iter-<N> <stage role>: <short subject>" \
     --type approval_request --from "mission-${MISSION_NAME:-v1}" || true
