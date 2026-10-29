@@ -3,7 +3,7 @@
 > **Dependency met:** M-IFC-AUTHORITY-SCOPING (#1707) is on dev. This run executes M1–M2 only.
 
 **Target:** v0.53.x (v0.54.0 if release sequencing requires it)
-**Status:** M1–M2 repair in progress (2026-10-29); M3–M4 pending
+**Status:** M1–M2 repaired, independent evaluation pending (2026-10-29); M3–M4 pending
 **Date:** 2026-10-08
 **Issues:** Refs #1134; Refs #1132 (part 1 only)
 **Design:** `design_docs/planned/m-ifc-cross-module-labels.md` (merged df8bc23ca)
@@ -62,12 +62,12 @@ Risk: summary computation re-enters checking or introduces an import cycle. Keep
 **Estimate:** 100 implementation + 120 tests; 1 day / 6 hours
 **Dependencies:** M1
 
-Update full cache JSON DTOs and both marshal/unmarshal paths in `internal/pipeline/cache_store.go`, iface gob/JSON coverage, and validation in `internal/pipeline/cache_artifacts.go`. Audit cache keys and dependency digest propagation in `cache_dep_closure.go`. Existing artifact hashes authenticate stored bytes, but the current artifact reader does not explicitly reject a v1 IFC schema: do not assume a schema string bump alone forces recompilation. Add schema/summary validation and bump `cacheKeyVersion` from dev `v6` to `v7` in `internal/pipeline/cache_key.go` (mandatory, not conditional), with a v6→v7 entry in its comment history naming this sprint; if dev has moved past v5 by the time this rebases, take the next unused value. Old entries become an observable cache miss and recompile from source; if no source/valid interface is available, report an actionable error instead of accepting clean metadata. Malformed v2 metadata must be rejected too.
+Update full cache JSON DTOs and both marshal/unmarshal paths in `internal/pipeline/cache_store.go`, iface gob/JSON coverage, and validation in `internal/pipeline/cache_artifacts.go`. Audit cache keys and dependency digest propagation in `cache_dep_closure.go`. Existing artifact hashes authenticate stored bytes, but the current artifact reader does not explicitly reject a v1 IFC schema: do not assume a schema string bump alone forces recompilation. Add schema/summary validation and bump `cacheKeyVersion` from current dev `v7` to `v8` in `internal/pipeline/cache_key.go` (mandatory, not conditional), with a v7→v8 entry in its comment history naming this sprint; if dev has moved past v7 by the time this rebases, take the next unused value. Old entries become an observable cache miss and recompile from source; if no source/valid interface is available, report an actionable error instead of accepting clean metadata. Malformed v2 metadata must be rejected too.
 
 Files/tests: cache store/artifact tests, iface serialization tests, dependency invalidation integration tests. Example coverage uses M4's lib/app pair with cold and warm cache.
 
 - [x] Full cache JSON, compact/published JSON, and supported gob paths preserve every IFC summary field.
-- [x] `cacheKeyVersion` is bumped dev v6→v7 in internal/pipeline/cache_key.go with a history comment; a test shows a pre-bump cache entry misses.
+- [x] `cacheKeyVersion` is bumped dev v7→v8 in internal/pipeline/cache_key.go with a history comment; a test shows a pre-bump cache entry misses.
 - [x] A validly hashed v1 artifact cannot bypass IFC enforcement and causes recompilation.
 - [x] A v2 interface with absent or malformed metadata cannot be treated as clean.
 - [x] A library-only refinement/intrinsic/return change invalidates dependent cached artifacts.
@@ -170,4 +170,7 @@ Original execution scope remains M1–M2 only, Refs #1134 and Refs #1132. Preser
 
 M1 repair: ratified F4 stores canonical `forbidden: []string` and mandatory reserved `applied` IFCLabel (emitted bottom); validates both before treating a summary as unlabelled or hashing v2 package identity. No inferred applied semantics are exported. Reuses #1719's single checker initializer and callable domain; the summary analysis API returns an ordinary diagnostic for its narrow typed defensive limit, propagated through iface and minimal runtime builders. Intrinsic/recursive summaries retain finite fixed-point iteration with the current work budget. Failing-first F4 regression demonstrates the old string codec accepted obsolete metadata and rejected the approved list form. Repaired focused types/iface/pipeline/runtime tests pass, including unchanged fresh-CLI #1719 regressions. Final evaluator remains independent.
 
-M2 repair will take next unused cache epoch v8, preserving dev's v7 CoreTI shared-DAG codec. Exact F4 full/compact/gob metadata, malformed authenticated artifacts, dependency invalidation, stdlib interfaces and large-module encoded-size evidence are required. M3 and M4 remain unstarted; no imported-call enforcement or issue closure is claimed.
+M2 repair takes reserved cache epoch v8, preserving dev's v7 CoreTI shared-DAG codec. Exact F4 full/compact/gob metadata, malformed authenticated artifacts, dependency invalidation, stdlib interfaces and large-module encoded-size evidence are required. M3 and M4 remain unstarted; no imported-call enforcement or issue closure is claimed.
+
+
+M2 repair proof: valid v7 manifests/keys miss and republish v8; correctly rehashed legacy/malformed JSON and injected decoders cannot bypass complete F4 validation. Current shared-DAG tests pass. Full compact/gob/cache roundtrips preserve multiple forbidden labels and joined applied labels; emitted reserved applied labels remain bottom. All49 regenerated interfaces preserve every non-IFC signature. Dedicated pinned Stapledon navigation artifact measurement accepts cold/warm, gives30hits/0misses warm with unchanged artifact stamps; details and blocked candidates are in `m-ifc-cross-module-labels-repair-validation.md`. The 18-case CLI differential versus actual dev9dc689091 has zero status/diagnostic flips. M3/M4 remain null/unstarted and the overall sprint stays in_progress. Independent evaluator owns acceptance.

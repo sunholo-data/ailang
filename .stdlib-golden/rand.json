@@ -11,7 +11,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -41,7 +45,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "max",
@@ -49,7 +57,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -79,7 +91,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "max",
@@ -87,7 +103,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -117,7 +137,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -147,7 +171,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {

@@ -11,7 +11,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "b",
@@ -19,7 +23,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -47,7 +55,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "x",
@@ -55,7 +67,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "y",
@@ -63,7 +79,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -91,7 +111,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "b",
@@ -99,7 +123,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -127,7 +155,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "b",
@@ -135,7 +167,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -163,7 +199,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -191,7 +231,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -219,7 +263,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "b",
@@ -227,7 +275,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -255,7 +307,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -283,7 +339,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -311,7 +371,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "b",
@@ -319,7 +383,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -347,7 +415,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -375,7 +447,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -403,7 +479,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "v",
@@ -411,7 +491,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {

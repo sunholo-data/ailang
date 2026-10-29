@@ -72,7 +72,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "args",
@@ -80,7 +84,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "name",
@@ -88,7 +96,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "priority",
@@ -96,7 +108,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "chunkSize",
@@ -104,7 +120,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -135,7 +155,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "priority",
@@ -143,7 +167,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -173,7 +201,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -204,7 +236,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "config",
@@ -212,7 +248,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -242,7 +282,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -270,7 +314,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -300,7 +348,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "body",
@@ -308,7 +360,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "config",
@@ -316,7 +372,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -346,7 +406,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "handler",
@@ -354,7 +418,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -384,7 +452,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -414,7 +486,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "handler",
@@ -422,7 +498,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -452,7 +532,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "name",
@@ -460,7 +544,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "priority",
@@ -468,7 +556,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -498,7 +590,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "config",
@@ -506,7 +602,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -536,7 +636,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "body",
@@ -544,7 +648,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "config",
@@ -552,7 +660,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -582,7 +694,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -612,7 +728,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "msg",
@@ -620,7 +740,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -650,7 +774,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "data",
@@ -658,7 +786,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -688,7 +820,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "handler",
@@ -696,7 +832,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -726,7 +866,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "handler",
@@ -734,7 +878,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {

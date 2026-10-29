@@ -11,7 +11,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "level",
@@ -19,7 +23,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -47,7 +55,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -75,7 +87,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {

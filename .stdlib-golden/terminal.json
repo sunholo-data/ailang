@@ -72,7 +72,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -102,7 +106,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "timeout_ms",
@@ -110,7 +118,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {
@@ -140,7 +152,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           },
           {
             "name": "body",
@@ -148,7 +164,11 @@
               "constants": [],
               "variables": []
             },
-            "forbidden": ""
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
           }
         ],
         "return": {

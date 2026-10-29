@@ -1,0 +1,879 @@
+{
+  "compiler_source": "907dcd372 plus recorded M2 v8 changes",
+  "consumer_commit": "81494c923d19cb02b97430a984f7230aaef75b70",
+  "entry": "sim/navigation.ail",
+  "entry_lines": 438,
+  "blob_limit": 67108864,
+  "module_limit": 134217728,
+  "warm_stamps_unchanged": true,
+  "runs": [
+    {
+      "arm": "cold",
+      "exit": 0,
+      "seconds": 3.606
+    },
+    {
+      "arm": "warm",
+      "exit": 0,
+      "seconds": 0.176
+    }
+  ],
+  "modules": [
+    {
+      "module_dir": "pkg__sunholo__celestial__stellar_ld",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 937929,
+        "iface.json": 1771,
+        "artifacts.json": 528,
+        "coretypeinfo.gob": 17521
+      },
+      "total_bytes": 957751,
+      "module": "pkg/sunholo/celestial/stellar_ld",
+      "dag": {
+        "core_node_types": 4218,
+        "distinct_type_nodes": 8,
+        "format": 1,
+        "roots": 4218
+      },
+      "exports": 1,
+      "exported_types": 1,
+      "aliases": 1,
+      "source": {
+        "relative": "pkg/sunholo/celestial/stellar_ld.ail",
+        "sha256": "3f04f3839dd1f2bfc376f101630cf2f34da3be7824394a6fb8b2fde9973f90bf",
+        "bytes": 34234,
+        "lines": 532
+      },
+      "ifc_summary_bytes": 248
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__data__sol",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 623007,
+        "iface.json": 29537,
+        "artifacts.json": 523,
+        "coretypeinfo.gob": 16309
+      },
+      "total_bytes": 669378,
+      "module": "pkg/stapledons/sim/data/sol",
+      "dag": {
+        "core_node_types": 2894,
+        "distinct_type_nodes": 82,
+        "format": 1,
+        "roots": 2894
+      },
+      "exports": 5,
+      "exported_types": 6,
+      "aliases": 6,
+      "source": {
+        "relative": "pkg/stapledons/sim/data/sol.ail",
+        "sha256": "66f4da7bb8e9612b80145dc81fc2f74b1e32ab0cbf9190b25b13ca54077f0c61",
+        "bytes": 21478,
+        "lines": 248
+      },
+      "ifc_summary_bytes": 1240
+    },
+    {
+      "module_dir": "sim__navigation",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 389341,
+        "iface.json": 128663,
+        "artifacts.json": 510,
+        "coretypeinfo.gob": 30193
+      },
+      "total_bytes": 548709,
+      "module": "sim/navigation",
+      "dag": {
+        "core_node_types": 4134,
+        "distinct_type_nodes": 261,
+        "format": 1,
+        "roots": 4134
+      },
+      "exports": 26,
+      "exported_types": 8,
+      "aliases": 8,
+      "source": {
+        "relative": "sim/navigation.ail",
+        "sha256": "35a12fa5c59400a81d8cae65ddc5fe8998ea515ce769c4e310f39bed7bab22e5",
+        "bytes": 31663,
+        "lines": 438
+      },
+      "ifc_summary_bytes": 8725
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__journey",
+      "bytes": {
+        "constructors.json": 379,
+        "core.gob": 379509,
+        "iface.json": 25268,
+        "artifacts.json": 526,
+        "coretypeinfo.gob": 7824
+      },
+      "total_bytes": 413506,
+      "module": "pkg/sunholo/relativity/journey",
+      "dag": {
+        "core_node_types": 1568,
+        "distinct_type_nodes": 28,
+        "format": 1,
+        "roots": 1568
+      },
+      "exports": 11,
+      "exported_types": 3,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/sunholo/relativity/journey.ail",
+        "sha256": "fa8c0d4c83eede8b524dd1e972157bcf58b3fcb0639370fbcd388d23b6e70961",
+        "bytes": 13879,
+        "lines": 326
+      },
+      "ifc_summary_bytes": 4722
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__kepler",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 321220,
+        "iface.json": 24623,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 6831
+      },
+      "total_bytes": 353200,
+      "module": "pkg/sunholo/celestial/kepler",
+      "dag": {
+        "core_node_types": 1409,
+        "distinct_type_nodes": 27,
+        "format": 1,
+        "roots": 1409
+      },
+      "exports": 19,
+      "exported_types": 4,
+      "aliases": 4,
+      "source": {
+        "relative": "pkg/sunholo/celestial/kepler.ail",
+        "sha256": "00fe1b625bff420295410d6565a1d9384f18448e2babe957ad6294d512fac7cf",
+        "bytes": 7711,
+        "lines": 197
+      },
+      "ifc_summary_bytes": 5828
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__ephemeris",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 299975,
+        "iface.json": 39638,
+        "artifacts.json": 527,
+        "coretypeinfo.gob": 7026
+      },
+      "total_bytes": 347168,
+      "module": "pkg/sunholo/celestial/ephemeris",
+      "dag": {
+        "core_node_types": 1258,
+        "distinct_type_nodes": 41,
+        "format": 1,
+        "roots": 1258
+      },
+      "exports": 14,
+      "exported_types": 5,
+      "aliases": 5,
+      "source": {
+        "relative": "pkg/sunholo/celestial/ephemeris.ail",
+        "sha256": "1bfda540b38341149a9be7eabc956dc138b4b21363398231416d485177d6cfe1",
+        "bytes": 10453,
+        "lines": 201
+      },
+      "ifc_summary_bytes": 5195
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__celestial",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 241449,
+        "iface.json": 74286,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 12786
+      },
+      "total_bytes": 329047,
+      "module": "pkg/stapledons/sim/celestial",
+      "dag": {
+        "core_node_types": 1153,
+        "distinct_type_nodes": 147,
+        "format": 1,
+        "roots": 1153
+      },
+      "exports": 8,
+      "exported_types": 4,
+      "aliases": 4,
+      "source": {
+        "relative": "pkg/stapledons/sim/celestial.ail",
+        "sha256": "2f35f2a2bb9e188ed3a51f5581e99df9b1fedb5c7119cb430c694293d58c77ca",
+        "bytes": 10414,
+        "lines": 155
+      },
+      "ifc_summary_bytes": 2558
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__photometry_table",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 307601,
+        "iface.json": 5885,
+        "artifacts.json": 535,
+        "coretypeinfo.gob": 5020
+      },
+      "total_bytes": 319043,
+      "module": "pkg/sunholo/relativity/photometry_table",
+      "dag": {
+        "core_node_types": 1147,
+        "distinct_type_nodes": 8,
+        "format": 1,
+        "roots": 1147
+      },
+      "exports": 8,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/sunholo/relativity/photometry_table.ail",
+        "sha256": "a96afab235863b350e9a6b40866da34be335d70970f596014944062b55092f86",
+        "bytes": 5669,
+        "lines": 113
+      },
+      "ifc_summary_bytes": 1984
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__stellar",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 206695,
+        "iface.json": 21057,
+        "artifacts.json": 525,
+        "coretypeinfo.gob": 6000
+      },
+      "total_bytes": 234279,
+      "module": "pkg/sunholo/celestial/stellar",
+      "dag": {
+        "core_node_types": 890,
+        "distinct_type_nodes": 58,
+        "format": 1,
+        "roots": 890
+      },
+      "exports": 27,
+      "exported_types": 1,
+      "aliases": 1,
+      "source": {
+        "relative": "pkg/sunholo/celestial/stellar.ail",
+        "sha256": "ef5d12ba89eb81fc9a4411d791e3cd7683fba5a6bdf5cd99eb1bc09a3b70e0c0",
+        "bytes": 11243,
+        "lines": 217
+      },
+      "ifc_summary_bytes": 7974
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__medium",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 178401,
+        "iface.json": 28143,
+        "artifacts.json": 525,
+        "coretypeinfo.gob": 3822
+      },
+      "total_bytes": 210893,
+      "module": "pkg/sunholo/relativity/medium",
+      "dag": {
+        "core_node_types": 749,
+        "distinct_type_nodes": 15,
+        "format": 1,
+        "roots": 749
+      },
+      "exports": 26,
+      "exported_types": 1,
+      "aliases": 1,
+      "source": {
+        "relative": "pkg/sunholo/relativity/medium.ail",
+        "sha256": "25e799e490685dcbc996125f7fb13e81e45f07a7e63042545a4a13228da6c81f",
+        "bytes": 12737,
+        "lines": 252
+      },
+      "ifc_summary_bytes": 11755
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__trappist1",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 178350,
+        "iface.json": 21272,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 6832
+      },
+      "total_bytes": 206980,
+      "module": "pkg/stapledons/sim/trappist1",
+      "dag": {
+        "core_node_types": 846,
+        "distinct_type_nodes": 91,
+        "format": 1,
+        "roots": 846
+      },
+      "exports": 15,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/stapledons/sim/trappist1.ail",
+        "sha256": "58567110981142f9cbd4f3ddd201eec050f475569544275ebef142ba6d2add47",
+        "bytes": 7188,
+        "lines": 109
+      },
+      "ifc_summary_bytes": 4294
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__alpha_centauri",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 183199,
+        "iface.json": 15942,
+        "artifacts.json": 529,
+        "coretypeinfo.gob": 7302
+      },
+      "total_bytes": 206974,
+      "module": "pkg/stapledons/sim/alpha_centauri",
+      "dag": {
+        "core_node_types": 808,
+        "distinct_type_nodes": 83,
+        "format": 1,
+        "roots": 808
+      },
+      "exports": 10,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/stapledons/sim/alpha_centauri.ail",
+        "sha256": "aef2759fbadacac730f628d7cd7583d255d92db9eac63c5dafd30c94aaf22f66",
+        "bytes": 4837,
+        "lines": 68
+      },
+      "ifc_summary_bytes": 2941
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__photometry",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 183306,
+        "iface.json": 13577,
+        "artifacts.json": 529,
+        "coretypeinfo.gob": 3469
+      },
+      "total_bytes": 200883,
+      "module": "pkg/sunholo/relativity/photometry",
+      "dag": {
+        "core_node_types": 719,
+        "distinct_type_nodes": 19,
+        "format": 1,
+        "roots": 719
+      },
+      "exports": 18,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/sunholo/relativity/photometry.ail",
+        "sha256": "51fa6240f95f8a12663d58d0ea906f3bb0b0746c8d7489644181ecbfacc2a667",
+        "bytes": 10126,
+        "lines": 221
+      },
+      "ifc_summary_bytes": 5169
+    },
+    {
+      "module_dir": "std__list",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 133022,
+        "iface.json": 47975,
+        "artifacts.json": 504,
+        "coretypeinfo.gob": 16353
+      },
+      "total_bytes": 197856,
+      "module": "std/list",
+      "dag": {
+        "core_node_types": 835,
+        "distinct_type_nodes": 399,
+        "format": 1,
+        "roots": 835
+      },
+      "exports": 43,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "std/list.ail",
+        "sha256": "0888aa2157388391506cde86301500d52a455ca5ec2f08dfa883359471867998",
+        "bytes": 15344,
+        "lines": 334
+      },
+      "ifc_summary_bytes": 15042
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__blackbody",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 174807,
+        "iface.json": 9830,
+        "artifacts.json": 528,
+        "coretypeinfo.gob": 3726
+      },
+      "total_bytes": 188893,
+      "module": "pkg/sunholo/relativity/blackbody",
+      "dag": {
+        "core_node_types": 700,
+        "distinct_type_nodes": 19,
+        "format": 1,
+        "roots": 700
+      },
+      "exports": 11,
+      "exported_types": 2,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/sunholo/relativity/blackbody.ail",
+        "sha256": "e54f414c3b9eb278b935b696c84a1e25308c09f0a525941da41c2e069c3e66a8",
+        "bytes": 7697,
+        "lines": 180
+      },
+      "ifc_summary_bytes": 3105
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__data__acen",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 174089,
+        "iface.json": 7144,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 4526
+      },
+      "total_bytes": 186285,
+      "module": "pkg/stapledons/sim/data/acen",
+      "dag": {
+        "core_node_types": 844,
+        "distinct_type_nodes": 21,
+        "format": 1,
+        "roots": 844
+      },
+      "exports": 3,
+      "exported_types": 3,
+      "aliases": 3,
+      "source": {
+        "relative": "pkg/stapledons/sim/data/acen.ail",
+        "sha256": "5af439e2902ffe7c0ccc9783fe014e292ab3d6997ca7b1485e8b09f308e6dd5d",
+        "bytes": 9055,
+        "lines": 101
+      },
+      "ifc_summary_bytes": 744
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__frames",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 159136,
+        "iface.json": 13870,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 3936
+      },
+      "total_bytes": 177468,
+      "module": "pkg/sunholo/celestial/frames",
+      "dag": {
+        "core_node_types": 696,
+        "distinct_type_nodes": 24,
+        "format": 1,
+        "roots": 696
+      },
+      "exports": 9,
+      "exported_types": 4,
+      "aliases": 4,
+      "source": {
+        "relative": "pkg/sunholo/celestial/frames.ail",
+        "sha256": "8ede45c88a864b68000e260b73b768979f33d912507dc9ae5bf0f67ff041371f",
+        "bytes": 4733,
+        "lines": 108
+      },
+      "ifc_summary_bytes": 2466
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__optics",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 151854,
+        "iface.json": 17269,
+        "artifacts.json": 525,
+        "coretypeinfo.gob": 3421
+      },
+      "total_bytes": 173071,
+      "module": "pkg/sunholo/relativity/optics",
+      "dag": {
+        "core_node_types": 621,
+        "distinct_type_nodes": 19,
+        "format": 1,
+        "roots": 621
+      },
+      "exports": 15,
+      "exported_types": 2,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/sunholo/relativity/optics.ail",
+        "sha256": "5a555a28a703986922346fd420a07f09e8a2d1f34aa9bb5427a7bdd4c70ea736",
+        "bytes": 6782,
+        "lines": 159
+      },
+      "ifc_summary_bytes": 5765
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__data__trappist1",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 153091,
+        "iface.json": 7432,
+        "artifacts.json": 529,
+        "coretypeinfo.gob": 3773
+      },
+      "total_bytes": 164827,
+      "module": "pkg/stapledons/sim/data/trappist1",
+      "dag": {
+        "core_node_types": 698,
+        "distinct_type_nodes": 26,
+        "format": 1,
+        "roots": 698
+      },
+      "exports": 5,
+      "exported_types": 2,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/stapledons/sim/data/trappist1.ail",
+        "sha256": "1b01b0cf4041ce14ff95a7a93718b5f27c67a4e72668f8aba1603e16c2a1e891",
+        "bytes": 8140,
+        "lines": 86
+      },
+      "ifc_summary_bytes": 1240
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__rings",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 140417,
+        "iface.json": 12237,
+        "artifacts.json": 523,
+        "coretypeinfo.gob": 3932
+      },
+      "total_bytes": 157111,
+      "module": "pkg/sunholo/celestial/rings",
+      "dag": {
+        "core_node_types": 595,
+        "distinct_type_nodes": 32,
+        "format": 1,
+        "roots": 595
+      },
+      "exports": 8,
+      "exported_types": 2,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/sunholo/celestial/rings.ail",
+        "sha256": "b2a415b2a66d73385ea17bf5433cd2d7d795931fec023d3628e4e29625f981eb",
+        "bytes": 6167,
+        "lines": 125
+      },
+      "ifc_summary_bytes": 4806
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__reflect",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 138418,
+        "iface.json": 10632,
+        "artifacts.json": 525,
+        "coretypeinfo.gob": 2837
+      },
+      "total_bytes": 152414,
+      "module": "pkg/sunholo/celestial/reflect",
+      "dag": {
+        "core_node_types": 571,
+        "distinct_type_nodes": 13,
+        "format": 1,
+        "roots": 571
+      },
+      "exports": 11,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/sunholo/celestial/reflect.ail",
+        "sha256": "b914720015035bf443acf951e1dfe746d0bbab846a7ddd38249a7b05121a4ec3",
+        "bytes": 6325,
+        "lines": 135
+      },
+      "ifc_summary_bytes": 4870
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__destination_stars",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 101839,
+        "iface.json": 16192,
+        "artifacts.json": 532,
+        "coretypeinfo.gob": 5063
+      },
+      "total_bytes": 123628,
+      "module": "pkg/stapledons/sim/destination_stars",
+      "dag": {
+        "core_node_types": 448,
+        "distinct_type_nodes": 78,
+        "format": 1,
+        "roots": 448
+      },
+      "exports": 12,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/stapledons/sim/destination_stars.ail",
+        "sha256": "cb6fbad8f5caa510322ddd87297323df6669c98df97e35c512384cfeb04ae50a",
+        "bytes": 4525,
+        "lines": 59
+      },
+      "ifc_summary_bytes": 3120
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__hyper",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 92687,
+        "iface.json": 6709,
+        "artifacts.json": 524,
+        "coretypeinfo.gob": 1912
+      },
+      "total_bytes": 101834,
+      "module": "pkg/sunholo/relativity/hyper",
+      "dag": {
+        "core_node_types": 374,
+        "distinct_type_nodes": 4,
+        "format": 1,
+        "roots": 374
+      },
+      "exports": 10,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/sunholo/relativity/hyper.ail",
+        "sha256": "ed3e0435b890bfd11e6f005f59290678c23ce862dcc0d3e8da890d3a9f74ffbe",
+        "bytes": 2711,
+        "lines": 97
+      },
+      "ifc_summary_bytes": 2480
+    },
+    {
+      "module_dir": "pkg__sunholo__relativity__kinematics",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 80180,
+        "iface.json": 9451,
+        "artifacts.json": 529,
+        "coretypeinfo.gob": 1942
+      },
+      "total_bytes": 92104,
+      "module": "pkg/sunholo/relativity/kinematics",
+      "dag": {
+        "core_node_types": 313,
+        "distinct_type_nodes": 12,
+        "format": 1,
+        "roots": 313
+      },
+      "exports": 10,
+      "exported_types": 1,
+      "aliases": 1,
+      "source": {
+        "relative": "pkg/sunholo/relativity/kinematics.ail",
+        "sha256": "2f0f7acbac0998c720bf902780d204b33c08843e3f3b2142d7485ae058bace88",
+        "bytes": 3032,
+        "lines": 90
+      },
+      "ifc_summary_bytes": 2822
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__stops",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 63385,
+        "iface.json": 13412,
+        "artifacts.json": 520,
+        "coretypeinfo.gob": 1700
+      },
+      "total_bytes": 79019,
+      "module": "pkg/stapledons/sim/stops",
+      "dag": {
+        "core_node_types": 302,
+        "distinct_type_nodes": 9,
+        "format": 1,
+        "roots": 302
+      },
+      "exports": 16,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "pkg/stapledons/sim/stops.ail",
+        "sha256": "553d2f71e96d964e3f53662c2225e6410e144c4df136d9022bc2451ea893024e",
+        "bytes": 4050,
+        "lines": 58
+      },
+      "ifc_summary_bytes": 5868
+    },
+    {
+      "module_dir": "pkg__stapledons__sim__data__stars",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 61799,
+        "iface.json": 4341,
+        "artifacts.json": 525,
+        "coretypeinfo.gob": 2166
+      },
+      "total_bytes": 68833,
+      "module": "pkg/stapledons/sim/data/stars",
+      "dag": {
+        "core_node_types": 292,
+        "distinct_type_nodes": 18,
+        "format": 1,
+        "roots": 292
+      },
+      "exports": 2,
+      "exported_types": 2,
+      "aliases": 2,
+      "source": {
+        "relative": "pkg/stapledons/sim/data/stars.ail",
+        "sha256": "32bf514c5b0f79374f925f2bef707ab03f401ac20d0506ea321f0861696711e8",
+        "bytes": 3703,
+        "lines": 50
+      },
+      "ifc_summary_bytes": 496
+    },
+    {
+      "module_dir": "std__math",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 24888,
+        "iface.json": 15950,
+        "artifacts.json": 504,
+        "coretypeinfo.gob": 1295
+      },
+      "total_bytes": 42639,
+      "module": "std/math",
+      "dag": {
+        "core_node_types": 156,
+        "distinct_type_nodes": 20,
+        "format": 1,
+        "roots": 156
+      },
+      "exports": 24,
+      "exported_types": 0,
+      "aliases": 0,
+      "source": {
+        "relative": "std/math.ail",
+        "sha256": "9fee193587cbb4c1161443ec9e4b0194fd92c7726fda4dccc36cd588d5b132aa",
+        "bytes": 6301,
+        "lines": 145
+      },
+      "ifc_summary_bytes": 6392
+    },
+    {
+      "module_dir": "pkg__sunholo__celestial__lighttime",
+      "bytes": {
+        "constructors.json": 2,
+        "core.gob": 26323,
+        "iface.json": 7363,
+        "artifacts.json": 527,
+        "coretypeinfo.gob": 3093
+      },
+      "total_bytes": 37308,
+      "module": "pkg/sunholo/celestial/lighttime",
+      "dag": {
+        "core_node_types": 112,
+        "distinct_type_nodes": 40,
+        "format": 1,
+        "roots": 112
+      },
+      "exports": 5,
+      "exported_types": 1,
+      "aliases": 1,
+      "source": {
+        "relative": "pkg/sunholo/celestial/lighttime.ail",
+        "sha256": "d166824d2a58f0e6b1242d10de967de5201e575886760500ece13e4fd460c384",
+        "bytes": 2439,
+        "lines": 51
+      },
+      "ifc_summary_bytes": 1918
+    },
+    {
+      "module_dir": "std__result",
+      "bytes": {
+        "constructors.json": 361,
+        "core.gob": 11830,
+        "iface.json": 7993,
+        "artifacts.json": 506,
+        "coretypeinfo.gob": 4453
+      },
+      "total_bytes": 25143,
+      "module": "std/result",
+      "dag": {
+        "core_node_types": 64,
+        "distinct_type_nodes": 83,
+        "format": 1,
+        "roots": 64
+      },
+      "exports": 6,
+      "exported_types": 1,
+      "aliases": 0,
+      "source": {
+        "relative": "std/result.ail",
+        "sha256": "0e71af128072118c52f464a47fdbff6bc6ed49a0e50b5e752408504de2d17f80",
+        "bytes": 1198,
+        "lines": 54
+      },
+      "ifc_summary_bytes": 1818
+    },
+    {
+      "module_dir": "std__option",
+      "bytes": {
+        "constructors.json": 285,
+        "core.gob": 10847,
+        "iface.json": 7440,
+        "artifacts.json": 506,
+        "coretypeinfo.gob": 3556
+      },
+      "total_bytes": 22634,
+      "module": "std/option",
+      "dag": {
+        "core_node_types": 59,
+        "distinct_type_nodes": 65,
+        "format": 1,
+        "roots": 59
+      },
+      "exports": 6,
+      "exported_types": 1,
+      "aliases": 0,
+      "source": {
+        "relative": "std/option.ail",
+        "sha256": "83cdbe7706dbf18477018463cc5289d3c7afe3411a9aefce2024a5ef7f883f7c",
+        "bytes": 1083,
+        "lines": 53
+      },
+      "ifc_summary_bytes": 1949
+    }
+  ],
+  "footprint": {
+    "modules": 30,
+    "source_lines": 4962,
+    "source_bytes": 274917,
+    "core_node_types": 29473,
+    "distinct_type_nodes_sum_per_module": 1750,
+    "exports": 384,
+    "exported_types": 54,
+    "aliases": 51,
+    "artifact_bytes_total": 6988878,
+    "ifc_summary_bytes_total": 127534
+  },
+  "maximum_blob_bytes": 937929,
+  "maximum_module_bytes": 957751,
+  "blob_limit_fraction": 0.013976231217384338,
+  "module_limit_fraction": 0.007135801017284393
+}

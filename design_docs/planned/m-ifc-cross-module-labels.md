@@ -236,3 +236,19 @@ declared return label so the fix is unambiguous about which side must change.
   contract precedent (interfaces carrying per-export check obligations).
 - `design_docs/planned/v0_36_0/m-cache-module-id-encoding.md` — digest/cache
   invalidation machinery the schema bump rides on.
+
+## Conflict Surface — approved M1–M2 foundation only (2026-10-29 repair)
+
+The approved sprint plan's compatibility table remains the source for its later M3/M4 imported-call behavior. This partial execution preserves current caller verdicts; it publishes and validates metadata only.
+
+| Existing surface | Required M1–M2 behavior and proof |
+|---|---|
+| Same-module IFC function values, aliases, wrappers and REPL | Keep #1719 verdicts and ordinary analysis-limit diagnostics; current IFC/fresh-CLI/REPL regression suites |
+| Imported sink calls | Caller/CLI/REPL enforcement remains deferred to M3; do not close #1134 or #1132 |
+| Explicit unlabelled and synthetic exports | Emit complete canonical v2 metadata; missing/malformed metadata is rejected |
+| Constant/variable labels, forbidden lists, reserved applied labels and scoped authority | Lossless JSON/gob, canonical ordering, each security field affects identity/digest |
+| Unlabelled package identity | Preserve attended dba22e04e's pinned hash-projection schema and valid-clean summary omission; byte-identical pre-summary projection control |
+| Current stdlib public type/effect signatures | Re-freeze all49 interfaces for F4 shape only; removing IFC fields/schema from the comparison must leave no signature differences |
+| Compile caches | Pre-IFC v7 misses under v8; keep v7 CoreTI DAG; valid warm modules hit; dependency metadata edits invalidate callers |
+
+No parser/AST shape or language syntax changes are part of this partial execution. The 18-case external/current CLI differential and example gate verify no unintended caller verdict changes. The known Motoko mixed-record compatibility blocker and independent Stapledon dependency invariant are retained explicitly in the repair validation; neither is repaired by changing IFC metadata.

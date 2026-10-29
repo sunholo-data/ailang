@@ -13,65 +13,397 @@
   ],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "difference",
       "type": "(Set[a],Set[a])-\u003eSet[a]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "_",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "empty",
       "type": "(())-\u003eSet[a]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "fromList",
       "type": "(list[a])-\u003eSet[a]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "s",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "x",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "insert",
       "type": "(Set[a],a)-\u003eSet[a]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "intersect",
       "type": "(Set[a],Set[a])-\u003eSet[a]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "s",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "x",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "member",
       "type": "(Set[a],a)-\u003ebool",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "s",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "x",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "remove",
       "type": "(Set[a],a)-\u003eSet[a]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "s",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "size",
       "type": "(Set[a])-\u003eint",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "s",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "toList",
       "type": "(Set[a])-\u003elist[a]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "union",
       "type": "(Set[a],Set[a])-\u003eSet[a]",
       "effects": [],
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }

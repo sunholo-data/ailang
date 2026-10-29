@@ -80,6 +80,13 @@ func TestCacheIFCRejectsAuthenticatedBadSchema(t *testing.T) {
 			s := p["exports"].(map[string]any)["f"].(map[string]any)["ifc"].(map[string]any)
 			delete(s["params"].([]any)[0].(map[string]any), "forbidden")
 		}},
+		{"old string forbidden", func(p map[string]any) { ifcArtifactParam(p)["forbidden"] = "secret" }},
+		{"null forbidden", func(p map[string]any) { ifcArtifactParam(p)["forbidden"] = nil }},
+		{"duplicate forbidden", func(p map[string]any) { ifcArtifactParam(p)["forbidden"] = []string{"email", "email"} }},
+		{"unsorted forbidden", func(p map[string]any) { ifcArtifactParam(p)["forbidden"] = []string{"secret", "email"} }},
+		{"missing applied", func(p map[string]any) { delete(ifcArtifactParam(p), "applied") }},
+		{"null applied", func(p map[string]any) { ifcArtifactParam(p)["applied"] = nil }},
+		{"malformed applied", func(p map[string]any) { ifcArtifactParam(p)["applied"] = map[string]any{"constants": []string{}} }},
 		{"missing return flag", func(p map[string]any) {
 			delete(p["exports"].(map[string]any)["f"].(map[string]any)["ifc"].(map[string]any), "has_return_label")
 		}},
@@ -128,7 +135,7 @@ func TestCacheIFCValidatesInjectedDecoder(t *testing.T) {
 func TestCacheIFCPreviousVersionKeyMisses(t *testing.T) {
 	const source = "module lib\nexport func f() -> int { 42 }\n"
 	old := sha256.New()
-	fmt.Fprintln(old, "ailang-cache:v6:test-compiler")
+	fmt.Fprintln(old, "ailang-cache:v7:test-compiler")
 	fmt.Fprintf(old, "source:%x\n", sha256.Sum256([]byte(source)))
 	oldKey := hex.EncodeToString(old.Sum(nil))
 	current := ModuleCacheKey("test-compiler", source, nil)
@@ -138,6 +145,37 @@ func TestCacheIFCPreviousVersionKeyMisses(t *testing.T) {
 		t.Fatal("invalid old-key fixture")
 	}
 	if _, hit := cs.Lookup("lib", current); hit {
-		t.Fatal("pre-summary v6 key served under v7")
+		t.Fatal("pre-summary v7 key served under v8")
+	}
+}
+
+func TestCacheIFCEpochFollowsSharedDAG(t *testing.T) {
+	if cacheKeyVersion != "v8" {
+		t.Fatalf("IFC v2 metadata requires epoch v8 after the v7 shared-DAG migration, got %s", cacheKeyVersion)
+	}
+}
+
+func ifcArtifactParam(p map[string]any) map[string]any {
+	return p["exports"].(map[string]any)["f"].(map[string]any)["ifc"].(map[string]any)["params"].([]any)[0].(map[string]any)
+}
+
+func TestCacheIFCInjectedMalformedF4Rejected(t *testing.T) {
+	for _, mutate := range []func(*types.IFCParam){
+		func(p *types.IFCParam) { p.Forbidden = nil },
+		func(p *types.IFCParam) { p.Forbidden = []string{"secret", "email"} },
+		func(p *types.IFCParam) { p.Applied = types.IFCLabel{} },
+	} {
+		cs := newArtifactTestStore(t)
+		cm := testCachedModule("ifc/lib", 42)
+		mustStoreArtifacts(t, cs, "ifc/lib", "key", cm)
+		cs.artifactCodec.decodeIface = func([]byte) (*iface.Iface, error) {
+			bad := iface.NewIface("ifc/lib")
+			bad.AddExport("f", &types.Scheme{Type: &types.TFunc2{Params: []types.Type{types.TString}, Return: types.TString}}, true)
+			mutate(&bad.Exports["f"].IFC.Params[0])
+			return bad, nil
+		}
+		if got, err := cs.LoadArtifacts("ifc/lib", "key"); err == nil || got != nil {
+			t.Fatalf("injected decoder bypassed F4 validation: %v %v", got, err)
+		}
 	}
 }
