@@ -1,0 +1,13 @@
+{
+  "schema": "ailang.lossless-evidence/v1",
+  "logical_name": "m0/execution-extra/M4-capture-red.log",
+  "encoding": "gzip+base64",
+  "original_bytes": 506,
+  "original_sha256": "21688f2e086f11733ec45a4077065428d82dafbf87db4e578b045b47f4fddddd",
+  "compressed_bytes": 288,
+  "compressed_sha256": "bca86ce913c2855e923d04a00f6598757d8dae04c7358709e0c9eb595ed0cb0b",
+  "gzip_mtime": 0,
+  "gzip_filename": "",
+  "gzip_compresslevel": 9,
+  "payload": "H4sIAAAAAAAC/32RTWvDMAxAz+2v0GEH++AkZVBGYINQGBR62+5BdTQ3zLWLJf//OU07Wuimg7/k9yRjYwy8d9tdC5/EsolBElr5yHuWUbKMMfSdlYy+Sy4fKcgGT5ITgWqqZsV6CSVsHMhR6C16338VnnuXMQ3cS5FWLrbrlxbsTA6AZyHgxVgn4uylBcUkxkc3Wuh2u1k9hRrIekxkbAwsMFWhBNsgN1eQmZKAer2mV/qB4CsHeOIT2X4fcxhKL2rS/OV6A0m5PNVT2amLuNF6KqPuPXNSX2etH/hClH/I1R1jD2S/DeNNX7+Lcrqc/uw8LNwoh7yvbDzWnMMh+mgGFKxx9BhcPQahFNDXfJRFUz2vG57hH3fEGST6AQAA"
+}

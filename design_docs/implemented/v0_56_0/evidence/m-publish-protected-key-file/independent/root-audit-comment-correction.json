@@ -1,0 +1,10 @@
+{
+  "report_schema": "result=pass,total_score=95",
+  "root_reader_initially_expected": "verdict,score",
+  "initial_comment_not_posted": true,
+  "independent_markdown_review_before_merge": true,
+  "all_27_checks_verified_before_merge": true,
+  "exact_head_merge_verified": true,
+  "report_remains_unmodified": true,
+  "correction": "Post acceptance record after verified merge; no source/gate/approval change"
+}

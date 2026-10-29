@@ -1,0 +1,235 @@
+{
+  "head": "796b93365eb66572c3b090133de58006258460e5",
+  "base": "96d69f05b6e84bd6666e8fa91ff948f803b67d92",
+  "reviewed_product_checkpoint": "f9539a6025c1b6aa7381149d2d66d1ba2ddbe948",
+  "after_review_go_ail_changes": [
+    "cmd/ailang/commands_pkg.go",
+    "cmd/ailang/help.go"
+  ],
+  "metadata_repair_only": [
+    "design_docs/planned/v0_56_0/m-publish-protected-key-file-sprint-plan.md",
+    "design_docs/planned/v0_56_0/m-publish-protected-key-file.md"
+  ],
+  "files": [
+    {
+      "path": ".ailang/state/sprints/sprint_M-PUBLISH-PROTECTED-KEY-FILE.json",
+      "blob": "ae339ead33c01c09a68d52baf7d73597a89b7233",
+      "sha256": "fc238f8b74f99b9e2ae95598f72e0a6d79c85c5142a2e00be764e3f0812ab4f8",
+      "bytes": 19330
+    },
+    {
+      "path": "changelogs/unreleased/2026-10-29-publish-protected-key-file.md",
+      "blob": "bf139f01066a5f774634edb99c17ae74d8e1b2f8",
+      "sha256": "6ca2e3ebc87a3ae85bfa4aacac0ba50db40a7ece0819f3bd5d5aa0c49a872bf6",
+      "bytes": 725
+    },
+    {
+      "path": "cmd/ailang/commands_pkg.go",
+      "blob": "2be9d1979c74504ff33325088337837f6050942b",
+      "sha256": "e28301117f403f576543313b8ba9bbb2419b79bed9bdcb3b8c686afa3dbdadc4",
+      "bytes": 6977
+    },
+    {
+      "path": "cmd/ailang/help.go",
+      "blob": "c3e06f93108635ca975c64c8a83b170bbfae0c8f",
+      "sha256": "1bdb3efba14a5ba8e7f6843639a9197f7512c6b5a5d64c3eced2734998ab6153",
+      "bytes": 21656
+    },
+    {
+      "path": "cmd/ailang/pkg_publish.go",
+      "blob": "900361a2129f95d391d7dc255705e48843b22aa3",
+      "sha256": "23ae8ab2fa8e3ef8687f8cd5934f952ea6a37f493359be6473d77b941730fa72",
+      "bytes": 23369
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_auth.go",
+      "blob": "99f30b91e355a2494f3a976d454f8b55f85d17e4",
+      "sha256": "2323e9d7e0852589e433118ce9b6dce755af78621e0da94701e4928e9bed7109",
+      "bytes": 1778
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_auth_test.go",
+      "blob": "13c66921e117727841004d8f4b0b411a63cb93ac",
+      "sha256": "b0c31b202a9bbda5dbf2f6a10d797f5288ecfa2260e144f2a176c5fce993a7fd",
+      "bytes": 3556
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_child_test.go",
+      "blob": "080037beb6d50ab43be8c9a6616b3eee5dfd0f56",
+      "sha256": "29047499e04f4e958c0cde4c783d1c76cf503815eb74b8803f1f008cf12a65ae",
+      "bytes": 5536
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_keyfile_cli_test.go",
+      "blob": "92fafc67fc07eceebf74a20f0d9229b7261766cf",
+      "sha256": "4a5431658123fdf5649982f37427ee9950e8bdfb3747274e4a07d0cc19e486a2",
+      "bytes": 2802
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_rejection_cli_test.go",
+      "blob": "26df9141283e3235eee115438d501ab0fa50f422",
+      "sha256": "f33cb9a0a829ee08962bd80609557426b5c8e13bb9ddcf4b92e81d4376d3125c",
+      "bytes": 2705
+    },
+    {
+      "path": "cmd/ailang/pkg_publish_upload_auth_test.go",
+      "blob": "f0ca31cd10045bb575ecb2a4fe848f6046654bd2",
+      "sha256": "cc3e45ed43a892f93ddfc949dd18e70ab9c2ca368955eb2d0349180b3b792c96",
+      "bytes": 1859
+    },
+    {
+      "path": "cmd/ailang/testdata/publish_env_probe/main.go",
+      "blob": "0dc42f0518ef31b4c431a49ba685d68e770a88c5",
+      "sha256": "d4da51ec54cabf651957a9ea162c7f8e344d80fdecd9d4e5b962d954af3b9b33",
+      "bytes": 594
+    },
+    {
+      "path": "design_docs/planned/v0_56_0/m-publish-protected-key-file-sprint-plan.md",
+      "blob": "d2d5c626d447fe8f8d1db06a82bf1ad5fdbe1b99",
+      "sha256": "fcb95b6d47acfd393376a25b10e2764de8d089599b7824e0aab39177972b0015",
+      "bytes": 25629
+    },
+    {
+      "path": "design_docs/planned/v0_56_0/m-publish-protected-key-file-validation.md",
+      "blob": "6dd31d6a424b7e7a83a6f257fa628c2db372f032",
+      "sha256": "7fd59dccb4e88ce4b658b492ae4ceaa1e84c3196e0e8110536c8ec6e26ca80c4",
+      "bytes": 7588
+    },
+    {
+      "path": "design_docs/planned/v0_56_0/m-publish-protected-key-file.md",
+      "blob": "6b380f0c8b4e2fc9167f31d0a8513170b17dd072",
+      "sha256": "b5b6c6b5ce482a31e9c5c43f9c0c272388db8446f6412827bc134be3a8ad51d0",
+      "bytes": 27317
+    },
+    {
+      "path": "docs/docs/guides/package-publishing.md",
+      "blob": "b79eca3e94a128ac363d53ec044e10f4eec82a13",
+      "sha256": "08ac23240e7924b45ec75f3b6add4648702b3794cb3503f95ed0e876d258cb9a",
+      "bytes": 20620
+    },
+    {
+      "path": "docs/docs/reference/cli.md",
+      "blob": "e86bff169c14357cf108c2a8894b013194ea7d8f",
+      "sha256": "e795145bbbe4736e030d048b1101819344ff400adda2b3d8bedd880f0338c77b",
+      "bytes": 12673
+    },
+    {
+      "path": "internal/pkg/publish_keyfile.go",
+      "blob": "091b8b3ec5435ecd7aa68f13529c56406c9b348e",
+      "sha256": "d0f16fd93f93c7d51c63cf7cb282f5c399bf9b3a2682fe84e85a69de6a42e8cb",
+      "bytes": 1172
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_format.go",
+      "blob": "82b3f69864181ff4f6f38be161eaba0d5c60dd71",
+      "sha256": "85868505ad9f2b5120beb7936692cb745cb4bb8e648c0395b6409e9ca04cd1c6",
+      "bytes": 976
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_format_test.go",
+      "blob": "8e0eacf059da1c5acd6d584d70e31ab3d60fa1c0",
+      "sha256": "9c299d76126b31d9bfedf4fc7472f9d4ca5fb639daf428d861bdd2af0f22400c",
+      "bytes": 937
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_other.go",
+      "blob": "9ec3672784a102287f37a3a7d57eb79cac2eaa45",
+      "sha256": "9acea49aea16b31c7ccf0473f7765836cb3bcc160b82a7761a538026554a11e4",
+      "bytes": 270
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_test.go",
+      "blob": "e871510d5d4c1b9cca1f65cac70c3468b2e9954c",
+      "sha256": "e116e609a8133b417b68c675dbdf9608c683b0eaa9709b53b612bb73e6fee8bf",
+      "bytes": 905
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_unix.go",
+      "blob": "3b5263adb36d143dc7d87aadf1c0346c47bf294f",
+      "sha256": "3cccae0865759d9c3403550e22e83a39a53566ab1df825f412f4a4935e019e4b",
+      "bytes": 1207
+    },
+    {
+      "path": "internal/pkg/publish_keyfile_unix_test.go",
+      "blob": "73bbe018f8ad34dad145fb4ac07eb698f9c4b7fd",
+      "sha256": "15869c60fc3e478818f74af17343b0721dd5665540e8c509b8c560c8bbc06212",
+      "bytes": 3625
+    }
+  ],
+  "raw_log_identities": [
+    {
+      "path": "/tmp/ailang-backlog-20261029/1900-execution/M3-cli-red.log",
+      "sha256": "bf64be7a52b763e6211aaf3db90b7057a05f9daba6d23fe000c743af195ea71c",
+      "bytes": 1084
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1900-execution/M3-native-green.log",
+      "sha256": "88b6f7b164a2bfafa61208b0e056689e00c6bb6b93927b34241aeadf29ab5c10",
+      "bytes": 55
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1900-execution/M4-raw-presence.log",
+      "sha256": "88de763294e1ccd7d15fa17e83bcbcc63d01a0a8ec2918a207f0f2ddad8ebb79",
+      "bytes": 55
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1900-execution/M4-green.log",
+      "sha256": "5bd3d436bf8b8235b0be47e79e7f9d335bd1bd239e7107ea129f1cabee85dc6b",
+      "bytes": 55
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1900-execution/final-test-changed.log",
+      "sha256": "f9cdbf83f5c99c3b4970350bda8773e961e10d16c636487bcd1e9f80e07298a0",
+      "bytes": 1392
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1900-execution/final-build.log",
+      "sha256": "07f844e4e1c9b327308d7f12f6bf0b90170651439da08de204224fac2b15c798",
+      "bytes": 362
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1900-execution/final-lint.log",
+      "sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f",
+      "bytes": 76
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1900-execution/final-structure.log",
+      "sha256": "928a12b2af932231cbd671f47c7c203b3062f0a9aed037d53a9125b3c35783cb",
+      "bytes": 958
+    }
+  ],
+  "code_quality": {
+    "long_functions": [
+      {
+        "Path": "cmd/ailang/commands_pkg.go",
+        "Function": "pkgSubcommands",
+        "Start": 23,
+        "End": 132,
+        "Lines": 110
+      },
+      {
+        "Path": "cmd/ailang/help.go",
+        "Function": "printHelp",
+        "Start": 232,
+        "End": 401,
+        "Lines": 170
+      },
+      {
+        "Path": "cmd/ailang/pkg_publish.go",
+        "Function": "pkgPublishCommand",
+        "Start": 23,
+        "End": 173,
+        "Lines": 151
+      },
+      {
+        "Path": "cmd/ailang/pkg_publish.go",
+        "Function": "uploadTarball",
+        "Start": 205,
+        "End": 281,
+        "Lines": 77
+      }
+    ],
+    "new_todo_hack_fixme": []
+  },
+  "shared_or_perf_bonus": false
+}

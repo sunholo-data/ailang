@@ -1,0 +1,1649 @@
+{
+  "timestamp": "2026-10-29T22:11:09.668682+01:00",
+  "total_examples": 275,
+  "passed": 265,
+  "failed": 0,
+  "skipped": 10,
+  "results": [
+    {
+      "file": "runnable/adt_list_fields.ail",
+      "status": "passed",
+      "duration": 1502412958,
+      "output": "Star system: Sol\nPlanet count: 2\nGalaxy: Milky Way\nSystem count: 2\nData: Temps\nValue count: 3\nAll ADT list field examples passed!\n"
+    },
+    {
+      "file": "runnable/adt_option.ail",
+      "status": "passed",
+      "duration": 71072292,
+      "output": "42\n"
+    },
+    {
+      "file": "runnable/adt_simple.ail",
+      "status": "passed",
+      "duration": 71145417,
+      "output": "42\n"
+    },
+    {
+      "file": "runnable/adt_tree.ail",
+      "status": "passed",
+      "duration": 97755584,
+      "output": "Tree sum: 15\nNode count: 5\n"
+    },
+    {
+      "file": "runnable/ai_caching.ail",
+      "status": "passed",
+      "duration": 122337834,
+      "output": "Haiku: {\"kind\":\"Wait\"}\nStep telemetry: in=0 cache_read=0 cache_create=0\n(cache_read\u003e0 means provider served some input from cache; cache_create\u003e0 means it just wrote a new cache entry. Both 0 means caching is not engaged — likely OpenAI/Gemini/Ollama or first turn against Anthropic.)\n"
+    },
+    {
+      "file": "runnable/ai_call.ail",
+      "status": "skipped",
+      "error": "live HTTP POST to api.openai.com with a real API key (not std/ai, so --ai-stub cannot intercept it); CI has no key and gets 401",
+      "duration": 2042
+    },
+    {
+      "file": "runnable/ai_call_json_simple_result.ail",
+      "status": "passed",
+      "duration": 1480920458,
+      "output": "extracted JSON: {\"kind\":\"Wait\"}\n"
+    },
+    {
+      "file": "runnable/ai_call_result.ail",
+      "status": "passed",
+      "duration": 56883833,
+      "output": "AI response: {\"kind\":\"Wait\"}\n"
+    },
+    {
+      "file": "runnable/ai_call_speech.ail",
+      "status": "passed",
+      "duration": 111103500,
+      "output": "speech: 12000 bytes of PCM, 250 ms at 24000 Hz, 12044-byte WAV\n"
+    },
+    {
+      "file": "runnable/ai_call_stream.ail",
+      "status": "passed",
+      "duration": 57549958,
+      "output": "stream failed: code=ProviderNotFound retryable=false message=AI provider \"openai-stream-demo\" is not registered as a config-driven provider. Add an [[ai_provider]] block to ailang.toml or check installed packages.\n"
+    },
+    {
+      "file": "runnable/ai_effect.ail",
+      "status": "passed",
+      "duration": 45104334,
+      "output": "Asking AI: What is the capital of France?\nAI says: {\"kind\":\"Wait\"}\n"
+    },
+    {
+      "file": "runnable/ai_image_generation.ail",
+      "status": "passed",
+      "duration": 104972333,
+      "output": "AILANG AI Image Generation Demo\n===============================\n\n1. Generating image and saving to file...\n   Saved to: /tmp/ailang_demo_image.png\n\n2. Generating image as base64...\n   Got base64 JSON response\n\n3. Generating a variation of image 1 (reference image + per-call model)...\n   Saved to: /tmp/ailang_demo_variation.png\n\nDone!\n/tmp/ailang_demo_image.png\n"
+    },
+    {
+      "file": "runnable/ai_offline_cli.ail",
+      "status": "passed",
+      "duration": 52126125,
+      "output": "{\"kind\":\"Wait\"}\n"
+    },
+    {
+      "file": "runnable/ai_stream_openai.ail",
+      "status": "passed",
+      "duration": 1483893833,
+      "output": "stream failed (provider not registered? check ailang.toml)\n"
+    },
+    {
+      "file": "runnable/ai_streaming.ail",
+      "status": "passed",
+      "duration": 1493846416,
+      "output": "Streaming response:\n{\"kind\":\"Wait\"}\n---\nFinish reason: stop\nTokens: in=0 out=0\nCache: read=0 create=0\n"
+    },
+    {
+      "file": "runnable/ai_streaming_effect_rows.ail",
+      "status": "passed",
+      "duration": 1480095458,
+      "output": "pure callbacks accepted\n"
+    },
+    {
+      "file": "runnable/ai_tool_loop.ail",
+      "status": "passed",
+      "duration": 1524960416,
+      "output": "=== runTools succeeded: 2 messages in transcript ===\nFinal assistant text:\n{\"kind\":\"Wait\"}\n"
+    },
+    {
+      "file": "runnable/ai_vision_input.ail",
+      "status": "passed",
+      "duration": 75367166,
+      "output": "vision JSON: {\"kind\":\"Wait\"}\n"
+    },
+    {
+      "file": "runnable/arithmetic.ail",
+      "status": "passed",
+      "duration": 90140959,
+      "output": "x = 11\ny = 2\nz = 13\n"
+    },
+    {
+      "file": "runnable/array_adt.ail",
+      "status": "passed",
+      "duration": 84178167,
+      "output": "Array in ADT works!\n"
+    },
+    {
+      "file": "runnable/array_basic.ail",
+      "status": "passed",
+      "duration": 226569792,
+      "output": "=== Array Basics (0-based indexing) ===Length: 5numbers[0] (first): 10numbers[2] (third): 30numbers[4] (last):  50=== Safe Access with getOpt ===getOpt(numbers, 0):  Some(10)getOpt(numbers, 99): NonegetOpt(numbers, -1): None=== Immutable Update (O(n) copy) ===Original[2]: 30Modified[2]: 999=== Conversions (O(n)) ===As list: [10, 20, 30, 40, 50]=== Array.make ===Zeros length: 5"
+    },
+    {
+      "file": "runnable/array_float_kernels.ail",
+      "status": "passed",
+      "duration": 256212417,
+      "output": "prediction: 2.9999999999999996\nhistogram: #[1.0, 0.0, 2.0, 5.0], argmax = 3\nupdated: #[1.5, 0.0, 2.5]\njson: #[0.5, 1.5, 2.5]\nf64: #[1.0, 2.0, 0.5]\nbad json: error: decodeFloatArray: expected a number at offset 4\n"
+    },
+    {
+      "file": "runnable/array_grid.ail",
+      "status": "passed",
+      "duration": 218291541,
+      "output": "=== 2D Grid Example ===Grid size: 5x3=== Cell Values ===Top-left (0,0): 1Middle (2,1): 5Bottom-right (4,2): 9Empty cell (1,1): 0=== Grid Layout ===Row 0: 1 0 0 0 0 Row 1: 0 0 5 0 0 Row 2: 0 0 0 0 9 "
+    },
+    {
+      "file": "runnable/audio_checked.ail",
+      "status": "passed",
+      "duration": 214763709,
+      "output": "true\ntrue\n4\n"
+    },
+    {
+      "file": "runnable/batch_processing.ail",
+      "status": "passed",
+      "duration": 50976875,
+      "output": "No input file provided\n"
+    },
+    {
+      "file": "runnable/bitwise.ail",
+      "status": "passed",
+      "duration": 37772458,
+      "output": "AND:  12 \u0026 10  = 8\nXOR:  12 ^ 10  = 6\nSHL:  1 \u003c\u003c 4   = 16\nSHR:  16 \u003e\u003e 2  = 4\nNOT:  ~0       = -1\n(255 \u0026 15) ^ 3 = 12\nXOR encrypt: 163 -\u003e decrypt: 42\nlow nibble of 255:  15\nhigh nibble of 255: 15\nALL TESTS PASSED\n"
+    },
+    {
+      "file": "runnable/block_demo.ail",
+      "status": "passed",
+      "duration": 26817708,
+      "output": "38\n42\n30\n"
+    },
+    {
+      "file": "runnable/block_recursion.ail",
+      "status": "passed",
+      "duration": 23981000,
+      "output": "5\n4\n3\n2\n1\nDone!\n"
+    },
+    {
+      "file": "runnable/bounded_take_flatmap.ail",
+      "status": "passed",
+      "duration": 35578416,
+      "output": "unfused flatMap: [1, 1, 2, 2]\nfused takeFlatMap: [1, 1, 2, 2]\nunfused map: [[1, 11], [2, 12], [3, 13]]\nfused takeMap: [[1, 11], [2, 12], [3, 13]]\n"
+    },
+    {
+      "file": "runnable/bug_float_comparison.ail",
+      "status": "passed",
+      "duration": 26934833,
+      "output": "true\n"
+    },
+    {
+      "file": "runnable/bulk_build_cost_model.ail",
+      "status": "passed",
+      "duration": 140547875,
+      "output": "true\ntrue\n21\n1\n[1, 3, 6] 6\n"
+    },
+    {
+      "file": "runnable/bytes_base64url.ail",
+      "status": "passed",
+      "duration": 42671875,
+      "output": "standard : YStiL2M/\nURL-safe : YStiL2M_\npadded   : SGVsbG8=\nunpadded : SGVsbG8\nroundtrip: Subject: Café — ünïcode\nmismatch : \u003cnot valid base64url\u003e\n"
+    },
+    {
+      "file": "runnable/claude_haiku_call.ail",
+      "status": "skipped",
+      "error": "live HTTP POST to api.anthropic.com with a real API key (not std/ai, so --ai-stub cannot intercept it); CI has no key and gets 401",
+      "duration": 333
+    },
+    {
+      "file": "runnable/cli_args_demo.ail",
+      "status": "passed",
+      "duration": 38275125,
+      "output": "Usage: ailang run --caps IO,Env examples/runnable/cli_args_demo.ail \u003cname\u003e [\u003cname\u003e ...]\nNo arguments provided!\n"
+    },
+    {
+      "file": "runnable/closures.ail",
+      "status": "passed",
+      "duration": 27126833,
+      "output": "Closure: 15\n"
+    },
+    {
+      "file": "runnable/complex_types.ail",
+      "status": "passed",
+      "duration": 22653084
+    },
+    {
+      "file": "runnable/cons_expression.ail",
+      "status": "passed",
+      "duration": 39036000,
+      "output": "=== Cons (::) Expression Examples ===\n\nprepend(1, [2, 3]) = [1, 2, 3]\nbuildList() = [1, 2, 3]\nmaybeAdd(5, [1, 2]) = [5, 1, 2]\nmaybeAdd(-1, [1, 2]) = [1, 2]\nduplicate_head([1, 2, 3]) = [1, 1, 2, 3]\ngreet(\"Alice\") = [Hello, Alice]\n"
+    },
+    {
+      "file": "runnable/contracts/access_control.ail",
+      "status": "passed",
+      "duration": 27411875,
+      "output": "140\n"
+    },
+    {
+      "file": "runnable/contracts/basic.ail",
+      "status": "passed",
+      "duration": 29374208,
+      "output": "116\n"
+    },
+    {
+      "file": "runnable/contracts/cross_function.ail",
+      "status": "passed",
+      "duration": 28269000,
+      "output": "57\n"
+    },
+    {
+      "file": "runnable/contracts/cross_module_functions.ail",
+      "status": "passed",
+      "duration": 31189542,
+      "output": "22\n"
+    },
+    {
+      "file": "runnable/contracts/cross_module_functions_lib.ail",
+      "status": "skipped",
+      "error": "library module (no main) — imported by cross_module_functions.ail; not a standalone runnable",
+      "duration": 750
+    },
+    {
+      "file": "runnable/contracts/cross_module_types.ail",
+      "status": "passed",
+      "duration": 38812875,
+      "output": "8\n"
+    },
+    {
+      "file": "runnable/contracts/cross_module_types_lib.ail",
+      "status": "passed",
+      "duration": 22178417
+    },
+    {
+      "file": "runnable/contracts/empty_list_sort_verify.ail",
+      "status": "passed",
+      "duration": 32179750,
+      "output": "0\n"
+    },
+    {
+      "file": "runnable/contracts/ensures_violation_demo.ail",
+      "status": "passed",
+      "duration": 26875875,
+      "output": "5\n"
+    },
+    {
+      "file": "runnable/contracts/finance.ail",
+      "status": "passed",
+      "duration": 28096375,
+      "output": "4300\n"
+    },
+    {
+      "file": "runnable/contracts/hof_verify.ail",
+      "status": "passed",
+      "duration": 31023792,
+      "output": "10\n"
+    },
+    {
+      "file": "runnable/contracts/inbox_injection.ail",
+      "status": "passed",
+      "duration": 30814917,
+      "output": "9\n"
+    },
+    {
+      "file": "runnable/contracts/inbox_injection_v2.ail",
+      "status": "passed",
+      "duration": 31353792,
+      "output": "11\n"
+    },
+    {
+      "file": "runnable/contracts/inbox_v2_app.ail",
+      "status": "passed",
+      "duration": 31760750,
+      "output": "11\n"
+    },
+    {
+      "file": "runnable/contracts/inbox_v2_lib.ail",
+      "status": "passed",
+      "duration": 20753125
+    },
+    {
+      "file": "runnable/contracts/insurance.ail",
+      "status": "passed",
+      "duration": 27926042,
+      "output": "3880\n"
+    },
+    {
+      "file": "runnable/contracts/interpolation_verify.ail",
+      "status": "passed",
+      "duration": 36642875,
+      "output": "header/body separator: ok\nverbose=true\nquiet=false\ncount=42\ncount=-7\n"
+    },
+    {
+      "file": "runnable/contracts/invoice.ail",
+      "status": "passed",
+      "duration": 38188667,
+      "output": "97969\n"
+    },
+    {
+      "file": "runnable/contracts/list_recursive_verify.ail",
+      "status": "passed",
+      "duration": 31165625,
+      "output": "2\n"
+    },
+    {
+      "file": "runnable/contracts/list_verify.ail",
+      "status": "passed",
+      "duration": 33102542,
+      "output": "7\n"
+    },
+    {
+      "file": "runnable/contracts/nested_record_verify.ail",
+      "status": "passed",
+      "duration": 27057084,
+      "output": "10\n"
+    },
+    {
+      "file": "runnable/contracts/nullary_constant_verify.ail",
+      "status": "passed",
+      "duration": 32471458,
+      "output": "bound(5) = 1005\nturnBound(10) = 513530\nwithChained(1) = 34001\n"
+    },
+    {
+      "file": "runnable/contracts/park.ail",
+      "status": "passed",
+      "duration": 29362375,
+      "output": "35\n"
+    },
+    {
+      "file": "runnable/contracts/per_function_depth_verify.ail",
+      "status": "passed",
+      "duration": 28750833,
+      "output": "79\n"
+    },
+    {
+      "file": "runnable/contracts/quantifier_verify.ail",
+      "status": "passed",
+      "duration": 27060208,
+      "output": "41\n"
+    },
+    {
+      "file": "runnable/contracts/record_adt_cycle_verify.ail",
+      "status": "passed",
+      "duration": 26357333,
+      "output": "0\n"
+    },
+    {
+      "file": "runnable/contracts/record_adt_sort_verify.ail",
+      "status": "passed",
+      "duration": 26341167,
+      "output": "0\n"
+    },
+    {
+      "file": "runnable/contracts/record_discovery_verify.ail",
+      "status": "passed",
+      "duration": 29664958,
+      "output": "13\n"
+    },
+    {
+      "file": "runnable/contracts/record_pattern_verify.ail",
+      "status": "passed",
+      "duration": 28504791,
+      "output": "10\n"
+    },
+    {
+      "file": "runnable/contracts/record_verify.ail",
+      "status": "passed",
+      "duration": 30211209,
+      "output": "20\n"
+    },
+    {
+      "file": "runnable/contracts/recursive_verify.ail",
+      "status": "passed",
+      "duration": 27887875,
+      "output": "37\n"
+    },
+    {
+      "file": "runnable/contracts/result_error_guard.ail",
+      "status": "passed",
+      "duration": 30456458,
+      "output": "negative: rejected\nzero: accepted\npositive: accepted\n"
+    },
+    {
+      "file": "runnable/contracts/scoring.ail",
+      "status": "passed",
+      "duration": 28441125,
+      "output": "297\n"
+    },
+    {
+      "file": "runnable/contracts/shapes_verify.ail",
+      "status": "passed",
+      "duration": 30103917,
+      "output": "11\n"
+    },
+    {
+      "file": "runnable/contracts/showcase.ail",
+      "status": "passed",
+      "duration": 41032209,
+      "output": "8812\n"
+    },
+    {
+      "file": "runnable/contracts/string_verify.ail",
+      "status": "passed",
+      "duration": 49285583,
+      "output": "1\n"
+    },
+    {
+      "file": "runnable/contracts/temperature.ail",
+      "status": "passed",
+      "duration": 28346708,
+      "output": "344\n"
+    },
+    {
+      "file": "runnable/contracts/unencodable_callee_skip.ail",
+      "status": "passed",
+      "duration": 28595125,
+      "output": "gradeNumeric(3.5) = 7.0\n"
+    },
+    {
+      "file": "runnable/conway_grid.ail",
+      "status": "passed",
+      "duration": 73514958,
+      "output": "Conway's Game of Life - Blinker Pattern\n\n========================================\n\n\nGeneration 0:\n\n.....\n..#..\n..#..\n..#..\n.....\n\nGeneration 1:\n\n.....\n.....\n.###.\n.....\n.....\n\nGeneration 2 (back to original):\n\n.....\n..#..\n..#..\n..#..\n.....\n\n"
+    },
+    {
+      "file": "runnable/crypto_hashing.ail",
+      "status": "passed",
+      "duration": 37460167,
+      "output": "sha256('hello') = 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824\nAPI key hash = 31a21ee8261767cd0454cfdd75ccee93e52617371501dad738d8e153f90db169\nHMAC signature = 8505b96af96cab24455e85116bcb0367500e60f60cc4a8073586f66fea026cd6\nKey valid = true\nWrong key valid = false\n"
+    },
+    {
+      "file": "runnable/cycle_detection_visited_set.ail",
+      "status": "passed",
+      "duration": 41332833,
+      "output": "moves before a repeated state: 8\n"
+    },
+    {
+      "file": "runnable/debug_effect.ail",
+      "status": "passed",
+      "duration": 39690834,
+      "output": "Debug Effect Demo\n=================\nHero health: 85\nDemo complete!\n"
+    },
+    {
+      "file": "runnable/debug_types_demo.ail",
+      "status": "passed",
+      "duration": 34723667,
+      "output": "=== Debug Types Demo ===\nadd_ints: 3\nadd_floats: 4.0\ncompare_nums: true\ncheck_equal: false\nint_result: 42\nstr_result: test\napply_twice(double)(3): 12\n"
+    },
+    {
+      "file": "runnable/decide_jev.ail",
+      "status": "passed",
+      "duration": 538981542,
+      "output": "lane: choice=motoko_extension conf=0.55 dist=[{key: ailang_fix, p...apability, p: 0.01}]\nauto_fixable: noul p=0.89\nseverity: score=2.83 conf=0.82 dist=[{key: 0, p: 0.01}, {key: 1, p: 0.03}, {key: 2, p: 0.09}, {key: 3, p: 0.87}]\n"
+    },
+    {
+      "file": "runnable/demo_ai_api.ail",
+      "status": "passed",
+      "duration": 366538084,
+      "output": "Calling httpbin.org API for testing...\nResponse from API:\nLength: 213 bytes\nSuccess!\n"
+    },
+    {
+      "file": "runnable/demos/adt_pipeline.ail",
+      "status": "passed",
+      "duration": 26691875,
+      "output": "42\n"
+    },
+    {
+      "file": "runnable/demos/hello_io.ail",
+      "status": "passed",
+      "duration": 26598458,
+      "output": "Hello from AILANG Minimal Runner!\n"
+    },
+    {
+      "file": "runnable/difference_array_accumulate.ail",
+      "status": "passed",
+      "duration": 54840458,
+      "output": "coverage: [1, 1, 2, 1, 2, 1, 0]\nhistogram a/b/c: #[3, 2, 1]\nmax per bucket: #[abcd, x]\n"
+    },
+    {
+      "file": "runnable/directory_listing.ail",
+      "status": "passed",
+      "duration": 39184875,
+      "output": "=== listDir ===\nFiles in examples/runnable/: [.ailang, README.md,...l, zip_xml_fold.ail]\n\n=== words ===\nwords(\"hello  world\\tfoo\") = [hello, world, foo]\n\n=== splitAny ===\nsplitAny(\"a,b;c\", [\",\", \";\"]) = [a, b, c]\n"
+    },
+    {
+      "file": "runnable/directory_ops.ail",
+      "status": "passed",
+      "duration": 53712708,
+      "output": "Created: /tmp/ailang_dir_test/a/b/c\nisDir(base): true\nisFile(base): false\nisFile(hello.txt): true\nisDir(hello.txt): false\nexists(base): true\nexists(nope): false\nRemoved hello.txt, exists: false\n"
+    },
+    {
+      "file": "runnable/effect_latent_function_values.ail",
+      "status": "passed",
+      "duration": 29154792,
+      "output": "HOF: IO declared\nfield: IO declared\n"
+    },
+    {
+      "file": "runnable/effect_latent_nested_callbacks.ail",
+      "status": "passed",
+      "duration": 38659291,
+      "output": "logged 1\nlogged 2\nlogged 3\ntotal 6\nitem a\nitem b\nmapped [true, true]\n"
+    },
+    {
+      "file": "runnable/effect_row_var_noisy_twice.ail",
+      "status": "passed",
+      "duration": 28314167,
+      "output": "callback\ncallback\n"
+    },
+    {
+      "file": "runnable/effect_row_var_pure_caller.ail",
+      "status": "passed",
+      "duration": 30394583,
+      "output": "42\n"
+    },
+    {
+      "file": "runnable/effectful_list.ail",
+      "status": "passed",
+      "duration": 57932958,
+      "output": "flatMap: [1, 10, 2, 20, 3, 30]\n--- mapE ---\n  mapping 1\n  mapping 2\n  mapping 3\nmapE result: [2, 4, 6]\n--- filterE ---\n  checking 1\n  checking 2\n  checking 3\n  checking 4\nfilterE result: [2, 4]\n--- foldlE ---\n  acc=0 + 10\n  acc=10 + 20\n  acc=30 + 30\nfoldlE result: 60\n--- flatMapE ---\n  expanding 1\n  expanding 2\nflatMapE result: [1, 101, 2, 102]\n--- forEachE ---\n  item: a\n  item: b\n  item: c\nforEachE done\n"
+    },
+    {
+      "file": "runnable/effectful_list_t1_mapE_basic.ail",
+      "status": "passed",
+      "duration": 38893959,
+      "output": "  map 10\n  map 20\n  map 30\nT1 mapE: [20, 40, 60]\n"
+    },
+    {
+      "file": "runnable/effectful_list_t2_filterE_bool.ail",
+      "status": "passed",
+      "duration": 41111333,
+      "output": "  check 1\n  check 2\n  check 3\n  check 4\n  check 5\nT2 filterE: [3, 4, 5]\n"
+    },
+    {
+      "file": "runnable/effectful_list_t3_foldlE_acc.ail",
+      "status": "passed",
+      "duration": 42264083,
+      "output": "  acc=\n  acc=1 \n  acc=1 2 \nT3 foldlE: [1 2 3 ]\n"
+    },
+    {
+      "file": "runnable/effectful_list_t4_flatMapE_expand.ail",
+      "status": "passed",
+      "duration": 40424041,
+      "output": "  expand 2\n  expand 3\n  expand 4\nT4 flatMapE: [2, 4, 3, 9, 4, 16]\n"
+    },
+    {
+      "file": "runnable/effectful_list_t5_forEachE_unit.ail",
+      "status": "passed",
+      "duration": 38878833,
+      "output": "T5 forEachE order:\n  10\n  20\n  30\nT5 done\n"
+    },
+    {
+      "file": "runnable/effectful_list_t6_pure_flatMap.ail",
+      "status": "passed",
+      "duration": 66789958,
+      "output": "T6 flatMap: [1, 10, 2, 20, 3, 30]\nT6 nested: [101, 201, 102, 202]\n"
+    },
+    {
+      "file": "runnable/effectful_list_t7_chain_combinators.ail",
+      "status": "passed",
+      "duration": 99527083,
+      "output": "  double 1\n  double 2\n  double 3\n  double 4\n  double 5\nT7 doubled: [2, 4, 6, 8, 10]\n  filter 2\n  filter 4\n  filter 6\n  filter 8\n  filter 10\nT7 filtered: [6, 8, 10]\n  fold 0+6\n  fold 6+8\n  fold 14+10\nT7 total: 24\n"
+    },
+    {
+      "file": "runnable/effectful_list_t8_string_list.ail",
+      "status": "passed",
+      "duration": 93838166,
+      "output": "  tag hello\n  tag world\n  tag hi\n  tag ailang\n  tag ok\nT8 tagged: [\u003e\u003ehello, \u003e\u003eworld, \u003e\u003ehi, \u003e\u003eailang, \u003e\u003eok]\n  len hello\n  len world\n  len hi\n  len ailang\n  len ok\nT8 long: [hello, world, ailang]\nT8 forEach:\n  -\u003e hello\n  -\u003e world\n  -\u003e ailang\n"
+    },
+    {
+      "file": "runnable/effects_basic.ail",
+      "status": "passed",
+      "duration": 25518875,
+      "output": "hello effects\n"
+    },
+    {
+      "file": "runnable/effects_fs_io.ail",
+      "status": "passed",
+      "duration": 65985792,
+      "output": "Wrote: Hello from AILANG!\nFile exists: true\nRead back: Hello from AILANG!\n"
+    },
+    {
+      "file": "runnable/effects_pure.ail",
+      "status": "passed",
+      "duration": 83817875
+    },
+    {
+      "file": "runnable/exit_code.ail",
+      "status": "skipped",
+      "error": "intentionally exits with non-zero code (42) to demo std/io exit()",
+      "duration": 1583
+    },
+    {
+      "file": "runnable/explicit_empty_callback_contracts.ail",
+      "status": "passed",
+      "duration": 93836750,
+      "output": "42\n"
+    },
+    {
+      "file": "runnable/factorial.ail",
+      "status": "passed",
+      "duration": 100442333,
+      "output": "Factorial with inline tests\nUse `ailang test examples/factorial.ail` to run tests\n\nfactorial(0) = 1\nfactorial(5) = 120\nfactorial(10) = 3628800\n"
+    },
+    {
+      "file": "runnable/float_int_literals.ail",
+      "status": "passed",
+      "duration": 124025959,
+      "output": "isNonNeg(2.5) = true\ndouble(1.5) = 3.0\nzero() = 0.0\naround(2.5) = [1.0, 2.5, 3.0]\nhistogram = #[3.0, 0.0, 5.0]\nbmi(2.0) = 17.5\naverage(10.0) = 2.5\n"
+    },
+    {
+      "file": "runnable/fnv1a.ail",
+      "status": "passed",
+      "duration": 105818833,
+      "output": "FNV-1a of 'hello': -6615550055289275125\nFNV-1a of 'world': 5717881983045765875\nDeterminism: true\nNo collision: true\nXOR self-inverse: 0\nHash bucket: 11\nALL TESTS PASSED\n"
+    },
+    {
+      "file": "runnable/fs_bytes_roundtrip.ail",
+      "status": "passed",
+      "duration": 219056042,
+      "output": "write: Ok\nreadFileRaw: 6 bytes [0, 255, 254, 128, 97, 10]\nreadFileBytes: base64 text \"AP/+gGEK\"\nmissing parent: Err\nmissing file: Err\n"
+    },
+    {
+      "file": "runnable/fs_walk_glob.ail",
+      "status": "passed",
+      "duration": 218202167,
+      "output": "walk: 5 files\n  /tmp/ailang_walk_glob/README.md\n  /tmp/ailang_walk_glob/src/main.ail\n  /tmp/ailang_walk_glob/src/nested/deep.ail\n  /tmp/ailang_walk_glob/src/notes.txt\n  /tmp/ailang_walk_glob/src/util.ail\nglob .ail: 3 files\n  /tmp/ailang_walk_glob/src/main.ail\n  /tmp/ailang_walk_glob/src/nested/deep.ail\n  /tmp/ailang_walk_glob/src/util.ail\nglob .md: 1 file\n"
+    },
+    {
+      "file": "runnable/func_expressions.ail",
+      "status": "passed",
+      "duration": 146197084,
+      "output": "=== Anonymous Function Expressions (v0.3.5) ===\n10\n10\n42\n12\nHello, AILANG!\n15\n16\n"
+    },
+    {
+      "file": "runnable/game_npc_dialogue.ail",
+      "status": "passed",
+      "duration": 137995041,
+      "output": "=== NPC Dialogue Generation Demo ===\n\n[At the Forge]\nPlayer: Can you forge me an enchanted sword?\nGrimnar: {\"kind\":\"Wait\"}\n\n[At the Tavern]\nPlayer: What do you know about the dragon?\nMira: {\"kind\":\"Wait\"}\n\n[At the Town Gates]\nPlayer: I need to enter the restricted district.\nCaptain Aldric: {\"kind\":\"Wait\"}\n"
+    },
+    {
+      "file": "runnable/guards_basic.ail",
+      "status": "passed",
+      "duration": 141601750,
+      "output": "positive\n"
+    },
+    {
+      "file": "runnable/guards_module.ail",
+      "status": "passed",
+      "duration": 54670542,
+      "output": "positive\nthe answer\nnegative\ny bigger\n"
+    },
+    {
+      "file": "runnable/hello.ail",
+      "status": "passed",
+      "duration": 51242750,
+      "output": "Hello, AILANG!"
+    },
+    {
+      "file": "runnable/html_parser.ail",
+      "status": "passed",
+      "duration": 77812458,
+      "output": "root tag: html\nparagraphs: 2\nhref: https://example.com\nchecked: yes (boolean attr present)\n0\n"
+    },
+    {
+      "file": "runnable/http_put_bytes.ail",
+      "status": "passed",
+      "duration": 487194916,
+      "output": "Uploading 4 raw bytes...\nOK: HTTP 200 (response is 389 bytes)\n"
+    },
+    {
+      "file": "runnable/http_simple.ail",
+      "status": "passed",
+      "duration": 385089875,
+      "output": "Fetching: https://httpbin.org/get\nResponse length: 213 bytes\n"
+    },
+    {
+      "file": "runnable/if_else_chain.ail",
+      "status": "passed",
+      "duration": 34858292,
+      "output": "9\n"
+    },
+    {
+      "file": "runnable/imported_adt_types.ail",
+      "status": "passed",
+      "duration": 80575791
+    },
+    {
+      "file": "runnable/imports.ail",
+      "status": "passed",
+      "duration": 32959584,
+      "output": "Multiple imports: OK\n"
+    },
+    {
+      "file": "runnable/imports_basic.ail",
+      "status": "passed",
+      "duration": 28753166,
+      "output": "Import test passed\n"
+    },
+    {
+      "file": "runnable/json_array_extraction.ail",
+      "status": "passed",
+      "duration": 311546541,
+      "output": "=== Permissive Array Extraction (filterStrings/filterNumbers) ===\nfilterStrings(mixed) = [apple, banana, cherry]\nfilterNumbers(mixed) = [42]\n\n=== Strict Array Extraction (allStrings/allNumbers) ===\nallStrings(mixed) = None (mixed types!)\nallStrings(onlyStrings) = Some([red, green, blue])\nallNumbers(onlyNumbers) = Some([1, 2, 3])\n\n=== Convenience Wrappers (getStringArrayOrEmpty, etc.) ===\ngetStringArrayOrEmpty(obj, \"tags\") = [ai, lang, functional]\ngetStringArrayOrEmpty(obj, \"categories\") = [] (empty for missing)\ngetStringArray(obj, \"tags\") = Some([ai, lang, functional])\n\n=== Real-World Use Case: Config Parsing ===\nAllowed hosts (2): example.com, api.example.com\nPorts (3): 80, 443, 8080\n"
+    },
+    {
+      "file": "runnable/json_basic_decode.ail",
+      "status": "passed",
+      "duration": 170773542,
+      "output": "0\n"
+    },
+    {
+      "file": "runnable/json_bool_encoding.ail",
+      "status": "passed",
+      "duration": 234957666,
+      "output": "encode(jb(true))            = true\nasBool(jb(true))           = Some(true)\nencode(js(\"true\"))         = \"true\"\nasBool(js(\"true\"))         = None\nasBoolLoose(js(\"true\"))    = Some(true)\nasBoolLoose(js(\"false\"))   = Some(false)\nasBoolLoose(jb(false))     = Some(false)\nasBoolLoose(js(\"maybe\"))   = None\nencodeFlag(true)           = {\"enabled\":true}\n"
+    },
+    {
+      "file": "runnable/json_helpers.ail",
+      "status": "passed",
+      "duration": 224850500,
+      "output": "Alice (age 30, score 95.5)\n"
+    },
+    {
+      "file": "runnable/json_jint.ail",
+      "status": "passed",
+      "duration": 108109583,
+      "output": "encode(jint(42))                 = 42\nencode(jo([kv(\"count\", jint(42))])) = {\"count\":42}\n"
+    },
+    {
+      "file": "runnable/json_parsing.ail",
+      "status": "passed",
+      "duration": 162758792,
+      "output": "Parsed JSON successfully!\nName: AILANG\nVersion: 0.6\n"
+    },
+    {
+      "file": "runnable/jwt_decode.ail",
+      "status": "passed",
+      "duration": 204936708,
+      "output": "JWT decoded successfully!\nSubject: Some(1234567890)\nName: Some(Test User)\nExpired at 1700000000: false\nIssuer matches: true\nAudience matches: true\n"
+    },
+    {
+      "file": "runnable/lambdas.ail",
+      "status": "passed",
+      "duration": 104310917,
+      "output": "Lambda composition: 12\n"
+    },
+    {
+      "file": "runnable/lambdas_advanced.ail",
+      "status": "passed",
+      "duration": 185823834,
+      "output": "=== Advanced Lambda Patterns ===\nFlip function (reverse arguments):\n  sub(10)(3) = 7\n  flip(sub)(10)(3) = -7\n\nChurch numerals:\n  churchToInt(zero) = 0\n  churchToInt(one) = 1\n  churchToInt(two) = 2\n  churchToInt(three) = 3\n\nContinuation-passing style:\n  addCPS(3)(4)(id) = 7\n\nK combinator (returns first arg):\n  K(42)(99) = 42\n\nS combinator:\n  S(+)(double)(5) = 15\n"
+    },
+    {
+      "file": "runnable/lambdas_closures.ail",
+      "status": "passed",
+      "duration": 102724125,
+      "output": "=== Closures ===\nBasic closure (x = 10):\n  addX(5) = 15\n  addX(20) = 30\n\nClosure factory (makeAdder):\n  add5(3) = 8\n  add100(3) = 103\n\nMultiple variables captured (a=2, b=3):\n  compute(5) = 13\n  compute(10) = 23\n\nNested closures (makeMultiplier):\n  double(7) = 14\n  triple(7) = 21\n"
+    },
+    {
+      "file": "runnable/lambdas_curried.ail",
+      "status": "passed",
+      "duration": 144683667,
+      "output": "=== Curried Functions ===\nCurried add:\n  add(3)(4) = 7\n  add(10)(5) = 15\n\nPartial application (add10 = add(10)):\n  add10(5) = 15\n  add10(20) = 30\n\nThree-parameter curried function:\n  multiply3(2)(3)(4) = 24\n\nPartial application chain:\n  times2(3)(4) = 24\n  times2times3(4) = 24\n\nCurried subtraction (order matters):\n  sub(10)(3) = 7\n  sub10(3) = 7\n"
+    },
+    {
+      "file": "runnable/lambdas_higher_order.ail",
+      "status": "passed",
+      "duration": 147806083,
+      "output": "=== Higher-Order Functions ===\nFunction composition:\n  doubleThenAddOne(5) = 11\n  (first double, then add one)\n\nApply function to both values:\n  applyToBoth(square)(3)(4) = [9, 16]\n\nFunction returning function:\n  adder(5)(3) = 8\n  multiplier(5)(3) = 15\n\nApplying function twice:\n  twice(increment)(5) = 7\n  quadruple(5) = 20\n"
+    },
+    {
+      "file": "runnable/letrec_local_shadow.ail",
+      "status": "passed",
+      "duration": 9306100334,
+      "output": "sumTo(4) = 10\ncountUp(1000000) = 3000000\nwalkAll = [100, 101, 103]\nnestedRec(4) = 10\n"
+    },
+    {
+      "file": "runnable/letrec_recursion.ail",
+      "status": "passed",
+      "duration": 197314709,
+      "output": "=== Letrec Recursive Lambdas ===\nfactorial(5) = 120\nFibonacci(10) = 55\nsumTo(10) = 55\ncountdown(7) = 0\n"
+    },
+    {
+      "file": "runnable/list_extremes.ail",
+      "status": "passed",
+      "duration": 190335875,
+      "output": "=== Testing maximumInt/minimumInt ===\nmaximumInt([3, 1, 4, 1, 5]) = Some(5)\nminimumInt([3, 1, 4, 1, 5]) = Some(1)\nmaximumInt([]) = None\nminimumInt([]) = None\nmaximumInt([42]) = Some(42)\nmaximumInt([-5, -2, -8]) = Some(-2)\nminimumInt([-5, -2, -8]) = Some(-8)\n\n=== Testing maximumFloat/minimumFloat ===\nmaximumFloat([1.5, 2.5, 0.5]) = Some(2.5)\nminimumFloat([1.5, 2.5, 0.5]) = Some(0.5)\n\n=== Testing maximumString/minimumString ===\nmaximumString([\"apple\", \"cherry\", \"banana\"]) = Some(\"cherry\")\nminimumString([\"apple\", \"cherry\", \"banana\"]) = Some(\"apple\")\n\nAll tests passed!\n"
+    },
+    {
+      "file": "runnable/list_helpers.ail",
+      "status": "passed",
+      "duration": 205965208,
+      "output": "=== nth function ===\nnth(nums, 0) = 10\nnth(nums, 2) = 30\nnth(nums, 10) = None (out of bounds)\nnth(nums, -1) = None (negative index)\n\n=== last function ===\nlast(nums) = 50\nlast([]) = None (empty list)\n\n=== any function ===\nany(isEven, nums) = true\nany(isNegative, nums) = false\nany(\u003e45, nums) = true\n\n=== findIndex function ===\nfindIndex(\u003e25, nums) = 2\nfindIndex(\u003e100, nums) = None (not found)\n"
+    },
+    {
+      "file": "runnable/list_pattern_cons.ail",
+      "status": "passed",
+      "duration": 179212667,
+      "output": "=== List Pattern Matching with :: (cons) ===\n\nsum([1, 2, 3, 4, 5]) = 15\nlength([1, 2, 3, 4, 5]) = 5\n\ndescribe([]) = empty list\ndescribe([42]) = singleton: 42\ndescribe([1, 2]) = pair: 1, 2\ndescribe([1, 2, 3]) = list starting with 1\n\nsecondElement([1, 2, 3]) = 2\nsecondElement([1]) = 0\n\nfirstKey([(\"a\", 1), ...]) = a\nfirstValue([(\"a\", 1), ...]) = 1\n"
+    },
+    {
+      "file": "runnable/list_pattern_records.ail",
+      "status": "passed",
+      "duration": 99284000
+    },
+    {
+      "file": "runnable/list_patterns.ail",
+      "status": "passed",
+      "duration": 93617417,
+      "output": "LEN=3\nHEAD=10\nLAST=30\nNTH(1)=20\nANY(\u003e15)=true\nTLEN=2\n"
+    },
+    {
+      "file": "runnable/list_safe_indexing.ail",
+      "status": "passed",
+      "duration": 153419583,
+      "output": "nth_or(xs, 1)   = 20\nnth_or(xs, 9)   = 0\nnth_or(xs, -1)  = 0\nhead_or(xs)     = 10\nhead_or([])     = 0\nlast_or(xs)     = 30\n"
+    },
+    {
+      "file": "runnable/list_sum.ail",
+      "status": "passed",
+      "duration": 1446962792,
+      "output": "(15, 5)\n"
+    },
+    {
+      "file": "runnable/local_letrec_loop.ail",
+      "status": "passed",
+      "duration": 19737413709,
+      "output": "multiples of 3 up to 1000000: 166666833333\n1..1000000: 500000 odd numbers, sum 250000000000\n"
+    },
+    {
+      "file": "runnable/mapAccumL_running_total.ail",
+      "status": "passed",
+      "duration": 35900792,
+      "output": "3,4,8,9,14,23,25,31\n3,4,5,9,6\n"
+    },
+    {
+      "file": "runnable/map_basic.ail",
+      "status": "passed",
+      "duration": 40878042,
+      "output": "red = #FF0000\nhas green? true\nmap size: 3\nafter insert, size: 4\nafter remove red, size: 3\n"
+    },
+    {
+      "file": "runnable/map_strict_parity.ail",
+      "status": "passed",
+      "duration": 37973458,
+      "output": "true\n"
+    },
+    {
+      "file": "runnable/map_tuple_record_keys.ail",
+      "status": "passed",
+      "duration": 41939667,
+      "output": "tuple key (1, 1): Some(2)\nmissing (5, 5): false\nkeys: [(0, 0), (0, 1), (1, 1)]\nrecord key: Some(lead)\nADT keys: [(Blue, 3), (Green, 2), (Red, 1)]\n"
+    },
+    {
+      "file": "runnable/match_arm_block.ail",
+      "status": "passed",
+      "duration": 26726167,
+      "output": "3\n"
+    },
+    {
+      "file": "runnable/match_arm_block_io.ail",
+      "status": "passed",
+      "duration": 27970041,
+      "output": "Before\nDone\n"
+    },
+    {
+      "file": "runnable/match_in_block.ail",
+      "status": "passed",
+      "duration": 27912125,
+      "output": "5\n"
+    },
+    {
+      "file": "runnable/math_trig.ail",
+      "status": "passed",
+      "duration": 85149167,
+      "output": "=== Mathematical Constants ===\nPI = 3.141592653589793\nE  = 2.718281828459045\n\n=== Trigonometric Functions ===\nsin(PI/4) = 0.7071067811865475\ncos(PI/4) = 0.7071067811865476\ntan(PI/4) = 1.0\n\n=== Point on Circle ===\nx = 10*cos(PI/4) = 7.0710678118654755\ny = 10*sin(PI/4) = 7.071067811865475\n\n=== Distance Calculation ===\ndistance(0,0,3,4) = 5.0\n\n=== Angle Calculation ===\natan2(1,1) = 0.7853981633974483 radians\n\n=== Powers and Logarithms ===\npow(2,10) = 1024.0\nsqrt(2) = 1.4142135623730951\nexp(1) = 2.718281828459045\nlog(e) = 1.0\n\n=== Rounding Functions ===\nfloor(3.7) = 3.0\nceil(3.2) = 4.0\nround(3.5) = 4.0\n\n=== Absolute Value ===\nabs_Float(-3.14) = 3.14\nabs_Int(-42) = 42\nDone!\n"
+    },
+    {
+      "file": "runnable/mcp_tools.ail",
+      "status": "skipped",
+      "error": "quarantined: getString now returns Option[string], example compares to bare string (separate from #386) — https://github.com/sunholo-data/ailang/issues/386",
+      "duration": 458
+    },
+    {
+      "file": "runnable/micro_block_if.ail",
+      "status": "passed",
+      "duration": 26585125,
+      "output": "true branch\n1\n"
+    },
+    {
+      "file": "runnable/micro_block_seq.ail",
+      "status": "passed",
+      "duration": 27345875,
+      "output": "first\nsecond\n42\n"
+    },
+    {
+      "file": "runnable/micro_io_echo.ail",
+      "status": "passed",
+      "duration": 30509458,
+      "output": "Hello from AILANG!\n"
+    },
+    {
+      "file": "runnable/micro_option_map.ail",
+      "status": "passed",
+      "duration": 27728833,
+      "output": "42\n"
+    },
+    {
+      "file": "runnable/micro_record_person.ail",
+      "status": "passed",
+      "duration": 27526958,
+      "output": "Alice\nBob\n"
+    },
+    {
+      "file": "runnable/module_let_helpers.ail",
+      "status": "passed",
+      "duration": 27189792,
+      "output": "25\n"
+    },
+    {
+      "file": "runnable/nested_match_minimal.ail",
+      "status": "passed",
+      "duration": 26978334,
+      "output": "7\n"
+    },
+    {
+      "file": "runnable/nested_match_simple.ail",
+      "status": "passed",
+      "duration": 29121083,
+      "output": "Simple nested: 6\nState threading: 25\n"
+    },
+    {
+      "file": "runnable/nested_patterns.ail",
+      "status": "passed",
+      "duration": 39850583,
+      "output": "secondOr [1,2,3] = 2\nbinding x\ndescending 5,2\npair 1,2\nword hello\nother\nend\nfirstSome = 4\n"
+    },
+    {
+      "file": "runnable/net_scope_public.ail",
+      "status": "passed",
+      "duration": 41101334,
+      "output": "metadata: refused\nloopback: refused\n"
+    },
+    {
+      "file": "runnable/no_loops_filter_map.ail",
+      "status": "passed",
+      "duration": 30087584
+    },
+    {
+      "file": "runnable/no_loops_fold.ail",
+      "status": "passed",
+      "duration": 29378083
+    },
+    {
+      "file": "runnable/no_loops_recursion.ail",
+      "status": "passed",
+      "duration": 26718083,
+      "output": "(55, [0, 1, 2, 3, 4], [2])\n"
+    },
+    {
+      "file": "runnable/option_demo.ail",
+      "status": "passed",
+      "duration": 26910792,
+      "output": "183\n"
+    },
+    {
+      "file": "runnable/parser_block_trailing_record.ail",
+      "status": "passed",
+      "duration": 25719625,
+      "output": "then-branch effect\n0\n"
+    },
+    {
+      "file": "runnable/pattern_sugar.ail",
+      "status": "passed",
+      "duration": 53137875,
+      "output": "=== S-CONS Pattern Sugar Examples (v0.4.3) ===\n\nhead([1,2,3,4,5]) = 1\ntail([1,2,3,4,5]) = [2, 3, 4, 5]\n\nsumFirstTwo([1,2,3,4,5]) = 3\nsumThree([1,2,3,4,5]) = 6\n\ndescribe([]) = empty\ndescribe([42]) = singleton: 42\ndescribe([1,2]) = pair: 1, 2\ndescribe([1,2,3,4,5]) = many: starts with 1, 2\n\nsum([1,2,3,4,5]) = 15\nlength([1,2,3,4,5]) = 5\n\nfirstPair([(\"a\",1),...]) = (a, 1)\n\n✓ All examples complete!\n"
+    },
+    {
+      "file": "runnable/patterns.ail",
+      "status": "passed",
+      "duration": 24575166,
+      "output": "3\n"
+    },
+    {
+      "file": "runnable/poly_adt_result_type.ail",
+      "status": "passed",
+      "duration": 35129000,
+      "output": "Testing polymorphic ADT Result type:\n\ngetOk() returned: Ok\ngetErr() returned: Err(something went wrong)\ndivide(10, 2) returned: Ok\ndivide(10, 0) returned: Err(division by zero)\n"
+    },
+    {
+      "file": "runnable/polymorphic_adt.ail",
+      "status": "passed",
+      "duration": 53379166,
+      "output": "Parse '42': Ok(42)\nParse 'not a number': Err(Invalid integer: not a number)\nDouble valid: Ok(84)\nChain valid: Ok(420)\nInvalid or default: -1\nOption to Result: Ok(100)\nEither Left: left, Right: right\n"
+    },
+    {
+      "file": "runnable/polymorphic_comparison_simple.ail",
+      "status": "passed",
+      "duration": 24616500,
+      "output": "{float: 3.14, int: 42, string: world}\n"
+    },
+    {
+      "file": "runnable/polymorphic_lambdas_phase1.ail",
+      "status": "passed",
+      "duration": 26499541,
+      "output": "{arithmetic_broken: See comments for Phase 2 status, comparison_works: {floats: {max: 3.14, min: 2.71}, ints: {max: 42, min: 17}, strings: {max: world, min: hello}}}\n"
+    },
+    {
+      "file": "runnable/process_cancel.ail",
+      "status": "passed",
+      "duration": 38724958,
+      "output": "true\n"
+    },
+    {
+      "file": "runnable/process_demo.ail",
+      "status": "passed",
+      "duration": 56071625,
+      "output": "=== Echo test ===\nstdout: hello from AILANG\n\n=== Non-zero exit ===\nexitCode: 1\n=== NotFound test ===\nnot found: nonexistent_cmd_xyz\n=== Stderr test ===\nstderr: stderr_msg\n\nDone!\n"
+    },
+    {
+      "file": "runnable/process_policy_cancel.ail",
+      "status": "passed",
+      "duration": 43562208,
+      "output": "Usage: process_policy_cancel ABSOLUTE_RUNTIME ABSOLUTE_FIXTURE_FOLDER\n"
+    },
+    {
+      "file": "runnable/process_policy_worker.ail",
+      "status": "passed",
+      "duration": 12029870708,
+      "output": "policy worker started\npolicy worker completed\n"
+    },
+    {
+      "file": "runnable/process_spawn_result.ail",
+      "status": "passed",
+      "duration": 39340834,
+      "output": "started\nworker unavailable; using fallback\nafter\n"
+    },
+    {
+      "file": "runnable/process_stdin_write.ail",
+      "status": "passed",
+      "duration": 36142458,
+      "output": "wrote line 1\nwrote line 2\nwrote line 3\n"
+    },
+    {
+      "file": "runnable/process_subcmd_allowlist.ail",
+      "status": "passed",
+      "duration": 41685417,
+      "output": "allowed: hello world\n\nran: no --process-allowlist in effect\nran: no --process-allowlist in effect\n"
+    },
+    {
+      "file": "runnable/property_differential_testing.ail",
+      "status": "passed",
+      "duration": 32488667,
+      "output": "maxSlice = 6\n"
+    },
+    {
+      "file": "runnable/record_in_match.ail",
+      "status": "passed",
+      "duration": 31741500,
+      "output": "Color: Red, Hex: #FF0000\nLocation: Home\nProcessing green...\nResult: GREEN\n"
+    },
+    {
+      "file": "runnable/record_patterns.ail",
+      "status": "passed",
+      "duration": 34220041,
+      "output": "Alice\n"
+    },
+    {
+      "file": "runnable/record_update.ail",
+      "status": "passed",
+      "duration": 27043375
+    },
+    {
+      "file": "runnable/record_width_subtyping.ail",
+      "status": "passed",
+      "duration": 44216916,
+      "output": "=== Record Width Subtyping Demo ===\n\nExact record: Alice\nOpen record (| r): Bob\nOpen record with extras: Charlie\nFull name: John Doe\nEmail: test@example.com\nFormatted: Eve (age 28)\nUser ID: 1\nProduct ID: 100\nHost: localhost\n\nAll examples passed!\n"
+    },
+    {
+      "file": "runnable/records.ail",
+      "status": "passed",
+      "duration": 29950250,
+      "output": "{age: 30, name: Alice}\n"
+    },
+    {
+      "file": "runnable/recursion_factorial.ail",
+      "status": "passed",
+      "duration": 28558417,
+      "output": "factorial(5) = 120\nfactorialTail(10, 1) = 3628800\n"
+    },
+    {
+      "file": "runnable/recursion_fibonacci.ail",
+      "status": "passed",
+      "duration": 29545084,
+      "output": "fib(10) = 55\nfibTail(10, 0, 1) = 55\n"
+    },
+    {
+      "file": "runnable/recursion_match.ail",
+      "status": "passed",
+      "duration": 45957417,
+      "output": "=== Recursion with Match Expressions ===\ncount(10) = 10\ncount(100) = 100\nsum(10) = 55\nsum(100) = 5050\nfactorial(5) = 120\nfactorial(10) = 3628800\nfib(10) = 55\nfib(15) = 610\n"
+    },
+    {
+      "file": "runnable/recursion_mutual.ail",
+      "status": "passed",
+      "duration": 32074666,
+      "output": "isEven(42) = true\nisOdd(42) = false\nisEven(17) = false\nisOdd(17) = true\n"
+    },
+    {
+      "file": "runnable/recursion_quicksort.ail",
+      "status": "passed",
+      "duration": 33128834,
+      "output": "Quicksort: [1, 1, 2, 3, 4, 5, 6, 9]\nsortBy:    [1, 1, 2, 3, 4, 5, 6, 9]\n"
+    },
+    {
+      "file": "runnable/regex_basics.ail",
+      "status": "passed",
+      "duration": 42465875,
+      "output": "true\nfalse\n[a=1, bb=22]\n[key=42, key, 42]\n1:a 2:b\n[x ,  y]\n"
+    },
+    {
+      "file": "runnable/reserved_keyword_names.ail",
+      "status": "passed",
+      "duration": 26446167,
+      "output": "10\n"
+    },
+    {
+      "file": "runnable/secrets/gated_secret.ail",
+      "status": "skipped",
+      "error": "M-SECRET-EFFECT: needs the Secret capability + 1Password op CLI + a human approval to run; type-checks clean (asserted in TestSecretExamples_IFC)",
+      "duration": 959
+    },
+    {
+      "file": "runnable/secrets/leak_attempt.ail",
+      "status": "skipped",
+      "error": "M-SECRET-EFFECT: intentionally FAILS `ailang check` to demo IFC leak prevention (asserted in TestSecretExamples_IFC)",
+      "duration": 41
+    },
+    {
+      "file": "runnable/secrets/positive_label_call.ail",
+      "status": "passed",
+      "duration": 25810625,
+      "output": "literal data\n"
+    },
+    {
+      "file": "runnable/secrets/scoped_declassify.ail",
+      "status": "passed",
+      "duration": 25285125,
+      "output": "[redacted]\n"
+    },
+    {
+      "file": "runnable/secrets/secret_demo.ail",
+      "status": "skipped",
+      "error": "M-SECRET-EFFECT: runnable demo — needs the Secret capability + 1Password op CLI to run; type-checks clean (asserted in TestSecretExamples_IFC)",
+      "duration": 917
+    },
+    {
+      "file": "runnable/secrets/sink_function_value.ail",
+      "status": "skipped",
+      "error": "M-IFC-FUNCTION-VALUE-SINKS (#1719): intentionally FAILS `ailang check` (alias/HOF/wrapper sink leaks; asserted in TestSecretExamples_IFC)",
+      "duration": 84
+    },
+    {
+      "file": "runnable/secrets/sink_function_value_ok.ail",
+      "status": "passed",
+      "duration": 34503375,
+      "output": "sent:hello\nsent:status ok\nsent:a,sent:b\nsent:[redacted]\n"
+    },
+    {
+      "file": "runnable/serve_api_mcp_app.ail",
+      "status": "passed",
+      "duration": 30123333,
+      "output": "Picker shown. Ask the user to choose a file in it.\nreceived a.docx: 8 base64 chars\n"
+    },
+    {
+      "file": "runnable/serve_api_mcp_file.ail",
+      "status": "passed",
+      "duration": 30401500,
+      "output": "AGM.pdf (application/pdf) at https://files.example/1\nno file\n"
+    },
+    {
+      "file": "runnable/serve_api_mcp_header_auth.ail",
+      "status": "passed",
+      "duration": 73096709,
+      "output": "authenticated as dp_... | authenticated as dp_... | AUTH_REQUIRED: send Authorization: Bearer \u003ckey\u003e or X-API-Key\n"
+    },
+    {
+      "file": "runnable/serve_api_mcp_hints.ail",
+      "status": "passed",
+      "duration": 31501125,
+      "output": "5\nready\nlogged\n"
+    },
+    {
+      "file": "runnable/serve_api_mcp_oauth.ail",
+      "status": "passed",
+      "duration": 31437167,
+      "output": "docx, pptx, xlsx, pdf\ntrue\n"
+    },
+    {
+      "file": "runnable/serve_api_named_params.ail",
+      "status": "passed",
+      "duration": 32909958,
+      "output": "Good day, World. | Results for: AILANG\n"
+    },
+    {
+      "file": "runnable/serve_api_response_headers.ail",
+      "status": "passed",
+      "duration": 68041792,
+      "output": "ok\n"
+    },
+    {
+      "file": "runnable/serve_api_webhook.ail",
+      "status": "passed",
+      "duration": 119622333,
+      "output": "received webhook with signature: abc123 body length: 17\n"
+    },
+    {
+      "file": "runnable/set_operations.ail",
+      "status": "passed",
+      "duration": 38547958,
+      "output": "member(3, [1,2,3]) = true\nmember(4, [1,2,3]) = false\ndedup([1,2,1,3,2]) = [1, 2, 3]\nintersect([1,2,3], [2,3,4]) = [2, 3]\nunion([1,2], [2,3]) = [1, 2, 3]\ndifference([1,2,3], [2]) = [1, 3]\n"
+    },
+    {
+      "file": "runnable/simple.ail",
+      "status": "passed",
+      "duration": 19876417,
+      "output": "10\n"
+    },
+    {
+      "file": "runnable/simple_func_match.ail",
+      "status": "passed",
+      "duration": 25131458,
+      "output": "hi\ndone\n"
+    },
+    {
+      "file": "runnable/split_argument_order.ail",
+      "status": "passed",
+      "duration": 85296583,
+      "output": "correct  split(name, \"/\") -\u003e 3 parts\nreversed split(\"/\", name) -\u003e 1 part(s)\n"
+    },
+    {
+      "file": "runnable/split_map_join.ail",
+      "status": "passed",
+      "duration": 114541916,
+      "output": "ALICE,BOB,CAROL\nALICEBOBCAROL\n"
+    },
+    {
+      "file": "runnable/splitmix64.ail",
+      "status": "passed",
+      "duration": 159579375,
+      "output": "seed 0, 1st:  -2152535657050944081\nseed 0, 2nd:  7960286522194355700\nseed 42, 1st: -4767286540954276203\n-1 \u003e\u003e 1                    = -1\nshiftRightLogical(-1, 1)   = 9223372036854775807\n0x8000000000000000         = -9223372036854775808\n0xffffffffffffffff         = -1\nALL TESTS PASSED\n"
+    },
+    {
+      "file": "runnable/std_audio_brief.ail",
+      "status": "passed",
+      "duration": 365853291,
+      "output": "pcm bytes: 48000\nwav bytes: 48044\nduration: 1000 ms\nogg magic: OggS\nogg smaller than wav: true\nrejected: audio.encode: rate 44100 Hz is not supported (want 8000, 12000, 16000, 24000 or 48000; resample first)\n"
+    },
+    {
+      "file": "runnable/std_deflate_pdf_objstm.ail",
+      "status": "passed",
+      "duration": 212858667,
+      "output": "== decoded PDF /ObjStm contents ==\n\u003c\u003c /Type /Annot /Subtype /Highlight /Contents (Important paragraph) /Rect [72 720 540 740] \u003e\u003e\n\u003c\u003c /Type /Annot /Subtype /Text /Contents (Reviewer comment: needs citation) /Rect [120 600 140 620] \u003e\u003e\n\u003c\u003c /Type /Annot /Subtype /Underline /Contents (key argument) /Rect [200 540 380 555] \u003e\u003e\n"
+    },
+    {
+      "file": "runnable/stdlib_demo.ail",
+      "status": "passed",
+      "duration": 159716750,
+      "output": "Result: HELLO\n"
+    },
+    {
+      "file": "runnable/stdlib_demo_simple.ail",
+      "status": "passed",
+      "duration": 149918875,
+      "output": "Hello from AILANG stdlib!\n"
+    },
+    {
+      "file": "runnable/stdlib_embedding.ail",
+      "status": "passed",
+      "duration": 188605917,
+      "output": "cosine scores: [0.9999999999999998, 0.0, 0.9999999999999998]\nbest match: cat (score 0.9999999999999998)\nmagnitude([3,4]): 5.0\nnormalize([3,4]): [0.6, 0.8]\n"
+    },
+    {
+      "file": "runnable/stdlib_game.ail",
+      "status": "passed",
+      "duration": 106835334,
+      "output": "frame_count at start: 0\nposition after 60 frames @ dt=0.016: 95.99999999999991\n"
+    },
+    {
+      "file": "runnable/stdlib_gzip.ail",
+      "status": "passed",
+      "duration": 75027209,
+      "output": "original bytes: 55\nround-trip lossless: true\n"
+    },
+    {
+      "file": "runnable/stdlib_sharedindex.ail",
+      "status": "passed",
+      "duration": 86975750,
+      "output": "namespaces: [docs]\nentry count: 3\nquery hits: 3\n"
+    },
+    {
+      "file": "runnable/stdlib_simhash.ail",
+      "status": "passed",
+      "duration": 71606375,
+      "output": "edit vs base: somewhat similar\nother vs base: different\ndist(base, edit) = 4\ndist(base, other) = 35\n"
+    },
+    {
+      "file": "runnable/stdlib_smoke.ail",
+      "status": "passed",
+      "duration": 105010958,
+      "output": "  -\u003e exercised search\nOK: tool search dispatched without crash\n  -\u003e exercised fetch\nOK: tool fetch dispatched without crash\n  -\u003e exercised summarize\nOK: tool summarize dispatched without crash\n  -\u003e exercised healthcheck\nOK: tool healthcheck dispatched without crash\nOK: demo_package smoke complete\n"
+    },
+    {
+      "file": "runnable/stream_multi_source.ail",
+      "status": "passed",
+      "duration": 94679708,
+      "output": "done\n"
+    },
+    {
+      "file": "runnable/stream_process_cancel.ail",
+      "status": "passed",
+      "duration": 125434958,
+      "output": "true\n"
+    },
+    {
+      "file": "runnable/stream_process_source.ail",
+      "status": "passed",
+      "duration": 111739333,
+      "output": "[echo] hello from subprocess\n\ndone\n"
+    },
+    {
+      "file": "runnable/stream_sse.ail",
+      "status": "passed",
+      "duration": 164748291,
+      "output": "connection failed\n"
+    },
+    {
+      "file": "runnable/stream_websocket.ail",
+      "status": "passed",
+      "duration": 113070167,
+      "output": "connection failed\n"
+    },
+    {
+      "file": "runnable/string_chars.ail",
+      "status": "passed",
+      "duration": 108427916,
+      "output": "=== chars() Examples ===\n\nBasic usage:\n  chars(\"hello\") = [h, e, l, l, o]\n  chars(\"abc\") = [a, b, c]\n\nUnicode handling:\n  chars(\"cafe\") = [c, a, f, e]\n  charCount(\"hello\") = 5\n\nCharacter processing:\n  countVowels(\"hello\") = 2\n  countVowels(\"aeiou\") = 5\n\nPalindrome check:\n  isPalindrome(\"racecar\") = true\n  isPalindrome(\"hello\") = false\n\nFirst/last character:\n  firstChar(\"hello\") = h\n  lastChar(\"hello\") = o\n  firstChar(\"\") = \n"
+    },
+    {
+      "file": "runnable/string_contains.ail",
+      "status": "passed",
+      "duration": 67388208,
+      "output": "Text: Hello, AILANG world!\nContains 'AILANG': true\nContains 'Python': false\nIndex of 'world': 14\nIndex of 'missing': -1\n"
+    },
+    {
+      "file": "runnable/string_format_fixed.ail",
+      "status": "passed",
+      "duration": 51428208,
+      "output": "42.00\n0.12\n0.10000000000000000555\nfalse\n"
+    },
+    {
+      "file": "runnable/string_interp_nested.ail",
+      "status": "passed",
+      "duration": 55343000,
+      "output": "The number 42 is positive.\nPoint: 42.\nSquare: 1764.\n=== Report ===\nValue: 42\n---\n"
+    },
+    {
+      "file": "runnable/string_interpolation.ail",
+      "status": "passed",
+      "duration": 41201584,
+      "output": "Hello, Alice!\nAlice is 30 years old (approx. 3.14 decades).\nNext year Alice will be 31.\n(this line has no interpolation)\nUse ${var} syntax to interpolate values.\n"
+    },
+    {
+      "file": "runnable/string_parsing.ail",
+      "status": "passed",
+      "duration": 83923208,
+      "output": "=== String Parsing Examples (M-DX10) ===\n\nInteger parsing:\n✓ stringToInt(\"42\") = Some(42)\n✓ stringToInt(\"abc\") = None (expected)\n\nFloat parsing:\n✓ stringToFloat(\"3.14\") = Some(3.14)\n✓ stringToFloat(\"not-a-number\") = None (expected)\n\nOption helpers:\n✓ getOrElse with default: 99\n\nValidation:\n✓ Valid age: 25\n✓ Negative age rejected (expected)\n"
+    },
+    {
+      "file": "runnable/string_repeat.ail",
+      "status": "passed",
+      "duration": 104758542,
+      "output": "Testing repeat:\nxxx\nabab\nEdge cases:\n\nx\n\n\n+--------------------+\nAll tests passed!\n"
+    },
+    {
+      "file": "runnable/string_split.ail",
+      "status": "passed",
+      "duration": 70902250,
+      "output": "CSV fields:\nAlice\n30\nEngineer\nLines:\nline1\nline2\nline3\nCharacters:\nh\ne\nl\nl\no\n"
+    },
+    {
+      "file": "runnable/structured_ai_basic.ail",
+      "status": "passed",
+      "duration": 162957542,
+      "output": "Raw AI response: {\"kind\":\"Wait\"}\nJSON string: {\"kind\":\"Wait\"}\nParsed valid JSON!\n"
+    },
+    {
+      "file": "runnable/structured_ai_schema.ail",
+      "status": "passed",
+      "duration": 155092792,
+      "output": "Schema-enforced JSON: {\"kind\":\"Wait\"}\nValid JSON received from provider\n"
+    },
+    {
+      "file": "runnable/syntax_ai_forgiving.ail",
+      "status": "passed",
+      "duration": 138995167,
+      "output": "small\nbig\nbig\n"
+    },
+    {
+      "file": "runnable/tail_recursion_loop.ail",
+      "status": "passed",
+      "duration": 1918777875,
+      "output": "sum 1..100000 = 5000050000\nisEven(50001) = false\n"
+    },
+    {
+      "file": "runnable/tar_gzip_reader.ail",
+      "status": "passed",
+      "duration": 99229875,
+      "output": "== readFromGzip(paper.tar.gz, main.tex) ==\nread failed: cannot open: open /tmp/tar_smoke/paper.tar.gz: no such file or directory\n\n== extractAll(evil.tar) — expect rejection ==\ntarbomb blocked: cannot open: open /tmp/tar_smoke/evil.tar: no such file or directory\n0\n"
+    },
+    {
+      "file": "runnable/terminal_info.ail",
+      "status": "passed",
+      "duration": 73092583,
+      "output": "{input_tty: false, output_tty: false, raw_supported: false, size: None}\n"
+    },
+    {
+      "file": "runnable/terminal_keys.ail",
+      "status": "passed",
+      "duration": 45000750,
+      "output": "NotTTY(configured input is not a terminal)\n"
+    },
+    {
+      "file": "runnable/terminal_line_input.ail",
+      "status": "passed",
+      "duration": 37583750,
+      "output": "EOF\n"
+    },
+    {
+      "file": "runnable/test_cli_io.ail",
+      "status": "passed",
+      "duration": 36508459,
+      "output": "Hello from AILANG!\n"
+    },
+    {
+      "file": "runnable/test_fizzbuzz.ail",
+      "status": "passed",
+      "duration": 38582708,
+      "output": "1\nFizz\nBuzz\nFizzBuzz\n"
+    },
+    {
+      "file": "runnable/test_guard_bool.ail",
+      "status": "passed",
+      "duration": 26901083,
+      "output": "matched with guard\n"
+    },
+    {
+      "file": "runnable/test_import_func.ail",
+      "status": "passed",
+      "duration": 42238375,
+      "output": "42\n"
+    },
+    {
+      "file": "runnable/test_io_builtins.ail",
+      "status": "passed",
+      "duration": 41381958,
+      "output": "Hello from AILANG with builtins!\n"
+    },
+    {
+      "file": "runnable/test_module_minimal.ail",
+      "status": "passed",
+      "duration": 58156417,
+      "output": "hello\n"
+    },
+    {
+      "file": "runnable/type_classes.ail",
+      "status": "passed",
+      "duration": 83875917,
+      "output": "Type classes: Int=15 Float=6.0\n"
+    },
+    {
+      "file": "runnable/type_inference.ail",
+      "status": "passed",
+      "duration": 92053333,
+      "output": "Type inference: 42\n"
+    },
+    {
+      "file": "runnable/type_inference_regression.ail",
+      "status": "passed",
+      "duration": 157337292
+    },
+    {
+      "file": "runnable/typeclasses.ail",
+      "status": "passed",
+      "duration": 176459458,
+      "output": "7\n"
+    },
+    {
+      "file": "runnable/url_encode.ail",
+      "status": "passed",
+      "duration": 179248583,
+      "output": "urlEncode:     a%2Fb%3Dc%2Bd%26e%20f\nurlEncodeForm: client_id=linkedin_id\u0026client_secret=secret%2Fwith%2Bunsafe%3Dchars\u0026code=ABC%3D123%2Fxyz\u0026grant_type=authorization_code\u0026redirect_uri=https%3A%2F%2Fexample.com%2Fcb\n"
+    },
+    {
+      "file": "runnable/uuid.ail",
+      "status": "passed",
+      "duration": 159001625,
+      "output": "UUID 1: c5ffaa38-18e8-42b8-b7d6-28e1b82b0d72\nUUID 2: 03e244f1-e2a3-47ff-992f-8e1a5af01260\nEach call produces a unique RFC 4122 v4 UUID\n"
+    },
+    {
+      "file": "runnable/values_basic.ail",
+      "status": "passed",
+      "duration": 137819125,
+      "output": "Welcome to AILANG v0.6\n"
+    },
+    {
+      "file": "runnable/visited_set_bfs.ail",
+      "status": "passed",
+      "duration": 136094875,
+      "output": "shortest path (0,0) -\u003e (4,6): 10\ngoal is a wall: -1\n"
+    },
+    {
+      "file": "runnable/vm_strict_pure_builtins.ail",
+      "status": "passed",
+      "duration": 203592875,
+      "output": "[(5, a), (4, b)] true abab aGk= 6\n"
+    },
+    {
+      "file": "runnable/web_search.ail",
+      "status": "skipped",
+      "error": "M-DANEEL-AILANG-EXECUTOR M2: std/web needs OLLAMA_API_KEY + the network; type-checks clean (asserted in TestWebSearchExample_TypeChecks)",
+      "duration": 1000
+    },
+    {
+      "file": "runnable/xml_build.ail",
+      "status": "passed",
+      "duration": 98599041,
+      "output": "\u003croot\u003e\u003c!-- Generated by AILANG --\u003e\u003cgreeting lang=\"en\"\u003eHello, World!\u003c/greeting\u003e\u003citems\u003e\u003citem id=\"1\"\u003eFirst\u003c/item\u003e\u003citem id=\"2\"\u003eSecond\u003c/item\u003e\u003c/items\u003e\u003c/root\u003e\n"
+    },
+    {
+      "file": "runnable/xml_escape.ail",
+      "status": "passed",
+      "duration": 98282458,
+      "output": "\u0026lt;script\u0026gt;alert(\u0026#39;xss\u0026#39;)\u0026lt;/script\u0026gt;\nx=1\u0026amp;y=2\nHello, world!\n"
+    },
+    {
+      "file": "runnable/xml_fold.ail",
+      "status": "passed",
+      "duration": 104125500,
+      "output": "Book count: 3\nTitles: [AILANG Guide, Functional Design, AI Patterns]\n0\n"
+    },
+    {
+      "file": "runnable/xml_lenient.ail",
+      "status": "passed",
+      "duration": 107025167,
+      "output": "strict: rejected (as expected)\nlenient: Apex Consulting \u0026 Partners\nsanitized: R\u0026amp;D a=1\u0026amp;b=2 \u0026amp; \u0026#123;\n"
+    },
+    {
+      "file": "runnable/xml_parser.ail",
+      "status": "passed",
+      "duration": 136192208,
+      "output": "Found books:\nAILANG Guide\ncatalog\n0\n"
+    },
+    {
+      "file": "runnable/xml_space_preserve.ail",
+      "status": "passed",
+      "duration": 148373916,
+      "output": "docx: plain bold italic\npretty: xy\nbare:   \ninherited:  \noverridden: \ngetAttr: Some(preserve) children=1\nserialize: \u003cr\u003e\u003ct xml:space=\"preserve\"\u003e \u003c/t\u003e\u003c/r\u003e\n"
+    },
+    {
+      "file": "runnable/xml_walk_perf.ail",
+      "status": "passed",
+      "duration": 751647959,
+      "output": "input_bytes=152015\nclassic: count=20000 time_ms=108\nfold:    count=20000 time_ms=124\nagreement: counts match (20000)\n"
+    },
+    {
+      "file": "runnable/xml_zip_roundtrip.ail",
+      "status": "passed",
+      "duration": 158964667,
+      "output": "Serialized: \u003ccatalog\u003e\u003cbook id=\"1\"\u003e\u003ctitle\u003eAILANG Guide\u003c/title\u003e\u003c/book\u003e\u003cbook id=\"2\"\u003e\u003ctitle\u003eFP\u003c/title\u003e\u003c/book\u003e\u003c/catalog\u003e\nWith decl: \u003c?xml version=\"1.0\" encoding=\"UTF-8\"?\u003e\u003ccatalog\u003e\u003cbook id=\"1\"\u003e\u003ctitle\u003eAILANG Guide\u003c/title\u003e\u003c/book\u003e\u003cbook id=\"2\"\u003e\u003ctitle\u003eFP\u003c/title\u003e\u003c/book\u003e\u003c/catalog\u003e\nRoundtrip match: true\nZIP created\nEntries: [catalog.xml, README.txt]\nContent matches: true\n"
+    },
+    {
+      "file": "runnable/yaml_config.ail",
+      "status": "passed",
+      "duration": 153400042,
+      "output": "title: Fysik A\nyear: 2026\n"
+    },
+    {
+      "file": "runnable/yaml_roundtrip.ail",
+      "status": "passed",
+      "duration": 164719000,
+      "output": "\"title\": \"Fysik A\"\n\"year\": 2027\n"
+    },
+    {
+      "file": "runnable/zip_build_in_memory.ail",
+      "status": "passed",
+      "duration": 133912333,
+      "output": "docx bytes: 323\nmixed bytes: 315\nempty bytes: 22\ntraversal: entry 0: path traversal rejected: ../escape.txt\n"
+    },
+    {
+      "file": "runnable/zip_reader.ail",
+      "status": "passed",
+      "duration": 107514042,
+      "output": "cannot open ZIP: open test.docx: no such file or directory\n1\n"
+    },
+    {
+      "file": "runnable/zip_xml_fold.ail",
+      "status": "passed",
+      "duration": 1516792125,
+      "output": "Shared strings: [Hello, World, AILANG]\nCount: 3\n0\n"
+    }
+  ]
+}

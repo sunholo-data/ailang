@@ -1,0 +1,44 @@
+[
+  {
+    "path": "internal/pkg/publish_rewrite.go",
+    "base_blob": "738b2e4ba536e5a0d0b7d03a88633087555c024d",
+    "final_blob": "738b2e4ba536e5a0d0b7d03a88633087555c024d",
+    "unchanged": true
+  },
+  {
+    "path": "internal/pkg/publish_rewrite_test.go",
+    "base_blob": "83498e385aeb135a0113c1c3aff81b289e00f31c",
+    "final_blob": "83498e385aeb135a0113c1c3aff81b289e00f31c",
+    "unchanged": true
+  },
+  {
+    "path": "internal/pkg/authority.go",
+    "base_blob": "f55c31d82ac28567536ab5e38f800dd175c87f54",
+    "final_blob": "f55c31d82ac28567536ab5e38f800dd175c87f54",
+    "unchanged": true
+  },
+  {
+    "path": "cmd/ailang/pkg_smoke_staging_test.go",
+    "base_blob": "79e52f06b49d8cd671a59152ad5bad29fa29adcd",
+    "final_blob": "79e52f06b49d8cd671a59152ad5bad29fa29adcd",
+    "unchanged": true
+  },
+  {
+    "path": "internal/pkg/publish_stage_test.go",
+    "base_blob": "6edc82c3d872f47292b32565f144cd7688a4d411",
+    "final_blob": "6edc82c3d872f47292b32565f144cd7688a4d411",
+    "unchanged": true
+  },
+  {
+    "path": "internal/pkg/publish_stage_git_test.go",
+    "base_blob": "158785740c1abd0b2837d05f90e62457c302daca",
+    "final_blob": "158785740c1abd0b2837d05f90e62457c302daca",
+    "unchanged": true
+  },
+  {
+    "path": "internal/pkg/publish_output_test.go",
+    "base_blob": "374024022e2f69271931cd26a6b1f1325b723548",
+    "final_blob": "374024022e2f69271931cd26a6b1f1325b723548",
+    "unchanged": true
+  }
+]

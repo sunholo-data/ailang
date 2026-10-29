@@ -1,0 +1,667 @@
+{
+  "scope": "Packaging verification only; no product acceptance or evaluation verdict",
+  "entries_verified": 94,
+  "all_staged_original_bytes_equal": true,
+  "external_raw_log_refs_verified": 5,
+  "corpus_repeat_compression_byte_identical": true,
+  "checks": [
+    {
+      "logical_name": "m0/execution/final-cli-raw.json",
+      "original_bytes": 165011,
+      "original_sha256": "890a4c120e182947d07a43097a86779d62e7319ae62fb6e95ceceea02f18dcd5",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/final-cli-identity.json",
+      "original_bytes": 1753,
+      "original_sha256": "abda54d165f19acffce0c37b6e26fae6abaa8a9d18126954cba110f5f8246ff0",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/corpus-final-raw.json",
+      "original_bytes": 8634077,
+      "original_sha256": "4bb89da9fb147b2d7c9d9ceb02c69d041ad14e3274e5bd701570aed6d2416315",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": true
+    },
+    {
+      "logical_name": "m0/execution/corpus-final-summary.json",
+      "original_bytes": 378245,
+      "original_sha256": "5101a4761a811846313515e780e41445ebff69d1b953fc412bca56255aaaa77c",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/corpus-source-manifest.json",
+      "original_bytes": 326625,
+      "original_sha256": "4c56d1b144d131bc7b995b9cc8c0da0c138b04fd83ff403c9d1702e4618916a7",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/mutation-final60-results.json",
+      "original_bytes": 20542,
+      "original_sha256": "8f7f6284d775eca6f2c507cd3ae37eead92e308710d570088c027b0452dd3b14",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/test-changed.log",
+      "original_bytes": 1392,
+      "original_sha256": "94b5fbe568b162c989584254eec99cae1c130bb350a1f53c53eee79f7094e4a5",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/test-changed-final60.log",
+      "original_bytes": 1392,
+      "original_sha256": "7d349350f0005aef38a8515c9a6440272bd7316169ca142699fd2d26f12a367b",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/structure.log",
+      "original_bytes": 443,
+      "original_sha256": "5dd01faf6bb44910a528676ba7a079f67459e7f9ea03c24b32dc7c023cd05ce1",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/structure-final60.log",
+      "original_bytes": 443,
+      "original_sha256": "5dd01faf6bb44910a528676ba7a079f67459e7f9ea03c24b32dc7c023cd05ce1",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/verify-examples.log",
+      "original_bytes": 62846,
+      "original_sha256": "122f0ea9118d785cfd116c0eb5a172ae35f2a215c9c9e467e9ca9edabe2c6bae",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/manifest.log",
+      "original_bytes": 1888,
+      "original_sha256": "c75d5f44f7d536b71b6867be6a46a909a20ced941d1660b706c1544ad35c2b0d",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/verify-stdlib.log",
+      "original_bytes": 2068,
+      "original_sha256": "29d1d08ca5443d5435b86c3f2330da9c79b1d5a994cae26ccf3ee103c0441cf3",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/M5-nested-source-red.json",
+      "original_bytes": 6064,
+      "original_sha256": "0e94879dd544a6e2d5ae0f8476e5d491b6f50e7f2a50ab8c3775fe851ec9bfdc",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/M5-nested-core-red.log",
+      "original_bytes": 665,
+      "original_sha256": "9b1ee40007d3747aeffd7fd4ea2940180a89d2a1e7595ce98c8dfb5ed87f3bdd",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/M6-dead-match-source-red.json",
+      "original_bytes": 16525,
+      "original_sha256": "14552243444633a0418430d6fa2aebc694e4d38edb063fad8b2b60b55424265d",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution/M6-dead-match-source-green.log",
+      "original_bytes": 55,
+      "original_sha256": "9a9a4057be80b0ec945511f24cd840ab7fc61b11022a8c07f575904417775cde",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/provenance/original-implementation-evidence.json",
+      "original_bytes": 241949,
+      "original_sha256": "c1c437d5f8f90cffe27121a28cf4bf7e206885a8986c0ca8de83f90494488a2f",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution-extra/M1-green.log",
+      "original_bytes": 57,
+      "original_sha256": "3c8761e1c7362011ae00b6dfe9cdc2698c814d25c1f52ed797e5b23ce65f18fa",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution-extra/M1-binder-collision.log",
+      "original_bytes": 56,
+      "original_sha256": "8533829e595abaea39b2bcb79aae715a16fd821f53fdae4945ba03f3b736e7fe",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution-extra/M2-red.log",
+      "original_bytes": 370,
+      "original_sha256": "90058c6ee8c9f196c9a0dbee271d32fa55d97c87a7be978d70ca145d4ae86496",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution-extra/M2-green.log",
+      "original_bytes": 541,
+      "original_sha256": "1550c8fd08ee5c3046ee4bdbad33da415d7a6952b289c0349006ac47b2c43c41",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution-extra/M3-red.log",
+      "original_bytes": 738,
+      "original_sha256": "7f806fe302839d2db728c723d4c967397de998d4b4bfb041fa805e325d86bb86",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution-extra/M3-green.log",
+      "original_bytes": 56,
+      "original_sha256": "8c564f740fa3319a7509ee91561d56df9496819c43a977b334e02936dcf43ceb",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution-extra/M4-capture-red.log",
+      "original_bytes": 506,
+      "original_sha256": "21688f2e086f11733ec45a4077065428d82dafbf87db4e578b045b47f4fddddd",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution-extra/M4-quantifier-red.log",
+      "original_bytes": 435,
+      "original_sha256": "7f6fd63f25d3020e9f6c9435f8197b0ae8d9093f3ce12ae3a3793b1299a08183",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution-extra/M5-nested-quantifier-green.log",
+      "original_bytes": 56,
+      "original_sha256": "753bc30a07c8f220449cedec63dc561d975d0264d0305b382eb71bc7e2eee1a0",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution-extra/M5-repair-green.log",
+      "original_bytes": 56,
+      "original_sha256": "8644e0e14dfce131c013f6cefaff7447a412122e18c7f4647eef72e231c73a1e",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/execution-extra/M6-helper-interleaved.log",
+      "original_bytes": 55,
+      "original_sha256": "04c5ae33f8cc61adfd6c128b36ebae9446da419339c1974ec446a68e7684a839",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/coverage/control-lines.json",
+      "original_bytes": 29220,
+      "original_sha256": "755b179f0f108156dbc8e01ca0760a33c76b71fe620570059dc2d499a5732397",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/coverage/coverage-projection.json",
+      "original_bytes": 777,
+      "original_sha256": "ad65c52b438cf65763af24c907f6f82d1993ea8f323d99d685a918faf10ab4d9",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/coverage/coverage.out",
+      "original_bytes": 223604,
+      "original_sha256": "fbaada6e375cbaad275b0a057715deab3f2d51a202bdc5b534a68568e865504f",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/coverage/focused-coverage.log",
+      "original_bytes": 87,
+      "original_sha256": "bda921e80681e8499e84c156c07cb56eac07cd69b78deaf729702d8fe2d6469f",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/coverage/handoff.json",
+      "original_bytes": 907,
+      "original_sha256": "e3600f0ec0103aab827c55bf31f7998ce2fbcca70c1d12114577b28f0f34b633",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/coverage/lint.log",
+      "original_bytes": 10,
+      "original_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/coverage/new-behavior.log",
+      "original_bytes": 940,
+      "original_sha256": "ff1e77d788bb6f2109ecc20689a8988f790487829f26fa2345c59e22ae348976",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/coverage/structure.log",
+      "original_bytes": 152,
+      "original_sha256": "d411cb5b4f6db6b9429f381057dcbee7a5b69e24ca44924e152d3e20da148387",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/coverage/xmod-lines.json",
+      "original_bytes": 91389,
+      "original_sha256": "bb64f703857ac0d6a4d3f2b87faac489349aa5009b0b5624e44e0734877aef00",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/coverage/coverage-projection.json",
+      "original_bytes": 441,
+      "original_sha256": "02d90ee1ad6404201eeab645f6563fa425f3c9daefcc54796ed20be453f12d0c",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/coverage/coverage.out",
+      "original_bytes": 118670,
+      "original_sha256": "64fcbb15f6ec06f93d83af39a68dd4d87c689fb48e440389736314b5bc72e81f",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/coverage/focused-coverage.log",
+      "original_bytes": 3843,
+      "original_sha256": "c4be3fadeb213f826d016c5b013a13c1e2d27200a161a49981423d84531c67f1",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/coverage/handoff.json",
+      "original_bytes": 947,
+      "original_sha256": "7a68923f7787fe551ba0c7c77650310d49cddc058c21297e17f6ccee1cb23273",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/coverage/lint.log",
+      "original_bytes": 10,
+      "original_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/coverage/structure.log",
+      "original_bytes": 152,
+      "original_sha256": "d411cb5b4f6db6b9429f381057dcbee7a5b69e24ca44924e152d3e20da148387",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/source-identity-60.json",
+      "original_bytes": 4062,
+      "original_sha256": "792c7c0968c3f2d5bfb0a3efb4a0541d57c0cf862128c5797964a7189326effe",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/evidence-preflight.json",
+      "original_bytes": 1855,
+      "original_sha256": "0def046d23071961c7b88b8ecf78889f291487879b4bb9bae075fa91e22d1e63",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/coverage-repair-independent-preflight.json",
+      "original_bytes": 1843,
+      "original_sha256": "4136dbe2d539f6b77278d20c763cadd1f9b1be604a5c6f668662d7c1db7ffb95",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/acceptance-matrix-preflight.json",
+      "original_bytes": 8429,
+      "original_sha256": "18cbe39e26a58755129590bbccfef506243ae9cb2a003a9780086da2a6fdbe88",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/retry-ledger.json",
+      "original_bytes": 565,
+      "original_sha256": "a35f6f0143e5dcfdf833c19f4367490b0e5e851d7c5ce2eef94cd4d6836a6c4c",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/round1-sonar-corrigendum.json",
+      "original_bytes": 987,
+      "original_sha256": "9c41d517624520ef630e9ae9f40a5df00e2dec0e3d1f7312d56b1c0e8c254ca6",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/round1-sonar-corrigendum.md",
+      "original_bytes": 660,
+      "original_sha256": "d902d84fd8030f9943b0efde2b8d850cbd08d5ab98ce155d0db0679085ee1c53",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/sonar-qualitygate.json",
+      "original_bytes": 866,
+      "original_sha256": "612adbc345661d72c540d832088f543635b43e50c39c3a1dbb15002055ee9941",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/sonar-coverage-files.json",
+      "original_bytes": 8398,
+      "original_sha256": "e195a041f8812b881ce65679081777be116fbe96b32fa0943933281aa85d923b",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/test-4fb-failure-classification.json",
+      "original_bytes": 22127,
+      "original_sha256": "e8e97523c8d37fbf44a26dbcb3a459d8f9431bd02fa417104125ea5f50875b06",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/checks-failure-job.json",
+      "original_bytes": 12930,
+      "original_sha256": "22873054301f8c4e8068b8a26b6c5dd2e3a27e137d26a281a835aa2bb2536958",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/eval_M-SMT-PREFLIGHT-M0-REPAIR_round_1.json",
+      "original_bytes": 2885,
+      "original_sha256": "002dc948745b68614e11b9e3bad7d1a244309fa97f5714db267e54c8df16ba12",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/eval_M-SMT-PREFLIGHT-M0-REPAIR_round_1.md",
+      "original_bytes": 1416,
+      "original_sha256": "1a2d21bee6c69f498576577625b2cf17ca94738b3b4003dbdef4667f6e57ff9f",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/eval_M-SMT-PREFLIGHT-M0-REPAIR_round_2.json",
+      "original_bytes": 24850,
+      "original_sha256": "38b053a2a15a843fdfd1de002e11798782ebbeff04da6997df0c0140efd181bc",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "m0/independent/eval_M-SMT-PREFLIGHT-M0-REPAIR_round_2.md",
+      "original_bytes": 1285,
+      "original_sha256": "112d22c08ebea954d9d391b208f0f98201ed7e6c4039f28789525dde4186d302",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M1-api-red.log",
+      "original_bytes": 878,
+      "original_sha256": "990da7ddac88ff3712f9bc03dd6d8c22e6d9638ea8bf89aef2445f4a8d6874e1",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M1-green.log",
+      "original_bytes": 190,
+      "original_sha256": "455533d60d03c49996b4f9729dd6a79e197eee943e5ce1267dc481063d57efa3",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M1-lint-retry.log",
+      "original_bytes": 10,
+      "original_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M1-lint.log",
+      "original_bytes": 118,
+      "original_sha256": "9c6b9e12b6b2a88acd31f1450579d7621d687a639b2813b947a1a2816e24d8ba",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M1-repaired-harness-green.log",
+      "original_bytes": 57,
+      "original_sha256": "c13b20a3287b0fcd1a2cc596237cddb1c9273808513d96e1d91eff65a4ebb1ce",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M1-structure.log",
+      "original_bytes": 519,
+      "original_sha256": "629c4a699702a8ea95ed23952376b1f22402dd5110511536a62561c88e3bf520",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M2-api-red.log",
+      "original_bytes": 873,
+      "original_sha256": "0154ff4badb04be730d2739678e7a960409f81811d0458b1b4dc3ebfefae0b7c",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M2-green.log",
+      "original_bytes": 111,
+      "original_sha256": "ab3063cc1fb52fc32c7a9e5369dfe897d722b18f0de0bcc086616d5584bedf14",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M2-lint.log",
+      "original_bytes": 10,
+      "original_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M3-cli-red.log",
+      "original_bytes": 1084,
+      "original_sha256": "bf64be7a52b763e6211aaf3db90b7057a05f9daba6d23fe000c743af195ea71c",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M3-green.log",
+      "original_bytes": 2410,
+      "original_sha256": "cc67f4eb9fe7b523b7317c962abba61de93868ff93fdba86ae187543e1302c25",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M3-lint.log",
+      "original_bytes": 10,
+      "original_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M3-native-green.log",
+      "original_bytes": 55,
+      "original_sha256": "88b6f7b164a2bfafa61208b0e056689e00c6bb6b93927b34241aeadf29ab5c10",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M4-child-first.log",
+      "original_bytes": 55,
+      "original_sha256": "b2eeaa05d9099aab1e5a67be909f23cf2147d7464d8297fb8e821f35985c2bc0",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M4-green.log",
+      "original_bytes": 55,
+      "original_sha256": "5bd3d436bf8b8235b0be47e79e7f9d335bd1bd239e7107ea129f1cabee85dc6b",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M4-lint.log",
+      "original_bytes": 10,
+      "original_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M4-raw-presence.log",
+      "original_bytes": 55,
+      "original_sha256": "88de763294e1ccd7d15fa17e83bcbcc63d01a0a8ec2918a207f0f2ddad8ebb79",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/M4-real-cli.log",
+      "original_bytes": 530,
+      "original_sha256": "7144b339942b795eb5034b8b8caa9c5fd7fa0d7bb42072bc84b2990b3a1160ad",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/docs-cli.log",
+      "original_bytes": 108,
+      "original_sha256": "3952c0f00d5e4476db1b239ae0e0b9ed757402c10a5f241d4377cad66043f0ec",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/final-build.log",
+      "original_bytes": 362,
+      "original_sha256": "07f844e4e1c9b327308d7f12f6bf0b90170651439da08de204224fac2b15c798",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/final-lint.log",
+      "original_bytes": 76,
+      "original_sha256": "80fd47690f18d4a30172f7f9e9fcbf15122cff11a1a4eebdd871e77ddd88026f",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/final-structure.log",
+      "original_bytes": 958,
+      "original_sha256": "928a12b2af932231cbd671f47c7c203b3062f0a9aed037d53a9125b3c35783cb",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/final-test-changed.log",
+      "original_bytes": 1392,
+      "original_sha256": "f9cdbf83f5c99c3b4970350bda8773e961e10d16c636487bcd1e9f80e07298a0",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/loc.json",
+      "original_bytes": 3017,
+      "original_sha256": "7db75435ff971e2660c935eb7f6bf25db66134487f70e7c3c3ba1dbb4cb07293",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/prompt.log",
+      "original_bytes": 105244,
+      "original_sha256": "3322c43738ad5dbe61a74ae6ae3c47e10fe5fa321dbe9f0ff4e3bfd428289a53",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/execution/run-isolated.py",
+      "original_bytes": 1021,
+      "original_sha256": "138c485304aa3d9604dc608a27aed6a1a3fbe15b76594a81e96600c098f4b2a1",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/independent/identity-and-rubric.json",
+      "original_bytes": 8452,
+      "original_sha256": "77c304e85df6c7e472fcbaead09a34277d660f80dddf7bc52e6d50abdb27437d",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/independent/preserved-1773-authority.json",
+      "original_bytes": 1428,
+      "original_sha256": "a1a9a59caa39553ea49e221351ce9cccf76c511de3ecef72c5ac83cca116946f",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/independent/repair-line-proof.json",
+      "original_bytes": 495,
+      "original_sha256": "11ac513154a4ccb15e02f0a6c7be7452266d111206dbc078c87638d33f7b3c18",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/independent/sonar-gate.json",
+      "original_bytes": 866,
+      "original_sha256": "829c6b655886e04bf83ea3b1de26ad45715cc9287951b0c2e625df7d82da5f29",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/independent/sonar-files.json",
+      "original_bytes": 4896,
+      "original_sha256": "8aca755b1c1c5b1c2298b091be0e2129bc1beafe80109e2a0b5716fa977c8fc7",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/independent/sonar-format-lines.json",
+      "original_bytes": 8900,
+      "original_sha256": "8206e820af3e4bab4800c50aa34d59aded462c411b35e14db6804252230cbe50",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/independent/pr-796b-round1-terminal-failure.json",
+      "original_bytes": 7002,
+      "original_sha256": "3ae2f37d9a24208a12306bec90553cc50620921b1a8b56add756a7ff305f0bae",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/independent/eval_M-PUBLISH-PROTECTED-KEY-FILE_round_1.json",
+      "original_bytes": 12888,
+      "original_sha256": "57c22925977350f9dc6d7dc8f53e509cf2b74223f1464bfb4e7e8ab689e4281b",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    },
+    {
+      "logical_name": "1900/independent/eval_M-PUBLISH-PROTECTED-KEY-FILE_round_1.md",
+      "original_bytes": 1139,
+      "original_sha256": "4ab0dcfff48f893385ff251591f7470b15d421f56cb2d6d23bc9ddb9c30f021d",
+      "full_source_bytes_equal": true,
+      "gzip_repeat_bytes_equal": null
+    }
+  ]
+}

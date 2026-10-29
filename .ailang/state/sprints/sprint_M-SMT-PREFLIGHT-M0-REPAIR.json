@@ -14,7 +14,7 @@
   "plan_status": "approved",
   "last_session": "2026-10-29T21:18:45.909803+00:00",
   "last_session_kind": "execution",
-  "last_checkpoint": "M6 implementation evidence complete; acceptance gates pending",
+  "last_checkpoint": "M0 accepted and merged; parentM1-M4/F2/F5/#1950/#1953 remain deferred",
   "started": "2026-10-29T20:23:56.740513+00:00",
   "completed": "2026-10-29T21:18:45.909803+00:00",
   "features": [
@@ -255,8 +255,15 @@
   ],
   "human_decision_gates": [],
   "independent_evaluation": {
-    "status": "pending",
-    "score": null
+    "status": "accepted",
+    "verdict": "PASS",
+    "score": 95,
+    "max_score": 100,
+    "round": 3,
+    "evaluated_head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+    "report_json": "design_docs/implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/independent/eval_M-SMT-PREFLIGHT-M0-REPAIR_round_3.json",
+    "report_markdown": "design_docs/implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/independent/eval_M-SMT-PREFLIGHT-M0-REPAIR_round_3.md",
+    "qualification": "Root independent evaluation; no executor self-score"
   },
   "prompt": {
     "loaded_version": "v0.16.11",
@@ -265,12 +272,48 @@
     "reload_matching_execution_prompt_required": false
   },
   "sprint_plan": "design_docs/planned/v0_56_0/sprint-plan-m-smt-preflight-m0-repair.md",
-  "completion_scope": "implementation only; required CI and independent evaluation pending",
+  "completion_scope": "M0 repair implemented, independently accepted and merged; parent M1\u2013M4/F2/F5 remain deferred",
   "implementation_source": "60a7d7b5fce9c137835774750cac1cca063e6b00",
   "validation_report": "design_docs/planned/v0_56_0/m-smt-preflight-m0-repair-validation.md",
   "acceptance_gates": {
     "local_final_changed_core": "passed; terminal exit0 m0-execution/test-changed-final60.log",
-    "required_ci": "pending exact final PR head",
-    "independent_evaluation": "pending; no self-score"
-  }
+    "required_ci": "Passed: actual evaluated head has 27 terminal contexts, 20 success / 7 skipped",
+    "independent_evaluation": "Root round 3 PASS 95/100; see acceptance report paths"
+  },
+  "release_status": "unreleased",
+  "acceptance": {
+    "status": "accepted",
+    "release_status": "unreleased",
+    "independent_round": 3,
+    "score": 95,
+    "max_score": 100,
+    "verdict": "PASS",
+    "report_schema_qualification": "M0 frozen report uses verdict/score; key frozen report uses result=pass and total_score=95. Neither report is rewritten.",
+    "evaluated_head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+    "accepted_merge": "0db7902fd7430e408f3aa30ae811718f036cd5c1",
+    "merged_at_utc": "2026-10-29T22:19:32Z",
+    "closed_issues": [
+      1960,
+      1961
+    ],
+    "report_json": "design_docs/implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/independent/eval_M-SMT-PREFLIGHT-M0-REPAIR_round_3.json",
+    "report_markdown": "design_docs/implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/independent/eval_M-SMT-PREFLIGHT-M0-REPAIR_round_3.md",
+    "evidence_manifest": "design_docs/implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/manifest.json",
+    "ci": {
+      "status": "PASS",
+      "contexts": 27,
+      "success": 20,
+      "skipped": 7,
+      "failed": 0,
+      "pending": 0,
+      "head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314"
+    },
+    "actual_sonar_new_coverage": 84.4,
+    "sonar_minimum_unchanged": 80,
+    "issue_closed_at_utc": {
+      "1960": "2026-10-29T22:19:33Z",
+      "1961": "2026-10-29T22:19:34Z"
+    }
+  },
+  "archive_exception": "Multiphase parent plus M0 repair plan/validation stay planned; only scoped accepted evidence is archived."
 }

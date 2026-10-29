@@ -4,8 +4,8 @@
   "implementation_source": "60a7d7b5fce9c137835774750cac1cca063e6b00",
   "execution_base": "6d0d3a9da2af2eadc504f7cb050aacde72cc3cca",
   "release_target": "v0.56.0 (unreleased)",
-  "independent_evaluation": "pending; executor supplies no score or merge approval",
-  "required_ci": "pending PR exact-head checks",
+  "independent_evaluation": "Root independent round 3 PASS 95/100 at 4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314; no executor self-score",
+  "required_ci": "Actual final head: 27 terminal contexts, 20 success / 7 skipped; actual Sonar 84.4%, all conditions OK at unchanged 80%",
   "identity": {
     "binaries": {
       "current_base": {
@@ -3740,5 +3740,40 @@
     "Explicit/already-lifted Core helper parameter parity and source explicit environment arguments are proved. Arbitrary front-end closure lifting is not newly supported or claimed.",
     "Own nullary recursive callee bounded-unit-unrolling ERROR is inherited; its typed contract callers now preserve ordinary unit erasure.",
     "M1-M4 roadmap, F2/F5, proof-vs-refutation/admission, caller precondition obligations, width/Float/BitVec, held1790/2009 and runner work remain excluded."
-  ]
+  ],
+  "acceptance": {
+    "status": "accepted",
+    "release_status": "unreleased",
+    "independent_round": 3,
+    "score": 95,
+    "max_score": 100,
+    "verdict": "PASS",
+    "report_schema_qualification": "M0 usesverdict/score; key frozen independent report usesresult=pass/total_score95; neither report rewritten",
+    "evaluated_head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+    "accepted_merge": "0db7902fd7430e408f3aa30ae811718f036cd5c1",
+    "merged_at_utc": "2026-10-29T22:19:32Z",
+    "closed_issues": [
+      1960,
+      1961
+    ],
+    "report_json": "design_docs/implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/independent/eval_M-SMT-PREFLIGHT-M0-REPAIR_round_3.json",
+    "report_markdown": "design_docs/implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/independent/eval_M-SMT-PREFLIGHT-M0-REPAIR_round_3.md",
+    "evidence_manifest": "design_docs/implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/manifest.json",
+    "ci": {
+      "status": "PASS",
+      "contexts": 27,
+      "success": 20,
+      "skipped": 7,
+      "failed": 0,
+      "pending": 0,
+      "head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314"
+    },
+    "actual_sonar_new_coverage": 84.4,
+    "sonar_minimum_unchanged": 80,
+    "issue_closed_at_utc": {
+      "1960": "2026-10-29T22:19:33Z",
+      "1961": "2026-10-29T22:19:34Z"
+    }
+  },
+  "archive_exception": "Parent/repair-plan/validation remain planned; widerM1-M4/F2/F5/#1950/#1953 deferred"
 }

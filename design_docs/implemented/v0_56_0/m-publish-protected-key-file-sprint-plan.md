@@ -2,13 +2,16 @@
 
 ## Current implementation status
 
-M0–M5 implementation and local gates complete; independent evaluation and
-exact-head CI pending. Actual accepted #2013 merge96d was normally integrated
+M0–M5 implementation accepted: independent round 2 PASS 95 at 1f6, actual 27 CI
+20 SUCCESS / 7 SKIPPED and actual Sonar 90.0%; normal merge b9c15d4 at 22:20:12 UTC. Actual accepted #2013 merge 96d was normally integrated
 at a9aa13313 before product edits. Source milestones: M1 be066a2b1,
 M2 87fa35f90, M3 f7ff92f20, M4 f9539a602. See the
 [validation companion](m-publish-protected-key-file-validation.md) for actual
 acceptance evidence and platform qualifications. The original approval/blocked
 snapshot below is retained as history. No D1–D7 ruling changed.
+
+[Frozen final/historical evaluations](evidence/m-publish-protected-key-file/README.md)
+retain result=pass/total_score=95 and prior FAIL 73. Target v0.56.0 is UNRELEASED.
 
 ## Historical summary and authorization
 
@@ -353,7 +356,7 @@ bypass remain outside this agent’s authority.
 
 ## Execution resumed: legitimate integration satisfied
 
-Root independently accepted #2013 PASS95 with all 27 CI terminal, then normally
+Root independently accepted #2013 PASS 95 with all 27 CI terminal, then normally
 merged it at96d69f05b6e84bd6666e8fa91ff948f803b67d92 (20:53:24UTC);
 issue1773 closed20:53:25. The conditional execute instruction now permits
 M1–M5 without a new approval question. New native execution checkout

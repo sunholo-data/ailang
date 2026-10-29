@@ -1,0 +1,19 @@
+{
+  "head": "1f6c2ea68a5f45917f91935cdf2470e3833094e1",
+  "changed_files": [
+    "design_docs/planned/v0_56_0/m-publish-protected-key-file-validation.md",
+    "internal/pkg/publish_keyfile_public_test.go"
+  ],
+  "missing_line_hits": {
+    "11": 1,
+    "12": 1,
+    "13": 1,
+    "15": 1,
+    "16": 1,
+    "17": 1,
+    "19": 1
+  },
+  "profile_sha256": "64fcbb15f6ec06f93d83af39a68dd4d87c689fb48e440389736314b5bc72e81f",
+  "production_and_ail_unchanged": true,
+  "projection_not_gate_pass": true
+}

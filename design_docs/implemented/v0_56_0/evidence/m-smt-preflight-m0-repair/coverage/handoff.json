@@ -1,0 +1,27 @@
+{
+  "prior_head": "cb5a60ffb63e4c39a7a5d7170db979f5d0dc6bbb",
+  "new_head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+  "production_go_and_all_ail_equal": true,
+  "proof_command": [
+    "git",
+    "diff",
+    "--exit-code",
+    "cb5a60ffb63e4c39a7a5d7170db979f5d0dc6bbb",
+    "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+    "--",
+    "*.go",
+    "*.ail",
+    ":!**/*_test.go"
+  ],
+  "proof_exit": 0,
+  "changed_files": [
+    "design_docs/planned/v0_56_0/m-smt-preflight-m0-repair-validation.md",
+    "internal/smt/codegen_contract_behavior_coverage_test.go"
+  ],
+  "clean": true,
+  "focused_smt": "PASS11.031s; whole-package coverage72.6%",
+  "target_lint": "PASS0issues",
+  "format_sizes": "PASS",
+  "actual_new_head_sonar": "pending;84.42% is projection only",
+  "scope": "only new69line SMT behavior-test companion and validation note; all production/AIL unchanged; no broad tests/corpus duplicated"
+}

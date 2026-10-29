@@ -1,0 +1,59 @@
+{
+  "sprint_id": "M-SMT-PREFLIGHT-M0-REPAIR",
+  "round": 1,
+  "verdict": "FAIL",
+  "score": 73,
+  "max_score": 100,
+  "hard_fail": true,
+  "evaluated_head": "cb5a60ffb63e4c39a7a5d7170db979f5d0dc6bbb",
+  "pr": "https://github.com/sunholo-data/ailang/pull/2019",
+  "reviewer_independent": true,
+  "implementation_authored_by_reviewer": false,
+  "evaluated_at_utc": "2026-10-29T21:37:42.361867+00:00",
+  "gate_source": "exact-head PR CI",
+  "ci_gate": "CI_GATE=fail PR #2019: failed checks: checks",
+  "scores": {
+    "tests": 0,
+    "lint": 10,
+    "acceptance_criteria": 28,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "acceptance": {
+    "verified": 19,
+    "total": 20,
+    "points": 28,
+    "rounding": "existing rubric integer floor of19*30/20",
+    "matrix": "acceptance-matrix-preflight.json",
+    "unmet": "M6 criterion4 requires actual required exact-head CI; checks failed, other jobs still pending"
+  },
+  "quality": {
+    "deduction": 5,
+    "reason": "physical Go FuncDecl >50 lines including tests, capped-5",
+    "inventory": "functions-over50.json"
+  },
+  "conditional_categories": {
+    "regression_surface": "Not triggered by explicit skill path list; internal/smt soundness scope",
+    "performance": "Not performance sprint: negated solver-performance guarantee triggers script keyword heuristic; no bonus/profile claim"
+  },
+  "failure": {
+    "category": "external module checksum/download transport before product tests",
+    "run": 40957956051,
+    "job": 123742908120,
+    "url": "https://github.com/sunholo-data/ailang/actions/runs/40957956051/job/123742908120",
+    "step": [
+      "Download all Go modules (including test dependencies)"
+    ],
+    "raw_log": "checks-failure-raw.log",
+    "raw_bytes": 103409,
+    "raw_sha256": "1bb76f22c73ab632cce8ec53485b1cfc3d993b285d9d0a200143932e5ae4abd6",
+    "message": "sum.golang.org checksum tile HTTP2 stream INTERNAL_ERROR for securitycenter,go-bfloat16,go-pointer. Earlier dependency step failed; later runnable265/275pass10documentedskip does not waive it"
+  },
+  "source_findings": [],
+  "evidence_preflight": "evidence-preflight.json",
+  "artifact_finding": "Stale plan DRAFT/planning-only current status repaired in finalcb5; immutable quorum records preserved",
+  "local_proof": "Final60 changed/core PASS(cmd428.351s/SMT10.702s+20core), all17 raw artifacts+2binary+7fixtures hashes verified; full1051filepairedcorpus/3mutationkill controls/72CLI verified",
+  "prior_observation": "603\u2192cb5 metadata transition made initial gate unreadable; retained automated-evaluation-attempt1.log and no local fallback",
+  "disposition": "HOLD; root authorizes one bounded --failed retry on this workflow only once terminal. No product repair, timeout/config/checksum-policy changes or test waiver. Fresh actual CI must pass before round2 acceptance; originalFAIL preserved."
+}

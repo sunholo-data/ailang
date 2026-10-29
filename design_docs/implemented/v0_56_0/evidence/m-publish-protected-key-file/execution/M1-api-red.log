@@ -1,0 +1,12 @@
+# github.com/sunholo-data/ailang/internal/pkg [github.com/sunholo-data/ailang/internal/pkg.test]
+internal/pkg/publish_keyfile_test.go:15:12: undefined: readPublishKeyBytes
+internal/pkg/publish_keyfile_test.go:23:12: undefined: readPublishKeyBytes
+internal/pkg/publish_keyfile_unix_test.go:31:14: undefined: readPublishKeyBytes
+internal/pkg/publish_keyfile_unix_test.go:44:13: undefined: readPublishKeyBytes
+internal/pkg/publish_keyfile_unix_test.go:48:10: undefined: validatePublishKeyInfo
+internal/pkg/publish_keyfile_unix_test.go:53:9: undefined: openPublishKeyFile
+internal/pkg/publish_keyfile_unix_test.go:64:12: undefined: readPublishKeyStream
+internal/pkg/publish_keyfile_unix_test.go:68:12: undefined: readPublishKeyBytes
+internal/pkg/publish_keyfile_unix_test.go:81:12: undefined: readPublishKeyBytes
+FAIL	github.com/sunholo-data/ailang/internal/pkg [build failed]
+FAIL

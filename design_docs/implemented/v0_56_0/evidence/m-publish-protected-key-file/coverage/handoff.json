@@ -1,0 +1,27 @@
+{
+  "prior_head": "796b93365eb66572c3b090133de58006258460e5",
+  "new_head": "1f6c2ea68a5f45917f91935cdf2470e3833094e1",
+  "production_go_and_all_ail_equal": true,
+  "proof_command": [
+    "git",
+    "diff",
+    "--exit-code",
+    "796b93365eb66572c3b090133de58006258460e5",
+    "1f6c2ea68a5f45917f91935cdf2470e3833094e1",
+    "--",
+    "*.go",
+    "*.ail",
+    ":!**/*_test.go"
+  ],
+  "proof_exit": 0,
+  "changed_files": [
+    "design_docs/planned/v0_56_0/m-publish-protected-key-file-validation.md",
+    "internal/pkg/publish_keyfile_public_test.go"
+  ],
+  "clean": true,
+  "focused_reader_public_api": "PASS11.729s; selected tests only, whole-package2.7% is not package-total claim",
+  "target_lint": "PASS0issues",
+  "format_sizes": "PASS",
+  "actual_new_head_sonar": "pending;90% is projection only",
+  "scope": "only new75line public API test companion and validation note; all production/AIL unchanged; no broad/core/CLI tests duplicated"
+}

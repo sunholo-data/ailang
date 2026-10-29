@@ -1,0 +1,13 @@
+{
+  "schema": "ailang.lossless-evidence-wrapper/v1",
+  "logical_name": "1900/execution/M3-cli-red.log",
+  "encoding": "gzip+base64",
+  "original_bytes": 1084,
+  "original_sha256": "bf64be7a52b763e6211aaf3db90b7057a05f9daba6d23fe000c743af195ea71c",
+  "compressed_bytes": 542,
+  "compressed_sha256": "f1a805d1b8d741fdb7fb72346dad927809f12fcd87720091aeeb6bce0c7478ce",
+  "gzip_mtime": 0,
+  "gzip_filename": "",
+  "gzip_compresslevel": 9,
+  "payload": "H4sIAAAAAAAC/8VTTU/jMBA9w6+YG+zBSfpBt/hWsaxAArGCouVWubGTmDqeyJ6kVKv97ztpCypiteK2PsSWx/Py5r0ZIQR8n13fSJibSD/apbOxmrVUXdxcL66Ma2ZePxhncrLo4XSajKbxyzHwalblotm9X6zMprDOLHJnF8Q4SYlyNJawj0MfhIrRJPyKpLElCbybEGThVAlNwM5qo2HZEngk0Kaw3mgJgqFFn779Z78eoyoNYPEKLt8iAEI5h2uhkchoQYhOeFWbePAE4OjWlkFt6+E9NxI0rj0ftQGqDNyKy6e5mD3Or+7uxbcnYATrSygVGSgC1sC0MQAhrFXwHErg3tTYMX3rocuS4SDJkkNWOmxEaP17FhfB9IikwpJZbyvX6E8I2sah0of5vXLvkx8qXMP7a/Ni6QK1kUMgWxt9xyIXykXz+1j8y+RL3/3c1cFW95cYLG3gNEuy4SetPptKcKZU+eZVko8+X/aiSTYXlHWKRSOsHRTYena54DuWjyVlUTSkTbAdi5N2KqQFOgaI6SqkVbYOw/h8Pu70xD1THV+66fOKsn6VPp2nny5vNBmMz8bn2ddBmmWj9ICSBGyM/88UWKXY5vu54V7TNvAEYti82X3fejjZ5XDXWYJG5SsejBPOCZH+0haDD23Rt8T2c1RaqtplkmOdxtZX6FBoRWpPKs1rvT8enSeDyVncpf4BC1w6gzwEAAA="
+}

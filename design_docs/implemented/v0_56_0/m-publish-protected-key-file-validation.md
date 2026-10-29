@@ -1,5 +1,14 @@
 # M-PUBLISH-PROTECTED-KEY-FILE implementation validation
 
+**Final accepted/unreleased:** independent round 2 PASS 95 at 1f6c2ea68a5f45917f91935cdf2470e3833094e1;
+actual 27 terminal CI20 success / 7 skipped, actual Sonar 90.0% atunchanged 80%. Root normal
+merge b9c15d431ee25fb28c7bc2729f199cb80c8cdada at 22:20:12 UTC, issue #1900 closed 22:20:13 UTC.
+[Frozen report pairs/evidence](evidence/m-publish-protected-key-file/README.md)
+preserve originalFAIL 73 and final schema result=pass/total_score=95. Earlier
+executor/pending qualifications remain historical; local dirty-binary limits
+remain, with actual final 1f6 CI supplying clean-head broad proof.
+
+
 Implementation/local gates complete, unreleased. Independent evaluation and
 actual exact-head CI are pending. This is executor evidence, not an evaluation
 score. The design and companion remain planned until independent acceptance.
@@ -9,7 +18,7 @@ score. The design and companion remain planned until independent acceptance.
 The attended user approved D1–D7 at design commit 7d000322b and explicitly
 said "exeute all three sprints" with the presented dependency sequencing.
 Original approved artifacts were banked at c9698d88e. No approval was inferred
-from a plan-only merge. Root independently accepted #2013 PASS95/all 27 CI,
+from a plan-only merge. Root independently accepted #2013 PASS 95/all 27 CI,
 then normally merged 96d69f05 at 20:53:24UTC. M0 normally integrated that source
 at a9aa13313 before product edits; its Go/AIL trees were identical to the accepted
 baseline. The actual integration satisfied the conditional execution approval.
@@ -96,7 +105,7 @@ independent evaluation and normal merge once actual exact-head CI is terminal.
 ## Test-only public API coverage follow-up
 
 Actual Sonar at796b93365 failed only new-code coverage78.3% (47/60 lines) under
-unchanged80% policy. Its seven missed public wrapper lines were not covered by
+unchanged 80% policy. Its seven missed public wrapper lines were not covered by
 existing in-process inner-reader/parser tests; built CLI children are not part
 of the Go library coverage profile. The independent evaluator retained the
 actual per-line API response and found no product defect.

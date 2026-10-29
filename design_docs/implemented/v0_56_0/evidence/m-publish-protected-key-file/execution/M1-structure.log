@@ -1,0 +1,6 @@
+Checking architecture boundaries (logical layers over internal/)...
+
+OK: no architecture boundary violations.
+home isolation scan: 2094 _test.go files; fixture matches: 3; live exemptions: 1
+RESIDUAL CLASSES (not covered): the variable name held in a variable or constant; a helper in another package that itself sets HOME; os/exec Env slices; build-tagged files excluded from this GOOS; non-Go surfaces (shell, CI yaml). Whitespace- and newline-spanning calls ARE covered, and so is os.Setenv.
+home isolation gate: OK

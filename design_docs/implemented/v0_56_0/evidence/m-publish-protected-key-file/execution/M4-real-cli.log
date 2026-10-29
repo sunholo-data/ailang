@@ -1,0 +1,7 @@
+--- FAIL: TestPublishAuthCLI_ZeroUploadAndUnusedFile (0.09s)
+    --- FAIL: TestPublishAuthCLI_ZeroUploadAndUnusedFile/missing (0.02s)
+        pkg_publish_rejection_cli_test.go:77: credential failure reached package/HTTP work: {stdout: stderr:Error: publish --key-file "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestPublishAuthCLI_ZeroUploadAndUnusedFile1294281198/003/absent-key": no such file or directory
+             exitCode:1 timedOut:false} requests=0
+FAIL
+FAIL	github.com/sunholo-data/ailang/cmd/ailang	10.847s
+FAIL

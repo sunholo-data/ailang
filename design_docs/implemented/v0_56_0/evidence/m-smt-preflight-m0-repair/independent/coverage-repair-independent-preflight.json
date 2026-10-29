@@ -1,0 +1,40 @@
+{
+  "head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+  "previous": "cb5a60ffb63e4c39a7a5d7170db979f5d0dc6bbb",
+  "production_go_and_all_ail_equal": true,
+  "exact_changed_files": [
+    "design_docs/planned/v0_56_0/m-smt-preflight-m0-repair-validation.md",
+    "internal/smt/codegen_contract_behavior_coverage_test.go"
+  ],
+  "review": "New69line testcompanion directly checks Z3 entailment and nonentailment for actualsupportedmatch/forall/resultshadow/unit/unknownensures. No string-mirroring or new productionencoding; unsupportedinitialbareprimitiveCorefixturefailure retained and validfixture used.",
+  "focus": "WholeSMT PASS11.031s,lint0,format/sizesPASS; no duplicatefull/core/CLI/corpus",
+  "raw_hashes": [
+    {
+      "path": "/tmp/ailang-backlog-20261029/m0-coverage-repair/focused-coverage.log",
+      "bytes": 87,
+      "sha256": "bda921e80681e8499e84c156c07cb56eac07cd69b78deaf729702d8fe2d6469f"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/m0-coverage-repair/lint.log",
+      "bytes": 10,
+      "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/m0-coverage-repair/structure.log",
+      "bytes": 152,
+      "sha256": "d411cb5b4f6db6b9429f381057dcbee7a5b69e24ca44924e152d3e20da148387"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/m0-coverage-repair/coverage-projection.json",
+      "bytes": 777,
+      "sha256": "ad65c52b438cf65763af24c907f6f82d1993ea8f323d99d685a918faf10ab4d9"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/m0-coverage-repair/new-behavior.log",
+      "bytes": 940,
+      "sha256": "ff1e77d788bb6f2109ecc20689a8988f790487829f26fa2345c59e22ae348976"
+    }
+  ],
+  "coverage": "PriorSonar77.7\u2192localnew-lineprojection84.42; actualnewSonar/CIpending, noPASSclaim",
+  "formal_verdict": null
+}

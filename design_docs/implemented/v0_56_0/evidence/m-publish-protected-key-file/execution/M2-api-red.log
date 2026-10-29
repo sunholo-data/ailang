@@ -1,0 +1,12 @@
+# github.com/sunholo-data/ailang/internal/pkg [github.com/sunholo-data/ailang/internal/pkg.test]
+internal/pkg/publish_keyfile_format_test.go:19:16: undefined: parsePublishKey
+FAIL	github.com/sunholo-data/ailang/internal/pkg [build failed]
+# github.com/sunholo-data/ailang/cmd/ailang [github.com/sunholo-data/ailang/cmd/ailang.test]
+cmd/ailang/pkg_publish_auth_test.go:31:16: undefined: resolvePublishCredential
+cmd/ailang/pkg_publish_auth_test.go:54:15: undefined: resolvePublishCredential
+cmd/ailang/pkg_publish_auth_test.go:58:15: undefined: resolvePublishCredential
+cmd/ailang/pkg_publish_auth_test.go:68:14: undefined: resolvePublishCredential
+cmd/ailang/pkg_publish_auth_test.go:77:11: undefined: resolvePublishCredential
+cmd/ailang/pkg_publish_auth_test.go:92:14: undefined: resolvePublishCredential
+FAIL	github.com/sunholo-data/ailang/cmd/ailang [build failed]
+FAIL

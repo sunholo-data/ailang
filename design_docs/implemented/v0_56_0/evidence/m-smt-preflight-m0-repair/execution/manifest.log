@@ -1,0 +1,26 @@
+🔍 AILANG Manifest Validator
+Manifest: examples/manifest.json
+Examples: 252 (working 244, broken 4, experimental 0)
+
+⚠ bugs/concat_operator_list_inference.ail: unparseable (covered by verify-examples): parse error in examples/bugs/concat_operator_list_inference.ail: PAR_IMPORT_PLACEMENT at examples/bugs/concat_operator_list_inference.ail:29:1: imports must appear immediately after the module declaration
+
+Did you mean one of these?
+  move this import above the first type/func declaration
+
+See: https://ailang.sunholo.com/docs/guides/module_execution
+⚠ experimental/ai_agent_integration.ail: unparseable (covered by verify-examples): parse error in examples/experimental/ai_agent_integration.ail: PAR_UNEXPECTED_TOKEN at examples/experimental/ai_agent_integration.ail:29:24: expected next token to be IDENT, got () instead
+
+Suggestion: Add or correct the IDENT token
+⚠ experimental/concurrent_pipeline.ail: unparseable (covered by verify-examples): parse error in examples/experimental/concurrent_pipeline.ail: PAR_UNEXPECTED_TOKEN at examples/experimental/concurrent_pipeline.ail:14:14: expected next token to be ,, got [ instead
+
+Suggestion: Add or correct the , token
+⚠ experimental/factorial.ail: unparseable (covered by verify-examples): parse error in examples/experimental/factorial.ail: PAR_UNEXPECTED_TOKEN at examples/experimental/factorial.ail:18:20: expected => after forall binders
+
+Suggestion: Check syntax
+⚠ experimental/web_api.ail: unparseable (covered by verify-examples): parse error in examples/experimental/web_api.ail: IMP012_UNSUPPORTED_NAMESPACE at examples/experimental/web_api.ail:10:12: namespace imports not yet supported
+
+Suggestion: Use selective import: import module/path (symbol1, symbol2)
+Or module alias: import std/list as List
+
+247 modules checked, 0 drift, 0 missing-on-disk
+✓ manifest `modules` field is in sync with actual imports

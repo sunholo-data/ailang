@@ -1,0 +1,13 @@
+{
+  "schema": "ailang.lossless-evidence-wrapper/v1",
+  "logical_name": "1900/execution/run-isolated.py",
+  "original_bytes": 1021,
+  "original_sha256": "138c485304aa3d9604dc608a27aed6a1a3fbe15b76594a81e96600c098f4b2a1",
+  "encoding": "gzip+base64",
+  "compressed_bytes": 618,
+  "compressed_sha256": "8705da6d4dd3d943d11b1e677af95349bd13e16ba6277689489864de02caac32",
+  "gzip_mtime": 0,
+  "gzip_filename": "",
+  "gzip_compresslevel": 9,
+  "payload": "H4sIAAAAAAAC/41TXXOiMBR951fwFmgj1b6tO3mgQNVZNI7QnXYcxkEMmhUJkwRbZ6f/fW9Et+3T7kOSc5P7wb3nwA+NkNoWCje53lV8jVW7bqQomFJYnRTW7NCUvGL4lxK1VYktuTh6czgdcPFyuT0uB5n7HYAif2/uh5m1zhUjv/fDo10Kae/x0eY1FPNYfeRS1B6H9MpxbV7ae/O0RHM/HSOM0uk8nCw6YPbofMT+bGSOYOXHMYAk/LGgNAUURj+jmM6jxaoLC0Z0Fc38hzgKjd9JQaGFENoYLwmku8SZctGzQQGdJvMoQNm7pZjWvIZeTM9eJfKNcj7G4hU7VuxXotVNq50l2gqIhoZg75kAOEf0kn5EAz8YR2c0peGHcW4zg+m+aZLKlrmu9cr1zr6O20uZYSaXp5BLVmghT04jWcnfCBp86/d721yz3k4cWA+5dq5sA4eWDd9BNrzQjpk8HtNpRMwLfkqixXxBHyfx5cJsHRrRx9gfJQT1GjJAYKaUxsHYn8wIqkSRV+YOYp9fCBJlaazkaRo+XCx/YlhZzehqGqV+6Kc+fCHCNzdA+3WQy33WCaDj+B9TeXfPfVy0kBGlpfNVdNe010Fn7h1a8xq5t6At46pYcwspvC3TzlVSCNKCzoxIl/2MEEPc8Gr9d407iIJEZ7Lgb/BEw2oHvXYkgCaGtiSftCLb2jE1sCEGFlZ6A14EloFMfvFO0pA+pVjzAzNOg/t+H2o1ktfQBleiAtI3diEOh7ze2OyNg56lJ5luZV2IDcNA2BZh2HBZtWrXScuyzT9pvJ3Pzq71B0W7eKr9AwAA"
+}

@@ -1,0 +1,240 @@
+{
+  "sprint_id": "M-PUBLISH-PROTECTED-KEY-FILE",
+  "evaluation_round": 2,
+  "timestamp": "2026-10-29T22:17:19.311798+00:00",
+  "design_doc": "design_docs/planned/v0_56_0/m-publish-protected-key-file.md",
+  "sprint_plan": "design_docs/planned/v0_56_0/m-publish-protected-key-file-sprint-plan.md",
+  "head": "1f6c2ea68a5f45917f91935cdf2470e3833094e1",
+  "pr": "https://github.com/sunholo-data/ailang/pull/2021",
+  "gate_source": "ci",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "coverage_pct": "actual Sonar new-code90.0%, unchanged minimum80%; no evaluator coverage rerun",
+    "todo_hack_count": 0,
+    "is_perf_sprint": false,
+    "has_profile_data": false
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M0_INTEGRATION_PREFLIGHT",
+      "criterion": "Actual accepted dependency source and owner recorded; no competing overwrite.",
+      "met": true,
+      "evidence": "Accepted96d/#2013 dependency; preserved-1773-authority.json hashes7 unchanged files; recorded ownership/base and no competing overwrite."
+    },
+    {
+      "feature_id": "M0_INTEGRATION_PREFLIGHT",
+      "criterion": "Baseline retains #1773 shared rewrite/staging/D2/Notes/author restoration and #1964 authority-before-work; no runner/card/CI policy edits.",
+      "met": true,
+      "evidence": "Accepted96d/#2013 dependency; preserved-1773-authority.json hashes7 unchanged files; recorded ownership/base and no competing overwrite."
+    },
+    {
+      "feature_id": "M1_PROTECTED_HANDLE_READER",
+      "criterion": "Real disposable0400/0600 files pass;0644/0640/0700/special modes fail.",
+      "met": true,
+      "evidence": "Root independent f953 source/handle proof; TestReadPublishKeyFile platform/unit controls and executor M1/M2 logs; final Linux/macOS/Windows CI green. Foreign-owner negative is synthetic metadata, not privileged chown."
+    },
+    {
+      "feature_id": "M1_PROTECTED_HANDLE_READER",
+      "criterion": "Symlink/nonregular/missing paths fail; FIFO refusal is bounded; actual handle metadata positive plus synthetic foreign-owner negative validate owner policy without requiring root/chown. These synthetic checks are classified.",
+      "met": true,
+      "evidence": "Root independent f953 source/handle proof; TestReadPublishKeyFile platform/unit controls and executor M1/M2 logs; final Linux/macOS/Windows CI green. Foreign-owner negative is synthetic metadata, not privileged chown."
+    },
+    {
+      "feature_id": "M1_PROTECTED_HANDLE_READER",
+      "criterion": "Same opened-handle identity survives pathname replacement; bounded reader rejects growth beyond16KiB without an unbounded allocation or hang.",
+      "met": true,
+      "evidence": "Root independent f953 source/handle proof; TestReadPublishKeyFile platform/unit controls and executor M1/M2 logs; final Linux/macOS/Windows CI green. Foreign-owner negative is synthetic metadata, not privileged chown."
+    },
+    {
+      "feature_id": "M1_PROTECTED_HANDLE_READER",
+      "criterion": "Direct reader under confinement has zero opener calls; unsupported OS has zero opener calls and named refusal. No key values in any local read error.",
+      "met": true,
+      "evidence": "Root independent f953 source/handle proof; TestReadPublishKeyFile platform/unit controls and executor M1/M2 logs; final Linux/macOS/Windows CI green. Foreign-owner negative is synthetic metadata, not privileged chown."
+    },
+    {
+      "feature_id": "M1_PROTECTED_HANDLE_READER",
+      "criterion": "Focused affected tests, lint and home isolation pass; preserve red evidence.",
+      "met": true,
+      "evidence": "Root independent f953 source/handle proof; TestReadPublishKeyFile platform/unit controls and executor M1/M2 logs; final Linux/macOS/Windows CI green. Foreign-owner negative is synthetic metadata, not privileged chown."
+    },
+    {
+      "feature_id": "M2_CREDENTIAL_SELECTION_AND_FORMAT",
+      "criterion": "Complete approved selection table passes, including file error+valid env counterfactual, explicit empty flag, no-source and no implicit default probe.",
+      "met": true,
+      "evidence": "Committed selection/format/frozen credential tests and native M2 logs; final publicAPI test-only repair covers wrapper success/read/parse errors with hits1 on all7 formerly missing lines; final Sonar90.0."
+    },
+    {
+      "feature_id": "M2_CREDENTIAL_SELECTION_AND_FORMAT",
+      "criterion": "Empty/whitespace/multiline/control/oversize synthetic contents fail; trimmed single-line dummy key accepted. No fallback on any read/parse failure.",
+      "met": true,
+      "evidence": "Committed selection/format/frozen credential tests and native M2 logs; final publicAPI test-only repair covers wrapper success/read/parse errors with hits1 on all7 formerly missing lines; final Sonar90.0."
+    },
+    {
+      "feature_id": "M2_CREDENTIAL_SELECTION_AND_FORMAT",
+      "criterion": "Frozen result survives path/env mutation after selection; parent env remains unchanged; nil/default key is never treated as successful credential selection.",
+      "met": true,
+      "evidence": "Committed selection/format/frozen credential tests and native M2 logs; final publicAPI test-only repair covers wrapper success/read/parse errors with hits1 on all7 formerly missing lines; final Sonar90.0."
+    },
+    {
+      "feature_id": "M2_CREDENTIAL_SELECTION_AND_FORMAT",
+      "criterion": "Authority/unsupported refusal precedes file opener; focused tests and lint pass.",
+      "met": true,
+      "evidence": "Committed selection/format/frozen credential tests and native M2 logs; final publicAPI test-only repair covers wrapper success/read/parse errors with hits1 on all7 formerly missing lines; final Sonar90.0."
+    },
+    {
+      "feature_id": "M3_PUBLISH_COMMAND_WIRING",
+      "criterion": "Actual built CLI both publish spellings recognize the option; help and dry-run with missing/unreadable/unsupported file do not open/read it or upload.",
+      "met": true,
+      "evidence": "M3-cli-red.log\u2192M3-native-green.log; actual builtCLI both spellings/help/dryrun/refusal+header/redaction tests and current final Linux/macOS/Windows CI. Only post-root production delta was tested help/dispatch strings."
+    },
+    {
+      "feature_id": "M3_PUBLISH_COMMAND_WIRING",
+      "criterion": "Confined bare/pkg real/dry-run refuse before read; help remains available.",
+      "met": true,
+      "evidence": "M3-cli-red.log\u2192M3-native-green.log; actual builtCLI both spellings/help/dryrun/refusal+header/redaction tests and current final Linux/macOS/Windows CI. Only post-root production delta was tested help/dispatch strings."
+    },
+    {
+      "feature_id": "M3_PUBLISH_COMMAND_WIRING",
+      "criterion": "Real credential errors precede package subprocess/upload; env-only warns exactly once, file-only does not create env warning or key variable.",
+      "met": true,
+      "evidence": "M3-cli-red.log\u2192M3-native-green.log; actual builtCLI both spellings/help/dryrun/refusal+header/redaction tests and current final Linux/macOS/Windows CI. Only post-root production delta was tested help/dispatch strings."
+    },
+    {
+      "feature_id": "M3_PUBLISH_COMMAND_WIRING",
+      "criterion": "Loopback header/status unit controls retain X-API-Key/validation behavior, reject missing key before request and redact exact dummy-key response echoes.",
+      "met": true,
+      "evidence": "M3-cli-red.log\u2192M3-native-green.log; actual builtCLI both spellings/help/dryrun/refusal+header/redaction tests and current final Linux/macOS/Windows CI. Only post-root production delta was tested help/dispatch strings."
+    },
+    {
+      "feature_id": "M3_PUBLISH_COMMAND_WIRING",
+      "criterion": "Existing #1773 and authority-focused tests plus lint remain green.",
+      "met": true,
+      "evidence": "M3-cli-red.log\u2192M3-native-green.log; actual builtCLI both spellings/help/dryrun/refusal+header/redaction tests and current final Linux/macOS/Windows CI. Only post-root production delta was tested help/dispatch strings."
+    },
+    {
+      "feature_id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "criterion": "File-only actual child sentinel absent vs legacy env sentinel present; counted loopback sees the correct distinct dummy header for both arms.",
+      "met": true,
+      "evidence": "Root inspected actual Go os.LookupEnv child/probe source; M4-raw-presence.log and M4-green.log actual PRESENT/ABSENT, counted loopback/header, path replacement/read-once/no-author-edit/no-privateDB proof; final Windows active named unsupported tests."
+    },
+    {
+      "feature_id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "criterion": "Read-once/path replacement control uses original value; parent env and author manifest/lock/content unchanged, no secret in captured artifacts.",
+      "met": true,
+      "evidence": "Root inspected actual Go os.LookupEnv child/probe source; M4-raw-presence.log and M4-green.log actual PRESENT/ABSENT, counted loopback/header, path replacement/read-once/no-author-edit/no-privateDB proof; final Windows active named unsupported tests."
+    },
+    {
+      "feature_id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "criterion": "Missing/conflicting/unsafe file yields zero upload; help/dry-run zero file open and zero upload; loopback controlled failure emits no package messages.",
+      "met": true,
+      "evidence": "Root inspected actual Go os.LookupEnv child/probe source; M4-raw-presence.log and M4-green.log actual PRESENT/ABSENT, counted loopback/header, path replacement/read-once/no-author-edit/no-privateDB proof; final Windows active named unsupported tests."
+    },
+    {
+      "feature_id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "criterion": "Portable helper uses bounded Go subprocess support; Windows actually tests file-lane unsupported and existing env/help/dry-run, not a blanket skip.",
+      "met": true,
+      "evidence": "Root inspected actual Go os.LookupEnv child/probe source; M4-raw-presence.log and M4-green.log actual PRESENT/ABSENT, counted loopback/header, path replacement/read-once/no-author-edit/no-privateDB proof; final Windows active named unsupported tests."
+    },
+    {
+      "feature_id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "criterion": "Focused real CLI/authority/#1773 regressions and lint pass, raw reds retained.",
+      "met": true,
+      "evidence": "Root inspected actual Go os.LookupEnv child/probe source; M4-raw-presence.log and M4-green.log actual PRESENT/ABSENT, counted loopback/header, path replacement/read-once/no-author-edit/no-privateDB proof; final Windows active named unsupported tests."
+    },
+    {
+      "feature_id": "M5_DOCS_GATES_AND_HANDOFF",
+      "criterion": "User docs/help and unreleased fragment accurately describe approved D1\u2013D7.",
+      "met": true,
+      "evidence": "Current guide/help/CLI reference/changelog/design/plan reconciled796b; exact1f6 evaluator-round2.log gate_source=ci tests/lint/sizes true, TODO0; final PR27checks20SUCCESS/7SKIPPED, actual Sonar90; three refreshed feedback endpoints empty."
+    },
+    {
+      "feature_id": "M5_DOCS_GATES_AND_HANDOFF",
+      "criterion": "Focused/changed/core/structural gates pass with unchanged thresholds/timeouts; no retry/waiver hides unrelated gate failures. Pending CI remains explicit.",
+      "met": true,
+      "evidence": "Current guide/help/CLI reference/changelog/design/plan reconciled796b; exact1f6 evaluator-round2.log gate_source=ci tests/lint/sizes true, TODO0; final PR27checks20SUCCESS/7SKIPPED, actual Sonar90; three refreshed feedback endpoints empty."
+    },
+    {
+      "feature_id": "M5_DOCS_GATES_AND_HANDOFF",
+      "criterion": "Design AC1\u2013AC8 mapped to committed tests and actual logs; exact integrated source provenance, red/green and platform qualifications retained.",
+      "met": true,
+      "evidence": "Current guide/help/CLI reference/changelog/design/plan reconciled796b; exact1f6 evaluator-round2.log gate_source=ci tests/lint/sizes true, TODO0; final PR27checks20SUCCESS/7SKIPPED, actual Sonar90; three refreshed feedback endpoints empty."
+    },
+    {
+      "feature_id": "M5_DOCS_GATES_AND_HANDOFF",
+      "criterion": "Independent evaluation handoff uses terminal real gates; no self-approval, live publish, issue closure, coordinator action or release during execution.",
+      "met": true,
+      "evidence": "Current guide/help/CLI reference/changelog/design/plan reconciled796b; exact1f6 evaluator-round2.log gate_source=ci tests/lint/sizes true, TODO0; final PR27checks20SUCCESS/7SKIPPED, actual Sonar90; three refreshed feedback endpoints empty."
+    }
+  ],
+  "criteria_met": 25,
+  "criteria_total": 25,
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "example_qualification": "Approved hostCLI invocation guide and actual synthetic package smoke; no live-key standaloneAIL example required",
+    "design_doc_status": "Implementation/native complete; exact-head CI now passes; independent round2 acceptance recorded here. Parent owns subsequent accepted/unreleased archival."
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Approved D1-D7 matched by root independent f953 production/actual raw-child proof, independently reviewed final help/metadata and publicAPI test-only delta, and final exact-head CI. No production semantic change in repair."
+  },
+  "deductions": [
+    {
+      "category": "code_quality",
+      "points": 5,
+      "reason": "Four changed physical FuncDecl>50, capped-5; all tests included",
+      "evidence": "function-lengths.json"
+    }
+  ],
+  "feedback": [],
+  "notes": "Independent round2 PASS95 on exact1f6 only; all25 criteria met, hardfails empty. Four changed physical Go FuncDecl over50lines cost capped5points, including all test functions in scan; TODO0. Final repair tests functions39/21lines add no long-function penalty. No score bonuses, thresholds/exclusions/policy changes, retries or hidden failure substitution. HistoricalFAIL73 retained. This report is independent acceptance, not a self-score/merge action; parent owns GitHub merge and archival.",
+  "prior_failure": {
+    "head": "796b93365eb66572c3b090133de58006258460e5",
+    "report": "eval_M-PUBLISH-PROTECTED-KEY-FILE_round_1.json",
+    "result": "fail",
+    "score": 73,
+    "reason": "actual Sonar new coverage78.3<80; product jobs successful; no CI retry or waiver. Original report and raw failure remain immutable."
+  },
+  "resolved_findings": [
+    "ce13 stale current dependency/checklists fixed metadata-only796b, historical STOP retained.",
+    "796b actual Sonar78.3 failure repaired only publicAPI tests+validation note; all production Go/allAIL unchanged; actual1f6 Sonar90.0/allconditionsOK."
+  ],
+  "ci_evidence": {
+    "snapshot": "pr-1f6-terminal.json",
+    "official_gate": "ci-gate-1f6-8.log",
+    "evaluator": "evaluator-round2.log",
+    "checks": {
+      "total": 27,
+      "success": 20,
+      "skipped": 7
+    },
+    "count_qualification": "Official gate saw26checks/19green+7skips; immediately subsequent terminal API snapshot includes one additional completed check:27total/20success+7skips. None pending/failing.",
+    "sonar": "sonar-gate-1f6.json",
+    "feedback_counts": {
+      "final-reviews.json": 0,
+      "final-inline-comments.json": 0,
+      "final-issue-comments.json": 0
+    },
+    "mergeability_note": "Terminal API mergeability UNKNOWN/recomputing; not asserted MERGEABLE and not a code/CI acceptance waiver. Root must refresh before normal merge."
+  },
+  "limitations": [
+    "Native final executor build was f953-dirty plus tested M5 help/dispatch strings; this is not a clean1f6 binary attestation. Actual final exact1f6 CI supplies clean-head broad/platform proof.",
+    "macOS/Linux positive file lane and Windows named unsupported lane, not Windows ACL support. Same-effective-user access cannot be prevented.",
+    "No evaluator product tests/builds, live keys/publish, provider calls or coordinator/message operations. Reused root independent source preflight and actual hash-bound native logs; evaluated final delta/AC/rubric/CI independently.",
+    "No regression/performance conditional bonus: this is host package/CLI scope, no shared compiler/effect/exec changes or optimization goals."
+  ]
+}

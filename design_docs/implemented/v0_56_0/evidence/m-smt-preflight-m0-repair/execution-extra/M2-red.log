@@ -1,0 +1,7 @@
+--- FAIL: TestContractCallIdentityAndGuard (0.00s)
+    codegen_call_facts_contract_test.go:32: call identity: "$xmod_result_bounded_0" "$xmod_result_bounded_1" "$xmod_result_bounded_0"
+--- FAIL: TestContractCallArityAndUnknownRequires (0.00s)
+    codegen_call_facts_contract_test.go:43: accepted arity 0
+FAIL
+FAIL	github.com/sunholo-data/ailang/internal/smt	0.343s
+FAIL

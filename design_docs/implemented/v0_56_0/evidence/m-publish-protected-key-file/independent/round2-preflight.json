@@ -1,0 +1,124 @@
+{
+  "sprint_id": "M-PUBLISH-PROTECTED-KEY-FILE",
+  "evaluation_round": 2,
+  "timestamp": "2026-10-29T22:09:57.080907+00:00",
+  "result": "pending",
+  "total_score": null,
+  "gate_source": "ci",
+  "head": "1f6c2ea68a5f45917f91935cdf2470e3833094e1",
+  "pr": 2021,
+  "design_doc": "design_docs/planned/v0_56_0/m-publish-protected-key-file.md",
+  "sprint_plan": "design_docs/planned/v0_56_0/m-publish-protected-key-file-sprint-plan.md",
+  "criteria_count": 25,
+  "implemented_features": 6,
+  "acceptance": {
+    "AC1": {
+      "implementation": "verified",
+      "evidence": [
+        "TestPublishCredential_Selection",
+        "TestPublishCredential_NoDefaultOrUnusedFile",
+        "TestPublishAuthCLI_HelpAndSelection",
+        "TestPublishAuthCLI_ZeroUploadAndUnusedFile"
+      ],
+      "basis": "Approved source matrix/no-default/no fallback/explicit-empty; native M2/M3/M4 green"
+    },
+    "AC2": {
+      "implementation": "verified",
+      "basis": "Root f953 production/test review plus M1 actual handle/mode/FIFO/stream/identity proof; foreign-owner is synthetic metadata, not privileged chown"
+    },
+    "AC3": {
+      "implementation": "verified",
+      "basis": "Root source authority-before-opener review and real bare/pkg refusal controls; Require/dispatch authority policy unchanged"
+    },
+    "AC4": {
+      "implementation": "verified",
+      "basis": "Root independently inspected actual raw Go os.LookupEnv child source and M4 active PRESENT/ABSENT plus counted loopback proof; no policy-hidden Env inference"
+    },
+    "AC5": {
+      "implementation": "verified",
+      "basis": "Same opened handle and closed-before-children; pathname replacement leaves frozen original header; unused help/dry-run zero read/upload"
+    },
+    "AC6": {
+      "implementation": "verified",
+      "basis": "Legacy header/warning exactly once, no process-env scrub; exact selected-key reflection redacted; other consumers unchanged"
+    },
+    "AC7": {
+      "implementation": "verified",
+      "native": "Darwin positive; unsupported platform tests exist",
+      "remote": "Newhead Windows job still in progress; unchanged-product796b Windows passed but not substituted for currenthead"
+    },
+    "AC8": {
+      "implementation": "verified",
+      "native": "All completed local gates read/hash-bound; accepted96d/#1773 retained",
+      "remote": "Newhead actualSonar90pass; remaining exact-head checks pending"
+    }
+  },
+  "provisional_only": {
+    "tests_pass": null,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10,
+    "total_if_all_hard_gates_pass": 95
+  },
+  "deductions": [
+    {
+      "category": "code_quality",
+      "points": 5,
+      "reason": "Four changed physical FuncDecl exceed50lines, capped-5 including all changed tests in AST scan",
+      "evidence": "function-lengths.json"
+    }
+  ],
+  "resolved_findings": [
+    "ce13 current dependency/checklists reconciled at796b; historical STOP/approval preserved; no source or gate rerun"
+  ],
+  "conditional_categories": {
+    "regression_surface": "not triggered: pkg/CLI host publishing, no shared compiler/effects/exec.go changes",
+    "performance": "not triggered: no optimization goals; no bonus"
+  },
+  "limitations": [
+    "No evaluator product tests/builds/live keys/publishes/provider/message/coordinator actions",
+    "Root-reviewed f953 production/key/actual-probe proof reused; independently checked final delta only help/dispatch strings and metadata",
+    "Native final build stamped f953-dirty plus tested M5 Go strings; it is not a clean796b binary attestation; actual796b CI required",
+    "Current feedback snapshot: three endpoints empty; refresh at terminal exact-head decision"
+  ],
+  "prior_failure": "eval_M-PUBLISH-PROTECTED-KEY-FILE_round_1.json",
+  "actual_new_code_coverage": 90.0,
+  "actual_quality_gate": "OK; all conditions pass at1f6, required otherCI stillpending",
+  "test_only_repair": {
+    "head": "1f6c2ea68a5f45917f91935cdf2470e3833094e1",
+    "changed_files": [
+      "design_docs/planned/v0_56_0/m-publish-protected-key-file-validation.md",
+      "internal/pkg/publish_keyfile_public_test.go"
+    ],
+    "missing_line_hits": {
+      "11": 1,
+      "12": 1,
+      "13": 1,
+      "15": 1,
+      "16": 1,
+      "17": 1,
+      "19": 1
+    },
+    "profile_sha256": "64fcbb15f6ec06f93d83af39a68dd4d87c689fb48e440389736314b5bc72e81f",
+    "production_and_ail_unchanged": true,
+    "projection_not_gate_pass": true
+  },
+  "repair_test_functions": [
+    {
+      "Path": "internal/pkg/publish_keyfile_public_test.go",
+      "Function": "TestReadPublishKeyFile_PublicProtectedFiles",
+      "Start": 15,
+      "End": 53,
+      "Lines": 39
+    },
+    {
+      "Path": "internal/pkg/publish_keyfile_public_test.go",
+      "Function": "TestReadPublishKeyFile_PublicMissingAndAuthority",
+      "Start": 55,
+      "End": 75,
+      "Lines": 21
+    }
+  ]
+}

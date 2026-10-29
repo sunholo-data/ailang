@@ -1,0 +1,222 @@
+{
+  "sprint_id": "M-PUBLISH-PROTECTED-KEY-FILE",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-29T21:54:35.210911+00:00",
+  "failure_observed_at": "2026-10-29T21:47:09Z",
+  "design_doc": "design_docs/planned/v0_56_0/m-publish-protected-key-file.md",
+  "sprint_plan": "design_docs/planned/v0_56_0/m-publish-protected-key-file-sprint-plan.md",
+  "head": "796b93365eb66572c3b090133de58006258460e5",
+  "pr": "https://github.com/sunholo-data/ailang/pull/2021",
+  "gate_source": "ci",
+  "total_score": 73,
+  "pass_threshold": 70,
+  "result": "fail",
+  "score_breakdown": {
+    "tests_pass": 0,
+    "lint_clean": 10,
+    "acceptance_criteria": 28,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [
+    {
+      "condition": "ci_gate_failed",
+      "details": "SonarCloud sole failed condition new_coverage78.3 < unchanged80 threshold; actual47/60covered lines. No product-test or security-rule failure identified.",
+      "output_snippet": "CI_GATE=fail PR #2021: failed checks: SonarCloud Code Analysis"
+    }
+  ],
+  "automated_checks": {
+    "tests_pass": false,
+    "tests_output": "Required combined CI gate failed. Individual Linux/Windows test/build/check/lint jobs were SUCCESS; no claim those product tests failed.",
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "coverage_pct": "new code78.3% (required80%)",
+    "todo_hack_count": 0
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M0_INTEGRATION_PREFLIGHT",
+      "criterion": "Actual accepted dependency source and owner recorded; no competing overwrite.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M0_INTEGRATION_PREFLIGHT",
+      "criterion": "Baseline retains #1773 shared rewrite/staging/D2/Notes/author restoration and #1964 authority-before-work; no runner/card/CI policy edits.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M1_PROTECTED_HANDLE_READER",
+      "criterion": "Real disposable0400/0600 files pass;0644/0640/0700/special modes fail.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M1_PROTECTED_HANDLE_READER",
+      "criterion": "Symlink/nonregular/missing paths fail; FIFO refusal is bounded; actual handle metadata positive plus synthetic foreign-owner negative validate owner policy without requiring root/chown. These synthetic checks are classified.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M1_PROTECTED_HANDLE_READER",
+      "criterion": "Same opened-handle identity survives pathname replacement; bounded reader rejects growth beyond16KiB without an unbounded allocation or hang.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M1_PROTECTED_HANDLE_READER",
+      "criterion": "Direct reader under confinement has zero opener calls; unsupported OS has zero opener calls and named refusal. No key values in any local read error.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M1_PROTECTED_HANDLE_READER",
+      "criterion": "Focused affected tests, lint and home isolation pass; preserve red evidence.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M2_CREDENTIAL_SELECTION_AND_FORMAT",
+      "criterion": "Complete approved selection table passes, including file error+valid env counterfactual, explicit empty flag, no-source and no implicit default probe.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M2_CREDENTIAL_SELECTION_AND_FORMAT",
+      "criterion": "Empty/whitespace/multiline/control/oversize synthetic contents fail; trimmed single-line dummy key accepted. No fallback on any read/parse failure.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M2_CREDENTIAL_SELECTION_AND_FORMAT",
+      "criterion": "Frozen result survives path/env mutation after selection; parent env remains unchanged; nil/default key is never treated as successful credential selection.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M2_CREDENTIAL_SELECTION_AND_FORMAT",
+      "criterion": "Authority/unsupported refusal precedes file opener; focused tests and lint pass.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M3_PUBLISH_COMMAND_WIRING",
+      "criterion": "Actual built CLI both publish spellings recognize the option; help and dry-run with missing/unreadable/unsupported file do not open/read it or upload.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M3_PUBLISH_COMMAND_WIRING",
+      "criterion": "Confined bare/pkg real/dry-run refuse before read; help remains available.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M3_PUBLISH_COMMAND_WIRING",
+      "criterion": "Real credential errors precede package subprocess/upload; env-only warns exactly once, file-only does not create env warning or key variable.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M3_PUBLISH_COMMAND_WIRING",
+      "criterion": "Loopback header/status unit controls retain X-API-Key/validation behavior, reject missing key before request and redact exact dummy-key response echoes.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M3_PUBLISH_COMMAND_WIRING",
+      "criterion": "Existing #1773 and authority-focused tests plus lint remain green.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "criterion": "File-only actual child sentinel absent vs legacy env sentinel present; counted loopback sees the correct distinct dummy header for both arms.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "criterion": "Read-once/path replacement control uses original value; parent env and author manifest/lock/content unchanged, no secret in captured artifacts.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "criterion": "Missing/conflicting/unsafe file yields zero upload; help/dry-run zero file open and zero upload; loopback controlled failure emits no package messages.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "criterion": "Portable helper uses bounded Go subprocess support; Windows actually tests file-lane unsupported and existing env/help/dry-run, not a blanket skip.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "criterion": "Focused real CLI/authority/#1773 regressions and lint pass, raw reds retained.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M5_DOCS_GATES_AND_HANDOFF",
+      "criterion": "User docs/help and unreleased fragment accurately describe approved D1\u2013D7.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M5_DOCS_GATES_AND_HANDOFF",
+      "criterion": "Focused/changed/core/structural gates pass with unchanged thresholds/timeouts; no retry/waiver hides unrelated gate failures. Pending CI remains explicit.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M5_DOCS_GATES_AND_HANDOFF",
+      "criterion": "Design AC1\u2013AC8 mapped to committed tests and actual logs; exact integrated source provenance, red/green and platform qualifications retained.",
+      "met": true,
+      "evidence": "Committed tests/native evidence and independent rootf953 review plus finaldelta verified; see acceptance map and raw log hashes."
+    },
+    {
+      "feature_id": "M5_DOCS_GATES_AND_HANDOFF",
+      "criterion": "Independent evaluation handoff uses terminal real gates; no self-approval, live publish, issue closure, coordinator action or release during execution.",
+      "met": false,
+      "evidence": "Required designAC8 exact-head CI acceptance is unmet: Sonar78.3<80. Native handoff completed, but final mandatory gate cannot be accepted."
+    }
+  ],
+  "criteria_met": 24,
+  "criteria_total": 25,
+  "acceptance_scoring_qualification": "24/25implementation-and-acceptance criteria credited; final M5handoff incorporates required designAC8 exactCI success. Floor(24/25*30)=28. Native-only handoff evidence remains successful.",
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "example_qualification": "Approved hostCLI invocation guide and actual synthetic package smoke; no live-key standaloneAIL example required",
+    "design_doc_status": "Implementation/local complete; CI/independent pending, current dependency/checklists repaired796b"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "D1-D7 matched by root independent f953 source/raw child preflight and final help/metadata delta; no production deviation identified."
+  },
+  "deductions": [
+    {
+      "category": "code_quality",
+      "points": 5,
+      "reason": "Four changed physical FuncDecl>50, capped-5; all tests included",
+      "evidence": "function-lengths.json"
+    }
+  ],
+  "feedback": [
+    {
+      "file": "internal/pkg/publish_keyfile_format.go",
+      "line": 11,
+      "function": "ReadPublishKeyFile",
+      "category": "coverage",
+      "issue": "Public wrapper success/read-error/parse-error lines11,12,13,15,16,17,19uncovered in Sonar despite lower-level/nativeCLI proof.",
+      "suggestion": "Add meaningful in-process publicAPI valid/malformed/missing/typedauthority controls; preserve production/threshold/workflow. Await actual newhead Sonar.",
+      "severity": "high"
+    }
+  ],
+  "notes": "Formal frozen failure applies only796b captured API, not later executor repair. Source/CI/raw hashes and preflight history preserved. No evaluator source edits, product suite repeats, live keys/publish, provider or coordinator/message actions. No unconditionalPASS despite score>=70."
+}

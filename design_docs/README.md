@@ -16,7 +16,11 @@
 
 - [Locked package asset snapshots](implemented/v0_56_0/m-pkg-asset-lock-resolution.md) — merged in #1849; source-context snapshots and fail-closed lock discovery cover runner and embedded/API paths. Target v0.56.0 is unreleased.
 
-- [Confined GitHub documentation fallback](implemented/v0_56_0/m-docs-search-fallback-confinement.md) — merged #2017, root independent PASS95/100; actual CLI/direct-library/policy-tool controls preserve local SimHash. Parent, plan, validation and frozen independent evidence are archived together; v0.56.0 is unreleased.
+- [Confined GitHub documentation fallback](implemented/v0_56_0/m-docs-search-fallback-confinement.md) — merged #2017, root independent PASS 95/100; actual CLI/direct-library/policy-tool controls preserve local SimHash. Parent, plan, validation and frozen independent evidence are archived together; v0.56.0 is unreleased.
+
+- [M0 SMT soundness repair](planned/m-smt-well-sorted-preflight.md) — PR #2019, root round 3 PASS 95; M0-F1/F4/Z accepted/unreleased. Multiphase parent and repair companions remain planned; M1–M4/F2/F5/#1950/#1953 deferred. [Frozen evaluation/evidence](implemented/v0_56_0/evidence/m-smt-preflight-m0-repair/README.md).
+
+- [Protected publisher key file](implemented/v0_56_0/m-publish-protected-key-file.md) — PR #2021, independent round 2 PASS 95; parent/plan/validation and preserved FAIL 73/final evidence archived together. v0.56.0 is unreleased.
 
 ## Structure
 

@@ -3,8 +3,8 @@
   "title": "Explicit protected publisher key file with preserved authority and no inherited file-key environment",
   "status": "completed",
   "created": "2026-10-29",
-  "design_doc": "design_docs/planned/v0_56_0/m-publish-protected-key-file.md",
-  "sprint_plan": "design_docs/planned/v0_56_0/m-publish-protected-key-file-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_56_0/m-publish-protected-key-file.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/m-publish-protected-key-file-sprint-plan.md",
   "github_issues": [
     1900
   ],
@@ -26,7 +26,7 @@
   "implementation_complete": true,
   "started": "2026-10-29T20:57:24.510013+00:00",
   "completed": "2026-10-29T21:29:15.794142+00:00",
-  "independent_evaluation": "Pending root independent evaluation and actual exact-head CI; executor has not scored or approved implementation",
+  "independent_evaluation": "Accepted independent round 2: PASS 95/100 at 1f6c2ea68a5f45917f91935cdf2470e3833094e1; actual 27 CI contexts, 20 success / 7 skipped, Sonar 90.0%; no executor self-score",
   "velocity": {
     "target_loc_per_day": 220,
     "estimated_total_loc": 650,
@@ -288,7 +288,7 @@
     "approved_artifact_commit": "c9698d88e390d21139507a81f6ff7f64fc4a519a",
     "scope": "Execute #1900 M0-M5 only with approved #2013 dependency sequencing; no new D1-D7 approval needed after legitimate dependency release"
   },
-  "last_checkpoint": "M0-M5 implementation/local acceptance complete; all required local gates pass; handoff to root independent evaluator and exact-head CI pending",
+  "last_checkpoint": "M0\u2013M5 independently accepted at exact 1f6c2ea; actual 27 CI contexts and Sonar 90.0% passed; normally merged as b9c15d4",
   "execution_worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/publish-key-file-1900-exec",
   "execution_branch": "fix/publish-protected-key-file",
   "local_gates": {
@@ -305,6 +305,39 @@
     "cli_reference": true,
     "fmt": true,
     "full_local_suite_run": false,
-    "windows": "CI pending; fail-closed platform arm and legacy/env/help/dry-run run there"
+    "windows": "Actual final-head Windows CI passed; protected-file unsupported arm plus legacy/env/help/dry-run qualified by final report. No Windows ACL support claim."
+  },
+  "release_status": "unreleased",
+  "acceptance": {
+    "status": "accepted",
+    "release_status": "unreleased",
+    "independent_round": 2,
+    "score": 95,
+    "max_score": 100,
+    "verdict": "PASS",
+    "report_schema_qualification": "M0 frozen report uses verdict/score; key frozen report uses result=pass and total_score=95. Neither report is rewritten.",
+    "evaluated_head": "1f6c2ea68a5f45917f91935cdf2470e3833094e1",
+    "accepted_merge": "b9c15d431ee25fb28c7bc2729f199cb80c8cdada",
+    "merged_at_utc": "2026-10-29T22:20:12Z",
+    "closed_issues": [
+      1900
+    ],
+    "report_json": "design_docs/implemented/v0_56_0/evidence/m-publish-protected-key-file/independent/eval_M-PUBLISH-PROTECTED-KEY-FILE_round_2.json",
+    "report_markdown": "design_docs/implemented/v0_56_0/evidence/m-publish-protected-key-file/independent/eval_M-PUBLISH-PROTECTED-KEY-FILE_round_2.md",
+    "evidence_manifest": "design_docs/implemented/v0_56_0/evidence/m-publish-protected-key-file/manifest.json",
+    "ci": {
+      "status": "PASS",
+      "contexts": 27,
+      "success": 20,
+      "skipped": 7,
+      "failed": 0,
+      "pending": 0,
+      "head": "1f6c2ea68a5f45917f91935cdf2470e3833094e1"
+    },
+    "actual_sonar_new_coverage": 90.0,
+    "sonar_minimum_unchanged": 80,
+    "issue_closed_at_utc": {
+      "1900": "2026-10-29T22:20:13Z"
+    }
   }
 }

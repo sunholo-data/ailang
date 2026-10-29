@@ -1,0 +1,153 @@
+{
+  "sprint_id": "M-SMT-PREFLIGHT-M0-REPAIR",
+  "round": 3,
+  "verdict": "PASS",
+  "score": 95,
+  "max_score": 100,
+  "hard_fail": false,
+  "evaluated_head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+  "pr": "https://github.com/sunholo-data/ailang/pull/2019",
+  "evaluated_at_utc": "2026-10-29T22:18:48.832725+00:00",
+  "reviewer_independent": true,
+  "implementation_authored_by_reviewer": false,
+  "gate_source": "exact-head PR CI",
+  "scores": {
+    "tests": 20,
+    "lint": 10,
+    "acceptance": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "checks": {
+    "total": 27,
+    "success": 20,
+    "skipped": 7,
+    "pending": 0,
+    "failed": 0
+  },
+  "actual_sonar_new_coverage": 84.4,
+  "sonar_threshold_unchanged": 80,
+  "sonar_all_conditions": "OK",
+  "acceptance": {
+    "met": 20,
+    "total": 20,
+    "matrix": "acceptance-matrix-final.json"
+  },
+  "deductions": [
+    {
+      "points": 5,
+      "reason": "PhysicalGoFuncDecl>50lines includesalltests, -2each capped-5;16declarations",
+      "inventory": "functions-over50.json"
+    }
+  ],
+  "conditional_categories": {
+    "regression_surface": "Nottriggered by documentedcompilerpathlist; internal/smtcorrectnessscope",
+    "performance": "Notaperformancesprint. Scriptkeywordmatches negatedsolver-performanceguarantee; no bonus/unrelatedprofileclaim"
+  },
+  "automated_evaluation": "automated-evaluation-final.json",
+  "source_identity": {
+    "actual_test_head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+    "original_compiler_and_test_source": "60a7d7b5fce9c137835774750cac1cca063e6b00",
+    "productionGo_and_allAIL_equal_60": true,
+    "subsequent_product_delta": "none",
+    "test_only_repair": "69linebehaviorcompanion+validationnote; directZ3V/CEcontrols",
+    "proof": "coverage-repair-independent-preflight.json",
+    "compiler_core_corpus_runtime_evidence": "evidence-preflight.json"
+  },
+  "evidence": {
+    "raw_manifest_hashes_verified": 17,
+    "binaries_sha_verified": 2,
+    "fixtures_sha_verified": 7,
+    "raw_paired_corpus_calls": 2102,
+    "unique_file_pairs": 1051,
+    "function_rows_per_arm": 3036,
+    "verdict_changes": "solevalidEmbedERROR\u2192VERIFIED;actualtypedUFargumentfacts",
+    "diagnostic_only_changes": 157,
+    "unchanged_failure_rows": "27CE/39vs40ERROR/1timeout plus627SKIP+2035uncontracted retained",
+    "mutants": "all3 falseVERIFIEDtarget+focusedGoRED with original/mutatedSHA bound",
+    "actual_cli_commands": 72,
+    "tree_strict_vm": "12signedpairs/op andRT001botharms; actualruntimeensuresviolation"
+  },
+  "design_fidelity": "ApprovedM0-F1/F4/Zonly: truncatingInt, typedUFactualargs/requiresguard/finitelexicalselectedfacts; parentM1\u2013M4/F2/F5/callerobligations/width/Float/admission/held1790remainoutside",
+  "quorum": "BothrawexternalBLOCKEDrecordsunchanged; actualhumanratification+explicitexecuteauthorizeM0, no externalPROCEED claimed",
+  "artifacts": "All6implementationmilestonescomplete/statuscompleted/velocitypopulated; currentplanstatuscorrected; actualCI+independent acceptance updatedonlyafterthisreport/merge. Multi-phaseparent+companionsstayplanned.",
+  "documentation": "Changelog/contractguide/approveddesignandvalidationcomplete; puretestdatafixtureswithtrue/falsecontracts are theapprovedbugfixexamples, no newshowcase/codegenrequired",
+  "prior_evaluations": [
+    {
+      "round": 1,
+      "verdict": "FAIL",
+      "score": 73,
+      "head": "cb5a60ffb63e4c39a7a5d7170db979f5d0dc6bbb",
+      "report": "eval_M-SMT-PREFLIGHT-M0-REPAIR_round_1.json",
+      "supplement": "round1-sonar-corrigendum.json",
+      "preserved": true
+    },
+    {
+      "round": 2,
+      "verdict": "FAIL",
+      "score": 73,
+      "head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+      "report": "eval_M-SMT-PREFLIGHT-M0-REPAIR_round_2.json",
+      "preserved": true,
+      "reason": "Linuxcmd416sbudgetguardsat20.99sleft/package395.286s;notaccepted"
+    }
+  ],
+  "final_retry": {
+    "head": "4fb3b2b7efdbb77f7a6a7d77f92c1ba74652a314",
+    "pr": 2019,
+    "actual_ci": "PASS",
+    "workflow": 40960748450,
+    "actual_attempt": 2,
+    "actual_test_job": 123761057602,
+    "contexts": 27,
+    "counts": {
+      "SUCCESS": 20,
+      "SKIPPED": 7,
+      "NEUTRAL": 0
+    },
+    "pending": 0,
+    "failed": 0,
+    "cancelled": 0,
+    "sonar_actual_current_head": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T22:14:46Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://sonarcloud.io/dashboard?id=sunholo-data_ailang&pullRequest=2019",
+        "name": "SonarCloud Code Analysis",
+        "startedAt": "2026-10-29T22:13:39Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "sonar_numeric_coverage": "Not inferred from local84.4projection; root may query actual service",
+    "feedback_counts": {
+      "issue-comments": 2,
+      "inline-comments": 0,
+      "reviews": 0
+    },
+    "gate_log": "ci-gate-final.log",
+    "final_snapshot": "pr-final.json",
+    "test_success_raw": {
+      "path": "/tmp/ailang-backlog-20261029/m0-pr2019-monitor-4fb/test-attempt2-success-raw.log",
+      "bytes": 143131,
+      "sha256": "f4f9a665d9a050f3835cce4f21db09a619359a86a3414e138bee1b068727b12f",
+      "selected_package_outcomes": [
+        "2026-10-29T22:13:14.2388141Z ok  \tgithub.com/sunholo-data/ailang/cmd/ailang\t251.801s\tcoverage: 25.2% of statements",
+        "2026-10-29T22:13:14.2460407Z ok  \tgithub.com/sunholo-data/ailang/internal/smt\t10.770s\tcoverage: 72.6% of statements",
+        "2026-10-29T22:13:26.0760170Z ok  \tgithub.com/sunholo-data/ailang/cmd/ailang\t0.065s"
+      ]
+    },
+    "original_raw_classification_round2_FAIL73_preserved": true,
+    "one_authorized_retry_used": 1,
+    "further_retry_allowed": false,
+    "source_deadline_config_threshold_waiver_changes": false,
+    "formal_evaluation_or_score_by_monitor": false,
+    "merge_by_monitor": false,
+    "next": "Root owns formalround3(max3) and normalmerge after full source/evidence review"
+  },
+  "reviews": "twohistoricrootFAILcomments, zero inline/formalreviews; no unresolvedsourcefindings",
+  "findings": [],
+  "recommendation": "Normalmergeexact4fb;closeonly1960/1961. Parentfullroadmapstaysplanned; postacceptrecordactualmergeandcompanions/evidencewithoutarchivingwholeparent."
+}

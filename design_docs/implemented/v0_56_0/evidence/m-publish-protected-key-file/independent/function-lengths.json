@@ -1,0 +1,296 @@
+[
+  {
+    "Path": "cmd/ailang/commands_pkg.go",
+    "Function": "pkgSubcommands",
+    "Start": 23,
+    "End": 132,
+    "Lines": 110
+  },
+  {
+    "Path": "cmd/ailang/help.go",
+    "Function": "printHelp",
+    "Start": 232,
+    "End": 401,
+    "Lines": 170
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish.go",
+    "Function": "pkgPublishCommand",
+    "Start": 23,
+    "End": 173,
+    "Lines": 151
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish.go",
+    "Function": "uploadTarball",
+    "Start": 205,
+    "End": 281,
+    "Lines": 77
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_auth.go",
+    "Function": "resolvePublishCredential",
+    "Start": 19,
+    "End": 48,
+    "Lines": 30
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_auth.go",
+    "Function": "redactPublishError",
+    "Start": 51,
+    "End": 60,
+    "Lines": 10
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_auth_test.go",
+    "Function": "TestPublishCredential_Selection",
+    "Start": 16,
+    "End": 40,
+    "Lines": 25
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_auth_test.go",
+    "Function": "TestPublishCredential_NoDefaultOrUnusedFile",
+    "Start": 42,
+    "End": 63,
+    "Lines": 22
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_auth_test.go",
+    "Function": "TestPublishCredential_FrozenLegacyAndAuthority",
+    "Start": 65,
+    "End": 82,
+    "Lines": 18
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_auth_test.go",
+    "Function": "TestPublishCredential_FileAndPlatform",
+    "Start": 84,
+    "End": 111,
+    "Lines": 28
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_child_test.go",
+    "Function": "buildPublishProbe",
+    "Start": 21,
+    "End": 34,
+    "Lines": 14
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_child_test.go",
+    "Function": "writePublishProbePackage",
+    "Start": 36,
+    "End": 57,
+    "Lines": 22
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_child_test.go",
+    "Function": "TestPublishChild_RawEnvironmentAndFrozenUpload",
+    "Start": 59,
+    "End": 72,
+    "Lines": 14
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_child_test.go",
+    "Function": "runPublishChildArm",
+    "Start": 74,
+    "End": 110,
+    "Lines": 37
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_child_test.go",
+    "Function": "preparePublishLane",
+    "Start": 112,
+    "End": 135,
+    "Lines": 24
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_child_test.go",
+    "Function": "publishProofServer",
+    "Start": 137,
+    "End": 158,
+    "Lines": 22
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_child_test.go",
+    "Function": "assertPublishAuthorUnchanged",
+    "Start": 160,
+    "End": 174,
+    "Lines": 15
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_keyfile_cli_test.go",
+    "Function": "isolatePublishCLI",
+    "Start": 12,
+    "End": 24,
+    "Lines": 13
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_keyfile_cli_test.go",
+    "Function": "TestPublishAuthCLI_HelpAndSelection",
+    "Start": 26,
+    "End": 49,
+    "Lines": 24
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_keyfile_cli_test.go",
+    "Function": "TestPublishAuthCLI_EnvWarningAndAuthority",
+    "Start": 51,
+    "End": 71,
+    "Lines": 21
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_rejection_cli_test.go",
+    "Function": "TestPublishAuthCLI_ZeroUploadAndUnusedFile",
+    "Start": 17,
+    "End": 58,
+    "Lines": 42
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_rejection_cli_test.go",
+    "Function": "runPublishRejections",
+    "Start": 60,
+    "End": 81,
+    "Lines": 22
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_upload_auth_test.go",
+    "Function": "TestPublishUpload_FrozenHeaderAndReflection",
+    "Start": 15,
+    "End": 37,
+    "Lines": 23
+  },
+  {
+    "Path": "cmd/ailang/pkg_publish_upload_auth_test.go",
+    "Function": "TestPublishUpload_NoAnonymousOrConfinedRequest",
+    "Start": 39,
+    "End": 54,
+    "Lines": 16
+  },
+  {
+    "Path": "cmd/ailang/testdata/publish_env_probe/main.go",
+    "Function": "main",
+    "Start": 8,
+    "End": 24,
+    "Lines": 17
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile.go",
+    "Function": "readPublishKeyBytes",
+    "Start": 14,
+    "End": 28,
+    "Lines": 15
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile.go",
+    "Function": "readPublishKeyStream",
+    "Start": 31,
+    "End": 40,
+    "Lines": 10
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_format.go",
+    "Function": "ReadPublishKeyFile",
+    "Start": 10,
+    "End": 20,
+    "Lines": 11
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_format.go",
+    "Function": "parsePublishKey",
+    "Start": 22,
+    "End": 36,
+    "Lines": 15
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_format_test.go",
+    "Function": "TestPublishKeyFile_Format",
+    "Start": 8,
+    "End": 31,
+    "Lines": 24
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_other.go",
+    "Function": "openPublishKeyFile",
+    "Start": 7,
+    "End": 12,
+    "Lines": 6
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_test.go",
+    "Function": "TestPublishKeyFile_AuthorityBeforePath",
+    "Start": 13,
+    "End": 20,
+    "Lines": 8
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_test.go",
+    "Function": "TestPublishKeyFile_UnsupportedPlatform",
+    "Start": 22,
+    "End": 31,
+    "Lines": 10
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_unix.go",
+    "Function": "openPublishKeyFile",
+    "Start": 11,
+    "End": 34,
+    "Lines": 24
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_unix.go",
+    "Function": "validatePublishKeyInfo",
+    "Start": 36,
+    "End": 48,
+    "Lines": 13
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_unix_test.go",
+    "Function": "dummyPublishFile",
+    "Start": 17,
+    "End": 25,
+    "Lines": 9
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_unix_test.go",
+    "Function": "TestPublishKeyFile_ProtectedModes",
+    "Start": 27,
+    "End": 47,
+    "Lines": 21
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_unix_test.go",
+    "Function": "TestPublishKeyFile_RefusesSymlinkDirectoryAndOwner",
+    "Start": 49,
+    "End": 68,
+    "Lines": 20
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_unix_test.go",
+    "Function": "TestPublishKeyFile_SameValidatedHandle",
+    "Start": 70,
+    "End": 87,
+    "Lines": 18
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_unix_test.go",
+    "Function": "Read",
+    "Start": 91,
+    "End": 97,
+    "Lines": 7
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_unix_test.go",
+    "Function": "TestPublishKeyFile_BoundedStream",
+    "Start": 98,
+    "End": 113,
+    "Lines": 16
+  },
+  {
+    "Path": "internal/pkg/publish_keyfile_unix_test.go",
+    "Function": "TestPublishKeyFile_FIFOIsBounded",
+    "Start": 115,
+    "End": 140,
+    "Lines": 26
+  }
+]

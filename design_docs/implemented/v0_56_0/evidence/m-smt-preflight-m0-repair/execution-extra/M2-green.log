@@ -1,0 +1,5 @@
+# github.com/sunholo-data/ailang/internal/smt [github.com/sunholo-data/ailang/internal/smt.test]
+internal/smt/codegen_xmod_contract.go:64:18: cannot use p (variable of struct type FunctionParam) as *"github.com/sunholo-data/ailang/internal/ast".Param value in argument to isUnitParam
+internal/smt/codegen_xmod_contract.go:151:18: cannot use p (variable of struct type FunctionParam) as *"github.com/sunholo-data/ailang/internal/ast".Param value in argument to isUnitParam
+FAIL	github.com/sunholo-data/ailang/internal/smt [build failed]
+FAIL

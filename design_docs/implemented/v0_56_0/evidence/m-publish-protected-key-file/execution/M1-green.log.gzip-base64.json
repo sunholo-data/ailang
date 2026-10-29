@@ -1,0 +1,13 @@
+{
+  "schema": "ailang.lossless-evidence/v1",
+  "logical_name": "1900/execution/M1-green.log",
+  "encoding": "gzip+base64",
+  "original_bytes": 190,
+  "original_sha256": "455533d60d03c49996b4f9729dd6a79e197eee943e5ce1267dc481063d57efa3",
+  "compressed_bytes": 175,
+  "compressed_sha256": "6d6b1ee879cd338166ff9d5b34adeef594c3ef75ef547511f7aceb86d1ae2eac",
+  "gzip_mtime": 0,
+  "gzip_filename": "",
+  "gzip_compresslevel": 9,
+  "payload": "H4sIAAAAAAAC/yWNsQ7CIBiE5/Yp/lEHQKwOsulA0miig3tDC6WkCE2BxL691N5w0/fdIYSAX+sHg7cK8ZVaa8JwVws3VjW85s863HxyUknYVfhAw76EnGkDm1Et/UomZ75NzAtYe0aPZwarC7PqUxAWWuu7UUnSiwxLBohCub7+q9AmDqnFnf+QkNzgrUdSREEyLJwmxkU1O2HJNOqC0guuTjRs+g96ov9fvgAAAA=="
+}
