@@ -91,11 +91,11 @@ All four milestones use `action: none`: this is a compiler/stdlib soundness inva
 
 **Files:** companion `cmd/ailang/effect_row_soundness_test.go` or existing command fixture harness (reuse, do not duplicate build helpers), pipeline fixtures, and validation evidence next to this plan.
 
-- [ ] On evaluator and `--bytecode`, each R1–R5 negative program fails before its side-effect marker is printed; matching declared-effect controls run and print exactly once.
-- [ ] Check both `_ai_step_with_stream` and `_ai_step_with_stream_recorded` wrapper acceptance via deterministic stub/compile tests, including pure renderer and AI+IO renderer.
-- [ ] In a scratch copy only, remove both guards with M1 retained: new leak and unit matrix tests turn red. Restore guards and remove M1: std/ai migration test turns red. Record exact SHAs and commands.
-- [ ] Existing direct-call and pure callback controls remain green; no new silent fallback is introduced.
-- [ ] Focused command/pipeline/type suites and `make test-core` pass; commit M3.
+- [x] On evaluator and `--bytecode`, each R1–R5 negative program fails before its side-effect marker is printed; matching declared-effect controls run and print exactly once.
+- [x] Check both `_ai_step_with_stream` and `_ai_step_with_stream_recorded` wrapper acceptance via deterministic stub/compile tests, including pure renderer and AI+IO renderer.
+- [x] In a scratch copy only, remove both guards with M1 retained: new leak and unit matrix tests turn red. Restore guards and remove M1: std/ai migration test turns red. Record exact SHAs and commands.
+- [x] Existing direct-call and pure callback controls remain green; no new silent fallback is introduced.
+- [x] Focused command/pipeline/type suites and `make test-core` pass; commit M3.
 
 ### M4: Validate the combined corpus, goldens and migration note (~70 LOC)
 

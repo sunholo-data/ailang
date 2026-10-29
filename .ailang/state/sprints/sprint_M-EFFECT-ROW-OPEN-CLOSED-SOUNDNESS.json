@@ -58,10 +58,10 @@
         "Positive declared-effect controls remain green",
         "Removing guards or migration separately kills targeted tests"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T07:34:32.642528+00:00",
+      "notes": "Two-engine negative cases reject before side effects, positive mapE and pure AI streaming run. Guard removal kills unit/pipeline/CLI tests; migration removal kills both streaming APIs and builtin type tests. test-changed (including cmd/ailang 193.594s), core, lint and sizes pass."
     },
     {
       "id": "M4_CORPUS_RELEASE",
