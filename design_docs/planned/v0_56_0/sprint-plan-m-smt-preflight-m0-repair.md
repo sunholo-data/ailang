@@ -51,6 +51,8 @@ All planned `.ail` modules below are verifier regression fixtures, not showcase 
 
 ## M1 — actual baselines and truncating Int arithmetic
 
+**Implementation checkpoint:** signed nine-emitter RED→GREEN, full SMT suite and actual base/fixed CLI plus interpreter/strict-VM signed matrix measured; zero runtime RT001 retained. Raw evidence `/tmp/ailang-backlog-20261029/m0-execution` (durable summary at final handoff).
+
 **Estimate:** 100 implementation +160 tests = 260 LOC; 60–90 min core work. **Dependency:** none. **Examples/fixtures:** `cmd/ailang/testdata/verify_preflight/m0_int_divmod.ail`, `m0_runtime_signs.ail`, `m0_zero_domain.ail`.
 
 - Build/pin actual current baseline and archive historical evidence separately. Check original fixtures and retain all per-function statuses, models, SMT and aggregate exits.

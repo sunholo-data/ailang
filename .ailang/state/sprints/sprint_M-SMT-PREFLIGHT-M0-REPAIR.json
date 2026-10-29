@@ -10,12 +10,12 @@
     1960,
     1961
   ],
-  "status": "not_started",
+  "status": "in_progress",
   "plan_status": "approved",
-  "last_session": "2026-10-29T15:01:04Z",
-  "last_session_kind": "planning_only",
+  "last_session": "2026-10-29T20:23:56.740513+00:00",
+  "last_session_kind": "execution",
   "last_checkpoint": null,
-  "started": null,
+  "started": "2026-10-29T20:23:56.740513+00:00",
   "completed": null,
   "features": [
     {
@@ -29,10 +29,10 @@
         "All Int producer/sign/nested-binding controls agree with executed interpreter and strict VM results",
         "False parity/halfDown refuted; true controls preserved; approved zero/width behavior retained"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T20:23:56.740513+00:00",
+      "completed": "2026-10-29T20:23:56.740513+00:00",
+      "notes": "Actual base6d0d3a9 reproduced parity/halfDown false VERIFIED and gap false VERIFIED; inherited error/counterexample rows retained. Signed nine-emitter matrix RED before patch, full internal/smt GREEN after; actual current/fixed CLI and both runtime engines captured under /tmp/ailang-backlog-20261029/m0-execution. Prompt v0.16.11 loaded from exact baseline. Zero runtime RT001 preserved."
     },
     {
       "id": "M2_FINITE_UF_SPECS",
