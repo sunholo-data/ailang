@@ -235,6 +235,22 @@ bytes=$(wc -c < "$X/note.raw" | tr -d ' ')
 LC_ALL=C /usr/bin/grep -q '[^ -~]' "$X/note.raw" && bad "T6: note is not pure ASCII" || ok "T6: note is pure ASCII"
 [ -n "$(tail -c1 "$X/note.raw")" ] && ok "T6: note has no trailing newline" || bad "T6: note ends in a newline"
 
+# --- T6c: the note's load-bearing sentences (iteration-69 judge: F, F2 and H passed T6) -------
+# T6 checks names; these pin MEANING. A note that steers the inbox step to ailang_cli is the exact
+# bug this note exists to prevent, so it must fail here, not only in review.
+for needle in 'tools are NOT granted in a controller session' \
+              'as ONE plain bash call on its own' \
+              'is refused if any part of it is not on the read-only list' \
+              'none of them counts toward the protocol' \
+              'Run every ailang command through bash.'; do
+  /usr/bin/grep -qF -- "$needle" "$X/note.raw" && ok "T6c: note says [$needle]" || bad "T6c: note no longer says [$needle]"
+done
+if /usr/bin/grep -qiE -- '(via|with|through|using|use) (the )?ailang_(cli|run)' "$X/note.raw"; then
+  bad "T6c: note steers a step to ailang_cli/ailang_run"
+else
+  ok "T6c: note never steers a step to ailang_cli/ailang_run"
+fi
+
 # --- T6b: positive control — the scratch rewording still satisfies T1-T3 -------------------------
 SNOTE=$(note_from "$SCR")
 check_pi_scratch() {
