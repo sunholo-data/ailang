@@ -270,6 +270,9 @@ func (e *Engine) CallPrepared(prepare func(effCtx interface{}), modulePath, func
 // even for whole numbers like 100.0. Use this for direct Go calls where you need
 // float arguments to stay as floats (not be converted to int for JSON compatibility).
 func (e *Engine) CallPreserveFloats(modulePath, funcName string, args ...interface{}) (eval.Value, error) {
+	if e.pkgAssets.err != nil {
+		return nil, e.pkgAssets.err
+	}
 	gid := 0
 	if debugConcurrency {
 		gid = embedGoroutineID()

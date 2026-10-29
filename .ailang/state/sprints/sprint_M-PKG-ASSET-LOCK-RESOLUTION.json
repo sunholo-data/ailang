@@ -91,7 +91,7 @@
       "passes": true,
       "started": "2026-10-16T08:49:55.644065+00:00",
       "completed": "2026-10-16T08:56:51.023303+00:00",
-      "notes": "Two-version fixtures pass in runner, batch, embed, API handler; engine isolation, context replacement, missing target and malformed lock tests pass. Targets snapshot at Engine.New; Load/Call surface errors. Independent evaluator started per executor handoff requirement."
+      "notes": "Two-version fixtures pass in runner, batch, embed, API handler; engine isolation, context replacement, missing target and malformed lock tests pass. Targets snapshot at Engine.New; Load/Call surface errors. Independent evaluator started per executor handoff requirement. 2026-10-29 review repair: CallPreserveFloats now rejects discovery errors before runtime fallback; malformed-lock regression fails before the guard and passes after it, with valid locked-byte cold/warm calls covered."
     },
     {
       "id": "M4",
