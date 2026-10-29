@@ -34,6 +34,9 @@ func runGit(t *testing.T, dir string, args ...string) string {
 func makeGitPackage(t *testing.T) string {
 	t.Helper()
 	requireGit(t)
+	// Product clones and fixture commands must use the same newline/config policy.
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	repo := t.TempDir()
 	runGit(t, repo, "init", "-q")
 	writeFile(t, filepath.Join(repo, "ailang.toml"), "[package]\nname = \"test/gitlib\"\nversion = \"0.1.0\"\nedition = \"1\"\n")
