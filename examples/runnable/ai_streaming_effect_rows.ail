@@ -1,0 +1,29 @@
+-- A pure chunk callback leaves the caller's row at AI alone. An IO renderer
+-- requires AI and IO; both stepWithStream APIs propagate the callback row.
+-- Run offline: ailang run --caps AI,IO --ai-stub --entry main <this file>
+-- Contracts: skipped because provider results are effectful, not SMT-pure.
+-- Inline tests: skipped for effectful entries; Go integration checks both APIs.
+module examples/runnable/ai_streaming_effect_rows
+
+import std/ai (stepWithStream, stepWithStreamRecorded, StreamChunk)
+import std/io (println)
+
+pure func quiet(chunk: StreamChunk) -> () = ()
+
+export func askQuietly() -> () ! {AI} {
+  let _ = stepWithStream("", [], [], [], quiet);
+  let _ = stepWithStreamRecorded("", [], [], [], quiet);
+  ()
+}
+
+export func render(chunk: StreamChunk) -> () ! {IO} = println("chunk")
+
+export func askVisibly() -> () ! {AI, IO} {
+  let _ = stepWithStream("", [], [], [], render);
+  ()
+}
+
+export func main() -> () ! {AI, IO} {
+  askQuietly();
+  println("pure callbacks accepted")
+}

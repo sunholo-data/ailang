@@ -245,6 +245,8 @@ func formatTypeCanonicalDepth(t types.Type, getCanonName func(string) string, de
 			}
 			sort.Strings(effectNames)
 			result += "!{" + joinTypes(effectNames) + "}"
+		} else if typ.EffectRow != nil && typ.EffectRow.Tail == nil && typ.ConcreteEffectContract {
+			result += "!{}"
 		}
 
 		return result

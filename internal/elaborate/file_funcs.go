@@ -405,7 +405,12 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			Tail:   &types.RowVar{Name: fmt.Sprintf("ε_annot%d", e.freshVarNum), Kind: types.EffectRow},
 		}
 		concreteContract := false
-		if len(typ.Effects) > 0 {
+		if typ.Effects != nil && len(typ.Effects) == 0 {
+			// An explicitly empty callback contract is pure, not polymorphic.
+			// Keep it closed so an effectful value cannot enter via a tail.
+			openEffectRow = types.EmptyEffectRow()
+			concreteContract = true
+		} else if len(typ.Effects) > 0 {
 			annotated, err := types.ElaborateEffectRowWithBudgets(typ.Effects)
 			if err != nil {
 				e.typeAnnotationErr = fmt.Errorf("invalid function effect annotation: %w", err)
@@ -421,7 +426,7 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			Params:                 params,
 			EffectRow:              openEffectRow,
 			ConcreteEffectContract: concreteContract,
-			ImplicitEffectContract: len(typ.Effects) == 0,
+			ImplicitEffectContract: typ.Effects == nil,
 			Return:                 e.astTypeToInternalType(typ.Return),
 		}
 

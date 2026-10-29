@@ -2,7 +2,8 @@
 
 > **Dependency met:** M-IFC-AUTHORITY-SCOPING (#1707) is on dev. This run executes M1–M2 only.
 
-**Target:** v0.53.x (v0.54.0 if release sequencing requires it)
+**Current target:** v0.56.0 (unreleased M1–M2 repair; no version bump/deployment)
+**Original target:** v0.53.x / v0.54.0, historical 2026-10-08 planning
 **Status:** M1–M2 repaired, independent evaluation pending (2026-10-29); M3–M4 pending
 **Date:** 2026-10-08
 **Issues:** Refs #1134; Refs #1132 (part 1 only)

@@ -1,0 +1,11 @@
+--- a/src/core/test/stub_step.ail
++++ b/src/core/test/stub_step.ail
+@@ -118,7 +118,7 @@
+ -- produce a witness of zero against a trace of N. A second `[string] ->
+ -- [StreamChunk]` conversion at the reporting site would have been two notions of
+ -- one quantity; there is one list and it cannot drift from itself.
+-func play_chunks(chunks: [StreamChunk], on_chunk: (StreamChunk) -> () ! {IO, Trace}) -> () ! {IO, Trace} {
++func play_chunks(chunks: [StreamChunk], on_chunk: (StreamChunk) -> () ! {IO}) -> () ! {IO, Trace} {
+   match chunks {
+     [] => (),
+     x :: rest => {

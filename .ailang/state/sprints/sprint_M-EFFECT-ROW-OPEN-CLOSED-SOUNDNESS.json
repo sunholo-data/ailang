@@ -1,0 +1,157 @@
+{
+  "sprint_id": "M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS",
+  "status": "completed",
+  "created": "2026-10-29T07:17:55.034627+00:00",
+  "design_doc": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness.md",
+  "sprint_plan": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-sprint-plan.md",
+  "github_issues": [
+    1958
+  ],
+  "base_commit": "c04a44780",
+  "velocity": {
+    "target_loc_per_day": 248,
+    "estimated_total_loc": 620,
+    "estimated_days": 2.5
+  },
+  "features": [
+    {
+      "id": "M1_AI_ROW_POLY",
+      "description": "Propagate std/ai streaming callback effects",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Both wrappers and builtin signatures share callback row e plus AI",
+        "Pure callback accepts AI-only caller; IO callback requires AI+IO",
+        "Builtin/stdlib goldens generated and focused tests pass"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-29T07:24:18.398327+00:00",
+      "notes": "Failing-first pipeline/builtin tests green; both wrappers row-polymorphic; offline example check/run passes; test-changed/core, lint, sizes, verify-examples pass. Only ai stdlib golden changed."
+    },
+    {
+      "id": "M2_OPEN_CLOSED_GUARD",
+      "description": "Reject open-side labels absent from a closed row",
+      "estimated_loc": 230,
+      "dependencies": [
+        "M1_AI_ROW_POLY"
+      ],
+      "acceptance_criteria": [
+        "Symmetric guards reject only1/only2 before tail binding",
+        "Unit matrix and R1-R4 integration tests pass",
+        "Exactly two ruled ceiling subtests use strict-compatible spellings"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-29T07:28:29.607465+00:00",
+      "notes": "Symmetric guards reject lost labels after substitution; unit matrix repeated x20; annotated callback regressions pass. Two F2 ceiling cases use approved annotated lambdas (named wider-row functions themselves correctly violate ceiling). test-changed/core, lint, sizes and verify-examples pass. In-repo 525-file base/fixed corpus: 0 status/first-diagnostic flips."
+    },
+    {
+      "id": "M3_ENGINE_MUTATION",
+      "description": "Pin two-engine rejection and scratch mutation evidence",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M2_OPEN_CLOSED_GUARD"
+      ],
+      "acceptance_criteria": [
+        "R1-R5 fail before side-effect output on evaluator and bytecode",
+        "Positive declared-effect controls remain green",
+        "Removing guards or migration separately kills targeted tests"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-29T07:34:32.642528+00:00",
+      "notes": "Two-engine negative cases reject before side effects, positive mapE and pure AI streaming run. Guard removal kills unit/pipeline/CLI tests; migration removal kills both streaming APIs and builtin type tests. test-changed (including cmd/ailang 193.594s), core, lint and sizes pass."
+    },
+    {
+      "id": "M4_CORPUS_RELEASE",
+      "description": "Validate combined corpus, goldens and migration documentation",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M3_ENGINE_MUTATION"
+      ],
+      "acceptance_criteria": [
+        "Base/fixed corpus comparisons recorded with exact source SHAs",
+        "Combined #1790/#1963 tree goldens regenerated where applicable",
+        "Focused required gates pass, changelog opens ###, sprint evaluator invoked"
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-29T10:39:15.106253+00:00",
+      "notes": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval.",
+      "implementation_completed_at": "2026-10-29T10:36:17.952211+00:00"
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_AI_ROW_POLY",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches effect/streaming; inspected sunholo/ollama_stream 0.1.0 and sunholo/gemini_live 0.5.1 info/docs. Compiler row invariant and std/ai builtin signatures cannot be replaced by application packages."
+    },
+    {
+      "milestone": "M2_OPEN_CLOSED_GUARD",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches effect/streaming; inspected sunholo/ollama_stream 0.1.0 and sunholo/gemini_live 0.5.1 info/docs. Compiler row invariant and std/ai builtin signatures cannot be replaced by application packages."
+    },
+    {
+      "milestone": "M3_ENGINE_MUTATION",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches effect/streaming; inspected sunholo/ollama_stream 0.1.0 and sunholo/gemini_live 0.5.1 info/docs. Compiler row invariant and std/ai builtin signatures cannot be replaced by application packages."
+    },
+    {
+      "milestone": "M4_CORPUS_RELEASE",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches effect/streaming; inspected sunholo/ollama_stream 0.1.0 and sunholo/gemini_live 0.5.1 info/docs. Compiler row invariant and std/ai builtin signatures cannot be replaced by application packages."
+    }
+  ],
+  "approved_by": "Mark (attended)",
+  "approved_at": "2026-10-29T07:21:05.128797+00:00",
+  "release_target": "v0.56.0",
+  "amendment": {
+    "approved_by": "Mark (attended)",
+    "approved_date": "2026-10-29",
+    "scope": "Exact play_chunks callback IO+Trace to IO migration on pinned motoko fork branch, plus AILANG Docker source pin and provenance; preserve original 60-to-55 evidence and live rig checkout.",
+    "consumer_commit": "c3f4c85eec681d8d5d4787da4d9e56c22c0a2457",
+    "consumer_pr": "https://github.com/sunholo-voight-kampff/motoko_agent/pull/4",
+    "consumer_merge_sha": "af1d56513d3ae314bd831fd149c7b6f2503a361c",
+    "docker_source_pin": "af1d56513d3ae314bd831fd149c7b6f2503a361c"
+  },
+  "integration_checkpoint": {
+    "standalone_head": "05ce2e4f4d409100c77e60360a4bf1e9df7212ee",
+    "dev_base": "c2944389afefe99b592ffba387aae37903044126",
+    "nested_head": "86d3a5f8e946e12967c38b446e5fb854a884a42e",
+    "temporary_merge": "4358f0542af404bd63d782059b15b5507a8ae1df",
+    "pushed": false,
+    "focused_tests": "pass",
+    "nested_tests": "pass",
+    "mcp_oauth": "pass",
+    "stdlib_interfaces": 49,
+    "ai_golden_diff": false
+  },
+  "blocked_reason": "Option A design approved by Mark; concrete explicit-empty sprint plan proposed and awaiting explicit execution. Actual combined consumer55/60 remains unresolved until implementation and conditional delivery proof.",
+  "compatibility_amendment_proposal": "design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md",
+  "actual_integration": {
+    "source_checkpoint": "970a4669470566163cba09892a351e639b6de60c",
+    "dev_base": "87f846980c8b6fc601173be427b1364968559488",
+    "focused": "pass",
+    "stdlib": "pass49_no_diff",
+    "examples": "pass_after_aggregate_only_correction",
+    "motoko_core": {
+      "passed": 55,
+      "total": 60,
+      "failure": "fixture_rt nested hand-off",
+      "timed_out": 0
+    },
+    "acceptance": "blocked_pending_new_design_approval"
+  },
+  "compatibility_amendment_design_approved": true,
+  "compatibility_amendment_execution_authorized": false,
+  "implementation_complete": true,
+  "independent_evaluation": "pending root",
+  "consumer_merge": "083ef43726981099a0bad4fedda18fc72105d6fa",
+  "completed": "2026-10-29T10:39:15.106253+00:00"
+}

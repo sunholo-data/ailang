@@ -1,7 +1,8 @@
 # M-IFC-CROSS-MODULE — IFC Label Refinements Surviving Module Boundaries
 
 **Status**: Planned
-**Target**: v0.39.0
+**Current target**: v0.56.0 (unreleased M1–M2 foundation; no version bump)
+**Original target**: v0.39.0, historical; the 2026-10-08 plan targeted v0.53.x
 **Priority**: P0 (High — security-sensitive semantics change to `internal/types`)
 **Estimated**: 4 days
 **Dependencies**: M-SECRET-EFFECT / M-TAINT-TYPES label lattice (shipped); `TLabelled` gob cache codec (0bc1a7b57); closure-laundering fix (1af9f5f30)
