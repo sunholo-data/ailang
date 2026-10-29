@@ -1,0 +1,77 @@
+M1 controlled-reproduction checks, 2026-10-26. Full sprint NOT complete.
+Default blocker mode: exit 0, 1 test passed, 0 skips.
+Strict lifetime mode: exit 1, failed qualification as documented.
+Node --check, Python ast.parse, source/report hashes and stopped-state consistency: PASS.
+Full PR CI: not yet run for this new branch.
+
+
+go test ./internal/proctree ./tools/pi-extensions/maintenance-feasibility-reap -count=1 — PASS
+
+ok  	github.com/sunholo-data/ailang/internal/proctree	42.185s
+?   	github.com/sunholo-data/ailang/tools/pi-extensions/maintenance-feasibility-reap	[no test files]
+
+
+make test-changed — PASS (no production Go changes; core inner loop; helper tested explicitly above)
+
+test-changed: 1 package(s) vs 40fbb90d53d42108eec604b2293102c11500937b
+?   	github.com/sunholo-data/ailang/tools/pi-extensions/maintenance-feasibility-reap	[no test files]
+ok  	github.com/sunholo-data/ailang/internal/lexer	0.242s
+ok  	github.com/sunholo-data/ailang/internal/parser	0.339s
+ok  	github.com/sunholo-data/ailang/internal/ast	0.928s
+ok  	github.com/sunholo-data/ailang/internal/core	0.732s
+ok  	github.com/sunholo-data/ailang/internal/types	1.076s
+ok  	github.com/sunholo-data/ailang/internal/types/traverse	1.523s
+ok  	github.com/sunholo-data/ailang/internal/elaborate	1.457s
+ok  	github.com/sunholo-data/ailang/internal/typedast	1.736s
+ok  	github.com/sunholo-data/ailang/internal/eval	5.460s
+ok  	github.com/sunholo-data/ailang/internal/effects	37.321s
+ok  	github.com/sunholo-data/ailang/internal/effects/testctx	3.176s
+ok  	github.com/sunholo-data/ailang/internal/pipeline	14.440s
+ok  	github.com/sunholo-data/ailang/internal/link	3.439s
+ok  	github.com/sunholo-data/ailang/internal/loader	2.944s
+ok  	github.com/sunholo-data/ailang/internal/runtime	2.856s
+ok  	github.com/sunholo-data/ailang/internal/runtime/argdecode	3.876s
+ok  	github.com/sunholo-data/ailang/internal/iface	3.653s
+ok  	github.com/sunholo-data/ailang/internal/format	5.690s
+ok  	github.com/sunholo-data/ailang/internal/errors	3.976s
+ok  	github.com/sunholo-data/ailang/internal/stdlib	3.983s
+
+
+make lint — PASS, zero issues
+
+Running linter...
+0 issues.
+✓ Lint complete (no bugs detected)
+
+
+make verify-maintenance-assets verify-pi-assets check-boundaries check-file-sizes check-changelog — PASS
+
+Checking architecture boundaries (logical layers over internal/)...
+
+OK: no architecture boundary violations.
+Checking for files >800 lines...
+✓ All files within 800 line limit
+✓ 5 changelog fragment(s) valid; changelogs/v0.32-current.md has '## [Unreleased]'
+✓ CHANGELOG.md is index-only and links changelogs/v0.32-current.md
+
+
+validate_sprint_json.sh M-MAINTENANCE-EVAL-BROKER — structure PASS, execution remains STOPPED
+
+═══════════════════════════════════════════════════════════════
+ Validating Sprint JSON: M-MAINTENANCE-EVAL-BROKER
+═══════════════════════════════════════════════════════════════
+
+File: .ailang/state/sprints/sprint_M-MAINTENANCE-EVAL-BROKER.json
+
+✓ JSON syntax valid
+✓ No placeholder milestone IDs
+✓ No placeholder acceptance criteria
+✓ Registry reuse audit populated
+✓ 7 milestones defined
+ℹ️  No GitHub issues linked to this sprint
+  To link issues: jq '.github_issues = [123]' .ailang/state/sprints/sprint_M-MAINTENANCE-EVAL-BROKER.json > tmp && mv tmp .ailang/state/sprints/sprint_M-MAINTENANCE-EVAL-BROKER.json
+✓ All milestones have custom values
+
+═══════════════════════════════════════════════════════════════
+VALIDATION PASSED: Sprint JSON is ready for execution
+═══════════════════════════════════════════════════════════════
