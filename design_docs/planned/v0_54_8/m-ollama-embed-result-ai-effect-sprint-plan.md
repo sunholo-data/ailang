@@ -1,7 +1,7 @@
 # Sprint Plan: M-OLLAMA-EMBED-RESULT-AI-EFFECT
 
 **Design:** [m-ollama-embed-result-ai-effect.md](m-ollama-embed-result-ai-effect.md)
-**Status:** Planned; implementation awaits coordinator plan approval.
+**Status:** Implemented; ready for independent evaluation. Baseline gate exceptions are documented below.
 **Duration:** 3 engineering days, approximately 8 hours including 25% integration buffer.
 **Risk:** Medium — effect relabel and runtime budget/error boundaries.
 
@@ -31,9 +31,9 @@ Ran ailang pkg search embedding and ailang pkg search ollama; inspected pkg info
 Move request and media encoding to internal/ai/ollama/embed.go returning []float64; preserve environment endpoint, 30/120 second timeouts and existing error prefixes. Move helper tests into internal/ai/ollama/embed_test.go; adapt existing live tests without requiring a live daemon.
 
 **Acceptance criteria:**
-- [ ] HTTP test server verifies text/media payloads, empty input, empty response, server errors and float conversion offline.
-- [ ] Existing live dimensionality tests retain skip behavior when Ollama is unavailable.
-- [ ] go test ./internal/ai/ollama ./internal/builtins passes.
+- [x] HTTP test server verifies text/media payloads, empty input, empty response, server errors and float conversion offline.
+- [x] Existing live dimensionality tests retain skip behavior when Ollama is unavailable.
+- [x] go test ./internal/ai/ollama ./internal/builtins passes.
 
 **Example coverage:** M5 supplies the runnable fallback and migrated text/media callers; earlier milestones use offline Go tests until wrappers land.
 
@@ -47,10 +47,10 @@ Move request and media encoding to internal/ai/ollama/embed.go returning []float
 Create internal/effects/ai_embed.go and ai_embed_test.go. Register embedOllama/embedOllamaMedia, use the shared helper, and inspect resolved stub/fixture handlers without requiring a chat provider for real local calls. Add deterministic input-dependent eight-dimensional unit vectors and AI trace events.
 
 **Acceptance criteria:**
-- [ ] effects.Call denies absent AI capability and zero budget before network access.
-- [ ] With AI and no chat handler, a fake Ollama server receives the call; an unrelated chat provider does not reroute it.
-- [ ] Stub vectors are repeatable, distinct across representative inputs, unit magnitude, and perform no network requests.
-- [ ] Text/media successes and failures emit bounded trace arguments without raw media bytes.
+- [x] effects.Call denies absent AI capability and zero budget before network access.
+- [x] With AI and no chat handler, a fake Ollama server receives the call; an unrelated chat provider does not reroute it.
+- [x] Stub vectors are repeatable, distinct across representative inputs, unit magnitude, and perform no network requests.
+- [x] Text/media successes and failures emit bounded trace arguments without raw media bytes.
 
 **Example coverage:** M5 supplies the runnable fallback and migrated text/media callers; earlier milestones use offline Go tests until wrappers land.
 
@@ -64,9 +64,9 @@ Create internal/effects/ai_embed.go and ai_embed_test.go. Register embedOllama/e
 Extend internal/effects/ai_stub_fixtures.go with embed entries; put embed-only parsing/key/replay helpers in ai_stub_fixtures_embed.go and tests in ai_stub_fixtures_embed_test.go. Canonical compact sorted JSON uses model/text for text and audio/image presence booleans plus model/text for media. Require explicit media keys; no cross-op fallback. Validate numeric vectors and document the key and error format.
 
 **Acceptance criteria:**
-- [ ] Embed success and error fixtures replay offline; missing fixture fails loudly.
-- [ ] Literal and sha256 lookup agree; text/media keys and empty media behavior are tested.
-- [ ] Existing text/image/speech fixture tests continue passing without format-version changes.
+- [x] Embed success and error fixtures replay offline; missing fixture fails loudly.
+- [x] Literal and sha256 lookup agree; text/media keys and empty media behavior are tested.
+- [x] Existing text/image/speech fixture tests continue passing without format-version changes.
 
 **Example coverage:** M5 supplies the runnable fallback and migrated text/media callers; earlier milestones use offline Go tests until wrappers land.
 
@@ -80,10 +80,10 @@ Extend internal/effects/ai_stub_fixtures.go with embed entries; put embed-only p
 Update internal/builtins/ollama_embed.go for AI labeling and dispatch; add registrations and Result helpers in ollama_embed_result.go and focused tests in ollama_embed_result_test.go. Add four public wrappers to std/embedding.ail. Use existing ADT construction patterns. Capability/budget errors remain runtime errors; only provider/fixture failures become string Err values.
 
 **Acceptance criteria:**
-- [ ] All four builtin registrations and type signatures require AI; wrappers type-check.
-- [ ] Text and media Result success yields Ok([float]); provider failure yields Err(string) with specified prefix; non-Result failures still abort.
-- [ ] End-to-end evaluator calls charge exactly one AI budget unit; capability and budget denial never become catchable Err.
-- [ ] Direct effects.Call budget tests and normal evaluator/builtin-scope tests cover distinct paths; avoid assuming direct Impl calls create a charge scope.
+- [x] All four builtin registrations and type signatures require AI; wrappers type-check.
+- [x] Text and media Result success yields Ok([float]); provider failure yields Err(string) with specified prefix; non-Result failures still abort.
+- [x] End-to-end evaluator calls charge exactly one AI budget unit; capability and budget denial never become catchable Err.
+- [x] Direct effects.Call budget tests and normal evaluator/builtin-scope tests cover distinct paths; avoid assuming direct Impl calls create a charge scope.
 
 **Example coverage:** M5 supplies the runnable fallback and migrated text/media callers; earlier milestones use offline Go tests until wrappers land.
 
@@ -97,11 +97,11 @@ Update internal/builtins/ollama_embed.go for AI labeling and dispatch; add regis
 Migrate examples/reference/ollama_embed_test.ail and neural_semantic_search.ail to wrappers/AI rows; add examples/reference/ollama_embed_fallback.ail with success/error fixture files alongside it. Update semantic-search.md, semantic-caching-how-to.mdx, effects.md, std/embedding header, internal/builtins/sharedindex.go metadata and cmd/ailang/ai_handlers.go warning. Add changelogs/unreleased/2026-10-16-ollama-embed-result-ai-effect.md, opening with ### .
 
 **Acceptance criteria:**
-- [ ] Fallback example exits zero and demonstrates both success and Err branches using checked-in fixtures and --caps AI,IO --ai-stub.
-- [ ] Legacy IO-only embedding row is rejected, IO-only capability cannot authorize AI entry, --caps auto follows the migrated row.
-- [ ] CLI smoke verifies AI-only embedding works without --ai against a fake endpoint; live-down recovery uses a controlled unreachable loopback endpoint, not external service availability.
-- [ ] make test-changed, make check-boundaries, make check-file-sizes, make check-changelog, make verify-stdlib and make verify-examples pass; report pre-existing failures separately.
-- [ ] Format touched Go/AILANG files and run focused lint for touched packages; existing std/ai Result and speech stub regressions remain green.
+- [x] Fallback example exits zero and demonstrates both success and Err branches using checked-in fixtures and --caps AI,IO --ai-stub.
+- [x] Legacy IO-only embedding row is rejected, IO-only capability cannot authorize AI entry, --caps auto follows the migrated row.
+- [x] CLI smoke verifies AI-only embedding works without --ai against a fake endpoint; live-down recovery uses a controlled unreachable loopback endpoint, not external service availability.
+- [x] make test-changed, make check-boundaries, make check-file-sizes, make check-changelog, make verify-stdlib and make verify-examples pass; report pre-existing failures separately.
+- [x] Format touched Go/AILANG files and run focused lint for touched packages; existing std/ai Result and speech stub regressions remain green.
 
 **Example coverage:** Fallback example plus both migrated reference examples; live models are optional integration checks.
 
@@ -130,3 +130,25 @@ Tests must prove all new dispatch/error branches, four builtin signatures, exact
 Error fixture payloads carry string messages; preserve supplied fixture messages verbatim, and preserve existing builtin prefixes on real transport errors. Resolve any design ambiguity about where Result is built by following existing ADT helpers without wrapping capability/budget failures. Stub selection must not accidentally force lazy chat provider initialization for a real embedding-only call.
 
 Sprint JSON dependencies use exact milestone IDs. All passes/started/completed values begin null. Executor updates progress incrementally and finishes through sprint-evaluator. No additional package, provider abstraction, parser change, batch API or messaging embedder consolidation is in scope.
+
+Execution deviation: the transport helper lives in `internal/ai/ollama/embed` to avoid the existing parent-package dependency through OpenAI and telemetry back to effects. No provider-layer refactor was needed.
+
+## Execution notes
+
+- AILANG prompt version loaded: v0.16.7. New fallback module has pure formatter inline tests (both Result branches), explicit AI/IO effects, and fixture-driven inference; contracts remain inapplicable to provider-dependent output. Existing integration examples skip inline tests because HTTP/fixture and evaluator tests cover provider behavior.
+- Migrated reference examples also needed canonical module paths, exported entrypoints and string interpolation to run with the current compiler.
+- Intentionally updated `.stdlib-golden/embedding.{json,sha256}` for the four approved public wrappers and `internal/pipeline/testdata/builtin_types.golden` for the two new Result signatures plus IO→AI changes.
+- Fixture numeric validation rejects null coordinates; zero-length media representations yield identical stub vectors.
+- CLI smoke: all four wrappers work with AI alone, no chat provider, against a fake endpoint; IO-only grants and legacy IO rows are rejected; auto caps, fixture success/error, stub semantic search and controlled unreachable-loopback recovery pass.
+- `make verify-stdlib` (48 interfaces), `make verify-examples`, boundary/size/changelog gates, touched Go/AIl formatting, focused Go vet, two inline tests and focused embedding/AI fixture/speech regressions pass.
+- Starting-commit baseline (`9c30ac23`) reproduces `TestRuntimeNestedStopUsesRemainingDeadline` and `TestProcessExec_TimeoutKillsGrandchildren` failures. Repository fmt-check also flags untouched `internal/eval_harness/pi_models_config_test.go`, including in the baseline checkout.
+- Core pipeline stress test `TestCoreTIDAG_SharedSubtreesCollapse` was killed under memory pressure; a bounded diagnostic run was stopped at its 10k-entry expansion. The remaining pipeline suite passes (66s). These unrelated tests are left unchanged.
+
+### Final gate results
+
+- Go vet and touched-file Go/AILANG formatting pass. Initial focused lint was killed by memory pressure; the bounded focused run and repository-wide `make lint` both pass with zero issues.
+- Bounded `make test-core` passes with only `TestRuntimeNestedStopUsesRemainingDeadline`, `TestProcessExec_TimeoutKillsGrandchildren` and `TestCoreTIDAG_SharedSubtreesCollapse` excluded. The original unfiltered gate failures are preserved above rather than represented as a clean full pass.
+- `make test-changed TEST_CHANGED_BASE=9c30ac23` ran all five touched Go packages: embedding transport, builtins and embed passed; effects failed the two baseline process tests. CLI failed three baseline-reproduced tests: `TestRunPolicy_DeadlineStopsExecutionWithoutProtocolGrace` (missing `ps`), `TestRunPolicy_TimeoutKillsDescendants`, and `TestRunPolicy_SupervisorDeathStopsWorker`.
+- Final build and fixture-driven fallback run pass. No live Ollama daemon is required. Independent sprint-evaluator review remains the next pipeline stage.
+
+Evaluator handoff: attempted the sprint-executor skill’s `messages send sprint-evaluator` handoff; the CLI refused because no agent serves that inbox. `coordinator agents` confirms this machine config contains only `coordinator`, and `messages inboxes` has no registered inboxes. Independent evaluation is pending coordinator routing; no forced, undispatched message or duplicate execution task was created.
