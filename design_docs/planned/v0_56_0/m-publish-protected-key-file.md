@@ -374,9 +374,9 @@ The attended user explicitly approved this design at immutable commit
 `7d000322b5b3b5d81fb88ae70213012a1f79a29e`, D1–D7. Root recorded the
 message "approve the three designs" in session three-design-approvals.json.
 Already-ruled choices above are frozen rulings, not new approval questions.
-[Draft sprint plan](m-publish-protected-key-file-sprint-plan.md) and pending JSON
-are authorized planning artifacts only; user plan approval/execute instruction
-and legitimate #2013 integration remain required before product edits.
+At that design-approval stage, the [sprint plan](m-publish-protected-key-file-sprint-plan.md)
+and JSON were planning-only drafts. The subsequent plan/execute authorization is
+recorded below; legitimate #2013 integration still precedes product edits.
 
 Execution authorization was later received for the exact reviewed plan/JSON.
 M0 checked actual PR state and stopped with #2013/#2016 still open; see the

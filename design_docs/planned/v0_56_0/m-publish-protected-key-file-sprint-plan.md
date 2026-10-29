@@ -22,12 +22,14 @@ no secret access for help/dry-run, and unchanged #1964 authority ordering.
   user docs); planning/state/approval artifacts excluded from this capacity sum.
   Risk medium-high because credential handling requires security-specific proof.
 - Baseline dba1c499ca6f76b40992fd521e3dd440d9277f49, isolated worktree
-  publish-key-file-1900, branch docs/publish-key-file-1900. Do not merge a new base
-  while these authorized planning drafts are dirty.
+  publish-key-file-1900, branch docs/publish-key-file-1900. Approved drafts are
+  now banked cleanly; no new base is merged while the dependency remains unmet.
 
 ## Current status and dependency
 
-Only the design is approved; implementation has not started. Current publishing
+The original planning baseline had only design approval. Plan/execution approval
+is now recorded above; implementation has not started because M0 is unmet.
+Current publishing
 is env-only. The existing AI key-file helper checks formatting/stat size but not
 owner/mode/no-follow, so it cannot directly satisfy this feature. Preserve its
 separate semantics. No registry package implements this host credential boundary.
