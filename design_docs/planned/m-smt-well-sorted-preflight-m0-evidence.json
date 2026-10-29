@@ -1,0 +1,1905 @@
+{
+  "schema_version": 1,
+  "evidence_scope": "Design-only M0 reconciliation, 2026-10-29; not branch implementation acceptance",
+  "proposal_base": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+  "inspected_parked_head": "a5f81711904452b432f850ba37f686fde79c895a",
+  "compiler": {
+    "executed_archive_commit": "80793dbcf42423027be4bab1a0088da54e2323d8",
+    "inspected_source_equal_to_proposal_base": [
+      "internal/smt",
+      "internal/verification",
+      "std",
+      "cmd/ailang/verify.go",
+      "cmd/ailang/ai_check.go"
+    ],
+    "qualification": "Actual execution is archived807-only. Literal verify_source_equivalence captures named-path equality to aca5, not whole-compiler behavioral equality; real pipeline cache differences and unbuilt-current limitations remain.",
+    "warning": "Archived binary reported expected dev vs std v0.55.0 and temp-path module relaxation; exact stderr retained",
+    "current_or_fixed_build_executed": false
+  },
+  "human_provenance": {
+    "timestamp": "2026-10-26T14:59:31.188Z",
+    "quote": "can we fix the p0 issues via subagents with design doccs, sprint plans and excutes?",
+    "classification": "Broad P0 workflow request; no separately named F1 human ruling in inspected original session. Required sound choice wording first appears in agent delegation and plan.",
+    "local_evidence_pointer": "smt-m0-readonly/historical-provenance.json (uncommitted local audit only; full private session records intentionally excluded)"
+  },
+  "original_issue_checks_and_verifies": [
+    {
+      "issue": 1960,
+      "args": [
+        "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+        "check",
+        "/tmp/ailang-backlog-20261029/language-repros/r1960.ail"
+      ],
+      "exit": 0,
+      "stdout": "\u2192 Type checking /tmp/ailang-backlog-20261029/language-repros/r1960.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+      "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'fv/par' does not match canonical path 'tmp/ailang-backlog-20261029/language-repros/r1960'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n",
+      "source_sha256": "a34d9e8d7b5a4eeedfe48f38a3c5be983fa24f1be8d1e0a4fc25ecbe364baa98"
+    },
+    {
+      "issue": 1960,
+      "args": [
+        "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+        "verify",
+        "--timeout",
+        "3s",
+        "/tmp/ailang-backlog-20261029/language-repros/r1960.ail"
+      ],
+      "exit": 0,
+      "stdout": "\n\u2192 Verifying contracts in /tmp/ailang-backlog-20261029/language-repros/r1960.ail\n  Solver: Z3 version 4.16.0 - 64 bit\n  Scope: verifier reported verified under the encoded model; encoded model: float=Real, int=Int; runtime equivalence not_established (not an IEEE/machine-arithmetic proof); absent recursion depth is not an inductive proof; runtime contracts not_measured\n\n  \u2713 VERIFIED parity  \u001b[2m8.093708ms\u001b[0m\n  \u25cb NO CONTRACTS \u001b[2mmain\u001b[0m\n\n  2 exported functions: 1 verified, 1 without contracts\n\n",
+      "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'fv/par' does not match canonical path 'tmp/ailang-backlog-20261029/language-repros/r1960'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n",
+      "source_sha256": "a34d9e8d7b5a4eeedfe48f38a3c5be983fa24f1be8d1e0a4fc25ecbe364baa98"
+    },
+    {
+      "issue": 1961,
+      "args": [
+        "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+        "check",
+        "/tmp/ailang-backlog-20261029/language-repros/r1961.ail"
+      ],
+      "exit": 0,
+      "stdout": "\u2192 Type checking /tmp/ailang-backlog-20261029/language-repros/r1961.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+      "stderr": "WARNING MOD010 (temp-path): module 'cmd/ailang/testdata/verify_preflight/call_site_collapse' does not match canonical path 'tmp/ailang-backlog-20261029/language-repros/r1961'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n",
+      "source_sha256": "a2b1722b852cc8f73fb5ca3212b7b37eadbc6fa5db969d943e57701862030134"
+    },
+    {
+      "issue": 1961,
+      "args": [
+        "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+        "verify",
+        "--timeout",
+        "3s",
+        "/tmp/ailang-backlog-20261029/language-repros/r1961.ail"
+      ],
+      "exit": 1,
+      "stdout": "\n\u2192 Verifying contracts in /tmp/ailang-backlog-20261029/language-repros/r1961.ail\n  Solver: Z3 version 4.16.0 - 64 bit\n  Scope: verifier reported verified under the encoded model; encoded model: float=Real, int=Int; runtime equivalence not_established (not an IEEE/machine-arithmetic proof); absent recursion depth is not an inductive proof; runtime contracts not_measured\n\n  \u2717 VIOLATION total\n    Counterexample:\n      $p_n: Int = 2\n      result: Int = (let ((a!1 (+ (- $p_n 1) (total_0 (- (- $p_n 1) 1))))\n      total_0: Int)) = Int\n  \u2713 VERIFIED gap  \u001b[2m6.481958ms\u001b[0m\n\n  2 exported functions: 1 verified, 1 violations\n\n",
+      "stderr": "WARNING MOD010 (temp-path): module 'cmd/ailang/testdata/verify_preflight/call_site_collapse' does not match canonical path 'tmp/ailang-backlog-20261029/language-repros/r1961'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n",
+      "source_sha256": "a2b1722b852cc8f73fb5ca3212b7b37eadbc6fa5db969d943e57701862030134"
+    }
+  ],
+  "partial_callee": {
+    "source": "module partial_contract_vacuity\n\nexport pure func partial(n: int) -> int\nensures { n != 0 && result == 0 } {\n  if n == 0 then partial(n) else 0\n}\n\nexport pure func wrong(a: int) -> int\nrequires { a != 0 }\nensures { result == 1 } {\n  partial(a)\n}\n\nexport pure func main() -> int { wrong(1) }\n",
+    "source_sha256": "24e5aa3b94a61ad9eef4e50dfca22e1eb3fb4188a3c45fa2ffd28158aa016c93",
+    "actual_check_runtime": [
+      {
+        "args": [
+          "check",
+          "/tmp/ailang-backlog-20261029/smt-m0-readonly/partial-contract-vacuity.ail"
+        ],
+        "rc": 0,
+        "stdout": "\u2192 Type checking /tmp/ailang-backlog-20261029/smt-m0-readonly/partial-contract-vacuity.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+        "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'partial_contract_vacuity' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-readonly/partial-contract-vacuity'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n"
+      },
+      {
+        "args": [
+          "run",
+          "--entry",
+          "main",
+          "/tmp/ailang-backlog-20261029/smt-m0-readonly/partial-contract-vacuity.ail"
+        ],
+        "rc": 0,
+        "stdout": "0\n",
+        "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'partial_contract_vacuity' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-readonly/partial-contract-vacuity'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n"
+      },
+      {
+        "args": [
+          "run",
+          "--verify-contracts",
+          "--entry",
+          "main",
+          "/tmp/ailang-backlog-20261029/smt-m0-readonly/partial-contract-vacuity.ail"
+        ],
+        "rc": 1,
+        "stdout": "",
+        "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'partial_contract_vacuity' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-readonly/partial-contract-vacuity'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\nError: execution failed: contract violation: ensures failed in  at /tmp/ailang-backlog-20261029/smt-m0-readonly/partial-contract-vacuity.ail:10:11: (result == 1)\n"
+      }
+    ],
+    "meaning": "Correct partial callee specification; caller requires excludes divergent n0 and actual result0 refutes ensures1. Universal total-witness axiom is inconsistent at uncalled n0."
+  },
+  "z3_version": "Z3 version 4.16.0 - 64 bit",
+  "uf_controls": [
+    {
+      "name": "uf_normal_distinct",
+      "sha256": "b2a2580c08b2458bd5016c0dbfefdb6c952ed71677fd76277574d25f955c8150",
+      "rc": 0,
+      "stdout": "sat",
+      "stderr": "",
+      "script": "(set-logic ALL)\n(declare-fun f (Int) Int)\n(assert (forall ((n Int)) (! (>= (f n) 0) :pattern ((f n)))))\n(declare-const a Int)\n(assert (>= a 0))\n(assert (not (= (- (f a) (f (+ a 1))) 0)))\n(check-sat)\n"
+    },
+    {
+      "name": "uf_normal_same",
+      "sha256": "d5a4656e56ad2d41b3ebd675ce7fcca222dfad041201269e0ff9398c19445a57",
+      "rc": 0,
+      "stdout": "unsat",
+      "stderr": "",
+      "script": "(set-logic ALL)\n(declare-fun f (Int) Int)\n(assert (forall ((n Int)) (! (>= (f n) 0) :pattern ((f n)))))\n(declare-const a Int)\n(assert (not (= (- (f a) (f a)) 0)))\n(check-sat)\n"
+    },
+    {
+      "name": "uf_requires_outside",
+      "sha256": "af2e929466b358c1231ae5a420efb197a2fc35f975e7dea2e51b53010dc33c4c",
+      "rc": 0,
+      "stdout": "sat",
+      "stderr": "",
+      "script": "(set-logic ALL)\n(declare-fun f (Int) Int)\n(assert (forall ((n Int)) (! (=> (>= n 0) (>= (f n) n)) :pattern ((f n)))))\n(declare-const a Int)\n(assert (< a 0))\n(assert (not (>= (f a) a)))\n(check-sat)\n"
+    },
+    {
+      "name": "uf_global_partial_spec",
+      "sha256": "a9686a2af5f3717623bbdc2240b4393ecbd1b3c6aed8d9443b9ceaccbabcbe8d",
+      "rc": 0,
+      "stdout": "unsat",
+      "stderr": "",
+      "script": "(set-logic ALL)\n(declare-fun f (Int) Int)\n(assert (forall ((n Int)) (! (and (not (= n 0)) (= (f n) 0)) :pattern ((f n)))))\n(declare-const a Int)\n(assert (not (= a 0)))\n(assert (not (= (f a) 1)))\n(check-sat)\n"
+    },
+    {
+      "name": "uf_local_partial_spec_control",
+      "sha256": "10023243b7ed045299d8728dac2b2a63fdbf6639141e0d43dc9ca48e112d773c",
+      "rc": 0,
+      "stdout": "sat",
+      "stderr": "",
+      "script": "(set-logic ALL)\n(declare-fun f (Int) Int)\n(declare-const a Int)\n(assert (not (= a 0)))\n(assert (and (not (= a 0)) (= (f a) 0)))\n(assert (not (= (f a) 1)))\n(check-sat)\n"
+    },
+    {
+      "name": "uf_global_guard_uninhabited",
+      "sha256": "0bd376e376798dac5c060d98088720306a9606e053457d058443808d6c5d5790",
+      "rc": 0,
+      "stdout": "unsat",
+      "stderr": "",
+      "script": "(set-logic ALL)\n(declare-fun f (Int) Int)\n(assert (forall ((n Int)) (! (=> (= n 0) (and (> (f n) 0) (< (f n) 0))) :pattern ((f n)))))\n(assert (not (= (f 1) 999)))\n(check-sat)\n"
+    },
+    {
+      "name": "uf_false_requires_control",
+      "sha256": "969530d7883591c85924e754a6240662919a0b8c0728741f02db576c57a29c20",
+      "rc": 0,
+      "stdout": "sat",
+      "stderr": "",
+      "script": "(set-logic ALL)\n(declare-fun f (Int) Int)\n(assert (forall ((n Int)) (! (=> false (and (> (f n) 0) (< (f n) 0))) :pattern ((f n)))))\n(assert (not (= (f 1) 999)))\n(check-sat)\n"
+    }
+  ],
+  "truncating_controls": [
+    {
+      "case": "div_12_sign_pairs",
+      "rc": 0,
+      "stdout": "unsat",
+      "pairs": [
+        [
+          7,
+          2
+        ],
+        [
+          -7,
+          2
+        ],
+        [
+          7,
+          -2
+        ],
+        [
+          -7,
+          -2
+        ],
+        [
+          0,
+          -5
+        ],
+        [
+          0,
+          5
+        ],
+        [
+          -1,
+          7
+        ],
+        [
+          1,
+          -7
+        ],
+        [
+          -6,
+          3
+        ],
+        [
+          -6,
+          -3
+        ],
+        [
+          6,
+          -3
+        ],
+        [
+          9223372036854775807,
+          -1
+        ]
+      ],
+      "basis": "literal transcription of parked encodeTruncDivMod, not compiler execution"
+    },
+    {
+      "case": "rem_12_sign_pairs",
+      "rc": 0,
+      "stdout": "unsat",
+      "pairs": [
+        [
+          7,
+          2
+        ],
+        [
+          -7,
+          2
+        ],
+        [
+          7,
+          -2
+        ],
+        [
+          -7,
+          -2
+        ],
+        [
+          0,
+          -5
+        ],
+        [
+          0,
+          5
+        ],
+        [
+          -1,
+          7
+        ],
+        [
+          1,
+          -7
+        ],
+        [
+          -6,
+          3
+        ],
+        [
+          -6,
+          -3
+        ],
+        [
+          6,
+          -3
+        ],
+        [
+          9223372036854775807,
+          -1
+        ]
+      ],
+      "basis": "literal transcription of parked encodeTruncDivMod, not compiler execution"
+    },
+    {
+      "case": "nested_parallel_let",
+      "rc": 0,
+      "stdout": "unsat"
+    }
+  ],
+  "zero_runtime_controls": [
+    {
+      "case": "division",
+      "args": [
+        "check",
+        "/tmp/ailang-backlog-20261029/smt-m0-readonly/division-by-zero.ail"
+      ],
+      "rc": 0,
+      "stdout": "\u2192 Type checking /tmp/ailang-backlog-20261029/smt-m0-readonly/division-by-zero.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+      "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'division_by_zero' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-readonly/division-by-zero'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n"
+    },
+    {
+      "case": "division",
+      "args": [
+        "run",
+        "--entry",
+        "main",
+        "/tmp/ailang-backlog-20261029/smt-m0-readonly/division-by-zero.ail"
+      ],
+      "rc": 1,
+      "stdout": "",
+      "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'division_by_zero' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-readonly/division-by-zero'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\nError: execution failed: RT001: integer division by zero at /tmp/ailang-backlog-20261029/smt-m0-readonly/division-by-zero.ail:2:36\n"
+    },
+    {
+      "case": "remainder",
+      "args": [
+        "check",
+        "/tmp/ailang-backlog-20261029/smt-m0-readonly/remainder-by-zero.ail"
+      ],
+      "rc": 0,
+      "stdout": "\u2192 Type checking /tmp/ailang-backlog-20261029/smt-m0-readonly/remainder-by-zero.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+      "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'remainder_by_zero' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-readonly/remainder-by-zero'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n"
+    },
+    {
+      "case": "remainder",
+      "args": [
+        "run",
+        "--entry",
+        "main",
+        "/tmp/ailang-backlog-20261029/smt-m0-readonly/remainder-by-zero.ail"
+      ],
+      "rc": 1,
+      "stdout": "",
+      "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'remainder_by_zero' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-readonly/remainder-by-zero'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\nError: execution failed: RT001: integer modulo by zero at /tmp/ailang-backlog-20261029/smt-m0-readonly/remainder-by-zero.ail:2:36\n"
+    }
+  ],
+  "not_done": [
+    "No parked/currentaca5/fixed compiler build/run",
+    "No source or parked metadata edits",
+    "No full corpus or broad test rerun",
+    "No external call or further quorum for this UNSENT amendment",
+    "No sprint plan/state JSON or execution approval"
+  ],
+  "original_issue_sources": {
+    "1960": {
+      "source": "module fv/par\n\nimport std/io (println)\n\nexport pure func parity(x: int) -> int\n  ensures { result >= 0 }\n{\n  x % 2\n}\n\nexport func main() -> () ! {IO} = println(show(parity(0 - 7)))\n",
+      "sha256": "a34d9e8d7b5a4eeedfe48f38a3c5be983fa24f1be8d1e0a4fc25ecbe364baa98"
+    },
+    "1961": {
+      "source": "module cmd/ailang/testdata/verify_preflight/call_site_collapse\n\nexport pure func total(n: int) -> int\n  ensures { result >= 0 }\n{\n  if n <= 0 then 0 else n + total(n - 1)\n}\n\n-- FALSE: total(a) - total(a + 1) == -(a + 1) for a >= 0\nexport pure func gap(a: int) -> int\n  requires { a >= 0 }\n  ensures { result == 0 }\n{\n  total(a) - total(a + 1)\n}\n",
+      "sha256": "a2b1722b852cc8f73fb5ca3212b7b37eadbc6fa5db969d943e57701862030134"
+    }
+  },
+  "zero_source_template": "module <division_or_remainder>_by_zero\nexport pure func main() -> int { 7 <operator> 0 }\n",
+  "mechanism_clarifications": {
+    "basis": "Source/test-body reads only at proposal base; no build/test/provider invocation",
+    "short_circuit": "normalizeBinaryOp delegates &&/|| to normalizeShortCircuit, which emits CoreIf and keeps RHS bindings in its branch; shape tests assert If and no OpAnd/OpOr.",
+    "contract_predicates": "elaborateContracts -> elaborateExpr -> normalize; OpLowerer.Lower additionally lowers contract Meta expressions",
+    "match_guards": "normalizeMatch pushes pattern binders before normalizeArm normalizes Guard; op lowering recursively lowers Guard; SMT encodeMatch uses guarded ite/nested-match paths",
+    "invariant": "Call facts only from the selected short-circuit operand / reached matching guard / chosen arm, with paired selected-unselected controls; no new Boolean semantics",
+    "author_label": "--author codex",
+    "author_handling": "Raw flag.String, VendorOf substring codex->openai, SelectReviewers benches matching vendor; no author model registry lookup. Bare openai does not match. Exact API alias unknown and not fabricated."
+  },
+  "round_two_runtime_evidence": {
+    "created": "2026-10-29T13:36:21.469581+00:00",
+    "basis": "Actual source-equivalent archived807 compiler; no build or fixed-branch CLI result claimed",
+    "compiler_sha256": "721af9c6262613a03267e7a1ea47884bffa36b0bae36eb5d64721eb6ad6af2fa",
+    "binary_version": {
+      "label": "binary-version",
+      "argv": [
+        "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+        "version"
+      ],
+      "rc": 0,
+      "stdout": "AILANG dev\nCommit: 80793db\nFull:   80793dbcf42423027be4bab1a0088da54e2323d8\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026\n",
+      "stderr": ""
+    },
+    "stdlib_git_tree": "1cc110f4b021b7c6a3ecc4940aab6eaf483a68aa",
+    "stdlib_files": 54,
+    "stdlib_file_sha256": {
+      "std/README.md": "a548c19c367140e0cb6f208bcfc5f14c8e564a2c6cb5d389bc9c23a75f741b88",
+      "std/VERSION": "7a062af1f2a2e8b7b815e017d5e9b861fe75c4aa5562f92abb278fc416d6d820",
+      "std/ai.ail": "3f28c1f8018da1c5c7b17d230588cf5be8943c468e0d6dd5ff8a6e690aa394a5",
+      "std/ai/streaming.ail": "99e6966a3ed17580a3648e0a7eda672cb65c6a03a27259f0ece87d845ce877be",
+      "std/array.ail": "2f6488d9074abea0b9548afb0e610f5bc48573132e1c8b710eae8d581ac85c18",
+      "std/audio.ail": "54682b544b901e5e6f7047e9aed34e2e577aaae2c7563ead1df1a648ac3d1a91",
+      "std/bytes.ail": "04b8a17604e9895b6c0d2d58cc8f795e2dd0bef0d7a4300a44346648e21adad3",
+      "std/clock.ail": "faccc19c2bc872fb730e6274b201f71c51461526a66ed9abf6fc4ae01d17afce",
+      "std/cognition.ail": "bf8cf12d6c3cd934605aa07d12279622e4944b837026f09674f8ab39b65201d9",
+      "std/crypto.ail": "315b615ca79322ededd05068bb6ad76a21115816588ad7984217046c43fad3d7",
+      "std/datetime.ail": "2f556772afe563b26f760ef4e08e4a1a6099a480fbec2431f9167337312a96f9",
+      "std/debug.ail": "f5ece5f9df8828dfb040ce677a075bf0979fe522065e4fa91c8b85211e0ea871",
+      "std/deflate.ail": "9134ae39fa8c15c8e339a97c68f369c81d602f93b6013510493a2797a487032f",
+      "std/dom.ail": "3fc71389ee90acfef93737532a076b54c4a286808a5bd79a422f82831b81dec0",
+      "std/embed.go": "1f29f306edcb151e2fa41ad5926628cef0409273ee5504d534c1ae24c630b8ef",
+      "std/embedding.ail": "b4845495ca29d3a917e87fc5b6007340a8b2cfa0d03811be0b4a8628e2fc5554",
+      "std/env.ail": "8428a065900cfc95841a142eff7691fbfc8b3fe981b5fbda17b3e8bf384f07be",
+      "std/extension.ail": "e5304622749a19550d927b91221acd4e665ac54c2f89d9c2395e43276068f78d",
+      "std/fs.ail": "d82702f29f396419b3114afb2bb0994e6c54b1673de30bc714ba694b59d8e2d5",
+      "std/game.ail": "19f193d16ec230b1494c3b7b1916f254bb9eec9ad5c09afc8f52389dcf4ce679",
+      "std/gzip.ail": "f24cb945b391e49400a31500f05437703e9391fe2c74da89fc24da6f139c4815",
+      "std/html.ail": "33125bd2637eb982a1ac0ee2f632af4a52571fde9b33db616558b5e5a3338926",
+      "std/io.ail": "2fb83743e57adb7b08982ce513d09473635488658350118190c5acdbbf8c87a9",
+      "std/iter.ail": "701acb72e955acb3d9e4b6567e0815b7de6e1d16e0860d38f22af4274bd1a060",
+      "std/json.ail": "084ae6eeb63359866d83101c9ac4f0e45a5f000d9a0d762281884e73a112add8",
+      "std/jwt.ail": "f153938de7048f13fed9bc47eff434f1c33c079ed9f5caa24d1e9ea498c3e5a4",
+      "std/list.ail": "0888aa2157388391506cde86301500d52a455ca5ec2f08dfa883359471867998",
+      "std/map.ail": "7794d37b0c86d517e9122baf96eaac96701f33b036325eb0d83eb54b6edfad6f",
+      "std/math.ail": "9fee193587cbb4c1161443ec9e4b0194fd92c7726fda4dccc36cd588d5b132aa",
+      "std/net.ail": "a867ba1e3d4a81dd45754bb61d8508c8fe873ef1e8a608030daa81cbf972f35d",
+      "std/option.ail": "83cdbe7706dbf18477018463cc5289d3c7afe3411a9aefce2024a5ef7f883f7c",
+      "std/package.ail": "421f282aa0347e0fb76f9a349a6afc38b75e89a2812429032cdea6721a5b35e0",
+      "std/process.ail": "eba45860bd476a415e7cabf5f043dfca76f7b02f561edbf5950a81f3cadb32e0",
+      "std/rand.ail": "bbd6ed84ae756d3175e65859b1e7508460edec9df1a428b92d6f9560070e9197",
+      "std/regex.ail": "48889a75944ab85e7399bfe0fab4ce18998b28ca0bcd64fc046a67a7795d677e",
+      "std/result.ail": "0e71af128072118c52f464a47fdbff6bc6ed49a0e50b5e752408504de2d17f80",
+      "std/secret.ail": "dd7b901e179d901e52938848ecadc79ef61bf56ec3e0d87590b271518a6c0684",
+      "std/sem.ail": "c6de16bd829309db4ee33f9619d6e278831dc66bfd74c21abd4ffe4a3ed1f85e",
+      "std/set.ail": "64d19abd398c8fb0f0b6acab26770b90ae0e83404a7ab16d2aa648561201287f",
+      "std/sharedindex.ail": "84b6fe640db36d7a032df80cf8f7c7b77ee3c335036306dd7bae492b6fc2ed7c",
+      "std/sharedmem.ail": "37f2f199424c1314ad9a2d102ca824b3d969d04f6e3b00dd17c2c6f92cfa4d01",
+      "std/simhash.ail": "c4753892656df78d1bb1c40d29aaa8610fc8d0a46065082dee70134b11254e5f",
+      "std/smoke.ail": "7c65a1596c7feda3746952c22cb1cee7ff2f1c5ba44895d80721219656224734",
+      "std/stream.ail": "e8bda3f4eb4d90c033f34277b225ef5d8bee77f24ba0982abbe0a19cef6d1272",
+      "std/stream/bridge.ail": "c27bb864f1355e2cce78912b54fec6fe1ea95f909c333b1061c05a933f6101f6",
+      "std/string.ail": "315d3bd7818d22c674ee0c8e239a953d5c3507c41150784148d86604437e0da1",
+      "std/tar.ail": "95d2adfef20c60b476814efc9fc28126b5e3aa67c04419a87fab033f7552b863",
+      "std/terminal.ail": "f65d1ff5060a65c5c2c1999bb5051afc27224bcc228a44c537f7901912b35a19",
+      "std/trace.ail": "1a5f137e208dc85e48d7eb1ecdf4f16d8b670d312c136755c7fbffdbb48bf971",
+      "std/trace_test.ail": "03a222c1df3de32a44e3df7f64a39b34d695f37e29f06a7f9cd2ff895842a5dd",
+      "std/web.ail": "1cb82797a961130b9248aa2f719a42fe8f8291f098147fc7220ad266d30d2a61",
+      "std/xml.ail": "d3841c8b4c9642f5af8da0df45f4dd7cfe39c20e5ddd6b01512c0950c5f9e9cc",
+      "std/yaml.ail": "034d0d302ade76b9973c0ae02e07d9d88b4a8e814427e88dccf1422b314262fe",
+      "std/zip.ail": "5a131069f6dc729d9a7fb630e926c7c52a4108923b73ad55b6d11678d0ccf412"
+    },
+    "stdlib_manifest_sha256": "9aca60e363deb0502f65ad580b747cb98441404eb960d71d9c676b4944d75271",
+    "stdlib_mismatches": [],
+    "fixtures": {
+      "div": {
+        "source": "module runtime_div_signs\nexport pure func pair(n: int, d: int) -> int { n / d }\nexport pure func main() -> [int] { [pair(7, 2), pair(-7, 2), pair(7, -2), pair(-7, -2), pair(0, -5), pair(0, 5), pair(-1, 7), pair(1, -7), pair(-6, 3), pair(-6, -3), pair(6, -3), pair(9223372036854775807, -1)] }\n",
+        "sha256": "f83b1851f67b080cd59372afd7fb7003062c3b2005122f94f9f505f2f726d9a9",
+        "pairs": [
+          [
+            7,
+            2
+          ],
+          [
+            -7,
+            2
+          ],
+          [
+            7,
+            -2
+          ],
+          [
+            -7,
+            -2
+          ],
+          [
+            0,
+            -5
+          ],
+          [
+            0,
+            5
+          ],
+          [
+            -1,
+            7
+          ],
+          [
+            1,
+            -7
+          ],
+          [
+            -6,
+            3
+          ],
+          [
+            -6,
+            -3
+          ],
+          [
+            6,
+            -3
+          ],
+          [
+            9223372036854775807,
+            -1
+          ]
+        ],
+        "expected_truncation": [
+          3,
+          -3,
+          -3,
+          3,
+          0,
+          0,
+          0,
+          0,
+          -2,
+          2,
+          -2,
+          -9223372036854775807
+        ]
+      },
+      "rem": {
+        "source": "module runtime_rem_signs\nexport pure func pair(n: int, d: int) -> int { n % d }\nexport pure func main() -> [int] { [pair(7, 2), pair(-7, 2), pair(7, -2), pair(-7, -2), pair(0, -5), pair(0, 5), pair(-1, 7), pair(1, -7), pair(-6, 3), pair(-6, -3), pair(6, -3), pair(9223372036854775807, -1)] }\n",
+        "sha256": "b354e1fdaf2e23e81aa69cbf7656425efc3d10203874854a1d9fdd60b3a41e18",
+        "pairs": [
+          [
+            7,
+            2
+          ],
+          [
+            -7,
+            2
+          ],
+          [
+            7,
+            -2
+          ],
+          [
+            -7,
+            -2
+          ],
+          [
+            0,
+            -5
+          ],
+          [
+            0,
+            5
+          ],
+          [
+            -1,
+            7
+          ],
+          [
+            1,
+            -7
+          ],
+          [
+            -6,
+            3
+          ],
+          [
+            -6,
+            -3
+          ],
+          [
+            6,
+            -3
+          ],
+          [
+            9223372036854775807,
+            -1
+          ]
+        ],
+        "expected_truncation": [
+          1,
+          -1,
+          1,
+          -1,
+          0,
+          0,
+          -1,
+          1,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "original_int_divmod": {
+        "source": "module cmd/ailang/testdata/verify_preflight/int_divmod\n\n-- #1960: AILANG Int `/` and `%` truncate toward zero (Go semantics), so the\n-- verifier must not prove contracts that hold only under SMT-LIB's Euclidean\n-- div/mod.\n\n-- FALSE at x = -7 (-7 % 2 == -1 at runtime). Must NOT be VERIFIED.\nexport pure func parity(x: int) -> int\nensures { result >= 0 } {\n  x % 2\n}\n\n-- FALSE at x = -7 (-7 / 2 == -3 at runtime, and -6 > -7). Must NOT be VERIFIED.\nexport pure func halfDown(x: int) -> int\nensures { result * 2 <= x } {\n  x / 2\n}\n\n-- TRUE for non-negative x under both semantics: VERIFIED.\nexport pure func halfNonNeg(x: int) -> int\nrequires { x >= 0 }\nensures { result * 2 <= x && result >= 0 } {\n  x / 2\n}\n\n-- TRUE: a truncating remainder by 2 is -1, 0 or 1. VERIFIED.\nexport pure func parityBounded(x: int) -> int\nensures { result > 0 - 2 && result < 2 } {\n  x % 2\n}\n\n-- TRUE: truncation rounds toward zero, so |x / 2| * 2 <= |x|. Euclidean\n-- division would make this false at x = -7 (-4 * 2 = -8 < -7). VERIFIED.\nexport pure func halfTowardZero(x: int) -> int\nrequires { x < 0 }\nensures { result * 2 >= x } {\n  x / 2\n}\n\n-- TRUE: the remainder takes the sign of the dividend, whatever the divisor's\n-- sign. VERIFIED.\nexport pure func remSign(x: int, y: int) -> int\nrequires { x >= 0 && y < 0 }\nensures { result >= 0 && result < 0 - y } {\n  x % y\n}\n",
+        "sha256": "a67486e7293815a8a980a11e64b0d524c0ce972d615da12c190fc7641a0665be",
+        "source_git_commit": "a5f81711904452b432f850ba37f686fde79c895a",
+        "source_git_path": "cmd/ailang/testdata/verify_preflight/int_divmod.ail"
+      }
+    },
+    "commands": [
+      {
+        "label": "div-check",
+        "argv": [
+          "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+          "check",
+          "/tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-div-signs.ail"
+        ],
+        "rc": 0,
+        "stdout": "\u2192 Type checking /tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-div-signs.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+        "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'runtime_div_signs' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-div-signs'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n"
+      },
+      {
+        "label": "div-tree",
+        "argv": [
+          "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+          "run",
+          "--entry",
+          "main",
+          "/tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-div-signs.ail"
+        ],
+        "rc": 0,
+        "stdout": "[3, -3, -3, 3, 0, 0, 0, 0, -2, 2, -2, -9223372036854775807]\n",
+        "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'runtime_div_signs' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-div-signs'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n",
+        "actual_values": [
+          3,
+          -3,
+          -3,
+          3,
+          0,
+          0,
+          0,
+          0,
+          -2,
+          2,
+          -2,
+          -9223372036854775807
+        ],
+        "matches_truncating_table": true
+      },
+      {
+        "label": "div-strict-vm",
+        "argv": [
+          "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+          "run",
+          "--bytecode",
+          "--strict-bytecode",
+          "--entry",
+          "main",
+          "/tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-div-signs.ail"
+        ],
+        "rc": 0,
+        "stdout": "[3, -3, -3, 3, 0, 0, 0, 0, -2, 2, -2, -9223372036854775807]\n",
+        "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'runtime_div_signs' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-div-signs'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n",
+        "actual_values": [
+          3,
+          -3,
+          -3,
+          3,
+          0,
+          0,
+          0,
+          0,
+          -2,
+          2,
+          -2,
+          -9223372036854775807
+        ],
+        "matches_truncating_table": true
+      },
+      {
+        "label": "rem-check",
+        "argv": [
+          "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+          "check",
+          "/tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-rem-signs.ail"
+        ],
+        "rc": 0,
+        "stdout": "\u2192 Type checking /tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-rem-signs.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+        "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'runtime_rem_signs' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-rem-signs'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n"
+      },
+      {
+        "label": "rem-tree",
+        "argv": [
+          "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+          "run",
+          "--entry",
+          "main",
+          "/tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-rem-signs.ail"
+        ],
+        "rc": 0,
+        "stdout": "[1, -1, 1, -1, 0, 0, -1, 1, 0, 0, 0, 0]\n",
+        "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'runtime_rem_signs' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-rem-signs'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n",
+        "actual_values": [
+          1,
+          -1,
+          1,
+          -1,
+          0,
+          0,
+          -1,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "matches_truncating_table": true
+      },
+      {
+        "label": "rem-strict-vm",
+        "argv": [
+          "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+          "run",
+          "--bytecode",
+          "--strict-bytecode",
+          "--entry",
+          "main",
+          "/tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-rem-signs.ail"
+        ],
+        "rc": 0,
+        "stdout": "[1, -1, 1, -1, 0, 0, -1, 1, 0, 0, 0, 0]\n",
+        "stderr": "Warning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std\nWARNING MOD010 (temp-path): module 'runtime_rem_signs' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-round2-controls/runtime-rem-signs'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n",
+        "actual_values": [
+          1,
+          -1,
+          1,
+          -1,
+          0,
+          0,
+          -1,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "matches_truncating_table": true
+      },
+      {
+        "label": "halDown-check",
+        "argv": [
+          "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+          "check",
+          "/tmp/ailang-backlog-20261029/smt-m0-round2-controls/int-divmod-halDown-original.ail"
+        ],
+        "rc": 0,
+        "stdout": "\u2192 Type checking /tmp/ailang-backlog-20261029/smt-m0-round2-controls/int-divmod-halDown-original.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\n",
+        "stderr": "WARNING MOD010 (temp-path): module 'cmd/ailang/testdata/verify_preflight/int_divmod' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-round2-controls/int-divmod-halDown-original'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n"
+      },
+      {
+        "label": "halDown-verify",
+        "argv": [
+          "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+          "verify",
+          "--json",
+          "--verbose",
+          "--timeout",
+          "3s",
+          "/tmp/ailang-backlog-20261029/smt-m0-round2-controls/int-divmod-halDown-original.ail"
+        ],
+        "rc": 1,
+        "stdout": "{\n  \"evidence_schema\": \"ailang.verification-evidence/v1\",\n  \"numeric_model\": {\n    \"float_sort\": \"Real\",\n    \"int_sort\": \"Int\",\n    \"runtime_equivalence\": \"not_established\"\n  },\n  \"runtime_contracts\": \"not_measured\",\n  \"file\": \"/tmp/ailang-backlog-20261029/smt-m0-round2-controls/int-divmod-halDown-original.ail\",\n  \"verified\": 5,\n  \"counterexample\": 1,\n  \"skipped\": 0,\n  \"errors\": 0,\n  \"uncontracted\": 0,\n  \"total_exported\": 6,\n  \"results\": [\n    {\n      \"function\": \"parityBounded\",\n      \"status\": \"verified\",\n      \"duration\": 4866125,\n      \"smtlib\": \"; Verification of parityBounded\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (mod $p_x 2))\\n\\n(assert (not (let (($tmp4 (- 0 2))) (let (($tmp5 (\\u003e result $tmp4))) (ite $tmp5 (\\u003c result 2) false)))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"reason_code\": \"counterexample\",\n      \"function\": \"halfTowardZero\",\n      \"status\": \"counterexample\",\n      \"model\": [\n        {\n          \"name\": \"$p_x\",\n          \"sort\": \"Int\",\n          \"value\": \"(- 1)\"\n        },\n        {\n          \"name\": \"result\",\n          \"sort\": \"Int\",\n          \"value\": \"(div $p_x 2)\"\n        }\n      ],\n      \"duration\": 6083833,\n      \"smtlib\": \"; Verification of halfTowardZero\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (div $p_x 2))\\n\\n(assert (\\u003c $p_x 0))\\n(assert (not (let (($tmp6 (* result 2))) (\\u003e= $tmp6 $p_x))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"remSign\",\n      \"status\": \"verified\",\n      \"duration\": 5762542,\n      \"smtlib\": \"; Verification of remSign\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(declare-const $p_y Int)\\n(define-const result Int (mod $p_x $p_y))\\n\\n(assert (let (($tmp7 (\\u003e= $p_x 0))) (ite $tmp7 (\\u003c $p_y 0) false)))\\n(assert (not (let (($tmp8 (\\u003e= result 0))) (ite $tmp8 (let (($tmp9 (- 0 $p_y))) (\\u003c result $tmp9)) false))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"parity\",\n      \"status\": \"verified\",\n      \"duration\": 4710750,\n      \"smtlib\": \"; Verification of parity\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (mod $p_x 2))\\n\\n(assert (not (\\u003e= result 0)))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"halfDown\",\n      \"status\": \"verified\",\n      \"duration\": 8165709,\n      \"smtlib\": \"; Verification of halfDown\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (div $p_x 2))\\n\\n(assert (not (let (($tmp1 (* result 2))) (\\u003c= $tmp1 $p_x))))\\n\\n(check-sat)\\n(get-model)\"\n    },\n    {\n      \"function\": \"halfNonNeg\",\n      \"status\": \"verified\",\n      \"duration\": 5862709,\n      \"smtlib\": \"; Verification of halfNonNeg\\n(set-logic ALL)\\n\\n(declare-const $p_x Int)\\n(define-const result Int (div $p_x 2))\\n\\n(assert (\\u003e= $p_x 0))\\n(assert (not (let (($tmp2 (* result 2))) (let (($tmp3 (\\u003c= $tmp2 $p_x))) (ite $tmp3 (\\u003e= result 0) false)))))\\n\\n(check-sat)\\n(get-model)\"\n    }\n  ]\n}\n",
+        "stderr": "WARNING MOD010 (temp-path): module 'cmd/ailang/testdata/verify_preflight/int_divmod' does not match canonical path 'tmp/ailang-backlog-20261029/smt-m0-round2-controls/int-divmod-halDown-original'\n  Auto-relaxed for temporary directory. For strict checking, move file outside temp directory.\n",
+        "parsed_json": {
+          "evidence_schema": "ailang.verification-evidence/v1",
+          "numeric_model": {
+            "float_sort": "Real",
+            "int_sort": "Int",
+            "runtime_equivalence": "not_established"
+          },
+          "runtime_contracts": "not_measured",
+          "file": "/tmp/ailang-backlog-20261029/smt-m0-round2-controls/int-divmod-halDown-original.ail",
+          "verified": 5,
+          "counterexample": 1,
+          "skipped": 0,
+          "errors": 0,
+          "uncontracted": 0,
+          "total_exported": 6,
+          "results": [
+            {
+              "function": "parityBounded",
+              "status": "verified",
+              "duration": 4866125,
+              "smtlib": "; Verification of parityBounded\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (mod $p_x 2))\n\n(assert (not (let (($tmp4 (- 0 2))) (let (($tmp5 (> result $tmp4))) (ite $tmp5 (< result 2) false)))))\n\n(check-sat)\n(get-model)"
+            },
+            {
+              "reason_code": "counterexample",
+              "function": "halfTowardZero",
+              "status": "counterexample",
+              "model": [
+                {
+                  "name": "$p_x",
+                  "sort": "Int",
+                  "value": "(- 1)"
+                },
+                {
+                  "name": "result",
+                  "sort": "Int",
+                  "value": "(div $p_x 2)"
+                }
+              ],
+              "duration": 6083833,
+              "smtlib": "; Verification of halfTowardZero\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (div $p_x 2))\n\n(assert (< $p_x 0))\n(assert (not (let (($tmp6 (* result 2))) (>= $tmp6 $p_x))))\n\n(check-sat)\n(get-model)"
+            },
+            {
+              "function": "remSign",
+              "status": "verified",
+              "duration": 5762542,
+              "smtlib": "; Verification of remSign\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(declare-const $p_y Int)\n(define-const result Int (mod $p_x $p_y))\n\n(assert (let (($tmp7 (>= $p_x 0))) (ite $tmp7 (< $p_y 0) false)))\n(assert (not (let (($tmp8 (>= result 0))) (ite $tmp8 (let (($tmp9 (- 0 $p_y))) (< result $tmp9)) false))))\n\n(check-sat)\n(get-model)"
+            },
+            {
+              "function": "parity",
+              "status": "verified",
+              "duration": 4710750,
+              "smtlib": "; Verification of parity\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (mod $p_x 2))\n\n(assert (not (>= result 0)))\n\n(check-sat)\n(get-model)"
+            },
+            {
+              "function": "halfDown",
+              "status": "verified",
+              "duration": 8165709,
+              "smtlib": "; Verification of halfDown\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (div $p_x 2))\n\n(assert (not (let (($tmp1 (* result 2))) (<= $tmp1 $p_x))))\n\n(check-sat)\n(get-model)"
+            },
+            {
+              "function": "halfNonNeg",
+              "status": "verified",
+              "duration": 5862709,
+              "smtlib": "; Verification of halfNonNeg\n(set-logic ALL)\n\n(declare-const $p_x Int)\n(define-const result Int (div $p_x 2))\n\n(assert (>= $p_x 0))\n(assert (not (let (($tmp2 (* result 2))) (let (($tmp3 (<= $tmp2 $p_x))) (ite $tmp3 (>= result 0) false)))))\n\n(check-sat)\n(get-model)"
+            }
+          ]
+        }
+      },
+      {
+        "label": "binary-version",
+        "argv": [
+          "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+          "version"
+        ],
+        "rc": 0,
+        "stdout": "AILANG dev\nCommit: 80793db\nFull:   80793dbcf42423027be4bab1a0088da54e2323d8\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026\n",
+        "stderr": ""
+      }
+    ],
+    "environment": {
+      "removed_names": [
+        "OTEL_LOG_USER_PROMPTS"
+      ],
+      "unset_patterns": [
+        "OTEL_*",
+        "OTLP_*",
+        "AILANG_TRACE*",
+        "AILANG_OTLP_*",
+        "GOOGLE_CLOUD_PROJECT",
+        "GCLOUD_PROJECT",
+        "GCP_PROJECT"
+      ],
+      "NO_CACHE": "1",
+      "AILANG_NO_CACHE": "1",
+      "matching_stdlib": "/tmp/ailang-backlog-20261029/alias-ownership-R2-base-source/std",
+      "credentials": "No values printed; local pure controls only"
+    },
+    "platform": {
+      "system": "Darwin",
+      "machine": "arm64"
+    },
+    "executed_source_tree": "6dd0ba785819e77d72a8359818c9524058cbc74f"
+  },
+  "parked_base_identity": {
+    "command": [
+      "git",
+      "merge-base",
+      "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+      "a5f81711904452b432f850ba37f686fde79c895a"
+    ],
+    "merge_base_sha": "3996302744503d2a9ed06198c3190dc9d61911df",
+    "merge_base_tree": "4a60b43224c7233c0939d4e43d518751e5214d4a",
+    "named_paths": [
+      "internal/smt",
+      "internal/verification",
+      "std",
+      "cmd/ailang/verify.go",
+      "cmd/ailang/ai_check.go"
+    ],
+    "diff_command": [
+      "git",
+      "diff",
+      "3996302744503d2a9ed06198c3190dc9d61911df",
+      "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+      "--",
+      "internal/smt",
+      "internal/verification",
+      "std",
+      "cmd/ailang/verify.go",
+      "cmd/ailang/ai_check.go"
+    ],
+    "diff_rc": 0,
+    "diff_output": "diff --git a/internal/smt/solver_timeout_test.go b/internal/smt/solver_timeout_test.go\nindex 19aacd032..a6b54aa13 100644\n--- a/internal/smt/solver_timeout_test.go\n+++ b/internal/smt/solver_timeout_test.go\n@@ -6,6 +6,7 @@ import (\n \t\"errors\"\n \t\"fmt\"\n \t\"os\"\n+\t\"os/exec\"\n \t\"path/filepath\"\n \t\"strconv\"\n \t\"strings\"\n@@ -24,12 +25,12 @@ const fakeSolverSleep = 30 * time.Second\n // = 3s; TestZ3Version_HardTimeout gets versionProbeTimeout = 5s outright, since\n // solverKillGrace is only its WaitDelay and not part of its context deadline.\n //\n-// Time from spawn to the child pidfile appearing, measured over 500 trials:\n-// idle 200/200 at mean 209ms / max 232ms; under a full `go test -count=1 ./...`\n-// load, 1 trial in 300 exceeded 3s (at 3.435s) and 0 exceeded 5s. So ~0.3% per\n-// spawn against the 3s budget \u2014 strictly less against 5s \u2014 and three attempts\n-// leave a ~3e-8 residue. Retrying is safe because a genuine process-group-kill\n-// regression fails assertProcessGoneWithin on every attempt instead.\n+// Retrying alone did not fix the race: the delay was the first exec of a\n+// freshly written script, and under suite load that delay is correlated, so\n+// all three attempts lost together (2026-10-29, 3.0s each). The startup cost\n+// is now paid by a warm-up exec in writeSleepingFakeSolver (max 11ms\n+// afterwards). The retry stays as a second line. It is safe because a genuine\n+// process-group-kill regression fails assertProcessGoneWithin on every attempt.\n const maxRaceAttempts = 3\n \n func TestSolve_HardTimeout_FakeSolverIgnoringT(t *testing.T) {\n@@ -101,6 +102,7 @@ func writeSleepingFakeSolver(t *testing.T) (string, string) {\n \tchildPIDFile := filepath.Join(dir, \"child.pid\")\n \tscriptPath := filepath.Join(dir, \"fake-z3\")\n \tscript := fmt.Sprintf(`#!/bin/sh\n+[ \"$1\" = warm ] && exit 0\n sleep %d &\n echo $! > %q\n sleep %d\n@@ -108,6 +110,15 @@ sleep %d\n \tif err := os.WriteFile(scriptPath, []byte(script), 0o700); err != nil {\n \t\tt.Fatalf(\"write fake solver: %v\", err)\n \t}\n+\t// Pay the first exec of the freshly written script before the timed run.\n+\t// On macOS that first exec waits on the system's assessment of a new\n+\t// executable, which `go test ./...` floods with fresh test binaries.\n+\t// Measured 2026-10-29, spawn to pidfile during `go test -count=1\n+\t// ./internal/...`, 60 trials each: fresh p95 2.6s / max 4.46s against a 3s\n+\t// budget; warmed max 11ms (ailang#602).\n+\tif out, err := exec.Command(scriptPath, \"warm\").CombinedOutput(); err != nil {\n+\t\tt.Fatalf(\"warm fake solver: %v (%s)\", err, out)\n+\t}\n \treturn scriptPath, childPIDFile\n }\n \ndiff --git a/std/VERSION b/std/VERSION\nindex 302caab77..8e4a6c0c7 100644\n--- a/std/VERSION\n+++ b/std/VERSION\n@@ -1 +1 @@\n-v0.54.18\n+v0.55.0\ndiff --git a/std/ai.ail b/std/ai.ail\nindex 19e7e5d96..d0e422ffd 100644\n--- a/std/ai.ail\n+++ b/std/ai.ail\n@@ -167,7 +167,8 @@ export func callJsonSimpleResult(input: string) -> Result[string, AIError] ! {AI\n --   style   : delivery instruction, e.g. \"Say cheerfully\"; \"\" = none\n --   options : JSON, \"\" for none. Keys: model (a TTS model; default the bound\n --             --ai model if its name contains \"tts\", else\n---             gemini-2.5-flash-preview-tts), language_code (BCP-47).\n+--             gemini-2.5-flash-tts on Vertex or\n+--             gemini-2.5-flash-preview-tts on AI Studio), language_code (BCP-47).\n --             Any other key is Err(SchemaValidation).\n -- Supported providers: Gemini (AI Studio and Vertex). Others return\n -- Err({code: \"CapabilityNotSupported\", ...}).\n@@ -293,13 +294,14 @@ export type StreamChunk = ContentDelta(string) | ThinkingDelta(string) | Usage({\n -- a tag-aware splitter on the consumer side if you want to separate\n -- them.\n --\n--- The callback's effect row is open (`\\!{IO}` is typical but not required).\n+-- The callback's effects propagate to the caller: a pure callback needs only AI;\n+-- an IO renderer needs AI and IO. Any callback row e is supported.\n -- Errors thrown from the callback are recorded as trace events but do NOT\n -- abort the SSE drain \u2014 the caller still receives a complete StepResult.\n --\n -- For providers without native streaming, the callback fires exactly twice:\n -- once with ContentDelta(full_text) then once with Usage(...).\n-export func stepWithStream(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {IO}) -> Result[StepResult, AIError] ! {AI} =\n+export func stepWithStream(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {e}) -> Result[StepResult, AIError] ! {AI, e} =\n   _ai_step_with_stream(model, messages, tools, cache_breakpoints, on_chunk)\n \n -- RecordedStream is what stepWithStreamRecorded returns: the exact ordered\n@@ -315,7 +317,7 @@ export type RecordedStream = { chunks: [StreamChunk], outcome: Result[StepResult\n -- rendering is unchanged. The returned `chunks` is an exact, non-duplicating\n -- record of the same sequence, which lets a caller record a live exchange and\n -- replay it deterministically without widening the callback's effect row.\n-export func stepWithStreamRecorded(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {IO}) -> RecordedStream ! {AI} =\n+export func stepWithStreamRecorded(model: string, messages: [Message], tools: [ToolSchema], cache_breakpoints: [CacheBreakpoint], on_chunk: StreamChunk -> () ! {e}) -> RecordedStream ! {AI, e} =\n   _ai_step_with_stream_recorded(model, messages, tools, cache_breakpoints, on_chunk)\n \n -- runTools: convenience loop driver for multi-turn tool dispatch.\ndiff --git a/std/array.ail b/std/array.ail\nindex d90f53a31..e380c0bda 100644\n--- a/std/array.ail\n+++ b/std/array.ail\n@@ -22,6 +22,8 @@ import std/list (map as listMap, foldl as listFoldl, filter as listFilter)\n --   length(arr)    O(1)  - stored metadata\n --   fromList(xs)   O(n)  - converts each element\n --   toList(arr)    O(n)  - converts each element\n+--   updateMany(arr, ws)          O(n + k) - one copy, later writes win\n+--   accumulate(arr, ws, combine) O(n + k) - one copy, out[i] = combine(out[i], x)\n --\n -- ERRORS: get, unsafeGet and set fail on an out-of-bounds index, naming the\n -- index and the length. getOpt returns None instead.\n@@ -104,6 +106,16 @@ export pure func scatterAdd(arr: Array[float], idx: [int], xs: [float]) -> Array\n   _array_scatter_add(arr, idx, xs)\n }\n \n+-- Combine (index, value) writes into arr with ONE copy: for each write in list\n+-- order, out[i] = combine(out[i], x). O(n + k). Any out-of-bounds index is an\n+-- error. The generic batch update: a difference array, a histogram or a\n+-- counting sort over any element type (scatterAdd is the Array[float] + case).\n+--   accumulate(make(4, 0), [(0, 1), (2, 5), (0, 2)], \\a b. a + b)  -- #[3, 0, 5, 0]\n+--   accumulate(make(3, \"\"), [(1, \"a\"), (1, \"b\")], \\a b. \"${a}${b}\")  -- #[\"\", \"ab\", \"\"]\n+export pure func accumulate[a](arr: Array[a], writes: [(int, a)], combine: (a, a) -> a) -> Array[a] {\n+  _array_accumulate(arr, writes, combine)\n+}\n+\n -- ============================================================================\n -- Float kernels on Array[float] (native loops over an unboxed store)\n -- ============================================================================\ndiff --git a/std/map.ail b/std/map.ail\nindex fa35d81ed..e576f340b 100644\n--- a/std/map.ail\n+++ b/std/map.ail\n@@ -1,7 +1,9 @@\n -- std/map - Hash maps with O(1) lookup\n --\n -- Maps provide O(1) key-value lookup backed by Go hashmaps.\n--- Keys must be comparable types (int, string, bool).\n+-- Keys: int, string, bool, float (not NaN), unit, and tuples, records and\n+-- ADT constructors of those. Any other key (a function, a list) is a runtime\n+-- error on every operation, including lookup and member.\n -- All operations are pure and return new maps (immutable).\n --\n -- USAGE PATTERN: Build once with fromList, then many lookups.\ndiff --git a/std/package.ail b/std/package.ail\nindex 9de590022..ed2dba7d3 100644\n--- a/std/package.ail\n+++ b/std/package.ail\n@@ -11,6 +11,11 @@\n -- At publish time, every file listed in [assets].files must exist under the\n -- package's assets/ directory or publish is rejected.\n --\n+-- Resolution: locked dependency directory first (registry, path, or git).\n+-- Missing locked targets return Err; they never select another cached version.\n+-- Without a lock entry, use the highest semantic version in the registry cache\n+-- (HOME or AILANG_PACKAGE_ROOT). The REPL has no lock context.\n+-- Root-package assets resolve from the source directory, even without a lock.\n -- Requires: FS capability (--caps FS)\n \n module std/package\ndiff --git a/std/set.ail b/std/set.ail\nnew file mode 100644\nindex 000000000..38b27f89f\n--- /dev/null\n+++ b/std/set.ail\n@@ -0,0 +1,102 @@\n+-- std/set - Immutable sets (the visited set, the seen-before test)\n+--\n+-- A Set[a] holds each element at most once and iterates in a deterministic\n+-- order (A1): the canonical key order std/map uses. Elements may be anything a\n+-- Map key may be: int, string, bool, float (not NaN), unit, and tuples,\n+-- records and ADT constructors of those, nested. So a BFS visited set over\n+-- grid states is written directly:\n+--\n+--   import std/set as S\n+--   let seen = S.insert(S.empty(), (row, col, dir))\n+--   if S.member(seen, (r, c, d)) then ... else ...\n+--\n+-- Any other element (a function, a list) is a runtime error on every\n+-- operation, including member: never a silent false.\n+--\n+-- Usage: `import std/set as S` for the functions, plus `import std/set (Set)`\n+-- to write the type in a signature (`Set[(int, int)]`; a qualified `S.Set`\n+-- is not valid type syntax). The function names (empty, insert, member, ...)\n+-- match std/map's, so import at least one of the two qualified.\n+\n+module std/set\n+\n+-- A Set is a Map from element to unit. The constructor is exported only so\n+-- the type can be named; build sets with empty/fromList/insert.\n+export type Set[a] = Set(Map[a, ()])\n+\n+-- COST MODEL (today: built over the copy-on-write Map runtime):\n+--   empty()            O(1)\n+--   insert(s, x)       O(n)        - copies the set; member/size stay O(1)\n+--   remove(s, x)       O(n)        - copies the set\n+--   member(s, x)       O(1)        - hash lookup on the canonical key\n+--   size(s)            O(1)\n+--   toList(s)          O(n log n)  - canonical order (A1)\n+--   fromList(xs)       O(n)        - the bulk path; duplicates collapse\n+--   union/intersect/difference     O((n + m) log(n + m)) - one bulk build\n+--\n+-- insert and remove are O(n) until the persistent-map phase of\n+-- M-PERSISTENT-COLLECTIONS lands (it changes the cost, not the API). Inside\n+-- a hot search loop that is O(n) per visited state, so a search over n\n+-- states costs O(n^2); for a search over a few thousand states that is fine,\n+-- for a million it is not. When the elements are known up front, build the\n+-- set with fromList.\n+\n+-- The empty set. O(1).\n+export pure func empty[a]() -> Set[a] {\n+  Set(_map_empty())\n+}\n+\n+-- A set holding the elements of xs, each once. O(n).\n+export pure func fromList[a](xs: [a]) -> Set[a] {\n+  Set(_map_from_list(_list_map(\\x. (x, ()), xs)))\n+}\n+\n+-- A new set that also holds x. O(n) copy today (see COST MODEL).\n+export pure func insert[a](s: Set[a], x: a) -> Set[a] {\n+  match s {\n+    Set(m) => Set(_map_insert(m, x, ()))\n+  }\n+}\n+\n+-- A new set without x (unchanged if x is absent). O(n) copy today.\n+export pure func remove[a](s: Set[a], x: a) -> Set[a] {\n+  match s {\n+    Set(m) => Set(_map_remove(m, x))\n+  }\n+}\n+\n+-- Whether x is in s. O(1).\n+export pure func member[a](s: Set[a], x: a) -> bool {\n+  match s {\n+    Set(m) => _map_member(m, x)\n+  }\n+}\n+\n+-- The number of elements. O(1).\n+export pure func size[a](s: Set[a]) -> int {\n+  match s {\n+    Set(m) => _map_size(m)\n+  }\n+}\n+\n+-- The elements in canonical order (deterministic, A1). O(n log n).\n+export pure func toList[a](s: Set[a]) -> [a] {\n+  match s {\n+    Set(m) => _map_keys(m)\n+  }\n+}\n+\n+-- Elements in a or b. One bulk build.\n+export pure func union[a](a: Set[a], b: Set[a]) -> Set[a] {\n+  fromList(toList(a) ++ toList(b))\n+}\n+\n+-- Elements in both a and b. One bulk build.\n+export pure func intersect[a](a: Set[a], b: Set[a]) -> Set[a] {\n+  fromList(_list_filter(\\x. member(b, x), toList(a)))\n+}\n+\n+-- Elements in a but not in b. One bulk build.\n+export pure func difference[a](a: Set[a], b: Set[a]) -> Set[a] {\n+  fromList(_list_filter(\\x. not member(b, x), toList(a)))\n+}\n",
+    "changed_paths": [
+      "internal/smt/solver_timeout_test.go",
+      "std/VERSION",
+      "std/ai.ail",
+      "std/array.ail",
+      "std/map.ail",
+      "std/package.ail",
+      "std/set.ail"
+    ],
+    "diff_utf8_bytes": 12529,
+    "diff_sha256": "2aee145a8bae6d007efb3967711c9a98ee78b19c480e2720005d4b802afc90e4"
+  },
+  "quorum_cli_help": {
+    "command": [
+      "/Users/voightkampff/go/bin/ailang",
+      "design-quorum",
+      "--help"
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": "\u26a0 Binary may be stale (source files modified after build)\n  Run 'make quick-install' to rebuild\nailang design-quorum \u2014 N-reviewer quorum verdict on a design doc (fleet Phase B)\n\nUSAGE:\n  ailang design-quorum <doc.md> [flags]\n  ailang design-quorum --author codex:gpt-6.1-sol < doc.md\n\nFLAGS:\n  --reviewers <csv>          reviewer POOL (default gpt6-1-sol,gemini-4-argon,oc-glm-5-3,\n                             oc-kimi-k3,claude-sonnet-5@claude-p)\n  --seats <n>                reviewers per doc, drawn from the pool (default 3)\n  --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.30)\n  --author <model>           the doc's author; its vendor sits out (see below)\n  --artifact-dir <dir>       machine JSON artifact dir (default .ailang/state/mission-quorum)\n  --mission-log <path>       append the human markdown block to this mission log\n  --controller-verdict <v>   the Claude controller's IN-SESSION verdict (pass|reject) \u2014 NOT an API call\n  --controller-note <text>   the controller's in-session note (required with --controller-verdict)\n  --json                     print the full quorum result JSON to stdout\n\nBEHAVIOR:\n  Runs the reviewers IN PARALLEL (reject-by-default). Synthesis: any present\n  reviewer (or the controller) rejects \u2192 BLOCKED (objection returns to author);\n  all present pass \u2192 PROCEED. An unreachable/over-budget/mis-auth reviewer is\n  recorded by NAME with its reason and the quorum degrades to N-1 \u2014 never a\n  silent pass. Always writes a machine JSON artifact; optionally appends a\n  mission-log markdown block.\n\n  SEATING: --seats reviewers (default 3) are drawn from the --reviewers pool,\n  rotated per doc (the same doc gets the same seats every round) and preferring\n  distinct vendors; an absent seat is replaced from the rest of the pool.\n  AUTHOR'S VENDOR SITS OUT: pass --author (or MISSION_DESIGN_AUTHOR) with the\n  model that wrote the doc. Reviewers from that vendor are benched, and come\n  back \u2014 labelled same-vendor \u2014 only if nobody else in the pool answers. With no\n  author given, a Claude author is assumed. The Anthropic seat\n  (claude-sonnet-5@claude-p) runs \"claude -p\" on the subscription, never the\n  API key, with tools, settings and MCP off; it is absent (quota) when the\n  Anthropic bucket is over its mission ration.\n\nEXIT CODES:\n  0 = proceed   3 = blocked   1/2 = IO or usage error\n\nSEE ALSO:\n  ailang design-review \u2014 a single reviewer verdict.\n",
+    "qualification": "Help invocation only, no reviewer/provider call. Source demonstrates author/readDoc routing; not a claimed API smoke test."
+  },
+  "round_one_quorum": {
+    "doc": "/tmp/ailang-backlog-20261029/smt-m0-quorum/M0-scoped-review.md",
+    "iso_ts": "2026-10-29T13:27:52Z",
+    "reviewers": [
+      {
+        "model": "oc-glm-5-3",
+        "cost_usd": 0.0946754,
+        "tokens_in": 10595,
+        "tokens_out": 18146,
+        "present": true,
+        "result": {
+          "verdict": "reject",
+          "strongest_objection": "The packet's central execution premise \u2014 that parked S1/S2 work (981a7aee9, 5410d0b2f) can be reused as-is at aca5a6ea \u2014 rests on the claim 'only #602 test warm-up differs from the parked branch base', but the parked branch's base commit is never identified by SHA anywhere in the packet or the evidence companion, and no diff command or output for that comparison is recorded (unlike the 80793\u2194aca5 diff, which at least has a logged qualification row). This is an asserted, currently unverifiable premise underpinning the entire 'reuse, do not reimplement' scope: if any internal/smt, internal/verification, or encoder-adjacent code differs between that unnamed base and aca5, the reused all-emitter inventory or EncodeCalleeContract plumbing silently misses producers or conflicts with current code \u2014 reintroducing precisely the false-VERIFIED class M0 exists to eliminate. The same pattern recurs at the required gate: the prescribed M0-Q invocation depends on quorum CLI behavior claims (VendorOf substring matching, 'benches', --seats default, readDoc stdin) taken from unexecuted source reading \u2014 with the doc itself admitting a sibling value ('--author openai') degrades to 'warn and bench nobody' \u2014 and the packet defers recording its own canonical commit/blob and excerpt SHA256 to a future artifact, leaving the required review input unbound to its canonical source.",
+          "catch": "Pin the parked branch base before any reuse claim: name the fork-point/merge-base commit of p0/smt-unsound-encodings and add a verification-log row containing the actual git diff output between that base and aca5a6ea over internal/smt, internal/verification, std, cmd/ailang/verify.go, and cmd/ailang/ai_check.go. Secondarily: (1) record a non-provider dry run (e.g., `ailang design-quorum --help`) verifying the --author/--seats/--json/readDoc semantics the prescribed invocation relies on; (2) record the packet's own canonical commit/blob and excerpt SHA256 in the packet itself rather than deferring them to the eventual quorum artifact (the referenced M0-REVIEW markers are absent from this artifact, so the excerpt cannot be checked); (3) M0-A1 cites a 'halfDown' fixture that is never defined, sourced, or hashed anywhere in the packet.",
+          "proposed_fix": "Amend the conflict-surface paragraph to: 'The parked branch forked from <base-SHA> (git merge-base aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239 a5f81711904452b432f850ba37f686fde79c895a). git diff <base-SHA>..aca5a6ea... over internal/smt, internal/verification, std, cmd/ailang/verify.go, cmd/ailang/ai_check.go shows only the #602 test warm-up change; verbatim diff output is evidence-companion row parked_base_diff.' Add three verification-log rows to the companion JSON before M0-Q is invoked: (1) parked_base_identity {merge_base_sha, diff_command, diff_output}; (2) quorum_cli_dryrun {command: 'ailang design-quorum --help', stdout verbatim, plus confirmation that --author/--seats/--json/readDoc behave as read at aca5}; (3) packet_identity {canonical_doc_commit, canonical_doc_blob, excerpt_sha256, evidence_blob_sha256} recorded in the packet itself. In M0-A1, either add the halfDown fixture to original_issue-style evidence (source + sha256 + old false-VERIFIED row + expected new counterexample row) or delete the name and state 'negative x for parity, a >= 0 for gap' only. Planning remains blocked until the parked-base diff row and packet identity exist."
+        },
+        "landed": null
+      },
+      {
+        "model": "oc-kimi-k3",
+        "cost_usd": 0.07990799999999999,
+        "tokens_in": 10481,
+        "tokens_out": 3231,
+        "present": true,
+        "result": {
+          "verdict": "reject",
+          "strongest_objection": "M0-F1's foundational premise \u2014 that the runtime performs truncating Int `/` and `%` including negative operands \u2014 is asserted but never demonstrated. The only nonzero-divisor evidence in the packet is direct-Z3 checks of a 'literal transcription of parked encodeTruncDivMod', i.e., the proposed formula validated against itself. The executed runtime controls cover only `/0` and `%0` (RT001 error paths), not sign behavior. Worse, no acceptance row closes this gap: M0-A2 requires 'all Int producer shapes and sign combinations agree with truncation' (an encoding property), not agreement with executed runtime results, so a floor- or Euclidean-semantics runtime would pass the entire M0-A1\u2013A8 gate undetected while the doc claims verify-matches-runtime soundness.",
+          "catch": "Produce actual runtime evidence for the truncation premise before quorum: cite the interpreter/evaluator source implementing Int division and remainder (file:line at aca5), and add executed `ailang run` fixtures printing signed results (e.g., -7/2, 7/-2, -7%2, 7%-2 plus MinInt-adjacent cases) with raw stdout/stderr and source SHA256 to the evidence JSON. Also verify the M0-REVIEW markers the quorum-extraction procedure depends on actually exist in the canonical doc, since they are not identifiable in this packet as written.",
+          "proposed_fix": "Add a `runtime_sign_controls` section to the compact evidence JSON: one fixture per operator printing the four sign combinations of (\u00b17, \u00b12) plus (0, \u00b15), executed via the source-equivalent archived binary, with exit codes, raw stdout, and fixture SHA256; add a `runtime_divmod_implementation` row citing the evaluator file:line where Int `/` and `%` are evaluated. Amend M0-A2 to read: '...all sign combinations agree with truncation for nonzero divisors, AND executed runtime CLI results for the same sign-pair fixtures equal the truncating table row-for-row; any runtime mismatch freezes M0-F1 and requests an amended contract rather than silently re-picking the operator semantics.' Add one line to the quorum section giving the literal M0-REVIEW begin/end marker strings and their byte offsets."
+        },
+        "landed": null
+      },
+      {
+        "model": "gemini-4-argon",
+        "cost_usd": 0.053788,
+        "tokens_in": 12307,
+        "tokens_out": 228,
+        "present": true,
+        "result": {
+          "verdict": "pass",
+          "strongest_objection": "The proposal relies on archived binary execution at commit 80793dbcf4 (validated via empty git diff against aca5a6ea on SMT/verification paths) and raw Z3 formula transcriptions rather than an actual build and execution of the aca5a6ea base or the parked branch.",
+          "catch": "During sprint planning and execution (M0-A1 through M0-A8), ensure the 'all-emitter inventory' from 981a7aee9 is explicitly enumerated against aca5a6ea in the sprint plan, and verify that propagating paired helper-condition define-fun predicates through non-recursive helpers handles diamond call graphs without exponential condition-term blowup.",
+          "proposed_fix": "In the sprint plan following M0 design approval, list the exact file and line locations for every Int division/modulo emitter in internal/smt at aca5a6ea, and specify that helper-condition define-fun emission must deduplicate declarations per resolved helper symbol."
+        },
+        "landed": null
+      }
+    ],
+    "controller_in_session": {
+      "verdict": "pass",
+      "note": "Root read scoped M0 proposal; truncation matches current runtime within existing math-Int/partial-correctness model; finite per-call guarded facts preserve lexical/selected branches and reject global forall; full F2/F5/M1-M4 are outside this technical review. User fresh design approval still pending."
+    },
+    "synthesis": {
+      "verdict": "blocked",
+      "blocking_objections": [
+        "oc-glm-5-3: The packet's central execution premise \u2014 that parked S1/S2 work (981a7aee9, 5410d0b2f) can be reused as-is at aca5a6ea \u2014 rests on the claim 'only #602 test warm-up differs from the parked branch base', but the parked branch's base commit is never identified by SHA anywhere in the packet or the evidence companion, and no diff command or output for that comparison is recorded (unlike the 80793\u2194aca5 diff, which at least has a logged qualification row). This is an asserted, currently unverifiable premise underpinning the entire 'reuse, do not reimplement' scope: if any internal/smt, internal/verification, or encoder-adjacent code differs between that unnamed base and aca5, the reused all-emitter inventory or EncodeCalleeContract plumbing silently misses producers or conflicts with current code \u2014 reintroducing precisely the false-VERIFIED class M0 exists to eliminate. The same pattern recurs at the required gate: the prescribed M0-Q invocation depends on quorum CLI behavior claims (VendorOf substring matching, 'benches', --seats default, readDoc stdin) taken from unexecuted source reading \u2014 with the doc itself admitting a sibling value ('--author openai') degrades to 'warn and bench nobody' \u2014 and the packet defers recording its own canonical commit/blob and excerpt SHA256 to a future artifact, leaving the required review input unbound to its canonical source.",
+        "oc-kimi-k3: M0-F1's foundational premise \u2014 that the runtime performs truncating Int `/` and `%` including negative operands \u2014 is asserted but never demonstrated. The only nonzero-divisor evidence in the packet is direct-Z3 checks of a 'literal transcription of parked encodeTruncDivMod', i.e., the proposed formula validated against itself. The executed runtime controls cover only `/0` and `%0` (RT001 error paths), not sign behavior. Worse, no acceptance row closes this gap: M0-A2 requires 'all Int producer shapes and sign combinations agree with truncation' (an encoding property), not agreement with executed runtime results, so a floor- or Euclidean-semantics runtime would pass the entire M0-A1\u2013A8 gate undetected while the doc claims verify-matches-runtime soundness."
+      ],
+      "absent_reviewers": [],
+      "total_cost_usd": 0.2283714,
+      "total_tokens_in": 33383,
+      "total_tokens_out": 21605
+    }
+  },
+  "round_one_cost_qualification": "Model registry token-price accounting; Ollama Cloud flat-rate imputation, not actual invoice charge. No absent seats or outside-pool fallback.",
+  "bounded_revision_state": {
+    "state": "UNSENT evidence-only amendment for human decision after two terminal BLOCKED runs",
+    "root_review": "pending",
+    "new_external_disclosure_consent": "not granted",
+    "attended_two_run_limit": "exhausted; any further disclosure/review needs explicit human decision",
+    "human_design_approval": "pending",
+    "execution_authorized": false,
+    "semantic_choices_changed": false,
+    "mission_carve_out_self_applied": false,
+    "human_inspection_first": true,
+    "third_external_review_presumed": false,
+    "possible_human_disposition": "After independent evidence preflight, root may ask direct human ratification of evidence-only corrections and scoped M0-F1/F4/Z. Both BLOCKED reviews/limits visible; M0-Q not marked satisfied and no approval inferred.",
+    "qualification": "Historical pre-ratification state retained as evidence. current_authorization above records the later actual human planning-only ruling."
+  },
+  "runtime_implementation": {
+    "internal/builtins/math_arithmetic.go": {
+      "at_proposal_base": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+      "line_start": 22,
+      "line_end": 33,
+      "source_excerpt": "\tregisterBuiltinWithMeta(\"div_Int\", 2, true, intIntToIntErr(func(a, b int) (int, error) {\n\t\tif err := ailerrors.CheckIntDivisor(ailerrors.OpDivision, int64(b)); err != nil {\n\t\t\treturn 0, err\n\t\t}\n\t\treturn a / b, nil\n\t}), \"Divide two integers (errors on division by zero)\", []string{\"math\", \"arithmetic\", \"divide\"})\n\tregisterBuiltinWithMeta(\"mod_Int\", 2, true, intIntToIntErr(func(a, b int) (int, error) {\n\t\tif err := ailerrors.CheckIntDivisor(ailerrors.OpModulo, int64(b)); err != nil {\n\t\t\treturn 0, err\n\t\t}\n\t\treturn a % b, nil\n\t}), \"Integer modulo operation (errors on modulo by zero)\", []string{\"math\", \"arithmetic\", \"modulo\", \"remainder\"})",
+      "sha256": "f5fe3502f3586aa5facb2e3ff5730a82ec6a21720c1fa22c4ab4549a7421dfa3",
+      "git_blob": "6da99ca570e579dec18f81fc76cd4987214f1d5c",
+      "executed807_to_aca5_diff": "empty"
+    },
+    "internal/eval/builtins_arithmetic.go": {
+      "at_proposal_base": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+      "line_start": 39,
+      "line_end": 60,
+      "source_excerpt": "\tBuiltins[\"div_Int\"] = &BuiltinFunc{\n\t\tName:    \"div_Int\",\n\t\tNumArgs: 2,\n\t\tIsPure:  true,\n\t\tImpl: func(a, b *IntValue) (*IntValue, error) {\n\t\t\tif err := checkIntDivisorAt(ailerrors.OpDivision, b.Value, \"\"); err != nil {\n\t\t\t\treturn nil, err\n\t\t\t}\n\t\t\treturn &IntValue{Value: a.Value / b.Value}, nil\n\t\t},\n\t}\n\n\tBuiltins[\"mod_Int\"] = &BuiltinFunc{\n\t\tName:    \"mod_Int\",\n\t\tNumArgs: 2,\n\t\tIsPure:  true,\n\t\tImpl: func(a, b *IntValue) (*IntValue, error) {\n\t\t\tif err := checkIntDivisorAt(ailerrors.OpModulo, b.Value, \"\"); err != nil {\n\t\t\t\treturn nil, err\n\t\t\t}\n\t\t\treturn &IntValue{Value: a.Value % b.Value}, nil\n\t\t},",
+      "sha256": "7b6ff11ca9afd5f26320b7357588d1c62f6e7f9e2e7e6b6bacd858cbfe84571c",
+      "git_blob": "74039e3aafd166849c8e5e060fabbaca48469edf",
+      "executed807_to_aca5_diff": "empty"
+    },
+    "internal/vm/vm_arith.go": {
+      "at_proposal_base": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+      "line_start": 29,
+      "line_end": 38,
+      "source_excerpt": "\t\tcase bytecode.OpDiv:\n\t\t\tif err := ailerrors.CheckIntDivisor(ailerrors.OpDivision, r); err != nil {\n\t\t\t\treturn bytecode.Value{}, err\n\t\t\t}\n\t\t\treturn bytecode.NewInt(l / r), nil\n\t\tcase bytecode.OpMod:\n\t\t\tif err := ailerrors.CheckIntDivisor(ailerrors.OpModulo, r); err != nil {\n\t\t\t\treturn bytecode.Value{}, err\n\t\t\t}\n\t\t\treturn bytecode.NewInt(l % r), nil",
+      "sha256": "57da42ed2fc9ff118e20d0d25c9066ff6375dc03510c4516f6daca60dbf2847e",
+      "git_blob": "b0d434637853bb6aa098f904a24e416fbfa7210b",
+      "executed807_to_aca5_diff": "empty"
+    },
+    "internal/vm/builtins_math.go": {
+      "at_proposal_base": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+      "line_start": 86,
+      "line_end": 97,
+      "source_excerpt": "func builtinModInt(args []bytecode.Value) (bytecode.Value, error) {\n\tif len(args) != 2 {\n\t\treturn bytecode.Value{}, fmt.Errorf(\"_mod_Int: expected 2 args, got %d\", len(args))\n\t}\n\tif args[0].Tag != bytecode.TagInt || args[1].Tag != bytecode.TagInt {\n\t\treturn bytecode.Value{}, fmt.Errorf(\"_mod_Int: expected ints\")\n\t}\n\tif err := ailerrors.CheckIntDivisor(ailerrors.OpModulo, args[1].Int); err != nil {\n\t\treturn bytecode.Value{}, err\n\t}\n\treturn bytecode.NewInt(args[0].Int % args[1].Int), nil\n}",
+      "sha256": "275fe598cf01b9960ec336bfba1209a42c78987225b8798b9bde233a1e01f7ca",
+      "git_blob": "9fee03f116db7366c845ced56b82243419b0cca0",
+      "executed807_to_aca5_diff": "empty"
+    }
+  },
+  "quorum_source_handling": {
+    "cmd/ailang/design_quorum.go": {
+      "at_proposal_base": "aca5a6ead",
+      "line_start": 35,
+      "line_end": 85,
+      "source_excerpt": "func runDesignQuorum() {\n\tfs := flag.NewFlagSet(\"design-quorum\", flag.ExitOnError)\n\treviewers := fs.String(\"reviewers\", defaultQuorumPool, \"comma-separated reviewer POOL (models.yml ids, or \"+quorum.ClaudeReviewerID+\"); --seats of them review each doc\")\n\tseats := fs.Int(\"seats\", quorum.DefaultSeats, \"independent reviewers per doc, drawn from the pool\")\n\tauthor := fs.String(\"author\", config.MissionDesignAuthor(), \"model or lane that WROTE the doc (e.g. claude:claude-opus-5-5, codex:gpt-6.1-sol); its vendor sits out\")\n\tmaxCost := fs.Float64(\"max-cost-usd\", quorum.DefaultMaxCostUSD, \"per-reviewer budget cap in USD\")\n\tartifactDir := fs.String(\"artifact-dir\", quorum.ArtifactDir, \"directory for the machine JSON artifact\")\n\tlogPath := fs.String(\"mission-log\", \"\", \"optional mission log path to append the markdown block\")\n\tctrlVerdict := fs.String(\"controller-verdict\", \"\", \"the Claude controller's IN-SESSION verdict (pass|reject); NOT an API call\")\n\tctrlNote := fs.String(\"controller-note\", \"\", \"the controller's in-session note (required if --controller-verdict set)\")\n\tasJSON := fs.Bool(\"json\", false, \"print the full quorum result JSON to stdout\")\n\tfs.Usage = func() { fmt.Fprint(os.Stderr, designQuorumHelp) }\n\t_ = fs.Parse(hoistFlags(os.Args[2:]))\n\n\tdocPath, docBody, err := readDoc(fs.Args())\n\tif err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"design-quorum: %v\\n\", err)\n\t\tos.Exit(1)\n\t}\n\n\tvar controller *quorum.ControllerReview\n\tif *ctrlVerdict != \"\" {\n\t\tv := quorum.Verdict(strings.ToLower(*ctrlVerdict))\n\t\tif v != quorum.VerdictPass && v != quorum.VerdictReject {\n\t\t\tfmt.Fprintf(os.Stderr, \"design-quorum: --controller-verdict must be pass or reject\\n\")\n\t\t\tos.Exit(2)\n\t\t}\n\t\tif strings.TrimSpace(*ctrlNote) == \"\" {\n\t\t\tfmt.Fprintf(os.Stderr, \"design-quorum: --controller-note is required when --controller-verdict is set (no silent controller pass)\\n\")\n\t\t\tos.Exit(2)\n\t\t}\n\t\tcontroller = &quorum.ControllerReview{Verdict: v, Note: *ctrlNote}\n\t}\n\n\tmodels := splitCSV(*reviewers)\n\tif len(models) == 0 {\n\t\tfmt.Fprintln(os.Stderr, \"design-quorum: no reviewers specified\")\n\t\tos.Exit(2)\n\t}\n\n\tauthorID := *author\n\tif authorID == \"\" {\n\t\t// The Claude controller is the usual author in an attended session; assume\n\t\t// it rather than let Anthropic review its own doc, and say so.\n\t\tauthorID = \"claude (assumed \u2014 pass --author)\"\n\t\tfmt.Fprintln(os.Stderr, \"design-quorum: no --author given; assuming a Claude author, so the Anthropic seat sits out\")\n\t} else if quorum.VendorOf(authorID) == \"\" {\n\t\tfmt.Fprintf(os.Stderr, \"design-quorum: author %q is not a recognised vendor \u2014 nobody sits out\\n\", authorID)\n\t}\n\tsel := quorum.SelectReviewers(models, authorID, docPath, *seats)\n\tfmt.Fprintf(os.Stderr, \"design-quorum: author %s \u2014 seated %s; reserve %s; sitting out %s\\n\",",
+      "git_blob": "90748519ff20ee027a3f7bbe2cc4c9de2a33ebdd",
+      "installed_e863_to_aca5_diff": "empty"
+    },
+    "cmd/ailang/design_review.go": {
+      "at_proposal_base": "aca5a6ead",
+      "line_start": 109,
+      "line_end": 127,
+      "source_excerpt": "// readDoc resolves the doc body from a positional path or, if none given,\n// stdin.\nfunc readDoc(args []string) (path, body string, err error) {\n\tif len(args) > 0 && args[0] != \"\" && args[0] != \"-\" {\n\t\tpath = args[0]\n\t\tb, rerr := os.ReadFile(path)\n\t\tif rerr != nil {\n\t\t\treturn \"\", \"\", fmt.Errorf(\"read %s: %w\", path, rerr)\n\t\t}\n\t\treturn path, string(b), nil\n\t}\n\tb, rerr := io.ReadAll(os.Stdin)\n\tif rerr != nil {\n\t\treturn \"\", \"\", fmt.Errorf(\"read stdin: %w\", rerr)\n\t}\n\tif len(b) == 0 {\n\t\treturn \"\", \"\", fmt.Errorf(\"no design doc: pass a path or pipe the doc on stdin\")\n\t}\n\treturn \"(stdin)\", string(b), nil",
+      "git_blob": "3979e7eefa68ace38f2320448739226fcc20c764",
+      "installed_e863_to_aca5_diff": "empty"
+    },
+    "internal/mission/quorum/seating.go": {
+      "at_proposal_base": "aca5a6ead",
+      "line_start": 26,
+      "line_end": 84,
+      "source_excerpt": "const DefaultSeats = 3\n\n// TierAuthorVendor labels a benched seat that was called back because every\n// independent seat was absent.\nconst TierAuthorVendor = \"author-vendor-fallback\"\n\n// vendorKeys maps a substring of a model or lane id to its vendor. Harness\n// prefixes that are not vendors (\"pi:\", \"opencode:\", \"motoko:\") match no key, so a\n// lane id resolves by its model part without parsing.\nvar vendorKeys = []struct{ key, vendor string }{\n\t{\"claude\", \"anthropic\"}, {\"opus\", \"anthropic\"}, {\"sonnet\", \"anthropic\"},\n\t{\"fable\", \"anthropic\"}, {\"haiku\", \"anthropic\"},\n\t{\"gpt\", \"openai\"}, {\"astra\", \"openai\"}, {\"codex\", \"openai\"},\n\t{\"gemini\", \"google\"},\n\t{\"glm\", \"zai\"}, {\"z-ai\", \"zai\"}, {\"zai\", \"zai\"},\n\t{\"kimi\", \"moonshot\"}, {\"moonshot\", \"moonshot\"},\n\t{\"deepseek\", \"deepseek\"},\n\t{\"minimax\", \"minimax\"},\n\t{\"qwen\", \"alibaba\"},\n}\n\n// VendorOf names the vendor behind a model or lane id (\"gpt6-astra\",\n// \"codex:gpt-6-astra\", \"claude:claude-opus-5-5\", \"pi:ollama/kimi-k3:cloud\").\n// \"\" when unrecognised \u2014 the caller must not guess.\nfunc VendorOf(id string) string {\n\ts := strings.ToLower(id)\n\tfor _, k := range vendorKeys {\n\t\tif strings.Contains(s, k.key) {\n\t\t\treturn k.vendor\n\t\t}\n\t}\n\treturn \"\"\n}\n\n// Selection is the per-doc seating plan.\ntype Selection struct {\n\tPrimary []string // seated first\n\tReserve []string // replace absent seats, in order\n\tBenched []string // the author's vendor; recalled only if nothing else answers\n\tRefused []string // disallowed mission-role models; never run or recalled\n}\n\n// SelectReviewers seats `seats` reviewers from the pool for one doc. The eligible\n// pool (everyone not of the author's vendor) is rotated by a hash of docKey, then\n// seats are taken preferring vendors not yet seated. With an unrecognised author\n// nobody is benched.\nfunc SelectReviewers(pool []string, author, docKey string, seats int) Selection {\n\tvar sel Selection\n\tav := VendorOf(author)\n\tvar eligible []string\n\tfor _, m := range pool {\n\t\tif !ModelAllowed(m) {\n\t\t\tsel.Refused = append(sel.Refused, m)\n\t\t\tcontinue\n\t\t}\n\t\tif av != \"\" && VendorOf(m) == av {\n\t\t\tsel.Benched = append(sel.Benched, m)\n\t\t} else {\n\t\t\teligible = append(eligible, m)",
+      "git_blob": "29f52f88e7cf6e44100dea91748da9ee0d5803f1",
+      "installed_e863_to_aca5_diff": "empty"
+    }
+  },
+  "packet_extraction": {
+    "canonical_path": "design_docs/planned/m-smt-well-sorted-preflight.md",
+    "canonical_git_blob": "bb2bdccf9dbe4754eb17c581cd6317b4964f73d8",
+    "canonical_sha256": "6be66ae9bcef2c1d1c21489886e1ba858248b83cd09a39a621df191ae9dd50b4",
+    "begin_marker": "<!-- M0-REVIEW-BEGIN -->",
+    "begin_marker_byte_offset": 1249,
+    "end_marker": "<!-- M0-REVIEW-END -->",
+    "end_marker_byte_offset": 31250,
+    "rule": "New UNSENT human-decision packet includes entire canonical Markdown and evidence JSON plus committed-source identity. M0 section offsets delimit review scope only; no nested marker parsing; final packet SHA external.",
+    "qualification": "Binds frozen approved design commit88ca9e1e9 before these uncommitted human-approval annotations; full hashes remain in historical packet/manifest. Not a hash claim for this annotated working file."
+  },
+  "emitter_search": {
+    "command": [
+      "rg",
+      "-n",
+      "\"div\"|\"mod\"|\\(div |\\(mod ",
+      "internal/smt",
+      "--glob",
+      "*.go",
+      "--glob",
+      "!*_test.go"
+    ],
+    "scope": "Read current producer maps and direct/curried paths; DictApp mod is absent/unsupported; no implementation broadened",
+    "locations": [
+      "types.go:269 div_Int",
+      "types.go:271 mod_Int",
+      "codegen_apps.go:15 direct builtin",
+      "codegen_apps.go:46 curried builtin",
+      "codegen_apps.go:146 encodeBuiltinOp",
+      "codegen_operators.go:11 Intrinsic",
+      "codegen_operators.go:32 BinOp",
+      "codegen_operators.go:75 DictApp div"
+    ],
+    "literal_command_result": {
+      "command": [
+        "git",
+        "grep",
+        "-n",
+        "-E",
+        "\"div\"|\"mod\"|\\(div |\\(mod ",
+        "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "--",
+        "internal/smt/*.go",
+        ":(exclude)*_test.go"
+      ],
+      "rc": 0,
+      "stdout": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/smt/codegen_operators.go:14:\t\tcore.OpDiv: \"div\", core.OpMod: \"mod\",\naca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/smt/codegen_operators.go:34:\t\t\"+\": \"+\", \"-\": \"-\", \"*\": \"*\", \"/\": \"div\", \"%\": \"mod\",\naca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/smt/codegen_operators.go:79:\t\t\"add\": \"+\", \"sub\": \"-\", \"mul\": \"*\", \"div\": \"div\", \"neg\": \"-\",\naca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/smt/types.go:269:\t\"div_Int\":   \"div\",\naca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/smt/types.go:271:\t\"mod_Int\":   \"mod\",\naca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/smt/types.go:272:\t\"mod_Float\": \"mod\",\n",
+      "stderr": "",
+      "stdout_sha256": "06b63fb289c2736e7d5f59785dd43df64f14bf96dac9bd9e7c458c5d4838d32f"
+    },
+    "pinned_map_excerpts": [
+      {
+        "path": "internal/smt/codegen_operators.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "8a957783ea3941ec000ab2444012fefaf01aa72e",
+        "start_line": 75,
+        "end_line": 99,
+        "source_excerpt": "func encodeDictApp(da *core.DictApp) (string, error) {\n\t// Map type class method names to SMT-LIB operators\n\tmethodToSMT := map[string]string{\n\t\t// Num class\n\t\t\"add\": \"+\", \"sub\": \"-\", \"mul\": \"*\", \"div\": \"div\", \"neg\": \"-\",\n\t\t// Eq class\n\t\t\"eq\": \"=\", \"neq\": \"distinct\", \"ne\": \"distinct\",\n\t\t// Ord class\n\t\t\"lt\": \"<\", \"lte\": \"<=\", \"le\": \"<=\",\n\t\t\"gt\": \">\", \"gte\": \">=\", \"ge\": \">=\",\n\t\t// Bool (if accessed via type class)\n\t\t\"and\": \"and\", \"or\": \"or\", \"not\": \"not\",\n\t}\n\n\tsmtOp, ok := methodToSMT[da.Method]\n\tif !ok {\n\t\treturn \"\", fmt.Errorf(\"unsupported type class method %q in SMT encoding\", da.Method)\n\t}\n\n\treturn encodeBuiltinOp(smtOp, da.Args)\n}"
+      },
+      {
+        "path": "internal/smt/types.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "f48aceeea6e2934a1099e96adfd07e9abeef66d2",
+        "start_line": 261,
+        "end_line": 276,
+        "source_excerpt": "var BuiltinToSMTOp = map[string]string{\n\t// Arithmetic\n\t\"add_Int\":   \"+\",\n\t\"add_Float\": \"+\",\n\t\"sub_Int\":   \"-\",\n\t\"sub_Float\": \"-\",\n\t\"mul_Int\":   \"*\",\n\t\"mul_Float\": \"*\",\n\t\"div_Int\":   \"div\",\n\t\"div_Float\": \"/\",\n\t\"mod_Int\":   \"mod\",\n\t\"mod_Float\": \"mod\",\n\n\t// Comparison\n\t\"eq_Int\":   \"=\",\n\t\"eq_Float\": \"=\","
+      },
+      {
+        "path": "internal/smt/codegen_apps.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "0339d4cf61d32d700b7559fdf6021cab35499012",
+        "start_line": 11,
+        "end_line": 27,
+        "source_excerpt": "// After op_lowering, most operators appear as App(VarGlobal($builtin.XXX), args).\nfunc encodeApp(app *core.App) (string, error) {\n\t// Check for builtin operator pattern: App(VarGlobal($builtin.XXX), args)\n\tif vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module == \"$builtin\" {\n\t\t// Standard builtins (direct op mapping)\n\t\tsmtOp, isBuiltin := BuiltinToSMTOp[vg.Ref.Name]\n\t\tif isBuiltin {\n\t\t\treturn encodeBuiltinOp(smtOp, app.Args)\n\t\t}\n\t\t// String builtins with special encoding\n\t\tif spec, ok := StringBuiltinSpecial[vg.Ref.Name]; ok {\n\t\t\treturn encodeStringBuiltin(spec, app.Args)\n\t\t}\n\t\t// List builtins with special encoding\n\t\tif spec, ok := ListBuiltinSpecial[vg.Ref.Name]; ok {\n\t\t\treturn encodeListBuiltin(spec, app.Args)\n\t\t}"
+      },
+      {
+        "path": "internal/smt/codegen_apps.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "0339d4cf61d32d700b7559fdf6021cab35499012",
+        "start_line": 46,
+        "end_line": 60,
+        "source_excerpt": "\t// Check for curried builtin: App(App(VarGlobal($builtin.XXX), [arg1]), [arg2])\n\tif innerApp, ok := app.Func.(*core.App); ok {\n\t\tif vg, ok := innerApp.Func.(*core.VarGlobal); ok && vg.Ref.Module == \"$builtin\" {\n\t\t\t// Combine args: inner args + outer args\n\t\t\tallArgs := make([]core.CoreExpr, 0, len(innerApp.Args)+len(app.Args))\n\t\t\tallArgs = append(allArgs, innerApp.Args...)\n\t\t\tallArgs = append(allArgs, app.Args...)\n\n\t\t\tsmtOp, isBuiltin := BuiltinToSMTOp[vg.Ref.Name]\n\t\t\tif isBuiltin {\n\t\t\t\treturn encodeBuiltinOp(smtOp, allArgs)\n\t\t\t}\n\t\t\t// String builtins with special encoding (curried)\n\t\t\tif spec, ok := StringBuiltinSpecial[vg.Ref.Name]; ok {\n\t\t\t\treturn encodeStringBuiltin(spec, allArgs)"
+      },
+      {
+        "path": "internal/smt/codegen_operators.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "8a957783ea3941ec000ab2444012fefaf01aa72e",
+        "start_line": 11,
+        "end_line": 54,
+        "source_excerpt": "func encodeIntrinsic(intr *core.Intrinsic) (string, error) {\n\topMap := map[core.IntrinsicOp]string{\n\t\tcore.OpAdd: \"+\", core.OpSub: \"-\", core.OpMul: \"*\",\n\t\tcore.OpDiv: \"div\", core.OpMod: \"mod\",\n\t\tcore.OpEq: \"=\", core.OpNe: \"distinct\",\n\t\tcore.OpLt: \"<\", core.OpLe: \"<=\", core.OpGt: \">\", core.OpGe: \">=\",\n\t\tcore.OpAnd: \"and\", core.OpOr: \"or\", core.OpNot: \"not\",\n\t\tcore.OpNeg:        \"-\",\n\t\tcore.OpConcat:     \"str.++\",\n\t\tcore.OpBitwiseAnd: \"bvand\", core.OpBitwiseXor: \"bvxor\",\n\t\tcore.OpBitwiseNot: \"bvnot\",\n\t\tcore.OpShiftLeft:  \"bvshl\", core.OpShiftRight: \"bvashr\",\n\t}\n\tsmtOp, ok := opMap[intr.Op]\n\tif !ok {\n\t\treturn \"\", fmt.Errorf(\"unsupported intrinsic op: %v\", intr.Op)\n\t}\n\treturn encodeBuiltinOp(smtOp, intr.Args)\n}\n\n// encodeBinOp handles pre-lowered BinOp nodes.\nfunc encodeBinOp(bop *core.BinOp) (string, error) {\n\topMap := map[string]string{\n\t\t\"+\": \"+\", \"-\": \"-\", \"*\": \"*\", \"/\": \"div\", \"%\": \"mod\",\n\t\t\"==\": \"=\", \"!=\": \"distinct\",\n\t\t\"<\": \"<\", \"<=\": \"<=\", \">\": \">\", \">=\": \">=\",\n\t\t\"&&\": \"and\", \"||\": \"or\",\n\t\t\"&\": \"bvand\", \"^\": \"bvxor\",\n\t\t\"<<\": \"bvshl\", \">>\": \"bvashr\",\n\t}\n\tsmtOp, ok := opMap[bop.Op]\n\tif !ok {\n\t\treturn \"\", fmt.Errorf(\"unsupported binary op: %s\", bop.Op)\n\t}\n\tleft, err := EncodeExpr(bop.Left)\n\tif err != nil {\n\t\treturn \"\", err\n\t}\n\tright, err := EncodeExpr(bop.Right)\n\tif err != nil {\n\t\treturn \"\", err\n\t}\n\treturn fmt.Sprintf(\"(%s %s %s)\", smtOp, left, right), nil\n}"
+      }
+    ]
+  },
+  "runtime_source_equivalence": {
+    "command": [
+      "git",
+      "diff",
+      "--exit-code",
+      "80793dbcf42423027be4bab1a0088da54e2323d8",
+      "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+      "--",
+      "internal/builtins/math_arithmetic.go",
+      "internal/eval/builtins_arithmetic.go",
+      "internal/vm/vm_arith.go",
+      "internal/vm/builtins_math.go"
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "round_two_quorum": {
+    "doc": "/tmp/ailang-backlog-20261029/smt-m0-quorum/round2/M0-scoped-review.md",
+    "iso_ts": "2026-10-29T13:54:06Z",
+    "reviewers": [
+      {
+        "model": "gemini-4-argon",
+        "cost_usd": 0.163532,
+        "tokens_in": 39713,
+        "tokens_out": 234,
+        "present": true,
+        "result": {
+          "verdict": "pass",
+          "strongest_objection": "The proposal still relies on source-equivalence diffs between the archived 80793dbcf4 binary and the aca5a6ea proposal base (plus raw Z3 formula checks) rather than building and executing a compiler directly from aca5a6ea during the design phase, though this is explicitly bounded and deferred to the M0-A1..A8 execution acceptance gates.",
+          "catch": "During sprint planning and execution, verify that the paired helper-condition define-fun declarations in S2 properly thread all lexically captured variables (or restrict eligibility to closed top-level helpers) so that deduplicating declarations per resolved helper symbol does not drop or misbind outer scope variables across diamond call graphs.",
+          "proposed_fix": "In the sprint plan for S2, specify that paired helper-condition define-fun declarations take the exact same parameter list (including any lifted closure/environment parameters) as their corresponding value define-fun declarations."
+        },
+        "landed": null
+      },
+      {
+        "model": "oc-glm-5-3",
+        "cost_usd": 0.13445300000000002,
+        "tokens_in": 34221,
+        "tokens_out": 19669,
+        "present": true,
+        "result": {
+          "verdict": "reject",
+          "strongest_objection": "The packet's load-bearing source-equivalence premise \u2014 that the executed 80793 compiler is identical to the aca5 proposal base over internal/smt, internal/verification, std, cmd/ailang/verify.go and cmd/ailang/ai_check.go, which is the sole basis for treating every executed false-VERIFIED row (r1960 parity, r1961 gap, the full int_divmod verbose JSON) as current-head aca5 behavior \u2014 exists in the evidence companion only as a malformed, hand-typed qualification string ('git diff80793..aca5 of named paths empty') with no literal command, rc, or output row. This is precisely the assertion-grade diff premise whose absence blocked round one; the revision banked a verbatim 12,529-byte diff for the parked base and a literal --exit-code row for the four runtime arithmetic files, but did not apply the same standard to the comparison that underwrites the entire M0 bug premise at aca5. Until that row exists, 'current head falsely verifies #1960/#1961' is an asserted premise, and the M0-A1 old-rows baseline is unverified.",
+          "catch": "Evidence companion `compiler.qualification` (and the twice-repeated body claim 'git diff 80793..aca5 is empty for internal/smt, internal/verification, std, and the verify/ai-check CLI files') has no recorded command/rc/stdout row, and the string itself is malformed ('diff80793..aca5'), indicating transcription rather than captured execution. Secondary flag of the same class: the quorum --help was captured from a binary that self-reports 'Binary may be stale (source files modified after build)', and the 'installed_e863_to_aca5_diff: empty' fields name a commit ('e863') that is never given in full or verified by any banked command, so the VendorOf/--seats/readDoc/no-scope-flag claims rest on an unbound binary; at minimum record the installed binary's version output and the named-path diff over design_quorum.go, design_review.go and internal/mission/quorum before prescribing the round-two invocation.",
+          "proposed_fix": "Before any round-two quorum call, add two literal rows to the evidence companion and re-point the prose at them: (1) proposal_base_equivalence: {\"command\": [\"git\", \"diff\", \"--exit-code\", \"80793dbcf42423027be4bab1a0088da54e2323d8\", \"aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239\", \"--\", \"internal/smt\", \"internal/verification\", \"std\", \"cmd/ailang/verify.go\", \"cmd/ailang/ai_check.go\"], \"rc\": 0, \"stdout\": \"\", \"stderr\": \"\"} \u2014 replacing the malformed qualification string; (2) quorum_binary_identity: the installed binary's actual `version` output plus the same --exit-code diff over cmd/ailang/design_quorum.go, cmd/ailang/design_review.go, internal/mission/quorum. State explicitly in the packet: 'if row (1) is non-empty, every executed verify row is 807-only evidence and M0-A1 must be re-baselined against an actual aca5 build before re-quorum.' This is a doc/evidence-only revision consistent with the declared one-repair bound and requires no provider call, plan, or implementation."
+        },
+        "landed": null
+      },
+      {
+        "model": "oc-kimi-k3",
+        "cost_usd": 0.238644,
+        "tokens_in": 33118,
+        "tokens_out": 9286,
+        "present": true,
+        "result": {
+          "verdict": "reject",
+          "strongest_objection": "The packet's load-bearing premise \u2014 that the executed archived 80793 binary is source-equivalent to proposal base aca5 for the behavior under study \u2014 is itself only partially verified. The `git diff 80793..aca5` over `internal/smt`, `internal/verification`, `std`, `cmd/ailang/verify.go` and `cmd/ailang/ai_check.go` (the paths that make the old-binary VERIFIED rows valid evidence for aca5) appears only as an asserted list (`inspected_source_equal_to_proposal_base`) and a prose qualification containing the non-pasteable string 'git diff80793..aca5' \u2014 no command array, rc, stdout/stderr, or sha256. This is exactly the gap class GLM's round-one reject flagged and the revision fixed for the *parked* merge-base (full `parked_base_identity` row with verbatim 12,529-byte diff), but did not fix for the *executed-binary* equivalence. Compounding it, the executed sign-pair and RT001 controls ran the full 80793 pipeline (parser, elaborator, eval/VM drivers), yet only four leaf arithmetic files have a logged equivalence diff; the elaborator whose `normalizeShortCircuit`/`normalizeArm`/`elaborateContracts` behavior the S2 call-fact design explicitly depends on (`expr_simple.go:120,205`, `file_funcs.go`, `patterns.go`, plus the named desugar tests) is neither diffed 807\u2192aca5 nor excerpted/hashed the way the runtime files are. All 'old rows falsely VERIFY' and runtime-truncation evidence in M0-A1/A2 rests on this asserted foundation, so the M0-F1/M0-F4 premises are not verified to the packet's own stated standard ('literal command/output in evidence').",
+          "catch": "Before any re-quorum of this revised packet: (1) run and log verbatim `git diff 80793dbcf42423027be4bab1a0088da54e2323d8 aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239 -- internal/smt internal/verification std cmd/ailang/verify.go cmd/ailang/ai_check.go` with rc/stdout/stderr/sha256 as an evidence row, mirroring `parked_base_identity` and `runtime_source_equivalence`; (2) check whether `internal/elaborate`, `internal/eval` (driver), `internal/vm` dispatch, `internal/bytecode`, and the `cmd/ailang run/verify` front halves differ 80793\u2192aca5 \u2014 if they do, the executed-control claims must be re-scoped; if not, log that diff too; (3) produce blob-hash/pinned source excerpts for `expr_simple.go` normalizeShortCircuit, `file_funcs.go` elaborateContracts, `patterns.go` normalizeArm, and the bodies of `TestShortCircuit_AndDesugarsToIf`/`OrDesugarsToIf` at aca5, matching the standard already applied to `quorum_source_handling` and `runtime_implementation`.",
+          "proposed_fix": "Add to the compact evidence companion a `verify_source_equivalence` row: {command: ['git','diff','--exit-code','<80793>','<aca5>','--','internal/smt','internal/verification','std','cmd/ailang/verify.go','cmd/ailang/ai_check.go'], rc, stdout, stderr, sha256_of_output} and a second `control_pipeline_equivalence` row covering internal/elaborate, internal/eval, internal/vm, internal/bytecode and the run/verify CLI front halves \u2014 or, if any of those diffs is non-empty, amend the 'M0 evidence' paragraph from 'This establishes source-equivalent premises' to 'This establishes named-path equivalence only for <listed files>; front-half differences are not covered and the 80793 verify/run rows are indicative only, with old-vs-current CLI diff evidence deferred to M0-A1/A2'. Replace the sentence '`git diff 80793..aca5` is empty for ...' with 'git diff <80793> <aca5> -- <named paths> produced empty output (evidence row verify_source_equivalence)'. Add a `normalizer_source_handling` section excerpting expr_simple.go:120,205, file_funcs.go elaborateContracts, patterns.go normalizeArm and the two named shape tests at aca5 with git_blob values, in the same format as quorum_source_handling. Bind these rows into the in-packet identity record (updated evidence_git_blob/evidence_sha256) before the revised packet is re-sent."
+        },
+        "landed": null
+      }
+    ],
+    "controller_in_session": {
+      "verdict": "pass",
+      "note": "Root read scoped M0 proposal; truncation matches current runtime within existing math-Int/partial-correctness model; finite per-call guarded facts preserve lexical/selected branches and reject global forall; full F2/F5/M1-M4 are outside this technical review. User fresh design approval still pending."
+    },
+    "synthesis": {
+      "verdict": "blocked",
+      "blocking_objections": [
+        "oc-glm-5-3: The packet's load-bearing source-equivalence premise \u2014 that the executed 80793 compiler is identical to the aca5 proposal base over internal/smt, internal/verification, std, cmd/ailang/verify.go and cmd/ailang/ai_check.go, which is the sole basis for treating every executed false-VERIFIED row (r1960 parity, r1961 gap, the full int_divmod verbose JSON) as current-head aca5 behavior \u2014 exists in the evidence companion only as a malformed, hand-typed qualification string ('git diff80793..aca5 of named paths empty') with no literal command, rc, or output row. This is precisely the assertion-grade diff premise whose absence blocked round one; the revision banked a verbatim 12,529-byte diff for the parked base and a literal --exit-code row for the four runtime arithmetic files, but did not apply the same standard to the comparison that underwrites the entire M0 bug premise at aca5. Until that row exists, 'current head falsely verifies #1960/#1961' is an asserted premise, and the M0-A1 old-rows baseline is unverified.",
+        "oc-kimi-k3: The packet's load-bearing premise \u2014 that the executed archived 80793 binary is source-equivalent to proposal base aca5 for the behavior under study \u2014 is itself only partially verified. The `git diff 80793..aca5` over `internal/smt`, `internal/verification`, `std`, `cmd/ailang/verify.go` and `cmd/ailang/ai_check.go` (the paths that make the old-binary VERIFIED rows valid evidence for aca5) appears only as an asserted list (`inspected_source_equal_to_proposal_base`) and a prose qualification containing the non-pasteable string 'git diff80793..aca5' \u2014 no command array, rc, stdout/stderr, or sha256. This is exactly the gap class GLM's round-one reject flagged and the revision fixed for the *parked* merge-base (full `parked_base_identity` row with verbatim 12,529-byte diff), but did not fix for the *executed-binary* equivalence. Compounding it, the executed sign-pair and RT001 controls ran the full 80793 pipeline (parser, elaborator, eval/VM drivers), yet only four leaf arithmetic files have a logged equivalence diff; the elaborator whose `normalizeShortCircuit`/`normalizeArm`/`elaborateContracts` behavior the S2 call-fact design explicitly depends on (`expr_simple.go:120,205`, `file_funcs.go`, `patterns.go`, plus the named desugar tests) is neither diffed 807\u2192aca5 nor excerpted/hashed the way the runtime files are. All 'old rows falsely VERIFY' and runtime-truncation evidence in M0-A1/A2 rests on this asserted foundation, so the M0-F1/M0-F4 premises are not verified to the packet's own stated standard ('literal command/output in evidence')."
+      ],
+      "absent_reviewers": [],
+      "total_cost_usd": 0.536629,
+      "total_tokens_in": 107052,
+      "total_tokens_out": 29189
+    }
+  },
+  "local_supplement": {
+    "scope": "New LOCAL READ-ONLY supplement after final round2 BLOCKED; frozen design/packets/historical results unchanged; no provider call or authorization inference",
+    "captured": "2026-10-29T14:03:55.899457+00:00",
+    "source_pins": {
+      "executed_controls": "80793dbcf42423027be4bab1a0088da54e2323d8",
+      "proposal_base": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+      "installed_quorum_stamp": "e863a1e3dc075dd4acc0fdb26a467f4258898588",
+      "frozen_design_head": "d754bbceb43a0d597f7d7de0f350b9f9237dd9dc"
+    },
+    "command_results": [
+      {
+        "label": "verify-source-equivalence",
+        "command": [
+          "git",
+          "diff",
+          "--exit-code",
+          "80793dbcf42423027be4bab1a0088da54e2323d8",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "internal/smt",
+          "internal/verification",
+          "std",
+          "cmd/ailang/verify.go",
+          "cmd/ailang/ai_check.go"
+        ],
+        "rc": 0,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "verify-source-equivalence-names",
+        "command": [
+          "git",
+          "diff",
+          "--name-status",
+          "80793dbcf42423027be4bab1a0088da54e2323d8",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "internal/smt",
+          "internal/verification",
+          "std",
+          "cmd/ailang/verify.go",
+          "cmd/ailang/ai_check.go"
+        ],
+        "rc": 0,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "quorum-source-equivalence",
+        "command": [
+          "git",
+          "diff",
+          "--exit-code",
+          "e863a1e3dc075dd4acc0fdb26a467f4258898588",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "cmd/ailang/design_quorum.go",
+          "cmd/ailang/design_review.go",
+          "internal/mission/quorum"
+        ],
+        "rc": 0,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "quorum-source-equivalence-names",
+        "command": [
+          "git",
+          "diff",
+          "--name-status",
+          "e863a1e3dc075dd4acc0fdb26a467f4258898588",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "cmd/ailang/design_quorum.go",
+          "cmd/ailang/design_review.go",
+          "internal/mission/quorum"
+        ],
+        "rc": 0,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "control-front-half-equivalence",
+        "command": [
+          "git",
+          "diff",
+          "--exit-code",
+          "80793dbcf42423027be4bab1a0088da54e2323d8",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "internal/elaborate",
+          "internal/eval",
+          "internal/vm",
+          "internal/bytecode",
+          "cmd/ailang/main_run.go",
+          "cmd/ailang/main_run_exec.go",
+          "cmd/ailang/main_run_helpers.go",
+          "cmd/ailang/verify.go",
+          "cmd/ailang/ai_check.go"
+        ],
+        "rc": 0,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "control-front-half-equivalence-names",
+        "command": [
+          "git",
+          "diff",
+          "--name-status",
+          "80793dbcf42423027be4bab1a0088da54e2323d8",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "internal/elaborate",
+          "internal/eval",
+          "internal/vm",
+          "internal/bytecode",
+          "cmd/ailang/main_run.go",
+          "cmd/ailang/main_run_exec.go",
+          "cmd/ailang/main_run_helpers.go",
+          "cmd/ailang/verify.go",
+          "cmd/ailang/ai_check.go"
+        ],
+        "rc": 0,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "additional-pipeline-scope",
+        "command": [
+          "git",
+          "diff",
+          "--exit-code",
+          "80793dbcf42423027be4bab1a0088da54e2323d8",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "internal/pipeline"
+        ],
+        "rc": 1,
+        "stdout": "diff --git a/internal/pipeline/alias_body_closure_runtime_test.go b/internal/pipeline/alias_body_closure_runtime_test.go\nindex 3aa0bcc67..3f7e55e42 100644\n--- a/internal/pipeline/alias_body_closure_runtime_test.go\n+++ b/internal/pipeline/alias_body_closure_runtime_test.go\n@@ -65,8 +65,8 @@ func TestAliasBodyClosure_CacheInvalidatedOnce(t *testing.T) {\n \tif encodes != len(manifest.Entries) {\n \t\tt.Fatalf(\"v6 cache should recompile all %d modules (including implicit imports), got %d\", len(manifest.Entries), encodes)\n \t}\n-\tif readCacheManifest(t, path).Version != \"v7\" {\n-\t\tt.Fatal(\"cache did not publish v7 manifest\")\n+\tif readCacheManifest(t, path).Version != cacheKeyVersion {\n+\t\tt.Fatal(\"cache did not publish current-version manifest\")\n \t}\n \tif got := executePipelineMain(t, cold); got != \"1\" {\n \t\tt.Fatal(got)\n@@ -77,7 +77,7 @@ func TestAliasBodyClosure_CacheInvalidatedOnce(t *testing.T) {\n \t\tt.Fatal(err)\n \t}\n \tif encodes != 0 {\n-\t\tt.Fatalf(\"unchanged v6 modules recompiled: %d\", encodes)\n+\t\tt.Fatalf(\"unchanged current-version modules recompiled: %d\", encodes)\n \t}\n \tfresh, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck, NoCache: true}, source, cacheDependencies{newStore: NewCacheStore, stderr: io.Discard})\n \tif err != nil {\ndiff --git a/internal/pipeline/cache_artifacts.go b/internal/pipeline/cache_artifacts.go\nindex f10854c77..ffcefbd4f 100644\n--- a/internal/pipeline/cache_artifacts.go\n+++ b/internal/pipeline/cache_artifacts.go\n@@ -336,6 +336,12 @@ func (cs *CacheStore) loadArtifacts(moduleID, expectedCacheKey string) (*CachedM\n \tif err != nil {\n \t\treturn nil, artifactFailure(\"decoding\", filepath.Join(modDir, artifactIfaceName), err)\n \t}\n+\tif ifc == nil || ifc.Module != moduleID {\n+\t\treturn nil, artifactFailure(\"decoding\", filepath.Join(modDir, artifactIfaceName), fmt.Errorf(\"interface module identity mismatch\"))\n+\t}\n+\tif err := ifc.ValidateIFC(); err != nil {\n+\t\treturn nil, artifactFailure(\"decoding\", filepath.Join(modDir, artifactIfaceName), err)\n+\t}\n \tconstructors, err := cs.artifactCodec.decodeConstructors(artifacts[artifactConstructorsName])\n \tif err != nil {\n \t\treturn nil, artifactFailure(\"decoding\", filepath.Join(modDir, artifactConstructorsName), err)\ndiff --git a/internal/pipeline/cache_artifacts_test.go b/internal/pipeline/cache_artifacts_test.go\nindex 68748b082..37b9100fa 100644\n--- a/internal/pipeline/cache_artifacts_test.go\n+++ b/internal/pipeline/cache_artifacts_test.go\n@@ -418,7 +418,7 @@ func testCachedModule(moduleID string, value int) *CachedModule {\n \t\t},\n \t\tIface: &iface.Iface{\n \t\t\tModule:       moduleID,\n-\t\t\tSchema:       \"ailang.iface/v1\",\n+\t\t\tSchema:       iface.SchemaVersion,\n \t\t\tDigest:       fmt.Sprintf(\"digest-%d\", value),\n \t\t\tExports:      map[string]*iface.IfaceItem{},\n \t\t\tConstructors: map[string]*iface.ConstructorScheme{},\ndiff --git a/internal/pipeline/cache_dep_closure.go b/internal/pipeline/cache_dep_closure.go\nindex 2e6eac730..d895cb633 100644\n--- a/internal/pipeline/cache_dep_closure.go\n+++ b/internal/pipeline/cache_dep_closure.go\n@@ -43,7 +43,7 @@ func (st *modulePipelineState) depClosure(modID string) map[string]bool {\n }\n \n // cacheDepDigest is the per-dependency key component: the iface digest (exports,\n-// constructors) plus a digest of its alias bodies and params, which the iface\n+// constructors and per-export IFC summaries) plus a digest of its alias bodies and params, which the iface\n // digest does not cover.\n func cacheDepDigest(ifc *iface.Iface) string {\n \treturn ifc.Digest + \"+\" + aliasDigest(ifc)\ndiff --git a/internal/pipeline/cache_ifc_integration_test.go b/internal/pipeline/cache_ifc_integration_test.go\nnew file mode 100644\nindex 000000000..99c1c79ac\n--- /dev/null\n+++ b/internal/pipeline/cache_ifc_integration_test.go\n@@ -0,0 +1,145 @@\n+package pipeline\n+\n+import (\n+\t\"bytes\"\n+\t\"io\"\n+\t\"os\"\n+\t\"path/filepath\"\n+\t\"strings\"\n+\t\"testing\"\n+\n+\t\"github.com/sunholo-data/ailang/internal/core\"\n+)\n+\n+func ifcCacheFixture(t *testing.T, lib string) {\n+\tt.Helper()\n+\tt.Chdir(t.TempDir())\n+\tt.Setenv(\"AILANG_CACHE_DIR\", \"\")\n+\tif err := os.WriteFile(\"lib.ail\", []byte(lib), 0600); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tapp := `module app\n+import lib (provide)\n+export func main() -> string { provide(\"hello\") }\n+`\n+\tif err := os.WriteFile(\"app.ail\", []byte(app), 0600); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+}\n+\n+func TestCacheIFCLibraryEditsInvalidateCaller(t *testing.T) {\n+\tfor _, tc := range []struct{ name, before, after string }{\n+\t\t{\"refinement\", `export func provide(x: string{not email}) -> string { x }`, `export func provide(x: string{not secret}) -> string { x }`},\n+\t\t{\"intrinsic\", `export func provide(x: string) -> string { x }`, `export func provide(x: string) -> string { let tagged: string<email> = x in tagged }`},\n+\t\t{\"return\", `export func provide(x: string) -> string { x }`, `export func provide(x: string) -> string<email> { x }`},\n+\t} {\n+\t\tt.Run(tc.name, func(t *testing.T) {\n+\t\t\tifcCacheFixture(t, \"module lib\\n\"+tc.before+\"\\n\")\n+\t\t\tcfg := Config{Mode: ModeCheck}\n+\t\t\tsrc := Source{Filename: \"app.ail\"}\n+\t\t\tif _, err := runModuleWithCacheDependencies(t.Context(), cfg, src, productionCacheDependencies()); err != nil {\n+\t\t\t\tt.Fatal(err)\n+\t\t\t}\n+\t\t\tmanifestPath := filepath.Join(\".ailang\", \"cache\", \"compile\", \"manifest.json\")\n+\t\t\tbefore := readCacheManifest(t, manifestPath)\n+\t\t\tvar encodes int\n+\t\t\tdeps := cacheDependencies{stderr: io.Discard, newStore: func(dir string) (*CacheStore, error) {\n+\t\t\t\tcs, err := NewCacheStore(dir)\n+\t\t\t\tif err == nil {\n+\t\t\t\t\tencode := cs.artifactCodec.encodeCore\n+\t\t\t\t\tcs.artifactCodec.encodeCore = func(p *core.Program) ([]byte, error) { encodes++; return encode(p) }\n+\t\t\t\t}\n+\t\t\t\treturn cs, err\n+\t\t\t}}\n+\t\t\t// A cached caller and dependency both reuse their authenticated verdicts.\n+\t\t\tif _, err := runModuleWithCacheDependencies(t.Context(), cfg, src, deps); err != nil {\n+\t\t\t\tt.Fatal(err)\n+\t\t\t}\n+\t\t\tif encodes != 0 {\n+\t\t\t\tt.Fatalf(\"warm caller compiled %d modules\", encodes)\n+\t\t\t}\n+\t\t\tif err := os.WriteFile(\"lib.ail\", []byte(\"module lib\\n\"+tc.after+\"\\n\"), 0600); err != nil {\n+\t\t\t\tt.Fatal(err)\n+\t\t\t}\n+\t\t\tif _, err := runModuleWithCacheDependencies(t.Context(), cfg, src, deps); err != nil {\n+\t\t\t\tt.Fatal(err)\n+\t\t\t}\n+\t\t\tafter := readCacheManifest(t, manifestPath)\n+\t\t\tif before.Entries[\"lib\"].IfaceDigest == after.Entries[\"lib\"].IfaceDigest {\n+\t\t\t\tt.Fatal(\"IFC-only edit did not change library digest\")\n+\t\t\t}\n+\t\t\tif before.Entries[\"app\"].CacheKey == after.Entries[\"app\"].CacheKey {\n+\t\t\t\tt.Fatal(\"IFC-only edit served stale caller\")\n+\t\t\t}\n+\t\t\tif encodes != 2 {\n+\t\t\t\tt.Fatalf(\"library edit compiled %d modules, want library and caller\", encodes)\n+\t\t\t}\n+\t\t\tencodes = 0\n+\t\t\tif _, err := runModuleWithCacheDependencies(t.Context(), cfg, src, deps); err != nil {\n+\t\t\t\tt.Fatal(err)\n+\t\t\t}\n+\t\t\tif encodes != 0 {\n+\t\t\t\tt.Fatal(\"edited warm verdict did not reuse cache\")\n+\t\t\t}\n+\t\t})\n+\t}\n+}\n+\n+func TestCacheIFCLegacySchemaRecompiles(t *testing.T) {\n+\tifcCacheFixture(t, \"module lib\\nexport func provide(x: string{not email}) -> string { x }\\n\")\n+\tcfg := Config{Mode: ModeCheck}\n+\tsrc := Source{Filename: \"app.ail\"}\n+\tif _, err := runModuleWithCacheDependencies(t.Context(), cfg, src, productionCacheDependencies()); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tdir := filepath.Join(\".ailang\", \"cache\", \"compile\", \"modules\", \"lib\")\n+\trewriteIFCArtifact(t, dir, func(p map[string]any) { p[\"schema\"] = \"ailang.iface/v1\" })\n+\tvar warnings bytes.Buffer\n+\tif _, err := runModuleWithCacheDependencies(t.Context(), cfg, src, cacheDependencies{newStore: NewCacheStore, stderr: &warnings}); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tif !strings.Contains(warnings.String(), \"CACHE_INVALID module=lib\") {\n+\t\tt.Fatalf(\"unobservable schema miss: %s\", warnings.String())\n+\t}\n+\traw, err := os.ReadFile(filepath.Join(dir, artifactIfaceName))\n+\tif err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\trepaired, err := unmarshalIfaceFull(raw)\n+\tif err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tif repaired.Exports[\"provide\"].IFC.Params[0].Forbidden[0] != \"email\" {\n+\t\tt.Fatal(\"source recompilation lost refinement\")\n+\t}\n+\t// The loader must fail with a source diagnostic when no valid interface/source\n+\t// can be supplied; the legacy cache cannot serve as a clean substitute.\n+\tif err := os.Remove(\"lib.ail\"); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tif _, err := runModuleWithCacheDependencies(t.Context(), cfg, src, productionCacheDependencies()); err == nil {\n+\t\tt.Fatal(\"missing source accepted through cache\")\n+\t}\n+}\n+\n+func TestCacheIFCColdWarmLocalVerdict(t *testing.T) {\n+\tifcCacheFixture(t, \"module lib\\nexport func provide(x: string) -> string { x }\\n\")\n+\tcfg := Config{Mode: ModeCheck}\n+\tsrc := Source{Filename: \"app.ail\"}\n+\tif _, err := runModuleWithCacheDependencies(t.Context(), cfg, src, productionCacheDependencies()); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tbad := `module app\n+import lib (provide)\n+func sink(x: string{not email}) -> string { x }\n+export func main() -> string { let x: string<email> = provide(\"hello\") in sink(x) }\n+`\n+\tif err := os.WriteFile(\"app.ail\", []byte(bad), 0600); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\t_, warmErr := runModuleWithCacheDependencies(t.Context(), cfg, src, productionCacheDependencies())\n+\t_, coldErr := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck, NoCache: true}, src, productionCacheDependencies())\n+\tif warmErr == nil || coldErr == nil || !strings.Contains(warmErr.Error(), \"sink\") || !strings.Contains(coldErr.Error(), \"sink\") {\n+\t\tt.Fatalf(\"cold/warm IFC mismatch: %v / %v\", coldErr, warmErr)\n+\t}\n+}\ndiff --git a/internal/pipeline/cache_ifc_test.go b/internal/pipeline/cache_ifc_test.go\nnew file mode 100644\nindex 000000000..30ca9ef9b\n--- /dev/null\n+++ b/internal/pipeline/cache_ifc_test.go\n@@ -0,0 +1,179 @@\n+package pipeline\n+\n+import (\n+\t\"crypto/sha256\"\n+\t\"encoding/hex\"\n+\t\"encoding/json\"\n+\t\"fmt\"\n+\t\"os\"\n+\t\"path/filepath\"\n+\t\"reflect\"\n+\t\"testing\"\n+\n+\t\"github.com/sunholo-data/ailang/internal/iface\"\n+\t\"github.com/sunholo-data/ailang/internal/types\"\n+)\n+\n+func TestCacheIFCRoundTrip(t *testing.T) {\n+\ti := iface.NewIface(\"test/lib\")\n+\ti.AddExport(\"f\", &types.Scheme{Type: &types.TFunc2{Params: []types.Type{types.TString}, Return: types.TString}}, true)\n+\ts := i.Exports[\"f\"].IFC\n+\ts.Params = []types.IFCParam{{Applied: types.EncodeIFCLabel(types.LabelJoin(types.LabelConst(\"email\"), types.LabelVar(\"A\"))), Name: \"input\", Label: types.EncodeIFCLabel(types.LabelConst(\"email\")), Forbidden: []string{\"email\", \"secret\"}}}\n+\ts.Return = types.EncodeIFCLabel(types.LabelConst(\"clean\"))\n+\ts.HasReturnLabel = true\n+\ts.Intrinsic = types.EncodeIFCLabel(types.LabelJoin(types.LabelConst(\"secret\"), types.LabelVar(\"L\")))\n+\ts.Declassify = []string{\"email\"}\n+\traw, err := marshalIfaceFull(i)\n+\tif err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tdecoded, err := unmarshalIfaceFull(raw)\n+\tif err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tif !reflect.DeepEqual(decoded.Exports[\"f\"].IFC, s) {\n+\t\tt.Fatalf(\"full cache lost IFC: %+v\", decoded.Exports[\"f\"].IFC)\n+\t}\n+}\n+\n+// A valid hash authorizes bytes, not their semantic schema. Replace the payload\n+// AND update its stamp so rejection must come from IFC validation.\n+func rewriteIFCArtifact(t *testing.T, dir string, mutate func(map[string]any)) {\n+\tt.Helper()\n+\tpath := filepath.Join(dir, artifactIfaceName)\n+\traw, err := os.ReadFile(path)\n+\tif err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tvar payload map[string]any\n+\tif err := json.Unmarshal(raw, &payload); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tmutate(payload)\n+\traw, err = json.Marshal(payload)\n+\tif err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tmustWriteArtifactTest(t, path, raw)\n+\tstampPath := filepath.Join(dir, artifactStampName)\n+\tstamp := readArtifactStamp(t, stampPath)\n+\tsum := sha256.Sum256(raw)\n+\tstamp.SHA256[artifactIfaceName] = hex.EncodeToString(sum[:])\n+\traw, err = json.Marshal(stamp)\n+\tif err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tmustWriteArtifactTest(t, stampPath, raw)\n+}\n+\n+func TestCacheIFCRejectsAuthenticatedBadSchema(t *testing.T) {\n+\tfor _, tc := range []struct {\n+\t\tname   string\n+\t\tmutate func(map[string]any)\n+\t}{\n+\t\t{\"v1\", func(p map[string]any) { p[\"schema\"] = \"ailang.iface/v1\" }},\n+\t\t{\"missing\", func(p map[string]any) { delete(p[\"exports\"].(map[string]any)[\"f\"].(map[string]any), \"ifc\") }},\n+\t\t{\"malformed authority\", func(p map[string]any) {\n+\t\t\tp[\"exports\"].(map[string]any)[\"f\"].(map[string]any)[\"ifc\"].(map[string]any)[\"declassify\"] = true\n+\t\t}},\n+\t\t{\"missing forbidden\", func(p map[string]any) {\n+\t\t\ts := p[\"exports\"].(map[string]any)[\"f\"].(map[string]any)[\"ifc\"].(map[string]any)\n+\t\t\tdelete(s[\"params\"].([]any)[0].(map[string]any), \"forbidden\")\n+\t\t}},\n+\t\t{\"old string forbidden\", func(p map[string]any) { ifcArtifactParam(p)[\"forbidden\"] = \"secret\" }},\n+\t\t{\"null forbidden\", func(p map[string]any) { ifcArtifactParam(p)[\"forbidden\"] = nil }},\n+\t\t{\"duplicate forbidden\", func(p map[string]any) { ifcArtifactParam(p)[\"forbidden\"] = []string{\"email\", \"email\"} }},\n+\t\t{\"unsorted forbidden\", func(p map[string]any) { ifcArtifactParam(p)[\"forbidden\"] = []string{\"secret\", \"email\"} }},\n+\t\t{\"missing applied\", func(p map[string]any) { delete(ifcArtifactParam(p), \"applied\") }},\n+\t\t{\"null applied\", func(p map[string]any) { ifcArtifactParam(p)[\"applied\"] = nil }},\n+\t\t{\"malformed applied\", func(p map[string]any) { ifcArtifactParam(p)[\"applied\"] = map[string]any{\"constants\": []string{}} }},\n+\t\t{\"missing return flag\", func(p map[string]any) {\n+\t\t\tdelete(p[\"exports\"].(map[string]any)[\"f\"].(map[string]any)[\"ifc\"].(map[string]any), \"has_return_label\")\n+\t\t}},\n+\t\t{\"missing exports\", func(p map[string]any) { delete(p, \"exports\") }},\n+\t\t{\"wrong param count\", func(p map[string]any) {\n+\t\t\tp[\"exports\"].(map[string]any)[\"f\"].(map[string]any)[\"ifc\"].(map[string]any)[\"params\"] = []any{}\n+\t\t}},\n+\t\t{\"null export\", func(p map[string]any) { p[\"exports\"].(map[string]any)[\"f\"] = nil }},\n+\t\t{\"duplicate labels\", func(p map[string]any) {\n+\t\t\tp[\"exports\"].(map[string]any)[\"f\"].(map[string]any)[\"ifc\"].(map[string]any)[\"intrinsic\"].(map[string]any)[\"constants\"] = []string{\"email\", \"email\"}\n+\t\t}},\n+\t\t{\"null label\", func(p map[string]any) {\n+\t\t\tp[\"exports\"].(map[string]any)[\"f\"].(map[string]any)[\"ifc\"].(map[string]any)[\"intrinsic\"] = nil\n+\t\t}},\n+\t} {\n+\t\tt.Run(tc.name, func(t *testing.T) {\n+\t\t\tcs := newArtifactTestStore(t)\n+\t\t\tcm := testCachedModule(\"ifc/lib\", 42)\n+\t\t\tcm.Iface = iface.NewIface(\"ifc/lib\")\n+\t\t\tcm.Iface.AddExport(\"f\", &types.Scheme{Type: &types.TFunc2{Params: []types.Type{types.TString}, Return: types.TString}}, true)\n+\t\t\tmustStoreArtifacts(t, cs, \"ifc/lib\", \"key\", cm)\n+\t\t\trewriteIFCArtifact(t, cs.moduleArtifactDir(\"ifc/lib\"), tc.mutate)\n+\t\t\tif got, err := cs.LoadArtifacts(\"ifc/lib\", \"key\"); err == nil || got != nil {\n+\t\t\t\tt.Fatalf(\"bad IFC served: %v %v\", got, err)\n+\t\t\t}\n+\t\t})\n+\t}\n+}\n+\n+func TestCacheIFCValidatesInjectedDecoder(t *testing.T) {\n+\tcs := newArtifactTestStore(t)\n+\tcm := testCachedModule(\"ifc/lib\", 42)\n+\tcm.Iface.Schema = iface.SchemaVersion\n+\tmustStoreArtifacts(t, cs, \"ifc/lib\", \"key\", cm)\n+\tcs.artifactCodec.decodeIface = func([]byte) (*iface.Iface, error) {\n+\t\tbad := iface.NewIface(\"ifc/lib\")\n+\t\tbad.AddExport(\"f\", &types.Scheme{Type: types.TString}, true)\n+\t\tbad.Exports[\"f\"].IFC = nil\n+\t\treturn bad, nil\n+\t}\n+\tif got, err := cs.LoadArtifacts(\"ifc/lib\", \"key\"); err == nil || got != nil {\n+\t\tt.Fatalf(\"custom decoder bypassed validation: %v %v\", got, err)\n+\t}\n+}\n+\n+func TestCacheIFCPreviousVersionKeyMisses(t *testing.T) {\n+\tconst source = \"module lib\\nexport func f() -> int { 42 }\\n\"\n+\tcurrent := ModuleCacheKey(\"test-compiler\", source, nil)\n+\tfor version := 1; version <= 7; version++ {\n+\t\tt.Run(fmt.Sprintf(\"v%d\", version), func(t *testing.T) {\n+\t\t\told := sha256.New()\n+\t\t\tfmt.Fprintf(old, \"ailang-cache:v%d:test-compiler\\n\", version)\n+\t\t\tfmt.Fprintf(old, \"source:%x\\n\", sha256.Sum256([]byte(source)))\n+\t\t\toldKey := hex.EncodeToString(old.Sum(nil))\n+\t\t\tcs := newArtifactTestStore(t)\n+\t\t\tcs.Store(\"lib\", &CacheEntry{CacheKey: oldKey})\n+\t\t\tif _, hit := cs.Lookup(\"lib\", oldKey); !hit {\n+\t\t\t\tt.Fatal(\"invalid old-key fixture\")\n+\t\t\t}\n+\t\t\tif _, hit := cs.Lookup(\"lib\", current); hit {\n+\t\t\t\tt.Fatalf(\"pre-summary v%d key served under current epoch %s\", version, cacheKeyVersion)\n+\t\t\t}\n+\t\t})\n+\t}\n+}\n+\n+func ifcArtifactParam(p map[string]any) map[string]any {\n+\treturn p[\"exports\"].(map[string]any)[\"f\"].(map[string]any)[\"ifc\"].(map[string]any)[\"params\"].([]any)[0].(map[string]any)\n+}\n+\n+func TestCacheIFCInjectedMalformedF4Rejected(t *testing.T) {\n+\tfor _, mutate := range []func(*types.IFCParam){\n+\t\tfunc(p *types.IFCParam) { p.Forbidden = nil },\n+\t\tfunc(p *types.IFCParam) { p.Forbidden = []string{\"secret\", \"email\"} },\n+\t\tfunc(p *types.IFCParam) { p.Applied = types.IFCLabel{} },\n+\t} {\n+\t\tcs := newArtifactTestStore(t)\n+\t\tcm := testCachedModule(\"ifc/lib\", 42)\n+\t\tmustStoreArtifacts(t, cs, \"ifc/lib\", \"key\", cm)\n+\t\tcs.artifactCodec.decodeIface = func([]byte) (*iface.Iface, error) {\n+\t\t\tbad := iface.NewIface(\"ifc/lib\")\n+\t\t\tbad.AddExport(\"f\", &types.Scheme{Type: &types.TFunc2{Params: []types.Type{types.TString}, Return: types.TString}}, true)\n+\t\t\tmutate(&bad.Exports[\"f\"].IFC.Params[0])\n+\t\t\treturn bad, nil\n+\t\t}\n+\t\tif got, err := cs.LoadArtifacts(\"ifc/lib\", \"key\"); err == nil || got != nil {\n+\t\t\tt.Fatalf(\"injected decoder bypassed F4 validation: %v %v\", got, err)\n+\t\t}\n+\t}\n+}\ndiff --git a/internal/pipeline/cache_invalidation_test.go b/internal/pipeline/cache_invalidation_test.go\nindex 2fdf9d779..b7b1f03dd 100644\n--- a/internal/pipeline/cache_invalidation_test.go\n+++ b/internal/pipeline/cache_invalidation_test.go\n@@ -336,11 +336,8 @@ func newWarmHitInstrumentedDeps(depCoreReads, warmEncodes *int) cacheDependencie\n }\n \n func TestCacheArtifacts_Migration(t *testing.T) {\n-\tif cacheKeyVersion != \"v7\" {\n-\t\tt.Fatalf(\"cache key version = %q, want v7 migration boundary\", cacheKeyVersion)\n-\t}\n \n-\tt.Run(\"v6_manifest_forces_cold_v7_publication\", func(t *testing.T) {\n+\tt.Run(\"v7_manifest_forces_current_publication\", func(t *testing.T) {\n \t\tpreviousManifestForcesColdPublication(t)\n \t})\n \tt.Run(\"current_manifest_with_legacy_unstamped_blobs_misses\", func(t *testing.T) {\n@@ -348,9 +345,9 @@ func TestCacheArtifacts_Migration(t *testing.T) {\n \t})\n }\n \n-// previousManifestForcesColdPublication seeds a v7 cache, rewrites the\n-// manifest to v6 (whose coretypeinfo.gob was a plain gob map), and asserts the\n-// next run recompiles and re-publishes as a fresh v7 manifest and stamp (the\n+// previousManifestForcesColdPublication seeds a current cache, rewrites the\n+// manifest to v7 (whose interfaces lacked the required IFC summaries), and asserts the\n+// next run recompiles and re-publishes as a fresh current manifest and stamp (the\n // migration boundary).\n func previousManifestForcesColdPublication(t *testing.T) {\n \troot := t.TempDir()\n@@ -364,20 +361,20 @@ func previousManifestForcesColdPublication(t *testing.T) {\n \n \tmanifestPath := filepath.Join(root, \".ailang\", \"cache\", \"compile\", \"manifest.json\")\n \tmanifest := readCacheManifest(t, manifestPath)\n-\tmanifest.Version = \"v6\"\n+\tmanifest.Version = \"v7\"\n \twriteCacheManifest(t, manifestPath, manifest)\n \n \tvar warnings bytes.Buffer\n \tresult, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: \"answer.ail\"}, cacheDependencies{newStore: NewCacheStore, stderr: &warnings})\n \tif err != nil || result.Interface == nil || result.Interface.Exports[\"main\"] == nil {\n-\t\tt.Fatalf(\"v6 migration did not compile current source: iface=%v err=%v\", result.Interface, err)\n+\t\tt.Fatalf(\"v7 migration did not compile current source: iface=%v err=%v\", result.Interface, err)\n \t}\n \tmigrated := readCacheManifest(t, manifestPath)\n-\tif migrated.Version != \"v7\" {\n-\t\tt.Fatalf(\"migrated manifest version = %q, want v7\", migrated.Version)\n+\tif migrated.Version != cacheKeyVersion {\n+\t\tt.Fatalf(\"migrated manifest version = %q, want %s\", migrated.Version, cacheKeyVersion)\n \t}\n \tstamp := readArtifactStamp(t, filepath.Join(root, \".ailang\", \"cache\", \"compile\", \"modules\", \"answer\", artifactStampName))\n-\tif stamp.Version != \"v7\" || stamp.ModuleID != \"answer\" {\n+\tif stamp.Version != cacheKeyVersion || stamp.ModuleID != \"answer\" {\n \t\tt.Fatalf(\"migrated stamp = %#v\", stamp)\n \t}\n }\ndiff --git a/internal/pipeline/cache_key.go b/internal/pipeline/cache_key.go\nindex 923fe72c9..bc1bc9de1 100644\n--- a/internal/pipeline/cache_key.go\n+++ b/internal/pipeline/cache_key.go\n@@ -33,7 +33,10 @@ import (\n // constructor types are closed in their defining module. Open v5 bodies must miss.\n // v6 -> v7 (M-CORETI-SHARED-ENCODING): coretypeinfo.gob is a hash-consed DAG\n // (cache_coreti_dag.go), not a plain gob map. A v6 blob must never reach the new decoder.\n-const cacheKeyVersion = \"v7\"\n+// v7 -> v8 (M-IFC-CROSS-MODULE): iface v2 requires complete IFC summaries,\n+// including canonical forbidden arrays and reserved applied labels; pre-IFC\n+// verdicts must miss. Preserve the v7 CoreTI shared-DAG codec.\n+const cacheKeyVersion = \"v8\"\n \n // ModuleCacheKey computes a deterministic cache key for a module.\n // The key incorporates:\ndiff --git a/internal/pipeline/cache_store.go b/internal/pipeline/cache_store.go\nindex e207df9ed..324cb63a4 100644\n--- a/internal/pipeline/cache_store.go\n+++ b/internal/pipeline/cache_store.go\n@@ -189,11 +189,12 @@ type ifaceFullJSON struct {\n }\n \n type ifaceItemJSON struct {\n-\tName   string          `json:\"name\"`\n-\tType   json.RawMessage `json:\"type\"`\n-\tPurity bool            `json:\"purity\"`\n-\tModule string          `json:\"ref_module\"`\n-\tSymbol string          `json:\"ref_symbol\"`\n+\tIFC    *types.ImportedIFCSig `json:\"ifc\"`\n+\tName   string                `json:\"name\"`\n+\tType   json.RawMessage       `json:\"type\"`\n+\tPurity bool                  `json:\"purity\"`\n+\tModule string                `json:\"ref_module\"`\n+\tSymbol string                `json:\"ref_symbol\"`\n }\n \n type ctorSchemeJSON struct {\n@@ -205,6 +206,9 @@ type ctorSchemeJSON struct {\n }\n \n func marshalIfaceFull(ifc *iface.Iface) ([]byte, error) {\n+\tif err := ifc.ValidateIFC(); err != nil {\n+\t\treturn nil, err\n+\t}\n \tresult := ifaceFullJSON{\n \t\tModule:       ifc.Module,\n \t\tSchema:       ifc.Schema,\n@@ -222,6 +226,7 @@ func marshalIfaceFull(ifc *iface.Iface) ([]byte, error) {\n \t\t\treturn nil, fmt.Errorf(\"marshal scheme for %s: %w\", name, err)\n \t\t}\n \t\tresult.Exports[name] = &ifaceItemJSON{\n+\t\t\tIFC:    item.IFC,\n \t\t\tName:   item.Name,\n \t\t\tType:   schemeBytes,\n \t\t\tPurity: item.Purity,\n@@ -282,6 +287,10 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {\n \t\treturn nil, err\n \t}\n \n+\tif d.Schema != iface.SchemaVersion || d.Exports == nil {\n+\t\treturn nil, fmt.Errorf(\"incompatible or missing IFC interface metadata; recompile module from source\")\n+\t}\n+\n \tifc := &iface.Iface{\n \t\tModule:       d.Module,\n \t\tSchema:       d.Schema,\n@@ -296,11 +305,15 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {\n \n \t// Exports\n \tfor name, item := range d.Exports {\n+\t\tif item == nil {\n+\t\t\treturn nil, fmt.Errorf(\"missing interface export %s\", name)\n+\t\t}\n \t\tscheme, err := types.UnmarshalScheme(item.Type)\n \t\tif err != nil {\n \t\t\treturn nil, fmt.Errorf(\"unmarshal scheme for %s: %w\", name, err)\n \t\t}\n \t\tifc.Exports[name] = &iface.IfaceItem{\n+\t\t\tIFC:    item.IFC,\n \t\t\tName:   item.Name,\n \t\t\tType:   scheme,\n \t\t\tPurity: item.Purity,\n@@ -345,6 +358,9 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {\n \t\tifc.AliasParams[name] = params\n \t}\n \n+\tif err := ifc.ValidateIFC(); err != nil {\n+\t\treturn nil, err\n+\t}\n \treturn ifc, nil\n }\n \ndiff --git a/internal/pipeline/cache_store_test.go b/internal/pipeline/cache_store_test.go\nindex 13f3be61d..98eee53f5 100644\n--- a/internal/pipeline/cache_store_test.go\n+++ b/internal/pipeline/cache_store_test.go\n@@ -316,10 +316,11 @@ func TestCacheStore_ArtifactRoundTrip(t *testing.T) {\n \t\t},\n \t\tIface: &iface.Iface{\n \t\t\tModule: \"test/module\",\n-\t\t\tSchema: \"ailang.iface/v1\",\n+\t\t\tSchema: iface.SchemaVersion,\n \t\t\tDigest: \"abc123\",\n \t\t\tExports: map[string]*iface.IfaceItem{\n \t\t\t\t\"x\": {\n+\t\t\t\t\tIFC:    types.EmptyIFCSummary(),\n \t\t\t\t\tName:   \"x\",\n \t\t\t\t\tType:   &types.Scheme{Type: &types.TCon{Name: \"int\"}},\n \t\t\t\t\tPurity: true,\n@@ -498,7 +499,7 @@ func TestCacheStore_ArtifactRoundTrip_DiverseExprTypes(t *testing.T) {\n \t\t\tFlags: core.ProgramFlags{},\n \t\t},\n \t\tCoreTI:       types.CoreTypeInfo{100: &types.TCon{Name: \"int\"}},\n-\t\tIface:        &iface.Iface{Module: \"test\", Schema: \"ailang.iface/v1\", Exports: map[string]*iface.IfaceItem{}, Constructors: map[string]*iface.ConstructorScheme{}, Types: map[string]*iface.TypeExport{}, TypeAliases: map[string]types.Type{}},\n+\t\tIface:        &iface.Iface{Module: \"test/diverse\", Schema: iface.SchemaVersion, Exports: map[string]*iface.IfaceItem{}, Constructors: map[string]*iface.ConstructorScheme{}, Types: map[string]*iface.TypeExport{}, TypeAliases: map[string]types.Type{}},\n \t\tConstructors: map[string]*ConstructorInfo{},\n \t}\n \ndiff --git a/internal/pipeline/effect_latent_alias_forwarding_test.go b/internal/pipeline/effect_latent_alias_forwarding_test.go\nnew file mode 100644\nindex 000000000..a472b38a4\n--- /dev/null\n+++ b/internal/pipeline/effect_latent_alias_forwarding_test.go\n@@ -0,0 +1,98 @@\n+package pipeline\n+\n+import (\n+\t\"fmt\"\n+\t\"strings\"\n+\t\"testing\"\n+)\n+\n+// Aliases must use the same data-arrow traversal for binder ownership as for\n+// caller charging, including callers forwarding rather than invoking the data.\n+func TestLatentAliasForwarding(t *testing.T) {\n+\tt.Setenv(\"AILANG_NO_CACHE\", \"1\")\n+\tfor _, imported := range []bool{false, true} {\n+\t\tfor _, count := range []int{1, 2} {\n+\t\t\tfor _, body := range []string{\"0\", \"p.authority(1)\"} {\n+\t\t\t\tt.Run(fmt.Sprintf(\"imported_%v/fields_%d/body_%s\", imported, count, body), func(t *testing.T) {\n+\t\t\t\t\tfields := \"authority: int -> int\"\n+\t\t\t\t\tif count == 2 {\n+\t\t\t\t\t\tfields += \", appraisal: int -> int\"\n+\t\t\t\t\t}\n+\t\t\t\t\tdecl := \"type Policies = {\" + fields + \"}\\n\"\n+\t\t\t\t\tfiles := map[string]string{}\n+\t\t\t\t\tprefix := decl\n+\t\t\t\t\tif imported {\n+\t\t\t\t\t\tfiles[\"policies.ail\"] = \"module policies\\nexport \" + decl\n+\t\t\t\t\t\tprefix = \"import policies (Policies)\\n\"\n+\t\t\t\t\t}\n+\t\t\t\t\tfiles[\"main.ail\"] = \"module main\\n\" + prefix + \"export pure func accept(p: Policies) -> int = acceptReady(p)\\npure func acceptReady(p: Policies) -> int = \" + body\n+\t\t\t\t\tif err := checkModules(t, files); err != nil {\n+\t\t\t\t\t\tt.Fatal(err)\n+\t\t\t\t\t}\n+\t\t\t\t})\n+\t\t\t}\n+\t\t}\n+\t}\n+}\n+\n+func TestLatentAliasCallerCharge(t *testing.T) {\n+\tt.Setenv(\"AILANG_NO_CACHE\", \"1\")\n+\tfor _, imported := range []bool{false, true} {\n+\t\tfor _, effect := range []string{\"IO\", \"FS\"} {\n+\t\t\tfor _, field := range []string{\"authority\", \"appraisal\"} {\n+\t\t\t\tfor _, row := range []string{\"\", \" ! {IO}\", \" ! {FS}\"} {\n+\t\t\t\t\tt.Run(fmt.Sprintf(\"imported_%v/%s/%s/row_%s\", imported, effect, field, row), func(t *testing.T) {\n+\t\t\t\t\t\tdecl := \"type Policies = {authority: int -> int, appraisal: int -> int}\\n\"\n+\t\t\t\t\t\tfiles := map[string]string{}\n+\t\t\t\t\t\tprefix := decl\n+\t\t\t\t\t\tif imported {\n+\t\t\t\t\t\t\tfiles[\"policies.ail\"] = \"module policies\\nexport \" + decl\n+\t\t\t\t\t\t\tprefix = \"import policies (Policies)\\n\"\n+\t\t\t\t\t\t}\n+\t\t\t\t\t\tfiles[\"main.ail\"] = \"module main\\nimport std/io (println)\\nimport std/fs (readFile)\\n\" + prefix + `\n+pure func accept(p: Policies) -> int = acceptReady(p)\n+pure func acceptReady(p: Policies) -> int = p.authority(1)\n+pure func quiet(x: int) -> int = x\n+func loud(x: int) -> int ! {` + effect + `} { let _ = ` + map[string]string{\"IO\": \"println(\\\"EFFECT PERFORMED\\\")\", \"FS\": \"readFile(\\\"absent\\\")\"}[effect] + `; x }\n+func caller() -> int` + row + ` = accept(` + map[string]string{\"authority\": \"{authority: loud, appraisal: quiet}\", \"appraisal\": \"{authority: quiet, appraisal: loud}\"}[field] + `)`\n+\t\t\t\t\t\terr := checkModules(t, files)\n+\t\t\t\t\t\tif row == \" ! {\"+effect+\"}\" {\n+\t\t\t\t\t\t\tif err != nil {\n+\t\t\t\t\t\t\t\tt.Fatal(err)\n+\t\t\t\t\t\t\t}\n+\t\t\t\t\t\t\treturn\n+\t\t\t\t\t\t}\n+\t\t\t\t\t\tif err == nil {\n+\t\t\t\t\t\t\tt.Fatal(\"accepted uncharged callback\")\n+\t\t\t\t\t\t}\n+\t\t\t\t\t\tfor _, want := range []string{\"Effect checking failed for function 'caller'\", \"Missing effects: \" + effect} {\n+\t\t\t\t\t\t\tif !strings.Contains(err.Error(), want) {\n+\t\t\t\t\t\t\t\tt.Fatalf(\"want %q: %v\", want, err)\n+\t\t\t\t\t\t\t}\n+\t\t\t\t\t\t}\n+\t\t\t\t\t})\n+\t\t\t\t}\n+\t\t\t}\n+\t\t}\n+\t}\n+}\n+\n+func TestLatentGenericAliasForwarding(t *testing.T) {\n+\tt.Setenv(\"AILANG_NO_CACHE\", \"1\")\n+\tfor _, imported := range []bool{false, true} {\n+\t\tt.Run(fmt.Sprintf(\"imported_%v\", imported), func(t *testing.T) {\n+\t\t\tdecl := \"type Policies[a] = {authority: a -> int, appraisal: a -> int}\\n\"\n+\t\t\tfiles := map[string]string{}\n+\t\t\tprefix := decl\n+\t\t\tif imported {\n+\t\t\t\tfiles[\"policies.ail\"] = \"module policies\\nexport \" + decl\n+\t\t\t\tprefix = \"import policies (Policies)\\n\"\n+\t\t\t}\n+\t\t\tfiles[\"main.ail\"] = \"module main\\n\" + prefix + `export pure func accept(p: Policies[int]) -> int = acceptReady(p)\n+pure func acceptReady(p: Policies[int]) -> int = p.authority(1)`\n+\t\t\tif err := checkModules(t, files); err != nil {\n+\t\t\t\tt.Fatal(err)\n+\t\t\t}\n+\t\t})\n+\t}\n+}\n",
+        "stderr": "",
+        "stdout_sha256": "7e62a49d46197b9d9491b271dfb51713ee21825f0a18b0e35f47ec39a119a85b",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "additional-pipeline-scope-names",
+        "command": [
+          "git",
+          "diff",
+          "--name-status",
+          "80793dbcf42423027be4bab1a0088da54e2323d8",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "internal/pipeline"
+        ],
+        "rc": 0,
+        "stdout": "M\tinternal/pipeline/alias_body_closure_runtime_test.go\nM\tinternal/pipeline/cache_artifacts.go\nM\tinternal/pipeline/cache_artifacts_test.go\nM\tinternal/pipeline/cache_dep_closure.go\nA\tinternal/pipeline/cache_ifc_integration_test.go\nA\tinternal/pipeline/cache_ifc_test.go\nM\tinternal/pipeline/cache_invalidation_test.go\nM\tinternal/pipeline/cache_key.go\nM\tinternal/pipeline/cache_store.go\nM\tinternal/pipeline/cache_store_test.go\nA\tinternal/pipeline/effect_latent_alias_forwarding_test.go\n",
+        "stderr": "",
+        "stdout_sha256": "5d74f534a2c2f7f0ce2beea2b60b7eeaf913d1aa2238a28d0fac6bd9454ddcbd",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "additional-cli-run-verify-scope",
+        "command": [
+          "git",
+          "diff",
+          "--exit-code",
+          "80793dbcf42423027be4bab1a0088da54e2323d8",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "cmd/ailang/main_run*",
+          "cmd/ailang/verify*",
+          "cmd/ailang/ai_check*"
+        ],
+        "rc": 0,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "additional-cli-run-verify-scope-names",
+        "command": [
+          "git",
+          "diff",
+          "--name-status",
+          "80793dbcf42423027be4bab1a0088da54e2323d8",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "cmd/ailang/main_run*",
+          "cmd/ailang/verify*",
+          "cmd/ailang/ai_check*"
+        ],
+        "rc": 0,
+        "stdout": "",
+        "stderr": "",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "label": "installed-quorum-binary-version",
+        "command": [
+          "/Users/voightkampff/go/bin/ailang",
+          "version"
+        ],
+        "rc": 0,
+        "stdout": "AILANG v0.55.0-dirty\nCommit: e863a1e\nFull:   e863a1e3dc075dd4acc0fdb26a467f4258898588\nBuilt:  2026-10-29_07:30:07\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026\n",
+        "stderr": "",
+        "stdout_sha256": "0938e8f3c472654bf6ce32c4ec565d3190432e279d563e87ec5153b754c2bcec",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "binary_path": "/Users/voightkampff/go/bin/ailang",
+        "binary_sha256": "23702dac702efba84d6785320fedb3882f42c71eeadc1807d1f40a28969fb674"
+      },
+      {
+        "label": "executed-control-binary-version",
+        "command": [
+          "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+          "version"
+        ],
+        "rc": 0,
+        "stdout": "AILANG dev\nCommit: 80793db\nFull:   80793dbcf42423027be4bab1a0088da54e2323d8\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026\n",
+        "stderr": "",
+        "stdout_sha256": "bf200c7a1b89c7593a9f383cdca2b7f95b381670f33311b7261f65a458aeb089",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "binary_path": "/tmp/ailang-backlog-20261029/alias-ownership-R2-base",
+        "binary_sha256": "721af9c6262613a03267e7a1ea47884bffa36b0bae36eb5d64721eb6ad6af2fa"
+      },
+      {
+        "label": "installed-quorum-cli-help",
+        "command": [
+          "/Users/voightkampff/go/bin/ailang",
+          "design-quorum",
+          "--help"
+        ],
+        "rc": 0,
+        "stdout": "",
+        "stderr": "\u26a0 Binary may be stale (source files modified after build)\n  Run 'make quick-install' to rebuild\nailang design-quorum \u2014 N-reviewer quorum verdict on a design doc (fleet Phase B)\n\nUSAGE:\n  ailang design-quorum <doc.md> [flags]\n  ailang design-quorum --author codex:gpt-6.1-sol < doc.md\n\nFLAGS:\n  --reviewers <csv>          reviewer POOL (default gpt6-1-sol,gemini-4-argon,oc-glm-5-3,\n                             oc-kimi-k3,claude-sonnet-5@claude-p)\n  --seats <n>                reviewers per doc, drawn from the pool (default 3)\n  --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.30)\n  --author <model>           the doc's author; its vendor sits out (see below)\n  --artifact-dir <dir>       machine JSON artifact dir (default .ailang/state/mission-quorum)\n  --mission-log <path>       append the human markdown block to this mission log\n  --controller-verdict <v>   the Claude controller's IN-SESSION verdict (pass|reject) \u2014 NOT an API call\n  --controller-note <text>   the controller's in-session note (required with --controller-verdict)\n  --json                     print the full quorum result JSON to stdout\n\nBEHAVIOR:\n  Runs the reviewers IN PARALLEL (reject-by-default). Synthesis: any present\n  reviewer (or the controller) rejects \u2192 BLOCKED (objection returns to author);\n  all present pass \u2192 PROCEED. An unreachable/over-budget/mis-auth reviewer is\n  recorded by NAME with its reason and the quorum degrades to N-1 \u2014 never a\n  silent pass. Always writes a machine JSON artifact; optionally appends a\n  mission-log markdown block.\n\n  SEATING: --seats reviewers (default 3) are drawn from the --reviewers pool,\n  rotated per doc (the same doc gets the same seats every round) and preferring\n  distinct vendors; an absent seat is replaced from the rest of the pool.\n  AUTHOR'S VENDOR SITS OUT: pass --author (or MISSION_DESIGN_AUTHOR) with the\n  model that wrote the doc. Reviewers from that vendor are benched, and come\n  back \u2014 labelled same-vendor \u2014 only if nobody else in the pool answers. With no\n  author given, a Claude author is assumed. The Anthropic seat\n  (claude-sonnet-5@claude-p) runs \"claude -p\" on the subscription, never the\n  API key, with tools, settings and MCP off; it is absent (quota) when the\n  Anthropic bucket is over its mission ration.\n\nEXIT CODES:\n  0 = proceed   3 = blocked   1/2 = IO or usage error\n\nSEE ALSO:\n  ailang design-review \u2014 a single reviewer verdict.\n",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "1a23561f585a479677943c7972633e14823551ae940688668df9d505f61466cb"
+      }
+    ],
+    "normalizer_and_tests": [
+      {
+        "path": "internal/elaborate/expr_simple.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "6b815670e1f07083e625dd760297038c0729fecd",
+        "full_file_sha256": "8e900be8c523231929e1c30a898e5c6dfb5bac8bb7f4b2eb8c1ccedb18def050",
+        "capture_command": [
+          "git",
+          "show",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/elaborate/expr_simple.go"
+        ],
+        "raw_file": "/tmp/ailang-backlog-20261029/smt-m0-supplemental-evidence-20261029T140355Z/source/internal/elaborate/expr_simple.go",
+        "excerpts": [
+          {
+            "start_line": 120,
+            "end_line": 127,
+            "text": "func (e *Elaborator) normalizeBinaryOp(binop *ast.BinaryOp) (core.CoreExpr, error) {\n\t// Short-circuit operators desugar to core.If so downstream phases\n\t// (evaluator, bytecode VM, SMT) inherit laziness from If lowering.\n\t// See design_docs/planned/v0_11_3/m-eval-short-circuit-bool.md.\n\tif binop.Op == \"&&\" || binop.Op == \"||\" {\n\t\treturn e.normalizeShortCircuit(binop)\n\t}\n"
+          },
+          {
+            "start_line": 196,
+            "end_line": 244,
+            "text": "// normalizeShortCircuit desugars `a && b` and `a || b` into core.If so that\n// the right operand is only evaluated when needed:\n//\n//\ta && b  =>  if a then b else false\n//\ta || b  =>  if a then true else b\n//\n// The LHS is normalized to atomic (ANF) so any complex subexpressions run\n// exactly once before the branch. The RHS is normalized *without* forcing it\n// to atomic \u2014 any let-bindings it would emit stay inside the lazy branch.\nfunc (e *Elaborator) normalizeShortCircuit(binop *ast.BinaryOp) (core.CoreExpr, error) {\n\tleft, leftBinds, err := e.normalizeToAtomic(binop.Left)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\n\tright, err := e.normalize(binop.Right)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\n\tnode := e.makeNode(binop.Position())\n\tboolLit := func(v bool) core.CoreExpr {\n\t\treturn &core.Lit{\n\t\t\tCoreNode: e.makeNode(binop.Position()),\n\t\t\tKind:     core.BoolLit,\n\t\t\tValue:    v,\n\t\t}\n\t}\n\n\tvar thenBranch, elseBranch core.CoreExpr\n\tswitch binop.Op {\n\tcase \"&&\":\n\t\tthenBranch = right\n\t\telseBranch = boolLit(false)\n\tcase \"||\":\n\t\tthenBranch = boolLit(true)\n\t\telseBranch = right\n\tdefault:\n\t\treturn nil, fmt.Errorf(\"normalizeShortCircuit called with non-short-circuit op %q\", binop.Op)\n\t}\n\n\tresult := &core.If{\n\t\tCoreNode: node,\n\t\tCond:     left,\n\t\tThen:     thenBranch,\n\t\tElse:     elseBranch,\n\t}\n\treturn e.wrapWithBindings(result, leftBinds), nil\n}"
+          }
+        ],
+        "raw_file_qualification": "Optional local full-file navigation; inline pinned excerpts and command/blob/hash are the evidence included in this packet."
+      },
+      {
+        "path": "internal/elaborate/file_funcs.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "fff3813175df37184f96aaaccc53c2d780c99908",
+        "full_file_sha256": "b2203ddec49165540e8522e07ffa736772ab69e65397fe1c18f79b745e021000",
+        "capture_command": [
+          "git",
+          "show",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/elaborate/file_funcs.go"
+        ],
+        "raw_file": "/tmp/ailang-backlog-20261029/smt-m0-supplemental-evidence-20261029T140355Z/source/internal/elaborate/file_funcs.go",
+        "excerpts": [
+          {
+            "start_line": 77,
+            "end_line": 137,
+            "text": "// elaborateContracts elaborates contract properties to Core contracts.\n// M-VERIFY: Contract expressions reference function parameters by name.\nfunc (e *Elaborator) elaborateContracts(props []*ast.Property) ([]*core.Contract, error) {\n\tif len(props) == 0 {\n\t\treturn nil, nil\n\t}\n\n\tvar contracts []*core.Contract\n\tfor _, prop := range props {\n\t\t// Only process requires/ensures contracts (skip forall properties)\n\t\tif prop.Kind != ast.RequiresKind && prop.Kind != ast.EnsuresKind && prop.Kind != ast.InvariantKind {\n\t\t\tcontinue\n\t\t}\n\n\t\t// Elaborate the predicate expression to Core\n\t\tcoreExpr, err := e.elaborateExpr(prop.Expr)\n\t\tif err != nil {\n\t\t\treturn nil, fmt.Errorf(\"elaborating contract: %w\", err)\n\t\t}\n\n\t\t// Map AST kind to Core kind\n\t\tvar kind core.ContractKind\n\t\tswitch prop.Kind {\n\t\tcase ast.RequiresKind:\n\t\t\tkind = core.RequiresKind\n\t\tcase ast.EnsuresKind:\n\t\t\tkind = core.EnsuresKind\n\t\tcase ast.InvariantKind:\n\t\t\tkind = core.InvariantKind\n\t\t}\n\n\t\t// Generate message from expression if not provided\n\t\tmessage := prop.Name\n\t\tif message == \"\" {\n\t\t\tmessage = prop.Expr.String()\n\t\t}\n\n\t\t// Format location\n\t\tlocation := fmt.Sprintf(\"%s:%d:%d\", prop.Pos.File, prop.Pos.Line, prop.Pos.Column)\n\n\t\tcontracts = append(contracts, &core.Contract{\n\t\t\tKind:     kind,\n\t\t\tExpr:     coreExpr,\n\t\t\tMessage:  message,\n\t\t\tLocation: location,\n\t\t})\n\t}\n\n\treturn contracts, nil\n}\n\n// elaborateNode handles any AST node\nfunc (e *Elaborator) elaborateNode(node ast.Node) (core.CoreExpr, error) {\n\tswitch n := node.(type) {\n\tcase ast.Expr:\n\t\treturn e.elaborateExpr(n)\n\tcase *ast.FuncDecl:\n\t\treturn e.elaborateFuncDecl(n)\n\tcase *ast.TypeDecl:\n\t\t// Type declarations don't produce Core expressions\n\t\t// They register constructors for use in expressions"
+          }
+        ],
+        "raw_file_qualification": "Optional local full-file navigation; inline pinned excerpts and command/blob/hash are the evidence included in this packet."
+      },
+      {
+        "path": "internal/elaborate/patterns.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "75c3d2f44d3387042d3bb3f052fe6934b785910b",
+        "full_file_sha256": "b22cd6cd275c877429bf79d3370836bdb3ec3f8a86a26107d5597586e9a9700b",
+        "capture_command": [
+          "git",
+          "show",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/elaborate/patterns.go"
+        ],
+        "raw_file": "/tmp/ailang-backlog-20261029/smt-m0-supplemental-evidence-20261029T140355Z/source/internal/elaborate/patterns.go",
+        "excerpts": [
+          {
+            "start_line": 13,
+            "end_line": 42,
+            "text": "// normalizeMatch handles pattern matching\nfunc (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {\n\t// Scrutinee must be atomic\n\tscrutinee, binds, err := e.normalizeToAtomic(match.Expr)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\n\t// Convert arms\n\tvar arms []core.MatchArm\n\tfor _, caseClause := range match.Cases {\n\t\tpattern, err := e.elaboratePattern(caseClause.Pattern)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\n\t\t// The pattern's binders are in scope for the guard and body (#1467).\n\t\te.pushScope(corePatternBinders(pattern)...)\n\t\tbody, guard, err := e.normalizeArm(caseClause)\n\t\te.popScope()\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\n\t\tarms = append(arms, core.MatchArm{\n\t\t\tPattern: pattern,\n\t\t\tGuard:   guard,\n\t\t\tBody:    body,\n\t\t})\n\t}"
+          },
+          {
+            "start_line": 71,
+            "end_line": 85,
+            "text": "\n// normalizeArm normalizes a match arm's body and optional guard.\nfunc (e *Elaborator) normalizeArm(caseClause *ast.Case) (body, guard core.CoreExpr, err error) {\n\tbody, err = e.normalize(caseClause.Body)\n\tif err != nil {\n\t\treturn nil, nil, err\n\t}\n\tif caseClause.Guard != nil {\n\t\tguard, err = e.normalize(caseClause.Guard)\n\t\tif err != nil {\n\t\t\treturn nil, nil, fmt.Errorf(\"failed to elaborate guard: %w\", err)\n\t\t}\n\t}\n\treturn body, guard, nil\n}"
+          }
+        ],
+        "raw_file_qualification": "Optional local full-file navigation; inline pinned excerpts and command/blob/hash are the evidence included in this packet."
+      },
+      {
+        "path": "internal/elaborate/expressions.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "d07e7c40ae0296b73a54c89e9704e971a3e3e131",
+        "full_file_sha256": "1c17d17cd6676743a7553528361586fe8a272bd16404856256816547ed72f9ac",
+        "capture_command": [
+          "git",
+          "show",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/elaborate/expressions.go"
+        ],
+        "raw_file": "/tmp/ailang-backlog-20261029/smt-m0-supplemental-evidence-20261029T140355Z/source/internal/elaborate/expressions.go",
+        "excerpts": [
+          {
+            "start_line": 18,
+            "end_line": 27,
+            "text": "// elaborateExpr transforms surface expression to Core ANF\nfunc (e *Elaborator) elaborateExpr(expr ast.Expr) (core.CoreExpr, error) {\n\t// First pass: desugar surface constructs\n\tdesugared := e.desugar(expr)\n\n\t// Second pass: normalize to ANF\n\treturn e.normalize(desugared)\n}\n\n// desugar handles surface syntax sugar"
+          }
+        ],
+        "raw_file_qualification": "Optional local full-file navigation; inline pinned excerpts and command/blob/hash are the evidence included in this packet."
+      },
+      {
+        "path": "internal/elaborate/short_circuit_test.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "b477e7e3092fe39d105a9b560378e458ebc7f0ee",
+        "full_file_sha256": "2d40a8e546cc5b1c8efd8b7d78889e72db75efa084474529796b7001d141b432",
+        "capture_command": [
+          "git",
+          "show",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/elaborate/short_circuit_test.go"
+        ],
+        "raw_file": "/tmp/ailang-backlog-20261029/smt-m0-supplemental-evidence-20261029T140355Z/source/internal/elaborate/short_circuit_test.go",
+        "excerpts": [
+          {
+            "start_line": 122,
+            "end_line": 140,
+            "text": "func TestShortCircuit_AndDesugarsToIf(t *testing.T) {\n\texpr := elaborateExpr(t, \"true && false\")\n\tif !containsIf(expr) {\n\t\tt.Errorf(\"expected && to desugar to core.If, but no If node found in %T\", expr)\n\t}\n\tif containsIntrinsic(expr, core.OpAnd) {\n\t\tt.Errorf(\"expected && to NOT produce core.OpAnd intrinsic after desugar\")\n\t}\n}\n\nfunc TestShortCircuit_OrDesugarsToIf(t *testing.T) {\n\texpr := elaborateExpr(t, \"true || false\")\n\tif !containsIf(expr) {\n\t\tt.Errorf(\"expected || to desugar to core.If, but no If node found in %T\", expr)\n\t}\n\tif containsIntrinsic(expr, core.OpOr) {\n\t\tt.Errorf(\"expected || to NOT produce core.OpOr intrinsic after desugar\")\n\t}\n}"
+          }
+        ],
+        "raw_file_qualification": "Optional local full-file navigation; inline pinned excerpts and command/blob/hash are the evidence included in this packet."
+      },
+      {
+        "path": "internal/pipeline/op_lowering.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "e99661b5199e0a5b9606490773460136f28efb45",
+        "full_file_sha256": "53291712a5c76315ec4ee32a17a740e2ade19b1c1cfc291cd23f7c38d16831ab",
+        "capture_command": [
+          "git",
+          "show",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239:internal/pipeline/op_lowering.go"
+        ],
+        "raw_file": "/tmp/ailang-backlog-20261029/smt-m0-supplemental-evidence-20261029T140355Z/source/internal/pipeline/op_lowering.go",
+        "excerpts": [
+          {
+            "start_line": 74,
+            "end_line": 114,
+            "text": "func (l *OpLowerer) Lower(prog *core.Program) (*core.Program, error) {\n\t// Create new program with lowered expressions\n\tlowered := &core.Program{\n\t\tDecls: make([]core.CoreExpr, len(prog.Decls)),\n\t\tMeta:  prog.Meta, // Preserve metadata (overwritten below if contracts exist)\n\t}\n\n\tfor i, decl := range prog.Decls {\n\t\tloweredDecl := l.lowerExpr(decl)\n\t\tif loweredDecl == nil {\n\t\t\treturn nil, fmt.Errorf(\"failed to lower declaration %d\", i)\n\t\t}\n\t\tlowered.Decls[i] = loweredDecl\n\t}\n\n\t// M-CONTRACTS-OPLOWERING: Also lower contract expressions in Meta.\n\t// Contract predicates (requires/ensures) contain Intrinsic nodes that\n\t// need the same lowering as regular code to avoid requiring --experimental-binop-shim.\n\tif prog.Meta != nil {\n\t\tlowered.Meta = make(map[string]*core.DeclMeta, len(prog.Meta))\n\t\tfor name, meta := range prog.Meta {\n\t\t\tif len(meta.Contracts) == 0 {\n\t\t\t\tlowered.Meta[name] = meta\n\t\t\t\tcontinue\n\t\t\t}\n\t\t\t// Deep-copy meta to avoid mutating the original program\n\t\t\tnewMeta := *meta\n\t\t\tnewMeta.Contracts = make([]*core.Contract, len(meta.Contracts))\n\t\t\tfor i, contract := range meta.Contracts {\n\t\t\t\tnewContract := *contract\n\t\t\t\tif contract.Expr != nil {\n\t\t\t\t\tnewContract.Expr = l.lowerExpr(contract.Expr)\n\t\t\t\t}\n\t\t\t\tnewMeta.Contracts[i] = &newContract\n\t\t\t}\n\t\t\tlowered.Meta[name] = &newMeta\n\t\t}\n\t}\n\n\t// Return any collected errors\n\tif len(l.errors) > 0 {"
+          },
+          {
+            "start_line": 165,
+            "end_line": 193,
+            "text": "\t\t\tCoreNode: e.CoreNode,\n\t\t\tFunc:     l.lowerExpr(e.Func),\n\t\t\tArgs:     l.lowerExprs(e.Args),\n\t\t}\n\n\tcase *core.If:\n\t\treturn &core.If{\n\t\t\tCoreNode: e.CoreNode,\n\t\t\tCond:     l.lowerExpr(e.Cond),\n\t\t\tThen:     l.lowerExpr(e.Then),\n\t\t\tElse:     l.lowerExpr(e.Else),\n\t\t}\n\n\tcase *core.Match:\n\t\tvar arms []core.MatchArm\n\t\tfor _, arm := range e.Arms {\n\t\t\tarms = append(arms, core.MatchArm{\n\t\t\t\tPattern: arm.Pattern,\n\t\t\t\tGuard:   l.lowerExpr(arm.Guard),\n\t\t\t\tBody:    l.lowerExpr(arm.Body),\n\t\t\t})\n\t\t}\n\t\treturn &core.Match{\n\t\t\tCoreNode:   e.CoreNode,\n\t\t\tScrutinee:  l.lowerExpr(e.Scrutinee),\n\t\t\tArms:       arms,\n\t\t\tExhaustive: e.Exhaustive,\n\t\t}\n"
+          },
+          {
+            "start_line": 323,
+            "end_line": 352,
+            "text": "func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {\n\t// Special handling for short-circuiting boolean operations\n\tif intrinsic.Op == core.OpAnd {\n\t\t// Lower to: if left then right else false\n\t\t// This preserves short-circuit semantics\n\t\tleft := l.lowerExpr(intrinsic.Args[0])\n\t\tright := l.lowerExpr(intrinsic.Args[1])\n\t\treturn &core.If{\n\t\t\tCoreNode: intrinsic.CoreNode,\n\t\t\tCond:     left,\n\t\t\tThen:     right,\n\t\t\tElse:     &core.Lit{CoreNode: intrinsic.CoreNode, Kind: core.BoolLit, Value: false},\n\t\t}\n\t}\n\n\tif intrinsic.Op == core.OpOr {\n\t\t// Lower to: if left then true else right\n\t\t// This preserves short-circuit semantics\n\t\tleft := l.lowerExpr(intrinsic.Args[0])\n\t\tright := l.lowerExpr(intrinsic.Args[1])\n\t\treturn &core.If{\n\t\t\tCoreNode: intrinsic.CoreNode,\n\t\t\tCond:     left,\n\t\t\tThen:     &core.Lit{CoreNode: intrinsic.CoreNode, Kind: core.BoolLit, Value: true},\n\t\t\tElse:     right,\n\t\t}\n\t}\n\n\t// Determine the type suffix using type-guided lowering\n\tvar typeSuffix string"
+          }
+        ],
+        "raw_file_qualification": "Optional local full-file navigation; inline pinned excerpts and command/blob/hash are the evidence included in this packet."
+      },
+      {
+        "path": "internal/config/compiler.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "dfe24a6e0683f1b62d1d15783ba45120c63accf2",
+        "full_file_sha256": "85eb8870242c00520b6e15aba3ec1a2c146077603d6b82f98468b7886db498fc",
+        "raw_file": "/tmp/ailang-backlog-20261029/smt-m0-supplemental-evidence-20261029T140355Z/source/internal/config/compiler.go",
+        "excerpts": [
+          {
+            "start_line": 10,
+            "end_line": 20,
+            "text": "// stay where they are by rule; these are the operator-facing ones.\nconst (\n\tEnvIFCCorpus         = \"AILANG_IFC_CORPUS\"\n\tEnvNoPrelude         = \"AILANG_NO_PRELUDE\"\n\tEnvRecordsV2         = \"AILANG_RECORDS_V2\"\n\tEnvDTree             = \"AILANG_DTREE\"\n\tEnvNoCache           = \"AILANG_NO_CACHE\"\n\tEnvRelaxModules      = \"AILANG_RELAX_MODULES\"\n\tEnvSeed              = \"AILANG_SEED\"\n\tEnvTZ                = \"TZ\"\n\tEnvLang              = \"LANG\""
+          },
+          {
+            "start_line": 69,
+            "end_line": 76,
+            "text": "// DTree reports AILANG_DTREE=1.\nfunc DTree() bool { return getOr(EnvDTree) == \"1\" }\n\n// NoCache reports AILANG_NO_CACHE=1.\nfunc NoCache() bool { return getOr(EnvNoCache) == \"1\" }\n\n// RelaxModules reports whether AILANG_RELAX_MODULES is 1, true or yes\n// (case-insensitive). Callers OR it with their --relax-modules flag."
+          }
+        ],
+        "equivalence_command": [
+          "git",
+          "diff",
+          "--exit-code",
+          "80793dbcf42423027be4bab1a0088da54e2323d8",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "internal/config/compiler.go"
+        ],
+        "equivalence_rc": 0,
+        "equivalence_stdout": "",
+        "equivalence_stderr": "",
+        "raw_file_qualification": "Optional local full-file navigation; inline pinned excerpts and command/blob/hash are the evidence included in this packet."
+      },
+      {
+        "path": "internal/pipeline/pipeline_module_phases.go",
+        "pinned_commit": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "git_blob": "e3e69fbcaa5ca581c8ac45ee8e780457950b28cc",
+        "full_file_sha256": "144b512dbf535c04d3beeea13d19f96964a8eb4a7da96b2ad4f2bfec93f2cdcb",
+        "raw_file": "/tmp/ailang-backlog-20261029/smt-m0-supplemental-evidence-20261029T140355Z/source/internal/pipeline/pipeline_module_phases.go",
+        "excerpts": [
+          {
+            "start_line": 292,
+            "end_line": 325,
+            "text": "\tst.result.PhaseTimings[\"compile\"] = time.Since(start).Milliseconds()\n\treturn nil\n}\n\n// newPipelineModuleCache builds the per-run cache runtime unless the cache is\n// disabled. The returned runtime may have a nil store after a failed init.\n//\n// AILANG_NO_CACHE is read HERE, not by each caller: it used to be honored only\n// by `ailang run` (internal/runner), so `ailang check` and eleven other entry\n// points ignored the escape hatch (M-COMPILE-CACHE-DIRTY-BUILD-KEY, #1275).\nfunc newPipelineModuleCache(cfg Config, deps cacheDependencies, src Source) *cacheRuntime {\n\tif cfg.NoCache || config.NoCache() {\n\t\treturn nil\n\t}\n\tprojectDir := filepath.Dir(src.Filename)\n\tif cfg.TransientRoot && cfg.PackageDir != \"\" {\n\t\tprojectDir = cfg.PackageDir\n\t}\n\treturn newCacheRuntime(projectDir, deps)\n}\n\n// compileOneModule compiles a single sorted module: it validates the module\n// path, attempts a verified cache hit and, only if that does not serve the\n// unit, falls through to a fresh single-module compile.\n//\n// MOD010 runs before the cache lookup: the cache key does not carry the relax\n// decision, so a unit cached under --relax-modules would otherwise let a later\n// strict run pass without the check (#1572).\nfunc (st *modulePipelineState) compileOneModule(modID link.ModuleID, unit *CompileUnit) error {\n\tmod := st.modules[string(modID)]\n\tif !st.isTransientRoot(string(modID)) {\n\t\tif err := validateModulePath(mod, string(modID), &st.cfg); err != nil {\n\t\t\treturn err\n\t\t}"
+          }
+        ],
+        "equivalence_command": [
+          "git",
+          "diff",
+          "--exit-code",
+          "80793dbcf42423027be4bab1a0088da54e2323d8",
+          "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+          "--",
+          "internal/pipeline/pipeline_module_phases.go"
+        ],
+        "equivalence_rc": 0,
+        "equivalence_stdout": "",
+        "equivalence_stderr": "",
+        "raw_file_qualification": "Optional local full-file navigation; inline pinned excerpts and command/blob/hash are the evidence included in this packet."
+      }
+    ],
+    "skill_limit_sources": [
+      {
+        "path": ".agents/skills/design-doc-creator/SKILL.md",
+        "at_docs_head": "d754bbceb43a0d597f7d7de0f350b9f9237dd9dc",
+        "git_blob": "2741dbf410467b94e682c35f9522574645e0e8f4",
+        "sha256": "407de866ef7fa78447961429e0356a789a5fab89584d22684dcf50950f1d2b0e",
+        "excerpts": [
+          {
+            "start_line": 291,
+            "end_line": 300,
+            "text": "   \"unallocated\", or \"must reconstruct because \u2026 isn't stored\", it needs a log row. Sweep the doc\n   for these BEFORE submitting to quorum \u2014 one row each is cheap; discovering them one-per-round via\n   reviewer rejects ping-pongs a sound design across the bounded revision limit and parks it.\n   **Case study (2026-07-18, m-ailang-fmt, iter 49):** the formatter design was architecturally\n   sound and the controller passed it, but `gemini-3-1-pro` (reject-by-default) blocked it TWICE \u2014\n   round 1 on \"atomic-write uses the repo's helper *if one exists*\" (no helper exists; the\n   temp+`os.Rename` pattern is ad-hoc at 4 sites \u2192 V19), round 2 on \"the AST has no parenthesis\n   node\" (true \u2014 only `// move to LPAREN` comments \u2192 V20). Both were TRUE negatives missing a log\n   row, surfaced one-per-round; the re-quorum-ONCE guardrail was then exhausted and a complete design\n   parked for a human ratification it did not need. Both rows were a 10-second grep away at authoring"
+          }
+        ]
+      },
+      {
+        "path": ".agents/skills/mission-control/resources/gate-2-pick.md",
+        "at_docs_head": "d754bbceb43a0d597f7d7de0f350b9f9237dd9dc",
+        "git_blob": "a7585718e4d191ec5a8f67e7ba1a561ef3cff79d",
+        "sha256": "544b8d249ea011d6ad8fbcc1b142f72793d73c24ae0227a3b611a45eafde064a",
+        "excerpts": [
+          {
+            "start_line": 176,
+            "end_line": 185,
+            "text": "**QUORUM-AT-PICK (Mark 2026-07-16 \u2014 \"old docs may not be up to new standards\"):** the creation-time\nquorum hook only covers NEW/REVISED docs, so most of the backlog is pre-quorum (iteration 32's\nauto_caps doc, Oct 2025, reached the planner with zero multi-provider eyes). At pick time, if the\npicked doc has NO quorum artifact (use the checked reader below), run the text\nquorum BEFORE routing: `ailang design-quorum <doc.md> --controller-verdict <your own pass|reject>`\n(cents, budget-capped, N\u22121 degrade). Any-reject \u2192 the objections go to the designer role for a\nrevision pass first (Gate 3's design-doc-creator lane), then re-quorum ONCE; still-rejected \u2192\n`needs-human-review`, park, next item. Skip only for: bookkeeping-only picks, ghost-closes, and\nmission-infra docs the quorum already reviewed. This is a pick-time gate, not a re-litigation \u2014\none round, bounded."
+          },
+          {
+            "start_line": 236,
+            "end_line": 255,
+            "text": "**NARROW-REFINEMENT CARVE-OUT (added iter-95, 2nd instance \u2014 iter-93 `m-pure-prng` `split` was the\n1st):** twice now the one-revision-one-requorum\u2192park gate parked a doc whose design DIRECTION both\nreviewers accepted, blocking SOLELY on narrow, obviously-resolvable defects the reviewers themselves\nfully specified (iter-93: defer a non-core `split` helper; iter-95 `m-budget-scoping-bug`: a\ndeterministic frame-selection tie-break + a Conflict-Surface inventory bullet \u2014 both quoted verbatim\nin the reject's `proposed_fix`). Parking these for a human wastes an iteration on a non-judgment\ncall. So, AFTER the one re-quorum, IF **every** remaining blocking objection (a) carries a concrete\nreviewer-authored `proposed_fix` AND (b) does NOT dispute the design DIRECTION (only\ncompleteness / determinism / attribution / a scope-cut of a non-core helper), the controller MAY\nmake a **bounded 2nd revision that applies the reviewers' VERBATIM fixes** (their own text \u2014 never a\ncontroller-invented resolution, never overriding an objection) and route straight to sprint-planner,\nrecording the applied fixes in the doc's Quorum verification log and the Gate-4 routing-evidence row.\nThis SATISFIES the objections; it is NOT force-passing (Standing rule 2 still forbids proceeding over\na contested design DIRECTION \u2014 that still parks). If ANY remaining objection disputes the direction,\nor lacks a concrete fix, or would need controller judgment to resolve \u2192 park `needs-human-review` as\nbefore. **Ratification of first use (iter-95):** because this is a controller-authored gate change,\nthe FIRST doc to use the carve-out is surfaced to Mark for a one-time OK before its sprint runs (a\n`--from mission` report line + a parked `(0)` bookkeeping row); once ratified, later iterations\napply it without re-asking. Record which path was taken in the log's Ruled-out/routing rows.\n**A QUORUM THAT PRINTS `proceed` WITH A NON-EMPTY `absent_reviewers` IS NOT A PASS \u2014 IT IS A PASS"
+          },
+          {
+            "start_line": 364,
+            "end_line": 378,
+            "text": "on its own first-party evidence and say so, rather than growing the doc until it can absorb it.\n**Rules. (a)** From round 3 on, record per round which surface/consumer each objection names \u2014 one\nline, in the doc's quorum log. **(b)** If the objections localise while any reviewer flips to pass,\nthe disposition is **SPLIT**, not revise: carry the surviving objection verbatim into the new doc's\nopening problem statement, leave the reviewer-clean remainder in the parent, and re-quorum the\nreduced doc once. **(c)** Before answering any objection, ask whether the defect is one the doc\nINTRODUCES or one it merely fails to fix; measure it at HEAD (rule 3f) and route the second kind to\nthe queue. **(d)** A split is a controller routing call \u2014 it is **not** `needs-human-review`, and\nfiling it as one manufactures a decision the human does not have (standing rule 8). **(e)** Say the\nround count in the report: a doc past round 4 is data about this loop's scoping, not about that doc,\nand only the human can act on the pattern. Mission-independent \u2014 every mission on this rig runs the\nsame quorum. The tell: you are about to write \"apply the fix and re-quorum\" for the third time, and\neach round's objections have been about a different part of the same document.\n\nA design doc's status header is a claim, not a fact (M-EVAL-BENCH-UI shipped fully while its doc"
+          }
+        ]
+      },
+      {
+        "path": ".agents/skills/mission-control/SKILL.md",
+        "at_docs_head": "d754bbceb43a0d597f7d7de0f350b9f9237dd9dc",
+        "git_blob": "763a8561fac266cee21687f56c41bd84bb42f949",
+        "sha256": "abb62c78e3fc44aec8093ea05805a7796be94f9db5791f8c07dc779695f4e5f1",
+        "excerpts": [
+          {
+            "start_line": 1,
+            "end_line": 11,
+            "text": "---\nname: mission-control\ndescription: 'Run ONE outer-loop iteration of a long-running mission (default: the V1 mission) \u2014 observe mission state, pick the top backlog item, route it through design-doc-creator \u2192 sprint-planner \u2192 sprint-executor \u2192 sprint-evaluator with the mission''s model routing policy, record a log entry, and run the retro. Use when user says \"run mission control\", \"mission iteration\", \"work the v1 backlog\", or when fired nightly by the dev.ailang.mission-control launchd job.'\n---\n\n# Mission Control \u2014 one outer-loop iteration\n\nRun ONE iteration of the mission defined in [`design_docs/v1-mission.md`](../../../design_docs/v1-mission.md)\n(or the mission doc passed as argument). The gates run in order and are not skippable; earlier\ngates are cheap and prevent expensive mistakes. This is the outer loop around the four honed\ninner-loop skills \u2014 it does not duplicate them."
+          }
+        ]
+      }
+    ],
+    "unresolved": [
+      "Installed binary version stamp includes -dirty; equal stamped git sources plus observed help/byte hash do not independently attest all built bytes against a clean commit.",
+      "Archived807 controls do not constitute a freshly built aca5 or fixed-branch CLI run.",
+      "Nonempty additional-pipeline differences require scope qualification; this supplement does not prove whole-compiler behavioral equivalence.",
+      "Source-excerpt capture does not execute tests; previously reviewed shape assertions are now pinned verbatim.",
+      "Round2 remains BLOCKED. Further gate disposition/human design approval/execution is not decided by this supplement."
+    ],
+    "pipeline_difference_summary": {
+      "production_paths": [
+        "internal/pipeline/cache_artifacts.go",
+        "internal/pipeline/cache_dep_closure.go",
+        "internal/pipeline/cache_key.go",
+        "internal/pipeline/cache_store.go"
+      ],
+      "test_paths": [
+        "internal/pipeline/alias_body_closure_runtime_test.go",
+        "internal/pipeline/cache_artifacts_test.go",
+        "internal/pipeline/cache_ifc_integration_test.go",
+        "internal/pipeline/cache_ifc_test.go",
+        "internal/pipeline/cache_invalidation_test.go",
+        "internal/pipeline/cache_store_test.go",
+        "internal/pipeline/effect_latent_alias_forwarding_test.go"
+      ],
+      "qualification": "Cache/artifact/key/store and associated regression changes are real; no whole-pipeline equality claim. Runtime control harness set AILANG_NO_CACHE=1; captured config/phase source shows that switch and is equal807\u2192aca5; no new cache behavior test run."
+    },
+    "limit_interpretation": {
+      "design_doc_creator": "SKILL.md:296\u2013300 is historical case-study language, not a standalone universal cap. Earlier attribution of a universal rule to this skill was overstated.",
+      "mission_control_baseline": "resources/gate-2-pick.md:176\u2013185 expressly governs QUORUM-AT-PICK mission routing: revision then re-quorum ONCE; still-rejected needs-human-review/park.",
+      "mission_control_carve_out": "Same file236\u2013254 conditionally permits bounded2ndrevision applying concrete reviewer VERBATIM fixes without disputed direction, route-to-planner under mission rules; not a self-granted override of attended approval gates.",
+      "this_attended_task": "No mission-control iteration invoked. Root explicit ONE allowed re-quorum/no third invocation instructions bound this run, with exact-packet external-disclosure consent. This supplement does not authorize another call or planner."
+    },
+    "frozen_packets_unchanged": {
+      "round1": {
+        "path": "/tmp/ailang-backlog-20261029/smt-m0-quorum/M0-scoped-review.md",
+        "sha256": "fbf3423c7e6149f51b2f2f9967668f3022a2bb6f7b243e38b742c4efb35f7d9e",
+        "unchanged": true
+      },
+      "round2": {
+        "path": "/tmp/ailang-backlog-20261029/smt-m0-quorum/round2/M0-scoped-review.md",
+        "sha256": "33879a698a64eee09de66638234d85dcded43a549793116b55e655451a2b9adb",
+        "unchanged": true
+      }
+    },
+    "docs_worktree_clean": true
+  },
+  "verify_source_equivalence": {
+    "label": "verify-source-equivalence",
+    "command": [
+      "git",
+      "diff",
+      "--exit-code",
+      "80793dbcf42423027be4bab1a0088da54e2323d8",
+      "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+      "--",
+      "internal/smt",
+      "internal/verification",
+      "std",
+      "cmd/ailang/verify.go",
+      "cmd/ailang/ai_check.go"
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": "",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "control_front_half_equivalence": {
+    "label": "control-front-half-equivalence",
+    "command": [
+      "git",
+      "diff",
+      "--exit-code",
+      "80793dbcf42423027be4bab1a0088da54e2323d8",
+      "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+      "--",
+      "internal/elaborate",
+      "internal/eval",
+      "internal/vm",
+      "internal/bytecode",
+      "cmd/ailang/main_run.go",
+      "cmd/ailang/main_run_exec.go",
+      "cmd/ailang/main_run_helpers.go",
+      "cmd/ailang/verify.go",
+      "cmd/ailang/ai_check.go"
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": "",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "quorum_binary_identity": {
+    "version": {
+      "label": "installed-quorum-binary-version",
+      "command": [
+        "/Users/voightkampff/go/bin/ailang",
+        "version"
+      ],
+      "rc": 0,
+      "stdout": "AILANG v0.55.0-dirty\nCommit: e863a1e\nFull:   e863a1e3dc075dd4acc0fdb26a467f4258898588\nBuilt:  2026-10-29_07:30:07\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026\n",
+      "stderr": "",
+      "stdout_sha256": "0938e8f3c472654bf6ce32c4ec565d3190432e279d563e87ec5153b754c2bcec",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "binary_path": "/Users/voightkampff/go/bin/ailang",
+      "binary_sha256": "23702dac702efba84d6785320fedb3882f42c71eeadc1807d1f40a28969fb674"
+    },
+    "quorum_source_equivalence": {
+      "label": "quorum-source-equivalence",
+      "command": [
+        "git",
+        "diff",
+        "--exit-code",
+        "e863a1e3dc075dd4acc0fdb26a467f4258898588",
+        "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+        "--",
+        "cmd/ailang/design_quorum.go",
+        "cmd/ailang/design_review.go",
+        "internal/mission/quorum"
+      ],
+      "rc": 0,
+      "stdout": "",
+      "stderr": "",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "help": {
+      "label": "installed-quorum-cli-help",
+      "command": [
+        "/Users/voightkampff/go/bin/ailang",
+        "design-quorum",
+        "--help"
+      ],
+      "rc": 0,
+      "stdout": "",
+      "stderr": "\u26a0 Binary may be stale (source files modified after build)\n  Run 'make quick-install' to rebuild\nailang design-quorum \u2014 N-reviewer quorum verdict on a design doc (fleet Phase B)\n\nUSAGE:\n  ailang design-quorum <doc.md> [flags]\n  ailang design-quorum --author codex:gpt-6.1-sol < doc.md\n\nFLAGS:\n  --reviewers <csv>          reviewer POOL (default gpt6-1-sol,gemini-4-argon,oc-glm-5-3,\n                             oc-kimi-k3,claude-sonnet-5@claude-p)\n  --seats <n>                reviewers per doc, drawn from the pool (default 3)\n  --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.30)\n  --author <model>           the doc's author; its vendor sits out (see below)\n  --artifact-dir <dir>       machine JSON artifact dir (default .ailang/state/mission-quorum)\n  --mission-log <path>       append the human markdown block to this mission log\n  --controller-verdict <v>   the Claude controller's IN-SESSION verdict (pass|reject) \u2014 NOT an API call\n  --controller-note <text>   the controller's in-session note (required with --controller-verdict)\n  --json                     print the full quorum result JSON to stdout\n\nBEHAVIOR:\n  Runs the reviewers IN PARALLEL (reject-by-default). Synthesis: any present\n  reviewer (or the controller) rejects \u2192 BLOCKED (objection returns to author);\n  all present pass \u2192 PROCEED. An unreachable/over-budget/mis-auth reviewer is\n  recorded by NAME with its reason and the quorum degrades to N-1 \u2014 never a\n  silent pass. Always writes a machine JSON artifact; optionally appends a\n  mission-log markdown block.\n\n  SEATING: --seats reviewers (default 3) are drawn from the --reviewers pool,\n  rotated per doc (the same doc gets the same seats every round) and preferring\n  distinct vendors; an absent seat is replaced from the rest of the pool.\n  AUTHOR'S VENDOR SITS OUT: pass --author (or MISSION_DESIGN_AUTHOR) with the\n  model that wrote the doc. Reviewers from that vendor are benched, and come\n  back \u2014 labelled same-vendor \u2014 only if nobody else in the pool answers. With no\n  author given, a Claude author is assumed. The Anthropic seat\n  (claude-sonnet-5@claude-p) runs \"claude -p\" on the subscription, never the\n  API key, with tools, settings and MCP off; it is absent (quota) when the\n  Anthropic bucket is over its mission ration.\n\nEXIT CODES:\n  0 = proceed   3 = blocked   1/2 = IO or usage error\n\nSEE ALSO:\n  ailang design-review \u2014 a single reviewer verdict.\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "1a23561f585a479677943c7972633e14823551ae940688668df9d505f61466cb"
+    },
+    "limitation": "-dirty stamp is not independently attested clean source-to-binary provenance; no new build. Named stamped-source equivalence and actual help/runs are separate observations."
+  },
+  "gemini_helper_environment_obligation": {
+    "verbatim_round2_catch": "During sprint planning and execution, verify that the paired helper-condition define-fun declarations in S2 properly thread all lexically captured variables (or restrict eligibility to closed top-level helpers) so that deduplicating declarations per resolved helper symbol does not drop or misbind outer scope variables across diamond call graphs.",
+    "verbatim_round2_proposed_fix": "In the sprint plan for S2, specify that paired helper-condition define-fun declarations take the exact same parameter list (including any lifted closure/environment parameters) as their corresponding value define-fun declarations.",
+    "disposition": "Eventual implementation acceptance obligation within existing same-callee/same-arguments semantics; no new closed-helper restriction selected, no validation claimed."
+  },
+  "load_bearing_claim_index": {
+    "executed_binary": "round_two_runtime_evidence.binary_version +compiler_sha256; execution is807-only",
+    "source_comparison": "verify_source_equivalence, control_front_half_equivalence, quorum_binary_identity.quorum_source_equivalence literal rows; local_supplement.command_results includes nonempty pipeline diff",
+    "normalizer_mechanism": "local_supplement.normalizer_and_tests pinned inline function/test excerpts; source reads only",
+    "runtime_signed_arithmetic": "round_two_runtime_evidence.fixtures/commands actual interpreter+strictVM matrices; runtime_implementation source excerpts",
+    "false_verified_rows": "original_issue_checks_and_verifies +round_two_runtime_evidence commands full parsed6rows and stdout; no fixed result claimed",
+    "zero_runtime": "zero_runtime_controls actual RT001 controls, source remains archived807 only",
+    "universal_axiom_delta": "uf_controls exact solver scripts+results, partial_callee actual syntax/runtime; not parked-branch CLI",
+    "quorum_flags_absence_and_author": "quorum_cli_help +quorum_source_handling +quorum_binary_identity; dirty build limitation explicit",
+    "held1790_scope": "Root instruction to leave operator card untouched, not a new live API state assertion",
+    "no_new_source_or_schema_or_epoch": "Docs-only branch diff asserted only after final commit/manifest verification; no source implementation performed",
+    "deferred_full_roadmap": "Historical sections1-16/V1-V19 are context, not current M0 premises or fresh claims; no approval forM1-M4 inferred",
+    "helper_env": "gemini_helper_environment_obligation is exact reviewer concern and pending acceptance, not fact of implementation correctness",
+    "historical_quote": "Minimal non-authoritative context only; no current approval inferred from private session, no private JSONL required to inspect current M0 proposal/gates."
+  },
+  "local_control_harness": {
+    "source": "from pathlib import Path\nimport subprocess,os,json,hashlib,datetime\np=Path('/tmp/ailang-backlog-20261029/smt-m0-round2-controls');repo=Path('/tmp/ailang-backlog-20261029/smt-m0-repair-design');archive=Path('/tmp/ailang-backlog-20261029/alias-ownership-R2-base-source');binary=Path('/tmp/ailang-backlog-20261029/alias-ownership-R2-base')\nenv=dict(os.environ)\nfor k in list(env):\n if k.startswith(('OTEL_','OTLP_','AILANG_TRACE','AILANG_OTLP_')) or k in ['GOOGLE_CLOUD_PROJECT','GCLOUD_PROJECT','GCP_PROJECT']:env.pop(k)\nenv.update(AILANG_STDLIB_PATH=str(archive/'std'),NO_CACHE='1',AILANG_NO_CACHE='1')\npairs=[(7,2),(-7,2),(7,-2),(-7,-2),(0,-5),(0,5),(-1,7),(1,-7),(-6,3),(-6,-3),(6,-3),(9223372036854775807,-1)]\nrows=[];fixtures={}\ndef run(label,args):\n r=subprocess.run([str(binary)]+args,env=env,cwd=p,capture_output=True,text=True,timeout=30)\n row={'label':label,'argv':[str(binary)]+args,'rc':r.returncode,'stdout':r.stdout,'stderr':r.stderr};rows.append(row)\n (p/(label+'.stdout.log')).write_text(r.stdout);(p/(label+'.stderr.log')).write_text(r.stderr)\n return row\nfor op,name in [('/','div'),('%','rem')]:\n source=f'module runtime_{name}_signs\\nexport pure func pair(n: int, d: int) -> int {{ n {op} d }}\\nexport pure func main() -> [int] {{ ['+', '.join(f'pair({a}, {b})' for a,b in pairs)+'] }\\n'\n f=p/f'runtime-{name}-signs.ail';f.write_text(source);fixtures[name]={'source':source,'sha256':hashlib.sha256(f.read_bytes()).hexdigest(),'pairs':pairs}\n expected=[]\n for a,b in pairs:\n  q=(abs(a)//abs(b))*(1 if (a>=0)==(b>=0) else -1);expected.append(a-b*q if op=='%' else q)\n fixtures[name]['expected_truncation']=expected\n assert run(name+'-check',['check',str(f)])['rc']==0\n for engine,flags in [('tree',[]),('strict-vm',['--bytecode','--strict-bytecode'])]:\n  r=run(name+'-'+engine,['run']+flags+['--entry','main',str(f)])\n  if r['rc']==0:\n   r['actual_values']=json.loads(r['stdout'].strip());r['matches_truncating_table']=r['actual_values']==expected\n   assert r['matches_truncating_table'],r\nf=p/'int-divmod-halDown-original.ail';source=subprocess.check_output(['git','show','a5f817119:cmd/ailang/testdata/verify_preflight/int_divmod.ail'],cwd=repo,text=True);f.write_text(source);fixtures['original_int_divmod']={'source':source,'sha256':hashlib.sha256(f.read_bytes()).hexdigest(),'source_git_commit':'a5f81711904452b432f850ba37f686fde79c895a','source_git_path':'cmd/ailang/testdata/verify_preflight/int_divmod.ail'}\nassert run('halDown-check',['check',str(f)])['rc']==0\nr=run('halDown-verify',['verify','--json','--verbose','--timeout','3s',str(f)]);r['parsed_json']=json.loads(r['stdout'])\n# Compare the actual archived stdlib bytes to every pinned tracked std file.\nstd_paths=subprocess.check_output(['git','ls-tree','-r','--name-only','80793dbcf','std'],cwd=repo,text=True).splitlines();std_hashes={};mismatches=[]\nfor path in std_paths:\n actual=(archive/path).read_bytes();expected=subprocess.check_output(['git','show','80793dbcf:'+path],cwd=repo)\n if actual!=expected:mismatches.append(path)\n std_hashes[path]=hashlib.sha256(actual).hexdigest()\nassert not mismatches\nresult={'created':datetime.datetime.now(datetime.timezone.utc).isoformat(),'basis':'Actual source-equivalent archived807 compiler; no build or fixed-branch CLI result claimed','compiler_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'binary_version':run('binary-version',['version']),'stdlib_git_tree':subprocess.check_output(['git','rev-parse','80793dbcf:std'],cwd=repo,text=True).strip(),'stdlib_files':len(std_paths),'stdlib_file_sha256':std_hashes,'stdlib_manifest_sha256':hashlib.sha256(json.dumps(std_hashes,sort_keys=True,separators=(',',':')).encode()).hexdigest(),'stdlib_mismatches':mismatches,'fixtures':fixtures,'commands':rows}\n(p/'runtime-and-halfdown-evidence.json').write_text(json.dumps(result,indent=2)+'\\n')\nfor row in rows:\n print(row['label'],'rc',row['rc'],'values',row.get('actual_values',''), 'match',row.get('matches_truncating_table',''))\nprint('Matched stdlib files:',len(std_paths),'binary SHA',result['compiler_sha256'])\nprint('Verify rows:',[(r.get('function'),r.get('status')) for r in result['commands'][-2]['parsed_json']['results']] if 'parsed_json' in result['commands'][-2] else 'see raw')\n",
+    "sha256": "14ec8655cfc47968e37a428b9d7c3f133383a1c93bbfc16778f40c305be3d02c",
+    "qualification": "Actual local harness already executed for recorded controls; including it is evidence, not a new execution."
+  },
+  "current_authorization": {
+    "user_message": "approve the three designs",
+    "observed_at_utc": "2026-10-29T14:48:58Z",
+    "timestamp_qualification": "Assistant observation time, not independent user send time",
+    "approved_design_commit": "88ca9e1e974150fa783d19b15b8a93be1682e2f7",
+    "scope": "Evidence ratification and M0-F1/F4/Z; planning only",
+    "external_quorum_synthesis": "two BLOCKED records preserved unchanged",
+    "plan_approval": "pending draft review",
+    "execution_authorized": false,
+    "further_provider_calls_authorized": false,
+    "source": "three-design-approvals.json local record forwarded by root"
+  }
+}

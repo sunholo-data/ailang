@@ -1,0 +1,234 @@
+{
+  "sprint_id": "M-SMT-PREFLIGHT-M0-REPAIR",
+  "created": "2026-10-29T15:01:04Z",
+  "estimated_duration_days": 3,
+  "correlation_id": "sprint_M-SMT-PREFLIGHT-M0-REPAIR_20261029",
+  "design_doc": "design_docs/planned/m-smt-well-sorted-preflight.md",
+  "markdown_plan": "design_docs/planned/v0_56_0/sprint-plan-m-smt-preflight-m0-repair.md",
+  "plan_path": "design_docs/planned/v0_56_0/sprint-plan-m-smt-preflight-m0-repair.md",
+  "github_issues": [
+    1960,
+    1961
+  ],
+  "status": "not_started",
+  "plan_status": "approved",
+  "last_session": "2026-10-29T15:01:04Z",
+  "last_session_kind": "planning_only",
+  "last_checkpoint": null,
+  "started": null,
+  "completed": null,
+  "features": [
+    {
+      "id": "M1_BASELINES_TRUNCATION",
+      "description": "Pin actual baselines and centralize truncating Int quotient/remainder",
+      "estimated_loc": 260,
+      "actual_loc": null,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Actual current build/std/identity and complete historical/current rows recorded before source changes",
+        "All Int producer/sign/nested-binding controls agree with executed interpreter and strict VM results",
+        "False parity/halfDown refuted; true controls preserved; approved zero/width behavior retained"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_FINITE_UF_SPECS",
+      "description": "Build actual-call UF identity, arity and requires-guarded finite specification templates",
+      "estimated_loc": 230,
+      "actual_loc": null,
+      "dependencies": [
+        "M1_BASELINES_TRUNCATION"
+      ],
+      "acceptance_criteria": [
+        "Same argument tuple shares one UF value; distinct tuples do not collapse",
+        "No global universal contract assertion; unencodable/recursive predicates terminate via existing unsupported/fail-weak classifications",
+        "Requires is a guard, not assumed truth or newly discharged obligation; raw partial-callee discriminator retained"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_LEXICAL_SELECTED_FACTS",
+      "description": "Propagate value/finite facts through arguments, let bindings and selected if/short-circuit paths",
+      "estimated_loc": 280,
+      "actual_loc": null,
+      "dependencies": [
+        "M2_FINITE_UF_SPECS"
+      ],
+      "acceptance_criteria": [
+        "No free or captured local at top level; nested and shadowed binders retain correct scope",
+        "Unselected if or &&/|| RHS contributes no contradictory facts",
+        "Selected positive and false goal controls pass without new classification policy"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_GUARDS_CONTRACT_PATHS",
+      "description": "Preserve first-reached match guards and finite facts in body/requires/ensures predicates",
+      "estimated_loc": 250,
+      "actual_loc": null,
+      "dependencies": [
+        "M3_LEXICAL_SELECTED_FACTS"
+      ],
+      "acceptance_criteria": [
+        "Pattern/guard binders and first-match selection retain actual evaluation paths",
+        "No unmatched/later-guard fact leaks; short-circuit predicates selective in all three expression positions",
+        "Recursive/unencodable predicate paths preserve existing unsupported/fail-weak behavior; proof-vs-refutation/admission redesign excluded"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_HELPER_ENVIRONMENT_IDENTITY",
+      "description": "Preserve value/condition helper parameters/environments, diamond sharing and model rendering",
+      "estimated_loc": 300,
+      "actual_loc": null,
+      "dependencies": [
+        "M4_GUARDS_CONTRACT_PATHS"
+      ],
+      "acceptance_criteria": [
+        "Condition helper has exact value-helper parameter list including lifted environment variables",
+        "Distinct captures remain distinct and diamond declarations deduplicate without dropping actual-call facts",
+        "No new closed-helper restriction or eligibility expansion; non-nullary UF model interpretations not displayed as input values"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_CLI_MUTATION_CORPUS_HANDOFF",
+      "description": "Complete actual fixed-head CLI, mutation and every-function corpus delta evidence with focused gates",
+      "estimated_loc": 220,
+      "actual_loc": null,
+      "dependencies": [
+        "M5_HELPER_ENVIRONMENT_IDENTITY"
+      ],
+      "acceptance_criteria": [
+        "Actual fixed CLI refutes parity/halfDown/gap and partial-callee wrong with runtime/model witnesses; complete true controls and all aggregate exits retained",
+        "Disposable Euclidean/shared-constant/universal-axiom mutations fail discriminating tests; parked/global work untouched",
+        "Every per-function corpus verdict change explained including inherited ERROR/COUNTEREXAMPLE/timeout rows; no all-zero preflight claim",
+        "Focused changed/core/SMT/CLI, lint/sizes/boundaries/changelog/relevant examples gates and actual required exact-head CI/Sonar pass",
+        "Docs preserve ruled scope, both raw BLOCKED records and human ratification; separate independent evaluation required before acceptance"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_BASELINES_TRUNCATION",
+      "package": null,
+      "action": "none",
+      "searches": [],
+      "applicability": "compiler-internal, not package-like",
+      "reason": "Private Go SMT/Core encoding or its verifier tests/evidence; package imports cannot implement this compiler behavior, so registry search is not applicable and no query/mutation was performed."
+    },
+    {
+      "milestone": "M2_FINITE_UF_SPECS",
+      "package": null,
+      "action": "none",
+      "searches": [],
+      "applicability": "compiler-internal, not package-like",
+      "reason": "Private Go SMT/Core encoding or its verifier tests/evidence; package imports cannot implement this compiler behavior, so registry search is not applicable and no query/mutation was performed."
+    },
+    {
+      "milestone": "M3_LEXICAL_SELECTED_FACTS",
+      "package": null,
+      "action": "none",
+      "searches": [],
+      "applicability": "compiler-internal, not package-like",
+      "reason": "Private Go SMT/Core encoding or its verifier tests/evidence; package imports cannot implement this compiler behavior, so registry search is not applicable and no query/mutation was performed."
+    },
+    {
+      "milestone": "M4_GUARDS_CONTRACT_PATHS",
+      "package": null,
+      "action": "none",
+      "searches": [],
+      "applicability": "compiler-internal, not package-like",
+      "reason": "Private Go SMT/Core encoding or its verifier tests/evidence; package imports cannot implement this compiler behavior, so registry search is not applicable and no query/mutation was performed."
+    },
+    {
+      "milestone": "M5_HELPER_ENVIRONMENT_IDENTITY",
+      "package": null,
+      "action": "none",
+      "searches": [],
+      "applicability": "compiler-internal, not package-like",
+      "reason": "Private Go SMT/Core encoding or its verifier tests/evidence; package imports cannot implement this compiler behavior, so registry search is not applicable and no query/mutation was performed."
+    },
+    {
+      "milestone": "M6_CLI_MUTATION_CORPUS_HANDOFF",
+      "package": null,
+      "action": "none",
+      "searches": [],
+      "applicability": "compiler-internal, not package-like",
+      "reason": "Private Go SMT/Core encoding or its verifier tests/evidence; package imports cannot implement this compiler behavior, so registry search is not applicable and no query/mutation was performed."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 515,
+    "actual_loc_per_day": 0,
+    "target_milestones_per_week": 6,
+    "actual_milestones_per_week": 0,
+    "estimated_total_loc": 1540,
+    "estimated_implementation_loc": 580,
+    "estimated_test_loc": 900,
+    "estimated_docs_loc": 60,
+    "actual_total_loc": 0,
+    "estimated_days": 3,
+    "actual_days": null,
+    "basis": "Itemized estimate with buffer; historical239/786line arithmetic/callee churn and offline velocity output, not an asserted measured throughput."
+  },
+  "approval": {
+    "user_message": "approve the three designs",
+    "observed_at_utc": "2026-10-29T14:48:58Z",
+    "timestamp_qualification": "Assistant receipt observation, not independently supplied send time",
+    "approved_design_commit": "88ca9e1e974150fa783d19b15b8a93be1682e2f7",
+    "decisions": [
+      "M0-F1",
+      "M0-F4",
+      "M0-Z"
+    ],
+    "evidence_ratification": "explicit human ruling",
+    "authorized_stage": "implementation of six reviewed M0 milestones",
+    "plan_approved": true,
+    "execute_instruction_received": true,
+    "execution_authorized": true,
+    "external_quorum": "two BLOCKED records unchanged; no external PROCEED claimed",
+    "further_provider_review_authorized": false,
+    "execution_user_message": "exeute all three sprints",
+    "execution_observed_at_utc": "2026-10-29T20:17:42Z"
+  },
+  "scope_exclusions": [
+    "parent-design M1-M4/#1950/#1953",
+    "F2/F5/encoder_gap/ERROR-SKIP or ai-check exit redesign",
+    "proof-vs-refutation/admission/purity/#1790",
+    "caller-requires proof obligations",
+    "width/BitVec/new runtime semantics",
+    "runner/#1926/#2013 or held #2009 telemetry repair"
+  ],
+  "human_decision_gates": [],
+  "independent_evaluation": {
+    "status": "pending",
+    "score": null
+  },
+  "prompt": {
+    "loaded_version": "v0.16.11",
+    "source": "archived807 matching prompt command, active version confirmed; planning fixture edits not performed",
+    "installed_default_version": "v0.16.8",
+    "reload_matching_execution_prompt_required": true
+  },
+  "sprint_plan": "design_docs/planned/v0_56_0/sprint-plan-m-smt-preflight-m0-repair.md"
+}
