@@ -102,9 +102,13 @@ ACL acceptance matrix before planning; do not improvise a permissions bypass.
 - [x] Attended user approved D1–D7, including the Windows limitation, by
   "approve the three designs", bound to design 7d000322b by root at observed
   2026-10-29 14:48:58UTC (observation timestamp, not independent send time).
-- [ ] #2013 integration condition is met or root explicitly reviews a combined scope.
+- [x] #2013 integration condition met by independently accepted normal merge
+  `96d69f05b6e84bd6666e8fa91ff948f803b67d92`, integrated before product edits
+  at `a9aa133133f9720898c3d7ebfa12627101549211`.
 - [x] Approved plan/JSON banked at c9698d88e; attended user explicitly authorized
-  sequenced execution (observed2026-10-29 20:17:42UTC). #2013 dependency remains.
+  sequenced execution (observed2026-10-29 20:17:42UTC). Its #2013 dependency
+  was legitimately satisfied before execution. Exact-head CI (including Windows)
+  and independent evaluation remain pending.
 
 ## Solution design
 

@@ -108,6 +108,18 @@ or secret-service dependency. JSON records each decision and its reason.
 
 ## Milestones
 
+## Checklist evidence and pending acceptance gates
+
+The checked M0–M5 items below record implemented controls and terminal native
+local proof mapped in the validation companion and completed JSON. They do not
+claim hosted Windows or broad CI completion. The original approval-time STOP
+section above remains historical; the legitimate integration condition was met.
+
+- [ ] Actual exact-head broad/platform CI, including Windows execution of the
+  unsupported-file and env/help/dry-run controls, is terminal and acceptable.
+- [ ] Independent sprint evaluation has reached its final verdict. The executor
+  has handed off source/evidence and has not self-scored, approved or merged.
+
 ### M0_INTEGRATION_PREFLIGHT — 0 lines, 15–30 minutes
 
 **Dependencies:** explicit execute instruction and legitimate #2013 source
@@ -124,8 +136,8 @@ integration as above. This milestone makes no product change.
 
 Acceptance:
 
-- [ ] Actual accepted dependency source and owner recorded; no competing overwrite.
-- [ ] Baseline retains #1773 shared rewrite/staging/D2/Notes/author restoration and
+- [x] Actual accepted dependency source and owner recorded; no competing overwrite.
+- [x] Baseline retains #1773 shared rewrite/staging/D2/Notes/author restoration and
   #1964 authority-before-work; no runner/card/CI policy edits.
 
 ### M1_PROTECTED_HANDLE_READER — 210 lines, 60–90 minutes
@@ -146,15 +158,15 @@ Do not change internal/pkg/authority.go or AI factory readers.
 
 Acceptance:
 
-- [ ] Real disposable0400/0600 files pass; 0644/0640/0700/special modes fail.
-- [ ] Symlink/nonregular/missing paths fail; FIFO refusal is bounded; actual
+- [x] Real disposable0400/0600 files pass; 0644/0640/0700/special modes fail.
+- [x] Symlink/nonregular/missing paths fail; FIFO refusal is bounded; actual
   handle metadata positive plus synthetic foreign-owner negative validate owner
   policy without requiring root/chown. These synthetic checks are classified.
-- [ ] Same opened-handle identity survives pathname replacement; bounded reader
+- [x] Same opened-handle identity survives pathname replacement; bounded reader
   rejects growth beyond 16 KiB without an unbounded allocation or hang.
-- [ ] Direct reader under confinement has zero opener calls; unsupported OS has
+- [x] Direct reader under confinement has zero opener calls; unsupported OS has
   zero opener calls and named refusal. No key values in any local read error.
-- [ ] Focused affected tests, lint and home isolation pass; preserve red evidence.
+- [x] Focused affected tests, lint and home isolation pass; preserve red evidence.
 
 ### M2_CREDENTIAL_SELECTION_AND_FORMAT — 100 lines, 45–60 minutes
 
@@ -174,13 +186,13 @@ credential framework; choose the smallest API needed for invocation-local value.
 
 Acceptance:
 
-- [ ] Complete approved selection table passes, including file error+valid env
+- [x] Complete approved selection table passes, including file error+valid env
   counterfactual, explicit empty flag, no-source and no implicit default probe.
-- [ ] Empty/whitespace/multiline/control/oversize synthetic contents fail; trimmed
+- [x] Empty/whitespace/multiline/control/oversize synthetic contents fail; trimmed
   single-line dummy key accepted. No fallback on any read/parse failure.
-- [ ] Frozen result survives path/env mutation after selection; parent env remains
+- [x] Frozen result survives path/env mutation after selection; parent env remains
   unchanged; nil/default key is never treated as successful credential selection.
-- [ ] Authority/unsupported refusal precedes file opener; focused tests and lint pass.
+- [x] Authority/unsupported refusal precedes file opener; focused tests and lint pass.
 
 ### M3_PUBLISH_COMMAND_WIRING — 130 lines, 60–75 minutes
 
@@ -201,14 +213,14 @@ needed. Do not copy the old rewrite body into the integrated #1773 implementatio
 
 Acceptance:
 
-- [ ] Actual built CLI both publish spellings recognize the option; help and
+- [x] Actual built CLI both publish spellings recognize the option; help and
   dry-run with missing/unreadable/unsupported file do not open/read it or upload.
-- [ ] Confined bare/pkg real/dry-run refuse before read; help remains available.
-- [ ] Real credential errors precede package subprocess/upload; env-only warns
+- [x] Confined bare/pkg real/dry-run refuse before read; help remains available.
+- [x] Real credential errors precede package subprocess/upload; env-only warns
   exactly once, file-only does not create env warning or key variable.
-- [ ] Loopback header/status unit controls retain X-API-Key/validation behavior,
+- [x] Loopback header/status unit controls retain X-API-Key/validation behavior,
   reject missing key before request and redact exact dummy-key response echoes.
-- [ ] Existing #1773 and authority-focused tests plus lint remain green.
+- [x] Existing #1773 and authority-focused tests plus lint remain green.
 
 ### M4_REAL_CHILD_AND_LOOPBACK_PROOF — 130 lines, 60–90 minutes
 
@@ -243,15 +255,16 @@ No production test hooks, broad test-main changes, external programs or live key
 
 Acceptance:
 
-- [ ] File-only actual child sentinel absent vs legacy env sentinel present;
+- [x] File-only actual child sentinel absent vs legacy env sentinel present;
   counted loopback sees the correct distinct dummy header for both arms.
-- [ ] Read-once/path replacement control uses original value; parent env and
+- [x] Read-once/path replacement control uses original value; parent env and
   author manifest/lock/content unchanged, no secret in captured artifacts.
-- [ ] Missing/conflicting/unsafe file yields zero upload; help/dry-run zero file
+- [x] Missing/conflicting/unsafe file yields zero upload; help/dry-run zero file
   open and zero upload; loopback controlled failure emits no package messages.
-- [ ] Portable helper uses bounded Go subprocess support; Windows actually tests
-  file-lane unsupported and existing env/help/dry-run, not a blanket skip.
-- [ ] Focused real CLI/authority/#1773 regressions and lint pass, raw reds retained.
+- [x] Portable helper uses bounded Go subprocess support; Windows-specific tests
+  implement file-lane unsupported and existing env/help/dry-run controls without
+  a blanket skip. Their actual hosted execution is pending below.
+- [x] Focused real CLI/authority/#1773 regressions and lint pass, raw reds retained.
 
 ### M5_DOCS_GATES_AND_HANDOFF — 80 lines, 60–90 minutes
 
@@ -273,12 +286,12 @@ opening with `### `, and own plan/state/validation records. No root audit/other 
 
 Acceptance:
 
-- [ ] User docs/help and unreleased fragment accurately describe approved D1–D7.
-- [ ] Focused/changed/core/structural gates pass with unchanged thresholds/timeouts;
+- [x] User docs/help and unreleased fragment accurately describe approved D1–D7.
+- [x] Focused/changed/core/structural gates pass with unchanged thresholds/timeouts;
   no retry/waiver hides unrelated gate failures. Pending CI remains explicit.
-- [ ] Design AC1–AC8 mapped to committed tests and actual logs; exact integrated
+- [x] Design AC1–AC8 mapped to committed tests and actual logs; exact integrated
   source provenance, red/green and platform qualifications retained.
-- [ ] Independent evaluation handoff uses terminal real gates; no self-approval,
+- [x] Independent evaluation handoff uses terminal real gates; no self-approval,
   live publish, issue closure, coordinator action or release during execution.
 
 ## Schedule and totals
