@@ -19,7 +19,7 @@ import (
 // no case for it). Keeping IFC as a separate post-typecheck analysis therefore
 // adds the enforcement with no regression surface in the HM core or the backend.
 //
-// Scope (v1): intraprocedural sink enforcement with source-label propagation
+// Scope: per-module sink enforcement with source-label propagation
 // through let/match/record/call within a module. A value's label is tracked
 // from its source (an explicit <label> annotation, or the secret() builtin) to
 // any {not ℓ} sink it reaches in the same call graph. Since #1719
