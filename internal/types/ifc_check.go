@@ -336,6 +336,9 @@ func (c *ifcChecker) identVal(name string, env ifcEnv) ifcVal {
 	if _, ok := c.types.ctors[name]; ok {
 		return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnCtor})}
 	}
+	if imported := c.imports[name]; imported != nil {
+		return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnOpaque, name: name, imported: imported})}
+	}
 	// Imported names have no constructor evidence in this surface-only pass.
 	// Capitalized functions are legal, so every unknown name takes F2 fallback.
 	return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnOpaque, name: name})}
@@ -491,11 +494,8 @@ func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) ifcVal {
 	if isLocal {
 		return ifcVal{label: c.calleeResultLabel(sig, passed, argLabels), fn: fn}
 	}
-	_, constructor := c.types.ctors[name]
-	if _, bound := env[name]; !bound && !constructor {
-		if imported := c.imports[name]; imported != nil {
-			return ifcVal{label: importedIFCResult(imported, argLabels), fn: fn}
-		}
+	if label, known := importedCallableResult(callee.fn, argLabels, callee.label); known {
+		return ifcVal{label: label, fn: fn}
 	}
 	if src, ok := ifcBuiltinSourceLabels[name]; ok {
 		return ifcVal{label: LabelConst(src), fn: fn}

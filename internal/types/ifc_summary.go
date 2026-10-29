@@ -242,3 +242,24 @@ func (s *ImportedIFCSig) GobEncode() ([]byte, error) {
 func (s *ImportedIFCSig) GobDecode(data []byte) error {
 	return json.Unmarshal(data, s)
 }
+
+// importedCallableResult reads supplied producer facts from the same resolved
+// callable value used by the local checker. Bindings and joins retain them;
+// lexical/local/constructor precedence is decided once by identVal. Unknown
+// alternatives keep the ordinary conservative join. Imported demands are M3.
+func importedCallableResult(fn *ifcCallable, args []Label, callee Label) (Label, bool) {
+	if fn == nil {
+		return nil, false
+	}
+	result := LabelBottom()
+	known := false
+	for _, alt := range fn.alts {
+		if alt.imported != nil {
+			known = true
+			result = LabelJoin(result, importedIFCResult(alt.imported, args))
+		} else {
+			result = LabelJoin(result, LabelJoin(callee, joinLabels(args)))
+		}
+	}
+	return result, known
+}

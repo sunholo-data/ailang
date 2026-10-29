@@ -147,3 +147,28 @@ func TestIFCExportSummaryDoesNotPublishRho(t *testing.T) {
 		}
 	}
 }
+
+func TestIFCExportImportedValueLookup(t *testing.T) {
+	file := parseIFC(t, `module test/import_value_summary
+ func alias(n: int) -> string { let saved = imported in saved(n) }
+ func branch(n: int) -> string { let f = if n == 0 then imported else other in f(n) }
+ func shadow(n: int) -> string { let imported = \x. "clean" in imported(n) }
+ `)
+	source := types.EmptyIFCSummary()
+	source.Intrinsic = types.EncodeIFCLabel(types.LabelConst("secret"))
+	other := types.EmptyIFCSummary()
+	other.Intrinsic = types.EncodeIFCLabel(types.LabelConst("email"))
+	sigs, err := types.AnalyzeModuleIFC(file, map[string]*types.ImportedIFCSig{"imported": source, "other": other})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.LabelSubsumes(sigs["alias"].Intrinsic.Decode(), types.LabelConst("secret")) {
+		t.Fatal("aliased supplied producer lost intrinsic taint")
+	}
+	if got := sigs["branch"].Intrinsic.Decode(); !types.LabelSubsumes(got, types.LabelConst("secret")) || !types.LabelSubsumes(got, types.LabelConst("email")) {
+		t.Fatalf("joined producer facts lost: %s", got)
+	}
+	if !types.LabelEqual(sigs["shadow"].Intrinsic.Decode(), types.LabelBottom()) {
+		t.Fatal("lexical shadow used imported producer facts")
+	}
+}
