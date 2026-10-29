@@ -2352,3 +2352,71 @@ Last 3 code landings: iteration 66, none (about 23 d); iteration 67, clause 2 (u
 Last 3 code landings: iteration 67, clause 2 (under 48h); iteration 68, none (about 20 d); iteration 69, none (about 22 d). No drift alarm: no routable UNMET-clause row exists, because the only in-window ticket is out of scope.
 
 **Next**: no in-scope ticket is inside the 48h window (`ci:distinct-build-test-failures` is out of scope, and its window closes 10-30 21:18Z). Next in-scope ungated candidates, scope check first: `pi:provider-error:no-retry` (stapledon, 10-07; is pi's provider retry in the driver or in pi?), `stall:watchdog:slow-on-hung-tool` (stapledon, 10-07), then `skills:showcase-feature-discoverability` (needs a design).
+
+## 70 — 2026-10-29 — `pi:provider-error:no-retry` LANDED via #2022 → `52e8958f0`, independent sonnet PASS 91 (round 2); the retry was a ghost of #1391, and the seam it never tested is now pinned end to end [HARNESS]
+
+**Pick**: iteration 69's **Next**, `pi:provider-error:no-retry` (stapledon, 10-07). It was the oldest in-scope, ungated ticket. No in-scope ticket is inside the 48h window; `ci:distinct-build-test-failures` is out of scope (D-FLEET-17 class).
+
+**Orphans**: none. No `fleet/i70*` branch, worktree or PR existed. Self-notices rc 0 (control 852:10). The log and charter on `origin/dev` ended at 69.
+
+**Preflight / observe**:
+- Armed. gh `sunholo-voight-kampff`. Billing CLEAN. Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (11 comments, none allowlisted).
+- Skill drift: SKILL.md and all 13 resource files are `cmp`-identical to origin/dev at the resolved symlink target. The controller's first per-file check printed DIFF for all 13 because its `git show` path dropped `resources/`. A size comparison exposed that instrument bug, and the corrected `cmp` was paired with a negative control.
+- Gate-1 base `96d69f05b6e84bd6666e8fa91ff948f803b67d92@2026-10-29T21:05:52Z`.
+- Dev CI on that base: `Build and Release` red in `Build ubuntu-latest`. Its job log shows `go: … verifying go.mod: … sum.golang.org/tile/…: stream error: … INTERNAL_ERROR`, a module-proxy network error, not a test. The other legs were fail-fast cancelled. `ailang-core-dev (ailang-multivac-deploy)` was red; CI was in progress. All of these are outside fleet scope.
+- Ledger valid, 32 rows, 17 OPEN. 37 tickets open. Codex is over its daily ration (`MISSION_OVER_RATION=codex`, probe rc 75), so the driver handed the planner to `opus` and the executor to `claude:claude-haiku-5-5`.
+
+**Reality check** (first-party, before routing):
+- The cited event is the stapledon fire ending 2026-09-29T00:52Z. Its pi session ends `"stopReason":"error",…,"errorMessage":"Provider finish_reason: error"`.
+- **Ghost.** #1391 (`7eaf9bece`, 07:24Z the same day) added the literal to `TRANSIENT_SIG` (`mission-control.sh:1160`). That is about 6.5 h after the event and 8 days before the ticket. The loop (`:2552-2600`) retries a match on the same rung: 3 attempts, 45 s/90 s backoff, `RUNTIME_QUOTA_SIG` checked first. The pi controller keeps one `--session-id` per fire, so a retry gets the resume prompt (`:2469-2480`).
+- pi 0.85.1 print mode writes the error with `console.error` and rc 1 (`print-mode.js:115-117`). The driver launches pi with `>>"$LOG" 2>&1`.
+- The gap: the only test was a membership grep (`test_driver_notify.sh` case 13). Nothing ran the seam. There is no live positive either: 0 `transient API error` lines in the rotated logs and 0 `RETRIED` slot verdicts. That is uninformative, because pi controllers since #1391 have mostly paused for capacity.
+- `stall:watchdog:slow-on-hung-tool` (the next ticket) was checked but not picked. Ask 1 is built by #1391: `controller-bash-cap.ts` clamps every pi bash call to 540 s and is loaded with `-e`. Ask 2, a shorter threshold, changes values that D-FLEET-4 and -7 fixed. Since #1391 there has been one pi-controller KILLED verdict, the ticket's own 10-04 event, and no recurrence.
+
+**Did** (designer skipped; planner, executor and two evaluator rounds spawned; generator ≠ judge):
+- **Designer**: not spawned. This was a mechanical test addition with no doc, and the rotation pointer was not advanced.
+- **Planner**: `opus`, Agent tool, foreground. Resolver `agent-tool opus fail-closed:env-pin`. It wrote [the plan](planned/sprint-plan-pi-provider-error-retry-seam.md) as one milestone, prototyped it in `/tmp`, and caught a controller error: pi names its session folder from the physical cwd (`session-manager.js:242-246`), while `$TMPDIR` is a symlink. A pi-faithful fake would therefore fail on the untouched driver unless the lab root uses `pwd -P`; its row C1 proves that. It also added `MISSION_TRANSIENT_RETRIES` to the suite's `unset` list.
+- **Executor**: `claude:claude-haiku-5-5` through `claude-sub` (probe rc 0), `--output-format json`, bounded at 45 min, finished in 567 s. Commits `5297efa73` (test and changelog) and `5d5d5850f` (plan execution notes).
+  - The fake pi now parses `--session-id` and `-p`, writes a pi-shaped session file under a lab `PI_CODING_AGENT_DIR` (and refuses to run without it), and can emit on stderr.
+  - The new case is `provider-finish-reason-error-retries-and-resumes`. Suite 16/16; `make test-launchd-drivers` rc 0 (52).
+  - M1–M5, F1 and C1 all went red; F2 survived, as tabled. Its one deviation was quoting `done` for SC1010.
+- **Controller verification**: re-ran the suite (16/0), then ran M2 (`2>&1` dropped) on a scratch driver: 15 pass, 1 fail, and the new case is the only killer.
+- **Evaluator round 1**: `sonnet`, Agent tool, fresh detached judge worktree `.wt-fleet-iter70-judge`. **PASS 88**, 0 blocking.
+  - It confirmed the ghost first-party, including `mapStopReason` in pi-ai and the absence of any `MISSION_TRANSIENT_RETRIES` override.
+  - Strongest objection: T5b+M2 (fake ignores the stderr selector, driver drops `2>&1`) passed 16/16, so the stderr half was undefended.
+- **Controller fix**, `2c456d263`: the fake records its stream in `pi.stream`, and the case asserts attempt 1 used stderr. T5a, T5b and T5b+M2 each went red on that assertion only; `cmp` restore ok.
+- **Evaluator round 2** (resumed): **PASS 91**. Stderr gap closed. A new LIE mutant (stdout labelled `stderr`) survives; accepted as a paired edit only real pi can refute. Still open, non-blocking: the backoff values and 3-attempt bound are unpinned, the changelog category, and the driver's logical session slug (latent).
+- **Done-gate** ([done-gate.md](fleet-mission-evidence/iteration70/done-gate.md)):
+  - World dry-runs (idle and armed; real HOME; `AILANG_WORKTREE_SWEEP=0`; `AILANG_DRIVER_PINNED=2c456d263`). Healthy: rc 0, `DRY RUN ok`, `lanes=DEGRADED(2)`, because codex is over ration. Degraded (`codex:bogus-model-i70`): rc 0, executor → `claude:claude-haiku-5-5`.
+  - The sweep log hash, the pin listing and the world pidfile were unchanged.
+  - `make test-launchd-drivers` on head: rc 0, 52 suites. shellcheck base 64 → head 70; all 6 added are SC2319.
+- **PR** [#2022](https://github.com/sunholo-data/ailang/pull/2022). The closing-keyword scan found 0 matches; the control fired.
+
+**Gate 3b**: PR head `2c456d263`: 27 checks terminal, 20 success and 7 skipped, 0 failures (SHA-pinned poll on the full head; MERGEABLE/CLEAN). Merged with `--merge --match-head-commit` → `52e8958f0013d08ac4e5f4271b1f8a01d48f6b8e`. Exact merge: `CI [push]` success and `Build and Release [push]` success (all four Build legs green, including both macOS legs); required `test`, `lint`, `build`, `checks`, `launchd drivers (bash 3.2)`, `test-windows`, `govulncheck` and SonarCloud green. The only red is `ailang-core-dev (ailang-multivac-deploy)` (Cloud Build, outside fleet scope), red on the parent `96d69f05b` as well. The first merge poller's ≥20-check floor could not be met by this commit's 18 checks; it was killed as superseded, and the verdict comes from a direct read of the check set plus `actions/runs?head_sha=` (2 runs, both success).
+
+**Resolved**: `pi:provider-error:no-retry` `--sha 52e8958f0013d08ac4e5f4271b1f8a01d48f6b8e`. The resolution text cites #1391 `7eaf9bece` as the mechanism and this merge as test-only, and names the residual: `network_error`/`content_filter` finish reasons do not match the literal (policy class). Turnaround about 22 d (10-07 18:58Z → 10-29). 37 → 36 open.
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET: this closure took about 22 d, and no in-scope ticket is inside the 48h window. Clause 3 MET (36 open). Clause 4: prior evidence only. Clause 5 preserved.
+
+**Routing evidence**: Gate-1 base `96d69f05b6e84bd6666e8fa91ff948f803b67d92@2026-10-29T21:05:52Z`; worktree base the same (no drift); merge `52e8958f0`. Routing note: `lanes degraded: planner and executor codex gpt-6.1-sol unusable (probe rc=75, over daily ration) → opus / claude:claude-haiku-5-5`.
+- Controller `claude:claude-opus-5-5` (tok: not reported).
+- Designer: not spawned (mechanical; no doc); rotation pointer not advanced.
+- Planner `opus`, Agent tool (118,661 subagent tokens / 31 tool uses / 398 s). Resolver `agent-tool opus fail-closed:env-pin`; `derive-planner-lane.sh` gave `opus fail-closed:env-pin`.
+- Executor `claude:claude-haiku-5-5` via `claude-sub -p --output-format json`: 48 input + 87,822 cache-write + 1,955,877 cache-read + 27,045 output tokens, 28 turns, 567 s, rc 0. It reported `total_cost_usd` 0.066 on the subscription, which is not metered spend.
+- Evaluator `sonnet`, Agent tool: round 1 89,270 subagent tokens / 25 tool uses / 633 s; round 2 94,131 / 2 / 101 s. Judge independence: a different model from both the planner (opus) and the executor (haiku). Same vendor, so vendor-level independence is not claimed.
+- Dry-run probes (two world dry-runs) used the driver's own lane probes. Quorum: none (no design doc). Metered spend: $0. No lane recorded dead (codex is over ration, not dead).
+
+**Ruled out**:
+- A driver change of any kind. The mechanism exists; widening `TRANSIENT_SIG` to `network_error`/`content_filter` is policy class (HD-2a, compare D-FLEET-26).
+- Taking `stall:watchdog:slow-on-hung-tool` as a second item. This pick shipped code, so the bookkeeping-only second-item carve-out does not apply. It goes next.
+- The controller's first per-file skill-drift reading ("all 13 DIFF"): an instrument bug (a dropped `resources/` path segment), not drift.
+- Live retry evidence as a resolution criterion: none exists, and its absence is uninformative.
+
+**Retro lane**: none filed; no skill edit. Observations, not tickets:
+- (a) The drift-check loop in gate-1 is correct as written. The controller's hand-rolled variant dropped a path segment and read "all DIFF". This is the first instance; one friction does not meet the ≥2 rule.
+- (b) The planner's prototype-in-`/tmp` caught a controller premise error (logical vs physical session slug) before the executor spent a run. That is cheap and worth keeping for test-harness plans.
+- (c) The driver's `_mc_pi_session_exists` builds its slug from the logical `$REPO`, while pi uses the physical cwd. It is latent, since live workdirs are physical. A symlinked `MISSION_WORKDIR` would silently lose resume, and so would the pi arm of `_mc_progress_bytes`. Not filed: the fleet cannot file tickets for its own slot, and no loop has hit it.
+
+Last 3 code landings: iteration 68, none (about 20 d); iteration 69, none (about 22 d); iteration 70, none (about 22 d). No drift alarm: no routable UNMET-clause row exists, because the only in-window ticket is out of scope.
+
+**Next**: no in-scope ticket is inside the 48h window. `stall:watchdog:slow-on-hung-tool` (stapledon, 10-07): ask 1 is a ghost of #1391; ask 2 (shorter threshold) conflicts with D-FLEET-4/-7 and needs a decision row with a recommendation. Then `skills:showcase-feature-discoverability` (needs a design) and `pi:openrouter:uncapped-max-tokens-402` (scope check: provisioning is outside `cmd/ailang/mission*`).

@@ -12,7 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
-| 66 | 2026-10-28 | `gate5:controlplane-send-refused-local-store` LANDED — #1994 → `d95ead6af`, judged PASS 91 (round 2) by an independent sonnet evaluator; `pi:unowned-d... |
+| 67 | 2026-10-28 | `pin-root:worktree-removed-mid-fire` LANDED — #1999 → `17ec65d68`, judged PASS 88 by an independent sonnet evaluator; the cause was fleet iteration... |
+| 66 | 2026-10-28 | `gate5:controlplane-send-refused-local-store` LANDED — #1994 → `d95ead6af`, judged PASS 91 (round 2) by an independent sonnet evaluator; `pi:unowne... |
 | 65 | 2026-10-28 | planner-lane fence parsing LANDED — #1977 → `7c5cc5d33`, judged PASS 90 (round 2) by an independent sonnet evaluator; two duplicate tickets resolve... |
 | 64 | 2026-10-28 | `gate5:controlplane-assert-marks-read` LANDED — #1975 → `8f8294c4e`, judged PASS 91 (round 2) by an independent sonnet evaluator; ticket resolved i... |
 | 63 | 2026-10-27 | dev's required-check red repaired — the sprint-evaluator `.agents` mirror re-synced, #1972 → `6094d2b33`, judged PASS 94 by an independent sonnet e... |
