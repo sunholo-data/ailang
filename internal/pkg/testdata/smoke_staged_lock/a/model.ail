@@ -1,0 +1,3 @@
+module test/a/model
+-- Cross-process fixture: source/asset/lock assertions live in Go tests.
+export pure func ping() -> int = 1

@@ -72,7 +72,7 @@ func RunSmokeInTempDir(packageDir, ailangBin string, timeout time.Duration) (*Sm
 	}
 	defer os.RemoveAll(tmpDir)
 
-	if err := copyPackageContents(packageDir, tmpDir); err != nil {
+	if err := stagePublishedPackage(packageDir, tmpDir); err != nil {
 		return nil, fmt.Errorf("failed to stage smoke workspace: %w", err)
 	}
 

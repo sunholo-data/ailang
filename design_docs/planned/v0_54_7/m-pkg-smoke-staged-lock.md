@@ -1,11 +1,11 @@
 # M-PKG-SMOKE-STAGED-LOCK: stage the *published* view (manifest + lock) for the temp-dir smoke
 
-**Status**: Design approved (2026-10-29); companion sprint planning authorized; implementation awaits explicit execute instruction
+**Status**: Design and exact companion sprint approved; implementation started under explicit execute instruction (2026-10-29 12:23UTC)
 **Target**: v0.56.0 (unreleased); original target v0.54.7 retained as history
 **Priority**: P1 (a smoke importing a dependency through a portable relative path lock fails isolated staging, blocking the documented monorepo publishing workflow)
 **Estimated**: Historical ~1.5–2 days (~450 LOC incl. tests); re-estimate only during approved sprint planning
 **Dependencies**: Preserve landed package-authority D2 (#1720/#1964) and locked asset snapshots (#1849)
-**Companion plan**: [proposed v0.56.0 sprint plan](../v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md) — execution not authorized
+**Companion plan**: [proposed v0.56.0 sprint plan](../v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md) — execution approved at2026-10-29 12:23UTC
 **Author**: design-doc-creator session (task-98f9f628), from the v0.54.5 user report (macOS arm64, commit 296231d)
 
 ---
@@ -17,9 +17,9 @@ The attended user explicitly approved this refreshed design, relayed by root on
 2026-10-29 (approval recorded at 11:57:17 UTC). The approval covers existing D2
 compatibility, staged asset consistency and diagnostic propagation as preservation
 of approved policies; no new authority or precedence choice was introduced.
-Companion sprint planning is authorized. Implementation, publication, coordinator
-approval/actions and execution handoff remain unauthorized until the user gives
-an explicit execute instruction. This record does not revive the historical
+The user later explicitly approved execution of companion plan commit0c3e8f406
+at2026-10-29 12:23UTC, relayed by root. Live publication and coordinator
+approval/actions remain unauthorized. This record does not revive the historical
 coordinator task or infer execution approval from the old merged design PR.
 
 The original design was delivered by task `task-98f9f628` through merged

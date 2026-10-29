@@ -9,8 +9,8 @@ and warning-only root-path shadowing. Surface bounded, useful PUB015 diagnostics
 - Design: [existing approved design](../v0_54_7/m-pkg-smoke-staged-lock.md).
 - Design approval: attended user explicitly approved the refreshed design on
   2026-10-29, relayed by root; approval was recorded at 11:57:17 UTC.
-- This companion plan is **proposed for review**. `execution_authorized=false`.
-  **STOP before product edits until the user explicitly says execute.** No
+- This exact plan at `0c3e8f406` was **explicitly accepted for execution** by the
+  attended user, relayed by root at2026-10-29 12:23UTC. `execution_authorized=true`. No
   coordinator task, message import/ack, cloud approval or executor dispatch is
   part of planning. Commit/push/merge of a coordinator carrier is not substituted
   for the attended execute instruction.
@@ -25,7 +25,8 @@ and warning-only root-path shadowing. Surface bounded, useful PUB015 diagnostics
 
 ## Current status and planning basis
 
-No implementation milestone has started. Current `RunSmokeInTempDir` copies the
+Execution started under the recorded approval; milestone acceptance remains
+unpassed until verified. The initial baseline `RunSmokeInTempDir` copies the
 relative author lock; quality discards process output and staging `rErr`. Root
 path B can be shadowed by transitive registry B without a warning. Existing host
 APIs already supply D2 carry-forward and per-compilation asset targets.
@@ -114,28 +115,34 @@ Estimate: 100 implementation/moved lines + 160 test/fixture lines.
 
 Acceptance:
 
-- [ ] Same-version local B and registry B have distinct module **and asset** bytes.
+- [x] Same-version local B and registry B have distinct module **and asset** bytes.
   Direct real `RunSmokeInTempDir`, real `pkg quality --json` and real
   `publish --dry-run` select registry markers. Helper inspection proves registry
   source and registry content/interface hashes in the newly saved staged lock.
-- [ ] Staged self/root assets resolve inside stage; dependency code+assets use
+- [x] Staged self/root assets resolve inside stage; dependency code+assets use
   one target; another cached version cannot rescue a missing locked target.
-- [ ] Author manifest/lock/content snapshots are unchanged after every path,
+- [x] Author manifest/lock/content snapshots are unchanged after every path,
   including publish's existing save/restore; rewriting already-registry manifest
   is idempotent, and whitespace variants from existing publish tests remain valid.
-- [ ] Valid prior git pins under both confinement and PACKAGE_ROOT pass without
+- [x] Valid prior git pins under both confinement and PACKAGE_ROOT pass without
   git/HTTP/home writes. Nil, malformed, changed and tampered prior cases refuse;
   use existing D2 fixtures and no-git PATH instrumentation, not shell shortcuts.
   These assertions cover stage assembly/resolution; the child's existing runtime
   capability/FS-sandbox policy still applies and may refuse execution as before.
-- [ ] Registry missing-version, missing-provision and forbidden-fetch cases fail
+- [x] Registry missing-version, missing-provision and forbidden-fetch cases fail
   before child execution and preserve actual authority/remedy, without raw-lock
   fallback. No-dependency/registry-only controls remain valid.
-- [ ] Rewritten quality JSON parses; publish progress still belongs to the CLI.
+- [x] Rewritten quality JSON parses; publish progress still belongs to the CLI.
 
 Checkpoint: targeted `go test ./internal/pkg ./cmd/ailang -run
 'TestRewritePathDeps|TestSmokeStage|TestRunSmokeInTempDir|TestPkgSmokeStaging|TestResolveGitConfined|TestGitPackageRoot' -count=1`, lint and boundaries. Rebuild
 with `make build` before tests that discover the real binary; pair its own stdlib.
+
+M1 checkpoint: PASS (2026-10-29). Real registry source/asset markers and author
+input snapshots pass; D2 stage carry-forward/malformed/missing controls pass;
+quality JSON and dry-run have no upload POST. Existing smoke/whitespace and
+authority controls pass without skips; lint0/boundaries/sizes/fmt pass. Logs
+`1773-M1-*` retain failing-first and final real-binary evidence.
 
 ## M2_BOUNDED_SMOKE_DIAGNOSTICS — 205 lines, 60–75 minutes
 

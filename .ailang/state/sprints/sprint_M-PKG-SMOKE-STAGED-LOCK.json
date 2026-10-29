@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-PKG-SMOKE-STAGED-LOCK",
   "title": "Stage published smoke manifest and registry lock while preserving D2 and bounded diagnostics",
-  "status": "planned",
+  "status": "in_progress",
   "design_doc": "design_docs/planned/v0_54_7/m-pkg-smoke-staged-lock.md",
   "sprint_plan": "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md",
   "target_version": "v0.56.0",
@@ -19,9 +19,9 @@
     "recorded_at": "2026-10-29T11:57:17Z",
     "scope": "Refreshed existing design; preserves already-approved D2/assets/diagnostics policy, no new authority or precedence choice"
   },
-  "plan_approval": "pending root/user review",
-  "execution_authorized": false,
-  "implementation_started": false,
+  "plan_approval": "Approved explicitly with execute sprint instruction relayed by root at2026-10-29T12:23Z",
+  "execution_authorized": true,
+  "implementation_started": true,
   "independent_evaluation": "not started; required after executor, no self-score",
   "velocity": {
     "target_loc_per_day": 340,
@@ -74,10 +74,10 @@
         75,
         90
       ],
-      "passes": false,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T12:23:00Z",
+      "completed": "2026-10-29T12:42:43.686681+00:00",
+      "notes": "M1 red reproduced relative copied-lock/PUB015-only failure after correcting fixture string interpolation; real smoke selects distinct registry module+asset bytes, self asset copied. Registry lock hashes and author manifest/lock/content snapshots verified. Valid confined/root git pins carry forward with no git in PATH and unchanged HOME; missing/changed/tampered/malformed pins and missing exact registry version refuse. Published quality JSON and dry-run pass with zero POST; existing smoke/whitespace/D2 controls pass, no skips. Lint0, boundaries, sizes, fmt PASS. Raw 1773-M1-* logs retained."
     },
     {
       "id": "M2_BOUNDED_SMOKE_DIAGNOSTICS",
@@ -176,5 +176,11 @@
     "original_design_pr": "https://github.com/sunholo-data/ailang/pull/1775 (merged design artifact)",
     "owner_search": "Current open PRs and16 active prod tasks no staging owner at review snapshot; historical page limited1000 rows; attended planner now assigned manually",
     "pending_root_audit": "da3e5d54c not integrated; asset design link update after actual audit merge"
+  },
+  "execution_approval": {
+    "source": "Attended user explicitly execute sprint #1773, relayed by root",
+    "at": "2026-10-29T12:23:00Z",
+    "accepted_plan_commit": "0c3e8f406a8a1476efb4e921c0738f269dbb3e38",
+    "scope": "All four approved milestones, sequential checkpoint commits; no live publication, coordinator actions or unapproved semantics"
   }
 }

@@ -1,0 +1,3 @@
+module test/b/model
+-- Paired same-version fixture; external Go tests discriminate the returned bytes.
+export pure func marker() -> string = "REGISTRY_SOURCE"

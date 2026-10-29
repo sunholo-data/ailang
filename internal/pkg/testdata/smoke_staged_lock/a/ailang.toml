@@ -1,0 +1,12 @@
+[package]
+name = "test/a"
+version = "0.1.0"
+edition = "1"
+[exports]
+modules = ["test/a/model"]
+[dependencies]
+"test/b" = {path = "../b"}
+[effects]
+max = ["IO", "FS"]
+[assets]
+files = ["self.txt"]
