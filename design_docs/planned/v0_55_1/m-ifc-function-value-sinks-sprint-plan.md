@@ -30,36 +30,36 @@ Original ruled design estimates five days. This draft budgets six working days i
 
 **ID:** `M1_CALLABLE_DOMAIN`. **Dependencies:** None
 
-- [ ] Callable demand projection stays in the IFC abstract domain; no HM, CoreTI, parser, codegen or iface change.
-- [ ] Forbidden labels are sorted/deduplicated sets; callable join unions forbids and meets positive covers, with hasCover preserving absence versus bottom.
-- [ ] Algebra tests prove deterministic, commutative, associative, idempotent joins and non-weakening requirements; written function types and function literals seed demands without changing walkType.
+- [x] Callable demand projection stays in the IFC abstract domain; no HM, CoreTI, parser, codegen or iface change.
+- [x] Forbidden labels are sorted/deduplicated sets; callable join unions forbids and meets positive covers, with hasCover preserving absence versus bottom.
+- [x] Algebra tests prove deterministic, commutative, associative, idempotent joins and non-weakening requirements; written function types and function literals seed demands without changing walkType.
 
 ### M2: Propagate callable values and check every application (~240 LOC)
 
 **ID:** `M2_VALUE_APPLICATION`. **Dependencies:** M1_CALLABLE_DOMAIN
 
-- [ ] Lexical env resolves before local declarations; N4 shadowing remains clean. References alone never discharge demands (N6).
-- [ ] Carry callable values through let/letrec/block, if/match joins, record/update/access, list/array/tuple/ADT and pattern bindings; include local resultCallable and unknown-call argument-callable joins.
-- [ ] Checks A/C use the callee expression callable at every application while preserving existing local return-label, declared label hand-off, closure-capture and declassification behavior.
-- [ ] R0-R1, R3-R9, R14, C0-C1, N1 and N4-N6 focused cases pass at this checkpoint (R2 is completed with applied summaries in M3); R0/C0 kind and source position unchanged.
+- [x] Lexical env resolves before local declarations; N4 shadowing remains clean. References alone never discharge demands (N6).
+- [x] Carry callable values through let/letrec/block, if/match joins, record/update/access, list/array/tuple/ADT and pattern bindings; include local resultCallable and unknown-call argument-callable joins.
+- [x] Checks A/C use the callee expression callable at every application while preserving existing local return-label, declared label hand-off, closure-capture and declassification behavior.
+- [x] R0-R1, R3-R9, R14, C0-C1, N1 and N4-N6 focused cases pass at this checkpoint (R2 is completed with applied summaries in M3); R0/C0 kind and source position unchanged.
 
 ### M3: Applied-at summaries with actual-label substitution (~220 LOC)
 
 **ID:** `M3_APPLIED_SUMMARIES`. **Dependencies:** M2_VALUE_APPLICATION
 
-- [ ] Silent local summary pass seeds formal label variables and accumulates per-parameter applied labels transitively; call sites substitute actual labels.
-- [ ] Summarized HOF calls distinguish clean and tainted actuals, including intrinsic tainted data produced inside HOF bodies.
-- [ ] Only unsummarized callees use the ruled conservative argument-label join fallback; R2/R10/C2 reject and N2/N3 remain accepted.
+- [x] Silent local summary pass seeds formal label variables and accumulates per-parameter applied labels transitively; call sites substitute actual labels.
+- [x] Summarized HOF calls distinguish clean and tainted actuals, including intrinsic tainted data produced inside HOF bodies.
+- [x] Only unsummarized callees use the ruled conservative argument-label join fallback; R2/R10/C2 reject and N2/N3 remain accepted.
 
 ### M4: Infer wrapper demands and converge recursively (~250 LOC)
 
 **ID:** `M4_WRAPPER_INFERENCE`. **Dependencies:** M3_APPLIED_SUMMARIES
 
-- [ ] Infer demands for declarations, lambdas and function literals, including written guarded HOF parameters; R11-R13 reject.
-- [ ] Fixed point over the finite written-label lattice handles mutual recursion, declaration order and cycles without silently dropping demands.
-- [ ] Erase summary-only label variables before effectiveBodyLabel, emitted diagnostics or any outward result; explicit tests assert no labelVar escape.
-- [ ] X1 inferred wrapper forbidding both email and secret rejects either tainted argument, keeps a clean argument accepted, and retains both sorted forbids.
-- [ ] M1-M4 are one indivisible release unit; no partial shipping or closure of #1719 before wrapper cases pass.
+- [x] Infer demands for declarations, lambdas and function literals, including written guarded HOF parameters; R11-R13 reject.
+- [x] Fixed point over the finite written-label lattice handles mutual recursion, declaration order and cycles without silently dropping demands.
+- [x] Erase summary-only label variables before effectiveBodyLabel, emitted diagnostics or any outward result; explicit tests assert no labelVar escape.
+- [x] X1 inferred wrapper forbidding both email and secret rejects either tainted argument, keeps a clean argument accepted, and retains both sorted forbids.
+- [x] M1-M4 are one indivisible release unit; no partial shipping or closure of #1719 before wrapper cases pass.
 
 ### M5: Pin CLI, REPL and mutation regression evidence (~310 LOC)
 

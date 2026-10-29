@@ -29,10 +29,10 @@
         "Forbidden labels are sorted/deduplicated sets; callable join unions forbids and meets positive covers, with hasCover preserving absence versus bottom.",
         "Algebra tests prove deterministic, commutative, associative, idempotent joins and non-weakening requirements; written function types and function literals seed demands without changing walkType."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T08:38:19.858602+00:00",
+      "notes": "Callable alternatives preserve every forbidden-label set and meet positive covers as a conjunction (nil=absent, explicit bottom retained). Canonical forbidden labels, algebra/order tests x20 and finite alias40 regression pass. No HM/CoreTI/iface change."
     },
     {
       "id": "M2_VALUE_APPLICATION",
@@ -47,10 +47,10 @@
         "Checks A/C use the callee expression callable at every application while preserving existing local return-label, declared label hand-off, closure-capture and declassification behavior.",
         "R0-R1, R3-R9, R14, C0-C1, N1 and N4-N6 focused cases pass at this checkpoint (R2 is completed with applied summaries in M3); R0/C0 kind and source position unchanged."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T08:38:19.858602+00:00",
+      "notes": "Value lookup/propagation recovered from committed 3dd7b89fd and audited against current dev; lexical shadow/no-application controls, every named matrix case and unchanged direct message/positions pass. Concrete diagnostic seeding restored to approved pre-summary behavior."
     },
     {
       "id": "M3_APPLIED_SUMMARIES",
@@ -64,10 +64,10 @@
         "Summarized HOF calls distinguish clean and tainted actuals, including intrinsic tainted data produced inside HOF bodies.",
         "Only unsummarized callees use the ruled conservative argument-label join fallback; R2/R10/C2 reject and N2/N3 remain accepted."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T08:38:19.858602+00:00",
+      "notes": "Applied-at deferred applications substitute actual labels and callback values, retain HOF intrinsic taint, and preserve clean HOF controls. Probe result cutoff3 removed; depths4/12/40 reject leaks and accept clean controls. Applied-at scratch mutation kills R2/R10/C2."
     },
     {
       "id": "M4_WRAPPER_INFERENCE",
@@ -83,10 +83,10 @@
         "X1 inferred wrapper forbidding both email and secret rejects either tainted argument, keeps a clean argument accepted, and retains both sorted forbids.",
         "M1-M4 are one indivisible release unit; no partial shipping or closure of #1719 before wrapper cases pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T08:38:19.858602+00:00",
+      "notes": "Named/lambda/function-literal wrapper inference, mutual recursion and multi-forbid X1 pass. Replay cutoff32 and bounded summary rounds removed; equality fixed point and repeated-state cycle handling retain reachable demands. Typed defensive limits yield ordinary ifc_analysis_limit, unrelated panics propagate. Inference mutation kills R12/R13 plus nonredundant R11b."
     },
     {
       "id": "M5_REGRESSION_MATRIX",
@@ -206,5 +206,11 @@
     "head": "37a8e8f4f",
     "dirty_work_imported": false,
     "authorization": "Parent confirmed reuse of committed source under approved #1719 design/sprint."
+  },
+  "implementation_notes": {
+    "recovered_source": "3dd7b89fd (committed source only)",
+    "domain_representation": "Callable alternative union implements requirement join. Positive cover conjunction is the meet, preserving absence versus explicit bottom; no semantic change from ruled design.",
+    "defensive_limits": "Depth1000/work1000000 fail closed with ordinary diagnostic, never accept partial analysis.",
+    "unannotated_analysis": "Skip symbolic demand summaries only after conservative AST requirement scan; retain original concrete label/Check B walk. Fixed raw corpus2625files/0deltas."
   }
 }
