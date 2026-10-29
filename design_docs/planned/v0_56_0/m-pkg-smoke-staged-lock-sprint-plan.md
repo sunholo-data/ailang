@@ -218,17 +218,22 @@ successful existing resolve/save in `pkg_commands.go`. Estimate: 30 implementati
 
 Acceptance:
 
-- [ ] Consumer root path A/B, A registry-pins same-version B: actual CLI lock exits
+- [x] Consumer root path A/B, A registry-pins same-version B: actual CLI lock exits
   0, writes identical resolved B source/version/hash/path data, then warns on
   stderr that local B was not selected. Version conflicts still fail unchanged.
-- [ ] Actual non-path source appears in warning (registry or git); no false
+- [x] Actual non-path source appears in warning (registry or git); no false
   registry wording for git. Direct path-selected B and unrelated deps do not warn.
-- [ ] No re-resolution, network request, new lock write, precedence/visitation or
+- [x] No re-resolution, network request, new lock write, precedence/visitation or
   exit-code change is introduced by warning. `--check` retains existing drift
   behavior; this optional extra warning is deferred.
 
 Checkpoint: focused warning/lock/path-resolution tests and lint; compare lock
 semantics excluding existing generation metadata, not a new timestamp policy.
+
+M3 checkpoint: PASS. Actual CLI warns only for discarded local path intent;
+lock semantics, conflict handling and unsuccessful-write behavior are unchanged.
+Actual registry/git names and nonmutation controls pass; CLI22.586s and
+lint0/boundaries/sizes/fmt pass. Logs `1773-M3-*` preserve red/green evidence.
 
 ## M4_INTEGRATION_DOCS_HANDOFF — 110 lines, 60–90 minutes
 

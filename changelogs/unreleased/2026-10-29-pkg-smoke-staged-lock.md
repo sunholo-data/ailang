@@ -8,3 +8,7 @@
 - Failed package smoke reports now retain staging/setup errors, the first useful
   process diagnostic and timeout context in bounded human/JSON PUB015 Notes,
   including long and non-ASCII output. Deliberate `--no-run` stays distinct.
+
+- `ailang lock` warns when a transitive registry or git resolution shadows a root
+  path dependency. Dependency selection, versions, lock data and exit codes stay
+  unchanged.

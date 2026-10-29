@@ -98,7 +98,7 @@
         75
       ],
       "passes": true,
-      "started": "2026-10-29T12:45:00Z",
+      "started": "2026-10-29T12:45:14.340495+00:00",
       "completed": "2026-10-29T12:53:39.433631+00:00",
       "notes": "M2 red captured lost first diagnostic,8236-byte overflow/invalidUTF8 and discarded staging rErr/real child/timeout Notes. Green selects explicit diagnostics before noise/trace, preserves canonical setup/start errors, parser errors and timeout context; uses existing TruncateBytes with valid UTF8 and reserved prefixes/markers for8192-byte result/2048-byte Notes. Actual quality JSON/finding and no-run pass; targeted pkg38.114s/CLI34.741s, lint0/boundaries/sizes/fmt PASS. Existing timer/proctree/schema/authority behavior unchanged. Raw1773-M2-* logs retained."
     },
@@ -119,10 +119,10 @@
         45,
         60
       ],
-      "passes": false,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T12:56:19.486724+00:00",
+      "completed": "2026-10-29T13:00:58.883693+00:00",
+      "notes": "Real CLI red showed silent same-version root path shadow. Green warns on stderr after successful save, preserves exact LockDrift/source/version/hash/path and conflict/no-write/nonzero behavior; direct path stays quiet. Unit actual registry/git sources and unchanged input arrays verified. No re-resolution, new network request, --check change or precedence/exit change. Focused CLI22.586s, lint0/boundaries/sizes/fmt PASS. Raw1773-M3-* logs retained."
     },
     {
       "id": "M4_INTEGRATION_DOCS_HANDOFF",
