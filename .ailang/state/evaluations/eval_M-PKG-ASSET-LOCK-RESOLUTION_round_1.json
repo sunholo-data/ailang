@@ -1,0 +1,111 @@
+{
+  "sprint_id": "M-PKG-ASSET-LOCK-RESOLUTION",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-16T09:09:15.053756+00:00",
+  "design_doc": "design_docs/planned/v0_54_7/m-pkg-asset-lock-resolution.md",
+  "sprint_plan": "design_docs/planned/v0_54_7/m-pkg-asset-lock-resolution-sprint-plan.md",
+  "total_score": 51,
+  "pass_threshold": 70,
+  "result": "fail",
+  "score_breakdown": {
+    "tests_pass": 0,
+    "lint_clean": 0,
+    "acceptance_criteria": 23,
+    "code_quality": 8,
+    "documentation": 10,
+    "design_fidelity": 10
+  },
+  "regression_surface_coverage": {
+    "score": 7,
+    "maximum": 10,
+    "notes": "Substantive Conflict Surface analysis and existing nil-context/sandbox fixtures retained; focused integration reads actual locked bytes. No corpus differential supplied."
+  },
+  "hard_fails": [
+    {
+      "condition": "tests_not_green",
+      "details": "Unfiltered changed-package gate fails on baseline process-lifecycle test and pipeline process termination. Filtered serialized gate excludes only the independently reproduced baseline failure but pipeline is still killed. No successful full-suite CI or make test result supplied. No asset-resolution implementation defect found."
+    }
+  ],
+  "automated_checks": {
+    "tests_pass": false,
+    "gate_source": "local",
+    "tests_output": "/tmp/pkg-assets-test-changed-final.log",
+    "unfiltered_tests_output": "/tmp/pkg-assets-test-changed.log",
+    "baseline_failure_output": "/tmp/pkg-assets-baseline-process.log",
+    "focused_tests_output": "/tmp/pkg-assets-integration.log",
+    "lint_clean": false,
+    "lint_output": "/tmp/pkg-assets-lint.log",
+    "file_sizes_ok": true,
+    "coverage_pct": null,
+    "todo_hack_count": 0,
+    "lint_result": "Timed out with exit 4 after reporting 0 issues; not a successful lint gate.",
+    "focused_lint_clean": true,
+    "focused_lint_output": "/tmp/pkg-assets-focused-lint.log",
+    "focused_lint_scope": "All 8 touched packages; completed successfully with 0 issues."
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "met": true,
+      "evidence": "Lock precedence, unresolved targets, semver compatibility and context clones covered by effects tests; full gate limitation applies."
+    },
+    {
+      "feature_id": "M2",
+      "met": true,
+      "evidence": "Loader target/accessor and source-anchored pipeline fixtures pass focused testing; broad pipeline suite killed by resource limit."
+    },
+    {
+      "feature_id": "M3",
+      "met": true,
+      "evidence": "Runner, batch, embed and API fixtures read older locked bytes; engine isolation and malformed/missing lock cases covered."
+    },
+    {
+      "feature_id": "M4",
+      "met": false,
+      "evidence": "Documentation, changelog, examples, stdlib, formatting, boundary, closure and size gates pass; broad tests fail and full lint times out.; focused lint on all touched packages passes."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": false,
+    "existing_example_verified": true,
+    "examples_notes": "Approved sprint intentionally reuses asset_path.ail and adds generated integration fixtures; full example credit awarded.",
+    "design_doc_status": "Planned; not moved because evaluation did not pass"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Uses immutable injected target maps, existing PackageLoader.packageDir, lock-first resolution and deterministic compatibility-semver fallback without effects importing pkg. Missing locked targets cannot fall through. Engine-scoped discovery and delayed error propagation preserve API shape."
+  },
+  "feedback": [
+    {
+      "file": "internal/pipeline",
+      "category": "validation",
+      "issue": "Broad pipeline test process killed despite bounded serialized retry.",
+      "suggestion": "Obtain successful pipeline/full-suite CI on adequately provisioned runner; do not claim filtered run is unfiltered green.",
+      "severity": "high"
+    },
+    {
+      "file": "internal/effects/process_runtime_lifetime_test.go",
+      "line": 323,
+      "category": "validation",
+      "issue": "TestRuntimeNestedStopUsesRemainingDeadline fails on unchanged starting commit 3af754c4 as well as this implementation.",
+      "suggestion": "Track baseline process-lifecycle failure separately; full gate remains red until independently resolved or explicitly waived by responsible reviewer.",
+      "severity": "medium"
+    },
+    {
+      "file": ".ailang/state/sprints/sprint_M-PKG-ASSET-LOCK-RESOLUTION.json",
+      "category": "artifacts",
+      "issue": "M4/final status incomplete because validation gates remain unresolved.",
+      "suggestion": "Record actual final gate results and preserve incomplete status for unresolved acceptance criteria.",
+      "severity": "low"
+    },
+    {
+      "file": "/tmp/pkg-assets-lint.log",
+      "category": "validation",
+      "issue": "Full lint reports 0 issues but times out with exit code 4.",
+      "suggestion": "Obtain a completed lint gate on adequately provisioned runner or with appropriate timeout.",
+      "severity": "medium"
+    }
+  ],
+  "notes": "Independent read-only implementation review plus executor gate logs. Initial new API test isolation failure was fixed with explicit empty AILANG_STDLIB_PATH in shared fixture; subsequent whole API package passed. No runtime code defect remains identified. Score applies strict evaluator gate policy: no test credit without green broad gate; no lint credit without completed result; M4 incomplete costs criterion/artifact/status points. Code quality deducts 2 for pkgAssetPath exceeding 50 lines and 5 for incomplete sprint artifacts. Full lint subsequently reported 0 issues but timed out with exit 4; it did not pass. Final filtered test-changed run exited 1 with all listed packages except pipeline passing; pipeline was killed. Implementation completion and evaluation approval are separate. Focused golangci-lint on all eight touched packages completed successfully with 0 issues. Full-lint rubric credit remains zero because its required whole-repository gate timed out. Executor records implementation_complete=true with sprint status in_progress/M4 passes=false for incomplete broad verification."
+}
