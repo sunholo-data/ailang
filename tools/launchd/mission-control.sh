@@ -2467,10 +2467,17 @@ _mc_run_once() {
     # creates a missing one).
     _mc_pi_prompt="$PROMPT"
     _mc_pi_session_exists "$MC_PI_SESSION_ID" && _mc_pi_prompt="$MC_PI_RESUME_PROMPT"
+    # Controller-only protocol note (ticket gate0:session-protocol-deadlock:agent-policy-unset):
+    # sent as --append-system-prompt AND as the first lines of -p. lib/pi-controller-note.sh has the why.
+    # shellcheck source=/dev/null
+    . "$MC_DRIVER_ROOT/tools/launchd/lib/pi-controller-note.sh"
+    _mc_pi_note=$(_mc_pi_controller_note)
+    _mc_pi_prompt="$_mc_pi_note"$'\n\n'"$_mc_pi_prompt"
     # Each extension once (lib/pi-ext-args.sh): global + repo copies otherwise conflict.
     . "$MC_DRIVER_ROOT/tools/launchd/lib/pi-ext-args.sh"
     _mc_pi_ext=(); while IFS= read -r _l; do _mc_pi_ext+=("$_l"); done < <(_mc_pi_ext_args "$REPO")
-    ( cd "$REPO" && pi --model "$MODEL" ${_mc_pi_ext[@]+"${_mc_pi_ext[@]}"} -e "$MC_DRIVER_ROOT/tools/pi-extensions/controller-bash-cap.ts" --session-id "$MC_PI_SESSION_ID" -p "$_mc_pi_prompt" < /dev/null ) >>"$LOG" 2>&1 &
+    # The note's system-prompt copy (same ticket; the -p prefix above is the other copy).
+    ( cd "$REPO" && pi --model "$MODEL" ${_mc_pi_ext[@]+"${_mc_pi_ext[@]}"} -e "$MC_DRIVER_ROOT/tools/pi-extensions/controller-bash-cap.ts" --append-system-prompt "$_mc_pi_note" --session-id "$MC_PI_SESSION_ID" -p "$_mc_pi_prompt" < /dev/null ) >>"$LOG" 2>&1 &
   else
     claude -p "$PROMPT" \
       ${MC_CLAUDE_SESSION_ARGS[@]+"${MC_CLAUDE_SESSION_ARGS[@]}"} \
