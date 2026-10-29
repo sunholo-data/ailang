@@ -357,3 +357,7 @@ as an API red, not a legacy exploit reproduction. All subsequent Go commands
 use a private outer HOME/allowlisted environment so package TestMain startup
 also cannot inherit operator credential/export configuration. No fallback,
 default probe, AI-reader change or environment mutation.
+
+### M3 checkpoint — command/header boundary
+
+Actual built CLI functional RED for missing flag/warning is retained in `1900-execution/M3-cli-red.log`. Native affected GREEN27.296s and targeted lint0 cover both command spellings, unused help/dry-run file, authority-first credential selection, exactly one legacy inheritance warning, selected-value header and exact validator reflection redaction. A sandbox-only cache/listen failure is separately retained, followed by the same approved native run. Accepted #1773 staging controls pass. No live registry or real credential was used.

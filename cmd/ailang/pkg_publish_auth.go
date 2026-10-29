@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pkg"
@@ -44,4 +45,16 @@ func resolvePublishCredential(path string, selected, dry bool) (publishCredentia
 		return publishCredential{}, fmt.Errorf("publish requires --key-file or a per-command AILANG_REGISTRY_API_KEY")
 	}
 	return publishCredential{key: env, fromEnv: true}, nil
+}
+
+// Redact only an exact selected-key echo at the publish error boundary.
+func redactPublishError(err error, key string) error {
+	if err == nil || key == "" {
+		return err
+	}
+	safe := strings.ReplaceAll(err.Error(), key, "[REDACTED]")
+	if safe == err.Error() {
+		return err
+	}
+	return fmt.Errorf("%s", safe)
 }

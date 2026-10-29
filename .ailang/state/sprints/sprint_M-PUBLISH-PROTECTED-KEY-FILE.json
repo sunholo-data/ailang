@@ -165,11 +165,11 @@
         "Loopback header/status unit controls retain X-API-Key/validation behavior, reject missing key before request and redact exact dummy-key response echoes.",
         "Existing #1773 and authority-focused tests plus lint remain green."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-29T21:09:35.634899+00:00",
-      "completed": null,
-      "notes": null,
-      "status": "in_progress"
+      "completed": "2026-10-29T21:15:26.121737+00:00",
+      "notes": "Real CLI functional RED retained (missing flag and warning); M3 native GREEN27.296s covers both spellings, no-read help/dry-run, credential-first/refusal/warning, frozen header and exact reflected-key redaction, accepted #1773 staging regression. First green attempt was sandbox-denied cache/loopback only, retained; same native permission run passed. Targeted lint0. Upload receives explicit invocation-local key and refuses empty or confined requests before HTTP.",
+      "status": "completed"
     },
     {
       "id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
@@ -190,10 +190,10 @@
         "Focused real CLI/authority/#1773 regressions and lint pass, raw reds retained."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-29T21:15:26.121737+00:00",
       "completed": null,
       "notes": null,
-      "status": "not_started"
+      "status": "in_progress"
     },
     {
       "id": "M5_DOCS_GATES_AND_HANDOFF",
@@ -254,8 +254,8 @@
   },
   "prompt": {
     "loaded_version": "v0.16.11",
-    "source": "Full embedded prompt loaded during planning; active version queried",
-    "executor_must_reload": true
+    "source": "Full current execution-source go run prompt loaded in isolated environment before synthetic .ail fixture; prompt.log",
+    "executor_must_reload": false
   },
   "constraints": [
     "Approved plan/JSON banked at c9698d88e; explicit execute instruction received, but M0 external integration STOP remains binding",
@@ -281,7 +281,7 @@
     "approved_artifact_commit": "c9698d88e390d21139507a81f6ff7f64fc4a519a",
     "scope": "Execute #1900 M0-M5 only with approved #2013 dependency sequencing; no new D1-D7 approval needed after legitimate dependency release"
   },
-  "last_checkpoint": "M2 strict source/format selection passes isolated affected tests and lint; M3 command wiring begins",
+  "last_checkpoint": "M3 real command/header/error-boundary acceptance and lint pass; M4 raw child proof in progress",
   "execution_worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/publish-key-file-1900-exec",
   "execution_branch": "fix/publish-protected-key-file"
 }
