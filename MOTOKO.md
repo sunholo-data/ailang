@@ -329,7 +329,7 @@ staleness window, and the rotation yielded every slot. Cleared by hand; cause no
 
 ## 14. Approved #1958 compiler compatibility migration (2026-10-29)
 
-`docker/Dockerfile.agent-motoko` now pins **`af1d56513d3ae314bd831fd149c7b6f2503a361c`** from
+The first #1958 source-pin migration selected **`af1d56513d3ae314bd831fd149c7b6f2503a361c`** from
 our fork `sunholo-voight-kampff/motoko_agent`, PR [#4](https://github.com/sunholo-voight-kampff/motoko_agent/pull/4).
 It is exactly one annotation line after `835c738b8ca50ed38f36c117058847c816db32b8`,
 targeting our `sunholo/main-dst-20261027` branch. `src/core/test/stub_step.ail`'s
@@ -358,3 +358,34 @@ v0.52.5 pricing-record mismatch. The same error reproduces unchanged on the pinn
 base and migrated head; [the PR records the evidence](https://github.com/sunholo-voight-kampff/motoko_agent/pull/4#issuecomment-6491761805).
 The broader CI is not claimed green. #1958's final integrated independent gate remains pending. See `design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-validation.md`
 for preserved original failures and final delivery/integration status.
+
+
+## 15. Approved explicit-empty callback source migration (2026-10-29)
+
+The current Docker source pin is **`083ef43726981099a0bad4fedda18fc72105d6fa`**,
+normal merge of fork PR [#5](https://github.com/sunholo-voight-kampff/motoko_agent/pull/5)
+onto `sunholo/main-dst-20261027` after §14's `af1d5651`. It changes exactly four
+annotation lines in `src/core/test/ext_fixture.ail`: `describe`, `prompt`, `budget`
+and `policy` callback fields gain `! {}`. Effectful siblings, outer factory rows,
+runtime behavior, lockfile and Ports ABI are unchanged. The merged source tree is
+identical to tested head `8dc0ad84f9a9dc029d624468278def981f807e07`.
+
+With #1958 plus merged #1963, the original fixture hand-off fails 55/60 core checks.
+The four annotations also fail before the separately approved explicit-empty
+compiler amendment. Actual amended compiler `9ab45c98e071c9c90f1c365ff82cca00d74ef151`
+and matching stdlib restore **fresh no-cache 60/60** and actual **`gmake check_core`
+60 core files / 9 extension boots**, with all runtime prerequisites. Three initial
+180-second no-cache deadlines under two workers pass on serial retries in
+127.07s, 79.44s and 67.97s; the initial results remain recorded. This preserves the
+original width 60→55, width-migrated 60→60 and combined nested 55/60 measurements.
+
+The fork's old v0.52.5 CI compiler reproduces the same inherited skills pricing
+record 2-versus-4-field failure on both `af1d5651` and the four-field candidate.
+Relevant actual-compiler gates and root's independent exact-diff review passed;
+normal merge used no admin override. Pending/baseline fork CI is not claimed green.
+See `design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract-validation.md`
+and its compatibility JSON for exact pins, corpus/control results and final gates.
+
+This is the v0.56.0 compiler-compatible **source pin**, not a built/deployed image.
+The live rig/shim remain at §13's `835c738b`; upstream `arniwesth/motoko_agent` was
+not modified. Final AILANG independent evaluation and exact-head CI remain pending.

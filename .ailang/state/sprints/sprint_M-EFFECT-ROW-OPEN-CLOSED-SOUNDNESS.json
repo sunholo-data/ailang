@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS",
-  "status": "blocked",
+  "status": "in_progress",
   "created": "2026-10-29T07:17:55.034627+00:00",
   "design_doc": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness.md",
   "sprint_plan": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-sprint-plan.md",
@@ -78,7 +78,8 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": "Actual integration970a46694 onto merged1963 at87f84698 passes focused regressions/MCP/lint/sizes/boundaries/changelog, freeze+verify49 interfaces with zero golden diff, examples after exact3aggregate-field correction. BUT real consumer final no-cache55/60 at pure fixture_rt nested hand-off. Four-arm evidence isolates nested-only; four-pure-field !{} scratch hypothesis also fails. Proposed separate explicit-empty contract design has OPEN human freezes; M4 unpassed, no new semantics or further consumer delivery."
+      "notes": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. passes remains null until root independent evaluator accepts M4; no self-score.",
+      "implementation_completed_at": "2026-10-29T10:36:17.952211+00:00"
     }
   ],
   "registry_reuse": [
@@ -148,5 +149,8 @@
     "acceptance": "blocked_pending_new_design_approval"
   },
   "compatibility_amendment_design_approved": true,
-  "compatibility_amendment_execution_authorized": false
+  "compatibility_amendment_execution_authorized": false,
+  "implementation_complete": true,
+  "independent_evaluation": "pending root",
+  "consumer_merge": "083ef43726981099a0bad4fedda18fc72105d6fa"
 }

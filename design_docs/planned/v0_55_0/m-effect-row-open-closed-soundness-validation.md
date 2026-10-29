@@ -182,3 +182,20 @@ The initial red gate is retained in `1958-final-examples.log`; the corrected
 `make verify-examples` passes, with 244 module entries checked and no drift/missing
 files (`1958-final-examples-fixed.log`). No example body or unrelated manifest
 entry changed in this correction.
+
+
+## Final approved explicit-empty compatibility resolution
+
+The prior failures above remain exact historical measurements. Mark approved and
+executed the separate explicit-empty callback sprint. Its final compiler checkpoint
+`9ab45c98e` on actual dev `9dc689091` passes the original row/streaming/authority controls
+and full changed/core gate, plus 49 stable interfaces with no new golden diff.
+The exact four-field migration now restores fresh no-cache 60/60 and actual
+`gmake check_core` 60 core / 9 extensions. Three initial 180s deadlines pass on serial
+retries 127.07/79.44/67.97s; initial results are retained. The reviewed fork PR #5 merged
+normally at `083ef43726981099a0bad4fedda18fc72105d6fa` with tested-tree equivalence.
+The Docker source pin and MOTOKO §15 provenance select that SHA; live rig/upstream
+remain untouched, and old v0.52.5 CI pricing failure remains separately disclosed.
+See the explicit-empty validation and compatibility JSON for exact corpus/pins,
+cache/engine proof and final checks. M4 implementation is ready for root's final
+independent evaluation; no final PASS or full CI success is asserted here.

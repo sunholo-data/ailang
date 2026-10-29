@@ -1,11 +1,13 @@
 # M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT
 
-**Status:** Design APPROVED — Mark, attended, 2026-10-29: “Approve option A design”. Sprint planning authorized; implementation still requires explicit execution.
+**Status:** Implementation complete; independent evaluation pending — Mark approved option A and explicitly authorized “Execute explicit-empty sprint” on 2026-10-29. M4 consumer proof/delivery and source pin are recorded in the validation report.
 **Target:** v0.56.0 (breaking minor; no version bump/deployment in this proposal).
 **Priority:** P0 compatibility decision, blocking #1958 M4.
 **Estimated:** Recommended option: 1–2 engineering days including corpus, cache, and consumer verification; not a sprint approval.
 **Dependencies:** #1963 nested charging is merged at `87f846980c8b6fc601173be427b1364968559488`. #1958 remains unmerged. Its previously approved one-line motoko migration is already delivered.
 **Scope:** A focused follow-up/amendment prompted by real consumer evidence. It does not reclassify #1963's ratified conservative rule as an implementation defect.
+
+The problem and matrices below record the verified pre-amendment baseline. Final implementation, conditional delivery and independent acceptance status are recorded in the companion validation report.
 
 ## Problem and verified boundary
 

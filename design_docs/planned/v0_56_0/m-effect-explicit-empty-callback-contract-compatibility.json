@@ -1,0 +1,197 @@
+{
+  "compiler_checkpoint": "9ab45c98e071c9c90f1c365ff82cca00d74ef151",
+  "compiler_binary_sha256": "d7d1d44d5a38dca8bf7a600e843ff13fc3dfd9281795b9f22f6abff0e3258800",
+  "matched_pre_amendment": "61290d130b437d615d350e79ee2e268f8320e113",
+  "actual_dev": "9dc6890919aa001deebee4361719456ee087440f",
+  "inventories": [
+    {
+      "artifact": "explicit-empty-M4-inventory.json",
+      "files_scanned": 826,
+      "explicit_empty_function_types": [
+        {
+          "path": "/tmp/ailang-backlog-20261029/effect-row-1958/examples/runnable/explicit_empty_callback_contracts.ail",
+          "line": 6,
+          "column": 23,
+          "type": "(int -> int ! {})"
+        }
+      ],
+      "parse_failures": [
+        "/tmp/ailang-backlog-20261029/effect-row-1958/examples/archive/broken/testing_advanced.ail",
+        "/tmp/ailang-backlog-20261029/effect-row-1958/examples/archive/broken/testing_basic.ail",
+        "/tmp/ailang-backlog-20261029/effect-row-1958/examples/bugs/concat_operator_list_inference.ail",
+        "/tmp/ailang-backlog-20261029/effect-row-1958/examples/experimental/ai_agent_integration.ail",
+        "/tmp/ailang-backlog-20261029/effect-row-1958/examples/experimental/concurrent_pipeline.ail",
+        "/tmp/ailang-backlog-20261029/effect-row-1958/examples/experimental/factorial.ail",
+        "/tmp/ailang-backlog-20261029/effect-row-1958/examples/experimental/web_api.ail"
+      ]
+    },
+    {
+      "artifact": "explicit-empty-M4-consumer-inventory.json",
+      "files_scanned": 210,
+      "explicit_empty_function_types": [
+        {
+          "path": "/tmp/ailang-backlog-20261029/motoko-explicit-empty/src/core/test/ext_fixture.ail",
+          "line": 146,
+          "column": 13,
+          "type": "(Json -> list[ToolSchema] ! {})"
+        },
+        {
+          "path": "/tmp/ailang-backlog-20261029/motoko-explicit-empty/src/core/test/ext_fixture.ail",
+          "line": 147,
+          "column": 11,
+          "type": "(PureCtx -> PromptPatch ! {})"
+        },
+        {
+          "path": "/tmp/ailang-backlog-20261029/motoko-explicit-empty/src/core/test/ext_fixture.ail",
+          "line": 148,
+          "column": 11,
+          "type": "(PureCtx, BudgetPlan -> BudgetPatch ! {})"
+        },
+        {
+          "path": "/tmp/ailang-backlog-20261029/motoko-explicit-empty/src/core/test/ext_fixture.ail",
+          "line": 150,
+          "column": 11,
+          "type": "(PureCtx, ToolCallEnvelope -> ToolPolicyDecision ! {})"
+        }
+      ],
+      "parse_failures": [
+        "/tmp/ailang-backlog-20261029/1958-external-ailang-world/host/evidence/testdata/aicheck/loaderror.ail"
+      ]
+    }
+  ],
+  "inrepo": {
+    "files": 529,
+    "base_pass": 445,
+    "fixed_pass": 445,
+    "status_flips": 0,
+    "diagnostic_changes": 0,
+    "changes": []
+  },
+  "external": [
+    {
+      "repo": "ailang-packages",
+      "sha": "e998928e3dbab4661b47ae94e3e74c593f37e121",
+      "roots": 45,
+      "base_pass": 43,
+      "fixed_pass": 43,
+      "status_flips": 0,
+      "diagnostic_changes": 0,
+      "changes": []
+    },
+    {
+      "repo": "ailang-parse",
+      "sha": "0931946850e23a6897df783731ab74b0b1d43b88",
+      "roots": 2,
+      "base_pass": 0,
+      "fixed_pass": 0,
+      "status_flips": 0,
+      "diagnostic_changes": 0,
+      "changes": []
+    },
+    {
+      "repo": "ailang-world",
+      "sha": "df5a0671dadd567ece879fe89afcc018c2deaa23",
+      "roots": 1,
+      "base_pass": 1,
+      "fixed_pass": 1,
+      "status_flips": 0,
+      "diagnostic_changes": 0,
+      "changes": []
+    },
+    {
+      "repo": "motoko",
+      "sha": "835c738b8ca50ed38f36c117058847c816db32b8",
+      "roots": 25,
+      "base_pass": 21,
+      "fixed_pass": 21,
+      "status_flips": 0,
+      "diagnostic_changes": 0,
+      "changes": []
+    }
+  ],
+  "new_example": [
+    {
+      "arm": "before",
+      "rc": 1,
+      "output": "\u2192 Type checking examples/runnable/explicit_empty_callback_contracts.ail...\n\u2192 Effect checking...\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/explicit-empty-pre-A-source/std\nError: effect checking failed in examples/runnable/explicit_empty_callback_contracts: Effect checking failed for function 'build'\n  Function uses effects not declared in signature\n\n  Missing effects: IO\n\n  Current signature: func build(...) -> T\n  Suggested fix:     func build(...) -> T ! {IO}\n\n"
+    },
+    {
+      "arm": "fixed",
+      "rc": 0,
+      "output": "\u2192 Type checking examples/runnable/explicit_empty_callback_contracts.ail...\n\u2192 Effect checking...\n\n\u2713 No errors found!\nWarning: stdlib version mismatch: expected dev, found v0.55.0 at /tmp/ailang-backlog-20261029/effect-row-1958/std\n"
+    }
+  ],
+  "consumer": {
+    "repo": "sunholo-voight-kampff/motoko_agent",
+    "base": "af1d56513d3ae314bd831fd149c7b6f2503a361c",
+    "head": "8dc0ad84f9a9dc029d624468278def981f807e07",
+    "pr": 5,
+    "merge_sha": "083ef43726981099a0bad4fedda18fc72105d6fa",
+    "scope": "four pure arrow annotations in FixtureOverrides; no runtime/ABI/lock changes",
+    "no_cache": {
+      "initial_passed": 57,
+      "initial_deadlines": [
+        "src/core/dst_execution.ail",
+        "src/core/rpc.ail",
+        "src/core/session.ail"
+      ],
+      "initial_concurrency": 2,
+      "deadline_seconds": 180,
+      "serial_retries": [
+        {
+          "path": "src/core/dst_execution.ail",
+          "rc": 0,
+          "seconds": 127.07
+        },
+        {
+          "path": "src/core/rpc.ail",
+          "rc": 0,
+          "seconds": 79.44
+        },
+        {
+          "path": "src/core/session.ail",
+          "rc": 0,
+          "seconds": 67.97
+        }
+      ],
+      "final_passed": 60
+    },
+    "gmake_check_core": {
+      "core": 60,
+      "extensions": 9,
+      "exit_code": 0,
+      "cache": "fresh isolated cache",
+      "log": "explicit-empty-M4-consumer-check-core.log"
+    },
+    "ci_old_compiler_baseline": [
+      {
+        "arm": "base",
+        "rc": 1,
+        "diagnostic": "\u2192 Type checking scripts/verify_skills_startup.ail...\n\u2192 Effect checking...\nWarning: stdlib version mismatch: expected dev, found v0.52.5 at /tmp/ailang-backlog-20261029/1958-ci-v0525-source/std\nError: type error in scripts/verify_skills_startup (decl 5): type unification failed at [let annotation h at scripts/verify_skills_startup.ail:121:3]: failed to unify record field 'boot': failed to unify record field 'cost_rates': record field mismatch: expected 2 fields, got 4\n  expected fields: {input_per_1m_millicents, output_per_1m_millicents}\n  actual fields:   {cache_read_per_1m_millicents, cache_write_per_1m_millicents, input_per_1m_millicents, output_per_1m_millicents}\n  extra fields:    cache_read_per_1m_millicents, cache_write_per_1m_millicents\n\n  Hint: Use open record syntax to accept extra fields:\n        {input_per_1m_millicents, output_per_1m_millicents | r} or {input_per_1m_millicents, output_per_1m_millicents, ...}\n"
+      },
+      {
+        "arm": "four-field",
+        "rc": 1,
+        "diagnostic": "\u2192 Type checking scripts/verify_skills_startup.ail...\n\u2192 Effect checking...\nWarning: stdlib version mismatch: expected dev, found v0.52.5 at /tmp/ailang-backlog-20261029/1958-ci-v0525-source/std\nError: type error in scripts/verify_skills_startup (decl 5): type unification failed at [let annotation h at scripts/verify_skills_startup.ail:121:3]: failed to unify record field 'boot': failed to unify record field 'cost_rates': record field mismatch: expected 2 fields, got 4\n  expected fields: {input_per_1m_millicents, output_per_1m_millicents}\n  actual fields:   {cache_read_per_1m_millicents, cache_write_per_1m_millicents, input_per_1m_millicents, output_per_1m_millicents}\n  extra fields:    cache_read_per_1m_millicents, cache_write_per_1m_millicents\n\n  Hint: Use open record syntax to accept extra fields:\n        {input_per_1m_millicents, output_per_1m_millicents | r} or {input_per_1m_millicents, output_per_1m_millicents, ...}\n"
+      }
+    ],
+    "merged_tree": "067e8990d698af8385431647f6c5cfff99a7e63a",
+    "tested_tree_equals_merged_tree": true,
+    "independent_exact_diff_review": "PASS root before normal merge"
+  },
+  "final_gates": {
+    "test_changed": "PASS seven branch packages plus full core loop",
+    "lint": "PASS zero findings",
+    "file_sizes": "PASS",
+    "boundaries": "PASS",
+    "architecture_closure": "PASS",
+    "changelog": "PASS",
+    "prompt_freeze": "PASS",
+    "prompt_commands": "PASS 120 routes",
+    "examples": "PASS manifest247modules",
+    "freeze_stdlib": "PASS49 zero golden diff",
+    "verify_stdlib": "PASS49",
+    "independent_evaluation": "PENDING root"
+  },
+  "known_baseline": "social_dynamics0.4.0/tasks.ail app1070 argument1 missing callback row reproduces on actual dev and amendment; separate repair owner"
+}

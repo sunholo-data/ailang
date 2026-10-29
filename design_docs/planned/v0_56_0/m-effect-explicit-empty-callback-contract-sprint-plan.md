@@ -1,6 +1,6 @@
 # Sprint Plan: M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT
 
-**Status:** APPROVED / IN PROGRESS — Mark explicitly authorized “Execute explicit-empty sprint” on 2026-10-29.
+**Status:** IMPLEMENTATION COMPLETE / INDEPENDENT EVALUATION PENDING — Mark explicitly authorized “Execute explicit-empty sprint” on 2026-10-29.
 **Design:** `design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md`.
 **Progress:** `.ailang/state/sprints/sprint_M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT.json`.
 **Target:** v0.56.0 breaking minor; no release/version bump/deployment.
@@ -36,9 +36,9 @@ You are not alone in the codebase. Do not revert others' edits. The executor own
 - **Consumer:** fork `sunholo-voight-kampff/motoko_agent`, pinned branch `sunholo/main-dst-20261027`, currently merge `af1d56513d3ae314bd831fd149c7b6f2503a361c`. Use a new isolated worktree/feature branch. Never edit/switch live mk checkouts or upstream `arniwesth/motoko_agent`.
 - **Independent evaluator:** root evaluates the final amendment; do not self-evaluate. #1958 M4 remains unpassed until final compatibility and independent acceptance are recorded.
 
-## Current state and velocity
+## Planning snapshot and velocity
 
-The four-arm evidence is committed beside the design. Base and #1958-only accept mixed callback storage hand-off; #1963-only and combined reject. Direct literals and all-nonempty-concrete controls pass; explicit empty annotations currently fail to distinguish pure fields. The failed exact four-line scratch patch is retained. No implementation has begun for this sprint.
+The four-arm evidence is committed beside the design. Base and #1958-only accept mixed callback storage hand-off; #1963-only and combined reject. Direct literals and all-nonempty-concrete controls pass; explicit empty annotations currently fail to distinguish pure fields. The failed exact four-line scratch patch is retained. At planning time, no implementation had begun. Current measured execution is recorded in the companion validation report and sprint JSON.
 
 The velocity helper ran but ended after its commit listing without a usable summary. Recent #1958 work delivered roughly 600 lines across four incremental milestones, predominantly tests; this attended session is not a reliable calendar throughput sample. Use a conservative **300 authored LOC/day**, 600 LOC / 2 days, with separate review and consumer-run allowance. Do not count generated 2,700-line prompt mirrors or moved conversion helpers as new semantic code.
 
@@ -105,12 +105,12 @@ The skill's JSON helper implicitly imports GitHub messages; this session require
 **Estimate:** 4 consumer annotation lines + about 76 documentation/provenance/evidence lines; 0.5 day including bounded gates.
 **Dependencies:** M3.
 
-- [ ] Inventory existing explicit-empty **function types** across the corpus (AST-aware, distinguish declarations). Run base/fixed no-cache comparisons with matching stdlib and pinned roots; preserve intentional rejection cases and report every unexplained flip.
-- [ ] In scratch first, apply exactly four changes to FixtureOverrides in `src/core/test/ext_fixture.ail`: append `! {}` to describe, prompt, budget, policy arrow types. Keep all other callbacks, outer factory rows and Ports ABI unchanged.
-- [ ] With the actual final compiler plus #1958/#1963, prove all **60 core files** via fresh no-cache checks and all **9 extension boots** via `gmake check_core`/verify_extensions. Use known 180-second per-file bounds and concurrency two; classify timeouts honestly. If the exact patch does not restore gates, STOP under the new-decision rule; do not widen more code.
-- [ ] Only after proof, F4 authorizes delivery: recheck fork overlaps/auth, create isolated feature worktree from fresh pinned fork branch, commit/push exact four-line patch and open its fork-target PR via gh. Normal fork-only merge after relevant gates and review; never --admin or upstream writes. Inherited CI/compiler failures require measured base proof and disclosure, not a false all-green claim.
-- [ ] Pin the exact full merged consumer SHA in Docker and MOTOKO.md; distinguish source pin from deployment and keep live rig checkout unchanged. Preserve original width60→55, delivered width60→60, combined nested55/60 and failed four-line-before-compiler evidence alongside the new proven result.
-- [ ] Final gates: `make test-changed`, lint, sizes, boundaries/architecture closure, changelog, freeze/verify all interfaces, verify-examples. Do not run `make test`; exact-head CI supplies the full suite, subject to the evaluator's explicit gate policy.
+- [x] Inventory existing explicit-empty **function types** across the corpus (AST-aware, distinguish declarations). Run base/fixed no-cache comparisons with matching stdlib and pinned roots; preserve intentional rejection cases and report every unexplained flip.
+- [x] In scratch first, apply exactly four changes to FixtureOverrides in `src/core/test/ext_fixture.ail`: append `! {}` to describe, prompt, budget, policy arrow types. Keep all other callbacks, outer factory rows and Ports ABI unchanged.
+- [x] With the actual final compiler plus #1958/#1963, prove all **60 core files** via fresh no-cache checks and all **9 extension boots** via `gmake check_core`/verify_extensions. Use known 180-second per-file bounds and concurrency two; classify timeouts honestly. If the exact patch does not restore gates, STOP under the new-decision rule; do not widen more code.
+- [x] Only after proof, F4 authorizes delivery: recheck fork overlaps/auth, create isolated feature worktree from fresh pinned fork branch, commit/push exact four-line patch and open its fork-target PR via gh. Normal fork-only merge after relevant gates and review; never --admin or upstream writes. Inherited CI/compiler failures require measured base proof and disclosure, not a false all-green claim.
+- [x] Pin the exact full merged consumer SHA in Docker and MOTOKO.md; distinguish source pin from deployment and keep live rig checkout unchanged. Preserve original width60→55, delivered width60→60, combined nested55/60 and failed four-line-before-compiler evidence alongside the new proven result.
+- [x] Final gates: `make test-changed`, lint, sizes, boundaries/architecture closure, changelog, freeze/verify all interfaces, verify-examples. Do not run `make test`; exact-head CI supplies the full suite, subject to the evaluator's explicit gate policy.
 - [ ] Mark only measured milestones passed; bank #1958 M4 implementation evidence after actual proof/delivery and required gates, then hand root exact code/consumer SHAs, plan/JSON and logs for independent evaluation. Final acceptance requires that independent PASS; do not self-score or archive docs before it.
 
 ## Schedule, validation and handoff

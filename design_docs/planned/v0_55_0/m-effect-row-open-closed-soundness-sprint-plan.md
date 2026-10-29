@@ -1,6 +1,6 @@
 # Sprint Plan: M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS (#1958)
 
-**Status:** APPROVED / IN PROGRESS — Mark authorized “Execute sprint #1958” on 2026-10-29.
+**Status:** IMPLEMENTATION COMPLETE / INDEPENDENT EVALUATION PENDING — Mark authorized “Execute sprint #1958” on 2026-10-29.
 **Design:** `design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness.md`
 **Intended repository plan path:** `design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-sprint-plan.md`
 **Intended progress path:** `.ailang/state/sprints/sprint_M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS.json`
@@ -106,10 +106,10 @@ All four milestones use `action: none`: this is a compiler/stdlib soundness inva
 
 **Files:** `changelogs/unreleased/2026-10-29-effect-row-open-closed-soundness.md` (or actual execution date), validation doc beside plan, std/ai comments/example documentation, sprint JSON.
 
-- [ ] Base-versus-fixed checks use fresh archived source, `AILANG_NO_CACHE=1`, matching stdlib, and pinned external SHAs. Record 0 status flips and 0 first-diagnostic changes for the current examples/std corpus and available ailang-packages, ailang-parse, motoko/world roots. Never claim unavailable external results as passed.
-- [ ] Recheck #1790 and #1963 merge status; regenerate goldens and rerun affected tests on the actual combined tree if either landed. Do not copy old `.stdlib-golden/ai.json` over newer metadata.
-- [ ] Changelog fragment opens `### ` and clearly states Breaking — soundness, mapE/row-polymorphic migration, stricter width-class limitation, and AI callback row behavior.
-- [ ] Run `make test-changed`, `make lint`, `make check-file-sizes`, `make check-boundaries`, `make freeze-stdlib`, `make check-changelog`, `make verify-examples`, and `tools/verify-stdlib.sh` as required by the design; all commands run unpiped and results banked. CI runs the full suite; do not run `make test` in the executor.
+- [x] Base-versus-fixed checks use fresh archived source, `AILANG_NO_CACHE=1`, matching stdlib, and pinned external SHAs. Record 0 status flips and 0 first-diagnostic changes for the current examples/std corpus and available ailang-packages, ailang-parse, motoko/world roots. Never claim unavailable external results as passed.
+- [x] Recheck #1790 and #1963 merge status; regenerate goldens and rerun affected tests on the actual combined tree if either landed. Do not copy old `.stdlib-golden/ai.json` over newer metadata.
+- [x] Changelog fragment opens `### ` and clearly states Breaking — soundness, mapE/row-polymorphic migration, stricter width-class limitation, and AI callback row behavior.
+- [x] Run `make test-changed`, `make lint`, `make check-file-sizes`, `make check-boundaries`, `make freeze-stdlib`, `make check-changelog`, `make verify-examples`, and `tools/verify-stdlib.sh` as required by the design; all commands run unpiped and results banked. CI runs the full suite; do not run `make test` in the executor.
 - [ ] Mark only measured milestones passed; invoke sprint-evaluator after implementation and report any remaining corpus/release limits.
 
 ## File-size and scope controls
@@ -134,7 +134,7 @@ M1–M3 are implemented and pass local gates. The original M4 external compatibi
 
 **Amendment approved by Mark, attended:** deliver the exact one-line consumer annotation migration on `sunholo-voight-kampff/motoko_agent`, base `sunholo/main-dst-20261027` at `835c738b8ca50ed38f36c117058847c816db32b8`, then update the AILANG Docker source pin and provenance. Preserve the live rig checkout. Do not mark M4 complete until actual fork delivery, source pin, and combined-tree gates are recorded, then hand off for independent evaluation. Do not weaken the compiler guard, implement width subsumption, or discard the original 60→55 measurement.
 
-## Final actual integration checkpoint: M4 pending new decision
+## Historical integration checkpoint: M4 required a new decision
 
 After #1963 merged, actual integration 970a46694 passed the focused regressions,
 MCP OAuth, unchanged 49 interface goldens, lint/structure and corrected combined
@@ -144,6 +144,19 @@ hand-off, independently reproduced on #1963-only. The exact attempted four pure
 parameter-wide architecture; changing it or adding explicit-empty callback contract
 semantics is outside this plan's existing approval. See the new focused amendment
 at `design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md`.
-All its human decisions remain OPEN. M4 is intentionally not passed; no new compiler
-or consumer semantics were implemented. Only three manifest aggregate fields were
+At that checkpoint all its human decisions remained OPEN. M4 was intentionally
+unpassed; no new compiler or consumer semantics had been implemented. Only three manifest aggregate fields were
 reconciled for the two independently added examples, with verify-examples green.
+
+
+## Final approved amendment and delivery checkpoint
+
+Mark subsequently approved option A and explicitly executed its four-milestone
+sprint. Closed-empty conversion, persistence/cache identity, both-engine controls,
+new prompt 11 and the runnable example are implemented with measured gates.
+The exact conditional four-field consumer migration restores fresh no-cache 60/60
+and actual 60 core / 9 extension checks, then was independently reviewed and normally
+merged as fork PR #5 at `083ef43726981099a0bad4fedda18fc72105d6fa`. Docker and MOTOKO §15
+pin that exact tested tree. Full changed/core and structural/interface/example
+checks pass. Original failure stages remain preserved in the companion reports.
+M4 implementation is complete; independent evaluator acceptance remains pending.
