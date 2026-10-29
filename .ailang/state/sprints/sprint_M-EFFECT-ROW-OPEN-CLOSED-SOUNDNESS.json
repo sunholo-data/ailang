@@ -131,7 +131,7 @@
     "stdlib_interfaces": 49,
     "ai_golden_diff": false
   },
-  "blocked_reason": "Actual combined motoko core55/60 at fixture_rt nested hand-off; new explicit-empty callback contract design requires human decision. No semantic/consumer workaround authorized.",
+  "blocked_reason": "Option A design approved by Mark; concrete explicit-empty sprint plan proposed and awaiting explicit execution. Actual combined consumer55/60 remains unresolved until implementation and conditional delivery proof.",
   "compatibility_amendment_proposal": "design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md",
   "actual_integration": {
     "source_checkpoint": "970a4669470566163cba09892a351e639b6de60c",
@@ -146,5 +146,7 @@
       "timed_out": 0
     },
     "acceptance": "blocked_pending_new_design_approval"
-  }
+  },
+  "compatibility_amendment_design_approved": true,
+  "compatibility_amendment_execution_authorized": false
 }

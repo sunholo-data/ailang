@@ -1,6 +1,6 @@
 # M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT
 
-**Status:** Proposed; human decisions OPEN. No implementation or further consumer migration authorized.
+**Status:** Design APPROVED — Mark, attended, 2026-10-29: “Approve option A design”. Sprint planning authorized; implementation still requires explicit execution.
 **Target:** v0.56.0 (breaking minor; no version bump/deployment in this proposal).
 **Priority:** P0 compatibility decision, blocking #1958 M4.
 **Estimated:** Recommended option: 1–2 engineering days including corpus, cache, and consumer verification; not a sprint approval.
@@ -75,14 +75,14 @@ This proposal does not authorize per-leaf charging, width subsumption, removal o
 | C. Retain current semantics and rewrite/widen consumer factories | Widening factory rows may cascade through many callers; literal inlining duplicates the test-owned constructor. Neither has a validated full-corpus patch. | Not review-ready; no authority to deliver it from this document. |
 | D. Hold consumer enablement / #1958 M4 | Leaves the compatibility failure explicit while a choice is made. No compiler or new consumer changes. | Safe current state until approval. |
 
-### Design freeze — OPEN
+### Design freeze — RULED 2026-10-29 (Mark, attended)
 
-- [ ] Human: choose A, B, C, or continued hold. Recommendation A.
-- [ ] Human: for A, approve `(T) -> U ! {}` as **closed empty**, while omitted arrows remain implicit/open and nonempty/row-polymorphic contracts retain their current rules.
-- [ ] Human: accept the measured IO-to-explicit-empty-slot rejection as a v0.56.0 breaking change, with migration by removing an unintended annotation or declaring the actual callback row.
-- [ ] Human: authorize the consumer annotation amendment only after the chosen compiler change proves the four-line patch restores the actual core and extension gates. No additional consumer edit is authorized now.
+- [x] **F1:** Option A approved. B/C are not authorized; hold applies until execution and proof.
+- [x] **F2:** `(T) -> U ! {}` is **closed empty**; omitted arrows remain implicit/open; nonempty and row-polymorphic contracts retain their current rules.
+- [x] **F3:** Approve the measured IO-to-explicit-empty-slot rejection as a v0.56.0 breaking change, with migration by removing an unintended annotation or declaring the actual callback row.
+- [x] **F4:** Approve the exact four pure-field consumer annotations conditionally: deliver only after the implemented contract proves the actual 60-core and 9-extension gates. Further consumer edits require a new decision; no delivery before execution and proof.
 
-No implementation until these decisions and a concrete sprint plan are approved and the user says to execute. Optional design quorum has not been run; parent/operator review is handling this decision.
+All four design decisions are ruled. No implementation until the concrete sprint plan is approved and the user says to execute. Optional design quorum has not been run; parent/operator review is handling this decision.
 
 ## Recommended solution A
 
