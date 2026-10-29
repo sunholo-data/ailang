@@ -22,6 +22,8 @@
 //	go run ./scripts/verify_bytecode_parity.go --json        # JSON report to stdout
 //	go run ./scripts/verify_bytecode_parity.go --markdown    # markdown table to stdout
 //	go run ./scripts/verify_bytecode_parity.go --only <glob> # filter by filename substring
+//	go run ./scripts/verify_bytecode_parity.go --strict      # VM side runs --strict-bytecode (no evaluator fallback)
+//	go run ./scripts/verify_bytecode_parity.go --bin <path>  # use this ailang binary (default: bin/ailang, ./ailang, PATH)
 package main
 
 import (
@@ -80,6 +82,8 @@ func main() {
 	only := flag.String("only", "", "Only run files whose basename contains this substring")
 	parallel := flag.Int("parallel", 6, "Max concurrent example runs")
 	timeout := flag.Duration("timeout", 60*time.Second, "Per-example timeout")
+	binFlag := flag.String("bin", "", "ailang binary to run (default: bin/ailang, ./ailang, then PATH)")
+	flag.BoolVar(&strictVM, "strict", false, "Run the VM side with --strict-bytecode instead of --bytecode")
 	flag.Parse()
 
 	files, err := filepath.Glob("examples/runnable/*.ail")
@@ -99,7 +103,10 @@ func main() {
 		files = filtered
 	}
 
-	bin := ailangBinary()
+	bin := *binFlag
+	if bin == "" {
+		bin = ailangBinary()
+	}
 
 	// Concurrent driver with a bounded semaphore.
 	sem := make(chan struct{}, *parallel)
@@ -129,6 +136,10 @@ func main() {
 	}
 	emitText(results)
 }
+
+// strictVM makes the VM run use --strict-bytecode, so an example the VM
+// cannot run fails instead of silently falling back to the evaluator.
+var strictVM bool
 
 func ailangBinary() string {
 	// Prefer a pre-built binary for speed (~30-50x faster than go run).
@@ -225,6 +236,9 @@ func runOne(bin, file string, caps []string, entry string, bytecodeMode bool, ti
 	args := []string{"run"}
 	if bytecodeMode {
 		args = append(args, "--bytecode")
+		if strictVM {
+			args = append(args, "--strict-bytecode")
+		}
 	}
 	if len(caps) > 0 {
 		args = append(args, "--caps", strings.Join(caps, ","))

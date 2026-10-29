@@ -25,7 +25,7 @@ import (
 // lane identical on the rig and in the images, where the global copy exists
 // and would otherwise register the same tools twice.
 //
-//go:embed profile_assets/*.ts
+//go:embed profile_assets/*.ts profile_assets/*.mjs
 var profileAssets embed.FS
 
 // ProfileExtensionFiles are the extensions a tool list needs, by canonical
@@ -60,7 +60,7 @@ func materializeProfileAssets() (string, error) {
 		// builtins_search are both ailang-lsp-lite.ts); write each file once —
 		// the second write would hit the 0444 bits of the first.
 		unique := map[string]bool{}
-		names := []string{evalShellGuardFile}
+		names := []string{evalShellGuardFile, maintenanceFenceFile, maintenanceSandboxFile}
 		for _, name := range profileExtensionFiles {
 			names = append(names, name)
 		}

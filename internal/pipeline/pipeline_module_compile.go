@@ -192,7 +192,10 @@ func typeCheckAndLowerModule(
 		typeChecker.SetModuleFuncNames(modFuncNames)
 	}
 
-	// Type check ALL declarations in the module, accumulating types in moduleTypeEnv
+	// Type check ALL declarations in the module, accumulating types in moduleTypeEnv.
+	// Each decl's own binding keeps full generalization under the
+	// integer-literal restriction (M-SOUND-NUMERIC-LITERALS).
+	typeChecker.SetModuleDeclarationMode(true)
 	for i, decl := range unit.Core.Decls {
 		// InferWithConstraints returns the updated env with new bindings
 		var err error

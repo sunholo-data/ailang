@@ -1,0 +1,143 @@
+{
+  "sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+  "observed_at": "2026-10-23T18:44:50.378533+00:00",
+  "total_count": 17,
+  "checks": [
+    {
+      "name": "build",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181755/job/120285348015",
+      "completed_at": "2026-10-23T06:58:59Z"
+    },
+    {
+      "name": "SonarCloud Code Analysis",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://sonarcloud.io/dashboard?id=sunholo-data_ailang&branch=dev",
+      "completed_at": "2026-10-23T06:55:38Z"
+    },
+    {
+      "name": "Create Release Bundle",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181610/job/120281142339",
+      "completed_at": "2026-10-23T06:44:40Z"
+    },
+    {
+      "name": "launchd drivers (bash 3.2)",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181755/job/120277546378",
+      "completed_at": "2026-10-23T06:45:39Z"
+    },
+    {
+      "name": "govulncheck (vuln gate)",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181755/job/120277546305",
+      "completed_at": "2026-10-23T06:34:53Z"
+    },
+    {
+      "name": "test-windows",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181755/job/120277546255",
+      "completed_at": "2026-10-23T06:46:18Z"
+    },
+    {
+      "name": "float determinism (arm64)",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181755/job/120277546227",
+      "completed_at": "2026-10-23T06:33:55Z"
+    },
+    {
+      "name": "ailang-core-dev (ailang-multivac-deploy)",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://console.cloud.google.com/cloud-build/builds;region=europe-west3/e6d72bb1-d91a-44ac-833a-bcbc2593e860?project=1074573805007",
+      "completed_at": "2026-10-23T06:46:25Z"
+    },
+    {
+      "name": "test",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181755/job/120277460005",
+      "completed_at": "2026-10-23T06:57:03Z"
+    },
+    {
+      "name": "dependency-submission",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181755/job/120277459963",
+      "completed_at": "2026-10-23T06:33:36Z"
+    },
+    {
+      "name": "changes",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181755/job/120277459926",
+      "completed_at": "2026-10-23T06:33:24Z"
+    },
+    {
+      "name": "docs",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181755/job/120277459898",
+      "completed_at": "2026-10-23T06:33:24Z"
+    },
+    {
+      "name": "lint",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181755/job/120277459660",
+      "completed_at": "2026-10-23T06:36:28Z"
+    },
+    {
+      "name": "Build macos-latest",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181610/job/120277459331",
+      "completed_at": "2026-10-23T06:42:24Z"
+    },
+    {
+      "name": "Build ubuntu-latest",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181610/job/120277459256",
+      "completed_at": "2026-10-23T06:40:56Z"
+    },
+    {
+      "name": "Build macos-latest",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181610/job/120277459192",
+      "completed_at": "2026-10-23T06:43:25Z"
+    },
+    {
+      "name": "Build windows-latest",
+      "head_sha": "6c16b4ce8c961e2c3afc9cb4ba766d09cde4496f",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/sunholo-data/ailang/actions/runs/39912181610/job/120277458930",
+      "completed_at": "2026-10-23T06:44:23Z"
+    }
+  ]
+}

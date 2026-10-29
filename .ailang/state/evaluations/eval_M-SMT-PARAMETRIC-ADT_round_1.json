@@ -1,0 +1,181 @@
+{
+  "sprint_id": "M-SMT-PARAMETRIC-ADT",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-23T10:23:00.442034+00:00",
+  "design_doc": "design_docs/implemented/v0_54_18/m-smt-parametric-adt-declarations.md",
+  "sprint_plan": "design_docs/implemented/v0_54_18/m-smt-parametric-adt-declarations-sprint-plan.md",
+  "source_commit": "ef7bdc8e0f2c87c075350df59eb45fa6fe85887a",
+  "source_baseline": "2a02b25ae",
+  "evaluation_worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-parametric-adt-eval",
+  "total_score": 95,
+  "pass_threshold": 70,
+  "result": "pass",
+  "finalization_pending": false,
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "gate_source": "local",
+    "tests_pass": true,
+    "tests_output": "Exact clean ef7bdc8e0 make test PASS. Preserved log: 163 tested package summaries, 39 packages without tests, 11049 top-level PASS, 105 top-level SKIP, zero failure markers. Independent evaluator inspected raw test log and completed gate summary.",
+    "tests_log": "/tmp/ailang-smt-clean-tests.log",
+    "lint_clean": true,
+    "lint_output": "Exact clean evaluator summary: Lint CLEAN.",
+    "file_sizes_ok": true,
+    "coverage_pct": "not measured; optional second whole-suite coverage run was not requested",
+    "todo_hack_count": 0,
+    "todo_count_evidence": "Independent git diff 2a02b25ae..ef7bdc8e0 over internal/smt and cmd/ailang found zero newly added TODO/HACK/FIXME markers.",
+    "gate_log": "/tmp/ailang-smt-full-evaluation.log",
+    "gate_log_caveat": "Existing evaluator shell TODO_COUNT fallback emits 0 newline 0 when no matches; its JSON trailer is malformed. This strict report uses inspected human pass flags, preserved raw test output and independent added-line scan. The script exit code alone was not accepted as proof.",
+    "verify_examples_pass": true,
+    "verify_examples_output": "233 modules checked; 0 drift, 0 missing-on-disk; all examples pass and manifest is in sync.",
+    "verify_examples_log": "/tmp/ailang-smt-clean-examples.log",
+    "boundaries_pass": true,
+    "changelog_pass": true,
+    "changelog_fragments": 7,
+    "wasm_build_pass": true,
+    "other_gates_log": "/tmp/ailang-smt-clean-other-gates.log",
+    "windows_test_compile_pass": true,
+    "windows_evidence": "Parent reported exact-source Windows cmd/ailang test compilation exit 0; Z3-dependent tests explicitly guard availability.",
+    "clean_worktree_status": "empty after gates; independently inspected",
+    "is_perf_sprint": false,
+    "regression_surface": {
+      "shared_compiler_semantics_changed": false,
+      "analysis": "SMT verification consumer and CLI typed-artifact plumbing change; no parser/typechecker/elaborator/runtime implementation change. Existing declaration-closure, alias-isolation, generic-callee gate and ai-check lane controls retained; full examples/boundaries pass."
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Native parametric declarations retain formal payload binders and full concrete applications.",
+      "met": true,
+      "evidence": "TestParametricSortArgumentsRetained, TestParametricDefinitionRetainsBinderFields, real CLI script assertions and independent Option[int]/Option[string] and Result[Option[int],Fault] proof/refutation pairs."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Reachable parameter, return, body, contract and admitted-callee dependencies are retained without unrelated import pollution.",
+      "met": true,
+      "evidence": "Requires/ensures-only CLI cases pass. Independent imported helper(int)->int containing Option[int] proves a nonnegative clamp and refutes -1 through identical declaration path. Same-module plain function verifies beside ambiguous imported Error fixture."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Unsupported, unresolved, malformed or ambiguous type identities skip with unsupported_encoding before Z3.",
+      "met": true,
+      "evidence": "Unit, higher-order, open record and malformed sort controls pass. Independent direct Error collision and Error hidden behind Envelope field both skip, while unrelated primitive function verifies."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Recursive generic declaration groups are well-sorted and deterministic.",
+      "met": true,
+      "evidence": "Backend SCC/count20 tests pass. Independent recursive Tree[int] and Even[a]/Odd[a] mutual SCC proof/refutation pairs pass; 8 separate mutual CLI encodings produced one byte-identical SMT script."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Imported ResourceLimit count guard verifies and broken successful -1 refutes on the same typed encoding.",
+      "met": true,
+      "evidence": "TestSMTParametricADT_ImportedErrorProofAndRefutationCLI asserts verify/package/ai-check counts and exit codes, actual (Result Int AudioError), native par binders, non-Int generic Err binder and ResourceLimit_0 String."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Constructor context is per checked node and imported program, including nested patterns, multiple instantiations and lexical scopes.",
+      "met": true,
+      "evidence": "Per-node CoreTI and imported-program map switching inspected. Independent nested first-match proof, partial-match honest skip and overloaded Shared constructors proof/refutation pass. Body/guard/postcondition shadow false proofs were reproduced, fixed and durably regressed; all now counterexample with zero skips/errors."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Old callee signature limits, unsupported Core policy, numeric model and exit/status lanes remain explicit.",
+      "met": true,
+      "evidence": "Existing callee gate remains in Verify; CLI unsupported corpus includes original ai-check list-pattern error policy as a separate control. Numeric evidence still Int/Real with runtime_equivalence not_established; no status/counter split was introduced."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Runnable example, manifest, public guide and release fragment describe actual supported behavior and limitations.",
+      "met": true,
+      "evidence": "result_error_guard.ail provides pure checkSize contract, three primitive inline tests, and effect-annotated IO main. Parent check/run/contracts/property verification and exact clean examples gate pass. Public contracts guide and unreleased changelog reviewed."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Exact clean source passes full tests, lint, file sizes, boundaries, examples/manifest and independent adversarial evaluation.",
+      "met": true,
+      "evidence": "Inspected completed clean ef7bdc8e0 gate logs. Independent runner passed 20 source fixtures / 27 function outcomes against that clean worktree binary."
+    }
+  ],
+  "independent_adversarial_checks": {
+    "command": "python3 /tmp/review-smt-adversarial.py /Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/smt-parametric-adt-eval/bin/ailang",
+    "cases": 20,
+    "function_outcomes": 27,
+    "all_passed": true,
+    "summary": "/tmp/review-smt-independent-summary.json",
+    "log": "/tmp/review-smt-independent-clean-run.log",
+    "assertions": "Exact per-function statuses, exit codes, zero errors and typed unsupported_encoding for all intended skips. Includes paired valid/broken generic, nested, recursive, mutual-SCC, imported-helper and overloaded-constructor cases, plus lexical scope and ambiguity/isolation controls."
+  },
+  "resolved_findings": [
+    {
+      "severity": "blocking",
+      "issue": "New nested match lowering captured outer symbolic parameter names inside pattern binders, producing VERIFIED for a runtime-false body; guards and postconditions were affected.",
+      "resolution": "Lexical map-copy/delete/defer restore scopes now cover nested/native/ite match bodies and guards and local let bodies. Let values retain outer scope. Exact independent body/guard runtime probes printed false before fix and all three proof reports now return counterexample. Backend and real CLI durable regressions added.",
+      "files": [
+        "internal/smt/codegen_scope.go",
+        "internal/smt/parametric_patterns.go",
+        "internal/smt/codegen_control.go",
+        "internal/smt/parametric_context_test.go",
+        "cmd/ailang/smt_parametric_adt_test.go"
+      ]
+    },
+    {
+      "severity": "high",
+      "issue": "Different imported modules with the same short ADT name could lose one constructor definition by map merge and leak a solver error.",
+      "resolution": "Reachable ambiguous identities now produce deterministic unsupported_encoding skips. Full dependency closure catches transitive Envelope-to-Error collisions; unrelated primitive contract still verifies."
+    },
+    {
+      "severity": "high",
+      "issue": "Admitted imported primitive helper bodies with internal generic constructors need their own module CoreTI.",
+      "resolution": "Per-program checked-type context switches/restores during callee encoding. Independent good/broken helper pair proves/refutes and missing type information skips honestly."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "implemented; design and companion plan moved together; relative local links verified",
+    "public_limitations_documented": true
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Matches approved native parametric ADT encoding, full concrete dependency closure, per-node/module constructor context, deterministic groups and conservative unsupported boundary. Nested patterns use bounded exhaustiveness plus ordered lowering; lexical binder correction was required to preserve checked source meaning. No callee-gate expansion or numeric-model change."
+  },
+  "code_quality_notes": "Rubric applies maximum 5-point function-length deduction: new nested lowering/coverage and several CLI integration functions exceed 50 lines. No new TODO/HACK/FIXME or file-size violations. Scope and coverage bounds are explicit; no maintainability concern is a release blocker.",
+  "artifact_finalization": {
+    "pending": false,
+    "audited_at": "2026-10-23T10:24:19.127219+00:00",
+    "result": "pass",
+    "evidence": "All4 milestones passes/completed/notes; sprint status completed; observed elapsed and LOC metrics present with concurrency caveat; design and companion plan both implemented with checked criteria and valid local links; retrospective records actual gates; production delta since ef7bdc8e0 empty. Root metadata-only commit is the next authorized operation.",
+    "metadata_commit_pending": false
+  },
+  "known_limitations": [
+    "SMT Int/Real claims do not establish runtime machine numeric equivalence.",
+    "Generic ADT callee signatures remain behind the existing conservative gate.",
+    "Unsupported unit/function/open payloads, unavailable ground checked context, ambiguous ADT identities and unproved nested-pattern exhaustiveness remain unproved with structured skips."
+  ],
+  "feedback": [],
+  "notes": "PASS95/100 with no unresolved source or artifact blocker. Exact clean-tested production source ef7bdc8e0. Independent post-pass metadata audit also passed; root metadata-only commit remains. Reviewer authored no production code/repository tests and did not duplicate full-suite gates.",
+  "post_evaluation_finalization": {
+    "pending": false,
+    "audited_at": "2026-10-23T10:24:19.127219+00:00",
+    "result": "pass",
+    "evidence": "All4 milestones passes/completed/notes; sprint status completed; observed elapsed and LOC metrics present with concurrency caveat; design and companion plan both implemented with checked criteria and valid local links; retrospective records actual gates; production delta since ef7bdc8e0 empty. Root metadata-only commit is the next authorized operation.",
+    "metadata_commit_pending": false
+  },
+  "root_commit_finalization": {
+    "timestamp": "2026-10-23T10:25:10.313992+00:00",
+    "commit_message": "docs(smt): finalize evaluated parametric ADT sprint",
+    "production_source_unchanged": true,
+    "scope": "Completed sprint metadata and implemented documents committed in cf2620ae8; this independent report is recorded separately. Evaluated production source remains ef7bdc8e0.",
+    "metadata_commit": "cf2620ae82e1a2313c7fdee108f25730d88aff1c"
+  }
+}

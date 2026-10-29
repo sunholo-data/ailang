@@ -240,9 +240,26 @@
             "xhigh": null
           },
           "cost": {
-            "input": 0.3,
-            "output": 1.2,
-            "cacheRead": 0,
+            "input": 0.0328,
+            "output": 0.08,
+            "cacheRead": 0.0016,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4.1-flash-1017",
+          "maxTokens": 65536,
+          "contextWindow": 1048576,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0.15,
+            "output": 0.6,
+            "cacheRead": 0.003,
             "cacheWrite": 0
           }
         },
@@ -257,9 +274,9 @@
             "xhigh": null
           },
           "cost": {
-            "input": 0.3,
-            "output": 1.2,
-            "cacheRead": 0,
+            "input": 0.0328,
+            "output": 0.08,
+            "cacheRead": 0.0016,
             "cacheWrite": 0
           }
         }

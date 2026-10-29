@@ -1,5 +1,13 @@
 # Sprint Plan: [Milestone Name]
 
+## Placement and Human-Decision Rules
+
+Store plans and associated files in `design_docs/planned/<version dir>/`, or the planned root as `sprint-plan-<slug>.md`. Never put a plan in `design_docs/planned/ailang-core-triage/`, even when its design row is there: that directory contains triage rows checked by the triage rubric, not executable plans.
+
+Add an executor human-decision gate only for a still-OPEN decision. Cite the exact design section or decision-ledger row ID establishing that open decision. Copy already-ruled decisions into the plan as rulings, never gates; do not reopen them at handoff.
+
+Every permitted gate must say: **STOP: commit current work, report `BLOCKED: <decision>`, and end the run**. Do not use open-ended “pause for human review” or “confirm with the user” instructions. If no decision remains OPEN, state that there are no human-decision gates.
+
 ## Summary
 [1-2 sentence goal describing what this sprint accomplishes]
 
@@ -61,7 +69,7 @@ For every implementable milestone, record the `ailang pkg search` terms, package
 - [Prerequisite milestone]
 
 ## Open Questions
-- [Question requiring user input or clarification]
+- [Still-OPEN decision + design section or decision-ledger row ID; STOP: commit current work, report `BLOCKED: <decision>`, and end the run. Or: none.]
 
 ## Notes
 - [Any assumptions, caveats, or context]

@@ -8,8 +8,10 @@ that, see <https://ailang.sunholo.com/docs/reference/syntax/>.
 
 A statically-typed, effect-typed programming language designed as a
 deterministic execution substrate for AI-generated code. The compiler
-is written in Go and targets a tree-walking evaluator (with a
-bytecode VM tracked in `design_docs/`). The runtime ships with a
+is written in Go and runs programs on a tree-walking evaluator (the
+default and reference engine) or a bytecode VM (`ailang run --bytecode`;
+Core → `internal/gen/lower` → Statement IR → `internal/bytecode` →
+`internal/vm`). The runtime ships with a
 capability-based effect system, a Hindley-Milner type system with
 row-polymorphic records and effects, and a curated standard library.
 
@@ -156,18 +158,18 @@ behavioral dependency on the evaluator. If `embed` ever re-exports its own
 `Value` alias, `eval` should be added back to the deny-list.
 
 <!-- BEGIN GENERATED: language closure (scripts/gen_architecture_closure.sh) -->
-### Language closure (generated 2026-10-11 @ fc62f7c4c)
+### Language closure (generated 2026-10-28 @ 57b0b8f20)
 
 What `ailang run / check / fmt / prompt / repl` link, measured with `go list -deps`
-over the language roots. **50** of the internal packages are in the closure; the
-full binary links **136**. The gate is `internal/diag/closure_test.go`; the numbers
+over the language roots. **52** of the internal packages are in the closure; the
+full binary links **140**. The gate is `internal/diag/closure_test.go`; the numbers
 are banked by `make simplicity-metrics`. Regenerate this section with
 `scripts/gen_architecture_closure.sh` (CI runs it with `--check`).
 
 **Language roots** (`tools/simplicity_metrics.sh` LANGUAGE_ROOTS):
 `internal/pipeline` `internal/eval` `internal/effects` `internal/builtins` `internal/format` `internal/repl` `internal/prompt` `internal/loader` `internal/link` `internal/lsp` `internal/vm` `internal/gen/golang` `internal/smt` 
 
-**In the closure** (50 packages):
+**In the closure** (52 packages):
 
 - `internal/ai`
 - `internal/ast`
@@ -195,6 +197,7 @@ are banked by `make simplicity-metrics`. Regenerate this section with
 - `internal/mathx`
 - `internal/mcp_client`
 - `internal/parser`
+- `internal/pcoll`
 - `internal/pipeline`
 - `internal/pkg`
 - `internal/planning`
@@ -217,6 +220,7 @@ are banked by `make simplicity-metrics`. Regenerate this section with
 - `internal/typedast`
 - `internal/types`
 - `internal/types/traverse`
+- `internal/verification`
 - `internal/version`
 - `internal/vm`
 

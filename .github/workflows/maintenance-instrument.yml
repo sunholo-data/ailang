@@ -1,0 +1,56 @@
+name: Maintenance instrument
+on:
+  pull_request:
+    paths:
+      - 'internal/eval_harness/**'
+      - 'internal/executor/**'
+      - 'tools/pi-extensions/maintenance*'
+      - 'tools/pi-extensions/sandbox/**'
+      - 'cmd/ailang/eval_suite*'
+      - 'make/eval.mk'
+      - '.github/workflows/maintenance-instrument.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-model-instrument:
+    name: Native instrument controls; live admission closed
+    runs-on: macos-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: core
+          fetch-depth: 0
+      - uses: actions/checkout@v7
+        with:
+          repository: sunholo-data/ailang-packages
+          ref: 9ac50f6a25d587fc3a6a935a87991bbaecdd0fc1
+          path: package-source
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.10'
+          cache-dependency-path: core/go.sum
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '26.12.1'
+      - name: Build native runtime and install explicit tool dependencies
+        timeout-minutes: 10
+        run: |
+          brew install ripgrep fd
+          rg --version
+          fd --version
+          make build
+          echo "$PWD/bin" >> "$GITHUB_PATH"
+          npm ci --prefix tools/pi-extensions/sandbox --ignore-scripts --no-audit --no-fund
+          npm install --prefix "$RUNNER_TEMP/maintenance-pi" --ignore-scripts --no-audit --no-fund --save-exact @earendil-works/pi-coding-agent@0.85.1
+      - name: Verify embedded maintenance assets
+        run: make verify-maintenance-assets
+      - name: Actual retained-source, grading, receipt and kernel controls
+        run: |
+          make maintenance-adapter-check \
+            MAINTENANCE_PACKAGE_REPO="$GITHUB_WORKSPACE/package-source" \
+            MAINTENANCE_PI_SDK="$RUNNER_TEMP/maintenance-pi/node_modules/@earendil-works/pi-coding-agent/dist/index.js"

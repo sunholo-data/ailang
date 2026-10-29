@@ -146,6 +146,7 @@ func ValidateAgentProviders(agents []*AgentConfig) []error {
 				Reason: "this image carries several executors, so provider cannot be derived and must be declared",
 			})
 		}
+		errs = append(errs, validateShadowConfig(agent)...)
 	}
 	sort.Slice(errs, func(i, j int) bool { return errs[i].Error() < errs[j].Error() })
 	return errs

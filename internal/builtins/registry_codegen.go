@@ -19,12 +19,14 @@ package builtins
 //   - registry_codegen_effects.go : XML stubs, debug, effectful list, math helpers, process/IO
 func registerCodegenSpecs() {
 	registerStringCodegenSpecs()
+	registerAudioCodegenSpecs()
 	registerMathCodegenSpecs()
 	registerListCodegenSpecs()
 	registerConversionCodegenSpecs()
 	registerIOCodegenSpecs()
 	registerJSONCodegenSpecs()
 	registerEffectCodegenSpecs()
+	registerBytesCodegenSpecs()
 }
 
 // ============================================================================

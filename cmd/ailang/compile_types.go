@@ -74,8 +74,13 @@ func printCompileHelp() {
 
 Compile AILANG source to Go. Supports files, directories, or both.
 
+The generated Go boxes values as interface{} and has no tail-call
+elimination: deep or long tail recursion overflows the Go stack. For
+speed, use 'ailang run --bytecode'.
+
 Options:
-  --emit-go              Generate Go source code (required)
+  --emit-go              Generate Go source code (required, or --emit-go-v2)
+  --emit-go-v2           Statement IR emitter (experimental, frozen)
   --out <dir>            Output directory (default: "gen")
   --package-name <name>  Go package name (default: derived from first module)
   --release              Mark this as a release build (info only)
@@ -293,6 +298,8 @@ func ailangTypeToGo(t ast.Type) string {
 			return "float64"
 		case "string":
 			return "string"
+		case "bytes":
+			return "[]byte"
 		case "bool":
 			return "bool"
 		case "()":
@@ -318,6 +325,9 @@ func ailangTypeToGo(t ast.Type) string {
 		}
 		return "[]" + elemType
 	case *ast.ArrayType:
+		if element, ok := typ.Element.(*ast.SimpleType); ok && element.Name == "float" {
+			return "FloatArrayVal"
+		}
 		return "ArrayVal"
 	case *ast.RecordType:
 		return "map[string]interface{}"
@@ -357,6 +367,8 @@ func ailangTypeToGoWithValueRecords(t ast.Type, valueRecords map[string]bool) st
 			return "float64"
 		case "string":
 			return "string"
+		case "bytes":
+			return "[]byte"
 		case "bool":
 			return "bool"
 		case "()":
@@ -385,6 +397,9 @@ func ailangTypeToGoWithValueRecords(t ast.Type, valueRecords map[string]bool) st
 		}
 		return "[]" + elemType
 	case *ast.ArrayType:
+		if element, ok := typ.Element.(*ast.SimpleType); ok && element.Name == "float" {
+			return "FloatArrayVal"
+		}
 		return "ArrayVal"
 	case *ast.RecordType:
 		return "map[string]interface{}"

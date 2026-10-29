@@ -173,7 +173,9 @@ Gate 1 reads the latest `CI` runs on `dev`. If `dev` is red while V1 is paused
    failing job and commit). A harness defect (`tools/launchd/`, CI plumbing) goes to
    `ailang mission ticket file`. Link whichever you filed.
 3. **Never fix it in this loop**, and never push. Ownership returns to V1 when V1 is re-armed.
-4. It triggers one Discord post and one `[urgent]` Daneel line (batched, §7).
+4. It triggers one Discord post. It is `[urgent]` to Daneel **only the first iteration it is
+   seen** (a green→red transition, or a different failing check); after that it leads the
+   `[normal]` digest (§7).
 
 Level 1 actions merge nothing, so a red `dev` does not block them.
 
@@ -197,11 +199,26 @@ MSG="env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac"
   $MSG ailang messages send user "<counts · top 3 · link>" --title "Triage: <headline>" --from mission-triage
   ```
 - **Daneel: the digest as `[normal]` every iteration.** Add **at most ONE `[urgent]` per
-  iteration**, batching every `NEEDS-DECISION`, orphan and red-`dev` item into it (Daneel caps
-  urgent mail at 5/day). It is a pointer, not a payload.
+  iteration, and only for something Mark has not been mailed before**: a decision row this
+  iteration opened, a NEW red `dev` (§6), or a level change. Inherited OPEN rows, a red already
+  reported, and orphans go in the `[normal]` digest; an orphan needs a card, not a ruling. Mark,
+  28 Oct 2026, after 13 urgent mails in 13 days: *"I dont know how to respond to them"*. An
+  urgent that repeats last iteration's teaches him to ignore the next one.
+- **The `[urgent]` payload is the ask, answerable from the mail.** Daneel mails the payload and
+  puts its **first** `https://github.com/sunholo-data/` link at the top as the place to act, so
+  that link is the **bookkeeping issue itself** (where the answer is typed), never a commit or
+  a PR. Then one line per new decision with its options and the recommendation, the reply to
+  copy, and what happens with no answer:
+  ```text
+  Answer by commenting on https://github.com/sunholo-data/ailang/issues/<N>
+  D-TRIAGE-34: A (recommended) consolidate #1981/#1982 under a recorded scope ruling, or B revise #1981
+  D-TRIAGE-35: A (recommended) review #1983 after the census fix, or B request a revision
+  Reply in one comment, e.g. "D-TRIAGE-34: A. D-TRIAGE-35: A." No answer = HOLD.
+  Also: red dev GO-2026-6860 (new), routed to #1983. Digest: <comment link>
+  ```
   ```bash
   $MSG ailang messages send daneel-reports "<counts · link to the digest comment>" --from mission-triage --title "[normal] Triage digest: <headline>"
-  $MSG ailang messages send daneel-reports "<items · link>" --from mission-triage --title "[urgent] Triage: <n> decisions / orphans / red dev"
+  $MSG ailang messages send daneel-reports "<the ask, as above>" --from mission-triage --title "[urgent] Triage: <ids> need your answer"
   ```
   The body is **positional**. `messages send` has no `--body-file` flag and would send the
   literal string (gate-5-retro step 3).

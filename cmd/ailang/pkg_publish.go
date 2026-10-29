@@ -280,6 +280,7 @@ func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, in
 	// local build failed — the validator then has nothing to compare).
 	if interfaceHashV2 != "" {
 		req.Header.Set("X-Interface-Hash-V2", interfaceHashV2)
+		req.Header.Set(pkg.PublisherVersionHeader, Version)
 	}
 
 	resp, err := client.Do(req)

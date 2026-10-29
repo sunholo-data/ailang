@@ -6,6 +6,29 @@
       "ctors": [
         "OggOpus(int)"
       ]
+    },
+    {
+      "name": "Pcm16Quantization",
+      "ctors": [
+        "ClipOutOfRange",
+        "RejectOutOfRange"
+      ]
+    },
+    {
+      "name": "PcmLayout",
+      "ctors": [
+        "Interleaved"
+      ]
+    },
+    {
+      "name": "WavEncoding",
+      "ctors": [
+        "IntegerPcm"
+      ]
+    },
+    {
+      "name": "WavInfo",
+      "alias": "{blockAlign: int, byteRate: int, channels: int, containerBits: int, dataBytes: int, dataOffset: int, encoding: WavEncoding, frames: int, layout: PcmLayout, rate: int, validBits: int}"
     }
   ],
   "funcs": [
@@ -22,14 +45,44 @@
       "pure": true
     },
     {
+      "name": "floatsToPcm16",
+      "type": "(Array[float],int,Pcm16Quantization)-\u003eResult[bytes,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "pcm16ToFloats",
+      "type": "(bytes,int,int,int)-\u003eResult[Array[float],string]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "wavFromPcm",
       "type": "(bytes,int,int,int)-\u003ebytes",
       "effects": [],
       "pure": true
     },
     {
+      "name": "wavFromPcmChecked",
+      "type": "(bytes,int,int,int)-\u003eResult[bytes,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "wavHeader",
       "type": "(int,int,int,int)-\u003ebytes",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "wavHeaderChecked",
+      "type": "(int,int,int,int)-\u003eResult[bytes,string]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "wavInfo",
+      "type": "(bytes)-\u003eResult[WavInfo,string]",
       "effects": [],
       "pure": true
     }

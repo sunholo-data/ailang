@@ -1,0 +1,84 @@
+# M-EVAL-HIDDEN-TESTS pack (design_docs/planned/v0_55_0/m-eval-hidden-tests.md).
+# Generated from AetherCode v1_2024; regenerate rather than hand-edit the prompt.
+id: cp_60159
+description: 'AetherCode v1_2024 problem 60159 (The 2024 ICPC Central Europe Regional Contest, Easy; CC-BY-4.0, see benchmarks/hidden_tests/AETHERCODE.md). Tracks: cheap set: cycle detection wants a visited set (or Floyd).'
+languages:
+- python
+- ailang
+entrypoint: main
+caps:
+- IO
+difficulty: hard
+expected_gain: low
+timeout: 600
+exec_timeout: 30
+tier: stretch
+tags:
+- algorithmic
+- state_machine
+task_prompt: "Solve the following competitive programming problem in <LANG>.\nWrite a complete program that reads the input from standard input and writes the answer to standard output.\nBesides the example below, it is judged against 17 hidden tests (inputs up to 64KB), each with a 30 second time limit, so the algorithm must be efficient enough. Ignore the time limit stated in the problem.\n\n--- PROBLEM ---\nInput file: standard input \nOutput file: standard output \nTime limit: 2 seconds \nMemory limit: 1024 megabytes\nDwarf the Puzzler is designing labyrinth puzzles for other dwarfs. A labyrinth is an $N \\times N$ square with each cell being either a passage or a wall. In one of the passages is located a pawn, which faces one of four possible directions: right, up, left or down. In each step a dwarf first rotates the pawn and then moves it in the resulting direction. Of course the pawn cannot move to or through the wall! If the pawn moves out of the labyrinth, then the puzzle is solved.\nDwarfs love those puzzles, but Dwarf the Riddler, Puzzler’s old rival, boasts that labyrinths are dull and that he can solve them using a simple tactic: among the cells to the right, front, left and back (relatively to the direction faced by the pawn) choose the first one that is a passage, then rotate the pawn to this direction and move in this direction. The Puzzler is not convinced that this indeed is a proper tactic and, as an engineer, wants to run some tests on it. Help him, for the labyrinths he devised and starting positions (and directions) of the pawn compute, whether the pawn will eventually leave the labyrinth and how many moves it will take.\n\nInput\nThe first line of input contains two integers $N$ and $Q$, representing the size of the labyrinth and the number of queries, respectively.\nIn the next $N$ lines, there is a description of the labyrinth, with description of one labyrinth row per line, starting from top-most row. Each line contains $N$ characters that are either a dot . or a hash #, representing a passage and wall, respectively. Rows and columns of the labyrinth are numbered from 1 to $N$, top-to-bottom and left-to-right.\nThe following $Q$ lines contain descriptions of the subsequent queries. Each query consists of two integers $r, c$ and one character $d$. The numbers $r$ and $c$ represent the row and column where the pawn is initially located, and the character $d$ indicates the direction the pawn is facing, where the letters U, D, L and R mean that the pawn is initially facing respectively up, down, left or right.\nYou can assume that the pawn is never located in a cell where there is a wall.\nLimits $1 \\leq N \\leq 1000$, $1 \\leq Q \\leq 100000$, $1 \\leq r, c \\leq N$, $d \\in \\{U, D, L, R\\}$.\nOutput\nFor each query, output one line containing a single integer: the number of moves in which the pawn will leave the labyrinth. If the pawn never leaves the labyrinth, output $-1$ instead.\n\nExample\nstandard input \n10 10 \n########## \n#.#.#.#... \n#.....#.## \n####.##..# \n#....##### \n#..#.#...# \n#.#..#.#.# \n#.#.##.#.# \n#.#......# \n###.###### \n2 10 U \n2 10 L \n4 8 U \n10 4 U \n8 7 U \n8 9 U \n6 2 U \n5 2 U \n3 5 D \n7 4 R \nstandard output \n1 \n11 \n7 \n61\n-1 \n54 \n11\n-1 \n33 \n4\n--- END PROBLEM ---\n\nOutput only the code, no explanations.\n"
+stdin: '10 10
+
+  ##########
+
+  #.#.#.#...
+
+  #.....#.##
+
+  ####.##..#
+
+  #....#####
+
+  #..#.#...#
+
+  #.#..#.#.#
+
+  #.#.##.#.#
+
+  #.#......#
+
+  ###.######
+
+  2 10 U
+
+  2 10 L
+
+  4 8 U
+
+  10 4 U
+
+  8 7 U
+
+  8 9 U
+
+  6 2 U
+
+  5 2 U
+
+  3 5 D
+
+  7 4 R
+
+  '
+expected_stdout: '1
+
+  11
+
+  7
+
+  61
+
+  -1
+
+  54
+
+  11
+
+  -1
+
+  33
+
+  4
+
+  '
+hidden_tests_dir: hidden_tests/cp_60159

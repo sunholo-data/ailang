@@ -1,0 +1,188 @@
+{
+  "sprint_id": "M-BENCHMARK-PERFORMANCE-REFRESH",
+  "status": "completed",
+  "created": "2026-10-23T20:32:28.226485+00:00",
+  "design_doc": "design_docs/implemented/v0_54_18/m-benchmark-performance-refresh.md",
+  "sprint_plan": "design_docs/implemented/v0_54_18/m-benchmark-performance-refresh-sprint-plan.md",
+  "github_issues": [],
+  "execution_authorized": true,
+  "execution_gate": "AGENTS.md requires explicit execute sprint instruction after the concrete plan. No automatic dispatch.",
+  "design_direction_approval": "User selected A, accepted main-page trends and AILANG style, and accepted the undefeated-first revision in the attended conversation.",
+  "constraints": [
+    "No eval-suite or model inference calls",
+    "Preserve existing raw bank and saved history",
+    "Leave unrelated uncommitted work parked",
+    "No production UI publication before evaluated concrete review"
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Native Go/React integration, not an AILANG package-like capability. Registry search not applicable. Reuse existing loader, ELO/export code, Recharts and docs theme."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Native Go/React integration, not an AILANG package-like capability. Registry search not applicable. Reuse existing loader, ELO/export code, Recharts and docs theme."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Native Go/React integration, not an AILANG package-like capability. Registry search not applicable. Reuse existing loader, ELO/export code, Recharts and docs theme."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Native Go/React integration, not an AILANG package-like capability. Registry search not applicable. Reuse existing loader, ELO/export code, Recharts and docs theme."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Native Go/React integration, not an AILANG package-like capability. Registry search not applicable. Reuse existing loader, ELO/export code, Recharts and docs theme."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "Native Go/React integration, not an AILANG package-like capability. Registry search not applicable. Reuse existing loader, ELO/export code, Recharts and docs theme."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 1010,
+    "estimated_total_loc": 2020,
+    "estimated_days": 2,
+    "basis": "Engineering estimate, not measured velocity. Velocity script exited 141; recent frontend commit sample insufficient. Includes 25% contingency in time budget.",
+    "actual_new_source_loc": 1186,
+    "generated_json_excluded": true,
+    "actual_elapsed_hours": 0.46
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Scoped saved-evidence export",
+      "estimated_loc": 420,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Optional versioned benchmarkEvidence preserves mode/harness/language/tier, exact task IDs and Core-set coverage, pass/first-attempt/repair/outcomes, reported versions and measurement dates.",
+        "Cost categories and timing boundary are explicit; unknown billing data and absent timing do not become metered dollars or instantaneous latency.",
+        "Existing schema keys and history round-trip unchanged; offline export over a saved fixture produces the new block without inference or bank mutation.",
+        "Tests cover 49/49 Argon, 3/3 Astra, duplicate trials, mixed versions, unknown cost, explicit free-local zero and missing versus measured zero."
+      ],
+      "passes": true,
+      "started": "2026-10-23T20:35:44.666111+00:00",
+      "completed": "2026-10-23T20:39:06.318877+00:00",
+      "notes": "Added typed schema, exact ID coverage, deterministic scoped export, cost provenance categories and distinct timing boundaries. New tests initially failed, then Evidence/Ratings/Export tests passed; legacy history round-trip checked. Broader gates pending final validation."
+    },
+    {
+      "id": "M2",
+      "description": "Production comparison table and identity projection",
+      "estimated_loc": 520,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "One fetched snapshot powers the page; mode, language, scope, search and sort preserve identity and never manufacture a Python score.",
+        "Unrated undefeated group first; complete Core coverage before provisional samples, numeric ELO next. Astra's three AILANG runs are not 23 Core results.",
+        "Cost and name sorts remain independent of capability grouping. Rated agent models keep their numeric-ELO ordering even if undefeated.",
+        "Empty/missing/zero states and legacy evidence adapter have targeted tests."
+      ],
+      "passes": true,
+      "started": "2026-10-23T20:39:06.318948+00:00",
+      "completed": "2026-10-23T20:57:09.197973+00:00",
+      "notes": "Typed and conservative legacy projections; undefeated grouping, independent sorts, mode/language/tier filters, missing-language states and pooled legacy agent coverage regression tests pass."
+    },
+    {
+      "id": "M3",
+      "description": "Overall saved-history plots",
+      "estimated_loc": 420,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Main page shows pass-rate and model-ELO plots, full/recent history, independent clearly labeled scope and a shared keyboard snapshot inspector.",
+        "Missing values break paths, measured zeros remain, and changing model identities or anchors are not silently connected.",
+        "Cohort counts/events and snapshot publication versus measurement meaning are visible. An absent fixed-panel index is unavailable, not invented.",
+        "Saved history is preserved across a publication without new eval runs."
+      ],
+      "passes": true,
+      "started": "2026-10-23T20:57:09.197973+00:00",
+      "completed": "2026-10-23T20:57:09.197973+00:00",
+      "notes": "Recharts pass/ELO history with null/anchor gaps, full/recent range, shared keyboard inspector, model/task counts, suite events and fixed-panel unavailable state. Saved 61-entry history preserved."
+    },
+    {
+      "id": "M4",
+      "description": "Model evidence details and history access",
+      "estimated_loc": 320,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "First/final pass, repair, tokens, outcome categories, cost provenance, reported versions and timing boundaries remain reachable from each row.",
+        "Whole-model detail does not pretend to inherit a tier or language filter; each metric uses its actual declared scope.",
+        "All saved version snapshots and original published fields remain inspectable/downloadable; existing Tasks/ELO/Value/Explorer pages stay linked."
+      ],
+      "passes": true,
+      "started": "2026-10-23T20:57:09.197973+00:00",
+      "completed": "2026-10-23T20:57:09.197973+00:00",
+      "notes": "Scoped first/final pass, repairs, token coverage, outcomes, costs/timing and contributing versions; full original snapshot download, saved release snapshots and research/task links retained."
+    },
+    {
+      "id": "M5",
+      "description": "Route replacement, documentation and theme integration",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M3",
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Performance route mounts the new page; removes duplicate radar/chart/KPI composition from this route without deleting evidence or breaking other views.",
+        "Inter/Montserrat, docs palette, focus states and light/dark behavior match the reviewed AILANG direction. No marketing-only global CSS is copied in.",
+        "Latest publication and per-row measured version labels remain distinct; a visible static-copy fallback does not automatically imply stale data.",
+        "Documentation describes rolling evidence reuse and has no full-baseline or every-release eval requirement."
+      ],
+      "passes": true,
+      "started": "2026-10-23T20:57:09.197973+00:00",
+      "completed": "2026-10-23T20:57:09.197973+00:00",
+      "notes": "Performance route replaced and overview/changelog updated using existing docs theme tokens. Snapshot publication versus measured versions and visible static fallback are separate. Production build and actual desktop/mobile/light/dark browser verification pass, including the production compiler regression."
+    },
+    {
+      "id": "M6",
+      "description": "Rendered verification, evaluation and publication preparation",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "Targeted tests, relevant repository gates and production docs build pass.",
+        "Verify actual rendered desktop/mobile and light/dark states, Argon/Astra, missing Python, cost sort, empty filters, model detail, historical plots and static fallback. Record browser-tool limits rather than claiming JSON is UI QA.",
+        "Independent sprint-evaluator scores against the design and resolves blocking findings before production publication.",
+        "Prepare the concrete final diff, preview and validation report for the final publication decision. Do not publish the new UI under a prior data-only deployment instruction."
+      ],
+      "passes": true,
+      "started": "2026-10-23T20:57:09.197973+00:00",
+      "completed": "2026-10-23T21:00:12.029820+00:00",
+      "notes": "All targeted Go/frontend tests, lint, file-size/changelog/boundary gates, real production docs build and browser interaction matrix pass. Independent evaluation PASS95/100. Verified private HTTPS page and logo. No eval calls. Full Go CI and production publication pending; concrete diff/artifact ready for review."
+    }
+  ],
+  "notes": [
+    "Mocks are reviewed design artifacts, not production code.",
+    "Sprint JSON populated directly because the template script imports unrelated GitHub/inbox messages.",
+    "Native/JS tests and real rendered checks precede independent sprint evaluation and publication.",
+    "Real browser found and fixed Docusaurus loose Set-spread compilation; independent review found and fixed legacy agent Core-coverage leakage and missing token telemetry. Local review images remain in design_docs/mockups/benchmark-redesign/verification/."
+  ],
+  "execution_authorization": "User: execute sprint (attended conversation, 2026-10-23)",
+  "completed": "2026-10-23T21:00:12.029820+00:00",
+  "evaluation": {
+    "result": "pass",
+    "score": 95,
+    "report": ".ailang/state/evaluations/eval_M-BENCHMARK-PERFORMANCE-REFRESH_round_1.json"
+  },
+  "preview_url": "https://voights-mac-studio.tail97eda0.ts.net:8451/docs/benchmarks/performance",
+  "publication_status": "pending_user_review"
+}

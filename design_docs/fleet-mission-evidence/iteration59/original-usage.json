@@ -1,0 +1,54 @@
+{
+  "designer-run": {
+    "input": 36931,
+    "output": 23428,
+    "cacheRead": 917952,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 978311,
+    "metered_usd": 0,
+    "assistant_turns": 29
+  },
+  "planner-run": {
+    "input": 60096,
+    "output": 25031,
+    "cacheRead": 710203,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 795330,
+    "metered_usd": 0,
+    "assistant_turns": 23
+  },
+  "executor-run": {
+    "input": 34925,
+    "output": 9601,
+    "cacheRead": 465280,
+    "cacheWrite": 0,
+    "reasoning": 0,
+    "totalTokens": 509806,
+    "metered_usd": 0,
+    "assistant_turns": 19
+  },
+  "evaluator-run": {
+    "input": 251431,
+    "output": 30131,
+    "cacheRead": 3266726,
+    "cacheWrite": 0,
+    "reasoning": 17124,
+    "totalTokens": 3548288,
+    "metered_usd": 0.30759006,
+    "assistant_turns": 61
+  },
+  "evaluator-run-r2": {
+    "input": 370315,
+    "output": 44458,
+    "cacheRead": 13417728,
+    "cacheWrite": 0,
+    "reasoning": 15075,
+    "totalTokens": 13832501,
+    "metered_usd": 0.9695077799999999,
+    "assistant_turns": 162
+  },
+  "recorded_original_metered_usd": 1.27709784,
+  "scope": "Original interrupted fire usage from assistant message_end provider usage, not turn_end duplicates; probes and native carrier/controller consumption not exhaustively reported."
+}

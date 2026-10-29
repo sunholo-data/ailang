@@ -1,0 +1,23 @@
+{
+  "verdict": "ok",
+  "rc": 0,
+  "fenced": true,
+  "model": "openrouter/minimax/minimax-m3",
+  "pi_rc": 0,
+  "elapsed_seconds": 732,
+  "worktree_changed_files": 1,
+  "predirty_files": 0,
+  "worktree_changed_since_start": true,
+  "base_head": "0be2c1957a78b14aa281eb67f4c7e3efad82bb5a",
+  "head_after": "0be2c1957a78b14aa281eb67f4c7e3efad82bb5a",
+  "commits_since_start": 0,
+  "tool_executions": 53,
+  "hung_tool": "",
+  "provider_errors": 0,
+  "provider_error": "",
+  "agent_end_events": 1,
+  "ndjson_bytes_filtered": 1568521,
+  "ndjson": "/tmp/fleet-i58-evaluator.ndjson",
+  "snapshot": "/tmp/fleet-i58-evaluator.ndjson.snapshot.ndjson",
+  "stderr": "/tmp/fleet-i58-evaluator.ndjson.stderr"
+}

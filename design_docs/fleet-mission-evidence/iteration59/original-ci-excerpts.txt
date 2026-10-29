@@ -1,0 +1,3 @@
+1635: 2026-10-23T05:57:46.3404770Z stall watchdog: 50 passed, 0 failed
+1941: 2026-10-23T06:00:36.1177650Z not ok - bound measurement refuses an unsuccessfully terminated timer (rc=0 expected_rc=73 refusal=0 derived=1)
+1943: 2026-10-23T06:00:36.1520400Z make: *** [test-launchd-drivers] Error 1

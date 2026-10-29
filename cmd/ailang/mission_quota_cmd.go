@@ -35,6 +35,9 @@ func missionQuotaWithPaths(args []string, paths mission.Paths, now time.Time) er
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if mapped, err := mission.QuotaBucketFor(*bucket); err != nil || mapped != *bucket {
+		return mission.ErrOpencodeQuotaBucket
+	}
 
 	codexHome := config.CodexHome()
 	if codexHome == "" {

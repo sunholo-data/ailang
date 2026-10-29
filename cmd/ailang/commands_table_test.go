@@ -182,7 +182,7 @@ func TestProbes_LanguageCommandsRunNone(t *testing.T) {
 		c := &allCommands[i]
 		for _, route := range append([]string{c.Name}, c.Aliases...) {
 			obs, stale := count([]string{route})
-			if c.Language {
+			if c.Language || route == "access-approvals" {
 				if obs != 0 || stale != 0 {
 					t.Errorf("language command %q ran probes: observatory=%d stale=%d, want 0/0", route, obs, stale)
 				}

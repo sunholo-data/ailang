@@ -1,10 +1,10 @@
 ## M-AGENT-STEP-CANCELLATION: abort a running `std/ai.step()` — extension + one small enabling fix (#231)
 
-**Status**: PLANNED
+**Status**: PLANNED. Lane A has been generalised into, and is now owned by, [M-AI-CALL-CONTEXT](../m-ai-call-context.md) (2026-10-26, tracking #1259/#578/#231). This doc now covers Lane B and the optional A2 only.
 **Target**: v0.28.0 (tentative)
 **Priority**: P2 (Medium — in-lane agentic need; today a long AI step can only be killed with SIGKILL, losing the run summary)
 **Estimated**: ~1 day fix + ~0.5 day extension
-**Dependencies**: Concurrent-stdin primitive already exists (`std/stream.asyncReadStdinLines` + `selectEvents`). Needs one scoped `std/ai` runtime fix (Lane A) before the extension (Lane B) is useful.
+**Dependencies**: Concurrent-stdin primitive already exists (`std/stream.asyncReadStdinLines` + `selectEvents`). Lane B **depends on [M-AI-CALL-CONTEXT](../m-ai-call-context.md)**, which supplies the core plumbing: a per-call ctx, SIGINT interrupt → `Err(Cancelled)`, and deadlines.
 
 **Tracks**: [#231](https://github.com/sunholo-data/ailang/issues/231) — *"std/ai.step should support cancellation via stdin or signal"* (reported by `motoko_explore`).
 **Verified against**: v0.27.0 (`std/ai.step` has no cancellation arg; `asyncReadStdinLines` present).

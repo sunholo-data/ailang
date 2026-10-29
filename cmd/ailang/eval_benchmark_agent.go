@@ -307,6 +307,10 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		RuntimeOk:  result.RuntimeOk,
 		StdoutOk:   result.StdoutOk,
 		DurationMs: int64(result.DurationMS),
+		// M-EVAL-HIDDEN-TESTS: held-out test verdict (absent when the benchmark has none).
+		HiddenTotal:     len(spec.HiddenTests),
+		HiddenPassed:    result.Hidden.Passed,
+		HiddenFirstFail: result.Hidden.FirstFail,
 		// Contract verification (M4a-3): the banked RESULT JSON now carries the
 		// same 5 verify_* fields the chain assessment does. Standard mode has
 		// always recorded these (via PopulateVerifyMetrics); agent mode dropped

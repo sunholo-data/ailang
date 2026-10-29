@@ -1,0 +1,31 @@
+-- Difference array and histogram with std/array.accumulate (batch update, one copy).
+-- accumulate(arr, [(index, value)], combine) sets out[i] = combine(out[i], value) for
+-- every write in O(n + k): the pure form of Python's `diff[lo] += 1; diff[hi] -= 1`.
+module examples/runnable/difference_array_accumulate
+import std/io (println)
+import std/array as A
+import std/list (flatMap, map, mapAccumL)
+import std/string (length)
+
+-- Running sum: turns a difference array into the covered counts.
+func prefix(xs: [int]) -> [int] = match mapAccumL(\s x. (s + x, s + x), 0, xs) {
+  (ys, _) => ys
+}
+
+-- How many intervals [lo, hi) cover each cell 0..n-1.
+func coverage(n: int, intervals: [(int, int)]) -> [int] {
+  let corners = flatMap(\iv. match iv {
+    (lo, hi) => [(lo, 1), (hi, -1)]
+  }, intervals)
+  prefix(A.toList(A.accumulate(A.make(n + 1, 0), corners, \a b. a + b)))
+}
+
+export func main() -> () ! {IO} {
+  println("coverage: ${show(coverage(6, [(0, 3), (2, 5), (4, 6)]))}")
+  let words = ["b", "a", "c", "a", "b", "a"]
+  let idx = \w. if w == "a" then 0 else if w == "b" then 1 else 2
+  let hist = A.accumulate(A.make(3, 0), map(\w. (idx(w), 1), words), \a b. a + b)
+  println("histogram a/b/c: ${show(hist)}")
+  let longest = A.accumulate(A.make(2, ""), [(0, "ab"), (0, "abcd"), (1, "x")], \a b. if length(b) > length(a) then b else a)
+  println("max per bucket: ${show(longest)}")
+}

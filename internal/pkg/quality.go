@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 // M-PKG-QUALITY-LADDER M3 — the ONE quality report behind `ailang pkg quality`,
@@ -28,6 +30,11 @@ const QualitySchema = "ailang.package-quality/v1"
 // AttestedFormField is the multipart field the publisher uses to send its
 // attested block alongside the tarball.
 const AttestedFormField = "attested"
+
+// PublisherVersionHeader carries the publisher's ailang version next to its
+// v2 identity, so a PUB005 refusal can say whether the two sides even ran
+// different versions.
+const PublisherVersionHeader = "X-Ailang-Version"
 
 // Provenance labels a report section.
 const (
@@ -123,15 +130,18 @@ type CompileSection struct {
 }
 
 type ContractsSection struct {
-	Source              string  `json:"source"`
-	Verified            int     `json:"verified"`
-	Total               int     `json:"total"`
-	Counterexample      int     `json:"counterexample"`
-	Skipped             int     `json:"skipped"`
-	Errors              int     `json:"errors"`
-	UncontractedExports int     `json:"uncontracted_exports"`
-	WallSeconds         float64 `json:"wall_seconds,omitempty"`
-	Error               string  `json:"error,omitempty"`
+	Source string `json:"source"`
+	verification.Evidence
+	ReasonCounts        map[verification.ReasonCode]int `json:"reason_counts"`
+	ModuleIssues        []verification.ModuleIssue      `json:"module_issues,omitempty"`
+	Verified            int                             `json:"verified"`
+	Total               int                             `json:"total"`
+	Counterexample      int                             `json:"counterexample"`
+	Skipped             int                             `json:"skipped"`
+	Errors              int                             `json:"errors"`
+	UncontractedExports int                             `json:"uncontracted_exports"`
+	WallSeconds         float64                         `json:"wall_seconds,omitempty"`
+	Error               string                          `json:"error,omitempty"`
 }
 
 type TestsSection struct {
@@ -263,6 +273,16 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 	// contracts (server)
 	r.Contracts = ContractsSection{Source: SourceServer, Error: in.VerifyErr}
 	if in.Verify != nil {
+		r.Contracts.Evidence = in.Verify.Evidence
+		if in.Verify.ReasonCounts != nil {
+			r.Contracts.ReasonCounts = make(map[verification.ReasonCode]int, len(in.Verify.ReasonCounts))
+			for code, n := range in.Verify.ReasonCounts {
+				r.Contracts.ReasonCounts[code] = n
+			}
+		}
+		for _, m := range in.Verify.Modules {
+			r.Contracts.ModuleIssues = append(r.Contracts.ModuleIssues, m.Issues...)
+		}
 		r.Contracts.Verified = in.Verify.Verified
 		r.Contracts.Total = in.Verify.Total
 		r.Contracts.Counterexample = in.Verify.Counterexample
@@ -274,10 +294,9 @@ func BuildQualityReport(m *PackageManifest, mode QualityMode, in QualityInputs, 
 			r.gate("PUB006", fmt.Sprintf("%d contract(s) refuted by Z3", in.Verify.Counterexample))
 		}
 		if in.Verify.Skipped > 0 {
-			// A contract Z3 cannot encode (records, strings, list builtins,
-			// deep recursion) is a runtime assertion, not a proof. Say so —
-			// an author reading "12 contracts" would otherwise count 12 proofs.
-			r.badge("PUB016", "info", fmt.Sprintf("%d contract(s) skipped by Z3 (unencodable types or builtins) — not proved; `ailang verify --package .` lists the reason per function", in.Verify.Skipped))
+			// Skips include missing postconditions and encoding limitations;
+			// neither is a proof or evidence that a runtime assertion ran.
+			r.badge("PUB016", "info", fmt.Sprintf("%d contract(s) skipped by the verifier — not proved; `ailang verify --package .` lists the reason per function", in.Verify.Skipped))
 		}
 		if in.Verify.Uncontracted > 0 {
 			r.finding("PUB011", hard && m.Stability.Level == "frozen", "warn",

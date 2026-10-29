@@ -1,0 +1,22 @@
+{
+  "original_evaluation": {
+    "path": "/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-judge/design_docs/fleet-mission-evidence/iteration59/evaluation.md",
+    "sha256": "2ecd4c2d1a293805bd65b7558a4718ff995f217139b22f2b26039bf5549174ab",
+    "bytes": 25102
+  },
+  "original_full_suite": {
+    "path": "/tmp/fleet-i59-launchd-drivers2.txt",
+    "sha256": "51cbc9ee7b61a325b51251ecbba84af3f335fcdb0b6cf6fcd945046534d0ba93",
+    "bytes": 84025
+  },
+  "original_merge_poll": {
+    "path": "/tmp/ci_iter59_merge6c16b4c.log",
+    "sha256": "9bc265b5b813fe695a5c8c50b9bd2ac4ffb62a6592e0cbf2e9823642a59e29dc",
+    "bytes": 3318
+  },
+  "original_red_job": {
+    "path": "/tmp/fleet-i59-redjob.log",
+    "sha256": "c5356554aa65e2c0f377b5a01612223d70c69a0594e0ef635f2a622d888c33b0",
+    "bytes": 153905
+  }
+}

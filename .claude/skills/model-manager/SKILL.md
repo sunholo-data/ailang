@@ -414,9 +414,23 @@ done | column -ts $'\t'
 
 Why: the smoke tier is deliberately fundamental ("can it speak AILANG"), so any
 viable model passes ~all of it. A smoke **tie is the expected outcome**, not a
-signal — it carries zero ranking information. The discriminator is `--tier core`
-(~26 benchmarks incl. `csv_to_json_converter`, the contract/state-machine tests),
-plus `--tier frontier` when you want placement at the hard end.
+signal — it carries zero ranking information. Place on the HARD set:
+`--tier long-frontier,stretch,frontier` with `--trials 3` (~31 standard-mode benchmarks).
+
+> **Measured 2026-10-19 (DeepSeek V4.1 Flash 1017 vs 0731):** `--tier smoke,frontier`
+> tied 25/26 vs 25/26 (ELO 2225 vs 2228) — `frontier` alone holds only 3 benchmarks
+> that run in standard mode (`docx_`/`markdown_reimplement` are agent-only), and core
+> is saturated for frontier-class models too. The hardest anchored benchmarks
+> (`gauntlet_10` 2241, `commonmark_emphasis`, `quine`, `legal_obligation_engine`)
+> were moved to `long-frontier` on 2026-10-06 for LOCAL AGENT timeouts — a reason
+> that does not apply to a standard-mode API call. The hard set separated the pair:
+> 80/93 vs 84/93, ELO 2042 vs 2128, with per-benchmark discordance to read.
+>
+> **Cost: compare BILLED, not banked.** Banked cost = registry list price × tokens,
+> but `sort=throughput` routes to whichever host is fastest, not the list-price host.
+> That run banked $0.87 vs $0.55 (1.6x) while OpenRouter billed $0.0077 vs
+> $0.0082 per call — a tie. Read `gen_ai.usage.total_cost` per model from the
+> Broadcast spans (CLAUDE.md §1) before calling one model dearer.
 
 #### ⛔ Run the CANDIDATE ALONE. Do not re-run incumbents or anchors.
 
@@ -440,8 +454,8 @@ That is no longer true, and doing it now is pure waste:
 
 ```bash
 # CORRECT — candidate only; the anchored fit places it against banked history.
-ailang eval-suite --models <candidate> --tier core,frontier --langs ailang \
-  --output /tmp/cf_<candidate> --parallel 4
+ailang eval-suite --models <candidate> --tier long-frontier,stretch,frontier \
+  --trials 3 --langs ailang --output /tmp/cf_<candidate> --parallel 6
 
 ailang eval-elo /tmp/cf_<candidate> --json     # read-only ANCHORED placement fit
 go run ./tools/eval-elo /tmp/cf_<candidate> --mode standard \

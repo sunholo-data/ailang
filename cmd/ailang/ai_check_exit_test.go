@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -109,7 +110,7 @@ func TestAICheckExitCode_Lanes(t *testing.T) {
 func TestAICheckVerifyOptions_Contract(t *testing.T) {
 	got := aiCheckVerifyOptions(7*time.Second, 4)
 	want := smt.VerifyOptions{Timeout: 7 * time.Second, RecursiveDepth: 4, UnsupportedConstructIsError: true}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("aiCheckVerifyOptions() = %+v, want %+v", got, want)
 	}
 }

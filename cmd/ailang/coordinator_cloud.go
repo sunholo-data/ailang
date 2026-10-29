@@ -72,6 +72,16 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 		}
 	}
 
+	// AILANG_JOB_MODE picks what this job is. A shadow grade runs no agent and
+	// publishes no task completion: it writes its grade to the comparison.
+	switch mode := config.JobMode(); mode {
+	case "":
+	case config.JobModeShadowGrade:
+		return runShadowGradeJob()
+	default:
+		return fmt.Errorf("execute-job: unknown %s %q", config.EnvJobMode, mode)
+	}
+
 	defer releaseJobCreditAttempt()
 	// Read ALL environment variables upfront (before any early returns).
 	taskID := config.TaskID()
@@ -260,7 +270,7 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 	// Write artifact files to the GCS-mounted directory (/artifacts/tasks/{taskID}/).
 	// The artifact bucket is mounted read-write at /artifacts via Cloud Run volume mount.
 	// Files written here land directly in GCS — no upload client needed.
-	artifactPath := writeTaskArtifacts(taskID, execResult)
+	artifactPath := writeTaskArtifacts(taskID, provider, execResult)
 
 	// Publish completion with executor metrics (success or failure)
 	if execErr != nil {

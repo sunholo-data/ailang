@@ -57,10 +57,8 @@ func (fc *funcCompiler) compileIfStmt(s stmt.IfStmt) error {
 
 	// Then branch.
 	fc.locals.push()
-	for _, ts := range inlineCtorTemps(s.Then) {
-		if err := fc.compileStmt(ts); err != nil {
-			return err
-		}
+	if err := fc.compileStmts(inlineCtorTemps(s.Then)); err != nil {
+		return err
 	}
 	fc.locals.pop()
 
@@ -84,10 +82,8 @@ func (fc *funcCompiler) compileIfStmt(s stmt.IfStmt) error {
 		// enclosing level's result register.
 		fc.locals.bind(alias.name, outer)
 	}
-	for _, es := range inlineCtorTemps(elseStmts) {
-		if err := fc.compileStmt(es); err != nil {
-			return err
-		}
+	if err := fc.compileStmts(inlineCtorTemps(elseStmts)); err != nil {
+		return err
 	}
 	fc.locals.pop()
 

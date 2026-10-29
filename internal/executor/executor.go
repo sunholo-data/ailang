@@ -111,6 +111,10 @@ type Task struct {
 	// workspace on exit.
 	EvalShellGuard bool
 
+	// EvalContainment requests a mandatory trusted OS/native-tool boundary.
+	// Nil preserves the existing executor payload.
+	EvalContainment *EvalContainment
+
 	Model    string            // Model to use (provider-specific)
 	Metadata map[string]string // Provider-specific options
 
@@ -251,9 +255,11 @@ type PluginsConfig struct {
 
 // Result is the normalized execution result
 type Result struct {
-	Success bool   // Overall success
-	Output  string // Final text output from agent
-	Error   string // Error message if failed
+	// UsageEvidence is source-preserving parser evidence; nil means unavailable.
+	UsageEvidence *UsageEvidence
+	Success       bool   // Overall success
+	Output        string // Final text output from agent
+	Error         string // Error message if failed
 
 	// Metrics
 	DurationMS    int // Total execution time in milliseconds
@@ -397,6 +403,12 @@ const (
 	// The run may have completed; its RECORD is untrustworthy, and a wrong
 	// number is worse than no number. M-PI-HARNESS-UPGRADE D4.
 	FinishWireDrift = "wire_drift"
+	// FinishExternalKill means the CLI was terminated by a signal the harness
+	// did not send. Every harness kill (timeouts, caps, cancellation) is a
+	// SIGKILL through proctree, so a SIGTERM death came from outside — on the
+	// rig, a sibling eval agent's `pkill -f "ailang run"` (2026-10-27/28). The
+	// run measured nothing about the model; it is banked invalid and retried.
+	FinishExternalKill = "external_kill"
 )
 
 // ToolPolicyCLIDefault is the Result.ToolPolicy sentinel for "the caller did
@@ -463,6 +475,9 @@ const (
 func ValidateTaskCapabilities(task *Task, exec Executor) error {
 	if task == nil || exec == nil {
 		return nil
+	}
+	if task.EvalContainment != nil && exec.Name() != "pi" {
+		return fmt.Errorf("executor %q cannot honor mandatory eval containment", exec.Name())
 	}
 	if task.RequiresEgress && !hasCapability(exec.Capabilities(), CapNetworkEgress) {
 		return fmt.Errorf(

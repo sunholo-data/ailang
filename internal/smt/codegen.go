@@ -85,6 +85,9 @@ type EncodeResult struct {
 
 // EncodeFunctionOpts holds optional parameters for cross-function call resolution.
 type EncodeFunctionOpts struct {
+	CoreTI         types.CoreTypeInfo
+	ImportedCoreTI map[string]types.CoreTypeInfo
+	ADTTypeParams  map[string][]string
 	// Program is the full Core program (needed for resolving cross-function calls).
 	Program *core.Program
 	// SurfaceParams maps function names to their parameter info.
@@ -141,7 +144,14 @@ func EncodeFunction(
 	adtTypes map[string][]ADTVariant,
 	opts ...EncodeFunctionOpts,
 ) (*EncodeResult, error) {
+	restoreADT := activateADTContext(adtTypes, opts)
+	defer restoreADT()
 	ctx := NewSMTContext()
+	if len(opts) > 0 {
+		if err := validateParametricDefinitions(adtTypes, opts[0].ADTTypeParams); err != nil {
+			return nil, err
+		}
+	}
 	result := &EncodeResult{}
 
 	// Resolve cross-function call dependencies
@@ -280,7 +290,11 @@ func EncodeFunction(
 		sort.Strings(adtNames)
 		for _, typeName := range adtNames {
 			if !ctx.DeclaredTypes[typeName] {
-				decl := DeclareDatatype(typeName, adtTypes[typeName])
+				var binders []string
+				if len(opts) > 0 {
+					binders = opts[0].ADTTypeParams[typeName]
+				}
+				decl := DeclareParametricDatatype(typeName, binders, adtTypes[typeName])
 				pending = append(pending, pendingDecl{sortName: typeName, decl: decl})
 			}
 		}
@@ -542,103 +556,14 @@ func ExtractSortNameFromDecl(decl string) string {
 	return rest[:idx]
 }
 
-// extractConstructorNames extracts constructor/accessor names from a declare-datatype declaration.
-// Format: (declare-datatype Name ((Ctor1) (Ctor2 (field1 Type1) (field2 Type2))))
-// Returns all constructor names AND field accessor names (which are NOT sort references).
-func extractConstructorNames(decl string) map[string]bool {
-	names := make(map[string]bool)
-	// Find the variants section: everything after "(declare-datatype Name ("
-	const prefix = "(declare-datatype "
-	if !strings.HasPrefix(decl, prefix) {
-		return names
-	}
-	rest := decl[len(prefix):]
-	spaceIdx := strings.IndexByte(rest, ' ')
-	if spaceIdx < 0 {
-		return names
-	}
-	body := rest[spaceIdx+1:] // now starts with "((" for variants
-
-	// Parse: find each constructor (first token after each top-level "(")
-	depth := 0
-	inToken := false
-	tokenStart := 0
-	isConstructor := false // true when depth indicates constructor name position
-	fieldNameNext := false // true when we just saw "(" at field level
-
-	for i := 0; i < len(body); i++ {
-		ch := body[i]
-		switch ch {
-		case '(':
-			depth++
-			inToken = false
-			// depth 2 = start of a variant: next token is constructor name
-			if depth == 2 {
-				isConstructor = true
-			}
-			// depth 3 = start of a field: next token is field accessor name
-			if depth == 3 {
-				fieldNameNext = true
-			}
-		case ')':
-			if inToken {
-				token := body[tokenStart:i]
-				if isConstructor {
-					names[token] = true
-				}
-				if fieldNameNext {
-					names[token] = true
-				}
-				inToken = false
-			}
-			isConstructor = false
-			fieldNameNext = false
-			depth--
-		case ' ', '\t', '\n':
-			if inToken {
-				token := body[tokenStart:i]
-				if isConstructor {
-					names[token] = true
-					isConstructor = false
-				}
-				if fieldNameNext {
-					names[token] = true
-					fieldNameNext = false
-				}
-				inToken = false
-			}
-		default:
-			if !inToken {
-				inToken = true
-				tokenStart = i
-			}
-		}
-	}
-	return names
-}
-
 // declReferencesUndeclaredSort checks if a single declare-datatype declaration
 // references any sort that is not yet declared in the context.
 func declReferencesUndeclaredSort(decl string, ctx *SMTContext) bool {
 	if !strings.HasPrefix(decl, "(declare-datatype ") {
 		return false
 	}
-	sortName := ExtractSortNameFromDecl(decl)
-	constructors := extractConstructorNames(decl)
-	refs := sortRefPattern.FindAllString(decl, -1)
-	for _, ref := range refs {
-		if primitiveSorts[ref] || ref == sortName || constructors[ref] {
-			continue
-		}
-		if ctx.DeclaredTypes[ref] {
-			continue
-		}
-		if strings.HasPrefix(ref, "mk_") {
-			continue
-		}
-		return true // undeclared sort referenced
-	}
-	return false
+	name, body := splitDeclareDatatype(decl)
+	return datatypeUndeclaredSort(body, map[string]bool{name: true}, ctx.DeclaredTypes) != ""
 }
 
 // sortRefPattern matches sort names referenced inside SMT-LIB declarations.
@@ -700,12 +625,14 @@ func validateDeclarations(decls []string, ctx *SMTContext) error {
 			for _, name := range sortNames {
 				groupSorts[name] = true
 			}
-			constructors := pluralConstructorNames(decl)
-			for _, ref := range sortRefPattern.FindAllString(decl, -1) {
-				if primitiveSorts[ref] || groupSorts[ref] || constructors[ref] || declared[ref] || strings.HasPrefix(ref, "mk_") {
-					continue
+			parts := smtListParts(decl)
+			if len(parts) != 3 {
+				return fmt.Errorf("%w: malformed datatype group", ErrUnresolvableTypes)
+			}
+			for _, body := range smtListParts(parts[2]) {
+				if ref := datatypeUndeclaredSort(body, groupSorts, declared); ref != "" {
+					return fmt.Errorf("%w: sort %q referenced in mutual datatype declaration is not declared", ErrUnresolvableTypes, ref)
 				}
-				return fmt.Errorf("%w: sort %q referenced in mutual datatype declaration is not declared", ErrUnresolvableTypes, ref)
 			}
 			for _, name := range sortNames {
 				declared[name] = true
@@ -726,19 +653,8 @@ func validateDeclarations(decls []string, ctx *SMTContext) error {
 			// Other declaration shapes have no typed constant header.
 			continue
 		}
-		sortName := ExtractSortNameFromDecl(decl)
-		constructors := extractConstructorNames(decl)
-		refs := sortRefPattern.FindAllString(decl, -1)
-		for _, ref := range refs {
-			if primitiveSorts[ref] || ref == sortName || constructors[ref] {
-				continue
-			}
-			if declared[ref] {
-				continue
-			}
-			if strings.HasPrefix(ref, "mk_") {
-				continue
-			}
+		sortName, body := splitDeclareDatatype(decl)
+		if ref := datatypeUndeclaredSort(body, map[string]bool{sortName: true}, declared); ref != "" {
 			return fmt.Errorf("%w: sort %q referenced in declaration of %q is not declared", ErrUnresolvableTypes, ref, sortName)
 		}
 		// Mark this sort as declared for subsequent declarations

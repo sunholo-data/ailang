@@ -1346,6 +1346,83 @@ follow-up section for details):
   correctness gate.
 - The **`ANTHROPIC_API_KEY` secret** on the coordinator Cloud Run service.
 
+## Executor Shadowing (ailang_only lane)
+
+Shadowing runs a sample of an agent's real tasks a second time on the *other* lane harness (pi ↔ motoko),
+with no side effects, then grades the two against each other. It exists to answer one question with real
+work rather than benchmarks: does motoko write better AILANG than the harness it would replace? Design:
+[m-ailang-lane-executor-shadow.md](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_55_0/m-ailang-lane-executor-shadow.md).
+
+### Turning it on for an agent
+
+```yaml
+- id: pkg-sunholo-ailang-parse
+  provider: pi
+  executor_variant: pi
+  tool_policy: ailang_only
+  policy_path: /etc/ailang-config/policies/pkg-ailang-only.toml
+  shadow:
+    enabled: true
+    provider: motoko          # must differ from the primary's
+    executor_variant: motoko  # must be able to run that provider
+    model: ""                 # "" = the primary's model, so the comparison is about the harness
+    sample_rate: 1.0          # fraction of tasks shadowed (a pure function of the task ID)
+    max_cost_usd: 1.00        # per shadow run
+    reviewer_model: gemini-4-argon   # optional off-Anthropic tie-breaker; "" disables it
+    reviewer_max_cost_usd: 0.25
+```
+
+Config load refuses a shadow block on a non-`ailang_only` agent, a shadow provider equal to the primary's, a
+variant that cannot run the provider, a `sample_rate` outside [0, 1], and an Anthropic reviewer.
+
+The shadow job needs **`OPENROUTER_API_KEY_SHADOW`**, a separate OpenRouter key with its own monthly cap,
+mounted on the shadow variant's Cloud Run job. A shadow run without it is refused rather than billed to the
+fleet key.
+
+### What a shadow may and may not do
+
+A shadow is a child task `<id>-shadow` with `ShadowOf` set and no stage, chain, message or issue link. It
+runs the primary's directive under the same policy, and:
+
+- pushes nothing and opens no PR (the job returns after collecting its diff; origin's push URL is disabled;
+  the agent gets no git credential);
+- ends `completed`, never `pending_approval`: no approval card, no handoff, no inbox notice;
+- never enters stage metrics or chain cost totals; its cost lives on its comparison record.
+
+### How it is graded
+
+Each primary/shadow pair is a `ShadowComparison` (Firestore `shadow_comparisons`, SQLite table of the same
+name), moved through one stage field by the cloud coordinator. Everything that executes code or calls a model
+runs as a phase of the agent executor job (`AILANG_JOB_MODE=shadow_grade`, `AILANG_SHADOW_PHASE`), never in
+the coordinator:
+
+1. **mechanical**: at each run's base commit, apply its diff and run `check` and `test` on every changed
+   module (plus `test --package .` where the package ships `*_test.ail`), through the policy tool under the
+   agent's policy, sandboxed to the module's package. A run with no diff fails; a diff that cannot be set up
+   is `ungraded`.
+2. **merged fix**: once the primary's PR settles: merged, closed (the primary was rejected), or unsettled
+   after 14 days. For a merge, file overlap per side, whether it is *circular* (GitHub merged exactly the
+   primary's head), and, if it added `*_test.ail` files, those tests run against each side (they outrank
+   the mechanical layer unless circular).
+3. **review**: only when the layers tie or disagree, and only with `reviewer_model` set. The reviewer sees A
+   and B in an order fixed per comparison and must name a winner, its strongest objection and a confidence.
+   Needed but unavailable, over budget or unparseable → `ungraded`, never a silent verdict.
+
+Verdicts: `primary_better`, `shadow_better`, `equivalent`, `both_failed`, `ungraded` (with a reason).
+
+### The report
+
+```bash
+ailang coordinator shadow report --remote gcp            # last 7 days
+ailang coordinator shadow report --remote gcp --since all --json
+ailang coordinator shadow report --remote gcp --post     # also send it to the user inbox
+```
+
+Per-harness runs, pass rate (graded runs only), runs with no output, cost, wall time, turns and wins;
+the verdict tally with ungraded causes; and every disagreement with how to open both runs. The cloud
+coordinator posts the same report to the `user` inbox every Monday after 09:00 UTC, once per ISO week,
+whenever any agent is shadowed.
+
 ## Service Management
 
 ### Quick Start

@@ -281,3 +281,26 @@ func jsonError(w http.ResponseWriter, status int, format string, args ...interfa
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
+
+// interfaceSkewMessage is the PUB005 refusal. It names both versions so the
+// publisher can tell a real version gap from a same-version disagreement —
+// "upgrade the publisher" alone sent one author through five rebuilds that
+// could not help (2026-10-19: those publishers were computing the identity
+// with an older `ailang` found on PATH, fixed in the CLI since).
+func interfaceSkewMessage(claimed, computed, publisherVersion, validatorVersion string) string {
+	validatorVersion = strings.TrimPrefix(strings.SplitN(validatorVersion, "\n", 2)[0], "AILANG ")
+	msg := fmt.Sprintf("PUB005 interface identity skew: publisher computed %s, validator computed %s.\n", claimed, computed)
+	switch {
+	case publisherVersion == "":
+		msg += fmt.Sprintf("Validator runs ailang %s; the publisher did not send its version. "+
+			"Upgrade the publisher to %s and retry. An older publisher not run as a file named `ailang` "+
+			"computes this hash with the first `ailang` on PATH instead of itself — check `which ailang`.", validatorVersion, validatorVersion)
+	case publisherVersion != validatorVersion:
+		msg += fmt.Sprintf("Publisher ran ailang %s, validator runs %s — upgrade the publisher to %s and retry.",
+			publisherVersion, validatorVersion, validatorVersion)
+	default:
+		msg += fmt.Sprintf("Both sides ran ailang %s, so this is not a version gap: the validator hashes the uploaded tarball "+
+			"(the lock file and tests/ directories are not in it). Report both hashes to AILANG core.", validatorVersion)
+	}
+	return msg
+}

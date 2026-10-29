@@ -164,7 +164,7 @@ has already fallen to the last rung, so the low ceiling makes that loud rather t
 ## STATUS (rotation rule)
 
 Newest **3** STATUS stamps live here; older ones move to `docs-mission-status-archive.md`.
-At Gate 4, after adding your stamp, move the now-4th stamp to the TOP of the archive file.
+At Gate 4, after adding your stamp, move the now-4th stamp directly below the archive's preamble (above its newest STATUS stamp).
 **Only `## STATUS …` blocks ever move.** CURRENT GOAL, The bar, Guardrails, Routing policy, the
 Decision Ledger and the Queue are the charter and never rotate — moving them on 2026-09-02 left
 twelve iterations without a definition of done.

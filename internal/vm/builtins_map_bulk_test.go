@@ -40,7 +40,7 @@ func TestMapNativeBulkParity(t *testing.T) {
 			}
 		}
 	}
-	for _, bad := range []bytecode.Value{i64(1), bytecode.NewList([]bytecode.Value{i64(1)}), bytecode.NewList([]bytecode.Value{bytecode.NewTuple(nil)}), bytecode.NewList([]bytecode.Value{bytecode.NewTuple([]bytecode.Value{bytecode.Unit(), i64(1)})})} {
+	for _, bad := range []bytecode.Value{i64(1), bytecode.NewList([]bytecode.Value{i64(1)}), bytecode.NewList([]bytecode.Value{bytecode.NewTuple(nil)}), bytecode.NewList([]bytecode.Value{bytecode.NewTuple([]bytecode.Value{bytecode.NewList(nil), i64(1)})})} {
 		if _, err := builtinMapFromList([]bytecode.Value{bad}); err == nil {
 			t.Fatalf("accepted %s", bad)
 		}

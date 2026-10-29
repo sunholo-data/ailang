@@ -43,7 +43,7 @@ func languageCommands() []Command {
 		{
 			Name:     "run",
 			Language: true,
-			Summary:  "Run an AILANG program",
+			Summary:  "Run an AILANG program (--bytecode for the VM)",
 			Run:      noArgs(runCommand),
 		},
 		{
@@ -128,7 +128,7 @@ func languageCommands() []Command {
 			Name:     "compile",
 			Group:    groupDev,
 			Language: true,
-			Summary:  "Compile AILANG to Go (emit-go)",
+			Summary:  "Compile AILANG to Go (emit-go; not a speed path, no tail calls)",
 			Run:      noArgs(compileCommand),
 		},
 		{

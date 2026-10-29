@@ -137,6 +137,8 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 			Cost:            completion.CostUSD,
 			Duration:        time.Duration(completion.DurationMS) * time.Millisecond,
 			ArtifactGCSPath: completion.ArtifactGCSPath,
+			// The transcript tail: an evaluator's verdict line is read from it.
+			Output: completion.Summary,
 		}
 		if completion.ErrorMsg != "" {
 			execResult.Error = completion.ErrorMsg
@@ -189,7 +191,11 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 	// The agent's own inbox notice stays: the portal and sidecar poll for it.
 	// Note this is NOT a reply to whoever sent the original request — completions
 	// land in the agent's inbox and correlate home only via correlation_id.
-	h.postCompletionNotification(ctx, task, completion)
+	// Not for a shadow: its result lives in the shadow comparison, and a
+	// completion notice in the agent's inbox would announce work nobody asked for.
+	if task.ShadowOf == "" {
+		h.postCompletionNotification(ctx, task, completion)
+	}
 
 	return nil
 }

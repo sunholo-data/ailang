@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -137,6 +138,30 @@ func TestSplitAgentModel(t *testing.T) {
 		if a != want[0] || m != want[1] {
 			t.Errorf("splitAgentModel(%q)=(%q,%q), want %v", in, a, m, want)
 		}
+	}
+}
+
+// TestVertexRefusesModelPin: Vertex ignores agent_config.model, so a pinned
+// row on managed_agents must fail before any request rather than run the
+// agent's default model under the pinned row's name.
+func TestVertexRefusesModelPin(t *testing.T) {
+	exec := &Executor{
+		name:           "managed_agents",
+		agent:          defaultAgent,
+		project:        "ailang-dev",
+		location:       defaultLocation,
+		httpClient:     &stubHTTP{err: errors.New("request must not be sent")},
+		tokens:         stubToken,
+		timeoutSeconds: 30,
+	}
+	task := &executor.Task{ID: "t-pin", Directive: "x", GCPProject: "ailang-dev",
+		Model: defaultAgent + "/gemini-4-argon"}
+	res, err := exec.Execute(context.Background(), task)
+	if err == nil || !strings.Contains(err.Error(), "not honoured on Vertex") {
+		t.Fatalf("want pin refusal, got %v", err)
+	}
+	if res.Success {
+		t.Error("Success=true on refused pin")
 	}
 }
 

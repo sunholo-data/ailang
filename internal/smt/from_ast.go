@@ -19,6 +19,7 @@ import (
 // ADTExtraction holds ADT types, inline record types from ADT constructor fields,
 // and named record type aliases (type X = {fields}) extracted from one surface file.
 type ADTExtraction struct {
+	TypeParams    map[string][]string
 	ADTTypes      map[string][]ADTVariant
 	RecordDecls   []string                  // SMT-LIB declare-datatype for inline record types in ADT fields
 	RecordAliases map[string]*types.TRecord // Named record type aliases (e.g., "TableCell" → TRecord)
@@ -32,6 +33,7 @@ type ADTExtraction struct {
 //  3. Inline record types in ADT constructor fields → RecordDecls
 func ExtractADTTypesWithRecords(file *ast.File) ADTExtraction {
 	result := ADTExtraction{
+		TypeParams:    make(map[string][]string),
 		ADTTypes:      make(map[string][]ADTVariant),
 		RecordAliases: make(map[string]*types.TRecord),
 	}
@@ -79,6 +81,7 @@ func ExtractADTTypesWithRecords(file *ast.File) ADTExtraction {
 			variants = append(variants, variant)
 		}
 		result.ADTTypes[typeDecl.Name] = variants
+		result.TypeParams[typeDecl.Name] = append([]string(nil), typeDecl.TypeParams...)
 	}
 
 	return result
@@ -165,29 +168,47 @@ func ASTTypeToSMTSort(t ast.Type) string {
 		}
 	case *ast.ListType:
 		elemSort := ASTTypeToSMTSort(ty.Element)
+		if elemSort == "" {
+			return ""
+		}
 		return fmt.Sprintf("(Seq %s)", elemSort)
 	case *ast.TypeApp:
 		// TypeApp{Constructor: "list", Args: [int]} → (Seq Int)
 		if ty.Constructor == "list" && len(ty.Args) == 1 {
 			elemSort := ASTTypeToSMTSort(ty.Args[0])
+			if elemSort == "" {
+				return ""
+			}
 			return fmt.Sprintf("(Seq %s)", elemSort)
 		}
-		return ty.Constructor // ADT type name
+		args := make([]string, len(ty.Args))
+		for i, arg := range ty.Args {
+			args[i] = ASTTypeToSMTSort(arg)
+			if args[i] == "" {
+				return ""
+			}
+		}
+		if len(args) == 0 {
+			return ty.Constructor
+		}
+		return "(" + ty.Constructor + " " + strings.Join(args, " ") + ")"
 	case *ast.RecordType:
 		rec := ConvertASTTypeToType(ty)
 		if rec == nil {
-			return "Int" // Fallback
+			return "" // Unsupported, never invent a numeric sort
 		}
 		trec, ok := rec.(*types.TRecord)
 		if !ok {
-			return "Int"
+			return ""
 		}
 		return MapRecordSortName(trec)
+	case *ast.TypeVar:
+		return ty.Name
 	case *ast.LabelledType:
 		// Strip IFC label metadata — labels do not affect SMT sorts.
 		return ASTTypeToSMTSort(ty.Base)
 	default:
-		return "Int" // Fallback for complex types
+		return "" // Unsupported, never invent a numeric sort for complex types
 	}
 }
 
@@ -388,6 +409,9 @@ func UnwrapLambdaParams(
 				continue
 			}
 			paramType := ConvertASTTypeToType(p.Type)
+			if paramType == nil && p.Type != nil {
+				paramType = &types.TVar{Name: fmt.Sprintf("unsupported parameter type %T", p.Type)}
+			}
 			if paramType != nil {
 				params = append(params, FunctionParam{
 					Name: p.Name,
@@ -448,6 +472,8 @@ func ConvertASTTypeToType(t ast.Type) types.Type {
 		return nil
 	}
 	switch ty := t.(type) {
+	case *ast.TypeVar:
+		return &types.TVar{Name: ty.Name}
 	case *ast.SimpleType:
 		return &types.TCon{Name: ty.Name}
 	case *ast.ListType:
@@ -482,6 +508,9 @@ func ConvertASTTypeToType(t ast.Type) types.Type {
 		}
 		return &types.TCon{Name: ty.Constructor}
 	case *ast.RecordType:
+		if ty.Row != nil {
+			return &types.TRecordOpen{Row: &types.TVar{Name: ty.Row.Name}}
+		}
 		fields := make(map[string]types.Type, len(ty.Fields))
 		for _, f := range ty.Fields {
 			ft := ConvertASTTypeToType(f.Type)

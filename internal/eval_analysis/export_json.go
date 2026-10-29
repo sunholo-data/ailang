@@ -523,6 +523,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	dashboard.Benchmarks = benchmarksJS
 	// M-EVAL-DASHBOARD-REDESIGN: per-mode ELO ratings + grading provenance.
 	dashboard.Ratings = buildRatingsBlock(standardResults, agentResults)
+	dashboard.BenchmarkEvidence = buildBenchmarkEvidence(results, evidenceTierIndex(results, benchmarkTier), evidenceSortedKeys(coreBenchmarkSet()))
 	dashboard.Grading = map[string]interface{}{
 		"regraded": true,
 		"method":   "M-EVAL-OUTPUT-NORMALIZE (boolean-case + numeric parity)",

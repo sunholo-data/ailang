@@ -1,0 +1,24 @@
+-- Fixed-decimal report output. Precision is bounded and checked at runtime.
+module examples/runnable/string_format_fixed
+import std/string (formatFixed)
+import std/io (println)
+
+-- Native formatting is tested with goldens; it is not a Real-model SMT proof.
+export pure func reportValue(x: float) -> string
+  tests [(42.0, "42.00"), (0.125, "0.12"), (2.675, "2.67")] {
+  formatFixed(x, 2)
+}
+
+-- Integer metadata keeps an independently encodable contract in this example.
+export pure func validPrecision(d: int) -> bool
+  ensures { result == (d >= 0 && d <= 1000) }
+  tests [(-1, false), (0, true), (2, true), (1000, true), (1001, false)] {
+  d >= 0 && d <= 1000
+}
+
+export func main() -> () ! {IO} {
+  println(reportValue(42.0));
+  println(reportValue(0.125));
+  println(formatFixed(0.1, 20));
+  println(show(validPrecision(1001)))
+}
