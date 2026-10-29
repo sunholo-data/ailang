@@ -574,8 +574,18 @@ func lowerLetExpr(e *core.Let, cti types.CoreTypeInfo) stmt.Expr {
 	return lowerExpr(e.Body, cti)
 }
 
+// lowerLetRecExpr is reached only when a LetRec sits where the lower pass
+// needs a single expression. It cannot emit the bindings there, and dropping
+// them would let the body's references to the bound names resolve to
+// whatever else carries that name, such as a top-level function (a silent
+// wrong answer, M-VM-COVERAGE G1b). Fail the lowering instead: the
+// lowerTopLevelDeclSafe recovery turns the panic into an EvalOnly stub, so
+// the function runs on the evaluator.
 func lowerLetRecExpr(e *core.LetRec, cti types.CoreTypeInfo) stmt.Expr {
-	return lowerExpr(e.Body, cti)
+	if len(e.Bindings) == 0 {
+		return lowerExpr(e.Body, cti)
+	}
+	panic(fmt.Sprintf("local letrec %q in expression position is not lowered", e.Bindings[0].Name))
 }
 
 // lowerDictApp handles type class method dispatch.

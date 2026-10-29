@@ -1,0 +1,223 @@
+{
+  "sprint_id": "M-STAPLEDON-WORKAROUNDS",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-15T09:42:29Z",
+  "design_doc": "design_docs/implemented/v0_54_7/stapledon-v0-54-6-workarounds.md",
+  "sprint_plan": "design_docs/implemented/v0_54_7/stapledon-workarounds-sprint-plan.md",
+  "total_score": 96,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 11,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "feedback": [],
+  "notes": "Independent review found no blocking correctness defects. All 26 acceptance criteria met. Code quality deducts four points under literal >50-line function rubric for TestPkgLockPreservesMetadata and TestMapStrictEngineParity; these are test organization issues only. Conditional regression bonus is reported separately. No merge, push, issue closure or downstream game edits performed. Local captured logs are ephemeral; committed tests and sprint validation metadata preserve the durable evidence.",
+  "gate_source": "local",
+  "execution_base": "95106ba272834fe47340931ade7b690672083d3a",
+  "conditional_checks": {
+    "regression_surface": {
+      "triggered": true,
+      "score": 7,
+      "maximum": 10,
+      "notes": "Approved Conflict Surface analysis and explicit evaluator/strict map, unported XML, arity/raw Unify/collision, lock check and builtin ratchet regressions. No whole-corpus differential was run. Bonus credit recorded separately from the 100-point base score."
+    },
+    "performance": {
+      "triggered": false
+    }
+  },
+  "automated_checks": {
+    "tests_pass": true,
+    "tests_scope": "Approved sprint explicitly uses make test-changed plus test-core; full make test deferred to CI. All five changed packages passed; complete test-core passed separately after resolving container resource/PID1 constraints.",
+    "tests_output": "/tmp/stapledon-test-changed-pass.log (five changed packages); /tmp/stapledon-core-pass.log (all core packages, exit 0); /tmp/stapledon-pkg.log (full internal/pkg suite, exit 0)",
+    "lint_clean": true,
+    "lint_output": "/tmp/stapledon-lint-final.log: 0 issues, exit 0",
+    "file_sizes_ok": true,
+    "structural_output": "/tmp/stapledon-final-structural.log: changelog, boundaries and file sizes pass",
+    "examples_pass": true,
+    "examples_output": "/tmp/stapledon-examples-final.log: verify-examples passes; pre-existing missing lambda_expressions manifest entry is warning only",
+    "coverage_pct": null,
+    "todo_hack_count": 0,
+    "environment_history": [
+      "Initial run lacked ps and container PID1 retained orphan zombies; rootless procps/tini repaired test environment.",
+      "Concurrent linker/pipeline processes were killed under resource pressure; serialized build/examples/core retries passed.",
+      "512MiB Go memory cap caused time-bound recursion tests to exceed limits; uncapped changed-package run passed.",
+      "Combined test-changed invocation passed all changed packages but parallel test-core pipeline was killed; complete serial core retry under tini passed. No claim that the combined invocation itself exited zero."
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Map values round-trip across the evaluator bridge, including nested values and empty maps.",
+      "met": true,
+      "evidence": "value_map_test.go and convert_map_test.go: canonical identity, COW, nested/empty bridge round trip; map-valued entrypoint comparison in map_parity_test.go; changed-package gates pass."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Canonical key identity, stable display/iteration and equality match evaluator semantics.",
+      "met": true,
+      "evidence": "value_map_test.go and convert_map_test.go: canonical identity, COW, nested/empty bridge round trip; map-valued entrypoint comparison in map_parity_test.go; changed-package gates pass."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Targeted bytecode/VM tests and make test-changed pass; existing value kinds remain valid.",
+      "met": true,
+      "evidence": "value_map_test.go and convert_map_test.go: canonical identity, COW, nested/empty bridge round trip; map-valued entrypoint comparison in map_parity_test.go; changed-package gates pass."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Six point operations execute natively with int/string/bool keys and opaque values.",
+      "met": true,
+      "evidence": "builtins_map_test.go: supported keys, opaque ADT values, Some/None, COW point updates; native builtin coverage ratchet; changed-package gates pass."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Updating a map leaves aliases to the original unchanged; missing keys return None.",
+      "met": true,
+      "evidence": "builtins_map_test.go: supported keys, opaque ADT values, Some/None, COW point updates; native builtin coverage ratchet; changed-package gates pass."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "TestPureBuiltinCoverage and targeted VM/compiler tests plus make test-changed pass.",
+      "met": true,
+      "evidence": "builtins_map_test.go: supported keys, opaque ADT values, Some/None, COW point updates; native builtin coverage ratchet; changed-package gates pass."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "All ten __map_* operations are native; the map family is absent from unportedPure.",
+      "met": true,
+      "evidence": "builtins_map_bulk_test.go compares evaluator fromList/keys/values/toList, empty/duplicate/negative integer ordering and malformed inputs; all ten registrations native; changed-package gates pass."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Empty input, duplicates and mixed positive/negative integer ordering match evaluator.",
+      "met": true,
+      "evidence": "builtins_map_bulk_test.go compares evaluator fromList/keys/values/toList, empty/duplicate/negative integer ordering and malformed inputs; all ten registrations native; changed-package gates pass."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Bulk-operation tests, coverage ratchet and make test-changed pass.",
+      "met": true,
+      "evidence": "builtins_map_bulk_test.go compares evaluator fromList/keys/values/toList, empty/duplicate/negative integer ordering and malformed inputs; all ten registrations native; changed-package gates pass."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Reporter repro returns 2 under interpreter and --bytecode --strict-bytecode.",
+      "met": true,
+      "evidence": "TestMapStrictEngineParity runs exact reporter returning 2, full-family fixture true and map-valued result on both engines; TestMapPortKeepsUnportedXMLStrictFailure pins XML reason; verify-examples/boundaries green."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Full-family parity fixture produces identical results on both engines, with no fallback.",
+      "met": true,
+      "evidence": "TestMapStrictEngineParity runs exact reporter returning 2, full-family fixture true and map-valued result on both engines; TestMapPortKeepsUnportedXMLStrictFailure pins XML reason; verify-examples/boundaries green."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Still-unported XML builtin retains its explicit strict-bytecode failure and reason.",
+      "met": true,
+      "evidence": "TestMapStrictEngineParity runs exact reporter returning 2, full-family fixture true and map-valued result on both engines; TestMapPortKeepsUnportedXMLStrictFailure pins XML reason; verify-examples/boundaries green."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "make test-changed, make verify-examples and make check-boundaries pass.",
+      "met": true,
+      "evidence": "TestMapStrictEngineParity runs exact reporter returning 2, full-family fixture true and map-valued result on both engines; TestMapPortKeepsUnportedXMLStrictFailure pins XML reason; verify-examples/boundaries green."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Consecutive unchanged locks are byte-identical, including across generator/version changes.",
+      "met": true,
+      "evidence": "pkg_lock_preserve_test.go exercises empty/path deps, repeated byte identity, prior generator/version, fresh metadata on drift, --check no-write/current/drift, malformed/schema/unreadable lock preservation; internal/pkg portability suite green."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Empty dependencies behave identically; changed resolution receives fresh metadata.",
+      "met": true,
+      "evidence": "pkg_lock_preserve_test.go exercises empty/path deps, repeated byte identity, prior generator/version, fresh metadata on drift, --check no-write/current/drift, malformed/schema/unreadable lock preservation; internal/pkg portability suite green."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Missing lock generates; malformed/unreadable lock errors are explicit.",
+      "met": true,
+      "evidence": "pkg_lock_preserve_test.go exercises empty/path deps, repeated byte identity, prior generator/version, fresh metadata on drift, --check no-write/current/drift, malformed/schema/unreadable lock preservation; internal/pkg portability suite green."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "--check writes nothing and retains 0/current, 1/drift behavior; portability tests pass.",
+      "met": true,
+      "evidence": "pkg_lock_preserve_test.go exercises empty/path deps, repeated byte identity, prior generator/version, fresh metadata on drift, --check no-write/current/drift, malformed/schema/unreadable lock preservation; internal/pkg portability suite green."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Targeted cmd/ailang and internal/pkg tests plus make test-changed pass.",
+      "met": true,
+      "evidence": "pkg_lock_preserve_test.go exercises empty/path deps, repeated byte identity, prior generator/version, fresh metadata on drift, --check no-write/current/drift, malformed/schema/unreadable lock preservation; internal/pkg portability suite green."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Swapped std/map.lookup arguments produce a diagnostic containing lookup and its span.",
+      "met": true,
+      "evidence": "typechecker_app_diagnostics_test.go and typechecker_app_integration_test.go pin named imported/local callee+span, anonymous/raw Unify/arity wording and collision hint; full internal/types green."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Named local/imported applications carry their available names; anonymous heads stay neutral.",
+      "met": true,
+      "evidence": "typechecker_app_diagnostics_test.go and typechecker_app_integration_test.go pin named imported/local callee+span, anonymous/raw Unify/arity wording and collision hint; full internal/types green."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Raw Unify and arity diagnostic tests retain their wording/codes; collision hints survive.",
+      "met": true,
+      "evidence": "typechecker_app_diagnostics_test.go and typechecker_app_integration_test.go pin named imported/local callee+span, anonymous/raw Unify/arity wording and collision hint; full internal/types green."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Targeted internal/types tests and make test-changed pass.",
+      "met": true,
+      "evidence": "typechecker_app_diagnostics_test.go and typechecker_app_integration_test.go pin named imported/local callee+span, anonymous/raw Unify/arity wording and collision hint; full internal/types green."
+    },
+    {
+      "feature_id": "M7",
+      "criterion": "W1/W3 fixes have recorded local evidence; W2 downstream migration is explicitly pending.",
+      "met": true,
+      "evidence": "Implemented register records source v0.54.9 build0145da1, W1/W3 evidence, W2 migration pending, W4 B4/A2 dependency and fresh-binary retest; packages workflow docs and unreleased changelog updated; structural gates green."
+    },
+    {
+      "feature_id": "M7",
+      "criterion": "W4 links the existing B4/A2 dependency and requests confirmed-binary retest evidence.",
+      "met": true,
+      "evidence": "Implemented register records source v0.54.9 build0145da1, W1/W3 evidence, W2 migration pending, W4 B4/A2 dependency and fresh-binary retest; packages workflow docs and unreleased changelog updated; structural gates green."
+    },
+    {
+      "feature_id": "M7",
+      "criterion": "No doc alias or new readLine behavior/API is introduced; no issue is auto-closed.",
+      "met": true,
+      "evidence": "Implemented register records source v0.54.9 build0145da1, W1/W3 evidence, W2 migration pending, W4 B4/A2 dependency and fresh-binary retest; packages workflow docs and unreleased changelog updated; structural gates green."
+    },
+    {
+      "feature_id": "M7",
+      "criterion": "make check-file-sizes and make check-changelog pass; relevant examples/docs are accurate.",
+      "met": true,
+      "evidence": "Implemented register records source v0.54.9 build0145da1, W1/W3 evidence, W2 migration pending, W4 B4/A2 dependency and fresh-binary retest; packages workflow docs and unreleased changelog updated; structural gates green."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Implemented upstream; downstream W2 migration and W4 retest remain explicitly pending",
+    "sprint_artifacts_complete": true,
+    "design_and_plan_moved_together": true,
+    "backlinks_repaired": true
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Complete native map family mirrors evaluator canonical encoding/order and persistent updates. Lock preservation reuses LockDrift and retains resolution/cache population. Callee context attaches at application constraint rather than raw Unify. No doc alias, new readLine API or #1576 implementation added. Downstream game changes are correctly excluded."
+  }
+}

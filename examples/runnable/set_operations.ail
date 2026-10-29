@@ -1,5 +1,6 @@
--- Set operations on lists
--- Demonstrates member, dedup, intersect, union, difference from std/list
+-- List-based set operations (std/list): member, dedup, intersect, union, difference.
+-- These treat a plain list as a set and are O(n) per member check. For a real set
+-- type with O(1) member, use std/set (Set[a]); see visited_set_bfs.ail.
 module examples/runnable/set_operations
 import std/list (member, dedup, intersect, union, difference)
 

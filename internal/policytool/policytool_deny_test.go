@@ -193,8 +193,11 @@ func TestDecodeRequest_CoversEveryField(t *testing.T) {
 	for i := 0; i < rt.NumField(); i++ {
 		name, _, _ := strings.Cut(rt.Field(i).Tag.Get("json"), ",")
 		val := `"v"`
-		if name == "flags" {
+		switch name {
+		case "flags":
 			val = `{}`
+		case "offset", "limit":
+			val = `1`
 		}
 		if _, err := DecodeRequest([]byte(`{"` + name + `":` + val + `}`)); err != nil {
 			t.Errorf("Request field %s (json %q) is not decoded: %v", rt.Field(i).Name, name, err)

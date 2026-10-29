@@ -1,0 +1,59 @@
+# M-EVAL-HIDDEN-TESTS pack (design_docs/planned/v0_55_0/m-eval-hidden-tests.md).
+# Generated from AetherCode v1_2024; regenerate rather than hand-edit the prompt.
+id: cp_60149
+description: 'AetherCode v1_2024 problem 60149 (The 2024 ICPC Central Europe Regional Contest, Easy; CC-BY-4.0, see benchmarks/hidden_tests/AETHERCODE.md). Tracks: unattributed: Haiku AILANG gave the same wrong answer on 6 of 33 small tests in 3 of 3 trials; Python passed 3 of 3.'
+languages:
+- python
+- ailang
+entrypoint: main
+caps:
+- IO
+difficulty: hard
+expected_gain: low
+timeout: 600
+exec_timeout: 30
+tier: stretch
+tags:
+- algorithmic
+- string_algo
+task_prompt: "Solve the following competitive programming problem in <LANG>.\nWrite a complete program that reads the input from standard input and writes the answer to standard output.\nBesides the example below, it is judged against 34 hidden tests (inputs up to 64KB), each with a 30 second time limit, so the algorithm must be efficient enough. Ignore the time limit stated in the problem.\n\n--- PROBLEM ---\nInput file: standard input  \nOutput file: standard output  \nTime limit: 1 second  \nMemory limit: 1024 megabytes  \n\n\nAs the end of the year approaches, the dwarf magistrate decides that their village should switch to a positional number system with a new base of $N$. For bases greater than 10, the dwarfs use digits 0 through 9, followed by the uppercase English letters from A through Z. But the cause of all the problems is not the magistrate, but the dwarf elders, who, after consulting ancient tomes, decided that some of these digits are forbidden. Notably, the digit 0 is not on the list – after all, the dwarfs consider it a sacred symbol of balance.  \n\nThe numbering system is a cornerstone of dwarf orderly society: the houses in each village are numbered with smallest distinct positive numbers (using the correct base $N$ and not using forbidden digits). The magistrate wants to know what is the largest house number that will be used in the village.  \n\n\nInput  \nThe first line of the input contains an integer $T$, the number of test cases (the number of villages). The following lines contain the description of the test cases.  \n\nThe first line of test case contains three integers $N$, $K$, and $M$ separated by single spaces, where $N$ is the base for positional notation, $K$ is the number of houses in a village and $M$ is the number of forbidden digits. The second line contains the list of $M$ distinct forbidden digits (in base $N$), separated by single spaces. If $M = 0$, the second line is empty.  \n\n\nLimits  \n$1 \\leq T \\leq 10000$, $2 \\leq N \\leq 36$, $0 \\leq M \\leq N - 2$, $1 \\leq K \\leq 10^{18}$.  \n\n\nOutput  \nFor each test case, print one line containing the largest house number in the village (in the positional system with base $N$).  \n\n\nExample  \nstandard input\n6\n3 5 1\n1\n9 7 1\n7\n2 100 0\n\n7 123456789 3 \n123\n3 6 1\n1\n16 123456789 3\n1A F\n36 123456789 5\nA X Z 2 4\nstandard output\n202\n8\n1100100 \n25224550520222\n2E878582\n6C0503\n--- END PROBLEM ---\n\nOutput only the code, no explanations.\n"
+stdin: '6
+
+  3 5 1
+
+  1
+
+  9 7 1
+
+  7
+
+  2 100 0
+
+
+  7 123456789 3
+
+  3 6 1
+
+  16 123456789 3
+
+  1 A F
+
+  36 123456789 5
+
+  A X Z 2 4
+
+  '
+expected_stdout: '202
+
+  8
+
+  1100100
+
+  25224550520222
+
+  2E878582
+
+  6CO503
+
+  '
+hidden_tests_dir: hidden_tests/cp_60149

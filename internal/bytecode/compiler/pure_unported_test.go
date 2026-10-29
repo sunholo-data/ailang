@@ -9,11 +9,11 @@ import (
 
 // TestCompile_PureUnportedBuiltinSaysPure is #1447: a pure registry builtin the
 // VM cannot run must be reported as pure, with the reason — never as an
-// "effectful builtin … Phase 2E". __map_size stays unported (no VM Map value).
+// "effectful builtin … Phase 2E". __xml_nodeKind remains unported (opaque XmlNode values).
 func TestCompile_PureUnportedBuiltinSaysPure(t *testing.T) {
-	reason := evalReasonOf(t, "__map_size")
-	if !strings.Contains(reason, `pure builtin "__map_size" has no VM implementation (map-value`) {
-		t.Errorf("EvalReason = %q, want the pure-unported message with its map-value reason", reason)
+	reason := evalReasonOf(t, "__xml_nodeKind")
+	if !strings.Contains(reason, `pure builtin "__xml_nodeKind" has no VM implementation (opaque-type`) {
+		t.Errorf("EvalReason = %q, want the pure-unported message with its opaque-type reason", reason)
 	}
 	if strings.Contains(reason, "effectful") {
 		t.Errorf("EvalReason calls a pure builtin effectful: %q", reason)

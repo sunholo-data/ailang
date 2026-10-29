@@ -82,10 +82,12 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request, reasoning ai
 		apiReq.Reasoning = &reasoningField{MaxTokens: reasoning.MaxTokensReasoning}
 	}
 
-	// Translate optional routing policy. Nil when no policy or zero policy.
-	// A malformed max-price cap fails loud rather than shipping a request that
-	// silently ignores the caller's cost guard.
-	provider, rerr := translatePolicy(req.Routing)
+	// Routing, built the same way as Step's. Generate used to translate only
+	// the caller's policy, so it missed the registry defaults, the env override
+	// and the fastest-host default (2026-10-16). A malformed max-price cap
+	// fails loud rather than shipping a request that silently ignores the
+	// caller's cost guard.
+	provider, rerr := routeFor(req)
 	if rerr != nil {
 		return nil, ai.NewAIError(ai.CodeSchemaValidation,
 			fmt.Sprintf("openrouter: invalid routing policy: %v", rerr), false)

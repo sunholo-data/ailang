@@ -149,7 +149,7 @@ func ProviderDefaultsFor(model string) map[string]any {
 //     test run can change routing for every caller without editing models.yml.
 //
 // "ignore" lists are unioned across layers; every other key is replaced.
-// nil when no layer says anything.
+// When no layer sets "sort" or "order", sort is "throughput".
 //
 // Why per-model routing exists: OpenRouter's default load-balances across all
 // hosts of a model weighted toward the cheapest, and hosts differ by an order
@@ -191,8 +191,16 @@ func routeFor(req *ai.Request) (map[string]any, error) {
 		}
 		merge(m)
 	}
-	if len(out) == 0 {
-		return nil, nil
+	// Fastest host by default. OpenRouter's own default balances toward the
+	// cheapest host, and the cheapest hosts are the slow ones: in the
+	// 2026-10-16 GLM-5.3-Flash A/B it sent motoko to open-inference/morph, then
+	// (with those excluded) to Near AI at 12-20 tok/s, where one 8k-token
+	// reasoning call took ~700 s against ~38 s on CoreWeave. Any layer that
+	// chose a sort or an explicit host order keeps it.
+	if _, ok := out["sort"]; !ok {
+		if _, ok := out["order"]; !ok {
+			out["sort"] = "throughput"
+		}
 	}
 	return out, nil
 }

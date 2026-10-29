@@ -1,0 +1,103 @@
+package firestore
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/sunholo-data/ailang/internal/coordinator"
+)
+
+// RecordShadowRun merges both sides in a transaction and reads back as one
+// comparison; an unknown parent is ErrShadowComparisonNotFound.
+//
+//	AILANG_FIRESTORE_LIVE_TEST_PROJECT=ailang-multivac-dev go test ./internal/storage/firestore/ -run ShadowComparison -count=1
+func TestShadowComparisonRoundTrip_Live(t *testing.T) {
+	project := os.Getenv("AILANG_FIRESTORE_LIVE_TEST_PROJECT") //nolint:forbidigo // opt-in live test knob, never read by the product
+	if project == "" {
+		t.Skip("set AILANG_FIRESTORE_LIVE_TEST_PROJECT to run against a real Firestore project")
+	}
+	ctx := context.Background()
+	client, err := NewClientForProject(ctx, project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := NewCoordinatorStore(client)
+
+	parent := fmt.Sprintf("task-liveshadow-%d", time.Now().UnixNano())
+	// Delete, THEN close: a deferred Close ran before t.Cleanup, so the delete
+	// failed silently and five test comparisons were left on the dev plane,
+	// where the grade sweep picked them up as real (2026-10-19).
+	t.Cleanup(func() {
+		if _, err := client.Doc(collShadowComparisons, parent).Delete(context.Background()); err != nil {
+			t.Errorf("cleanup: deleting %s: %v", parent, err)
+		}
+		client.Close()
+	})
+
+	if _, err := s.GetShadowComparison(ctx, parent); !errors.Is(err, coordinator.ErrShadowComparisonNotFound) {
+		t.Fatalf("unknown parent: err = %v, want ErrShadowComparisonNotFound", err)
+	}
+	if _, err := s.RecordShadowRun(ctx, parent, coordinator.ShadowSideShadow, coordinator.ShadowRunResult{TaskID: parent + "-shadow", BaseCommit: "b2", CostUSD: 0.2}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RecordShadowRun(ctx, parent, coordinator.ShadowSidePrimary, coordinator.ShadowRunResult{TaskID: parent, BaseCommit: "b1"}); err != nil {
+		t.Fatal(err)
+	}
+	c, err := s.GetShadowComparison(ctx, parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.Complete() || !c.BaseDrift || c.Shadow.CostUSD != 0.2 || c.Primary.TaskID != parent {
+		t.Fatalf("round trip: %+v", c)
+	}
+
+	// The grade sweep's query and claim (M5).
+	listed := func(state string) bool {
+		list, err := s.ListShadowComparisonsByGradeState(ctx, state, 50)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, x := range list {
+			if x.ParentID == parent {
+				return true
+			}
+		}
+		return false
+	}
+	if !listed(coordinator.ShadowGradeNone) {
+		t.Fatal("complete, ungraded comparison not listed for grading")
+	}
+	claim := func(cur *coordinator.ShadowComparison) bool {
+		if cur.GradeState != coordinator.ShadowGradeNone {
+			return false
+		}
+		cur.GradeState = coordinator.ShadowGradeDispatched
+		return true
+	}
+	if won, err := s.UpdateShadowComparison(ctx, parent, claim); err != nil || !won {
+		t.Fatalf("first claim: won=%v err=%v", won, err)
+	}
+	if won, err := s.UpdateShadowComparison(ctx, parent, claim); err != nil || won {
+		t.Fatalf("second claim: won=%v err=%v, want lost", won, err)
+	}
+	if listed(coordinator.ShadowGradeNone) || !listed(coordinator.ShadowGradeDispatched) {
+		t.Fatal("claimed comparison listed in the wrong grade state")
+	}
+
+	// The report's window query (M7): one range filter and order on updated_at.
+	recent, err := s.ListShadowComparisonsSince(ctx, time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, x := range recent {
+		found = found || x.ParentID == parent
+	}
+	if !found {
+		t.Fatal("comparison updated just now is missing from the last hour's report window")
+	}
+}

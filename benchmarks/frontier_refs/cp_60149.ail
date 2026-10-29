@@ -1,0 +1,70 @@
+module benchmark/solution
+
+import std/io (println, readLineOpt)
+import std/string (words, stringToInt, chars, join, charCode)
+import std/list (map, foldl, take, drop, reverse)
+import std/option (getOrElse)
+import std/array as A
+
+pure func parseOr0(t: string) -> int = getOrElse(stringToInt(t), 0)
+
+pure func digitVal(c: string) -> int =
+  let code = charCode(c) in
+  if code >= 65 then code - 55 else code - 48
+
+pure func parseBaseN(s: string, n: int) -> int =
+  foldl(\acc c. acc * n + digitVal(c), 0, chars(s))
+
+pure func clampIdx(v: int, n: int) -> int =
+  if v < 0 then 0 else if v >= n then n - 1 else v
+
+pure func pushRev(xs: [string], acc: [string]) -> [string] =
+  match xs {
+    [] => acc,
+    x :: rest => pushRev(rest, x :: acc)
+  }
+
+pure func allowedFrom(i: int, n: int, marked: Array[bool]) -> [int] =
+  if i >= n then []
+  else if A.get(marked, i) then allowedFrom(i + 1, n, marked)
+  else i :: allowedFrom(i + 1, n, marked)
+
+pure func digitsMSB(k: int, d: int, acc: [int]) -> [int] =
+  if k < d then k :: acc
+  else digitsMSB(k / d, d, k % d :: acc)
+
+pure func solveOne(n: int, k: int, m: int, fTokens: [string]) -> string {
+  let d = n - m;
+  let marked = foldl(\acc t. A.set(acc, clampIdx(parseBaseN(t, n), n), true), A.make(n, false), fTokens);
+  let allowedArr = A.fromList(allowedFrom(0, n, marked));
+  let table = A.fromList(chars("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+  let cs = map(\b. A.get(table, A.get(allowedArr, b)), digitsMSB(k, d, []));
+  join("", cs)
+}
+
+func readTokens(acc: [string]) -> [string] ! {IO} =
+  match readLineOpt() {
+    None => reverse(acc),
+    Some(line) => readTokens(pushRev(words(line), acc))
+  }
+
+func solveAndPrint(count: int, tokens: [string]) -> () ! {IO} =
+  if count <= 0 then ()
+  else match tokens {
+    nTok :: kTok :: mTok :: rest => {
+      let n = parseOr0(nTok);
+      let k = parseOr0(kTok);
+      let m = parseOr0(mTok);
+      println(solveOne(n, k, m, take(m, rest)));
+      solveAndPrint(count - 1, drop(m, rest))
+    },
+    _ => ()
+  }
+
+export func main() -> () ! {IO} {
+  let tokens = readTokens([]);
+  match tokens {
+    tTok :: rest => solveAndPrint(parseOr0(tTok), rest),
+    [] => ()
+  }
+}

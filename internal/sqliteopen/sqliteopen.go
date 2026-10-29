@@ -54,6 +54,10 @@ type Options struct {
 	NoForeignKeys bool
 	// MaxOpenConns caps the pool; 0 means 1.
 	MaxOpenConns int
+	// FullSync fsyncs each WAL commit before it returns. Use for durable
+	// authorization/execution markers that must precede an external effect.
+	// False preserves the existing NORMAL durability/performance default.
+	FullSync bool
 	// CacheSizeKB sets cache_size in KB (negative pragma form); 0 leaves the
 	// SQLite default.
 	CacheSizeKB int
@@ -113,7 +117,11 @@ func DSN(path string, opts Options) string {
 			q.Set("mode", "rw")
 		}
 		q.Set("_journal_mode", "WAL")
-		q.Set("_synchronous", "NORMAL")
+		if opts.FullSync {
+			q.Set("_synchronous", "FULL")
+		} else {
+			q.Set("_synchronous", "NORMAL")
+		}
 	}
 	if !opts.NoForeignKeys {
 		q.Set("_foreign_keys", "on")

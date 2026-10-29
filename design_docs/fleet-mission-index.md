@@ -12,6 +12,39 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 68 | 2026-10-29 | `sprint-planner:template-make-test-changelog-filesize` LANDED via #2001 → `e29a42482`, independent sonnet PASS ~88–90; `quorum:zero-signal-guard-va... |
+| 67 | 2026-10-28 | `pin-root:worktree-removed-mid-fire` LANDED via #1999 → `17ec65d68`, independent sonnet PASS 88; root cause was fleet iteration 66's own synthetic-... |
+| 66 | 2026-10-28 | `gate5:controlplane-send-refused-local-store` LANDED via #1994 → `d95ead6af`, independent sonnet PASS 91 (round 2); `pi:unowned-dirty-absolute-vs-r... |
+| 65 | 2026-10-28 | planner-lane fence parsing LANDED via #1977 → `7c5cc5d33`, independent sonnet PASS 90 (round 2), two duplicate tickets resolved; `quota:admission-h... |
+| 64 | 2026-10-28 | `gate5:controlplane-assert-marks-read` LANDED via #1975 → `8f8294c4e`; independent sonnet PASS 91 (round 2); ticket resolved in ~14h [HARNESS] |
+| 63 | 2026-10-27 | dev's required-check red repaired: the sprint-evaluator `.agents` mirror re-synced via #1972 → `6094d2b33`, independent sonnet PASS 94; no ticket m... |
+| 62 | 2026-10-27 | `quorum:oc-glm-5-3-output-cap-invalid`: diagnosis half LANDED via #1966 → `0802749cb`, independent sonnet PASS 93; policy half filed as D-FLEET-31;... |
+| 61 | 2026-10-26 | `quorum-reader:zsh-nomatch` LANDED through replacement #1944 → `b7dd07599`; independent sonnet CODE ACCEPT 94; ticket resolved; orphan iteration 60... |
+| 60 | 2026-10-26 | ORPHAN (no record written): #1942 refresh of the zsh-safe helper fix judged CODE ACCEPT 93 (MiniMax); merge parked on a runner-image `test` red later fixed by #1940; slot PAUSED-NO-CAPACITY at gate-3; credited in 61 [HARNESS] |
+| 59 | 2026-10-23 | watchdog fix #1937 recovered after the post-merge capacity stop; independent MiniMax PASS94/100; ticket resolved [HARNESS] |
+| 58 | 2026-10-22 | `routing-models-check:bold-colon-heading` LANDED through replacement #1935; independent MiniMax PASS 93; ticket resolved [HARNESS] |
+| 57 | 2026-10-22 | `quorum-reader:zsh-nomatch` BUILT: #1932 head `6268fb0b8`; judge PASS 94 (sonnet); merge PARKED on dev's inherited required red (D-FLEET-17); ticke... |
+| 56 | 2026-10-22 | `rotate-log:heading-parse-stapledon` RESOLVED as a ghost of #1912 (stale rig binary), judge CONFIRMED (sonnet); `quorum:claude-p-ration-usage-429` ... |
+| 55 | 2026-10-22 | `stall:watchdog:foreground-agent-and-wrong-transcript` BUILT: #1929 head `9d131c76a`; judge PASS 91, round 2 PASS 91 (sonnet); merge PARKED on dev'... |
+| 54 | 2026-10-21 | `routing-models-check:bold-colon-heading` BUILT: #1927 head `ec9e54a1e`; judge PASS 80 then PASS 88 (sonnet); merge PARKED on dev's inherited requi... |
+| 53 | 2026-10-21 | `routing:retired-codex-models-still-spawnable-natively` LANDED: #1922 → `d75ef77f5`; judge PASS 85, round 2 PASS 85 (sonnet); ticket resolved; D-FL... |
+| 52 | 2026-10-21 | `quota:opencode-reported-as-a-pool` LANDED: #1917 → `9aebccf9b`; judge PASS 93 (sonnet); ticket resolved; six `agent-tool` tickets parked on D-FLEE... |
+| 51 | 2026-10-20 | `rotate-log:legacy-heading-format` LANDED: #1912 → `3b4d11759`; judge PASS 82 then PASS 90 (sonnet); ticket resolved [HARNESS] |
+| 50 | 2026-10-20 | `probe:pi-duplicate-extension-discovery` LANDED: #1907 → `e5ab9f84f`; judge PASS 90 then PASS 91 (sonnet); ticket resolved [HARNESS] |
+| 49 | 2026-10-20 | `crash:sprint-executor:sigbus-ram-tmp-full-make-test` ask 1 LANDED: #1905 → `3f9a0c092`; judge PASS 86 then PASS 87 (sonnet); ticket stays open, as... |
+| 48 | 2026-10-19 | `skill:design-scaffold-hardcodes-owning-repo` + `sprint-skill:estimated-loc-zero-is-placeholder-sentinel` resolved as GHOSTS (#1542 `b51353bcd`, #1... |
+| 47 | 2026-10-19 | `rotate-log:status-archive-structural-header` LANDED: orphaned iteration 46's #1877 verified and merged → `f048d6fa9`; judge PASS 93 (sonnet); tick... |
+| 45 | 2026-10-17 | `mission:index-regenerate-needs-rotatable-archive` + `rotate-log:index-regen-drops-orphan-rows` LANDED: #1870 → `2061f445e`; judge PASS 90 (sonnet)... |
+| 44 | 2026-10-16 | `skill:gate4-status-stamp-shape-unprescribed` LANDED: #1866 → `91d5d6390`; judge PASS 94 then PASS 97 (sonnet); ticket resolved [HARNESS] |
+| 43 | 2026-10-16 | `skill:gate3b-ci-poll-exceeds-foreground-bash` LANDED: #1853 → `a8042fa3f`; judge PASS 74 (blocker) then PASS 90 (sonnet); D-FLEET-20 filed [HARNESS] |
+| 42 | 2026-10-16 | `worktree:native-background-terminal-marker-missing` LANDED: #1843 → `51f9ecb29`; judge FAIL 66 then PASS 86 (sonnet); ticket resolved [HARNESS] |
+| 41 | 2026-10-15 | The blocked stack LANDED: #1824 → `514ca3bc3`, #1839 (ex-#1825) → `10cb2fae0`, #1840 (ex-#1828) → `7c10ce00d`; three CI-only defects fixed on the w... |
+| 40 | 2026-10-15 | stack recovery rechecked; required dev reds persist, no further builds; independent disposition review PASS 95 (fresh-context Sol) [ADMIN] |
+| 39 | 2026-10-14 | P2 #15 slot verdict UNCLASSIFIED made reachable, judged PASS 91 (sonnet, round 2); stacked on #1825, BLOCKED on dev's required reds; Gate 1 skill f... |
+| 38 | 2026-10-14 | P2 #14 quorum artifact dir designed, quorum'd, built and judged PASS 90 (sonnet); stacked PR on #1824, BLOCKED on dev's required reds [HARNESS] |
+| 37 | 2026-10-14 | No landing possible: #12 (PR #1824) still BLOCKED on dev's required reds; #13 reproduction measured, live flakes outside fleet scope; judged PASS 8... |
+| 36 | 2026-10-14 | P2 #11 ghost-resolved (`08ce76f30`); P2 #12 quorum salvage designed, quorum'd, built and judged PASS 88 (sonnet), PR #1824 BLOCKED on inherited dev... |
+| 35 | 2026-10-13 | P2 #10 Gate 0 ledger provenance instrument, judged PASS 92 (sonnet, round 2), PR #1815 → `130486515` [HARNESS] |
 | 34 | 2026-10-13 | Phase 3a skill-resolution spike measured (P1–P3), judged PASS 88 (sonnet); Phase 3b mechanism parked as D-FLEET-16 [HARNESS] |
 | 33 | 2026-10-12 | P1 #9 exit-path notices bounded and store-scoped, judged PASS 90 (sonnet), PR #1791 → `e7dd6c127` [HARNESS] |
 | 32 | 2026-10-12 | P1 #8 quorum zero-signal guard BUILT and judged PASS 95 (sonnet), PR #1767; orphan iterations 30/31 credited [HARNESS] |

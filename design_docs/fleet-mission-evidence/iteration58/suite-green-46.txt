@@ -1,0 +1,47 @@
+PASS a canonical allowed aliases rc=0
+PASS b retired routing rc=1
+PASS b original lines and every token
+PASS c ignore prose outside routing rc=0
+PASS d missing entry is instrument failure rc=2
+PASS e last entry in file order rc=0
+PASS e explicit non-last entry rc=1
+PASS e file order over numeric order rc=0
+PASS missing file rc=2
+PASS missing block rc=2
+PASS missing arguments rc=2
+PASS unknown argument rc=2
+PASS missing file value rc=2
+PASS invalid entry rc=2
+PASS missing entry value rc=2
+PASS duplicate file rc=2
+PASS case and punctuation rc=0
+PASS entry boundary without next field rc=0
+PASS inline token at EOF rc=1
+PASS original token case
+PASS w world allowed routing rc=0
+PASS w clean findings
+PASS w world retired routing rc=1
+PASS w original line/token
+PASS s indented retired routing rc=1
+PASS s original line/token
+PASS s sibling-only retired token excluded rc=0
+PASS s clean sibling findings
+PASS v continuation retired routing rc=1
+PASS v original line/token
+PASS p parenthetical heading table routing rc=1
+PASS p original line/token
+PASS f bold-label bullets retained rc=1
+PASS f original line/token
+PASS q allowed model in ticket compound rc=0
+PASS q clean ticket findings
+PASS q retired model in compound rc=1
+PASS q original compound line/token
+PASS q allowed dotted model in compound rc=0
+PASS q clean dotted findings
+PASS q reject gpt-6.1-sol-gpt-5 rc=1
+PASS q original gpt-6.1-sol-gpt-5 line/token
+PASS q reject gpt-6-luna-gpt-5.6-sol rc=1
+PASS q original gpt-6-luna-gpt-5.6-sol line/token
+PASS q reject gpt-6-lunatic rc=1
+PASS q original gpt-6-lunatic line/token
+46 passed, 0 failed

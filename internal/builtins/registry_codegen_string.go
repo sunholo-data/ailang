@@ -275,4 +275,17 @@ func registerStringCodegenSpecs() {
 		Imports:    []string{"fmt"},
 		StdlibName: "floatToStr", StdlibModule: "std/string",
 	})
+	registerIfMissing("_str_formatFixed", 2, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "FormatFixed",
+			Signature: "func FormatFixed(x interface{}, decimals interface{}) interface{}",
+			Body: `d := toInt64(decimals)
+	if d < 0 || d > 1000 {
+		panic(fmt.Sprintf("formatFixed: decimals must be in 0..1000 (got %d)", d))
+	}
+	return strconv.FormatFloat(x.(float64), 'f', int(d), 64)`,
+		},
+		Imports:    []string{"fmt", "strconv"},
+		StdlibName: "formatFixed", StdlibModule: "std/string",
+	})
 }

@@ -149,7 +149,9 @@ The suites are grep-based structural assertions over `$HERE/mission-control.sh`,
 suite into another repo tests that repo's driver** — that is how world gets coverage today.
 
 Two suites were orphaned (present but absent from `make/test.mk`) and CI never ran them. When
-you add a suite, wire it, and check nothing else has drifted out:
+you add a suite, wire it — one line in `LAUNCHD_SUITES` (suites run 4 at a time, so keep its
+temp state under `mktemp`/`$$`; use `LAUNCHD_SERIAL_SUITES` only for an arm that measures the
+machine itself) — and check nothing else has drifted out:
 
 ```bash
 for f in tools/launchd/test_*.sh; do

@@ -10,6 +10,7 @@
     "sync-all": "npm run sync-prompt && npm run sync-design-docs && npm run check-stdlib-index",
     "start": "npm run sync-all && docusaurus start",
     "build": "npm run sync-all && docusaurus build",
+    "test:benchmarks": "node --test src/lib/benchmarkEvidence.test.mjs src/lib/benchmarkHistory.test.mjs src/components/BenchmarkPerformance/render.test.cjs",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",
@@ -24,10 +25,10 @@
     "@mdx-js/react": "^3.0.0",
     "@mermaid-js/layout-elk": "^0.1.9",
     "clsx": "^2.0.0",
-    "lucide-react": "^1.50.0",
+    "lucide-react": "^1.61.0",
     "prism-react-renderer": "^2.3.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "recharts": "^3.10.1"
   },
   "devDependencies": {
@@ -38,5 +39,13 @@
   },
   "engines": {
     "node": ">=20.0"
+  },
+  "overrides": {
+    "tinypool": "^2.1.2",
+    "postcss-selector-parser": "^7.1.7",
+    "serialize-javascript": "^7.0.5",
+    "qs": "^6.16.0",
+    "uuid": "^11.1.1",
+    "katex": "^0.18.2"
   }
 }

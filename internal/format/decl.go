@@ -447,6 +447,11 @@ func (p *printer) typeDef(def ast.TypeDef) error {
 }
 
 func (p *printer) algebraicType(t *ast.AlgebraicType) error {
+	// A single bare constructor otherwise reparses as a type alias. The pipe
+	// carries sum-type identity even when there is no second constructor.
+	if len(t.Constructors) == 1 && len(t.Constructors[0].Fields) == 0 {
+		p.w.write("| ")
+	}
 	parts := make([]string, len(t.Constructors))
 	for i, c := range t.Constructors {
 		s, err := p.constructor(c)

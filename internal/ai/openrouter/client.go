@@ -186,7 +186,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	defer span.End()
 
 	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE marshaling/dispatch.
-	reasoning, rErr := ai.ResolveReasoning(req, "openrouter", req.Model)
+	reasoning, rErr := resolveReasoning(req)
 	if rErr != nil {
 		span.RecordError(rErr)
 		span.SetStatus(codes.Error, rErr.Error())

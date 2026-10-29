@@ -291,5 +291,5 @@ Net +4, no hard violations.
 
 - `design_docs/implemented/v0_16_0/m-taint-types.md` — label lattice
 - `design_docs/planned/m-ifc-cross-module-labels.md` — the module-edge hole (out of scope)
-- `design_docs/planned/v0_52_0/m-mcp-oauth-package.md` — T7, V13–V16 (consumer of this fix)
+- `design_docs/implemented/v0_52_0/m-mcp-oauth-package.md` — T7, V13–V16 (consumer of this fix)
 - `docs/docs/guides/ifc-labels.mdx`

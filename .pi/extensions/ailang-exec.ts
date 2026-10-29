@@ -51,6 +51,8 @@ export interface PolicySummary {
 export interface ToolRequest {
 	op: string;
 	path?: string;
+	offset?: number;
+	limit?: number;
 	content?: string;
 	old_text?: string;
 	new_text?: string;
@@ -65,6 +67,9 @@ export interface ToolResponse {
 	ok: boolean;
 	refused?: string;
 	content?: string;
+	total_lines?: number;
+	offset?: number;
+	limit?: number;
 	argv?: string[];
 	exit_code?: number;
 	stdout?: string;
@@ -370,11 +375,22 @@ export async function register(pi: ExtensionAPI, Type: TypeLike, env: Record<str
 	pi.registerTool({
 		name: "ailang_read",
 		label: "Read (sandboxed)",
-		description: "Read a file inside the policy's FS sandbox. Paths resolve from the sandbox root; anything outside it, including symlinks that lead outside, is refused. Returns {ok, content} or {ok:false, refused}.",
-		parameters: Type.Object({ path: Type.String({ description: "File path, relative to the sandbox root (or absolute inside it)" }) }),
+		description:
+			"Read a file inside the policy's FS sandbox. Paths resolve from the sandbox root; anything outside it, including symlinks that lead outside, is refused. " +
+			"Without offset/limit returns the whole file as {ok, content}. For a large file pass offset (1-based start line) and/or limit (line count, max 2000): " +
+			"returns {ok, content, total_lines, offset, limit} where limit is the lines actually returned — page with the next offset instead of writing a reader program. " +
+			"Refusals are {ok:false, refused}.",
+		parameters: Type.Object({
+			path: Type.String({ description: "File path, relative to the sandbox root (or absolute inside it)" }),
+			offset: Type.Optional(Type.Integer({ minimum: 1, description: "1-based first line to return" })),
+			limit: Type.Optional(Type.Integer({ minimum: 1, description: "Number of lines to return (capped at 2000)" })),
+		}),
 		async execute(_id, params) {
 			if (gate.refusal) return refusedResult();
-			return call({ op: "read", path: params.path });
+			const req: ToolRequest = { op: "read", path: params.path };
+			if (params.offset !== undefined) req.offset = params.offset;
+			if (params.limit !== undefined) req.limit = params.limit;
+			return call(req);
 		},
 	});
 

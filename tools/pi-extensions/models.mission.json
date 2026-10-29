@@ -171,21 +171,27 @@
         },
         {
           "id": "z-ai/glm-5.3-flash",
-          "maxTokens": 32000,
+          "maxTokens": 131072,
           "contextWindow": 1310720,
           "reasoning": true,
           "thinkingLevelMap": {
             "off": null,
             "minimal": null,
-            "low": null,
+            "low": "low",
             "medium": null,
-            "high": null,
+            "high": "high",
             "xhigh": null
           },
+          "compat": {
+            "openRouterRouting": {
+              "only": ["inceptron", "gmicloud", "decart", "near-ai", "modal", "crusoe", "coreweave", "fireworks", "friendli", "together", "parasail"],
+              "sort": "throughput"
+            }
+          },
           "cost": {
-            "input": 0.075,
-            "output": 0.25,
-            "cacheRead": 0.015,
+            "input": 0.15,
+            "output": 0.5,
+            "cacheRead": 0.03,
             "cacheWrite": 0
           }
         },
@@ -234,9 +240,26 @@
             "xhigh": null
           },
           "cost": {
-            "input": 0.3,
-            "output": 1.2,
-            "cacheRead": 0,
+            "input": 0.0328,
+            "output": 0.08,
+            "cacheRead": 0.0016,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4.1-flash-1017",
+          "maxTokens": 65536,
+          "contextWindow": 1048576,
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0.15,
+            "output": 0.6,
+            "cacheRead": 0.003,
             "cacheWrite": 0
           }
         },
@@ -251,9 +274,9 @@
             "xhigh": null
           },
           "cost": {
-            "input": 0.3,
-            "output": 1.2,
-            "cacheRead": 0,
+            "input": 0.0328,
+            "output": 0.08,
+            "cacheRead": 0.0016,
             "cacheWrite": 0
           }
         }

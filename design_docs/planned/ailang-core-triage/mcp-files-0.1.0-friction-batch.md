@@ -17,7 +17,7 @@ against HEAD where possible:
    `testAndPropertySkipRanges` (`internal/testing/source_strip.go`) scans raw runes for
    braces with no string/comment awareness, so an unbalanced brace in a literal keeps depth
    ≠ 0 and body lines leak into the stripped base for every sibling test → module-wide
-   `PAR_NO_PREFIX_PARSE`. **Already triaged: `ailang-core-triage/source-strip-string-brace-skip-ranges.md` (design-doc)**, mechanism refined in `ai-deadline-and-named-test-roundtrip.md` (defect 2a).
+   `PAR_NO_PREFIX_PARSE`. **Already triaged: `implemented/v0_54_13/source-strip-string-brace-skip-ranges.md` (design-doc)**, mechanism refined in `ai-deadline-and-named-test-roundtrip.md` (defect 2a).
 2. **`ailang fmt` flattens multi-line string literals to `\n`-escapes** — no existing doc
    found (`fmt|string` across triage rows; none match). Real gap, and the workaround
    (assets/ + generator + drift check) is the second time codegen-beats-tooling has been
@@ -55,7 +55,7 @@ against HEAD where possible:
 
 ## Cross-references (what is a duplicate, what is not)
 
-- Item 1 → duplicate-of `ailang-core-triage/source-strip-string-brace-skip-ranges.md` (the
+- Item 1 → duplicate-of `implemented/v0_54_13/source-strip-string-brace-skip-ranges.md` (the
   report's severity detail — *every* test in the module failing — matches the mechanism).
 - Item 3 → duplicate-of `ailang-core-triage/datetime-clock-ms-vs-seconds-docs.md`.
 - Item 5's interpolation half → duplicate-of

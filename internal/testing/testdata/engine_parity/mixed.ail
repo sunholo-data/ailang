@@ -6,6 +6,7 @@ module mixed
 -- must be reported identically on the evaluator and on the bytecode VM.
 
 import std/list (length)
+import std/array (get)
 import std/option (Option, Some, None)
 
 export pure func add_one(x: int) -> int { x + 1 }
@@ -80,13 +81,15 @@ test "non-bool body" {
   add_one(41)
 }
 
--- An expression-form letrec does not lower to bytecode yet, so `countDown` is
--- an evaluator-only function: the VM body calls it through the harness bridge.
--- (Pick another construct if this one starts compiling; nested cons patterns
--- were used here until the v0.51.1 match lowering made them compile.)
-export pure func countDown(n: int) -> int =
-  letrec go = \k. if k <= 0 then 0 else go(k - 1) in go(n)
+-- An array literal (`#[...]`) does not compile to bytecode yet (`unsupported
+-- expression stmt.ArrayLit`), so `secondOf` is an evaluator-only function: the
+-- VM body calls it through the harness bridge. Its signature is int -> int,
+-- which the bridge carries, so the calling test body stays on the VM.
+-- (Pick another construct if this one starts compiling. Nested cons patterns
+-- were used here until the v0.51.1 match lowering made them compile, then an
+-- expression-form letrec until M-VM-COVERAGE (#1989) compiled local letrec.)
+export pure func secondOf(n: int) -> int = get(#[n, n + 1, n + 2], 1)
 
 test "bridged helper" {
-  countDown(3) == 0
+  secondOf(3) == 4
 }

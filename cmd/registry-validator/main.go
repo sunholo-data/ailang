@@ -261,7 +261,12 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 6: Compile check
-	compileOk, compileErr := runAilangCheck(tempDir)
+	compileOk, compileErr, budgetErr := runAilangCheck(tempDir)
+	if budgetErr != nil {
+		log.Printf("check over budget for %s@%s: %v", name, version, budgetErr)
+		jsonError(w, http.StatusUnprocessableEntity, "%v", budgetErr)
+		return
+	}
 
 	// Step 7: Effect ceiling check (done as part of ailang check)
 
@@ -298,11 +303,8 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Printf("quality: pkg=%s@%s v2=ok signatures=%d contracts=%d/%d", name, version, len(v2Sigs), validation.ContractsVerified, validation.ContractsTotal)
 		if claimed := r.Header.Get("X-Interface-Hash-V2"); claimed != "" && claimed != v2Hash {
-			jsonError(w, http.StatusBadRequest,
-				"PUB005 interface identity skew: publisher computed %s, validator computed %s.\n"+
-					"The two ailang binaries disagree about this package's exported signatures — "+
-					"upgrade the publisher to the validator's version (%s) and retry.",
-				claimed, v2Hash, strings.SplitN(getAilangVersion(), "\n", 2)[0])
+			jsonError(w, http.StatusBadRequest, "%s",
+				interfaceSkewMessage(claimed, v2Hash, r.Header.Get(pkg.PublisherVersionHeader), getAilangVersion()))
 			return
 		}
 	}

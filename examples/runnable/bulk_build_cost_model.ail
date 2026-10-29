@@ -1,0 +1,32 @@
+-- bulk_build_cost_model.ail - cost model: build an Array or Map ONCE instead of updating it per step.
+-- A.set, A.append, M.insert and acc ++ [x] each make an O(n) copy, so one per loop step is quadratic.
+-- Build once: produce the whole list (map/flatMap/range, mapAccumL for running state), then
+-- A.fromList / M.fromList; apply many writes with ONE A.updateMany. Lookups stay O(1).
+module examples/runnable/bulk_build_cost_model
+import std/io (println)
+import std/list (map, flatMap, foldl, range, mapAccumL)
+import std/array as A
+import std/map as M
+
+export func main() -> () ! {IO} {
+  let n = 2000
+  -- SLOW (quadratic): one O(n) copy per step
+  let slowArr = foldl(\acc i. A.set(acc, i, i * i), A.make(n, 0), range(0, n))
+  let slowMap = foldl(\acc i. M.insert(acc, i, i * i), M.empty(), range(0, n))
+  -- FAST (build once): O(n) in total
+  let fastArr = A.fromList(map(\i. i * i, range(0, n)))
+  let fastMap = M.fromList(map(\i. (i, i * i), range(0, n)))
+  println(show(A.toList(slowArr) == A.toList(fastArr)))
+  println(show(M.lookup(slowMap, 1999) == M.lookup(fastMap, 1999)))
+  -- 2D grid: one flat Array, cell (r, c) at r * w + c
+  let w = 4
+  let grid = A.fromList(flatMap(\r. map(\c. r * 10 + c, range(0, w)), range(0, 3)))
+  println(show(A.get(grid, 2 * w + 1)))
+  -- many writes: ONE copy; a later write to the same index wins
+  let g2 = A.updateMany(grid, [(0, 99), (5, 7), (0, 1)])
+  println(show(A.get(g2, 0)))
+  -- running state while emitting a list: mapAccumL, never acc ++ [x]
+  match mapAccumL(\s x. (s + x, s + x), 0, [1, 2, 3]) {
+    (prefix, total) => println("${show(prefix)} ${show(total)}")
+  }
+}

@@ -1,12 +1,23 @@
 # M-VM-LIST-TAIL-SHARE: O(1) list-tail binding on the bytecode VM (cons-pattern walks are O(n²))
 
+**Execution update 2026-10-16:** Residual implementation is complete on
+`coordinator/task-1cee992e`; independent sprint evaluation pending. Strict-alone
+now selects the VM, checked `bench/vm_tail_walk/` fixtures are committed, and
+retention documentation preserves D-19's parked construction scope. The historical
+planning and verification entries below are retained. Current execution evidence:
+[residual sprint report](../../../docs/sprint-retros/M-VM-LIST-TAIL-SHARE-RESIDUAL-retro.md).
+
+
 **Status**: Planned — quorum attempted 2026-10-09 (`task-006b0353`): **all three external reviewers absent** (`gemini-3-1-pro` unreachable; `oc-kimi-k3` unreachable; `gpt6-1-sol` auth), recorded by name in `.ailang/state/mission-quorum/m-vm-list-tail-share-2026-10-09T11-00-54Z.json`; controller verdict **pass** — degraded to controller-only, **not quorum-cleared**. The 26-row first-party Verification Log is the load-bearing evidence; re-run quorum when a reviewer route is available (same convention as [m-bytecode-nested-pattern-lowering](../../implemented/v0_52_0/m-bytecode-nested-pattern-lowering.md)).
-**Target**: v0.53.0
-**Priority**: P0 — a 52× engine divergence on the canonical functional list-walk idiom, reported from a downstream consumer mid-PR
-**Estimated**: ~2 days (fix is one line ×3 sites + tests + bench; the cost is measurement discipline), 2× where honest → 4 days
-**Dependencies**: None. **Coordination required** (text only): [m-list-cons-quadratic](../m-list-cons-quadratic.md) stays PARKED on D-19 — this doc does not touch `::`/`++` construction or the arena decision; `docs/LIMITATIONS.md` rows 41–42 and `std/list.ail`'s header both gain corrected text and must not contradict D-19's pending state.
+**Re-reported 2026-10-13** (`task-a0ee29fa`, v0.54.6 `71f4cf6`, md5 `81bacda6…`): a **second, independent consumer report** (sunholo lane — see Bug report) confirms the defect at v0.54.6 with new real-workload evidence (pprof, R2-CREW deadline). **The fix is still unimplemented at v0.54.8** — first-party re-derivation that session (V27–V29); all three copy sites then lived in this tree. **Superseded 2026-10-15: landed as #1827 / v0.54.10 (V41).** Target lapsed (v0.53.0 → v0.54.8 shipped without it); the residual re-targets at sprint-planner time.
+**Phase 1 LANDED 2026-10-15** (attended, #1827, **shipped v0.54.10**, V41): `_list_tail`/`__list_take`/`__list_drop` return capacity-capped subslices (`elems[n:len:len]`); `internal/vm/list_tail_share_test.go` (identity + clamp + cap tests, append-isolation, mutation-checked — V42). Reporter repro 6.77 s → 1.05 s on dev; the `std/list.ail` cost sentence (V14) was rewritten in the same release (V43).
+**Residual scope (this update — D-TRIAGE-14, attended 2026-10-16):** (1) Phase 2 — `--strict-bytecode` implies the bytecode VM on `run`; (2) `bench/vm_tail_walk/` with equivalent inputs and **checked** outputs; (3) the `docs/LIMITATIONS.md` retention row, consistent with [m-list-cons-quadratic](../m-list-cons-quadratic.md) staying PARKED on D-19. **Phase 1 is not re-planned** — the prior sprint card (`task-fc7451cd`, PR #1750) was rejected precisely because its M2 re-landed it. The cons-walk was re-measured on current dev first (V33–V38): the residual gap against the interpreter is **inverted** — the VM is now ~4.7× *faster* (Problem Statement, "Current state").
+**Target**: next release after current dev v0.54.12 (residual sprint planned 2026-10-16; v0.53.0 directory retained historically)
+**Priority**: P0 for the landed half (a 52× engine divergence on the canonical functional list-walk idiom, reported from a downstream consumer mid-PR); **P1 for the residual** (a silent-fallback CLI fix + mechanical regression pinning)
+**Estimated**: residual ~1 day (one-line flag fix + strict test; bench with checked outputs; one LIMITATIONS row + canonical entry), ×2 honest → 2 days. Phase 1's ~2 days were spent and landed in #1827.
+**Dependencies**: None. **Coordination required** (text only): [m-list-cons-quadratic](../m-list-cons-quadratic.md) stays PARKED on D-19 — this doc does not touch `::`/`++` construction or the arena decision; `docs/LIMITATIONS.md` rows 41–42 (the D-19 rows) stay as they are; the new retention row sits beside them without contradicting D-19's pending state. `std/list.ail`'s header was already corrected by #1827 (V43) and needs no further edit.
 **Planner-Lane**: opus-required (VM builtin semantics + allocation behavior)
-**Bug report**: AILANG v0.52.0 (`bf2436a`, darwin arm64, binary md5 `2dd082832fbadf861b49a1a432a0130c`), `--bytecode`. Downstream consumer `stapledons-godot` (Edenhofer dust-map pass, R1-ISM-DUST PR B); workaround in flight: `foldl`.
+**Bug report**: AILANG v0.52.0 (`bf2436a`, darwin arm64, binary md5 `2dd082832fbadf861b49a1a432a0130c`), `--bytecode`. Downstream consumer `stapledons-godot` (Edenhofer dust-map pass, R1-ISM-DUST PR B); workaround in flight: `foldl`. **Second report 2026-10-13**: AILANG v0.54.6 (`71f4cf6`, binary md5 `81bacda6a3a81abe90bae00166ee1a76`), `ailang run --bytecode --caps IO,Env`; consumer `sunholo/crew_core` + `social_dynamics` (pprof: `vm.builtinListTail` 14% cumulative; HOF foldl/filter/any dominating) with the Stapledon R2-CREW 10-year crew skip (3,650 ticks) needing < 2 s vs ~60 s today. Same defect, same mechanism, new engine version — the repro, timings, and pprof are V28–V31.
 **Author**: design-doc-creator, unattended coordinator session (`task-006b0353`). This container has a live `ailang` binary (v0.52.5, commit `7200786`, md5 `8e4464db…` — near-lineage but **not** built from this tree, and **no Go toolchain / no `make`**, shallow single-commit clone). Wall-clock numbers below are first-party runs against that binary; source-line claims are reads at this tree (`59feeccf`, v0.53.0-dev). Provenance marks in the Verification Log.
 
 ## Routing Lane (per design_docs/PROGRAM.md §4)
@@ -69,6 +80,30 @@ workload: a 786,432-element list decoded by `std/embedding.decodeF32LE` (built i
 pass, V25) walked by cons-pattern recursion took **427 s**; the same count via `foldl`
 took **0.08 s** [P].
 
+**Current state after Phase 1 (re-measured on current dev, 2026-10-16, V33–V38).** The
+pre-fix table above is history. On the container's v0.54.11 binary (`35a49b8` — the fix
+shipped v0.54.10, so this binary carries it; source reads at this tree `3af754c4`,
+v0.54.12), min-of-3, same `walk_only.ail` shape (constant threshold; count = n−1):
+
+| Engine | n=40,000 | n=80,000 | n=160,000 | scaling |
+|---|---|---|---|---|
+| VM (`--bytecode`) | 0.389 s | 0.381 s | 0.444 s | **flat** — net ≈ 0.04 s over the 0.402 s startup baseline → **O(n)** |
+| interpreter | 0.797 s | 1.311 s | 2.089 s | linear |
+| VM, `foldl` with the same step | 0.363 s | 0.382 s | 0.389 s | flat, startup-bound |
+| VM, `--strict-bytecode` **alone** | — | — | 2.017 s | ≈ interpreter, **not** the VM — Phase 2 open (V36) |
+| VM, `--bytecode --strict-bytecode` | — | — | 0.444 s | = plain `--bytecode`; the pairing itself is unchanged |
+
+**Residual gap against the interpreter: none — it is inverted.** The VM walk at 160k is
+~4.7× *faster* than the interpreter gross (0.444 s vs 2.089 s), ~40× net of startup
+(≈0.04 s vs ≈1.7 s): the O(1) native view beats the tree-walker's pattern match. AC-2's
+"≤ 2× the interpreter" target is exceeded, not just met. Outputs are byte-identical at
+every size on both engines (V35), and the walk's bytecode stream is unchanged —
+`builtin#514 (_list_get)`, `builtin#515 (_list_tail)`, `CLOSURE`, `TAIL_CALL` (V38) — the
+fix lives in the builtin, exactly as designed. **Still quadratic, deliberately:** the
+construction half (`foldl(\acc x. x :: acc, [], …)`, `build_only.ail`) re-measures
+×3–4.4 per doubling on the VM (10k = 0.964 s, 20k = 2.795 s, 40k = 12.291 s;
+evaluator 40k = 4.414 s) — untouched by #1827, as D-19 requires (V37).
+
 The reporter's full repro also builds the list with `mk(n, acc) = … 0.25 :: acc` — that
 **construction half** is separately quadratic on both engines (`OpCons`/`listConsImpl`
 copy the tail: 40k = 6.9 s, 80k = 28.4 s on the VM, V9). That half is **not this doc's
@@ -87,6 +122,16 @@ current frame, and the 160,000-deep walk completes under `DefaultMaxStack = 10,0
 audience writes the idiomatic form first) that consumes a list by pattern recursion on
 the VM pays n²/2 element copies and the GC cycles they trigger. The consumer's
 dust-map pass hit exactly this and had to restructure to `foldl` as a workaround.
+
+**The second report (v0.54.6, V30/V31) makes it a product deadline, not a discomfort**:
+pprof on a real auto-play workload (`sunholo/crew_core` + `social_dynamics`) shows
+`vm.builtinListTail` at **14% cumulative**, with the HOF builtins
+(`hofBuiltinListFoldl/Filter/Any`) dominating the rest — and both modules recurse over
+lists everywhere (`p :: rest` in collect, refresh, deliveries). Stapledon's **R2-CREW
+needs a 10-year crew skip (3,650 ticks) in under 2 s; it takes ~60 s today**, a large
+part of that in tail copies. The reporter's minimal repro (V30) matches the first
+report's shape exactly: rec 10k = 0.19 s / 20k = 0.35 s / 40k = 1.18 s (wall, incl.
+~0.03 s startup), foldl flat at 0.04–0.05 s at every size.
 
 **A second, adjacent defect surfaced while reproducing this one** (V11): `ailang run
 --strict-bytecode` **without** `--bytecode` silently runs the evaluator — the strict flag
@@ -116,7 +161,7 @@ claim, instrument included per the skill's rule.
 
 | # | Claim | Command / location | Observed |
 |---|---|---|---|
-| V1 [R] | VM `_list_tail` copies the remaining list | `internal/vm/builtins.go`, `builtinListTail` (registered at `builtins.go:77`, name at `internal/bytecode/builtin_names.go:20`) | `tail := make([]bytecode.Value, len(elems)-n); copy(tail, elems[n:]); NewList(tail)` — O(n) per call |
+| V1 [R] | VM `_list_tail` copies the remaining list | `internal/vm/builtins.go`, `builtinListTail` (registered at `builtins.go:77`, name at `internal/bytecode/builtin_names.go:20`) | `tail := make([]bytecode.Value, len(elems)-n); copy(tail, elems[n:]); NewList(tail)` — O(n) per call — **pre-#1827 state; superseded v0.54.10 by the shared capacity-capped view (`builtins.go:395-420`, V41/V42)** |
 | V2 [R] | Interpreter binds pattern tails as an O(1) subslice alias | `sed -n '255,257p' internal/eval/eval_patterns.go` | `tailElements := listVal.Elements[len(p.Elements):]` → `&ListValue{Elements: tailElements}` — no copy |
 | V3 [R] | Go-codegen runtime `ListTail` returns a shared subslice | `internal/gen/golang/codegen_runtime_collections.go:60-67` (`ListTail` emitter) | `if l, ok := list.([]interface{}); ok … { return l[1:] }` — O(1) alias; compiled programs run this today |
 | V4 [R] | The lower pass emits `_list_tail` for every list-pattern tail | `internal/gen/lower/match_pattern.go:27-28` (access-path table), `:85` (cond), `:133` (binding), `:191-193` (`listTail` → `BuiltinCall{Name: "_list_tail"}`) | `x :: r` lowers to `_len(s) ≥ 1 && …` then binds `x = _list_get(s, 0)`, `r = _list_tail(s, 1)` |
@@ -136,12 +181,34 @@ claim, instrument included per the skill's rule.
 | V18 [N] | Container toolchain limits + binary provenance | `which go make` → absent; `git log --oneline \| wc -l` → 1 (shallow squashed clone, no blame history for `builtinListTail`); binary v0.52.5@`7200786` not in this tree's history (`git cat-file -t 7200786` → error); `ailang version` → v0.52.5, `-dirty` | Source claims are reads at `59feeccf`; measurements at v0.52.5@`7200786`. The mechanism agrees across both (V1's copy ≡ V6's quadratic + V16's native dispatch). **AC-0 re-derives on a build of this tree** |
 | V19 [R] | `NewList` wraps a slice in a shared heap object — sharing is a slice op, values stay immutable | `internal/bytecode/value.go:208-210` | `Value{Tag: TagList, Obj: &ListObj{Elems: elems}}` |
 | V20 [R] | Regression fixtures exist and exercise cons/spread patterns | `examples/first_non_repeat.ail`, `examples/record_cons_pattern.ail`, `examples/url_route_dispatch.ail` (`grep -rln ':: rest\|\.\.\.rest' examples/*.ail`) | listed fixtures exist; sprint re-runs them under `--bytecode` and the evaluator and diffs outputs |
-| V21 [R] | `take`/`drop` are the same copy-class on the VM | `internal/vm/builtins_list_poly.go:55-87` | `builtinListTake`: `append([]bytecode.Value(nil), xs[:n]…)`; `builtinListDrop`: `append([]bytecode.Value{}, xs[n:]…)` — prefix/suffix views, same one-line fix |
+| V21 [R] | `take`/`drop` are the same copy-class on the VM | `internal/vm/builtins_list_poly.go:55-87` | `builtinListTake`: `append([]bytecode.Value(nil), xs[:n]…)`; `builtinListDrop`: `append([]bytecode.Value{}, xs[n:]…)` — prefix/suffix views, same one-line fix — **both fixed in #1827 as capped views (V42)** |
 | V22 [R] | Bench layout precedent | `bench/vm_hof_callbacks/` (`consrepro.ail`, `sumfold.ail`, `mapfilt.ail`, `run.sh` min-of-N) | the pattern this doc's bench follows |
 | V23 [R] | Coverage: the parked doc explicitly keeps pattern tails untouched and defers VM parity | [m-list-cons-quadratic](../m-list-cons-quadratic.md) Non-Goals + V15/V18 there | "VM `OpCons` — stays O(n) … parity deferred"; "Arena propagation through pattern tails — future work; Sprint 1 freezes it off"; its V15 documents the interpreter alias as existing fact, not as something to change |
 | V24 [M] | The repro constructs type-check | `ailang check` on `full_repro.ail`, `walk_only.ail`, `walk_foldl.ail`, `build_only.ail` | `✓ No errors found!` ×4 — `x :: r` cons-pattern syntax, `match` with two arms, tail recursion, `foldl` with an if-step |
 | V25 [R] | The reporter's real path builds the list linearly | `std/embedding.ail:18-19` | `_embedding_decode(bytes) -> Option[list[float]]` — Go builtin, one-pass build; the walk, not the build, was their 427 s |
 | V26 [R] | The eval↔VM bridge deep-copies in both directions — sharing cannot leak across engines | `internal/vm/convert.go:40-51` (`bytecodeToEval` list case: fresh `dst := make(…)` per element) | a shared tail crossing the bridge is converted elementwise into a fresh slice |
+| V27 [R] | **Still unimplemented at v0.54.8** (this tree `b283b2d4`, read 2026-10-13): all three copy sites live; the v0.53.0 target lapsed | `sed -n '378,395p' internal/vm/builtins.go` (`tail := make(…); copy(tail, elems[n:])`); `internal/vm/builtins_list_poly.go:55-87` (`append([]bytecode.Value(nil), xs[:n]…)` / `append([]bytecode.Value{}, xs[n:]…)`); `ls bench/` → no `vm_tail_walk`; no changelog or doc references the fix | v0.53.0–v0.54.8 shipped without this doc's fix; a second consumer hit it in production |
+| V28 [M] | First-party re-derivation of the second reporter's exact repro on this tree's binary (v0.54.8, `b283b2d4`, `/usr/local/bin/ailang`; container has no Go toolchain but the binary's commit matches this tree) | `tailbench.ail` (reporter's file verbatim): `ailang check` ✓; `ailang run --quiet --bytecode --caps IO,Env --entry main tailbench.ail <mode> <n>`, min-of-3 | rec: 10k = 0.89 s, 20k = 1.91 s, 40k = 6.48 s — ×3.4 per doubling (quadratic); foldl: 10k/20k/40k = 0.61/0.49/0.40 s — flat at the ~0.4–0.6 s startup baseline (hello-world min-of-3 = 0.39 s). Same shape as both reports' machines, slower container |
+| V29 [M] | The repro's walk loop compiles to one native `_list_tail` copy per recursive step | `ailang disasm tailbench.ail` → prototype `tailbench.sumRec`: `BUILTIN_CALL r4, builtin#257 (_len)`, `BUILTIN_CALL r2, builtin#514 (_list_get)`, `BUILTIN_CALL r3, builtin#515 (_list_tail)`, `CLOSURE`, `TAIL_CALL` | `builtin#515` is `_list_tail` (`internal/vm/builtins.go:77`); the copy is the only superlinear op in the loop — matches V16 |
+| V30 [P2] | Second reporter's measurements (v0.54.6 `71f4cf6`, md5 `81bacda6…`, inherited, not re-run — machine ~15× faster than this container) | `ailang run --bytecode --caps IO,Env --entry main tailbench.ail rec N` | rec 10k = 0.19 s, 20k = 0.35 s, 40k = 1.18 s (wall, incl. ~0.03 s startup); foldl 0.04–0.05 s flat at every size; pprof on the real workload: `vm.builtinListTail` 14% cumulative, `hofBuiltinListFoldl/Filter/Any` dominating |
+| V31 [P2] | Second reporter's consumer impact (external packages, not in this tree, not re-run) | sunholo `crew_core` + `social_dynamics` auto-play | `p :: rest` recursion throughout (collect, refresh, deliveries); Stapledon R2-CREW 10-year crew skip (3,650 ticks) takes ~60 s against a < 2 s requirement — a large part in tail copies |
+| V32 [N] | No newer doc supersedes this one | `grep -rl 'tail share\|_list_tail\|subslice' design_docs/implemented/v0_53_0 … v0_54_7` → 0 covering hits (hits are `m-run-policy-result-unforgeable`, YAML key order, serveapi, terminal-ui, cloud credit guard, background worker — none touch list tails); `ls design_docs/planned/` → this doc remains the only queue entry for the walk half | The v0.53.0-folder placement is stale-targeted, not stale-covered; re-target in place at sprint-planner time |
+
+| # | Claim | Command / location | Observed |
+|---|---|---|---|
+| V33 [M] | **Cons-walk is flat on the VM post-#1827** | `ailang run --quiet --bytecode --caps IO --args-json N walk_only.ail`, min-of-3, binary v0.54.11 `35a49b8` (md5 `b107e65…`) | 40k = 0.389 s, 80k = 0.381 s, 160k = 0.444 s vs 0.402 s hello baseline → net ≈ 0.04 s, ×≈1 per doubling — **O(n)**; pre-fix V6/V28: ×3.4–3.9 per doubling |
+| V34 [M] | **Residual gap vs interpreter: inverted (VM ahead)** | same file, no flag, min-of-3 | interpreter 40k = 0.797 s, 80k = 1.311 s, 160k = 2.089 s — VM ~4.7× faster gross at 160k, ~40× net of startup; the doc's AC-2 "≤2× interpreter" ceiling is exceeded |
+| V35 [M] | Outputs byte-identical on both engines post-fix | diff of stdout, both engines | walk 40k/80k/160k = 39999/79999/159999 identical; `walk_foldl` 160k = 159999 identical; `build_only` 40k = 40000 identical |
+| V36 [M/R] | **`--strict-bytecode` alone still silently runs the evaluator — Phase 2 open** | `--strict-bytecode` without `--bytecode`, walk 160k = 2.017 s ≈ interpreter 2.089 s, ≠ VM 0.444 s; source: `cmd/ailang/main_run_exec.go:128` (`BytecodeMode: bytecodeMode` — strict not OR'd in), `internal/runner/entrypoint.go:144` (gates on `BytecodeMode` only), `cmd/ailang/commands_language.go:284` (`test`: `Bytecode: *bytecodeFlag \|\| *strictBytecodeFlag`) | strict-alone produces evaluator timings to the millisecond; `--bytecode --strict-bytecode` = 0.444 s = plain `--bytecode`. The fix is one line at `main_run_exec.go:128`; `--strict-bytecode` help (`main_run.go:142`) still reads "With --bytecode: …" |
+| V37 [M] | Construction half still quadratic on the VM — D-19 parked, unchanged by #1827 | `build_only.ail`, `--bytecode`, min-of-3 | 10k = 0.964 s, 20k = 2.795 s, 40k = 12.291 s — ×2.9–4.4 per doubling → O(n²); evaluator 40k = 4.414 s (quadratic on both engines, per rows 41–42). No residual claim that `::`/`++` construction is fixed |
+| V38 [R] | The walk program's bytecode is unchanged — the fix lives in the builtin | `ailang disasm walk_only.ail` (this session) | loop still `BUILTIN_CALL builtin#514 (_list_get), argc=2`, `BUILTIN_CALL builtin#515 (_list_tail), argc=2`, `CLOSURE`, `TAIL_CALL` — same stream class as V16/V29 |
+| V39 [N] | `bench/vm_tail_walk/` does not exist | `ls bench/` | `lsp_token_cost`, `vm_hof_callbacks` only — AC-R2 open |
+| V40 [N] | No retention row in `docs/LIMITATIONS.md` | `grep -rn 'retention\|pins its source\|shares the source' docs/LIMITATIONS.md` | 0 hits; rows 41–42 (cons-quadratic, VM 1.8× build) are the D-19 rows the new row must sit beside without contradicting — AC-R3 open |
+| V41 [R] | #1827 shipped as v0.54.10 and its changelog names this doc's open items | `changelogs/v0_32-current.md` — the `## [v0.54.10] - 2026-10-15` block ("Fixed — bytecode VM: `x :: rest` list walks are O(n), not O(n²) (#1827)") | "… M-VM-LIST-TAIL-SHARE Phase 1; the `--strict-bytecode` change (Phase 2) and `bench/vm_tail_walk` are still open" |
+| V42 [R] | Landed tests pin identity, clamp, capacity cap, and append isolation | `internal/vm/list_tail_share_test.go` (read this session) | `TestListTailDoesNotCopy` (pointer identity into the source's backing array, ×3 builtins), `TestListTailClampsAndCapsCapacity` (cap == len), `TestListTailViewIsolatedFromAppend`; allocation counts deliberately not used ("a copy is one make") |
+| V43 [R] | `std/list.ail` header no longer claims the pattern-match copy (Phase 3 doc half landed) | `std/list.ail:9-11` | "Matching `x :: rest` / `[x, ...rest]` does NOT copy: `rest` shares the list's storage on every engine, so recursion that walks a list that way is O(n)" — V14's sentence is gone; the `::`/`++` construction warning remains (true until D-19) |
+
+Provenance, V33–V38: measurements at `/usr/local/bin/ailang` v0.54.11 (`35a49b8`, md5 `b107e65…`), one release behind this tree (`3af754c4`, v0.54.12) — `git cat-file -t 35a49b8` fails in this shallow squashed clone (same class as V18), and `ailang check` warns "stdlib version mismatch: expected v0.54.11, found v0.54.12". The flat VM walk (V33) plus the unchanged bytecode stream (V38) are empirical proof the binary carries the #1827 fix; source reads are at this tree.
 
 ### Workarounds note (W-1)
 
@@ -152,27 +219,45 @@ implementer runs the full test plan as AC-0/AC-5. Quorum was attempted and degra
 controller-only with all three reviewer routes recorded absent by name (Status header) —
 re-run when a route is available.
 
+**Update 2026-10-13** (`task-a0ee29fa`): the container now has a binary whose commit
+**matches this tree** (v0.54.8 `b283b2d4`), so V28/V29 are true first-party reads of this
+exact source; the no-Go-toolchain limit (and therefore (a)/(b)) still applies. The second
+report (V30/V31) is inherited — its workload packages are not in this tree.
+
+**Update 2026-10-16** (#1827 landed; residual session `task-585cec8d`, attended under
+D-TRIAGE-14): Phase 1 shipped v0.54.10, so the fix **is** implemented and **is**
+measured — V33–V35, on the v0.54.11 binary `35a49b8` (provenance paragraph above; the
+same W-1 class as V18 — one release behind this tree, no Go toolchain, so no build of
+this tree this session either). (a)/(b) now apply only to the **residual**: Phase 2,
+the bench, and the LIMITATIONS row are planned here, not implemented in this session;
+the implementer's build re-derives V33–V38 as AC-R1–AC-R3 land.
+
 ## Goals
 
 **Primary Goal:** make consuming a list by pattern recursion (`x :: r` / `[x, …rest]`)
 cost the same asymptotics on the bytecode VM as on the interpreter and Go codegen — O(n),
-no copy per step — without changing a single observable value.
+no copy per step — without changing a single observable value. **Achieved for the
+consumption half by #1827/v0.54.10** (V33–V35); the residual scope is the honesty and
+pinning around it: the silent-fallback flag, the mechanical bench, the retention row.
 
 **Success Metrics:**
-- `walk_only.ail` on `--bytecode`: ≤ 2× the interpreter at n = 160,000 (today: 52×), scaling ×≤2 per doubling (today ×3.9) (AC-2).
-- The reporter's shape — cons-pattern walk over a 786k-element decoded list — completes in ≤ 2 s on the VM (reporter baseline: 427 s; AC re-derived) (AC-2b).
-- Byte-identical outputs on every fixture and test (AC-5).
-- `ailang run --strict-bytecode` without `--bytecode` no longer silently runs the evaluator (AC-4).
-- A committed benchmark (`bench/vm_tail_walk/`) that pins the regression mechanically (AC-3).
+- ✅ landed (#1827) `walk_only.ail` on `--bytecode`: ≤ 2× the interpreter at n = 160,000 — **exceeded and inverted: ~0.24× (the VM is ~4.7× faster), flat scaling** (V33/V34).
+- ✅ landed the reporter's shape: repro 6.77 s → 1.05 s on dev (#1827); the 786k-element walk completes in ≤ 2 s on the VM (AC-2b, reporter-attested).
+- ✅ landed byte-identical outputs on every fixture and test (AC-5; re-diffed both engines this session, V35).
+- ⬜ **open** `ailang run --strict-bytecode` without `--bytecode` no longer silently runs the evaluator (AC-4 → AC-R1).
+- ⬜ **open** a committed benchmark (`bench/vm_tail_walk/`, equivalent inputs, **checked** outputs) that pins the regression mechanically (AC-3 → AC-R2).
+- ⬜ **open** the `docs/LIMITATIONS.md` retention row + canonical entry, consistent with D-19's parked rows 41–42 (AC-6 remainder → AC-R3).
+- Stapledon R2-CREW (AC-2c, ~60 s → < 2 s): the walk half of that deadline is done by #1827; the construction half is D-19's, not re-planned here.
 
 ## High-Impact Decisions
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |---|---|---|---|---|
 | **Do NOT re-open the representation question (D-19).** `::`/`++` construction stays quadratic until the parked doc's human decision; this doc changes only how *existing* lists are viewed | Two docs claiming the same fix forks the decision record; the parked doc is quorum-blocked on a named human decision | human (already recorded, D-19) | — | high (avoided) |
-| The fix is **sharing, at the builtin**: `_list_tail` returns `NewList(elems[n:])` — the exact discipline the interpreter (V2) and Go codegen (V3) already apply | Representation-preserving, one line, precedent on two engines; no arena, no `ListValue`/`ListObj` change | this doc | design | low |
-| **`take`/`drop` ride along** in the same commit (same suffix/prefix class, V21) | One class, one fix — the systemic pattern CLAUDE.md principle 3 requires; three one-line changes reviewed under one safety argument | this doc | design | low |
-| **`--strict-bytecode` implies `--bytecode` on `run`** (match the `test` command's existing OR, V11) | A silent evaluator fallback behind a flag named "strict" is the exact anti-pattern CLAUDE.md principle 2 names; `test` already settled the intended semantics | this doc | design | low |
+| **Do not re-plan Phase 1.** The rejected sprint card (`task-fc7451cd`, PR #1750) was rejected because its M2 re-landed the already-merged subslice change; this update plans only the three open items | Planning merged work burns an Opus sprint on a no-op and re-opens settled review surface | human (D-TRIAGE-14, attended 2026-10-16) | recorded | low (avoided) |
+| The fix is **sharing, at the builtin**: `_list_tail` returns a view of `elems[n:]` — the exact discipline the interpreter (V2) and Go codegen (V3) already apply — **LANDED #1827/v0.54.10, shipped with capacity caps (`n:len:len`) and the aliasing tests (V41/V42)** | Representation-preserving, one line, precedent on two engines; no arena, no `ListValue`/`ListObj` change | this doc | design | low |
+| **`take`/`drop` ride along** in the same commit (same suffix/prefix class, V21) — landed with #1827 (V42) | One class, one fix — the systemic pattern CLAUDE.md principle 3 requires; three one-line changes reviewed under one safety argument | this doc | design | low |
+| **`--strict-bytecode` implies `--bytecode` on `run`** (match the `test` command's existing OR, V11/V36) — **OPEN: the residual Phase 2, AC-R1** | A silent evaluator fallback behind a flag named "strict" is the exact anti-pattern CLAUDE.md principle 2 names; `test` already settled the intended semantics | this doc | design | low |
 | Retention trade-off is **accepted and documented**, not mitigated: a shared tail pins its source array (bounded by the list's own size) | Identical to interpreter/Go-codegen behavior since inception (V2/V3); today's copy is O(n²) allocation vs O(n) retained — strictly better for walks | this doc | design | low (doc) |
 
 ### Design Freeze
@@ -182,6 +267,11 @@ no copy per step — without changing a single observable value.
 - [x] `--strict-bytecode`-implies-`--bytecode` is in scope (V11), flagged as an intentional behavior change in Conflict Surface §5.
 - [x] `mk`/`::`/`++` construction (the report's other half) is out of scope and stays parked (V23, D-19).
 - [x] Bench committed as `bench/vm_tail_walk/` following the `vm_hof_callbacks` min-of-N pattern (V22).
+
+Post-#1827 freeze status: bullets 1–2 **shipped** (v0.54.10 — clamping byte-identical,
+outputs unchanged; V41/V42); bullet 4 unchanged and still binding (V37 re-confirms the
+construction half quadratic); bullet 3 (strict-flag) is the open Phase 2; bullet 5 is
+pending — the bench is not yet committed (V39).
 
 ## Solution Design
 
@@ -204,44 +294,57 @@ Three small phases, independently shippable, smallest-first:
    `builtinListDrop` → `NewList(xs[n:])` (same clamping, V21). Lists are immutable at the
    language level and the audit (V12) shows no VM path writes into a list's backing slice,
    so the shared array can never be observed to change. The bridge deep-copies on engine
-   crossings (V26), so sharing stays VM-internal.
+   crossings (V26), so sharing stays VM-internal. **— LANDED #1827/v0.54.10:** shipped as
+   `NewList(elems[n:len(elems):len(elems)])` (and the `take`/`drop` equivalents), i.e.
+   the design above plus a capacity cap per view so an append can never write into the
+   source; tests at V42. This paragraph is the historical design, kept for the record.
 
-2. **Phase 2 — `--strict-bytecode` implies the VM on `run` (P1, one line).** In
-   `cmd/ailang/main_run.go`, treat `--strict-bytecode` as implying `--bytecode`
-   (`bytecodeMode := *bytecodeFlag || *strictBytecodeFlag` before building
-   `runner.Options`), exactly as `ailang test` already does (`commands_language.go:284`,
-   V11). The strict flag's own help text ("With --bytecode: fail instead of falling
-   back") already promises this pairing; after the change the pairing is enforced instead
-   of assumed.
+2. **Phase 2 — `--strict-bytecode` implies the VM on `run` (P1, one line — OPEN, the residual).** The flags reach `runFile` from `cmd/ailang/main_run.go:301`, and the single
+   edit site is `cmd/ailang/main_run_exec.go:128`:
+   `BytecodeMode: bytecodeMode` → `BytecodeMode: bytecodeMode || strictBytecode` — the
+   same OR `ailang test` already applies (`commands_language.go:284`, V11/V36);
+   `StrictBytecode` (line 129) already flows through unchanged. The strict flag's help
+   (`main_run.go:142`, "With --bytecode: fail instead of falling back") gains "Implies
+   --bytecode"; after the change the pairing is enforced instead of assumed, and a
+   strict-alone run on an evaluator-only entry fails loudly (AC-R1) instead of
+   silently evaluating (V36).
 
-3. **Phase 3 — docs honesty + bench (P1).** `std/list.ail:9-11` deletes/rewrites the
-   "Matching `[x, …rest]` also copies `rest` on the bytecode VM" sentence (V14) — after
-   Phase 1 it is false; replace with the sharing statement (and keep the `::`/`++`
-   construction warning, which stays true until D-19). `docs/LIMITATIONS.md` gains a row
-   for the *retention* trade-off (small view pins its source array, bounded by list size,
-   interpreter-parity). Commit `bench/vm_tail_walk/` with `walk.ail` (cons-pattern
-   recursion), `build.ail` (`::` construction, the parked half, kept as the documented
-   contrast), `foldl.ail`, and a min-of-N `run.sh` mirroring `vm_hof_callbacks` (V22).
+3. **Phase 3 — docs honesty + bench (P1) — the `std/list.ail` half LANDED with #1827
+   (V43); the remainder is OPEN.** The header sentence (V14) is already rewritten
+   ("Matching `x :: rest` / `[x, ...rest]` does NOT copy … O(n)"), and the `::`/`++`
+   construction warning remains (true until D-19). Still open: (a) `docs/LIMITATIONS.md`
+   gains one row for the *retention* trade-off — a small suffix/prefix view pins its
+   source's backing array, bounded by the source list's own size, interpreter/Go-codegen
+   parity since inception — **plus** its canonical entry in
+   `docs/docs/reference/limitations.md`, sitting beside rows 41–42 without contradicting
+   D-19's pending state (V40); (b) `bench/vm_tail_walk/` commits `walk.ail` (cons-pattern
+   walk), `build.ail` (`::` construction — the parked half, kept as the documented
+   contrast), `foldl.ail`, and a min-of-N `run.sh` mirroring `vm_hof_callbacks` (V22)
+   with **equivalent inputs** (`range`-built lists, the same walk shape as the repro —
+   not `consrepro.ail`'s `split(repeat(…))` string lists) and **checked outputs**:
+   `run.sh` asserts the printed value equals the expected closed form per (program, n,
+   engine) and FAILs on mismatch or nonzero exit, instead of discarding stdout.
 
 ### Implementation Plan
 
-**Phase 1 (the fix):**
-- [ ] `internal/vm/builtins.go` `builtinListTail`: copy → `NewList(elems[n:])`
-- [ ] `internal/vm/builtins_list_poly.go`: `builtinListTake`, `builtinListDrop` → share
-- [ ] Go unit tests (below, Testing Strategy): aliasing-safety, allocation-count, clamp parity, error text unchanged
-- [ ] AC-0 baseline first: rebuild this tree, re-derive V6–V9 tables, record in the sprint log
+**Phase 1 (the fix) — LANDED #1827/v0.54.10; do not re-plan (D-TRIAGE-14):**
+- [x] `internal/vm/builtins.go` `builtinListTail`: copy → capacity-capped view `NewList(elems[n:len:len])`
+- [x] `internal/vm/builtins_list_poly.go`: `builtinListTake` (`xs[:n:n]`), `builtinListDrop` (`xs[n:len:len]`) → capped views
+- [x] Go unit tests: `internal/vm/list_tail_share_test.go` — pointer identity (not allocation counts: "a copy is one make"), clamp parity, cap==len, append isolation (V42)
+- [x] Baselines re-derived in the landing sprint; reporter repro 6.77 s → 1.05 s; this session's independent re-measure: V33–V35
 
-**Phase 2 (strict flag):**
-- [ ] `cmd/ailang/main_run.go`: strict implies bytecode; update the flag help ("Implies --bytecode")
-- [ ] Test: `ailang run --strict-bytecode` on a file with an evaluator-only entry now *fails loudly* instead of silently evaluating; `--bytecode --strict-bytecode` unchanged
+**Phase 2 (strict flag) — IMPLEMENTED (AC-R1):**
+- [x] `cmd/ailang/main_run_exec.go:128`: `BytecodeMode: bytecodeMode` → `bytecodeMode || strictBytecode` (flags already reach `runFile` via `main_run.go:301`; `StrictBytecode` at line 129 unchanged)
+- [x] `cmd/ailang/main_run.go:142`: flag help gains "Implies --bytecode"
+- [x] Test: `ailang run --strict-bytecode` alone on an evaluator-only entry *fails loudly* (exit ≠ 0, `bytecode execution failed: …`) instead of silently evaluating (today: V36); `--bytecode --strict-bytecode`, plain `--bytecode`, no-flag, and `ailang test --strict-bytecode` byte-unchanged
 
-**Phase 3 (docs + bench):**
-- [ ] `std/list.ail:9-11` header rewrite; `tail`/`take`/`drop` comments updated
-- [ ] `docs/LIMITATIONS.md` retention row; reconcile with rows 41–42 (D-19 pending)
-- [ ] `bench/vm_tail_walk/` + `run.sh` committed; run before/after, min-of-5, both engines
-- [ ] Changelog fragment `changelogs/unreleased/`
+**Phase 3 (docs + bench) — `std/list.ail` half landed; remainder IMPLEMENTED (AC-R2/AC-R3):**
+- [x] `std/list.ail:9-11` header rewrite (#1827, V43) — no further edit
+- [x] `docs/LIMITATIONS.md` retention row **+ canonical entry** in `docs/docs/reference/limitations.md`; rows 41–42 untouched (D-19 pending, V40)
+- [x] `bench/vm_tail_walk/{walk.ail,build.ail,foldl.ail,run.sh}` committed — equivalent inputs (`range`-built), **checked outputs** (expected value asserted per (program, n, engine) + VM↔interpreter diff), min-of-N, both engines; before/after tables in the sprint report (before: V6/V28; after: re-derive V33–V37 on the implementer's build)
+- [x] Changelog fragment `changelogs/unreleased/` with the strict-flag behavior note
 
-**Files to modify/create:** `internal/vm/builtins.go` (+2/−2), `internal/vm/builtins_list_poly.go` (+2/−2), `cmd/ailang/main_run.go` (+2/−2), `std/list.ail` (comment ~4 lines), `docs/LIMITATIONS.md` (+1 row), `internal/vm/list_tail_share_test.go` (new, ~120 LOC), `bench/vm_tail_walk/{walk.ail,build.ail,foldl.ail,run.sh}` (new).
+**Files to modify/create (residual):** `cmd/ailang/main_run_exec.go` (+1/−1), `cmd/ailang/main_run.go` (flag help, ~1 line), a strict-flag test (new or extended, ~40 LOC), `docs/LIMITATIONS.md` (+1 row) + `docs/docs/reference/limitations.md` (canonical entry), `bench/vm_tail_walk/{walk.ail,build.ail,foldl.ail,run.sh}` (new, ~80 LOC), `changelogs/unreleased/` fragment. **Not re-touched:** `internal/vm/builtins.go`, `internal/vm/builtins_list_poly.go`, `internal/vm/list_tail_share_test.go`, `std/list.ail` — all landed in #1827, re-verified only (AC-R4).
 
 ## Conflict Surface
 
@@ -264,10 +367,13 @@ flag's meaning on `run`, (c) user-facing cost-model prose in `std/list.ail` +
    runs today (V3).
 3. **HOF/table coupling:** none — the changed builtins keep their indices and signatures;
    `HOFBuiltinNames`/`HOFBuiltinTable` untouched (no new builtins).
-4. **Cost-model prose is load-bearing (V14):** `std/list.ail`'s header currently teaches
-   the copy as a workaround-generating fact ("index with nth or use a helper below").
-   After Phase 1 that sentence is false and must change *in the same release* — a stale
-   cost warning is a new bug of the same class (A9).
+4. **Cost-model prose is load-bearing (V14):** `std/list.ail`'s header taught the copy
+   as a workaround-generating fact. **Landed with #1827 (V43):** the sentence is now the
+   sharing statement; the `::`/`++` construction warning stays (correct until D-19). The
+   open prose position is `docs/LIMITATIONS.md` rows 41–42 + the new retention row —
+   the new row must not read as "cons fixed" (V37: construction is still quadratic).
+   A stale cost warning is a new bug of the same class (A9); a premature *fixed* claim is
+   the mirror-image bug.
 5. **`--strict-bytecode` behavior change (intentional):** users who (mis)used
    `--strict-bytecode` alone to get evaluator behavior now get the strict VM — including
    hard failures on evaluator-only entries. That is what the flag has always documented
@@ -295,16 +401,16 @@ flag's meaning on `run`, (c) user-facing cost-model prose in `std/list.ail` +
 - Allocation behavior of `_list_tail`/`take`/`drop` on the VM (shared backing arrays).
 - Wall-clock on cons-pattern walks: O(n²) → O(n) — the point.
 - `ailang run --strict-bytecode` alone: silent evaluator → strict VM (fails loudly).
-- Comment text in `std/list.ail`, one `docs/LIMITATIONS.md` row, flag help text.
+- Comment text in `std/list.ail` (**landed #1827**), one `docs/LIMITATIONS.md` row + canonical entry (**open**), flag help text (**open**).
 - Nothing else. `::`/`++` construction stays exactly as it is (D-19).
 
 ## Examples
 
-**Before (this session's measurements, V6):** the walk on the VM — 90.9 s at 160k, ×3.9
+**Before (v0.52.5-era measurements, V6):** the walk on the VM — 90.9 s at 160k, ×3.9
 per doubling; the same code on the interpreter: 1.74 s.
 
 ```ailang
--- The canonical walk. On --bytecode today: O(n^2). After this doc: O(n),
+-- The canonical walk. On --bytecode before #1827: O(n^2). Since v0.54.10: O(n),
 -- same output, same determinism, same traces.
 pure func countAbove(xs: [float], thr: float, acc: int) -> int =
   match xs {
@@ -313,7 +419,9 @@ pure func countAbove(xs: [float], thr: float, acc: int) -> int =
   };
 ```
 
-**After:** identical program, no rewrite needed — the whole point. The consumer's
+**After (measured, V33/V34):** identical program, no rewrite needed — the whole point.
+The same walk at 160k on the VM is 0.444 s (was 90.9 s), flat across doublings, and
+~4.7× faster than the interpreter's 2.089 s. The consumer's
 `foldl` workaround becomes unnecessary but stays valid; `foldl` remains the right tool
 when a *callback* shape is natural, and `mapAccumL` when stateful emission is needed
 (those recommendations are unaffected — they were about the construction half and
@@ -321,28 +429,38 @@ per-step cost, both still true).
 
 ## Success Criteria (Acceptance)
 
-- [ ] **AC-0** (gate): build this tree, re-derive the V6–V9 measurement tables, record in the sprint log (this container could not: V18).
-- [ ] **AC-1** `builtinListTail`/`builtinListTake`/`builtinListDrop` return shared subslices; clamping and error behavior byte-identical (`internal/eval/builtin_errors_test.go`, `internal/vm` parity tests green).
-- [ ] **AC-2** `walk_only.ail` on `--bytecode`: n=160,000 ≤ 2× the interpreter wall (base: 52×), ×≤2 per doubling from 80k (base ×3.9); net time ≈ foldl-class. **AC-2b** derived target: the reporter's 786k walk ≤ 2 s on a machine where hello-world startup is ~0.35 s.
-- [ ] **AC-3** `bench/vm_tail_walk/run.sh` committed; before/after tables in the sprint report; the Go allocation test (`testing.AllocsPerRun` on `_list_tail` ≈ 0 allocs) green.
-- [ ] **AC-4** `ailang run --strict-bytecode` without `--bytecode` runs the VM strictly (an evaluator-only entry fails loudly with the strict error, not a silent evaluator run); `ailang test --strict-bytecode` unchanged.
-- [ ] **AC-5** `make test`, `make verify-examples` green; Conflict Surface §"MUST still work" fixtures byte-identical outputs.
-- [ ] **AC-6** `std/list.ail:9-11` no longer claims the copy; `docs/LIMITATIONS.md` carries the retention trade-off; changelog fragment with the strict-flag behavior note.
+**Landed by #1827 (v0.54.10) — verified, not re-planned:**
+
+- [x] **AC-0/AC-1**: baselines re-derived in the landing sprint (reporter repro 6.77 s → 1.05 s); `builtinListTail`/`builtinListTake`/`builtinListDrop` return shared, **capacity-capped** subslices; clamping and error behavior byte-identical (`internal/vm/list_tail_share_test.go`, V42).
+- [x] **AC-2/AC-2b**: `walk_only.ail` on `--bytecode` — this session's independent re-measure is **flat** (×≈1 per doubling) and **~0.24× the interpreter wall at 160k** (base: 52× slower) — the ≤2× ceiling is exceeded, not just met (V33/V34); outputs byte-identical (V35). AC-2c's *walk* half is likewise done; the construction half of the ~60 s is D-19's.
+
+**Residual acceptance (the open scope; the sprint-evaluator grades these):**
+
+- [ ] **AC-R1** (= old AC-4, Phase 2): `ailang run --strict-bytecode` without `--bytecode` runs the strict VM — an evaluator-only entry fails loudly (exit ≠ 0, `bytecode execution failed: …`), not a silent evaluator run (today: V36); `--bytecode --strict-bytecode`, plain `--bytecode`, no-flag runs, and `ailang test --strict-bytecode` byte-unchanged; flag help updated.
+- [ ] **AC-R2** (= old AC-3, bench): `bench/vm_tail_walk/` committed with **equivalent inputs** (`range`-built lists, the repro's walk shape) and **checked outputs** — `run.sh` asserts each (program, n, engine) prints the expected closed-form value, FAILs on mismatch/nonzero exit, and diffs VM↔interpreter; min-of-N mirroring `vm_hof_callbacks` (V22); before/after tables in the sprint report (before: V6/V28; after: re-derived V33–V37 on the implementer's build).
+- [ ] **AC-R3** (= old AC-6 remainder): `docs/LIMITATIONS.md` gains the retention row **plus** its canonical entry in `docs/docs/reference/limitations.md`, worded so it neither contradicts rows 41–42 nor claims the D-19 construction fix (V37/V40).
+- [ ] **AC-R4** (no-redo gate): the sprint touches none of `internal/vm/builtins.go`, `internal/vm/builtins_list_poly.go`, `internal/vm/list_tail_share_test.go`, `std/list.ail` — all landed in #1827 and only re-verified; tests stay green.
+- [ ] **AC-R5** (= old AC-5, executor gates updated at planning): `make test-changed`, targeted CLI/VM tests, `make check-file-sizes`, `make check-changelog`, and `make verify-examples` green (full `make test` remains CI-owned); Conflict Surface §"MUST still work" fixtures byte-identical (re-diffed this session, V35); changelog fragment `changelogs/unreleased/` with the strict-flag behavior note.
 
 ## Testing Strategy
 
-- **Allocation-pinning Go test** (the regression the bench guards at the unit level):
-  `testing.AllocsPerRun` on `_list_tail(list, 1)` over a large list ≈ 0 (today: n).
-- **Aliasing-safety tests**: tail of list → `OpCons` onto the tail → assert the original
-  list's values unchanged (copy-on-write discipline); `sortBy` on a tail; `array_from_list`
-  on a tail. Same tests against the interpreter's outputs (parity).
+- **Identity-pinning Go test — LANDED** (`internal/vm/list_tail_share_test.go`, V42):
+  pointer identity of the view into the source's backing array (allocation counts cannot
+  see this bug — "a copy is one make"), clamp parity, cap == len, append isolation.
+- **Aliasing-safety parity** — landed with #1827 and carried forward: `OpCons` onto a tail,
+  `sortBy` on a tail, `array_from_list` on a tail → source unchanged; outputs re-diffed
+  against the interpreter this session (V35).
 - **Clamp/edge parity**: `_list_tail(xs, n)` for n ∈ {0, 1, len, len+1, −1} on both engines,
   error text for non-list input byte-identical (V13 pins).
-- **Strict-flag test**: `run --strict-bytecode` on an evaluator-only entry → the strict
-  error, exit ≠ 0 (today: silently succeeds on the evaluator, exit 0 — V11).
-- **Bench**: `bench/vm_tail_walk/run.sh` min-of-5, both engines, n ∈ {40k, 80k, 160k};
-  include `build.ail` (the parked construction half) so the two halves' costs stay
-  honestly separated in future reports.
+- **Strict-flag test (OPEN, AC-R1)**: `run --strict-bytecode` alone on an evaluator-only
+  entry → the strict error, exit ≠ 0 (today: silently succeeds on the evaluator, exit 0 —
+  V36); `run --strict-bytecode` on a VM-runnable file → VM timings, not evaluator timings;
+  `ailang test --strict-bytecode` unchanged.
+- **Bench (OPEN, AC-R2)**: `bench/vm_tail_walk/run.sh` min-of-N, both engines, n ∈
+  {40k, 80k, 160k} for `walk.ail`/`foldl.ail` and {10k, 20k, 40k} for `build.ail` (the
+  parked construction half — quadratic, so not scaled), with **checked outputs**: the
+  expected value asserted per (program, n, engine) plus a VM↔interpreter output diff, so
+  the two halves' costs stay honestly separated in future reports.
 
 ## Non-Goals
 
@@ -354,9 +472,11 @@ per-step cost, both still true).
 
 ## Timeline
 
-**Day 1**: AC-0 baselines; Phase 1 fix + unit tests; AC-1. **Day 2**: Phase 2 + tests;
-Phase 3 docs + bench; AC-2/AC-3/AC-4 measurements; changelog. **Total ~2 days** (×2 honest
-= 4, dominated by measurement discipline, as every sibling sprint has found).
+**Residual (post-#1827):** Phase 2 one-liner + flag help + strict tests ≈ 0.5 day; bench
+with checked outputs + before/after tables ≈ 0.25 day; LIMITATIONS row + canonical entry +
+changelog ≈ 0.25 day. **~1 day honest**, ×2 → keep the 2-day envelope (measurement
+discipline still dominates, as every sibling sprint has found). Phase 1's original ~2
+days were spent and landed in #1827.
 
 ## Risks & Mitigations
 
@@ -367,6 +487,12 @@ Phase 3 docs + bench; AC-2/AC-3/AC-4 measurements; changelog. **Total ~2 days** 
 | `--strict-bytecode` implies-VM breaks a workflow that relied on the no-op | Med (behavior) | The flag never documented that meaning; `test` already ORs the flags (V11); changelog behavior note; `--bytecode` semantics unchanged |
 | Stale docs contradict the fix (std/list.ail header) | Low but real (A9) | Phase 3 lands in the same sprint; AC-6 checks the sentence is gone |
 | Reporter timings don't reproduce on the implementer's machine | Low | AC-0 re-derives; thresholds are ratios (×/doubling, VM:interpreter), not absolute seconds |
+
+Post-#1827 status: row 1 is retired (the aliasing-safety tests shipped in #1827, V42; both
+engines re-diffed this session, V35), and row 4 is retired for `std/list.ail` (V43) — its
+open remainder is the LIMITATIONS row (row 2 → AC-R3). Rows 3 (the strict-flag behavior
+change → AC-R1) and 5 (reporter timing → the bench's after-table, AC-R2) remain and are
+carried by the residual acceptance.
 
 ## Axiom Compliance
 
@@ -388,6 +514,10 @@ Phase 3 docs + bench; AC-2/AC-3/AC-4 measurements; changelog. **Total ~2 days** 
 | A12: System Boundary | 0 | No boundary changes |
 
 **Net Score: +4** → **Decision: Proceed**
+
+Post-#1827, the open items carry the A9/A11 weight (the strict flag fails loudly instead
+of silently running the wrong engine; the retention row makes the sharing trade-off
+visible); the A5/A7 weight of the original score is landed and re-measured (V33–V35).
 
 ### Hard Violation Check
 
@@ -418,10 +548,35 @@ gate, from reading the top candidates:
 ## References
 
 - **Source report**: coordinator task `task-006b0353` (this doc's directive), AILANG v0.52.0 `bf2436a`, binary md5 `2dd0828…`; consumer `stapledons-godot` R1-ISM-DUST PR B; related #676.
-- Repro and measurement scripts (this session): `walk_only.ail`, `walk_foldl.ail`, `build_only.ail`, `full_repro.ail` (folded into Phase 3's `bench/vm_tail_walk/`); disassembly via `ailang disasm`.
+- **Landing**: #1827 (Phase 1, shipped **v0.54.10**) — `changelogs/v0.32-current.md`, `## [v0.54.10] - 2026-10-15`; reporter repro 6.77 s → 1.05 s.
+- **Residual ruling**: D-TRIAGE-14 (attended 2026-10-16) — update this doc and plan **only** the three open items; the rejected sprint card `task-fc7451cd` (PR #1750) is recorded so its M2 is not re-planned.
+- Repro and measurement scripts (`walk_only.ail`, `walk_foldl.ail`, `build_only.ail`, `full_repro.ail`): re-derived 2026-10-13, re-measured 2026-10-16 (V33–V38) — to be folded into `bench/vm_tail_walk/` by AC-R2; disassembly via `ailang disasm`.
 - [design_docs/PROGRAM.md](../../PROGRAM.md) §4 — routing lanes. · [Design Axioms](/docs/references/axioms).
 
 ---
 
 **Document created**: 2026-10-09 (design-doc-creator, unattended coordinator session `task-006b0353`; live v0.52.5 binary available for measurements, no Go toolchain / no build of this tree — Verification Log provenance marks and W-1 apply)
-**Last updated**: 2026-10-09
+**Last updated**: 2026-10-13 (design-doc-creator, unattended coordinator session `task-a0ee29fa`: second consumer report v0.54.6 folded in — Status, Problem Statement, Success Metrics AC-2c, Verification Log V27–V32, W-1 update; first-party re-derivation on the tree-matching v0.54.8 binary confirms the fix never landed. No new doc created — duplicate/coverage gate: this doc is the queue entry for the topic.)
+**Updated 2026-10-16** (design-doc-creator, **attended** session under **D-TRIAGE-14**): Phase 1 marked landed (#1827 → v0.54.10, V41/V42) and **not re-planned** (the rejected card `task-fc7451cd` / PR #1750 recorded — its M2 re-landed it); scope cut to the residual — Phase 2 strict-flag (exact edit site `cmd/ailang/main_run_exec.go:128`), `bench/vm_tail_walk/` with equivalent inputs and checked outputs, `docs/LIMITATIONS.md` retention row + canonical entry consistent with D-19's parked rows 41–42; the cons-walk re-measured on current dev **first** (V33–V38, v0.54.11 binary) and the residual gap stated against the interpreter — **inverted: the VM is ~4.7× faster at 160k, flat net of startup**; residual acceptance AC-R1–AC-R5. No new doc created — this doc remains the queue entry for the topic (V32).
+
+## Residual sprint planning — 2026-10-16
+
+Plan: [m-vm-list-tail-share-sprint-plan.md](m-vm-list-tail-share-sprint-plan.md).
+Only AC-R1–R3 implementation is scheduled; AC-R4 guards #1827 against rework.
+AC-R5 uses focused executor gates per sprint-planner policy, with full tests in CI.
+Re-measured before planning using current-dev v0.54.12 binary
+`3af754c4703d659e11ae3c2dac9b512af93e7797-dirty` (not freshly built from this shallow
+checkout; Go/make unavailable). Three subprocess wall timings per engine/size; all exits
+and outputs checked against N−1 for range(0,N), threshold zero, cons-pattern walk.
+
+| N | Interpreter min (s) | VM min (s) |
+|---|---|---|
+| 40,000 | 0.489199 | 0.070488 |
+| 80,000 | 0.901381 | 0.097989 |
+| 160,000 | 1.782754 | 0.148465 |
+
+Residual walk slowdown: none. VM is 12.01× faster at 160k (0.0833× interpreter wall);
+absolute timings differ from V33–V38's environment and are not cross-machine speedups.
+Raw three-run samples and method are preserved in the sprint plan. These runs measure
+consumption only; D-19 and the construction limitation remain parked and unchanged.
+Executor must rebuild and repeat before reporting implementation results.

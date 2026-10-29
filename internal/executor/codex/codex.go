@@ -75,40 +75,10 @@ func (e *CodexExecutor) Execute(ctx context.Context, task *executor.Task) (*exec
 	return e.ExecuteStreaming(ctx, task, &executor.NoOpEventHandler{})
 }
 
-const (
-	spanExecTurn  = "exec.turn"
-	attrTurnNum   = "turn.number"
-	attrSessionID = "session.id"
-	fmtTurnHeader = "\n[TURN %d]\n"
-)
-
-// startTurn opens a new turn span, fires OnTurnStart, and appends the turn
-// header to transcriptBuf. It ends any in-progress turn span first.
-func startTurn(
-	ctx context.Context,
-	n int,
-	sessionID string,
-	prev *trace.Span,
-	buf *strings.Builder,
-	handler executor.EventHandler,
-) trace.Span {
-	if prev != nil && *prev != nil {
-		(*prev).End()
-	}
-	_, s := telemetry.StartSpan(ctx, codexTracer, spanExecTurn,
-		trace.WithAttributes(
-			attribute.Int(attrTurnNum, n),
-			attribute.String(attrSessionID, sessionID),
-		),
-	)
-	handler.OnTurnStart(n)
-	buf.WriteString(fmt.Sprintf(fmtTurnHeader, n))
-	return s
-}
-
 // ExecuteStreaming runs a task with real-time event callbacks, parsing the
 // Codex NDJSON stream into normalized executor events.
 func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
+	defer func() { bankNativeSession(out) }()
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
@@ -147,7 +117,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	//   --skip-git-repo-check         allow non-git workspaces
 	//   --dangerously-bypass-approvals-and-sandbox  permission bypass
 	//   --model <name>                model selection
-	args, err := buildCodexArgs(task, e.getModel(task), directive)
+	args, err := buildCodexArgs(task, e.getModel(task))
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +179,8 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 		if runtime := config.CodexRuntime(); runtime != "" && runtime != "cli" {
 			return nil, fmt.Errorf("unsupported AILANG_CODEX_RUNTIME %q", runtime)
 		}
+		// The prompt goes on stdin, never argv (buildCodexArgs ends with "-").
+		cmd.Stdin = strings.NewReader(directive)
 		stdout, err = cmd.StdoutPipe()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
@@ -266,6 +238,13 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	var turnSpan trace.Span
 	var stderrBuf strings.Builder
 	sawResult := false
+	// turnOpen: a turn.started with no turn.completed yet. A codex that exits 0
+	// with a turn still open, and no turn.failed/error event, was stopped from
+	// outside: SIGTERMed, both the node wrapper and the native binary exit 0
+	// (measured 2026-10-28), so Wait cannot see the signal and this is its only
+	// trace. Before this, the run was GRADED on its partial solution and banked
+	// as compile_error.
+	turnOpen, sawTurnFailure := false, false
 
 	// M-EVAL-COST-AND-SPEED-BUDGETS: speed + cost-kill instrumentation.
 	// Codex emits cumulative input/output tokens (old format: per-message;
@@ -336,7 +315,11 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 					span.SetAttributes(attribute.String("exec.codex_session_id", ev.ThreadID))
 				}
 
+			case "turn.failed", "error":
+				sawTurnFailure = true
+
 			case "turn.started":
+				turnOpen = true
 				turnNum++
 				if firstStreamEventAt.IsZero() {
 					firstStreamEventAt = time.Now()
@@ -373,6 +356,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				}
 
 			case "turn.completed":
+				turnOpen = false
 				// New format reports token usage on turn.completed.
 				if ev.Usage != nil {
 					if ev.Usage.InputTokens > inputTokens {
@@ -671,6 +655,11 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				// error, because CategorizeAgentError trusts FinishReason
 				// over the Error string.
 				finishReason := executor.FinishError
+				// A SIGTERM death the harness did not send (it only ever SIGKILLs).
+				if executor.IsExternalTermination(err) {
+					finishReason = executor.FinishExternalKill
+					errMsg = "external kill: terminated by a signal the harness did not send — " + errMsg
+				}
 				if costKilled {
 					errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
 					finishReason = executor.FinishCostExhausted
@@ -730,8 +719,17 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			// the task, tripped a content filter, or truncated at the token cap
 			// is indistinguishable from a clean finish at this layer.
 			finishReason := executor.FinishStop
+			var errMsg string
 			if !success {
 				finishReason = executor.FinishError
+			}
+			if turnOpen && !sawTurnFailure {
+				// Clean exit mid-turn: the trace a SIGTERM leaves (see turnOpen).
+				// Error is set so the eval harness banks the run instead of grading
+				// a half-written solution.
+				success = false
+				finishReason = executor.FinishExternalKill
+				errMsg = "external kill: codex exited 0 mid-turn (turn.started, no turn.completed or turn.failed) — the trace a SIGTERM leaves"
 			}
 			if costKilled {
 				success = false
@@ -740,6 +738,9 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			if thrashKilled {
 				success = false
 				finishReason = executor.FinishThrashAborted
+			}
+			if finishReason != executor.FinishExternalKill {
+				errMsg = ""
 			}
 
 			span.SetAttributes(
@@ -758,6 +759,7 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 
 			return &executor.Result{
 				Success:              success,
+				Error:                errMsg,
 				FinishReason:         finishReason,
 				Output:               transcriptBuf.String(),
 				DurationMS:           int(duration.Milliseconds()),

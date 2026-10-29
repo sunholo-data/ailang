@@ -98,17 +98,17 @@ This enables:
 
 ---
 
-### 4. Compiles to Go
+### 4. One Binary, Two Engines
 
-AILANG isn't interpreted — it compiles to typed, idiomatic Go code:
+AILANG runs inside a single Go binary with no other dependencies:
 
-- <Icon name="zap" inline /> **Native performance** — no runtime overhead
-- <Icon name="zap" inline /> **Seamless interop** — call Go from AILANG and vice versa
-- <Icon name="zap" inline /> **Existing ecosystem** — use Go libraries directly
-- <Icon name="zap" inline /> **Easy deployment** — single binary, no dependencies
-- <Icon name="zap" inline /> **Familiar tooling** — Go debugging, profiling, testing
+- <Icon name="zap" inline /> **Bytecode VM** — `ailang run --bytecode` runs pure code about 40× faster than the tree-walking interpreter
+- <Icon name="zap" inline /> **Reference interpreter** — the default engine, and the definition of correct behaviour
+- <Icon name="zap" inline /> **Any host language** — run as a child process and exchange JSON over stdin/stdout ([Go interop guide](/docs/guides/go-interop))
+- <Icon name="zap" inline /> **Easy deployment** — ship the `ailang` binary and your `.ail` files
 
-Write high-level logic in AILANG. Run it as fast Go code.
+The VM is still slower than CPython on call-heavy code. Performance work is planned once the VM
+matches the interpreter on every program.
 
 ---
 

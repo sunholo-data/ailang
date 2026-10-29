@@ -4,6 +4,14 @@ First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT
 abort, run `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp abort <reason> ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac` with a short reason token.
 Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
+**Read the environment by NAME, never by value** (fleet iterations 51 and 52 each printed
+`CLAUDE_CODE_OAUTH_TOKEN` into the transcript, via `env | grep -v -i key` and then
+`env | grep -E '^(MISSION|AILANG|CLAUDE_CODE)' | grep -v -i key`; a key-only filter misses
+`*_TOKEN`, `*_SECRET` and `*_AUTH*`). To see what the driver exported, list names:
+`env | cut -d= -f1 | grep -E '^(MISSION_|AILANG_)' | sort`, then print the specific
+non-secret values you need, e.g. `echo "$MISSION_PLANNER_MODEL"`. To test a secret, use
+`[ -n "$VAR" ] && echo SET || echo UNSET`, never `${VAR:-...}`.
+
 1. Kill switch set → STOP (no message needed; this is the intended off state).
 2. `gh auth status` must show `sunholo-voight-kampff` before any push. Wrong account → fix with
    `gh auth switch --user sunholo-voight-kampff` or park all push steps.
@@ -172,15 +180,18 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
    **(b) PROVENANCE IS THE WHOLE CONTRACT.** The commit that flipped the row must be authored by an
    attended identity, never the fleet account. For any ledger row that changed since your last
    watermark, check it first-party:
-   `git log -1 --format='%an <%ae>' -S'| D-nn |' -- <charter>`. **Use that output to COMPARE,
-   never to RECORD** (Mark, attended 2026-09-02): the verdict is "attended" or "fleet", and that
-   is all that goes in the row. Writing the author's ADDRESS into an evidence cell publishes it —
+   `scripts/mission_ledger_provenance.sh --id D-nn --file <charter>`.
+   **Use that output to COMPARE, never to RECORD** (Mark, attended 2026-09-02): record only the
+   verdict and flip/creation SHAs. Writing the author's ADDRESS into an evidence cell publishes it —
    ledger rows are pasted verbatim into the public bookkeeping issue by every report, which is
    exactly how a personal address reached 11 places across 9 tracked files before this rule
-   existed. `make check-no-personal-email` fails the build if one comes back. If the flip was authored by
-   `sunholo-voight-kampff`, that is **SELF-RESOLUTION** — the exact failure `mission_directives.sh`'s
-   self-direction guard exists to prevent, arriving through the other door. Re-open the row, FLAG it,
-   and report it; do not action it.
+   existed. `make check-no-personal-email` fails the build if one comes back.
+   `attended` follows (a)'s attended-channel contract. Only `fleet` on a non-squash flip is
+   **SELF-RESOLUTION**: re-open the row, FLAG it, report it, and do not action it.
+   `undetermined:squash-merge`: report flip and creation SHAs; never re-open or ask for
+   confirmation on that basis. Git cannot see a self-resolution that lands through a squash
+   merge, so the check is weaker there; it does not make that case safe. `never-resolved`: no attended resolution exists.
+   rc 2 is an instrument failure, not a verdict: report it and stop provenance-dependent action.
    **(c) YOU MAY NOT USE THIS CHANNEL.** The loop never runs `mission_answer.sh`, never authors a
    commit with an attended identity, and never resolves a row on its own behalf.
    **Scope of (c), clarified 2026-09-02 after it was over-applied and cost an hour:** this binds

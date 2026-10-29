@@ -196,6 +196,12 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 			Condition:      condition,
 			Trial:          trial, // M-EVAL-OS-LONGITUDINAL Phase 3
 		}
+		// Record what the failed run actually spent, and charge an idle-watchdog
+		// kill to the harness (invalid, retried by --skip-existing).
+		if eval_harness.CarryFailedRunSpend(apiErrorMetrics, result) && onCost != nil {
+			onCost(apiErrorMetrics.CostUSD)
+		}
+		eval_harness.MarkIdleKilled(apiErrorMetrics, result)
 		_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
 
 		// M-EVAL-CHAINS: Record failure in chain stage
@@ -301,6 +307,10 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		RuntimeOk:  result.RuntimeOk,
 		StdoutOk:   result.StdoutOk,
 		DurationMs: int64(result.DurationMS),
+		// M-EVAL-HIDDEN-TESTS: held-out test verdict (absent when the benchmark has none).
+		HiddenTotal:     len(spec.HiddenTests),
+		HiddenPassed:    result.Hidden.Passed,
+		HiddenFirstFail: result.Hidden.FirstFail,
 		// Contract verification (M4a-3): the banked RESULT JSON now carries the
 		// same 5 verify_* fields the chain assessment does. Standard mode has
 		// always recorded these (via PopulateVerifyMetrics); agent mode dropped

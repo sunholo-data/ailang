@@ -92,6 +92,16 @@ export pure func floatToStr(f: float) -> string {
   _string_floatToStr(f)
 }
 
+-- Fixed-decimal formatting of the exact binary float64 value.
+-- Precision is 0..1000 inclusive; invalid precision fails during ordinary
+-- execution, even without --verify-contracts. Rounding follows strconv's
+-- nearest-even rule. NaN/Inf remain visible and negative zero keeps its sign.
+-- Large precisions can expose binary approximation digits, not only zeros.
+export pure func formatFixed(x: float, decimals: int) -> string
+requires { decimals >= 0 && decimals <= 1000 } {
+  _str_formatFixed(x, decimals)
+}
+
 -- intToStr: Convert an integer to its string representation
 export pure func intToStr(n: int) -> string {
   _string_intToStr(n)

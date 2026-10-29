@@ -8,40 +8,34 @@ import (
 	"testing"
 )
 
-// TestIsAilangBinaryPath pins the predicate that decides WHICH binary
-// BuildModuleIface exec's.
+// TestResolveIfaceBinary_PinnedWinsOverPath pins the CLI's own binary as the
+// identity computer even when it is not named `ailang` and another `ailang`
+// sits on PATH. That pair is the 2026-10-19 PUB005 case: a renamed v0.54.15
+// build silently hashed with the installed v0.52.0.
 //
-// Why this file exists: every test that drives BuildModuleIface overrides
-// resolveIfaceBinary in TestMain, so replacing that function's whole body with
-// an always-failing stub left all six named arms PASSing (measured, iteration
-// 313 — reproduced first-party from the sprint evaluator's blocking finding).
-// Neither branch was pinned, including the primary one. The naming decision is
-// now a pure function and is pinned here directly.
-func TestIsAilangBinaryPath(t *testing.T) {
-	cases := []struct {
-		path string
-		want bool
-	}{
-		{"/usr/local/bin/ailang", true},
-		{"ailang", true},
-		{filepath.Join("some", "dir", "ailang"), true},
-		{"ailang.exe", true},     // the Windows publisher
-		{"/tmp/pkg.test", false}, // the go test binary — the case that matters
-		{"/usr/local/bin/ailangx", false},
-		{"/usr/local/bin/notailang", false},
-		{"", false},
+// Kills: a resolver that ignores the pin, or prefers PATH over it.
+func TestResolveIfaceBinary_PinnedWinsOverPath(t *testing.T) {
+	stubDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(stubDir, "ailang"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
 	}
-	for _, tc := range cases {
-		if got := isAilangBinaryPath(tc.path); got != tc.want {
-			t.Errorf("isAilangBinaryPath(%q) = %v, want %v", tc.path, got, tc.want)
-		}
+	t.Setenv("PATH", stubDir)
+	pinned := filepath.Join(t.TempDir(), "ailang-v0.54.15")
+	UseIfaceBinary(pinned)
+	t.Cleanup(func() { UseIfaceBinary("") })
+
+	got, err := realResolveIfaceBinary()
+	if err != nil {
+		t.Fatalf("resolveIfaceBinary: %v", err)
+	}
+	if got != pinned {
+		t.Fatalf("resolved %q, want the pinned binary %q", got, pinned)
 	}
 }
 
-// TestResolveIfaceBinary_FallsBackToPath exercises the REAL resolver's fallback
-// branch: when the running executable is not itself `ailang` (which is always
-// true under `go test`, where os.Executable() is `<pkg>.test`), resolution must
-// go through exec.LookPath and find the binary on PATH.
+// TestResolveIfaceBinary_FallsBackToPath exercises the REAL resolver's
+// unpinned branch (the registry validator's): resolution must go through
+// exec.LookPath and find the binary on PATH.
 //
 // Kills: an inverted or short-circuited fallback that returns the test binary,
 // and a resolver that ignores PATH entirely.
@@ -50,15 +44,10 @@ func TestResolveIfaceBinary_FallsBackToPath(t *testing.T) {
 		t.Skip("stub binary permissions differ on windows; the predicate test covers the naming half")
 	}
 
-	// Precondition, asserted rather than assumed: under `go test` the running
-	// executable must NOT look like ailang, or this test would take the primary
-	// branch and prove nothing about the fallback.
-	self, err := os.Executable()
-	if err != nil {
-		t.Fatalf("os.Executable: %v", err)
-	}
-	if isAilangBinaryPath(self) {
-		t.Fatalf("instrument failure: test binary %q looks like ailang, so the fallback branch is not reachable here", self)
+	// Precondition, asserted rather than assumed: nothing is pinned in a test
+	// process, or this test would take the pinned branch and prove nothing.
+	if pinnedIfaceBinary != "" {
+		t.Fatalf("instrument failure: %q is pinned, so the PATH branch is not reachable here", pinnedIfaceBinary)
 	}
 
 	stubDir := t.TempDir()
@@ -79,7 +68,7 @@ func TestResolveIfaceBinary_FallsBackToPath(t *testing.T) {
 }
 
 // TestResolveIfaceBinary_ErrorsWhenAbsent pins the refusal branch: no ailang on
-// PATH and a non-ailang executable must produce an error, never a bare path
+// PATH and nothing pinned must produce an error, never a bare path
 // that would later exec something arbitrary.
 func TestResolveIfaceBinary_ErrorsWhenAbsent(t *testing.T) {
 	t.Setenv("PATH", t.TempDir()) // empty dir: nothing named ailang

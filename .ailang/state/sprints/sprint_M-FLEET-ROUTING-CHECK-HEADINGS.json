@@ -1,0 +1,59 @@
+{
+  "sprint_id": "M-FLEET-ROUTING-CHECK-HEADINGS",
+  "created": "2026-10-21T00:00:00Z",
+  "estimated_duration_days": 0.25,
+  "correlation_id": "sprint_M-FLEET-ROUTING-CHECK-HEADINGS_fleet54_20261021",
+  "design_doc": "design_docs/planned/sprint-plan-routing-check-heading-shapes.md",
+  "markdown_plan": "design_docs/planned/sprint-plan-routing-check-heading-shapes.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_ROUTING_HEADING_SHAPES",
+      "package": null,
+      "action": "none",
+      "reason": "Internal Bash/awk harness correction reusing the existing checker, generated-fixture helpers and make wiring; no package-like AILANG capability or .ail code. Registry search is inapplicable; no network or new dependency."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_ROUTING_HEADING_SHAPES",
+      "description": "D1-D6: accept established routing-evidence heading shapes, preserve form-dependent block boundaries, add five selectable mutation-killable fixture arms and a changelog fragment; D7 integration remains controller-only.",
+      "estimated_loc": 100,
+      "actual_loc": 133,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "D1: Header regex is ^(- )?\\*\\*Routing evidence[^*]*\\*\\*, guarded by !seenBlock. Preserve first-block-only behaviour and scan the header's own tokens, including existing inline-token-at-EOF coverage.",
+        "D2: Both header forms stop at the next column-0 ** field or entry boundary. Bulleted headers also stop at the next column-0 - ** sibling field; indented sub-bullets remain inside. Unbulleted headers retain fleet's column-0 bold-label sub-bullets.",
+        "D3: Entry-heading regex, allowlist, canonicalisation, rc contract (0 clean / 1 findings / 2 instrument failure) and argument parsing unchanged. Bash 3.2 and BSD awk compatible; no gawk, backslash-s or interval-expression dependency.",
+        "D4 w: Generated world colon-inside heading with an allowed token returns 0; retired gpt-6-astra inside returns 1 with exact original file:line/token. Reverting D1 to the old literal header regex turns the arm red.",
+        "D4 s: Generated Stapledon bullet heading with indented Controller/Designer sub-bullets and a retired token inside returns 1; separate fixture with retired token only after sibling - **Ruled out:** returns 0. Deleting (- )? kills header recognition; separately removing bulleted-sibling termination kills the sibling-only case.",
+        "D4 v: V1 period-inside heading with a retired token on an unbulleted continuation line returns 1 with original line/token; reverting D1 to the old literal turns the arm red.",
+        "D4 p: Exact docs parenthetical heading followed by a table with a retired token returns 1 with original line/token; reverting D1 to the old literal turns the arm red.",
+        "D4 f: Fleet unbulleted standard heading with retired token on column-0 - **Executor**: returns 1 with original line/token; making unbulleted blocks stop at column-0 bold-label bullets turns the arm red.",
+        "Base 20/20 preserved. Extend usage and default arm list with w s v p f while retaining --only and all existing arms. Every new arm green on fix, red under named mutation, restored green; s kills both named mutations. Evidence identifies behavioural assertion. Clean fixtures emit no findings. Use disposable temp copies, never git writes or real-log changes.",
+        "bash -n on both scripts is clean, including rig /bin/bash 3.2 syntax validation. /bin/bash scripts/test_mission_routing_models_check.sh returns 0 outside sandbox. Focused shell checks touch no sockets; any socket-touching result is UNINFORMATIVE UNDER SANDBOX.",
+        "D5: changelogs/unreleased/2026-10-21-routing-check-heading-shapes.md has 2-4 lines starting ### Fixed — per fragment README; make check-changelog and make check-file-sizes pass.",
+        "D6 (executor implementation scope; separately authorized iteration54/57 Gate5 edits and required mission records are controller integration): Scope exactly checker, shell test, named fragment, plan and sprint JSON; no skill/make edits, entry-heading/allowlist changes, home state/config changes, other repos, network or full Go suite/build.",
+        "D7 controller-only outside sandbox: compare HEAD pre-fix/new checker over every reachable real log entry here and world/Stapledon out of tree, retaining per-entry rc/findings and explaining every rc change; run direct shell suite and env -i make test-launchd-drivers; controller owns commit, PR, CI and ticket resolve. Planner validates artifacts only."
+      ],
+      "passes": true,
+      "started": "2026-10-21T17:25:37Z",
+      "completed": "2026-10-22T22:27:24Z",
+      "notes": "Implemented at iteration54; landed iteration58 through PR1935, merge 2debbb0278cc08e018be2d0a1e75befcbda55454, independent MiniMax PASS93, exact PR/merge CI green, D7 corpus116/7 and full launchd/dry-runs passed before ticket resolution. started is the first implementation commit author timestamp, not measured effort. actual_loc=133 additions+deletions for checker/tests/fragment vs base42. Original implementation effort and velocity unmeasured; null metrics are unknown. Inherited Gate5 edits at54/57 and mandatory mission records are separately authorized. Evidence design_docs/fleet-mission-evidence/iteration58/; dev/unreleased, stable plan path retained.",
+      "status": "completed"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "actual_loc_per_day": null,
+    "target_milestones_per_week": 1,
+    "actual_milestones_per_week": null,
+    "estimated_total_loc": 100,
+    "actual_total_loc": 133,
+    "estimated_days": 0.25,
+    "actual_days": null
+  },
+  "last_session": "2026-10-22T22:27:24Z",
+  "last_checkpoint": "D1-D7 complete; exact merge CI green; ticket resolved; independent MiniMax PASS93",
+  "status": "completed"
+}

@@ -1,5 +1,6 @@
 # shellcheck shell=bash
 # pi-ext-args.sh — sourced by the mission driver and scripts/mission_pi_run.sh.
+# Skill snippets source this into the controller's zsh tool shell, where NOMATCH aborts unmatched loops.
 #
 # _mc_pi_ext_args DIR → prints pi extension flags (one per line) for a pi run whose CWD is
 # DIR, so a caller can read them into an array:
@@ -17,6 +18,7 @@
 # in that case; they never were in a fire, because the fire crashed first.
 # When DIR has none (world, stapledon), nothing is printed and discovery is unchanged.
 _mc_pi_ext_args() {
+  if [ -n "${ZSH_VERSION:-}" ]; then setopt local_options null_glob; fi
   local dir="$1" f
   [ -d "$dir/.pi/extensions" ] || return 0
   printf '%s\n' --no-extensions

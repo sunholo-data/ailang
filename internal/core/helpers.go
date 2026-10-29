@@ -110,3 +110,28 @@ func IsBoolValue(expr CoreExpr, bindings map[string]CoreExpr) bool {
 	}
 	return false
 }
+
+// IntLitAsFloat returns the Float literal that an integer literal denotes when
+// type inference resolved it at type Float (`f >= 0`, `f + 1`, `2 * f`,
+// `-> float { 0 }`). An integer literal is `Num a => a`; when `a` is Float the
+// value IS a float, and the runtime must see a FloatValue, or every Float
+// dictionary method and float builtin rejects it ("expected float arguments").
+// It keeps the node's CoreNode (ID and spans), so CoreTypeInfo still applies.
+// Returns (nil, false) when lit is not an integer literal or its value is not
+// an integer. Integers beyond 2^53 round to the nearest float64, as any
+// int-to-float conversion does.
+func IntLitAsFloat(lit *Lit) (*Lit, bool) {
+	if lit == nil || lit.Kind != IntLit {
+		return nil, false
+	}
+	var f float64
+	switch v := lit.Value.(type) {
+	case int:
+		f = float64(v)
+	case int64:
+		f = float64(v)
+	default:
+		return nil, false
+	}
+	return &Lit{CoreNode: lit.CoreNode, Kind: FloatLit, Value: f}, true
+}

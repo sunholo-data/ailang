@@ -38,8 +38,8 @@ type SweetSpotBucket struct {
 	// counted as a non-pass in the rates ("keep counting" decision); the
 	// per-language refusal RATE is annotated separately in the dashboard.
 	Refused int `json:"refused"`
-	// ProviderBlocked: quota_exhausted / rate_limit / api_error — not the
-	// model's fault. Excluded from capability scoring (see capability.go).
+	// ProviderBlocked: quota_exhausted / rate_limit / api_error / external_kill
+	// — not the model's fault. Excluded from capability scoring (see capability.go).
 	ProviderBlocked int `json:"provider_blocked"`
 }
 
@@ -99,6 +99,7 @@ type SweetSpotRow struct {
 	QuotaCount         int `json:"quota_count"`
 	RateLimitCount     int `json:"rate_limit_count"`
 	APIErrorCount      int `json:"api_error_count"`
+	ExternalKillCount  int `json:"external_kill_count"` // agent CLI SIGTERMed from outside the harness
 
 	// FinishReasons counts the executor finish_reason values seen across
 	// this model's runs. Empty/missing finish_reason counts as "".
@@ -293,6 +294,8 @@ func buildRow(model, harness string, rs []*BenchmarkResult, opts SweetSpotOpts) 
 			row.RateLimitCount++
 		case "api_error":
 			row.APIErrorCount++
+		case "external_kill":
+			row.ExternalKillCount++
 		}
 
 		agg := byBench[r.ID]
@@ -376,7 +379,7 @@ func buildRow(model, harness string, rs []*BenchmarkResult, opts SweetSpotOpts) 
 					capability = true
 				case "refused":
 					refused = true
-				case "quota_exhausted", "rate_limit", "api_error":
+				case "quota_exhausted", "rate_limit", "api_error", "external_kill":
 					provider = true
 				default:
 					capability = true
@@ -501,6 +504,7 @@ func renderSweetSpotRow(r SweetSpotRow) map[string]interface{} {
 			"quota_exhausted": r.QuotaCount,
 			"rate_limit":      r.RateLimitCount,
 			"api_error":       r.APIErrorCount,
+			"external_kill":   r.ExternalKillCount,
 		},
 		"finish_reasons": r.FinishReasons,
 	}

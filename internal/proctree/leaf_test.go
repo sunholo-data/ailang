@@ -1,6 +1,7 @@
 package proctree_test
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -14,11 +15,22 @@ import (
 // core would link the executors and the closure test would fail. This test
 // names the reason before that one fires.
 func TestProctreeIsALeaf(t *testing.T) {
+	// Every GOOS, not just the host: platform files carry their own imports,
+	// and a Linux-only x/sys import passed this test on a darwin laptop and
+	// failed only in Linux CI (2026-10-16, dumpable_linux.go).
+	for _, goos := range []string{"linux", "darwin", "windows"} {
+		t.Run(goos, func(t *testing.T) { assertProctreeLeaf(t, goos) })
+	}
+}
+
+func assertProctreeLeaf(t *testing.T, goos string) {
 	const module = "github.com/sunholo-data/ailang/"
 
-	out, err := exec.Command("go", "list", "-deps", ".").Output()
+	cmd := exec.Command("go", "list", "-deps", ".")
+	cmd.Env = append(os.Environ(), "GOOS="+goos)
+	out, err := cmd.Output()
 	if err != nil {
-		t.Fatalf("go list -deps: %v", err)
+		t.Fatalf("GOOS=%s go list -deps: %v", goos, err)
 	}
 	deps := strings.Split(strings.TrimSpace(string(out)), "\n")
 

@@ -11,8 +11,8 @@
 --   map / filter / flatMap / zip / take   one element (or none) per input
 --   mapAccumL                             one output per input, plus running state
 --   foldl with a non-list accumulator     sums, counts, records, maps: always fine
--- Matching `[x, ...rest]` also copies `rest` on the bytecode VM, so recursion that
--- walks a list that way is O(n^2) there; index with nth or use a helper below.
+-- Matching `x :: rest` / `[x, ...rest]` does NOT copy: `rest` shares the list's
+-- storage on every engine, so recursion that walks a list that way is O(n).
 -- Every pure helper below is an iterative builtin or built from one: O(n) time,
 -- no recursion-depth limit.
 --

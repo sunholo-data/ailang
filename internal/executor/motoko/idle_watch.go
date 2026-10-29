@@ -24,7 +24,15 @@ var idlePollInterval = 10 * time.Second
 // a stalled run. Measured 2026-10-08: two lane tasks stalled mid-stream (31
 // stream starts, 30 ends) and waited out the full 40-minute bound, where pi's
 // executor would have killed them after its idle timeout.
-func watchIdle(ctx context.Context, idle, poll time.Duration, activity func() int64, onIdle func()) {
+//
+// A provider call in flight is not idleness. On the buffered ollama path the
+// whole generation arrives at once, so the log is silent for as long as the
+// model works; 9 of 39 v0.54.9 rig runs were killed that way mid-call (see
+// ollama_stream.go). When inFlight reports an open call the limit becomes
+// callBound, the provider's own deadline plus callMargin, so the client's typed
+// timeout fires before we do. A zero callBound means the client has none, and
+// the run's wall-clock bound is what ends it. inFlight may be nil.
+func watchIdle(ctx context.Context, idle, poll time.Duration, activity func() int64, inFlight func() bool, callBound time.Duration, onIdle func()) {
 	last := activity()
 	lastChange := time.Now()
 	t := time.NewTicker(poll)
@@ -38,13 +46,24 @@ func watchIdle(ctx context.Context, idle, poll time.Duration, activity func() in
 				last, lastChange = now, time.Now()
 				continue
 			}
-			if time.Since(lastChange) >= idle {
-				onIdle()
-				return
+			silent := time.Since(lastChange)
+			if silent < idle {
+				continue
 			}
+			if inFlight != nil && inFlight() {
+				if callBound == 0 || silent < callBound+callMargin {
+					continue
+				}
+			}
+			onIdle()
+			return
 		}
 	}
 }
+
+// callMargin lets the provider client's own deadline land first, so the run
+// ends on its typed error rather than on our kill.
+var callMargin = time.Minute
 
 // sessionActivity is the progress counter for a motoko run: the bytes in its
 // session JSONL (motoko appends every stream delta and tool event) plus its
@@ -69,13 +88,13 @@ func sessionActivity(workspace, sessionID, repo, stderrLogPath string) func() in
 // run's parent context (cancelRun), so the process-group kill takes it down.
 // The returned stop ends the watch and reports, as an error prefix, whether the
 // run was killed for idling ("" when it was not).
-func startIdleWatch(runCtx context.Context, idle time.Duration, activity func() int64, cancelRun context.CancelFunc) (stop func() string) {
+func startIdleWatch(runCtx context.Context, idle time.Duration, activity func() int64, inFlight func() bool, callBound time.Duration, cancelRun context.CancelFunc) (stop func() string) {
 	if idle <= 0 {
 		idle = defaultIdleTimeout
 	}
 	var killed atomic.Bool
 	watchCtx, stopWatch := context.WithCancel(runCtx)
-	go watchIdle(watchCtx, idle, idlePollInterval, activity, func() {
+	go watchIdle(watchCtx, idle, idlePollInterval, activity, inFlight, callBound, func() {
 		killed.Store(true)
 		cancelRun()
 	})

@@ -6,6 +6,7 @@
 **Priority**: P2 — nothing autonomous is blocked on it. It replaces a laptop, not a pipeline.
 **Estimated**: ~6.5d total; ~4d spent (M0–M2b).
 **Dependencies**: herdr v0.8.2 (Apache-2.0, pinned by sha256). Cloud Run **instances** (Preview, 2026-09). Consumed by Aitana platform via A2A — see that repo's `docs/design/v6.40.0/resident-agent-instances.md`, which is a *consuming* doc in the same shape as its browser-sessions one.
+**Future compute option**: [Agent Compute Engine evaluation](#deferred-roadmap-agent-compute-engine) — deferred by Mark on 2026-10-23 until beta is available; no implementation or sprint authorized.
 
 ---
 
@@ -682,6 +683,94 @@ was never written to, where Go's `exec.Cmd` leaves `Stdin` nil and gets
 `/dev/null`. The invocations matched flag for flag; they differed in the one
 thing nobody had written down. One second at boot, with the same stdin
 discipline the executor uses, would have named it immediately.
+
+## Deferred roadmap: Agent Compute Engine
+
+**Decision (Mark, attended, 2026-10-23): wait for Agent Compute Engine (ACE)
+beta before considering implementation.** This records a future evaluation,
+not an approved migration. No preview signup, infrastructure provisioning,
+implementation, or sprint is requested. Revisit when beta is available to us
+with usable API documentation, regional availability, and pricing; availability
+opens the evaluation, not automatic authorization to migrate.
+
+### Why revisit
+
+The resident workload already needs per-user workspaces, durable conversations,
+wake-on-dispatch, idle shutdown and recovery. ACE may replace parts of the
+compute and lifecycle machinery beneath that workload. The initial interest is
+the locked-down AILANG execution path; general coding and parallel eval
+environments are secondary candidates.
+
+Google's 2026-10-22 announcement describes hardware-isolated microVMs,
+memory-preserving checkpoint/resume, persistent disks, pre-warmed templates,
+forking, and credentials brokered outside the sandbox. These are announced
+capabilities to validate in beta, not measured benefits for our workload.
+
+| Concern | Existing resident path | Future ACE evaluation |
+|---|---|---|
+| Execution boundary | Resident image defaults to `ailang_only`; program execution is policy-gated | Keep the AILANG policy inside a microVM; verify filesystem and network isolation |
+| Idle lifecycle | Coordinator sweep stops idle instances; dispatch explicitly wakes them | Measure checkpoint/resume latency and active/idle charges |
+| Persistence | Sessions/tasks checkpointed to durable storage; container processes restart | Test preservation of memory and files, plus recovery after actual guest failure |
+| Identity | Per-user provisioning and runtime identity; provider credentials depend on deployment | Validate external credential brokering for our providers and MCP tools |
+| Parallel work | Additional instances | Measure clean-template clones; live forks are an optional eval experiment |
+
+### Architecture to assess
+
+Google describes the trusted agent harness running **outside** the untrusted
+execution sandbox. Our resident currently runs pi inside its container.
+Moving that whole container into a microVM must not be assumed to deliver
+automatic suspension while pi waits on a model response.
+
+The preferred experiment is to keep the A2A-facing harness/control service
+outside ACE and dispatch bounded AILANG tool execution into managed microVMs.
+A whole-resident deployment through Direct Access is a separate compatibility
+experiment, contingent on the beta's networking and lifecycle contract.
+Neither topology is selected for implementation yet.
+
+AILANG execution policy, user eligibility, tenant/data boundaries, task/session
+records, A2A integration, and platform UI delivery remain application concerns.
+Compute migration must preserve their existing contracts.
+
+### Questions that must be answered before a migration proposal
+
+- Does beta support our custom Linux binary/image, immutable policy, isolated
+  writable workspace, denied workload egress and metadata access, and explicit
+  execution time, memory and output limits?
+- Can managed execution preserve our stdout/stderr, cancellation, policy
+  decisions, traces and per-user attribution without exposing harness secrets?
+- Are the required capabilities available in Europe, preferably
+  `europe-west4` or `europe-west1`, with the required residency controls?
+- Do measured cold/warm/resume latency, durability and billed cost improve on
+  the current Cloud Run Instances baseline? Include storage, snapshots, idle
+  charges and any host-pool minimum. Do not reuse the original ~$6/month
+  resident estimate: Aitana's recorded chaos/cost review disputes it.
+- Can a caller resume the correct workspace after suspend or failure without
+  duplicating task execution or delivering an answer twice?
+
+If revisited, a proposed pilot starts at **2 vCPU / 4 GB RAM / 20 GB disk per
+microVM**, four concurrent microVMs (**8 vCPU / 16 GB RAM**) with optional burst
+to eight. Compute matches the resident shape recorded in Aitana's live review;
+disk and capacity are evaluation estimates, not measured demand or reservations.
+Re-size from beta minimums and workload measurements before requesting capacity.
+
+### Evidence and related documents
+
+- [Google announcement, 2026-10-22](https://cloud.google.com/blog/topics/ai-infrastructure/introducing-agent-compute-engine-and-expanded-agent-governance)
+  — customer preview was described as coming in the following months. This is
+  distinct from the existing Cloud Run Instances resource and Cloud Run's
+  sandbox-launcher feature.
+- [Google technical deep dive](https://cloud.google.com/blog/topics/ai-infrastructure/agent-compute-engine-deep-dive)
+  — harness/sandbox separation, mediated credentials, checkpointing and storage.
+- [Resident image defaults](../../docker/resident/Dockerfile) and
+  [runtime surface](../../docker/resident/server.mjs) — inspected 2026-10-23;
+  `RESIDENT_TOOLS=ailang_only`, with tool/policy state exposed by health output.
+- Aitana `docs/design/v6.40.0/resident-agent-instances.md` and
+  `resident-agent-provisioning.md` — per-user integration, live recovery evidence
+  and the disputed cost baseline. The consuming repo owns these documents;
+  historical milestone/status text in this AILANG doc is not a fresh fleet audit.
+- `ailang-multivac/scripts/resident-instance.sh` — existing Cloud Run Instances
+  create/start/stop lifecycle; future implementation belongs beside the existing
+  runtime and infrastructure owners rather than duplicating them in ADK.
 
 ## Open questions
 

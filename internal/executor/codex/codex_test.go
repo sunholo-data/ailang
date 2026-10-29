@@ -86,14 +86,14 @@ func TestNewCodexExecutor_CustomPathAndModel(t *testing.T) {
 
 func TestBuildCodexArgs_NonBrowserUnchanged(t *testing.T) {
 	task := &executor.Task{Directive: "solve it", Model: "gpt-5.4"}
-	got, err := buildCodexArgs(task, "gpt-5.4", "solve it")
+	got, err := buildCodexArgs(task, "gpt-5.4")
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []string{
 		"exec", "--json", "--skip-git-repo-check",
 		"--dangerously-bypass-approvals-and-sandbox",
-		"--model", "gpt-5.4", "solve it",
+		"--model", "gpt-5.4", "-",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("args = %#v, want byte-compatible %#v", got, want)
@@ -111,7 +111,7 @@ func TestBuildCodexArgs_MCPForwardsEnvNamesNotSecrets(t *testing.T) {
 			EnvVars: []string{"PLAYWRIGHT_MCP_CDP_ENDPOINT"}, Required: true,
 		}},
 	}
-	got, err := buildCodexArgs(task, "gpt-5.4", "browse")
+	got, err := buildCodexArgs(task, "gpt-5.4")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestBuildCodexArgs_MCPForwardsEnvNamesNotSecrets(t *testing.T) {
 }
 
 func TestBuildCodexArgs_RejectsUnsafeMCPName(t *testing.T) {
-	_, err := buildCodexArgs(&executor.Task{MCPServers: []executor.MCPServerConfig{{Name: "bad.name", Command: "npx"}}}, "gpt", "browse")
+	_, err := buildCodexArgs(&executor.Task{MCPServers: []executor.MCPServerConfig{{Name: "bad.name", Command: "npx"}}}, "gpt")
 	if err == nil || !strings.Contains(err.Error(), "invalid MCP server name") {
 		t.Fatalf("error = %v, want invalid name", err)
 	}

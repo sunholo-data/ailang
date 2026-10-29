@@ -149,23 +149,18 @@ func (ctx *InferenceContext) generalize(typ Type, effects *Row) *Scheme {
 		}
 	}
 
-	// Collect any class constraints on generalized variables
-	relevantConstraints := []Constraint{}
+	// Collect the class constraints on generalized variables (see schemeConstraintsFor)
+	var classConstraints []ClassConstraint
 	for _, c := range ctx.constraints {
 		if cc, ok := c.(ClassConstraint); ok {
-			// Check if constraint mentions generalized variables
-			// (simplified - full implementation would check properly)
-			relevantConstraints = append(relevantConstraints, Constraint{
-				Class: cc.Class,
-				Type:  cc.Type,
-			})
+			classConstraints = append(classConstraints, cc)
 		}
 	}
 
 	return &Scheme{
 		TypeVars:    generalizedTypeVars,
 		RowVars:     generalizedRowVars,
-		Constraints: relevantConstraints,
+		Constraints: schemeConstraintsFor(classConstraints, generalizedTypeVars),
 		Type:        typ,
 	}
 }

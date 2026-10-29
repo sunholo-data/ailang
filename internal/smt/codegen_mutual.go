@@ -68,7 +68,8 @@ func DeclareDatatypesMutual(decls []string) string {
 			// emit it raw than to silently drop it.
 			continue
 		}
-		typeList = append(typeList, fmt.Sprintf("(%s 0)", name))
+		params, _ := datatypeBody(body)
+		typeList = append(typeList, fmt.Sprintf("(%s %d)", name, len(params)))
 		bodyList = append(bodyList, body)
 	}
 	return fmt.Sprintf("(declare-datatypes (%s) (%s))",

@@ -86,6 +86,7 @@ type Server struct {
 	effCtx         *effects.EffContext // for Debug output collection
 	logLevel       int                 // minimum severity for Debug output
 	oauthIssuer    string              // --oauth-issuer: required by @mcp_auth("oauth2") tools
+	mcpConnectOnly bool                // --mcp-connect-only: tools only on the gated /mcp/connect/
 	routesOnly     bool                // only expose @route-annotated functions
 	noFeedbackTool bool                // suppress the built-in submit_feedback MCP tool
 	ws             *wsState            // WebSocket route sessions (routes_ws.go)
@@ -171,6 +172,11 @@ type Config struct {
 	// surface's protected-resource metadata (--oauth-issuer). Required for
 	// any @mcp_auth("oauth2") tool. M-SERVEAPI-DIRECTORY-READY.
 	OAuthIssuer string
+	// MCPConnectOnly serves tools only on the gated listed surface
+	// (--mcp-connect-only): no /mcp/, every tool @mcp_auth("oauth2") unless
+	// it says "noauth", and plain HTTP serves @nomcp exports alone. For a
+	// public service whose tools must never be reached without a token.
+	MCPConnectOnly bool
 }
 
 // New creates a new API server.
@@ -249,6 +255,7 @@ func New(basePath string, cfg Config) *Server {
 		logLevel:           cfg.LogLevel,
 		routesOnly:         cfg.RoutesOnly,
 		oauthIssuer:        cfg.OAuthIssuer,
+		mcpConnectOnly:     cfg.MCPConnectOnly,
 		noFeedbackTool:     cfg.NoFeedbackTool,
 		ws:                 newWSState(cfg.WS),
 		noIntrospection:    cfg.NoIntrospection,
@@ -532,6 +539,9 @@ func (s *Server) Start() error {
 	if err := s.ValidateWSRoutes(); err != nil {
 		return err
 	}
+	if err := s.ValidateMCPConnectOnly(); err != nil {
+		return err
+	}
 	mux := s.buildRoutes()
 
 	// Bind before anything announces a launch: a taken port exits non-zero
@@ -606,24 +616,7 @@ func (s *Server) buildRoutes() http.Handler {
 
 	// MCP endpoint (streamable HTTP transport)
 	if s.mcpEnabled {
-		mcpSrv := NewMCPServer(s)
-		agent := http.StripPrefix("/mcp", mcpSrv.HTTPHandler())
-		mux.Handle("/mcp/", agent)
-		mux.Handle("/mcp", bareListed(agent, "/mcp/"))
-		// The directory projection (M-SERVEAPI-DIRECTORY-READY D3). ServeMux
-		// picks the longer pattern, so /mcp/connect/ never reaches /mcp/.
-		if hasListedSurface(s.GetModules()) {
-			listed := NewListedMCPServer(s)
-			var h http.Handler = http.StripPrefix(strings.TrimSuffix(listedMCPPath, "/"), listed.HTTPHandler())
-			if len(listed.gated) > 0 {
-				h = listed.gatedHandler(h, s.maxUploadSize)
-				mux.HandleFunc(protectedResourceRoot, s.handleProtectedResource)
-				mux.HandleFunc(protectedResourcePath, s.handleProtectedResource)
-				mux.HandleFunc(protectedResourcePathBare, s.handleProtectedResource)
-			}
-			mux.Handle(listedMCPPath, h)
-			mux.Handle(strings.TrimSuffix(listedMCPPath, "/"), bareListed(h, listedMCPPath))
-		}
+		s.mountMCP(mux)
 	}
 
 	// Build set of built-in paths to prevent @route collisions (Go 1.22+ panics on duplicates)
@@ -708,7 +701,7 @@ func (s *Server) printStartupBanner(addr string) {
 			if exp.Arity < 0 {
 				continue
 			}
-			if !loadedExportMember(s.routesOnly, exp) {
+			if !s.isExposed(exp) {
 				filtered++
 				continue
 			}
@@ -748,7 +741,13 @@ func (s *Server) printStartupBanner(addr string) {
 		log.Println("    POST /a2a/                      (A2A JSON-RPC)")
 	}
 	if s.mcpEnabled {
-		log.Println("    POST /mcp/                      (MCP Streamable HTTP)")
+		// Mirrors mountMCP: --mcp-connect-only has no /mcp/.
+		if !s.mcpConnectOnly {
+			log.Println("    POST /mcp/                      (MCP Streamable HTTP)")
+		}
+		if s.mcpConnectOnly || hasListedSurface(s.GetModules()) {
+			log.Println("    POST /mcp/connect/              (MCP Streamable HTTP, listed)")
+		}
 	}
 
 	if s.frontendPath != "" {

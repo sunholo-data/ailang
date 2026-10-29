@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -134,4 +135,64 @@ func TestMissionQuotaAdvertisedBucketsAreAllSelectable(t *testing.T) {
 			}
 		})
 	})
+}
+
+// Generated M1 cache; credentials and executables cannot reach live providers.
+func missionQuotaOpencodeFixture(t *testing.T) (mission.Paths, time.Time) {
+	t.Helper()
+	t.Setenv("OLLAMA_API_KEY", "")
+	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
+	t.Setenv("PATH", t.TempDir())
+	paths := mission.Paths{Home: t.TempDir()}
+	t.Setenv("CODEX_HOME", filepath.Join(paths.Home, "codex"))
+	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)
+	l := mission.Ledger{Updated: now}
+	for _, w := range []mission.Window{mission.WindowShort, mission.WindowLong} {
+		l.Usage = append(l.Usage,
+			mission.BucketUsage{Bucket: "anthropic", Window: w, Tokens: 11, Stages: 1, Capacity: 100,
+				WindowStart: now.Add(-time.Hour), ProviderReset: now.Add(time.Hour)},
+			mission.BucketUsage{Bucket: "opencode", Window: w})
+	}
+	l.Usage = append(l.Usage, mission.BucketUsage{Bucket: "anthropic", Window: "capacity-control", Capacity: 321, ProviderReset: now.Add(2 * time.Hour)})
+	body, err := json.Marshal(l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(mission.LedgerPath(paths)), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mission.LedgerPath(paths), body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	return paths, now
+}
+
+func TestMissionQuotaRejectsOpencodeHarness(t *testing.T) {
+	for _, bucket := range []string{"opencode", "OpenCode", "opencode:openrouter/x", "OpenCode/OLLAMA/m:cloud", "opencode:openai/gpt-5.5"} {
+		t.Run(bucket, func(t *testing.T) {
+			paths, now := missionQuotaOpencodeFixture(t)
+			_ = captureStdout(t, func() {
+				err := missionQuotaWithPaths([]string{"--bucket", bucket}, paths, now)
+				if err == nil || !strings.Contains(err.Error(), "opencode is a harness, not a quota bucket; record the backend bucket instead") {
+					t.Errorf("CLI must reject harness with backend diagnostic: %v", err)
+				}
+			})
+		})
+	}
+}
+
+func TestMissionQuotaTextOmitsHarness(t *testing.T) {
+	paths, now := missionQuotaOpencodeFixture(t)
+	output := captureStdout(t, func() {
+		if err := missionQuotaWithPaths(nil, paths, now); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if strings.Contains(strings.ToLower(output), "opencode") {
+		t.Fatalf("text report contains harness: %s", output)
+	}
+	if !strings.Contains(output, "anthropic") {
+		t.Fatal("text report lost real bucket")
+	}
 }

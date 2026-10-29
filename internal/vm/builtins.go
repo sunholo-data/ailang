@@ -61,6 +61,7 @@ var HOFBuiltinTable = []HOFBuiltinFunc{
 	hofBuiltinListFindIndex,    // __list_findIndex (#1518)
 	hofBuiltinListFoldr,        // __list_foldr
 	hofBuiltinListMapAccumL,    // __list_mapAccumL (#1501)
+	hofBuiltinArrayAccumulate,  // __array_accumulate (M-PERSISTENT-COLLECTIONS 1c)
 }
 
 // BuiltinTable is the VM-side dispatch table for OpBuiltinCall. The order
@@ -182,6 +183,16 @@ var BuiltinTable = []BuiltinFunc{
 	builtinArrayAppend,     // __array_append
 	builtinArrayUpdateMany, // __array_update_many
 	builtinYamlEncode,      // __yaml_encode
+	builtinMapEmpty,
+	builtinMapInsert,
+	builtinMapLookup,
+	builtinMapMember,
+	builtinMapRemove,
+	builtinMapSize,
+	builtinMapFromList,
+	builtinMapToList,
+	builtinMapKeys,
+	builtinMapValues,
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as
@@ -305,6 +316,13 @@ func inspectVMShow(x any) eval.ShowNode {
 			names[i], items[i] = f.Name, f.Value
 		}
 		return eval.ShowNode{Kind: eval.ShowRecord, Names: names, Items: items}
+	case bytecode.TagMap:
+		items := make([]any, 0, len(v.AsMap().Entries)*2)
+		for _, k := range v.AsMap().SortedKeys() {
+			e := v.AsMap().Entries[k]
+			items = append(items, e.Key, e.Value)
+		}
+		return eval.ShowNode{Kind: eval.ShowMap, Items: items}
 	case bytecode.TagBytes:
 		b := v.AsBytes()
 		return eval.ShowNode{Text: (&eval.BytesValue{Value: b.B, Filename: b.Filename, MimeType: b.MimeType}).String()}
@@ -395,9 +413,10 @@ func builtinListTail(args []bytecode.Value) (bytecode.Value, error) {
 	if n > len(elems) {
 		n = len(elems)
 	}
-	tail := make([]bytecode.Value, len(elems)-n)
-	copy(tail, elems[n:])
-	return bytecode.NewList(tail), nil
+	// Lists are immutable, so the tail shares the source's backing array: O(1),
+	// which keeps `x :: rest` walks linear (#1827). The capacity cap stops any
+	// future append on the tail from writing into the source.
+	return bytecode.NewList(elems[n:len(elems):len(elems)]), nil
 }
 
 // builtinNotBool returns the boolean negation of its argument.

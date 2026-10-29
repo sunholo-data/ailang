@@ -303,9 +303,26 @@ func (e *MotokoExecutor) executeLane(ctx context.Context, task *executor.Task, h
 	res.ToolPolicy = append([]string(nil), task.AllowedTools...)
 	res.PolicyDigest = executor.PolicyDigest(task.PolicyPath)
 	path, _ := res.ProviderData["motoko_session_jsonl"].(string)
-	if violation := laneSessionViolation(path); violation != "" {
+	applyLaneVerdict(res, path)
+	return res, err
+}
+
+// applyLaneVerdict fails a lane run whose session shows a lane breach, or that
+// left no session to check. With no session, motoko never got far enough to be
+// verified, and the run's own error already names why (it carries motoko's
+// stderr tail): that is kept, never replaced. Measured 2026-10-19 on the dev
+// plane: the lane check's "cannot read the session: open : no such file"
+// overwrote the only clue to why motoko had exited within a second.
+func applyLaneVerdict(res *executor.Result, sessionPath string) {
+	if sessionPath == "" {
+		res.Success = false // unverifiable is never a pass
+		if res.Error == "" {
+			res.Error = "motoko wrote no session log, so the lane run cannot be verified"
+		}
+		return
+	}
+	if violation := laneSessionViolation(sessionPath); violation != "" {
 		res.Success = false
 		res.Error = "policy_violation: " + violation
 	}
-	return res, err
 }

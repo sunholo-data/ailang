@@ -93,7 +93,9 @@ type SharedIndex interface {
 	//   - namespace: Index partition to search (required)
 	//   - querySimHash: The SimHash to find similar entries for
 	//   - topK: Maximum number of results to return
-	//   - maxScan: Maximum entries to scan (0 = unlimited, bounds O(N) search)
+	//   - maxScan: Maximum entries to scan (0 = unlimited, bounds O(N) search).
+	//     Strict scans the lexicographically first maxScan keys; BestEffort an
+	//     unspecified subset.
 	//   - mode: DeterminismStrict or DeterminismBestEffort
 	//
 	// Returns:
@@ -129,7 +131,9 @@ type SharedIndex interface {
 	//   - namespace: Index partition to search (required)
 	//   - queryEmbedding: The embedding vector to find similar entries for
 	//   - topK: Maximum number of results to return
-	//   - maxScan: Maximum entries to scan (0 = unlimited, bounds O(N) search)
+	//   - maxScan: Maximum entries to scan (0 = unlimited, bounds O(N) search).
+	//     Strict scans the lexicographically first maxScan keys; BestEffort an
+	//     unspecified subset.
 	//   - mode: DeterminismStrict or DeterminismBestEffort
 	//
 	// Returns:

@@ -195,6 +195,10 @@ func (ms *MCPServer) registerTools() {
 	var unhinted []string                         // effectful tools with no @mcp_hints (one summary warning)
 	for _, c := range best {
 		export := c.export
+		// --mcp-connect-only gates every tool that does not say otherwise.
+		if ms.server.mcpConnectOnly && export.MCPAuth == "" {
+			export.MCPAuth = mcpAuthOAuth2
+		}
 
 		// Resolve the tool name.
 		var toolName string

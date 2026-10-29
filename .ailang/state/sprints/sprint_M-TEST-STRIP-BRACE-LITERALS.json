@@ -1,0 +1,91 @@
+{
+  "sprint_id": "M-TEST-STRIP-BRACE-LITERALS",
+  "status": "completed",
+  "created": "2026-10-13T20:37:55Z",
+  "design_doc": "design_docs/implemented/v0_54_13/m-test-strip-brace-literals.md",
+  "sprint_plan": "design_docs/implemented/v0_54_13/m-test-strip-brace-literals-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_END_POSITIONS",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: compiler AST positions, source stripping and regression fixtures are repository internals; registry search is not applicable."
+    },
+    {
+      "milestone": "M2_AST_STRIP_RANGES",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: compiler AST positions, source stripping and regression fixtures are repository internals; registry search is not applicable."
+    },
+    {
+      "milestone": "M3_CLI_REGRESSION",
+      "package": null,
+      "action": "none",
+      "reason": "No package-like capability: compiler AST positions, source stripping and regression fixtures are repository internals; registry search is not applicable."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 220,
+    "estimated_total_loc": 220,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1_END_POSITIONS",
+      "description": "Record declaration end positions",
+      "estimated_loc": 50,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Both successfully parsed declaration types carry the actual closing-brace position.",
+        "Single-line and multi-line end coordinates are asserted, including lexical braces that are not closing tokens.",
+        "Existing parser tests pass; focused `go test ./internal/ast ./internal/parser` and `make test-changed` pass.",
+        "Go formatting is clean and parser token advancement/grammar remain unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_AST_STRIP_RANGES",
+      "description": "Consume AST ranges and cover lexical contexts",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M1_END_POSITIONS"
+      ],
+      "acceptance_criteria": [
+        "Parser-created declarations use End.Line, bypassing raw scanning.",
+        "Named tests and properties strip their entire bodies and closing brace in every lexical case.",
+        "Surrounding source and original-line mapping remain correct for multiple declarations.",
+        "Zero-End manually constructed AST retains documented fallback behavior.",
+        "`go test ./internal/testing` and `make test-changed` pass; Go formatting is clean."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_CLI_REGRESSION",
+      "description": "Verify CLI regression and document fix",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M2_AST_STRIP_RANGES"
+      ],
+      "acceptance_criteria": [
+        "`ailang check examples/tests/brace_string.ail` succeeds using the freshly built CLI.",
+        "All named tests and the property pass in interpreter, `--bytecode`, and `--bytecode --strict-bytecode` modes, with zero skipped tests or strict-bytecode fallback.",
+        "Conflict fixtures retain counts: named_helper_purity 2/2, record_update_regression_test 3/3, stdlib/list_drop_test 3/3, yaml_bridge_test 1/1.",
+        "`make test-changed`, `make check-file-sizes`, `make check-changelog`, and `make check-boundaries` pass.",
+        "New example passes formatting check; changelog fragment describes user-visible behavior without introducing new diagnostics.",
+        "make verify-examples passes under the existing example validation workflow."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "superseded": "Not executed: fixed directly in v0.54.13 by b6c9f592e (#1821)."
+}

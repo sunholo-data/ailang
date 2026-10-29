@@ -1,7 +1,7 @@
 //go:build ignore
 // +build ignore
 
-// backfill_manifest_modules.go populates the `modules` field on every
+// backfill_manifest_modules.go synchronizes statistics and the `modules` field on every
 // examples/manifest.json entry using the shared, parser-backed extractor
 // (scripts/internal/importextract). Run once at development time and COMMIT the
 // result — `ailang docs --examples <module>` reads the committed field, never a
@@ -11,27 +11,24 @@
 //	go run ./scripts/backfill_manifest_modules.go            # write in place
 //	go run ./scripts/backfill_manifest_modules.go --check    # report drift only
 //
-// All manifest fields (run_mode, run_flags, requires, broken, statistics,
-// milestones, schema…) are preserved; only each entry's `modules` is (re)set.
+// Authored fields and provenance are preserved; modules and statistics are derived.
 package main
 
 import (
-	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
+	"reflect"
 	"sort"
 
+	"github.com/buger/jsonparser"
+	"github.com/sunholo-data/ailang/internal/manifest"
 	"github.com/sunholo-data/ailang/scripts/internal/importextract"
 )
 
-const (
-	manifestPath = "examples/manifest.json"
-	examplesDir  = "examples"
-)
-
-// entry mirrors every field present in examples/manifest.json so a round-trip
-// loses nothing. Field order here defines the serialized key order.
+// entry reads the fields used by synchronization. Writes patch the original JSON
+// so authored fields, formatting, and key order remain untouched.
 type entry struct {
 	Path        string          `json:"path"`
 	Status      string          `json:"status"`
@@ -46,7 +43,7 @@ type entry struct {
 	SkipReason  string          `json:"skip_reason,omitempty"`
 }
 
-// doc mirrors the top-level manifest, preserving unknown blocks verbatim.
+// doc reads known fields; writes patch only derived values in the original JSON.
 type doc struct {
 	Schema        json.RawMessage `json:"schema,omitempty"`
 	SchemaVersion json.RawMessage `json:"schema_version,omitempty"`
@@ -58,14 +55,12 @@ type doc struct {
 }
 
 func main() {
-	checkOnly := false
-	for _, a := range os.Args[1:] {
-		if a == "--check" {
-			checkOnly = true
-		}
-	}
+	manifestPath := flag.String("manifest", "examples/manifest.json", "Manifest to synchronize")
+	examplesDir := flag.String("dir", "examples", "Examples directory")
+	checkOnly := flag.Bool("check", false, "Report drift without writing")
+	flag.Parse()
 
-	raw, err := os.ReadFile(manifestPath)
+	raw, err := os.ReadFile(*manifestPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "read manifest: %v\n", err)
 		os.Exit(1)
@@ -78,9 +73,10 @@ func main() {
 	}
 
 	changed, skipped := 0, 0
+	output := append([]byte(nil), raw...)
 	for i := range d.Examples {
 		e := &d.Examples[i]
-		full, ok := importextract.ResolvePath(examplesDir, e.Path)
+		full, ok := importextract.ResolvePath(*examplesDir, e.Path)
 		if !ok {
 			skipped++ // missing file — validate_manifest flags it separately
 			continue
@@ -96,6 +92,16 @@ func main() {
 		sort.Strings(mods)
 		if !importextract.Equal(e.Modules, mods) {
 			changed++
+			value, err := json.Marshal(mods)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			output, err = jsonparser.Set(output, value, "examples", fmt.Sprintf("[%d]", i), "modules")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
 		}
 		if len(mods) == 0 {
 			e.Modules = nil // omitempty: keep entries without std imports clean
@@ -104,25 +110,58 @@ func main() {
 		}
 	}
 
-	if checkOnly {
-		if changed > 0 {
-			fmt.Printf("modules drift: %d entr(ies) out of date\n", changed)
-			fmt.Println("regenerate with: go run ./scripts/backfill_manifest_modules.go")
+	// Decode independently of Load: stale statistics are precisely what we repair.
+	var model manifest.Manifest
+	if err := json.Unmarshal(raw, &model); err != nil {
+		fmt.Fprintf(os.Stderr, "parse statistics: %v\n", err)
+		os.Exit(1)
+	}
+	model.UpdateStatistics()
+	var recorded map[string]interface{}
+	if err := json.Unmarshal(d.Statistics, &recorded); err != nil {
+		fmt.Fprintf(os.Stderr, "parse statistics: %v\n", err)
+		os.Exit(1)
+	}
+	stats := map[string]interface{}{
+		"total": float64(model.Statistics.Total), "working": float64(model.Statistics.Working),
+		"aspirational": float64(model.Statistics.Aspirational), "broken": float64(model.Statistics.Broken),
+		"coverage": model.Statistics.Coverage, "experimental": float64(model.Statistics.Experimental),
+	}
+	statsDrift := !reflect.DeepEqual(recorded, stats)
+	// Update values in place, preserving key order, provenance and authored fields.
+	// This reuses the repo's JSON editor rather than round-tripping through a
+	// narrower mirror that could erase fields added by future schema revisions.
+	if statsDrift {
+		for _, key := range []string{"total", "working", "aspirational", "broken", "coverage", "experimental"} {
+			value, err := json.Marshal(stats[key])
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			output, err = jsonparser.Set(output, value, "statistics", key)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
+	}
+
+	if *checkOnly {
+		if changed > 0 || statsDrift {
+			fmt.Printf("manifest drift: modules %d entr(ies), statistics drift: %t\n", changed, statsDrift)
+			fmt.Println("regenerate with: make sync-examples-manifest")
 			os.Exit(1)
 		}
-		fmt.Println("modules field up to date")
+		fmt.Println("modules and statistics up to date")
 		return
 	}
 
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(&d); err != nil {
-		fmt.Fprintf(os.Stderr, "encode manifest: %v\n", err)
-		os.Exit(1)
+	if changed == 0 && !statsDrift {
+		fmt.Println("modules and statistics up to date")
+		return
 	}
-	if err := os.WriteFile(manifestPath, buf.Bytes(), 0644); err != nil {
+
+	if err := os.WriteFile(*manifestPath, output, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "write manifest: %v\n", err)
 		os.Exit(1)
 	}

@@ -235,7 +235,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		// which binding form a function happens to elaborate into.
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
 
-		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv)
+		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints))
 	} else {
 		binding = defaultedType
 	}
@@ -392,7 +392,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		// the recursive bindings' own fresh vars live only in newEnv, so they
 		// remain generalizable, while any enclosing lambda params (free in
 		// oldEnv but not in the decl's base env) are correctly withheld.
-		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv)
+		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints))
 
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,
@@ -464,7 +464,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 // in a binding pushed above baseEnv by this declaration. Without it a parameter
 // typed with the declaration's own `a` was generalized whenever a leaked `a`
 // also sat in the base env, re-opening exactly the ANF `[b]` hole above.
-func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool, baseEnv *TypeEnv) *Scheme {
+func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool, baseEnv *TypeEnv, literalWithhold map[string]bool) *Scheme {
 	// Find free type variables in the type being generalized.
 	typeFreeVars := make(map[string]bool)
 	collectFreeVars(typ, typeFreeVars)
@@ -486,6 +486,11 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 
 	generalizedTypeVars := []string{}
 	for v := range typeFreeVars {
+		if literalWithhold[v] {
+			// Constrained by an integer literal (see literalWithhold) —
+			// stays monomorphic so its use sites decide the literal's type.
+			continue
+		}
 		if withhold[v] {
 			// Bound by an enclosing binder in this decl — not generalizable.
 			continue
@@ -516,19 +521,10 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 	}
 	sort.Strings(generalizedRowVars) // deterministic order
 
-	// Convert class constraints to scheme constraints
-	schemeConstraints := []Constraint{}
-	for _, c := range constraints {
-		schemeConstraints = append(schemeConstraints, Constraint{
-			Class: c.Class,
-			Type:  c.Type,
-		})
-	}
-
 	return &Scheme{
 		TypeVars:    generalizedTypeVars,
 		RowVars:     generalizedRowVars,
-		Constraints: schemeConstraints,
+		Constraints: schemeConstraintsFor(constraints, generalizedTypeVars),
 		Type:        typ,
 	}
 }
@@ -597,21 +593,10 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 		Return:                 resultType,
 	}
 
-	// The Path is only rendered when this constraint FAILS to unify, so we can
-	// unconditionally attach a name-collision note: if the callee is a bare name
-	// exported by more than one stdlib module (e.g. `length` in std/list AND
-	// std/string), surface it on failure — turning the opaque "cannot unify
-	// list[a] with string" into an actionable alias hint (Felix fb_942b7f).
-	appPath := []string{"function application at " + app.Span().String()}
-	if name, from := coreCalleeName(app.Func); name != "" {
-		if h := collisionHint(name, from); h != "" {
-			appPath = append(appPath, h)
-		}
-	}
 	ctx.addConstraint(TypeEq{
 		Left:  getType(funcNode),
 		Right: expectedFuncType,
-		Path:  appPath,
+		Path:  applicationDiagnosticPath(app),
 	})
 
 	// M-EFFECT-ROW-SHOW-INTERP (#386) Section A: solve the equality constraints
@@ -696,19 +681,6 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 		Func: funcNode,
 		Args: argNodes,
 	}, ctx.env, nil
-}
-
-// coreCalleeName returns the bare name of an applied callee and the module it
-// resolved from ("" if unknown), or ("","") when the callee is not a variable
-// reference. Used to drive the stdlib name-collision hint on a failing application.
-func coreCalleeName(fn core.CoreExpr) (name, from string) {
-	switch v := fn.(type) {
-	case *core.Var:
-		return v.Name, ""
-	case *core.VarGlobal:
-		return v.Ref.Name, v.Ref.Module
-	}
-	return "", ""
 }
 
 // inferIf infers type of conditional

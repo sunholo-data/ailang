@@ -55,7 +55,7 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
 	// OpenRouter routes reasoning through its own reasoning{} block, so pass
 	// ReasoningNone to the shared builder and splice the reasoning fragment below.
-	reasoning, rErr := ai.ResolveReasoning(req, "openrouter", req.Model)
+	reasoning, rErr := resolveReasoning(req)
 	if rErr != nil {
 		ai.RecordSpanError(span, rErr)
 		return nil, rErr

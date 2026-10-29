@@ -9,36 +9,41 @@ package smt
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 // VerifyResult holds the result of verifying a single function.
 type VerifyResult struct {
-	Function     string               `json:"function"`
-	Status       string               `json:"status"` // verified, counterexample, skipped, error, unknown, uncontracted
-	Reason       string               `json:"reason,omitempty"`
-	Model        []ModelBinding       `json:"model,omitempty"`
-	Rejections   []SMTRejectionReason `json:"rejections,omitempty"`
-	Duration     time.Duration        `json:"duration,omitempty"`
-	SMTLib       string               `json:"smtlib,omitempty"`
-	BoundedDepth int                  `json:"bounded_depth,omitempty"`
+	ReasonCode   verification.ReasonCode `json:"reason_code,omitempty"`
+	Function     string                  `json:"function"`
+	Status       string                  `json:"status"` // verified, counterexample, skipped, error, unknown, uncontracted
+	Reason       string                  `json:"reason,omitempty"`
+	Model        []ModelBinding          `json:"model,omitempty"`
+	Rejections   []SMTRejectionReason    `json:"rejections,omitempty"`
+	Duration     time.Duration           `json:"duration,omitempty"`
+	SMTLib       string                  `json:"smtlib,omitempty"`
+	BoundedDepth int                     `json:"bounded_depth,omitempty"`
 }
 
 // VerifyModule is one imported module as the verifier needs it: its surface
 // AST (for type declarations and signatures) and its Core program (for
 // cross-module callee inlining). Either may be nil.
 type VerifyModule struct {
-	File *ast.File
-	Core *core.Program
+	CoreTI types.CoreTypeInfo
+	File   *ast.File
+	Core   *core.Program
 }
 
 // VerifyOptions configures one Verify run.
 type VerifyOptions struct {
+	CoreTI types.CoreTypeInfo
 	// Timeout is the per-function Z3 timeout.
 	Timeout time.Duration
 	// RecursiveDepth is the global bounded-recursion unrolling depth
@@ -59,6 +64,7 @@ type VerifyOptions struct {
 
 // VerifyReport is the outcome of Verify over one program.
 type VerifyReport struct {
+	verification.Evidence
 	Results        []VerifyResult
 	Verified       int
 	Counterexample int
@@ -75,11 +81,21 @@ type VerifyReport struct {
 // (Z3Available) — the caller checks that up front so it can say how to
 // install it.
 func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]VerifyModule, opts VerifyOptions) *VerifyReport {
-	report := &VerifyReport{}
+	report := &VerifyReport{Evidence: verification.EncodedEvidence()}
 
 	// Extract ADT types, record type aliases, and inline record types from the Surface AST.
 	adtResult := ExtractADTTypesWithRecords(surfaceAST)
 	adtTypes := adtResult.ADTTypes
+	adtParams := adtResult.TypeParams
+	ambiguous := make(map[string]bool)
+	typeOwner := make(map[string]string)
+	owner := surfaceAST.Path
+	if surfaceAST.Module != nil {
+		owner = surfaceAST.Module.Path
+	}
+	for name := range adtTypes {
+		typeOwner[name] = owner
+	}
 	adtRecordDecls := adtResult.RecordDecls
 	recordAliases := adtResult.RecordAliases
 	// Also extract from imported modules so cross-module types
@@ -87,9 +103,24 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	for _, mod := range modules {
 		if mod.File != nil {
 			modResult := ExtractADTTypesWithRecords(mod.File)
+			modOwner := mod.File.Path
+			if mod.File.Module != nil {
+				modOwner = mod.File.Module.Path
+			}
 			for name, variants := range modResult.ADTTypes {
+				if previous, exists := typeOwner[name]; exists && previous != modOwner {
+					ambiguous[name] = true
+					for _, v := range variants {
+						ambiguous[v.Name] = true
+					}
+					for _, v := range adtTypes[name] {
+						ambiguous[v.Name] = true
+					}
+				}
 				if _, exists := adtTypes[name]; !exists {
+					typeOwner[name] = modOwner
 					adtTypes[name] = variants
+					adtParams[name] = modResult.TypeParams[name]
 				}
 			}
 			adtRecordDecls = append(adtRecordDecls, modResult.RecordDecls...)
@@ -166,7 +197,14 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		}
 	}
 
+	importedTI := make(map[string]types.CoreTypeInfo)
+	for path, mod := range modules {
+		importedTI[path] = mod.CoreTI
+	}
 	encOpts := EncodeFunctionOpts{
+		CoreTI:             opts.CoreTI,
+		ImportedCoreTI:     importedTI,
+		ADTTypeParams:      adtParams,
 		Program:            coreProg,
 		SurfaceParams:      allSurfaceParams,
 		SurfaceReturnSorts: allSurfaceReturnSorts,
@@ -217,9 +255,10 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		body := FindFunctionBody(coreProg, funcName)
 		if body == nil {
 			report.Results = append(report.Results, VerifyResult{
-				Function: funcName,
-				Status:   "skipped",
-				Reason:   "function body not found in Core AST",
+				Function:   funcName,
+				Status:     "skipped",
+				Reason:     "function body not found in Core AST",
+				ReasonCode: verification.MissingBody,
 			})
 			report.Skipped++
 			continue
@@ -235,9 +274,10 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		}
 		if !hasEnsures {
 			report.Results = append(report.Results, VerifyResult{
-				Function: funcName,
-				Status:   "skipped",
-				Reason:   "no ensures clause (nothing to verify)",
+				Function:   funcName,
+				Status:     "skipped",
+				Reason:     "no ensures clause (nothing to verify)",
+				ReasonCode: verification.MissingPostcondition,
 			})
 			report.Skipped++
 			continue
@@ -252,6 +292,16 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 
 		// Check if function is in the decidable SMT fragment
 		encodable, rejections := IsSMTEncodable(funcName, meta, body)
+		if opts.CoreTI != nil {
+			filtered := rejections[:0]
+			for _, r := range rejections {
+				if r.Code != RejectDeepPatterns {
+					filtered = append(filtered, r)
+				}
+			}
+			rejections = filtered
+			encodable = len(rejections) == 0
+		}
 		// Callee-sort gate: reject cleanly if a cross-function callee has an
 		// unencodable signature type (e.g. Option[float]) rather than leaking an
 		// undeclared sort into the SMT script and crashing Z3. See M-SMT-CALLEE-SORT-GATE.
@@ -287,6 +337,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 					Status:     "skipped",
 					Reason:     strings.Join(reasons, "; "),
 					Rejections: rejections,
+					ReasonCode: verification.UnsupportedEncoding,
 				})
 				report.Skipped++
 				continue
@@ -304,6 +355,27 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			returnType = ConvertASTTypeToType(fd.ReturnType)
 		}
 
+		// Refuse unsupported/open signature sorts before body encoding or Z3.
+		var signatureErr error
+		for _, p := range params {
+			if _, err := MapType(p.Type); err != nil {
+				signatureErr = err
+				break
+			}
+		}
+		if returnType != nil {
+			if sort, err := MapType(returnType); err != nil {
+				signatureErr = err
+			} else {
+				returnSort = sort
+			}
+		}
+		if signatureErr != nil {
+			report.Results = append(report.Results, UnresolvedTypeVerifyResult(funcName, signatureErr))
+			report.Skipped++
+			continue
+		}
+
 		// Build per-function encode options (return type, body, contracts for record discovery)
 		funcEncOpts := encOpts
 		funcEncOpts.ReturnType = returnType
@@ -315,8 +387,39 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		// references via its params, return type, or body. This prevents cascade failures
 		// where unrelated cross-module types (e.g., Json) poison functions that only use
 		// primitive types (e.g., int → int).
+		extraRoots := make([]core.CoreExpr, 0, len(meta.Contracts))
+		for _, c := range meta.Contracts {
+			if c != nil {
+				extraRoots = append(extraRoots, c.Expr)
+			}
+		}
+		allRoots := append([]core.CoreExpr{innerBody}, extraRoots...)
+		for _, root := range allRoots {
+			for _, callee := range CollectCalleeNames(root, funcName, coreProg, importedPrograms) {
+				calleeBody, _ := findFuncBodyInAnyProg(callee, coreProg, importedPrograms)
+				extraRoots = append(extraRoots, calleeBody)
+			}
+		}
+		seeds := buildNeededSortSet(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls, extraRoots...)
+		var ambiguousName string
+		ambiguousKeys := make([]string, 0, len(ambiguous))
+		for name := range ambiguous {
+			ambiguousKeys = append(ambiguousKeys, name)
+		}
+		sort.Strings(ambiguousKeys)
+		for _, name := range ambiguousKeys {
+			if seeds[name] {
+				ambiguousName = name
+				break
+			}
+		}
+		if ambiguousName != "" {
+			report.Results = append(report.Results, UnresolvedTypeVerifyResult(funcName, fmt.Errorf("ambiguous imported ADT identity %s", ambiguousName)))
+			report.Skipped++
+			continue
+		}
 		funcADTTypes, funcAliases, funcExtraDecls :=
-			FilterSMTInputsForFunction(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls)
+			FilterSMTInputsForFunction(params, returnSort, innerBody, adtTypes, recordAliases, adtRecordDecls, extraRoots...)
 		funcEncOpts.RecordTypeAliases = funcAliases
 		funcEncOpts.ExtraDeclarations = funcExtraDecls
 
@@ -337,9 +440,10 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			// which case it falls through to the generic encoding error below.
 			if errors.Is(err, ErrUnsupportedConstruct) && !opts.UnsupportedConstructIsError {
 				report.Results = append(report.Results, VerifyResult{
-					Function: funcName,
-					Status:   "skipped",
-					Reason:   fmt.Sprintf("unsupported construct in SMT encoding: %v", err),
+					Function:   funcName,
+					Status:     "skipped",
+					Reason:     fmt.Sprintf("unsupported construct in SMT encoding: %v", err),
+					ReasonCode: verification.UnsupportedEncoding,
 					Rejections: []SMTRejectionReason{{
 						Code:    RejectUnencodable,
 						Message: fmt.Sprintf("Function %q uses a construct the SMT encoder cannot represent", funcName),
@@ -350,9 +454,10 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 				continue
 			}
 			report.Results = append(report.Results, VerifyResult{
-				Function: funcName,
-				Status:   "error",
-				Reason:   fmt.Sprintf("encoding error: %v", err),
+				Function:   funcName,
+				Status:     "error",
+				Reason:     fmt.Sprintf("encoding error: %v", err),
+				ReasonCode: encodingErrorReason(err),
 			})
 			report.Errors++
 			continue
@@ -362,18 +467,16 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		solveResult, err := Solve(encResult.SMTLib, solverCfg)
 		if err != nil {
 			report.Results = append(report.Results, VerifyResult{
-				Function: funcName,
-				Status:   "error",
-				Reason:   fmt.Sprintf("solver error: %v", err),
+				Function:   funcName,
+				Status:     "error",
+				Reason:     fmt.Sprintf("solver error: %v", err),
+				ReasonCode: verification.VerifierError,
 			})
 			report.Errors++
 			continue
 		}
 
-		vr := VerifyResult{
-			Function: funcName,
-			Duration: solveResult.Duration,
-		}
+		vr := solverVerifyResult(funcName, solveResult)
 		// Mark bounded recursion depth if the function is recursive
 		if effectiveDepth > 0 && IsRecursiveFunc(innerBody, funcName) {
 			vr.BoundedDepth = effectiveDepth
@@ -384,19 +487,12 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 
 		switch solveResult.Status {
 		case StatusVerified:
-			vr.Status = "verified"
 			report.Verified++
 		case StatusCounterexample:
-			vr.Status = "counterexample"
-			vr.Model = solveResult.Model
 			report.Counterexample++
 		case StatusUnknown:
-			vr.Status = "unknown"
-			vr.Reason = solveResult.Error
 			report.Errors++
 		case StatusError:
-			vr.Status = "error"
-			vr.Reason = solveResult.Error
 			report.Errors++
 		}
 
@@ -420,12 +516,39 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			continue
 		}
 		report.Results = append(report.Results, VerifyResult{
-			Function: fd.Name,
-			Status:   "uncontracted",
-			Reason:   "no contract annotations (not a verification candidate)",
+			Function:   fd.Name,
+			Status:     "uncontracted",
+			Reason:     "no contract annotations (not a verification candidate)",
+			ReasonCode: verification.Uncontracted,
 		})
 		report.Uncontracted++
 	}
 
 	return report
+}
+
+// solverVerifyResult preserves legacy status values and attaches solver-owned
+// reasons. It does not classify a timeout from human diagnostic text.
+func solverVerifyResult(name string, result *SolverResult) VerifyResult {
+	r := VerifyResult{Function: name, Status: result.Status.String(), Duration: result.Duration, ReasonCode: result.ReasonCode}
+	switch result.Status {
+	case StatusCounterexample:
+		r.Model = result.Model
+		r.ReasonCode = verification.Counterexample
+	case StatusUnknown:
+		r.Reason = result.Error
+		if r.ReasonCode == "" {
+			r.ReasonCode = verification.SolverUnknown
+		}
+	case StatusError:
+		r.Reason = result.Error
+		r.ReasonCode = verification.VerifierError
+	}
+	return r
+}
+func encodingErrorReason(err error) verification.ReasonCode {
+	if errors.Is(err, ErrUnsupportedConstruct) {
+		return verification.UnsupportedEncoding
+	}
+	return verification.VerifierError
 }

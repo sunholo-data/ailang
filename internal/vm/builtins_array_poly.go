@@ -212,3 +212,40 @@ func builtinArrayUpdateMany(args []bytecode.Value) (bytecode.Value, error) {
 	}
 	return packedOrBoxed(out), nil
 }
+
+// hofBuiltinArrayAccumulate implements __array_accumulate:
+// (Array[a], [(int, a)], (a, a) -> a) -> Array[a]. One copy, then
+// out[i] = combine(out[i], x) for each write in list order; out of bounds is
+// an error. Mirrors the evaluator's _array_accumulate.
+func hofBuiltinArrayAccumulate(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error) {
+	var argv callArgs // one buffer for every callback (#1501)
+	if err := arity("accumulate", args, 3); err != nil {
+		return bytecode.Value{}, err
+	}
+	a, err := arrayArg("accumulate", args, 0)
+	if err != nil {
+		return bytecode.Value{}, err
+	}
+	writes, err := listArg("accumulate", args, 1)
+	if err != nil {
+		return bytecode.Value{}, err
+	}
+	combine := args[2]
+	out := boxedElems(a)
+	for j, w := range writes {
+		if w.Tag != bytecode.TagTuple || len(w.AsTuple()) != 2 || w.AsTuple()[0].Tag != bytecode.TagInt {
+			return bytecode.Value{}, fmt.Errorf("accumulate: write %d must be an (int, value) pair, got %s", j, w.Tag)
+		}
+		pair := w.AsTuple()
+		i := int(pair[0].Int)
+		if i < 0 || i >= len(out) {
+			return bytecode.Value{}, fmt.Errorf("accumulate: index %d out of bounds (array length: %d)", i, len(out))
+		}
+		v, err := caller.CallClosure(combine, argv.of2(out[i], pair[1]))
+		if err != nil {
+			return bytecode.Value{}, fmt.Errorf("accumulate: combine failed at write %d: %w", j, err)
+		}
+		out[i] = v
+	}
+	return packedOrBoxed(out), nil
+}

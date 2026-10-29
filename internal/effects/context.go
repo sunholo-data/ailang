@@ -47,6 +47,7 @@ type EffContext struct {
 	EnvSnapshot    map[string]string     // Env effect: immutable snapshot of environment variables
 	EnvAllowlist   []string              // Env effect: allowed variable names (nil = allow all)
 	Args           []string              // CLI arguments passed to the program (excluding program name)
+	PkgDirs        map[string]string     // package name -> dir from the program's ailang.lock (#1772); nil = no lock
 	Trace          *trace.Collector      // Semantic trace collector (--emit-trace flag, M-TRACE-EXPORT)
 	IOWriter       io.Writer             // Override for IO effect output (nil = os.Stdout)
 	IOReader       io.Reader             // Override for IO effect input (nil = os.Stdin)
@@ -55,6 +56,7 @@ type EffContext struct {
 
 	workerOwner           *WorkerOwner        // execution ownership; shared only by budget views
 	terminalInput         *terminalInputState // shared across same-execution budget scopes
+	attempts              *effectAttempts     // capability checks; shared by budget views and clones
 	TerminalSignalManaged bool                // CLI owns the single signal subscription
 	TerminalSignalExit    func(int)           // host termination hook; native acquisition requires it
 
@@ -300,6 +302,7 @@ func NewEffContext(args []string) *EffContext {
 	ctx := &EffContext{
 		Caps:          make(map[string]Capability),
 		terminalInput: &terminalInputState{},
+		attempts:      &effectAttempts{},
 		workerOwner:   newWorkerOwner(),
 		Env:           env,
 		seedSet:       seedSet,            // M-EFFECT-REPLAY-CONTRACTS: seeded-mode gate
@@ -372,6 +375,7 @@ func (ctx *EffContext) HasCap(name string) bool {
 //	}
 //	// FS operations allowed here
 func (ctx *EffContext) RequireCap(name string) error {
+	ctx.attempts.record()
 	if !ctx.HasCap(name) {
 		return NewCapabilityError(name)
 	}
@@ -501,6 +505,7 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		IOWriter:              ctx.IOWriter, // Preserve IO writer across budget scopes
 		IOReader:              ctx.IOReader, // Preserve IO reader across budget scopes
 		terminalInput:         ctx.terminalInput,
+		attempts:              ctx.attempts,
 		workerOwner:           ctx.executionWorkerOwner(),
 		TerminalSignalExit:    ctx.TerminalSignalExit,
 		TerminalSignalManaged: ctx.TerminalSignalManaged,

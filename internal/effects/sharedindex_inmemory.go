@@ -68,8 +68,10 @@ func (idx *InMemorySharedIndex) Delete(namespace, key string) {
 //
 //	score = 1.0 - (hamming_distance / 64.0)
 //
-// In Strict mode, results are sorted deterministically by (score DESC, key ASC).
-// In BestEffort mode, results may vary in ordering when scores are equal.
+// In Strict mode, results are sorted deterministically by (score DESC, key ASC),
+// and maxScan > 0 scans the lexicographically first maxScan keys (a
+// deterministic prefix scan); maxScan = 0 scans everything. In BestEffort mode
+// the scanned subset and the order of equal scores are unspecified.
 func (idx *InMemorySharedIndex) FindSimilarSimHash(
 	namespace string,
 	querySimHash int64,
@@ -88,7 +90,8 @@ func (idx *InMemorySharedIndex) FindSimilarSimHash(
 	results := make([]SearchResult, 0, len(ns))
 	scanned := 0
 
-	for key, entry := range ns {
+	for _, key := range scanOrder(ns, mode) {
+		entry := ns[key]
 		// Respect maxScan limit
 		if maxScan > 0 && scanned >= maxScan {
 			break
@@ -178,8 +181,8 @@ func (idx *InMemorySharedIndex) UpsertWithEmbedding(namespace, key string, simha
 // Only entries with non-empty embeddings are considered.
 // Uses cosine similarity normalized to [0, 1] for scoring.
 //
-// In Strict mode, results are sorted deterministically by (score DESC, key ASC).
-// In BestEffort mode, results may vary in ordering when scores are equal.
+// Strict and BestEffort scan exactly as FindSimilarSimHash does; maxScan
+// counts entries examined, including ones skipped for having no embedding.
 func (idx *InMemorySharedIndex) FindSimilarByEmbedding(
 	namespace string,
 	queryEmbedding []float64,
@@ -198,7 +201,8 @@ func (idx *InMemorySharedIndex) FindSimilarByEmbedding(
 	results := make([]SearchResult, 0, len(ns))
 	scanned := 0
 
-	for key, entry := range ns {
+	for _, key := range scanOrder(ns, mode) {
+		entry := ns[key]
 		// Respect maxScan limit
 		if maxScan > 0 && scanned >= maxScan {
 			break
@@ -238,4 +242,19 @@ func (idx *InMemorySharedIndex) FindSimilarByEmbedding(
 	}
 
 	return results
+}
+
+// scanOrder is the order a bounded search examines a namespace's keys. Strict
+// mode sorts them so that a maxScan budget always picks the same candidates;
+// Go map order is randomised, and before #1795 a Strict query with maxScan > 0
+// scored a different subset on every run. BestEffort keeps map order.
+func scanOrder(ns map[string]*IndexEntry, mode DeterminismMode) []string {
+	keys := make([]string, 0, len(ns))
+	for key := range ns {
+		keys = append(keys, key)
+	}
+	if mode == DeterminismStrict {
+		sort.Strings(keys)
+	}
+	return keys
 }

@@ -1,0 +1,89 @@
+{
+  "sprint_id": "M-FLEET-OPENAI-ROLE-ALLOWLIST",
+  "created": "2026-10-21T00:00:00Z",
+  "estimated_duration_days": 1,
+  "correlation_id": "sprint_M-FLEET-OPENAI-ROLE-ALLOWLIST_fleet53_20261021",
+  "design_doc": "design_docs/planned/sprint-plan-openai-role-allowlist.md",
+  "markdown_plan": "design_docs/planned/sprint-plan-openai-role-allowlist.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_CODEX_SPAWN_ALLOWLIST",
+      "package": null,
+      "action": "none",
+      "reason": "Internal Go/shell harness policy using existing parser, seating and launchd test infrastructure; no package-like AILANG capability or .ail code, so registry package search is inapplicable. New stdlib-only Go leaf holds shared policy; no external dependency."
+    },
+    {
+      "milestone": "M2_QUORUM_AND_EVIDENCE_GUARD",
+      "package": null,
+      "action": "none",
+      "reason": "Internal Go/shell harness policy using existing parser, seating and launchd test infrastructure; no package-like AILANG capability or .ail code, so registry package search is inapplicable. New stdlib-only Go leaf holds shared policy; no external dependency."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_CODEX_SPAWN_ALLOWLIST",
+      "description": "D1-D5/D8: shared leaf model policy, pre-daemon Codex model refusal and forced hidden spawn overrides, immediate driver/skill flag coverage, non-vacuous shell guards and changelog.",
+      "estimated_loc": 320,
+      "actual_loc": 212,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "D1: New internal/mission/quorum/rolemodels.go (moved from a new rolemodels package, Amendment 2) imports standard library only. AllowedOpenAIModels is []string{\"gpt-6.1-sol\", \"gpt-6-luna\"} (Amendment: triage charter 2026-10-15; D-FLEET-27), citing D-FLEET-12 item 1 and dormant registry models. CanonicalModelKey lowercases, strips one leading <word>: then openai/, deletes hyphen/dot/underscore; IsOpenAIModel recognizes canonical gpt prefix, raw astra substring or codex: prefix; Allowed preserves non-OpenAI models. SpawnOverrideKey is features.multi_agent_v2.expose_spawn_agent_model_overrides. No imports of quorum, modelreg, executor or cmd; no cycle.",
+        "CanonicalModelKey table: gpt-6.1-sol, gpt6-1-sol, codex:gpt-6.1-sol, openai/gpt-6.1-sol, GPT-6.1-SOL all gpt61sol; gpt-6-astra and gpt6-astra equal; gpt-6-sol differs from gpt-6.1-sol. Allowed table permits gpt-6.1-sol and claude-opus-5-5/kimi-k3/glm-5.3/gemini-4-argon, refuses gpt-6-astra/gpt6-astra/codex:gpt-6-sol/gpt-5.6-luna/gpt-5.6-sol and permits gpt-6-luna (Amendment).",
+        "D2: mission_codex_exec.go parser or isolated validation refuses --model gpt-6-astra before BuildEnvironment/any daemon contact; error names model, allowlist and D-FLEET-12. Socket-free parse tests prove ordering. Every successful parse injects boolean opts.Config[SpawnOverrideKey]=false with no -c required; each caller value other than TOML boolean false errors, including true, wrong types and true then false. Other config keys retained; help mentions allowlist.",
+        "D3: tools/launchd/lib/codex-auth-profile.sh mc_codex_command appends adjacent -c features.multi_agent_v2.expose_spawn_agent_model_overrides=false in daemon and legacy empty-runtime arrays; Bash 3.2 compatible. Neither lane-probe.sh nor mission-control.sh needs edits; existing driver callers inherit flag. M2 controller measurement proves old binary pass-through already works.",
+        "D4: Add exact flag on both probe and real-run codex exec launch lines in BOTH .claude/skills/mission-control/resources/gate-3-route.md and .agents/skills/mission-control/resources/gate-3-route.md; sentence near Never spawn gpt-6-astra explains absent spawn_agent model parameter and child inheritance citing measurements M1/M3. Corresponding changed lines byte-identical.",
+        "D5: New tools/launchd/test_codex_spawn_override.sh checks helper arrays under daemon and empty runtime, sweeps every resources/*.md launch line containing codex exec --model or ( exec codex exec in BOTH skill copies, requires flag on every line with file:line diagnostic, and counts at least 2 launches per root else FAIL instrument saw no launches. No Codex/network invocation; Bash 3.2. Fixture/helper-path injection allows disposable mutation inputs. Wire into make/test.mk test-launchd-drivers without Go dependency.",
+        "D8: changelogs/unreleased/2026-10-21-openai-role-allowlist.md is 2-5 lines and starts exactly: ### Fixed — mission roles can spawn only gpt-6.1-sol among OpenAI models (D-FLEET-12): codex launches hide spawn_agent's model choice, mission codex-exec refuses other models, quorum seating refuses them, and a routing-evidence check flags them",
+        "Mutation evidence records baseline/restored green, compiled behavioral red and assertion: omit dot deletion; allow all OpenAI ids; remove CLI model refusal; drop forced config injection; let caller override win; remove daemon flag only and separately legacy flag only; remove flag from one launch line in one mirror (file:line); sweep pattern matches nothing (instrument saw no launches). cp to mktemp disposable sources/fixtures, Go overlays if needed, restore by cp; no git write operations.",
+        "Focused gates: go test ./internal/mission/... -count=1 and go test ./cmd/ailang/ -run MissionCodex|Codex|Quorum -count=1; gofmt -l touched Go dirs empty; go vet touched packages clean; make check-changelog and make check-file-sizes rc0; env -i HOME=$HOME PATH=$PATH USER=$USER TMPDIR=$TMPDIR /bin/bash tools/launchd/test_codex_spawn_override.sh rc0. Quote CLI -run regex in shell. Every socket-touching execution UNINFORMATIVE UNDER SANDBOX; controller reruns every gate outside.",
+        "M1 independent green: parity guard waits until M2 creates script; only scoped M1 files from markdown plan written; no registry/driver/env/real-home-state changes. Controller owns commits and outside-sandbox tests/live probes. No full-suite or broad-build gates, no background work."
+      ],
+      "passes": true,
+      "started": "2026-10-21T08:40:00Z",
+      "completed": "2026-10-21T09:40:00Z",
+      "notes": "Planner only; D-FLEET-12 item 1 pre-authorized, D1-D9 fixed by controller. Established M1-M8 measurements at origin/dev d3d389efe/codex-cli 0.162.0 outside sandbox cited in plan. Validation: jq -e . <sprint JSON> -> rc 0, valid JSON. Requested .claude/skills/sprint-planner/scripts/validate_sprint_json.sh absent (read attempt rc 1: No such file or directory), so not run. Existing /bin/bash .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-FLEET-OPENAI-ROLE-ALLOWLIST -> rc 0, VALIDATION PASSED: Sprint JSON is ready for execution; two milestones, populated registry reuse, custom estimates and no placeholders. Additional jq invariants -> rc 0 true: exactly two false/null/not_started features, estimates total 700, matching plan paths and two none reuse decisions. Plan 88 lines. git status shows exactly the two requested untracked artifacts; initial tree clean. No implementation, git write operations, background jobs, network/daemon/model calls, inbox operations or handoff dispatch. No socket-touching commands were required; implementation gates not rerun by planner. Controller owns artifact commits, separate executor runs and every outside-sandbox gate.",
+      "status": "completed"
+    },
+    {
+      "id": "M2_QUORUM_AND_EVIDENCE_GUARD",
+      "description": "D6-D7: exclude retired OpenAI quorum pool ids before benching, record refused absences, and check only routing-evidence blocks with generated fixtures and a Go/shell allowlist parity guard.",
+      "estimated_loc": 380,
+      "actual_loc": 398,
+      "dependencies": [
+        "M1_CODEX_SPAWN_ALLOWLIST"
+      ],
+      "acceptance_criteria": [
+        "D6: internal/mission/quorum/seating.go SelectReviewers records disallowed OpenAI pool members in Selection.Refused BEFORE vendor benching/hash rotation; never in Primary, Reserve or Benched, never runner-called or recalled. run.go adds ReasonNotAllowlisted = not-allowlisted. RunSeatedQuorum adds absent outcomes with model/reason/zero spend before final synthesis, preserving allowed behavior.",
+        "Quorum tests use pool {gpt6-astra,gpt6-1-sol,gemini-4-argon,oc-glm-5-3,oc-kimi-k3}; assert astra Refused, absent artifact ReasonNotAllowlisted and no runner calls, including all other reviewers absent. Author codex:gpt-6.1-sol must refuse astra before benching. Existing seating neutral fixtures migrate from astra to 6.1-sol and preserve vendor-diversity coverage using allowed aliases. Tests in seating_test.go and new seating_rolemodels_test.go.",
+        "Default-pool control copies current literal gpt6-1-sol,gemini-4-argon,oc-glm-5-3,oc-kimi-k3,ClaudeReviewerID into test without editing cmd/ailang/design_quorum.go. Compare Selection against independent frozen base algorithm on all-allowed pool across authors/doc keys, including no refused ids. Control remains green under removed/moved refusal-filter mutants; goes red if filter drops gpt6-1-sol.",
+        "D7: New Bash 3.2 scripts/mission_routing_models_check.sh --file <mission-log.md> [--entry N] selects requested or last ## <N> — entry and only its **Routing evidence** block, stopping at next non-bullet ** field or entry boundary. Match case-insensitive gpt[-0-9a-z.]* tokens ending in alphanumeric; canonicalize like D1; single shell allowlist variable. rc0 clean, rc1 lists each non-allowed token with original line, rc2 missing file/entry/block or malformed invocation. Prose outside block ignored.",
+        "New scripts/test_mission_routing_models_check.sh generates fixtures in temp dir, no real log/home mutation: (a) codex:gpt-6.1-sol and gpt6-1-sol routing rc0; (b) gpt-6-astra routing rc1 and token/line; (c) astra only in prose outside routing rc0; (d) absent entry rc2; (e) --entry selects non-last retired entry instead of allowed last entry correctly. Missing-file/block controls rc2. Add test to make/test.mk test-launchd-drivers, which already runs scripts/test_mission_*.sh, with no Go/Codex/network invocation.",
+        "New internal/mission/quorum/rolemodels_parity_test.go reads shell allowlist and compares canonical keys to AllowedOpenAIModels; no drift. Add one pre-record-commit invocation in BOTH .claude/skills/mission-control/resources/gate-4-record.md and .agents/skills/mission-control/resources/gate-4-record.md on own entry: rc1 FLAG routing in report, a finding never a block; rc2 explicitly report instrument failure. Mirrors match.",
+        "Mutation evidence: remove quorum filter kills refusal/artifact test; move filter after benching kills author arm; default-pool control remains green for both and red for dropping gpt6-1-sol. Scan whole log entry kills fixture c; drop canonicalization kills fixture a with gpt6-1-sol; return 0 on missing entry kills d; add gpt-6-luna only to shell list kills Go parity. Baseline/restored green and intended behavioral reds recorded with rc/assertions using cp/mktemp/overlays, never git checkout or any git writes.",
+        "Repeat M1 focused regression; go test ./internal/mission/... -count=1 and go test ./cmd/ailang/ -run MissionCodex|Codex|Quorum -count=1 (quoted shell regex); gofmt -l internal/mission/quorum internal/mission/quorum cmd/ailang empty; go vet ./internal/mission/quorum ./internal/mission/quorum ./cmd/ailang clean; make check-changelog and make check-file-sizes rc0. env -i HOME=$HOME PATH=$PATH USER=$USER TMPDIR=$TMPDIR /bin/bash each new shell suite rc0. Socket-touching execution UNINFORMATIVE UNDER SANDBOX; controller reruns every gate outside.",
+        "Controller only outside sandbox: clean-env make test-launchd-drivers rc0; targeted CLI rebuild go build -o <temp>/ailang ./cmd/ailang; NEW binary mission codex-exec retired astra refuses before any daemon/model call with evidence of no rollout; allowed gpt-6.1-sol listing prompt WITHOUT -c reports no spawn_agent model parameter. Retain rc/output and model-call evidence. Old PATH binary lacks Go enforcement until rebuilt/released.",
+        "Controller only: evidence checker on last design_docs/fleet-mission-log.md entry rc0; other design_docs/*-mission-log.md report per-log and aggregate finding counts, hits findings not failures, rc2 instrumentation failures named. Charter done-gate dry-runs healthy lanes=ok and forced drought lanes=DEGRADED(n) with named handoffs under clean env and AILANG_DRIVER_PINNED=<reviewed-sha>, idle armed sibling profile/kill-switch/pidfile checked, never active fleet. Confirm actual running surfaces, mirrored skills, merged pinned reach/world port as required; no reload mid-iteration.",
+        "Scope only M2 files listed in plan including make/test.mk wiring and leaf parity companion. Never edit design_quorum.go, modelreg, mission-control.sh, real env/state/Codex homes. Follow-ups not ticketed: disabled docs mission luna pins intentionally fail Go refusal after rebuild; controller raises with Mark; default-pool literal outside fleet scope. Future config-key rename can silently defeat flag: shell sweep detects literal omissions only, live listing probe detects semantics and must repeat after upgrades."
+      ],
+      "passes": true,
+      "started": "2026-10-21T09:45:00Z",
+      "completed": "2026-10-21T10:45:00Z",
+      "notes": "Planning only; depends on completed M1 in a separate executor run. Same schema as fleet52 template; all status/progress fields initialized not_started/false/null, actual LOC zero. Validation: jq rc 0; existing sprint-executor validator rc 0 VALIDATION PASSED (requested planner-path validator absent); concrete parity/fixture/refusal acceptance present. Full validation evidence in M1 notes. Follow-ups not ticketed: disabled docs mission luna pins and default-pool literal outside fleet scope; future Codex key rename requires repeated controller live probe.",
+      "status": "completed"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 700,
+    "actual_loc_per_day": 610,
+    "target_milestones_per_week": 2,
+    "actual_milestones_per_week": 0,
+    "estimated_total_loc": 700,
+    "actual_total_loc": 610,
+    "estimated_days": 1,
+    "actual_days": 1
+  },
+  "last_session": "fleet iteration 53: judged PASS 85 by sonnet (0 blocking)",
+  "last_checkpoint": null,
+  "status": "completed"
+}

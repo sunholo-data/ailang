@@ -77,6 +77,9 @@ func (tm *TypeMapper) mapTypeWithVisited(t types.Type, visited map[types.Type]bo
 		return GoType(fmt.Sprintf("[]%s", elemType)), nil
 
 	case *types.TArray:
+		if elem, ok := typ.Element.(*types.TCon); ok && elem.Name == "float" {
+			return GoType("FloatArrayVal"), nil
+		}
 		return GoType("ArrayVal"), nil
 
 	case *types.TTuple:
@@ -156,6 +159,8 @@ func (tm *TypeMapper) mapTCon(typ *types.TCon) (GoType, error) {
 		return GoBool, nil
 	case "string":
 		return GoString, nil
+	case "bytes":
+		return GoType("[]byte"), nil
 	case "()", "unit":
 		return GoUnit, nil
 	default:
@@ -243,6 +248,8 @@ func MapPrimitiveType(name string) (GoType, bool) {
 		return GoBool, true
 	case "string":
 		return GoString, true
+	case "bytes":
+		return GoType("[]byte"), true
 	case "()", "unit":
 		return GoUnit, true
 	default:

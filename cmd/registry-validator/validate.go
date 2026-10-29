@@ -21,7 +21,9 @@ import (
 // runAilangCheck runs ailang check on the package directory.
 // Uses `ailang check --package .` for packages with ailang.toml (resolves dependencies
 // and cross-module types), falls back to per-file checks for bare packages.
-func runAilangCheck(dir string) (bool, string) {
+// A non-nil error means the check was stopped by the validator's budget, not
+// that the package failed to compile.
+func runAilangCheck(dir string) (bool, string, error) {
 	// If ailang.toml exists, use package-level check (resolves deps + cross-module types)
 	if strutil.FileExists(filepath.Join(dir, "ailang.toml")) {
 		// Step 1: Rewrite any remaining path deps to registry versions.
@@ -49,13 +51,13 @@ func runAilangCheck(dir string) (bool, string) {
 		// with ailang install modifying ailang.toml or ailang lock silently failing.
 		resolveManifest, err := pkg.LoadManifest(dir)
 		if err != nil {
-			return false, fmt.Sprintf("Failed to load manifest for dependency resolution: %v", err)
+			return false, fmt.Sprintf("Failed to load manifest for dependency resolution: %v", err), nil
 		}
 
 		if len(resolveManifest.Dependencies) > 0 {
 			resolved, err := pkg.ResolveDependencies(resolveManifest, dir)
 			if err != nil {
-				return false, fmt.Sprintf("Dependency resolution failed: %v", err)
+				return false, fmt.Sprintf("Dependency resolution failed: %v", err), nil
 			}
 
 			locked := make([]pkg.LockedPackage, len(resolved))
@@ -65,25 +67,26 @@ func runAilangCheck(dir string) (bool, string) {
 
 			lf := pkg.NewLockFile(locked, "registry-validator")
 			if err := lf.Save(dir); err != nil {
-				return false, fmt.Sprintf("Failed to write lock file: %v", err)
+				return false, fmt.Sprintf("Failed to write lock file: %v", err), nil
 			}
 			log.Printf("Resolved %d dependencies, lock file written", len(resolved))
 		} else {
 			// No deps — write empty lock file for consistency
 			lf := pkg.NewLockFile(nil, "registry-validator")
 			if err := lf.Save(dir); err != nil {
-				return false, fmt.Sprintf("Failed to write lock file: %v", err)
+				return false, fmt.Sprintf("Failed to write lock file: %v", err), nil
 			}
 		}
 
-		// Step 3: Run package-level type check
-		cmd := exec.Command("ailang", "check", "--package", ".")
-		cmd.Dir = dir
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return false, string(output)
+		// Step 3: Run package-level type check, bounded (see bounded.go)
+		output, err := runBounded(dir, checkRSSCap, checkWallCap, procRSS, "ailang", "check", "--package", ".")
+		if be, ok := asBudgetError(err); ok {
+			return false, "", be
 		}
-		return true, ""
+		if err != nil {
+			return false, string(output), nil
+		}
+		return true, "", nil
 	}
 
 	// Fallback: check individual files (for packages without ailang.toml)
@@ -100,10 +103,10 @@ func runAilangCheck(dir string) (bool, string) {
 		cmd.Dir = dir
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return false, string(output)
+			return false, string(output), nil
 		}
 	}
-	return true, ""
+	return true, "", nil
 }
 
 // verifyWallCap bounds the whole-package Z3 run (M-PKG-QUALITY-LADDER M2).
@@ -277,4 +280,27 @@ func jsonError(w http.ResponseWriter, status int, format string, args ...interfa
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+// interfaceSkewMessage is the PUB005 refusal. It names both versions so the
+// publisher can tell a real version gap from a same-version disagreement —
+// "upgrade the publisher" alone sent one author through five rebuilds that
+// could not help (2026-10-19: those publishers were computing the identity
+// with an older `ailang` found on PATH, fixed in the CLI since).
+func interfaceSkewMessage(claimed, computed, publisherVersion, validatorVersion string) string {
+	validatorVersion = strings.TrimPrefix(strings.SplitN(validatorVersion, "\n", 2)[0], "AILANG ")
+	msg := fmt.Sprintf("PUB005 interface identity skew: publisher computed %s, validator computed %s.\n", claimed, computed)
+	switch {
+	case publisherVersion == "":
+		msg += fmt.Sprintf("Validator runs ailang %s; the publisher did not send its version. "+
+			"Upgrade the publisher to %s and retry. An older publisher not run as a file named `ailang` "+
+			"computes this hash with the first `ailang` on PATH instead of itself — check `which ailang`.", validatorVersion, validatorVersion)
+	case publisherVersion != validatorVersion:
+		msg += fmt.Sprintf("Publisher ran ailang %s, validator runs %s — upgrade the publisher to %s and retry.",
+			publisherVersion, validatorVersion, validatorVersion)
+	default:
+		msg += fmt.Sprintf("Both sides ran ailang %s, so this is not a version gap: the validator hashes the uploaded tarball "+
+			"(the lock file and tests/ directories are not in it). Report both hashes to AILANG core.", validatorVersion)
+	}
+	return msg
 }

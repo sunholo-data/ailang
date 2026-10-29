@@ -343,7 +343,7 @@ Hard-gate claims, each verified live (binary `AILANG v0.52.5`, 2026-10-08, on th
 **Planned (check for overlap):**
 - [m-test-runner-compile-once.md](v0_53_0/m-test-runner-compile-once.md) (same directory) — the batching this feature extends; its D1 fallback is reused unchanged
 - [m-strip-contract-awareness-sprint-plan.md](../v0_31_0/m-strip-contract-awareness-sprint-plan.md) (v0.31.0) — the sprint that explicitly deferred this defect as a filing
-- [ai-deadline-and-named-test-roundtrip.md](../ailang-core-triage/ai-deadline-and-named-test-roundtrip.md), [source-strip-string-brace-skip-ranges.md](../ailang-core-triage/source-strip-string-brace-skip-ranges.md), [named-test-float-dict-resolution.md](../ailang-core-triage/named-test-float-dict-resolution.md) — sibling strip/roundtrip defects, kept out of scope (Non-Goals)
+- [ai-deadline-and-named-test-roundtrip.md](../ailang-core-triage/ai-deadline-and-named-test-roundtrip.md), [source-strip-string-brace-skip-ranges.md](../../implemented/v0_54_13/source-strip-string-brace-skip-ranges.md), [named-test-float-dict-resolution.md](../ailang-core-triage/named-test-float-dict-resolution.md) — sibling strip/roundtrip defects, kept out of scope (Non-Goals)
 
 ## References
 

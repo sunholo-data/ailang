@@ -126,6 +126,16 @@ var BuiltinNames = []string{
 	"__array_append",
 	"__array_update_many",
 	"__yaml_encode",
+	"__map_empty",
+	"__map_insert",
+	"__map_lookup",
+	"__map_member",
+	"__map_remove",
+	"__map_size",
+	"__map_from_list",
+	"__map_to_list",
+	"__map_keys",
+	"__map_values",
 }
 
 // HOFBuiltinNames lists builtins that take closure arguments. These are
@@ -146,4 +156,5 @@ var HOFBuiltinNames = []string{
 	"__list_findIndex",
 	"__list_foldr",
 	"__list_mapAccumL",
+	"__array_accumulate", // M-PERSISTENT-COLLECTIONS 1c
 }

@@ -22,6 +22,8 @@ import std/list (map as listMap, foldl as listFoldl, filter as listFilter)
 --   length(arr)    O(1)  - stored metadata
 --   fromList(xs)   O(n)  - converts each element
 --   toList(arr)    O(n)  - converts each element
+--   updateMany(arr, ws)          O(n + k) - one copy, later writes win
+--   accumulate(arr, ws, combine) O(n + k) - one copy, out[i] = combine(out[i], x)
 --
 -- ERRORS: get, unsafeGet and set fail on an out-of-bounds index, naming the
 -- index and the length. getOpt returns None instead.
@@ -102,6 +104,16 @@ export pure func updateMany[a](arr: Array[a], writes: [(int, a)]) -> Array[a] {
 --   scatterAdd(make(3, 0.0), [0, 0, 2], [1.0, 2.0, 5.0])  -- #[3.0, 0.0, 5.0]
 export pure func scatterAdd(arr: Array[float], idx: [int], xs: [float]) -> Array[float] {
   _array_scatter_add(arr, idx, xs)
+}
+
+-- Combine (index, value) writes into arr with ONE copy: for each write in list
+-- order, out[i] = combine(out[i], x). O(n + k). Any out-of-bounds index is an
+-- error. The generic batch update: a difference array, a histogram or a
+-- counting sort over any element type (scatterAdd is the Array[float] + case).
+--   accumulate(make(4, 0), [(0, 1), (2, 5), (0, 2)], \a b. a + b)  -- #[3, 0, 5, 0]
+--   accumulate(make(3, ""), [(1, "a"), (1, "b")], \a b. "${a}${b}")  -- #["", "ab", ""]
+export pure func accumulate[a](arr: Array[a], writes: [(int, a)], combine: (a, a) -> a) -> Array[a] {
+  _array_accumulate(arr, writes, combine)
 }
 
 -- ============================================================================
