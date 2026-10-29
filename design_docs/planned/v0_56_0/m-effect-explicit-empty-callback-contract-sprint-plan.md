@@ -56,11 +56,11 @@ The skill's JSON helper implicitly imports GitHub messages; this session require
 
 **Ownership:** `internal/elaborate/file_funcs.go`, companion `internal/elaborate/function_effect_empty_test.go`, `internal/types/typechecker.go` and companion tests. Do not grow large unrelated files or refactor the unifier.
 
-- [ ] Add failing-first four-state conversion tests: absent=nil, explicit empty=non-nil empty, concrete nonempty, declared row variable; cover nested aliases and multi-argument callback types.
-- [ ] Use existing parser presence; no new syntax, token or AST flag. Explicit empty yields closed empty row + Concrete=true/Implicit=false. Do not merely mark an open empty compatibility row concrete.
-- [ ] Preserve omitted-arrow L1-open, nonempty concrete compatibility tails, parameter/budget metadata, and row-polymorphic sharing exactly. Audit legacy AST conversion separately; do not silently change its existing omitted-arrow rule.
-- [ ] Unit/pipeline discriminator: explicit empty slot rejects an annotated IO value even when its caller already declares IO; matching pure callback accepts. Existing omitted hand-off still charges.
-- [ ] Run targeted conversion/types/pipeline tests, `make test-changed`, lint and sizes; commit M1 with evidence of red→green and preserved controls.
+- [x] Add failing-first four-state conversion tests: absent=nil, explicit empty=non-nil empty, concrete nonempty, declared row variable; cover nested aliases and multi-argument callback types.
+- [x] Use existing parser presence; no new syntax, token or AST flag. Explicit empty yields closed empty row + Concrete=true/Implicit=false. Do not merely mark an open empty compatibility row concrete.
+- [x] Preserve omitted-arrow L1-open, nonempty concrete compatibility tails, parameter/budget metadata, and row-polymorphic sharing exactly. Audit legacy AST conversion separately; do not silently change its existing omitted-arrow rule.
+- [x] Unit/pipeline discriminator: explicit empty slot rejects an annotated IO value even when its caller already declares IO; matching pure callback accepts. Existing omitted hand-off still charges.
+- [x] Run targeted conversion/types/pipeline tests, `make test-changed`, lint and sizes; commit M1 with evidence of red→green and preserved controls.
 
 ## M2: Preserve contracts in strings, interfaces, aliases and cache (~170 LOC)
 

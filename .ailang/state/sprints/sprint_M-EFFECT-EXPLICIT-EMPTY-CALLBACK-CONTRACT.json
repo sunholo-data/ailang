@@ -44,10 +44,10 @@
         "IO-to-empty-slot rejects from IO caller; pure control accepts",
         "Targeted and changed/core gates, lint and size checks pass"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T09:31:48.447680+00:00",
+      "notes": "Failing-first Core ownership/legacy metadata and pipeline IO-in-empty-slot tests now pass. Closed-empty conversion preserves omitted/nonempty/rowpoly controls. Full make test-changed (5 branch packages plus core), lint0 and size gates pass. No persistence or consumer change yet."
     },
     {
       "id": "M2_PERSISTENCE",
